@@ -1,10 +1,3 @@
-// Adversarial QA over ADR 0027 — the hob became part of the cabinet body.
-//
-// The wave's own tests prove the two entries exist and that one goes back into the opening a delete
-// left. This file attacks what changes *around* that: the width set's boundary, the composite's own
-// extent as the void engine reads it, and whether the two entries are told apart only where the
-// customer makes the choice.
-//
 // `hob-base.test.ts` in `@lemnaria/three-adapter` owns everything that needs the real builders.
 import {
   evaluateInsertFit,
@@ -81,21 +74,14 @@ function baseOpeningOf(widthMm: number) {
 
 function hobOffersAt(widthMm: number) {
   const { world, opening } = baseOpeningOf(widthMm);
-  // ADR 0032 keeps a refused entry in the list with its reason, so "offered" has to be said. The
-  // 587 mm case below is the whole point of this helper: the row is present and refused, not absent.
   return offersFor({
     ...world,
     target: { kind: "void", id: opening.id },
   }).filter((offer) => HOB_BUILD_IDS.some((id) => id === offer.buildId));
 }
 
-// ---------------------------------------------------------------------------------------------
-// The fixed 600 mm set, at its own boundary.
-//
-// ADR 0027 decision 2: both entries are `widthFlex: [600]` because the appliance is a 600 mm one.
-// That makes the *only* thing standing between the customer and a hob adrift on a worktop the
-// millimetre-set branch of §5.2's width resolution, and its boundary is `FIT_TOLERANCE_M`.
-// ---------------------------------------------------------------------------------------------
+// Both entries are `widthFlex: [600]` (ADR 0027 decision 2), so the only thing between the customer and a hob
+// adrift on a worktop is the millimetre-set branch of §5.2's width resolution, bounded by `FIT_TOLERANCE_M`.
 describe("ADR 0027's hob bases against a base opening's width", () => {
   it.each([
     ["exactly 600", 600],
@@ -117,9 +103,6 @@ describe("ADR 0027's hob bases against a base opening's width", () => {
     },
   );
 
-  // One millimetre below the tolerance, and the row disappears rather than being offered and then
-  // refused — §9's "never offer what cannot be satisfied", which is the same rule read from the
-  // offer end.
   it("is not offered into a 587 mm opening, one millimetre past the tolerance", () => {
     expect(hobOffersAt(600 - FIT_TOLERANCE_MM - 1)).toEqual([]);
   });
@@ -156,9 +139,8 @@ describe("ADR 0027's hob bases against a base opening's width", () => {
     }
   });
 
-  // ADR 0027's own consequence, pinned rather than endorsed: a millimetre-set body takes the widest
-  // size in its set that fits, so a wider opening gets a 600 mm cabinet and the rest of the opening
-  // stays empty. That is backlog entry 8, and if it is ever decided this is the case that changes.
+  // A millimetre-set body takes the widest size in its set that fits, so a wider opening gets a 600 mm cabinet
+  // and the rest stays empty (ADR 0027). Pinned, not endorsed: if that is ever decided, this case changes.
   it.each([700, 800, 900])(
     "never widens to a %s mm opening — the whole reason it is a fixed set",
     (widthMm) => {
@@ -178,8 +160,6 @@ describe("ADR 0027's hob bases against a base opening's width", () => {
     },
   );
 
-  // The same, through a real command on the shipped kitchen rather than through the offer list:
-  // swapping the 800 mm sink base writes a 600 mm placement, and the design records 600.
   it.each(HOB_BUILD_IDS)(
     "%s swapped into the 800 mm sink base writes 600 mm into the document",
     (buildId) => {
@@ -205,15 +185,11 @@ function insertHob(world: KitchenWorld, placementId: string, buildId: string) {
   return { design: result.design, id: placed.id, ...placed.body };
 }
 
-// ---------------------------------------------------------------------------------------------
-// The hob body's own extent, judged by the void engine rather than by the diff.
-// ---------------------------------------------------------------------------------------------
 describe("the hob rides above the column and contributes nothing to it", () => {
   const after = seeded();
 
-  // 820 mm of body, and the 40 mm hob above the worktop line contributes none of it. This is the
-  // assertion that fails if the hob is ever given a `frameHeightMm` of its own (ADR 0027's third
-  // rejected alternative).
+  // 820 mm of body, and the 40 mm hob above the worktop line contributes none of it: this fails if the hob is
+  // given a `frameHeightMm` of its own (ADR 0027's third rejected alternative).
   it("keeps the hob column's extent at the worktop line, hob included", () => {
     const column = after.columns.get(HOB_COLUMN);
 
@@ -230,21 +206,13 @@ describe("the hob rides above the column and contributes nothing to it", () => {
     expect(after.voids).toEqual([]);
   });
 
-  // The hob body's band is `base`, so §7's head-clearance cap stays on over it. Pinned because a
-  // body that carries an appliance is the obvious candidate for being mistaken for a full-height
-  // one.
+  // The hob body's band is `base`, so §7's head-clearance cap stays on over it; a body carrying an appliance is
+  // the obvious candidate for being mistaken for a full-height one.
   it("does not let the hob body lift §7's head-clearance cap", () => {
     expect(after.columns.get(HOB_COLUMN)?.hasFullHeightUnder).toBe(false);
   });
 });
 
-// ---------------------------------------------------------------------------------------------
-// Losing the hob cabinet, and getting it back.
-// ---------------------------------------------------------------------------------------------
-//
-// The defect ADR 0027 was written for: a delete took the hob away permanently, because no catalogue
-// entry carried one. ADR 0038 retired the pre-migration document this section used to also cover —
-// nothing was ever stored, so there is no design that carries the hob as a placement of its own.
 describe("the opening a deleted hob cabinet leaves", () => {
   const removeHobCabinet = (world: KitchenWorld) => {
     const result = removePlacement({
@@ -294,9 +262,6 @@ describe("the opening a deleted hob cabinet leaves", () => {
   });
 });
 
-// ---------------------------------------------------------------------------------------------
-// Two entries the domain cannot tell apart.
-// ---------------------------------------------------------------------------------------------
 describe("the two hob bases are distinguished only where the choice is made", () => {
   it("carries identical catalogue geometry, so nothing may pick between them by measurement", () => {
     const [drawers, oven] = HOB_BUILD_IDS.map((buildId) =>
@@ -306,15 +271,10 @@ describe("the two hob bases are distinguished only where the choice is made", ()
     expect(oven).toBeDefined();
     if (!drawers || !oven) return;
 
-    // Everything §5.2 measures a fit with, and everything §9 offers on, is identical. The fields
-    // that are not are the two the *customer* is choosing between — the Romanian label and
-    // `canHandle`, which the oven variant declares `false` because its only bar belongs to the oven
-    // and the one front it owns is a fixed facade that does not open — plus, since wave S9, the
-    // depth the built body occupies, which is asserted on its own below.
-    //
-    // `canFinish` is deliberately **not** masked. Since Q6 (owner, 2026-09-01, ADR 0050) the hob
-    // band's filler panel is a finishable front, so both variants declare `true` and the equality
-    // below carries that agreement. Masking it here would hide a future divergence.
+    // Everything §5.2 fits on and §9 offers on is identical. The fields that differ are the two the customer
+    // chooses between (the label, and `canHandle`, false for the oven variant whose only bar belongs to the oven)
+    // and the depth the built body occupies, asserted below. `canFinish` is deliberately not masked: both declare
+    // `true` (ADR 0050), and masking it would hide a future divergence.
     const withoutTheChoice = (definition: BodyDefinition) => ({
       ...definition,
       canHandle: true,
@@ -327,31 +287,24 @@ describe("the two hob bases are distinguished only where the choice is made", ()
     expect([drawers.canFinish, drawers.canHandle]).toEqual([true, true]);
     expect([oven.canFinish, oven.canHandle]).toEqual([true, false]);
 
-    // **Masked above and asserted here, since M6 wave 6L** (ADR 0061). The handle *count* is the
-    // same fact `canHandle` states, said to the price instead of to the panel: the drawer variant
-    // carries two of its own, and the oven variant's single bar is the oven's, so it carries none.
-    // Left inside the equality it would have read as "these two bodies differ by a number", which is
-    // exactly the reading this test exists to refuse.
+    // Masked above, asserted here (ADR 0061): the handle count says to the price what `canHandle` says to the
+    // panel, two on the drawer variant and none on the oven variant, whose single bar is the oven's. Inside the
+    // equality it would read as two bodies differing by a number.
     expect([drawers.cabinetHandles, oven.cabinetHandles]).toEqual([
       carriesHandles(2),
       NO_CABINET_HANDLES,
     ]);
 
-    // **Masked above and asserted here for `cabinetHandles`' reason, since wave 6S** (ADR 0070).
-    // The same fact a third time, and the first time it is said precisely: the drawer variant's two
-    // fronts are **drawers** and run on runners, while the oven variant's single front is a fixed
-    // facade over the oven cavity that opens on nothing at all. Left inside the equality this would
-    // read as two bodies differing by a measurement, which is what this test refuses.
+    // Masked above, asserted here (ADR 0070): the drawer variant's two fronts are drawers on runners, while the
+    // oven variant's single front is a fixed facade over the oven cavity.
     expect([drawers.fronts, oven.fronts]).toEqual([
       carriesDrawers(2),
       NO_OPENING_FRONTS,
     ]);
 
-    // **The one measurement that does differ, and it is not one anything picks by** (DOM-002).
-    // Nominal width, height and depth are identical — those are what §5.2 fits and §9 offers on.
-    // What the built bodies occupy is not: the drawer variant finishes at its worktop, and the oven
-    // variant's fascia and bar reach 28 mm past it. It is measured on the geometry, so declaring
-    // them equal would be declaring a body 28 mm shallower than the one that gets built.
+    // The one measurement that differs, and nothing picks by it: nominal width, height and depth are identical
+    // (what §5.2 fits and §9 offers on), but the oven variant's fascia and bar reach 28 mm past the worktop where
+    // the drawer variant finishes at it. Declaring them equal would declare a body 28 mm shallower than the built one.
     expect([drawers.occupiedDepth, oven.occupiedDepth]).toEqual([
       finishesAtMm(baseFinishedDepthMm(WORKTOP_DEPTH_MM)),
       finishesAtMm(HOB_OVEN_BASE_FINISHED_DEPTH_MM),
@@ -359,9 +312,8 @@ describe("the two hob bases are distinguished only where the choice is made", ()
     expect([drawers.nominalDepthMm, oven.nominalDepthMm]).toEqual([580, 580]);
   });
 
-  // Which of the two the shipped cabinet *is* comes from `catalogEquivalentId`, declared on the
-  // seeded entry — §6.3's rule that identity is never inferred. If it were inferred from kind, band
-  // and width the two rows would be indistinguishable and the badge could land on either.
+  // Which of the two the shipped cabinet is comes from `catalogEquivalentId` on the seeded entry (§6.3: identity
+  // is never inferred); inferred from kind, band and width, the badge could land on either row.
   it("badges exactly one row ACTUAL on the shipped hob cabinet, and it is the drawer one", () => {
     const world = seeded();
     const offers = offersFor({
@@ -374,8 +326,7 @@ describe("the two hob bases are distinguished only where the choice is made", ()
     ).toEqual(["base-hob-2drawer"]);
   });
 
-  // §5.3 writes a new placement id over the old one, so the badge is asked of the body that is
-  // standing there now — which is the insertable entry itself, not a seeded pointer.
+  // §5.3 writes a new placement id over the old one, so the badge is asked of the body standing there now.
   it("moves the badge when the customer swaps to the oven variant", () => {
     const world = seeded();
     const swapped = insertHob(world, HOB_PLACEMENT_ID, "base-hob-oven");
@@ -391,33 +342,10 @@ describe("the two hob bases are distinguished only where the choice is made", ()
   });
 });
 
-// ---------------------------------------------------------------------------------------------
-// The shipped hob cabinet, described to §9.
-// ---------------------------------------------------------------------------------------------
 describe("§9's description of the shipped hob cabinet", () => {
-  // A regression guard over a gap this wave closed, kept because the gap was invisible from the
-  // outside and would come back the same silent way.
-  //
-  // ADR 0027 decision 2 fixes a hob-bearing base at 600 mm in both directions — `widthFlex: [600]`,
-  // `sizesMm: [600]`, `fixedWidth: true` — because the appliance is a 600 mm one and "a `'fit'` body
-  // would build an 800 mm cabinet with a 600 mm hob adrift on it". The *insertable* entry always
-  // said so. The **seeded** entry the shipped kitchen stands on, `base-hob-2drawer-600`, inherited
-  // `baseCarcass`'s `fixedWidth: false`, so §8's `meta` described the one cabinet in the kitchen
-  // carrying a hob as a resizable body while its catalogue row called it fixed.
-  //
-  // The gap had no visible symptom: a seeded entry has no `sizesMm`, so `describe-selection`
-  // publishes an empty chip set and §9's width section does not render (`panel-model.ts` says so in
-  // as many words). It becomes reachable the moment M5 wires §5.4, whose `canGive` is "exists ·
-  // **not `fixedWidth`** · not a corner · has a resolvable catalogue id" — the hob
-  // cabinet would then both accept a resize and donate width to a neighbour, and there is no 400 mm
-  // hob.
-  //
-  // `hood-600`, `fridge-free-700` and the four corners already declared `fixedWidth: true` on their
-  // seeded rows, so the convention existed and only these had been missed. This wave set it on all
-  // three affected seeded entries — `base-hob-2drawer-600`, and `tall-oven-tower-600` and
-  // `tall-pantry-600`, which carried the same gap for unrelated reasons (ADR 0027 Consequences
-  // records that pair). The assertion below exists to catch a reintroduction, not to expose a
-  // defect.
+  // Seeded hob-bearing bases must declare `fixedWidth: true` like their catalogue row (ADR 0027 decision 2). A
+  // seeded entry has no `sizesMm`, so a missing flag shows no symptom in §9, yet §5.4's `canGive` would let the
+  // hob cabinet resize and donate width to a neighbour, and there is no 400 mm hob.
   it("reports the hob cabinet as fixed-width, which is what its catalogue entry is", () => {
     const meta = describeSelection({
       ...seeded(),

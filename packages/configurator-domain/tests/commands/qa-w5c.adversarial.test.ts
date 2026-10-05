@@ -1,12 +1,3 @@
-// Adversarial QA on M5 wave 5C, rebuilt on ADR 0031 — a resize moves a whole column, funded by an
-// adjacent empty column.
-//
-// The population is enumerated here independently of `qa-w5c.enumeration.test.ts` rather than
-// re-asserted from it: the census below is built from the column map and the adjacency arithmetic,
-// and the two-column clears are territory the implementer's census does not enter at all.
-//
-// Three blocks are **left failing on purpose**. Each names a production location and the case that
-// demonstrates it; none of them is weakened to go green.
 import { describe, expect, it } from "vitest";
 
 import type {
@@ -117,12 +108,8 @@ function placementAt(
   };
 }
 
-/** Every tap this sweep's coarse width set accepts on the shipped kitchen **at load**, measured
- *  after ADR 0035 decision 7 made a shrink fund itself. Zero before that decision.
- *
- *  Named once and subtracted below, because after decision 7 a clear no longer *creates* the
- *  resizable population — it adds the growths to it. What a clear buys is the delta, and pinning the
- *  absolute list nine times over would bury eleven interesting rows under 233 uninteresting ones. */
+/** Every tap the coarse width set accepts on the shipped kitchen at load; each one is a shrink (ADR 0035
+ *  decision 7). Subtracted below so each clear is pinned by what it adds, not by the repeated load census. */
 const LOAD_ACCEPTED_TAPS: readonly string[] = [
   // `A|1.30`, the 800 mm sink run, down to the sink aperture's floor.
   "p0@600",
@@ -136,10 +123,8 @@ const LOAD_ACCEPTED_TAPS: readonly string[] = [
   "p14@400",
   "p14@450",
   "p15@200",
-  // No `p15@300` or `p8@300`: narrowing `A|0.30` from 600 to 300 vacates 0.30–0.60, whose centre
-  // keys as `A|0.45` — the corner leg `p25`'s own column. The strip cannot be written there without
-  // replacing that column's frozen 900 mm extent, so the shrink refuses. Both come back the moment
-  // `A|0.75` is cleared and there is a real empty column to give the width back to.
+  // No `p15@300` or `p8@300`: narrowing `A|0.30` to 300 vacates 0.30–0.60, which keys as `A|0.45`, the corner
+  // leg's column, so the shrink refuses. Both return once `A|0.75` is cleared and there is an empty column.
   "p15@400",
   "p15@450",
   "p16@200",
@@ -150,9 +135,7 @@ const LOAD_ACCEPTED_TAPS: readonly string[] = [
   "p20@300",
   "p20@400",
   "p20@450",
-  // ADR 0048: `B|1.80`'s two members. The seeded pantry `p6` stopped being `fixedWidth` when the
-  // owner flipped it on 2026-09-01, and a column moves as one, so the wall cabinet `p23` above it
-  // came with it.
+  // `B|1.80`: the pantry `p6` and the wall cabinet `p23` above it move as one column (ADR 0048).
   "p23@400",
   "p23@450",
   "p4@300",
@@ -165,20 +148,9 @@ const LOAD_ACCEPTED_TAPS: readonly string[] = [
   "p8@450",
 ];
 
-// ---------------------------------------------------------------------------
-// The population, derived independently.
-// ---------------------------------------------------------------------------
-
 describe("Q1 — the legal-resize population, enumerated independently", () => {
   it("has no empty column at load, and every tap it accepts there is a shrink", () => {
-    // **ADR 0035 decision 7 rewrote this row's headline.** ADR 0031 required an adjacent empty
-    // column in both directions, and the shipped kitchen has none at load, so nothing at all was
-    // resizable until the customer deleted something. A shrink now creates the column it needs, so
-    // the first assertion holds unchanged — there really is no void — while the second becomes 26
-    // accepted taps, every one of them narrowing a column.
-    //
-    // The sign is asserted rather than the list's shape, because it is the rule: growth still has to
-    // consume space that exists, and there is none.
+    // Every accepted tap is a shrink: a growth has to consume an empty column and the kitchen has none at load.
     const world = kitchen();
     expect(world.voids).toEqual([]);
 
@@ -193,13 +165,7 @@ describe("Q1 — the legal-resize population, enumerated independently", () => {
     expect(accepted).toEqual(LOAD_ACCEPTED_TAPS);
   });
 
-  // **ADR 0048 killed half of this row, and the half it left is the interesting one.** Wall B used
-  // to be dead everywhere: every one of its columns held a corner or a `fixedWidth` full-height
-  // unit, so no wall-B clear ever made a wall-B body resizable. `B|1.80` is the seeded pantry, and
-  // the owner unfroze it on 2026-09-01, so that column is alive — which is what report item 8 asked
-  // for. The other four are still dead, for the reasons they always were.
   it("is dead on wall B apart from the pantry column ADR 0048 unfroze", () => {
-    // Derived rather than asserted: for each wall-B column, name the member that stops it.
     const blockers = new Map<string, string>();
     for (const record of kitchen().records.filter(
       (candidate) => candidate.wall === "B",
@@ -215,14 +181,12 @@ describe("Q1 — the legal-resize population, enumerated independently", () => {
     }
     expect([...blockers.keys()].sort()).toEqual([
       "B|0.61",
-      "B|0.73", // B|0.74 until ADR 0135 moved the return's centre from 740 to 735
+      "B|0.73",
       "B|1.20",
       "B|2.45",
     ]);
 
-    // And so no wall-B clear, alone or paired, ever makes one of the **blocked** columns' bodies
-    // resizable. `p6` and `p23` are deliberately not on this list any more: they are the pantry
-    // column, and their moving is the decision rather than a leak.
+    // `p6` and `p23` are the pantry column and are meant to move, so they are not in the blocked list.
     const wallB = CLEARABLE.filter((column) => column.key.startsWith("B|"));
     for (const cleared of wallB) {
       const taps = acceptedTaps(clearBodies(kitchen(), cleared.ids));
@@ -238,20 +202,7 @@ describe("Q1 — the legal-resize population, enumerated independently", () => {
     }
   });
 
-  // **Six moves and fifteen taps before ADR 0033; fourteen and thirty-three after it; eighteen and
-  // forty-four after ADR 0035's bounds; twenty-four and fifty-nine once the owner retired ADR 0030's
-  // one-door cap on 2026-08-28.** Each of those steps widened what a *clear* unlocked, and the
-  // history is kept because the shape of the reasoning is still what this row checks.
-  //
-  // **ADR 0035 decision 7 changes the question rather than the number.** With shrinking self-funded,
-  // 26 taps are accepted before anything is cleared and a clear can only add growths on top of them.
-  // "Taps accepted after one clear" is therefore no longer a measure of what the clear does — it is
-  // 230, of which 206 are the load census repeated. So this row now pins the **delta**, which is
-  // what ADR 0031 rule 2 still governs: a growth consumes an adjacent empty column, and clearing one
-  // is the only way to make one.
-  //
-  // Every gained tap below is in a column immediately left or right of the cleared key, and all but
-  // two are growths. Five of the nine clears gain nothing, and each has a reason on its row.
+  // Pins the delta over the load census: a growth consumes an adjacent empty column (ADR 0031 rule 2).
   it("gains only moves in the columns adjacent to the clear", () => {
     const gains = CLEARABLE.map((cleared) => ({
       key: cleared.key,
@@ -261,10 +212,7 @@ describe("Q1 — the legal-resize population, enumerated independently", () => {
     }));
 
     expect(gains).toEqual([
-      // `A|0.75` grows into the 600 mm `A|0.30` frees, and — since **ADR 0043**, 2026-09-01 — all
-      // the way to the 800 mm ceiling rather than stopping at 600. Growing from 300 to 700 leaves
-      // 200 mm of the freed column standing, which ADR 0031's remainder floor used to refuse and
-      // which is now a legal gap of its own.
+      // `A|0.75` grows into the 600 mm `A|0.30` frees, up to the 800 mm ceiling (ADR 0043).
       {
         key: "A|0.30",
         gained: [
@@ -280,17 +228,13 @@ describe("Q1 — the legal-resize population, enumerated independently", () => {
           "p16@800",
         ],
       },
-      // `p8@300` and `p15@300` narrow `A|0.30` from 600, and at load the strip they vacate collides
-      // with the corner leg's `A|0.45` key; with `A|0.75` cleared there is a real empty column to
-      // return the width to and no strip is created at all. **The four growths beside them are
-      // ADR 0043's**: `A|0.30` can only grow into `A|0.75`'s 300 mm, so 700 and 800 each leave a
-      // remainder the floor used to refuse.
+      // `p8@300` and `p15@300` return `A|0.30`'s width to the freed `A|0.75`, so no strip is created. The 700 and 800
+      // growths leave a remainder, which is legal (ADR 0043).
       {
         key: "A|0.75",
         gained: ["p15@300", "p15@700", "p15@800", "p8@300", "p8@700", "p8@800"],
       },
-      // The 800 mm clear is the largest, so `A|0.75` reaches the ceiling from 300 — it already did
-      // before ADR 0043, because 800 consumes the freed 800 exactly.
+      // The 800 mm clear is the largest, so `A|0.75` reaches the ceiling from 300.
       {
         key: "A|1.30",
         gained: [
@@ -308,9 +252,7 @@ describe("Q1 — the legal-resize population, enumerated independently", () => {
       },
       // Its neighbours are `A|1.30` at the ceiling and `A|2.60`, frozen by the hob base.
       { key: "A|2.00", gained: [] },
-      // `A|3.20` grows into the hob column's 600 mm. The **hood** `p13` is deleted along with it and
-      // gains nothing on its own account: the seeded `hood-600` is `fixedWidth`, so decision 6's
-      // exemption from the column's width never makes it resizable in its own right.
+      // `A|3.20` grows into the hob column's 600 mm. The hood `p13` is `fixedWidth`, so it gains nothing itself.
       {
         key: "A|2.60",
         gained: [
@@ -324,12 +266,8 @@ describe("Q1 — the legal-resize population, enumerated independently", () => {
       },
       // The end of the run: one occupied neighbour, and it is the frozen hob column.
       { key: "A|3.20", gained: [] },
-      // Wall B is corners, appliances and full-height units; nothing on it can change width, and
-      // nothing on wall A abuts a wall-B column.
-      // **ADR 0048: wall B funds a growth now.** `B|1.80` is the pantry column, and clearing either
-      // of its neighbours gives it the empty column ADR 0031 rule 2 requires — so `p6` and `p23`
-      // reach 700 and 800. Clearing `B|1.80` itself still gains nothing: the column that would
-      // grow is the column the clear just emptied. This is the §5.4 consequence the owner accepted.
+      // Clearing a neighbour of `B|1.80` gives the pantry column an empty column to grow into (ADR 0048). Clearing
+      // `B|1.80` itself gains nothing: the column that would grow is the one just emptied.
       { key: "B|1.20", gained: ["p23@700", "p23@800", "p6@700", "p6@800"] },
       { key: "B|1.80", gained: [] },
       { key: "B|2.45", gained: ["p23@700", "p23@800", "p6@700", "p6@800"] },
@@ -337,11 +275,8 @@ describe("Q1 — the legal-resize population, enumerated independently", () => {
   });
 
   it("loses two load taps to RESIZE_OPENS_GAP, and none to anything else", () => {
-    // The anti-invariant beside the gains: a clear must not take away a tap on a body that is still
-    // standing, **except** where widening the freed column would put an opening over one. Exactly
-    // one clear does that, and it is the corner leg — clearing `A|1.30` lets `A|0.75` widen the
-    // empty column to 900 mm across the floor `p25` occupies, so `p10@200` and `p16@200` stop being
-    // accepted while `p10` and `p16` are still there.
+    // A clear must not remove a tap on a surviving body, except where widening the freed column puts an opening
+    // over the corner leg `p25`: clearing `A|1.30` lets `A|0.75` widen the empty column to 900 mm.
     const survivors = CLEARABLE.map((cleared) => {
       const accepted = new Set(
         acceptedTaps(clearBodies(kitchen(), cleared.ids)),
@@ -361,12 +296,7 @@ describe("Q1 — the legal-resize population, enumerated independently", () => {
   });
 
   it("accepts 278 taps across the nine clears", () => {
-    // The total, so that a tenth source of acceptance cannot appear unnamed: `9 × 30 − 30 − 2 + 40`
-    // — nine copies of the load census, less the 30 taps whose body each clear deletes, less the two
-    // lost to the corner leg, plus the 40 taps gained. **It was 230 with 24 gained until ADR 0043**
-    // removed the remainder floor, then 238 with 32; **ADR 0048 took it to 278** by adding four
-    // shrinks to the load census (`p6` and `p23`, twice each) and eight growths to the gains.
-    // Every one of those taps is on a row above.
+    // 9 × 30 load taps − 30 taps on deleted bodies − 2 lost to the corner leg + 40 gained.
     const total = CLEARABLE.flatMap((cleared) =>
       acceptedTaps(clearBodies(kitchen(), cleared.ids)),
     ).length;
@@ -374,13 +304,6 @@ describe("Q1 — the legal-resize population, enumerated independently", () => {
   });
 
   it("opens no new column move when a second column is cleared", () => {
-    // Untested territory: 36 pairs. Every accepted tap is still one of the single-clear moves, so
-    // clearing more space widens the population of *situations* and never the population of moves.
-    // That claim is what this row protects, and neither ADR 0033 nor ADR 0035 touched it — the list
-    // below grew from four to eleven, then to fourteen, with ADR 0043 to twenty, and with ADR 0048
-    // to twenty-four, because the
-    // moves themselves grew, not because a pair unlocked anything a single clear could not. The two
-    // ADR 0043 adds here, `A|0.30@700` and `A|0.30@800`, are both in the single-clear gains above.
     const pairs: string[] = [];
     for (let left = 0; left < CLEARABLE.length; left += 1) {
       for (let right = left + 1; right < CLEARABLE.length; right += 1) {
@@ -418,9 +341,7 @@ describe("Q1 — the legal-resize population, enumerated independently", () => {
       "A|3.20@450",
       "A|3.20@700",
       "A|3.20@800",
-      // ADR 0048: the pantry column. Its four widths are exactly the ones a *single* clear already
-      // reaches — `@400` and `@450` at load, `@700` and `@800` from either neighbour — so the claim
-      // this row protects is unchanged: a pair unlocks no move a single clear could not.
+      // The pantry column (ADR 0048): the same four widths a single clear already reaches.
       "B|1.80@400",
       "B|1.80@450",
       "B|1.80@700",
@@ -428,10 +349,6 @@ describe("Q1 — the legal-resize population, enumerated independently", () => {
     ]);
   });
 });
-
-// ---------------------------------------------------------------------------
-// Conservation.
-// ---------------------------------------------------------------------------
 
 describe("Q2 — conservation and the inverse", () => {
   const INVERSES = [
@@ -480,11 +397,7 @@ describe("Q2 — conservation and the inverse", () => {
   );
 
   it("conserves the run total on every accepted tap, to the millimetre", () => {
-    // **The un-cleared kitchen joins the sweep with ADR 0035 decision 7**, and it is not a formality:
-    // a shrink now writes a column into the frozen map that was not there before, and the first
-    // version of that code silently *replaced* the corner leg's `A|0.45` column when narrowing
-    // `A|0.30` — 900 mm of frozen extent traded for 300. This sum is what caught it, and it caught it
-    // only because the sweep reaches the shrink. Left as a sweep over both worlds for that reason.
+    // Includes the un-cleared kitchen: shrinking `A|0.30` must not replace the corner leg's frozen `A|0.45` column.
     const worlds = [
       kitchen(),
       ...CLEARABLE.map((cleared) => clearBodies(kitchen(), cleared.ids)),
@@ -512,9 +425,7 @@ describe("Q2 — conservation and the inverse", () => {
   });
 
   it("allows an empty column to be consumed exactly to zero and removes its key", () => {
-    // A 400 mm empty column beside a 600 mm column that can reach 1000 is not in the shipped
-    // catalogue, so the exact-consumption case is built: 'fit' members on the standard set, with
-    // the empty column at exactly the 200 mm delta.
+    // Not in the shipped catalogue, so the exact-consumption case is built synthetically.
     const world = clearBodies(
       syntheticWorld([
         placementAt("a-base", 700, 0, "base-panbank", 600, 860),
@@ -548,10 +459,7 @@ describe("Q2 — conservation and the inverse", () => {
       ["b-base", "b-wall"],
     );
 
-    // Asserted the refusal until 2026-09-01. A 600 mm column growing to 800 into a 300 mm empty one
-    // leaves 100 mm, which the owner has decided is a state a design may hold: *"Empty space can be
-    // even 100 mm or 50 mm, if somebody want to keep it."* The conservation this section is about is
-    // unchanged — the 100 mm is still there, in a column of its own.
+    // A 600 mm column growing to 800 into a 300 mm empty one leaves a 100 mm column, which is legal (ADR 0043).
     const result = resizeTo(world, "a-base", 800);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -563,27 +471,9 @@ describe("Q2 — conservation and the inverse", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// FINDING Q1.1 — a resize destroys an opening a delete freed, in the resized column.
-// ---------------------------------------------------------------------------
-
 describe("Q3 — ADR 0011 Gap D through the resized column", () => {
   it("FINDING Q1.1: keeps the opening a delete freed in the column being resized", () => {
-    // The defect, as it was when this test was written: `setWidth` handed the resized column to
-    // `rederiveTouchedColumns` (`void-engine.ts:460`) and nothing else, and that function re-derives
-    // a key **from the members that are left**. Every region belonging to a member deleted earlier
-    // in the session went with it, and the opening the customer had just freed disappeared — ADR
-    // 0011 Gap D verbatim, in the one column the ADR's own protection did not cover. The *empty*
-    // column was protected and the resized one was not.
-    //
-    // Fixed by `moveFrozenColumns` (`set-width.ts:751`), which now carries **both** columns'
-    // frozen extents. `rederiveTouchedColumns` is unchanged: its member-derived contract is what
-    // backlog 2's re-split needs.
-    //
-    // Three deletes and one tap on the shipped kitchen. Clear `A|0.30` for the empty space, delete
-    // `p10` — the wall cabinet at `A|0.75` — and its 700 mm slot is derived. Then narrow the top
-    // cabinet `p16` still standing above it, and the slot is gone: no void, no way to put a wall
-    // cabinet back, and nothing the customer did says it should have vanished.
+    // `p10`'s freed 700 mm slot must survive narrowing the top cabinet `p16` above it (ADR 0011 Gap D).
     const world = clearBodies(kitchen(), ["p8", "p15", "p10"]);
     expect(openingKeys(world)).toContain("A|0.75@1.50+0.70");
 
@@ -596,13 +486,12 @@ describe("Q3 — ADR 0011 Gap D through the resized column", () => {
       result.effect.columns,
     );
 
-    // The column moved from `A|0.75` to `A|0.70`, so the opening should move with it — not vanish.
+    // The column moved from `A|0.75` to `A|0.70`, so the opening moves with it rather than vanishing.
     expect(openingKeys(after)).toContain("A|0.70@1.50+0.70");
   });
 
   it("FINDING Q1.1 (second shape): the sink's freed floor space survives narrowing the wall run", () => {
-    // The same defect one level down, and the more expensive one: the base slot is the only place
-    // a base cabinet can go back.
+    // The base slot is the only place a base cabinet can go back.
     const world = clearBodies(kitchen(), ["p0", "p1", "p12", "p18"]);
     expect(openingKeys(world)).toContain("A|1.30@0.00+0.86");
 
@@ -619,19 +508,12 @@ describe("Q3 — ADR 0011 Gap D through the resized column", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// FINDING Q1.2 — the funding side is chosen before the gap test, and never reconsidered.
-// ---------------------------------------------------------------------------
-
 describe("Q4 — choosing which empty column funds the move", () => {
   it("refuses on the right rather than falling back to the left, when only the left works", () => {
-    // Baseline: with only the **left** column empty, narrowing `A|0.75` to 200 is legal and
-    // accepted. It is one of the fifteen taps above.
     const leftOnly = clearBodies(kitchen(), ["p8", "p15"]);
     expect(resizeTo(leftOnly, "p10", 200).ok).toBe(true);
 
-    // With only the **right** column empty it is refused, correctly: widening `A|1.30` to 900 mm
-    // puts a base opening over the corner leg `p25`.
+    // With only the right column empty it is refused: widening `A|1.30` to 900 mm puts a base opening over `p25`.
     const rightOnly = clearBodies(kitchen(), ["p0", "p11", "p17"]);
     const refusedRight = resizeTo(rightOnly, "p10", 200);
     expect(refusedRight.ok).toBe(false);
@@ -641,23 +523,10 @@ describe("Q4 — choosing which empty column funds the move", () => {
   });
 
   it("FINDING Q1.2: accepts the move when the left column can fund it and the right cannot", () => {
-    // The defect, as it was when this test was written: the scan picked the first side that could
-    // fund the move on geometry and the `MIN_W` floor alone, and the phantom check ran once,
-    // afterwards, on the side already chosen. There was no fallback, so a side that would have
-    // succeeded was never tried.
-    //
-    // Fixed by `fundColumnResize` (`set-width.ts:453`), which carries each side through the rebuild
-    // and treats `opensAnOpeningOverABody` (`set-width.ts:875`) as one of the ways a side answers
-    // no — `evaluateEmptySpace` (`set-width.ts:509`) still answers everything decidable from
-    // geometry alone.
-    //
-    // Both sides empty. The right (`A|1.30`) is chosen because `EMPTY_SPACE_ORDER` tries right
-    // first, widening to 900 mm over the corner leg; the left (`A|0.30`) would widen to 700 mm and
-    // stand over nothing at all — the very move accepted in the baseline above.
+    // The right column (`A|1.30`) is tried first (`EMPTY_SPACE_ORDER`) and would widen to 900 mm over the corner
+    // leg; the left (`A|0.30`) is legal, so the resize must fall back to it.
     const bothEmpty = clearBodies(kitchen(), ["p8", "p15", "p0", "p11", "p17"]);
-    // Nothing is wrong with the state going in: the five openings the two clears derived all stand
-    // over empty space, so the refusal is created by the resize's own choice of side and by
-    // nothing else.
+    // Every opening the two clears derived stands over empty space, so any refusal comes from the choice of side.
     expect(openingKeys(bothEmpty)).toEqual([
       "A|0.30@1.50+0.70",
       "A|0.30@2.20+0.40",
@@ -672,10 +541,6 @@ describe("Q4 — choosing which empty column funds the move", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// FINDING Q1.3 — ADR 0031 rule 5 and the intersection.
-// ---------------------------------------------------------------------------
-
 describe("Q5 — a column's legal widths are the intersection of its members' sets", () => {
   it("keeps a two-door column off every width below 600", () => {
     const world = clearBodies(kitchen(), ["p10", "p16"]);
@@ -688,15 +553,8 @@ describe("Q5 — a column's legal widths are the intersection of its members' se
   });
 
   it("resolves each member's set through its declared catalogue equivalent", () => {
-    // `A|2.00` holds a seeded dishwasher, an open shelf and a top hinged cabinet. None of the three
-    // declares a set of its own (ADR 0011 Gap A); the intersection is what it is only because each
-    // resolves through `catalogEquivalentId` (ADR 0022) to `base-dishwasher` {450, 600}, `open-shelf`
-    // (cabinetry, 300–800) and `wall-cabinet` (cabinetry, 200–800).
-    //
-    // **The intersection is {450, 600}, and it used to be {600} alone.** The dishwasher is discrete,
-    // so it bounds the column to its own two widths; before the owner retired ADR 0030's one-door cap
-    // on 2026-08-28 the hinged cabinet above could not be built at 450, and the column could match at
-    // 600 only. That gap is §11 row 14, and this is the test that would catch it reopening.
+    // None of the three members declares its own set; each resolves through `catalogEquivalentId` (ADR 0022) to
+    // `base-dishwasher` {450, 600}, `open-shelf` 300–800 and `wall-cabinet` 200–800.
     const world = clearBodies(kitchen(), ["p2", "p13", "p19"]);
     for (const widthMm of [400, 800]) {
       const result = resizeTo(world, "p1", widthMm);
@@ -710,16 +568,8 @@ describe("Q5 — a column's legal widths are the intersection of its members' se
   });
 
   it("has no empty intersection left to refuse: the hood was its only half", () => {
-    // **This row used to reach `WIDTH_NOT_SUPPORTED` on every width, and it cannot any more.** The
-    // pair it was built on was `base-bottle-cargo` {200, 300} under a `hood` 600–800 — the only
-    // disjoint pair the catalogue still had after ADR 0033 merged the door-count rows into one
-    // 200–800 bound. ADR 0035 decision 6 takes the hood out of the column's width membership, so
-    // that pair no longer disagrees about anything: the column is the cargo's {200, 300}, and the
-    // hood keeps its own width above it.
-    //
-    // Asserted by sweep rather than by re-stating the rule, because "the branch is unreachable" is
-    // the kind of claim that quietly stops being true. Every base row under every wall row, which is
-    // every column a design can physically hold at two levels: none of them intersects to nothing.
+    // The hood is outside the column's width membership (ADR 0035 decision 6). Swept over every base row under
+    // every non-hood wall row.
     const bands = [...INSERTABLE_BODY_DEFINITIONS];
     const baseRows = bands.filter(([, entry]) => entry.band === "base");
     const wallRows = bands.filter(([, entry]) => entry.band === "wall");
@@ -743,16 +593,8 @@ describe("Q5 — a column's legal widths are the intersection of its members' se
   });
 
   it("freezes a column whose hood is wider than anything its members are built at", () => {
-    // **Re-measured 2026-08-29.** This asserted the 300 mm bottle cargo under a 600 mm hood shrinking
-    // to 200, on the reading that a hood constrains nothing. ADR 0035 decision 6's amendment says a
-    // hood **floors** its column, and 200 is 400 mm under this hood — the extreme of the overhang the
-    // owner's floor exists to make unreachable.
-    //
-    // The consequence is worth stating rather than discovering: `base-bottle-cargo` is built at 200
-    // and 300 only (ADR 0026), both below the hood's 600, so the floor leaves this column **no legal
-    // width at all** and it is frozen in both directions. That is a coherent answer to an incoherent
-    // fixture — a 600 mm hood over a 300 mm bottle cargo is not a kitchen anyone builds — and it is
-    // reachable only by seeding it, never by resizing into it, precisely because of this floor.
+    // A hood floors its column (ADR 0035 decision 6): `base-bottle-cargo` is built at 200 and 300 only, both below
+    // the hood's 600, so the column has no legal width and is frozen in both directions.
     const world = clearBodies(
       syntheticWorld([
         placementAt("a-base", 700, 0, "base-bottle-cargo", 300, 860),
@@ -771,15 +613,8 @@ describe("Q5 — a column's legal widths are the intersection of its members' se
   });
 
   it("FINDING Q1.3: does not let a 'fit' member narrow the intersection", () => {
-    // ADR 0031 rule 5, verbatim: "`widthFlex: 'fit'` members accept any width above their floor
-    // and so do not narrow the intersection."
-    //
-    // `intersectColumnWidths` (`set-width.ts:353`) intersects `resolveBuildableSizes`, which reads
-    // `sizesMm` and never looks at `widthFlex`. A `'fit'` base carcass therefore contributes
-    // {400, 600, 800} and takes 300 away from the one-door cabinet above it — a width §9 renders
-    // as a chip on that cabinet, and a width the base member would build perfectly well.
-    //
-    // The column here is a `'fit'` pan bank under a 400 mm one-door wall cabinet, flush at 400.
+    // A `'fit'` base carcass does not narrow the intersection (ADR 0031 rule 5), so the 400 mm wall cabinet above
+    // it may still go to 300.
     const world = clearBodies(
       syntheticWorld([
         placementAt("a-base", 600, 0, "base-panbank", 400, 860),
@@ -796,22 +631,10 @@ describe("Q5 — a column's legal widths are the intersection of its members' se
   });
 });
 
-// ---------------------------------------------------------------------------
-// Mixed-width columns: reachability, breadth, and what a resize now does with one.
-// ---------------------------------------------------------------------------
-
 describe("Q6 — a mixed-width column", () => {
   it("is reachable with one ordinary insert, and is squared up rather than locked out", () => {
-    // ADR 0026's own motivating body. Clear a 600 mm column's base slot, put the bottle cargo the
-    // catalogue was extended for into it, and the column holds a 300 mm body under a 600 mm one.
-    //
-    // **This row asserted the opposite until ADR 0035 decision 6.** Every width refused with
-    // `COLUMN_MEMBERS_UNALIGNED`, and the ADR that introduced the refusal called the state a
-    // permanent lockout — "ADR 0026's whole 600+600+200 run is a run that can never be resized
-    // again", in the row below. The owner overruled it on 2026-08-28: *"let's make them editable,
-    // I didn't get why we need to refuse."* So the sweep now asserts the square-up, and that the
-    // widths it accepts are the ones the **column** agrees on rather than the ones either member
-    // offers alone.
+    // Clear a column's base slot and insert the bottle cargo: the column holds 300 mm under 600 mm, and a resize
+    // squares it up (ADR 0035 decision 6).
     let world = clearBodies(
       syntheticWorld([
         placementAt("a-base", 1000, 0, "base-panbank", 600, 860),
@@ -853,8 +676,7 @@ describe("Q6 — a mixed-width column", () => {
     for (const widthMm of ALL_WIDTHS_MM) {
       const result = resizeTo(withSpace, "a-wall", widthMm);
       if (!result.ok) {
-        // Whatever still refuses does so for a reason about the widths or the space, never about
-        // alignment — the code that used to answer here no longer exists.
+        // A refusal here is about widths or space, never alignment.
         expect([
           "WIDTH_NOT_SUPPORTED",
           "WIDTH_UNCHANGED",
@@ -867,7 +689,7 @@ describe("Q6 — a mixed-width column", () => {
       const after = result.design.placements.filter((placement) =>
         memberIds.includes(placement.id),
       );
-      // The whole point of the decision: one width and one centre at every level.
+      // Squared up: one width and one centre at every level.
       for (const placement of after) {
         expect(placement.body.widthMm).toBe(widthMm);
         expect(placement.alongMm).toBe(after[0]?.alongMm);
@@ -877,40 +699,7 @@ describe("Q6 — a mixed-width column", () => {
   });
 
   it("is produced by 13 of the 129 single-body inserts the shipped kitchen accepts", () => {
-    // The breadth question, measured. For each clearable column, each member deleted on its own,
-    // each opening that frees, and each §7 entry the engine accepts into it: does the column stay
-    // flush? The eight rows for `base-bottle-cargo` are every column it fits.
-    //
-    // **The measurement is unchanged; what it means is not.** These thirteen were lockouts — ADR
-    // 0026's whole 600+600+200 run was a run that could never be resized again — and under ADR 0035
-    // decision 6 they are thirteen columns that a resize squares up. The count is kept because it is
-    // still the population the square-up has to be right for, and because a catalogue edit that
-    // changed it would be worth noticing either way.
-    //
-    // **154 → 125 (ADR 0032) → 124 (ADR 0033) → 126 (its amendment) → 129 (the sink and hood
-    // decisions).** The merge removed one entry from each band, so the population lost the inserts
-    // naming the retired ids and gained the ones the merged rows accept; ranges then restored the
-    // fridge column's 700 mm openings; and the last three are `base-sink` reaching 700 as cabinetry
-    // with a fixed aperture, plus the hood narrowing into openings it used to refuse.
-    //
-    // **The numerator moved twice and is back where it started: thirteen → fifteen → thirteen, and
-    // both rows that came and went are the hood.** ADR 0033's amendment made the hood *narrow* into a
-    // wider opening like every discrete row, which gave it `base-dishwasher`'s consequence — install
-    // a 600 in an 800 mm opening and the column holds two widths, which `COLUMN_MEMBERS_UNALIGNED`
-    // then refuses to resize. ADR 0035 decision 5 makes the hood cabinetry bounded 600–800 instead,
-    // so it **fills** the opening and the column stays flush. The mixed-width question is unchanged
-    // and still the owner's (ADR 0032 says so by name); it simply no longer reaches this row.
-    //
-    // `base-sink` adds none — its range means it *fills* the opening rather than narrowing into it,
-    // so the column stays flush.
-    //
-    // **What stopped being accepted, stated as it now stands.** ADR 0032 gave a bounded set its bite
-    // on the `'fit'` path, and the denominator's fall to 125 was that: entries refused at openings
-    // whose width their own set did not list. Three of the four rows that named have since changed
-    // shape — `base-1door` and `wall-1door` were merged away by ADR 0033, `wall-2door` with them, and
-    // the hood no longer refuses a wider opening at all but narrows into it. What is left of the
-    // original effect is a hinged cabinet refusing the band between its two door counts, and the
-    // discrete appliance rows refusing what they are not made at.
+    // For each clearable column, member, opening and insertable entry: does the column stay flush?
     const locked: string[] = [];
     let accepted = 0;
     for (const cleared of CLEARABLE) {
@@ -968,10 +757,6 @@ describe("Q6 — a mixed-width column", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// RESIZE_OPENS_GAP, re-stated.
-// ---------------------------------------------------------------------------
-
 describe("Q7 — no opening may appear where a body physically stands", () => {
   it("holds on every accepted tap in the whole population", () => {
     for (const cleared of CLEARABLE) {
@@ -1015,9 +800,7 @@ describe("Q7 — no opening may appear where a body physically stands", () => {
   });
 
   it("does not refuse a run that merely meets the empty column on a boundary", () => {
-    // Touching is not overlapping, and the normal case is that every accepted resize leaves the
-    // resized column and the empty one sharing exactly one coordinate. If the predicate counted a
-    // shared edge, none of the fifteen taps would be accepted at all.
+    // Touching is not overlapping: if the predicate counted a shared edge, no tap would be accepted.
     const world = clearBodies(kitchen(), ["p1", "p12", "p18"]);
     const result = resizeTo(world, "p0", 600);
     expect(result.ok).toBe(true);
@@ -1038,10 +821,6 @@ describe("Q7 — no opening may appear where a body physically stands", () => {
     );
   });
 });
-
-// ---------------------------------------------------------------------------
-// §10's signature flow, and the empty column's carried extent.
-// ---------------------------------------------------------------------------
 
 describe("Q8 — the empty column's frozen extent, and §10", () => {
   it("still yields three openings from a cleared fridge column, before and after a resize elsewhere", () => {
@@ -1093,10 +872,8 @@ describe("Q8 — the empty column's frozen extent, and §10", () => {
   });
 
   it("GAP Q1.4: names the empty column by a key its own published map no longer holds", () => {
-    // Documented on `BodyResizedEffect.emptyColumnKey` as "the key it had **before** it moved", so
-    // this pins the shape rather than claiming a defect. It is still a trap for any consumer: the
-    // key is a miss against `effect.columns` whenever the column survived, and the new key is not
-    // published anywhere in the effect, so nothing downstream can point at the space that moved.
+    // `BodyResizedEffect.emptyColumnKey` is the key before the move, so it misses `effect.columns` whenever the
+    // column survived; the new key is not published in the effect.
     const world = clearBodies(kitchen(), ["p8", "p15"]);
     const result = resizeTo(world, "p10", 400);
     expect(result.ok).toBe(true);
@@ -1134,10 +911,7 @@ describe("Q8 — the empty column's frozen extent, and §10", () => {
     ]);
 
     for (const opening of after.voids) {
-      // `open-shelf` rather than a hinged cabinet, and it no longer matters which: the 500 mm moved
-      // column fell in the gap a hinged cabinet skipped until the owner retired ADR 0030's one-door
-      // cap, and now both fit. Column identity is the subject here, so the body stays the one that
-      // fitted throughout rather than becoming a second thing this case is about.
+      // `open-shelf` fits every opening here, so column identity is the only subject.
       const inserted = insertInto(
         after,
         { kind: "void", id: opening.id },
@@ -1152,10 +926,6 @@ describe("Q8 — the empty column's frozen extent, and §10", () => {
     }
   });
 });
-
-// ---------------------------------------------------------------------------
-// Atomicity, appearance, and what a resize is allowed to change.
-// ---------------------------------------------------------------------------
 
 describe("Q9 — atomicity", () => {
   it("writes nothing when a member half-way down the column fails its built-size re-check", () => {
@@ -1247,8 +1017,7 @@ describe("Q10 — §11 rows 12 and 13, for every member", () => {
       result.design.placements.find((placement) => placement.id === id)?.body;
     expect(body("a-base")?.finish).toEqual(LEGACY_ENUM_FINISHES.sage);
     expect(body("a-base")?.handle).toBe("black");
-    // The selected body is the base one; the wall cabinet above it is the recorded defect —
-    // a sage door with black bars reset to white with steel.
+    // The wall cabinet above the selected base must keep its finish and handle too.
     expect(body("a-wall")?.finish).toEqual(LEGACY_ENUM_FINISHES.sage);
     expect(body("a-wall")?.handle).toBe("black");
     // An open shelf carries neither, and must not be given one.
@@ -1259,12 +1028,8 @@ describe("Q10 — §11 rows 12 and 13, for every member", () => {
 
 describe("Q11 — what a resize changes besides the width", () => {
   it("migrates a seeded base cabinet from its 820 mm frame to §7's 860 mm one, once", () => {
-    // Not a wave 5C defect: the seeded base rows are 820 mm tall while §7's base carcass reaches
-    // the 860 mm worktop line, and `insertBody` into the same vacated slot already builds 860.
-    // Recorded because it means "growing then shrinking back returns the exact original geometry"
-    // is true of every span and every column width — and false of the document, which keeps the
-    // migrated `buildId`, `heightMm` and `seatDepthMm`. The migration is idempotent, so the second
-    // resize changes nothing further.
+    // Seeded base rows are 820 mm tall and §7's base carcass is 860, so the first resize migrates `buildId`,
+    // `heightMm` and `seatDepthMm` once; the migration is idempotent.
     const world = clearBodies(kitchen(), ["p10", "p16"]);
     expect(
       world.design.placements.find((placement) => placement.id === "p0")?.body,

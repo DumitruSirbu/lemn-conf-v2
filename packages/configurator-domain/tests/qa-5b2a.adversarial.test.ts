@@ -52,10 +52,8 @@ const FREED_STRIP: EmptyColumn = {
   depthMm: 580,
 };
 
-/** 4200 mm rather than the seeded 3600: `FREED_STRIP` reaches 3650, and an empty column is now
- *  contained by its wall run exactly as a placement is, so a 3600 mm room would make the fixture
- *  itself the thing under test. 4200 is the width the scene shell is built at
- *  (`kitchen-parts.ts`). */
+/** 4200 mm, not the seeded 3600: `FREED_STRIP` reaches 3650 and an empty column is held to its wall run.
+ *  4200 is the width the scene shell is built at (`kitchen-parts.ts`). */
 const BASE_DESIGN: Design = {
   room: { shape: "L", widthMm: 4200, depthMm: 2400, heightMm: 2600 },
   presetId: null,
@@ -80,22 +78,16 @@ function columnsOf(design: Design): ReadonlyMap<string, Column> {
   );
 }
 
-/** A load through the wire, which is the only comparison that proves a field survives persistence:
- *  the in-memory object skips the schema and any non-serialisable value passes. */
+/** A load through the wire is the only comparison that proves a field survives persistence: the in-memory
+ *  object skips the schema. */
 function throughTheWire(design: Design): Design {
   return DesignSchema.parse(JSON.parse(canonicalSerializeDesign(design)));
 }
 
 describe("the cap and the byte budget carry each other", () => {
-  /** The at-cap document the byte budget has to admit is the *largest* one the schema accepts, not
-   *  a convenient one: `MAX_PLACEMENTS` placements and `MAX_EMPTY_COLUMNS` empty columns, every
-   *  millimetre value at its ceiling and every identifier at `MAX_IDENTIFIER_LENGTH`.
-   *
-   *  The identifiers are what make this falsifiable. With the product's own short ids the widest
-   *  document is about 80 kB and the pre-wave budget of 87040 already admitted it — so an at-cap
-   *  document built from small numbers stays green with the budget left underived, and criterion 7's
-   *  second half proves nothing. At full identifier length the same document is past the old budget,
-   *  which is the case SEC-002's counter actually has to admit. */
+  /** The largest document the schema accepts: every value at its ceiling and every identifier at
+   *  `MAX_IDENTIFIER_LENGTH`. With short ids the document stays under the old 87040-byte budget, so only
+   *  full-length identifiers make the byte-budget derivation falsifiable. */
   it("admits a document at both caps with every value at its widest", () => {
     const longestIdentifier = "x".repeat(MAX_IDENTIFIER_LENGTH);
     const widestPlacement = (index: number): DesignPlacement => ({
@@ -133,20 +125,18 @@ describe("the cap and the byte budget carry each other", () => {
     ).toBeLessThanOrEqual(MAX_DESIGN_BYTES);
   });
 
-  /** The cap is the number of distinct column keys the wire shape's walls can present, and the
-   *  entries below prove why that and not a width: 1 mm strips 10 mm apart are legal, non-overlapping
-   *  and distinctly keyed, so any cap derived from a width floor or from §2's bands refuses a
-   *  document the domain's own rules accept. Pinned as the arithmetic, not as 1893 alone. */
+  /** The cap is the number of distinct column keys the walls can present, not a width: 1 mm strips 10 mm
+   *  apart are legal and distinctly keyed, so a cap from a width floor or §2's bands would refuse a valid
+   *  document. */
   it("is derived from the key resolution, not from a width or a band count", () => {
-    // Walls A, B and C's runs are all 6300 (ADR 0124 for B, ADR 0132 decision 6 for C); the longest
-    // of the three was already 6300.
+    // Walls A, B and C each run 6300 mm (ADR 0132 decision 6).
     expect(MAX_EMPTY_COLUMNS).toBe((6300 / 10 + 1) * 3);
     expect(MAX_EMPTY_COLUMNS).toBeGreaterThan(MAX_PLACEMENTS);
   });
 
   it("accepts a wall run of 1 mm strips at every distinct key", () => {
-    // One per key, 10 mm apart, with the last pulled inside the run — a centre of 6301 would key
-    // as 6.30 too but stand half a millimetre past the wall.
+    // One per key, 10 mm apart, the last pulled inside the run: a centre of 6301 keys as 6.30 too but stands
+    // past the wall.
     const strips = Array.from({ length: 631 }, (_, index) => ({
       ...FREED_STRIP,
       alongMm: index < 630 ? index * 10 + 1 : MAX_ROOM_WIDTH_MM - 1,
@@ -163,15 +153,13 @@ describe("the cap and the byte budget carry each other", () => {
     expect(codesFor(design)).toStrictEqual([]);
   });
 
-  /** A wall run filled edge to edge with 50 mm strips is the document the cap exists to admit. */
   it("accepts a full wall run of 50 mm strips as one document", () => {
     const strips = Array.from({ length: 126 }, (_, index) => ({
       ...FREED_STRIP,
       alongMm: 25 + index * 50,
       widthMm: 50,
     }));
-    // The run the cap is derived from, so the room has to be the one it is derived from too: the
-    // containment rule holds every strip inside the wall it is recorded on.
+    // The room must be the one the cap is derived from: containment holds every strip inside its wall.
     const design = {
       ...withEmptyColumns(strips),
       room: { ...BASE_DESIGN.room, widthMm: MAX_ROOM_WIDTH_MM },
@@ -202,13 +190,9 @@ describe("the overlap rule at and around its boundary", () => {
     return { ...FREED_STRIP, alongMm: startMm + FREED_STRIP.widthMm / 2 };
   }
 
-  /** The transition, swept rather than sampled: every start from 100 mm before the sink's end to
-   *  100 mm after it, refused exactly while it is strictly inside. A `>=` comparison moves the
-   *  transition by one millimetre and a `>` on the vertical predicate moves it too. */
   propertyTest.prop([fc.integer({ min: -100, max: 100 })], {
-    // Pinned, because a sampled sweep may skip the one value the rule turns on and a boundary
-    // nobody visits is a boundary nobody tests: measured, a `>=` mutant survived this sweep on
-    // some seeds until these three were named.
+    // Pinned examples: a sampled sweep may skip the one value the rule turns on (a `>=` mutant survived some
+    // seeds without them).
     examples: [[-1], [0], [1]],
   })(
     "refuses exactly the starts strictly inside the sink's run",
@@ -224,14 +208,12 @@ describe("the overlap rule at and around its boundary", () => {
     },
   );
 
-  /** Vertically the same question: a wall-band space is legal only while it clears the sink's top,
-   *  and touching it at 820 is contact, not overlap. */
+  /** Touching the sink's top at 820 is contact, not overlap. */
   propertyTest.prop([fc.integer({ min: 780, max: 860 })], {
     examples: [[819], [820], [821]],
   })("refuses exactly the floors strictly below the sink's top", (floorMm) => {
-    // 10 mm off the sink's own centre, which is the smallest offset that reaches a different
-    // column key: an entry keyed to a column the placements own is refused outright now, and
-    // this sweep is about the vertical boundary, not that one.
+    // 10 mm off the sink's centre is the smallest offset that reaches a different column key; an entry on an
+    // occupied key is refused outright.
     const overhead: EmptyColumn = {
       ...FREED_STRIP,
       alongMm: SINK.alongMm + 10,
@@ -245,9 +227,7 @@ describe("the overlap rule at and around its boundary", () => {
     );
   });
 
-  /** The sweep sorts, so the answer must not depend on the order the document lists its entries
-   *  in — a hostile document controls that order and a stateful sweep is where an ordering bug
-   *  hides. Nine abutting strips, shuffled, must always be accepted. */
+  /** A hostile document controls entry order, and a stateful sweep is where an ordering bug hides. */
   propertyTest.prop([
     fc.shuffledSubarray(
       Array.from({ length: 9 }, (_, index) => ({
@@ -260,12 +240,10 @@ describe("the overlap rule at and around its boundary", () => {
     expect(codesFor(withEmptyColumns([...shuffled]))).toStrictEqual([]);
   });
 
-  /** One entry swallowing several others: containment is overlap, and a sweep that only compares
-   *  neighbours would miss the far end of it. */
+  /** Containment is overlap: a sweep that only compares neighbours would miss the far end. */
   it("names every entry a containing entry swallows", () => {
-    // 800 rather than the 1000 this was written with: ADR 0052 caps an entry at the ceiling, and a
-    // wider one would raise `EMPTY_COLUMN_WIDER_THAN_CAP` as well, which is a different rule than
-    // the one under test. The three entries sit inside 2200–3000 so the swallowing is unchanged.
+    // 800 rather than 1000: ADR 0052 caps an entry at the ceiling, and a wider one would also raise
+    // `EMPTY_COLUMN_WIDER_THAN_CAP`.
     const wide: EmptyColumn = { ...FREED_STRIP, alongMm: 2600, widthMm: 800 };
     const inside = [2300, 2500, 2900].map((alongMm) => ({
       ...FREED_STRIP,
@@ -288,16 +266,13 @@ describe("the overlap rule at and around its boundary", () => {
     );
   });
 
-  /** Two walls are two places (§2). Every entry duplicated onto wall B at the same coordinate must
-   *  change nothing, or the sweep is comparing runs that never meet. */
+  /** Two walls are two places (§2): the same coordinates on wall B must change nothing. */
   it("keeps the same coordinates on both walls legal", () => {
     const onWallB = [FREED_STRIP, { ...FREED_STRIP, alongMm: 3725 }].map(
       (entry) => ({ ...entry, wall: "B" as const }),
     );
 
-    // Wall B is bounded by the room's **depth** since ADR 0065 decision 5, and `BASE_DESIGN`'s is
-    // 2400 while these entries reach 3800 — deepened here so the assertion measures the sweep and
-    // not the fixture.
+    // Wall B is bounded by the room's depth (ADR 0065 decision 5), so the room is deepened below to hold these.
     const design = withEmptyColumns([
       FREED_STRIP,
       { ...FREED_STRIP, alongMm: 3725 },
@@ -309,9 +284,8 @@ describe("the overlap rule at and around its boundary", () => {
     ).toStrictEqual([]);
   });
 
-  /** An inverted interval vertically overlaps nothing, so without its own refusal it is a way to
-   *  store an entry standing inside a cabinet and have the overlap sweep say nothing. The document
-   *  must be refused, and the inversion is the code that says why. */
+  /** An inverted interval overlaps nothing vertically, so it needs its own refusal or an entry inside a
+   *  cabinet goes unnoticed. */
   it("refuses an inverted entry that sits inside a placement", () => {
     const inverted: EmptyColumn = {
       ...FREED_STRIP,
@@ -326,8 +300,6 @@ describe("the overlap rule at and around its boundary", () => {
     expect(codes.length).toBeGreaterThan(0);
   });
 
-  /** Zero height is the boundary of the inversion rule; one millimetre above the floor is the
-   *  thinnest legal extent. */
   it("refuses a zero-height extent and accepts a one-millimetre one", () => {
     expect(
       codesFor(withEmptyColumns([{ ...FREED_STRIP, y0Mm: 300, topMm: 300 }])),
@@ -361,9 +333,8 @@ describe("the overlap rule at and around its boundary", () => {
 });
 
 describe("a document with no emptyColumns key", () => {
-  /** Criterion 6's pinned answer. Recomputing both sides with `deriveColumns` would compare a
-   *  mutant against itself; these are the seeded kitchen's columns as they stand before this wave,
-   *  written down. */
+  /** The seeded kitchen's columns, written down: recomputing both sides with `deriveColumns` would compare a
+   *  mutant against itself. */
   const PINNED_SEEDED_KEYS = [
     "A|0.30",
     "A|0.45",
@@ -373,7 +344,7 @@ describe("a document with no emptyColumns key", () => {
     "A|2.60",
     "A|3.20",
     "B|0.61",
-    "B|0.73", // B|0.74 until ADR 0135 moved the return's centre from 740 to 735
+    "B|0.73",
     "B|1.20",
     "B|1.80",
     "B|2.45",
@@ -396,8 +367,7 @@ describe("a document with no emptyColumns key", () => {
       z: 2.45,
       w: 0.7,
       d: 0.742,
-      // ADR 0073 decision 1: the member that won §3.2's MAX, recorded as the MAX is taken — the
-      // fridge's 742 mm, which no cabinet-depth setting moves.
+      // The member that won §3.2's MAX: the fridge's 742 mm, which no cabinet-depth setting moves (ADR 0073).
       depthFromBuildId: "fridge-free-700",
       top: 2.6,
       regions: [
@@ -440,9 +410,8 @@ describe("a restored empty column against the space it replaced", () => {
     return { ...BASE_DESIGN, placements: [SINK, ...placements] };
   }
 
-  /** §10's signature flow, through the wire: clear the column, and the opening it freed must still
-   *  be the frozen 0..2600 extent rather than anything the neighbours suggest. The sink next to it
-   *  tops out at 820, so a neighbour-derived answer is a different number. */
+  /** §10's signature flow, through the wire: the freed opening must be the frozen 0..2600 extent, not what the
+   *  neighbours suggest; the sink next to it tops out at 820. */
   it("keeps the frozen extent of a fully cleared column across a reload", () => {
     const occupied = columnsOf(designWith(THREE_BAND_COLUMN));
     const frozen = occupied.get(CLEARED_KEY);
@@ -467,10 +436,8 @@ describe("a restored empty column against the space it replaced", () => {
     expect(restored?.regions).toStrictEqual([[0, 2.6]]);
   });
 
-  /** The `regions` claim, checked against the derivation instead of taken on faith: `recomputeVoids`
-   *  reads `min(regions)` and `top` and takes its occupied intervals from the current members, so a
-   *  member-less column with one region `[y0, top]` publishes the same voids as one that kept its
-   *  former members' intervals. Both maps here are member-less; only their `regions` differ. */
+  /** `recomputeVoids` reads only `min(regions)` and `top`, taking occupied intervals from current members.
+   *  Both maps here are member-less and differ only in `regions`. */
   it("publishes identical voids whether regions are one interval or the former members'", () => {
     const singleInterval: Column = {
       key: CLEARED_KEY,
@@ -506,9 +473,8 @@ describe("a restored empty column against the space it replaced", () => {
     expect(fromSingle.every((slot) => slot.spanH === 2.6)).toBe(true);
   });
 
-  /** …and the claim has a floor in it. `min(regions)` is the only part of `regions` that is read,
-   *  so an entry whose `y0Mm` differs from the lowest former member moves where the opening starts.
-   *  This is what 5B2b's projection must get right; recorded here as the contract it has to meet. */
+  /** `min(regions)` is the only part of `regions` that is read, so an entry whose `y0Mm` differs from the
+   *  lowest former member's floor moves where the opening starts. */
   it("moves the freed opening when y0 is not the lowest former member's floor", () => {
     const raised: Column = {
       key: CLEARED_KEY,
@@ -531,12 +497,6 @@ describe("a restored empty column against the space it replaced", () => {
 });
 
 describe("what holds an empty column to the room", () => {
-  /** **The gap this file first pinned open, now closed.** A placement is held to the room
-   *  (`PLACEMENT_PAST_WALL_END`, `PLACEMENT_ABOVE_ROOM`); an empty column used to be held to
-   *  nothing but `MAX_DESIGN_DIMENSION_MM` and the overlap rule, so a hostile document could record
-   *  a 2 m space nine metres along a 4.2 m wall, five metres up a 2.6 m room, and both seams
-   *  accepted it — `deriveColumns` then put a column there, outside the shell, publishing openings
-   *  a body can be offered into. It is refused now, at the wall and at the ceiling. */
   it("refuses an entry that stands entirely outside the room", () => {
     const outsideTheRoom: EmptyColumn = {
       wall: "A",
@@ -553,9 +513,7 @@ describe("what holds an empty column to the room", () => {
       "EMPTY_COLUMN_PAST_WALL_END",
       "EMPTY_COLUMN_ABOVE_ROOM",
       "EMPTY_COLUMN_DEEPER_THAN_ROOM",
-      // ADR 0052, since wave 5G: 2000 mm is over the ceiling too. The containment codes are what
-      // this test is about and they are unaffected — an entry outside the room is refused whether
-      // or not it also breaks the width rule.
+      // 2000 mm also exceeds the width ceiling (ADR 0052).
       "EMPTY_COLUMN_WIDER_THAN_CAP",
     ]);
     expect(() => migrateDesign(1, throughTheWire(design), CATALOG)).toThrow(
@@ -568,9 +526,8 @@ describe("the containment boundary, for both callers of the one helper", () => {
   const WALL_RUN_MM = 4200;
   const ROOM_HEIGHT_MM = 2600;
 
-  /** The three bounds swept from two millimetres inside to two past, each with the transition
-   *  pinned as an example: `findContainmentBreaches` decides all three with a single comparison
-   *  apiece, and a comparison is only tested at the value it changes on. */
+  /** The three bounds swept from two millimetres inside to two past, with the transition pinned: a comparison
+   *  is only tested at the value it changes on. */
   propertyTest.prop([fc.integer({ min: -2, max: 2 })], {
     examples: [[-1], [0], [1]],
   })("holds an empty column's far end to the wall run", (offsetMm) => {
@@ -609,10 +566,8 @@ describe("the containment boundary, for both callers of the one helper", () => {
     ).toStrictEqual(topMm > ROOM_HEIGHT_MM ? ["EMPTY_COLUMN_ABOVE_ROOM"] : []);
   });
 
-  /** **The other caller of the same helper, which had no acceptance boundary of its own.** The
-   *  placement path asserted only its three refusals, so a helper loosened at the boundary — `>`
-   *  to `>=`, `< 0` to `<= 0` — would have been red for empty columns and green for bodies, which
-   *  is precisely the failure mode of one rule with two callers and one of them covered. */
+  /** The placement path is the other caller of the helper: a loosened boundary (`>` to `>=`) would be red for
+   *  empty columns and green for bodies unless it has its own acceptance boundary. */
   propertyTest.prop([fc.integer({ min: -2, max: 2 })], {
     examples: [[-1], [0], [1]],
   })("holds a placement's far end to the same wall run", (offsetMm) => {
@@ -655,8 +610,6 @@ describe("the containment boundary, for both callers of the one helper", () => {
     );
   });
 
-  /** A body and a space with the same run get the same answer, or the two callers have drifted
-   *  apart again whatever the helper says. */
   it("answers a body and a space standing in the same place the same way", () => {
     const pastTheEnd = WALL_RUN_MM + 1;
     const asAnEmptyColumn = codesFor(
@@ -675,10 +628,7 @@ describe("the containment boundary, for both callers of the one helper", () => {
 });
 
 describe("the floor a restored entry restores", () => {
-  /** `y0Mm` is not decoration: `recomputeVoids` reads `min(regions)` as the column's floor, so an
-   *  entry whose floor is not zero must restore *its own* floor. A wall-band space freed at 1500
-   *  publishes an opening starting at 1500; starting it at the ground would hand the customer an
-   *  opening through the base cabinets that are not there. */
+  /** `recomputeVoids` reads `min(regions)` as the column's floor, so a wall-band entry restores its own floor. */
   it("restores a wall-band entry at its own floor, not at the ground", () => {
     const wallBand: EmptyColumn = {
       wall: "A",
@@ -718,10 +668,8 @@ describe("the floor a restored entry restores", () => {
 });
 
 describe("the key a restored entry lands under", () => {
-  /** `deriveColumnKeyAt` rounds a metre value to two places, so the key is 10 mm granular while
-   *  `alongMm` is not. Two entries 2 mm apart are legally non-overlapping — ADR 0043 leaves an
-   *  empty column no width floor — and they address one key. Both are named: whichever lost the key
-   *  would be a space the document records and the map does not have. */
+  /** `deriveColumnKeyAt` rounds to two places, so keys are 10 mm granular while `alongMm` is not: two entries
+   *  2 mm apart are legal (ADR 0043 gives an empty column no width floor) yet address one key. */
   it("refuses two legal entries that round to one key, naming both", () => {
     const first: EmptyColumn = { ...FREED_STRIP, alongMm: 3576, widthMm: 2 };
     const second: EmptyColumn = { ...FREED_STRIP, alongMm: 3578, widthMm: 2 };
@@ -740,11 +688,8 @@ describe("the key a restored entry lands under", () => {
     );
   });
 
-  /** The same collision with a placement on the other side of it, which is the reachable half: a
-   *  hostile document may record a wall-band space at the centre of an occupied base column, and
-   *  the overlap rule accepts it because the two never meet vertically. It is refused on the key
-   *  instead, at both seams — silently letting the placements win discarded a recorded space with
-   *  no issue raised anywhere. */
+  /** The reachable half: a wall-band space at the centre of an occupied base column never meets the placement
+   *  vertically, so the overlap rule accepts it and only the key rule refuses it, at both seams. */
   it("refuses a legal wall-band entry that shares its key with an occupied column", () => {
     const overhead: EmptyColumn = {
       ...FREED_STRIP,
@@ -763,9 +708,6 @@ describe("the key a restored entry lands under", () => {
     );
   });
 
-  /** The refusal does not depend on where the offending entry sits in the array — a hostile
-   *  document controls that order, and a rule that only reads the first entry is one a reordering
-   *  walks straight through. */
   it("refuses the colliding entry whatever order the entries arrive in", () => {
     const overhead: EmptyColumn = {
       ...FREED_STRIP,
@@ -784,14 +726,10 @@ describe("the key a restored entry lands under", () => {
     ]);
   });
 
-  /** Every placement-derived column survives beside the stored entries, which is only true while
-   *  no key collides — `addStoredEmptyColumns` no longer has a tie-break, so a colliding entry now
-   *  *replaces* the column the placements built rather than being dropped. The refusal above is the
-   *  only thing standing between a hostile document and that replacement. */
+  /** Placement-derived columns survive beside stored entries only while no key collides:
+   *  `addStoredEmptyColumns` has no tie-break, so a colliding entry replaces the column the placements built. */
   it("keeps every placement-derived column intact beside the stored entries", () => {
-    // Inside the seeded wall A, which ADR 0065 corrected to 3560 mm: the placements end at 3500,
-    // so the strip takes the 60 mm that are left rather than the 100 it used to claim past the
-    // wall's end.
+    // Inside the seeded wall A (3560 mm, ADR 0065): the placements end at 3500, leaving 60 mm for the strip.
     const design = {
       ...withEmptyColumns([{ ...FREED_STRIP, alongMm: 3530, widthMm: 60 }]),
       placements: KITCHEN_L_DESIGN.placements,
@@ -806,12 +744,9 @@ describe("the key a restored entry lands under", () => {
     expect(codesFor(design)).toStrictEqual([]);
   });
 
-  /** What the deleted drop branch became, stated so nobody restores it by accident and nobody
-   *  mistakes it for harmless: with no tie-break, a stored entry at an occupied key **overwrites**
-   *  the column the placements derived, and its bodies are left addressing a key whose extent is
-   *  now the empty space. `deriveColumns` is a pure function with no validator inside it, so this
-   *  is reachable from any caller that skips `validateDesignForCatalog` — both of today's seams do
-   *  call it, and 5B2b's store seam must not be the one that does not. */
+  /** With no tie-break a stored entry at an occupied key overwrites the derived column, and its bodies address
+   *  a key whose extent is the empty space. `deriveColumns` has no validator inside it, so every caller must
+   *  run `validateDesignForCatalog` first. */
   it("lets a colliding entry replace the derived column, which is why it is refused", () => {
     const colliding: EmptyColumn = {
       ...FREED_STRIP,
@@ -832,9 +767,8 @@ describe("the key a restored entry lands under", () => {
 });
 
 describe("Q5, closed: 800 mm is the ceiling on any empty column (ADR 0052)", () => {
-  /** The 900 mm entry this file recorded as Q5's durable half. It is still what a version 1 row may
-   *  hold — every document written before wave 5G was written under a rule that bounded a merge and
-   *  not a column — so it is the exact input the load path has to carry forward. */
+  /** The 900 mm entry a version 1 row may hold, written before the ceiling (ADR 0052); the load path must
+   *  carry it forward. */
   const OVERSIZED: EmptyColumn = {
     ...FREED_STRIP,
     alongMm: 3000,
@@ -843,8 +777,8 @@ describe("Q5, closed: 800 mm is the ceiling on any empty column (ADR 0052)", () 
     topMm: 2600,
   };
 
-  /** Its left edge is 2550, so the ceiling-sized piece is centred at 2950 and the 100 mm overflow at
-   *  3400 — filled left to right, which is what `migrateFromV1` does to a span no command claimed. */
+  /** Its left edge is 2550, so the ceiling-sized piece is centred at 2950 and the 100 mm overflow at 3400,
+   *  filled left to right as `migrateFromV1` does. */
   const NEAR_PIECE: EmptyColumn = { ...OVERSIZED, alongMm: 2950, widthMm: 800 };
   const OVERFLOW_PIECE: EmptyColumn = {
     ...OVERSIZED,
@@ -852,11 +786,8 @@ describe("Q5, closed: 800 mm is the ceiling on any empty column (ADR 0052)", () 
     widthMm: 100,
   };
 
-  /** Criterion 5G-4. **The stored share link is what this protects.** A 900 mm column is executable
-   *  — it renders, and all it does wrong is refuse `'fit'` inserts — so refusing the row would brick
-   *  a link to close a bug that costs its holder nothing. It is normalised instead, before the
-   *  validator sees it, and every millimetre is kept: the two pieces span 2550–3450 exactly as the
-   *  one entry did. */
+  /** A stored share link holding a 900 mm column must still load: it is normalised before the validator sees
+   *  it, keeping every millimetre (2550–3450). */
   it("loads a version 1 row's 900 mm entry as an 800 and a 100", () => {
     const reloaded = migrateDesign(
       1,
@@ -871,10 +802,8 @@ describe("Q5, closed: 800 mm is the ceiling on any empty column (ADR 0052)", () 
     expect(columns.get("A|3.00")).toBeUndefined();
   });
 
-  /** The other half of criterion 5G-4, and DOM-001's rule that both seams refuse together: a
-   *  version **2** document was written under ADR 0052, so an oversized entry in one is not a legacy
-   *  shape to carry forward. Normalising it here as well would make the invariant unenforceable —
-   *  nothing would ever be refused — which is the mutant this assertion exists to redden. */
+  /** A version 2 document was written under the ceiling, so an oversized entry is refused, not normalised;
+   *  normalising it too would leave nothing ever refused. */
   it("refuses the same entry in a version 2 document, at both seams", () => {
     const design = withEmptyColumns([OVERSIZED]);
 
@@ -884,10 +813,8 @@ describe("Q5, closed: 800 mm is the ceiling on any empty column (ADR 0052)", () 
     );
   });
 
-  /** What the customer gets out of the ceiling, measured rather than argued: the 900 mm opening no
-   *  catalogue body could ever fill (`WIDTH_NOT_SUPPORTED`, every insertable width topping out at
-   *  800) becomes an 800 mm opening a `base-cabinet` is built into. The narrow one is left as it is,
-   *  which ADR 0037 says is a legal outcome. */
+  /** The 900 mm opening no catalogue body fills (`WIDTH_NOT_SUPPORTED`, widths top out at 800) becomes an
+   *  800 mm opening a `base-cabinet` is built into. */
   it("publishes an opening the widest catalogue body now fits", () => {
     const design = migrateDesign(
       1,

@@ -1,15 +1,3 @@
-// M7 wave 7D5 S1 — the bottle cargo is optional to the core kitchen. This file derives the
-// pre-S1 core-selection answer from run capacities and the public priority list; it does not ask the
-// S1 implementation whether omitting the cargo was necessary. Since S2 the bottle also gives way to
-// the pan drawer (ADR 0110 Q-H6b) and, once the pan drawer stands, to a tall column (Q-H6c); both are
-// derived here from the same capacities and 7D3's own block rule. Since S3 (ADR 0110 Q-H5, owner
-// ruling 2026-09-21) the bottle also gives way to the threshold drawer, but only where the drawer in
-// its place costs the kitchen no tall column; that, too, is derived from capacities rather than asked.
-//
-// 7D5b S2 / ADR 0110 M7/M10: where no door cabinet stands free beside the sink, the dishwasher is read
-// directly after the sink and may take, in order, (b) a pantry column, (d) the bottle, (c) the oven
-// tower. (d) is a new reason a bottle is omitted, derived below from the same capacities and 7D3's own
-// block rule: (b) could not stand on the bottle's kitchen, and (d) keeps every column.
 import { describe, expect, it } from "vitest";
 
 import {
@@ -36,8 +24,8 @@ import { planTallEndBlock } from "../../src/generation/tall-end-rule.js";
 import { createFakeProbeFactory } from "../support/fake-probe.js";
 import { facesOf, openingIntervalOf } from "../support/shell-design.js";
 
-// M7B U1 slice S1's minimal type-level fix: `DesignWall` widened to include `"C"` (ADR 0132), but
-// this suite reads `planKitchenComposition`'s own two-wall composer. Wall C's own suite is U3's.
+// `DesignWall` includes "C" (ADR 0132), but `planKitchenComposition` is the two-wall composer, so this suite
+// narrows to A and B.
 type TwoWallDispatch = Extract<DesignWall, "A" | "B">;
 
 const OCCURRED_AT = "2026-09-11T12:00:00.000Z";
@@ -47,7 +35,7 @@ const PAN_DRAWER_WIDTH_MM = 600;
 const STORAGE_MODULE_MM = 600;
 const THRESHOLD_DRAWER_WIDTH_MM = 600;
 const PAN_DRAWER_BODY = "base-panbank";
-/** 7D5b S2 / ADR 0110 M7: the traded dishwasher's body and width, literals as every body here. */
+/** The traded dishwasher's body and width, literals as every body here. */
 const DISHWASHER_BODY = "base-dishwasher";
 const DISHWASHER_WIDTH_MM = 600;
 const CATALOG = buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN));
@@ -204,10 +192,10 @@ function bottleGaveWayTo(
   return columns(both) < columns(panDrawer) ? "a tall column" : undefined;
 }
 
-/** 7D5b S0b / ADR 0110 M11: the K3 fallback's bottle, derived. The kept core's block stands at least
- *  one column (its innermost the oven tower), S1's bottle after the hob leaves it none, and no pan
- *  drawer could stand beside that bottle without costing a further column — so the tower is kept and
- *  the bottle omitted. Asked only where Q-H6b / Q-H6c did not decide the room. */
+/** The K3 fallback's bottle, derived (ADR 0110 M11). The kept core's block stands at least one column
+ *  (its innermost the oven tower), the bottle after the hob leaves it none, and no pan drawer could stand
+ *  beside that bottle without costing a further column — so the tower is kept and the bottle omitted.
+ *  Asked only where Q-H6b / Q-H6c did not decide the room. */
 function towerWasKeptOverTheBottle(
   room: DesignRoom,
   core: { readonly kept?: CoreAttempt; readonly cut?: number },
@@ -235,10 +223,10 @@ function towerWasKeptOverTheBottle(
   );
 }
 
-/** 7D5 S3 / Q-H5: does the threshold drawer stand in the bottle's place, and would that place have
- *  cost the kitchen no tall column? The kitchen the bottle stood in is the kept core with the pan
- *  drawer (where one stands) before the hob and the bottle after it, on the pre-S1 cut; the drawer
- *  in its place is that kitchen with the 300 mm bottle swapped for a 600 mm module. */
+/** Does the threshold drawer stand in the bottle's place, and would that place have cost the kitchen no
+ *  tall column (ADR 0110 Q-H5)? The kitchen the bottle stood in is the kept core with the pan drawer
+ *  (where one stands) before the hob and the bottle after it, on the pre-S1 cut; the drawer in its place
+ *  is that kitchen with the 300 mm bottle swapped for a 600 mm module. */
 function thresholdDrawerTookTheBottlesPlace(
   room: DesignRoom,
   context: {
@@ -255,7 +243,7 @@ function thresholdDrawerTookTheBottlesPlace(
   const isCoreWhole = kept.length === GENERATION_PRIORITIES.length;
   const columns = (run: DerivedRun) =>
     tallColumnsOf(run, { room, capacities, isCoreWhole });
-  // 7D5b S1 / ADR 0110 M1/M2/M9: by body; (e) re-identifies the pan drawer as the preparation.
+  // By body: the (e) arrangement re-identifies the pan drawer as the preparation (ADR 0110 M1/M2/M9).
   const hasPanDrawer = context.plan.bases.some(
     (base) => base.buildId === PAN_DRAWER_BODY,
   );
@@ -276,11 +264,11 @@ function thresholdDrawerTookTheBottlesPlace(
   );
 }
 
-/** 7D5b S2 / ADR 0110 M7(d), M10: the bottle gave way to a traded dishwasher. The kitchen the bottle
- *  stood in — the kept core, the pan drawer before the hob where one stands, the bottle last — could
- *  not take the dishwasher after the sink for exactly one pantry column ((b): it does not fit, or it
- *  costs no column or the last one), and without the bottle it takes it keeping every column ((d)).
- *  Asked only where the plan's dishwasher stands among the items after the sink, where S1 stands none. */
+/** The bottle gave way to a traded dishwasher (ADR 0110 M7(d), M10). The kitchen the bottle stood in —
+ *  the kept core, the pan drawer before the hob where one stands, the bottle last — could not take the
+ *  dishwasher after the sink for exactly one pantry column ((b): it does not fit, or it costs no column
+ *  or the last one), and without the bottle it takes it keeping every column ((d)).
+ *  Asked only where the plan's dishwasher stands among the items after the sink. */
 function bottleWasTradedForTheDishwasher(
   room: DesignRoom,
   context: {
@@ -322,7 +310,7 @@ function bottleWasTradedForTheDishwasher(
   );
 }
 
-/** 7D5b S2: the 600 mm dishwasher read directly after the sink, on the sink's side of the cut. */
+/** The 600 mm dishwasher read directly after the sink, on the sink's side of the cut. */
 function withTheDishwasherAfterTheSink(
   run: DerivedRun,
   sinkAt: number,
@@ -338,9 +326,9 @@ function withTheDishwasherAfterTheSink(
   };
 }
 
-/** 7D5b S2 / ADR 0110 M7/M10: a dishwasher read directly after the sink with the next item — not a
- *  composed slot — directly after it on the same wall. Only a trade inserts one among the items; S1's
- *  M1 converts a slot, and (e) the preparation cabinet, which the pan drawer's preparation role names. */
+/** A dishwasher read directly after the sink with the next item — not a composed slot — directly after it
+ *  on the same wall. Only a trade inserts one among the items; M1 converts a slot, and (e) the preparation
+ *  cabinet, which the pan drawer's preparation role names (ADR 0110 M7/M10). */
 function isADishwasherReadAmongTheItemsAfterTheSink(
   plan: KitchenCompositionPlan,
 ): boolean {
@@ -360,8 +348,8 @@ function isADishwasherReadAmongTheItemsAfterTheSink(
   );
 }
 
-/** 7D5b S2 / ADR 0110 M7(c): the oven tower traded for the dishwasher — a traded dishwasher, no column
- *  standing, and the oven under the hob. */
+/** The oven tower traded for the dishwasher (ADR 0110 M7(c)): a traded dishwasher, no column standing, and
+ *  the oven under the hob. */
 function isTheOvenTowerTradedForTheDishwasher(
   plan: KitchenCompositionPlan,
 ): boolean {
@@ -372,7 +360,7 @@ function isTheOvenTowerTradedForTheDishwasher(
   );
 }
 
-/** J1: immediately before the hob, on the hob's side of the cut. */
+/** Immediately before the hob, on the hob's side of the cut. */
 function withPanDrawerBeforeTheHob(run: DerivedRun): DerivedRun {
   return {
     widthsMm: [
@@ -385,7 +373,7 @@ function withPanDrawerBeforeTheHob(run: DerivedRun): DerivedRun {
   };
 }
 
-/** H1 and J3: read last, on the prefix wall only where the whole run already is. */
+/** Read last, on the prefix wall only where the whole run already is. */
 function appendedLast(run: DerivedRun, widthMm: number): DerivedRun {
   return {
     widthsMm: [...run.widthsMm, widthMm],
@@ -420,7 +408,7 @@ function fitsInPlace(
   return prefixMm <= capacities.prefix && suffixFreeMm(run, capacities) >= 0;
 }
 
-/** 7D3's block on the suffix wall's free end, counted by its own rule. */
+/** The tall-end block on the suffix wall's free end, counted by `planTallEndBlock` itself. */
 function tallColumnsOf(
   run: DerivedRun,
   context: {
@@ -489,13 +477,10 @@ function coreRolesOffTheirPreS1Wall(
   });
 }
 
-/** The merge rows below pin 298 mm as the widest remainder a last-on-its-wall bottle shares an
- *  opening with; this is what keeps those rows the boundary rather than an example. 7D5b S0b / ADR
- *  0110 M11: was 300 — a bottle last with 300 mm or more past it left 600 mm past the core, where the
- *  tower is now kept over it; measured over every approved room at 1 mm, 298 is the widest left.
- *  7D5b S2 / ADR 0110 M7/M10: except beside a dishwasher that took the oven tower ((c)), where the
- *  tower's own remainder is left past the bottle; the census counts those apart, and at 10 mm they
- *  reach 500 mm — the 800 mm cap. The 1 mm figure was not re-taken for them. */
+/** The merge rows below pin 298 mm as the widest remainder a last-on-its-wall bottle shares an opening
+ *  with, measured over every approved room at 1 mm. Beside a dishwasher that took the oven tower the
+ *  remainder reaches 500 mm at 10 mm (the 800 mm cap); the census counts those apart and the 1 mm figure
+ *  was not re-taken for them. */
 const WIDEST_REACHABLE_MERGED_REMAINDER_MM = 298;
 const WIDEST_MERGED_OPENING_MM = 800;
 
@@ -582,9 +567,8 @@ describe("7D5 S1 — the conditional bottle cargo", () => {
         }
 
         const reading = inReadingOrder(plan);
-        // The stable composition id is the key and the catalogue id is the thing asserted. Asking
-        // the exported build-id constant to identify both would let a wrong constant and a wrong
-        // composer agree with each other (ADR 0121 decision 3(b)).
+        // Keyed by the stable composition id while the catalogue id is asserted, so a wrong build-id constant and a
+        // wrong composer cannot agree (ADR 0121 decision 3(b)).
         const bottles = reading.filter((base) => base.id === "bottle");
         if (bottles.length > 1) census.duplicateBottle.push(key);
         if (bottles.length === 1) {
@@ -592,10 +576,8 @@ describe("7D5 S1 — the conditional bottle cargo", () => {
           const hobAt = reading.findIndex((base) => base.role === "hob");
           const bottleAt = reading.findIndex((base) => base.id === "bottle");
           if (bottleAt !== hobAt + 1) census.wrongOrder.push(key);
-          // 7D5b S2 / ADR 0110 M7(c): where the dishwasher took the oven tower, the bottle it stood
-          // before is last on its wall again with the tower's run-end remainder past it, 310-500 mm at
-          // 10 mm, which merges into one opening of at most 800 mm. Counted apart, because 298 mm
-          // stays the widest everywhere else.
+          // Where the dishwasher took the oven tower, the bottle is last on its wall with the tower's remainder past
+          // it (310-500 mm at 10 mm), merging past 298 mm; counted apart (ADR 0110 M7(c)).
           if (isLastOnItsWallMergingPastTheWidestReachable(plan)) {
             if (isTheOvenTowerTradedForTheDishwasher(plan))
               census.mergingPastTheWidestReachableBesideATradedOvenTower += 1;
@@ -614,19 +596,17 @@ describe("7D5 S1 — the conditional bottle cargo", () => {
         } else if (unconditional.kept.length < (expected.kept?.length ?? 0)) {
           census.omittedForCoreRole += 1;
         } else if (unconditional.cut !== expected.cut) {
-          // ADR 0120 Amendment E: the same core fits with the bottle only across a different cut,
-          // which would move a core role to the other wall.
+          // The same core fits with the bottle only across a different cut, which would move a core role to the
+          // other wall (ADR 0120 Amendment E).
           census.omittedForReCut += 1;
         } else {
-          // S2: the core fits the bottle in place, so only the pan drawer standing may explain it.
+          // The core fits the bottle in place, so the omission must have a derived reason.
           const reason = bottleGaveWayTo(room, expected);
-          // 7D5b S1 / ADR 0110 M1/M2/M9: by body, because in an (e) room the pan drawer carries the
-          // preparation id (24 160 rooms, which read as wrongCore when it was looked up by id).
+          // By body: in an (e) room the pan drawer carries the preparation id, so an id lookup misses it (ADR 0110 M9).
           const hasPanDrawer = plan.bases.some(
             (base) => base.buildId === PAN_DRAWER_BODY,
           );
-          // 7D5b S2 / ADR 0110 M7(c): M11's tower may since have been traded for the dishwasher, the
-          // last resort, which leaves the kitchen M11 decided otherwise as it was (2 600 rooms).
+          // An oven tower traded for the dishwasher counts too (ADR 0110 M7(c)).
           const hasOvenTower =
             plan.bases.some((base) => base.buildId === "tall-oven-tower") ||
             isTheOvenTowerTradedForTheDishwasher(plan);
@@ -636,19 +616,19 @@ describe("7D5 S1 — the conditional bottle cargo", () => {
             hasOvenTower &&
             towerWasKeptOverTheBottle(room, expected)
           ) {
-            // 7D5b S0b / ADR 0110 M11: the bottle alone would have taken the only oven tower.
+            // The bottle alone would have taken the only oven tower (ADR 0110 M11).
             census.omittedForTheOvenTower += 1;
           } else if (
             reason === undefined &&
             bottleWasTradedForTheDishwasher(room, { core: expected, plan })
           ) {
-            // 7D5b S2 / ADR 0110 M7(d): the bottle was traded for the dishwasher.
+            // The bottle was traded for the dishwasher (ADR 0110 M7(d)).
             census.omittedForTheDishwasher += 1;
           } else if (
             reason === undefined &&
             thresholdDrawerTookTheBottlesPlace(room, { core: expected, plan })
           ) {
-            // 7D5 S3 / Q-H5: the bottle gave way because the drawer in its place costs no column.
+            // The drawer in the bottle's place costs no column (ADR 0110 Q-H5).
             census.omittedForTheThresholdDrawer += 1;
           } else if (reason === undefined || !hasPanDrawer) {
             census.wrongCore.push(
@@ -663,20 +643,6 @@ describe("7D5 S1 — the conditional bottle cargo", () => {
       }
     }
 
-    // S1's own three omissions are unchanged since `c67b4ee`; the two S2 added are the 35 580 rooms
-    // whose bottle became a pan drawer. 7D5 S3 / Q-H5 adds a sixth: 6 195 rooms whose bottle the
-    // threshold drawer took the place of (184 686 -> 178 491 included). 7D5b S0b / ADR 0110 M11 adds
-    // a seventh: 5 260 rooms of the K3 fallback, no pan drawer, where S1's bottle would have taken the
-    // only oven tower (178 491 -> 173 231 included, 66 720 -> 71 980 omitted); no other category moves.
-    // 7D5b S1 / ADR 0110 M1/M2/M9: the dishwasher is decided before the threshold drawer and *D*
-    // excludes it, so in 3 060 rooms the drawer no longer takes the bottle's place and the bottle is
-    // back (6 195 -> 3 135; 173 231 -> 176 291 included, 71 980 -> 68 920 omitted, plan E3). No other
-    // category moves, once the pan drawer is found by body in the 24 160 (e) rooms.
-    // 7D5b S2 / ADR 0110 M7/M10: (d) trades the bottle for the dishwasher in 2 600 rooms, a new
-    // omission category (176 291 -> 173 691 included, 68 920 -> 71 520 omitted); M11's 5 260 are
-    // unmoved, 2 600 of them since traded under (c). And (c) leaves the bottle last on its wall with
-    // the tower's remainder past it in 5 200 rooms, merging past the 298 mm the rows below pin — each
-    // one a traded tower; no other bottle does.
     const { includedByArm, ...totals } = census;
     expect(totals).toEqual({
       swept: 256_011,
@@ -703,11 +669,7 @@ describe("7D5 S1 — the conditional bottle cargo", () => {
     expect(includedByArm.equal).toBeGreaterThan(0);
   }, 20_000);
 
-  // 7D5 S3 / Q-H5: 4700 x 6000, the wall-B-wider row, now stands the threshold drawer in the bottle's
-  // place (its *D* is six with the pan drawer the only drawer), so there is no bottle whose identity
-  // to read. The row moved to 4500 x 6000 — still wall B wider, still a bottle beside a pan drawer
-  // and a three-column block — and the room it left is pinned below as what it now is. (7D5b S1 / ADR
-  // 0110 M1/M2/M9: 4700 x 6000 stands its bottle again; the threshold row below moved to 5200 x 6000.)
+  // One room per arm: wall A wider, wall B wider, equal walls.
   it.each([
     { shape: "L", widthMm: 6000, depthMm: 4700, heightMm: 2600 },
     { shape: "L", widthMm: 4500, depthMm: 6000, heightMm: 2600 },
@@ -728,9 +690,8 @@ describe("7D5 S1 — the conditional bottle cargo", () => {
     },
   );
 
-  // 7D5b S1 / ADR 0110 M1/M2/M9: was 4700 x 6000. M1 converts its door cabinet across the corner, *D*
-  // falls to five with the dishwasher out of it, and the bottle is back. 5200 x 6000 — the same wall B
-  // wider arm — has one more door cabinet, so the threshold drawer still takes the bottle's place.
+  // 4700 x 6000 stands its bottle again (ADR 0110 M1/M2/M9); 5200 x 6000, the same wall-B-wider arm, has one
+  // more door cabinet, so the threshold drawer still takes the bottle's place.
   it("gives the bottle's place to the threshold drawer, not a composed slot, at 5200 x 6000", () => {
     const plan = planFor({
       shape: "L",
@@ -814,17 +775,11 @@ describe("7D5 S1 — the conditional bottle cargo", () => {
     );
   });
 
-  // A bottle standing last on its wall shares one floor opening with the run-end remainder whenever
-  // the two together reach no further than 800 mm (`MAX_EMPTY_COLUMN_WIDTH_MM`), so the bottle is
-  // inserted into an opening wider than itself. Both mirrors, so no wall letter decides it.
+  // A bottle standing last on its wall shares one floor opening with the run-end remainder whenever the two
+  // reach at most 800 mm (`MAX_EMPTY_COLUMN_WIDTH_MM`). Both mirrors, so no wall letter decides it.
   //
-  // 7D5b S0b / ADR 0110 M11: the four in-policy rows (3300 x 1700, 3502 x 1700, 900 x 4100 and
-  // 1500 x 4302) now keep the oven tower and stand no bottle. No approved room is left with 300 or
-  // 502 mm past a last-standing bottle: 300 mm past the bottle is 600 past the core, where the tower
-  // stands unless a pan drawer depends on the bottle, and beside a pan drawer Q-H6c takes the bottle.
-  // Swept over all 25 510 101 approved rooms at 1 mm and 2 600 mm, the widest left is 298 on either
-  // wall, so the in-policy rows below are that edge and run through `generateKitchen`; the 300 and
-  // 502 rows keep their subject off-policy, below the column height, with the 500 mm cap.
+  // The in-policy rows are the 298 mm edge, the widest remainder left once ADR 0110 M11 keeps the oven tower;
+  // they run through `generateKitchen`.
   it.each([
     {
       name: "wall A, remainder 298 merges into one 598 mm opening",
@@ -891,11 +846,8 @@ describe("7D5 S1 — the conditional bottle cargo", () => {
       ).toMatchObject({ status: "placed", buildId: "base-bottle-cargo" });
     },
   );
-  // 7D5b S0b / ADR 0110 M11: the 300 mm merge and the 502 mm non-merging neighbour, moved off-policy
-  // with the cap below because no approved room reaches either any more (see the in-policy rows).
-  // Below the 2 200 mm column no block stands, so M11 has nothing to keep; the pan drawer stands
-  // first and the bottle last beside it. Planner and shell only, as for the cap. The 502 neighbour
-  // is still 502, not 501: the floor run's planned end moves in 2 mm steps.
+  // Off-policy rows: the 300 mm merge and the 502 mm non-merging neighbour, below the 2 200 mm column so no
+  // block stands. Planner and shell only. 502, not 501: the floor run's planned end moves in 2 mm steps.
   it.each([
     {
       name: "wall A, remainder 300 merges into one 600 mm opening, 3900 x 1700",
@@ -968,11 +920,9 @@ describe("7D5 S1 — the conditional bottle cargo", () => {
     },
   );
 
-  // The inclusive cap itself, 300 + 500 = 800 mm in one opening, is reachable only where no block can
-  // stand to refuse the pan drawer the bottle-first order: a ceiling 1 mm below the 2200 mm column,
-  // which the approved policy's 2200 mm floor excludes. A planner and shell witness, past the policy on
-  // purpose (M7 7A3); `generateKitchen` is not asked, because its own invariant check rejects a room
-  // lower than the fridge it places (PLACEMENT_ABOVE_ROOM).
+  // The inclusive cap, 300 + 500 = 800 mm in one opening, is reachable only below the 2200 mm column height,
+  // which the approved policy excludes. Planner and shell only: `generateKitchen` rejects a room lower than the
+  // fridge it places (PLACEMENT_ABOVE_ROOM).
   it.each([
     {
       name: "wall A, 4100 x 1700",
@@ -1022,15 +972,9 @@ describe("7D5 S1 — the conditional bottle cargo", () => {
 });
 
 describe("7D5 S1 criterion 1 — the bottle follows the hob in the reading order on the reversed wall", () => {
-  // Criterion 1's discriminating population is the hob on the wall laid out in reverse, where the
-  // reading order runs against the spatial one: the bottle *after* the hob stands on the hob's
-  // corner side. The approved policy never composes the hob onto that wall (`qa-7d8-the-run-follows-
-  // the-wider-wall`, 7b), so the runs are declared here, as 7b declares them, over real rooms whose
-  // narrower entered wall is the reversed one. Both mirrors are swept so no wall letter decides it.
-  //
-  // The reversed wall holds the whole core (2 500 mm) with room for the 300 mm bottle; the other
-  // wall cannot hold the bottle. Keeping every core role where it stands without the bottle and
-  // appending the bottle on the hob's corner side refuses nothing and moves no core role.
+  // The approved policy never composes the hob onto the reversed wall (see
+  // `qa-7d8-the-run-follows-the-wider-wall`), so the runs are declared over real rooms. Both mirrors are swept.
+  // The reversed wall holds the 2 500 mm core plus the bottle; the other wall cannot hold the bottle.
   const REVERSED_WALL_HOLDS_CORE_AND_BOTTLE = [
     {
       name: "wall A read in reverse",
@@ -1087,8 +1031,7 @@ describe("7D5 S1 criterion 1 — the bottle follows the hob in the reading order
   it.each([
     ...REVERSED_WALL_HOLDS_CORE_AND_BOTTLE,
     {
-      // 7b's declared arm: the other wall *can* hold the bottle, and the reversed wall also leaves
-      // storage between the hob and the corner.
+      // The other wall can hold the bottle, and the reversed wall leaves storage between the hob and the corner.
       name: "wall A read in reverse, with storage between the hob and the corner",
       room: { shape: "L", widthMm: 1500, depthMm: 4000, heightMm: 2600 },
       runs: {
