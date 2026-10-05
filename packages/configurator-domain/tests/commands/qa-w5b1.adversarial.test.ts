@@ -1,18 +1,3 @@
-// Adversarial QA for wave 5B1 — ADR 0043, "an empty space of any width is a legal state".
-//
-// The implementer removed the `remainder_below_floor` guard and edited six existing tests to match.
-// This file tests what that change *assumed* rather than what it built:
-//
-//   1. the two constants ADR 0043 promises not to move really did not move, and no path through
-//      `plan-width-funding.ts` still applies either to an empty column;
-//   2. the anti-invariants still hold over the **widened** population, not just over the old one —
-//      a cabinet is never built under its own floor, a growth never spends space it does not have,
-//      and a growth with no empty column anywhere is still refused;
-//   3. the leftover gap the decision now permits is a *represented* state and not an invisible one,
-//      because the owner's whole argument is that the customer sees it and resizes it away;
-//   4. the stepper is reversible over a long chain and not merely one rung at a time;
-//   5. §9's two width controls and the command still agree, in **both** directions, over every
-//      width the decision newly unlocks.
 import { describe, expect, it } from "vitest";
 
 import { resolveBuildableSizes } from "../../src/catalog.js";
@@ -38,8 +23,8 @@ function kitchen(): KitchenWorld {
   return createWorld(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG);
 }
 
-/** Applies a resize the way the store does — design **and** published column map, which is the only
- *  way the next step sees the gap this one left. */
+/** Applies a resize the way the store does, to the design and the published column map, so the next step sees
+ *  the gap this one left. */
 function step(world: KitchenWorld, id: string, widthMm: number): KitchenWorld {
   const result = resizeTo(world, id, widthMm);
   if (!result.ok) {
@@ -89,21 +74,16 @@ function everyTap(): {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Q — the constants ADR 0043 promises are untouched.
-// ---------------------------------------------------------------------------
-
 describe("neither 300 mm constant moved", () => {
-  // `docs/BACKLOG.md` entry 2 records a near-miss of lowering the wrong one, and ADR 0043 names both
-  // in a *What is explicitly not changed* section. Pinned as literals rather than compared to each
-  // other, so lowering both together still fails.
+  // ADR 0043 names both constants as unchanged. Pinned as literals, not compared to each other, so lowering both
+  // together still fails.
   it("keeps MIN_WIDTH_M at 300 mm and MIN_SPAN_M at 300 mm", () => {
     expect([MIN_WIDTH_M, MIN_SPAN_M]).toEqual([0.3, 0.3]);
   });
 
   it("still refuses to build any cabinet under 300 mm through a resize", () => {
-    // The anti-invariant, over the **widened** population: every tap the engine now accepts, in
-    // every scenario, checked against §2's floor and each entry's own declared one.
+    // The anti-invariant over the widened population: every tap the engine accepts is checked against §2's floor
+    // and each entry's own declared one.
     const under: string[] = [];
     for (const { world, placementId, widthMm } of everyTap()) {
       const result = resizeTo(world, placementId, widthMm);
@@ -122,8 +102,8 @@ describe("neither 300 mm constant moved", () => {
   });
 
   it("still refuses a growth larger than the space that is there", () => {
-    // `remainderMm < 0` is the one arithmetic bound ADR 0043 leaves, and it must be a `too_narrow`
-    // and not an acceptance that borrows 100 mm from nowhere.
+    // `remainderMm < 0` is the one arithmetic bound ADR 0043 leaves; it must be `too_narrow`, not an acceptance
+    // that borrows 100 mm from nowhere.
     const result = resizeTo(pairWithEmptyColumnRight(100), "L-base", 800);
 
     expect(result.ok).toBe(false);
@@ -146,8 +126,8 @@ describe("neither 300 mm constant moved", () => {
   });
 
   it("still derives no opening from a vertical interval of exactly MIN_SPAN_M", () => {
-    // §4's exclusive floor (ADR 0015). ADR 0043 is horizontal and must not have reached it: a
-    // 300 mm-tall free interval above a body is still no slot.
+    // §4's exclusive floor (ADR 0015): ADR 0043 is horizontal and must not reach it, so a 300 mm-tall free
+    // interval above a body is still no slot.
     const world = syntheticWorld([
       {
         id: "under",
@@ -169,14 +149,10 @@ describe("neither 300 mm constant moved", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Q — the remainder boundary, one millimetre either side of the superseded floor.
-// ---------------------------------------------------------------------------
-
 describe("the remainder boundary", () => {
-  // The superseded floor was `0 < remainder < 300`. Rows at 0, 2, 50, 298, 300 and 302 straddle both
-  // of its ends, and the negative row is the bound that survives. Even widths only: an odd
-  // remainder needs an odd target, which `setWidth` refuses `WIDTH_NOT_SUPPORTED` beforehand.
+  // The superseded floor was `0 < remainder < 300`: rows at 0, 2, 50, 298, 300 and 302 straddle both ends and the
+  // negative row is the surviving bound. Even widths only: an odd remainder needs an odd target, which `setWidth`
+  // refuses `WIDTH_NOT_SUPPORTED` beforehand.
   it.each([
     { emptyMm: 200, targetMm: 800, remainderMm: 0 },
     { emptyMm: 202, targetMm: 800, remainderMm: 2 },
@@ -200,8 +176,8 @@ describe("the remainder boundary", () => {
   );
 
   it("removes the empty column entirely when the growth consumes it to zero", () => {
-    // The other end of the boundary, and the one ADR 0031 always allowed. A zero-width column left
-    // standing in the frozen map would be a gap of no width the customer can select.
+    // The other end of the boundary, which ADR 0031 always allowed: a zero-width column left in the frozen map
+    // would be a gap of no width the customer can select.
     const world = pairWithEmptyColumnRight(200);
 
     const result = resizeTo(world, "L-base", 800);
@@ -220,15 +196,8 @@ describe("the remainder boundary", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Q — the gap ADR 0043 permits must be a state the customer can see.
-//
-// The decision rests entirely on the owner's second sentence: *"Such narrow empty space will force
-// user to resize accordingly and not leave such spaces."* That is only true if the narrow space is
-// **represented** — a column in the published map and an opening the panel can select. A 50 mm gap
-// the engine keeps but never shows is not self-correcting; it is invisible dead wall.
-// ---------------------------------------------------------------------------
-
+// The gap ADR 0043 permits must be represented, as a column in the published map and an opening the panel can
+// select; one the engine keeps but never shows is invisible dead wall.
 describe("a gap a growth leaves is a state the design can show", () => {
   it.each([2, 50, 150, 200, 298])(
     "publishes a %i mm gap as a column with an opening in it",
@@ -255,9 +224,7 @@ describe("a gap a growth leaves is a state the design can show", () => {
   );
 
   it("refuses an insert into that gap with a sentence naming the real width", () => {
-    // The gap is selectable, so the panel will ask what fits in it. The refusal must name the
-    // opening's own width — not the width the growth asked for, and not a floor read off a
-    // superseded constant.
+    // The gap is selectable, so the refusal must name the opening's own width, not the width the growth asked for.
     const world = pairWithEmptyColumnRight(250);
     const grown = resizeTo(world, "L-base", 800);
     expect(grown.ok).toBe(true);
@@ -287,15 +254,9 @@ describe("a gap a growth leaves is a state the design can show", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Q — reversibility over a chain, not one rung at a time.
-// ---------------------------------------------------------------------------
-
 describe("the stepper is reversible over a long chain", () => {
   it("returns the design and the column map after six shrinks and six growths", () => {
-    // The implementer's own row does one `−50` and one `+50` at each rung. This does the whole
-    // descent and the whole ascent, which is the shape the owner reported: press down six times,
-    // then try to get back.
+    // The whole descent and the whole ascent (press down six times, then try to get back), not one rung at a time.
     const before = kitchen();
     let world = before;
     for (let widthMm = 550; widthMm >= 300; widthMm -= 50) {
@@ -356,11 +317,9 @@ describe("the stepper is reversible over a long chain", () => {
   });
 
   it("climbs back to exactly the width it started at, and no further", () => {
-    // The anti-invariant hiding inside reversibility: ADR 0043 lets a growth stop short of consuming
-    // the gap, so a run stepped to its floor can climb again — but only through the space its own
-    // shrinks vacated. `A|3.20` sits at the far end of wall A with the wall on one side, so the
-    // 300 mm it freed is the whole budget. Reaching 600 must consume it to zero, and the next `+50`
-    // must be refused rather than conjuring wall that is not there.
+    // A run stepped to its floor climbs again only through the space its own shrinks vacated: `A|3.20` is at the
+    // far end of wall A, so the 300 mm it freed is the whole budget. Reaching 600 consumes it to zero and the next
+    // `+50` must be refused.
     const before = kitchen();
     let world = before;
     for (let widthMm = 550; widthMm >= 300; widthMm -= 50) {
@@ -379,10 +338,6 @@ describe("the stepper is reversible over a long chain", () => {
     expect(overreach.reason.code).toBe("NO_EMPTY_SPACE");
   });
 });
-
-// ---------------------------------------------------------------------------
-// Q — two neighbours reaching for one gap.
-// ---------------------------------------------------------------------------
 
 describe("two columns competing for one shared empty space", () => {
   function threeInARow(): KitchenWorld {
@@ -472,15 +427,8 @@ describe("two columns competing for one shared empty space", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Q — §9's two controls and the command still agree, in both directions.
-//
-// The implementer's new row in `width-options.test.ts` skips a placement whenever the chip is not
-// `available`, so it only ever proves *chip free ⇒ step live*. The converse — a live `+50` on the
-// stepper for a width the chip row greys out — is the half that was not swept, and it is the half a
-// removed guard could break.
-// ---------------------------------------------------------------------------
-
+// Both directions: a live `+50` on the stepper for a width the chip row greys out is the half a removed guard
+// could break.
 describe("the chip row, the stepper and the command give one answer", () => {
   function optionsFor(world: KitchenWorld, placementId: string) {
     return widthOptionsFor({
@@ -546,10 +494,6 @@ describe("the chip row, the stepper and the command give one answer", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Q — the reworded Romanian sentence, judged beside its siblings.
-// ---------------------------------------------------------------------------
-
 describe("the empty-space refusal descriptor", () => {
   it("is the descriptor a real refused growth actually produces", () => {
     const result = resizeTo(pairWithEmptyColumnRight(100), "L-base", 800);
@@ -566,24 +510,9 @@ describe("the empty-space refusal descriptor", () => {
   });
 
   it("no shrink can reach the empty-space refusal", () => {
-    // **FINDING Q1, and this row is its resolution.** The reword arrived with a second clause for a
-    // shrink — „coloana ar elibera N mm" — and it was dead copy: no command can produce a
-    // `NO_EMPTY_SPACE` whose `deltaMm` is negative. The clause is gone, and the sweep that found it
-    // stays, inverted into the anti-invariant that keeps it gone. **The assertion is the same
-    // measurement**; what changed is which way round it reads, because the deletion is the fix.
-    //
-    // The deadness predates wave 5B1: ADR 0035 decision 7 made every shrink self-funding, and that
-    // is what closed the path. ADR 0043 records the removal.
-    //
-    // The argument, from `plan-width-funding.ts`: on a shrink `evaluateEmptySpace` cannot fail with
-    // anything but `absent` — `remainderMm = extent − delta` and `delta < 0`, so the remainder is
-    // always above the extent and `remainderMm < 0` is unreachable — and when both sides are
-    // `absent`, `fundingScan` appends `vacatedEmptySpace`, which is `undefined` only on a growth.
-    // Every shrink therefore reaches `fundColumnResize` with at least one `ok` attempt, and the only
-    // reasons that can be pushed after that are `key_taken` and `opens_a_gap`, which
-    // `refuseNoSideFunds` renders as `COLUMN_KEY_COLLISION` and `RESIZE_OPENS_GAP`.
-    //
-    // The sweep below is the evidence rather than the argument: it drives the actual command path.
+    // On a shrink `evaluateEmptySpace` cannot fail with anything but `absent`, and `fundingScan` then supplies the
+    // vacated space, so no command yields a `NO_EMPTY_SPACE` with negative `deltaMm` (ADR 0043). This sweep drives
+    // the actual command path.
     const reached: string[] = [];
     for (const { world, placementId, widthMm } of everyTap()) {
       const result = resizeTo(world, placementId, widthMm);
@@ -599,10 +528,6 @@ describe("the empty-space refusal descriptor", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Q — the removed union arm leaves nothing unrenderable.
-// ---------------------------------------------------------------------------
-
 describe("every per-side reason a command can still produce is typed", () => {
   it("publishes a known reason for each side the sweep reaches", () => {
     const reasons = new Set<string>();
@@ -617,18 +542,13 @@ describe("every per-side reason a command can still produce is typed", () => {
       refusals += 1;
     }
 
-    // `absent` and `too_narrow` are the two the shipped kitchen reaches; `opens_a_gap` comes from
-    // the corner leg. `remainder_below_floor` must not appear, and nothing must appear that the
-    // Romanian map has no entry for.
+    // `absent` and `too_narrow` are the two the shipped kitchen reaches; `opens_a_gap` comes from the corner leg.
+    // Nothing may appear that the Romanian map has no entry for.
     expect([...reasons].sort()).not.toContain("remainder_below_floor");
     expect(reasons.size).toBeGreaterThan(0);
     expect(refusals).toBeGreaterThan(0);
   });
 });
-
-// ---------------------------------------------------------------------------
-// Q — `base-bottle-cargo`, ADR 0026's 200 mm exception.
-// ---------------------------------------------------------------------------
 
 describe("the 200 mm cargo exception is neither widened nor closed", () => {
   it("keeps its declared floor at 200 mm", () => {
@@ -638,8 +558,7 @@ describe("the 200 mm cargo exception is neither widened nor closed", () => {
   });
 
   it("builds nothing under 300 mm but an entry that declares its own lower floor", () => {
-    // The near-miss `docs/BACKLOG.md` entry 2 records is a floor leaking sideways. A resize that now
-    // leaves a 200 mm *gap* must never leave a 200 mm *cabinet* whose row declares 300.
+    // A resize that now leaves a 200 mm gap must never leave a 200 mm cabinet whose row declares 300.
     const offenders: string[] = [];
     for (const { world, placementId, widthMm } of everyTap()) {
       const result = resizeTo(world, placementId, widthMm);
@@ -660,15 +579,8 @@ describe("the 200 mm cargo exception is neither widened nor closed", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Q — the census delta, derived independently of the code that changed.
-//
-// The edited counts (450 → 466 in `qa-w5c.enumeration.test.ts`, 230 → 238 in three other files) are
-// only the *correct* new behaviour if every newly-accepted tap is a growth ADR 0043 should unlock.
-// The superseded rule is re-implemented from ADR 0031's text below and applied to the engine's own
-// answers, so this row measures the delta without reading the guard that was deleted.
-// ---------------------------------------------------------------------------
-
+// The superseded rule (ADR 0031) is re-implemented from its text and applied to the engine's own answers, so the
+// census delta is measured without reading the guard that was deleted.
 describe("the census grew by exactly the taps the superseded floor refused", () => {
   /** ADR 0031's rule, written out again: a growth leaving the empty column strictly between 0 and
    *  `MIN_W` was refused. Applied to a tap the engine now accepts. */
@@ -703,8 +615,8 @@ describe("the census grew by exactly the taps the superseded floor refused", () 
   });
 
   it("adds sixteen growths across the nine clears, and names every one", () => {
-    // 466 − 450. Every entry is a growth into a column the clear freed, stopping short of consuming
-    // it — which is precisely and only what ADR 0043 permits.
+    // Every entry is a growth into a column the clear freed, stopping short of consuming it, which is what
+    // ADR 0043 permits.
     const unlocked: string[] = [];
     for (const [key, ids] of CLEARABLE) {
       const world = clearBodies(kitchen(), [...ids]);
@@ -741,10 +653,9 @@ describe("the census grew by exactly the taps the superseded floor refused", () 
   });
 
   it("accepts 546 taps across the nine clears, of which 530 the old floor also allowed", () => {
-    // Both totals from one sweep, so the pinned 546 cannot go green on a different population.
-    // It was 466/450 until ADR 0048 unfroze the seeded pantry's column; the eighty it added are
-    // `p6` and `p23` moving, and none of them is a growth the superseded floor would have refused,
-    // which is why the gap between the two totals is unchanged at sixteen.
+    // Both totals come from one sweep, so the pinned 546 cannot go green on a different population. The seeded
+    // pantry's moving placements (`p6`, `p23`) are no growth the superseded floor refused (ADR 0048), so the gap
+    // between the totals stays sixteen.
     let accepted = 0;
     let unlockedByThisWave = 0;
     for (const [, ids] of CLEARABLE) {
