@@ -1,38 +1,7 @@
-// **Adversarial QA of ADR 0104's give C, at the tier names the price book actually offers.**
-//
-// The owner ruled the wordmark's return width twice on 2026-09-09. The second ruling — recorded in
-// `top-bar-fit.ts`'s `SETTINGS_THE_WORDMARK_WAITS_FOR`, in the milestone's *"the label count is
-// monotone in width across the whole desktop range"*, and in criterion 13's *"stepped 1 px at a time
-// across each rung boundary, the count never oscillates"* — exists to remove one artefact and one
-// only: **crossing the width where the wordmark comes back, while widening, must not take a setting
-// name off the pill.**
-//
-// `top-bar-fit.test.ts` sweeps exactly that. It sweeps it at **one** label set — the seeded design's,
-// whose hardware tier is `Standard` — and it sweeps it with **no previous count**, which is a state
-// `use-top-bar-fit.ts` is never in after its first observation. This file varies both, because both
-// are things a customer varies: the hardware tier is one of three the book offers
-// (`sample-price-book.ts:326, 339, 354`), and where a window starts is not something a page chooses.
-//
-// **The arithmetic the ruling rests on, stated so a reader can check the finding rather than take
-// it.** At the boundary the wordmark returns at, the pill's track drops by exactly what the wordmark
-// and its gap cost — `WORDMARK_PX + FRAME_2A_SPACING.navGapPx`, 114.56 px. Above the boundary the
-// pill shows two names by construction. Below it, it shows as many as `W₂ + 114.56` buys. So the
-// count is monotone across that boundary **only while a third name costs the pill more than the
-// wordmark does**, and a third name costs `hardwareWidth + separatorPx + 2 × gapPx`:
-//
-//   | hardware tier | label              | width  | a third name | the wordmark | monotone        |
-//   | ------------- | ------------------ | ------ | ------------ | ------------ | --------------- |
-//   | Standard      | Feronerie Standard | 107.70 | 128.70       | 114.56       | yes             |
-//   | Hettich       | Feronerie Hettich  |  95.88 | 116.88       | 114.56       | yes, by 2.32 px |
-//   | Blum          | Feronerie Blum     |  85.45 | 106.45       | 114.56       | **no**          |
-//
-// Nothing in the model enforces that comparison; it happens to hold at the tier the seeded design
-// carries and to fail at one the customer can choose in the sheet.
-//
-// Every width below is measured in Chromium 1.62.1 on this machine at the pill's own declared
-// typography (`400 12.5px/1 Helvetica, Arial, sans-serif`), by the method the wave used — the four
-// seeded figures reproduce `top-bar-fit.test.ts`'s to the hundredth, which is what makes the two new
-// ones comparable rather than a second model of the type.
+// Sweeps ADR 0104's give C at all three hardware tiers the book offers and from a previous count, which
+// `top-bar-fit.test.ts` (one label set, no previous count) does not.
+// Widths are measured in Chromium at the pill's declared typography (`400 12.5px/1 Helvetica, Arial, sans-serif`); the
+// four seeded figures reproduce `top-bar-fit.test.ts`'s, so the two added tiers are comparable.
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
@@ -85,8 +54,7 @@ const D2A_AS_DRAWN: TopBarConfiguration = {
   isSpacingClosed: false,
 };
 
-/** How many observations the row is allowed to take to settle. `describeTopBarFit` is a fixed point,
- *  so it converges in one; a bound that is never reached is what says so. */
+/** How many observations the row may take to settle; `describeTopBarFit` is a fixed point, so it converges in one. */
 const OBSERVATIONS_ALLOWED = 8;
 
 function demandOf(configuration: TopBarConfiguration): number {
@@ -106,14 +74,9 @@ interface SettledRow {
 }
 
 /**
- * **`use-top-bar-fit.ts`'s own loop, run to its fixed point.** One observation feeds
- * `describeTopBarFit`, its answer feeds `chooseVisibleSettingLabels`, the row re-renders in the
- * chosen configuration and the observer fires again — so a model that took one step would be
- * measuring a row that is not on screen, which is the very mistake that hook's `measuringIn`
- * comment records.
- *
- * `startingVisibleCount` is the hook's `useState(pill.settings.length)` on a fresh page, and the
- * count the row was already showing on a resize.
+ * `use-top-bar-fit.ts`'s own loop run to its fixed point: a model that took one step would measure a row that is not
+ * on screen. `startingVisibleCount` is the hook's `useState(pill.settings.length)` on a fresh page, and the count
+ * already showing on a resize.
  */
 function settleAt(
   labelWidthsPx: readonly number[],
@@ -193,9 +156,8 @@ function settledFitAt(
 const NARROWEST_DESKTOP_PX = 900;
 const WIDEST_SWEPT_PX = 1500;
 
-/** Every width at which a page opened one pixel wider names **fewer** settings than the page beside
- *  it — the artefact stated as the comparison a reader can check, with the wordmark's arrival named
- *  beside it so the failure says its own cause. */
+/** Every width at which a page opened one pixel wider names fewer settings than the page beside it, with the
+ *  wordmark's arrival named so a failure says its own cause. */
 function widthsWhereAWiderPageNamesFewer(
   labelWidthsPx: readonly number[],
 ): readonly string[] {
@@ -218,9 +180,8 @@ function widthsWhereAWiderPageNamesFewer(
   return lost;
 }
 
-/** Criterion 13's own sweep: the window **dragged** one pixel wider from a row that had settled at
- *  the narrower width. Distinct from the comparison above — this one carries the count forward, so
- *  the hysteresis is in play and a failure here is one a customer performs rather than observes. */
+/** The window dragged one pixel wider from a row settled at the narrower width: this carries the count forward, so
+ *  the hysteresis is in play. */
 function widthsWhereWideningTakesAName(
   labelWidthsPx: readonly number[],
 ): readonly string[] {
@@ -247,9 +208,8 @@ function widthsWhereWideningTakesAName(
   return lost;
 }
 
-/** **Non-vacuity for every emptiness assertion below, taken from the rows the sweep actually
- *  produced** (ADR 0093): a sweep pinned at one rung would satisfy *"never falls"* without
- *  exercising the ladder at all. */
+/** Non-vacuity for every emptiness assertion, from the rows the sweep produced: a sweep pinned at one rung would
+ *  satisfy *"never falls"* without exercising the ladder (ADR 0093). */
 function countsReachedAcrossTheSweep(
   labelWidthsPx: readonly number[],
 ): readonly number[] {
@@ -269,11 +229,8 @@ function labelsWithHardware(hardwarePx: number): readonly number[] {
 }
 
 describe("a wider window never names fewer settings — at every tier the book offers", () => {
-  /**
-   * **The tier `top-bar-fit.test.ts` already sweeps**, held here so the two below are compared
-   * against a case this file agrees is well. If this one ever fails, the sweep is wrong rather than
-   * the model.
-   */
+  /** The tier `top-bar-fit.test.ts` already sweeps, held as the known-good case: if it fails, the sweep is wrong and
+   *  not the model. */
   it("holds on the seeded Standard tier", () => {
     const labels = labelsWithHardware(HARDWARE_PX.Standard);
 
@@ -288,14 +245,8 @@ describe("a wider window never names fewer settings — at every tier the book o
     expect(widthsWhereAWiderPageNamesFewer(labels)).toEqual([]);
   });
 
-  /**
-   * **The finding.** `Feronerie Blum` is 85.45 px, so a third name costs the pill 106.45 while the
-   * wordmark's return costs it 114.56 — and at the pixel the wordmark comes back in, a page opened
-   * one pixel wider names one setting fewer. That is the artefact the owner was shown and chose
-   * away; `SETTINGS_THE_WORDMARK_WAITS_FOR = 2` removes it only while the wordmark is cheaper than
-   * the name it displaces, which nothing enforces and which the book's own shortest tier name
-   * breaks.
-   */
+  /** `Feronerie Blum` is 85.45 px, so its third name costs the pill 106.45 against the wordmark's return at 114.56: the
+   *  tier that would break a monotonicity that held only by coincidence. */
   it("holds on the Blum tier", () => {
     const labels = labelsWithHardware(HARDWARE_PX.Blum);
 
@@ -303,13 +254,9 @@ describe("a wider window never names fewer settings — at every tier the book o
     expect(widthsWhereAWiderPageNamesFewer(labels)).toEqual([]);
   });
 
-  /**
-   * **The pill with three settings**, the state an undeclared applied material leaves it in —
-   * `describeSettingsPill` drops the colour entry and *"the count then counts from three"*. The
-   * third name is the depth here and drawing it also **retires the counter**, so it costs the pill
-   * `79.92 + 1 + 20 − 14.27 = 86.65` against the wordmark's 114.56. It fails at every hardware tier,
-   * including the seeded one.
-   */
+  /** The pill with three settings, the state an undeclared applied material leaves (`describeSettingsPill` drops the
+   *  colour entry). The third name is the depth; drawing it also retires the counter, so it costs
+   *  `79.92 + 1 + 20 − 14.27 = 86.65` against the wordmark's 114.56. */
   it("holds when the material is undeclared and the pill carries three settings", () => {
     const labels = [MATERIAL_PX, HARDWARE_PX.Standard, DEPTH_PX];
 
@@ -335,13 +282,8 @@ describe("criterion 13's drag — one pixel at a time, in the widening direction
 });
 
 describe("the property, over the widths a hardware tier name can take", () => {
-  /**
-   * The general statement, so a tier name authored outside TypeScript (ADR 0062 seam 1) cannot
-   * re-open this silently. The other three labels are the seeded design's measured widths and only
-   * the hardware name varies, across the range `Feronerie {tier}` spans for a plausible tier —
-   * `Feronerie Blum` is 85.45 and `Feronerie Standard` is 107.70, so the range is centred on what
-   * the book already ships.
-   */
+  /** The general statement, so a tier name authored outside TypeScript (ADR 0062 seam 1) cannot re-open this silently:
+   *  only the hardware name varies, across the range `Feronerie {tier}` spans (Blum 85.45, Standard 107.70). */
   propertyTest.prop([fc.double({ min: 60, max: 200, noNaN: true })])(
     "names no fewer settings at a wider window, whatever the hardware tier is called",
     (hardwarePx) => {
@@ -354,27 +296,13 @@ describe("the property, over the widths a hardware tier name can take", () => {
 
 describe("what the boundary depends on, stated as the quantity rather than as a width", () => {
   /**
-   * **This assertion was written the other way round, and the fix inverted it rather than satisfying
-   * it.** As authored it read *"needs the wordmark to cost the pill less than the name its return
-   * displaces"* — the precondition `SETTINGS_THE_WORDMARK_WAITS_FOR = 2` silently depended on. It is
-   * arithmetic over three declared label widths and **no production code can make it true**:
-   * `Feronerie Blum` is 85.45, so a third name costs 106.45 against the wordmark's 114.56, and the
-   * only ways to satisfy it are to rename a shipped tier or to re-type the wordmark.
+   * The old precondition (the wordmark costs less than the name its return displaces) is arithmetic over three declared
+   * widths that no production code can make true; give C is conditioned on the property directly and is monotone
+   * whatever the labels measure. This keeps the tier that broke it breaking it: were Blum ever expensive enough to
+   * satisfy it, every sweep would pass under a mechanism that had quietly returned to coincidence.
    *
-   * So the remedy was not to meet the precondition but to remove the dependency on it: give C is now
-   * conditioned on the property directly — the wordmark is drawn only where drawing it costs no name
-   * — and is monotone whatever the labels measure.
-   *
-   * The comparison is kept, pointing at the finding instead of at the requirement: **the tier that
-   * broke it must go on breaking it.** If `Feronerie Blum` ever became expensive enough to satisfy
-   * the old precondition, every sweep above would pass under a mechanism that had quietly returned
-   * to being a coincidence.
-   *
-   * **What this cannot do is notice a rename.** `HARDWARE_PX` holds three measured label widths as
-   * file-local literals; no price book is imported here, and none can be — a tier's *name* is in the
-   * book but the width that name renders to is a measurement. So a tier renamed in
-   * `sample-price-book.ts` leaves these three numbers describing labels that no longer exist, and
-   * every case in this file goes on passing. Re-measure them when a tier's name changes.
+   * It cannot notice a rename: `HARDWARE_PX` holds three measured widths as file-local literals, so a tier renamed in
+   * `sample-price-book.ts` leaves them describing labels that no longer exist. Re-measure when a tier's name changes.
    */
   it("keeps the shipped tier whose third name is cheaper than the wordmark", () => {
     const wordmarkCostPx = WORDMARK_PX + FRAME_2A_SPACING.navGapPx;
@@ -386,7 +314,7 @@ describe("what the boundary depends on, stated as the quantity rather than as a 
       );
     };
 
-    // The old precondition, tier by tier: two hold and one does not, which is the defect in one line.
+    // The old precondition, tier by tier: two hold and one does not.
     expect(thirdNameCostOf(HARDWARE_PX.Standard)).toBeGreaterThan(
       wordmarkCostPx,
     );
@@ -397,13 +325,9 @@ describe("what the boundary depends on, stated as the quantity rather than as a 
   });
 
   /**
-   * **And the invariant that replaced it, asserted over every tier and both pill sizes.** Give C now
-   * draws the wordmark only where the pill names as many settings with it as without it, so the
-   * count the row settles on is always the count the wider track buys — non-decreasing in width by
-   * construction rather than by an arithmetic coincidence.
-   *
-   * Stated over the whole desktop range rather than at the boundary, because "the wordmark is free"
-   * is a claim about every width and not only about the one where it changes.
+   * The invariant that replaced it, over every tier and both pill sizes: give C draws the wordmark only where the pill
+   * names as many settings with it as without it, so the count is non-decreasing in width by construction. Stated over
+   * the whole desktop range, since "the wordmark is free" is a claim about every width.
    */
   it("never draws the wordmark at a width where it would cost a name", () => {
     const everyPill = [
@@ -423,10 +347,9 @@ describe("what the boundary depends on, stated as the quantity rather than as a 
         if (!settled.isWordmarkDrawn) continue;
         widthsWithTheWordmark += 1;
 
-        // **The claim, in the width model rather than in the decision.** The row is showing the
-        // wordmark, so the track it gave up — its own width plus the gap beside it — must not have
-        // been enough for one more name. Asked of `widthNeededForVisibleLabels`, which is the pill's
-        // measurement and not give C's rule, so this cannot agree with the code by construction.
+        // The claim in the width model, not in the decision: with the wordmark showing, the track it gave up (its width
+        // plus the gap) must not have been enough for one more name. Asked of `widthNeededForVisibleLabels`, the pill's
+        // measurement, so it cannot agree with give C's rule by construction.
         const trackWithoutIt =
           settled.pillTrackPx + WORDMARK_PX + FRAME_2A_SPACING.navGapPx;
         const oneMore = settled.visibleCount + 1;
@@ -444,8 +367,7 @@ describe("what the boundary depends on, stated as the quantity rather than as a 
     }
 
     expect(costly).toEqual([]);
-    // Non-vacuity: the wordmark is drawn somewhere in the sweep, so the loop above inspected
-    // something. A give C that never returned the wordmark would satisfy the claim by drawing none.
+    // Non-vacuity: the wordmark is drawn somewhere in the sweep; a give C that never drew it would pass vacuously.
     expect(widthsWithTheWordmark).toBeGreaterThan(0);
   });
 });

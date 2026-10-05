@@ -1,28 +1,3 @@
-// **Adversarial QA for wave 6W** — the hardware tier that prices a kitchen below its group's
-// default (ADR 0092 decision 12), and the `number | undefined` `exactDelta` grew to say so.
-//
-// The wave's own files assert the ruling on the sample book's one inversion. Five ways that could be
-// green while the wave is wrong are what this file attacks, each written against the shape of the
-// refactor rather than against its seeded case:
-//
-// 1. **`undefined` reaching a screen.** A `number | undefined` returned from arithmetic is the
-//    classic failure of this refactor: `undefined` interpolated into a badge renders the word, and
-//    `undefined` entering a sum renders `NaN`. Swept over every population the seeded kitchen can be
-//    cut to, through the **rendered markup** of the settings sheet, the price bar and the breakdown
-//    — not through the view objects, which is where the word would still be a value rather than a
-//    string.
-// 2. **A rule that is not the book's.** The wave's quantifier is derived from three declared rates.
-//    Derived here a second time, in **integer arithmetic with no division**, and asserted against
-//    mutated books whose rates move the boundary — a float ratio agreeing with itself at the seeded
-//    figures would pass the wave's own derivation and fail this one at the boundary.
-// 3. **A biconditional read off one tier.** The wave's book inverts on exactly one hardware tier, so
-//    a module that blanked *the tier named Hettich* would pass every seeded assertion. Books where
-//    the **other** non-default tier inverts, and where **both** do, are swept here.
-// 4. **A refusal laundered rather than narrowed.** `NegativeTierDeltaError`'s message is asserted
-//    character for character against the template 6T shipped, and the material group is driven into
-//    it on the very design the hardware rule spares.
-// 5. **A tier that is listed but not choosable.** Driven through the store — select the inverting
-//    tier, price the design at it, read the bar, select away again — rather than read off a view.
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import {
   buildKitchenLBodyCatalog,
@@ -70,12 +45,11 @@ const BOOK = SAMPLE_PRICE_BOOK;
 const DEFAULT_TIER_ID = BOOK.hardware.defaultTierId;
 const HARDWARE_TIER_IDS = BOOK.hardware.tiers.map((tier) => tier.tierId);
 const MATERIAL_TIER_IDS = BOOK.material.tiers.map((tier) => tier.tierId);
-/** The tier ADR 0070's runners-only drawer figure puts below the default on a drawer-dominant
- *  design, and the only one the *shipped* book inverts on — which is why the books below move the
- *  others too. */
+/** The tier ADR 0070's runners-only drawer figure puts below the default on a drawer-dominant design; the only one
+ *  the shipped book inverts on. */
 const INVERTING_TIER_ID = "hardware.soft-close";
 const DEARER_TIER_ID = "hardware.premium";
-/** One `base-drawer3-600`: three drawers, no hinge, no latch. The wave's own witness. */
+/** One `base-drawer3-600`: three drawers, no hinge, no latch. */
 const THREE_DRAWER_BASE = "base-drawer3-600";
 
 function designOf(placements: readonly DesignPlacement[]): Design {
@@ -168,9 +142,8 @@ function viewOf(design: Design, book: PriceBook = BOOK): GlobalSettingsView {
   });
 }
 
-/** This file is about a book whose tier prices below its own default, never about access. Stated
- *  rather than defaulted: `GlobalSettingsSurface.editability` is a required prop precisely so a
- *  write surface cannot silently default to permitted (M6-AUD-001). */
+/** This file is about a book whose tier prices below its own default, never about access. Stated rather than
+ *  defaulted: `GlobalSettingsSurface.editability` is a required prop so a write surface cannot default to permitted. */
 const WRITABLE_ACCESS = describeEditability(
   {
     canWrite: true,
@@ -193,10 +166,8 @@ function settingsMarkupOf(view: GlobalSettingsView): string {
   );
 }
 
-/** **The two words a `number | undefined` leaks as.** `undefined` reaches markup through string
- *  interpolation and `NaN` through arithmetic; both render as themselves and neither belongs in any
- *  ruled string. Asserted against rendered HTML rather than a view object, because a view still
- *  holds the value and only the render turns it into the word. */
+/** `undefined` reaches markup through interpolation and `NaN` through arithmetic, and neither belongs in any ruled
+ *  string. Asserted against rendered HTML, because a view still holds the value and only the render makes the word. */
 const LEAKED_WORDS = ["undefined", "NaN", "null"] as const;
 
 function expectNoLeakedValue(markup: string, whereFrom: string): void {
@@ -207,8 +178,7 @@ function expectNoLeakedValue(markup: string, whereFrom: string): void {
   }
 }
 
-/** Every population the seeded kitchen can be cut to. The inverting case is *inside* this space —
- *  the wave's own witness is a one-element subset — so nothing here has to be seeded. */
+/** Every population the seeded kitchen can be cut to; the inverting case is inside this space, so nothing is seeded. */
 const anyPopulation = fc
   .subarray([...KITCHEN_L_DESIGN.placements], { minLength: 0 })
   .map((placements) => designOf(placements));
@@ -224,9 +194,7 @@ describe("the optional delta never reaches a screen as a word", () => {
     },
   );
 
-  /** The two surfaces the wave did not touch, asserted anyway: `exactDelta`'s new return type is
-   *  reachable from `useWholeKitchenTierOffer` alone, and the claim that the bar and the breakdown
-   *  never see it is worth a measurement rather than a reading of the imports. */
+  /** The bar and the breakdown never see `exactDelta`'s new return type; measured rather than read off the imports. */
   it("renders the price bar and the breakdown for the inverting design, at every hardware tier", () => {
     for (const hardwareTierId of HARDWARE_TIER_IDS) {
       const design: Design = {
@@ -259,10 +227,9 @@ describe("the optional delta never reaches a screen as a word", () => {
     }
   });
 
-  /** **Every badge that *is* rendered is a formatted addition**, which is the other half of "no
-   *  word leaked": a group could avoid printing `undefined` by printing nothing at all. Each option
-   *  either carries the ruled *inclus*, or a `de la +…` built from its own measured delta, or
-   *  nothing — and never a minus sign, which the mockups have no form for. */
+  /** Every rendered badge is a formatted addition: a group could avoid printing `undefined` by printing nothing.
+   *  Each option carries the ruled *inclus*, a `de la +…` built from its measured delta, or nothing; never a minus
+   *  sign. */
   propertyTest.prop([anyPopulation])(
     "states inclus, a signed addition, or nothing at all — never a discount",
     (design) => {
@@ -285,13 +252,8 @@ describe("the optional delta never reaches a screen as a word", () => {
 });
 
 /**
- * **The wave's quantifier, derived a second time and in integers.**
- *
- * The wave writes it as *drawers > a × hinges + b × latches* with both coefficients divided out of
- * the rate gaps. That form is the ADR's, and it is also the form that can disagree with the module
- * at the boundary: two divisions and two multiplications in binary floating point do not have to
- * land on the same side of an equality that the exact integers do. Written here without a division,
- * so an agreement is an agreement between two arithmetics rather than one repeated.
+ * The quantifier derived a second time, in integers with no division, so agreement is between two arithmetics: the
+ * module's float form can land on the other side of the boundary from the exact integers.
  */
 function invertsInIntegers(book: PriceBook, tierId: string, design: Design) {
   const standard = tierOf(book, DEFAULT_TIER_ID);
@@ -329,9 +291,8 @@ function bookWithHardwareRates(
 
 const STANDARD = tierOf(BOOK, DEFAULT_TIER_ID);
 
-/** Books whose inversion is somewhere other than where the shipped book puts it. Each is named by
- *  what it moves, and none of them is the sample book — so a module keyed to *Hettich*, or to the
- *  seeded rate figures, is red in this sweep and green in the wave's own. */
+/** Books whose inversion is somewhere other than where the shipped book puts it: a module keyed to *Hettich* or
+ *  to the seeded rates is red here. */
 const MUTATED_BOOKS: readonly {
   readonly name: string;
   readonly book: PriceBook;
@@ -381,8 +342,7 @@ describe("what states an amount is the book's arithmetic, not the tier's name", 
   it.each(MUTATED_BOOKS.map(({ name, book }) => [name, book] as const))(
     "tracks the book when %s",
     (_name, book) => {
-      // Swept over the same population space as the property above, deterministically, so the claim
-      // is that the module follows *these* rates rather than that it follows some rates once.
+      // Swept over the same population space, so the claim is that the module follows *these* rates.
       for (const design of everyOneAndTwoBodyPopulation()) {
         const hardware = offerOf(design, book).hardware;
         const baseline = hardwareAmountFor(book, DEFAULT_TIER_ID, design);
@@ -401,9 +361,8 @@ describe("what states an amount is the book's arithmetic, not the tier's name", 
     },
   );
 
-  /** The mutated books are only worth sweeping if they actually move the case. Asserted, so a rate
-   *  edit that stopped inverting anything would show up as this going red rather than as the sweep
-   *  above passing vacuously. */
+  /** The mutated books are only worth sweeping if they move the case; asserted, so a rate edit that stopped inverting
+   *  anything fails here rather than passing the sweep vacuously. */
   it("moves the inversion off Hettich and off the shipped rates", () => {
     const [otherTierInverts, correctedAway, latchReversed] = MUTATED_BOOKS;
     if (!otherTierInverts || !correctedAway || !latchReversed)
@@ -421,8 +380,7 @@ describe("what states an amount is the book's arithmetic, not the tier's name", 
         INVERTING_TIER_ID,
       ),
     ).toBeGreaterThan(0);
-    // The shipped book inverts here on three drawers; with the latch surcharge reversed it still
-    // does, and the wave's own float derivation and this integer one must agree on both.
+    // The shipped book inverts here on three drawers, and still does with the latch surcharge reversed.
     expect(
       offeredDeltaFor(
         offerOf(DRAWERS_ONLY, latchReversed.book).hardware,
@@ -431,9 +389,8 @@ describe("what states an amount is the book's arithmetic, not the tier's name", 
     ).toBeUndefined();
   });
 
-  /** **A book that inverts on *every* non-default hardware tier**, which is the state the wave's
-   *  seeded case cannot reach: two silent options at once. The sheet must still render and still
-   *  offer all three, and the default must still state `0`. */
+  /** A book that inverts on every non-default hardware tier: two silent options at once, which the seeded case cannot
+   *  reach. The sheet still renders and offers all three, and the default still states `0`. */
   it("offers every tier when two of them price below the default at once", () => {
     const bothInvert = bookWithHardwareRates(DEARER_TIER_ID, {
       perHingeMinor: STANDARD.perHingeMinor,
@@ -454,9 +411,8 @@ describe("what states an amount is the book's arithmetic, not the tier's name", 
     expectNoLeakedValue(markup, "the two-inversion sheet");
   });
 
-  /** **A material tier's delta never moves under any of it.** The hardware rule is per group, and a
-   *  rule that leaked across groups would show here as a material amount that changed when a
-   *  hardware rate did. */
+  /** The hardware rule is per group: a rule leaking across groups would change a material amount when a hardware rate
+   *  changed. */
   it("leaves every material delta exactly where the shipped book puts it", () => {
     const shipped = offerOf(DRAWERS_ONLY).material;
     for (const { name, book } of MUTATED_BOOKS) {
@@ -485,10 +441,8 @@ function everyOneAndTwoBodyPopulation(): readonly Design[] {
 }
 
 describe("the refusal is narrowed, not laundered", () => {
-  /** The message 6T shipped, rebuilt from the same two facts the constructor interpolates. Asserted
-   *  character for character: "unchanged in meaning **and message**" is the wave's own criterion,
-   *  and a message that lost the tier id or the shortfall would still be a `NegativeTierDeltaError`
-   *  to a `toThrow(NegativeTierDeltaError)`. */
+  /** The message rebuilt from the two facts the constructor interpolates, character for character: one that lost the
+   *  tier id or the shortfall would still satisfy `toThrow(NegativeTierDeltaError)`. */
   it("keeps NegativeTierDeltaError's exact sentence for the material group", () => {
     const invertedMaterial: PriceBook = {
       ...BOOK,
@@ -525,9 +479,8 @@ describe("the refusal is narrowed, not laundered", () => {
     );
   });
 
-  /** **The leak the hardware rule could have opened**: the material refusal asked on every
-   *  population, including the ones the hardware rule spares. A `BelowDefaultTierRule` wired the
-   *  wrong way round, or read from the wrong group, is red here at once. */
+  /** The material refusal asked on every population, including those the hardware rule spares: a
+   *  `BelowDefaultTierRule` wired the wrong way round, or read from the wrong group, fails here. */
   propertyTest.prop([anyPopulation])(
     "refuses an inverted material book at every population, whether or not the hardware inverts",
     (design) => {
@@ -542,9 +495,8 @@ describe("the refusal is narrowed, not laundered", () => {
     },
   );
 
-  /** **The hardware group never raises it, on any book reachable here** — including the ones above
-   *  that invert on a tier the shipped book does not. The rule is "hardware offers", and a book that
-   *  made it throw would mean the refusal had been moved rather than narrowed. */
+  /** The hardware group never raises it on any reachable book: one that made it throw would mean the refusal was
+   *  moved rather than narrowed. */
   it("never raises it from the hardware group, on any of the mutated books", () => {
     for (const { name, book } of [
       { name: "the shipped book", book: BOOK },
@@ -557,17 +509,9 @@ describe("the refusal is narrowed, not laundered", () => {
   });
 
   /**
-   * **The one thing the hardware rule now absorbs, pinned as what it is.**
-   *
-   * A hardware tier that is cheaper than the default on *all three* rates is not a fact about a
-   * customer's kitchen: it prices **every** design with a mechanism below the default, so no design
-   * can put it right and the wave's own reasoning for the hardware rule (*"which tier is cheapest is
-   * a property of the customer's own kitchen"*) does not describe it. Nothing at runtime reports it.
-   *
-   * Recorded as a characterisation rather than asserted as a failure — the wave rules the hardware
-   * group offers rather than refuses, and this is the price of that ruling, not a departure from it.
-   * Its guard is a test on the sample book (`whole-kitchen-tiers.test.ts`'s *defaults each group to
-   * its cheapest tier*), which is exercised below so the guard is known to fire.
+   * A hardware tier cheaper than the default on all three rates prices every design with a mechanism below the
+   * default, so no design can put it right and nothing at runtime reports it. Recorded as a characterisation; the guard
+   * is a test on the sample book (`whole-kitchen-tiers.test.ts`'s *defaults each group to its cheapest tier*).
    */
   it("absorbs a hardware tier that is cheaper on all three rates, and no runtime rule reports it", () => {
     const dominated = bookWithHardwareRates(INVERTING_TIER_ID, {
@@ -576,8 +520,7 @@ describe("the refusal is narrowed, not laundered", () => {
       perPushToOpenMinor: STANDARD.perPushToOpenMinor - 1,
     });
 
-    // Every population carrying any mechanism at all prices below the default at this tier, and
-    // every one of them is offered in silence.
+    // Every population carrying a mechanism prices below the default at this tier, and every one is offered in silence.
     let silent = 0;
     for (const design of everyOneAndTwoBodyPopulation()) {
       const counts = mechanismsIn(design);
@@ -589,8 +532,7 @@ describe("the refusal is narrowed, not laundered", () => {
     }
     expect(silent).toBeGreaterThan(0);
 
-    // The guard that does catch it is a suite assertion over the *sample* book, not a runtime rule:
-    // the dominated tier is the cheapest at the seeded kitchen, and its own default is not.
+    // The guard that catches it is a suite assertion over the *sample* book, not a runtime rule.
     const cheapestAtSeeded = [...BOOK.hardware.tiers]
       .map((tier) => ({
         tierId: tier.tierId,
@@ -618,8 +560,6 @@ describe("the tier that states nothing is still a tier a customer can choose", (
     });
   }
 
-  /** The whole round trip, driven the way a customer drives it: open the sheet on the design that
-   *  inverts, choose the silent tier, and read what the kitchen then costs. */
   it("takes the choice, prices the kitchen lower for it, and lets the customer choose back", () => {
     const store = freshStore(DRAWERS_ONLY);
     const atDefault = pricingOf(DRAWERS_ONLY);
@@ -634,8 +574,7 @@ describe("the tier that states nothing is still a tier a customer can choose", (
 
     const chosen = pricingOf(store.getState().design);
     if (!chosen.ok) throw new Error("the chosen tier must still price");
-    // The point of the wave: the kitchen genuinely costs less here, and the customer is shown a
-    // coherent figure rather than a refusal.
+    // The kitchen genuinely costs less here, and the customer sees a coherent figure rather than a refusal.
     expect(chosen.priced.totalMinor).toBe(atDefault.priced.totalMinor - 4_200);
     const bar = describePriceBar({ pricing: chosen, content: ro });
     expect(bar.kind).toBe("priced");
@@ -651,10 +590,8 @@ describe("the tier that states nothing is still a tier a customer can choose", (
     expect(store.getState().lastRejection).toBeNull();
   });
 
-  /** **The sheet the customer sees *while standing on* the silent tier.** Every seeded assertion in
-   *  the wave measures a design that carries no hardware choice; this is the state the customer is
-   *  left in by the click above, and the one where a delta measured against "what the design
-   *  carries" could quietly re-baseline itself onto the chosen tier. */
+  /** The state the click above leaves the customer in: a delta measured against "what the design carries" could
+   *  quietly re-baseline itself onto the chosen tier. */
   it("still measures every delta against the book's default once the silent tier is applied", () => {
     const carried: Design = {
       ...DRAWERS_ONLY,
@@ -671,8 +608,7 @@ describe("the tier that states nothing is still a tier a customer can choose", (
     expect(group.options.find((option) => option.isSelected)?.tierId).toBe(
       INVERTING_TIER_ID,
     );
-    // Selected and silent at once — the state a "selected tiers always show inclus" rule would
-    // break, and the one the anchor sentence has to keep being true above.
+    // Selected and silent at once: the state a "selected tiers always show inclus" rule would break.
     expect(
       group.options.find((option) => option.tierId === INVERTING_TIER_ID)
         ?.deltaText,
@@ -685,16 +621,14 @@ describe("the tier that states nothing is still a tier a customer can choose", (
       hardwareAmountFor(BOOK, DEARER_TIER_ID, carried) - baseline,
     );
 
-    // The anchor still names what the remaining amounts are measured against, because there are
-    // still amounts on the group. A sheet that dropped it here would leave two figures on screen
-    // with nothing saying what they are against.
+    // The anchor still names what the remaining amounts are measured against; dropping it would leave two figures with
+    // nothing saying what they are against.
     expect(group.anchor).toBe(ro.globalSettings.groupAnchors.hardware);
     expectNoLeakedValue(settingsMarkupOf(view), "the sheet at the silent tier");
   });
 
-  /** **Silent is not the same state as unpriced**, and the difference has to be visible. When the
-   *  whole design cannot be priced every tier is silent *and* the anchor is gone; when one tier
-   *  prices below the default the anchor stays. */
+  /** Silent is not unpriced: a design that cannot be priced silences every tier and drops the anchor, while one tier
+   *  pricing below the default keeps it. */
   it("distinguishes one silent tier from a sheet that could not be priced at all", () => {
     const unpriceable = describeGlobalSettings({
       content: ro,
@@ -726,9 +660,7 @@ describe("the tier that states nothing is still a tier a customer can choose", (
       expect(option.deltaText, option.tierId).toBeUndefined();
   });
 
-  /** Every material id stays offered under the silent hardware tier too — the groups do not
-   *  interfere, which is what "all-or-nothing across both groups" leaves room to get wrong now that
-   *  one group can omit a single amount. */
+  /** The groups do not interfere: one group omitting a single amount leaves the other group's amounts intact. */
   it("keeps every material tier stating its own amount while a hardware tier states none", () => {
     const material = offerOf(DRAWERS_ONLY).material;
 
