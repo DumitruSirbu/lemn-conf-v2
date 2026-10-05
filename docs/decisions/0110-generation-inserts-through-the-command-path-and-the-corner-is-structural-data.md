@@ -3648,7 +3648,7 @@ with the RQ17 default, `TOWER_BARE=1`. `u0-measure-rq.out` holds the E6.2 altern
 | --- | --- |
 | 2700 / 1000 / 1000 | **Refused** |
 | 3000 / 1000 / 1000 | No fridge (neither side wall holds it). A: sink, hob (`base-hob-oven`). No tower |
-| 3600 / 2400 / 2000 | B: 1 storage, fridge (bare 100 **beyond the fridge, at the free end: N11.1**). A: sink, dishwasher, preparation. C: hob, ~~(bare 400)~~ **bottle (bare 100), N9.3**. No tower, `base-hob-oven` |
+| 3600 / 2400 / 2000 | B: 1 storage, fridge (bare 100 **beyond the fridge, at the free end: N11.1**; **dated 2026-10-05: O10 (`58f6fc5`) absorbs it, remainder 0**). A: sink, dishwasher, preparation. C: hob, ~~(bare 400)~~ **bottle (bare 100), N9.3**. No tower, `base-hob-oven` |
 | 3600 / 3500 / 2200 | B: 2 base, fridge, 1 pantry. A: sink, dishwasher, preparation. C: hob, then the tower at the free end. `base-hob-2drawer` |
 | 4000 / 4500 / 1200 | B: 3 base, fridge, 1 pantry (bare 400). A: sink, preparation, hob, ~~(dishwasher dropped; bare 400)~~ **bottle (bare 100)**; the dishwasher is dropped. C: empty (bare 200). No tower |
 | 5000 / 4000 / 3000 | Large. B: 2 base, fridge, ~~1 door~~ **1 pantry** (bare 500, RQ13). A: sink, dishwasher, preparation, hob, ~~1 storage (bare 200)~~ **bottle (bare 500)**; no uppers, with voids. C: 2 storage **(both `base-panbank`, RQ18 (a), N9.1)**, tower (bare 200 beyond it, RQ17). **3 drawer units (the preparation and 2 on C) of `N(T)` = 5; the count yields.** ~~2 × `base-panbank`~~ **`base-panbank`, `base-3drawer` (RQ19 (a), `84bab2e`).** **Moves again under N10 (RQ21): A: sink, dishwasher, preparation, hob, `base-panbank` (bare 200), no bottle. C: `base-panbank`, `base-3drawer`, tower (bare 200). 4 drawer units** |
@@ -4146,6 +4146,10 @@ the fridge stands directly after it, and the bare remainder (under 600 mm, A4) i
 fridge, at the free end. **That remainder stays bare.** No pantry and no door goes in it, whatever
 its width. The counted case, `n` = 2 or 3, does not change.
 
+> **Dated pointer, 2026-10-05: overturned for a 50–299 mm remainder by O10 (C5 S2, `58f6fc5`).** The door
+> cabinet beside the fridge absorbs it in 50 mm steps; the rest stays bare. N3r 3's "any bare remainder
+> beyond it" is overturned the same way. Text above is kept as written.
+
 - *Doc-quoted, the rule.* The record states it three times:
   - N3 item 3: *"the fridge stands at the free end, with any bare remainder beyond it at the free end
     (the L's convention)"*.
@@ -4405,14 +4409,14 @@ other N4′ and N10.6 witness measures unchanged.
 
 | A / B / C | Ruling | Predicted |
 | --- | --- | --- |
-| 3600 / 2400 / 2000 | N11.1 | B: `base-cabinet` 900–1500, fridge 1500–2200, bare 100 beyond. A and C unchanged |
+| 3600 / 2400 / 2000 | N11.1 | B: `base-cabinet` 900–1500, fridge 1500–2200, bare 100 beyond. A and C unchanged. **Restated 2026-10-05 (O10, `58f6fc5`): base 900–1600, fridge 1600–2300, remainder 0** |
 | 3600 / 2800 / 2800 | N11.1 | B: `base-cabinet` 900–1500, fridge 1500–2200, bare 500 beyond, no pantry. C unchanged |
 | 4000 / 2000 / 2000 | N11.1 | B: fridge 900–1600, bare 300 beyond |
 | 4800 / 4400 / 4400 | N11.2, exactly 600 | A: …, `base-hob-2drawer` 2700–3300, `base-panbank` 3300–3900 (bare 0, no bottle). C: `base-panbank`, `base-3drawer`, `base-3drawer`, tower 2700–3300, `base-cabinet` (bare 400). **Was** A: …, hob, bottle (bare 300); C: 2 × `base-panbank`, 2 × `base-3drawer`, tower |
 | 5400 / 3400 / 3400 | N11.2, 1200 | ~~A: …, hob, 2 × `base-panbank` (bare 0). C: 2 × `base-3drawer`, tower 2100–2700, `base-cabinet`.~~ **RQ23: unchanged.** A: …, `base-hob-2drawer`, bottle, `base-panbank` (bare 300). C: `base-panbank`, 2 × `base-3drawer`, tower 2700–3300 |
 | 6000 / 6000 / 6000 | N11.2, 1800 | ~~A: sink, dishwasher, preparation, `base-hob-2drawer`, 2 × `base-panbank`, `base-3drawer` (bare 0). C: `base-3drawer`, 2 × `base-cabinet`, tower at 2700–3300 (`n` = 3), 4 × `base-cabinet` (bare 200).~~ **RQ23: unchanged, as N10 left it.** A: …, hob, bottle, 2 × `base-panbank` (bare 300). C: 2 × `base-3drawer`, `base-cabinet`, tower, 4 × `base-cabinet` (bare 200) |
 | 2399 / 3000 / 3000 | N11.3 | `minimumMet: false` (freeA 599) |
-| 2400 / 3000 / 3000 | N11.3 | Composes: the sink at A 900–1500 (freeA 600); C: dishwasher, preparation, `base-hob-oven`. B, per N11.1: 2 × `base-cabinet` 900–2100, fridge 2100–2800 |
+| 2400 / 3000 / 3000 | N11.3 | Composes: the sink at A 900–1500 (freeA 600); C: dishwasher, preparation, `base-hob-oven`. B, per N11.1: 2 × `base-cabinet` 900–2100, fridge 2100–2800. **Restated 2026-10-05 (O10, `58f6fc5`): base 1500–2200, fridge 2200–2900** |
 | 3600 / 3500 / 2200, h 2199 | N11.4 | B: 2 × `base-cabinet`, fridge 2100–2800, `base-cabinet` 2800–3400, no pantry. At h 2200, the pantry stands, as in N4′ |
 
 #### N11.6 — found while adjudicating, for U3b: wall A's remainder at its low end cannot be built from widths alone
@@ -4907,7 +4911,7 @@ plan speaks.
 7. **Dated notes.** E11.1 and E11.3 are withdrawn by the owner on 2026-10-01. F9's lift rule is not taken.
    **ADR 0117's *"no top row"* statement (`:283`, read) is superseded for generation**, by this ruling.
 
-### O10 — the fridge-gap absorb (Q6): DECIDED; L and straight BUILT (C5 S1, `0e7e5ea`), U NOT BUILT (S2)
+### O10 — the fridge-gap absorb (Q6): BUILT (C5 S1 `0e7e5ea`, S2 `58f6fc5`)
 
 **Q6 (M7-FB-010), a relayed selection: *"Absorb gaps under 300 mm"*.** [doc-quoted: plan, Q6.] Where the
 fridge ends a run with under 300 mm beyond it, the door cabinet beside it grows in 50 mm steps up to
@@ -4928,6 +4932,15 @@ because the fridge's neighbour is the dishwasher (16,300) or the sink (1,625), c
 the neighbour is a door cabinet". The editor half remains not built (backlog 104). Record:
 `milestones/M7C-m7-feedback-fixes.md`, *C5 S1 as built*.
 
+**Update, later 2026-10-05: S2 is built for the U, in `58f6fc5`.** The same rule on the fridge wall (B or
+C), run last in `composedPlan`. With pantries beyond the fridge it is not outermost and nothing changes.
+**It also overturns N11.1** (*"That remainder stays bare…"*, for 50–299 mm) **and N3r 3's "any bare
+remainder beyond it"**; the owner's Q6 answer covers the U and the plan scoped S2 to it, so this is a
+missing citation, not a new decision. Pointers were added at N11.1, the N4′ row and the two N11 witness
+rows (3600/2400/2000, 2400/3000/3000). [QA census, against `0e7e5ea`] 4,752 of 86,706 U rooms change (B
+2,444, C 2,308); L and straight byte-identical. **Owner-visible:** 1,152 U rooms keep a bare 50–299 mm
+because nothing stands inboard of the corner fridge (beside S1's 17,925 L rooms).
+
 ### Decision-record sweep
 
 | Record | What it says | How it is settled |
@@ -4935,7 +4948,7 @@ the neighbour is a door cabinet". The editor half remains not built (backlog 104
 | This ADR, E11.1 and E11.3; F9 | No generated top row; a composed top row is lift cabinets. | **Struck / not applied by O9**: decided; built in C3 S1, `02b1c7b`. |
 | This ADR, B2; 7D1-Q1 c. 14; 7D6 J2 | Zero start over the corner; an empty column; four corner pieces. | **Restated, overturned and struck by O3.** |
 | This ADR, N1.3, *N3 revised* 11 | The back wall is base-only in a large U. | **Unchanged** (O4). |
-| This ADR, A4, D2, *N3 revised* 4, RQ25a; E6; F7 | Remainders stay bare; E6 absorbs ≤ 200 beside a tower; the 100 mm side reserve. | **Departed from for one case (O10)**, F7 kept. |
+| This ADR, A4, D2, *N3 revised* 4, RQ25a; E6; F7; **N11.1; N3r 3 "any bare remainder beyond it"** | Remainders stay bare; E6 absorbs ≤ 200 beside a tower; the 100 mm side reserve; the U's fridge remainder stays bare. | **Departed from for one case (O10)**, F7 kept; N11.1 and N3r 3 overturned for 50–299 mm by S2 (`58f6fc5`). |
 | This ADR, E12.4 | New cabinets wait for beta. | **Overridden for one unit (O3).** |
 | [0021](0021-corner-returns-are-structural-in-data.md) decision 2 | No finish, handle or width for a corner return. | **Unchanged for handle and width; the finish half was reversed on 2026-09-09 (backlog 60)** and the unit follows that. |
 | [0066](0066-the-wall-corner-returns-get-their-own-kinds-and-names.md) | Each corner row has its own kind and name. | **Reused, not extended** (O7); own names await Q8 (ii). |

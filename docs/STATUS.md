@@ -542,7 +542,7 @@ gate, including **208 passed / 2 skipped** E2E cases; push remains pending. The 
 0108–0115, 0045 Amendment A, 0108 Amendment F, 0110 Amendment I1.1, 0118, 0120 Amendment E, 0122,
 0123, 0124, 0125, 0129, 0131 |
 | M7B — U-shaped rooms | **Planned, confirmed by the owner 2026-09-11** (*"Yeah let make separate"*) — sits between M7 and M8; ~~planned in its own file once M7's domain waves land~~ ~~plan written 2026-09-29: eight waves U0–U7, no wave dispatched; next wave U0 (census, measurements, ADR 0132, owner questions Q-U1–Q-U5, which gate U3 and U6 only)~~ **U0 is DONE (Light tier, one logic reviewer, no blockers): ADR 0132 Accepted; owner answers Q-U1–Q-U5 and RQ1–RQ17 recorded in ADR 0108 Amendment H, ADR 0110 Amendment N, ADR 0104 Amendment C; backlog 91. No wave now waits on an owner answer. Next wave U1** (the stored U and wall C; domain; Full tier plus security on S2). ~~**Update 2026-09-29: U0–U2 done; U3 re-cut into U3a and U3b. U3a is implemented through `3f53a62` (N10 fitting rule), in adversarial QA, then review; not closed. U3b next. See *What to do next*.**~~ ~~**Update 2026-09-29, later: U0–U2 and U3a are DONE (U3a closed at `38d6be7`; close-out in the milestone file). U3b S0 (test fixtures and the deferred clean-code minors) is in progress, then S1–S3. U4 is in review round 3, not closed. See *What to do next*.**~~ **Update 2026-09-29, latest: ~~U0–U2, U3a and U4 are DONE (U4 closed at `7f129fa`; close-out in the milestone file; U4's visual criteria and the D14 light rig moved to U5). U3b S1 is in progress (ADR 0110 N11.8–N11.9 plus generation), then S2–S3.~~ ~~2026-09-30: U0–U5 are DONE (U5 closed at `8a30dbb`; D14 decided: keep the rig, ADR 0132 Amendment B). Next: U6 (the switch), then U7 (the phase gate). Not pushed; `ci:local` not run.~~ 2026-09-30, latest: U0–U6 are DONE (U6 closed at `f06b7af`: S0 census `7d87c41`, S1 the switch `cb0bb0c`, QA `064c0e1`, review fixes `d5e933a`; a U is now buildable under `APPROVED_ROOM_POLICY` and the card is live). U7 (the phase gate) is in progress, starting with S0 (the reload flash, ADR 0133). Origin was last pushed at `0729c2f`; the local branch is ahead. See *What to do next*.** | Yes — `milestones/M7B-u-shaped-rooms.md` |
-| M7C — M7 feedback fixes | **In progress** (2026-10-01; branch `m7c-m7-feedback-fixes`, cut from `main` at `2615b51`, not pushed). Done: C0; C1 S1 `8269440` and S2 `21c702b`; wave C4 (S1 `c4eeea6`, S2 `48bbc0c`); wave C2 (S1 `075529b`, S2 `0a1a69a`); C1 S3 `01c40be`; wave C3 (S1 `02b1c7b`); wave C7 (S1 `03d49aa`, M7-FB-013); C5 S1 `0e7e5ea` (L and straight, M7-FB-010). Open: C5 S2 (the U, next), C1 S4 (browser Back warning, planned), CE, C6 | Yes — `milestones/M7C-m7-feedback-fixes.md`; the feedback log `M7-FEEDBACK.md`; ADR 0113 (pointer), ADR 0135 |
+| M7C — M7 feedback fixes | **In progress** (2026-10-01; branch `m7c-m7-feedback-fixes`, cut from `main` at `2615b51`, not pushed). Done: C0; C1 S1 `8269440` and S2 `21c702b`; wave C4 (S1 `c4eeea6`, S2 `48bbc0c`); wave C2 (S1 `075529b`, S2 `0a1a69a`); C1 S3 `01c40be`; wave C3 (S1 `02b1c7b`); wave C7 (S1 `03d49aa`, M7-FB-013); wave C5 (S1 `0e7e5ea` L and straight, S2 `58f6fc5` the U; M7-FB-010). Open: C1 S4 (next) (browser Back warning, planned), CE, C6 | Yes — `milestones/M7C-m7-feedback-fixes.md`; the feedback log `M7-FEEDBACK.md`; ADR 0113 (pointer), ADR 0135 |
 | M8 — Review, contact, success | Planned | Yes, when starting |
 | Adversarial review remediation | **Every finding closed or gated.** SEC-001 (High) deferred to M8 by owner decision, gated. Everything else — SCENE-001/002, WEB-001–004, DOM-001–003, SEC-002–004, DB-001/002/004 — is implemented and reviewed | Yes — `milestones/adversarial-review-remediation.md`, `milestones/dom-003-set-width-split.md` |
 | M5B — Manual UX remediation (branch `ux-manual-fixes`, merged) | **Done, 2026-09-02** — all eleven waves shipped | No — `milestones/done/M5B-manual-ux-remediation.md`, ADRs 0043–0051 |
@@ -1122,7 +1122,12 @@ policy, so every per-endpoint limit is application code.
 
 ## What to do next
 
-> **RESUME HERE — 2026-10-05, latest. M7C (M7 feedback fixes): C1 S1, C1 S2, C1 S3, waves C4, C2, C3 and C7 are DONE; C5 S1 is DONE (`0e7e5ea`). Next: C5 S2 (the U).**
+> **RESUME HERE — 2026-10-05, latest. M7C (M7 feedback fixes): C1 S1, C1 S2, C1 S3, waves C4, C2, C3 and C7 are DONE; wave C5 is DONE (S1 `0e7e5ea`, S2 `58f6fc5`). Next: C1 S4 (the browser Back warning).**
+> **Update, later still 2026-10-05: C5 S2 is DONE** (`58f6fc5`, not pushed): the rule on the U's fridge wall.
+> [QA census] 4,752 of 86,706 U rooms change; L and straight byte-identical; 1,152 U rooms keep a bare
+> 50–299 mm. It overturns ADR 0110 N11.1 and N3r 3's bare-remainder clause for 50–299 mm (recorded in O10).
+> Domain 6278/6278, web 4956/4956, `format:check` 0, lint 0 [coordinator]. Detail: the plan's *C5 S2 as
+> built*. **Next: C1 S4**, then CE, C6.
 > **Update, later 2026-10-05: C5 S1 is DONE** (`0e7e5ea`, not pushed; M7-FB-010; L and straight only, C5 is not
 > closed). The door cabinet beside an end fridge grows by `max(0, min(floor50(r), floor50(800 - w)))` and
 > the fridge moves out by the same amount (the plan's `800 - w` is superseded by a coordinator ruling that
@@ -1163,8 +1168,7 @@ policy, so every per-endpoint limit is application code.
 > informed; five test-database designs also left. The owner asked (2026-10-05) for waves one after another,
 > not in parallel.
 >
-> **Next, in the plan's and the owner's order:** ~~C7~~ done → **C5** (the leftover beside a fixed-width
-> end body; decided, not built) → C1 S4
+> **Next, in the plan's and the owner's order:** ~~C7~~ done → ~~C5~~ done → **C1 S4**
 > (the browser Back warning) → CE (the e2e shards, last by the owner's word, *"e2e do the last after all
 > fixes"*; it also owes two e2e helpers the top row breaks, backlog 114) → C6 (the phase gate, then the push
 > and the PR).

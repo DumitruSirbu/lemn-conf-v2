@@ -1134,7 +1134,7 @@ pre-commit hook ran, format and lint passed.
   informed. Five test-database designs were also left.
 - **Deferred.** Nothing new. Next: C5, then C1 S4, CE, C6, one wave at a time (owner, 2026-10-05).
 
-### C5 — the leftover beside a fixed-width end body (domain)
+### C5 — the leftover beside a fixed-width end body (domain) — DONE (S1 `0e7e5ea`, S2 `58f6fc5`, 2026-10-05)
 
 Q6 answered: absorb under 300 mm.
 
@@ -1205,6 +1205,39 @@ Figures below are the coordinator's or QA's, relayed to the scribe.
   frame.
 - **Final runs [coordinator].** Domain 6191/6191, web 4956/4956, `format:check` 0, lint 0.
 - **Next: S2** (the U, `u-fridge-wall.ts`); C5 closes with it. Then C1 S4, CE, C6.
+
+### C5 S2 as built — 2026-10-05 (`58f6fc5`; C5 is DONE)
+
+Committed on `m7c-m7-feedback-fixes`, not pushed; the pre-commit hook ran, format and lint passed.
+
+- **Rule as built.** The same rule on the U's fridge wall (side wall B or C). The leaf is generic over a
+  plan with bases, floor widths and remainders, and runs last in `composedPlan`, after the fridge-gap fill
+  and the wall-A fill. With pantries beyond the fridge it is not outermost and nothing changes. The 100 mm
+  slide reserve is outside the run and never spent at the generated depth; at a 600 to 700 change the slide
+  uses it (the fridge reaches the side wall, never passes it), the same ruling as S1. A plan stating no
+  remainder for the fridge's wall now throws.
+- **Census [QA, independently against `0e7e5ea`].** 4,752 of 86,706 U rooms (100 mm grid, 2600) change,
+  equal to C0; wall B 2,444, wall C 2,308; cross-tab B 1,188 at 100 and 1,256 at 200, C 1,120 at 100 and
+  1,188 at 200 (both walls take both; the totals coincide only because B100 = C200). 0 mismatches over
+  60,000 rooms at 1 mm; L and straight byte-identical. **Owner-visible:** 1,152 U rooms keep a bare 50-299
+  mm because nothing stands inboard of the corner fridge.
+- **QA.** Gate green first time, no production defect; one low test-vacuity finding (a 2199 ceiling below
+  the approved 2200) fixed.
+- **Review** (Full tier plus visual): no blocker. Clean-code should-fixes applied: reuse `basesAlongWall`;
+  shared census support `tests/support/fridge-end-census.ts`; titles without measured counts. **Logic
+  should-fix, done here:** ADR 0110 did not record that S2 overturns N11.1 and N3r 3's bare-remainder
+  clause; recorded in O10, its sweep row and dated pointers at N11.1 and the witness rows. The owner's Q6
+  covers the U, so it is a missing citation, not a new decision.
+- **Restated witnesses.** 3600/2400/2000 wall B: base 900-1600, fridge 1600-2300, remainder 0.
+  2400/3000/3000 wall B: base 1500-2200, fridge 2200-2900. U digests have new values, the old ones
+  reproduced with the leaf off.
+- **Visual** (`c5-s2-visual/` in the session scratchpad; test database; 18 designs minted and deleted). U
+  3600/2400/2000 B: 700 + fridge flush; 3000/3000/3000 (B on tie): 700; 3600/2000/2400 C: 700;
+  3600/2550/2550: 800 capped, 50 bare; pantry beyond: unchanged; corner fridge alone: unchanged. Uppers and
+  tops at base width, 330/400 deep; editor +-50, no auto-shift; console clean. The 2400/3000/3000 witness
+  is not buildable in the UI (A below the approved 2700 minimum).
+- **Final runs [coordinator].** Domain 6278/6278, web 4956/4956, `format:check` 0, lint 0 (hook).
+- **Next:** C1 S4 (the browser Back warning), then CE, C6.
 
 ### CE — the e2e shards on the runner (FB-012)
 
