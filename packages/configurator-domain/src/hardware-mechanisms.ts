@@ -1,26 +1,19 @@
-// **How many mechanisms a kitchen's hardware is priced by** — hinges, drawers and push-to-open
-// latches, counted over a design's bodies from the facts wave 6S declared.
+// How many mechanisms a kitchen's hardware is priced by: hinges, drawers and push-to-open latches,
+// counted over a design's bodies from their front-population declarations.
 //
-// ADR 0070 decision 1 prices hardware **per mechanism and never per handle**: a push-to-open body
-// carries hinges and runners and no handle at all, so the superseded per-cabinet-handle basis
-// billed a whole push-to-open kitchen at exactly zero. This module answers the three quantities
-// that replace it.
+// Hardware is priced per mechanism, never per handle (ADR 0070 decision 1): a push-to-open body carries
+// hinges and runners and no handle, so a per-handle basis billed a whole push-to-open kitchen at zero.
 //
-// **Which bodies are push-to-open is `push-to-open.ts`'s answer, not this module's** (ADR 0092
-// decision 3, Amendment C). Deciding it here from the recorded handle mode is what left the shipped
-// demo's sixteen hidden-bar latches billed at nothing while billing latches for bars the scene keeps
-// drawing — and the adapter draws the bar by the same call, so the two cannot disagree again.
+// Which bodies are push-to-open is `push-to-open.ts`'s answer, not this module's (ADR 0092 decision 3):
+// the adapter draws the bar by the same call, so billing and scene cannot disagree.
 //
-// **It counts; it does not price.** It lives beside `cabinet-handles.ts` and `front-population.ts`
-// and deliberately **outside `pricing/`** (ADR 0092 decision 4): a mechanism count is a fact about
-// a design's bodies, not about money, and the manufacturer price dashboard (ADR 0062) will want it
-// without importing a price book. **No amount, rate or tier appears here, and none is named here
-// either** — ADR 0062's third prohibition is held by a source scan for a minor-unit field name
-// (`pricing-seams.test.ts`), which reads prose as well as code and is meant to.
+// It counts; it does not price. It lives outside `pricing/` (ADR 0092 decision 4) because a count is a
+// fact about bodies, not money, and the manufacturer dashboard will want it without a price book. No
+// amount, rate or tier is named here either: `pricing-seams.test.ts` scans this source, prose included,
+// for minor-unit field names.
 //
-// **Nothing here reads a mesh or a `kind`.** Every number comes from the placement's own catalogue
-// entry through `frontPopulationQueryFor`, which is the seam 6S's review round created so that a
-// later wave could not source a height from a definition's nominal instead.
+// Nothing here reads a mesh or a `kind`: every number comes from the placement's own catalogue entry
+// through `frontPopulationQueryFor`, so no height can be sourced from a definition's nominal.
 import {
   doorLeafHeightsMm,
   drawerCount,
@@ -31,9 +24,9 @@ import { isPushToOpen, type PushToOpenQuery } from "./push-to-open.js";
 import type { DisplayEntry } from "./queries/design-projection.js";
 import type { BodyCatalog } from "./void-engine.js";
 
-/** The three mechanisms ADR 0070 decision 1 names, and no fourth. A lift arm and a cargo pull-out
- *  are knowingly not among them (ADR 0092 decision 8): both are recorded as unpriced rather than
- *  folded into a count that would make them look measured. */
+/** The three mechanisms ADR 0070 decision 1 names, and no fourth. A lift arm and a cargo pull-out are
+ *  knowingly unpriced (ADR 0092 decision 8) rather than folded into a count that would make them look
+ *  measured. */
 export interface HardwareMechanismCounts {
   readonly hinges: number;
   readonly drawers: number;
@@ -46,14 +39,12 @@ export const HINGES_PER_DOOR_LEAF = 2;
 /** A third hinge carries a leaf over the threshold below — the extra weight needs it. */
 export const HINGES_PER_TALL_DOOR_LEAF = 3;
 
-/** **The height a third hinge starts at, and it is a strict boundary**: ADR 0070's wording is
- *  *taller than 900*, so a 900 mm leaf takes two hinges and a 901 mm leaf takes three. A
- *  re-implementation reaching for `>=` is wrong and nothing in the seeded kitchen would notice —
- *  its only leaves over the threshold are the pantry's two 1290s, nowhere near it. */
+/** The height a third hinge starts at, a strict boundary: ADR 0070 says *taller than 900*, so a 900 mm
+ *  leaf takes two hinges and a 901 mm leaf three. `>=` would be wrong and the seeded kitchen would not
+ *  notice. */
 export const TALL_DOOR_LEAF_THRESHOLD_MM = 900;
 
-/** What a design with no bodies carries. A real answer, not a refusal: an empty kitchen has no
- *  mechanisms, which is a different statement from a body whose declaration could not be read. */
+/** What a design with no bodies carries: a real answer, not a refusal. */
 export const NO_HARDWARE_MECHANISMS: HardwareMechanismCounts = {
   hinges: 0,
   drawers: 0,
@@ -61,20 +52,16 @@ export const NO_HARDWARE_MECHANISMS: HardwareMechanismCounts = {
 };
 
 /**
- * **Every mechanism this design's bodies carry**, summed over the projection.
+ * Every mechanism this design's bodies carry, summed over the projection.
  *
- * **Read from each placement's own catalogue entry, never from the row it is priced as.** This is
- * the far side of the split `describePricedBody` (`pricing/price-design.ts`) makes for the door-step
- * leaf count, which it reads off the priced-as row for the same load-bearing reason
- * (ADR 0092 decision 1): a price *rule* belongs to the catalogue row a body is named after
- * (ADR 0022), while a mechanism is a property of the body standing in the kitchen.
+ * Read from each placement's own catalogue entry, never from the row it is priced as: a price rule
+ * belongs to the row a body is named after (ADR 0022), a mechanism to the body standing in the kitchen
+ * (the far side of the split `describePricedBody` makes, ADR 0092 decision 1).
  *
- * **Throws `UndeclaredFrontPopulationError`**, from `doorLeafHeightsMm` or `drawerCount`, for a body
- * whose front population cannot be read — including one the catalogue does not hold at all. **A
- * missing declaration is never read as zero mechanisms**, which is the failure ADR 0061 decision 4
- * and `front-population.ts`'s own header both exist to prevent: it would price a kitchen's hinges at
- * nothing and look implemented. Converting that refusal into a failure code belongs to the caller
- * that has a code vocabulary; this module has none and imports none.
+ * Throws `UndeclaredFrontPopulationError` from `doorLeafHeightsMm` or `drawerCount` for a body whose
+ * front population cannot be read, including one the catalogue does not hold. A missing declaration is
+ * never read as zero mechanisms, which would price a kitchen's hinges at nothing (ADR 0061 decision 4).
+ * Converting that refusal into a failure code belongs to the caller; this module has no code vocabulary.
  */
 export function countHardwareMechanisms(
   entries: readonly DisplayEntry[],
@@ -87,9 +74,8 @@ export function countHardwareMechanisms(
   return totals;
 }
 
-/** The three counts one body contributes. Built through `frontPopulationQueryFor` rather than by
- *  assembling the query here, because the constructor is what removes the chance to reach for a
- *  definition's nominal height: one `wall-cabinet` entry declares 700 while its placements are
+/** The three counts one body contributes. Built through `frontPopulationQueryFor` so nobody can reach
+ *  for a definition's nominal height: one `wall-cabinet` entry declares 700 while its placements are
  *  built at 400, 700 and 750. */
 function mechanismsOn(
   entry: DisplayEntry,
@@ -110,33 +96,25 @@ function mechanismsOn(
   };
 }
 
-/** What this module reads off a catalogue entry: the front population, and whether the row permits
- *  a recorded handle mode at all. Structural for the reason `DeclaresFronts` is — `void-engine.ts`
- *  imports the front-population module, so an import of `BodyDefinition` back would be a cycle.
- *
- *  `canHandle` is declared **optional here and required by `BodyDefinition`**, and that gap is the
- *  absent-row case rather than a policy: see `DECLARES_NOTHING`. */
+/** What this module reads off a catalogue entry: the front population, and whether the row permits a
+ *  recorded handle mode. Structural because `void-engine.ts` imports the front-population module, so
+ *  importing `BodyDefinition` back would be a cycle. `canHandle` is optional here and required by
+ *  `BodyDefinition`: the gap is the absent-row case (`DECLARES_NOTHING`). */
 interface DeclaresMechanismFacts extends DeclaresFronts {
   readonly canHandle?: boolean;
 }
 
-/** A body the catalogue does not hold declares no fronts — which `doorLeafHeightsMm` refuses by
- *  naming the build id, exactly as it refuses an entry that declares nothing. Stated as a value
- *  rather than left to a `?.` so that the absent-entry case reaches the same refusal as the
- *  undeclared one instead of a different, quieter path.
- *
- *  **It declares no `canHandle` either, and must not be given one.** The refusal above runs before
- *  anything reads it, so an absent row's handle capability decides nothing — and a `true` or a
- *  `false` written here would look like a ruling on a case that never reaches a price. */
+/** A body the catalogue does not hold declares no fronts, which `doorLeafHeightsMm` refuses by naming
+ *  the build id, as it does an entry that declares nothing. A value rather than a `?.`, so both cases
+ *  reach the same refusal. It declares no `canHandle` and must not be given one: the refusal runs
+ *  first, and a written `true` or `false` would look like a ruling on a case that never reaches a
+ *  price. */
 const DECLARES_NOTHING: DeclaresMechanismFacts = {};
 
-/** The three facts `isPushToOpen` reads, assembled from the two places they live: the floor and the
- *  recorded mode are the **placement's** (§6.5 — two `base-sink-800`s can carry different handles),
- *  and the permission is the **catalogue row's**.
- *
- *  A row that declares no permission reads as permitting none, which decides nothing on any reachable
- *  path: `doorLeafHeightsMm` has already refused a body the catalogue does not hold, and every
- *  `BodyDefinition` declares the field. */
+/** The facts `isPushToOpen` reads: the floor and the recorded mode are the **placement's** (§6.5: two
+ *  `base-sink-800`s can carry different handles), the permission is the **catalogue row's**. A row
+ *  declaring no permission reads as permitting none, which decides nothing on any reachable path:
+ *  `doorLeafHeightsMm` has already refused an uncatalogued body. */
 function pushToOpenQueryFor(
   entry: DisplayEntry,
   declared: DeclaresMechanismFacts,
@@ -148,11 +126,9 @@ function pushToOpenQueryFor(
   };
 }
 
-/** **Counted over `doorLeafHeightsMm`, one entry per leaf — never over `doorBandHeightsMm`.** A
- *  pantry at 600 mm answers `[1290, 1290, 790, 790]`, and applying the threshold to its two *bands*
- *  instead answers 45 hinges on the seeded kitchen against the correct 74. Both numbers look
- *  plausible, which is why 6S published the per-leaf pairing rather than leaving each caller to
- *  rebuild it. */
+/** Counted over `doorLeafHeightsMm`, one entry per leaf, never over `doorBandHeightsMm`: a pantry at
+ *  600 mm answers `[1290, 1290, 790, 790]`, and applying the threshold to its two bands gives 45 hinges
+ *  on the seeded kitchen against the correct 74. */
 function countHinges(leafHeightsMm: readonly number[]): number {
   return leafHeightsMm.reduce(
     (total, leafHeightMm) => total + hingesOnLeaf(leafHeightMm),
@@ -166,14 +142,9 @@ function hingesOnLeaf(leafHeightMm: number): number {
     : HINGES_PER_DOOR_LEAF;
 }
 
-/** **One latch per opening front on a push-to-open body, and none anywhere else** (ADR 0092
- *  decision 3). Per front rather than per body or per band, which is the denominator the hinge rule
- *  uses too: a latch is fitted to each thing that opens.
- *
- *  **Whether the body is push-to-open is `isPushToOpen`'s answer and not this module's.** Reading
- *  the recorded mode here instead is what billed the shipped demo's 16 hidden-bar latches at zero
- *  while billing latches for bars the scene keeps drawing (ADR 0092 decision 3, Amendment C), and
- *  `scene-sync.ts` decides whether to draw the bar by the same call. */
+/** One latch per opening front on a push-to-open body, none elsewhere (ADR 0092 decision 3): per front,
+ *  the denominator the hinge rule also uses. Whether the body is push-to-open is `isPushToOpen`'s
+ *  answer; `scene-sync.ts` draws the bar by the same call. */
 function countPushToOpen(
   front: PushToOpenQuery,
   openingFronts: number,

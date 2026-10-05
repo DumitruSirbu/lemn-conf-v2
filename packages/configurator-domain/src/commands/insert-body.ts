@@ -1,15 +1,10 @@
-// `DEVELOPMENT-SPEC.md` §5.2 and §5.3 — **one** code path. Filling an empty slot and swapping an
-// occupied body differ only in where the target opening comes from.
+// `DEVELOPMENT-SPEC.md` §5.2 and §5.3: one code path. Filling an empty slot and swapping an occupied
+// body differ only in where the target opening comes from; forking them once dropped the swap branch
+// and made every "Înlocuiește" row do nothing.
 //
-// Forking them is on record as the cause of a silent, total failure of the replace feature: a void
-// rewrite dropped the swap branch and every "Înlocuiește" row did nothing at all. One path also
-// keeps the fit guards from drifting apart.
-//
-// **Since wave 6Z it also drives a dependent re-plan** (ADR 0103 decision 2): §5.2 described
-// building one body into one opening, and it now describes the column. Every body already standing
-// in a column this insert touched is re-planned at the column as it stands afterwards, through the
-// same path the insert itself takes. The rule lives in `replan-dependent-members.ts`; what lives
-// here is the one call and the atomicity — either the placed body and every re-planned body are
+// It also drives the dependent re-plan (ADR 0103 decision 2): every body standing in a column this
+// insert touched is re-planned at the column as it stands afterwards (`replan-dependent-members.ts`).
+// What lives here is the one call and the atomicity: the placed body and every re-planned body are
 // written, or the design comes back unchanged with one refusal.
 import { measurableSeatOf } from "../seat-rule.js";
 import type { BodyProbe, BodyMeasurement } from "../body-probe.js";
@@ -59,31 +54,17 @@ import { splitColumn, type ColumnSplit } from "./split-column.js";
 export interface InsertBodyInput {
   readonly design: Design;
   readonly catalog: BodyCatalog;
-  /** ADR 0011 Gap D: frozen load-time columns, in their **recorded** face (ADR 0090 Amendment B).
-   *  No command recomputes them, and this one refuses rather than place a body that would fall
-   *  outside the map. This is the face `effect.columns` replaces, so it is the one a room-derived
-   *  cap may never have touched.
-   *
-   *  It is deliberately **not** what the openings come from — see `voids`. */
+  /** Frozen load-time columns in their **recorded** face (ADR 0090 Amendment B): the face
+   *  `effect.columns` replaces, so no room-derived cap may have touched it. No command recomputes them;
+   *  this one refuses rather than place a body outside the map. Not where openings come from: see
+   *  `voids`. */
   readonly columns: ReadonlyMap<string, Column>;
   /**
-   * **The published openings** — §9's own list, bounded by the wall (ADR 0069's owner ruling, kept
-   * in as many words by ADR 0090 Amendment B: *"no opening past the wall is ever derived, drawn or
-   * offered"*).
-   *
-   * **Required, and deliberately neither optional nor recomputed here.** Until this wave the
-   * command built its own list from `columns`, so once backlog 52 made that map the recorded face
-   * the uncapped map became the uncapped opening: at a 700 mm kitchen the space flush to wall B's
-   * end published a 500 mm opening and the command built a 600 mm body 100 mm past a 2920 mm wall,
-   * while the offer list refused a `base-sink` in the same opening by name. §11 row 6 and ADR 0032
-   * say the list and the command are *"the same evaluation `insertBody` runs"*, and they can only be
-   * that if they are handed the same openings.
-   *
-   * **Nor re-derived from a capped copy of `columns`.** `deriveColumns` runs the wall-end clip
-   * *before* ADR 0046's merge, so `clip(recorded)` is not the published map — a pair the clip
-   * narrows below ADR 0052's 800 mm ceiling merges where the same pair uncapped declines
-   * (`deriveRecordedColumns`' own comment carries that measurement). The published list is handed
-   * in by the one seam that assembles it.
+   * The published openings (§9's list), bounded by the wall (ADR 0069). Required, neither optional nor
+   * recomputed here: the offer list and this command are one evaluation (§11 row 6) only if handed the
+   * same openings, and one built from the recorded `columns` is uncapped: a 600 mm body 100 mm past
+   * wall B's end where the published opening is 500 mm. Nor re-derived from a capped copy of
+   * `columns`: the wall-end clip runs before the merge, so `clip(recorded)` is not the published map.
    */
   readonly voids: readonly VoidRecord[];
   readonly target: CommandTarget;
@@ -111,10 +92,8 @@ export function insertBody(input: InsertBodyInput): InsertResult {
   if (!body.ok) return refuse(design, body.detail);
 
   const records = derivePlacementRecords(design, input.catalog);
-  // **The two faces, each in the role ADR 0090 Amendment B gives it**: the opening is resolved out
-  // of the published list, which the wall bounds, and the column it is seated in comes from the
-  // recorded map, which the split then rewrites. This is `OffersInput` field for field, which is
-  // what makes §11 row 6's "one evaluation, two callers" structural rather than a promise.
+  // The opening is resolved out of the published list, which the wall bounds; its column comes from the
+  // recorded map, which the split then rewrites. This is `OffersInput` field for field (§11 row 6).
   const target = resolveInsertOpening({
     records,
     voids: input.voids,
@@ -134,9 +113,8 @@ export function insertBody(input: InsertBodyInput): InsertResult {
   return place(input, body.value, {
     target: target.value,
     plan: fit.plan,
-    // Carried rather than re-derived below: the dependent re-plan compares the column's
-    // `hasFullHeightUnder` answer over these records against its answer over the post-insert ones,
-    // and two derivations of "the design as it stood" are two authors for it.
+    // Carried, not re-derived below: the dependent re-plan compares `hasFullHeightUnder` over these
+    // records with the post-insert ones, and two derivations of "as it stood" are two authors.
     recordsBefore: records,
   });
 }
@@ -173,22 +151,18 @@ function place(
   const { target, plan } = planned;
   const measurement = input.probe.measure({
     buildId: body.buildId,
-    // Read off the entry, and a throw rather than a default if it is joint-seated: an insertable
-    // body always has a plane of its own (ADR 0077 decision 3).
+    // Read off the entry; a throw, not a default, if joint-seated: an insertable body always has its
+    // own plane (ADR 0077 decision 3).
     seatedOn: measurableSeatOf({
       buildId: body.buildId,
       rule: input.catalog.get(body.buildId)?.seatRule,
     }),
     widthM: plan.widthM,
     heightM: plan.heightM,
-    // §5.2's `b.mk(w, h, void.d)`: the **opening's** own depth, which on a §5.3 swap in place is
-    // the outgoing body's. Never `target.column.d` — that is §3.2's MAX over the whole vertical
-    // run, so a wall cabinet was built to the depth of the base cabinet below it and a swap
-    // changed the body's depth. See `InsertOpening.d`.
-    //
-    // Read off the plan rather than off the opening, because §7's head-clearance cap
-    // (`WALL_CARCASS_MAX_DEPTH_OVER_WORKTOP_M`) sits between the two and the offer list has to see
-    // the same number this does.
+    // §5.2's `b.mk(w, h, void.d)`: the **opening's** own depth, which on a swap is the outgoing body's.
+    // Never `target.column.d` (§3.2's MAX over the vertical run): a wall cabinet would be built to the
+    // base cabinet's depth. Read off the plan, not the opening, because §7's head-clearance cap sits
+    // between the two and the offer list must see the same number.
     depthM: plan.depthM,
   });
   const mismatch = refuseBuiltSize(body, plan, measurement);
@@ -204,14 +178,11 @@ function place(
   return applyPlacement(input, body, planned, placement);
 }
 
-/** What `place` decided, carried to the write: the opening resolved and the plan measured against
- *  it. They travel together because the split needs both — the column from one and the remainder
- *  from the other. */
+/** What `place` decided, carried to the write: the split needs both the column and the remainder. */
 interface PlannedInsert {
   readonly target: ResolvedOpening;
   readonly plan: InsertPlan;
-  /** The records the design had **before** this insert, for wave 6Z's dependent re-plan. Derived
-   *  once by `insertBody` and carried, never re-derived here. */
+  /** The records before this insert, for the dependent re-plan: derived once by `insertBody`. */
   readonly recordsBefore: readonly PlacementRecord[];
 }
 
@@ -223,9 +194,8 @@ interface PlacementMillimetres {
   readonly seatDepthMm: number;
 }
 
-/** Every *derived* coordinate must land on a whole millimetre. The measured seat is rounded
- *  instead, because a measurement never lands on one and ADR 0011 Gap B persists it as an integer
- *  on purpose — the built-carcass re-check above is what guards that rounding. */
+/** Every *derived* coordinate must land on a whole millimetre. The measured seat is rounded instead,
+ *  because ADR 0011 Gap B persists it as an integer; the built-carcass re-check guards that rounding. */
 function resolvePlacementMillimetres(
   plan: InsertPlan,
   target: ResolvedOpening,
@@ -237,12 +207,10 @@ function resolvePlacementMillimetres(
   if (heightMm === undefined) return inexact("heightMm", plan.heightM);
   const y0Mm = toExactMillimetres(plan.y0M);
   if (y0Mm === undefined) return inexact("y0Mm", plan.y0M);
-  // ADR 0046: the **seated** centre, which is the opening's own only when the body fills its
-  // column. The occupied half of a split sits at `C − (W − w) / 2` and falls between two
-  // millimetres whenever the column's width is odd, so this refusal is what keeps an odd extent
-  // from reaching `projectEmptyColumns` — where it would throw `UnprojectableColumnError`
-  // uncaught at the store seam, a crash rather than a refusal. Never rounded: rounding keys the
-  // body as its neighbour (ADR 0044).
+  // The **seated** centre, the opening's own only when the body fills its column; the occupied half of
+  // a split falls between two millimetres when the column's width is odd. Refused here so an odd extent
+  // never reaches `projectEmptyColumns`, which throws uncaught at the store seam. Never rounded:
+  // rounding keys the body as its neighbour (ADR 0044).
   const alongMm = plan.alongMm;
   if (!Number.isInteger(alongMm)) return inexactMillimetres("alongMm", alongMm);
 
@@ -253,9 +221,8 @@ function resolvePlacementMillimetres(
       heightMm,
       y0Mm,
       alongMm,
-      // The only persisted number that comes from a measurement, so it is the only one that could
-      // carry `toMillimetres`'s `UNMEASURABLE_MM` fallback into a document. It cannot, because
-      // `refuseUnusableMeasurement` has already proved `seatOffsetM` finite — the two are a pair.
+      // The only persisted number that comes from a measurement; `refuseUnusableMeasurement` has already
+      // proved `seatOffsetM` finite, so `toMillimetres`'s `UNMEASURABLE_MM` fallback cannot reach a document.
       seatDepthMm: toMillimetres(2 * measurement.seatOffsetM),
     },
   };
@@ -268,9 +235,8 @@ function inexact(
   return inexactMillimetres(field, valueM * MILLIMETRES_PER_METRE);
 }
 
-/** The same refusal for a value that is already in millimetres — a seated centre is planned there
- *  (`InsertPlan.alongMm`), so converting it back to metres to state it would be inventing a number
- *  the customer's kitchen never held. */
+/** The same refusal for a value already in millimetres: a seated centre is planned there
+ *  (`InsertPlan.alongMm`), so converting to metres to state it would invent a number the kitchen never held. */
 function inexactMillimetres(
   field: string,
   valueMm: number,
@@ -334,9 +300,8 @@ function applyPlacement(
   const drift = refuseColumnDrift(records, split.value, body, placement.id);
   if (drift) return refuse(input.design, drift);
 
-  // **After the split and after the drift guard** (ADR 0103 decision 3), because the map the
-  // dependent bodies are re-planned against is the one the split just wrote — with
-  // `hasFullHeightUnder` re-answered over the records this insert produced.
+  // After the split and the drift guard (ADR 0103 decision 3): dependents are re-planned against the map
+  // the split just wrote, with `hasFullHeightUnder` re-answered over this insert's records.
   const replanned = replanDependentMembers({
     design,
     catalog: input.catalog,
@@ -350,9 +315,8 @@ function applyPlacement(
     placedId: placement.id,
     placedLabel: body.label,
   });
-  // **Atomic**: the insert refuses whole, and the design the caller gets back is the one it handed
-  // in. A column with the new body in it and the standing one left at the old depth is the silent
-  // mixture this wave exists to remove (ADR 0103 decision 7).
+  // Atomic: the insert refuses whole and the caller gets back the design it handed in; a column with the
+  // new body and a standing one left at the old depth is a silent mixture (ADR 0103 decision 7).
   if (!replanned.ok) return refuse(input.design, replanned.detail);
 
   return succeedWith(
@@ -362,22 +326,17 @@ function applyPlacement(
       placementId: placement.id,
       buildId: placement.body.buildId,
       ...(replacedId === undefined ? {} : { replacedPlacementId: replacedId }),
-      // **The split's map, unchanged** (ADR 0103 decision 9). The re-plan moves member seats and no
-      // published extent: no `Column.d`, no `Column.w`, no key and no `depthFromBuildId` moves,
-      // because this command publishes the map the split wrote and nothing re-derives it.
+      // The split's map, unchanged (ADR 0103 decision 9): the re-plan moves member seats, not any
+      // published extent.
       columns: split.value.columns,
     },
   );
 }
 
-/** ADR 0011 Gap D: an inserted placement's derived column must be the one the map holds for it —
- *  **the key the split planned**, which under ADR 0046 is the target opening's own only when
- *  nothing was divided. A derivation that does not satisfy it is a phantom column: refused, never
- *  placed.
- *
- *  Restated rather than deleted, and both sides come from **one** millimetre value — the placement's
- *  `alongMm` — so the planned key and the derived one cannot disagree at a `toFixed(2)` boundary
- *  (ADR 0046 rule 3, `frozenColumnKey`'s discipline). */
+/** ADR 0011 Gap D: an inserted placement's derived column must be the one the map holds for it, the
+ *  key the split planned (the opening's own only when nothing was divided); otherwise it is a phantom
+ *  column, refused and never placed. Both sides come from one millimetre value, the placement's
+ *  `alongMm`, so they cannot disagree at a `toFixed(2)` boundary (`frozenColumnKey`). */
 function refuseColumnDrift(
   records: readonly PlacementRecord[],
   split: ColumnSplit,

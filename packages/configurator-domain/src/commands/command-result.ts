@@ -1,9 +1,7 @@
-// The envelope every command returns (M3 work item 2; `CONFIGURATION_MODEL.md` "Commands and
-// queries", the shape that survived the 2026-08-24 supersession).
+// The envelope every command returns.
 //
-// The failure branch returns the **exact original `Design` object** — identity, not a structural
-// copy — so a store applying a result unconditionally cannot silently replace state with an equal
-// but different object, and a rejection sweep can assert `toBe`.
+// The failure branch returns the **exact original `Design` object** (identity, not a structural copy),
+// so a store applying a result unconditionally cannot replace state with an equal but different object.
 import type {
   Design,
   DesignPlacement,
@@ -23,14 +21,11 @@ export interface CommandTarget {
   readonly id: string;
 }
 
-/** Where a removed body stood, so the caller can find the void that covers it *by geometry* — void
- *  ids are regenerated on every recompute and a merge changes them (§5.1).
- *
- *  **The wall and the along-wall centre are part of it, and they are not redundant with `col`.**
- *  ADR 0046 part 2's merge deletes the keys it folds together and writes a new one, so a delete that
- *  makes two empty columns adjacent leaves *no* void carrying the key the removed body was filed
- *  under — and §5.1's selection came back `null` where the customer expected the space they just
- *  freed. The key is still the primary match; these two are what the fallback measures against. */
+/** Where a removed body stood, so the caller can find the void covering it *by geometry*: void ids are
+ *  regenerated on every recompute (§5.1). `wall` and `alongM` are not redundant with `col`: ADR 0046
+ *  part 2's merge deletes the keys it folds together, so a delete that makes two empty columns adjacent
+ *  leaves no void under the removed body's key. The key is the primary match; these two are the
+ *  fallback. */
 export interface VacatedOpening {
   readonly col: string;
   readonly y0: number;
@@ -51,25 +46,18 @@ export interface BodyInsertedEffect {
   readonly buildId: string;
   /** Present when this insert was a swap in place (§5.3) — one code path, two entry points. */
   readonly replacedPlacementId?: string;
-  /** ADR 0046: an insert is the **second** command that writes the frozen map. A body narrower than
-   *  the column it goes into splits that column in two, so the keys the map holds change — and
-   *  *which* keys may change is a rule about the command, never something a store may re-derive
-   *  globally (ADR 0011 Gap D, and `BodyResizedEffect` below for what re-deriving costs).
-   *
-   *  Always present, including when nothing was split: an insert that fills its column exactly
-   *  publishes the map it was given, so the store has one thing to apply rather than two. */
+  /** ADR 0046: an insert is the second command that writes the frozen map. A body narrower than its
+   *  column splits it, and which keys may change is a rule about the command, never something a store
+   *  re-derives globally (ADR 0011 Gap D). Always present, even when nothing was split, so the store
+   *  has one thing to apply. */
   readonly columns: ReadonlyMap<string, Column>;
 }
 
-/** ADR 0031's resize: the one operation that changes bodies the customer did not select, and the
- *  one that moves a body horizontally.
- *
- *  It is therefore the only effect carrying `columns`. A column's key is derived from a body's
- *  centre (§3.2), so a resize moves every member of a column out of the key that held them; every
- *  other command leaves the frozen extents alone and the store passes its own map through (ADR 0011
- *  Gap D). The updated map is published here rather than recomputed by the store because the rule
- *  for *which* keys may change belongs to the command that moved them — a store that recomputed
- *  globally would make §10's delete produce no openings at all, which is Gap D verbatim. */
+/** ADR 0031's resize: the one operation that changes bodies the customer did not select, and moves a
+ *  body horizontally. A column's key is derived from a body's centre (§3.2), so a resize moves every
+ *  member out of the key that held them. The updated map is published here, not recomputed by the
+ *  store: the rule for which keys may change belongs to the command, and a global recompute would make
+ *  §10's delete produce no openings (ADR 0011 Gap D). */
 export interface BodyResizedEffect {
   readonly type: "body_resized";
   /** The body the customer selected. Its whole column moved with it (ADR 0031 rule 1). */
@@ -86,13 +74,11 @@ export interface BodyResizedEffect {
    *  Absent when `emptyColumnWidthMm` is `0` — the resize consumed the space exactly and the column
    *  ceased to exist (rule 6). */
   readonly emptyColumnNewKey?: string;
-  /** The width the empty column was left at. `0` means it was consumed exactly.
-   *
-   *  Under ADR 0052 this is the **near** column when a shrink frees more than
-   *  `MAX_EMPTY_COLUMN_WIDTH_MM` and the space splits: the piece against the run, which is the one
-   *  the next resize on this side funds from. The pieces beyond it are in `columns` like every other
-   *  extent and have no field of their own — nothing reads these two for geometry, and a second
-   *  field naming a column the customer's next tap cannot spend would be read as one it can. */
+  /** The width the empty column was left at; `0` means it was consumed exactly. Under ADR 0052 this is
+   *  the **near** column when a shrink frees more than `MAX_EMPTY_COLUMN_WIDTH_MM` and the space
+   *  splits: the piece against the run, which the next resize on this side funds from. The pieces
+   *  beyond it are in `columns` only, since a field naming one the next tap cannot spend would be read
+   *  as spendable. */
   readonly emptyColumnWidthMm: number;
   readonly columns: ReadonlyMap<string, Column>;
 }
@@ -103,9 +89,8 @@ export interface FinishSetEffect {
   readonly finish: Finish;
 }
 
-/** ADR 0099 decision 8's other half of `FinishSetEffect`: this cabinet has stopped choosing, and now
- *  follows the kitchen. **It carries no finish**, which is the whole difference — a *"cleared to X"*
- *  effect would be a set with a nicer name, and the key would still be in the document. */
+/** ADR 0099 decision 8: this cabinet has stopped choosing and follows the kitchen. It carries no
+ *  finish: a "cleared to X" effect would be a set under another name, leaving the key in the document. */
 export interface FinishClearedEffect {
   readonly type: "finish_cleared";
   readonly placementId: string;
@@ -117,45 +102,30 @@ export interface HandleSetEffect {
   readonly handle: Handle;
 }
 
-/** Wave 6E's whole-kitchen pair, shaped on `FinishSetEffect` — the same fact one scope up. Neither
- *  names a placement: a whole-kitchen setting points at no cabinet, which is what tells the store
- *  the selection it is holding was not moved by this command. */
+/** The whole-kitchen pair, shaped on `FinishSetEffect` one scope up. Neither names a placement: a
+ *  whole-kitchen setting points at no cabinet, which tells the store its selection was not moved. */
 export interface MaterialTierSetEffect {
   readonly type: "material_tier_set";
   readonly materialTierId: string;
-  /** Wave 6Q-b. How many cabinets ADR 0057's reset moved to the new material's default finish.
-   *
-   *  **`CabinetDepthSetEffect.rebuiltCount` is the precedent and the reason.** ADR 0057 rules the
-   *  reset to run *once* and produce *one* result — never a per-cabinet cascade the customer
-   *  watches happen — so one result carrying *N* is the structurally different thing a cascade
-   *  cannot fake, and it is what a test can measure the difference on.
-   *
-   *  **It is not rendered.** A numeral in `ro.globalSettings` is refused by
-   *  `starting-price.adversarial.test.ts`'s digit sweep; the consequence is stated where it happens
-   *  (wave 6Q-c's confirmation), not counted in the sheet's standing copy. */
+  /** How many cabinets ADR 0057's reset moved to the new material's default finish. The reset runs
+   *  once and produces one result, never a per-cabinet cascade, so one result carrying *N* is what a
+   *  test can measure a cascade against (cf. `CabinetDepthSetEffect.rebuiltCount`). Not rendered: a
+   *  numeral in `ro.globalSettings` is refused by `starting-price.adversarial.test.ts`'s digit sweep. */
   readonly resolvedFinishCount: number;
 }
 
-/** Wave 6J-b. Carries the count of bodies actually rebuilt, because the customer-visible
- *  consequence of a depth change is that every cabinet moved — a surface that says so needs the
- *  number, and a caller that receives 0 has been handed a no-op it should not announce. */
+/** The count of bodies actually rebuilt: a surface announcing that every cabinet moved needs the
+ *  number, and a caller receiving 0 has a no-op it should not announce. */
 export interface CabinetDepthSetEffect {
   readonly type: "cabinet_depth_set";
   readonly cabinetDepthMm: number;
   readonly rebuiltCount: number;
-  /** ADR 0090 decisions 1 and 5: a depth change is the **third** command that moves a frozen extent
-   *  along the wall, so it is the third whose own answer replaces the map the store passes in.
-   *
-   *  A wall-A body's depth is measured along wall B, so a deeper corner slides wall B's whole run —
-   *  and `Design.emptyColumns` and `Design.columnExtents` record where a column *stands*, not merely
-   *  how deep and how tall it is. Carried forward unchanged they described the coordinates the
-   *  command had just vacated: four standing runs filed under no column at all, five
-   *  `EMPTY_COLUMN_OVERLAPS_PLACEMENT` refusals, and a 700 mm kitchen the customer could not save.
-   *
-   *  It is published here rather than recomputed by the store for the reason ADR 0088 decision 2
-   *  requires a wave to state: the answer needs the pre-command design, the catalogue at the depth
-   *  being left and the shift itself, and `setCabinetDepth` holds all three natively while the store
-   *  holds none of them. `frozen-map-at-cabinet-depth.ts` is the one author. */
+  /** ADR 0090 decisions 1 and 5: a depth change slides frozen extents along the wall (a deeper corner
+   *  moves wall B's whole run), and `Design.emptyColumns` and `Design.columnExtents` record where a
+   *  column stands, so carried forward unchanged they describe coordinates the command just vacated.
+   *  Published here because the answer needs the pre-command design, the catalogue at the depth being
+   *  left and the shift, which `setCabinetDepth` holds and the store does not
+   *  (`frozen-map-at-cabinet-depth.ts`). */
   readonly columns: ReadonlyMap<string, Column>;
 }
 
@@ -164,10 +134,9 @@ export interface HardwareTierSetEffect {
   readonly hardwareTierId: string;
 }
 
-/** Wave 6S's whole-kitchen colour (ADR 0099). **It carries no count and no placement id, and both
- *  absences are the decision rather than an omission**: `MaterialTierSetEffect.resolvedFinishCount`
- *  exists because ADR 0057's reset moves cabinets, and this command moves none — there is nothing
- *  to count, and a field for it would invite a reader to believe there could be. */
+/** The whole-kitchen colour (ADR 0099). It carries no count and no placement id on purpose:
+ *  `MaterialTierSetEffect.resolvedFinishCount` exists because ADR 0057's reset moves cabinets, and this
+ *  command moves none. */
 export interface GlobalFinishSetEffect {
   readonly type: "global_finish_set";
   readonly finish: Finish;

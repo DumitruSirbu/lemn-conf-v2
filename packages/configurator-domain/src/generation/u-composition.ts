@@ -1,21 +1,16 @@
-// The U's composition plan (ADR 0110 Amendment N, *N3 revised* 1-10): a pure, no-insert plan across
-// three walls, assembled from four parts. `u-fridge-wall.ts` chooses the fridge wall and places the
-// fridge on it. `u-back-wall-pack.ts` packs the core run along wall A from the fridge's corner, with
-// overflow onto the far wall. `u-drawer-units.ts` fits the run after the hob: the bottle, the drawer
-// extras and the tower. `u-tall-layout.ts` lays out the fridge gap and the far wall. This module runs
-// the attempts in order and assembles what they return, then finishes wall A in two steps: its bodies
-// are justified to its low end (ADR 0110 N11.8), and its remainder of 300-599 mm takes a door base
-// (N11.9). Both come last, so nothing upstream reads them. The plan's last step is the owner's Q6 (M7C
-// wave C5 S2): a 50-299 mm leftover beyond an end fridge goes to the door base inboard of it.
+// The U's composition plan (ADR 0110 Amendment N, *N3 revised* 1-10): a pure, no-insert plan across three
+// walls. `u-fridge-wall.ts` places the fridge, `u-back-wall-pack.ts` packs the core run along wall A with
+// overflow onto the far wall, `u-drawer-units.ts` fits the run after the hob, and `u-tall-layout.ts` lays
+// out the fridge gap and the far wall. This module runs them in order, then finishes wall A: its bodies
+// are justified to the low end (N11.8) and a 300-599 mm remainder takes a door base (N11.9). Both come
+// last, so nothing upstream reads them; a 50-299 mm leftover beyond an end fridge goes to the door base
+// inboard of it.
 //
-// **A wall letter is read in two places, both in `u-fridge-wall.ts`** (ADR 0110 I's role-versus-letter
-// lesson): `fridgeWallCandidates` compares the two side walls' entered lengths to choose the fridge
-// wall, and `wallAReadingDirectionFor` turns that choice into the direction wall A is read in. Every
-// decision after `placedFridge` reads the fridge-wall and far-wall *roles* and that direction it
-// computes, never `"B"` or `"C"`.
+// A wall letter is read in two places, both in `u-fridge-wall.ts`: `fridgeWallCandidates` and
+// `wallAReadingDirectionFor`. Every later decision reads the fridge-wall and far-wall roles and that
+// direction, never `"B"` or `"C"`.
 //
-// **No corner-turn field is read.** A U carries none past `DesignRoomSchema`'s own refusal (ADR
-// 0132 decision 8), and this module never asks the room for one at all.
+// No corner-turn field is read: a U carries none past `DesignRoomSchema`'s refusal (ADR 0132 decision 8).
 import type { DesignRoom, DesignWall } from "../design.js";
 import { DOOR_BASE_BUILD_ID } from "./body-choice.js";
 import { withTheLeftoverBesideTheFridgeAbsorbed } from "./fridge-end-leftover.js";
@@ -68,8 +63,7 @@ export interface PlanUKitchenCompositionInput {
   /** A room `validateRoomInput` accepted for the U policy. */
   readonly room: DesignRoom;
   readonly runs: Readonly<Record<DesignWall, UGenerationRun>>;
-  /** The catalogue's declared sizes for the full-height block, read by `generateKitchen` the same
-   *  way the L's own `planKitchenComposition` reads it. */
+  /** The catalogue's declared sizes for the full-height block, read by `generateKitchen`. */
   readonly columns: DeclaredColumnSizes;
 }
 
@@ -131,19 +125,16 @@ function composedPlan(context: AttemptContext): UKitchenCompositionPlan {
   });
 }
 
-/** ADR 0110 N11.9 (RQ25, owner 2026-09-29): a remainder of at least 300 mm on the back wall takes a
- *  door base, and under that stays bare. Below 300 mm a door base is not offered on a wall the owner
- *  asked to keep bare there (RQ25b). */
+/** ADR 0110 N11.9: a remainder of at least 300 mm on the back wall takes a door base, and under that
+ *  stays bare (RQ25b). */
 const BACK_WALL_FILL_MIN_WIDTH_MM = 300;
 
 const BACK_WALL_FILL_ID = "wall-a-remainder:A";
 
-/** Wall A's remainder of 300-599 mm as one door base of exactly that width at wall A's high end. It is
- *  the plan's **last** step, after `withDrawerUnitsAfterTheHob`: that function converts the plain door
- *  bases after the hob into drawer units, and a fill standing there earlier could become a drawer
- *  body of the wrong width. Never a drawer unit, and nothing upstream reads it — the bottle rule and
- *  the drawer count decide on the run before it. The width is the remainder's, so its door count is
- *  the catalogue's (`deriveDoorCount`), never this plan's. */
+/** Wall A's remainder of 300-599 mm as one door base of exactly that width at wall A's high end. The
+ *  plan's **last** step, after `withDrawerUnitsAfterTheHob`, which would convert an earlier fill into a
+ *  drawer body of the wrong width. Its door count is the catalogue's (`deriveDoorCount`), never this
+ *  plan's. */
 function withTheBackWallFill(
   bases: readonly UPlannedGenerationBase[],
   runA: UGenerationRun,
@@ -300,14 +291,11 @@ function wallAFillFor(
   });
 }
 
-/** Wall A's own run past the fixed core items, filled with the bodies that stand right after the hob
- *  (the bottle, when N10.3 step 5 keeps it — *N3 revised* 7, RQ16), then door storage down to a bare
- *  remainder under 600 mm (A4). Built with the bottle in place from the start, never as a
- *  width-preserving edit afterward: the bottle is 300 mm against the fill's own 600 mm module, and
- *  editing an already-placed body's width in place would leave every later one exactly where a wider
- *  body had put it. Which door slots become drawer units is decided once the run's own far wall is
- *  known too (`withDrawerUnitsAfterTheHob`), because the run continues onto it (*N3 revised* 6,
- *  RQ18 (a)). */
+/** Wall A's own run past the fixed core items: the bodies that stand right after the hob (the bottle,
+ *  when N10.3 step 5 keeps it; *N3 revised* 7), then door storage down to a bare remainder under
+ *  600 mm (A4). Built with the bottle in place from the start, never by editing a width afterward:
+ *  that would leave every later body where a wider one had put it. Which door slots become drawer units
+ *  is decided later (`withDrawerUnitsAfterTheHob`), once the far wall is known. */
 function wallAFill(args: {
   readonly lane: PackingLane;
   readonly startOffsetMm: number;

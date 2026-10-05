@@ -162,23 +162,18 @@ interface GenerationWorld {
 
 const EMPTY_PARAMS = {} as const;
 
-/** The shell copies the reference kitchen's settings whatever room it is built for
- *  (`shell-design.ts`), so the catalogue the plan reads the block's declared sizes from is knowable
- *  before the shell the plan shapes exists. `refuseAnUnplannedShellDepth` below is what keeps that
- *  from becoming an assumption. */
+/** The shell copies the reference kitchen's settings for every room (`shell-design.ts`), so the
+ *  planning depth is known before the shell exists; `refuseAnUnplannedShellDepth` keeps that true. */
 const PLANNING_CABINET_DEPTH_MM = cabinetDepthMmOf(KITCHEN_L_DESIGN);
 
-/** The two bodies a generated kitchen may carry an oven in, which ADR 0110 E4 rules there is always
- *  exactly one of. */
+/** The two bodies a generated kitchen may carry an oven in; exactly one oven is carried (ADR 0110 E4). */
 const OVEN_BEARING_BUILD_IDS: ReadonlySet<string> = new Set([
   hobWithItsOwnOvenBuildId(),
   OVEN_TOWER_BUILD_ID,
 ]);
 
-/** ADR 0130 D6: the composer's own runs, a straight room's one wall handed over beside an empty,
- *  zero-capacity wall B — `planKitchenComposition` never branches on the shape, because a wall with
- *  no capacity cuts the reading order at 0 by the same `fitsAcrossTheCorner` arithmetic an L's own
- *  narrow prefix wall already uses. */
+/** A straight room's one wall is handed over beside an empty, zero-capacity wall B, so
+ *  `planKitchenComposition` never branches on the shape: zero capacity cuts the reading order at 0. */
 function shellRunsFor(
   room: Design["room"],
 ): Readonly<Record<TwoWallDispatch, GenerationRun>> {
@@ -191,8 +186,7 @@ function shellRunsFor(
   return lShellFloorRuns(room);
 }
 
-/** ADR 0130 D5/D6: the shell dispatch, kept to one place so a wave that adds a fourth shape edits one
- *  function rather than every call site `buildLShellDesign` used to have alone. */
+/** The shell dispatch by room shape, kept to one place. */
 function buildShellFor(args: {
   readonly room: Design["room"];
   readonly occurredAt: string;
@@ -266,9 +260,8 @@ function planComposition(
   return planKitchenComposition({ room, runs: shellRunsFor(room), columns });
 }
 
-/** ADR 0102: the block's 600 mm and 2200 mm are the catalogue's, read here and threaded into the
- *  rule. A generation-side constant checked against the catalogue in a test would be the second
- *  authority that ADR names, not a safeguard. */
+/** The block's 600 mm and 2200 mm are the catalogue's, read here and threaded into the rule: a
+ *  generation-side copy would be a second authority (ADR 0102). */
 export function declaredColumnSizes(catalog: BodyCatalog): DeclaredColumnSizes {
   return {
     columnWidthMm: soleDeclaredWidthMm(catalog, OVEN_TOWER_BUILD_ID),
@@ -653,10 +646,8 @@ function insertOver(
   };
 }
 
-/** ADR 0110 Amendment O9: one top-row cabinet over every upper placed in the wall row (the hood
- *  included), in a room tall enough to hold it. It stands over the upper and not over the base, so a
- *  full-height body, which has no upper, has none, and neither does a large U's back wall, whose
- *  hood is the one upper it carries. */
+/** One top-row cabinet over every upper placed in the wall row (the hood included), in a room tall
+ *  enough to hold it. It stands over the upper, so a full-height body has none (ADR 0110 Amendment O9). */
 function insertTopRow(
   world: GenerationWorld,
   steps: readonly GenerationStep[],
@@ -827,11 +818,8 @@ function placementById(design: Design, id: string): DesignPlacement {
   return placement;
 }
 
-/** ADR 0110 Amendment E4: **exactly one oven — never two, and never zero.** The block and the hob's
- *  build id are decided together, so a kitchen with no oven means a planned column was refused at
- *  insert time while the hob had already given its oven up. E4 rules that a programming error and
- *  makes it throw: logging the column *not placed* and carrying on ships a kitchen whose hob has
- *  drawers and whose oven does not exist, which is worse than a loud failure. */
+/** Exactly one oven, never two and never zero (ADR 0110 Amendment E4). Zero means a planned column was
+ *  refused after the hob gave its oven up: a programming error, so it throws rather than ships. */
 function assertExactlyOneOven(design: Design): void {
   const ovenCount = design.placements.filter((placement) =>
     OVEN_BEARING_BUILD_IDS.has(placement.body.buildId),
@@ -842,9 +830,8 @@ function assertExactlyOneOven(design: Design): void {
   );
 }
 
-/** ADR 0110 *N3 revised* 11 (RQ7): the hood over the hob is mandatory in every U, and stays where a
- *  large U's back wall is otherwise base-only. A refused hood ships a hob with nothing over it, so it
- *  throws as a missing oven does. */
+/** The hood over the hob is mandatory in every U (ADR 0110 *N3 revised* 11); a refused hood throws, as
+ *  a missing oven does. */
 function assertAHoodStandsOverTheHob(steps: readonly GenerationStep[]): void {
   const hood = steps.find((step) => step.role === "hood");
   if (hood?.status === "placed") return;

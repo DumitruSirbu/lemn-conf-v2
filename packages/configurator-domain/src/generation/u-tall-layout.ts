@@ -1,17 +1,11 @@
-// The U's tall layout and its one oven (ADR 0110 *N3 revised* 4, 9, 10; N6′ RQ13, RQ14, RQ17). Two
-// independent fills feed off the core-run plan: the fridge-to-free-end gap on the fridge's own wall
-// (pantries at every size — RQ13 — or door bases in a room lower than the column, N11.4), and the far
-// wall's own run (overflow, the bodies placed after it, counted door bases, one tower, outboard
-// pantries below 10 m, and a trailing door fill). The bodies placed after the overflow are the bottle
-// and the drawer extras, and they always stand before the tower (ADR 0110 N10.3 step 4); the caller
-// decides which stand.
+// The U's tall layout and its one oven (ADR 0110 *N3 revised* 4, 9, 10). Two independent fills: the
+// fridge-to-free-end gap on the fridge's own wall, and the far wall's own run (overflow, the bodies
+// placed after it, counted door bases, one tower, outboard pantries below 10 m, a trailing door fill).
+// The bodies placed after the overflow (bottle, drawer extras) always stand before the tower; the
+// caller decides which stand.
 //
-// **`planTallEndBlock` is reused unchanged for the far wall's own ≤ 3000 mm free-end case** — the
-// same free-end-block shape Amendment E already gives the L, wired through the same leaf. The L's
-// behaviour there is untouched: the leaf only exports the hob build id it already used and carries
-// the declared bottle width, and states no new rule. RQ17's lone-tower-bare-remainder rule, which
-// departs from that leaf's own E6.2 for a U only, is applied as a thin override **here**, never
-// inside the leaf.
+// `planTallEndBlock` is reused unchanged for the far wall's free-end case, so the L's behaviour there
+// is untouched. RQ17's U-only lone-tower override is applied here, never inside that leaf.
 import type { DesignRoom, DesignWall } from "../design.js";
 import { wallLengthMm } from "../queries/overflowing-placements.js";
 import { hobWithItsOwnOvenBuildId } from "./generation-priorities.js";
@@ -47,26 +41,23 @@ export interface UTallLayoutInput {
   readonly runs: Readonly<Record<DesignWall, UGenerationRun>>;
   readonly fridgeWall: DesignWall;
   readonly farWall: DesignWall;
-  /** Where the fridge's own footprint ends on `fridgeWall` when it leaves a gap to fill, or `undefined`
-   *  when it leaves none: *N3 revised* 2 dropped it (that wall takes door bases from its corner instead,
-   *  ADR 0110 N9.2), or it stands at the free end with its bare remainder beyond it (N11.1). */
+  /** Where the fridge's footprint ends on `fridgeWall` when it leaves a gap to fill; `undefined` when it
+   *  leaves none: the wall takes door bases from its corner (ADR 0110 N9.2), or the fridge stands at
+   *  the free end with its bare remainder beyond it. */
   readonly fridgeEndMm: number | undefined;
-  /** The bodies already standing on the far wall, from the back wall's overflow — read, never
-   *  rebuilt, so this module places nothing the pack already placed. */
+  /** The bodies already standing on the far wall from the back wall's overflow: read, never rebuilt. */
   readonly overflowBases: readonly UPlannedGenerationBase[];
-  /** The far wall's bodies that must stand right after `overflowBases` and before the tower, in run
-   *  order: the bottle after a far-wall hob and the drawer-extra slots (ADR 0110 N10.3 step 4). They
-   *  are placed here, they count toward `n` as bodies, and their width comes out of the span the
-   *  tower or block has. Empty gives the layout with nothing added. */
+  /** The far wall's bodies that stand right after `overflowBases`, before the tower, in run order: the
+   *  bottle after a far-wall hob and the drawer-extra slots (ADR 0110 N10.3 step 4). They count toward
+   *  `n` and their width comes out of the span the tower or block has. */
   readonly bodiesBeforeTheTower: readonly UBodyAfterTheHob[];
   /** E3 clause 1, read off the core-run plan: whether every core role survived. */
   readonly coreSurvivedWhole: boolean;
   readonly declared: DeclaredColumnSizes;
 }
 
-/** One body that stands after the hob — the bottle, or a drawer-extra slot — before its position is
- *  known. `UTallLayoutInput.bodiesBeforeTheTower` asks the far wall to stand these; the layout gives
- *  each a wall and a start, and wall A's fill places the ones that stand on wall A. */
+/** One body that stands after the hob (the bottle or a drawer-extra slot) before its position is known;
+ *  the layout gives each a wall and a start. */
 export interface UBodyAfterTheHob {
   readonly id: string;
   readonly buildId: string;
@@ -75,17 +66,15 @@ export interface UBodyAfterTheHob {
 
 export interface UTallLayoutResult {
   readonly bases: readonly UPlannedGenerationBase[];
-  /** *N3 revised* 9 (E4 unchanged): which hob build id the one generated oven leaves the plan with. */
+  /** Which hob build id the one generated oven leaves the plan with (*N3 revised* 9, E4). */
   readonly hobBuildId: string;
-  /** *N3 revised* 10's own count, or `"free-end"` — `undefined` where no tower stands at all (E4's
-   *  other branch, the hob keeps its own oven). AC3 reads this instead of re-deriving it from the
-   *  bases a plan already returned. */
+  /** *N3 revised* 10's own count, or `"free-end"`; `undefined` where no tower stands (the hob keeps its
+   *  own oven). */
   readonly towerPosition: UPlacementPosition | undefined;
 }
 
-/** The fridge-to-free-end gap and the far wall's own layout, together — the far wall's own hob
- *  decision is the plan's only oven decision (E4, *N3 revised* 9): the fridge wall never carries a
- *  hob and never a tower. */
+/** The fridge-to-free-end gap and the far wall's own layout. The far wall's hob decision is the plan's
+ *  only oven decision: the fridge wall never carries a hob or a tower (E4, *N3 revised* 9). */
 export function planUTallLayout(input: UTallLayoutInput): UTallLayoutResult {
   const fridgeGapBases =
     input.fridgeEndMm === undefined
@@ -99,9 +88,8 @@ export function planUTallLayout(input: UTallLayoutInput): UTallLayoutResult {
   };
 }
 
-/** The fridge-to-free-end gap: `tall-pantry` columns, or — in a room lower than the column — A4's door
- *  bases, since E3 clause 4's reason (a column the room cannot hold would be refused at insert time)
- *  reaches every generated full-height column (ADR 0110 N11.4). */
+/** The fridge-to-free-end gap: `tall-pantry` columns, or door bases in a room lower than the column,
+ *  which could not hold one (ADR 0110 N11.4). */
 function fridgeGapFill(
   input: UTallLayoutInput,
   gapStartMm: number,
@@ -112,11 +100,9 @@ function fridgeGapFill(
     : pantriesInGap(input.fridgeWall, gapStartMm, gapEndMm, input.declared);
 }
 
-/** *N3 revised* 4 (RQ13): the fridge-to-free-end gap takes `tall-pantry` columns at every size,
- *  below 10 m and above it alike — 600 mm each, the outermost (nearest the free end) widened up to
- *  the row's own declared ceiling to absorb the remainder; a gap under one whole module but at
- *  least the row's own declared floor takes one pantry at its own width; under that floor stays
- *  bare. */
+/** The gap takes `tall-pantry` columns at every size (*N3 revised* 4, RQ13): 600 mm each, the outermost
+ *  widened up to the row's declared ceiling to absorb the remainder; a gap under one module but at
+ *  least the declared floor takes one pantry at its own width; under that floor stays bare. */
 function pantriesInGap(
   wall: DesignWall,
   gapStartMm: number,
@@ -135,13 +121,8 @@ function pantriesInGap(
   });
 }
 
-/** The pantry widths a gap of `gapMm` fills to, corner end first: whole 600 mm modules, the last one
- *  widened up to the row's own declared ceiling to absorb what does not divide evenly, or a single
- *  custom-width pantry for a gap under one whole module but at least the row's own declared floor.
- *  Under that floor returns no pantry at all — the gap stays bare, exactly as `planLeftover`'s own
- *  remainder does everywhere else (A4). Both bounds are the catalogue's own — reading them off
- *  `declared` rather than a literal is criterion 23's own rule, the same one `tall-end-rule.ts`
- *  states for the block's columns. */
+/** The pantry widths a gap fills to, corner end first, by `pantriesInGap`'s rule. Both bounds are read
+ *  off `declared` rather than a literal, as `tall-end-rule.ts` does for the block's columns. */
 function pantryWidthsFor(
   gapMm: number,
   declared: DeclaredColumnSizes,
@@ -160,8 +141,7 @@ function pantryWidthsFor(
       mergedWidthMm,
     ];
   }
-  // The remainder cannot merge into the row's own ceiling: it stays bare beyond the last whole
-  // pantry, the same "give up the last millimetre" shape the shell's own odd spans take.
+  // The remainder cannot merge into the row's ceiling: it stays bare beyond the last whole pantry.
   return Array.from({ length: wholeModules }, () => STORAGE_BODY_WIDTH_MM);
 }
 
@@ -211,9 +191,9 @@ function isAColumnAffordable(input: UTallLayoutInput): boolean {
   );
 }
 
-/** What already stands on the far wall before the tower's own layout starts: the overflowed core and
- *  the bodies placed after it. `count` is a body count, never a width over 600 — a 300 mm bottle is
- *  one of the `n` bodies from the corner (N10.3 step 4). */
+/** What already stands on the far wall before the tower's own layout: the overflowed core and the
+ *  bodies placed after it. `count` is a body count, never a width over 600: a 300 mm bottle is one of
+ *  the `n` bodies (N10.3 step 4). */
 interface StandingBeforeTheTower {
   /** The bodies placed after the overflow; the overflow itself is already in the plan. */
   readonly bases: readonly UPlannedGenerationBase[];
@@ -252,11 +232,10 @@ function affordableFarWallLayout(args: {
     : towerCountedFromTheCorner(args);
 }
 
-/** *N3 revised* 10's short-far-wall case (RQ17): the tower, or the block, stands at the free end —
- *  `planTallEndBlock`'s own free-end shape, reused whole. Where that leaf's own E6.2 would refuse a
- *  lone tower because its remainder cannot merge, this U-only override stands the tower anyway and
- *  leaves that remainder bare (≤ 599 mm, A4), which the leaf itself must not be taught to do — its L
- *  behaviour stays exactly E6.2's own. */
+/** *N3 revised* 10's short-far-wall case (RQ17): the tower or block stands at the free end,
+ *  `planTallEndBlock`'s free-end shape reused whole. Where that leaf's E6.2 would refuse a lone tower
+ *  because its remainder cannot merge, this U-only override stands it anyway and leaves the remainder
+ *  bare (at most 599 mm); the leaf must not learn that, since the L stays at E6.2. */
 function towerAtTheFreeEnd(args: {
   readonly farWall: DesignWall;
   readonly run: UGenerationRun;
@@ -319,12 +298,10 @@ function freeEndBases(args: {
   ];
 }
 
-/** *N3 revised* 10: at 10 m or more the tower stands alone, with no pantry generated — the same
- *  gate `towerAndPantriesFrom` applies to its own outboard pantries, read here too so the free-end
- *  case cannot grow the block past the tower on a large U. The block's own leftover count is capped
- *  to at most one module *before* `planTallEndBlock` sees it, so its own merge arithmetic still runs
- *  correctly on the capped scenario; the modules this frees up stand as ordinary door storage
- *  instead, never dropped. */
+/** At 10 m or more the tower stands alone with no pantry (*N3 revised* 10), the gate
+ *  `towerAndPantriesFrom` applies to its outboard pantries. The leftover count is capped at one module
+ *  *before* `planTallEndBlock` sees it so its merge arithmetic runs on the capped scenario; the freed
+ *  modules stand as door storage, never dropped. */
 function blockStorageCountFor(room: DesignRoom, storageCount: number): number {
   return isLargeU(room) ? Math.min(1, storageCount) : storageCount;
 }
@@ -350,13 +327,10 @@ function freeEndBlockOf(args: {
   return withRQ17Override(planTallEndBlock(blockInput), blockInput);
 }
 
-/** RQ17: a lone tower `planTallEndBlock`'s own E6.2 would refuse — its merge with the free end's
- *  remainder falls outside the door column's declared bound, or the block is a single fixed-width
- *  column that cannot merge at all — stands anyway on a U, with that remainder left bare. Applied
- *  only where the leaf's own clauses already held: the far wall's caller has already ruled out E3
- *  clauses 1 and the hob's wall, so what is read here is clause 3 (a whole module to give up) and
- *  clause 4 (the room's height); a genuinely unaffordable block is left exactly as the leaf answered
- *  it. */
+/** RQ17: a lone tower that `planTallEndBlock`'s E6.2 would refuse (its remainder cannot merge into the
+ *  door column's declared bound, or the block is one fixed-width column) stands anyway on a U, with the
+ *  remainder left bare. Applied only where E3 clause 3 (a whole module to give up) and clause 4 (room
+ *  height) hold; the caller already ruled out clause 1 and the hob's wall. */
 function withRQ17Override(
   block: ReturnType<typeof planTallEndBlock>,
   input: TallEndRuleInput,
@@ -379,20 +353,11 @@ function withRQ17Override(
 /** The pantries outboard of the tower: the block's other columns (E2, E12, RQ11). */
 const OUTBOARD_PANTRY_MAX_COUNT = MAX_TALL_BLOCK_COLUMNS - 1;
 
-/** *N3 revised* 10's long-far-wall case. The position reported is `n` (RQ5, "both from corner"), not
- *  the door count actually placed before the tower: an overflowed body counts toward `n` too, so a
- *  tower that stood right after the overflow, with no door before it, still stands at `n` bases from
- *  the corner. N10.3 keeps this the reported category: it never reports how many bodies stand before
- *  the tower.
- *
- *  `n` counted door bases from the corner (item 3's own table,
- *  reused for the tower's own count — RQ5's *"both from corner"*), the overflowed bodies and the
- *  bodies placed after them (N10.3 step 4) counting toward `n` as bodies, and the tower following
- *  them directly where they already exceed it — `n` is a floor, not an exact place; then the tower;
- *  then, below 10 m, up to two more pantry columns outboard of it; then a trailing door fill for the
- *  rest of the run (RQ14). No merge is attempted at the trailing fill's own end — it is an ordinary
- *  `planLeftover` remainder, A4's rule holding as it does everywhere else the tall block does not
- *  reach a wall's own free end. */
+/** *N3 revised* 10's long-far-wall case. The reported position is `n` (RQ5, both from the corner), never
+ *  the door count actually placed: overflowed bodies and the bodies placed after them (N10.3 step 4)
+ *  count toward `n` as bodies, and the tower follows them directly where they already exceed it, so
+ *  `n` is a floor. Then the tower; below 10 m up to two outboard pantries; then a trailing door fill
+ *  with no merge at its end, an ordinary `planLeftover` remainder (A4). */
 function towerCountedFromTheCorner(args: {
   readonly farWall: DesignWall;
   readonly run: UGenerationRun;
