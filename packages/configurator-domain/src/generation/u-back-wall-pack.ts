@@ -39,10 +39,9 @@ export function laneFromTheCorner(
   };
 }
 
-/** Wall A's own lane, read from whichever corner it shares with the fridge wall (*N3 revised* 5:
- *  "packed from the fridge corner") — the "prefix wall reversed" shape `generation-priorities.ts`
- *  already reads wall A or wall B in for the L. `direction` is the fact `placedFridge` computed from
- *  the fridge wall, so no wall letter is compared here. */
+/** Wall A's own lane, read from whichever corner it shares with the fridge wall (N3 revised 5:
+ *  "packed from the fridge corner"). `direction` is the fact `placedFridge` computed from the fridge
+ *  wall, so no wall letter is compared here. */
 export function wallALaneFromTheFridgeCorner(
   direction: WallAReadingDirection,
   runA: UGenerationRun,
@@ -56,9 +55,9 @@ export function wallALaneFromTheFridgeCorner(
 }
 
 /** ADR 0110 N11.8: wall A's bodies stand contiguous from its low end, whichever corner the run was
- *  packed from, and the remainder sits at the high end. `insertBody` seats a body at the left edge
- *  of its column (ADR 0046), so a remainder at the low end would merge with the first body's tile and
- *  put that body on the wrong side of it. The run order is unchanged; only the block moves. */
+ *  packed from, and the remainder sits at the high end: `insertBody` seats a body at the left edge of
+ *  its column (ADR 0046), so a low-end remainder would merge with the first body's tile and put that
+ *  body on the wrong side of it. The run order is unchanged; only the block moves. */
 export function justifiedToTheLowEnd(
   bases: readonly UPlannedGenerationBase[],
   runA: UGenerationRun,
@@ -88,12 +87,11 @@ function idOf(item: CoreRunItem): string {
 export interface PackedBackWall {
   readonly fits: boolean;
   readonly bases: readonly UPlannedGenerationBase[];
-  /** Whether the pack ever left wall A — when it did not, wall A's own lane has an offset left to
-   *  fill (the A4 correction); when it did, wall A's own remainder is already under 600 mm by
-   *  construction (the item that overflowed did not fit what was left). */
+  /** Whether the pack ever left wall A. If not, wall A's lane has an offset left to fill (the A4
+   *  correction); if so, its remainder is under 600 mm by construction. */
   readonly hasOverflowedOnce: boolean;
-  /** The offset the pack stopped at on wall A's own lane — meaningful only when it never overflowed,
-   *  and the start the wall-A fill continues from. */
+  /** The offset the pack stopped at on wall A's lane, meaningful only when it never overflowed: the
+   *  start the wall-A fill continues from. */
   readonly wallAOffsetMm: number;
 }
 
@@ -117,10 +115,9 @@ interface PackCursor {
   readonly bases: readonly UPlannedGenerationBase[];
 }
 
-/** *N3 revised* 5: the back wall packed from the fridge corner, in fixed reading order; what does
- *  not fit continues round the far corner onto the far wall, from its own corner. Detected by
- *  simulating the pack rather than a combined-capacity sum, because two 600 mm items can waste up to
- *  599 mm of a lane's own tail (A4) without a sum test ever seeing it. */
+/** N3 revised 5: the back wall packed from the fridge corner, in fixed reading order; what does not
+ *  fit continues round the far corner onto the far wall. Overflow is detected by simulating the pack,
+ *  not by a capacity sum, because two 600 mm items can waste up to 599 mm of a lane's tail (A4). */
 export function packBackWallAndOverflow(
   items: readonly CoreRunItem[],
   lanes: BackWallLanes,
@@ -201,9 +198,9 @@ export interface BackWallAttempt {
   readonly items: readonly CoreRunItem[];
 }
 
-/** *N3 revised* 5's three attempts, in the owner's own drop order: the dishwasher first, then the
- *  preparation cabinet. The sink and the hob are never attempted without each other — ADR 0110 A2's
- *  minimum kitchen — so the last attempt is the floor tried before refusing. */
+/** N3 revised 5's three attempts, in the owner's drop order: the dishwasher first, then the
+ *  preparation cabinet. The sink and the hob are never attempted without each other (ADR 0110 A2's
+ *  minimum kitchen), so the last attempt is the floor tried before refusing. */
 export const BACK_WALL_ATTEMPTS: readonly BackWallAttempt[] = [
   {
     hasPreparation: true,

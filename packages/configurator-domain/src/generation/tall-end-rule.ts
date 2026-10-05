@@ -1,24 +1,17 @@
-// ADR 0110 Amendment E — wave 7D3: the block of full-height columns at the free end the layout
-// leaves, and the hob that follows it.
+// ADR 0110 Amendment E: the block of full-height columns at the free end the layout leaves, and the
+// hob that follows it. The block follows the run (Amendment I): this rule never knew a wall letter,
+// and its caller feeds it the free end of whichever wall carries the reading order's suffix.
 //
-// **Amendment I overturned E2's *"wall A … and nowhere else"* (owner, 2026-09-16): the block follows
-// the run.** Nothing in this module moved for it — no threshold, no width, no body id and no branch —
-// because this rule never knew a wall letter. Its caller feeds it the free end of whichever wall
-// carries the reading order's suffix, and in the rooms where wall B is the wider one that is wall B.
+// One question, one answer for both halves (E5 stage 3): whether a block stands and whether the hob
+// keeps its own oven are returned together, because a substitution that fires while the block does not
+// stand ships a kitchen with no oven anywhere (E4).
 //
-// **One question, and one answer decides both halves** (E5 stage 3). Whether a block stands and
-// whether the hob keeps its own oven are the same decision, so they are returned together: a
-// substitution that fires while the block does not stand ships a kitchen with **no oven anywhere**,
-// which no test of *"not two ovens"* would catch (E4).
+// The only module under `src/generation/` that names the block's bodies, and it names no size of one:
+// the declared 600 mm and 2200 mm belong to the catalogue and its caller threads them in, since a
+// generation-side constant kept in step with the catalogue is a second authority (ADR 0102).
 //
-// **The only module under `src/generation/` that names the block's bodies** (wave 7D3 criterion 23),
-// and it names no size of one. The declared 600 mm and 2200 mm belong to the catalogue; its caller
-// reads them and threads them in, because a generation-side constant kept in step with the catalogue
-// is the second authority [ADR 0102](../../../../docs/decisions/0102-a-recorded-source-must-explain-its-depth-and-a-second-authority-in-a-test-is-the-defect-laundered.md)
-// forbids rather than a safeguard.
-//
-// A pure leaf over numbers, beside `leftover-rule.ts` and for the same reason it exists: no
-// catalogue, no probe, no design, and no knowledge of how a run is laid out.
+// A pure leaf over numbers, beside `leftover-rule.ts`: no catalogue, no probe, no design, and no
+// knowledge of how a run is laid out.
 import {
   headroomBelowTheCeilingMm,
   STORAGE_BODY_WIDTH_MM,
@@ -28,15 +21,14 @@ import {
  *  because the oven has moved into a column. */
 export const OVEN_TOWER_BUILD_ID = "tall-oven-tower";
 export const DOOR_COLUMN_BUILD_ID = "tall-pantry";
-/** The hob a block's own tower leaves behind — exported so the U's own tall layout, which stands a
- *  lone tower this module's own E6.2 would refuse (RQ17, U-only), names the same id rather than a
- *  second literal of it. This module's own rule reads it exactly as before. */
+/** The hob a block's own tower leaves behind. Exported so the U's tall layout, which stands a lone
+ *  tower this module's E6.2 would refuse (RQ17, U-only), names the same id rather than a second
+ *  literal. */
 export const HOB_WITHOUT_ITS_OWN_OVEN_BUILD_ID = "base-hob-2drawer";
 
-/** The owner's own *"two, three columns"* (E2.2), and **the one number this rule states**. Every
- *  other figure the rule produces — the 3300 / 3900 / 4500 mm of the block's own wall that the three
- *  block sizes need — is a consequence of the declared widths and the corner's reach, and moves by
- *  itself when one of them does. */
+/** The owner's "two, three columns" (E2.2) and the one number this rule states. The 3300 / 3900 /
+ *  4500 mm of the block's wall that the three block sizes need are consequences of the declared widths
+ *  and the corner's reach and move with them. */
 export const MAX_TALL_BLOCK_COLUMNS = 3;
 
 /** What a body may be built to, as the catalogue declares it. */
@@ -47,27 +39,26 @@ export interface WidthBoundMm {
 
 /** The catalogue's word on the two column rows, read by `generateKitchen` and passed in whole. */
 export interface DeclaredColumnSizes {
-  /** One column's width — the oven tower's, which is fixed and is what one leftover module holds. */
+  /** One column's width — the oven tower's, fixed, and what one leftover module holds. */
   readonly columnWidthMm: number;
-  /** The door column's bound; it is the one `'fit'` full-height row (ADR 0048). */
+  /** The door column's bound; the one `'fit'` full-height row (ADR 0048). */
   readonly doorColumnWidthMm: WidthBoundMm;
   readonly columnHeightMm: number;
-  /** The widest width the bottle cargo row declares — the module a generated run chooses (ADR 0110
+  /** The widest width the bottle cargo row declares: the module a generated run chooses (ADR 0110
    *  Amendment H1), read by the U's bottle; the L keeps its own `BOTTLE_CARGO` item. */
   readonly bottleWidthMm: number;
 }
 
 export interface TallEndRuleInput {
   /** E3 clause 1: the full core survived, so `dropped` is empty. A kitchen that gave up its fridge
-   *  for want of space has no business gaining a second oven. */
+   *  for want of space must not gain a second oven. */
   readonly coreSurvivedWhole: boolean;
-  /** E3 clause 2 with E2, as Amendment I2 re-points it: **the free end the layout leaves** is the
-   *  only site an L run has, and it is the reading order's **suffix** wall's — whichever physical
-   *  wall that is. The prefix wall's free end holds core bodies and has no leftover modules to swap
-   *  for columns, so a hob that landed there means no block and a hob that keeps its oven. */
+  /** E3 clause 2 with E2, as Amendment I2 re-points it: the free end the layout leaves is the reading
+   *  order's suffix wall's, whichever physical wall that is. The prefix wall's free end holds core
+   *  bodies and has no leftover modules to swap for columns, so a hob landing there means no block and
+   *  a hob that keeps its oven. */
   readonly hobStandsOnTheFreeEndWall: boolean;
-  /** E3 clause 3, from `planLeftover` and from nowhere else — generation holds one remainder
-   *  arithmetic. */
+  /** E3 clause 3, from `planLeftover` and nowhere else: generation holds one remainder arithmetic. */
   readonly freeEndStorageCount: number;
   readonly freeEndRemainderMm: number;
   /** E3 clause 4: the room must be at least as tall as the column planned into it. */
@@ -83,22 +74,20 @@ export interface PlannedTallColumn {
 }
 
 export interface TallEndPlan {
-  /** Innermost first — the oven tower, then the door columns outboard (E12.2). Empty where no block
+  /** Innermost first: the oven tower, then the door columns outboard (E12.2). Empty where no block
    *  stands. */
   readonly columns: readonly PlannedTallColumn[];
   /** The storage modules the block's own wall keeps once the block has taken its own. */
   readonly storageCount: number;
-  /** The bare wall past the composed run, which is **0** where the outermost column absorbed it. */
+  /** The bare wall past the composed run, `0` where the outermost column absorbed it. */
   readonly remainderMm: number;
   readonly hobBuildId: string;
 }
 
 /**
  * The block at the free end the layout leaves, the storage the leftover rule keeps, and the hob's
- * build id.
- *
- * A block never enters core selection and never causes a role to be dropped (E5.1): it takes modules
- * the leftover rule had already planned, at the end the spatial order leaves free.
+ * build id. A block never enters core selection and never causes a role to be dropped (E5.1): it takes
+ * modules the leftover rule had already planned.
  */
 export function planTallEndBlock(input: TallEndRuleInput): TallEndPlan {
   refuseAColumnThatIsNotOneStorageModule(input.declared.columnWidthMm);
@@ -127,7 +116,7 @@ export function planTallEndBlock(input: TallEndRuleInput): TallEndPlan {
 }
 
 /** E3's four clauses. The block's size is read from clause 3's own count, so the threshold follows
- *  the size rather than standing beside it (E3 revised). */
+ *  the size rather than standing beside it. */
 function isABlockAffordable(input: TallEndRuleInput): boolean {
   return (
     input.coreSurvivedWhole &&
@@ -138,20 +127,18 @@ function isABlockAffordable(input: TallEndRuleInput): boolean {
 }
 
 /**
- * The block's outermost column, and the bare wall left beyond it — or nothing, where the block
- * cannot stand flush to the run.
+ * The block's outermost column and the bare wall left beyond it, or nothing where the block cannot
+ * stand flush to the run (E6.2).
  *
- * **E6.2.** Two adjacent columns sum past the empty-column ceiling and never merge, so a block is
- * exposed at its free-end face alone however many columns it has. Where that wall's remainder is
- * small enough to merge with that face, the outermost column is **planned at the merged width**: the
- * opening is then exactly what the column is built to, the run reaches the wall's reachable end, and
- * nothing is centred with a bare sliver on each side.
+ * Two adjacent columns sum past the empty-column ceiling and never merge, so a block is exposed at its
+ * free-end face alone. Where that wall's remainder is small enough to merge with that face, the
+ * outermost column is planned at the merged width, so the opening is exactly what the column is built
+ * to and nothing is centred with a bare sliver on each side.
  *
- * A block of two or three ends in a `'fit'` door column, which takes that width the way any fit body
- * takes its tile. A block of one ends in the fixed-width oven tower, which cannot — and a block of
- * one means that wall had exactly one leftover module, so there is no module inboard to absorb it
- * either. **That block is not planned at all**: the single `1 → 0` step E6.2 names, and the one place
- * a block shrinks as the room grows.
+ * A block of two or three ends in a `'fit'` door column, which takes that width. A block of one ends in
+ * the fixed-width oven tower, which cannot, and has no module inboard to absorb it: that block is not
+ * planned at all, the single `1 → 0` step E6.2 names and the one place a block shrinks as the room
+ * grows.
  */
 function outermostColumnOf(
   columnCount: number,
@@ -175,9 +162,9 @@ function outermostColumnOf(
   return { widthMm: mergedWidthMm, remainderMm: 0 };
 }
 
-/** E12.1 and E12.2: one oven column and no more, the door columns outboard of it. The oven then
- *  stands as near the hob as the block allows, and the body at the exposed face is the one that can
- *  take a merged opening. */
+/** E12.1 and E12.2: one oven column and no more, the door columns outboard of it, so the oven stands
+ *  as near the hob as the block allows and the body at the exposed face is the one that can take a
+ *  merged opening. */
 function blockOf(
   columnCount: number,
   outermostWidthMm: number,
@@ -191,8 +178,8 @@ function blockOf(
 }
 
 /** The block swaps whole leftover modules for columns, so a column that is no longer one module wide
- *  would leave the composed run misaligned with the tiles the shell cut for it. Loud rather than
- *  silent, because the failure it guards against composes a kitchen that looks planned. */
+ *  would leave the composed run misaligned with the tiles the shell cut. Loud, because the failure
+ *  composes a kitchen that looks planned. */
 function refuseAColumnThatIsNotOneStorageModule(columnWidthMm: number): void {
   if (columnWidthMm === STORAGE_BODY_WIDTH_MM) return;
   throw new Error(

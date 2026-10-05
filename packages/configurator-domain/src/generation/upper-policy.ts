@@ -1,22 +1,19 @@
-// Which planned bases get an upper, and which upper it is (ADR 0110 Amendments C and E7, and *N3
-// revised* 9-11 for a U). `generateKitchen` places an upper by `insertBody` into the shell's wall-row
-// void above a base, so an upper this policy does not owe leaves its void behind, and the editor's
-// ordinary insert reaches it (N11, RQ7). The top row (ADR 0110 Amendment O9) follows the upper: one
-// 400 mm cabinet over each upper placed, so it stands over no full-height body and, on a large U's back
-// wall, over the hood alone; `isATopRowFitting` is the one question the room is asked.
+// Which planned bases get an upper, and which upper it is (ADR 0110 Amendments C and E7, and N3
+// revised 9-11 for a U). `generateKitchen` places an upper by `insertBody` into the shell's wall-row
+// void above a base, so an upper this policy does not owe leaves its void behind for the editor's
+// ordinary insert (N11, RQ7). The top row (Amendment O9) follows the upper: one 400 mm cabinet over
+// each upper placed, so it stands over no full-height body and, on a large U's back wall, over the
+// hood alone; `isATopRowFitting` is the one question the room is asked.
 //
-// What a U adds to the L's rule, and no more:
-// - **A large U's back wall is base-only** (*N3 revised* 11, RQ7, owner): no other wall-row or top-row
-//   body is generated on wall A, and the hood over the hob stays, with its top cabinet, because a hood
-//   is an appliance and the owner's reason was the cost of furniture.
-// - Below 10 m the uppers follow C and E7 as the L's do: over the back wall (the wall-A fill at its own
-//   width included, N11.9), over the far wall's door bases (RQ14, "Base + uppers"), and never over a
-//   full-height body.
-// - **No upper over either corner zone (7D2 criterion 14, backlog 63's class at A∩C) needs no test
-//   here**: a base stands only in its wall's floor run, and each run starts past its corner's reach
-//   (`uShellFloorRuns`), so an upper over a base is never over a corner zone. What guards it is the
-//   property over generated designs, which reads the shell's own wall-only strips,
-//   which only a large U's back wall records (the corner wall unit covers the others).
+// What a U adds to the L's rule:
+// - A large U's back wall is base-only (N3 revised 11, RQ7): no other wall-row or top-row body is
+//   generated on wall A, and the hood over the hob stays with its top cabinet, because a hood is an
+//   appliance and the owner's reason was the cost of furniture.
+// - Below 10 m the uppers follow C and E7 as the L's do: over the back wall (the wall-A fill included,
+//   N11.9), over the far wall's door bases (RQ14), and never over a full-height body.
+// - No upper stands over either corner zone (7D2 criterion 14) without a test here: a base stands only
+//   in its wall's floor run, and each run starts past its corner's reach (`uShellFloorRuns`). A
+//   property over generated designs guards it, reading the shell's wall-only strips.
 import { HEIGHT_FLEX_MIN_OPENING_MM } from "../commands/insert-fit.js";
 import type { DesignRoom } from "../design.js";
 import { TOP_ROW_Y0_MM } from "../push-to-open.js";
@@ -38,15 +35,14 @@ export type TopRole = "top";
 export const TOP_ROLE: TopRole = "top";
 export const TOP_STEP_ID_PREFIX = "top:";
 
-/** Whether the room is tall enough for the generated top row (ADR 0110 Amendment O: the owner's "rooms
- *  at least 2600 high"). The line is derived, not typed: the ceiling less `TOP_ROW_Y0_MM` must reach
- *  `HEIGHT_FLEX_MIN_OPENING_MM`, which is `insertBody`'s own `OPENING_TOO_SHORT` refusal
- *  (`insert-fit.ts`), so below it every top void stays empty and no insert is attempted.
+/** Whether the room is tall enough for the generated top row (ADR 0110 Amendment O: rooms at least
+ *  2600 high). Derived: the ceiling less `TOP_ROW_Y0_MM` must reach `HEIGHT_FLEX_MIN_OPENING_MM`,
+ *  `insertBody`'s own `OPENING_TOO_SHORT` refusal (`insert-fit.ts`), so below it every top void stays
+ *  empty and no insert is attempted.
  *
- *  The shell's corner top unit decides by a second expression (`y0 + height <= room height`,
- *  `piecesUnderTheCeiling`), which agrees with this one only while that constant equals the unit's 400:
- *  the test "agrees with the corner's own top units at every height" in
- *  `qa-c3s1-top-row.adversarial.test.ts` pins both switching at the same millimetre. */
+ *  The shell's corner top unit decides by a second expression (`piecesUnderTheCeiling`) that agrees
+ *  only while that constant equals the unit's 400; `qa-c3s1-top-row.adversarial.test.ts` pins both
+ *  switching at the same millimetre. */
 export function hasRoomForATopRow(room: DesignRoom): boolean {
   return room.heightMm - TOP_ROW_Y0_MM >= HEIGHT_FLEX_MIN_OPENING_MM;
 }
@@ -69,7 +65,7 @@ export function isAnUpperOwedOver(
   return !isOverABaseOnlyBackWall(planned, context.room);
 }
 
-/** *N3 revised* 11: in a large U wall A's wall and top rows carry no generated body, the hood aside. */
+/** N3 revised 11: in a large U wall A's wall and top rows carry no generated body, the hood aside. */
 function isOverABaseOnlyBackWall(
   planned: UPlannedGenerationBase,
   room: DesignRoom,
@@ -79,10 +75,9 @@ function isOverABaseOnlyBackWall(
   );
 }
 
-/** ADR 0110 Amendment E7: an upper is attempted above a base only where the body's declared top is
- *  at or below the wall row's floor. A body that reaches past it — the fridge today, a full-height
- *  column tomorrow — leaves no opening there, and reading the catalogue's declared height rather
- *  than a list of role names means a new full-height body needs no second place to be remembered. */
+/** ADR 0110 Amendment E7: an upper is attempted above a base only where the body's declared top is at
+ *  or below the wall row's floor. Reading the catalogue's declared height rather than a list of role
+ *  names means a new full-height body needs no second place to be remembered. */
 function risesIntoWallRow(catalog: BodyCatalog, buildId: string): boolean {
   const declaredTopMm = catalog.get(buildId)?.nominalHeightMm;
   if (declaredTopMm === undefined) {

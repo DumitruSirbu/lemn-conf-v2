@@ -1,9 +1,5 @@
-// `DEVELOPMENT-SPEC.md` §5.2's guards, in the order the spec states them, with everything that can
-// be decided **before** a body is built.
-//
-// Split out because §9's offer list and `insertBody` must agree exactly: "never offer what cannot
-// be satisfied" and "the hood is neither offered for nor accepted into the 400 mm top slot" are the
-// same rule read from two ends (§11 row 6). One evaluation, two callers.
+// `DEVELOPMENT-SPEC.md` §5.2's guards, in the spec's order, for everything decidable before a body is
+// built. §9's offer list and `insertBody` must agree exactly (§11 row 6), so both call this.
 import {
   deriveSlotBand,
   isBandAccepted,
@@ -62,36 +58,23 @@ export const HEIGHT_FLEX_MIN_OPENING_MM = 400;
  *  get a 2600 mm wall cabinet. */
 export const CABINET_SIZED_OPENING_MAX_M = 0.9;
 
-/** Float noise from the millimetre↔metre round trip. Not a fit tolerance — `FIT_TOLERANCE_M` is
- *  the slack two independently derived measurements get; this is the slack `2.2 * 1000` gets. */
+/** Float noise from the millimetre↔metre round trip. Not a fit tolerance: `FIT_TOLERANCE_M` is the
+ *  slack two independently derived measurements get; this is the slack `2.2 * 1000` gets. */
 const COORDINATE_EPSILON_M = 1e-6;
 
-/** The opening a body is being inserted into, whether it is a derived void or — on a swap in
- *  place (§5.3) — the level slot an occupied body stands in. One shape, so the guards cannot
- *  fork. */
+/** The opening a body is inserted into: a derived void or, on a swap in place (§5.3), the level slot
+ *  an occupied body stands in. One shape, so the guards cannot fork. */
 export interface InsertOpening {
   readonly col: string;
   readonly wall: DesignWall;
-  /** The along-wall coordinate: `x` on wall A, `z` on wall B or C (ADR 0132 decision 1). ADR 0011
-   *  Gap D — the wall-normal coordinate is *not* taken from here; it comes from the body's own
-   *  measured seat. */
+  /** The along-wall coordinate: `x` on wall A, `z` on wall B or C (ADR 0132 decision 1). The
+   *  wall-normal coordinate is not taken from here; it comes from the body's own measured seat
+   *  (ADR 0011 Gap D). */
   readonly alongM: number;
   readonly w: number;
-  /** **How deep the opening is** — a `ClearanceM`, not the depth a body is built to.
-   *
-   *  It was both until wave 6I2, and that is `docs/BACKLOG.md` entry 15: the number is §3.2's MAX
-   *  over a column's members with an appliance's door bars in it, and `resolveDepthM` was handing it
-   *  to the probe as a manufactured size. What a body is built to is `BuildDepthM`, declared in
-   *  `cabinet-depth-rule.ts`; the two are different types now, so this field cannot be read as one
-   *  by accident (ADR 0060 decision 1).
-   *
-   *  It belongs to the **opening**, never to the column. `Column.d` is §3.2's MAX over the whole
-   *  vertical run, so reading the depth from there builds a wall cabinet to the depth of the base
-   *  cabinet standing under it: on the shipped kitchen that changed the depth of 7 of 10 columns'
-   *  wall bodies on a swap, in both directions, and the replacement no longer lined up with its
-   *  neighbours. ADR 0018 is why that reads as a depth at all — `frame.d` is twice a body's rear
-   *  overhang, which for the two builders that consume a depth (`wallCabinet`, `openShelf`, whose
-   *  carcass is centred on z = 0) is exactly the depth they were given. */
+  /** How deep the opening is — a `ClearanceM`, never the depth a body is built to, which is a
+   *  `BuildDepthM` that `resolveDepthM` derives (ADR 0060 decision 1). It belongs to the opening, not
+   *  to `Column.d`, which is the MAX over the whole vertical run. */
   readonly d: ClearanceM;
   readonly y0: number;
   readonly h: number;
@@ -105,9 +88,8 @@ export function openingFromVoid(record: VoidRecord): InsertOpening {
     wall: record.wall,
     alongM: record.wall === "A" ? record.x : record.z,
     w: record.w,
-    // §3.3 stamps a void with its column's own depth, which `deriveColumns` derived as the MAX of
-    // its members' clearances. Restated as the `ClearanceM` it is, because `VoidRecord` carries it
-    // as a plain number: the frozen map persists it and a stored extent arrives off the wire.
+    // `VoidRecord.d` is a plain number because the frozen map persists it and a stored extent
+    // arrives off the wire; restate it as the `ClearanceM` it is.
     d: recordedClearanceM(record.d),
     y0: record.y0,
     h: record.h,
@@ -116,25 +98,13 @@ export function openingFromVoid(record: VoidRecord): InsertOpening {
   };
 }
 
-/** §5.3: an opening's size does not change because its contents did. The opening a swap targets is
- *  therefore the one the *level* provides — literally the void this body's removal would create —
- *  and not the outgoing body's own frame.
+/** §5.3: the opening a swap targets is the one the level provides — the void this body's removal
+ *  would create — not the outgoing body's own frame: seeded base cabinets record 820 mm while §7's
+ *  base bodies build to the 860 mm worktop line, so reading the frame would refuse every base row.
  *
- *  Reading "the frame IS the opening" as the frame's own numbers does not survive the shipped
- *  data: M2's seeded base cabinets record 820 mm (carcass without the counter) while §7's base
- *  bodies build to the 860 mm worktop line, so every seeded base cabinet would refuse every base
- *  row in its own swap list. The level slot is 860 mm either way, which is the sense in which it is
- *  unchanged. See the report for M3 Wave 3A.
- *
- *  Only the width and the **depth** come from the body itself. The width because §5.3 swaps in
- *  place and horizontal subdivision of an opening is not in the model. The depth because the model
- *  has no per-level depth at all: `recomputeVoids` stamps every void with its column's MAX depth
- *  (§3.2), so taking it from the vacated slot would hand a wall cabinet the depth of the base
- *  cabinet under it — the defect this reading exists to close. The outgoing body's own `frame.d`
- *  is the only recorded fact about how deep the thing standing in this opening was, and §5.3's
- *  "the current body's frame IS the target opening" applies to it literally. The `h` and `w`
- *  carve-outs above are documented exceptions with their own recorded reasons; neither reason
- *  touches depth. */
+ *  Only width and depth come from the body: width because a swap is in place and an opening is never
+ *  subdivided horizontally; depth because voids carry their column's MAX depth (§3.2), which would
+ *  hand a wall cabinet the depth of the base cabinet under it. */
 export function openingFromPlacement(
   record: PlacementRecord,
   records: readonly PlacementRecord[],
@@ -155,22 +125,15 @@ export function openingFromPlacement(
   };
 }
 
-/** `occupiedDepthM` under the name this call site reads it by: the **clearance** of the space a body
- *  *vacates*, which is the space the next insert is planned into. The rule itself lives in
- *  `occupied-depth.ts` and its reasoning in ADR 0040.
- *
- *  This reader wants the clearance and says so (ADR 0060 decision 1): an opening is a hole, and how
- *  big the hole is is a different question from how deep a cabinet dropped into it is built. Its
- *  `ClearanceM` return type is what carries that through to `resolveDepthM`. */
+/** `occupiedDepthM` under the name this call site reads it by: the clearance of the space a body
+ *  vacates (rule in `occupied-depth.ts`). The `ClearanceM` return type carries through to
+ *  `resolveDepthM` (ADR 0060 decision 1). */
 const vacatedOpeningDepthM: (record: PlacementRecord) => ClearanceM =
   occupiedDepthM;
 
-/** The void that would cover this body if it were removed — §4's own derivation, run once with the
- *  target taken out, so a swap and a delete-then-insert see the identical opening.
- *
- *  The lookup itself is `findVacatedVoid`'s, not a second copy of it: a swap resolving its opening
- *  one level away from where a delete would have selected is the same defect twice, and the two
- *  predicates had already drifted into being one bug in two files. */
+/** The void that would cover this body if it were removed — §4's derivation with the target taken
+ *  out, so a swap and a delete-then-insert see the identical opening. The lookup is
+ *  `findVacatedVoid`'s so the two cannot select different levels. */
 function findVacatedSlot(
   record: PlacementRecord,
   records: readonly PlacementRecord[],
@@ -204,9 +167,9 @@ export type OpeningResolution =
   | { readonly ok: true; readonly value: ResolvedOpening }
   | { readonly ok: false; readonly detail: RejectionDetail };
 
-/** §5.2 fills a void; §5.3 hands the same path the current body's own frame. `insertBody` and
- *  §9's offer list resolve their target through this one function, so a body the list offers and a
- *  body the command accepts are measured against the identical opening. */
+/** §5.2 fills a void; §5.3 hands the same path the current body's own frame. `insertBody` and §9's
+ *  offer list resolve their target here, so an offered body and an accepted body are measured
+ *  against the identical opening. */
 export function resolveInsertOpening(lookup: OpeningLookup): OpeningResolution {
   const found = findOpening(lookup);
   if (!found.ok) return found;
@@ -223,8 +186,8 @@ export function resolveInsertOpening(lookup: OpeningLookup): OpeningResolution {
   return { ok: true, value: { ...found.value, column } };
 }
 
-/** A void has no body to name, so it is named by `VOID_KIND` — which the catalogue does not name,
- *  and which therefore resolves to the same generic word this refusal has always carried. */
+/** A void has no body to name, so it is named by `VOID_KIND`, which the catalogue does not name and
+ *  which therefore resolves to the generic word. */
 function openingLabel(value: Omit<ResolvedOpening, "column">): BodyLabel {
   return kindLabel(value.replaced?.kind ?? VOID_KIND);
 }
@@ -269,32 +232,21 @@ function findOpening(lookup: OpeningLookup): PartialResolution {
 export interface InsertPlan {
   readonly widthM: number;
   readonly heightM: number;
-  /** **The depth this body is built to** — `b.mk(w, h, d)`'s third argument, a manufactured size.
-   *  Decided here, with the rest of the plan, so the offer list and `insertBody` cannot disagree
-   *  about how deep a body would be built.
-   *
-   *  Typed `BuildDepthM` since wave 6I2, so an opening's `ClearanceM` cannot land here without
-   *  passing through `resolveDepthM`'s declared rule (ADR 0060). */
+  /** The depth this body is built to — `b.mk(w, h, d)`'s third argument. Decided here so the offer
+   *  list and `insertBody` cannot disagree. A `BuildDepthM`, so an opening's `ClearanceM` cannot land
+   *  here without passing `resolveDepthM` (ADR 0060). */
   readonly depthM: BuildDepthM;
   readonly y0M: number;
   readonly slotBand: NormalisedBand;
-  /** ADR 0046: the along-wall centre the body is seated at, in millimetres. Flush against the
-   *  **left** edge of the column when the body is narrower than it, and the opening's own centre
-   *  when it is not.
+  /** The along-wall centre the body is seated at, in millimetres (ADR 0046): flush against the left
+   *  edge of the column when the body is narrower than it, the opening's own centre when not.
    *
-   *  Decided here rather than in `insertBody` because seating is arithmetic on the width, and §9's
-   *  offer list and the command must agree about where a body would land as much as about whether
-   *  it fits.
-   *
-   *  **May be fractional, and is refused rather than rounded downstream.** The seated centre is
-   *  `centre − (columnWidth − bodyWidth) / 2`, which falls between two millimetres whenever the
-   *  column's width is odd — an extent whose members are offset by an odd millimetre gives one
-   *  (`refuseFractionalCentres` in `apply-column-moves.ts` carries the measurement). */
+   *  May be fractional, and is refused rather than rounded downstream: an odd column width puts the
+   *  seated centre between two millimetres (`refuseFractionalCentres` in `apply-column-moves.ts`). */
   readonly alongMm: number;
-  /** ADR 0046: what is left of the column beside the body, in millimetres, and therefore the width
-   *  of the empty column the split creates. `0` means no split — the body fills the column exactly
-   *  (ADR 0031 rule 6's exact-to-zero case, read for an insert) or the column is not this body's to
-   *  divide (see `seatAlongColumn`). */
+  /** What is left of the column beside the body, in millimetres: the width of the empty column the
+   *  split creates. `0` means no split: the body fills the column exactly (ADR 0031 rule 6) or the
+   *  column is not this body's to divide (see `seatAlongColumn`). */
   readonly remainderMm: number;
 }
 
@@ -307,15 +259,11 @@ export interface InsertFitInput {
   readonly opening: InsertOpening;
   readonly column: Column;
   /**
-   * **The cabinet depth of the design being operated on**, which `resolveDepthM` needs and no other
-   * argument carries. Read it off that design with `cabinetDepthMmOf`; never write a number here.
+   * The cabinet depth of the design being operated on, which `resolveDepthM` needs. Read it with
+   * `cabinetDepthMmOf`; never write a number here.
    *
-   * **Required, and deliberately not defaulted.** Until wave 6K-b this module read the module
-   * constant `WORKTOP_DEPTH_MM`, so at a 700 mm kitchen every wall body was built to the 600 mm map
-   * row (ADR 0073's finding, an implementation defect against ADR 0055 decision 1). A default of 600
-   * would be harmless *today* — no refusal reads the depth, and `offersFor`'s `judge` discards the
-   * plan's `depthM` — and "harmless today, because no reader looks" is the precise reasoning that
-   * produced the defect in the first place. Required, the wrong call site fails to compile.
+   * Required, not defaulted: no refusal reads the depth today, so a default would be harmless today,
+   * and that is how a hard-coded 600 once built every wall body to the wrong depth at a 700 mm kitchen.
    */
   readonly cabinetDepthMm: number;
 }
@@ -328,12 +276,9 @@ type WidthResolution =
   | { readonly ok: true; readonly widthM: number }
   | { readonly ok: false; readonly detail: RejectionDetail };
 
-/** A discrete row's width: an entry whose every range is a single value, so there is nothing to
- *  narrow into an opening — it is built at one of its sizes or it is refused.
- *
- *  **The hood is not one of them.** It was, while ADR 0033's amendment installed a 600 centred in a
- *  wider slot; ADR 0035 decision 5 gave it the 600–800 bound every other cabinetry row carries, so
- *  it resolves on `resolveFitWidth` and fills its opening. It is built at 700 and at 800. */
+/** Resolves a body's width in an opening: both floors first, then the `'fit'` or millimetre-set
+ *  path. The hood takes the `'fit'` path and fills its opening within its 600–800 bound
+ *  (ADR 0035 decision 5). */
 function resolveWidth(
   body: InsertableBody,
   opening: InsertOpening,
@@ -342,10 +287,8 @@ function resolveWidth(
   const unusableFloor = refuseUnusableDeclaredFloor(body, availableMm);
   if (unusableFloor) return { ok: false, detail: unusableFloor };
 
-  // Whichever floor governs this body, checked once, before any width is chosen at all. It runs on
-  // both width paths: a floor is a fact about the cabinet, not about how a particular entry picks
-  // its width, and a millimetre set listing a member under §2's default would otherwise slip past
-  // unexamined.
+  // A floor is a fact about the cabinet, not about how its entry picks a width, so it runs on both
+  // paths before any width is chosen.
   const floorRefusal = refuseWidthFloor(body, opening, availableMm);
   if (floorRefusal) return { ok: false, detail: floorRefusal };
 
@@ -355,29 +298,14 @@ function resolveWidth(
   return resolveFixedSetWidth(body, body.widthFlex, opening);
 }
 
-/** §5.2's `w = void.w` for a `'fit'` body — **bounded by the entry's own set where that set is a
- *  bound** (ADR 0032 rule 4, closing `docs/BACKLOG.md` entry 13).
+/** §5.2's `w = void.w` for a `'fit'` body, bounded by the entry's declared ranges
+ *  (ADR 0032 rule 4, ADR 0035 decision 2): what refuses is an opening outside the entry's own bound,
+ *  so a hinged cabinet is continuous between its floor and ceiling.
  *
- *  This function used to be the single line `return { ok: true, widthM: opening.w }`, and that line
- *  is why a 300 mm opening offered `wall-2door` and built one door under a two-door label — ADR 0029
- *  verbatim, through the path that ADR could not reach. `sizesMm` was consulted by `setWidth` alone,
- *  so the two halves of one engine answered the same question differently.
- *
- *  `acceptsWidthMm` is that one answer, and after ADR 0035 decision 2 it reads the entry's declared
- *  **ranges** rather than a boolean about its set. A cabinetry row is continuous between its floor
- *  and its ceiling, so `base-panbank` still fills a 570 mm opening and nothing about §5.2's "fill the
- *  void" changes for it inside 300–800; what refuses is an opening outside the entry's own bound — a
- *  fixed appliance size, a fixed aperture, §2's floor, §7's 800 mm ceiling. (A swing arc was on this
- *  list until the owner retired ADR 0030's 400 mm one-door cap on 2026-08-28; a hinged cabinet's
- *  bound has no hole in it now, and the width decides the door count rather than the cabinet.)
- *
- *  The floors have already run above and are deliberately **first**: `base-sink` in a 400 mm opening
- *  reads ADR 0017's own sentence, naming the 560 mm its worktop needs, rather than the set sentence
- *  naming widths that are no longer the point. Two facts, two codes, and the nearer one wins.
- *
- *  No tolerance, and no widest-that-fits fallback: the width **is** the opening, so there is nothing
- *  to choose between and nothing for `FIT_TOLERANCE_M` to forgive. A body that would rather be built
- *  narrower than its opening declares a millimetre set instead (`resolveFixedSetWidth`). */
+ *  The floors have already run and must stay first, so `base-sink` in a 400 mm opening names the
+ *  560 mm its worktop needs (ADR 0017) rather than a size list. No tolerance and no widest-that-fits
+ *  fallback: the width is the opening. A body that would rather be narrower declares a millimetre
+ *  set (`resolveFixedSetWidth`). */
 function resolveFitWidth(
   body: InsertableBody,
   opening: InsertOpening,
@@ -394,39 +322,20 @@ function resolveFitWidth(
   };
 }
 
-/** §7's millimetre-set case — the dishwasher niche, the four full-height units and the bottle
- *  cargo: the widest size this builder can be made at that still fits, or the refusal that says why
- *  none can.
+/** §7's millimetre-set case (dishwasher niche, the four full-height units, bottle cargo): the widest
+ *  size that still fits, or the refusal that says why none can. A 700 mm slot gets a 600 mm hood,
+ *  centred; the hood is never built at 700.
  *
- *  **The hood is one of them now, and was not until ADR 0033's amendment.** `catalog.ts` used to
- *  spread `wallCabinet("Hotă")` and override `sizesMm` but not `widthFlex`, so the hood inherited
- *  `'fit'` and resolved on `resolveFitWidth` — the only row in the catalogue that was both `'fit'`
- *  and discretely bounded. The consequence was that it *refused* a 700 or 800 mm opening where every
- *  other discrete row narrows into one, which was a spread rather than a decision (logic review
- *  R1.2). It declares `widthFlex` now and takes this branch, so a 700 mm slot gets a 600 mm hood,
- *  centred, exactly as `base-dishwasher` has always put a 600 in a 700.
- *
- *  "A 700 mm hood is not a product" is unchanged and still enforced by this branch: the widest size
- *  that *fits* is chosen from the entry's own set, so the hood is never built at 700.
- *
- *  `sizesMm` is passed in rather than read back off the body so the caller's narrowing carries: by
- *  the time this runs, `widthFlex` is known not to be `'fit'`. */
+ *  `sizesMm` is passed in so the caller's narrowing carries: `widthFlex` is known not to be `'fit'`. */
 function resolveFixedSetWidth(
   body: InsertableBody,
   sizesMm: readonly number[],
   opening: InsertOpening,
 ): WidthResolution {
   const availableMm = toMillimetres(opening.w);
-  // ADR 0017's floor is a property of the *builder*, so it governs a millimetre set exactly as it
-  // governs the fit path: a listed size below it is a width this body cannot be made at, and
-  // taking it would hand the probe a width the builder inverts.
-  //
-  // **The floor is applied before `FIT_TOLERANCE_M`, and the order must stay that way.** Filtering
-  // first means the tolerance can only ever forgive a body being slightly too *wide* for its
-  // opening; it can never reach back and admit a size below the floor. Comparing first and
-  // filtering after would reintroduce ADR 0015's sibling finding R1.1 — manufacturing slack
-  // lowering a body's own minimum — one branch further along. Filtering first also means the
-  // refusal that follows names only the widths this body actually has.
+  // The floor is applied before `FIT_TOLERANCE_M`, and the order must stay: filtering first means the
+  // tolerance can only forgive a body slightly too wide for its opening, never admit a size below
+  // the floor (ADR 0015's sibling finding R1.1). The refusal then names only buildable widths.
   const minimumMm = body.minWidthMm;
   const buildableSizesMm = buildableSizes(minimumMm, sizesMm);
   const fitting = buildableSizesMm.filter(
@@ -435,15 +344,10 @@ function resolveFixedSetWidth(
   if (fitting.length > 0) {
     return { ok: true, widthM: toMetres(Math.max(...fitting)) };
   }
-  // Contradictory catalogue data: every width the entry lists is under the floor its own builder
-  // declares, so there is no width at which this body can be made. Unreachable from the shipped
-  // catalogue, and a refusal rather than a throw for the reason `NON_INTEGER_MILLIMETRES` is — the
-  // command's contract is a value, not an exception.
-  //
-  // `WIDTH_TOO_SMALL` even though `availableMm` is the opening rather than the widest listed size:
-  // the fact that code states — the body has a floor and cannot go under it — is true whatever the
-  // opening measures, which is not so for either other width code. `WIDTH_NOT_SUPPORTED` would
-  // render an empty size list, and `WIDTH_TOO_LARGE` states the opposite fact.
+  // Contradictory catalogue data: every listed width is under the entry's own floor. A refusal, not a
+  // throw, because the command's contract is a value. `WIDTH_TOO_SMALL` is the one code whose fact
+  // (the body has a floor) holds whatever the opening measures; `WIDTH_NOT_SUPPORTED` would render
+  // an empty size list and `WIDTH_TOO_LARGE` states the opposite.
   if (minimumMm !== undefined && buildableSizesMm.length === 0) {
     return {
       ok: false,
@@ -456,18 +360,13 @@ function resolveFixedSetWidth(
   };
 }
 
-/** A declared floor that is not a width at all — `NaN` or `±Infinity` — refuses the entry before
- *  either floor is applied, at every opening.
+/** A declared floor that is not a width at all (`NaN`, `±Infinity`) refuses the entry at every
+ *  opening, before either floor applies.
  *
- *  **Read here rather than validated at load**, because there is no single load to validate in: a
- *  `BodyCatalog` is a plain map that a fixture, a preset or a caller builds directly, so the only
- *  place guaranteed to see every entry is the place that reads it. **A refusal rather than a
- *  throw**, for the reason `NON_INTEGER_MILLIMETRES` is one: a command's contract is a value.
- *
- *  It refuses at *every* width rather than falling back to §2's default, because a row whose floor
- *  cannot be read is a defect in the catalogue and the safe direction is that nothing is built from
- *  it — a fallback would let one typo ship silently. The sentence names no millimetres:
- *  `rejection.ts` already holds that `NaN` and `±Infinity` do not belong in customer copy. */
+ *  Checked here because a `BodyCatalog` is a plain map any caller can build, so this is the one place
+ *  that sees every entry. It refuses rather than falling back to §2's default, so a catalogue typo
+ *  cannot ship silently. The sentence names no millimetres: `rejection.ts` keeps `NaN` and
+ *  `±Infinity` out of customer copy. */
 function refuseUnusableDeclaredFloor(
   body: InsertableBody,
   availableMm: number,
@@ -480,9 +379,8 @@ function refuseUnusableDeclaredFloor(
   };
 }
 
-/** ADR 0017's refusal, from both places that reach it — an opening under the floor, and a size set
- *  entirely under it. The two reasons differ and are documented at their own call sites; only the
- *  detail's construction is shared, so the code and its typed params cannot drift apart. */
+/** ADR 0017's refusal, shared by both places that reach it (an opening under the floor, and a size
+ *  set entirely under it) so the code and its typed params cannot drift apart. */
 function refuseBodyMinimum(
   body: InsertableBody,
   minimumMm: number,
@@ -494,35 +392,21 @@ function refuseBodyMinimum(
   };
 }
 
-/** **The one place a width floor is applied.** It decides which floor governs this body and
- *  returns the refusal that floor carries, so a caller never has to ask a second time.
+/** The one place a width floor is applied; it returns the refusal the governing floor carries.
  *
- *  Two floors reach a body and they are different facts, so they carry different codes: under
- *  §2's `MIN_WIDTH_M` no cabinet exists at all (`WIDTH_NOT_SUPPORTED`, naming the widths this body
- *  has), while under an entry's own `minWidthMm` it is *this product* that cannot be made
- *  (`WIDTH_TOO_SMALL`, naming the millimetres it needs). The sentence the customer reads has to
- *  say which one stopped them, so both codes stay reachable from here and each stays true where it
- *  fires — that distinction is ADR 0026's whole point.
+ *  Under §2's `MIN_WIDTH_M` no cabinet exists (`WIDTH_NOT_SUPPORTED`, naming the widths this body
+ *  has); under an entry's own `minWidthMm` this product cannot be made (`WIDTH_TOO_SMALL`, naming the
+ *  millimetres it needs). Both codes must stay reachable (ADR 0026).
  *
- *  **ADR 0026: the per-entry floor has a direction.** Declared at or above `MIN_WIDTH_M` it *adds*
- *  to the default, and both are checked in turn — `base-sink` in a 299 mm opening still reads the
- *  general sentence, because 299 mm is under the narrowest cabinet there is and that is the truer
- *  thing to say. Declared *below* it, the entry's floor **replaces** the default for that entry
- *  alone: `base-bottle-cargo` is the deliberate exception the default exists to keep out of every
- *  other row, so the only floor that can stop it is its own, and its refusal names 200 mm.
+ *  A declared floor at or above `MIN_WIDTH_M` adds to the default and both are checked in turn. One
+ *  below it replaces the default for that entry alone (`base-bottle-cargo`: its refusal names 200 mm).
  *
- *  **An upward floor is measured against the opening only on the `'fit'` path**, where the width
- *  *is* the opening and the floor therefore *is* a constraint on the opening. A millimetre set
- *  measures the same floor against its own sizes instead (`resolveFixedSetWidth`), where it belongs:
- *  a set body never takes the opening's width, so what it needs to know is which of its sizes it can
- *  be built at, and its refusal names those sizes rather than a floor no size of its own sits on.
- *  §2's default is not path-dependent and runs on both.
+ *  An upward floor is measured against the opening only on the `'fit'` path, where the width is the
+ *  opening; a millimetre set measures it against its own sizes (`resolveFixedSetWidth`). §2's
+ *  default runs on both.
  *
- *  `FIT_TOLERANCE_M` is slack on the *fit* — it lets a body slightly wider than its opening still
- *  go in. It must not lower whichever floor applies, because both are properties of the body: a
- *  288 mm carcass is narrower than the narrowest cabinet §2 permits, and a 550 mm sink base has an
- *  inverted worktop. ADR 0015's sibling finding R1.1 is exactly the defect of conflating the two.
- *  Only float noise from the millimetre↔metre round trip is forgiven. */
+ *  `FIT_TOLERANCE_M` must not lower either floor, since both are properties of the body (ADR 0015
+ *  finding R1.1): only float noise is forgiven. */
 function refuseWidthFloor(
   body: InsertableBody,
   opening: InsertOpening,
@@ -542,17 +426,13 @@ function refuseWidthFloor(
   return refuseBelowBuilderFloor(body, opening, availableMm);
 }
 
-/** ADR 0026: whether this declared floor stands *instead of* §2's default rather than on top of
- *  it. Only a floor below the default does, which is the one direction §2's own sentence did not
- *  previously admit. */
+/** ADR 0026: whether this declared floor stands instead of §2's default rather than on top of it.
+ *  Only a floor below the default does. */
 function replacesDefaultFloor(declaredMm: number): boolean {
   return toMetres(declaredMm) < MIN_WIDTH_M;
 }
 
-/** ADR 0017's floor read against the opening: an opening narrower than the width this entry's own
- *  row permits. Called only from `refuseWidthFloor`, from both of its branches that reach a
- *  declared floor — the downward one that replaced the default, and the upward one on the `'fit'`
- *  path. */
+/** ADR 0017's floor read against the opening. Called only from `refuseWidthFloor`. */
 function refuseBelowBuilderFloor(
   body: InsertableBody,
   opening: InsertOpening,
@@ -564,11 +444,9 @@ function refuseBelowBuilderFloor(
   return refuseBodyMinimum(body, minimumMm, availableMm);
 }
 
-/** A body offered in one width only states that width; a body with a set states the set. Both
- *  carry the millimetres as `params` and name them in the sentence (§11 row 5).
- *
- *  The sizes are passed in rather than read back off the body, so the sentence names the widths
- *  this body can be *built* at (ADR 0017) rather than the ones its catalogue row lists. */
+/** A body offered in one width states that width; a body with a set states the set. Both carry the
+ *  millimetres as `params` and name them in the sentence (§11 row 5). `sizesMm` is passed in so the
+ *  sentence names the widths the body can be built at (ADR 0017), not every width its row lists. */
 function refuseFixedWidth(
   body: InsertableBody,
   sizesMm: readonly number[],
@@ -587,15 +465,10 @@ function refuseFixedWidth(
   };
 }
 
-/** The parameters `WIDTH_NOT_SUPPORTED` needs to state what an entry is actually made at.
- *
- *  The ranges come from `resolveWidthRangesMm`, never from `definition.widthRangesMm` directly:
- *  that accessor raises a declared range to the floor governing the entry, and reading the raw field
- *  would be the second code path its doc block warns about — a rule stated in prose and implemented
- *  once. It also always returns an array, so there is nothing optional to spread.
- *
- *  `sizesMm` arrives already filtered by the caller (ADR 0017), and both halves matter: the ranges
- *  say what the body may be built at, the sizes say which of those §9 offers as chips. */
+/** The parameters `WIDTH_NOT_SUPPORTED` needs to state what an entry is made at. Ranges come from
+ *  `resolveWidthRangesMm`, never `definition.widthRangesMm`: the accessor raises a declared range to
+ *  the governing floor. `sizesMm` arrives already filtered (ADR 0017): ranges say what may be built,
+ *  sizes say which of those §9 offers as chips. */
 function widthsMadeParams(
   body: InsertableBody,
   sizesMm: readonly number[],
@@ -720,72 +593,45 @@ export function evaluateInsertFit(input: InsertFitInput): InsertFit {
 /** Where the body sits along the wall, and what the column has left beside it. */
 type Seating = Pick<InsertPlan, "alongMm" | "remainderMm">;
 
-/** ADR 0046 part 1: **a body narrower than the column it is inserted into is seated flush against
- *  the left edge of the span — the lower along-wall coordinate — and the whole remainder becomes
- *  one empty column on the right.**
+/** ADR 0046 part 1: a body narrower than the column it is inserted into is seated flush against the
+ *  left edge of the span (the lower along-wall coordinate), and the whole remainder becomes one
+ *  empty column on the right. Centring leaves two slivers that can never merge back.
  *
- *  Centring it, which is what this path did until 2026-09-01, leaves a sliver on each side of the
- *  new body, and the two can never merge back because they are not adjacent. The owner chose the
- *  unconditional left edge over a rule that picks an end: it has no predicate to get wrong and
- *  gives the customer the same picture from the same input every time.
- *
- *  **The named cost, accepted by the owner:** where a column can be divided, `base-dishwasher` no
- *  longer centres in a 700 mm opening. It stands flush left and the 100 mm becomes a real,
- *  selectable opening on the right instead of vanishing into width no column owns. On the *seeded*
- *  kitchen that cost is not yet paid: its only 700 mm column still holds members, so it takes the
- *  centred branch below — see `dividesWholeColumn`.
- *
- *  Measured against the **column**, not the opening: the column extent is what the frozen map holds
- *  and what the split rewrites, and on a §5.3 swap in place the opening is only the outgoing body's
- *  own frame (`openingFromPlacement`). */
+ *  Measured against the column, not the opening: the column extent is what the frozen map holds and
+ *  the split rewrites, and on a §5.3 swap the opening is only the outgoing body's own frame. */
 function seatAlongColumn(
   opening: InsertOpening,
   column: Column,
   widthM: number,
 ): Seating {
-  // **The column still holds a member at another level, so it is not this body's to divide.** This
-  // is a deliberate branch and not a fallback: the insert is *accepted* and centred, exactly as
-  // every insert was before ADR 0046. Refusing it would take away an insert the customer can make
-  // today. Splitting it would move the occupied half onto a new key while the member above or below
-  // went on deriving the old one, and re-keying that member is backlog 2's re-split rather than
-  // this wave. `dividesWholeColumn` carries the measurement.
+  // The column still holds a member at another level, so it is not this body's to divide. The insert
+  // is accepted and centred, not refused; splitting would move the occupied half onto a new key while
+  // the member above or below kept deriving the old one. See `dividesWholeColumn`.
   if (!dividesWholeColumn(opening, column)) return centredInOpening(opening);
 
   const remainderMm =
     seatableMillimetres(column.w) - seatableMillimetres(widthM);
-  // The body fills its column — ADR 0031 rule 6's exact-to-zero case read for an insert — or
-  // `FIT_TOLERANCE_M` let a discrete size overhang it by a hair. Either way there is no second
-  // column, and the one that is here keeps the key it had.
+  // The body fills its column (ADR 0031 rule 6), or `FIT_TOLERANCE_M` let a discrete size overhang it
+  // by a hair: no second column, and the one that is here keeps its key.
   if (remainderMm <= 0) return centredInOpening(opening);
 
-  // `C − (W − w) / 2`: the column's left edge holds and the body's left edge lands on it, which is
-  // ADR 0031's "the outer edge holds" read for an insert.
+  // `C − (W − w) / 2`: the column's left edge holds and the body's left edge lands on it.
   const centreMm = seatableMillimetres(alongWallM(column.wall, column));
   return { alongMm: centreMm - remainderMm / 2, remainderMm };
 }
 
-/** The seating every insert had before ADR 0046: the body takes its opening's own along-wall
- *  centre, and no column is created beside it. */
+/** The body takes its opening's own along-wall centre and no column is created beside it. */
 function centredInOpening(opening: InsertOpening): Seating {
   return { alongMm: seatableMillimetres(opening.alongM), remainderMm: 0 };
 }
 
-/** **A column is only divided by an opening that runs its whole height**, and this is the guard
- *  that keeps a split from stranding a body it was never about.
+/** A column is only divided by an opening that runs its whole height. §4 subtracts height and never
+ *  width, so a member at another level occupies the whole column width at that level; splitting under
+ *  it leaves that member in a column the map no longer holds, which `validateDesignForCatalog`
+ *  refuses with `EMPTY_COLUMN_OVERLAPS_PLACEMENT` (ADR 0011 Gap D). Reachable with no resize: a
+ *  wall cabinet above a column and a narrower base body going in below.
  *
- *  §4 subtracts height and never width (`recomputeVoids`), so a member at another level occupies
- *  the *whole* width of its column at that level — including the width the remainder would claim.
- *  Splitting under it would move the occupied half onto a new key while that member still derives
- *  the old one, leaving it in a column the map no longer holds: ADR 0011 Gap D's phantom column,
- *  and a document `validateDesignForCatalog` refuses with `EMPTY_COLUMN_OVERLAPS_PLACEMENT`.
- *
- *  Reachable with no resize and no merge: a 600 mm column with a wall cabinet above it and a
- *  300 mm bottle cargo going in below. ADR 0046 states the rule for the empty column it was written
- *  about and does not reach this case; the narrow reading is the safe one, and widening it means
- *  moving the members at the other levels, which is backlog 2's re-split rather than this wave.
- *
- *  Asked of the geometry rather than of the record set, so §9's offer list — which resolves the
- *  same opening — gets the same answer without being handed the placements. */
+ *  Asked of the geometry, not the record set, so §9's offer list gets the same answer. */
 function dividesWholeColumn(opening: InsertOpening, column: Column): boolean {
   const floorM = Math.min(...column.regions.map(([start]) => start));
   return (
@@ -794,93 +640,55 @@ function dividesWholeColumn(opening: InsertOpening, column: Column): boolean {
   );
 }
 
-/** Millimetres for a coordinate that is about to be **checked** for landing on a whole one: the
- *  exact millimetre where it does — which absorbs the float noise a metre value picks up crossing a
- *  unit conversion — and the raw product where it does not, so the refusal downstream names the
- *  millimetres the value actually sits between. Rounding here is what ADR 0044 refuses by name: it
- *  collapses two column keys into one. */
+/** Millimetres for a coordinate about to be checked for landing on a whole one: the exact millimetre
+ *  where it does (absorbing unit-conversion float noise), the raw product where it does not so the
+ *  refusal names the millimetres the value sits between. Rounding here would collapse two column
+ *  keys into one (ADR 0044). */
 function seatableMillimetres(valueM: number): number {
   return toExactMillimetres(valueM) ?? valueM * MILLIMETRES_PER_METRE;
 }
 
-/** **The one reader that wants a build depth rather than a clearance** (ADR 0060 decision 1): what
- *  the body standing in this opening is manufactured to, handed to the probe as `b.mk(w, h, d)`'s
- *  third argument.
+/** The one reader that wants a build depth rather than a clearance (ADR 0060 decision 1): what the
+ *  body standing in this opening is manufactured to, passed to the probe as `b.mk(w, h, d)`.
  *
- *  It reads `columnBuildDepthM`'s **declaration** and never the opening's own MAX. Until wave 6I2 it
- *  returned `opening.d` over a full-height column, which is §3.2's MAX with an appliance's door bars
- *  in it: 703 and 742 mm wall carcasses, depths nobody manufactures, written to the database on two
- *  columns of the shipped kitchen by an ordinary delete-then-insert (`docs/BACKLOG.md` entry 15).
+ *  Reads `columnBuildDepthM`'s declaration, never the opening's MAX, which includes an appliance's
+ *  door bars (703 and 742 mm wall carcasses). The cap is the default and the lift is the exception:
+ *  an empty opening is uncapped, since the absence of a worktop is not the presence of a column.
  *
- *  **The cap is the default and the lift is the exception**, which is the direction backlog entry 5
- *  states the rule in: "over a full-height column there is nothing to lean over". Read the other way
- *  round — cap wherever a worktop is present — an *empty* opening is uncapped, because the absence
- *  of a worktop is not the presence of a column. Empty space is neither, and empty space is what a
- *  delete produces: clearing the base cabinets under a wall run then built a 580 mm carcass, the
- *  frozen `Column.d` of the base cabinet the customer had just deleted, beside 330 mm neighbours.
+ *  Where the cap applies it is a maximum, never a target, so a mis-answered `hasFullHeightUnder` can
+ *  only make a body shallower than its space, never push it past the wall plane (§11 row 19). Where
+ *  the lift applies the declared line is the target: an incoming body takes the column's build depth
+ *  and does not inherit a replaced pinned body's 600 (ADR 0060 decision 5).
  *
- *  **Where the cap applies it is a maximum and never a target**: a column shallower than the
- *  declared depth keeps its own depth, so a column that answers `hasFullHeightUnder` wrongly can
- *  only ever make a body *shallower* than the space it stands in and never push one past it, which
- *  is what keeps §11 row 19 (the back face lands on the wall plane) out of this rule's reach. The
- *  maximum is measured against the **column**, which is the space that exists, rather than against
- *  the outgoing body, which is only what happened to be standing there.
- *
- *  **Where the lift applies the declared line is the target, not a ceiling** — ADR 0060 decision 5,
- *  and the one place the two arms genuinely differ. Taking the shallower of the two would let one of
- *  ADR 0058's pinned 600 mm tops lend its pin to the catalogue body that replaces it: at a 700 mm
- *  kitchen the incoming body takes the column's build depth of 700, not the 600 it replaced.
- *
- *  The body's band, not the slot's: the cap describes what a wall **carcass** is — hung, with no
- *  plinth and no worktop of its own — and a wall cabinet dropped into a cleared column slot is
- *  still one. Base and full-height builders ignore the depth they are given anyway (ADR 0018). */
+ *  The body's band, not the slot's: the cap describes a wall carcass (hung, no plinth, no worktop).
+ *  Base and full-height builders ignore the depth they are given (ADR 0018). */
 function resolveDepthM(input: InsertFitInput): BuildDepthM {
   const { body, opening, column } = input;
   if (normaliseBand(body.band) !== "wall")
     return buildToTheClearanceM(opening.d);
-  // **The design's own setting, not a module constant** (wave 6K-b). This read `WORKTOP_DEPTH_MM`
-  // until 2026-09-04, which was right while 600 was the only depth a document could carry and wrong
-  // from wave 6J-a onward: at a 700 mm kitchen it built every wall body to the 600 mm map row — 330
-  // where the map declares 400 — and nothing refused it. ADR 0073's finding carries the measurement.
   const declaredM = columnBuildDepthM({
     cabinetDepthMm: input.cabinetDepthMm,
     hasFullHeightUnder: column.hasFullHeightUnder,
   });
   if (column.hasFullHeightUnder) return declaredM;
-  // **The floor is the column's clearance, not the opening's** — ADR 0060 decision 3 made total.
-  // `Column.d` is §3.2's MAX over the run and both routes agree on it by construction, where
-  // `InsertOpening.d` does not: a swap publishes the outgoing body's own clearance
-  // (`openingFromPlacement`) and a delete-then-insert publishes the column's (`openingFromVoid`).
-  // Reading the floor from the opening therefore reproduced entry 10's divergence on this arm — a
-  // 200 mm body vacating a 620 mm column gave 200 by swap and 330 by delete-then-insert. Latent
-  // rather than live: no reachable command mints a wall member shallower than the map row, but an
-  // authored or stored document can. Raised by logic review, 2026-09-04.
+  // The floor is the column's clearance, not the opening's: a swap publishes the outgoing body's own
+  // clearance and a delete-then-insert the column's, so reading the opening would give a 200 mm body
+  // vacating a 620 mm column 200 by swap and 330 by delete-then-insert (ADR 0060 decision 3).
   return shallowerBuildDepthM(
     declaredM,
     buildToTheClearanceM(recordedClearanceM(column.d)),
   );
 }
 
-/** **Whether the column now decides a different depth for a body that is already standing in it** —
- *  wave 6Z's outcome test (ADR 0103 decision 3), and the reason it lives here rather than in
- *  `replan-dependent-members.ts`: the answer is `resolveDepthM`'s and this wave adds no second
- *  author for it.
+/** Whether the column now decides a different depth for a body already standing in it (ADR 0103
+ *  decision 3). Lives here because the answer is `resolveDepthM`'s.
  *
- *  **Both sides are a `BuildDepthM`, and the opening supplies the second.** Called with the opening
- *  `openingFromPlacement` produces, `opening.d` **is** the standing body's own occupied depth — its
- *  recorded seat plus whatever its entry declares stands in front of that shell — so the comparison
- *  is "what the column says this body is built to" against "what it is built to now". The crossing is
- *  `buildToTheClearanceM`'s, which is the one sanctioned way a clearance becomes a build depth.
+ *  Called with the opening `openingFromPlacement` produces, `opening.d` is the standing body's own
+ *  occupied depth, so this compares what the column says the body is built to against what it is
+ *  built to now. Compared in whole millimetres: a `1e-16` residue is not a manufactured depth.
  *
- *  **Whole millimetres on both sides**, because both are sums of declared millimetres divided by
- *  1000 and a `1e-16` residue is not a depth anybody manufactures — the same reason
- *  `columnBuildDepthMm` states the rule in millimetres and converts once.
- *
- *  A body this answers `false` for is written through untouched: the re-plan is a no-op, so it takes
- *  no measurement and can raise no refusal. That is decision 3's own sentence — *"which may be the
- *  depth it already has, in which case the re-plan is a no-op and the placement is passed through by
- *  identity"* — and it is what keeps an insert from probing, or refusing over, a body it does not
- *  move. */
+ *  `false` means the re-plan is a no-op: the body is written through untouched, takes no measurement
+ *  and can raise no refusal. */
 export function columnDecidesADifferentDepth(input: InsertFitInput): boolean {
   return (
     toMillimetres(resolveDepthM(input)) !==
@@ -900,12 +708,9 @@ function refuseBand(
   };
 }
 
-/** §9: `hFlex` needs `openH ≥ 400`. Enforced in the engine as well as in the offer list, because
- *  a guard the UI owns alone is a guard a second caller forgets.
- *
- *  A height-flexible body builds to its opening, so an opening under the minimum builds a body
- *  under the minimum — the floor is on the *body*, and `FIT_TOLERANCE_M` does not move it. Only
- *  float noise is forgiven, which `2.6 - 2.2` needs: it is 0.3999999999999999. */
+/** §9: `hFlex` needs `openH ≥ 400`, enforced in the engine as well as the offer list so a second
+ *  caller cannot forget it. The floor is on the body and `FIT_TOLERANCE_M` does not move it; only
+ *  float noise is forgiven (`2.6 - 2.2` is 0.3999999999999999). */
 function refuseShortOpening(
   body: InsertableBody,
   opening: InsertOpening,

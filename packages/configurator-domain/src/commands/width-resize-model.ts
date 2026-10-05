@@ -1,7 +1,6 @@
-// The shapes the phases of a width resize hand to one another.
-//
-// Types only, and deliberately: every phase of `setWidth` is a pure function over these values, so
-// the one module they all import carries no behaviour of its own and cannot be a place a rule hides.
+// The shapes the phases of a width resize hand to one another. Types only: every phase of `setWidth`
+// is a pure function over these values, so the module they all import carries no behaviour and cannot
+// be a place a rule hides.
 import type { BodyProbe } from "../body-probe.js";
 import type { BodyLabel, InsertableBody } from "../catalog.js";
 import type { Design } from "../design.js";
@@ -15,22 +14,15 @@ import type { EmptySpaceSide, RejectionDetail } from "./rejection.js";
 
 export type Side = EmptySpaceSide["side"];
 
-/** **What `rebuild` reads, and nothing else** (ADR 0103 decision 5).
- *
- *  A rebuild goes through the same path an insert takes (ADR 0055 decision 1), so three commands now
- *  reach `rebuild-resized-bodies.ts`: the resize it was written for, the depth change, and wave 6Z's
- *  dependent re-plan. Only the first has a target and a width, and `set-cabinet-depth.ts` used to
- *  fabricate both — a `UNUSED_BY_REBUILD = ""` target beside a `widthMm: 0` — which is how a sentinel
- *  becomes load-bearing once a third caller copies it.
- *
- *  `SetWidthInput` extends it rather than the two being separate shapes, so a resize still hands
- *  `rebuild` the same object it always did and the narrowing costs no call site. */
+/** What `rebuild` reads and nothing else (ADR 0103 decision 5). Three commands reach
+ *  `rebuild-resized-bodies.ts` through the insert path (ADR 0055 decision 1): the resize, the depth
+ *  change and the dependent re-plan. Only the resize has a target and a width, so the others must not
+ *  fabricate sentinels. `SetWidthInput` extends it, so a resize hands `rebuild` the same object. */
 export interface RebuildInput {
   readonly design: Design;
   readonly catalog: BodyCatalog;
-  /** ADR 0011 Gap D: the frozen load-time extents, in their **recorded** face (ADR 0090
-   *  Amendment B). Whichever command is rebuilding, the column a body is re-fitted against is the
-   *  one the map holds for it. */
+  /** ADR 0011 Gap D: the frozen load-time extents, in their recorded face (ADR 0090 Amendment B).
+   *  Whichever command is rebuilding, a body is re-fitted against the column the map holds for it. */
   readonly columns: ReadonlyMap<string, Column>;
   readonly probe: BodyProbe;
   readonly occurredAt: string;
@@ -48,12 +40,10 @@ export type Resolved<T> =
   | { readonly ok: false; readonly detail: RejectionDetail };
 
 /** One member of the column, resolved to the §7 entry it will be rebuilt through and to the two
- *  integers its extent is read from.
- *
- *  `alongMm` and `widthMm` come from the **stored placement** rather than from the derived frame or
- *  from `Column.w`: those are the integers the document holds, `Column.w` is the MIN over members
- *  and can be stale after a delete, and a metre round trip would put a half-nanometre into a
- *  coordinate that must stay exact. */
+ *  integers its extent is read from. `alongMm` and `widthMm` come from the stored placement, not from
+ *  the derived frame or `Column.w`: they are the integers the document holds, `Column.w` is the MIN
+ *  over members and can be stale after a delete, and a metre round trip would put a half-nanometre
+ *  into a coordinate that must stay exact. */
 export interface ColumnMember {
   readonly record: PlacementRecord;
   readonly body: InsertableBody;
@@ -61,16 +51,16 @@ export interface ColumnMember {
   readonly widthMm: number;
 }
 
-/** A column split by ADR 0035 decision 6: the bodies the column's width governs, and the hoods it
- *  does not. `members` is non-empty by construction — the selected body is always one of them. */
+/** A column split by ADR 0035 decision 6: the bodies the column's width governs, and the hoods it does
+ *  not. `members` is non-empty by construction: the selected body is always one of them. */
 export interface ColumnUnit {
   readonly members: readonly [ColumnMember, ...ColumnMember[]];
   readonly hoods: readonly ColumnMember[];
 }
 
-/** What resolving a column's membership needs, and all it needs: the design the integers are read
- *  from, the catalogue the entries resolve through, the records the column is filtered out of, and
- *  the selected body's label, which every refusal is phrased in terms of. */
+/** What resolving a column's membership needs: the design the integers are read from, the catalogue
+ *  the entries resolve through, the records the column is filtered out of, and the selected body's
+ *  label, which every refusal is phrased in terms of. */
 export interface ColumnContext {
   readonly design: Design;
   readonly catalog: BodyCatalog;
@@ -78,13 +68,10 @@ export interface ColumnContext {
   readonly label: BodyLabel;
 }
 
-/** One body about to be rebuilt: the same `ColumnMember`, with `alongMm` and `widthMm` moved from
- *  the values it is standing at to the ones it is going to.
- *
- *  Under ADR 0031 every member of the column carries the **same** `alongMm`, and under ADR 0035
- *  decision 6 every member the column's width governs carries the **same** `widthMm` — that is what
- *  squaring up is. A hood is the exception on the second half only: it takes the new centre and
- *  keeps the width it had. */
+/** One body about to be rebuilt: the same `ColumnMember` with `alongMm` and `widthMm` moved to where it
+ *  is going. Every member of the column carries the same `alongMm` (ADR 0031) and every member its
+ *  width governs the same `widthMm` (ADR 0035 decision 6: squaring up). A hood takes the new centre and
+ *  keeps its width. */
 export type Rebuild = ColumnMember;
 
 /** A run's extent along its wall, in the integer millimetres the document holds. */
@@ -102,19 +89,15 @@ export interface EmptySpace {
   readonly remainderMm: number;
 }
 
-/** A frozen column moved to a new width and a new along-wall centre. **Both** columns a resize
- *  touches get one: the run being resized and the empty one funding it.
+/** A frozen column moved to a new width and a new along-wall centre. Both columns a resize touches get
+ *  one: the run being resized and the empty one funding it. ADR 0011 Gap D freezes `regions`, `top`,
+ *  `d` and `ry` so a cleared run keeps the opening it freed, while `rederiveTouchedColumns` answers a
+ *  key from the members left under it. Re-deriving would drop the region of a column that lost a
+ *  member earlier, and the freed opening would vanish with no way back. A resize moves the boundary of
+ *  the space a run occupies, so `w`, the centre and the key move and nothing else does.
  *
- *  Both need it for the same reason (FINDING Q1.1). ADR 0011 Gap D freezes a column's `regions`,
- *  `top`, `d` and `ry` because a cleared run must keep the opening it just freed, and
- *  `rederiveTouchedColumns` answers a key from the members **left** under it — so a column that had
- *  a member deleted earlier in the session loses that member's region the moment a resize re-derives
- *  it, and the opening the customer freed vanishes with no void and no way back. The resize is not
- *  a delete: it moves the boundary of the space a run occupies, so `w`, the centre and the key move
- *  and nothing else does.
- *
- *  `widthMm === 0` means the resize consumed the space exactly, and the key is removed (rule 6).
- *  Only the empty column can reach zero. */
+ *  `widthMm === 0` means the resize consumed the space exactly and the key is removed (rule 6); only
+ *  the empty column can reach it. */
 export interface FrozenColumnMove {
   readonly column: Column;
   readonly widthMm: number;
@@ -123,32 +106,26 @@ export interface FrozenColumnMove {
 
 export interface ColumnResize {
   readonly label: BodyLabel;
-  /** The width the column was squared up to. Read from here rather than off the first `Rebuild`,
-   *  because that list also carries the hoods, which keep widths of their own. */
+  /** The width the column was squared up to. Read from here, not off the first `Rebuild`, because that
+   *  list also carries hoods, which keep widths of their own. */
   readonly widthMm: number;
   readonly members: readonly Rebuild[];
   readonly resized: FrozenColumnMove;
-  /** The empty column the move leaves against the run — **the near piece**, when ADR 0052's ceiling
-   *  splits the space. `widthMm === 0` means the move consumed it exactly. */
+  /** The empty column the move leaves against the run: the near piece when ADR 0052's ceiling splits
+   *  the space. `widthMm === 0` means the move consumed it exactly. */
   readonly empty: FrozenColumnMove;
   /** ADR 0052: the pieces of the freed space that did not fit under `MAX_EMPTY_COLUMN_WIDTH_MM`,
-   *  beyond `empty` and away from the run. Empty on every move that frees no more than the ceiling,
-   *  which is every move on the shipped kitchen until something wide is cleared.
-   *
-   *  A separate field rather than making `empty` a list, because the two are asked different
-   *  questions: `empty` is the column the *next* resize on this side will fund from, and it is the
-   *  one whose key `EmptySpace` was resolved against. Both are guarded and written identically —
-   *  see `frozenMoves`. */
+   *  beyond `empty` and away from the run; empty on every move that frees no more than the ceiling.
+   *  A separate field because `empty` is the column the next resize on this side funds from and the
+   *  one `EmptySpace` was resolved against. Both are guarded and written alike (`frozenMoves`). */
   readonly emptyOverflow: readonly FrozenColumnMove[];
   readonly side: Side;
 }
 
-/** Everything ADR 0031 decides **before** it knows which side will fund the move: the column, its
- *  members, its extent, and that the requested width is legal for all of them.
- *
- *  `members` are the bodies the column's width governs; `hoods` are the ones it does not (ADR 0035
- *  decision 6 as amended). Only `members` narrow the width, only `members` set the extent, and both
- *  lists are rebuilt — a hood at its own width and the run's new centre. */
+/** Everything ADR 0031 decides before it knows which side will fund the move: the column, its members,
+ *  its extent, and that the requested width is legal for all of them. Only `members` narrow the width
+ *  and set the extent; `hoods` (ADR 0035 decision 6 as amended) are rebuilt at their own width and the
+ *  run's new centre. */
 export interface ColumnPlan {
   readonly label: BodyLabel;
   readonly column: Column;

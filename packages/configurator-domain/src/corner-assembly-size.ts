@@ -1,38 +1,28 @@
-// **How wide the corner assembly is built** — wave 7D6's J1′ as its 2026-09-17 adjudication rules
-// it: a function of the cabinet depth, the two wall directions and the room, and of nothing else.
+// How wide the corner assembly is built: a function of the cabinet depth, the two wall directions and
+// the room, and of nothing else (ADR 0120 Amendment A: every cabinet is custom made, corners included).
 //
-// **The sibling of `along-wall-chain-shift.ts`, and that distinction is the whole of this module.**
-// That file answers where a corner *slides* to when a stored design's depth setting changes (ADR
-// 0089); this one answers how *wide* a corner is when the generator builds one (ADR 0120 Amendment
-// A: every cabinet is custom made, corners included, and the algorithm is the actor). A design
-// authored at 600 mm and taken to 700 **slides and does not resize**, which is why the 30 mm ADR
-// 0089 records in wall B's top row at 700 is not this module's to remove.
+// The sibling of `along-wall-chain-shift.ts`, which answers where a corner slides when a stored
+// design's depth changes (ADR 0089); this answers how wide a corner is when the generator builds one.
+// A design authored at 600 mm and taken to 700 slides and does not resize.
 //
-// **Three entry points, each named for its own quantifier** (adjudication D1, D2), because "the
-// corner's reach" is two different questions and answering both with one function is how the shell
-// silently acquires the policy's number. The second answers in two halves — an edge and a centre —
-// which share that one quantifier and differ by half a width:
+// Three entry points, each named for its own quantifier, because "the corner's reach" is two
+// questions and one function answering both lets the shell acquire the policy's number:
 //
-// 1. `cornerAssemblyWidthsMm` — the six along-wall widths at one (depth, room). **The room enters
-//    as a ceiling and never as a target** (ADR 0120 Amendment A): a corner is built to the
-//    reference kitchen's own size unless the wall cannot hold it, and never wider.
-// 2. `cornerFarEdgeMm` — where one piece stops along its wall — and `cornerAlongWallCentreMm`, the
-//    coordinate a placement carries. Both are arithmetic over (1), band-aware, and read no policy
-//    and no catalogue row; the room they answer in is the one (1) was derived for, carried so a
-//    refusal can name it and never computed from. **The centre is where the millimetre grid binds**:
-//    a piece is placed on its centre, so an odd width would put that centre on a half millimetre,
-//    which `docs/best-practices/product-invariants.md` rejects rather than rounds.
-// 3. `narrowestCornerReachMm` — the least length a wall may have and still hold a corner at all,
-//    which is the **narrowest** corner the product builds, at whichever declared depth reaches
-//    farthest. **It takes no room**: under J1′ the corner shrinks to fit, so the binding case is
-//    room-independent and the quantifier over rooms disappears rather than being resolved. That is
-//    what makes `ENGINE_ROOM_LIMITS`' reader well-defined instead of a fixed point over the bound
-//    it is itself computing.
+// 1. `cornerAssemblyWidthsMm` — the six along-wall widths at one (depth, room). The room enters as a
+//    ceiling and never as a target: a corner is built to the reference size unless the wall cannot
+//    hold it, and never wider.
+// 2. `cornerFarEdgeMm` and `cornerAlongWallCentreMm` — arithmetic over (1), band-aware, reading no
+//    policy and no catalogue row. The centre is where the millimetre grid binds: a piece is placed
+//    on its centre, so an odd width would put it on a half millimetre, which
+//    `docs/best-practices/product-invariants.md` rejects rather than rounds.
+// 3. `narrowestCornerReachMm` — the least length a wall may have and still hold a corner, at the
+//    declared depth that reaches farthest. It takes no room: the corner shrinks to fit, so the
+//    binding case is room-independent, which keeps `ENGINE_ROOM_LIMITS`' reader from being a fixed
+//    point over the bound it computes.
 //
-// (2) and (3) answer in **distinct named types**, so a caller cannot take the other's number: wall
-// B's bound and wall B's run origin are different figures and always have been. **Nothing here
-// imports from `room/`** — a cycle would bind a bound to `undefined` at module load and compare
-// every value against it silently, the failure `room/room-policy.ts`'s own head comment names.
+// (2) and (3) answer in distinct named types so a caller cannot take the other's number. Nothing here
+// imports from `room/`: a cycle would bind a bound to `undefined` at module load and compare every
+// value against it silently (see `room/room-policy.ts`).
 import { cornerTakingWallsOf } from "./along-wall-chain-shift.js";
 import {
   baseCarcassFrontMm,
@@ -53,12 +43,9 @@ export interface CornerAssemblyPiece {
   readonly band: CornerBand;
 }
 
-/** The six corner bodies, as the questions this module answers them by. **Wall A carries the blind
- *  X-leg in the base row and the corner wall unit in the wall and top rows**: the same shape one
- *  level up, 900 mm from the corner like the X-leg, so the back wall's corner is covered at every
- *  level (the owner's *"cover all empty space within the corner"*; ADR 0110 Amendment O).
- *
- *  None is insertable (7D6's J2): the assembly is the bodies the catalogue seeds. */
+/** The six corner bodies. Wall A carries the blind X-leg in the base row and the corner wall unit in
+ *  the wall and top rows, 900 mm from the corner, so the back wall's corner is covered at every level
+ *  (ADR 0110 Amendment O). None is insertable: the assembly is the bodies the catalogue seeds. */
 export const CORNER_ASSEMBLY_PIECES: readonly CornerAssemblyPiece[] = [
   { wall: "A", band: "base" },
   { wall: "A", band: "wall" },
@@ -73,20 +60,19 @@ export interface SizedCornerPiece extends CornerAssemblyPiece {
   readonly widthMm: number;
 }
 
-/** The whole assembly's along-wall widths at one (depth, room). Carries the depth it was derived at
- *  so `cornerFarEdgeMm` cannot be handed widths from one depth and asked for a far edge at another
- *  — the same reason `setCabinetDepth` takes a catalogue *factory* rather than a catalogue. */
+/** The whole assembly's along-wall widths at one (depth, room). Carries its depth so
+ *  `cornerFarEdgeMm` cannot be handed widths from one depth and asked for an edge at another. */
 export interface CornerAssemblyWidthsMm {
   readonly cabinetDepthMm: number;
-  /** The room these widths were derived in, for the same reason the depth is carried: a refusal
-   *  downstream names the room that produced the number rather than leaving a reader to find it. */
+  /** The room these widths were derived in, so a downstream refusal names the room that produced
+   *  the number. */
   readonly room: DesignRoom;
   readonly pieces: readonly SizedCornerPiece[];
 }
 
 export interface CornerAssemblyQuery {
   readonly cabinetDepthMm: number;
-  /** The room the corner is being built for. A **ceiling** on each width and never a target. */
+  /** The room the corner is built for: a ceiling on each width, never a target. */
   readonly room: DesignRoom;
 }
 
@@ -97,31 +83,30 @@ export interface CornerFarEdgeQuery {
   readonly band: CornerBand;
 }
 
-/** Where the corner assembly stops along one wall in one row. **A far edge, not a wall minimum**
- *  (adjudication D2): the two are different questions, and a distinct type is what stops a caller
- *  answering one with the other. */
+/** Where the corner assembly stops along one wall in one row. A far edge, not a wall minimum; the
+ *  distinct type stops a caller answering one with the other. */
 export interface CornerFarEdge {
   readonly wall: DesignWall;
   readonly band: CornerBand;
   readonly farEdgeMm: number;
 }
 
-/** Where one piece's centre sits along its wall. **A centre, not a far edge**: the two differ by
- *  half a width, and a distinct type is what stops a caller placing a piece on the wrong one. */
+/** Where one piece's centre sits along its wall: half a width from the far edge, and a distinct type
+ *  so a caller cannot place a piece on the wrong one. */
 export interface CornerAlongWallCentre {
   readonly wall: DesignWall;
   readonly band: CornerBand;
   readonly alongMm: number;
 }
 
-/** The least length a wall may have and still hold a corner at all. **A wall minimum, not a far
- *  edge**, and no room took part in deriving it. */
+/** The least length a wall may have and still hold a corner at all. A wall minimum, not a far edge;
+ *  no room took part in deriving it. */
 export interface NarrowestCornerReach {
   readonly wall: DesignWall;
   readonly wallMinimumMm: number;
 }
 
-/** The four along-wall widths for one cabinet depth in one room (entry point 1, J1′). */
+/** The along-wall widths for one cabinet depth in one room (entry point 1). */
 export function cornerAssemblyWidthsMm(
   query: CornerAssemblyQuery,
 ): CornerAssemblyWidthsMm {
@@ -136,12 +121,10 @@ export function cornerAssemblyWidthsMm(
 }
 
 /** The largest even whole-millimetre width below the reference and wall ceilings, floored at the
- *  piece's own floor — ADR 0120 Amendment A's ceiling and the persisted centre's millimetre grid.
+ *  piece's own floor (ADR 0120 Amendment A; the persisted centre's millimetre grid).
  *
- *  **The room can only take width away.** A wall longer than the reference room's buys nothing: the
- *  reference corner is the one the owner approved, and a wider corner is not a better one. Stated
- *  as a `min` rather than as a target so no room can widen a piece past the one-door threshold the
- *  three fronted pieces sit below. */
+ *  The room can only take width away. A `min`, not a target, so no room can widen a piece past the
+ *  one-door threshold the three fronted pieces sit below. */
 function widthInRoomMm(
   piece: CornerAssemblyPiece,
   query: CornerAssemblyQuery,
@@ -156,8 +139,7 @@ function widthInRoomMm(
   );
 }
 
-/** Where one piece stops along its wall (entry point 2). Pure arithmetic: the piece's own near edge
- *  at this depth plus the width it was sized to. */
+/** Where one piece stops along its wall (entry point 2): its near edge at this depth plus its width. */
 export function cornerFarEdgeMm(query: CornerFarEdgeQuery): CornerFarEdge {
   if (query.widths.cabinetDepthMm !== query.cabinetDepthMm) {
     throw new Error(
@@ -172,13 +154,11 @@ export function cornerFarEdgeMm(query: CornerFarEdgeQuery): CornerFarEdge {
   };
 }
 
-/** Where one piece is centred along its wall — the coordinate a `DesignPlacement` carries, so this
- *  is the last arithmetic before a derived width becomes a persisted number.
+/** Where one piece is centred along its wall: the coordinate a `DesignPlacement` carries.
  *
- *  **A half-millimetre centre is refused, never rounded** (`docs/best-practices/product-invariants.md`):
- *  the persisted `Design` holds integer millimetres, and rounding one here would move the piece off
- *  the wall end its own width was derived from. Width derivation now keeps every width even; this
- *  refusal still catches an invalid width supplied through another path. */
+ *  A half-millimetre centre is refused, never rounded (`docs/best-practices/product-invariants.md`):
+ *  rounding would move the piece off the wall end its width was derived from. Width derivation keeps
+ *  every width even, so this catches an invalid width supplied another way. */
 export function cornerAlongWallCentreMm(
   query: CornerFarEdgeQuery,
 ): CornerAlongWallCentre {
@@ -223,12 +203,11 @@ function sizedPieceOf(query: CornerFarEdgeQuery): SizedCornerPiece {
   return piece;
 }
 
-/** The wall minimum (entry point 3): the farthest the **narrowest** corner this product builds
- *  reaches along `wall`, maximised over every declared cabinet depth and **taking no room at all**.
+/** The wall minimum (entry point 3): the farthest the narrowest corner this product builds reaches
+ *  along `wall`, maximised over every declared cabinet depth, taking no room.
  *
- *  This is what `ENGINE_ROOM_LIMITS` reads. A maximum over *rooms* would be attained in the largest
- *  one, pinning the bound to the reference corner for ever and blinding the guard written to catch
- *  a shrink (adjudication D1). */
+ *  `ENGINE_ROOM_LIMITS` reads this. A maximum over rooms would be attained in the largest one,
+ *  pinning the bound to the reference corner and blinding the guard written to catch a shrink. */
 export function narrowestCornerReachMm(wall: DesignWall): NarrowestCornerReach {
   const pieces = CORNER_ASSEMBLY_PIECES.filter((piece) => piece.wall === wall);
   if (pieces.length === 0) {
@@ -256,34 +235,20 @@ function offeredCabinetDepthsMm(): readonly number[] {
   return cabinetDepthsMm;
 }
 
-// =================================================================================================
-// M7B U2 S1 — the right corner (ADR 0132 decision 2). A U's second corner, at A∩C, is the left
-// corner's own rule run again: entry points 1 and 2 above, called with wall C's run standing in for
-// wall B's — "the along values the corner rule gives for the L room (W, C)", ADR 0132's own phrase
-// — and their output relabelled from wall B to wall C. The X-leg (wall A) is the one piece both
-// corners share a wall with, so it is not relabelled; it is reflected about the room's own width
-// instead, `W − centreMm`, which is what a piece already computed for wall B's frame becomes once
-// its wall is wall C's instead (ADR 0132 decision 1: wall C's world frame is wall B's own mirrored
-// about `x = W`, never about the room's centre line).
-//
-// **No reflection primitive is added to the domain.** This is ordinary arithmetic on an already-
-// domain-canonical number (`W − centreMm`), the same shape `originOnWall`'s wall-C arm and
-// `deriveCabinetWorldTransform`'s wall-C frame already use (`room-transforms.ts`, `void-engine.ts`,
-// M7B U1 slice S3) — not a `Group`-level reflection, which ADR 0129 D1/D5 keeps out of the domain
-// entirely.
-// =================================================================================================
+// The right corner of a U (A∩C; ADR 0132 decision 2) is the left corner's rule run again: entry points
+// 1 and 2 against wall C's run standing in for wall B's, output relabelled from B to C. The X-leg
+// (wall A) is shared by both corners, so it is reflected about the room's width (`W − centreMm`)
+// instead. That is ordinary arithmetic on a domain-canonical number, not a `Group`-level reflection,
+// which ADR 0129 keeps out of the domain.
 
 export { cornerOf, type Corner } from "./corner-of.js";
 
-/** The right corner's four along-wall widths, in the room's own real coordinates (D5). Sized by
- *  entry point 1's own rule, run against wall C's run instead of wall B's, with wall B's pieces
- *  relabelled to wall C afterward.
+/** The right corner's along-wall widths, in the room's own coordinates: entry point 1 run against
+ *  wall C's run, with wall B's pieces relabelled to wall C.
  *
- *  **The X-leg sizes identically to the left corner's own**, and this is not asserted separately —
- *  it falls out of entry point 1 unchanged: `widthInRoomMm` for the wall-A piece reads
- *  `wallLengthMm("A", room)` and `cabinetDepthMm` alone, neither of which differs between the two
- *  corners, so the same arithmetic on the same inputs gives the same width (D5's "wall A carries
- *  both X-legs" needs no second formula, only two calls). */
+ *  The X-leg sizes identically to the left corner's: `widthInRoomMm` for the wall-A piece reads only
+ *  `wallLengthMm("A", room)` and the depth, which the two corners share, so no second formula is
+ *  needed. */
 export function rightCornerAssemblyWidthsMm(
   query: CornerAssemblyQuery,
 ): CornerAssemblyWidthsMm {
@@ -298,15 +263,10 @@ export function rightCornerAssemblyWidthsMm(
   };
 }
 
-/** ADR 0132 decision 2's own phrase: "the along values the corner rule gives for the L room
- *  (W, C)". An L-shaped room standing in for the real U, its depth wall C's own run — the one place
- *  a U's `wallCMm` enters the corner rule; everything after this is entry point 1's unchanged
- *  arithmetic, read for a room that happens to be synthetic.
- *
- *  **Exported since review round 1 (C1.1)**: `generation/shell-design.ts`'s wall-C tiling reuse
- *  built an identical three-line copy of this synthesis (`roomMirroredForWallC`) rather than import
- *  a function this module kept private. One export and one caller now share the one derivation, the
- *  same way `cornerOf` is the one place a placement's corner is ever read. */
+/** ADR 0132 decision 2: "the along values the corner rule gives for the L room (W, C)". An L-shaped
+ *  room standing in for the real U, its depth wall C's run — the one place a U's `wallCMm` enters the
+ *  corner rule. Exported so `generation/shell-design.ts`'s wall-C tiling shares this derivation rather
+ *  than copying it. */
 export function roomForTheRightCorner(room: DesignRoom): DesignRoom {
   if (room.wallCMm === undefined) {
     throw new Error(
@@ -325,10 +285,9 @@ function relabelledToTheRightCorner(piece: SizedCornerPiece): SizedCornerPiece {
   return piece.wall === "B" ? { ...piece, wall: "C" } : piece;
 }
 
-/** The inverse relabelling, so a right corner's own widths (wall A and wall C) can be handed to
- *  entry point 2's unchanged functions, which read a wall-B piece for anything that is not wall A
- *  (`ownsTheCorner`, `nearEdgeMm`). Never exported: a caller outside this module has no reason to
- *  hold a corner's widths under the wrong corner's wall letters even momentarily. */
+/** The inverse relabelling, so a right corner's widths can be handed to entry point 2's functions,
+ *  which read a wall-B piece for anything that is not wall A (`ownsTheCorner`, `nearEdgeMm`). Not
+ *  exported: no caller should hold a corner's widths under the wrong corner's wall letters. */
 function asLeftCornerWidths(
   widths: CornerAssemblyWidthsMm,
 ): CornerAssemblyWidthsMm {
@@ -340,14 +299,11 @@ function asLeftCornerWidths(
   };
 }
 
-/** Where one right-corner piece is centred along its wall (D4). The three returns (wall C) stand at
- *  the along values entry point 2 gives the left corner's own wall-B piece in the room
- *  `roomForTheRightCorner` built — unreflected, because wall C's own along runs the same direction
- *  wall B's does (ADR 0132 decision 1), so nothing here mirrors it a second time. The X-leg (wall A)
- *  is the left X-leg's centre reflected about the room's own width, `W − centreMm` (ADR 0132
- *  decision 2) — algebraically exact on whole millimetres, because both `W` and the left centre
- *  already are (D4's odd-millimetre finding, ADR 0132 decision 4): there is no second refusal to
- *  raise here that entry point 2 has not already raised on the left corner's own numbers. */
+/** Where one right-corner piece is centred along its wall. Wall C's pieces take the along values
+ *  entry point 2 gives wall B's in the synthetic room, unreflected, because wall C runs the same way
+ *  as wall B (ADR 0132 decision 1). The X-leg (wall A) is the left X-leg's centre reflected,
+ *  `W − centreMm` (ADR 0132 decision 2): exact on whole millimetres, so entry point 2's refusal on
+ *  the left numbers is the only one needed. */
 export function rightCornerAlongWallCentreMm(
   query: CornerFarEdgeQuery,
 ): CornerAlongWallCentre {
@@ -367,24 +323,18 @@ export function rightCornerAlongWallCentreMm(
 }
 
 /** The least length wall A may have and still hold both of a U's corners without their X-legs
- *  overlapping (ADR 0132 decision 4) — the sum of each X-leg's own reference width, and deliberately
- *  **not** twice `narrowestCornerReachMm("A")`'s 870 (ADR 0135 moved it from 880):
- *  U0 measured the two X-legs overlapping only
- *  below 1800 mm, which is `2 × REFERENCE_CORNER_REACH_MM`, because each X-leg's own ceiling is the
- *  whole of wall A (`widthInRoomMm`) and both reach the reference 900 mm whenever their own side of
- *  wall A is at least that long. This is `ENGINE_ROOM_LIMITS.U.wallA.minMm`'s derivation source; the
- *  literal itself is U2 slice S2's to declare. */
+ *  overlapping (ADR 0132 decision 4): the sum of each X-leg's reference width, deliberately not twice
+ *  `narrowestCornerReachMm("A")`'s 870. The X-legs overlap only below 1800 mm
+ *  (`2 × REFERENCE_CORNER_REACH_MM`), because each X-leg's ceiling is the whole of wall A. This is
+ *  `ENGINE_ROOM_LIMITS.U.wallA.minMm`'s derivation source. */
 export function twoCornersWallAMinimumMm(): number {
   return REFERENCE_CORNER_REACH_MM * 2;
 }
 
-/** The reference kitchen's own corner: **900 mm along each wall at the declared 600 mm depth**, and
- *  the one measurement in this module. It is the corner ADR 0108 Amendment B's owner-approved wall-A
- *  minimum was taken from and the figure 7D6 criterion 1 pins.
- *
- *  The three other pieces' reference widths are **derived from it** — 330 mm for the base return and
- *  570 for the two upper ones — rather than restated as three more literals, which is the second
- *  authority ADR 0102 forbids: four numbers that agree at one depth always eventually part. */
+/** The reference kitchen's corner: 900 mm along each wall at the declared 600 mm depth, the one
+ *  measurement in this module (the figure ADR 0108 Amendment B's wall-A minimum was taken from).
+ *  The other pieces' reference widths (330 mm base return, 570 for the two upper ones) are derived
+ *  from it, because four numbers that agree at one depth eventually part (ADR 0102). */
 const REFERENCE_CORNER_REACH_MM = 900;
 
 /** How wide this piece is built where the room does not constrain it: the reference reach less
@@ -393,17 +343,13 @@ function referenceWidthMm(piece: CornerAssemblyPiece): number {
   return REFERENCE_CORNER_REACH_MM - nearEdgeMm(piece, WORKTOP_DEPTH_MM);
 }
 
-/** Where a piece starts along its own wall: past whatever the **other** wall's run puts in front of
- *  the corner in that row.
+/** Where a piece starts along its own wall: past whatever the other wall's run puts in front of the
+ *  corner in that row.
  *
- *  Wall A owns the corner and starts at 0 (`cornerTakingWallsOf` names the asymmetry: wall A is
- *  never in the set a corner is taken from, on any shape). Wall B starts past wall A's own body in
- *  the same row — the base run's carcass front, where the X-leg's
- *  carcass ends, in the base row (570 at 600 mm and 670 at 700; ADR 0135 moved it from ADR 0025's
- *  `d − 20`) and §7's head-clearance depth in the wall and top rows (330 and 400). **The two rows
- *  therefore part by 240 mm at 600 and 270 at 700 rather than by a constant**, which is the
- *  arithmetic ADR 0089's two chains express and the reason no depth-independent width pair makes
- *  the rows agree at both depths. */
+ *  Wall A owns the corner and starts at 0. Wall B starts past wall A's body in the same row: the base
+ *  run's carcass front in the base row (570 at 600 mm, 670 at 700; ADR 0135) and §7's head-clearance
+ *  depth in the wall and top rows (330, 400). The rows part by 240 mm at 600 and 270 at 700 rather
+ *  than by a constant (ADR 0089's two chains), so no depth-independent width pair makes them agree. */
 function nearEdgeMm(
   piece: CornerAssemblyPiece,
   cabinetDepthMm: number,
@@ -414,16 +360,12 @@ function nearEdgeMm(
     : wallCarcassDepthMm(cabinetDepthMm);
 }
 
-/** Wall A's pieces start at the corner itself, so nothing of the other wall stands in front of them
- *  and nothing of the other wall moves them.
+/** Wall A's pieces start at the corner, so nothing of the other wall stands in front of them or
+ *  moves them.
  *
- *  **`cornerTakingWallsOf("U")` rather than a bare wall-B comparison** (R1.3): every call this
- *  module makes stands inside a synthetic two-wall room (`roomForTheRightCorner`'s own "L room (W,
- *  C)"), so `piece.wall` is always `"A"` or `"B"` here today and the wider set answers exactly as
- *  the old bare comparison did. It is the set a **direct** wall-C piece would need — a caller
- *  outside this module's own relabelling, most likely U3's composer — and reading it from one
- *  answer rather than the bare constant is what keeps that future call from reporting a wall-C
- *  piece as owning the corner the way wall A does. */
+ *  `cornerTakingWallsOf("U")` rather than a bare wall-B comparison: every call here is inside a
+ *  two-wall synthetic room, so the wider set answers as the bare comparison would today, and a
+ *  direct wall-C piece from a caller outside this module is not reported as owning the corner. */
 function ownsTheCorner(piece: CornerAssemblyPiece): boolean {
   return !cornerTakingWallsOf("U").has(piece.wall);
 }
@@ -441,14 +383,11 @@ function narrowestWidthMm(
   return blindSpanMm(piece, cabinetDepthMm) + oneDoorCabinetFloorMm(piece.band);
 }
 
-/** How much of a piece's own width the other wall's body stands in front of.
- *
- *  **Only wall A's pieces have any**, and the same in every row: the return leg butts against the
- *  X-leg's front face, so the X-leg is a cabinet only past `d − 30`, the run's carcass front. Today's
- *  900 decomposes as 570 of the other wall's depth plus a 330 mm accessible front (7D7's derivation,
- *  and the 290 mm door the builder puts in it). The corner wall unit above it is built to the X-leg's
- *  width, so it has the one floor and the two widths agree by construction. A wall-B piece has none:
- *  what stands in front of it moves its **near edge** instead, which is `nearEdgeMm` above. */
+/** How much of a piece's own width the other wall's body stands in front of. Only wall A's pieces
+ *  have any, the same in every row: the return leg butts against the X-leg's front face, so the X-leg
+ *  is a cabinet only past the run's carcass front. The corner wall unit is built to the X-leg's
+ *  width, so the two share one floor. A wall-B piece has none: what stands in front of it moves its
+ *  near edge instead (`nearEdgeMm`). */
 function blindSpanMm(
   piece: CornerAssemblyPiece,
   cabinetDepthMm: number,
@@ -456,23 +395,19 @@ function blindSpanMm(
   return ownsTheCorner(piece) ? baseCarcassFrontMm(cabinetDepthMm) : 0;
 }
 
-/** The owner's rule of 2026-09-16 — *"corner cabinet should have at least one door so calculate to
- *  fit a cabinet with one door on all 3 levels"* — as the number this product already holds: a
- *  one-door cabinet opens at the hinged rows' own declared floor.
- *
- *  Read off those rows rather than typed (7D7's L-R7), and refused rather than defaulted when a row
- *  stops declaring one. The wall and top rows read the same row on purpose: `wall-cabinet` is the
- *  one height-flexible family, built 700 mm tall on the wall row and 400 on the top one, so the two
- *  bands share a floor by construction instead of by two declarations agreeing. */
+/** The owner's rule that a corner cabinet has at least one door on all three levels: a one-door
+ *  cabinet opens at the hinged rows' own declared floor, read off those rows rather than typed and
+ *  refused rather than defaulted when a row stops declaring one. The wall and top bands read the same
+ *  row because `wall-cabinet` is the one height-flexible family, so they share a floor by
+ *  construction. */
 const ONE_DOOR_CABINET_ROW_BY_BAND: Readonly<Record<CornerBand, string>> = {
   base: "base-cabinet",
   wall: "wall-cabinet",
   top: "wall-cabinet",
 };
 
-/** Resolved once, at module load: a width floor is a declared product number and follows neither
- *  the depth nor the room, and a row that stops declaring one refuses the module rather than every
- *  call. */
+/** Resolved once at module load: a width floor follows neither the depth nor the room, and a row that
+ *  stops declaring one refuses the module rather than every call. */
 const ONE_DOOR_CABINET_FLOOR_MM_BY_BAND: Readonly<Record<CornerBand, number>> =
   {
     base: declaredWidthFloorMm(ONE_DOOR_CABINET_ROW_BY_BAND.base),

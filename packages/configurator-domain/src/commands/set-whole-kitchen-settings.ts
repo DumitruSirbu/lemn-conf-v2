@@ -1,22 +1,17 @@
-// Wave 6E: the two whole-kitchen settings, as commands.
+// The whole-kitchen settings as commands: the material every carcass is made of and the hardware
+// brand every door hangs on, which land in `design.settings` rather than on a body. The per-placement
+// counterparts are in `set-appearance.ts`.
 //
-// `set-appearance.ts` one scope up. `setFinish` and `setHandle` are **per placement**; these two are
-// the settings that are never per cabinet — the material every carcass is made of and the hardware
-// brand every door hangs on — and they land in `design.settings` rather than on a body.
+// Two functions, not one taking a group discriminator: they write different keys, refuse with
+// different codes and publish different effects, so a discriminator would be a flag argument.
 //
-// **Two functions, not one taking a group discriminator.** A single `setTier({ group, tierId })`
-// would be the flag argument `set-appearance.ts` avoided: the two write different keys, refuse with
-// different codes, and publish different effects, so the caller would be picking a behaviour rather
-// than passing a value.
+// Each takes the ids its caller's book offers, because the domain imports no book (ADR 0062 seam 1)
+// and `DesignSettingsSchema` validates a tier id for shape only. A tier the book does not hold is a
+// refusal with its own code, because a no-op looks identical to a broken control.
 //
-// **Each takes the ids its caller's book offers**, because the domain imports no book (ADR 0062
-// seam 1) and `DesignSettingsSchema` therefore validates a tier id for shape only. A tier the book
-// does not hold is a refusal with its own code rather than a silent no-op — again `set-appearance`'s
-// stated reason: a no-op looks identical to a broken control.
-//
-// **Wave 6Q-b gave `setMaterialTier` one more job**, and it is the only place a whole-kitchen
-// setting reaches a per-cabinet one: ADR 0057's reset, composed out of `withPlacements(withSettings(
-// …))` so `command-result.ts` stays the one place a command writes a new `Design`.
+// `setMaterialTier` is the one place a whole-kitchen setting reaches a per-cabinet one (ADR 0057's
+// reset), composed from `withPlacements(withSettings(…))` so `command-result.ts` stays the one place a
+// command writes a new `Design`.
 import { materialOfDesign } from "../design-material.js";
 import {
   DesignSettingsSchema,
@@ -43,7 +38,7 @@ import {
 } from "./command-result.js";
 import type { RejectionDetail } from "./rejection.js";
 
-/** Both commands' input, and deliberately the same shape: the design, the tier asked for, the ids
+/** Both tier commands' input, deliberately the same shape: the design, the tier asked for, the ids
  *  the caller's book offers, and the caller's clock. */
 export interface WholeKitchenTierInput {
   readonly design: Design;
@@ -52,19 +47,14 @@ export interface WholeKitchenTierInput {
   readonly occurredAt: string;
 }
 
-/** The tier this code names is not one the caller's book offers. Which of the two codes it is is the
- *  only thing that differs between the commands' guards. */
+/** The refusal code for a tier the caller's book does not offer; the only thing that differs between
+ *  the commands' guards. */
 type UnknownTierCode = "UNKNOWN_MATERIAL_TIER" | "UNKNOWN_HARDWARE_TIER";
 
 /**
- * **The whole-kitchen colour, and the input is the whole of ADR 0099 decision 2's guarantee.**
- *
- * It names a design and a finish. It does **not** take the placements, a placement id, or anything
- * that could be turned into one — so no implementation of `setGlobalFinish`, and no later edit to
- * it, can reach `placement.body.finish`. A command that *could* stamp every cabinet and merely
- * chose not to is a defect waiting for a refactor; this one is structurally incapable of it, which
- * is the owner's *"do not overwrite a cabinet's own colour"* expressed as a shape rather than as
- * care.
+ * The whole-kitchen colour. The input names a design and a finish and deliberately not the
+ * placements, so no implementation of `setGlobalFinish` can reach `placement.body.finish`: the
+ * owner's "do not overwrite a cabinet's own colour" as a shape (ADR 0099 decision 2).
  */
 export interface GlobalFinishInput {
   readonly design: Design;
@@ -73,21 +63,14 @@ export interface GlobalFinishInput {
 }
 
 /**
- * **A global colour change writes exactly one field and touches no cabinet, ever** (ADR 0099
- * decisions 2 and 5).
+ * A global colour change writes exactly one field and touches no cabinet (ADR 0099 decisions 2, 5).
+ * Cabinets with no `finish` follow it because `resolvedFinishOf` reads `settings.finish` for them, so
+ * the document grows no `finish` key and a cleared override falls back here.
  *
- * Cabinets carrying no `finish` follow it because they were following all along — `resolvedFinishOf`
- * reads `settings.finish` for them — so the document does not grow a single `finish` key, the
- * *second* global change moves them too, and a cabinet whose override is later cleared falls back
- * here rather than to the book's default.
- *
- * **It refuses a colour the design's material does not offer**, with `setFinish`'s own code and for
- * `setFinish`'s own reason (ADR 0078 decision 6): the offer has one author, the guard is asked one
- * scope up, and an undeclared `materialTierId` offers nothing and refuses nothing so wave 6G's
- * recovery path keeps working.
- *
- * **Setting the colour that is already set is not a refusal**, matching both tier commands: a
- * customer re-tapping the swatch they are on gets the state they asked for.
+ * It refuses a colour the design's material does not offer, with `setFinish`'s code and reason
+ * (ADR 0078 decision 6); an undeclared `materialTierId` offers nothing and refuses nothing, so the
+ * recovery path keeps working. Setting the colour already set is not a refusal, as in both tier
+ * commands.
  */
 export function setGlobalFinish(
   input: GlobalFinishInput,
@@ -108,10 +91,8 @@ export function setGlobalFinish(
   });
 }
 
-/** ADR 0078 decision 6's question, read off the design being rewritten so a caller cannot hand this
- *  command a material the document is not on. An undeclared tier has no palette to judge a colour
- *  against, so it lets the colour through rather than making a stale tier uncolourable — the same
- *  answer `setFinish` gives one scope down. */
+/** ADR 0078 decision 6's question, read off the design being rewritten. An undeclared tier has no
+ *  palette to judge against, so the colour passes, as in `setFinish` one scope down. */
 function designOffersFinish(design: Design, finish: Finish): boolean {
   const lookup = materialOfDesign(design);
   return (
@@ -143,30 +124,15 @@ interface FinishResolution {
 }
 
 /**
- * **ADR 0057's reset, in one document and on success only.**
+ * ADR 0057's reset, in one document and on success only: every placement wearing a finish the
+ * material being applied does not offer is rewritten to that material's declared `defaultFinish`,
+ * read through `lookUpMaterial` with no branch per material. Never a nearest-colour mapping from a
+ * swatch (ADR 0078 decision 4).
  *
- * Every placement wearing a finish the material **being applied** does not offer is rewritten to
- * that material's declared `defaultFinish` — read off `materialById`'s declaration through
- * `lookUpMaterial`, with no branch per material and no table here. ADR 0078 decision 4 forbids the
- * one alternative that looks helpful: constructing a free colour from a palette entry's swatch hex
- * is ADR 0057's rejected nearest-finish mapping, and a swatch that stays the same colour while the
- * priced material changes underneath it is the most invisible substitution there is.
- *
- * **Against the tier being applied, and not skipped when it equals the stored one.** Setting the
- * tier that is already set is not a refusal (`findRefusal` above), so it must not become a silent
- * skip either: a document that was already carrying an unoffered finish is resolved by the tap that
- * re-applies its own material, exactly as it would be by a tap that changes it.
- *
- * **An undeclared tier resolves nothing** (ADR 0078 decision 3). The caller's book offered the id,
- * but the domain declares no material for every id a book may hold, and a document is not corrected
- * against a material nobody can look up.
- *
- * **Absence stays absence** (ADR 0078 decision 5). A placement with no `finish` key never reaches
- * `materialOffersFinish` and never gains one: the reset corrects a choice, it does not invent one.
- *
- * Returns the design it was given when nothing is owed — including its `placements` array by
- * identity — so a material change that resolves nothing moves nothing a save is diffed against
- * beyond `settings` and `updatedAt`.
+ * Runs against the tier being applied and is not skipped when it equals the stored one: a document
+ * already carrying an unoffered finish is resolved by the tap that re-applies its own material.
+ * An undeclared tier resolves nothing (ADR 0078 decision 3). A placement with no `finish` never
+ * gains one (decision 5). Returns the given design, `placements` by identity, when nothing is owed.
  */
 function resolveFinishesTheTierDoesNotOffer(
   applied: Design,
@@ -202,20 +168,12 @@ function resolveFinishesTheTierDoesNotOffer(
 }
 
 /**
- * **ADR 0099 decision 6: the global level is not exempt from ADR 0057's invariant.**
- *
- * *No stored design may hold a finish its material does not offer* now has to cover
- * `settings.finish` as well as every `body.finish`, so a global colour the incoming material does
- * not make is reset to that material's `defaultFinish` — **once, for the whole document**, never per
- * cabinet.
- *
- * **Under a change between two different declared materials this is not an edge case, it is the
- * only case.** ADR 0078 decision 1 makes the three materials' offers disjoint, so no finish survives
- * such a change and the reset is a certainty rather than a risk. A change resolving to the *same*
- * declared material resets nothing here, which is ADR 0086 decision 3's rule applied unchanged.
- *
- * Returns the design it was given by identity when nothing is owed, so a material change that
- * discards no global colour moves nothing a save is diffed against beyond `settings.materialTierId`.
+ * ADR 0099 decision 6: the global level is not exempt from ADR 0057's invariant that no stored design
+ * holds a finish its material does not offer. A global colour the incoming material does not make is
+ * reset to its `defaultFinish` once for the whole document, never per cabinet. Between two different
+ * declared materials this always fires, since their offers are disjoint (ADR 0078 decision 1); the
+ * same declared material resets nothing (ADR 0086 decision 3). Returns the given design by identity
+ * when nothing is owed.
  */
 function resolveGlobalFinishTheTierDoesNotOffer(
   applied: Design,
@@ -257,29 +215,19 @@ export function setHardwareTier(
   });
 }
 
-/** The guard both commands share, in the order it asks: **the timestamp, then membership, then the
- *  shape the document would take**.
+/** The guard both commands share, in the order it asks: the timestamp, then membership, then the
+ *  shape the document would take.
  *
- *  **The shape check is `DesignSettingsSchema` itself, run over the container that would be
- *  stored — never a restated length or emptiness test.** `availableTierIds` is the caller's, the
- *  caller holds a book that ADR 0062 seam 1 makes data authored outside TypeScript, and a declared
- *  `string` is a promise rather than a fact — the same reading `price-design.ts` gives a declared
- *  book amount. Without this, a book offering `""` or an over-long id produced `ok: true` and a
- *  `Design` that `DesignSchema` refuses: unsaveable at the API write seam and unloadable through
- *  `migrateDesign`, which is the exact "a seam writing a document its own validator refuses"
- *  failure `migrate-design.ts` names. Asking the schema rather than restating its bound is what
- *  keeps one authority for the document's shape the day `MAX_IDENTIFIER_LENGTH` moves.
+ *  The shape check is `DesignSettingsSchema` run over the container that would be stored, never a
+ *  restated bound. `availableTierIds` comes from a book authored outside TypeScript (ADR 0062
+ *  seam 1), so an id of `""` or an over-long id would otherwise yield `ok: true` and a `Design` that
+ *  `DesignSchema` refuses.
  *
- *  **A shape failure refuses with the same per-group code**, not a third one. From the customer's
- *  side a tier the document cannot hold *is* a tier that is not available, and the two ruled
- *  descriptors already say exactly that; a third code would duplicate a product fact with developer
- *  detail about a malformed book. **The cost is real and is accepted here**: a broken book and a
- *  withdrawn tier now produce the same customer-facing message, so nothing at this seam tells them apart.
- *  The place to surface a malformed book loudly is where the book is read, which is wave 6G's.
+ *  A shape failure refuses with the same per-group code, not a third one: to the customer a tier the
+ *  document cannot hold is a tier that is not available. Accepted cost: a broken book and a withdrawn
+ *  tier give the same message here; a malformed book is surfaced where the book is read.
  *
- *  **Setting the tier that is already set is not a refusal.** `setFinish` succeeds on a finish a
- *  body already carries, and the two must not diverge: a customer re-tapping the chip they are on
- *  gets the state they asked for, not a sentence telling them they cannot have it. */
+ *  Setting the tier already set is not a refusal, matching `setFinish`. */
 function findRefusal(
   input: WholeKitchenTierInput,
   settings: DesignSettings,
@@ -297,12 +245,9 @@ function findRefusal(
   return undefined;
 }
 
-/** The container this command would store: one key written over whatever the design already carries
- *  — so the other setting survives a change to this one, and a design with no `settings` key gains
- *  one holding exactly the key that was set.
- *
- *  Built **before** the guard runs rather than after it, because it is the value the guard's shape
- *  check has to be asked about. Nothing is written until the guard passes. */
+/** The container this command would store: one key written over whatever the design already carries,
+ *  so the other setting survives. Built before the guard because the guard's shape check asks about
+ *  it; nothing is written until the guard passes. */
 function withOneSetting(
   input: WholeKitchenTierInput,
   change: DesignSettings,
