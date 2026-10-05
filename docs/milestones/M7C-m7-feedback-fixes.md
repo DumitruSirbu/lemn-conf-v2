@@ -1163,6 +1163,49 @@ Q6 answered: absorb under 300 mm.
 *QA reading:* the criteria, C0 S3, `qa-7d3-tall-end-block.adversarial.test.ts`. *Logic reviewer:* ADR
 0110 A4, E6, N3r 4, N11.9, Amendment O draft. *Clean-code reviewer:* the diff.
 
+### C5 S1 as built — 2026-10-05 (`0e7e5ea`; C5 is NOT closed, S2 is next)
+
+Committed on `m7c-m7-feedback-fixes`, not pushed; the pre-commit hook ran, format and lint passed.
+Figures below are the coordinator's or QA's, relayed to the scribe.
+
+- **Rule as built (L and straight).** The fridge is the outermost body, a door base cabinet
+  (`base-cabinet` only) stands directly inboard, and the leftover `r` beyond the fridge is 50-299 mm. The
+  cabinet grows by `max(0, min(floor50(r), floor50(800 - w)))` and the fridge moves out by the same amount;
+  the rest stays bare. Applied after the dishwasher (ADR 0110 M2). The 100 mm side-wall reserve is never
+  spent at the generated depth. At a 600 to 700 depth change the slide uses it, as for any pre-C5 room with
+  no bare remainder (ADR 0110 F7, 0108 H3); the visual check showed the fridge reaching the side wall and
+  never passing it, and the coordinator ruled this not a defect. E6's absorb shares the headroom helper
+  and is unchanged.
+- **Deviation: criterion 1's formula is superseded.** The plan says `min(floor50(r), 800 - w)`, which is
+  not a whole step for a width that is not a multiple of 50. Coordinator ruling after QA, 2026-10-05: the
+  owner's Q6 words (*"grows in 50 mm steps up to 800 mm"*) rule over the plan's formula, so the cap is
+  `floor50(800 - w)`.
+- **Census [QA, independently against HEAD].** 44,766 of 245,211 L rooms change (wall A 22,995, wall B
+  21,771), matching C0 exactly; straight 0 of 481; U 0; every other room byte-identical. **Owner-visible:**
+  about 17,925 L rooms per ceiling keep a bare 50-299 mm leftover because the fridge's neighbour is the
+  dishwasher (16,300) or the sink (1,625). This is correct under "only where the neighbour is a door
+  cabinet".
+- **QA** (gate red, then green). Two latent helper defects, unreachable in real rooms, fixed: non-step
+  growth for a width not a multiple of 50, and negative growth from a negative leftover. A coverage note was
+  fixed: the live dishwasher and pan-drawer invariants now run on the shipped planner.
+- **Review** (Full tier plus visual): no blocker. Logic notes: the cap reads ADR 0052's space ceiling
+  standing in for section 7's cabinet ceiling (now documented, with a test asserting cabinet ceiling >=
+  space ceiling); the step's authority is the owner's Q6, not the editor's stepper (ADR 0035 d8).
+  Clean-code should-fixes all applied: the package's public exports are identical to HEAD's (named exports
+  replace `export *` for leftover-rule); property tests use literals; the leaf-off switch is scoped to 12
+  recording tests; the one-fridge-per-plan invariant is stated and asserted.
+- **Digest.** `qa-u3a` gives `DIGEST_AFTER_C5` =
+  `c32ccbbd8026c533bfce83dd7fbe70bfe6ea02dd43021938258ffdcb23bf58da`. Its authority is the chain test
+  reproducing C7's digest with the leaf off, plus the full-grid differential.
+- **Visual** (1440x900 and 390x844, test database, 31 designs minted and deleted with the e2e cleanup
+  helper; captures in the session scratchpad `c5-s1-visual/`). Room 3000x3001 wall A r=200: cabinet 800,
+  fridge flush. 3500x3050 wall B r=150: 750, 100 mm free; r=176: 750, 26 bare; r=98 capped at 800: 98 bare;
+  r=300 unchanged. Uppers and tops the same width, 330/400 deep. Editor +-50, +50 disabled at 800 or with
+  no free space, no auto-shift. **Not captured:** a true HEAD "before" image; a clean full-fridge phone
+  frame.
+- **Final runs [coordinator].** Domain 6191/6191, web 4956/4956, `format:check` 0, lint 0.
+- **Next: S2** (the U, `u-fridge-wall.ts`); C5 closes with it. Then C1 S4, CE, C6.
+
 ### CE — the e2e shards on the runner (FB-012)
 
 | Slice | Does | Files | Reading |

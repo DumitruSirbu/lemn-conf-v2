@@ -4907,7 +4907,7 @@ plan speaks.
 7. **Dated notes.** E11.1 and E11.3 are withdrawn by the owner on 2026-10-01. F9's lift rule is not taken.
    **ADR 0117's *"no top row"* statement (`:283`, read) is superseded for generation**, by this ruling.
 
-### O10 — the fridge-gap absorb (Q6): DECIDED, NOT BUILT (wave C5)
+### O10 — the fridge-gap absorb (Q6): DECIDED; L and straight BUILT (C5 S1, `0e7e5ea`), U NOT BUILT (S2)
 
 **Q6 (M7-FB-010), a relayed selection: *"Absorb gaps under 300 mm"*.** [doc-quoted: plan, Q6.] Where the
 fridge ends a run with under 300 mm beyond it, the door cabinet beside it grows in 50 mm steps up to
@@ -4916,6 +4916,17 @@ wall the 100 mm reserve stays free (F7, ADR 0108 H3). It **departs from A4, D2, 
 RQ25a** for this one case; E6's absorb beside a tower is the precedent. The editor half, resizing a
 cabinet through a standing fridge, is **not built** and is backlog 104 (§13.2's rejected auto-shift).
 **Nothing of this is built.**
+
+**Update, 2026-10-05: S1 is built for L and straight, in `0e7e5ea`; the U is pending S2.** The growth is
+`max(0, min(floor50(r), floor50(800 - w)))`, applied after the dishwasher (M2). This corrects the plan's
+`800 - w`, which is not a whole step for a width that is not a multiple of 50: the coordinator ruled that
+the owner's Q6 words (*"grows in 50 mm steps up to 800 mm"*) govern. The 100 mm side reserve is never spent
+at the generated depth; at a 600 to 700 depth change the slide uses it, as for any pre-C5 room with no bare
+remainder (F7, 0108 H3). E6's absorb shares the headroom helper, unchanged. [QA census] 44,766 of 245,211 L
+rooms change; straight 0 of 481; U 0. About 17,925 L rooms per ceiling keep a bare 50-299 mm leftover
+because the fridge's neighbour is the dishwasher (16,300) or the sink (1,625), correct under "only where
+the neighbour is a door cabinet". The editor half remains not built (backlog 104). Record:
+`milestones/M7C-m7-feedback-fixes.md`, *C5 S1 as built*.
 
 ### Decision-record sweep
 
