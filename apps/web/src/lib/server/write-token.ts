@@ -6,16 +6,14 @@ import type { NextRequest, NextResponse } from "next/server";
 
 import { sha256Hex } from "./sha256-hex";
 
-/** 256 bits from the platform CSPRNG — comfortably past ADR 0019's requirement, and drawn from
- *  `node:crypto` rather than `Math.random`, which is seeded predictably and is not a secret source. */
+/** 256 bits from the platform CSPRNG (ADR 0019 decision 1), from `node:crypto` rather than `Math.random`,
+ *  which is not a secret source. */
 const WRITE_TOKEN_BYTES = 32;
 
 /**
- * Thirty days, **sliding**, to match ADR 0019 decision 7's retention semantics rather than only its
- * number. Retention deletes a design 30 days after it was last *touched*; a cookie fixed at 30 days
- * after *mint* would expire under a customer who is still editing, and until decision 8's emailed
- * recovery link arrives in M8 there is no way back. `refreshWriteTokenCookie` is what makes the two
- * clocks the same clock: every successful save pushes both out together.
+ * Thirty days, sliding: every successful save pushes the expiry out (`refreshWriteTokenCookie`), so a customer
+ * still editing never loses access. Until M8's customer profiles (ADR 0115) there is no way back from an
+ * expired cookie.
  */
 const WRITE_TOKEN_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
 
@@ -35,13 +33,10 @@ export function mintWriteToken(): MintedWriteToken {
 }
 
 /**
- * Hands the token to the creating browser and to nothing else.
- *
- * `httpOnly` keeps it out of `document.cookie`, so an XSS foothold cannot read it; `secure` keeps it
- * off plaintext transport (browsers treat `http://localhost` as a secure context, so this does not
- * break local development); `sameSite: "lax"` stops a cross-site form post from carrying it; and the
- * per-design name and path mean a browser only ever sends the credential for the one design being
- * written. The token never appears in a URL, a response body, or a log line.
+ * Hands the token to the creating browser and to nothing else. `httpOnly` keeps it out of `document.cookie`;
+ * `secure` keeps it off plaintext (browsers treat `http://localhost` as secure, so local development works);
+ * `sameSite: "lax"` stops a cross-site form post carrying it; the per-design name and path mean a browser only
+ * sends the credential for the one design being written. The token never appears in a URL, response body or log.
  */
 export function setWriteTokenCookie(
   response: NextResponse,
@@ -57,37 +52,22 @@ export function setWriteTokenCookie(
 }
 
 /**
- * Anything that can be asked for a cookie by name. Declared structurally so a caller need not build
- * a `NextRequest` it does not have.
- *
- * **The only reader that ever holds the credential is `NextRequest.cookies` inside
- * `/api/designs/{id}`.** `setWriteTokenCookie` scopes the cookie `Path=/api/designs/{id}`, so the
- * browser attaches it to that one route and to nothing else: a request for `/[locale]/d/{id}`, for any other
- * page, or for any other API route carries no write-token cookie at all. A `cookies()` store from a
- * server component satisfies this interface structurally and will therefore compile, but it can only
- * ever answer "no credential" — for every visitor, the design's own author included. That is why
- * `app/[locale]/d/[id]/page.tsx` refuses to answer write access and defers to a client probe against the API
- * route. Do not read this from outside `/api/designs/{id}`; the answer is not a lookup that missed,
- * it is a question that route cannot be asked.
+ * Anything that can be asked for a cookie by name, declared structurally so a caller need not build a `NextRequest`.
+ * The only reader that ever holds the credential is `NextRequest.cookies` inside `/api/designs/{id}`: the cookie is
+ * scoped `Path=/api/designs/{id}`, so no page or other route request carries it. A server component's `cookies()`
+ * satisfies this interface and compiles but can only answer "no credential", for the author too, which is why
+ * `app/[locale]/d/[id]/page.tsx` defers write access to a client probe. Do not read this outside that route.
  */
 export interface WriteCookieReader {
   get(name: string): { readonly value: string } | undefined;
 }
 
 /**
- * Whether this browser presents a write credential for `designId`.
- *
- * **Presence, not validity — and this is deliberately not the authorisation decision.** It answers
- * only "does a cookie for this design exist here", which is what a UI needs in order to stop
- * offering edits it cannot perform (`docs/STATUS.md`, M4 hand-off 3). Whether the token is the
- * *right* one is settled where it must be: `saveAuthorized` makes the hash part of the `update`
- * predicate, so the row itself decides. Verifying here and writing there would be exactly the
- * time-of-check/time-of-use window ADR 0019 rejects — so do not "improve" this into a check that a
- * later write then trusts.
- *
- * A browser holding a stale or forged cookie therefore reads as writable and discovers otherwise on
- * its first save, which the client surfaces as `unauthorized`. That is the honest bound of a
- * check that costs no round trip, and it never widens what a write is allowed to do.
+ * Whether this browser presents a write credential for `designId`: presence, not validity, and not the authorisation
+ * decision; it lets a UI stop offering edits it cannot perform. The row decides validity (`saveAuthorized` makes the
+ * hash part of the `update` predicate): do not "improve" this into a check a later write trusts, the time-of-check/
+ * time-of-use window ADR 0019 rejects. A stale or forged cookie reads as writable and learns otherwise on its first
+ * save (`unauthorized`).
  */
 export function hasWriteCredentialFor(
   cookies: WriteCookieReader,
@@ -96,9 +76,8 @@ export function hasWriteCredentialFor(
   return readWriteToken(cookies, designId) !== undefined;
 }
 
-/** The hash of the write token this request carries for `designId`, or `undefined` when it carries
- *  none. Returning the hash rather than the token keeps the raw credential inside this module — a
- *  route handler has no reason to hold it, and what it never holds it cannot log. */
+/** The hash of the write token this request carries for `designId`, or `undefined`. Returning the hash keeps
+ *  the raw credential inside this module: a route handler that never holds it cannot log it. */
 export function readWriteTokenHash(
   request: NextRequest,
   designId: string,
@@ -108,12 +87,9 @@ export function readWriteTokenHash(
 }
 
 /**
- * Slides the cookie's expiry forward after a successful write, so edit access lasts as long as the
- * design does.
- *
- * The token is read and re-issued entirely inside this module — a route handler still never holds
- * the raw value. A request carrying no cookie is left alone: this refreshes an existing credential
- * and never mints one, which is `POST /api/designs`'s job and nothing else's.
+ * Slides the cookie's expiry forward after a successful write. The token is read and re-issued inside this
+ * module, so a route handler never holds the raw value. A request with no cookie is left alone: this refreshes
+ * and never mints, which is `POST /api/designs`'s job.
  */
 export function refreshWriteTokenCookie(
   { request, response }: { request: NextRequest; response: NextResponse },

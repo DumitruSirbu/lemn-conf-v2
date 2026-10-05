@@ -10,63 +10,42 @@ import type {
 } from "@lemnaria/persistence";
 import { del, list, put } from "@vercel/blob";
 
-/** Scoped to the `designs` table only — deliberately not a whole-database dump. M8 adds a contact
- *  table holding personal data; a database-wide export would sweep contact submissions into Blob
- *  under this same 14-day rotation, which contradicts the stricter handling contact data is
- *  promised (`docs/decisions/0002-db-backed-shareable-persistence.md`, "Security and
- *  backups"). Do not broaden this to `select * from` every table — add a second, separately-scoped
- *  export instead. */
+/** Scoped to the `designs` table, not a whole-database dump: a database-wide export would sweep M8's contact
+ *  table into Blob under this 14-day rotation. Add a second, separately scoped export instead (ADR 0012). */
 const BACKUP_BLOB_PREFIX = "backups/designs/";
 
 /**
- * Age is the governing rule, and it is what the recovery window is made of: a mistake can be undone
- * for this long and no longer. `docs/runbooks/design-db-restore.md` tells the operator to pick the
- * newest export at or before the point being recovered to, so shortening this shortens how far back
- * that instruction can reach. Two weeks covers a problem introduced before a weekend and noticed
- * the week after, which is the realistic detection latency while nobody is watching daily.
+ * Age is the governing rule: a mistake can be undone for this long and no longer. The restore runbook
+ * (`docs/runbooks/design-db-restore.md`) picks the newest export at or before the recovery point, so
+ * shortening this shortens how far back it can reach. Two weeks covers a problem noticed after a weekend.
  */
 const BACKUP_RETENTION_DAYS = 14;
 
 /**
- * A ceiling on file count, not a second retention policy — the two rules answer different questions
- * and age wins whenever they disagree. Nightly runs put steady state at roughly
- * `BACKUP_RETENTION_DAYS` files, so this is slack of more than 2x and never binds in normal
- * operation. It exists for the abnormal case: a cron delivered repeatedly, a manual
- * `runDesignsBackup` loop, or any future schedule more frequent than daily, each of which would
- * otherwise grow the folder without bound between one night's rotation and the next, since every
- * file is a full copy of the table.
- *
- * Deliberately NOT a "keep only the last N" rule. That was considered on 2026-08-31 and rejected:
- * a small N reads as tidiness but silently trades away recovery depth, and it does so precisely
- * when the table is large enough for storage to look worth saving — which is the same moment a
- * restore matters most. Bounding what each dump *contains* is the retention cron in ADR 0019
- * decision 7, not this.
+ * A ceiling on file count, not a second retention policy: age wins whenever they disagree. Steady state is
+ * about `BACKUP_RETENTION_DAYS` files, so this binds only on abnormal volume (a redelivered cron, a manual
+ * `runDesignsBackup` loop), since every file is a full copy of the table. Do not replace age with "keep the
+ * last N": a small N silently trades away recovery depth when the table is largest.
  */
 const MAX_RETAINED_BACKUPS = 30;
 
 const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 
-/** Rows held in memory at once. The export streams, so this is the whole of its row budget however
- *  large the table grows — the previous whole-table read made peak memory O(total stored data) and
- *  would have failed exactly when the database was big enough for a restore to matter
- *  (finding DB-002). Small enough to stay cheap, large enough that a page costs one round trip. */
+/** Rows held in memory at once: the export streams, so this is its whole row budget however large the table
+ *  grows. */
 export const BACKUP_PAGE_SIZE = 200;
 
-/** ndjson body for a zero-row export. `@vercel/blob`'s `put` rejects an empty body with "Vercel
- *  Blob: body is required", which took the first production run down (2026-08-25). A zero-row
- *  export is uploaded rather than skipped because it is a meaningful snapshot — "there were no
- *  designs at this timestamp" — and skipping it would leave the most recent backup an older,
- *  non-empty one, so a restore after a deliberate purge would silently resurrect deleted designs. */
+/** ndjson body for a zero-row export: `@vercel/blob`'s `put` rejects an empty body ("body is required"). A
+ *  zero-row export is uploaded rather than skipped: it is a real snapshot, and skipping it would leave an
+ *  older non-empty one as the newest, so a restore after a deliberate purge would resurrect deleted designs. */
 const EMPTY_EXPORT_BODY = "\n";
 
 /** Enough to separate two runs of the same millisecond; short enough to keep the pathname readable
  *  in a `vercel blob list` the operator is scanning by eye. */
 const INVOCATION_SUFFIX_LENGTH = 8;
 
-// `DesignBackupRow` and `DesignRowSource` come from `@lemnaria/persistence`: that package owns
-// every Postgres statement in the codebase, so the backup's read lives there too rather than being
-// a second place SQL has to be audited. Re-exported because this module's own public shape
-// (`BackupDesignsDeps`) refers to them.
+// Both come from `@lemnaria/persistence`, which owns every Postgres statement; re-exported because
+// `BackupDesignsDeps` refers to them.
 export type { DesignBackupRow, DesignRowSource };
 
 export interface BackupBlobInfo {
@@ -74,9 +53,8 @@ export interface BackupBlobInfo {
   uploadedAt: Date;
 }
 
-/** The subset of `@vercel/blob` this module needs, injected so `backupDesigns` is testable without
- *  a live Blob store. The body is a stream, not a string: a string forces the whole export into
- *  memory before the first byte is uploaded, which was the artificial half of finding DB-002. */
+/** The subset of `@vercel/blob` this module needs, injected so `backupDesigns` is testable without a live
+ *  store. The body is a stream: a string would force the whole export into memory before the first byte. */
 export interface BackupBlobClient {
   upload(pathname: string, body: ReadableStream<Uint8Array>): Promise<void>;
   list(prefix: string): Promise<BackupBlobInfo[]>;
@@ -89,9 +67,8 @@ export interface BackupDesignsDeps {
   now?: Date;
 }
 
-/** `rotation-failed` is a warning, not a failure: the snapshot was written, and only the pruning of
- *  expired ones did not happen. The three are distinct because the cron route answers each with a
- *  different HTTP status (finding DB-003). */
+/** `rotation-failed` is a warning, not a failure: the snapshot was written and only pruning did not happen.
+ *  The cron route answers each of the three with a different HTTP status. */
 export type BackupStatus = "ok" | "export-failed" | "rotation-failed";
 
 const BACKUP_ERROR_CODES = {
@@ -105,9 +82,8 @@ const BACKUP_ERROR_CODES = {
 type BackupStage = keyof typeof BACKUP_ERROR_CODES;
 export type BackupErrorCode = (typeof BACKUP_ERROR_CODES)[BackupStage];
 
-/** What the cron route may publish. `BACKUP_CLEANUP_FAILED` is excluded by type rather than by
- *  which call sites happen to exist today: routing cleanup through `reportStageFailure` would
- *  otherwise typecheck and put a code the caller cannot act on into the response. */
+/** What the cron route may publish. `BACKUP_CLEANUP_FAILED` is excluded by type, so routing cleanup through
+ *  `reportStageFailure` cannot put a code the caller cannot act on into the response. */
 export type PublishedBackupErrorCode = Exclude<
   BackupErrorCode,
   "BACKUP_CLEANUP_FAILED"
@@ -122,20 +98,9 @@ export interface BackupResult {
 }
 
 /**
- * A failed backup stage, reduced at the boundary to the parts that are safe to publish.
- *
- * Driver, storage and network errors carry endpoint hosts, request URLs, headers and
- * credential-adjacent detail in their messages. Returning `error.message` to the caller and logging
- * the raw object put all of it across two trust boundaries at once (finding DB-003), so the
- * third-party error is wrapped here and its message deliberately dropped: what survives is a stable
- * public code and the exception's class name.
- */
-/**
- * The upload resolved while the keyset walk had not reached the end of the table.
- *
- * Its own type because the export did not throw — it "succeeded" — and the resulting blob is a
- * structurally valid but short ndjson file. A truncated recovery point that reports `ok` is the
- * DB-002 failure in a new shape: the backup exists, and restoring it loses designs silently.
+ * The upload resolved while the keyset walk had not reached the end of the table. Its own type because the
+ * export did not throw: the blob is a valid but short ndjson file, and a truncated recovery point reporting
+ * `ok` would lose designs silently on restore.
  */
 export class IncompleteBackupWalkError extends Error {
   constructor(rowsWritten: number) {
@@ -146,12 +111,14 @@ export class IncompleteBackupWalkError extends Error {
   }
 }
 
-/** A stable, publishable exception class name. Clamped because `name` is free text on a third-party
- *  object: a dependency that copies it from a server response would otherwise write attacker-chosen
- *  text straight into the log line this exists to keep boring. */
+/** A stable, publishable exception class name, clamped because `name` is free text on a third-party object:
+ *  a dependency copying it from a server response would write attacker-chosen text into the log. */
 const ERROR_NAME_PATTERN = /^[A-Za-z][A-Za-z0-9]{0,63}$/;
 const UNKNOWN_ERROR_NAME = "UnknownError";
 
+/** A failed backup stage reduced at the boundary to what is safe to publish: a stable public code and the
+ *  exception's class name. Driver, storage and network messages can carry hosts, URLs and credentials, so the
+ *  third-party message is dropped. */
 export class BackupStageError extends Error {
   readonly stage: BackupStage;
   readonly code: BackupErrorCode;
@@ -171,11 +138,9 @@ function clampErrorName(cause: unknown): string {
   return ERROR_NAME_PATTERN.test(name) ? name : UNKNOWN_ERROR_NAME;
 }
 
-/** Exports every `designs` row to a timestamped ndjson file in Blob, then rotates out backups
- *  older than `BACKUP_RETENTION_DAYS` — rotation runs only when the export above it succeeded, so
- *  a failed backup never leaves fewer recovery points than before it ran. Never throws: a backup
- *  problem is reported in the returned result and logged, not raised, so it can never block the
- *  request path that calls this. */
+/** Exports every `designs` row to a timestamped ndjson file in Blob, then rotates out old backups. Rotation
+ *  runs only after a successful export, so a failed backup never leaves fewer recovery points. Never throws:
+ *  problems are returned and logged, so this never blocks the request path that calls it. */
 export async function backupDesigns(
   deps: BackupDesignsDeps,
 ): Promise<BackupResult> {
@@ -210,8 +175,6 @@ type ExportOutcome =
   | { ok: true; pathname: string; rowCount: number }
   | { ok: false; errorCode: PublishedBackupErrorCode };
 
-/** Error handling extracted into its own function per this repo's Clean Code convention (error
- *  handling is one thing): the happy path below stays a single, readable sequence. */
 async function tryExportDesigns(
   rowSource: DesignRowSource,
   blobClient: BackupBlobClient,
@@ -222,9 +185,8 @@ async function tryExportDesigns(
     const pathname = buildBackupPathname(now);
     await blobClient.upload(pathname, ndjson.body);
     const rowCount = ndjson.writtenRowCount();
-    // An upload that resolves is not an export that finished. A consumer can stop reading and still
-    // resolve — multipart committing the parts it has, an internal retry abandoning the source —
-    // which commits a short file under a name that says it holds the whole table.
+    // An upload that resolves is not a finished export: a consumer can stop reading and still resolve
+    // (multipart committing the parts it has), committing a short file under a name that claims the whole table.
     if (!ndjson.isWalkComplete()) {
       await discardTruncatedBackup(blobClient, pathname);
       throw new IncompleteBackupWalkError(rowCount);
@@ -236,16 +198,9 @@ async function tryExportDesigns(
 }
 
 /**
- * Removes a partial upload before reporting the export failed.
- *
- * Leaving it behind is worse than the truncation itself: rotation is skipped when the export fails,
- * so the short file survives the full retention window as the *newest* export — and
- * `docs/runbooks/design-db-restore.md` tells the operator to pick the newest one. It parses as valid
- * ndjson and neither its name nor its bytes reveal it is short, so the documented recovery procedure
- * would select it.
- *
- * Best effort, in its own try: if the delete fails there is nothing further this can do, and the
- * truncation — not the cleanup — must remain the reported cause.
+ * Removes a partial upload before reporting the export failed. Rotation is skipped on failure, so the short
+ * file would survive as the newest export, which the restore runbook tells the operator to pick, and it
+ * parses as valid ndjson. Best effort in its own try: the truncation, not the cleanup, stays the reported cause.
  */
 async function discardTruncatedBackup(
   blobClient: BackupBlobClient,
@@ -286,11 +241,8 @@ interface NdjsonExport {
 }
 
 /**
- * The export as a stream of ndjson bytes, pulled one bounded page at a time.
- *
- * `pull` is called only when the consumer has taken what was already enqueued, so the upload's own
- * pace decides when the next page is read: memory stays at one page plus one encoded chunk however
- * many rows the table holds.
+ * The export as a stream of ndjson bytes pulled one bounded page at a time: `pull` runs only once the consumer
+ * has taken what was enqueued, so the upload's pace sets the read pace and memory stays at one page.
  */
 function streamRowsAsNdjson(rowSource: DesignRowSource): NdjsonExport {
   const readNextPage = createPageReader(rowSource);
@@ -313,9 +265,8 @@ function streamRowsAsNdjson(rowSource: DesignRowSource): NdjsonExport {
       writtenRowCount += page.length;
       controller.enqueue(encoder.encode(toNdjson(page)));
     },
-    // Defensive only, and close to unreachable: a consumer that cancels has almost always already
-    // left `hasReachedEndOfTable` false, which is what actually fails the export. This covers the
-    // one ordering where it has not — a cancel arriving while `pull` awaits the final empty page.
+    // Defensive and near-unreachable: a cancelling consumer has almost always left `hasReachedEndOfTable`
+    // false. This covers a cancel arriving while `pull` awaits the final empty page.
     cancel() {
       isCancelled = true;
     },
@@ -351,22 +302,16 @@ function buildPageQuery(afterId: string | undefined): DesignRowPageQuery {
     : { afterId, pageSize: BACKUP_PAGE_SIZE };
 }
 
-/** One JSON object per line, every line newline-terminated — the ndjson convention, and what lets a
- *  restore read the file a chunk at a time rather than parsing one enormous document. */
+/** One JSON object per line, newline-terminated (ndjson), so a restore can read the file a chunk at a time. */
 function toNdjson(rows: readonly DesignBackupRow[]): string {
   return rows.map((row) => `${JSON.stringify(row)}\n`).join("");
 }
 
 /**
- * A pathname unique to this invocation, sorting by timestamp first.
- *
- * The timestamp alone was not unique: `addRandomSuffix` is off, so two runs landing in the same
- * millisecond — a duplicated cron delivery, or a manual `runDesignsBackup(now)` — computed the same
- * path. That was an overwrite hazard before, and NEW-1 turned it into a worse one: run B's
- * truncation cleanup would delete run A's blob, which may be a complete backup.
- *
- * The suffix goes after a fixed-width ISO timestamp, so a lexicographic listing still orders by
- * upload time and `docs/runbooks/design-db-restore.md`'s "pick the newest export" rule is unchanged.
+ * A pathname unique to this invocation, sorting by timestamp first. `addRandomSuffix` is off, so two runs in
+ * the same millisecond would share a path and one run's truncation cleanup would delete the other's possibly
+ * complete blob. The suffix follows a fixed-width ISO timestamp, so listings still order by upload time and
+ * the runbook's "pick the newest export" rule holds.
  */
 function buildBackupPathname(now: Date): string {
   const invocationSuffix = randomUUID().slice(0, INVOCATION_SUFFIX_LENGTH);
@@ -374,11 +319,8 @@ function buildBackupPathname(now: Date): string {
 }
 
 /**
- * Deletes every backup the two retention rules agree may go: anything past
- * `BACKUP_RETENTION_DAYS`, plus anything beyond `MAX_RETAINED_BACKUPS` once the survivors are
- * ordered newest first. A blob caught by both rules is deleted once — the pathnames are collected
- * as a set, because `delete` receiving the same pathname twice is a wasted call at best and an
- * error from the store at worst.
+ * Deletes every backup past `BACKUP_RETENTION_DAYS`, plus any beyond `MAX_RETAINED_BACKUPS` among the
+ * survivors. The surplus is taken only from non-expired blobs, so a blob caught by both rules is deleted once.
  */
 async function rotateOldBackups(
   blobClient: BackupBlobClient,
@@ -405,10 +347,9 @@ function expiredBackups(
   return new Set(blobs.filter((blob) => blob.uploadedAt < cutoff));
 }
 
-/** Newest first, so the slice that survives is the most recent `MAX_RETAINED_BACKUPS`. Ordered by
- *  `uploadedAt` rather than by pathname: the pathname's timestamp is the invocation's own `now`,
- *  which a caller may supply, so only the store's own record of when a blob arrived is trustworthy
- *  for deciding what to destroy. */
+/** Newest first, so the survivors are the most recent `MAX_RETAINED_BACKUPS`. Ordered by `uploadedAt`, not
+ *  pathname: the pathname's timestamp is the caller-suppliable `now`, so only the store's own arrival time is
+ *  trustworthy for deciding what to destroy. */
 function surplusBackups(
   retained: readonly BackupBlobInfo[],
 ): readonly BackupBlobInfo[] {
@@ -430,10 +371,8 @@ function reportStageFailure<Stage extends BackupStage>(
   return BACKUP_ERROR_CODES[stage];
 }
 
-// A redacted structured event, never the error itself: `console.error(stage, error)` printed the
-// raw driver/storage object, including any connection string or request URL inside it. No
-// structured-logging convention exists yet in this repo, so the event is serialized by hand
-// (follow-up: replace with the eventual logging solution once one is chosen).
+// A redacted structured event, never the error itself: a raw driver or storage object can carry a connection
+// string or request URL. Serialised by hand because the repo has no logging convention yet.
 function logBackupFailure(failure: BackupStageError): void {
   console.error(
     JSON.stringify({

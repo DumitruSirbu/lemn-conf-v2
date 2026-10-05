@@ -12,14 +12,11 @@ import {
 } from "@/store/configurator-snapshot";
 import { useConfiguratorStore } from "@/store/configurator-store";
 
-/** Puts the loaded design in front of the editor: the first server-rendered frame, React's hydration
- *  pass and every later render all show it. The session store is written here, in the browser and
- *  during render, guarded by the id; the server render and the hydration pass read the provider's
- *  snapshot instead. Why, and why the guard asks `getState()` and not the hook: ADR 0133 and
- *  `hydrateSessionStoreInBrowser`.
- *
- *  This closes backlog 98. It does not close backlog 83, whose warning on a client transition between
- *  two designs comes from the write staying in render. */
+/** Puts the loaded design in front of the editor: the first server-rendered frame, React's hydration pass and
+ *  every later render all show it. The session store is written here, in the browser during render, guarded by
+ *  the id; the server render and the hydration pass read the provider's snapshot instead (ADR 0133,
+ *  `hydrateSessionStoreInBrowser`). Known limitation: a client transition between two designs logs a dev-only
+ *  React warning because the write stays in render (backlog 83). */
 export function HydrateAndConfigure({
   design,
   designId,
@@ -29,10 +26,9 @@ export function HydrateAndConfigure({
   designId: DesignId;
   revision: DesignRevision;
 }) {
-  // `"checking"`, not a guess in either direction: this page's own request could not have carried
-  // the `Path=/api/designs/{id}` write-token cookie, so nothing here knows. `useWriteAccessProbe`
-  // below asks the one route that does, and until it answers the panel offers no edit — see
-  // `WriteAccess`.
+  // `"checking"`, not a guess: this page's own request could not carry the `Path=/api/designs/{id}` write-token
+  // cookie, so nothing here knows. `useWriteAccessProbe` asks the one route that does, and until it answers the
+  // panel offers no edit (`WriteAccess`).
   const loaded = { design, designId, revision, canWrite: "checking" } as const;
   hydrateSessionStoreInBrowser(
     loaded,
@@ -47,32 +43,17 @@ export function HydrateAndConfigure({
 }
 
 /**
- * Asks whether this browser may edit the design it just loaded, and tells the store — including
- * when it cannot find out.
+ * Asks whether this browser may edit the design it just loaded, and tells the store, including when it cannot find
+ * out. The write credential is a cookie scoped `Path=/api/designs/{id}` (ADR 0019 decision 1, `write-token.ts`), so
+ * the request that rendered the page never carried it and `cookies()` there would say "no credential" for the author
+ * too; `GET /api/designs/{id}` is the one path that gets it and answers `canWrite` beside the design.
  *
- * It is a second request, and it is not avoidable from the server: the write credential is a
- * cookie scoped `Path=/api/designs/{id}` (ADR 0019 decision 1, `write-token.ts`), so the request
- * that rendered `/[locale]/d/{id}` never carried it and `cookies()` there would answer "no credential" for
- * everyone — the design's own author included. `GET /api/designs/{id}` is the one path the browser
- * does send it to, and it answers `canWrite` beside the design at no extra round trip *of its own*.
- *
- * **A failed probe is reported, not swallowed** (wave S7, finding WEB-002). It used to change
- * nothing at all, which left the store on an optimistic default the panel read as writable: a
- * reader on a blocked API could then edit, believe it saved, and find out only when the write was
- * refused — `DEVELOPMENT-SPEC.md` §9's "never offer what cannot be satisfied", inverted. The panel
- * now shows a retryable notice instead. Guessing "read-only" would have been the opposite error,
- * telling an author they may not edit their own kitchen on the strength of a dropped packet;
- * neither guess is made.
- *
- * **`canWrite` is both this effect's output and its trigger**, which is what makes the retry one
- * mechanism rather than two: `"checking"` means "a check is wanted and none has answered", so
- * `retryWriteAccessCheck` restoring it is the whole of asking again. Every other value is an
- * answered question and runs nothing — a boolean the server gave, or the `"check-failed"` this
- * effect just recorded, which would otherwise re-probe in a loop.
- *
- * Nothing here authorises anything. `canWrite` remains advisory (ADR 0019 decision 1) — the write
- * token the server checks is untouched, and a write that turns out not to be allowed still lands
- * as `unauthorized`.
+ * A failed probe is reported, not swallowed: an optimistic default would let a reader on a blocked API edit and
+ * believe it saved (DEVELOPMENT-SPEC §9: never offer what cannot be satisfied), and guessing "read-only" would be the
+ * opposite error, so the panel shows a retryable notice. `canWrite` is both this effect's output and its trigger:
+ * `"checking"` means a check is wanted and none has answered, so `retryWriteAccessCheck` restoring it is the whole of
+ * asking again, while every other value runs nothing (the recorded `"check-failed"` would otherwise re-probe in a
+ * loop). Nothing here authorises anything: `canWrite` is advisory.
  */
 function useWriteAccessProbe(designId: DesignId): void {
   const canWrite = useConfiguratorStore((state) => state.canWrite);
@@ -81,9 +62,8 @@ function useWriteAccessProbe(designId: DesignId): void {
     let isCurrent = true;
     void sessionConfigurationRepository
       .loadWithAccess(designId)
-      // Only `canWrite` is taken. The probe's response also carries a revision, and it is
-      // deliberately discarded: it may be newer than the document this page rendered, and adopting
-      // a revision without the document it belongs to is precisely what would let this browser
+      // Only `canWrite` is taken. The probe's revision is deliberately discarded: it may be newer than the
+      // document this page rendered, and adopting a revision without its document would let this browser
       // overwrite an edit it has never seen (WEB-003).
       .then(({ canWrite }) => {
         if (isCurrent)

@@ -17,10 +17,8 @@ interface LocaleRouteParams {
 }
 
 /**
- * The whole of `[locale]/route.ts` and `[locale]/configurator/configure/route.ts`'s `GET` (C1.1,
- * review round 1) — both files re-export this directly rather than each repeating the locale guard.
- * An unsupported locale 404s **before** `resumeVisitor` reads any cookie, matching the page these
- * routes replaced and criterion 6's "before any cookie is read".
+ * The whole of `[locale]/route.ts` and `[locale]/configurator/configure/route.ts`'s `GET`: both re-export this
+ * rather than repeating the locale guard. An unsupported locale 404s before `resumeVisitor` reads any cookie.
  */
 export async function resumeVisitorRoute(
   request: NextRequest,
@@ -34,16 +32,10 @@ export async function resumeVisitorRoute(
 }
 
 /**
- * `/[locale]` and `/[locale]/configurator/configure`'s shared body (M7 wave 7E3a S3, D3/D5).
- *
- * The matrix is exactly D3's: no cookie resumes nothing and calls the repository not at all; a
- * malformed one is cleared without a query; a well-formed one that matches a row redirects to it; a
- * well-formed one that matches nothing, or a lookup that throws, sends the visitor to Step 1 — the
- * first clearing the cookie, the second leaving it untouched, because a database outage must never
- * look like "this browser has no design" (D3).
- *
- * Both routes call this and nothing else. Neither ever renders the editor: every branch below is a
- * redirect, and the two pages that used to mount it are deleted, not merely un-linked.
+ * `/[locale]` and `/[locale]/configurator/configure`'s shared body. No cookie resumes nothing and never calls the
+ * repository; a malformed one is cleared without a query; a well-formed one matching a row redirects to it. A
+ * well-formed one matching nothing goes to Step 1 and is cleared, but a lookup that throws leaves it untouched,
+ * because a database outage must never look like "this browser has no design". Every branch is a redirect.
  */
 export async function resumeVisitor(
   request: NextRequest,
@@ -61,18 +53,16 @@ export async function resumeVisitor(
     : toRoomAndClear(locale);
 }
 
-/** `undefined` on a driver failure, distinct from the repository's own `{ kind: "none" }` — the
- *  caller treats the two identically in *where* they redirect (both go to Step 1), but only a real
- *  "no row" answer clears the cookie; a failure must not be mistaken for one. */
+/** `undefined` on a driver failure, distinct from the repository's own `{ kind: "none" }`: both redirect to
+ *  Step 1, but only a real "no row" answer clears the cookie. */
 async function resumeLookup(
   visitorHash: string,
 ): Promise<VisitorResumeLookup | undefined> {
   try {
     return await getRepository().resumeVisitor(visitorHash);
   } catch (error) {
-    // D3: carries no value, hash or id — `reportDesignFailure` is handed only the operation and the
-    // thrown value, which excludes all three structurally, the same guarantee `mint`'s failures rely
-    // on.
+    // Carries no value, hash or id: `reportDesignFailure` is handed only the operation and the thrown value,
+    // the same guarantee `mint`'s failures rely on.
     reportDesignFailure("resume", error);
     return undefined;
   }
@@ -98,10 +88,9 @@ function toDesign(locale: AppLocale, id: string): NextResponse {
 }
 
 /**
- * A relative `Location`, built by hand rather than through `NextResponse.redirect` — that helper
- * requires an absolute URL (`new URL(path, request.url)` would reflect the request's own `Host`
- * header into every redirect) and throws on anything else. The plan is explicit that this response
- * must never do that (D5), so the header is set directly on a plain 307.
+ * A relative `Location`, built by hand: `NextResponse.redirect` requires an absolute URL, and
+ * `new URL(path, request.url)` would reflect the request's own `Host` header into every redirect. So the
+ * header is set directly on a plain 307.
  */
 function redirectTo(location: string): NextResponse {
   return new NextResponse(null, {

@@ -1,36 +1,18 @@
 "use client";
 
-// M7C wave C1 slice S4 (FB-001, Q10): the confirmation the back links ask, asked of the browser's
-// Back and the phone's swipe-back as well.
-//
-// **The router cannot refuse a traversal.** Next's `onPopState` restores whichever entry the browser
-// landed on (`next/dist/client/components/app-router.js`), so the only shape available is a **guard
-// entry**: one extra history entry with the editor's own URL, pushed once the customer has something
-// to lose. Back then lands on the editor's first entry — the address bar does not move — and a
-// `popstate` listener asks. The decisions are the pure functions below; the hook is the wiring.
-//
-// Three rules the wiring keeps, each with a defect behind it:
-//
-// **1. The guard is pushed from the customer's first edit, never earlier.** Chrome marks the entries
-// a document pushed without a user gesture as skippable on Back, and after a browser-initiated
-// traversal it stops honouring the document's earlier gestures until the next one
-// (`content/browser/renderer_host/navigation_controller_impl.cc`, `SetShouldSkipOnBackForwardUIIfNeeded`;
-// `render_frame_host_impl.cc`, `honor_sticky_activation_for_history_intervention_`). An edit is a tap or
-// a key press, so the entry it pushes is a real one.
-//
-// **2. *Stay* never pushes.** Escape is not a user activation, so a guard re-pushed after Escape — in the
-// window the traversal opened — would mark the editor's entries skippable and take Back past Step 1.
-// *Stay* goes `forward()` onto the guard entry that is still there, which creates no entry at all and
-// is therefore also what keeps the history at one guard however often the customer stays.
-//
-// **3. One guard per visit, held in two places that must agree.** The module's origin record survives
-// a language switch's remount (the history entries do too); the marker in `history.state` survives a
-// reload (the module does not). A push needs both to say *none yet*.
-//
-// **The marker is fragile to one thing.** Any same-URL navigation or `router.refresh()` in the editor
-// would strip it (`next/dist/client/components/router-reducer/reducers/refresh-reducer.js:75`; the
-// history updater rewrites the entry's state), so none may be added to the editor without revisiting
-// this guard.
+// The back links' confirmation, asked of the browser's Back and swipe-back too
+// (`docs/milestones/M7C-m7-feedback-fixes.md`, C1 S4). The router cannot refuse a traversal (Next's `onPopState`
+// restores whichever entry the browser landed on), so the shape is a guard entry: one extra history entry with the
+// editor's own URL, pushed once the customer has something to lose; Back lands on the editor's first entry and a
+// `popstate` listener asks. Rules the wiring keeps:
+// 1. Push the guard from the customer's first edit, never earlier: Chrome marks entries a document pushed without
+//    a user gesture skippable on Back (`SetShouldSkipOnBackForwardUIIfNeeded`), and an edit is a real gesture.
+// 2. *Stay* never pushes: Escape is not a user activation, so a re-pushed guard would be skippable and take Back
+//    past Step 1. *Stay* goes `forward()` onto the guard still there, which also keeps one guard.
+// 3. One guard per visit, held in two places that must agree: the module's origin record survives a
+//    language-switch remount, the `history.state` marker survives a reload. A push needs both to say none yet.
+// Any same-URL navigation or `router.refresh()` strips the marker
+// (`next/dist/client/components/router-reducer/reducers/refresh-reducer.js:75`): add none to the editor.
 import type { DesignId } from "@lemnaria/configurator-domain";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -88,11 +70,10 @@ export interface GuardPushFacts {
 }
 
 /**
- * Whether the screen should push its guard now. Every condition is one of the plan's *must not
- * warn* rows: the shared variant, an untouched kitchen, an editor not reached from Step 1 (a link,
- * resume, a reload), and a second guard — whichever of the two records says one exists. The pathname
- * condition is failure mode 2: a guard pushed while the URL is already leaving would sit on the
- * wrong page.
+ * Whether the screen should push its guard now. Every condition is a *must not warn* case: the shared
+ * variant, an untouched kitchen, an editor not reached from Step 1 (a link, resume, a reload) and a second
+ * guard (either record says one exists). The pathname condition stops a guard pushed while the URL is already
+ * leaving from sitting on the wrong page.
  */
 export function shouldPushGuard(facts: GuardPushFacts): boolean {
   const { designId, origin } = facts;
@@ -120,14 +101,9 @@ export interface PopstateFacts {
 }
 
 /**
- * What a traversal that has just landed means for the question.
- *
- * Only a landing on **the entry the guard was pushed over** asks: that is Back from the guard. Forward
- * lands on the guard itself, and a landing on Step 1 is the customer leaving. Once the customer is
- * answering, *any* editor entry that is not the guard is passed through — the older-language ones
- * before a switch, and equally an entry that happens to share the guarded pathname (two switches back
- * to the same language) — so *Confirm*, and a second Back with the question open, each reach Step 1
- * in one step however many editor entries stand in the way.
+ * What a traversal that has just landed means for the question. Only a landing on the entry the guard was pushed
+ * over asks (Back from the guard); Forward lands on the guard and Step 1 is the customer leaving. While answering,
+ * any editor entry that is not the guard is passed through, so *Confirm* and a second Back reach Step 1 in one step.
  */
 export function decidePopstate(facts: PopstateFacts): PopstateVerdict {
   const { origin, designId, landedPathname } = facts;
@@ -149,11 +125,10 @@ export interface RearmFacts {
 }
 
 /**
- * Whether the customer, having just dismissed the back links' question, is standing on the entry the
- * guard was pushed over rather than on the guard: Back was pressed while that question was open, so it
- * stayed open and the traversal was let through (a Back with a question open is the customer leaving).
- * The guard is still ahead of them, and *Stay* on the link's question means they are staying — so it is
- * put back under them, exactly as *Stay* on the Back question does.
+ * Whether the customer, having dismissed the back links' question, stands on the entry the guard was pushed
+ * over rather than on the guard: Back was pressed while that question was open, so the traversal was let
+ * through. The guard is still ahead and *Stay* means they are staying, so it is put back under them as *Stay*
+ * on the Back question does.
  */
 export function shouldRearmGuard(facts: RearmFacts): boolean {
   const { origin } = facts;
@@ -173,12 +148,10 @@ export interface BackGuard {
 }
 
 /**
- * Whether the browser's Back is being asked about, and the two answers to it.
- *
- * `isLinkQuestionOpen` is the back links' own question, and a Back pressed while it is open is the
- * customer answering it: this hook asks nothing over it (never two dialogs) and lets the traversal
- * through, so the next Back reaches Step 1. If they instead dismiss that question, the guard they
- * stepped past is put back (`useRearmGuardWhenLinkQuestionCloses`).
+ * Whether the browser's Back is being asked about, and the two answers. A Back pressed while the links' own
+ * question (`isLinkQuestionOpen`) is open is the customer answering it: nothing is asked over it (never two
+ * dialogs) and the traversal goes through. If they dismiss that question instead, the guard they stepped past
+ * is put back (`useRearmGuardWhenLinkQuestionCloses`).
  */
 export function useBackGuard({
   isOwner,
@@ -215,8 +188,8 @@ export function useBackGuard({
   useRestoreFocusWhenClosed(isAsking, askerRef);
   useRearmGuardWhenLinkQuestionCloses({ isOwner, isLinkQuestionOpen });
 
-  // Latched: a second tap before the first traversal has landed would queue a second one, and the two
-  // together go past Step 1.
+  // Latched: a second tap before the first traversal lands would queue a second one, and the two together
+  // go past Step 1.
   const confirm = useCallback(() => {
     if (hasConfirmedRef.current) return;
     hasConfirmedRef.current = true;
@@ -282,17 +255,12 @@ function useGuardEntry({
 }
 
 /**
- * **Next's `popstate` listener runs before ours and, for a traversal that changes the language or the
- * route, renders and commits inside its call** — measured in Chrome 2026-10-05: the screen that was
- * listening is unmounted, and its replacement's listener added, while the one event is still being
- * dispatched, and the DOM delivers an event only to the listeners present when its dispatch began.
- * (A `capture` listener does not help: at the window the order is the order of registration.)
- *
- * So a landing can be missed by both screens, and each case has its own answer here. A landing on
- * Step 1 is read off the URL when the screen goes away (`forgetOriginIfTheEditorHasBeenLeft`). A
- * landing on an older-language editor entry, while the customer is answering, is read by the screen
- * that mounts on it, one tick later (the `catchUp` timer below — a timer so that StrictMode's
- * discarded first run is cleared before it can act, and the traversal is never made twice).
+ * Next's `popstate` listener runs first and, for a traversal that changes the language or route, renders and
+ * commits inside its call (measured in Chrome): the listening screen unmounts and its replacement's listener is
+ * added mid-dispatch, and the DOM delivers an event only to listeners present when dispatch began (a `capture`
+ * listener does not help). So a landing can be missed by both screens: Step 1 is read off the URL when the screen
+ * goes away (`forgetOriginIfTheEditorHasBeenLeft`); an older-language editor entry is read by the mounting screen
+ * a tick later (`catchUp`, a timer so StrictMode's discarded first run is cleared before it can act).
  */
 function usePopstateQuestion({
   isOwner,
@@ -343,10 +311,9 @@ function usePopstateQuestion({
 }
 
 /**
- * The editor going away for another page. A traversal to Step 1 unmounts this screen **before** it
- * delivers `popstate`, so the listener never sees that landing; the URL, which has already moved, is
- * what says so. Without it the next arrival at the editor — Forward from Step 1 — would still find a
- * guard on record and ask.
+ * The editor going away for another page. A traversal to Step 1 unmounts this screen before it delivers
+ * `popstate`, so the URL, which has already moved, is what says so; otherwise the next arrival at the editor
+ * (Forward from Step 1) would find a guard on record and ask.
  */
 function forgetOriginIfTheEditorHasBeenLeft(designId: DesignId | null): void {
   const isStillTheEditor =
