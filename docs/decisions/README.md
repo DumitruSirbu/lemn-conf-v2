@@ -156,6 +156,7 @@ when a record you rely on is marked superseded below, or when planning (architec
 | [0133](0133-the-first-server-rendered-frame-is-the-loaded-design-and-no-module-store-is-written-on-the-server.md) | The first server-rendered frame is the loaded design, and no module store is written on the server | Accepted (security review owed at U7 S0) |
 | [0134](0134-a-u-gets-no-step-one-suggestion-of-its-own-and-the-straight-kitchen-suggestion-keeps-its-shape-independent-gate.md) | A U gets no Step 1 suggestion of its own, and the straight-kitchen suggestion keeps its shape-independent gate | Accepted |
 | [0135](0135-the-corner-pieces-stand-on-the-runs-lines-and-the-base-return-is-a-base-body-with-a-fixed-front.md) | The corner pieces stand on the run's lines, and the base return is a base body with a fixed front | Accepted (S1 `c4eeea6`, S2 `48bbc0c`) |
+| [0136](0136-code-and-test-comments-carry-only-what-nothing-else-can-and-history-lives-in-the-records.md) | Code and test comments carry only what nothing else can, and history lives in the records | Accepted |
 
 ## Adding the next one
 
