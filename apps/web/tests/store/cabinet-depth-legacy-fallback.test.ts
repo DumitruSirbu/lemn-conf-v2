@@ -280,72 +280,13 @@ describe("a depth the fallback could never have produced is kept", () => {
 });
 
 describe("hasFullHeightUnder feeds both ceilings, and keeping more is a theorem", () => {
-  // **Re-authored after ADR 0080 amendment A and C.** The earlier form asserted decision 4's original
-  // sentence — *"it can only ever make this rule keep more"* — which was **false** as the rule was
-  // then written: the falling direction was considered and the rising one was not, and an inserted
-  // full-height body overlapping a member-less slot raises the ceiling 400 → 700, swallows a legacy
-  // 620 and follows the setting down to 600. QA found it; the operator was the cause.
-  //
-  // With the corrected **equality** the sentence is a theorem rather than a claim, and it is derived
-  // rather than sampled: a reading that flipped between the freeze and now makes the comparison
-  // *fail*, and a failed comparison routes to the surplus arm, which returns `max(column.d, newM)`.
-  // Both directions are asserted below, on the arithmetic rather than on a scenario, because the
-  // rising one needs a body inserted across a column boundary to reach in a fixture.
-  /** The one action on the shipped fixture that raises the predicate on a column holding no
-   *  full-height member of its own: `A|1.30` is 800 mm wide and `tall-pantry` is `widthFlex: "fit"`,
-   *  so the inserted body spans 1300–2100 and overlaps `A|2.00`'s 2000–2600 column.
-   *  `isFullHeightUnder` is asked of every full-height record on the wall by overlap, not by
-   *  membership — which is what makes the rising direction reachable at all. */
-  function withAPantryStandingOverTheBaseSlot(): Store {
-    const store = removeAll(createStore(), [
-      "p0",
-      "p11",
-      "p17",
-      ...BASE_MEMBERS,
-    ]);
-    const opening = store
-      .getState()
-      .voids.find((record) => record.col === "A|1.30");
-    if (!opening) throw new Error("no opening in the cleared sink run");
-    store.getState().select({ kind: "void", id: opening.id });
-    store.getState().insert("tall-pantry");
-    expect(store.getState().lastRejection, "insert tall-pantry").toBeNull();
-    return store;
-  }
-
-  // **The rising direction, end to end through the store.** A legacy 400 — a depth the capped arm
-  // produced — under a column that now reads full-height. The freeze-time ceiling is 600, not 400, so
-  // the equality fails, the surplus arm answers, and its MAX *deepens* the extent rather than
-  // following the setting down. Deeper, never shallower.
-  //
-  // This assertion used to recompute the rule in the test and compare it with itself, which could not
-  // fail. It drives `setCabinetDepth` now, so a defect in `frozenDepthAtThisSetting` turns it red.
-  it("deepens rather than follows when the predicate rose since the freeze", () => {
-    const store = asLegacyDocument(
-      withAPantryStandingOverTheBaseSlot(),
-      (entry) =>
-        entry.wall === "A" && entry.alongMm === 2000
-          ? { ...entry, depthMm: 400 }
-          : entry,
-    );
-    const raised = columnOf(store, BASE_KEY);
-
-    setDepth(store, DEEPER_MM);
-
-    // The premise, measured rather than assumed. The predicate really did rise; 400 really is a depth
-    // the **capped** arm produces, so it is a plausible previous answer of this rule; and it is not
-    // the ceiling the *risen* predicate gives at the setting being left, so the equality fails and
-    // the surplus arm is the one that answers.
-    expect(raised.hasFullHeightUnder).toBe(true);
-    expect(raised.d).toBeCloseTo(ceilingM(DEEPER_MM, false), 9);
-    expect(ceilingM(DEFAULT_CABINET_DEPTH_MM, true)).not.toBeCloseTo(
-      raised.d,
-      9,
-    );
-    // And the answer: the MAX with the new ceiling, which is deeper than what it was carrying.
-    expect(depthMOf(store, BASE_KEY)).toBeCloseTo(ceilingM(DEEPER_MM, true), 9);
-    expect(depthMOf(store, BASE_KEY)).toBeGreaterThan(raised.d);
-  });
+  // **Re-authored after ADR 0080 amendment A and C.** With the corrected **equality** decision 4's sentence —
+  // *"it can only ever make this rule keep more"* — is a theorem rather than a claim: a reading that flipped
+  // between the freeze and now makes the comparison *fail*, and a failed comparison routes to the surplus arm,
+  // which returns `max(column.d, newM)`. The falling direction is driven end to end below. The rising one
+  // (a member-less column whose predicate turns true) has an empty population since M7C wave C7 corrected the
+  // overlap, so it is a declared witness in the domain package (`frozen-map-declared-witnesses.test.ts`, ADR
+  // 0123), and `qa-6k-j-fallback-rule.adversarial.test.ts` pins that no product path reaches it.
 
   // **The falling direction, end to end through the store.** Clearing `B|1.80` deletes its full-height
   // pantry, the freeze-time ceiling drops 600 → 330, the frozen 600 is no longer this rule's own

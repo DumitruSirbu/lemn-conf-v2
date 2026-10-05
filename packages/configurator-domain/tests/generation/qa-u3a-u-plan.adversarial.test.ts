@@ -17,6 +17,7 @@ import {
 import { asBeforeAdr0135 } from "../support/before-adr-0135.js";
 import { withTheCornerUnitPutBack } from "../support/before-c2-corner-unit.js";
 import { withTheTopRowTakenOff } from "../support/before-c3-top-row.js";
+import { withTheOldOverlapPutBack } from "../support/before-c7-span-overlap.js";
 import { createFakeProbeFactory } from "../support/fake-probe.js";
 import {
   DIGEST_OCCURRED_AT,
@@ -41,6 +42,10 @@ const DIGEST_AFTER_C2 =
  *  `DIGEST_AFTER_C2` from today's output with those bodies taken off. */
 const DIGEST_AFTER_C3 =
   "78c7bc964d5cdcef2866169400156ecf37d62638cf847c5923aa1de6db70d973";
+/** The recording as M7C wave C7 restated it: a wall-row or top-row cabinet beside a full-height member
+ *  takes the wall depth (seat 291), where the centre-read overlap built it deep (561). */
+const DIGEST_AFTER_C7 =
+  "de301e0538427c1f800e067417ca3c10585b56738fa1b1770dfc8bffb3322382";
 /** The recording as U3a took it, before ADR 0135. ADR 0135 moved the base return's centre, width and
  *  recorded column depth and the X-leg's recorded column depth (`support/before-adr-0135.ts` names
  *  each); the sweep below reproduces this value from today's output with exactly those fields put
@@ -323,59 +328,48 @@ describe("the fridge wall never carries a drawer unit (owner, 2026-09-29)", () =
 });
 
 describe("the L, the mirrored L and the straight kitchen are byte-identical to the pre-wave tree (U3a AC4)", () => {
-  it("reproduces the recorded digest over 933 generated kitchens (restated by ADR 0135, M7C waves C2 and C3)", () => {
+  const generated = (room: unknown) =>
+    generateKitchen({
+      room: room as DesignRoom,
+      occurredAt: DIGEST_OCCURRED_AT,
+      probeAt: createFakeProbeFactory(),
+    });
+
+  it("reproduces the recorded digest over 933 generated kitchens (restated by ADR 0135, M7C waves C2, C3 and C7)", () => {
+    expect(digestGeneratedKitchens(generated)).toBe(DIGEST_AFTER_C7);
+  });
+
+  it("differs from the C3 recording only by the seat of cabinets beside a full-height member", () => {
     const digest = digestGeneratedKitchens((room) =>
-      generateKitchen({
-        room: room as DesignRoom,
-        occurredAt: DIGEST_OCCURRED_AT,
-        probeAt: createFakeProbeFactory(),
-      }),
+      withTheOldOverlapPutBack(generated(room)),
     );
 
     expect(digest).toBe(DIGEST_AFTER_C3);
   });
 
-  it("differs from the C2 recording only by the top row's cabinets, steps and commands", () => {
+  it("differs from the C2 recording only by the top row's cabinets, steps and commands, and that seat", () => {
     const digest = digestGeneratedKitchens((room) =>
-      withTheTopRowTakenOff(
-        generateKitchen({
-          room: room as DesignRoom,
-          occurredAt: DIGEST_OCCURRED_AT,
-          probeAt: createFakeProbeFactory(),
-        }),
-      ),
+      withTheTopRowTakenOff(withTheOldOverlapPutBack(generated(room))),
     );
 
     expect(digest).toBe(DIGEST_AFTER_C2);
   });
 
-  it("differs from the ADR 0135 recording only by the corner wall unit and the strips it covers", () => {
+  it("differs from the ADR 0135 recording only by the corner wall unit and the strips it covers, and the above", () => {
     const digest = digestGeneratedKitchens((room) =>
       withTheCornerUnitPutBack(
-        withTheTopRowTakenOff(
-          generateKitchen({
-            room: room as DesignRoom,
-            occurredAt: DIGEST_OCCURRED_AT,
-            probeAt: createFakeProbeFactory(),
-          }),
-        ),
+        withTheTopRowTakenOff(withTheOldOverlapPutBack(generated(room))),
       ),
     );
 
     expect(digest).toBe(DIGEST_AFTER_ADR_0135);
   });
 
-  it("differs from the pre-wave recording only by the fields ADR 0135 and the corner unit moved", () => {
+  it("differs from the pre-wave recording only by the fields ADR 0135 and the corner unit moved, and the above", () => {
     const digest = digestGeneratedKitchens((room) =>
       asBeforeAdr0135(
         withTheCornerUnitPutBack(
-          withTheTopRowTakenOff(
-            generateKitchen({
-              room: room as DesignRoom,
-              occurredAt: DIGEST_OCCURRED_AT,
-              probeAt: createFakeProbeFactory(),
-            }),
-          ),
+          withTheTopRowTakenOff(withTheOldOverlapPutBack(generated(room))),
         ),
       ),
     );

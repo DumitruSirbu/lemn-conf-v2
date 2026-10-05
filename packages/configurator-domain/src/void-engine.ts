@@ -1536,11 +1536,15 @@ export function overlapsAlongWall(
   record: PlacementRecord,
   column: ColumnExtent,
 ): boolean {
-  const recordStart = alongWallCoordinate(record.wall, record.frame);
-  const columnStart = alongWallCoordinate(column.wall, column);
+  // `alongWallCoordinate` is a body's **centre** (`frame.x` is the transform's position), so each run's
+  // span is its centre less and plus half its width. Reading a centre as a start made a 700 fridge and
+  // the 600 column beside it overlap by 50 mm, and a narrow column over the low end of a wider tall member
+  // read as clear of it (M7-FB-013).
+  const recordCentre = alongWallCoordinate(record.wall, record.frame);
+  const columnCentre = alongWallCoordinate(column.wall, column);
   const overlap =
-    Math.min(recordStart + record.frame.w, columnStart + column.w) -
-    Math.max(recordStart, columnStart);
+    Math.min(recordCentre + record.frame.w / 2, columnCentre + column.w / 2) -
+    Math.max(recordCentre - record.frame.w / 2, columnCentre - column.w / 2);
   return overlap > SPAN_EPSILON_M;
 }
 

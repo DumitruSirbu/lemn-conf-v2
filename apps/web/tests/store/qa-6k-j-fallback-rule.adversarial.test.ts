@@ -253,10 +253,8 @@ describe("the surplus predicate's own boundary", () => {
 // =================================================================================================
 
 describe("hasFullHeightUnder feeds both ceilings, and the asymmetry runs both ways", () => {
-  /** The one action on the shipped fixture that puts a full-height member over a column that holds
-   *  none of its own: `A|1.30` is 800 mm wide, `tall-pantry` is `widthFlex: "fit"`, so the inserted
-   *  body spans 1300–2100 and overlaps `A|2.00`'s 2000–2600 column. `isFullHeightUnder` is asked of
-   *  every full-height record on the wall by overlap, not of the column's own membership. */
+  /** A `tall-pantry` inserted into the cleared sink run `A|1.30`, which is 800 mm wide: the pantry fills it,
+   *  [900, 1700], and only ABUTS the 600 mm dishwasher slot `A|2.00`, [1700, 2300]. */
   function withAPantryStandingOverTheDishwasherSlot(): Store {
     const store = removeAll(createStore(), [...SINK_MEMBERS, ...BASE_MEMBERS]);
     const opening = store
@@ -269,11 +267,26 @@ describe("hasFullHeightUnder feeds both ceilings, and the asymmetry runs both wa
     return store;
   }
 
-  it("turns the predicate true on a member-less neighbouring column", () => {
+  // **The population pin** (ADR 0123). The two tests that used to follow this one drove a member-less column whose
+  // predicate is TRUE through a depth change, by this very fixture. Under the corrected overlap the state is not
+  // reachable here — the pantry's span [900, 1700] meets the slot's [1700, 2300] at a point — so those cases are
+  // declared witnesses in the domain package (`frozen-map-declared-witnesses.test.ts`) and this pins the
+  // population as empty. It goes red if a later change makes the state reachable again, and the scenario tests
+  // then come back.
+  it("leaves the member-less dishwasher slot beside an inserted pantry reading false, the spans abutting", () => {
     const store = withAPantryStandingOverTheDishwasherSlot();
+    const pantry = store
+      .getState()
+      .design.placements.find(
+        (placement) => placement.body.buildId === "tall-pantry",
+      );
+    const slot = columnOf(store, BASE_KEY);
 
-    // The premise every assertion below rests on, measured rather than assumed.
-    expect(columnOf(store, BASE_KEY).hasFullHeightUnder).toBe(true);
+    expect(pantry && pantry.alongMm - pantry.body.widthMm / 2).toBe(900);
+    expect(pantry && pantry.alongMm + pantry.body.widthMm / 2).toBe(1700);
+    expect(slot.x * 1000 - (slot.w * 1000) / 2).toBeCloseTo(1700, 6);
+    expect(slot.x * 1000 + (slot.w * 1000) / 2).toBeCloseTo(2300, 6);
+    expect(slot.hasFullHeightUnder).toBe(false);
     expect(depthMmOf(store, BASE_KEY)).toBeCloseTo(620, 6);
     expect(
       store.getState().records.some((record) => record.col === BASE_KEY),
@@ -302,34 +315,15 @@ describe("hasFullHeightUnder feeds both ceilings, and the asymmetry runs both wa
     );
   });
 
-  // **The direction the wave says cannot happen.**
+  // **The control for the declared witnesses.** ADR 0080 decision 4 makes `hasFullHeightUnder` the live
+  // predicate, and says it can only ever make this rule keep more. The case that would test it, a full-height
+  // member over a member-less legacy slot, is not reached by inserting a pantry beside the slot: the pantry
+  // fills [900, 1700], the slot is [1700, 2300], the two abut, and the predicate reads false. That state is
+  // held by the declared witnesses in `packages/configurator-domain/tests/frozen-map-declared-witnesses.test.ts`
+  // (ADR 0123).
   //
-  // ADR 0080 decision 4: *"`hasFullHeightUnder` is the live predicate… It can only ever make this
-  // rule keep more"*, repeated verbatim in `apps/web/src/store/apply-command-result.ts:492-495`
-  // (*"the asymmetry it can produce runs one way only… which keeps more, never less"*), and carried
-  // into the wave's own acceptance criterion (*"so the rule keeps more, never less"*).
-  //
-  // It is false, and the counterexample needs no hand-built geometry — only a full-height body the
-  // customer inserted, standing over a legacy extent:
-  //
-  //   1. Clear the sink run and the dishwasher slot, insert `tall-pantry` into the sink run. Its
-  //      `widthFlex: "fit"` spans 1300-2100, so `A|2.00`'s member-less 620 mm slot now reports
-  //      `hasFullHeightUnder: true`.
-  //   2. Take the kitchen to 700 and save. **Under HEAD the frozen number crosses untouched** —
-  //      ADR 0080's own measurement says so in as many words: *"`A|2.00` reads 620 in a 700 mm
-  //      kitchen"* — and no `depthFromBuildId` is written, because that field is wave 6K-c's.
-  //   3. Load that document here and take the kitchen back to 600.
-  //
-  // The live `true` raises the freeze-time ceiling from 400 to **700**, so a 620 that was a surplus
-  // at every `false` ceiling is read as this rule's own previous answer and follows the setting to
-  // `columnBuildDepthM(600, true)` = **600**. ADR 0073 decision 3 as 6K-c shipped it answers
-  // `max(620, 600)` = **620**. The rule kept 20 mm **less**, which is the freed opening ADR 0011
-  // Gap D holds and the harm decision 2 refuses option O2 for, arriving on the axis decision 4
-  // declared closed.
-  // The control for the finding below, and the half of it that passes: **the same document without
-  // the pantry** keeps its 620 at both settings, because with `hasFullHeightUnder: false` the
-  // freeze-time ceiling is 400 and 620 is a surplus. So the only thing that changes the answer is
-  // the live predicate, which is what makes the next test a statement about the asymmetry.
+  // Here the same legacy 620 with nothing full-height over it keeps at both settings: the predicate is false,
+  // so the freeze-time ceiling is 400 and 620 is a surplus.
   it("keeps a legacy 620 at both settings when nothing full-height stands over it", () => {
     const atSevenHundred = setDepth(
       removeAll(createStore(), [...SINK_MEMBERS, ...BASE_MEMBERS]),
@@ -346,64 +340,6 @@ describe("hasFullHeightUnder feeds both ceilings, and the asymmetry runs both wa
 
     expect(depthMmOf(legacy, BASE_KEY)).toBeCloseTo(620, 6);
   });
-
-  it("keeps less when a full-height member stands over a legacy extent", () => {
-    const atSevenHundred = setDepth(
-      withAPantryStandingOverTheDishwasherSlot(),
-      DEEPER_MM,
-    );
-    // HEAD's document: the frozen number carried verbatim across the setting change, no source.
-    const legacy = asLegacyDocument(atSevenHundred, (entry) =>
-      entry.wall === "A" && entry.alongMm === 2000
-        ? { ...entry, depthMm: 620 }
-        : entry,
-    );
-    const frozen = columnOf(legacy, BASE_KEY);
-    expect(frozen.hasFullHeightUnder).toBe(true);
-    expect(frozen.d * 1000).toBeCloseTo(620, 6);
-
-    setDepth(legacy, DEFAULT_CABINET_DEPTH_MM);
-
-    expect(depthMmOf(legacy, BASE_KEY)).toBeCloseTo(
-      sixKcFallbackMm(620, ceilingMm(DEFAULT_CABINET_DEPTH_MM, true)),
-      6,
-    );
-  });
-
-  // The same sweep, re-authored to the corrected boundary (ADR 0080 amendment C and I). It stated the
-  // defect as a property — *every* legacy depth up to the 700 ceiling collapsing to 600 under a
-  // full-height member — and that is exactly what the equality ends: only a depth **on** the ceiling
-  // it is leaving is this rule's own previous answer, so `700` follows the setting to 600 and every
-  // other depth in the range is a surplus and is kept, deeper-only.
-  //
-  // The range still spans both sides of both ceilings, so the assertion covers the shapes the old one
-  // did and asserts more of them: 500 through 699 flipped from "collapses to 600" to "is kept".
-  propertyTest.prop([fc.integer({ min: 500, max: 800 })])(
-    "follows the setting only from the ceiling it is leaving, under a full-height member",
-    (frozenMm) => {
-      const atSevenHundred = setDepth(
-        withAPantryStandingOverTheDishwasherSlot(),
-        DEEPER_MM,
-      );
-      const legacy = asLegacyDocument(atSevenHundred, (entry) =>
-        entry.wall === "A" && entry.alongMm === 2000
-          ? { ...entry, depthMm: frozenMm }
-          : entry,
-      );
-      expect(columnOf(legacy, BASE_KEY).hasFullHeightUnder).toBe(true);
-
-      setDepth(legacy, DEFAULT_CABINET_DEPTH_MM);
-
-      const expectedMm =
-        frozenMm === ceilingMm(DEEPER_MM, true)
-          ? ceilingMm(DEFAULT_CABINET_DEPTH_MM, true)
-          : sixKcFallbackMm(
-              frozenMm,
-              ceilingMm(DEFAULT_CABINET_DEPTH_MM, true),
-            );
-      expect(depthMmOf(legacy, BASE_KEY)).toBeCloseTo(expectedMm, 6);
-    },
-  );
 });
 
 // =================================================================================================

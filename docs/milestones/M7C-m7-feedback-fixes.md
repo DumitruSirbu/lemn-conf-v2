@@ -1050,6 +1050,50 @@ editor after inserting a wall cabinet beside the fridge; a narrow cabinet over t
 *QA reading:* the criteria, S0's scripts. *Logic reviewer:* ADR 0101, 0103, 0058, the diff.
 *Clean-code reviewer:* the diff. *Visual:* the captures.
 
+**C7 S1 as built, and one adjudication (2026-10-02).** The predicate compares spans; the siblings were
+already span-correct; census: 7,764 L and 1,404 straight rooms change, no U; every move is a seat
+561 → 291; no capped body became lifted; findings, verdicts and column extents identical; one digest
+restated (`qa-u3a`).
+
+**Four `apps/web` tests fail and are a test-fidelity problem, not a defect and not dead code.**
+`cabinet-depth-legacy-fallback.test.ts` (*deepens rather than follows when the predicate rose since the
+freeze*) and `qa-6k-j-fallback-rule.adversarial.test.ts` (*turns the predicate true on a member-less
+neighbouring column*; *keeps less when a full-height member stands over a legacy extent*; the property
+*follows the setting only from the ceiling it is leaving*). Their fixture inserts a pantry into `A|1.30`
+and says it *"spans 1300–2100 and overlaps `A|2.00`"*. It fills 900–1700 and abuts 1700–2300: the
+fixture's comment makes the same centre-as-start reading as the bug, and the state it built existed
+only through the bug.
+- **What they guard is ADR 0080 Amendments A and C:** the legacy fallback compares for *equality* with
+  the ceiling of the setting being left, so a predicate that flipped since the freeze routes to the
+  surplus arm. That rule has no branch of its own for the rising direction; the same arm serves the
+  falling direction, which is still reachable and still tested (*keeps a 600 mm extent whose
+  full-height member was deleted*). **Nothing is retired.**
+- **The rising direction's population is empty** under the corrected predicate: a full-height member
+  fills its own column, and a member-less column of another key does not overlap it. The developer's
+  document-edited overlaps were dropped on a legacy load or refused on a depth change. [inf from
+  source and those trials; the pin below makes it self-checking.]
+- **Ruling: ADR 0123 applies.** A ruled behaviour whose population empties keeps its rule and converts
+  its coverage to a declared witness.
+
+*Added to S1's dispatch (tests only; no production file; the tier does not change):*
+1. *deepens rather than follows…*, *keeps less when…* and the property *follows the setting only…*
+   become **declared witnesses** in the domain package: `frozenMapAtCabinetDepth` called with a
+   constructed member-less `Column` literal carrying `hasFullHeightUnder: true`, the same legacy depths
+   (400; the property's 500–800), and **the same assertions with the same numbers**. Each says in its
+   name and its header that the state is constructed and why no product path reaches it.
+2. *turns the predicate true on a member-less neighbouring column* asserted the premise. It becomes
+   the **population pin**: on the shipped kitchen, a pantry inserted into `A|1.30` leaves `A|2.00`'s
+   `hasFullHeightUnder` **false**, with both spans stated in millimetres. If a later change makes that
+   state reachable again, this turns red and the scenario tests come back.
+3. The two fixtures' comments are corrected: 900–1700 and 1700–2300.
+*Criteria added.* (a) No assertion is weaker than the one it replaces: each witness asserts the value
+its scenario test asserted. (b) Sabotage (R6): restoring Amendment A's pre-correction operator in
+`frozenDepthAtThisSetting` turns the witnesses red; restoring the centre-as-start predicate turns the
+population pin red. (c) The falling-direction scenario tests are untouched and green.
+*Files:* the two web test files; one new domain test file. *Reading added:* ADR 0080 Amendments A and
+C; ADR 0123; `frozen-map-at-cabinet-depth.ts` `frozenDepthAtThisSetting`. *For the scribe:* a dated
+pointer in ADR 0080 that the rising direction is held by a declared witness since C7.
+
 ### C5 — the leftover beside a fixed-width end body (domain)
 
 Q6 answered: absorb under 300 mm.
