@@ -1,22 +1,14 @@
-// **Where a kitchen's sink extras go** — one record per sink, each naming the wall cabinet its dish
-// drying rack hangs in, or naming none.
+// Where a kitchen's sink extras go: one record per sink, each naming the wall cabinet its dish drying
+// rack hangs in, or none. ADR 0070 decision 4 gives a sink base an aluminium cover, always present at the
+// sink's own position, and a drying rack whose position this module derives.
 //
-// ADR 0070 decision 4 gives a sink base two extras: an aluminium protective cover, always present,
-// and a drying rack above it. **The cover's position is the sink's own; the rack's is derived**, and
-// deriving it is this module's whole content.
+// A sink is a declared catalogue fact, never recognised here (ADR 0092 decision 9): this module asks
+// `declaresASink` and nothing else, not a `kind` (`base-sink` is `base_cabinet`), a build-id prefix, or
+// an equivalent-id comparison.
 //
-// **A sink is a declared catalogue fact and is never recognised here** (ADR 0092 decision 9). This
-// module asks `declaresASink` and nothing else — not a `kind`, since `base-sink` declares
-// `base_cabinet` like every other base body; not a build-id prefix, since the seeded row is spelled
-// `base-sink-800` and the next one need not be; and not an equivalent-id comparison, which is a rule
-// keyed on a list of literal ids rather than on the property.
-//
-// **It locates; it does not price.** No amount, rate or rule appears here and none may — the two
-// amounts are the book's (`pricing/price-book.ts`), and a count of positions is a fact about bodies
-// rather than about money, which is why this sits beside the other queries and not under `pricing/`
-// (the split ADR 0092 decision 4 keeps for `hardware-mechanisms.ts`).
-//
-// I/O-free and rendering-free: a pure function of the projection and the catalogue.
+// It locates; it does not price: no amount, rate or rule appears here (the amounts are the book's,
+// `pricing/price-book.ts`). It sits beside the other queries, not under `pricing/`, because a count of
+// positions is a fact about bodies. I/O-free and rendering-free.
 import {
   doorLeafCount,
   frontPopulationQueryFor,
@@ -27,31 +19,23 @@ import { declaresASink, type BodyCatalog } from "../void-engine.js";
 
 import type { DisplayEntry } from "./design-projection.js";
 
-/** One sink, and where its rack goes.
- *
- *  **One record per sink placement, never one per kitchen** (owner, 2026-09-04): two sinks answer
- *  two records even where both resolve to the same wall cabinet, so both the cover and the rack are
- *  billed twice. De-duplication was the recommendation on record and the owner ruled against it. */
+/** One sink, and where its rack goes. One record per sink placement, never per kitchen: two sinks answer
+ *  two records even where both resolve to the same wall cabinet, so cover and rack are billed twice
+ *  (ADR 0092 decision 10). */
 export interface SinkAccessoryPositions {
   readonly sinkPlacementId: string;
-  /** The wall cabinet this sink's rack hangs in. **Absent, never a placeholder id**, where no wall
-   *  cabinet stands over the sink: a rack that has nowhere to hang is a line the customer must not
-   *  be shown at all, and an amount of zero would render *inclus* — a rack they are not getting,
-   *  described as included. */
+  /** The wall cabinet this sink's rack hangs in. Absent, never a placeholder id, where none stands over the
+   *  sink: a rack with nowhere to hang must not be shown, and an amount of zero would render *inclus* for
+   *  a rack they are not getting. */
   readonly rackHostPlacementId?: string;
 }
 
 /**
- * Every sink this design holds, in the projection's order, each with the wall cabinet its rack
- * resolved to.
- *
- * Takes the **projection's** entries, which already carry the wall, the normalised band, the
- * along-wall centre, the floor and the width this needs — so nothing here re-derives a position and
- * nothing here sorts.
- *
- * A body the catalogue does not hold declares no sink and hosts no rack. That is a real answer
- * rather than a refusal, and it silently prices nothing: `priceDesign` refuses an uncataloged body
- * whole, before any line exists.
+ * Every sink this design holds, in the projection's order, each with the wall cabinet its rack resolved
+ * to. Takes the projection's entries, which already carry the wall, normalised band, along-wall centre,
+ * floor and width, so nothing re-derives a position or sorts. A body the catalogue does not hold declares
+ * no sink and hosts no rack: an answer, not a refusal, and it silently prices nothing because
+ * `priceDesign` refuses an uncataloged body whole.
  */
 export function findSinkAccessories(
   entries: readonly DisplayEntry[],
@@ -62,9 +46,7 @@ export function findSinkAccessories(
     .map((sink) => describeSinkAccessories({ sink, catalog }, entries));
 }
 
-/** The sink whose rack is being placed, and the catalogue the candidates' declarations are read
- *  from. Named rather than passed positionally so the sink and the design it is searched in stay
- *  the two arguments a reader has to hold. */
+/** The sink whose rack is being placed and the catalogue the candidates' declarations are read from. */
 interface RackHostSearch {
   readonly sink: DisplayEntry;
   readonly catalog: BodyCatalog;
@@ -82,18 +64,13 @@ function describeSinkAccessories(
 }
 
 /**
- * **The lowest wall-band body, on the same wall, that declares at least one door leaf and whose
- * along-wall extent strictly overlaps the sink's** (ADR 0070 decision 4, read by ADR 0092
- * decision 10).
+ * The lowest wall-band body on the same wall that declares at least one door leaf and whose along-wall
+ * extent strictly overlaps the sink's (ADR 0070 decision 4, read by ADR 0092 decision 10).
  *
- * The **tie-break is part of the rule**, because *"the lowest"* is not by itself a function — two
- * wall cabinets can sit at one `y0` over one sink. In order: lowest `y0Mm`, then the larger overlap,
- * then the **projection's** order, which is what `entries` arrives in. Never the `placements`
- * array's order, which is persistence order and reorders under editing.
- *
- * Scanning in the projection's order and replacing only on a **strictly** better candidate is what
- * makes the third key the projection's: an equal candidate later in the list never displaces the one
- * already held.
+ * The tie-break is part of the rule, since two wall cabinets can sit at one `y0` over one sink. In order:
+ * lowest `y0Mm`, larger overlap, then the projection's order (never the `placements` array's, which is
+ * persistence order and reorders under editing). Replacing only on a strictly better candidate is what
+ * makes the third key the projection's.
  */
 function rackHostFor(
   search: RackHostSearch,
@@ -109,9 +86,8 @@ function rackHostFor(
   return best?.entry;
 }
 
-/** A body that could hold this sink's rack, with the overlap the tie-break reads. The overlap is
- *  carried rather than recomputed at the comparison, so the number that admitted a candidate and the
- *  number that ranks it are the same number. */
+/** A body that could hold this sink's rack, with the overlap the tie-break reads, carried so the number
+ *  that admitted a candidate is the one that ranks it. */
 interface RackHostCandidate {
   readonly entry: DisplayEntry;
   readonly overlapMm: number;
@@ -123,28 +99,21 @@ function rackHostCandidateFor(
 ): RackHostCandidate | undefined {
   if (!canHangARack(search, entry)) return undefined;
   const overlapMm = overlapLengthMm(search.sink, entry);
-  // **Touching is not overlapping.** The seeded `open-shelf-600` begins exactly where the sink ends,
-  // so a `>= 0` reading would admit it, tie it with the wall cabinet at the same `y0`, and hang a
-  // drying rack in an open shelf.
+  // Touching is not overlapping: the seeded `open-shelf-600` begins exactly where the sink ends, so a
+  // `>= 0` reading would admit it and hang a drying rack in an open shelf.
   if (overlapMm <= NO_OVERLAP_MM) return undefined;
   return { entry, overlapMm };
 }
 
-/** A positive-length intersection is an overlap; anything else is not. Named so the strictness of
- *  the boundary is a statement rather than a comparison operator somebody has to notice. */
+/** A positive-length intersection is an overlap; anything else is not. */
 const NO_OVERLAP_MM = 0;
 
 /**
- * Whether this body is the kind of thing a rack hangs in at all.
- *
- * **The band is the projection's normalised one and must be.** `top` folds into `wall` through
- * `normaliseBand` (ADR 0011 Gap C), so the top box over the seeded sink is a legitimate candidate —
- * just not the lowest. A predicate written against `rawBand` reads identically on the seeded design
- * and is wrong the moment a kitchen's only overlapping body is a `top` row.
- *
- * **And it must declare a door leaf.** This narrows ADR 0070's word *"cabinet"* from *any wall-band
- * body* to *a wall-band body with a door*, for a physical reason: a drying rack hangs inside a closed
- * cabinet, and `hood` and `open-shelf` are wall-band bodies with nowhere to hang it.
+ * Whether this body is the kind of thing a rack hangs in. The band is the projection's normalised one:
+ * `top` folds into `wall` through `normaliseBand` (ADR 0011 Gap C), so a top box is a candidate, just not
+ * the lowest; a predicate on `rawBand` would be wrong once a kitchen's only overlapping body is a `top`
+ * row. It must also declare a door leaf: a rack hangs inside a closed cabinet, and `hood` and
+ * `open-shelf` have nowhere to hang it.
  */
 function canHangARack(search: RackHostSearch, entry: DisplayEntry): boolean {
   return (
@@ -154,8 +123,7 @@ function canHangARack(search: RackHostSearch, entry: DisplayEntry): boolean {
   );
 }
 
-/** How many millimetres of wall the two bodies share. Negative where they miss each other entirely,
- *  which the caller reads as no overlap rather than as a distance. */
+/** Millimetres of wall the two bodies share; negative where they miss, which the caller reads as no overlap. */
 function overlapLengthMm(left: DisplayEntry, right: DisplayEntry): number {
   return (
     Math.min(endOfMm(left), endOfMm(right)) -
@@ -163,7 +131,7 @@ function overlapLengthMm(left: DisplayEntry, right: DisplayEntry): number {
   );
 }
 
-/** `alongMm` is the body's **centre** along the wall, so its span reaches half its width each way. */
+/** `alongMm` is the body's centre along the wall, so its span reaches half its width each way. */
 function startOfMm(entry: DisplayEntry): number {
   return entry.alongMm - entry.widthMm / 2;
 }
@@ -173,18 +141,10 @@ function endOfMm(entry: DisplayEntry): number {
 }
 
 /**
- * Whether this body declares a door leaf — the question, and not *"how many leaves can be read off
- * it"*.
- *
- * A row whose front declaration cannot be read has declared no door leaf, so it is not a host. That
- * is not the read-a-missing-declaration-as-zero failure `front-population.ts` refuses: no price is
- * silently zeroed by it, because a document holding such a body is refused **whole** by
- * `priceDesign` — `countHardwareMechanisms` raises the same two causes over every entry before any
- * line is published. What this answers is only which cabinet an already-priceable kitchen's rack
- * hangs in.
- *
- * The two declared causes are the only ones caught; anything else is a defect in this repository
- * rather than a fact about the kitchen, and leaves as itself.
+ * Whether this body declares a door leaf. A row whose front declaration cannot be read declares none, so it
+ * is not a host. That does not silently zero a price: `priceDesign` refuses a document holding such a body
+ * whole (`countHardwareMechanisms` raises the same two causes before any line is published). Only those two
+ * declared causes are caught; anything else is a defect and leaves as itself.
  */
 function declaresADoorLeaf(entry: DisplayEntry, catalog: BodyCatalog): boolean {
   try {
@@ -211,13 +171,12 @@ function refuseUnreadableFrontsAsNoDoorLeaf(error: unknown): boolean {
   throw error;
 }
 
-/** A body the catalogue does not hold declares no fronts. Stated as a value rather than left to a
- *  `?.` so the absent-entry case reaches the same refusal the undeclared one does, which is the
- *  shape `hardware-mechanisms.ts` keeps for the same reason. */
+/** A body the catalogue does not hold declares no fronts: a value, not a `?.`, so an absent entry reaches the
+ *  same refusal as an undeclared one (as in `hardware-mechanisms.ts`). */
 const DECLARES_NOTHING = {};
 
-/** Whether the first candidate outranks the second, on the three keys in order. Strict, so equal
- *  candidates leave the incumbent standing and the projection's order decides. */
+/** Whether the first candidate outranks the second on the three keys in order. Strict, so equal candidates
+ *  leave the incumbent standing and the projection's order decides. */
 function isBetterRackHost(
   candidate: RackHostCandidate,
   incumbent: RackHostCandidate,

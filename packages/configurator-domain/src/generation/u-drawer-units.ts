@@ -35,27 +35,22 @@ import {
   type UTallLayoutResult,
 } from "./u-tall-layout.js";
 
-/** ADR 0108 H2 (RQ1's own default): the owner-approved U's floor on wall A — 2700 mm — and on each
- *  side wall — 1000 mm, the narrowest corner's own reach (`corner-assembly-size.ts`'s proof that B
- *  and C share it). Not yet stated anywhere else as a named figure: `APPROVED_ROOM_POLICY` gains the
- *  U's own bounds at U6, so this is the one place `T_min` is assembled from the owner's own three
- *  numbers rather than restated as `4700` directly (ADR 0102). */
+/** The owner-approved U's floor: wall A 2700 mm and each side wall 1000 mm (the narrowest corner's reach,
+ *  `corner-assembly-size.ts`), so `T_min` is assembled from the three figures and not restated as 4700
+ *  (ADR 0108 H2). */
 const APPROVED_U_FLOOR_MM = { wallA: 2700, sideWall: 1000 } as const;
 
-/** *N3 revised* 1's own `T_min`: the smallest total run an approved U can have, which is what
- *  *N3 revised* 6's *"beyond the minimum"* means. */
+/** The smallest total run an approved U can have: what "beyond the minimum" means in the drawer target. */
 const DRAWER_TARGET_T_MIN_MM =
   APPROVED_U_FLOOR_MM.wallA + 2 * APPROVED_U_FLOOR_MM.sideWall;
 
-/** *N3 revised* 6 (RQ6, RQ10): every U gets 3 drawer units, one more for each 2000 mm of entered run
- *  beyond `T_min`, up to 5. */
+/** Every U gets 3 drawer units, one more for each 2000 mm of entered run beyond `T_min`, up to 5. */
 const MIN_DRAWER_UNITS = 3;
 const MAX_DRAWER_UNITS = 5;
 const DRAWER_UNIT_STEP_MM = 2000;
 
-/** *N3 revised* 6: `N(T) = min(5, 3 + floor(max(0, T − T_min) / 2000))`, over the three **entered**
- *  lengths — the same key *N3 revised* 1's large-U threshold and *N3 revised* 2's fridge-wall choice
- *  both read. */
+/** `N(T) = min(5, 3 + floor(max(0, T − T_min) / 2000))` over the three entered lengths, the key the
+ *  large-U threshold and the fridge-wall choice also read (ADR 0110 Amendment N, N3 revised 6). */
 function drawerTargetFor(room: DesignRoom): number {
   const surplusMm = Math.max(0, enteredTotalMm(room) - DRAWER_TARGET_T_MIN_MM);
   return Math.min(
@@ -79,20 +74,16 @@ function isPlainDoorBase(base: UPlannedGenerationBase): boolean {
   return base.role === "storage" && base.buildId === DOOR_BASE_BUILD_ID;
 }
 
-/** The most pan drawers (`PAN_DRAWER_BASE_BUILD_ID`) a room gets, whatever its size: the owner's own
- *  table, *"if 4+ 2 - pan drawers"* (ADR 0110 *N3 revised* 6, RQ18 (b)). */
+/** The most pan drawers (`PAN_DRAWER_BASE_BUILD_ID`) a room gets, whatever its size. */
 const MAX_PAN_DRAWER_COUNT = 2;
 
-/** The drawer-cabinet count from which the owner's split leaves room for a second pan drawer. */
+/** The drawer-cabinet count from which the split leaves room for a second pan drawer. */
 const TWO_PAN_DRAWER_MIN_CABINET_COUNT = 4;
 
-/** *N3 revised* 6's own split of the extra drawer units — how many are pan drawers, the rest being
- *  three-drawers. It is keyed on the drawer cabinets the room **actually gets** (the preparation
- *  cabinet plus the extras that found a door slot), not on its size-derived drawer target (owner,
- *  RQ19 (a), 2026-09-29: *"yes when 3 drawer cabinets need to be placed 1 is pan and 2 are 3 drawers
- *  cabinet"*). Three cabinets are 1 pan drawer and 2 three-drawers (the preparation plus one extra);
- *  four or more are 2 pan drawers. Below three the RQ18 table stands: pan drawers are kept first,
- *  so a lone extra is a pan drawer. */
+/** How many of the extra drawer units are pan drawers, the rest being three-drawers. Keyed on the drawer
+ *  cabinets the room actually gets (the preparation cabinet plus the extras that found a door slot), not on
+ *  its size-derived target: three cabinets are 1 pan drawer and 2 three-drawers, four or more are 2 pan
+ *  drawers, and below three pan drawers are kept first, so a lone extra is a pan drawer. */
 function panDrawerCountFor(args: {
   readonly extraCount: number;
   readonly hasPreparation: boolean;
@@ -104,14 +95,12 @@ function panDrawerCountFor(args: {
   return Math.min(extraCount, panbankCap);
 }
 
-/** *N3 revised* 6, RQ18 (a), N10.3 step 4: the extra drawer units are never confined to wall A —
- *  they take door slots **in run order**, continuing round the far corner onto the far wall's own
- *  door bases where wall A's own fill runs out — and they always stand **before the tower**: a slot
- *  after the first tall column is never converted. Applied once the whole plan's bases are known,
- *  because the far wall's own bases are `u-tall-layout.ts`'s output, not the composer's. The fridge
- *  wall is never a candidate: it stands before the sink in run order (*N3 revised* 6's own
- *  adjudication). `extraCount` is what the run after the hob was found able to hold; that
- *  capacity-limited number is what `panDrawerCountFor` splits (RQ19 (a)). */
+/** The extra drawer units are never confined to wall A: they take door slots in run order, continuing
+ *  round the far corner onto the far wall's own door bases, and always stand before the tower (a slot after
+ *  the first tall column is never converted). Applied once the whole plan's bases are known, since the far
+ *  wall's bases are `u-tall-layout.ts`'s output. The fridge wall is never a candidate: it stands before
+ *  the sink in run order. `extraCount` is what the run after the hob was found able to hold, and that
+ *  capacity-limited number is what `panDrawerCountFor` splits. see ADR 0110 Amendment N, N10.3 step 4 */
 export function withDrawerUnitsAfterTheHob(
   bases: readonly UPlannedGenerationBase[],
   args: {
@@ -160,10 +149,9 @@ function drawerSlotIds(
     .map((base) => base.id);
 }
 
-/** The plan's own bases, in the run's reading order (*N3 revised* 5's own direction): wall A read
- *  from whichever corner the fridge wall shares with it, then the far wall from its own corner — the
- *  same direction `wallALaneFromTheFridgeCorner` reads a *lane* in, restated over already-placed
- *  bases rather than an offset still being packed. */
+/** The plan's bases in the run's reading order: wall A read from whichever corner the fridge wall shares
+ *  with it, then the far wall from its own corner (the direction `wallALaneFromTheFridgeCorner` reads a
+ *  lane in, over already-placed bases). */
 function runOrderedBases(
   bases: readonly UPlannedGenerationBase[],
   wallADirection: WallAReadingDirection,
@@ -174,8 +162,8 @@ function runOrderedBases(
   return [...aInRunOrder, ...basesAlongWall(bases, farWall)];
 }
 
-/** What the far wall keeps, whatever stands before its tower: N10.3 steps 2 and 3. Read off the
- *  layout with nothing added. */
+/** What the far wall keeps whatever stands before its tower (N10.3 steps 2 and 3), read off the layout
+ *  with nothing added. */
 interface FarWallKeeps {
   readonly hasTower: boolean;
   readonly pantryCount: number;
@@ -297,14 +285,13 @@ interface RunAfterTheHobProblem {
   readonly freeAfterTheHobMm: number;
 }
 
-/** The single step deciding whether the bottle stays. It stays only where it costs no drawer unit the
- *  owner protects (ADR 0110 N10.3 step 5 (iii), N11.2):
- *  - the room keeps at least the drawer count it would have without the bottle (RQ21, owner
- *    2026-09-29: a drawer cabinet outranks the bottle), and
- *  - the hob's wall is not emptied of drawers by it: where, without the bottle, the wall holds a drawer
- *    unit after the hob and with it holds none, the drawer takes the place (owner, N11.2: *"if is
- *    exactly 600 drawer should have priority"*). Where the bottle leaves the wall one drawer or more,
- *    the bottle stays with the drawers after it (owner, RQ23: *"Bottle + drawers"*).
+/** The single step deciding whether the bottle stays: only where it costs no drawer unit the owner
+ *  protects (ADR 0110 N10.3 step 5 (iii), N11.2):
+ *  - the room keeps at least the drawer count it would have without the bottle (a drawer cabinet
+ *    outranks the bottle), and
+ *  - the hob's wall is not emptied of drawers by it: where the wall holds a drawer unit after the hob
+ *    without the bottle and none with it, the drawer takes the place; where the bottle leaves the wall
+ *    one drawer or more, the bottle stays with the drawers after it.
  *  To lift either rule, change this function alone. */
 function bottleCostsNoDrawerUnit(args: {
   readonly withBottle: RunAfterTheHob;

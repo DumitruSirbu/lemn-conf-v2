@@ -1,27 +1,19 @@
-// **The three materials a kitchen is built from, the palette each one offers, and the two kinds of
-// thing a finish is.** ADR 0071, owner 2026-09-04.
+// The three materials a kitchen is built from, the palette each offers, and the two kinds of thing a
+// finish is (ADR 0071).
 //
-// **Only material carries price** (ADR 0071 decision 1). Nothing in this module is a price input,
-// and nothing under `pricing/` may import it — `pricing-seams.test.ts` asserts the import graph, and
-// `finish-never-prices.test.ts` asserts the behaviour the graph is protecting.
+// Only material carries price. Nothing in this module is a price input, and nothing under `pricing/` may
+// import it (`pricing-seams.test.ts` asserts the import graph).
 //
-// **A material id *is* the price book's material tier id**, deliberately. The domain imports no book
-// (ADR 0062 seam 1), so nothing here can ask whether a tier exists; what it can do is refuse to keep
-// a second list. `DesignSettings.materialTierId` already stores exactly these strings, so a
-// declared material and a priced tier are one identifier and not two that agree — ADR 0028's
-// failure one seam over, which is what `material-tiers.test.ts` composes a book to falsify in both
-// directions.
+// A material id is the price book's material tier id: the domain imports no book (ADR 0062 seam 1), so it
+// cannot ask whether a tier exists, but `DesignSettings.materialTierId` stores exactly these strings, so
+// there is one identifier and not two that agree.
 //
-// **Colour is a reference, not a specification.** The owner's words: the real colour is chosen after
-// measurements, so a palette entry renders its human name and nothing else. That name is a
-// `finish.*` catalogue leaf resolved by the app and keyed on `entryId` (ADR 0095, wave 6B-f2) rather
-// than a Romanian string declared here. The supplier code below is internal provenance — what a
-// decor is ordered as — and no surface presents it as a code a customer picks from.
+// Colour is a reference, not a specification: a palette entry's name is a `finish.*` catalogue leaf the app
+// resolves from `entryId` (ADR 0095), never a string declared here. The supplier code is internal
+// provenance and no surface presents it as a code a customer picks from.
 import { z } from "zod";
 
-/** The three materials, **price-ordered**: PAL (melamine) < MDF (painted) < veneer (natural wood
- *  over MDF). The order is the declaration — a reader asking which is dearer reads this list, and
- *  `material-tiers.test.ts` holds the shipped book's amounts to it. */
+/** The three materials in price order: PAL (melamine) < MDF (painted) < veneer (natural wood over MDF). */
 export const MATERIAL_IDS = [
   "material.melamine",
   "material.painted-mdf",
@@ -29,15 +21,13 @@ export const MATERIAL_IDS = [
 ] as const;
 export type MaterialId = (typeof MATERIAL_IDS)[number];
 
-/** The material an unset design wears, and the material a legacy document is deemed to carry.
- *  PAL, ruled 2026-09-04 for both the priced baseline and the delta basis — the same id
- *  `sample-price-book.ts` declares as its own `material.defaultTierId`. */
+/** The material an unset design wears and a legacy document is deemed to carry: PAL, also the id
+ *  `sample-price-book.ts` declares as its `material.defaultTierId`. */
 export const DEFAULT_MATERIAL_ID: MaterialId = "material.melamine";
 
-/** Every palette entry this product declares, across all three materials.
- *
- *  **Ids are namespaced by material** because a decor and a veneer are different things that may
- *  share a wood's name — PAL's *Nuc Warmia Maro* is a printed decor, veneer's *Nuc* is walnut. */
+/** Every palette entry this product declares, across all three materials. Ids are namespaced by material
+ *  because a decor and a veneer may share a wood's name (PAL's *Nuc Warmia Maro* is printed, veneer's *Nuc*
+ *  is walnut). */
 export const PALETTE_ENTRY_IDS = [
   "pal.alb",
   "pal.stejar-bardolino",
@@ -52,17 +42,13 @@ export type PaletteEntryId = (typeof PALETTE_ENTRY_IDS)[number];
 
 const PaletteEntryIdSchema = z.enum(PALETTE_ENTRY_IDS);
 
-/** **How settled a decor's supplier code is.** Required per entry, so a seventh decor cannot be
- *  added without stating which it is (ADR 0071 decision 4), and the two states are never presented
- *  as equally settled. */
+/** How settled a decor's supplier code is. Required per entry, so a new decor cannot be added without
+ *  stating which, and the two states are never presented as equally settled (ADR 0071 decision 4). */
 export const DECOR_CODE_CONFIDENCES = ["confirmed", "unverified"] as const;
 export type DecorCodeConfidence = (typeof DECOR_CODE_CONFIDENCES)[number];
 
-/** What a palette entry is ordered as, when it is ordered as anything.
- *
- *  A discriminated declaration rather than an optional string: a natural wood has no manufacturer's
- *  decor code, and `undefined` would read the same as *"nobody has filled this in yet"* — which is
- *  the one distinction ADR 0071 decision 4 exists to keep. */
+/** What a palette entry is ordered as, when it is ordered as anything. Discriminated, not an optional
+ *  string: a natural wood has no decor code, and `undefined` would read as "nobody has filled this in yet". */
 export type SupplierDecorCode =
   | {
       readonly kind: "catalogue";
@@ -74,32 +60,27 @@ export type SupplierDecorCode =
 /** A wood is not a manufacturer's decor, so it has no code — stated rather than left absent. */
 export const NOT_A_MANUFACTURED_DECOR: SupplierDecorCode = { kind: "none" };
 
-/** Read from a supplier catalogue on 2026-09-04. */
+/** Read from a supplier catalogue. */
 export function confirmedDecorCode(code: string): SupplierDecorCode {
   return { kind: "catalogue", code, confidence: "confirmed" };
 }
 
-/** Named in ADR 0071 decision 4 but **not** confirmed against a supplier stock list. */
+/** Not confirmed against a supplier stock list. */
 export function unverifiedDecorCode(code: string): SupplierDecorCode {
   return { kind: "catalogue", code, confidence: "unverified" };
 }
 
-/** One entry a customer can pick by name.
- *
- *  **The name it is picked by is not here.** `entryId` is the descriptor a surface resolves through
- *  the app's catalogue — the `finish.*` leaves, one per id — which is ADR 0095's rule that the domain
- *  publishes codes and never sentences. It used to carry the Romanian word itself, and that word
- *  reached a `/ru` customer unresolved. */
+/** One entry a customer can pick by name. The name is not here: `entryId` is the descriptor the app
+ *  resolves through its `finish.*` leaves (the domain publishes codes, never sentences). */
 export interface PaletteEntry {
   readonly entryId: PaletteEntryId;
   /** Internal provenance, never rendered as a code a customer chooses from. */
   readonly supplierCode: SupplierDecorCode;
 }
 
-/** **The shape of the control, declared** (ADR 0071 decision 3) — three different controls reading
- *  one setting, not one control with three option sets. Declared rather than inferred from how many
- *  entries a material offers: two swatches and a list of two are the same array and different
- *  products. */
+/** The shape of the control, declared (ADR 0071 decision 3): three different controls reading one setting.
+ *  Declared, not inferred from the entry count: two swatches and a list of two are the same array and
+ *  different products. */
 export type ColourControl =
   | { readonly shape: "decor-list"; readonly entries: readonly PaletteEntry[] }
   | { readonly shape: "ral-picker" }
@@ -109,26 +90,16 @@ export type ColourControl =
     };
 
 /**
- * **A finish is two kinds of thing, and the kind is declared.**
+ * A finish is a palette entry named by its id (a PAL decor, a veneer wood) or a free colour value (MDF's
+ * RAL pick); there is no third kind. The discriminant is `kind` and nothing else: a hex-looking value is
+ * not thereby a free colour, and a palette id is not recognised by failing to parse as one.
  *
- * Either a palette entry named by its id — a PAL decor, a veneer wood — or a free colour value, the
- * pick MDF's RAL control produces. There is no third kind.
+ * A free colour is validated here, at the one gate the API write seam and `migrateDesign` both pass
+ * through. It is the first free-form value a customer authors that a document carries, so a malformed one
+ * is refused, never defaulted or nudged to a nearby colour; the exact pattern also caps the length.
  *
- * **The discriminant is `kind` and nothing else.** A value that looks like a hex code is not thereby
- * a free colour, and a palette id is not recognised by failing to parse as one: the shipped enum's
- * five strings were exactly the shape that made "read the string and guess" look workable, and it is
- * how a decor named after a colour would eventually be painted instead of ordered.
- *
- * **A free colour is bounded and validated here**, at the one gate both the API write seam and
- * `migrateDesign` pass through. It is the first free-form value a customer authors that a document
- * has ever carried — every other identifier in `DesignSchema` is a value the product chose — so a
- * malformed one is **refused**, never defaulted and never nudged into a nearby colour. The pattern
- * caps the length as a side effect of being exact.
- *
- * **A palette id is closed against the declaration above.** An id no material offers is not a
- * document written under a superseded rule (ADR 0052's case, which is normalised); it is a value
- * this product has never written. If an entry is ever retired, that wave brings its own migration,
- * exactly as wave 6P brings one for the five values it retires.
+ * A palette id is closed against the declaration above: an id no material offers is a value this product
+ * never wrote. Retiring an entry brings its own migration.
  */
 export const FREE_COLOUR_PATTERN = /^#[0-9a-fA-F]{6}$/;
 
@@ -145,9 +116,8 @@ export const FinishSchema = z.discriminatedUnion("kind", [
 ]);
 export type Finish = z.infer<typeof FinishSchema>;
 
-/** Thrown rather than returned, and named after the operation: a colour that does not parse is a
- *  programming error at every seam inside this package, and a refusal at the schema everywhere
- *  else. */
+/** Thrown, not returned: a colour that does not parse is a programming error at every seam inside this
+ *  package, and a refusal at the schema everywhere else. */
 export class MalformedColourValueError extends Error {
   constructor(value: string) {
     super(`"${value}" is not a six-digit hex colour and is not a finish`);
@@ -166,8 +136,7 @@ export function freeColourFinish(value: string): Finish {
   return { kind: "free-colour", value };
 }
 
-/** Two finishes are the same finish when they are the same kind naming the same thing. Value
- *  equality, because a finish is data a document carries and never an object a caller holds on to. */
+/** Value equality: the same kind naming the same thing. */
 export function sameFinish(one: Finish, other: Finish): boolean {
   if (one.kind === "palette-entry" && other.kind === "palette-entry") {
     return one.entryId === other.entryId;
@@ -182,14 +151,13 @@ export function sameFinish(one: Finish, other: Finish): boolean {
 export interface Material {
   readonly materialId: MaterialId;
   readonly colourControl: ColourControl;
-  /** **ADR 0057's reset target**, ruled 2026-09-04 in ADR 0071's amendment: Alb for PAL, white for
-   *  MDF, Stejar for veneer. The value a cabinet's finish resolves to when this material does not
-   *  offer what it is wearing. */
+  /** The reset target (ADR 0057): Alb for PAL, white for MDF, Stejar for veneer. The value a cabinet's
+   *  finish resolves to when this material does not offer what it is wearing. */
   readonly defaultFinish: Finish;
 }
 
-/** PAL's six factory decors, ADR 0071 decision 4. PAL arrives pre-manufactured — there is no
- *  colouring step — so only what the manufacturer makes can be offered. */
+/** PAL's six factory decors (ADR 0071 decision 4): PAL arrives pre-manufactured, so only what the
+ *  manufacturer makes can be offered. */
 const PAL_DECORS: readonly PaletteEntry[] = [
   {
     entryId: "pal.alb",
@@ -217,7 +185,7 @@ const PAL_DECORS: readonly PaletteEntry[] = [
   },
 ];
 
-/** Veneer's two woods, ADR 0071 decision 3. */
+/** Veneer's two woods (ADR 0071 decision 3). */
 const VENEER_WOODS: readonly PaletteEntry[] = [
   {
     entryId: "veneer.stejar",
@@ -229,10 +197,8 @@ const VENEER_WOODS: readonly PaletteEntry[] = [
   },
 ];
 
-/** **The white MDF is painted by default.** A free colour like every other MDF pick, and the white
- *  this product already draws — `finishes.ts` in `@lemnaria/three-adapter` has rendered exactly this
- *  value since M1 — so the default is a colour the customer has seen rather than one invented at the
- *  declaration. Which RAL white a customer lands on is theirs to pick, in wave 6R's control. */
+/** The default MDF colour: a free colour like every other MDF pick, equal to the white `finishes.ts` in
+ *  `@lemnaria/three-adapter` has always drawn, so the default is one the customer has seen. */
 const MDF_DEFAULT_COLOUR = "#eceeeb";
 
 /** The three materials, in the price order `MATERIAL_IDS` declares. */
@@ -254,36 +220,26 @@ export const MATERIALS: readonly Material[] = [
   },
 ];
 
-/** Every entry any material offers, in material order. The generator a sweep over "any legal
- *  palette finish" reads, so a sweep cannot quietly miss a material's palette. */
+/** Every entry any material offers, in material order: what a sweep over "any legal palette finish" reads. */
 export const PALETTE_ENTRIES: readonly PaletteEntry[] = MATERIALS.flatMap(
   (material) => paletteEntriesOf(material),
 );
 
-/** What a material offers to pick from. **A RAL picker offers no entries**, and that is an answer
- *  rather than a missing list — the empty array is the Special Case, so no caller needs a null
- *  check to ask what MDF's decors are. */
+/** What a material offers to pick from. A RAL picker offers no entries: the empty array is an answer, so
+ *  no caller needs a null check to ask what MDF's decors are. */
 export function paletteEntriesOf(material: Material): readonly PaletteEntry[] {
   return material.colourControl.shape === "ral-picker"
     ? []
     : material.colourControl.entries;
 }
 
-/** **Whether a material offers a finish**, ADR 0078 decision 1 — the one query the reset rule, the
- *  command guard and both of wave 6Q-b's seams read, so *"does not offer"* is decided in one place.
+/** Whether a material offers a finish: the one query the reset rule, the command guard and both load
+ *  seams read, so "does not offer" is decided in one place (ADR 0078 decision 1).
  *
- *  **It asks the control's declared `shape` and never counts entries.** ADR 0071 decision 3's own
- *  reason: two swatches and a list of two are the same array and different products, so a query that
- *  branched on `entries.length` would answer for the wrong product the day veneer gains a third wood.
- *
- *  **A RAL picker offers every free colour `FinishSchema` admits, and no palette entry at all.**
- *  ADR 0071 declares MDF's *control* to be a picker and declares no RAL set; narrowing the offer to a
- *  table nobody has authored would reset colours a customer chose. The list half is
- *  `paletteEntriesOf`'s, not restated here — two lists of what PAL offers is ADR 0028's failure one
- *  seam over.
- *
- *  **Absence is not asked about.** A body wearing no finish has no finish to be offered (ADR 0078
- *  decision 5), so it never reaches this query and nothing here invents one for it. */
+ *  It asks the control's declared `shape` and never counts entries (a veneer gaining a third wood must not
+ *  change the answer's product). A RAL picker offers every free colour `FinishSchema` admits and no palette
+ *  entry: no RAL set is declared, and narrowing to a table nobody authored would reset colours a customer
+ *  chose. Absence is not asked about: a body wearing no finish never reaches this query. */
 export function materialOffersFinish(
   material: Material,
   finish: Finish,
@@ -304,34 +260,27 @@ export class UnknownMaterialError extends Error {
   }
 }
 
-/** The material a declared id names. Throws rather than returning `undefined`, because a caller
- *  reaching this holds an id from this module's own declaration — the reset target and the three
- *  defaults. **A caller holding a stored id wants `lookUpMaterial` below**, which answers instead of
- *  throwing. */
+/** The material a declared id names. Throws, because a caller holds an id from this module's own
+ *  declaration. A caller holding a stored id wants `lookUpMaterial` below, which answers instead. */
 export function materialById(materialId: string): Material {
   const lookup = lookUpMaterial(materialId);
   if (lookup.kind === "undeclared") throw new UnknownMaterialError(materialId);
   return lookup.material;
 }
 
-/** What a stored `materialTierId` resolves to when nobody may throw. The discriminated shape is
- *  `SupplierDecorCode`'s, one declaration up: *"this product declares no material for that id"* is an
- *  answer, and a bare `undefined` reads as an oversight instead. */
+/** What a stored `materialTierId` resolves to when nobody may throw: "no material for that id" is an
+ *  answer, where a bare `undefined` would read as an oversight. */
 export type MaterialLookup =
   | { readonly kind: "declared"; readonly material: Material }
   | { readonly kind: "undeclared" };
 
-/** The Special Case an undeclared id resolves to, so no caller writes the literal twice. */
+/** What an undeclared id resolves to, so no caller writes the literal twice. */
 export const UNDECLARED_MATERIAL: MaterialLookup = { kind: "undeclared" };
 
-/** **The total lookup, for the load paths** (ADR 0078 decision 3). `DesignSettingsSchema` validates
- *  `materialTierId` for shape only — the domain imports no price book (ADR 0062 seam 1) — so a stored
- *  id naming no declared material is a reachable state and not a programming error. It must keep
- *  loading, which is what wave 6G's recovery path stands on (ADR 0072).
- *
- *  **A material this product does not declare makes no offer**, so a caller holding
- *  `{ kind: "undeclared" }` corrects nothing and refuses nothing. Use `materialById` only where the
- *  id came from this module's own declaration. */
+/** The total lookup, for the load paths (ADR 0078 decision 3). `DesignSettingsSchema` validates
+ *  `materialTierId` for shape only (the domain imports no price book), so a stored id naming no declared
+ *  material is reachable and must keep loading. An undeclared material makes no offer, so a caller holding
+ *  `{ kind: "undeclared" }` corrects nothing and refuses nothing. */
 export function lookUpMaterial(materialId: string): MaterialLookup {
   const material = MATERIALS.find(
     (candidate) => candidate.materialId === materialId,
@@ -339,14 +288,13 @@ export function lookUpMaterial(materialId: string): MaterialLookup {
   return material ? { kind: "declared", material } : UNDECLARED_MATERIAL;
 }
 
-/** The finish a design wearing nothing is deemed to wear, and the finish wave 6P's migration resets
- *  a legacy value to: **PAL's default, *Alb***. */
+/** The finish a design wearing nothing is deemed to wear, and the one a legacy value resets to: PAL's
+ *  default, *Alb*. */
 export const DEFAULT_FINISH: Finish =
   materialById(DEFAULT_MATERIAL_ID).defaultFinish;
 
-/** **The five finishes the shipped enum offered.** The migration's input alphabet: a stored value is
- *  one of these or it is not a legacy finish at all. Until wave 6R it was also the list the panel's
- *  five chips and the adapter's five keys were built from; both now read the declared palette. */
+/** The five finishes the legacy enum offered: the migration's input alphabet. A stored value is one of
+ *  these or it is not a legacy finish at all. */
 export const LEGACY_ENUM_FINISH_NAMES = [
   "white",
   "clay",
@@ -357,28 +305,13 @@ export const LEGACY_ENUM_FINISH_NAMES = [
 export type LegacyEnumFinishName = (typeof LEGACY_ENUM_FINISH_NAMES)[number];
 
 /**
- * **What each of the shipped enum's five names is, expressed in the shape that replaced it.**
- *
- * It began as a wave 6P bridge for the two hand-written copies of that enum — `panel-model.ts`'s
- * chips and `finishes.ts`'s `FinishKey`. **Wave 6R deleted both**, and this table stayed, because
- * two readers of it are not bridges: `migrateDesign` needs it to meet a document written under the
- * old enum, and `/internal/scene-shot` needs it because the M1 reference's own preset shots are
- * keyed by those five names and the reference did not change.
- *
- * **The migration reads this table rather than replacing it**, and reads exactly one thing off each
- * row: its `kind`. `white`, `graphite` and `oak` are palette entries, so a stored document keeps the
- * colour it was wearing — direct palette mappings, per the wave's criterion. *Lut* and *Salvie* have
- * no palette entry to map to, so those two reset to PAL's *Alb* (`DEFAULT_FINISH`).
- *
- * **The owner's ruling of 2026-09-04 is scoped by its own title to those two**, and its subject is a
- * price rather than a colour: deeming a document to be MDF because it wears paint would move a
- * design onto a dearer tier the customer never chose, on a link they have already shared. Read as
- * "every legacy value resets", it renders an anthracite kitchen white — a loss the ruling never
- * asked for. That is what this comment said until 2026-09-04 and what `replaceOneEnumFinish` did.
- *
- * *Lut* and *Salvie* are free colours because ADR 0071 decision 5 narrows them out of every
- * palette — they are paint and nothing else, which is why they are the two the migration cannot
- * carry forward. The two hex values are the ones the adapter has drawn since M1.
+ * What each of the legacy enum's five names is, in the shape that replaced it. Read by `migrateDesign`
+ * (which meets documents written under the old enum) and by `/internal/scene-shot` (the M1 reference's
+ * preset shots are keyed by those names). The migration reads only each row's `kind`: `white`, `graphite`
+ * and `oak` are palette entries, so a stored document keeps its colour, while *Lut* and *Salvie* are free
+ * colours (ADR 0071 decision 5 narrows them out of every palette) and reset to PAL's *Alb*
+ * (`DEFAULT_FINISH`); deeming a painted document MDF would move it onto a dearer tier the customer never
+ * chose. The two hex values are the ones the adapter has always drawn.
  */
 export const LEGACY_ENUM_FINISHES: Readonly<
   Record<LegacyEnumFinishName, Finish>
@@ -390,8 +323,8 @@ export const LEGACY_ENUM_FINISHES: Readonly<
   oak: paletteFinish("pal.stejar-bardolino"),
 };
 
-/** Whether a stored value is one of the five the enum shipped with. Asked of a raw document before
- *  it is parsed, so it takes `unknown` rather than a string. */
+/** Whether a stored value is one of the five the enum shipped with; asked of a raw document before it is
+ *  parsed, so it takes `unknown`. */
 export function isLegacyEnumFinishName(
   value: unknown,
 ): value is LegacyEnumFinishName {

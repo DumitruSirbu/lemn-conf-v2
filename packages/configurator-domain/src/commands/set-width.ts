@@ -1,33 +1,13 @@
-// ADR 0031 — a resize moves a **whole column**, and adjacent **empty space** funds it.
+// ADR 0031: a resize moves a whole column, and an adjacent empty column funds it (superseding
+// DEVELOPMENT-SPEC §5.4's donor rule). Selecting any body resizes every member of its column at every
+// level; growing narrows the empty column beside it, shrinking widens it, and the run total is
+// conserved. Every member's centre moves by the same amount, so no body leaves its column (see
+// `rederiveTouchedColumns` in `void-engine.ts`).
 //
-// This supersedes `DEVELOPMENT-SPEC.md` §5.4's donor rule in full. §5.4 took the whole delta from a
-// neighbouring cabinet in the same row; that rule shipped, and produced two reachable resizes in the
-// entire kitchen, because the donor's residue had to land on a legal width of its own. Every defect
-// it needed patching for is downstream of a resize **shrinking a cabinet nobody selected**.
-//
-// So there is no donor. Selecting any body resizes every member of its column, at every level, and
-// the width comes from an empty column immediately left or right on the same wall: growing narrows
-// it, shrinking widens it, and the run total is conserved either way.
-//
-// Every member's centre moves by the same amount, which is exactly why the rule fits §3.2's model —
-// no body leaves the column it is in, so the only column identity that moves is the whole column's
-// and the empty one's. See `rederiveTouchedColumns` in `void-engine.ts` for that half.
-//
-// ADR 0035 amends that rule in two places, both of them here.
-//
-// **Decision 6 — a column is one width at every level, except the hood.** A column whose members
-// stand at different widths used to refuse; it is now *squared up*, every member brought to the
-// requested width. The hood is exempt in both directions: it is sized to the cooktop it extracts
-// over rather than to the run it hangs on, so it neither narrows the column's widths nor takes
-// the new one — it keeps its own and re-centres over the run beneath it (ADR 0039 decision 4). It
-// stays an ordinary placement in its column while doing so; the exemption is from the width rule,
-// not from the model, and it is keyed off `EXTRACTOR_HOOD_KIND` rather than off any of the
-// standalone-accessory machinery ADR 0038 deleted.
-//
-// **Decision 7 — shrinking creates the empty space it needs.** ADR 0031 required an empty column to
-// already be there in both directions, whose recorded consequence was that nothing in the shipped
-// kitchen is resizable until something is deleted. A shrink now enters a new empty column at the
-// extent it vacates, so a customer can narrow one column and widen its neighbour afterwards.
+// ADR 0035 decision 6: a column is one width at every level, except the hood. The hood is sized to
+// its cooktop, so it keeps its own width and re-centres over the run beneath it (ADR 0039 decision 4);
+// it is exempt from the width rule, not from the model, and is keyed off `EXTRACTOR_HOOD_KIND`.
+// ADR 0035 decision 7: a shrink enters a new empty column at the extent it vacates.
 import { resolveBuildableSizes, resolveWidthRangesMm } from "../catalog.js";
 import type { Design, DesignPlacement } from "../design.js";
 import {
@@ -83,10 +63,9 @@ import type {
 
 export type { SetWidthInput } from "./width-resize-model.js";
 
-/** What `columnWidthCandidatesMm` needs, and deliberately less than `setWidth`: no width, no probe
- *  and no timestamp. Asking which widths exist builds nothing, so it cannot fail on a measurement
- *  and has nothing to stamp — and it never reads the frozen column map either, because a column's
- *  legal widths come from its members' catalogue rows rather than from its extent. */
+/** What `columnWidthChoices` needs, less than `setWidth`: asking which widths exist builds nothing, so
+ *  it needs no width, probe or timestamp, and never reads the frozen column map (a column's legal
+ *  widths come from its members' catalogue rows, not its extent). */
 export interface ColumnWidthChoicesInput {
   readonly design: Design;
   readonly catalog: BodyCatalog;
@@ -98,21 +77,12 @@ export interface ColumnWidthChoices {
   readonly currentWidthMm: number;
   /** Ascending, duplicate-free, and never empty — see `columnWidthChoices`. */
   readonly sizesMm: readonly number[];
-  /** What the column may be **built** within, as ADR 0035 decision 3's discriminator: a range with
-   *  `minMm < maxMm` means a stepper, every range a single width means a discrete choice.
-   *
-   *  Published because §9 was otherwise **inferring** it — reading two widths 50 apart out of
-   *  `sizesMm` and concluding the column was stepped. That is the shape of defect ADR 0022 records
-   *  (inferring identity priced a fridge housing as a pantry) and the one ADR 0035 decision 3 had to
-   *  be corrected for (`fixedWidth` is `false` on both discrete rows). The panel now reads the fact
-   *  the engine already computed. */
+  /** What the column may be built within, as ADR 0035 decision 3's discriminator: a range with
+   *  `minMm < maxMm` means a stepper, every range a single width means a discrete choice. Published so
+   *  §9 does not infer it from the spacing of `sizesMm`. */
   readonly widthRangesMm: readonly WidthRangeMm[];
-  /** The engine's own reason this body may not be resized at all, present exactly when there is
-   *  one (ADR 0049). §9 renders the section anyway — one `active` chip at the width the cabinet is
-   *  made at, carrying this sentence — rather than omitting it, because an unavailable thing is
-   *  shown disabled with its reason and never removed.
-   *
-   *  Absent on every resizable column, so a section that works carries no field nobody filled. */
+  /** The engine's own reason this body may not be resized, present exactly when there is one. §9 still
+   *  renders the section, with one `active` chip at the width the cabinet is made at. see ADR 0049 */
   readonly notResizable?: RejectionDetail;
 }
 
@@ -136,44 +106,22 @@ export function setWidth(input: SetWidthInput): SetWidthResult {
   return fundColumnResize(input, records, record, plan.value);
 }
 
-/** What §9's width section may render for this selection: the widths to offer a chip for, and the
- *  one the `active` chip sits on.
+/** What §9's width section may render for this selection: the widths to offer a chip for, and the one
+ *  the `active` chip sits on.
  *
- *  **The column's widths, not the selected body's** (ADR 0031 rule 1, and the over/under-offer this
- *  closes). `describeSelection` answers per body, because `meta` is a projection of one placement and
- *  knows nothing about what stands above or below it. ADR 0031 decides per column, so a panel that
- *  rendered `meta.sizesMm` offered widths the column refuses and hid widths it accepts — the same
- *  "two code paths answer one question" shape ADRs 0016, 0017 and 0029 each caught. The list comes
- *  from `intersectColumnWidths`, the very function `setWidth` narrows against.
+ *  Per column, not per selected body (ADR 0031 rule 1): the list comes from `intersectColumnWidths`, the
+ *  function `setWidth` narrows against, so the panel never offers a width the column refuses. Candidates
+ *  only: whether one is a legal move is `setWidth`'s answer (`queries/width-options.ts` asks it by
+ *  running the command).
  *
- *  This publishes **candidates only**. Whether any one of them is a legal move is `setWidth`'s
- *  answer and nobody else's — see `queries/width-options.ts`, which asks it by running the command.
- *  So a column that cannot be resized at all still produces chips: they are rendered disabled with
- *  the engine's own reason, which is ADR 0032's rule applied to the width section.
+ *  A column that cannot agree on a width (an unrebuildable member, or disjoint sets) falls back to the
+ *  selected body's own set. `undefined` (no section) only where that set is empty: missing catalogue data
+ *  must fail loudly, so the current width is folded into a set that exists and never conjures one
+ *  (FINDING R2.7, see ADR 0049).
  *
- *  **A column that cannot agree on a width still renders chips**, whichever way it fails to agree:
- *  a member that cannot be rebuilt at all, or members whose sets do not intersect. Both fall back to
- *  the selected body's own set, and every chip carries the command's own reason — the customer sees
- *  the widths their cabinet is made in and what is standing in the way of each. The **selected**
- *  body resolving no set is the one different answer — `undefined`, no section — because that is
- *  missing catalogue data rather than a fact about the column, and §9 does not offer a width control
- *  on a body with no width to change.
- *
- *  `undefined` where there is **nothing to choose from**, and that answer is load-bearing (FINDING
- *  R2.7): a body that resolves no set at all — a row whose `catalogEquivalentId` points nowhere,
- *  an entry whose declared floor excludes every member — gets
- *  no width section rather than a chipless one, so missing catalogue data fails loudly. The current
- *  width is folded into a set that exists; it never conjures one.
- *
- *  `currentWidthMm` is the **selected body's** width, and it is read here rather than inferred from
- *  a refusal code. §9 assumes exactly one `active` chip and puts the same number in the section's
- *  value label, so the `active` chip cannot be contingent on how far `setWidth` gets before it
- *  refuses — a column with an immovable member refuses every width, including the one it is
- *  standing at, and the section would then have no active chip at all.
- *
- *  A `widthFlex: 'fit'` body built to its opening can sit at a width no set contains — a
- *  `wall-2door` in a 700 mm opening — which is why it joins the list rather than being assumed to
- *  be in it. */
+ *  `currentWidthMm` is the selected body's width, read here and not inferred from a refusal code: §9
+ *  needs exactly one `active` chip even when `setWidth` refuses every width. A `widthFlex: 'fit'` body
+ *  can sit at a width no set contains (a `wall-2door` in a 700 mm opening), so it joins the list. */
 export function columnWidthChoices(
   input: ColumnWidthChoicesInput,
 ): ColumnWidthChoices | undefined {
@@ -182,50 +130,23 @@ export function columnWidthChoices(
   const record = records.find((candidate) => candidate.id === input.target.id);
   if (!record) return undefined;
 
-  // The selected body's own set is the floor of what may be rendered, and the **only** thing whose
-  // absence suppresses the section (FINDING R2.7). Resolved first, because everything below —
-  // including the refusal arm — is a narrowing of it: a row whose `catalogEquivalentId` points
-  // nowhere, or whose declared floor excludes every listed width, is missing catalogue data rather
-  // than a fact about a cabinet, and it keeps failing loudly as no section at all.
+  // The selected body's own set is the floor of what may be rendered and the only thing whose absence
+  // suppresses the section; resolved first because everything below narrows it.
   const declared = resolveBuildableSizes(input.catalog, record.buildId);
   if (declared.length === 0) return undefined;
 
-  // §9's `canWidth` read from the engine's end, and the same call `setWidth` opens with: a
-  // `fixedWidth` entry is made at one size, and a body with no §7 equivalent has nothing to be
-  // rebuilt through. Asked here so the answer has one author — of the refusal *and* of which fact
-  // caused it, which is what `NotResizableCause` publishes.
-  //
-  // **Which of the two causes refused has to be asked of the refusal, because nothing here can
-  // separate them** (QA 5B5 and this wave's logic review;
-  // `tests/queries/qa-5b5-fixed-width.adversarial.test.ts` → *an unfinished catalogue row is missing
-  // data, not a fixed-width cabinet*). The guard above tests the narrower condition:
-  // `resolveBuildableSizes` reads `sizesMm` alone, while `toInsertableBody` also requires `label`,
-  // `widthFlex` and `nominalHeightMm`, so an unfinished row — insertable, listing widths, missing
-  // one of those three — resolves a non-empty set and no rebuildable body. And `record.fixedWidth`
-  // does not separate them either: the two conditions are **not exclusive**, so a row that is both
-  // takes the flag's arm and names its `kind` string at the customer. Either mistake publishes
-  // missing catalogue data as a confident claim about a product, which is worse than the empty
-  // section criterion 4 was protecting against. Only a body the catalogue says is made at one width
-  // may say so, and only the refusal knows that.
-  //
-  // **ADR 0049: the refusal is published rather than swallowed.** This used to answer `undefined`
-  // for a `fixedWidth` body, on the reasoning that publishing chips for one "would leave §9's flag
-  // as the only thing standing between the customer and a section of dead controls." The owner
-  // overturned that on 2026-09-01: the controls are visibly disabled and carry the engine's own
-  // sentence, which is not the failure that reasoning anticipated and is what §13.1 and ADR 0032
-  // already require everywhere else. The silence is what read as a defect — a section that is not
-  // there tells the customer nothing, so they conclude the product is broken.
-  //
-  // `resolveResizableBody` is not loosened and `setWidth` is unchanged: this hands the panel a
-  // refusal it was already receiving and throwing away.
+  // §9's `canWidth` from the engine's end, the same call `setWidth` opens with, so the refusal and its
+  // cause have one author. The cause must be read off the refusal: `resolveBuildableSizes` reads
+  // `sizesMm` alone while `toInsertableBody` also needs `label`, `widthFlex` and `nominalHeightMm`, so an
+  // unfinished row resolves a set and no body, and `record.fixedWidth` cannot separate the two causes
+  // (they are not exclusive). Mistaking missing catalogue data for a fixed-width claim names a `kind`
+  // string at the customer. The refusal is published, not swallowed (ADR 0049).
   const selectedBody = resolveResizableBody(input.catalog, record);
   if (!selectedBody.ok) return describeFixedWidth(record, selectedBody.detail);
   const selected = toColumnMember(input.design, record, selectedBody.value);
   if (!selected) return undefined;
 
-  // The **hood-exempt** membership, exactly as `setWidth` computes it (ADR 0035 decision 6): a hood
-  // standing in this column narrows nothing, and a column that holds one is no longer a column that
-  // cannot agree on a width.
+  // The hood-exempt membership, as `setWidth` computes it (ADR 0035 decision 6): a hood narrows nothing.
   const split = splitColumnMembers(
     {
       design: input.design,
@@ -239,20 +160,10 @@ export function columnWidthChoices(
     ? intersectColumnWidths(input.catalog, split.value)
     : [];
   const intersectedRanges = split.ok ? intersectColumnRanges(split.value) : [];
-  // **An empty intersection is not "no set" — it is a fact about the column, and ADR 0032 says a
-  // fact about why this opening refuses gets rendered rather than dropped** (logic review L2).
-  //
-  // Two ways a column can fail to agree on a width, and they used to answer differently. A column
-  // holding an *unresizable* member fell back here and rendered the body's own widths, each blocked
-  // with `COLUMN_MEMBER_NOT_RESIZABLE` — which is right. A column whose members are all resizable
-  // but whose sets are **disjoint** returned `undefined`: no section, no sentence, and a
-  // `WIDTH_NOT_SUPPORTED` the engine had already computed thrown away. It used to be reachable in
-  // two inserts — a `base-bottle-cargo` (200/300) under a `hood` (600–800) — and it is reachable
-  // again: decision 6 took the hood out of the membership, and its 2026-08-29 amendment put it back
-  // as a **floor**, so a 600 mm hood over a 200/300 cargo agrees on nothing.
-  //
-  // So both fall back to the same place. What suppresses a section is missing catalogue data about
-  // the body itself, never a disagreement between bodies.
+  // An empty intersection is a fact about the column, not "no set": both ways a column can fail to agree
+  // (an unresizable member, or disjoint sets such as a 600 mm hood over a 200/300 cargo) fall back to the
+  // body's own widths, so the engine's refusal is still rendered. Only missing catalogue data about the
+  // body itself suppresses the section.
   const candidates = intersected.length > 0 ? intersected : declared;
 
   return {
@@ -260,13 +171,9 @@ export function columnWidthChoices(
     sizesMm: [...new Set([...candidates, record.widthMm])].sort(
       (left, right) => left - right,
     ),
-    // **The same fallback the widths take, on the same condition.** They were conditioned
-    // differently for one commit — the widths fell back on an empty intersection, the ranges on
-    // `!split.ok` — and a column can satisfy the second without the first. Measured on three taps
-    // from the shipped kitchen (delete `p2`, insert a bottle cargo under the hood, select `p19`):
-    // thirteen widths and no ranges, so §9 read "this column is a set", rendered a chip row, and put
-    // **twelve identical dashed chips** on screen carrying one sentence — the exact shape ADR 0032's
-    // arrangement and this wave's stepper exist to remove.
+    // The same fallback as the widths, on the same condition: ranges conditioned on `!split.ok` instead
+    // would leave a column with many widths and no ranges, rendering a row of identical chips instead
+    // of the stepper.
     widthRangesMm:
       intersectedRanges.length > 0
         ? intersectedRanges
@@ -274,29 +181,17 @@ export function columnWidthChoices(
   };
 }
 
-/** ADR 0049's fixed-width answer: the one width this cabinet is made at, and why it is the only one.
+/** ADR 0049's fixed-width answer: the one width this cabinet is made at. `undefined` for every other
+ *  refusal, tested on the refusal's own `cause` and not the record's flag: a row that is `fixedWidth`
+ *  and unfinished is missing catalogue data.
  *
- *  `undefined` for every other refusal, and the test is the refusal's **own** `cause` rather than
- *  the record's flag or any field of the entry: the two causes are not exclusive, and a row that is
- *  `fixedWidth` and unfinished at once is missing catalogue data whatever its flag says. That is not
- *  a second author for *"may this be resized"* — the refusal is still `resolveResizableBody`'s and
- *  is carried whole — it is that function's own answer to the narrower question, read here.
+ *  Must run after `columnWidthChoices`'s empty-set guard: a row with no buildable width must never
+ *  reach here, or a chip would be published at a width the catalogue cannot build. The column is not
+ *  consulted: a body that cannot be resized takes and gives no width.
  *
- *  **It depends on its caller having answered FINDING R2.7 first, and that ordering is
- *  load-bearing.** `columnWidthChoices` returns on an empty `resolveBuildableSizes` before it asks
- *  for a body, so a row that resolves no width set never reaches here at all. A second call site, or
- *  that guard moving below this one, would publish a chip at a width the catalogue cannot build and
- *  would break criterion 4 with every test still green.
- *
- *  The column is deliberately not consulted. A body that cannot be resized takes no width from its
- *  neighbours and gives none, so there is nothing for an intersection to narrow — and the number the
- *  customer is looking at is the width of the cabinet in front of them.
- *
- *  One degenerate range, so ADR 0035 decision 3's discriminator puts this on the discrete control
- *  with no new branch and no third width presentation. Built from the width rather than read off the
- *  row, because a row's own bound can disagree with it: `hood-600` is `fixedWidth` while the `hood`
- *  entry it is built through is bounded 600–800, and reading that bound would give a cabinet that
- *  cannot be resized a stepper with two buttons that can never move. */
+ *  One degenerate range puts it on the discrete control (ADR 0035 decision 3's discriminator). Built
+ *  from the width, not the row's bound: `hood-600` is `fixedWidth` while its `hood` entry is bounded
+ *  600–800, which would give an unresizable cabinet a stepper that can never move. */
 function describeFixedWidth(
   record: PlacementRecord,
   notResizable: RejectionDetail,
@@ -311,11 +206,10 @@ function describeFixedWidth(
   };
 }
 
-/** Everything ADR 0031 decides about the **column**, before anything is built and before a side is
- *  chosen: the selected body has a width to change, every member of its column can be rebuilt, and
- *  the requested width is in the intersection of their sets. **Flushness is not among them** — it
- *  was, and ADR 0035 decision 6 retired it: a mixed column is squared up rather than refused. Which side funds the move
- *  is `fundColumnResize`'s question, and it is a separate one (FINDING Q1.2). */
+/** ADR 0031's column checks, before anything is built and before a side is chosen: the selected body
+ *  has a width to change, every member can be rebuilt, and the width is in the intersection of their
+ *  sets. A mixed column is squared up, not refused (ADR 0035 decision 6). Which side funds the move is
+ *  `fundColumnResize`'s separate question. */
 function planColumnResize(
   input: SetWidthInput,
   records: readonly PlacementRecord[],
@@ -355,33 +249,20 @@ function planColumnResize(
   return { ok: true, value: { label, column, members, hoods, extent } };
 }
 
-/** ADR 0031 rule 2, and **the phantom test is part of it** (FINDING Q1.2).
- *
- *  It used to pick the first side that funded the move on geometry and the `MIN_W` floor alone, and
- *  run the phantom check once afterwards, on the side already chosen. There was no fallback, so
- *  a side that would have worked was never tried — and *making more space available made a
- *  previously legal move illegal*: with only the left column empty, narrowing `A|0.75` to 200 is
- *  accepted; clear the right one **as well** and the scan takes the right, widens it to 900 mm over
- *  the corner leg `p25`, and refuses. Whether a side can fund the move is one question, and an
- *  opening landing on a body is one of the ways the answer is no.
- *
- *  So each side is carried all the way through the rebuild, and a phantom sends the scan on to the
- *  other side exactly as the superseded donor scan fell through. At most two attempts; the probe is
- *  called again for the second, which is the price of answering the question properly.
- *
- *  Anything else a rebuild refuses — a built-size mismatch, an unmeasurable body, a drifted column —
- *  returns immediately. Those are facts about the bodies and the width, identical on both sides, and
- *  retrying would only produce the same refusal with a different neighbour named. */
+/** ADR 0031 rule 2, including the phantom test: each side is carried all the way through the rebuild,
+ *  and a phantom opening sends the scan to the other side. Choosing a side before the phantom check
+ *  would let extra free space turn a legal move illegal (a right column widened to 900 mm over the
+ *  corner leg `p25`). At most two attempts, so the probe runs up to twice. Any other rebuild refusal
+ *  (a built-size mismatch, an unmeasurable body, a drifted column) is a fact about the bodies and the
+ *  width, identical on both sides, and returns immediately. see FINDING Q1.2 in ADR 0031 */
 function fundColumnResize(
   input: SetWidthInput,
   records: readonly PlacementRecord[],
   record: PlacementRecord,
   plan: ColumnPlan,
 ): SetWidthResult {
-  // Measured once, before anything moves: the bodies §4 already derives an opening on top of. A
-  // resize is answerable for the overlaps it creates and for no others (logic review R1.7).
-  // ADR 0035 decision 6: this column's own hoods overhang by design, so they are exempt from the
-  // phantom-opening comparison — and only they are (QA Q2).
+  // Measured once, before anything moves: a resize answers for the overlaps it creates and no others.
+  // This column's own hoods overhang by design and only they are exempt (ADR 0035 decision 6).
   const exemptHoodIds = new Set(plan.hoods.map((hood) => hood.record.id));
   const covered = bodiesUnderOpenings(records, input.columns, exemptHoodIds);
   const refusedSides: EmptySpaceSide[] = [];
@@ -392,12 +273,9 @@ function fundColumnResize(
     }
     const move = planMoves(input, plan, space.value);
     if (!move.ok) {
-      // **A key collision is a fact about this side, not about the move** — the resized column's new
-      // centre depends on which edge is held, so a key taken when the right side funds it may be
-      // free when the left does. It therefore falls through to the other side exactly as
-      // `opens_a_gap` does (FINDING Q1.2's argument, and 5D2b's implementer caught that the first
-      // version of this guard ended the scan instead). Every other planning failure is a fact about
-      // the arithmetic and ends it.
+      // A key collision is a fact about this side: the new centre depends on which edge is held, so the
+      // other side may be free. It falls through like `opens_a_gap`; every other planning failure is a
+      // fact about the arithmetic and ends the scan.
       if (move.detail.code !== "COLUMN_KEY_COLLISION") {
         return refuse(input.design, move.detail);
       }
@@ -418,32 +296,26 @@ function fundColumnResize(
   return refuse(input.design, refuseNoSideFunds(input, plan, refusedSides));
 }
 
-/** What one attempt needs that is the same for both sides: the request, the records it started
- *  from, the selected placement, and the overlaps that were already there before anything moved. */
+/** What one attempt needs that is the same for both sides. */
 interface AttemptContext {
   readonly input: SetWidthInput;
   readonly records: readonly PlacementRecord[];
   readonly record: PlacementRecord;
   readonly covered: OverlapSet;
-  /** This column's own hoods, exempt from the phantom-opening comparison because they overhang by
-   *  design (ADR 0035 decision 6). Carried rather than re-derived so the *before* and *after* sets
-   *  exempt the same bodies — QA Q2 is what happens when the exemption is a rule about the world
-   *  instead of about this move. */
+  /** This column's own hoods, exempt from the phantom-opening comparison (ADR 0035 decision 6); carried
+   *  so the before and after sets exempt the same bodies. */
   readonly exemptHoodIds: ReadonlySet<string>;
 }
 
-/** One side's move, carried all the way through the rebuild. `opens_a_gap` is not a refusal yet —
- *  it sends the scan to the other side (FINDING Q1.2) — while `refused` is a fact about the bodies
- *  and the width that the other side would answer identically. */
+/** One side's move carried through the rebuild. `opens_a_gap` sends the scan to the other side;
+ *  `refused` is a fact the other side would answer identically. */
 type ColumnResizeAttempt =
   | { readonly outcome: "ok"; readonly result: SetWidthResult }
   | { readonly outcome: "opens_a_gap" }
   | { readonly outcome: "refused"; readonly detail: RejectionDetail };
 
-/** Rebuild every member of the column, write them into the design, then update the two column keys
- *  the move touched. Nothing is written unless **every** rebuild passes every guard `insertBody`
- *  applies — §9's "refuse before offering, never after the tap" is only true of a resize if the
- *  whole column is atomic. */
+/** Rebuild every member of the column, write them into the design, then update the two column keys the
+ *  move touched. Atomic: nothing is written unless every rebuild passes every guard `insertBody` applies. */
 function applyColumnResize(
   attempt: AttemptContext,
   move: ColumnResize,
@@ -451,9 +323,8 @@ function applyColumnResize(
   const { input, records, record } = attempt;
   const rebuilt = new Map<string, DesignPlacement>();
   for (const plan of move.members) {
-    // The **selected** hood is not exempt from anything: selecting it is a full column resize, the
-    // path this wave deliberately left as it was. Only a hood carried along by its neighbours' move
-    // is moved rather than rebuilt.
+    // The selected hood gets a full column resize; only a hood carried along by its neighbours' move is
+    // moved rather than rebuilt.
     const built =
       isHood(plan.record) && plan.record.id !== record.id
         ? moveHood(input, plan)

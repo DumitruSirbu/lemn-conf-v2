@@ -1,28 +1,21 @@
-// M7 wave 7D5b slice S1 — the dishwasher beside the sink (ADR 0110 Amendment M1, M7(e), M8, M9).
+// The dishwasher beside the sink (ADR 0110 Amendment M, M1, M7(e), M8, M9). A re-identification, never a
+// width change: the dishwasher is a storage-role conversion, not a core role, so it takes a module the plan
+// already stands beside the sink and every width, span, remainder, column and bottle stays where it was.
+// Adjacency is the plumbing's (the niche drains into the sink's waste), so either side of the sink counts
+// and across the corner counts; where nothing beside the sink can take it, it is omitted rather than
+// displacing anything (F12).
 //
-// **A re-identification, never a width change.** The owner ruled the dishwasher a storage-role
-// conversion rather than a core role (M1, Q-DW3: *"Converted, with 1F row"*): it takes a module the
-// plan already stands beside the sink, and every width, span, remainder, column and bottle stays where
-// it was. Adjacency is the plumbing's — the niche drains into the sink's waste — so either side of the
-// sink counts, and across the corner counts; where nothing beside the sink can take it, S1 omits the
-// dishwasher rather than displacing anything (F12, which M1 leaves standing) — S2's trades will
-// displace.
+// One re-identification, M1 or else (e): M1 converts a plain door cabinet beside the sink; only where there
+// is none does (e) swap the drawer cabinet beside the sink. The tie between M1's same-wall and
+// across-the-corner arms is empty in the approved range, so nothing here ranks them.
 //
-// **One re-identification, M1 or else (e).** M1 converts a plain door cabinet beside the sink. Only
-// where there is none does (e) swap a drawer cabinet: the owner's *"when you have 3 even 2 drawert
-// cabinets dishawasher can take place of one"*, and of which one, *"the one beside the sink"*. The
-// tie between M1's same-wall and across-the-corner arms is empty in the approved range (plan E2), so
-// nothing here ranks them.
+// Adjacency is read from spatial spans, never a wall letter: each wall's modules stand contiguous from its
+// corner end, so a module abuts the sink where their spans meet on one wall, and two modules face each other
+// across the corner where each is the first from the corner on its wall.
 //
-// **Adjacency is read from spatial spans and never from a wall letter**: each wall's modules stand
-// contiguous from its corner end, so a module abuts the sink where their spans meet on one wall, and
-// two modules face each other across the corner where each is the first from the corner on its wall.
-// Conversions stand on wall A and on wall B in near-equal numbers (plan E2).
-//
-// **The dishwasher's id is never a composed storage slot's.** *D*, the plain-cabinet count the
-// threshold drawer tests, reads that id prefix; a dishwasher counted there would decide the threshold
-// drawer as though the door cabinet still stood, which is exactly what the owner's *"dishwasher
-// first"* (M2) rules out. A pure leaf: a plan in, a plan out.
+// The dishwasher's id is never a composed storage slot's: `D`, the plain-cabinet count the threshold drawer
+// tests, reads that id prefix, and counting a dishwasher there would decide the threshold drawer as though
+// the door cabinet still stood (M2: dishwasher first). A pure leaf: a plan in, a plan out.
 
 import {
   DISHWASHER_BUILD_ID,
@@ -38,15 +31,15 @@ import type {
   PlannedGenerationBase,
 } from "./run-layout.js";
 
-/** The owner-ruled niche the generated kitchen chooses (ADR 0110 M1): the full-size dishwasher, one
- *  storage module wide, so a conversion inherits its module's span exactly. The catalogue's 450 mm
- *  slimline stays offered to the editor and is out of this wave's scope. */
+/** The niche the generated kitchen chooses (ADR 0110 M1): the full-size dishwasher, one storage module wide,
+ *  so a conversion inherits its module's span exactly. The catalogue's 450 mm slimline stays offered to
+ *  the editor. */
 export const DISHWASHER_PLANNED_WIDTH_MM = 600;
 
-/** Its own id, so `isComposedStorageSlot` answers false for it and *D* never counts it (M2). */
+/** Its own id, so `isComposedStorageSlot` answers false for it and `D` never counts it (M2). */
 const DISHWASHER_ID = "dishwasher";
 
-/** The same module as a run item, for S2's trades (ADR 0110 M7 (b), (d), (c)): `dishwasher-trades.ts`
+/** The same module as a run item, for the dishwasher trades (M7 (b), (d), (c)): `dishwasher-trades.ts`
  *  stands it in the run directly after the sink, so this leaf stays the one place that knows what a
  *  dishwasher is. */
 export const DISHWASHER_RUN_ITEM: GenerationAncillaryRunItem = {
@@ -74,9 +67,8 @@ export function withTheDishwasherBesideTheSink(
   const sink = plan.bases.find((base) => base.role === SINK_ROLE);
   if (sink === undefined || hasADishwasher(plan)) return plan;
 
-  // `.find` takes the first in plan order — wall A's modules before wall B's — an order no ruling
-  // decides. It is safe because no approved room offers two convertible door cabinets beside the sink
-  // (the tie population is 0, 7D5b S1 criterion 8).
+  // `.find` takes the first in plan order (wall A's modules before wall B's), an order no ruling decides;
+  // safe because no approved room offers two convertible door cabinets beside the sink.
   const doorCabinet = besideTheSink(plan, sink).find(isConvertibleDoorCabinet);
   if (doorCabinet !== undefined) {
     return withDoorCabinetConverted(plan, doorCabinet);
@@ -86,7 +78,7 @@ export function withTheDishwasherBesideTheSink(
   return swap === undefined ? plan : withDrawersSwapped(plan, swap);
 }
 
-/** Whether the plan already carries its dishwasher — this leaf's conversion or one of S2's trades. */
+/** Whether the plan already carries its dishwasher: this leaf's conversion or one of the trades. */
 export function hasADishwasher(plan: KitchenCompositionPlan): boolean {
   return plan.bases.some(isTheDishwasher);
 }
@@ -96,8 +88,8 @@ export function isTheDishwasher(base: PlannedGenerationBase): boolean {
   return base.buildId === DISHWASHER_BUILD_ID;
 }
 
-/** **ADR 0110 M1** (owner, Q-DW3): a plain door cabinet the storage run composed, at the dishwasher's
- *  width. Never a drawer cabinet, the bottle, a column, the fridge or a core role. */
+/** ADR 0110 M1: a plain door cabinet the storage run composed, at the dishwasher's width. Never a drawer
+ *  cabinet, the bottle, a column, the fridge or a core role. */
 function isConvertibleDoorCabinet(base: PlannedGenerationBase): boolean {
   return (
     isComposedStorageSlot(base) &&
@@ -122,8 +114,7 @@ function withDoorCabinetConverted(
   };
 }
 
-/** The module's span kept exactly; only what stands in it changes. Role `storage`, not a core role
- *  (M1 reverses F12's *"core role"*). */
+/** The module's span kept exactly; only what stands in it changes. Role `storage`, not a core role (M1). */
 function asTheDishwasher(base: PlannedGenerationBase): PlannedGenerationBase {
   return {
     ...base,
@@ -156,8 +147,8 @@ function abutsAlongTheWall(
   );
 }
 
-/** Across the corner, the owner's F12 *"across the corner counts"*: the two flank the corner body, each
- *  the first module from the corner on its own wall. */
+/** Across the corner counts (F12): the two flank the corner body, each the first module from the corner on
+ *  its own wall. */
 function facesAcrossTheCorner(
   plan: KitchenCompositionPlan,
   pair: {
@@ -184,12 +175,11 @@ function isFirstFromTheCorner(
 }
 
 /**
- * **ADR 0110 M7(e), variant (i), modelled by M8/M9.** Owner: *"when you have 3 even 2 drawert cabinets
- * dishawasher can take place of one"*, and *"the one beside the sink"*, chosen from the preview
- * *sink · DISHWASHER · pan-drawer · hob*. It needs the preparation 3-drawer beside the sink and the
- * pan drawer directly beyond it on the same wall: those two ARE the owner's "2 drawer cabinets", so no
- * separate count is kept, and the swap leaves the pan drawer standing (M8's narrowed D7). The
- * preparation role moves onto it, so no core role is lost. `undefined` where either is missing.
+ * ADR 0110 M7(e), variant (i), modelled by M8/M9: the dishwasher takes the place of the drawer cabinet
+ * beside the sink (sink · DISHWASHER · pan-drawer · hob). It needs the preparation 3-drawer beside the sink
+ * and the pan drawer directly beyond it on the same wall; those two are the "2 drawer cabinets", so no
+ * separate count is kept, and the swap leaves the pan drawer standing. The preparation role moves onto it,
+ * so no core role is lost. `undefined` where either is missing.
  */
 function drawerSwapBesideTheSink(
   plan: KitchenCompositionPlan,
@@ -219,9 +209,9 @@ function isPanDrawer(base: PlannedGenerationBase): boolean {
   return base.buildId === PAN_DRAWER_BASE_BUILD_ID;
 }
 
-/** Identity only (M9): the dishwasher takes the 3-drawer's module, and the preparation id and role
- *  move one module along onto the pan drawer, which keeps its own pan-drawer body (M8 narrows F5). So
- *  `dropped` stays honest and frame 1F's preparation step still finds its base by role. */
+/** Identity only (M9): the dishwasher takes the 3-drawer's module, and the preparation id and role move one
+ *  module along onto the pan drawer, which keeps its own body. So `dropped` stays honest and the
+ *  preparation step still finds its base by role. */
 function withDrawersSwapped(
   plan: KitchenCompositionPlan,
   swap: DrawerSwap,

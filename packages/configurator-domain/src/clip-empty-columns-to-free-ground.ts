@@ -1,46 +1,31 @@
-// ADR 0090 decision 4b: **no published map may put free space where a body stands.**
+// ADR 0090 decision 4b: no published map may put free space where a body stands. The fourth stage of the
+// clip → split → merge funnel, run ahead of the split: a pass that only removes cannot hand the split
+// more work than it already had.
 //
-// The fourth stage of the clip → split → merge funnel, and it joins that family ahead of the split
-// for the funnel's own recorded reason — a pass that only ever removes cannot hand the split more
-// work than it already had, so running it first is at worst a no-op for everything after it.
+// Dropped whole, never cut back: a partial cut invents an along-wall coordinate, and an interior overlap
+// would split one recorded space into two the customer never made. When a cabinet stands on the ground the
+// space is gone.
 //
-// **Dropped whole, never cut back.** A partial cut invents an along-wall coordinate exactly as
-// surely as a chain default does, and an interior overlap would have to split one recorded space
-// into two the customer never made. ADR 0055 decision 1 permits the loss — every body adapts and
-// nothing is left behind, and the document need not round-trip — and ADR 0080 decision 2's
-// *"following, not disappearing"* is not violated, because when a cabinet is standing on that
-// ground the space genuinely is gone.
+// It is a guard with no reachable population: every extent now slides, so none is left under its
+// neighbours (see ADR 0090 Amendment A). It remains as the structural statement that no published map
+// places free space on occupied ground, held for a producer that does not yet exist, as
+// `splitOversizedEmptyColumns` is.
 //
-// **It is a guard, and it has no reachable population.** It was written for what ADR 0090's struck
-// decision 4a produced — a sourceless extent left on its own coordinate while the run slid out from
-// under it — and Amendment A overturned that rule: every extent now slides, on the last rung of the
-// ladder if nothing better is known, so it lands beside its neighbours rather than under them. What
-// remains is the structural statement that no published map places free space on occupied ground,
-// held for a producer that does not yet exist — the same defence-in-depth stance
-// `splitOversizedEmptyColumns` is already documented as taking. That it drops nothing is asserted,
-// and so is the fact that it still can.
-//
-// **The two-axis test is `findWallOverlaps`', deliberately.** A member-less column in the wall band
-// and a base cabinet at the same along-wall coordinate share no ground at all, so the vertical
-// question is as much part of the overlap as the horizontal one — and abutting is not overlapping,
-// because ADR 0046 merges two spaces that meet at a coordinate. Matching the validator's own
-// predicate is what makes this pass and `EMPTY_COLUMN_OVERLAPS_PLACEMENT` answer the same question,
-// which is the whole point: the store never publishes a document the write seam refuses.
+// The two-axis test is `findWallOverlaps`', deliberately: a member-less column in the wall band and a base
+// cabinet at the same along-wall coordinate share no ground, and abutting is not overlapping (two spaces
+// that meet at a coordinate merge). Matching the validator's predicate makes this pass and
+// `EMPTY_COLUMN_OVERLAPS_PLACEMENT` answer one question, so the store never publishes a document the write
+// seam refuses.
 import { toExactMillimetres } from "./millimetres.js";
 import { alongWallCoordinate } from "./module-grid.js";
-// Types only, for the reason `clip-empty-columns-at-wall-end.ts`'s head gives: `void-engine.ts`
-// imports this module for its value, so a value imported back would close a runtime cycle.
+// Types only: `void-engine.ts` imports this module for its value, so a value import back would close a
+// runtime cycle.
 import type { ColumnExtent, PlacementRecord } from "./void-engine.js";
 
-/** Every member-less column that stands on ground a placement occupies, removed from the map.
- *
- *  Generic in the column shape because this pass only ever **deletes**: it writes no extent of its
- *  own, so a map of `Column`s comes back as a map of `Column`s and the store's funnel does not have
- *  to re-answer `hasFullHeightUnder` for the privilege of running it.
- *
- *  "Member-less" is the split's and the wall-end clip's own predicate: **no record is filed under
- *  this key, at any level**. An occupied column is never dropped — the bodies standing in it are
- *  what its extent is for, and `extentContains` is what judges those. */
+/** Every member-less column that stands on ground a placement occupies, removed from the map. Generic in
+ *  the column shape because this pass only deletes, so a map of `Column`s comes back as `Column`s and the
+ *  funnel need not re-answer `hasFullHeightUnder`. "Member-less" is the split's predicate: no record is
+ *  filed under the key at any level. An occupied column is never dropped. */
 export function clipEmptyColumnsToFreeGround<TColumn extends ColumnExtent>(
   columns: ReadonlyMap<string, TColumn>,
   records: readonly PlacementRecord[],
@@ -57,9 +42,9 @@ export function clipEmptyColumnsToFreeGround<TColumn extends ColumnExtent>(
   return free;
 }
 
-/** The same wall, the same along-wall interval and the same vertical one — all three, because any
- *  two of them are places that never meet. Both walls originate at the room's corner and walk their
- *  own axis (§2), so the same coordinate on wall A and on wall B are two different places. */
+/** The same wall, along-wall interval and vertical interval: all three, since any two are places that never
+ *  meet. Both walls originate at the room's corner and walk their own axis (§2), so the same coordinate on
+ *  wall A and wall B is two different places. */
 function overlapsAnyPlacement(
   column: ColumnExtent,
   records: readonly PlacementRecord[],
@@ -73,16 +58,11 @@ function overlapsAnyPlacement(
   });
 }
 
-/** One run on one wall, **in millimetres** — the same shape and the same units
- *  `validate-design.ts`'s own sweep judges, so this pass and `EMPTY_COLUMN_OVERLAPS_PLACEMENT`
- *  cannot answer differently about one document.
- *
- *  Millimetres are not a convenience here. In metres, `1.2 + 0.6 / 2` and `0.74 + 0.32 / 2` land
- *  1.11e-16 apart at the coordinate where a cleared oven-tower column meets the corner return
- *  beside it — abutting runs that read as an overlap, and this pass would drop a space the customer
- *  can see. Every coordinate a document carries is a whole millimetre and every catalogue width is
- *  an even one, so a centre and a half-width are exact in this unit and abutting subtracts to
- *  exactly zero. */
+/** One run on one wall, in millimetres, the shape and units `validate-design.ts`'s sweep judges, so this
+ *  pass and `EMPTY_COLUMN_OVERLAPS_PLACEMENT` cannot answer differently. In metres `1.2 + 0.6 / 2` and
+ *  `0.74 + 0.32 / 2` land 1.11e-16 apart where a cleared oven-tower column meets the corner return, so
+ *  abutting runs would read as an overlap and a visible space would be dropped; every document coordinate is
+ *  a whole millimetre and every catalogue width even, so in millimetres abutting subtracts to exactly zero. */
 interface WallSpan {
   readonly alongStartMm: number;
   readonly alongEndMm: number;
@@ -90,14 +70,10 @@ interface WallSpan {
   readonly topMm: number;
 }
 
-/** §4 reads a column's floor and its top and nothing between them, which is also what
- *  `toEmptyColumn` persists — so the interval this pass judges is the one the document carries and
- *  the one `validateDesignForCatalog` sweeps.
- *
- *  Nothing, rather than an invented interval, for a column that reads off the millimetre grid or has
- *  no region to stand on: it is not a column any document could carry, so this pass has nothing to
- *  say about it either — the same stance `reachesPastWallEnd` takes, and the safe one for a guard
- *  whose only action is to remove. */
+/** §4 reads a column's floor and its top and nothing between, which is what `toEmptyColumn` persists and
+ *  `validateDesignForCatalog` sweeps. Nothing, not an invented interval, for a column off the millimetre
+ *  grid or with no region: no document can carry one, and that is the safe answer for a guard whose only
+ *  action is to remove (as `reachesPastWallEnd`). */
 function spanOfColumn(column: ColumnExtent): WallSpan | undefined {
   const floorsM = column.regions.map(([floorM]) => floorM);
   if (floorsM.length === 0) return undefined;
@@ -127,9 +103,9 @@ interface RunMeasurements {
   readonly topM: number;
 }
 
-/** §12: `alongMm` is the centre of a run, on a placement and on an empty column alike, so both
- *  reach this comparison as the same kind of interval — `toPlacementSpan` and `toStoredSpan` in
- *  `validate-design.ts`, one conversion earlier. */
+/** §12: `alongMm` is the centre of a run on a placement and an empty column alike, so both reach this
+ *  comparison as the same kind of interval (`toPlacementSpan` and `toStoredSpan` in `validate-design.ts`
+ *  are one conversion earlier). */
 function toSpan(run: RunMeasurements): WallSpan | undefined {
   const centreMm = toExactMillimetres(run.centreM);
   const widthMm = toExactMillimetres(run.widthM);
@@ -151,11 +127,10 @@ function toSpan(run: RunMeasurements): WallSpan | undefined {
   };
 }
 
-/** Strictly positive on **both** axes, never `>=`: two runs that merely touch share no ground, and
- *  ADR 0046 merges two spaces that meet at a coordinate — refusing that input would make the merge
- *  unrepresentable. A member-less column in the wall band and a base cabinet at the same along-wall
- *  coordinate share nothing at all, which is why the vertical question is as much part of the
- *  overlap as the horizontal one. The same pair of comparisons `findWallOverlaps` makes. */
+/** Strictly positive on both axes, never `>=`: two runs that merely touch share no ground, and ADR 0046
+ *  merges two spaces that meet at a coordinate. A member-less column in the wall band and a base cabinet at
+ *  the same along-wall coordinate share nothing, so the vertical question is part of the overlap. The same
+ *  comparisons `findWallOverlaps` makes. */
 function overlap(first: WallSpan, second: WallSpan): boolean {
   return (
     Math.min(first.alongEndMm, second.alongEndMm) -
