@@ -1,8 +1,5 @@
-// The three seams ADR 0062 says wave 6B owes, asserted against the source tree rather than against
-// an intention. Each is cheap to hold now and expensive to retrofit, and every one of them is the
-// kind of property a reviewer reads past: the code still works when it is broken.
-//
-// Read with `price-design.test.ts`, which covers behaviour. This file covers shape.
+// The three seams ADR 0062 requires, asserted against the source tree: shape, not behaviour (`price-design.test.ts`
+// covers behaviour). Each is the kind of property where the code still works when it is broken.
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -80,12 +77,10 @@ describe("the query takes a book and imports none", () => {
   });
 });
 
-/** Every formula shape this build knows, and the coefficients each is made of.
- *
- *  Declared here rather than derived from the book, so a book that quietly grew a field is a
- *  failure instead of a passing sweep of whatever it happens to hold. Three shapes since
- *  2026-09-03: the base one, the per-door step, and the one that reads a body built to its opening.
- *  All three share the two width coefficients, and none of them names a width. */
+/** Every formula shape this build knows and the coefficients each is made of, declared here rather than derived
+ *  from the book, so a book that grew a field fails instead of passing a sweep of whatever it holds. The shapes: the
+ *  base one, the per-door step, and one reading a body built to its opening; all share the two width coefficients and
+ *  none names a width. */
 const COEFFICIENTS_BY_SHAPE: Readonly<Record<string, readonly string[]>> = {
   "linear-in-width": ["baseMinor", "perWidthMillimetreMinor"],
   "linear-in-width-and-door-leaves": [
@@ -126,19 +121,13 @@ describe("price is a formula over width, never a table keyed on the ladder", () 
   });
 
   it("has no price-data structure keyed on a width", () => {
-    // Falsifiable in the data itself: a rule is a build id and a formula, and neither the rule nor
-    // its formula carries a field whose name or value is a width.
-    //
-    // **Stated against the declared shapes rather than against one shape's field list** (owner,
-    // 2026-09-03: two more shapes). A literal list of three keys would have passed for the wrong
-    // reason from here on — it would have failed on *any* second shape, correct or not, and the
-    // property it is protecting has never been "there is one shape". It is that no coefficient is
-    // a width. `COEFFICIENTS_BY_SHAPE` is the table this file owns, so a shape added in `price-
-    // book.ts` without a line here fails as an unknown shape rather than passing unexamined.
+    // Falsifiable in the data: neither a rule nor its formula carries a field whose name or value is a width. Stated
+    // against the declared shapes, not one shape's field list: the property protected is that no coefficient is a
+    // width, not that there is one shape. `COEFFICIENTS_BY_SHAPE` is the table this file owns, so a shape added in
+    // `price-book.ts` without a line here fails as unknown.
     for (const rule of SAMPLE_PRICE_BOOK.cabinetRules) {
-      // `suppliedBy` joins the shape as an **optional** key (owner, 2026-09-10): it says who puts
-      // the row in the kitchen, which is not a coefficient and not a width. Still exhaustive —
-      // a rule declares the three required keys and at most that one.
+      // `suppliedBy` is an optional key: it says who puts the row in the kitchen, not a coefficient or a width. Still
+      // exhaustive: a rule declares the three required keys and at most that one.
       expect(Object.keys(rule).sort()).toEqual(
         rule.suppliedBy === undefined
           ? ["buildId", "formula", "ruleId"]
@@ -153,9 +142,8 @@ describe("price is a formula over width, never a table keyed on the ladder", () 
   });
 
   it("names no coefficient after a width the ladder offers", () => {
-    // The half the key list above used to carry implicitly, said explicitly so it cannot be lost
-    // when a shape is added: no coefficient is a size, and none is keyed on one. `600`, `perMm600`
-    // or `at800` would all be a width table wearing a formula's clothes.
+    // No coefficient is a size and none is keyed on one: `600`, `perMm600` or `at800` would be a width table wearing
+    // a formula's clothes.
     for (const rule of SAMPLE_PRICE_BOOK.cabinetRules) {
       for (const coefficient of Object.keys(rule.formula)) {
         expect(coefficient).not.toMatch(/\d/);
@@ -179,11 +167,9 @@ describe("price is a formula over width, never a table keyed on the ladder", () 
 });
 
 describe("every shape this build declares is a shape this build evaluates", () => {
-  // A declared shape with no arm in `amountForBody` is **not** a type error — the switch has a
-  // default that refuses — so it fails as `UNKNOWN_FORMULA_SHAPE` on a row the book prices
-  // perfectly well, at runtime, on a customer-facing document. The fourth shape did exactly that on
-  // its way in. Every constructor the module exports is exercised here, so a fifth cannot repeat it
-  // without also being unreachable from any book.
+  // A declared shape with no arm in `amountForBody` is not a type error (the switch default refuses), so it would
+  // fail as `UNKNOWN_FORMULA_SHAPE` at runtime on a customer-facing document; every exported constructor is
+  // exercised here.
   const ONE_OF_EACH: readonly PriceFormula[] = [
     pricedFlat(1),
     pricedByWidth({ baseMinor: 1, perWidthMillimetreMinor: 1 }),
@@ -227,12 +213,9 @@ describe("every shape this build declares is a shape this build evaluates", () =
 });
 
 describe("a shape is assigned by the catalogue's property, not by a list of ids", () => {
-  // ADR 0068's population correction. The owner named `wall-lift` and `open-shelf`, and the
-  // property is wider than those two rows: `heightFlex: true` is declared on the shared wall-band
-  // shape, so `wall-cabinet` has it too — and it declares `doorCountFollowsWidth` as well. A book
-  // maintained against a remembered list of ids would be correct today and silently wrong for the
-  // third row that already behaves the same way, which is exactly what happened to the first draft
-  // of this wave. So the flags decide, and this test is what makes them decide.
+  // ADR 0068's population correction: `heightFlex: true` is declared on the shared wall-band shape, so `wall-cabinet`
+  // has it too beyond the owner's `wall-lift` and `open-shelf`. A book kept against a remembered id list would be
+  // silently wrong for the next such row, so the flags decide.
 
   function shapeFor(buildId: string): string {
     const rule = SAMPLE_PRICE_BOOK.cabinetRules.find(
@@ -285,9 +268,8 @@ describe("a shape is assigned by the catalogue's property, not by a list of ids"
 
 describe("no amount, tier, delta or rule exists outside the book", () => {
   it("keeps every minor-unit amount in the sample book file", () => {
-    // ADR 0062's third prohibition, held over the one package that could break it silently. A
-    // catalogue row or a rejection sentence carrying an amount would be a second authority for a
-    // price, and the 2E sheet's delta must be this data rendered rather than copy that agrees.
+    // ADR 0062's third prohibition: an amount in a catalogue row or a rejection sentence would be a second authority
+    // for a price; the sheet's delta must be this data rendered.
     const carriers = sourcesUnder(SOURCE_ROOT)
       .filter((file) => !file.startsWith(PRICING_ROOT))
       .filter((file) => /Minor\b/.test(read(file)));
@@ -297,19 +279,9 @@ describe("no amount, tier, delta or rule exists outside the book", () => {
     );
   });
 
-  /**
-   * **What a row may publish besides its amounts, said rather than assumed** — ADR 0106 decision 1,
-   * which is the one change to a row's shape this file has ever had to admit.
-   *
-   * The sweep above is unchanged and unweakened: it asks where an *amount* lives, and no amount
-   * moved. What this adds is the other half of the same claim — that what left the book is a
-   * **rendered text and nothing else**. Each row still declares its own `tierId`, its own
-   * `ruleId` and its own amounts as own properties, and the two new fields are catalogue paths
-   * rather than figures.
-   *
-   * Stated as a whole-shape assertion for the reason the cabinet-rule sweep above is one: a row that
-   * quietly grew a field is a failure here rather than a sweep of whatever it happens to hold.
-   */
+  /** What a row may publish besides its amounts (ADR 0106 decision 1): a rendered text and nothing else. Each row
+   *  still declares its own `tierId`, `ruleId` and amounts as own properties, and the two added fields are catalogue
+   *  paths, not figures. A whole-shape assertion, so a row that quietly grew a field fails here. */
   it("lets a row name the leaf its text is written in, and nothing else", () => {
     const tierFields = ["tierId", "ruleId", "name", "description"];
     const rows: readonly (readonly [
@@ -347,7 +319,6 @@ describe("no amount, tier, delta or rule exists outside the book", () => {
     expect(rows).toHaveLength(8);
     for (const [row, required] of rows) {
       const declared = Object.keys(row);
-      // Every field the row owed before this wave is still the row's own.
       expect(declared.sort()).toEqual(expect.arrayContaining([...required]));
       // And the only two it may have gained are the catalogue-key fields.
       const permitted = [...required, "nameKey", "descriptionKey"];
@@ -377,12 +348,9 @@ const ROMANIAN_LETTER = /[ăâîșțĂÂÎȘȚşţŞŢ]/;
  *  `TOP_ROW_Y0_MM` is not a match. */
 const ROMANIAN_SUFFIXED_IDENTIFIER = /\b[A-Za-z_$][\w$]*_RO\b/;
 
-/** A line that is entirely comment, in the only two forms this codebase's formatter produces: a
- *  line comment, the opening of a block comment, or its continuation.
- *
- *  **Deliberately conservative, and this is the direction that matters.** A trailing comment after
- *  code is *not* recognised, so a Romanian word in one is reported rather than excused — a false red
- *  a human resolves, never a false green. Nothing that starts with `//`, `/*` or `*` can be code. */
+/** A line that is entirely comment: a line comment, the opening of a block comment or its continuation. Deliberately
+ *  conservative: a trailing comment after code is not recognised, so a Romanian word in one is reported rather than
+ *  excused (a false red a human resolves, never a false green). */
 const WHOLE_LINE_COMMENT = /^\s*(\/\/|\/\*|\*)/;
 
 /** The source lines of a module that are not comments, numbered from one. */
@@ -393,28 +361,15 @@ function codeLinesOf(source: string): readonly (readonly [number, string])[] {
     .filter(([, text]) => !WHOLE_LINE_COMMENT.test(text));
 }
 
-/**
- * **The one module in `src/` allowed to hold Romanian, and the ruling that allows it.**
- *
- * [ADR 0106](../../../../docs/decisions/0106-the-price-books-display-prose-publishes-descriptors-and-the-book-keeps-the-tier.md)
- * decision 2 keeps a row's `name` and `description` **required** and authored, so a book nobody at
- * Lemnaria wrote — a manufacturer's, through ADR 0062's post-M8 dashboard — still renders. Those
- * sentences are not debt and are not owed a key.
- *
- * The exemption is checked against the book's own data below rather than taken on trust, so it
- * covers exactly the ruled fallbacks and not the next sentence somebody adds to the file.
- */
+/** The one module in `src/` allowed to hold Romanian: ADR 0106 decision 2 keeps a row's `name` and `description`
+ *  required and authored, so a book nobody at Lemnaria wrote still renders. The exemption is checked against the
+ *  book's own data below, so it covers exactly the ruled fallbacks. */
 const ROMANIAN_BY_RULING = "pricing/sample-price-book.ts";
 
 describe("this package publishes codes and never Romanian", () => {
-  // ADR 0095's boundary, held over the source tree rather than over the exports it happens to
-  // remember. Wave 6B-j's lint rule says the same thing per line and would catch a re-entry sooner;
-  // this says it about the *package*, survives the rule being deleted, and adds the half a lint rule
-  // reads past — that the identifier suffix the Romanian used to travel under is gone too.
-  //
-  // **Its reach is this package's `src/`, not `packages/*/src`.** A test that walked a sibling
-  // package's files would make this one unliftable, which `engineering-conventions.md` forbids;
-  // `three-adapter` and `persistence` are covered by the lint rule over `packages/*/src` instead.
+  // ADR 0095's boundary held over this package's `src/` tree, surviving the lint rule being deleted and also checking
+  // that the identifier suffix the Romanian travelled under is gone. Not `packages/*/src`: walking a sibling package
+  // would make this one unliftable (`engineering-conventions.md`); the lint rule covers those.
 
   const sources = sourcesUnder(SOURCE_ROOT).map(
     (file) => [path.relative(SOURCE_ROOT, file), read(file)] as const,
@@ -438,9 +393,8 @@ describe("this package publishes codes and never Romanian", () => {
   });
 
   it("recognises that suffix when it is there, and only that suffix", () => {
-    // The positive control the sweep above cannot supply, now that every `_RO` export is gone: the
-    // three names this package really did publish, against the one constant whose name contains the
-    // same two letters in the middle of a word.
+    // Positive control: the three names this package really did publish, against the one constant whose name
+    // contains the same two letters mid-word.
     for (const gone of [
       "export const KIND_LABELS_RO = {",
       "const BAND_LABELS_RO: Readonly<Record<Band, string>> = {",
@@ -485,9 +439,8 @@ describe("this package publishes codes and never Romanian", () => {
   });
 
   it("exempts exactly the fallbacks ADR 0106 decision 2 keeps required", () => {
-    // The exemption tied to its ruling rather than to a filename: every Romanian line in the book is
-    // one of the row texts the book itself publishes. A rejection sentence, a catalogue label or a
-    // fourth kind of prose in the same file matches nothing here and fails.
+    // The exemption is tied to its ruling, not a filename: every Romanian line in the book is a row text the book
+    // publishes; a rejection sentence, catalogue label or fourth kind of prose fails.
     const authored = new Set<string>([
       ...SAMPLE_PRICE_BOOK.hardware.tiers.flatMap((tier) => [
         tier.name,
@@ -497,9 +450,8 @@ describe("this package publishes codes and never Romanian", () => {
         tier.name,
         tier.description,
       ]),
-      // `BookAccessories` declares its two rows as named fields rather than an index signature, so
-      // `Object.values` widens to `any[]`. Read off the book all the same, and typed back: a third
-      // accessory must be swept the day it is declared.
+      // `BookAccessories` declares its two rows as named fields, so `Object.values` widens to `any[]`; read off the
+      // book and typed back so a third accessory is swept the day it is declared.
       ...(
         Object.values(SAMPLE_PRICE_BOOK.accessories) as readonly AccessoryRule[]
       ).flatMap((accessory) => [accessory.name, accessory.description]),
