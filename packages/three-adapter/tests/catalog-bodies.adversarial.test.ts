@@ -1,11 +1,6 @@
-// Adversarial QA for M3 Wave 3B, work item 6. §7 conformance is checked here against the catalogue
-// the *domain* actually ships (`INSERTABLE_BODY_DEFINITIONS`), entry by entry and width by width,
-// through the gate `insertBody` will apply — `refuseBuiltSize`, which compares the measured carcass
-// against the plan with `FIT_TOLERANCE_M` of slack.
-//
-// The failure this is written to catch is the one ADR 0016 names for the hood and closes: a body
-// the panel offers and the engine then refuses. That shape is invisible to a builder test that
-// only asserts "a group came back with meshes in it".
+// §7 conformance, entry by entry and width by width, against the catalogue the domain ships and through the gate
+// `insertBody` applies (`refuseBuiltSize`, `FIT_TOLERANCE_M`). It catches a body the panel offers and the engine
+// then refuses (ADR 0016), which a builder test asserting only "a group with meshes" cannot see.
 import {
   DEFAULT_CABINET_DEPTH_MM,
   evaluateInsertFit,
@@ -39,16 +34,13 @@ import {
   installHeadlessDocument,
 } from "./support/headless-canvas.js";
 
-/** §7's wall-cabinet door rule is `w > 0.45 ? 2 : 1`; §11 row 20 is the 570 mm case.
- *
- *  **Written out rather than imported, deliberately.** ADR 0033 moved the live constant into the
- *  domain so the builder and the label read one number; a test that read that same number back could
- *  only ever agree with it. This is the independent copy the gate compares against, and the day the
- *  product decision moves, this line has to move with it — on purpose. */
+/**
+ * The two-door threshold, written out rather than imported from the domain (ADR 0033): a test reading the same
+ * constant could only agree with it, so a product change must move this line too.
+ */
 const TWO_DOOR_MIN_WIDTH_MM = 500;
 
-/** ADR 0017: the sink aperture's own width. Read from the catalogue below as well, so this constant
- *  is only the number the *reasoning* turns on. */
+/** ADR 0017: the sink aperture's own width, the number the reasoning turns on. */
 const SINK_MIN_WIDTH_MM = 560;
 
 let kit: Kit;
@@ -90,8 +82,7 @@ function build(
   };
 }
 
-/** `refuseBuiltSize` in `commands/insert-body.ts`, restated as a predicate so the sweep asserts the
- *  exact gate the engine applies rather than a QA-invented tolerance. */
+/** `refuseBuiltSize` (`commands/insert-body.ts`) restated as a predicate, so the sweep asserts the engine's gate. */
 function passesBuiltSizeGate(builtMm: number, requiredMm: number): boolean {
   return (
     Number.isFinite(builtMm) &&
@@ -99,10 +90,10 @@ function passesBuiltSizeGate(builtMm: number, requiredMm: number): boolean {
   );
 }
 
-/** Runs §5.2's pre-probe width guard for one entry against a base opening of the given width, and
- *  returns the refusal code, or `undefined` when the engine would accept it. This is the *domain*
- *  side of the same question the sweep above asks of the builder — the two have to agree, and ADR
- *  0017 is what makes them. */
+/**
+ * §5.2's pre-probe width guard for one entry against a base opening of the given width: the refusal code, or
+ * `undefined` when the engine would accept it.
+ */
 function refusesFitWidth(
   buildId: string,
   openingWidthMm: number,
@@ -143,13 +134,10 @@ function refusesFitWidth(
   return fit.ok ? undefined : fit.detail.code;
 }
 
-/** The doors this body stands **side by side**, which is the count "2 uși" claims — measured as the
- *  distinct x centres its `door_front` meshes sit at.
- *
- *  Distinct x rather than a mesh tally, because ADR 0048 brought in a body with **stacked** fronts:
- *  a 600 mm pantry is two leaves abreast in each of two bands, so four slabs, and it is a two-door
- *  cabinet in every sense the label and the customer use. A tally would have called it four and a
- *  400 mm one two. For every unstacked row the two readings are the same number. */
+/**
+ * Doors stood side by side, counted as distinct x centres of `door_front` meshes: a stacked-front body (the 600 mm
+ * pantry, ADR 0048) has four slabs but is a two-door cabinet.
+ */
 function countDoorsAbreast(
   buildId: string,
   widthMm: number,
@@ -212,14 +200,8 @@ describe("the builder table and the domain's insertable catalogue are the same s
   });
 });
 
-// FINDING QA-1 — found in R1 on `base-sink` at 400 mm, fixed by ADR 0017, which took 400 out of that
-// entry's `sizesMm` and gave it a `minWidthMm`. The cases below are generated live from
-// `INSERTABLE_BODY_DEFINITIONS`, so this is a standing guard rather than a closed case: any width a
-// catalogue entry lists as a chip in future is swept the moment it is listed.
-//
-// The rule it guards: every width the catalogue lists must build a carcass the engine will accept,
-// or §9 offers a row that `insertBody` then refuses with `BUILT_SIZE_MISMATCH` — "a body the panel
-// offers and the engine then refuses", the exact shape ADR 0016 closed for the hood.
+// Generated live from `INSERTABLE_BODY_DEFINITIONS`, so any width a catalogue entry lists is swept. A listed width
+// that builds a carcass `insertBody` refuses is a body the panel offers and the engine refuses (ADR 0016, 0017).
 describe("every catalogue width builds a carcass the built-size gate accepts", () => {
   const cases = INSERTABLE_ENTRIES.flatMap(([buildId, definition]) =>
     (definition.sizesMm ?? []).map((widthMm) => ({
@@ -247,25 +229,17 @@ describe("every catalogue width builds a carcass the built-size gate accepts", (
   });
 });
 
-// R1 finding QA-1, re-aimed at the engine that fixed it. `widthFlex: "fit"` means the body builds
-// to the opening, so every width the engine will *hand* it has to build — but as of ADR 0017 that
-// range starts at the entry's own `minWidthMm` where it declares one, and at §2's `MIN_WIDTH_M`
-// where it does not. The floor is read from the catalogue rather than written here, so an entry
-// that declares one later is covered without editing this test, and an entry that *drops* its
-// floor is immediately swept from 300 mm again.
+// `widthFlex: "fit"` bodies must build at every width the engine hands them: from the entry's own `minWidthMm`
+// (ADR 0017), else `MIN_WIDTH_M`. The floor is read from the catalogue, so a declared or dropped floor is covered.
 describe("a width-flexible body builds at every width the engine will hand it", () => {
   const FLEXIBLE = INSERTABLE_ENTRIES.filter(
     ([, definition]) => definition.widthFlex === "fit",
   );
 
-  /** `resolveWidth` + `refuseWidthFloor` (`insert-fit.ts`), as a number: the narrowest opening
-   *  this entry can be inserted into.
-   *
-   *  **It has a direction** (ADR 0026, and this read `Math.max` until 2026-08-27). A declaration
-   *  *below* §2's default **replaces** it for that entry alone, so the sweep below has to start at
-   *  the declaration and not at 300 — otherwise the two widths ADR 0030's amendment made reachable
-   *  on a one-door cabinet would never be built here at all. A declaration at or above the default
-   *  is checked after it, so `Math.max` is still right in that direction. */
+  /**
+   * `resolveWidth` + `refuseWidthFloor` (`insert-fit.ts`) as a number: the narrowest opening this entry accepts. A
+   * declaration below §2's default replaces it for that entry; one at or above it is checked after it (ADR 0026).
+   */
   function narrowestOpeningMm(definition: BodyDefinition): number {
     const declaredMm = definition.minWidthMm;
     if (declaredMm === undefined) return 1000 * MIN_WIDTH_M;
@@ -291,25 +265,14 @@ describe("a width-flexible body builds at every width the engine will hand it", 
       }
 
       expect(refused).toEqual([]);
-      // The floor is §2's default unless the row declares one of its own, in either direction
-      // (ADR 0026). Asserted as that rather than as ">= 300", which was true only while every
-      // declaration pointed upward.
+      // The floor is §2's default unless the row declares its own, in either direction (ADR 0026).
       expect(floorMm).toBe(definition.minWidthMm ?? 1000 * MIN_WIDTH_M);
     },
   );
 
-  // A floor declared **upward** has to be earned. ADR 0017 and ADR 0026 clause 2 read that
-  // direction as a *builder limitation* — an entry admitting its builder is not parameterised — so
-  // below it the builder must actually be wrong, and wrong in the direction ADR 0017 describes: a
-  // carcass that grows *wider and taller* as it is asked to grow narrower. Stated generally so a
-  // future entry cannot declare an upward floor it does not need.
-  //
-  // **A floor declared downward is a different claim and is swept differently** (ADR 0026 clause
-  // 3, and this filter took every declaration until 2026-08-27). It is a *product decision* — the
-  // owner asserting that a cabinet that narrow is a thing they sell — and says nothing about the
-  // builder, which is why demanding the builder break below it is the wrong question. What those
-  // rows owe is that the builder is correct at and above their own floor, which is exactly the
-  // sweep above, now that it starts where they declare rather than at 300.
+  // An upward floor must be earned (ADR 0017, ADR 0026 clause 2): it admits a builder limitation, so below it the
+  // builder must be wrong, a carcass growing wider and taller as it is asked narrower. A downward floor is a product
+  // decision (ADR 0026 clause 3), covered by the sweep above.
   const WITH_UPWARD_FLOOR = FLEXIBLE.filter(
     ([, definition]) =>
       definition.minWidthMm !== undefined &&
@@ -333,11 +296,8 @@ describe("a width-flexible body builds at every width the engine will hand it", 
     },
   );
 
-  // ADR 0017's actual reasoning, as a test: the built-size gate does **not** subsume the declared
-  // floor. At 550 mm the sink base's inverted worktop measures 555.4 × 866.7 mm — 5.4 mm and 6.7 mm
-  // out, both *inside* `FIT_TOLERANCE_M` — so `refuseBuiltSize` accepts a body whose geometry is
-  // broken. Only the explicit `minWidthMm` keeps it out. Anyone tempted to "simplify" the floor
-  // away on the grounds that the re-check covers it should have to delete this test first.
+  // The built-size gate does not subsume the declared floor (ADR 0017): the 550 mm sink base is inside
+  // `FIT_TOLERANCE_M` yet geometrically broken, so only `minWidthMm` keeps it out.
   it("keeps out a 550 mm sink base that the built-size re-check would have accepted", () => {
     const inverted = build("base-sink", 550, 860, 580);
 
@@ -353,11 +313,7 @@ describe("a width-flexible body builds at every width the engine will hand it", 
     );
   });
 
-  // **The two facts came apart at ADR 0032**, and keeping them in one test would have hidden which
-  // one moved. The *builder* is still correct at the aperture — that is ADR 0017's measurement and
-  // it is the reason 560 was chosen over 550. The *engine* no longer takes the sink there, because
-  // `[600, 800]` is now a bound on the `'fit'` path too, so 560 is a width this entry does not have
-  // even though its geometry at 560 is sound.
+  // The builder is correct at the aperture width (ADR 0017's measurement, and why 560 was chosen over 550).
   it("builds the sink base correctly at the aperture width, as ADR 0017 measured it", () => {
     const built = build("base-sink", SINK_MIN_WIDTH_MM, 860, 580);
 
@@ -365,10 +321,7 @@ describe("a width-flexible body builds at every width the engine will hand it", 
     expect(built.carcassHeightMm).toBeCloseTo(860, 3);
   });
 
-  // **And built there, which is where ADR 0017 started.** 5C2 briefly made `[600, 800]` a bound and
-  // this case asserted a refusal at the aperture; ADR 0033's amendment reads the sink as cabinetry
-  // with a fixed aperture, so the engine takes it there again — and the measurement above is why 560
-  // was chosen over 550 in the first place. The two halves of the original finding now agree.
+  // The engine takes the sink from the aperture to the two-door maximum: cabinetry with a fixed aperture (ADR 0033).
   it("and the engine takes it there, from the aperture to the two-door maximum", () => {
     expect(refusesFitWidth("base-sink", SINK_MIN_WIDTH_MM)).toBeUndefined();
     expect(refusesFitWidth("base-sink", 600)).toBeUndefined();
@@ -380,22 +333,11 @@ describe("a width-flexible body builds at every width the engine will hand it", 
   });
 });
 
-// The general form of the `wall-lift` defect the logic review found: two catalogue ids that build
-// **indistinguishable geometry**. A size sweep cannot see it — both bodies pass the built-size gate
-// at every width, because the difference is a door slab and a handle edge, neither of which is a
-// carcass mesh. What makes it visible is identity rather than measurement: if two rows of the panel
-// produce the same tree, one of the two products does not exist.
-//
-// Compared at 600 mm, the one width every entry but the freestanding fridge supports, so this is a
-// property of the catalogue rather than of a hand-picked pair. Deliberately **not** asserted at
-// every width: §7's wall-cabinet door rule is `w > 0.45 ? 2 : 1`, so `wall-2door` and `wall-1door`
-// are legitimately the same body at 400 mm and below — that is the rule working, not two rows
-// colliding, and a test that failed on it would be pressure to break the rule. The case below pins
-// that coincidence too, so nobody later "fixes" it.
+// Two catalogue ids building indistinguishable geometry pass every size sweep (a door slab and a handle edge are
+// not carcass meshes), so this compares identity: two rows producing one tree means one product does not exist.
+// Compared at 600 mm, the one width every entry but the freestanding fridge supports.
 describe("no two catalogue ids build the same body", () => {
-  /** Every mesh's name, position and geometry, in tree order — enough to tell a two-door cabinet
-   *  from a one-door one, and a lift-up flap's bottom bar from a side handle. Positions are rounded
-   *  to a tenth of a millimetre so float noise cannot manufacture a difference. */
+  /** Every mesh's name, position and geometry in tree order, positions rounded to 0.1 mm against float noise. */
   function structuralSignature(group: THREE.Object3D): string {
     const parts: string[] = [];
     group.traverse((node) => {
@@ -449,12 +391,8 @@ describe("no two catalogue ids build the same body", () => {
     expect(bySignature.size).toBe(INSERTABLE_ENTRIES.length);
   });
 
-  // **This case is retired by ADR 0033 and replaced by its converse.** It used to pin the one place
-  // two catalogue ids legitimately built the same tree: `wall-2door` and `wall-1door` at 400 mm were
-  // both a one-door carcass, which the collision sweep above would otherwise have read as a defect.
-  // There is no second id any more, so the collision cannot happen — and the thing worth asserting
-  // is the opposite one: that the **same** entry builds two different trees, on the two sides of the
-  // threshold. If it did not, merging the pair would have quietly deleted a product.
+  // The converse of the old pair-collision case (ADR 0033): one entry must build two different trees across the door
+  // threshold, else merging the pair would have quietly deleted a product.
   it("builds two different trees from one wall entry, across the door threshold", () => {
     const entry = INSERTABLE_ENTRIES.find(([id]) => id === "wall-cabinet");
     if (!entry) throw new Error("no wall-cabinet entry");
@@ -463,51 +401,30 @@ describe("no two catalogue ids build the same body", () => {
     expect(signatureOf(buildId, definition, 400)).not.toBe(
       signatureOf(buildId, definition, 600),
     );
-    // A structural signature carries dimensions as well as shape, so the line above alone would also
-    // pass for two widths that build the same cabinet. The *door count* is the part that has to
-    // differ, and it is counted off the built bodies rather than read out of a string.
+    // The signature carries dimensions as well as shape, so the door count is what must differ, counted off bodies.
     expect(countDoorsAbreast(buildId, 400, 700, 400)).not.toBe(
       countDoorsAbreast(buildId, 600, 700, 400),
     );
   });
 });
 
-/** §7's labels count doors in Romanian: "2 uși", "1 ușă". `undefined` for a label that claims no
- *  count — `Corp spălător`, `Etajeră deschisă`, `Hotă` — which is not the same as claiming zero.
- *
- *  It parses the **derived** label now (ADR 0033), not a declared one, which is what makes the sweep
- *  below a check rather than a restatement: the string comes out of the domain's own renderer and
- *  the number it is compared against is counted off a built body. */
-/** The count the catalogue claims for this body, read off the descriptor the domain publishes. It
- *  used to be scraped out of a rendered Romanian label with a regular expression; since 6B-f the
- *  count is a field, and the sentence it will be rendered into belongs to the app. What is compared
- *  below is unchanged: a claimed count against doors counted off meshes the real builders made. */
+/**
+ * The door count the catalogue claims, read off the domain's descriptor; `undefined` for a label that claims no
+ * count, which is not the same as zero.
+ */
 function declaredDoorCount(label: BodyLabel): number | undefined {
   return label.kind === "withDoors" ? label.doors : undefined;
 }
 
 describe("a derived label that counts doors, against the doors the builder actually makes", () => {
-  // ADR 0029 (owner, 2026-08-27), closing finding R1.2 — and this is the test that made it a rule
-  // rather than a number. §7's wall builder is `w > 0.45 ? 2 : 1`, so `wall-2door` at 400 mm built
-  // **one** door under a two-door label, priced as two and badged ACTUAL as two. §6.3's
-  // fridge-housing-priced-as-a-pantry, one layer along.
-  //
-  // **ADR 0033 changed what this gate can be, and it had to.** The label was a declared string and
-  // the door count was a declared set; now both are derived from `TWO_DOOR_MIN_WIDTH_MM`, so a naive
-  // rewrite would compare the derivation with itself and pass forever. What keeps it honest is that
-  // one side of every comparison below is **counted off a body the real builders made** — the meshes
-  // are a measurement, not a restatement — and the widths 400 and 600 are written out rather than
-  // derived from the threshold, so both sides moving together still fails.
-  //
-  // **This test belongs in the adapter, and only here.** `@lemnaria/configurator-domain` is I/O-free
-  // and sits below this package, so it cannot see a builder; the adapter already imports
-  // `INSERTABLE_BODY_DEFINITIONS` and is the one place both halves are visible at once.
+  // The label's door count and the builder's both derive from one threshold (ADR 0033), so one side of every
+  // comparison is counted off a body the real builders made, and 400 and 600 are written out: both sides moving
+  // together still fails. Lives in the adapter because the I/O-free domain cannot see a builder.
   it("builds the door count its derived label claims, at every width it declares", () => {
     const claiming = INSERTABLE_ENTRIES.filter(
       ([, definition]) => definition.doorCountFollowsWidth === true,
     );
-    // ADR 0048 added the third: `tall-pantry` is the one column whose door count follows its
-    // width, and it joins this sweep by declaring the flag rather than by being listed anywhere.
+    // `tall-pantry` joins this sweep by declaring the flag (ADR 0048).
     expect(claiming.map(([buildId]) => buildId)).toEqual([
       "base-cabinet",
       "wall-cabinet",
@@ -530,38 +447,27 @@ describe("a derived label that counts doors, against the doors the builder actua
         swept += 1;
       }
     }
-    // Two entries times thirteen chips — five apiece until ADR 0035 decision 1 stepped the bound at
-    // 50 mm, and twelve until the owner retired ADR 0030's cap on 2026-08-28 and 450 joined the row
-    // — plus the pantry's own nine, 400 to 800 (ADR 0048). A sweep that silently stopped naming
-    // widths would otherwise pass by asserting nothing.
+    // Thirteen widths for each of the two cabinets plus the pantry's nine (400 to 800, ADR 0048): a sweep that silently
+    // stopped naming widths would otherwise pass by asserting nothing.
     expect(swept).toBe(35);
   });
 
-  // **The anchor, and the reason the sweep above is not circular.** Both numbers are written out and
-  // both are counted off real geometry, so this fails if the threshold moves in *either* package —
-  // which is the drift the merge would otherwise have made invisible, since the label and the
-  // builder now read one constant and would move together.
+  // Both widths are written out and counted off real geometry, so this fails if the threshold moves in either package;
+  // the label and the builder share one constant and would otherwise move together.
   it("flips from one door to two between the two widths either side of the threshold", () => {
     expect(countDoorsAbreast("wall-cabinet", 400, 700, 400)).toBe(1);
     expect(countDoorsAbreast("wall-cabinet", 600, 700, 400)).toBe(2);
     expect(countDoorsAbreast("base-cabinet", 400, 860, 580)).toBe(1);
     expect(countDoorsAbreast("base-cabinet", 600, 860, 580)).toBe(2);
-    // ADR 0048's own ends, and the threshold in between — the boundary pairs wave 5B8 criterion 1
-    // names. 399 and 801 are outside the row's bound and are refused by the domain, so the widths
-    // the builder is asked about are the four inside it.
+    // ADR 0048's ends and the threshold between; 399 and 801 are outside the row's bound and refused by the domain.
     expect(countDoorsAbreast("tall-pantry", 400, 2200, 560)).toBe(1);
     expect(countDoorsAbreast("tall-pantry", 499, 2200, 560)).toBe(1);
     expect(countDoorsAbreast("tall-pantry", 500, 2200, 560)).toBe(2);
     expect(countDoorsAbreast("tall-pantry", 800, 2200, 560)).toBe(2);
   });
 
-  // The band that used to be skipped, and is not any more. ADR 0030 capped a single hinged door at
-  // 400 for the swing arc, which put (400, 500) outside the entry's chips; the owner retired that cap
-  // on 2026-08-28 — "make it still 500, so it'll cover this gap between 450 and 500" — so the band is
-  // ordinary one-door territory and the entry's widths are one continuous bound.
-  //
-  // What this file asserts is the **geometry**: the builder makes one door across the whole band and
-  // two from 500 up, which is what makes the retired cap a product choice rather than a builder limitation.
+  // ADR 0030's one-door cap is retired (ADR 0035): the builder makes one door across (400, 500) and two from 500 up, so
+  // the cap was a product choice rather than a builder limitation.
   it("makes one door across the band ADR 0030's retired cap used to skip", () => {
     expect(countDoorsAbreast("wall-cabinet", 430, 700, 400)).toBe(1);
     expect(countDoorsAbreast("wall-cabinet", 450, 700, 400)).toBe(1);
@@ -571,21 +477,9 @@ describe("a derived label that counts doors, against the doors the builder actua
     expect(entry?.[1].sizesMm).toContain(500);
   });
 
-  // **The threshold itself, pinned to the millimetre** (QA finding Q1.3).
-  //
-  // The anchors above bracket it at 400 and 600, and the band case at 430; measured, that left the
-  // whole repository green for a wide window of thresholds. The pin has to be the width *at* the
-  // flip and its immediate predecessor, because a two-door at 500 and a one-door at 499 is the only
-  // pair no other value satisfies.
-  //
-  // **The comparison is `>=` (ADR 0035 decision 4)**, which is why the pin is `- 1` and not `+ 1`.
-  // It was `>` against 450, so 450 got one door and 451 got two; at 500 with `>=` the constant
-  // finally describes the value it names.
-  //
-  // `TWO_DOOR_MIN_WIDTH_MM` is **this file's own literal**, never imported from the domain — that is
-  // the whole point of it. Both numbers still come back from `door_front` meshes counted off bodies
-  // the real builders made, so the product decision moving requires this line to move with it, on
-  // purpose.
+  // The threshold pinned to the millimetre: 500 is two doors and 499 one, a pair no other value satisfies. The
+  // comparison is `>=` (ADR 0035 decision 4). `TWO_DOOR_MIN_WIDTH_MM` is this file's own literal, so a product
+  // change must move it on purpose.
   it("pins the flip to 500 exactly, and to no other width", () => {
     expect(
       countDoorsAbreast("wall-cabinet", TWO_DOOR_MIN_WIDTH_MM, 700, 400),
@@ -601,9 +495,8 @@ describe("a derived label that counts doors, against the doors the builder actua
     ).toBe(1);
   });
 
-  // The two forms the merged entry takes, at the two widths the retired pair used to be. The words
-  // they render into are the catalogue's since 6B-f — pinned by the copy lock and by
-  // `apps/web/tests/i18n/body-label.test.ts`; what the domain owes is the count.
+  // The words the forms render into belong to the catalogue (`apps/web/tests/i18n/body-label.test.ts`); the domain
+  // owes the count.
   it("takes the two forms the entries it replaced did", () => {
     const entry = INSERTABLE_ENTRIES.find(([id]) => id === "wall-cabinet");
     if (!entry) throw new Error("no wall-cabinet entry");
@@ -619,17 +512,8 @@ describe("a derived label that counts doors, against the doors the builder actua
 });
 
 describe("the §11 rows that name a body and a number", () => {
-  // Row 20: a 570 mm opening builds a 570 mm body, and the door count follows the built width.
-  //
-  // **This is a builder-fidelity claim, not an end-to-end demonstration of the row** (QA finding
-  // Q1.2). `buildCatalogBody` is called directly at 570, which is a width the engine will no longer
-  // hand a wall cabinet — ADR 0033's merged set has no member between 400 and 600. See the note on
-  // `insert-body.test.ts`'s row-20 case for which half of the row is still reachable and which is
-  // not.
-  //
-  // The threshold pair that used to sit here has moved to "pins the flip to 450 exactly": stated as
-  // `TWO_DOOR_MIN_WIDTH_MM` and `+ 10` it was true for any threshold within 10 mm, which is a claim
-  // about this file agreeing with itself rather than about the number.
+  // Row 20 is a builder-fidelity claim only: `buildCatalogBody` is called at 570, a width the engine no longer hands
+  // a wall cabinet (ADR 0033's merged set has no member between 400 and 600).
   it("row 20 — 570 mm of wall cabinet is 570 mm wide with two doors", () => {
     const built = build("wall-cabinet", 570, 700, 400);
 
@@ -637,7 +521,6 @@ describe("the §11 rows that name a body and a number", () => {
     expect(countDoorsAbreast("wall-cabinet", 570, 700, 400)).toBe(2);
   });
 
-  // Row 14: the dishwasher niche accepts only 450 and 600, and both build a real carcass.
   it.each([450, 600])(
     "row 14 — the dishwasher niche builds at %i mm",
     (widthMm) => {
@@ -648,8 +531,6 @@ describe("the §11 rows that name a body and a number", () => {
     },
   );
 
-  // Row 6 / ADR 0016: the hood's carcass is canopy + chimney, so it measures its catalogue height
-  // and is accepted into a slot that fits 710 mm.
   it.each([600, 900])(
     "row 6 — the hood measures 710 mm of carcass at %i mm wide",
     (widthMm) => {
@@ -662,7 +543,6 @@ describe("the §11 rows that name a body and a number", () => {
     },
   );
 
-  // Row 7: the sink base fits an 860 mm opening because the faucet is not carcass.
   it("row 7 — the sink base measures 860 mm of carcass and reports the faucet separately", () => {
     const built = build("base-sink", 800, 860, 580);
 
@@ -672,9 +552,7 @@ describe("the §11 rows that name a body and a number", () => {
   });
 });
 
-// Boundaries the *builders* do not guard. Each is checked as "the engine's own gate catches it",
-// which is the only guarantee 3B is entitled to make — none of these is reachable through
-// `insertBody`, and the assertions below say why in the values they use.
+// Each boundary is checked as "the engine's own gate catches it"; none is reachable through `insertBody`.
 describe("boundaries the builders do not guard", () => {
   it("a hood built at or below its canopy height reports the canopy, and the gate refuses it", () => {
     const atCanopy = build("hood", 600, 130, 500);
@@ -690,12 +568,10 @@ describe("boundaries the builders do not guard", () => {
     const negative = build("base-cabinet", -100, 860, 580);
 
     expect(zero.carcassWidthMm).toBeLessThan(10);
-    // The built-size re-check does **not** catch this one: 2 mm against a required 0 is inside
-    // `FIT_TOLERANCE_M`. `resolveWidth`'s `MIN_WIDTH_M` floor (`insert-fit.ts`) is the only guard,
-    // which is why it is asserted here rather than assumed.
+    // The built-size re-check does not catch this (2 mm against 0 is inside `FIT_TOLERANCE_M`); `resolveWidth`'s
+    // `MIN_WIDTH_M` floor (`insert-fit.ts`) is the only guard.
     expect(passesBuiltSizeGate(zero.carcassWidthMm, 0)).toBe(true);
     expect(MIN_WIDTH_M).toBeGreaterThan(0);
-    // A negative width is caught by the gate as well as by the floor.
     expect(passesBuiltSizeGate(negative.carcassWidthMm, -100)).toBe(false);
   });
 
