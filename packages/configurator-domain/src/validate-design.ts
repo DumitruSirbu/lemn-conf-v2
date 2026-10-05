@@ -1,10 +1,5 @@
-// DOM-001: the executable half of validation. `DesignSchema` decides whether a document has the
-// right *shape*; this decides whether the domain can actually derive geometry from it. The two are
-// separate because a document can be perfectly shaped and still name a body that does not exist,
-// stand two placements on one id, or put a cabinet through the ceiling — and each of those reaches
-// `derivePlacementRecords` as a thrown `UnknownBodyError` or a silently wrong scene.
-//
-// One validator, three seams: the API write path, the stored-row load path, and any future import.
+// The executable half of validation: `DesignSchema` checks shape, this checks the domain can derive geometry from it.
+// One validator, three seams: API write, stored-row load, import.
 
 import { materialOfDesign } from "./design-material.js";
 import {
@@ -81,12 +76,8 @@ export interface DesignValidationIssue {
   readonly path: string;
 }
 
-/**
- * Every reason this design cannot be executed against this catalogue, or an empty list.
- *
- * A query: it reports, it never throws and never mutates. `assertDesignValidForCatalog` is the
- * command built on it, for the seams that want a failure rather than a list.
- */
+/** Every reason this design cannot be executed against this catalogue, or an empty list. A query: never throws,
+ *  never mutates. */
 export function validateDesignForCatalog(
   design: Design,
   catalog: BodyCatalog,
@@ -107,30 +98,8 @@ export function validateDesignForCatalog(
   ];
 }
 
-/**
- * **ADR 0057's invariant at the write seam: no stored design holds a finish its material does not
- * offer.**
- *
- * A document-level rule rather than a per-placement one, because the question it asks is about
- * `design.settings` and not about the catalogue — the same shape `findTimestampIssues` and
- * `findEmptyColumnIssues` have. The offer is `materialOffersFinish`, ADR 0078 decision 1's table
- * read off the declared `ColourControl.shape`, so *"does not offer"* is decided in one place.
- *
- * **It refuses rather than rewriting** (ADR 0078's fourth alternative). The write seam receives a
- * whole document from a client; silently rewriting the customer's payload and answering `200` is how
- * a client bug becomes invisible, and every legitimate write already passed through a command that
- * resolved. It reaches a client as `invalidBodyResponse`, a code and a path and no reason echoed
- * (ADR 0014 S2).
- *
- * **Unreachable on the load path by construction**, which is the ordering the whole wave turns on:
- * `migrateDesign` runs `resolveFinishesTheMaterialDoesNotOffer` immediately before
- * `assertDesignValidForCatalog`, so no stored row is ever refused for wearing the wrong finish.
- *
- * **An undeclared `materialTierId` reports nothing** (ADR 0078 decision 3): a material this product
- * does not declare makes no offer, so there is nothing to judge the document against, and wave 6G's
- * recovery path depends on such a row still saving. **Absence reports nothing either** (decision 5):
- * a body wearing no finish is not wearing one the material fails to offer.
- */
+/** ADR 0057 at the write seam: no stored design holds a finish its material does not offer. Refuses rather than
+ *  rewrites; an undeclared material or an absent finish reports nothing (ADR 0078). */
 function findUnofferedFinishIssues(design: Design): DesignValidationIssue[] {
   const lookup = materialOfDesign(design);
   if (lookup.kind === "undeclared") return [];
@@ -142,14 +111,8 @@ function findUnofferedFinishIssues(design: Design): DesignValidationIssue[] {
   ];
 }
 
-/** **ADR 0099 decision 6's extension**: the whole-kitchen colour is a second place a finish is
- *  chosen, so the invariant above has to cover `settings.finish` and not only every `body.finish`.
- *
- *  It was not covered when the colour landed, and the asymmetry was the defect: the identical colour
- *  was refused on a cabinet and accepted on the kitchen. No command in this build can reach it —
- *  `setGlobalFinish` refuses, `setMaterialTier` resets, `resolveOpeningChoice` drops — but the write
- *  seam receives a whole document from a client, so a restored backup, a hand-edited row or another
- *  client reaches it, which is the same threat model the per-placement check already exists for. */
+/** ADR 0099 decision 6: the whole-kitchen colour is a second place a finish is chosen, so the invariant covers
+ *  `settings.finish` too. No command reaches it; a restored backup or hand-edited document can. */
 function findUnofferedGlobalFinishIssues(
   design: Design,
   material: Material,
@@ -177,9 +140,8 @@ function findUnofferedPlacementFinishIssues(
   });
 }
 
-/** The same rule, for a caller whose only sane response to a bad document is to fail: the stored-row
- *  load path, where an invalid row must surface as a handled domain error rather than as an
- *  `UnknownBodyError` thrown at the client mid-hydration. */
+/** The same rule as a failure rather than a list, for the stored-row load path, where an invalid row must surface as
+ *  a domain error and not an `UnknownBodyError` mid-hydration. */
 export function assertDesignValidForCatalog(
   design: Design,
   catalog: BodyCatalog,
@@ -192,37 +154,12 @@ export function assertDesignValidForCatalog(
   }
 }
 
-/** What a finding does to a load or a write: a `"refusal"` stops it, a `"mark"` is reported and
- *  carried. Both severities stay in the complete diagnostic report — migration needs the pre/post
- *  fact and visible surfaces need the mark. */
+/** What a finding does: a `"refusal"` stops the load or write, a `"mark"` is reported and carried; both stay in the
+ *  full diagnostic report. */
 export type DesignIssueSeverity = "mark" | "refusal";
 
-/**
- * The severity of every validation code, declared per code rather than filtered by a list.
- *
- * **The membership rule (ADR 0069 decision 2), which is the artefact to maintain and not this
- * table.** A finding is a `"mark"` if and only if the single fact it asserts is that a run reaches
- * past the end of the wall it stands on. Every other finding is a `"refusal"`. A finding that
- * asserts that fact *together with* any other fact is a refusal until it is split into codes that
- * each assert one fact — which is why `COLUMN_EXTENT_OUTSIDE_ROOM` became four codes.
- *
- * The map is **total**, so adding a member to `DesignValidationCode` without classifying it fails
- * to compile. A filter list cannot be wrong about a code it was never shown, and a forgotten member
- * at two seams is exactly the defect ADR 0069 records.
- *
- * Severity is declared and never inferred from the code's spelling: a name is a label, not a rule,
- * and the next code meaning "past the wall" may not be spelled that way (ADR 0061's pattern).
- *
- * **This table has two readers, and a wave adding a code answers only to the first.**
- * `assertDesignValidForCatalog` is the one the membership rule is written for. The other is
- * `migrate-design.ts`, where the room correction asks whether its own rewrite *creates* a fatal
- * finding. Nobody had written that second reader down, and the wave that added
- * `PLACEMENT_WEARS_UNOFFERED_FINISH` could not have been expected to check it — so ADR 0085
- * decision 2 removed the need to: **no entry in this table can change whether a room correction
- * fires**, because a code reaches that guard only when its findings differ between two documents
- * that differ only in `design.room`. Adding a member here is still one question, and it is still the
- * membership rule above.
- */
+/** Severity per code (ADR 0069 decision 2): `"mark"` iff the single fact asserted is that a run reaches past its
+ *  wall's end, else `"refusal"`. The map is total, so a new code must be classified. */
 export const DESIGN_ISSUE_SEVERITY_BY_CODE: Readonly<
   Record<DesignValidationCode, DesignIssueSeverity>
 > = {
@@ -237,8 +174,8 @@ export const DESIGN_ISSUE_SEVERITY_BY_CODE: Readonly<
   PLACEMENT_ABOVE_ROOM: "refusal",
   EMPTY_COLUMN_INVERTED: "refusal",
   EMPTY_COLUMN_BEFORE_WALL_START: "refusal",
-  // The same run after its bodies were removed. ADR 0065 tells the customer to remove something;
-  // refusing this refuses precisely that remedy.
+  // The same run after its bodies were removed: ADR 0065 tells the customer to remove something, so refusing this
+  // refuses that remedy.
   EMPTY_COLUMN_PAST_WALL_END: "mark",
   EMPTY_COLUMN_ABOVE_ROOM: "refusal",
   EMPTY_COLUMN_DEEPER_THAN_ROOM: "refusal",
@@ -251,33 +188,23 @@ export const DESIGN_ISSUE_SEVERITY_BY_CODE: Readonly<
   COLUMN_EXTENT_EXCLUDES_MEMBER: "refusal",
   COLUMN_EXTENT_KEY_COLLIDES_WITH_COLUMN_EXTENT: "refusal",
   COLUMN_EXTENT_BEFORE_WALL_START: "refusal",
-  // The frozen extent of the column holding a marked body, which the store rewrites on every
-  // command. Refusing it is refusing the second save.
+  // The frozen extent of a column holding a marked body, rewritten on every command: refusing it refuses the second
+  // save.
   COLUMN_EXTENT_PAST_WALL_END: "mark",
   COLUMN_EXTENT_ABOVE_ROOM: "refusal",
   COLUMN_EXTENT_DEEPER_THAN_ROOM: "refusal",
   COLUMN_EXTENT_OVERLAPS_PLACEMENT: "refusal",
   COLUMN_EXTENT_OVERLAPS_EMPTY_COLUMN: "refusal",
   COLUMN_EXTENT_OVERLAPS_COLUMN_EXTENT: "refusal",
-  // **The owner's ruling of 2026-09-09, and the second entry the membership rule above does not
-  // reach.** The fact this asserts is not "past the end of its wall", so the rule as ADR 0069
-  // decision 2 states it would make it a refusal — and a refusal here makes an already-stored
-  // document unloadable, which is ADR 0052's dead link. The owner ruled it a mark for the reason
-  // `PLACEMENT_PAST_WALL_END` is one (ADR 0065): the geometry is visible on screen and reported,
-  // the document still loads, and nothing is moved out from under the customer.
+  // Not "past the end of its wall", so the membership rule would refuse it and make a stored document unloadable (ADR
+  // 0052); ruled a mark like `PLACEMENT_PAST_WALL_END` (ADR 0065).
   RECORDED_SPAN_OVERLAPS_CORNER_BODY: "mark",
   TIMESTAMPS_OUT_OF_ORDER: "refusal",
-  // ADR 0069 decision 2's membership rule leaves no discretion: the single fact this asserts is not
-  // "past the end of its wall", so it is a refusal. The *refusal* is reachable only at
-  // `PUT /api/designs/[id]` — `migrateDesign` resolves the same violation immediately before it
-  // asserts (ADR 0078 decision 2) — and this entry was read as meaning the code has no effect on the
-  // load path, which is a different and, then, false statement. See the table's own head comment for
-  // the second reader that made it so.
+  // Not "past the end of its wall", so a refusal (ADR 0069 decision 2); it fires only at `PUT /api/designs/[id]`, as
+  // `migrateDesign` resolves it before asserting on load.
   PLACEMENT_WEARS_UNOFFERED_FINISH: "refusal",
-  // ADR 0099 decision 6's half of the same rule, and a refusal for the same reason its sibling is:
-  // the fact it asserts is not "past the end of its wall". The two are separate codes rather than
-  // one because the path differs — `settings.finish` is one field on the document, not an index into
-  // `placements` — and a code named for a placement cannot honestly carry a finding about neither.
+  // ADR 0099 decision 6: refused like its sibling; a separate code since `settings.finish` is a field, not a
+  // `placements` index.
   SETTINGS_WEAR_UNOFFERED_FINISH: "refusal",
 };
 
@@ -290,8 +217,7 @@ export function fatalDesignValidationIssues(
   );
 }
 
-/** The shape of a domain-validation failure, through the one describer both halves of this
- *  project's validation now share. */
+/** The shape of a domain-validation failure, through the describer both halves of validation share. */
 export function describeDesignValidationIssues(
   issues: readonly DesignValidationIssue[],
 ): string {
@@ -300,14 +226,8 @@ export function describeDesignValidationIssues(
   );
 }
 
-/**
- * ADR 0044's half of the executable contract: a recorded empty space that the document's own
- * placements contradict.
- *
- * Every command writes both halves together, so an entry standing in occupied space can only reach
- * here from a hand-edited or hostile document — and DOM-001's lesson is that such a document is
- * refused at the write seam and the load seam rather than left to make a derivation wrong.
- */
+/** ADR 0044's half of the executable contract: a recorded empty space the document's own placements contradict; only
+ *  a hand-edited or hostile document reaches it, so both seams refuse. */
 function findEmptyColumnIssues(design: Design): DesignValidationIssue[] {
   const emptyColumns = design.emptyColumns ?? [];
   return [
@@ -319,34 +239,9 @@ function findEmptyColumnIssues(design: Design): DesignValidationIssue[] {
   ];
 }
 
-/**
- * ADR 0053's half of the executable contract: a recorded frozen extent that the document's own
- * placements contradict.
- *
- * **This is what replaced a disjointness proof, so it carries the weight that proof used to.**
- * Until this record, the stored half of the frozen map could never land on a key the placements
- * produced, and `deriveColumns` could therefore never overwrite a derived column. `columnExtents`
- * lands on exactly those keys on purpose, so what makes the overwrite safe is proved here instead:
- * every placement filed under an entry's key lies **inside** that entry. With that, restoring an
- * extent can only widen a column — it can never lose a member, and it can never publish an opening
- * over a body, which is the one failure this array could otherwise cause.
- *
- * An entry with no member at all is refused rather than restored: on a key the placements do not
- * hold, a frozen extent is an `emptyColumns` entry wearing the wrong array's name, and the nine
- * refusals that govern that array — overlap, key collision, the width ceiling — would not be asked
- * of it.
- *
- * **Two rules the empty-column half does not need, and why they are here.** An entry may not share
- * a key with another entry, because the second would overwrite the first in the map and a space the
- * document records would not exist in the derivation. And an entry is held to the room, because
- * containment bounds it only from **below**: a hostile document may declare an extent that contains
- * its members and still reaches ten metres up or out through the shell, which is review finding F2's
- * defect arriving on a new field.
- *
- * There is deliberately no inversion rule. A `topMm` at or below `y0Mm` cannot contain a member of
- * positive height, so `COLUMN_EXTENT_EXCLUDES_MEMBER` already refuses every inverted entry — and
- * an entry with no member is refused before the question is asked.
- */
+/** ADR 0053's half: a recorded frozen extent the placements contradict. Every placement under an entry's key must
+ *  lie inside it, so restoring can only widen a column. A member-less extent is refused, not restored; there is no
+ *  inversion rule, as `COLUMN_EXTENT_EXCLUDES_MEMBER` already refuses every inverted entry. */
 function findColumnExtentIssues(
   design: Design,
   catalog: BodyCatalog,
@@ -354,9 +249,8 @@ function findColumnExtentIssues(
   const columnExtents = design.columnExtents ?? [];
   if (columnExtents.length === 0) return [];
   const membersByKey = describeMembersByColumnKey(design, catalog);
-  // A document naming a body no catalogue entry covers is already refused by `UNKNOWN_BUILD_ID`,
-  // and the containment rule cannot be asked without the catalogue's own depth declaration. Skipping
-  // it here reports one fault instead of two on a document that is refused either way.
+  // A document naming a body the catalogue lacks is already refused by `UNKNOWN_BUILD_ID`; containment needs the
+  // catalogue's depth declaration, so skip rather than report twice.
   if (!membersByKey) return [];
   return [
     ...findCollidingColumnExtentKeys(columnExtents),
@@ -369,10 +263,8 @@ function findColumnExtentIssues(
   ];
 }
 
-/** What the containment rule needs to know about one placement, in the millimetres the document is
- *  written in — read off the **derived record** rather than off the placement, because the
- *  derivation is what a stored extent overrides: `frameHeightMm` and the declared occupied depth
- *  both part company with what the placement itself says (ADR 0018, ADR 0036, ADR 0039). */
+/** What the containment rule needs of a placement, in millimetres, read off the derived record since that is what a
+ *  stored extent overrides: `frameHeightMm` and the occupied depth differ from the placement's own (ADR 0018). */
 interface MemberSpan {
   readonly floorMm: number;
   readonly topMm: number;
@@ -401,34 +293,8 @@ function findOneColumnExtentIssues(
   ];
 }
 
-/**
- * The two ways a member can stand outside the extent that claims it: below its floor, or above its
- * top. Asked in whole millimetres, because that is the resolution both sides are written in — the
- * document's own for the extent, and a rounded derivation for the member, whose sub-millimetre float
- * noise is not a containment breach.
- *
- * **Two, and not the four an extent has fields for. The other two are not invariants of the map this
- * validates, measured rather than assumed.**
- *
- * - *Along the wall.* §3.2 derives a column's `w` as the **MIN** over its members' widths, so a
- *   column is routinely narrower than a body it holds — the seeded `A|1.30` is 500 mm wide and
- *   carries a 600 mm base. The opposite is false too: a MIN over the original members stays frozen
- *   when some of them are deleted, so an extent is narrower than every remaining member after a
- *   partial delete. Neither direction is a rule.
- * - *Depth.* ADR 0011 Gap D freezes `d`, and a resize rebuilds its members with freshly measured
- *   seats — so a member's occupied depth can grow past the extent that holds it while the extent
- *   stays where Gap D put it. Measured on the shipped kitchen: shrinking the pantry leaves `B|1.77`
- *   frozen at 600 mm deep holding a top box that occupies 639 mm. Refusing that would refuse a
- *   document the product itself writes.
- *
- * Both are bounded from above by the room instead (`findExtentRoomIssues`), which is what stops an
- * extent reaching across the wall or out through the shell.
- *
- * **The vertical pair is the one that carries the guarantee**, and it is monotone by construction:
- * the floor is a MIN over the members' and the top a MAX, so a stored extent that passes this can
- * only ever hold *more* space than the placements imply. That is what makes restoring it able to
- * widen a column and unable to lose the space a member stands in.
- */
+/** Vertical containment in whole millimetres (ADR 0053). Along-wall and depth are not invariants (`w` is a MIN over
+ *  members; a resize outgrows a frozen `d`), so only the room bounds them (`findExtentRoomIssues`). */
 function extentContains(
   extent: StoredColumnExtent,
   member: MemberSpan,
@@ -436,14 +302,8 @@ function extentContains(
   return extent.y0Mm <= member.floorMm && extent.topMm >= member.topMm;
 }
 
-/** The same room bound a placement and an empty column are held to, through the same rule and now
- *  under the same four names the `emptyColumns` half has carried since ADR 0044.
- *
- *  **The edge is load-bearing and belongs in the code, not only in the path.** The four edges no
- *  longer share a severity — past the wall's end is a mark and the other three refuse (ADR 0069
- *  decision 3) — so a single "this extent is not inside the room" code cannot be classified at all
- *  without reading the path. An extent breaching two edges emits two findings, and the fatal one
- *  still refuses it while the mark stays true. */
+/** The same room bound a placement and an empty column get. Each edge keeps its own code because severities differ
+ *  (past the wall's end is a mark; ADR 0069 decision 3); a double breach emits two findings. */
 function findExtentRoomIssues(
   extent: StoredColumnExtent,
   index: number,
@@ -470,10 +330,8 @@ function findExtentRoomIssues(
   ];
 }
 
-/** Two entries addressing one slot in the column map: `deriveColumns` would restore both and keep
- *  the last, so one of the extents the document records would not exist in the derivation. Named on
- *  both sides for the reason `findCollidingColumnKeys` names both — neither entry is the offender
- *  on its own. */
+/** Two entries addressing one slot: `deriveColumns` would keep the last, so a recorded extent would not exist. Both
+ *  sides are named, as neither is the offender alone. */
 function findCollidingColumnExtentKeys(
   columnExtents: readonly StoredColumnExtent[],
 ): DesignValidationIssue[] {
@@ -504,16 +362,8 @@ function columnExtentKey(extent: StoredColumnExtent): string {
   return deriveColumnKeyAt(extent.wall, toMetres(extent.alongMm));
 }
 
-/**
- * Every placement, as the containment rule sees it, grouped under the column key the derivation
- * files it under — or `undefined` when the catalogue cannot answer for one of them.
- *
- * `derivePlacementRecords` is the one function that knows which key a placement lands on and how
- * far up the space it fills reaches — `frameHeightMm` parts company with the height the placement
- * declares — so asking it here is what keeps this rule and `deriveColumns` reading the same numbers.
- * It throws only for a `buildId` the catalogue does not hold, which the caller has already
- * excluded.
- */
+/** Placements grouped under the column key the derivation files them under, via `derivePlacementRecords` so both
+ *  read the same numbers; `undefined` when the catalogue lacks a body, which it would throw on. */
 function describeMembersByColumnKey(
   design: Design,
   catalog: BodyCatalog,
@@ -539,21 +389,8 @@ function toMemberSpan(record: PlacementRecord): MemberSpan {
   };
 }
 
-/**
- * ADR 0052: no empty column is wider than `MAX_EMPTY_COLUMN_WIDTH_MM`.
- *
- * **This refuses a column, never a space.** ADR 0037 and ADR 0043 both stand — a span of any width
- * may be left empty, and a document carrying a 1000 mm gap as an 800 and a 200 passes here. What is
- * refused is the *single entry* recording more than the ceiling, because it publishes an opening no
- * `widthFlex: 'fit'` body can be built into (`WIDTH_NOT_SUPPORTED`) and no command in the product
- * can produce one: the merge declines past the ceiling and a shrink splits at it.
- *
- * **The stored-row seam does not reach this for a version 1 document**, and that is deliberate:
- * `migrateFromV1` splits an oversized entry before the validator sees it, so an existing share link
- * loads as the columns the new rule allows rather than breaking. A version 2 document has no such
- * excuse — it was written under this rule — so it is refused here and, through the same function, at
- * the API write seam. DOM-001: both seams refuse together.
- */
+/** ADR 0052: no empty column is wider than `MAX_EMPTY_COLUMN_WIDTH_MM`. Refuses one entry, never a space (a 1000 mm
+ *  gap as 800 plus 200 passes); `migrateFromV1` splits oversized entries first, so old share links load. */
 function findOversizedEmptyColumns(
   emptyColumns: readonly EmptyColumn[],
 ): DesignValidationIssue[] {
@@ -569,10 +406,8 @@ function findOversizedEmptyColumns(
   );
 }
 
-/** The room bounds a space exactly as it bounds a body, through the one containment rule and its
- *  one wall-run bound (`findContainmentBreaches`). An empty column that was held only to
- *  `MAX_DESIGN_DIMENSION_MM` was a space the derivation would publish outside the shell — a column
- *  nine metres along a 3.6 m wall, with openings a body can then be offered into. */
+/** The room bounds a space as it bounds a body, through `findContainmentBreaches`; an empty column held only to
+ *  `MAX_DESIGN_DIMENSION_MM` would be published outside the shell. */
 function findUncontainedEmptyColumns(
   emptyColumns: readonly EmptyColumn[],
   room: DesignRoom,
@@ -600,29 +435,8 @@ function findUncontainedEmptyColumns(
   });
 }
 
-/**
- * The only depth in the document a client chooses.
- *
- * A placement has no depth of its own: `deriveFrame` takes it from the catalogue definition, or
- * from a `seatDepthMm` the insert command measured off a body it actually built. An empty column
- * carries its own, so a token holder may PUT a ten-metre depth — the schema bounds it only by
- * `MAX_DESIGN_DIMENSION_MM`, and `deriveCabinetWorldTransform` refuses nothing above zero — and
- * every later viewer of that share link renders a space protruding out through the shell.
- *
- * The bound is the wall's **own** normal run: §2 sends wall A's depth into the room's depth and
- * wall B's into its width, and no shipped body comes near either.
- *
- * **ADR 0132 decision 7 (D10) extends wall A's bound to a U.** Wall A backs onto both side walls,
- * so its own reach into the room is bounded by whichever one the floor is actually drawn to —
- * `max(depthMm, wallCMm)` — never `depthMm` alone once a second side wall exists. Wall C's own
- * bound is the room's width, the same run wall B's already reads: its depth reaches in from
- * `x = W` toward `−X`, over the same `widthMm` wall B's reach starts counting from `x = 0`
- * (`room-transforms.ts`'s α frames, ADR 0132 decision 1) — so the non-A arm needed no change.
- * `wallCMm` is `undefined` on an L or a straight room, where `Math.max` with `0` is a no-op and
- * this stays exactly `room.depthMm`.
- *
- * Per-wall, and the along-wall bound agrees — see `wallLengthMm`.
- */
+/** The only depth a client chooses, bounded by the wall's own normal run; wall A's is `max(depthMm, wallCMm)` so a
+ *  U's longer side wall counts (ADR 0132 decision 7). `wallCMm` is undefined on an L or straight room. */
 function reachesPastRoomAcrossWall(
   emptyColumn: EmptyColumn,
   room: DesignRoom,
@@ -632,21 +446,8 @@ function reachesPastRoomAcrossWall(
   return emptyColumn.depthMm > drawnFloorDepthMm;
 }
 
-/**
- * Two spaces, or a space and a run of bodies, that the column map cannot hold apart.
- *
- * §3.2 addresses the map by `deriveColumnKeyAt`, which is a **coarser resolution than the document
- * it is derived from**: the key rounds a metre value to two places, so it is 10 mm granular while
- * `alongMm` is whole millimetres. Entries at 3576 and 3578 are two spaces by every rule this
- * validator has — ADR 0043 leaves an empty column no width floor, so they are legal and they do not
- * overlap — and they are one key. The same is true of a space recorded at an occupied column's
- * centre in a band the placements do not reach, which the overlap rule accepts because the two
- * never meet vertically.
- *
- * Whichever entry loses is a space the document records and the derivation does not have. That is
- * precisely what validation exists to prevent, so it is a refusal here rather than a drop in
- * `deriveColumns`.
- */
+/** Entries the column map cannot hold apart: `deriveColumnKeyAt` is 10 mm granular and `alongMm` is not, so 3576 and
+ *  3578 share a key. The loser would be a recorded space the derivation lacks, so it is refused rather than dropped. */
 function findCollidingColumnKeys(
   placements: readonly DesignPlacement[],
   emptyColumns: readonly EmptyColumn[],
@@ -668,8 +469,8 @@ function findCollidingColumnKeys(
       issues.push(issueAt("EMPTY_COLUMN_KEY_COLLIDES_WITH_PLACEMENT", path));
     }
     const owners = keyOwners.get(key) ?? [];
-    // Both sides are named, not just the later one: neither entry is the offender on its own, and
-    // a caller told only about the second would move it and collide with the first all over again.
+    // Both sides are named: neither entry is the offender alone, and moving only the second would collide with the
+    // first again.
     if (owners.length === 1) {
       issues.push(
         issueAt(
@@ -686,10 +487,8 @@ function findCollidingColumnKeys(
   return issues;
 }
 
-/** A top at or below the floor is not a thin space, it is an extent with no height: §4 would read
- *  it as a column whose opening runs backwards. It is also how the overlap rule below would be
- *  bypassed — an inverted interval vertically overlaps nothing — so it is refused before the
- *  overlap sweep ever reads it. */
+/** A top at or below the floor is an extent with no height, and an inverted interval overlaps nothing, so it would
+ *  bypass the overlap sweep; refused before that sweep reads it. */
 function findInvertedEmptyColumns(
   emptyColumns: readonly EmptyColumn[],
 ): DesignValidationIssue[] {
@@ -704,10 +503,8 @@ function findInvertedEmptyColumns(
   return issues;
 }
 
-/** One run of wall, as the overlap sweep compares them: how far it reaches along its wall and how
- *  far up it. A placement carries no index, which is what makes a placement-on-placement overlap
- *  unreportable — this wave adds a refusal for empty columns and must not add one for the
- *  placements, which have never been checked against each other. */
+/** One run of wall as the overlap sweep compares them. A placement carries no index, so a placement-on-placement
+ *  overlap is unreportable: placements are never checked against each other. */
 interface WallSpan {
   readonly wall: DesignWall;
   readonly alongStartMm: number;
@@ -715,28 +512,14 @@ interface WallSpan {
   readonly floorMm: number;
   readonly topMm: number;
   readonly kind: "placement" | "emptyColumn" | "columnExtent";
-  /** Which column this run belongs to — what lets an extent be compared with every placement
-   *  **except** the ones it legitimately holds, which are the ones filed under its own key. */
+  /** The column this run belongs to, so an extent is compared with every placement except those filed under its own
+   *  key. */
   readonly columnKey: string;
   readonly index: number;
 }
 
-/**
- * Sorted per wall and swept, not compared pairwise.
- *
- * At the caps this document may carry that is `MAX_EMPTY_COLUMNS` empty columns and
- * `MAX_COLUMN_EXTENTS` extents against `MAX_PLACEMENTS` placements, including the overwhelming
- * majority that carry neither array. Sorting once and keeping
- * only the spans still open at the current coordinate makes an honest document linear in its own
- * size, which is what lets the caps bound the derivation rather than merely bound the document.
- *
- * **Both stored arrays are swept, by the same rule.** A recorded space standing where a body stands
- * is a document the domain cannot execute, and so is a recorded *extent* reaching across a column it
- * does not own: `recomputeVoids` builds what is taken from `membersByColumn.get(column.key)` — that
- * column's **own** members and nothing else — so a 2000 mm extent on a 600 mm column publishes
- * openings straight through its neighbours' bodies, selectable and insertable into. Containment is a
- * per-key vertical proof and says nothing across keys. This sweep is what says it.
- */
+/** Sorted per wall and swept, not compared pairwise, so cost is linear in the document. Both stored arrays are
+ *  swept: an extent over another column publishes openings through its neighbours' bodies. */
 function findWallOverlaps(design: Design): DesignValidationIssue[] {
   const emptyColumns = design.emptyColumns ?? [];
   const columnExtents = design.columnExtents ?? [];
@@ -765,18 +548,16 @@ function findOverlapsOnOneWall(spans: WallSpan[]): DesignValidationIssue[] {
   return [...issues.values()];
 }
 
-/** Abutting is not overlapping. ADR 0046 merges two spaces that meet at a coordinate, so
- *  `a.end === b.start` is the input that feature reads and refusing it would make the merge
- *  unrepresentable — the comparison is `<=`, never `<`. */
+/** Abutting is not overlapping: ADR 0046 merges spaces that meet at a coordinate, so `a.end === b.start` must be
+ *  legal; the comparison is `<=`. */
 function dropSpansClosedBefore(open: WallSpan[], alongMm: number): void {
   for (let index = open.length - 1; index >= 0; index -= 1) {
     if ((open[index]?.alongEndMm ?? 0) <= alongMm) open.splice(index, 1);
   }
 }
 
-/** Two runs at the same along-wall coordinate but different heights — a base cabinet and an empty
- *  space in the wall band above it — share no space at all, so the vertical question is as much
- *  part of the overlap as the horizontal one. Strictly positive for the same reason as above. */
+/** Runs at the same along-wall coordinate but different heights share no space, so the vertical overlap must be
+ *  strictly positive too. */
 function overlapVertically(first: WallSpan, second: WallSpan): boolean {
   return (
     Math.min(first.topMm, second.topMm) -
@@ -785,9 +566,8 @@ function overlapVertically(first: WallSpan, second: WallSpan): boolean {
   );
 }
 
-/** An extent standing over a body filed under its **own** key is not an overlap — holding that body
- *  is what the extent is for, and `extentContains` is what judges those. Every other pair is
- *  compared. */
+/** An extent over a body filed under its own key is not an overlap: holding that body is its purpose, and
+ *  `extentContains` judges it. */
 function ownsTheMemberItOverlaps(first: WallSpan, second: WallSpan): boolean {
   const [extent, other] =
     first.kind === "columnExtent" ? [first, second] : [second, first];
@@ -818,12 +598,8 @@ function recordOverlap(
   }
 }
 
-/** The code an overlapping run is named with, or nothing when it is not named at all — a placement
- *  never is, which is what keeps a placement-on-placement overlap unreportable.
- *
- *  **An empty column gains no new code.** ADR 0044's nine refusals govern `emptyColumns` and this
- *  record leaves their meaning exactly as it found it, so a space overlapping an extent is reported
- *  once, on the extent: the entry this record added, and the one whose author has to move it. */
+/** The code an overlapping run is named with, or none: a placement never is, and a space overlapping an extent is
+ *  reported once, on the extent (ADR 0044). */
 function overlapCodeFor(
   kind: WallSpan["kind"],
   otherKind: WallSpan["kind"],
@@ -906,30 +682,8 @@ function groupSpansByWall(
   return grouped;
 }
 
-/**
- * **The one overlap the sweep above is declared blind to** (backlog 50, M6-AUD-008).
- *
- * `groupSpansByWall` states why wall A and wall B are never compared, and that is true everywhere
- * except at the corner they share: both runs walk from the same origin (§2), so a body's *depth* is
- * measured along the **other** wall, and the other wall's first millimetres stand inside it. It is
- * the same fact `along-wall-chain-shift.ts` slides a whole run on, read here as an overlap instead
- * of as a shift.
- *
- * **Bodies against recorded spans, and no other pair.** `overlapCodeFor` names no placement on the
- * same-wall sweep — a placement carries no reportable path — and this record leaves that rule where
- * it found it, so two bodies meeting across the corner report nothing here either.
- *
- * **One code for both stored arrays**, because the fact asserted is one fact and the path is what
- * says which array carries it — the shape ADR 0069 decision 2 asks a code to have.
- *
- * **ADR 0132 decision 7 (D10) adds the A∩C corner, swept exactly as A∩B is and never merged with
- * it.** Wall A carries both corners, so it is compared against wall B at the A∩B origin and against
- * wall C at the A∩C origin — but wall A's own along-wall coordinate is measured from A∩B (§2), so a
- * run near A∩C is mirrored onto `W − alongMm` before the comparison, the same reflection ADR 0132
- * decision 1 gives wall C's own frame. Wall C's along is already measured from A∩C and needs no
- * mirroring. **Wall B and wall C are never compared**: they are opposite side runs facing each
- * other across the room, not two walls that share a corner, and `sweepOneCorner`'s own wall filter
- * is what keeps that pair unreachable rather than a predicate a caller could forget. */
+/** The overlap across a shared corner, where a body's depth runs along the other wall: recorded spans against bodies
+ *  only. A is mirrored onto `W − alongMm` for A∩C; B and C are never compared (ADR 0132 decisions 1, 7). */
 function findCornerOverlaps(
   design: Design,
   catalog: BodyCatalog,
@@ -948,8 +702,7 @@ function findCornerOverlaps(
   return [...issues.values()];
 }
 
-/** One corner's sweep: wall A's runs against `farWall`'s, and no other pair — the filter that keeps
- *  wall B and wall C from ever being compared, since neither shares a corner with the other. */
+/** One corner's sweep: wall A's runs against `farWall`'s only, which keeps B and C from ever being compared. */
 function sweepOneCorner(
   issues: Map<string, DesignValidationIssue>,
   recorded: readonly CornerRun[],
@@ -960,9 +713,7 @@ function sweepOneCorner(
     candidate.run.wall === "A" || candidate.run.wall === farWall;
   const recordedHere = recorded.filter(isAtThisCorner);
   const bodiesHere = bodies.filter(isAtThisCorner);
-  // Only the runs that reach the corner at all can meet across it, and the two filters bound each
-  // other: a document's recorded spans are compared against its bodies over the few hundred
-  // millimetres either side of the origin rather than against all of them.
+  // Only runs reaching the corner can meet across it, so each side is filtered by the other's deepest reach.
   for (const span of nearerTheCornerThan(
     recordedHere,
     deepestReachMm(bodiesHere),
@@ -982,11 +733,8 @@ function sweepOneCorner(
   }
 }
 
-/** Wall A's runs, restated in the A∩C corner's own coordinates — `W − alongMm`, reversing the
- *  interval order the same way `alongMm ↦ W − alongMm` reverses any interval — so they compare
- *  against wall C's runs, which are already measured from A∩C (ADR 0132 decision 1), on equal
- *  footing. Every other wall's runs, including wall C's own, pass through untouched: only wall A's
- *  coordinate is measured from the *other* corner. */
+/** Wall A's runs restated in the A∩C corner's coordinates (`W − alongMm`, reversing the interval) to compare with
+ *  wall C's (ADR 0132 decision 1). Other walls pass through untouched. */
 function mirroredForTheFarCorner(
   runs: readonly CornerRun[],
   widthMm: number,
@@ -1005,15 +753,13 @@ function mirroredForTheFarCorner(
   );
 }
 
-/** One run as the corner comparison reads it: where it stands along its own wall, and how far it
- *  reaches into the other wall's coordinate. The corner is the origin both walls walk from, so that
- *  reach is the interval `0 .. reachMm` over there. */
+/** One run as the corner comparison reads it: its interval along its own wall, and `reachMm` into the other wall's
+ *  coordinate (`0 .. reachMm`). */
 interface CornerRun {
   readonly run: WallSpan;
   readonly reachMm: number;
-  /** For a recorded column that holds members: where each stands vertically and its carcass seat. The
-   *  column's `reachMm` is the deepest of them; a body at one height is met by the deepest member
-   *  that stands at that height (M7C wave C2). Absent on a body and on a member-less entry. */
+  /** For a recorded column with members: each one's vertical span and seat, so a body is met by the deepest member
+   *  at its height. Absent on a body and a member-less entry. */
   readonly memberBands?: readonly MemberBand[];
 }
 
@@ -1023,31 +769,10 @@ interface MemberBand {
   readonly seatMm: number;
 }
 
-/**
- * **The reach across the corner is the carcass line, and deliberately not the space the body
- * fills** — ruled 2026-09-09 on the measurement below, against this wave's own first attempt.
- *
- * The two disagree at exactly the place this comparison looks. `base-corner-x-900` seats on 550 and
- * *occupies* 620 (560 and 630 until ADR 0135 moved the joint, when its worktop stood ten millimetres
- * past a straight run's), and `base-corner-return-320`'s slab stands 50 mm proud of its own 570
- * carcass front (ADR 0135). So the
- * shipped kitchen's two corner legs share 50 mm of plan area **by design**: it is two worktop slabs
- * meeting at an L-joint, which is what a corner is. Measured against the occupied depth this gate
- * marks the demo kitchen on its own declared geometry, and a gate that does that is not read the
- * first time it fires on something real. Measured against the seat it is silent there, and the two
- * defects backlog 50 was opened for reproduce: 560 − 480 = 80 mm on the base return as the entry
- * recorded it (550 − 480 = 70 mm since ADR 0135) and 291 − 260 = 31 mm on the wall return.
- *
- * **And this number is a fiction everywhere else, which the next reader must meet rather than
- * infer.** `frameDepthMm` is ADR 0018's encoding of twice a body's rear overhang and is not a depth:
- * `hood-600` seats on 700 and fills 500. Nothing outside this comparison may read it as a distance
- * from the wall — `occupiedDepthM` is the one answer to *how much space does this fill* (ADR 0040
- * decision 1), and it is the right answer to every question except this one. What makes the seat
- * right **here** is that both walls' runs are laid out against each other at the carcass line; what
- * would make it right everywhere is an occupied-depth reach with an exemption for the two structural
- * corner legs, which is the better shape, is a new rule, and is recorded in backlog 50 rather than
- * built.
- */
+/** Corner reach is the carcass seat (`frameDepthMm`), not the occupied depth: the shipped corner legs share 50 mm of
+ *  plan by design, so occupied depth would mark the demo kitchen (docs/backlog/open.md entry 50). Nothing outside
+ *  this comparison may read `frameDepthMm` as a wall distance: it encodes twice the rear overhang, and
+ *  `occupiedDepthM` is the answer elsewhere. */
 function carcassSeatMmOf(
   buildId: string | undefined,
   catalog: BodyCatalog,
@@ -1056,8 +781,8 @@ function carcassSeatMmOf(
   return catalog.get(buildId)?.frameDepthMm;
 }
 
-/** Every placement the catalogue can seat. A body it cannot is already `UNKNOWN_BUILD_ID` on the
- *  same report, and contributes no reach rather than a guessed one. */
+/** Every placement the catalogue can seat; an unknown body is already `UNKNOWN_BUILD_ID` and contributes no guessed
+ *  reach. */
 function bodyCornerRuns(
   placements: readonly DesignPlacement[],
   catalog: BodyCatalog,
@@ -1092,8 +817,7 @@ function recordedCornerRuns(design: Design, catalog: BodyCatalog): CornerRun[] {
   ];
 }
 
-/** What the ladder below is asked about: one recorded entry, the run it became, and the two places
- *  a seat can be found for it. */
+/** One recorded entry, the run it became, and the two places a seat can be found for it. */
 interface RecordedReachQuery {
   readonly run: WallSpan;
   readonly entry: EmptyColumn;
@@ -1101,25 +825,8 @@ interface RecordedReachQuery {
   readonly catalog: BodyCatalog;
 }
 
-/**
- * **How far the column this entry records reaches across the corner** — an information ladder
- * ordered by how much the document actually knows, the shape ADR 0090 decision 2 already uses for
- * this same map on the along-wall axis, read here on the depth axis.
- *
- * 1. **The column holds members** — the deepest seat among them, **at the height of the body it is
- *    compared with** where any member stands there, and the column's deepest seat where none does (M7C
- *    wave C2: a column of a base X-leg and the wall unit over it reaches 550 at the base and 291 at the
- *    wall row, and the whole column's 550 met a side wall cabinet it never stands against; backlog 50's
- *    *"the whole column"* ruling is amended by that one clause and nothing else). Exact, and it reads
- *    no recorded field at all: an entry *is* the column those bodies stand in. This is the rung that keeps a
- *    document written before ADR 0073 quiet, because it needs nothing the document carries.
- * 2. **Member-less, with a recorded source** — that body's seat. ADR 0073 decision 1's field, read
- *    for a second axis: no new field, no migration.
- * 3. **Neither** — the recorded `depthMm`, which is §3.2's MAX **clearance** and therefore reaches
- *    further than the carcass it stands for. It over-reports rather than under-reports, and it is a
- *    `mark`, so the failure it can produce is a visible finding on a member-less sourceless column
- *    at the corner and never a refused load.
- */
+/** Corner reach of a recorded column, by what the document knows: its members' seat at the compared body's height;
+ *  else its recorded source's seat (ADR 0073); else `depthMm`, which over-reports, but only as a `mark`. */
 function recordedReachMm(query: RecordedReachQuery): number {
   return (
     query.seatsByColumn.get(query.run.columnKey) ??
@@ -1128,9 +835,8 @@ function recordedReachMm(query: RecordedReachQuery): number {
   );
 }
 
-/** The deepest carcass seat standing in each column, by the key `deriveColumnKeyAt` gives it — §3.2's
- *  MAX shape, taken over the seat instead of over the clearance, and over the whole column for the
- *  same reason the recorded depth is: an entry describes a column and not a band of one. */
+/** The deepest carcass seat in each column: §3.2's MAX over the seat rather than the clearance, over the whole
+ *  column since an entry describes a column, not a band. */
 function deepestSeatByColumnMm(
   placements: readonly DesignPlacement[],
   catalog: BodyCatalog,
@@ -1145,9 +851,8 @@ function deepestSeatByColumnMm(
   return deepest;
 }
 
-/** Every member of each column with its vertical span and carcass seat, by the key `deriveColumnKeyAt`
- *  gives it: what `deepestSeatByColumnMm` takes the maximum over, kept whole so a body at one height can
- *  be met by the members that stand at that height. */
+/** Every member of each column with its vertical span and seat, kept whole so a body at one height is met by the
+ *  members at that height. */
 function memberBandsByColumn(
   placements: readonly DesignPlacement[],
   catalog: BodyCatalog,
@@ -1167,11 +872,8 @@ function memberBandsByColumn(
   return bands;
 }
 
-/** How far a recorded column reaches across the corner **at the height of `other`**: the deepest seat
- *  among the members that stand at that height, and the column's deepest seat where none does (as every
- *  column read before). A column of a base X-leg and the wall unit over it reaches 550 at the base and 291
- *  at the wall row, which is what each stands at, and not 550 all the way up. Never deeper than the
- *  column's own reach, so this can remove a finding and never add one. */
+/** A recorded column's reach at the height of `other`: the deepest seat among members standing there, else the
+ *  column's deepest. Never deeper than the column's own reach, so it can only remove a finding. */
 function reachAtTheHeightOf(column: CornerRun, other: WallSpan): number {
   const standingThere = (column.memberBands ?? []).filter(
     (band) => band.floorMm < other.topMm && band.topMm > other.floorMm,
@@ -1181,9 +883,8 @@ function reachAtTheHeightOf(column: CornerRun, other: WallSpan): number {
     : Math.max(...standingThere.map((band) => band.seatMm));
 }
 
-/** The two runs stand in one another's solid: a rectangle in plan — each reaching into the other's
- *  along-wall interval — and an overlap in elevation. All three, because a base cabinet on wall A
- *  and a wall cabinet on wall B share the corner's plan area and no space at all. */
+/** The two runs stand in one another's solid: each reaches into the other's along-wall interval and they overlap in
+ *  elevation (a base and a wall cabinet share plan area but no space). */
 function intersectsAcrossTheCorner(
   first: CornerRun,
   second: CornerRun,
@@ -1195,9 +896,8 @@ function intersectsAcrossTheCorner(
   );
 }
 
-/** Whether this run's own along-wall interval meets `0 .. reachMm`, the interval a body on the other
- *  wall occupies over here. Strictly positive for the reason `dropSpansClosedBefore` gives:
- *  abutting is not overlapping, and the shipped corner returns abut. */
+/** Whether this run's along-wall interval meets `0 .. reachMm`; strictly positive, since abutting is not overlapping
+ *  and the shipped corner returns abut. */
 function reachesInto(run: WallSpan, reachMm: number): boolean {
   return run.alongStartMm < reachMm && run.alongEndMm > 0;
 }
@@ -1218,9 +918,8 @@ interface PlacementContext {
   readonly catalog: BodyCatalog;
 }
 
-/** §5.2 mints ids as the next free `n<index>` and every id-keyed derivation is a `Map` or a `Set`
- *  (`haveSameMembers` in `void-engine.ts`), so two placements sharing an id are not independently
- *  representable: one of them silently disappears from every membership comparison. */
+/** Two placements sharing an id are not independently representable: id-keyed derivations are Maps and Sets, so one
+ *  would silently vanish from membership comparisons. */
 function findDuplicatePlacementIds(
   placements: readonly DesignPlacement[],
 ): DesignValidationIssue[] {
@@ -1237,8 +936,8 @@ function findDuplicatePlacementIds(
   return issues;
 }
 
-/** A document that claims it was last written before it was created is not a design anyone edited;
- *  it is a forged or corrupted row, and every "is this newer?" comparison downstream reads it. */
+/** A document last written before it was created is forged or corrupted, and every "is this newer?" comparison
+ *  downstream reads it. */
 function findTimestampIssues(design: Design): DesignValidationIssue[] {
   const createdAtMs = Date.parse(design.createdAt);
   const updatedAtMs = Date.parse(design.updatedAt);
@@ -1252,8 +951,8 @@ function findPlacementIssues(
   path: string,
   context: PlacementContext,
 ): DesignValidationIssue[] {
-  // Catalogue membership first and alone: every later rule reads the entry, and a placement naming
-  // no entry is the one that reaches the client as `UnknownBodyError` (AV-3).
+  // Catalogue membership first and alone: every later rule reads the entry, and an unknown one would reach the client
+  // as `UnknownBodyError`.
   if (!context.catalog.has(placement.body.buildId)) {
     return [issueAt("UNKNOWN_BUILD_ID", `${path}.body.buildId`)];
   }
@@ -1264,8 +963,8 @@ function findPlacementIssues(
   ];
 }
 
-/** The floors no catalogue row can go under, whatever it declares: the narrowest width the
- *  catalogue offers, and §4's smallest span that ever becomes an opening. */
+/** The floors no catalogue row can go under: the narrowest catalogue width and §4's smallest span that becomes an
+ *  opening. */
 function findBodyDimensionIssues(
   placement: DesignPlacement,
   path: string,
@@ -1280,14 +979,8 @@ function findBodyDimensionIssues(
   return issues;
 }
 
-/**
- * The width rule the entry itself states, asked through the one predicate both width paths already
- * use (`acceptsWidthMm`), so a stored width is judged by exactly the rule a resize is.
- *
- * A body with no catalogue equivalent — the six corner bodies (returns, legs and wall units), which §13.1 makes
- * structural — has no row stating its widths, and that is the correct answer for them rather than a
- * missing one. The floors in `findBodyDimensionIssues` still govern those.
- */
+/** The width rule the entry states, through `acceptsWidthMm` so a stored width is judged as a resize is. A body with
+ *  no catalogue equivalent (the corner bodies, §13.1) has no row and falls to `findBodyDimensionIssues`. */
 function findCatalogWidthIssues(
   placement: DesignPlacement,
   path: string,
@@ -1311,9 +1004,8 @@ function findContainmentIssues(
 ): DesignValidationIssue[] {
   const breaches = {
     ...findContainmentBreaches(toPlacementSpan(placement), room),
-    // ADR 0065: a placement's overrun is a **published** fact with one query behind it, and the
-    // scene, the breakdown, the price bar and this validator must mark the same bodies. Only this
-    // edge is read from there; the other two have no such query and come from the helper.
+    // ADR 0065: a placement's overrun is a published fact with one query, so the scene, breakdown, price bar and this
+    // validator mark the same bodies.
     endsPastWall: placementExtendsPastOwnWall(placement, room),
   };
   return [
@@ -1329,15 +1021,8 @@ function findContainmentIssues(
   ];
 }
 
-/** Which of the room's three bounds this run breaks. One rule for a body and for a space, reported
- *  without codes or paths so each caller names its own — the bounds themselves must not fork, which
- *  is how an empty column came to be held to nothing while a placement was held to the room. Every
- *  caller reads `startsBeforeWall` and `risesAboveRoom` from here and nowhere else.
- *
- *  **`endsPastWall` is the one exception, and it is stated rather than left to be discovered.** ADR
- *  0065 makes a placement's overrun a published fact, so `findContainmentIssues` overrides this
- *  field with `placementExtendsPastOwnWall` — the same rule reached through the query every other
- *  surface reads. The column paths have no placement to ask and take the copy computed here. */
+/** Which of the room's bounds a run breaks, without codes or paths so the bound cannot fork between body and space.
+ *  `endsPastWall` is overridden for placements by `placementExtendsPastOwnWall` (ADR 0065). */
 interface ContainmentBreaches {
   readonly startsBeforeWall: boolean;
   readonly endsPastWall: boolean;
