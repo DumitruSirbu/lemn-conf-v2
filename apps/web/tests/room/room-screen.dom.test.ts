@@ -1,23 +1,4 @@
 // @vitest-environment happy-dom
-//
-// **Step 1's screen, driven rather than described** — wave 7F1 slice 4, criteria 1, 2, 3 and 17.
-//
-// Three of the four claims are about what the customer can and cannot do, so the real screen is
-// rendered through the real `parseRoomUrlState`, and the sub-state under test is **asserted** before
-// anything is read off it: a fixture that quietly stopped resolving to 1C would otherwise make every
-// assertion below it pass over a screen nobody meant to draw.
-//
-// **The navigation is mocked at `next/navigation`, one layer below the component's own import**, so
-// next-intl's href construction is exercised rather than stubbed: what the spy receives is the
-// localized URL the browser would be sent to, not a string this file wrote.
-//
-// Romanian is never spelled here. Every expected sentence is read out of the imported catalogue,
-// which is also what makes the two-locale pass meaningful: the same assertions run against `ru`.
-//
-// **Wave 7F2 slice S4 lives here too** — the shape refusal at 1A, 1B and 1C and the linear-suggestion
-// hook (criteria 2, 9, 10, 12 and 16) — because its fabricated-policy arm needs a shape the policy
-// does not build. Since M7B U6 every shape is buildable under the approved policy, so
-// `../support/policy-without-u` is the one place that fabrication is written (C1.4, ADR 0116).
 import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -34,15 +15,15 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-/** The address bar, the live query and the router, as the three things a test render cannot supply
- *  for itself. `search` is what `useSearchParams` reads: under ruling R9 the screen derives the room
- *  from the query the browser holds, not from the one the page was rendered for. */
+/** The address bar, the live query and the router, which a test render cannot supply; `search` is what
+ *  `useSearchParams` reads. */
 const browser = vi.hoisted(() => ({
   pathname: "/ro/configurator/room",
   search: "",
   push: vi.fn(),
 }));
 
+// Mocked one layer below the component's own import, so next-intl's href construction is exercised, not stubbed.
 vi.mock("next/navigation", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/navigation")>()),
   usePathname: () => browser.pathname,
@@ -82,8 +63,7 @@ const ROMANIAN: LocalisedCatalogue = ["ro", roMessages];
 const EVERY_SUBSTATE = ["1A", "1B", "1C", "1D"] as const;
 type Substate = (typeof EVERY_SUBSTATE)[number];
 
-/** One query per sub-state, taken from `room-url-state.test.ts`'s own fixtures rather than invented,
- *  so a rule the parser changes is felt here as a failed guard and not as a silent re-interpretation. */
+/** One query per sub-state, taken from `room-url-state.test.ts`'s own fixtures rather than invented. */
 const QUERY_FOR: Readonly<Record<Substate, RoomSearchParams>> = {
   "1A": {},
   "1B": { shape: "L" },
@@ -119,32 +99,21 @@ const ROOM_PAGE_SOURCE = readFileSync(
   "utf8",
 );
 
-/**
- * **R8, and the fabrication it confines** (ADR 0116). Criterion 3's real claim is that the CTA asks
- * `isShapeBuildable` instead of spelling `L`, and the only way to prove it is to render against a
- * policy whose answer differs from the approved one's. 7J S5 discharged the fabrication for `linear`
- * (D11) and M7B U6 for the U: `APPROVED_ROOM_POLICY` builds all three, so the contrast is now a
- * policy that states no U.
- */
+/** Renders against a policy that states no U: the only way to prove the CTA asks `isShapeBuildable` (ADR 0116). */
 const POLICY_WITHOUT_U: RoomPolicy = policyWithoutU();
 
-/** Refuses every shape, so any two of the three cards can stand in for "two refused shapes" in a
- *  test about the announcement mechanics rather than about which shapes the real policy builds. */
+/** Refuses every shape, for tests about announcement mechanics rather than which shapes the real policy builds. */
 const POLICY_BUILDING_NOTHING: RoomPolicy = {
   ...APPROVED_ROOM_POLICY,
   buildableShapes: {},
 };
 
-/** A module's code with its prose stripped out. The pill's own comment quotes the *1/4* it draws, as
- *  it should, and a must-not about a **literal** has to read the code rather than the sentence
- *  explaining it. */
+/** A module's code with its prose stripped, so a must-not about a literal does not read the comment explaining it. */
 function codeOf(source: string): string {
   return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 }
 
-/** The catalogue's own sentence with the step's two arguments in place. Written as a substitution
- *  rather than as a Romanian literal, which is also the point of the assertion: what the pill
- *  announces has to *be* the approved leaf, at `step: 1`. */
+/** The catalogue's own step sentence with its two arguments substituted, so no Romanian literal is spelled here. */
 function stepSentenceOf(catalogue: Catalogue): string {
   return catalogue.configure.step
     .replace("{step, number}", "1")
@@ -159,13 +128,9 @@ function render(
   options: { catalogue?: LocalisedCatalogue; policy?: RoomPolicy } = {},
 ): void {
   const [locale, messages] = options.catalogue ?? ROMANIAN;
-  // The policy is *omitted* rather than passed as `undefined` when a test does not fabricate one, so
-  // the ordinary renders here go through the component's own default — the approved policy — exactly
-  // as the route does.
+  // Omitted, not `undefined`, so ordinary renders use the component's own default policy.
   const props: RoomScreenProps =
     options.policy === undefined ? {} : { policy: options.policy };
-  // **The query is handed over as the browser's and nowhere else** (ruling R9): the screen takes no
-  // parse from the route, so setting the live query is the whole of putting it in a sub-state.
   browser.search = searchOf(query);
   act(() => {
     root.render(
@@ -179,9 +144,7 @@ function render(
   });
 }
 
-/** The same query as a search string, so the live query and the page's props describe one URL. A
- *  repeated key stays repeated: collapsing it here would ask the screen a different question from
- *  the one the fixture spells. */
+/** The same query as a search string; a repeated key stays repeated, since collapsing it asks another question. */
 function searchOf(query: RoomSearchParams): string {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(query)) {
@@ -192,8 +155,6 @@ function searchOf(query: RoomSearchParams): string {
   return params.toString();
 }
 
-/** The screen's own element, which is where the sub-state markers live under ruling R9 — the route
- *  draws no wrapper of its own any more. */
 function screenElement(): HTMLElement {
   const main = container.querySelector("main");
   if (!(main instanceof HTMLElement)) {
@@ -291,10 +252,7 @@ describe("the top bar, in every sub-state (criterion 1)", () => {
   );
 
   it("composes the pill from the approved leaves and never from the numbers", () => {
-    // The must-not half of criterion 1: a pill built as `"1" + "/" + "4"` would render identically
-    // in the assertion above and would stop being translatable the moment a locale writes the step
-    // differently. R7's other half is here too — the screen reads `configure.step`, so the owner's
-    // approved sentence is held once rather than copied into a second `room.*` leaf.
+    // A pill built as `"1" + "/" + "4"` would render identically above but could not be translated.
     const code = codeOf(ROOM_SCREEN_SOURCE);
 
     expect(code).toContain('translate("configure.stepPill"');
@@ -375,8 +333,6 @@ describe("the footer CTA, disabled until a buildable shape is chosen (criterion 
     expect(continueButton().disabled).toBe(true);
   });
 
-  // M7B U6 S1, AC5 (census W26): the approved policy builds the U, so choosing its card enables the
-  // CTA with no component edit.
   it("records the choice of U and continues, under the approved policy", () => {
     render(QUERY_FOR["1A"]);
 
@@ -386,8 +342,7 @@ describe("the footer CTA, disabled until a buildable shape is chosen (criterion 
     expect(continueButton().disabled).toBe(false);
   });
 
-  // The pre-U6 dead end, kept as the fabricated arm (ADR 0116): the card **is** chosen — the owner ruled
-  // all three are drawn and selectable — and the dead end is the CTA's.
+  // The card is chosen (all three are selectable); the dead end is the CTA's.
   it("records the choice of U and still refuses to continue, under a policy that states none", () => {
     render(QUERY_FOR["1A"], { policy: POLICY_WITHOUT_U });
 
@@ -405,10 +360,6 @@ describe("the footer CTA, disabled until a buildable shape is chosen (criterion 
     expect(continueButton().disabled).toBe(false);
   });
 
-  // 7J S5: linear is buildable under the real approved policy now (ADR 0108 Amendment G), so
-  // choosing it at 1A leads Continue on exactly as choosing the L does — restated from "records the
-  // choice of linear and still refuses to continue", which held while every straight room was
-  // refused.
   it("continues once linear is chosen, with no fields typed yet", () => {
     render(QUERY_FOR["1A"]);
 
@@ -418,8 +369,6 @@ describe("the footer CTA, disabled until a buildable shape is chosen (criterion 
     expect(continueButton().disabled).toBe(false);
   });
 
-  // M7B U6 S1, AC5: *În formă de U* → *Continuă* → 1B, with no component edit. The navigation is the
-  // canonical query, and that query is a U at 1B: three wall fields and the height, none typed yet.
   it("takes the U card through Continue to the U's 1B, with no component edit", () => {
     render(QUERY_FOR["1A"]);
     choose("U");
@@ -448,8 +397,6 @@ describe("the footer CTA, disabled until a buildable shape is chosen (criterion 
   });
 
   it("is a button rather than a div, because it is wired", () => {
-    // ADR 0104 decision 6 asks for a `div` on a control wired to nothing. This one navigates, so a
-    // `div` here would announce itself as text while behaving as a control.
     render(QUERY_FOR["1A"]);
 
     expect(continueButton().type).toBe("button");
@@ -459,17 +406,7 @@ describe("the footer CTA, disabled until a buildable shape is chosen (criterion 
 
 describe("each room in the URL is entered afresh", () => {
   it("re-seeds the form when two queries differ only in where a separator falls", () => {
-    // **Kept, and re-aimed** (wave 7F1-D45). These two queries are two different rooms and the
-    // second must show its own 3,56 — that claim is unchanged. What is gone is the mechanism it used
-    // to protect: `roomEntryKey` joined the query's values with a `|` and escaped each one first,
-    // because unescaped these two both spell `L|3.56|a|b||` and React would have kept one component
-    // across the navigation with the first room's empty draft standing.
-    //
-    // Ruling R9 deleted that key — under a debounced `router.replace` a query-derived key moves
-    // while the customer is typing, remounting the form and clearing any field whose text does not
-    // yet parse. The re-seed is now the reconciliation's (`room-query-sync.ts`), which compares
-    // whole query **text** and so has no separator to borrow and no collision to guard against.
-    // **Do not reinstate an escaping for a collision the design can no longer have.**
+    // Two different rooms; re-seeding compares whole query text (`room-query-sync.ts`), so no separator collides.
     const separatorInsideWallA: RoomSearchParams = {
       shape: "L",
       wallA: "3.56|a",
@@ -508,11 +445,7 @@ describe("the sub-state the screen marks is the live query's (criterion 19)", ()
   );
 
   it("re-derives the sub-state when the browser hands over another entry's query", () => {
-    // **Defect D5, and the assertion that would have caught it.** Next reuses a page segment on a
-    // back/forward navigation, so the screen is re-rendered against a query it was not mounted for
-    // and no new server parse arrives with it. The second render here is that navigation: nothing
-    // but the live query changes, and the marker has to follow it rather than keep the reading the
-    // screen first mounted with.
+    // Next reuses the page segment on back/forward, so only the live query changes and the marker must follow it.
     render(QUERY_FOR["1B"]);
     expect(screenElement().getAttribute("data-room-substate")).toBe("1B");
 
@@ -526,31 +459,20 @@ describe("the sub-state the screen marks is the live query's (criterion 19)", ()
 
 describe("the route stays a server shell (criterion 17)", () => {
   it("renders one client component and hands it nothing, and declares nothing else", () => {
-    // **The must-not is the content of this criterion now** (ruling R9): D5 is unrepresentable only
-    // if the server's parse is *absent*, not merely unused. A route that parsed the query and
-    // dropped the result would pass every other assertion here and would be one edit away from
-    // handing it over again.
-    // The must-nots read the route's **code**: its comment records what `await searchParams` used
-    // to be doing there and why it went, which is the sentence a reader arriving at `connection()`
-    // needs, and a must-not that forbade naming the thing it forbids would delete it.
+    // The route must not parse the query or hand it over: an unused parse is one edit from being handed over.
+    // The must-nots read the route's code, not its comments.
     const code = codeOf(ROOM_PAGE_SOURCE);
 
     expect(code).toContain("<RoomScreen />");
     expect(code).not.toMatch(/parseRoomUrlState/);
     expect(code).not.toMatch(/searchParams/);
-    // `connection()` is what holds the route out of the prerender manifest now that nothing here
-    // reads a request-time input. `next build`'s route table is the real check (criterion 17 says
-    // to verify it there); this only guards the call against being deleted as dead code.
+    // `connection()` holds the route out of the prerender manifest; this guards it against deletion as dead code.
     expect(code).toContain("await connection();");
     expect(code).toMatch(/from "next\/server"/);
     expect(code).not.toMatch(/^\s*["']use client["'];/m);
     expect(code).not.toMatch(/module\.css|useTranslations|useContent|useState/);
   });
 });
-
-// ---------------------------------------------------------------------------------------------
-// Wave 7F2 slice S4 — the shape refusal, and the linear suggestion wired off
-// ---------------------------------------------------------------------------------------------
 
 const REFUSAL = "room-shape-refusal";
 const REFUSAL_STATUS = "room-shape-refusal-status";
@@ -644,9 +566,7 @@ describe("the shape refusal is the policy's, at 1A (7F2 criterion 9)", () => {
     expect(group.hasAttribute("aria-describedby")).toBe(false);
   });
 
-  // 7J S5: linear is real now, so `POLICY_BUILDING_NOTHING` keeps both cards refused — this test's
-  // own subject is the re-announcement mechanics, not which two shapes the real policy happens to
-  // refuse.
+  // `POLICY_BUILDING_NOTHING` keeps both cards refused: the subject is re-announcement, not which shapes refuse.
   it("announces the refusal again when one refused card is swapped for the other", () => {
     render(QUERY_FOR["1A"], { policy: POLICY_BUILDING_NOTHING });
     const region = elementAt(REFUSAL_STATUS);
@@ -700,8 +620,6 @@ describe("the shape refusal is the policy's, at 1B and 1C, whatever is typed (7F
     expect(isRefusalShown()).toBe(false);
   });
 
-  // 7J S5: linear is buildable now, so following its chip from 1B draws no refusal at all —
-  // restated from "follows a chip to linear and back at once", which held while it was refused.
   it("follows a chip to linear without ever showing a refusal", () => {
     render(QUERY_FOR["1B"]);
     const region = elementAt(REFUSAL_STATUS);
@@ -713,8 +631,7 @@ describe("the shape refusal is the policy's, at 1B and 1C, whatever is typed (7F
   });
 
   it("describes only the chosen chip by the refusal while it is refused, and no chip once L is", () => {
-    // Coordinator ruling, 2026-09-22 (review R1.2): an unchosen chip — the buildable L among them —
-    // is never described by a sentence about another shape, which browse mode would read on it.
+    // An unchosen chip is never described by a sentence about another shape, which browse mode would read on it.
     render(QUERY_FOR["1B"], { policy: POLICY_WITHOUT_U });
 
     chooseChip("U");
@@ -731,7 +648,6 @@ describe("the shape refusal is the policy's, at 1B and 1C, whatever is typed (7F
     ).toEqual([]);
   });
 
-  // 7J S5: `POLICY_BUILDING_NOTHING` again — see the 1A version of this test.
   it("announces the refusal again when one refused chip is swapped for the other", () => {
     render(QUERY_FOR["1B"], { policy: POLICY_BUILDING_NOTHING });
     chooseChip("linear");
@@ -802,8 +718,7 @@ describe("the refusal's words (7F2 criteria 2 and 9)", () => {
 
 describe("the straight kitchen's suggestion is the domain's own answer, at 1C (7F2 criterion 10)", () => {
   /** One room per code 1C can carry, and the policy it is read under. `SHAPE_NOT_BUILDABLE`'s witness is
-   *  `FILLED.U` under `POLICY_WITHOUT_U` (census W33, W34): no shape is refused by the approved policy
-   *  since M7B U6, and the code is still one the domain can answer under any policy that omits a shape. */
+   *  `FILLED.U` under `POLICY_WITHOUT_U`: the approved policy refuses no shape. */
   const WITNESSES: readonly (readonly [
     string,
     RoomSearchParams,
@@ -843,8 +758,7 @@ describe("the straight kitchen's suggestion is the domain's own answer, at 1C (7
       : [];
   }
 
-  /** The real gate (`room-issue-model.ts`'s `isLinearSuggested`), read from the same 1C state the
-   *  screen renders from: a reason other than the shape's own, and wall A with the height
+  /** The real gate (`isLinearSuggested`): a reason other than the shape's own, and wall A with the height
    *  validating as a straight room on their own. */
   function expectedSuggestionFor(
     query: RoomSearchParams,
@@ -875,9 +789,7 @@ describe("the straight kitchen's suggestion is the domain's own answer, at 1C (7
     }
   });
 
-  // 7J S5: the suggestion shows exactly when the real domain's gate says so — no longer a blanket
-  // absence, which held while every straight room was refused. `WALL_TOO_SHORT`'s witness (wall A
-  // 3600, height 2500, wall B too short) is the one case among these where it now shows.
+  // The suggestion shows exactly when the domain's gate says so; `WALL_TOO_SHORT`'s witness is the one case it shows.
   it.each(WITNESSES)(
     "matches the real gate at 1C for %s under the policy that witnesses it",
     (code, query, policy) => {
@@ -905,8 +817,7 @@ describe("1C with the refusal removes nothing (7F2 criterion 12)", () => {
     render(FILLED.U, { policy: POLICY_WITHOUT_U });
     expect(isRefusalShown()).toBe(true);
     expect(everyChipControl()).toHaveLength(3);
-    // Restated 2026-09-29 (M7B U5 S1, Q-U4 (b)): the U itself draws no toggle, so the toggle is
-    // reached after the chip moves to L, where it exists.
+    // The U draws no corner toggle, so the toggle is reached after the chip moves to L.
     expect(maybeAt("room-corner")).toBe(null);
 
     chooseChip("L");

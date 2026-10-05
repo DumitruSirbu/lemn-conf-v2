@@ -1,25 +1,6 @@
 // @vitest-environment happy-dom
-//
-// **The class each row status is drawn with, taken off the DOM and required of the stylesheet** —
-// M7 wave 7F4a, ruling R10.
-//
-// **The failure this file exists for.** `generation-steps.tsx`'s `ROW_STATUS_CLASS` satisfies
-// `Record<GenerationRowStatus, string | undefined>`, because a CSS module's exports are typed
-// `string | undefined`. Rename or drop `.composeRowDropped` in `room.module.css` and the
-// `not_placed` entry becomes `undefined` — no compile error, `classNames` filters it out, and the
-// dropped row silently loses its dashed border, its muted background and its `−` glyph. The one
-// R10 assertion that existed before this file (`room-composition.dom.test.ts:517`) is
-// `expect(fridge.className).not.toContain("strike")`, which is **negative**: it passes more easily
-// once the class is gone.
-//
-// **Why the assertion is not `expect(styles.composeRowDropped).toBeDefined()`, measured rather than
-// assumed.** `vitest.config.ts` does not enable CSS processing, so a `.module.css` import resolves
-// to a stub that fabricates a name for **any** property: `styles.composeRowDropped` and
-// `styles.thisClassDoesNotExist` are both `"_<key>_<hash>"` strings here. A presence check — in the
-// module or in the DOM — is therefore vacuous on its own. What is not vacuous is the pair: the class
-// the row **actually renders with**, read off the DOM, and `room.module.css`'s own text, read by
-// path exactly as `plan-preview.dom.test.ts:45` reads it. A class the stylesheet stopped declaring
-// fails that pairing.
+// Vitest's CSS-module stub fabricates a class name for any property, so a presence check on `styles.*` is vacuous:
+// the assertion pairs the class a row renders with (read off the DOM) against `room.module.css`'s own text.
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -48,9 +29,8 @@ import { createFakeProbeFactory } from "../support/fake-body-probe";
 
 const OCCURRED_AT = "2026-09-14T09:00:00.000Z";
 
-/** The owner's smallest accepted room (ADR 0108 Amendment E). It is the one room that puts both
- *  resolved statuses on the glass at once: the sink and the hob are placed, and neither the fridge
- *  nor any storage cabinet has a wall to stand on. */
+/** The owner's smallest accepted room (ADR 0108 Amendment E): the one room that puts both resolved statuses on
+ *  the glass at once, the sink and hob placed, the fridge and storage not. */
 const SMALLEST_ACCEPTED_ROOM: DesignRoom = {
   shape: "L",
   widthMm: 900,
@@ -58,8 +38,7 @@ const SMALLEST_ACCEPTED_ROOM: DesignRoom = {
   heightMm: 2200,
 };
 
-/** Read by path rather than through `new URL(…, import.meta.url)`: under `happy-dom` the module URL
- *  is not a `file:` one (`room-url-round-trip.dom.test.ts:166-168`). */
+/** Read by path: under `happy-dom` the module URL is not a `file:` one, and `readFileSync` refuses it. */
 const roomStylesheet = readFileSync(
   resolve(import.meta.dirname, "../../src/room/room.module.css"),
   "utf8",
@@ -94,8 +73,7 @@ interface RenderLocale {
 }
 
 const ROMANIAN: RenderLocale = { locale: "ro", messages: roMessages };
-// The same cast `room-composition.dom.test.ts` makes: `Catalogue` is typed from `ro.json`, and
-// catalogue parity is what holds `ru.json` to its shape.
+// Cast as `room-composition.dom.test.ts` does: `Catalogue` is typed from `ro.json`; catalogue parity holds `ru.json`.
 const RUSSIAN: RenderLocale = {
   locale: "ru",
   messages: ruMessages as Catalogue,
@@ -130,11 +108,8 @@ function composingRun(): ActiveGenerationRun {
   };
 }
 
-/** A genuinely generated run rather than a hand-written one, so the two resolved statuses below are
- *  the statuses the engine really produces for this room and not a fixture's opinion of them.
- *
- *  Returned as the composed member rather than the whole union, so `failedHandoffRun` can spread it
- *  and move `handoff` without the compiler losing which member it is holding. */
+/** A generated run, so the resolved statuses are the engine's own for this room. Returned as the composed member
+ *  so `failedHandoffRun` can spread it. */
 function composedRun(
   room: DesignRoom = SMALLEST_ACCEPTED_ROOM,
 ): Extract<ActiveGenerationRun, { phase: "composed" }> {
@@ -154,13 +129,8 @@ function composedRun(
     rows: resolveGenerationRows(result.log),
     design: result.design,
     log: result.log,
-    // The hand-off's two fields, which this file has no opinion about: it reads row classes and the
-    // notice band. `saving` is the state a composition is in the instant it exists.
-    //
-    // **The attempt throws synchronously rather than returning a rejected promise** (wave 7F4b's
-    // review, finding F9): nothing here runs it, and a rejected promise nobody awaited would surface
-    // in whatever test happened to be running when it was collected — as an unhandled rejection
-    // rather than as this file saying what it does not do.
+    // `saving` is the state a composition is in the instant it exists. `attempt.run` throws synchronously: a
+    // rejected promise nobody awaited would surface as an unhandled rejection in whichever test was running.
     attempt: {
       run: () => {
         throw new Error(
@@ -172,8 +142,7 @@ function composedRun(
   };
 }
 
-/** A composed kitchen whose write was refused — the state QA finding F4 is about. The rows above it
- *  are true and complete; what failed is the hand-off. */
+/** A composed kitchen whose write was refused: the rows are true and complete, what failed is the hand-off. */
 function failedHandoffRun(): ActiveGenerationRun {
   return { ...composedRun(), handoff: "failed" };
 }
@@ -198,21 +167,10 @@ function isAnnounceable(record: MutationRecord): boolean {
 }
 
 /**
- * Everything the notice band did across one transition, announceable or not.
- *
- * Records are drained with `takeRecords`, because a `MutationObserver` callback is a microtask and
- * `act` has already returned by the time one would run.
- *
- * **The identity check is what stops this from passing over nothing.** If React ever replaced the
- * band instead of updating it, the observer would be watching a detached node, every assertion below
- * would read zero mutations, and the silent-happy-path test would pass for the wrong reason — while
- * the real region would be a freshly mounted one, which is the shape that gets announced late or not
- * at all.
- *
- * **Unfiltered on purpose** (wave 7F4b's review, finding F2). The silent transition is silent
- * because `aria-relevant` defaults to *additions text* and the one mutation there is a **removal**;
- * a helper that filtered before returning let that test assert `toHaveLength(0)` over a filtered-out
- * removal and over an observer that saw nothing at all, which are not the same claim.
+ * Everything the notice band did across one transition, announceable or not. Records are drained with
+ * `takeRecords` (an observer callback is a microtask and `act` has returned by then). The identity check stops
+ * the observer watching a detached node; the result is unfiltered, so a filtered-out removal reads differently
+ * from an observer that saw nothing.
  */
 function mutationsAcross(
   from: ActiveGenerationRun,
@@ -243,9 +201,8 @@ function announceableIn(
   return records.filter(isAnnounceable);
 }
 
-/** Every class token the rows of one render carry, keyed by the status the row is in. The two
- *  renders together cover all three statuses; no single run can, because a composing list is wholly
- *  pending and a settled one holds none (ruling R12). */
+/** Every class token the rows of one render carry, keyed by status. No single run holds all three statuses: a
+ *  composing list is wholly pending and a settled one holds none. */
 function classTokensByStatus(): ReadonlyMap<string, readonly string[]> {
   const byStatus = new Map<string, readonly string[]>();
   for (const run of [composingRun(), composedRun()]) {
@@ -276,14 +233,8 @@ function statusOwnTokens(status: GenerationRowStatus): readonly string[] {
   );
 }
 
-/**
- * The local class name behind a rendered token.
- *
- * Both Vitest's CSS stub and a real CSS-module build wrap the author's name in a hash
- * (`_composeRowDropped_6fc2cb`), and it is the author's name the stylesheet declares. A token this
- * cannot read is thrown on rather than skipped: a silent skip would make every assertion below pass
- * over nothing.
- */
+/** The local class name behind a rendered token: Vitest's CSS stub and a real build both wrap it in a hash
+ *  (`_composeRowDropped_6fc2cb`). Throws on a token it cannot read, since a skip would pass over nothing. */
 function localClassName(token: string): string {
   const local = /^_(?<local>[A-Za-z][\w-]*)_[\w-]+$/.exec(token)?.groups?.local;
   if (local === undefined) {
@@ -292,8 +243,7 @@ function localClassName(token: string): string {
   return local;
 }
 
-/** Every class `room.module.css` declares. A name absent from this set is a class the component
- *  believes in and the stylesheet does not. */
+/** Every class `room.module.css` declares. */
 function declaredClassNames(): ReadonlySet<string> {
   return new Set(
     [...roomStylesheet.matchAll(/\.(?<name>[A-Za-z_][\w-]*)/g)].map(
@@ -302,8 +252,7 @@ function declaredClassNames(): ReadonlySet<string> {
   );
 }
 
-/** The declarations of one rule, by its selector. Returned as text because what is asserted of it
- *  is a property the frame draws with, not a parsed value. */
+/** The declarations of one rule, by its selector, as text. */
 function declarationsFor(selector: string): string {
   const rule = new RegExp(`${selector}\\s*\\{(?<body>[^}]*)\\}`).exec(
     roomStylesheet,
@@ -319,8 +268,7 @@ describe("every row status is drawn with a class the stylesheet declares (ruling
   it.each(ROW_STATUSES.map((status) => [status]))(
     "draws a %s row with exactly one class of its own",
     (status) => {
-      // Zero here is the regression this file was written for: the status resolved to `undefined`,
-      // `classNames` dropped it, and the row is drawn as a plain row with no mark of its state.
+      // Zero is the regression: the status resolved to `undefined` and `classNames` dropped it.
       expect(statusOwnTokens(status)).toHaveLength(1);
     },
   );
@@ -335,9 +283,7 @@ describe("every row status is drawn with a class the stylesheet declares (ruling
   );
 
   it("declares the class every row shares, whatever its status", () => {
-    // The self-check on the two readers above: if `localClassName` or `declaredClassNames` stopped
-    // agreeing with the stylesheet's own spelling, this line goes red first and the per-status
-    // assertions above are never left passing over a name nothing could have matched.
+    // Self-check on the two readers above: if they stopped agreeing with the stylesheet's spelling, this goes red.
     const perStatus = ROW_STATUSES.map((status) => new Set(tokensFor(status)));
     const sharedTokens = [...(perStatus[0] ?? [])].filter((token) =>
       perStatus.every((tokens) => tokens.has(token)),
@@ -366,9 +312,7 @@ describe("the not-placed row keeps the drawing R10 describes", () => {
 
     expect(dropped).toContain("dashed");
     expect(dropped).toContain("background");
-    // The row's own rule, not the whole stylesheet: `line-through` is named in the comment above
-    // this very class, explaining that the frame draws none, and a text gate over the file would
-    // have been red the day that comment landed.
+    // The row's own rule, not the whole stylesheet: a comment above the class names `line-through`.
     expect(dropped).not.toContain("text-decoration");
   });
 
@@ -381,14 +325,8 @@ describe("the not-placed row keeps the drawing R10 describes", () => {
   });
 });
 
-/**
- * **7D5b defect W7** — the compose body scrolls vertically and never horizontally.
- *
- * Russian at 390 x 844 outgrows the space above the fixed footer, and under `overflow: hidden` the
- * rule paragraph was cut off and unreachable. happy-dom does no layout, so the overflow itself is the
- * visual gate's to measure; what this guards is the declaration that makes it reachable, and the
- * horizontal refusal of ADR 0082 decision 2 that a bare `overflow-y: auto` would silently drop.
- */
+/** happy-dom does no layout, so the overflow is the visual gate's to measure; this guards the declaration that
+ *  keeps Russian's rule paragraph reachable, and the horizontal refusal of ADR 0082 decision 2. */
 describe("the compose body scrolls vertically and only vertically (W7)", () => {
   it("lets content taller than the space above the footer scroll into view", () => {
     expect(declarationsFor("\\.composeBody")).toMatch(/overflow-y:\s*auto;/);
@@ -399,22 +337,14 @@ describe("the compose body scrolls vertically and only vertically (W7)", () => {
   });
 });
 
-/**
- * **QA finding F4** — the two states 1F reaches with no tap behind them are the two a live region
- * exists for, and the save-failed one is the one that also needs an action.
- *
- * The region is live unconditionally rather than only in those states, because a region has to be
- * live **before** the mutation it should announce; the silence of the happy path is a property of the
- * text — `composing` and `composed`+`saving` share one leaf — and is asserted below rather than
- * assumed.
- */
+/** The region is live unconditionally because it must be live before the mutation it announces; the happy path
+ *  is silent because `composing` and `composed`+`saving` share one leaf. */
 describe("the notice band is 1F's live region", () => {
   it("is polite, so nothing interrupts a sentence the customer is already hearing", () => {
     renderRun(failedHandoffRun());
 
     expect(noticeBand().getAttribute("aria-live")).toBe("polite");
-    // `role="alert"` would be assertive, and nothing here is waiting on the customer: the retry
-    // button stands there until it is pressed.
+    // `role="alert"` would be assertive, and nothing here waits on the customer.
     expect(noticeBand().getAttribute("role")).toBeNull();
   });
 
@@ -439,13 +369,9 @@ describe("the notice band is 1F's live region", () => {
   it("says nothing when the composition simply resolves", () => {
     const mutations = mutationsAcross(composingRun(), composedRun());
 
-    // The observer really watched this transition happen: React removes the spinner `<span>` from
-    // the band. Without this line the assertion below would read the same over an observer that saw
-    // nothing at all, and the silence would be the test's rather than the region's.
+    // Without this the assertion below reads the same over an observer that saw nothing at all.
     expect(mutations).toHaveLength(1);
-    // The happy path must not be narrated: *pending → composed* is a screenful of rows the customer
-    // can read at their own pace, and a region that fired here would talk over all of it. The
-    // removal above is not read out, because `aria-relevant` defaults to *additions text*.
+    // The removal above is not read out: `aria-relevant` defaults to additions text.
     expect(announceableIn(mutations)).toHaveLength(0);
   });
 
@@ -459,11 +385,7 @@ describe("the notice band is 1F's live region", () => {
   });
 });
 
-/**
- * **Wave 7D5b slice SW: the dishwasher row, as the customer reads it** (ADR 0110 Amendment M3). A
- * resolution assertion in both locales — the wording itself is the copy lock's — over the plan's own
- * witnesses: **1500 × 2800** holds an M1 dishwasher, **1500 × 3500** holds none.
- */
+/** Witnesses: 1500 × 2800 holds an M1 dishwasher, 1500 × 3500 holds none. */
 describe("the dishwasher row, in both locales (7D5b SW)", () => {
   const WITH_DISHWASHER: DesignRoom = {
     shape: "L",
@@ -542,7 +464,7 @@ describe("the dishwasher row, in both locales (7D5b SW)", () => {
       expect(textOf("room-compose-status-dishwasher")).toBe(
         catalogue.messages.room.compose.status.notPlaced,
       );
-      // ADR 0113 decision 5: the domain publishes no reason, so the row explains nothing.
+      // The domain publishes no reason for an unplaced row, so the row explains nothing.
       expect(
         container.querySelector('[data-testid="room-compose-row-dishwasher"]')
           ?.children,
@@ -562,12 +484,8 @@ describe("the dishwasher row, in both locales (7D5b SW)", () => {
   });
 });
 
-/**
- * **Wave 7F2 S1b: 1F's room summary reads the whole millimetres the customer typed** (ADR 0126,
- * criterion S1b-9). The unit is spelled here rather than read from the catalogue, so a template that
- * lost it, or a number form that grouped thousands (*"3 560"* in `ru` without `::group-off`), could
- * not agree with itself.
- */
+/** The unit is spelled here, not read from the catalogue, so a template that lost it or grouped thousands
+ *  (`3 560` in `ru` without `::group-off`) could not agree with itself (ADR 0126). */
 describe("the room summary reads whole millimetres, in both locales (7F2 S1b)", () => {
   const SUMMARY_SWEEP_RUNS = 100;
   const LARGEST_SWEPT_MM = 9_000_000;
@@ -612,11 +530,8 @@ describe("the room summary reads whole millimetres, in both locales (7F2 S1b)", 
     },
   );
 
-  // ADR 0130 D10 (wave 7J S4): a straight room's summary names wall A and the height only \u2014 never a
-  // third number \u2014 because `room.depthMm` is the drawn floor's depth in front of the run (D3), not a
-  // length the customer typed. Selected by `requiredFieldsFor(room.shape)`, so this is the same
-  // property as the L's own above with the wall-B clause absent rather than a second read of the
-  // shape.
+  // A straight room's summary names wall A and the height only: `room.depthMm` is the drawn floor's depth, not a
+  // typed length, so the wall-B clause is absent rather than a second read of the shape.
   it.each([
     ["ro", ROMANIAN, "mm"],
     ["ru", RUSSIAN, "\u043C\u043C"],
@@ -645,13 +560,8 @@ describe("the room summary reads whole millimetres, in both locales (7F2 S1b)", 
   );
 });
 
-/**
- * **7L review finding F5.** `roomDraftFor` (this file) and `roomHrefFromDesignRoom`
- * (`room-url-state.ts`) both used to map a stored `DesignRoom`'s numbers onto wall/height fields
- * independently; now both call the one shared `parsedRoomLengthsOf`. This locks the mapping itself —
- * wall A from `widthMm`, wall B from `depthMm` only for a room that turns a corner — against the two
- * drifting apart again, read off what 1F actually draws rather than off the summary line.
- */
+/** `roomDraftFor` and `roomHrefFromDesignRoom` must keep mapping a DesignRoom the one way `parsedRoomLengthsOf`
+ *  does: wall A from `widthMm`, wall B from `depthMm` only for a room that turns a corner. */
 describe("the composed plan aside maps a DesignRoom the one way parsedRoomLengthsOf does (7L F5)", () => {
   function planLabelText(wall: "A" | "B"): string | null {
     return (
@@ -681,15 +591,8 @@ describe("the composed plan aside maps a DesignRoom the one way parsedRoomLength
   });
 });
 
-/**
- * **M7B U5 S1, acceptance criterion 2, and the 1F aside for a U.** A U's 1F summary shows wall A,
- * wall B, wall C and the height, and the desktop aside draws the plan with all three walls. The
- * sentence is `room.compose.roomSummaryU`, drafted 2026-09-30 by the coordinator's ruling: the approved
- * leaf's own shape with a third length. Rendered here straight through `GenerationSteps`, handed the
- * room a U 1D would hand it, so the summary is tested without the screen's route to it.
- * The unit is spelled here, as the block above does, so a template that lost it or grouped thousands
- * could not agree with itself.
- */
+/** `room.compose.roomSummaryU` is drafted copy: the approved leaf's shape with a third length. The unit is spelled
+ *  here, as above, so a template that lost it or grouped thousands could not agree with itself. */
 describe("a U's summary names its three walls (M7B U5 S1, criterion 2)", () => {
   const SWEPT_RUNS = 100;
   const LARGEST_MM = 9_000_000;

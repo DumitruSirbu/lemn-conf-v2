@@ -1,19 +1,5 @@
-// M7B U7 S1 and S2 — the U's gate on the phone (by touch) and on the desktop line (by click)
-// (`docs/milestones/M7B-u-shaped-rooms.md`, *U7 — the plan*, D3 and D4). The steps, readouts and named
-// assertions `u-gate-journeys.ts` is written from, run by `u-gate.e2e.spec.ts` and its desktop twin.
-//
-// **Imports, never copies** (D4): the Step 1 recorders and readouts come from `step-one-by-touch`,
-// the shared U steps from `u-steps`, the design records and voids from `u-design`, the scene projection
-// from `u-cutaway-scene` and `mirror-flow`, the raw-HTML readers from `ssr-html` and the per-frame
-// sampler from `first-frame` (the spec imports the last two). What is written here is what none of them
-// holds: a touch variant of the U's first steps (`u-steps` clicks), the wall-C edit steps, and the
-// persistence and share readouts.
-//
-// **One gesture seam** (U7 S2): every control is reached through `press`, which taps where the browser
-// has touch (the `mobile` project, 7K's rule) and clicks where it does not (the `desktop` project), and
-// every digit is `pressSequentially`, which is what a soft or a hard keyboard produces. `tapScene`
-// (`u-cutaway-scene`) already made the same choice for the canvas. The exception is a `goto` to a
-// design's own URL, which is a reload rather than a gesture.
+// Step, readout and assertion helpers for the U's gate journeys (`u-gate-journeys.ts`), on the phone and the desktop.
+// Every control goes through `press` (tap where the browser has touch, click where it does not); a `goto` is a reload.
 import { readFileSync } from "node:fs";
 
 import {
@@ -67,10 +53,6 @@ import {
 import { recordsByPlacementId, voidsOf } from "./u-design";
 import { cameraPresetButtons, ROOM, U_CAMERA_PRESETS } from "./u-steps";
 
-// -------------------------------------------------------------------------------------------
-// The rooms the gate types, in millimetres as a customer types them.
-// -------------------------------------------------------------------------------------------
-
 export type TypedRoom = Readonly<Record<LengthField, string>>;
 
 const ROOM_FIELDS = [
@@ -97,8 +79,7 @@ export const TOO_SMALL_U = {
   height: "2600",
 } as const satisfies TypedRoom;
 
-/** What wall B and wall C are corrected to from `TOO_SMALL_U`: the narrowest walkway (G5's first
- *  minimal corner, D1). */
+/** What wall B and wall C are corrected to from `TOO_SMALL_U`: the narrowest walkway. */
 export const NARROWEST_WALKWAY_MM = "1600";
 
 /** `TOO_SMALL_U` with wall B and wall C corrected to the narrowest walkway: the room 1D accepts. */
@@ -136,10 +117,6 @@ export function storedRoomOf(room: TypedRoom): DesignRoom {
   };
 }
 
-// -------------------------------------------------------------------------------------------
-// The gesture seam: tap on a phone, click on a desktop.
-// -------------------------------------------------------------------------------------------
-
 const pageHasTouch = new WeakMap<Page, boolean>();
 
 async function hasTouch(page: Page): Promise<boolean> {
@@ -150,15 +127,13 @@ async function hasTouch(page: Page): Promise<boolean> {
   return isTouch;
 }
 
-/** A finger where the browser has touch, a pointer where it does not. Never both, so a phone run is
- *  taps and nothing else, and a desktop run is clicks and nothing else. */
+/** A tap where the browser has touch, a click where it does not; never both. */
 export async function press(page: Page, target: Locator): Promise<void> {
   if (await hasTouch(page)) await target.tap();
   else await target.click();
 }
 
-/** The line under test has the input device its name claims: a phone spec that ran without touch would
- *  click, and pass. */
+/** The browser has the input device its name claims: a phone spec run without touch would click, and pass. */
 export async function expectInputDevice(
   page: Page,
   device: "touch" | "pointer",
@@ -179,8 +154,7 @@ export async function typeInField(
   await input.pressSequentially(digits);
 }
 
-/** Takes the last `count` digits back off a field from the keyboard, so a correction is typed and
- *  never written over with `fill`. */
+/** Takes the last `count` digits off with Backspace, so a correction is typed and never `fill`ed. */
 export async function eraseFromField(
   page: Page,
   field: LengthField,
@@ -193,10 +167,6 @@ export async function eraseFromField(
     await input.press("Backspace");
   }
 }
-
-// -------------------------------------------------------------------------------------------
-// Step 1.
-// -------------------------------------------------------------------------------------------
 
 /** 1A -> the U card -> *Continuă* -> 1B, with no shape refusal drawn on the way. */
 export async function chooseU(page: Page): Promise<void> {
@@ -249,16 +219,11 @@ const roMessages = JSON.parse(
   ),
 ) as { room: { issue: { roomTooSmall: string } } };
 
-/** The sentence `ROOM_TOO_SMALL_FOR_KITCHEN` is answered with (`room-issue-model.ts`), read from the
- *  catalogue the page renders and never spelled here. */
+/** The `ROOM_TOO_SMALL_FOR_KITCHEN` sentence, read from the catalogue the page renders. */
 export const ROOM_TOO_SMALL_SENTENCE = roMessages.room.issue.roomTooSmall;
 
-/** After a *client transition* to another design the page's main thread is busy for about 2.5 s under
- *  `next start` (3 s and more under `next dev`) linking the new stage's WebGL programs, and every
- *  read this test makes of the page waits behind it. The write-access check itself is not the wait: it
- *  is issued about 50 ms after the push and answers in about 50 ms (U7 S2's trace, backlog note). An
- *  assertion's default 5 s is too tight for that block under load, so the wait names its own bound,
- *  as `openSeededDesign`'s probe wait does. */
+/** After a client transition the main thread is busy for about 2.5 s (3 s+ under `next dev`) linking WebGL programs;
+ *  the default 5 s assertion timeout is too tight under load. */
 const WRITE_ACCESS_TIMEOUT_MS = 15_000;
 
 /** The editor is drawn on `designId` with its own chips, the write-access check has answered, and the
@@ -281,8 +246,8 @@ export async function expectEditorReady(
   await waitForSettleAfter(page, 0);
 }
 
-/** 1A -> 1D -> 1F -> the editor for `room`. Returns the minted design's id once the editor
- *  is ready. The caller's fixture deletes the row (`step-one-by-touch`'s `designWrites`, ADR 0006). */
+/** 1A -> 1D -> 1F -> the editor for `room`; returns the minted design's id. The caller's fixture deletes the row
+ *  (ADR 0006). */
 export async function composeUThroughStepOne(
   page: Page,
   room: TypedRoom,
@@ -298,10 +263,6 @@ export async function composeUThroughStepOne(
   return designId;
 }
 
-// -------------------------------------------------------------------------------------------
-// The stored document, and edits that wait for it to be saved.
-// -------------------------------------------------------------------------------------------
-
 /** `GET /api/designs/{id}` from inside the page, requiring a 200. */
 export async function storedDesignOf(
   page: Page,
@@ -312,8 +273,7 @@ export async function storedDesignOf(
   return read.design as Design;
 }
 
-/** Runs `edit`, waits until the stored revision has moved past where it stood, and returns the
- *  document the database now holds — so a claim about an edit is a claim about what was saved. */
+/** Runs `edit`, waits for the stored revision to move past where it stood, and returns the saved document. */
 export async function editAndAwaitSave(
   page: Page,
   designId: string,
@@ -341,14 +301,10 @@ export function placementOf(design: Design, id: string): DesignPlacement {
   return placement;
 }
 
-// -------------------------------------------------------------------------------------------
-// The camera, and the scene the customer looks at.
-// -------------------------------------------------------------------------------------------
-
 export const PRESET = ro.configure.cameraPresets;
 
-/** Taps a camera chip and waits for the ease to land. A chip already pressed is left alone: pressing
- *  it again does not settle, so waiting for a settle would hang. */
+/** Taps a camera chip and waits for the ease to land. A chip already pressed is left alone: pressing it
+ *  again does not settle, so waiting would hang. */
 export async function standAtChip(page: Page, label: string): Promise<void> {
   const chip = page.getByRole("button", { name: label });
   if ((await chip.getAttribute("aria-pressed")) === "true") return;
@@ -357,12 +313,8 @@ export async function standAtChip(page: Page, label: string): Promise<void> {
   await waitForSettleAfter(page, before);
 }
 
-/**
- * The scene readout is published when the camera's ease lands, **not when the document changes**: after
- * an edit or a depth change it still describes the previous scene (measured while writing this gate —
- * the readout read a body 600 wide after a step to 550). A settle is what republishes it, so this
- * stands at another chip and returns to `label`.
- */
+/** The scene readout is republished when the camera's ease lands, not when the document changes, so this stands at
+ *  another chip and returns to `label`. */
 export async function republishScene(page: Page, label: string): Promise<void> {
   const detour = label === PRESET.overview ? PRESET.wallA : PRESET.overview;
   await standAtChip(page, detour);
@@ -384,10 +336,6 @@ function midHeightOf(body: SceneBodyBounds): number {
 export function wallCPlaneM(design: Design): number {
   return design.room.widthMm / 1000;
 }
-
-// -------------------------------------------------------------------------------------------
-// Taps on the scene, each proven by what the selection readout says it reached.
-// -------------------------------------------------------------------------------------------
 
 export async function expectSelection(
   page: Page,
@@ -490,9 +438,8 @@ export interface VoidTarget {
   readonly point: ScenePoint;
 }
 
-/** The first of `candidates` whose front projects inside the canvas at the camera's current stand.
- *  Throws by name when none does, so a camera change surfaces as this sentence and not as a tap in
- *  empty air. */
+/** The first of `candidates` whose front projects inside the canvas at the camera's current stand; throws by name
+ *  when none does. */
 export async function firstVoidInView(
   page: Page,
   candidates: readonly VoidRecord[],
@@ -515,14 +462,7 @@ export async function tapVoid(
   await expectSelection(page, { id: opening.id, kind: "void" });
 }
 
-// -------------------------------------------------------------------------------------------
-// The panel.
-// -------------------------------------------------------------------------------------------
-
-/** The editor's back link to Step 1: tapped on a phone, and the confirmation it opens answered. A
- *  desktop's `‹` asks the same question, but its journeys follow the link's own `href` instead, as
- *  `u-flow.ts` does — the dialog has its own desktop spec (`back-confirmation.desktop.e2e.spec.ts`).
- *  Both land on 1D with the room the customer typed. */
+/** Phone: taps the back link and confirms. Desktop: follows the link's own `href` (the dialog has its own spec). */
 export async function followBackLink(page: Page): Promise<void> {
   const back = page.getByTestId("top-bar-back");
   if (await hasTouch(page)) {
@@ -563,8 +503,7 @@ export async function firstOtherOffer(page: Page): Promise<string> {
   return testId.slice("offer-".length);
 }
 
-/** Applies a cabinet depth through the whole-kitchen sheet with the line's own gesture — `u-cutaway-scene`'s
- *  own `chooseCabinetDepth` always clicks, and ADR 0023 found a click and a tap differ under this sheet. */
+/** Applies a cabinet depth with the line's own gesture: a click and a tap differ under this sheet (ADR 0023). */
 export async function chooseCabinetDepth(
   page: Page,
   depthMm: string,
@@ -582,19 +521,10 @@ export async function chooseCabinetDepth(
   );
 }
 
-// -------------------------------------------------------------------------------------------
-// Wall C's geometry, read off the scene the customer sees.
-// -------------------------------------------------------------------------------------------
-
-/** Half a millimetre. Every stored length is a whole millimetre, so a body off its plane by a
- *  millimetre reads as a real step, while three.js's single-precision bounds (about 1e-7 m here) do
- *  not. */
+/** Half a millimetre: a body a millimetre off its plane is a real step; three.js's ~1e-7 m bounds are not. */
 const PLANE_TOLERANCE_M = 0.0005;
 
-/**
- * Every wall-C body's back face stands on wall C's plane (x = the room's width). Every stored
- * wall-C placement must be in the readout, so an empty scene cannot satisfy this.
- */
+/** Every wall-C body's back face stands on wall C's plane; every stored wall-C placement must be in the readout. */
 export async function expectBacksOnWallC(
   page: Page,
   design: Design,
@@ -627,9 +557,8 @@ export interface WallCRunStart {
   readonly firstFreeBodyStartM: number;
 }
 
-/** Reads wall C's run start off a fresh scene readout: the right corner's base return is the one
- *  wall-C base body the domain marks `corner: "right"`, and the first free body is the lowest-z wall-C
- *  base body that is not a corner piece. */
+/** Reads wall C's run start off a fresh scene readout: the right corner's base return, and the lowest-z base body
+ *  that is not a corner piece. */
 export async function readWallCRunStart(
   page: Page,
   design: Design,
@@ -654,11 +583,8 @@ export async function readWallCRunStart(
   };
 }
 
-/**
- * Where the corner rule ends the right corner's base return along wall C at `design`'s depth, from the
- * domain and independent of the scene: ADR 0132 decision 2 sizes it as *the L room (W, C)'s* left
- * corner, whose base return stands on wall B — so the answer is that L room's wall-B far edge.
- */
+/** Where the right corner's base return ends along wall C, from the domain and independent of the scene: sized as
+ *  the L room (W, C)'s left corner, whose base return stands on wall B (ADR 0132 decision 2). */
 export function cornerRuleFarEdgeM(design: Design): number {
   const { wallCMm } = design.room;
   if (wallCMm === undefined) throw new Error("a U stores wall C's length");
@@ -678,10 +604,6 @@ export function cornerRuleFarEdgeM(design: Design): number {
   });
   return farEdge.farEdgeMm / 1000;
 }
-
-// -------------------------------------------------------------------------------------------
-// The camera chip row, and where the `wallC` chip stands the eye.
-// -------------------------------------------------------------------------------------------
 
 export interface ChipMeasure {
   readonly name: string;
@@ -739,8 +661,7 @@ export async function measureSidewaysOverflow(
   );
 }
 
-/** The direction the eye looks along, from the published view matrix (column-major; the view's third
- *  row is the camera's backward axis in world coordinates). */
+/** The direction the eye looks along, from the published view matrix (column-major; row 3 is the backward axis). */
 export async function lookDirectionOf(page: Page): Promise<Vec3> {
   const { view } = (await readScene(page)).camera;
   const at = (index: number) => view[index] ?? 0;
@@ -792,10 +713,6 @@ function cornersOf(body: SceneBodyBounds): Vec3[] {
   }
   return corners;
 }
-
-// -------------------------------------------------------------------------------------------
-// The share view: the bodies it draws, and the builds its server sent.
-// -------------------------------------------------------------------------------------------
 
 /** The options of a browser of its own that looks like the project's: its viewport and touch, and
  *  nothing of the owner's cookies. */
@@ -874,12 +791,7 @@ export function buildsStoredIn(design: Design): string[] {
     .sort();
 }
 
-// -------------------------------------------------------------------------------------------
-// Frames, and what a client transition to the editor costs.
-// -------------------------------------------------------------------------------------------
-
-/** Every painted frame carried the design's own chip count, and there were frames to judge (ADR
- *  0133: zero frames at the wrong count). */
+/** Every painted frame carried the design's own chip count, and there were frames to judge (ADR 0133). */
 export function expectNoWrongChipFrames(
   frames: readonly FrameSample[],
   expectedChips: number,
@@ -913,15 +825,12 @@ interface TransitionOptions {
 
 const TRANSITION_PROBE_KEY = "__uGateTransitionProbe";
 
-/** A transition normally paints the target's chips in 60 to 500 ms, but now and then one lands behind
- *  the same main-thread block (2.3 s and 2.7 s were measured under `next start`). The bound only
- *  separates *slow* from *never*: the slow ones are the measurement, so they are reported and not
- *  failed. */
+/** Transitions usually paint in 60 to 500 ms but can land behind a 2-3 s main-thread block; the bound only separates
+ *  slow from never, and slow ones are reported, not failed. */
 const TRANSITION_TIMEOUT_MS = 20_000;
 
-/** Runs in the page (serialised, so it captures nothing): pushes `path` through Next's own client
- *  router, and watches every frame from that instant until the target design's chip row is drawn over
- *  a canvas. */
+/** Runs in the page (serialised, captures nothing): pushes `path` through Next's client router and watches every
+ *  frame until the target design's chip row is drawn over a canvas. */
 function pushAndWatchTheTransition(options: TransitionOptions): number {
   const probe: TransitionProbe = { chipsAt: -1, wrongChipFrames: 0 };
   Reflect.set(window, options.key, probe);
@@ -956,14 +865,8 @@ function pushAndWatchTheTransition(options: TransitionOptions): number {
   return startedAt;
 }
 
-/**
- * ADR 0133 A5: a client transition to `/d/{id}` builds a snapshot store it never reads. This pushes the
- * editor of *another* design through Next's own client router — a different `id` is a different
- * segment, so the page remounts and `ConfiguratorSnapshotProvider` builds its store again — and times
- * the push to the first frame with the target's chips. It is a client navigation, not a document load.
- * The time includes the route's own server round trip, which is most of it: the snapshot store's cost
- * is what two builds of this same measurement differ by.
- */
+/** Times a client push to another design's editor up to the first frame with the target's chips (ADR 0133 A5);
+ *  most of the time is the route's own server round trip. */
 export async function measureClientTransitionToEditor(
   page: Page,
   targetId: string,

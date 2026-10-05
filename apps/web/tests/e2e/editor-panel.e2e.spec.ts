@@ -13,27 +13,15 @@ import {
 } from "./support/canvas-taps";
 import { openSeededDesign, test } from "./support/seeded-design";
 
-/**
- * M4's phase gate (`docs/milestones/M4-editor-surface.md`, "Surfaces" — Mobile): §9's panel at
- * 390 × 844 with real touch, in a real browser, against a real WebGL canvas and the test database.
- *
- * `docs/best-practices/browser-and-visual-qa.md` is why this file exists at all: `tests/panel/` is
- * model-only, so every `disabled` prop and every section of §9 was asserted as a value and never as
- * something rendered. This is the render half.
- *
- * What it still does **not** prove, per that same guide: emulated touch is not a digitiser. There
- * is no finger-sized contact area, no drag-vs-tap slop, no mobile GPU, no device pixel ratio and no
- * iOS Safari here. A handset pass remains open (`docs/STATUS.md`).
- */
+// Emulated touch is not a digitiser: no finger-sized contact area, drag-vs-tap slop, mobile GPU, device pixel ratio
+// or iOS Safari (`docs/best-practices/browser-and-visual-qa.md`).
 
-/** Background **above** the sheet's top edge, which is the only part of the scene a tap can reach
- *  while the sheet is open. Only its `x` is used: the strip's height is measured live, because it
- *  is the gap between the canvas and a sheet pinned to the viewport, and it shrinks faster than the
- *  canvas does — 130.68 px before wave 6G's band, 83.75 px after. */
+/** Background above the sheet's top edge, the only part of the scene a tap reaches while the sheet is open. Only `x`
+ *  is used: the strip's height is measured live. */
 const SCENE_STRIP_TAP = { x: 310, y: 100 };
 
 const VIEWPORT_HEIGHT_PX = 844;
-/** §10 and the milestone's Surfaces line: "roughly 70–83 vh". */
+/** §10: "roughly 70–83 vh". */
 const MIN_SHEET_FRACTION = 0.7;
 const MAX_SHEET_FRACTION = 0.83;
 /** The milestone's touch scale for this viewport: rows 76–86 px, chips at least 44 px. */
@@ -73,26 +61,9 @@ async function boxOf(locator: Locator) {
 }
 
 /**
- * A real touch scroll inside the sheet, through Chromium's own gesture synthesis.
- *
- * Playwright's touchscreen taps but does not swipe, and a `touchmove` dispatched from page script
- * is untrusted and scrolls nothing — so a spec built on one would assert about a scroll that never
- * happened. `Input.synthesizeScrollGesture` with a touch source is the real thing.
- */
-/**
- * A real touch drag, dispatched event by event.
- *
- * It used to be one `Input.synthesizeScrollGesture`, which is a *synthesised smooth-scroll
- * animation* rather than a touch drag: the call returns as soon as the gesture is dispatched and
- * the browser then animates the scroll across subsequent frames. That worked on a developer
- * machine and did nothing at all on a CI runner — the first two runs of this suite on GitHub left
- * `scrollTop` at 0 while the sheet's height, overflow, scrollability and pinned footer were all
- * correct, and a 17 s poll never saw it move. The failure screenshot shows the list sitting at the
- * top, untouched.
- *
- * `Input.dispatchTouchEvent` needs none of that machinery: start, a few moves, end, each one a
- * real event the page handles synchronously. It also stays closer to what the test is about —
- * this is the mobile sheet, and a finger is the interaction it exists to describe.
+ * A real touch drag dispatched event by event with `Input.dispatchTouchEvent`. Not `Input.synthesizeScrollGesture`:
+ * that returns once dispatched and animates the scroll over later frames, which left `scrollTop` at 0 on CI runners.
+ * Playwright's touchscreen taps but cannot swipe, and a `touchmove` from page script is untrusted and scrolls nothing.
  */
 async function swipeUpInside(page: Page, box: { x: number; y: number }) {
   const session = await page.context().newCDPSession(page);
@@ -106,8 +77,7 @@ async function swipeUpInside(page: Page, box: { x: number; y: number }) {
     });
 
   await send("touchStart", box.y);
-  // Several steps rather than one: a single large move reads as a fling to some scroll
-  // implementations, and the intent here is a deliberate drag.
+  // Several steps: a single large move reads as a fling to some scroll implementations.
   for (let offset = 32; offset <= SWIPE_DISTANCE_PX; offset += 32) {
     await send("touchMove", box.y - offset);
   }
@@ -116,14 +86,8 @@ async function swipeUpInside(page: Page, box: { x: number; y: number }) {
   await page.waitForTimeout(SETTLE_MS);
 }
 
-/**
- * **The phase gate.** §10's loop, by touch, in one test: select a body, replace it, set a finish,
- * set a handle, dismiss the sheet, and inspect the result.
- *
- * Every step reads back through `SelectionDebug`, which publishes `describeSelection`'s own `meta`
- * — the store's records, not the panel's local state — so "the edit happened" is a statement about
- * the model and not about a button having been styled.
- */
+/** §10's loop, by touch, in one test. Every step reads back through `SelectionDebug`, which publishes the store's
+ *  own `meta`, so "the edit happened" is a statement about the model, not a styled button. */
 test("the §10 loop completes by touch: select, replace, finish, handle, dismiss, inspect", async ({
   page,
   seededDesign,
@@ -131,8 +95,6 @@ test("the §10 loop completes by touch: select, replace, finish, handle, dismiss
   await selectSinkCabinet(page);
   const before = await readSelection(page);
   const beforeLabel = await page.getByTestId("panel-label").textContent();
-  // The no-edit side (wave 7E4 D5): nothing has written yet, so the stored revision is still the
-  // seeded one.
   expect(await storedRevision(page, seededDesign.id)).toBe(
     seededDesign.revision,
   );
@@ -143,8 +105,6 @@ test("the §10 loop completes by touch: select, replace, finish, handle, dismiss
   await page.waitForTimeout(SETTLE_MS);
   await waitForFirstSave(page, seededDesign);
 
-  // Still open. The replacement is already in the model, and the panel — a projection of it — has
-  // re-headed itself onto the new body and badged that row ACTUAL.
   await expect(page.getByTestId("editor-panel")).toHaveCount(1);
   expect(await page.getByTestId("panel-label").textContent()).not.toBe(
     beforeLabel,
@@ -168,29 +128,22 @@ test("the §10 loop completes by touch: select, replace, finish, handle, dismiss
     "true",
   );
 
-  // Not one of the four edits was refused: M4 treats a refusal reaching the customer as a defect in
-  // the list that offered it, so this is the acceptance criterion and not a smoke check.
+  // A refusal reaching the customer is a defect in the list that offered it (M4's acceptance criterion).
   await expect(page.getByTestId("panel-rejection")).toHaveCount(0);
   expect((await readSelection(page)).rejection).toBe("");
 
-  // Dismiss to inspect — §10's viewing model. The scene is on its own again and carries frame 2A's
-  // instruction copy.
   await page.getByTestId("panel-done").tap();
   await expect(page.getByTestId("editor-panel")).toHaveCount(0);
   await expect(page.getByTestId("scene-hint")).toHaveCount(1);
   const after = await readSelection(page);
   expect(after.selectionId).toBe("");
-  // The id is fixed by the fixture's own mint and does not change on a write (wave 7E4 D5, G4).
+  // The id is fixed by the fixture's own mint and does not change on a write.
   expect(after.designId).toBe(seededDesign.id);
   expect(before.designId).toBe(seededDesign.id);
 });
 
-/** Selecting a body must not also press whatever §9 puts under the finger. A touch on the canvas
- *  produces compatibility mouse events that are hit-tested when they are dispatched, by which time
- *  the sheet covers the bottom ~78 dvh — so one tap that selected the fridge used to arrive as a
- *  `click` on the first finish swatch and applied a finish nobody chose, minting a design in the process.
- *  `kitchen-canvas.tsx` cancels `touchend` to stop it. This is that regression, stated as the
- *  milestone states it: the sheet never steals or leaks pointer events into the canvas. */
+/** The touch's compatibility mouse events are hit-tested at dispatch, when the sheet already covers the bottom
+ *  ~78 dvh; `kitchen-canvas.tsx` cancels `touchend` so the tap that selects a body does not click a swatch under it. */
 test("the tap that opens the sheet is not also delivered to the sheet", async ({
   page,
   seededDesign,
@@ -205,16 +158,12 @@ test("the tap that opens the sheet is not also delivered to the sheet", async ({
 
   const readout = await readSelection(page);
   expect(readout.designId).toBe(seededDesign.id);
-  // Checked **after** `writes`, deliberately (wave 7E4 D5's own must-not): the check below is
-  // itself a `GET`, and asserting it first would put that request inside the collector's own
-  // window and fail the very claim this test makes about a ghost tap.
+  // Checked after `writes`, deliberately: the check below is itself a `GET` and would fall in the collector's window.
   expect(writes).toEqual([]);
-  // No edit landed: the revision has not moved from the seeded one.
   expect(await storedRevision(page, seededDesign.id)).toBe(
     seededDesign.revision,
   );
-  // Nothing was chosen, so nothing is marked chosen: the handle section's note is what marks the
-  // §6.5 default, and a ghost tap on a chip would have replaced it with a real choice.
+  // The handle section's note marks the §6.5 default; a ghost tap on a chip would have replaced it with a real choice.
   await expect(page.getByTestId("section-handle")).toContainText("Implicit");
 });
 
@@ -246,12 +195,8 @@ test("the sheet occupies 70-83 vh, scrolls internally, and keeps its footer pinn
   const footerBefore = await boxOf(page.getByTestId("panel-done"));
   await swipeUpInside(page, { x: sheet.x + sheet.width / 2, y: sheet.y + 320 });
 
-  // Polled, not sampled once. `Input.synthesizeScrollGesture` returns when the gesture is
-  // *dispatched*, and the smooth scroll it starts runs for about 200 ms at this speed and
-  // distance — so a single read after a fixed wait is a race, and it is a race this machine
-  // happens to win. On a CI runner it loses: the first run of this suite on GitHub read
-  // `scrollTop` as 0 here while everything about the sheet was correct. Waiting for the
-  // condition still fails if the body genuinely does not scroll, which is what the test is for.
+  // Polled, not sampled once: the smooth scroll runs for about 200 ms, so a single read after a fixed wait is a
+  // race that CI runners lose.
   await expect
     .poll(async () => body.evaluate((element) => element.scrollTop))
     .toBeGreaterThan(0);
@@ -285,24 +230,16 @@ test("rows and chips meet the touch scale, and chip rows scroll rather than wrap
   for (const height of chipHeights)
     expect(height).toBeGreaterThanOrEqual(MIN_CHIP_HEIGHT_PX);
 
-  // §10: chips scroll horizontally rather than wrapping or shrinking below the touch target. One
-  // line, and a container that scrolls — asserted as the rule rather than as today's overflow,
-  // which depends on how many finishes the catalogue happens to carry.
-  // **`decor-list` is named because `colour-options` is not always the carousel.** The same testid
-  // carries `.woodPair` for the veneer tier, which has no `overflow-x` and is not meant to scroll,
-  // so an unscoped selector would assert something false by design the day a veneer kitchen is
-  // seeded. That premise used to be implicit in the old ancestor-of-a-swatch lookup; naming the
-  // control states it.
+  // §10: chips scroll horizontally rather than wrapping. `decor-list` is named because `colour-options` is not always
+  // the carousel: the same testid carries `.woodPair` for the veneer tier, which does not scroll.
   const finishRow = page.locator(
     '[data-finish-control="decor-list"] [data-testid="colour-options"]',
   );
   expect(
     await finishRow.evaluate((element) => getComputedStyle(element).overflowX),
   ).toBe("auto");
-  // Scoped to the carousel's own container rather than to every `finish-` testid on the sheet: the
-  // way back out of an override is deliberately **outside** `colour-options` (owner ruling,
-  // 2026-09-10), so a page-wide sweep reads its row as a wrapped chip and fails on the layout it
-  // was asked for.
+  // Scoped to the carousel's container: the way back out of an override is deliberately outside `colour-options`,
+  // so a page-wide sweep would read it as a wrapped chip.
   const chipTops = await finishRow
     .locator('[data-testid^="finish-"]')
     .evaluateAll((elements) =>
@@ -312,8 +249,7 @@ test("rows and chips meet the touch scale, and chip rows scroll rather than wrap
     );
   expect(new Set(chipTops).size).toBe(1);
 
-  // The same ruling, asserted rather than assumed: the reset sits on its own row beneath the
-  // carousel and spans it, so it cannot scroll out of sight with the colours.
+  // The reset sits on its own row beneath the carousel and spans it, so it cannot scroll out of sight.
   const followRow = page.getByTestId("finish-follow-kitchen");
   const carouselBox = await boxOf(finishRow);
   const followBox = await boxOf(followRow);
@@ -323,15 +259,8 @@ test("rows and chips meet the touch scale, and chip rows scroll rather than wrap
   expect(followBox.width).toBeCloseTo(carouselBox.width, 0);
 });
 
-/**
- * Frame 2B's thumbnail, in the browser: every row paints a drawing, and every drawing is actually
- * served.
- *
- * `tests/panel/cabinet-thumbnails.test.ts` proves the file is on disk and the model resolves a URL.
- * Neither of those is the thing that fails silently — §13.4's `background-image` paints nothing
- * whether the URL is absent, wrong, or right but not served, and all three look identical to a
- * customer. So this asserts the rendered value is non-empty and then asks the server for it.
- */
+/** Frame 2B's thumbnail: §13.4's `background-image` paints nothing whether the URL is absent, wrong, or right but
+ *  not served, and all three look identical, so this asserts the value is non-empty and asks the server for it. */
 test("every offer row paints a drawing, and every drawing is served", async ({
   page,
 }) => {
@@ -351,9 +280,8 @@ test("every offer row paints a drawing, and every drawing is served", async ({
   }
 });
 
-/** The other half of "never steals or leaks": what the sheet does not cover stays live, and a
- *  gesture inside the sheet does not reach the camera. If the swipe had orbited the scene, the
- *  same canvas pixel would no longer pick the same body. */
+/** What the sheet does not cover stays live, and a gesture inside the sheet does not reach the camera: an orbit
+ *  would change which body the same canvas pixel picks. */
 test("the scene stays live above the sheet, and scrolling the sheet does not move the camera", async ({
   page,
 }) => {
@@ -373,17 +301,9 @@ test("the scene stays live above the sheet, and scrolling the sheet does not mov
   }).toPass({ timeout: 2000 });
 });
 
-/**
- * The milestone asks for this test by name, "so that the viewing affordance can never quietly
- * become a deferred-commit model".
- *
- * The evidence is the model and the write path, both read **while the sheet is still open**: the
- * store's own records say the body changed, and the design has been minted and written — which only
- * happens after a command is applied. What is deliberately *not* used as evidence is the 3D scene:
- * at 390 × 844 the sheet leaves ~130 px of visible scene and it is empty room in both camera
- * presets, so there is no repainted pixel to photograph. The repaint is asserted where it is
- * visible, on desktop (`editor-rail.desktop.e2e.spec.ts`).
- */
+/** The evidence is the model and the write path, read while the sheet is still open. The 3D scene is not used: the
+ *  sheet leaves only a strip of empty room, so there is no repainted pixel to photograph (the repaint is asserted on
+ *  desktop, `editor-rail.desktop.e2e.spec.ts`). */
 test("an edit is in the model before the sheet is dismissed", async ({
   page,
   seededDesign,
@@ -400,8 +320,7 @@ test("an edit is in the model before the sheet is dismissed", async ({
   await expect(async () => {
     const during = await readSelection(page);
     expect(during.metaKind || during.selectionId).not.toBe("");
-    // The id is fixed by the fixture's own mint; `waitForFirstSave` above is the stronger claim
-    // that a write actually landed (wave 7E4 D5, G4).
+    // `waitForFirstSave` above is the stronger claim that a write actually landed.
     expect(during.designId).toBe(seededDesign.id);
     expect(`${during.selectionId}/${during.metaKind}`).not.toBe(
       `${before.selectionId}/${before.metaKind}`,
@@ -409,29 +328,21 @@ test("an edit is in the model before the sheet is dismissed", async ({
   }).toPass({ timeout: 5000 });
 });
 
-/**
- * §10: **Gata** and × are both *view* actions. Neither commits and neither cancels.
- *
- * "Does not commit" is asserted as no write leaving the browser on dismissal — every edit was
- * already written when it was made. "Does not cancel" is asserted by re-selecting the body and
- * finding the same panel state, which is read back out of the model.
- */
+/** §10: Gata and × are view actions. "Does not commit" is no write leaving the browser on dismissal; "does not
+ *  cancel" is re-selecting the body and finding the same panel state. */
 test("× and Gata both dismiss without committing or cancelling, and the state survives", async ({
   page,
 }) => {
   await selectSinkCabinet(page);
-  // *Stejar Bardolino Natur*, one of PAL's six decors: the seeded kitchen carries no settings, so
-  // it is PAL, and since wave 6R the panel offers exactly what PAL offers. What this test is about
-  // is that a dismissal neither commits nor cancels an edit that was made — which needs an edit
-  // that lands.
+  // *Stejar Bardolino Natur*, one of PAL's six decors (the seeded kitchen carries no settings, so it is PAL); the
+  // test needs an edit that lands.
   await page.getByTestId("finish-pal.stejar-bardolino").tap();
   await page.waitForTimeout(SETTLE_MS);
   await expect(page.getByTestId("finish-pal.stejar-bardolino")).toHaveAttribute(
     "aria-pressed",
     "true",
   );
-  // The save that the edit itself scheduled has to be allowed to finish, or the quiet window below
-  // would be measuring the network rather than the dismissal.
+  // The edit's own scheduled save must finish, or the quiet window below would measure the network, not the dismissal.
   await expect(async () => {
     expect((await readSelection(page)).saveStatus).toBe("idle");
   }).toPass({ timeout: 10_000 });

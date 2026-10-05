@@ -8,13 +8,8 @@ import {
 
 import { deleteMintedDesigns } from "./minted-designs";
 
-/**
- * Mints and opens `/d/{id}` the way a browser actually does: from inside the page, so the
- * `lemnaria_write_token_{id}` cookie lands in the jar under test rather than an out-of-band
- * `APIRequestContext`'s (wave 7E4 D1). Every spec that opens a seeded design goes through here so
- * the mint origin can move — the retired editor route is a 7E3a concern, not this file's — without
- * every spec re-deriving the fetch.
- */
+/** Mints and opens `/d/{id}` from inside the page, so the `lemnaria_write_token_{id}` cookie lands in the jar under
+ *  test, not in an out-of-band `APIRequestContext`'s. */
 
 export type Locale = "ro" | "ru";
 
@@ -29,15 +24,11 @@ interface MintOutcome {
   readonly revision: string;
 }
 
-/** A real network round trip to the database, not a fixed settle (`support/panel.ts` carries the
- *  same reasoning for the write path). */
+/** A real network round trip to the database, not a fixed settle. */
 const PROBE_TIMEOUT_MS = 15_000;
 
-/**
- * Mints one `KITCHEN_L_DESIGN` row from `/{locale}/configurator/room` — Step 1, which keeps no
- * database of its own and is not a route 7E3a changes (G1, G3). Throws by name on anything but 201,
- * so a mint failure fails the spec in setup rather than surfacing as a confusing assertion later.
- */
+/** Mints one `KITCHEN_L_DESIGN` row from `/{locale}/configurator/room`, which keeps no database of its own. Throws by
+ *  name on anything but 201, so a mint failure fails in setup rather than as a confusing assertion later. */
 export async function mintSeededDesign(
   page: Page,
   locale: Locale = "ro",
@@ -65,9 +56,8 @@ export async function mintSeededDesign(
     );
   }
   if (minted.id === "" || minted.revision === "") {
-    // A non-empty id means a row was really minted even though the answer describing it is
-    // unusable — ADR 0006 still owns it, and throwing without deleting it here would leak a row
-    // this helper's own caller never gets a chance to register for cleanup.
+    // A non-empty id means a row was really minted; delete it here, since the caller never gets to register it for
+    // cleanup (ADR 0006).
     if (minted.id !== "") await deleteMintedDesigns([minted.id]);
     throw new Error(
       `mintSeededDesign: POST /api/designs answered 201 with an empty id or revision ` +
@@ -77,15 +67,12 @@ export async function mintSeededDesign(
   return { id: minted.id, revision: minted.revision };
 }
 
-/** What `GET /api/designs/{id}` answers about this browser's write access — the one field every
- *  caller of {@link openDesignAndAwaitAccessProbe} has read so far. */
+/** What `GET /api/designs/{id}` answers about this browser's write access. */
 export interface DesignAccessProbe {
   readonly canWrite: boolean;
 }
 
-/** What {@link navigateAndAwaitDesignRouteOutcome} found — tagged because `"unavailable"`
- *  (M7 wave 7E3b, ADR 0114 decision 5) never fires a probe at all, so a caller must check which
- *  case it has before reading `probe`. */
+/** Tagged because `"unavailable"` never fires a probe, so a caller must check the case before reading `probe`. */
 type DesignRouteOutcome =
   | { readonly kind: "unavailable"; readonly navigation: Response | null }
   | {
@@ -95,17 +82,11 @@ type DesignRouteOutcome =
     };
 
 /**
- * Navigates to a design-by-link `path` and waits for whichever of the route's three legitimate
- * outcomes appears first: a mounted `<canvas>`, the WebGL-unavailable exit, or (M7 wave 7E3b) the
- * `"unavailable"` refusal — the gate's own answer for a missing, malformed or foreign visitor
- * cookie. A plain `page.goto`, carrying whatever cookies this browser context already holds — it
- * sets none of its own, unlike {@link mintSeededDesign}'s in-page `fetch`, which exists
- * specifically to land a `Set-Cookie` in the jar under test.
- *
- * The write-access probe wait is registered before navigating, exactly as it always was, so its
- * response is never missed. When the race is won by `"unavailable"`, that wait is left to expire
- * on its own timeout and its rejection is swallowed — a probe request the page never sends cannot
- * answer one.
+ * Navigates to a design-by-link `path` and waits for whichever outcome appears first: a mounted `<canvas>`, the
+ * WebGL-unavailable exit, or the `"unavailable"` refusal (ADR 0114 decision 5). It carries whatever cookies the
+ * context holds. The probe wait is registered before navigating so its response is never missed; when
+ * `"unavailable"` wins, that wait expires on its own and its rejection is swallowed, since a probe the page never
+ * sends cannot answer one.
  */
 async function navigateAndAwaitDesignRouteOutcome(
   page: Page,
@@ -152,18 +133,10 @@ async function navigateAndAwaitDesignRouteOutcome(
 }
 
 /**
- * Navigates to a design-by-link `path` and returns only once the write-access probe
- * (`GET /api/designs/{id}`) has answered, alongside the navigation's own response.
- *
- * **The one navigation every `/d/{id}` caller in this suite shares** (review round 1, R1.3):
- * `openSeededDesign` below throws on the probe's answer; `read-only-panel`, `read-only-global-settings`
- * and `global-colour`'s own read-only cases read it directly, because a disabled answer is the thing
- * under test there rather than a reason to throw.
- *
- * **Throws by name if the route answers `"unavailable"`** (M7 wave 7E3b): none of this helper's
- * callers open a design their own browser does not own, so that outcome would mean the caller's own
- * setup is wrong. A caller that specifically wants the unavailable case calls
- * {@link openUnavailableDesign} instead.
+ * Navigates to a design-by-link `path` and returns once the write-access probe (`GET /api/designs/{id}`) has
+ * answered. The one navigation every `/d/{id}` caller shares: `openSeededDesign` throws on the answer, while the
+ * read-only specs read it directly. Throws by name on `"unavailable"`; a caller that wants it calls
+ * {@link openUnavailableDesign}.
  */
 export async function openDesignAndAwaitAccessProbe(
   page: Page,
@@ -191,16 +164,10 @@ export async function openDesignAndAwaitAccessProbe(
 const UNAVAILABLE_COPY_SUBSTRING = "nu este disponibilă în acest browser";
 
 /**
- * Opens `path` — for `designId` — and waits for the `"unavailable"` refusal (M7 wave 7E3b, ADR 0114
- * decision 5) — every foreign, missing or cookie-less visitor cookie answers this same page, and
- * never sends the write-access probe at all. **Composes** {@link navigateAndAwaitDesignRouteOutcome}
- * rather than repeating its navigation and wait (review round 2, L1.5/C1.1), asserts the
- * `"unavailable"` copy itself so no caller can forget it (C1.1), and its own probe matcher is scoped
- * to `designId` (C1.2) — the open regex it replaced would have missed a probe fired for a
- * *different* id, which is not this helper's guarantee to make.
- *
- * Fails by name if a probe request for `designId` was made regardless: that would mean this browser
- * actually owns the row, which is not the scenario a caller of this helper is testing.
+ * Opens `path` and waits for the `"unavailable"` refusal (ADR 0114 decision 5): every foreign, missing or
+ * cookie-less visitor gets this page and never sends the write-access probe. Asserts the unavailable copy itself,
+ * and scopes its probe matcher to `designId`. Fails by name if a probe for `designId` was made, since this browser
+ * would then own the row.
  */
 export async function openUnavailableDesign(
   page: Page,
@@ -247,20 +214,10 @@ export async function openUnavailableDesign(
 }
 
 /**
- * Opens the seeded design and returns only once this browser's write access is confirmed. The path
- * is unprefixed by default, exactly as the retired editor route was, so the same proxy redirect to
- * `/ro/…` runs; pass `locale` to open an explicit prefix instead (`shared-design-locale-identity`,
- * `webgl-unavailable-i18n`).
- *
- * Throws by name unless the write-access probe (`GET /api/designs/{id}`) answers `canWrite: true` —
- * this helper is for specs that need write access confirmed before they proceed. A spec that wants
- * the read-only path calls {@link openDesignAndAwaitAccessProbe} directly instead (`read-only-panel`,
- * `read-only-global-settings`, `global-colour`'s own read-only case), because there a disabled
- * answer is the thing under test rather than a reason to throw.
- *
- * `global-settings-trigger`, the store's own observable for "the probe's answer has been applied",
- * only exists on the WebGL-available branch: the exit renders neither it nor `GlobalSettings`, so
- * this only waits on it when it is on screen at all.
+ * Opens the seeded design and returns once write access is confirmed. The path is unprefixed by default so the
+ * proxy redirect to `/ro/…` runs; `locale` opens an explicit prefix. Throws by name unless the probe answers
+ * `canWrite: true`; read-only specs call {@link openDesignAndAwaitAccessProbe}. `global-settings-trigger` exists
+ * only on the WebGL-available branch, so it is awaited only when on screen.
  */
 export async function openSeededDesign(
   page: Page,
@@ -274,9 +231,8 @@ export async function openSeededDesign(
     path,
     design.id,
   );
-  // M7 wave 7E3b (ADR 0114 decision 5): with no visitor cookie owning this row — the write-token
-  // cookie alone is not enough, and clearing every cookie is exactly that case — the route never
-  // reaches the probe at all, so the old `canWrite: false` message would be misleading here.
+  // With no visitor cookie owning this row (the write-token cookie alone is not enough) the route never reaches the
+  // probe, so a `canWrite: false` message would mislead.
   if (outcome.kind === "unavailable") {
     throw new Error(
       `openSeededDesign: ${design.id} is unavailable in this browser — no visitor cookie owns it.`,
@@ -300,13 +256,8 @@ interface ShareLinkIssueOutcome {
   readonly path: string;
 }
 
-/**
- * Issues an active share link for `design`, from inside the page (M7 wave 7E3c S6) — the same
- * reason {@link mintSeededDesign} mints in-page: the request has to carry the browser's own
- * write-token and visitor cookies, which an out-of-band `APIRequestContext` would not. Throws by
- * name on anything but 201, so a spec that expects a link fails in setup rather than on a later,
- * unrelated assertion.
- */
+/** Issues an active share link for `design` from inside the page, because the request must carry the browser's
+ *  write-token and visitor cookies. Throws by name on anything but 201. */
 export async function issueShareLink(
   page: Page,
   design: SeededDesign,
@@ -333,14 +284,8 @@ export async function issueShareLink(
   return issued.path;
 }
 
-/**
- * Opens a share link — `path` is what {@link issueShareLink} returned, e.g. `/s/{token}`. Unlike
- * {@link openDesignAndAwaitAccessProbe}, this waits for **no** `GET /api/designs/{id}`: the share
- * view issues no write-access probe at all (D6/G15 — it holds no credential to ask about and no id
- * to ask with), so waiting for one here would hang forever on a route that correctly never sends it.
- * Waits for either `<canvas>` or the WebGL-unavailable exit's own testid, the same two legitimate
- * outcomes {@link openDesignAndAwaitAccessProbe} waits on.
- */
+/** Opens a share link (`path` is what {@link issueShareLink} returned). Waits for no `GET /api/designs/{id}`: the
+ *  share view holds no credential to probe with, so waiting would hang. Waits for `<canvas>` or the WebGL exit. */
 export async function openSharedDesign(
   page: Page,
   path: string,
@@ -357,12 +302,8 @@ export async function openSharedDesign(
   return navigation;
 }
 
-/**
- * `base.extend` with a test-scoped `seededDesign` fixture: setup mints the row, teardown always
- * deletes it — including when the test fails, because the delete runs after `use()` regardless of
- * outcome (Playwright fixture semantics). One row per test, never shared, so one test's edits can
- * never carry into the next (ADR 0006's per-row cleanup obligation).
- */
+/** `base.extend` with a test-scoped `seededDesign`: setup mints the row, teardown always deletes it, even when the
+ *  test fails. One row per test, never shared (ADR 0006). */
 export const test = base.extend<{ seededDesign: SeededDesign }>({
   seededDesign: async ({ page }, use) => {
     const design = await mintSeededDesign(page);

@@ -1,18 +1,3 @@
-// Adversarial QA for wave 6C's three states, attacked where the shipped suite asserts on a value:
-// on the **rendered markup**, and through the **real store's real refusals** rather than through one
-// hand-built `RejectionReason`.
-//
-// Three things the model-level tests cannot say:
-//
-// - *"A refused edit leaves the figure byte-identical"* is a claim about every refusal the
-//   application can produce, not about the one fixture. The first block drives every command the
-//   store publishes across every seeded body and asserts the document — and therefore the figure —
-//   is unchanged after each refusal.
-// - *"A pricing failure renders no figure"* is a claim about what is **absent from the page**. A
-//   value assertion cannot see a zero rendered beside the model, so the second block asserts the
-//   whole markup string.
-// - *"The flag is not the rejection banner"* (ADR 0065 decision 8) is a claim about two surfaces at
-//   once, so the third block renders both and checks neither carries the other's sentence.
 import {
   buildKitchenLBodyCatalog,
   findOverflowingPlacementIds,
@@ -50,11 +35,9 @@ import { occupiedMeta } from "../support/selection-meta";
 import { noWidthIsFree } from "../support/width-options";
 import { PAL_KITCHEN } from "../support/panel-material";
 
-/** The store's pricing seam and its store, both stubbed, so the bar can be rendered in a state the
- *  seeded design cannot reach — a failed query — and in one it can. `PriceBar` reads exactly these
- *  two hooks, and stubbing them is what makes the markup assertions below about the component's own
- *  decision rather than about the store's initial state. (React's server renderer takes zustand's
- *  `getInitialState` as its snapshot, so a `setState` before rendering would not be seen.) */
+/** Stubs the pricing seam and the store so the bar renders in a state the seeded design cannot reach (a failed
+ *  query). React's server renderer takes zustand's `getInitialState` as its snapshot, so a `setState` before
+ *  rendering would not be seen. */
 const barState = vi.hoisted(() => ({
   pricing: undefined as PricingResult | undefined,
   rejection: null as RejectionReason | null,
@@ -80,10 +63,8 @@ vi.mock("@/store/configurator-store", async (importActual) => {
 const { PriceBar } = await import("@/price/price-bar");
 const { FlaggedTotalWarning } = await import("@/price/flagged-total-warning");
 
-/** **What the seeded kitchen's total renders as, derived rather than typed.** Since wave 6T-a the
- *  figure contains a drafted push-to-open rate with no supplier source (ADR 0092 Amendment C), and
- *  this file's subject is *which* figure a bar shows and when — never what a kitchen costs, which
- *  `starting-price.adversarial.test.ts` owns and reconciles. */
+/** The seeded total, derived rather than typed: it contains a drafted push-to-open rate with no supplier source
+ *  (ADR 0092 Amendment C). What a kitchen costs is `starting-price.adversarial.test.ts`'s subject, not this file's. */
 function seededTotalText(): string {
   const bar = describePriceBar({
     content: ro,
@@ -111,9 +92,8 @@ function barMarkup(
   return renderToStaticMarkup(createElement(PriceBar));
 }
 
-/** The flagged total's surface since ADR 0104 decision 8b: the owner ruled the sentence out of the
- *  top bar and onto the scene. It renders the **same model** the bar does, so what these assertions
- *  are about — decisions 6 and 8 — is unchanged; only the surface moved. */
+/** The flagged total's surface (ADR 0104 decision 8b): the sentence is on the scene, rendered from the same model
+ *  as the bar. */
 function flaggedTotalMarkup(
   pricing: PricingResult,
   rejection: RejectionReason | null = null,
@@ -123,13 +103,9 @@ function flaggedTotalMarkup(
   return renderToStaticMarkup(createElement(FlaggedTotalWarning));
 }
 
-/** The visible text of one element of the rendered markup, by its testid — the element's whole
- *  subtree, because §9's banner wraps its sentence beside a decorative `!` span and a first-text-node
- *  reading would see an empty string and pass every negative assertion below.
- *
- *  **Throws when the element is absent**, which is the point: an element-scoped negative is
- *  satisfied by an element that is not there, so a renamed or deleted testid must fail loudly rather
- *  than quietly turn two real checks into vacuous ones. */
+/** The visible text of one element by testid, over its whole subtree (§9's banner wraps its sentence beside a
+ *  decorative `!` span). Throws when the element is absent: an element-scoped negative is satisfied by an element
+ *  that is not there. */
 function textOfElement(markup: string, testId: string): string {
   const opening = new RegExp(`<(\\w+)[^>]*data-testid="${testId}"[^>]*>`).exec(
     markup,
@@ -155,8 +131,7 @@ function textOfElement(markup: string, testId: string): string {
   return (
     markup
       .slice(from, boundary.index)
-      // Decorative content is not the sentence: §9's banner carries an `aria-hidden` `!` glyph, and
-      // leaving it in would make "the banner says exactly the refusal" impossible to state.
+      // Decorative content is not the sentence: the banner's `aria-hidden` `!` glyph would defeat an exact match.
       .replace(/<(\w+)[^>]*aria-hidden="true"[^>]*>[\s\S]*?<\/\1>/g, "")
       .replace(/<[^>]*>/g, "")
       .trim()
@@ -165,10 +140,8 @@ function textOfElement(markup: string, testId: string): string {
 
 const PAST_THE_WALL_END_MM = 500;
 
-/** **The moved body holds no sink**, which is wave 6T2's constraint on this fixture: wall A's first
- *  placement is the sink, and pushing it past the wall's end takes it out from under the wall
- *  cabinet its drying rack hangs in — so the total would legitimately fall and this block, which
- *  asserts the total is never reduced, would fail for the wrong reason. */
+/** The moved body holds no sink: moving wall A's sink would drop the wall cabinet its drying rack hangs in, and the
+ *  total would legitimately fall. */
 function overflowingDesign(): Design {
   const onWallA = KITCHEN_L_DESIGN.placements.find(
     (placement) =>
@@ -189,13 +162,8 @@ function overflowingDesign(): Design {
   };
 }
 
-// ---------------------------------------------------------------------------------------------
-// A refused edit, through every refusal the application can actually produce.
-// ---------------------------------------------------------------------------------------------
-
 describe("no refusal the store can produce moves the figure", () => {
-  /** Every command §9 publishes, called with an argument chosen to be refused as often as it is
-   *  accepted — the point is to sweep both outcomes and assert only about the refusals. */
+  /** Every command §9 publishes, with arguments refused as often as accepted; only the refusals are asserted. */
   const ATTEMPTS: readonly {
     readonly name: string;
     readonly run: (store: ReturnType<typeof createConfiguratorStore>) => void;
@@ -243,9 +211,7 @@ describe("no refusal the store can produce moves the figure", () => {
     });
   }
 
-  /** **The figure, whatever the store's last refusal was** — which is now a fact about the document
-   *  alone: the model takes no refusal since the owner removed the *"neschimbat"* label, so the
-   *  sweep below asserts the stronger thing it was always reaching for. */
+  /** The figure is a fact about the document alone: the bar's model takes no refusal. */
   function figureOf(design: Design): string {
     const view = describePriceBar({ pricing: priceOf(design), content: ro });
     if (view.kind !== "priced") throw new Error("expected a priced bar");
@@ -279,17 +245,13 @@ describe("no refusal the store can produce moves the figure", () => {
       }
     }
 
-    // The sweep is only worth anything if it produced refusals of several kinds — a run in which
-    // every command happened to succeed would assert nothing at all.
+    // A run in which every command succeeded would assert nothing, so the sweep must produce several refusal kinds.
     expect(refusals).toBeGreaterThan(100);
     expect(refusalCodes.size).toBeGreaterThanOrEqual(4);
   });
 
   it("shows the same figure it showed before, and says nothing about the refusal", () => {
-    // **The relabelling this replaces is withdrawn** (owner, 2026-09-09): the bar used to call the
-    // figure *"De la neschimbat"* while a refusal stood. What the sweep above is really about
-    // survives whole and is what is asserted — a refusal moves no figure — and the bar now says
-    // nothing about the refusal at all, which §9's banner does say.
+    // A standing refusal changes neither the bar's figure nor its label; §9's banner is what says the refusal.
     const quiet = describePriceBar({
       pricing: priceOf(KITCHEN_L_DESIGN),
       content: ro,
@@ -300,10 +262,6 @@ describe("no refusal the store can produce moves the figure", () => {
     expect(quiet.figure.label).not.toContain("neschimbat");
   });
 });
-
-// ---------------------------------------------------------------------------------------------
-// A pricing failure, asserted on the page rather than on the value.
-// ---------------------------------------------------------------------------------------------
 
 describe("a pricing failure puts nothing on the page", () => {
   const failed = priceDesign({
@@ -328,8 +286,7 @@ describe("a pricing failure puts nothing on the page", () => {
   });
 
   it("puts no digit, no currency and no dash anywhere in the output", () => {
-    // The criterion names three specific wrong answers — a zero, a stale figure, a dash that reads
-    // as free — and the whole markup is what rules all three out at once.
+    // Rules out a zero, a stale figure and a dash that reads as free, all at once.
     const markup = barMarkup(failed);
 
     expect(markup).not.toMatch(/\d/);
@@ -340,8 +297,7 @@ describe("a pricing failure puts nothing on the page", () => {
   });
 
   it("does not paint a figure that a stale query would have left behind", () => {
-    // The sequence a memo or a piece of retained state would get wrong: a good price, then a failed
-    // one. The second render must not inherit the first.
+    // A good price then a failed one: a memo or retained state would let the second inherit the first.
     expect(barMarkup(priceOf(KITCHEN_L_DESIGN))).toContain("MDL");
     expect(barMarkup(failed)).toBe("");
   });
@@ -363,17 +319,12 @@ describe("a pricing failure puts nothing on the page", () => {
     );
     expect(markup).not.toContain("MDL");
     expect(markup).not.toContain('data-testid="panel-price"');
-    // Including the flag: a failed query has no `priced`, so there is no `totalIsFlagged` to read
-    // and nothing to warn about. A footer that warned without a figure would be the same invention
-    // as one that showed a zero.
+    // A failed query has no `priced`, so no `totalIsFlagged`: a footer warning without a figure would be as invented
+    // as a zero.
     expect(markup).not.toContain('data-testid="panel-price-overflow"');
     expect(markup).not.toContain(ro.price.overflowingTotalWarning);
   });
 });
-
-// ---------------------------------------------------------------------------------------------
-// An overflowing design: shown, flagged, and never wearing the rejection banner's clothes.
-// ---------------------------------------------------------------------------------------------
 
 function openPanelFor(
   overrides: Partial<Parameters<typeof describePanel>[0]> = {},
@@ -404,10 +355,7 @@ describe("an overflowing design, on the page", () => {
   });
 
   it("shows the total and the flag together, and shows the same total as a design that fits", () => {
-    // **Together on the screen, no longer inside one element** (ADR 0104 decision 8b): the figure is
-    // in the bar and the sentence is on the scene, both rendered from the same model. Decision 6 —
-    // the flag travels with the total wherever a total is shown — is what is asserted, and it is
-    // satisfied by the pair rather than by the bar alone.
+    // The flag travels with the total (ADR 0065 decision 6): the figure is in the bar and the sentence on the scene.
     const markup = barMarkup(priceOf(overflowing));
     const flag = flaggedTotalMarkup(priceOf(overflowing));
 
@@ -431,21 +379,9 @@ describe("an overflowing design, on the page", () => {
   });
 
   it("keeps the flag off §9's rejection banner and the refusal off the bar", () => {
-    // ADR 0065 decision 8, on both surfaces at once. Each renders its own sentence and neither
-    // renders the other's, which is what stops the two from reading as a contradiction.
-    //
-    // **Scoped to the two elements, not to the whole panel — and the earlier panel-wide form was
-    // wrong.** It read `expect(panel).not.toContain(overflowingTotalWarning)`, which passed only
-    // while §9's footer had no flag at all. That absence *was* the defect this file reports, so the
-    // assertion could not tell the fix from the bug, and it made decision 6 — the flag travels with
-    // the total wherever a total is shown — unsatisfiable alongside decision 8. What decision 8
-    // actually forbids is the two sentences sharing a *surface*: the banner must carry the refusal
-    // and only the refusal, the flag must carry the warning and only the warning. That is what is
-    // asserted below, element by element.
-    //
-    // Each negative is paired with the positive for the same element, and `textOfElement` throws on
-    // a missing testid, so a renamed or deleted element fails loudly rather than satisfying both
-    // negatives by rendering nothing.
+    // ADR 0065 decision 8: each surface renders its own sentence and neither the other's. Scoped to the two
+    // elements, not the whole panel: a panel-wide negative passed only while the footer had no flag, so it could not
+    // tell the fix from the bug. `textOfElement` throws on a missing testid, so no negative passes on nothing.
     const refusal: RejectionReason = {
       code: "WIDTH_NOT_SUPPORTED",
       params: {
@@ -465,9 +401,7 @@ describe("an overflowing design, on the page", () => {
       }),
     );
 
-    // The bar is a whole separate surface from §9, so its negative stays panel-wide: a refusal has
-    // no business appearing anywhere on it. The flag's own sentence is on the scene since ADR 0104
-    // decision 8b, and it too carries the warning and only the warning.
+    // The bar is a separate surface, so its negative stays panel-wide; the scene flag carries only the warning.
     const sceneFlag = flaggedTotalMarkup(priceOf(overflowing), refusal);
 
     expect(sceneFlag).toContain(ro.price.overflowingTotalWarning);
@@ -482,16 +416,14 @@ describe("an overflowing design, on the page", () => {
     expect(flag).toBe(ro.price.overflowingTotalWarning);
     expect(flag).not.toContain(refusalMessage);
 
-    // The reader itself, so the two negatives above cannot be satisfied by an element that stopped
-    // existing: a testid that is not on the page raises rather than returning an empty string.
+    // So the negatives above cannot be satisfied by an element that stopped existing.
     expect(() => textOfElement(panel, "panel-price-overflow-renamed")).toThrow(
       /no element with data-testid/,
     );
   });
 
   it("flags the total and says nothing about any refusal, which is now the only pairing", () => {
-    // ADR 0065 decision 8 holds with one statement fewer: the flag is about what the number
-    // contains, and the refusal's own sentence is §9's banner rather than a second label here.
+    // The flag is about what the number contains; the refusal's sentence is §9's banner (ADR 0065 decision 8).
     const bar = describePriceBar({
       content: ro,
       pricing: priceOf(overflowing),
@@ -503,20 +435,12 @@ describe("an overflowing design, on the page", () => {
   });
 });
 
-// ---------------------------------------------------------------------------------------------
-// REGRESSION — the mobile shell used to show an overflowing total with no flag anywhere on screen.
-// Found by this suite, ruled and fixed 2026-09-03; these are what stop it coming back.
-// ---------------------------------------------------------------------------------------------
-
 describe("the flagged total on the mobile shell, while §9's sheet is open", () => {
   const overflowing = overflowingDesign();
 
   it("is a real occlusion, not a hypothetical: the sheet's box contains the bar's", () => {
-    // Read from the two stylesheets rather than asserted by eye. `.screen` is the positioning
-    // context (`configure.module.css`, changed by this wave for exactly this reason), and §9's shell
-    // is `position: absolute; bottom: 0; height: 78dvh; z-index: 4` inside it. At 390 × 844 the
-    // sheet spans 186–844 px and the bar's reserved band spans 752–844 px, wholly inside it, under a
-    // lower stacking order.
+    // Read from the two stylesheets: `.screen` is the positioning context and the sheet is `position: absolute;
+    // bottom: 0; height: 78dvh; z-index: 4` inside it, so at 390 × 844 it spans 186–844 px over the bar's 752–844.
     const screen = readFileSync(
       resolve(
         import.meta.dirname,
@@ -542,19 +466,9 @@ describe("the flagged total on the mobile shell, while §9's sheet is open", () 
   });
 
   it("carries the flag on the only total the customer can see", () => {
-    // ADR 0065 decision 6: *"the total carries the same warning the scene does"*, and wave 6C's
-    // criterion: an overflowing design shows its total **flagged**, never suppressed.
-    //
-    // **What was wrong.** §9's sheet covers the price bar completely, so the bar's flag is off
-    // screen exactly while a customer is fixing the overflow — the width chips that fix it are in
-    // this sheet. The only visible total was §9 item 7's footer figure, and `describeFooterPrice`
-    // built a `PriceFigure` and dropped `priced.totalIsFlagged` on the floor, so the total silently
-    // included cabinets that do not fit.
-    //
-    // **What the fix is.** `describeFlaggedTotalWarning` in `price/starting-price.ts`, called by
-    // both `describePriceBar` and `describeFooter`. The sentence is unshortened on both surfaces —
-    // it wraps rather than truncating, so no compact form had to be invented and no unruled copy was
-    // written. The sheet's positioning is untouched.
+    // §9's sheet covers the price bar completely, so the footer figure is the only visible total while a customer
+    // fixes the overflow; `describeFlaggedTotalWarning` (`price/starting-price.ts`) serves both surfaces
+    // (ADR 0065 decision 6).
     const footer = openPanelFor({ pricing: priceOf(overflowing) }).footer;
     const markup = renderToStaticMarkup(
       createElement(EditorPanel, {
@@ -570,9 +484,8 @@ describe("the flagged total on the mobile shell, while §9's sheet is open", () 
   });
 
   it("asks one question for both surfaces, so neither can show a total and forget the flag", () => {
-    // The property that makes the fix structural rather than a second copy of the rule. Both models
-    // are driven from one priced result and must agree about the flag — in both directions, so a
-    // surface that flagged everything would fail here too.
+    // Both models are driven from one priced result and must agree about the flag in both directions, so a surface
+    // that flagged everything fails too.
     for (const design of [KITCHEN_L_DESIGN, overflowing]) {
       const priced = priceOf(design);
       if (!priced.ok) throw new Error("expected a priced design");
