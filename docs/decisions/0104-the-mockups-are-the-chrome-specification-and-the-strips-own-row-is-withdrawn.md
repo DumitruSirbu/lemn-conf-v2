@@ -875,6 +875,15 @@ architect is planning it as **slice C1 S4**. **Until it lands, the browser's Bac
 warning**, and the design stays saved at its link. **Editing the room size while keeping the customised kitchen** is what the owner
 actually wants and calls hard; it is backlog 103 and not this amendment.
 
+> **Dated pointer, 2026-10-05: D4 is now built (C1 S4, `12618bd`; the heading above is kept as written).**
+> The browser's Back asks too: in the editor, reached from Step 1 in this tab, owner's variant, after at
+> least one edit that changed the design, Back opens S3's confirmation (same component and leaves); nothing
+> is written on Confirm. **Never a trap:** Step 1 is reachable within two Backs, and a further Back with
+> either question open leaves. **Not a defect, recorded:** after a language switch that follows the guard,
+> three Backs are needed, because the locale menu pushes its own entry. Forward back into the editor does
+> not re-arm. Real phone swipe-back and real bfcache were not exercised. Record:
+> `milestones/M7C-m7-feedback-fixes.md`, *C1 S4 as built*.
+
 ### D5 — alternatives considered
 
 | Option | Why it lost |

@@ -216,7 +216,7 @@ Romanian *«În care parte se află colțul bucătăriei?»*, answers unchanged;
 | Wave | Covers | Pri | Tier | State |
 | --- | --- | --- | --- | --- |
 | C0 | Census and measurements; the questions | — | Light | **Done**, confirmed by QA |
-| C1 | FB-007, FB-009, FB-008, FB-001 | P1–P3 | Light + visual | S1 **done** (`8269440`), S2 **done** (`21c702b`); S3 **done** (`01c40be`); **S4** (browser Back warning) **open**, planned after C5 |
+| C1 | FB-007, FB-009, FB-008, FB-001 | P1–P3 | Light + visual | S1 **done** (`8269440`), S2 **done** (`21c702b`); S3 **done** (`01c40be`); S4 (browser Back warning) **done** (`12618bd`, 2026-10-05) — **C1 done** |
 | C2 | FB-004, FB-011 | P0 | Full + visual | **Done**: S0; S1 `075529b`; S2 `0a1a69a` |
 | C3 | FB-003 | P1 | Full + visual | **Done** (`02b1c7b`) |
 | C4 | FB-006 | P1 | Full + visual | **Done**: S0; S1 `c4eeea6`; S2 `48bbc0c` |
@@ -347,6 +347,48 @@ the two Next sources.
 *Visual evidence:* the editor at 900 and 1440 px, and the open confirmation at 390 × 844 and 1440 px in both locales. *QA reading:* the criteria, `room.module.css` desktop block, `top-bar-fit.ts`.
 *Reviewer reading (combined):* the diff, both mockup frames, ADR 0104 d8. *Visual reading:* the frames
 and the captures.
+
+### C1 S4 as built — 2026-10-05 (`12618bd`; wave C1 is DONE)
+
+Committed on `m7c-m7-feedback-fixes`, not pushed; the pre-commit hook ran, format and lint passed. Figures
+are the coordinator's, QA's or the implementer's, relayed to the scribe.
+
+- **Built.** In the editor, reached from Step 1 in this tab, owner's variant, after at least one edit that
+  changed the design, one same-URL guard entry is pushed. Back onto the entry beneath it opens S3's leave
+  confirmation (same component and leaves). With either question open (the Back question or S3's link
+  question), a further Back leaves. Confirm is `history.back()`, latched against a double press; nothing
+  is written on Confirm (ADR 0111 d5, 0114 d4 hold).
+- **Departures from the plan's mechanism, ruled acceptable.** (1) *Stay* calls `history.forward()` onto the
+  existing guard instead of re-pushing: Chromium skips script-pushed entries without honoured sticky
+  activation on Back, and Escape is not an activation [source-verified by the implementer; not
+  reproducible in Playwright]. (2) Landings Next's router renders inside its own popstate (a language or
+  route change) are caught at unmount or by the newly mounted screen.
+- **Never a trap.** Step 1 is reachable within two Backs; three after a language switch that follows the
+  guard, because the locale menu pushes its own entry. Recorded, not a defect. Forward back into the editor
+  after leaving does not re-arm (the spec's "reached from Step 1" reading).
+- **`hasBeenEdited`** rises only when the applied design differs (deep compare ignoring `updatedAt` and the
+  re-projected `emptyColumns` and `columnExtents`): Q10's "one edit". The Step 1 origin record lives in a
+  store-free module: Step 1 first-load +171 B gzip (an earlier draft cost +5.1 KB gzip, QA-measured).
+- **Locale menu.** The current-language option no longer navigates and returns focus to its trigger, a
+  precaution from reading Next's source (`app-router.js:51-66`, `segment-cache/navigation.js:461`: a
+  same-URL soft navigation drops custom history state); **not reproduced in Chromium**. The hook's header
+  warns that any same-URL navigation or `router.refresh()` in the editor would strip the guard's marker.
+- **QA** (gate red twice, then green). D1: Back absorbed while S3's link dialog was open (fixed). D2: a
+  no-op command counted as an edit (fixed).
+- **Review.** Combined round 1: **BLOCKER**, after a language round trip Confirm could leave the customer
+  on the editor; QA's property had passed by luck (about 1 in 8-12 runs failed). Fixed, counterexamples
+  pinned, the Confirm property at 10,000 runs; the coordinator ran it 15/15 green, the reviewer 20/20.
+  Round 2: no blocker; focus fix applied.
+- **Visual** (`c1-s4-visual/` in the session scratchpad; 390x844 touch and 1440x900, `ro` and `ru`, test
+  database, designs deleted by the e2e fixture). All seven items pass: dialog after Back with the `/d/`
+  URL; Stay, Escape, backdrop; Confirm to Step 1 with the room filled and no writes; second Back; untouched
+  and link-opened editors never ask; one dialog only with S3's open; focus trapped. **Not exercised:** a
+  real phone swipe-back, real bfcache.
+- **Deviation: file count.** Seven production files (plan: about four; cap five), accepted: the store-free
+  origin module and the locale-menu precaution.
+- **Runs.** e2e [implementer]: 45 passed on the mobile project set plus S3's desktop spec. Final web suite
+  5054/5054.
+- **Next:** CE (S0 runs in the main tree; it also owes backlog 114's two e2e helpers), then C6.
 
 ### C2 — the corner wall unit (adapter and domain)
 
