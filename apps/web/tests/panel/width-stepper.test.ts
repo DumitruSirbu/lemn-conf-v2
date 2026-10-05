@@ -1,18 +1,5 @@
-// M5 wave 5D2c's §9 width control, swept over the shipped kitchen.
-//
-// **This file replaces `width-chips.adversarial.test.ts`, and its pinned chip counts retire with the
-// chips** (ADR 0035's consequences list). 5D's 158 rendered chips and 51 free ones were measurements
-// of a control that no longer exists: a cabinetry column now shows two buttons, not thirteen.
-// What survives unchanged is the *mechanism* those numbers were measuring — `widthOptionsFor` and
-// `widthStepsFor` both judge a candidate by running `setWidth` and discarding the design — so the
-// property below is the same property in a stronger form.
-//
-// The two controls are ADR 0035 decision 3, and which one a selection gets is asserted here against
-// the **catalogue's own declared ranges** rather than against the panel's derivation of them. That
-// is the point of this file: `isSteppedColumn` reads the shape off the width *set* the column
-// published, because `intersectColumnRanges` is module-private to `set-width.ts`, and a derivation
-// nobody checks against the fact it derives is exactly how ADR 0035 decision 3 came to name
-// `fixedWidth` as the discriminator for a day.
+// Which control a selection gets (ADR 0035 decision 3) is asserted against the catalogue's declared ranges, not the
+// panel's derivation of them: `isSteppedColumn` reads the shape off the width set the column published.
 import {
   cabinetDepthMmOf,
   columnWidthChoices,
@@ -140,39 +127,22 @@ function catalogWith(
 
 const seededWorld = () => worldFrom(KITCHEN_L_DESIGN);
 
-// -------------------------------------------------------------------------------------------
-// ADR 0035 decision 3: which control, and why that one.
-// -------------------------------------------------------------------------------------------
-
-/** ADR 0035 decision 6: a hood is not a member for width purposes, so it neither narrows the column
- *  nor decides the control shape. Read off the resolved entry's `kind` rather than off an id list,
- *  the way the command reads it. */
+/** ADR 0035 decision 6: a hood is not a member for width purposes. Read off the resolved entry's `kind`, as the
+ *  command reads it, not off an id list. */
 const HOOD_KIND = "extractor_hood";
 
-/** **The catalogue's own answer to "is this column's width free or a set?"**, computed here from the
- *  declared ranges the panel cannot reach, so the panel's derivation has something independent to be
- *  wrong against.
- *
- *  A column is free exactly when every member the width governs can be built across a *range* —
- *  ADR 0035 decision 3's "any range where `minMm < maxMm`". One discrete member fixes the whole
- *  column, which is decision 6's stated consequence: `p1`'s dishwasher takes `A|2.00` down to 450
- *  and 600, and the wall cabinet standing above it follows.
- *
- *  **Two memberships, and the hood is in neither the way the others are.** ADR 0035 decision 6 takes
- *  it out of the width membership entirely, so it neither narrows the column nor decides the control.
- *
- *  **The unresizable-member fallback is the column's, and it is stated here rather than assumed.**
- *  `columnWidthChoices` cannot intersect a column one of whose members has no §7 equivalent or is
- *  `fixedWidth` — the hob base under the hood, the fridge beside `p24` — so it falls back to the
- *  selected body's own declared widths and the panel shapes the control from those. Every button is
- *  then disabled naming the member in the way, which is ADR 0032 rather than a defect: a thirteen-chip
- *  row all dashed would say the same thing thirteen times. */
+/** The catalogue's own answer to "is this column's width free or a set?", computed from declared ranges the panel
+ *  cannot reach so its derivation has something independent to be wrong against.
+ *  A column is free when every member the width governs is built across a range (ADR 0035 decision 3); one discrete
+ *  member fixes the whole column (decision 6): `p1`'s dishwasher takes `A|2.00` down to 450 and 600, and the wall
+ *  cabinet above follows. The hood is outside the width membership.
+ *  `columnWidthChoices` cannot intersect a column holding a member with no §7 equivalent or `fixedWidth` (the hob base
+ *  under the hood, the fridge beside `p24`), so it falls back to the selected body's own widths and every button is
+ *  disabled naming the member in the way. */
 function columnHasFreeWidth(world: World, record: PlacementRecord): boolean {
-  // **ADR 0049 first**, because it decides before the shape is read: a body that may not be resized
-  // publishes the single width it is standing at, so its control is a set of one whatever ranges
-  // its own row declares. `hood-600` is why this is stated rather than folded into the sweep below
-  // — it is `fixedWidth` while its catalogue equivalent is bounded 600–800, so reading the ranges
-  // alone would predict a stepper with two buttons that can never move.
+  // ADR 0049 decides first: a body that may not be resized publishes the single width it stands at. `hood-600` is
+  // `fixedWidth` while its catalogue equivalent is bounded 600–800, so reading the ranges alone would predict a stepper
+  // whose buttons can never move.
   if (record.fixedWidth) return false;
   const members = world.records.filter(
     (candidate) =>
@@ -200,12 +170,8 @@ function hasFreeWidthRange(world: World, record: PlacementRecord): boolean {
 }
 
 describe("ADR 0035 decision 3's two controls, chosen by the shape of the bound", () => {
-  // **The correction that makes this test the point of the wave.** ADR 0035 decision 3 first named
-  // `fixedWidth` as the discriminator and was corrected on 2026-08-28: the flag is `false` on both
-  // discrete rows, `base-dishwasher` included, and cannot be set true there without making `p1`
-  // unresizable and undoing §11 row 14. So the control is chosen by the *shape* of the width bound,
-  // and this asserts the panel's choice against the catalogue's declared ranges rather than against
-  // a second copy of the rule.
+  // `fixedWidth` is false on both discrete rows, `base-dishwasher` included, and cannot be true there without making
+  // `p1` unresizable (§11 row 14); so the control is chosen by the shape of the width bound (ADR 0035 decision 3).
   it("gives a stepper exactly to the columns whose every member is built across a range", () => {
     const world = seededWorld();
     const controls: string[] = [];
@@ -218,15 +184,9 @@ describe("ADR 0035 decision 3's two controls, chosen by the shape of the bound",
         columnHasFreeWidth(world, record),
       ]);
     }
-    // The guard, itemised rather than counted so a different split fails. Fifteen steppers, the
-    // three members of `A|2.00` — the dishwasher niche, whose 450/600 is §11 row 14 and the only
-    // discrete column the shipped kitchen holds — and ADR 0049's four `fixedWidth` bodies, which
-    // land on the discrete control with no new branch: their ranges are degenerate, which is what
-    // decision 3's discriminator already reads.
-    //
-    // **`p6` is the fifteenth stepper, and it is wave 5B8 criterion 3 seen from the panel.** It was
-    // a `choice` at its single 600 until ADR 0048 gave the pantry a 400–800 bound; nothing in this
-    // file changed to move it, which is decision 3's discriminator doing the work.
+    // Itemised rather than counted so a different split fails: the three members of `A|2.00` (the dishwasher niche,
+    // §11 row 14) and ADR 0049's four `fixedWidth` bodies, whose degenerate ranges land on the discrete control with no
+    // new branch. `p6` is a stepper since ADR 0048 gave the pantry a 400–800 bound.
     expect(controls).toEqual([
       "p0:stepper",
       "p1:choice",
@@ -253,17 +213,10 @@ describe("ADR 0035 decision 3's two controls, chosen by the shape of the bound",
     ]);
   });
 
-  // **The optional-field fallback, pinned as a decision rather than left as an accident.**
-  // `DescribePanelInput.widthRanges` is optional and absent means the discrete choice — a caller that
-  // has not resolved the column's shape has not earned a stepper, and a chip row with the right
-  // widths is never wrong, only more clicks. That is defensible, and it is also the one way this
-  // panel can now render a control the product does not want: `p0` is a stepper on the shipped
-  // kitchen, and dropping the field turns it into thirteen chips with nothing failing.
-  //
-  // So the fallback is asserted here, on a body whose real control is the other one. What this test
-  // buys is that a future change making it render *nothing*, or a stepper on faith, has to come back
-  // and say so — and `asWidthChoice` in `tests/support/width-options.ts` throws for the same reason,
-  // so a fixture that drifts into this state fails its chip assertions instead of skipping them.
+  // `DescribePanelInput.widthRanges` absent means the discrete choice: a caller that has not resolved the column's
+  // shape
+  // has not earned a stepper. Asserted on a body whose real control is the stepper, so dropping the field cannot
+  // silently turn `p0` into chips; `asWidthChoice` in `tests/support/width-options.ts` throws for the same reason.
   it("falls back to the discrete choice when the column's shape was not supplied", () => {
     const world = seededWorld();
     const target: CommandTarget = { kind: "placement", id: "p0" };
@@ -299,15 +252,12 @@ describe("ADR 0035 decision 3's two controls, chosen by the shape of the bound",
     // Steps present and ranges absent still yields the choice: the two inputs are independent, and
     // the safe one wins.
     expect(section.control).toBe("choice");
-    // And the real control on this body is the other one, which is what makes the fallback
-    // observable here rather than vacuous.
+    // The real control on this body is the stepper, which makes the fallback observable.
     expect(widthSectionAt(world, "p0")?.control).toBe("stepper");
   });
 
-  // ADR 0035 decision 3's own headline example, and the one a `fixedWidth` discriminator would have
-  // got backwards in both directions: the dishwasher's flag is `false`, so a flag-based rule would
-  // have put a stepper here — two dead buttons at 400 and 500, with the niche's own 600 unreachable
-  // between them.
+  // The headline example of decision 3: the dishwasher's `fixedWidth` is false, so a flag-based rule would have put a
+  // stepper on a column that is built at exactly two widths.
   it.each(["p1", "p12", "p18"])(
     "keeps %s on the niche's two widths rather than stepping between them",
     (id) => {
@@ -321,10 +271,6 @@ describe("ADR 0035 decision 3's two controls, chosen by the shape of the bound",
     },
   );
 });
-
-// -------------------------------------------------------------------------------------------
-// The stepper's own shape, and the property that replaces 5D's chip counts.
-// -------------------------------------------------------------------------------------------
 
 describe("every stepper the shipped kitchen renders", () => {
   it("offers exactly two buttons, one step either side of the body's own width", () => {
@@ -344,9 +290,9 @@ describe("every stepper the shipped kitchen renders", () => {
           ["wider", record.widthMm + WIDTH_STEP_MM],
         ],
       ]);
-      // The value label is the width the pair operates on, so the customer reads what the buttons
-      // are moving rather than what the column's extent happens to be (ADR 0035 decision 6 lets
-      // those differ on a mixed column).
+      // The value label is the width the pair operates on, not the column's extent (ADR 0035 decision 6 lets those
+      // differ
+      // on a mixed column).
       expect([record.id, section.valueLabel]).toEqual([
         record.id,
         `${String(record.widthMm)} mm`,
@@ -355,11 +301,8 @@ describe("every stepper the shipped kitchen renders", () => {
     expect(stepped).toBe(15);
   });
 
-  // **The turned-over property, in the stronger form ADR 0035's consequences name.** 5D's version
-  // was "every chip the panel marks `free` is a width `setWidth` accepts"; this one is "each button
-  // is enabled if and only if the step it offers succeeds", asked of the command directly rather
-  // than of the query the panel used — so a panel that stopped consulting the engine, or a query
-  // that answered about a different width than the button carries, fails here.
+  // Each button is enabled iff the step it offers succeeds, asked of the command directly rather than of the query the
+  // panel used (ADR 0035 consequences).
   it("enables a button exactly when running the command at its width would succeed", () => {
     const world = seededWorld();
     let buttons = 0;
@@ -382,14 +325,13 @@ describe("every stepper the shipped kitchen renders", () => {
           step.direction,
           !result.ok,
         ]);
-        // §13.1: greyed and unclickable **with the reason**, and the sentence is the engine's own
-        // through the localized content boundary — never copy authored in the panel (ADR 0032 rule 2). A button
-        // that works carries none, because a reason beside a control that works is noise.
+        // §13.1: greyed and unclickable with the reason, which is the engine's own sentence through the localized
+        // content
+        // boundary; a working button carries none.
         expect([record.id, step.direction, step.reason]).toEqual([
           record.id,
           step.direction,
-          // `widthSectionAt` defaults to left (no direction argument above); the wall is
-          // `record`'s own, not the oracle's default (7I review L1.1).
+          // `widthSectionAt` defaults to left; the wall is `record`'s own, not the oracle's default.
           result.ok
             ? undefined
             : ro.rejection(result.reason, "left", record.wall),
@@ -399,21 +341,15 @@ describe("every stepper the shipped kitchen renders", () => {
       }
     }
     expect(buttons).toBe(30);
-    // **The measurement that replaces 5D's "51 free chips".** Twelve of the fifteen steppers can
-    // shrink on a kitchen nobody has edited — ADR 0035 decision 7's shrink funds itself out of the
-    // space it vacates — and none can grow, because growth still has to consume space that already
-    // exists and the shipped kitchen has no empty column at load. **Ten until ADR 0048**: the two
-    // new ones are `p6` and `p23`, the pantry column, which was frozen by the seeded pantry's own
-    // `fixedWidth` flag until the owner flipped it. The three that can do neither are `p19`, `p22`
-    // and `p24`, each sharing a column with a `fixedWidth` body; their buttons are disabled naming
-    // that body, which is the ADR 0032 arrangement doing its job.
+    // Twelve of the fifteen steppers can shrink on an unedited kitchen (a shrink funds itself, ADR 0035 decision 7) and
+    // none can grow, since the shipped kitchen has no empty column at load. The three that can do neither (`p19`,
+    // `p22`,
+    // `p24`) share a column with a `fixedWidth` body and are disabled naming it.
     expect(enabled).toBe(12);
   });
 
-  // Read-only takes the click and replaces the reason, on both buttons and on a button that works —
-  // a browser that cannot write is not being told where its cabinet's bounds are, it is being told
-  // it cannot edit. Asserted over the real kitchen because the enabled buttons above are what make
-  // this test non-vacuous.
+  // Read-only replaces the reason on both buttons, including one that works: a browser that cannot write is told it
+  // cannot edit, not where the bounds are. The enabled buttons above make this non-vacuous.
   it("disables both buttons in a browser that cannot write, in the panel's own words", () => {
     const world = seededWorld();
     let buttons = 0;
@@ -438,15 +374,9 @@ describe("every stepper the shipped kitchen renders", () => {
   });
 });
 
-// -------------------------------------------------------------------------------------------
-// FINDING R2.7's arrangement, at the panel. Carried over from `width-chips.adversarial.test.ts`
-// unchanged: it is about whether a section exists at all, which neither control changed.
-// -------------------------------------------------------------------------------------------
-
 describe("a willing body with no widths gets no section, not an empty one", () => {
-  // `canWidth` stays §9's literal rule and the emptiness is answered in `describeWidthSection` —
-  // which is what makes missing catalogue data fail loudly at the section rather than silently at
-  // the flag. Reached by breaking data: a seeded row whose pointer resolves to nothing.
+  // `canWidth` stays §9's literal rule and emptiness is answered in `describeWidthSection`, so missing catalogue data
+  // fails loudly at the section. Reached by breaking data: a seeded row whose pointer resolves to nothing.
   it("drops the section when a seeded row's pointer resolves to nothing", () => {
     const world = worldFrom(
       KITCHEN_L_DESIGN,
@@ -463,8 +393,8 @@ describe("a willing body with no widths gets no section, not an empty one", () =
     expect(panelAt(world, { kind: "placement", id: "p8" }).kind).toBe("open");
   });
 
-  // The floor emptying the set is the third route to the same state, and it is the one ADR 0017
-  // and ADR 0026 make possible: a resolved entry whose declared floor excludes every member.
+  // The floor emptying the set is the third route to the same state (ADR 0017): a resolved entry whose declared floor
+  // excludes every member.
   it("drops the section when the resolved entry's floor empties its set", () => {
     const world = worldFrom(
       KITCHEN_L_DESIGN,
@@ -475,17 +405,9 @@ describe("a willing body with no widths gets no section, not an empty one", () =
   });
 });
 
-/** ADR 0049, and the expectation this describe used to hold is the one the owner overturned on
- *  2026-09-01: these rendered **no** section, and the customer looking at a hob base got a
- *  vanished `LĂȚIME` with no explanation (report item 9). §13.1's "disable, don't warn" and
- *  ADR 0032 both say an unavailable thing is shown disabled **with its reason**, and this was the
- *  one place in the product where it was not.
- *
- *  p2 (hob base), p5 (oven tower), p7 (freestanding fridge) and p13 (hood) all resolve non-empty
- *  sets and are all `fixedWidth`. `p6` was the fifth until ADR 0048 made the seeded pantry
- *  resizable — it renders the stepper asserted above instead. What is still asserted, in the
- *  opposite direction, is that `canWidth` is not what decides: the flag is false on every one of
- *  them and the section renders anyway, from the widths the domain published. */
+/** ADR 0049: a `fixedWidth` body with a non-empty width set renders one disabled `active` chip carrying the engine's
+ *  reason, not a vanished section (§13.1: disable, don't warn). `p2`, `p5`, `p7` and `p13` are `fixedWidth`; `canWidth`
+ *  is false on all of them and the section renders anyway, from the widths the domain published. */
 describe("a fixed-width body shows the one width it is made at", () => {
   it.each(["p2", "p5", "p7", "p13"])(
     "renders one disabled active chip with the engine's reason for %s",
@@ -511,8 +433,8 @@ describe("a fixed-width body shows the one width it is made at", () => {
           chip.isDisabled,
         ]),
       ).toEqual([[record.widthMm, "active", true]]);
-      // The descriptor is the engine's own, rendered through the same content resolver a blocked
-      // chip's reason goes through — never copy authored in the panel (ADR 0032 rule 2).
+      // The descriptor is the engine's own, rendered through the same content resolver a blocked chip's reason goes
+      // through.
       expect(section.chips[0]?.reason).toBe(
         ro.rejection({
           code: "NOT_RESIZABLE",
@@ -522,8 +444,7 @@ describe("a fixed-width body shows the one width it is made at", () => {
     },
   );
 
-  // Report item 9's own body, at its own width: *Corp plită și 2 sertare* is a 600 mm cabinet
-  // because the hob it carries is a 590 × 520 appliance (ADR 0027), and the section now says so.
+  // *Corp plită și 2 sertare* is 600 mm because the hob it carries is a 590 × 520 appliance, and the section says so.
   it("names the cabinet and the width in the sentence the customer reads", () => {
     const section = widthSectionAt(seededWorld(), "p2");
     if (section?.control !== "choice") throw new Error("expected chips");
@@ -536,10 +457,8 @@ describe("a fixed-width body shows the one width it is made at", () => {
     ]);
   });
 
-  // **The chip is unclickable, which is what makes it change nothing.** `WidthChoiceView` renders
-  // `disabled={chip.isDisabled}` and calls the store from `onClick` alone, so a disabled chip
-  // reaches neither `setWidth` nor the rejection banner. The command's own refusal is asserted
-  // beside it: this is the state the panel is keeping the customer out of, not one it invented.
+  // A disabled chip reaches neither `setWidth` nor the rejection banner (`WidthChoiceView` calls the store from
+  // `onClick` alone); the command's own refusal is asserted beside it as the state the panel keeps the customer out of.
   it("keeps the command's refusal behind a chip that cannot be clicked", () => {
     const world = seededWorld();
     const section = widthSectionAt(world, "p2");
@@ -560,11 +479,9 @@ describe("a fixed-width body shows the one width it is made at", () => {
     expect(refused.reason.code).toBe("NOT_RESIZABLE");
   });
 
-  /** **The anti-invariant** (FINDING R2.7): `fixedWidth` and *no set at all* are different answers,
-   *  and only the first one changed. A row whose declared floor excludes the only width it lists
-   *  resolves nothing to build, which is missing catalogue data — and a chipless section would make
-   *  broken data look like a constrained product. Both conditions are asked at once, because that
-   *  is the input that would slip through if the flag were read before the set was resolved. */
+  /** The anti-invariant: `fixedWidth` and no set at all are different answers. A floor that excludes the only listed
+   *  width is missing catalogue data, which a chipless section would make look like a constrained product; both
+   *  conditions are asked at once. */
   it("still renders no section for a fixedWidth body whose floor empties its set", () => {
     const world = worldFrom(
       KITCHEN_L_DESIGN,

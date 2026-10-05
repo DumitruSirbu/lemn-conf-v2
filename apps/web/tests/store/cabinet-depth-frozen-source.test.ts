@@ -1,14 +1,3 @@
-// Wave 6K-c at the store seam: the residue wave 6K-a named and could not close.
-//
-// 6K-a re-answered a frozen extent from the members standing in it. The half **no member explains** —
-// a cleared slot under a wall run, and a column with no member at all — kept the depth the session
-// opened at, and `projectFrozenMap` saved it. ADR 0073 records the `buildId` whose clearance supplied
-// that depth, and this file measures what a depth change then does with it.
-//
-// **Nothing below is compared against a hand-written millimetre where the catalogue can be asked.**
-// Every expected depth is `occupiedDepthOfEntryM` over the map built at the depth under test, so a
-// test that passed while `baseFinishedDepthMm` moved underneath it is unwritable here — which is the
-// same falsifiability the wave's own criterion asks for, stated as an assertion instead of a claim.
 import {
   buildKitchenLBodyCatalog,
   columnBuildDepthM,
@@ -41,8 +30,8 @@ import {
 const OCCURRED_AT = "2026-09-05T12:00:00.000Z";
 const DEEPER_MM = 700;
 
-/** `A|2.00`: a dishwasher niche under an open shelf and a top box. Clearing the base member leaves an
- *  occupied column whose 620 mm reach no surviving member explains — ADR 0073's own worked example. */
+/** `A|2.00`: a dishwasher niche under an open shelf and a top box. Clearing the base member leaves an occupied
+ *  column whose 620 mm reach no surviving member explains (ADR 0073). */
 const DISHWASHER_KEY = "A|2.00";
 const DISHWASHER_ALONG_MM = 2000;
 const DISHWASHER_BUILD_ID = "base-dishwasher-600";
@@ -52,11 +41,8 @@ const FRIDGE_KEY = "B|2.45";
 const FRIDGE_BUILD_ID = "fridge-free-700";
 
 /** `B|1.80`: a pantry under a top that wins §3.2's MAX here — 600 against the pantry's 599.
- *
- *  **The top this suite pins is its own** (`tests/support/pinned-top-witness.ts`, ADR 0101
- *  decision 3). It was ADR 0058's `wall-2door-600-deep-top` until 2026-09-07, and that row now
- *  follows the setting like every other cabinet; keeping one of the owner's three held back so this
- *  file could stay red-capable is the moved fixture ADR 0093 refuses. */
+ *  The top is this suite's own pinned witness (`tests/support/pinned-top-witness.ts`, ADR 0101 decision 3), so
+ *  the file stays red-capable now that no shipped cabinet is pinned. */
 const PANTRY_KEY = "B|1.80";
 const PANTRY_MEMBERS: readonly string[] = [
   "p6",
@@ -85,9 +71,8 @@ function createStore(design: Design = KITCHEN_L_DESIGN) {
   });
 }
 
-/** The shipped kitchen with this suite's declared pinned top at `B|1.80`, and a catalogue holding
- *  it — the fixture the "a body the setting does not move" claim needs now that no shipped cabinet
- *  is one. */
+/** The shipped kitchen with this suite's pinned top at `B|1.80`, for the claim that a body the setting does not move
+ *  keeps its depth. */
 function createStoreWithAPinnedTop() {
   return createConfiguratorStore({
     design: designWithAPinnedTop(),
@@ -107,9 +92,8 @@ function declaredDepthM(buildId: string, cabinetDepthMm: number): number {
   return occupiedDepthOfEntryM({ buildId, definition });
 }
 
-/** That the column really has no member left, so a test about the member-less arm cannot pass by
- *  accident on the arm that measures one: the two arrays are partitioned by exactly this predicate
- *  (`projectFrozenMap`), so an entry in `emptyColumns` is a column with nothing standing in it. */
+/** Guards the member-less arm: `projectFrozenMap` partitions the arrays by exactly this predicate, so an entry in
+ *  `emptyColumns` has nothing standing in it. */
 function isMemberLess(store: Store, alongMm: number): boolean {
   return (store.getState().design.emptyColumns ?? []).some(
     (entry) => entry.alongMm === alongMm,
@@ -130,8 +114,8 @@ function removeAll(store: Store, ids: readonly string[]): Store {
   return store;
 }
 
-/** The design as a save and a reload deliver it, with every recorded source rewritten — `undefined`
- *  produces exactly the document a session before this wave would have written. */
+/** The design as a save and a reload deliver it, with every recorded source rewritten; `undefined` drops it, as a
+ *  document written before sources were recorded would. */
 function reloadWithSource(store: Store, source: string | undefined): Store {
   const rewrite = (entry: EmptyColumn): EmptyColumn => {
     const rewritten = { ...entry };
@@ -150,7 +134,6 @@ function reloadWithSource(store: Store, source: string | undefined): Store {
 }
 
 describe("the depth a cleared slot keeps through a depth change", () => {
-  // The measured residue, in ADR 0073's own numbers: 0.6200 -> 0.6200 before this wave.
   it("follows the body that froze it, not the members that are left", () => {
     const store = removeAll(createStore(), ["p1"]);
     const frozenM = columnOf(store, DISHWASHER_KEY).d;
@@ -166,15 +149,14 @@ describe("the depth a cleared slot keeps through a depth change", () => {
       declaredDepthM(DISHWASHER_BUILD_ID, DEEPER_MM),
       6,
     );
-    // Not a value compared with itself: the declaration really does move between the two settings.
+    // Non-vacuous: the declaration really does move between the two settings.
     expect(declaredDepthM(DISHWASHER_BUILD_ID, DEEPER_MM)).not.toBeCloseTo(
       declaredDepthM(DISHWASHER_BUILD_ID, DEFAULT_CABINET_DEPTH_MM),
       6,
     );
   });
 
-  // The durable half: `projectFrozenMap` writes this map into the document the coalescer saves, so a
-  // stale extent does not merely mis-answer the session — it reloads stale for good.
+  // `projectFrozenMap` writes this map into the document the coalescer saves, so a stale extent reloads stale for good.
   it("writes the re-answered extent into the document it hands on to be saved", () => {
     const store = removeAll(createStore(), ["p1"]);
 
@@ -192,8 +174,8 @@ describe("the depth a cleared slot keeps through a depth change", () => {
 });
 
 describe("an extent whose depth came from a body the setting does not move", () => {
-  // ADR 0073 decision 2: this falls out of the entry's own `finishesAtMm` declaration, which is not a
-  // function of the cabinet depth. Nothing in the store names these ids or their bands.
+  // The depth falls out of the entry's own `finishesAtMm`, which is not a function of the cabinet depth (ADR 0073
+  // decision 2); the store names none of these ids or bands.
   it.each([
     {
       name: "a freestanding appliance",
@@ -215,9 +197,9 @@ describe("an extent whose depth came from a body the setting does not move", () 
 
     store.getState().setCabinetDepth(DEEPER_MM);
 
-    // **The witness catalogue is handed over, not left to default** (ADR 0101 decision 3). A source
-    // the helper cannot look up is skipped as a legal state, so a declared body checked against the
-    // shipped map would be invisible to the very invariant this line is here to apply.
+    // The witness catalogue is handed over (ADR 0101 decision 3): a source the helper cannot look up is skipped as
+    // legal,
+    // so a declared body checked against the shipped map would be invisible to the invariant.
     assertSourcesExplainTheirDepths(
       { ...store.getState(), catalogAt: catalogWithAPinnedTop },
       "after setCabinetDepth",
@@ -226,9 +208,8 @@ describe("an extent whose depth came from a body the setting does not move", () 
       declaredDepthM(buildId, DEFAULT_CABINET_DEPTH_MM),
       6,
     );
-    // ADR 0090 decision 2: the **depth** does not move, which is what this test is about, and the
-    // wall-B coordinate it is read at does — a deeper corner on wall A takes more of wall B. Only
-    // the anchor is setting-dependent; the three assertions are the ones this test always made.
+    // The depth does not move; the wall-B coordinate it is read at does, since a deeper corner on wall A takes more of
+    // wall B (ADR 0090 decision 2).
     expect(columnOf(store, columnKeyAt(key, DEEPER_MM)).d).toBeCloseTo(
       frozenM,
       6,
@@ -236,7 +217,6 @@ describe("an extent whose depth came from a body the setting does not move", () 
     expect(declaredDepthM(buildId, DEEPER_MM)).toBeCloseTo(frozenM, 6);
   });
 
-  // And back again, because a depth change is a control the customer can tap twice.
   it("holds the appliance's own depth on the way back down as well", () => {
     const store = removeAll(createStore(), ["p7"]);
     const frozenM = columnOf(store, FRIDGE_KEY).d;
@@ -248,10 +228,8 @@ describe("an extent whose depth came from a body the setting does not move", () 
   });
 });
 
-// ADR 0073 decision 8's other half: the commands that move an extent along the wall move its depth
-// and its source together, because they are the same fact about the same space. Asserted at the
-// store, where the move actually publishes a map — `moveFrozenColumns` and the split write the
-// extent through a spread, so a rule that reconstructed one field by hand would show up here.
+// Resize and split write the extent through a spread, so a rule that rebuilt one field by hand would show here;
+// depth and source move together (ADR 0073 decision 8).
 describe("a command that moves an extent along the wall", () => {
   it("carries its depth and its source across a resize untouched", () => {
     const store = removeAll(createStore(), DISHWASHER_MEMBERS);
@@ -275,8 +253,7 @@ describe("a command that moves an extent along the wall", () => {
 
     expect(store.getState().lastRejection).toBeNull();
     const freed = store.getState().design.emptyColumns ?? [];
-    // The space the resize freed is narrower and stands somewhere else; its depth and the body that
-    // supplied it are the ones the cleared column was frozen with.
+    // The freed space is narrower and elsewhere; its depth and source are the cleared column's.
     expect(freed).toHaveLength(1);
     expect(freed[0]?.widthMm).toBeLessThan(frozen?.widthMm ?? 0);
     expect(freed[0]?.depthMm).toBe(frozen?.depthMm);
@@ -285,16 +262,15 @@ describe("a command that moves an extent along the wall", () => {
 });
 
 describe("an extent this wave cannot re-answer exactly", () => {
-  /** The two inputs decision 3 names that a document can actually arrive carrying: no source at all —
-   *  every document written before this wave — and a source the catalogue no longer holds. */
+  /** The two inputs a document can arrive carrying: no source (written before sources were recorded) and a source the
+   *  catalogue no longer holds. */
   const UNANSWERABLE: readonly (readonly [string, string | undefined])[] = [
     ["written before this wave", undefined],
     ["naming a buildId the catalogue does not hold", "retired-cabinet-600"],
   ];
 
-  // The case that reaches a body somebody builds: `resolveDepthM` floors an inserted wall cabinet at
-  // the column's own clearance, so a member-less wall column frozen at 330 caps one 70 mm shallower
-  // than the map declares in a 700 mm kitchen. Deepening it to the declared build depth closes that.
+  // `resolveDepthM` floors an inserted wall cabinet at the column's own clearance, so a member-less wall column frozen
+  // at 330 caps one 70 mm shallower than the map declares in a 700 mm kitchen; deepening it closes that.
   it.each(UNANSWERABLE)(
     "deepens a member-less wall column to the declared build depth (%s)",
     (_name, source) => {
@@ -315,9 +291,8 @@ describe("an extent this wave cannot re-answer exactly", () => {
     },
   );
 
-  // **The stated residual, asserted as a residual rather than fixed by inventing a number.** A base
-  // column frozen at 620 is already deeper than the declared build depth, the fact that would move it
-  // was never recorded, and deeper-only is what keeps ADR 0011 Gap D's freed opening intact.
+  // A stated residual, not fixed by inventing a number: a base column frozen at 620 already exceeds the declared build
+  // depth, the fact that would move it was never recorded, and deeper-only keeps ADR 0011 Gap D's freed opening intact.
   it.each(UNANSWERABLE)(
     "leaves a member-less base column where it was frozen (%s)",
     (_name, source) => {
@@ -338,8 +313,7 @@ describe("an extent this wave cannot re-answer exactly", () => {
     },
   );
 
-  // ADR 0052: a load that refuses is a dead link. Neither shape is a refusal at either seam — the
-  // reload above already proves the parse, and this proves the store went on to publish a map.
+  // ADR 0052: a load that refuses is a dead link, so neither shape may be refused at the parse or at the store.
   it.each(UNANSWERABLE)(
     "is loaded rather than refused (%s)",
     (_name, source) => {
@@ -352,10 +326,6 @@ describe("an extent this wave cannot re-answer exactly", () => {
     },
   );
 });
-
-// =================================================================================================
-// ADR 0079 — the pairing invariant, its non-vacuity, and the depths this wave promised not to move.
-// =================================================================================================
 
 /** Every column the store publishes, as `key -> d`, at full precision. */
 function publishedDepthsM(store: Store): Record<string, number> {
@@ -375,10 +345,8 @@ function savedDepthsMm(store: Store): Record<string, number> {
 }
 
 describe("a published depth names the body it came from", () => {
-  // Decision 10 part 2. A state predicate rather than a transition assertion, because that is the one
-  // shape both 6K-c defects hid from: each published a **correct** depth beside a false record, and
-  // the record is only cashed a command or two later. Checked after every step of an ordinary script,
-  // not only at its end.
+  // A state predicate rather than a transition check: a false record beside a correct depth is only cashed commands
+  // later.
   it("holds after every command of an ordinary session", () => {
     const store = createStore();
     assertSourcesExplainTheirDepths(store.getState(), "load");
@@ -429,9 +397,7 @@ describe("a published depth names the body it came from", () => {
     }
   });
 
-  // Decision 10 part 3, second claim. The predicate is satisfied by a map with no sources at all and
-  // by one whose every source has left the catalogue, and both are reachable — so a green run means
-  // nothing until the number of columns it actually inspected is on the record.
+  // The predicate is satisfied by a map with no sources at all, so the number of columns inspected must be on record.
   it("inspects most of the shipped kitchen rather than nothing", () => {
     const store = createStore();
 
@@ -441,30 +407,22 @@ describe("a published depth names the body it came from", () => {
     expect(store.getState().columns.size).toBeGreaterThan(1);
   });
 
-  // Decision 10 part 3, third claim: **a check that cannot fail is the failure this project has
-  // shipped twice.** The state below is what the pre-fix code published — measured, and ADR 0079's
-  // F1 table records the same trail — so this asserts the predicate catches the defect it exists for
-  // rather than merely being green beside the fix.
+  // A check that cannot fail is the failure this project has shipped twice: the state below is what the pre-fix code
+  // published (ADR 0079 F1 table).
   it("reports the pair the pre-fix code published, so it can fail at all", () => {
     const store = createStore();
     removeAll(store, [PINNED_TOP_WITNESS_PLACEMENT_ID]);
     store.getState().setCabinetDepth(DEEPER_MM);
-    // **The guard's assertion is unchanged and its anchor is now setting-dependent** (ADR 0090
-    // decision 7). The column this test corrupts is the same column; wave 6J-d slid it 100 mm along
-    // wall B, so naming `B|1.80` at 700 names no column at all — and a guard that throws before it
-    // asserts is the check-that-cannot-fail this test exists to prevent.
+    // The corrupted column is the same one, but its anchor depends on the setting (ADR 0090 decision 7): naming
+    // `B|1.80`
+    // at 700 names no column, and a guard that throws before it asserts cannot fail.
     const pantryKey = columnKeyAt(PANTRY_KEY, DEEPER_MM);
     const repaired = columnOf(store, pantryKey);
 
-    // The pre-fix answer: the same depth — correct, the pantry is standing in it — beside a source
-    // the old code carried across untouched, which declares a depth this column does not have.
-    //
-    // **The corrupting source is the fridge since ADR 0101.** It was `wall-2door-600-deep-top`,
-    // which declared 600 at every setting; that row now follows the setting, so at 700 it declares
-    // exactly what this column carries and could no longer make the predicate fire. `fridge-free-700`
-    // is a manufactured size — 742 at every setting, a body of this kitchen standing one column over
-    // — so it is the same kind of wrongness the pin used to supply, and it is in the shipped
-    // catalogue, which `unexplainedColumns` requires of a source before it will inspect one at all.
+    // The pre-fix answer: a correct depth beside a source the old code carried across untouched.
+    // The corrupting source is `fridge-free-700`: a manufactured 742 at every setting, in the shipped catalogue, which
+    // `unexplainedColumns` requires of a source before it inspects one. A deep-top row now follows the setting
+    // (ADR 0101) and could not make the predicate fire.
     const asPublishedBeforeTheFix = new Map(store.getState().columns).set(
       pantryKey,
       { ...repaired, depthFromBuildId: FRIDGE_BUILD_ID },
@@ -476,30 +434,22 @@ describe("a published depth names the body it came from", () => {
         columns: asPublishedBeforeTheFix,
       }),
     ).toHaveLength(1);
-    // And the depth itself was never the defect, which is decision 9's whole point.
+    // And the depth itself was never the defect (ADR 0079 decision 9).
     expect(repaired.d).toBeCloseTo(
       declaredDepthM(repaired.depthFromBuildId ?? "", DEEPER_MM),
       9,
     );
   });
 
-  // **The same F1 shape, inside the one column the acknowledged exemption covers** — ADR 0102
-  // decision 3a, and the reason that exemption is keyed on a standing member rather than on a
-  // number.
-  //
-  // `B|1.90` at 700 is the column wave 6I2's defect lives in: it publishes exactly
-  // `columnBuildDepthM`'s lifted arm, and its recorded source declares 400. The predicate ADR 0102
-  // refused asked only whether the depth equalled that arm, so **every** source id in this column
-  // passed — one declaring 330, one declaring 620, one naming a body that was never there — and the
-  // adversarial suite stopped inspecting the single column that matters. Keyed on the member instead,
-  // a record naming a body no one standing here carries fails exactly as F1 did.
+  // The same F1 shape inside the one column the acknowledged exemption covers (ADR 0102 decision 3a): `B|1.90` at 700
+  // publishes `columnBuildDepthM`'s lifted arm, so a predicate keyed on the depth would pass every source id there.
+  // Keyed on the standing member, a record naming a body no member carries fails.
   it("reports a lifted column whose source no member standing in it carries", () => {
     const store = createStore();
     store.getState().setCabinetDepth(DEEPER_MM);
     const liftedKey = columnKeyAt(PANTRY_KEY, DEEPER_MM);
     const lifted = columnOf(store, liftedKey);
-    // Non-vacuous: this really is the lifted column publishing the lifted arm, so the assertion
-    // below is about the exemption's own population and not about some ordinary column beside it.
+    // Non-vacuous: this is the lifted column publishing the lifted arm, not an ordinary column beside it.
     expect(lifted.hasFullHeightUnder).toBe(true);
     expect(lifted.d).toBeCloseTo(
       columnBuildDepthM({
@@ -524,29 +474,21 @@ describe("a published depth names the body it came from", () => {
 });
 
 describe("the depths this wave promised not to move", () => {
-  /** **Golden, measured at `52e3c70` — the commit before this wave — by driving the same script
-   *  against the pre-wave code.** ADR 0079 decision 9: no rule in this wave changes a published depth,
-   *  only the record beside it. Written out at full precision on purpose: these are not catalogue
-   *  facts to be re-asked but the *previous build's output*, and the only way to say "identical" is to
-   *  hold the old numbers. `B|1.80`'s `0.6000000000000001` is the ULP decision 5 rounds away in the
-   *  **comparison** while leaving the value alone — if decision 5 had been fixed in
-   *  `occupiedDepthFromSeat` instead, this line is what would have caught it.
-   *
-   *  The `A|2.00` residue this wave *does* close is deliberately not here: it needs a delete first, so
-   *  it is not the untouched fixture, and it is asserted at the top of this file. */
+  /** Golden depths at full precision, deliberately not re-asked from the catalogue: this fixture holds the previous
+   *  build's output, so "identical" is checkable. Values follow ADR 0135: the X-leg's worktop sits on the run's line
+   *  and the base return carries its 50 mm overhang. `B|1.80`'s `0.6000000000000001` is the ULP ADR 0079 decision 5
+   *  rounds away in the comparison, not in the value. */
   const BEFORE_THIS_WAVE = {
     "at the default setting": {
       columns: {
         "A|0.30": 0.32999999999999996,
-        "A|0.45": 0.62, // 0.630 → 0.620 (ADR 0135): the X-leg's worktop is on the run's line
+        "A|0.45": 0.62,
         "A|0.75": 0.32999999999999996,
         "A|1.30": 0.62,
         "A|2.00": 0.62,
         "A|2.60": 0.62,
         "A|3.20": 0.62,
         "B|0.61": 0.32999999999999996,
-        // 0.600 → 0.620 (ADR 0135): the base return carries the run's 50 mm worktop overhang. The key
-        // moved with its centre, 740 → 735, since the joint moved to the run's carcass front.
         "B|0.73": 0.62,
         "B|1.20": 0.638,
         "B|1.80": 0.6000000000000001,
@@ -554,57 +496,49 @@ describe("the depths this wave promised not to move", () => {
       },
       saved: {
         "A|300": 330,
-        "A|450": 620, // 630 → 620 (ADR 0135), the same figure
+        "A|450": 620,
         "A|750": 330,
         "A|1300": 620,
         "A|2000": 620,
         "A|2600": 620,
         "A|3200": 620,
         "B|615": 330,
-        "B|735": 620, // 600 → 620 and 740 → 735 (ADR 0135), the same figures
+        "B|735": 620,
         "B|1200": 638,
         "B|1800": 600,
         "B|2450": 742,
       },
     },
-    // **Wave 6J-d moved the wall-B keys of this half, and no depth in it** (ADR 0090 decisions 2 and
-    // 8). A wall-A body's depth is measured along wall B, so a deeper corner slides wall B's whole
-    // run: `wall-map` by 70 mm and `base-formula` by 100. Every number below is the number this
-    // fixture carried before that wave — 400, 700, 738, 699, 742 — read at the coordinate the run
-    // now stands at. The `at the default setting` half above is untouched, which is the wave's own
-    // "value-preserving at 600" criterion stated as a fixture.
+    // A wall-A body's depth is measured along wall B, so a deeper corner slides wall B's whole run: the keys here are
+    // read
+    // at the coordinate the run stands at (ADR 0090 decision 2).
     "at the deeper setting": {
       columns: {
         "A|0.30": 0.39999999999999997,
-        "A|0.45": 0.72, // 0.730 → 0.720 (ADR 0135), as at the default setting
+        "A|0.45": 0.72,
         "A|0.75": 0.39999999999999997,
         "A|1.30": 0.72,
         "A|2.00": 0.72,
         "A|2.60": 0.72,
         "A|3.20": 0.72,
         "B|0.69": 0.39999999999999997,
-        // 0.700 → 0.720 and key 0.84 → 0.83 (ADR 0135), as at the default setting.
         "B|0.83": 0.72,
         "B|1.30": 0.738,
-        // **0.700 since ADR 0101, and it is the top that states it.** The pantry finishes at 699 and
-        // the deep top above it at 700, so §3.2's MAX is the top's by a millimetre. It read 0.699
-        // while that top was pinned at 600 — the one number in this table the wave moves, and the
-        // 600 mm half above is untouched, which is ADR 0101 decision 4 stated as a fixture.
+        // 0.700 is the top's: the pantry finishes at 699 and the deep top above it at 700, so §3.2's MAX is the top's.
         "B|1.90": 0.7000000000000001,
         "B|2.55": 0.742,
       },
       saved: {
         "A|300": 400,
-        "A|450": 720, // 730 → 720 (ADR 0135)
+        "A|450": 720,
         "A|750": 400,
         "A|1300": 720,
         "A|2000": 720,
         "A|2600": 720,
         "A|3200": 720,
         "B|685": 400,
-        "B|835": 720, // 700 → 720 and 840 → 835 (ADR 0135)
+        "B|835": 720,
         "B|1300": 738,
-        // The saved half of the same millimetre; see the published table above.
         "B|1900": 700,
         "B|2550": 742,
       },
@@ -632,7 +566,6 @@ describe("the depths this wave promised not to move", () => {
     expect(savedDepthsMm(store)).toStrictEqual(expected.saved);
   });
 
-  // The load itself, which writes no document — so only the published half exists to compare.
   it("loads the shipped kitchen exactly as the build before this wave did", () => {
     expect(publishedDepthsM(createStore())).toStrictEqual(
       BEFORE_THIS_WAVE["at the default setting"].columns,
@@ -641,11 +574,8 @@ describe("the depths this wave promised not to move", () => {
 });
 
 describe("a source survives exactly when the depth it explains survives", () => {
-  // ADR 0079 decision 2's amended rule, on the arm that needed it named. A member-less **wall** column
-  // frozen at 330 is deepened to the map's 400 by `columnBuildDepthM` — a declared size, and no body's
-  // declaration — so whatever id it was carrying no longer explains anything and must not travel with
-  // the new depth. Keeping it would write a fresh F1-shaped lie against the day that id comes back to
-  // the catalogue.
+  // A member-less wall column frozen at 330 is deepened to 400 by `columnBuildDepthM`, a declared size and no body's
+  // declaration, so its id explains nothing and must not travel with the new depth (ADR 0079 decision 2).
   it("drops an id the fallback's declared size overtook", () => {
     const cleared = removeAll(createStore(), WALL_MEMBERS);
     const store = reloadWithSource(cleared, "retired-cabinet-600");
@@ -668,10 +598,8 @@ describe("a source survives exactly when the depth it explains survives", () => 
     expect(stored && "depthFromBuildId" in stored).toBe(false);
   });
 
-  // The mirror, and the reason the rule is "survives" rather than "is dropped": where the **frozen**
-  // depth wins the fallback's own MAX it is still the depth that id was recorded against, so the id
-  // travels with it — even one the catalogue no longer holds, which is the id a later catalogue would
-  // restore meaning to.
+  // Where the frozen depth wins the fallback's MAX it is still the depth the id was recorded against, so the id travels
+  // with it, even one the catalogue no longer holds.
   it("keeps an unknown id on the depth that id was recorded against", () => {
     const cleared = removeAll(createStore(), DISHWASHER_MEMBERS);
     const store = reloadWithSource(cleared, "retired-cabinet-600");

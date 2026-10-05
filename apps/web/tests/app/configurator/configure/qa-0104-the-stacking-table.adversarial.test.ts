@@ -1,38 +1,9 @@
-// **Adversarial QA of ADR 0104's re-derived stacking order.**
-//
-// `configure.module.css`'s head writes the order down as a table and gives the reason it had to be
-// re-derived: *"this is the property that took 44 of 58 e2e specs down in wave 6K-b3 and it is being
-// re-decided by the restructure."* The table reads:
-//
-//     | nav, settings' own paint, actions, locale | 2 |
-//     | the price cell                            | 3 |
-//     | §9's desktop rail                         | 4 |
-//     | the breakdown's popover                   | 6 |
-//     | the settings item, its scrim, its sheet    | 7 |
-//
-// **The locale cell left that first row on 2026-09-10** and the case at the foot of this file is why:
-// the owner ruled its chip a dropdown, and a menu nested in a cell at `2` paints under §9's rail at
-// `4` — the table's own rule, reaching a second surface exactly as it reached the breakdown's.
-//
-// and beside it the rule that makes it a table rather than a list, stated exactly and correctly:
-//
-// > **a `z-index` other than `auto` on a *grid or flex item* establishes a stacking context even
-// > while that item is `position: static`. Every cell above is a grid item of `.screen`, so every
-// > number above is a context and not a level in one shared stack: a surface nested in a cell can
-// > only ever paint as high as *the cell*, whatever it declares for itself.**
-//
-// **The table's fourth row does not survive its own rule.** The breakdown's popover is nested inside
-// the price cell — `configure-screen.tsx` puts `<PriceBreakdown />` in `.priceRow`, and
-// `price-breakdown.module.css`'s desktop `.anchor` is a flex item of it — so by the rule above the
-// highest it can paint is **the price cell's 3**, and §9's rail declares **4**. The `6` in the table
-// is the number the popover declares for itself and is exactly the number the rule says not to read.
-//
-// This file asserts the table **as an ordering between layers**, computed from the four stylesheets'
-// own declarations rather than restated, so a number moved in one file cannot leave the table saying
-// something else. There is no type spanning that arithmetic — it is CSS — so the declarations are
-// read back as text, which is the shape `top-bar-box.test.ts` and `price-bar-layout.test.ts` already
-// use for the same reason. The browser half of the same claim is `elementFromPoint` inside the
-// overlap; this is the half that runs on a machine with no browser.
+// Asserts `configure.module.css`'s stacking table as an ordering between layers, computed from the stylesheets' own
+// declarations so a number moved in one file cannot leave the table saying something else. A `z-index` other than
+// `auto` on a grid or flex item establishes a stacking context even while `position: static`; every cell is a grid
+// item of `.screen`, so a surface nested in a cell paints no higher than the cell, whatever it declares for itself.
+// The declarations are read back as text, as `top-bar-box.test.ts` does; the browser half is `elementFromPoint`
+// inside the overlap.
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -51,22 +22,16 @@ function read(relativePath: string): string {
   return readFileSync(resolve(SOURCE, relativePath), "utf8");
 }
 
-/** Comments are stripped before any rule is read. These files carry long prose blocks that name the
- *  very classes below — the price cell's own comment says *"it has to clear `.actions`"* — so a
- *  parser that kept them would read a rule's number against a neighbour's name. */
+/** Comments are stripped before any rule is read: these files' prose names the very classes below, so a parser that
+ *  kept it would read a rule's number against a neighbour's name. */
 function withoutComments(stylesheet: string): string {
   return stylesheet.replace(/\/\*[\s\S]*?\*\//g, "");
 }
 
 /**
- * The `z-index` a class ends up with, read out of the stylesheet's own declarations.
- *
- * **The last matching block wins**, which is the cascade's answer for the rules this file reads:
- * every one of them is a single class selector at equal specificity, and `.settings` is declared
- * twice on purpose — once with the band's shared `2` and once with its own `7`.
- *
- * Throws rather than defaulting: a class that has stopped declaring a `z-index` has left the table,
- * and answering `0` for it would turn a moved layer into a passing comparison.
+ * The `z-index` a class ends up with: the last matching block wins, the cascade's answer at equal specificity
+ * (`.settings` is declared twice on purpose). Throws rather than defaulting, since answering `0` for a class that left
+ * the table would turn a moved layer into a passing comparison.
  */
 function zIndexOf(stylesheet: string, className: string): number {
   const declared = [
@@ -85,13 +50,8 @@ function zIndexOf(stylesheet: string, className: string): number {
 }
 
 /**
- * **The *first* block's number, which is the mobile shell's.**
- *
- * `zIndexOf` above takes the last, which is the cascade's answer at the width the desktop media
- * query applies at — and since 2026-09-09 the price cell declares a different layer per shell, so
- * "the last one" is only half the table. Read separately rather than by widening `zIndexOf`, because
- * the two answers are about two shells and collapsing them into one number is what would let the
- * mobile half rot unwatched.
+ * The first block's number, which is the mobile shell's: `zIndexOf` takes the last (the desktop media query's), and the
+ * price cell declares a different layer per shell. Kept separate so the mobile half cannot rot unwatched.
  */
 function baseZIndexOf(stylesheet: string, className: string): number {
   const declared = [
@@ -123,24 +83,20 @@ const LAYER = {
   priceCell: zIndexOf(STYLESHEETS.configure, "priceRow"),
   settingsItem: zIndexOf(STYLESHEETS.configure, "settings"),
   rail: zIndexOf(STYLESHEETS.rail, "shell"),
-  /** **What the popover declares for itself**, which the file's own rule says is not what it paints
-   *  at. Read so the two can be compared rather than conflated. */
+  /** What the popover declares for itself, which is not what it paints at; read so the two can be compared. */
   breakdownDeclares: zIndexOf(STYLESHEETS.breakdown, "anchor"),
   priceBar: zIndexOf(STYLESHEETS.priceBar, "bar"),
 } as const;
 
-/** **The cell a surface is nested in is the highest it can paint** — the rule the head comment
- *  states, applied. The breakdown's popover lives inside the price cell. */
+/** A surface paints no higher than the cell it is nested in; the breakdown's popover lives inside the price cell. */
 const BREAKDOWN_POPOVER_PAINTS_AT = Math.min(
   LAYER.breakdownDeclares,
   LAYER.priceCell,
 );
 
 describe("the premise — every layer the table names still declares a number", () => {
-  /** **Non-vacuity for every comparison below** (ADR 0093): each figure is read out of a
-   *  stylesheet, and a rule that stopped declaring one would make `zIndexOf` throw rather than let
-   *  an ordering pass over a default. Pinned as a set so a layer that quietly changed number is
-   *  visible in the diff of this file. */
+  /** Non-vacuity for every comparison below: each figure is read from a stylesheet, and a rule that stopped declaring
+   *  one makes `zIndexOf` throw. Pinned as a set so a layer that changed number shows in this file's diff. */
   it("reads the numbers the head comment's table writes down", () => {
     expect(LAYER).toEqual({
       nav: 2,
@@ -154,8 +110,8 @@ describe("the premise — every layer the table names still declares a number", 
     });
   });
 
-  /** The structural fact the whole file rests on: the breakdown's surface is a descendant of the
-   *  price cell, so the cell's context bounds it. Read off the markup rather than assumed. */
+  /** The breakdown's surface is a descendant of the price cell, so the cell's context bounds it; read off the
+   *  markup. */
   it("mounts the breakdown inside the price cell", () => {
     const screen = read("app/configurator/configure/configure-screen.tsx");
     const priceCell = /styles\.priceRow[\s\S]*?<\/div>/.exec(screen)?.[0] ?? "";
@@ -165,9 +121,8 @@ describe("the premise — every layer the table names still declares a number", 
 });
 
 describe("what the restructure bought, and which must stay bought", () => {
-  /** `0efcbbd`'s fix: at the band's shared `2` the price cell tied with `.actions` and lost on tree
-   *  order, which put the action row over the open sheet and left its close button unreachable at
-   *  390 x 844. */
+  /** The price cell must sit above `.actions`: tied at the band's shared `2` it loses on tree order, and the action row
+   *  covers the open sheet's close button at 390 x 844. */
   it("puts the price cell above the action row, and not level with it", () => {
     expect(LAYER.priceCell).toBeGreaterThan(LAYER.actions);
   });
@@ -180,13 +135,9 @@ describe("what the restructure bought, and which must stay bought", () => {
     }
   });
 
-  /** **The price half is asked of the cell, not of `.bar`'s own number.** `.bar` declares `2`, but it
-   *  is nested in `.priceRow` and so paints at *the cell's* layer — the rule this whole file exists
-   *  to state. Comparing against the `2` would pass while saying nothing about what a customer sees.
-   *
-   *  It is the **mobile** cell, and the shell is named because the desktop one deliberately goes the
-   *  other way: at `5` the price cell stands *above* the rail, which is what lets the breakdown's
-   *  popover clear the panel. On mobile §9 is a sheet that covers the band, so the rail must win. */
+  /** Asked of the cell, not `.bar`'s own `2`: `.bar` is nested in `.priceRow` and paints at the cell's layer. Mobile
+   *  only: on desktop the price cell deliberately stands above the rail so the breakdown's popover clears the panel,
+   *  whereas on mobile §9 is a sheet covering the band, so the rail wins. */
   it("keeps §9's rail above the band it overlaps when a cabinet is selected, on mobile", () => {
     expect(LAYER.rail).toBeGreaterThan(LAYER.nav);
     expect(LAYER.rail).toBeGreaterThan(
@@ -195,15 +146,9 @@ describe("what the restructure bought, and which must stay bought", () => {
   });
 
   /**
-   * **The mobile half of the price cell, which `LAYER.priceCell` no longer sees.** That figure is
-   * the last declaration in the file and so is the desktop one; the base rule is the phone's, and it
-   * carries `0efcbbd`'s close-button fix.
-   *
-   * Both bounds matter and they point opposite ways. Above `.actions` is what puts the open
-   * breakdown sheet over the action row — without it the sheet's `Închide` is covered and the only
-   * way out of the sheet is a reload. Below §9's panel is what keeps the price bar *under* the
-   * editor sheet, which on this shell covers the band the bar stands in: the desktop cell is raised
-   * past the panel and the phone's must not follow it there.
+   * The mobile half of the price cell, which `LAYER.priceCell` (the last declaration, the desktop one) no longer sees.
+   * Above `.actions`, or the open breakdown sheet's `Închide` is covered and only a reload gets out; below §9's panel,
+   * which covers the band the bar stands in on this shell.
    */
   it("leaves the mobile price cell between the action row and §9's sheet", () => {
     const mobilePriceCell = baseZIndexOf(STYLESHEETS.configure, "priceRow");
@@ -218,18 +163,9 @@ describe("what the restructure bought, and which must stay bought", () => {
 
 describe("the table's fourth row, checked against the table's own rule", () => {
   /**
-   * **The finding.** The head comment places the breakdown's popover above §9's rail, and the same
-   * comment's own rule says a surface nested in a cell paints no higher than that cell. The popover
-   * is nested in the price cell, which declares `3`; the rail declares `4`.
-   *
-   * At `55c0a9b~1` this held, and by the rule rather than in spite of it: `.priceRow` declared **no
-   * `z-index` at all**, so it established no context and the desktop `.anchor`'s own `6` reached the
-   * root stacking context — above the rail, exactly as `price-breakdown.module.css` still says it
-   * does. The restructure gave the cell a number, first `2` and then `3`, and capped the popover
-   * with it.
-   *
-   * Reproduced in isolation in headless Chromium at 1440 x 900 with nothing but these declarations:
-   * `elementFromPoint` inside the two boxes' overlap returns the rail.
+   * The head comment places the breakdown's popover above §9's rail, but a surface nested in a cell paints no
+   * higher than that cell and the popover is nested in the price cell. So `price-breakdown.module.css`'s own number
+   * only matters while the price cell does not cap it below the rail.
    */
   it("lets the popover paint above the rail, which is what the table claims", () => {
     expect(
@@ -240,17 +176,15 @@ describe("the table's fourth row, checked against the table's own rule", () => {
     ).toBeGreaterThan(LAYER.rail);
   });
 
-  /** The same claim from the other end, so a fix that lowered the rail instead of raising the cell
-   *  is still a fix and this file still passes. */
+  /** The same claim from the other end: lowering the rail instead of raising the cell would still pass. */
   it("leaves no layer between the price cell and the popover's own declaration", () => {
     expect(LAYER.rail).not.toBeGreaterThan(LAYER.priceCell);
   });
 });
 
 describe("the same rule, reaching the locale cell's new menu", () => {
-  /** The structural fact this section rests on, read off the markup rather than assumed: the list is
-   *  a child of `.locale`, so the cell's context bounds it exactly as the price cell bounds the
-   *  breakdown's popover. */
+  /** The list is a child of `.locale`, so the cell's context bounds it exactly as the price cell bounds the breakdown's
+   *  popover; read off the markup. */
   it("mounts the language list inside the locale cell", () => {
     const menu = read("app/configurator/configure/locale-menu.tsx");
     const cell = /styles\.locale}[\s\S]*?<\/div>/.exec(menu)?.[0] ?? "";
@@ -258,10 +192,8 @@ describe("the same rule, reaching the locale cell's new menu", () => {
     expect(cell).toContain("styles.localeList");
   });
 
-  /** The defect the ruling would otherwise have shipped: at the band's shared `2` the menu drops
-   *  straight over §9's desktop rail at `4` and is painted under it whenever a cabinet is selected —
-   *  a dropdown that opens into nothing. It is the breakdown's finding a second time, caught before
-   *  it landed rather than after. */
+  /** At the band's shared `2` the menu would drop over §9's desktop rail at `4` and paint under it whenever a
+   *  cabinet is selected: a dropdown that opens into nothing. */
   it("lets the open menu paint above the rail it drops over", () => {
     expect(
       LAYER.locale,

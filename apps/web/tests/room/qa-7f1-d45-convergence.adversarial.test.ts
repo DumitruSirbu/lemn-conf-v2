@@ -1,26 +1,4 @@
 // @vitest-environment happy-dom
-//
-// **Adversarial QA — wave 7F1-D45, the convergence loop between the draft and the URL.**
-//
-// The wave's own suites assert the loop over rooms the product approves and over one hostile key.
-// This file attacks the seams those cannot reach:
-//
-// - **the echo discriminator's residue is bounded** — the plan accepts *one* residue (unparsed text
-//   like *"3,"* surviving a Back that lands on the draft's own query) and forbids chasing it. What
-//   it does **not** state is that nothing worse can hide behind the same comparison. That is a
-//   property over drafts, not an example, and it is the first `describe` below;
-// - **criterion 21's at-most-one-write, over queries nobody would write on purpose** — repeated keys
-//   on every field, unknown keys, an empty key, unicode digits, a value 10 000 characters long, a
-//   query with a hundred keys;
-// - **the departure state machine as a sequence rather than as four arms** — two taps, a tap with a
-//   keystroke between them, a tap a traversal overtakes, and a flush that never lands;
-// - **`ru`**, which the wave's gate records as not exercised: idempotence and the flush's
-//   byte-identical round trip both rested on a locale-dependent format, and both suites render `ro`.
-//   Since wave 7F2 S1b (ADR 0126) a field shows whole millimetres and the draft takes no locale, so
-//   only the href builder's prefix is still swept over both.
-//
-// **Every guard here was falsified against a deliberate break in `room-query-sync.ts` before it was
-// kept**; the break each one catches is named on the test.
 import { fc } from "@fast-check/vitest";
 import {
   APPROVED_ROOM_POLICY,
@@ -93,9 +71,7 @@ const SCREEN_SWEEP_RUNS = 200;
 
 const EVERY_SHAPE: readonly RoomShape[] = ["linear", "L", "U"];
 
-/** Every locale `routing.ts` declares, read from it rather than restated — the wave's gate records
- *  `ru` as unexercised, and the flush's byte-identical round trip goes through a builder that prefixes
- *  the locale. A third locale is covered the day it is added. */
+/** Read from `routing.ts` so a third locale is covered the day it is added. */
 const EVERY_LOCALE = routing.locales;
 
 const ROOM_PATHNAME = "/configurator/room";
@@ -113,12 +89,7 @@ function draftFrom(search: string): RoomDraft {
   return roomDraftFromQuery(roomShapeInQuery(query) ?? "L", query);
 }
 
-// ---------------------------------------------------------------------------------------------
-// The echo discriminator: what a draft can still be hiding when its own query comes back
-// ---------------------------------------------------------------------------------------------
-
-/** A draft as the customer could have left it: a room from a query, then some text typed over one
- *  field — including text that never reads as a length, which is the residue the plan accepts. */
+/** A draft as the customer could have left it, including typed text that never reads as a length. */
 const ANY_DRAFT: fc.Arbitrary<RoomDraft> = fc
   .record({
     shape: fc.constantFrom(...EVERY_SHAPE),
@@ -153,16 +124,7 @@ const ANY_DRAFT: fc.Arbitrary<RoomDraft> = fc
 
 describe("the echo keeps a draft, and what it keeps is only what nobody can see", () => {
   it("agrees with a re-seed on the shape, every asked-for length and the direction", () => {
-    // **The accepted limit, asserted as a bound rather than as an example.** The plan admits one
-    // residue — text that never parsed staying in its field — and forbids adding a second
-    // discriminator to chase it. Nothing in the wave states that the residue stops there, and a
-    // worse one would be invisible: every URL assertion in both DOM suites passes either way,
-    // because by construction the URL and the kept draft agree.
-    //
-    // So the claim is made against the counterfactual: had the same live query been read as a
-    // different room, the draft it produced would show the **same room** — same shape, same
-    // millimetres in every field the shape asks for, same corner for the shapes that turn one. Only
-    // the notation a field shows may differ, and only where the URL carries no value at all.
+    // The kept draft shows the same room as a re-seed; only a field's notation may differ.
     fc.assert(
       fc.property(ANY_DRAFT, (draft) => {
         const ourOwnWrite = canonicalTextOf(draft);
@@ -192,10 +154,7 @@ describe("the echo keeps a draft, and what it keeps is only what nobody can see"
   });
 
   it("keeps a field the shape does not ask for, which is the customer's own earlier answer", () => {
-    // Recorded as behaviour rather than filed as a defect. A U's third wall survives a switch to L
-    // and comes back if the customer switches back — `withRoomShape`'s stated rule, *"the shape
-    // decides which fields are asked for, never what the customer has already said about a wall"*.
-    // It is invisible while the shape does not ask for it, so it is not a second residue class.
+    // A field the shape does not ask for survives a shape switch (`withRoomShape`); it is not residue.
     const uRoom = draftFrom(
       "shape=U&wallA=3.56&wallB=2.92&wallC=2.18&height=2.6&direction=left",
     );
@@ -206,12 +165,7 @@ describe("the echo keeps a draft, and what it keeps is only what nobody can see"
   });
 });
 
-// ---------------------------------------------------------------------------------------------
-// Idempotence and the flush's round trip, at the parser's own limits and through both locales' paths
-// ---------------------------------------------------------------------------------------------
-
-/** Lengths at the transitions rather than in the middle of a range: the smallest millimetre, the
- *  values whose display notation pads or strips a zero, and the largest the parser accepts at all. */
+/** Lengths at the transitions: the smallest millimetre, zero padding or stripping, and the parser's maximum. */
 const ANY_LENGTH_TEXT = fc.oneof(
   fc
     .integer({ min: 1, max: 9_999_999 })
@@ -255,11 +209,7 @@ const ANY_ARRIVING_QUERY = fc.record({
 
 describe("the loop settles once, at the parser's own limits", () => {
   it("writes a query that reading and writing again reproduces exactly", () => {
-    // Criterion 21's property, widened on the axis the wave's own sweep pins: the lengths there are
-    // ordinary. A refill the parser could not read back would make every field drop out of the
-    // canonical query on the *second* pass, and the screen would issue a navigation every settle
-    // interval, for ever. (The locale axis this once swept is gone: since ADR 0126 the refill writes
-    // whole millimetres and takes no locale.)
+    // A refill the parser could not read back would drop every field on the second pass and navigate on every settle.
     fc.assert(
       fc.property(
         ANY_ARRIVING_QUERY,
@@ -283,8 +233,6 @@ describe("the loop settles once, at the parser's own limits", () => {
   });
 
   it("puts the same millimetres in the field as it puts in the query", () => {
-    // The half idempotence alone cannot see: a formatter and a serialiser can agree with each other
-    // about a fixed point while both describe a room other than the one the URL names.
     fc.assert(
       fc.property(
         ANY_ARRIVING_QUERY,
@@ -313,10 +261,8 @@ describe("the loop settles once, at the parser's own limits", () => {
   });
 
   it("comes back from next-intl's href builder byte for byte, in either locale", () => {
-    // **What strand-freedom actually rests on.** A departure recognises its own flush by string
-    // equality between the text it wrote and `useSearchParams().toString()`. The wave asserts this
-    // for `ro`; a locale prefix is the one thing that differs between the two, and a builder that
-    // re-encoded a value while prefixing would strand every departure with criterion 21 still green.
+    // A departure recognises its own flush by string equality with `useSearchParams().toString()`;
+    // a builder that re-encoded a value while prefixing the locale would strand every departure.
     fc.assert(
       fc.property(
         ANY_ARRIVING_QUERY,
@@ -347,8 +293,6 @@ describe("the loop settles once, at the parser's own limits", () => {
   it.each(EVERY_LOCALE)(
     "keeps a full U room's six keys in their canonical order under %s",
     (locale) => {
-      // The concrete case beside the sweep: six keys is the longest query this screen writes, and
-      // *"same bytes"* is mostly a claim about order that a sweep can satisfy by luck of one shape.
       const flushed =
         "shape=U&wallA=3.56&wallB=2.92&wallC=2.18&height=2.6&direction=right";
 
@@ -362,28 +306,19 @@ describe("the loop settles once, at the parser's own limits", () => {
   );
 });
 
-// ---------------------------------------------------------------------------------------------
-// The screen, under queries nobody would write on purpose
-// ---------------------------------------------------------------------------------------------
-
 let container: HTMLDivElement;
 let root: Root;
 let screenProps: RoomScreenProps;
 
 /**
- * Whether the `replace` double echoes straight back, and the write it is holding when it does not.
- *
- * **One slot, because Next has one.** `app-router-instance.js:141-152` — read in the installed
- * 16.3.4 — marks a pending action **discarded** when a second navigation is dispatched, and
- * `runAction`'s `handleResult` (`:79-90`) returns before `actionQueue.state = nextState` for a
- * discarded one. So when two flushes are issued before either commits, the client only ever sees
- * the second. A double that delivered both would be modelling a router this repository does not
- * have — and it would report a strand that cannot happen.
+ * Whether the `replace` double echoes straight back, and the write it holds when it does not.
+ * One slot: Next 16.3.4 discards a pending navigation when a second is dispatched (`app-router-instance.js`),
+ * so the client only ever sees the newest write.
  */
 let echoesEveryWrite = true;
 let theWithheldEcho: string | undefined;
 
-/** Whether `arriveAt` re-renders the departure probe rather than the screen (7F2 criterion 13). */
+/** Whether `arriveAt` re-renders the departure probe rather than the screen. */
 let mountsTheDepartureProbe = false;
 
 function render(search: string, policy?: RoomPolicy): void {
@@ -392,8 +327,7 @@ function render(search: string, policy?: RoomPolicy): void {
   arriveAt(search);
 }
 
-/** The departure sequences' arrival: the sync and its departure over this query, with no screen
- *  around them — see `tests/support/departure-probe.ts` for why they moved. */
+/** The departure sequences' arrival: the sync and its departure over this query, with no screen around them. */
 function renderTheDepartureProbe(search: string): void {
   mountsTheDepartureProbe = true;
   arriveAt(search);
@@ -441,8 +375,7 @@ function withholdTheEchoes(): void {
   echoesEveryWrite = false;
 }
 
-/** The one write the router still holds, committing. Any earlier one was discarded by the rule
- *  quoted above and never reaches the client at all. */
+/** The one write the router still holds, committing; any earlier one was discarded and never reaches the client. */
 function deliverTheEcho(): void {
   if (theWithheldEcho === undefined) {
     throw new Error(
@@ -598,11 +531,7 @@ const A_HOSTILE_QUERY = fc
 
 describe("criterion 21 over queries nobody would write on purpose", () => {
   it("writes at most once, and nothing at all on the settle after that", () => {
-    // **Risk 1, over the input space the wave's own sweep does not reach.** Its 250 cases are rooms
-    // the approved policy describes; these are repeated keys on every field, unknown keys, an empty
-    // key, a value that spells another parameter, unicode digits and text. A query the canonical
-    // write does not reach a fixed point over would cost one request per settle interval, per
-    // customer, for as long as the tab is open.
+    // A query with no fixed point under the canonical write would cost one request per settle interval, per customer.
     fc.assert(
       fc.property(A_HOSTILE_QUERY, (search) => {
         browser.replace.mockClear();
@@ -612,8 +541,7 @@ describe("criterion 21 over queries nobody would write on purpose", () => {
         const afterTheFirstSettle = browser.replace.mock.calls.length;
         settle();
 
-        // A query naming no room gets **no** write, not one: *at most one* is the 1B bound, and
-        // reusing it for 1A is how a screen that erased the arriving link would pass this sweep.
+        // A query naming no room gets no write at all: `at most one` is the 1B bound, not 1A's.
         const namesARoom = roomShapeInQuery(queryOf(search)) !== undefined;
         expect(afterTheFirstSettle).toBeLessThanOrEqual(namesARoom ? 1 : 0);
         expect(browser.replace.mock.calls.length).toBe(afterTheFirstSettle);
@@ -623,10 +551,8 @@ describe("criterion 21 over queries nobody would write on purpose", () => {
   });
 
   it("comes to rest on a query the screen would write again unchanged", () => {
-    // *"At most one write"* is satisfied by a screen that writes nothing and sits on a URL it
-    // disagrees with. This is the other half: whatever the screen settles on, reading it back and
-    // writing it produces the same bytes — so the address bar the customer is left with is one the
-    // loop has actually converged on rather than one it gave up on.
+    // `At most one write` is also met by a screen that writes nothing; the resting query must be one the loop
+    // converged on.
     fc.assert(
       fc.property(A_HOSTILE_QUERY, (search) => {
         render(search);
@@ -658,8 +584,6 @@ describe("a repeated key is not a value, on every field the contract covers", ()
   it.each(["wallA", "wallB", "wallC", "height"] as const)(
     "empties %s and drops it from the query when the URL answers it twice",
     (field) => {
-      // The shipped contract, swept across the fields rather than asserted for `wallA` alone —
-      // `singleValue` is one function, but the fields reach it by four different routes.
       render(`${A_FULL_U_ROOM}&${field}=9.99`);
       settle();
 
@@ -669,8 +593,6 @@ describe("a repeated key is not a value, on every field the contract covers", ()
   );
 
   it("empties the field even when both answers agree", () => {
-    // The case that looks harmless and is the same contract: two answers are two answers, and a
-    // form that collapsed them because they matched would be picking a value the parser refuses.
     render(
       "shape=L&wallA=3.56&wallA=3.56&wallB=2.92&height=2.6&direction=left",
     );
@@ -681,10 +603,8 @@ describe("a repeated key is not a value, on every field the contract covers", ()
   });
 
   it("falls back to the toggle's own position when direction is answered twice", () => {
-    // **`right` first on purpose.** With `left` first, a reader that silently took the first of two
-    // answers would produce the same `left` the draft starts at, and the test would pass over the
-    // defect it exists to catch — the vacuous pass this whole seam is exposed to.
-    // An L, not a U (restated 2026-09-29, M7B U5 S1): a U carries no `direction` to answer twice.
+    // `right` first on purpose: a reader taking the first answer would yield the default `left` and pass vacuously.
+    // An L, not a U: a U carries no `direction` to answer twice.
     render(
       "shape=L&wallA=3.56&wallB=2.92&height=2.6&direction=right&direction=left",
     );
@@ -695,8 +615,7 @@ describe("a repeated key is not a value, on every field the contract covers", ()
   });
 
   it("shows the shape step when the shape itself is answered twice", () => {
-    // I6's boundary through the repeated-key seam: two shapes name no room, so there is no room to
-    // write and the link the customer arrived on must survive untouched.
+    // Two shapes name no room, so nothing is written and the arriving link must survive untouched (I6).
     render(`${A_FULL_U_ROOM}&shape=L`);
     settle();
 
@@ -714,11 +633,7 @@ describe("a query that names no room is a query the screen must not touch (I6)",
     ["a shape the product does not have", "shape=hexagonal&wallA=3.56"],
     ["a shape answered twice", "shape=L&shape=U&wallA=3.56&height=2.6"],
   ])("asks the router for nothing at all for %s", (_case, search) => {
-    // **Zero, not *at most one*.** These cases were written as *"settles in at most one write"*
-    // alongside the 1B ones, and a break that made 1A writable left them green — one write satisfies
-    // *at most one*. I6 is not a bound on the number of writes at 1A, it is their absence: the
-    // customer arrived on a link, and a screen that rewrote it before they had done anything would
-    // erase the thing they followed.
+    // Zero, not `at most one`: at 1A a screen that rewrote the arriving link would erase it.
     render(search);
     settle();
     settle();
@@ -776,9 +691,7 @@ describe("hostile arrivals the screen must survive without writing twice", () =>
   });
 
   it("refuses a length that only a lenient number reader would accept", () => {
-    // `Number("1e3")` is 1000 and `Number("3 560")` is `NaN` only by luck of the space. The parser
-    // reads a digit string with at most one separator, so neither is a length, and neither may
-    // reach a field or the query.
+    // `Number("1e3")` is 1000; the parser reads one digit string with at most one separator, so neither is a length.
     render("shape=L&wallA=1e3&wallB=3%20560&height=2.6&direction=left");
     settle();
 
@@ -788,11 +701,8 @@ describe("hostile arrivals the screen must survive without writing twice", () =>
   });
 
   it("reads a length the URL padded with spaces, and writes it back trimmed", () => {
-    // The deliberate half of the same rule: `parseMetresToMillimetres` trims before it matches, so
-    // `?wallA=%203.56%20` is the room the customer stored and not a refusal. Asserted because the
-    // trim is what makes the case above a *shape* question rather than a whitespace one — and
-    // because the value that goes back into the query must be the trimmed one, or the loop would
-    // write a query that arrives as a different string every settle.
+    // `parseMetresToMillimetres` trims before matching, so the padded value is the stored room and the query
+    // carries it trimmed.
     render("shape=L&wallA=%203.56%20&wallB=2.92&height=2.6&direction=left");
     settle();
     settle();
@@ -805,27 +715,10 @@ describe("hostile arrivals the screen must survive without writing twice", () =>
   });
 });
 
-// ---------------------------------------------------------------------------------------------
-// The departure, as a sequence
-// ---------------------------------------------------------------------------------------------
-
 /**
- * **Driven on the departure probe, not on the screen** (re-homed by wave 7F2, criterion 13). Every
- * sequence here leads with *Continuă* and then needs a second tap or a keystroke, so the form has to
- * survive the first tap. On a room the domain accepts it does not — the tap starts sub-state 1F in
- * the same commit (7F4a) — and from 7F2 a room the domain refuses has no active *Continuă* to tap
- * (ADR 0120 decision 4). `tests/support/departure-probe.ts` runs the same `useRoomQuerySync` and the
- * same `departTo`, with a button per destination; each test's push count and flushed URL are
- * unchanged, and so is `room-query-sync.ts`.
- *
- * **The fixture is unchanged too**, 2,10 m ceiling and all, so every URL asserted below is the one it
- * always was. The refusal it was chosen for no longer matters: the probe composes nothing.
- *
- * **The mirror image is reachable and is covered elsewhere.** A sequence *led* by *Înapoi* still has a
- * form to tap in, and the second tap may be a *Continuă* that arms a departure **and** starts a run.
- * That interaction did not exist before 7F4a; it is pinned in
- * `tests/room/room-composition.dom.test.ts` under *"a departure in flight, with a composition beside
- * it"*.
+ * Driven on the departure probe, not on the screen: a second tap needs the form to survive the first,
+ * and a room the domain refuses has no active *Continuă* to tap.
+ * A sequence led by *Înapoi* is covered in `tests/room/room-composition.dom.test.ts`.
  */
 const A_ROOM_MISSING_WALL_A = "shape=L&wallB=2.92&height=2.1&direction=left";
 const THE_FLUSHED_ROOM =
@@ -833,9 +726,7 @@ const THE_FLUSHED_ROOM =
 
 describe("the departure state machine, over sequences rather than single taps", () => {
   it("pushes exactly once when the customer taps twice before the flush lands", () => {
-    // A double tap is the ordinary impatient gesture, and the departure is a ref rather than state:
-    // if the second tap armed a second departure without replacing the first, the echo would push
-    // twice and the customer would land two entries deep.
+    // The departure is a ref, not state: a second tap that armed a second departure would push twice.
     renderTheDepartureProbe(A_ROOM_MISSING_WALL_A);
     withholdTheEchoes();
     type("wallA", "3560");
@@ -849,8 +740,6 @@ describe("the departure state machine, over sequences rather than single taps", 
   });
 
   it("leaves by the second button when the two taps disagree about where to go", () => {
-    // *Continuă* then *Înapoi* before either flush lands. Both flush the same text, so the second
-    // tap re-arms over the first and the destination the customer asked for last is the one taken.
     renderTheDepartureProbe(A_ROOM_MISSING_WALL_A);
     withholdTheEchoes();
     type("wallA", "3560");
@@ -864,16 +753,8 @@ describe("the departure state machine, over sequences rather than single taps", 
   });
 
   it("waits on the newest flush when a keystroke lands between two taps", () => {
-    // **The sequence where the departure's correctness is borrowed from the router, and the borrow
-    // is not written down anywhere.** A keystroke between two taps makes the second tap flush a
-    // *different* text from the first, so two flushes are issued before either commits. The
-    // departure holds one `flushedText` and pushes only on that exact string — which is safe solely
-    // because Next discards the pending navigation when the second is dispatched
-    // (`app-router-instance.js:141-152`), so the first flush never reaches the client.
-    //
-    // **What this test pins is the half that is ours:** the second tap must re-arm over the first
-    // and wait on the newer text. A departure that kept the first arming would wait for a query the
-    // router has thrown away, and the primary button would do nothing at all.
+    // Two flushes are issued before either commits and Next discards the first (`app-router-instance.js`),
+    // so the second tap must re-arm over the first and wait on the newer text.
     renderTheDepartureProbe(A_ROOM_MISSING_WALL_A);
     withholdTheEchoes();
     type("wallA", "3560");
@@ -890,8 +771,6 @@ describe("the departure state machine, over sequences rather than single taps", 
   });
 
   it("recovers from a flush that never lands when the customer taps again", () => {
-    // The resting place the module names: a dropped flush leaves the departure armed, and the next
-    // tap re-issues it. Asserted so *"the next tap resolves it"* is a test rather than a comment.
     renderTheDepartureProbe(A_ROOM_MISSING_WALL_A);
     withholdTheEchoes();
     type("wallA", "3560");
@@ -906,9 +785,8 @@ describe("the departure state machine, over sequences rather than single taps", 
   });
 
   it("stops writing the URL at all while a flush is outstanding", () => {
-    // The suppression rule's full cost, stated rather than left to be discovered: it is not one
-    // character. Until the flush lands — or the customer taps again — nothing typed reaches the
-    // URL, so a reload in that window restores the flushed room and not the typed one.
+    // Until the flush lands or the customer taps again nothing typed reaches the URL; a reload restores the flushed
+    // room.
     renderTheDepartureProbe(A_ROOM_MISSING_WALL_A);
     withholdTheEchoes();
     type("wallA", "3560");
@@ -926,8 +804,6 @@ describe("the departure state machine, over sequences rather than single taps", 
 
   it("flushes a field the customer has just emptied, rather than the value it held", () => {
     // *Înapoi* is enabled at every sub-state, so a departure can carry a draft the CTA would refuse.
-    // The entry left behind must hold what the customer can see — an emptied field is an emptied
-    // key, not the value that was there before they touched it.
     render("shape=L&wallA=3.56&wallB=2.92&height=2.6&direction=left");
     withholdTheEchoes();
     type("wallA", "3,");
@@ -942,12 +818,8 @@ describe("the departure state machine, over sequences rather than single taps", 
   });
 
   it("pushes when a traversal lands on exactly the query it flushed", () => {
-    // **The departure's own echo collision, recorded rather than filed.** A Back that lands on the
-    // very text we flushed is indistinguishable from the flush committing, so the push fires. That
-    // is the right outcome and not a residue: the customer is looking at the room they asked to
-    // leave *from*, so they are sent where they asked to go. Written down so a later reader does
-    // not add a second discriminator here — the plan forbids exactly that on the read side, and the
-    // same argument applies.
+    // A Back landing on the flushed text is indistinguishable from the flush committing, so the push fires; add no
+    // second discriminator.
     renderTheDepartureProbe(A_ROOM_MISSING_WALL_A);
     withholdTheEchoes();
     type("wallA", "3560");
@@ -960,16 +832,14 @@ describe("the departure state machine, over sequences rather than single taps", 
   });
 
   it("writes nothing more once a departure has been disarmed by an unrelated room", () => {
-    // I2 and the disarm rule together: after a traversal the only write owed is the new room's own
-    // canonicalising one, and the query the customer navigated away from must never be written.
+    // After a traversal the only write owed is the new room's canonicalising one (I2).
     renderTheDepartureProbe(A_ROOM_MISSING_WALL_A);
     withholdTheEchoes();
     type("wallA", "3560");
     click(DEPART_TO_PRESETS);
     browser.replace.mockClear();
 
-    // An L (restated 2026-09-29, M7B U5 S1): a U arrives already canonical, with no `direction` to
-    // add, so it owes no canonicalising write; an L without one does.
+    // An L: a U arrives already canonical with no `direction` to add, so it owes no canonicalising write.
     arriveAt("shape=L&wallA=4.2&wallB=3.1&height=2.5");
     settle();
     settle();
@@ -985,9 +855,8 @@ describe("the departure state machine, over sequences rather than single taps", 
 
 describe("a traversal beats a pending write (I2)", () => {
   it("never writes the room the customer has navigated away from", () => {
-    // The accepted limit read from the other side: a keystroke inside the settle interval is lost
-    // when a traversal overtakes it, and what must **not** happen is the worse outcome — the timer
-    // firing anyway and stamping the old room's query onto the entry the customer has just reached.
+    // A keystroke inside the settle interval is lost when a traversal overtakes it; the timer must not stamp the
+    // old room's query.
     render("shape=L&wallA=3.56&wallB=2.92&height=2.6&direction=left");
     type("wallA", "4560");
 
@@ -1003,15 +872,8 @@ describe("a traversal beats a pending write (I2)", () => {
   });
 
   it("draws the dimensions step exactly when the live query names a room", () => {
-    // **What I6 actually rests on, now that the sync's own guard cannot fire.**
-    // `liveQueryNamesARoom` in `room-query-sync.ts` is `roomShapeInQuery(liveQuery) !== undefined`,
-    // and `room-screen.tsx` mounts the step on `roomShapeInState(parseRoomUrlState(liveQuery))` —
-    // the same pure function over the same value in the same render. So the guard is true whenever
-    // the hook runs at all: **no test can falsify it, and I6 is held by this branch alone.**
-    //
-    // That is fine while the two agree, and this is the test that says so over hostile queries
-    // rather than over one. If a later wave keeps the form mounted at 1A — or branches on the
-    // draft's shape instead — the guard becomes load-bearing again and this goes red first.
+    // The sync's own `liveQueryNamesARoom` guard cannot fire, since the screen mounts the step on the same function,
+    // so this branch alone holds I6 and must follow the live query, not the draft's shape.
     fc.assert(
       fc.property(A_HOSTILE_QUERY, (search) => {
         render(search);
@@ -1030,8 +892,7 @@ describe("a traversal beats a pending write (I2)", () => {
   });
 
   it("asks the router for nothing once the live query stops naming a room", () => {
-    // I6 after a departure rather than on arrival: the back button's own entry is the bare pathname,
-    // and a settle that rewrote it would undo the navigation 400 ms after the customer made it.
+    // The back button's entry is the bare pathname; a settle that rewrote it would undo the navigation.
     render("shape=L&wallA=3.56&wallB=2.92&height=2.6&direction=left");
     type("wallA", "4560");
 
@@ -1054,13 +915,8 @@ describe("the sub-state markers read the live query and lag the field by the set
   }
 
   it("still marks a field the customer has already filled, until the URL catches up", () => {
-    // **Criterion 19's third arm has a window, and it is `URL_SETTLE_MS` wide.** The markers are
-    // derived from `useSearchParams()` — which is what makes a segment restored on Back
-    // self-correct — and the consequence is that between a keystroke and the settle they describe
-    // the URL rather than the field beside them. Not a defect: criterion 23's traversal reads them
-    // after the URL settles, and the alternative (deriving them from the draft) is the second
-    // authority ruling R9 removed. **Pinned so a later reader meets it as a decision**, and so an
-    // e2e that asserted a marker without first waiting on the URL fails here instead of flaking.
+    // The markers derive from `useSearchParams()`, so for `URL_SETTLE_MS` after a keystroke they describe the URL,
+    // not the field; an e2e asserting a marker must wait on the URL first.
     render("shape=L&wallB=2.92&height=2.6&direction=left");
 
     type("wallA", "3560");
@@ -1074,10 +930,8 @@ describe("the sub-state markers read the live query and lag the field by the set
   });
 
   it("keeps the step on screen while the draft's shape runs ahead of the query's", () => {
-    // The same window at the shape seam, where it would be far worse. The branch between 1A and 1B
-    // is the **live query's** shape, and the chips are the draft's — so for one settle interval the
-    // two disagree. What must not happen is the step disappearing under the customer: a branch that
-    // followed the draft would unmount the form the moment a chip was tapped.
+    // The 1A/1B branch follows the live query's shape, not the draft's; a draft-following branch would unmount
+    // the form.
     render(
       "shape=U&wallA=3.56&wallB=2.92&wallC=2.18&height=2.6&direction=left",
     );
@@ -1097,11 +951,7 @@ describe("the sub-state markers read the live query and lag the field by the set
 
 describe("the policy stays the only buildability answer under a hostile query", () => {
   it("offers no way on from a room the policy does not state", () => {
-    // A U room fully answered by the URL is 1C, not 1D, when the policy states no U bounds: the CTA
-    // is refused because of the policy, and never because a component spelled the letter. 7J S5
-    // added the straight kitchen's and M7B U6 S1 (census W4) the U's, so the premise line is
-    // restated to the three shapes and the subject moves to a policy that states no U — the
-    // premise is asserted, not assumed.
+    // With no U bounds in the policy a fully answered U is 1C: the CTA is refused by policy, not by a component.
     expect(Object.keys(APPROVED_ROOM_POLICY.buildableShapes).sort()).toEqual([
       "L",
       "U",

@@ -1,14 +1,3 @@
-// Adversarial pass on wave 5D2c's stepper, in the states the sweep next door cannot enter.
-//
-// **This file replaces `width-chips.qa.test.ts`.** That file's subject was a kitchen where a *chip*
-// could be free; this one's is the two things a two-button control has that a thirteen-chip row did
-// not: a **bound**, which is where ADR 0032's "disabled carrying its reason" finally has to produce
-// four different sentences, and a **walk**, because the customer reaches a bound by pressing rather
-// than by reading a row.
-//
-// The property is the one ADR 0035's consequences name: *at every reachable width, each button is
-// enabled if and only if the step it offers succeeds.* It is asserted by actually walking, one press
-// at a time, through every width the shipped kitchen can reach.
 import {
   buildableWidthSpanMm,
   cabinetDepthMmOf,
@@ -46,8 +35,7 @@ import { PAL_KITCHEN } from "../support/panel-material";
 const PROBE = createFakeBodyProbe();
 const OCCURRED_AT = "2026-08-30T12:00:00.000Z";
 
-/** ADR 0011 Gap D: the extents are frozen from the whole design at load. A resize is the one command
- *  that returns a changed map, so the walk below carries the map forward rather than re-deriving it. */
+/** Extents are frozen from the whole design at load (ADR 0011 Gap D); the walk carries the map forward from here. */
 const SEEDED_COLUMNS = deriveColumns(
   derivePlacementRecords(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG),
   {},
@@ -161,19 +149,13 @@ function press(
     occurredAt: OCCURRED_AT,
   });
   if (!result.ok) return undefined;
-  // ADR 0011 Gap D: `setWidth` is the one command that returns a changed column map, and the walk
-  // has to carry it forward exactly as the store does — re-deriving would shrink every column to
-  // what is left in it and the next step would be judged against a kitchen that never existed.
+  // `setWidth` is the one command that returns a changed column map (ADR 0011 Gap D); re-deriving it would judge the
+  // next step against a kitchen that never existed.
   return { design: result.design, columns: result.effect.columns };
 }
 
-// -------------------------------------------------------------------------------------------
-// The property, walked rather than read.
-// -------------------------------------------------------------------------------------------
-
-/** The bodies the shipped kitchen renders a stepper on and that can actually move — the ten whose
- *  `−50` the sweep in `width-stepper.test.ts` finds enabled. Named rather than discovered, so a walk
- *  that silently stopped visiting one fails here instead of passing over nine. */
+/** The ten bodies whose `−50` the sweep in `width-stepper.test.ts` finds enabled. Named rather than discovered, so a
+ *  walk that silently stopped visiting one fails here. */
 const WALKABLE_IDS = [
   "p0",
   "p4",
@@ -188,15 +170,8 @@ const WALKABLE_IDS = [
 ] as const;
 
 describe("at every reachable width, a button is enabled iff its step succeeds", () => {
-  // **ADR 0035's consequences, verbatim: "the `free`/`blocked` property test survives in a stronger
-  // form."** 5D asked the question once per body, at the width the fixture happened to ship it at.
-  // A stepper is reached by *pressing*, so the question has to be asked again after every press —
-  // and the states a customer actually visits are the ones a shrink creates, which no fixture holds.
-  //
-  // Non-tautological by construction: the panel's answer comes from `widthStepsFor`, and the claim
-  // is checked against a **separate** `setWidth` run at the width the rendered button carries. A
-  // query that judged a different width than the button offers, or a panel that stopped consulting
-  // it, fails here rather than agreeing with itself.
+  // The panel's answer comes from `widthStepsFor` and is checked against a separate `setWidth` run at the width the
+  // rendered button carries, so the property cannot agree with itself.
   it.each(WALKABLE_IDS)("holds all the way down from %s's own width", (id) => {
     let kitchen = SEEDED_KITCHEN;
     const visited: number[] = [];
@@ -208,9 +183,7 @@ describe("at every reachable width, a button is enabled iff its step succeeds", 
         throw new Error(
           `no stepper on ${id} after ${String(pressCount)} presses`,
         );
-      // **The fact, not the copy.** This used to parse `valueLabel`, so a copy edit to
-      // `ro.panel.widthValue` would have broken the strongest test in the wave for a reason
-      // unrelated to the property it asserts (5D2c clean-code review N8).
+      // The fact, not the copy: parsing `valueLabel` would break this test on a copy edit.
       const body = world.records.find((record) => record.id === id);
       if (!body) throw new Error(`no record ${id}`);
       visited.push(body.widthMm);
@@ -231,9 +204,8 @@ describe("at every reachable width, a button is enabled iff its step succeeds", 
       kitchen = next;
     }
 
-    // The walk did real work and ended at a bound rather than at the loop guard. Every visited width
-    // is one step below the last, which is ADR 0035 decision 1's relative stepping observed rather
-    // than assumed.
+    // The walk ended at a bound, not at the loop guard, and each width is one step below the last (ADR 0035 decision
+    // 1).
     expect([id, visited.length > 1]).toEqual([id, true]);
     expect([id, visited.length < 20]).toEqual([id, true]);
     expect([id, visited]).toEqual([
@@ -242,10 +214,6 @@ describe("at every reachable width, a button is enabled iff its step succeeds", 
     ]);
   });
 });
-
-// -------------------------------------------------------------------------------------------
-// ADR 0032: a button at a bound is disabled CARRYING ITS REASON, and there are four of them.
-// -------------------------------------------------------------------------------------------
 
 /** Walks `id` down until the `−50` refuses, and returns the section standing at that floor. */
 function walkToFloor(id: string): WidthStepperSection {
@@ -261,8 +229,7 @@ function walkToFloor(id: string): WidthStepperSection {
   throw new Error(`${id} never reached a floor`);
 }
 
-/** ADR 0035's column bound, spoken as a bound: the one sentence three of the four floors and the
- *  ceiling all produce, so only what varies between them is written at each call. */
+/** ADR 0035's column bound as one sentence shared by three floors and the ceiling; callers give only what varies. */
 function columnBoundReason(bound: {
   readonly label: ReturnType<typeof entryLabel>;
   readonly minMm: number;
@@ -282,23 +249,15 @@ function columnBoundReason(bound: {
 }
 
 describe("the four floors and the one ceiling, each said in the engine's own words", () => {
-  // **§7's 800 mm ceiling**, which ADR 0035 decision 2 made the bound every cabinetry row carries
-  // and decision 5 confirmed for the hood as well ("for hood there should not be any >800 mm width
-  // cabinet"). It is reachable at load — `p0`, `p11` and `p17` all stand at 800 — and it is the
-  // most-read refusal in the whole stepper, which is why 5D2b's product-logic review R1.1 spent a
-  // wave on the sentence: it used to list eleven chips and thereby deny 570, a width the cabinet is
-  // genuinely built at.
+  // §7's 800 mm ceiling (ADR 0035 decision 2) is reachable at load: `p0`, `p11` and `p17` stand at 800.
   it("names the bound as a bound on the `+50` at 800 mm, never as a list", () => {
     const section = stepperAt(worldFrom(SEEDED_KITCHEN), "p11");
     if (!section) throw new Error("no stepper on p11");
     const wider = section.steps[1];
     expect(wider.widthMm).toBe(850);
     expect(wider.isDisabled).toBe(true);
-    // **`boundScope: "column"`, since 2026-08-30.** This pin was the clearest statement of 5D2c
-    // product-logic B1: 560 is the *sink's* floor from this column, and a wall cabinet is built
-    // 200-800 — so under the body's name the sentence was false about the very cabinet it named. It
-    // now attributes the bound to the column that owns it, and asserting the descriptor rather than
-    // the sentence is what fails when the scope goes back to `"body"` under identical wording.
+    // `boundScope: "column"` attributes the bound to the column that owns it; asserting the descriptor fails if the
+    // scope reverts to "body" under identical wording.
     expect(wider.reason).toBe(
       columnBoundReason({
         label: entryLabel("wall-cabinet"),
@@ -307,9 +266,8 @@ describe("the four floors and the one ceiling, each said in the engine's own wor
         availableMm: 800,
       }),
     );
-    // The half that was the blocker: a bound is spoken as a bound. Built as the sentence the *list*
-    // clause would have produced from the same code, label and available width — the list form
-    // denies every width between the chips, which is materially false of a cabinetry row.
+    // A bound is spoken as a bound: the list form would deny every width between the chips, which is false of
+    // cabinetry.
     expect(wider.reason).not.toBe(
       ro.rejection({
         code: "WIDTH_NOT_SUPPORTED",
@@ -323,8 +281,7 @@ describe("the four floors and the one ceiling, each said in the engine's own wor
     );
   });
 
-  // **The entry's own floor** (ADR 0017): the sink's 560 mm aperture bounds `A|1.30` from below, and
-  // the same sentence carries it — the range's `minMm` is the floor, so one refusal states both ends.
+  // The entry's own floor (ADR 0017): the sink's 560 mm aperture, stated by the range's `minMm` in the same sentence.
   it("names the sink's own 560 mm aperture on the `−50` that reaches it", () => {
     const section = walkToFloor("p11");
     expect(section.valueLabel).toBe("600 mm");
@@ -338,9 +295,7 @@ describe("the four floors and the one ceiling, each said in the engine's own wor
     );
   });
 
-  // **§2's default floor**, which governs every entry that declares none of its own. `p4`'s
-  // three-drawer base floors at 300 and the whole column follows it, which is ADR 0035 decision 2
-  // turning ADR 0031 rule 5 into a bound rather than a list.
+  // §2's default floor (ADR 0035 decision 2): `p4`'s three-drawer base floors at 300 and the whole column follows it.
   it("names §2's 300 mm floor on the `−50` at 300", () => {
     const section = walkToFloor("p4");
     expect(section.valueLabel).toBe("300 mm");
@@ -354,15 +309,9 @@ describe("the four floors and the one ceiling, each said in the engine's own wor
     );
   });
 
-  // **The hood's floor, new in wave 5D2b** (ADR 0035 decision 6 as amended 2026-08-29). It has its
-  // own rejection code because the sentence has to name the hood: the floor is folded into the
-  // column's bound, so `WIDTH_NOT_SUPPORTED` would state a minimum without saying what set it, and
-  // the hood is the one thing the customer could delete to unlock the column.
-  //
-  // Unreachable in the shipped kitchen as loaded — `p2` is `fixedWidth` and freezes `A|2.60`
-  // outright — so it is reached the way ADR 0035's 2026-08-30 correction says it is reached: in two
-  // ordinary taps. Delete the hob base under the hood, put a resizable base cabinet back in the
-  // opening, and the column is resizable with a 600 mm hood over it.
+  // The hood has its own rejection code so the sentence names it; `WIDTH_NOT_SUPPORTED` would state a minimum
+  // without saying what set it. Unreachable as loaded (`p2` is `fixedWidth`), so it is reached in two taps: delete the
+  // hob base, then insert a resizable base cabinet under the hood.
   it("names the hood on the `−50` of a column standing at the hood's width", () => {
     const cleared = removePlacement({
       design: KITCHEN_L_DESIGN,
@@ -393,8 +342,8 @@ describe("the four floors and the one ceiling, each said in the engine's own wor
     );
     if (!inserted) throw new Error("no inserted body");
 
-    // Both members of the column say it, each about itself: the base that was just inserted, and
-    // `p19`, the wall cabinet standing over it. Neither is the hood, and neither may narrow past it.
+    // Both column members say it: the inserted base and `p19`, the wall cabinet above it; neither may narrow past the
+    // hood.
     for (const id of [inserted.id, "p19"]) {
       const section = stepperAt(world, id);
       if (!section) throw new Error(`no stepper on ${id}`);
@@ -405,9 +354,7 @@ describe("the four floors and the one ceiling, each said in the engine's own wor
     }
   });
 
-  // The reason is the engine's own sentence rather than a re-wording, asserted against the refusal
-  // `setWidth` actually produced (ADR 0032 rule 2). A panel that paraphrased a refusal would read
-  // plausibly and fail here.
+  // The reason is the engine's own sentence, not a re-wording; a paraphrasing panel would read plausibly and fail here.
   it("renders every refusal through the one localized resolver", () => {
     const world = worldFrom(SEEDED_KITCHEN);
     let refusals = 0;
@@ -428,8 +375,7 @@ describe("the four floors and the one ceiling, each said in the engine's own wor
         expect([record.id, step.direction, step.reason]).toEqual([
           record.id,
           step.direction,
-          // `stepperAt` defaults to left (no direction argument above); the wall is `record`'s
-          // own, not the oracle's default — L1.1's own reason the two must agree per-wall.
+          // `stepperAt` defaults to left; the wall is `record`'s own, so the oracle and the panel must agree per wall.
           ro.rejection(result.reason, "left", record.wall),
         ]);
         refusals += 1;
@@ -439,19 +385,9 @@ describe("the four floors and the one ceiling, each said in the engine's own wor
   });
 });
 
-// -------------------------------------------------------------------------------------------
-// Openings no cabinet fits still expose the catalogue, with every candidate refused in place.
-// -------------------------------------------------------------------------------------------
-
 describe("an opening no cabinet fits says so in one sentence, with no rows", () => {
-  // ADR 0035 decision 7 creates this state: one press of `−50` vacates a selectable 50 mm strip.
-  //
-  // **ADR 0032 required the catalogue entries to stay visible carrying the engine's refusal; the
-  // owner reversed that on 2026-09-10** — *"show only what is possible to insert"* — so the strip
-  // now renders no rows at all. What has to survive is that the panel is not an empty box: §9's
-  // zero-result sentence takes over, and it is the **informative** arm, naming the narrowest width
-  // the catalogue is made at. That bound comes from `buildableWidthSpanMm` now that no row is left
-  // to carry a `widthRangesMm`, which is the seam this test is really standing on.
+  // An opening no cabinet fits shows no rows, only §9's zero-result sentence (ADR 0032 *Superseded*); its bound comes
+  // from `buildableWidthSpanMm`. One press of `−50` vacates a selectable 50 mm strip.
   it("names the narrowest cabinet for a strip narrower than any of them", () => {
     const section = stepperAt(worldFrom(SEEDED_KITCHEN), "p4");
     if (!section) throw new Error("no stepper on p4");
@@ -472,10 +408,8 @@ describe("an opening no cabinet fits says so in one sentence, with no rows", () 
     );
   });
 
-  // **ADR 0037's own paragraph, and the owner's answer to it: "ok to have empty space left."** An
-  // opening over §7's 800 mm ceiling fits no cabinet at all, and §9's zero-result rule inverts —
-  // clearing a neighbour makes it wider. The shipped kitchen holds no column that wide, so this is a
-  // synthetic 950 mm one, the width 5D2a's QA measured as reachable.
+  // Over §7's 800 mm ceiling no cabinet fits and §9's zero-result rule inverts: clearing a neighbour widens the
+  // opening. The shipped kitchen holds no such column, so this one is a synthetic 950 mm.
   it("names the widest cabinet for a span wider than every one of them", () => {
     const design: Design = {
       room: { shape: "L", widthMm: 3600, depthMm: 2400, heightMm: 2600 },
@@ -516,28 +450,16 @@ describe("an opening no cabinet fits says so in one sentence, with no rows", () 
 
     expect(replace.rows).toEqual([]);
     expect(replace.countLine).toBeUndefined();
-    // ADR 0037's inversion, and the owner's *"ok to have empty space left"*: the sentence names the
-    // widest cabinet there is rather than asking for a delete that would widen the opening further.
+    // The sentence names the widest cabinet there is rather than asking for a delete that would widen the opening.
     expect(replace.emptyLine).toBe(
       ro.panel.noOffersTooWide(950, span?.maxMm ?? -1),
     );
   });
 });
 
-// -------------------------------------------------------------------------------------------
-// The copy, pinned — because this milestone has shipped a false sentence behind a green suite twice.
-// -------------------------------------------------------------------------------------------
-
 describe("§9's width copy describes the control that is actually there", () => {
-  // **The trap, recorded twice in this milestone.** M4's note said the resize was unavailable and
-  // wave 5D made that a lie the day the chips became clickable; 5D2a shipped a refusal listing
-  // thirteen widths while denying one the cabinet is built at. Neither was pinned. This is the pin,
-  // and it is about the *claim* rather than the wording — a copy edit should not fail it, a
-  // reintroduced disclaimer must.
-  // **The three patterns below are deliberate Romanian literals and are load-bearing.** They are
-  // *negative* claims about the source wording — a reintroduced disclaimer must fail here — and a
-  // catalogue read cannot express "this sentence is not in the catalogue". They belong on wave
-  // 6B-j's allow-list rather than in a conversion.
+  // A reintroduced unavailability disclaimer must fail here. The patterns are deliberate Romanian literals: they are
+  // negative claims about the source wording, which a catalogue read cannot express.
   it("never tells the customer the feature is unavailable", () => {
     for (const note of [ro.panel.widthStepNote, ro.panel.widthChoiceNote]) {
       // eslint-disable-next-line no-restricted-syntax -- 6B-j allow-list: a negative claim about the source wording: a reintroduced unavailability disclaimer must fail here.
@@ -547,17 +469,9 @@ describe("§9's width copy describes the control that is actually there", () => 
     }
   });
 
-  // **The clause 5D's note carried and this wave had to remove.** "Sub 300 mm nu se coboară" is true
-  // of most cabinetry and false as a universal: ADR 0026's bottle cargo reaches 200, ADR 0017's sink
-  // column floors at 600, and since 5D2b a hood floors its column at its own width. The floor now
-  // lives on the disabled `−50`, which states the one that applies to *this* column.
-  // **The `/spațiului liber/i` below is on 6B-j's allow-list for a different reason than the
-  // negatives above.** It is a *positive* substring claim, so "a catalogue read cannot express it"
-  // does not apply — reading the leaf back would express it, and would be a tautology that passes
-  // whatever the sentence says. What it is instead is a claim that the note keeps naming the free
-  // space as the source of the width, which is the half of the clause 5D got wrong; matched
-  // case-insensitively on the one noun phrase the claim cannot lose, so a rewording around it is
-  // not a false red.
+  // "Sub 300 mm nu se coboară" is false as a universal: floors vary per column and live on the disabled `−50`.
+  // `/spațiului liber/i` is a positive claim kept as a literal because reading the leaf back would be a tautology; it
+  // matches the one noun phrase the claim cannot lose.
   it("states the step and where the width comes from, without claiming a universal floor", () => {
     expect(ro.panel.widthStepNote).toContain("50");
     // eslint-disable-next-line no-restricted-syntax -- 6B-j allow-list: a positive claim that the note keeps naming the free space, matched on the one noun phrase it cannot lose — the note above records why it is not a tautology.
@@ -565,15 +479,12 @@ describe("§9's width copy describes the control that is actually there", () => 
     expect(ro.panel.widthStepNote).not.toContain("300");
   });
 
-  // The discrete control says why it is discrete without naming a cause it does not always have:
-  // `base-bottle-cargo` is cabinetry and discrete for ADR 0026's own reason, so "the appliance fixes
-  // it" would be false on it.
+  // `base-bottle-cargo` is cabinetry and discrete for ADR 0026's own reason, so "the appliance fixes it" would be
+  // false.
   it("does not tell a bottle cargo that an appliance fixed its width", () => {
     expect(ro.panel.widthChoiceNote).not.toMatch(/electrocasnic/i);
   });
 
-  // The note the customer reads is the one the model publishes, asserted through real sections of
-  // both kinds — a note changed in `ro.json` and not wired here would otherwise stay invisible.
   it("is the note each rendered control actually carries", () => {
     const world = worldFrom(SEEDED_KITCHEN);
     const stepper = stepperAt(world, "p0");
@@ -589,9 +500,7 @@ describe("§9's width copy describes the control that is actually there", () => 
     expect(choice.note).toBe(ro.panel.widthChoiceNote);
   });
 
-  // 7I-A15 / ADR 0129 D8: a right-hand room reads the reflected sentence, and left is unmoved
-  // whether the direction is passed explicitly or the input carries none at all (D2's "absent
-  // means left", the panel's reader of it).
+  // ADR 0129 D8: a right-hand room reads the reflected sentence; an absent direction means left (D2).
   it("reads the reflected widthStepNote on a right-hand room, on wall A", () => {
     const world = worldFrom(SEEDED_KITCHEN);
 
@@ -605,11 +514,8 @@ describe("§9's width copy describes the control that is actually there", () => 
     expect(omitted?.note).toBe(left?.note);
   });
 
-  // 7I review L1.1: wall B's own crossing is the *opposite* of wall A's (`content.ts`'s
-  // `crossesOnScreen`, proved against the real camera in
-  // `qa-7i-screen-side.adversarial.test.ts`) — the reflected note reads on a *left*-hand wall-B
-  // stepper, and the plain one on a right-hand wall-B stepper, which is backwards from p0's wall A
-  // case just above.
+  // Wall B's crossing is the opposite of wall A's (`crossesOnScreen` in `content.ts`), so the reflected note reads on a
+  // left-hand wall-B stepper.
   it("reads the reflected widthStepNote on a left-hand room, on wall B", () => {
     const world = worldFrom(SEEDED_KITCHEN);
     const wallBStepperId = [
@@ -634,8 +540,6 @@ describe("§9's width copy describes the control that is actually there", () => 
     expect(right?.note).not.toBe(left?.note);
   });
 
-  // ADR 0035 decision 1's labels, and the accessible name beside them. The button face says the size
-  // of the step; the accessible name says what it steps.
   it("labels the two buttons with the step and names what each one does", () => {
     const section = stepperAt(worldFrom(SEEDED_KITCHEN), "p0");
     if (!section) throw new Error("no stepper on p0");
@@ -657,14 +561,8 @@ describe("§9's width copy describes the control that is actually there", () => 
 });
 
 describe("every discrete row is a well-formed set of chips", () => {
-  // **The one thing the retired chip tests genuinely lost** (5D2c clean-code review, item 6).
-  // `width-chips.adversarial.test.ts` swept every rendered section for *ascending, duplicate-free,
-  // exactly one active*. That invariant now survives only by enumeration: the shipped kitchen holds
-  // exactly three discrete rows and all three are pinned by value. Fine today, and it stops being
-  // fine the moment a fourth exists — with nothing failing when it does.
-  //
-  // A sweep rather than a fourth pinned row, because what is asserted is a property of the control
-  // and not of the kitchen.
+  // Swept because the shipped kitchen's three discrete rows are pinned only by enumeration; a fourth would go
+  // unchecked.
   it("renders them ascending, without duplicates, with exactly one active", () => {
     const world = worldFrom(SEEDED_KITCHEN);
     let sweptSections = 0;

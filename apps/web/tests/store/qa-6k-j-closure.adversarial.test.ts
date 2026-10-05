@@ -1,17 +1,6 @@
-// Adversarial QA on wave 6K-j — the **closure**, not the rule.
-//
-// ADR 0080 decision 5 says the fallback arm governs documents saved before wave 6K-c and nothing
-// else, and the wave's criteria turn that into an assertion. The argument has three legs:
-//
-//   1. every producer of a column carries a source, so no current-schema document reaches the arm;
-//   2. the two declared catalogues hold identical `buildId` sets, so *"a `buildId` the catalogue no
-//      longer holds"* is unreachable across a depth change;
-//   3. a deliberately source-stripped document does reach the arm, so the check is not vacuous.
-//
-// The implementer measured leg 1 over six scenarios it chose. This file measures it over every
-// deletable placement on the shipped fixture, over pairs, over an insert, and across a reload —
-// and then asks the question the criteria do not: whether **this** build writes a sourceless
-// column into a document it saves.
+// ADR 0080 decision 5: the fallback arm governs only documents descended from one saved before sources were recorded.
+// Three legs: every producer of a column carries a source; the two declared catalogues hold identical `buildId` sets;
+// a source-stripped document does reach the arm, so the check is not vacuous.
 import {
   buildKitchenLBodyCatalog,
   columnBuildDepthM,
@@ -128,9 +117,7 @@ function columnsReachingTheFallback(store: Store): readonly string[] {
 }
 
 describe("no current-schema document reaches the fallback arm", () => {
-  /** Every single delete the fixture allows, plus the pairs that clear a whole column, plus a
-   *  full-height insert — a far wider state set than the six scenarios ADR 0080 measured, and one
-   *  nobody chose knowing what the fix does. */
+  /** Every single delete the fixture allows, the pairs that clear a whole column, and a full-height insert. */
   function everyScenario(): readonly (readonly [string, () => Store | null])[] {
     const singles = everyPlacementId().map(
       (id) =>
@@ -205,9 +192,8 @@ describe("no current-schema document reaches the fallback arm", () => {
     return [...singles, ...pairs, ...withAnInsert];
   }
 
-  // Leg 1, swept. Every state is visited at both declared settings, after a depth round trip and
-  // after a reload, because a source that survives one command and not a save is still a document
-  // that reaches the arm.
+  // Leg 1, swept at both declared settings, after a depth round trip and after a reload: a source that survives one
+  // command and not a save still reaches the arm.
   it("carries a catalogue-known source on every column of every reachable state", () => {
     const reached: string[] = [];
     const refused: string[] = [];
@@ -237,15 +223,13 @@ describe("no current-schema document reaches the fallback arm", () => {
     }
 
     expect(reached).toStrictEqual([]);
-    // Non-vacuity: the sweep really visited a large state set. The refusals are enumerated rather
-    // than counted — `base-corner-x-900` is `canDelete: false` and the corner pair goes with it —
-    // so a scenario that silently stopped being buildable would show up here as a name.
+    // Non-vacuity: the sweep visited a large state set, and the refusals are enumerated so a scenario that silently
+    // stopped being buildable shows up as a name.
     expect(inspected).toBeGreaterThan(1000);
     expect([...refused].sort()).toStrictEqual(REFUSED_SCENARIOS);
   });
 
-  // Leg 2, measured here rather than trusted. The two catalogues must hold the same ids or a source
-  // recorded at one setting becomes unresolvable at the other, which is the arm's third input.
+  // Leg 2: the catalogues must hold the same ids, or a source recorded at one setting is unresolvable at the other.
   it("offers identical buildId sets at every declared setting", () => {
     const byDepth = declaredCabinetDepthsMm().map(
       (cabinetDepthMm) =>
@@ -268,9 +252,8 @@ describe("no current-schema document reaches the fallback arm", () => {
     }
   });
 
-  // …and the seeded ids the fixture's own frozen map records are in both, which is the specific way
-  // leg 2 could fail: the sources a *stored* document carries are seeded row ids, not the
-  // parameterised ones a rebuild swaps in.
+  // A stored document's sources are seeded row ids, not the parameterised ones a rebuild swaps in; they must resolve at
+  // both settings.
   it("resolves every source the shipped fixture's frozen map records, at both settings", () => {
     const store = createStore();
     const sources = [...store.getState().columns]
@@ -287,9 +270,8 @@ describe("no current-schema document reaches the fallback arm", () => {
     }
   });
 
-  // Leg 3: the check can fail. The fixture as shipped carries no frozen map at all, so the
-  // stripping has to happen on a document a command has already frozen — which is also the only
-  // shape the legacy population takes.
+  // Leg 3: the check can fail. The fixture ships no frozen map, so the stripping happens on a document a command has
+  // already frozen, which is also the only shape the legacy population takes.
   it("is reached by a document written before wave 6K-c", () => {
     const cleared = createStore();
     expect(tryRemove(cleared, ["p8", "p15"])).toBe(true);
@@ -299,16 +281,10 @@ describe("no current-schema document reaches the fallback arm", () => {
     ).toBeGreaterThan(0);
   });
 
-  // **The leg the criteria do not carry.** ADR 0080 decision 5 and the production comment beside the
-  // arm both say *"every column any build since then publishes carries a source, so nothing new
-  // enters this arm"*. That sentence is false of this build: decision 4's own answer carries **no**
-  // source by design, and `projectFrozenMap` writes it into the document. So a legacy document that
-  // has been through one depth change under this wave is saved still sourceless and reaches the arm
-  // again on every later load.
-  //
-  // Nothing is wrong with the behaviour — the arm converges to the ceiling and follows the setting —
-  // but the population is *"documents descended from one saved before wave 6K-c"*, not *"documents
-  // saved before wave 6K-c"*, and the difference is what a future reader of decision 5 would rely on.
+  // ADR 0080 decision 5's "every column a later build publishes carries a source" is false of this build: decision 4's
+  // own answer carries none by design and `projectFrozenMap` writes it, so a legacy document is saved still sourceless
+  // and reaches the arm on every later load. The behaviour is fine; the population is documents descended from a
+  // pre-source one, not documents saved before it.
   it("saves a sourceless column of its own, so the population is closed under descent and not by date", () => {
     const cleared = createStore();
     expect(tryRemove(cleared, ["p8", "p15"])).toBe(true);
@@ -352,26 +328,12 @@ describe("what actually changed, measured over a wider scenario set than the wav
     return states;
   }
 
-  // **The wave's headline criterion, re-measured over every deletable placement rather than six
-  // chosen scenarios.** A legacy document must publish what the current-schema document it was
-  // stripped from publishes, except where the missing source is the whole point — a base run's
-  // 620/720, which `columnBuildDepthM` cannot express at either setting.
-  //
-  // The enumerated set below is what this sweep measures. **The scenario-free statement of it is the
-  // one the wave's own file asserts** (`cabinet-depth-legacy-fallback.test.ts`): a legacy document
-  // never differs from its sourced twin where `columnBuildDepthM` could have expressed the sourced
-  // answer **at both declared settings**. Where it does differ, the missing source was the whole
-  // point — ADR 0073's stated residual, re-scoped by ADR 0080 decision 5, and not the ratchet.
-  //
-  // **The qualifier is load-bearing** (ADR 0080 amendment J and K). Dropped, the claim is false for an
-  // entry sitting on the ceiling at one setting and off it at the other, because the follow arm takes
-  // such a depth from the setting where it agrees to the setting where it does not. Exactly two
-  // entries do that — ADR 0058's pins — and the wave's own file carries the tripwire for a third.
-  //
-  // The entries are **not** all base or corner columns, and not all at the deeper setting; the
-  // earlier wording said so and was false of this snapshot. The catalogue holds at least five chains
-  // the ceiling cannot express — 620/720, 630/730, 638/738, 648/748 and 599/699 — so the set is
-  // written out whole rather than characterised by a band or a setting.
+  // A legacy document must publish what its sourced twin publishes, except where the missing source is the whole point
+  // (a base run's 620/720, which `columnBuildDepthM` cannot express at either setting). The scenario-free statement is
+  // in
+  // `cabinet-depth-legacy-fallback.test.ts`: no difference where `columnBuildDepthM` could have expressed the sourced
+  // answer at both declared settings. That qualifier is load-bearing (ADR 0080 amendments J and K): an entry on the
+  // ceiling at one setting and off it at the other does differ. The set below is written out whole.
   it("differs from its sourced twin only on a base run at the deeper setting", () => {
     const differences: string[] = [];
     for (const id of everyPlacementId()) {
@@ -395,23 +357,10 @@ describe("what actually changed, measured over a wider scenario set than the wav
       }
     }
 
-    // Written out whole rather than counted, because the count is what an earlier draft of the
-    // sibling suite asserted and it hid a slice (M6, wave 6K-c's 2026-09-05 correction).
-    //
-    // **Two wall-B keys in this snapshot moved at the deeper setting, and no value did** (wave 6J-d,
-    // ADR 0090 decision 2): a wall-A body's depth is measured along wall B, so a deeper corner slides
-    // wall B's whole run — `B|1.80` → `B|1.90` and `B|1.20` → `B|1.30`, both `base-formula`, both
-    // +100 mm. The `@600` and `@reload` rows are unchanged, which is the wave's value-preservation at
-    // 600 showing up here as a fixture.
-    //
-    // **Three `delete p23` rows left the set on 2026-09-07 and none arrived** (ADR 0101). They were
-    // the whole of `B|1.80`'s sourced-versus-legacy divergence, and the pin is what produced it: a
-    // source declaring 600 at every setting answers differently from a fallback that follows the
-    // setting, at every setting. Unpinned, the top's declaration and the fallback agree there and
-    // the column stops being a difference at all. **A shrinking snapshot is where a test quietly
-    // stops looking**, so the two rows that carry the wave's own subject — `p2`'s 620/600 pair at
-    // both settings, an unsourced surplus the ceiling cannot express — are named here as what keeps
-    // it non-vacuous.
+    // Written out whole rather than counted: a count hid a slice in an earlier draft. A wall-A body's depth is measured
+    // along wall B, so a deeper corner slides wall B's run (ADR 0090 decision 2): `B|1.80` → `B|1.90` and `B|1.20` →
+    // `B|1.30`, no value moved. `p2`'s 620/600 pair at both settings, an unsourced surplus the ceiling cannot express,
+    // keeps the snapshot non-vacuous.
     expect([...differences].sort()).toMatchInlineSnapshot(`
       [
         "delete p0 @700 A|1.30: sourced 720 legacy 620",
@@ -426,15 +375,9 @@ describe("what actually changed, measured over a wider scenario set than the wav
   });
 });
 
-// =================================================================================================
-// The anti-invariant, stated so it does not depend on a golden of the previous build.
-// =================================================================================================
-
 describe("the ratchet as an anti-invariant", () => {
-  /** Every depth `columnBuildDepthM` can produce at a setting the design is **not** declaring. A
-   *  published unsourced depth landing on one of these is a depth this rule produced at some other
-   *  setting and then held — which is the ratchet, named as a shape rather than as the two numbers
-   *  ADR 0080's measurement happened to catch. */
+  /** Every depth `columnBuildDepthM` can produce at a setting the design is not declaring: an unsourced depth
+   *  landing on one was produced at another setting and then held, which is the ratchet as a shape. */
   function ceilingsOfOtherSettings(
     currentMm: number,
     hasFullHeightUnder: boolean,
@@ -460,10 +403,8 @@ describe("the ratchet as an anti-invariant", () => {
     ["a cleared wall pair", ["p8", "p15", "p10", "p16"]],
   ];
 
-  // **What wave 6K-c published and this wave must not.** Under 6K-c the wall column stood at 400 in
-  // a 600 mm kitchen — a depth off the *other* setting's row of ADR 0028's map — and that is the
-  // owner's sentence. Written as a property over the whole map rather than as two expected numbers,
-  // so any future column that acquires the same shape fails here without anyone widening a list.
+  // A wall column at 400 in a 600 mm kitchen is a depth off the other setting's row of ADR 0028's map. Written as a
+  // property over the whole map, so a future column with that shape fails without anyone widening a list.
   it("publishes no unsourced depth off another setting's row of the map", () => {
     const violations: string[] = [];
     let unsourcedInspected = 0;
@@ -502,9 +443,9 @@ describe("the ratchet as an anti-invariant", () => {
     }
 
     expect(violations).toStrictEqual([]);
-    // Non-vacuity, two ways: unsourced columns really were inspected, and the exact depth 6K-c
-    // ratcheted — 400 on a wall column — really was published at the setting that owns it. Under
-    // 6K-c the same 400 reappears at 600 and this list is not empty.
+    // Non-vacuity: unsourced columns were inspected, and the ratcheted depth (400 on a wall column) was published at
+    // the
+    // setting that owns it.
     expect(unsourcedInspected).toBeGreaterThan(0);
     expect(sawTheDeeperRow).toBe(true);
   });
