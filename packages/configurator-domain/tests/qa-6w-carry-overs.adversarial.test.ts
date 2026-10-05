@@ -1,21 +1,8 @@
-// **Adversarial QA for the two fixes wave 6W carried into the domain** (ADR 0092 decision 12's
-// branch, but neither is about a tier delta).
-//
-// 1. **`isPushToOpen` normalises `canHandle`.** The claim in the module's own comment is precise and
-//    testable: a truthy non-boolean arriving from the `BodyCatalog` port used to give the scene one
-//    answer and the price another, and the two now agree. Both halves are asserted here — that the
-//    predicate reads a non-boolean as *not* a declaration, and that the value flowing through
-//    `countHardwareMechanisms` and the value flowing through the scene's own call site reach the same
-//    answer for the same row. Neither the old behaviour nor the new one is assumed: the comparison is
-//    against the row declaring `false`, which is the answer the module says it normalises to.
-// 2. **`UNBUILDABLE_DOOR_BAND`'s corrected reachability sentence.** It names two rows, excludes a
-//    third by a stated reason, and claims no *validated* design can carry one. Each clause is
-//    measured over the whole shipped catalogue at every height a placement can be built to, rather
-//    than read.
-//
-// **The asymmetry the first fix leaves behind is recorded rather than asserted away**: `canHandle`
-// is now normalised at this boundary and `recordedHandle` is not, so the same untyped port that
-// motivates the fix reaches a different rule two operands along.
+// Two domain fixes (ADR 0092 decision 12's branch; neither is about a tier delta): `isPushToOpen` normalises
+// `canHandle`, and `UNBUILDABLE_DOOR_BAND`'s reachability sentence. The normalisation is asserted both ways: a truthy
+// non-boolean reads as not a declaration, and the price and scene routes reach one answer for one row. Each
+// reachability clause is measured over the whole shipped catalogue. `recordedHandle` is not normalised at this
+// boundary; that asymmetry is recorded, not asserted away.
 import { describe, expect, it } from "vitest";
 
 import { kindLabel } from "../src/catalog.js";
@@ -48,9 +35,8 @@ import type { Handle } from "../src/design.js";
 
 const CATALOG = KITCHEN_L_BODY_CATALOG;
 
-/** §6.5's module line, written as its own literal rather than imported from the module under test —
- *  a gate that reads its threshold out of the code it checks proves only that the code equals
- *  itself. */
+/** §6.5's module line, written as its own literal rather than imported: a gate reading its threshold out of the
+ *  code it checks proves only that the code equals itself. */
 const TOP_ROW_FLOOR_MM = 2_200;
 
 function definitionOf(buildId: string): BodyDefinition {
@@ -59,18 +45,8 @@ function definitionOf(buildId: string): BodyDefinition {
   return definition;
 }
 
-// ---------------------------------------------------------------------------
-// `canHandle` arriving from the port as something other than a boolean.
-// ---------------------------------------------------------------------------
-
-/**
- * **The values a `BodyCatalog` assembled outside TypeScript can put in a `boolean` field.**
- *
- * Every one of them is truthy and none of them is `true`, which is the whole class the module's fix
- * is about: a JSON row carrying `1`, a form field carrying `"false"` — truthy, and the most
- * embarrassing of them — and an object, which is what a row assembled by a mapper that forgot to
- * unwrap answers.
- */
+/** Values a `BodyCatalog` assembled outside TypeScript can put in a `boolean` field: all truthy, none `true` (a JSON
+ * `1`, a form field's `"false"`, an object from a mapper that forgot to unwrap). */
 const TRUTHY_NON_BOOLEANS: readonly {
   readonly name: string;
   readonly value: unknown;
@@ -95,9 +71,7 @@ function pushToOpenWith(input: {
 }
 
 describe("a canHandle that is truthy but not true declares nothing", () => {
-  /** **The rule the module states about itself, at both floors and for both modes.** The answer for
-   *  a truthy non-boolean must equal the answer for `false` — the *stricter* of the two, in the
-   *  module's own words — and never the answer for `true`, which is the branch it used to take. */
+  /** A truthy non-boolean must answer as `false` does, the stricter of the two, and never as `true`. */
   it.each(TRUTHY_NON_BOOLEANS.map(({ name, value }) => [name, value] as const))(
     "answers for %s exactly as the same front declaring canHandle false does",
     (_name, value) => {
@@ -119,9 +93,8 @@ describe("a canHandle that is truthy but not true declares nothing", () => {
     },
   );
 
-  /** The case where reading `false` and reading `true` genuinely differ, so the assertion above is
-   *  not comparing two identical answers. A `steel` handle in the top row is push-to-open when the
-   *  recorded mode is disqualified and is not when it counts. */
+  /** `false` and `true` genuinely differ here, so the assertion above is not comparing two identical answers: a `steel`
+   *  handle in the top row is push-to-open only when the recorded mode is disqualified. */
   it("distinguishes the two readings at the one front where they disagree", () => {
     const query = { y0Mm: TOP_ROW_FLOOR_MM, recordedHandle: "steel" } as const;
 
@@ -131,17 +104,13 @@ describe("a canHandle that is truthy but not true declares nothing", () => {
 });
 
 /**
- * **The two answers the fix exists to reconcile, measured against each other.**
- *
- * `hardware-mechanisms.ts` coerces with `=== true` before it calls the predicate; `scene-sync.ts`
- * hands it `PlacementRecord.canHandle`, which `derivePlacementRecords` copies straight off the
- * definition without coercing. So the price and the scene reach the predicate by two routes, and a
- * row whose flag is truthy but not boolean is the input that used to split them.
+ * `hardware-mechanisms.ts` coerces with `=== true` before calling the predicate, while `scene-sync.ts` hands it
+ * `PlacementRecord.canHandle`, copied off the definition without coercing: a truthy non-boolean flag is the input
+ * that used to split price from scene.
  */
 describe("the price and the scene reach one answer for a row the port typed loosely", () => {
-  /** A one-row catalogue built from a shipped `wall-cabinet`, with `canHandle` replaced by a value
-   *  no TypeScript caller could have written. The row is otherwise the shipped one, so what differs
-   *  between the two sides is the flag alone. */
+  /** A one-row catalogue from a shipped `wall-cabinet` with `canHandle` replaced by a value no TypeScript caller could
+   *  write, so the flag alone differs between the two sides. */
   function catalogDeclaring(canHandle: unknown): BodyCatalog {
     const declared = definitionOf("wall-cabinet");
     expect(declared.canHandle).toBe(true);
@@ -180,8 +149,7 @@ describe("the price and the scene reach one answer for a row the port typed loos
     });
   }
 
-  /** What the **price** answers, through the module that coerces. A latch is billed per opening
-   *  front on a push-to-open body, so a non-zero count is the price saying *the bar is not there*. */
+  /** What the **price** answers, through the module that coerces: a non-zero latch count says the bar is not there. */
   function priceBillsLatches(
     catalog: BodyCatalog,
     entry: DisplayEntry,
@@ -210,18 +178,15 @@ describe("the price and the scene reach one answer for a row the port typed loos
     },
   );
 
-  /** **The exact front that used to split them**, named so the sweep above is known to contain a
-   *  case rather than to be vacuously true: a top-row body recording `steel` on a row whose flag is
-   *  truthy but not `true`. The price bills a latch there because it coerces; the scene now hides
-   *  the bar for the same reason. */
+  /** The exact front that used to split them, named so the sweep is known to contain a case: a top-row body recording
+   *  `steel` on a row whose flag is truthy but not `true`. */
   it("bills a latch and hides the bar together on the front the two used to split on", () => {
     const catalog = catalogDeclaring(1);
     const entry = entryAt({ y0Mm: TOP_ROW_FLOOR_MM, handle: "steel" });
 
     expect(priceBillsLatches(catalog, entry)).toBe(true);
     expect(sceneHidesBars(catalog, entry)).toBe(true);
-    // And the shipped row, whose flag is a real `true`, still answers the other way — so the fix
-    // narrowed a coercion rather than changed the rule.
+    // The shipped row, whose flag is a real `true`, still answers the other way: the fix narrowed a coercion only.
     expect(
       pushToOpenWith({
         y0Mm: TOP_ROW_FLOOR_MM,
@@ -232,19 +197,10 @@ describe("the price and the scene reach one answer for a row the port typed loos
   });
 
   /**
-   * **The half of the boundary the fix did not normalise, recorded as it stands.**
-   *
-   * The comment's reasoning — *"the catalogue is a supplied port, so a definition can arrive from
-   * outside TypeScript"* — applies to the operand beside it too: `recordedHandle` is `Handle |
-   * undefined` by type, and the same untyped route can put a `null` or an empty string there. The
-   * fix changed that operand from a truthiness test to `!== undefined`, which makes a `null` mode
-   * **suppress** the slot rule rather than fall through to it, in the one place the slot rule is
-   * what §6.5 ships.
-   *
-   * Not a defect on any path this repository can reach — `recordedHandle` comes from the design,
-   * which is Zod-parsed, while `canHandle` comes from the catalogue, which is not — and pinned here
-   * so the difference between the two operands is a recorded fact rather than an oversight
-   * rediscovered later.
+   * The half of the boundary the fix did not normalise, recorded as it stands: `recordedHandle` is `Handle | undefined`
+   * by type, and a `null` from an untyped route suppresses the slot rule instead of falling through to it. Not a
+   * defect on any reachable path (the design is Zod-parsed, the catalogue is not); pinned so the difference between
+   * the two operands is a recorded fact.
    */
   it("does not normalise recordedHandle the way it normalises canHandle", () => {
     const topRowWithNullMode = pushToOpenWith({
@@ -263,23 +219,15 @@ describe("the price and the scene reach one answer for a row the port typed loos
   });
 });
 
-// ---------------------------------------------------------------------------
-// `UNBUILDABLE_DOOR_BAND`'s corrected reachability sentence.
-// ---------------------------------------------------------------------------
-
 /**
- * **Every clause of `price-lines.ts`'s corrected sentence, measured.**
- *
- * It says four things: the code is reachable from `wall-cabinet` and `wall-lift`; `open-shelf`
- * cannot raise it because it declares no opening fronts; a band at or below `WALL_DOOR_BAND_INSET_MM`
- * needs a frame of 6 mm or less; and a **validated** design cannot carry one because
- * `findBodyDimensionIssues` floors a placement at `MIN_BODY_HEIGHT_MM`. The first two are swept over
- * the whole shipped catalogue rather than asserted of the three rows the sentence names.
+ * Every clause of `price-lines.ts`'s reachability sentence, measured: the code is reachable from `wall-cabinet` and
+ * `wall-lift`; `open-shelf` cannot raise it because it declares no opening fronts; a band at or below
+ * `WALL_DOOR_BAND_INSET_MM` needs a frame no taller than the inset; a validated design cannot carry one because
+ * `findBodyDimensionIssues` floors a placement at `MIN_BODY_HEIGHT_MM`.
  */
 describe("the door band refusal is reachable from exactly the rows the code names", () => {
-  /** Whether this row raises the error at *some* buildable frame height. Asked of every row in the
-   *  catalogue, so a fourth `one-band-under-frame` row added later makes the sentence go red rather
-   *  than quietly become incomplete. */
+  /** Whether this row raises the error at some buildable frame height, asked of every catalogue row so a further
+   *  `one-band-under-frame` row makes the sentence go red. */
   function raisesAtSomeHeight(buildId: string): boolean {
     const definition = definitionOf(buildId);
     for (let frameHeightMm = 1; frameHeightMm <= 2_400; frameHeightMm += 1) {
@@ -333,10 +281,8 @@ describe("the door band refusal is reachable from exactly the rows the code name
     expect(buildBand(WALL_DOOR_BAND_INSET_MM + 1)).toEqual([1]);
   });
 
-  /** **The clause that makes the code a hand-edited-document code rather than a live one**: the
-   *  validator's own floor is far above the band inset, so every height a validated design can carry
-   *  builds a band. Swept from the floor upward rather than asserted at it, and the floor itself is
-   *  asserted to be above the inset so the sweep is not vacuous. */
+  /** The validator's own floor is far above the band inset, so every height a validated design can carry builds a
+   *  band. Swept from the floor upward; the floor is asserted above the inset so the sweep is not vacuous. */
   it("cannot be reached at any height a validated design can carry", () => {
     expect(MIN_BODY_HEIGHT_MM).toBeGreaterThan(WALL_DOOR_BAND_INSET_MM);
 
@@ -359,9 +305,8 @@ describe("the door band refusal is reachable from exactly the rows the code name
     }
   });
 
-  /** **The demo's own wall rows cannot reach it either**, and that is worth its own line: they
-   *  declare their band heights (`wallLeaves`), so the family the sentence names is the *catalogue*
-   *  row a document can carry rather than every body a customer sees called a wall cabinet. */
+  /** The demo's own wall rows declare their band heights (`wallLeaves`), so the family the sentence names is the
+   *  catalogue row a document can carry, not every body called a wall cabinet. */
   it("cannot raise it from any build id the seeded design actually stands", () => {
     const standing = [
       ...new Set(
@@ -372,9 +317,8 @@ describe("the door band refusal is reachable from exactly the rows the code name
     expect(standing.filter(raisesAtSomeHeight)).toEqual([]);
   });
 
-  /** A hand-edited document: a wall placement whose build id is the catalogue row the sentence names
-   *  and whose height is below the band inset. This is the document class the corrected comment says
-   *  the code exists for, and nothing else in this repository produces one. */
+  /** A hand-edited document: a wall placement with the catalogue row the sentence names and a height below the band
+   *  inset, the only document class the code exists for. */
   function handEditedWallCabinetAt(heightMm: number) {
     const wallPlacement = KITCHEN_L_DESIGN.placements.find(
       (placement) => placement.body.buildId === "wall-2door-600",
@@ -391,9 +335,8 @@ describe("the door band refusal is reachable from exactly the rows the code name
     };
   }
 
-  /** The validator's floor, driven rather than read: *"no validated design can carry one"* is a
-   *  statement about a gate, and the gate is asserted to close at both the band inset and one
-   *  millimetre under the floor. */
+  /** The validator's floor, driven rather than read: asserted to close at the band inset and one millimetre under the
+   *  floor. */
   it("refuses a placement built below the validator's own floor", () => {
     const codesAt = (heightMm: number) =>
       validateDesignForCatalog(handEditedWallCabinetAt(heightMm), CATALOG).map(
@@ -402,13 +345,11 @@ describe("the door band refusal is reachable from exactly the rows the code name
 
     expect(codesAt(WALL_DOOR_BAND_INSET_MM)).toContain("BODY_TOO_SHORT");
     expect(codesAt(MIN_BODY_HEIGHT_MM - 1)).toContain("BODY_TOO_SHORT");
-    // And the floor itself passes the height rule, so the refusal above is the floor and not some
-    // other issue the hand-edited document happens to carry.
+    // The floor itself passes the height rule, so the refusal above is the floor and not another issue.
     expect(codesAt(MIN_BODY_HEIGHT_MM)).not.toContain("BODY_TOO_SHORT");
   });
 
-  /** And the code itself is still produced, from the hand-edited document the sentence says it
-   *  exists for — so narrowing the comment did not narrow the path it describes. */
+  /** The code is still produced from the hand-edited document, so narrowing the comment did not narrow the path. */
   it("still refuses pricing with UNBUILDABLE_DOOR_BAND for a document no validator passed", () => {
     const result = priceDesign({
       design: handEditedWallCabinetAt(WALL_DOOR_BAND_INSET_MM),

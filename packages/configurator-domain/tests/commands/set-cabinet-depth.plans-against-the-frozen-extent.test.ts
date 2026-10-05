@@ -1,16 +1,7 @@
-// Wave 6K-i — **a depth change plans against the frozen extent, and re-derives only the depth**
-// ([ADR 0088](../../../../docs/decisions/0088-a-depth-change-plans-against-the-frozen-extent-and-re-derives-only-the-depth.md),
-// decision 1 as
-// [ADR 0090](../../../../docs/decisions/0090-a-frozen-space-slides-with-its-run-and-follows-the-body-it-recorded.md)
-// decision 6 amends it).
-//
-// `rebuildEveryBodyAt` used to build its planning map with `deriveColumns(records, {}, room)`. The
-// `{}` forced §3.2's depth MAX to be re-taken at the new setting, which is right, and discarded
-// `top`, `regions` and `w` with it — the facts ADR 0011 Gap D froze *because the placements no longer
-// imply them*. Two ordinary deletes then left the shipped kitchen unable to change its own depth.
-//
-// **No store and no fake frozen map.** The refusal is `evaluateInsertFit`'s and reproduces in this
-// package alone, which is what discharges ADR 0079's hedged attribution.
+// A depth change plans against the frozen extent and re-derives only the depth (ADR 0088 decision 1, as ADR 0090
+// decision 6 amends it): the planning map re-takes §3.2's depth MAX at the new setting but keeps the `top`, `regions`
+// and `w` that ADR 0011 Gap D froze because the placements no longer imply them. No store and no fake frozen map: the
+// refusal is `evaluateInsertFit`'s and reproduces in this package alone.
 import { describe, expect, it } from "vitest";
 
 import {
@@ -55,30 +46,19 @@ const DELETED_IDS: readonly string[] = ["p12", "p18"];
 
 /** §7's base body reaches the worktop line; the seeded niche records the carcass without it. */
 const BASE_BODY_HEIGHT_MM = 860;
-/** The recorded height of the dishwasher niche — the slot the defect planned into. */
+/** The recorded height of the dishwasher niche. */
 const NICHE_HEIGHT_MM = 820;
 /** The column's real top, which `columnExtents` carries and the placements no longer imply. */
 const FROZEN_TOP_MM = 2600;
 
-/** The two wall-A columns whose every member is a fronted wall cabinet, and their four members —
- *  the population ADR 0088's anti-invariant is measured on. Wall A is anchored at the corner and
- *  does not slide, which is why they can be read at either setting under one key. */
+/** The two wall-A columns whose every member is a fronted wall cabinet, and their four members. Wall A is anchored
+ *  at the corner and does not slide, so they read under one key at either setting. */
 const WALL_MAP_KEYS: readonly string[] = ["A|0.30", "A|0.75"];
 const WALL_MAP_PLACEMENT_IDS: readonly string[] = ["p8", "p10", "p15", "p16"];
 
-/** **This suite's own pinned body, because the shipped kitchen no longer holds one** (ADR 0101
- *  decision 3, applying ADR 0093 decision 2: *"the fixture that makes a rule falsifiable is declared
- *  by the test that asserts it"*).
- *
- *  Until 2026-09-07 the witness was ADR 0058's two pinned deep tops. ADR 0101 unpinned them so the
- *  owner's three top cabinets follow the setting, and holding one of them back to feed this file
- *  would be exactly the "moved fixture" ADR 0093 refuses — the product's geometry as a function of
- *  its test coverage, with one of the owner's cabinets left wrong.
- *
- *  **Pinned deeper than anything the shipped kitchen builds at either setting** — 800 against the
- *  fridge's 742 and a 700 mm kitchen's 738 mm oven tower — so it wins its column's §3.2 MAX at
- *  *both* settings and the deep arm is a measurement rather than the zero the old assertion had to
- *  record. */
+/** This suite's own pinned body, because the shipped kitchen no longer holds one (ADR 0101 decision 3, ADR 0093
+ *  decision 2). Pinned deeper than anything the shipped kitchen builds at either setting (800 against the fridge's
+ *  742 and a 700 mm kitchen's 738 mm oven tower), so it wins its column's §3.2 MAX at both settings. */
 const WITNESS_PINNED_BUILD_ID = "pinned-deep-top-witness";
 const WITNESS_PINNED_FINISH_MM = 800;
 /** The placement the witness stands in for: `p22`, over `tall-oven-tower-600` at `B|1.20`. */
@@ -93,21 +73,15 @@ function withTheNicheColumnPartlyCleared(): Design {
   return afterDeleting(DELETED_IDS);
 }
 
-/** The shipped kitchen with `B|1.20`'s two members gone, so the document carries a genuine
- *  member-less column. The two deletes above leave `A|2.00` occupied, which is the whole point of
- *  them — `emptyColumns` stays empty and the member-less half needs its own input. */
+/** The shipped kitchen with `B|1.20`'s two members gone, so the document carries a genuine member-less column; the
+ *  two deletes above leave `A|2.00` occupied, so `emptyColumns` stays empty there. */
 function withTheOvenTowerColumnCleared(): Design {
   return afterDeleting(["p5", "p22"]);
 }
 
-/** The shipped kitchen after a set of ordinary deletes, **with the frozen map the product would
- *  carry**.
- *
- *  Built the way the store builds it rather than hand-written: `publishedColumns` returns the frozen
- *  map unchanged on a delete (ADR 0011 Gap D) and `projectFrozenMap` writes the surviving extents
- *  out, so the document that reaches `setCabinetDepth` records `A|2.00` at `topMm` 2600 with one
- *  820 mm member in it. Hand-writing the entry would be asserting about a document the product does
- *  not produce. */
+/** The shipped kitchen after ordinary deletes, with the frozen map the product would carry: `publishedColumns` returns
+ *  it unchanged on a delete (ADR 0011 Gap D) and `projectFrozenMap` writes the surviving extents out. A hand-written
+ *  entry would assert about a document the product does not produce. */
 function afterDeleting(placementIds: readonly string[]): Design {
   const catalog = buildKitchenLBodyCatalog(SHALLOW_MM);
   const beforeTheDeletes = deriveColumns(
@@ -154,11 +128,9 @@ function seatMm(design: Design, placementId: string): number | undefined {
   return placement.body.seatDepthMm;
 }
 
-/** The records a wall-A column is planned against at a given setting.
- *
- *  **The fixture carries no recorded seat on any placement**, which is what lets this stand in for
- *  `planningDesign`'s own records without repeating its seat-clearing, and wall A is anchored at the
- *  corner so nothing on it slides either. Both facts are asserted below rather than assumed. */
+/** The records a wall-A column is planned against at a given setting. The fixture carries no recorded seat, which
+ *  lets this stand in for `planningDesign`'s records without repeating its seat-clearing, and wall A does not slide;
+ *  both facts are asserted below. */
 function recordsAt(
   design: Design,
   cabinetDepthMm: number,
@@ -169,13 +141,9 @@ function recordsAt(
   );
 }
 
-/** The frozen map the document records, restored as `deriveColumns` restores it.
- *
- *  **Pre-slide, and paired with pre-slide records**, so the two operands share one key space. ADR
- *  0090 decision 2's move is `frozenExtentsSlidAlongTheWall`'s and is measured in
- *  `set-cabinet-depth.frozen-map.test.ts`; what is under test here is the merge that reads them,
- *  which is a field selection between two extents under one key and is indifferent to which key
- *  space they share. The command-level assertions above run through the real slide. */
+/** The frozen map the document records, restored as `deriveColumns` restores it. Pre-slide and paired with pre-slide
+ *  records so the operands share one key space: the slide is measured in `set-cabinet-depth.frozen-map.test.ts` (ADR
+ *  0090 decision 2); only the merge that reads them is under test here. */
 function recordedMapOf(
   design: Design,
   cabinetDepthMm: number,
@@ -195,13 +163,9 @@ function depthMm(column: Column | undefined): number {
   return Math.round(column.d * 1000);
 }
 
-/** The shipped catalogue plus this suite's declared pinned row (ADR 0093 decision 2).
- *
- *  A copy of the deep top it stands in for, so it differs in exactly the two facts under test: it
- *  declares a **pin** instead of following the setting, and its seat is a literal rather than a
- *  function of `cabinetDepthMm`. It carries no `builtDepthFollowsALiftedColumn` — a pin and a lifted
- *  column are two different answers to "what decides this row's depth", and a row claiming both
- *  would be asserting nothing coherent. */
+/** The shipped catalogue plus this suite's declared pinned row (ADR 0093 decision 2): a copy of the deep top that
+ *  declares a pin instead of following the setting, with a literal seat. It carries no
+ *  `builtDepthFollowsALiftedColumn`, since a pin and a lifted column are different answers to what decides a depth. */
 function catalogWithThePinnedWitness(cabinetDepthMm: number): BodyCatalog {
   const catalog = buildKitchenLBodyCatalog(cabinetDepthMm);
   const deepTop = catalog.get(DEEP_TOP_BUILD_ID);
@@ -218,8 +182,7 @@ function catalogWithThePinnedWitness(cabinetDepthMm: number): BodyCatalog {
   return new Map([...catalog, [WITNESS_PINNED_BUILD_ID, witness]]);
 }
 
-/** The shipped kitchen with the witness standing where `p22` does — over `tall-oven-tower-600` at
- *  `B|1.20`, the column ADR 0058's own measurement used. */
+/** The shipped kitchen with the witness standing where `p22` does, over `tall-oven-tower-600` at `B|1.20`. */
 function withThePinnedWitness(): Design {
   return {
     ...KITCHEN_L_DESIGN,
@@ -234,9 +197,7 @@ function withThePinnedWitness(): Design {
   };
 }
 
-/** `recordsAt` and `recordedMapOf` over the witness catalogue. Two lines rather than a catalogue
- *  argument threaded through every caller above: the witness is this block's fixture and nothing
- *  else in the file plans against it. */
+/** `recordsAt` over the witness catalogue; the witness is this block's fixture and nothing else plans against it. */
 function witnessRecordsAt(
   design: Design,
   cabinetDepthMm: number,
@@ -302,7 +263,7 @@ describe("the reproduction ADR 0088 measured", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     const niche = result.effect.columns.get(NICHE_COLUMN_KEY);
-    // The collapse the defect produced: 2600 → 820, the recorded height of the one member left.
+    // The failure mode: the top collapsing to the one surviving member's recorded height.
     expect(niche?.top).not.toBeCloseTo(toMetres(NICHE_HEIGHT_MM), 6);
     expect(niche?.top).toBeCloseTo(toMetres(FROZEN_TOP_MM), 6);
   });
@@ -342,12 +303,9 @@ describe("the axis split, asserted directly rather than through its symptom", ()
     },
   );
 
-  // **What this can catch, named rather than implied.** It iterates the *derived* map's keys, so a
-  // full revert of the axis split — both operands becoming the same call — satisfies it trivially.
-  // It cannot fail for the reason this wave exists; the reproduction above is what does that. What
-  // it does catch is a merge that corrupts a depth on its way through, which is a real and separate
-  // failure: ADR 0088 decision 3 requires the value and not merely the rule, and `toBe` on the raw
-  // float is that requirement rather than a tolerance.
+  // This iterates the derived map's keys, so a full revert of the axis split satisfies it trivially; it catches a merge
+  // corrupting a depth on the way through. ADR 0088 decision 3 requires the value, and `toBe` on the raw float is that
+  // requirement rather than a tolerance.
   it.each(DECLARED_MM)(
     "leaves no merged column's depth diverging from the derived one at %i mm",
     (cabinetDepthMm) => {
@@ -371,10 +329,8 @@ describe("the axis split, asserted directly rather than through its symptom", ()
     },
   );
 
-  // **The anti-invariant, measured rather than argued** (ADR 0088 decision 1). Restoring the stored
-  // map wholesale — `deriveColumns(records, stored, room)`, which is `addStoredColumnExtents`
-  // replacing the derived column outright — plans the *600 mm* kitchen's wall carcass inside a
-  // 700 mm kitchen. That is ADR 0077 decision 8's defect verbatim and wave 6K-h's fix undone.
+  // The anti-invariant (ADR 0088 decision 1): restoring the stored map wholesale, `deriveColumns(records, stored,
+  // room)`, plans the 600 mm kitchen's wall carcass inside a 700 mm kitchen (ADR 0077 decision 8).
   it("refuses the wholesale restore, per column, at the deeper setting", () => {
     const design = withTheNicheColumnPartlyCleared();
     const records = recordsAt(design, DEEP_MM);
@@ -409,12 +365,9 @@ describe("the axis split, asserted directly rather than through its symptom", ()
     }
   });
 
-  // **The frozen operand is the map production builds, not an empty one.** `rebuildEveryBodyAt`
-  // always passes `deriveRecordedColumns(heldRecords, storedFrozenMapOf(design))`, and on a
-  // pre-ADR-0053 document that stored half is `{}` while the map itself is the **full derived map** —
-  // one entry per column of the shipped kitchen. Handing `new Map()` in instead asserted that a merge
-  // with nothing changes nothing, which no implementation of the axis split can fail; the real
-  // operand makes every column take the merge's three arms and still land on the derived value.
+  // The frozen operand is the map production builds, not an empty one: `rebuildEveryBodyAt` passes
+  // `deriveRecordedColumns(heldRecords, storedFrozenMapOf(design))`, a full derived map even when the stored half is
+  // `{}`. An empty `new Map()` asserts that a merge with nothing changes nothing, which no implementation can fail.
   it("plans exactly as it does today on a document that carries no frozen map", () => {
     const records = recordsAt(KITCHEN_L_DESIGN, DEEP_MM);
     const frozen = recordedMapOf(KITCHEN_L_DESIGN, DEEP_MM);
@@ -429,14 +382,9 @@ describe("the axis split, asserted directly rather than through its symptom", ()
     ).toStrictEqual(deriveColumns(records, {}, KITCHEN_L_DESIGN.room));
   });
 
-  // **A pinned row's depth survives the planning map at every setting** — the axis split asserted on
-  // the one kind of row that must not move at all.
-  //
-  // The witness is **declared here** rather than borrowed from the seeded kitchen (ADR 0101
-  // decision 3), and it is pinned deep enough to win its column's §3.2 MAX at both settings, so the
-  // count below is a measurement at 600 *and* at 700. The version this replaces could only record a
-  // zero at 700: the shipped pins finished at 600, and the 699 mm pantry beside one of them overtook
-  // it at the deeper setting.
+  // The axis split on the one kind of row that must not move at all, declared here rather than borrowed from the seeded
+  // kitchen (ADR 0101 decision 3) and pinned deep enough to win its column's §3.2 MAX at both settings, so the count
+  // below is a measurement at 600 and at 700.
   it("publishes a pinned row at its declared depth at every setting", () => {
     const design = withThePinnedWitness();
     const reachedBySetting = new Map<number, number>();
@@ -483,10 +431,7 @@ describe("the axis split, asserted directly rather than through its symptom", ()
     }
   });
 
-  // **The other side of the same map, and the reason the witness above had to be declared**
-  // (ADR 0101): the three deep tops are ordinary cabinetry now, so the planning map moves them with
-  // the setting. `B|1.20`'s published depth is its oven tower's at both settings — 638 and 738 — and
-  // its top cabinet is 38 mm inside that at both, which is the relationship the owner reported lost.
+  // The deep tops are ordinary cabinetry (ADR 0101), so the planning map moves them with the setting.
   it.each(DECLARED_MM)(
     "moves a deep top with the setting through the same map, at %i mm",
     (cabinetDepthMm) => {
@@ -505,17 +450,13 @@ describe("the axis split, asserted directly rather than through its symptom", ()
     },
   );
 
-  // **ADR 0052's ceiling and ADR 0069's wall-end bound are asserted in
-  // `qa-6k-i-planning-map.adversarial.test.ts`, not here.** A test on this fixture would run its
-  // loop body zero times — every planned column is occupied — and pass by doing nothing, which is
-  // the defect class this milestone keeps closing. That file guards `memberLess.length > 0` and
-  // asserts the far edge against the wall's own length rather than the width cap alone.
+  // The member-less ceiling and wall-end bound are asserted in `qa-6k-i-planning-map.adversarial.test.ts`, not here:
+  // every planned column on this fixture is occupied, so a loop body would run zero times.
 });
 
 describe("restoring the member-less half changes no placement", () => {
-  // `rebuildEveryBodyAt` looks a column up only for a placement, so this must be true — and it is
-  // asserted rather than assumed, because it is the cheapest way to catch a merge that reaches the
-  // rebuild loop by a route nobody intended.
+  // `rebuildEveryBodyAt` looks a column up only for a placement, so this must hold; it is the cheapest way to catch a
+  // merge that reaches the rebuild loop by an unintended route.
   it.each(DECLARED_MM)(
     "writes byte-identical placements with and without the empty half at %i mm",
     (cabinetDepthMm) => {

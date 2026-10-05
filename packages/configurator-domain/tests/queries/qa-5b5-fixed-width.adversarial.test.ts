@@ -1,16 +1,6 @@
-// Adversarial QA on M5B wave 5B5 / ADR 0049 — a fixed-width cabinet publishes the one width it is
-// made at, with the engine's own `NOT_RESIZABLE` sentence.
-//
-// The implementer's suite asserts the happy path on the five seeded `fixedWidth` bodies and one
-// anti-invariant case (a floor lifted above the only listed width). The load-bearing claim is
-// narrower and stated in `set-width.ts` itself: the `declared.length === 0` guard runs **before**
-// `resolveResizableBody`, so a body that resolves no width set at all is answered before the new
-// refusal arm is reachable. That claim has more than one input, and this file attacks each of them
-// separately rather than trusting the one the implementer picked.
-//
-// The rest is the ground a five-id table misses: the `fixedWidth` rows the seeded kitchen never
-// places, the command's own behaviour under a sweep, the ranges the degenerate control is read off,
-// determinism, and the probe the fixed arm must never need.
+// A fixed-width cabinet publishes the one width it is made at, with the engine's own NOT_RESIZABLE sentence
+// (ADR 0049). Attacks each way a body resolves no width set, the fixedWidth rows the seeded kitchen never places,
+// the command under a sweep, the degenerate control's ranges, determinism, and the probe the fixed arm must not need.
 import { describe, expect, it } from "vitest";
 
 import {
@@ -80,24 +70,14 @@ function catalogWithout(
   return new Map(KITCHEN_L_BODY_CATALOG).set(buildId, rest);
 }
 
-/** `p2`'s own row — the body from report item 9, and the one every ordering attack below edits. */
+/** `p2`'s own row: the one every ordering attack below edits. */
 const HOB_BASE_SEEDED_ID = "base-hob-2drawer-600";
 const HOB_BASE_CATALOG_ID = "base-hob-2drawer";
 
-// -------------------------------------------------------------------------------------------
-// Criterion 4, attacked at the ordering rather than at the one input the implementer chose.
-// -------------------------------------------------------------------------------------------
-
-/** **Every way a body can resolve no width set at all, each with the `fixedWidth` flag left true.**
- *
- *  ADR 0049's anti-invariant table names two situations and changes only one of them. The half that
- *  did **not** change is missing catalogue data, and it must keep failing loudly as a section that
- *  is not there — a chipless section, or worse a section carrying whatever width the placement
- *  happens to store, would make broken data look like a constrained product (FINDING R2.7).
- *
- *  The implementer's own case is the floor one. These reach the same emptiness through the pointer
- *  instead, which is the arm `set-width.ts`'s comment claims is unreachable, and each is asked with
- *  the flag **on**, because a flag read before the set is exactly what would let them through. */
+/** Every way a body can resolve no width set at all with `fixedWidth` still true. Missing catalogue data must keep
+ *  failing loudly as a section that is not there: a chipless section, or one carrying whatever width the placement
+ *  stores, would make broken data look like a constrained product. Each is asked with the flag on, because a flag read
+ *  before the set is what would let them through. */
 describe("a fixedWidth body that resolves no set at all still renders no section", () => {
   const brokenCatalogues: readonly (readonly [string, BodyCatalog])[] = [
     [
@@ -136,17 +116,13 @@ describe("a fixedWidth body that resolves no set at all still renders no section
     expect(widthStepsFor(engineInput(world, "p2"))).toBeUndefined();
   });
 
-  // Non-vacuity for all five at once: the same body in the same fixture publishes its chip the
-  // moment nothing is broken, so the empty answers above are about the missing set and not about a
-  // fixture that never renders anything.
+  // Non-vacuity for all five: the same body publishes its chip once nothing is broken.
   it("publishes the chip for the same body on the unedited catalogue", () => {
     expect(optionsFor(kitchen(), "p2")).toHaveLength(1);
   });
 
-  /** The transition, swept rather than sampled: the floor is the one input that empties the set by
-   *  degrees, and a guard placed after the refusal arm would publish a chip on **every** value of
-   *  it. `base-hob-2drawer` lists exactly {600}, so the section exists iff the floor is at or below
-   *  600, and the sweep has to find the edge at 600/601 rather than be told it. */
+  /** The floor is the one input that empties the set by degrees, and a guard placed after the refusal arm would
+   *  publish a chip at every value. `base-hob-2drawer` lists exactly {600}: the sweep must find the edge at 600/601. */
   it("crosses from one chip to no section exactly where the floor passes the only width", () => {
     const transitions: number[] = [];
     let previous: number | undefined;
@@ -165,38 +141,14 @@ describe("a fixedWidth body that resolves no set at all still renders no section
   });
 });
 
-// -------------------------------------------------------------------------------------------
-// The other half of the ordering claim, and the one place it does not hold.
-// -------------------------------------------------------------------------------------------
-
-/** The claim `set-width.ts` used to make, which this file falsified and which is now gone: *"Only
- *  the first of the two can still refuse by the time control reaches this line — a body with no
- *  equivalent resolves no set either, and the check above has already answered it."* The arm no
- *  longer reasons about the ordering at all — it reads the refusal's own `cause` — and these cases
- *  are what hold it there.
- *
- *  `resolveResizableBody` refuses for **two** reasons, and only one of them is `fixedWidth`. The
- *  other is `resolveRebuildBody` answering `undefined`, which happens whenever `toInsertableBody`
- *  refuses the resolved row — and that is a wider condition than `resolveBuildableSizes` answering
- *  empty. `resolveBuildableSizes` reads `sizesMm` alone; `toInsertableBody` also requires
- *  `widthFlex` and `nominalHeightMm`. A row that lists widths but is missing one of those two
- *  resolves a non-empty set **and** no rebuildable body, so it reaches the new arm and is published
- *  as a cabinet made at one width — on a body whose `fixedWidth` is `false`.
- *
- *  That is R2.7's own case wearing ADR 0049's clothes: unfinished catalogue data rendered as a
- *  constrained product, with a `NOT_RESIZABLE` sentence naming a cabinet whose row nobody finished.
- *  `catalog.test.ts` guards the shipped rows, so nothing reachable in the app produces it — but
- *  `columnWidthChoices` takes a `BodyCatalog` and this is what it does with one. */
+/** `resolveResizableBody` refuses for two reasons and only one is `fixedWidth`: the other is `resolveRebuildBody`
+ *  answering `undefined`, which `toInsertableBody` does when the resolved row lacks `widthFlex` or `nominalHeightMm`,
+ *  a wider condition than `resolveBuildableSizes` answering empty. Such a row has a non-empty set and no rebuildable
+ *  body, so it must not be published as a cabinet made at one width: that renders unfinished catalogue data as a
+ *  constrained product. `columnWidthChoices` takes a `BodyCatalog`, so this is what it does with one. */
 describe("an unfinished catalogue row is missing data, not a fixed-width cabinet", () => {
-  // **The fields `toInsertableBody` requires that `resolveBuildableSizes` does not read** — the
-  // whole condition, not a sample of it. There were three until 6B-f deleted `label` from the
-  // catalogue row.
-  //
-  // **The lost third has no successor, and that is a statement rather than an omission.**
-  // `sizesMm` is `toInsertableBody`'s remaining requirement and cannot stand in here: removing it
-  // empties `resolveBuildableSizes`, which is the premise the assertion below asserts is non-empty,
-  // so the case would pass for the wrong reason. The requirement genuinely shrank from three fields
-  // to two, and this sweep is exhaustive over what remains.
+  // The fields `toInsertableBody` requires that `resolveBuildableSizes` does not read, the whole condition. `sizesMm`
+  // cannot stand in: removing it empties `resolveBuildableSizes`, so the case would pass for the wrong reason.
   const unfinished: readonly (readonly [string, BodyCatalog])[] = [
     ["widthFlex", catalogWithout("base-sink", "widthFlex")],
     ["nominalHeightMm", catalogWithout("base-sink", "nominalHeightMm")],
@@ -206,8 +158,7 @@ describe("an unfinished catalogue row is missing data, not a fixed-width cabinet
     "renders no section for a resizable body whose resolved row has no %s",
     (_field, catalog) => {
       const world = createWorld(KITCHEN_L_DESIGN, catalog);
-      // `p0` is a `base-sink-800`: resizable by its own flag, and `base-sink` — the row it would be
-      // rebuilt through — is the one the override broke.
+      // `p0` is resizable by its own flag; `base-sink`, the row it would be rebuilt through, is the broken one.
       expect(
         world.records.find((record) => record.id === "p0")?.fixedWidth,
       ).toBe(false);
@@ -220,21 +171,13 @@ describe("an unfinished catalogue row is missing data, not a fixed-width cabinet
   );
 });
 
-/** **The two causes are not exclusive, and a row that is both is missing data** (logic review on
- *  this wave). `resolveResizableBody` refuses on `!body || record.fixedWidth`, so a `fixedWidth` row
- *  that is *also* unfinished satisfies both — and any test made of the record's flag calls it a
- *  cabinet made at one width. Its label falls back through `describeRecordLabel` to the
- *  entry's kind **name**, so what the customer would read is
- *  `„Corp bază” nu își poate schimba lățimea.` — a body named only by its kind, which is what a
- *  row with no name of its own has.
- *
- *  `base-hob-2drawer` is deliberately the row broken here: it is report item 9's own body and the
- *  most fixed-width thing in the catalogue, so if a flag-shaped discriminator survives anywhere it
- *  survives here. The refusal's `cause` is asserted beside the empty section, because "no section"
- *  alone would also pass if the arm were skipped for the wrong reason. */
+/** The two causes are not exclusive, and a row that is both is missing data: `resolveResizableBody` refuses on
+ *  `!body || record.fixedWidth`, so a fixedWidth row that is also unfinished satisfies both. `base-hob-2drawer` is the
+ *  most fixed-width row, so a flag-shaped discriminator that survives anywhere survives here. The refusal's `cause` is
+ *  asserted beside the empty section, because "no section" alone would pass if the arm were skipped for the wrong
+ *  reason. */
 describe("a row that is fixed-width and unfinished at once is missing data", () => {
-  // The fields `toInsertableBody` requires that `resolveBuildableSizes` does not read, so the body
-  // stays fixed-width *and* becomes unresolvable at once — which is the entire point of the case.
+  // The body stays fixed-width and becomes unresolvable at once.
   const brokenFields: readonly (keyof BodyDefinition)[] = [
     "widthFlex",
     "nominalHeightMm",
@@ -245,7 +188,6 @@ describe("a row that is fixed-width and unfinished at once is missing data", () 
     (field) => {
       const catalog = catalogWithout(HOB_BASE_CATALOG_ID, field);
       const world = createWorld(KITCHEN_L_DESIGN, catalog);
-      // Both conditions hold at once, which is the entire point of the case.
       expect(
         world.records.find((record) => record.id === "p2")?.fixedWidth,
       ).toBe(true);
@@ -258,8 +200,6 @@ describe("a row that is fixed-width and unfinished at once is missing data", () 
     },
   );
 
-  // And the refusal itself says which fact fired, rather than leaving a reader of the detail to
-  // guess from a flag that is true in both cases.
   it("publishes the unresolvable cause, not the fixed one, when both hold", () => {
     const catalog = catalogWithout(HOB_BASE_CATALOG_ID, "widthFlex");
     const world = createWorld(KITCHEN_L_DESIGN, catalog);
@@ -274,22 +214,15 @@ describe("a row that is fixed-width and unfinished at once is missing data", () 
     expect(refusal.detail.params.cause).toBe("unresolvable");
   });
 
-  // Non-vacuity, and the boundary the two cases sit either side of: the same body, the same
-  // selection, one unbroken catalogue row — and the chip comes back.
   it("publishes the chip again once the row is whole", () => {
     const world = createWorld(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG);
     expect(optionsFor(world, "p2")).toHaveLength(1);
   });
 });
 
-// -------------------------------------------------------------------------------------------
-// Every fixed-width body, not the five the seeded kitchen happens to place.
-// -------------------------------------------------------------------------------------------
-
-/** The `fixedWidth` rows a customer can actually insert, read off the catalogue rather than listed,
- *  so a row added later is swept without anyone remembering to add it here. The count is
- *  pinned beside it: a new `fixedWidth` entry is a new cabinet that will start showing a disabled
- *  width section, which is a product decision and should not arrive silently. */
+/** The fixedWidth rows a customer can insert, read off the catalogue so a new row is swept without anyone remembering.
+ *  The count is pinned beside it: a new fixedWidth entry starts showing a disabled width section, a product decision
+ *  that must not arrive silently. */
 const INSERTABLE_FIXED_WIDTH_IDS: readonly string[] = [
   ...KITCHEN_L_BODY_CATALOG,
 ]
@@ -317,8 +250,6 @@ function soleWorldFor(buildId: string): KitchenWorld {
 }
 
 describe("every fixed-width row in the catalogue, placed on its own", () => {
-  // ADR 0048 took `tall-pantry` off this list — it has no appliance inside it, so its width is not
-  // fixed by anything. The three columns that remain are each built around one.
   it("holds the five the catalogue declares, so a sixth is a decision someone makes", () => {
     expect(INSERTABLE_FIXED_WIDTH_IDS).toEqual([
       "base-hob-2drawer",
@@ -345,9 +276,8 @@ describe("every fixed-width row in the catalogue, placed on its own", () => {
         );
       }
       expect(only.widthMm).toBe(record.widthMm);
-      // `cause` is part of the refusal since this wave's logic review: the two facts that produce
-      // `NOT_RESIZABLE` are not exclusive, so which one fired is published rather than re-derived
-      // from the record's flag. Pinned here because it is what allows this chip to be shown at all.
+      // `cause` is published rather than re-derived from the record's flag, because the two facts producing
+      // NOT_RESIZABLE are not exclusive; it is what allows this chip to be shown at all.
       expect(only.verdict.reason).toEqual({
         code: "NOT_RESIZABLE",
         params: { label: { kind: "entry", buildId }, cause: "fixed" },
@@ -355,10 +285,9 @@ describe("every fixed-width row in the catalogue, placed on its own", () => {
     },
   );
 
-  /** Criterion 4's other half in ADR 0049's own words: *"reading that bound would give a cabinet
-   *  that cannot be resized a stepper with two buttons that can never move."* Asserted for every
-   *  fixed row, and against the row's **own** declared ranges, so a row whose bound is wider than
-   *  its instance — `hood-600` inside `hood`'s 600–800 — cannot pass by coincidence. */
+  /** ADR 0049: reading the bound would give a cabinet that cannot be resized a stepper whose buttons never move.
+   *  Asserted against the row's own declared ranges, so a row whose bound is wider than its instance (`hood-600`
+   *  inside `hood`'s range) cannot pass by coincidence. */
   it.each(INSERTABLE_FIXED_WIDTH_IDS)(
     "gets no stepper, and one degenerate range, for %s",
     (buildId) => {
@@ -374,10 +303,8 @@ describe("every fixed-width row in the catalogue, placed on its own", () => {
   );
 });
 
-/** The seeded population, swept rather than named. Every `fixedWidth` record in the shipped kitchen
- *  gets either one `fixed` chip or no section at all, and **which one is decided by the set alone** —
- *  that equivalence is criterion 4 stated as a biconditional rather than as five ids and four
- *  corners. */
+/** Every fixedWidth record in the shipped kitchen gets either one `fixed` chip or no section at all, decided by the
+ *  set alone. */
 describe("the seeded kitchen's fixed-width bodies, by the rule rather than by id", () => {
   it("renders a chip exactly when the body resolves a width set, and never otherwise", () => {
     const world = kitchen();
@@ -403,18 +330,14 @@ describe("the seeded kitchen's fixed-width bodies, by the rule rather than by id
       }
     }
 
-    // ADR 0049's own consequences list, measured: the bodies that are fixed gain a section, and
-    // the four corners — which declare no catalogue equivalent — keep failing loudly as no section
-    // at all. It was five until ADR 0048 made the seeded pantry `p6` resizable; the four that
-    // remain are the two hob bases, the oven tower and the fridge, each fixed by an appliance.
+    // ADR 0049's consequences, measured: fixed bodies gain a section, and the four corners, which declare no catalogue
+    // equivalent, keep failing loudly as no section at all.
     expect([...withChip].sort()).toEqual(["p13", "p2", "p5", "p7"]);
     expect([...without].sort()).toEqual(["p21", "p25", "p26", "p9"]);
   });
 
-  /** The width on the chip is the width of the cabinet in front of the customer, and ADR 0049 also
-   *  calls it *"the one width it is made at"*. Those are the same number only while the placement's
-   *  width is one its resolved row can actually build — which is the rule `validateDesignForCatalog`
-   *  already enforces, so it is asserted here against that rule rather than against the set. */
+  /** ADR 0049 calls the chip width the one width the cabinet is made at: the same number as the cabinet's own only
+   *  while its width is one the resolved row can build, the rule `validateDesignForCatalog` enforces. */
   it("puts a width the resolved row can build on every fixed chip", () => {
     const world = kitchen();
     expect(validateDesignForCatalog(world.design, world.catalog)).toEqual([]);
@@ -440,10 +363,6 @@ describe("the seeded kitchen's fixed-width bodies, by the rule rather than by id
     expect(checked).toBe(4);
   });
 });
-
-// -------------------------------------------------------------------------------------------
-// Criterion 3: the command is unchanged, and the chip is not a route into it.
-// -------------------------------------------------------------------------------------------
 
 const SWEPT_WIDTHS_MM: readonly number[] = (() => {
   const widths: number[] = [];
@@ -486,20 +405,13 @@ describe("setWidth still refuses NOT_RESIZABLE, at every width including the pub
         attempts += 1;
       }
     }
-    // Eight `fixedWidth` records in the shipped kitchen, not nine: ADR 0048 took the seeded pantry
-    // `p6` off the list. The count is the sweep's own guard against silently measuring fewer.
+    // The count is the sweep's own guard against silently measuring fewer.
     expect(attempts).toBe(8 * SWEPT_WIDTHS_MM.length);
   });
 });
 
-// -------------------------------------------------------------------------------------------
-// The fixed arm's own promises: no command run, no probe needed, same answer twice.
-// -------------------------------------------------------------------------------------------
-
-/** `width-options.ts` states that the command is **not** run for a fixed chip. A probe that throws
- *  on contact is the only way to assert that from outside: `setWidth` measures every candidate it
- *  considers, so a fixed chip produced without touching this probe is a chip produced without the
- *  command. */
+/** `width-options.ts` runs no command for a fixed chip. A probe that throws on contact is the only way to assert
+ *  that from outside, since `setWidth` measures every candidate it considers. */
 const HOSTILE_PROBE: BodyProbe = {
   measure() {
     throw new Error("the fixed-width chip must not run the command");
@@ -530,13 +442,10 @@ describe("the fixed chip is published without running the command", () => {
   });
 });
 
-/** A void reaches the width queries through the same call the panel makes, and ADR 0049 must not
- *  have given it a section: §9's "empty voids hide Finisaj, Mâner, Lățime" is untouched by this
- *  record, and the `meta.canWidth` gate that used to enforce it in the panel is gone. */
+/** A void must not get a width section from ADR 0049: §9's "empty voids hide Finisaj, Mâner, Lățime" is untouched. */
 describe("a void is still not a fixed-width cabinet", () => {
   it("publishes no widths for the void the shipped kitchen holds", () => {
-    // The shipped kitchen is full, so the void is opened through the real delete — the same way
-    // report item 9's owner reached one.
+    // The shipped kitchen is full, so the void is opened through the real delete.
     const world = clearBodies(kitchen(), ["p1", "p12", "p18"]);
     const emptied = world.voids[0];
     if (!emptied) throw new Error("clearing three bodies opened no void");
@@ -553,8 +462,7 @@ describe("a void is still not a fixed-width cabinet", () => {
   });
 });
 
-/** Guard against the file's own fixtures drifting: `syntheticDesign` must still produce a design the
- *  domain would accept, or the row sweep above is measuring a document nobody could store. */
+/** Guards the file's own fixtures: `syntheticDesign` must still produce a design the domain would accept. */
 describe("the sweep's own fixtures are documents the domain accepts", () => {
   it.each(INSERTABLE_FIXED_WIDTH_IDS)(
     "validates the sole-placement design for %s",
@@ -567,11 +475,8 @@ describe("the sweep's own fixtures are documents the domain accepts", () => {
   );
 });
 
-/** **The iff ADR 0049 actually asserts, in both directions.** The wave's risk is a body gaining a
- *  chip it should not have, and the `fixed` verdict is the only new way to gain one — so it must
- *  appear on a body exactly when that body's own row says it cannot be resized, and a resizable body
- *  in a column full of unresizable members must keep its ordinary blocked row rather than collapsing
- *  to one fixed chip. */
+/** The `fixed` verdict is the only new way to gain a chip, so it must appear exactly when the body's own row says it
+ *  cannot be resized, and a resizable body in a column full of unresizable members must keep its blocked row. */
 describe("a fixed verdict appears if and only if the body itself is fixedWidth", () => {
   it.each(["the shipped kitchen", "a kitchen with an emptied column"])(
     "holds in %s",
@@ -594,9 +499,8 @@ describe("a fixed verdict appears if and only if the body itself is fixedWidth",
           record.fixedWidth && hasSet,
         ]);
         if (isFixedChip) fixedBodies += 1;
-        // A resizable body standing in a column with an unresizable member keeps its whole declared
-        // row, every chip blocked with the engine's reason (ADR 0032) — it does not become a single
-        // fixed chip. `p8`, `p14` and `p24` are the shipped instances.
+        // A resizable body in a column with an unresizable member keeps its whole declared row, every chip blocked with
+        // the engine's reason; `p8`, `p14` and `p24` are the shipped instances.
         if (
           !record.fixedWidth &&
           hasSet &&

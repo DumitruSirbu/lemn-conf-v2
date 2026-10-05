@@ -1,14 +1,4 @@
-// Adversarial QA for wave 6B2 — the door step and the height term (ADR 0068).
-//
-// The wave shipped without QA, so this file is the gate 6C depends on. It attacks what
-// `price-design.test.ts`, `pricing-seams.test.ts` and `qa-6b-pricing.adversarial.test.ts` assert
-// from the other side: the arithmetic that could drift off an integer, the second door-count
-// derivation that must not exist, the catalogue rows a body can be built at that nothing prices,
-// the shapes that could carry a height term the owner ruled and evaluate it as an area, and the
-// book read as **data a manufacturer edits** rather than as a literal a developer wrote.
-//
-// Every amount here is read off the book under test or off a book this file constructs from
-// deliberately arbitrary coefficients. No figure asserted here is a price (ADR 0001 decision 4).
+// No figure here is a price: every amount is read off the book under test or one built here (ADR 0001 decision 4).
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -64,8 +54,7 @@ import type { BodyDefinition } from "../../src/void-engine.js";
 const CATALOG = KITCHEN_L_BODY_CATALOG;
 const BOOK = SAMPLE_PRICE_BOOK;
 
-/** The two cabinet depths §7 declares a wall depth for, so a sweep of "the whole catalogue" means
- *  both materialisations of it and not only the one the fixture happens to be built at. */
+/** Both cabinet depths, so a whole-catalogue sweep covers both materialisations of the catalogue. */
 const CABINET_DEPTHS_MM = [600, 700] as const;
 
 function designOf(placements: readonly DesignPlacement[]): Design {
@@ -185,8 +174,7 @@ function hasCoefficient(
   );
 }
 
-/** The catalogue rows the two ADR 0068 terms are *supposed* to apply to, read off the catalogue's
- *  own flags rather than off a list kept up to date by hand — which is the criterion. */
+/** Catalogue rows the two ADR 0068 terms apply to, read off the catalogue's flags rather than a hand-kept list. */
 function insertableRowsWhere(
   predicate: (definition: BodyDefinition) => boolean,
 ): readonly string[] {
@@ -202,10 +190,7 @@ const DOOR_COUNT_ROWS = insertableRowsWhere(
   (definition) => definition.doorCountFollowsWidth === true,
 );
 
-/** Every whole millimetre a row may be built at, from the ranges the catalogue declares — the same
- *  answer `acceptsWidthMm` gives, enumerated. A discrete row yields its sizes and nothing between
- *  them; a cabinetry row yields the whole continuum, because the 50 mm ladder is what the panel
- *  offers and not what the workshop builds. */
+/** Every whole mm a row may be built at: a cabinetry row yields the continuum, not only the panel's 50 mm ladder. */
 function buildableWidthsOf(
   buildId: string,
   definition: BodyDefinition,
@@ -229,10 +214,7 @@ function buildableWidthsOf(
 
 describe("money is integer arithmetic, and no path can make it anything else", () => {
   it("sums twenty-five wide bodies to an exact integer, order-independently", () => {
-    // A per-millimetre rate times a four-figure width, summed twenty-five times, is where a float
-    // would first show. The permutation is summed in the *other* direction as well, because
-    // floating-point addition is not associative and an exact integer sum is the only thing that
-    // survives both.
+    // Float addition is not associative, so the sum also runs in reverse; only an exact integer survives both.
     const placements = Array.from({ length: 25 }, (_unused, index) =>
       placedAt({
         id: `p${String(index)}`,
@@ -256,8 +238,7 @@ describe("money is integer arithmetic, and no path can make it anything else", (
   });
 
   it("divides nothing and rounds nothing, in the source and not only in the answer", () => {
-    // The criterion is *"rounding is not in the query"*. A `Math.round` added later would keep every
-    // total an integer and would silently move an amount, so the absence is asserted on the source.
+    // A later Math.round would keep every total an integer yet move an amount, so absence is asserted on the source.
     const sources = [
       "src/pricing/price-book.ts",
       "src/pricing/price-design.ts",
@@ -291,9 +272,7 @@ describe("money is integer arithmetic, and no path can make it anything else", (
       heightMm,
       doorLeafCount,
     ) => {
-      // Zero and negative rates are swept deliberately: `0` is a real coefficient (`pricedFlat`),
-      // and a negative one is what a manufacturer typing a minus sign produces. Whatever the
-      // arithmetic answers, it must never be a fraction or a `NaN`.
+      // Zero and negative rates are swept deliberately: a manufacturer typing a minus sign produces a negative one.
       const amount = amountForBody(
         {
           shape: "linear-in-width-height-and-door-leaves",
@@ -315,9 +294,8 @@ describe("money is integer arithmetic, and no path can make it anything else", (
     },
   );
 
-  /** A half in each coefficient, against a body chosen so the half stays a half: an **odd**
-   *  multiplier, because `0.5 × 700` is a whole number and would have made the assertion pass for
-   *  the wrong reason. 499 mm is one leaf and 701 mm of height is odd. */
+  /** An odd multiplier (499 mm wide, 701 mm high) keeps the half a half: 0.5 × 700 is whole and would pass
+   *  for the wrong reason. */
   const HALF_COEFFICIENTS = [
     { field: "perWidthMillimetreMinor", value: 0.5 },
     { field: "perHeightMillimetreMinor", value: 0.5 },
@@ -327,8 +305,6 @@ describe("money is integer arithmetic, and no path can make it anything else", (
 
   for (const half of HALF_COEFFICIENTS) {
     it(`refuses rather than rounds a half in ${half.field}`, () => {
-      // A half is the value a rounding rule would have to pick a direction for. There is no
-      // direction to pick, because there is no rounding: the amount is refused whole.
       const formula = {
         ...ruleFor(BOOK, "wall-cabinet").formula,
         [half.field]: half.value,
@@ -372,10 +348,8 @@ describe("money is integer arithmetic, and no path can make it anything else", (
     });
   }
 
-  /** The values that multiply to a **whole number** instead of to a `NaN`, which is what makes them
-   *  the dangerous half of the same family: `null × 700` is `0`, and so is `false × 700` and
-   *  `[] × 700`. The result passes `Number.isSafeInteger`, so the only guard the query has says yes
-   *  and the row is priced as though the owner's height ruling did not apply to it. */
+  /** Values that multiply to a whole number rather than NaN (`null × 700` is 0), so the integer check alone
+   *  would price them as though the height term did not apply. */
   const SILENTLY_ZEROING_COEFFICIENTS: readonly {
     readonly name: string;
     readonly value: unknown;
@@ -387,12 +361,6 @@ describe("money is integer arithmetic, and no path can make it anything else", (
   ];
 
   it("holds every coefficient to being a number, not only its answer to being an integer", () => {
-    // **DEFECT.** `amountForBody` validates its *answer* and never its coefficients, so a book
-    // assembled outside TypeScript — which ADR 0062 seam 1 exists to make possible — drops the
-    // height term silently on the row the owner ruled it for, and the design prices as though
-    // ADR 0068 decision 2 did not apply to it. `cabinet-handles.ts` already holds the sibling
-    // numbers to "whole, non-negative, safe integer" in `usableCountOf` and throws rather than
-    // guessing; the price coefficients have no equivalent.
     const refused: string[] = [];
     const priced: string[] = [];
 
@@ -436,9 +404,7 @@ describe("money is integer arithmetic, and no path can make it anything else", (
 
 describe("one composition of the door count, and no second derivation anywhere", () => {
   it("has no module under pricing/ deriving a door count of its own", () => {
-    // `widthDerivedDoorLeafCount` is the one composition of `doorTiers × deriveDoorCount`. A second
-    // reader that called `deriveDoorCount` directly would under-count every banded cabinet, and
-    // would do it quietly.
+    // A second reader calling deriveDoorCount directly would quietly under-count every banded cabinet.
     for (const source of [
       "src/pricing/price-book.ts",
       "src/pricing/price-design.ts",
@@ -453,19 +419,9 @@ describe("one composition of the door count, and no second derivation anywhere",
   });
 
   it("calls deriveDoorCount from exactly four modules, and each for a different question", () => {
-    // Not a co-occurrence heuristic: this is the whole population of callers, pinned. `door-count.ts`
-    // declares it, `catalog.ts` re-exports it and asks it for the **label** — leaves per band, which
-    // is the right answer for a name — and `cabinet-handles.ts` is the one module that multiplies it
-    // by `doorTiers`. A fifth caller is either a second derivation or owes an explanation here.
-    //
-    // **`front-population.ts` is the fourth, added by wave 6S and owed its explanation here.** It
-    // asks the same question `cabinet-handles.ts` does — how many leaves stand in one band at this
-    // width — for a different consumer: ADR 0070 counts hinges by leaf, and a handle count cannot
-    // answer that because `base-panbank`'s two handles are drawers. It is not a second derivation
-    // of the *threshold*: like every other caller it reads `deriveDoorCount`, so there is still
-    // nothing for the label, the handle count, the price step and the leaf count to disagree with.
-    // The composition check below still pins `doorTiers × deriveDoorCount` to one module, and this
-    // one does not perform it — it multiplies by its own declared band count instead.
+    // The whole caller population, pinned: door-count.ts declares it, catalog.ts asks it for a label,
+    // cabinet-handles.ts multiplies it by doorTiers, and front-population.ts counts leaves per band for the hinge count
+    // (ADR 0070). A fifth caller is a second derivation.
     const calling = packageSourceFiles().filter((file) =>
       withoutCommentsOrStrings(readPackageSource(file)).includes(
         "deriveDoorCount",
@@ -481,8 +437,6 @@ describe("one composition of the door count, and no second derivation anywhere",
   });
 
   it("multiplies doorTiers by a derived door count in exactly one module", () => {
-    // `catalog.ts` names `doorTiers` where its rows **declare** it and calls `deriveDoorCount` for a
-    // label, and never puts the two in one expression. The composition itself lives in one place.
     const composing = packageSourceFiles().filter((file) =>
       /doorTiers[^;]*deriveDoorCount\(/.test(
         withoutCommentsOrStrings(readPackageSource(file)),
@@ -492,13 +446,10 @@ describe("one composition of the door count, and no second derivation anywhere",
     expect(composing).toEqual(["src/cabinet-handles.ts"]);
   });
 
-  /** One ban per hinge, so the hardware amount divides back to a **count** with no rounding and no
-   *  reliance on the shipped rates staying what they are. */
+  /** One minor unit per hinge, so the hardware amount divides back to a count with no rounding. */
   const ONE_MINOR_UNIT_PER_HINGE = 1;
 
-  /** A book whose hardware tiers charge for hinges and for nothing else. Constructed rather than
-   *  taken from the shipped book, because the amount is being read as a count: a non-zero drawer or
-   *  push rate would fold a second mechanism into the same number. */
+  /** Charges for hinges and nothing else, so the hardware amount reads as a hinge count. */
   function hingeOnlyBook(perHingeMinor: number): PriceBook {
     return {
       ...BOOK,
@@ -514,10 +465,8 @@ describe("one composition of the door count, and no second derivation anywhere",
     };
   }
 
-  /** How many hinges these leaves take — two each, three over the 900 mm threshold. Recomposed from
-   *  the leaf heights rather than assumed flat, because `tall-pantry` carries two 1290 mm bands and
-   *  a flat multiplier would read its sweep as a different number while still agreeing with
-   *  itself. */
+  /** Hinges for these leaves: two each, three above the tall threshold. Recomposed from the leaf heights because
+   *  tall-pantry has two bands and a flat multiplier would agree with itself while being wrong. */
   function hingesOn(leafHeightsMm: readonly number[]): number {
     return leafHeightsMm.reduce(
       (total, leafHeightMm) =>
@@ -537,16 +486,8 @@ describe("one composition of the door count, and no second derivation anywhere",
 
   for (const row of LEAF_ROWS) {
     it(`bills ${row.buildId}'s hinges and its door step off the same count, at every width`, () => {
-      // The step is isolated by pricing the same body twice against two books that differ only in
-      // `perDoorLeafMinor`: the difference divided by the delta is the leaf count the price step was
-      // billed for, whatever the base and width terms are. It must equal the count the **hardware**
-      // line is billed for, at every width including the threshold and one millimetre either side.
-      //
-      // **Wave 6T moved which line that is, not whether there is one.** The hardware line used to
-      // publish the count as its `quantity`; it is now one line at `quantity: 1` whose amount is
-      // three rates times three counts (ADR 0092 decision 4), so the count is read out of the
-      // amount by pricing against a tier whose hinge rate is the only non-zero one. The property
-      // 6B2 established is unchanged: one leaf derivation, two consumers, no second one.
+      // The leaf count billed by the price step (difference between two books differing only in perDoorLeafMinor) must
+      // equal the count the hardware line is billed over (a hinge-only tier), at every width including the threshold.
       const definition = CATALOG.get(row.buildId);
       if (!definition) throw new Error(`fixture has no "${row.buildId}"`);
       const base = ruleFor(BOOK, row.buildId).formula;
@@ -586,8 +527,6 @@ describe("one composition of the door count, and no second derivation anywhere",
             widthMm,
           }),
         );
-        // The one count, reached from both sides: the leaves the price step was billed for, and the
-        // leaves the hinges were billed over.
         expect(leafHeightsMm.length).toBe(pricedLeaves * row.handlesPerLeaf);
         expect(billedHinges).toBe(hingesOn(leafHeightsMm));
       }
@@ -595,8 +534,7 @@ describe("one composition of the door count, and no second derivation anywhere",
   }
 
   it("steps at deriveDoorCount's threshold and at no width of its own", () => {
-    // 499 and below is one door, 500 and above is two (ADR 0035 decision 4). The price's only jump
-    // must land on that transition, so the sweep looks for *every* width where the leaf count the
+    // 499 and below is one door, 500 and above two (ADR 0035 decision 4); the price's only jump must land there.
     // price was billed for changes.
     const base = ruleFor(BOOK, "wall-cabinet").formula;
     const flat = bookPricing("wall-cabinet", {
@@ -625,9 +563,8 @@ describe("one composition of the door count, and no second derivation anywhere",
   });
 
   it("gives a banded column twice a one-band cabinet's leaf count at every width", () => {
-    // 6G's open question, pinned from the price side: `deriveDoorCount` answers leaves **per band**,
-    // so a two-band column must be billed two steps where a one-band cabinet is billed one. A
-    // second consumer counting bands instead of leaves would halve this.
+    // deriveDoorCount answers leaves per band, so a two-band column is billed two steps where a one-band cabinet is
+    // billed one; a consumer counting bands instead of leaves would halve this.
     for (const widthMm of [200, 300, 499, 500, 501, 600, 800]) {
       const leavesOf = (buildId: string) =>
         widthDerivedDoorLeafCount({
@@ -680,16 +617,8 @@ describe("every body a customer can stand in a design has a price", () => {
   });
 
   it("prices every seeded cabinetry placement in the shipped kitchen with a positive amount", () => {
-    // A silently-zero body under-quotes the customer and looks like a cabinet that was included.
-    //
-    // **Narrowed, not relaxed, by the owner's ruling of 2026-09-10** — *"it's drawn, it's displayed,
-    // but it's not included in the price, and it's not provided by the manufacturer"* — which put
-    // the hood and the free-standing fridge at nothing. Their zero is an answer rather than a
-    // missing price, and the breakdown prints *nu este inclus* over them instead of *inclus*.
-    //
-    // **The exception keys on the book's `suppliedBy` declaration and never on the amount.** A
-    // cabinetry row that reaches zero is still exactly the defect above, and it still fails here;
-    // written as `amountMinor === 0` this test would have excused it.
+    // The exception keys on the book's `suppliedBy` declaration, never on the amount, so a cabinetry row that reaches
+    // zero still fails (ADR 0107 decision 2).
     const lines = cabinetLinesOf(priceOrFail());
     const cabinetry = lines.filter((line) => line.suppliedBy !== "customer");
     const notSupplied = lines.filter((line) => line.suppliedBy === "customer");
@@ -701,8 +630,7 @@ describe("every body a customer can stand in a design has a price", () => {
       expect(line.amountMinor, line.placementId).toBeGreaterThan(0);
     }
 
-    // The exception is neither vacuous nor a hole: the seeded kitchen holds both appliances, and
-    // both bill nothing, so nothing was excused that the customer is being charged for.
+    // Not vacuous: the seeded kitchen holds both appliances and both bill nothing.
     expect(notSupplied.map((line) => line.pricedAsBuildId).sort()).toEqual([
       "fridge-free",
       "hood",
@@ -715,8 +643,7 @@ describe("every body a customer can stand in a design has a price", () => {
 
 describe("taller costs more, on every shape that carries the term", () => {
   it("finds the height-flexible population wider than the two rows the owner named", () => {
-    // ADR 0068's population correction. A two-shape implementation would have been silently wrong
-    // on `wall-cabinet`, which is height-flexible **and** hinged.
+    // A two-shape implementation would be wrong on `wall-cabinet`, which is height-flexible and hinged (ADR 0068).
     expect(HEIGHT_FLEX_ROWS).toContain("wall-cabinet");
     expect(HEIGHT_FLEX_ROWS).toContain("wall-lift");
     expect(HEIGHT_FLEX_ROWS).toContain("open-shelf");
@@ -773,8 +700,7 @@ describe("taller costs more, on every shape that carries the term", () => {
   );
 
   it("adds height, and does not multiply it into the width", () => {
-    // The owner did not take price by front area. `a + b·w + c·h` keeps the width term unchanged
-    // when the height changes; `k·w·h` does not, and that is the whole difference.
+    // Price is not by front area: `a + b·w + c·h` keeps the width term when height changes; `k·w·h` does not.
     const widthStep = (heightMm: number) =>
       amountOfOneBody({ buildId: "wall-lift", widthMm: 601, heightMm }) -
       amountOfOneBody({ buildId: "wall-lift", widthMm: 600, heightMm });
@@ -813,9 +739,7 @@ describe("a second door costs more, and costs exactly what the book says it cost
 
   for (const buildId of DOOR_COUNT_ROWS) {
     it(`prices ${buildId} higher with two doors than with one, at one width`, () => {
-      // Same body, same width, one door versus two — which needs the two books, because a real
-      // cabinet cannot have both counts at one width. This is the owner's ruling stated directly:
-      // the second door costs more than the first, at the *same* size.
+      // Needs two books because a real cabinet cannot have both door counts at one width.
       const base = ruleFor(BOOK, buildId).formula;
       const widthMm = TWO_DOOR_MIN_WIDTH_MM;
       const heightMm = 700;
@@ -834,9 +758,8 @@ describe("a second door costs more, and costs exactly what the book says it cost
     });
 
     it(`steps ${buildId} by the declared perDoorLeafMinor and not by the width term`, () => {
-      // The step across the threshold is a millimetre of width plus the leaves the threshold adds.
-      // Subtracting the width term leaves the door step, and it must be exactly the coefficient the
-      // book declares, multiplied by the leaves the row's bands add — never an accident of width.
+      // Subtracting the width term from the step across the threshold leaves the door step: the declared coefficient
+      // times the leaves the row's bands add.
       const { formula } = ruleFor(BOOK, buildId);
       const definition = CATALOG.get(buildId);
       if (!definition) throw new Error(`fixture has no "${buildId}"`);
@@ -913,9 +836,8 @@ describe("a second door costs more, and costs exactly what the book says it cost
 
 describe("the book is data with one authority, and is refused when it is not", () => {
   it("refuses a book pricing one catalogue row twice, naming the row", () => {
-    // The manufacturer-dashboard failure mode: "price this cabinet differently" made by *adding* a
-    // rule rather than editing one. The ids differ, so the rule-id sweep passes it; the Map would
-    // keep whichever came last and nothing would say so.
+    // Adding a second rule rather than editing one: the ids differ so the rule-id sweep passes it, and a Map would
+    // silently keep whichever came last.
     const duplicated: PriceBook = {
       ...BOOK,
       cabinetRules: [
@@ -935,8 +857,7 @@ describe("the book is data with one authority, and is refused when it is not", (
   });
 
   it("refuses a duplicated row before it prices a single line, whatever the design", () => {
-    // Refused as a property of the *book*, so an empty design is refused too. A book that is only
-    // rejected when the duplicated row happens to be placed is a book that ships broken.
+    // Refused as a property of the book, so an empty design is refused too.
     const duplicated: PriceBook = {
       ...BOOK,
       cabinetRules: [
@@ -951,8 +872,7 @@ describe("the book is data with one authority, and is refused when it is not", (
   });
 
   it("refuses a book whose two rules for one row disagree in shape", () => {
-    // Since ADR 0068 two rules for one row can differ in shape, so the discarded one is likelier to
-    // be the intended one — the height term simply vanishing is the quiet outcome.
+    // Rules for one row can differ in shape (ADR 0068), so the discarded one may be the intended one.
     const shapeClash: PriceBook = {
       ...BOOK,
       cabinetRules: [
@@ -1020,15 +940,7 @@ describe("the book is data with one authority, and is refused when it is not", (
   });
 
   it("publishes no cabinet line, and no total, below zero", () => {
-    // **DEFECT.** A manufacturer editing a book through ADR 0062's dashboard types a minus sign.
-    // `isExactAmount` asks only `Number.isSafeInteger`, which a negative satisfies, so the line and
-    // the total are published as they stand — a cabinet the customer is *paid* to take, and a total
-    // that under-quotes without a single refusal anywhere. This is the same gap the coefficient
-    // tests above show from the other side: the query validates integrality and nothing else.
-    //
-    // The assertion is on the *published amount* rather than on a failure code, deliberately:
-    // whether a negative coefficient is refused at the book boundary or the amount is refused at
-    // the line is the implementer's call. Publishing it is not.
+    // Asserts on the published amount, not a failure code: refusing at the book or at the line are both acceptable.
     const negative = bookPricing("wall-cabinet", {
       shape: "linear-in-width-height-and-door-leaves",
       baseMinor: -1_000_000,
@@ -1070,9 +982,8 @@ describe("the query is pure, and reads the projection rather than an order of it
   });
 
   it("lists cabinet lines in exactly the projection's order and never sorts its own", () => {
-    // Not a re-derivation of the same comparator: the expectation is read from
-    // `projectDesignForDisplay` itself, so a pricing-side sort that happened to agree today would
-    // still have to agree on a design nobody chose.
+    // The expectation is read from `projectDesignForDisplay`, so a pricing-side sort that agrees today must still agree
+    // on a design nobody chose.
     const shuffled = [...KITCHEN_L_DESIGN.placements].sort((a, b) =>
       a.id < b.id ? 1 : -1,
     );
@@ -1089,11 +1000,8 @@ describe("the query is pure, and reads the projection rather than an order of it
   });
 
   it("lists the seeded kitchen in one literal order, so a swapped comparator key is red", () => {
-    // The test above reads its expectation from `projectDesignForDisplay`, which is the right way to
-    // say "pricing does not sort" — and it is exactly the wrong way to catch a comparator key
-    // swapped *inside* the projection, because both sides would move together. This one is the
-    // literal pin: wall → normalised band → `y0Mm` → `alongMm` → placement id, row-major
-    // (ADR 0063), spelled out on the document a customer is shown.
+    // A literal pin: the test above moves together with a comparator key swapped inside the projection.
+    // Order is wall, normalised band, `y0Mm`, `alongMm`, placement id, row-major (ADR 0063).
     expect(
       cabinetLinesOf(priceOrFail()).map((line) => line.placementId),
     ).toEqual([
@@ -1139,10 +1047,8 @@ describe("the query is pure, and reads the projection rather than an order of it
   });
 });
 
-/** A width sweep that is dense where a transition can hide and sampled where it cannot: every
- *  declared size, both range ends, the door threshold and its neighbours, and a stride through the
- *  rest. A whole-continuum sweep of every row at both depths is ~24 000 priced designs; this keeps
- *  the transitions and drops only the widths between them where the formula is affine. */
+/** Dense where a transition can hide (declared sizes, range ends, the door threshold and its neighbours), strided
+ *  elsewhere: a whole-continuum sweep of every row at both depths prices far too many designs. */
 function sweptWidths(
   buildId: string,
   definition: BodyDefinition,
@@ -1174,9 +1080,6 @@ function deepFrozen<TValue>(value: TValue): TValue {
   return Object.freeze(value);
 }
 
-// The source-reading helpers, at the foot of the file: they are the mechanism of the seam
-// assertions above and not the subject of any of them. Same approach `pricing-seams.test.ts` takes.
-
 const SOURCE_ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "../..",
@@ -1201,9 +1104,7 @@ function packageSourceFiles(): readonly string[] {
     .sort();
 }
 
-/** **This package comments more than it codes**, and every name a comment mentions would otherwise
- *  read as a use of it. Stripping comments and string literals is what makes "no module under
- *  `pricing/` derives a door count" an assertion about the code rather than about the prose. */
+/** Strips comments and strings so a name mentioned in prose does not read as a use of it. */
 function withoutCommentsOrStrings(source: string): string {
   return source
     .replace(/\/\*[\s\S]*?\*\//g, " ")

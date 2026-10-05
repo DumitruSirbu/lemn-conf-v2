@@ -1,19 +1,5 @@
-// Wave 7D6 slice S2's own gate: **the corner's size is derived, and its three readers agree** —
-// the acceptance criteria of `docs/milestones/M7-room-and-presets.md`'s 7D6 punch list as its
-// 2026-09-17 adjudication amends them (criteria 1, 2′, 3, 5–9 and 11–13). Criterion 4′ (the pinned
-// wall-minimum margin) and criterion 10 (the literal sweep) are slice S3's and are deliberately
-// absent.
-//
-// **Why one file for three modules.** S2's subject is one derivation and the three sites that read
-// it — the room policy's bound, the shell's two run origins and the fixture's own placements — and
-// the defect it exists to prevent is those sites disagreeing. Split across three files, the
-// agreement is what nobody owns.
-//
-// **What each criterion must not be satisfied by** is recorded on the criterion, because several of
-// them are one wrong assertion away from passing vacuously: criterion 1 compared against the
-// derivation itself, criterion 3 built against a catalogue its design is not at, criterion 11
-// looking at the floor run (which cannot see wall A's zero at all), and criterion 12's containment
-// swept over rooms that stop short of the 6000 mm maxima.
+// The corner's size is derived and its three readers (the room policy's bound, the shell's run origins and
+// the fixture's placements) agree. One file, so that agreement has an owner.
 import { fc } from "@fast-check/vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -59,18 +45,15 @@ import {
 
 const OCCURRED_AT = "2026-09-17T09:00:00.000Z";
 
-/** The depth the product ships at, **typed on purpose**: criterion 1 pins a number, so a change to
- *  the shipped depth has to be read here as a failing figure rather than followed silently. */
+/** The shipped depth, typed on purpose: a change to it must show as a failing figure, not be followed silently. */
 const SHIPPED_CABINET_DEPTH_MM = 600;
 
-/** The other declared depth. No product path builds at it — generation has no depth input — so
- *  every 700 mm claim below is a claim about the derivation or about `setCabinetDepth`'s output. */
+/** The other declared depth. No product path builds at it (generation has no depth input), so 700 mm claims are
+ *  about the derivation or `setCabinetDepth`'s output. */
 const DEEPER_CABINET_DEPTH_MM = 700;
 
-/** The reference kitchen's own room, 3560 × 2920 × 2600, and the corner criterion 1 pins. */
 const REFERENCE_ROOM = KITCHEN_L_DESIGN.room;
 
-/** This package's own `src/`, for the two structural checks below. */
 const SOURCE = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
   "../src",
@@ -82,8 +65,7 @@ function approvedL(): LWallBounds {
   return bounds;
 }
 
-/** The smallest and the largest room the **owner's** policy admits, read from the policy so slice
- *  S5 moving a bound moves these with it (criterion 7's *"reads the bound rather than typing it"*). */
+/** The smallest and largest room the owner's policy admits, read from the policy so a moved bound moves them. */
 function roomAtApprovedWalls(
   pick: (bounds: MillimetreBounds) => number,
 ): DesignRoom {
@@ -98,7 +80,7 @@ function roomAtApprovedWalls(
 const SMALLEST_APPROVED_ROOM = roomAtApprovedWalls((bounds) => bounds.minMm);
 const LARGEST_APPROVED_ROOM = roomAtApprovedWalls((bounds) => bounds.maxMm);
 
-/** The four rooms wave 7D3's threshold table was measured in (criterion 8). */
+/** The four rooms the threshold table was measured in (criterion 8). */
 const THRESHOLD_TABLE_ROOMS: readonly DesignRoom[] = [
   { shape: "L", widthMm: 3300, depthMm: 1700, heightMm: 2600 },
   { shape: "L", widthMm: 3900, depthMm: 1700, heightMm: 2600 },
@@ -106,8 +88,6 @@ const THRESHOLD_TABLE_ROOMS: readonly DesignRoom[] = [
   { shape: "L", widthMm: 4000, depthMm: 3000, heightMm: 2600 },
 ];
 
-/** Every room the anchored arms assert over: the reference room and both ends of the approved
- *  range, so the property's fixed cases include the two rooms the bounds are set by. */
 const ANCHOR_ROOMS: readonly DesignRoom[] = [
   REFERENCE_ROOM,
   SMALLEST_APPROVED_ROOM,
@@ -118,9 +98,8 @@ function millimetresIn(bounds: MillimetreBounds) {
   return fc.integer({ min: bounds.minMm, max: bounds.maxMm });
 }
 
-/** A whole-millimetre room from the owner-approved range — **both walls to 6000**, which is
- *  criterion 12's own must-not: a generator that stops short of a maximum cannot see a corner that
- *  fails to fit in a room nobody sampled. */
+/** A whole-millimetre room from the approved range, both walls up to 6000: a generator that stops short of a
+ *  maximum cannot see a corner that fails to fit. */
 function approvedRoom(): fc.Arbitrary<DesignRoom> {
   return fc.record({
     shape: fc.constant("L" as const),
@@ -176,12 +155,7 @@ function assemblyReachMm(
   );
 }
 
-/** Wall B's two rows' **near** edges, restated here from the catalogue's own depth formulas rather
- *  than read back off the derivation: the base row starts at the X-leg's front plane (`d − 20`) and
- *  the upper rows at §7's head-clearance depth. This is the independent side of criterion 2′ — the
- *  derivation supplies the far edges, the catalogue supplies where each row begins. */
-/** How far the base run's carcass front stands inside the cabinet-depth line: 30 mm (ADR 0135), the
- *  40 mm its fronts take less the 10 mm its carcass stands off the wall. Written as arithmetic here and
+/** How far the base run's carcass front stands inside the cabinet-depth line (ADR 0135). Written as arithmetic,
  *  not read from the catalogue, so the test's side of criterion 2′ is independent of the derivation's. */
 const RUN_CARCASS_FRONT_INSET_MM = 30;
 
@@ -205,10 +179,6 @@ function wallOnlyTilesOn(design: Design, wall: DesignWall) {
   );
 }
 
-// =================================================================================================
-// Criterion 1 — the pre-flight, pinned as a literal
-// =================================================================================================
-
 describe("criterion 1 — the derived reach at 600 mm in the reference room", () => {
   it("agrees with the depth the shell is built at, so the literal below is the shipped one", () => {
     expect(SHELL_CABINET_DEPTH_MM).toBe(SHIPPED_CABINET_DEPTH_MM);
@@ -226,9 +196,8 @@ describe("criterion 1 — the derived reach at 600 mm in the reference room", ()
     },
   );
 
-  // The must-not: a test that compares the derivation only against itself. `APPROVED_ROOM_POLICY`
-  // is the owner's own literal, this wave may not edit it, and nothing in the derivation feeds it —
-  // so wall A's 900 has a second, independent source.
+  // The derivation is not compared only against itself: APPROVED_ROOM_POLICY is the owner's literal and nothing
+  // in the derivation feeds it.
   it("is the number the owner approved wall A's minimum and corner reach from", () => {
     const approved = approvedL();
 
@@ -244,7 +213,7 @@ describe("criterion 1 — the derived reach at 600 mm in the reference room", ()
     const widths = widthsIn(REFERENCE_ROOM, SHIPPED_CABINET_DEPTH_MM);
 
     expect(widthMm(widths, { wall: "A", band: "base" })).toBe(900);
-    // 320 → 330 (ADR 0135): the reference reach less the base run's carcass front, 900 − 570.
+    // The reference reach less the base run's carcass front: 900 − 570 (ADR 0135).
     expect(widthMm(widths, { wall: "B", band: "base" })).toBe(330);
     expect(widthMm(widths, { wall: "B", band: "wall" })).toBe(570);
     expect(widthMm(widths, { wall: "B", band: "top" })).toBe(570);
@@ -272,12 +241,7 @@ describe("criterion 1 — the derived reach at 600 mm in the reference room", ()
   });
 });
 
-// =================================================================================================
-// Criterion 2′ — wall B's two rows, as a property of the derivation and of no design
-// =================================================================================================
-
 describe("criterion 2′ — wall B's base and wall rows, in the derivation and not in a design", () => {
-  /** Both rows, named, at one (depth, room): the assertion criterion 2′ words. */
   function expectTheRowsToAccountForTheirResidue(
     room: DesignRoom,
     cabinetDepthMm: number,
@@ -337,8 +301,7 @@ describe("criterion 2′ — wall B's base and wall rows, in the derivation and 
       farEdgeMm(at600, { wall: "B", band: "base" }) -
         farEdgeMm(at600, { wall: "B", band: "wall" }),
     ).toBe(0);
-    // Not S2's to remove: it is the residue of a *slide* on frozen widths (ADR 0089, J3′.4), and the
-    // only two ways to close it are refused below.
+    // The 30 mm residue at 700 mm is a slide on frozen widths (ADR 0089); the two ways to close it are refused below.
     expect(
       farEdgeMm(at700, { wall: "B", band: "base" }) -
         farEdgeMm(at700, { wall: "B", band: "wall" }),
@@ -385,9 +348,8 @@ describe("criterion 2′ — wall B's base and wall rows, in the derivation and 
     );
   });
 
-  // ADR 0120 Amendment A's room term is a **ceiling**. A derivation that read it as a target would
-  // widen the upper returns to 600 at 700 mm — exactly the move D5 refuses — and nothing else in
-  // this file would notice, because a wider corner still contains and still validates.
+  // The room term is a ceiling, not a target: reading it as a target would widen the upper returns to 600 at 700 mm,
+  // and a wider corner still contains and validates.
   it("never widens a piece past the reference corner's own width, in any room", () => {
     const reference = widthsIn(REFERENCE_ROOM, SHIPPED_CABINET_DEPTH_MM);
     fc.assert(
@@ -406,16 +368,9 @@ describe("criterion 2′ — wall B's base and wall rows, in the derivation and 
   });
 });
 
-// =================================================================================================
-// Criterion 3 — the shell still validates clean, at each depth and through the depth command
-// =================================================================================================
-
 describe("criterion 3 — the shell over the approved range, at both depths and back", () => {
-  // The must-not, and it is a test-fidelity trap rather than a defect: judging an **unchanged**
-  // 600 mm design against `buildKitchenLBodyCatalog(700)` reports 3 ×
-  // `RECORDED_SPAN_OVERLAPS_CORNER_BODY` in every room and says nothing about the product. The
-  // depth change goes through `setCabinetDepth`, whose `catalogAt` factory exists to make the other
-  // call site unwritable — so every judgement below is against the catalogue its design is at.
+  // Judging an unchanged 600 mm design against the 700 mm catalogue reports RECORDED_SPAN_OVERLAPS_CORNER_BODY and says
+  // nothing about the product; every judgement here uses the catalogue its design is at.
   function expectACleanShell(room: DesignRoom): void {
     const shell = shellIn(room);
     const where = JSON.stringify(room);
@@ -454,10 +409,6 @@ describe("criterion 3 — the shell over the approved range, at both depths and 
   });
 });
 
-// =================================================================================================
-// Criterion 5 — no insertability changes
-// =================================================================================================
-
 describe("criterion 5 — the catalogue's two populations are where they were", () => {
   it("offers sixteen insertable rows, and no structural corner among them", () => {
     const insertable = listInsertableBodies(KITCHEN_L_BODY_CATALOG);
@@ -471,10 +422,6 @@ describe("criterion 5 — the catalogue's two populations are where they were", 
     }
   });
 });
-
-// =================================================================================================
-// Criterion 6 — run origins stay on the grid at the shipped depth
-// =================================================================================================
 
 describe("criterion 6 — the run origins at the shipped depth", () => {
   it.each([REFERENCE_ROOM, SMALLEST_APPROVED_ROOM, ...THRESHOLD_TABLE_ROOMS])(
@@ -491,10 +438,6 @@ describe("criterion 6 — the run origins at the shipped depth", () => {
   );
 });
 
-// =================================================================================================
-// Criterion 7 — the smallest room the owner's policy admits
-// =================================================================================================
-
 describe("criterion 7 — the smallest room APPROVED_ROOM_POLICY admits", () => {
   it.each([
     { baseWidthMm: 330, upperWidthMm: 570, expectedReachMm: 1000 },
@@ -503,8 +446,8 @@ describe("criterion 7 — the smallest room APPROVED_ROOM_POLICY admits", () => 
   ])(
     "takes both wall-B rows at 700 mm: base $baseWidthMm / upper $upperWidthMm reaches $expectedReachMm",
     async ({ baseWidthMm, upperWidthMm, expectedReachMm }) => {
-      // Hypothetical width pairs are an algebra guard, not rooms or alternative policies.
-      // The mixed pair catches a narrowed base return that leaves the upper row at 570 mm.
+      // Hypothetical width pairs are an algebra guard; the mixed pair catches a narrowed base return that leaves the
+      // upper row at 570 mm.
       const actualWidths = widthsIn(REFERENCE_ROOM, DEEPER_CABINET_DEPTH_MM);
       const widths: CornerAssemblyWidthsMm = {
         ...actualWidths,
@@ -527,8 +470,8 @@ describe("criterion 7 — the smallest room APPROVED_ROOM_POLICY admits", () => 
       expect(topFarMm).toBe(wallFarMm);
       expect(Math.max(baseFarMm, wallFarMm, topFarMm)).toBe(expectedReachMm);
 
-      // The engine bound resolves the two catalogue floors at module load. Vary those floors
-      // here so a bound implementation that silently drops the upper row fails on 200/570.
+      // The engine bound resolves the two catalogue floors at module load, so the mock varies them and re-imports;
+      // a bound that silently drops the upper row fails on 200/570.
       vi.doMock("../src/catalog.js", async (importOriginal) => {
         const actual =
           await importOriginal<typeof import("../src/catalog.js")>();
@@ -559,9 +502,8 @@ describe("criterion 7 — the smallest room APPROVED_ROOM_POLICY admits", () => 
     },
   );
 
-  // 880 → 870 (ADR 0135): the engine's floor is the narrowest corner's reach at the deepest declared
-  // depth, 670 (the run's carcass front at 700 mm) plus the 200 mm one-door floor, where it was the
-  // run's seat, 680, plus the same 200. The approved minima do not move.
+  // The engine floor is the narrowest corner's reach at the deepest declared depth: 670 plus the 200 mm one-door
+  // floor (ADR 0135). The approved minima do not move.
   it("keeps the actual engine floor at 870 mm while the approved wall-B minimum stays 1000 mm", () => {
     expect(narrowestCornerReachMm("B").wallMinimumMm).toBe(870);
     expect(approvedL().wallB.minMm).toBe(1000);
@@ -584,9 +526,8 @@ describe("criterion 7 — the smallest room APPROVED_ROOM_POLICY admits", () => 
         "corner",
     );
 
-    // Four, not six: the top-row return's and the top-row unit's own tops are above a 2200 mm ceiling,
-    // and an excluded piece still reserves its footprint (ADR 0110 decision 1). `p27` is the corner wall
-    // unit, which joined the assembly in M7C wave C2.
+    // Four, not six: the top-row return's and unit's tops are above a 2200 mm ceiling, and an excluded piece still
+    // reserves its footprint (ADR 0110 B2). `p27` is the corner wall unit.
     expect(corners.map(({ id }) => id).sort()).toStrictEqual([
       "p25",
       "p26",
@@ -615,10 +556,6 @@ describe("criterion 7 — the smallest room APPROVED_ROOM_POLICY admits", () => 
   });
 });
 
-// =================================================================================================
-// Criterion 8 — 7D3's origin is unmoved
-// =================================================================================================
-
 describe("criterion 8 — the origins wave 7D3 measured its threshold table from", () => {
   it.each(THRESHOLD_TABLE_ROOMS)(
     "still starts both floor runs at 900 mm in %o",
@@ -630,10 +567,6 @@ describe("criterion 8 — the origins wave 7D3 measured its threshold table from
     },
   );
 });
-
-// =================================================================================================
-// Criterion 9 — determinism
-// =================================================================================================
 
 describe("criterion 9 — the same room and depth give a byte-identical shell", () => {
   it.each([REFERENCE_ROOM, SMALLEST_APPROVED_ROOM, ...THRESHOLD_TABLE_ROOMS])(
@@ -647,16 +580,10 @@ describe("criterion 9 — the same room and depth give a byte-identical shell", 
   );
 });
 
-// =================================================================================================
-// Criterion 11 — the residue is recorded, and wall A's wall-only run survives
-// =================================================================================================
-
 describe("criterion 11 — the wall-only runs", () => {
-  // Criteria 1 and 8 are structurally blind to this: both read the **floor** run, and the run this
-  // criterion is about is the wall-only one over wall A's corner base. **Restated by M7C wave C2:** it
-  // was two tiles totalling 900 mm from 0 (B2's zero start); the corner wall unit now stands over the
-  // corner base, so wall A's wall row starts past it and there is no wall-only tile to record. A
-  // derivation that moved `wallRowStartMm("A")` back to 0 would tile the span the unit stands in.
+  // Criteria 1 and 8 read the floor run and cannot see this wall-only run. The corner wall unit stands over wall A's
+  // corner base, so no wall-only tile exists there; a derivation moving `wallRowStartMm("A")` back to 0 would tile
+  // the span the unit stands in.
   const UNIT_BUILD_IDS = ["wall-corner-x-900", "wall-corner-x-900-top"];
 
   it("records no wall-only tile over wall A's corner base in the reference room, the unit standing there", () => {
@@ -704,18 +631,13 @@ describe("criterion 11 — the wall-only runs", () => {
         expect(to, where).toBe(
           Math.min(lShellFloorRuns(room).A.startMm, wallLengthMm("A", room)),
         );
-        // Wall B's own wall row starts where its floor run does, so its wall-only run is empty and
-        // no residue goes unrecorded there.
+        // Wall B's wall row starts where its floor run does, so its wall-only run is empty.
         expect(wallOnlyTilesOn(shell, "B"), where).toStrictEqual([]);
       }),
       { numRuns: 120 },
     );
   });
 });
-
-// =================================================================================================
-// Criterion 12 — containment, attainment, acyclicity
-// =================================================================================================
 
 describe("criterion 12 — what makes the policy's reader well-defined", () => {
   it("contains the assembly inside both walls, over the approved range at both depths", () => {
@@ -744,12 +666,8 @@ describe("criterion 12 — what makes the policy's reader well-defined", () => {
     }
   });
 
-  // **Attainment, as the bound can state it.** The adjudication words this as *"the reach at the
-  // approved minimum room equals `narrowestCornerReachMm`"*; that is unsatisfiable while the owner's
-  // minima stay 900 / 1000 above a derived 870 (owner ruling, 2026-09-17), and no slice but the
-  // joint bound slice may move them. So tightness is asserted where it is a property of the bound
-  // itself: **the smallest room the bound admits attains it exactly**, which is what "tight, not
-  // merely safe" means, and the margin above the owner's minima is S3's criterion 4′.
+  // Tightness is asserted on the bound itself: the smallest room the bound admits attains it exactly. The owner's
+  // minima (900 / 1000) sit above the derived 870, so equality at the approved minimum is unsatisfiable.
   it.each(WALLS)(
     "is attained exactly by the smallest room wall %s's own bound admits",
     (wall) => {
@@ -814,10 +732,6 @@ describe("criterion 12 — what makes the policy's reader well-defined", () => {
     expect(firstLoaded.ENGINE_ROOM_LIMITS).toStrictEqual(ENGINE_ROOM_LIMITS);
   });
 });
-
-// =================================================================================================
-// Criterion 13 — the two quantifiers cannot be swapped
-// =================================================================================================
 
 describe("criterion 13 — the bound's question and the shell's are different questions", () => {
   it("answers wall B differently, so a caller that took the other's number cannot do so silently", () => {
