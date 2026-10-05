@@ -18,6 +18,7 @@
 // them in teardown, failing tests included, and `afterAll` proves the run left none (AC5).
 //
 // **Must not run concurrently with any other persistence live run** (ADR 0006).
+import type { PlacementRecord } from "@lemnaria/configurator-domain";
 import type { Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 
@@ -47,7 +48,7 @@ import {
   test as stepOneTest,
   watchTheHandOff,
 } from "./step-one-by-touch";
-import { eyeOf } from "./u-cutaway-scene";
+import { eyeOf, TOP_ROW_BOTTOM_M } from "./u-cutaway-scene";
 import {
   bodiesInScene,
   buildsSentInHtml,
@@ -131,7 +132,10 @@ const CABINET_DEPTH_BEFORE_MM = 600;
 const CABINET_DEPTH_AFTER_MM = 700;
 const MM_PER_M = 1000;
 
-/** A wall row void sits at the wall row's floor (1.5 m) — `bands.ts`'s wall band. */
+/** The wall row's floor (1.5 m) — `bands.ts`'s wall band: where a wall-row void's bottom sits and
+ *  where a wall-row body stands. The generated top row (wave C3, ADR 0110 O9) stands at
+ *  `TOP_ROW_BOTTOM_M`; its bodies record the `wall` band by design (ADR 0011 gap C), so the two rows
+ *  are told apart by height, not by band. */
 const WALL_ROW_FLOOR_M = 1.5;
 const HOOD_BUILD_ID = "hood";
 const WALL_CABINET_BUILD_ID = "wall-cabinet";
@@ -498,10 +502,20 @@ export function describeUGate(line: UGateLine): void {
       const wallA = [...recordsOf(before).values()].filter(
         (record) => record.wall === "A",
       );
-      const upperBuildIds = wallA
-        .filter((record) => record.band === "wall" || record.band === "top")
-        .map((record) => record.buildId);
-      expect(upperBuildIds).toEqual([HOOD_BUILD_ID]);
+      const wallRow = wallA.filter((record) =>
+        standsAt(record, WALL_ROW_FLOOR_M),
+      );
+      expect(wallRow.map((record) => record.buildId)).toEqual([HOOD_BUILD_ID]);
+      // Since C3 the hood carries one top-row cabinet and the back wall of a large U gets no other.
+      const topRow = wallA.filter((record) =>
+        standsAt(record, TOP_ROW_BOTTOM_M),
+      );
+      expect(topRow.map((record) => record.buildId)).toEqual([
+        WALL_CABINET_BUILD_ID,
+      ]);
+      expect(topRow.map((record) => record.col)).toEqual(
+        wallRow.map((record) => record.col),
+      );
       const columnsWithABase = new Set(
         wallA.filter((record) => record.band === "base").map((r) => r.col),
       );
@@ -523,12 +537,16 @@ export function describeUGate(line: UGateLine): void {
         await press(page, offerRow(page, WALL_CABINET_BUILD_ID));
       });
 
+      // The generated top over the hood is a wall-cabinet on wall A too, so the one this test
+      // inserted is the one that was not stored before.
+      const storedBefore = new Set(before.placements.map(({ id }) => id));
       const inserted = after.placements.find(
         (placement) =>
+          !storedBefore.has(placement.id) &&
           placement.wall === "A" &&
           placement.body.buildId === WALL_CABINET_BUILD_ID,
       );
-      expect(inserted, "no wall-cabinet stored on wall A").toBeDefined();
+      expect(inserted, "no wall-cabinet inserted on wall A").toBeDefined();
       expect(inserted?.alongMm).toBe(Math.round(target.opening.x * MM_PER_M));
       expect(inserted?.y0Mm).toBe(Math.round(WALL_ROW_FLOOR_M * MM_PER_M));
       expect(after.placements).toHaveLength(before.placements.length + 1);
@@ -674,4 +692,8 @@ export function describeUGate(line: UGateLine): void {
       expect(pageErrors).toEqual([]);
     });
   });
+}
+
+function standsAt(record: PlacementRecord, floorM: number): boolean {
+  return Math.abs(record.frame.y0 - floorM) < 1e-6;
 }

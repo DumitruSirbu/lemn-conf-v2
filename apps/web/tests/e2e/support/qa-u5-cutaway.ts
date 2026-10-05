@@ -16,6 +16,7 @@ import { ro } from "../../support/romanian-content.e2e";
 import { deleteMintedDesigns } from "./minted-designs";
 import {
   byPlacementId,
+  centreOf,
   projectToCanvasX,
   readScene,
   standAt,
@@ -33,6 +34,7 @@ import {
   segmentCrossesBody,
   selectedId,
   tapScene,
+  TOP_ROW_BOTTOM_M,
   TOP_ROW_MIDDLE_M,
   type ScenePoint,
   type Vec3,
@@ -57,11 +59,6 @@ const PIXEL_NOISE_FLOOR = 24;
 const MAX_CHANGED_SHARE = 0.02;
 const PATCH_HALF_PX = 12;
 
-/** Where §11 row 21's band starts; a top-row opening is a void whose bottom is here. */
-const TOP_ROW_BOTTOM_M = 2.2;
-/** How far inside an opening's front face the top-row tap is aimed. */
-const INSIDE_FRONT_M = 0.05;
-
 /** Half a metre either side of a wall's middle is well over this on screen at either viewport; less
  *  would mean the pair sat on the view axis and the sign below read noise. */
 const MIN_ALONG_TRAVEL_PX = 20;
@@ -73,10 +70,15 @@ const HALF_METRE = 0.5;
 const U_DESIGN = composeU(U_3000);
 const RECORDS = recordsByPlacementId(U_DESIGN, SEEDED_DEPTH_MM);
 const VOIDS = voidsOf(U_DESIGN, SEEDED_DEPTH_MM);
-const TOP_ROW_VOIDS_ON_B = VOIDS.filter(
-  (opening) =>
-    opening.wall === "B" && Math.abs(opening.y0 - TOP_ROW_BOTTOM_M) < 1e-6,
+// Wave C3 (`02b1c7b`, ADR 0110 O9) generates a 400 mm top-row body over every wall cabinet, so wall
+// B's top row of this U holds bodies and no opening: the one void left on B is the fridge column's,
+// which starts at 1.85 m. These tests are about that row staying tappable through the cutaway, so
+// they aim at the bodies that now fill it (backlog 114).
+const TOP_ROW_BODIES_ON_B = [...RECORDS.values()].filter(
+  (record) =>
+    record.wall === "B" && Math.abs(record.frame.y0 - TOP_ROW_BOTTOM_M) < 1e-6,
 );
+const TOP_ROW_BODY_IDS_ON_B = TOP_ROW_BODIES_ON_B.map((record) => record.id);
 
 const test = base.extend<{ seededU: SeededDesign }>({
   seededU: async ({ page }, use) => {
@@ -106,7 +108,7 @@ export function describeUCutaway(): void {
       const target = await topRowTargetOnB(page);
 
       await tapScene(page, target.point);
-      await expectTopRowOfColumnSelected(page, target.column);
+      await expectSelectedPlacement(page, target.id);
     });
 
     // "Orbiting back" is the overview chip's ease here, which drives the same controls `change` event
@@ -164,7 +166,7 @@ export function describeUCutaway(): void {
       const target = await topRowTargetOnB(page);
       await tapScene(page, target.point);
 
-      await expectTopRowOfColumnSelected(page, target.column);
+      await expectSelectedPlacement(page, target.id);
     });
 
     test("a wall-C body selected from the overview is deselected by Perete B, and the panel closes", async ({
@@ -241,7 +243,7 @@ export function describeUCutaway(): void {
       await tapScene(page, target.point);
 
       // A depth change widens the corner, so every column of wall B moves along it (B|1.20 becomes
-      // B|1.30 at 700): the tap is held to wall B's top row, not to the column it was aimed at at 600.
+      // B|1.30 at 700): the tap is held to wall B's top row, not to the body it was aimed at at 600.
       expect(await eyeOf(page)).toEqual(eyeBefore);
       await expectTopRowOfWallBSelected(page);
     });
@@ -254,63 +256,53 @@ interface TapTarget {
 }
 
 interface TopRowTarget {
-  /** The column the tapped opening stands in; its void id is `${column}:v{n}:2.20`, and `n` moves
-   *  when a delete below it adds a void, so the column and the band are what is asserted. */
-  readonly column: string;
+  readonly id: string;
   readonly point: ScenePoint;
 }
 
 /**
  * Wall B's top row (§11 row 21, 2.20–2.60 m) near **the wall's middle**, where ADR 0132 A4 says the
- * preset must keep it clickable. In the generated U that row holds openings, not bodies (D8 keeps
- * composition out of it), so the target is a top-row void of wall B.
+ * preset must keep it clickable. A generated U fills that row with top-row bodies (wave C3), so the
+ * target is the body of wall B's top row nearest the middle that projects inside the canvas.
  *
  * Proven non-vacuous first: the sight line from the eye to the aim crosses at least one wall-C body or
  * void. On `Perete B` the eye stands behind wall C's plane, so without the cutaway one of them takes
- * the tap — wall C's own top-row voids stand exactly in the way.
+ * the tap — wall C's own top row stands exactly in the way.
  */
 async function topRowTargetOnB(page: Page): Promise<TopRowTarget> {
   const eye = await eyeOf(page);
   const bodies = byPlacementId((await readScene(page)).bodies);
   const middleM = U_3000.depthMm / 2000;
-  const byDistanceFromMiddle = [...TOP_ROW_VOIDS_ON_B].sort(
-    (left, right) => Math.abs(left.z - middleM) - Math.abs(right.z - middleM),
+  const byDistanceFromMiddle = TOP_ROW_BODY_IDS_ON_B.flatMap(
+    (id) => bodies.get(id) ?? [],
+  ).sort(
+    (left, right) =>
+      Math.abs(centreOf(left)[2] - middleM) -
+      Math.abs(centreOf(right)[2] - middleM),
   );
-  for (const opening of byDistanceFromMiddle) {
-    const aim: Vec3 = [
-      opening.x + opening.d / 2 - INSIDE_FRONT_M,
-      TOP_ROW_MIDDLE_M,
-      opening.z,
-    ];
+  for (const body of byDistanceFromMiddle) {
+    const aim = frontPointOf(body, "B", TOP_ROW_MIDDLE_M);
     const point = await pagePointOf(page, aim);
     if (point === undefined) continue;
     expect(
       crossesWallC(eye, aim, bodies),
-      `the sight line to ${opening.id} crosses nothing on wall C, so this tap proves nothing`,
+      `the sight line to ${body.placementId} crosses nothing on wall C, so this tap proves nothing`,
     ).toBe(true);
-    return { column: opening.col, point };
+    return { id: body.placementId, point };
   }
-  throw new Error("no top-row opening of wall B projects inside the canvas");
+  throw new Error("no top-row body of wall B projects inside the canvas");
 }
 
-async function expectTopRowOfColumnSelected(
-  page: Page,
-  column: string,
-): Promise<void> {
+async function expectSelectedPlacement(page: Page, id: string): Promise<void> {
   const readout = page.getByTestId("selection-debug");
-  await expect(readout).toHaveAttribute("data-selection-kind", "void");
-  expect(await selectedId(page)).toMatch(topRowVoidIdOf(column));
+  await expect(readout).toHaveAttribute("data-selection-kind", "placement");
+  expect(await selectedId(page)).toBe(id);
 }
 
 async function expectTopRowOfWallBSelected(page: Page): Promise<void> {
   const readout = page.getByTestId("selection-debug");
-  await expect(readout).toHaveAttribute("data-selection-kind", "void");
-  expect(await selectedId(page)).toMatch(/^B\|[\d.]+:v\d+:2\.20$/);
-}
-
-function topRowVoidIdOf(column: string): RegExp {
-  const escaped = column.replace(/[.|]/g, (character) => `\\${character}`);
-  return new RegExp(`^${escaped}:v\\d+:2\\.20$`);
+  await expect(readout).toHaveAttribute("data-selection-kind", "placement");
+  expect(TOP_ROW_BODY_IDS_ON_B).toContain(await selectedId(page));
 }
 
 /** A wall-C base body whose front projects inside the canvas at the current camera. */

@@ -5,6 +5,10 @@ import {
   SELECTION_DEBUG_FLAG,
   SELECTION_DEBUG_FLAG_ENABLED,
 } from "./src/app/configurator/configure/selection-debug-availability";
+import {
+  SCENE_SHOT_ROUTE_FLAG,
+  SCENE_SHOT_ROUTE_FLAG_ENABLED,
+} from "./src/app/internal/scene-shot/route-availability";
 
 // The application's own `DATABASE_URL` has to be readable here for `assertSafeTestDatabaseUrl` to
 // have anything to compare against; without it the guard can only pass vacuously (finding DB-001).
@@ -104,6 +108,11 @@ export default defineConfig({
       // travels with the runner that needs it: a developer running `next dev` by hand gets a
       // production-shaped page, and no deployed environment can inherit the flag by accident.
       [SELECTION_DEBUG_FLAG]: SELECTION_DEBUG_FLAG_ENABLED,
+      // `/internal/scene-shot` and `/internal/mirror-shot` answer 404 on a production build
+      // (`next start`, which CI runs) unless this flag opts in, and the capture specs drive them.
+      // Same placement and reasoning as the flag above: it travels with this server only and is
+      // in no env file, so nothing deployed inherits it. `next dev` serves the routes regardless.
+      [SCENE_SHOT_ROUTE_FLAG]: SCENE_SHOT_ROUTE_FLAG_ENABLED,
     },
     // Long enough for a cold `next build` on CI; the local `dev` branch reaches
     // its URL in seconds and never approaches this.
