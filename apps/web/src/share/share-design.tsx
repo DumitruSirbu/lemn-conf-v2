@@ -1,16 +1,11 @@
 "use client";
 
-// D10's share control — the settings surface's last section (ADR 0104 decision 1: no invented
-// chrome slot; the pill's ladder does not count it). Owner-only: it renders nothing until the
-// design both holds the write credential and has been saved at least once
-// (`hasPersistedSuccessfully`, write-path decision 17 — a design that has never been written has no
-// row for a link to point at). That gate alone is what keeps this control off the share view too:
-// `SharedDesignView` hydrates with `canWrite: false`, so `ShareDesign` renders nothing there without
-// any variant-specific code of its own.
-//
-// **The link is shown once and lives only in this component's state** (D10): never the store, never
-// Web Storage, never the URL, never a log. It is rendered as a read-only text field, never as an
-// anchor — no navigation, no prefetch, nothing a crawler or a browser history could pick up.
+// D10's share control: the settings surface's last section; the pill's ladder does not count it (ADR 0104
+// decision 1). Owner-only: it renders nothing until the design holds the write credential and has been saved once
+// (`hasPersistedSuccessfully`, ADR 0002 decision 17), which also keeps it off the share view, where
+// `SharedDesignView` hydrates with `canWrite: false`.
+// The link is shown once and lives only in this component's state: never the store, Web Storage, the URL or a
+// log. It is a read-only text field, never an anchor, so nothing can prefetch it or record it in history.
 import {
   useEffect,
   useRef,
@@ -31,14 +26,12 @@ import { useConfiguratorStore } from "@/store/configurator-store";
 
 import styles from "./share-design.module.css";
 
-/** How long *Copiat* / *Copiat* replaces *Copiază* before reverting — long enough to read, short
- *  enough that a second copy a minute later shows the real button again rather than a stale one. */
+/** How long *Copiat* replaces *Copiază* before reverting: long enough to read, short enough that a later copy
+ *  shows the real button again. */
 const COPY_FEEDBACK_MS = 2000;
 
-/** Review round 1, L1.1: the failed operation travels with the error, so retrying repeats *that*
- *  request rather than always re-issuing — a status check that failed must not be retried as a
- *  create, which would silently mint a fresh link and kill whatever the sheet's last open already
- *  found active. */
+/** The failed operation travels with the error, so a retry repeats *that* request: a failed status check retried
+ *  as a create would mint a fresh link and kill the one the sheet found active. */
 type FailedOperation = "status" | "create" | "revoke";
 
 type ShareControlState =
@@ -65,9 +58,8 @@ export function ShareDesign() {
   return <ShareDesignControl designId={designId} content={shareContent} />;
 }
 
-/** Split from `ShareDesign` so its state machine only ever exists once the gate above has already
- *  answered — a `designId` that can be `null` would leak into every branch below as a case nothing
- *  can act on. */
+/** Split from `ShareDesign` so the state machine exists only once the gate has answered; a nullable `designId`
+ *  would leak into every branch below. */
 function ShareDesignControl({
   designId,
   content,
@@ -81,9 +73,8 @@ function ShareDesignControl({
   );
   const linkFieldRef = useRef<HTMLInputElement>(null);
 
-  // The sheet's own open is the one moment this reads the status (D10) — not on a schedule, and not
-  // re-read while the sheet stays open, so a revoke or re-issue this component itself performed is
-  // never second-guessed by a stale poll landing after it.
+  // The sheet's own open is the one moment this reads the status (D10), not a schedule: a poll must never
+  // second-guess a revoke or re-issue this component performed.
   useEffect(() => {
     let isCurrent = true;
     shareLinkStatus(designId)
@@ -139,9 +130,8 @@ function ShareDesignControl({
       });
   }
 
-  /** Review round 1, L1.1: repeats whichever request failed rather than always re-issuing — a
-   *  status check retried as `create` would silently mint a fresh link, and a failed revoke
-   *  retried as `create` would leave the link it was meant to kill standing beside a second one. */
+  /** Repeats whichever request failed: a status check retried as `create` would mint a fresh link, and a failed
+   *  revoke retried as `create` would leave the link it meant to kill standing beside a second one. */
   function retryFailedOperation(): void {
     if (state.kind !== "error") return;
     if (state.failedOperation === "status") {
@@ -155,17 +145,13 @@ function ShareDesignControl({
     create();
   }
 
-  /** Review round 1, L1.2: `copied` only follows a `writeText` that actually resolved — the field
-   *  stays selected either way, so a customer whose browser withheld clipboard access (no secure
-   *  context, no permission, no `navigator.clipboard` at all) can still copy by hand from a
-   *  visibly-selected field instead of trusting a confirmation the browser never earned. Both
-   *  branches of the promise are handled, so a rejection never reaches the console as unhandled. */
+  /** `copied` only follows a `writeText` that resolved. The field stays selected either way, so a browser that
+   *  withheld clipboard access still lets the customer copy by hand. Both promise branches are handled, so a
+   *  rejection is never unhandled. */
   function copy(path: string): void {
     linkFieldRef.current?.select();
-    // TypeScript's own `lib.dom.d.ts` declares `Navigator.clipboard` as always present; a browser
-    // without a secure context or without clipboard permission at all leaves it `undefined` in
-    // reality, which is exactly the case this function exists to survive — read through a narrower
-    // type than the DOM lib's own, so the runtime check below is not "always true" to the compiler.
+    // `lib.dom.d.ts` declares `Navigator.clipboard` as always present, but without a secure context or permission it
+    // is `undefined`: read through a narrower type so the runtime check is not "always true" to the compiler.
     const clipboard = (navigator as { clipboard?: Clipboard }).clipboard;
     if (clipboard === undefined) return;
 
@@ -273,9 +259,7 @@ function ShareDesignBody({
               {content.revoke}
             </button>
           </div>
-          {/* Beside the button it warns about, not a modal step: D10 lists it as this state's own
-              caption, and re-issuing has one irreversible consequence to state, not a question to
-              ask. */}
+          {/* A caption beside the button, not a modal step: D10's own caption for this state. */}
           <p
             className={styles.caption}
             data-testid="share-design-reissue-warning"
@@ -332,12 +316,9 @@ function ShareDesignBody({
   }
 }
 
-/** Review round 2, R2.1: the button always read `content.create`, whatever had actually failed — a
- *  customer whose *revoke* failed saw "Creează link" on the one control meant to finish killing
- *  their link. Labelled by the operation `retryFailedOperation` is about to repeat instead: `create`
- *  after a failed create (which also covers re-issue, the same request under another name),
- *  `revoke` after a failed revoke, and the new `retry` leaf after a failed status read, which has no
- *  approved label of its own in D10's table. */
+/** Labelled by the operation `retryFailedOperation` is about to repeat: `create` after a failed create (re-issue is
+ *  the same request), `revoke` after a failed revoke, and `retry` after a failed status read, which has no label of
+ *  its own in D10's table. */
 function retryLabelFor(
   failedOperation: FailedOperation,
   content: Content["share"],

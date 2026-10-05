@@ -14,10 +14,8 @@ import {
 
 const handleLocaleRouting = createMiddleware(routing);
 
-/**
- * Everything except the immutable build output and static files, which carry no scripts of their
- * own and already receive the static headers from `next.config.ts`.
- */
+/** Everything except the immutable build output and static files, which carry no scripts and already receive the
+ *  static headers from `next.config.ts`. */
 export const config = {
   matcher: [
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|glb|gltf|hdr|bin|woff|woff2)$).*)",
@@ -48,10 +46,9 @@ export function proxy(request: NextRequest): NextResponse {
 }
 
 /**
- * D7: every response this path family produces — the unprefixed 307 (criterion 8) and the localized
- * page alike — carries the same three headers, set here rather than in the page so the redirect gets
- * them too. Applied **after** the CSP is set above, on the same response object `handleLocaleRouting`
- * already returned, so it never races the locale redirect it decorates.
+ * Every response this path family produces, the unprefixed 307 and the localized page alike, carries
+ * `SHARE_VIEW_HEADERS`, set here so the redirect gets them too. Applied after the CSP is set, on the response
+ * `handleLocaleRouting` already returned, so it never races the locale redirect it decorates.
  */
 function applySharedViewHeaders(response: NextResponse): void {
   for (const { key, value } of SHARE_VIEW_HEADERS) {
@@ -70,20 +67,17 @@ function hasCaseVariantLocalePrefix(pathname: string): boolean {
   );
 }
 
-/**
- * The path with any locale prefix stripped, as segments — the shape both `isCustomerPath` and
- * `isSharePath` read the allow-list against, so a locale in front of either family is recognised the
- * same way.
- */
+/** The path with any locale prefix stripped, as segments: `isCustomerPath` and `isSharePath` read the allow-list
+ *  through it, so a locale in front of either family is recognised the same way. */
 function localeStrippedSegments(pathname: string): string[] {
   const segments = pathname.split("/").filter(Boolean);
   return hasLocale(routing.locales, segments[0]) ? segments.slice(1) : segments;
 }
 
 /**
- * Only the customer route families below participate in locale routing. The configurator family is
- * an exact allow-list: `configure`, `contact`, and `room`; a nested room path is not a customer
- * route. A locale in front of `/api` or `/internal` remains an ordinary Next.js 404 candidate.
+ * Only the customer route families participate in locale routing. The configurator family is an exact allow-list
+ * (`configure`, `contact`, `room`); a nested room path is not a customer route. A locale in front of `/api` or
+ * `/internal` stays an ordinary Next.js 404 candidate.
  */
 function isCustomerPath(pathname: string): boolean {
   const routeSegments = localeStrippedSegments(pathname);
@@ -107,10 +101,8 @@ function isCustomerPath(pathname: string): boolean {
   return isSharePath(pathname);
 }
 
-/** D7's allow-list addition: `s/{token}`, two segments with a non-empty second — the share view,
- *  gated the same way `d/{id}` is. Kept as its own predicate, not folded silently into
- *  `isCustomerPath`'s body, because `proxy()` also needs it on its own to decide `SHARE_VIEW_HEADERS`
- *  independently of locale routing. */
+/** The share view's allow-list entry: `s/{token}`, two segments with a non-empty second, gated like `d/{id}`. Its
+ *  own predicate because `proxy()` also needs it alone to decide `SHARE_VIEW_HEADERS`. */
 function isSharePath(pathname: string): boolean {
   const routeSegments = localeStrippedSegments(pathname);
   return (
@@ -121,10 +113,9 @@ function isSharePath(pathname: string): boolean {
 }
 
 /**
- * Next reads the *request* `Content-Security-Policy` to learn the nonce it must stamp onto its own
- * bootstrap scripts. It has to be the enforcing header name even while the response only reports —
- * otherwise Next would emit unnonced scripts and the report-only rollout would report every one of
- * them, drowning the real findings.
+ * Next reads the request `Content-Security-Policy` to learn the nonce for its own bootstrap scripts, so it must be
+ * the enforcing header name even while the response only reports: otherwise Next would emit unnonced scripts and the
+ * report-only rollout would report every one of them.
  */
 function withNonce(
   requestHeaders: Headers,

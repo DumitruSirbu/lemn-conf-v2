@@ -1,10 +1,8 @@
 "use client";
 
-// The store half of §9's panel: read the selection, project it, hand the result to a component.
-//
-// Three memoised steps, in the order §8 defines them — `describeSelection` produces `meta`, and
-// `offersFor` produces the list `meta` alone cannot (it needs the frozen column map). Nothing here
-// decides anything: `describePanel` owns every rule and this hook owns the subscription.
+// The store half of §9's panel: read the selection, project it, hand the result to a component. Three memoised
+// steps in §8's order: `describeSelection` produces `meta`, then `offersFor` the list `meta` alone cannot (it needs
+// the frozen column map). `describePanel` owns every rule; this hook owns the subscription.
 import {
   buildableWidthSpanMm,
   cabinetDepthMmOf,
@@ -31,10 +29,8 @@ import { widthStepsFor, type WidthSteps } from "@lemnaria/configurator-domain";
 
 export function usePanelView(): PanelView {
   const content = useContent();
-  // ADR 0129 D8. Selected on its own rather than read off `usePricedDesign`'s design below: the
-  // direction is the one field of the room every width refusal's wording depends on, and selecting
-  // it directly keeps this hook from re-rendering the panel on a wall length the width section does
-  // not read here.
+  // ADR 0129 D8. Selected on its own, not read off `usePricedDesign`'s design: the direction is the one room field
+  // every width refusal's wording depends on, and a wall length the width section ignores must not re-render it.
   const direction = useConfiguratorStore((state) =>
     cornerDirectionOf(state.design.room),
   );
@@ -47,14 +43,12 @@ export function usePanelView(): PanelView {
   const widthSteps = widthAnswers.steps;
   const material = useSelectionMaterial();
   const rejection = useConfiguratorStore((state) => state.lastRejection);
-  // §9 item 7's footer price. Derived from the current design by the one hook both price surfaces
-  // read, so the footer and the bar cannot show different numbers for one kitchen.
+  // §9 item 7's footer price, from the one hook both price surfaces read, so footer and bar cannot differ.
   const pricing = usePricedDesign();
   const isBodyProbeAttached = useConfiguratorStore(
     (state) => state.isBodyProbeAttached,
   );
-  // Both halves of "may this browser edit, and did the last write land" — read as facts and handed
-  // straight to `describePanel`, which owns what they mean. Nothing is combined here.
+  // Read as facts and handed straight to `describePanel`, which owns what they mean; nothing is combined here.
   const canWrite = useConfiguratorStore((state) => state.canWrite);
   const saveStatus = useConfiguratorStore((state) => state.saveStatus);
 
@@ -95,23 +89,17 @@ export function usePanelView(): PanelView {
   );
 }
 
-/** **Which colour control §9's Finisaj section gets** (ADR 0071 decision 3): the shape is the
- *  design's material's own, so this is read off the held design and never off the selected body.
- *
- *  Memoised over the design rather than resolved inside the selector: a declared lookup is a fresh
- *  object every call, and returning one from a store selector re-renders the panel on every store
- *  change whether or not the material moved. */
+/** Which colour control §9's Finisaj section gets (ADR 0071 decision 3): the design's material's own, so it is
+ *  read off the held design, never the selected body. Memoised over the design because a declared lookup is a
+ *  fresh object per call, and returning one from a selector would re-render the panel on every store change. */
 function useSelectionMaterial(): MaterialLookup {
   const design = useConfiguratorStore((state) => state.design);
 
   return useMemo(() => materialOfDesign(design), [design]);
 }
 
-/** §8's `meta` — the panel's entire input. `undefined` when nothing is selected, and also when a
- *  recompute left the selection pointing at a void id that no longer exists.
- *
- *  Exported for `SelectionDebug`, the e2e suite's one observability hook, so the numbers a browser
- *  test reads are the very ones the panel was given rather than a second projection beside it. */
+/** §8's `meta`, the panel's entire input: `undefined` when nothing is selected or the selection points at a void
+ *  that no longer exists. Exported for `SelectionDebug`, so e2e tests read the numbers the panel was given. */
 export function useSelectionMeta(): SelectionMeta | undefined {
   const records = useConfiguratorStore((state) => state.records);
   const voids = useConfiguratorStore((state) => state.voids);
@@ -130,16 +118,14 @@ export function useSelectionMeta(): SelectionMeta | undefined {
 function useSelectionOffers(): CatalogOffer[] {
   const records = useConfiguratorStore((state) => state.records);
   const voids = useConfiguratorStore((state) => state.voids);
-  // **The map `insertBody` itself is handed** — the recorded face since backlog 52. §11 row 6's rule
-  // is that the offer list and the command are one evaluation read from two ends, so the list must
-  // measure against the same map. The *openings* are still the published ones: `voids` is derived
-  // from the capped map, so nothing past the end of a wall is offered (ADR 0069).
+  // The map `insertBody` itself is handed (the recorded face): §11 row 6 makes the offer list and the command one
+  // evaluation read from two ends. The openings are still the published ones, derived from the capped map, so
+  // nothing past a wall's end is offered (ADR 0069).
   const columns = useConfiguratorStore((state) => state.recordedColumns);
   const catalog = useConfiguratorStore((state) => state.catalog);
   const selection = useConfiguratorStore((state) => state.selection);
-  // Off the held design, not off the catalogue: the store's catalogue is built at this same depth
-  // (wave 6K-a), but a map cannot be asked what depth it was built at, and the offer list must run
-  // the evaluation the command would run on **this** document.
+  // Off the held design, not the catalogue: a map cannot be asked what depth it was built at, and the offer list
+  // must run the evaluation the command would run on this document.
   const cabinetDepthMm = useConfiguratorStore((state) =>
     cabinetDepthMmOf(state.design),
   );
@@ -160,28 +146,18 @@ function useSelectionOffers(): CatalogOffer[] {
   );
 }
 
-/** **What §9 says when nothing fits** — the catalogue's own narrowest and widest buildable widths.
- *
- *  Its own hook because it depends on the catalogue alone: it is the same answer for every opening
- *  in a kitchen, so it is memoised on the map rather than recomputed per selection. It stopped being
- *  derivable from `offers` when the owner ruled on 2026-09-10 that a refused row is not shown —
- *  `describeEmptyLine` has the rest of that story. */
+/** What §9 says when nothing fits: the catalogue's own narrowest and widest buildable widths. A hook of its own
+ *  because it depends on the catalogue alone, so it is memoised on the map. It cannot be derived from `offers`,
+ *  since a refused row is not shown (see `describeEmptyLine`). */
 function useBuildableWidthSpan(): WidthRangeMm | undefined {
   const catalog = useConfiguratorStore((state) => state.catalog);
 
   return useMemo(() => buildableWidthSpanMm(catalog), [catalog]);
 }
 
-/** **What the column may be built within** — ADR 0035 decision 3's discriminator, read from the
- *  engine rather than inferred from the widths beside it.
- *
- *  The panel used to conclude "stepped" from two candidates 50 apart in `sizesMm`. That works, and
- *  it is the inference ADR 0022 and decision 3's own correction both record as the way this codebase
- *  gets it wrong — so `columnWidthChoices` publishes the ranges and this carries them across.
- *
- *  **No probe, so its own hook.** Unlike the two answers below it asks the catalogue rather than
- *  running a command, which is why ADR 0076 decision 4 merged those two and left this one alone.
- */
+/** What the column may be built within (ADR 0035 decision 3's discriminator), read from the engine rather than
+ *  inferred from the widths beside it: `columnWidthChoices` publishes the ranges. No probe, so its own hook: it asks
+ *  the catalogue rather than running a command, unlike the two answers `useSelectionWidthAnswers` merges. */
 function useSelectionWidthRanges(): readonly WidthRangeMm[] {
   const design = useConfiguratorStore((state) => state.design);
   const catalog = useConfiguratorStore((state) => state.catalog);
@@ -197,29 +173,20 @@ function useSelectionWidthRanges(): readonly WidthRangeMm[] {
   );
 }
 
-/** **The width chips and the stepper, answered together from one borrowed probe.**
+/** The width chips and the stepper, answered together from one borrowed probe. Both run the real resize command
+ *  once per candidate, so one memo takes one lease rather than two transient kits per frame.
  *
- *  Both answers run the real resize command once per candidate — `widthOptionsFor` to say "would
- *  this succeed", `widthStepsFor` for ADR 0035 decision 1's two candidates — so both need a probe,
- *  and they were two hooks taking two leases. On the render path that is **two transient kits for
- *  one frame** during the window a depth change opens, which is why ADR 0076 decision 4 merges them:
- *  one memo, one lease, both answers. It also makes literally true what the steps hook's own comment
- *  already claimed — that the two are always computed from one state.
- *
- *  **Empty and `undefined` without a probe**, which is the honest answer rather than a degraded one.
- *  Every width would refuse `BODY_PROBE_UNAVAILABLE`, and §9 asks for no section at all until there
- *  is something to say; the replace list carries the "model is preparing" message meanwhile.
- *
- *  Memoised on the five slices that can change an answer. The lease is taken inside the memo body
- *  and released before it returns — nothing crosses a React commit (ADR 0076 decision 1). */
+ *  Empty and `undefined` without a probe: every width would refuse `BODY_PROBE_UNAVAILABLE`, and §9 asks for no
+ *  section until there is something to say; the replace list carries the "model is preparing" message meanwhile.
+ *  The lease is taken inside the memo body and released before it returns; nothing crosses a React commit
+ *  (ADR 0076 decision 1). */
 function useSelectionWidthAnswers(): {
   options: WidthOption[];
   steps: WidthSteps | undefined;
 } {
   const design = useConfiguratorStore((state) => state.design);
-  // The map `setWidth` is handed, for the reason `useSelectionOffers` gives: both answers here run
-  // the real resize command, and a chip answered against a different map than the tap would run is
-  // §9's "never offer what cannot be satisfied" read against the wrong evidence.
+  // The map `setWidth` is handed, as in `useSelectionOffers`: a chip answered against a different map than the tap
+  // would run reads §9's "never offer what cannot be satisfied" against the wrong evidence.
   const columns = useConfiguratorStore((state) => state.recordedColumns);
   const catalog = useConfiguratorStore((state) => state.catalog);
   const selection = useConfiguratorStore((state) => state.selection);
