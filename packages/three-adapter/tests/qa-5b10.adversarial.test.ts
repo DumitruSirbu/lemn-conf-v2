@@ -1,12 +1,6 @@
-// Adversarial QA for M5B wave 5B10 — the dishwasher niche wears a decor door (ADR 0051).
-//
-// The implementer's own suite declares the structural change to M1's parity ledger and then diffs
-// through that ledger. This file re-derives the same facts **without** the ledger: it writes out
-// what the port's mesh sequence must be, in traversal order, transformed from the reference's by
-// hand, and it measures every geometric claim off world bounding boxes rather than off the
-// arguments a builder was handed. Where the implementer's suite compares a multiset, this one
-// compares an ordered sequence; where the implementer's suite measures at one cabinet depth, this
-// one sweeps the depths the formula can produce.
+// The dishwasher niche's decor door (ADR 0051), re-derived without the parity ledger: ordered mesh
+// sequences transformed from the reference's by hand, and geometry measured off world bounding boxes,
+// swept over the cabinet depths the formula can produce.
 import {
   freeColourFinish,
   KITCHEN_L_BODY_CATALOG,
@@ -30,14 +24,11 @@ import {
 import { required } from "./support/required.js";
 import { findMeshes, meshNames, worldBox } from "./support/structure.js";
 
-/** `finishes.ts`'s own pattern, retyped: a test that reads its definition of a front out of the
- *  code it checks proves only that the code equals itself. ADR 0051 decision 2 makes this name the
- *  load-bearing thing, so it is the one string this file must not import. */
+/** `finishes.ts`'s own pattern, retyped on purpose: reading the definition of a front out of the code
+ *  under test would prove only that the code equals itself. */
 const FRONT_MESH_NAME = /door_front|drawer_front/;
 
-/** The two names that pattern is made of, retyped here for its reason. Wave 6S made the second one
- *  real: until then every front in the kit was a `door_front`, drawer fronts included, and the
- *  pattern matched a name nothing drew. */
+/** The two names that pattern is made of, retyped for the same reason. */
 const DOOR_FRONT_MESH_NAME = "door_front";
 const DRAWER_FRONT_MESH_NAME = "drawer_front";
 const HANDLE_GROUP_NAME = "handle";
@@ -49,15 +40,12 @@ const NICHE_SEAT_MM = 580;
 /** ADR 0051 decision 6: the niche becomes an ordinary base body at the worktop's own depth. */
 const NICHE_OCCUPIED_MM = 620;
 
-/** The cabinet depths `cabinet-depth-source.test.ts` exercises the base-carcass formula at. The
- *  decor door is anchored on `CARC_D`, so its flushness is a claim about the formula and not about
- *  600 mm. */
+/** The decor door is anchored on `CARC_D`, so its flushness is a claim about the base-carcass formula,
+ *  not about 600 mm; these are the depths `cabinet-depth-source.test.ts` sweeps it at. */
 const CABINET_DEPTH_SWEEP_MM = [600, 700, 800];
 
-/** The four flat colours this file has swept since M4, reached by the values wave 6P mapped the
- *  shipped enum's names onto: two PAL decors and two free colours. Written out rather than read from
- *  the domain's palette, because the claim under test is about which meshes a recolour reaches and
- *  the sweep must not silently grow or shrink with the catalogue. */
+/** Two PAL decors and two free colours, written out rather than read from the domain's palette so the
+ *  sweep cannot silently grow or shrink with the catalogue. */
 const FLAT_FINISHES = [
   ["Alb", paletteFinish("pal.alb")],
   ["Lut", freeColourFinish("#cbc3b8")],
@@ -76,19 +64,9 @@ beforeAll(() => {
   room = kit.builders["kitchen-l"]();
 });
 
-// ---------------------------------------------------------------------------------------------
-// The re-baseline, re-derived without the ledger.
-// ---------------------------------------------------------------------------------------------
-
-/** The port's mesh sequence for a tree holding one `dishwasherHousing`, written out from the
- *  reference's by hand: the appliance loses its fascia, its strip and its bar, and a decor door
- *  with its own bar arrives **after** the appliance group closes.
- *
- *  Order is kept here because the mesh-name test in the parity suite compares a sorted multiset for
- *  the five re-baselined keys. That is safe — the hierarchy comparison in the same suite still
- *  asserts child order node by node, verified by mutation — but it is asserted a second way here,
- *  and this is the one place the door's build position (after the appliance, before the worktop) is
- *  pinned in a single expression. */
+/** The port's mesh sequence for one `dishwasherHousing`, hand-derived from the reference's: the
+ *  appliance loses its fascia, strip and bar, and a decor door with its own bar arrives after the
+ *  appliance group closes. Ordered, where the parity suite compares a sorted multiset. */
 const APPLIANCE_TAIL_MESHES = [
   "dw_panel",
   "dw_control_strip",
@@ -103,25 +81,19 @@ const DECOR_DOOR_MESHES = [
   "handle_stem",
 ];
 
-/** **Wave 6S's rename, declared rather than absorbed.** Every front in this kit was named
- *  `door_front` until 6S, drawer fronts included, so no gate could tell a leaf from a drawer — and
- *  ADR 0070 prices hinges by leaf and runners by drawer. `drawerSlab` now names its slab
- *  `drawer_front`, and these are the builders that draw one, with how many each draws.
- *
- *  Counted per builder rather than pattern-matched: a rename that reached a hinged leaf would show
- *  up as the wrong count here, and a builder that stopped drawing drawers as an unused declaration.
- *  `kitchen-l` draws five — the hob base's two pan drawers and the three-drawer base's three — which
- *  is the seeded kitchen's whole drawer population and ADR 0070's own figure for it. */
+/** `drawerSlab` names its slab `drawer_front` so ADR 0070 can price runners per drawer; these are the
+ *  builders that draw one, with how many each. Counted per builder: a rename reaching a hinged leaf
+ *  shows as a wrong count, a builder that stopped drawing drawers as an unused declaration.
+ *  `kitchen-l` draws five: the hob base's two pan drawers and the three-drawer base's three. */
 const DRAWER_FRONTS_BY_BUILDER: ReadonlyMap<string, number> = new Map([
   ["base-3drawer", 3],
   ["base-panbank", 2],
   ["kitchen-l", 5],
 ]);
 
-/** Holds the port to the reference **position for position**, allowing exactly the declared number
- *  of `door_front` → `drawer_front` substitutions and nothing else. Stronger than comparing sorted
- *  multisets: a rename that also moved a slab, or renamed one front and un-renamed another, differs
- *  at a position this reports. */
+/** Holds the port to the reference position for position, allowing exactly the declared number of
+ *  `door_front` → `drawer_front` substitutions: a rename that also moved a slab differs at a position
+ *  this reports, which a sorted multiset would not. */
 function expectOnlyDrawerFrontsRenamed(
   portedNames: readonly string[],
   referenceNames: readonly string[],
@@ -140,10 +112,9 @@ function expectOnlyDrawerFrontsRenamed(
   );
 }
 
-/** The one other structural change this file tolerates: ADR 0135 gave the base return a
- *  `fixed_front` panel, drawn between its carcass and its worktop. The return's three meshes are the
- *  only place in any tree where a `plinth` is followed by a `carcass` and then a `countertop`, so the
- *  position is found by that sequence and asserted to be unique rather than assumed. */
+/** The one other tolerated structural change: ADR 0135's `fixed_front` on the base return, between its
+ *  carcass and worktop. The return's three meshes are the only `plinth`, `carcass`, `countertop`
+ *  sequence in any tree, so the position is found by that sequence and asserted unique. */
 const BASE_RETURN_REFERENCE_MESHES = ["plinth", "carcass", "countertop"];
 const BASE_RETURN_FIXED_FRONT_MESH_NAME = "fixed_front";
 const KEYS_DRAWING_THE_BASE_RETURN: ReadonlySet<string> = new Set([
@@ -218,8 +189,6 @@ describe("5B10: the declared structural change is exactly what the port builds",
     },
   );
 
-  // The confinement claim ADR 0051's Consequences make, tested from outside the ledger that makes
-  // it: the seeded kitchen holds exactly one niche, and the trade happens there and nowhere else.
   it("moves the seeded kitchen in one place and leaves the rest of it alone", () => {
     const referenceNames = meshNames(
       required(referenceKit.builders["kitchen-l"], "kitchen-l")(),
@@ -232,8 +201,7 @@ describe("5B10: the declared structural change is exactly what the port builds",
     );
   });
 
-  // The other half of confinement. A structural-change form that quietly licensed movement
-  // elsewhere would show up here, because nothing in this test consults a declaration.
+  // Consults no declaration, so a structural-change form that licensed movement elsewhere shows up here.
   it("leaves every builder that is not the niche mesh-for-mesh identical to the reference", () => {
     const untouched = Object.keys(referenceKit.builders).filter(
       (key) =>
@@ -256,13 +224,11 @@ describe("5B10: the declared structural change is exactly what the port builds",
         key,
       );
     }
-    // The return's declaration is used where it is declared: both standalone keys are in the sweep.
     expect(
       untouched.filter((key) => KEYS_DRAWING_THE_BASE_RETURN.has(key)),
     ).toEqual(["base-corner-return", "base-corner"]);
 
-    // No declaration goes unused: a builder listed as drawing drawers and no longer drawing any is
-    // as much a change as an undeclared rename, and would otherwise pass silently above.
+    // A builder listed as drawing drawers that no longer does is as much a change as an undeclared rename.
     expect(
       [...DRAWER_FRONTS_BY_BUILDER.keys()].filter((key) =>
         untouched.includes(key),
@@ -270,8 +236,7 @@ describe("5B10: the declared structural change is exactly what the port builds",
     ).toEqual(["base-3drawer", "base-panbank"]);
   });
 
-  // ADR 0051 decision 3's promise about the *other* factory. The parts gallery still draws the
-  // 596 × 720 × 560 machine `SPEC.md` describes, with everything the niche took away.
+  // ADR 0051 decision 3: the parts gallery still draws the whole 596 × 720 × 560 machine `SPEC.md` describes.
   it("leaves the standalone appliance whole", () => {
     const standalone = kit.builders.dishwasher();
 
@@ -279,8 +244,7 @@ describe("5B10: the declared structural change is exactly what the port builds",
       "dw_body",
       ...APPLIANCE_TAIL_MESHES,
     ]);
-    // `SPEC.md`'s 596 × 720 × 560 is the machine, and its bar stands proud of it — so the box is
-    // compared to the reference's own, which is the claim ADR 0051 decision 3 actually makes.
+    // The bar stands proud of the 596 × 720 × 560 machine, so the full box is compared to the reference's.
     const box = worldBox(standalone, standalone);
     const referenceBox = (() => {
       const group = required(
@@ -302,10 +266,6 @@ describe("5B10: the declared structural change is exactly what the port builds",
   });
 });
 
-// ---------------------------------------------------------------------------------------------
-// The geometry the re-baseline is there to license.
-// ---------------------------------------------------------------------------------------------
-
 function nicheAndCabinetAt(cabinetDepthMm: number, widthM: number) {
   const depthKit = makeKit({
     createCanvas: createHeadlessCanvas,
@@ -323,14 +283,8 @@ function doorOf(group: THREE.Group): THREE.Mesh {
   return required(fronts[0], "door_front");
 }
 
-// ---------------------------------------------------------------------------------------------
-// The added subtree, which the parity gate cannot cover.
-// ---------------------------------------------------------------------------------------------
-//
-// M1's gate diffs the port against the reference, and the reference has no decor door — so the
-// four meshes this wave adds are the one part of the body with **no** parity coverage at all, by
-// construction and not by an oversight. Everything asserted about them has to be asserted here or
-// nowhere. These are the properties the wave decided and nothing else pins.
+// The reference has no decor door, so its four meshes have no parity coverage: everything about
+// them is asserted here.
 
 /** The `door` group `doorSlab` returns, found by structure rather than by index. */
 function doorGroupOf(group: THREE.Group): THREE.Object3D {
@@ -346,15 +300,11 @@ function doorGroupOf(group: THREE.Group): THREE.Object3D {
   return required(doors[0], "door group");
 }
 
-/** Where a slab's bar hangs, expressed only in terms of the slab it hangs on: which way the bar
- *  runs, whether it is centred across the slab, and how far its axis sits below the slab's top
- *  face. Every number is a difference of two measured boxes, so it is comparable between two
- *  fronts of different sizes — which is what makes "the same edge `base-3drawer` uses" an
- *  assertion rather than a retyped 0.04. */
+/** Where a slab's bar hangs in terms of the slab only: bar direction, centring across it, and its
+ *  axis below the top face. Differences of measured boxes, so comparable between fronts of
+ *  different sizes rather than a retyped 0.04. */
 function handleAnchorOf(root: THREE.Object3D, door: THREE.Object3D) {
-  // Either front name: wave 6S split `door_front` into `door_front` and `drawer_front`, and this
-  // helper is used on both — the whole point of the comparison below is that a drawer front and a
-  // decor door hang their bar on the same edge.
+  // Either front name: used on both a decor door and a drawer front, which must hang their bar on the same edge.
   const front = required(
     door.children.find(
       (child) => isMesh(child) && FRONT_MESH_NAME.test(child.name),
@@ -394,9 +344,8 @@ describe("5B10: the decor door subtree, which the parity gate cannot see", () =>
     },
   );
 
-  // A door built in the carcass material would pass every other assertion in this wave — it has a
-  // front mesh, it is flush, and a finish would overwrite the material anyway. What it would not do
-  // is look like a door before the customer picks a finish.
+  // A door in the carcass material would pass every other assertion here; it would not look like a
+  // door before the customer picks a finish.
   it.each(NICHE_WIDTHS_M)(
     "builds the slab in the same material baseCabinet's door uses at %s m",
     (widthM) => {
@@ -429,10 +378,8 @@ describe("5B10: the decor door subtree, which the parity gate cannot see", () =>
     },
   );
 
-  // ADR 0051 decision 5 chose the **top** edge on purpose — "the edge a hand pulls a dishwasher
-  // door from, and the same horizontal bar a drawer front carries". Pinned by comparing the anchor
-  // to a front that is known to be `doorSlab(..., "top")` and to one that is not, so neither the
-  // 40 mm nor the word "top" is retyped here.
+  // ADR 0051 decision 5 chose the top edge. Pinned against a front known to be `doorSlab(..., "top")`
+  // and one that is not, so neither the 40 mm nor the word "top" is retyped.
   it.each(NICHE_WIDTHS_M)("hangs the bar on the top edge at %s m", (widthM) => {
     const niche = kit.make.dishwasherHousing(widthM);
     const anchor = handleAnchorOf(niche, doorGroupOf(niche));
@@ -441,9 +388,8 @@ describe("5B10: the decor door subtree, which the parity gate cannot see", () =>
     expect(anchor.offCentreX).toBeCloseTo(0, 9);
     expect(anchor.aboveMidHeight, "a top bar is in the upper half").toBe(true);
 
-    // **Since wave 6S this is found by the name that says what it is**, rather than by "a
-    // `door_front` in a body that happens to be a drawer stack": `base-3drawer` builds three
-    // `drawer_front` slabs and nothing else in the kit answers to that name unless it is a drawer.
+    // Found by name: `base-3drawer` builds three `drawer_front` slabs, and nothing else in the kit
+    // answers to that name unless it is a drawer.
     const drawers = kit.builders["base-3drawer"]();
     const drawerDoor = required(
       drawers.children.find(
@@ -461,11 +407,10 @@ describe("5B10: the decor door subtree, which the parity gate cannot see", () =>
       drawerAnchor.runsHorizontally,
       "the control is a top-edge front",
     ).toBe(true);
-    // M1's own 1e-6 m float-artefact allowance: both boxes come off Float32 vertex data.
+    // Six digits: both boxes come off Float32 vertex data.
     expect(anchor.belowTopFace).toBeCloseTo(drawerAnchor.belowTopFace, 6);
 
-    // And the control in the other direction: a side-hung door anchors differently, so the
-    // comparison above is not satisfied by every front in the kit.
+    // Control: a side-hung door anchors differently, so the comparison above is not satisfied by every front.
     const sideHung = kit.builders["base-1door"]();
     expect(
       handleAnchorOf(sideHung, doorGroupOf(sideHung)).runsHorizontally,
@@ -558,12 +503,8 @@ describe("5B10: the appliance stays behind the door it hides", () => {
     expect(Math.round((doorInnerFaceZ - applianceFrontZ) * 1000)).toBe(40);
   });
 
-  // The mounting space is not a constant: the door follows `CARC_D` and `dw_body` does not, so the
-  // gap closes as the cabinet-depth setting shrinks. Measured at three depths and extrapolated to
-  // the depth at which it reaches zero, so M6's *Setări globale* control arrives with the floor
-  // already written down rather than discovering it as a body poking through its own door. Nothing
-  // below 600 mm is reachable today (`cabinet-depth-source.test.ts`), which is why this records the
-  // number instead of failing on it.
+  // The door follows `CARC_D` and `dw_body` does not, so the gap closes as the cabinet-depth setting
+  // shrinks; extrapolated from 600 and 800 mm to the depth at which it reaches zero.
   it("closes the mounting space at 520 mm of cabinet depth, and not before", () => {
     const clearanceAt = (cabinetDepthMm: number) => {
       const { niche } = nicheAndCabinetAt(cabinetDepthMm, 0.6);
@@ -585,8 +526,8 @@ describe("5B10: the appliance stays behind the door it hides", () => {
     ).toBe(520);
   });
 
-  // The z-fight ADR 0051's third rejected alternative is about, asserted rather than reasoned:
-  // nothing else in the body shares the door's front plane over the door's own footprint.
+  // Z-fight guard (see ADR 0051): nothing else in the body shares the door's front plane over the
+  // door's own footprint.
   it.each(NICHE_WIDTHS_M)(
     "puts no second slab on the door's plane at %s m",
     (widthM) => {
@@ -630,10 +571,6 @@ describe("5B10: the appliance stays behind the door it hides", () => {
     },
   );
 });
-
-// ---------------------------------------------------------------------------------------------
-// The customer-facing halves: the finish lands, and the bar is the cabinet's.
-// ---------------------------------------------------------------------------------------------
 
 describe("5B10: the finish the five chips promised", () => {
   it.each(NICHE_WIDTHS_M)("finds exactly one front at %s m", (widthM) => {
@@ -686,8 +623,7 @@ describe("5B10: the finish the five chips promised", () => {
       for (const [mesh, was] of before) {
         expect(mesh.material, `${mesh.name}: material identity`).toBe(was);
       }
-      // Identity alone would miss a finish that mutated a shared material in place, which would
-      // recolour every body in the kit at once.
+      // Identity alone would miss a finish that mutated a shared material in place.
       for (const [mesh, hex] of beforeColours) {
         expect(
           (mesh.material as THREE.MeshStandardMaterial).color.getHex(),
@@ -698,9 +634,8 @@ describe("5B10: the finish the five chips promised", () => {
   );
 });
 
-/** ADR 0027's rule, retyped: a handle is the cabinet's exactly when the group it hangs from also
- *  holds a front. This file re-derives it rather than importing the gate's copy, so a widened
- *  classifier in the gate cannot make the census below agree with itself. */
+/** ADR 0027's rule, retyped: a handle is the cabinet's exactly when the group it hangs from also holds
+ *  a front. Not imported, so a widened classifier in the gate cannot make this census agree with itself. */
 function censusOf(body: THREE.Object3D): {
   fronts: number;
   cabinetHandles: number;
@@ -761,8 +696,8 @@ describe("5B10: the handle in the niche is the cabinet's, and the rule did not m
     },
   );
 
-  // ADR 0051 criterion 7's anti-invariant, recomputed here from the retyped rule. If the wave had
-  // widened `opensAFront` to make its own body pass, these two numbers would have moved with it.
+  // Anti-invariant (see ADR 0051 decision 3): widening the classifier to make the niche pass would
+  // move these two bodies' numbers.
   it("still refuses to call an appliance's bar the cabinet's", () => {
     expect(censusOf(bodyOf("base-hob-oven"))).toMatchObject({
       fronts: 1,
@@ -815,8 +750,6 @@ describe("5B10: the depth follows the geometry and the seat does not", () => {
     },
   );
 
-  // What used to reach 632 was the appliance's bar. Nothing in the niche passes its own worktop
-  // any more, which is the sentence the deleted constant's comment made and this asserts.
   it.each(NICHE_WIDTHS_M)(
     "keeps every mesh at %s m behind the worktop's front edge",
     (widthM) => {

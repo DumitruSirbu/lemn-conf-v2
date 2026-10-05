@@ -1,9 +1,6 @@
-// Evidence 1 of the M1 fidelity gate (`docs/milestones/M1-scene-port.md`): structural parity.
-//
-// Every part is built twice — once by the unmodified reference library, once by the port — and the
-// two trees are diffed exactly on mesh names and hierarchy, and at a 1e-6 m float epsilon on
-// transforms and dimensions. That epsilon is a floating-point-artefact allowance and has nothing to
-// do with the product tolerances in `DEVELOPMENT-SPEC.md` §2.
+// Structural parity: every part is built by the unmodified reference library and by the port, and the
+// trees are diffed exactly on mesh names and hierarchy, and at 1e-6 m on transforms and dimensions.
+// That epsilon is a float-artefact allowance, not a product tolerance (DEVELOPMENT-SPEC §2).
 import * as THREE from "three";
 import { makeKit as makeReferenceKit } from "@reference/kitchen-parts";
 import { beforeAll, describe, expect, it } from "vitest";
@@ -22,38 +19,15 @@ import {
 
 const FLOAT_EPSILON_METRES = 1e-6;
 
-// ---------------------------------------------------------------------------------------------
-// The wave 5F re-baseline.
-// ---------------------------------------------------------------------------------------------
+// The reference library is not ours to edit, so each deliberate product change is a declared
+// divergence: the exact delta and how many nodes carry it. Every other number still diffs at 1e-6 m, and
+// a declared delta that stops occurring, or occurs the wrong number of times or elsewhere, fails.
 //
-// M1's gate diffs the port against the **unmodified vendored reference library**, so a deliberate
-// product change to a builder cannot be absorbed by editing a number: the reference is not ours to
-// edit, and deleting a builder from the sweep would destroy the evidence that the port is faithful
-// for everything else it draws. ADR 0036's Consequences say this gate "must be deliberately
-// re-baselined with the change recorded, not relaxed".
-//
-// So it is re-baselined as a **declared divergence**: every number the port is allowed to differ on
-// is named here with its exact delta and how many nodes carry it. The diff still runs at 1e-6 m over
-// every other number, every mesh name, the hierarchy, materials, visibility and child order — and a
-// declared delta that stops occurring, occurs the wrong number of times, or occurs anywhere else
-// turns this red. It records the change rather than tolerating one.
-//
-// Two decisions produced it, both measured in wave 5F:
-//
-//   **ADR 0036 decision 1 — a declared dimension is the finished cabinet, doors included.** A wall
-//   cabinet declared 330 was built with a 330 mm shell and finished at 369, because a door slab is
-//   18 mm and its bar handle stands 21 mm proud of that. The shell is now `D − 39` and the front
-//   lands on 330. Inside the builder that is one shrink and three shifts of half of it: the shell
-//   loses 39 mm of depth, its back panel moves 19.5 mm forward, and the front liner and every door
-//   move 19.5 mm back.
-//
-//   **ADR 0039 decision 2 — the hood is hung at the front.** Its front face aligns with the 600 mm
-//   cabinet-depth line rather than sitting on the wall, so the seeded hood moves 100 mm forward and
-//   leaves the gap behind it. §11 row 19's second named exception.
-//
-// The seat shifts in `kitchen-l` are the same 19.5 mm read from outside: a wall body is seated at
-// half its shell so its back face still lands on the wall plane, on wall A in `z` and on wall B
-// in `x`.
+// ADR 0036 decision 1: a declared dimension is the finished cabinet, doors included, so a wall
+// shell is `D - 39` (door slab 18 mm + handle 21 mm). The shell loses 39 mm, its back panel moves
+// 19.5 mm forward, the front liner and every door 19.5 mm back. A wall body is seated at half its
+// shell so its back face stays on the wall plane (wall A in `z`, wall B in `x`).
+// ADR 0039 decision 2: the hood is hung at the 600 mm cabinet line, 100 mm forward of the wall.
 interface DeclaredDivergence {
   readonly node: string;
   readonly field: string;
@@ -66,8 +40,8 @@ interface DeclaredDivergence {
 const FRONT_ASSEMBLY_M = 0.039;
 const SEAT_SHIFT_M = FRONT_ASSEMBLY_M / 2;
 
-/** ADR 0036 inside one `wallCabinet` call, whatever its width or door count. `nodes` is per door for
- *  the door row, so a caller states how many doors it expects. */
+/** ADR 0036 inside one `wallCabinet` call. The door row's `nodes` is per door, so the caller states
+ *  how many doors it expects. */
 function wallCabinetDivergences(
   prefix: string,
   doors: number,
@@ -108,27 +82,13 @@ function wallCabinetDivergences(
   ];
 }
 
-// ---------------------------------------------------------------------------------------------
-// The ADR 0098 re-baseline: the sink is centred, and the 600 mm kitchen moves.
-// ---------------------------------------------------------------------------------------------
-//
-// **This is the one thing ADR 0087 deliberately refused to do for the hob, and ADR 0098 decision 3
-// does on purpose for the sink.** The hob's shipped literal already satisfied its ruling, so
-// wave 6U held the 600 mm kitchen still to the micrometre and needed nothing here. The sink's does
-// not: the owner asked for a bigger gap between the faucet and the wall, and at 600 the worktop's
-// 620 mm is fully spent — 130 mm in front, a 400 mm aperture, 90 mm behind, of which the faucet
-// takes 88. There are 2 mm of slack. The rear gap can only come from moving the assembly forward,
-// and "centred" is the owner's own word for exactly that move.
-//
-// So the sink assembly and the stone cut around it are seated 20 mm forward of the cabinet's own
-// origin at 600 — `SINK_SEAT_OFFSET_M`, derived from a declared 110 mm front clearance. The two
-// slabs that flank the aperture each give up or take on that 20 mm at one end only, so each moves
-// by half of it while its depth changes by all of it. Nothing else in either tree moves: everything
-// below is one `baseCabinet(w, { sink: true })` call and the seeded room holds exactly one.
+// ADR 0098 decision 3: the sink assembly and the stone cut around it are seated 20 mm forward of the
+// cabinet's origin at 600 (`SINK_SEAT_OFFSET_M`). The slabs flanking the aperture each give up or take
+// on that 20 mm at one end only, so each moves by half of it while its depth changes by all of it.
 const SINK_CENTRING_SHIFT_M = 0.02;
 
-/** ADR 0098 inside one `baseCabinet(w, { sink: true })` call. `prefix` is the path from the compared
- *  root down to the `base_cabinet` group. */
+/** One `baseCabinet(w, { sink: true })` call; `prefix` is the path from the compared root down to the
+ *  `base_cabinet` group. */
 function sinkCentringDivergences(prefix: string): DeclaredDivergence[] {
   const why =
     "ADR 0098: the sink is centred on its worktop at the declared depth, 20 mm forward of the " +
@@ -185,22 +145,12 @@ function sinkCentringDivergences(prefix: string): DeclaredDivergence[] {
   ];
 }
 
-// ---------------------------------------------------------------------------------------------
-// The ADR 0135 re-baseline: the base return stands on the run's lines (M7C wave C4, slice S1).
-// ---------------------------------------------------------------------------------------------
-//
-// The owner ruled (2026-10-01) that everything at a corner ends on one line, and measured the side
-// piece 20 mm behind its worktop and 8-10 mm behind its neighbour's doors. `cornerBaseReturn` is now
-// built to the run's carcass front (`D - 30` against the reference's `D - 20`), its worktop takes
-// the run's 50 mm front overhang (the reference's 20), and a `fixed_front` stands on the run's door
-// plane. The reference is not ours to edit, so each consequence is declared here with its exact
-// delta, and each is held to the number of nodes that carry it.
-//
-// Two builds are declared, because the delta depends on the depth handed in. The **default** build
-// (`base-corner-return`, `base-corner`, `kitchen-l`) takes the kit's own `D - 30` and so shrinks its
-// carcass and plinth by 10 mm against the reference's 0.58. The **explicit** build
-// (`cornerBaseReturn(LD, W)`, which M1's gate calls at 0.56, 0.58 and 0.6) is handed its `LD`, keeps
-// its carcass and plinth, and moves only its worktop and its front.
+// ADR 0135: `cornerBaseReturn` is built to the run's carcass front (`D - 30`, the reference's `D - 20`),
+// its worktop takes the run's 50 mm front overhang (the reference's 20), and a `fixed_front` stands on
+// the run's door plane. The delta depends on the depth handed in, so two builds are declared:
+// the default (`base-corner-return`, `base-corner`, `kitchen-l`) takes the kit's own `D - 30`, so its
+// carcass and plinth shrink 10 mm against the reference's 0.58; the explicit `cornerBaseReturn(LD, W)`
+// (called at 0.56, 0.58 and 0.6) keeps them and moves only its worktop and its front.
 const BASE_RETURN_CARCASS_DEPTH_SHIFT_M = -0.01;
 const BASE_RETURN_WORKTOP_DEPTH_GROWTH_M = 0.02;
 const BASE_RETURN_WORKTOP_CENTRE_SHIFT_EXPLICIT_M = 0.02;
@@ -208,10 +158,10 @@ const BASE_RETURN_WORKTOP_CENTRE_SHIFT_DEFAULT_M = 0.015;
 const BASE_RETURN_SEAT_SHIFT_M = -0.005;
 const BASE_RETURN_WIDTH_GROWTH_M = 0.01;
 
-// The X-leg's departures (ADR 0135, the joint move). It is built 590 deep (the run's carcass front, 570,
-// plus its pinned 20 mm behind the wall) where the reference is 600, with a 290 mm leaf where the
-// reference's is 280 (the accessible front is 330, not 320), on the run's door plane without the
-// reference's extra millimetre, and seated 275 mm off the wall where the reference is 280.
+// The X-leg's departures (ADR 0135): built 590 deep (the run's carcass front, 570, plus its pinned 20 mm
+// behind the wall) where the reference is 600, with a 290 mm leaf where the reference's is 280 (the
+// accessible front is 330, not 320), on the run's door plane without the reference's extra
+// millimetre, and seated 275 mm off the wall where the reference is 280.
 const X_LEG_DEPTH_SHIFT_M = -0.01;
 const X_LEG_SEAT_SHIFT_M = -0.005;
 const X_LEG_LEAF_GROWTH_M = 0.01;
@@ -248,9 +198,8 @@ function baseReturnWorktopDivergences(
   ];
 }
 
-/** The return built at the kit's own depth: its carcass and plinth are 10 mm shallower as well, and
- *  10 mm wider, because its default width is the derived 330 (900 less the run's carcass front, 570)
- *  where the reference's is 320. */
+/** The return at the kit's own depth: carcass and plinth are also 10 mm shallower and 10 mm wider,
+ *  its default width being the derived 330 (900 less the run's carcass front, 570), not 320. */
 function defaultBaseReturnDivergences(prefix: string): DeclaredDivergence[] {
   const why =
     "ADR 0135: the return is built to the run's carcass front, `D - 30`, not the run's seat, `D - 20`";
@@ -409,16 +358,16 @@ function cornerBaseXDivergences(prefix: string): DeclaredDivergence[] {
   ];
 }
 
-/** The depths M1's gate hands `cornerBaseReturn` explicitly. */
+/** The depths this gate hands `cornerBaseReturn` explicitly. */
 const EXPLICIT_RETURN_DEPTHS_M = [0.56, 0.58, 0.6] as const;
 
 function explicitReturnKey(depthM: number): string {
   return `cornerBaseReturn(${String(depthM)})`;
 }
 
-/** The seeded scene: fifteen wall bodies carrying 26 doors between them, ten seated on wall A and
- *  five on wall B, plus the one hood — and, since ADR 0098, its one sink base. Counted rather than
- *  derived, so a body that stopped being drawn cannot pass by making its divergence disappear. */
+/** The seeded scene: fifteen wall bodies carrying 26 doors, ten on wall A and five on wall B, plus
+ *  the one hood and the one sink base. Counted rather than derived, so a body that stopped being
+ *  drawn cannot pass by making its divergence disappear. */
 const KITCHEN_L_DIVERGENCES: readonly DeclaredDivergence[] = [
   ...sinkCentringDivergences("kitchen_l_shape > "),
   baseReturnSeatDivergence("kitchen_l_shape > corner_base_return"),
@@ -498,30 +447,17 @@ const DECLARED_DIVERGENCES: ReadonlyMap<string, readonly DeclaredDivergence[]> =
     ["kitchen-l", KITCHEN_L_DIVERGENCES],
   ]);
 
-// ---------------------------------------------------------------------------------------------
-// The wave 5B10 re-baseline.
-// ---------------------------------------------------------------------------------------------
-//
-// `DeclaredDivergence` above can only say "this number moved on a node both trees have". ADR 0051
-// adds a node and takes three away: `dishwasherHousing` now builds its own decor door, and the
-// appliance inside it is built fully integrated — no `dw_panel`, no `dw_control_strip`, no bar of
-// its own. Mesh names, hierarchy and child order are compared *before* the numeric ledger is ever
-// consulted, so a structural change has to be declared in its own form.
-//
-// It carries the same discipline: each change names its **parent**, the child that appeared or
-// vanished, every mesh in that child's subtree, and how many times it occurs in this comparison.
-// A structural difference that is not declared still fails the child-order assertion, and a
-// declaration that goes unused — or occurs the wrong number of times — fails just as loudly.
-// Everything else in these trees, and every other builder, still diffs exactly at 1e-6 m.
+// ADR 0051 adds a node and removes three: `dishwasherHousing` builds its own decor door and the
+// appliance inside is fully integrated (no `dw_panel`, `dw_control_strip` or bar). Mesh names, hierarchy
+// and child order are compared before the numeric ledger, so a structural change is declared in its own
+// form: parent, child, subtree meshes and occurrence count.
 interface DeclaredStructuralChange {
   readonly parent: string;
   readonly node: string;
   readonly change: "added" | "removed";
-  /** Every mesh name in the child's subtree, in traversal order. Two things read it, and the
-   *  second is why it is checked rather than trusted: it is what the mesh-name-set comparison adds
-   *  or takes away, so that gate is re-baselined by the same declaration — and the ledger holds it
-   *  to the subtree it actually took out, per declaration. The net delta alone is not enough: one
-   *  added and one removed declaration sharing a wrong list cancel each other out of the sum. */
+  /** Every mesh name in the child's subtree, in traversal order. It re-baselines the mesh-name-set
+   *  comparison and is checked per declaration against the subtree actually taken out: the net delta
+   *  alone is not enough, since an added and a removed declaration sharing a wrong list cancel out. */
   readonly meshes: readonly string[];
   readonly nodes: number;
   readonly why: string;
@@ -530,8 +466,8 @@ interface DeclaredStructuralChange {
 /** `barHandle` draws one bar and two stems, whichever edge it hangs on. */
 const HANDLE_SUBTREE_MESHES = ["handle_bar", "handle_stem", "handle_stem"];
 
-/** ADR 0051 inside one `dishwasherHousing` call, at either declared width. `prefix` is the path
- *  from the compared root down to the `dishwasher_housing` group. */
+/** One `dishwasherHousing` call, at either declared width; `prefix` is the path from the compared
+ *  root down to the `dishwasher_housing` group. */
 function dishwasherHousingChanges(
   prefix: string,
   housings: number,
@@ -573,33 +509,18 @@ function dishwasherHousingChanges(
   ];
 }
 
-// ---------------------------------------------------------------------------------------------
-// The wave 6S re-baseline: a declared **rename**.
-// ---------------------------------------------------------------------------------------------
-//
-// `DeclaredDivergence` says "this number moved on a node both trees have"; `DeclaredStructuralChange`
-// says "this node appeared or vanished". Neither can say what 6S did: a mesh both trees build, in
-// the same place, under the same parent, carrying a different **name**.
-//
-// ADR 0070 prices hinges per door leaf and runners per drawer, and until 6S every front in this kit
-// was named `door_front` — `base-panbank`'s drawer fronts included — so nothing in a built scene
-// could tell the two apart and no parity gate could hold a catalogue declaration to them.
-// `drawerSlab` now names its slab `drawer_front`, which `finishes.ts`'s `FRONT_MESH_NAME` already
-// matched before anything drew one, so recolouring is unaffected.
-//
-// The form carries the same discipline as the other two: each rename names its parent, the name it
-// replaces, the name it introduces, and how many times it occurs. It **cannot** hide a node from the
-// comparison — everything else about the renamed mesh still diffs at 1e-6 m, and a rename that is
-// declared and does not occur, or occurs the wrong number of times, turns this red.
+// A declared rename: a mesh both trees build, in the same place under the same parent, carrying a
+// different name. `drawerSlab` names its slab `drawer_front` where the reference says `door_front`, so
+// ADR 0070 can price runners per drawer; `finishes.ts`'s `FRONT_MESH_NAME` matches both names.
+// A rename cannot hide a node: everything else about the mesh still diffs at 1e-6 m.
 interface DeclaredMeshRename {
   readonly parent: string;
   readonly from: string;
   readonly to: string;
-  /** **The renamed slab's own height, in metres, and it is what makes the declaration precise.**
-   *  A path built from node names cannot tell one `base_cabinet` from another, and `kitchen-l`
-   *  holds five drawer fronts and eight hinged leaves under the identical path — so a declaration
-   *  scoped by path alone would rename a sink's door. A base leaf is 0.710 m tall and a drawer
-   *  front is 0.356 or 0.236, which is the product fact this rename is actually about. */
+  /** The renamed slab's own height, in metres. A path of node names cannot tell one `base_cabinet`
+   *  from another, and `kitchen-l` holds five drawer fronts and eight hinged leaves under one path,
+   *  so a path-only declaration would rename a sink's door. A base leaf is 0.710 m tall; a drawer
+   *  front is 0.356 or 0.236. */
   readonly heightM: number;
   readonly nodes: number;
   readonly why: string;
@@ -641,10 +562,8 @@ const DECLARED_MESH_RENAMES: ReadonlyMap<
     "base-panbank",
     [drawerFrontRename("", { heightM: PAN_DRAWER_FRONT_HEIGHT_M, nodes: 2 })],
   ],
-  // The seeded kitchen's whole drawer population, and ADR 0070's own figure for it: the hob base's
-  // two pan drawers and the three-drawer base's three. Counted and split by height rather than
-  // derived, so a sixth drawer appearing — or one of these five ceasing to be one, or a hinged leaf
-  // being renamed alongside them — turns the gate red.
+  // The seeded kitchen's drawers (5 in ADR 0070): the hob base's two pan drawers and the three-drawer
+  // base's three. Counted and split by height, so a sixth drawer or a renamed hinged leaf fails.
   [
     "kitchen-l",
     [
@@ -677,8 +596,7 @@ const DECLARED_STRUCTURAL_CHANGES: ReadonlyMap<
       [baseReturnFixedFront("corner_base_return")],
     ],
   ),
-  // The seeded kitchen holds exactly one niche, at 2.0 m along wall A. Counted rather than
-  // derived, so a second one appearing — or this one ceasing to be drawn — turns the gate red.
+  // The seeded kitchen holds exactly one niche, at 2.0 m along wall A; counted rather than derived.
   [
     "kitchen-l",
     [
@@ -691,9 +609,8 @@ const DECLARED_STRUCTURAL_CHANGES: ReadonlyMap<
 ]);
 
 /** A divergence ledger for one comparison: it answers "is this exact difference declared?" and
- *  records that the declaration was used, so an unused declaration fails as loudly as an
- *  undeclared difference. It holds both forms — numeric deltas on nodes both trees have, and
- *  wave 5B10's structural additions and removals. */
+ *  records the declaration as used, so an unused declaration fails as loudly as an undeclared
+ *  difference. It holds numeric deltas, structural additions and removals, and renames. */
 function openLedger(
   declared: readonly DeclaredDivergence[],
   structural: readonly DeclaredStructuralChange[],
@@ -723,9 +640,8 @@ function openLedger(
       seen.set(entry, (seen.get(entry) ?? 0) + 1);
       return true;
     },
-    /** Takes the declared children out of one side's list — the added ones out of the port's, the
-     *  removed ones out of the reference's — and records each one it took. What is left is
-     *  compared name for name, in order, exactly as before. */
+    /** Takes the declared children out of one side's list (added from the port's, removed from the
+     *  reference's) and records each; what is left is compared name for name, in order. */
     reconcileChildren(
       parent: string,
       children: readonly StructureNode[],
@@ -750,10 +666,8 @@ function openLedger(
         return false;
       });
     },
-    /** The name this child is expected to carry: the reference's, unless a rename is declared for
-     *  this exact parent and reference name — in which case the declared new name, recorded as
-     *  used. Everything else about the node is compared as before. Called once per child, by the
-     *  child-order comparison, which then hands the answer to that child's own recursion. */
+    /** The name this child is expected to carry: the reference's, or the declared new name (recorded
+     *  as used) when a rename is declared for this parent and reference name. Call once per child. */
     renamedTo(parent: string, expectedChild: StructureNode): string {
       const entry = renames.find(
         (candidate) =>
@@ -792,17 +706,9 @@ function openLedger(
 
 type Ledger = ReturnType<typeof openLedger>;
 
-/** **The one thing a structural declaration must never be able to do.** Declared both ways, a
- *  `(parent, node)` pair leaves the port's child list *and* the reference's: child order still
- *  matches, the mesh multiset nets to zero, and `expectFullyUsed` sees both declarations used
- *  exactly `nodes` times — so the node and everything under it drops out of the 1e-6 comparison
- *  with nothing turning red. QA moved a `back_panel` 25 mm through that hole and the suite stayed
- *  green (wave 5B10, F1).
- *
- *  A declaration may say a node stopped existing, or started to. It may never say a node still
- *  exists on both sides and is not to be compared. Any repeated key is refused, not merely the
- *  added/removed pairing: two declarations on one node are never the honest way to state anything,
- *  and a narrower rule would only invite the next shape of this. */
+/** Declared both ways, a `(parent, node)` pair leaves both child lists: child order matches, the mesh
+ *  multiset nets to zero and `expectFullyUsed` is satisfied, so the node and its subtree would exit
+ *  the 1e-6 comparison with nothing red. Any repeated key is refused, not only that pairing. */
 function refuseTwoDeclarationsOnOneNode(
   structural: readonly DeclaredStructuralChange[],
 ): void {
@@ -819,8 +725,7 @@ function refuseTwoDeclarationsOnOneNode(
   }
 }
 
-/** Every mesh name under a node, itself included, in traversal order — the same order
- *  `describeStructure` built the children in, so it is comparable to a declaration's `meshes`. */
+/** Mesh names under a node, itself included, in `describeStructure`'s order: comparable to `meshes`. */
 function meshNamesOfNode(node: StructureNode): string[] {
   const names = node.geometry === null ? [] : [node.name];
   for (const child of node.children) names.push(...meshNamesOfNode(child));
@@ -885,11 +790,9 @@ function expectNumbersClose(
   });
 }
 
-/** `expectedName` is the reference node's name **with this node's declared rename already applied**,
- *  resolved once by its parent's child-order comparison below. Passed down rather than looked up
- *  again here, so a declared rename is counted exactly once per node it renames — looked up twice it
- *  would satisfy a `nodes: 2` declaration on a single mesh. The root has no parent to resolve it, and
- *  no rename is ever declared on one. */
+/** `expectedName` is the reference name with this node's declared rename already applied, resolved once
+ *  by the parent's child-order comparison: looked up twice, a rename would satisfy a `nodes: 2`
+ *  declaration on a single mesh. The root has no parent, and no rename is declared on it. */
 function expectStructureMatches(
   actual: StructureNode,
   expected: StructureNode,
@@ -966,8 +869,8 @@ function expectStructureMatches(
   });
 }
 
-/** The whole structural diff, with wave 5F's numeric divergences and wave 5B10's structural
- *  changes declared for this key. A key with neither is compared exactly as before. */
+/** The whole structural diff, with this key's declared divergences, structural changes and renames.
+ *  A key with none is compared exactly. */
 function expectStructureMatchesReference(
   actual: StructureNode,
   expected: StructureNode,
@@ -990,9 +893,8 @@ function expectStructureMatchesReference(
   ledger.expectFullyUsed();
 }
 
-/** The reference's mesh names with this key's declared structural changes applied — every mesh of
- *  a removed subtree taken out, every mesh of an added one put in, once per declared occurrence.
- *  A declared removal that is not there to remove fails here. */
+/** The reference's mesh names with this key's declared structural changes applied, once per declared
+ *  occurrence. A declared removal that has nothing to remove fails here. */
 function meshNamesAfterDeclaredChanges(
   key: string,
   referenceNames: readonly string[],
@@ -1017,13 +919,9 @@ function meshNamesAfterDeclaredChanges(
   return names;
 }
 
-/** The reference's mesh names with this key's declared **renames** applied, in place: the `nodes`th
- *  occurrence of each `from` becomes its `to`, and a declaration with fewer occurrences than it
- *  claims fails here rather than passing as a shorter list.
- *
- *  Position-preserving on purpose. For a key with no structural change this list is compared in
- *  traversal order, so a rename that also moved a slab differs at a position this reports; for a
- *  key that is compared as a multiset the hierarchy walk pins each rename to its own parent. */
+/** The reference's mesh names with this key's declared renames applied in place: the first `nodes`
+ *  occurrences of each `from` become its `to`, and fewer occurrences than declared fail here.
+ *  Position-preserving, so a key compared in traversal order reports a rename that also moved a slab. */
 function renameDeclaredMeshes(
   key: string,
   referenceNames: readonly string[],
@@ -1031,9 +929,8 @@ function renameDeclaredMeshes(
   const names = [...referenceNames];
   for (const rename of DECLARED_MESH_RENAMES.get(key) ?? []) {
     const why = `${rename.parent} > ${rename.from} → ${rename.to} — ${rename.why}`;
-    // By name and count only: this list is flat and carries no heights, so a key whose renames are
-    // scoped by height is compared as a multiset (below) and it is the hierarchy walk that pins each
-    // rename to the slab it belongs to.
+    // By name and count only: this list carries no heights, so the hierarchy walk pins each
+    // height-scoped rename to its slab.
     const at = names.flatMap((name, index) =>
       name === rename.from ? [index] : [],
     );
@@ -1060,9 +957,8 @@ describe("ported builders reproduce the reference tree", () => {
       const portedNames = meshNames(portedKit.builders[key]());
       const expectedNames = meshNamesAfterDeclaredChanges(key, referenceNames);
       expect(portedNames.length).toBeGreaterThan(0);
-      // Traversal order for a key with nothing declared; the same names as a multiset for a key
-      // whose tree gained a node in the middle of that traversal — where the order itself is
-      // asserted, node by node, by the hierarchy comparison below.
+      // Traversal order unless the tree gained or renamed a node mid-traversal; then a multiset, with
+      // order asserted by the hierarchy comparison below.
       if (
         DECLARED_STRUCTURAL_CHANGES.has(key) ||
         DECLARED_MESH_RENAMES.has(key)
