@@ -1,17 +1,7 @@
-// Adversarial QA for M5B wave 5B4a — ADR 0046 part 1, an insert splits the column it does not fill.
-//
-// Three things this file exists to pin, none of which the wave's own suite reaches:
-//
-// 1. **The narrowing.** `dividesWholeColumn` makes a full-height opening a precondition of the
-//    split. The failure it dodges is real and reproduced here; what it silently refuses is
-//    enumerated here too, including ADR 0046's own named scenario on the shipped kitchen.
-// 2. **The guards.** `refuseFractionalParts` is not reachable through the product and its removal
-//    kills nothing in the wave's suite, so it is pinned directly and its unreachability is asserted
-//    rather than assumed — the shape 5B2's criterion 7 used for its cap.
-// 3. **The crash path.** The guarded expression is millimetres under `Number.isInteger`; the
-//    projected one is metres under `toExactMillimetres`' 1e-3 tolerance. They are not the same
-//    expression, and this file proves the guard is the *stricter* of the two rather than an
-//    accidental agreement — which is the coincidence the 5B2b blocker turned on.
+// ADR 0046 part 1 (an insert splits the column it does not fill): what the `dividesWholeColumn` narrowing silently
+// refuses, `refuseFractionalParts` pinned directly because the product cannot reach it, and the crash path: the guard
+// tests millimetres under `Number.isInteger`, the projection metres under `toExactMillimetres`' 1e-3 tolerance, so
+// the guard is the stricter of the two.
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
@@ -71,7 +61,7 @@ function spanOf(design: Design, columns: ReadonlyMap<string, Column>): Span {
   return { design, columns, records, voids: recomputeVoids(records, columns) };
 }
 
-/** A design carrying one empty column, parsed through `DesignSchema` — 5B2a's load path, which is
+/** A design carrying one empty column, parsed through `DesignSchema`, the document load path, which is
  *  what makes an arbitrary-width empty column constructible at all. */
 function designWithEmptySpan(widthMm: number, alongMm = 2600): Design {
   const emptyColumn: EmptyColumn = {
@@ -185,15 +175,10 @@ function widthMmOf(column: Column): number {
   return width;
 }
 
-// ---------------------------------------------------------------------------------------------
-// 1. The narrowing: what `dividesWholeColumn` buys, and what it costs.
-// ---------------------------------------------------------------------------------------------
-
 describe("the failure the whole-height precondition avoids is real", () => {
-  // The developer's stated reason, reproduced rather than accepted. Split a column that still holds
-  // members at other levels and those members go on deriving the key the split just deleted: a
-  // phantom column (ADR 0011 Gap D), and two `EMPTY_COLUMN_OVERLAPS_PLACEMENT` findings that make
-  // the document unsaveable at the write seam.
+  // Split a column that still holds members at other levels and they keep deriving the key the split deleted: a
+  // phantom column (ADR 0011 Gap D) and two `EMPTY_COLUMN_OVERLAPS_PLACEMENT` findings that make the document
+  // unsaveable.
   it("splitting a column that still holds a member makes the document unsaveable", () => {
     const span = seededKitchenWithout([HOB_BASE_MEMBER]);
     const inserted = insertInto(
@@ -205,8 +190,7 @@ describe("the failure the whole-height precondition avoids is real", () => {
     if (!inserted.ok) return;
 
     const records = derivePlacementRecords(inserted.design, CATALOG);
-    // The split ADR 0046's unconditional wording implies, applied by hand: 300 flush left at 2450,
-    // 300 left over at 2750.
+    // The split ADR 0046's unconditional wording implies, applied by hand: 300 flush left at 2450, 300 left over.
     const forced = splitColumn({
       columns: span.columns,
       column: columnAt(span, HOB_COLUMN_KEY),
@@ -240,9 +224,8 @@ describe("the failure the whole-height precondition avoids is real", () => {
     ]);
   });
 
-  // And the precondition is not merely sufficient but exactly equivalent to "the column is empty":
-  // §4 subtracts height for every member, so a column holding one publishes no opening that reaches
-  // both its floor and its `top`. There is no case the geometry admits and the record set refuses.
+  // The precondition is exactly equivalent to "the column is empty": §4 subtracts height for every member, so a
+  // column holding one publishes no opening that reaches both its floor and its `top`.
   it("admits the split for exactly the columns that hold no member", () => {
     const span = seededKitchenWithout(HOB_COLUMN_MEMBERS);
     const opening = openingIn(span, HOB_COLUMN_KEY);
@@ -260,11 +243,9 @@ describe("the failure the whole-height precondition avoids is real", () => {
 });
 
 describe("what the whole-height precondition silently refuses", () => {
-  // **Refused-but-legal, case 1 — two taps, not four.** Delete the hob and put a 300 mm bottle
-  // cargo in its place. ADR 0046 says the column becomes two; it does not. The body is centred at
-  // the column's own 2600, the map is untouched, and 300 mm of wall is gone with no refusal, no
-  // rejection code and nothing on screen to say so. This is the very defect the four-tap case
-  // exists to cure, reached in *fewer* taps and left uncured.
+  // Refused-but-legal case 1: delete the hob and put a 300 mm bottle cargo in its place. ADR 0046 says the column
+  // becomes two; it does not. The body is centred at the column's own 2600, the map is untouched, and 300 mm of wall
+  // is gone with no refusal.
   it("centres a 300 mm body in a 600 mm column that still holds a hood, and strands 300 mm", () => {
     const span = seededKitchenWithout([HOB_BASE_MEMBER]);
 
@@ -287,7 +268,6 @@ describe("what the whole-height precondition silently refuses", () => {
       ),
     ).toBe(600);
 
-    // Silent, not clean: an accepted command with no rejection anywhere on it.
     const after = spanOf(result.design, result.effect.columns);
     expect(
       after.voids.filter(
@@ -296,12 +276,9 @@ describe("what the whole-height precondition silently refuses", () => {
     ).toEqual([]);
   });
 
-  // **Refused-but-legal, case 2 — ADR 0046's own named cost, on the shipped kitchen.** The record
-  // says *"after this record `base-dishwasher` no longer centres in a 700 mm opening"*, and
-  // criterion 12 asserts it. The seeded kitchen's only 700 mm column is the fridge column, which
-  // carries the over-fridge cupboard above — so it fails the whole-height precondition and the
-  // dishwasher still centres, by both routes a customer has. Criterion 12's own test asserts the
-  // new rule on a synthetic empty column, where the precondition happens to hold.
+  // Refused-but-legal case 2: ADR 0046 says `base-dishwasher` no longer centres in a 700 mm opening (criterion 12),
+  // but the seeded kitchen's only 700 mm column is the fridge column, which carries the over-fridge cupboard and so
+  // fails the whole-height precondition: the dishwasher still centres by both routes a customer has.
   it("still centres base-dishwasher in the seeded kitchen's 700 mm fridge column", () => {
     const swapped = insertInto(
       spanOf(
@@ -340,11 +317,10 @@ describe("what the whole-height precondition silently refuses", () => {
     expect(refilled.effect.columns.has(FRIDGE_COLUMN_KEY)).toBe(true);
   });
 
-  // **Refused-but-legal, case 3 — the whole seeded base row.** Every base cabinet on wall A stands
-  // in a column with wall units above it, so clearing one and refilling it narrower never splits.
-  // The split is reachable on the shipped kitchen only by emptying a column at every level.
+  // Refused-but-legal case 3: every base cabinet on wall A stands under wall units, so clearing one and refilling it
+  // narrower never splits; a split needs a column emptied at every level.
   it("leaves no column on the seeded kitchen's base row splittable by one delete", () => {
-    // `p25`, the corner base, is `NOT_DELETABLE` (ADR 0025) and so cannot reach this path at all.
+    // `p25`, the corner base, is `NOT_DELETABLE` (ADR 0025), so it cannot reach this path.
     const baseMembers = ["p0", "p1", "p2", "p4"];
     const splittable = baseMembers.filter((id) => {
       const span = seededKitchenWithout([id]);
@@ -368,16 +344,9 @@ describe("what the whole-height precondition silently refuses", () => {
   });
 });
 
-// ---------------------------------------------------------------------------------------------
-// 2. The crash path: are the guarded and the projected expression the same expression?
-// ---------------------------------------------------------------------------------------------
-
 describe("the whole-millimetre guard against the projection it protects", () => {
-  // The 5B2b blocker was two expressions that agreed by coincidence. These two do not agree by
-  // coincidence: the guard tests `Number.isInteger` on the millimetre value, the projection tests
-  // `toExactMillimetres` on `value / 1000`, and the second accepts a 1e-3 mm band the first
-  // refuses. The guard is therefore *strictly stronger*, which is the safe direction — anything it
-  // admits, the projection admits.
+  // The guard tests `Number.isInteger` on the millimetre value, the projection `toExactMillimetres` on `value / 1000`,
+  // and the second accepts a 1e-3 mm band the first refuses: the guard is strictly stronger, the safe direction.
   propertyTest.prop([fc.integer({ min: 1, max: 8000 })])(
     "round-trips every whole millimetre a split can write, so the guard implies the projection",
     (valueMm) => {
@@ -385,8 +354,8 @@ describe("the whole-millimetre guard against the projection it protects", () => 
     },
   );
 
-  // The other direction, stated so a later widening of the guard to `toExactMillimetres` is a
-  // deliberate change rather than a silent one: the projection admits values the guard refuses.
+  // Stated so a later widening of the guard to `toExactMillimetres` is deliberate: the projection admits values the
+  // guard refuses.
   it("admits a value the guard refuses, so the two are not interchangeable", () => {
     expect(Number.isInteger(2450.0005)).toBe(false);
     expect(toExactMillimetres(toMetres(2450.0005))).toBe(2450);
@@ -394,17 +363,13 @@ describe("the whole-millimetre guard against the projection it protects", () => 
 });
 
 describe("the split's own fractional guard", () => {
-  // **`refuseFractionalParts` kills no test in the wave's suite** — deleting it outright leaves
-  // 13/13 domain and 3/3 store green — because the only fractional centre the product can reach is
-  // the occupied half's, and `resolvePlacementMillimetres` refuses that one first. This pins the
-  // guard directly so its removal is red, and the next two tests assert the unreachability that
-  // makes the wave's suite blind to it.
+  // Unreachable through the product: the only fractional centre it can reach is the occupied half's, and
+  // `resolvePlacementMillimetres` refuses that first. Pinned directly so removing the guard is red.
   it("refuses a fractional remainder centre by name, on the field it lands in", () => {
     const span = loadSpan(designWithEmptySpan(700));
     const column = columnAt(span, HOB_COLUMN_KEY);
 
-    // A column centred on a half millimetre: the shape `refuseFractionalCentres` carries the
-    // measurement for on the resize path, handed to the split path where that guard does not run.
+    // A column centred on a half millimetre, handed to the split path where `refuseFractionalCentres` does not run.
     const result = splitColumn({
       columns: span.columns,
       column,
@@ -441,12 +406,9 @@ describe("the split's own fractional guard", () => {
     });
   });
 
-  // The unreachability, asserted rather than assumed — 5B2's criterion 7 shape. Over every column
-  // width a document can carry in this span, an insert is accepted exactly when the column's width
-  // leaves an even remainder, every refusal is `resolvePlacementMillimetres`' `alongMm` one, and
-  // the split's own guard never fires. A false refusal at an even width — float noise in
-  // `seatableMillimetres`' raw-product fallback — would be red here and is invisible to the wave's
-  // own sweep, which returns early on any refusal.
+  // Over every column width a document can carry in this span, an insert is accepted exactly when the remainder is
+  // even, every refusal is `resolvePlacementMillimetres`' `alongMm` one, and the split's own guard never fires. A false
+  // refusal at an even width (float noise in `seatableMillimetres`' raw-product fallback) would be red here.
   propertyTest.prop([fc.integer({ min: 600, max: 900 })], { numRuns: 301 })(
     "refuses exactly the odd-width columns, always at alongMm and never inside the split",
     (columnWidthMm) => {
@@ -475,9 +437,8 @@ describe("the split's own fractional guard", () => {
 });
 
 describe("what a split carries across untouched", () => {
-  // 5B2b proved `top`, `d`, `ry` and the region floor safe on the resize path for a structural
-  // reason — `moveFrozenColumns` passes them through. The split has to earn the same conclusion on
-  // its own, because it writes two columns from one and could take either half's from the body.
+  // `top`, `d`, `ry` and the region floor pass through on the resize path (`moveFrozenColumns`); the split writes two
+  // columns from one and could take either half's from the body.
   it("moves only the width and the along-wall centre, on both halves", () => {
     const before = loadSpan(designWithEmptySpan(1400));
     const original = columnAt(before, HOB_COLUMN_KEY);
@@ -499,8 +460,7 @@ describe("what a split carries across untouched", () => {
       expect(half.top).toBe(original.top);
       expect(half.regions).toEqual(original.regions);
       expect(half.wall).toBe(original.wall);
-      // Wall A's along-wall coordinate is `x`, so `z` — the column's own half depth, measured from
-      // the wall — is the one that must not move.
+      // Wall A's along-wall coordinate is `x`, so `z`, the column's half depth from the wall, must not move.
       expect(half.z).toBe(original.z);
       expect(half.key).toBe(
         deriveColumnKeyAt(half.wall, toMetres(centreMmOf(half))),
@@ -509,15 +469,9 @@ describe("what a split carries across untouched", () => {
   });
 });
 
-// ---------------------------------------------------------------------------------------------
-// 3. The ADR 0037 gate, pushed past the wave's own assertions.
-// ---------------------------------------------------------------------------------------------
-
 describe("the ADR 0037 gate, asserted as commands succeeding rather than voids existing", () => {
-  // Criterion 4 (a) asserts one further insert. A void that no command can address is the state the
-  // withdrawal was about, so this drives the 1400 mm span to exhaustion: 600 in, 600 in, and the
-  // 200 mm that is left is a column that publishes an opening and offers the catalogue with
-  // reasons — never a strip that has quietly stopped existing.
+  // Drives the 1400 mm span to exhaustion: 600 in, 600 in, and the 200 mm left is a column that publishes an opening
+  // and offers the catalogue with reasons, never a strip that has quietly stopped existing.
   it("spends a 1400 mm span down to a 200 mm remainder, one addressable column at every step", () => {
     let span = loadSpan(designWithEmptySpan(1400));
     const widths: number[] = [];
@@ -554,17 +508,14 @@ describe("the ADR 0037 gate, asserted as commands succeeding rather than voids e
       cabinetDepthMm: cabinetDepthMmOf(span.design),
       target: { kind: "void", id: strip.id },
     });
-    // **The reversal of ADR 0032** (owner, 2026-09-10): the rows too wide for a 200 mm strip are
-    // removed rather than shown with their reason. `base-dishwasher` is 450 mm at its narrowest, so
-    // its absence is the claim — and the rows that remain are the ones a customer can actually tap.
+    // Rows too wide for a 200 mm strip are removed rather than shown with their reason; `base-dishwasher` is 450 mm at
+    // its narrowest, so its absence is the claim.
     expect(offeredIds(offers)).not.toContain("base-dishwasher");
     for (const offer of offers) {
       expect(offer.buildsToWidthMm, offer.buildId).toBeLessThanOrEqual(200);
     }
   });
 
-  // The four-tap case, driven the same way: after the bottle cargo and its 300 mm neighbour, the
-  // cleared hob column holds two bodies and no wall is unaccounted for.
   it("fills the cleared hob column twice over, with the span conserved", () => {
     let span = seededKitchenWithout(HOB_COLUMN_MEMBERS);
     const original = { centreMm: 2600, widthMm: 600 };
@@ -603,15 +554,7 @@ describe("the ADR 0037 gate, asserted as commands succeeding rather than voids e
   });
 });
 
-// ---------------------------------------------------------------------------------------------
-// 4. Q5's fourth widening — legal under ADR 0037's surviving "ok to have empty space left".
-// ---------------------------------------------------------------------------------------------
-
 describe("a remainder wider than 800 mm is split at the ceiling (ADR 0052)", () => {
-  // What this wave recorded as ADR 0046's residual, closed in wave 5G. Inserting a 300 into the
-  // 1400 mm fixture used to leave one 1100 mm column, where every `widthFlex: 'fit'` body was
-  // refused against §7's 800 mm ceiling — an opening the customer could look at and never fill. The
-  // remainder is now cut at the ceiling, filling from the body outwards.
   it("leaves an 800 and a 300 where it left an unfillable 1100", () => {
     const start = loadSpan(designWithEmptySpan(1400));
     const result = insertInto(
@@ -623,9 +566,8 @@ describe("a remainder wider than 800 mm is split at the ceiling (ADR 0052)", () 
     if (!result.ok) return;
 
     const span = spanOf(result.design, result.effect.columns);
-    // The span 1900–3300 as three columns: the 300 mm body at 2050, then the remainder from the
-    // boundary at 2200 outwards. Total conserved exactly, which is the point of splitting rather
-    // than clamping.
+    // The span 1900-3300 as three columns: the 300 mm body at 2050, then the remainder cut at 2200 outwards; the total
+    // is conserved exactly.
     expect(widthMmOf(columnAt(span, "A|2.60"))).toBe(800);
     expect(widthMmOf(columnAt(span, "A|3.15"))).toBe(300);
 
@@ -638,7 +580,6 @@ describe("a remainder wider than 800 mm is split at the ceiling (ADR 0052)", () 
       cabinetDepthMm: cabinetDepthMmOf(span.design),
       target: { kind: "void", id: opening.id },
     });
-    // The whole gain: a `'fit'` row now builds to the opening instead of being refused against it.
     const built = offers.map((offer) => offer.buildsToWidthMm);
     expect(built).toContain(800);
     expect(built.every((widthMm) => widthMm <= 800)).toBe(true);

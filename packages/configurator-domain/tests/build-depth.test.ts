@@ -1,19 +1,7 @@
-// M6 wave 6I2: **a column publishes a build depth beside its clearance** (ADR 0060), and this is
-// where the declaration and the rule that reads it are pinned.
-//
-// `docs/BACKLOG.md` entry 15 named the confusion exactly: `occupiedDepthM` answers *"the full extent
-// a body occupies, handles included"* — a clearance — and `resolveDepthM` handed that same number to
-// the probe as *"the depth to build the next body to"*, a manufactured size. Over the fridge column
-// that shipped 742 mm wall carcasses. Entry 10 is the same seam from the other side: swap yielded
-// 600 there and delete-then-insert 680, and which one the customer got depended on whether they
-// replaced the cabinet or deleted it first.
-//
-// **Why the assertions here are on the depth handed to the probe rather than on built geometry.**
-// That number *is* `resolveDepthM`'s answer, and it is what both routes have to agree on for §5.3 to
-// mean anything numerically. The real-probe half — the literal 600 the customer ends up with over
-// the fridge, measured through `makeKit` and `createBodyProbe` — lives in
-// `@lemnaria/three-adapter`'s `insert-depth.test.ts`, for backlog entry 9's reason: a fake probe
-// reports back the depth it was handed, so it can see what was *decided* and never what was *built*.
+// ADR 0060: a column publishes a build depth beside its clearance. Assertions are on the depth handed to the probe,
+// which is `resolveDepthM`'s answer and what swap and delete-then-insert must agree on (§5.3). A fake probe reports
+// back the depth it was handed, so it sees what was decided and never what was built; the real-probe half is
+// `@lemnaria/three-adapter`'s `insert-depth.test.ts`.
 import { describe, expect, it } from "vitest";
 
 import {
@@ -54,9 +42,8 @@ const CAPPED_BUILD_DEPTH_MM = 330;
  *  every number above it is an appliance or an appliance's handle. */
 const LIFTED_BUILD_DEPTH_MM = 600;
 
-/** What the uncapped arm built before this wave, over the two columns of the shipped kitchen it is
- *  reachable on: values a formula produced, and the depths entry 15 records as manufactured by
- *  nobody. Named so the anti-invariant is explicit rather than implied. */
+/** The depths the uncapped arm used to build: a formula's output that nobody manufactures (BACKLOG entry 15). Named so
+ *  the anti-invariant is explicit rather than implied. */
 const UNMANUFACTURED_DEPTHS_MM = [638, 680, 703, 742];
 
 function seeded(): KitchenWorld {
@@ -133,8 +120,6 @@ function voidCovering(
 
 const INSERTABLE_BUILD_IDS = INSERTABLE_BODY_DEFINITIONS.map(([id]) => id);
 
-// ---------------------------------------------------------------------------------------------
-
 describe("the build depth is declared, never the clearance MAX (ADR 0060 decision 2)", () => {
   it("is the map's wall depth where the cap applies, at every declared cabinet depth", () => {
     expect(
@@ -155,8 +140,7 @@ describe("the build depth is declared, never the clearance MAX (ADR 0060 decisio
   });
 
   it("answers a declared size at every row of the map, on both arms", () => {
-    // Swept rather than spot-checked, so a third row added to the map is covered the day it lands
-    // instead of silently skipped.
+    // Swept so a third row added to the map is covered the day it lands.
     expect(declaredWorktopDepthsMm().length).toBeGreaterThanOrEqual(2);
     for (const cabinetDepthMm of declaredWorktopDepthsMm()) {
       for (const hasFullHeightUnder of [false, true]) {
@@ -171,12 +155,9 @@ describe("the build depth is declared, never the clearance MAX (ADR 0060 decisio
   });
 
   it("refuses an undeclared cabinet depth on both arms, not only the capped one", () => {
-    // The capped arm gets the check for free from the map lookup. The lifted arm is an identity on
-    // its input, so before the check moved to the entry it answered 650 for a depth the capped arm
-    // refused — a declaration only as far as its input was one. Inert today, because the sole caller
-    // passes `WORKTOP_DEPTH_MM`; from wave 6J the number arrives in a stored document and through
-    // `migrateDesign`, where a worktop value threaded into a cabinet-depth argument would sail
-    // through. Raised by logic review, 2026-09-04.
+    // The lifted arm is an identity on its input, so without the check it answered 650 for a depth the capped arm
+    // refused. The sole caller passes `WORKTOP_DEPTH_MM` today, but a worktop value threaded into a cabinet-depth
+    // argument from a stored document (via `migrateDesign`) would sail through.
     const undeclaredDepthMm = 650;
     expect(declaredWorktopDepthsMm()).not.toContain(undeclaredDepthMm);
 
@@ -204,8 +185,7 @@ describe("the build depth is declared, never the clearance MAX (ADR 0060 decisio
 });
 
 describe("entry 10's divergence closes at 600, over the fridge column", () => {
-  // The column entry 10 was measured on: `p7` is the freestanding fridge and `p24` the wall body
-  // over it. `B|2.45` is the key both share.
+  // `p7` is the freestanding fridge and `p24` the wall body over it; `B|2.45` is the key both share.
   const FRIDGE_COLUMN = "B|2.45";
   const OVER_THE_FRIDGE = "p24";
   const CATALOGUE_WALL_BODY = "wall-cabinet";
@@ -217,8 +197,8 @@ describe("entry 10's divergence closes at 600, over the fridge column", () => {
     );
     if (!record) throw new Error("no p24 in the seeded design");
 
-    // The trap, stated: the column's own clearance is the fridge's body plus its two door bars, and
-    // it is what the uncapped arm used to hand the probe. The assertion below is not vacuous.
+    // The trap: the column's own clearance is the fridge's body plus its two door bars, which the uncapped arm used to
+    // hand the probe.
     expect(toMillimetres(world.columns.get(FRIDGE_COLUMN)?.d ?? 0)).toBe(742);
     expect(world.columns.get(FRIDGE_COLUMN)?.hasFullHeightUnder).toBe(true);
 
@@ -231,8 +211,7 @@ describe("entry 10's divergence closes at 600, over the fridge column", () => {
   });
 
   it("does not close by both routes drifting up to the clearance MAX", () => {
-    // The literal above is what this test is for. "They must agree" is satisfiable by agreeing on
-    // 742, which is the one number in ADR 0060's table no cabinet was ever built to.
+    // "They must agree" is satisfiable by agreeing on 742, the one number in ADR 0060's table no cabinet was built to.
     const world = seeded();
     const record = world.records.find(
       (candidate) => candidate.id === OVER_THE_FRIDGE,
@@ -249,16 +228,10 @@ describe("entry 10's divergence closes at 600, over the fridge column", () => {
 });
 
 describe("both routes into a slot land on one depth, over every column", () => {
-  // §5.3 exists so a swap is **not** a delete plus an insert. Asserted as a property over every
-  // replaceable placement crossed with every insertable entry, rather than on the fridge column
-  // alone — entry 10 was found on one column and the rule is about all of them.
-  //
-  // **Swept over three worlds, because the shipped kitchen alone cannot falsify it.** Every seeded
-  // wall body occupies at least the map row, so the two routes' openings — the outgoing body's
-  // clearance on a swap, the column's on a delete-then-insert — happen to give the same answer
-  // through `min`. A wall member shallower than the row separates them, and until logic review
-  // raised it on 2026-09-04 the capped arm diverged there exactly as entry 10 describes. The
-  // shipped kitchen stays in the sweep as the value-preserving case.
+  // §5.3 exists so a swap is not a delete plus an insert; asserted over every replaceable placement crossed with every
+  // insertable entry. Swept over three worlds because the shipped kitchen alone cannot falsify it: every seeded wall
+  // body occupies at least the map row, so the two routes' openings give the same answer through `min`, and only a
+  // wall member shallower than the row separates them.
   it("gives the same depth by swap and by delete-then-insert, for every entry it accepts", () => {
     const worlds = [
       { name: "the shipped kitchen", world: seeded() },
@@ -293,9 +266,8 @@ describe("both routes into a slot land on one depth, over every column", () => {
       }
     }
 
-    // Every arm has to be exercised or the sweep proves only the one it happened to reach: the
-    // lifted arm is the one this wave changed, and the shallow worlds are the only ones that can
-    // fail the capped arm at all.
+    // Every arm has to be exercised: the lifted arm is the one that changed, and only the shallow worlds can fail the
+    // capped arm.
     expect(agreed.length).toBeGreaterThan(20);
     expect(columnsCovered.size).toBeGreaterThanOrEqual(4);
     expect(liftedColumnsCovered.size).toBeGreaterThanOrEqual(1);
@@ -303,9 +275,8 @@ describe("both routes into a slot land on one depth, over every column", () => {
   });
 
   it("builds every wall carcass to a declared size, on either route", () => {
-    // The stronger statement behind the agreement: not merely that the two routes match, but that
-    // what they match on is one of ADR 0060 decision 2's two declared numbers. A pair that agreed on
-    // a formula's output would pass the test above and fail this one.
+    // Not merely that the two routes match but that they match on one of ADR 0060 decision 2's two declared numbers;
+    // a pair agreeing on a formula's output would pass the test above and fail this one.
     const world = seeded();
     const declared = new Set([CAPPED_BUILD_DEPTH_MM, LIFTED_BUILD_DEPTH_MM]);
     const measured = new Set<number>();
@@ -323,10 +294,9 @@ describe("both routes into a slot land on one depth, over every column", () => {
       }
     }
 
-    // Both arms have to appear or the sweep proves only the one it happened to reach. The lifted
-    // arm reaches this loop through the seeded `top` row, which normalises to `wall` (ADR 0011
-    // Gap C) — reading the raw band here would silently drop every wall carcass over a column and
-    // leave the assertion below covering the capped arm alone.
+    // Both arms have to appear. The lifted arm reaches this loop through the seeded `top` row, which normalises to
+    // `wall` (ADR 0011 Gap C); reading the raw band would drop every wall carcass over a column and cover the capped
+    // arm alone.
     expect(measured.has(CAPPED_BUILD_DEPTH_MM)).toBe(true);
     expect(measured.has(LIFTED_BUILD_DEPTH_MM)).toBe(true);
     expect([...measured].filter((depthMm) => !declared.has(depthMm))).toEqual(
@@ -335,30 +305,18 @@ describe("both routes into a slot land on one depth, over every column", () => {
   });
 });
 
-// **No route _writes_ a shallow body over a full-height member** — ADR 0060 decision 4, restated as
-// what is actually true. The record says *"there is no route that puts a 330 mm body over a column
-// for a later swap to inherit"*; the purpose clause is fully satisfied and the literal claim is not.
-//
-// `seatDepthMm` is written in exactly two places — `commands/insert-body.ts` (insert and swap) and
-// `commands/rebuild-resized-bodies.ts` (resize) — and both derive it from `resolveDepthM`, which
-// over a full-height column answers the declared line. `moveHood`, `migrateDesign`, `split-column`,
-// `merge-empty-columns` and `apply-column-moves` write no depth at all. Exhausted by logic review,
-// 2026-09-04, rather than inferred from tests.
-//
-// **But the _state_ is reachable**, because `hasFullHeightUnder` is re-answered from along-wall
-// overlap after every mutation while an existing body's depth is never re-derived: clear a column,
-// insert a full-height unit under a 330 mm wall body, and one is standing over a column without
-// anything having written it there. That is why the assertions below are about what such a body
-// **cannot pass on**, and not about it being impossible to meet.
+// ADR 0060 decision 4, restated as what is true: no route writes a shallow body over a full-height member
+// (`seatDepthMm` is written only in `commands/insert-body.ts` and `commands/rebuild-resized-bodies.ts`, both through
+// `resolveDepthM`), but the state is reachable: `hasFullHeightUnder` is re-answered after every mutation while an
+// existing body's depth is never re-derived, so clearing a column and inserting a full-height unit under a 330 mm wall
+// body stands one over a column. The assertions are about what such a body cannot pass on.
 describe("a shallow body over a full-height member is never written (decision 4)", () => {
   const FRIDGE_COLUMN = "B|2.45";
   const OVER_THE_FRIDGE = "p24";
 
   it("does not let a shallow body already standing there lend its depth to its replacement", () => {
-    // The half that makes the agreement stable rather than coincidental: however such a body got
-    // there — hand-authored here, or by inserting a full-height unit beneath an existing 330 —
-    // the swap does not inherit its depth. The answer comes from the column's declaration and from
-    // nothing the outgoing body recorded.
+    // However such a body got there, the swap does not inherit its depth: the answer comes from the column's
+    // declaration and nothing the outgoing body recorded.
     const world = withShallowBodyOverTheFridge();
 
     expect(world.columns.get(FRIDGE_COLUMN)?.hasFullHeightUnder).toBe(true);
@@ -374,9 +332,8 @@ describe("a shallow body over a full-height member is never written (decision 4)
   });
 
   it("is a function of the column's build depth alone, whatever the outgoing body occupied", () => {
-    // The general form, and what makes decision 5 follow: over a full-height column the answer does
-    // not read the outgoing body at all, so a pinned entry cannot lend its pin to its replacement.
-    // Swept over three outgoing bodies occupying 330, 600 and 639 mm.
+    // Over a full-height column the answer does not read the outgoing body at all, so a pinned entry cannot lend its
+    // pin to its replacement (decision 5). Swept over outgoing bodies occupying 330, 600 and 639 mm.
     const answers = [
       withShallowBodyOverTheFridge(),
       seeded(),
@@ -392,20 +349,16 @@ describe("a shallow body over a full-height member is never written (decision 4)
     ).toBe(LIFTED_BUILD_DEPTH_MM);
   });
 
-  /** The seeded kitchen with `p24` recording a **291 mm** seat, so it occupies 330: a shallow body
-   *  over a full-height column, authored directly because no writer produces one. It stands for the
-   *  state a customer *can* reach by inserting a full-height unit beneath an existing 330, and it is
-   *  here so its non-propagation is asserted rather than assumed. 291 is the seat a 330 mm fronted
-   *  carcass records (ADR 0036's 39 mm front assembly).
-   *
-   *  Only the recorded seat is changed — same entry, same width, same height — so the one variable
-   *  between the three worlds below is the depth the outgoing body occupies. */
+  /** The seeded kitchen with `p24` recording a 291 mm seat, so it occupies 330: a shallow body over a full-height
+   *  column, authored directly because no writer produces one. 291 is the seat a 330 mm fronted carcass records (ADR
+   *  0036's 39 mm front assembly). Only the seat changes, so the one variable between the three worlds is the depth
+   *  the outgoing body occupies. */
   function withShallowBodyOverTheFridge(): KitchenWorld {
     return withOverFridgeSeatMm(291);
   }
 
-  /** The same slot holding a body occupying **639** mm: deeper than the cabinet-depth line, which is
-   *  the shape the uncapped arm used to propagate into its replacement. */
+  /** The same slot holding a body occupying 639 mm: deeper than the cabinet-depth line, the shape the uncapped arm
+   *  used to propagate into its replacement. */
   function withDeeperBodyOverTheFridge(): KitchenWorld {
     return withOverFridgeSeatMm(600);
   }
@@ -425,16 +378,10 @@ describe("a shallow body over a full-height member is never written (decision 4)
 });
 
 describe("a pinned entry does not lend its pin to its replacement (decision 5)", () => {
-  // ADR 0058 pins `wall-2door-600-deep-top` and `wall-2door-700-over-fridge` at 600 at every
-  // setting. At 700 that is no longer the build depth, so the incoming body must take the column's
-  // 700 rather than the 600 it replaced.
-  //
-  // **Asserted at the declaration, because the command layer cannot yet be handed 700.**
-  // `resolveDepthM` reads `WORKTOP_DEPTH_MM`, and threading a design's own cabinet depth through the
-  // command layer is wave 6J's (ADR 0055, ADR 0056) — 6I2 lands before it by design. The two halves
-  // below compose into the criterion: the resolved depth over such a column *is* the column's build
-  // depth (asserted above, over three outgoing bodies occupying 330, 600 and 639), and that build
-  // depth at 700 is 700.
+  // ADR 0058 pins `wall-2door-600-deep-top` and `wall-2door-700-over-fridge` at 600 at every setting; at 700 the
+  // incoming body must take the column's 700. Asserted at the declaration, because the command layer cannot yet be
+  // handed 700 (`resolveDepthM` reads `WORKTOP_DEPTH_MM`); with the resolved-depth test above that composes the
+  // criterion.
   it("declares 700 over a full-height column at a 700 mm kitchen, not the pinned 600", () => {
     const pinnedFinishedDepthMm = 600;
 
@@ -447,9 +394,8 @@ describe("a pinned entry does not lend its pin to its replacement (decision 5)",
   });
 
   it("still declares 600 at a 600 mm kitchen, where the pin and the line coincide", () => {
-    // Why the divergence is only reachable at 700, stated as an assertion rather than as prose:
-    // at the shipped depth the pin and the build depth are the same number, which is exactly why
-    // nothing today can see the difference.
+    // At the shipped depth the pin and the build depth are the same number, which is why nothing today can see the
+    // difference.
     expect(
       columnBuildDepthMm({ cabinetDepthMm: 600, hasFullHeightUnder: true }),
     ).toBe(600);
@@ -458,8 +404,7 @@ describe("a pinned entry does not lend its pin to its replacement (decision 5)",
 
 describe("value-preserving where the capped path already governs", () => {
   it("still caps a wall carcass over a base run at the map's row", () => {
-    // Wave 5A's rule, unmoved: `p19` stands over the hob base on `A|2.60`, whose clearance is the
-    // worktop's 620.
+    // `p19` stands over the hob base on `A|2.60`, whose clearance is the worktop's 620.
     const world = seeded();
     expect(world.columns.get("A|2.60")?.hasFullHeightUnder).toBe(false);
     expect(toMillimetres(world.columns.get("A|2.60")?.d ?? 0)).toBe(620);
@@ -470,19 +415,10 @@ describe("value-preserving where the capped path already governs", () => {
   });
 
   it("keeps the cap a maximum and never a target, measured on the column", () => {
-    // Wave 5A's rule, and the subject it is measured against was corrected on 2026-09-04: a
-    // **column** shallower than the declared depth keeps its own depth, so this rule can never build
-    // a body past the space that exists. It used to be measured against the *opening*, which is the
-    // outgoing body's own clearance on a swap and the column's on a delete-then-insert — so the
-    // rule held on one route and not the other, which is entry 10's shape on the arm this wave had
-    // left alone. Measured on the column both routes agree by construction, and the safety property
-    // 5A stated is unchanged.
-    //
-    // **Not redundant against the two worlds beside it, and the distinction is why all three
-    // stay.** This one pins the `min`'s *existence* — delete the `min` and this case builds 330 in
-    // a 200 mm column. Its siblings pin the `min`'s *argument* — swap the argument back to the
-    // opening and they diverge while this one still passes, because a single-member column makes
-    // the two arguments coincide. Neither test can see the other's failure.
+    // A column shallower than the declared depth keeps its own depth, so the cap never builds a body past the space
+    // that exists. Measured on the column, not the opening (the outgoing body's clearance on a swap, the column's on a
+    // delete-then-insert), so both routes agree. This case pins the `min`'s existence (delete it and this builds 330
+    // in a 200 mm column); the two sibling worlds pin its argument; neither can see the other's failure.
     const world = shallowColumn();
 
     expect(world.columns.get(SHALLOW_COLUMN_KEY)?.hasFullHeightUnder).toBe(
@@ -501,10 +437,8 @@ describe("value-preserving where the capped path already governs", () => {
   });
 
   it("does not let a shallow member drag a deeper column down with it", () => {
-    // The complement, and the case logic review found: the *member* is shallower than the map row
-    // but its column is not, so the declared row governs and both routes say so. Asserting only the
-    // test above would leave "keeps its own depth" reading as a fact about whatever body happens to
-    // be standing there.
+    // The member is shallower than the map row but its column is not, so the declared row governs on both routes;
+    // without this, "keeps its own depth" would read as a fact about whatever body happens to stand there.
     const world = shallowWallMemberInADeepColumn();
 
     expect(toMillimetres(world.columns.get("A|2.60")?.d ?? 0)).toBe(620);
@@ -515,19 +449,14 @@ describe("value-preserving where the capped path already governs", () => {
 const SHALLOW_COLUMN_KEY = "A|1.00";
 const SHALLOW_COLUMN_MEMBER = "s0";
 
-/** The depth both shallow worlds put below the map row, so the two cases differ only in whether the
- *  column follows the member down. */
+/** The depth both shallow worlds put below the map row, so the two cases differ only in whether the column follows
+ *  the member down. */
 const SHALLOW_CLEARANCE_MM = 200;
 
-/** A wall member recording a seat far below the map row, standing in a column that is **not**
- *  shallow: `p19` rewritten as a 200 mm `open-shelf` on `A|2.60`, whose clearance stays the hob
- *  base's 620. An open shelf has no front assembly, so its seat is what it occupies.
- *
- *  Logic review's counterexample, 2026-09-04. Reading the capped arm's floor from the opening gave
- *  200 by swap and 330 by delete-then-insert here — entry 10's divergence, on the arm this wave had
- *  not touched. Latent rather than live: no command mints a wall member this shallow while its
- *  column's clearance is at or above the row, but an authored or stored document can, which is the
- *  population `recordedClearanceM` exists for. */
+/** A wall member recording a seat far below the map row, in a column that is not shallow: `p19` rewritten as a 200 mm
+ *  `open-shelf` on `A|2.60`, whose clearance stays the hob base's 620. An open shelf has no front assembly, so its seat
+ *  is what it occupies. Reading the cap's floor from the opening gives 200 by swap and 330 by delete-then-insert here.
+ *  Latent: no command mints a wall member this shallow, but an authored or stored document can. */
 function shallowWallMemberInADeepColumn(): KitchenWorld {
   return createWorld(
     {
@@ -549,10 +478,8 @@ function shallowWallMemberInADeepColumn(): KitchenWorld {
   );
 }
 
-/** A column whose **whole** clearance is below the map row: one wall member and nothing else, so
- *  §3.2's MAX over the run is that member's own 200 mm. This is where 5A's "a maximum and never a
- *  target" is observable, and the seeded kitchen has no such column — every one of its capped
- *  columns holds a base run at 620. */
+/** A column whose whole clearance is below the map row: one wall member, so §3.2's MAX is its own 200 mm. The seeded
+ *  kitchen has no such column; its capped columns all hold a base run at 620. */
 function shallowColumn(): KitchenWorld {
   return syntheticWorld([
     {
@@ -571,10 +498,9 @@ function shallowColumn(): KitchenWorld {
 }
 
 describe("the hood keeps its own answer (ADR 0039, ADR 0040)", () => {
-  // Its clearance and its build depth are **legitimately** different numbers, and this wave must not
-  // align them. `make.hood` takes no depth parameter at all — the hood is a standard 500 mm at every
-  // setting (ADR 0039 decision 1) — while decision 2 hangs it at the front, so the space it fills
-  // runs from the wall plane to the 600 mm cabinet-depth line.
+  // Clearance and build depth are legitimately different numbers here and must not be aligned: `make.hood` takes no
+  // depth parameter (a standard 500 mm at every setting, ADR 0039 decision 1), while decision 2 hangs it at the front,
+  // so the space it fills runs to the 600 mm cabinet-depth line.
   it("still fills 600 mm while being a 500 mm body", () => {
     const world = seeded();
     const hood = world.records.find((record) => record.id === "p13");

@@ -1,23 +1,6 @@
-// M7 wave 7D5 pre-width recording. The file this reader opens was captured before S1 added the
-// 300 mm bottle cabinet. It records the whole canonical plan for every sampled room, rather than a
-// digest, so a later comparison can name the exact field and module that moved.
-//
-// It also holds the one classifier both pre-S1 recordings — this one and 7D8's re-keyed half — are
-// read through for rooms that stand a bottle, a pan drawer or both, so the 7D5 ruling is stated once
-// (7D5 S2: Q-H6a = A, and Q-H6b / Q-H6c, which let a pan drawer stand without the bottle; 7D5 S3:
-// Q-H5, the threshold drawer after the hob, in the bottle's place or after it).
-//
-// 7D5b S1 / ADR 0110 M1/M2/M9: both recordings predate the dishwasher, and it is a re-identification,
-// never a width change. `planBeforeTheDishwasher` admits exactly that — M1's one door cabinet beside
-// the sink re-identified in place, or (e)'s two drawer cabinets re-identified in place — and hands the
-// rest of the plan to the comparisons below unchanged, so everything else stays exact.
-//
-// 7D5b S2 / ADR 0110 M7/M10: where S1 stood no dishwasher it is traded in directly after the sink for
-// (b) one pantry column, (d) the bottle or (c) the oven tower, which is a width change on the sink's
-// wall. `planBeforeTheDishwasher` undoes exactly that — the dishwasher out, every module after it on
-// the sink's wall back by its 600 mm, the one body restored where the ruling says it stood — which
-// recovers S1's plan, and then applies S1's own undo to it. A trade that moved anything else leaves a
-// plan the exact comparisons below reject.
+// Reader and classifier for `7d5-pre-width-baseline.json`: the whole canonical plan per room, so a comparison names
+// the exact field and module that moved. `planBeforeTheDishwasher` undoes the dishwasher (a re-identification, ADR
+// 0110 M1/M2/M9, or a width-changing trade, M7/M10) and hands the rest on unchanged, so every other field stays exact.
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -48,7 +31,7 @@ interface PreWidthRecordingDocument {
   readonly capturedFrom: string;
   readonly seed: number;
   readonly runs: number;
-  /** Room key to the whole pre-S1 `canonicalPlan` string. */
+  /** Room key to the whole recorded `canonicalPlan` string. */
   readonly rooms: Readonly<Record<string, string>>;
 }
 
@@ -188,11 +171,11 @@ function coreIdentity(base: {
 /** Exactly the width of one storage module: the pan drawer's width, and so the hob's shift. */
 const PAN_DRAWER_WIDTH_MM = 600;
 export const PAN_DRAWER_BODY = "base-panbank";
-/** 7D5 S3 / Q-H5: the threshold drawer's own id, its body and its one module's width. */
+/** The threshold drawer's own id, its body and its one module's width. */
 export const THRESHOLD_DRAWER_ID = "threshold-drawer";
 const THRESHOLD_DRAWER_BODY = "base-3drawer";
 const THRESHOLD_DRAWER_WIDTH_MM = 600;
-/** Owner ruling on Q-H5, 2026-09-21: the threshold drawer may cost one tall column and no more. */
+/** The threshold drawer may cost one tall column and no more (ADR 0110 Q-H5). */
 const THRESHOLD_DRAWER_MOST_COLUMNS = 1;
 export const STORAGE_SLOT_ID = /^storage:[AB]:\d+$/;
 const TALL_COLUMN_ID = /^column:[AB]:\d+$/;
@@ -200,21 +183,11 @@ const TALL_COLUMN_ID = /^column:[AB]:\d+$/;
 type PlanModule = RecordedPlanModule;
 
 /**
- * A plan that stands a bottle, a pan drawer or both, against its pre-S1 recording, allowing exactly
- * what M7 wave 7D5 changed and nothing else: S1's 300 mm bottle immediately after the hob, and S2's
- * 600 mm pan drawer immediately before it (owner ruling 2026-09-21, Q-H6a = A; ADR 0110 Amendment J1)
- * with the hob and the bottle shifted along their wall by its width and the hob's wall giving up
- * outermost modules to pay for it. Every core role keeps its wall; the hob moves by exactly 600 mm
- * where a pan drawer stands and not at all where none does; the other wall is exactly as recorded.
- *
- * 7D5 S2, Q-H6b / Q-H6c: a pan drawer may stand **without** the bottle — the bottle gives way to it
- * (Q-H6b) and to every tall column its kitchen has (Q-H6c). A plan with neither is not this
- * classifier's to read: its caller compares it to the recording exactly.
- *
- * 7D5 S3, Q-H5 (owner ruling 2026-09-21): a 600 mm `base-3drawer` threshold drawer may stand after the
- * hob, read either where the bottle would stand (the bottle then absent) or right after the bottle,
- * and it may cost the hob's wall one outermost module and at most one tall column beyond what the pan
- * drawer and the bottle cost. Nothing else it admits.
+ * Asserts a plan that stands a bottle, a pan drawer, a threshold drawer or any of them differs from its recording
+ * only by what they cost: the 300 mm bottle directly after the hob, a 600 mm pan drawer directly before it (ADR 0110
+ * Amendment J1) and a 600 mm `base-3drawer` threshold drawer after the hob or the bottle. The hob shifts by exactly
+ * the pan drawer's width, its wall gives up outermost modules to pay, and the other wall is as recorded. A pan drawer
+ * may stand without the bottle; a plan with none of the three is not this classifier's to read.
  */
 export function assertOnlyTheBottleAndPanDrawerChanged(
   key: string,
@@ -247,19 +220,16 @@ const DISHWASHER_WIDTH_MM = 600;
 const DOOR_BODY = "base-cabinet";
 const PREPARATION_BODY = "base-3drawer";
 
-/** 7D5b S2 / ADR 0110 M7/M10: the three trades, by the body the run gave up. */
+/** The dishwasher trades of ADR 0110 M7/M10, by the body the run gave up. */
 export type DishwasherTrade = "(b)" | "(d)" | "(c)";
 
 /** How a plan stood its dishwasher, for a caller that counts the arms. */
 export type DishwasherArm = "none" | "M1" | "(e)" | DishwasherTrade;
 
-/** Which arm stood the plan's dishwasher, read off what stands: (e) where the pan drawer carries the
- *  preparation role; a trade where the dishwasher is read directly after the sink on the hob's wall,
- *  laid out forward (M1 converts a composed slot, which never stands between the sink and the hob);
- *  M1 otherwise. 7D5b S2: which trade is read off the sink's wall — (c) where no column stands and
- *  the hob carries the oven, (d) where columns stand and no bottle does, (b) where both stand. A (b)
- *  room without a bottle would read as (d) and then fail the exact comparisons rather than pass;
- *  the approved population holds none (every (b) room keeps its bottle, measured at 7D5b S2). */
+/** Which arm stood the plan's dishwasher: (e) where the pan drawer carries the preparation role; a trade where it
+ *  is read directly after the sink on the hob's wall (M1's converted slot never stands there); else M1. A trade is
+ *  read off the sink's wall: (c) no column and the hob carries the oven, (d) columns and no bottle, (b) both. A (b)
+ *  room without a bottle would read as (d) and fail the exact comparisons; the approved population holds none. */
 export function dishwasherArmOf(plan: KitchenCompositionPlan): DishwasherArm {
   const dishwasher = plan.bases.find(
     (base) => base.buildId === DISHWASHER_BODY,
@@ -297,20 +267,16 @@ function tradeReadOffTheWall(
 }
 
 /**
- * **7D5b S1 / ADR 0110 M1/M2/M9.** The plan as it stood before its dishwasher was decided, having
- * asserted that the dishwasher is only what the owner ruled: one 600 mm `base-dishwasher` under its own
- * id and the storage role, abutting the sink along its wall or facing it across the corner, and either
+ * The plan as it stood before its dishwasher (ADR 0110 M1/M2/M9), having asserted the dishwasher is only what was
+ * ruled: one 600 mm `base-dishwasher` under its own id, storage role, abutting the sink or facing it across the
+ * corner, and either
  *
- * - **M1**: a composed door cabinet re-identified in place — the recording must hold a 600 mm composed
- *   slot with the door body at exactly the dishwasher's wall and span, and that module is restored
- *   (the M1 module never stands on the hob's wall past the hob, the only stretch 7D5 moved); or
- * - **(e)**: the preparation 3-drawer re-identified in place, and the pan drawer abutting it carrying
- *   the preparation id and role on its own body — restored as the preparation cabinet and the
- *   `pan-drawer` module.
+ * - **M1**: a composed door cabinet re-identified in place, which the recording must hold at the dishwasher's wall
+ *   and span; or
+ * - **(e)**: the preparation 3-drawer re-identified in place, the abutting pan drawer carrying the preparation id.
  *
- * Nothing moves in either, so every span, width, remainder and floor width is handed on as composed,
- * and a restored module that is not what the recording holds fails the exact comparisons after this.
- * The plan is returned unchanged where no dishwasher stands.
+ * Nothing moves, so spans, widths, remainders and floor widths pass on as composed; a restored module that is not
+ * what the recording holds fails the exact comparisons after this. Returned unchanged where no dishwasher stands.
  */
 export function planBeforeTheDishwasher(
   key: string,
@@ -337,7 +303,7 @@ export function planBeforeTheDishwasher(
 
   const arm = dishwasherArmOf(plan);
   if (arm === "(b)" || arm === "(d)" || arm === "(c)") {
-    // 7D5b S2 / ADR 0110 M7/M10: undone to S1's plan, which then takes S1's own undo (none stood).
+    // Undone to the plan before the trade, which then takes the undo for an ordinary dishwasher (none stood).
     const undone = withTheDishwasherTradeUndone(plan);
     if (undone.kind === "unruled") {
       expect.fail(`${key} ${undone.reason}`);
@@ -354,10 +320,6 @@ export function planBeforeTheDishwasher(
   return { ...plan, bases: plan.bases.map(restore) };
 }
 
-// ---------------------------------------------------------------------------------------------
-// 7D5b S2 / ADR 0110 M7/M10 — a traded dishwasher, undone to the plan S1 composed.
-// ---------------------------------------------------------------------------------------------
-
 const TRADED_DISHWASHER_WIDTH_MM = 600;
 const BOTTLE_WIDTH_MM = 300;
 const COLUMN_WIDTH_MM = 600;
@@ -366,8 +328,8 @@ const OVEN_TOWER_BODY = "tall-oven-tower";
 const HOB_WITH_ITS_OWN_OVEN = "base-hob-oven";
 const HOB_WITH_DRAWERS = "base-hob-2drawer";
 
-/** What undoing a trade found: the plan S1 composed, and each restored module's shift along its wall
- *  (current `startMm` minus S1's), for a caller whose wall row stands over the same modules. */
+/** What undoing a trade found: the plan before the trade, and each restored module's shift along its wall (current
+ *  `startMm` minus the earlier one), for a caller whose wall row stands over the same modules. */
 export type TradeUndo =
   | {
       readonly kind: DishwasherTrade;
@@ -377,20 +339,15 @@ export type TradeUndo =
   | { readonly kind: "unruled"; readonly reason: string };
 
 /**
- * **7D5b S2 / ADR 0110 M7/M10.** The dishwasher traded in directly after the sink, undone: it is taken
- * out and every module after it on the sink's wall is drawn back by its 600 mm; then the one body the
- * ruling names is stood back where it stood —
+ * Undoes a dishwasher traded in directly after the sink (ADR 0110 M7/M10): it is removed, every module after it on
+ * the sink's wall is drawn back 600 mm, and the one body the ruling names is stood back where it stood:
  *
- * - **(b)** a pantry column past the block's outermost, which gives back the width E6.2 let it absorb
- *   and returns to one module: the remainder does not move;
- * - **(d)** the 300 mm bottle directly after the hob, everything past it drawn back only 300 mm, and
- *   the remainder 300 mm wider — the freed 300 mm the dishwasher had filled;
- * - **(c)** the 600 mm oven tower as the block's only column, past the last module, and the hob back on
- *   its drawers (`base-hob-2drawer`), since a tower stands again (E4): the remainder does not move.
+ * - **(b)** a pantry column past the block's outermost, which gives back the width E6.2 let it absorb;
+ * - **(d)** the 300 mm bottle directly after the hob, everything past it drawn back 300 mm, remainder 300 mm wider;
+ * - **(c)** the 600 mm oven tower as the block's only column, and the hob back on its drawers (E4).
  *
- * A trade the rulings do not account for — no hob on the sink's wall, a (b) whose wall does not end in
- * a column, a (c) whose hob kept its drawers — is answered `unruled`. Anything else it moved, it moved
- * in the undone plan too, where the caller's exact comparison names it.
+ * A trade the rulings do not account for is answered `unruled`; anything else it moved is named by the caller's
+ * exact comparison.
  */
 export function withTheDishwasherTradeUndone(
   plan: KitchenCompositionPlan,
@@ -459,9 +416,8 @@ function plannedAlongWall(
     .sort((left, right) => left.startMm - right.startMm);
 }
 
-/** The plan's bases in the order the composer wrote them — the order every exact comparison reads —
- *  with the dishwasher out, each drawn-back module in its own place, and the restored body written
- *  directly after the module it stands after along the wall. */
+/** The plan's bases in the composer's own order, which every exact comparison reads: the dishwasher out, each
+ *  drawn-back module in its place, the restored body directly after the module it follows along the wall. */
 function inThePlansOwnOrder(
   bases: readonly PlannedGenerationBase[],
   trade: {
@@ -590,10 +546,8 @@ function isPanDrawerCarryingThePreparation(base: PlanModule): boolean {
   return base.buildId === PAN_DRAWER_BODY && base.role === "preparation";
 }
 
-/** M1: the door cabinet the recording holds at the dishwasher's own wall and span. Its id is read
- *  from the recording rather than spelled here, so this file never writes the slot-id convention
- *  (7D4 criterion 22); what is asserted is that the module was a door cabinet the storage run
- *  composed, one module wide. */
+/** M1: the door cabinet the recording holds at the dishwasher's wall and span. Its id is read from the recording, so
+ *  this file never spells the slot-id convention. */
 function doorCabinetRestored(
   key: string,
   context: {
@@ -657,10 +611,9 @@ function drawerSwapUndone(
   };
 }
 
-/** Two modules abut along one wall, or face each other across the corner as each wall's first.
- *  These "beside the sink" helpers undo the leaf so older assertions keep working, and are deliberately
- *  independent of production and of the pre-tower classifier: a shared helper would let one bug corrupt
- *  both sides of the comparison. */
+/** Two modules abut along one wall, or face each other across the corner as each wall's first. Deliberately
+ *  independent of production and of the pre-tower classifier: a shared helper would let one bug corrupt both sides of
+ *  the comparison. */
 function isBeside(
   bases: readonly PlanModule[],
   pair: readonly [PlanModule, PlanModule],
@@ -683,17 +636,16 @@ function abutsAlongItsWall(one: PlanModule, other: PlanModule): boolean {
   );
 }
 
-/** What 7D5 stood astride the hob: the pan drawer before it, the bottle after it and the threshold
- *  drawer after that (7D5 S3), each possibly absent. */
+/** What stands astride the hob: the pan drawer before it, the bottle after it and the threshold drawer after that,
+ *  each possibly absent. */
 interface StandingAncillaries {
   readonly panDrawer: PlanModule | undefined;
   readonly bottle: PlanModule | undefined;
   readonly thresholdDrawer: PlanModule | undefined;
 }
 
-/** The single bottle. Required where neither drawer stands, because then the bottle is the only thing
- *  7D5 changed; optional beside a pan drawer, which it gives way to (7D5 S2, Q-H6b / Q-H6c), and
- *  beside a threshold drawer, which may take its place (7D5 S3, Q-H5). */
+/** The single bottle. Required where neither drawer stands; optional beside a pan drawer or a threshold drawer, which
+ *  it gives way to. */
 function bottleOf(
   key: string,
   plan: KitchenCompositionPlan,
@@ -717,7 +669,7 @@ function bottleOf(
   return bottle;
 }
 
-/** The single pan drawer where one stands (7D5 S2), or `undefined` where none does. */
+/** The single pan drawer where one stands, or `undefined`. */
 function panDrawerOf(
   key: string,
   plan: KitchenCompositionPlan,
@@ -737,8 +689,8 @@ function panDrawerOf(
   return panDrawer;
 }
 
-/** The single threshold drawer where one stands (7D5 S3, Q-H5), or `undefined` where none does. It is
- *  found by id alone, because its body is the composed drawer slot's body too. */
+/** The single threshold drawer where one stands, found by id alone because its body is the composed drawer slot's
+ *  body too. */
 function thresholdDrawerOf(
   key: string,
   plan: KitchenCompositionPlan,
@@ -790,16 +742,12 @@ function shiftedAlongItsWall(base: PlanModule, shiftMm: number): PlanModule {
   };
 }
 
-/** On the hob's wall: everything before the pan drawer (or the hob) is exactly as recorded; the pan
- *  drawer stands immediately before the hob and the bottle immediately after it; and what follows
- *  keeps the recorded bodies in the recorded order, losing only outermost storage slots and columns.
+/** On the hob's wall: everything before the pan drawer (or the hob) is as recorded; the pan drawer stands directly
+ *  before the hob and the bottle directly after; what follows keeps the recorded bodies in order, losing only
+ *  outermost slots and columns.
  *
- *  **The hob's wall is assumed laid out forward, corner to free end — the suffix wall's layout.** Every
- *  positional clause here reads *before the hob* as a lower `startMm` and *after* as a higher one. A
- *  hob on the prefix wall, which is laid out in reverse (ADR 0110 D2), would stand its pan drawer at
- *  the higher end and leave the hob in place, so it fails the clauses below and in
- *  `assertCoreMovedOnlyByThePanDrawer` loudly rather than passing. Neither recording holds such a room
- *  with a pan drawer (measured at 7D5 S2 over all 480 + 82 rooms). */
+ *  The wall is assumed laid out forward, corner to free end (the suffix wall). A hob on the prefix wall, laid out in
+ *  reverse (ADR 0110 D2), fails the clauses below loudly rather than passing. */
 function assertHobWallChangedOnlyAstrideTheHob(
   key: string,
   plan: KitchenCompositionPlan,
@@ -847,7 +795,6 @@ function assertAncillariesAstrideTheHob(
     ).toMatchObject({ wall: hob.wall, endMm: hob.startMm });
   }
   if (ancillaries.thresholdDrawer !== undefined) {
-    // 7D5 S3 / Q-H5: read after the hob — in the bottle's place, or right after the bottle.
     expect(
       ancillaries.thresholdDrawer,
       `${key} threshold drawer after the hob or the bottle`,
@@ -876,13 +823,9 @@ function tailModules(bases: readonly PlanModule[]): TailModules {
 }
 
 /**
- * After the hob the wall loses only outermost slots and columns, and no more than what stands astride
- * the hob can cost: one module for the bottle, which is narrower than one, and one more for the pan
- * drawer, which is exactly one (logic review N5b: at most 1 + the number of pan drawers). Where a pan
- * drawer stands the wall gave up at least one module to pay for it.
- *
- * 7D5 S3 / Q-H5: the threshold drawer is one module. In the bottle's place it spends the bottle's
- * module; after the bottle it costs one more. Either way the wall paid at least one for it.
+ * After the hob the wall loses only outermost slots and columns, and no more than what stands astride the hob can
+ * cost: one module for the bottle (narrower than one), one for the pan drawer, and one more for a threshold drawer
+ * after the bottle (in the bottle's place it spends the bottle's module).
  */
 function assertTailLostOnlyWhatTheAncillariesCost(
   label: string,
@@ -928,24 +871,17 @@ function assertTailLostOnlyWhatTheAncillariesCost(
 }
 
 /**
- * 7D5 S2: the pan drawer is decided first, against the core alone (ADR 0110 J1), and wins where it and
- * the bottle cannot both stand (Q-H6b); once it stands the bottle gives way rather than a tall column
- * (Q-H6c); where it is refused against the core alone it is tried again beside S1's bottle.
+ * The pan drawer is decided first, against the core alone (ADR 0110 J1), and wins where it and the bottle cannot both
+ * stand; once it stands the bottle gives way rather than a tall column. The recording is the core alone: the pan drawer
+ * was affordable there exactly where the hob's wall held a storage slot after the hob (a block smaller than its three
+ * columns has taken every leftover module and left no slot).
  *
- * The recording **is** the core alone, and it says where the pan drawer was affordable there: exactly
- * where the hob's wall held a storage slot after the hob. A slot means the leftover reaches one module,
- * and a block keeps its columns with one module fewer, because a block smaller than its three
- * columns has taken every leftover module and left no slot. With no slot, the pan drawer either does
- * not fit or costs the block a column. So:
- *
- * - a recorded slot: the pan drawer stands, and the block keeps every recorded column whether or not
- *   the bottle stands beside it (Q-H6c), with the pan drawer's module the one slot lost where the
- *   bottle gave way;
+ * - a recorded slot: the pan drawer stands, the block keeps every recorded column, and where the bottle gave way the
+ *   pan drawer's module is the one slot lost;
  * - no recorded slot: a pan drawer can only be the fallback's, so it stands beside the bottle.
  *
- * 7D5 S3 / Q-H5: the threshold drawer is decided after both, and may cost that kitchen one column and
- * one module; where it took the bottle's place the bottle is simply absent, so the fallback's bottle
- * may be a threshold drawer instead.
+ * The threshold drawer is decided after both and may cost one column and one module; where it took the bottle's
+ * place the bottle is absent.
  */
 function assertThePanDrawerWasDecidedFirst(
   label: string,
