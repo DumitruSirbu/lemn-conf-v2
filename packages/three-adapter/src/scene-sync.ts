@@ -1,11 +1,6 @@
-// M3 work item 8's engine: bring a mounted scene graph in line with the store's derived state.
-//
-// React-free and headless on purpose — `kitchen-stage.tsx` only calls these from an effect. The
-// whole point of the item is the *difference*: a body that did not change keeps its identical
-// object instance (rebuilding everything would discard applied finish and handle state and re-run
-// the wall seating for bodies already seated), and a body or void that vanished is removed **and
-// disposed** — §4's own pseudocode opens with "dispose all void meshes", and a leak here is
-// invisible until a phone runs out of memory mid-session.
+// Brings a mounted scene graph in line with the store's derived state, React-free and headless. A body that did not
+// change keeps its identical object instance (rebuilding would discard finish and handle state and re-seat it); a body
+// or void that vanished is removed and disposed, because a leak is invisible until a phone runs out of memory.
 import { buildAnyBody } from "./build-any-body.js";
 import {
   isPushToOpen,
@@ -44,46 +39,35 @@ import { buildVoidMesh } from "./void-mesh.js";
 const PLACEMENT_ID_KEY = "placementId";
 const VOID_SIGNATURE_KEY = "voidSignature";
 
-/** Everything about a record that changes the built body. A mounted body whose signature still
- *  matches its record is left exactly as it is — same instance, same materials, same seat. */
+/** Everything about a record that changes the built body: a mounted body with a matching signature is left as is. */
 const BODY_SIGNATURE_KEY = "bodySignature";
 
 export interface SolidSyncInput {
   readonly kit: Kit;
-  /** The `solids` group. Children without a `placementId` — the reference room shell — are never
-   *  touched, so decomposition stays this function's caller's business. */
+  /** The `solids` group. Children without a `placementId` (the reference room shell) are never touched. */
   readonly solidsRoot: THREE.Object3D;
   readonly records: readonly PlacementRecord[];
-  /** The room the records stand in, handed to the run-end panel's sync for the domain's wall-end
-   *  veto (ADR 0045 Amendment A). Required: without it that veto could not fire. */
+  /** The room the records stand in, for the run-end panel's wall-end veto (ADR 0045 Amendment A). Required: without
+   *  it the veto could not fire. */
   readonly room: DesignRoom;
-  /** The colour the whole kitchen is wearing, resolved by the domain (`resolvedDefaultFinishOf`)
-   *  and passed through to the run-end panel, which is shell and so carries no record of its own
-   *  (owner's ruling, 2026-09-17).
-   *
-   *  **Optional, because a caller that owns no design cannot answer it.** Every headless suite that
-   *  exercises `syncSolidBodies` alone mounts bodies into a bare group with no shell in it, so
-   *  there is no panel for the answer to reach; and a document whose material id names nothing
-   *  declared has no colour to give (ADR 0078 decision 3), which is the same `undefined` arriving
-   *  from the other side. Both leave the panel on the oak its builder gave it. */
+  /** The colour the whole kitchen is wearing, resolved by the domain (`resolvedDefaultFinishOf`) and passed to the
+   *  run-end panel, which is shell and has no record. Optional: a caller that owns no design cannot answer it, and an
+   *  undeclared material id has no colour (ADR 0078 decision 3); both leave the panel on its builder's oak. */
   readonly kitchenFinish?: Finish | undefined;
 }
 
 export interface VoidSyncInput {
   readonly voidsRoot: THREE.Object3D;
   readonly voids: readonly VoidRecord[];
-  /** The room the voids stand in. Required: given a room that is not a U, the recorded cut set is
-   *  discarded rather than applied (`applyRecordedCutaway`), so a caller that could not name it
-   *  would leave a cut recorded for a U applied to an L. */
+  /** The room the voids stand in. Required: for a room that is not a U the recorded cut set is discarded
+   *  (`applyRecordedCutaway`), so a caller that could not name it would apply a U's cut to an L. */
   readonly room: DesignRoom;
 }
 
-/** Mounts the bodies that appeared, removes and disposes the ones that vanished or changed, and
- *  leaves the rest untouched. */
+/** Mounts the bodies that appeared, removes and disposes those that vanished or changed, and leaves the rest alone. */
 export function syncSolidBodies(input: SolidSyncInput): void {
   const missing = new Map(input.records.map((record) => [record.id, record]));
-  // ADR 0132 decision 2: the right corner's pieces are drawn mirrored, each in its own wrapper. A
-  // piece's side is part of what it is drawn as, so it is part of its signature below.
+  // ADR 0132 decision 2: right-corner pieces are drawn mirrored in a wrapper, so a piece's side is in its signature.
   const rightCornerIds = rightCornerRecordIds(input);
 
   for (const child of [...input.solidsRoot.children]) {
@@ -108,16 +92,14 @@ export function syncSolidBodies(input: SolidSyncInput): void {
     );
   }
 
-  // ADR 0045: the shell's run-end panel closes whatever base run is on screen, so it is re-derived
-  // here — the one place that already sees both the mounted scene and the current records — rather
-  // than at build, where its seat was baked and stayed put through every resize and delete.
+  // ADR 0045: the run-end panel closes whatever base run is on screen, so it is re-derived here, not at build, where
+  // its seat was baked.
   syncRunEndPanel({
     solidsRoot: input.solidsRoot,
     records: input.records,
     room: input.room,
   });
-  // Its colour is a function of the kitchen's finish where its seat is a function of the records,
-  // so the two are derived by two calls rather than one (owner's ruling, 2026-09-17).
+  // Its colour follows the kitchen's finish and its seat follows the records, so two calls derive them.
   paintRunEndPanel({
     kit: input.kit,
     solidsRoot: input.solidsRoot,
@@ -127,12 +109,9 @@ export function syncSolidBodies(input: SolidSyncInput): void {
   applyRecordedCutaway(input.solidsRoot, input.room);
 }
 
-/** Replaces the whole void set whenever anything about it changed, and does nothing when nothing
- *  did. The comparison is a signature over every field `buildVoidMesh` reads, **not** the id list:
- *  a void id carries its column, its index and its `y0` — never its height — so the same id can
- *  describe two openings of different size, and an id-only check would keep showing the old box.
- *  Replacement is wholesale rather than per-void because ids are regenerated on every
- *  `recomputeVoids`, so a surviving id is not evidence that its geometry survived. */
+/** Replaces the whole void set when anything changed. Compared by a signature over every field `buildVoidMesh` reads,
+ *  not the id list: an id carries column, index and `y0` but not height, so one id can describe two sizes. Replaced
+ *  wholesale because ids are regenerated on every `recomputeVoids`. */
 export function syncVoidMeshes(input: VoidSyncInput): void {
   if (matchesMountedVoids(input)) return;
 
@@ -149,15 +128,13 @@ export function syncVoidMeshes(input: VoidSyncInput): void {
   applyRecordedCutaway(input.voidsRoot, input.room);
 }
 
-/** What this body alone owns. Its materials come from `kit.M` and its cached geometries are shared
- *  with every other body of the same size, so neither may go with it — see
- *  `disposeUnsharedGeometries`, which the probe's teardown uses for the same reason. */
+/** What this body alone owns: its materials come from `kit.M` and its cached geometries are shared with same-size
+ *  bodies, so neither goes with it (see `disposeUnsharedGeometries`). */
 export function disposeSolidBody(kit: Kit, body: THREE.Object3D): void {
   disposeUnsharedGeometries(body, kit.ownsGeometry);
 }
 
-/** Geometries **and** materials: unlike a body, a void mesh owns its own `MeshBasicMaterial` and
- *  `LineDashedMaterial` (`void-mesh.ts`), created per void and shared with nothing. */
+/** Geometries and materials: a void mesh owns its own `MeshBasicMaterial` and `LineDashedMaterial` (`void-mesh.ts`). */
 export function disposeVoidMesh(voidMesh: THREE.Object3D): void {
   voidMesh.traverse((node) => {
     if (isMesh(node)) disposeRenderable(node.geometry, node.material);
@@ -184,8 +161,7 @@ function matchesMountedVoids(input: VoidSyncInput): boolean {
   );
 }
 
-/** Everything `buildVoidMesh` reads to place and size one box — the void's identity plus its whole
- *  frame. The same job `signBody` does for a solid, for the same reason. */
+/** Everything `buildVoidMesh` reads to place and size one box: the void's id plus its whole frame. */
 function signVoid(voidRecord: VoidRecord): string {
   return [
     voidRecord.id,
@@ -199,8 +175,7 @@ function signVoid(voidRecord: VoidRecord): string {
   ].join("|");
 }
 
-/** What `solidsRoot` holds for `record`: the body itself, or — for a right-corner piece — the
- *  wrapper that mirrors it. */
+/** What `solidsRoot` holds for `record`: the body, or for a right-corner piece the wrapper that mirrors it. */
 function mountOnScreen(input: {
   readonly kit: Kit;
   readonly record: PlacementRecord;
@@ -236,9 +211,8 @@ function mountMirroredBody(kit: Kit, record: PlacementRecord): THREE.Group {
   );
 }
 
-/** What picking and the highlight find by `placementId` is the outer object — the body, or the
- *  wrapper that mirrors it — so the frame and both tags belong to it, and a mirrored piece is
- *  seated, found, outlined and marked exactly as an unmirrored one is. */
+/** Picking and the highlight find the outer object by `placementId` (the body or its mirror wrapper), so the frame
+ *  and both tags belong to it. */
 function seatMounted(
   mounted: THREE.Group,
   record: PlacementRecord,
@@ -253,49 +227,28 @@ function seatMounted(
 }
 
 function dressBody(kit: Kit, body: THREE.Group, record: PlacementRecord): void {
-  // Set both ways, never only hidden: `buildDecomposedBody` ships the seeded `*-top` bodies with
-  // their handles already hidden — the decomposition-parity gate holds them to the reference
-  // room's own hide — so a recorded non-push mode has to *un*-hide them or a choice the domain
-  // accepted would never reach the screen, which is the failure §6.5 exists to prevent.
+  // Set both ways, never only hidden: seeded `*-top` bodies ship with handles hidden, so a recorded non-push mode must
+  // un-hide them or the choice never reaches the screen (§6.5).
   setHandlesVisible(body, !hidesHandles(record));
   applyRecordedAppearance(kit, body, record);
 }
 
-/** §5.5: finish and handle are recorded **per placement**, so they are applied to this body alone
- *  and to no other. Both are read at mount because `signBody` includes them: a chip tap re-signs
- *  the record, the sync tears the old instance down, and this rebuilds it wearing the choice —
- *  which is also how §11 row 12 (resize preserves finish + handle) holds, since a resize re-signs
- *  through the same path.
+/** §5.5: finish and handle are recorded per placement and applied to this body alone. `signBody` includes them, so a
+ *  chip tap re-signs the record and the sync rebuilds the body wearing the choice (which is how §11 row 12 holds).
  *
- *  **The finish read here is `drawnFinish`, never `finishKey`** (ADR 0099 decision 1 and
- *  Amendment A section 3). `finishKey` is what the cabinet chose for itself, and a cabinet that
- *  chose nothing carries none — so reading it left every *following* cabinet on the kit's own white
- *  however the whole-kitchen colour was set. `drawnFinish` is the resolver's answer, so the
- *  precedence rule stays in the domain and this package still does not learn it.
- *
- *  A record with no drawn finish at all is left exactly as its builder made it. Since ADR 0099 that
- *  is only a design whose material id names nothing declared (ADR 0078 decision 3) — a state that
- *  loads rather than being refused, and that declares no colour to paint.
- *
- *  The `canHandle` guard is `hidesHandles`'s own WHY arriving from the data side — `insertBody`'s
- *  `carriedAppearance` refuses to carry a choice onto a body that cannot take it, but a hand-edited
- *  or migrated design can still carry one.
- *
- *  **There is no `canFinish` guard beside it any more, and there must not be one.** It stood here
- *  until the owner's ruling of 2026-09-09 split that flag's class in two: a structural corner and an
- *  open shelf are `canFinish: false` and *must* be painted with the kitchen, while a hood and a
- *  fridge are `canFinish: false` and must never be. The refusal moved to `drawnFinishOf`, beside the
- *  `finishRule` declaration that answers which is which, so this package still learns no rule (§12)
- *  and a record carrying no drawn finish is simply not painted. */
+ *  The finish read is `drawnFinish`, never `finishKey` (ADR 0099 decision 1): `finishKey` is absent when the cabinet
+ *  chose nothing, so reading it left every following cabinet on the kit's white. A record with no drawn finish is left
+ *  as its builder made it. There is no `canFinish` guard here, and there must not be: a corner and an open shelf are
+ *  `canFinish: false` yet are painted with the kitchen, a hood and a fridge never are. The refusal lives in
+ *  `drawnFinishOf`, beside `finishRule`, so this package learns no rule (§12). The `canHandle` guard covers a
+ *  hand-edited or migrated design carrying a choice `insertBody` would have refused. */
 function applyRecordedAppearance(
   kit: Kit,
   body: THREE.Group,
   record: PlacementRecord,
 ): void {
-  // Wave 6R made the adapter's table total over the domain's declared palette, so every finish a
-  // record can carry has a material: the "no material for this finish" branch that used to sit here
-  // is gone rather than defaulted, because a missing decor is now a compile failure in
-  // `finishes.ts` instead of a front silently left in the kit's own colour.
+  // The finish table is total over the domain's palette, so every finish has a material: a missing decor is a compile
+  // failure in `finishes.ts`, not a front silently left in the kit's colour.
   if (record.drawnFinish) {
     applyBodyFinish(body, kit.M, record.drawnFinish);
   }
@@ -304,28 +257,16 @@ function applyRecordedAppearance(
   }
 }
 
-/** An inserted placement is built from §7's parameterised catalogue; a seeded one keeps M2's
- *  hardcoded decomposition arm, so M1's fidelity is reproduced exactly as before.
+/** An inserted placement is built from §7's parameterised catalogue; a seeded one keeps the hardcoded decomposition.
  *
- *  `frame.d` is **not** the depth the builder was given, and must not be read as one: it is `2 ×`
- *  the body's rear overhang from its own origin, which is what `insertBody` persists as
- *  `seatDepthMm`. Measured, the two differ for most bodies — a base cabinet asked for 600 records
- *  580, a hood 500, a column 560, `fridge-free` 680 — because those builders ignore the depth they
- *  are handed and build their own.
- *
- *  For the only two builders that *consume* a depth it is nevertheless what the rebuild depth is
- *  derived from: `wallCabinet` and `openShelf` centre their shell on z = 0, so the overhang is
- *  exactly half that shell. Since ADR 0036 a fronted wall shell is the declared depth *less* the
- *  front assembly, so `rebuildDepthM` adds that back rather than the raw `frame.d` being handed
- *  over — see its own comment for why reading it raw would shrink a wall cabinet on every reload. That depth arrives already
- *  capped where §7's head-clearance cap applies — the domain decides that, in `insert-fit.ts`, from
- *  what stands under the opening; the adapter caps nothing and must not, or it would re-impose the
- *  cap over a full-height column where backlog entry 5 says it does not apply. For every other
- *  entry the value is passed through and ignored. The probe suite asserts both halves of that,
- *  entry by entry. */
+ *  `frame.d` is not the depth the builder was given: it is `2 ×` the body's rear overhang (what `insertBody` persists
+ *  as `seatDepthMm`), and most builders ignore the depth they are handed (a base cabinet asked for 600 records 580).
+ *  Only `wallCabinet` and `openShelf` consume it, centring their shell on z = 0, so `rebuildDepthM` derives the depth
+ *  from it and adds back the front assembly (ADR 0036). The domain applies §7's head-clearance cap (`insert-fit.ts`);
+ *  the adapter caps nothing, or it would re-impose the cap over a full-height column. */
 function buildBody(kit: Kit, record: PlacementRecord): THREE.Group {
-  // The family split lives in `build-any-body.ts` and is asked once, here and in the probe, so the
-  // scene and the thing that measures for it cannot disagree about which builder owns an id.
+  // The family split lives in `build-any-body.ts` and is asked once, here and in the probe, so the scene and the
+  // probe cannot disagree about which builder owns an id.
   return buildAnyBody(kit, record.buildId, {
     widthM: toMetres(record.widthMm),
     heightM: toMetres(record.heightMm),
@@ -333,21 +274,11 @@ function buildBody(kit: Kit, record: PlacementRecord): THREE.Group {
   });
 }
 
-/** §6.5: the handles are **built and hidden**, never omitted, so `canHandle` stays true and the
- *  customer can turn them back on. The default is decided by the slot (ADR 0011 Gap C), not by the
- *  body's catalogue band; an explicitly recorded `push` hides them anywhere (§5.5).
- *
- *  A recorded mode counts only when the body's own definition says `canHandle`. `insertBody`'s
- *  `carriedAppearance` already refuses to carry one onto a body that cannot take it, so the command
- *  path cannot produce the case — but a hand-edited or migrated design can, and a `push` on
- *  `fridge-free` (whose doors do build `handle_bar` meshes) would hide bars that no panel section
- *  exists to turn back on. That is §6.5's own WHY, arriving from the data side.
- *
- *  **The rule itself is the domain's** (`isPushToOpen`, ADR 0092 decision 3 Amendment C) and this
- *  is a call rather than a second copy: the same question decides whether a bar is drawn and
- *  whether a latch is billed, and while the adapter held its own answer the two disagreed in both
- *  directions on the shipped demo. The conversion is all that is left here — the predicate reads
- *  the document's millimetres and the scene keeps a metre frame. */
+/** §6.5: handles are built and hidden, never omitted, so `canHandle` stays true and the customer can turn them back
+ *  on. The rule is the domain's `isPushToOpen` (ADR 0092 decision 3), called rather than copied: the same question
+ *  decides whether a bar is drawn and whether a latch is billed. A recorded mode counts only when `canHandle`: a
+ *  hand-edited or migrated design could record `push` on `fridge-free`, hiding bars no panel section can turn back on.
+ *  The predicate reads millimetres and the scene keeps metres, so this converts. */
 function hidesHandles(record: PlacementRecord): boolean {
   return isPushToOpen({
     y0Mm: toMillimetres(record.frame.y0),
@@ -367,18 +298,15 @@ function signBody(record: PlacementRecord): string {
     record.frame.ry,
     record.frame.d,
     record.handleMode ?? "",
-    // **The drawn colour, not the chosen one, and the pair must not be split.** This signature is
-    // the only reason a mounted body is ever torn down and re-mounted, and `applyRecordedAppearance`
-    // above paints `drawnFinish`. Signing `finishKey` while painting `drawnFinish` would mean a
-    // whole-kitchen colour change — which alters no cabinet's own choice and therefore no
-    // `finishKey` — leaves every signature identical, the sync concludes nothing moved, and the
-    // scene keeps the old colour: exactly the case ADR 0099 exists for, silently unpainted.
+    // The drawn colour, not the chosen one, and the pair must not be split: `applyRecordedAppearance` paints
+    // `drawnFinish`, so signing `finishKey` would leave every signature unchanged on a whole-kitchen colour change and
+    // the scene would keep the old colour (ADR 0099).
     finishSignature(record.drawnFinish),
   ].join("|");
 }
 
-/** `signBody`'s signature with the mirror appended, so every unmirrored body keeps the signature it
- *  always had and a piece changing sides is a changed signature. */
+/** `signBody`'s signature with the mirror appended: unmirrored bodies keep theirs; a piece changing sides changes it.
+ */
 function signMirroredBody(record: PlacementRecord): string {
   return `${signBody(record)}|${MIRRORED_SIGNATURE_PART}`;
 }

@@ -1,107 +1,37 @@
-// **Which meshes a body wears its colour on, declared by the builder that makes them.**
-//
-// Most bodies wear their colour on their fronts, and `isFrontMesh` (`finishes.ts`) has always been
-// able to say so from the mesh name alone. The open shelf cannot be described that way. The owner
-// ruled on 2026-09-09 (backlog entry 60) that it takes the kitchen's colour on its six boards —
-// `side_left`, `side_right`, `shelf_top`, `shelf_bottom`, `shelf_1`, `shelf_2` — and **not** on its
-// tiled `back_panel`, because the picture is a coloured shelf mounted on a wall rather than a
-// coloured niche.
-//
-// **Why this is not a wider `FRONT_MESH_NAME`, measured rather than argued.** A census of every mesh
-// in the seeded kitchen says those names are not the shelf's alone:
-//
-// | Mesh name | Bodies that build it |
-// | --- | --- |
-// | `side_left`, `side_right` | `base-dishwasher-600`, `base-sink-800`, `open-shelf-600`, `tall-oven-tower-600` |
-// | `back_panel` | `base-dishwasher-600`, `base-sink-800`, `open-shelf-600`, `tall-oven-tower-600` |
-// | `shelf_mid` | `tall-oven-tower-600` |
-//
-// A `side_|shelf_` pattern would therefore paint the carcass sides of a dishwasher, a sink base and
-// an oven tower, and the oven tower's interior shelf — four bodies nobody ruled on, in a place a
-// customer sees only when a door is open. And it would do worse than that: `isFrontMesh` is the one
-// definition of *front* this package has, `cabinet-handle-meshes.ts` asks it from the other side to
-// decide whether a handle belongs to a cabinet, and `apps/web/src/scene/kitchen-stage.tsx` repaints
-// a whole room through `collectFronts(stage.room)`. Widening the pattern would silently move both.
-//
-// So the question a name cannot answer is asked of the builder, which is the only place that knows
-// what it just made. `openShelf` wraps the six boards and leaves the back panel bare, and that line
-// of the builder **is** the ruling — greppable from the geometry it describes, and impossible to get
-// wrong for a body nobody meant to change.
-//
-// **The corner ruling of 2026-09-09 added four bodies and one exception to that shape.** The owner:
-// *"support setting custom color for all corner cabinet parts."* A second census, of the four corner
-// bodies against the same kit, says which parts those are:
-//
-// | Body | Mesh | Material | Painted? |
-// | --- | --- | --- | --- |
-// | `base-corner-x-900` | `carcass` | `M.carcass` | **yes** — 900 mm of box behind a 290 mm door (280 until ADR 0135) |
-// | | `door_front` | `M.door` | yes, already, through `isFrontMesh` |
-// | | `susan_pole`, `susan_tray` ×2 | `M.steel`, `M.interior` | no — the fittings inside it |
-// | | `plinth`, `countertop`, handles | `M.dark`, `M.stone`, `M.steel` | no — not the body's finish |
-// | `base-corner-return-320` | `carcass` | `M.carcass` | **yes** — a doorless solid box, all outward |
-// | | `fixed_front` | `M.door` | **yes** — the panel on the run's door plane (ADR 0135); not a `door_front`, so no handle or front census counts it |
-// | | `plinth`, `countertop` | `M.dark`, `M.stone` | no |
-// | `wall-corner-return-570` (and `-top`) | `carcass_shell` | `M.carcass` | **yes** — sides and underside |
-// | | `carcass_back` | `M.interior` | no — the board inside the box |
-// | | `front_liner` | `M.shadowGap` | no — the gap reads as a shadow or not at all |
-// | | `door_front` | `M.door` | yes, already |
-// | | handles | `M.steel` | no |
-// | `wall-corner-x-900` (and `-top`; M7C wave C2) | `carcass_shell` | `M.carcass` | **yes** — sides and underside |
-// | | `corner_closure` | `M.carcass` | **yes** — fills the depth behind the side wall's corner cabinet |
-// | | `corner_stile` | `M.door` | **yes** — carries the door plane across the blind part |
-// | | `carcass_back`, `front_liner`, handle | as the wall returns | no |
-// | | `door_front` | `M.door` | yes, already |
-//
-// **All four carcasses are solid volumes**, which is what makes "paint the box" safe to say: none of
-// them has a cavity, so a declaration on one cannot reach an interior surface. What a door would
-// stand in front of is a separate mesh every time — `susan_pole` and `susan_tray` inside the X-leg,
-// `carcass_back` and `front_liner` inside the wall returns — and each is left on the material its
-// builder gave it.
-//
-// `base-corner-x-900` was first left bare on the opposite assumption: that its box is open behind its
-// 280 mm door and painting it would recolour an interior a customer sees when that door opens.
-// Every clause of that is false, and measurably. The box is a solid
-// `box(0.9, 0.72, 0.6)`; the pole and both trays sit at z = −0.010, buried inside a volume spanning
-// z ∈ [−0.30, +0.30], visible from no camera; and **this kit has no open-door state at all** —
-// nothing in `scene-sync.ts` or the stage animates or hides a `door_front`. So the door never opens,
-// and if it did it would show the same solid face that already stands bare for 610 mm beside it (620 with the 280 mm door it had until ADR 0135).
-// `base-corner-x-900` and `base-corner-return-320` differ in how much of the box is uncovered — 610
-// of 900 (620 before ADR 0135) against all of it — and not in kind.
-//
-// The two base legs are wrapped in their own builders, as the shelf is. The two wall returns cannot
-// be: `wallCabinet` builds five other seeded bodies, so a wrapper inside it would paint the wall run
-// nobody ruled on. `wearsTheBodysFinishOnItsCarcassShell` below is that one exception, applied where
-// the build id is known.
+// Which meshes a body wears its colour on, declared by the builder that makes them (ADR 0099, "FRONT_MESH_NAME was
+// deliberately not widened"). `isFrontMesh` is the one definition of a front: `cabinet-handle-meshes.ts` and the
+// whole-room repaint in `kitchen-stage.tsx` depend on it, and `side_left`, `side_right` and `back_panel` are also built
+// by the dishwasher, the sink and the oven tower, so a wider name pattern would paint their carcasses. The open shelf
+// wraps its six boards and leaves its tiled `back_panel` bare. The corner bodies paint their solid carcass volumes
+// (plus the return's `fixed_front` and the wall unit's `corner_closure` and `corner_stile`) and never what stands
+// behind a door (`susan_pole`, `susan_tray`, `carcass_back`, `front_liner`), nor plinths, countertops or handles. The
+// base legs are wrapped in their own builders; the wall returns cannot be (`wallCabinet` builds other bodies), so
+// `wearsTheBodysFinishOnItsCarcassShell` is applied where the build id is known.
 import * as THREE from "three";
 
 import { isMesh } from "./three-guards.js";
 
-/** `userData` is the only channel a mesh carries to its readers, and this is the one key that says
- *  *the customer's colour belongs on this surface*. Prefixed like every other key this package
- *  writes, so a stray `true` in a builder cannot be mistaken for it. */
+/** The `userData` key saying the customer's colour belongs on this surface, prefixed like every key this package
+ *  writes so a stray `true` in a builder cannot be mistaken for it. */
 const WEARS_THE_BODYS_FINISH_KEY = "lemnaria:wearsTheBodysFinish";
 
 /**
- * **Declares that this mesh is one the body wears its colour on**, and returns it so a builder can
- * wrap a `box(...)` in place rather than naming a local and mutating it on the next line.
- *
- * A body whose finished surface is its fronts needs none of this: `isFrontMesh` already answers for
- * it from the name. This is for the bodies a name cannot describe: the open shelf's six boards, and
- * — since the owner's corner ruling of 2026-09-09 — the two base corner legs' carcass volumes.
+ * Declares that this mesh is one the body wears its colour on, and returns it so a builder can wrap a `box(...)` in
+ * place. For bodies a name cannot describe (the open shelf's six boards, the base corner legs' carcass volumes);
+ * `isFrontMesh` answers for the rest from the name.
  */
 export function wearsTheBodysFinish(mesh: THREE.Mesh): THREE.Mesh {
   mesh.userData[WEARS_THE_BODYS_FINISH_KEY] = true;
   return mesh;
 }
 
-/** The one mesh `carcass` (`kitchen-parts.ts`) builds as the cabinet's own **solid volume** — the box
- *  whose sides, top and underside a customer sees, as opposed to the `carcass_back` board inside it
- *  and the `front_liner` that darkens the shadow gap. */
+/** The one mesh `carcass` (`kitchen-parts.ts`) builds as the cabinet's solid volume (sides, top and underside), as
+ *  opposed to the `carcass_back` board and the `front_liner` shadow gap. */
 const CARCASS_SHELL_MESH_NAME = "carcass_shell";
 
-/** The two meshes the corner wall unit (`wallCornerX`, `kitchen-parts.ts`) builds beyond its carcass, and
- *  which belong to the body's own surface: the closure that fills the depth the carcass leaves behind the
- *  side wall's corner cabinet, and the stile that carries the door plane across the blind part. */
+/** The corner wall unit's (`wallCornerX`) meshes beyond its carcass that belong to the body's surface: the closure
+ *  filling the depth behind the side wall's corner cabinet, and the stile carrying the door plane across the blind
+ *  part. */
 export const CORNER_WALL_CLOSURE_MESH_NAME = "corner_closure";
 export const CORNER_WALL_STILE_MESH_NAME = "corner_stile";
 
@@ -111,9 +41,8 @@ const CORNER_WALL_UNIT_FINISH_SURFACES: readonly string[] = [
   CORNER_WALL_STILE_MESH_NAME,
 ];
 
-/** A body that was declared paintable on a mesh it does not build. Thrown rather than returned so a
- *  rename in `carcass` fails the build that depends on it, instead of silently un-painting a corner
- *  the way `collectFronts` once silently un-painted the open shelf. */
+/** A body declared paintable on a mesh it does not build. Thrown, so a rename in `carcass` fails the build instead of
+ *  silently un-painting a corner. */
 export class NoSuchFinishSurfaceError extends Error {
   constructor(meshName: string) {
     super(`This body builds no mesh named "${meshName}" to wear its finish.`);
@@ -122,15 +51,9 @@ export class NoSuchFinishSurfaceError extends Error {
 }
 
 /**
- * **Declares that this body wears its colour on its carcass shell**, for a body a *builder* cannot
- * declare it for.
- *
- * `wallCabinet` makes seven different seeded bodies and only two of them are corners, so the
- * wrapper-in-the-builder shape `openShelf` uses would paint five bodies nobody ruled on — the
- * failure mode `body-finish-surfaces.ts`'s own census exists to prevent. The corner-ness of a
- * `wallCabinet(0.57, 1)` is known one level up, in `buildDecomposedBody`, which is the only place
- * that holds the build id; so that is where the declaration is made, and this function is what makes
- * it a statement about a named surface rather than a `userData` write at a call site.
+ * Declares that this body wears its colour on its carcass shell, for a body a builder cannot declare for: `wallCabinet`
+ * also makes ordinary wall bodies, so a wrapper in the builder would paint bodies nobody ruled on. Only
+ * `buildDecomposedBody` holds the build id that says a `wallCabinet` is a corner, so the declaration is made there.
  */
 export function wearsTheBodysFinishOnItsCarcassShell(
   body: THREE.Group,
@@ -149,12 +72,9 @@ export function wearsTheBodysFinishOnItsCarcassShell(
 }
 
 /**
- * **Declares that the corner wall unit wears its colour on its carcass shell, its closure and its
- * stile** — every one of its surfaces that is not a leaf (the leaf is a front, so `isFrontMesh` already
- * answers for it) and not the board or liner inside the box.
- *
- * Thrown rather than returned when one of the three is missing, so a rename in the builder fails the
- * build that depends on it, as `wearsTheBodysFinishOnItsCarcassShell` does for the wall returns.
+ * Declares that the corner wall unit wears its colour on its carcass shell, closure and stile: every surface that is
+ * not a leaf (a front, which `isFrontMesh` already covers) nor the board or liner inside. Throws when one is missing,
+ * so a rename in the builder fails the build, as `wearsTheBodysFinishOnItsCarcassShell` does.
  */
 export function wearsTheBodysFinishOnTheCornerWallUnit(
   body: THREE.Group,
@@ -170,17 +90,14 @@ export function wearsTheBodysFinishOnTheCornerWallUnit(
   return body;
 }
 
-/** Whether a builder declared this mesh a surface the body's colour belongs on. Absent means no,
- *  which is the right answer for every mesh in the kit but the open shelf's six boards, the four
- *  corner bodies' carcasses and the base return's fixed front — and it is safe to read absence as
- *  *no* here, unlike a catalogue declaration, because the alternative is a mesh that simply keeps the material its builder gave
- *  it. */
+/** Whether a builder declared this mesh a surface the body's colour belongs on. Absent means no, which is right for
+ *  every other mesh: unlike a catalogue declaration, reading absence as "no" is safe, because the mesh keeps its
+ *  builder's material. */
 export function declaresItWearsTheBodysFinish(node: THREE.Object3D): boolean {
   return node.userData[WEARS_THE_BODYS_FINISH_KEY] === true;
 }
 
-/** The predicate `collectPaintedSurfaces` is built from, kept beside the writer so the key is
- *  spelled once. */
+/** The predicate `collectPaintedSurfaces` is built from, kept beside the writer so the key is spelled once. */
 export function isDeclaredFinishSurface(
   node: THREE.Object3D,
 ): node is THREE.Mesh {

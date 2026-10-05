@@ -1,16 +1,10 @@
-// `DEVELOPMENT-SPEC.md` §6.1:
-//   hits = raycast(bodies)                  // solids FIRST
-//   if none: hits = raycast(void meshes)    // voids only where nothing solid is behind
-//   climb parents to the owning placement/void
+// `DEVELOPMENT-SPEC.md` §6.1: hits = raycast(bodies) // solids FIRST if none: hits = raycast(void meshes) // voids only
+// where nothing solid is behind climb parents to the owning placement/void
 //
-// §6.1's fourth line, "resolve accessories -> host cabinet", has no work left to do: ADR 0027 made
-// the hob a child mesh of its cabinet's own group, so `climbToSelectable` already resolves a click
-// on it to the cabinet, and ADR 0038 confirmed no stored document carries a standalone accessory
-// for the rule to run on. The rule is satisfied by the mesh tree rather than by a second pass.
-//
-// The recorded worst bug of the session was the raycast-threshold default (three.js defaults
-// `Line.threshold` to one metre), which made every dashed void outline steal its neighbours'
-// clicks. `createPickingRaycaster` pins that override in one place so it cannot silently regress.
+// The spec's fourth line, "resolve accessories -> host cabinet", has no work left: the hob is a child mesh of its
+// cabinet's group (ADR 0027), so `climbToSelectable` already resolves a click on it to the cabinet.
+// `createPickingRaycaster` pins the `Line.threshold` override (three.js defaults it to one metre, which let every
+// dashed void outline steal its neighbours' clicks) in one place.
 import * as THREE from "three";
 
 /** `DEVELOPMENT-SPEC.md` §6.1: three.js's own default (1 m) swallowed clicks aimed at a
@@ -81,11 +75,10 @@ function isDrawn(object: THREE.Object3D): boolean {
   return true;
 }
 
-/** The nearest hit (three.js sorts `intersectObject` results by distance) that is drawn and
- *  actually climbs to a selectable — a non-selectable mesh in the same group (the room shell
- *  sharing `solids` with the cabinet bodies) must not shadow a real hit or a fallback to `voids`
- *  behind it, and neither may anything not drawn: a cut-away run (`cutaway.ts`) or a hidden
- *  push-to-open handle, whose door behind it is the same placement (§6.5). */
+/** The nearest drawn hit that climbs to a selectable (three.js sorts results by distance): a non-selectable mesh in
+ *  the same group (the room shell) must not shadow a real hit or the fallback to `voids`, and neither may anything not
+ *  drawn, such as a cut-away run (`cutaway.ts`) or a hidden push-to-open handle whose door behind it is the same
+ *  placement (§6.5). */
 function firstSelectableHit(
   hits: readonly THREE.Intersection[],
 ): Selection | null {
@@ -97,9 +90,8 @@ function firstSelectableHit(
   return null;
 }
 
-/** §6.1's picking order: solids first, and void meshes are only tested where nothing *selectable*
- *  solid lies behind — a void must never swallow a click aimed at the cabinet below it, and the
- *  unselectable room shell (floor/walls) must never swallow a click aimed at a void. */
+/** §6.1's picking order: solids first; void meshes only where nothing selectable and solid lies behind, so a void never
+ *  swallows a click aimed at the cabinet below it and the room shell never swallows a click aimed at a void. */
 export function pick(
   raycaster: THREE.Raycaster,
   solids: THREE.Object3D,
