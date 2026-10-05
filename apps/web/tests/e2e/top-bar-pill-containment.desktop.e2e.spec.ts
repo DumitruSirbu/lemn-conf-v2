@@ -9,54 +9,10 @@ import {
   type SeededDesign,
 } from "./support/seeded-design";
 
-/**
- * **ADR 0082 decision 7's other shell**: *"one rule for both shells — containment is not one of
- * §10.1's permitted layout forks, and the answer to 'may a control leave the screen' is the same on
- * both."* The mobile half is `top-bar-pill-containment.e2e.spec.ts`; this is the desktop half, and it
- * is a separate file because the project's viewport is decided by the filename.
- *
- * ## What ADR 0104 changed here, and what it did not
- *
- * The settings strip and its band are withdrawn (decision 2): frame D2A draws **one pill** in the top
- * bar and that pill is the trigger. So there is no chip count to sweep, and this file sweeps the axis
- * that actually decides whether anything is cut — **the width the row is given** — recording which
- * rung the pill lands on at each, so a change that moves a rung boundary is visible rather than
- * silent. Every ADR 0082 predicate is still asserted, of the new control.
- *
- * ## The flagged surface, and why this file was once green over a broken screen
- *
- * On 2026-09-06 this file was green while two chips rendered 28 px wide with 138 and 115 px of label
- * cut, painted inside the step nav's column, and the trigger stood over the price bar. It was green
- * because every case drove the retired editor route's own seeded document, which is **never
- * flagged** — the assertion that would have failed was evaluated only on the input that cannot
- * falsify it.
- *
- * So a design carrying ADR 0065's flag is a **second surface** here, minted and deleted the way
- * `overflow-mark.e2e.spec.ts` mints and deletes one (ADR 0006).
- *
- * ## And the flagged surface now asserts the **opposite** of what it used to
- *
- * `1cc86d8` bought 9.28 px of top-bar height so ADR 0065's sentence could wrap beside the figure at
- * 900–1025 px, and the case at this file's `:655` asserted that growth. **The owner ruled the
- * sentence out of the bar on 2026-09-09** (ADR 0104 decision 8b) and onto the scene, so the trade has
- * nothing left to buy: that case is **re-pointed, not deleted**, and now asserts that the header does
- * not grow — at either end of the window that used to cost it, on the flagged design as well as the
- * seeded one. A gate that proved a now-retired trade becomes the gate that proves it stayed retired.
- */
-
 const SCENE_SETTLE_MS = 2000;
 
-/**
- * The widths the row is measured at.
- *
- * 900 is the `min-width: 900px` branch's own first pixel and 1440 is the width the project runs at.
- * **1025 and 1035 sit either side of the width at which the wordmark returns** — measured 1033.32 on
- * 2026-09-09, which is where it fits beside **two** setting names, the owner's second ruling. 1025
- * and 1026 were also the two ends of the window the retired 9.28 px trade used to be spent in, so
- * one pair does both jobs. 930, 1100, 1200 and 1300 are where the pill's own rungs arrive, and 1344
- * is where frame D2A's spacing comes back. None of them is a threshold — criterion 4i forbids one —
- * they are widths a measurement is taken at.
- */
+/** The widths the row is measured at. 1025 and 1035 straddle the width where the wordmark returns (about 1033);
+ *  none is a threshold, they are widths a measurement is taken at (ADR 0104 decision 9). */
 const DESKTOP_WIDTHS = [
   900, 930, 1025, 1035, 1100, 1200, 1300, 1440, 1920,
 ] as const;
@@ -64,8 +20,7 @@ const DESKTOP_WIDTHS = [
 const TOUCH_TARGET_PX = 44;
 const SUB_PIXEL_SLACK = 0.5;
 
-/** Frame D2A's own declared band. **At every width, on every design** — which is what ADR 0104
- *  decision 8b's ruling bought and what criterion 12b and 12c assert. */
+/** Frame D2A's declared band, at every width on every design (ADR 0104 decision 8b). */
 const RULED_TOP_BAR_HEIGHT_PX = 76;
 
 interface Box {
@@ -86,8 +41,8 @@ test.beforeEach(async ({ page, seededDesign }) => {
   await page.waitForTimeout(SCENE_SETTLE_MS);
 });
 
-/** Sets the width and waits for the row to have settled at it: the pill's rung and the wordmark are
- *  both decided from a `ResizeObserver`, so a measurement in the same tick as the resize is a race. */
+/** Sets the width and waits for the row to settle: the pill's rung and the wordmark come from a `ResizeObserver`,
+ *  so a measurement in the same tick as the resize is a race. */
 async function atWidth(page: Page, width: number): Promise<void> {
   await page.setViewportSize({ width, height: 900 });
   await page.waitForFunction(
@@ -98,14 +53,8 @@ async function atWidth(page: Page, width: number): Promise<void> {
     const anchor = document.querySelector('[data-testid="global-settings"]');
     const cell = anchor?.parentElement;
     if (!cell) return false;
-    /**
-     * **The cell, quiet for a stretch — not the pill, and not merely for three frames.**
-     *
-     * Two mistakes were made here on 2026-09-09 and both read a rung the row had not taken yet. A
-     * three-frame check passes while a state update from the observer is still pending; and watching
-     * the *pill* passes instantly at any width where the pill's own width does not change, which is
-     * most of them — the pill is content-sized and the row is what moves.
-     */
+    // Watch the cell, quiet for a stretch, not the pill: the pill is content-sized and can look settled while
+    // the row is still moving, and three frames pass with an observer update pending.
     const settled = window as unknown as {
       lastTrackWidth?: number;
       settledSince?: number;
@@ -137,8 +86,7 @@ async function boxesOf(page: Page, selector: string): Promise<readonly Box[]> {
   );
 }
 
-/** **Which rung the pill is on**, recorded at every width the sweep visits so that a later change
- *  that moves a boundary shows up as a changed record rather than as nothing at all. */
+/** Which rung the pill is on, recorded at every width so a moved boundary shows up as a changed record. */
 async function rungOf(page: Page): Promise<{
   readonly labels: readonly string[];
   readonly counter: string | null;
@@ -163,8 +111,7 @@ async function rungOf(page: Page): Promise<{
   });
 }
 
-/** The step nav's own box and every label in it, read together so a case cannot assert one and
- *  believe it has measured the other — see the note on `clipped` at the case that uses it. */
+/** The step nav's box and every label in it, read together; see the case that uses `nav.overflow`. */
 async function readNav(page: Page): Promise<{
   readonly clipped: readonly {
     readonly text: string;
@@ -192,8 +139,7 @@ async function readNav(page: Page): Promise<{
   });
 }
 
-/** Grid row 1, as the five cells that stand in it — the boxes criterion 12c compares between the two
- *  designs. All five are stretched to the row, so any of their heights *is* the row's. */
+/** Grid row 1: the header height, price cell and pill, compared between the flagged and the seeded design. */
 async function readTopBar(page: Page): Promise<{
   readonly headerHeight: number;
   readonly priceCell: Box;
@@ -238,22 +184,15 @@ function expectInside(
   );
 }
 
-/* ------------------------------------------------------------------------- *
- * The flagged surface: a stored design carrying ADR 0065's overflow flag.
- * ------------------------------------------------------------------------- */
-
-/** Mints a row of its own, beside the fixture's per-test one — called fresh on every
- *  {@link openFlaggedDesign}, never cached across tests (see that function's own doc comment,
- *  ADR 0114 decision 5, for why a file-wide cache stopped working). */
+/** Mints a row of its own beside the fixture's per-test one; call it fresh every test, never cached across
+ *  tests (ADR 0114 decision 5). */
 async function mintFlaggedRow(page: Page): Promise<SeededDesign> {
   const design = await mintSeededDesign(page);
   mintedDesignIds.push(design.id);
   return design;
 }
 
-/** Stores the seeded kitchen with wall A declared narrower than the run standing on it, which is
- *  what makes ADR 0065 flag the total. Built from the document the API just returned, so it cannot
- *  drift from the fixture. */
+/** Stores the seeded kitchen with wall A narrower than the run standing on it, which makes ADR 0065 flag the total. */
 async function storeANarrowedRoom(
   page: Page,
   stored: SeededDesign,
@@ -286,22 +225,10 @@ async function storeANarrowedRoom(
 }
 
 /**
- * Opens a design whose total carries ADR 0065's flag, and asserts that it does.
- *
- * **Mints its own row, in the caller's own context, every time it is called** (M7 wave 7E3b, S4,
- * criterion 9). This file used to cache one row across every test — each of which gets its own
- * fresh, empty cookie jar (Playwright's own per-test isolation) — because reading `/d/{id}` never
- * needed a credential at all (ADR 0019 decision 1). Since ADR 0114 decision 5 a design opens only in
- * the browser that owns it, so a row minted in one test's context is unreadable from the next's:
- * re-minting per call is the fallback G11 names when `addCookies` planting a host-only `__Host-`
- * cookie across contexts is not measured, which it was not here.
- *
- * **Not `openSeededDesign`, deliberately**, because that helper throws unless this browser holds
- * write access, and this file only ever reads the row back — never edits it through the UI.
- *
- * **The sentence is on the scene now** (ADR 0104 decision 8b), so that is where its presence is
- * confirmed — the entire point of the ruling is that the top bar cannot tell the two designs apart,
- * which would make a top-bar probe for the flag both wrong and vacuous.
+ * Opens a design whose total carries ADR 0065's flag. Mints its own row in the caller's context every call: a
+ * design opens only in the browser that owns it (ADR 0114 decision 5), so a row cached across tests is unreadable.
+ * Not `openSeededDesign`, which throws without write access; this file never edits through the UI. The flag's
+ * sentence is on the scene, so that is where its presence is confirmed (ADR 0104 decision 8b).
  */
 async function openFlaggedDesign(page: Page): Promise<void> {
   const flaggedDesign = await mintFlaggedRow(page);
@@ -313,20 +240,10 @@ async function openFlaggedDesign(page: Page): Promise<void> {
   await page.waitForTimeout(SCENE_SETTLE_MS);
 }
 
-/* ------------------------------------------------------------------------- *
- * Amendment A's second and third predicates, as measurements.
- * ------------------------------------------------------------------------- */
-
 /**
- * Every part of the pill measured against **its own grid item's box**, on all four edges — ADR 0082
- * *Amendment A* predicate 2, raised by ADR 0094 criterion 4b.
- *
- * The item is addressed as the anchor's parent because its class is a CSS-module hash no spec can
- * name; the structural fact — the settings cell holds this control and nothing else — is what
- * `configure-screen.tsx` renders.
- *
- * Returns a list of failures rather than asserting, so one sweep reports every width that broke
- * instead of stopping at the first.
+ * Every part of the pill measured against its own grid item's box on all four edges (ADR 0082 Amendment A,
+ * predicate 2). The item is the anchor's parent because its CSS-module class has no stable name. Returns failures
+ * rather than asserting, so one sweep reports every width that broke.
  */
 async function bandContainmentFailures(
   page: Page,
@@ -372,11 +289,8 @@ async function bandContainmentFailures(
 }
 
 /**
- * Anything on the pill that is cut by the box it stands in — Amendment A's third predicate.
- *
- * **At most one, and it is the first label**: ADR 0104 decision 3 makes a label that does not fit a
- * *counted* label rather than a cut one, so the only ellipsis the ladder admits is the floor's, which
- * is the material's name and the only segment the mockups declare `text-overflow` on.
+ * Anything on the pill cut by the box it stands in (ADR 0082 Amendment A, predicate 3). At most one is admitted:
+ * the floor's material-name ellipsis, since a label that does not fit is counted rather than cut (ADR 0104 decision 3).
  */
 async function clippedPillParts(page: Page): Promise<readonly unknown[]> {
   return page.evaluate(() => {
@@ -395,10 +309,6 @@ async function clippedPillParts(page: Page): Promise<readonly unknown[]> {
   });
 }
 
-/* ------------------------------------------------------------------------- *
- * The seeded design.
- * ------------------------------------------------------------------------- */
-
 test.describe("nothing on the top bar leaves the viewport", () => {
   for (const width of DESKTOP_WIDTHS)
     test(`contains every top-bar control at ${String(width)} px`, async ({
@@ -406,9 +316,8 @@ test.describe("nothing on the top bar leaves the viewport", () => {
     }) => {
       await atWidth(page, width);
 
-      // The rung, recorded before anything is asserted about it. A pill with a counter must still
-      // name at least one setting, and one naming every setting must draw no counter — the ladder's
-      // two ends, at whichever width this happens to be.
+      // The ladder's two ends: a counter implies at least one named setting, and naming every setting draws
+      // no counter.
       const rung = await rungOf(page);
       expect(
         rung.labels.length,
@@ -424,9 +333,7 @@ test.describe("nothing on the top bar leaves the viewport", () => {
       }));
 
       expect(bounds.scrollWidth).toBe(bounds.width);
-      // **Every control in the row.** The pill, the price, the CTA and the locale are the four the
-      // frame says never give way, and the assertion that would catch D2A drawn at a width it does
-      // not fit is that all of them are on screen at all of them.
+      // Every control in the row; the pill, price, CTA and locale are the four frame D2A says never give way.
       for (const testId of [
         "top-bar-step",
         "top-bar-title",
@@ -470,9 +377,8 @@ test.describe("nothing on the top bar leaves the viewport", () => {
   test("gives the pill the declared touch target without painting one", async ({
     page,
   }) => {
-    // ADR 0082 decision 8 with ADR 0104 decision 5's mechanism: the painted pill is frame D2A's own
-    // 40 px and the hit area is the token's, so the target is measured where the requirement always
-    // was — what a pointer at the corners of a 44 px box reaches.
+    // ADR 0082 decision 8 with ADR 0104 decision 5: the painted pill is 40 px and the hit area is the 44 px token,
+    // so the target is what a pointer at the corners of a 44 px box reaches.
     await atWidth(page, 900);
 
     const reached = await page.evaluate((target) => {
@@ -508,9 +414,8 @@ test.describe("the row gives way in the ruled order and no further", () => {
   test("keeps the four protected controls whole at every width", async ({
     page,
   }) => {
-    // ADR 0104 decision 8: the step pill, the price figure, `Verifică designul` and the locale chip
-    // are `flex: 0 0 auto` in frame D2A and are what the header is *for*. What gives is the pill's
-    // ladder, then the row's gaps, then the wordmark — never these.
+    // ADR 0104 decision 8: these four are `flex: 0 0 auto` in frame D2A; the pill's ladder, the gaps and the
+    // wordmark give way first, never these.
     for (const width of DESKTOP_WIDTHS) {
       await atWidth(page, width);
 
@@ -538,25 +443,9 @@ test.describe("the row gives way in the ruled order and no further", () => {
   test("settles at every width it is dragged through, and clips nothing on the way", async ({
     page,
   }) => {
-    /**
-     * **Criterion 13's 1 px sweep**, across the width at which the wordmark returns — measured 1034
-     * on 2026-09-09, and the boundary the real defect this case exists for lived at: a track measured
-     * in one configuration and read in another made the row grow a label it had no room for and hold
-     * it for about 250 ms.
-     *
-     * Three properties, and the third is the one that matters:
-     *
-     * - nothing on the pill is ever cut while the row is being dragged;
-     * - the pill always names a setting and always counts what it does not;
-     * - **the answer at a width is a property of that width**, so reading it twice gives the same
-     *   thing. That is what a measure-and-decide loop cannot do, and it is what caught the real
-     *   defect this case exists for: a track measured in one configuration and read in another made
-     *   the row grow a label it had no room for and hold it for about 250 ms.
-     *
-     * **What is deliberately not asserted is a monotone label count.** Crossing the width where the
-     * wordmark returns, the pill gives a label back to it — the owner's own trade (ADR 0104
-     * decision 8), and the one visible consequence of it.
-     */
+    // 1 px sweep across the width where the wordmark returns. The answer at a width must be a property of that
+    // width, so it is read twice and must agree: a track measured in one configuration and read in another holds
+    // a label the row has no room for.
     const seen: string[] = [];
     for (let width = 1024; width <= 1044; width += 1) {
       await atWidth(page, width);
@@ -571,7 +460,6 @@ test.describe("the row gives way in the ruled order and no further", () => {
       ).toBeGreaterThanOrEqual(1);
       if (first.labels.length < 4)
         expect(first.counter, `at ${String(width)} px`).toMatch(/^\+\d+$/);
-      // Idempotence at the width: the same row, read twice, without a resize in between.
       expect(again, `at ${String(width)} px`).toEqual(first);
 
       seen.push(
@@ -579,10 +467,8 @@ test.describe("the row gives way in the ruled order and no further", () => {
       );
     }
 
-    // **And the property the owner's second ruling bought**: the label count never falls as the
-    // window widens. At the earlier one-name width it did, at exactly this boundary — the wordmark
-    // came back and took a name off the pill. Recorded as a sequence so a change that moves a
-    // boundary shows up in the failure text rather than as nothing at all.
+    // The label count never falls as the window widens (ADR 0104 decision 8); recorded as a sequence so a moved
+    // boundary shows in the failure text.
     const counts = seen.map((entry) => Number(entry.split(":")[1]?.trim()[0]));
 
     expect(seen.length).toBe(21);
@@ -596,17 +482,14 @@ test.describe("the row gives way in the ruled order and no further", () => {
   test("draws the wordmark above the width two setting names need beside it, and not below", async ({
     page,
   }) => {
-    // Give C, ruled by the owner on 2026-09-09 and re-ruled the same day: the wordmark comes back
-    // where it fits beside **two** whole setting names, so widening the window never takes a name
-    // away. The boundary is **measured, not declared**, so this asserts the shape of the rule at two
-    // widths well clear of it rather than pinning the width.
+    // The wordmark returns where it fits beside two whole setting names (ADR 0104 decision 8). The boundary is
+    // measured, not declared, so this asserts at two widths well clear of it.
     await atWidth(page, 900);
     expect((await rungOf(page)).isWordmarkDrawn).toBe(false);
 
     await atWidth(page, 1440);
     const wide = await rungOf(page);
     expect(wide.isWordmarkDrawn).toBe(true);
-    // And what it was traded for: at the narrow width the pill still names a setting whole.
     await atWidth(page, 900);
     const narrow = await rungOf(page);
     expect(narrow.labels[0]).toBe("PAL melaminat");
@@ -614,17 +497,11 @@ test.describe("the row gives way in the ruled order and no further", () => {
   });
 });
 
-/* ------------------------------------------------------------------------- *
- * ADR 0104 decisions 8b and 12b/12c, on both surfaces.
- * ------------------------------------------------------------------------- */
-
 test.describe("on a design carrying ADR 0065's overflow flag", () => {
   test("clips nothing on the pill, at any of the swept widths", async ({
     page,
   }) => {
-    // ADR 0094 criterion 4a. The defect this replaces cut 138 and 115 px off two chips at 900 and was
-    // clean only from 1150 up, so the widths either side of that are the ones that fail a fix which
-    // moved a threshold rather than removing it.
+    // The widths either side of 1150 fail a fix that moved a threshold rather than removing the cut.
     await openFlaggedDesign(page);
 
     for (const width of DESKTOP_WIDTHS) {
@@ -640,8 +517,7 @@ test.describe("on a design carrying ADR 0065's overflow flag", () => {
   test("keeps the pill inside its own cell at every width", async ({
     page,
   }) => {
-    // ADR 0094 criterion 4b, and the assertion the old defect would have failed: a chip inside the
-    // viewport and standing on the step nav.
+    // A chip inside the viewport but standing on the step nav must fail.
     await openFlaggedDesign(page);
 
     for (const width of DESKTOP_WIDTHS) {
@@ -656,10 +532,8 @@ test.describe("on a design carrying ADR 0065's overflow flag", () => {
   test("leaves the price bar's box and its hit test to itself at 900 px", async ({
     page,
   }) => {
-    // ADR 0094 criterion 4c. 900 px is where the interception was measured — the trigger stood
-    // 39.06 × 44.00 px over the price bar and `elementFromPoint` at the total's left edge returned
-    // `global-settings-trigger`. It matters more now than it did: the pill stands in the same row as
-    // the price rather than in a band beneath it.
+    // 900 px is where the trigger once stood over the price bar and `elementFromPoint` at the total's left edge
+    // returned `global-settings-trigger`; the pill now shares the price's row.
     await openFlaggedDesign(page);
     await atWidth(page, 900);
 
@@ -690,8 +564,7 @@ test.describe("on a design carrying ADR 0065's overflow flag", () => {
         if (found) intersections.push(found);
       }
 
-      // The three probes ADR 0094 names, each half a pixel inside the box so a boundary point is
-      // never attributed to whatever paints beside it.
+      // Three probes, each half a pixel inside the box so a boundary point is not attributed to a neighbour.
       const total = rectOf("price-bar-total");
       const totalElement = document.querySelector(
         '[data-testid="price-bar-total"]',
@@ -722,22 +595,13 @@ test.describe("on a design carrying ADR 0065's overflow flag", () => {
       "price-bar-total",
     ]);
 
-    // And the breakdown still opens, which is the half wave 6K-b3's revert was about.
     await page.getByTestId("price-breakdown-trigger").click();
     await expect(page.getByTestId("price-breakdown-surface")).toBeVisible();
   });
 
   /**
-   * ADR 0094 criterion 4e. The residue is the settings track now rather than the strip's, and the
-   * pre-wave arrangement's own failure was a nav squeezed to zero, so the confinement is measured
-   * rather than claimed.
-   *
-   * **`nav.overflow` is the whole of this case; `nav.clipped` cannot see the failure it is written
-   * against.** Measured 2026-09-09 in the failing state: the header's own box was 250.7 px against a
-   * 380.703 px line, the title rendered as *"Confi"* and the locale chip was not on screen — and
-   * `clipped` was `[]` throughout, because no individual span was *internally* scrolled. The header
-   * box cuts them from outside, which a per-span `scrollWidth − clientWidth` probe cannot detect by
-   * construction.
+   * `nav.overflow` is the whole of this case: the header's own box cuts the spans from outside, which the per-span
+   * `scrollWidth - clientWidth` probe behind `nav.clipped` cannot detect.
    */
   test("does not clip the step nav at 900 px", async ({ page }) => {
     await openFlaggedDesign(page);
@@ -751,16 +615,8 @@ test.describe("on a design carrying ADR 0065's overflow flag", () => {
   });
 
   /**
-   * **The case that asserted `1cc86d8`'s 9.28 px, re-pointed to assert its absence.**
-   *
-   * It used to read: *"pays for that line in top-bar height, and only between 900 and 1025 px"* —
-   * the header grew to 85.28 px on a flagged design so ADR 0065's sentence could wrap to a third line
-   * beside the figure. The owner ruled that sentence out of the bar on 2026-09-09 (ADR 0104 decision
-   * 8b) and onto the scene, so the height it bought has nothing left to buy.
-   *
-   * Both ends of the old window are still measured — 900 and 1025, where it grew, and 1026, where it
-   * came back — because a gate that proved a trade is the right gate to prove the trade stayed
-   * retired. **Criterion 12b.**
+   * Criterion 12b: the header keeps the ruled band at every width. 900, 1025 and 1026 bracket the window in which
+   * the retired top-bar growth was once spent (ADR 0104 decision 8b).
    */
   test("draws the ruled 76 px band at every width, flagged as well as seeded", async ({
     page,
@@ -779,11 +635,8 @@ test.describe("on a design carrying ADR 0065's overflow flag", () => {
   });
 
   /**
-   * **Criterion 12c: a flagged design draws the same header as an unflagged one, at every width.**
-   *
-   * This is the point of moving the sentence, so it is asserted rather than described — and it is the
-   * assertion that would catch the sentence coming back into the bar by any route at all, including
-   * one nobody has thought of. Any difference is a finding.
+   * Criterion 12c: a flagged design draws the same header as a seeded one at every width, so the sentence cannot
+   * return to the bar by any route.
    */
   test("draws the same header on a flagged design as on a seeded one", async ({
     page,
@@ -827,8 +680,7 @@ test.describe("on a design carrying ADR 0065's overflow flag", () => {
   test("keeps the flagged sentence on the scene, where the header does not pay for it", async ({
     page,
   }) => {
-    // Non-vacuity for the two cases above: they compare two designs, and would both pass if the flag
-    // had simply stopped being drawn. It is drawn — over the scene, which takes no layout from it.
+    // Non-vacuity for the two cases above: both would pass if the flag had simply stopped being drawn.
     await openFlaggedDesign(page);
     await atWidth(page, 900);
 

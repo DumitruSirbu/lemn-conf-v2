@@ -1,15 +1,3 @@
-// Adversarial QA on wave 6K-c (ADR 0073), store half: what a depth change does with the record.
-//
-// The record itself — how it is minted, whether the converters are inverses, what the byte cap
-// allows — is measured one package over in
-// `packages/configurator-domain/tests/qa-6k-c-frozen-source.adversarial.test.ts`.
-//
-// The wave's central claim is that the surplus arm changed from `Math.max(column.d, measured.d)` to
-// `Math.max(frozenDepthAtThisSettingM, measured.d)` **without** giving up what ADR 0011 Gap D
-// protects. That is a claim about a floor, so every test here is about a floor: what a delete freed,
-// measured before and after, over sequences rather than over single transitions.
-//
-// No expected depth is written out where the catalogue can be asked.
 import {
   buildKitchenLBodyCatalog,
   columnBuildDepthM,
@@ -46,23 +34,16 @@ import { columnKeyAt } from "../support/wall-b-column-keys";
 const OCCURRED_AT = "2026-09-05T12:00:00.000Z";
 const DEEPER_MM = 700;
 
-/** `A|2.00`: a dishwasher niche under an open shelf and a top box. Deleting the niche leaves an
- *  occupied column whose reach no surviving member explains — ADR 0073's own worked example, and
- *  the shape ADR 0011 Gap D exists for. */
+/** `A|2.00`: a dishwasher niche under an open shelf and a top box; deleting the niche leaves a column
+ *  whose reach no surviving member explains (ADR 0011 Gap D). */
 const SURPLUS_KEY = "A|2.00";
 const SURPLUS_ALONG_MM = 2000;
 const SURPLUS_BASE_ID = "base-dishwasher-600";
 const SURPLUS_BASE_PLACEMENT = "p1";
 const SURPLUS_MEMBERS = ["p1", "p12", "p18"];
 
-/** `B|1.80`: a tall pantry under a **pinned** top. The top wins §3.2's MAX (600 against the pantry's
- *  599), so this column's recorded source is a body no setting moves while its surviving member is
- *  one that every setting moves — which is the whole shape the floor below is about.
- *
- *  **The top is this suite's own, declared in `tests/support/pinned-top-witness.ts`** (ADR 0101
- *  decision 3). It was ADR 0058's `wall-2door-600-deep-top` until 2026-09-07; ADR 0101 unpinned that
- *  row so the owner's three top cabinets follow the setting, and holding one of them back to keep
- *  this file red-capable is the moved fixture ADR 0093 refuses. */
+/** `B|1.80`: a tall pantry under a **pinned** top, so the recorded source is a body no setting moves.
+ *  The top is declared in `tests/support/pinned-top-witness.ts`; do not move the shipped fixture (ADR 0093). */
 const PINNED_SOURCE_KEY = "B|1.80";
 const PINNED_SOURCE_ALONG_MM = 1800;
 const PINNED_TOP_PLACEMENT = PINNED_TOP_WITNESS_PLACEMENT_ID;
@@ -76,8 +57,7 @@ function createStore(design: Design = KITCHEN_L_DESIGN) {
   });
 }
 
-/** The shipped kitchen with this suite's declared pinned top standing at `B|1.80`, and a catalogue
- *  that holds it. Used only by the two tests whose subject is a source no setting moves. */
+/** The shipped kitchen with this suite's pinned top at `B|1.80`; only for tests about a source no setting moves. */
 function createStoreWithAPinnedTop() {
   return createConfiguratorStore({
     design: designWithAPinnedTop(),
@@ -89,10 +69,8 @@ function createStoreWithAPinnedTop() {
 
 type Store = ReturnType<typeof createStore>;
 
-/** What one catalogue row declares it fills, at one setting — read the way the store reads it.
- *
- *  Asked of the catalogue **including this suite's witness**, which is a superset of the shipped one,
- *  so a caller holding a `depthFromBuildId` gets an answer whichever store produced it. */
+/** What one catalogue row declares at one setting. Asks the catalogue including this suite's witness,
+ *  so a `depthFromBuildId` resolves whichever store produced it. */
 function declaredDepthM(buildId: string, cabinetDepthMm: number): number {
   const definition = catalogWithAPinnedTop(cabinetDepthMm).get(buildId);
   if (!definition) throw new Error(`${buildId} is not in the catalogue`);
@@ -109,10 +87,8 @@ function depthMOf(store: Store, key: string): number {
   return columnOf(store, key).d;
 }
 
-/** The member-less column whose depth this body's declaration supplied, wherever it now stands —
- *  ADR 0073 decision 1's recorded source used as the anchor a moving coordinate can no longer be.
- *  Member-less by construction in these tests, and asserted so rather than assumed: an occupied
- *  column carrying the same source would be a different claim. */
+/** The member-less column whose depth this body's declaration supplied, wherever it now stands; asserted
+ *  member-less because an occupied column carrying the same source would be a different claim. */
 function spaceLeftBy(store: Store, buildId: string): string {
   const { columns, records } = store.getState();
   const found = [...columns].find(
@@ -124,9 +100,8 @@ function spaceLeftBy(store: Store, buildId: string): string {
   return found[0];
 }
 
-/** The along-wall coordinate a published column stands at, in whole millimetres — the number a
- *  placement in that column carries as its own `alongMm`. Read off the map rather than restated,
- *  because since ADR 0090 decision 2 it is a function of the setting on wall B. */
+/** Along-wall coordinate of a published column in whole mm, read off the map: on wall B it depends on
+ *  the setting (ADR 0090 decision 2). */
 function alongMmOf(store: Store, key: string): number {
   const column = columnOf(store, key);
   return Math.round((column.wall === "A" ? column.x : column.z) * 1000);
@@ -146,9 +121,8 @@ function setDepth(store: Store, cabinetDepthMm: number): void {
   ).toBeNull();
 }
 
-/** The design as the wire delivers it back, with every recorded source rewritten. `undefined`
- *  produces exactly the document a session **before** this wave would have written — the migration
- *  path every stored design takes. */
+/** The design as the wire returns it, every recorded source rewritten; `undefined` yields a document
+ *  that predates recorded sources. */
 function reloadWithSource(store: Store, source: string | undefined): Store {
   const rewrite = (entry: EmptyColumn): EmptyColumn => {
     const rewritten = { ...entry };
@@ -175,9 +149,8 @@ function reload(store: Store): Store {
   return createStore(throughTheWire(store.getState().design));
 }
 
-/** The shipped fixture as a document written **before** wave 6K-c: driven far enough to carry a
- *  frozen map, then saved with every `depthFromBuildId` stripped and reloaded through the wire. It is
- *  the only population ADR 0080 decision 5 leaves reaching the fallback arm. */
+/** A document that predates recorded sources: every `depthFromBuildId` stripped and reloaded through the wire,
+ *  the population that reaches the fallback arm (ADR 0080 decision 5). */
 function openLegacyStore(): Store {
   const cleared = createStore();
   for (const member of cleared
@@ -188,7 +161,6 @@ function openLegacyStore(): Store {
   return reloadWithSource(cleared, undefined);
 }
 
-/** Every frozen entry the document carries, both arrays, keyed the way a reader compares two saves. */
 function storedEntries(store: Store): ReadonlyMap<string, EmptyColumn> {
   const held = store.getState().design;
   return new Map(
@@ -198,13 +170,9 @@ function storedEntries(store: Store): ReadonlyMap<string, EmptyColumn> {
   );
 }
 
-// =================================================================================================
-// The flagged departure: 6K-a's `column.d` floor, replaced by a re-answer of the recorded body.
-// =================================================================================================
-
 describe("a delete-freed surplus, through a depth change", () => {
-  /** A column whose base member has been deleted: the wall bodies above it stand, and the extent
-   *  reaches 620 mm that nothing standing explains. Exactly ADR 0011 Gap D's freed opening. */
+  /** A column whose base member was deleted: the wall bodies above stand and the extent keeps a depth
+   *  nothing standing explains (ADR 0011 Gap D). */
   function withFreedSurplus(): Store {
     const store = createStore();
     remove(store, SURPLUS_BASE_PLACEMENT);
@@ -214,7 +182,6 @@ describe("a delete-freed surplus, through a depth change", () => {
   it("really is a surplus and not a measurement", () => {
     const store = withFreedSurplus();
 
-    // The column still holds members, and it reaches deeper than any of them.
     expect(
       store.getState().records.filter((record) => record.col === SURPLUS_KEY),
     ).not.toHaveLength(0);
@@ -224,7 +191,6 @@ describe("a delete-freed surplus, through a depth change", () => {
     );
   });
 
-  // Lead question 1. The extent is the deleted body's declaration, re-asked at the new setting.
   it("becomes the deleted body's declaration at the new setting", () => {
     const store = withFreedSurplus();
 
@@ -236,18 +202,15 @@ describe("a delete-freed surplus, through a depth change", () => {
     );
   });
 
-  // Lead question 2, and the one that matters most: **the migration path every stored design takes.**
-  // A document written before this wave carries no source at all, so decision 3's fallback is the
-  // only thing between it and a collapsed opening. `column.d` must survive as the floor.
+  // A pre-source document has no recorded body, so `column.d` must survive as the floor (ADR 0080 decision 4).
   it("keeps the freed depth on a document written before this wave", () => {
     const store = reloadWithSource(withFreedSurplus(), undefined);
     const frozenM = depthMOf(store, SURPLUS_KEY);
 
     setDepth(store, DEEPER_MM);
 
-    // Nothing in the document says which body froze it, so nothing may make it shallower.
     expect(depthMOf(store, SURPLUS_KEY)).toBeGreaterThanOrEqual(frozenM);
-    // And the declared build depth cannot supply it either — the floor is doing the work.
+    // Non-vacuous: the declared build depth alone cannot supply it, so the floor does the work.
     expect(
       columnBuildDepthM({
         cabinetDepthMm: DEEPER_MM,
@@ -256,7 +219,6 @@ describe("a delete-freed surplus, through a depth change", () => {
     ).toBeLessThan(frozenM);
   });
 
-  // The same, for a source the catalogue no longer holds — decision 3's second input.
   it("keeps the freed depth when the recorded source has left the catalogue", () => {
     const store = reloadWithSource(withFreedSurplus(), "retired-cabinet-600");
     const frozenM = depthMOf(store, SURPLUS_KEY);
@@ -266,12 +228,8 @@ describe("a delete-freed surplus, through a depth change", () => {
     expect(depthMOf(store, SURPLUS_KEY)).toBeGreaterThanOrEqual(frozenM);
   });
 
-  // Lead question 3. A decrease on a column carrying a genuine delete-freed surplus **does** shrink
-  // it, and this is decision 2's ruled behaviour rather than a defect: the extent is the same body's
-  // declaration read at the shallower setting, which is what "an exact re-answer of the same body"
-  // means. It is recorded here because the milestone's wording — *"still 620 mm after a command that
-  // is not a depth change, and 720 mm after one"* — does not cover the decrease, and a reader should
-  // not have to infer that the two directions are deliberately asymmetric.
+  // A decrease shrinks a genuine surplus: the extent is the same body's declaration at the shallower
+  // setting (ADR 0073 decision 2), so the two directions are deliberately asymmetric.
   it("returns to the deleted body's shallower declaration on a decrease", () => {
     const store = withFreedSurplus();
     setDepth(store, DEEPER_MM);
@@ -287,10 +245,8 @@ describe("a delete-freed surplus, through a depth change", () => {
     expect(depthMOf(store, SURPLUS_KEY)).toBeLessThan(deepM);
   });
 
-  // Decision 3's own worked case, and the only one in ADR 0073's cost analysis that reaches a body
-  // somebody builds: a member-less **wall** column with no recorded source must be deepened to the
-  // column's declared build depth, or `resolveDepthM` floors an inserted wall cabinet 70 mm shallower
-  // than the map declares. Asserted on a legacy document, which is the arm that has to do it.
+  // A member-less wall column with no source deepens to the declared build depth, or `resolveDepthM` floors an
+  // inserted wall cabinet shallower than the map declares (ADR 0080 decision 4).
   it.each([
     ["written before this wave", undefined],
     ["naming a buildId the catalogue does not hold", "retired-cabinet-600"],
@@ -312,14 +268,12 @@ describe("a delete-freed surplus, through a depth change", () => {
 
       setDepth(store, DEEPER_MM);
 
-      // Non-vacuous: the frozen depth really is shallower than the declared build depth, so the
-      // fallback has work to do.
+      // Non-vacuous: the frozen depth is shallower than the declared build depth, so the fallback has work to do.
       expect(frozenM).toBeLessThan(declaredM);
       expect(depthMOf(store, "A|0.30")).toBeCloseTo(declaredM, 9);
     },
   );
 
-  // ADR 0052 at the store: neither shape is refused, and the store goes on to publish a map.
   it.each([
     ["written before this wave", undefined],
     ["naming a buildId the catalogue does not hold", "retired-cabinet-600"],
@@ -335,8 +289,6 @@ describe("a delete-freed surplus, through a depth change", () => {
     expect(store.getState().columns.size).toBeGreaterThan(0);
   });
 
-  // And the round trip the decrease makes possible: back where it started, which the recorded-source
-  // arm buys and decision 3's fallback explicitly does not.
   it("returns a recorded surplus to where it started across a round trip", () => {
     const store = withFreedSurplus();
     const startedM = depthMOf(store, SURPLUS_KEY);
@@ -348,65 +300,13 @@ describe("a delete-freed surplus, through a depth change", () => {
   });
 });
 
-// =================================================================================================
-// The anti-invariant, and the sequence that breaks it.
-// =================================================================================================
-
 describe("a frozen extent never becomes shallower than the body standing in it left it", () => {
-  // **FINDING, and NARROWED after adjudication — ADR 0079 amendment A and B.**
-  //
-  // As first written these two asserted `>= freedM`: the extent may never end shallower than the
-  // depth the delete froze, whatever the setting then did. That over-states the criterion, and the
-  // proof is in this same file one `describe` down — the four-step sweep does not assert it either.
-  // `isAllowedShrink` names the two shrinks the records do allow, and the second of them is
-  // `reAnswersOneBody`: the recorded source is unchanged **and** the depth is that source's own
-  // declaration at both the setting left and the setting taken. That is ADR 0073 decision 2's exact
-  // re-answer, which ADR 0079 decision 4 refused to trade away. So the assertion below is not a new
-  // one invented to fit an implementation — it is this file's own predicate, applied to this file's
-  // own examples.
-  //
-  // **It still catches the defect, and that was run rather than argued.** Against the F1-defective
-  // code — `atDepthM` publishing a depth and carrying the previous `depthFromBuildId` across
-  // untouched, which is the single parted writer ADR 0079 decision 1 names — both go red:
-  //
-  //     x keeps the depth a delete freed when the recorded source is shallower than it
-  //     x does not save an opening shallower than the one the delete froze
-  //
-  // and both pass against the fix. `B|1.80` went 699 -> 600 there, carrying
-  // the pinned top, which declares 600 at every setting — so the source never declared
-  // 699, `isItsSourcesDeclaration` is false at the start of the shrink, and `reAnswersOneBody` fails.
-  // With the fix the source is `tall-pantry`, both ends are its declaration, and the shrink is
-  // allowed. Same column, same two numbers, opposite verdicts.
-  //
-  // **The baseline that discriminates is that intermediate code, not `52e3c70`** — and the reason is
-  // worth stating, because the pre-wave number looks like a passing test and is not one. Measured at
-  // the commit before this wave the trail is `699 -> 699 -> 699`: with no `depthFromBuildId` in the
-  // tree the member-less arm has nothing to re-ask, so it `continue`s and carries the frozen depth
-  // forward. Any shrink predicate passes vacuously there.
-  //
-  // **That 699 in a 600 mm kitchen is the residue this wave exists to remove, not a depth worth
-  // keeping.** ADR 0073 states it in those words — *"a frozen extent with no member left to measure
-  // keeps the old setting's depth, and `projectFrozenMap` saves it"* — and the 699 was frozen at 700.
-  // The owner ruled the same thing directly on 2026-09-05: *"when you decide to change the depth,
-  // let's say, from seven hundred to six hundred, everything — cabinets, empty spaces, everything —
-  // should change to six hundred depth. So you don't keep their depth in mind because there was
-  // earlier a cabinet deeper, and now this is missing."* `tall-pantry` declares 599 at 600, so 599 is
-  // the extent following the body that froze it.
-  //
-  // The measurement is kept because it says something true about **blast radius**: no design a
-  // customer holds today sees a shrink from this change, because today nothing shrinks at all.
-  //
-  // The state is reached in four ordinary commands on the shipped fixture, and it survives a save
-  // and a reload, so it is also reachable in one command from a stored document.
+  // Allowed shrinks are `isAllowedShrink`'s: one recorded body's declaration at two settings (ADR 0073 decision 2).
+  // Sabotage: red if `atDepthM` publishes a new depth but carries the previous `depthFromBuildId` across
+  // (ADR 0079 decision 1).
 
-  /** `isAllowedShrink`'s `reAnswersOneBody` arm, as the two example tests below need it: was this
-   *  shrink one recorded body's declaration read at two settings?
-   *
-   *  **Named apart from the sweep's `reAnswersOneBody` on purpose.** The sweep's takes two
-   *  `Reading`s and carries the `measuredM` arm beside it; this one takes a store and the depth the
-   *  column is shrinking *from*, because these two columns are member-less by construction and there
-   *  is nothing to measure. Two different signatures answering the same question should not wear one
-   *  name in one file — the divergence belongs at the name rather than only in a comment. */
+  /** `isAllowedShrink`'s `reAnswersOneBody` arm for member-less columns: was the shrink one recorded body's
+   *  declaration read at two settings? Takes a store, unlike the sweep's `Reading`-based arm of the same name. */
   function reAnswersItsShallowerDeclaration(
     store: Store,
     key: string,
@@ -431,22 +331,17 @@ describe("a frozen extent never becomes shallower than the body standing in it l
 
   it("keeps the depth a delete freed when the recorded source is shallower than it", () => {
     const store = createStoreWithAPinnedTop();
-    // 1. Delete the pinned deep top. The column keeps its 600 mm extent and records that top as the
-    //    body the depth came from; the pantry below it measures 599.
+    // 1. Delete the pinned deep top; the column keeps its extent and records the top as its source.
     remove(store, PINNED_TOP_PLACEMENT);
-    // 2. Deepen. The pantry follows the setting to 699 and the extent follows it — deeper-only —
-    //    while the recorded source still names the pinned top, which declares 600 at every setting.
-    //    **The column is also 100 mm further along wall B now** (ADR 0090 decision 2): a deeper
-    //    corner on wall A takes more of wall B, so the key this column is filed under is a function
-    //    of the setting. The anchor moves with it; every assertion below is the one this test always
-    //    made.
+    // 2. Deepen: the pantry and the extent follow to 699 while the source still names the pinned top (600 at every
+    //    setting). The column also moves 100 mm along wall B, so its key is setting-dependent (ADR 0090 decision 2).
     setDepth(store, DEEPER_MM);
     const deepKey = columnKeyAt(PINNED_SOURCE_KEY, DEEPER_MM);
     const deepAlongMm = alongMmOf(store, deepKey);
     expect(depthMOf(store, deepKey)).toBeGreaterThan(
       declaredDepthM(PINNED_TOP_WITNESS_BUILD_ID, DEEPER_MM),
     );
-    // 3. Delete the pantry. Now nothing stands here, and the space the delete freed is 699 mm deep.
+    // 3. Delete the pantry: nothing stands here and the freed space is 699 mm deep.
     const survivor = store
       .getState()
       .design.placements.find(
@@ -457,27 +352,21 @@ describe("a frozen extent never becomes shallower than the body standing in it l
     remove(store, survivor.id);
     const freedM = depthMOf(store, deepKey);
 
-    // 4. Any depth change. Nothing stands here to measure, so the whole answer comes from the
-    //    recorded source — which must therefore be a body that really did have this depth.
+    // 4. Any depth change: the whole answer comes from the recorded source.
     setDepth(store, DEFAULT_CABINET_DEPTH_MM);
 
-    // Either it did not get shallower at all, or the shrink is one body's declaration at two
-    // settings. Pre-fix it was neither: 699 collapsed to 600 under a source that declares 600
-    // everywhere, so the 699 belonged to no body the record named.
+    // No shrink, or one body's declaration at two settings: a source declaring 600 everywhere cannot explain 699.
     expect(
       depthMOf(store, PINNED_SOURCE_KEY) >= freedM ||
         reAnswersItsShallowerDeclaration(store, PINNED_SOURCE_KEY, freedM),
     ).toBe(true);
   });
 
-  // The same defect from the other side: it is durable. `projectFrozenMap` writes the collapsed
-  // extent into the document, so the space is not merely mis-drawn for the session — it is saved.
   it("does not save an opening shallower than the one the delete froze", () => {
     const store = createStoreWithAPinnedTop();
     remove(store, PINNED_TOP_PLACEMENT);
     setDepth(store, DEEPER_MM);
-    // The same anchor, for the same reason as the test above: at 700 this column stands 100 mm
-    // further along wall B (ADR 0090 decision 2).
+    // Same anchor as above: at 700 this column stands 100 mm further along wall B (ADR 0090 decision 2).
     const deepAlongMm = alongMmOf(
       store,
       columnKeyAt(PINNED_SOURCE_KEY, DEEPER_MM),
@@ -497,8 +386,6 @@ describe("a frozen extent never becomes shallower than the body standing in it l
 
     setDepth(store, DEFAULT_CABINET_DEPTH_MM);
 
-    // The saved half of the same claim: the document may carry a shallower opening only when the
-    // entry it saves names the body that opening is the declaration of, at this setting.
     const savedMm =
       storedEntries(store).get(`B|${String(PINNED_SOURCE_ALONG_MM)}`)
         ?.depthMm ?? 0;
@@ -506,40 +393,21 @@ describe("a frozen extent never becomes shallower than the body standing in it l
       savedMm >= (frozenMm ?? 0) ||
         reAnswersItsShallowerDeclaration(store, PINNED_SOURCE_KEY, frozenM),
     ).toBe(true);
-    // And the saved entry agrees with the published column, so this is not passing on a stale map.
+    // The saved entry agrees with the published column, so this is not passing on a stale map.
     expect(savedMm).toBe(Math.round(depthMOf(store, PINNED_SOURCE_KEY) * 1000));
   });
 });
 
-// =================================================================================================
-// The invariant underneath F1: a recorded source that does not explain its own recorded depth.
-// =================================================================================================
-
 describe("the recorded source explains the recorded depth", () => {
-  // **The predicate is `tests/support/frozen-source-invariant.ts`, not a copy of it.** ADR 0079
-  // decision 10 part 2 puts it in a shared module precisely so a test that drives the store gets the
-  // check without its author having read the record, and this file is the one the record names. It
-  // asserts the same thing the local copy did — every published column either records no source, or
-  // one the catalogue does not hold, or one whose declaration at the design's own setting *is* the
-  // depth carried — and adds the non-vacuity ADR 0079 decision 10 part 3 requires, which the local
-  // copy did not have: a map with no known sources satisfied it silently.
+  // The predicate is the shared `tests/support/frozen-source-invariant.ts`, not a local copy (ADR 0079 decision 10).
 
-  // Non-vacuous, and the assertion that makes the rest of this block mean something: the shipped
-  // kitchen as loaded satisfies the invariant, so a failure below is something a command did.
+  // Non-vacuous: the shipped kitchen as loaded satisfies the invariant, so a failure below is something a command did.
   it("holds on the shipped kitchen as it loads", () => {
     assertSourcesExplainTheirDepths(createStore().getState(), "load");
   });
 
-  // **FINDING, and the diagnosis F1's own assertions cannot distinguish.** One depth change on the
-  // untouched fixture is enough: `B|1.80`'s frozen depth was the pinned deep top's 600, the surviving
-  // pantry measures 699 at the deeper setting, the *fully explained* arm publishes 699 — and
-  // `atDepthM` carries the old source across untouched, so the extent now records a body that
-  // declares 600 at every setting as the source of a 699 mm depth.
-  //
-  // Nothing has gone wrong yet at this step: 699 is the right depth while the pantry is standing.
-  // What has gone wrong is the **record**, and it is the record that answers once the pantry is
-  // deleted. Putting a `Math.max(column.d, …)` floor on the recorded arm does not repair this: it
-  // makes the wrong number survive instead of making the record right.
+  // One depth change on the untouched fixture suffices: the record, not the depth, must stay right, because it
+  // answers once the pantry is deleted.
   it("still holds after a single depth change", () => {
     const store = createStore();
 
@@ -548,19 +416,8 @@ describe("the recorded source explains the recorded depth", () => {
     assertSourcesExplainTheirDepths(store.getState(), "after setCabinetDepth");
   });
 
-  // **The witness that keeps the two above able to fail, and it is owed** (ADR 0093 decision 1).
-  //
-  // Until ADR 0101 the shipped kitchen carried the disagreement itself: `B|1.80` was frozen at the
-  // pinned top's 600 and re-answered 699 by the pantry at the deeper setting, so the defective code
-  // left a source declaring 600 beside a depth of 699 and the invariant fired on the demo. Both
-  // tests above go red against that code and this one does not, because the top follows the setting
-  // now — at 700 it declares exactly the 700 the column carries, and the disagreement closes.
-  //
-  // So the disagreement is supplied by this suite's own pinned body instead. It declares 600 at
-  // every setting, the pantry re-answers 699 at the deeper one, and the pair parts exactly as it
-  // used to. **Measured, not asserted: this goes red against the F1 code — `atCurrentCabinetDepth`
-  // publishing the re-answered depth while carrying the previous `depthFromBuildId` across — and
-  // green against the fix.**
+  // Witness that keeps the two tests above able to fail: the shipped top follows the setting, so only this
+  // suite's pinned body (600 at every setting) can part from the re-answered 699 (ADR 0093 decision 1).
   it("still holds on a kitchen whose source declares one depth at every setting", () => {
     const store = createStoreWithAPinnedTop();
 
@@ -572,26 +429,19 @@ describe("the recorded source explains the recorded depth", () => {
     );
   });
 
-  // And the document half: `projectFrozenMap` writes the disagreeing pair, so it is saved and
-  // reloaded rather than being a session-local slip.
   it("still holds in the document a depth change hands on to be saved", () => {
     const store = createStore();
 
     setDepth(store, DEEPER_MM);
 
-    // The document half, and its own function in the shared module rather than the same one twice:
-    // a stored entry carries the whole millimetre `toEmptyColumn` persisted, so that comparison is an
-    // integer one and no float band belongs in it.
+    // Its own function in the shared module: a stored entry carries the whole millimetre, so the comparison
+    // is an integer one with no float band.
     assertStoredSourcesExplainTheirDepths(
       store.getState().design,
       "the document a depth change hands on",
     );
   });
 });
-
-// =================================================================================================
-// The sweep: state, not transitions. 6K's defects have twice been state-triggered.
-// =================================================================================================
 
 describe("over sequences of commands rather than single transitions", () => {
   /** One step of a sequence, named so a failure says which one it was. */
@@ -601,8 +451,7 @@ describe("over sequences of commands rather than single transitions", () => {
   const SWEPT_KEYS = [SURPLUS_KEY, PINNED_SOURCE_KEY, "A|0.30"] as const;
 
   function depthSteps(): readonly Step[] {
-    // Lenient: a refusal is collected and reported rather than thrown, so one refused command in the
-    // middle of a sweep does not hide every shrink the rest of the sweep would have found.
+    // Lenient: a refusal is collected rather than thrown, so one refusal does not hide later shrinks.
     return DEPTHS.map(
       (depthMm): Step => [
         `depth ${String(depthMm)}`,
@@ -613,8 +462,8 @@ describe("over sequences of commands rather than single transitions", () => {
     );
   }
 
-  /** Deleting the member the extent **records** — the one move that leaves a frozen depth with no
-   *  standing body to explain it, which is the state ADR 0011 Gap D is about. */
+  /** Deleting the member the extent records: leaves a frozen depth with no standing body to explain it
+   *  (ADR 0011 Gap D). */
   function deleteTheRecordedSourceOf(key: string): Step {
     return [
       `delete the recorded source of ${key}`,
@@ -633,8 +482,7 @@ describe("over sequences of commands rather than single transitions", () => {
     ];
   }
 
-  /** …and deleting one that is **not** recorded, which leaves the depth explained and is the arm
-   *  that must keep following the setting in both directions. */
+  /** Deleting a member that is not recorded: the depth stays explained and must keep following the setting. */
   function deleteAnotherMemberOf(key: string): Step {
     return [
       `delete a non-source member of ${key}`,
@@ -661,8 +509,7 @@ describe("over sequences of commands rather than single transitions", () => {
     ]),
   ];
 
-  /** Every sequence of `length` steps drawn from `STEPS`, with repeats — `600 → 600 → 700` is a
-   *  sequence this has to contain, because that is the shape 6K's last two defects took. */
+  /** Every sequence of `length` steps, with repeats: `600 → 600 → 700` must be contained. */
   function* sequences(length: number): Generator<readonly Step[]> {
     if (length === 0) {
       yield [];
@@ -673,25 +520,16 @@ describe("over sequences of commands rather than single transitions", () => {
     }
   }
 
-  /** One column as the invariant reads it: how deep it is, which body it says supplied that, whether
-   *  the two agree at the setting the design currently declares, and what the members standing in it
-   *  measure right now. */
+  /** One column as the invariant reads it: depth, recorded source, and what its members measure now. */
   interface Reading {
     readonly depthM: number;
     readonly source: string | undefined;
-    /** **The §7 row `resolveRebuildBody` swaps this source for** (ADR 0022), or the source itself
-     *  where it is already parameterised.
-     *
-     *  A seeded row that sources a column and is then rebuilt comes back under its equivalent's id,
-     *  and `reAnswersOneBody` below would read one body under two names as two bodies. It never
-     *  mattered while `B|1.80`'s source was a **pinned** row — a pin is not rebuilt, so its id never
-     *  moved — and ADR 0101 unpinned it. The identity is read off the entry's own
-     *  `catalogEquivalentId`, never guessed from the two ids' shapes. */
+    /** The §7 row `resolveRebuildBody` swaps this source for (ADR 0022), or the source itself where already
+     *  parameterised; read from `catalogEquivalentId`, never guessed from the ids' shapes. */
     readonly sourceEquivalentId: string | undefined;
     readonly isItsSourcesDeclaration: boolean;
     readonly measuredM: number | undefined;
-    /** The live predicate `columnBuildDepthM` needs, read off the column rather than re-derived, so
-     *  `followsTheFallbackDown` asks the same question the store asked (ADR 0080 decision 4). */
+    /** Read off the column so `followsTheFallbackDown` asks the store's own question (ADR 0080 decision 4). */
     readonly hasFullHeightUnder: boolean;
   }
 
@@ -701,12 +539,10 @@ describe("over sequences of commands rather than single transitions", () => {
     const held = store.getState().design;
     const cabinetDepthMm =
       held.settings?.cabinetDepthMm ?? DEFAULT_CABINET_DEPTH_MM;
-    // No stored half, so this is what the **members** imply and nothing else — the same question
-    // `atCurrentCabinetDepth` asks of `deriveColumns(records, {}, room)`.
+    // No stored half: only what the members imply.
     const measured = deriveColumns(store.getState().records, {}, held.room);
-    // What stands in each column, gathered once: the acknowledged exemption in
-    // `isExplainedOrIsTheKnownLiftedColumnDefect` is keyed on a standing member, and this sweep asks
-    // it 4 096 times over.
+    // Gathered once: the lifted-column exemption in `isExplainedOrIsTheKnownLiftedColumnDefect` is keyed on a
+    // standing member and is asked 4 096 times.
     const membersOf = new Map<string, PlacementRecord[]>();
     for (const record of store.getState().records) {
       const standing = membersOf.get(record.col);
@@ -725,11 +561,8 @@ describe("over sequences of commands rather than single transitions", () => {
           {
             depthM: column.d,
             source,
-            // **The shared predicate rather than a second copy of it** (ADR 0088 decision 2: one
-            // author for one rule). Since ADR 0102 decision 3 it carries the acknowledged exemption
-            // for wave 6I2's lifted-column defect rather than a second authority, and the exemption
-            // is keyed on the members handed in below — so a record naming a body that is not
-            // standing in this column fails here exactly as F1 did.
+            // The shared predicate (ADR 0102 decision 3), keyed on the standing members, so a record naming a
+            // body not standing in this column fails.
             isItsSourcesDeclaration:
               source !== undefined &&
               definition !== undefined &&
@@ -749,19 +582,9 @@ describe("over sequences of commands rather than single transitions", () => {
     );
   }
 
-  /** **The anti-invariant, stated with the two shrinks the record does allow.** A frozen extent may
-   *  never become shallower than it has already been — unless
-   *
-   *  - the members standing in it measure exactly the depth it took, which is 6K-a's *fully
-   *    explained* arm and is authoritative in both directions, or
-   *  - the depth it left and the depth it took are the **same recorded body's** declaration at their
-   *    two settings, which is ADR 0073 decision 2's "exact re-answer of the same body". *Same body*
-   *    spans ADR 0022's permanent swap: a seeded row rebuilt into its `catalogEquivalentId` is the
-   *    same body under the name it now carries, and reading the two ids as two bodies would report a
-   *    ruled re-answer as a violation.
-   *
-   *  Everything else is depth a delete freed and something later took away, which is what ADR 0011
-   *  Gap D forbids and what this wave's criterion promises. */
+  /** A frozen extent never becomes shallower unless the members measure exactly the new depth, or both depths
+   *  are the same recorded body's declaration (ADR 0073 decision 2; same body spans ADR 0022's permanent
+   *  swap), or `followsTheFallbackDown`. Anything else is depth a delete freed and something later took. */
   function isAllowedShrink(was: Reading, now: Reading): boolean {
     const membersExplainIt =
       now.measuredM !== undefined &&
@@ -773,20 +596,9 @@ describe("over sequences of commands rather than single transitions", () => {
     return membersExplainIt || reAnswersOneBody || followsTheFallbackDown(was);
   }
 
-  /** **The third allowed shrink, added by wave 6K-j** (ADR 0080 decision 4) — added to the two above,
-   *  never carved out of them.
-   *
-   *  An extent with **no recorded source** whose depth is what the fallback itself would have
-   *  published at the setting being left is not information: it is this rule's own previous answer,
-   *  and holding it on the way back down is the ratchet the owner's instruction names. A member-less
-   *  wall column deepened 330 → 400 at 700 and kept at 400 in a 600 mm kitchen stands 70 mm proud of
-   *  every wall body around it.
-   *
-   *  **Narrow on purpose, and it is the narrowness that matters.** It fires only where there is no
-   *  source at all — so it cannot touch the sourced arms above — and only where the depth being left
-   *  is one `columnBuildDepthM` could have produced at the setting being left. A legacy cleared base
-   *  slot at 620 is deeper than that ceiling at either setting, so this arm never reaches it and the
-   *  surplus stays a surplus. A predicate that let the 620 shrink would be a weakened one. */
+  /** Third allowed shrink: a sourceless extent whose depth is the fallback's own answer (`columnBuildDepthM`) at
+   *  the setting being left. Narrow on purpose: a legacy 620 base slot exceeds that ceiling at either setting,
+   *  so a surplus stays a surplus (ADR 0080 decision 4). */
   function followsTheFallbackDown(was: Reading): boolean {
     if (was.source !== undefined) return false;
     return declaredCabinetDepthsMm().some(
@@ -819,9 +631,7 @@ describe("over sequences of commands rather than single transitions", () => {
         const was = deepest.get(key);
         if (was && now.depthM < was.depthM - TOLERANCE_M) {
           if (isAllowedShrink(was, now)) {
-            // A ruled shrink resets the mark: what follows is measured against the depth the
-            // kitchen legitimately holds now, not against one it has left behind. Without this the
-            // invariant would re-report a single allowed decrease at every later step.
+            // A ruled shrink resets the mark, so it is not re-reported at every later step.
             deepest.set(key, now);
           } else {
             violations.push(
@@ -845,8 +655,7 @@ describe("over sequences of commands rather than single transitions", () => {
     return { violations, refusals };
   }
 
-  /** The four-step sweep, run once and read by both assertions below — 4 096 sequences of ordinary
-   *  commands against a fresh store each, which is the whole cost of this file. */
+  /** The four-step sweep (4 096 sequences), run once and read by both assertions below. */
   const FOUR_STEP_SWEEP: SweepResult = (() => {
     const violations = new Set<string>();
     const refusals = new Set<string>();
@@ -870,20 +679,9 @@ describe("over sequences of commands rather than single transitions", () => {
     expect(names.length).toBeGreaterThan(100);
   });
 
-  // **The legacy half, added by wave 6K-j.** The sweep above starts from the shipped fixture, where
-  // every column carries a source — so it never reaches the fallback arm and never exercised the
-  // shrink `followsTheFallbackDown` allows. This one starts from the same fixture saved with every
-  // `depthFromBuildId` stripped, which is the one population ADR 0080 decision 5 says that arm
-  // governs: documents written before wave 6K-c.
-  //
-  // Depth changes only, and three steps rather than four: the arm is reached by a setting change and
-  // by nothing else, so the delete steps would only re-source the columns and take the sweep back to
-  // the case above.
-  //
-  // **Without `followsTheFallbackDown` this goes red**, which is the proof the arm was added rather
-  // than carved out of the two beside it: `A|0.30` shrinks 400 → 330 with no source at all, so
-  // `membersExplainIt` is false (nothing stands there) and `reAnswersOneBody` is false (no source to
-  // re-answer), and the shrink is reported as a violation.
+  // Starts from the fixture with every `depthFromBuildId` stripped, the population ADR 0080 decision 5 says the
+  // fallback governs; depth changes only, since deletes would re-source the columns. Red without
+  // `followsTheFallbackDown`: `A|0.30` shrinks 400 → 330 with no source and no member to explain it.
   it("holds over every sequence of three depth changes on a legacy document", () => {
     const violations: string[] = [];
     for (const sequence of sequences(3)) {
@@ -891,8 +689,7 @@ describe("over sequences of commands rather than single transitions", () => {
       violations.push(...sweep(sequence, openLegacyStore).violations);
     }
 
-    // Non-vacuous: the legacy store really does publish sourceless columns, which is the only state
-    // in which the new arm can fire.
+    // Non-vacuous: the legacy store really publishes sourceless columns, the only state the fallback arm fires in.
     expect(
       [...openLegacyStore().getState().columns].filter(
         ([, column]) => column.depthFromBuildId === undefined,
@@ -901,8 +698,6 @@ describe("over sequences of commands rather than single transitions", () => {
     expect(violations).toStrictEqual([]);
   });
 
-  // Depth changes alone, interleaved with each other — the cheapest half of the sweep, and the one
-  // that must be clean before anything else means much.
   it("holds over every sequence of five depth changes", () => {
     const violations: string[] = [];
     for (const sequence of sequences(5)) {
@@ -913,41 +708,22 @@ describe("over sequences of commands rather than single transitions", () => {
     expect(violations).toStrictEqual([]);
   });
 
-  // The full alphabet: deletes interleaved with depth changes, over four steps — the length at which
-  // a surplus can be created, carried across a setting, orphaned and then re-asked, which is one
-  // step longer than any sequence 6K has been swept over before.
   it("holds over every sequence of four commands, deletes included", () => {
     expect(FOUR_STEP_SWEEP.violations.slice(0, 4)).toStrictEqual([]);
   });
 
-  // **The carried debt is gone, and this is what it guarded.** Until wave 6K-i this sweep was
-  // allowed to refuse: two ordinary deletes left the shipped kitchen unable to change its own depth,
-  // and the block here pinned the exact thirty-four trails that did it (ADR 0079's finding, ADR 0079
-  // amendment E's bounded pin). ADR 0088 adjudicated that finding an implementation defect in
-  // `set-cabinet-depth.ts` — the planning map discarded ADR 0011 Gap D's frozen `top`, `regions` and
-  // `w` — and wave 6K-i fixed it, so the exemption is **deleted rather than narrowed**, which is the
-  // shape ADR 0079 amendment E already refused once.
-  //
-  // Zero, of any code. Not "only `HEIGHT_EXCEEDS_LEVEL`" and not "only these thirty-four": a
-  // whole-kitchen command that ADR 0055 decision 1 says every body adapts to has no ordinary trail
-  // that refuses it.
+  // Zero refusals, of any code: a whole-kitchen command every body adapts to has no ordinary trail that
+  // refuses it (ADR 0055).
   it("refuses nothing, over every sequence of four commands", () => {
     expect(FOUR_STEP_SWEEP.refusals).toStrictEqual([]);
   });
 });
 
-// =================================================================================================
-// The declaration-driven exceptions, asserted without naming an id.
-// =================================================================================================
-
 describe("an extent whose depth came from a body no setting moves", () => {
-  /** `B|2.45`: the freestanding fridge's column, and since ADR 0101 the only one of the shipped
-   *  kitchen whose recorded source is a body no setting moves. */
+  /** `B|2.45`: the freestanding fridge's column, the only one whose recorded source no setting moves (ADR 0101). */
   const FRIDGE_KEY = "B|2.45";
 
-  /** The rows the setting does not move, read off the catalogue's own declarations. Named nowhere:
-   *  if the store started naming ids, this list would still be derived from the map and the
-   *  assertions below would still be about what the map says. */
+  /** The rows the setting does not move, read off the catalogue's own declarations rather than named. */
   const PINNED_BUILD_IDS = [
     ...buildKitchenLBodyCatalog(DEFAULT_CABINET_DEPTH_MM).keys(),
   ].filter(
@@ -956,9 +732,6 @@ describe("an extent whose depth came from a body no setting moves", () => {
       declaredDepthM(buildId, DEEPER_MM),
   );
 
-  /** Every column of the shipped kitchen whose recorded source is one of those rows, cleared of all
-   *  its members — so the assertion runs over whatever the fixture happens to hold rather than over
-   *  two hand-picked keys. */
   function pinnedSourceKeys(): readonly string[] {
     const store = createStore();
     return [...store.getState().columns]
@@ -971,11 +744,8 @@ describe("an extent whose depth came from a body no setting moves", () => {
   it("finds such columns in the shipped kitchen at all", () => {
     expect(PINNED_BUILD_IDS.length).toBeGreaterThan(0);
     expect(pinnedSourceKeys().length).toBeGreaterThan(0);
-    // **Named rather than only counted, because the population shrank once already.** It was
-    // `B|1.80` and `B|2.45` until 2026-09-07; ADR 0101 unpinned `B|1.80`'s top so the freestanding
-    // fridge is the one body of this kitchen no setting moves, and the `it.each` below went from two
-    // cases to one with nothing saying so. A sweep whose size is data is exactly where that happens
-    // quietly, so the data is an assertion.
+    // Named, not only counted: the population shrank silently once (ADR 0101 unpinned `B|1.80`'s top), and a sweep
+    // whose size is data is where that happens.
     expect(pinnedSourceKeys()).toStrictEqual([FRIDGE_KEY]);
   });
 
@@ -993,11 +763,8 @@ describe("an extent whose depth came from a body no setting moves", () => {
 
       for (const depthMm of declaredCabinetDepthsMm()) {
         setDepth(store, depthMm);
-        // **The space is found by the body that froze it, not by the coordinate it stood at**
-        // (ADR 0090 decision 2). A wall-B column slides with its run when the corner on wall A gets
-        // deeper, and near the wall's own end ADR 0069's clip then narrows what is left — so the key
-        // is a function of the setting twice over. What this test asserts is unchanged: a pinned
-        // source's extent is the same depth at every declared setting.
+        // Find the space by the body that froze it, not its coordinate: wall-B keys move with the setting
+        // (ADR 0090 decision 2).
         expect(
           depthMOf(store, spaceLeftBy(store, source)),
           `at ${String(depthMm)}`,
@@ -1006,8 +773,7 @@ describe("an extent whose depth came from a body no setting moves", () => {
     },
   );
 
-  // The complement, so the test above cannot pass by the depth change doing nothing at all: a column
-  // whose recorded source **does** follow the setting moves with it.
+  // Complement: a column whose recorded source follows the setting moves, so the test above cannot pass vacuously.
   it("moves a column whose recorded source follows the setting", () => {
     const store = createStore();
     for (const member of SURPLUS_MEMBERS) remove(store, member);
@@ -1019,13 +785,9 @@ describe("an extent whose depth came from a body no setting moves", () => {
   });
 });
 
-// =================================================================================================
-// The no-bump claim, as a round trip.
-// =================================================================================================
-
 describe("a document written before this wave", () => {
-  /** The shipped kitchen with a cleared column, saved, then stripped of every recorded source — the
-   *  document a session before ADR 0073 would have written, byte for byte. */
+  /** A cleared column saved, then stripped of every recorded source: the document a session before ADR 0073
+   *  would have written. */
   function legacyDocument(): Design {
     const store = createStore();
     for (const member of SURPLUS_MEMBERS) remove(store, member);
@@ -1054,8 +816,7 @@ describe("a document written before this wave", () => {
         }),
       );
 
-    // The same document with the field restored loads to the same geometry: the field changes what a
-    // depth change publishes, never what a load reads.
+    // The same document with the field restored loads to the same geometry: the field affects only a depth change.
     const restored = createStore(
       throughTheWire({
         ...stored,
@@ -1068,8 +829,6 @@ describe("a document written before this wave", () => {
     expect(geometry(restored)).toBe(geometry(withSource));
   });
 
-  // A document the product itself wrote, reloaded and saved again untouched, is the same bytes — the
-  // property that makes "no version bump" a claim about behaviour rather than about a constant.
   it("is a fixed point of load-and-save for a document that does carry the field", () => {
     const store = createStore();
     for (const member of SURPLUS_MEMBERS) remove(store, member);
@@ -1077,9 +836,7 @@ describe("a document written before this wave", () => {
 
     const reloaded = reload(store).getState().design;
 
-    // Compared through the wire on both sides, so an explicit `undefined` cannot pass for an
-    // omission — and by value rather than by byte, because JSON key order is the one thing a
-    // document's route through the store is free to change and the wire does not preserve.
+    // Compared by value through the wire: JSON key order is free to change and the wire does not preserve it.
     expect(JSON.parse(JSON.stringify(reloaded))).toStrictEqual(
       JSON.parse(JSON.stringify(saved)),
     );
@@ -1090,10 +847,6 @@ describe("a document written before this wave", () => {
     }
   });
 });
-
-// =================================================================================================
-// The commands that move an extent, at the seam where they actually publish a map.
-// =================================================================================================
 
 describe("the commands that move an extent, at the store", () => {
   it("carries the source across a resize that frees a narrower space", () => {
@@ -1119,14 +872,11 @@ describe("the commands that move an extent, at the store", () => {
     expect(freed[0]?.depthFromBuildId).toBe(frozen?.depthFromBuildId);
   });
 
-  // A merged run really does descend from two sources here: the fixture's own cleared base columns
-  // sit within `AGREEMENT_TOLERANCE_MM` of each other, and the merged entry must carry the source of
-  // the member whose depth the envelope took.
+  // The fixture's cleared base columns sit within `AGREEMENT_TOLERANCE_MM` of each other; the merged entry
+  // must carry the source of the member whose depth the envelope took.
   it("leaves a merged entry's depth and source describing one body", () => {
     const store = createStore();
-    // Everything the product lets a customer delete. The two corner bodies refuse
-    // (`NOT_DELETABLE`), which is a different rule with its own tests, so they are left standing
-    // rather than asserted about here.
+    // Everything deletable; the two corner bodies refuse (`NOT_DELETABLE`) and stay standing.
     for (const placement of [...store.getState().design.placements]) {
       store.getState().select({ kind: "placement", id: placement.id });
       store.getState().remove();

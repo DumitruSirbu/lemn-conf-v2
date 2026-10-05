@@ -1,35 +1,10 @@
-// **A frozen fixture, not a module this project ships.** This is `plan-preview-model.ts` exactly as
-// it stood at wave 7L's own base (`git show 7a6438a:apps/web/src/room/plan-preview-model.ts`), copied
-// verbatim except for the two relative imports below, rewritten as `@/room/*` so it resolves from
-// `tests/room/fixtures`. `plan-preview-model.pre-7l.test.ts` runs it beside the current module as the
-// independent oracle wave 7L's own criterion 7 asks for — "with `PLAN_BOX` and the default set,
-// output deep-equals the base's function". **Never edit this file to make a test pass**: if it needs
-// to change, the fixture has stopped being the base and the comparison is no longer proving anything.
+// Frozen copy of `plan-preview-model.ts` at 7a6438a, the `pre-7l` base: the independent oracle for
+// `plan-preview-model.pre-7l.test.ts`. Only its two relative imports are rewritten to `@/room/*`. Never edit it to
+// make a test pass: it would stop being the base and the comparison would prove nothing.
 //
-// The plan preview's geometry, as plain numbers: a pure function from the draft to rectangles in the
-// preview box's own pixel space. No DOM, no React, no clock and no module state, so the drawing is
-// provable without a browser — which is the reason this module exists apart from the component that
-// paints it (criteria 11, 12 and 13).
-//
-// **The anchor is adopted here, never re-derived** (criterion 12). `DEVELOPMENT-SPEC.md` §2 fixes the
-// world: *"Wall A = back wall, plane z = 0, fronts face +Z"*, *"Wall B = left wall, plane x = 0,
-// fronts face +X"*. `packages/configurator-domain/src/room-transforms.ts:29-49` implements it and its
-// doc comment adds the part this drawing turns on — *"Both walk 'along' from the corner where they
-// meet (0,0,0)"*: wall A's tangent is +X and wall B's is +Z, out of one shared origin.
-//
-// **So, read from above with +X to the right and +Z down the screen:** the corner is the drawing's
-// origin, wall A runs right along the top, wall B runs down the side. That is the view frame 1B
-// draws, so the frame and the domain already agree and this module only writes the agreement down.
-// **Flipping +Z the way a plotted Y axis would is the error to avoid**: a top-down view looks *down*.
-// An inverted plan stays self-consistent — every test either side would still pass — while the
-// drawing silently mirrors against the 3D room it produces, which only a customer comparing the two
-// would ever see.
-//
-// **The labels are placed here too, and that is the point.** A label is placed against the *other*
-// walls — the lane no bar is painted in, the side of a bar that has the room for it — and a renderer
-// holding one rectangle at a time cannot see any of that. What this module never decides is how wide
-// a label comes out: it places an anchor and states which way the text grows from it, and the
-// browser measures the type.
+// Axes (DEVELOPMENT-SPEC §2): from above, wall A runs along +X (right) and wall B along +Z (down the screen) out of
+// the corner at (0,0,0). Flipping +Z like a plotted Y axis keeps every test green while the drawing mirrors against
+// the 3D room.
 import type { CornerDirection } from "@lemnaria/configurator-domain";
 
 import type { RoomDraft, RoomLengthField } from "@/room/room-draft";
@@ -49,9 +24,8 @@ export interface MarkedPlanWall {
   readonly labelKey: PlanWallIssueLabelKey;
 }
 
-/** The preview box the drawing is fitted into, in CSS pixels. **The pixels that are painted in**, not
- *  the box that is painted: a border is spent out of an element's own width under `border-box`, so
- *  the caller hands over what is left inside it (`plan-preview.tsx`). */
+/** The preview box in CSS pixels: the pixels painted in, since a border is spent out of an element's own width
+ *  under `border-box` (`plan-preview.tsx`). */
 export interface PlanBox {
   readonly widthPx: number;
   readonly heightPx: number;
@@ -62,9 +36,8 @@ export interface PlanPointPx {
   readonly yPx: number;
 }
 
-/** Which of a label's own edges its anchor names. The model places a point and says which way the
- *  text grows from it, and **never a width**: how wide *"A · 3600 mm"* comes out is a font's, a
- *  locale's and a translation's to decide, and this module measures no text. */
+/** Which edge of a label its anchor names. The model never places a width: that is a font's, a locale's and a
+ *  translation's to decide. */
 export type PlanLabelAlignment = "centred" | "leftAligned" | "rightAligned";
 
 /** Where a wall's length is written, in the same pixels the wall is drawn in. */
@@ -83,12 +56,9 @@ export interface PlanWallRect {
   readonly yPx: number;
   readonly widthPx: number;
   readonly heightPx: number;
-  /** Where that length is written. Placement is decided here rather than beside the paint, because
-   *  it is decided **against the other bars** — a label the renderer placed on its own would have
-   *  only one wall's rectangle to go on. */
+  /** Where that length is written; decided against the other bars, which one rectangle cannot see. */
   readonly labelPx: PlanWallLabelPx;
-  /** Frame 1C's short reason (*"B prea scurt"*), written in place of the length on a wall the room
-   *  refuses. Only `markPlanWalls` sets it, so its presence *is* the mark; absent on every other wall. */
+  /** Frame 1C's reason (*"B prea scurt"*) in place of the length on a refused wall; only `markPlanWalls` sets it. */
   readonly issueLabelKey?: PlanWallIssueLabelKey;
 }
 
@@ -104,9 +74,8 @@ export interface DrawnPlanPreview {
   readonly walls: readonly PlanWallRect[];
 }
 
-/** Not every wall the chosen shape asks for reads as a length yet — an incomplete form is a state of
- *  the plan, not a missing plan, so the caller branches on it instead of receiving a drawing of a room
- *  nobody entered. The box stays the same size, so the card does not jump when the drawing arrives. */
+/** Not every wall the shape asks for reads as a length yet: an incomplete form is a state of the plan. The box keeps
+ *  its size so the card does not jump when the drawing arrives. */
 export interface EmptyPlanPreview {
   readonly kind: "empty";
   readonly boxPx: PlanBox;
@@ -114,55 +83,35 @@ export interface EmptyPlanPreview {
 
 export type PlanPreview = DrawnPlanPreview | EmptyPlanPreview;
 
-/** Frame 1B draws both wall bars 12 px thick (`Lemnaria Configurator Mobil.dc.html:135-136`). It is a
- *  drawing constant and **never scales with the room** (criterion 12): the plan knows no depth at all
- *  (ADR 0083 decision 2), so the thickness is only what makes a wall readable. */
+/** Frame 1B's 12 px bar (`Lemnaria Configurator Mobil.dc.html:135-136`); never scales with the room, since the plan
+ *  knows no depth (ADR 0083 decision 2). */
 export const PLAN_WALL_THICKNESS_PX = 12;
 
-/** The line a wall's label is written on. `plan-preview.tsx` publishes it to `.planWallLabel`'s
- *  `font`, so the lane reserved for a label below and the type actually set in it are one number and
- *  cannot disagree — the frame's own `700 11px/1` (`:137-138`), unchanged. */
+/** The line a wall's label is written on. `plan-preview.tsx` publishes it to `.planWallLabel`'s `font`, so the lane
+ *  reserved for a label and the type set in it cannot disagree. */
 export const PLAN_LABEL_LINE_PX = 11;
 
 /** How far a label stands off the wall it names, so the two are read together without touching. */
 export const PLAN_LABEL_GAP_PX = 5;
 
-/**
- * **The lane kept clear above the drawing, and the reason a label cannot be overprinted.** Frame 1B
- * writes wall A's label above wall A (`:137`, over the bar at `:135`) and this is that placement made
- * structural: the lane comes off the box *before* the scale is taken, so no bar is ever painted in it
- * — whatever the room measures, and however wide the text turns out to be.
- *
- * A label written *under* wall A instead shares the band the walls running down the screen occupy,
- * and no anchor can save it there: at 2500 x 5000 mm the label is wider than wall A is long, so
- * wall B's bar ran through *"A · 2500 mm"* for its full height.
- */
+/** The lane kept clear above the drawing: it comes off the box before the scale is taken, so no bar paints in it.
+ *  A label under wall A would share the band the walls running down occupy and be overprinted (2500 x 5000 mm). */
 export const PLAN_LABEL_LANE_PX = PLAN_LABEL_LINE_PX + PLAN_LABEL_GAP_PX;
 
-/** The shortest box the plan can be drawn in: the lane above the drawing, the wall's own thickness,
- *  and the line the label beside the deepest wall is written on. Below it either the drawing or a
- *  label would leave the box, and the caller is handing over a box it has not sized. */
+/** The shortest box the plan can be drawn in: the lane, the wall's thickness and the label line. Below it the caller
+ *  has handed over a box it has not sized. */
 export const PLAN_MINIMUM_BOX_HEIGHT_PX =
   PLAN_LABEL_LANE_PX + PLAN_WALL_THICKNESS_PX + PLAN_LABEL_LINE_PX;
 
-/** `left` is the drawn convention, with the corner at the origin the world puts it at; `right` is
- *  that same drawing reflected, and nothing else (criterion 13).
- *
- *  **A `linear` draft is mirrored too, and that is deliberate.** Every draft carries a corner
- *  direction whatever its shape (`room-draft.ts:59-83`) even though only `carriesCornerDirection`
- *  shapes show a control for it, so `right` reaches this branch under `linear` as well. All a linear
- *  plan draws is wall A, centred, which reflects onto itself — the rule is left unconditional
- *  because it already changes nothing there, not because the `linear` case went unconsidered. The
- *  corner point still swaps ends, which is the truth about a lone wall rather than a defect: it is
- *  the end the room would turn at, and no linear plan draws a turn. */
+/** `left` is the drawn convention; `right` is that drawing reflected, and nothing else. A `linear` draft is mirrored
+ *  too: every draft carries a corner direction, and a lone centred wall A reflects onto itself. */
 const MIRRORED_CORNER_DIRECTION: CornerDirection = "right";
 
-/** The wall the anchor sends along +X, which on a view from above is the one that runs across the
- *  screen. Every other wall a plan draws runs down it. */
+/** The wall the anchor sends along +X, which runs across the screen from above; every other wall runs down it. */
 const WALL_ACROSS_THE_SCREEN: PlanWallId = "A";
 
-/** The wall the anchor sends along +Z out of the corner itself (`placeLeftWall`); the others that run
- *  down the screen stand at the far end of wall A. */
+/** The wall the anchor sends along +Z out of the corner itself (`placeLeftWall`); the others that run down the
+ *  screen stand at the far end of wall A. */
 const WALL_DOWN_FROM_THE_CORNER: PlanWallId = "B";
 
 interface DrawableWall {
@@ -170,8 +119,7 @@ interface DrawableWall {
   readonly field: RoomLengthField;
 }
 
-/** The walls a plan can draw, each with the field that gives it its length. The height is a field
- *  and not a wall: this is the view from above. */
+/** The walls a plan can draw, each with the field giving its length; the height is a field, not a wall. */
 const DRAWABLE_WALLS: readonly DrawableWall[] = [
   { wall: "A", field: "wallA" },
   { wall: "B", field: "wallB" },
@@ -183,8 +131,7 @@ interface DrawableLength {
   readonly millimetres: number;
 }
 
-/** A wall's bar before its label is placed: the side a label goes on is read off the bars around it,
- *  so the drawing is laid out once and then labelled once. */
+/** A wall's bar before its label is placed: the label side is read off the bars around it. */
 type PlanWallBar = Omit<PlanWallRect, "labelPx">;
 
 interface PlanLayout {
@@ -193,8 +140,7 @@ interface PlanLayout {
   readonly contentPx: PlanBox;
 }
 
-/** The plan, from the draft's lengths and its corner direction and from nothing else: no cabinet, no
- *  placement, no catalogue and no depth. Identical arguments give an identical drawing. */
+/** The plan from the draft's lengths and corner direction alone: identical arguments give an identical drawing. */
 export function derivePlanPreview(draft: RoomDraft, box: PlanBox): PlanPreview {
   assertBoxCanHoldTheDrawing(box);
 
@@ -207,12 +153,7 @@ export function derivePlanPreview(draft: RoomDraft, box: PlanBox): PlanPreview {
     : drawn;
 }
 
-/**
- * The drawing reflected about the preview box's vertical centre line — the whole of what mirroring
- * does (criterion 13). No length changes, no wall changes identity, and applying it twice returns
- * the drawing it started from, which is the property that says this is a reflection rather than a
- * second layout.
- */
+/** The drawing reflected about the box's vertical centre line; applying it twice returns the original. */
 export function reflectPlanPreview(plan: PlanPreview): PlanPreview {
   if (plan.kind === "empty") return plan;
   return {
@@ -226,12 +167,9 @@ export function reflectPlanPreview(plan: PlanPreview): PlanPreview {
 }
 
 /**
- * Frame 1C's red wall, as a **second pure step over the drawn plan** (wave 7F2 criterion 7). Marking
- * is not geometry: a marked wall keeps its exact rectangle and its label's anchor, and gains only the
- * reason written in place of its length. A mark finds its wall by **id**, never by array index or by
- * side, so a mirrored plan carries it on the same wall; a mark for a wall the plan does not draw is
- * dropped with nothing drawn for it. Marks are set **exactly**: a wall the list does not name comes
- * back unmarked, even from a plan that was marked before.
+ * Frame 1C's red wall, as a second pure step over the drawn plan: a marked wall keeps its rectangle and label anchor
+ * and gains only the reason. Marks find a wall by id, never by index or side, and are set exactly, so a wall the list
+ * does not name comes back unmarked; a mark for a wall the plan does not draw is dropped.
  */
 export function markPlanWalls(
   plan: PlanPreview,
@@ -254,9 +192,8 @@ function withIssueMark(
     : { ...withoutIssueMark(wall), issueLabelKey: mark.labelKey };
 }
 
-/** The wall as `derivePlanPreview` drew it, whatever an earlier marking set on it: marks are set
- *  exactly, so a plan marked again with fewer marks loses the ones it no longer names. Rebuilt field
- *  by field, in the drawing's own order, so an unmarked wall serialises byte for byte as drawn. */
+/** The wall as drawn, whatever an earlier marking set on it. Rebuilt field by field in the drawing's own order, so
+ *  an unmarked wall serialises byte for byte as drawn. */
 function withoutIssueMark(wall: PlanWallRect): PlanWallRect {
   if (wall.issueLabelKey === undefined) return wall;
   return {
@@ -294,8 +231,7 @@ function drawFromTheCorner(
   };
 }
 
-/** What the label lane leaves of the box. The drawing is fitted into this and never into the whole
- *  box, which is the whole mechanism that keeps the lane clear. */
+/** What the label lane leaves of the box; the drawing is fitted into this, which keeps the lane clear. */
 function drawingRegionPx(box: PlanBox): PlanBox {
   return {
     widthPx: box.widthPx,
@@ -308,15 +244,9 @@ function belowTheLabelLane(originPx: PlanPointPx): PlanPointPx {
 }
 
 /**
- * **One isotropic scale for both axes** (criterion 12), and this wave's single deliberate departure
- * from frames 1A and 1B (ruling R4): the frame draws wall A at 250 px for 3600 mm and wall B at 50
- * px for 2400 mm — two scales — which would draw a 6000 x 1000 mm room as a square. The scale is the
- * largest that leaves the whole room inside the **region** on both axes, and it is arithmetic
- * nowhere else in this module: if the frame's literal proportions are ruled for instead, this
- * function is the only thing that moves.
- *
- * It is handed the drawing region rather than the box, so the label lane is already off it. Taking
- * the lane off here instead would put a second subtraction beside the scale.
+ * One isotropic scale for both axes: the largest that leaves the room inside the region on both axes. Frames 1A and
+ * 1B use two scales, which would draw a 6000 x 1000 mm room as a square. Handed the region, not the box, so the lane
+ * is subtracted once.
  */
 function isotropicScalePxPerMm(
   lengths: readonly DrawableLength[],
@@ -331,8 +261,7 @@ function isotropicScalePxPerMm(
   return Math.min(...limitsPxPerMm);
 }
 
-/** Wall A's own thickness is spent before a single millimetre of depth is drawn, because the walls
- *  running down the screen start below it — so it comes off the region before the scale is taken. */
+/** Wall A's thickness is spent before any depth is drawn, because the walls running down start below it. */
 function usableDepthPx(regionPx: PlanBox): number {
   return regionPx.heightPx - PLAN_WALL_THICKNESS_PX;
 }
@@ -350,8 +279,8 @@ function contentExtentPx(
   };
 }
 
-/** The drawing sits in the middle of the region, so the mirror line is also the drawing's own centre
- *  and a toggled corner moves the walls without moving the room across the card. */
+/** Centred in the region so the mirror line is the drawing's own centre and a toggled corner moves the walls without
+ *  moving the room across the card. */
 function centredOriginPx(content: PlanBox, regionPx: PlanBox): PlanPointPx {
   return {
     xPx: (regionPx.widthPx - content.widthPx) / 2,
@@ -413,9 +342,7 @@ function belowTheBackWallPx(layout: PlanLayout): number {
   return layout.originPx.yPx + PLAN_WALL_THICKNESS_PX;
 }
 
-/** Where a wall's length is written: above the drawing for a wall that runs across the screen, beside
- *  its own bar for one that runs down it. Which of the two a wall is comes from the rectangle it was
- *  drawn as and never from its letter — the letters' directions are stated once, in the anchor. */
+/** Above the drawing for the wall across the screen, beside its own bar for one that runs down it. */
 function labelFor(
   bar: PlanWallBar,
   bars: readonly PlanWallBar[],
@@ -426,9 +353,7 @@ function labelFor(
     : besideTheWall(bar, bars, box);
 }
 
-/** Frame 1B's own placement (`:135` and `:137`): centred over the wall, in the lane nothing is ever
- *  painted in. The drawing is centred in the box, so this anchor is the box's own middle and the
- *  text grows symmetrically out of it. */
+/** Frame 1B's placement: centred over the wall in the lane nothing paints in, so the text grows symmetrically. */
 function aboveTheWall(bar: PlanWallBar): PlanWallLabelPx {
   return {
     xPx: bar.xPx + bar.widthPx / 2,
@@ -438,16 +363,9 @@ function aboveTheWall(bar: PlanWallBar): PlanWallLabelPx {
 }
 
 /**
- * Beside the bar, at its middle, on **whichever side of it has the more room** — the room's inside
- * where the drawing leaves space there (frame 1B `:138`), the box's own margin where it does not.
- *
- * Choosing the side is the fix for a label written into pixels that do not exist: a U's far wall
- * stands at the drawing's right edge, so "always to the right of the bar" put *"C · 1200 mm"* past the
- * box and the customer saw three walls and two labels. The obstructions counted are only the bars
- * that actually cross the line the label is written on, so a wall stopping short of it is not read
- * as one. **A bar blocks a side as soon as it reaches past the wall's edge on that side**, not only
- * when it lies wholly beyond it: a U with a very short wall A draws B and C overlapping, and a label
- * sent towards the bar it overlaps was printed on it (7F2 S2).
+ * Beside the bar at its middle, on whichever side has more room: the room's inside where the drawing leaves space,
+ * else the box's margin ("always right" put a U's far wall label past the box). Only bars crossing the label's line
+ * count, and a bar blocks a side as soon as it reaches past the wall's edge on that side, not only when wholly beyond.
  */
 function besideTheWall(
   bar: PlanWallBar,
@@ -468,12 +386,8 @@ function besideTheWall(
 }
 
 /**
- * The line beside a wall that runs down the screen: centred on the bar, but **never starting above
- * the bar's own top**, which is where the wall across the screen ends. A bar drawn shorter than the
- * line is tall — wall B typed at 100 mm beside a 3600 mm wall A comes out under 9 px — would
- * otherwise centre the line up into wall A's bar, and a label beside B would be printed over A
- * (7F2 S2 QA finding 1). Held inside the box as well, so the floor never pushes a line off its
- * bottom. Decided from the bars and the line height only, never from the text.
+ * The line beside a wall running down the screen: centred on the bar but never above the bar's own top, where wall A
+ * ends (a 100 mm wall B beside a 3600 mm wall A is under 9 px tall), and held inside the box. Never from the text.
  */
 function lineBesideTheWallTopPx(bar: PlanWallBar, box: PlanBox): number {
   const centredTopPx = bar.yPx + bar.heightPx / 2 - PLAN_LABEL_LINE_PX / 2;
@@ -482,12 +396,9 @@ function lineBesideTheWallTopPx(bar: PlanWallBar, box: PlanBox): number {
 }
 
 /**
- * **Two walls drawn on one bar.** A U whose wall A draws no wider than a wall is thick puts wall C
- * exactly where wall B is, and neither blocks a side of the other — so both labels took the same
- * anchor and were printed over each other (7F2 S2 review, R1.1). The tie is broken by the walls'
- * ids, following the anchor rather than the pixels: B, which leaves the corner, is labelled on the
- * corner's outside, and C on the far side. This layout is the left-turning one, so a mirrored plan
- * carries each label with its wall.
+ * Two walls drawn on one bar (a U whose wall A is no wider than a wall is thick puts C where B is): the tie is broken
+ * by wall id, so B is labelled on the corner's outside and C on the far side. The layout is the left-turning one; a
+ * mirrored plan carries each label with its wall.
  */
 function sharesItsBarWithAnother(
   bar: PlanWallBar,
@@ -538,16 +449,13 @@ function crossesTheLine(bar: PlanWallBar, topPx: number): boolean {
   return bar.yPx < topPx + PLAN_LABEL_LINE_PX && bottomEdgePx(bar) > topPx;
 }
 
-/** A box too narrow to stand a label beside a wall keeps the anchor rather than putting it outside:
- *  a cramped label can still be read and a clipped one cannot. */
+/** A box too narrow to stand a label beside a wall keeps the anchor inside it: a cramped label can be read. */
 function insideTheBoxPx(xPx: number, box: PlanBox): number {
   return Math.min(Math.max(xPx, 0), box.widthPx);
 }
 
-/** Wall A leaves the corner along +X and is the one wall a plan draws across the screen; B and C
- *  leave it along +Z and run down it. The letter decides this *here*, where `placeWall` lays the bars
- *  out from the same constant — reading it back off the rectangle instead is ambiguous exactly where
- *  it matters, because a wall drawn shorter than a wall is thick is a bar taller than it is wide. */
+/** Wall A is the one wall drawn across the screen; B and C run down it. The letter decides here, where `placeWall`
+ *  lays the bars out from the same constant: a wall shorter than a wall is thick is a bar taller than wide. */
 function runsAcrossTheScreen(bar: PlanWallBar): boolean {
   return bar.wall === WALL_ACROSS_THE_SCREEN;
 }
@@ -586,8 +494,7 @@ const REFLECTED_ALIGNMENT: Readonly<
   rightAligned: "leftAligned",
 };
 
-/** The mirror line is the box's vertical centre, so a point at `x` lands at `boxWidth - x` and a
- *  rectangle's left edge is the reflection of its right one. */
+/** The mirror line is the box's vertical centre, so a point at `x` lands at `boxWidth - x`. */
 function reflectedXPx(xPx: number, box: PlanBox): number {
   return box.widthPx - xPx;
 }
@@ -600,10 +507,8 @@ function wallsAskedForBy(draft: RoomDraft): readonly DrawableWall[] {
 }
 
 /**
- * **The plan draws only once every wall the shape asks for reads as a length** (owner ruling
- * Q-7F2-3 = (a), wave 7F2 criterion 8): a part of one shape can be another shape's whole — a U
- * missing wall C is exactly an L, an L missing wall B exactly a linear room — so drawing whatever is
- * readable showed the customer a room they did not choose.
+ * The plan draws only once every wall the shape asks for reads as a length: a U missing wall C is exactly an L, so
+ * drawing the readable part would show a room the customer did not choose.
  */
 function isEveryWallReadable(
   draft: RoomDraft,
