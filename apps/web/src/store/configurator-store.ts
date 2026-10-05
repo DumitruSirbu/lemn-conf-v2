@@ -218,6 +218,17 @@ export interface ConfiguratorState {
    *  never been written successfully must not present a shareable link (write-path decision 17). */
   readonly hasPersistedSuccessfully: boolean;
   /**
+   * Whether a command has changed the design held here since it was loaded — the editor's own *"the
+   * customer has made an edit"* (M7C C1 S4, Q10). It answers one question, *is there anything for
+   * Back to lose*, and nothing else: it is not a save status and says nothing about the stored row.
+   *
+   * Only an **applied** command that **changed the design** sets it: a refusal or a selection leaves
+   * it false, and so does a command that succeeds while leaving the document as it was (re-pressing
+   * the handle already worn). `hydrate` clears it because a loaded design is by definition not yet
+   * edited. It is never written by a save: whether the write landed is `saveStatus`'s business.
+   */
+  readonly hasBeenEdited: boolean;
+  /**
    * Whether this browser holds the design's write credential (ADR 0019 decision 1), as the server
    * reported it on the load that produced this state — or `"checking"` / `"check-failed"` where no
    * load has answered yet. Published so §9's panel can disable what it cannot perform; it is a
@@ -393,6 +404,42 @@ function nowInIsoMilliseconds(): string {
   return new Date().toISOString();
 }
 
+/** What a command rewrites whether or not the customer's kitchen changed: the timestamp every success
+ *  moves, and the two projections of the frozen column map (`emptyColumns`, `columnExtents`), which
+ *  every command re-projects from the columns it was handed (`commands/reconcile-command-result.ts` in the domain) — so they
+ *  can differ after a command that changed nothing, and are never what the customer edited. */
+function withoutBookkeeping(design: Design): Design {
+  return {
+    ...design,
+    updatedAt: "",
+    emptyColumns: undefined,
+    columnExtents: undefined,
+  };
+}
+
+/** Whether a command left the document as it found it. Compared on the documents the store already
+ *  holds, so no command has to say whether it changed anything. */
+function hasSameContent(before: Design, after: Design): boolean {
+  return isDeepEqual(withoutBookkeeping(before), withoutBookkeeping(after));
+}
+
+function isDeepEqual(left: unknown, right: unknown): boolean {
+  if (Object.is(left, right)) return true;
+  if (typeof left !== "object" || typeof right !== "object") return false;
+  if (left === null || right === null) return false;
+  if (Array.isArray(left) !== Array.isArray(right)) return false;
+  const leftKeys = Object.keys(left);
+  const rightKeys = Object.keys(right);
+  return (
+    leftKeys.length === rightKeys.length &&
+    leftKeys.every(
+      (key) =>
+        Object.hasOwn(right, key) &&
+        isDeepEqual(Reflect.get(left, key), Reflect.get(right, key)),
+    )
+  );
+}
+
 /** Builds a fresh store instance for a fixed design/catalog pair. The app itself uses the single
  *  `useConfiguratorStore` instance below — this factory exists so tests never share state. */
 export function createConfiguratorStore(
@@ -446,7 +493,13 @@ export function createConfiguratorStore(
       // The catalogue follows the held depth. The probe no longer needs to: every consumer leases
       // at `cabinetDepthMmOf(design)` when it needs one, so nothing survives here that could still
       // describe the kitchen the store has left (ADR 0076 decision 2).
-      set({ ...application.state, catalog });
+      set({
+        ...application.state,
+        catalog,
+        hasBeenEdited:
+          state.hasBeenEdited ||
+          !hasSameContent(state.design, application.state.design),
+      });
       onDesignChanged(application.state.design);
     };
 
@@ -658,6 +711,7 @@ export function createConfiguratorStore(
       saveStatus: "idle",
       canWrite: options.canWrite ?? true,
       hasPersistedSuccessfully: designId !== null,
+      hasBeenEdited: false,
       hydrate: (loaded) => {
         // The load half of the invariant, and where it actually bit: `/api/designs/[id]` already
         // answers with a document carrying its own `settings.cabinetDepthMm`, so a store that
@@ -677,6 +731,7 @@ export function createConfiguratorStore(
           revision: loaded.revision,
           canWrite: loaded.canWrite,
           hasPersistedSuccessfully: true,
+          hasBeenEdited: false,
           // A save status is evidence about the generation that produced it and about no other,
           // which is the same reason `save-coalescer.ts` binds jobs and refusals to identity.
           // Carried across, `unauthorized` would render a freshly loaded design this browser owns as

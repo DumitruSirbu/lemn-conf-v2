@@ -253,7 +253,7 @@ test("the review CTA is still text: a span with no role, no tab stop, no pointer
   ).toEqual([]);
 });
 
-test("the browser's own Back leaves the editor for Step 1 without the question (recorded, not ruled)", async ({
+test("in an untouched editor opened by its link, the browser's own Back leaves for Step 1 without the question (S3's record; S4 asks only after an edit in an editor reached from Step 1)", async ({
   page,
   seededDesign,
 }) => {

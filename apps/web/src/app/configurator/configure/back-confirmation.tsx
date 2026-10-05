@@ -20,8 +20,30 @@ export function BackConfirmation({
   readonly roomHref: string;
   readonly onStay: () => void;
 }) {
-  const { backConfirm } = useContent().configure;
   const router = useRouter();
+
+  return (
+    <BackConfirmationDialog
+      onConfirm={() => {
+        router.push(roomHref);
+      }}
+      onStay={onStay}
+    />
+  );
+}
+
+/**
+ * The same question, for a caller that leaves some other way than a link — the browser's Back
+ * (`use-back-guard.ts`). The wording is the one set of leaves, whoever asks.
+ */
+export function BackConfirmationDialog({
+  onConfirm,
+  onStay,
+}: {
+  readonly onConfirm: () => void;
+  readonly onStay: () => void;
+}) {
+  const { backConfirm } = useContent().configure;
 
   return (
     <ConfirmationDialog
@@ -32,9 +54,7 @@ export function BackConfirmation({
         backLabel: backConfirm.stay,
       }}
       testIdPrefix={TEST_ID_PREFIX}
-      onConfirm={() => {
-        router.push(roomHref);
-      }}
+      onConfirm={onConfirm}
       onStay={onStay}
     />
   );

@@ -23,10 +23,11 @@ import { detectWebGLSupport } from "@/scene/webgl-support";
 import { useConfiguratorStore } from "@/store/configurator-store";
 
 import styles from "./configure.module.css";
-import { BackConfirmation } from "./back-confirmation";
+import { BackConfirmation, BackConfirmationDialog } from "./back-confirmation";
 import { LocaleMenu } from "./locale-menu";
 import { SelectionDebug } from "./selection-debug";
 import { useBackConfirmation } from "./use-back-confirmation";
+import { useBackGuard } from "./use-back-guard";
 import { useTopBarFit } from "./use-top-bar-fit";
 
 // The canvas never renders on the server, and its bundle is only fetched on the step that needs 3D.
@@ -68,6 +69,10 @@ export function ConfigureScreen({
   // names, and what the row gives up to leave room for them. See `use-top-bar-fit.ts`.
   const topBar = useTopBarFit();
   const backConfirmation = useBackConfirmation();
+  const backGuard = useBackGuard({
+    isOwner: variant === "owner",
+    isLinkQuestionOpen: backConfirmation.isAsking,
+  });
 
   useEffect(() => {
     setSupport(detectWebGLSupport() ? "supported" : "unsupported");
@@ -258,6 +263,14 @@ export function ConfigureScreen({
       )}
       {backConfirmation.isAsking && (
         <BackConfirmation roomHref={roomHref} onStay={backConfirmation.stay} />
+      )}
+      {/* The same question, asked of the browser's Back (`use-back-guard.ts`): the guard hook never
+          opens it while the links' own is open, so the two are never on screen together. */}
+      {backGuard.isAsking && (
+        <BackConfirmationDialog
+          onConfirm={backGuard.confirm}
+          onStay={backGuard.stay}
+        />
       )}
       {/* The hidden nodes the row's fit is measured from. They stand outside every cell they are
           about: the wordmark's probe is not in the nav, so dropping the wordmark cannot destroy the

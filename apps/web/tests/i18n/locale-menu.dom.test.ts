@@ -586,4 +586,32 @@ describe("the menu closes when the customer is done with it", () => {
       null,
     );
   });
+
+  it("does not navigate for the language already showing — that would rewrite the entry the customer stands on", () => {
+    renderAt("ro", "/ro/d/qa-design");
+    openMenu();
+    const click = (target: HTMLElement, init: MouseEventInit = {}) => {
+      const event = new MouseEvent("click", {
+        bubbles: true,
+        cancelable: true,
+        ...init,
+      });
+      act(() => {
+        target.dispatchEvent(event);
+      });
+      return event;
+    };
+
+    expect(click(optionFor("ro")).defaultPrevented).toBe(true);
+    expect(
+      document.activeElement,
+      "focus returns to the trigger, not to <body>",
+    ).toBe(trigger());
+    openMenu();
+    expect(click(optionFor("ru")).defaultPrevented).toBe(false);
+    openMenu();
+    expect(click(optionFor("ro"), { ctrlKey: true }).defaultPrevented).toBe(
+      false,
+    );
+  });
 });

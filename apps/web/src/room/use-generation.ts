@@ -52,6 +52,7 @@ import {
 } from "@lemnaria/configurator-domain";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { recordEditorOpenedFromStepOne } from "@/app/configurator/configure/back-guard";
 import { useRouter } from "@/i18n/navigation";
 
 import {
@@ -431,6 +432,9 @@ function useDesignRoute(): (id: DesignId) => void {
   });
 
   return useCallback((id: DesignId) => {
+    // Recorded before the push so the editor's first render already finds it: this is the only
+    // entry that has Step 1 behind it, and what lets Back there ask first (M7C C1 S4).
+    recordEditorOpenedFromStepOne(id);
     latestRouter.current.push(`/d/${encodeURIComponent(id)}`);
   }, []);
 }

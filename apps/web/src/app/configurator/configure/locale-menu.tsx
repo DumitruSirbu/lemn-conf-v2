@@ -18,6 +18,7 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type {
   FocusEvent as ReactFocusEvent,
   KeyboardEvent as ReactKeyboardEvent,
+  MouseEvent as ReactMouseEvent,
 } from "react";
 
 import { flagOf } from "@/i18n/locale-flags";
@@ -47,9 +48,10 @@ export function LocaleMenu() {
     setState("closed");
   }, []);
 
-  /** Escape leaves the customer where they started, so focus goes back to the control they opened.
-   *  A chosen language navigates away and a dismissal by pointer or by Tab has already moved focus
-   *  somewhere the customer chose, so neither of those comes through here. */
+  /** Escape leaves the customer where they started, so focus goes back to the control they opened — and
+   *  so does choosing the language already showing, which navigates nowhere. A different language
+   *  navigates away, and a dismissal by pointer or by Tab has already moved focus somewhere the
+   *  customer chose, so neither of those comes through here. */
   const closeAndRestoreFocus = useCallback(() => {
     setState("closed");
     triggerRef.current?.focus();
@@ -167,7 +169,11 @@ export function LocaleMenu() {
                 ref={(node) => {
                   optionRefs.current[index] = node;
                 }}
-                onClick={close}
+                onClick={(event) => {
+                  stayWhereTheCustomerIs(event, choice.isCurrent);
+                  if (choice.isCurrent) closeAndRestoreFocus();
+                  else close();
+                }}
                 onKeyDown={(event) => {
                   handleOptionKey(event, index);
                 }}
@@ -181,4 +187,21 @@ export function LocaleMenu() {
       ) : null}
     </div>
   );
+}
+
+/**
+ * Choosing the language already showing changes nothing, so it navigates nowhere. It used to follow its
+ * own link. Reading Next's source, a soft navigation to the URL the entry already has rewrites that
+ * entry's state (`app-router.js:51-66`, `segment-cache/navigation.js:461`), which would strip the
+ * marker off the browser-Back guard when the customer is standing on it (M7C C1 S4) — a reading that
+ * did **not** reproduce in Chromium, so this is a precaution and a pointless navigation removed, not a
+ * fixed defect. A click that opens a new tab or window is left alone: it leaves this page as it is.
+ */
+function stayWhereTheCustomerIs(
+  event: ReactMouseEvent<HTMLAnchorElement>,
+  isCurrent: boolean,
+): void {
+  const isOpeningElsewhere =
+    event.metaKey || event.ctrlKey || event.shiftKey || event.altKey;
+  if (isCurrent && !isOpeningElsewhere) event.preventDefault();
 }
