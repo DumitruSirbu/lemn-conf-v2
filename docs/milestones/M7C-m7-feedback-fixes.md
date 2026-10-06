@@ -1291,6 +1291,27 @@ Committed on `m7c-m7-feedback-fixes`, not pushed; the pre-commit hook ran, forma
 | S2 | **Write access arriving late** (group 1: `share-design:96`, `qa-7e3c-share:638`, `qa-u7s0-ssr:271`, `u-gate-journeys:648`). Class open: the server answers `canWrite=true` inside the window and the trigger stays disabled 4.6–14.8 s; two traces show a probe for the *previous* design after the client transition and the target's own probe ~7 s later. Investigate in source before any fix; a defect here is Full tier with security review (criterion 3). | from the investigation | S0's group-1 traces; the write-access probe's source; ADR 0114 |
 | S3 | **Runner-only, not reproduced locally** (`pixel-counter-witness:352`, `room-desktop-line:551`, `top-bar-pill-containment:788`, and C1 S3's `top-bar-back…desktop:179` Ctrl-click, 1 of 7 in the suite; added by S1: `u-gate-journeys.ts:374` wall C void tap selects `right-p25`, desktop CI mode only, 3 of 10 alone, fails without S1's change too). Settled by the first runner result after S1/S2. | from the runner | S0's traces |
 
+**CE S0, S1, S3a as built — 2026-10-06** (S1 `fecd430`, S3a `d015738`; hooks ran; not pushed past
+`77b44c4`; figures relayed from the coordinator and implementer).
+
+- **S0's triage, in brief.** Mirror captures: deterministic on a production build, so S1. Write access
+  (group 1): **not established** as a timeout; the server answered `canWrite=true` in time and the trigger
+  stayed disabled 4.6-14.8 s, and two traces show a probe for the previous design first and the target's
+  about 7 s later, so S2. `pixel-counter-witness`, `room-desktop-line`, `top-bar-pill-containment`:
+  runner-only, so S3. Whole-suite extras: backlog 114's eight; the `global-settings-apply` race; C1 S3's
+  `top-bar-back` Ctrl-click, 1 of 7; `u-gate-journeys:374` wall-C void tap, 3 of 10, desktop CI mode.
+- **Correction to S0's note.** The plan's *"a local run cannot exercise"* the CI bound of
+  `CI ? 4 : 7` is wrong: `CI=true` locally does.
+- **S1 as built.** The mirror flag in the `webServer.env`; page-level gate unit tests for scene-shot and
+  mirror-shot; backlog 114's two helpers restated (backlog 114 closed); the settings save awaited.
+- **S3a as built.** The Step 1 plan-paint count is document-wide DOM batches with bounds dev 9, CI 7, and
+  the commit-timing and border legs pinned in a unit test. Measurements and the revisit trigger:
+  **ADR 0139 decision 11.** A runner count above 7 means re-measure, not another bump.
+- **Gate findings.** Two pre-push gate runs were blocked by intermittent e2e failures: the first by a
+  500 on the share POST (backlog 117, unexplained), the second by the count (8 > 7) before S3a. The gate
+  runs 8 workers against one dev server; the runner uses 1.
+- **Next.** The push (owner-approved after S1), then S2 and S3 from the runner's result, then C6.
+
 *Read from the CI log by S0's agent, 2026-10-01 [log-verified; nothing run].* Group 1, four tests:
 `toBeEnabled` on `global-settings-trigger`, stuck at *"Se verifică accesul"*; A5 still so after 15 s,
 which points at the write-access probe not answering on a production build rather than at a tight

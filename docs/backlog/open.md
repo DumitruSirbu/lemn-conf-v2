@@ -2122,7 +2122,7 @@ specs catch it, `top-bar-back.qa-m7c-c1-s3.adversarial.desktop.e2e.spec.ts` and 
 `configure/`, now use it as well as the settings strip. The extraction was for reuse and not a move
 (M7C plan, C1 S3). **Trigger:** a third asker. Then move it to a shared location. No owner, no phase.
 
-## 114. Two e2e helpers break on the generated top row — FOUND 2026-10-02 BY C3 S1's QA, OWED TO WAVE CE
+## 114. Two e2e helpers break on the generated top row — FOUND 2026-10-02 BY C3 S1's QA — CLOSED 2026-10-06, FIXED IN `fecd430` (CE S1)
 
 **Read by QA, not run [relayed].** (1) `apps/web/tests/e2e/support/qa-u5-cutaway.ts:101, :145, :233`: wall
 B's top-row openings in the U 3000 fixture drop from three to one, and the taps aim at the wall's middle and
@@ -2142,3 +2142,15 @@ the same millimetre. If either figure moves, the pin goes red first. No owner, n
 Generation continues past a refused top insert, as it does for the wall row. None occurs in the census, and
 a property test now fails if one appears [relayed]. If it ever does, the customer sees a kitchen with no
 top cabinet over that body and no explanation. No owner, no phase.
+
+## 117. An intermittent 500 on `POST /api/designs/{id}/share` — FOUND 2026-10-06 BY THE PRE-PUSH GATE, UNEXPLAINED
+
+**Observed [coordinator-run].** The first pre-push gate run on 2026-10-06 failed
+`linear-flow.e2e.spec.ts:22` (mobile) because the share POST answered 500. The server log shows
+`⨯ SyntaxError: Unexpected end of JSON input at JSON.parse` for that page, and **no `reportDesignFailure`
+log line before it**, which the route's catch would emit. Unexplained. It passed 5 of 5 run alone
+afterwards. No M7C change touches the share route or persistence. **Inference, not verified:** an empty
+response from the remote test database's HTTP driver. **Also noted:** the pre-push gate runs Playwright
+with 8 workers against one dev server while the runner uses 1, so the gate sees more load than the
+runner; the second gate run failed on criterion 8 (8 > 7) before CE S3a (ADR 0139 decision 11). No owner,
+no phase; re-open if it recurs on the runner.

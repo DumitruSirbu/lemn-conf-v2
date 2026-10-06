@@ -168,3 +168,41 @@ decision 11. Cite as `see ADR 0139 decision N`.
   and `docs/backlog/` for the case (`Activity`): no record (`docs/STATUS.md` mentions `Activity` for an
   unrelated defect).
 - **Where.** `apps/web/src/room/use-generation.ts` (the effect that maintains `screenIsShowing`).
+
+## Decision 11 — Step 1's desktop plan paints the phone drawing first, and the e2e counts it in DOM batches with measured load headroom
+
+*Added 2026-10-06 by M7C wave CE S3a (`d015738`). Unlike decisions 1 to 10 this one is measured, not
+recovered; its tiers are labelled per claim, in the style of ADR 0136's addendum. The test file points
+here as `ADR 0139 d11`.*
+
+- **Why a count of zero is unreachable.** There is no server-side viewport hint, and the phone's
+  server-rendered markup must stay byte-identical at every viewport, so a desktop load paints the
+  unmeasured phone drawing first. This is 7L's R9. [implementer-run] **Revisit trigger:** a server-side
+  viewport hint, or the owner calling the flash jarring.
+- **What the e2e counts.** Document-wide `MutationObserver` batches, not frames: a 134-record parse batch,
+  Next's streamed `<script nonce>` inserts, a `<style>` insert, hydration `INPUT` attribute fixes, and
+  the measured flip. The count therefore rises with machine load. A box-scoped count reads 1 of 2 on every
+  leg, fixed or reverted, so it is blind to commit timing, which is why the recorder is document-wide.
+  [implementer-run]
+- **Bounds: dev 7 to 9, CI 4 to 7**, each the highest count at the heaviest slowdown tried. [implementer-run;
+  the coordinator re-ran only the unit suites]
+  - Unloaded, HEAD `fecd430`: dev 7/7 (44 of 44 alone; 20 of 20 in shard 2/3). CI 4/3 (44 of 44; shard 2/3
+    first load 4 x15, 3 x5).
+  - 8 workers (the pre-push gate's default here; the runner uses 1), 480 loads: dev first 7 x479, 8 x1;
+    reload 6 x3, 7 x456, 8 x21. CI first 3 x361, 4 x118, 5 x1; reload 3 x474, 4 x6.
+  - CPU throttle: dev 2x max 8; 3x 8 x10 and 9 x110 across both loads; 4x max 9. CI 2-3x: 5 first, 4
+    reload; 4x first 5 x70, 6 x10; 5x first 6 x18, 6x first 5 x23, 6 x55, 7 x2, reload max 6.
+  - **Runner datum:** run 36841795476 (on `2615b51`) read 6 on first load; the runner is about 4.4x this
+    laptop. **The CI bound of 7 is an inference until a runner run confirms it. A runner count above 7
+    means re-measure, not another bump.**
+- **M7C is not a cause.** Pre-M7C `2615b51` measured identically in every condition. [implementer-run]
+- **What guards what now.** The e2e count covers convergence only (plus: every paint inside the window is
+  the phone render, every paint after it measured and box-sized) and **can no longer see a one-paint
+  regression**: 7L measured the `useEffect` revert at 8 dev / 5 CI, both now under the bounds. The
+  commit-timing leg is pinned in `apps/web/tests/room/plan-preview.dom.test.ts`: a later sibling's layout
+  effect sees exactly one `ResizeObserver` on the plan box (sabotage `useLayoutEffect` to `useEffect` is
+  red). The border leg, that the awaiting-measurement box already carries `--plan-box-border`, is pinned
+  there too; it had **no** unit guard before (coordinator sabotage: all 1951 room tests stayed green
+  without it).
+- **Rejected alternative.** A hydrated-but-unmeasured frame count: it also rises with load.
+- **Where.** `apps/web/tests/room/plan-preview.dom.test.ts` and `apps/web/tests/e2e/room-desktop-line.desktop.e2e.spec.ts` (`MAX_PRE_HYDRATION_PLAN_PAINTS`).
