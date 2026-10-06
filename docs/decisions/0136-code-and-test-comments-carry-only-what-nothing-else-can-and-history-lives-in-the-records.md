@@ -73,3 +73,7 @@ scene), [0141](0141-romanian-copy-rulings-recovered-from-the-copy-lock-and-a-tes
 (items 1 and 2) and [ADR 0127](0127-step-1s-url-follows-the-typed-room-and-a-late-echo-is-still-ours.md)
 (decision 11). Every filed reason carries the evidence tier "recovered from a code comment on
 2026-10-06, not re-measured".
+
+Five logic reviewers audited the source lanes, not only the first batch, and 34 comment corrections
+followed. The four reasons those audits found kept only in words were filed the same day: ADR 0137
+decision 8, ADR 0142 decision 10, and ADR 0139 decision 9 (open question) and decision 10 (known gap).

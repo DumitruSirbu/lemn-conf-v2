@@ -21,7 +21,12 @@ without attribution and are not presented as owner rulings. Cite as `see ADR 014
 - **Why a literal in the test.** "A constant read from the production file would agree with itself": the
   test writes `CORNER_OVERHANG_M = 0.3` as the expectation rather than importing it from the module under
   test.
-- **Where.** `packages/three-adapter/tests/kitchen-shell.room-shaped.test.ts`.
+- **Why the overhang is fixed, and what it costs.** The floor and the two wall planes run this far past
+  the corner "so the planes meet without a visible seam"; it is "fixed, not proportional: a construction
+  detail, not a room dimension" (the `CORNER_OVERHANG_M` comment in `kitchen-shell.ts`). At a 900 mm wall
+  a third of the 1200 mm plane sits behind the corner: **accepted appearance, not a defect**.
+- **Where.** `packages/three-adapter/tests/kitchen-shell.room-shaped.test.ts`;
+  `packages/three-adapter/src/kitchen-shell.ts` (`CORNER_OVERHANG_M`).
 
 ## Decision 2 — the wall-A backsplash follows the room's wall A, not the records and not a literal 3.5 m
 

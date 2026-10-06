@@ -141,3 +141,30 @@ decision 11. Cite as `see ADR 0139 decision N`.
   but does **not** state this rule; the code comment's earlier pointer to it is superseded by this
   decision.
 - **Where.** `apps/web/src/room/plan-preview-model.ts` (`PLAN_WALL_THICKNESS_PX`).
+
+## Decision 9 — OPEN QUESTION, not a decision: what 1F draws for a design written while the customer was away
+
+- **State.** Undecided, and unreachable until `next.config.ts` sets `cacheComponents` (the `HandoffStatus`
+  comment's words). `HandoffStatus` has no "not started" member (the hand-off begins in the transition that
+  first holds a design); `saved` is distinct from `saving` only so `ComposeCta` can tell "wait" from
+  "done", and the two are drawn identically.
+- **Trigger.** Setting `cacheComponents` is when the case becomes reachable (the comment). That a ruling
+  is owed then is an inference, not stated in the comment.
+- **Evidence tier.** Recovered from a code comment on 2026-10-06, not re-measured. Searched
+  `docs/decisions/` and `docs/backlog/` for `cacheComponents`: no record.
+- **Where.** `apps/web/src/room/use-generation.ts` (`HandoffStatus`).
+
+## Decision 10 — KNOWN GAP, not a decision: a composition running when the screen goes away is dropped where it settles
+
+- **State.** When the screen goes away (unmount, or Next hiding the route inside React's `<Activity>`,
+  which runs cleanups and keeps state) the hand-off's navigation is disarmed (`screenIsShowing`); a write
+  in flight still lands. Nothing is resumed: a composition still running at that moment is dropped where
+  it settles, so a route hidden by `<Activity>` at that instant comes back showing the pending list for
+  ever. The screen-going-away flag is deliberately separate from the run token, because under `<Activity>`
+  a hidden route keeps the composed kitchen and its retry control, and retiring the token would refuse to
+  open the row the retry wrote.
+- **Status.** Recorded, not fixed; no trigger is stated in the comment.
+- **Evidence tier.** Recovered from a code comment on 2026-10-06, not re-measured. Searched `docs/decisions/`
+  and `docs/backlog/` for the case (`Activity`): no record (`docs/STATUS.md` mentions `Activity` for an
+  unrelated defect).
+- **Where.** `apps/web/src/room/use-generation.ts` (the effect that maintains `screenIsShowing`).

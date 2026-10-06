@@ -135,11 +135,30 @@ are not restated as fresh measurements. Where the comment gave no reason, the de
   arithmetic an L's own narrow prefix wall already uses."
 - **Related, recorded.** [ADR 0130](0130-a-straight-kitchen-is-the-composers-run-on-one-wall-with-no-corner.md)
   decision 3 (`wallLengthMm("B", linear) = 0`) and decision 5 (the L's composer with the one wall as the
-  suffix and an empty prefix). ADR 0130's status is **Proposed**; this decision is the mechanism the
-  code relies on and does not change that status. The comment's earlier citation ("ADR 0130 D5/D6")
+  suffix and an empty prefix). ADR 0130 was Proposed when this record was written and was **Accepted by
+  owner ruling on 2026-10-06**; this decision is the mechanism the code relies on. The comment's earlier citation ("ADR 0130 D5/D6")
   points at decisions 5 and 6 there; decision 6 is *no corner, no direction*, so the substance sits in
   decisions 3 and 5.
 - **Where.** `packages/configurator-domain/src/generation/generate-kitchen.ts` (`shellRunsFor`).
+
+## Decision 8 — a side whose move opens a gap sends the width scan to the other side; refusal needs every side to open one
+
+- **Rule.** In `fundColumnResize` each side is carried all the way through the rebuild, and a side
+  whose move would leave an opening standing over a body (`opens_a_gap`, the per-side form of
+  `RESIZE_OPENS_GAP`) is a per-side answer, not a verdict: the scan carries on to the other side.
+  `RESIZE_OPENS_GAP` is refused only when every side's move opens one. The three width-scan codes are
+  one scan ordered by how far it got (`COLUMN_KEY_COLLISION` > `RESIZE_OPENS_GAP` > `NO_EMPTY_SPACE`).
+- **Why.** Choosing a side before the phantom check would let extra free space turn a legal move
+  illegal; the comment's example is a right column widened to 900 mm over the corner leg `p25`. At most
+  two attempts, so the probe runs up to twice. Any other rebuild refusal (a built-size mismatch, an
+  unmeasurable body, a drifted column) is a fact about the bodies and the width, identical on both
+  sides, and returns at once.
+- **Citation fix.** The comments formerly cited "FINDING Q1.2", which is in no decision record (searched
+  `docs/decisions/` on 2026-10-06; it appears only in an archived milestone). Related, recorded: ADR
+  0031 rule 2 (the phantom test) and ADR 0035 decision 7.
+- **Evidence tier.** Recovered from a code comment on 2026-10-06, not re-measured.
+- **Where.** `packages/configurator-domain/src/commands/set-width.ts` (`fundColumnResize`);
+  `commands/rejection.ts` (`RESIZE_OPENS_GAP`, `EmptySpaceRefusal`).
 
 ## Consequences
 

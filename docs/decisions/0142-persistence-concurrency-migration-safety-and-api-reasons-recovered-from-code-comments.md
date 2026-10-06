@@ -74,9 +74,10 @@ in `docs/STATUS.md` and `docs/backlog/open.md` (a few entries), not in an ADR. C
   and only on requests that were failing anyway". No jitter at this traffic level.
 - **Declined shapes.** A fetch-level failure the driver wraps with no payload in the message, and a
   non-JSON gateway body such as a 502.
-- **Why it matters.** `apps/web/src/app/d/[id]/page.tsx` loads a shared design on the server and declares no
-  `error.tsx` boundary, so a cold start there is a customer opening a shared link and getting Next's
-  default server-error page.
+- **Why it matters.** Per the code comment, the `/d/{id}` and `/s/{token}` pages rethrow every error but
+  their mapped ones and the app declares no `error.tsx`, so a cold start there shows a customer opening
+  a link Next's default error page. (An earlier version of this record named a file that does not
+  exist; the routes are the comment's own.)
 - **Where.** `packages/persistence/src/retry-on-compute-restart.ts`.
 
 ## Decision 4 — the unattended-migration screen refuses unmodelled lexical constructs and constrains DO blocks to one template
@@ -204,3 +205,17 @@ decision 5 (additive, idempotent migrations run unattended; the rest need a huma
   trade was laid out, chose the 14-day window plus a ceiling). Recorded there by the owner's choice as
   that entry states it; not re-confirmed on 2026-10-06.
 - **Where.** `apps/web/src/lib/server/backup-designs.ts` (`MAX_RETAINED_BACKUPS`).
+
+## Decision 10 — a save restamps `schema_version`, which is safe because a normalised document is a fixed point of every older arm
+
+- **Rule.** `updateIfCurrent` writes `schema_version = CURRENT_SCHEMA_VERSION` with the document.
+  The property it relies on, and that **any future `migrateDesign` arm must keep**: a normalised document
+  is a fixed point of every arm below the current version (re-running an older arm on it changes
+  nothing), so the restamp is safe in both directions.
+- **Why.** The document was produced by this build; a row left at its minted version would keep asking for
+  an older normalisation arm on every load, so that arm could never be removed.
+- **Evidence note.** Searched `docs/decisions/` and `docs/backlog/` on 2026-10-06 for the restamp and
+  fixed-point property: no decision record states it. `docs/milestones/M6-price-and-global-settings.md`
+  (a plan, line "The migration is a fixed point") states the property for one migration only.
+- **Evidence tier.** Recovered from a code comment on 2026-10-06, not re-measured.
+- **Where.** `packages/persistence/src/neon-configuration-repository.ts` (`updateIfCurrent`).
