@@ -3,7 +3,7 @@ import { migrateDesign } from "@lemnaria/configurator-domain";
 import { neon } from "@neondatabase/serverless";
 
 import { readDatabaseUrl } from "./read-database-url.js";
-import { retryOnComputeRestart } from "./retry-on-compute-restart.js";
+import { retryOnTransientFailure } from "./retry-on-transient-failure.js";
 import { requireSha256Digest } from "./sha256-digest.js";
 
 /**
@@ -52,7 +52,7 @@ export interface ShareLinkRepository {
   loadShared(tokenHash: string): Promise<LoadSharedOutcome>;
 }
 
-/** The row `issue`'s final statement returns only when its own predicate matched. */
+/** The row `issue`'s final statement returns only when its token names a link of the credentialed design. */
 interface IssuedRow {
   token_hash: string;
 }
@@ -84,18 +84,21 @@ export class NeonShareLinkRepository implements ShareLinkRepository {
   }
 
   /**
-   * Mints a new active link for a design, revoking whatever was active first. The partial unique index `0006` adds also
-   * enforces one active link per design, and this transaction keeps a re-issue from colliding with it.
+   * Mints a new active link for a design, revoking whatever was active first. One transaction of four statements, each
+   * carrying the full credential predicate because the predicate is the security control: (1) `select … for update`
+   * locks the design row; (2) every other active link is revoked; (3) the new row is inserted from a credentialed
+   * `select`, so an unauthorised call inserts nothing; (4) the link under this token, active or not, is read back, and
+   * its presence is what tells `issued` from `refused`.
    *
-   * Three statements, each carrying the full credential predicate because the predicate is the security control:
-   * (1) `select … for update` locks the design row, serialising concurrent issues; (2) the active row, if any, is
-   * revoked; (3) the new row is inserted from a `select` that re-checks the credential, so an unauthorised call inserts
-   * nothing. `token_hash` read back off the insert tells `issued` from `refused`.
+   * Repeating after a lost acknowledgement ends in the same rows and the same answer: `tokenHash` is fixed before the
+   * retried callback, (2) revokes nothing once that token exists (a later issue or revoke by another tab stands), (3) is
+   * `on conflict do nothing`, and (4) ignores `revoked_at`. A token owned by another design is refused untouched.
+   * On a retry only, (4) also drops the visitor condition: a mint in another tab may have rotated the visitor since the
+   * first attempt landed, and a link under this call's own token proves that attempt was authorised.
    *
    * READ COMMITTED is load-bearing: a second issue blocked on (1) takes a fresh snapshot per statement, so it sees the
-   * first's committed insert and revokes it before inserting its own, leaving exactly one active row. Under
-   * `RepeatableRead` or `Serializable` its snapshot predates that commit and its insert would collide with `0006`'s
-   * index. `isolationLevel` is stated so a change to `neon()`'s default cannot silently pick the other outcome.
+   * first's committed insert and revokes it before inserting its own. Under a stricter level its insert would collide
+   * with `0006`'s one-active-link index. See ADR 0145.
    */
   async issue({
     designId,
@@ -104,13 +107,9 @@ export class NeonShareLinkRepository implements ShareLinkRepository {
     tokenHash,
   }: IssueShareLink): Promise<ShareLinkIssueOutcome> {
     requireSha256Digest(tokenHash, "token hash", "issue a share link");
-    // `tokenHash` is fixed before the retried callback, as the mint's id is: a fresh token per retry would leave an
-    // unacknowledged attempt's link live under a token the customer never saw. A lost acknowledgement retries into a
-    // primary-key collision, surfaced as an error rather than as two links.
-    //
-    // The credential predicate is repeated in each statement: a tagged-template `sql` binds interpolations as
-    // parameters, so a query built by one `sql` call cannot be interpolated into another.
-    const [, , inserted] = (await retryOnComputeRestart(() =>
+    // A tagged-template `sql` binds interpolations as parameters, so one `sql` query cannot be interpolated into
+    // another and the credential predicate is repeated in each statement.
+    const [, , , issued] = (await retryOnTransientFailure(({ isRetry }) =>
       this.sql.transaction(
         [
           this.sql`
@@ -124,6 +123,9 @@ export class NeonShareLinkRepository implements ShareLinkRepository {
             update design_share_links
             set revoked_at = now()
             where revoked_at is null
+              and not exists (
+                select 1 from design_share_links where token_hash = ${tokenHash}
+              )
               and design_id = (
                 select id from designs
                 where id = ${designId}
@@ -137,15 +139,23 @@ export class NeonShareLinkRepository implements ShareLinkRepository {
             where id = ${designId}
               and write_token_hash = ${writeTokenHash}
               and visitor_hash = ${visitorHash}
-            returning token_hash
+            on conflict (token_hash) do nothing
+          `,
+          this.sql`
+            select s.token_hash from design_share_links s
+            join designs d on d.id = s.design_id
+            where s.token_hash = ${tokenHash}
+              and d.id = ${designId}
+              and d.write_token_hash = ${writeTokenHash}
+              and (d.visitor_hash = ${visitorHash} or ${isRetry})
           `,
         ],
-        // Pinned (see the doc comment above): Postgres's own default, explicit so it cannot drift unseen.
+        // Pinned: Postgres's own default, explicit so a change to `neon()`'s default cannot silently pick the other.
         { isolationLevel: "ReadCommitted" },
       ),
-    )) as [unknown[], unknown[], IssuedRow[]];
+    )) as [unknown[], unknown[], unknown[], IssuedRow[]];
 
-    return inserted.length > 0 ? "issued" : "refused";
+    return issued.length > 0 ? "issued" : "refused";
   }
 
   /** One statement, one snapshot: the CTE asks whether the credential authorises anything, the update revokes the
@@ -155,7 +165,7 @@ export class NeonShareLinkRepository implements ShareLinkRepository {
     credentials: ShareLinkCredentials,
   ): Promise<ShareLinkRevokeOutcome> {
     const { designId, writeTokenHash, visitorHash } = credentials;
-    const rows = (await retryOnComputeRestart(
+    const rows = (await retryOnTransientFailure(
       () => this.sql`
         with authorised as (
           select 1 from designs
@@ -185,7 +195,7 @@ export class NeonShareLinkRepository implements ShareLinkRepository {
     credentials: ShareLinkCredentials,
   ): Promise<ShareLinkStatusOutcome> {
     const { designId, writeTokenHash, visitorHash } = credentials;
-    const rows = (await retryOnComputeRestart(
+    const rows = (await retryOnTransientFailure(
       () => this.sql`
         select
           exists (
@@ -212,7 +222,7 @@ export class NeonShareLinkRepository implements ShareLinkRepository {
   /** No credential and no `requireSha256Digest`: a malformed token hash matches no row, because `0006`'s check
    *  constraint admits nothing else. It selects no id, so the caller learns only the migrated document. */
   async loadShared(tokenHash: string): Promise<LoadSharedOutcome> {
-    const rows = (await retryOnComputeRestart(
+    const rows = (await retryOnTransientFailure(
       () => this.sql`
         select d.schema_version, d.document
         from design_share_links s

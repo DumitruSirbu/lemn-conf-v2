@@ -8,7 +8,7 @@ import { neon } from "@neondatabase/serverless";
 
 import type { DesignRevision } from "./design-revision.js";
 import { generateDesignId } from "./generate-design-id.js";
-import { retryOnComputeRestart } from "./retry-on-compute-restart.js";
+import { retryOnTransientFailure } from "./retry-on-transient-failure.js";
 import { readDatabaseUrl } from "./read-database-url.js";
 import { requireSha256Digest } from "./sha256-digest.js";
 
@@ -191,7 +191,7 @@ export class NeonConfigurationRepository
     // when only an acknowledgement was lost.
     const id = generateDesignId();
 
-    const results = (await retryOnComputeRestart(() =>
+    const results = (await retryOnTransientFailure(() =>
       this.sql.transaction(
         this.mintStatements(id, design, writeTokenHash, visitor),
         // Pinned (see `NeonShareLinkRepository.issue`): READ COMMITTED lets a rotation racing another mint see the
@@ -267,6 +267,9 @@ export class NeonConfigurationRepository
    * One statement answers both questions from one snapshot: may this caller write the design, and did the write
    * land. Two statements could turn a genuine conflict into a refusal, or the reverse, if the row changed between.
    *
+   * On a retry only, a row already at `expectedRevision + 1` holding this very document is the first attempt's own
+   * write, so it answers as success rather than a false conflict; a first attempt never takes that arm.
+   *
    * `schema_version` is restamped with the document: the document was produced by this build, and a row left at its
    * minted version would keep asking for an older normalisation arm on every load, so that arm could never be removed.
    * Safe in both directions: a normalised document is a fixed point of every arm below the current version.
@@ -282,8 +285,8 @@ export class NeonConfigurationRepository
     // comparison below, where `= null` answers "no" for every row.
     const requestVisitorHash =
       requestVisitor.kind === "present" ? requestVisitor.visitorHash : null;
-    const rows = (await retryOnComputeRestart(
-      () => this.sql`
+    const rows = (await retryOnTransientFailure(
+      ({ isRetry }) => this.sql`
       with authorised as (
         select 1 from designs
         where id = ${id} and write_token_hash = ${writeTokenHash}
@@ -295,11 +298,21 @@ export class NeonConfigurationRepository
           and write_token_hash = ${writeTokenHash}
           and revision::text = ${expectedRevision}
         returning revision, visitor_hash
+      ), landed as (
+        select revision, visitor_hash from designs
+        where ${isRetry}
+          and id = ${id}
+          and write_token_hash = ${writeTokenHash}
+          and (revision - 1)::text = ${expectedRevision}
+          and document = ${design}
       )
       select
         exists (select 1 from authorised) as is_authorised,
-        (select revision::text from updated) as revision,
-        coalesce((select visitor_hash from updated) = ${requestVisitorHash}, false) as owns_visitor
+        coalesce((select revision::text from updated), (select revision::text from landed)) as revision,
+        coalesce(
+          coalesce((select visitor_hash from updated), (select visitor_hash from landed)) = ${requestVisitorHash},
+          false
+        ) as owns_visitor
     `,
     )) as ConditionalUpdateRow[];
 
@@ -317,7 +330,7 @@ export class NeonConfigurationRepository
    * it stays for the live suites, which need an unfiltered read of the raw row.
    */
   async load(id: DesignId): Promise<StoredDesign> {
-    const rows = (await retryOnComputeRestart(
+    const rows = (await retryOnTransientFailure(
       () => this.sql`
       select schema_version, document, revision::text as revision
       from designs where id = ${id}
@@ -342,7 +355,7 @@ export class NeonConfigurationRepository
     id,
     visitorHash,
   }: OwnedDesignLookup): Promise<LoadOwnedOutcome> {
-    const rows = (await retryOnComputeRestart(
+    const rows = (await retryOnTransientFailure(
       () => this.sql`
       select schema_version, document, revision::text as revision
       from designs where id = ${id} and visitor_hash = ${visitorHash}
@@ -362,7 +375,7 @@ export class NeonConfigurationRepository
   /** Ordered by `updated_at desc, id desc` for a deterministic tie break; served by the partial index
    *  `designs_visitor_hash_updated_at_idx` (`0005`). */
   async resumeVisitor(visitorHash: string): Promise<VisitorResumeLookup> {
-    const rows = (await retryOnComputeRestart(
+    const rows = (await retryOnTransientFailure(
       () => this.sql`
       select id from designs
       where visitor_hash = ${visitorHash}

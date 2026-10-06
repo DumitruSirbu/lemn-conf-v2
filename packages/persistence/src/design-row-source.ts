@@ -1,7 +1,7 @@
 import { neon } from "@neondatabase/serverless";
 
 import { readDatabaseUrl } from "./read-database-url.js";
-import { retryOnComputeRestart } from "./retry-on-compute-restart.js";
+import { retryOnTransientFailure } from "./retry-on-transient-failure.js";
 
 /**
  * Raw `designs` rows mirroring the table's columns one-to-one (`migrations/0001_create_designs.sql`), not the domain
@@ -54,7 +54,7 @@ export function createNeonDesignRowSource(
       // Resolved per call, not at construction: a missing `DATABASE_URL` must surface where the caller can catch and
       // report it, not throw while wiring dependencies.
       const sql = neon(connectionUrl ?? readDatabaseUrl());
-      const rows = await retryOnComputeRestart(() =>
+      const rows = await retryOnTransientFailure(() =>
         afterId === undefined
           ? sql`
               select id, schema_version, document, created_at, updated_at, write_token_hash,

@@ -1,22 +1,17 @@
-// The retry that stands between a suspended Neon compute and a customer being told their shared
-// design could not be loaded (`apps/web/src/app/d/[id]/page.tsx` renders `design-load-error.tsx`
-// when the server-side load throws).
-//
-// Two things here are easy to get subtly wrong and expensive to have wrong. The first is the
-// predicate: it reads a marker out of an error *message*, so a regex that also matched
-// `"neon:retryable":false`, or one that only worked against a toy string rather than the real JSON
-// payload, would repeat statements Postgres had already refused. Every error below is built to the
-// shape the installed driver actually produces, and the last describe block pins that shape against
-// the driver itself rather than against this file's memory of it.
-//
-// The second is the attempt budget. A miscount turns a 500 into a slow 500, or loops. Call counts
-// here are asserted exactly, never as a lower bound.
+// The predicate reads a marker out of an error message and an empty reply out of a bare SyntaxError, so
+// every error below is built to the shape the installed driver produces, and the driver describes pin
+// that shape against the driver itself. Call counts are asserted exactly, never as a lower bound.
+import { runInNewContext } from "node:vm";
+
 import { KITCHEN_L_DESIGN } from "@lemnaria/configurator-domain";
 import { NeonDbError, neon, neonConfig } from "@neondatabase/serverless";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { NeonConfigurationRepository } from "../src/neon-configuration-repository.js";
-import { retryOnComputeRestart } from "../src/retry-on-compute-restart.js";
+import {
+  isTransientFailure,
+  retryOnTransientFailure,
+} from "../src/retry-on-transient-failure.js";
 
 /** The module's own numbers, restated so a change to any of them has to be a deliberate one. The
  *  waits are sized to outlast the roughly one-second cold start ADR 0002 records, so a schedule
@@ -114,7 +109,7 @@ function rejectionOf(promise: PromiseLike<unknown>): Promise<unknown> {
   );
 }
 
-describe("retryOnComputeRestart", () => {
+describe("retryOnTransientFailure", () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
@@ -127,7 +122,7 @@ describe("retryOnComputeRestart", () => {
     it("runs the query once and returns its value when the first attempt succeeds", async () => {
       const runQuery = queryThatFailsWith([]);
 
-      const result = await retryOnComputeRestart(runQuery);
+      const result = await retryOnTransientFailure(runQuery);
 
       expect(result).toBe(SUCCESS_VALUE);
       expect(runQuery).toHaveBeenCalledTimes(1);
@@ -137,7 +132,7 @@ describe("retryOnComputeRestart", () => {
     it("returns the value after one compute-restart failure, having run the query twice", async () => {
       const runQuery = queryThatFailsWith([computeRestartError()]);
 
-      const attempt = retryOnComputeRestart(runQuery);
+      const attempt = retryOnTransientFailure(runQuery);
       await vi.advanceTimersByTimeAsync(FIRST_BACKOFF_MS);
 
       await expect(attempt).resolves.toBe(SUCCESS_VALUE);
@@ -150,7 +145,7 @@ describe("retryOnComputeRestart", () => {
         computeRestartError(),
       ]);
 
-      const attempt = retryOnComputeRestart(runQuery);
+      const attempt = retryOnTransientFailure(runQuery);
       await vi.advanceTimersByTimeAsync(FIRST_BACKOFF_MS + SECOND_BACKOFF_MS);
 
       await expect(attempt).resolves.toBe(SUCCESS_VALUE);
@@ -165,7 +160,7 @@ describe("retryOnComputeRestart", () => {
         return Promise.resolve(SUCCESS_VALUE);
       });
 
-      const attempt = retryOnComputeRestart(runQuery);
+      const attempt = retryOnTransientFailure(runQuery);
       await vi.advanceTimersByTimeAsync(FIRST_BACKOFF_MS);
 
       await expect(attempt).resolves.toBe(SUCCESS_VALUE);
@@ -178,7 +173,7 @@ describe("retryOnComputeRestart", () => {
       );
       const runQuery = queryThatFailsWith([prettyPrinted]);
 
-      const attempt = retryOnComputeRestart(runQuery);
+      const attempt = retryOnTransientFailure(runQuery);
       await vi.advanceTimersByTimeAsync(FIRST_BACKOFF_MS);
 
       await expect(attempt).resolves.toBe(SUCCESS_VALUE);
@@ -196,7 +191,7 @@ describe("retryOnComputeRestart", () => {
     ])("returns $name unchanged after a retry", async ({ value }) => {
       const runQuery = queryReturning([computeRestartError()], value);
 
-      const attempt = retryOnComputeRestart(runQuery);
+      const attempt = retryOnTransientFailure(runQuery);
       await vi.advanceTimersByTimeAsync(FIRST_BACKOFF_MS);
 
       await expect(attempt).resolves.toBe(value);
@@ -213,7 +208,7 @@ describe("retryOnComputeRestart", () => {
         lastError,
       ]);
 
-      const thrown = rejectionOf(retryOnComputeRestart(runQuery));
+      const thrown = rejectionOf(retryOnTransientFailure(runQuery));
       await vi.advanceTimersByTimeAsync(FIRST_BACKOFF_MS + SECOND_BACKOFF_MS);
 
       expect(await thrown).toBe(lastError);
@@ -227,7 +222,7 @@ describe("retryOnComputeRestart", () => {
         computeRestartError(),
       ]);
 
-      const thrown = rejectionOf(retryOnComputeRestart(runQuery));
+      const thrown = rejectionOf(retryOnTransientFailure(runQuery));
       await vi.advanceTimersByTimeAsync(LONG_ENOUGH_FOR_ANY_RETRY_MS);
       await thrown;
 
@@ -241,7 +236,7 @@ describe("retryOnComputeRestart", () => {
         computeRestartError(),
       ]);
 
-      const thrown = rejectionOf(retryOnComputeRestart(runQuery));
+      const thrown = rejectionOf(retryOnTransientFailure(runQuery));
       await vi.advanceTimersByTimeAsync(FIRST_BACKOFF_MS + SECOND_BACKOFF_MS);
       await thrown;
 
@@ -257,7 +252,7 @@ describe("retryOnComputeRestart", () => {
         computeRestartError(),
       ]);
 
-      const attempt = retryOnComputeRestart(runQuery);
+      const attempt = retryOnTransientFailure(runQuery);
       await vi.advanceTimersByTimeAsync(0);
       expect(runQuery).toHaveBeenCalledTimes(1);
 
@@ -282,7 +277,7 @@ describe("retryOnComputeRestart", () => {
       const rejection = uniqueViolationError();
       const runQuery = queryThatFailsWith([rejection]);
 
-      const thrown = rejectionOf(retryOnComputeRestart(runQuery));
+      const thrown = rejectionOf(retryOnTransientFailure(runQuery));
       await vi.advanceTimersByTimeAsync(LONG_ENOUGH_FOR_ANY_RETRY_MS);
 
       expect(await thrown).toBe(rejection);
@@ -294,7 +289,7 @@ describe("retryOnComputeRestart", () => {
       const rejection = notRetryableServerError();
       const runQuery = queryThatFailsWith([rejection]);
 
-      const thrown = rejectionOf(retryOnComputeRestart(runQuery));
+      const thrown = rejectionOf(retryOnTransientFailure(runQuery));
       await vi.advanceTimersByTimeAsync(LONG_ENOUGH_FOR_ANY_RETRY_MS);
 
       expect(await thrown).toBe(rejection);
@@ -305,7 +300,7 @@ describe("retryOnComputeRestart", () => {
       const rejection = new Error(serverErrorMessage(COLD_START_PAYLOAD));
       const runQuery = queryThatFailsWith([rejection]);
 
-      const thrown = rejectionOf(retryOnComputeRestart(runQuery));
+      const thrown = rejectionOf(retryOnTransientFailure(runQuery));
       await vi.advanceTimersByTimeAsync(LONG_ENOUGH_FOR_ANY_RETRY_MS);
 
       expect(await thrown).toBe(rejection);
@@ -322,7 +317,7 @@ describe("retryOnComputeRestart", () => {
     ])("propagates $name on the first attempt", async ({ thrown }) => {
       const runQuery = queryThatFailsWith([thrown]);
 
-      const captured = rejectionOf(retryOnComputeRestart(runQuery));
+      const captured = rejectionOf(retryOnTransientFailure(runQuery));
       await vi.advanceTimersByTimeAsync(LONG_ENOUGH_FOR_ANY_RETRY_MS);
 
       expect(await captured).toBe(thrown);
@@ -333,7 +328,7 @@ describe("retryOnComputeRestart", () => {
       const rejection = uniqueViolationError();
       const runQuery = queryThatFailsWith([computeRestartError(), rejection]);
 
-      const thrown = rejectionOf(retryOnComputeRestart(runQuery));
+      const thrown = rejectionOf(retryOnTransientFailure(runQuery));
       await vi.advanceTimersByTimeAsync(LONG_ENOUGH_FOR_ANY_RETRY_MS);
 
       expect(await thrown).toBe(rejection);
@@ -408,7 +403,7 @@ describe("the NeonDbError shape the retryable marker is read out of", () => {
 
     vi.useFakeTimers();
     try {
-      const attempt = retryOnComputeRestart(runQuery);
+      const attempt = retryOnTransientFailure(runQuery);
       await vi.advanceTimersByTimeAsync(FIRST_BACKOFF_MS);
       await expect(attempt).resolves.toBe(SUCCESS_VALUE);
     } finally {
@@ -589,4 +584,192 @@ describe("mint under a compute restart", () => {
       expect(requests).toHaveLength(2);
     },
   );
+});
+
+const EMPTY_REPLY_MESSAGE = "Unexpected end of JSON input";
+
+function emptyReplyError(): SyntaxError {
+  return new SyntaxError(EMPTY_REPLY_MESSAGE);
+}
+
+describe("isTransientFailure", () => {
+  it.each([
+    { name: "Neon's cold-start refusal", error: computeRestartError() },
+    { name: "an empty reply from the driver", error: emptyReplyError() },
+  ])("is true for $name", ({ error }) => {
+    expect(isTransientFailure(error)).toBe(true);
+  });
+
+  it.each([
+    {
+      name: "a Postgres rejection decoded from HTTP 400",
+      error: uniqueViolationError(),
+    },
+    {
+      name: 'a payload marked "neon:retryable":false',
+      error: notRetryableServerError(),
+    },
+    {
+      name: "a SyntaxError about anything but an empty reply",
+      error: new SyntaxError("Unexpected token < in JSON at position 0"),
+    },
+    {
+      name: "an empty-reply message on an error that is not a SyntaxError",
+      error: new Error(EMPTY_REPLY_MESSAGE),
+    },
+    {
+      name: "a fetch-level failure the driver wraps",
+      error: new NeonDbError(
+        "Error connecting to database: TypeError: fetch failed",
+      ),
+    },
+    { name: "a bare TypeError", error: new TypeError("fetch failed") },
+    { name: "a string quoting the empty reply", error: EMPTY_REPLY_MESSAGE },
+    { name: "undefined", error: undefined },
+    { name: "null", error: null },
+  ])("is false for $name", ({ error }) => {
+    expect(isTransientFailure(error)).toBe(false);
+  });
+});
+
+describe("an empty reply built in another realm", () => {
+  it("is transient although it is not an instance of this realm's SyntaxError", () => {
+    const foreign: unknown = runInNewContext(
+      `new SyntaxError("${EMPTY_REPLY_MESSAGE}")`,
+    );
+
+    expect(foreign instanceof SyntaxError).toBe(false);
+    expect(isTransientFailure(foreign)).toBe(true);
+  });
+
+  it("is not transient when only its shape matches, not being an error at all", () => {
+    const lookalike: unknown = runInNewContext(
+      `({ name: "SyntaxError", message: "${EMPTY_REPLY_MESSAGE}" })`,
+    );
+
+    expect(isTransientFailure(lookalike)).toBe(false);
+  });
+});
+
+describe("an empty reply", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("is retried once and returns the second attempt's value", async () => {
+    const runQuery = queryThatFailsWith([emptyReplyError()]);
+
+    const attempt = retryOnTransientFailure(runQuery);
+    await vi.advanceTimersByTimeAsync(FIRST_BACKOFF_MS);
+
+    await expect(attempt).resolves.toBe(SUCCESS_VALUE);
+    expect(runQuery).toHaveBeenCalledTimes(2);
+  });
+
+  it("is retried at most three times, then reaches the caller unchanged", async () => {
+    const lastError = emptyReplyError();
+    const runQuery = queryThatFailsWith([
+      emptyReplyError(),
+      emptyReplyError(),
+      lastError,
+    ]);
+
+    const thrown = rejectionOf(retryOnTransientFailure(runQuery));
+    await vi.advanceTimersByTimeAsync(LONG_ENOUGH_FOR_ANY_RETRY_MS);
+
+    expect(await thrown).toBe(lastError);
+    expect(runQuery).toHaveBeenCalledTimes(MAX_ATTEMPTS);
+  });
+
+  it("is followed by a non-transient answer that stops the retries", async () => {
+    const rejection = uniqueViolationError();
+    const runQuery = queryThatFailsWith([emptyReplyError(), rejection]);
+
+    const thrown = rejectionOf(retryOnTransientFailure(runQuery));
+    await vi.advanceTimersByTimeAsync(LONG_ENOUGH_FOR_ANY_RETRY_MS);
+
+    expect(await thrown).toBe(rejection);
+    expect(runQuery).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("the attempt a retried callback is told about", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("is a first attempt once and a retry on every attempt after", async () => {
+    const seen: boolean[] = [];
+    const runQuery = vi.fn(({ isRetry }: { isRetry: boolean }) => {
+      seen.push(isRetry);
+      return seen.length < MAX_ATTEMPTS
+        ? Promise.reject(emptyReplyError())
+        : Promise.resolve(SUCCESS_VALUE);
+    });
+
+    const attempt = retryOnTransientFailure(runQuery);
+    await vi.advanceTimersByTimeAsync(FIRST_BACKOFF_MS + SECOND_BACKOFF_MS);
+    await attempt;
+
+    expect(seen).toEqual([false, true, true]);
+  });
+});
+
+/** The empty reply is a vendor behaviour (`Response.json()` inside the driver), so it is pinned against the driver. */
+describe("the errors the driver itself builds for an empty reply and a dropped fetch", () => {
+  let previousFetchFunction: unknown;
+
+  beforeEach(() => {
+    previousFetchFunction = neonConfig.fetchFunction;
+  });
+
+  afterEach(() => {
+    neonConfig.fetchFunction = previousFetchFunction;
+  });
+
+  async function thrownFor(reply: () => Promise<Response>): Promise<unknown> {
+    neonConfig.fetchFunction = reply;
+    return rejectionOf(neon(TEST_CONNECTION_STRING)`select 1`);
+  }
+
+  it.each([200, 400])(
+    "raises a bare SyntaxError for an HTTP %i with an empty body, and the predicate calls it transient",
+    async (status) => {
+      const thrown = await thrownFor(() =>
+        Promise.resolve(new Response("", { status })),
+      );
+
+      expect(thrown).toBeInstanceOf(SyntaxError);
+      expect(thrown).not.toBeInstanceOf(NeonDbError);
+      expect(isTransientFailure(thrown)).toBe(true);
+    },
+  );
+
+  it("wraps a rejected fetch in a NeonDbError the predicate does not call transient", async () => {
+    const thrown = await thrownFor(() =>
+      Promise.reject(new TypeError("fetch failed")),
+    );
+
+    expect(thrown).toBeInstanceOf(NeonDbError);
+    expect(isTransientFailure(thrown)).toBe(false);
+  });
+
+  it("raises a NeonDbError the predicate does not call transient for a non-JSON 502", async () => {
+    const thrown = await thrownFor(() =>
+      Promise.resolve(
+        new Response("<html>Bad gateway</html>", { status: 502 }),
+      ),
+    );
+
+    expect(thrown).toBeInstanceOf(NeonDbError);
+    expect(isTransientFailure(thrown)).toBe(false);
+  });
 });

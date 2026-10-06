@@ -1,6 +1,6 @@
 import { neon } from "@neondatabase/serverless";
 
-import { retryOnComputeRestart } from "./retry-on-compute-restart.js";
+import { retryOnTransientFailure } from "./retry-on-transient-failure.js";
 
 import { resolveTestDatabaseUrl } from "./test-database-url.js";
 
@@ -27,7 +27,7 @@ export async function deleteDesignsForTests(
   // One statement per id rather than one `= any(...)`: the id list is short, and a per-row delete needs no array
   // binding.
   for (const id of ids)
-    await retryOnComputeRestart(
+    await retryOnTransientFailure(
       () => sql`delete from designs where id = ${id}`,
     );
 }
@@ -44,7 +44,7 @@ export async function findDesignIdsForTests(
   if (ids.length === 0) return [];
 
   const sql = neon(resolveTestDatabaseUrl());
-  const rows = (await retryOnComputeRestart(
+  const rows = (await retryOnTransientFailure(
     () => sql`select id from designs where id = any(${ids})`,
   )) as { id: string }[];
   return rows.map((row) => row.id);

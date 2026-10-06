@@ -136,6 +136,18 @@ const EXPECTED_CLASSIFICATION: Readonly<
     reason:
       "writes share-link rows through a fresh design per test and needs the schema intact (M7 wave 7E3c D3)",
   },
+  "retried-writes-leave-no-trace.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "writes rows keyed by random per-run visitors and needs the schema intact",
+  },
+  "qa-ce-s4-retry.adversarial.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "interleaves writes on fresh per-test designs with lost replies and needs the schema intact (M7C CE S4 QA)",
+  },
   "application-role-privileges.test.ts": {
     gate: "DATABASE_URL",
     lock: "none",
