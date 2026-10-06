@@ -1,6 +1,7 @@
 import { expect, type Page } from "@playwright/test";
 
 import {
+  expectWriteAccessApplied,
   openSeededDesign,
   test,
   type SeededDesign,
@@ -80,7 +81,7 @@ async function wearSettings(
 }
 
 async function openSheet(page: Page): Promise<void> {
-  await expect(page.getByTestId("global-settings-trigger")).toBeEnabled();
+  await expectWriteAccessApplied(page);
   await page.getByTestId("global-settings-trigger").tap();
   await expect(page.getByTestId("global-settings-surface")).toBeVisible();
 }

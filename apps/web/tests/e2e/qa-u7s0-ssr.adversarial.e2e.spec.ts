@@ -34,6 +34,7 @@ import {
   deleteMintedDesigns,
   findMintedDesignIds,
 } from "./support/minted-designs";
+import { expectWriteAccessApplied } from "./support/seeded-design";
 import {
   cameraChipCount,
   fingerprintOf,
@@ -322,7 +323,7 @@ test.describe("U7 S0 adversarial: after hydration, the session store is the load
       "the transitions were client-side, not document loads",
     ).toBe(true);
 
-    await expect(page.getByTestId("global-settings-trigger")).toBeEnabled();
+    await expectWriteAccessApplied(page);
     const depthBefore = fingerprintOf(secondHtml).cabinetDepth;
     const saved = page.waitForResponse(
       (response) =>

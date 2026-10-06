@@ -21,7 +21,12 @@ import {
   type Request,
 } from "@playwright/test";
 
-import { openSeededDesign, test as seededTest } from "./support/seeded-design";
+import {
+  expectWriteAccessApplied,
+  openSeededDesign,
+  test as seededTest,
+  WRITE_ACCESS_TIMEOUT_MS,
+} from "./support/seeded-design";
 import {
   continueButton,
   idInEditorUrl,
@@ -75,8 +80,9 @@ async function openTheEditorFromStepOne(page: Page): Promise<EditorVisit> {
 
 async function expectTheEditorToBeReady(page: Page): Promise<void> {
   await expect(page.getByTestId("top-bar-title")).toBeVisible();
-  const trigger = page.getByTestId("global-settings-trigger");
-  if ((await trigger.count()) > 0) await expect(trigger).toBeEnabled();
+  if ((await page.getByTestId("global-settings-trigger").count()) > 0) {
+    await expectWriteAccessApplied(page);
+  }
 }
 
 /** One applied change — a hardware tier other than the one chosen, so every call is a change — and the save it causes, awaited so no request is
@@ -117,7 +123,11 @@ async function readHistory(page: Page): Promise<EntryFacts> {
 }
 
 async function expectGuardUnderTheCustomer(page: Page): Promise<EntryFacts> {
-  await expect.poll(async () => (await readHistory(page)).isGuard).toBe(true);
+  await expect
+    .poll(async () => (await readHistory(page)).isGuard, {
+      timeout: WRITE_ACCESS_TIMEOUT_MS,
+    })
+    .toBe(true);
   return readHistory(page);
 }
 
@@ -466,7 +476,9 @@ test("one guard per visit: a language switch after the guard, a persisted pagesh
 async function switchLanguageTo(page: Page, locale: "ro" | "ru") {
   await page.getByTestId("top-bar-locale").tap();
   await page.getByTestId(`top-bar-locale-option-${locale}`).tap();
-  await expect(page).toHaveURL(new RegExp(`/${locale}/d/`));
+  await expect(page).toHaveURL(new RegExp(`/${locale}/d/`), {
+    timeout: WRITE_ACCESS_TIMEOUT_MS,
+  });
   await expectTheEditorToBeReady(page);
 }
 

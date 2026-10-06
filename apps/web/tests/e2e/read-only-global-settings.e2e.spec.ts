@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { deleteMintedDesigns } from "./support/minted-designs";
 import {
+  expectWriteAccessApplied,
   issueShareLink,
   mintSeededDesign,
   openDesignAndAwaitAccessProbe,
@@ -86,7 +87,7 @@ test("offers nothing on a share link (M7 wave 7E3c S6)", async ({ page }) => {
   // contract rather than by `/d/{id}` being locked for everyone: the browser that minted it can
   // still edit its own `/d/{id}`.
   await openSharedLink(page, design.id);
-  await expect(page.getByTestId("global-settings-trigger")).toBeEnabled();
+  await expectWriteAccessApplied(page);
 
   // The **same** browser, still holding both credential cookies — deliberately not cleared, for
   // `read-only-panel.e2e.spec.ts`'s own reason: a share link answers read-only however it is

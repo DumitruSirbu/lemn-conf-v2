@@ -32,6 +32,7 @@ import {
   type SceneBodyBounds,
 } from "./mirror-flow";
 import { storedRevision, waitForFirstSave } from "./panel";
+import { expectWriteAccessApplied } from "./seeded-design";
 import {
   continueButton,
   editorPath,
@@ -222,10 +223,6 @@ const roMessages = JSON.parse(
 /** The `ROOM_TOO_SMALL_FOR_KITCHEN` sentence, read from the catalogue the page renders. */
 export const ROOM_TOO_SMALL_SENTENCE = roMessages.room.issue.roomTooSmall;
 
-/** After a client transition the main thread is busy for about 2.5 s (3 s+ under `next dev`) linking WebGL programs;
- *  the default 5 s assertion timeout is too tight under load. */
-const WRITE_ACCESS_TIMEOUT_MS = 15_000;
-
 /** The editor is drawn on `designId` with its own chips, the write-access check has answered, and the
  *  scene has settled once — the point from which a tap on the canvas means something. */
 export async function expectEditorReady(
@@ -240,9 +237,7 @@ export async function expectEditorReady(
     designId,
   );
   await expect(cameraPresetButtons(page)).toHaveCount(expectedChips);
-  await expect(page.getByTestId("global-settings-trigger")).toBeEnabled({
-    timeout: WRITE_ACCESS_TIMEOUT_MS,
-  });
+  await expectWriteAccessApplied(page);
   await waitForSettleAfter(page, 0);
 }
 

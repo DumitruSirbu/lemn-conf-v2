@@ -246,9 +246,20 @@ export async function openSeededDesign(
   }
 
   const trigger = page.getByTestId("global-settings-trigger");
-  if ((await trigger.count()) > 0) await expect(trigger).toBeEnabled();
+  if ((await trigger.count()) > 0) await expectWriteAccessApplied(page);
 
   return outcome.navigation;
+}
+
+/** Covers a first-frame freeze of 23 s and more under software GL, where the default 5 s fails a page that is only late
+ *  (see ADR 0144 d1). Capped by the test timeout, 30 s locally. */
+export const WRITE_ACCESS_TIMEOUT_MS = 60_000;
+
+/** Waits for the store to apply `canWrite`, i.e. for the settings trigger to enable, within `WRITE_ACCESS_TIMEOUT_MS`. */
+export async function expectWriteAccessApplied(page: Page): Promise<void> {
+  await expect(page.getByTestId("global-settings-trigger")).toBeEnabled({
+    timeout: WRITE_ACCESS_TIMEOUT_MS,
+  });
 }
 
 interface ShareLinkIssueOutcome {

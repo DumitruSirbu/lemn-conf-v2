@@ -20,6 +20,7 @@ import {
   test,
   typeDigits,
 } from "./support/step-one-by-touch";
+import { expectWriteAccessApplied } from "./support/seeded-design";
 
 // Fixtures are lazy: asking for this one in every test is what deletes the rows a hand-over minted.
 test.beforeEach(async ({ designWrites }) => {
@@ -56,7 +57,7 @@ async function openTheEditorFromStepOne(page: Page): Promise<EditorVisit> {
 
 async function expectTheEditorToBeReady(page: Page): Promise<void> {
   await expect(page.getByTestId("top-bar-title")).toBeVisible();
-  await expect(page.getByTestId("global-settings-trigger")).toBeEnabled();
+  await expectWriteAccessApplied(page);
 }
 
 /** Picks a hardware tier in the settings sheet and applies it, awaiting the save. */

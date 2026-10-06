@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import { deleteMintedDesigns } from "./support/minted-designs";
 import {
+  expectWriteAccessApplied,
   issueShareLink,
   mintSeededDesign,
   openSeededDesign,
@@ -116,7 +117,7 @@ test("the owner's own share link is read-only; /d/{id} restores write access; ba
     // Navigating to their own /d/{id} restores full write access.
     await page.goto(`/d/${design.id}`);
     await page.waitForSelector("canvas", { state: "attached" });
-    await expect(page.getByTestId("global-settings-trigger")).toBeEnabled();
+    await expectWriteAccessApplied(page);
     await expect(page.getByTestId("top-bar-back")).toBeVisible();
 
     // Back: the share view again, still read-only — not left writable by whatever `/d/{id}` just
@@ -129,7 +130,7 @@ test("the owner's own share link is read-only; /d/{id} restores write access; ba
     // Forward: /d/{id} again, writable.
     await page.goForward();
     await page.waitForSelector("canvas", { state: "attached" });
-    await expect(page.getByTestId("global-settings-trigger")).toBeEnabled();
+    await expectWriteAccessApplied(page);
     await expect(page.getByTestId("top-bar-back")).toBeVisible();
   } finally {
     await deleteMintedDesigns([design.id]);
