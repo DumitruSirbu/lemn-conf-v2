@@ -59,12 +59,10 @@ export interface DiscardedBodyDisposal {
 }
 
 /**
- *
  * Disposes what the discarded bodies alone allocated: `buildKitchenShell` builds the whole reference room and keeps
  * five children, and the rest carry geometry that is theirs alone. Shared resources are excluded twice: kit-owned ones
  * by the kit's record, and anything a retained child references by the survivor set (which also covers a geometry or
  * material handed to both a kept and a dropped body).
- *
  */
 export function disposeDiscardedBodies(input: DiscardedBodyDisposal): void {
   // A released kit reports owning nothing, which would read as "none of this is shared" and free buffers the memo still
@@ -89,7 +87,6 @@ function disposeLightRig(lights: LightRig): void {
 }
 
 /**
- *
  * Disposes a kit and the one room it built, and nothing else: the narrower entry point, for a kit that was never
  * mounted (the transient one a `BodyProbeFactory` builds to measure a depth change). Such a kit has a room but no
  * shadow ground, contact blob or light rig. It frees the kit's shared geometries, materials and canvas textures plus
@@ -101,7 +98,6 @@ function disposeLightRig(lights: LightRig): void {
  *
  * `room` is optional because a kit can outlive a failed room build: the factory allocates the kit first, so a throwing
  * builder leaves an allocated kit and no room, and nothing else could free it (ADR 0076 decision 3).
- *
  */
 export function disposeKit(kit: Kit, room?: THREE.Object3D): void {
   if (kitOwnedResources(kit.M).isReleased) return;

@@ -152,6 +152,7 @@ function totalAt(
 
 /**
  * What a group does with a tier that prices this design below the group's own default (ADR 0092 decision 12).
+ * Interim, pending owner review: the owner may prefer a negative badge to the hardware rule below.
  * - `"offer-with-no-delta"` (hardware): a tier states three per-mechanism rates, so which is cheapest depends on
  *   the customer's kitchen (a drawer-dominant design costs less at Hettich). Refusing would take the settings sheet
  *   away from a customer who only deleted wall cabinets, so the tier is offered with no delta badge.

@@ -135,7 +135,7 @@ const STRUCTURAL_CORNER: Pick<
 > = {
   canReplace: false,
   canDelete: false,
-  // The corner takes a colour of its own, unlike the hood and the freestanding fridge. see ADR 0099
+  // The corner takes a colour of its own, unlike the hood and the freestanding fridge. see ADR 0099 Amendment C
   canFinish: true,
   // Must move with `canFinish`: `bodyFinishRuleOf` throws on load if the two disagree. With no `finish`
   // key the corner follows the kitchen's colour (`resolvedFinishOf`'s `??` chain).

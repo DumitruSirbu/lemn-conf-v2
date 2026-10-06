@@ -183,7 +183,7 @@ function buildOutlinePass(
     toneMapped: false,
     // `LineSegments2` builds its quads in screen space, but three flips `gl.frontFace` when `matrixWorld`'s determinant
     // is negative (`WebGLRenderer.js`), which would cull every segment under a mirrored root. Double-siding a
-    // screen-space quad hides nothing; the ban on `DoubleSide` applies to body geometry only.
+    // screen-space quad hides nothing; the ban on `DoubleSide` applies to body geometry only (ADR 0129 Amendment (a)).
     side: THREE.DoubleSide,
   });
 

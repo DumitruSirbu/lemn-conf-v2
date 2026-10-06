@@ -20,7 +20,7 @@ import { wallLengthMm } from "./queries/overflowing-placements.js";
 import type { ColumnExtent, PlacementRecord } from "./void-engine.js";
 
 /** Every member-less column of the map held to the length of the wall it stands on, other keys untouched.
- *  "Member-less" is the split's predicate (ADR 0037): no record is filed under the key at any level. An
+ *  "Member-less" is the split's predicate (ADR 0046): no record is filed under the key at any level. An
  *  occupied column is never clipped: its width is its members', and a body past its wall is
  *  `PLACEMENT_PAST_WALL_END`'s mark. The input map is returned by identity when nothing reaches past the
  *  wall (every state the shipped kitchen reaches), so the common case costs a scan and no allocation. */

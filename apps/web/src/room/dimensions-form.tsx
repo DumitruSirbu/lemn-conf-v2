@@ -43,7 +43,7 @@ export interface DimensionsFormProps {
   /** The fields holding text the parser refuses (`RoomIssueView.unreadableFields`). The form
    *  explains each after the customer leaves it, never while they type. */
   readonly unreadableFields?: readonly RoomLengthField[];
-  /** The linear suggestion's id while it shows (D9), appended after each offending field's own
+  /** The linear suggestion's id while it shows, appended after each offending field's own
    *  reason in `aria-describedby`. */
   readonly suggestionId?: string | undefined;
   readonly onEnterLength: (field: RoomLengthField, text: string) => void;
@@ -264,7 +264,7 @@ interface LengthFieldProps {
   readonly hintId: string;
   /** This field's 1C reasons, or the unreadable text's once the field was left; never both. */
   readonly reasonKeys: readonly ReasonMessageKey[];
-  /** The linear suggestion's id while shown, appended after this field's own reason (D9). */
+  /** The linear suggestion's id while shown, appended after this field's own reason. */
   readonly suggestionId: string | undefined;
   readonly onEnter: (field: RoomLengthField, text: string) => void;
   readonly onLeave: (field: RoomLengthField) => void;

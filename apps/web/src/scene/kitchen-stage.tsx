@@ -221,7 +221,8 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
     // Keyed on the depth alone (ADR 0074 decision 1): the whole stage is rebuilt, so the kit and the
     // room it built share a lifetime, as `disposeKitAndStage` requires. The shell takes no records
     // and keeps only `KITCHEN_L_SHELL_CHILD_NAMES`, so any number of builds yields no customer body;
-    // `syncSolidBodies` alone owns those. The empty-looking dependency array is not that guarantee.
+    // `syncSolidBodies` alone owns those. That fixed manifest is the guarantee, never the number of builds or
+    // the dependency array (ADR 0074 decision 5).
   }, [cabinetDepthMm]);
 
   // Undefined on a stage's first render, so the direction re-seat below never fires on mount, where

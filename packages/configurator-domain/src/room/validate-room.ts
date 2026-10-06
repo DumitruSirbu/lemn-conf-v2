@@ -174,9 +174,9 @@ interface LinearRoomBounds {
   readonly height: MillimetreBounds;
 }
 
-/** ADR 0130 D2/D3: one wall, no coupled minimum-kitchen gate (the wall's own bound already is
+/** ADR 0130 decisions 1, 2: one wall, no coupled minimum-kitchen gate (the wall's own bound already is
  *  sink + hob), and `depthMm` fixed to `LinearWallBounds.depthMm`, handed through the policy rather
- *  than imported here. No `cornerDirection` is carried (ADR 0130 D7): there is no corner. */
+ *  than imported here. No `cornerDirection` is carried (ADR 0130 decision 6): there is no corner. */
 function validateLinearRoom(
   input: LinearRoomInput,
   bounds: LinearRoomBounds,

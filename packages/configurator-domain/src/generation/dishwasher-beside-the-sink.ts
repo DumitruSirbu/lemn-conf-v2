@@ -2,8 +2,7 @@
 // width change: the dishwasher is a storage-role conversion, not a core role, so it takes a module the plan
 // already stands beside the sink and every width, span, remainder, column and bottle stays where it was.
 // Adjacency is the plumbing's (the niche drains into the sink's waste), so either side of the sink counts
-// and across the corner counts; where nothing beside the sink can take it, it is omitted rather than
-// displacing anything (F12).
+// and across the corner counts; where nothing beside the sink can take it, this leaf omits it (F12).
 //
 // One re-identification, M1 or else (e): M1 converts a plain door cabinet beside the sink; only where there
 // is none does (e) swap the drawer cabinet beside the sink. The tie between M1's same-wall and

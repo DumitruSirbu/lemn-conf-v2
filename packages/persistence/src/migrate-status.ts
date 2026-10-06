@@ -5,7 +5,7 @@
  *
  * The environment is a required argument and the credential is `MIGRATION_DATABASE_URL`, never `DATABASE_URL`: a check
  * whose subject depends on which untracked `.env` file the machine holds is a coincidence with a test name (ADR 0096).
- * The application role holds no privilege on `schema_migrations`, so it cannot see the ledger (ADR 0008).
+ * The application role holds no privilege on `schema_migrations`, so it cannot see the ledger (ADR 0096 decision 4).
  */
 
 import { resolve } from "node:path";

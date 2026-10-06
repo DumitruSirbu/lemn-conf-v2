@@ -2,17 +2,15 @@ import { NeonDbError } from "@neondatabase/serverless";
 
 /**
  * Neon suspends an idle compute, and a query arriving while it restarts is answered by the proxy, not Postgres:
- * `Couldn't connect to compute node` with `"neon:retryable": true` in the payload. Not a test concern:
- * `apps/web/src/app/d/[id]/page.tsx` rethrows every error but its two mapped ones and the app declares no `error.tsx`,
- * so a cold start there shows a customer opening a shared link Next's default error page.
+ * `Couldn't connect to compute node` with `"neon:retryable": true` in the payload. Not a test concern: the `/d/{id}`
+ * and `/s/{token}` pages rethrow every error but their mapped ones and the app declares no `error.tsx`, so a cold
+ * start there shows a customer opening a link Next's default error page.
  */
 
 /**
- *
  * The proxy's own verdict that it could not reach a compute. It must be read out of the message: the driver
  * (`@neondatabase/serverless@1.1.0`) decodes structured fields onto `NeonDbError` for HTTP 400 only, and a cold start
  * is an HTTP 500, whose whole payload is stringified into the message with `code` and `detail` undefined.
- *
  */
 const RETRYABLE_PAYLOAD_MARKER = /"neon:retryable"\s*:\s*true/;
 

@@ -9,7 +9,7 @@ type NoParams = Readonly<Record<string, never>>;
 
 interface LabelParams {
   /** A descriptor, never a sentence: the app resolves it through `catalog.*` and interpolates the string
-   *  into this refusal's message (ICU cannot reference a sub-message by argument). see ADR 0095 decision 4 */
+   *  into this refusal's message (ICU cannot reference a sub-message by argument). see ADR 0095 decision 3 */
   readonly label: BodyLabel;
 }
 
@@ -192,9 +192,9 @@ export type RejectionDetail =
   /** No opening may appear where a body physically stands (ADR 0031 restated the old any-change refusal).
    *  Still reachable because the empty column's extent is frozen (ADR 0011 Gap D) while its width moves:
    *  narrowing `A|0.75` to 200 mm into a cleared `A|1.30` offers a 900 mm base opening across the corner
-   *  leg `p25`. Fires only when no side can fund the move without one (FINDING Q1.2), and carries the same
-   *  per-side record as `NO_EMPTY_SPACE`; the three width-scan codes are one scan ordered by how far it
-   *  got (`COLUMN_KEY_COLLISION` > this > `NO_EMPTY_SPACE`). */
+   *  leg `p25`. Fires only when every side's move opens one (a side that does sends the scan to the other), and
+   *  carries the same per-side record as `NO_EMPTY_SPACE`; the three width-scan codes are one scan ordered by how
+   *  far it got (`COLUMN_KEY_COLLISION` > this > `NO_EMPTY_SPACE`). */
   | { readonly code: "RESIZE_OPENS_GAP"; readonly params: EmptySpaceParams }
   /** §3.2's keys are positions, so landing a column on a position another column occupies would overwrite
    *  that column's frozen extent, deleting a run with no command naming it. `refuseColumnDrift` cannot see

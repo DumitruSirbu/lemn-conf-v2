@@ -6,7 +6,8 @@
 //
 // ADR 0035 decision 6: a column is one width at every level, except the hood. The hood is sized to
 // its cooktop, so it keeps its own width and re-centres over the run beneath it (ADR 0039 decision 4);
-// it is exempt from the width rule, not from the model, and is keyed off `EXTRACTOR_HOOD_KIND`.
+// it is exempt from the width rule, not from the model, and floors the column at its own width. The
+// exemption is keyed off `EXTRACTOR_HOOD_KIND`.
 // ADR 0035 decision 7: a shrink enters a new empty column at the extent it vacates.
 import { resolveBuildableSizes, resolveWidthRangesMm } from "../catalog.js";
 import type { Design, DesignPlacement } from "../design.js";
@@ -146,7 +147,8 @@ export function columnWidthChoices(
   const selected = toColumnMember(input.design, record, selectedBody.value);
   if (!selected) return undefined;
 
-  // The hood-exempt membership, as `setWidth` computes it (ADR 0035 decision 6): a hood narrows nothing.
+  // The hood-exempt membership, as `setWidth` computes it: a hood narrows nothing but floors the column
+  // (ADR 0035 decision 6 as amended).
   const split = splitColumnMembers(
     {
       design: input.design,
@@ -254,7 +256,7 @@ function planColumnResize(
  *  would let extra free space turn a legal move illegal (a right column widened to 900 mm over the
  *  corner leg `p25`). At most two attempts, so the probe runs up to twice. Any other rebuild refusal
  *  (a built-size mismatch, an unmeasurable body, a drifted column) is a fact about the bodies and the
- *  width, identical on both sides, and returns immediately. see FINDING Q1.2 in ADR 0031 */
+ *  width, identical on both sides, and returns immediately. */
 function fundColumnResize(
   input: SetWidthInput,
   records: readonly PlacementRecord[],

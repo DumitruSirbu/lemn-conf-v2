@@ -105,11 +105,9 @@ const FRONT_MESH_NAME = /door_front|drawer_front/;
 const FINISH_MATERIAL_KEY_PREFIX = "finish:";
 
 /**
- *
  * The ceiling on the free-colour half of that cache (a decor is one of eight declared ids, a free colour any of sixteen
  * million). A finish is per placement, so a supported room wears at most `MAX_PLACEMENTS` colours at once; a drag
  * across the picker pushes out intermediate colours, and a live one pushed out is rebuilt when its body next re-signs.
- *
  */
 const MAX_FREE_COLOUR_MATERIALS_PER_KIT = MAX_PLACEMENTS;
 

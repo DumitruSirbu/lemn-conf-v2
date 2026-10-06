@@ -1,6 +1,6 @@
 "use client";
 
-// D10's share control: the settings surface's last section; the pill's ladder does not count it (ADR 0104
+// The share control: the settings surface's last section; the pill's ladder does not count it (ADR 0104
 // decision 1). Owner-only: it renders nothing until the design holds the write credential and has been saved once
 // (`hasPersistedSuccessfully`, ADR 0002 decision 17), which also keeps it off the share view, where
 // `SharedDesignView` hydrates with `canWrite: false`.
@@ -73,7 +73,7 @@ function ShareDesignControl({
   );
   const linkFieldRef = useRef<HTMLInputElement>(null);
 
-  // The sheet's own open is the one moment this reads the status (D10), not a schedule: a poll must never
+  // The sheet's own open is the one moment this reads the status, not a schedule: a poll must never
   // second-guess a revoke or re-issue this component performed.
   useEffect(() => {
     let isCurrent = true;
@@ -259,7 +259,7 @@ function ShareDesignBody({
               {content.revoke}
             </button>
           </div>
-          {/* A caption beside the button, not a modal step: D10's own caption for this state. */}
+          {/* A caption beside the button, not a modal step. */}
           <p
             className={styles.caption}
             data-testid="share-design-reissue-warning"
@@ -318,7 +318,7 @@ function ShareDesignBody({
 
 /** Labelled by the operation `retryFailedOperation` is about to repeat: `create` after a failed create (re-issue is
  *  the same request), `revoke` after a failed revoke, and `retry` after a failed status read, which has no label of
- *  its own in D10's table. */
+ *  its own. */
 function retryLabelFor(
   failedOperation: FailedOperation,
   content: Content["share"],

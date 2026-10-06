@@ -323,8 +323,7 @@ function resolveFitWidth(
 }
 
 /** §7's millimetre-set case (dishwasher niche, the four full-height units, bottle cargo): the widest
- *  size that still fits, or the refusal that says why none can. A 700 mm slot gets a 600 mm hood,
- *  centred; the hood is never built at 700.
+ *  size that still fits, or the refusal that says why none can.
  *
  *  `sizesMm` is passed in so the caller's narrowing carries: `widthFlex` is known not to be `'fit'`. */
 function resolveFixedSetWidth(
@@ -652,8 +651,8 @@ function seatableMillimetres(valueM: number): number {
  *  body standing in this opening is manufactured to, passed to the probe as `b.mk(w, h, d)`.
  *
  *  Reads `columnBuildDepthM`'s declaration, never the opening's MAX, which includes an appliance's
- *  door bars (703 and 742 mm wall carcasses). The cap is the default and the lift is the exception:
- *  an empty opening is uncapped, since the absence of a worktop is not the presence of a column.
+ *  door bars (703 and 742 mm wall carcasses). The cap is the default and the lift is the exception, so
+ *  an empty opening is capped too: the absence of a worktop is not the presence of a column.
  *
  *  Where the cap applies it is a maximum, never a target, so a mis-answered `hasFullHeightUnder` can
  *  only make a body shallower than its space, never push it past the wall plane (§11 row 19). Where

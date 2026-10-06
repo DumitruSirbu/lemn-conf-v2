@@ -49,10 +49,8 @@ export interface CatalogOffer {
    *  (ADR 0017), rendered by §9 as a row of buttons. They are a list, not a range: what the body can be
    *  built at is `widthRangesMm`. */
   readonly sizesMm: readonly number[];
-  /** The widths this body may actually be built to, as ranges (ADR 0033's amendment): a hinged cabinet
-   *  that does not fit a 500 mm opening publishes 200–400 and 600–800, so the answer reads "make it 600"
-   *  rather than a chip list that stops at 800. Deliberately not narrowed to what fits here. Distinct from
-   *  `sizesMm` (what you may pick). */
+  /** The widths this body may actually be built to, as ranges (ADR 0033's amendment): the entry's buildable
+   *  ranges, deliberately not narrowed to this opening. Distinct from `sizesMm` (what you may pick). */
   readonly widthRangesMm: readonly WidthRangeMm[];
   /** §9: the current row is badged ACTUAL rather than hidden. */
   readonly isCurrent: boolean;

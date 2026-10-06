@@ -42,7 +42,7 @@ const SINK_ROLE: GenerationRunItem["role"] = "sink";
 /**
  * ADR 0110 Amendment M7 (b), (d), (c), in M10's precedence. Where the plan has no dishwasher (no free
  * door cabinet beside the sink, and no (e) swap), it may push out, in order, a pantry column, the
- * bottle, and last the oven tower, and only if the hob has its own oven. The first trade that fits in
+ * bottle, and last the oven tower, and only where the hob then takes the oven. The first trade that fits in
  * place and gives up exactly the body its ruling names is taken; where none does the run is unchanged
  * and the kitchen goes without. The fridge and the core roles are never offered: every candidate
  * inserts on the run's own cut, so each keeps its wall.
@@ -126,7 +126,7 @@ const THE_BOTTLE: RuledLoss = {
   isTheHobSwapped: false,
 };
 
-/** **(c) the oven tower, the last resort** (ADR 0110 M7(c), M12), only if the hob has its own oven. The
+/** **(c) the oven tower, the last resort** (ADR 0110 M7(c), M12), only where the hob then takes the oven. The
  *  tower alone (a pantry outboard of it would go too, and is refused); the hob takes its own oven, so
  *  the kitchen keeps one. */
 const THE_OVEN_TOWER: RuledLoss = {

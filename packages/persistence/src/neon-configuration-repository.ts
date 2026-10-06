@@ -141,8 +141,9 @@ export interface OwnedDesignLookup {
   readonly visitorHash: string;
 }
 
-/** Tagged for the same reason. A foreign row, a pre-`0005` row (`visitor_hash is null`) and a missing row are all
- *  `"none"`: one outcome of one statement, so a non-owner cannot observe which it was. */
+/** Tagged like `VisitorResumeLookup`, so a caller cannot forget to check which case it got. A foreign row, a
+ *  pre-`0005` row (`visitor_hash is null`) and a missing row are all `"none"`: one outcome of one statement, so a
+ *  non-owner cannot observe which it was. */
 export type LoadOwnedOutcome =
   | {
       readonly kind: "found";
@@ -268,6 +269,7 @@ export class NeonConfigurationRepository
    *
    * `schema_version` is restamped with the document: the document was produced by this build, and a row left at its
    * minted version would keep asking for an older normalisation arm on every load, so that arm could never be removed.
+   * Safe in both directions: a normalised document is a fixed point of every arm below the current version.
    */
   private async updateIfCurrent({
     id,

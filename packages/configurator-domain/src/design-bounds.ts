@@ -13,17 +13,17 @@ import { LEVELS, MIN_SPAN_M } from "./void-engine.js";
  * imported: the domain is I/O-free and `three-adapter` depends on it, never the reverse.
  *
  * The drawn shell is now a function of the room the customer entered, so these are no longer "the room
- * shell the scene builds", but their values must not move. `MAX_ROOM_*` below are 1.5x them, and the
- * owner-approved maxima in `room/approved-room-policy.ts` must sit at or under them
- * (`approved-room-policy.test.ts` guards that). Deriving the shell from `MAX_ROOM_*` would close the
- * circle the other way round, and deriving `MAX_ROOM_*` from the approved policy would make that
- * guard unable to fail.
+ * shell the scene builds", but their values must not move. The horizontal `MAX_ROOM_*` bounds below are
+ * 1.5x the longer side (ADR 0124) and the height bound 1.5x its own, and the owner-approved maxima in
+ * `room/approved-room-policy.ts` must sit at or under them (`approved-room-policy.test.ts` guards that).
+ * Deriving the shell from `MAX_ROOM_*` would close the circle the other way round, and deriving `MAX_ROOM_*`
+ * from the approved policy would make that guard unable to fail.
  */
 const SCENE_SHELL_WIDTH_MM = 4200;
 const SCENE_SHELL_DEPTH_MM = 3400;
 const SCENE_SHELL_HEIGHT_MM = 2600;
 
-/** A straight room's `depthMm` is never a wall (ADR 0130 D3/D2), so validation fixes it to the one
+/** A straight room's `depthMm` is never a wall (ADR 0130 decision 2), so validation fixes it to the one
  *  depth the product has drawn without being told, the seeded shell's own. Named for what it is for
  *  at its call site in `room/validate-room.ts`. */
 export const LINEAR_ROOM_DEPTH_MM = SCENE_SHELL_DEPTH_MM;
@@ -132,7 +132,7 @@ const WALL_COUNT = 3;
  * columns).
  *
  * It bounds the keys a wall letter can present in the wire shape, not those a shape's own walls can,
- * so a document with no wall C never reaches those keys (ADR 0130 D3, ADR 0132 decision 5).
+ * so a document with no wall C never reaches those keys (ADR 0130 decision 3, ADR 0132 decision 5).
  */
 export const MAX_EMPTY_COLUMNS =
   (Math.max(...MAX_WALL_RUNS_MM) / COLUMN_KEY_RESOLUTION_MM + 1) * WALL_COUNT;

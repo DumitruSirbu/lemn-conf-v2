@@ -44,13 +44,11 @@ export interface OverflowMark {
 }
 
 /**
- *
  * Builds the mark for one body that reaches past the end of its wall: a translucent hull over the body's visible
  * extent, in `OVERFLOW_MARK_COLOR`. Depth-tested on purpose: a wash drawn through geometry would tint whatever stands
  * in front (the worktop, a neighbouring column) and mark a cabinet that fits, and marking the wrong body is worse than
  * not marking a hidden one. Nothing here is a raycast target (`NOOP_RAYCAST`): ADR 0065 requires a marked body to stay
  * selectable and editable.
- *
  */
 export function buildOverflowMark(input: OverflowMarkInput): OverflowMark {
   const bounds = visibleBoundsInTargetSpace(input.target);

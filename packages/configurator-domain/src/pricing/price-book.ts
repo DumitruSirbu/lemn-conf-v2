@@ -140,7 +140,7 @@ export const DEFAULT_CABINET_SUPPLIER: CabinetSupplier = "manufacturer";
 
 /**
  * What one catalogue row costs, keyed on `buildId`. A placement reaches its rule through
- * `resolveCatalogEquivalent` (ADR 0022, ADR 0029), because a rule belongs to the catalogue row a
+ * `resolveCatalogEquivalent` (ADR 0022), because a rule belongs to the catalogue row a
  * body is named after.
  */
 export interface CabinetPriceRule {

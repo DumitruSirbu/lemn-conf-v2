@@ -215,19 +215,17 @@ function describeErrorType(error: unknown): string {
 }
 
 /**
- *
  * The database a connection string names, and nothing else from it. Exported so the no-credential-in-logs guarantee is
  * testable directly.
  *
  * Never throws: `new URL` on a malformed string raises `ERR_INVALID_URL`, which carries the whole input, password
  * included, where Node's uncaught-exception printer emits it. A scheme other than `postgres:`/`postgresql:`, or no `//`
- * authority (`postgres:/user:pw@host/db`), parses with an empty host and a `pathname` holding the credential, so such
- * URLs get a placeholder before any pathname is read. Otherwise the credential would be returned as the name, and could
+ * authority, gets a placeholder before any pathname is read. Without the authority (`postgres:/user:pw@host/db`) the
+ * URL parses with an empty host and a `pathname` holding the credential, which would be returned as the name and could
  * pass `assertDeclaredEnvironmentReaches` as an unclaimed name while the driver reaches a listed environment.
  *
  * The pathname stays percent-encoded and keeps any backslash: `assertDeclaredEnvironmentReaches` is the one place that
  * judges a raw `%` or `\`.
- *
  */
 export function databaseNameOf(connectionUrl: string): string {
   try {

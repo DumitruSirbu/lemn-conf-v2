@@ -84,11 +84,9 @@ function refuseTheApplicationDatabaseName(test: DatabaseIdentity): void {
 }
 
 /**
- *
  * Connection string for the live-test database: `DATABASE_URL` with only its database name swapped, so no second copy
  * of the credentials is stored; `TEST_DATABASE_URL` overrides it. Throws unless the result names an allowlisted test
  * database, so a misconfiguration fails loudly instead of running a destructive test against real data.
- *
  */
 export function resolveTestDatabaseUrl(): string {
   const override = readTestDatabaseOverride();

@@ -43,12 +43,12 @@ export interface LWallBounds {
   readonly minimumKitchen: LMinimumKitchen;
 }
 
-/** A straight room's one wall (ADR 0130 D2). No `minimumKitchen`: with no corner to clear, the coupled
+/** A straight room's one wall (ADR 0130 decision 1). No `minimumKitchen`: with no corner to clear, the coupled
  *  rule (ADR 0108 C) collapses to wall A ≥ sink + hob, the wall's own minimum.
  *
- *  `depthMm` rides here rather than being imported by `validate-room.ts` (ADR 0130 D3): that module is
- *  held to type-only imports so it can never reach a cabinet depth reader, and a value import for this
- *  unrelated room depth would weaken that guard for every depth. */
+ *  `depthMm` rides here rather than being imported by `validate-room.ts` (ADR 0130 decision 1, Correction F4):
+ *  that module is held to type-only imports so it can never reach a cabinet depth reader, and a value import
+ *  for this unrelated room depth would weaken that guard for every depth. */
 export interface LinearWallBounds {
   readonly wallA: MillimetreBounds;
   readonly depthMm: number;
@@ -143,8 +143,8 @@ export const ENGINE_ROOM_LIMITS: RoomPolicy = {
         },
       },
     },
-    // ADR 0130 D2: no corner to clear, so the minimum is the generated sink plus the generated hob,
-    // and the maximum is the storage ceiling every wall carries (decision 7).
+    // ADR 0130 decision 1: no corner to clear, so the minimum is the generated sink plus the generated hob,
+    // and the maximum is the storage ceiling every wall carries (ADR 0108 decision 7).
     linear: {
       wallA: {
         minMm:

@@ -176,8 +176,9 @@ function rebuildEveryBodyAt(
     }
     const body = resolveRebuildBody(catalog, record);
     if (!body) {
-      // A structural body is re-seated, not rebuilt: a corner return is not insertable, and resolving
-      // it to a catalogue equivalent would change its height. Only its seat depends on the depth.
+      // A structural body is re-seated, not rebuilt: a corner return is not insertable, so it cannot go
+      // through `evaluateInsertFit`, and resolving a seeded body to its catalogue equivalent once turned
+      // `hood-600` into `hood` and changed its height. Only its seat depends on the depth.
       placements.push(
         reseat({
           probe,

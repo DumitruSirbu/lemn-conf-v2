@@ -174,7 +174,7 @@ const OVEN_BEARING_BUILD_IDS: ReadonlySet<string> = new Set([
 
 /** A straight room's one wall is handed over beside an empty, zero-capacity wall B, so
  *  `planKitchenComposition` never branches on the shape: zero capacity cuts the reading order at 0
- *  (ADR 0130 decision 5). */
+ *  (ADR 0137 decision 7). */
 function shellRunsFor(
   room: Design["room"],
 ): Readonly<Record<TwoWallDispatch, GenerationRun>> {

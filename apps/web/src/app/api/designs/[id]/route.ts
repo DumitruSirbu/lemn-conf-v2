@@ -141,7 +141,7 @@ async function saveDesign(
 
     // A save keeps edit access and the visitor identity alive on the same clock.
     // `refreshVisitorCookie` re-emits only the request's own well-formed value and never mints one
-    // (D9: no save changes ownership), and only when `saved.ownsVisitor`, so a value another tab has
+    // (no save changes ownership), and only when `saved.ownsVisitor`, so a value another tab has
     // rotated away is not re-emitted (ADR 0114 Amendment H3).
     const response = NextResponse.json({
       id: saved.id,

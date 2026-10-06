@@ -236,8 +236,8 @@ export function paletteEntriesOf(material: Material): readonly PaletteEntry[] {
 /** Whether a material offers a finish: the one query the reset rule, the command guard and both load
  *  seams read, so "does not offer" is decided in one place (ADR 0078 decision 1).
  *
- *  It asks the control's declared `shape` and never counts entries (a veneer gaining a third wood must not
- *  change the answer's product). A RAL picker offers every free colour `FinishSchema` admits and no palette
+ *  It asks the control's declared `shape` and never counts entries: counting would misclassify veneer the
+ *  day it gains a third wood. A RAL picker offers every free colour `FinishSchema` admits and no palette
  *  entry: no RAL set is declared, and narrowing to a table nobody authored would reset colours a customer
  *  chose. Absence is not asked about: a body wearing no finish never reaches this query. */
 export function materialOffersFinish(

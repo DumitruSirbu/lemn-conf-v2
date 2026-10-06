@@ -88,7 +88,7 @@ export class LinearShellInputError extends Error {
   }
 }
 
-/** The shell for a straight `input.room` (ADR 0130 D5): no structural placement, and wall A's one
+/** The shell for a straight `input.room` (ADR 0130 decision 4): no structural placement, and wall A's one
  *  free run recorded the same way an L's runs are. The tiling primitives are shared with the L. */
 export function buildLinearShellDesign(input: LinearShellDesignInput): Design {
   refuseUnbuildableLinearInput(input);
@@ -119,8 +119,8 @@ function refuseUnbuildableLinearInput(input: LinearShellDesignInput): void {
   }
 }
 
-/** The engine's own linear limits (ADR 0130 D2), never the approved policy. Generation never reads
- *  `room.depthMm` (ADR 0130 D3). */
+/** The engine's own linear limits, never the approved policy. Composition never reads `room.depthMm`
+ *  (ADR 0130 decisions 1, 2). */
 function isInsideTheEngineLimitsLinear(room: DesignRoom): boolean {
   return validateRoomInput(
     { shape: "linear", wallAMm: room.widthMm, heightMm: room.heightMm },

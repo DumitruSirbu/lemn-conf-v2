@@ -359,7 +359,6 @@ export function createConfiguratorStore(
      *  have no target. */
     const applyResult = (result: CommandResult) => {
       const state = get();
-      // The catalogue the result is applied with is the one the store then holds, and both are read
       // The catalogue comes from the result's own design: a depth change is the only command that moves it,
       // so it is never applied against the previous depth's map. A refusal needs no branch: it cannot change
       // the depth, so the lookup resolves to the held map.

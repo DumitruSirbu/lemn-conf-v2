@@ -275,7 +275,7 @@ function buildBody(kit: Kit, record: PlacementRecord): THREE.Group {
 }
 
 /** §6.5: handles are built and hidden, never omitted, so `canHandle` stays true and the customer can turn them back
- *  on. The rule is the domain's `isPushToOpen` (ADR 0092 decision 3), called rather than copied: the same question
+ *  on. The rule is the domain's `isPushToOpen` (ADR 0092 Amendment C), called rather than copied: the same question
  *  decides whether a bar is drawn and whether a latch is billed. A recorded mode counts only when `canHandle`: a
  *  hand-edited or migrated design could record `push` on `fridge-free`, hiding bars no panel section can turn back on.
  *  The predicate reads millimetres and the scene keeps metres, so this converts. */

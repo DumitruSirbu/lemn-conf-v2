@@ -38,7 +38,8 @@ import {
 /**
  * How far the hand-off into the editor has got. There is no "not started" member: the hand-off begins in the
  * transition that first holds a design. `saved` is distinct from `saving` so `ComposeCta` can tell "wait" from
- * "done"; the two are drawn identically (the busy control).
+ * "done"; the two are drawn identically (the busy control). What 1F draws for a design written while the customer
+ * was away is undecided, and unreachable until `next.config.ts` sets `cacheComponents`.
  */
 export type HandoffStatus = "saving" | "saved" | "failed";
 
@@ -142,7 +143,8 @@ export function useGeneration(): GenerationRun {
    * Separate from the run token: under `<Activity>` a hidden route runs this cleanup yet keeps the composed
    * kitchen and its retry control, so retiring the token here would refuse to open the row the retry wrote.
    * Setup as well as cleanup, so a re-shown route is a screen again. Nothing is resumed: a composition still
-   * running when the screen goes is dropped where it settles.
+   * running when the screen goes is dropped where it settles, so a route hidden by `<Activity>` at that instant
+   * comes back showing the pending list for ever.
    */
   useEffect(() => {
     screenIsShowing.current = true;

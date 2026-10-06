@@ -330,7 +330,7 @@ function describeUnresolvedRule(pricedAs: PricingRow): string {
  * The leaf count is read from the **priced-as** row, the opposite of `countHardwareMechanisms`
  * (which counts the built body): seeded rows freeze `carriesHandles(n)` at their built size, so
  * reading the placement's own entry would give a resized seeded `wall-2door-600` no door step at
- * 800 mm while an inserted `wall-cabinet` beside it got one (ADR 0068).
+ * 800 mm while an inserted `wall-cabinet` beside it got one (ADR 0092 decision 1).
  */
 function describePricedBody(
   entry: DisplayEntry,

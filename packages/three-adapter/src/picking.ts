@@ -1,5 +1,7 @@
-// `DEVELOPMENT-SPEC.md` §6.1: hits = raycast(bodies) // solids FIRST if none: hits = raycast(void meshes) // voids only
-// where nothing solid is behind climb parents to the owning placement/void
+// `DEVELOPMENT-SPEC.md` §6.1, in this order:
+//   1. raycast the bodies: solids first.
+//   2. if there is no hit, raycast the void meshes: voids only where nothing solid is behind.
+//   3. climb parents to the owning placement or void.
 //
 // The spec's fourth line, "resolve accessories -> host cabinet", has no work left: the hob is a child mesh of its
 // cabinet's group (ADR 0027), so `climbToSelectable` already resolves a click on it to the cabinet.

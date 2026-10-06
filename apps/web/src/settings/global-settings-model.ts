@@ -384,7 +384,7 @@ function withoutAFinishTheMaterialRefuses(
 /** A refused press: which setting refused, and the engine's own sentence about why. */
 export interface ApplyRefusal {
   readonly setting: WholeKitchenSetting;
-  /** `RejectionReason.message`, rendered by the domain: no refusal vocabulary here (ADR 0032 decision 2). */
+  /** The engine's refusal, resolved through `content.rejection`: no refusal vocabulary here. */
   readonly message: string;
 }
 

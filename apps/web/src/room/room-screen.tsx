@@ -61,7 +61,7 @@ import { ShapeChips, ShapePicker, ShapeRefusal } from "./shape-picker";
 import { useTypingPause } from "./use-typing-pause";
 import { ValidationSuggestion } from "./validation-suggestion";
 
-/** The *Liniară* chip's control, which the suggestion card moves focus to once it unmounts (D8). */
+/** The *Liniară* chip's control, which the suggestion card moves focus to once it unmounts. */
 const LINEAR_CHIP_CONTROL_SELECTOR =
   '[data-testid="room-shape-chip-control-linear"]';
 

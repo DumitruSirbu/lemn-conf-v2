@@ -1,10 +1,10 @@
 // What colour a body is drawn in, declared per catalogue entry and never inferred from a flag or read
-// off a list of build ids (ADR 0099 decision 8; owner: structural cabinetry follows the kitchen,
-// appliances never do, open shelves inherit the global colour).
+// off a list of build ids (ADR 0099 Amendment B2): cabinetry and the corners choose their own, the open
+// shelf follows the kitchen's, and appliances are never painted.
 //
-// `canFinish: false` once covered the corner bodies, the open shelf, the hood and the freestanding
-// fridge alike; the ruling splits them, so one boolean can no longer carry the answer. It is a second
-// declaration, not a widening of `canFinish`, because the two answer different questions:
+// `canFinish: false` covers the open shelf, the hood and the freestanding fridge alike, yet they differ on
+// colour, so one boolean cannot carry the answer. This is a second declaration, not a widening of
+// `canFinish`, because the two answer different questions:
 //
 // - `canFinish`: may this body's document carry a colour of its own? The control gate: `setFinish`
 //   refuses without it (`commands/set-appearance.ts`), `carriedAppearance` copies none
@@ -24,10 +24,10 @@
 
 /** Which colour a body is drawn in, declared per catalogue entry (`BodyDefinition.finishRule`).
  *
- *  - `chooses-its-own-colour`: ordinary cabinetry. The customer may pick a colour for this body alone,
+ *  - `chooses-its-own-colour`: cabinetry, the corners included. The customer may pick a colour for this body alone,
  *    and where they picked none it follows the kitchen and then the material's default (ADR 0099
  *    decision 1). The only arm that reads `placement.body.finish`.
- *  - `follows-the-kitchens-colour`: structural cabinetry and the open shelf. It wears the kitchen's
+ *  - `follows-the-kitchens-colour`: the open shelf only (the corners now choose). It wears the kitchen's
  *    colour but a customer selects no finish on it (§13.1), so its own `finish` key is never read: a
  *    colour reaching its document by a restored backup or another client is not drawn.
  *  - `is-never-painted`: a hood or a freestanding fridge. Not cabinetry, so no colour reaches it at any

@@ -312,8 +312,8 @@ function belowTheLabelLane(
 /**
  * One isotropic scale for both axes: the largest that fits the whole room in the region on both axes.
  * Frames 1A/1B use two scales (wall A 250 px for 3600 mm, wall B 50 px for 2400 mm), which would draw a
- * 6000 x 1000 mm room as a square. Every multiplication by the scale lives here; the region already has
- * the label lane off it, so there is no second subtraction.
+ * 6000 x 1000 mm room as a square. The scale is computed only here (see ADR 0139 decision 7); the region
+ * already has the label lane off it, so there is no second subtraction.
  */
 function isotropicScalePxPerMm(
   lengths: readonly DrawableLength[],
@@ -648,7 +648,8 @@ function beneathLabel(pair: FacingLabels): PlanWallLabelPx {
 }
 
 /** Em of `"{wall} · {n} mm"` independent of the number: letter, spaces, middle dot and unit at their widest.
- *  Measured 5,84 em for *"A · 3600 mm"* in Chromium at `700 11px Helvetica`, of which four digits are 2,4 em. */
+ *  Measured 5,84 em for *"A · 3600 mm"* in Chromium at `700 11px Helvetica`; the bound is 6,1 em, of which four
+ *  digits at 0,6 em are 2,4. */
 const LABEL_FIXED_EM = 3.7;
 
 /** The widest a digit is set in the screen's face, generously: tabular figures are 0,556 em. */

@@ -1,10 +1,9 @@
 "use client";
 
-// The back links' confirmation, asked of the browser's Back and swipe-back too
-// (`docs/milestones/M7C-m7-feedback-fixes.md`, C1 S4). The router cannot refuse a traversal (Next's `onPopState`
-// restores whichever entry the browser landed on), so the shape is a guard entry: one extra history entry with the
-// editor's own URL, pushed once the customer has something to lose; Back lands on the editor's first entry and a
-// `popstate` listener asks. Rules the wiring keeps:
+// The back links' confirmation, asked of the browser's Back and swipe-back too (see ADR 0139 decision 6). The
+// router cannot refuse a traversal (Next's `onPopState` restores whichever entry the browser landed on), so the
+// shape is a guard entry: one extra history entry with the editor's own URL, pushed once the customer has
+// something to lose; Back lands on the editor's first entry and a `popstate` listener asks. Rules the wiring keeps:
 // 1. Push the guard from the customer's first edit, never earlier: Chrome marks entries a document pushed without
 //    a user gesture skippable on Back (`SetShouldSkipOnBackForwardUIIfNeeded`), and an edit is a real gesture.
 // 2. *Stay* never pushes: Escape is not a user activation, so a re-pushed guard would be skippable and take Back
