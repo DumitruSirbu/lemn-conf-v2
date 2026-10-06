@@ -1310,7 +1310,12 @@ Committed on `m7c-m7-feedback-fixes`, not pushed; the pre-commit hook ran, forma
 - **Gate findings.** Two pre-push gate runs were blocked by intermittent e2e failures: the first by a
   500 on the share POST (backlog 117, unexplained), the second by the count (8 > 7) before S3a. The gate
   runs 8 workers against one dev server; the runner uses 1.
-- **Next.** The push (owner-approved after S1), then S2 and S3 from the runner's result, then C6.
+- **Gate fix outside M7C's scope (`8d357a2`).** A `source-map-js` override, for GHSA-68fv-2mgg-jv7q, a new
+  advisory that blocked a pre-push gate run. Dev-scope advisories left open: backlog 118.
+- **Pushed.** The owner pushed `8d357a2`; a parallel gated push ran local CI fully green (format, lint,
+  typecheck, test, e2e 622 passed, build, boundary, lockfile, sca) and was then refused as redundant
+  [coordinator-run]. CI run 37447895177 was in progress when this was written.
+- **Next.** CE S2 and S3 from that run's result, then C6.
 
 *Read from the CI log by S0's agent, 2026-10-01 [log-verified; nothing run].* Group 1, four tests:
 `toBeEnabled` on `global-settings-trigger`, stuck at *"Se verifică accesul"*; A5 still so after 15 s,

@@ -147,7 +147,8 @@ status corrections, in one of these two files:
 | 114 | Two e2e helpers break on the generated top row | open.md — found 2026-10-02 by C3 S1's QA; **closed 2026-10-06, fixed in `fecd430` (CE S1)** |
 | 115 | The 2600 mm top-row line is derived in two places | open.md — recorded 2026-10-02 by C3 S1; pinned by QA; not scheduled |
 | 116 | A refused top-row insert becomes a `not_placed` step with no customer-visible reason | open.md — recorded 2026-10-02 by C3 S1; not observed in the census |
-| 117 | An intermittent 500 on `POST /api/designs/{id}/share` | open.md — found 2026-10-06 by the pre-push gate; unexplained; no owner |
+| 117 | The remote test database drops connections intermittently (a share-POST 500, a persistence lock test) | open.md — found 2026-10-06 by the pre-push gate; unexplained; no owner |
+| 118 | Dev-scope advisories in the lockfile (tinypool, js-yaml, brace-expansion, braces, vitest); extends 102 | open.md — found 2026-10-06 by the security review; not scheduled, no owner |
 
 ## 2026-09-06 audit note
 

@@ -2143,9 +2143,17 @@ Generation continues past a refused top insert, as it does for the wall row. Non
 a property test now fails if one appears [relayed]. If it ever does, the customer sees a kitchen with no
 top cabinet over that body and no explanation. No owner, no phase.
 
-## 117. An intermittent 500 on `POST /api/designs/{id}/share` — FOUND 2026-10-06 BY THE PRE-PUSH GATE, UNEXPLAINED
+## 117. The remote test database drops connections intermittently (first seen as a 500 on `POST /api/designs/{id}/share`) — FOUND 2026-10-06 BY THE PRE-PUSH GATE, UNEXPLAINED
 
-**Observed [coordinator-run].** The first pre-push gate run on 2026-10-06 failed
+**Widened 2026-10-06 [coordinator-run].** Five pre-push gate runs that day failed in turn on: (1) the
+share 500 below; (2) criterion 8's paint bound (fixed in `d015738`, ADR 0139 decision 11); (3) SCA, a new
+advisory (fixed in `8d357a2`); (4) `packages/persistence/tests/qa-7t-s2b-lock.adversarial.test.ts`, "the
+named timeout > carries SQLSTATE 55P03 …", `Error: Connection terminated unexpectedly`, which passed 45/45
+five times alone right after; (5) all green. **Items (1) and (4) are the same family [inference]: the
+remote test database (Neon, `TEST_DATABASE_URL`) dropping a connection.** No M7C change touches
+persistence or the share route. **Cost:** each blocked gate run is about 15 minutes.
+
+**First observed [coordinator-run].** The first pre-push gate run on 2026-10-06 failed
 `linear-flow.e2e.spec.ts:22` (mobile) because the share POST answered 500. The server log shows
 `⨯ SyntaxError: Unexpected end of JSON input at JSON.parse` for that page, and **no `reportDesignFailure`
 log line before it**, which the route's catch would emit. Unexplained. It passed 5 of 5 run alone
@@ -2154,3 +2162,23 @@ response from the remote test database's HTTP driver. **Also noted:** the pre-pu
 with 8 workers against one dev server while the runner uses 1, so the gate sees more load than the
 runner; the second gate run failed on criterion 8 (8 > 7) before CE S3a (ADR 0139 decision 11). No owner,
 no phase; re-open if it recurs on the runner.
+
+## 118. Dev-scope advisories in the lockfile — FOUND 2026-10-06 BY THE SECURITY REVIEW, NOT SCHEDULED
+
+**Source [reviewer-run `pnpm audit --json`, 2026-10-06].** CI's `pnpm audit --audit-level=high --dev` is
+non-blocking (`ci.yml:747-749`). Backlog 102 already holds js-yaml and vitest; this entry adds the
+rest and does not replace it.
+
+- **2 critical.** tinypool 1.1.1 via vitest 3.2.6: GHSA-5gmw-xhrv-c9v3 (fixed from 2.1.1) and
+  GHSA-85c8-ppgw-ccpr (from 2.1.2).
+- **6 high.** js-yaml 4.3.1 via eslint: GHSA-2883-xcg3-v3hh (from 4.3.2). brace-expansion 1.1.18 and 2.1.4
+  via eslint and typescript-eslint's minimatch: GHSA-qhr7-859c-m2p7, GHSA-6j4f-fj2g-mc7p. braces 3.0.3 via
+  typescript-eslint > fast-glob > micromatch: GHSA-vfj7-8cjw-p6xm, **no patched version**.
+- **4 moderate.** vitest and @vitest/mocker 3.2.6: GHSA-82fw-gwwq-j7x9 (from 4.1.11); brace-expansion:
+  GHSA-q2hr-2g5m-vwhr.
+- **Exposure.** None runs behind a network listener (no vitest browser, ui or api server); the attacker
+  must already control repo code or config. The reviewer also noted, **unverified**, that `next dev` binds
+  0.0.0.0 by default, so a dev server is LAN-reachable.
+- **Likely routes [inference].** A vitest 4.1.11 or later upgrade probably clears tinypool; a lockfile
+  refresh or overrides for brace-expansion and js-yaml; braces only by dropping the dependency path.
+  No owner, no phase.
