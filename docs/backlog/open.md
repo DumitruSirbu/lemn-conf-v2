@@ -2163,6 +2163,10 @@ with 8 workers against one dev server while the runner uses 1, so the gate sees 
 runner; the second gate run failed on criterion 8 (8 > 7) before CE S3a (ADR 0139 decision 11). No owner,
 no phase; re-open if it recurs on the runner.
 
+**Status after CE S4 (`556abb3`, 2026-10-06): stays open.** An empty reply is now retried (ADR 0145). A
+mid-reply drop and `Connection terminated unexpectedly` are not (owner ruling). The share 500's source is
+still not established: the route's catch would have logged a repository error and none was seen.
+
 ## 118. Dev-scope advisories in the lockfile — FOUND 2026-10-06 BY THE SECURITY REVIEW, NOT SCHEDULED
 
 **Source [reviewer-run `pnpm audit --json`, 2026-10-06].** CI's `pnpm audit --audit-level=high --dev` is

@@ -34,6 +34,11 @@ in `docs/STATUS.md` and `docs/backlog/open.md` (a few entries), not in an ADR. C
 - **Where.** `packages/persistence/src/share-link-repository.ts` (`issue`);
   `packages/persistence/src/neon-configuration-repository.ts` (`mint`).
 
+> **Dated pointer, 2026-10-06: decisions 2 and 3 are superseded by [ADR 0145](0145-a-persistence-retry-covers-an-empty-reply-and-a-retried-write-leaves-no-trace.md)** (CE S4, `556abb3`).
+> Decision 2's "a lost acknowledgement retries into a primary-key collision" is now false; decision 3's
+> name, file, marker-only rule, call-site list and "accepted false conflict" are replaced. Text kept as
+> written.
+
 ## Decision 2 — the retried callback must not generate the identifier, and a lost acknowledgement is a collision, not two rows
 
 - **Rule.** The design `id` in `mint` and the `tokenHash` in `issue` are generated **outside** the retried

@@ -1330,6 +1330,21 @@ Committed on `m7c-m7-feedback-fixes`, not pushed; the pre-commit hook ran, forma
 - **Backlog.** 119 and 120, both product questions not fixed here.
 - **Next.** **S4** (the retry), then those two failures, then C6.
 
+**CE S4 as built — 2026-10-06** (`556abb3`; hook ran; figures relayed).
+
+- **Built.** The persistence retry becomes `retryOnTransientFailure`: it retries Neon's marker or an empty
+  reply body, and every retried write is made to leave no trace of the attempt it replaces. Predicate,
+  caller classes and residuals: **ADR 0145** (supersedes ADR 0142 decisions 2 and 3; pointers added at ADR
+  0142 and ADR 0114 H1 and R2.3). Persistence 819/819 [implementer-run].
+- **Deviation from the S4 row.** The row's *"dropped pooled connection"* is excluded by owner ruling
+  (2026-10-06): no production path uses a pooled pg connection, so `Connection terminated unexpectedly` is
+  not retried.
+- **Backlog 117 stays open.** The empty reply is now retried; a mid-reply drop and `Connection terminated
+  unexpectedly` are not. The observed share 500's source is still not established: the route's catch would
+  have logged a repository error and none was seen.
+- **Next.** The two remaining runner failures (`qa-7i-mirror-captures.desktop`, 300 s timeout;
+  `top-bar-pill-containment:641`), a full local e2e run, the push, the `run-e2e` label (owner), then C6.
+
 *Read from the CI log by S0's agent, 2026-10-01 [log-verified; nothing run].* Group 1, four tests:
 `toBeEnabled` on `global-settings-trigger`, stuck at *"Se verifică accesul"*; A5 still so after 15 s,
 which points at the write-access probe not answering on a production build rather than at a tight
