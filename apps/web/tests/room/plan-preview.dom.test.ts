@@ -18,9 +18,9 @@ import { resolve } from "node:path";
 import { fc } from "@fast-check/vitest";
 import { APPROVED_ROOM_POLICY } from "@lemnaria/configurator-domain";
 import { NextIntlClientProvider } from "next-intl";
-import { act, createElement } from "react";
+import { Fragment, act, createElement, useLayoutEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PLAN_BOX, PlanPreview } from "@/room/plan-preview";
 import {
@@ -239,6 +239,8 @@ afterEach(() => {
     root.unmount();
   });
   container.remove();
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe("the box the model is handed is the inside of the box that is painted", () => {
@@ -478,3 +480,76 @@ describe("a wall the room refuses is painted red and reads its short reason (7F2
     expect(labelAt("B").textContent).toBe("B \u00B7 450 mm");
   });
 });
+
+describe("the box is watched in the commit that hydrates it, before the browser can paint", () => {
+  it("has a ResizeObserver on the box by the time a later sibling's layout effect runs", () => {
+    const watched = stubResizeObserverThatNeverFires();
+    let watchedAtLayoutTime = -1;
+    function LaterSibling(): null {
+      useLayoutEffect(() => {
+        watchedAtLayoutTime = watched.length;
+      }, []);
+      return null;
+    }
+
+    act(() => {
+      root.render(
+        createElement(NextIntlClientProvider, {
+          children: createElement(
+            Fragment,
+            null,
+            createElement(PlanPreview, {
+              draft: draftFor(AN_ORDINARY_KITCHEN),
+            }),
+            createElement(LaterSibling),
+          ),
+          locale: A_PRODUCT_LOCALE,
+          messages: roMessages,
+          timeZone: "Europe/Chisinau",
+        }),
+      );
+    });
+
+    expect(watchedAtLayoutTime).toBe(1);
+    expect(watched[0]).toBe(elementAt("room-plan-box"));
+    expect(watched).toHaveLength(1);
+  });
+});
+
+describe("the empty box shown while a fill-mode measurement is awaited", () => {
+  it("already carries the border the stylesheet's border declaration needs", () => {
+    stubResizeObserverThatNeverFires();
+    flagTheBoxForFill();
+
+    renderDraft(draftFor(AN_ORDINARY_KITCHEN));
+    const box = elementAt("room-plan-box");
+
+    expect(box.querySelector("svg")).toBeNull();
+    expect(publishedPx(box, "--plan-box-border")).toBe(
+      (PAINTED_BOX_WIDTH_PX - PLAN_BOX.widthPx) / 2,
+    );
+  });
+});
+
+/** Records what is observed and never calls back, so a flagged box stays awaiting its measurement. */
+function stubResizeObserverThatNeverFires(): Element[] {
+  const watched: Element[] = [];
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      observe = (target: Element): void => {
+        watched.push(target);
+      };
+      disconnect = vi.fn();
+    },
+  );
+  return watched;
+}
+
+/** No stylesheet is loaded under happy-dom, so the desktop `--plan-fill` flag is stated here. */
+function flagTheBoxForFill(): void {
+  vi.spyOn(window, "getComputedStyle").mockReturnValue({
+    getPropertyValue: (property: string) =>
+      property === "--plan-fill" ? "1" : "",
+  } as CSSStyleDeclaration);
+}
