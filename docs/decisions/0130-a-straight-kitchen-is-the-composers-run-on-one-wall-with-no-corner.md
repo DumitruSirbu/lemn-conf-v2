@@ -1,6 +1,9 @@
 # ADR 0130 — A straight kitchen is the composer's run on one wall with no corner
 
-Status: Proposed — with wave 7J's plan, 2026-09-24
+Status: Accepted — owner ruling, 2026-10-06. ~~Proposed — with wave 7J's plan, 2026-09-24~~ (the
+original status, kept visible). Reason: wave 7J shipped it (`docs/STATUS.md` records *"M7 wave 7J is
+DONE"*, last updated 2026-09-28, straight kitchens through composition); the owner moved it from
+Proposed to Accepted on 2026-10-06.
 Date: 2026-09-24
 Type: Decision
 Milestone: M7, wave 7J (`docs/milestones/M7-room-and-presets.md`, *Wave 7J — the plan (2026-09-24)*)

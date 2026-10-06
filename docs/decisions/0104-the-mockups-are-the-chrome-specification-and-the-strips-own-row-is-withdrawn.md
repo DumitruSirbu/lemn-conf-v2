@@ -272,7 +272,7 @@ The two files spell two controls differently:
 `DEVELOPMENT-SPEC.md` §10.1 admits no copy fork per viewport, and this repository has a dated lesson
 about reconciling ruled copy on a wave's own authority — `startingPrefixUnchanged`, where frames D2C
 and 2C spelled one string two ways and the owner ruled a third. **So this wave changes neither
-string and forks nothing.** `priceBreakdown.title` stays *De ce acest preț* on both shells, and the
+string and forks nothing.** `priceBreakdown.title` ~~stays *De ce acest preț*~~ **corrected 2026-10-06 to *De ce acest preț?* — see Amendment E** on both shells, and the
 divergence is the plan's open question 2. A wave does not reconcile ruled copy on its own; that rule
 is what produced the correct outcome last time and it is not suspended by an instruction to match the
 reference, because the reference is what disagrees with itself.
@@ -900,3 +900,14 @@ actually wants and calls hard; it is backlog 103 and not this amendment.
 | [0111](0111-step-1-creates-the-design-through-the-existing-mint-then-save-and-the-room-entry-lives-in-the-url.md) decision 5; ADR 0114 decision 4 | Back never erases; `/` resumes the newest design. | **Unchanged** (D2). |
 | [0081](0081-a-material-change-confirms-only-when-a-chosen-colour-would-be-lost.md), [0086](0086-the-confirmation-counts-chosen-colours-and-only-a-different-declared-material-owes-one.md) | When the material-change confirmation is owed, and what it counts. | **Unchanged in meaning**; the component is now shared (pointer added). |
 | [0113](0113-step-1-copy-is-approved-as-drafted-and-enters-the-copy-lock-in-the-wave-that-adds-it.md) | New Romanian leaves enter the lock in the commit that adds them. | **Followed** (pointer added). |
+
+## Amendment E, 2026-10-06 — the price breakdown's title carries a question mark
+
+**Owner ruling, confirmed 2026-10-06.** Asked which wording is current, the owner answered *"Is: De ce
+acest pret?"*: the title is **"De ce acest preț?"**. Decision 7's sentence that `priceBreakdown.title`
+*"stays De ce acest preț"* is corrected in place (struck and pointed here); nothing else in decision 7
+changes, including its refusal to fork copy per shell. [Source-verified by the coordinator:
+`apps/web/src/messages/ro.json` and `apps/web/tests/support/approved-romanian-messages.ts` both hold
+*"De ce acest preț?"*, and `price-breakdown-copy.test.ts` asserts it.] The mark was first ruled by the
+owner on 2026-09-09 (recorded at [ADR 0141](0141-romanian-copy-rulings-recovered-from-the-copy-lock-and-a-test.md)
+decision 1). Cite as `see ADR 0104 Amendment E`.

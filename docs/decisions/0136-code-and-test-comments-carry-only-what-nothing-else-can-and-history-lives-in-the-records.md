@@ -57,3 +57,19 @@ supersession is needed.
 - Existing rules that stay as they are: the deferred-test header comment, and *A comment claiming a
   guard is not a guard* (both in the conventions file).
 - The two measurements above are the baseline; a later count must be re-run, not inferred.
+
+## Addendum — 2026-10-06: where the recovered reasons were filed
+
+The reasons the stripping pass reported as needing an ADR home were filed on 2026-10-06 as
+[ADR 0137](0137-engine-validation-and-generation-reasons-recovered-from-code-comments.md) (engine,
+validation, generation), [0138](0138-price-arithmetic-price-book-parsing-and-rounded-figures-recovered-from-code-comments.md)
+(pricing), [0139](0139-the-room-screens-routing-generation-and-back-guard-reasons-recovered-from-code-comments.md)
+(room screen, routing, generation lifecycle, back guard, plan scale),
+[0140](0140-chrome-price-surface-and-scene-reasons-recovered-from-code-comments.md) (chrome, price surface,
+scene), [0141](0141-romanian-copy-rulings-recovered-from-the-copy-lock-and-a-test.md) (copy rulings),
+[0142](0142-persistence-concurrency-migration-safety-and-api-reasons-recovered-from-code-comments.md)
+(persistence, migration safety, API) and [0143](0143-three-adapter-test-expectations-recovered-from-test-comments.md)
+(three-adapter tests), plus addenda to [ADR 0090](0090-a-frozen-space-slides-with-its-run-and-follows-the-body-it-recorded.md)
+(items 1 and 2) and [ADR 0127](0127-step-1s-url-follows-the-typed-room-and-a-late-echo-is-still-ours.md)
+(decision 11). Every filed reason carries the evidence tier "recovered from a code comment on
+2026-10-06, not re-measured".

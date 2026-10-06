@@ -46,6 +46,9 @@ replaced it — nothing is deleted or rewritten silently.
   the prefix** by the owner's ruling of 2026-09-10 (**ADR 0104** Amendment A1, **ADR 0107** decision
   6): label 400, amount 700, on all four figure surfaces. The frame's number stays quoted in place —
   this is the one case where the frame lost, and it lost to the only authority above it.
+- **ADR 0104** decision 7's *"`priceBreakdown.title` stays *De ce acest preț*"* → **corrected** to
+  *De ce acest preț?* by **ADR 0104** Amendment E (owner, confirmed 2026-10-06; first ruled 2026-09-09,
+  **ADR 0141** decision 1).
 - **ADR 0104** decision 6's *precedent* — the inert `RO ▾` locale caret — → **spent**, not
   contradicted (Amendment A2). Wave 6B-i made the chip a link and **ADR 0107** decision 1 makes it a
   language dropdown; `Verifică designul` is still drawn inert until M8.
