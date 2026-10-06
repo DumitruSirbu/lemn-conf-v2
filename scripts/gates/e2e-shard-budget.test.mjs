@@ -14,7 +14,6 @@ import {
   filesLargerThanBudget,
   findShardCountNeeded,
   readWorkflowShards,
-  SHARDS_PER_PROJECT,
   shardsOverBudget,
   summariseListing,
   workflowDisagreements,
