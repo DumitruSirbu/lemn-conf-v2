@@ -2182,3 +2182,18 @@ rest and does not replace it.
 - **Likely routes [inference].** A vitest 4.1.11 or later upgrade probably clears tinypool; a lockfile
   refresh or overrides for brace-expansion and js-yaml; braces only by dropping the dependency path.
   No owner, no phase.
+
+## 119. A client transition probes write access for the design being left — FOUND 2026-10-06 BY CE S2, HARMLESS
+
+**Source [implementer-run, trace-verified].** After a transition from design B to design A, A's
+`store.hydrate` sets `canWrite: "checking"`, and the still-mounted B tree's effect
+(`hydrate-and-configure.tsx:82`, deps `[designId, canWrite]`) fires one probe for B. It is harmless:
+`applyWriteAccess` drops the answer (`configurator-store.ts:613`). The cost is one wasted request. A fix is
+production code (Full tier). The owner's call; no owner, no phase.
+
+## 120. The first WebGL frame can hold "Se verifică accesul" for seconds on a slow device — FOUND 2026-10-06 BY CE S2, A PRODUCT QUESTION
+
+**Source [implementer-run, trace- and profile-verified; ADR 0144 decision 1].** The write-access probe
+answers in milliseconds, but the settings trigger enables only after the first frame's main-thread block:
+7-11 s under local load, 7-10 s on the runner. A real low-end device may show the disabled state for that
+long. A product question, not a defect; no owner, no phase.

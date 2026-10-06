@@ -1318,6 +1318,18 @@ Committed on `m7c-m7-feedback-fixes`, not pushed; the pre-commit hook ran, forma
   [coordinator-run]. CI run 37447895177 was in progress when this was written.
 - **Next.** CE S2 and S3 from that run's result, then C6.
 
+**CE S2 as built — 2026-10-06** (`3e3420a`; hook ran; figures relayed from the implementer).
+
+- **Classification.** Group 1 was correct but slow under load, **not a write-access defect**: the probe is
+  answered in 60-180 ms, and the page then freezes for seconds on the first WebGL frame.
+- **Fix.** One named bound, `WRITE_ACCESS_TIMEOUT_MS = 60_000`, through the helper
+  `expectWriteAccessApplied`; ten e2e files converted to it. Evidence, reproduction, sabotage and rejected
+  alternatives: **ADR 0144 decision 1.**
+- **Open from CI run 37453093040.** `qa-7i-mirror-captures.desktop` (300 s timeout at a screenshot) and
+  `top-bar-pill-containment:641` stay open.
+- **Backlog.** 119 and 120, both product questions not fixed here.
+- **Next.** **S4** (the retry), then those two failures, then C6.
+
 *Read from the CI log by S0's agent, 2026-10-01 [log-verified; nothing run].* Group 1, four tests:
 `toBeEnabled` on `global-settings-trigger`, stuck at *"Se verifică accesul"*; A5 still so after 15 s,
 which points at the write-access probe not answering on a production build rather than at a tight

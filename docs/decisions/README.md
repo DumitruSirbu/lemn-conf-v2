@@ -164,6 +164,7 @@ when a record you rely on is marked superseded below, or when planning (architec
 | [0141](0141-romanian-copy-rulings-recovered-from-the-copy-lock-and-a-test.md) | Romanian copy rulings recovered from the copy lock and a test | Accepted |
 | [0142](0142-persistence-concurrency-migration-safety-and-api-reasons-recovered-from-code-comments.md) | Persistence concurrency, migration safety and API reasons recovered from code comments | Accepted |
 | [0143](0143-three-adapter-test-expectations-recovered-from-test-comments.md) | Three-adapter test expectations recovered from test comments | Accepted |
+| [0144](0144-an-e2e-wait-on-the-editor-outlasts-the-first-webgl-frames-freeze-by-one-named-bound.md) | An e2e wait on the editor outlasts the first WebGL frame's freeze, by one named bound | Accepted |
 
 ## Adding the next one
 

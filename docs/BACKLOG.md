@@ -149,6 +149,8 @@ status corrections, in one of these two files:
 | 116 | A refused top-row insert becomes a `not_placed` step with no customer-visible reason | open.md — recorded 2026-10-02 by C3 S1; not observed in the census |
 | 117 | The remote test database drops connections intermittently (a share-POST 500, a persistence lock test) | open.md — found 2026-10-06 by the pre-push gate; unexplained; no owner |
 | 118 | Dev-scope advisories in the lockfile (tinypool, js-yaml, brace-expansion, braces, vitest); extends 102 | open.md — found 2026-10-06 by the security review; not scheduled, no owner |
+| 119 | A client transition probes write access for the design being left | open.md — found 2026-10-06 by CE S2; harmless (the answer is dropped); a fix is production code; owner's call |
+| 120 | The first WebGL frame can hold "Se verifică accesul" for seconds on a slow device | open.md — found 2026-10-06 by CE S2; a product question, not a defect; no owner |
 
 ## 2026-09-06 audit note
 
