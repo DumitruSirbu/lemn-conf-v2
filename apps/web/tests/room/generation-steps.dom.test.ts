@@ -385,7 +385,7 @@ describe("the notice band is 1F's live region", () => {
   });
 });
 
-/** Witnesses: 1500 × 2800 holds an M1 dishwasher, 1500 × 3500 holds none. */
+/** Witnesses: 1500 × 2800 holds an M1 dishwasher, 1500 × 3500 holds none (ADR 0110 Amendment M3). */
 describe("the dishwasher row, in both locales (7D5b SW)", () => {
   const WITH_DISHWASHER: DesignRoom = {
     shape: "L",

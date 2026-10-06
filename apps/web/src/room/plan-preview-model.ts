@@ -86,7 +86,7 @@ export interface EmptyPlanPreview {
 export type PlanPreview = DrawnPlanPreview | EmptyPlanPreview;
 
 /** Frame 1B draws both wall bars 12 px thick. A drawing constant that never scales with the room: the plan
- *  knows no depth (ADR 0083 decision 2). */
+ *  knows no depth (ADR 0139 decision 8). */
 export const PLAN_WALL_THICKNESS_PX = 12;
 
 /** The line a wall's label is written on. `plan-preview.tsx` publishes it as `.planWallLabel`'s font, so
