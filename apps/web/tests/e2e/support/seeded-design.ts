@@ -251,14 +251,14 @@ export async function openSeededDesign(
   return outcome.navigation;
 }
 
-/** Covers a first-frame freeze of 23 s and more under software GL, where the default 5 s fails a page that is only late
- *  (see ADR 0144 d1). Capped by the test timeout, 30 s locally. */
-export const WRITE_ACCESS_TIMEOUT_MS = 60_000;
+/** Outlasts the first WebGL frame's main-thread freeze under software GL (23 s and more); the default 5 s fails a page
+ *  that is only late. Capped by the test timeout. See ADR 0144. */
+export const FIRST_FRAME_FREEZE_TIMEOUT_MS = 60_000;
 
-/** Waits for the store to apply `canWrite`, i.e. for the settings trigger to enable, within `WRITE_ACCESS_TIMEOUT_MS`. */
+/** Waits for the store to apply `canWrite`, i.e. for the settings trigger to enable, within `FIRST_FRAME_FREEZE_TIMEOUT_MS`. */
 export async function expectWriteAccessApplied(page: Page): Promise<void> {
   await expect(page.getByTestId("global-settings-trigger")).toBeEnabled({
-    timeout: WRITE_ACCESS_TIMEOUT_MS,
+    timeout: FIRST_FRAME_FREEZE_TIMEOUT_MS,
   });
 }
 

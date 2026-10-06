@@ -20,6 +20,9 @@ const DESKTOP_WIDTHS = [
 const TOUCH_TARGET_PX = 44;
 const SUB_PIXEL_SLACK = 0.5;
 
+/** Covers the 135 s this sweep took on the CI runner. See ADR 0144 d2. */
+const SAME_HEADER_SWEEP_TIMEOUT_MS = 300_000;
+
 /** Frame D2A's declared band, at every width on every design (ADR 0104 decision 8b). */
 const RULED_TOP_BAR_HEIGHT_PX = 76;
 
@@ -641,6 +644,7 @@ test.describe("on a design carrying ADR 0065's overflow flag", () => {
   test("draws the same header on a flagged design as on a seeded one", async ({
     page,
   }) => {
+    test.setTimeout(SAME_HEADER_SWEEP_TIMEOUT_MS);
     const seeded: Record<string, unknown> = {};
     for (const width of DESKTOP_WIDTHS) {
       await atWidth(page, width);

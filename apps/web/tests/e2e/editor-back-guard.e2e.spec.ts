@@ -25,7 +25,7 @@ import {
   expectWriteAccessApplied,
   openSeededDesign,
   test as seededTest,
-  WRITE_ACCESS_TIMEOUT_MS,
+  FIRST_FRAME_FREEZE_TIMEOUT_MS,
 } from "./support/seeded-design";
 import {
   continueButton,
@@ -125,7 +125,7 @@ async function readHistory(page: Page): Promise<EntryFacts> {
 async function expectGuardUnderTheCustomer(page: Page): Promise<EntryFacts> {
   await expect
     .poll(async () => (await readHistory(page)).isGuard, {
-      timeout: WRITE_ACCESS_TIMEOUT_MS,
+      timeout: FIRST_FRAME_FREEZE_TIMEOUT_MS,
     })
     .toBe(true);
   return readHistory(page);
@@ -477,7 +477,7 @@ async function switchLanguageTo(page: Page, locale: "ro" | "ru") {
   await page.getByTestId("top-bar-locale").tap();
   await page.getByTestId(`top-bar-locale-option-${locale}`).tap();
   await expect(page).toHaveURL(new RegExp(`/${locale}/d/`), {
-    timeout: WRITE_ACCESS_TIMEOUT_MS,
+    timeout: FIRST_FRAME_FREEZE_TIMEOUT_MS,
   });
   await expectTheEditorToBeReady(page);
 }
