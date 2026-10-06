@@ -176,7 +176,7 @@ function ComposeCta({
  *
  *  The leaf follows the wall count `wallsOf` gives the shape: one wall `roomSummaryLinear`, two `roomSummary`,
  *  three `roomSummaryU`. A straight room's entered fields are wall A and height; `room.depthMm` is the drawn
- *  floor's depth, not a length the customer typed, so it must not be printed as one. */
+ *  floor's depth, not a length the customer typed (ADR 0130 decision 2), so it must not be printed as one. */
 function RoomSummary({ room }: { readonly room: DesignRoom }) {
   const translate = useTranslations();
   const wallCount = wallsOf(room.shape).length;

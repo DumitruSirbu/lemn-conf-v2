@@ -531,7 +531,7 @@ describe("the room summary reads whole millimetres, in both locales (7F2 S1b)", 
   );
 
   // A straight room's summary names wall A and the height only: `room.depthMm` is the drawn floor's depth, not a
-  // typed length, so the wall-B clause is absent rather than a second read of the shape.
+  // typed length (ADR 0130 decision 2), so the wall-B clause is absent rather than a second read of the shape.
   it.each([
     ["ro", ROMANIAN, "mm"],
     ["ru", RUSSIAN, "\u043C\u043C"],

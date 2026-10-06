@@ -33,7 +33,7 @@ const APPROVED_CEILING_MAX_MM = 3900;
 
 // ADR 0108 Amendment G: one maximum for every wall of every shape, 6000 mm, which fills a straight wall
 // exactly (no length past it holds a single body more). 1200 is the minimum kitchen with no corner to
-// clear, a 600 mm sink plus a 600 mm hob: wall A's own bound, not a coupled two-wall rule.
+// clear, a 600 mm sink plus a 600 mm hob: wall A's own bound, not a coupled two-wall rule (ADR 0130 decision 1).
 const APPROVED_LINEAR_WALL_A_MIN_MM = 1200;
 const APPROVED_LINEAR_WALL_A_MAX_MM = 6000;
 

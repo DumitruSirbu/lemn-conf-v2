@@ -110,8 +110,8 @@ function isAlreadyDrawnAt(shell: Object3D, room: DesignRoom): boolean {
   return shell.userData[DRAWN_ROOM_KEY] === drawnRoomSignature(room);
 }
 
-/** Includes the shape (wall B's visibility depends on it) and wall C's length (0 for shapes without one), so rooms
- *  at the same three dimensions are not read as one drawn picture. */
+/** Includes the shape (wall B's visibility depends on it; ADR 0130 decision 7) and wall C's length (0 for shapes
+ *  without one), so rooms at the same three dimensions are not read as one drawn picture. */
 function drawnRoomSignature(room: DesignRoom): string {
   const dimensions = `${String(room.widthMm)}x${String(room.depthMm)}x${String(room.heightMm)}`;
   return `${room.shape}:${dimensions}:c${String(wallLengthMm("C", room))}`;

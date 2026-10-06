@@ -204,8 +204,8 @@ export interface DesignRoomLength {
 /**
  * The one `DesignRoom` to wall/height mapping, shared with `generation-steps.tsx`'s `roomDraftFor`. `widthMm` is
  * wall A; `depthMm` is wall B only for a room that turns a corner (a straight room's `depthMm` is the drawn floor's
- * depth, not a typed wall). A `Record` over `DesignRoom["shape"]`, so a new shape is a compile error here. The U
- * arm maps `wallCMm` to `"wallC"`, as `room.wallLabel.wallC` and the URL do.
+ * depth, not a typed wall; ADR 0130 decision 2). A `Record` over `DesignRoom["shape"]`, so a new shape is a compile
+ * error here. The U arm maps `wallCMm` to `"wallC"`, as `room.wallLabel.wallC` and the URL do.
  */
 const DESIGN_ROOM_LENGTHS = {
   linear: (room) => [

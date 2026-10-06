@@ -38,7 +38,7 @@ export function placementExtendsPastOwnWall(
  *
  * A shape without a wall has a run of 0, so a placement on it reads as overflowing, never as fitting
  * a wall that is not there: wall B in a straight room (whose `depthMm` is the drawn floor's depth,
- * never a wall; ADR 0130 D3, D4) and wall C in an L or straight room (ADR 0132 decision 5). The
+ * never a wall; ADR 0130 decisions 2, 3) and wall C in an L or straight room (ADR 0132 decision 5). The
  * schema stores such a placement (ADR 0132 decision 6); it is marked, never refused.
  */
 export function wallLengthMm(
