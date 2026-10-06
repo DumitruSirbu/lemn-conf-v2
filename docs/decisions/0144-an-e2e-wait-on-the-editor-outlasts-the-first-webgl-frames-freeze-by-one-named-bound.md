@@ -49,7 +49,52 @@ A5 2/8 at 72 loops. After: the four mobile tests plus `editor-back-guard:425`, Ã
 | --- | --- |
 | `timeout: 0` | Fails only at the test timeout, and the failure is unnamed. |
 | A global `expect.timeout` | Still a race, and the figure is unmeasured. |
-| Waiting on the settle count | It publishes before the freeze, so it cannot see it. |
+| Waiting on the settle count | It publishes before the freeze, so it cannot see it. **Corrected 2026-10-07 by decision 2: the count reads 0 through the freeze and 1 once it ends.** |
 
 **Where.** `apps/web/tests/e2e/support/seeded-design.ts`; ten e2e files use the helper (the plan's *CE S2 as
 built*).
+
+## Decision 2 â€” a whole e2e test that pays the first-frame cost per load carries a measured budget
+
+*Added 2026-10-07 by CE S3 (`e20ac6f`). [implementer-run; CI-trace- and rig-measured]. Cited in code as
+`see ADR 0144 d2`.*
+
+**The failure class is a budget, not a lost wait.** Each test below was correct and slow.
+
+- **(a) `qa-7i-mirror-captures`** makes 17 editor loads at 12-23 s each on CI (about 17 s per load). It
+  needed at least 302 s against `setTimeout(300_000)`. The rig needs 246-324 s at 100 busy-loops and
+  342-390 s at 130; HEAD at 100 loops failed 2 of 3 at the 300 s limit.
+  `MIRROR_CAPTURE_SET_TIMEOUT_MS = 600_000` (about 2x CI, about 1.5x the worst rig); after: 5/5 at 100 loops.
+- **(b) `top-bar-pill-containment.desktop`, "draws the same header on a flagged design as on a seeded
+  one"** makes 18 resizes and 2 loads. Each resize takes about 3 s on CI (6.4-6.7 s at the widest) because
+  the canvas redraws. CI needed about 135 s against 120 s; the rig at 300 loops took 126-186 s, and the old
+  120 s failed 3/3 at 300 loops. `SAME_HEADER_SWEEP_TIMEOUT_MS = 300_000` (about 2x CI, about 1.6x the worst
+  rig); after: 5/5.
+- **Reproduction load differs by test:** mirror 100 loops, pill 300 (72 loops reproduces neither). The
+  rig's production build must carry `NEXT_PUBLIC_LEMNARIA_ENABLE_SELECTION_DEBUG=1` and
+  `LEMNARIA_ENABLE_SCENE_SHOT_ROUTE=1`, as CI's `webServer.env` does. CPU throttling is irrelevant.
+
+**The decision-1 bound is renamed `FIRST_FRAME_FREEZE_TIMEOUT_MS`** (still 60 s; it now also covers waits
+that are not write access). It also bounds `waitForSettleAfter` (was 20 s; settle-to-positive measured
+19.5 s at 100 loops on HEAD) and the two `mirror-shot` `data-ready` waits (was 20 s; measured 23.8 s).
+Callers widened through `waitForSettleAfter`: both 7I mirror captures, `ceiling-row-tappable` (which dropped
+its private copy) and `support/qa-7i-captures.ts`. Sabotage: a never-settling page fails by name, "Timeout
+60000ms exceeded while waiting on the predicate".
+
+**Correction to decision 1's rejected alternative** ("the settle count publishes before the freeze").
+On the editor's first load under load the settle count read 0 through the first WebGL frame's freeze of
+about 12 s (screencast gap +4.6 to +17.2 s; the read at +2.4 s itself blocked 2.2 s) and read 1 at +17.4 s
+once it ended. So the 17-19.5 s goto-to-settle was that freeze plus about 2 s of per-load render, not
+camera easing.
+
+**Alternatives rejected.**
+
+| Option | Why it lost |
+| --- | --- |
+| Shortening or splitting the sweeps | Shortening removes coverage. Splitting the 600 s capture set is the structural fix: recorded as an option, not done. |
+| A global timeout raise | Unmeasured, and hides which tests are slow. |
+| Raising every sibling | Unmeasured. |
+
+**Leftovers, with a revisit trigger: the first red, or a run over 80% of its budget.**
+`qa-7j-straight-captures` (300 s budget, 192 s on CI) and the pill sibling sweeps ("settles at every width"
+about 1.6 min, the others about 1.4 min, of 120 s on that CI run).

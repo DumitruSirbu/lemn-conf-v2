@@ -1345,6 +1345,18 @@ Committed on `m7c-m7-feedback-fixes`, not pushed; the pre-commit hook ran, forma
 - **Next.** The two remaining runner failures (`qa-7i-mirror-captures.desktop`, 300 s timeout;
   `top-bar-pill-containment:641`), a full local e2e run, the push, the `run-e2e` label (owner), then C6.
 
+**CE S3 as built — 2026-10-07** (`e20ac6f`; hook ran; figures relayed from the implementer).
+
+- **Classification.** The two remaining runner failures are a **budget**, not a lost wait: each whole test
+  pays the first-frame cost per load or resize. `qa-7i-mirror-captures` gets
+  `MIRROR_CAPTURE_SET_TIMEOUT_MS = 600_000`; the pill's same-header sweep gets
+  `SAME_HEADER_SWEEP_TIMEOUT_MS = 300_000`. The S2 bound is renamed `FIRST_FRAME_FREEZE_TIMEOUT_MS` and
+  also bounds `waitForSettleAfter` and the `mirror-shot` `data-ready` waits. Measurements, the correction to
+  ADR 0144 decision 1's rejected alternative, and the leftovers with their revisit trigger: **ADR 0144
+  decision 2.**
+- **CE's remaining criterion is the runner.** S0-S4 are done. Next: a full local e2e run (in progress), the
+  push, the owner's `run-e2e` label, and criterion 4's second green run on one commit; then C6.
+
 *Read from the CI log by S0's agent, 2026-10-01 [log-verified; nothing run].* Group 1, four tests:
 `toBeEnabled` on `global-settings-trigger`, stuck at *"Se verifică accesul"*; A5 still so after 15 s,
 which points at the write-access probe not answering on a production build rather than at a tight
