@@ -193,6 +193,12 @@ const EXPECTED_CLASSIFICATION: Readonly<
     reason:
       "fake values only, every host ends in .invalid: no database is reachable",
   },
+  "qa-8b-test-database-guard.adversarial.test.ts": {
+    gate: "none",
+    lock: "none",
+    reason:
+      "adversarial QA of 8B: fake values only, every host ends in .invalid or does not parse (M8 8B QA)",
+  },
 };
 
 /** Every module `vitest.config.ts` lists in `setupFiles`, as written there. Vitest runs each before

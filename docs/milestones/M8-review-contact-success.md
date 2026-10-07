@@ -8,7 +8,9 @@
 > seventeen waves and ends at 8T. 8A S2's vendor reads are folded in (*8A figures*); 8A S1's
 > measurements ~~are not in yet~~ **arrived later the same day and are in the same section (written
 > at `a7b0363`)**; they changed 8B's slices and criteria and what 8F owes the e2e suite, and left
-> Q15 standing. **Six follow-up questions are open, Q21–Q26**, and the first two —
+> Q15 standing. **8B is implemented and its adversarial QA is red: three defects, adjudicated in
+> its section, fix round 1 next; Q27 was raised by it.** **Six follow-up questions are open,
+> Q21–Q26** (seven with Q27), and the first two —
 > where production runs and where the database lives — make five of the recorded answers
 > conditional. Dispatchable as written: **8B, 8C, 8D, 8E, 8I**.
 >
@@ -565,6 +567,21 @@ difficulty, since every customer is now in Moldova; it does not say a time may b
 *Recommended: (a) stands.* The open matter was the promise, not the geography. *Blocks:* one leaf in
 8L.
 
+**Q27 — Must an error also hide the database's host and role, or only its credentials?** (Raised
+2026-10-07 by 8B's QA.) The owner's ruling of 2026-09-06 names the connection string and the
+password. This plan added the user and the host to 8B's tests; that was the architect's widening.
+After 8B's fix round the persistence package copies nothing out of a connection value, so the
+question is only about one place: **a query that fails against a well-formed address**, whose
+driver error the three runtime sites rethrow untouched. Measured there (8A S1): no password, no
+user, no host as written. It can show a name derived from the host (`api.` and the host without
+its first label), an address the host resolved to, and, **unmeasured**, whatever a server says when
+it rejects a login, which may name the role [inf]. The role `app_designs` is already published in
+this repository (ADR 0008).
+(a) Leave it: none of these is a credential. (b) Hide them too: every runtime query error is
+rebuilt as 8B's B3 rebuilds a migration error, in a later wave that touches each repository method.
+*Recommended: (a), with 8B's F3 measurement run once* to show that a rejected login does not carry
+the password. *Blocks:* nothing in 8B; its close-out says which answer it was closed under.
+
 ## Waves
 
 The last column was *Blocked by* and named Q1–Q20. It was restated on 2026-10-07 after the owner's
@@ -573,7 +590,7 @@ answers; the questions each wave first waited on are in *The questions as put*.
 | Wave | Covers | Packages | Tier | Waits for, as of 2026-10-07 |
 | --- | --- | --- | --- | --- |
 | 8A | Measurements, vendor reads, the questions | none (docs, scratch) | Light | S1, S2 and S3 are in (*8A figures*, *The owner's answers*). Not closed: Q21–Q26 are open, and its review has not been run |
-| 8B | A driver error never prints the connection string | persistence, web | Full + security | **Nothing. Dispatchable** |
+| 8B | A driver error never prints the connection string | persistence, web | Full + security | **Implemented, QA red** (7 failing tests, 3 defects). Fix round 1, then QA's re-run, then round 2, then review. See its adjudication |
 | 8C | The review as a value: rows, room line, submit eligibility | web, domain (read) | Full | **Nothing. Dispatchable** (Q10 answered) |
 | 8D | The review route and screen 3A/3B; the CTA gets its destination | web | Light + visual; security on S1 | **Nothing but 8C. Dispatchable** (Q2 answered) |
 | 8E | The rate-limit store | persistence | Full + security | **Nothing. Dispatchable** (Q14 answered) |
@@ -780,7 +797,7 @@ are that report's.
 | --- | --- | --- | --- |
 | S1 | One place opens a connection. It checks the URL's shape first and turns any failure into a domain error that names the **variable** and never its value. The three runtime sites use it | `persistence/src/read-database-url.ts`, a new `open-database.ts`, `neon-configuration-repository.ts`, `share-link-repository.ts`, `design-row-source.ts` | *Added 2026-09-06* below; ADR 0008, *Incident during setup*; ADR 0145; `environments-and-resources.md`, *Never print a secret*; 8A S1's reproduction |
 | ~~S2~~ | ~~The migration tools and the lazy web wrapper use it; query-time errors are covered where 8A showed the URL in one~~ | ~~`migrate.ts`, `migrate-status.ts`, `apps/web/src/lib/server/repository.ts`, `design-failure-log.ts`~~ | ~~`read-database-url.ts`'s note on `MigrationExecutionError`; ADR 0096~~ |
-| S2 | **Restated 2026-10-07 from 8A S1 part D, and again from its follow-up.** The two migration tools open through it: `migrate.ts:57`'s `new Client(connectionUrl)`, which stands **outside** the connect `try`, and `migrate-status.ts:88`'s `neon(…)`. An error attached as `cause` (`migrate.ts:80`, `:184`; `migrate-status.ts:80`, in `readDeployedSchema`) is kept only if it passes criterion 2 itself. **First step, before any fix:** find why `applyMigrations` does not settle when it cannot connect (criterion 6) | `migrate.ts`, `migrate-status.ts`, `migration-errors.ts` | 8A figures, *D in full* and the follow-up; `read-database-url.ts`'s note on `MigrationExecutionError`; ADR 0096; ADR 0008, *Incident during setup*; ADR 0142; `connectOrWrapError`'s own comment in `migrate.ts`, which says the replacement *"keeps the driver error as `cause`"* on purpose — **the implementer checks the change against that intent first and reports if they disagree** (`WORKFLOW.md`, *Dispatch the intent*) |
+| S2 | **Restated 2026-10-07 from 8A S1 part D, and again from its follow-up.** The two migration tools open through it: `migrate.ts:57`'s `new Client(connectionUrl)`, which stands **outside** the connect `try`, and `migrate-status.ts:88`'s `neon(…)`. ~~An error attached as `cause` (`migrate.ts:80`, `:184`; `migrate-status.ts:80`, in `readDeployedSchema`) is kept only if it passes criterion 2 itself.~~ **Superseded 2026-10-07 by B3 in the adjudication below: a kept cause is built, not filtered.** **First step, before any fix:** find why `applyMigrations` does not settle when it cannot connect (criterion 6) | `migrate.ts`, `migrate-status.ts`, `migration-errors.ts` | 8A figures, *D in full* and the follow-up; `read-database-url.ts`'s note on `MigrationExecutionError`; ADR 0096; ADR 0008, *Incident during setup*; ADR 0142; `connectOrWrapError`'s own comment in `migrate.ts`, which says the replacement *"keeps the driver error as `cause`"* on purpose — **the implementer checks the change against that intent first and reports if they disagree** (`WORKFLOW.md`, *Dispatch the intent*) |
 | S3 | **Added 2026-10-07.** The two test helpers and the test-URL resolver open through it. They hold the test database's owner credential and run on the CI runner, so they are in the census | `delete-designs-for-tests.ts`, `test-database-url.ts` | 8A figures, *D in full*; ADR 0006; `environments-and-resources.md`, *Test-database isolation* |
 
 **Why S2 changed.** 8A S1 showed that this project's own log line already prints *"<redacted
@@ -791,21 +808,25 @@ error the route rethrows. **The fix is in what is thrown.**
 *Criteria.* ~~(1) With each connection variable set, in turn, to each malformed value in a table (a
 bad percent-escape, a missing host, a non-URL string, an empty password)…~~ **Restated 2026-10-07:**
 
-1. **The table.** Each connection variable (`DATABASE_URL`, `MIGRATION_DATABASE_URL`,
+1. ~~**The table.**~~ **The floor (B1, 2026-10-07: these seven are the least a test holds, not
+   the invariant, which is over any string).** Each connection variable (`DATABASE_URL`, `MIGRATION_DATABASE_URL`,
    `TEST_DATABASE_URL`) is set in turn to each of seven values carrying a recognisable fake
    password, user and host: a bad percent-escape, a missing host, a non-URL string, **a bad port**,
    an empty password, a wrong scheme, and a well-formed unreachable address. The first four leak
    today and must stop; the last three are clean today at the sites that return, and **must stay
    clean**.
-2. **Where a marker may not be**, for every site and every value: the error's `message`; its
+2. **Where a marker may not be**, for every site and ~~every value~~ **any string (B1), and with
+   B2 nothing of the value at all**: the error's `message`; its
    `stack`; **every own property, `input` included** (Node's `ERR_INVALID_URL` keeps the whole
    string there); every error on its `cause` chain, by the same four checks; and its `util.inspect`
    output at unlimited depth. A test that checks `message` alone passes today on every leak the
    table above records under `TypeError.input` or `cause`.
 3. **The sites.** A census finds them, and fails when one appears outside the one opener.
    ~~Seven today.~~ **Corrected 2026-10-07 from 8A S1's follow-up, re-read in source at `a7b0363`
-   [src].** The census matches three shapes, not one, because `neon(` alone misses the site the
-   plan had missed:
+   [src].** ~~The census matches three shapes, not one, because `neon(` alone misses the site the
+   plan had missed:~~ **Superseded 2026-10-07 by B5: the census is by import, at any depth. QA
+   showed a census by callee name misses `new Pool(`, a subdirectory and an aliased import.** The
+   sites as they stood before the wave:
    - `neon(`: `neon-configuration-repository.ts:175`, `share-link-repository.ts:83`,
      `design-row-source.ts:56`, `migrate-status.ts:88`, `delete-designs-for-tests.ts:26` and `:46`;
    - `new Client(`: `migrate.ts:57`;
@@ -818,10 +839,12 @@ bad percent-escape, a missing host, a non-URL string, an empty password)…~~ **
    that leaves the handler passes criterion 2. QA re-runs 8A S1's `D-route-run.sh` once against the
    fixed build and quotes a server log with no marker; that run, not a unit test, is the evidence
    about the platform's logger.
-5. The error names the variable that is wrong, and says nothing else about its value: not its
-   length, not which character was bad.
+5. ~~The error names the variable that is wrong~~ **(B4, 2026-10-07: only when the value was read
+   from that variable; a value a caller handed in is refused as handed in)**, and says nothing
+   else about its value: not its length, not which character was bad.
 6. **`migrate` answers at once for a shape the opener refuses.** With a bad percent-escape or a
-   wrong scheme it exits non-zero with the domain error instead of not returning. ~~*Not in scope:*
+   wrong scheme it exits non-zero ~~with the domain error~~ **with a printable refusal, whichever
+   check answers first (B6, 2026-10-07)**, instead of not returning. ~~*Not in scope:*
    that `migrate` also does not return for an empty password or an unreachable address, which are
    well-formed; recorded in *8A figures* for the backlog.~~
    **Restated 2026-10-07.** `runMigrations()` did not settle in 45 s for a bad percent-escape, an
@@ -835,7 +858,9 @@ bad percent-escape, a missing host, a non-URL string, an empty password)…~~ **
    as clean. The two CLIs' printed lines are clean today, because `describeMigrationFailure` and
    `describeStatusFailure` drop the message and the cause; that stays true and is asserted, and it
    is not the whole of the criterion, since the thrown error is what any other caller sees.
-7. A well-formed URL behaves exactly as before; the persistence live suites are unchanged.
+7. ~~A well-formed URL behaves exactly as before~~ **(B7, 2026-10-07: a URL of the one accepted
+   shape behaves exactly as before; the forms only `new Client` took are refused on purpose)**; the
+   persistence live suites are unchanged.
 8. *Must not:* a fallback from one variable to another appears (ADR 0008). *Must not:* the opener
    keeps the refused string, or the error it caught, anywhere on the error it throws.
 
@@ -843,6 +868,139 @@ bad percent-escape, a missing host, a non-URL string, an empty password)…~~ **
 sabotages both ways (R6): remove the wrap and the suite goes red; move a call site and it stays
 green. *Logic and clean-code readers:* the slice files. *Security reading:* ADR 0008; ADR 0019 d11;
 every `catch` on the path from a route to the driver.
+
+#### 8B — adjudication of adversarial QA, 2026-10-07
+
+**State.** Implemented in three slices, `d176fb6`, `9fb0994`, `e070613` [relayed]. QA is red. The
+architect ran QA's four files at `e070613`: **7 failed, 46 passed** [ran], the seven QA reported.
+The tree is frozen; QA's tests stay failing until the fix makes them pass, and none is weakened.
+
+**What the three defects have in common.** Each comes from deciding what is safe to show by
+*inspecting* something: a URL that parsed is assumed to have a harmless path (QA1, QA2); a driver
+error is searched for the secret (QA3). Inspection needs a parser that agrees with the driver's,
+and there are now three in this package. **The rules below stop inspecting: what leaves this
+package is built from constants, never copied out of a value and never passed through.**
+
+| Item | Class | Ruling |
+| --- | --- | --- |
+| QA1 `test-database-url.ts` echoes an unshape-checked path | **Implementation defect**, in code that predates the wave and sits in S3's file; **and a contract gap** in criterion 1, which gave a table of seven values where the invariant is a property. The gap is the architect's | B1, B2 |
+| QA2 `databaseNameOf` returns a credential as a name, and both CLIs print it | The same two | B1, B2 |
+| QA3 the cause filter parses the authority differently from the driver | **Implementation defect in a mechanism the plan asked for:** S2 said a cause is *"kept only if it passes criterion 2 itself"*, which is a filter. **Contract gap**, the architect's | B3 |
+| Gap 1, a getter on a kept cause | Contract gap. **Dissolved by B3:** no driver object is kept | B3 |
+| Gap 2, a derived host name or a resolved address | Contract gap. Dissolved by B3 for the migration tools. At the runtime sites it is **an owner question** | B3; Q27 |
+| Gap 3, the guard's messages echo host, port and name by design | Contract gap, **in scope** | B2 |
+| Gap 4, an injected URL is labelled `DATABASE_URL` | Contract gap, **in scope, second round** | B4 |
+| Gap 5, the opener refuses strings `new Client` took | Contract gap in criterion 7's wording. **Deliberate; no code change**, pinned by a test | B7 |
+| Gap 6, a wrong scheme exits with the target-mismatch refusal | Contract gap in criterion 6's wording. **No code change** | B6 |
+| The census misses `new Pool(`, a subdirectory, an aliased import, a re-export, a dynamic import | **Test-fidelity problem, fixed in this wave** | B5 |
+| `spawnPersistenceCli` reports a 30 s kill as exit 1 | **Test-fidelity problem, fixed in this wave:** it makes criterion 6's *"does not hang"* a test that cannot fail | B6 |
+| `scripts/gates/boundary.sh` misses a multi-line and a dynamic driver import outside the package | Test-fidelity problem in a gate that predates the wave and is not in its files. **Named follow-up, not 8B** | F1 |
+
+**The restated rules.** Each replaces the struck text it names above.
+
+- **B1 — the invariant is over any string** (replaces criterion 1's closed table; QA1, QA2).
+  The seven values are a floor. Criterion 2 holds for every string a variable can hold, tested as
+  a property over strings assembled with a marker in every position the grammar has and outside it.
+  QA's `qa-8b-opener-sweep` and `support/qa-8b-connection-values.ts` are the model.
+- **B2 — nothing is copied out of a connection value** (QA1, QA2, gap 3). No message, printed
+  line, log line or error property this package produces contains text taken from a connection
+  value. What it may contain: the variable's name; the operator's own declared environment; and a
+  database name **only when it equals a name this repository lists** (the environment map and the
+  test allowlist), printed from that list. Never a host, a port, a user, a password, a path, a
+  query, or a name that is not listed.
+  - *Why not "shape-check, then echo".* `postgres://U:p@ss:12/SECRETPART` passes the opener's own
+    check; its host parses as `ss` and its name as `SECRETPART` [ran, the opener's logic in Node].
+    A mistyped value defines its own parts.
+  - *Observable, as a property:* **two values that give the same comparisons give byte-identical
+    output.** The same shape verdict and the same listed name (or both unlisted) mean the same
+    error, property for property, and the same printed lines.
+  - *The guard's messages* (gap 3) may say which variable, that the name is not on the allowlist or
+    is the application database's, and print the allowlist. They no longer print `host:port` or an
+    unlisted name. This changes the wording of ADR 0006's refusals and of the migration target's
+    *"reaches …"* line for an unlisted database, and nothing else about either.
+  - **The guard's verdicts do not change.** Comparison still reads the name; only display stops.
+    QA's `guard-compare` harness is re-run over its 18,980 cases: 0 verdict differences, 0 more
+    permissive.
+- **B3 — a kept cause is built, not filtered** (replaces S2's cause sentence; QA3, gaps 1, 2).
+  Nothing a driver or Node threw rides on an error this package throws. Where a cause is kept it is
+  a new plain value with two fields: the error's type name, clamped as `backup-designs.ts` clamps
+  one, and its `code` when that has the shape of a SQLSTATE or of a Node error code. Adding a field
+  is a line in the wave's ADR.
+  - *Why.* A filter must parse as the driver does (QA3's first test), cannot see a prototype getter
+    (gap 1), cannot know a name derived from the host or an address it resolved to (gap 2), and
+    cannot find a fragment (QA3's second test, which no whole-part filter can pass).
+  - *The intent it keeps.* `MigrationExecutionError` carries a cause *"so the underlying SQLSTATE
+    is still reachable"* (`migration-errors.ts`). That is the field kept. `connectOrWrapError`'s
+    *"keeps the driver error as `cause`"* is superseded and the ADR says so.
+  - It also covers, by construction, two cases nobody has measured in the migration tools: a
+    server that rejects the login, and a statement that fails mid-migration.
+- **B4 — a refusal names a variable only if the value was read from it** (replaces criterion 5;
+  gap 4). A value handed in by a caller is refused as a value handed in. *Must not:* a refusal
+  names a variable the value did not come from. Second round.
+- **B5 — the census is by import** (replaces criterion 3's three call shapes). Under `src/`, at
+  any depth, only the opener has a value import of the driver package: static, re-exported, or
+  dynamic with a literal specifier. A type-only import is not one. `new URL(` stays a census by
+  name, at any depth. *Recorded limits, not fixed:* a dynamic import whose specifier is computed;
+  an alias of the global `URL`; `Reflect.construct`.
+- **B6 — the CLIs** (replaces criterion 6's *"with the domain error"*; gap 6). For a value the
+  opener refuses, each CLI exits non-zero within a stated bound and prints one refusal that names
+  `MIGRATION_DATABASE_URL` and satisfies B2. Which refusal is not prescribed: the environment check
+  is ruled to run before anything is opened (`migration-environment-safety-check.md`), so it may
+  answer first. **A process the test had to kill is a failed test, never an exit code.**
+- **B7 — one accepted shape** (replaces criterion 7's *"exactly as before"*; gap 5). Both entry
+  points accept a `postgres:` or `postgresql:` URL with a user, a host and a database, and nothing
+  else. That `new Client` also took a user-less URL, `socket:`, `pg://` and keyword strings, and
+  the opener does not, is deliberate: one shape is what B2's comparisons rest on. No environment
+  of this project uses those forms [inf; falsified by a migration URL with no user]. A test pins
+  the set. The live suites still pass unchanged.
+
+**Follow-ups, each with an owner.**
+
+- **F1 — `boundary.sh`.** The architecture gate matches a driver import on one line only, so a
+  Prettier-wrapped or a dynamic import outside `packages/persistence` passes it. Backlog entry;
+  the coordinator schedules it under `ci-and-local-gates.md` before 8E adds persistence code.
+- **F2 — Q27**, in *Follow-up questions*: the owner's.
+- **F3 — a login the server rejects, at a runtime site.** Unmeasured, and the one path where a
+  well-formed value could still surface something. One attempt with a fake password against the
+  test database's host; it writes nothing, but it touches a provisioned database, so it needs the
+  coordinator's word. QA's, in the second round. Without it the close-out names the path unproven.
+- **F4 — the hosting platform's own logger.** What is measured is `next start`'s. Not measurable
+  without setting a bad value on a deployment, which is the owner's action. Recorded as a limit.
+
+**The punch list. Two rounds; the first is the three defects.**
+
+*Round 1* — four items, six production files. That is one over the usual five because items 1
+and 2 both pass through `migrate.ts` and `migrate-status.ts`; the reviewer reads them as one
+subject, what this package says about a connection.
+
+1. **B1, B2** (QA1, QA2, gap 3). `open-database.ts`, `test-database-url.ts`,
+   `migration-target.ts`, and the message lines in `migrate.ts` and `migrate-status.ts`.
+2. **B3** (QA3, gaps 1 and 2). `migration-errors.ts`, `migrate.ts`, `migrate-status.ts`. The tests
+   that assert a cause *is* the driver's error change with it:
+   `migrate.driver-failure.test.ts`, `migrate-status.driver-failure.test.ts`,
+   `migration-errors.test.ts`.
+3. **B5.** `tests/connection-opening-census.test.ts`. Sabotage: an aliased `Pool` import in a new
+   subdirectory turns it red.
+4. **B6, B7.** `tests/support/spawn-persistence-cli.ts` and the CLI tests; one test pinning the
+   accepted set.
+
+*Round 2*, after QA re-runs its four files and `guard-compare` green on round 1:
+
+5. **B4** (gap 4). `open-database.ts` and the three runtime sites.
+
+*Reading, implementer:* this adjudication; QA's four `qa-8b-*.adversarial.test.ts` files and
+`support/qa-8b-connection-values.ts`; in `m8-8b-qa/`, `guard-compare.mts` and `.out`, `probe2.out`,
+`probe3.out`, `cli-run.out`; ADR 0006; `milestones/migration-environment-safety-check.md` (the
+refusal's design); ADR 0096 d4; ADR 0142 (the no-slash bypass); ADR 0008;
+`migration-target.ts:170-235`; `apps/web/src/lib/server/backup-designs.ts:114-140`.
+*Reading, QA's re-run:* the same, and B2's property. *Security reading:* B2, B3, Q27.
+
+**Where the architect reads QA differently.** (1) QA3's second test asks the filter to catch a
+fragment of a password. No filter that compares whole parts can; as an assertion on that function
+it over-asks, and it is right about the mechanism. Under B3 both QA3 tests are re-aimed at the
+thrown error. (2) QA filed QA1 under criterion 2, which the seven-value table bounded by its
+letter. QA was right to treat it as a property; the letter was the plan's fault. Nothing else in
+QA's report was found wrong.
 
 ### 8C — the review as a value
 
