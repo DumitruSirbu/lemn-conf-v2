@@ -206,6 +206,13 @@
   color: var(--ink-faint);
 }
 
+/* Frame 3A stands its blocks 15 px apart (the body's own gap), the groups among them. */
+.groups {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
 .rows,
 .wholeKitchen {
   display: flex;
@@ -363,6 +370,16 @@
   composes: sentence;
   padding-inline-start: 10px;
   border-inline-start: 3px solid var(--refusal);
+}
+
+/* The way to the editor under a sentence that sends the customer there. */
+.openEditor {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  min-height: var(--touch-target);
+  font: 700 13px/1 var(--font-ui);
+  color: var(--accent);
 }
 
 .buyRow {

@@ -33,7 +33,10 @@ vi.mock("@/components/webgl-unavailable", () => ({
   WebGLUnavailable: () => createElement("main"),
 }));
 
-import { HydrateAndReview } from "@/app/d/[id]/review/hydrate-and-review";
+import {
+  HydrateAndReview,
+  isGreaterRevision,
+} from "@/app/d/[id]/review/hydrate-and-review";
 import { useConfiguratorStore } from "@/store/configurator-store";
 
 import roMessages from "../../src/messages/ro.json";
@@ -228,7 +231,6 @@ describe("arriving from the editor, which holds this design with an edit not yet
   it.each([
     ["error", roMessages.panel.saveFailedNotice],
     ["stopped", roMessages.panel.saveStoppedNotice],
-    ["conflict", roMessages.panel.saveConflictNotice],
     ["unauthorized", roMessages.panel.readOnlyRefusedNotice],
   ] as const)(
     "when the save has failed (%s) says what the editor says, and does not offer the request",
@@ -265,6 +267,202 @@ describe("arriving at a store that holds another design, or none", () => {
       hasBeenEdited: false,
     });
     expect(waitSentence()).toBeUndefined();
+  });
+});
+
+describe("E5: a conflict is settled in the editor", () => {
+  const edited = editedCopyOf(KITCHEN_L_DESIGN);
+
+  beforeEach(() => {
+    useConfiguratorStore.getState().hydrate({
+      design: KITCHEN_L_DESIGN,
+      designId: DESIGN_ID,
+      revision: "4",
+      canWrite: true,
+    });
+    useConfiguratorStore.setState({ design: edited, hasBeenEdited: true });
+  });
+
+  it.each(["ro", "ru"] as const)(
+    "says in %s that the kitchen was changed elsewhere and the choice is made in the editor, not the editor's own sentence",
+    (locale) => {
+      const messages = locale === "ro" ? roMessages : ruMessages;
+      mountReview(KITCHEN_L_DESIGN, locale);
+
+      act(() => {
+        useConfiguratorStore.getState().setSaveStatus("conflict");
+      });
+
+      expect(waitSentence()).toBe(messages.reviewScreen.conflict);
+      expect(waitSentence()).not.toBe(messages.panel.saveConflictNotice);
+      expect(container.textContent).not.toContain(
+        messages.panel.saveConflictReloadLabel,
+      );
+      expect(cta().getAttribute("aria-disabled")).toBe("true");
+    },
+  );
+
+  it("offers a link to the design's editor beside the sentence, and only then", () => {
+    mountReview(KITCHEN_L_DESIGN);
+    expect(
+      container.querySelector('[data-testid="review-open-editor"]'),
+    ).toBeNull();
+
+    act(() => {
+      useConfiguratorStore.getState().setSaveStatus("conflict");
+    });
+
+    const link = container.querySelector('[data-testid="review-open-editor"]');
+    expect(link?.getAttribute("href")).toBe(`/ro/d/${DESIGN_ID}`);
+    expect(link?.textContent).toBe(roMessages.reviewScreen.openEditor);
+  });
+
+  it.each(["error", "stopped", "unauthorized"] as const)(
+    "offers no editor link for %s, whose sentence names no control",
+    (status) => {
+      mountReview(KITCHEN_L_DESIGN);
+
+      act(() => {
+        useConfiguratorStore.getState().setSaveStatus(status);
+      });
+
+      expect(
+        container.querySelector('[data-testid="review-open-editor"]'),
+      ).toBeNull();
+    },
+  );
+});
+
+describe("E3: the review shows the newest copy this tab can know", () => {
+  const newerOnServer = editedCopyOf(KITCHEN_L_DESIGN);
+
+  function holdCleanStoreAt(revision: string, design: Design): void {
+    useConfiguratorStore.getState().hydrate({
+      design,
+      designId: DESIGN_ID,
+      revision,
+      canWrite: true,
+    });
+  }
+
+  function mountPageAt(revision: string, design: Design): void {
+    act(() => {
+      root.render(
+        createElement(NextIntlClientProvider, {
+          locale: "ro",
+          messages: roMessages,
+          timeZone: "Europe/Chisinau",
+          children: createElement(HydrateAndReview, {
+            design,
+            designId: DESIGN_ID,
+            revision,
+          }),
+        }),
+      );
+    });
+  }
+
+  it("replaces a clean store that is older than the page with the page's copy", () => {
+    holdCleanStoreAt("4", KITCHEN_L_DESIGN);
+
+    mountPageAt("5", newerOnServer);
+
+    expect(useConfiguratorStore.getState()).toMatchObject({
+      design: newerOnServer,
+      savedDesign: newerOnServer,
+      revision: "5",
+    });
+    expect(cta().tagName).toBe("A");
+  });
+
+  it("keeps a clean store that stands at the page's revision", () => {
+    holdCleanStoreAt("5", KITCHEN_L_DESIGN);
+
+    mountPageAt("5", newerOnServer);
+
+    expect(useConfiguratorStore.getState().design).toBe(KITCHEN_L_DESIGN);
+  });
+
+  it("keeps a clean store newer than the page, as a page restored by Back or Forward may be older", () => {
+    holdCleanStoreAt("7", KITCHEN_L_DESIGN);
+
+    mountPageAt("5", newerOnServer);
+
+    expect(useConfiguratorStore.getState()).toMatchObject({
+      design: KITCHEN_L_DESIGN,
+      revision: "7",
+    });
+  });
+
+  it("keeps a store that holds an unsaved edit, however much newer the page is", () => {
+    holdCleanStoreAt("4", KITCHEN_L_DESIGN);
+    const unsaved = editedCopyOf(KITCHEN_L_DESIGN);
+    useConfiguratorStore.setState({ design: unsaved });
+
+    mountPageAt("50", newerOnServer);
+
+    expect(useConfiguratorStore.getState()).toMatchObject({
+      design: unsaved,
+      savedDesign: KITCHEN_L_DESIGN,
+      revision: "4",
+    });
+  });
+
+  it("keeps a store whose edit is saved-in-flight: the edit is not clean until the save lands", () => {
+    holdCleanStoreAt("4", KITCHEN_L_DESIGN);
+    const inFlight = editedCopyOf(KITCHEN_L_DESIGN);
+    useConfiguratorStore.setState({ design: inFlight });
+    useConfiguratorStore.getState().setSaveStatus("saving");
+
+    mountPageAt("5", newerOnServer);
+
+    expect(useConfiguratorStore.getState().design).toBe(inFlight);
+  });
+
+  it("sends no request to learn which copy is newer", async () => {
+    holdCleanStoreAt("4", KITCHEN_L_DESIGN);
+
+    mountPageAt("5", newerOnServer);
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+
+    expect(fetchCalls).not.toHaveBeenCalled();
+  });
+});
+
+describe("revisions compare as whole numbers, never as a number", () => {
+  it.each([
+    ["10", "9", true],
+    ["9", "10", false],
+    ["5", "5", false],
+    ["6", "5", true],
+    ["9007199254740993", "9007199254740992", true],
+    ["9007199254740992", "9007199254740993", false],
+    ["9223372036854775807", "9223372036854775806", true],
+    ["9223372036854775806", "9223372036854775807", false],
+  ] as const)("%s against %s is greater: %s", (candidate, held, expected) => {
+    expect(isGreaterRevision(candidate, held)).toBe(expected);
+  });
+
+  it("is never greater on the strength of a value that is not a revision", () => {
+    for (const notARevision of [
+      "",
+      "0",
+      "01",
+      "1e3",
+      " 7",
+      "7\n",
+      "-3",
+      "abc",
+    ]) {
+      expect(isGreaterRevision(notARevision, "5")).toBe(false);
+      expect(isGreaterRevision("5", notARevision)).toBe(false);
+    }
+  });
+
+  it("is greater than a store that holds no revision", () => {
+    expect(isGreaterRevision("1", null)).toBe(true);
   });
 });
 

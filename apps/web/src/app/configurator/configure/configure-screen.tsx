@@ -1,9 +1,10 @@
 "use client";
 
+import { cabinetDepthMmOf } from "@lemnaria/configurator-domain";
 import { cameraPresetsForRoom } from "@lemnaria/three-adapter";
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useRef, type RefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, type RefObject } from "react";
 
 import { EditorPanel } from "@/panel/editor-panel";
 import { FlaggedTotalWarning } from "@/price/flagged-total-warning";
@@ -18,7 +19,7 @@ import { OverflowWarning } from "@/scene/overflow-warning";
 import { GlobalSettings } from "@/settings/global-settings";
 import { SettingsPillMeasurement } from "@/settings/settings-pill-measurement";
 import { widestCounterFor } from "@/settings/global-settings-model";
-import { useCameraPreset } from "@/scene/camera-preset-store";
+import { useCameraPreset, viewShowingWall } from "@/scene/camera-preset-store";
 import { presetForRoom, type SceneView } from "@/scene/scene-view";
 import { useWebGLSupport } from "@/scene/webgl-support";
 import { useConfiguratorStore } from "@/store/configurator-store";
@@ -74,7 +75,7 @@ export function ConfigureScreen({
     isLinkQuestionOpen: backConfirmation.isAsking,
   });
 
-  useHonourArrival({
+  const arrival = useHonourArrival({
     isOwner: variant === "owner",
     settingsTrackRef: topBar.settingsTrackRef,
   });
@@ -183,7 +184,7 @@ export function ConfigureScreen({
           {support === "probing" ? (
             <div className={styles.loading}>{content.configure.loading}</div>
           ) : (
-            <KitchenCanvas view={view} />
+            <KitchenCanvas view={view} onSettled={arrival.onSceneSettled} />
           )}
           <div
             className={styles.presets}
@@ -306,15 +307,35 @@ export function ConfigureScreen({
 /** The parameters the review's links put on the editor's URL: a body to select, or the settings to open. */
 const ARRIVAL_PARAMETERS = ["select", "settings"] as const;
 
+const SETTINGS_TRIGGER = '[data-testid="global-settings-trigger"]';
+
+/** What one arrival (one URL's worth of parameters) has settled so far. */
+interface ArrivalProgress {
+  readonly key: string;
+  hasChosenSelection: boolean;
+  hasHandledSettings: boolean;
+}
+
 /**
- * Acts on `?select=` and `?settings=open` once, on arrival, then takes them off the URL. The screen only exists
- * after the owned load answered (`HydrateAndConfigure`), so neither is acted on for a browser the gate refused, and
- * not at all in the share view, whose visitor edits nothing.
+ * Acts on `?select=` and `?settings=open` once per arrival, then takes them off the URL, and only then. The screen
+ * only exists after the owned load answered (`HydrateAndConfigure`), so neither is acted on for a browser the gate
+ * refused, and not at all in the share view, whose visitor edits nothing.
  *
- * Taken off with `replaceState` over the same entry and the entry's own state, so the history gains nothing (Back
- * from an editor reached through the review returns to the review), the guard's marker survives, and a reload, a
- * language switch or Forward into the entry finds nothing left to repeat. A `select` naming a body the design does
- * not hold selects nothing. Opening the settings goes through the sheet's own trigger, which owns that state.
+ * - **`select`** needs nothing but the scene. The view that shows the body is chosen at once (`viewShowingWall`). In
+ *   a U the body is selected when the scene has *arrived* at that view (the returned `onSceneSettled`): the scene
+ *   deselects a body on a wall the eye cuts away, from its first frame and through the ease from its framing
+ *   position, so a selection written earlier is undone. Whichever of the store and the scene mounts first, the body
+ *   is selected once the camera stands where it can be seen. In any other room nothing is ever cut, so the body is
+ *   selected at once. A body the design does not hold, or no view shows, selects nothing.
+ * - **`settings=open`** needs the answer about write access, because the sheet's trigger is off until it comes. While
+ *   it is awaited nothing is pressed and the parameter stays. Writable: the trigger is pressed, and only if it is
+ *   enabled at that moment (its disabled state is `describeEditability`'s, which the DOM already shows). Not writable
+ *   or the check failed: the sheet is not opened, since it is not openable read-only, and the editor's own notice
+ *   says why. Opening goes through the sheet's own trigger, which owns that state.
+ *
+ * The parameters are taken off with `replaceState` over the same entry and the entry's own state, so the history
+ * gains nothing (Back from an editor reached through the review returns to the review), the guard's marker
+ * survives, and a reload, a language switch or Forward into the entry finds nothing left to repeat.
  */
 export function useHonourArrival({
   isOwner,
@@ -322,34 +343,92 @@ export function useHonourArrival({
 }: {
   readonly isOwner: boolean;
   readonly settingsTrackRef: RefObject<HTMLElement | null>;
-}) {
+}): { readonly onSceneSettled: () => void } {
   const searchParams = useSearchParams();
-  const honoured = useRef<string | null>(null);
+  const canWrite = useConfiguratorStore((state) => state.canWrite);
+  const progress = useRef<ArrivalProgress | null>(null);
+  const bodyToSelect = useRef<string | null>(null);
 
   useEffect(() => {
     if (!isOwner) return;
     const arrival = new URLSearchParams(searchParams);
-    const wantsArrival = ARRIVAL_PARAMETERS.some((name) => arrival.has(name));
-    if (!wantsArrival || honoured.current === arrival.toString()) return;
-    honoured.current = arrival.toString();
+    if (!ARRIVAL_PARAMETERS.some((name) => arrival.has(name))) return;
+    const key = arrival.toString();
+    if (progress.current?.key !== key)
+      progress.current = {
+        key,
+        hasChosenSelection: false,
+        hasHandledSettings: false,
+      };
+    const arrivalProgress = progress.current;
 
-    selectBodyNamedBy(arrival.get("select"));
-    if (arrival.get("settings") === "open") {
-      settingsTrackRef.current
-        ?.querySelector<HTMLButtonElement>(SETTINGS_TRIGGER)
-        ?.click();
+    if (!arrivalProgress.hasChosenSelection) {
+      arrivalProgress.hasChosenSelection = true;
+      bodyToSelect.current = standWhereBodyIsSeen(arrival.get("select"));
+      if (!mustWaitForTheScene()) selectTheChosenBody(bodyToSelect);
+    }
+    if (
+      !arrivalProgress.hasHandledSettings &&
+      arrival.get("settings") === "open"
+    ) {
+      if (canWrite === "checking") return;
+      arrivalProgress.hasHandledSettings = true;
+      if (canWrite === true) pressSettingsTrigger(settingsTrackRef.current);
     }
     removeArrivalFromUrl();
-  }, [isOwner, searchParams, settingsTrackRef]);
+  }, [isOwner, searchParams, canWrite, settingsTrackRef]);
+
+  const onSceneSettled = useCallback(() => {
+    selectTheChosenBody(bodyToSelect);
+  }, []);
+
+  return { onSceneSettled };
 }
 
-const SETTINGS_TRIGGER = '[data-testid="global-settings-trigger"]';
-
-function selectBodyNamedBy(placementId: string | null): void {
+/** Selects the body the arrival chose, once, and forgets it. */
+function selectTheChosenBody(chosen: { current: string | null }): void {
+  const placementId = chosen.current;
   if (placementId === null) return;
-  const { records, select } = useConfiguratorStore.getState();
-  if (records.some((record) => record.id === placementId))
-    select({ kind: "placement", id: placementId });
+  chosen.current = null;
+  useConfiguratorStore
+    .getState()
+    .select({ kind: "placement", id: placementId });
+}
+
+/** Only a U's scene cuts a wall away (`cutawayWallsFor`), so only there can it undo a selection; in any other room
+ *  the body is selected at once, before the scene is even loaded. */
+function mustWaitForTheScene(): boolean {
+  return useConfiguratorStore.getState().design.room.shape === "U";
+}
+
+/** Presses the settings trigger if it is enabled now; a disabled button ignores a click, and the press is not
+ *  retried. */
+function pressSettingsTrigger(track: HTMLElement | null): void {
+  const trigger = track?.querySelector<HTMLButtonElement>(SETTINGS_TRIGGER);
+  if (trigger !== null && trigger !== undefined && !trigger.disabled)
+    trigger.click();
+}
+
+/**
+ * Makes the view the one that shows the named body, and returns the body to select once the scene stands there;
+ * `null` for a body the design does not hold or one no view shows. The remembered view becomes the one stood at.
+ */
+function standWhereBodyIsSeen(placementId: string | null): string | null {
+  if (placementId === null) return null;
+  const { records, design } = useConfiguratorStore.getState();
+  const record = records.find((candidate) => candidate.id === placementId);
+  if (record === undefined) return null;
+
+  const camera = useCameraPreset.getState();
+  const view = viewShowingWall({
+    wall: record.wall,
+    standingAt: camera.presetId,
+    room: design.room,
+    cabinetDepthMm: cabinetDepthMmOf(design),
+  });
+  if (view === null) return null;
+  if (view !== camera.presetId) camera.standAt(view);
+  return placementId;
 }
 
 function removeArrivalFromUrl(): void {

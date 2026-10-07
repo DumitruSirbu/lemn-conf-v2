@@ -341,6 +341,9 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     view3d: "Vezi în 3D",
     saving:
       "Se salvează modificările tale. Poți cere oferta imediat ce salvarea se termină.",
+    conflict:
+      "Bucătăria a fost modificată în altă filă sau pe alt dispozitiv, așa că modificarea ta nu a fost salvată. Alege în editor ce versiune păstrezi, apoi cere oferta.",
+    openEditor: "Deschide editorul",
   },
   globalSettings: {
     open: "Setări globale",

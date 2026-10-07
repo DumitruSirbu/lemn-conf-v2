@@ -78,6 +78,7 @@ function ReviewPage({ designId }: { designId: DesignId }) {
         refusalSentenceId={refusalSentenceId}
         saveWait={saveWait}
         saveWaitSentenceId={saveWaitSentenceId}
+        designId={designId}
       />
     </main>
   );
@@ -268,7 +269,12 @@ function NamedBodies({
  *  flight when the review opens, and a request for an offer must not go out for a design the server does not have. */
 type SaveWait =
   | { readonly kind: "saved" }
-  | { readonly kind: "waiting"; readonly sentence: string };
+  | {
+      readonly kind: "waiting";
+      readonly sentence: string;
+      /** The wait is one the customer ends in the editor, so the sentence comes with a way there. */
+      readonly isSettledInTheEditor: boolean;
+    };
 
 function useSaveWait(): SaveWait {
   const content = useContent();
@@ -280,12 +286,13 @@ function useSaveWait(): SaveWait {
   return {
     kind: "waiting",
     sentence: sentenceForUnsavedEdit(saveStatus, content),
+    isSettledInTheEditor: saveStatus === "conflict",
   };
 }
 
 /** What the customer is told while an edit is unsaved: that it is being saved, or, once the save has failed, the
- *  sentence the editor already says for that failure. The editor's own panel carries the actions those sentences
- *  mention, and the way back to it is in the top bar. */
+ *  sentence the editor already says for that failure. The exception is a conflict: the editor's sentence names
+ *  reload and overwrite, which this screen does not have, so the review says where the choice is made. */
 function sentenceForUnsavedEdit(
   saveStatus: SaveStatus,
   content: Content,
@@ -296,7 +303,7 @@ function sentenceForUnsavedEdit(
     case "stopped":
       return content.panel.saveStoppedNotice;
     case "conflict":
-      return content.panel.saveConflictNotice;
+      return content.reviewScreen.conflict;
     case "unauthorized":
       return content.panel.readOnlyRefusedNotice;
     case "idle":
@@ -312,11 +319,13 @@ function BottomRegion({
   refusalSentenceId,
   saveWait,
   saveWaitSentenceId,
+  designId,
 }: {
   readonly review: ReviewView;
   readonly refusalSentenceId: string;
   readonly saveWait: SaveWait;
   readonly saveWaitSentenceId: string;
+  readonly designId: DesignId;
 }) {
   const content = useContent();
   const submit = review.submit;
@@ -344,6 +353,16 @@ function BottomRegion({
         >
           {saveWait.sentence}
         </p>
+      ) : null}
+      {saveWait.kind === "waiting" && saveWait.isSettledInTheEditor ? (
+        <Link
+          className={styles.openEditor}
+          href={editorHref(designId)}
+          prefetch={false}
+          data-testid="review-open-editor"
+        >
+          {content.reviewScreen.openEditor}
+        </Link>
       ) : null}
       <div className={styles.buyRow}>
         {review.kind === "available" ? (

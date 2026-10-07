@@ -214,7 +214,8 @@ describe("golden-output fixture coverage", () => {
     // M8 8C S2: +3 for `review.refusalReasons.*`.
     // M8 8D S3: +4 for `reviewScreen.*`, the review screen's controls.
     // M8 8D S4: +1 for `reviewScreen.saving`.
-    expect(RESOLVED_STATIC_CONTENT).toHaveLength(137);
+    // M8 8D fix round: +2 for `reviewScreen.conflict` and `.openEditor`.
+    expect(RESOLVED_STATIC_CONTENT).toHaveLength(139);
     expect(FUNCTION_CONTENT_FIXTURES).toHaveLength(59);
     // 7L S3: +2 for `room.suggestion.title` and `room.suggestion.switchToLinear`.
     expect(ROOM_FIXTURES).toHaveLength(72);
@@ -230,7 +231,8 @@ describe("golden-output fixture coverage", () => {
     // M8 8C S2: +3 for `review.refusalReasons.*`.
     // M8 8D S3: +4 for `reviewScreen.*`, the review screen's controls.
     // M8 8D S4: +1 for `reviewScreen.saving`.
-    expect(GOLDEN_FIXTURES).toHaveLength(419);
+    // M8 8D fix round: +2 for `reviewScreen.conflict` and `.openEditor`.
+    expect(GOLDEN_FIXTURES).toHaveLength(421);
     expect(new Set(GOLDEN_FIXTURES.map((fixture) => fixture.id)).size).toBe(
       GOLDEN_FIXTURES.length,
     );

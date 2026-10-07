@@ -831,6 +831,8 @@ export function resolveContent(translate: ContentTranslator) {
       changeSettings: translate("reviewScreen.changeSettings"),
       view3d: translate("reviewScreen.view3d"),
       saving: translate("reviewScreen.saving"),
+      conflict: translate("reviewScreen.conflict"),
+      openEditor: translate("reviewScreen.openEditor"),
     },
     globalSettings: {
       open: translate("globalSettings.open"),

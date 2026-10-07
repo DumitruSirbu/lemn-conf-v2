@@ -635,6 +635,10 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "3accbb833c51fe24f8f87ab8a955e8831fc8179491c5455c67d1c61bd49ffec4",
   "content.static.reviewScreen.changeSettings":
     "8944cd47631589a2215b858fc59a0e0b6468b69f854286192b383c343aad833a",
+  "content.static.reviewScreen.conflict":
+    "5384424c8a1c437dff9d98b868b40d036153a2887a3ee1581eb57e31cd37e221",
+  "content.static.reviewScreen.openEditor":
+    "058c0204d3ad2b59c6e565b2aa71ac068478e6c36cb49a5e795e65ce48df4969",
   "content.static.reviewScreen.saving":
     "5be2cd99bba2658c43a5487fd7e556f2f9b03a558af3ed2ae26d8134caff3f61",
   "content.static.reviewScreen.view3d":
