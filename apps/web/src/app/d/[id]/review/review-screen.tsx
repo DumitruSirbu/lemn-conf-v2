@@ -357,7 +357,7 @@ function BottomRegion({
       {saveWait.kind === "waiting" && saveWait.isSettledInTheEditor ? (
         <Link
           className={styles.openEditor}
-          href={editorHref(designId)}
+          href={editorHref(designId, selectingTheFirstBody(review))}
           prefetch={false}
           data-testid="review-open-editor"
         >
@@ -415,4 +415,16 @@ function CallToAction({
       {content.reviewScreen.callToAction}
     </button>
   );
+}
+
+/**
+ * Where the link to the editor lands, so that a conflict is on screen when it does: the editor draws a conflict, and
+ * its controls, in the panel, and the panel needs a selection. The first body in display order, which is the first
+ * row of the first group, as each group's *Editează* takes it. A review with no rows (one that cannot be shown, or a
+ * kitchen with no body) has no body to name, and the link then lands on the editor as it is.
+ */
+function selectingTheFirstBody(review: ReviewView): { select?: string } {
+  if (review.kind !== "available") return {};
+  const firstBody = review.groups[0]?.rows[0];
+  return firstBody === undefined ? {} : { select: firstBody.key };
 }

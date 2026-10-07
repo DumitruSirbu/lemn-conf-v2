@@ -313,8 +313,25 @@ describe("E5: a conflict is settled in the editor", () => {
     });
 
     const link = container.querySelector('[data-testid="review-open-editor"]');
-    expect(link?.getAttribute("href")).toBe(`/ro/d/${DESIGN_ID}`);
+    expect(link?.getAttribute("href")).toMatch(
+      new RegExp(`^/ro/d/${DESIGN_ID}(\\?select=.+)?$`),
+    );
     expect(link?.textContent).toBe(roMessages.reviewScreen.openEditor);
+  });
+
+  it("lands on the first body in display order, the one the first group's own edit link names", () => {
+    mountReview(KITCHEN_L_DESIGN);
+    const firstGroupEdit = container
+      .querySelector('[data-testid="review-group-edit"]')
+      ?.getAttribute("href");
+
+    act(() => {
+      useConfiguratorStore.getState().setSaveStatus("conflict");
+    });
+
+    const link = container.querySelector('[data-testid="review-open-editor"]');
+    expect(firstGroupEdit).toMatch(/\?select=/);
+    expect(link?.getAttribute("href")).toBe(firstGroupEdit);
   });
 
   it.each(["error", "stopped", "unauthorized"] as const)(

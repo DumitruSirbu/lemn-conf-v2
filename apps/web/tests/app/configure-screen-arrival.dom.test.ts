@@ -9,6 +9,7 @@
 import {
   cabinetDepthMmOf,
   KITCHEN_L_DESIGN,
+  projectDesignForDisplay,
   type Design,
   type DesignWall,
 } from "@lemnaria/configurator-domain";
@@ -258,6 +259,182 @@ describe("E2: the body is selected where it can be seen", () => {
     render();
 
     expect(useCameraPreset.getState().presetId).toBe("wallC");
+  });
+});
+
+describe("E5a with E2: the conflict link's first body is in sight on arrival, in every U", () => {
+  it("is selected at rest and stood at a view that shows its wall, from every remembered view", () => {
+    const outcomes: string[] = [];
+    for (const { design } of U_KITCHENS) {
+      hydrate(design, true);
+      const first = projectDesignForDisplay(
+        design,
+        useConfiguratorStore.getState().catalog,
+      )[0]?.entries[0];
+      if (first === undefined) continue;
+      const wall = design.placements.find(
+        (p) => p.id === first.placementId,
+      )?.wall;
+      if (wall === undefined) continue;
+
+      for (const standingAt of cameraPresetsForRoom(design.room).map(
+        (p) => p.id,
+      )) {
+        act(() => {
+          root.unmount();
+        });
+        root = createRoot(container);
+        useConfiguratorStore.getState().deselect();
+        useCameraPreset.setState({ presetId: standingAt });
+        arriveAt(`/ro/d/design-under-edit?select=${first.placementId}`);
+        render();
+        settle();
+
+        const selected = useConfiguratorStore.getState().selection?.id;
+        const stoodAt = useCameraPreset.getState().presetId;
+        if (
+          selected !== first.placementId ||
+          !seesTheWall(design, stoodAt, wall)
+        )
+          outcomes.push(
+            `${first.placementId} from ${standingAt}: ${String(selected)} at ${stoodAt}`,
+          );
+      }
+    }
+
+    expect(U_KITCHENS.length).toBeGreaterThan(50);
+    expect(outcomes).toEqual([]);
+  });
+});
+
+describe("E2a: the customer's own act wins over an arrival still waiting for the scene", () => {
+  const OTHER_BODY = SEEDED_DESIGN.placements[2]?.id ?? "";
+  let scene: HTMLCanvasElement;
+
+  function pointer(target: Element, type: string, x: number, y: number): void {
+    act(() => {
+      target.dispatchEvent(
+        new PointerEvent(type, { bubbles: true, clientX: x, clientY: y }),
+      );
+    });
+  }
+
+  function tap(target: Element): void {
+    pointer(target, "pointerdown", 100, 100);
+    pointer(target, "pointerup", 101, 100);
+  }
+
+  beforeEach(() => {
+    scene = document.createElement("canvas");
+    document.body.append(scene);
+    arriveAt(`/ro/d/design-under-edit?select=${OWN_BODY}`);
+    render();
+  });
+
+  afterEach(() => {
+    scene.remove();
+  });
+
+  it("is waiting: nothing is selected until the scene rests", () => {
+    expect(useConfiguratorStore.getState().selection).toBeNull();
+  });
+
+  it("keeps a body the customer selected by tapping the scene", () => {
+    tap(scene);
+    act(() => {
+      useConfiguratorStore
+        .getState()
+        .select({ kind: "placement", id: OTHER_BODY });
+    });
+
+    settle();
+
+    expect(useConfiguratorStore.getState().selection).toEqual({
+      kind: "placement",
+      id: OTHER_BODY,
+    });
+  });
+
+  it("keeps an empty space the customer tapped, so nothing is selected", () => {
+    tap(scene);
+    act(() => {
+      useConfiguratorStore.getState().deselect();
+    });
+
+    settle();
+
+    expect(useConfiguratorStore.getState().selection).toBeNull();
+  });
+
+  it("keeps a selection the customer cleared", () => {
+    tap(scene);
+    act(() => {
+      useConfiguratorStore
+        .getState()
+        .select({ kind: "placement", id: OTHER_BODY });
+    });
+    act(() => {
+      useConfiguratorStore.getState().deselect();
+    });
+
+    settle();
+
+    expect(useConfiguratorStore.getState().selection).toBeNull();
+  });
+
+  it("is not cancelled by a deselect that is no pointer gesture, as the scene's own on a cut wall is", () => {
+    act(() => {
+      useConfiguratorStore.getState().deselect();
+    });
+
+    settle();
+
+    expect(useConfiguratorStore.getState().selection).toEqual({
+      kind: "placement",
+      id: OWN_BODY,
+    });
+  });
+
+  it("is not cancelled by an orbit, which is a drag and selects nothing", () => {
+    pointer(scene, "pointerdown", 100, 100);
+    pointer(scene, "pointerup", 220, 160);
+
+    settle();
+
+    expect(useConfiguratorStore.getState().selection).toEqual({
+      kind: "placement",
+      id: OWN_BODY,
+    });
+  });
+
+  it("is not cancelled by a tap elsewhere on the page", () => {
+    const chip = document.createElement("button");
+    document.body.append(chip);
+
+    tap(chip);
+    chip.remove();
+    settle();
+
+    expect(useConfiguratorStore.getState().selection).toEqual({
+      kind: "placement",
+      id: OWN_BODY,
+    });
+  });
+
+  it("has taken the parameter off the URL either way: being overridden is an outcome", () => {
+    tap(scene);
+
+    expect(window.location.search).toBe("");
+  });
+
+  it("stops watching once the scene has rested, and when the screen goes away", () => {
+    const remove = vi.spyOn(document, "removeEventListener");
+
+    settle();
+
+    expect(remove.mock.calls.map(([type]) => type)).toEqual(
+      expect.arrayContaining(["pointerdown", "pointerup"]),
+    );
   });
 });
 

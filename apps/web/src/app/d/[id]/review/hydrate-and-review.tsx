@@ -8,7 +8,11 @@ import {
   ConfiguratorSnapshotProvider,
   hydrateSessionStoreInBrowser,
 } from "@/store/configurator-snapshot";
-import type { ConfiguratorState } from "@/store/configurator-store";
+import {
+  useConfiguratorStore,
+  type ConfiguratorState,
+  type WriteAccess,
+} from "@/store/configurator-store";
 
 /**
  * Puts the loaded design in the store and shows the review of it, the way `HydrateAndConfigure` does for the editor
@@ -19,9 +23,11 @@ import type { ConfiguratorState } from "@/store/configurator-store";
  * holds an edit not yet saved, and when it is clean but not older than the page (a page restored by Back or Forward
  * can be older than the store). A clean store older than the page was stale, and the page's copy replaces it.
  *
- * `canWrite` stays `"checking"`: this page's request carries no write-token cookie either, and the editor's
- * `HydrateAndConfigure` probes for it on mount, so a return to the editor finds the question still open rather
- * than answered wrongly.
+ * The review asks nothing about write access (this page's request carries no write-token cookie either), and it
+ * forgets nothing: whether this browser may write a design is a fact about the browser and the design, not about
+ * which copy the store holds, so a replacement carries the held answer over. `"checking"` is only for a design the
+ * store held no answer for, and then no editor is mounted whose probe could act on it; the editor's own
+ * `HydrateAndConfigure` probes for it on mount.
  */
 export function HydrateAndReview({
   design,
@@ -32,7 +38,12 @@ export function HydrateAndReview({
   designId: DesignId;
   revision: DesignRevision;
 }) {
-  const loaded = { design, designId, revision, canWrite: "checking" } as const;
+  const loaded = {
+    design,
+    designId,
+    revision,
+    canWrite: writeAccessHeldFor(designId),
+  } as const;
   hydrateSessionStoreInBrowser(loaded, (session) =>
     holdsTheNewestCopy(session, { designId, revision }),
   );
@@ -77,4 +88,14 @@ export function isGreaterRevision(
 
 function isDigitRun(value: string): boolean {
   return /^[1-9][0-9]*$/.test(value);
+}
+
+/**
+ * The answer about write access the session store already holds for this design, else `"checking"`. Read only in the
+ * browser: the server's store is never written (ADR 0133) and a request must not read another's.
+ */
+function writeAccessHeldFor(designId: DesignId): WriteAccess {
+  if (typeof window === "undefined") return "checking";
+  const session = useConfiguratorStore.getState();
+  return session.designId === designId ? session.canWrite : "checking";
 }

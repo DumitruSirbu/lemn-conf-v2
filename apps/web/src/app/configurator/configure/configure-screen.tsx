@@ -1,7 +1,7 @@
 "use client";
 
 import { cabinetDepthMmOf } from "@lemnaria/configurator-domain";
-import { cameraPresetsForRoom } from "@lemnaria/three-adapter";
+import { cameraPresetsForRoom, isDragGesture } from "@lemnaria/three-adapter";
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, type RefObject } from "react";
@@ -348,6 +348,14 @@ export function useHonourArrival({
   const canWrite = useConfiguratorStore((state) => state.canWrite);
   const progress = useRef<ArrivalProgress | null>(null);
   const bodyToSelect = useRef<string | null>(null);
+  const stopWatchingTheScene = useRef<(() => void) | null>(null);
+
+  useEffect(
+    () => () => {
+      stopWatchingTheScene.current?.();
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!isOwner) return;
@@ -365,7 +373,14 @@ export function useHonourArrival({
     if (!arrivalProgress.hasChosenSelection) {
       arrivalProgress.hasChosenSelection = true;
       bodyToSelect.current = standWhereBodyIsSeen(arrival.get("select"));
-      if (!mustWaitForTheScene()) selectTheChosenBody(bodyToSelect);
+      if (bodyToSelect.current !== null) {
+        if (mustWaitForTheScene()) {
+          stopWatchingTheScene.current = watchForTheCustomersTap(() => {
+            bodyToSelect.current = null;
+            stopWatchingTheScene.current?.();
+          });
+        } else selectTheChosenBody(bodyToSelect);
+      }
     }
     if (
       !arrivalProgress.hasHandledSettings &&
@@ -379,6 +394,7 @@ export function useHonourArrival({
   }, [isOwner, searchParams, canWrite, settingsTrackRef]);
 
   const onSceneSettled = useCallback(() => {
+    stopWatchingTheScene.current?.();
     selectTheChosenBody(bodyToSelect);
   }, []);
 
@@ -393,6 +409,37 @@ function selectTheChosenBody(chosen: { current: string | null }): void {
   useConfiguratorStore
     .getState()
     .select({ kind: "placement", id: placementId });
+}
+
+/**
+ * Calls `onTap` when the customer taps the scene, and returns the way to stop watching. A tap is the one thing that
+ * can select, or clear, anything before the scene rests, so it is how the customer's own act is told from the
+ * arrival's write and from the scene's deselect on a cut wall, neither of which is a pointer gesture (and the
+ * scene's only exists for a selection, which a pending arrival has not yet made). A tap is the scene's own: a press
+ * and a release on the canvas that `isDragGesture` does not call an orbit. Seen in the capture phase, so it is known
+ * before the scene acts on the same tap.
+ */
+function watchForTheCustomersTap(onTap: () => void): () => void {
+  let pressedAt: { x: number; y: number } | null = null;
+  const isOnTheScene = (event: Event) =>
+    event.target instanceof HTMLCanvasElement;
+  const press = (event: PointerEvent) => {
+    pressedAt = isOnTheScene(event)
+      ? { x: event.clientX, y: event.clientY }
+      : null;
+  };
+  const release = (event: PointerEvent) => {
+    const start = pressedAt;
+    pressedAt = null;
+    if (start === null || !isOnTheScene(event)) return;
+    if (!isDragGesture(start, { x: event.clientX, y: event.clientY })) onTap();
+  };
+  document.addEventListener("pointerdown", press, true);
+  document.addEventListener("pointerup", release, true);
+  return () => {
+    document.removeEventListener("pointerdown", press, true);
+    document.removeEventListener("pointerup", release, true);
+  };
 }
 
 /** Only a U's scene cuts a wall away (`cutawayWallsFor`), so only there can it undo a selection; in any other room
