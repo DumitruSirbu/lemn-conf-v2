@@ -265,7 +265,7 @@ declare const messages: {
     "title": "Setări pentru toată bucătăria",
     "appliesTo": "Se aplică {bodyCount, plural, one {singurului dulap din bucătărie} few {tuturor celor # dulapuri} other {tuturor celor # dulapuri}}. Nu se setează pentru fiecare dulap în parte.",
     "groupHeadings": {
-      "material": "Material corp și fronturi",
+      "material": "Materialul dulapului și al fronturilor",
       "hardware": "Feronerie"
     },
     "groupAnchors": {
@@ -383,12 +383,12 @@ declare const messages: {
     },
     "accessory": {
       "sink-protective-cover": {
-        "name": "Protecție de aluminiu pentru corpul spălătorului",
-        "description": "Montată în corpul spălătorului, împotriva umidității și a scurgerilor."
+        "name": "Protecție de aluminiu pentru dulapul chiuvetei",
+        "description": "Montată în dulapul chiuvetei, împotriva umidității și a scurgerilor."
       },
       "dish-drying-rack": {
         "name": "Uscător de vase",
-        "description": "Montat în corpul suspendat de deasupra spălătorului."
+        "description": "Montat în dulapul suspendat deasupra chiuvetei."
       }
     }
   },

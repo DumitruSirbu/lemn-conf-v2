@@ -287,7 +287,7 @@ describe("a book text states no amount it is printed beside", () => {
     /* eslint-disable no-restricted-syntax -- 6B-j allow-list: the shipped leaves quoted as negative detector inputs. Reading them through the catalogue would make this pair agree with whatever the catalogue currently says, which is the tautology the control exists to avoid. */
     for (const kept of [
       "Materialul standard al bucătăriei.",
-      "Montat în corpul suspendat de deasupra spălătorului.",
+      "Montat în dulapul suspendat deasupra chiuvetei.",
     ])
       expect(INCLUSION_WORDS.ro.test(kept), kept).toBe(false);
     /* eslint-enable no-restricted-syntax */

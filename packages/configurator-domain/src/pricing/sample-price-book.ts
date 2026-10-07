@@ -239,9 +239,9 @@ const DRAFTED_PUSH_TO_OPEN_MINOR = {
 const SAMPLE_ACCESSORIES: BookAccessories = {
   sinkProtectiveCover: {
     ruleId: "accessory.sink-protective-cover",
-    name: "Protecție de aluminiu pentru corpul spălătorului",
+    name: "Protecție de aluminiu pentru dulapul chiuvetei",
     description:
-      "Montată în corpul spălătorului, împotriva umidității și a scurgerilor.",
+      "Montată în dulapul chiuvetei, împotriva umidității și a scurgerilor.",
     nameKey: "priceBook.accessory.sink-protective-cover.name",
     descriptionKey: "priceBook.accessory.sink-protective-cover.description",
     perUnitMinor: 20_000,
@@ -249,7 +249,7 @@ const SAMPLE_ACCESSORIES: BookAccessories = {
   dishDryingRack: {
     ruleId: "accessory.dish-drying-rack",
     name: "Uscător de vase",
-    description: "Montat în corpul suspendat de deasupra spălătorului.",
+    description: "Montat în dulapul suspendat deasupra chiuvetei.",
     nameKey: "priceBook.accessory.dish-drying-rack.name",
     descriptionKey: "priceBook.accessory.dish-drying-rack.description",
     perUnitMinor: 40_000,

@@ -484,7 +484,7 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "content.static.globalSettings.groupHeadings.hardware":
     "6f5e8a6a2dbf05583c1bc68be44e1405667bad92cdb8a9e1df182ff15709999d",
   "content.static.globalSettings.groupHeadings.material":
-    "abc4f9677ed6863e60381d93cc513466b429943cba63ff0aca677084b0d26d28",
+    "d36aa6c8ddff85c23b6f9c811d994f569f9e0159f7a59d34cd9379bd901d7747",
   "content.static.globalSettings.materialResetConfirm.back":
     "0f9df26137e3e1f8aab3b8d013985c00518281c7373f20899dc80aee62198cdf",
   "content.static.globalSettings.materialResetConfirm.confirm":
