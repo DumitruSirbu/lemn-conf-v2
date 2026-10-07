@@ -10,8 +10,12 @@
 > 8T change.** The launch gate does not close with M8. Read *M8 restated* at the head of *Waves*
 > first; it supersedes the paragraphs below and any wave text it names. **The owner then ruled the
 > limit on new designs: 20 a day per IP address, for everyone, and nothing else** (*The limit on
-> new designs, as the owner ruled it*), which supersedes ADR 0019's mint row. **Open for M8: Q29,
-> Q30, half of Q31, Q32.** Dispatchable: 8E, 8I, 8H; 8D once 8C's QA and review close.
+> new designs, as the owner ruled it*), which supersedes ADR 0019's mint row. ~~**Open for M8: Q29,
+> Q30, half of Q31, Q32.** Dispatchable: 8E, 8I, 8H; 8D once 8C's QA and review close.~~
+> **Later the same day the owner answered Q29, Q31 and Q32** (*The owner's answers to Q29, Q31 and
+> Q32*): **Resend is the mail provider, in M8**, which restores 8J's adapter and closes Q29; the
+> 20 a day is counted **per block of 256 addresses**; ***dulapuri* everywhere** a cabinet is counted
+> or named. Open for M8: one narrow wording point. Dispatchable after 8D: 8E, 8I, 8H, 8J.
 >
 > **Updated 2026-10-07, after wave 8C: wave 8C is DONE (`97e75c6` … `3bda09d`), not pushed.** QA green,
 > its adjudication (C1–C3) and fix round done, logic and clean-code review approve; see *8C as built*.
@@ -764,7 +768,8 @@ are Moldovan; the limiter does not tell one country from another when a design i
 
 **Not said by the owner. Each is the architect's reading, with what it rests on.**
 
-- **One address, or a block of them: Q32, below.** For IPv6 it is not a question: the unit is the
+- **One address, or a block of them: ~~Q32, below~~ answered later the same day — the block of
+  256, a /24** (*The owner's answers to Q29, Q31 and Q32*). For IPv6 it is not a question: the unit is the
   /64. ADR 0019 d3: *"per-address IPv6 is worthless, since a single subscriber is routinely
   delegated an entire /64"*, and *"IPv6 /64 aggregation is not optional"*. A /64 is one
   subscriber, which is what the owner means by a user. [The architect's, from that record.]
@@ -784,7 +789,8 @@ are Moldovan; the limiter does not tell one country from another when a design i
   creating a design changes the visitor value and so would reset them. Preferred [inf]: key those
   two on the design, which a rotation does not change. Fixed in 8G's and 8K's own S0.
 
-**What 20 a day admits, restated from 8A S1's figure.** One address: 20 rows a day at 523,972
+**What 20 a day admits, restated from 8A S1's figure.** ~~One address~~ **One block of 256
+addresses (Q32)**: 20 rows a day at 523,972
 bytes each, **10.0 MiB a day** [arithmetic on 8A S1's measured size; the architect's]. With no
 hourly limit, all 20 can be spent in a minute. **Per-address abuse is bounded at 20 a day.
 Abuse spread over many addresses is not bounded by the application at all**: the 1,000-an-hour
@@ -807,12 +813,73 @@ are written. A keyed hash would hide it and needs a secret variable in every env
 put to 8E's security reviewer, not built by default. Both facts go on the delivery milestone's
 list of what data is held where.
 
+### The owner's answers to Q29, Q31 and Q32, 2026-10-07
+
+**Verbatim** (relayed by the coordinator):
+
+> 29 - lets use resend , i have the api key already
+
+> 32 - hmm what is more limited
+
+The coordinator answered that the block of 256 is the stricter: 20 a day shared by 256 addresses,
+harder for someone with many nearby addresses to walk around, likelier to refuse unrelated
+customers on one provider's range; that a shared single address shares its 20 either way; and that
+the architect and the coordinator both recommended a single address [the coordinator's wording,
+relayed]. The owner then ruled:
+
+> 32 -go with Per block of 256
+
+> 31 - dulapuri everywhere
+
+**Q32 — ruled: for IPv4 the 20 a day is counted per block of 256 addresses (a /24).** The owner
+chose the stricter option, against both recommendations, having been told the trade-off. For IPv6
+the unit is the /64; that remains the architect's reading of ADR 0019 d3 and not the owner's
+sentence. Consequences:
+
+- **8F.** The policy's prefix is /24 for IPv4 and /64 for IPv6. Nothing else in the wave changes:
+  it was already to build the reduction for any prefix.
+- **8E.** The table does not change. What it stores is a hash of the block.
+- **D10's note, restated.** There are about sixteen million /24 blocks, so an unkeyed hash of one
+  is undone by trying them all, more easily than a hash of a single address. But what it then
+  reveals is a block of 256 addresses and not a person's address, and the row lives a day. The
+  keyed hash is still put to 8E's security reviewer and still not built by default.
+- **The bound.** One block: 20 rows a day, 10.0 MiB at the largest design [arithmetic on 8A S1's
+  size]. Everyone whose address falls in the same 256 shares that allowance, whether or not they
+  share an address. Abuse spread over many blocks is still not bounded by the application.
+- **For the scribe, ADR 0147**, written with Q32 open: its title's *"per IP address"*; the unit
+  wherever it says an address; the bound, which is per block; and who shares an allowance.
+
+**Q31 — ruled: *dulapuri* everywhere a cabinet is counted or named as a unit.** That settles the
+room line's count, which the coordinator has sent to 8D's implementer. **Not extended, and asked
+of the owner by the coordinator, unanswered:** the four other lines of `ro.json` that contain
+*corp* and are not counts of cabinets — *"Material corp și fronturi"* and three texts about the
+sink's body [relayed; the coordinator's grep].
+
+**Q29 — the question was not answered as put; its premise was removed. Resend is the mail
+provider, in M8, and the owner holds an API key.** This **supersedes, for the provider, the
+deferral recorded this morning**: Q25 was a leaning (*"the server provider will have also email,
+or something like sendgrid"*), was recorded as not ruled, and the adapter went to the delivery
+milestone. The host (Q21) and the database's home (Q22) stay deferred. **Q25 is closed by this
+answer**, and with it the architect's Q25 recommendation of the shop's own mail host. One fact
+travels with the choice and is not undone by it: Resend keeps account data, metadata and thirty
+days of each message's content in the United States [ven §4]. Whether that fact was in front of
+the owner when they chose is the coordinator's to confirm; it goes into the privacy text either
+way (Q7, Q13).
+
+**Q29 as it now stands: closed.** No marked test deployment is built. A deployment whose mail
+variables are set sends real mail; one where any is unset says the request cannot be sent, as D8
+and 8K's criterion 8 always had it.
+
 ### What is still open for M8 itself, 2026-10-07
 
-~~Four questions.~~ **Q28 is answered (the section above). Open: Q29, Q30, the second half of Q31,
-and Q32.** Every other open question went to the delivery milestone with its subject.
+~~Four questions.~~ ~~**Q28 is answered (the section above). Open: Q29, Q30, the second half of Q31,
+and Q32.**~~ **As of the answers above: Q28, Q29, Q31 (for counts and units) and Q32 are answered;
+Q30 is settled as rule C3 in wave 8C. Open for M8: only whether *"dulapuri everywhere"* reaches the
+four lines that are not counts.** Every other open question went to the delivery milestone with its subject.
 
-**Q32 — For IPv4, is "per IP" one address, or the block of 256 around it?** The owner said *"per
+**Q32 — For IPv4, is "per IP" one address, or the block of 256 around it?** *[**Answered
+2026-10-07: the block of 256**, the owner's own choice against the recommendation below. See the
+section above.]* The owner said *"per
 user (ip)"*. ADR 0019 d3 counts a /24, to catch *"floods from one host or network"*, and warns in
 the same row that *"CGNAT and mobile carriers put thousands of real customers behind one
 address"*. With 20 a day as the only limit the two pull apart:
@@ -853,6 +920,8 @@ designs a day (10 an hour), or should visitors from outside Moldova get a lower 
 lower one, 20 or 30?"* *Blocks:* 8F's policy slice.
 
 **Q29 — Until a mail provider is chosen, what does *Trimite cererea* do on a test deployment?**
+*[**Closed 2026-10-07.** The owner chose the provider instead: Resend, in M8. Neither option below
+is taken; no marked test deployment is built.]*
 M8 builds the notification and the port it leaves by, and no provider (Q25 moved). By D8 a request
 succeeds only when it is stored and notified, so with no provider every deployment answers that
 the request cannot be sent, and screen 5A is reachable only in automated tests.
@@ -876,7 +945,10 @@ second. In the architect's reading the record already answers this and it is a c
 8C's item 5, the architect's; it is put to the owner only if the coordinator reads ADR 0065
 otherwise. **Wave 8C's section is not edited here: its QA is running.** *Blocks:* 8C's close.
 
-**Q31 — *Dulapuri* or *corpuri* on screen 3?** *[**Half answered 2026-10-07.** The owner,
+**Q31 — *Dulapuri* or *corpuri* on screen 3?** *[**Answered 2026-10-07, later: "dulapuri
+everywhere"**, for every place a cabinet is counted or named as a unit, the room line's count
+included. Open only for the four lines that are not counts. See the section above.]*
+*[Earlier the same day:* **Half answered 2026-10-07.** The owner,
 verbatim, of the refusal sentences: "dulapuri". The three `review.refusalReasons` sentences
 already say so and stand as written. **Still open, asked by the coordinator and not answered:**
 whether the room line's count (*"1 corp"*, *"2 corpuri"*) changes to match. The ruling is not
@@ -957,11 +1029,14 @@ milestone's file exists, the gate's text stays in this one.**
   one request on a deployment; and anything about the launch host.
 - **8G.** Unchanged in substance. The prune is a route with a secret; the development host's cron
   calls it, and whichever scheduler the launch host has will call the same route.
-- **8J — the port, the configuration reader, the message, a recording fake. No provider adapter.**
+- ~~**8J — the port, the configuration reader, the message, a recording fake. No provider adapter.**
   A generic SMTP adapter was weighed, since it would serve the host's own e-mail and a relay like
   SendGrid alike [inf, unverified]. It is not taken: it adds a dependency at the security tier and
   cannot be shown working without a mailbox nobody has yet, and the choice it prepares for is not
-  made. Q29 decides whether a marked test deployment may stand in.
+  made. Q29 decides whether a marked test deployment may stand in.~~
+  **8J — restored later the same day: the owner chose Resend, in M8.** The port, the configuration
+  reader, a Resend adapter over plain HTTPS with no SDK, the message, the fake. See the wave's own
+  restatement. No dependency is added.
 - **8K — without the bot check.** No bot port is built for an implementation that does not exist
   (ADR 0118). Criterion 12 and D12 go to the delivery milestone. Honeypot, timing, limits,
   idempotency, the revision check and the fit refusal stay.
@@ -975,7 +1050,11 @@ milestone's file exists, the gate's text stays in this one.**
 **Named interims M8 ends with** (`WORKFLOW.md`, *Nothing ships mid-milestone*). Each is closed by
 the delivery milestone unless another owner is named. None is "done".
 
-1. **No real e-mail leaves the system.** Port and message only.
+1. ~~**No real e-mail leaves the system.** Port and message only.~~ **Restated the same day (the
+   owner chose Resend): real mail leaves only where the owner has set the three mail variables,
+   and it is proved only as far as the owner's own test sends.** Not shown in M8: delivery from
+   the production domain with its DNS records; that a request stored and never notified is ever
+   seen by anyone, since nothing in M8 reads the rows back.
 2. **The limiter knows a client's address only on the development host.** Elsewhere, one shared
    bucket. No country. No challenge. The global brake counts and does not act. **So abuse spread
    over many addresses is not bounded by the application**; one address is, at 20 designs a day.
@@ -997,7 +1076,7 @@ the launch gate*. What it inherits, with the question that travels with each:
 | The launch host; a reverse proxy, TLS, a scheduler | Q21; ADR 0019 d2, d9, d10 re-read for that host |
 | The database's home; the driver if it changes; backups | Q22; Q13 (ii); ADR 0007, 0012, 0054 |
 | Flood protection: a bot shield or captcha, the firewall rules, the client address and country source | Q16, Q17, Q23's first half; whether Q28's one limit gains a second tier; ADR 0019 d4; ADR 0114 d7 |
-| The mail provider and its adapter; DNS; the inbox, the shop's number, the sending domain | Q25; Q29's mark must be absent in production |
+| ~~The mail provider and its adapter; DNS; the inbox, the shop's number, the sending domain~~ **Restated the same day: the provider is chosen (Resend) and its adapter is M8's.** M9 inherits mail's launch half: the sending domain's SPF, DKIM and DMARC on the production domain; delivery shown from it; the privacy text naming a processor that stores in the United States; a way to see a request that was stored and never notified; and a change of provider if the launch host's own mail is preferred, which the port allows | ~~Q25; Q29's mark must be absent in production~~ Q7, Q13; the owner's inbox, number and domain |
 | Every runtime query error rebuilt | Q27 (b); QA20; backlog 84 |
 | The launch gate, with SEC-001's platform half | Q19; ADR 0019's 2026-08-31 correction |
 | The pre-launch checks of 8S: the first stored schema, live rows, migrations and grants applied, the largest row, the Russian re-signed, the owner's text in every slot | Q20, Q7, Q9; ADR 0038, 0095, 0096; backlog 92 |
@@ -1022,8 +1101,8 @@ both in M9.
 | 8E | Stays | **Nothing. Dispatchable** |
 | 8I | Stays | 8E's migration number. **Dispatchable** |
 | 8H | Stays; Q24 settled | **Nothing. Dispatchable** |
-| 8J | **Changed:** no provider adapter | Nothing for the port, the message and the fake; **Q29** for the stand-in |
-| 8F | **Changed:** identity through a port; one bucket, 20 a day per address (Q28 answered) | The three red `CI=1` specs triaged; 8E. **Q32** sets one number and does not block the build |
+| 8J | ~~**Changed:** no provider adapter~~ **Restored: a Resend adapter** (owner, 2026-10-07) | **Nothing to build it. Dispatchable whole**, after 8D. Proving it end to end waits for the owner: the three variables on a deployment, and a sender the provider accepts |
+| 8F | **Changed:** identity through a port; one bucket, 20 a day per ~~address~~ **block of 256 (/24; /64 for IPv6)** (Q28 and Q32 answered) | The three red `CI=1` specs triaged; 8E. ~~**Q32** sets one number and does not block the build~~ |
 | 8G | Changed lightly | 8F |
 | 8K | **Changed:** no bot check | 8F, 8H, 8I, 8J |
 | 8L | Stays; Q26 settled | 8H, 8K |
@@ -2492,7 +2571,9 @@ of SEC-001 and backlog 90. *Tier: Full + security.*
 > - **S1** is the port and the reduction of an address to a prefix. `geography.ts` is not built.
 > - **S2**'s policy for the mint is one row. The evaluator still takes several buckets, because 8G
 >   and 8K need it to.
-> - **Criterion 1**: the prefix is a datum (Q32); /32, /24 and /64 are named cases. An absent
+> - **Criterion 1**: the prefix is a datum, **and Q32 set it later the same day: /24 for IPv4**
+>   (the owner's choice), /64 for IPv6 (the architect's reading); /32, /24 and /64 stay as named
+>   cases of the reduction. An absent
 >   address falls in the one shared bucket, at the same 20 a day.
 > - **Criterion 3 does not apply to the mint**: there is one bucket and no session. It returns in
 >   8G and 8K for the endpoints that keep two.
@@ -2690,11 +2771,14 @@ back. *Tier: Full + security.*
 *Goal.* One provider-neutral port sends one fixed message to one configured address.
 *Tier: Full + security.*
 
-> **Scope restated 2026-10-07.** M8 builds the port, the configuration reader, the fake and S2's
+> ~~**Scope restated 2026-10-07.** M8 builds the port, the configuration reader, the fake and S2's
 > message. **`provider-mail-sender.ts` is not built**: the provider is chosen in the delivery
 > milestone (Q25). Criteria 3, 4 and the provider half of 6 go with it. Criteria 1, 2, 5 and 7
-> stay. If Q29 is answered (b), one more slice adds the marked stand-in: it stores, sends nothing,
-> and cannot be selected unless the deployment carries the owner's mark. No dependency is added.
+> stay. If Q29 is answered (b), one more slice adds the marked stand-in…~~
+>
+> **Restored 2026-10-07, later: the owner chose Resend, in M8** (*The owner's answers to Q29, Q31
+> and Q32*). The wave is as first written, with the adapter, and is restated for dispatch in *8J,
+> restated* at the end of this section. All seven criteria stand; 8–12 are added there.
 
 | Slice | Does | Files | Reading |
 | --- | --- | --- | --- |
@@ -2724,6 +2808,84 @@ Resend keeps for twenty-four hours [ven §4]; D8's retry must not rely on that k
 Q25 is (c), an S0 first verifies outbound SMTP from the launch host and puts the SMTP client
 dependency to the security reviewer.
 
+#### 8J, restated — 2026-10-07, after the owner chose Resend
+
+The paragraph above is overtaken: **the provider is Resend, decided by the owner**, who holds an
+API key. *Tier: Full + security*, unchanged: it sends e-mail, reads a secret, and carries personal
+data to a third party. No dependency is added: the adapter is a `fetch`.
+
+| Slice | Does | Files (production) | Reading |
+| --- | --- | --- | --- |
+| S1 | The port; the configuration reader, which answers *configured* or *unavailable* with the names of what is missing; the fake | new `lib/server/mail/mail-sender.ts`, `mail-configuration.ts`, `fake-mail-sender.ts`; `.env.example` (names only) | Q3; ADR 0001 d7; ARCH §9; D8; ADR 0146 (what may be thrown or logged); `environments-and-resources.md` |
+| S2 | The Resend adapter: one pure function builds the request, one sends it with a time bound and reduces whatever comes back | new `lib/server/mail/resend-mail-sender.ts` | *8A figures*, §4, every quotation; ADR 0146, rules B2 and B3; `lib/server/backup-designs.ts:112-140` (a third party's failure reduced to a name); `packages/persistence/src/migration-errors.ts` (`reducedCauseOf`) |
+| S3 | The shop's notification: the reference, the customer's details, the room line, the rows and the figure, as plain text | new `lib/server/mail/lead-notification.ts` | Q5; D13; 8C *as built* and ADR 0148; 8H's snapshot once it exists (S3 waits for 8H if it is not in) |
+
+*What the documentation fixes for S2* [ven §4, all of it another agent's read]. `POST
+https://api.resend.com/emails`, a bearer key, a JSON body with `from`, `to`, `subject`. **A
+`User-Agent` header, or the call is refused with `403`.** An optional `Idempotency-Key`, kept
+twenty-four hours; the same key with another body answers `409`. **No sandbox:** only the
+`resend.dev` test addresses, and they count against the quota. The free quota is 100 messages a
+day and 3,000 a month, each recipient counted. The EU region is where mail leaves from; account
+data, metadata and thirty days of each message's content are kept in the United States.
+
+*Criteria added to the seven above.*
+
+8. **The request is proved without being sent.** The function that builds it is pure, and a test
+   holds its URL, method, headers and body against the documented shape quoted in *8A figures*:
+   the bearer header, a `User-Agent`, the `Idempotency-Key`, one recipient. Answers are canned:
+   an acceptance, a refusal, a `409`, a quota answer, a timeout, a body that is not JSON.
+9. **No test, no gate and no agent sends a real message.** *Must not:* CI, `ci:local`, the e2e
+   suite or a developer's run reaches `api.resend.com`; a test proves the fake is what those
+   servers hold. **The one real send is the owner's**, or made on the owner's word, once, from a
+   deployment where the variables are set; the close-out quotes it or says the adapter is
+   unproven against the live service.
+10. **ADR 0146 applied to mail.** The API key is a secret: with a recognisable fake key, nothing
+    thrown, logged or returned holds it, on any branch. **The provider's answer is never passed
+    through**: its body can quote the recipient's address or the message, which is personal data.
+    What survives of a failure is built: which kind it was, from a closed list (refused, quota
+    spent, timed out, unreachable, unreadable answer), and the HTTP status as a number. Tested
+    with a canned error body that carries a recognisable address, name and phone number.
+11. **One request, one message, however many attempts.** The `Idempotency-Key` is the client
+    request id. The message for one request is the same bytes on every attempt: no clock, no
+    counter and no random value in it. A retry inside a day therefore cannot send a second
+    message even if marking the row notified failed. *Recorded limit:* past twenty-four hours the
+    provider forgets the key; then only the row's mark stands between a retry and a second
+    message.
+12. **Quota spent is its own answer.** It is told apart from a refusal and from a timeout, so
+    that 8K can stop retrying and 8M can say the right thing.
+
+*What the variables are* — proposals; the owner sets them, an agent sets none, and none is ever
+printed or logged (`environments-and-resources.md`):
+
+| Name | Holds | Read by | When it is not set |
+| --- | --- | --- | --- |
+| `RESEND_API_KEY` | the provider's key; a secret | `mail-configuration.ts`, on the server, when a request is to be notified; never at build, never in the browser | The reader answers *unavailable* and names the variable. 8K stores nothing and answers that the request cannot be sent; the contact screen says so before the form is filled |
+| `MAIL_FROM_ADDRESS` | the sender, on a domain the provider has verified | the same | the same |
+| `LEAD_NOTIFICATION_ADDRESS` | the shop's inbox; the only recipient there is | the same | the same |
+
+A value that is set and not usable (an address that is not one) is *unavailable* too, naming the
+variable and nothing of the value (ADR 0146, B2). The test and e2e servers hold the fake by how
+they are started, never by a request, and a production build cannot select it.
+
+*What the owner still has to supply.*
+
+| What | Blocks the build? | Blocks what |
+| --- | --- | --- |
+| The API key, set as a variable on a deployment | No | The one real send; trying the flow by hand |
+| A sender the provider accepts: a verified domain, which means DNS records the owner adds | No | The same. [inf, unverified: whether the provider's own test sender reaches the account's address without one] |
+| The shop's inbox address | No | The same |
+| The shop's phone number, for frame 5B's direct call | No | That action being drawn (8M) |
+| The privacy text, naming a processor that stores in the United States | No | Launch (Q7, Q13; M9) |
+| SPF, DKIM and DMARC on the production domain | No | Launch (M9) |
+
+**Nothing the owner owes blocks building 8J.** It is dispatchable whole, after 8D, with S3 behind
+8H.
+
+*QA reading:* criteria 1–12; *8A figures* §4; `tests/lib/server/backup-designs.test.ts` (how a
+reduced third-party failure is tested); ADR 0146. *Logic and clean-code readers:* the three
+slices' files. *Security reading:* ADR 0146 whole; ADR 0001 d7; criteria 9–11; the three names in
+`.env.example`; every branch of the adapter that touches the provider's answer.
+
 ### 8K — `POST /api/contact-submissions`
 
 *Goal.* The boundary: it revalidates, refuses abuse, snapshots the stored design, stores once,
@@ -2737,7 +2899,27 @@ notifies, and tells the customer the truth. *Tier: Full + security.*
 > D11 bears on its per-browser figure as it does on saves; this wave's S0 fixes the key.
 > Everything else stands: the body limit, the cross-site guard, the schema, the honeypot, the
 > timing check, the limits failing closed, the revision check, the fit refusal, idempotency, D8.
-> Criterion 8's *"mail unconfigured"* reads with Q29.
+> ~~Criterion 8's *"mail unconfigured"* reads with Q29.~~
+>
+> **Restated 2026-10-07, later: a request can now really notify the shop** (the owner chose
+> Resend; 8J). Criteria 7 and 8 mean what they say. Three things follow.
+>
+> - **Idempotency reaches the provider.** The notification carries the client request id as the
+>   provider's own key, and its bytes are the same on every attempt (8J, criterion 11). So a
+>   request stored and not yet marked notified can be retried without a second message arriving.
+> - **The provider's answers, and what the endpoint does with each.** Accepted: mark the row,
+>   answer success. Quota spent: answer a failure that says so in its code, and **do not invite an
+>   automatic retry**; the row stays. Refused, timed out, unreachable, unreadable: answer a
+>   failure the client may retry; the row stays. In none of them is the provider's answer logged
+>   or returned (8J, criterion 10).
+> - **A stored request that is never notified.** The customer was told it failed and offered the
+>   other channel, which is the truth. Nobody on the shop's side can see the row: nothing in M8
+>   reads it back. That is a named interim for the delivery milestone, not a silent loss, and the
+>   log line for it carries the reference and no detail.
+>
+> *Risk, recorded:* the free quota is 100 messages a day [ven §4], and in M8 nothing stops a
+> spread of addresses from spending it, since the contact form's global figure only counts.
+> While it is spent every customer sees 5B. The delivery milestone's shield is the answer.
 
 | Slice | Does | Files | Reading |
 | --- | --- | --- | --- |
@@ -2830,8 +3012,17 @@ nothing. *Tier: Full + visual.*
 
 > **Scope restated 2026-10-07.** Not affected by the host. Two notes. **The shop's phone number is
 > still owed**: until the owner gives it, 5B's direct-call action is not drawn; it is never drawn
-> with a stand-in number, and criterion 7 applies once it exists. **5A on a deployment** depends on
-> Q29: under (a) it is reached only in automated tests.
+> with a stand-in number, and criterion 7 applies once it exists. ~~**5A on a deployment** depends on
+> Q29: under (a) it is reached only in automated tests.~~
+>
+> **Restated 2026-10-07, later (the owner chose Resend).** 5A is reached by hand on any deployment
+> where the three mail variables are set. Its wording about what happens next is unchanged: still
+> the slots of Q9, and no response time (Q26). For 5B: when the endpoint says the provider's quota
+> is spent, the automatic retry does not run and *Încearcă din nou* stays for the customer to
+> press; every other retryable failure keeps criterion 5. The sentence shown is the same plain one
+> in both cases; no new leaf says "quota". With the shop's number still owed, a customer at 5B on
+> such a day has no other channel on screen. That is a reason for the owner to give the number
+> before the flow is tried by hand, and it is listed with what they owe.
 
 | Slice | Does | Files | Reading |
 | --- | --- | --- | --- |
@@ -3187,8 +3378,11 @@ of submission, and nothing re-prices it. This follows the owner's own design rec
 > **Restated 2026-10-07 (*M8 restated*).** **M8 now asks for these only:** the two tables and
 > their grants (8E, 8I); one more cron entry on the development host (8G); `LEAD_NOTIFICATION_ADDRESS`
 > and `MAIL_FROM_ADDRESS` as names the configuration reader looks for; the shop's phone number;
-> and, if Q29 is (b), one variable by which the owner marks a deployment as a test one, never set
-> in production. **Gone to the delivery milestone:** the mail provider's account, key and DNS; the
+> ~~and, if Q29 is (b), one variable by which the owner marks a deployment as a test one, never set
+> in production~~ **and, since the owner chose Resend the same day, `RESEND_API_KEY`: three mail
+> variables in all, tabled in *8J, restated*; no marked-test variable (Q29 is closed)**. **Gone
+> to the delivery milestone:** ~~the mail provider's account, key and DNS~~ **the production
+> domain's DNS records for mail**; the
 > bot check's package and setting; the firewall rules; the storage alert; and everything a new
 > host or database would need. **No dependency is added in M8.**
 
