@@ -859,8 +859,11 @@ production. *Blocks:* 8J's last slice and 8K's criterion 8.
 
 **Q30 — When the price cannot be computed and a cabinet also does not fit, which refusal does the
 review show?** Wave 8C as built shows the pricing one alone and names no cabinet [relayed; the
-implementer's choice, flagged]. ADR 0065 d7 says of a kitchen that does not fit: *"The refusal names
-which bodies do not fit"*. *Recommended: the fit refusal is shown whenever a cabinet does not fit,
+implementer's choice, flagged]. ~~ADR 0065 d7 says of a kitchen that does not fit: *"The refusal names
+which bodies do not fit"*.~~ **Corrected 2026-10-07: that sentence is this plan's own (*An
+inherited criterion from M6*), not ADR 0065's. Decision 7 says only that the step *"refuses while
+any body does not fit"*. Q30 is settled as rule C3 in wave 8C's adjudication, on the plan's
+criterion; it is the architect's ruling and the owner may overrule it.** *Recommended: the fit refusal is shown whenever a cabinet does not fit,
 with the pricing one beside it or after it.* The customer can act on the first and not on the
 second. In the architect's reading the record already answers this and it is a criterion gap in
 8C's item 5, the architect's; it is put to the owner only if the coordinator reads ADR 0065
@@ -1007,7 +1010,7 @@ both in M9.
 | --- | --- | --- |
 | 8A | Stays. Measurements, reads and answers are in | Its review; nothing else |
 | 8B | **Done** (`4b8f4a4`, ADR 0146) [relayed] | — |
-| 8C | Stays. **In adversarial QA** (`97e75c6`, `0d032de`) [relayed] | Its QA and review; Q30 |
+| 8C | Stays. ~~In adversarial QA~~ **QA green (`5c1ae3e`); adjudicated 2026-10-07: a fix round of four items (C1–C3)** | The fix round, a QA check of it, then logic and clean-code review. Q30 is settled as C3 |
 | 8D | Stays | 8C closed. **Dispatchable then** |
 | 8E | Stays | **Nothing. Dispatchable** |
 | 8I | Stays | 8E's migration number. **Dispatchable** |
@@ -1946,9 +1949,11 @@ priced design as the breakdown, and decides whether the kitchen may be submitted
    total, a sum of rounded rows, or a row labelled *total*.
 4. The room line states shape, the lengths the shape has, the corner side only for an L, and the
    body count, with CLDR plurals in both locales. A U names three lengths; a straight room one.
-5. `refused` when `findOverflowingPlacementIds` is non-empty, naming exactly those bodies in display
+5. ~~`refused` when `findOverflowingPlacementIds` is non-empty, naming exactly those bodies in display
    order; `refused` with its own reason for a kitchen with no cabinet (D14); `refused` when pricing
-   fails. *Must not:* the model re-derives fit from geometry. Sabotage: replace the query with an
+   fails.~~ **Restated 2026-10-07 in the adjudication below (C1, C3): one refusal at a time, the
+   first the customer can act on; *no cabinet* means nothing Lemnaria sells.** *Must not:* the
+   model re-derives fit from geometry. Sabotage: replace the query with an
    empty list and the suite goes red.
 6. The estimate is labelled a starting price, rounded up, subject to on-site measurement, not a
    commercial offer, using the approved `priceBreakdown` leaves where they already say it.
@@ -1960,6 +1965,97 @@ priced design as the breakdown, and decides whether the kitchen may be submitted
 sweeps under `packages/configurator-domain/tests/generation/`; `engineering-conventions.md`, *Three guards that look thorough and cannot fail*
 (criterion 1 must not feed both sides from one function call). *Logic reader:* ADR 0063, 0065, 0067,
 0107; `design-projection.ts`. *Clean-code reader:* the slice files.
+
+#### 8C — adjudication of adversarial QA, 2026-10-07
+
+**State.** The two slices are `97e75c6` and `0d032de`; QA's tests `5c1ae3e` [relayed]. QA is green:
+no test left failing, no production defect. The architect ran `tests/review` at `9276aef`: **435
+passed** [ran]. What held is QA's and is relayed: parity against the breakdown as it stood before
+the wave, over 6,390 comparisons in both locales, 0 differences; the figure against the price bar,
+0 differences; 40 sabotages.
+
+| Item | Class | Ruling |
+| --- | --- | --- |
+| QA1 a kitchen holding only bodies the customer supplies is reviewed at *"De la 0 MDL"* and may be submitted | **Contract gap** in D14 and criterion 5, the architect's: *"no cabinet"* was read as *no body* | C1, in the fix round |
+| QA2 the model's three inputs are never reconciled | **Contract gap**: criterion 1 said one projection and never said what a mismatch does | C2, in the fix round |
+| QA3 the implementer's import test misses three import forms | **Test-fidelity problem.** QA's test pins criterion 8 | The weak test is deleted |
+| QA4 the implementer's fit test reads the source's text and can be satisfied by a discarded call | **Test-fidelity problem.** QA's test pins the *must not* | The weak test is deleted |
+| Q30 pricing fails and a body does not fit: the refusal names no body | **Contract gap** in criterion 5, which gave three refusals and no order | C3, in the fix round. **Not the owner's; see below** |
+
+**A correction to Q30 as this file put it.** It quoted *"The refusal names which bodies do not fit"*
+as ADR 0065 decision 7. **That sentence is not in ADR 0065.** Decision 7 reads: *"The review/contact
+step **refuses while any body does not fit**, so no unbuildable kitchen reaches the owner as an
+enquiry."* The model as built satisfies that: it refuses. The sentence about naming is this plan's
+own, in *An inherited criterion from M6*, written on 2026-09-03 with its reason: *"The customer has
+to be able to go back and fix it"*. So Q30 is settled by **this plan's criterion, not by an ADR's
+text**, and the ruling below is the architect's on that criterion. If the owner was told an ADR
+decides it, that is to be corrected.
+
+**Rules.**
+
+- **C1 — "no cabinet" means nothing Lemnaria sells** (QA1). A kitchen in which every body is
+  supplied by the customer (ADR 0107 decision 2: *"appliances are drawn, not sold"*) is the same
+  case as one with no body: there is nothing to make an offer for. The review is `unavailable` and
+  the refusal is `NO_CABINET`, whose sentence, *"Adaugă cel puțin un dulap în bucătărie înainte să
+  ceri oferta."*, is true of it. Decided on the supplier each line already publishes, never on a
+  zero amount (ADR 0107). This is D14 as it was meant; the owner may overrule it.
+  - *Not in 8C:* the price bar and the breakdown print *"De la 0 MDL"* for the same kitchen today.
+    That predates the wave and is their surfaces' matter: a backlog entry, with the question of
+    what a kitchen of appliances alone should show.
+- **C2 — the three inputs are one design's, or the model throws** (QA2). `describeReview` keeps
+  its three inputs. Deriving the price inside it would make this module name a price book, and
+  `use-priced-design.ts` is the one module allowed to (ADR 0062 seam 1, ADR 0072). So the model
+  **asserts** what it can see: the rows' keys are exactly the design's placement ids, and the
+  priced design's list of bodies past their wall equals the query's answer for the design. A
+  disagreement throws a named error, as the breakdown's own divergence does; it is never rendered.
+  *What this cannot see:* inputs for another design with the same ids and the same fit. 8D closes
+  that at the call site (its criterion 10).
+- **C3 — the refusal shown is the first the customer can act on** (Q30). In order: a body past
+  its wall; nothing Lemnaria sells; a price that cannot be computed. ~~a pricing failure, then an
+  empty kitchen, then a body past its wall~~, the order as built, followed the price bar's states.
+  - *What the model returns when pricing fails and a body does not fit:* `unavailable`, since
+    there is no figure, with `BODIES_PAST_WALL` and the bodies named. Once they fit, the next
+    review shows `PRICING_FAILED`.
+  - *How a body is named with no priced rows.* From the projection, by the same words the row
+    prints: the entry's label and width. The projection does not depend on pricing. For a priced
+    kitchen the name in the refusal still equals the row's label, and a test says so.
+
+**Criterion 5, restated.** ~~`refused` when `findOverflowingPlacementIds` is non-empty…; `refused`
+with its own reason for a kitchen with no cabinet (D14); `refused` when pricing fails.~~ One
+refusal at a time, in C3's order. `BODIES_PAST_WALL` whenever the query's list is not empty,
+**whatever pricing answered**, naming exactly those bodies in display order. `NO_CABINET` when no
+body is one Lemnaria supplies. `PRICING_FAILED` only when neither holds. The *must not* and the
+sabotage stand.
+
+**The fix round** — four items, one or two production files.
+
+1. **C3** (Q30). `apps/web/src/review/review-model.ts`.
+2. **C1** (QA1). `review-model.ts`; `apps/web/src/price/starting-price.ts` only if the question
+   *"does this priced design hold anything Lemnaria supplies"* belongs beside `holdsNoCabinets`.
+   The price bar and the breakdown do not change.
+3. **C2** (QA2). `review-model.ts`.
+4. **Tests only** (QA3, QA4). In `tests/review/review-model-imports.test.ts` the two tests QA
+   showed cannot fail are deleted; QA's two are the pins. A test that passes under the mutation it
+   exists for is not kept beside the one that does not.
+
+*Reading, implementer:* this adjudication; criterion 5 as restated; *An inherited criterion from
+M6*; ADR 0065 d6, d7; ADR 0107 d2; ADR 0062 seam 1; `review-model.ts` whole;
+`price-breakdown-model.ts` (how a row's label is built, and its divergence error);
+`price-lines.ts`, `overflowingPlacementIds`; QA's five `qa-8c-*` files.
+
+**Then:** a QA check of the round, on these three rules only. Then review at the wave's tier:
+logic and clean-code. The stopping rule of 8B applies in its own terms: a new finding is fixed in
+8C if a criterion as restated fails or something that held no longer holds; anything else is
+recorded with an owner.
+
+**Wording, for the owner, not settled here** [relayed from QA]: *dulap* in the refusals against
+*corp* in the room line's count (the open half of Q31); the Russian count word, which also counts
+a fridge and a hood; `priceBreakdown.note`, reused on this screen, which carries two words without
+their diacritics in approved copy. And a fidelity fact for the backlog: no test pins the Russian
+wording anywhere in the project.
+
+**Recorded, not fixed.** The sweeps use the fake body probe, not the real one. The rooms the
+sweeps drop are all rooms the room validator refuses.
 
 ### 8D — the review route and screen 3A/3B
 
@@ -1993,6 +2089,14 @@ chosen cabinet. *Tier: Light + visual; a security reviewer reads S1 only.*
    named body links to the editor with that body selected.
 8. *Must not:* a file under `packages/three-adapter` changes; the review mounts a second scene while
    the editor's is alive (ADR 0074).
+9. **Added 2026-10-07, from 8C's criterion 7.** The screen lays its sections out in the model's
+   `REVIEW_READING_ORDER`. The not-included block comes before the call to action in the
+   document's order and above it on the screen: a DOM test for the first, the inspected capture
+   for the second. 8C proved the order as a value; only this wave can prove it on a screen.
+10. **Added 2026-10-07, from 8C's rule C2.** One place hands `describeReview` its three inputs,
+    all derived from one snapshot of the store in one render. Nothing else calls it. *Must not:*
+    the design comes from the server's page props while the price or the groups come from the
+    store, or the reverse.
 
 *Phone acceptance, 390 × 844, both locales, real touch.* 3A and 3B scroll as one page with the price
 bar pinned; nothing is clipped or leaves the viewport; every control is at least 44 px; the three
