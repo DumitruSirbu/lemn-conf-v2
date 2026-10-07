@@ -9,7 +9,11 @@ import {
 import { OrbitControls } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 
-import { KitchenStage } from "./kitchen-stage";
+import {
+  KitchenStage,
+  useNoEditing,
+  type KitchenStageProps,
+} from "./kitchen-stage";
 import type { SceneView } from "./scene-view";
 
 export interface KitchenCanvasProps {
@@ -24,12 +28,23 @@ export interface KitchenCanvasProps {
  * One renderer for the whole editor session. Frames are drawn on demand outside active gestures,
  * and the device pixel ratio is capped and allowed to regress under load.
  */
-export default function KitchenCanvas({
+export default function KitchenCanvas(props: KitchenCanvasProps) {
+  return <SceneCanvas {...props} />;
+}
+
+/** The same canvas and stage with nothing wired to edit through: a tap selects nothing, no outline is
+ *  drawn and no probe is offered to the store. Orbit and the camera views work as in the editor. */
+export function ViewOnlyKitchenCanvas(props: KitchenCanvasProps) {
+  return <SceneCanvas {...props} useEditing={useNoEditing} />;
+}
+
+function SceneCanvas({
   view,
   finish,
   frameloop = "demand",
   onSettled,
-}: KitchenCanvasProps) {
+  useEditing,
+}: KitchenCanvasProps & Pick<KitchenStageProps, "useEditing">) {
   return (
     <Canvas
       onCreated={({ gl }) => {
@@ -50,6 +65,7 @@ export default function KitchenCanvas({
         view={view}
         {...(finish ? { finish } : {})}
         {...(onSettled ? { onSettled } : {})}
+        {...(useEditing ? { useEditing } : {})}
       />
       <OrbitControls makeDefault enableDamping dampingFactor={0.08} />
     </Canvas>
