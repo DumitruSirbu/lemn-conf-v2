@@ -1099,6 +1099,7 @@ both in M9.
 | 8B | **Done** (`4b8f4a4`, ADR 0146) [relayed] | — |
 | 8C | Stays. ~~In adversarial QA~~ ~~QA green (`5c1ae3e`); adjudicated 2026-10-07: a fix round of four items (C1–C3)~~ **DONE 2026-10-07, commits `97e75c6` … `3bda09d`, not pushed.** Logic and clean-code review approve. See *8C as built* | ~~The fix round, a QA check of it, then logic and clean-code review.~~ — Q30 is settled as C3 |
 | 8D | Stays | ~~8C closed. **Dispatchable then**~~ 8C is closed. ~~Dispatchable once the architect adds two criteria~~ **Dispatchable: restated 2026-10-07 as four slices, criteria 11–15 added** (*8D, restated for dispatch*). S1 first |
+| 8D2 | **Added 2026-10-08** from 8D's visual review: the rows' second line and the bottom bar, as frames 3A and 3B draw them | 8D closed. One owner point: the material pill on screens 3–5 |
 | 8E | Stays | **Nothing. Dispatchable** |
 | 8I | Stays | 8E's migration number. **Dispatchable** |
 | 8H | Stays; Q24 settled | **Nothing. Dispatchable** |
@@ -1113,7 +1114,8 @@ both in M9.
 | ~~8R~~ | **Leaves for M9** | — |
 | ~~8S~~ | **Leaves for M9** | — |
 
-**M8 is fifteen waves and ends at 8T. Order now:** 8C (~~in QA~~ done) → 8D → 8E → 8I → 8H → 8J → 8F → 8G →
+**M8 is ~~fifteen~~ sixteen waves and ends at 8T (8D2 was added on 2026-10-08, after 8D; it may run
+any time before 8T). Order now:** 8C (~~in QA~~ done) → 8D → 8E → 8I → 8H → 8J → 8F → 8G →
 8K → 8L → 8M → 8Q → 8T. **Dispatchable today:** 8E, 8I and 8H, and 8D once 8C closes; 8J except its
 stand-in. One writing agent per tree (R2).
 
@@ -2278,7 +2280,9 @@ chosen cabinet. *Tier: Light + visual; a security reviewer reads S1 only.*
    answered exactly as `/d/{id}` answers it, class for class (ADR 0114 H5). No query is issued
    without a well-formed cookie.
 2. The proxy admits `d/{id}/review`, `d/{id}/contact` and `d/{id}/done` and nothing longer or
-   differently named; `s/{token}/review` is not a route. The shared view shows no review control.
+   differently named **(clarified 2026-10-08, from the security review: *admits* here means
+   locale routing and the unprefixed redirect. The list does not decide what can be reached; a
+   path it does not admit still reaches the router. The gate is the page's own owned load)**; `s/{token}/review` is not a route. The shared view shows no review control.
 3. `Verifică designul` is reachable by touch and keyboard and opens the review of the same design.
    The retired M7C test is replaced by one asserting the destination; the top bar's box and
    containment tests stay green at 390 px and 900–1920 px.
@@ -2736,6 +2740,143 @@ verifier. **The visual brief carries QA's numbers as values to measure again, no
 until the test above shows it; a real touch before the scene rests; E1–E5 at desktop width; the
 whole suite under `CI=1`; and the list above.
 
+#### 8D — adjudication of review round 1, 2026-10-08
+
+**State.** QA's confirmation is green and is `04883c9`; a StrictMode fix is `67770c3` [relayed].
+The coordinator ran at `04883c9`: web vitest 6106 passed, typecheck and `format:check` exit 0
+[relayed]. Three reviewers reported. **Combined: approve, with should-fix. Security: approve, four
+notes. Visual: the tripwire held, seven findings, and four departures from the frames.** The tree
+is clean and frozen.
+
+**The tripwire, by the visual verifier's own measurement** (production build, 390 × 844, real
+touch) [relayed]: Russian with the conflict sentence and its link, **377.52 px, 44.73%**. Under
+half. Spacing against the frame's own values: 15/15, 15/15, 10/10, 10/10; padding 16/18.
+
+| Finding | Class | Ruling |
+| --- | --- | --- |
+| Combined R1.1: in a U, `?select=` is taken off the URL when the wait is armed, 2.8 s before any outcome | **Implementation defect** against E1 and E2a | G1, this round |
+| Combined R1.2: a test of that which cannot fail | Test-fidelity | Fixed with G1 |
+| Combined R1.5: the arrival hook is 190 lines inside the screen's file | Quality, should-fix | This round, with G1: it is being changed anyway |
+| Combined R1.3: without WebGL the arrival waits for a scene that never comes | Note | This round, as G1's third outcome |
+| Combined R1.4: a two-finger pinch can read as a tap and drop the arrival | Inference, unmeasured | Recorded limit |
+| Combined R1.6–R1.9: comment length, a stale word, a second WebGL probe, plan ids in test titles | Nits | This round, in files already open |
+| Visual V3: after *Perete A* on the review, a wall C body arrives selected and not on screen | **Contract gap** in E2, the architect's: *cut* is not the same as *not shown* | G2, this round |
+| Visual V4: the editor's and the review's overview of a U look different | Not a defect of 8D | See below |
+| Visual V2: keyboard focus ends up under the pinned region | **Implementation defect** against criterion 12's *"hides"* | G3, this round |
+| Visual V1 (a stray hairline), V6 (the waiting sentence drawn as a refusal) | Nits | This round |
+| Visual V5 (two words without diacritics, approved copy); V7 (the locale chip's height, a shared component) | Not this wave's | V5 to the owner with Q9; V7 to the backlog |
+| Security R1.1: the proxy's list decides locale routing, not reachability | Note with a consequence | Written into 8K, 8L, 8M; criterion 2 clarified |
+| Security R1.2: the shared load takes an id of any shape | Predates the wave; no oracle [the reviewer's inference] | Not this round: 8L S2, with its reason below |
+| Security R1.3 (a carried write-access answer can be stale), R1.4 (a React warning between two designs) | Accepted, recorded | In the wave's ADR |
+
+**Rules.**
+
+- **G1 — the parameter leaves at the outcome, and there are four outcomes.** The body is selected
+  when the scene rests; the customer acts first (E2a); the body is not in the design; **no scene
+  will ever exist** on this device. Until one of them, `?select=` stays on the URL, so a reload or
+  a language switch in the wait starts the same arrival again and does not lose it. *Must not:*
+  the parameter is gone while its arrival is still pending. The hook moves to its own file beside
+  `use-back-guard.ts`.
+- **G2 — an arrival with a body stands at that body's own wall view. Always.** This replaces E2's
+  condition. ~~If the view the customer last stood at would cut the body's wall…; otherwise the
+  view is left where it was.~~ E2 asked whether the remembered view *cut* the wall. A view can
+  leave a wall whole and still not show it: from wall A's view a U's wall C is off the screen.
+  Asking instead whether a view *shows* a wall needs a definition for each shape and each screen,
+  and the visual pass found the overview of a U on a phone is itself a close crop of wall A. The
+  wall's own view is the one made to show it, in a straight room, an L and a U alike.
+  - *What the rule promises, restated.* The body is selected and the camera is on its wall. On a
+    phone the editor's sheet then covers most of the scene, as it does for any selection; that is
+    the editor's viewing model and not this rule's.
+  - *Unchanged:* tapping a body never moves the camera; the remembered view becomes the one stood
+    at; E2a.
+  - *The property stays:* in every generated U, a wall's own view does not cut that wall. QA
+    measured it for one U (wall B's view cuts C, wall C's cuts B, neither its own).
+- **G3 — nothing that has focus is under the pinned region.** For every link and control on the
+  review, when it takes keyboard focus its box is wholly above the region's top edge, at 390 × 844
+  and at desktop widths, in both languages and with one, two and three sentences in the region.
+  How is the implementer's; a layout in which the list cannot run under the region satisfies it
+  without a number to keep in step.
+
+**V4 — the two overviews.** They are one preset: the review and the editor both hand the stage
+`{ kind: "preset", id }` from the one remembered view [src `review/review-scene.tsx:56-59`]. The
+canvases differ in shape, tall on the editor's phone screen and wide and short on the review, and
+[inf] the framing follows the canvas. Criterion 17 is restated to what it can mean: **the same
+chip stands the camera at the same eye and target on both screens; what the canvas then crops is
+its own.** That the editor's overview of a U on a phone crops to wall A is the editor's, noticed
+here and not caused here: a backlog entry.
+
+**Security R1.2, not in this round, and why.** It is the same on both doors, it is no oracle, and
+the stopping rule's three arms do not hold. It is also not free: ids that are not a design id's
+shape stand in existing tests. **Owner: wave 8L, slice S2**, which adds the next caller of the
+shared load: there an id that has not the shape of a design id is refused as *unavailable* before
+any query, in the one function, for every door at once.
+
+**The four departures from frames 3A and 3B.**
+
+| Departure | Ruling |
+| --- | --- |
+| The scene is 240 px tall; the frame draws 158 px | **A defect against the frame; fixed now, to 158 px.** Ruling 1a made the scene live and set no height, and ADR 0104 makes the frame the measure. The review is for reading the list; *Vezi în 3D* is for looking. The owner may ask for more at the hand check |
+| The top bar has no title and no material pill | **The title is drawn now**, as the frame words it. **The pill is not drawn on screens 3–5 in M8**, the architect's ruling, recorded as a departure with its reason: on the editor the pill is the control that opens the settings sheet, which the review must not have, and its words are already on this screen in the settings row. For the owner at the hand check |
+| A row is one line; the frame draws a second (*"800 mm · alb mat"*) | **A contract gap, the architect's, and not a fix-round item.** D2 and 8C's criterion 1 made the review's rows the breakdown's, which have no second line; the frame's has the width and the cabinet's own finish or handle, which the product brief also asks of this step. **Owed, as wave 8D2** |
+| The bottom region: *de la* beside the figure in Romanian, the figure above the call to action in Russian; the frame has a caption over the figure and the call to action at the right | **Wave 8D2**, with the row |
+| Desktop: a centred 640 px column | **Accepted and recorded.** No desktop frame exists for screens 3–5; the phone's layout made responsive is the rule (`milestones/README.md`) |
+
+**The fix round** — five items; six production files, one of them for a comment only.
+
+1. **G1 and G2** (combined R1.1, R1.2, R1.3, R1.5; visual V3). A new
+   `app/configurator/configure/use-honour-arrival.ts`; `configure-screen.tsx`.
+2. **G3** (visual V2). `app/d/[id]/review/review-screen.tsx`, `review.module.css`.
+3. **The frame's values that are a line each.** The scene at 158 px; the title in the top bar,
+   its leaf in both languages; V1's hairline; V6, the waiting sentence no longer drawn as a
+   refusal. `review-screen.tsx`, `review.module.css`, the message files.
+4. **Nits in files already open** (combined R1.6–R1.9). `review/review-scene.tsx` (the stale word;
+   no second WebGL probe under a screen that already knows); `hydrate-and-review.tsx` (its
+   comment); the test titles named by the reviewer.
+5. **Tests**, the implementer's own, R1.2's among them rewritten so it can fail.
+
+*Reading, implementer:* this adjudication and the two above it (E1, E2, E2a); the three reviewers'
+reports; `configure-screen.tsx:320-440`; `use-back-guard.ts` (the shape the new file follows);
+`three-adapter/src/stage.ts:228-300` (the views and their ids); frame 3A
+(`…Mobil.dc.html:969-1070`) for the height and the top bar; ADR 0136; criteria 12, 13, 17.
+
+**Then.** QA re-runs only what the round touched: the arrival specs in both modes; a spec for
+V3's case (a chip on the review, then a body on another wall, in a U and in an L); a spec that
+tabs through the review and finds no focused box under the region. Then the combined reviewer and
+the visual verifier each re-check their own findings and nothing else. The security reader has
+nothing to re-read. **The stopping rule above still applies.**
+
+**For the owner, none of it before the wave closes.** At the hand check: the scene's height; the
+pill left out of screens 3–5; and that the rows' second line and the bottom bar's layout come in
+8D2. With Q9, as before: the sentence printed twice and the two words without diacritics.
+
+### 8D2 — screen 3 against its frames (added 2026-10-08)
+
+*Goal.* The review's rows and its bottom bar read as frames 3A and 3B draw them. **Not started;
+follows 8D's close.** *Tier: Light + visual*, with QA owning the parity of the new line.
+*Why its own wave:* it changes the review's model, which 8C closed and ADR 0148 records, and 8D
+has had its two QA passes and its review.
+
+| Slice | Does | Files (production) | Reading |
+| --- | --- | --- | --- |
+| S1 | A row gains the frame's second line: the body's width and, where it has one, its own finish or handle. The first line is the body's name. The amount stays the breakdown's | `review/review-model.ts`, `review/review-groups.tsx`, `review.module.css`; `i18n/content.ts` and the message files if a leaf is needed | frames 3A, 3B (`…Mobil.dc.html:1012-1126`); D2; ADR 0148; ADR 0099 (a colour at two levels, the cabinet's wins); ADR 0033 (the label); `queries/design-projection.ts` (`DisplayEntry`: `widthMm`, `finish`, `handle`); `resolved-finish.ts`; the `finish` leaves |
+| S2 | The bottom bar as the frame: a small caption over the figure, the call to action at its right, in both languages | `app/d/[id]/review/review-screen.tsx`, `review.module.css` | frame 3A (`:1063-1068`); criterion 12 of 8D and the tripwire; `price/price-bar.tsx` |
+
+*Criteria.* (1) For every generated kitchen, each row's second line states that body's width as
+the projection holds it, and its finish or handle exactly when the body carries its own;
+*must not:* a finish is shown that the body does not wear (ADR 0099), or a line is composed by
+the screen. (2) The amounts, the order and the refusal's names are unchanged: 8C's parity with
+the breakdown still holds for amounts and order, and the name in a refusal still equals what the
+row calls the body. (3) D2 stands: one row per body, never *"2 × 800"*. (4) The bottom region is
+re-measured in Russian with three sentences; criterion 12's half still binds, and the wave stops
+if it is reached. (5) *Must not:* the breakdown or the price bar changes.
+
+*Open, for the owner, with the hand check of 8D:* whether the material pill belongs in the top
+bar of screens 3–5. If yes, it is a third slice here.
+
+*QA reading:* the criteria; 8C's parity files (`qa-8c-parity-with-the-price-surfaces`); ADR 0099.
+*Combined reviewer:* the slices' files; ADR 0148. *Visual:* frames 3A and 3B, rows and bottom
+bar, at 390 × 844 in both languages, measured.
+
 ### 8E — the rate-limit store
 
 *Goal.* Postgres counts requests per bucket and window, atomically (ADR 0019 Alternative 4 rejected
@@ -3131,6 +3272,17 @@ notifies, and tells the customer the truth. *Tier: Full + security.*
 > *Risk, recorded:* the free quota is 100 messages a day [ven §4], and in M8 nothing stops a
 > spread of addresses from spending it, since the contact form's global figure only counts.
 > While it is spent every customer sees 5B. The delivery milestone's shield is the answer.
+>
+> **Added 2026-10-08, from 8D's security review: what this endpoint must enforce.**
+>
+> - The stored design is loaded by id, visitor hash **and the stated revision in one predicate**,
+>   with one refusal for every way it can fail, and no query at all without a well-formed cookie.
+> - The document, the price and the fit are recomputed from the stored row. **Nothing the client
+>   says is proof:** not a `canWrite`, not a design, not a revision offered as evidence, not a
+>   price. A carried write-access answer in the browser can be stale and is advisory there too.
+> - The cross-site guard, before anything is counted.
+> - An id that has not the shape of a design id is refused before any query (the rule 8L S2 puts
+>   in the shared load).
 
 | Slice | Does | Files | Reading |
 | --- | --- | --- | --- |
@@ -3183,6 +3335,14 @@ D5–D9; the order of checks. *Clean-code reader:* the slice files. *Security re
 > response time is shown anywhere. Q24: the phone field takes a Moldovan number or an
 > international one with `+`. The phone acceptance's *"passes 8K's timing check"* stands; there is
 > no bot check to pass.
+>
+> **Added 2026-10-08, from 8D's security review.** The proxy's list does not gate this page: a
+> path reaches the router whether or not the list admits it. **`/d/{id}/contact` calls the shared
+> owned load itself** (`lib/server/load-owned-design.ts`) and answers its refusals exactly as the
+> editor's and the review's pages do; a test compares the three. **And S2 puts the id's shape
+> into that one function:** a segment that is not a design id's shape (21 characters of the id
+> alphabet) is *unavailable* before any query, for every door at once. Tests that hand it other
+> ids change with it and are named in the slice's report.
 
 | Slice | Does | Files | Reading |
 | --- | --- | --- | --- |
@@ -3234,6 +3394,10 @@ nothing. *Tier: Full + visual.*
 > in both cases; no new leaf says "quota". With the shop's number still owed, a customer at 5B on
 > such a day has no other channel on screen. That is a reason for the owner to give the number
 > before the flow is tried by hand, and it is listed with what they owe.
+>
+> **Added 2026-10-08, from 8D's security review.** `/d/{id}/done` calls the shared owned load
+> itself, as the contact page does; the proxy's list is not its gate. Four doors then answer one
+> request alike, and a test compares them.
 
 | Slice | Does | Files | Reading |
 | --- | --- | --- | --- |
