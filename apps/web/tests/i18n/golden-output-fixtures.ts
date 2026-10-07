@@ -52,7 +52,12 @@ import correctedRomanian from "../../src/messages/ro.json";
 import { catalogueLeaves } from "../support/catalogues";
 import { ro as romanianContent } from "../support/romanian-content";
 
-export type GoldenFixtureGroup = "content" | "rejection" | "catalog" | "room";
+export type GoldenFixtureGroup =
+  | "content"
+  | "rejection"
+  | "catalog"
+  | "room"
+  | "review";
 
 export interface GoldenFixture {
   readonly id: string;
@@ -619,6 +624,57 @@ export const ROOM_FIXTURES: readonly GoldenFixture[] = catalogueLeaves(
 
 export const ROOM_RENDER_ARGUMENT_PATHS = Object.keys(ROOM_RENDER_ARGUMENTS);
 
+/** The review leaves `Content` reaches through `reviewRoomLine`, so the static walk cannot see them. Argument values
+ *  are neutral tokens: the manifest pins the sentence around them, not the shape or corner words. */
+const REVIEW_ROOM_LINE_ARGUMENTS: Readonly<
+  Record<string, Readonly<Record<string, string | number>>>
+> = {
+  "review.roomLine.linear": { shape: "Shape", wallA: 3600, bodies: "Bodies" },
+  "review.roomLine.L": {
+    shape: "Shape",
+    wallA: 3600,
+    wallB: 2400,
+    corner: "Corner",
+    bodies: "Bodies",
+  },
+  "review.roomLine.U": {
+    shape: "Shape",
+    wallA: 3600,
+    wallB: 2400,
+    wallC: 1200,
+    bodies: "Bodies",
+  },
+};
+
+const REVIEW_LEAVES_ON_CONTENT: ReadonlySet<string> = new Set([
+  "review.title",
+  "review.roundedUpNote",
+]);
+
+export const REVIEW_LEAF_KEYS: readonly string[] = catalogueLeaves(
+  correctedRomanian.review,
+)
+  .map(([path]) => `review.${path}`)
+  .filter((sourceKey) => !REVIEW_LEAVES_ON_CONTENT.has(sourceKey));
+
+export const REVIEW_FIXTURES: readonly GoldenFixture[] = [
+  ...PLURAL_BOUNDARIES.map((bodyCount) => ({
+    id: `review.bodyCount.count-${String(bodyCount)}`,
+    group: "review" as const,
+    sourceKey: "review.bodyCount",
+    renderCorrected: () => translateRuntime("review.bodyCount", { bodyCount }),
+  })),
+  ...REVIEW_LEAF_KEYS.filter(
+    (sourceKey) => sourceKey !== "review.bodyCount",
+  ).map((sourceKey) => ({
+    id: sourceKey,
+    group: "review" as const,
+    sourceKey,
+    renderCorrected: () =>
+      translateRuntime(sourceKey, REVIEW_ROOM_LINE_ARGUMENTS[sourceKey]),
+  })),
+];
+
 type RejectionMessageKey = Exclude<
   keyof typeof correctedRomanian.rejection,
   "parts"
@@ -960,6 +1016,7 @@ export const CATALOGUE_FIXTURES: readonly GoldenFixture[] =
 export const GOLDEN_FIXTURES: readonly GoldenFixture[] = [
   ...CONTENT_FIXTURES,
   ...ROOM_FIXTURES,
+  ...REVIEW_FIXTURES,
   ...REJECTION_FIXTURES,
   ...CATALOGUE_FIXTURES,
 ];
@@ -976,6 +1033,8 @@ const DESCRIPTOR_RESOLVERS: ReadonlySet<string> = new Set([
   // descriptors the domain publishes, not entries the legacy content module ever held.
   "finishName",
   "bookText",
+  // A room's walls and body count, resolved through the catalogue; the leaves are not on `Content`.
+  "reviewRoomLine",
 ]);
 
 export function collectContentFunctionFamilies(): readonly string[] {

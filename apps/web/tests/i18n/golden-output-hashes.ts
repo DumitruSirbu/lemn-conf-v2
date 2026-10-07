@@ -623,6 +623,10 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "5f912b909dc3b0a62c5e719fc374e323937098bddd80fd8d690d1323182a7cb1",
   "content.static.share.copy":
     "a35a3851d68320f92b07859891dabb14e750ef8b12af123ce0cafe4e532c9d20",
+  "content.static.review.roundedUpNote":
+    "de0643caa8d00cffcd13babc1f9211605166177ebe0364cb52f3b38640e6896a",
+  "content.static.review.title":
+    "be61361617f947e12eeed1e734cd40c511ab4be07453ce5a8932872a659b41fb",
   "content.static.share.create":
     "85c7c4cba9850b92a4ee2f5544e0b0a1e03028581438ed36d295b24a9e707e4d",
   "content.static.share.description":
@@ -742,6 +746,30 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   // M7 wave 7F1: Step 1's 26 leaves, added with the copy they pin (ADR 0113 decision 2). Nothing
   // above this line moved — a moved hash here would mean a shipped string changed, which this wave
   // does not do.
+  "review.bodyCount.count-0":
+    "0ccc7e5cd98041a5ad6f97fdd856e835e8a13616a223b8b62b64eb7cc3745a71",
+  "review.bodyCount.count-1":
+    "98ee2ccd7b2987fb0c0fc0330eadfab5dcc0aefe19459a8d50667114c0e26098",
+  "review.bodyCount.count-100":
+    "455965e19cf806c78aa82628aeac4ae6e01cbf828b653b292c3482deff3f2ed4",
+  "review.bodyCount.count-101":
+    "71e26f7ab7e96d34587a9308fce1d107acb3766d00fb2d2cccb0614ae920f610",
+  "review.bodyCount.count-19":
+    "1f3c3bd15d4360b7b5b1d6262fc31a2ef8f736e7ae799e2ef10754ec2bfc628a",
+  "review.bodyCount.count-2":
+    "aa09bb10bd42b7ade555a18d7bb8ce82b68494510b1921e64d832ddcaa239d42",
+  "review.bodyCount.count-20":
+    "a3607af8ad6b555777d4dded51a40800f8e580ac172824f3a84f968e3064aee7",
+  "review.roomLine.L":
+    "b8711959be6b0007c1af6e8a0cb0816d04415f55f9978afee974581e1bf42e2a",
+  "review.roomLine.U":
+    "ed319b30601d237266105fca82489865d80599efad10cb427740c6e72aacbb85",
+  "review.roomLine.cornerLeft":
+    "cd67ae4c3f51c702fa4820a6d28f4e4a4245d0a47798275546ceb68b51ccdff1",
+  "review.roomLine.cornerRight":
+    "aafa24c070d79abc6940e4d91bb58fd2a99c6412b9790893faba154f868cfc7d",
+  "review.roomLine.linear":
+    "9a003e278940269b428239edabf182876688841e8d5f6f5fa415ae9ebace2c1f",
   "room.back":
     "43d3098298b6c977289100d20e77ff8d3274e4f7333e01fc200b5e88d7e7f541",
   "room.compose.busy":

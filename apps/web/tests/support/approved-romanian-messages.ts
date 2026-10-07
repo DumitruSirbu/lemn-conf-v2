@@ -312,6 +312,20 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     included: "inclus",
     notIncluded: "nu este inclus",
   },
+  // Frames 3A and 3B as written; the room line gives millimetres where the frame draws metres (ADR 0126).
+  review: {
+    title: "Verifică designul",
+    roundedUpNote: "Preț de pornire, rotunjit în sus.",
+    bodyCount:
+      "{bodyCount, plural, one {# corp} few {# corpuri} other {# corpuri}}",
+    roomLine: {
+      linear: "{shape} · {wallA, number, ::group-off} mm · {bodies}",
+      L: "{shape} · {wallA, number, ::group-off} × {wallB, number, ::group-off} mm · {corner} · {bodies}",
+      U: "{shape} · {wallA, number, ::group-off} × {wallB, number, ::group-off} × {wallC, number, ::group-off} mm · {bodies}",
+      cornerLeft: "cot la stânga",
+      cornerRight: "cot la dreapta",
+    },
+  },
   globalSettings: {
     open: "Setări globale",
     title: "Setări pentru toată bucătăria",

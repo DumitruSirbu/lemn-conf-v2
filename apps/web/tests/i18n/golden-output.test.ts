@@ -17,6 +17,8 @@ import {
   REJECTION_CATALOGUE_MESSAGE_KEYS,
   REJECTION_CODES,
   REJECTION_FIXTURES,
+  REVIEW_FIXTURES,
+  REVIEW_LEAF_KEYS,
   ROOM_FIXTURES,
   ROOM_RENDER_ARGUMENT_PATHS,
   STATIC_CONTENT_FIXTURES,
@@ -118,6 +120,25 @@ describe("golden-output fixture coverage", () => {
     }
   });
 
+  it("covers every review leaf the content resolver does not carry as a static leaf", () => {
+    const staticReviewPaths = RESOLVED_STATIC_CONTENT.map(
+      ({ path }) => path,
+    ).filter((path) => path.startsWith("review."));
+    const allReviewKeys = catalogueLeaves(correctedRomanian.review).map(
+      ([key]) => `review.${key}`,
+    );
+    expect(sortedUnique([...staticReviewPaths, ...REVIEW_LEAF_KEYS])).toEqual(
+      sortedUnique(allReviewKeys),
+    );
+    expect(sortedUnique(REVIEW_FIXTURES.map((f) => f.sourceKey))).toEqual(
+      sortedUnique(REVIEW_LEAF_KEYS),
+    );
+    for (const fixture of REVIEW_FIXTURES) {
+      expect(fixture.renderCorrected(), fixture.id).not.toBe("");
+      expect(fixture.renderCorrected(), fixture.id).not.toContain("{");
+    }
+  });
+
   it("covers every rejection code and all 38 top-level rejection messages", () => {
     expect(
       sortedUnique(REJECTION_FIXTURES.map((fixture) => fixture.code)),
@@ -189,17 +210,21 @@ describe("golden-output fixture coverage", () => {
   it("has one unique stable id for every fixture", () => {
     // M7B U4 S3: +1 for `configure.cameraPresets.wallC`.
     // M7C C1 S3: +4 for the `configure.backConfirm.*` leaves.
-    expect(RESOLVED_STATIC_CONTENT).toHaveLength(127);
+    // M8 8C S1: +2 for `review.title` and `review.roundedUpNote`.
+    expect(RESOLVED_STATIC_CONTENT).toHaveLength(129);
     expect(FUNCTION_CONTENT_FIXTURES).toHaveLength(59);
     // 7L S3: +2 for `room.suggestion.title` and `room.suggestion.switchToLinear`.
     expect(ROOM_FIXTURES).toHaveLength(72);
+    // M8 8C S1: the review leaves `Content` reaches through `reviewRoomLine`.
+    expect(REVIEW_FIXTURES).toHaveLength(12);
     expect(REJECTION_FIXTURES).toHaveLength(41);
     expect(INSERTABLE_BODY_DEFINITIONS).toHaveLength(16);
     expect(CATALOGUE_FIXTURES).toHaveLength(98);
     // 7L S3: +2 for `room.suggestion.title` and `room.suggestion.switchToLinear`.
     // M7B U4 S3: +1 for `configure.cameraPresets.wallC`.
     // M7C C1 S3: +4 for the `configure.backConfirm.*` leaves.
-    expect(GOLDEN_FIXTURES).toHaveLength(397);
+    // M8 8C S1: +2 for `review.title` and `review.roundedUpNote`, +12 for the review fixtures.
+    expect(GOLDEN_FIXTURES).toHaveLength(411);
     expect(new Set(GOLDEN_FIXTURES.map((fixture) => fixture.id)).size).toBe(
       GOLDEN_FIXTURES.length,
     );

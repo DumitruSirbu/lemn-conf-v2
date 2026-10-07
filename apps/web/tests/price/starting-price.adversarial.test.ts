@@ -497,6 +497,7 @@ describe("only these modules may go near a price, and only one of them may round
       "price/use-priced-design.ts",
       // `whole-kitchen-tiers.ts` prices the design six times over to measure a delta; listed, not exempted.
       "price/whole-kitchen-tiers.ts",
+      "review/review-model.ts",
       "settings/global-settings-model.ts",
       "settings/global-settings.tsx",
     ]);

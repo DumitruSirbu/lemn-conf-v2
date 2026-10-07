@@ -233,6 +233,18 @@
     "included": "inclus",
     "notIncluded": "nu este inclus"
   },
+  "review": {
+    "title": "Verifică designul",
+    "roundedUpNote": "Preț de pornire, rotunjit în sus.",
+    "bodyCount": "{bodyCount, plural, one {# corp} few {# corpuri} other {# corpuri}}",
+    "roomLine": {
+      "linear": "{shape} · {wallA, number, ::group-off} mm · {bodies}",
+      "L": "{shape} · {wallA, number, ::group-off} × {wallB, number, ::group-off} mm · {corner} · {bodies}",
+      "U": "{shape} · {wallA, number, ::group-off} × {wallB, number, ::group-off} × {wallC, number, ::group-off} mm · {bodies}",
+      "cornerLeft": "cot la stânga",
+      "cornerRight": "cot la dreapta"
+    }
+  },
   "globalSettings": {
     "open": "Setări globale",
     "title": "Setări pentru toată bucătăria",

@@ -565,6 +565,80 @@ export function resolveRejection(
   }
 }
 
+/** A room as the review's one line states it: the walls its shape has, in whole millimetres, the corner side only
+ *  where the shape has one, and how many bodies the kitchen holds. */
+export type ReviewRoomLine =
+  | {
+      readonly shape: "linear";
+      readonly wallAMm: number;
+      readonly bodyCount: number;
+    }
+  | {
+      readonly shape: "L";
+      readonly wallAMm: number;
+      readonly wallBMm: number;
+      readonly corner: CornerDirection;
+      readonly bodyCount: number;
+    }
+  | {
+      readonly shape: "U";
+      readonly wallAMm: number;
+      readonly wallBMm: number;
+      readonly wallCMm: number;
+      readonly bodyCount: number;
+    };
+
+/**
+ * One leaf per shape, each naming only the lengths that shape has. The body count is rendered first and passed in as
+ * text, so the plural lives in one leaf instead of three.
+ */
+export function resolveReviewRoomLine(
+  translate: ContentTranslator,
+  line: ReviewRoomLine,
+): string {
+  const bodies = translate("review.bodyCount", { bodyCount: line.bodyCount });
+  switch (line.shape) {
+    case "linear":
+      return translate("review.roomLine.linear", {
+        shape: translate("room.shapes.linear.short"),
+        wallA: line.wallAMm,
+        bodies,
+      });
+    case "L":
+      return translate("review.roomLine.L", {
+        shape: translate("room.shapes.L.short"),
+        wallA: line.wallAMm,
+        wallB: line.wallBMm,
+        corner: resolveCornerSide(translate, line.corner),
+        bodies,
+      });
+    case "U":
+      return translate("review.roomLine.U", {
+        shape: translate("room.shapes.U.short"),
+        wallA: line.wallAMm,
+        wallB: line.wallBMm,
+        wallC: line.wallCMm,
+        bodies,
+      });
+    default:
+      return assertNever(line);
+  }
+}
+
+function resolveCornerSide(
+  translate: ContentTranslator,
+  corner: CornerDirection,
+): string {
+  switch (corner) {
+    case "left":
+      return translate("review.roomLine.cornerLeft");
+    case "right":
+      return translate("review.roomLine.cornerRight");
+    default:
+      return assertNever(corner);
+  }
+}
+
 /** Resolves the content shape the pre-i18n models consume: every leaf comes from the active locale, and the
  *  closures keep the model-facing signatures while ICU does interpolation and plural selection. */
 export function resolveContent(translate: ContentTranslator) {
@@ -585,6 +659,8 @@ export function resolveContent(translate: ContentTranslator) {
     /** A price book row's rendered sentence (see `resolveBookText`): a descriptor resolver, not a content family. */
     bookText: (authored: string, key: string | undefined) =>
       resolveBookText(translate, authored, key),
+    reviewRoomLine: (line: ReviewRoomLine) =>
+      resolveReviewRoomLine(translate, line),
     brand: translate("brand"),
     configure: {
       step: translate("configure.step", { step: 2, totalSteps: 4 }),
@@ -739,6 +815,10 @@ export function resolveContent(translate: ContentTranslator) {
       },
       included: translate("priceBreakdown.included"),
       notIncluded: translate("priceBreakdown.notIncluded"),
+    },
+    review: {
+      title: translate("review.title"),
+      roundedUpNote: translate("review.roundedUpNote"),
     },
     globalSettings: {
       open: translate("globalSettings.open"),

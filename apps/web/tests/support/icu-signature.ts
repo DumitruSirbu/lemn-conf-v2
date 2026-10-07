@@ -159,4 +159,4 @@ export function isExactValueSwitch(branches: readonly string[]): boolean {
 /** How many grammatical plural leaves each catalogue ships, so the category sweep below cannot pass
  *  by walking nothing. Raise it deliberately when a plural is added — never lower it to make a run
  *  green. */
-export const PLURAL_NODES_PER_CATALOGUE = 5;
+export const PLURAL_NODES_PER_CATALOGUE = 6;

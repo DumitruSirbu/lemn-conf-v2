@@ -233,6 +233,18 @@
     "included": "включено",
     "notIncluded": "не входит в цену"
   },
+  "review": {
+    "title": "Проверить дизайн",
+    "roundedUpNote": "Начальная цена, округлённая в большую сторону.",
+    "bodyCount": "{bodyCount, plural, one {# шкаф} few {# шкафа} many {# шкафов} other {# шкафов}}",
+    "roomLine": {
+      "linear": "{shape} · {wallA, number, ::group-off} мм · {bodies}",
+      "L": "{shape} · {wallA, number, ::group-off} × {wallB, number, ::group-off} мм · {corner} · {bodies}",
+      "U": "{shape} · {wallA, number, ::group-off} × {wallB, number, ::group-off} × {wallC, number, ::group-off} мм · {bodies}",
+      "cornerLeft": "угол слева",
+      "cornerRight": "угол справа"
+    }
+  },
   "globalSettings": {
     "open": "Общие настройки",
     "title": "Настройки всей кухни",

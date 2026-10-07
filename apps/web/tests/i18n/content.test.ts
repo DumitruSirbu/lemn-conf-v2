@@ -112,6 +112,7 @@ const FUNCTION_FAMILIES = [
   // the domain publishes, and both are public functions on `Content`.
   "finishName",
   "bookText",
+  "reviewRoomLine",
   "panel.headerMeta",
   "panel.countForBody",
   "panel.countForSlot",
@@ -151,12 +152,12 @@ describe("the localized content resolver", () => {
   });
 
   it.each(CATALOGUES)(
-    "maps all 127 resolved strings through the %s catalogue",
+    "maps all 129 resolved strings through the %s catalogue",
     (locale, messages) => {
       const { content, translate } = contentAndOracleFor(locale, messages);
       const leaves = stringLeaves(content);
 
-      expect(leaves).toHaveLength(127);
+      expect(leaves).toHaveLength(129);
       for (const { path, value } of leaves) {
         // The step is stated twice — as a sentence and as the top bar's pill — from one pair of
         // numbers, so neither spelling can drift from the other.
@@ -171,7 +172,7 @@ describe("the localized content resolver", () => {
   );
 
   it.each(CATALOGUES)(
-    "backs exactly 29 public functions with %s ICU messages",
+    "backs exactly 30 public functions with %s ICU messages",
     (locale, messages) => {
       const { content, translate } = contentAndOracleFor(locale, messages);
 
