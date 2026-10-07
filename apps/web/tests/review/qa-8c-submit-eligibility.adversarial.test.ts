@@ -21,7 +21,7 @@ import {
   type ReviewView,
 } from "@/review/review-model";
 
-import { CATALOGUES, contentFor } from "../support/catalogues";
+import { CATALOGUES, contentFor, type Catalogue } from "../support/catalogues";
 import {
   priceAndProject,
   type PricedKitchen,
@@ -295,27 +295,41 @@ describe("when more than one reason to refuse holds", () => {
   const overflowing = OVERFLOW_MAKERS[0]?.make(fitting);
   if (overflowing === undefined) throw new Error("no overflowing U kitchen");
 
-  it("states the pricing failure, and names no body, for an overflowing kitchen the book cannot price", () => {
+  it("names the bodies past their wall, as the priced kitchen names them, for an overflowing kitchen the book cannot price", () => {
+    const priced = priceAndProject(overflowing.design);
     const unpriced = priceAndProject(withAnUnofferedTier(overflowing.design));
+    const reported = new Set(findOverflowingPlacementIds(unpriced.design));
 
     expect(unpriced.pricing.ok).toBe(false);
-    expect(findOverflowingPlacementIds(unpriced.design)).not.toEqual([]);
+    expect(reported.size).toBeGreaterThan(0);
+    expect(viewOf(unpriced)).toEqual({
+      kind: "unavailable",
+      submit: refusalOf(priced),
+    });
+    expect(namedIdsOf(refusalOf(unpriced))).toEqual(
+      displayOrderOf(unpriced).filter((id) => reported.has(id)),
+    );
+  });
+
+  it("states the pricing failure once the bodies of a kitchen the book cannot price fit again", () => {
+    const unpriced = priceAndProject(withAnUnofferedTier(fitting.design));
+
+    expect(unpriced.pricing.ok).toBe(false);
     expect(viewOf(unpriced)).toEqual({
       kind: "unavailable",
       submit: { kind: "refused", code: "PRICING_FAILED", bodies: [] },
     });
   });
 
-  it("states the pricing failure for an empty kitchen the book cannot price", () => {
+  it("asks for a cabinet, not for a price, of an empty kitchen the book cannot price", () => {
     const unpriced = priceAndProject(
       withAnUnofferedTier(emptied(fitting.design)),
     );
 
     expect(unpriced.pricing.ok).toBe(false);
-    expect(viewOf(unpriced).submit).toEqual({
-      kind: "refused",
-      code: "PRICING_FAILED",
-      bodies: [],
+    expect(viewOf(unpriced)).toEqual({
+      kind: "unavailable",
+      submit: { kind: "refused", code: "NO_CABINET", bodies: [] },
     });
   });
 
@@ -326,6 +340,47 @@ describe("when more than one reason to refuse holds", () => {
       kind: "unavailable",
       submit: { kind: "refused", code: "NO_CABINET", bodies: [] },
     });
+  });
+});
+
+describe("a refused body's name under a catalogue that words a row its own way", () => {
+  const [, romanian] = CATALOGUES[0];
+  const REWORDED_ROW = "{widthMm, number, ::group-off} mm, {bodyLabel}";
+  const reworded = contentFor("ro", {
+    ...romanian,
+    priceBreakdown: {
+      ...romanian.priceBreakdown,
+      placementLabel: REWORDED_ROW,
+    },
+  } as unknown as Catalogue);
+  const [fitting] = variedKitchensOf(VARIED_U_ARM);
+  if (fitting === undefined) throw new Error("no U kitchen");
+  const made = OVERFLOW_MAKERS[0]?.make(fitting);
+  if (made === undefined) throw new Error("no overflowing U kitchen");
+  const priced = priceAndProject(made.design);
+
+  it("is the row's reworded label, so the refusal words no label of its own", () => {
+    const view = viewOf(priced, reworded);
+    if (view.kind !== "available") throw new Error("expected a review");
+    const rowLabels = new Map(
+      view.groups.flatMap((group) =>
+        group.rows.map((row) => [row.key, row.label] as const),
+      ),
+    );
+    const { bodies } = refusalOf(priced, reworded);
+
+    expect(bodies.length).toBeGreaterThan(0);
+    for (const body of bodies) {
+      expect(body.label).toBe(rowLabels.get(body.placementId));
+      expect(body.label).toMatch(/^\d+ mm, \S/);
+    }
+  });
+
+  it("is the same reworded label when the kitchen cannot be priced", () => {
+    const unpriced = priceAndProject(withAnUnofferedTier(made.design));
+
+    expect(unpriced.pricing.ok).toBe(false);
+    expect(refusalOf(unpriced, reworded)).toEqual(refusalOf(priced, reworded));
   });
 });
 
