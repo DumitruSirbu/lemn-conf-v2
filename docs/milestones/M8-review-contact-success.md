@@ -690,8 +690,24 @@ found. *All three* means the thrown error's `message`, its `stack` and its `util
 - **ADR 0041 d3** lists five prerendered routes, measured on 2026-08-31. A's four do not contradict
   it: two became Route Handlers in M7 wave 7E3a (ADR 0114, *Decision-record sweep*, the 0041 row)
   and the contact page gained its locale prefix in M6B. The ADR owes a dated pointer; the scribe's.
-- **`migrate` does not return** when it cannot connect, for a well-formed address too. That is not
-  a leak and is not 8B's; it is a finding with no owner, listed for the backlog.
+- **`migrate` does not return** when it cannot connect, for a well-formed address too. ~~That is not
+  a leak and is not 8B's; it is a finding with no owner, listed for the backlog.~~ **Restated the
+  same day:** it means the connect error's contents are unmeasured, so 8B S2 diagnoses it first
+  (criterion 6). It is still listed for the backlog in case the cause lies outside 8B's files.
+
+**From the measurement agent's follow-up, 2026-10-07** (relayed by the coordinator; items 1–3
+re-read by the architect in source at `a7b0363`):
+
+1. `migrate.ts:57`, `new Client(connectionUrl)`, is a construction site this plan's list lacked. It
+   stands outside the connect `try` and throws a raw `TypeError` `ERR_INVALID_URL` whose message is
+   only *"Invalid URL"* and whose `input` property and `util.inspect` output hold the string.
+2. `readDeployedSchema`'s own error is clean; the error it attaches as `cause`
+   (`migrate-status.ts:80`) is not.
+3. `migrate-status.ts` is not built into `dist` [src: `dist/` holds `migrate.*` only;
+   `tsconfig.build.json` includes `src/index.ts`].
+4. The agent left one row in the test database, `su3IuyF9TqeLXtm6AegGl`, undeleted, as its brief
+   required (add-only). It is recorded here so it is not found later as a leak; whether it joins
+   backlog 79 and 100's rows is the coordinator's.
 
 #### S2 — vendor reads, 2026-10-07
 
@@ -764,7 +780,7 @@ are that report's.
 | --- | --- | --- | --- |
 | S1 | One place opens a connection. It checks the URL's shape first and turns any failure into a domain error that names the **variable** and never its value. The three runtime sites use it | `persistence/src/read-database-url.ts`, a new `open-database.ts`, `neon-configuration-repository.ts`, `share-link-repository.ts`, `design-row-source.ts` | *Added 2026-09-06* below; ADR 0008, *Incident during setup*; ADR 0145; `environments-and-resources.md`, *Never print a secret*; 8A S1's reproduction |
 | ~~S2~~ | ~~The migration tools and the lazy web wrapper use it; query-time errors are covered where 8A showed the URL in one~~ | ~~`migrate.ts`, `migrate-status.ts`, `apps/web/src/lib/server/repository.ts`, `design-failure-log.ts`~~ | ~~`read-database-url.ts`'s note on `MigrationExecutionError`; ADR 0096~~ |
-| S2 | **Restated 2026-10-07 from 8A S1 part D.** The two migration tools open through it. A `MigrationExecutionError` never carries a driver or URL error as its `cause` when that error holds the string | `migrate.ts`, `migrate-status.ts`, `migration-errors.ts` | 8A figures, *D in full*; `read-database-url.ts`'s note on `MigrationExecutionError`; ADR 0096; ADR 0008, *Incident during setup* |
+| S2 | **Restated 2026-10-07 from 8A S1 part D, and again from its follow-up.** The two migration tools open through it: `migrate.ts:57`'s `new Client(connectionUrl)`, which stands **outside** the connect `try`, and `migrate-status.ts:88`'s `neon(…)`. An error attached as `cause` (`migrate.ts:80`, `:184`; `migrate-status.ts:80`, in `readDeployedSchema`) is kept only if it passes criterion 2 itself. **First step, before any fix:** find why `applyMigrations` does not settle when it cannot connect (criterion 6) | `migrate.ts`, `migrate-status.ts`, `migration-errors.ts` | 8A figures, *D in full* and the follow-up; `read-database-url.ts`'s note on `MigrationExecutionError`; ADR 0096; ADR 0008, *Incident during setup*; ADR 0142; `connectOrWrapError`'s own comment in `migrate.ts`, which says the replacement *"keeps the driver error as `cause`"* on purpose — **the implementer checks the change against that intent first and reports if they disagree** (`WORKFLOW.md`, *Dispatch the intent*) |
 | S3 | **Added 2026-10-07.** The two test helpers and the test-URL resolver open through it. They hold the test database's owner credential and run on the CI runner, so they are in the census | `delete-designs-for-tests.ts`, `test-database-url.ts` | 8A figures, *D in full*; ADR 0006; `environments-and-resources.md`, *Test-database isolation* |
 
 **Why S2 changed.** 8A S1 showed that this project's own log line already prints *"<redacted
@@ -786,9 +802,18 @@ bad percent-escape, a missing host, a non-URL string, an empty password)…~~ **
    string there); every error on its `cause` chain, by the same four checks; and its `util.inspect`
    output at unlimited depth. A test that checks `message` alone passes today on every leak the
    table above records under `TypeError.input` or `cause`.
-3. **The sites.** A census finds them, and fails when a `neon(` call or a `new URL(` over a
-   connection variable appears outside the one opener: the three runtime sites, `migrate`,
-   `migrate-status` and both test helpers. Seven today.
+3. **The sites.** A census finds them, and fails when one appears outside the one opener.
+   ~~Seven today.~~ **Corrected 2026-10-07 from 8A S1's follow-up, re-read in source at `a7b0363`
+   [src].** The census matches three shapes, not one, because `neon(` alone misses the site the
+   plan had missed:
+   - `neon(`: `neon-configuration-repository.ts:175`, `share-link-repository.ts:83`,
+     `design-row-source.ts:56`, `migrate-status.ts:88`, `delete-designs-for-tests.ts:26` and `:46`;
+   - `new Client(`: `migrate.ts:57`;
+   - `new URL(` over a connection string: `migrate.ts:232`, `test-database-url.ts:40` and `:115`.
+
+   Ten call sites. **It reads `src`, never `dist`:** `migrate-status.ts` is not built into `dist`
+   (the build compiles `index.ts`'s graph and that file is run by `tsx`), so a census over the
+   built package would pass without having opened it (R5).
 4. **At the route.** For `POST /api/designs`, `GET /api/designs/{id}` and the design page, the error
    that leaves the handler passes criterion 2. QA re-runs 8A S1's `D-route-run.sh` once against the
    fixed build and quotes a server log with no marker; that run, not a unit test, is the evidence
@@ -796,9 +821,20 @@ bad percent-escape, a missing host, a non-URL string, an empty password)…~~ **
 5. The error names the variable that is wrong, and says nothing else about its value: not its
    length, not which character was bad.
 6. **`migrate` answers at once for a shape the opener refuses.** With a bad percent-escape or a
-   wrong scheme it exits non-zero with the domain error instead of not returning. *Not in scope:*
+   wrong scheme it exits non-zero with the domain error instead of not returning. ~~*Not in scope:*
    that `migrate` also does not return for an empty password or an unreachable address, which are
-   well-formed; recorded in *8A figures* for the backlog.
+   well-formed; recorded in *8A figures* for the backlog.~~
+   **Restated 2026-10-07.** `runMigrations()` did not settle in 45 s for a bad percent-escape, an
+   empty password and a wrong scheme, in 170 s for a `.invalid` host, or in 60 s for a refused
+   local port. So **what its connect error carries has never been observed**, and criterion 2
+   cannot be claimed for a path that does not return. S2 therefore starts by finding why. Whether
+   the cause is the fake host or the code is unknown. If it is in `migrate.ts`, S2 fixes it there,
+   with a test that a failed connect settles within a stated bound, and criterion 2 is then
+   asserted on that error. **If it is in the driver, or needs a change beyond S2's three files, the
+   implementer stops and reports**; the wave then closes with that one path named as unproven, not
+   as clean. The two CLIs' printed lines are clean today, because `describeMigrationFailure` and
+   `describeStatusFailure` drop the message and the cause; that stays true and is asserted, and it
+   is not the whole of the criterion, since the thrown error is what any other caller sees.
 7. A well-formed URL behaves exactly as before; the persistence live suites are unchanged.
 8. *Must not:* a fallback from one variable to another appears (ADR 0008). *Must not:* the opener
    keeps the refused string, or the error it caught, anywhere on the error it throws.
@@ -1538,7 +1574,8 @@ than the person who typed it, and retained on someone else's retention schedule.
 `packages/persistence/src/neon-configuration-repository.ts:117` and
 `packages/persistence/src/delete-designs-for-tests.ts:38`~~ **Corrected 2026-10-07 [src]:
 `neon-configuration-repository.ts:175`, `share-link-repository.ts:83`, `design-row-source.ts:56`,
-`migrate-status.ts:88`, `delete-designs-for-tests.ts:26` and `:46`** — plus the lazy wrapper at
+`migrate-status.ts:88`, `delete-designs-for-tests.ts:26` and `:46`; and, found by 8A S1, a seventh
+that is not a `neon(` call, `migrate.ts:57`'s `new Client(…)`** — plus the lazy wrapper at
 `apps/web/src/lib/server/repository.ts`. The string is printed by the driver's own error, so the fix
 is to catch and re-throw a domain error naming the *variable* and never its value, at the boundary
 where the URL is read. `packages/persistence` is the only place a Postgres driver appears

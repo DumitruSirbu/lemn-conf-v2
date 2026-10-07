@@ -4,10 +4,10 @@ import {
   DesignNotFoundError,
   migrateDesign,
 } from "@lemnaria/configurator-domain";
-import { neon } from "@neondatabase/serverless";
 
 import type { DesignRevision } from "./design-revision.js";
 import { generateDesignId } from "./generate-design-id.js";
+import { openDatabase } from "./open-database.js";
 import { retryOnTransientFailure } from "./retry-on-transient-failure.js";
 import { readDatabaseUrl } from "./read-database-url.js";
 import { requireSha256Digest } from "./sha256-digest.js";
@@ -172,7 +172,7 @@ export class NeonConfigurationRepository
 
   /** `connectionUrl` defaults to `DATABASE_URL`; only the live tests pass it, to target their own database. */
   constructor(connectionUrl: string = readDatabaseUrl()) {
-    this.sql = neon(connectionUrl);
+    this.sql = openDatabase(connectionUrl, "DATABASE_URL");
   }
 
   /**
