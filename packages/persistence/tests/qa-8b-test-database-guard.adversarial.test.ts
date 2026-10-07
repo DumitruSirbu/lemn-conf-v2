@@ -19,8 +19,8 @@ import {
 import type { Site } from "./support/qa-8b-connection-values.js";
 
 /**
- * Adversarial QA of M8 wave 8B, slice S3: the test helper and the isolation guard, with values the wave's table does
- * not hold. Fake values only; every host ends in `.invalid` or the value does not parse, so nothing is reachable.
+ * The test helper and the isolation guard against mistyped connection values. Fake values only; every host ends in
+ * `.invalid` or the value does not parse, so nothing is reachable.
  */
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -75,7 +75,7 @@ const TEST_VARIABLE_SITES: readonly Site[] = [
   },
 ];
 
-describe("criterion 2 at the test-database sites, with values the wave's table does not hold", () => {
+describe("a test-database site given a mistyped or mis-pasted connection value", () => {
   it.each(TEST_VARIABLE_SITES)(
     "$name raises no error that shows a marker",
     async ({ name, ...site }) => {
@@ -88,7 +88,7 @@ describe("criterion 2 at the test-database sites, with values the wave's table d
   );
 });
 
-describe("no fallback from TEST_DATABASE_URL to DATABASE_URL (criterion 8, ADR 0008)", () => {
+describe("no fallback from TEST_DATABASE_URL to DATABASE_URL (ADR 0008)", () => {
   const WELL_FORMED = `postgres://${QA_CREDENTIALS}@${QA_HOST}/${FAKE_DATABASE}`;
 
   it("the test helper refuses a malformed TEST_DATABASE_URL although DATABASE_URL could be derived from", async () => {

@@ -21,9 +21,10 @@ import {
 } from "./support/qa-8b-connection-values.js";
 
 /**
- * Adversarial QA of M8 wave 8B, rule B2's observable: two connection values that give the same comparisons (the same
- * shape verdict, and the same listed database name or both unlisted) give byte-identical output. Each case builds twins
- * that share a form and a name class and differ in everything else, and compares all this package says about each.
+ * Nothing this package says is copied out of a connection value, observed as: two values that give the same
+ * comparisons (the same shape verdict, and the same listed database name or both unlisted) give byte-identical output.
+ * Each case builds twins that share a form and a name class and differ in everything else, and compares all this
+ * package says about each.
  * Nothing connects: only refusals and printed lines are read.
  */
 const SWEEP = { seed: 20261008, numRuns: 2_000 };
@@ -157,7 +158,7 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-describe("two values that give the same comparisons give byte-identical output (rule B2)", () => {
+describe("two values that give the same comparisons give byte-identical output", () => {
   it("the twins generator yields values the opener accepts and values it refuses", () => {
     const verdicts = fc
       .sample(twins, SWEEP)

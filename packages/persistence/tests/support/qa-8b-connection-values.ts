@@ -3,8 +3,8 @@ import { vi } from "vitest";
 import { markersFoundOn } from "./leaked-connection-markers.js";
 
 /**
- * Adversarial QA of M8 wave 8B. Every value is a fake whose host ends in `.invalid` (RFC 6761: never resolves) or does
- * not parse at all, so no case here can reach a database.
+ * Fake connection values for the adversarial connection tests. Every host ends in `.invalid` (RFC 6761: never
+ * resolves) or the value does not parse at all, so no case here can reach a database.
  */
 export const QA_PASSWORD = "FAKEPASSWORD_QA8B";
 export const QA_USER = "fakeuser_QA8B";
@@ -22,7 +22,7 @@ interface QaValue {
   readonly value: string;
 }
 
-/** Shapes the wave's own seven-value table does not hold: each is a slip a person makes typing or pasting a URL. */
+/** Each is a slip a person makes typing or pasting a URL. */
 function malformedValuesFor(databaseName: string): QaValue[] {
   const wellFormed = `postgres://${QA_CREDENTIALS}@${QA_HOST}/${databaseName}`;
   return [

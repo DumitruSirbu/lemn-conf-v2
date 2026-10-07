@@ -4,7 +4,7 @@ import { spawnPersistenceCli } from "./support/spawn-persistence-cli.js";
 import type { SpawnedCliResult } from "./support/spawn-persistence-cli.js";
 
 /**
- * Adversarial QA of M8 wave 8B, criterion 6, at the real CLI entry points: a child process that prints its line and
+ * The two CLI entry points as real child processes: one that prints its line and
  * then never exits is not measured by any in-process test, because `applyMigrations` settling says nothing about an
  * open handle keeping Node alive.
  *

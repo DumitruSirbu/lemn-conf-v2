@@ -32,7 +32,7 @@ import {
 import type { Site } from "./support/qa-8b-connection-values.js";
 
 /**
- * Adversarial QA of M8 wave 8B: the runtime and migration sites, and the leak detector. The cause a migration
+ * The runtime and migration sites against mistyped connection values, and the leak detector. The cause a migration
  * error keeps is attacked in `qa-8b-thrown-cause.adversarial.test.ts`. Fake values
  * only; every host ends in `.invalid` or the value does not parse, so nothing is reachable.
  */
@@ -41,7 +41,7 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-describe("the leak detector the wave's tests rely on can itself fail", () => {
+describe("the leak detector the connection tests rely on can itself fail", () => {
   const LEAK = `near ${QA_PASSWORD}`;
 
   function withNonEnumerable(key: string | symbol, value: unknown): Error {
@@ -158,7 +158,7 @@ const SITES: readonly Site[] = [
   },
 ];
 
-describe("criterion 2 with values the wave's table does not hold", () => {
+describe("a site given a mistyped or mis-pasted connection value", () => {
   it.each(SITES)(
     "$name raises no error that shows a marker",
     async ({ name, ...site }) => {
@@ -194,7 +194,7 @@ function linesPrintedForARefusedTarget(connectionUrl: string): string[] {
   return [];
 }
 
-describe("the two CLI printers given an error that is not this package's own (criterion 6)", () => {
+describe("the two CLI printers given an error that is not this package's own", () => {
   const WELL_FORMED = `postgres://${QA_CREDENTIALS}@${QA_HOST}/${FAKE_DATABASE}`;
 
   it.each<[string, unknown]>([
@@ -220,7 +220,7 @@ function invalidUrlErrorFor(input: string): TypeError {
   });
 }
 
-describe("no fallback from one connection variable to another (criterion 8, ADR 0008)", () => {
+describe("no fallback from one connection variable to another (ADR 0008)", () => {
   const WELL_FORMED = `postgres://${QA_CREDENTIALS}@${QA_HOST}/${FAKE_DATABASE}`;
   const BAD_ESCAPE = `postgres://${QA_CREDENTIALS}%ZZ@${QA_HOST}/${FAKE_DATABASE}`;
 
@@ -251,7 +251,7 @@ describe("no fallback from one connection variable to another (criterion 8, ADR 
   });
 });
 
-describe("a refused shape is answered without waiting on the network (criterion 6)", () => {
+describe("a refused shape is answered without waiting on the network", () => {
   const AT_ONCE_MS = 250;
   const BAD_ESCAPE = `postgres://${QA_CREDENTIALS}%ZZ@${QA_HOST}/${FAKE_DATABASE}`;
   const WRONG_SCHEME = `mysql://${QA_CREDENTIALS}@${QA_HOST}/${FAKE_DATABASE}`;
@@ -269,7 +269,7 @@ describe("a refused shape is answered without waiting on the network (criterion 
   });
 });
 
-describe("a refusal names a variable only if the value was read from it (rule B4)", () => {
+describe("a refusal names a variable only if the value was read from it", () => {
   const BAD_ESCAPE = `postgres://${QA_CREDENTIALS}%ZZ@${QA_HOST}/${FAKE_DATABASE}`;
 
   it("names MIGRATION_DATABASE_URL when runMigrations read the value from it", async () => {

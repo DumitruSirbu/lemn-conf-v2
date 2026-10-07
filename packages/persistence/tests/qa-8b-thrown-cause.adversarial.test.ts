@@ -13,7 +13,7 @@ import {
 } from "./support/qa-8b-connection-values.js";
 
 /**
- * Adversarial QA of M8 wave 8B, rule B3: nothing a driver or Node threw rides on an error `migrate.ts` or
+ * Nothing a driver or Node threw rides on an error `migrate.ts` or
  * `migrate-status.ts` throws, so no part or fragment of the connection value is reachable from it by any read. The
  * driver is mocked and rejects with whatever the case scripts; nothing connects.
  */
@@ -43,7 +43,7 @@ function rejectionOrNothing(failure: unknown): Promise<{ rows: unknown[] }> {
 
 /**
  * The real module with only the network replaced. `Client` stays the driver's own class, so the opener's question to
- * it (rule B9: which database would the session driver use?) is answered by the driver and not by this file.
+ * it (which database would the session driver use?) is answered by the driver and not by this file.
  */
 vi.mock("@neondatabase/serverless", async (importActual) => {
   const actual =
@@ -200,7 +200,7 @@ const HOSTILE_FAILURES: readonly [string, () => unknown][] = [
   ["a bare string", () => `refused ${CONNECTION_URL}`],
 ];
 
-describe.each(THROWING_PATHS)("$name (rule B3)", ({ raise }) => {
+describe.each(THROWING_PATHS)("$name", ({ raise }) => {
   describe.each([
     ["a plain connection string", CONNECTION_URL],
     ["a password holding an unencoded @", UNENCODED_AT_URL],
@@ -275,7 +275,7 @@ function closeFailure(): Error {
 interface FailingClose {
   readonly how: string;
   readonly end: () => Promise<void>;
-  /** False for the one case this wave does not bound (follow-up F5): after a run, the close is awaited. */
+  /** False for the one case not bounded yet (the deferral below): after a run, the close is awaited. */
   readonly isBoundedAfterARun: boolean;
 }
 
@@ -302,11 +302,11 @@ const FAILING_CLOSES: readonly FailingClose[] = [
 ];
 
 describe.each(FAILING_CLOSES)(
-  "applyMigrations when closing the session $how (rules B8 and B3)",
+  "applyMigrations when closing the session $how",
   ({ end, isBoundedAfterARun }) => {
     /**
-     * DECLARED DEFERRAL, follow-up F5 (M8 8B, third adjudication; QA13). A close that never returns after a run is not
-     * bounded by wave 8B, so for that one close these two tests are expected failures: `applyMigrations` does not
+     * DECLARED DEFERRAL, owed by follow-up F5 of M8 wave 8B. A close that never returns after a run is not
+     * bounded yet, so for that one close these two tests are expected failures: `applyMigrations` does not
      * settle. They go red the moment it does. Whoever fixes F5 flips `isBoundedAfterARun` to true; do not delete them.
      */
     const itAfterARun = isBoundedAfterARun ? it : it.fails;
