@@ -60,6 +60,10 @@ function refusalMessageOf(environment: string, databaseName: string): string {
  * `/`, then `decodeURI`), so this file never constructs the driver itself. Pinned to measured
  * driver output by the first test below.
  */
+/** What `databaseNameOf` answers when the readers of the string do not agree on one database name (rule B9): the
+ *  placeholder the environment check always refuses. */
+const NO_AGREED_NAME = databaseNameOf("socket://x.invalid/lemn-conf-v2");
+
 function databaseTheDriverReaches(connectionUrl: string): string {
   const { protocol } = new URL(connectionUrl);
   const reparsed = new URL(`http:${connectionUrl.substring(protocol.length)}`);
@@ -73,17 +77,17 @@ describe("the check's name and the driver's name agree", () => {
   it.each([
     [
       "postgres://u:p@h.invalid/lemn%2Dconf%2Dv2",
-      "lemn%2Dconf%2Dv2",
+      NO_AGREED_NAME,
       PRODUCTION_DATABASE,
     ],
     [
       "postgres://u:p@h.invalid/%6Cemn-conf-v2",
-      "%6Cemn-conf-v2",
+      NO_AGREED_NAME,
       PRODUCTION_DATABASE,
     ],
     [
       "postgres://u:p@h.invalid/foo\\..\\lemn-conf-v2",
-      "foo\\..\\lemn-conf-v2",
+      NO_AGREED_NAME,
       PRODUCTION_DATABASE,
     ],
     [

@@ -23,7 +23,8 @@ const driver = vi.hoisted(() => {
   return { connectionUrls, statements, nextResult };
 });
 
-vi.mock("@neondatabase/serverless", () => ({
+vi.mock("@neondatabase/serverless", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
   neon: (connectionUrl: string) => {
     driver.connectionUrls.push(connectionUrl);
     return (fragments: TemplateStringsArray) => {

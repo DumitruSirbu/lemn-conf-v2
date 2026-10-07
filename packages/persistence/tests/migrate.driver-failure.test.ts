@@ -15,6 +15,7 @@ interface ScriptedDriver {
   connectFailure: unknown;
   queryFailure: unknown;
   endFailure: unknown;
+  endAfterFailedConnect: "never settles" | "rejects" | "throws";
   readonly endCalls: number[];
 }
 
@@ -23,36 +24,56 @@ const driver = vi.hoisted(
     connectFailure: undefined,
     queryFailure: undefined,
     endFailure: undefined,
+    endAfterFailedConnect: "never settles",
     endCalls: [],
   }),
 );
 
-vi.mock("@neondatabase/serverless", () => ({
-  Client: class {
-    connect(): Promise<void> {
-      return driver.connectFailure === undefined
-        ? Promise.resolve()
-        : Promise.reject(driver.connectFailure as Error);
-    }
+function endAfterAFailedConnect(): Promise<void> {
+  if (driver.endAfterFailedConnect === "throws")
+    throw new Error("socket hang up");
+  return driver.endAfterFailedConnect === "rejects"
+    ? Promise.reject(new Error("socket hang up"))
+    : new Promise(() => undefined);
+}
 
-    query(sql: string): Promise<{ rows: unknown[] }> {
-      const isRollback = sql === "rollback";
-      return driver.queryFailure === undefined || isRollback
-        ? Promise.resolve({ rows: [] })
-        : Promise.reject(driver.queryFailure as Error);
-    }
+vi.mock("@neondatabase/serverless", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@neondatabase/serverless")>();
+  return {
+    ...actual,
+    Client: class {
+      readonly database: string | undefined;
 
-    // The real driver's `end()` after a failed connect waits for an `end` event that already fired.
-    end(): Promise<void> {
-      driver.endCalls.push(driver.endCalls.length);
-      if (driver.connectFailure !== undefined)
-        return new Promise(() => undefined);
-      return driver.endFailure === undefined
-        ? Promise.resolve()
-        : Promise.reject(driver.endFailure as Error);
-    }
-  },
-}));
+      constructor(connectionUrl: string) {
+        this.database = new actual.Client(connectionUrl).database;
+      }
+
+      connect(): Promise<void> {
+        return driver.connectFailure === undefined
+          ? Promise.resolve()
+          : Promise.reject(driver.connectFailure as Error);
+      }
+
+      query(sql: string): Promise<{ rows: unknown[] }> {
+        const isRollback = sql === "rollback";
+        return driver.queryFailure === undefined || isRollback
+          ? Promise.resolve({ rows: [] })
+          : Promise.reject(driver.queryFailure as Error);
+      }
+
+      // The real driver's `end()` after a failed connect waits for an `end` event that already fired.
+      end(): Promise<void> {
+        driver.endCalls.push(driver.endCalls.length);
+        if (driver.connectFailure !== undefined)
+          return endAfterAFailedConnect();
+        return driver.endFailure === undefined
+          ? Promise.resolve()
+          : Promise.reject(driver.endFailure as Error);
+      }
+    },
+  };
+});
 
 const MIGRATION: MigrationFile = {
   version: 1,
@@ -87,6 +108,7 @@ function resetDriver(): void {
   driver.connectFailure = undefined;
   driver.queryFailure = undefined;
   driver.endFailure = undefined;
+  driver.endAfterFailedConnect = "never settles";
   driver.endCalls.length = 0;
 }
 
@@ -203,4 +225,40 @@ describe("applyMigrations when closing the session fails (rule B8)", () => {
 
     expect(outcome).toEqual({ applied: ["0001_fake.sql"], alreadyApplied: [] });
   });
+});
+
+describe("applyMigrations when closing the session after a failed connect fails (rule B3)", () => {
+  const unhandledRejections: unknown[] = [];
+  const recordUnhandled = (reason: unknown): void => {
+    unhandledRejections.push(reason);
+  };
+
+  it.each(["never settles", "rejects", "throws"] as const)(
+    "throws the connect failure it built, with no unhandled rejection, when end() %s",
+    async (endBehaviour) => {
+      resetDriver();
+      driver.connectFailure = Object.assign(new Error("refused"), {
+        code: "ECONNREFUSED",
+      });
+      driver.endAfterFailedConnect = endBehaviour;
+      unhandledRejections.length = 0;
+      process.on("unhandledRejection", recordUnhandled);
+
+      try {
+        const error = await rejectionWithinBound(apply);
+        await new Promise((resume) => setImmediate(resume));
+
+        expect(error).toBeInstanceOf(MigrationExecutionError);
+        expect((error as Error).message).toContain("Could not connect");
+        expect((error as Error).cause).toEqual({
+          name: "Error",
+          code: "ECONNREFUSED",
+        });
+        expect(driver.endCalls).toHaveLength(1);
+        expect(unhandledRejections).toEqual([]);
+      } finally {
+        process.off("unhandledRejection", recordUnhandled);
+      }
+    },
+  );
 });

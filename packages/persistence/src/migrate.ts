@@ -28,6 +28,7 @@ import {
   readDeclaredEnvironment,
 } from "./migration-target.js";
 import { databaseNameOf, openDatabaseSession } from "./open-database.js";
+import type { ConnectionVariableName } from "./open-database.js";
 import { readMigrationDatabaseUrl } from "./read-database-url.js";
 
 export { databaseNameOf };
@@ -50,11 +51,15 @@ export interface MigrationRunSummary {
  */
 export async function runMigrations(
   connectionUrl?: string,
+  readFrom?: ConnectionVariableName,
 ): Promise<MigrationRunSummary> {
-  return applyMigrations(
-    connectionUrl ?? readMigrationDatabaseUrl(),
-    readMigrationFiles(),
-  );
+  return connectionUrl === undefined
+    ? applyMigrations(
+        readMigrationDatabaseUrl(),
+        readMigrationFiles(),
+        "MIGRATION_DATABASE_URL",
+      )
+    : applyMigrations(connectionUrl, readMigrationFiles(), readFrom);
 }
 
 /** `runMigrations` with the file set supplied, for tests that need a set the repository lacks (a failing migration,
@@ -62,13 +67,24 @@ export async function runMigrations(
 export async function applyMigrations(
   connectionUrl: string,
   files: readonly MigrationFile[],
+  readFrom?: ConnectionVariableName,
 ): Promise<MigrationRunSummary> {
-  const client = openDatabaseSession(connectionUrl, "MIGRATION_DATABASE_URL");
+  const client = openDatabaseSession(connectionUrl, readFrom);
   await connectOrWrapError(client, connectionUrl);
   try {
     return await applyPendingMigrations(client, files);
   } finally {
     await closeQuietly(client);
+  }
+}
+
+/** `end()` after a failed connect may throw, reject or never settle; none of that may replace the failure being
+ *  thrown, nor surface as an unhandled rejection, which Node prints with the error object. */
+function closeWithoutWaiting(client: Client): void {
+  try {
+    void client.end().catch(() => undefined);
+  } catch {
+    // Deliberately swallowed; see above.
   }
 }
 
@@ -97,7 +113,7 @@ async function connectOrWrapError(
   try {
     await client.connect();
   } catch (error) {
-    void client.end();
+    closeWithoutWaiting(client);
     throw new MigrationExecutionError(
       `Could not connect to "${printListedDatabaseName(databaseNameOf(connectionUrl))}" to run migrations. ` +
         `No migration was attempted.`,
@@ -255,7 +271,10 @@ if (isDirectCliInvocation) {
     const databaseName = databaseNameOf(connectionUrl);
     assertDeclaredEnvironmentReaches({ environment, databaseName });
 
-    const summary = await runMigrations(connectionUrl);
+    const summary = await runMigrations(
+      connectionUrl,
+      "MIGRATION_DATABASE_URL",
+    );
     console.log(
       describeMigrationRun(
         summary,

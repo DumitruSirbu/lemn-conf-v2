@@ -87,50 +87,84 @@ export function assertConnectionUrlShape(
 
 /**
  * Stricter than `@neondatabase/serverless@1.1.0`, which re-parses under `http:` and so takes a URL with no database or
- * with no `//` after the scheme. Everything accepted here the driver also accepts, because the checks below are the
+ * with no `//` after the scheme, and which reads a name that other readers read differently (see
+ * {@link agreedDatabaseNameOf}). Everything accepted here the driver also accepts, because the checks below are the
  * driver's own (two `URL`s, then percent-decoding the credentials and path): a value passed on never reaches its
  * error, which echoes the string.
  */
 function isTheAcceptedShape(connectionUrl: string): boolean {
   try {
     const { protocol } = new URL(connectionUrl);
-    const { username, password, hostname, pathname } = new URL(
+    const { username, password, hostname } = new URL(
       `http:${connectionUrl.substring(protocol.length)}`,
     );
     const decodedUsername = decodeURIComponent(username);
     decodeURIComponent(password);
-    const decodedDatabaseName = decodeURIComponent(pathname).replace(/^\//, "");
+    const databaseName = agreedDatabaseNameOf(connectionUrl);
     return (
       (protocol === "postgres:" || protocol === "postgresql:") &&
       connectionUrl.substring(protocol.length, protocol.length + 2) === "//" &&
       decodedUsername !== "" &&
       hostname !== "" &&
-      decodedDatabaseName !== ""
+      databaseName !== NO_AGREED_DATABASE_NAME &&
+      databaseName !== ""
     );
   } catch {
     return false;
   }
 }
 
+/** What {@link agreedDatabaseNameOf} answers when the readers do not give one name. Never a database's name. */
+export const NO_AGREED_DATABASE_NAME =
+  "<no database name every reader agrees on>";
+
 /**
- * The path a connection string names, for comparison only; re-exported by `migrate.ts`. Never print it: a mistyped
- * string defines its own path, which can hold a credential (`postgres://u:1/pw@h/db` yields `pw@h/db`). A line shows
- * a name only through `printListedDatabaseName` or `printReachedDatabaseName` (`migration-target.ts`).
+ * The database name a connection string names, or {@link NO_AGREED_DATABASE_NAME}. Three readers must give the same
+ * name: the string as written, the string as the HTTP driver re-reads it (under `http:`, decoded), and the session
+ * driver, asked by constructing its client (which connects to nothing). A string on which they differ, whatever made
+ * them differ (a `\` the HTTP reading takes as `/`, an escape, a tab), has no name, and every caller refuses it: this
+ * package would otherwise compare one database while a driver connects to another.
+ */
+export function agreedDatabaseNameOf(connectionUrl: string): string {
+  try {
+    const { protocol, pathname } = new URL(connectionUrl);
+    const asWritten = pathname.replace(/^\//, "");
+    const reparsed = new URL(
+      `http:${connectionUrl.substring(protocol.length)}`,
+    );
+    const asTheHttpDriverReads = decodeURIComponent(reparsed.pathname).replace(
+      /^\//,
+      "",
+    );
+    const asTheSessionDriverReads = new Client(connectionUrl).database;
+    return asWritten === asTheHttpDriverReads &&
+      asWritten === asTheSessionDriverReads
+      ? asWritten
+      : NO_AGREED_DATABASE_NAME;
+  } catch {
+    return NO_AGREED_DATABASE_NAME;
+  }
+}
+
+/**
+ * The database a connection string names, for comparison only; re-exported by `migrate.ts`. Never print it: a name is
+ * shown only through `printListedDatabaseName` or `printReachedDatabaseName` (`migration-target.ts`). It is the name
+ * {@link agreedDatabaseNameOf} gives, or a placeholder no environment lists.
  *
  * Never throws: `new URL` on a malformed string raises `ERR_INVALID_URL`, which carries the whole input, password
  * included, where Node's uncaught-exception printer emits it. A scheme other than `postgres:`/`postgresql:`, or no `//`
- * authority, gets a placeholder before any pathname is read. Without the authority (`postgres:/user:pw@host/db`) the
- * URL parses with an empty host and a `pathname` holding the credential, which would be returned as the name and could
+ * authority, gets a placeholder before any name is read. Without the authority (`postgres:/user:pw@host/db`) the URL
+ * parses with an empty host and a `pathname` holding the credential, which would be returned as the name and could
  * pass `assertDeclaredEnvironmentReaches` as an unclaimed name while the driver reaches a listed environment.
- *
- * The pathname stays percent-encoded and keeps any backslash: `assertDeclaredEnvironmentReaches` is the one place that
- * judges a raw `%` or `\`.
  */
 export function databaseNameOf(connectionUrl: string): string {
   try {
     const url = new URL(connectionUrl);
     if (!hasTrustedPostgresAuthority(url)) return UNTRUSTED_CONNECTION_SHAPE;
-    return url.pathname.replace(/^\//, "");
+    const agreedName = agreedDatabaseNameOf(connectionUrl);
+    return agreedName === NO_AGREED_DATABASE_NAME
+      ? UNTRUSTED_CONNECTION_SHAPE
+      : agreedName;
   } catch {
     return UNPARSEABLE_DATABASE_NAME;
   }

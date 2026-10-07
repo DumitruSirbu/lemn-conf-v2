@@ -182,3 +182,59 @@ describe("the guard when DATABASE_URL, the application's own URL, is unparseable
     );
   });
 });
+
+describe("the guard reads a database name only where every reader agrees (rule B9)", () => {
+  const BACKSLASH_IN_USERINFO = `postgres://a@b\\u:p@host.invalid/${ALLOWLISTED_DATABASE}`;
+  const AGREED_APPLICATION_URL =
+    "postgresql://appuser:apppw@app-host.invalid/appdb";
+
+  it.each(GUARD_ENTRY_POINTS)(
+    "%s refuses a test URL whose written name is allowlisted while a driver reads another",
+    async (_name, check) => {
+      vi.stubEnv("TEST_DATABASE_URL", BACKSLASH_IN_USERINFO);
+      vi.stubEnv("DATABASE_URL", AGREED_APPLICATION_URL);
+
+      const error = await errorRaisedBy(() => {
+        check(BACKSLASH_IN_USERINFO);
+      });
+
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error).message).toMatch(
+        /^Refusing to run live database tests: .*not one of the databases/,
+      );
+    },
+  );
+
+  it.each(GUARD_ENTRY_POINTS)(
+    "%s refuses any test URL when the application URL's name cannot be read in agreement",
+    async (_name, check) => {
+      const goodTestUrl = `postgresql://u:p@ci.invalid/${ALLOWLISTED_DATABASE}`;
+      vi.stubEnv("TEST_DATABASE_URL", goodTestUrl);
+      vi.stubEnv("DATABASE_URL", BACKSLASH_IN_USERINFO);
+
+      const error = await errorRaisedBy(() => {
+        check(goodTestUrl);
+      });
+
+      expect((error as Error).message).toMatch(
+        /^Refusing to run live database tests: the database DATABASE_URL names is not read the same way/,
+      );
+      expect(markersFoundOn(error)).toEqual([]);
+    },
+  );
+
+  it.each(GUARD_ENTRY_POINTS)(
+    "%s still accepts a test URL and an application URL whose names every reader gives alike",
+    async (_name, check) => {
+      const goodTestUrl = `postgresql://u:p@ci.invalid/${ALLOWLISTED_DATABASE}`;
+      vi.stubEnv("TEST_DATABASE_URL", goodTestUrl);
+      vi.stubEnv("DATABASE_URL", AGREED_APPLICATION_URL);
+
+      expect(
+        await errorRaisedBy(() => {
+          check(goodTestUrl);
+        }),
+      ).toBeUndefined();
+    },
+  );
+});

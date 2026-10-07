@@ -12,7 +12,8 @@ const driver = vi.hoisted((): { queryFailure: unknown } => ({
   queryFailure: undefined,
 }));
 
-vi.mock("@neondatabase/serverless", () => ({
+vi.mock("@neondatabase/serverless", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
   neon: () => ({
     query: () => Promise.reject(driver.queryFailure as Error),
   }),

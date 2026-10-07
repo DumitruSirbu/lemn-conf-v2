@@ -40,6 +40,7 @@ import {
   readDeclaredEnvironment,
 } from "./migration-target.js";
 import { openDatabase } from "./open-database.js";
+import type { ConnectionVariableName } from "./open-database.js";
 
 /**
  * Presence is asked of the catalogue (`to_regclass`), not `information_schema.tables`: that view is filtered by the
@@ -77,8 +78,9 @@ interface TablePresence {
  */
 export async function readDeployedSchema(
   connectionUrl: string,
+  readFrom?: ConnectionVariableName,
 ): Promise<DeployedSchemaReading> {
-  const sql = openDatabase(connectionUrl, MIGRATION_URL_VARIABLE);
+  const sql = openDatabase(connectionUrl, readFrom);
   try {
     return await queryDeployedSchema(sql);
   } catch (error) {
@@ -202,7 +204,7 @@ async function reportDeployedSchemaStatus(): Promise<void> {
 
     const report = describeDeployedSchemaStatus(
       readMigrationFiles(),
-      await readDeployedSchema(connectionUrl),
+      await readDeployedSchema(connectionUrl, MIGRATION_URL_VARIABLE),
     );
     console.log(
       describeMigrationStatusLine(report, {

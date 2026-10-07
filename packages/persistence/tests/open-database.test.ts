@@ -4,6 +4,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   InvalidConnectionUrlError,
+  NO_AGREED_DATABASE_NAME,
+  agreedDatabaseNameOf,
+  databaseNameOf,
   openDatabase,
   openDatabaseSession,
   parseConnectionUrl,
@@ -418,4 +421,146 @@ describe("a refusal names a variable only if the value was read from it (rule B4
     }
     return undefined;
   }
+});
+
+describe("a database name is read only where every reader agrees (rule B9)", () => {
+  const BACKSLASH_IN_USERINFO = `postgres://a@b\\${FAKE_USER}:${FAKE_PASSWORD}@${FAKE_HOST}/lemnaria_test`;
+  const NO_NAME_PLACEHOLDER = databaseNameOf("socket://x.invalid/db");
+
+  function nameTheHttpDriverReads(value: string): string {
+    const { protocol } = new URL(value);
+    const reparsed = new URL(`http:${value.substring(protocol.length)}`);
+    return decodeURIComponent(reparsed.pathname).replace(/^\//, "");
+  }
+
+  it("gives a name every reader gives, for an ordinary URL", () => {
+    expect(
+      agreedDatabaseNameOf("postgresql://u:p@h/lemn-conf-v2?sslmode=require"),
+    ).toBe("lemn-conf-v2");
+  });
+
+  it("gives no name when the HTTP driver reads a backslash as a slash and the other readers do not", () => {
+    expect(agreedDatabaseNameOf(BACKSLASH_IN_USERINFO)).toBe(
+      NO_AGREED_DATABASE_NAME,
+    );
+    expect(nameTheHttpDriverReads(BACKSLASH_IN_USERINFO)).not.toBe(
+      "lemnaria_test",
+    );
+  });
+
+  it.each([
+    ["a backslash in the user", BACKSLASH_IN_USERINFO],
+    ["a percent-escape in the name", "postgres://u:p@h/lemn%2Dconf%2Dv2"],
+    ["a backslash in the name", "postgres://u:p@h/foo\\..\\lemn-conf-v2"],
+  ])(
+    "refuses %s in both openers, and databaseNameOf has no name for it",
+    (_label, value) => {
+      expect(() => openDatabase(value)).toThrow(InvalidConnectionUrlError);
+      expect(() => openDatabaseSession(value)).toThrow(
+        InvalidConnectionUrlError,
+      );
+      expect(databaseNameOf(value)).toBe(NO_NAME_PLACEHOLDER);
+    },
+  );
+
+  describe("over a sweep of strings", () => {
+    const fragments = [
+      "postgres://",
+      "postgresql://",
+      "postgres:",
+      FAKE_USER,
+      FAKE_PASSWORD,
+      FAKE_HOST,
+      "lemnaria_test",
+      "lemn-conf-v2",
+      ":",
+      "@",
+      "/",
+      "\\",
+      "?",
+      "#",
+      "%2F",
+      "%ZZ",
+      "%",
+      "\t",
+      " ",
+      "..",
+      "[",
+    ];
+    const assembled = fc
+      .array(
+        fc.oneof(fc.constantFrom(...fragments), fc.string({ maxLength: 3 })),
+        { maxLength: 14 },
+      )
+      .map((parts) => parts.join(""));
+    const nearlyWellFormed = fc
+      .record({
+        scheme: fc.constantFrom("postgres://", "postgresql://"),
+        user: fc.constantFrom(FAKE_USER, `a@b\\${FAKE_USER}`, `${FAKE_USER}\t`),
+        password: fc.constantFrom(FAKE_PASSWORD, `x@${FAKE_PASSWORD}`, ""),
+        host: fc.constantFrom(
+          FAKE_HOST,
+          `b\\${FAKE_HOST}`,
+          `${FAKE_HOST}:5432`,
+        ),
+        path: fc.constantFrom(
+          "/lemnaria_test",
+          "/lemn-conf-v2",
+          "/x/../lemnaria_test",
+          "/lemnaria\ttest",
+          "/lemnaria%5Ftest",
+          "/lemnaria\\test",
+          "/lemnaria_test?dbname=other",
+          "/a b",
+        ),
+      })
+      .map(
+        ({ scheme, user, password, host, path }) =>
+          `${scheme}${user}:${password}@${host}${path}`,
+      );
+    const swept = fc.oneof(assembled, nearlyWellFormed);
+    const SWEEP = { seed: 20261008, numRuns: 4_000 };
+
+    function isAccepted(value: string): boolean {
+      try {
+        openDatabase(value);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    it("accepts strings whose compared name is the session driver's, and the HTTP re-reading's", () => {
+      const accepted = fc.sample(swept, SWEEP).filter(isAccepted);
+
+      const differsFromTheSessionDriver = accepted.filter(
+        (value) => databaseNameOf(value) !== new Client(value).database,
+      );
+      const differsFromTheHttpReading = accepted.filter(
+        (value) => databaseNameOf(value) !== nameTheHttpDriverReads(value),
+      );
+
+      expect(accepted.length).toBeGreaterThan(0);
+      expect(differsFromTheSessionDriver).toEqual([]);
+      expect(differsFromTheHttpReading).toEqual([]);
+    });
+
+    it("accepts the same strings through the session opener as through the query opener", () => {
+      fc.assert(
+        fc.property(swept, (value) => {
+          const sessionAccepts = (() => {
+            try {
+              openDatabaseSession(value);
+              return true;
+            } catch {
+              return false;
+            }
+          })();
+
+          expect(sessionAccepts).toBe(isAccepted(value));
+        }),
+        SWEEP,
+      );
+    });
+  });
 });

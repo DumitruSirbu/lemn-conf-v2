@@ -18,7 +18,7 @@ const SOURCE_DIRECTORY = resolve(
   "../src",
 );
 const THE_OPENER = "open-database.ts";
-const TYPESCRIPT_SOURCE = /\.(?:ts|mts|cts|tsx)$/;
+const SCRIPT_SOURCE = /\.(?:[cm]?[jt]s|[jt]sx)$/;
 const DRIVER_PACKAGES: readonly string[] = ["@neondatabase/serverless", "pg"];
 
 /**
@@ -125,10 +125,10 @@ function literalOf(node: ts.Node | undefined): string | undefined {
     : undefined;
 }
 
-/** Every TypeScript source file under `directory` at any depth, apart from the opener at the top level, as `path: site` lines. */
+/** Every script file (TypeScript or JavaScript, any module extension) under `directory` at any depth, apart from the opener at the top level, as `path: site` lines. */
 function sitesOutsideTheOpener(directory: string): string[] {
   return (readdirSync(directory, { recursive: true }) as string[])
-    .filter((path) => TYPESCRIPT_SOURCE.test(path) && path !== THE_OPENER)
+    .filter((path) => SCRIPT_SOURCE.test(path) && path !== THE_OPENER)
     .flatMap((path) =>
       connectionSitesIn(readFileSync(join(directory, path), "utf8")).map(
         (site) => `${path}: ${site}`,
@@ -264,19 +264,23 @@ describe("what the census finds in a tree", () => {
     ]);
   });
 
-  it("reads every TypeScript source extension, and nothing else", () => {
+  it("reads every script extension, JavaScript included, and nothing else", () => {
     expect(
       sitesIn({
         "a.mts": DRIVER_IMPORT,
         "b.cts": DRIVER_IMPORT,
         "c.tsx": DRIVER_IMPORT,
         "d.js": DRIVER_IMPORT,
-        "e.sql": DRIVER_IMPORT,
+        "e.mjs": DRIVER_IMPORT,
+        "f.cjs": DRIVER_IMPORT,
+        "g.jsx": DRIVER_IMPORT,
+        "h.sql": DRIVER_IMPORT,
+        "i.json": DRIVER_IMPORT,
       }),
-    ).toEqual([
-      "a.mts: imports @neondatabase/serverless",
-      "b.cts: imports @neondatabase/serverless",
-      "c.tsx: imports @neondatabase/serverless",
-    ]);
+    ).toEqual(
+      ["a.mts", "b.cts", "c.tsx", "d.js", "e.mjs", "f.cjs", "g.jsx"].map(
+        (path) => `${path}: imports @neondatabase/serverless`,
+      ),
+    );
   });
 });

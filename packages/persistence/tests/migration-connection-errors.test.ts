@@ -58,14 +58,27 @@ function rejectionOf(outcome: Outcome): unknown {
   return outcome.error;
 }
 
-describe.each(REFUSED_VALUES)(
-  "a MIGRATION_DATABASE_URL of $label",
-  ({ value }) => {
-    describe.each([
-      ["applyMigrations", () => applyMigrations(value, [])],
-      ["runMigrations", () => runMigrations(value)],
-      ["readDeployedSchema", () => readDeployedSchema(value)],
-    ])("through %s", (_site, run) => {
+const ENTRY_POINTS: readonly [
+  string,
+  (value: string, readFrom?: "MIGRATION_DATABASE_URL") => Promise<unknown>,
+][] = [
+  [
+    "applyMigrations",
+    (value, readFrom) => applyMigrations(value, [], readFrom),
+  ],
+  ["runMigrations", (value, readFrom) => runMigrations(value, readFrom)],
+  [
+    "readDeployedSchema",
+    (value, readFrom) => readDeployedSchema(value, readFrom),
+  ],
+];
+
+describe.each(REFUSED_VALUES)("a connection string of $label", ({ value }) => {
+  describe.each(ENTRY_POINTS)("through %s", (_site, enter) => {
+    describe("when its caller says it read the value from MIGRATION_DATABASE_URL", () => {
+      const run = (): Promise<unknown> =>
+        enter(value, "MIGRATION_DATABASE_URL");
+
       it("is refused at once with the opener's error naming the variable", async () => {
         const error = rejectionOf(await outcomeWithinBound(run));
 
@@ -94,8 +107,22 @@ describe.each(REFUSED_VALUES)(
         }
       });
     });
-  },
-);
+
+    describe("when its caller handed the value in", () => {
+      it("is refused as handed in: no variable named, no marker, no cause", async () => {
+        const error = rejectionOf(await outcomeWithinBound(() => enter(value)));
+
+        expect(error).toBeInstanceOf(InvalidConnectionUrlError);
+        expect((error as InvalidConnectionUrlError).variableName).toBe(
+          undefined,
+        );
+        expect((error as Error).message).not.toContain("DATABASE_URL");
+        expect(markersFoundOn(error)).toEqual([]);
+        expect(error).not.toHaveProperty("cause");
+      });
+    });
+  });
+});
 
 describe.each(UNREACHABLE_VALUES)("a well-formed $label", ({ value }) => {
   it("makes applyMigrations settle within the bound, with a connect error that carries no marker", async () => {

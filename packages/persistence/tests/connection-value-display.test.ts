@@ -7,7 +7,7 @@ import {
   printListedDatabaseName,
   printReachedDatabaseName,
 } from "../src/migration-target.js";
-import { databaseNameOf } from "../src/open-database.js";
+import { agreedDatabaseNameOf, databaseNameOf } from "../src/open-database.js";
 import {
   ALLOWED_TEST_DATABASE_NAMES,
   UNLISTED_DATABASE,
@@ -234,6 +234,11 @@ describe("the isolation guard's refusals (B2)", () => {
         arbitraryUrl(fc.constant(allowlistedName)),
         arbitraryUrl(fc.constant(allowlistedName)),
         (testUrl, applicationUrl) => {
+          fc.pre(
+            [testUrl, applicationUrl].every(
+              (url) => agreedDatabaseNameOf(url) === allowlistedName,
+            ),
+          );
           vi.stubEnv("DATABASE_URL", applicationUrl);
           const message = messageOf(() => {
             assertSafeTestDatabaseUrl(testUrl);

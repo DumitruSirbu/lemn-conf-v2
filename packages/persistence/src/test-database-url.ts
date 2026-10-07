@@ -1,6 +1,11 @@
 import type { NeonQueryFunction } from "@neondatabase/serverless";
 
-import { parseConnectionUrl, openDatabase } from "./open-database.js";
+import {
+  NO_AGREED_DATABASE_NAME,
+  agreedDatabaseNameOf,
+  openDatabase,
+  parseConnectionUrl,
+} from "./open-database.js";
 import type { ConnectionVariableName } from "./open-database.js";
 import { readDatabaseUrl } from "./read-database-url.js";
 
@@ -47,15 +52,16 @@ export function printListedName(
  * is still that database. Read from the path only, which is right for `@neondatabase/serverless`; libpq (`psql`) lets
  * a `?dbname=` parameter override the path, so any second driver must be checked for how it resolves the two, or this
  * guard checks a name nothing connects to. (Only libpq's behaviour is verified.)
+ *
+ * {@link NO_AGREED_DATABASE_NAME} when the readers of the string do not give one name: the live suites open the test
+ * URL with the driver directly, so a name this guard read and a driver did not would let a `DELETE` through.
  */
 function databaseNameOfUrl(
   connectionUrl: string,
   variableName: ConnectionVariableName,
 ): string {
-  return parseConnectionUrl(connectionUrl, variableName).pathname.replace(
-    /^\//,
-    "",
-  );
+  parseConnectionUrl(connectionUrl, variableName);
+  return agreedDatabaseNameOf(connectionUrl);
 }
 
 /**
@@ -85,14 +91,27 @@ function refuseUnlessNamedAsATestDatabase(testDatabaseName: string): void {
 function refuseTheApplicationDatabaseName(testDatabaseName: string): void {
   const applicationUrl = process.env["DATABASE_URL"]?.trim();
   if (applicationUrl === undefined || applicationUrl === "") return;
-  if (testDatabaseName !== databaseNameOfUrl(applicationUrl, "DATABASE_URL"))
-    return;
+  const applicationDatabaseName = databaseNameOfUrl(
+    applicationUrl,
+    "DATABASE_URL",
+  );
+  if (applicationDatabaseName === NO_AGREED_DATABASE_NAME)
+    throw refuseAnApplicationNameNoReaderAgreesOn();
+  if (testDatabaseName !== applicationDatabaseName) return;
 
   throw new Error(
     `Refusing to run live database tests against "${printListedName(testDatabaseName, ALLOWED_TEST_DATABASE_NAMES)}": ` +
       `it is the database name DATABASE_URL points at. The host is not compared, because one database is ` +
       `reachable under several hostnames. Live tests write and delete rows, so they must target a separately ` +
       `named database.`,
+  );
+}
+
+function refuseAnApplicationNameNoReaderAgreesOn(): Error {
+  return new Error(
+    `Refusing to run live database tests: the database DATABASE_URL names is not read the same way by every reader ` +
+      `of the string, so it cannot be compared with the test database's. Live tests write and delete rows, so a ` +
+      `name that cannot be compared is refused rather than assumed to differ.`,
   );
 }
 

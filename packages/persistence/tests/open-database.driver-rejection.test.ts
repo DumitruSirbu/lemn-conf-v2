@@ -8,7 +8,8 @@ import {
 
 const WELL_FORMED_VALUE = `postgres://fakeuser_8B:${FAKE_PASSWORD}@${FAKE_HOST}/lemn-fake-db`;
 
-vi.mock("@neondatabase/serverless", () => ({
+vi.mock("@neondatabase/serverless", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
   neon: () => {
     throw new Error(`the driver echoes its input: ${WELL_FORMED_VALUE}`, {
       cause: new TypeError(WELL_FORMED_VALUE),
