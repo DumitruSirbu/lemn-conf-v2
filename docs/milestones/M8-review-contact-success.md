@@ -2364,6 +2364,84 @@ it; the architect's content:
 group's *Editează* selects (D3), the view-only scene (D4), and where the two sentences stand
 (criteria 11–13). One record for the review step, not two.
 
+**Five points S2 left open, ruled 2026-10-07, before S3.** S1 is `7fa5258`, S2 `cafcf95`, ADR 0148
+`dee2c82` [relayed]. The implementer built the view-only scene and stopped at five things D4 and
+the criteria did not settle. Read at `cafcf95`: `review/review-scene.tsx`, `scene/kitchen-canvas.tsx`,
+`scene/kitchen-stage.tsx` [src].
+
+1. ***Vezi în 3D* is built, as a link to the design's editor with nothing selected.** Frame 3A
+   draws it on a block captioned *"randare finală · 3 unghiuri"*: a render seen from three angles,
+   and a way from it to the model itself. That is what it does here. Its Romanian is the frame's,
+   verbatim; the Russian is drafted under Q10. It is not redundant, because of ruling 1a.
+   - **1a. The review's scene does not orbit, and a swipe over it scrolls the page.** D4 said the
+     existing scene, mounted without picking; it did not say whether it turns. The frame says
+     three angles, which the three chips are. And the canvas declares `touch-action: none`
+     [src, the comment at `kitchen-canvas.tsx:90`; that a swipe is trapped as built is the
+     architect's inference from it and was not measured in a browser], so a thumb that lands on
+     it would not scroll a screen whose whole job is to be read downward. The views change by the chips; free looking is what
+     *Vezi în 3D* opens. **D4 stands otherwise: a live scene, not a still.** A still would need a
+     capture path M8 does not have.
+2. **The marks on a body past its wall stay in the review's scene.** They are how the customer
+   finds the body the refusal names, and ADR 0065 has the scene and this step read one answer.
+   *Must not:* the scene marks a body the refusal does not name, or the reverse.
+3. **One remembered view, shared with the editor. Intended.** It is the customer's camera, not a
+   screen's; *Vezi în 3D* and *Editează* then open the editor looking where the review looked.
+4. **Without WebGL the review is the editor's exit, whole: frame 2F.** Not the review with a gap
+   where the scene was. The approved sentence on that screen is the rule: *"fără 3D nu există
+   configurare reală, deci nici preț"*. A review would show a price for a configuration this
+   device cannot show. Frame 2F's two exits and Q12's answer are unchanged. **So the probe belongs
+   to the screen, not to the scene:** `ReviewScene` stops rendering `WebGLUnavailable`, which is a
+   `<main>` and cannot sit inside another.
+5. **Duplication: the probe is extracted now; the chips are not.**
+   - *The probe* must move anyway (ruling 4). It becomes one hook beside `detectWebGLSupport` in
+     `scene/webgl-support.ts`. The review's screen uses it in S3; the editor adopts it in S4,
+     which owns `configure-screen.tsx`.
+   - *The chips* are written twice, not three times, and the review styles its own, so the
+     `classNames` prop goes and the chips take their classes from the review's stylesheet in S3.
+     Moving the editor's chips and their styles now would disturb the tests that read
+     `configure.module.css`. A backlog entry, with its trigger: a third place that draws them.
+
+**A slice added: S2b, before S3.** Three production files, Light, no visual pass of its own (S3's
+covers it).
+
+| Slice | Does | Files (production) | Reading |
+| --- | --- | --- | --- |
+| S2b | The view-only canvas neither orbits nor takes a touch: a vertical swipe over it scrolls the page. `ReviewScene` no longer answers for a missing WebGL. One hook reports WebGL support | `scene/kitchen-canvas.tsx`, `review/review-scene.tsx`, `scene/webgl-support.ts`; `scene/kitchen-stage.tsx` only if the stage reads the controls | rulings 1a, 4, 5 above; ADR 0023 (why the canvas stops a touch from also clicking); ADR 0144; `kitchen-canvas.tsx:36-100`; `configure-screen.tsx:55-80` (the probe as the editor has it, read and not edited) |
+
+*S2b's criteria.* (16) With the view-only canvas mounted in a page taller than the viewport, a
+vertical swipe that starts on the canvas scrolls the page, and a drag on it does not move the
+camera. The editor's canvas is unchanged: it orbits, and its tests are untouched and green.
+(17) The three chips still change the view, and the view arrives where the editor's would for the
+same chip. (18) `ReviewScene` renders nothing for a device without WebGL and no `<main>`.
+
+**What changes in S3.** Its files are unchanged. It gains: the *Vezi în 3D* link, placed as frame
+3A places it, with its leaf; the chips' classes from `review.module.css`; and criterion 19.
+
+19. **Without WebGL, `/d/{id}/review` shows frame 2F's screen and nothing of the review**: no
+    row, no figure, no call to action. While support is still being probed, the screen shows the
+    editor's loading line and no figure. *Must not:* a `<main>` inside a `<main>`; a price on a
+    device that cannot show the kitchen.
+
+**What changes in S4.** It adopts the probe's hook in `configure-screen.tsx`, with no change in
+what the editor shows. And it settles what the review knows about write access, which S1 left
+open: **nothing, and it asks nothing.** The review never writes the design. Its call to action
+waits only while the store holds an edit not yet saved, which can only be so after arriving from
+the editor, where the probe has already answered.
+
+20. The review sends no request to `/api/designs/{id}`. On a direct load its call to action is
+    ready as soon as the page is. *Must not:* arriving from the editor, the review's hydration
+    replaces a store that already holds this design, which would drop an unsaved edit and forget
+    the probe's answer.
+
+**For the visual reader, added to the line above** [the implementer's list, agreed]: the WebGL
+context is released when the review is left; a client-side move between the editor and the review
+never shows two live canvases; real touch on the chips, for size and for a tap that is not read as
+a drag; a real tap on the scene selects nothing; the marks show in the review's scene; the
+first-frame freeze (ADR 0144). And from ruling 1a: **a thumb swipe that starts on the scene
+scrolls the page.** The unit tests cannot show these: the canvas there is a stub.
+
+**S3 is dispatchable once S2b is in.**
+
 **Owner questions for 8D: none new.** The open half of Q31 does not block it. The duplicated
 sentence goes with Q9. What a refused stored row shows is not the owner's: the load-error page
 already exists.
