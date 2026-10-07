@@ -405,6 +405,85 @@ describe("proxy share-view routing and headers (M7 wave 7E3c D7)", () => {
   });
 });
 
+describe("proxy design-step routing", () => {
+  it.each(
+    (["ro", "ru"] as const).flatMap((locale) =>
+      (["review", "contact", "done"] as const).map(
+        (step) => [locale, step] as const,
+      ),
+    ),
+  )(
+    "routes the localized design step /%s/d/{id}/%s through locale routing",
+    (locale, step) => {
+      const response = respondTo(`/${locale}/d/design-123/${step}`);
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get("location")).toBeNull();
+      expect(response.headers.get("x-middleware-next")).toBe("1");
+      expect(requestHeader(response, "x-next-intl-locale")).toBe(locale);
+      expect(response.headers.get("link")).toContain('hreflang="ro"');
+      expect(response.headers.get("link")).toContain('hreflang="ru"');
+    },
+  );
+
+  it.each(["review", "contact", "done"])(
+    "redirects the unprefixed /d/{id}/%s to the negotiated locale, keeping the query",
+    (step) => {
+      const response = respondTo(`/d/design-123/${step}?from=editor`, {
+        "accept-language": "ru",
+      });
+
+      expect(response.status).toBe(307);
+      expect(response.headers.get("location")).toBe(
+        `https://lemnaria.test/ru/d/design-123/${step}?from=editor`,
+      );
+    },
+  );
+
+  it("carries no share header on a design step", () => {
+    const response = respondTo("/ro/d/design-123/review");
+
+    for (const { key } of SHARE_VIEW_HEADERS) {
+      expect(response.headers.get(key)).toBeNull();
+    }
+  });
+
+  it.each([
+    "/ro/d/design-123/anything-else",
+    "/ru/d/design-123/anything-else",
+    "/ro/d/design-123/Review",
+    "/ro/d/design-123/reviews",
+    "/ro/d/design-123/review/extra",
+    "/ru/d/design-123/contact/extra",
+    "/ro/d/design-123/done/extra",
+    "/ro/d/design-123/review/contact",
+    "/ro/d/design-123/review%2Fextra",
+    "/ro/s/abcDEF123456/review",
+    "/ru/s/abcDEF123456/contact",
+    "/ro/configurator/room/review",
+  ])("does not reinterpret the unsupported design path %s", (path) => {
+    const response = respondTo(path, {
+      cookie: "NEXT_LOCALE=ru",
+      "accept-language": "ru",
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("location")).toBeNull();
+    expect(response.headers.get("x-middleware-rewrite")).toBeNull();
+    expect(requestHeader(response, "x-next-intl-locale")).toBeNull();
+  });
+
+  it.each(["/RO/d/design-123/review", "/Ru/d/design-123/done"])(
+    "returns the CSP-decorated public 404 for case-variant locale design step %s",
+    (path) => {
+      const response = respondTo(path);
+
+      expect(response.status).toBe(404);
+      expect(requestHeader(response, "x-next-intl-locale")).toBeNull();
+    },
+  );
+});
+
 describe("next.config security headers", () => {
   it("applies the exact static header set to every route", async () => {
     const headers = await nextConfig.headers?.();

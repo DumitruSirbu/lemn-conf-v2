@@ -14,6 +14,9 @@ import {
 
 const handleLocaleRouting = createMiddleware(routing);
 
+/** The pages after a design's editor, in the order the customer meets them: `/d/{id}/review`, `/contact`, `/done`. */
+const DESIGN_STEP_SEGMENTS: readonly string[] = ["review", "contact", "done"];
+
 /** Everything except the immutable build output and static files, which carry no scripts and already receive the
  *  static headers from `next.config.ts`. */
 export const config = {
@@ -91,14 +94,22 @@ function isCustomerPath(pathname: string): boolean {
       routeSegments[1] === "room")
   )
     return true;
-  if (
-    routeSegments.length === 2 &&
-    routeSegments[0] === "d" &&
-    routeSegments[1] !== ""
-  )
-    return true;
+  if (isDesignPath(routeSegments)) return true;
 
   return isSharePath(pathname);
+}
+
+/** The design family's allow-list entry: `d/{id}`, or `d/{id}/{step}` for exactly the steps `DESIGN_STEP_SEGMENTS`
+ *  names. The id is a non-empty segment; nothing longer and no other step name is admitted. */
+function isDesignPath(routeSegments: string[]): boolean {
+  const [family, id, step] = routeSegments;
+  if (family !== "d" || id === undefined || id === "") return false;
+  if (routeSegments.length === 2) return true;
+  return (
+    routeSegments.length === 3 &&
+    step !== undefined &&
+    DESIGN_STEP_SEGMENTS.includes(step)
+  );
 }
 
 /** The share view's allow-list entry: `s/{token}`, two segments with a non-empty second, gated like `d/{id}`. Its
