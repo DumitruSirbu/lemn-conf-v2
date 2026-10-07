@@ -172,15 +172,15 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "catalog.base-panbank.800":
     "a2003c02d78c5be1a1b807c1b041a6160723d8950a861928da9ac38ae7563406",
   "catalog.base-sink.600":
-    "2a9aadc9c508177de6a535b95c376517423f9ad1e2c1472bf13bd620f15d53fd",
+    "9c0b993181901a0f574fb846aae071244b4cbadfe43a338aed4a487a92bde9a6",
   "catalog.base-sink.650":
-    "2a9aadc9c508177de6a535b95c376517423f9ad1e2c1472bf13bd620f15d53fd",
+    "9c0b993181901a0f574fb846aae071244b4cbadfe43a338aed4a487a92bde9a6",
   "catalog.base-sink.700":
-    "2a9aadc9c508177de6a535b95c376517423f9ad1e2c1472bf13bd620f15d53fd",
+    "9c0b993181901a0f574fb846aae071244b4cbadfe43a338aed4a487a92bde9a6",
   "catalog.base-sink.750":
-    "2a9aadc9c508177de6a535b95c376517423f9ad1e2c1472bf13bd620f15d53fd",
+    "9c0b993181901a0f574fb846aae071244b4cbadfe43a338aed4a487a92bde9a6",
   "catalog.base-sink.800":
-    "2a9aadc9c508177de6a535b95c376517423f9ad1e2c1472bf13bd620f15d53fd",
+    "9c0b993181901a0f574fb846aae071244b4cbadfe43a338aed4a487a92bde9a6",
   "catalog.fridge-free.700":
     "eadf8e272df89a3d2f251aa391c7b3d0d94d1a29158ba01b0b679c44f5571076",
   "catalog.hood.600":
@@ -809,7 +809,7 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "room.compose.role.preparation":
     "a9a9a7ff3f216a699805275160057cdb3b2b8dde942712240a7efc8f1f8a64ef",
   "room.compose.role.sink":
-    "4cc69b547ca47a397f305d7eb2ab063699f361eca1a3621bf066cda3a4795ba8",
+    "59d823e41b42c89b1647031a109bec4c8a9f4818bcb18ba9ebec7d51bc3d9180",
   "room.compose.role.storage":
     "cb18c899f3227071b5f242aacd6f90a6c56afc0744daa32771a6946d4c5844b7",
   "room.compose.roomSummary":
@@ -823,7 +823,7 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "room.compose.rowWidth":
     "284b7e6d788f363f910f7beb1910473e23ce9d6c871f1ce0f31f22a982d48ad4",
   "room.compose.rule":
-    "c0ab39bf9a66816c8300e8280ba3e05f2d5424c92edf56ad4b7cc3da62c4c3e6",
+    "22282c6c127ed1bec5eceb85ab409404132460846ef1514141a15cee3ed3214f",
   "room.compose.saveFailed":
     "60b62ebef7456c982be74a1c02b1eebabc5306eee0486c43e95c81d875998887",
   "room.compose.status.notPlaced":
@@ -859,7 +859,7 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "room.issue.orChooseLinear":
     "bdd9b039fc0b9967e4fa6d8a5cd31ea2cd43de4b3fe92e9b864917a6cb917efe",
   "room.issue.roomTooSmall":
-    "11973ac50edb81bce3a89f20f336c30261e8c1b3a274501a18f3a3ac70fb62cb",
+    "74d7fbd78d1f28d6e61d03c0d694de570f59584dba76b654d59bdc968f6b6ac0",
   "room.issue.shapeNotBuildable":
     "628ecbc794dce0fc76080277d023a4cccc61eb782634c83d4a6af553396def0d",
   "room.issue.unreadable":

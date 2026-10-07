@@ -112,7 +112,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       heightTooHigh:
         "Înălțimea aceasta e mai mare decât putem construi. Verifică valoarea.",
       roomTooSmall:
-        "Cu lungimile acestea, după dulapul de colț nu mai rămâne loc pentru spălător și plită. Mărește una dintre lungimi.",
+        "Cu lungimile acestea, după dulapul de colț nu mai rămâne loc pentru chiuvetă și plită. Mărește una dintre lungimi.",
       shapeNotBuildable:
         "Pentru forma aceasta nu putem propune încă o bucătărie. Alege altă formă.",
       orChooseLinear: "Sau alege o formă liniară.",
@@ -158,7 +158,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       stepsLabel: "Ce este inclus, în ordinea priorității",
       role: {
         fridge: "Frigider",
-        sink: "Spălător",
+        sink: "Chiuvetă",
         preparation: "Blat de lucru",
         hob: "Plită și cuptor",
         storage: "Depozitare",
@@ -175,7 +175,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
         placed: "inclus",
         notPlaced: "nu poate fi inclus",
       },
-      rule: "Regula: pe pereți scurți păstrăm întâi spălătorul și gătitul, apoi depozitarea; ce nu poate fi inclus este scos și marcat, nu înghesuit.",
+      rule: "Regula: pe pereți scurți păstrăm întâi chiuveta și gătitul, apoi depozitarea; ce nu poate fi inclus este scos și marcat, nu înghesuit.",
       busy: "Se compune…",
       dropped:
         "Dimensiunile pereților nu au lăsat destul spațiu pentru toate dulapurile, așa că nu am putut include: {roles}. Restul bucătăriei e compus pe măsura camerei tale.",
@@ -522,7 +522,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       "base-hob-2drawer": "Dulap plită și 2 sertare",
       "base-hob-oven": "Dulap plită și cuptor",
       "base-bottle-cargo": "Cargo îngust pentru sticle",
-      "base-sink": "Dulap spălător",
+      "base-sink": "Dulap pentru chiuvetă",
       "base-dishwasher": "Nișă mașină de spălat vase",
       "wall-cabinet": "Dulap suspendat",
       "wall-lift": "Dulap suspendat rabatabil",

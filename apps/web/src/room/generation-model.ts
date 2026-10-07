@@ -24,7 +24,7 @@ export type GenerationRowStatus = "pending" | "placed" | "not_placed";
 
 /**
  * What a row says it occupies. A core priority and the dishwasher declare a width the frame prints
- * (*Spălător · 600*). Storage takes whatever the wall has left, so it has no number to print (*restul
+ * (*Chiuvetă · 600*). Storage takes whatever the wall has left, so it has no number to print (*restul
  * peretelui*): a count of cabinets would be the per-cabinet row the aggregate exists to avoid.
  */
 export type GenerationRowExtent =
