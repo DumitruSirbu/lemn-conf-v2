@@ -1,9 +1,15 @@
-import { NeonDbError, neonConfig } from "@neondatabase/serverless";
+import {
+  Client,
+  NeonDbError,
+  neon,
+  neonConfig,
+} from "@neondatabase/serverless";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { applyMigrations } from "../src/migrate.js";
 import { MigrationExecutionError } from "../src/migration-errors.js";
 import { openDatabase, openDatabaseSession } from "../src/open-database.js";
+import { assertSafeTestDatabaseUrl } from "../src/test-database-url.js";
 import { markersFoundOn } from "./support/leaked-connection-markers.js";
 import {
   FAKE_DATABASE,
@@ -98,18 +104,33 @@ const SHORTEST_PART_WORTH_LOOKING_FOR = 5;
 
 /** The whole string and each credential and host in it, as written and decoded: what must not come back out. */
 function partsOf(value: string): string[] {
-  const { username, password, hostname } = new URL(
-    `http:${value.substring(new URL(value).protocol.length)}`,
-  );
-  const candidates = [username, password, hostname].flatMap((part) => [
-    part,
-    decodeURIComponent(part),
-  ]);
-  return [value, value.trim(), ...candidates, ...QA_MARKERS].filter(
-    (part) =>
-      part.length >= SHORTEST_PART_WORTH_LOOKING_FOR &&
-      !NAMES_A_MESSAGE_MAY_PRINT.includes(part),
-  );
+  return [value, value.trim(), ...credentialsAndHostOf(value), ...QA_MARKERS]
+    .flatMap((part) => [part, decodedOrAsWritten(part)])
+    .filter(
+      (part) =>
+        part.length >= SHORTEST_PART_WORTH_LOOKING_FOR &&
+        !NAMES_A_MESSAGE_MAY_PRINT.includes(part),
+    );
+}
+
+/** Read as the query driver reads them; none for a string that does not parse, whose whole text is still looked for. */
+function credentialsAndHostOf(value: string): string[] {
+  try {
+    const { username, password, hostname } = new URL(
+      `http:${value.substring(new URL(value).protocol.length)}`,
+    );
+    return [username, password, hostname];
+  } catch {
+    return [];
+  }
+}
+
+function decodedOrAsWritten(part: string): string {
+  try {
+    return decodeURIComponent(part);
+  } catch {
+    return part;
+  }
 }
 
 function shown(value: string): string {
@@ -160,6 +181,44 @@ async function faultsOfASessionWith(value: string): Promise<string[]> {
   return faults.map((fault) => `${shown(value)} -> ${fault}`);
 }
 
+function faultsOfWhatWasThrown(value: string, thrown: unknown): string[] {
+  const parts = partsOf(value);
+  return [
+    ...markersReachableFrom(thrown, parts),
+    ...markersFoundOn(thrown, parts),
+  ].map((found) => `${shown(value)} -> carries ${shown(found)}`);
+}
+
+/** The driver queried with no opener in between, as the live suites' ledger helpers do after the guard. */
+async function faultsOfTheDriverQueriedDirectlyWith(
+  value: string,
+): Promise<string[]> {
+  const error = await settled(() => neon(value)`select 1`);
+  const faults = faultsOfWhatWasThrown(value, error);
+  if (
+    (error as Error | undefined)?.message !== A_QUERY_FAILS_ONLY_AT_THE_SOCKET
+  )
+    faults.push(
+      `${shown(value)} -> failed before the socket: ${String(error)}`,
+    );
+  return faults;
+}
+
+/** The session client built and connected with no opener in between, as the live suites' schema lock does. */
+async function faultsOfTheClientConnectedDirectlyWith(
+  value: string,
+): Promise<string[]> {
+  const error = await settled(async () => {
+    const client = new Client(value);
+    client.on("error", () => undefined);
+    await client.connect();
+  });
+  const faults = faultsOfWhatWasThrown(value, error);
+  if (error === undefined)
+    faults.push(`${shown(value)} -> connected through a replaced socket`);
+  return faults;
+}
+
 interface UsedStrings {
   readonly used: string[];
   readonly faults: string[];
@@ -207,6 +266,57 @@ describe("a migration session opened with every swept string the session entry p
     expect(used.filter(holdsAnOddCharacter).length).toBeGreaterThan(50);
   });
 });
+
+function isAllowedByTheGuard(value: string): boolean {
+  return isAccepted((url) => {
+    assertSafeTestDatabaseUrl(url);
+  }, value);
+}
+
+describe("every swept string the isolation guard allows, used in each way a live suite uses the test URL", () => {
+  beforeEach(() => {
+    vi.stubEnv("DATABASE_URL", "");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it.each<[string, (value: string) => Promise<string[]>]>([
+    ["a query through the opener", faultsOfAQueryWith],
+    ["a migration session through the opener", faultsOfASessionWith],
+    ["a query with the driver directly", faultsOfTheDriverQueriedDirectlyWith],
+    [
+      "a session client connected directly",
+      faultsOfTheClientConnectedDirectlyWith,
+    ],
+  ])("%s carries nothing of the string", async (_use, faultsOf) => {
+    const { used, faults } = await useEveryAcceptedString(
+      isAllowedByTheGuardOrThrow,
+      faultsOf,
+    );
+
+    expect(faults).toEqual([]);
+    expect(unhandledRejections).toEqual([]);
+    expect(used.length).toBeGreaterThan(50);
+    expect(used.filter(holdsAnOddCharacter).length).toBeGreaterThan(30);
+  });
+
+  it("allows nothing either entry point refuses", () => {
+    const allowed = sweptValues().filter(isAllowedByTheGuard);
+
+    expect(allowed.filter((value) => !isAccepted(openDatabase, value))).toEqual(
+      [],
+    );
+    expect(
+      allowed.filter((value) => !isAccepted(openDatabaseSession, value)),
+    ).toEqual([]);
+  });
+});
+
+function isAllowedByTheGuardOrThrow(value: string): void {
+  assertSafeTestDatabaseUrl(value);
+}
 
 describe("the harness itself", () => {
   it("lets the runtime refuse a header it cannot carry, quoting it, when nothing refused the string first", () => {

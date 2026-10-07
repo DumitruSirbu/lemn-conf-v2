@@ -347,10 +347,12 @@ describe("strings pinned by name", () => {
     );
   });
 
-  it("lets the isolation guard read the name of a string only a session refuses: nothing that refuses it can connect with it", () => {
-    expect(() => {
-      assertSafeTestDatabaseUrl(WITH_A_ROOT_CERTIFICATE);
-    }).not.toThrow();
+  it("is refused by the isolation guard, since one live run uses both entry points, with the session's own refusal", () => {
+    expect(
+      refusalOf(() => {
+        assertSafeTestDatabaseUrl(WITH_A_ROOT_CERTIFICATE);
+      }),
+    ).toMatch(THE_SESSION_CLIENT_WILL_NOT_BUILD_IT);
   });
 
   it("refuses a string whose name a backslash makes the drivers read differently", () => {
