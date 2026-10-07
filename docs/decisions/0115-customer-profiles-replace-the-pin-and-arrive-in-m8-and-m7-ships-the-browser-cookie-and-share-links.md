@@ -89,6 +89,37 @@ signing up, is M8's to decide.
 - The M8 launch gate's security scope grows: login and sign-up endpoints join the mint and contact
   endpoints under the application limiter.
 
+## Amendment A — 2026-10-07: profiles are their own milestone, M8B
+
+**What moved.** Decision 1, the *Consequences*' M8 bullets and the title say profiles are built *in
+M8*. The owner answered M8 plan question Q1 on 2026-10-07 with *"Moldova only for now, rest as
+recommended"*; Q1 is therefore **answered as the architect recommended, option (b) (relayed, not the
+owner's own words on that question)**: profiles are a separate milestone, **M8B**
+(`docs/milestones/M8B-customer-profiles.md`), after M8 and still before launch, with their own branch
+and pull request. The plan's stated reason: *"Nothing ships before every milestone is done, so the
+split costs no release, and a pull request of twenty-seven waves is not a reviewable unit."*
+
+**Superseded wording, struck and kept:**
+
+- Decision 1: ~~built in M8~~ **built in M8B**.
+- Decision 3: ~~Until M8, a customer's design is reachable for editing only in the browser that made
+  it … M8's profile is the way back.~~ **Until M8B** — and M8's own success screen says so.
+- Decision 4: ~~their reasons become M8's obligations~~ **M8B's obligations**; the checklist is now
+  M8B's, carried across from the M8 plan's *Part P*. The question of the e-mailed edit link is
+  already settled for M8 by Q11: dropped (answered as recommended, relayed).
+- *Consequences*: ~~**M8** gains a dated *Customer profiles* section of obligations~~ the section is
+  **M8B's**; ~~the M8 launch gate's security scope grows~~ the login, sign-up and reset endpoints join
+  **M8B's** gate, not M8's.
+- Title and *Milestone* header: ~~arrive in M8~~ arrive in M8B. The file name is unchanged.
+
+**Unchanged:** the owner's rulings of 2026-09-11 (profile replaces PIN, e-mail plus password, the
+modal), the twelve obligations, M7's scope and the share link. Nothing here changes what a profile is.
+
+**Not resolved by this amendment.** The *Decision-record sweep* row for ADR 0019 and the header's
+*Milestone* line still say M8; they are history and are left as written. The obligations' wording
+(*"added to the application limiter ADR 0019 decisions 2–5 already assign to this phase"*, in the M8
+plan's Part P) assumes M8 builds the limiter first; M8B inherits it after 8F and 8G.
+
 ## Decision-record sweep
 
 | Record | What it says | How it is settled |

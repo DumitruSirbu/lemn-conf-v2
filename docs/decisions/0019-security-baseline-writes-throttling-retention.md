@@ -470,3 +470,15 @@ revision corrected* and *Decision-record sweep*. No decision above is changed.
 2. **Endpoint name.** Decision 5's table calls the contact endpoint `POST /api/contact`;
    `docs/ARCHITECTURE_PROPOSAL.md` §9 calls it `POST /api/contact-submissions`. The M8 plan's D15 uses
    the §9 name. Two records, one endpoint; the table's text is left as accepted.
+
+## Annotation — 2026-10-07, later: decision 4 and who the customers are at launch
+
+**Nothing above is changed.** Decision 4 names the Moldovan diaspora in Romania and Italy as the first
+reason non-MD traffic is never denied outright. On 2026-10-07 the owner ruled, verbatim, in reply to
+the M8 owner questions: *"Moldova only for now, rest as recommended"*. **Ruled:** customers at launch
+are Moldova only, *"for now"*. **Not ruled:** what happens to traffic from outside Moldova. Decision
+4's limits (a tighter limit and a `challenge`, never a `deny`) stand as accepted; whether they keep
+standing is M8 owner question Q23, whose recommendation (keep decision 4) is the architect's and is
+not a ruling. Decision 4's other two reasons, roaming and VPNs that geolocate to a neighbour and the
+owner testing from abroad, do not depend on the diaspora. Where production runs, which decision 4
+reads the country from, is open question Q21 and is not decided here.

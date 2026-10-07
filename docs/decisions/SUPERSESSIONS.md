@@ -18,6 +18,11 @@ replaced it — nothing is deleted or rewritten silently.
   Alternatives 1–2's rejection of passwords and accounts → **superseded** by **ADR 0115** on the owner's
   rulings of 2026-09-11 (*"Profile replaces PIN"*, *"In M8, with e-mail"*); the rejected alternatives'
   reasons are now M8's obligations (`milestones/M8-review-contact-success.md`, *Customer profiles*).
+- **ADR 0115** decisions 1, 3 and 4 and its *Consequences* (*profiles are built in M8*) → **moved to
+  M8B** by that record's **Amendment A** (2026-10-07), on the owner's answer to M8 plan Q1 (*"rest as
+  recommended"*, relayed; option (b)). Wording struck in place. The rulings of 2026-09-11 stand.
+- **Annotated 2026-10-07, later, nothing superseded:** **ADR 0019** decision 4's diaspora reason, against
+  the owner's *"Moldova only for now"*. The decision's limits stand; M8 question Q23 is open.
 - **ADR 0002**'s *shareable to anyone holding the link* and **ADR 0019** decision 1's open read →
   **superseded** by **ADR 0114** decision 5 on the owner's F5 answer of 2026-09-11 (*"Only its own
   browser"*, revised the same day to *"Own browser + private share link"*); both carry dated notes.

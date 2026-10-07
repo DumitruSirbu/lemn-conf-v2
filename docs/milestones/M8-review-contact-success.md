@@ -6,7 +6,9 @@
 > **Updated 2026-10-07, later, at `7519005` on `m8-review-contact-success` [src, git].** The owner
 > answered Q1–Q20 (*The owner's answers, 2026-10-07*). **Profiles left for M8B** (Q1), so M8 is
 > seventeen waves and ends at 8T. 8A S2's vendor reads are folded in (*8A figures*); 8A S1's
-> measurements are not in yet. **Six follow-up questions are open, Q21–Q26**, and the first two —
+> measurements ~~are not in yet~~ **arrived later the same day and are in the same section (written
+> at `a7b0363`)**; they changed 8B's slices and criteria and what 8F owes the e2e suite, and left
+> Q15 standing. **Six follow-up questions are open, Q21–Q26**, and the first two —
 > where production runs and where the database lives — make five of the recorded answers
 > conditional. Dispatchable as written: **8B, 8C, 8D, 8E, 8I**.
 >
@@ -384,7 +386,29 @@ before the grant is asked for.] *Blocks:* 8E, 8I.
 **Q15 — ADR 0019's limits against how the product is now used.** *[Answered 2026-10-07: (a), and
 600 an hour for (iii), as recommended (relayed). 8A S1's measurement is still owed. (iii)'s figure is
 an **application** limit; it was never a firewall rule, whose window is at most ten minutes (*8A
-figures* §7).]* The numbers predate two facts.
+figures* §7).]*
+
+**Reconciled with 8A S1, 2026-10-07. Q15 quoted ADR 0019 correctly; nothing in it changes and it
+does not return to the owner.** ADR 0019 d5 gives the mint four numbers in its own row and a fifth
+in the global table, both under decision 5 [doc; re-read 2026-10-07]. Q15 and 8A S1's part C each
+used different ones:
+
+| Dimension | ADR 0019 d5, `POST /api/designs` | Used by |
+| --- | --- | --- |
+| A Moldovan network block, per hour | 10 | Q15 (i) |
+| A Moldovan network block, per day | 30 | 8A S1 C: 15.0 MiB a day |
+| A non-Moldovan network block, per hour | 3, plus challenge; **no day figure** | 8A S1 C: 36.0 MiB a day |
+| A session, per hour | 5 | Q15 (i) |
+| All of `/api/*`, per hour | 1,000, challenge only | 8A S1 C: 11.7 GiB a day |
+
+Q15's recommendation was that the figures come back to the owner if an ordinary session crosses
+half a limit. 8A S1's scripted session made 1 mint against 5 an hour and 3 saves against 300: it
+does not. That session is one script, not a sample of customers, so what it establishes is the
+unit cost: one mint and one save for each *Continuă*, and one save for each applied edit. Q15's
+arithmetic is unchanged by it. A sixth *Continuă* in an hour is refused, and the owner's recorded
+answer accepts that with a message saying how long to wait. *[End of the 2026-10-07 note.]*
+
+The numbers predate two facts.
 (i) Every Step 1 *Continuă* mints a design (ADR 0111 d5). The mint limit is 5 an hour per session,
 10 an hour per network. A customer trying six room sizes in an hour is refused.
 (ii) The save limit is 300 an hour per session; the coalescer allows one save a second. About ten
@@ -424,7 +448,17 @@ the server; D17 keeps contact details in memory only.
 
 **Q19 — The launch gate after the reaper's retirement.** *[Answered 2026-10-07: the set is limiter
 + WAF, as recommended (relayed). **Conditional on Q21** for the WAF half. The storage-alert decision
-is still owed: 8A S1's figure was not in front of the owner.]* The gate was *limiter + retention + WAF,
+is still owed: 8A S1's figure was not in front of the owner.]*
+
+**The figure, 2026-10-07** (8A S1 part C; *8A figures*). At the recorded limits one Moldovan network
+block can add 15.0 MiB of rows a day, every day, and nothing removes them; one non-Moldovan block
+36.0 MiB (see Q23's rider). The nightly export copies every row, so it grows by the same amount.
+The global brake does not bound storage: it challenges, and it is 11.7 GiB a day if passed. **What
+this plan has not read is the database plan's storage ceiling**, so it cannot say how many days
+that is. **To the owner:** with this in front of them, (a) add a storage alert on the database, or
+(b) do not. *Recommended: (a).* It is the only thing that tells anyone before the ceiling does.
+
+The gate was *limiter + retention + WAF,
 together*. With retention retired, what gets past the limits is kept forever.
 *Recommended:* confirm the set is **limiter + WAF**; 8A states the worst case the limits admit in
 bytes per day (backlog 92), and the owner decides whether to add a storage alert on Neon.
@@ -487,6 +521,15 @@ for everyone.
 customer simply never arrives. If Q21 is (b) there is no country header, and (c) is what remains
 unless a location database is added. *Blocks:* 8F S1, S2.
 
+**A rider, added 2026-10-07 from 8A S1's part C.** ADR 0019 d5 gives a Moldovan network block 10
+mints an hour **and 30 a day**. It gives a non-Moldovan block 3 an hour and **no day figure**. Three
+an hour is 72 a day, so the tier the record calls *"much tighter"* admits more than twice the
+Moldovan tier's rows in a day: 36.0 MiB against 15.0 MiB at the largest design. The record's numbers
+are not re-decided here; the missing one is asked for.
+(a) The non-Moldovan block also gets a day cap, no higher than the Moldovan 30. (b) Leave it: the
+challenge is the control. *Recommended: (a), at 10 a day* — a third of the Moldovan figure, as its
+hourly 3 is of 10. That number is the architect's proposal and needs the owner's word.
+
 **Q24 — Which phone numbers are accepted?** (Q6 (iii), narrowed.) The two readings of the owner's
 answer disagree: *"rest as recommended"* keeps Moldovan numbers plus any international number written
 with `+`; the coordinator's reading of *"Moldova only"* is Moldovan numbers alone.
@@ -529,12 +572,12 @@ answers; the questions each wave first waited on are in *The questions as put*.
 
 | Wave | Covers | Packages | Tier | Waits for, as of 2026-10-07 |
 | --- | --- | --- | --- | --- |
-| 8A | Measurements, vendor reads, the questions | none (docs, scratch) | Light | **In progress:** S2 done, S3 answered, S1 running |
+| 8A | Measurements, vendor reads, the questions | none (docs, scratch) | Light | S1, S2 and S3 are in (*8A figures*, *The owner's answers*). Not closed: Q21–Q26 are open, and its review has not been run |
 | 8B | A driver error never prints the connection string | persistence, web | Full + security | **Nothing. Dispatchable** |
 | 8C | The review as a value: rows, room line, submit eligibility | web, domain (read) | Full | **Nothing. Dispatchable** (Q10 answered) |
 | 8D | The review route and screen 3A/3B; the CTA gets its destination | web | Light + visual; security on S1 | **Nothing but 8C. Dispatchable** (Q2 answered) |
 | 8E | The rate-limit store | persistence | Full + security | **Nothing. Dispatchable** (Q14 answered) |
-| 8F | The limiter and the mint (SEC-001, backlog 90) | web | Full + security | 8A S1's counts; **Q21** (address and country source); **Q23** |
+| 8F | The limiter and the mint (SEC-001, backlog 90) | web | Full + security | **Q21** (address and country source); **Q23** and its rider; the three red e2e specs triaged (8A S1's counts are in) |
 | 8G | The limiter on saves, shares and reads; pruning | web, persistence | Full + security | 8F |
 | 8H | The submission contract | domain | Full | **Q24**, for the phone rule in S1 only |
 | 8I | The contact submissions store | persistence | Full + security | **Nothing but 8E's migration number. Dispatchable** (Q14 answered); S0 measures first |
@@ -596,18 +639,59 @@ and *Owner questions*; ADR 0019.
 
 ### 8A figures
 
-#### S1 — measurements: NOT IN YET (2026-10-07)
+#### S1 — measurements, 2026-10-07
 
-**Placeholder.** 8A S1 is running. Nothing below is known until it reports; no wave may cite a
-figure from this list before then (R4).
+~~**Placeholder.** 8A S1 is running.~~ **In.** Every figure is another agent's run. The architect
+read each output file named below on 2026-10-07 and re-ran nothing; the coordinator read
+`D-summary.out` only. Files are in `m8-8a-s1/` in the session scratchpad. All database values in
+part D are fakes (`FAKEPASSWORD_8A`, `fakeuser_8A`, `fakehost-8a.invalid`).
 
-| Figure | Feeds | Value |
-| --- | --- | --- |
-| The prerendered routes, from a real build's `prerender-manifest.json` | 8Q; the CSP section | *owed* |
-| `POST /api/designs` and `PUT` counts for one ordinary customer session | Q15; 8F, 8G | *owed* |
-| The same counts for one full e2e run | 8F S0's test policy | *owed* |
-| The worst case the mint limits admit, in bytes per day | Q19's storage-alert decision; backlog 92 | *owed* |
-| Which thrown errors carry the connection string | 8B | *owed* |
+| | Figure | Value | Script → output |
+| --- | --- | --- | --- |
+| A | Prerendered routes in a real build | **Four:** `/_global-error`, `/_not-found`, `/ro/configurator/contact`, `/ru/configurator/contact`. The same after the CI-mode build (the two output files are byte-identical) | `A-prerendered-routes.mjs` → `A-prerendered-routes.out`, `…after-ci-build.out` |
+| B i | One scripted session: Step 1 (straight room, wall A and height typed), *Continuă* into the editor, the dearest material applied, the dearest hardware applied, a reload | **1** `POST /api/designs` (201); **3** `PUT` (200): the hand-off write 0.06 s after the mint, then one per applied setting. 38 requests in all | `B-session.spec.ts` → `B-session-count.out`, `B-session-timeline.out` |
+| B ii | One full e2e run on `next dev` | 622 passed, 2 skipped. **444** `POST /api/designs` (443 × 201, 1 × 403); **266** `PUT` (264 × 200, 2 × 403); 813 `GET /api/designs/{id}`; 58 share `POST`s; 33,226 requests answered. **All from one address** | `B-count.mjs` → `B-e2e-dev-count.out`; `B-e2e-dev-playwright.out` |
+| B ii | The same with `CI=1` (a build and `next start`) | 619 passed, **3 failed**, 2 skipped. 444 `POST`, 265 `PUT`. The failures: `qa-7e3b-s6-lock.adversarial.e2e.spec.ts:112`, rounds 1 and 5, and `qa-7e3b-s6-two-tab-convergence.adversarial.desktop.e2e.spec.ts:21`, round 2 of 3 (*"did not open with canWrite: true"*). **Not investigated by anyone** | `B-e2e-ci-count.out`; `B-e2e-ci-playwright.out` |
+| C | The largest storable design | `MAX_DESIGN_BYTES` = **523,972**, recomputed from `design-bounds.ts` and matched against the built package; equals backlog 92's figure | `C-worst-case-bytes.mjs` → `C-worst-case-bytes.out`; `C-crosscheck-runtime.out` |
+| C | Rows a limit admits in a day, each at that size | One Moldovan network block, the day cap binding: 30 rows, **15.0 MiB a day**, 450 MiB in thirty days. One non-Moldovan block: 72 rows, **36.0 MiB a day** (3 an hour and no day cap). One session: 120 rows, 60.0 MiB. The global brake, if every request were a mint: 24,000 rows, **11.7 GiB a day**, which needs 800 distinct Moldovan blocks and is a *challenge*, not a refusal | the same |
+| D | Which errors carry the connection string | See the table below | `D-probe.mjs`, `D-run-all.sh` → `D-summary.out`, `D-results.ndjson`; `D-route-run.sh` → `D-route/*.server.log`, `D-route/*.out` |
+
+**D in full** [`D-summary.out`]. *pw / host / user* = where the fake password, host and user were
+found. *All three* means the thrown error's `message`, its `stack` and its `util.inspect` output.
+
+| Value | The three runtime sites (`neon-configuration-repository`, `share-link-repository`, `design-row-source`) | The two test helpers (`delete-designs-for-tests`) | `migrate` | `migrate-status` |
+| --- | --- | --- | --- | --- |
+| Bad percent-escape | **Leak:** plain `Error`; pw, host, user in all three | **Leak:** the same | **No return in 45 s** | **Leak:** `MigrationExecutionError` whose `cause` carries pw, host, user; the line the CLI prints does not |
+| Missing host | **Leak:** pw and user (there is no host) | **Leak:** `TypeError` `ERR_INVALID_URL`, whose **`input` property** holds the string | **Leak:** the same `TypeError.input`; the printed line is clean | **Leak** in `cause` |
+| Non-URL string | **Leak:** all | **Leak:** `TypeError.input` | **Leak:** `TypeError.input` | **Leak** in `cause` |
+| Bad port | **Leak:** all | **Leak:** `TypeError.input` | **Leak:** `TypeError.input` | **Leak** in `cause` |
+| Empty password | Clean (`NeonDbError`) | Clean | **No return in 45 s** | Clean |
+| Wrong scheme | Clean (plain `Error`) | Clean | **No return in 45 s** | Clean |
+| Well-formed, unreachable | Clean (`NeonDbError`) | Clean | **No return in 45 s**, nor in 170 s; a refused local port, not in 60 s | Clean |
+
+**At the route** [`D-route/*.server.log`, `D-route/*.out`], on a built app with each bad value as
+`DATABASE_URL`:
+
+- **Our own log line is already clean.** It prints *"Connection string: <redacted url>"*.
+- **The platform's error logger prints the string in full**, password included, because the route
+  rethrows the driver's error untouched: 3 lines in the server log for a bad percent-escape, 3 for a
+  missing host, 5 for a non-URL string, 0 for a well-formed unreachable host.
+- **No response carries it:** 0 of the 12 recorded response files contains a marker.
+
+**What the figures change.**
+
+- **8B:** the leak is in what is **thrown**, not in what this project logs. Its slices and criteria
+  are rewritten below.
+- **8Q:** the routes left without a nonce are exactly A's four; 8L S3 removes the two contact pages,
+  leaving `/_global-error` and `/_not-found`.
+- **8F:** see *What 8F owes the e2e suite* in that wave.
+- **Q15:** stands; see its note. **Q19:** the figure the owner was owed now exists. **Q23:** gains
+  one rider, the non-Moldovan day cap.
+- **ADR 0041 d3** lists five prerendered routes, measured on 2026-08-31. A's four do not contradict
+  it: two became Route Handlers in M7 wave 7E3a (ADR 0114, *Decision-record sweep*, the 0041 row)
+  and the contact page gained its locale prefix in M6B. The ADR owes a dated pointer; the scribe's.
+- **`migrate` does not return** when it cannot connect, for a well-formed address too. That is not
+  a leak and is not 8B's; it is a finding with no owner, listed for the backlog.
 
 #### S2 — vendor reads, 2026-10-07
 
@@ -679,15 +763,45 @@ are that report's.
 | Slice | Does | Files | Reading |
 | --- | --- | --- | --- |
 | S1 | One place opens a connection. It checks the URL's shape first and turns any failure into a domain error that names the **variable** and never its value. The three runtime sites use it | `persistence/src/read-database-url.ts`, a new `open-database.ts`, `neon-configuration-repository.ts`, `share-link-repository.ts`, `design-row-source.ts` | *Added 2026-09-06* below; ADR 0008, *Incident during setup*; ADR 0145; `environments-and-resources.md`, *Never print a secret*; 8A S1's reproduction |
-| S2 | The migration tools and the lazy web wrapper use it; query-time errors are covered where 8A showed the URL in one | `migrate.ts`, `migrate-status.ts`, `apps/web/src/lib/server/repository.ts`, `design-failure-log.ts` | `read-database-url.ts`'s note on `MigrationExecutionError`; ADR 0096 |
+| ~~S2~~ | ~~The migration tools and the lazy web wrapper use it; query-time errors are covered where 8A showed the URL in one~~ | ~~`migrate.ts`, `migrate-status.ts`, `apps/web/src/lib/server/repository.ts`, `design-failure-log.ts`~~ | ~~`read-database-url.ts`'s note on `MigrationExecutionError`; ADR 0096~~ |
+| S2 | **Restated 2026-10-07 from 8A S1 part D.** The two migration tools open through it. A `MigrationExecutionError` never carries a driver or URL error as its `cause` when that error holds the string | `migrate.ts`, `migrate-status.ts`, `migration-errors.ts` | 8A figures, *D in full*; `read-database-url.ts`'s note on `MigrationExecutionError`; ADR 0096; ADR 0008, *Incident during setup* |
+| S3 | **Added 2026-10-07.** The two test helpers and the test-URL resolver open through it. They hold the test database's owner credential and run on the CI runner, so they are in the census | `delete-designs-for-tests.ts`, `test-database-url.ts` | 8A figures, *D in full*; ADR 0006; `environments-and-resources.md`, *Test-database isolation* |
 
-*Criteria.* (1) With each connection variable set, in turn, to each malformed value in a table (a
-bad percent-escape, a missing host, a non-URL string, an empty password), carrying a recognisable
-fake password, no log line, thrown message, `cause` chain or stack frame from any construction site
-contains that password or the host. Asserted by a test over every site, found by a census that fails
-when a new `neon(` call appears outside the one opener. (2) The error names the variable that is
-wrong. (3) A well-formed URL behaves exactly as before; the persistence live suites are unchanged.
-(4) *Must not:* a fallback from one variable to another appears (ADR 0008).
+**Why S2 changed.** 8A S1 showed that this project's own log line already prints *"<redacted
+url>"*, so `design-failure-log.ts` needs nothing, and that the lazy web wrapper only constructs the
+repositories S1 fixes. What prints the password at a route is the platform's error logger, given the
+error the route rethrows. **The fix is in what is thrown.**
+
+*Criteria.* ~~(1) With each connection variable set, in turn, to each malformed value in a table (a
+bad percent-escape, a missing host, a non-URL string, an empty password)…~~ **Restated 2026-10-07:**
+
+1. **The table.** Each connection variable (`DATABASE_URL`, `MIGRATION_DATABASE_URL`,
+   `TEST_DATABASE_URL`) is set in turn to each of seven values carrying a recognisable fake
+   password, user and host: a bad percent-escape, a missing host, a non-URL string, **a bad port**,
+   an empty password, a wrong scheme, and a well-formed unreachable address. The first four leak
+   today and must stop; the last three are clean today at the sites that return, and **must stay
+   clean**.
+2. **Where a marker may not be**, for every site and every value: the error's `message`; its
+   `stack`; **every own property, `input` included** (Node's `ERR_INVALID_URL` keeps the whole
+   string there); every error on its `cause` chain, by the same four checks; and its `util.inspect`
+   output at unlimited depth. A test that checks `message` alone passes today on every leak the
+   table above records under `TypeError.input` or `cause`.
+3. **The sites.** A census finds them, and fails when a `neon(` call or a `new URL(` over a
+   connection variable appears outside the one opener: the three runtime sites, `migrate`,
+   `migrate-status` and both test helpers. Seven today.
+4. **At the route.** For `POST /api/designs`, `GET /api/designs/{id}` and the design page, the error
+   that leaves the handler passes criterion 2. QA re-runs 8A S1's `D-route-run.sh` once against the
+   fixed build and quotes a server log with no marker; that run, not a unit test, is the evidence
+   about the platform's logger.
+5. The error names the variable that is wrong, and says nothing else about its value: not its
+   length, not which character was bad.
+6. **`migrate` answers at once for a shape the opener refuses.** With a bad percent-escape or a
+   wrong scheme it exits non-zero with the domain error instead of not returning. *Not in scope:*
+   that `migrate` also does not return for an empty password or an unreachable address, which are
+   well-formed; recorded in *8A figures* for the backlog.
+7. A well-formed URL behaves exactly as before; the persistence live suites are unchanged.
+8. *Must not:* a fallback from one variable to another appears (ADR 0008). *Must not:* the opener
+   keeps the refused string, or the error it caught, anywhere on the error it throws.
 
 *QA reading:* the criteria; `tests/read-database-url.test.ts`; `scripts/gates/boundary.sh`. QA
 sabotages both ways (R6): remove the wrap and the suite goes red; move a call site and it stays
@@ -844,6 +958,32 @@ of SEC-001 and backlog 90. *Tier: Full + security.*
 10. Step 1 shows the wait in minutes in both locales and the customer's room entry is kept.
 
 *Phone acceptance.* The refusal message at 390 × 844 in both locales, inspected.
+
+**What 8F owes the e2e suite — added 2026-10-07 from 8A S1 part B.** One run makes **444 mints, 266
+saves, 813 design reads and 58 share requests from one address**, in under ten minutes. The
+production policy allows that address 10 mints an hour, or 3 where no country header exists, which
+is every run off Vercel. So the suite cannot run under the production policy, and S0 must settle
+these before S1 is written:
+
+1. **The suite's policy is a policy, not a switch.** The limiter runs in e2e with limits high
+   enough for the measured run several times over in one hour (the pre-push gate and a developer
+   re-run can share an hour). *Must not:* the limiter is bypassed, so that a wiring fault in the
+   route is still caught by the whole suite.
+2. **The production numbers are proved elsewhere:** at unit level on a fake clock (criterion 8),
+   and by a small set of e2e specs against a server started with the production policy, apart from
+   the main suite's server, so their refusals cannot spill into another test's hour.
+3. **Selection is by how the server is started, never by a request.** Criterion 9 stands, and S0
+   names the mechanism and the test that proves a production build cannot reach it.
+4. **The counters do not accumulate in the test database.** Each run's rows are bounded by the
+   prune or by keys scoped to the run; ADR 0006 and ADR 0128 apply to the new table.
+5. **A baseline before any limiter code.** With `CI=1`, three specs are red today, all about two
+   tabs minting together: `qa-7e3b-s6-lock.adversarial.e2e.spec.ts:112` (rounds 1 and 5) and
+   `qa-7e3b-s6-two-tab-convergence.adversarial.desktop.e2e.spec.ts:21`. They are not M8's, and
+   nobody has investigated them. The limiter will sit in front of exactly those requests, so a red
+   there after 8F could not be told from a red before it. **8F is not dispatched until the
+   coordinator has had the three re-run alone** (`WORKFLOW.md`: a failing e2e is a contention
+   suspect first) **and recorded each as a flake, a test fault or a defect.** D11's mechanism reads
+   the same rows those specs race over, which is a second reason.
 
 *QA reading:* the criteria; `tests/app/api/designs/`; the e2e mint fixture; ADR 0019's 2026-08-31
 correction. Sabotage both ways for each bucket. *Logic and clean-code readers:* the slice files; ADR
@@ -1374,8 +1514,8 @@ nonce-based policy as `Content-Security-Policy-Report-Only` with **no report sin
 preconditions, both measured in wave S4 of `adversarial-review-remediation.md`: a method of
 collecting violations, and the prerendered routes carrying no nonce — ~~`/`, `/_global-error`,
 `/_not-found`, `/configurator/configure`, `/configurator/contact`~~ **today `/_global-error`,
-`/_not-found` and the two contact pages [src `security-headers.ts:13-14`; re-read from the manifest
-in 8A]** — so enforcing today would blank them, `/_global-error` included, which is the error
+`/_not-found` and the two contact pages [src `security-headers.ts:13-14`; ~~re-read from the manifest
+in 8A~~ **measured by 8A S1 from a real build's manifest: exactly these four** (*8A figures*, A)]** — so enforcing today would blank them, `/_global-error` included, which is the error
 boundary itself. Flipping the one constant `CONTENT_SECURITY_POLICY_MODE` without clearing both
 preconditions would take the app down. **Wave 8Q.**
 
