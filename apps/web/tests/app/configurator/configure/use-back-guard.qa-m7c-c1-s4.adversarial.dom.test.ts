@@ -41,6 +41,10 @@ const EDITOR_RO = `/ro/d/${DESIGN}`;
 const EDITOR_RU = `/ru/d/${DESIGN}`;
 const NEXT_STATE = { __NA: true };
 const MAX_DRAINED_TRAVERSALS = 50;
+// Vitest's 5 s default is below what 10 000 runs cost on a CI runner: 1.2 s locally, over 5 s there
+// (ci run 37544936477, where the whole file ran 4.5x slower than it does locally).
+const CONFIRM_PROPERTY_RUNS = 10_000;
+const CONFIRM_PROPERTY_TIMEOUT_MS = 60_000;
 
 type Action =
   | "back"
@@ -447,27 +451,31 @@ describe.each([
     );
   });
 
-  it("Confirm, whenever the question is open, lands on Step 1 and nowhere else", () => {
-    fc.assert(
-      fc.property(
-        sequenceOf([...BASIC_ACTIONS, "switchLanguage"]),
-        (actions) => {
-          const subject = openTab(isStrict);
-          for (const action of actions) {
-            if (action === "confirm" && subject.isAsking) {
-              subject.perform("confirm");
-              expect(subject.pathname).toBe(STEP_ONE);
-              expect(subject.isAsking).toBe(false);
-            } else {
-              subject.perform(action);
+  it(
+    "Confirm, whenever the question is open, lands on Step 1 and nowhere else",
+    () => {
+      fc.assert(
+        fc.property(
+          sequenceOf([...BASIC_ACTIONS, "switchLanguage"]),
+          (actions) => {
+            const subject = openTab(isStrict);
+            for (const action of actions) {
+              if (action === "confirm" && subject.isAsking) {
+                subject.perform("confirm");
+                expect(subject.pathname).toBe(STEP_ONE);
+                expect(subject.isAsking).toBe(false);
+              } else {
+                subject.perform(action);
+              }
             }
-          }
-          subject.unmount();
-        },
-      ),
-      { numRuns: 10000 },
-    );
-  });
+            subject.unmount();
+          },
+        ),
+        { numRuns: CONFIRM_PROPERTY_RUNS },
+      );
+    },
+    CONFIRM_PROPERTY_TIMEOUT_MS,
+  );
 
   it("a kitchen nobody edited never asks, whatever else happens (refusals are not edits)", () => {
     fc.assert(
