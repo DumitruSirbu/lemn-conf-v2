@@ -862,9 +862,10 @@ or something like sendgrid"*), was recorded as not ruled, and the adapter went t
 milestone. The host (Q21) and the database's home (Q22) stay deferred. **Q25 is closed by this
 answer**, and with it the architect's Q25 recommendation of the shop's own mail host. One fact
 travels with the choice and is not undone by it: Resend keeps account data, metadata and thirty
-days of each message's content in the United States [ven §4]. Whether that fact was in front of
-the owner when they chose is the coordinator's to confirm; it goes into the privacy text either
-way (Q7, Q13).
+days of each message's content in the United States [ven §4]. ~~Whether that fact was in front of
+the owner when they chose is the coordinator's to confirm~~ **Confirmed later the same day
+[relayed by the coordinator]: the owner chose Resend knowing it stores account data and thirty
+days of mail content in the United States.** It goes into the privacy text (Q7, Q13).
 
 **Q29 as it now stands: closed.** No marked test deployment is built. A deployment whose mail
 variables are set sends real mail; one where any is unset says the request cannot be sent, as D8
@@ -2524,6 +2525,133 @@ scrolls the page.** The unit tests cannot show these: the canvas there is a stub
 **Owner questions for 8D: none new.** The open half of Q31 does not block it. The duplicated
 sentence goes with Q9. What a refused stored row shows is not the owner's: the load-error page
 already exists.
+
+#### 8D — adjudication of adversarial QA, 2026-10-07
+
+**State.** The wave's code is `7fa5258`, `cafcf95`, `b2b24e3`, `02e7fa0`, `75860c1` and a copy
+change `2d05dac`; QA's tests are `95a72fb` [relayed]. QA is the first agent to run the wave in a
+browser. **Five tests are left failing on four findings.** What held is QA's, relayed: the two
+doors answer alike for every refusal; a non-visitor sends no query; the history; the save wait;
+ruling 1a (a swipe on the scene scrolls the page, a drag turns nothing). **The tripwire of
+criterion 12 was measured and not reached:** the bottom region in Russian with both sentences is
+243.95 px, 28.9% of the viewport; with a conflicted save as a third sentence, 44.5%.
+
+| Item | Class | Ruling |
+| --- | --- | --- |
+| QA1 `?settings=open` clicks a trigger that is still off, then removes the parameter | **Implementation defect** against criterion 5. **And a contract gap**: *"once on arrival"* did not say what arrival is while write access is unknown | E1 |
+| QA2 in a U, *Editează* on a wall C group opens the editor with nothing selected | **Contract gap**, the architect's: criterion 5 and D3 did not meet the editor's own rule that a body on a cut wall is not selected | E2 |
+| QA3 a review reached from a stale editor shows the older design, ready | **Contract gap**, the architect's: criterion 20 protected the store by id alone, and so protected a stale copy as it does an unsaved edit | E3 |
+| QA4 the groups stand 0 px apart: a class the stylesheet does not define | **Implementation defect** | E4 |
+| QA5 the conflict sentence names two controls the review does not have | **Contract gap** in criterion 4, which borrowed the editor's sentences | E5 |
+| QA6, QA7 | Test-fidelity, closed by QA's own tests | Nothing owed |
+
+**Rules.**
+
+- **E1 — an arrival is honoured when it can be, once, and the parameter leaves only then.**
+  `?select=` needs nothing and is honoured at once, as built. `?settings=open` needs the answer
+  about write access, because the sheet's trigger is off until it comes
+  [src `settings/global-settings.tsx:262`]. So: while the answer is awaited the parameter stays
+  on the URL and nothing is clicked. When the browser may write, the sheet opens and the parameter
+  is removed. When it may not, or the check fails, the sheet is not opened, since it is not
+  openable read-only today; the parameter is removed and the editor's own notice says why
+  nothing can be changed. *Once* means one outcome for one arrival. *Must not:* the parameter is
+  removed before the outcome; the sheet opens a second time on a later render, a reload or a
+  language switch.
+- **E2 — arriving with a body selected means arriving where that body can be seen.** The editor
+  keeps its rule: a body on a cut wall is not selected. So the arrival moves the view first. If
+  the view the customer last stood at would cut the body's wall, the editor stands at **that
+  wall's own view** (`wallA`, `wallB`, `wallC`); should that one cut it too, at the first of the
+  room's views, in their order, that does not. Otherwise the view is left where it was. Then the
+  body is selected. All of it is computable before the scene exists: a view carries its eye
+  [src `three-adapter/src/stage.ts:228-232`], and `cutawayWallsFor` takes an eye and the room
+  [src `three-adapter/src/cutaway.ts:42`]. Only a U cuts a wall at all [src, the same function].
+  - *The remembered view* (ruling 3) becomes the one stood at. It is the customer's camera, and
+    this is where it now is.
+  - *What does not change:* tapping a body never moves the camera; changing to a view that cuts
+    a selected body's wall still deselects it. Only an arrival chooses a view.
+  - *It covers the refusal's links* (criterion 13): they arrive the same way. A refusal naming a
+    body on wall C lands on it, selected and in sight.
+  - *As a property:* for every generated U and every wall that holds a body, that wall's own view
+    does not cut it. If one does and no other view serves, the arrival selects nothing, and that
+    is a finding for the views, not for this rule.
+- **E3 — the review shows the newest copy this tab can know, and never an older one as ready.**
+  On every arrival the hydrator holds two copies: the store's, at the revision this tab last
+  heard, and the page's, at the revision the server held when it rendered. It needs no request;
+  criterion 20's *"sends no request to `/api/designs/{id}`"* stands.
+  - **The store holds an edit not yet saved:** the store is kept. This is what criterion 20 was
+    for. The call to action waits; the save succeeds, or meets a conflict (E5), which is how the
+    editor itself learns of a newer copy.
+  - **The store is clean and the page's revision is the greater:** the tab was stale. The page's
+    copy replaces the store's. **A customer whose tab was stale sees the saved kitchen on the
+    review, not the one this tab remembered.**
+  - **The store is clean and the page's revision is the lesser or the same:** the store is kept.
+    A page restored by Back or Forward can be older than the store: Next keeps a restored page's
+    payload, and its own note on the client cache says that behaviour is not changed by the
+    cache's lifetime [doc `next/dist/docs/…/staleTimes.md:36`, next 16.3.8].
+  - *Why revisions may be compared.* A save sets `revision = revision + 1`
+    [src `neon-configuration-repository.ts:295`], so the greater is the newer. They are compared
+    as whole numbers that are never turned into a JavaScript `number` and never added to, which
+    is what `design-revision.ts` forbids and why.
+  - *What it does not close, and what does.* Another tab can save after this review has opened.
+    The review cannot know. **8K refuses a request whose revision is not the stored one (D5)**;
+    that is the line that keeps an offer from being asked for a kitchen that is not the saved
+    one, and the review's rule only makes it rare.
+  - **Criterion 20's *must not*, restated:** arriving from the editor, the review's hydration
+    never replaces a store that holds an unsaved edit of this design, and never replaces a newer
+    copy with an older one.
+- **E4 — the groups are spaced as frame 3A spaces its blocks.** And a test fails when the screen
+  names a class its stylesheet does not define, for every class the review's files name.
+- **E5 — the review does not settle a conflict; it sends the customer to where it is settled.**
+  With the save in conflict the call to action is off, and the sentence says that the kitchen
+  was changed elsewhere and that the choice is made in the editor, with a link to it. The
+  editor's own sentence, which names *reload* and *overwrite*, is not shown here. New wording, in
+  both languages, under Q10's rule. A reload still works and is not advertised.
+
+**The fix round** — five items, five production files.
+
+1. **E1** (QA1). `configure-screen.tsx`.
+2. **E2** (QA2). `configure-screen.tsx`; `scene/camera-preset-store.ts` only if choosing the view
+   belongs beside the remembered one. No adapter change: `cutawayWallsFor` and the room's views
+   are called as they are.
+3. **E3** (QA3). `app/d/[id]/review/hydrate-and-review.tsx`; `store/configurator-snapshot.tsx`
+   only if the guard's shape must change for the editor's and the share view's hydrators too,
+   which then keep their behaviour.
+4. **E4, E5** (QA4, QA5). `review-screen.tsx`, `review.module.css`; the message files as one
+   leaf set for E5's sentence.
+5. **Tests.** The implementer's own for E1–E5, the class check of E4 among them. QA's files are
+   not edited by the implementer.
+
+*Reading, implementer:* this adjudication; criteria 4, 5, 13, 20 and rulings 1a and 3;
+`configure-screen.tsx:305-365` (`useHonourArrival`); `scene/kitchen-stage.tsx:360-375` (the cut
+set and A8.3's deselect, read and not edited); `three-adapter/src/cutaway.ts`;
+`settings/global-settings.tsx:80-120, 255-270`; `store/configurator-snapshot.tsx`;
+`packages/persistence/src/design-revision.ts`; the staleTimes page named above; frame 3A
+(`…Mobil.dc.html:994-1060`) for E4; QA's five failing specs under
+`tests/e2e/qa-8d-review-*.adversarial*.e2e.spec.ts`; ADR 0113 and Q10 for E5's leaf.
+
+**Then.** QA re-runs its five failing specs, re-aims `save-wait:293` to E3, and adds: an arrival
+on each of a U's wall C groups and on a refusal's wall C body (E2); a review restored by Forward
+after a later save, which must keep the newer copy (E3); the conflict on the review (E5). Then the
+full e2e once, in both modes. **Then review:** the combined reviewer on the whole wave; the
+security reader on S1 and on E3, which changes what a door puts in the store; the visual
+verifier, whose brief gains one line: **spacing is measured, not judged by eye** — the gaps
+between sections and between groups at 390 px, in pixels, beside the frame's own values.
+
+**The shard budget.** Mobile shards stand at 120, 123, 112 and 114 of 125 after QA's additions
+[relayed]. The re-run adds about five tests. QA runs `pnpm gate:e2e-shard-budget` after adding
+them. If a shard goes over, **a fifth mobile shard is added**, by the owner's standing rule that
+the budget governs. That is a change to `ci.yml` and to the gate's own count, made by the
+coordinator in its own commit before the push, not by the implementer inside a behaviour fix.
+
+**The owner's copy change** (*chiuvetă* in Romanian; *шкаф* for *корпус* in three Russian lines;
+relayed) **goes in as its own commit before the fix round**, so E5's new leaf lands on the lock
+and the hashes as that commit leaves them. It is the owner's wording applied as given; the
+implementer reports whether *spălător* in `room/generation-model.ts` and in the domain's
+`commands/rejection.ts` is ever shown to a customer.
+
+**Unmeasured, carried to the close-out as unproven** [QA's list]: criterion 15 in a browser; a
+timing difference between the two doors; which body each overflow mark belongs to; pinch; iOS
+Safari; a real runner; the save wait, the arrival, the screen and the scene at desktop width.
 
 ### 8E — the rate-limit store
 
