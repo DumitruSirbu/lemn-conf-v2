@@ -14,15 +14,22 @@ import {
   chooseAnotherHardwareTierAndSave,
   expectReviewDrawn,
   openReview,
+  goBackAndSettle,
+  goForwardAndSettle,
   readBottomRegion,
   recordRequests,
+  REVIEW_BOTTOM,
   REVIEW_CTA,
   reviewPath,
   SAVE_WAIT,
   toTheDesignApi,
   touchTheMiddleOf,
 } from "./support/qa-8d-review";
-import { openSeededDesign, test } from "./support/seeded-design";
+import {
+  FIRST_FRAME_FREEZE_TIMEOUT_MS,
+  openSeededDesign,
+  test,
+} from "./support/seeded-design";
 import { seedDesign } from "./support/u-design";
 
 const FIGURE = '[data-section="figure"]';
@@ -177,7 +184,6 @@ test("a save the server keeps failing: the call to action stays off with the edi
 });
 
 const REFUSED_SAVES: readonly (readonly [string, number, string])[] = [
-  ["a conflict", 409, APPROVED_ROMANIAN_MESSAGES.panel.saveConflictNotice],
   [
     "a refused write",
     403,
@@ -223,6 +229,73 @@ for (const [name, status, sentence] of REFUSED_SAVES) {
   });
 }
 
+test("a conflicted save: the review says in its own words that the choice is made in the editor and links there, never naming a reload or an overwrite it does not have; the link opens the editor still in conflict", async ({
+  page,
+  seededDesign,
+}) => {
+  await openSeededDesign(page, seededDesign);
+  await answerSavesWith(page, seededDesign.id, refuseWith(409));
+
+  await editThenOpenTheReviewAtOnce(page, seededDesign.id);
+
+  await expectCallToActionOffBecauseOf(
+    page,
+    APPROVED_ROMANIAN_MESSAGES.reviewScreen.conflict,
+  );
+  const foot = page.getByTestId(REVIEW_BOTTOM);
+  await expect(foot).not.toContainText(
+    APPROVED_ROMANIAN_MESSAGES.panel.saveConflictNotice,
+  );
+  const openEditor = foot.getByRole("link", {
+    name: APPROVED_ROMANIAN_MESSAGES.reviewScreen.openEditor,
+    exact: true,
+  });
+  await expect(openEditor).toBeInViewport();
+  expect((await openEditor.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+  await page.waitForTimeout(SEVERAL_RETRIES_MS);
+  await expectCallToActionOffBecauseOf(
+    page,
+    APPROVED_ROMANIAN_MESSAGES.reviewScreen.conflict,
+  );
+
+  await openEditor.tap();
+  await page.waitForURL(`/ro/d/${seededDesign.id}`);
+  await expect(page.getByTestId("top-bar-title")).toBeVisible();
+
+  await expect(page.getByTestId("selection-debug")).toHaveAttribute(
+    "data-save-status",
+    "conflict",
+  );
+  console.log(
+    `CONFLICT_IN_EDITOR ${JSON.stringify({
+      noticesOnArrival: await page.getByTestId("panel-notice").count(),
+    })}`,
+  );
+});
+
+for (const [name, status] of [
+  ["a refused write", 403],
+  ["a stopped save", 422],
+] as const) {
+  test(`${name} (${String(status)}) draws no link to the editor in the foot: only a conflict is settled there`, async ({
+    page,
+    seededDesign,
+  }) => {
+    await openSeededDesign(page, seededDesign);
+    await answerSavesWith(page, seededDesign.id, refuseWith(status));
+
+    await editThenOpenTheReviewAtOnce(page, seededDesign.id);
+
+    await expect(page.getByTestId(SAVE_WAIT)).toBeVisible();
+    await expect(page.getByTestId("review-open-editor")).toHaveCount(0);
+  });
+}
+
+// The Russian the foot must show, written out so the page is not compared with the catalogue it reads.
+const RUSSIAN_CONFLICT =
+  "Кухню изменили в другой вкладке или на другом устройстве, поэтому твоё изменение не сохранено. Выбери в редакторе, какую версию оставить, и тогда запрашивай предложение.";
+const RUSSIAN_OPEN_EDITOR = "Открыть редактор";
+
 test("the tallest foot the review can have, in Russian: a kitchen past its wall whose save conflicted shows three sentences, stays under half the phone, and leaves the named bodies clear of it at the page's end", async ({
   page,
 }) => {
@@ -247,6 +320,13 @@ test("the tallest foot the review can have, in Russian: a kitchen past its wall 
       })}`,
     );
     expect(region.sentences).toHaveLength(3);
+    expect(region.sentences[2]).toBe(RUSSIAN_CONFLICT);
+    await expect(
+      page.getByTestId(REVIEW_BOTTOM).getByRole("link", {
+        name: RUSSIAN_OPEN_EDITOR,
+        exact: true,
+      }),
+    ).toBeInViewport();
     expect(region.height).toBeLessThanOrEqual(region.viewportHeight / 2);
     await captureEvidence(page, "save-wait-tallest-foot-ru");
 
@@ -290,7 +370,7 @@ test("the review asks nothing of the design's API: not when opened at its own ad
   );
 });
 
-test("with the design changed and saved in another tab, the review reached from this tab's editor does not offer the older design as ready", async ({
+test("with the design changed and saved in another tab, the review reached from this tab's untouched editor shows the saved design, ready, and asks nothing of the design's API to do so", async ({
   page,
   context,
   seededDesign,
@@ -301,25 +381,164 @@ test("with the design changed and saved in another tab, the review reached from 
   await chooseAnotherHardwareTierAndSave(otherTab, seededDesign.id);
   await otherTab.getByTestId(REVIEW_CTA).tap();
   await expectReviewDrawn(otherTab);
-  const settingsTheServerHolds = await otherTab
-    .locator(SETTINGS_ROW)
-    .textContent();
-  const figureTheServerHolds = await otherTab.locator(FIGURE).textContent();
+  const settingsTheServerHolds =
+    (await otherTab.locator(SETTINGS_ROW).textContent()) ?? "";
+  const figureTheServerHolds =
+    (await otherTab.locator(FIGURE).textContent()) ?? "";
 
   await page.bringToFront();
+  const requests = recordRequests(page);
   await page.getByTestId(REVIEW_CTA).tap();
   await page.waitForURL(reviewPath("ro", seededDesign.id));
   await expectReviewDrawn(page);
 
-  const showsTheServersDesign =
-    (await page.locator(SETTINGS_ROW).textContent()) ===
-      settingsTheServerHolds &&
-    (await page.locator(FIGURE).textContent()) === figureTheServerHolds;
-  const isOfferedAsReady =
-    (await page.getByTestId(REVIEW_CTA).getAttribute("aria-disabled")) !==
-    "true";
-  expect(
-    showsTheServersDesign || !isOfferedAsReady,
-    "the review shows a design the server no longer holds, with its call to action ready",
-  ).toBe(true);
+  await expect(page.locator(SETTINGS_ROW)).toHaveText(settingsTheServerHolds);
+  await expect(page.locator(FIGURE)).toHaveText(figureTheServerHolds);
+  await expect(page.getByTestId(SAVE_WAIT)).toHaveCount(0);
+  await expect(page.getByTestId(REVIEW_CTA)).toHaveAttribute(
+    "href",
+    "/ro/configurator/contact",
+  );
+  expect(toTheDesignApi(requests, seededDesign.id)).toEqual([]);
+});
+
+test("a stale tab holding an edit of its own keeps that edit on the review, with the call to action off: the page's newer copy does not replace an unsaved one", async ({
+  page,
+  context,
+  seededDesign,
+}) => {
+  await openSeededDesign(page, seededDesign);
+  const otherTab = await context.newPage();
+  await otherTab.goto(`/ro/d/${seededDesign.id}?select=p4`);
+  await expect(otherTab.getByTestId("width-step-narrower")).toBeEnabled({
+    timeout: FIRST_FRAME_FREEZE_TIMEOUT_MS,
+  });
+  const savedElsewhere = otherTab.waitForResponse(
+    (response) =>
+      response.request().method() !== "GET" &&
+      new URL(response.url()).pathname === `/api/designs/${seededDesign.id}`,
+  );
+  await otherTab.getByTestId("width-step-narrower").tap();
+  await savedElsewhere;
+  const priceTheServerHolds =
+    (await otherTab.getByTestId("price-bar-total").textContent()) ?? "";
+
+  await page.bringToFront();
+  let releaseTheSave: () => void = () => undefined;
+  const held = new Promise<void>((resolve) => {
+    releaseTheSave = resolve;
+  });
+  await answerSavesWith(page, seededDesign.id, async (route) => {
+    await held;
+    await route.continue();
+  });
+  await chooseAnotherHardwareTier(page);
+  const priceWithThisTabsEdit =
+    (await page.getByTestId("price-bar-total").textContent()) ?? "";
+  expect(priceWithThisTabsEdit).not.toBe(priceTheServerHolds);
+  await page.getByTestId(REVIEW_CTA).tap();
+  await page.waitForURL(reviewPath("ro", seededDesign.id));
+  await expectReviewDrawn(page);
+
+  await expect(page.getByTestId(SAVE_WAIT)).toBeVisible();
+  await expect(page.getByTestId(REVIEW_CTA)).toHaveAttribute(
+    "aria-disabled",
+    "true",
+  );
+  await expect(page.locator(FIGURE)).toContainText(priceWithThisTabsEdit);
+  releaseTheSave();
+});
+
+test("a review restored by Forward after a later save keeps the newer copy: the page Next restores is older than the store and does not replace it", async ({
+  page,
+  seededDesign,
+}) => {
+  await openSeededDesign(page, seededDesign);
+  await page.getByTestId(REVIEW_CTA).tap();
+  await expectReviewDrawn(page);
+  const settingsBefore = (await page.locator(SETTINGS_ROW).textContent()) ?? "";
+
+  await goBackAndSettle(page);
+  await expect(page.getByTestId("top-bar-title")).toBeVisible();
+  await chooseAnotherHardwareTierAndSave(page, seededDesign.id);
+  const priceAfterTheSave =
+    (await page.getByTestId("price-bar-total").textContent()) ?? "";
+  await goForwardAndSettle(page);
+  await expect(page).toHaveURL(reviewPath("ro", seededDesign.id));
+  await expectReviewDrawn(page);
+
+  await expect(page.locator(SETTINGS_ROW)).not.toHaveText(settingsBefore);
+  await expect(page.locator(FIGURE)).toContainText(priceAfterTheSave);
+  await expect(page.getByTestId(SAVE_WAIT)).toHaveCount(0);
+  await expect(page.getByTestId(REVIEW_CTA)).toHaveAttribute(
+    "href",
+    "/ro/configurator/contact",
+  );
+});
+
+/** Saves the stored document over itself, unchanged, until the design stands at `revision`. */
+async function saveUntilRevision(
+  page: Page,
+  designId: string,
+  revision: string,
+): Promise<void> {
+  const reached = await page.evaluate(
+    async ({ id, wanted }) => {
+      const loaded = await fetch(`/api/designs/${id}`);
+      const stored = (await loaded.json()) as {
+        design: unknown;
+        revision: string;
+      };
+      let held = stored.revision;
+      for (let saves = 0; saves < 20 && held !== wanted; saves += 1) {
+        const saved = await fetch(`/api/designs/${id}`, {
+          method: "PUT",
+          credentials: "same-origin",
+          headers: {
+            "content-type": "application/json",
+            "x-expected-revision": held,
+          },
+          body: JSON.stringify(stored.design),
+        });
+        if (!saved.ok) return `PUT answered ${String(saved.status)}`;
+        ({ revision: held } = (await saved.json()) as { revision: string });
+      }
+      return held;
+    },
+    { id: designId, wanted: revision },
+  );
+  if (reached !== revision)
+    throw new Error(
+      `saveUntilRevision: reached ${reached}, wanted ${revision}`,
+    );
+}
+
+test("a tab that last heard revision 9 is stale against a page at revision 10: the revisions are compared as numbers, not as text", async ({
+  page,
+  context,
+  seededDesign,
+}) => {
+  await page.goto("/ro/configurator/room");
+  await saveUntilRevision(page, seededDesign.id, "9");
+  await openSeededDesign(page, seededDesign);
+  const otherTab = await context.newPage();
+  await openSeededDesign(otherTab, seededDesign);
+  await chooseAnotherHardwareTierAndSave(otherTab, seededDesign.id);
+  const priceTheServerHolds =
+    (await otherTab.getByTestId("price-bar-total").textContent()) ?? "";
+  const revisionTheServerHolds = await otherTab.evaluate(async (id) => {
+    const loaded = await fetch(`/api/designs/${id}`);
+    return ((await loaded.json()) as { revision: string }).revision;
+  }, seededDesign.id);
+  expect(revisionTheServerHolds).toBe("10");
+
+  await page.bringToFront();
+  const priceThisTabHeld =
+    (await page.getByTestId("price-bar-total").textContent()) ?? "";
+  expect(priceThisTabHeld).not.toBe(priceTheServerHolds);
+  await page.getByTestId(REVIEW_CTA).tap();
+  await page.waitForURL(reviewPath("ro", seededDesign.id));
+  await expectReviewDrawn(page);
+
+  await expect(page.locator(FIGURE)).toContainText(priceTheServerHolds);
 });

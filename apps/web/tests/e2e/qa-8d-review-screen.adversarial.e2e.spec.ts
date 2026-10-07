@@ -590,7 +590,7 @@ for (const [name, build] of KITCHENS_WITH_NOTHING_TO_OFFER) {
   });
 }
 
-test("each group of rows stands apart from the group above it by at least the space between two of its own rows", async ({
+test("the groups of rows stand apart as the page's own blocks do, and further apart than two rows of one group", async ({
   page,
   seededDesign,
 }) => {
@@ -599,23 +599,37 @@ test("each group of rows stands apart from the group above it by at least the sp
   const spacing = await page
     .getByTestId("review-group")
     .evaluateAll((groups) => {
-      const boxes = groups.map((group) => group.getBoundingClientRect());
-      const rows = [...(groups[0]?.querySelectorAll("li") ?? [])].map((row) =>
-        row.getBoundingClientRect(),
-      );
-      return {
-        betweenRows: (rows[1]?.top ?? 0) - (rows[0]?.bottom ?? 0),
-        betweenGroups: boxes
+      const gapsBetween = (elements: readonly Element[]): number[] => {
+        const boxes = elements.map((element) =>
+          element.getBoundingClientRect(),
+        );
+        return boxes
           .slice(1)
-          .map((box, index) => box.top - (boxes[index]?.bottom ?? 0)),
+          .map((box, index) => box.top - (boxes[index]?.bottom ?? 0));
+      };
+      const blocks = [
+        ...(groups[0]?.parentElement?.parentElement?.children ?? []),
+      ];
+      return {
+        betweenRows: gapsBetween([
+          ...(groups[0]?.querySelectorAll("li") ?? []),
+        ]).slice(0, 1),
+        betweenGroups: gapsBetween(groups),
+        betweenBlocks: gapsBetween(blocks),
+        blocks: blocks.map(
+          (block) => block.getAttribute("data-section") ?? block.tagName,
+        ),
       };
     });
   console.log(`GROUP_SPACING ${JSON.stringify(spacing)}`);
 
-  expect(spacing.betweenRows).toBeGreaterThan(0);
+  const [betweenRows] = spacing.betweenRows;
+  expect(betweenRows).toBeGreaterThan(0);
   expect(spacing.betweenGroups.length).toBeGreaterThanOrEqual(4);
+  expect(new Set(spacing.betweenBlocks).size).toBe(1);
   for (const gap of spacing.betweenGroups) {
-    expect(gap).toBeGreaterThanOrEqual(spacing.betweenRows);
+    expect(gap).toBe(spacing.betweenBlocks[0]);
+    expect(gap).toBeGreaterThan(betweenRows ?? 0);
   }
 });
 

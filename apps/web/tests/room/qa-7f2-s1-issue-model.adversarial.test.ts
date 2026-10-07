@@ -418,7 +418,7 @@ const APPROVED_SECTION_5_COPY: Readonly<
     ru: "Эта высота больше, чем мы можем построить. Проверь значение.",
   },
   "room.issue.roomTooSmall": {
-    ro: "Cu lungimile acestea, după dulapul de colț nu mai rămâne loc pentru spălător și plită. Mărește una dintre lungimi.",
+    ro: "Cu lungimile acestea, după dulapul de colț nu mai rămâne loc pentru chiuvetă și plită. Mărește una dintre lungimi.",
     ru: "При таких длинах после углового шкафа не остаётся места для мойки и варочной панели. Увеличь одну из длин.",
   },
   "room.issue.shapeNotBuildable": {
