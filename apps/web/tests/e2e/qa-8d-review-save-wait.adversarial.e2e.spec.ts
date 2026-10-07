@@ -30,6 +30,7 @@ import {
   openSeededDesign,
   test,
 } from "./support/seeded-design";
+import { U_MIDDLE, seedKitchen } from "./support/ssr-html";
 import { seedDesign } from "./support/u-design";
 
 const FIGURE = '[data-section="figure"]';
@@ -39,6 +40,19 @@ const SEVERAL_RETRIES_MS = 4000;
 
 /** Long enough for a navigation a tap had started to have shown in the address. */
 const TAP_SETTLE_MS = 400;
+
+/** The reads of the design's API among `requests`: a save this tab's editor already owed is not the review's. */
+function readsOfTheDesign(
+  requests: ReturnType<typeof recordRequests>,
+  designId: string,
+): readonly unknown[] {
+  return toTheDesignApi(requests, designId).filter(
+    (request) => request.method === "GET",
+  );
+}
+
+/** Long enough for a request the arrival had caused to have left. */
+const REQUEST_SETTLE_MS = 1500;
 
 type SaveAnswer = (route: Route) => Promise<void>;
 
@@ -258,19 +272,64 @@ test("a conflicted save: the review says in its own words that the choice is mad
     APPROVED_ROMANIAN_MESSAGES.reviewScreen.conflict,
   );
 
+  const firstBody = new URL(
+    (await page
+      .getByTestId("review-group-edit")
+      .first()
+      .getAttribute("href")) ?? "",
+    page.url(),
+  ).searchParams.get("select");
+  expect(firstBody).not.toBeNull();
+  await expect(openEditor).toHaveAttribute(
+    "href",
+    `/ro/d/${seededDesign.id}?select=${String(firstBody)}`,
+  );
+
   await openEditor.tap();
   await page.waitForURL(`/ro/d/${seededDesign.id}`);
-  await expect(page.getByTestId("top-bar-title")).toBeVisible();
 
+  await expectTheConflictOnScreen(page);
+  await expect(page.getByTestId("selection-debug")).toHaveAttribute(
+    "data-selection-id",
+    String(firstBody),
+  );
+});
+
+/** The editor's own conflict notice with both of its controls, drawn and inside the phone, with no further tap. In
+ *  a U the body, and so the panel, arrives once the scene rests: ADR 0144's bound. */
+async function expectTheConflictOnScreen(page: Page): Promise<void> {
+  for (const control of ["panel-conflict-reload", "panel-conflict-overwrite"]) {
+    await expect(page.getByTestId(control)).toBeInViewport({
+      timeout: FIRST_FRAME_FREEZE_TIMEOUT_MS,
+    });
+  }
+  await expect(page.getByTestId("panel-notice")).toContainText(
+    APPROVED_ROMANIAN_MESSAGES.panel.saveConflictNotice,
+  );
   await expect(page.getByTestId("selection-debug")).toHaveAttribute(
     "data-save-status",
     "conflict",
   );
-  console.log(
-    `CONFLICT_IN_EDITOR ${JSON.stringify({
-      noticesOnArrival: await page.getByTestId("panel-notice").count(),
-    })}`,
-  );
+}
+
+test("in a U, the conflict link arrives with the editor's conflict notice and both its controls on screen", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  const minted: string[] = [];
+  try {
+    const kitchen = await seedKitchen(page, minted, U_MIDDLE);
+    await openSeededDesign(page, kitchen);
+    await answerSavesWith(page, kitchen.id, refuseWith(409));
+    await editThenOpenTheReviewAtOnce(page, kitchen.id);
+
+    await page.getByTestId("review-open-editor").tap();
+    await page.waitForURL(`/ro/d/${kitchen.id}`);
+
+    await expectTheConflictOnScreen(page);
+  } finally {
+    await deleteMintedDesigns(minted);
+  }
 });
 
 for (const [name, status] of [
@@ -399,6 +458,7 @@ test("with the design changed and saved in another tab, the review reached from 
     "href",
     "/ro/configurator/contact",
   );
+  await page.waitForTimeout(REQUEST_SETTLE_MS);
   expect(toTheDesignApi(requests, seededDesign.id)).toEqual([]);
 });
 
@@ -436,6 +496,7 @@ test("a stale tab holding an edit of its own keeps that edit on the review, with
   const priceWithThisTabsEdit =
     (await page.getByTestId("price-bar-total").textContent()) ?? "";
   expect(priceWithThisTabsEdit).not.toBe(priceTheServerHolds);
+  const requests = recordRequests(page);
   await page.getByTestId(REVIEW_CTA).tap();
   await page.waitForURL(reviewPath("ro", seededDesign.id));
   await expectReviewDrawn(page);
@@ -446,6 +507,8 @@ test("a stale tab holding an edit of its own keeps that edit on the review, with
     "true",
   );
   await expect(page.locator(FIGURE)).toContainText(priceWithThisTabsEdit);
+  await page.waitForTimeout(REQUEST_SETTLE_MS);
+  expect(readsOfTheDesign(requests, seededDesign.id)).toEqual([]);
   releaseTheSave();
 });
 
@@ -463,9 +526,12 @@ test("a review restored by Forward after a later save keeps the newer copy: the 
   await chooseAnotherHardwareTierAndSave(page, seededDesign.id);
   const priceAfterTheSave =
     (await page.getByTestId("price-bar-total").textContent()) ?? "";
+  const requests = recordRequests(page);
   await goForwardAndSettle(page);
   await expect(page).toHaveURL(reviewPath("ro", seededDesign.id));
   await expectReviewDrawn(page);
+  await page.waitForTimeout(REQUEST_SETTLE_MS);
+  expect(readsOfTheDesign(requests, seededDesign.id)).toEqual([]);
 
   await expect(page.locator(SETTINGS_ROW)).not.toHaveText(settingsBefore);
   await expect(page.locator(FIGURE)).toContainText(priceAfterTheSave);
@@ -536,9 +602,12 @@ test("a tab that last heard revision 9 is stale against a page at revision 10: t
   const priceThisTabHeld =
     (await page.getByTestId("price-bar-total").textContent()) ?? "";
   expect(priceThisTabHeld).not.toBe(priceTheServerHolds);
+  const requests = recordRequests(page);
   await page.getByTestId(REVIEW_CTA).tap();
   await page.waitForURL(reviewPath("ro", seededDesign.id));
   await expectReviewDrawn(page);
 
   await expect(page.locator(FIGURE)).toContainText(priceTheServerHolds);
+  await page.waitForTimeout(REQUEST_SETTLE_MS);
+  expect(toTheDesignApi(requests, seededDesign.id)).toEqual([]);
 });

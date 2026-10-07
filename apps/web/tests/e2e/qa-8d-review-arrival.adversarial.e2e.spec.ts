@@ -409,3 +409,172 @@ for (const [name, arrange, reason] of BROWSERS_THAT_MAY_NOT_WRITE) {
     expect((await readSelection(page)).selectionId).toBe("p8");
   });
 }
+
+/** A point on the base run of wall A in this U's overview, and one on its floor, found by tapping the running scene. */
+const A_BODY_IN_THE_OVERVIEW = { x: 150, y: 430 };
+const THE_FLOOR_IN_THE_OVERVIEW = { x: 195, y: 540 };
+/** Long enough for an arrival's selection to have been written after the rest, were it still pending. */
+const AFTER_REST_MS = 1500;
+
+/** A U's address asking for the first body of its first wall C group, as the review's own link spells it. */
+async function addressSelectingAWallCBody(
+  page: Page,
+  kitchen: { readonly id: string; readonly revision: string },
+): Promise<{ readonly address: string; readonly body: string }> {
+  await openReview(page, kitchen);
+  const href =
+    (await page
+      .getByTestId("review-group")
+      .filter({ has: page.getByRole("heading", { name: /^Perete C/ }) })
+      .first()
+      .getByTestId("review-group-edit")
+      .getAttribute("href")) ?? "";
+  const body = new URL(href, page.url()).searchParams.get("select") ?? "";
+  if (body === "") throw new Error("the U draws no wall C group to arrive on");
+  return { address: href, body };
+}
+
+type GestureBeforeTheRest = "a tap" | "a drag";
+
+interface PressBeforeTheRest {
+  readonly gesture: GestureBeforeTheRest;
+  readonly x: number;
+  readonly y: number;
+}
+
+/**
+ * Makes every editor this page loads receive `press` on its canvas on each frame from the canvas's first frame until
+ * something is selected or the scene has rested, and counts the presses made before the rest.
+ *
+ * The presses are pointer events dispatched in the page, not a finger. A touch sent through the browser while the
+ * scene draws its first frame is delivered only after the scene has rested (measured: the first frame holds the main
+ * thread for about two seconds and the rest is the next frame), so nothing a test can send from outside lands in
+ * between. What is exercised here is the rule at the events the scene and the arrival both listen to.
+ */
+async function pressTheSceneOnEveryFrameUntilItRests(
+  page: Page,
+  press: PressBeforeTheRest,
+): Promise<void> {
+  await page.addInitScript(({ gesture, x, y }: PressBeforeTheRest) => {
+    const made = { beforeTheRest: 0 };
+    Reflect.set(window, "__pressesBeforeTheRest", made);
+    const frame = (): void => {
+      const readout = document.querySelector('[data-testid="selection-debug"]');
+      const canvas = document.querySelector("canvas");
+      const hasRested =
+        (readout?.getAttribute("data-scene-settle-count") ?? "") !== "";
+      const isSelected =
+        (readout?.getAttribute("data-selection-id") ?? "") !== "";
+      if (readout !== null && canvas !== null && !hasRested && !isSelected) {
+        const at = (clientX: number) => ({
+          clientX,
+          clientY: y,
+          bubbles: true,
+          pointerId: 1,
+          pointerType: "touch",
+          isPrimary: true,
+        });
+        canvas.dispatchEvent(new PointerEvent("pointerdown", at(x)));
+        canvas.dispatchEvent(
+          new PointerEvent("pointerup", at(gesture === "a tap" ? x : x + 120)),
+        );
+        made.beforeTheRest += 1;
+      }
+      if (!hasRested) requestAnimationFrame(frame);
+    };
+    requestAnimationFrame(frame);
+  }, press);
+}
+
+async function pressesMadeBeforeTheRest(page: Page): Promise<number> {
+  return page.evaluate(
+    () =>
+      (
+        Reflect.get(window, "__pressesBeforeTheRest") as {
+          beforeTheRest: number;
+        }
+      ).beforeTheRest,
+  );
+}
+
+async function waitForTheSceneToRest(page: Page): Promise<void> {
+  await expect
+    .poll(() => sceneSettles(page), { timeout: FIRST_FRAME_FREEZE_TIMEOUT_MS })
+    .toBeGreaterThan(0);
+  await page.waitForTimeout(AFTER_REST_MS);
+}
+
+test("in a U, a body the customer presses before the scene rests stays selected: the arrival's own body does not replace it, and the parameter is gone", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  const minted: string[] = [];
+  try {
+    const kitchen = await seedKitchen(page, minted, U_MIDDLE);
+    const { address, body } = await addressSelectingAWallCBody(page, kitchen);
+    await pressTheSceneOnEveryFrameUntilItRests(page, {
+      gesture: "a tap",
+      ...A_BODY_IN_THE_OVERVIEW,
+    });
+
+    await page.goto(address);
+    await waitForTheSceneToRest(page);
+
+    expect(await pressesMadeBeforeTheRest(page)).toBeGreaterThan(0);
+    const selected = (await readSelection(page)).selectionId;
+    expect(selected).not.toBe("");
+    expect(selected).not.toBe(body);
+    expect(addressOf(page)).toBe(`/ro/d/${kitchen.id}`);
+  } finally {
+    await deleteMintedDesigns(minted);
+  }
+});
+
+test("in a U, a press on empty floor before the scene rests leaves nothing selected: the arrival's body is not selected after it", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  const minted: string[] = [];
+  try {
+    const kitchen = await seedKitchen(page, minted, U_MIDDLE);
+    const { address } = await addressSelectingAWallCBody(page, kitchen);
+    await pressTheSceneOnEveryFrameUntilItRests(page, {
+      gesture: "a tap",
+      ...THE_FLOOR_IN_THE_OVERVIEW,
+    });
+
+    await page.goto(address);
+    await waitForTheSceneToRest(page);
+
+    expect(await pressesMadeBeforeTheRest(page)).toBeGreaterThan(0);
+    expect((await readSelection(page)).selectionId).toBe("");
+    await expect(page.getByTestId("editor-panel")).toHaveCount(0);
+    expect(addressOf(page)).toBe(`/ro/d/${kitchen.id}`);
+  } finally {
+    await deleteMintedDesigns(minted);
+  }
+});
+
+test("in a U, a drag across the scene before it rests is not the customer choosing a body: the arrival's body is selected at the rest", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  const minted: string[] = [];
+  try {
+    const kitchen = await seedKitchen(page, minted, U_MIDDLE);
+    const { address, body } = await addressSelectingAWallCBody(page, kitchen);
+    await pressTheSceneOnEveryFrameUntilItRests(page, {
+      gesture: "a drag",
+      ...A_BODY_IN_THE_OVERVIEW,
+    });
+
+    await page.goto(address);
+    await waitForTheSceneToRest(page);
+
+    expect(await pressesMadeBeforeTheRest(page)).toBeGreaterThan(0);
+    expect((await readSelection(page)).selectionId).toBe(body);
+    await expect(page.getByTestId("editor-panel")).toBeVisible();
+  } finally {
+    await deleteMintedDesigns(minted);
+  }
+});
