@@ -339,6 +339,8 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     editGroup: "Editează",
     changeSettings: "Schimbă",
     view3d: "Vezi în 3D",
+    saving:
+      "Se salvează modificările tale. Poți cere oferta imediat ce salvarea se termină.",
   },
   globalSettings: {
     open: "Setări globale",

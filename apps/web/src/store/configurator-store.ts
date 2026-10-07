@@ -156,6 +156,12 @@ export interface ConfiguratorState {
    */
   readonly revision: DesignRevision | null;
   readonly saveStatus: SaveStatus;
+  /**
+   * The design the server last confirmed holding: the one the hydrating load read, or the one the last successful
+   * save wrote. `design === savedDesign` is the one question "is anything still waiting to be saved?", which no
+   * `saveStatus` answers: `idle` also covers an edit queued behind the coalescer's one-save-a-second interval.
+   */
+  readonly savedDesign: Design;
   /** Gate a share-link UI on this, not on `designId !== null`: a never-written design must not present a
    *  shareable link. */
   readonly hasPersistedSuccessfully: boolean;
@@ -194,6 +200,8 @@ export interface ConfiguratorState {
   readonly applySaved: (saved: {
     id: DesignId;
     revision: DesignRevision;
+    /** The document that save wrote; absent from callers that have no snapshot to name. */
+    savedDesign?: Design;
   }) => void;
   /**
    * The customer's answer to `saveStatus: "conflict"`: write what is on screen over the stored design after
@@ -582,6 +590,7 @@ export function createConfiguratorStore(
       designId,
       revision: options.revision ?? null,
       saveStatus: "idle",
+      savedDesign: design,
       canWrite: options.canWrite ?? true,
       hasPersistedSuccessfully: designId !== null,
       hasBeenEdited: false,
@@ -602,6 +611,7 @@ export function createConfiguratorStore(
           revision: loaded.revision,
           canWrite: loaded.canWrite,
           hasPersistedSuccessfully: true,
+          savedDesign: loaded.design,
           hasBeenEdited: false,
           // A save status describes the generation that produced it, so it resets on load. A carried
           // `unauthorized` would render a design this browser owns as read-only, and only a successful write
@@ -627,8 +637,13 @@ export function createConfiguratorStore(
       setSaveStatus: (status) => {
         set({ saveStatus: status });
       },
-      applySaved: ({ id, revision }) => {
-        set({ designId: id, revision, hasPersistedSuccessfully: true });
+      applySaved: ({ id, revision, savedDesign }) => {
+        set({
+          designId: id,
+          revision,
+          hasPersistedSuccessfully: true,
+          ...(savedDesign === undefined ? {} : { savedDesign }),
+        });
       },
       overwriteConflict: () => {
         options.onOverwriteRequested?.(get().design);
@@ -711,9 +726,21 @@ function overwriteConflictingDesign(design: Design): void {
   sessionSaveCoalescer().overwriteConflict(design);
 }
 
+/** The document the one save in flight is writing. Saves are serial, so this is the one `onSaved` reports on. */
+let designBeingSaved: Design | undefined;
+
+const recordingRepository = {
+  save: (
+    request: Parameters<typeof sessionConfigurationRepository.save>[0],
+  ) => {
+    designBeingSaved = request.design;
+    return sessionConfigurationRepository.save(request);
+  },
+};
+
 function sessionSaveCoalescer(): SaveCoalescer {
   saveCoalescer ??= createSaveCoalescer({
-    repository: sessionConfigurationRepository,
+    repository: recordingRepository,
     getDesignId: () => useConfiguratorStore.getState().designId,
     getGeneration: () => saveGeneration,
     getRevision: () => useConfiguratorStore.getState().revision,
@@ -721,7 +748,12 @@ function sessionSaveCoalescer(): SaveCoalescer {
       (await sessionConfigurationRepository.loadWithAccess(id)).revision,
     onSaved: (saved, generation) => {
       if (generation !== saveGeneration) return;
-      useConfiguratorStore.getState().applySaved(saved);
+      useConfiguratorStore.getState().applySaved({
+        ...saved,
+        ...(designBeingSaved === undefined
+          ? {}
+          : { savedDesign: designBeingSaved }),
+      });
     },
     onSaveStatusChange: (status, generation) => {
       if (generation !== saveGeneration) return;

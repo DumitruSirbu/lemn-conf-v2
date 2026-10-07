@@ -47,7 +47,9 @@ vi.mock("next/navigation", async (importOriginal) => ({
 // otherwise replace the whole surface with the unsupported notice and there would be no top bar to
 // read. Everything the claims below rest on — the top bar, the price bar, the overflow sentence —
 // stays real.
-vi.mock("@/scene/webgl-support", () => ({ detectWebGLSupport: () => true }));
+vi.mock("@/scene/webgl-support", () => ({
+  useWebGLSupport: () => "supported",
+}));
 vi.mock("@/scene/kitchen-canvas", () => ({ default: () => null }));
 vi.mock("@/panel/editor-panel", () => ({ EditorPanel: () => null }));
 vi.mock("@/price/price-breakdown", () => ({ PriceBreakdown: () => null }));

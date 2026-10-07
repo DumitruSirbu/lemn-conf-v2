@@ -3,6 +3,8 @@
 import type { DesignId } from "@lemnaria/configurator-domain";
 import { useId } from "react";
 
+import type { Content } from "@/i18n/content";
+
 import { LocaleMenu } from "@/app/configurator/configure/locale-menu";
 import { WebGLUnavailable } from "@/components/webgl-unavailable";
 import { Link } from "@/i18n/navigation";
@@ -20,6 +22,8 @@ import type {
 import { ReviewScene } from "@/review/review-scene";
 import { useReview } from "@/review/use-review";
 import { useWebGLSupport } from "@/scene/webgl-support";
+import type { SaveStatus } from "@/persistence/save-coalescer";
+import { useConfiguratorStore } from "@/store/configurator-store";
 
 import styles from "./review.module.css";
 
@@ -48,6 +52,8 @@ export function ReviewScreen({ designId }: { designId: DesignId }) {
 function ReviewPage({ designId }: { designId: DesignId }) {
   const review = useReview();
   const refusalSentenceId = useId();
+  const saveWaitSentenceId = useId();
+  const saveWait = useSaveWait();
 
   return (
     <main className={styles.screen}>
@@ -67,7 +73,12 @@ function ReviewPage({ designId }: { designId: DesignId }) {
           />
         )}
       </div>
-      <BottomRegion review={review} refusalSentenceId={refusalSentenceId} />
+      <BottomRegion
+        review={review}
+        refusalSentenceId={refusalSentenceId}
+        saveWait={saveWait}
+        saveWaitSentenceId={saveWaitSentenceId}
+      />
     </main>
   );
 }
@@ -253,14 +264,59 @@ function NamedBodies({
   );
 }
 
-/** Pinned: the flagged total's sentence when flagged, the refusal's when refused, the figure, the call to action.
- *  The call to action is never off without its sentence standing in this same region. */
+/** Whether the design on screen is the one the server holds. An edit made in the editor can still be queued or in
+ *  flight when the review opens, and a request for an offer must not go out for a design the server does not have. */
+type SaveWait =
+  | { readonly kind: "saved" }
+  | { readonly kind: "waiting"; readonly sentence: string };
+
+function useSaveWait(): SaveWait {
+  const content = useContent();
+  const isSaved = useConfiguratorStore(
+    (state) => state.design === state.savedDesign,
+  );
+  const saveStatus = useConfiguratorStore((state) => state.saveStatus);
+  if (isSaved) return { kind: "saved" };
+  return {
+    kind: "waiting",
+    sentence: sentenceForUnsavedEdit(saveStatus, content),
+  };
+}
+
+/** What the customer is told while an edit is unsaved: that it is being saved, or, once the save has failed, the
+ *  sentence the editor already says for that failure. The editor's own panel carries the actions those sentences
+ *  mention, and the way back to it is in the top bar. */
+function sentenceForUnsavedEdit(
+  saveStatus: SaveStatus,
+  content: Content,
+): string {
+  switch (saveStatus) {
+    case "error":
+      return content.panel.saveFailedNotice;
+    case "stopped":
+      return content.panel.saveStoppedNotice;
+    case "conflict":
+      return content.panel.saveConflictNotice;
+    case "unauthorized":
+      return content.panel.readOnlyRefusedNotice;
+    case "idle":
+    case "saving":
+      return content.reviewScreen.saving;
+  }
+}
+
+/** Pinned: the flagged total's sentence when flagged, the refusal's when refused, the save's while it is owed, the
+ *  figure, the call to action. The call to action is never off without a sentence standing in this same region. */
 function BottomRegion({
   review,
   refusalSentenceId,
+  saveWait,
+  saveWaitSentenceId,
 }: {
   readonly review: ReviewView;
   readonly refusalSentenceId: string;
+  readonly saveWait: SaveWait;
+  readonly saveWaitSentenceId: string;
 }) {
   const content = useContent();
   const submit = review.submit;
@@ -280,6 +336,15 @@ function BottomRegion({
           {content.review.refusalReasons[submit.code]}
         </p>
       ) : null}
+      {saveWait.kind === "waiting" ? (
+        <p
+          id={saveWaitSentenceId}
+          className={styles.refusal}
+          data-testid="review-save-wait"
+        >
+          {saveWait.sentence}
+        </p>
+      ) : null}
       <div className={styles.buyRow}>
         {review.kind === "available" ? (
           <p className={styles.figure} data-section="figure">
@@ -290,23 +355,24 @@ function BottomRegion({
           </p>
         ) : null}
         <CallToAction
-          isAllowed={submit.kind === "allowed"}
-          refusalSentenceId={refusalSentenceId}
+          reasonIds={[
+            ...(submit.kind === "refused" ? [refusalSentenceId] : []),
+            ...(saveWait.kind === "waiting" ? [saveWaitSentenceId] : []),
+          ]}
         />
       </div>
     </div>
   );
 }
 
+/** A link when nothing stands in its way, otherwise off and announced with the sentences that say why. */
 function CallToAction({
-  isAllowed,
-  refusalSentenceId,
+  reasonIds,
 }: {
-  readonly isAllowed: boolean;
-  readonly refusalSentenceId: string;
+  readonly reasonIds: readonly string[];
 }) {
   const content = useContent();
-  if (isAllowed) {
+  if (reasonIds.length === 0) {
     return (
       <Link
         className={styles.cta}
@@ -323,7 +389,7 @@ function CallToAction({
       type="button"
       className={styles.cta}
       aria-disabled="true"
-      aria-describedby={refusalSentenceId}
+      aria-describedby={reasonIds.join(" ")}
       data-section="callToAction"
       data-testid="review-cta"
     >

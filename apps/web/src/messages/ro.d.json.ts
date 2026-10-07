@@ -257,7 +257,8 @@ declare const messages: {
     "callToAction": "Cere oferta",
     "editGroup": "Editează",
     "changeSettings": "Schimbă",
-    "view3d": "Vezi în 3D"
+    "view3d": "Vezi în 3D",
+    "saving": "Se salvează modificările tale. Poți cere oferta imediat ce salvarea se termină."
   },
   "globalSettings": {
     "open": "Setări globale",

@@ -2,7 +2,8 @@
 
 import { cameraPresetsForRoom } from "@lemnaria/three-adapter";
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useRef, type RefObject } from "react";
 
 import { EditorPanel } from "@/panel/editor-panel";
 import { FlaggedTotalWarning } from "@/price/flagged-total-warning";
@@ -19,7 +20,7 @@ import { SettingsPillMeasurement } from "@/settings/settings-pill-measurement";
 import { widestCounterFor } from "@/settings/global-settings-model";
 import { useCameraPreset } from "@/scene/camera-preset-store";
 import { presetForRoom, type SceneView } from "@/scene/scene-view";
-import { detectWebGLSupport } from "@/scene/webgl-support";
+import { useWebGLSupport } from "@/scene/webgl-support";
 import { useConfiguratorStore } from "@/store/configurator-store";
 
 import styles from "./configure.module.css";
@@ -41,8 +42,6 @@ function ConfigureLoading() {
   return <div className={styles.loading}>{content.configure.loading}</div>;
 }
 
-type SupportState = "probing" | "supported" | "unsupported";
-
 /** `"owner"` is the default and every existing mount's answer (G9). `"shared"` is the share view's
  *  own (M7 wave 7E3c D6, criterion 12): it drops the two Step 1 links and the review CTA row, which
  *  lead nowhere useful without the owner's write credential — `canWrite: false` already disables
@@ -58,7 +57,8 @@ export function ConfigureScreen({
   const content = useContent();
   const room = useConfiguratorStore((state) => state.design.room);
   const roomHref = roomHrefFromDesignRoom(room);
-  const [support, setSupport] = useState<SupportState>("probing");
+  const support = useWebGLSupport();
+  const designId = useConfiguratorStore((state) => state.designId);
   // Module-scope, not `useState`: a language switch changes the `[locale]` segment and remounts this
   // subtree, and the camera was the one thing on the screen that did not survive it. See
   // `scene/camera-preset-store.ts`.
@@ -74,9 +74,10 @@ export function ConfigureScreen({
     isLinkQuestionOpen: backConfirmation.isAsking,
   });
 
-  useEffect(() => {
-    setSupport(detectWebGLSupport() ? "supported" : "unsupported");
-  }, []);
+  useHonourArrival({
+    isOwner: variant === "owner",
+    settingsTrackRef: topBar.settingsTrackRef,
+  });
 
   const view = useMemo<SceneView>(
     () => ({ kind: "preset", id: presetId }),
@@ -241,8 +242,9 @@ export function ConfigureScreen({
           <PriceBreakdown />
         </div>
       </div>
-      {/* Frame 2A `:515–519`'s second bottom row, and frame D2A `:567`'s CTA. The room back link is
-          live in M7; the review CTA remains inert until M8 because no review route exists.
+      {/* Frame 2A `:515–519`'s second bottom row, and frame D2A `:567`'s CTA. The room back link and
+          the review link are live; a design with no id yet has no review to open, so it keeps the label
+          without the link.
 
           The whole row is absent in the shared variant (criterion 12): both controls lead back to
           the owner's own Step 1 or M8's review, neither of which a share session may reach. */}
@@ -256,9 +258,21 @@ export function ConfigureScreen({
           >
             {content.configure.backAction}
           </Link>
-          <span className={styles.reviewCta} data-testid="review-cta">
-            {content.configure.reviewCta}
-          </span>
+          {typeof designId === "string" ? (
+            // Not prefetched: the review's page runs the owned lookup, which a visible link must not.
+            <Link
+              className={styles.reviewCta}
+              data-testid="review-cta"
+              href={`/d/${designId}/review`}
+              prefetch={false}
+            >
+              {content.configure.reviewCta}
+            </Link>
+          ) : (
+            <span className={styles.reviewCta} data-testid="review-cta">
+              {content.configure.reviewCta}
+            </span>
+          )}
         </div>
       )}
       {backConfirmation.isAsking && (
@@ -286,5 +300,64 @@ export function ConfigureScreen({
         onMeasured={topBar.onPillMeasured}
       />
     </main>
+  );
+}
+
+/** The parameters the review's links put on the editor's URL: a body to select, or the settings to open. */
+const ARRIVAL_PARAMETERS = ["select", "settings"] as const;
+
+/**
+ * Acts on `?select=` and `?settings=open` once, on arrival, then takes them off the URL. The screen only exists
+ * after the owned load answered (`HydrateAndConfigure`), so neither is acted on for a browser the gate refused, and
+ * not at all in the share view, whose visitor edits nothing.
+ *
+ * Taken off with `replaceState` over the same entry and the entry's own state, so the history gains nothing (Back
+ * from an editor reached through the review returns to the review), the guard's marker survives, and a reload, a
+ * language switch or Forward into the entry finds nothing left to repeat. A `select` naming a body the design does
+ * not hold selects nothing. Opening the settings goes through the sheet's own trigger, which owns that state.
+ */
+export function useHonourArrival({
+  isOwner,
+  settingsTrackRef,
+}: {
+  readonly isOwner: boolean;
+  readonly settingsTrackRef: RefObject<HTMLElement | null>;
+}) {
+  const searchParams = useSearchParams();
+  const honoured = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!isOwner) return;
+    const arrival = new URLSearchParams(searchParams);
+    const wantsArrival = ARRIVAL_PARAMETERS.some((name) => arrival.has(name));
+    if (!wantsArrival || honoured.current === arrival.toString()) return;
+    honoured.current = arrival.toString();
+
+    selectBodyNamedBy(arrival.get("select"));
+    if (arrival.get("settings") === "open") {
+      settingsTrackRef.current
+        ?.querySelector<HTMLButtonElement>(SETTINGS_TRIGGER)
+        ?.click();
+    }
+    removeArrivalFromUrl();
+  }, [isOwner, searchParams, settingsTrackRef]);
+}
+
+const SETTINGS_TRIGGER = '[data-testid="global-settings-trigger"]';
+
+function selectBodyNamedBy(placementId: string | null): void {
+  if (placementId === null) return;
+  const { records, select } = useConfiguratorStore.getState();
+  if (records.some((record) => record.id === placementId))
+    select({ kind: "placement", id: placementId });
+}
+
+function removeArrivalFromUrl(): void {
+  const url = new URL(window.location.href);
+  for (const name of ARRIVAL_PARAMETERS) url.searchParams.delete(name);
+  window.history.replaceState(
+    window.history.state,
+    "",
+    `${url.pathname}${url.search}${url.hash}`,
   );
 }

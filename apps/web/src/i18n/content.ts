@@ -830,6 +830,7 @@ export function resolveContent(translate: ContentTranslator) {
       editGroup: translate("reviewScreen.editGroup"),
       changeSettings: translate("reviewScreen.changeSettings"),
       view3d: translate("reviewScreen.view3d"),
+      saving: translate("reviewScreen.saving"),
     },
     globalSettings: {
       open: translate("globalSettings.open"),
