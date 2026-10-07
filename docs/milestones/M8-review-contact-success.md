@@ -2653,6 +2653,89 @@ implementer reports whether *spălător* in `room/generation-model.ts` and in th
 timing difference between the two doors; which body each overflow mark belongs to; pinch; iOS
 Safari; a real runner; the save wait, the arrival, the screen and the scene at desktop width.
 
+#### 8D — adjudication of QA's re-run, 2026-10-08
+
+**State.** The fix round is `247d729`; QA's tests `a863ea3` [relayed]. The five specs that were
+failing are green; one new test fails (QA8). E1–E5 held in a browser at 390 × 844 [relayed].
+**QA2's cause is now established, and it was not the one this plan gave:** the overview never cuts
+wall C. The stage's first cut is computed while the camera is still at its seating position, which
+does cut it; one frame later it does not. The fix selects when the scene has come to rest, about
+2.8 s after it mounts. E2's rule stands for the views that really do cut a wall: in a U, wall B's
+view cuts C and wall C's cuts B.
+
+| Item | Class | Ruling |
+| --- | --- | --- |
+| QA8 when the review replaces a stale store, one `GET /api/designs/{id}` goes out | **Implementation defect** against criterion 20, in E3's own fix. Its mechanism is read from source and not yet shown | E3a |
+| QA9 a tap that lands before the scene rests is replaced by the arrival's body | **Contract gap** in E2: *"once"* did not say what the customer doing something first does to an arrival | E2a, fixed now |
+| QA11 the conflict link lands on an editor that shows no notice until a body is selected | **Contract gap** in E5, which promised a place that says nothing. The editor drawing a conflict only in its panel predates the wave | E5a in this round; the editor's part to the backlog |
+| QA10 an existing desktop spec failed once under `CI=1` and passed four times | Test-fidelity problem, not this wave's | Backlog, beside entry 125 |
+
+**Rules.**
+
+- **E3a — replacing a copy does not forget what this browser may do** (QA8). Whether this browser
+  may write a design is a fact about the browser and the design, not about which copy of the
+  design the store holds. When the review replaces a stale copy of **the same design**, the
+  store's answer about write access is carried over as it was. It is `"checking"` only when the
+  store held no answer for this design, and then no editor is mounted to act on it. Criterion 20
+  stands as written: the review asks nothing; here it also unsettles nothing.
+  - *The mechanism first.* It is inferred: the replacement sets `"checking"`, and the departing
+    editor's probe, still mounted, runs on that value [src `hydrate-and-configure.tsx`, the
+    effect's condition; `configurator-store.ts`, `hydrate`]. **The implementer first writes the
+    test that mounts the editor's probe and then runs the review's replacement, and sees it fail
+    on `a863ea3`.** If it does not fail there, the mechanism is another, and the implementer stops
+    and reports before changing anything.
+  - *Not required:* the departing editor's effect does not have to be taught to stop. With the
+    answer carried, nothing tells it to start.
+- **E2a — the customer's own act wins** (QA9). An arrival's selection waits for the scene to rest.
+  If, before then, the customer selects a body, selects an empty space or clears the selection,
+  the arrival's pending selection is dropped. That is an outcome: the arrival was honoured once,
+  by being overridden, and the parameter leaves the URL as for any other outcome. *Must not:* a
+  selection the customer made is replaced by one they did not.
+- **E5a — the conflict link arrives where the conflict is on screen** (QA11). The editor draws a
+  conflict, and its two controls, in the panel, and the panel needs a selection. So the link
+  arrives with the first body in display order selected, by the same `?select=` every other link
+  uses, and the notice with both controls is on screen without a further tap. *Recorded limit:*
+  a kitchen with no body has no panel to open, and the link then lands on an editor that says
+  nothing. *For the backlog, not 8D:* the editor shows a conflict only inside the panel. It is
+  the question M4 left open, how a failed background write is told to the customer.
+
+**The second fix round** — three items, three production files.
+
+1. **E3a** (QA8). `app/d/[id]/review/hydrate-and-review.tsx`. The failing test first.
+2. **E2a** (QA9). `configure-screen.tsx`.
+3. **E5a** (QA11). `app/d/[id]/review/review-screen.tsx`.
+
+*Reading, implementer:* this adjudication and the one above it (E2, E3, E5);
+`app/d/[id]/hydrate-and-configure.tsx:55-90` (the probe, read and not edited);
+`store/configurator-store.ts`, `hydrate` and `applyWriteAccess`; `configure-screen.tsx`,
+`useHonourArrival` as it now stands; QA's `save-wait` spec, the test *"with the design changed
+and saved in another tab…"*; criterion 20.
+
+**The stopping rule for 8D.** This was the wave's second QA pass, and review has not begun. After
+the second fix round QA makes **one** pass: the QA8 spec, a test each for E2a and E5a, its E1–E5
+specs once, the full e2e once in both modes. A new finding is fixed inside 8D only if:
+
+- (a) the two doors answer differently for some request, or the review sends a request criterion
+  20 forbids; or
+- (b) a rule E1–E5, or a criterion as restated, fails in a browser at 390 × 844; or
+- (c) something an earlier pass showed holding no longer holds.
+
+Anything else is written down with an owner and its trigger (ADR 0118), and the wave goes to
+review in that same pass. The architect classifies; QA's freedom to look is not narrowed.
+
+**After a green pass, in this order:** the combined reviewer on the whole wave; the security
+reader on S1, on E3 and on E3a, since both change what a door leaves in the store; the visual
+verifier. **The visual brief carries QA's numbers as values to measure again, not to trust:**
+
+- the bottom region in Russian with three sentences and the link: 377.5 px, 44.7% of 844. That is
+  45 px short of criterion 12's half. **If the verifier's own measurement reaches half, the wave
+  stops there** and the design returns to planning; no sentence is shortened to pass.
+- spacing: 15 px between groups, 15 px between the page's blocks, 10 px between rows.
+
+**Unmeasured after this pass, for the close-out** [QA's list]: QA8's mechanism by instrumentation,
+until the test above shows it; a real touch before the scene rests; E1–E5 at desktop width; the
+whole suite under `CI=1`; and the list above.
+
 ### 8E — the rate-limit store
 
 *Goal.* Postgres counts requests per bucket and window, atomically (ADR 0019 Alternative 4 rejected
