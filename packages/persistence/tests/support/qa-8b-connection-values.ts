@@ -10,7 +10,6 @@ export const QA_PASSWORD = "FAKEPASSWORD_QA8B";
 export const QA_USER = "fakeuser_QA8B";
 export const QA_HOST = "fakehost-qa8b.invalid";
 export const QA_MARKERS: readonly string[] = [QA_PASSWORD, QA_USER, QA_HOST];
-export const QA_CREDENTIAL_MARKERS: readonly string[] = [QA_PASSWORD, QA_USER];
 export const QA_CREDENTIALS = `${QA_USER}:${QA_PASSWORD}`;
 
 export const FAKE_DATABASE = "lemn-fake-db";
@@ -98,6 +97,10 @@ function unreachableValuesFor(databaseName: string): QaValue[] {
       value: `postgres://${QA_USER}:x@${QA_PASSWORD}@${QA_HOST}/${databaseName}`,
     },
     {
+      label: "a password whose tail the driver reads as the database name",
+      value: `postgres://${QA_USER}:x@${QA_HOST}:12/${QA_PASSWORD}`,
+    },
+    {
       label: "a percent-encoded password",
       value: `postgres://${QA_USER}:${QA_PASSWORD}%2F%40@${QA_HOST}/${databaseName}`,
     },
@@ -123,8 +126,7 @@ export async function errorRaisedBy(run: () => unknown): Promise<unknown> {
 export interface Site {
   readonly name: string;
   readonly databaseName: string;
-  /** What must never show. The isolation guard's refusals name the host and port by design, so only credentials there.
-   */
+  /** What must never show. Rule B2: no host, port or name either, so every site takes all three markers. */
   readonly markers: readonly string[];
   readonly mustRaiseForEveryValue: boolean;
   readonly run: (value: string) => unknown;
@@ -146,4 +148,69 @@ export async function sweep(site: Site): Promise<SiteSweep> {
       leaks.push(`${label} -> ${found}`);
   }
   return { leaks, valuesThatRaisedNothing };
+}
+
+/**
+ * Every string reachable from `value` by any read a caller can make: own properties under string and symbol keys,
+ * enumerable or not, getters on every prototype, and the entries of a Map or Set. Wider than `markersFoundOn`, which
+ * reads what `util.inspect` shows and so cannot see a prototype getter such as an `ErrorEvent`'s `target`.
+ */
+export function stringsReachableFrom(value: unknown): string[] {
+  const found: string[] = [];
+  collectReachable(value, new Set(), found);
+  return found;
+}
+
+function collectReachable(
+  value: unknown,
+  seen: Set<object>,
+  into: string[],
+): void {
+  if (typeof value === "string") into.push(value);
+  if (!isWalkable(value) || seen.has(value)) return;
+  seen.add(value);
+  if (value instanceof Map || value instanceof Set)
+    for (const entry of value.entries()) collectReachable(entry, seen, into);
+  for (const holder of prototypeChainOf(value))
+    for (const key of Reflect.ownKeys(holder))
+      collectReachable(readQuietly(value, key), seen, into);
+}
+
+function isWalkable(value: unknown): value is object {
+  return (
+    (typeof value === "object" && value !== null) || typeof value === "function"
+  );
+}
+
+function prototypeChainOf(value: object): object[] {
+  const chain: object[] = [];
+  for (
+    let holder: object | null = value;
+    holder !== null &&
+    holder !== Object.prototype &&
+    holder !== Function.prototype;
+    holder = Object.getPrototypeOf(holder) as object | null
+  )
+    chain.push(holder);
+  return chain;
+}
+
+function readQuietly(value: object, key: string | symbol): unknown {
+  try {
+    return Reflect.get(value, key);
+  } catch {
+    return undefined;
+  }
+}
+
+export function markersReachableFrom(
+  value: unknown,
+  markers: readonly string[],
+): string[] {
+  const lowerCased = stringsReachableFrom(value).map((text) =>
+    text.toLowerCase(),
+  );
+  return markers.filter((marker) =>
+    lowerCased.some((text) => text.includes(marker.toLowerCase())),
+  );
 }

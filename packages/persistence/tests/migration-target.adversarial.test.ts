@@ -479,7 +479,7 @@ describe("the CLIs, spawned — cases the implementer's CLI file does not try", 
 
     expect(result.exitCode).not.toBe(0);
     expect(result.stderr).toMatch(
-      /Could not connect to "lemnaria_cli_probe"|unsettled top-level await[\s\S]*await runMigrations\(connectionUrl\)/,
+      /Could not connect to "<a database this repository does not list>"|unsettled top-level await[\s\S]*await runMigrations\(connectionUrl\)/,
     );
     expectNothingLeaked(result.stdout, result.stderr);
   });

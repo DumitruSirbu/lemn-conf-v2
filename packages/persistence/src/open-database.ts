@@ -102,8 +102,9 @@ function isAcceptedByTheDriver(connectionUrl: string): boolean {
 }
 
 /**
- * The database a connection string names, and nothing else from it. Re-exported by `migrate.ts`. Exported so the no-credential-in-logs guarantee is
- * testable directly.
+ * The path a connection string names, for comparison only; re-exported by `migrate.ts`. Never print it: a mistyped
+ * string defines its own path, which can hold a credential (`postgres://u:1/pw@h/db` yields `pw@h/db`). A line shows
+ * a name only through `printListedDatabaseName` or `printReachedDatabaseName` (`migration-target.ts`).
  *
  * Never throws: `new URL` on a malformed string raises `ERR_INVALID_URL`, which carries the whole input, password
  * included, where Node's uncaught-exception printer emits it. A scheme other than `postgres:`/`postgresql:`, or no `//`

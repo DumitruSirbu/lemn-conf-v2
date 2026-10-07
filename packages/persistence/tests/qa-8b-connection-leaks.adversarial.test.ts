@@ -11,13 +11,11 @@ import {
   describeStatusFailure,
   readDeployedSchema,
 } from "../src/migrate-status.js";
-import { causeUnlessItShowsTheConnection } from "../src/migration-errors.js";
 import { assertDeclaredEnvironmentReaches } from "../src/migration-target.js";
 import { NeonConfigurationRepository } from "../src/neon-configuration-repository.js";
 import {
   InvalidConnectionUrlError,
   databaseNameOf,
-  openDatabase,
 } from "../src/open-database.js";
 import { NeonShareLinkRepository } from "../src/share-link-repository.js";
 import { markersFoundOn } from "./support/leaked-connection-markers.js";
@@ -27,7 +25,6 @@ import {
   QA_HOST,
   QA_MARKERS,
   QA_PASSWORD,
-  QA_USER,
   errorRaisedBy,
   qaValuesFor,
   sweep,
@@ -35,7 +32,8 @@ import {
 import type { Site } from "./support/qa-8b-connection-values.js";
 
 /**
- * Adversarial QA of M8 wave 8B: the runtime and migration sites, the leak detector and the cause filter. Fake values
+ * Adversarial QA of M8 wave 8B: the runtime and migration sites, and the leak detector. The cause a migration
+ * error keeps is attacked in `qa-8b-thrown-cause.adversarial.test.ts`. Fake values
  * only; every host ends in `.invalid` or the value does not parse, so nothing is reachable.
  */
 
@@ -268,57 +266,5 @@ describe("a refused shape is answered without waiting on the network (criterion 
 
     expect(error).toBeInstanceOf(InvalidConnectionUrlError);
     expect(performance.now() - startedAt).toBeLessThan(AT_ONCE_MS);
-  });
-});
-
-describe("the cause filter against shapes its own tests do not hold", () => {
-  const CONNECTION_URL = `postgres://${QA_CREDENTIALS}@${QA_HOST}/${FAKE_DATABASE}`;
-
-  function hiddenBehindASymbol(): Error {
-    return Object.defineProperty(new Error("clean"), Symbol("qa"), {
-      value: { deep: QA_PASSWORD },
-      enumerable: false,
-    });
-  }
-
-  it.each<[string, unknown]>([
-    [
-      "a symbol-keyed property",
-      Object.assign(new Error("clean"), { [Symbol("qa")]: QA_PASSWORD }),
-    ],
-    ["a non-enumerable symbol-keyed nested object", hiddenBehindASymbol()],
-    [
-      "AggregateError.errors",
-      new AggregateError([new Error(`connect ${QA_HOST}`)], "clean"),
-    ],
-    [
-      "a Map held in a property",
-      Object.assign(new Error("clean"), { seen: new Map([["k", QA_USER]]) }),
-    ],
-    [
-      "an error-like object that is not an Error",
-      { type: "error", target: { url: `wss://${QA_HOST}/v2` } },
-    ],
-  ])("drops a cause that shows the connection in %s", (_place, cause) => {
-    expect(causeUnlessItShowsTheConnection(cause, CONNECTION_URL)).toEqual({});
-  });
-
-  it("drops a cause that shows the host when the password holds an unencoded @, a string the opener takes", () => {
-    const connectionUrl = `postgres://${QA_USER}:x@${QA_PASSWORD}@${QA_HOST}/${FAKE_DATABASE}`;
-    const cause = new Error(`getaddrinfo ENOTFOUND ${QA_HOST}`);
-
-    expect(new URL(connectionUrl).hostname).toBe(QA_HOST);
-    expect(() => openDatabase(connectionUrl, "DATABASE_URL")).not.toThrow();
-    expect(causeUnlessItShowsTheConnection(cause, connectionUrl)).toEqual({});
-  });
-
-  it("drops a cause that shows the rest of a password that holds an unencoded @", () => {
-    const connectionUrl = `postgres://${QA_USER}:x@${QA_PASSWORD}@${QA_HOST}/${FAKE_DATABASE}`;
-    const cause = new Error(`password authentication failed: ${QA_PASSWORD}`);
-
-    expect(decodeURIComponent(new URL(connectionUrl).password)).toBe(
-      `x@${QA_PASSWORD}`,
-    );
-    expect(causeUnlessItShowsTheConnection(cause, connectionUrl)).toEqual({});
   });
 });

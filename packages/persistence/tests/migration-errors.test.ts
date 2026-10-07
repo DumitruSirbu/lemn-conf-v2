@@ -3,161 +3,127 @@ import { describe, expect, it } from "vitest";
 import {
   MigrationExecutionError,
   MigrationSequenceError,
-  causeUnlessItShowsTheConnection,
   isPrintableFailure,
+  reducedCauseOf,
 } from "../src/migration-errors.js";
 import { InvalidConnectionUrlError } from "../src/open-database.js";
+import { markersFoundOn } from "./support/leaked-connection-markers.js";
 
-const PASSWORD = "p4ss/w0rd@FAKE_8B";
-const ENCODED_PASSWORD = encodeURIComponent(PASSWORD);
-const USER = "fakeuser_8B";
-const HOST = "fakehost-8b.invalid";
-const CONNECTION_URL = `postgres://${USER}:${ENCODED_PASSWORD}@${HOST}/lemn-fake-db`;
+const SECRET = "FAKEPASSWORD_8B";
 
-function sqlStateError(): Error {
-  return Object.assign(
-    new Error("duplicate key value violates unique constraint"),
-    {
-      code: "23505",
-    },
-  );
+function causeOf(error: unknown): unknown {
+  return reducedCauseOf(error).cause;
 }
 
-describe("causeUnlessItShowsTheConnection", () => {
-  it("keeps a cause that shows nothing of the connection, so its SQLSTATE stays reachable", () => {
-    const error = sqlStateError();
-
-    const options = causeUnlessItShowsTheConnection(error, CONNECTION_URL);
-
-    expect(options.cause).toBe(error);
-  });
-
-  it.each([
-    ["the whole connection string", CONNECTION_URL],
-    ["the user", USER],
-    ["the host", HOST],
-    ["the password, decoded", PASSWORD],
-    ["the password, as it is written in the string", ENCODED_PASSWORD],
-  ])("drops a cause whose message shows %s", (_name, secret) => {
-    const error = new Error(`connect failed near ${secret}`);
-
-    expect(causeUnlessItShowsTheConnection(error, CONNECTION_URL)).toEqual({});
-  });
-
-  it("drops a cause that shows the connection only in its stack", () => {
-    const error = new Error("clean message");
-    error.stack = `Error: clean message\n    at ${HOST}`;
-
-    expect(causeUnlessItShowsTheConnection(error, CONNECTION_URL)).toEqual({});
-  });
-
-  it("drops a cause that shows it in an own property, as Node's ERR_INVALID_URL does with `input`", () => {
-    const error = Object.assign(new TypeError("Invalid URL"), {
-      input: CONNECTION_URL,
+describe("reducedCauseOf", () => {
+  it("keeps the type name and a SQLSTATE code of a driver error, so the underlying SQLSTATE stays reachable", () => {
+    const error = Object.assign(new Error("duplicate key value"), {
+      code: "23505",
     });
 
-    expect(causeUnlessItShowsTheConnection(error, CONNECTION_URL)).toEqual({});
+    expect(causeOf(error)).toEqual({ name: "Error", code: "23505" });
   });
 
-  it("drops a cause that shows it on an error nested in a property or on its own cause chain", () => {
-    const nested = { detail: { deeper: [`at ${USER}`] } };
-    const chained = new Error("outer", { cause: new Error(`inner ${HOST}`) });
-
-    expect(
-      causeUnlessItShowsTheConnection(
-        Object.assign(new Error("x"), nested),
-        CONNECTION_URL,
-      ),
-    ).toEqual({});
-    expect(causeUnlessItShowsTheConnection(chained, CONNECTION_URL)).toEqual(
-      {},
-    );
-  });
-
-  it("drops a cause that is not an Error but shows the connection", () => {
-    expect(
-      causeUnlessItShowsTheConnection(`refused ${HOST}`, CONNECTION_URL),
-    ).toEqual({});
-  });
-
-  it("keeps a content-free cause that is not an Error, as a failed WebSocket connect rejects with", () => {
-    const event = { type: "error" };
-
-    expect(causeUnlessItShowsTheConnection(event, CONNECTION_URL).cause).toBe(
-      event,
-    );
-  });
-
-  it("survives a cyclic cause without looping", () => {
-    const cyclic: Record<string, unknown> = {};
-    cyclic["self"] = cyclic;
-
-    expect(causeUnlessItShowsTheConnection(cyclic, CONNECTION_URL).cause).toBe(
-      cyclic,
-    );
-  });
-
-  it("drops a cause whose own-property read throws only after the connection was shown elsewhere", () => {
-    const hostile = Object.defineProperty(new Error(`near ${HOST}`), "boom", {
-      get() {
-        throw new Error("getter refuses");
-      },
-      enumerable: true,
-    });
-
-    expect(causeUnlessItShowsTheConnection(hostile, CONNECTION_URL)).toEqual(
-      {},
-    );
-  });
-});
-
-describe("causeUnlessItShowsTheConnection, for a cause that shows only part of the string", () => {
-  const LOWER_CASE_ESCAPES_URL = `postgres://${USER}:p%2fss%40w0rd@${HOST}/lemn-fake-db`;
-
-  it("drops a DNS error that carries only the host", () => {
-    const error = Object.assign(new Error(`getaddrinfo ENOTFOUND ${HOST}`), {
+  it("keeps a Node error code", () => {
+    const error = Object.assign(new Error(`getaddrinfo ENOTFOUND ${SECRET}`), {
       code: "ENOTFOUND",
     });
 
-    expect(causeUnlessItShowsTheConnection(error, CONNECTION_URL)).toEqual({});
+    expect(causeOf(error)).toEqual({ name: "Error", code: "ENOTFOUND" });
   });
 
-  it("drops a cause that carries only the host, in another case", () => {
-    const error = new Error(`getaddrinfo ENOTFOUND ${HOST.toUpperCase()}`);
-
-    expect(causeUnlessItShowsTheConnection(error, CONNECTION_URL)).toEqual({});
+  it("keeps the name of a subclass", () => {
+    expect(causeOf(new TypeError("x"))).toEqual({ name: "TypeError" });
   });
 
-  it("drops a cause that shows the password decoded when the URL wrote it percent-encoded", () => {
-    const error = new Error("rejected p/ss@w0rd");
-
-    expect(
-      causeUnlessItShowsTheConnection(error, LOWER_CASE_ESCAPES_URL),
-    ).toEqual({});
-  });
-
-  it("drops a cause that shows the password re-encoded in the other case of escape", () => {
-    const error = new Error(`rejected ${encodeURIComponent("p/ss@w0rd")}`);
-
-    expect(
-      causeUnlessItShowsTheConnection(error, LOWER_CASE_ESCAPES_URL),
-    ).toEqual({});
-  });
-
-  it("drops a cause that shows the password as written when the URL wrote it percent-encoded", () => {
-    const error = new Error("rejected p%2fss%40w0rd");
-
-    expect(
-      causeUnlessItShowsTheConnection(error, LOWER_CASE_ESCAPES_URL),
-    ).toEqual({});
-  });
-
-  it("keeps a cause that shows only the port, the scheme or the database name", () => {
-    const error = new Error('database "lemn-fake-db" does not exist on 5432');
-
-    expect(causeUnlessItShowsTheConnection(error, CONNECTION_URL).cause).toBe(
-      error,
+  it("is a new plain value: not the error, with no message, stack or other property of it", () => {
+    const error = Object.assign(
+      new Error(`near ${SECRET}`, { cause: SECRET }),
+      {
+        code: "23505",
+        input: SECRET,
+        detail: { deeper: [SECRET] },
+        [Symbol("hidden")]: SECRET,
+      },
     );
+
+    const cause = causeOf(error);
+
+    expect(cause).not.toBe(error);
+    expect(Object.getPrototypeOf(cause)).toBe(Object.prototype);
+    expect(Object.keys(cause as object).sort()).toEqual(["code", "name"]);
+    expect(Object.getOwnPropertySymbols(cause)).toEqual([]);
+    expect(markersFoundOn(reducedCauseOf(error), [SECRET])).toEqual([]);
+  });
+
+  it.each([
+    ["a name carrying text", "Error: connect to fakehost-8b.invalid"],
+    ["a name starting with a digit", "1Error"],
+    ["a name of 65 letters", "E".repeat(65)],
+    ["an empty name", ""],
+    ["a name with a space", "Bad Name"],
+  ])("clamps %s to UnknownError", (_label, name) => {
+    const error = Object.assign(new Error("x"), { name });
+
+    expect(causeOf(error)).toEqual({ name: "UnknownError" });
+  });
+
+  it.each([
+    ["a code carrying text", `password ${SECRET}`],
+    ["a lower-case code", "enotfound"],
+    ["a six-character SQLSTATE look-alike", "2350555"],
+    ["an empty code", ""],
+    ["a code of 65 characters", "E".repeat(65)],
+    ["a code that is not a string", 23505],
+  ])("drops %s", (_label, code) => {
+    const error = Object.assign(new Error("x"), { code });
+
+    expect(causeOf(error)).toEqual({ name: "Error" });
+  });
+
+  it("reads a throwing getter for name and for code as unknown and absent, never throws", () => {
+    const hostile = new Error("x");
+    Object.defineProperty(hostile, "name", {
+      get() {
+        throw new Error(`getter refuses ${SECRET}`);
+      },
+    });
+    Object.defineProperty(hostile, "code", {
+      get() {
+        throw new Error(`getter refuses ${SECRET}`);
+      },
+    });
+
+    expect(causeOf(hostile)).toEqual({ name: "UnknownError" });
+  });
+
+  it("does not call a prototype getter's secret into the cause", () => {
+    const event = Object.create({
+      get message() {
+        return SECRET;
+      },
+      get target() {
+        return { url: `wss://${SECRET}/v2` };
+      },
+    }) as object;
+
+    expect(markersFoundOn(reducedCauseOf(event), [SECRET])).toEqual([]);
+  });
+
+  it.each([
+    ["an object that is not an Error", { type: "error" }, "object"],
+    ["a string", SECRET, "string"],
+    ["undefined", undefined, "undefined"],
+    ["null", null, "object"],
+  ])("describes %s by its typeof alone", (_label, thrown, typeName) => {
+    expect(causeOf(thrown)).toEqual({ name: typeName });
+  });
+
+  it("survives a cyclic error without looping", () => {
+    const cyclic: Record<string, unknown> = {};
+    cyclic["self"] = cyclic;
+
+    expect(causeOf(cyclic)).toEqual({ name: "object" });
   });
 });
 
@@ -177,9 +143,9 @@ describe("isPrintableFailure", () => {
   );
 
   it.each([
-    ["a plain Error", new Error(CONNECTION_URL)],
+    ["a plain Error", new Error(SECRET)],
     ["a TypeError", new TypeError("Invalid URL")],
-    ["a string", CONNECTION_URL],
+    ["a string", SECRET],
   ])("refuses %s", (_name, error) => {
     expect(isPrintableFailure(error)).toBe(false);
   });

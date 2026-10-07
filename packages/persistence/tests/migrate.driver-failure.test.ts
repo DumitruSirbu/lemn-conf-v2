@@ -96,43 +96,47 @@ describe("applyMigrations against a driver that fails", () => {
     expect(driver.endCalls).toHaveLength(1);
   });
 
-  it("keeps a connect failure that shows nothing of the connection as the cause", async () => {
+  it("keeps only the type name of a connect failure as the cause", async () => {
     resetDriver();
-    const failure = { type: "error" };
-    driver.connectFailure = failure;
+    driver.connectFailure = { type: "error" };
 
     const error = await rejectionWithinBound(apply);
 
-    expect((error as Error).cause).toBe(failure);
+    expect((error as Error).cause).toEqual({ name: "object" });
   });
 
-  it("drops a connect failure that shows the host or the password, keeping the domain error", async () => {
+  it("keeps nothing of a connect failure that carries the host and the password, but its Node error code", async () => {
     resetDriver();
-    driver.connectFailure = new Error(
-      `getaddrinfo ENOTFOUND api.${FAKE_HOST} ${FAKE_PASSWORD}`,
+    driver.connectFailure = Object.assign(
+      new Error(`getaddrinfo ENOTFOUND api.${FAKE_HOST} ${FAKE_PASSWORD}`),
+      { code: "ENOTFOUND" },
     );
 
     const error = await rejectionWithinBound(apply);
 
     expect(error).toBeInstanceOf(MigrationExecutionError);
-    expect(error).not.toHaveProperty("cause");
+    expect((error as Error).cause).toEqual({
+      name: "Error",
+      code: "ENOTFOUND",
+    });
     expect(markersFoundOn(error)).toEqual([]);
   });
 
-  it("keeps a migration's SQL failure as the cause, so its SQLSTATE stays reachable", async () => {
+  it("keeps a migration's SQLSTATE, and nothing else of its failure, as the cause", async () => {
     resetDriver();
-    const failure = Object.assign(new Error("syntax error at or near x"), {
-      code: "42601",
-    });
-    driver.queryFailure = failure;
+    driver.queryFailure = Object.assign(
+      new Error(`syntax error at or near ${FAKE_PASSWORD}`),
+      { code: "42601", detail: WELL_FORMED_UNREACHABLE_VALUE },
+    );
 
     const error = await rejectionWithinBound(apply);
 
     expect(error).toBeInstanceOf(MigrationExecutionError);
-    expect((error as Error).cause).toBe(failure);
+    expect((error as Error).cause).toEqual({ name: "Error", code: "42601" });
+    expect(markersFoundOn(error)).toEqual([]);
   });
 
-  it("drops a migration failure whose error shows the connection string", async () => {
+  it("keeps nothing of a migration failure that is not a driver error but carries the connection string", async () => {
     resetDriver();
     driver.queryFailure = new Error(
       `failed over ${WELL_FORMED_UNREACHABLE_VALUE}`,
@@ -140,8 +144,7 @@ describe("applyMigrations against a driver that fails", () => {
 
     const error = await rejectionWithinBound(apply);
 
-    expect(error).toBeInstanceOf(MigrationExecutionError);
-    expect(error).not.toHaveProperty("cause");
+    expect((error as Error).cause).toEqual({ name: "Error" });
     expect(markersFoundOn(error)).toEqual([]);
   });
 });

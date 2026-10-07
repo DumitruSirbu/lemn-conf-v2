@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
+import { UNLISTED_DATABASE } from "../src/test-database-url.js";
 import { spawnPersistenceCli } from "./support/spawn-persistence-cli.js";
 
 const SOURCE_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "../src");
@@ -146,7 +147,7 @@ describe("migrate:status — the environment check", () => {
     expect(result.exitCode).toBe(1);
     expect(result.stderr).not.toContain("MigrationTargetMismatchError");
     expect(result.stderr).toContain(
-      `Could not read the schema of "${PASS_THROUGH_DATABASE}"`,
+      `Could not read the schema of "${UNLISTED_DATABASE}"`,
     );
     expectNoSecretLeaked(result.stdout, result.stderr);
   });

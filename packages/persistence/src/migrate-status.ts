@@ -17,8 +17,8 @@ import { loadEnvLocal } from "./load-env.js";
 import { databaseNameOf } from "./migrate.js";
 import {
   MigrationExecutionError,
-  causeUnlessItShowsTheConnection,
   isPrintableFailure,
+  reducedCauseOf,
 } from "./migration-errors.js";
 import { readMigrationFiles } from "./migration-files.js";
 import { SELECT_APPLIED_MIGRATIONS_SQL } from "./migration-ledger.js";
@@ -35,6 +35,8 @@ import type {
 } from "./migration-status.js";
 import {
   assertDeclaredEnvironmentReaches,
+  printListedDatabaseName,
+  printReachedDatabaseName,
   readDeclaredEnvironment,
 } from "./migration-target.js";
 import { openDatabase } from "./open-database.js";
@@ -70,8 +72,8 @@ interface TablePresence {
 
 /**
  * The three reads as one value. A failure is wrapped as `MigrationExecutionError`, as `migrate.ts` wraps its connect:
- * a Neon driver error carries endpoint and host detail in its properties, so it stays as `cause` only when it shows
- * none of the connection string. A string the opener refuses is raised as that refusal, outside the wrap.
+ * a Neon driver error carries endpoint and host detail in its properties, so only its type name and code are kept as
+ * `cause`. A string the opener refuses is raised as that refusal, outside the wrap.
  */
 export async function readDeployedSchema(
   connectionUrl: string,
@@ -81,9 +83,9 @@ export async function readDeployedSchema(
     return await queryDeployedSchema(sql);
   } catch (error) {
     throw new MigrationExecutionError(
-      `Could not read the schema of "${databaseNameOf(connectionUrl)}". Nothing was changed: this ` +
-        `command only ever reads.`,
-      causeUnlessItShowsTheConnection(error, connectionUrl),
+      `Could not read the schema of "${printListedDatabaseName(databaseNameOf(connectionUrl))}". Nothing was ` +
+        `changed: this command only ever reads.`,
+      reducedCauseOf(error),
     );
   }
 }
@@ -195,10 +197,8 @@ async function reportDeployedSchemaStatus(): Promise<void> {
     // docs/milestones/migration-environment-safety-check.md).
     const environment = readDeclaredEnvironment(process.argv, "migrate:status");
     const connectionUrl = requireMigrationDatabaseUrl();
-    assertDeclaredEnvironmentReaches({
-      environment,
-      databaseName: databaseNameOf(connectionUrl),
-    });
+    const databaseName = databaseNameOf(connectionUrl);
+    assertDeclaredEnvironmentReaches({ environment, databaseName });
 
     const report = describeDeployedSchemaStatus(
       readMigrationFiles(),
@@ -207,7 +207,7 @@ async function reportDeployedSchemaStatus(): Promise<void> {
     console.log(
       describeMigrationStatusLine(report, {
         environment,
-        databaseName: databaseNameOf(connectionUrl),
+        databaseName: printReachedDatabaseName({ databaseName, environment }),
       }),
     );
     if (!isDeployedSchemaLevel(report)) process.exitCode = 1;

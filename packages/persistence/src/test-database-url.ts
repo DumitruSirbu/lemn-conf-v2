@@ -24,32 +24,38 @@ export const ALLOWED_TEST_DATABASE_NAMES: readonly string[] = [
 /** The name a test URL derives to when none is supplied. Allowlisted by construction. */
 const TEST_DATABASE_NAME = "lemnaria_test";
 
-/** Postgres' default port, used when a URL names none, so an explicit and an implicit port read the same in a refusal.
- */
-const DEFAULT_POSTGRES_PORT = "5432";
+/** What a message says in place of a database name this repository does not list. */
+export const UNLISTED_DATABASE = "<a database this repository does not list>";
 
-interface DatabaseIdentity {
-  readonly host: string;
-  readonly port: string;
-  readonly databaseName: string;
+/**
+ * `databaseName` printed from `listedNames`, or {@link UNLISTED_DATABASE}. A message never carries text taken from a
+ * connection string: a mistyped one defines its own host, path and name, so only a listed name, copied from its list,
+ * is shown.
+ */
+export function printListedName(
+  databaseName: string,
+  listedNames: readonly string[],
+): string {
+  return (
+    listedNames.find((listedName) => listedName === databaseName) ??
+    UNLISTED_DATABASE
+  );
 }
 
 /**
- * Credentials and query parameters are excluded: a second role on the same database is still that database. The name is
- * read from the path only, which is right for `@neondatabase/serverless`; libpq (`psql`) lets a `?dbname=` parameter
- * override the path, so any second driver must be checked for how it resolves the two, or this guard checks a name
- * nothing connects to. (Only libpq's behaviour is verified.)
+ * The database name only; credentials, host and query parameters are excluded, since a second role on the same database
+ * is still that database. Read from the path only, which is right for `@neondatabase/serverless`; libpq (`psql`) lets
+ * a `?dbname=` parameter override the path, so any second driver must be checked for how it resolves the two, or this
+ * guard checks a name nothing connects to. (Only libpq's behaviour is verified.)
  */
-function identityOf(
+function databaseNameOfUrl(
   connectionUrl: string,
   variableName: ConnectionVariableName,
-): DatabaseIdentity {
-  const url = parseConnectionUrl(connectionUrl, variableName);
-  return {
-    host: url.hostname.toLowerCase(),
-    port: url.port === "" ? DEFAULT_POSTGRES_PORT : url.port,
-    databaseName: url.pathname.replace(/^\//, ""),
-  };
+): string {
+  return parseConnectionUrl(connectionUrl, variableName).pathname.replace(
+    /^\//,
+    "",
+  );
 }
 
 /**
@@ -59,38 +65,34 @@ function identityOf(
  * DELETE through in CI; the second catches an application database that is itself named `lemnaria_test`.
  */
 export function assertSafeTestDatabaseUrl(testUrl: string): void {
-  const testIdentity = identityOf(testUrl, "TEST_DATABASE_URL");
-  refuseUnlessNamedAsATestDatabase(testIdentity);
-  refuseTheApplicationDatabaseName(testIdentity);
+  const testDatabaseName = databaseNameOfUrl(testUrl, "TEST_DATABASE_URL");
+  refuseUnlessNamedAsATestDatabase(testDatabaseName);
+  refuseTheApplicationDatabaseName(testDatabaseName);
 }
 
-function refuseUnlessNamedAsATestDatabase(test: DatabaseIdentity): void {
-  if (ALLOWED_TEST_DATABASE_NAMES.includes(test.databaseName)) return;
+function refuseUnlessNamedAsATestDatabase(testDatabaseName: string): void {
+  if (ALLOWED_TEST_DATABASE_NAMES.includes(testDatabaseName)) return;
 
   throw new Error(
-    `Refusing to run live database tests against "${test.databaseName}" on ` +
-      `${test.host}:${test.port}: it is not one of the databases this repository allows a ` +
-      `destructive suite to target (${ALLOWED_TEST_DATABASE_NAMES.join(", ")}). Live tests write ` +
-      `and delete rows. A pooled and a direct endpoint of the same Neon project are different ` +
-      `hostnames reaching the same rows, so the database name is what must prove this is a test ` +
-      `database — point TEST_DATABASE_URL at one, or add the name to ALLOWED_TEST_DATABASE_NAMES.`,
+    `Refusing to run live database tests: the database the test connection string names is not one of the ` +
+      `databases this repository allows a destructive suite to target (${ALLOWED_TEST_DATABASE_NAMES.join(", ")}). ` +
+      `Live tests write and delete rows. A pooled and a direct endpoint of the same Neon project are different ` +
+      `hostnames reaching the same rows, so the database name is what must prove this is a test database — ` +
+      `point TEST_DATABASE_URL at one, or add the name to ALLOWED_TEST_DATABASE_NAMES.`,
   );
 }
 
-function refuseTheApplicationDatabaseName(test: DatabaseIdentity): void {
+function refuseTheApplicationDatabaseName(testDatabaseName: string): void {
   const applicationUrl = process.env["DATABASE_URL"]?.trim();
   if (applicationUrl === undefined || applicationUrl === "") return;
-  if (
-    test.databaseName !==
-    identityOf(applicationUrl, "DATABASE_URL").databaseName
-  )
+  if (testDatabaseName !== databaseNameOfUrl(applicationUrl, "DATABASE_URL"))
     return;
 
   throw new Error(
-    `Refusing to run live database tests against "${test.databaseName}" on ` +
-      `${test.host}:${test.port}: it is the database name DATABASE_URL points at. The host is not ` +
-      `compared, because one database is reachable under several hostnames. Live tests write and ` +
-      `delete rows, so they must target a separately named database.`,
+    `Refusing to run live database tests against "${printListedName(testDatabaseName, ALLOWED_TEST_DATABASE_NAMES)}": ` +
+      `it is the database name DATABASE_URL points at. The host is not compared, because one database is ` +
+      `reachable under several hostnames. Live tests write and delete rows, so they must target a separately ` +
+      `named database.`,
   );
 }
 

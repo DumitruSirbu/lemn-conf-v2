@@ -9,7 +9,11 @@ import {
   MigrationExecutionError,
   MigrationTargetMismatchError,
 } from "./migration-errors.js";
-import { ALLOWED_TEST_DATABASE_NAMES } from "./test-database-url.js";
+import {
+  ALLOWED_TEST_DATABASE_NAMES,
+  UNLISTED_DATABASE,
+  printListedName,
+} from "./test-database-url.js";
 
 /**
  * The permanent environments and the database name(s) each one's credential may reach. A `Map`, so a label such as
@@ -25,6 +29,10 @@ export const DATABASE_NAMES_BY_ENVIRONMENT: ReadonlyMap<
   ["preview", ["lemn-conf-v2-preview"]],
   ["test", ALLOWED_TEST_DATABASE_NAMES],
 ]);
+
+const LISTED_DATABASE_NAMES: readonly string[] = [
+  ...DATABASE_NAMES_BY_ENVIRONMENT.values(),
+].flat();
 
 /** `databaseNameOf`'s placeholder for an unparseable connection string (`migrate.ts`), duplicated rather than
  *  imported: `migrate.ts` imports this module, so importing it back would make an import cycle. */
@@ -63,7 +71,8 @@ export function readDeclaredEnvironment(
  * - an unlisted label passes only as the exact, unclaimed name of the database it reaches, so a listed environment's
  *   database is never reachable under another label;
  * - an empty name, either `databaseNameOf` placeholder, or a raw path containing `%` or `\` is always refused.
- * Receives only the two names, never a connection string, so a refusal can never quote a credential.
+ * Receives only the two names, never a connection string, and prints a database name only from the environment map,
+ * so a refusal can never quote a credential, a host or a name the operator mistyped into the URL.
  */
 export function assertDeclaredEnvironmentReaches({
   environment,
@@ -217,6 +226,26 @@ function describeRetryGuidance(
   );
 }
 
+/** The name a line may print for a database already known to be reached: one this repository lists, or the unclaimed
+ *  label the operator declared for it, which `assertDeclaredEnvironmentReaches` has accepted as that same name. */
+export function printReachedDatabaseName({
+  databaseName,
+  environment,
+}: {
+  readonly databaseName: string;
+  readonly environment: string;
+}): string {
+  const listedName = printListedDatabaseName(databaseName);
+  return listedName === UNLISTED_DATABASE && databaseName === environment
+    ? environment
+    : listedName;
+}
+
+/** A name this repository lists, copied from its list, or the placeholder: never text taken from a URL. */
+export function printListedDatabaseName(databaseName: string): string {
+  return printListedName(databaseName, LISTED_DATABASE_NAMES);
+}
+
 function describeReachedDatabase(databaseName: string): string {
   if (databaseName === "") return "no database at all";
   if (databaseName === UNPARSEABLE_DATABASE_NAME)
@@ -225,7 +254,8 @@ function describeReachedDatabase(databaseName: string): string {
     return "a connection string that is not a plain postgres:// or postgresql:// URL with a host";
   }
   if (hasUndecodedPathCharacters(databaseName)) {
-    return `a raw database name that is not safe to trust ("${databaseName}")`;
+    return "a raw database name that is not safe to trust";
   }
-  return `"${databaseName}"`;
+  const listedName = printListedDatabaseName(databaseName);
+  return listedName === UNLISTED_DATABASE ? listedName : `"${listedName}"`;
 }

@@ -243,3 +243,52 @@ describe("openDatabaseSession and the drivers agree on what a connection string 
     );
   });
 });
+
+describe("the one accepted shape (rule B7), pinned for both entry points", () => {
+  const ACCEPTED_SHAPES: readonly [string, string][] = [
+    [
+      "postgres: with a user, a password, a host and a database",
+      "postgres://u:p@h/db",
+    ],
+    ["postgresql:", "postgresql://u:p@h/db"],
+    ["an upper-case scheme", "POSTGRES://u:p@h/db"],
+    ["an empty password", "postgres://u:@h/db"],
+    ["a user without a password", "postgres://u@h/db"],
+    ["a port and a query", "postgres://u:p@h:5432/db?sslmode=require"],
+    ["a percent-encoded password", "postgres://u:p%40w@h/db"],
+    ["a host with no path, which the driver takes as `/`", "postgresql://u@h"],
+    [
+      "one slash after the scheme, which the driver re-parses as http:",
+      "postgres:/u:p@h/db",
+    ],
+    ["no slash after the scheme", "postgres:u:p@h/db"],
+  ];
+
+  const REFUSED_SHAPES: readonly [string, string][] = [
+    ["no user", "postgres://h/db"],
+    ["an empty user", "postgres://:p@h/db"],
+    ["a socket path", "socket:/var/run/postgresql?db=x"],
+    ["a bare path and a name", "/var/run/postgresql db"],
+    ["the pg: scheme", "pg://u:p@h/db"],
+    ["another database's scheme", "mysql://u:p@h/db"],
+    ["a keyword string", "host=h dbname=x user=u"],
+    ["an empty host", "postgres://u:p@/db"],
+    ["the empty string", ""],
+  ];
+
+  it.each(ACCEPTED_SHAPES)("accepts %s", (_label, value) => {
+    expect(() => openDatabase(value, "DATABASE_URL")).not.toThrow();
+    expect(() =>
+      openDatabaseSession(value, "MIGRATION_DATABASE_URL"),
+    ).not.toThrow();
+  });
+
+  it.each(REFUSED_SHAPES)("refuses %s", (_label, value) => {
+    expect(() => openDatabase(value, "DATABASE_URL")).toThrow(
+      InvalidConnectionUrlError,
+    );
+    expect(() => openDatabaseSession(value, "MIGRATION_DATABASE_URL")).toThrow(
+      InvalidConnectionUrlError,
+    );
+  });
+});

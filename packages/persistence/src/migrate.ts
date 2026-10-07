@@ -7,8 +7,8 @@ import { loadEnvLocal } from "./load-env.js";
 import {
   MigrationError,
   MigrationExecutionError,
-  causeUnlessItShowsTheConnection,
   isPrintableFailure,
+  reducedCauseOf,
 } from "./migration-errors.js";
 import { readMigrationFiles } from "./migration-files.js";
 import type { MigrationFile } from "./migration-files.js";
@@ -23,6 +23,8 @@ import { planPendingMigrations } from "./migration-plan.js";
 import type { AppliedMigration } from "./migration-plan.js";
 import {
   assertDeclaredEnvironmentReaches,
+  printListedDatabaseName,
+  printReachedDatabaseName,
   readDeclaredEnvironment,
 } from "./migration-target.js";
 import { databaseNameOf, openDatabaseSession } from "./open-database.js";
@@ -64,7 +66,7 @@ export async function applyMigrations(
   const client = openDatabaseSession(connectionUrl, "MIGRATION_DATABASE_URL");
   await connectOrWrapError(client, connectionUrl);
   try {
-    return await applyPendingMigrations({ client, connectionUrl }, files);
+    return await applyPendingMigrations(client, files);
   } finally {
     await client.end();
   }
@@ -72,8 +74,8 @@ export async function applyMigrations(
 
 /**
  * A driver connect failure must not escape raw: Neon's WebSocket errors carry endpoint and host detail (ADR 0008's
- * redaction line). The replacement names only the database and keeps the driver error as `cause` when that error does
- * not show the connection string.
+ * redaction line). The replacement names a database only if this repository lists it, and its `cause` is the
+ * failure's type name and code, never the driver's error.
  *
  * `end()` is not awaited here: a failed connect has already emitted the `end` event it waits for
  * (`@neondatabase/serverless@1.1.0`, `index.mjs:1078`), so awaiting it never settles.
@@ -87,28 +89,22 @@ async function connectOrWrapError(
   } catch (error) {
     void client.end();
     throw new MigrationExecutionError(
-      `Could not connect to "${databaseNameOf(connectionUrl)}" to run migrations. No migration ` +
-        `was attempted.`,
-      causeUnlessItShowsTheConnection(error, connectionUrl),
+      `Could not connect to "${printListedDatabaseName(databaseNameOf(connectionUrl))}" to run migrations. ` +
+        `No migration was attempted.`,
+      reducedCauseOf(error),
     );
   }
 }
 
-/** A connected client with the string it connected by, which a failure's `cause` is checked against. */
-interface OpenConnection {
-  readonly client: Client;
-  readonly connectionUrl: string;
-}
-
 async function applyPendingMigrations(
-  connection: OpenConnection,
+  client: Client,
   files: readonly MigrationFile[],
 ): Promise<MigrationRunSummary> {
   const applied: string[] = [];
   const alreadyApplied: string[] = [];
 
   for (const file of files) {
-    const wasApplied = await applyIfPending(connection, files, file);
+    const wasApplied = await applyIfPending(client, files, file);
     (wasApplied ? applied : alreadyApplied).push(file.fileName);
   }
 
@@ -117,7 +113,7 @@ async function applyPendingMigrations(
 
 /** One transaction per migration, reporting whether this run is the one that applied it. */
 async function applyIfPending(
-  { client, connectionUrl }: OpenConnection,
+  client: Client,
   files: readonly MigrationFile[],
   file: MigrationFile,
 ): Promise<boolean> {
@@ -129,7 +125,7 @@ async function applyIfPending(
     return isPending;
   } catch (error) {
     await rollbackQuietly(client);
-    throw asMigrationError(error, file, connectionUrl);
+    throw asMigrationError(error, file);
   }
 }
 
@@ -194,16 +190,12 @@ async function rollbackQuietly(client: Client): Promise<void> {
   }
 }
 
-function asMigrationError(
-  error: unknown,
-  file: MigrationFile,
-  connectionUrl: string,
-): Error {
+function asMigrationError(error: unknown, file: MigrationFile): Error {
   if (error instanceof MigrationError) return error;
   return new MigrationExecutionError(
     `Migration "${file.fileName}" failed and was rolled back. The database is unchanged by it and ` +
       `it is not recorded as applied.`,
-    causeUnlessItShowsTheConnection(error, connectionUrl),
+    reducedCauseOf(error),
   );
 }
 
@@ -250,13 +242,16 @@ if (isDirectCliInvocation) {
     // (see docs/milestones/migration-environment-safety-check.md).
     const environment = readDeclaredEnvironment(process.argv, "migrate");
     const connectionUrl = readMigrationDatabaseUrl();
-    assertDeclaredEnvironmentReaches({
-      environment,
-      databaseName: databaseNameOf(connectionUrl),
-    });
+    const databaseName = databaseNameOf(connectionUrl);
+    assertDeclaredEnvironmentReaches({ environment, databaseName });
 
     const summary = await runMigrations(connectionUrl);
-    console.log(describeMigrationRun(summary, databaseNameOf(connectionUrl)));
+    console.log(
+      describeMigrationRun(
+        summary,
+        printReachedDatabaseName({ databaseName, environment }),
+      ),
+    );
   } catch (error) {
     // Without this, Node's uncaught-exception printer dumps the driver's error object, which carries endpoint and host
     // detail. Only the error's own name and message reach the operator.

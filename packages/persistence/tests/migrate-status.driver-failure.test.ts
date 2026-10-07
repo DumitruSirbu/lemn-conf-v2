@@ -29,19 +29,18 @@ async function rejectionOfRead(): Promise<unknown> {
 }
 
 describe("readDeployedSchema against a driver whose query fails", () => {
-  it("keeps a failure that shows nothing of the connection as the cause", async () => {
-    const failure = Object.assign(new Error("permission denied"), {
+  it("keeps the SQLSTATE of the failure as the cause, and nothing else of it", async () => {
+    driver.queryFailure = Object.assign(new Error("permission denied"), {
       code: "42501",
     });
-    driver.queryFailure = failure;
 
     const error = await rejectionOfRead();
 
     expect(error).toBeInstanceOf(MigrationExecutionError);
-    expect((error as Error).cause).toBe(failure);
+    expect((error as Error).cause).toEqual({ name: "Error", code: "42501" });
   });
 
-  it("drops a failure that shows the host or the password, keeping the domain error", async () => {
+  it("keeps nothing of a failure that shows the host or the password", async () => {
     driver.queryFailure = new Error(
       `fetch failed for https://${FAKE_HOST} with ${FAKE_PASSWORD}`,
     );
@@ -49,7 +48,7 @@ describe("readDeployedSchema against a driver whose query fails", () => {
     const error = await rejectionOfRead();
 
     expect(error).toBeInstanceOf(MigrationExecutionError);
-    expect(error).not.toHaveProperty("cause");
+    expect((error as Error).cause).toEqual({ name: "Error" });
     expect(markersFoundOn(error)).toEqual([]);
   });
 });

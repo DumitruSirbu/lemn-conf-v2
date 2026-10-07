@@ -1,5 +1,3 @@
-import { inspect } from "node:util";
-
 import { InvalidConnectionUrlError } from "./open-database.js";
 
 /**
@@ -24,9 +22,8 @@ export class MigrationSequenceError extends MigrationError {}
 /** An already-applied migration file no longer hashes to what the ledger recorded for it. */
 export class MigrationChecksumMismatchError extends MigrationError {}
 
-/** The database refused a migration, or the ledger insert that goes with it. Carries the driver's
- *  error as `cause` so the underlying SQLSTATE is still reachable, without it being what callers
- *  have to catch. */
+/** The database refused a migration, or the ledger insert that goes with it, or a connection failed. Its `cause`, when
+ *  present, is a `ReducedCause` built by `reducedCauseOf`, never the driver's own error. */
 export class MigrationExecutionError extends MigrationError {}
 
 /** The declared environment (`migrate`/`migrate:status`'s required argument) and the database
@@ -44,77 +41,49 @@ export function isPrintableFailure(error: unknown): error is Error {
   );
 }
 
+/** The same clamp `BackupStageError` applies to a third party's `name`, which is free text. */
+const ERROR_NAME_PATTERN = /^[A-Za-z][A-Za-z0-9]{0,63}$/;
+const UNKNOWN_ERROR_NAME = "UnknownError";
+
+/** A SQLSTATE (five of 0-9 and A-Z) or a Node error code (`ENOTFOUND`, `ERR_INVALID_URL`). */
+const ERROR_CODE_PATTERN = /^(?:[0-9A-Z]{5}|[A-Z][A-Z0-9_]{1,63})$/;
+
+/** All a kept cause carries: no message, stack, property or object a driver or Node produced. */
+export interface ReducedCause {
+  readonly name: string;
+  readonly code?: string;
+}
+
 /**
- * `{ cause: error }` unless `error` shows the connection string, its user, its password or its host anywhere a logger
- * reads: message, stack, any own property at any depth, or `util.inspect`. A cause that does is dropped, not redacted.
- * Any one part is enough, compared without regard to case, and a credential counts as shown as written, decoded or
- * re-encoded. A fragment of a part is not detected.
+ * `{ cause }` for a `MigrationExecutionError`, built fresh from the two fields of `error` that cannot carry a
+ * credential: its type name and its `code`, each only when it has a safe shape. The failure's message is never kept,
+ * since a driver echoes its input, so the underlying SQLSTATE stays reachable and nothing else does.
  */
-export function causeUnlessItShowsTheConnection(
-  error: unknown,
-  connectionUrl: string,
-): ErrorOptions {
-  const secrets = secretsOf(connectionUrl).map((secret) =>
-    secret.toLowerCase(),
-  );
-  const surfaces = textSurfacesOf(error).map((surface) =>
-    surface.toLowerCase(),
-  );
-  const isShown = secrets.some((secret) =>
-    surfaces.some((surface) => surface.includes(secret)),
-  );
-  return isShown ? {} : { cause: error };
+export function reducedCauseOf(error: unknown): ErrorOptions {
+  const code = safeCodeOf(error);
+  const cause: ReducedCause = {
+    name: safeNameOf(error),
+    ...(code === undefined ? {} : { code }),
+  };
+  return { cause };
 }
 
-function secretsOf(connectionUrl: string): string[] {
-  const candidates = [connectionUrl, ...partsOf(connectionUrl)];
-  return candidates.filter((candidate) => candidate !== "");
+function safeNameOf(error: unknown): string {
+  const name =
+    error instanceof Error ? readQuietly(error, "name") : typeof error;
+  return typeof name === "string" && ERROR_NAME_PATTERN.test(name)
+    ? name
+    : UNKNOWN_ERROR_NAME;
 }
 
-const AUTHORITY_PARTS =
-  /^[^:]+:\/\/(?<username>[^:@/]*)(?::(?<password>[^@/]*))?@(?<hostname>[^/:?#]*)/;
-
-function partsOf(connectionUrl: string): string[] {
-  const {
-    username = "",
-    password = "",
-    hostname = "",
-  } = AUTHORITY_PARTS.exec(connectionUrl)?.groups ?? {};
-  return [...spellingsOf(username), ...spellingsOf(password), hostname];
+function safeCodeOf(error: unknown): string | undefined {
+  const code = readQuietly(error, "code");
+  return typeof code === "string" && ERROR_CODE_PATTERN.test(code)
+    ? code
+    : undefined;
 }
 
-function spellingsOf(credential: string): string[] {
-  const decoded = decodeQuietly(credential);
-  return [credential, decoded, encodeURIComponent(decoded)];
-}
-
-function decodeQuietly(text: string): string {
-  try {
-    return decodeURIComponent(text);
-  } catch {
-    return text;
-  }
-}
-
-function textSurfacesOf(error: unknown): string[] {
-  const surfaces = [inspect(error, { depth: null, showHidden: true })];
-  collectOwnStrings(error, new Set(), surfaces);
-  return surfaces;
-}
-
-function collectOwnStrings(
-  value: unknown,
-  seen: Set<object>,
-  into: string[],
-): void {
-  if (typeof value === "string") into.push(value);
-  if (typeof value !== "object" || value === null || seen.has(value)) return;
-  seen.add(value);
-  for (const key of Object.getOwnPropertyNames(value))
-    collectOwnStrings(readOwn(value, key), seen, into);
-}
-
-function readOwn(value: object, key: string): unknown {
+function readQuietly(value: unknown, key: string): unknown {
   try {
     return (value as Record<string, unknown>)[key];
   } catch {

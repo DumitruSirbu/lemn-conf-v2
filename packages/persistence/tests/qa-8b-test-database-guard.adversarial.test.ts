@@ -11,7 +11,6 @@ import {
   FAKE_DATABASE,
   OTHER_APPLICATION_URL,
   QA_CREDENTIALS,
-  QA_CREDENTIAL_MARKERS,
   QA_HOST,
   QA_MARKERS,
   errorRaisedBy,
@@ -36,7 +35,7 @@ const TEST_VARIABLE_SITES: readonly Site[] = [
   {
     name: "findDesignIdsForTests",
     databaseName: ALLOWLISTED_TEST_DATABASE,
-    markers: QA_CREDENTIAL_MARKERS,
+    markers: QA_MARKERS,
     mustRaiseForEveryValue: true,
     run: (value) => {
       stubTestVariable(value);
@@ -46,7 +45,7 @@ const TEST_VARIABLE_SITES: readonly Site[] = [
   {
     name: "assertSafeTestDatabaseUrl, an allowlisted name",
     databaseName: ALLOWLISTED_TEST_DATABASE,
-    markers: QA_CREDENTIAL_MARKERS,
+    markers: QA_MARKERS,
     mustRaiseForEveryValue: false,
     run: (value) => {
       stubTestVariable(value);
@@ -56,7 +55,7 @@ const TEST_VARIABLE_SITES: readonly Site[] = [
   {
     name: "resolveTestDatabaseUrl, a name that is not allowlisted",
     databaseName: FAKE_DATABASE,
-    markers: QA_CREDENTIAL_MARKERS,
+    markers: QA_MARKERS,
     mustRaiseForEveryValue: true,
     run: (value) => {
       stubTestVariable(value);
@@ -106,4 +105,44 @@ describe("no fallback from TEST_DATABASE_URL to DATABASE_URL (criterion 8, ADR 0
       "TEST_DATABASE_URL",
     );
   });
+});
+
+describe("the guard admits an allowlisted name exactly, and nothing near one", () => {
+  const urlNaming = (databaseName: string): string =>
+    `postgres://${QA_CREDENTIALS}@${QA_HOST}/${databaseName}`;
+
+  it.each([
+    "LEMNARIA_TEST",
+    "Lemnaria_Test",
+    "LEMN-CONF-V2-STAGING",
+    "lemnaria_test2",
+    "lemnaria_test/",
+    "lemnaria_test/x",
+    "x/lemnaria_test",
+    "lemnaria_test%20",
+    "%6Cemnaria_test",
+    "lemn-conf-v2",
+    "",
+  ])("refuses the database name %j", (databaseName) => {
+    stubTestVariable(urlNaming(databaseName));
+
+    expect(() => {
+      assertSafeTestDatabaseUrl(urlNaming(databaseName));
+    }).toThrow(/not one of the databases this repository allows/);
+    expect(() => resolveTestDatabaseUrl()).toThrow(
+      /not one of the databases this repository allows/,
+    );
+  });
+
+  it.each(["lemnaria_test", "lemn-conf-v2-staging"])(
+    "accepts the allowlisted name %s",
+    (databaseName) => {
+      stubTestVariable(urlNaming(databaseName));
+
+      expect(() => {
+        assertSafeTestDatabaseUrl(urlNaming(databaseName));
+      }).not.toThrow();
+      expect(resolveTestDatabaseUrl()).toBe(urlNaming(databaseName));
+    },
+  );
 });

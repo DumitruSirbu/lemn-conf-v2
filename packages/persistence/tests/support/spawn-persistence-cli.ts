@@ -10,6 +10,7 @@ const PACKAGE_ROOT = resolve(
   "..",
   "..",
 );
+const DEFAULT_TIMEOUT_MS = 30_000;
 const TSX_BIN = resolve(PACKAGE_ROOT, "node_modules", ".bin", "tsx");
 
 export interface SpawnedCliResult {
@@ -51,6 +52,7 @@ export async function spawnPersistenceCli(
   scriptRelativePath: string,
   args: readonly string[],
   env: Readonly<Record<string, string>>,
+  timeoutMs: number = DEFAULT_TIMEOUT_MS,
 ): Promise<SpawnedCliResult> {
   const childEnv: NodeJS.ProcessEnv = {
     PATH: process.env["PATH"] ?? "",
@@ -62,19 +64,32 @@ export async function spawnPersistenceCli(
     const { stdout, stderr } = await execFileAsync(
       TSX_BIN,
       [scriptRelativePath, ...args],
-      { cwd: PACKAGE_ROOT, env: childEnv, timeout: 30_000 },
+      { cwd: PACKAGE_ROOT, env: childEnv, timeout: timeoutMs },
     );
     return { exitCode: 0, stdout, stderr };
   } catch (error) {
-    return exitCodeAndOutputOf(error);
+    return exitCodeAndOutputOf(error, timeoutMs);
   }
 }
 
 /** `execFile`'s rejection carries the same `stdout`/`stderr`/`code` shape as a success, just thrown
- *  instead of resolved — this package's CLIs signal failure with a non-zero exit code, never a
- *  thrown signal or a missing binary, so those two fields are always present here. */
-function exitCodeAndOutputOf(error: unknown): SpawnedCliResult {
-  const failure = error as { code?: number; stdout?: string; stderr?: string };
+ *  instead of resolved — this package's CLIs signal failure with a non-zero exit code. A child killed at
+ *  the timeout is the exception: it did not exit, so it is a failed test and never an exit code. */
+function exitCodeAndOutputOf(
+  error: unknown,
+  timeoutMs: number,
+): SpawnedCliResult {
+  const failure = error as {
+    code?: number;
+    killed?: boolean;
+    stdout?: string;
+    stderr?: string;
+  };
+  if (failure.killed === true)
+    throw new Error(
+      `The CLI did not exit within ${String(timeoutMs)} ms and was killed; its output so far: ` +
+        `${failure.stdout ?? ""}${failure.stderr ?? ""}`,
+    );
   return {
     exitCode: failure.code ?? 1,
     stdout: failure.stdout ?? "",

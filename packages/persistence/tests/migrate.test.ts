@@ -489,9 +489,10 @@ describe("the migrate CLI", () => {
     const source = readFileSync(resolve(SOURCE_DIR, "migrate.ts"), "utf8");
     const cli = source.slice(source.indexOf("if (isDirectCliInvocation)"));
 
-    expect(cli).toContain(
-      "describeMigrationRun(summary, databaseNameOf(connectionUrl))",
+    expect(cli).toMatch(
+      /describeMigrationRun\(\s*summary,\s*printReachedDatabaseName\(/,
     );
+    expect(cli).not.toMatch(/describeMigrationRun\([^;]*databaseNameOf\(/);
     // A connection string printed into a transcript is a credential leak that has already happened
     // once on this project (ADR 0008's setup incident). Pinned as "there is exactly one print, and
     // it prints the described run" — which, with the assertion above, fixes what reaches the log.
