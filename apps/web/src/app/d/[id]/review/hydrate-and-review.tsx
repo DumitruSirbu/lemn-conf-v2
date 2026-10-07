@@ -3,13 +3,13 @@
 import type { Design, DesignId } from "@lemnaria/configurator-domain";
 import type { DesignRevision } from "@lemnaria/persistence";
 
-import { useContent } from "@/i18n/use-content";
+import { ReviewScreen } from "@/app/d/[id]/review/review-screen";
 import {
   ConfiguratorSnapshotProvider,
   hydrateSessionStoreInBrowser,
 } from "@/store/configurator-snapshot";
 
-/** Puts the loaded design in the store for the review, the way `HydrateAndConfigure` does for the editor (ADR 0133):
+/** Puts the loaded design in the store and shows the review of it, the way `HydrateAndConfigure` does for the editor (ADR 0133):
  *  written in the browser during render, guarded by the id, so arriving from the editor keeps the store the editor
  *  was already editing. Server render and hydration read the provider's snapshot instead.
  *
@@ -32,15 +32,7 @@ export function HydrateAndReview({
   );
   return (
     <ConfiguratorSnapshotProvider loaded={loaded}>
-      <ReviewHeading />
+      <ReviewScreen designId={designId} />
     </ConfiguratorSnapshotProvider>
-  );
-}
-
-function ReviewHeading() {
-  return (
-    <main>
-      <h1>{useContent().review.title}</h1>
-    </main>
   );
 }

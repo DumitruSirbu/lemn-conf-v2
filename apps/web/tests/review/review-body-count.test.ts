@@ -12,13 +12,13 @@ const EXPECTED_BODY_COUNT_WORDS: Readonly<
   Record<"ro" | "ru", readonly (readonly [number, string])[]>
 > = {
   ro: [
-    [0, "0 corpuri"],
-    [1, "1 corp"],
-    [2, "2 corpuri"],
-    [19, "19 corpuri"],
-    [20, "20 corpuri"],
-    [21, "21 corpuri"],
-    [101, "101 corpuri"],
+    [0, "0 dulapuri"],
+    [1, "1 dulap"],
+    [2, "2 dulapuri"],
+    [19, "19 dulapuri"],
+    [20, "20 dulapuri"],
+    [21, "21 dulapuri"],
+    [101, "101 dulapuri"],
   ],
   ru: [
     [0, "0 шкафов"],

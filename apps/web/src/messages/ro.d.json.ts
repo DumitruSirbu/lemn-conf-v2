@@ -239,7 +239,7 @@ declare const messages: {
   "review": {
     "title": "Verifică designul",
     "roundedUpNote": "Preț de pornire, rotunjit în sus.",
-    "bodyCount": "{bodyCount, plural, one {# corp} few {# corpuri} other {# corpuri}}",
+    "bodyCount": "{bodyCount, plural, one {# dulap} few {# dulapuri} other {# dulapuri}}",
     "roomLine": {
       "linear": "{shape} · {wallA, number, ::group-off} mm · {bodies}",
       "L": "{shape} · {wallA, number, ::group-off} × {wallB, number, ::group-off} mm · {corner} · {bodies}",
@@ -252,6 +252,12 @@ declare const messages: {
       "NO_CABINET": "Adaugă cel puțin un dulap în bucătărie înainte să ceri oferta.",
       "BODIES_PAST_WALL": "Unele dulapuri depășesc lungimea peretelui. Modifică lățimile sau elimină un dulap înainte să ceri oferta."
     }
+  },
+  "reviewScreen": {
+    "callToAction": "Cere oferta",
+    "editGroup": "Editează",
+    "changeSettings": "Schimbă",
+    "view3d": "Vezi în 3D"
   },
   "globalSettings": {
     "open": "Setări globale",

@@ -825,6 +825,12 @@ export function resolveContent(translate: ContentTranslator) {
         BODIES_PAST_WALL: translate("review.refusalReasons.BODIES_PAST_WALL"),
       },
     },
+    reviewScreen: {
+      callToAction: translate("reviewScreen.callToAction"),
+      editGroup: translate("reviewScreen.editGroup"),
+      changeSettings: translate("reviewScreen.changeSettings"),
+      view3d: translate("reviewScreen.view3d"),
+    },
     globalSettings: {
       open: translate("globalSettings.open"),
       title: translate("globalSettings.title"),

@@ -4,6 +4,7 @@ import { cameraPresetsForRoom } from "@lemnaria/three-adapter";
 import dynamic from "next/dynamic";
 import { useMemo } from "react";
 
+import styles from "@/app/d/[id]/review/review.module.css";
 import { useContent } from "@/i18n/use-content";
 import { useCameraPreset } from "@/scene/camera-preset-store";
 import { presetForRoom, type SceneView } from "@/scene/scene-view";
@@ -49,17 +50,22 @@ export function ReviewScene() {
   if (support === "unsupported") return null;
 
   return (
-    <div data-testid="review-scene">
+    <div className={styles.sceneFill} data-testid="review-scene">
       {support === "probing" ? (
-        <div>{content.configure.loading}</div>
+        <div className={styles.sceneLoading}>{content.configure.loading}</div>
       ) : (
         <ViewOnlyKitchenCanvas view={view} />
       )}
-      <div role="group" aria-label={content.configure.cameraGroupLabel}>
+      <div
+        className={styles.presets}
+        role="group"
+        aria-label={content.configure.cameraGroupLabel}
+      >
         {cameraPresets.map((preset) => (
           <button
             key={preset.id}
             type="button"
+            className={styles.preset}
             aria-pressed={preset.id === resolvedPresetId}
             onClick={() => {
               standAt(preset.id);
@@ -74,5 +80,7 @@ export function ReviewScene() {
 }
 
 function SceneLoading() {
-  return <div>{useContent().configure.loading}</div>;
+  return (
+    <div className={styles.sceneLoading}>{useContent().configure.loading}</div>
+  );
 }

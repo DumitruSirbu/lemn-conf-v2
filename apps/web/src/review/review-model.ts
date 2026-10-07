@@ -93,10 +93,13 @@ export type ReviewView = UnavailableReview | AvailableReview;
 
 export type ReviewSection =
   | Exclude<keyof AvailableReview, "kind" | "overflowWarning" | "submit">
+  | "overflowWarning"
+  | "refusal"
   | "callToAction";
 
 /** The order the screen that renders this value lays its sections out in: what is not included is read before the
- *  call to action. `callToAction` is a control, not a field of the value. */
+ *  call to action. The flagged total's sentence stands with the figure it flags and a refusal's sentence with the
+ *  control it explains. `callToAction` is a control, not a field of the value. */
 export const REVIEW_READING_ORDER: readonly ReviewSection[] = [
   "title",
   "roomLine",
@@ -105,6 +108,8 @@ export const REVIEW_READING_ORDER: readonly ReviewSection[] = [
   "wholeKitchenRows",
   "notIncluded",
   "disclaimer",
+  "overflowWarning",
+  "refusal",
   "figure",
   "callToAction",
 ];

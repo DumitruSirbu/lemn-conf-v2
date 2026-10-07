@@ -301,7 +301,12 @@ describe("the review's fixed sections (criteria 6 and 7)", () => {
     );
 
     expect([...returned].sort()).toEqual(
-      REVIEW_READING_ORDER.filter((section) => section !== "callToAction")
+      REVIEW_READING_ORDER.filter(
+        (section) =>
+          section !== "callToAction" &&
+          section !== "overflowWarning" &&
+          section !== "refusal",
+      )
         .slice()
         .sort(),
     );

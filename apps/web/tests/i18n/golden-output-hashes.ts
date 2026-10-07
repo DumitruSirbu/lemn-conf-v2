@@ -629,6 +629,14 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "c0c16cc253cf90852bbbf2989d052b8f3920069cbce0910637c96535cfc38ae1",
   "content.static.review.refusalReasons.PRICING_FAILED":
     "626cb3ee9d9f874ea952d633ae4116693ae973bc4c3b4655a4cb42f4ae3c0335",
+  "content.static.reviewScreen.callToAction":
+    "d2cc3c21e2c1d6f3396a6c13cdfd834c94836f1001f087eca50e77f72ed4edce",
+  "content.static.reviewScreen.editGroup":
+    "3accbb833c51fe24f8f87ab8a955e8831fc8179491c5455c67d1c61bd49ffec4",
+  "content.static.reviewScreen.changeSettings":
+    "8944cd47631589a2215b858fc59a0e0b6468b69f854286192b383c343aad833a",
+  "content.static.reviewScreen.view3d":
+    "89e312be1fcef5ef8a2a22fe5c2a49cdbd79361ec49fb0f1785592bda236f668",
   "content.static.review.roundedUpNote":
     "de0643caa8d00cffcd13babc1f9211605166177ebe0364cb52f3b38640e6896a",
   "content.static.review.title":
@@ -753,19 +761,19 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   // above this line moved — a moved hash here would mean a shipped string changed, which this wave
   // does not do.
   "review.bodyCount.count-0":
-    "0ccc7e5cd98041a5ad6f97fdd856e835e8a13616a223b8b62b64eb7cc3745a71",
+    "abcc5734271eb7a06667db29c05f54b22a45c667ca4a3fe640132eb572f4759d",
   "review.bodyCount.count-1":
-    "98ee2ccd7b2987fb0c0fc0330eadfab5dcc0aefe19459a8d50667114c0e26098",
+    "0d808540b5e1afa324a58bb1ea54f3bc2898b3d8270d613ad7aeeebd01c099de",
   "review.bodyCount.count-100":
-    "455965e19cf806c78aa82628aeac4ae6e01cbf828b653b292c3482deff3f2ed4",
+    "4aadbd63d779b3eb2b0753547568a335c43f17e4392bc789f00a1fdf41fc34d4",
   "review.bodyCount.count-101":
-    "71e26f7ab7e96d34587a9308fce1d107acb3766d00fb2d2cccb0614ae920f610",
+    "be0cb897801d2193e879631600fdf00df93395020cab59d544fa5c6aaac4b612",
   "review.bodyCount.count-19":
-    "1f3c3bd15d4360b7b5b1d6262fc31a2ef8f736e7ae799e2ef10754ec2bfc628a",
+    "f950e05be4ce2f2d38e2708721a1975f648d63b6a972109581e842b15ee1d2a2",
   "review.bodyCount.count-2":
-    "aa09bb10bd42b7ade555a18d7bb8ce82b68494510b1921e64d832ddcaa239d42",
+    "25366011d67919076700a82290b5b9cf1f8a0451a56324a73692306d8f20bce4",
   "review.bodyCount.count-20":
-    "a3607af8ad6b555777d4dded51a40800f8e580ac172824f3a84f968e3064aee7",
+    "99bfba1f9b722b01b40a94f4e4cbc923e2e1f6c66e70cf16b8793cb421ac4ff9",
   "review.roomLine.L":
     "b8711959be6b0007c1af6e8a0cb0816d04415f55f9978afee974581e1bf42e2a",
   "review.roomLine.U":

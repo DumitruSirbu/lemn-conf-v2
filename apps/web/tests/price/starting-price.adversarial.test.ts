@@ -482,6 +482,8 @@ describe("only these modules may go near a price, and only one of them may round
 
   it("names every module that can reach a priced amount or the figure built from one", () => {
     expect(pricingModules).toEqual([
+      // The review screen and its two helpers render the model's figure and rows; they derive and round nothing.
+      "app/d/[id]/review/review-screen.tsx",
       "panel/editor-panel.tsx",
       "panel/panel-model.ts",
       "panel/use-panel-view.ts",
@@ -497,7 +499,9 @@ describe("only these modules may go near a price, and only one of them may round
       "price/use-priced-design.ts",
       // `whole-kitchen-tiers.ts` prices the design six times over to measure a delta; listed, not exempted.
       "price/whole-kitchen-tiers.ts",
+      "review/review-groups.tsx",
       "review/review-model.ts",
+      "review/use-review.ts",
       "settings/global-settings-model.ts",
       "settings/global-settings.tsx",
     ]);

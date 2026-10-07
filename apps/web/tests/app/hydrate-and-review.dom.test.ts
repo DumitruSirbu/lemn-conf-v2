@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 //
 // The **browser's** render of the review's hydrator: the session store holds the loaded design before anything
-// below reads it, the heading is the approved `review.title` leaf in each locale, and a second render for the same
+// below reads it, the first frame is the loading line (support is asked in an effect), and a second render for the same
 // design keeps the store the customer was editing rather than overwriting it with the server's copy.
 import {
   KITCHEN_L_DESIGN,
@@ -70,13 +70,13 @@ describe("HydrateAndReview in the browser", () => {
   });
 
   it.each(["ro", "ru"] as const)(
-    "shows the %s review.title leaf as the heading and nothing else",
+    "shows the %s loading line and no figure until WebGL support is known",
     (locale) => {
       const markup = renderReview(loadedDesign(), locale);
 
-      expect(markup).toBe(
-        `<main><h1>${MESSAGES[locale].review.title}</h1></main>`,
-      );
+      expect(markup).toContain(MESSAGES[locale].configure.loading);
+      expect(markup).not.toContain("<h1");
+      expect(markup).not.toContain("MDL");
     },
   );
 
