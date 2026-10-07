@@ -5,6 +5,8 @@ import { describe, expect, it } from "vitest";
 import { DATABASE_NAMES_BY_ENVIRONMENT } from "../src/migration-target.js";
 import {
   InvalidConnectionUrlError,
+  NO_AGREED_DATABASE_NAME,
+  agreedDatabaseNameOf,
   databaseNameOf,
   openDatabase,
   openDatabaseSession,
@@ -12,6 +14,7 @@ import {
 } from "../src/open-database.js";
 import type { ConnectionVariableName } from "../src/open-database.js";
 import { isTransientFailure } from "../src/retry-on-transient-failure.js";
+import { assertSafeTestDatabaseUrl } from "../src/test-database-url.js";
 import { markersFoundOn } from "./support/leaked-connection-markers.js";
 
 /**
@@ -150,6 +153,28 @@ function nameTheHttpDriverParses(value: string): string {
   ).replace(/^\//, "");
 }
 
+function nameAsWritten(value: string): string {
+  return new URL(value).pathname.replace(/^\//, "");
+}
+
+/** Rule B9's three readers, each asked directly: the string as written, the HTTP re-reading, the session driver. */
+function readingsOfTheNameDisagree(value: string): boolean {
+  const names = new Set([
+    nameAsWritten(value),
+    nameTheHttpDriverParses(value),
+    sessionDriverNameOrNone(value),
+  ]);
+  return names.size > 1;
+}
+
+function sessionDriverNameOrNone(value: string): unknown {
+  try {
+    return new Client(value).database;
+  } catch {
+    return Symbol("the session driver refused the string");
+  }
+}
+
 function namesNoDatabase(value: string): boolean {
   return nameTheHttpDriverParses(value) === "";
 }
@@ -167,16 +192,31 @@ describe("the opener over a sweep of assembled strings (criteria 2, 5, 7 and 8)"
     );
   });
 
-  it("refuses, beyond what neon() refuses, only a string with no // after its scheme or with no database name (rule B7)", () => {
+  it("refuses, beyond what neon() refuses, only a string with no //, with no database name, or on which the readings of the name disagree (rules B7 and B9)", () => {
     fc.assert(
       fc.property(anyValue, (value) => {
         fc.pre(thrownBy(() => neon(value)) === undefined);
         fc.pre(!isAcceptedByTheOpener(value));
 
-        expect(lacksTheTwoSlashes(value) || namesNoDatabase(value)).toBe(true);
+        expect(
+          lacksTheTwoSlashes(value) ||
+            namesNoDatabase(value) ||
+            readingsOfTheNameDisagree(value),
+        ).toBe(true);
       }),
       SWEEP,
     );
+  });
+
+  it("refuses a string whose name a backslash makes the drivers read differently, the form QA12 found (rule B9)", () => {
+    const value = `postgres://a@b\\${QA_USER}:${QA_PASSWORD}@${QA_HOST}/lemnaria_test`;
+
+    expect(thrownBy(() => neon(value))).toBeUndefined();
+    expect(readingsOfTheNameDisagree(value)).toBe(true);
+    for (const open of [openDatabase, openDatabaseSession])
+      expect(thrownBy(() => open(value))).toBeInstanceOf(
+        InvalidConnectionUrlError,
+      );
   });
 
   it.each([
@@ -192,18 +232,51 @@ describe("the opener over a sweep of assembled strings (criteria 2, 5, 7 and 8)"
       );
   });
 
-  it("reads the same database name the session driver would use, for every accepted string that names a listed database", () => {
+  it("gives no name, and so refuses everywhere, a string the session driver cannot be constructed from (rule B9, fail-closed)", () => {
+    const value =
+      `postgres://${QA_USER}:${QA_PASSWORD}@${QA_HOST}/lemnaria_test` +
+      `?sslrootcert=/qa-8b-no-such-directory/root.pem`;
+
+    expect(thrownBy(() => new Client(value))).toBeDefined();
+    expect(nameAsWritten(value)).toBe("lemnaria_test");
+    expect(nameTheHttpDriverParses(value)).toBe("lemnaria_test");
+    expect(agreedDatabaseNameOf(value)).toBe(NO_AGREED_DATABASE_NAME);
+    expect(thrownBy(() => openDatabase(value))).toBeInstanceOf(
+      InvalidConnectionUrlError,
+    );
+    expect(
+      markersFoundOn(
+        thrownBy(() => openDatabase(value)),
+        QA_MARKERS,
+      ),
+    ).toEqual([]);
+    expect(() => {
+      assertSafeTestDatabaseUrl(value);
+    }).toThrow(/not one of the databases this repository allows/);
+  });
+
+  it("compares the one database name both drivers would use, for every accepted string (rule B9)", () => {
     fc.assert(
       fc.property(anyValue, (value) => {
         fc.pre(isAcceptedByTheOpener(value));
         const comparedName = databaseNameOf(value);
-        fc.pre(LISTED_NAMES.includes(comparedName));
 
         expect(new Client(value).database).toBe(comparedName);
         expect(nameTheHttpDriverParses(value)).toBe(comparedName);
+        expect(nameAsWritten(value)).toBe(comparedName);
       }),
       SWEEP,
     );
+  });
+
+  it("accepts strings that name a listed database, so the comparison above is made on names that matter", () => {
+    const acceptedNames = fc
+      .sample(anyValue, SWEEP)
+      .filter(isAcceptedByTheOpener)
+      .map(databaseNameOf);
+
+    for (const listedName of LISTED_NAMES)
+      expect(acceptedNames).toContain(listedName);
   });
 
   it("accepts some of the swept strings and refuses others, so the sweep reaches both sides", () => {

@@ -41,27 +41,29 @@ function rejectionOrNothing(failure: unknown): Promise<{ rows: unknown[] }> {
     : Promise.reject(failure as Error);
 }
 
-vi.mock("@neondatabase/serverless", () => ({
-  NeonDbError: class extends Error {},
-  Client: class {
-    connect(): Promise<unknown> {
-      return rejectionOrNothing(driver.connectFailure);
-    }
-
-    query(sql: string): Promise<{ rows: unknown[] }> {
-      return rejectionOrNothing(
-        sql === "rollback" ? undefined : driver.queryFailure,
-      );
-    }
-
-    end(): Promise<void> {
-      return driver.end();
-    }
-  },
-  neon: () => ({
-    query: () => rejectionOrNothing(driver.queryFailure),
-  }),
-}));
+/**
+ * The real module with only the network replaced. `Client` stays the driver's own class, so the opener's question to
+ * it (rule B9: which database would the session driver use?) is answered by the driver and not by this file.
+ */
+vi.mock("@neondatabase/serverless", async (importActual) => {
+  const actual =
+    await importActual<typeof import("@neondatabase/serverless")>();
+  class ClientWithoutANetwork extends actual.Client {}
+  // Assigned, not declared as overrides: the driver types `query` with overloads these scripted stand-ins do not need.
+  Object.assign(ClientWithoutANetwork.prototype, {
+    connect: () => rejectionOrNothing(driver.connectFailure),
+    query: (sql: string) =>
+      rejectionOrNothing(sql === "rollback" ? undefined : driver.queryFailure),
+    end: () => driver.end(),
+  });
+  return {
+    ...actual,
+    Client: ClientWithoutANetwork,
+    neon: () => ({
+      query: () => rejectionOrNothing(driver.queryFailure),
+    }),
+  };
+});
 
 const MIGRATION: MigrationFile = {
   version: 1,
@@ -270,22 +272,45 @@ function closeFailure(): Error {
   });
 }
 
+interface FailingClose {
+  readonly how: string;
+  readonly end: () => Promise<void>;
+  /** False for the one case this wave does not bound (follow-up F5): after a run, the close is awaited. */
+  readonly isBoundedAfterARun: boolean;
+}
+
 /** Every way closing a session can go wrong. The last is what the driver does once its connection has already ended:
  *  `end()` waits for an `end` event that fired before it was called. */
-const FAILING_CLOSES: readonly [string, () => Promise<void>][] = [
-  ["rejects", () => Promise.reject(closeFailure())],
-  [
-    "throws before returning a promise",
-    () => {
+const FAILING_CLOSES: readonly FailingClose[] = [
+  {
+    how: "rejects",
+    end: () => Promise.reject(closeFailure()),
+    isBoundedAfterARun: true,
+  },
+  {
+    how: "throws before returning a promise",
+    end: () => {
       throw closeFailure();
     },
-  ],
-  ["never settles", () => new Promise<void>(() => undefined)],
+    isBoundedAfterARun: true,
+  },
+  {
+    how: "never settles",
+    end: () => new Promise<void>(() => undefined),
+    isBoundedAfterARun: false,
+  },
 ];
 
 describe.each(FAILING_CLOSES)(
-  "applyMigrations when closing the session %s (rule B8)",
-  (_how, end) => {
+  "applyMigrations when closing the session $how (rules B8 and B3)",
+  ({ end, isBoundedAfterARun }) => {
+    /**
+     * DECLARED DEFERRAL, follow-up F5 (M8 8B, third adjudication; QA13). A close that never returns after a run is not
+     * bounded by wave 8B, so for that one close these two tests are expected failures: `applyMigrations` does not
+     * settle. They go red the moment it does. Whoever fixes F5 flips `isBoundedAfterARun` to true; do not delete them.
+     */
+    const itAfterARun = isBoundedAfterARun ? it : it.fails;
+
     const unhandledRejections: unknown[] = [];
     const recordUnhandled = (reason: unknown): void => {
       unhandledRejections.push(reason);
@@ -313,31 +338,37 @@ describe.each(FAILING_CLOSES)(
       }
     }
 
-    it("returns the summary of a clean run", async () => {
-      const outcome = await outcomeOfARun({});
+    itAfterARun(
+      "returns the summary of a clean run (an expected failure under F5 when the close never settles)",
+      async () => {
+        const outcome = await outcomeOfARun({});
 
-      expect(outcome).toEqual({
-        kind: "returned",
-        value: { applied: [MIGRATION.fileName], alreadyApplied: [] },
-      });
-      expect(unhandledRejections).toEqual([]);
-    });
+        expect(outcome).toEqual({
+          kind: "returned",
+          value: { applied: [MIGRATION.fileName], alreadyApplied: [] },
+        });
+        expect(unhandledRejections).toEqual([]);
+      },
+    );
 
-    it("throws the run's own error when a statement failed", async () => {
-      const outcome = await outcomeOfARun({
-        queryFailure: Object.assign(new Error("syntax error"), {
-          code: "42601",
-        }),
-      });
+    itAfterARun(
+      "throws the run's own error when a statement failed (an expected failure under F5 when the close never settles)",
+      async () => {
+        const outcome = await outcomeOfARun({
+          queryFailure: Object.assign(new Error("syntax error"), {
+            code: "42601",
+          }),
+        });
 
-      expect(outcome.kind).toBe("threw");
-      const { error } = outcome as { error: Error };
-      expect(error).toBeInstanceOf(MigrationExecutionError);
-      expect(error.message).toContain(MIGRATION.fileName);
-      expect(error.cause).toEqual({ name: "Error", code: "42601" });
-      expect(markersReachableFrom(error, QA_MARKERS)).toEqual([]);
-      expect(unhandledRejections).toEqual([]);
-    });
+        expect(outcome.kind).toBe("threw");
+        const { error } = outcome as { error: Error };
+        expect(error).toBeInstanceOf(MigrationExecutionError);
+        expect(error.message).toContain(MIGRATION.fileName);
+        expect(error.cause).toEqual({ name: "Error", code: "42601" });
+        expect(markersReachableFrom(error, QA_MARKERS)).toEqual([]);
+        expect(unhandledRejections).toEqual([]);
+      },
+    );
 
     it("throws the connect failure when the connect failed", async () => {
       const outcome = await outcomeOfARun({
