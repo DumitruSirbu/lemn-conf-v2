@@ -833,6 +833,7 @@ export function resolveContent(translate: ContentTranslator) {
       saving: translate("reviewScreen.saving"),
       conflict: translate("reviewScreen.conflict"),
       openEditor: translate("reviewScreen.openEditor"),
+      topBarTitle: translate("reviewScreen.topBarTitle"),
     },
     globalSettings: {
       open: translate("globalSettings.open"),

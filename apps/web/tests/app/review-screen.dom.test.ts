@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 //
-// Frames 3A and 3B as a screen (M8 8D criteria 7, 9, 11–14, 19). The page is rendered to markup from a design held
+// Frames 3A and 3B as a screen. The page is rendered to markup from a design held
 // by the snapshot provider, the way a request renders it, and read back with a DOM. The scene, the locale menu and
 // the editor's exit screen are stubs: this is about what the screen draws and where, not about WebGL.
 //
@@ -119,6 +119,34 @@ function overflowingKitchen(): { design: Design; ids: readonly string[] } {
 
 beforeEach(() => {
   webgl.state = "supported";
+});
+
+describe("the top bar", () => {
+  it.each(["ro", "ru"] as const)(
+    "carries frame 3A's title in %s, apart from the page's own heading",
+    (locale) => {
+      const page = render(KITCHEN_L_DESIGN, locale);
+      const title = page.querySelector('[data-testid="review-top-bar-title"]');
+
+      expect(title?.textContent).toBe(
+        MESSAGES[locale].reviewScreen.topBarTitle,
+      );
+      expect(page.querySelector("header")?.contains(title ?? null)).toBe(true);
+      expect(title?.textContent).not.toBe(
+        page.querySelector("h1")?.textContent,
+      );
+    },
+  );
+
+  it("puts the language menu in a cell of the review's own, so the editor's rule under it can be undone", () => {
+    const page = render(KITCHEN_L_DESIGN);
+
+    expect(
+      page.querySelector(
+        'header [class*="localeSlot"] [data-testid="locale-menu"]',
+      ),
+    ).not.toBeNull();
+  });
 });
 
 describe("the reading order", () => {
@@ -444,6 +472,20 @@ describe("what the stylesheet declares (the layout itself is the visual pass's)"
       expect(ruleBody(selector)).toMatch(/var\(--touch-target\)/);
     },
   );
+
+  it("draws the scene at frame 3A's 158 px", () => {
+    expect(ruleBody(".scene")).toContain("height: 158px");
+  });
+
+  it("undoes the editor's rule under the language menu's cell, with more weight than its own", () => {
+    expect(STYLESHEET).toMatch(
+      /\.nav \.localeSlot > \* \{\s*border-bottom: 0;/,
+    );
+  });
+
+  it("draws a wait with no red edge", () => {
+    expect(ruleBody(".waiting")).not.toContain("--refusal");
+  });
 
   it("keeps the call to action at least 44 px tall and focusable when off", () => {
     expect(ruleBody(".cta")).toMatch(/min-height: 52px/);

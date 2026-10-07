@@ -1,17 +1,8 @@
 "use client";
 
-import { cabinetDepthMmOf } from "@lemnaria/configurator-domain";
-import { cameraPresetsForRoom, isDragGesture } from "@lemnaria/three-adapter";
+import { cameraPresetsForRoom } from "@lemnaria/three-adapter";
 import dynamic from "next/dynamic";
-import { useSearchParams } from "next/navigation";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type RefObject,
-} from "react";
+import { useMemo } from "react";
 
 import { EditorPanel } from "@/panel/editor-panel";
 import { FlaggedTotalWarning } from "@/price/flagged-total-warning";
@@ -26,7 +17,7 @@ import { OverflowWarning } from "@/scene/overflow-warning";
 import { GlobalSettings } from "@/settings/global-settings";
 import { SettingsPillMeasurement } from "@/settings/settings-pill-measurement";
 import { widestCounterFor } from "@/settings/global-settings-model";
-import { useCameraPreset, viewShowingWall } from "@/scene/camera-preset-store";
+import { useCameraPreset } from "@/scene/camera-preset-store";
 import { presetForRoom, type SceneView } from "@/scene/scene-view";
 import { useWebGLSupport } from "@/scene/webgl-support";
 import { useConfiguratorStore } from "@/store/configurator-store";
@@ -37,6 +28,7 @@ import { LocaleMenu } from "./locale-menu";
 import { SelectionDebug } from "./selection-debug";
 import { useBackConfirmation } from "./use-back-confirmation";
 import { useBackGuard } from "./use-back-guard";
+import { useHonourArrival } from "./use-honour-arrival";
 import { useTopBarFit } from "./use-top-bar-fit";
 
 // The canvas never renders on the server, and its bundle is only fetched on the step that needs 3D.
@@ -84,6 +76,7 @@ export function ConfigureScreen({
 
   const arrival = useHonourArrival({
     isOwner: variant === "owner",
+    support,
     settingsTrackRef: topBar.settingsTrackRef,
   });
 
@@ -308,193 +301,5 @@ export function ConfigureScreen({
         onMeasured={topBar.onPillMeasured}
       />
     </main>
-  );
-}
-
-/** The parameters the review's links put on the editor's URL: a body to select, or the settings to open. */
-const ARRIVAL_PARAMETERS = ["select", "settings"] as const;
-
-const SETTINGS_TRIGGER = '[data-testid="global-settings-trigger"]';
-
-/** What one arrival (one URL's worth of parameters) has settled so far. */
-interface ArrivalProgress {
-  readonly key: string;
-  hasChosenSelection: boolean;
-  hasHandledSettings: boolean;
-  hasRemovedParameters: boolean;
-}
-
-/**
- * Acts on `?select=` and `?settings=open` once per arrival, then takes them off the URL, and only then. The screen
- * only exists after the owned load answered (`HydrateAndConfigure`), so neither is acted on for a browser the gate
- * refused, and not at all in the share view, whose visitor edits nothing.
- *
- * - **`select`** needs nothing but the scene. The view that shows the body is chosen at once (`viewShowingWall`). In
- *   a U the body is selected when the scene has *arrived* at that view (the returned `onSceneSettled`): the scene
- *   deselects a body on a wall the eye cuts away, from its first frame and through the ease from its framing
- *   position, so a selection written earlier is undone. Whichever of the store and the scene mounts first, the body
- *   is selected once the camera stands where it can be seen. In any other room nothing is ever cut, so the body is
- *   selected at once. A body the design does not hold, or no view shows, selects nothing.
- * - **`settings=open`** needs the answer about write access, because the sheet's trigger is off until it comes. While
- *   it is awaited nothing is pressed and the parameter stays. Writable: the trigger is pressed, and only if it is
- *   enabled at that moment (its disabled state is `describeEditability`'s, which the DOM already shows). Not writable
- *   or the check failed: the sheet is not opened, since it is not openable read-only, and the editor's own notice
- *   says why. Opening goes through the sheet's own trigger, which owns that state.
- *
- * The parameters are taken off with `replaceState` over the same entry and the entry's own state, so the history
- * gains nothing (Back from an editor reached through the review returns to the review), the guard's marker
- * survives, and a reload, a language switch or Forward into the entry finds nothing left to repeat.
- */
-export function useHonourArrival({
-  isOwner,
-  settingsTrackRef,
-}: {
-  readonly isOwner: boolean;
-  readonly settingsTrackRef: RefObject<HTMLElement | null>;
-}): { readonly onSceneSettled: () => void } {
-  const searchParams = useSearchParams();
-  const canWrite = useConfiguratorStore((state) => state.canWrite);
-  const progress = useRef<ArrivalProgress | null>(null);
-  // The body the arrival chose and has not yet selected, and whether it is waiting for the scene. The ref is what
-  // the arrival decided and survives a remount; the state is what arms the watch below, so the watch is set up by an
-  // effect that owns its cleanup, and mount, cleanup, mount leaves it armed.
-  const bodyToSelect = useRef<string | null>(null);
-  const [isWaitingForTheScene, setIsWaitingForTheScene] = useState(false);
-
-  useEffect(() => {
-    if (!isWaitingForTheScene) return;
-    return watchForTheCustomersTap(() => {
-      bodyToSelect.current = null;
-      setIsWaitingForTheScene(false);
-    });
-  }, [isWaitingForTheScene]);
-
-  useEffect(() => {
-    if (!isOwner) return;
-    const arrival = new URLSearchParams(searchParams);
-    if (!ARRIVAL_PARAMETERS.some((name) => arrival.has(name))) return;
-    const key = arrival.toString();
-    if (progress.current?.key !== key)
-      progress.current = {
-        key,
-        hasChosenSelection: false,
-        hasHandledSettings: false,
-        hasRemovedParameters: false,
-      };
-    const arrivalProgress = progress.current;
-    if (arrivalProgress.hasRemovedParameters) return;
-
-    if (!arrivalProgress.hasChosenSelection) {
-      arrivalProgress.hasChosenSelection = true;
-      bodyToSelect.current = standWhereBodyIsSeen(arrival.get("select"));
-      if (bodyToSelect.current !== null) {
-        if (mustWaitForTheScene()) setIsWaitingForTheScene(true);
-        else selectTheChosenBody(bodyToSelect);
-      }
-    }
-    if (
-      !arrivalProgress.hasHandledSettings &&
-      arrival.get("settings") === "open"
-    ) {
-      if (canWrite === "checking") return;
-      arrivalProgress.hasHandledSettings = true;
-      if (canWrite === true) pressSettingsTrigger(settingsTrackRef.current);
-    }
-    removeArrivalFromUrl();
-    arrivalProgress.hasRemovedParameters = true;
-  }, [isOwner, searchParams, canWrite, settingsTrackRef]);
-
-  const onSceneSettled = useCallback(() => {
-    selectTheChosenBody(bodyToSelect);
-    setIsWaitingForTheScene(false);
-  }, []);
-
-  return { onSceneSettled };
-}
-
-/** Selects the body the arrival chose, once, and forgets it. */
-function selectTheChosenBody(chosen: { current: string | null }): void {
-  const placementId = chosen.current;
-  if (placementId === null) return;
-  chosen.current = null;
-  useConfiguratorStore
-    .getState()
-    .select({ kind: "placement", id: placementId });
-}
-
-/**
- * Calls `onTap` when the customer taps the scene, and returns the way to stop watching. A tap is the one thing that
- * can select, or clear, anything before the scene rests, so it is how the customer's own act is told from the
- * arrival's write and from the scene's deselect on a cut wall, neither of which is a pointer gesture (and the
- * scene's only exists for a selection, which a pending arrival has not yet made). A tap is the scene's own: a press
- * and a release on the canvas that `isDragGesture` does not call an orbit. Seen in the capture phase, so it is known
- * before the scene acts on the same tap.
- */
-function watchForTheCustomersTap(onTap: () => void): () => void {
-  let pressedAt: { x: number; y: number } | null = null;
-  const isOnTheScene = (event: Event) =>
-    event.target instanceof HTMLCanvasElement;
-  const press = (event: PointerEvent) => {
-    pressedAt = isOnTheScene(event)
-      ? { x: event.clientX, y: event.clientY }
-      : null;
-  };
-  const release = (event: PointerEvent) => {
-    const start = pressedAt;
-    pressedAt = null;
-    if (start === null || !isOnTheScene(event)) return;
-    if (!isDragGesture(start, { x: event.clientX, y: event.clientY })) onTap();
-  };
-  document.addEventListener("pointerdown", press, true);
-  document.addEventListener("pointerup", release, true);
-  return () => {
-    document.removeEventListener("pointerdown", press, true);
-    document.removeEventListener("pointerup", release, true);
-  };
-}
-
-/** Only a U's scene cuts a wall away (`cutawayWallsFor`), so only there can it undo a selection; in any other room
- *  the body is selected at once, before the scene is even loaded. */
-function mustWaitForTheScene(): boolean {
-  return useConfiguratorStore.getState().design.room.shape === "U";
-}
-
-/** Presses the settings trigger if it is enabled now; a disabled button ignores a click, and the press is not
- *  retried. */
-function pressSettingsTrigger(track: HTMLElement | null): void {
-  const trigger = track?.querySelector<HTMLButtonElement>(SETTINGS_TRIGGER);
-  if (trigger !== null && trigger !== undefined && !trigger.disabled)
-    trigger.click();
-}
-
-/**
- * Makes the view the one that shows the named body, and returns the body to select once the scene stands there;
- * `null` for a body the design does not hold or one no view shows. The remembered view becomes the one stood at.
- */
-function standWhereBodyIsSeen(placementId: string | null): string | null {
-  if (placementId === null) return null;
-  const { records, design } = useConfiguratorStore.getState();
-  const record = records.find((candidate) => candidate.id === placementId);
-  if (record === undefined) return null;
-
-  const camera = useCameraPreset.getState();
-  const view = viewShowingWall({
-    wall: record.wall,
-    standingAt: camera.presetId,
-    room: design.room,
-    cabinetDepthMm: cabinetDepthMmOf(design),
-  });
-  if (view === null) return null;
-  if (view !== camera.presetId) camera.standAt(view);
-  return placementId;
-}
-
-function removeArrivalFromUrl(): void {
-  const url = new URL(window.location.href);
-  for (const name of ARRIVAL_PARAMETERS) url.searchParams.delete(name);
-  window.history.replaceState(
-    window.history.state,
-    "",
-    `${url.pathname}${url.search}${url.hash}`,
   );
 }

@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 //
-// Arriving at the review (M8 8D S4, criteria 4 and 20): what the page does with a store that may already hold the
+// Arriving at the review: what the page does with a store that may already hold the
 // design with an edit not yet saved, that it asks the server nothing, and what its call to action does while a save
 // is owed. The scene, the locale menu and the editor's exit screen are stubs; WebGL support is answered "supported".
 //
@@ -270,7 +270,7 @@ describe("arriving at a store that holds another design, or none", () => {
   });
 });
 
-describe("E5: a conflict is settled in the editor", () => {
+describe("a conflict is settled in the editor", () => {
   const edited = editedCopyOf(KITCHEN_L_DESIGN);
 
   beforeEach(() => {
@@ -350,7 +350,7 @@ describe("E5: a conflict is settled in the editor", () => {
   );
 });
 
-describe("E3: the review shows the newest copy this tab can know", () => {
+describe("the review shows the newest copy this tab can know", () => {
   const newerOnServer = editedCopyOf(KITCHEN_L_DESIGN);
 
   function holdCleanStoreAt(revision: string, design: Design): void {
@@ -481,6 +481,119 @@ describe("revisions compare as whole numbers, never as a number", () => {
   it("is greater than a store that holds no revision", () => {
     expect(isGreaterRevision("1", null)).toBe(true);
   });
+});
+
+describe("whatever takes focus stays clear of the pinned region", () => {
+  const observed: { callback: () => void; target: Element }[] = [];
+  const REGION_HEIGHT_PX = { current: 244 };
+
+  beforeEach(() => {
+    observed.length = 0;
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        constructor(private readonly callback: () => void) {}
+        observe(target: Element): void {
+          observed.push({ callback: this.callback, target });
+        }
+        disconnect(): void {
+          observed.length = 0;
+        }
+      },
+    );
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(
+      function (this: Element) {
+        const height =
+          this.getAttribute("data-testid") === "review-bottom"
+            ? REGION_HEIGHT_PX.current
+            : 0;
+        return new DOMRect(0, 0, 390, height);
+      },
+    );
+    useConfiguratorStore.setState(useConfiguratorStore.getInitialState());
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function reserved(): string {
+    return document.documentElement.style.scrollPaddingBottom;
+  }
+
+  it("reserves the region's height, and the safe gap, at the viewport's foot", () => {
+    mountReview(KITCHEN_L_DESIGN);
+
+    expect(reserved()).toBe("calc(244px + var(--safe-gap))");
+    expect(
+      observed.map(({ target }) => target.getAttribute("data-testid")),
+    ).toEqual(["review-bottom"]);
+  });
+
+  it("follows the region as its sentences come and go", () => {
+    mountReview(KITCHEN_L_DESIGN);
+
+    REGION_HEIGHT_PX.current = 378;
+    act(() => {
+      observed[0]?.callback();
+    });
+
+    expect(reserved()).toBe("calc(378px + var(--safe-gap))");
+    REGION_HEIGHT_PX.current = 244;
+  });
+
+  it("gives the viewport back when the screen goes away", () => {
+    mountReview(KITCHEN_L_DESIGN);
+
+    act(() => {
+      root.unmount();
+    });
+    root = createRoot(container);
+
+    expect(reserved()).toBe("");
+  });
+});
+
+describe("a save under way is a wait, not an error", () => {
+  const edited = editedCopyOf(KITCHEN_L_DESIGN);
+
+  beforeEach(() => {
+    useConfiguratorStore.getState().hydrate({
+      design: KITCHEN_L_DESIGN,
+      designId: DESIGN_ID,
+      revision: "4",
+      canWrite: true,
+    });
+    useConfiguratorStore.setState({ design: edited });
+  });
+
+  function classOfTheWaitSentence(): string {
+    return (
+      container
+        .querySelector('[data-testid="review-save-wait"]')
+        ?.getAttribute("class") ?? ""
+    );
+  }
+
+  it("is drawn in the quiet card, not the refusal's red edge", () => {
+    mountReview(KITCHEN_L_DESIGN);
+
+    expect(classOfTheWaitSentence()).toContain("waiting");
+    expect(classOfTheWaitSentence()).not.toContain("refusal");
+  });
+
+  it.each(["error", "stopped", "conflict", "unauthorized"] as const)(
+    "is drawn as the failure it is once the save has come to %s",
+    (status) => {
+      mountReview(KITCHEN_L_DESIGN);
+
+      act(() => {
+        useConfiguratorStore.getState().setSaveStatus(status);
+      });
+
+      expect(classOfTheWaitSentence()).toContain("refusal");
+    },
+  );
 });
 
 describe("what the review's sources may reach for", () => {

@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 //
-// **M8 8D S4: the editor's own review is part of the editor's visit.** *Verifică designul* is a forward navigation
+// **The editor's own review is part of the editor's visit.** *Verifică designul* is a forward navigation
 // out of an edited editor. These tests drive the guard through the history stack
 //
 //     Step 1 · editor · guard · review     (the customer is on the review)

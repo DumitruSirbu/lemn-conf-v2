@@ -344,6 +344,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     conflict:
       "Bucătăria a fost modificată în altă filă sau pe alt dispozitiv, așa că modificarea ta nu a fost salvată. Alege în editor ce versiune păstrezi, apoi cere oferta.",
     openEditor: "Deschide editorul",
+    topBarTitle: "Verificare",
   },
   globalSettings: {
     open: "Setări globale",

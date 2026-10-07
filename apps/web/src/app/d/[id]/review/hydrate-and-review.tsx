@@ -16,18 +16,10 @@ import {
 
 /**
  * Puts the loaded design in the store and shows the review of it, the way `HydrateAndConfigure` does for the editor
- * (ADR 0133): written in the browser during render, so arriving from the editor keeps the store the editor was already
- * editing. Server render and hydration read the provider's snapshot instead.
- *
- * Which copy the review shows is decided without a request, from the two this tab holds. The store is kept when it
- * holds an edit not yet saved, and when it is clean but not older than the page (a page restored by Back or Forward
- * can be older than the store). A clean store older than the page was stale, and the page's copy replaces it.
- *
- * The review asks nothing about write access (this page's request carries no write-token cookie either), and it
- * forgets nothing: whether this browser may write a design is a fact about the browser and the design, not about
- * which copy the store holds, so a replacement carries the held answer over. `"checking"` is only for a design the
- * store held no answer for, and then no editor is mounted whose probe could act on it; the editor's own
- * `HydrateAndConfigure` probes for it on mount.
+ * (ADR 0133): written in the browser during render, so arriving from the editor keeps the store the editor was
+ * editing. Which copy it shows is decided from the two this tab holds, with no request: an unsaved edit is kept, and a
+ * clean store is kept unless the page is newer (a page restored by Back or Forward can be older). The held answer
+ * about write access is carried over, because it is a fact about the browser and the design, not about the copy.
  */
 export function HydrateAndReview({
   design,

@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 //
-// E3a (M8 8D second fix round): when the review replaces a stale clean copy of a design, it must send no request, and
+// When the review replaces a stale clean copy of a design, it must send no request, and
 // that includes the one the *editor's* write-access probe sends whenever the store says `"checking"`. A client
 // navigation from the editor mounts the review's page while the editor's tree is still mounted, so the replacement is
 // written while the probe's effect is watching `canWrite`. The probe is mounted here for real (`HydrateAndConfigure`)

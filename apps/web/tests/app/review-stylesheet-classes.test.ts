@@ -1,4 +1,4 @@
-// E4 (M8 8D fix round): a class a component names and its stylesheet does not define is an unstyled element and no
+// A class a component names and its stylesheet does not define is an unstyled element and no
 // error anywhere. The groups stood 0 px apart because `styles.groups` was one. This reads every file that imports
 // the review's stylesheet and fails on any class it names that the stylesheet does not define, for every class.
 //

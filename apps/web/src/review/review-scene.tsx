@@ -8,7 +8,7 @@ import styles from "@/app/d/[id]/review/review.module.css";
 import { useContent } from "@/i18n/use-content";
 import { useCameraPreset } from "@/scene/camera-preset-store";
 import { presetForRoom, type SceneView } from "@/scene/scene-view";
-import { useWebGLSupport } from "@/scene/webgl-support";
+import type { WebGLSupportState } from "@/scene/webgl-support";
 import { useConfiguratorStore } from "@/store/configurator-store";
 
 // The view-only canvas, fetched on the screen that shows it and never rendered on the server.
@@ -21,20 +21,23 @@ const ViewOnlyKitchenCanvas = dynamic(
 );
 
 /**
- * The kitchen as the review shows it: the editor's scene, orbitable and with the room's own camera views as
- * chips, that selects nothing and edits nothing. It draws the design the session store holds, so the screen that
- * places it hydrates the store first. It neither orbits nor selects: the views change by the chips. A device
- * without WebGL gets nothing from it: the screen answers for that with the editor's exit.
+ * The kitchen as the review shows it: the editor's scene with the room's own camera views as chips. It neither
+ * orbits nor selects, so the views change only by the chips. It draws the design the session store holds, so the
+ * screen that places it hydrates the store first, and it takes that screen's answer about WebGL rather than asking
+ * again: without WebGL it renders nothing, the screen answering with the editor's exit.
  *
  * The view is the editor's remembered one (`useCameraPreset`): one camera for one customer, so a language switch
  * does not send the review back to the overview either.
  */
-export function ReviewScene() {
+export function ReviewScene({
+  support,
+}: {
+  readonly support: WebGLSupportState;
+}) {
   const content = useContent();
   const room = useConfiguratorStore((state) => state.design.room);
   const presetId = useCameraPreset((state) => state.presetId);
   const standAt = useCameraPreset((state) => state.standAt);
-  const support = useWebGLSupport();
 
   const view = useMemo<SceneView>(
     () => ({ kind: "preset", id: presetId }),

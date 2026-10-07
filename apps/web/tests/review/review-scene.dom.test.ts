@@ -25,9 +25,6 @@ vi.mock("@/scene/kitchen-canvas", () => ({
     return createElement("canvas", { "data-testid": "stub-canvas" });
   },
 }));
-vi.mock("@/scene/webgl-support", () => ({
-  useWebGLSupport: () => (canvases.hasWebGL ? "supported" : "unsupported"),
-}));
 
 const [{ ReviewScene }, { useCameraPreset }, { useConfiguratorStore }] =
   await Promise.all([
@@ -54,7 +51,9 @@ async function mountScene(): Promise<void> {
         locale: "ro",
         messages: roMessages,
         timeZone: "Europe/Chisinau",
-        children: createElement(ReviewScene),
+        children: createElement(ReviewScene, {
+          support: canvases.hasWebGL ? "supported" : "unsupported",
+        }),
       }),
     );
   });

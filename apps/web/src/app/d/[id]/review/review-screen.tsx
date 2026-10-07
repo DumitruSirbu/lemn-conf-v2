@@ -1,7 +1,7 @@
 "use client";
 
 import type { DesignId } from "@lemnaria/configurator-domain";
-import { useId } from "react";
+import { useEffect, useId, useRef, type RefObject } from "react";
 
 import type { Content } from "@/i18n/content";
 
@@ -97,7 +97,13 @@ function TopBar({ designId }: { designId: DesignId }) {
       >
         <span aria-hidden="true">‹</span>
       </Link>
-      <LocaleMenu />
+      <span className={styles.navTitle} data-testid="review-top-bar-title">
+        {content.reviewScreen.topBarTitle}
+      </span>
+      {/* The menu's cell carries the editor's rule under it, which the review's taller bar would show floating. */}
+      <div className={styles.localeSlot}>
+        <LocaleMenu />
+      </div>
     </header>
   );
 }
@@ -131,7 +137,7 @@ function AvailableBody({
         </p>
       </div>
       <div className={styles.scene}>
-        <ReviewScene />
+        <ReviewScene support="supported" />
         <Link
           prefetch={false}
           className={styles.view3d}
@@ -274,6 +280,8 @@ type SaveWait =
       readonly sentence: string;
       /** The wait is one the customer ends in the editor, so the sentence comes with a way there. */
       readonly isSettledInTheEditor: boolean;
+      /** The save has failed or stopped; otherwise it is only under way, which is not an error to draw as one. */
+      readonly hasFailed: boolean;
     };
 
 function useSaveWait(): SaveWait {
@@ -287,6 +295,7 @@ function useSaveWait(): SaveWait {
     kind: "waiting",
     sentence: sentenceForUnsavedEdit(saveStatus, content),
     isSettledInTheEditor: saveStatus === "conflict",
+    hasFailed: saveStatus !== "idle" && saveStatus !== "saving",
   };
 }
 
@@ -329,8 +338,10 @@ function BottomRegion({
 }) {
   const content = useContent();
   const submit = review.submit;
+  const regionRef = useRef<HTMLDivElement>(null);
+  useKeepFocusAboveThe(regionRef);
   return (
-    <div className={styles.bottom} data-testid="review-bottom">
+    <div className={styles.bottom} ref={regionRef} data-testid="review-bottom">
       {review.kind === "available" && review.overflowWarning !== undefined ? (
         <p className={styles.flagged} data-section="overflowWarning">
           {review.overflowWarning}
@@ -348,7 +359,7 @@ function BottomRegion({
       {saveWait.kind === "waiting" ? (
         <p
           id={saveWaitSentenceId}
-          className={styles.refusal}
+          className={saveWait.hasFailed ? styles.refusal : styles.waiting}
           data-testid="review-save-wait"
         >
           {saveWait.sentence}
@@ -427,4 +438,28 @@ function selectingTheFirstBody(review: ReviewView): { select?: string } {
   if (review.kind !== "available") return {};
   const firstBody = review.groups[0]?.rows[0];
   return firstBody === undefined ? {} : { select: firstBody.key };
+}
+
+/**
+ * Keeps whatever takes keyboard focus clear of the pinned region. The page scrolls under a sticky region, and a
+ * browser scrolls a focused box only until it is in the viewport, which is under the region's top edge. The viewport's
+ * `scroll-padding-bottom` is that edge, read from the region's own height as it changes (one sentence or three, any
+ * language), so no number is kept in step with the layout. Restored when the screen goes.
+ */
+function useKeepFocusAboveThe(region: RefObject<HTMLElement | null>): void {
+  useEffect(() => {
+    const element = region.current;
+    if (element === null) return;
+    const viewport = document.documentElement;
+    const reserve = () => {
+      viewport.style.scrollPaddingBottom = `calc(${String(element.getBoundingClientRect().height)}px + var(--safe-gap))`;
+    };
+    reserve();
+    const observer = new ResizeObserver(reserve);
+    observer.observe(element);
+    return () => {
+      observer.disconnect();
+      viewport.style.removeProperty("scroll-padding-bottom");
+    };
+  }, [region]);
 }
