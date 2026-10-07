@@ -3,6 +3,16 @@
 > **STATUS: PLANNED — wave plan written 2026-10-07 at `90927dc`; no wave dispatched.** M8 does not
 > start until the owner says so and M7C has closed (see *What M8 assumes*). Summary: `docs/STATUS.md`.
 >
+> **Scope restated 2026-10-07, after the owner's answers to Q21–Q27.** Hosting, the database's
+> home, the mail provider, the bot check, the firewall and the rebuilding of runtime errors go to
+> **a separate delivery-preparation milestone**; M8 is *"functionality and basic security for
+> now"* (the owner's words). **M8 is fifteen waves and ends at 8T: 8R and 8S leave; 8F, 8J, 8K and
+> 8T change.** The launch gate does not close with M8. Read *M8 restated* at the head of *Waves*
+> first; it supersedes the paragraphs below and any wave text it names. **The owner then ruled the
+> limit on new designs: 20 a day per IP address, for everyone, and nothing else** (*The limit on
+> new designs, as the owner ruled it*), which supersedes ADR 0019's mint row. **Open for M8: Q29,
+> Q30, half of Q31, Q32.** Dispatchable: 8E, 8I, 8H; 8D once 8C's QA and review close.
+>
 > **Updated 2026-10-07, latest: wave 8B is DONE (`d176fb6` … `0eb94b6`), not pushed.** It went through QA
 > (four passes), two review rounds and all three reviewers' approval; see *8B as built* and ADR 0146. It
 > supersedes the paragraph below where that says 8B is in QA, in review, or that round B and review round 2
@@ -78,8 +88,16 @@ boundary and its sink; the application rate limiter over every endpoint ADR 0019
 to it; the contact form's bot controls; the driver-error redaction the owner ruled into this phase;
 the CSP enforce flip; the pre-launch checks; ~~customer profiles (ADR 0115), unless Q1 moves them~~.
 
+**Restated 2026-10-07 (*M8 restated*, at the head of *Waves*).** Of the list above: *"the contact
+form's bot controls"* is now the honeypot and the timing check only; *"the pre-launch checks"*
+leave; the sink is a stored row and a notification port with no provider behind it yet. The
+limiter, the submission boundary, the driver-error redaction and the CSP flip stay.
+
 **Out, with the owner of each.**
 
+- **Hosting, the database's home, the mail provider, the bot check, the firewall, the rebuilding
+  of runtime errors, the pre-launch checks and the launch gate: a separate delivery-preparation
+  milestone**, by the owner's ruling of 2026-10-07 (verbatim in *The owner's answers to Q21–Q27*).
 - **Customer profiles: M8B**, by the owner's answer to Q1 on 2026-10-07 (relayed). M8B comes after
   M8 and before launch. See *Part P*.
 
@@ -185,7 +203,7 @@ its wave starts. The owner may overrule any of them.
 | D8 | A submission succeeds only when its row is stored **and** the notification is accepted by the provider. A retry with the same client request id never stores a second row and re-attempts only what is missing. | [inf] Lets the app role read no contact column (Q14) and still never lose a lead silently. Depends on Q3 (answered (a)). **The notification is sent before the response, not in `after()`:** `after` schedules *"work to be executed after a response (or prerender) is finished"* [doc `next/dist/docs/01-app/03-api-reference/04-functions/after.md:6`, next 16.3.8], and work that runs after the response cannot change it. |
 | D9 | A honeypot hit, a failed bot check and a too-fast submit are refusals. None answers as a success. | [doc] ARCH §9: *"must not fake customer success"*, read to cover every false success. |
 | D10 | Counters are keyed by a SHA-256 of the bucket identity, in fixed windows. The table holds no raw address or e-mail. | [inf] Data minimisation. Residual: a fixed window admits up to twice the limit across one boundary; the security reviewer rules on it. |
-| D11 | The mint's session bucket must survive ADR 0114 H1's rotation, which changes the visitor value on every mint. The mechanism is fixed in 8F S0. | [doc] ADR 0019 d3 keys a bucket on the session; ADR 0114 H1 rotates it. **A gap between two records.** Preferred [inf]: count the visitor's own `designs` rows created in the window, since rotation moves those rows. |
+| D11 | The mint's session bucket must survive ADR 0114 H1's rotation, which changes the visitor value on every mint. The mechanism is fixed in 8F S0. | [doc] ADR 0019 d3 keys a bucket on the session; ADR 0114 H1 rotates it. **A gap between two records.** Preferred [inf]: count the visitor's own `designs` rows created in the window, since rotation moves those rows. **2026-10-07: the owner's ruling leaves the mint no per-browser bucket, so D11 no longer bears on it. It still bears on saves and the contact form, whose per-browser figures remain; 8G's and 8K's S0 settle the key.** |
 | D12 | In the application layer *"challenge"* means: the request must carry a passing bot verdict, else it is refused. | [doc] ADR 0019 d5 gives application rows the action *challenge* and defines it only for the WAF. **A gap.** Depends on Q16, and through it on Q21: with no bot check on the launch host, *challenge* has no mechanism and this row returns to planning. |
 | D13 | The contact card shows the review's room summary line, the body count and the price. No preset name. | [doc] ADR 0131. |
 | D14 | A kitchen with no cabinet cannot be submitted: the CTA is disabled with its reason. | [src] the breakdown is already `unavailable` for it (`price-breakdown-model.ts:118`). [doc] §13.1: never offer what cannot be satisfied. |
@@ -403,6 +421,11 @@ before the grant is asked for.] *Blocks:* 8E, 8I.
 an **application** limit; it was never a firewall rule, whose window is at most ten minutes (*8A
 figures* §7).]*
 
+**Overtaken for the mint, 2026-10-07, later:** the owner replaced the mint's whole row with 20 a
+day per IP address (*The limit on new designs, as the owner ruled it*). Q15 (i)'s concern, a sixth
+*Continuă* in an hour refused, is gone; the twenty-first in a day is refused. Q15 (ii) and (iii),
+saves and page reads, are untouched. The note below is kept as written.
+
 **Reconciled with 8A S1, 2026-10-07. Q15 quoted ADR 0019 correctly; nothing in it changes and it
 does not return to the owner.** ADR 0019 d5 gives the mint four numbers in its own row and a fifth
 in the global table, both under decision 5 [doc; re-read 2026-10-07]. Q15 and 8A S1's part C each
@@ -490,9 +513,85 @@ when the application role may not delete a design (recommended: profile data is 
 a design is hidden, not removed); the length and character rules of a design's name; whether profile
 rows are backed up to Blob. **Moved to M8B with Part P (Q1, 2026-10-07).**
 
-### Follow-up questions, 2026-10-07 — open
+### The owner's answers to Q21–Q27, 2026-10-07
 
-Raised by the owner's answer and by 8A S2's reads. None is answered.
+Given against the coordinator's table of each question, its recommendation and what it blocks.
+**Verbatim** (relayed by the coordinator), in the order given:
+
+> 21 - or in one of Moldova's servers or one server in Germany I guess
+
+> 23 - like how many designs a user can generate? I think you worry for DDos and for this we need
+> something like claudflare captcha or a performant bot shield, but limiting can be a option like
+> not 10 but 20-30
+
+> 24 - hmm good question not sure how good to limit by Moldova so I would not limit here
+
+> 25 - or the server provider will have also email, or something like sendgrid (goal is not to go
+> to spam), but email will go to admin so for sure it will not go to spam
+
+> 22 - I think if I will have a VPS I can use or a docker that will have containers for DB also...
+> or we can keep Neon with a EU server...
+
+> 26 - no needed any info related to this, the manufacturer can call in 3 days
+
+> 27 - for sure, but I think I will plan a new separate milestone that will prepare the project for
+> delivery, at that time we will finalize the development and will plan where to host and will have
+> more info, lest focus on functionality and basic security for now
+
+**Ruled, in the owner's words.**
+
+- **A separate milestone will prepare the project for delivery**, and it is where hosting is
+  planned. **M8 is to "focus on functionality and basic security for now".** This reshapes the
+  milestone; see *M8 restated* at the head of *Waves*.
+- **Q27: yes** (*"for sure"*): errors hide the host and the role too. **In that milestone, not M8.**
+- **Q26: no hint about a response time.** *"the manufacturer can call in 3 days"* is the owner
+  describing the business. **It is not copy, not a promise to show, and not a criterion**; no
+  string and no test is made from it.
+- **Q24: phone numbers are not limited to Moldova** (*"I would not limit here"*). This is the
+  architect's first recommendation, Q6 (iii): a Moldovan number, or any international number
+  written with `+`. The later reversal in Q24 is withdrawn.
+
+**Not ruled. Leanings, deferred by the Q27 answer to the delivery milestone.**
+
+- **Q21:** a server in Moldova, or one in Germany (*"I guess"*). Read with the earlier *"Vercel is
+  only for development"*, the consistent signal is that launch is not on Vercel. No host is chosen.
+- **Q22:** Postgres in a container on that server, or Neon kept in an EU region. Undecided.
+- **Q25:** the server provider's own e-mail, or *"something like sendgrid"*; the stated goal is
+  *"not to go to spam"*, and the mail goes to the admin. No provider is chosen. Still owed: the
+  inbox address, the shop's phone number, a sending domain.
+
+**Q23: partly ruled, read two ways, and narrowed to Q28.** The owner asked back what the limit is,
+placed protection against a flood in *"something like claudflare captcha or a performant bot
+shield"*, which is outside the application and so in the delivery milestone, and accepted limiting
+with a higher figure: *"not 10 but 20-30"*.
+
+- *The coordinator's reading, labelled as theirs:* the day cap proposed in Q23's rider for the
+  non-Moldovan tier becomes 20 to 30 a day and not 10.
+- *The other reading:* one daily limit of 20 to 30 designs for everyone, and, taken with Q24's
+  *"not sure how good to limit by Moldova"*, no Moldovan and non-Moldovan tiers in the limiter.
+
+The two differ in whether ADR 0019 d4 and d5's tiers stand. Neither is picked here.
+
+| Q | Answer | State |
+| --- | --- | --- |
+| 21 | A Moldovan or a German server, *"I guess"* | **Not ruled.** Delivery milestone |
+| 22 | A container on the server, or Neon in the EU | **Not ruled.** Delivery milestone |
+| 23 | Flood protection is a bot shield; a limit of *"20-30"* is acceptable | **Settled later the same day.** The shield: delivery milestone. The figure and the tiers: Q28, answered — 20 a day per IP address, for everyone, and nothing else. The IPv4 unit: **Q32** |
+| 24 | Not limited to Moldova | **Settled:** Moldovan, or international with `+` |
+| 25 | The host's e-mail or a relay like SendGrid | **Not ruled.** Delivery milestone |
+| 26 | No hint | **Settled:** frame 4A's hint is not drawn |
+| 27 | Yes, in a separate delivery milestone | **Settled:** (b), not in M8 |
+
+**What the Q21 ruling does to the conditional answers of the first round.** Q16 (the bot check),
+Q17 (the firewall rule) and Q19's WAF half were conditional on the host. With no host chosen, none
+is built in M8; each goes to the delivery milestone with its question. Q13 (ii)'s point-in-time
+restore and Q15's address and country sources go the same way.
+
+### Follow-up questions, 2026-10-07 — ~~open~~ answered or moved; Q28–Q30 are what remains
+
+Raised by the owner's answer and by 8A S2's reads. ~~None is answered.~~ **Q21–Q27 were answered on
+2026-10-07 (the section above). Each keeps its text below as it was put.** What is open for M8
+itself is at the end of this section.
 
 **Q21 — Where does production run at launch?** The owner said *"the Vercel is only for development"*
 and that the product will later be deployed *"on a Moldova server"*, without a date. M8's security
@@ -535,6 +634,9 @@ for everyone.
 *Recommended: (a).* Two of d4's three reasons do not depend on the diaspora, and a wrongly denied
 customer simply never arrives. If Q21 is (b) there is no country header, and (c) is what remains
 unless a location database is added. *Blocks:* 8F S1, S2.
+
+**The rider below is moot for the mint (2026-10-07, later):** the owner ruled one limit for
+everyone, 20 a day, with no tier outside Moldova.
 
 **A rider, added 2026-10-07 from 8A S1's part C.** ADR 0019 d5 gives a Moldovan network block 10
 mints an hour **and 30 a day**. It gives a non-Moldovan block 3 an hour and **no day figure**. Three
@@ -619,10 +721,328 @@ evidence that the exception was not safe. It is a wave of its own (each reposito
 retry wrapper, the failure log), Full tier with security, and belongs on the launch gate. F3 is
 moot under (b).
 
+### The limit on new designs, as the owner ruled it, 2026-10-07
+
+Three answers, each to one narrow question from the coordinator, **verbatim** (relayed):
+
+> 20 design generation per day for all (we can track and adjust later this)
+
+> per user (ip)
+
+> 20 per day
+
+The third was the reply to: *"The existing 5 an hour per session and 10 an hour per network: do
+they stay, or is 20 a day the whole limit?"*
+
+**Ruled, in the owner's words.** For creating a design (the mint): **one counter, per IP address,
+20 a day, the same for everyone, and that is the whole limit.** The figure is provisional: *"we can
+track and adjust later"*. The hourly limits, the per-browser limit and the tighter limit outside
+Moldova all go, for the mint.
+
+**What it overturns in ADR 0019, for the mint.** A dated supersession, not an annotation; the
+scribe quotes these:
+
+- **d5**, the mint's row: *"`POST /api/designs` (mint) | 10 / hour, 30 / day | 3 / hour + challenge
+  | 5 / hour"*. All four figures.
+- **d4**, as it applies to the mint: *"Traffic from **MD** gets the ordinary limits. Everything
+  else gets a much tighter limit and a `challenge` rather than a `deny`."*
+- **d3**, as it applies to the mint: the *session cookie* bucket (*"repeated submits from one
+  browser"*), and *"most restrictive wins"*, which has nothing to choose between when there is one
+  bucket. Its *"IP aggregated to /24 (IPv4) and /64 (IPv6)"* is Q32.
+- This file's launch-gate line *"The mint limits … 10 an hour and 30 a day … 5 an hour per
+  session, across rotations (D11)"*, Q15 (i), Q23's rider and Q28's recommendation of 30.
+
+**How it reads beside *"Moldova only for now"*.** They do not conflict. The customers at launch
+are Moldovan; the limiter does not tell one country from another when a design is created.
+
+**Not said by the owner. Each is the architect's reading, with what it rests on.**
+
+- **One address, or a block of them: Q32, below.** For IPv6 it is not a question: the unit is the
+  /64. ADR 0019 d3: *"per-address IPv6 is worthless, since a single subscriber is routinely
+  delegated an entire /64"*, and *"IPv6 /64 aggregation is not optional"*. A /64 is one
+  subscriber, which is what the owner means by a user. [The architect's, from that record.]
+- **What a day is.** ADR 0019 says *"/ day"* and no more. *Ruled here, the architect's:* the
+  calendar day in Chișinău, as a fixed window; a refusal says the limit returns tomorrow. It is
+  what a person means by *"per day"*, and it is one row per address per day in 8E's table. Its
+  cost is D10's: 20 late one evening and 20 after midnight. It is a datum in the policy, cheap to
+  change.
+- **Saves, shares, page reads and the contact form.** The owner has not addressed them, and *"20
+  per day"* is not extended to them. Their figures in ADR 0019 d5 stand. One consequence of the
+  **hosting** ruling does reach them, and it is the architect's: M8 has no trusted fact about a
+  request's country, so for those rows M8 applies the record's Moldovan column to every request
+  and builds no second tier and no challenge. Whether they ever get one is the delivery
+  milestone's, with the shield.
+- **D11 no longer bears on the mint**, which has no per-browser bucket. It still bears on the
+  per-browser figures that remain: saves (300 an hour) and the contact form (2 an hour), since
+  creating a design changes the visitor value and so would reset them. Preferred [inf]: key those
+  two on the design, which a rotation does not change. Fixed in 8G's and 8K's own S0.
+
+**What 20 a day admits, restated from 8A S1's figure.** One address: 20 rows a day at 523,972
+bytes each, **10.0 MiB a day** [arithmetic on 8A S1's measured size; the architect's]. With no
+hourly limit, all 20 can be spent in a minute. **Per-address abuse is bounded at 20 a day.
+Abuse spread over many addresses is not bounded by the application at all**: the 1,000-an-hour
+brake in ADR 0019 is a *challenge*, nothing in M8 can challenge (D12), and the owner placed that
+defence in a bot shield. This is a named interim until the delivery milestone, and it is where
+Q19's storage alert lands.
+
+**"Track".** The counter table of 8E holds, for each address and day, how many designs it made, so
+the numbers the owner needs exist while a day's rows exist: how many addresses made any, how many
+reached 20. Pruning deletes them. *A named addition, to 8G's prune:* before a day's rows are
+deleted it writes one line of totals for that day — addresses seen, addresses that reached the
+limit, the largest count — and no address. A refusal also writes one line with no address.
+
+**Privacy.** An IP address is personal data. **No record decides how it is stored**: ADR 0114
+hashes the visitor *secret*, which is random; ADR 0019 does not mention hashing an address; D10 is
+this plan's. And D10 is weaker than it reads: an unkeyed hash of an IPv4 address can be undone by
+trying every address, so it shortens the value and does not hide it from someone holding the
+table. What limits exposure is time: a day's rows are deleted once the day is over and its totals
+are written. A keyed hash would hide it and needs a secret variable in every environment; it is
+put to 8E's security reviewer, not built by default. Both facts go on the delivery milestone's
+list of what data is held where.
+
+### What is still open for M8 itself, 2026-10-07
+
+~~Four questions.~~ **Q28 is answered (the section above). Open: Q29, Q30, the second half of Q31,
+and Q32.** Every other open question went to the delivery milestone with its subject.
+
+**Q32 — For IPv4, is "per IP" one address, or the block of 256 around it?** The owner said *"per
+user (ip)"*. ADR 0019 d3 counts a /24, to catch *"floods from one host or network"*, and warns in
+the same row that *"CGNAT and mobile carriers put thousands of real customers behind one
+address"*. With 20 a day as the only limit the two pull apart:
+
+- *One address.* A person's 20 are theirs, except behind a shared address (an office, a mobile
+  carrier), where everyone behind it shares 20. Someone holding many addresses gets 20 for each.
+- *A block of 256.* Harder to walk around. Everyone whose provider puts them in the same block
+  shares 20 a day, whether or not they share an address. No record measures how Moldovan
+  providers allocate addresses [inf that sharing is common].
+
+*Recommended: one address for IPv4, the /64 for IPv6.* It is the owner's word, the limit is now
+about one person's use and not about a flood, and the flood is the shield's. **The question, as
+one sentence:** *"Should the 20 a day be counted for each single internet address, or shared by
+the whole neighbourhood of 256 addresses a provider hands out together?"* *Blocks:* one number in
+8F's policy; the wave builds the reduction for any prefix and proves both.
+
+**Q28 — One limit on new designs for everyone, or a tighter one outside Moldova; and which
+number?** *[**Answered 2026-10-07:** one limit for everyone, **20 a day**, per IP, and nothing
+else. Not the 30 recommended below. See the section above.]* (Q23, narrowed.) What the record has today (ADR 0019 d5) for one network: inside Moldova
+10 new designs an hour and 30 a day; outside it 3 an hour, no day figure, and a challenge. One
+browser: 5 an hour.
+
+- *If the two tiers stay* (the coordinator's reading): the outside tier gains a day cap of the
+  owner's figure. 8F then needs to know a request's country, which only the current development
+  host supplies; on any other host there is no such fact until the delivery milestone, and the
+  challenge has no mechanism in M8.
+- *If there is one limit* (the other reading): the limiter has no country in it. 8F is then
+  independent of the host except for the client's address. ADR 0019 d4 and the outside-Moldova
+  column of d5 are set aside for the application limiter and return, if at all, with the bot
+  shield.
+
+*Recommended: one limit for everyone, and the number already in the record: 30 a day and 10 an
+hour for a network, 5 an hour for a browser.* It is the top of the owner's range, so no new figure
+is invented, and it is the only choice 8F can build now. Whether traffic from outside Moldova is
+treated differently is decided with the shield, in the delivery milestone.
+**The question for the owner, as one sentence:** *"Should everyone get the same limit of 30 new
+designs a day (10 an hour), or should visitors from outside Moldova get a lower one — and if a
+lower one, 20 or 30?"* *Blocks:* 8F's policy slice.
+
+**Q29 — Until a mail provider is chosen, what does *Trimite cererea* do on a test deployment?**
+M8 builds the notification and the port it leaves by, and no provider (Q25 moved). By D8 a request
+succeeds only when it is stored and notified, so with no provider every deployment answers that
+the request cannot be sent, and screen 5A is reachable only in automated tests.
+(a) Leave it so: 5A is shown by tests and captures until the delivery milestone.
+(b) A deployment the owner marks as a test one stores the request and shows 5A, with no e-mail
+sent, so the flow can be tried by hand. A deployment not so marked still refuses. The delivery
+milestone's gate then holds a line that the mark is absent in production.
+*Recommended: (b).* The owner checks each milestone by hand, and (a) leaves two of the three new
+screens out of reach. It costs one variable the owner sets, and one more thing that must not reach
+production. *Blocks:* 8J's last slice and 8K's criterion 8.
+
+**Q30 — When the price cannot be computed and a cabinet also does not fit, which refusal does the
+review show?** Wave 8C as built shows the pricing one alone and names no cabinet [relayed; the
+implementer's choice, flagged]. ADR 0065 d7 says of a kitchen that does not fit: *"The refusal names
+which bodies do not fit"*. *Recommended: the fit refusal is shown whenever a cabinet does not fit,
+with the pricing one beside it or after it.* The customer can act on the first and not on the
+second. In the architect's reading the record already answers this and it is a criterion gap in
+8C's item 5, the architect's; it is put to the owner only if the coordinator reads ADR 0065
+otherwise. **Wave 8C's section is not edited here: its QA is running.** *Blocks:* 8C's close.
+
+**Q31 — *Dulapuri* or *corpuri* on screen 3?** *[**Half answered 2026-10-07.** The owner,
+verbatim, of the refusal sentences: "dulapuri". The three `review.refusalReasons` sentences
+already say so and stand as written. **Still open, asked by the coordinator and not answered:**
+whether the room line's count (*"1 corp"*, *"2 corpuri"*) changes to match. The ruling is not
+extended to it.]* The frames say *corpuri* (3A: *"14 corpuri"*). The
+approved catalogue says *dulap* almost everywhere: 58 lines of `ro.json` against 5 [src]. The
+owner's own approved `globalSettings.appliesTo` already reads *"tuturor celor # dulapuri"* where
+frame 2E draws *"celor 14 corpuri"*. 8C drafted the room line with the frame's word and the three
+refusals with the catalogue's, so one screen now uses both.
+(a) *Dulapuri* in both. (b) *Corpuri* in both. (c) As drafted.
+*Recommended: (a)*, on the precedent of the leaf the owner already changed. Under Q10 the drafted
+wording stands until the owner adjusts it, so this blocks nothing.
+
 ## Waves
 
+### M8 restated, 2026-10-07 — functionality and basic security
+
+**The ruling** (owner, verbatim, in *The owner's answers to Q21–Q27*): *"I will plan a new separate
+milestone that will prepare the project for delivery, at that time we will finalize the development
+and will plan where to host … lest focus on functionality and basic security for now"*. What
+follows is the architect's reading of what that moves. **The owner named hosting; that the rest
+moves with it is derived, line by line, and each derivation says from what.**
+
+**What leaves M8 for the delivery milestone.**
+
+| What | Why it follows from the ruling |
+| --- | --- |
+| Where production runs (Q21) and where the database lives (Q22) | The owner's words |
+| Wave **8R**, the firewall rules; Q17; the launch gate's WAF line; the storage alert (Q19) | A firewall belongs to a host, and none is chosen. The owner placed flood protection in *"a performant bot shield"* |
+| The bot check (Q16); D12's *challenge* | BotID is the current host's; the owner named another kind |
+| The **trusted** source of a client's address and country | Each host's proxy supplies it differently [ven §2] |
+| The mail **provider**, its adapter, its DNS, the sending domain (Q25) | *"the server provider will have also email, or something like sendgrid"*: chosen with the host |
+| Q27 (b): rebuilding every runtime query error | The owner's words: *"for sure, but … a new separate milestone"* |
+| Wave **8S**, the pre-launch checks, whole; F3, F4, F5, F6; the list of what data is held where; the owner's question about GDPR | Each is a check on the system as it will be launched |
+| **The launch gate itself** | It cannot be ticked without its WAF line, and it must not close with M8. See below |
+
+**What "basic security" keeps in M8.** Everything that is the application's own code and needs no
+host:
+
+- **8B**, done.
+- **The application rate limiter and the mint**, waves 8E, 8F, 8G: independent buckets, the
+  limits, `429` with `Retry-After`, fail closed, pruning. The client's address comes through a
+  port (below).
+- **The contact boundary**, 8H, 8I, 8K: the contract, the column-scoped grants (Q14), idempotency,
+  the limits, the honeypot and the timing check. No vendor bot check.
+- **The CSP enforces**, 8Q. It is the application's own header and needs no host. It is also what
+  D17 and Q18 lean on: contact details stay out of script-readable storage because the policy did
+  not yet block. It stays, after 8L.
+
+**SEC-001's gate: a dated decision is touched, and this is how.** ADR 0019's correction of
+2026-08-31 records the owner's condition that the deferral be *"tracked and gated"*, and names this
+file's *Launch gate* as the place. **M8 discharges the application half** (8E–8G, 8K) **and does
+not close the gate.** The gate goes, whole and unticked where M8 did not tick it, to the delivery
+milestone, which is the phase that now stands in front of launch. This is the architect's reading
+of the ruling, not the owner's sentence: the owner moved hosting, and the gate's operative
+sentence needs the WAF, which is a hosting matter. Nothing ships before every milestone is done,
+so no traffic can arrive between. **The scribe annotates ADR 0019 and STATUS; until the new
+milestone's file exists, the gate's text stays in this one.**
+
+**Each remaining wave, made independent of the host.**
+
+- **8F — who a client is.** A port answers a request's network block. Two implementations: one
+  for the current development host, reading the header that host overwrites [ven §2]; and **none**,
+  the default wherever no platform is known, under which every request falls in one shared bucket.
+  The delivery milestone adds its own. ~~**No country and no challenge in M8** if Q28 is answered
+  as recommended~~ **Q28 is answered: for the mint there is one bucket, the address, at 20 a
+  calendar day, for everyone** (*The limit on new designs, as the owner ruled it*). No country, no
+  per-browser bucket, no hourly figure, no challenge. The global brake is counted and logged,
+  never enforced, since ADR 0019 forbids it to deny and nothing in M8 can challenge. Under *none*,
+  the whole deployment shares one 20 a day: correct for a host nobody has named yet, and an
+  interim.
+  *Provable in M8:* the reduction of an address to any prefix, with /32 and /24 for IPv4 and /64
+  for IPv6 as named cases; the twenty-first design in a day refused and the first of the next day
+  allowed, on a fake clock at both edges of the Chișinău day; ~~independence of the buckets; the
+  session bucket across rotation (D11)~~ (the mint has one bucket now); `429` and `Retry-After`,
+  the latter the seconds to the day's end; fail closed; that
+  under *none* no header moves a request to another bucket; the e2e policy. *Not provable in M8:*
+  that the development host's header cannot be forged, which rests on that host's documentation and
+  one request on a deployment; and anything about the launch host.
+- **8G.** Unchanged in substance. The prune is a route with a secret; the development host's cron
+  calls it, and whichever scheduler the launch host has will call the same route.
+- **8J — the port, the configuration reader, the message, a recording fake. No provider adapter.**
+  A generic SMTP adapter was weighed, since it would serve the host's own e-mail and a relay like
+  SendGrid alike [inf, unverified]. It is not taken: it adds a dependency at the security tier and
+  cannot be shown working without a mailbox nobody has yet, and the choice it prepares for is not
+  made. Q29 decides whether a marked test deployment may stand in.
+- **8K — without the bot check.** No bot port is built for an implementation that does not exist
+  (ADR 0118). Criterion 12 and D12 go to the delivery milestone. Honeypot, timing, limits,
+  idempotency, the revision check and the fit refusal stay.
+- **8L.** Q24 and Q26 are settled: Moldovan or `+` international numbers; no response-time hint.
+- **8M.** Not affected by the host. The WhatsApp action is the customer's own share link (Q5).
+  The direct-call action needs the shop's number, which is still owed: until it is given the
+  action is not drawn, never drawn with a stand-in.
+- **8T.** The phone gate, the desktop line and the phase gate (`pnpm check`, `pnpm ci:local`, a
+  green runner). **Not** the launch gate.
+
+**Named interims M8 ends with** (`WORKFLOW.md`, *Nothing ships mid-milestone*). Each is closed by
+the delivery milestone unless another owner is named. None is "done".
+
+1. **No real e-mail leaves the system.** Port and message only.
+2. **The limiter knows a client's address only on the development host.** Elsewhere, one shared
+   bucket. No country. No challenge. The global brake counts and does not act. **So abuse spread
+   over many addresses is not bounded by the application**; one address is, at 20 designs a day.
+3. **No bot check.** The form has the honeypot and the timing check.
+4. **No firewall rule exists, and SEC-001's gate is open.** Its application half is built.
+5. **A runtime query error still passes through untouched** (Q27 (b)). 8B's B10 and the log line
+   are the protection meanwhile.
+6. **Consent and privacy text, the not-included list and 5A's steps are slots**, not the owner's
+   text; the shop's number is absent; the Russian is unsigned.
+7. **No profile.** M8B's.
+8. **Nightly jobs are scheduled by the development host.**
+
+**The delivery milestone: a stub for the scribe. No file is created here.** Proposed name:
+`docs/milestones/M9-delivery-preparation.md`, *M9 — Delivery preparation: hosting, providers and
+the launch gate*. What it inherits, with the question that travels with each:
+
+| Inherits | With |
+| --- | --- |
+| The launch host; a reverse proxy, TLS, a scheduler | Q21; ADR 0019 d2, d9, d10 re-read for that host |
+| The database's home; the driver if it changes; backups | Q22; Q13 (ii); ADR 0007, 0012, 0054 |
+| Flood protection: a bot shield or captcha, the firewall rules, the client address and country source | Q16, Q17, Q23's first half; whether Q28's one limit gains a second tier; ADR 0019 d4; ADR 0114 d7 |
+| The mail provider and its adapter; DNS; the inbox, the shop's number, the sending domain | Q25; Q29's mark must be absent in production |
+| Every runtime query error rebuilt | Q27 (b); QA20; backlog 84 |
+| The launch gate, with SEC-001's platform half | Q19; ADR 0019's 2026-08-31 correction |
+| The pre-launch checks of 8S: the first stored schema, live rows, migrations and grants applied, the largest row, the Russian re-signed, the owner's text in every slot | Q20, Q7, Q9; ADR 0038, 0095, 0096; backlog 92 |
+| What personal data is held, by whom and where; the owner's question about GDPR | The owner's and their lawyer's |
+| The unmeasured: a rejected login (F3), the host's own logger (F4), a session close that never returns (F5), Neon's documented strings (F6), what a remote reader makes of a Latin-1 byte or a tab (QA21) | The coordinator files them |
+
+*Where it sits relative to M8B: the owner has not said.* *Recommended: last, after M8B.* Its gate
+and its data list must cover profiles too, and the shield must stand in front of sign-up and login.
+One dependency runs the other way and needs the owner's eye: **M8B sends e-mail to customers**
+(verification, reset), where *"not to go to spam"* matters as it does not for mail to the admin. If
+M8B comes first it builds on the port and the fake, as M8 does, and the provider is wired once for
+both in M9.
+
+**The wave table, restated.**
+
+| Wave | State after the ruling | Waits for |
+| --- | --- | --- |
+| 8A | Stays. Measurements, reads and answers are in | Its review; nothing else |
+| 8B | **Done** (`4b8f4a4`, ADR 0146) [relayed] | — |
+| 8C | Stays. **In adversarial QA** (`97e75c6`, `0d032de`) [relayed] | Its QA and review; Q30 |
+| 8D | Stays | 8C closed. **Dispatchable then** |
+| 8E | Stays | **Nothing. Dispatchable** |
+| 8I | Stays | 8E's migration number. **Dispatchable** |
+| 8H | Stays; Q24 settled | **Nothing. Dispatchable** |
+| 8J | **Changed:** no provider adapter | Nothing for the port, the message and the fake; **Q29** for the stand-in |
+| 8F | **Changed:** identity through a port; one bucket, 20 a day per address (Q28 answered) | The three red `CI=1` specs triaged; 8E. **Q32** sets one number and does not block the build |
+| 8G | Changed lightly | 8F |
+| 8K | **Changed:** no bot check | 8F, 8H, 8I, 8J |
+| 8L | Stays; Q26 settled | 8H, 8K |
+| 8M | Stays | 8L; the shop's number, or the action is not drawn |
+| 8Q | Stays | 8L |
+| 8T | **Changed:** the phase gate without the launch gate | Everything above |
+| ~~8R~~ | **Leaves for M9** | — |
+| ~~8S~~ | **Leaves for M9** | — |
+
+**M8 is fifteen waves and ends at 8T. Order now:** 8C (in QA) → 8D → 8E → 8I → 8H → 8J → 8F → 8G →
+8K → 8L → 8M → 8Q → 8T. **Dispatchable today:** 8E, 8I and 8H, and 8D once 8C closes; 8J except its
+stand-in. One writing agent per tree (R2).
+
+**Records this touches, for the scribe.** ADR 0019: **a dated supersession for the mint** (d5's
+row, d4 and d3's session bucket as they apply to it; the sentences are quoted in *The limit on new
+designs, as the owner ruled it*), and beside it what the owner did not rule (Q32, the day, the
+other rows),
+the 2026-08-31 correction (the gate's home), d2, d9 and d10 (the host), the *"Moldova only"* note.
+ADR 0114 d7 and B5 (limiter and WAF scope). ADR 0115 and M8B (order against M9; customer mail).
+ADR 0095 (the Russian backstop moves with the gate). ADR 0038 and ADR 0111 d8 (the first stored
+schema is M9's, not M8's). ADR 0041 (8Q stays in M8). STATUS: the SEC-001 line, the ADR 0019
+table, the M8 row. `milestones/README.md`: a row for M9, and M8's scope. This file's *Launch gate*,
+*Launch waves*, *Proposed variables* and *ADRs*, each of which now carries a dated pointer here.
+
+### The wave table as it stood before the ruling
+
 The last column was *Blocked by* and named Q1–Q20. It was restated on 2026-10-07 after the owner's
-answers; the questions each wave first waited on are in *The questions as put*.
+answers; the questions each wave first waited on are in *The questions as put*. **Superseded the
+same day by *M8 restated*, above, where the two disagree.**
 
 | Wave | Covers | Packages | Tier | Waits for, as of 2026-10-07 |
 | --- | --- | --- | --- | --- |
@@ -741,6 +1161,10 @@ found. *All three* means the thrown error's `message`, its `stack` and its `util
 - **8F:** see *What 8F owes the e2e suite* in that wave.
 - **Q15:** stands; see its note. **Q19:** the figure the owner was owed now exists. **Q23:** gains
   one rider, the non-Moldovan day cap.
+- **Restated 2026-10-07, later, for the owner's 20-a-day ruling.** Part C's rows-per-day figures
+  were computed from ADR 0019's old mint row and no longer describe the limit. For one address:
+  20 rows a day, 10.0 MiB at the largest design. For many addresses the application sets no bound
+  in M8. The measured size, 523,972 bytes, is unchanged.
 - **ADR 0041 d3** lists five prerendered routes, measured on 2026-08-31. A's four do not contradict
   it: two became Route Handlers in M7 wave 7E3a (ADR 0114, *Decision-record sweep*, the 0041 row)
   and the contact page gained its locale prefix in M6B. The ADR owes a dated pointer; the scribe's.
@@ -1616,6 +2040,31 @@ production. The commands are prepared, not run, by an agent.
 *Goal.* `POST /api/designs` is bounded by ADR 0019's independent buckets. Closes the application half
 of SEC-001 and backlog 90. *Tier: Full + security.*
 
+> **Scope restated 2026-10-07** (*M8 restated*, at the head of *Waves*). A client's network comes
+> through a port with two implementations: the development host's header, and *none*, the default,
+> which puts every request in one shared bucket. ~~`geography.ts` is not built, and no bucket carries
+> a country, unless Q28 is answered for two tiers.~~ **The owner then ruled the mint's limit: one
+> bucket, the IP address, 20 a calendar day, the same for everyone, and nothing else** (*The limit
+> on new designs, as the owner ruled it*). So, of what is written below:
+>
+> - **S1** is the port and the reduction of an address to a prefix. `geography.ts` is not built.
+> - **S2**'s policy for the mint is one row. The evaluator still takes several buckets, because 8G
+>   and 8K need it to.
+> - **Criterion 1**: the prefix is a datum (Q32); /32, /24 and /64 are named cases. An absent
+>   address falls in the one shared bucket, at the same 20 a day.
+> - **Criterion 3 does not apply to the mint**: there is one bucket and no session. It returns in
+>   8G and 8K for the endpoints that keep two.
+> - **Criterion 4**: no *challenged* mint exists. `Retry-After` is the seconds to the end of the
+>   Chișinău day, and Step 1 says the limit returns tomorrow (criterion 10, a new leaf).
+> - **Criterion 8** becomes: the twenty-first design in a day is refused and the first of the next
+>   day is not, on a fake clock at both edges of the day, including the two days a year the day is
+>   23 or 25 hours long.
+> - **S0** no longer owes D11 for the mint. It owes the e2e policy (below) and the red specs.
+>
+> Criterion 2 is proved under *none*; on the development host it rests on that host's
+> documentation and one request on a deployment. **Waits for the three red `CI=1` specs to be
+> triaged. Q32 sets one number and does not block it.**
+
 | Slice | Does | Files | Reading |
 | --- | --- | --- | --- |
 | S0 | Fixes D11's mechanism and the e2e policy with the security reviewer, before code. Records both in the ADR | this file; the ADR | D11, D12; ADR 0019 d3, d5; ADR 0114 H1, H3, H6; backlog 88, 89, 90; 8A's counts |
@@ -1652,6 +2101,14 @@ of SEC-001 and backlog 90. *Tier: Full + security.*
 
 *Phone acceptance.* The refusal message at 390 × 844 in both locales, inspected.
 
+**Restated 2026-10-07 for the 20-a-day ruling.** The five points below stand; what they must lift
+is now a day's limit, not an hour's. One run makes 444 designs from one address, twenty-two times
+the limit, and a second run on the same day would begin already refused. So point 4 is no longer a
+tidiness matter: **the main suite's server counts under keys that belong to that run, or under a
+policy whose day figure is far above a day of runs**, and the small set of specs that prove the
+real figure (the twenty-first refused) runs against its own server with its own keys, so that it
+passes the second time it is run in a day.
+
 **What 8F owes the e2e suite — added 2026-10-07 from 8A S1 part B.** One run makes **444 mints, 266
 saves, 813 design reads and 58 share requests from one address**, in under ten minutes. The
 production policy allows that address 10 mints an hour, or 3 where no country header exists, which
@@ -1687,6 +2144,16 @@ correction. Sabotage both ways for each bucket. *Logic and clean-code readers:* 
 *Goal.* Every other endpoint ADR 0019 and ADR 0114 name is inside the limiter, and expired counters
 are removed nightly. *Tier: Full + security.*
 
+> **Scope restated 2026-10-07.** The owner's *"20 per day"* is about creating a design and is not
+> extended here: saves, shares and page reads keep ADR 0019 d5's figures. M8 has no trusted fact
+> about a request's country, so the record's Moldovan column is applied to every request and no
+> second tier or challenge is built (the architect's reading of the hosting ruling). **D11 lives
+> here now:** the per-browser figure for saves would be reset by creating a design, which changes
+> the visitor value; this wave's S0 fixes what it is keyed on, the design being preferred [inf].
+> **The prune gains one duty** (*"track"*): before a day's rows go, one line of that day's totals
+> is written, with no address. The prune is a route with a secret; the development host's cron
+> entry calls it today, and that scheduling is an interim the delivery milestone re-homes.
+
 | Slice | Does | Files | Reading |
 | --- | --- | --- | --- |
 | S1 | `PUT`/`PATCH /api/designs/{id}` enforce their row of the table. The save coalescer treats a `429` as *wait and retry*, never as a lost write | `api/designs/[id]/route.ts`, `persistence/save-coalescer.ts`, `store/configurator-store.ts`, the message files if a notice is new | ADR 0019 d5, d6; ADR 0002 d16; Q15's answer; `design-request-errors.ts`; the WEB-001 residuals in STATUS |
@@ -1709,6 +2176,11 @@ ADR 0114 B5, G4; ADR 0019 d5.
 
 *Goal.* One I/O-free definition of what a request is, used by the form and by the server.
 *Tier: Full.*
+
+> **Q24 settled 2026-10-07: the wave is dispatchable.** The phone rule is the first
+> recommendation, Q6 (iii): a Moldovan number (0 and eight digits, or +373 and eight), or any
+> international number written with `+`. Criterion 1's *"pending Q24"* is discharged; its
+> properties hold for both forms, and frame 4B's sentence is for the Moldovan one.
 
 | Slice | Does | Files | Reading |
 | --- | --- | --- | --- |
@@ -1776,6 +2248,12 @@ back. *Tier: Full + security.*
 *Goal.* One provider-neutral port sends one fixed message to one configured address.
 *Tier: Full + security.*
 
+> **Scope restated 2026-10-07.** M8 builds the port, the configuration reader, the fake and S2's
+> message. **`provider-mail-sender.ts` is not built**: the provider is chosen in the delivery
+> milestone (Q25). Criteria 3, 4 and the provider half of 6 go with it. Criteria 1, 2, 5 and 7
+> stay. If Q29 is answered (b), one more slice adds the marked stand-in: it stores, sends nothing,
+> and cannot be selected unless the deployment carries the owner's mark. No dependency is added.
+
 | Slice | Does | Files | Reading |
 | --- | --- | --- | --- |
 | S1 | The port; the provider adapter over HTTPS with a time bound; a reader that answers *configured* or *unavailable* and names the missing variables; a fake | new `lib/server/mail/mail-sender.ts`, `provider-mail-sender.ts`, `mail-configuration.ts`, `fake-mail-sender.ts` | Q3, Q4; ADR 0001 d7; ARCH §9; 8A S2's quotations; `backup-designs.ts:114-140` (how a third party's error is reduced before it is published) |
@@ -1808,6 +2286,16 @@ dependency to the security reviewer.
 
 *Goal.* The boundary: it revalidates, refuses abuse, snapshots the stored design, stores once,
 notifies, and tells the customer the truth. *Tier: Full + security.*
+
+> **Scope restated 2026-10-07.** **No bot check in M8.** S1's `bot-check.ts` is not built and no
+> port is left for it; the bot verdict leaves the order of checks; criterion 12 and the bot half
+> of criterion 11 go to the delivery milestone with Q16 and D12. The contact form's own figures in
+> ADR 0019 d5 stand (the owner's *"20 per day"* is about creating a design): the record's Moldovan
+> column for every request, since M8 knows no country; its global figure counted, not enforced.
+> D11 bears on its per-browser figure as it does on saves; this wave's S0 fixes the key.
+> Everything else stands: the body limit, the cross-site guard, the schema, the honeypot, the
+> timing check, the limits failing closed, the revision check, the fit refusal, idempotency, D8.
+> Criterion 8's *"mail unconfigured"* reads with Q29.
 
 | Slice | Does | Files | Reading |
 | --- | --- | --- | --- |
@@ -1856,6 +2344,11 @@ D5–D9; the order of checks. *Clean-code reader:* the slice files. *Security re
 *Goal.* Three fields and a channel, validated where the customer is looking, sent once.
 *Tier: Full + visual.*
 
+> **Settled 2026-10-07.** Q26: frame 4A's response-time hint is not drawn, and nothing about a
+> response time is shown anywhere. Q24: the phone field takes a Moldovan number or an
+> international one with `+`. The phone acceptance's *"passes 8K's timing check"* stands; there is
+> no bot check to pass.
+
 | Slice | Does | Files | Reading |
 | --- | --- | --- | --- |
 | S1 | The form as a value: field state, validation on leaving a field through 8H's schema, the first-error target, the states idle, sending, sent, failed | new `apps/web/src/contact/contact-form-model.ts`, `use-contact-submission.ts`, `i18n/content.ts`, the message files | frames 4A–4C (`…Mobil.dc.html:1164-1396`); 8H; D17; Q6, Q8; ADR 0095; `engineering-conventions.md`, *Localised copy* |
@@ -1892,6 +2385,11 @@ keyboard covering the consent line; an autofilled form sent by a real tap passes
 
 *Goal.* The customer is told exactly what happens next, or exactly what went wrong, and loses
 nothing. *Tier: Full + visual.*
+
+> **Scope restated 2026-10-07.** Not affected by the host. Two notes. **The shop's phone number is
+> still owed**: until the owner gives it, 5B's direct-call action is not drawn; it is never drawn
+> with a stand-in number, and criterion 7 applies once it exists. **5A on a deployment** depends on
+> Q29: under (a) it is reached only in automated tests.
 
 | Slice | Does | Files | Reading |
 | --- | --- | --- | --- |
@@ -1938,7 +2436,15 @@ from M8B.
 
 ## Launch waves
 
+> **Restated 2026-10-07 (*M8 restated*).** Of the four waves under this heading, **8Q and 8T stay
+> in M8** and **8R and 8S leave for the delivery milestone**. Their text stays here until that
+> milestone's file exists.
+
 ### 8Q — the CSP enforces
+
+> **Stays in M8.** The policy is the application's own and needs no host. Criterion 6, the bot
+> check's scripts, goes to the delivery milestone with the bot check; whatever shield that
+> milestone adds must be shown to run under the enforced policy there.
 
 *Goal.* The policy blocks, where today it only reports (ADR 0041). Not part of the ship-together
 set. *Tier: Full + security.*
@@ -1962,7 +2468,10 @@ is the only evidence there will be.
 *QA reading:* the criteria; `tests/lib/security-headers*`; the e2e console listeners. *Security
 reading:* ADR 0041; ADR 0019 d2.
 
-### 8R — the firewall rules, staged
+### 8R — the firewall rules, staged — LEAVES FOR THE DELIVERY MILESTONE (owner, 2026-10-07)
+
+> **Not dispatched from M8.** No host is chosen, and the owner placed flood protection in *"a
+> performant bot shield"*. Kept as written for whoever plans that milestone.
 
 *Goal.* The runbook's rules exist in `log` action, reviewed, ready for the owner to publish (ADR 0019
 d10). *Tier: Coordinator-only: no code.* An agent prepares the exact commands with Q17's scope and
@@ -1979,7 +2488,11 @@ seconds stands; the threshold for a rule that now counts page requests is propos
 observation from `log`, not chosen beforehand; and what happens past the included request count is
 read from the dashboard before publishing. No rule exists today.
 
-### 8S — pre-launch checks
+### 8S — pre-launch checks — LEAVES FOR THE DELIVERY MILESTONE (owner, 2026-10-07)
+
+> **Not dispatched from M8.** Each check is on the system as it will be launched. One thing does
+> not wait: M8's own migrations are still applied, and their grants issued, on the development
+> and test databases as each store wave lands (8E, 8I).
 
 *Goal.* The things only a read of the live system, or the owner, can settle. *Tier: Light; no code.*
 
@@ -1994,6 +2507,12 @@ read from the dashboard before publishing. No rule exists today.
 
 ### 8T — the phone gate, the desktop line, the phase gate
 
+> **Scope restated 2026-10-07.** The phase gate below no longer includes *"the Launch gate fully
+> ticked"*: that gate goes to the delivery milestone. M8's phase gate is the phone gate, the
+> desktop line, `pnpm check`, `pnpm ci:local` and a green runner, with the eight named interims
+> written into the close-out as open. In the phone gate, *"a limiter refusal is shown at Step 1
+> and at 4"* stands; 5A is shown by hand only if Q29 is (b).
+
 *Phone gate, 390 × 844, real touch, both locales.* All seven frames complete in order from the
 editor: 3A, 3B, 4A, 4B (each error provoked), 4C, 5A; then a forced failure through 5B with state
 preserved and one stored row at the end. One L, one right-hand L, one straight and one U kitchen. A
@@ -2007,6 +2526,18 @@ nothing invented beyond the phone frames, the gap recorded for later design.
 then the push and the pull request. *Visual reading:* every wave's criteria and captures.
 
 ## Launch gate — `POST /api/designs` must not meet real traffic until this is checked off
+
+> **2026-10-07: this gate does not close with M8.** By the owner's ruling that hosting is planned
+> in a separate delivery milestone, the gate is carried there whole (*M8 restated*; the reading is
+> the architect's, and ADR 0019's 2026-08-31 correction, which names this file as the gate's home,
+> owes a dated note). **M8 may tick only what it built:** the buckets, the mint's limit (**20 a
+> day per IP address for everyone**, the owner's ruling of 2026-10-07, which replaces the figures
+> in the checklist below), `429` with `Retry-After`, fail closed, every other endpoint inside the limiter,
+> the pruning, the contact form's limits and its honeypot and timing check, the submission store's
+> grants, the fit refusal, and 8B's line. **M8 cannot tick:** the firewall rule, the bot check, the
+> owner's confirmation of the set, a real sink, the first stored schema, the live rows, the
+> owner's text and the Russian, and the launch host and database lines. The text stays in this
+> file until the delivery milestone's file exists.
 
 Added 2026-08-31. This is a **hard pre-launch blocker**, not a work item that can be traded away
 inside a wave. An adversarial review on 2026-08-30 reproduced the unthrottled mint path as
@@ -2206,6 +2737,14 @@ of submission, and nothing re-prices it. This follows the owner's own design rec
 **Proposals for the owner. Nothing here is created, changed or removed by an agent
 (`environments-and-resources.md`). Names are proposals; no value appears in any document.**
 
+> **Restated 2026-10-07 (*M8 restated*).** **M8 now asks for these only:** the two tables and
+> their grants (8E, 8I); one more cron entry on the development host (8G); `LEAD_NOTIFICATION_ADDRESS`
+> and `MAIL_FROM_ADDRESS` as names the configuration reader looks for; the shop's phone number;
+> and, if Q29 is (b), one variable by which the owner marks a deployment as a test one, never set
+> in production. **Gone to the delivery milestone:** the mail provider's account, key and DNS; the
+> bot check's package and setting; the firewall rules; the storage alert; and everything a new
+> host or database would need. **No dependency is added in M8.**
+
 | What | Kind | For | Wave | Note |
 | --- | --- | --- | --- | --- |
 | Mail provider account; SPF, DKIM and DMARC records on a Lemnaria domain | resource, DNS | Q3, Q4 | 8J | Owner only |
@@ -2272,12 +2811,34 @@ writes them; the architect supplies the content.
     either leaves Vercel or Neon, ADR 0019 d2, d4, d9 and d10, ADR 0007, ADR 0012 and ADR 0054 each
     need a dated note, and the move is planned as its own milestone.
 
+15. **Added 2026-10-07.** The scope ruling: M8 is functionality and basic security; delivery
+    preparation is its own milestone; the launch gate is carried there. A dated note on ADR 0019's
+    2026-08-31 correction, on ADR 0038 and ADR 0111 d8 (the first stored schema), and on ADR 0095
+    (the Russian backstop). Of the items above, **5's provider half, 9, 12 and 14 go to that
+    milestone**; 3 loses its country source and its *challenge* (Q28 is answered: one limit for
+    everyone).
+16. **Added 2026-10-07.** ~~The limiter's tiers and figures as Q28 settles them. If one tier: an
+    amendment…~~ **Q28 is answered. A dated supersession of ADR 0019 for the mint**: d5's mint row,
+    d4 as it applies to the mint, d3's session bucket for the mint; the quoted sentences are in
+    *The limit on new designs, as the owner ruled it*. The same record states what was not ruled:
+    the unit for IPv4 (Q32), the day (the architect's), the other endpoints (untouched), and how
+    *"for all"* reads beside *"Moldova only for now"*.
+17. **Added 2026-10-07.** If Q29 is (b): the marked test deployment, and why it cannot reach
+    production. Part of item 2's record.
+
 **Relied on as they stand:** 0001, 0002, 0004, 0008, 0012, 0019, 0020, 0036, 0038, 0041, 0042, 0054,
 0062, 0063, 0065, 0067, 0069, 0072, 0074, 0092, 0095, 0096, 0104, 0106, 0107, 0111, 0112, 0113, 0114,
 0115, 0118, 0128, 0130, 0131, 0132, 0133, 0144, 0145.
 
 ## Risks
 
+- **An interim read as done** (added 2026-10-07). M8 now ends with eight things deliberately
+  unfinished (*M8 restated*), among them an open SEC-001 gate and no e-mail leaving the system. The
+  risk is a close-out, a STATUS line or a later session that reports M8 "done" and takes them with
+  it. Each is written into M8's close-out as open, with the delivery milestone as its owner, and
+  that milestone's plan starts from the list.
+- **A leaning built as a ruling** (added 2026-10-07). The owner leaned on a host, a database and a
+  mail service and ruled on none. Nothing in M8 is built for any of the three.
 - **Authoring legal or timeframe copy to fill a gap.** A slot with text that is visibly a
   placeholder is correct; a plausible sentence is not. Q7–Q9 and the gate hold it.
 - **Review drifting from the editor's grouping.** One projection, three consumers; 8C's parity
