@@ -7,8 +7,10 @@
 // it, and no row is labelled *total*.
 //
 // Whether the kitchen may be submitted is decided here and nowhere else. Fit is the domain query's answer,
-// asked and believed: nothing here measures a wall. The reasons are checked in the order the price bar and the
-// breakdown already check their states: a pricing failure, then an empty kitchen, then a body past its wall.
+// asked and believed: nothing here measures a wall. One refusal at a time, the first the customer can act on: a
+// body past its wall, then nothing Lemnaria sells, then a price that cannot be computed.
+//
+// The model takes a design, its price and its projection, and throws if they are not one design's.
 import {
   cornerDirectionOf,
   findOverflowingPlacementIds,
@@ -22,6 +24,7 @@ import {
 import type { Content, ReviewRoomLine } from "@/i18n/content";
 import {
   describeBreakdownRows,
+  describePlacementLabel,
   holdsNothingToBreakDown,
   type BreakdownGroup,
   type BreakdownRow,
@@ -29,6 +32,7 @@ import {
 import {
   describeFlaggedTotalWarning,
   describeStartingPrice,
+  holdsNothingLemnariaSupplies,
   type PriceFigure,
 } from "@/price/starting-price";
 import { parsedRoomLengthsOf } from "@/room/room-url-state";
@@ -54,7 +58,7 @@ export interface ReviewDisclaimer {
  *  error. */
 export type SubmitRefusalCode = keyof Content["review"]["refusalReasons"];
 
-/** A body as the review's own row names it, so the refusal and the list above it read alike. */
+/** A body named by the words its row prints, so the refusal and the list read alike. */
 export interface NamedBody {
   readonly placementId: string;
   readonly label: string;
@@ -70,7 +74,8 @@ export interface RefusedSubmit {
 
 export type SubmitEligibility = { readonly kind: "allowed" } | RefusedSubmit;
 
-/** Nothing is rendered: a kitchen that cannot be priced, or holds no body, has no figure to review. */
+/** Nothing is rendered: a kitchen that cannot be priced, or holds nothing Lemnaria supplies, has no figure to
+ *  review. */
 export interface UnavailableReview {
   readonly kind: "unavailable";
   readonly submit: RefusedSubmit;
@@ -129,32 +134,61 @@ export class MissingWholeKitchenTierError extends Error {
   }
 }
 
-/** A placement the query reports past its wall that no row names: the rows and the query read different designs. */
-export class UnlistedOverflowingBodyError extends Error {
-  constructor(placementIds: readonly string[]) {
-    super(
-      `The query reports bodies past their wall that no review row names: ${placementIds.join(", ")}`,
-    );
-    this.name = "UnlistedOverflowingBodyError";
+/** The design, its price and its projection describe different designs. Never rendered. */
+export class ReviewInputDivergenceError extends Error {
+  constructor(detail: string) {
+    super(`The review's inputs are not one design's: ${detail}`);
+    this.name = "ReviewInputDivergenceError";
   }
 }
 
 export function describeReview(input: DescribeReviewInput): ReviewView {
-  if (!input.pricing.ok) return unavailableFor("PRICING_FAILED");
+  const overflowingIds = findOverflowingPlacementIds(input.design);
+  if (!input.pricing.ok) return describeUnpricedReview(input, overflowingIds);
+  return describePricedReview(input, input.pricing.priced, overflowingIds);
+}
 
-  const { priced } = input.pricing;
-  const { content, groups } = input;
+function describeUnpricedReview(
+  input: DescribeReviewInput,
+  overflowingIds: readonly string[],
+): UnavailableReview {
+  assertEveryPlacementIsListed(input.design, input.groups);
+  return {
+    kind: "unavailable",
+    submit:
+      overflowingIds.length > 0
+        ? refusePastTheWall(input, overflowingIds)
+        : refuse(
+            input.design.placements.length === 0
+              ? "NO_CABINET"
+              : "PRICING_FAILED",
+          ),
+  };
+}
+
+function describePricedReview(
+  input: DescribeReviewInput,
+  priced: PricedDesign,
+  overflowingIds: readonly string[],
+): ReviewView {
+  const { content, design, groups } = input;
   if (holdsNothingToBreakDown(priced, groups)) {
-    return unavailableFor("NO_CABINET");
+    assertInputsAreOneDesigns(input, priced, overflowingIds);
+    return refuseNothingToOffer(input, overflowingIds);
   }
 
   const rows = describeBreakdownRows({ content, priced, groups });
+  assertInputsAreOneDesigns(input, priced, overflowingIds);
+  if (holdsNothingLemnariaSupplies(priced)) {
+    return refuseNothingToOffer(input, overflowingIds);
+  }
+
   const warning = describeFlaggedTotalWarning(priced, content.price);
   return {
     kind: "available",
     title: content.review.title,
     roomLine: content.reviewRoomLine(
-      describeRoomLine(input.design, countBodies(groups)),
+      describeRoomLine(design, countBodies(groups)),
     ),
     settingsRow: describeSettingsRow(priced, content),
     groups: rows.groups,
@@ -168,46 +202,94 @@ export function describeReview(input: DescribeReviewInput): ReviewView {
       totalMinor: priced.totalMinor,
       copy: content.price,
     }),
-    submit: describeSubmitEligibility(input.design, rows.groups),
+    submit:
+      overflowingIds.length > 0
+        ? refusePastTheWall(input, overflowingIds)
+        : { kind: "allowed" },
     ...(warning === undefined ? {} : { overflowWarning: warning }),
   };
 }
 
-function unavailableFor(
-  code: "PRICING_FAILED" | "NO_CABINET",
+/** No figure to show, so `unavailable`; a body past its wall is still the reason given first. */
+function refuseNothingToOffer(
+  input: DescribeReviewInput,
+  overflowingIds: readonly string[],
 ): UnavailableReview {
   return {
     kind: "unavailable",
-    submit: { kind: "refused", code, bodies: [] },
+    submit:
+      overflowingIds.length > 0
+        ? refusePastTheWall(input, overflowingIds)
+        : refuse("NO_CABINET"),
   };
 }
 
-function describeSubmitEligibility(
-  design: Design,
-  groups: readonly BreakdownGroup[],
-): SubmitEligibility {
-  const overflowingIds = new Set(findOverflowingPlacementIds(design));
-  if (overflowingIds.size === 0) return { kind: "allowed" };
+function refuse(code: "PRICING_FAILED" | "NO_CABINET"): RefusedSubmit {
+  return { kind: "refused", code, bodies: [] };
+}
+
+function refusePastTheWall(
+  input: DescribeReviewInput,
+  overflowingIds: readonly string[],
+): RefusedSubmit {
+  const overflowing = new Set(overflowingIds);
   return {
     kind: "refused",
     code: "BODIES_PAST_WALL",
-    bodies: nameBodies(groups, overflowingIds),
+    bodies: input.groups
+      .flatMap((group) => group.entries)
+      .filter((entry) => overflowing.has(entry.placementId))
+      .map((entry) => ({
+        placementId: entry.placementId,
+        label: describePlacementLabel(entry, input.content),
+      })),
   };
 }
 
-/** Named from the rows, so the order is the list's and the label is the row's. */
-function nameBodies(
-  groups: readonly BreakdownGroup[],
-  placementIds: ReadonlySet<string>,
-): readonly NamedBody[] {
-  const bodies = groups
-    .flatMap((group) => group.rows)
-    .filter((row) => placementIds.has(row.key))
-    .map((row) => ({ placementId: row.key, label: row.label }));
-  const named = new Set(bodies.map((body) => body.placementId));
-  const unlisted = [...placementIds].filter((id) => !named.has(id));
-  if (unlisted.length > 0) throw new UnlistedOverflowingBodyError(unlisted);
-  return bodies;
+/** The rows list exactly the design's bodies. Without a price there is no priced list to compare. */
+function assertEveryPlacementIsListed(
+  design: Design,
+  groups: readonly DisplayGroup[],
+): void {
+  const listed = groups.flatMap((group) =>
+    group.entries.map((entry) => entry.placementId),
+  );
+  const held = design.placements.map((placement) => placement.id);
+  const differences = symmetricDifference(listed, held);
+  if (differences.length > 0 || listed.length !== held.length) {
+    throw new ReviewInputDivergenceError(
+      `the rows and the design differ over: ${differences.join(", ") || "a repeated id"}`,
+    );
+  }
+}
+
+function assertInputsAreOneDesigns(
+  input: DescribeReviewInput,
+  priced: PricedDesign,
+  overflowingIds: readonly string[],
+): void {
+  assertEveryPlacementIsListed(input.design, input.groups);
+  const differences = symmetricDifference(
+    priced.overflowingPlacementIds,
+    overflowingIds,
+  );
+  if (differences.length > 0) {
+    throw new ReviewInputDivergenceError(
+      `the price and the fit query differ over: ${differences.join(", ")}`,
+    );
+  }
+}
+
+function symmetricDifference(
+  left: readonly string[],
+  right: readonly string[],
+): readonly string[] {
+  const inLeft = new Set(left);
+  const inRight = new Set(right);
+  return [
+    ...left.filter((id) => !inRight.has(id)),
+    ...right.filter((id) => !inLeft.has(id)),
+  ];
 }
 
 function countBodies(groups: readonly DisplayGroup[]): number {

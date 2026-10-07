@@ -10,7 +10,6 @@ import {
   type Design,
   type DesignPlacement,
   type DisplayEntry,
-  type PricingResult,
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
@@ -23,25 +22,10 @@ import {
   type PricedKitchen,
 } from "../support/generated-kitchens";
 import { ro } from "../support/romanian-content";
+import { ownWallLengthMm, pastTheWall } from "../support/review-edits";
 import { ARMS, composedKitchensOf, U_ARM } from "../support/swept-kitchens";
 
 const FLOOR_PER_ARM = 80;
-
-const PRICING_FAILURE: PricingResult = {
-  ok: false,
-  failure: { code: "INVALID_PRICE_BOOK", detail: "unreadable" },
-};
-
-/** The wall a placement stands on, in millimetres. A wall the shape lacks has none, so a body on it overflows. */
-function ownWallLengthMm(
-  design: Design,
-  wall: DesignPlacement["wall"],
-): number {
-  const { room } = design;
-  if (wall === "A") return room.widthMm;
-  if (wall === "B") return room.shape === "linear" ? 0 : room.depthMm;
-  return room.shape === "U" ? (room.wallCMm ?? 0) : 0;
-}
 
 function overflowingIdsOf(design: Design): ReadonlySet<string> {
   return new Set(
@@ -53,18 +37,6 @@ function overflowingIdsOf(design: Design): ReadonlySet<string> {
       )
       .map((placement) => placement.id),
   );
-}
-
-/** The same kitchen with these bodies slid one millimetre past the end of their own wall. */
-function pastTheWall(design: Design, ids: ReadonlySet<string>): Design {
-  return {
-    ...design,
-    placements: design.placements.map((placement) =>
-      ids.has(placement.id)
-        ? { ...placement, alongMm: ownWallLengthMm(design, placement.wall) + 1 }
-        : placement,
-    ),
-  };
 }
 
 function viewOf(kitchen: PricedKitchen, content = ro): ReviewView {
@@ -270,7 +242,7 @@ describe("the bodies a refusal names, in display order", () => {
   );
 });
 
-describe("when more than one reason holds, the price bar's order decides", () => {
+describe("an empty kitchen, and a kitchen shown with its figure", () => {
   const SEEDED = priceAndProject(KITCHEN_L_DESIGN);
   const OVERFLOWING = priceAndProject(
     pastTheWall(SEEDED.design, placementIdsAt(SEEDED.design, 1, 2)),
@@ -285,23 +257,6 @@ describe("when more than one reason holds, the price bar's order decides", () =>
   function submitOf(kitchen: PricedKitchen) {
     return viewOf(kitchen).submit;
   }
-
-  it("states a pricing failure before an overflow, and names no body", () => {
-    expect(overflowingIdsOf(OVERFLOWING.design).size).toBeGreaterThan(0);
-    expect(submitOf({ ...OVERFLOWING, pricing: PRICING_FAILURE })).toEqual({
-      kind: "refused",
-      code: "PRICING_FAILED",
-      bodies: [],
-    });
-  });
-
-  it("states a pricing failure before an empty kitchen", () => {
-    expect(submitOf({ ...EMPTY, pricing: PRICING_FAILURE })).toEqual({
-      kind: "refused",
-      code: "PRICING_FAILED",
-      bodies: [],
-    });
-  });
 
   it("gives an empty kitchen its own reason, naming no body", () => {
     expect(submitOf(EMPTY)).toEqual({

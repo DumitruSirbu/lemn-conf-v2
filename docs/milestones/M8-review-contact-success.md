@@ -2019,6 +2019,30 @@ decides it, that is to be corrected.
   - *How a body is named with no priced rows.* From the projection, by the same words the row
     prints: the entry's label and width. The projection does not depend on pricing. For a priced
     kitchen the name in the refusal still equals the row's label, and a test says so.
+  - **Added the same day, on QA's reading of Q30** [relayed; `review-model.ts:143` re-read: it
+    returns on a pricing failure before the query is asked].
+    - *The shape:* the precedence changes and `RefusedSubmit` keeps its one `code`. No shape
+      carrying several reasons is built. The fit query is asked first, whatever pricing answered.
+    - *The label, and criterion 1's one builder.* The refusal does not compose a label of its own.
+      The breakdown's row builder already makes a row's label from an entry's label and width, as
+      one expression inside `toBreakdownGroup` [src `price-breakdown-model.ts:200`]. That
+      expression becomes one named, exported function there, and both the row and the refusal
+      call it. One labeller, two callers. A second
+      route would be the review writing the words itself, and that stays forbidden.
+    - *Who re-aims which test.* Three tests pin the precedence as built and flip by this ruling.
+      QA re-aims its two (*"states the pricing failure, and names no body, for an overflowing
+      kitchen the book cannot price"*; *"does not ask the query at all when there is nothing to
+      review"*). The implementer re-aims its one (*"states a pricing failure before an overflow,
+      and names no body"*). Neither edits the other's.
+    - *Why not keep it as built and record a limit.* It was weighed. The one measured way to this
+      state is a tier the book does not offer, which ADR 0072 records as something that *"cannot
+      happen until a manufacturer, not a developer, can edit the book"*. But pricing can refuse
+      for eleven reasons, and whether a customer's own edits can reach any of the other ten is
+      not measured. A rule that is right whichever way that falls costs a moved check and an
+      exported function. A limit would rest on an unmeasured claim.
+    - *The better question, recorded and not answered here:* whether a saved design should ever be
+      unpriced at all. ADR 0072's design says a kitchen keeps the book it was priced under, so the
+      state would not arise. That is the dashboard's wave.
 
 **Criterion 5, restated.** ~~`refused` when `findOverflowingPlacementIds` is non-empty…; `refused`
 with its own reason for a kitchen with no cabinet (D14); `refused` when pricing fails.~~ One
@@ -2029,7 +2053,9 @@ sabotage stand.
 
 **The fix round** — four items, one or two production files.
 
-1. **C3** (Q30). `apps/web/src/review/review-model.ts`.
+1. **C3** (Q30). `apps/web/src/review/review-model.ts`; `apps/web/src/price/price-breakdown-model.ts`
+   for the exported labeller only, its rows unchanged. The implementer re-aims its own
+   precedence test; QA re-aims its two in its check.
 2. **C1** (QA1). `review-model.ts`; `apps/web/src/price/starting-price.ts` only if the question
    *"does this priced design hold anything Lemnaria supplies"* belongs beside `holdsNoCabinets`.
    The price bar and the breakdown do not change.
@@ -2043,7 +2069,9 @@ M6*; ADR 0065 d6, d7; ADR 0107 d2; ADR 0062 seam 1; `review-model.ts` whole;
 `price-breakdown-model.ts` (how a row's label is built, and its divergence error);
 `price-lines.ts`, `overflowingPlacementIds`; QA's five `qa-8c-*` files.
 
-**Then:** a QA check of the round, on these three rules only. Then review at the wave's tier:
+**Then:** a QA check of the round, on these three rules only, with one measurement added: over
+its swept kitchens and the edits the editor allows, does `priceDesign` ever refuse. A count, with
+the codes; it decides nothing in 8C and tells the next reader whether C3's state is reachable. Then review at the wave's tier:
 logic and clean-code. The stopping rule of 8B applies in its own terms: a new finding is fixed in
 8C if a criterion as restated fails or something that held no longer holds; anything else is
 recorded with an owner.
@@ -2056,6 +2084,39 @@ wording anywhere in the project.
 
 **Recorded, not fixed.** The sweeps use the fake body probe, not the real one. The rooms the
 sweeps drop are all rooms the room validator refuses.
+
+**A conflict between C2 and the query's pin, ruled 2026-10-07 during the fix round.** The fix is
+in the tree, uncommitted; the implementer stopped on this and did not choose. The architect ran
+`tests/review` there: **4 failed, 451 passed** [ran]. Two reds are C3's expected flips. The other
+two are QA's pins of the *must not*: they answer the query through a mock with the opposite of the
+geometry, and C2's second assertion now throws on them.
+
+- **(a) One computation, not two.** The priced design's list is the query's own answer:
+  `const overflowingPlacementIds = [...findOverflowingPlacementIds(request.design)]`
+  [src `packages/configurator-domain/src/pricing/price-design.ts:114-115`]. For one design the two
+  lists cannot differ. They differ in exactly one real case: **the price was computed for another
+  design.** That is QA2's first finding, and the id check alone does not catch it when the ids
+  are the same.
+- **(b) C2's second assertion stays. The two pins are re-aimed, by QA.** The assertion is not dead
+  weight: it is the only thing that notices a price belonging to another design with the same
+  bodies. It fires on the pins because their mock replaces the query for the review alone, while
+  the price they pass was computed by the real one: the mock makes the two inputs describe
+  different designs, which is the very thing C2 refuses. **Re-aimed to:** the answer the test
+  chooses is given to both, the mocked query and the `overflowingPlacementIds` (and
+  `totalIsFlagged`) of the price it hands in. The pin still fails for a model that measures a
+  wall, since such a model answers by the geometry against both. And one pin is added for the
+  assertion itself: a price whose list differs from the query's answer throws
+  `ReviewInputDivergenceError`.
+- **(c) A design with no body at all, whose pricing also fails: `NO_CABINET`.** That it holds
+  nothing Lemnaria supplies is known from the design alone; no price is needed to know it. It is
+  also C3's order: the customer can add a cabinet and cannot repair a price. `PRICING_FAILED`
+  remains the answer only when the design holds bodies, none is past its wall, and the price
+  cannot be computed, since then the supplier of each body is unknown. QA's test *"…for an empty
+  kitchen the book cannot price"* flips with it and is QA's to re-aim.
+
+**So QA re-aims five of its tests in its check:** the two precedence tests (C3), the two query
+pins (b), and the empty-kitchen one (c). The implementer changes one line for (c) and none of
+QA's files.
 
 ### 8D — the review route and screen 3A/3B
 

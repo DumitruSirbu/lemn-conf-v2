@@ -64,6 +64,17 @@ export function holdsNoCabinets(priced: PricedDesign): boolean {
   return !priced.lines.some((line) => line.kind === "cabinet");
 }
 
+/**
+ * Whether every body in this priced design is one the customer supplies (ADR 0107 decision 2), which
+ * includes holding none. Read off each line's published supplier, never its amount: a manufacturer body
+ * can price to zero and is still something Lemnaria supplies.
+ */
+export function holdsNothingLemnariaSupplies(priced: PricedDesign): boolean {
+  return priced.lines.every(
+    (line) => line.kind !== "cabinet" || line.suppliedBy === "customer",
+  );
+}
+
 /** Builds the one shape a figure may be rendered from; every displayed price comes through here. */
 export function describeStartingPrice(input: StartingPriceInput): PriceFigure {
   return {

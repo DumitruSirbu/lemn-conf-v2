@@ -14,6 +14,7 @@
 import type {
   AccessoryPriceLine,
   CabinetPriceLine,
+  DisplayEntry,
   DisplayGroup,
   PricedDesign,
   PriceLine,
@@ -197,16 +198,25 @@ function toBreakdownGroup(
     ),
     rows: group.entries.map((entry) => ({
       key: entry.placementId,
-      label: content.priceBreakdown.placementLabel(
-        content.bodyLabel(entry.label),
-        entry.widthMm,
-      ),
+      label: describePlacementLabel(entry, content),
       amountText: describeCabinetRowAmount(
         cabinetLineFor(entry.placementId, lineByPlacement),
         content,
       ),
     })),
   };
+}
+
+/** The words a body's row prints, from the projection's entry alone, so a surface that names a body without
+ *  a price uses the same ones. */
+export function describePlacementLabel(
+  entry: DisplayEntry,
+  content: Content,
+): string {
+  return content.priceBreakdown.placementLabel(
+    content.bodyLabel(entry.label),
+    entry.widthMm,
+  );
 }
 
 function toUnplacedRow(
