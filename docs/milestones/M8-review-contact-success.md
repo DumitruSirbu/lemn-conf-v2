@@ -3,6 +3,12 @@
 > **STATUS: PLANNED — wave plan written 2026-10-07 at `90927dc`; no wave dispatched.** M8 does not
 > start until the owner says so and M7C has closed (see *What M8 assumes*). Summary: `docs/STATUS.md`.
 >
+> **Updated 2026-10-07, latest: wave 8B is DONE (`d176fb6` … `0eb94b6`), not pushed.** It went through QA
+> (four passes), two review rounds and all three reviewers' approval; see *8B as built* and ADR 0146. It
+> supersedes the paragraph below where that says 8B is in QA, in review, or that round B and review round 2
+> are next. **Next: wave 8C** (Q10 answered). Wave 8A: its measurements and vendor reads are done and Q1–Q20
+> are answered; Q21–Q27 are open; its review has not been run.
+>
 > **Updated 2026-10-07, later, at `7519005` on `m8-review-contact-success` [src, git].** The owner
 > answered Q1–Q20 (*The owner's answers, 2026-10-07*). **Profiles left for M8B** (Q1), so M8 is
 > seventeen waves and ends at 8T. 8A S2's vendor reads are folded in (*8A figures*); 8A S1's
@@ -621,7 +627,7 @@ answers; the questions each wave first waited on are in *The questions as put*.
 | Wave | Covers | Packages | Tier | Waits for, as of 2026-10-07 |
 | --- | --- | --- | --- | --- |
 | 8A | Measurements, vendor reads, the questions | none (docs, scratch) | Light | S1, S2 and S3 are in (*8A figures*, *The owner's answers*). Not closed: Q21–Q26 are open, and its review has not been run |
-| 8B | A driver error never prints the connection string | persistence, web | Full + security | **Three fix rounds done; QA green at `8cd85da`; review round 1 found one blocker (R1.1), fixed in round A (`f1a1d00`), targeted QA green.** Round B (B11 for QA19, plus the mechanical batch), a QA check of B11, review round 2. See its adjudications |
+| 8B | A driver error never prints the connection string | persistence, web | Full + security | ~~Three fix rounds done; QA green at `8cd85da`; review round 1 found one blocker (R1.1), fixed in round A (`f1a1d00`), targeted QA green. Round B (B11 for QA19, plus the mechanical batch), a QA check of B11, review round 2. See its adjudications~~ **DONE 2026-10-07, commits `d176fb6` … `0eb94b6`, not pushed.** Review round 2: all three reviewers approve. See *8B as built* and ADR 0146 |
 | 8C | The review as a value: rows, room line, submit eligibility | web, domain (read) | Full | **Nothing. Dispatchable** (Q10 answered) |
 | 8D | The review route and screen 3A/3B; the CTA gets its destination | web | Light + visual; security on S1 | **Nothing but 8C. Dispatchable** (Q2 answered) |
 | 8E | The rate-limit store | persistence | Full + security | **Nothing. Dispatchable** (Q14 answered) |
@@ -1449,6 +1455,52 @@ QA19's scratch test is re-aimed at the guard and pinned. Items 2 and 3 are check
 persistence and web suites staying green. **Review round 2:** logic and security re-read round A
 **and item 1**; clean-code re-reads items 2 and 3. The stopping rule holds for anything new.
 
+#### 8B as built — 2026-10-07
+
+**Done.** Commits, oldest first [coordinator-run, from the brief]: `d176fb6` S1, one opener and the three
+runtime sites; `9fb0994` S2, the migration tools, and a failed connect settles; `e070613` S3, the test
+helpers and the isolation guard; `62a25e4` QA pass 1 (7 failing on QA1–QA3) with the first
+adjudication (B1–B7); `a20432e` fix round 1; `e95fc79` second adjudication (QA4–QA11, B8); `1df6d7f` fix
+round 2; `a83d4fd` QA pass 3 (8 failing on QA12–QA15); `43048b2` third adjudication (B9, the stopping
+rule); `be6c4f1` fix round 3; `8cd85da` QA pass 4, green; `d3645b4` review round 1 adjudicated (B10; B9
+amended); `f1a1d00` review fix A; `adf4827` targeted QA, green, QA19 found; `429da6b` QA19 ruled in scope
+(B11); `4b2a4bb` review fix B; `db22ff4` QA check of B11, green; `0eb94b6` CI: the test-database step no
+longer prints the database name, and a stale doc clause dropped (coordinator-only; security R2.1).
+
+**What shipped.** The rules B1–B11 as they finally stand, with their reasons and the alternatives not
+taken, are [ADR 0146](../decisions/0146-nothing-copied-from-a-connection-value-or-thrown-by-a-driver-leaves-the-persistence-package.md);
+it is not restated here. In short: one opener that every runtime site, both migration tools and the test
+helpers go through; nothing a driver threw or a connection value held leaves the package; the isolation guard
+asks the opener.
+
+**Evidence, with who ran it** (ADR 0146 holds the figures and their limits). Criterion 4 [QA-run, fresh
+build, eleven malformed values]: 0 marker lines in the server logs, 0 of 33 response bodies. The used-string
+harness [QA-run]: of 3,689 swept strings, 265 accepted for queries and 391 for a session, 0 carrying any part
+of the value; of 76 strings the guard allows, 0, against 118 with the previous guard. Suites [coordinator-run,
+at `db22ff4`]: persistence, exit 0, 55 files, 1485 passed; `apps/web/tests/lib/server`, exit 0, 11 files, 127
+passed. At `0eb94b6`: `pnpm format:check` exit 0, persistence typecheck exit 0, the workflow parses as YAML.
+**Not run:** `pnpm check`, `pnpm ci:local`, e2e; nothing has run on a CI runner since these commits.
+
+**Review round 2** [reviewer-run]: logic approve (R1.1–R1.4 closed, two notes); clean-code approve (one nit,
+fixed in `0eb94b6`); security approve (R1.1–R1.3 closed; *"the wave discharges the 2026-09-06 ruling: for any
+string, nothing this package or the routes throw or log carries a credential, at the installed driver and
+Node 24"*, with named exceptions Q27/F3, F4, Neon's proxy, and its R2.1, the CI echo fixed in `0eb94b6` and
+unproven on a runner).
+
+**Logic R2.2's correction, to this file.** Rule B9's and B11's *"None moves from refused to allowed"* is
+true of the wave against the pre-wave guard (1,482 of 18,980 cases allowed→refused, 0 refused→allowed
+[QA-run, at `4b2a4bb`]) but **not at every step**: the amended B9 re-allowed, relative to the commit before
+it, a case where `DATABASE_URL` carries an `sslrootcert=` parameter [reviewer-run, from source]. The allowed
+set is still a subset of the pre-wave guard's. The adjudications above are left as they were written.
+
+**Recorded limits and what is unproven.** Both lists, each limit with its trigger, are in ADR 0146
+(*Recorded limits*; *What the wave leaves unproven*). The F-numbered follow-ups are backlog 121 (F1), 122
+(F5) and 123 (F6); QA18 and the journal comments, 124; the three red e2e specs, 125.
+
+**Deviations.** The stopping rule (third adjudication) and B8 were made by the architect without the owner
+and may be overruled. 8B closed with Q27 unanswered; its recommendation is now (b), as its own wave before
+launch. F3 was not approved and was not run.
+
 ### 8C — the review as a value
 
 *Goal.* One pure model produces everything screen 3 prints, from the same projection and the same
@@ -1873,101 +1925,16 @@ reader:* D8; frames 5A, 5B. *Visual reading:* frames 5A, 5B.
 ## Part P — customer profiles — MOVED TO M8B (owner, 2026-10-07)
 
 > **Not part of M8.** Q1 was answered (b), as recommended (relayed): profiles are **M8B**, after M8
-> and before launch. Waves 8N and 8P1–8P9 are not dispatched from this file. The text below is kept
-> here, unchanged, only until `docs/milestones/M8B-customer-profiles.md` exists; the architect was
-> asked to edit this file alone, so creating that one is listed for the coordinator. QP1–QP5 and
-> 8A S2's argon2id finding (*8A figures*, §5) go with it.
+> and before launch. Waves 8N and 8P1–8P9 are not dispatched from this file.
 
-**If Q1 is (b) this part moves to its own file, `M8B-customer-profiles.md`, unchanged.** Its slice
-tables and reading lists are written in 8N, after QP1–QP5, because every one depends on those
-answers. What is fixed now is the cut, the order and what each wave must prove. The obligations are
-the owner's section below, by number.
-
-| Wave | Does | Obligations | Tier |
-| --- | --- | --- | --- |
-| 8N | The design record: tables, the session, CSRF, how a session authorises reading and writing a claimed design, deletion semantics, hashing parameters measured on the deployment target. Puts QP1–QP5 | all | Light |
-| 8P1 | Persistence: profiles, sessions, single-use e-mail tokens, a design's owning profile. Grants | 3, 4, 6, 7 | Full + security |
-| 8P2 | Password hashing and the password rules | 1, 2 | Full + security |
-| 8P3 | Sign-up and e-mail verification, under the limiter | 3, 5, 9 (the notice) | Full + security |
-| 8P4 | Login, logout, the session cookie, CSRF, growing back-off | 5, 6 | Full + security |
-| 8P5 | Password reset | 4, 5 | Full + security |
-| 8P6 | Claiming, and the gate: an owning profile opens and edits its design on any device | 7, 6, 10 | Full + security |
-| 8P7 | The modal after the first real edit; the sign-up, login, verification and reset screens | 8 | Full + visual |
-| 8P8 | The dashboard: list, open, rename, share, delete | 11, 10 | Full + visual + security |
-| 8P9 | Account deletion, the privacy notice, retention of profile data | 9 | Full + security |
-
-*What each must prove, beyond its obligations.* **8P1:** a token and a session are stored as hashes
-only; a used or expired token never works again; a restore cannot revive a session or a token (ADR
-0114 G7's argument). **8P2:** the hash is argon2id, or scrypt if 8N shows the runtime lacks it, with
-stated parameters and a measured time on the deployment target; a password is in no log, error or
-response, tested with recognisable fakes. **8P3–8P5:** every response for an unknown address equals
-the response for a known one, in body and in time class; each endpoint refuses at its limit plus
-one. **8P4:** the session value changes at login and at a password change; a session cookie planted
-before login grants nothing after it. **8P6:** claiming is atomic; a design claimed by one profile
-is never claimed by another, under concurrency; ADR 0114 decision 5's refusal stays one
-indistinguishable answer for everyone who is neither the owning browser nor the owning profile; the
-preset-author credential is untouched (ADR 0112). **8P7:** the modal never appears on load or on
-Step 1, never blocks an edit, and is not shown again in a session once dismissed. **8P8:** every
-action is authorised against the session, never against an id alone; a share token's plaintext is
-never shown again after creation (ADR 0114 B2).
-
-### Customer profiles — owner decision, 2026-09-11
-
-**The owner's words**, proposing it: *"maybe we can advise user to make a profile, and in this way he
-will be able to store all its configurations there and will get access to a small dashboard to manage
-the configurations. After he plays with intitial configuration we can show a modal to propose to
-create profile. email plus password"* — then, through structured prompts, **"Profile replaces PIN"**
-and **"In M8, with e-mail"**. The durable record is [ADR 0115](../decisions/0115-customer-profiles-replace-the-pin-and-arrive-in-m8-and-m7-ships-the-browser-cookie-and-share-links.md).
-
-**What it is:** a customer account — e-mail and password — holding every configuration the customer
-made, with a small dashboard to open, rename, share and delete them; offered by a modal after the
-first configuration. It is the way a customer edits from another device or after clearing their
-browser. **It supersedes ADR 0019 decision 8** (e-mailed edit link, never a password) **and that
-record's rejection of passwords and accounts** — whose reasons are the checklist below, not arguments
-set aside.
-
-**What M7 leaves for this phase to build on:** a design is readable and editable only in the browser
-holding its owning visitor cookie (`__Host-lemnaria_visitor`, ADR 0114); a customer can make a short,
-read-only, revocable share link (ADR 0114 Amendments B–C); nothing else.
-
-**Obligations — each owed an acceptance criterion when this phase is planned:**
-
-1. **Password storage.** A slow, salted, memory-hard hash — **argon2id** preferred (the choice ADR 0019
-   Alternative 1 already named), scrypt acceptable where argon2id is unavailable on the runtime — with
-   parameters stated and measured on the deployment target. **A new hashing dependency is a dependency
-   change and gets the security review tier.** Passwords never logged, never in an error, never in a
-   response.
-2. **Password reuse — ADR 0019's first reason.** A minimum length and a check against known-breached
-   passwords, so a leak of this database is not a key to other services; the privacy notice says what
-   is stored.
-3. **E-mail verification** before the profile can claim designs or reset anything.
-4. **Password reset** by a **single-use, expiring, hash-stored** token sent by e-mail — ADR 0019's
-   *"no reset path"* objection answered by the verified address.
-5. **Login and sign-up rate limiting** — per account and per client, with growing back-off — added to
-   the application limiter ADR 0019 decisions 2–5 already assign to this phase, and to the launch gate
-   below.
-6. **The session.** An `HttpOnly`, `Secure`, `SameSite=Lax`, host-only (`__Host-`) session cookie,
-   rotated at login and at privilege change (no session fixation), revocable server-side, with CSRF
-   protection on every state-changing profile endpoint. It must coexist with, not replace, the
-   per-design write token and the visitor cookie until a design is claimed.
-7. **Claiming anonymous designs.** On sign-up (and on login from a browser holding a visitor cookie),
-   every design that cookie owns is attached to the profile, atomically; a design already claimed by
-   another profile is never re-claimed. After claiming, the profile — not the browser — is what opens
-   the design on any device.
-8. **The modal's trigger:** after the customer's **first real edit** in the editor (not on page load,
-   not on Step 1), dismissible, and not shown again in that session once dismissed. It never blocks
-   editing.
-9. **Personal data.** A privacy notice at sign-up; **account deletion** that removes the profile and
-   either deletes or detaches its designs as the notice says; retention of profile data stated beside
-   ~~ADR 0019 decision 7's design retention~~ **the design's, which since 2026-09-15 has no horizon
-   (ADR 0019 note)**.
-10. **Separation of credentials.** A profile never grants preset authoring (ADR 0112's owner gate
-    stays separate), and never exposes a share token's plaintext after creation (ADR 0114 B2).
-11. **The dashboard** lists, opens, renames, shares (ADR 0114's share link) and deletes the profile's
-    designs; every action is authorised against the session, never against a design id alone.
-12. **What happens to the e-mailed edit link** (ADR 0019 decision 8, superseded): keep it for a
-    customer who submits the contact form without a profile, or drop it — this phase decides, and the
-    contact flow's copy follows. **Now Q11.**
+**Removed 2026-10-07.** This part's text moved to `docs/milestones/M8B-customer-profiles.md`, which now
+exists. Checked section by section before removal [scribe-read, both files]: the wave table (8N, 8P1–8P9,
+their obligations and tiers), *What each must prove*, the owner's decision of 2026-09-11 (the owner's words,
+*What it is*, *What M7 leaves*) and obligations 1–12 are all in the M8B file, with identical wording except
+two edits M8B made on purpose: obligation 5 says the application limiter is assigned to the review-and-contact
+phase (M8) and to the launch gate, and obligation 12 carries the answer to Q11 (the e-mailed edit link is
+dropped). The M8B file also adds the amendment of ADR 0115 and QP1–QP5. Nothing in this part was missing
+from M8B.
 
 ## Launch waves
 
@@ -2287,7 +2254,8 @@ writes them; the architect supplies the content.
 4. Grants for the new tables (Q14). A dated note on ADR 0008.
 5. Mail: the port, the provider, the one recipient; the fate of the e-mailed edit link and of frame
    2F's link exit (Q3, Q4, Q11, Q12). An amendment to ADR 0115 for obligation 12.
-6. A driver error never carries a connection string (8B).
+6. ~~A driver error never carries a connection string (8B).~~ **Written 2026-10-07: ADR 0146.** The next
+   free number is now 0147.
 7. M8's copy rule and its slots (Q7–Q10). A pointer on ADR 0113.
 8. The CSP enforces: how both preconditions were discharged (8Q). An amendment to ADR 0041.
 9. The first stored schema at launch (Q20). Closes ADR 0038's expiry and ADR 0111 decision 8.

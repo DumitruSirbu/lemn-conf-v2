@@ -23,6 +23,12 @@ replaced it — nothing is deleted or rewritten silently.
   recommended"*, relayed; option (b)). Wording struck in place. The rulings of 2026-09-11 stand.
 - **Annotated 2026-10-07, later, nothing superseded:** **ADR 0019** decision 4's diaspora reason, against
   the owner's *"Moldova only for now"*. The decision's limits stand; M8 question Q23 is open.
+- **Annotated 2026-10-07, M8 wave 8B, nothing superseded:** **ADR 0006**'s refusal wording (the guard no
+  longer prints `host:port` or an unlisted name), **ADR 0142** decision 6 (`databaseNameOf` moved to
+  `open-database.ts`; its no-slash refusal applies at every site) and **ADR 0041** decision 3 (four
+  prerendered routes now, not five) → **ADR 0146**. ADR 0146 also supersedes, in `connectOrWrapError`'s
+  own comment in `migrate.ts`, the stated intent to keep the driver error as `cause` (rule B3), and makes
+  the 2026-09-06 criterion of M8's plan, *Added 2026-09-06*, hold over any string.
 - **ADR 0002**'s *shareable to anyone holding the link* and **ADR 0019** decision 1's open read →
   **superseded** by **ADR 0114** decision 5 on the owner's F5 answer of 2026-09-11 (*"Only its own
   browser"*, revised the same day to *"Own browser + private share link"*); both carry dated notes.

@@ -78,6 +78,12 @@ Two details are worth keeping because they are the ones that get lost:
   is the only honest source for this list; an earlier revision of the wave notes counted four routes
   from the printed table and was wrong.
 
+> **Note, 2026-10-07.** The list above is the 2026-08-31 measurement and is not the current one. A real
+> build now prerenders **four** routes: `/_global-error`, `/_not-found`, `/ro/configurator/contact` and
+> `/ru/configurator/contact` [implementer-run, M8 wave 8A S1; `docs/milestones/M8-review-contact-success.md`,
+> *8A figures*, part A]. `/` and `/configurator/configure` became Route Handlers in M7 wave 7E3a, and the
+> contact page gained its locale prefix in M6B. The list is left as written.
+
 **The flip is blocked on two preconditions**, both tracked on the M8 launch gate: a method of
 collecting violations (decision 4), and the prerendered-pages/nonce problem above. Making those
 pages dynamic is a performance and cost decision in its own right and was deliberately not folded

@@ -152,3 +152,13 @@ goes through review.
 ### What this amendment changed
 
 Documentation only. No environment variable, no database, no role and no code were changed by it.
+
+## Note, 2026-10-07 — the refusals' wording changed, and the guard also asks the opener
+
+By [ADR 0146](0146-nothing-copied-from-a-connection-value-or-thrown-by-a-driver-leaves-the-persistence-package.md)
+(M8 wave 8B): `assertSafeTestDatabaseUrl` no longer prints `host:port` or a database name that is not on
+the allowlist in its refusals, and it now also refuses a test URL that this package's opener would refuse
+by either entry point. Comparison still reads the name; only the display changed. The guarantee this record
+makes about which database a test run touches is unchanged: the allowlist and the application-database
+refusal above stand as written. Against the pre-wave guard, 1,482 of 18,980 compared cases went from allowed
+to refused and 0 from refused to allowed [QA-run, at `4b2a4bb`]; ADR 0146 states the one qualification.

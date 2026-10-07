@@ -1824,6 +1824,9 @@ on a failing test (criterion 4's teardown proof). **The 16 existing rows are unt
 ADR 0006 (environments and provisioned resources are add-only), no agent deletes a database row on
 its own judgment; that is the owner's call. No owner, no phase yet.
 
+**Another leftover row, 2026-10-07:** `su3IuyF9TqeLXtm6AegGl`, from M8 wave 8A S1's measurement; see backlog
+100, where it is recorded with the other leftover rows.
+
 ## 80. The store's mint-on-first-command branch has no reaching route since 7E3a — FOUND 2026-09-23, NOT RETIRED
 
 **Found by M7 wave 7E3a's review, 2026-09-23** (finding L1.3). Since 7E3a moved Step 1's
@@ -2015,6 +2018,11 @@ phase.
 **Answered 2026-09-30 (Q-U7-2, relayed selection, not verbatim): "Leave them (Recommended)."** The six
 rows stay; nothing removes them. The architect recorded the answer in the milestone
 (`docs/milestones/M7B-u-shaped-rooms.md`, *U7 — the plan*, Q-U7-2) but not here.
+
+**Another leftover row, 2026-10-07.** M8 wave 8A S1's measurement left one row, `su3IuyF9TqeLXtm6AegGl`, in
+the test database, undeleted as its brief required (add-only); it is recorded in the M8 plan's *8A figures*.
+It belongs with these rows and with backlog 79's; the same owner decision covers it, and no answer to
+Q-U7-2 extends to it.
 
 ## 101. The shape-refusal region is kept on purpose, though no shipped path draws it — RECORDED 2026-09-30, NO OWNER
 
@@ -2208,3 +2216,49 @@ production code (Full tier). The owner's call; no owner, no phase.
 answers in milliseconds, but the settings trigger enables only after the first frame's main-thread block:
 7-11 s under local load, 7-10 s on the runner. A real low-end device may show the disabled state for that
 long. A product question, not a defect; no owner, no phase.
+
+## 121. F1 — `scripts/gates/boundary.sh` matches a driver import on one line only — FOUND 2026-10-07 BY M8 8B's QA, SCHEDULE BEFORE WAVE 8E
+
+**Source [doc, `docs/milestones/M8-review-contact-success.md`, 8B adjudication of QA, F1].** The architecture
+gate matches a Postgres-driver import on one line, so a Prettier-wrapped import or a dynamic import outside
+`packages/persistence` passes it. It predates wave 8B and is not in its files. **Owner:** the coordinator,
+under `docs/best-practices/ci-and-local-gates.md`. **Trigger:** before wave 8E adds persistence code.
+
+## 122. F5 — a session close that never returns hangs `applyMigrations` — FOUND 2026-10-07 BY M8 8B's QA, UNMEASURED
+
+**Source [doc, same section, B8 restated and F5].** If `end()` never settles, `applyMigrations` never
+returns, and the CLI (which sets `process.exitCode` and never calls `process.exit`) does not exit. Seen only
+with a mocked driver; whether a connection dropped mid-run leaves a real `end()` pending is unmeasured. It
+leaks nothing, and the same `await` stood in the `finally` before wave 8B. **Owner:** the coordinator, before
+wave 8S. **Next step:** a measurement on the test database, which needs the owner's approval because it ends a
+backend there; if it hangs with the installed driver, the fix is the CLI's shutdown, as its own small wave.
+QA's two tests for it stay as declared deferrals that go red when the hang is fixed.
+
+## 123. F6 — do Neon's connection strings carry `sslrootcert` or a sibling? — RECORDED 2026-10-07, A READ, NOT A DEFECT
+
+**Source [doc, same section, F6].** One read of Neon's documentation for whether the strings it hands out
+carry `sslrootcert`, `sslcert` or `sslkey`. If they do, the backlog records that the migration tools cannot
+use that form: the session client's constructor throws on it, as it did before wave 8B, while the HTTP entry
+point still accepts it (ADR 0146, B10). **Owner:** the coordinator, with 121 and 122.
+
+## 124. QA18 and the "Finding …" journal comments in three test files — RECORDED 2026-10-07, LOW PRIORITY, NO OWNER
+
+**Source [doc, M8 plan 8B, and the clean-code reviewer, relayed].** Two small tidy-ups, one entry.
+
+- **QA18:** the connection-opening census does not see a second `Client` constructed through the opener's own
+  export.
+- **Journal comments:** `test-database-url.test.ts`, `delete-designs-for-tests.test.ts` and
+  `migration-target.test.ts` carry pre-existing comments beginning "Finding …", which ADR 0136 says belong in
+  the records.
+
+No trigger; do it when one of those files is next touched.
+
+## 125. Three e2e specs fail under `CI=1` and nobody has investigated them — FOUND 2026-10-07 BY M8 8A S1, TRIAGE BEFORE 8F
+
+**Source [doc, M8 plan, *8A figures* S1 row B ii].** A full e2e run with `CI=1` (a build and `next start`)
+gave 619 passed, 3 failed, 2 skipped: `qa-7e3b-s6-lock.adversarial.e2e.spec.ts:112` (rounds 1 and 5) and
+`qa-7e3b-s6-two-tab-convergence.adversarial.desktop.e2e.spec.ts:21` (round 2 of 3; *"did not open with
+canWrite: true"*). Backlog 117 (the remote test database dropping connections) does not mention them, so this
+is a separate entry; whether they are the same family is unknown. **Owner:** the coordinator. **Trigger:**
+wave 8F is not dispatched until each has been re-run alone and recorded as a flake, a test fault or a defect
+(plan, 8F S0, item 5).

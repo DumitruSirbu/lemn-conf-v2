@@ -26,7 +26,7 @@ when a record you rely on is marked superseded below, or when planning (architec
 | [0003](0003-design-reference-supersession.md) | Void/column domain model replaces the run-anchor model | Accepted |
 | [0004](0004-m2-pricing-engine-deletion.md) | Delete `pricing-engine.ts` instead of retaining it | Accepted |
 | [0005](0005-m2-row19-m1-wall-gap-finding.md) | M1's `buildKitchen()` seats 6 bodies proud of the wall plane | Accepted |
-| [0006](0006-tests-never-touch-the-application-database.md) | Live database tests never touch the application database | Partly superseded → 0008 |
+| [0006](0006-tests-never-touch-the-application-database.md) | Live database tests never touch the application database | Partly superseded → 0008; refusal wording annotated 2026-10-07 (0146) |
 | [0007](0007-standalone-neon-instead-of-vercel-managed.md) | Postgres moves to a standalone Neon project | Partly superseded → 0008 |
 | [0008](0008-least-privilege-database-role.md) | The application connects as a least-privilege role | Partly superseded → 0009 |
 | [0009](0009-deployment-configuration-gaps.md) | Deployment configuration gaps found before first deploy | Partly superseded → 0054 |
@@ -61,7 +61,7 @@ when a record you rely on is marked superseded below, or when planning (architec
 | [0038](0038-pre-release-no-stored-designs-no-migrations.md) | Pre-release: no design has ever been stored, no migration owed | Partly superseded → 0052 |
 | [0039](0039-the-hood-is-a-standard-depth-hung-at-the-front.md) | The hood is a standard depth, hung at the front | Accepted |
 | [0040](0040-a-recorded-seat-is-converted-back-not-read-as-a-depth.md) | A recorded seat is converted back to a depth, never read as one | Accepted |
-| [0041](0041-the-browser-security-policy-is-versioned-and-the-csp-only-reports.md) | Browser security policy is versioned; the CSP only reports | Accepted |
+| [0041](0041-the-browser-security-policy-is-versioned-and-the-csp-only-reports.md) | Browser security policy is versioned; the CSP only reports | Accepted; decision 3 annotated 2026-10-07 |
 | [0042](0042-the-database-records-which-migrations-it-ran.md) | The database records which migrations it ran | Accepted |
 | [0043](0043-an-empty-space-of-any-width-is-a-legal-state.md) | An empty space of any width is a legal state | Accepted |
 | [0044](0044-an-empty-space-is-recorded-in-the-design-document.md) | An empty space is recorded in the design document | Partly superseded → 0052, 0053 |
@@ -162,10 +162,11 @@ when a record you rely on is marked superseded below, or when planning (architec
 | [0139](0139-the-room-screens-routing-generation-and-back-guard-reasons-recovered-from-code-comments.md) | The room screen's routing, generation lifecycle, back guard and plan scale: reasons recovered from code comments | Accepted |
 | [0140](0140-chrome-price-surface-and-scene-reasons-recovered-from-code-comments.md) | Chrome, price surface and scene: reasons recovered from code comments | Accepted |
 | [0141](0141-romanian-copy-rulings-recovered-from-the-copy-lock-and-a-test.md) | Romanian copy rulings recovered from the copy lock and a test | Accepted |
-| [0142](0142-persistence-concurrency-migration-safety-and-api-reasons-recovered-from-code-comments.md) | Persistence concurrency, migration safety and API reasons recovered from code comments | Accepted |
+| [0142](0142-persistence-concurrency-migration-safety-and-api-reasons-recovered-from-code-comments.md) | Persistence concurrency, migration safety and API reasons recovered from code comments | Accepted; decision 6 annotated 2026-10-07 (0146) |
 | [0143](0143-three-adapter-test-expectations-recovered-from-test-comments.md) | Three-adapter test expectations recovered from test comments | Accepted |
 | [0144](0144-an-e2e-wait-on-the-editor-outlasts-the-first-webgl-frames-freeze-by-one-named-bound.md) | An e2e wait on the editor outlasts the first WebGL frame's freeze, by one named bound | Accepted |
 | [0145](0145-a-persistence-retry-covers-an-empty-reply-and-a-retried-write-leaves-no-trace.md) | A persistence retry covers an empty reply, and a retried write leaves no trace (supersedes 0142 d2, d3) | Accepted |
+| [0146](0146-nothing-copied-from-a-connection-value-or-thrown-by-a-driver-leaves-the-persistence-package.md) | Nothing copied from a connection value, and nothing a driver threw, leaves the persistence package | Accepted |
 
 ## Adding the next one
 

@@ -151,6 +151,11 @@ status corrections, in one of these two files:
 | 118 | Dev-scope advisories in the lockfile (tinypool, js-yaml, brace-expansion, braces, vitest); extends 102 | open.md — found 2026-10-06 by the security review; not scheduled, no owner |
 | 119 | A client transition probes write access for the design being left | open.md — found 2026-10-06 by CE S2; harmless (the answer is dropped); a fix is production code; owner's call |
 | 120 | The first WebGL frame can hold "Se verifică accesul" for seconds on a slow device | open.md — found 2026-10-06 by CE S2; a product question, not a defect; no owner |
+| 121 | F1 — `scripts/gates/boundary.sh` matches a driver import on one line only | open.md — found 2026-10-07 by M8 8B's QA; the coordinator schedules it before wave 8E |
+| 122 | F5 — a session close that never returns hangs `applyMigrations` | open.md — found 2026-10-07 by M8 8B's QA; unmeasured; the coordinator, before 8S, after the owner approves a measurement |
+| 123 | F6 — do Neon's connection strings carry `sslrootcert` or a sibling? | open.md — recorded 2026-10-07; a documentation read, the coordinator's |
+| 124 | QA18 (census blind to a second `Client` through the opener) and "Finding …" journal comments in three test files | open.md — recorded 2026-10-07; low priority, no owner |
+| 125 | Three e2e specs fail under `CI=1`, uninvestigated | open.md — found 2026-10-07 by M8 8A S1; triage before wave 8F |
 
 ## 2026-09-06 audit note
 
