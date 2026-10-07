@@ -8,8 +8,9 @@
 > seventeen waves and ends at 8T. 8A S2's vendor reads are folded in (*8A figures*); 8A S1's
 > measurements ~~are not in yet~~ **arrived later the same day and are in the same section (written
 > at `a7b0363`)**; they changed 8B's slices and criteria and what 8F owes the e2e suite, and left
-> Q15 standing. **8B is implemented and its adversarial QA is red: three defects, adjudicated in
-> its section, fix round 1 next; Q27 was raised by it.** **Six follow-up questions are open,
+> Q15 standing. **8B is implemented; QA's first pass found three defects, round 1 fixed them
+> (`a20432e`), and QA's re-run leaves one test failing (QA4). Both passes are adjudicated in its
+> section; round 2 is next, then one QA pass, then review. Q27 was raised by it.** **Six follow-up questions are open,
 > Q21–Q26** (seven with Q27), and the first two —
 > where production runs and where the database lives — make five of the recorded answers
 > conditional. Dispatchable as written: **8B, 8C, 8D, 8E, 8I**.
@@ -590,7 +591,7 @@ answers; the questions each wave first waited on are in *The questions as put*.
 | Wave | Covers | Packages | Tier | Waits for, as of 2026-10-07 |
 | --- | --- | --- | --- | --- |
 | 8A | Measurements, vendor reads, the questions | none (docs, scratch) | Light | S1, S2 and S3 are in (*8A figures*, *The owner's answers*). Not closed: Q21–Q26 are open, and its review has not been run |
-| 8B | A driver error never prints the connection string | persistence, web | Full + security | **Implemented, QA red** (7 failing tests, 3 defects). Fix round 1, then QA's re-run, then round 2, then review. See its adjudication |
+| 8B | A driver error never prints the connection string | persistence, web | Full + security | **Round 1 done (`a20432e`); QA's re-run red on one test (QA4).** Round 2 (five items), one QA pass, then review. See its two adjudications |
 | 8C | The review as a value: rows, room line, submit eligibility | web, domain (read) | Full | **Nothing. Dispatchable** (Q10 answered) |
 | 8D | The review route and screen 3A/3B; the CTA gets its destination | web | Light + visual; security on S1 | **Nothing but 8C. Dispatchable** (Q2 answered) |
 | 8E | The rate-limit store | persistence | Full + security | **Nothing. Dispatchable** (Q14 answered) |
@@ -986,7 +987,8 @@ subject, what this package says about a connection.
 
 *Round 2*, after QA re-runs its four files and `guard-compare` green on round 1:
 
-5. **B4** (gap 4). `open-database.ts` and the three runtime sites.
+5. ~~**B4** (gap 4). `open-database.ts` and the three runtime sites.~~ **Superseded the same day by
+   the five-item list in the next adjudication, where B4 is item 2.**
 
 *Reading, implementer:* this adjudication; QA's four `qa-8b-*.adversarial.test.ts` files and
 `support/qa-8b-connection-values.ts`; in `m8-8b-qa/`, `guard-compare.mts` and `.out`, `probe2.out`,
@@ -1001,6 +1003,106 @@ it over-asks, and it is right about the mechanism. Under B3 both QA3 tests are r
 thrown error. (2) QA filed QA1 under criterion 2, which the seven-value table bounded by its
 letter. QA was right to treat it as a property; the letter was the plan's fault. Nothing else in
 QA's report was found wrong.
+
+#### 8B — adjudication of QA's re-run, 2026-10-07, later
+
+**State.** Round 1 and QA's re-aimed tests are `a20432e` [relayed]. The architect ran QA's six
+files there: **1 failed, 160 passed** [ran], the one QA reported. QA1–QA3 are fixed; B2 holds as a
+property; the guard is unchanged over 18,980 cases [relayed]. The tree is clean and frozen.
+
+| Item | Class | Ruling |
+| --- | --- | --- |
+| QA4 a rejected `end()` after a clean run leaves `applyMigrations` as the driver's own error | **Implementation defect** against B3 | B8, round 2 |
+| QA5 the clamp keeps any `name` or `code` of the right shape | Contract gap in B3's wording | **Recorded limit** |
+| QA6 the opener takes a URL with no database, and two forms with no `//` | Contract gap: B7's letter and *"opener ≡ driver"* cannot both hold | **B7 stands; the equivalence changes.** Round 2 |
+| QA7 a second value import of the driver stands in the census as *owed* | Contract gap in B5: an owed list that never empties is a standing exception | In scope, round 2 |
+| QA8 a refusal says the name has undecoded characters | Not a breach of B2 as written; its wording was loose | **Recorded limit**, B2 clarified |
+| QA9 a test still passes on the hang | Test-fidelity problem | Fixed in round 2 |
+| QA10 a case-insensitive allowlist match and a name printed in the value's case | Test-fidelity problem | **Closed by QA's own tests**; nothing owed |
+| QA11 the census lost `new globalThis.URL(` and `new nodeUrl.URL(`; it does not read `.mts`; `createRequire` | Test-fidelity problem. The first two are a regression from round 0 | First three fixed in round 2; `createRequire` a recorded limit |
+
+**Rules.**
+
+- **B8 — closing the session never changes the run's outcome** (QA4; B3 applied to `end()`). If
+  every migration was applied and recorded, `applyMigrations` returns its summary whether or not
+  the session then closed. If the run failed, it throws the run's own error. A rejection from
+  `end()` is dropped in both cases and never replaces either.
+  - *Why this option.* The file already rules the same case one step earlier: `rollbackQuietly`,
+    *"The failure that brought us here is the one worth reporting. A rollback that itself fails …
+    must not replace it with a less informative error."* A close is the next such step.
+  - *Why not fail with a reduced cause.* Each migration commits on its own, so after a clean run
+    the schema is migrated and the ledger says so. Reporting failure would tell a deploy gate that
+    a migration which happened did not.
+  - *Why not report it beside the success.* It would add a field to the run's summary and a second
+    kind of line to the one the CLI prints (ADR 0013), for a fact the operator can do nothing with.
+  - This is a behaviour of an operator tool with a precedent in the same file, so it is ruled
+    here. The owner may overrule it. *Still unmeasured:* a real `end()` that rejects or never
+    settles; only a mocked one has been seen.
+- **B7 stands, and the opener is stricter than the driver** (QA6). Accepted: a `postgres://` or
+  `postgresql://` URL, **with the two slashes**, a user, a host and **a database name that is not
+  empty**. The refusal's sentence is already exactly that and does not change.
+  - *What changes:* ~~the opener refuses exactly the strings the driver refuses~~ → **every string
+    the opener accepts, the driver accepts; the opener also refuses three forms the driver takes:**
+    no database (`postgresql://u@h`), one slash (`postgres:/u:p@h/db`), and no slash
+    (`postgres:u:p@h/db`). The first half is what keeps the driver's own echoing error unreachable.
+  - *Why the no-slash forms go.* [ADR 0142](../decisions/0142-persistence-concurrency-migration-safety-and-api-reasons-recovered-from-code-comments.md)
+    already records them: the driver re-parses under `http:`, a scheme *"that tolerates the missing
+    slash, and resolves a real host and database there"*, while this package's own reading sees an
+    empty host and the credential in the path: *"a **bypass**"*. That record closed it for the
+    migration target: *"Refusing every URL shaped like this before any pathname is read closes
+    both at once"*. The opener now does the same for every
+    site, so no running configuration exists in which the two readings disagree that way.
+  - QA's pin *"refuses exactly the strings neon() itself refuses"* goes red by this ruling. **QA
+    re-aims it** to the implication plus the three named forms; the implementer does not edit it.
+- **B5, restated for QA7.** The owed list is empty at the end of the wave. The driver's error class
+  is needed outside the opener only to recognise one; the opener is where that question is
+  answered, and the other file asks it there.
+- **B2, clarified for QA8.** B2 forbids *text taken from the value*. A refusal may differ by
+  **which refusal it is**, and the classes are few and closed: the variable is unset; the value is
+  not the accepted shape; its path has characters that must not appear raw; it names no database;
+  it names a listed database that is not the declared one; it names one that is not listed. That
+  the third class exists tells a reader the path held a `%` or a `\`. That is the class's
+  definition and it is what the operator must fix. Criterion 5's *"not which character was bad"*
+  binds the opener's one refusal, which has no such class.
+- **B3, recorded limit for QA5.** `name` and `code` are kept by shape, not from a list, so a value
+  of the right shape passes: a `code` of `FAKEPASSWORD_QA8B` would. No driver or runtime here sets
+  either field from its input [inf; falsified by a driver version that does, which the
+  driver-rejection tests on real errors would show]. Closed lists were weighed and not taken: they
+  would drop real SQLSTATEs and need editing at every driver bump.
+
+**Recorded limits of the census** (B5), now four: a dynamic import whose specifier is computed; an
+alias of the global `URL`; `Reflect.construct`; a `require` made by `createRequire`.
+
+**Round 2's punch list** — ~~5. **B4** (gap 4). `open-database.ts` and the three runtime sites.~~
+restated. Five items, six production files; one over, because items 2 to 4 all pass through
+`open-database.ts` and item 2's three other files take one mechanical change each.
+
+1. **B8** (QA4). `migrate.ts`. QA's failing test is the pin; the failed-run half needs its own:
+   a run that fails and then cannot close throws the run's error.
+2. **B4** (gap 4). `open-database.ts`, `neon-configuration-repository.ts`,
+   `share-link-repository.ts`, `design-row-source.ts`.
+3. **B7** (QA6). `open-database.ts`. A test pins the three refused forms by name.
+4. **B5** (QA7). `retry-on-transient-failure.ts`, `open-database.ts`; the census's owed list
+   becomes empty.
+5. **Tests only** (QA9, QA11). `tests/migration-target.adversarial.test.ts`: the *"unsettled
+   top-level await"* alternative is removed, since the hang it tolerated is fixed.
+   `tests/connection-opening-census.test.ts`: `new x.URL(` is a site again, with QA's two forms as
+   cases, and every TypeScript source extension under `src/` is read.
+
+*Reading, implementer:* this adjudication and the one above it; `migrate.ts:60-110` and
+`rollbackQuietly`; QA's `qa-8b-thrown-cause.adversarial.test.ts` and
+`qa-8b-opener-sweep.adversarial.test.ts`; ADR 0142, the entry on `databaseNameOf`; ADR 0013; ADR
+0145 (what `retry-on-transient-failure.ts` recognises and why); `open-database.ts` whole.
+*Reading, QA's next pass:* the same; B2's property re-run; `guard-compare` re-run. One measurement
+added: over the sweep's accepted strings, count those where the database name this package
+compares differs from the one the driver would use. **Any such string whose compared name is a
+listed one is a finding.**
+
+**After round 2.** One QA pass, and if it is green the wave goes to review: logic, clean-code and
+security, as its tier says. Another adjudication is expected only if that measurement finds a
+disagreement, or the re-aimed sweep turns up a new class. The close-out names three things as
+unproven and not as clean: F3 (not approved), a real `end()` failure, and the hosting platform's
+own logger.
 
 ### 8C — the review as a value
 
