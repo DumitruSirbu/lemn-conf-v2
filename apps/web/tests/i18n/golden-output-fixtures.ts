@@ -646,10 +646,11 @@ const REVIEW_ROOM_LINE_ARGUMENTS: Readonly<
   },
 };
 
-const REVIEW_LEAVES_ON_CONTENT: ReadonlySet<string> = new Set([
-  "review.title",
-  "review.roundedUpNote",
-]);
+const REVIEW_LEAVES_ON_CONTENT: ReadonlySet<string> = new Set(
+  RESOLVED_STATIC_CONTENT.map(({ path }) => path).filter((path) =>
+    path.startsWith("review."),
+  ),
+);
 
 export const REVIEW_LEAF_KEYS: readonly string[] = catalogueLeaves(
   correctedRomanian.review,

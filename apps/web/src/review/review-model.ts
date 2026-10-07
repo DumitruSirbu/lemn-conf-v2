@@ -5,8 +5,13 @@
 //
 // The figure is `priceDesign`'s total rounded as the price bar rounds it, never a sum of the rows above
 // it, and no row is labelled *total*.
+//
+// Whether the kitchen may be submitted is decided here and nowhere else. Fit is the domain query's answer,
+// asked and believed: nothing here measures a wall. The reasons are checked in the order the price bar and the
+// breakdown already check their states: a pricing failure, then an empty kitchen, then a body past its wall.
 import {
   cornerDirectionOf,
+  findOverflowingPlacementIds,
   type Design,
   type DisplayGroup,
   type PricedDesign,
@@ -45,9 +50,30 @@ export interface ReviewDisclaimer {
   readonly notice: string;
 }
 
+/** One closed set of reasons, tied to the sentences the content resolves: a reason without a sentence is a compile
+ *  error. */
+export type SubmitRefusalCode = keyof Content["review"]["refusalReasons"];
+
+/** A body as the review's own row names it, so the refusal and the list above it read alike. */
+export interface NamedBody {
+  readonly placementId: string;
+  readonly label: string;
+}
+
+/** The code and the bodies it names, in display order. The sentence is `content.review.refusalReasons[code]`,
+ *  read by the screen. */
+export interface RefusedSubmit {
+  readonly kind: "refused";
+  readonly code: SubmitRefusalCode;
+  readonly bodies: readonly NamedBody[];
+}
+
+export type SubmitEligibility = { readonly kind: "allowed" } | RefusedSubmit;
+
 /** Nothing is rendered: a kitchen that cannot be priced, or holds no body, has no figure to review. */
 export interface UnavailableReview {
   readonly kind: "unavailable";
+  readonly submit: RefusedSubmit;
 }
 
 export interface AvailableReview {
@@ -60,6 +86,7 @@ export interface AvailableReview {
   readonly notIncluded: ReviewNotIncludedSlot;
   readonly disclaimer: ReviewDisclaimer;
   readonly figure: PriceFigure;
+  readonly submit: SubmitEligibility;
   /** Present exactly when the priced total is flagged: the flag travels with the total wherever it is shown. */
   readonly overflowWarning?: string;
 }
@@ -67,7 +94,7 @@ export interface AvailableReview {
 export type ReviewView = UnavailableReview | AvailableReview;
 
 export type ReviewSection =
-  | Exclude<keyof AvailableReview, "kind" | "overflowWarning">
+  | Exclude<keyof AvailableReview, "kind" | "overflowWarning" | "submit">
   | "callToAction";
 
 /** The order the screen lays its sections out in: what is not included is read before the call to action. */
@@ -102,14 +129,24 @@ export class MissingWholeKitchenTierError extends Error {
   }
 }
 
-const UNAVAILABLE_REVIEW: UnavailableReview = { kind: "unavailable" };
+/** A placement the query reports past its wall that no row names: the rows and the query read different designs. */
+export class UnlistedOverflowingBodyError extends Error {
+  constructor(placementIds: readonly string[]) {
+    super(
+      `The query reports bodies past their wall that no review row names: ${placementIds.join(", ")}`,
+    );
+    this.name = "UnlistedOverflowingBodyError";
+  }
+}
 
 export function describeReview(input: DescribeReviewInput): ReviewView {
-  if (!input.pricing.ok) return UNAVAILABLE_REVIEW;
+  if (!input.pricing.ok) return unavailableFor("PRICING_FAILED");
 
   const { priced } = input.pricing;
   const { content, groups } = input;
-  if (holdsNothingToBreakDown(priced, groups)) return UNAVAILABLE_REVIEW;
+  if (holdsNothingToBreakDown(priced, groups)) {
+    return unavailableFor("NO_CABINET");
+  }
 
   const rows = describeBreakdownRows({ content, priced, groups });
   const warning = describeFlaggedTotalWarning(priced, content.price);
@@ -131,8 +168,46 @@ export function describeReview(input: DescribeReviewInput): ReviewView {
       totalMinor: priced.totalMinor,
       copy: content.price,
     }),
+    submit: describeSubmitEligibility(input.design, rows.groups),
     ...(warning === undefined ? {} : { overflowWarning: warning }),
   };
+}
+
+function unavailableFor(
+  code: "PRICING_FAILED" | "NO_CABINET",
+): UnavailableReview {
+  return {
+    kind: "unavailable",
+    submit: { kind: "refused", code, bodies: [] },
+  };
+}
+
+function describeSubmitEligibility(
+  design: Design,
+  groups: readonly BreakdownGroup[],
+): SubmitEligibility {
+  const overflowingIds = new Set(findOverflowingPlacementIds(design));
+  if (overflowingIds.size === 0) return { kind: "allowed" };
+  return {
+    kind: "refused",
+    code: "BODIES_PAST_WALL",
+    bodies: nameBodies(groups, overflowingIds),
+  };
+}
+
+/** Named from the rows, so the order is the list's and the label is the row's. */
+function nameBodies(
+  groups: readonly BreakdownGroup[],
+  placementIds: ReadonlySet<string>,
+): readonly NamedBody[] {
+  const bodies = groups
+    .flatMap((group) => group.rows)
+    .filter((row) => placementIds.has(row.key))
+    .map((row) => ({ placementId: row.key, label: row.label }));
+  const named = new Set(bodies.map((body) => body.placementId));
+  const unlisted = [...placementIds].filter((id) => !named.has(id));
+  if (unlisted.length > 0) throw new UnlistedOverflowingBodyError(unlisted);
+  return bodies;
 }
 
 function countBodies(groups: readonly DisplayGroup[]): number {

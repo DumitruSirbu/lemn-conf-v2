@@ -623,6 +623,12 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "5f912b909dc3b0a62c5e719fc374e323937098bddd80fd8d690d1323182a7cb1",
   "content.static.share.copy":
     "a35a3851d68320f92b07859891dabb14e750ef8b12af123ce0cafe4e532c9d20",
+  "content.static.review.refusalReasons.BODIES_PAST_WALL":
+    "1b6865c75b202076ee4b4ba7e5d4ab3d08765cb1956379c39c438559f06678ef",
+  "content.static.review.refusalReasons.NO_CABINET":
+    "c0c16cc253cf90852bbbf2989d052b8f3920069cbce0910637c96535cfc38ae1",
+  "content.static.review.refusalReasons.PRICING_FAILED":
+    "626cb3ee9d9f874ea952d633ae4116693ae973bc4c3b4655a4cb42f4ae3c0335",
   "content.static.review.roundedUpNote":
     "de0643caa8d00cffcd13babc1f9211605166177ebe0364cb52f3b38640e6896a",
   "content.static.review.title":

@@ -86,6 +86,15 @@ describe("the review model's imports", () => {
     expect(violationsIn(closureOf(MODEL))).toEqual([]);
   });
 
+  it("may import the domain package, which is where the fit query comes from", () => {
+    expect(closureOf(MODEL).packages).toContain(
+      "@lemnaria/configurator-domain",
+    );
+    expect(violationsIn(closureOf(MODEL))).not.toContain(
+      "@lemnaria/configurator-domain",
+    );
+  });
+
   it("walks the breakdown and the price figure, so the check is not over an empty closure", () => {
     const relative = [...closureOf(MODEL).files].map((file) =>
       file.slice(SRC.length + 1),
@@ -106,5 +115,19 @@ describe("the review model's imports", () => {
     expect(violationsIn(closureOf(priceBar))).toEqual(
       expect.arrayContaining(["react", "price/price-bar.tsx"]),
     );
+  });
+});
+
+describe("the review model's fit rule", () => {
+  const MEASURES_A_WALL = /alongMm|placementExtendsPastOwnWall/;
+  const source = codeOf(readFileSync(MODEL, "utf8"));
+
+  it("asks the domain query and reads no placement's position", () => {
+    expect(source).toContain("findOverflowingPlacementIds(");
+    expect(source).not.toMatch(MEASURES_A_WALL);
+  });
+
+  it("would notice a model that measured a wall itself", () => {
+    expect("placement.alongMm + width > wall").toMatch(MEASURES_A_WALL);
   });
 });

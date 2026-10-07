@@ -325,6 +325,14 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       cornerLeft: "cot la stânga",
       cornerRight: "cot la dreapta",
     },
+    refusalReasons: {
+      PRICING_FAILED:
+        "Nu am putut calcula prețul acestei bucătării, așa că oferta nu poate fi cerută acum.",
+      NO_CABINET:
+        "Adaugă cel puțin un dulap în bucătărie înainte să ceri oferta.",
+      BODIES_PAST_WALL:
+        "Unele dulapuri depășesc lungimea peretelui. Modifică lățimile sau elimină un dulap înainte să ceri oferta.",
+    },
   },
   globalSettings: {
     open: "Setări globale",

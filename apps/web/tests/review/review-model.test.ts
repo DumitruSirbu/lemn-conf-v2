@@ -297,7 +297,7 @@ describe("the review's fixed sections (criteria 6 and 7)", () => {
 
   it("places every section the model returns, once, so a new section must choose its position", () => {
     const returned = Object.keys(review).filter(
-      (key) => key !== "kind" && key !== "overflowWarning",
+      (key) => key !== "kind" && key !== "overflowWarning" && key !== "submit",
     );
 
     expect([...returned].sort()).toEqual(
@@ -357,14 +357,14 @@ describe("when there is nothing to review", () => {
       failure: { code: "INVALID_PRICE_BOOK", detail: "unreadable" },
     };
 
-    expect(reviewViewOf({ ...SEEDED, pricing: failed })).toEqual({
-      kind: "unavailable",
-    });
+    expect(reviewViewOf({ ...SEEDED, pricing: failed }).kind).toBe(
+      "unavailable",
+    );
   });
 
   it("is unavailable, and does not throw, for a kitchen with no body", () => {
     expect(EMPTY_KITCHEN.groups).toEqual([]);
-    expect(reviewViewOf(EMPTY_KITCHEN)).toEqual({ kind: "unavailable" });
+    expect(reviewViewOf(EMPTY_KITCHEN).kind).toBe("unavailable");
   });
 
   it("refuses, as the breakdown does, a priced body that no group holds", () => {

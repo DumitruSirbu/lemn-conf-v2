@@ -819,6 +819,11 @@ export function resolveContent(translate: ContentTranslator) {
     review: {
       title: translate("review.title"),
       roundedUpNote: translate("review.roundedUpNote"),
+      refusalReasons: {
+        PRICING_FAILED: translate("review.refusalReasons.PRICING_FAILED"),
+        NO_CABINET: translate("review.refusalReasons.NO_CABINET"),
+        BODIES_PAST_WALL: translate("review.refusalReasons.BODIES_PAST_WALL"),
+      },
     },
     globalSettings: {
       open: translate("globalSettings.open"),
