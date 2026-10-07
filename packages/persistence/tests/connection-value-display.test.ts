@@ -257,3 +257,42 @@ describe("the isolation guard's refusals (B2)", () => {
     expect(refusals[0]).toContain(`"${allowlistedName}"`);
   });
 });
+
+describe("the environment check's refusal for a name the readers do not read alike", () => {
+  const ESCAPED_NAME_URL = "postgres://u:p@realhost.invalid/lemn%2Dconf";
+
+  function refusalFor(connectionUrl: string, environment = "preview"): string {
+    return messageOf(() => {
+      assertDeclaredEnvironmentReaches({
+        environment,
+        databaseName: databaseNameOf(connectionUrl),
+      });
+    });
+  }
+
+  it("says the readers disagree, and does not tell the operator to supply a host the value already has", () => {
+    const message = refusalFor(ESCAPED_NAME_URL);
+
+    expect(message).toContain("do not read alike");
+    expect(message).not.toContain("real host");
+    expect(message).not.toContain("realhost");
+  });
+
+  it("gives a direct caller's name holding a % or a backslash the same sentence", () => {
+    for (const databaseName of ["lemn%2Dconf", "a\\b"]) {
+      const message = messageOf(() => {
+        assertDeclaredEnvironmentReaches({
+          environment: databaseName,
+          databaseName,
+        });
+      });
+
+      expect(message).toContain("do not read alike");
+    }
+  });
+
+  it("still says a real host is needed for a string that does not parse or is not a postgres URL", () => {
+    for (const connectionUrl of ["not a url", "mysql://u:p@h/lemn-conf-v2"])
+      expect(refusalFor(connectionUrl)).toContain("a real host");
+  });
+});

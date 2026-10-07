@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   InvalidConnectionUrlError,
   NO_AGREED_DATABASE_NAME,
+  assertConnectionUrlShape,
   agreedDatabaseNameOf,
   databaseNameOf,
   openDatabase,
@@ -425,7 +426,6 @@ describe("a refusal names a variable only if the value was read from it (rule B4
 
 describe("a database name is read only where every reader agrees (rule B9)", () => {
   const BACKSLASH_IN_USERINFO = `postgres://a@b\\${FAKE_USER}:${FAKE_PASSWORD}@${FAKE_HOST}/lemnaria_test`;
-  const NO_NAME_PLACEHOLDER = databaseNameOf("socket://x.invalid/db");
 
   function nameTheHttpDriverReads(value: string): string {
     const { protocol } = new URL(value);
@@ -459,7 +459,7 @@ describe("a database name is read only where every reader agrees (rule B9)", () 
       expect(() => openDatabaseSession(value)).toThrow(
         InvalidConnectionUrlError,
       );
-      expect(databaseNameOf(value)).toBe(NO_NAME_PLACEHOLDER);
+      expect(databaseNameOf(value)).toBe(NO_AGREED_DATABASE_NAME);
     },
   );
 
@@ -561,6 +561,179 @@ describe("a database name is read only where every reader agrees (rule B9)", () 
         }),
         SWEEP,
       );
+    });
+  });
+});
+
+describe("an entry point refuses a string exactly when a consumer of it refuses it (rule B10)", () => {
+  const withPassword = (password: string): string =>
+    `postgresql://${FAKE_USER}:${password}@${FAKE_HOST}/lemn-conf-v2?sslmode=require`;
+  const withParameter = (parameter: string): string =>
+    `${withPassword(FAKE_PASSWORD)}&${parameter}`;
+
+  const HEADER_REFUSES: readonly [string, string][] = [
+    ["an interior line feed", withPassword("FAKEPASS\nWORD")],
+    ["an interior carriage return", withPassword("FAKEPASS\rWORD")],
+    ["an interior NUL", withPassword("FAKEPASS\u0000WORD")],
+    ["a character above U+00FF", withPassword("FAKEPASSĀWORD")],
+  ];
+  const BOTH_ACCEPT: readonly [string, string][] = [
+    ["a trailing line feed", `${withPassword(FAKE_PASSWORD)}\n`],
+    ["a Latin-1 letter", withPassword("FAKEPASSé")],
+    ["a tab", withPassword("FAKEPASS\tWORD")],
+    ["a space", withPassword("FAKEPASS WORD")],
+    ["a DEL", withPassword("FAKEPASS\u007fWORD")],
+  ];
+  const SESSION_REFUSES: readonly [string, string][] = [
+    ["sslrootcert", withParameter("sslrootcert=system")],
+    ["sslcert", withParameter("sslcert=/x")],
+    ["sslkey", withParameter("sslkey=/x")],
+  ];
+
+  function refusalOf(run: () => unknown): InvalidConnectionUrlError {
+    try {
+      run();
+    } catch (error) {
+      if (error instanceof InvalidConnectionUrlError) return error;
+    }
+    throw new Error("the entry point did not refuse");
+  }
+
+  it.each(HEADER_REFUSES)(
+    "refuses %s over HTTP, with the sentence about the request header, and accepts it for a session",
+    (_label, value) => {
+      const refusal = refusalOf(() => openDatabase(value, "DATABASE_URL"));
+
+      expect(refusal.message).toMatch(/cannot be sent to the query endpoint/);
+      expect(markersFoundOn(refusal)).toEqual([]);
+      expect(() =>
+        openDatabaseSession(value, "MIGRATION_DATABASE_URL"),
+      ).not.toThrow();
+    },
+  );
+
+  it.each(BOTH_ACCEPT)("accepts %s through both entry points", (_l, value) => {
+    expect(() => openDatabase(value, "DATABASE_URL")).not.toThrow();
+    expect(() =>
+      openDatabaseSession(value, "MIGRATION_DATABASE_URL"),
+    ).not.toThrow();
+  });
+
+  it.each(SESSION_REFUSES)(
+    "accepts %s over HTTP, as before, and refuses it for a session with the sentence about the session client",
+    (_label, value) => {
+      expect(() => openDatabase(value, "DATABASE_URL")).not.toThrow();
+
+      const refusal = refusalOf(() =>
+        openDatabaseSession(value, "MIGRATION_DATABASE_URL"),
+      );
+
+      expect(refusal.message).toMatch(/migration session client will build/);
+      expect(refusal.message).not.toMatch(/user, a host and a database/);
+      expect(markersFoundOn(refusal)).toEqual([]);
+      expect(refusal).not.toHaveProperty("cause");
+    },
+  );
+
+  it("says one thing per class and each class's sentence is true of it: shape, request header, session client", () => {
+    const [[, headerValue]] = HEADER_REFUSES as [[string, string]];
+    const [[, sessionValue]] = SESSION_REFUSES as [[string, string]];
+    const messages = new Set([
+      refusalOf(() => openDatabase("postgres://h/db")).message,
+      refusalOf(() => openDatabase(headerValue)).message,
+      refusalOf(() => openDatabaseSession(sessionValue)).message,
+    ]);
+
+    expect(messages.size).toBe(3);
+  });
+
+  describe("over a sweep", () => {
+    const fragments = [
+      "postgresql://",
+      "postgres://",
+      FAKE_USER,
+      FAKE_PASSWORD,
+      FAKE_HOST,
+      "lemn-conf-v2",
+      ":",
+      "@",
+      "/",
+      "?",
+      "&",
+      "\n",
+      "\r",
+      "\u0000",
+      "Ā",
+      "é",
+      "\t",
+      " ",
+      "sslrootcert=system",
+      "sslcert=/x",
+      "sslkey=/x",
+      "sslmode=require",
+    ];
+    const swept = fc
+      .array(
+        fc.oneof(fc.constantFrom(...fragments), fc.string({ maxLength: 3 })),
+        { maxLength: 12 },
+      )
+      .map((parts) => parts.join(""));
+    const wellFormedWithOneFragment = fc
+      .constantFrom(...fragments)
+      .map(
+        (fragment) =>
+          `postgresql://${FAKE_USER}:${FAKE_PASSWORD}${fragment}@${FAKE_HOST}/lemn-conf-v2?x=${fragment}`,
+      );
+    const wellFormedWithAParameter = fc
+      .constantFrom(...fragments)
+      .map(
+        (fragment) =>
+          `postgresql://${FAKE_USER}:${FAKE_PASSWORD}@${FAKE_HOST}/lemn-conf-v2?sslmode=require&${fragment}`,
+      );
+    const anyValue = fc.oneof(
+      swept,
+      wellFormedWithOneFragment,
+      wellFormedWithAParameter,
+    );
+    const SWEEP = { seed: 20261009, numRuns: 4_000 };
+
+    function throwsFrom(run: () => unknown): boolean {
+      try {
+        run();
+        return false;
+      } catch {
+        return true;
+      }
+    }
+
+    it("refuses over HTTP only what the shape rules, the header or the driver's constructor refuse, and over a session only what the shape rules or the session client refuse", () => {
+      let sawHeaderRefusal = false;
+      let sawSessionRefusal = false;
+      fc.assert(
+        fc.property(anyValue, (value) => {
+          const shapeRefuses = throwsFrom(() => {
+            assertConnectionUrlShape(value);
+          });
+          const headerRefuses = throwsFrom(() => {
+            new Headers({ "Neon-Connection-String": value });
+          });
+          const constructorRefuses = throwsFrom(() => neon(value));
+          const sessionClientRefuses = throwsFrom(() => new Client(value));
+          sawHeaderRefusal ||= !shapeRefuses && headerRefuses;
+          sawSessionRefusal ||= !shapeRefuses && sessionClientRefuses;
+
+          expect(throwsFrom(() => openDatabase(value))).toBe(
+            shapeRefuses || headerRefuses || constructorRefuses,
+          );
+          expect(throwsFrom(() => openDatabaseSession(value))).toBe(
+            shapeRefuses || sessionClientRefuses,
+          );
+        }),
+        SWEEP,
+      );
+
+      expect(sawHeaderRefusal).toBe(true);
+      expect(sawSessionRefusal).toBe(true);
     });
   });
 });

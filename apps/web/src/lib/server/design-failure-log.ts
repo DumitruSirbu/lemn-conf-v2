@@ -42,8 +42,10 @@ export interface DesignRefusal {
 const UNAVAILABLE = "unavailable";
 
 /** A URL in a failure message is overwhelmingly likely to be a connection string (a driver's connect failures carry
- *  the endpoint), so it is redacted before the bound rather than hoped to fall outside it (ADR 0008). */
-const URL_SHAPED = /\b[a-z][a-z0-9+.-]*:\/\/\S*/gi;
+ *  the endpoint), so it is redacted before the bound rather than hoped to fall outside it (ADR 0008). Where one
+ *  begins, the rest of the text goes with it: a credential can hold whitespace, and a pattern that ends at the
+ *  first space leaves the tail of the password in the line. */
+const URL_START = /\b[a-z][a-z0-9+.-]*:\/\//i;
 
 const REDACTED_URL = "<redacted url>";
 
@@ -194,5 +196,12 @@ function safeReasonOf(error: unknown): string {
 /** Redacted first and bounded second, for every free-text field this module writes: one function, so the ordering
  *  is stated once. */
 function safeText(message: string): string {
-  return boundedFailureReason(message.replace(URL_SHAPED, REDACTED_URL));
+  return boundedFailureReason(redactFromFirstUrl(message));
+}
+
+function redactFromFirstUrl(text: string): string {
+  const urlStart = URL_START.exec(text);
+  return urlStart === null
+    ? text
+    : `${text.slice(0, urlStart.index)}${REDACTED_URL}`;
 }

@@ -100,6 +100,35 @@ describe("designErrorResponse, on an error with no domain meaning", () => {
     expect(reason).toContain("<redacted url>");
   });
 
+  it("logs nothing after a connection string begins, even when the credential holds a line break", () => {
+    expect(() =>
+      designErrorResponse(
+        "save",
+        driverError(
+          "Headers.append: postgresql://FAKEUSER:FAKEPASS\nWORDTAIL@h.invalid/lemn-conf-v2?sslmode=require is an invalid header value",
+        ),
+      ),
+    ).toThrow();
+
+    const reason = String(loggedLine(errorSpy).reason);
+    expect(reason).toBe("Headers.append: <redacted url>");
+    expect(reason).not.toContain("WORDTAIL");
+    expect(reason).not.toContain("h.invalid");
+  });
+
+  it("keeps the text before a connection string, so the line still says what failed", () => {
+    expect(() =>
+      designErrorResponse(
+        "save",
+        driverError("connect ECONNREFUSED postgresql://u:p@h.invalid/db"),
+      ),
+    ).toThrow();
+
+    expect(String(loggedLine(errorSpy).reason)).toBe(
+      "connect ECONNREFUSED <redacted url>",
+    );
+  });
+
   it("strips control characters, so a failure cannot forge a log line", () => {
     expect(() =>
       designErrorResponse("save", new Error("a\n[designs] all clear\r\nb")),
