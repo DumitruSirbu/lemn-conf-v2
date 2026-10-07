@@ -39,7 +39,7 @@ when a record you rely on is marked superseded below, or when planning (architec
 | [0016](0016-hood-chimney-is-carcass.md) | The hood's carcass is canopy **and** chimney | Accepted |
 | [0017](0017-sink-base-minimum-width.md) | A catalogue entry may declare a minimum width | Accepted |
 | [0018](0018-frame-depth-is-rear-overhang.md) | `frame.d` is twice a body's rear overhang, not its depth | Accepted |
-| [0019](0019-security-baseline-writes-throttling-retention.md) | Security baseline: write auth, throttling, retention | Partly superseded → 0114, 0115; decision 7 retired 2026-09-15; annotated 2026-10-07 (twice: decision 4, Moldova-only customers) |
+| [0019](0019-security-baseline-writes-throttling-retention.md) | Security baseline: write auth, throttling, retention | Partly superseded → 0114, 0115; decision 7 retired 2026-09-15; annotated 2026-10-07 (twice: decision 4, Moldova-only customers); the mint's limits (d5 row, d4, d3 session bucket) superseded 2026-10-07 → 0147 |
 | [0020](0020-a-migration-file-is-not-an-applied-migration.md) | A migration file is not an applied migration | Partly superseded → 0042, 0096 |
 | [0021](0021-corner-returns-are-structural-in-data.md) | Corner returns are structural in the catalogue data | Accepted |
 | [0022](0022-seeded-entries-declare-their-catalogue-equivalent.md) | A seeded entry declares its catalogue equivalent | Accepted (amended) |
@@ -167,6 +167,7 @@ when a record you rely on is marked superseded below, or when planning (architec
 | [0144](0144-an-e2e-wait-on-the-editor-outlasts-the-first-webgl-frames-freeze-by-one-named-bound.md) | An e2e wait on the editor outlasts the first WebGL frame's freeze, by one named bound | Accepted |
 | [0145](0145-a-persistence-retry-covers-an-empty-reply-and-a-retried-write-leaves-no-trace.md) | A persistence retry covers an empty reply, and a retried write leaves no trace (supersedes 0142 d2, d3) | Accepted |
 | [0146](0146-nothing-copied-from-a-connection-value-or-thrown-by-a-driver-leaves-the-persistence-package.md) | Nothing copied from a connection value, and nothing a driver threw, leaves the persistence package | Accepted |
+| [0147](0147-the-mint-is-limited-to-twenty-a-day-per-ip-address-for-everyone-and-nothing-else.md) | The mint is limited to 20 a day per IP address, for everyone, and nothing else (supersedes 0019 d5's mint row, d4 and d3's session bucket, for the mint) | Accepted |
 
 ## Adding the next one
 

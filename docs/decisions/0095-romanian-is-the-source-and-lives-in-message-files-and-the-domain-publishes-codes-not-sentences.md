@@ -259,6 +259,12 @@ open; M8's line is a check. **An owner asked only at M8 is the shape this decisi
 phase that defers its only copy review to a launch checklist is how decision 5 went six milestones
 unowned.
 
+> **Dated note, 2026-10-07, later:** the launch gate that holds the backstop re-sign does not close with M8.
+> The owner ruled hosting into a separate delivery-preparation milestone and the gate moves there whole
+> ([M9](../milestones/M9-delivery-preparation.md), proposed; the architect's derivation, not the owner's
+> sentence). The re-sign moves with it: M8's plan lists *"the Russian re-signed"* among the pre-launch checks
+> that leave. Nothing in this decision is changed.
+
 **Two prohibitions stand unchanged.** No agent marks a translation approved. No agent edits Romanian
 to make a translation easier — an awkward source sentence is a finding reported at O2, where the
 owner, who holds both languages, decides whether the Russian bends or the Romanian does.

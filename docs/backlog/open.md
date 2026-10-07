@@ -2253,6 +2253,11 @@ point still accepts it (ADR 0146, B10). **Owner:** the coordinator, with 121 and
 
 No trigger; do it when one of those files is next touched.
 
+**Added 2026-10-07, from M8 wave 8C's clean-code review (round 2, reviewer-run, relayed).** Two more nits
+of the same kind, in `apps/web/src/review/review-model.ts`: a comment on `refuseFirstActionable` says it is
+called only for a refused kitchen, though the available path calls it too; and the listed-ids expression
+is built twice. Same trigger: when that file is next touched.
+
 ## 125. Three e2e specs fail under `CI=1` and nobody has investigated them — FOUND 2026-10-07 BY M8 8A S1, TRIAGE BEFORE 8F
 
 **Source [doc, M8 plan, *8A figures* S1 row B ii].** A full e2e run with `CI=1` (a build and `next start`)
@@ -2262,3 +2267,17 @@ canWrite: true"*). Backlog 117 (the remote test database dropping connections) d
 is a separate entry; whether they are the same family is unknown. **Owner:** the coordinator. **Trigger:**
 wave 8F is not dispatched until each has been re-run alone and recorded as a flake, a test fault or a defect
 (plan, 8F S0, item 5).
+
+## 126. The price bar and the breakdown print "De la 0 MDL" for a kitchen holding only customer-supplied bodies — FOUND 2026-10-07 BY M8 8C's QA, A PRODUCT QUESTION
+
+**Source [doc, M8 plan, 8C adjudication, QA1 and rule C1].** A kitchen in which every body is supplied by
+the customer (ADR 0107 decision 2: appliances are drawn, not sold) is reviewed as *no cabinet* by 8C, but
+the price bar and the breakdown predate the wave and still print *"De la 0 MDL"* for it. 8C's plan said
+this is "their surfaces' matter" and promised this entry. **The question:** what should such a kitchen
+show? **Owner:** the owner's; C1 itself is the architect's ruling and open to the owner. No phase.
+
+## 127. No test pins the Russian wording of any leaf, project-wide — FOUND 2026-10-07 BY M8 8C's QA, A FIDELITY GAP
+
+**Source [doc, M8 plan, 8C adjudication, *Wording, for the owner*, relayed from QA].** QA's surviving
+mutation: the plan records only that no test pins the Russian wording anywhere in the project. A fidelity
+fact, not a defect in shipped copy. **Owner:** none; no phase.

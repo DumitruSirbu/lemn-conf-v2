@@ -36,6 +36,12 @@ report (another agent's read; not re-read by the architect, who read only Next's
 - **The mail provider** (M8 Q25) is open; sending verification and reset e-mails uses whichever it
   becomes.
 
+> **Dated note, 2026-10-07, later.** The owner moved hosting and the mail provider into a separate
+> delivery-preparation milestone ([M9](M9-delivery-preparation.md), proposed, a stub). M8 builds the mail
+> port, the message and a recording fake, and no provider adapter, so **until M9 wires a provider, M8B builds
+> on that port and fake** (M8 plan, *M8 restated*, wave 8J). M8B's place relative to M9 is not ruled; the
+> architect recommends M8B first and M9 last, which is not an owner ruling.
+
 ## The cut
 
 The cut, the order and what each wave must prove. The obligations are the owner's section below, by

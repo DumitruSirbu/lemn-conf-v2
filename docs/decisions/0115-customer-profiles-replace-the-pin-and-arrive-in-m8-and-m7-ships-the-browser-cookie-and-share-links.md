@@ -120,6 +120,12 @@ modal), the twelve obligations, M7's scope and the share link. Nothing here chan
 (*"added to the application limiter ADR 0019 decisions 2–5 already assign to this phase"*, in the M8
 plan's Part P) assumes M8 builds the limiter first; M8B inherits it after 8F and 8G.
 
+> **Dated note, 2026-10-07, later:** the owner ruled hosting and the mail provider into a separate
+> delivery-preparation milestone ([M9](../milestones/M9-delivery-preparation.md), proposed). M8B sends e-mail
+> to customers (verification, reset), so until M9 chooses a provider, **M8B builds on M8's mail port and its
+> recording fake** (M8 plan, *M8 restated*). Where M8B sits relative to M9 is not ruled; the architect
+> recommends M8B first, M9 last, and that is not an owner ruling.
+
 ## Decision-record sweep
 
 | Record | What it says | How it is settled |

@@ -112,6 +112,12 @@ row.
 > 2026-09-15: decision 7* retired the retention cron: *"Nothing deletes a design automatically, and
 > nothing is scheduled to."* The limiter and WAF scope in the same sentence stands.
 
+> **Dated note, 2026-10-07, later:** the owner ruled hosting into a separate delivery-preparation milestone
+> ([M9](../milestones/M9-delivery-preparation.md), proposed), so **M8 builds no firewall**: *"M8's limiter and
+> WAF scope must include `/` and `/d/*`"* is the application limiter's scope in M8, and the WAF's scope
+> belongs to the delivery milestone. This is the architect's reading of the owner's ruling, not the owner's
+> sentence. The mint itself is limited by [ADR 0147](0147-the-mint-is-limited-to-twenty-a-day-per-ip-address-for-everyone-and-nothing-else.md).
+
 ## What the visitor sees when the cookie is gone
 
 Cleared browser, private window or another device: `/` has nothing to resume and opens Step 1. Under
@@ -206,6 +212,10 @@ design, and the preset-author credential (ADR 0112) is not involved.
 wrong token costs one indexed hash lookup, the same class as today's `/d/{random}`. Creation is behind
 the write token, so it adds no unauthenticated write. M8's limiter and WAF scope gain `/s/*` and the
 share endpoints.
+
+> **Dated note, 2026-10-07, later:** as on decision 7, the *WAF scope* half moves to the delivery milestone
+> ([M9](../milestones/M9-delivery-preparation.md), proposed) with hosting. The application limiter's half stays
+> in M8, where wave 8G covers saves, shares and reads. The architect's reading, not the owner's sentence.
 
 **B6. A share link is not a way back in.** It is read-only by construction, so it cannot restore a
 customer's editing after cookie loss; M8's e-mailed link, which re-binds both cookies, remains that

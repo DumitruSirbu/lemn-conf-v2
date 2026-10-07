@@ -84,6 +84,12 @@ launch"* is satisfied by the phase that sits in front of launch; nothing ships b
 is done (owner rule, 2026-08-27), and M7 adds no schema version unless wave 7I stores a corner
 direction — an optional field whose absence is a valid unchanged state, ADR 0053's argument.
 
+> **Dated note, 2026-10-07, later:** the *pre-launch gate* this decision names does not close with M8. The
+> owner ruled delivery preparation into a separate milestone ([M9](../milestones/M9-delivery-preparation.md),
+> proposed), and the first stored schema leaves M8 with the gate. *"The phase that sits in front of launch"* is
+> now M9. The architect's derivation from the ruling, not the owner's sentence; the decision's reasoning
+> (nothing ships before every milestone is done) is unchanged.
+
 ## Alternatives considered
 
 - **Let `POST` accept the chosen design as its body.** Rejected: it turns the unauthenticated,

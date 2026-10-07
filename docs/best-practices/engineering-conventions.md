@@ -304,6 +304,14 @@ ADR 0136, Consequences.
   invisible to the totality test that should be sweeping it, and a guard that returns early on some
   precondition reports success on every run where the precondition is false.
 
+- **A `vi.mock` of the database driver keeps the real module's `Client` parse** (added 2026-10-07, from M8
+  wave 8B; [ADR 0146](../decisions/0146-nothing-copied-from-a-connection-value-or-thrown-by-a-driver-leaves-the-persistence-package.md)).
+  Spread `importOriginal` into the factory, so the connection opener still parses a URL the way the driver
+  does; a factory that replaces the whole module makes the opener refuse every URL. And a test file that
+  names the database-URL readers must be classified in
+  `packages/persistence/tests/live-suite-census.test.ts` (see `ci-and-local-gates.md`, the paragraph on which
+  persistence files run live).
+
 ## Coverage an adversarial pass owes
 
 `../WORKFLOW.md` decides *when* QA runs and that it gates review. This is *what* it tests.
@@ -317,6 +325,13 @@ ADR 0136, Consequences.
   shipped a test that asserted a defect as correct, two boundary greps that matched nothing while
   reporting green, and two commands that reported success while doing nothing. "No findings" must be
   earned and evidenced.
+- **An "accepted" verdict proves nothing until the accepted value is used by every consumer downstream**
+  (added 2026-10-07, from M8 wave 8B; [ADR 0146](../decisions/0146-nothing-copied-from-a-connection-value-or-thrown-by-a-driver-leaves-the-persistence-package.md)).
+  A sweep tested what a connection opener accepted and never queried through an accepted string; two
+  reviewers found the leak that four QA passes had missed. The fix was to drive every accepted value
+  through each consumer with only the socket replaced, with control and non-Latin-1 characters in the
+  alphabet from the start. When a gate decides "this value is fine", the adversarial pass owes a run of that
+  value through everything that will then receive it.
 
 ### A deferred test has two shapes and they mean different things
 

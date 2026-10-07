@@ -154,8 +154,10 @@ status corrections, in one of these two files:
 | 121 | F1 — `scripts/gates/boundary.sh` matches a driver import on one line only | open.md — found 2026-10-07 by M8 8B's QA; the coordinator schedules it before wave 8E |
 | 122 | F5 — a session close that never returns hangs `applyMigrations` | open.md — found 2026-10-07 by M8 8B's QA; unmeasured; the coordinator, before 8S, after the owner approves a measurement |
 | 123 | F6 — do Neon's connection strings carry `sslrootcert` or a sibling? | open.md — recorded 2026-10-07; a documentation read, the coordinator's |
-| 124 | QA18 (census blind to a second `Client` through the opener) and "Finding …" journal comments in three test files | open.md — recorded 2026-10-07; low priority, no owner |
+| 124 | QA18 (census blind to a second `Client` through the opener), "Finding …" journal comments in three test files, and two 8C review nits in `review-model.ts` | open.md — recorded 2026-10-07; low priority, no owner |
 | 125 | Three e2e specs fail under `CI=1`, uninvestigated | open.md — found 2026-10-07 by M8 8A S1; triage before wave 8F |
+| 126 | The price bar and the breakdown print "De la 0 MDL" for a kitchen holding only customer-supplied bodies | open.md — found 2026-10-07 by M8 8C's QA (QA1); what such a kitchen should show is the owner's; no phase |
+| 127 | No test pins the Russian wording of any leaf, project-wide | open.md — found 2026-10-07 by M8 8C's QA (a surviving mutation); no owner, no phase |
 
 ## 2026-09-06 audit note
 

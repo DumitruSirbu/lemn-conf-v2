@@ -48,6 +48,21 @@ replaced it — nothing is deleted or rewritten silently.
   and its table's `POST /api/contact` is `POST /api/contact-submissions` in `ARCHITECTURE_PROPOSAL.md`
   §9; **ADR 0114** decision 7's *"M8's retention cron deletes the visitor hash"* is moot for the same
   reason. Each carries a dated note in its own file.
+- **ADR 0019** decision 5's mint row (*10 / hour, 30 / day*; *3 / hour + challenge*; *5 / hour*), decision 4
+  *as it applies to the mint* (*"Traffic from MD gets the ordinary limits. Everything else gets a much
+  tighter limit and a challenge"*) and decision 3's session-cookie bucket *for the mint* → **superseded** by
+  **ADR 0147** on the owner's rulings of 2026-10-07 (*"20 design generation per day for all"*, *"per user
+  (ip)"*, *"20 per day"*): one counter per IP address, 20 a day, for everyone, and nothing else. Struck in
+  place in ADR 0019. **Untouched:** the figures for saves, shares, page reads and the contact form, and
+  decision 4 for any endpoint other than the mint. **Not ruled, in ADR 0147:** IPv4 as one address or a /24
+  (Q32), the meaning of a day (the architect's), how an address is stored. ADR 0147 also records that the
+  launch gate (the 2026-08-31 correction) moves whole to the delivery milestone, the architect's derivation.
+- **Annotated 2026-10-07, M8 wave 8C's close-out, nothing superseded:** the scope ruling (hosting and delivery
+  preparation are a separate milestone) carries pointers on **ADR 0114** decision 7 and B5 (the limiter's scope
+  is the application's in M8, the WAF's is the delivery milestone's), **ADR 0115** and M8B (M8B builds on M8's
+  mail port and fake until the delivery milestone), **ADR 0095** (the Russian backstop re-sign moves with the
+  launch gate) and **ADR 0038** with **ADR 0111** decision 8 (the first stored schema moves with it). Each
+  carries a dated note in its own file.
 - **ADR 0111** Amendment A2 (a pointer cookie holding the design id) → **superseded** by **ADR 0114**
   on the owner's security requirement of 2026-09-11: the cookie holds a secret, never the id.
 - **ADR 0111** decision 7's demo interim (the editor stays at `/configurator/configure`) →

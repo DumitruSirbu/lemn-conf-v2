@@ -13,6 +13,13 @@
 > new designs, as the owner ruled it*), which supersedes ADR 0019's mint row. **Open for M8: Q29,
 > Q30, half of Q31, Q32.** Dispatchable: 8E, 8I, 8H; 8D once 8C's QA and review close.
 >
+> **Updated 2026-10-07, after wave 8C: wave 8C is DONE (`97e75c6` … `3bda09d`), not pushed.** QA green,
+> its adjudication (C1–C3) and fix round done, logic and clean-code review approve; see *8C as built*.
+> **Q30 is closed by rule C3**, the architect's ruling on this plan's criterion and open to the owner.
+> 8D is dispatchable once the architect adds two criteria from the logic review (the overflow warning's
+> place in `REVIEW_READING_ORDER`; what the call site shows for an uncatalogued body); 8E, 8I and 8H
+> are dispatchable now. **Open for M8: Q29, half of Q31, Q32.**
+>
 > **Updated 2026-10-07, latest: wave 8B is DONE (`d176fb6` … `0eb94b6`), not pushed.** It went through QA
 > (four passes), two review rounds and all three reviewers' approval; see *8B as built* and ADR 0146. It
 > supersedes the paragraph below where that says 8B is in QA, in review, or that round B and review round 2
@@ -1010,8 +1017,8 @@ both in M9.
 | --- | --- | --- |
 | 8A | Stays. Measurements, reads and answers are in | Its review; nothing else |
 | 8B | **Done** (`4b8f4a4`, ADR 0146) [relayed] | — |
-| 8C | Stays. ~~In adversarial QA~~ **QA green (`5c1ae3e`); adjudicated 2026-10-07: a fix round of four items (C1–C3)** | The fix round, a QA check of it, then logic and clean-code review. Q30 is settled as C3 |
-| 8D | Stays | 8C closed. **Dispatchable then** |
+| 8C | Stays. ~~In adversarial QA~~ ~~QA green (`5c1ae3e`); adjudicated 2026-10-07: a fix round of four items (C1–C3)~~ **DONE 2026-10-07, commits `97e75c6` … `3bda09d`, not pushed.** Logic and clean-code review approve. See *8C as built* | ~~The fix round, a QA check of it, then logic and clean-code review.~~ — Q30 is settled as C3 |
+| 8D | Stays | ~~8C closed. **Dispatchable then**~~ 8C is closed. **Dispatchable once the architect adds two criteria** (*8C as built*, *carried to 8D*) |
 | 8E | Stays | **Nothing. Dispatchable** |
 | 8I | Stays | 8E's migration number. **Dispatchable** |
 | 8H | Stays; Q24 settled | **Nothing. Dispatchable** |
@@ -1026,7 +1033,7 @@ both in M9.
 | ~~8R~~ | **Leaves for M9** | — |
 | ~~8S~~ | **Leaves for M9** | — |
 
-**M8 is fifteen waves and ends at 8T. Order now:** 8C (in QA) → 8D → 8E → 8I → 8H → 8J → 8F → 8G →
+**M8 is fifteen waves and ends at 8T. Order now:** 8C (~~in QA~~ done) → 8D → 8E → 8I → 8H → 8J → 8F → 8G →
 8K → 8L → 8M → 8Q → 8T. **Dispatchable today:** 8E, 8I and 8H, and 8D once 8C closes; 8J except its
 stand-in. One writing agent per tree (R2).
 
@@ -2118,6 +2125,58 @@ geometry, and C2's second assertion now throws on them.
 pins (b), and the empty-kitchen one (c). The implementer changes one line for (c) and none of
 QA's files.
 
+#### 8C as built — 2026-10-07
+
+**Done.** Commits, oldest first [coordinator-run, from the brief]: `97e75c6` S1, the review as one value
+built by the breakdown's own row builder; `0d032de` S2, submit eligibility; `5c1ae3e` QA pass (green; two
+contract gaps, two test-fidelity findings); `0b223f4` the adjudication (rules C1–C3); `a6ba280` the fix
+round, with the architect's ruling on the C2/pin conflict; `01f60ae` QA's check of the fix round (green);
+`3bda09d` the review fix (the refusal order in one function; one error type). **Not pushed.** HEAD
+`3bda09d`.
+
+**What shipped.** The rules C1–C3 as they finally stand are in this section's adjudication and the ruling
+on the conflict, and are not restated here. No decision record was assigned to 8C by *ADRs*, so none was
+written; where the rules' durable home is, is an open question to the coordinator.
+
+**Evidence, with who ran it.**
+- [coordinator-run, at `3bda09d`] web typecheck exit 0; `apps/web` `tests/review`, `tests/price` and
+  `tests/i18n` exit 0, 55 files, 1231 passed; whole-tree `pnpm format:check` exit 0. **Not run:**
+  `pnpm check`, `pnpm ci:local`, e2e, a build. Nothing has run on a CI runner since the branch was cut.
+- [QA-run] Parity against the breakdown as it stood before the wave: 6,390 comparisons across straight,
+  L, right-hand L and U kitchens in ro and ru, 0 differences, run twice (after the slices and after the
+  fix round). The figure against the price bar over the same set: 0 differences. The refusal order
+  across six real pricing-refusal codes. 357 all-supplied kitchens refused `NO_CABINET`. Across 7,825
+  designs (generated, made to overflow, and after remove, width, tier and depth commands)
+  `priceDesign` refused 0; insert, swap, finish and handle edits were not in that count.
+- [reviewer-run] Logic: approve in round 1 (no blocker, no should-fix, four notes) and in round 2 at
+  `3bda09d` (its seven-row outcome table unchanged; consistent inputs cannot throw; the breakdown
+  unchanged). Clean-code: approve in round 1 with two should-fix, both closed in round 2; two new nits
+  recorded below.
+
+**Recorded limits.**
+- **QA5:** a stale projection with the same ids and the same fit is rendered with its old label. C2
+  states this itself (*"What this cannot see"*). Owned by 8D's criterion 10.
+- **QA6**, as narrowed by the review fix [relayed; its text is not in this file, and this note does not
+  restate it].
+- The sweeps use the fake body probe, not the real one.
+- Criterion 7 is pinned only as a constant until 8D (8D's criterion 9 proves it on a screen).
+- Five of pricing's eleven refusal codes were not reached [QA-run, relayed]. C3 already records that
+  whether a customer's own edits can reach any code but the tier one is not measured.
+- No test pins Russian wording project-wide: backlog 127.
+- Two clean-code nits, both in backlog 124: a comment on `refuseFirstActionable` says it is called only
+  for a refused kitchen though the available path calls it too, and the listed-ids expression is built
+  twice.
+
+**Carried to 8D** (the architect extends 8D with two criteria before it is dispatched) [reviewer-run, logic]:
+- **R1.1:** a design naming an uncatalogued body never reaches `describeReview`, because the projection
+  throws first. What the call site shows for it is undecided.
+- **R1.4:** `REVIEW_READING_ORDER` has no place for the overflow warning.
+
+**Deviations.** C1 (a kitchen of only customer-supplied bodies is *no cabinet*) and C3 (the refusal shown
+is the first the customer can act on) are the architect's rulings and are open to the owner. The price
+bar and the breakdown still print *"De la 0 MDL"* for such a kitchen: backlog 126. The wording questions
+under *Wording, for the owner* are unchanged and unanswered, apart from the refusal sentences (Q31).
+
 ### 8D — the review route and screen 3A/3B
 
 *Goal.* The customer reaches the review from the editor, reads it on a phone, and goes back to a
@@ -2603,7 +2662,9 @@ from M8B.
 
 > **Restated 2026-10-07 (*M8 restated*).** Of the four waves under this heading, **8Q and 8T stay
 > in M8** and **8R and 8S leave for the delivery milestone**. Their text stays here until that
-> milestone's file exists.
+> milestone's file exists. **Dated 2026-10-07, later: the file now exists as a stub,
+> [`M9-delivery-preparation.md`](M9-delivery-preparation.md), with no plan; this text stays here until
+> M9 is planned.**
 
 ### 8Q — the CSP enforces
 
@@ -2702,7 +2763,10 @@ then the push and the pull request. *Visual reading:* every wave's criteria and 
 > grants, the fit refusal, and 8B's line. **M8 cannot tick:** the firewall rule, the bot check, the
 > owner's confirmation of the set, a real sink, the first stored schema, the live rows, the
 > owner's text and the Russian, and the launch host and database lines. The text stays in this
-> file until the delivery milestone's file exists.
+> file until the delivery milestone's file exists. **Dated 2026-10-07, later: ADR 0019 now carries
+> that note and the mint's limit is [ADR 0147](../decisions/0147-the-mint-is-limited-to-twenty-a-day-per-ip-address-for-everyone-and-nothing-else.md);
+> the delivery milestone's file exists as a stub ([M9](M9-delivery-preparation.md)) and this text stays
+> here until M9 is planned.**
 
 Added 2026-08-31. This is a **hard pre-launch blocker**, not a work item that can be traded away
 inside a wave. An adversarial review on 2026-08-30 reproduced the unthrottled mint path as
@@ -2963,6 +3027,8 @@ writes them; the architect supplies the content.
 7. M8's copy rule and its slots (Q7–Q10). A pointer on ADR 0113.
 8. The CSP enforces: how both preconditions were discharged (8Q). An amendment to ADR 0041.
 9. The first stored schema at launch (Q20). Closes ADR 0038's expiry and ADR 0111 decision 8.
+   **No record is assigned to wave 8C by this list** (its rules C1–C3 are in the 8C section only; see
+   *8C as built*).
 10. ~~Customer profiles as designed (8N): storage, session, CSRF, claiming, how a session authorises
     a claimed design, deletion. Amends ADR 0114 decision 5 and ADR 0008.~~ **M8B's (Q1).**
 11. ~~If Q1 is (b):~~ **Owed now (Q1 answered (b), relayed, 2026-10-07):** profiles become M8B,
@@ -2982,7 +3048,8 @@ writes them; the architect supplies the content.
     (the Russian backstop). Of the items above, **5's provider half, 9, 12 and 14 go to that
     milestone**; 3 loses its country source and its *challenge* (Q28 is answered: one limit for
     everyone).
-16. **Added 2026-10-07.** ~~The limiter's tiers and figures as Q28 settles them. If one tier: an
+16. **WRITTEN 2026-10-07: [ADR 0147](../decisions/0147-the-mint-is-limited-to-twenty-a-day-per-ip-address-for-everyone-and-nothing-else.md)
+    (the next free number is now 0148).** **Added 2026-10-07.** ~~The limiter's tiers and figures as Q28 settles them. If one tier: an
     amendment…~~ **Q28 is answered. A dated supersession of ADR 0019 for the mint**: d5's mint row,
     d4 as it applies to the mint, d3's session bucket for the mint; the quoted sentences are in
     *The limit on new designs, as the owner ruled it*. The same record states what was not ruled:
