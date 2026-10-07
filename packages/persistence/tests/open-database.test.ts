@@ -5,7 +5,6 @@ import { describe, expect, it } from "vitest";
 import {
   InvalidConnectionUrlError,
   NO_AGREED_DATABASE_NAME,
-  assertConnectionUrlShape,
   agreedDatabaseNameOf,
   databaseNameOf,
   openDatabase,
@@ -301,7 +300,7 @@ describe("openDatabaseSession and the drivers agree on what a connection string 
   });
 });
 
-describe("the one accepted shape (rule B7), pinned for both entry points", () => {
+describe("the one accepted shape, pinned for both entry points", () => {
   const ACCEPTED_SHAPES: readonly [string, string][] = [
     [
       "postgres: with a user, a password, a host and a database",
@@ -351,7 +350,7 @@ describe("the one accepted shape (rule B7), pinned for both entry points", () =>
   });
 });
 
-describe("a refusal names a variable only if the value was read from it (rule B4)", () => {
+describe("a refusal names a variable only if the value was read from it", () => {
   const HANDED_IN_OPENERS: readonly [
     string,
     (value: string) => unknown,
@@ -424,7 +423,7 @@ describe("a refusal names a variable only if the value was read from it (rule B4
   }
 });
 
-describe("a database name is read only where every reader agrees (rule B9)", () => {
+describe("a database name is read only where every reader agrees", () => {
   const BACKSLASH_IN_USERINFO = `postgres://a@b\\${FAKE_USER}:${FAKE_PASSWORD}@${FAKE_HOST}/lemnaria_test`;
 
   function nameTheHttpDriverReads(value: string): string {
@@ -565,7 +564,7 @@ describe("a database name is read only where every reader agrees (rule B9)", () 
   });
 });
 
-describe("an entry point refuses a string exactly when a consumer of it refuses it (rule B10)", () => {
+describe("an entry point refuses a string exactly when a consumer of it refuses it", () => {
   const withPassword = (password: string): string =>
     `postgresql://${FAKE_USER}:${password}@${FAKE_HOST}/lemn-conf-v2?sslmode=require`;
   const withParameter = (parameter: string): string =>
@@ -706,14 +705,26 @@ describe("an entry point refuses a string exactly when a consumer of it refuses 
       }
     }
 
+    function refusalMessageOf(run: () => unknown): string | undefined {
+      try {
+        run();
+      } catch (error) {
+        return (error as Error).message;
+      }
+      return undefined;
+    }
+
     it("refuses over HTTP only what the shape rules, the header or the driver's constructor refuse, and over a session only what the shape rules or the session client refuse", () => {
+      const shapeSentence = "is not a valid Postgres connection string";
       let sawHeaderRefusal = false;
       let sawSessionRefusal = false;
       fc.assert(
         fc.property(anyValue, (value) => {
-          const shapeRefuses = throwsFrom(() => {
-            assertConnectionUrlShape(value);
-          });
+          const overHttp = refusalMessageOf(() => openDatabase(value));
+          const forASession = refusalMessageOf(() =>
+            openDatabaseSession(value),
+          );
+          const shapeRefuses = forASession?.includes(shapeSentence) === true;
           const headerRefuses = throwsFrom(() => {
             new Headers({ "Neon-Connection-String": value });
           });
@@ -722,10 +733,10 @@ describe("an entry point refuses a string exactly when a consumer of it refuses 
           sawHeaderRefusal ||= !shapeRefuses && headerRefuses;
           sawSessionRefusal ||= !shapeRefuses && sessionClientRefuses;
 
-          expect(throwsFrom(() => openDatabase(value))).toBe(
+          expect(overHttp !== undefined).toBe(
             shapeRefuses || headerRefuses || constructorRefuses,
           );
-          expect(throwsFrom(() => openDatabaseSession(value))).toBe(
+          expect(forASession !== undefined).toBe(
             shapeRefuses || sessionClientRefuses,
           );
         }),

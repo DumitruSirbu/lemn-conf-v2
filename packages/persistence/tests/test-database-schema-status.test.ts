@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
 
-import { databaseNameOf, runMigrations } from "../src/migrate.js";
+import { runMigrations } from "../src/migrate.js";
 import { readDeployedSchema } from "../src/migrate-status.js";
 import { readMigrationFiles } from "../src/migration-files.js";
 import type { MigrationFile } from "../src/migration-files.js";
@@ -14,6 +14,7 @@ import type {
   DeployedSchemaReading,
   MigrationStatusReport,
 } from "../src/migration-status.js";
+import { databaseNameOf } from "../src/open-database.js";
 import {
   announceSkippedLiveSuite,
   isLiveTestDatabaseConfigured,

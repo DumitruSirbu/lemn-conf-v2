@@ -115,7 +115,7 @@ function assertAnHttpHeaderCanCarry(
   }
 }
 
-export function assertConnectionUrlShape(
+function assertConnectionUrlShape(
   connectionUrl: string,
   readFrom?: ConnectionVariableName,
 ): void {

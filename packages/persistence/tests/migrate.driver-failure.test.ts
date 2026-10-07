@@ -176,7 +176,7 @@ describe("applyMigrations against a driver that fails", () => {
   });
 });
 
-describe("applyMigrations when closing the session fails (rule B8)", () => {
+describe("applyMigrations when closing the session fails", () => {
   async function outcomeWithinBound(): Promise<unknown> {
     const { applyMigrations } = await import("../src/migrate.js");
     const timeout = new Promise<never>((_, reject) =>
@@ -227,7 +227,7 @@ describe("applyMigrations when closing the session fails (rule B8)", () => {
   });
 });
 
-describe("applyMigrations when closing the session after a failed connect fails (rule B3)", () => {
+describe("applyMigrations when closing the session after a failed connect fails", () => {
   const unhandledRejections: unknown[] = [];
   const recordUnhandled = (reason: unknown): void => {
     unhandledRejections.push(reason);

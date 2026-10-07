@@ -21,7 +21,7 @@ import {
 } from "./support/leaked-connection-markers.js";
 
 /**
- * Rule B2: nothing a refusal, a message or a printed line says is text taken from a connection value. Observed as a
+ * Nothing a refusal, a message or a printed line says is text taken from a connection value. Observed as a
  * property: two values that give the same comparisons give byte-identical output, whatever else they hold.
  */
 const SWEEP = { seed: 20261008, numRuns: 1_500 };
@@ -63,7 +63,7 @@ function messageOf(run: () => unknown): string {
   return "no error";
 }
 
-describe("the environment check's refusals (B2)", () => {
+describe("the environment check's refusals", () => {
   const isOrdinaryUnlistedName = (name: string): boolean =>
     !LISTED_NAMES.includes(name) &&
     !/[%\\]/.test(name) &&
@@ -129,7 +129,7 @@ describe("the environment check's refusals (B2)", () => {
   });
 });
 
-describe("the names a printed line may carry (B2)", () => {
+describe("the names a printed line may carry", () => {
   it("prints exactly the placeholder for any name that is not listed, whatever it holds", () => {
     fc.assert(
       fc.property(
@@ -179,7 +179,7 @@ describe("the names a printed line may carry (B2)", () => {
   });
 });
 
-describe("the isolation guard's refusals (B2)", () => {
+describe("the isolation guard's refusals", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
   });

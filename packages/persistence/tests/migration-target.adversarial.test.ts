@@ -1,14 +1,16 @@
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
-import { databaseNameOf } from "../src/migrate.js";
-import { NO_AGREED_DATABASE_NAME } from "../src/open-database.js";
 import { MigrationTargetMismatchError } from "../src/migration-errors.js";
 import {
   DATABASE_NAMES_BY_ENVIRONMENT,
   assertDeclaredEnvironmentReaches,
   readDeclaredEnvironment,
 } from "../src/migration-target.js";
+import {
+  NO_AGREED_DATABASE_NAME,
+  databaseNameOf,
+} from "../src/open-database.js";
 import { UNLISTED_DATABASE } from "../src/test-database-url.js";
 import { spawnPersistenceCli } from "./support/spawn-persistence-cli.js";
 
@@ -105,10 +107,8 @@ describe("the check's name and the driver's name agree", () => {
     },
   );
 
-  // DEFECT: databaseNameOf returns the URL's raw, still-percent-encoded pathname, while the driver
-  // decodes it. An unlisted label equal to the encoded form passes as an "unclaimed ad-hoc
-  // database", and the driver then connects to production. Falsifies the plan's rule 2 claim that
-  // "a listed environment's database can be reached only under that environment's name".
+  // The driver decodes an escaped name, so an unlisted label equal to the escaped form must not pass as an
+  // "unclaimed ad-hoc database" while the driver connects to production. `databaseNameOf` answers no name for these.
   it.each([
     "postgres://u:p@h.invalid/lemn%2Dconf%2Dv2",
     "postgres://u:p@h.invalid/%6Cemn-conf-v2",
@@ -518,12 +518,11 @@ describe("the CLIs, spawned — cases the implementer's CLI file does not try", 
     expect(result.stderr).toContain("MigrationTargetMismatchError");
   });
 
-  // Findings A and B (security and logic review): a connection string with no `//` authority — a
+  // A connection string with no `//` authority — a
   // single slash after the scheme — makes `new URL` read the credential and host as part of the
-  // pathname, which `databaseNameOf` used to return verbatim as "the database name" (Finding A's
-  // leak). The real driver re-parses the same string under `http:`, a WHATWG "special" scheme that
-  // tolerates the missing slash, and reaches a real host and database there (Finding B's bypass).
-  // Both are closed by refusing the shape outright, before either CLI opens a connection.
+  // pathname, which must never be returned as "the database name". The real driver re-parses the same string under
+  // `http:`, a WHATWG "special" scheme that tolerates the missing slash, and reaches a real host and database there.
+  // The shape is refused outright, before either CLI opens a connection.
   const NO_AUTHORITY_URL_WITH_SECRET = `postgres:/${PROBE_USER}:${PROBE_SECRET}@${PROBE_HOST}/lemn-conf-v2`;
 
   it.each(["src/migrate.ts", "src/migrate-status.ts"])(

@@ -4,6 +4,7 @@ import {
   NO_AGREED_DATABASE_NAME,
   agreedDatabaseNameOf,
   openDatabase,
+  openDatabaseSession,
   parseConnectionUrl,
 } from "./open-database.js";
 import type { ConnectionVariableName } from "./open-database.js";
@@ -68,12 +69,34 @@ function databaseNameOfUrl(
  * The guard: refuses any connection string a destructive suite must not be pointed at. Exported so every destructive
  * path enforces the same rule (the live suites via `resolveTestDatabaseUrl`, `delete-designs-for-tests.ts`, and
  * `apps/web/playwright.config.ts`). The first refusal needs no `DATABASE_URL`, so a missing variable can never let a
- * DELETE through in CI; the second catches an application database that is itself named `lemnaria_test`.
+ * DELETE through in CI; the second catches an application database that is itself named `lemnaria_test`; the third is
+ * the opener's own, for a string the live suites could not open.
  */
 export function assertSafeTestDatabaseUrl(testUrl: string): void {
-  const testDatabaseName = databaseNameOfUrl(testUrl, "TEST_DATABASE_URL");
+  assertSafeTarget(testUrl, "TEST_DATABASE_URL");
+}
+
+function assertSafeTarget(
+  testUrl: string,
+  readFrom: ConnectionVariableName,
+): void {
+  const testDatabaseName = databaseNameOfUrl(testUrl, readFrom);
   refuseUnlessNamedAsATestDatabase(testDatabaseName);
   refuseTheApplicationDatabaseName(testDatabaseName);
+  assertBothEntryPointsWouldOpen(testUrl, readFrom);
+}
+
+/**
+ * The live suites open the test URL with the driver themselves, so this guard is the only thing between a string and a
+ * driver error that quotes it. Asks the opener, which constructs and connects to nothing, by both entry points: one
+ * run queries the URL over HTTP and migrates it through a session.
+ */
+function assertBothEntryPointsWouldOpen(
+  testUrl: string,
+  readFrom: ConnectionVariableName,
+): void {
+  openDatabase(testUrl, readFrom);
+  openDatabaseSession(testUrl, readFrom);
 }
 
 function refuseUnlessNamedAsATestDatabase(testDatabaseName: string): void {
@@ -123,8 +146,8 @@ function refuseAnApplicationNameNoReaderAgreesOn(): Error {
 export function resolveTestDatabaseUrl(): string {
   const override = readTestDatabaseOverride();
   return override === undefined
-    ? refuseUnsafeTarget(deriveTestUrlFromApplicationUrl())
-    : refuseUnsafeTarget(override);
+    ? refuseUnsafeTarget(deriveTestUrlFromApplicationUrl(), "DATABASE_URL")
+    : refuseUnsafeTarget(override, "TEST_DATABASE_URL");
 }
 
 /** The guarded connection the test helpers use. A refusal names the variable the URL came from: the override when one
@@ -148,8 +171,11 @@ function deriveTestUrlFromApplicationUrl(): string {
   return withDatabaseName(readDatabaseUrl(), TEST_DATABASE_NAME);
 }
 
-function refuseUnsafeTarget(testUrl: string): string {
-  assertSafeTestDatabaseUrl(testUrl);
+function refuseUnsafeTarget(
+  testUrl: string,
+  readFrom: ConnectionVariableName,
+): string {
+  assertSafeTarget(testUrl, readFrom);
   return testUrl;
 }
 

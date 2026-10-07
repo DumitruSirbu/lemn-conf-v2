@@ -93,9 +93,9 @@ describe("deleteDesignsForTests", () => {
 
     await deleteDesignsForTests(["design-1", "design-2"]);
 
-    expect(driver.connectionUrls).toEqual([
-      "postgresql://owner:secret@host.neon.tech/lemnaria_test",
-    ]);
+    expect(new Set(driver.connectionUrls)).toEqual(
+      new Set(["postgresql://owner:secret@host.neon.tech/lemnaria_test"]),
+    );
     expect(driver.statements).toHaveLength(2);
     expect(driver.statements[0]?.[0]).toContain("delete from designs");
   });

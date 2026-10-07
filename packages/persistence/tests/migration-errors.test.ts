@@ -6,6 +6,8 @@ import {
   isPrintableFailure,
   reducedCauseOf,
 } from "../src/migration-errors.js";
+import { describeMigrationFailure } from "../src/migrate.js";
+import { describeStatusFailure } from "../src/migrate-status.js";
 import { InvalidConnectionUrlError } from "../src/open-database.js";
 import { markersFoundOn } from "./support/leaked-connection-markers.js";
 
@@ -148,5 +150,33 @@ describe("isPrintableFailure", () => {
     ["a string", SECRET],
   ])("refuses %s", (_name, error) => {
     expect(isPrintableFailure(error)).toBe(false);
+  });
+});
+
+describe("the type name the two CLIs print for an error that is not their own", () => {
+  const hostile = (name: string): Error =>
+    Object.assign(new Error("x"), { name });
+
+  it.each([
+    ["an ordinary error", new TypeError("x"), "TypeError"],
+    [
+      "a name carrying a connection string",
+      hostile(`Error at postgres://u:${SECRET}@h/db`),
+      "UnknownError",
+    ],
+    [
+      "a name with a line break",
+      hostile("Error\n[migrate] all clear"),
+      "UnknownError",
+    ],
+    ["a thrown string", SECRET, "string"],
+  ])("prints %s as %s", (_label, thrown, printedType) => {
+    for (const line of [
+      describeMigrationFailure(thrown),
+      describeStatusFailure(thrown),
+    ]) {
+      expect(line).toMatch(new RegExp(`unexpected ${printedType}\\.$`));
+      expect(line).not.toContain(SECRET);
+    }
   });
 });

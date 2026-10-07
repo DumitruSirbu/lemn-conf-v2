@@ -7,6 +7,7 @@ import { loadEnvLocal } from "./load-env.js";
 import {
   MigrationError,
   MigrationExecutionError,
+  describeErrorType,
   isPrintableFailure,
   reducedCauseOf,
 } from "./migration-errors.js";
@@ -30,8 +31,6 @@ import {
 import { databaseNameOf, openDatabaseSession } from "./open-database.js";
 import type { ConnectionVariableName } from "./open-database.js";
 import { readMigrationDatabaseUrl } from "./read-database-url.js";
-
-export { databaseNameOf };
 
 /** What a run did, split so "applied nothing because all were already applied" differs from "nothing happened". */
 export interface MigrationRunSummary {
@@ -248,10 +247,6 @@ export function describeMigrationFailure(error: unknown): string {
   return isPrintableFailure(error)
     ? `[migrate] ${error.name}: ${error.message}`
     : `[migrate] migration run failed with an unexpected ${describeErrorType(error)}.`;
-}
-
-function describeErrorType(error: unknown): string {
-  return error instanceof Error ? error.name : typeof error;
 }
 
 // Compared as filesystem paths: `import.meta.url` percent-encodes a space and `process.argv[1]` does not, so a string

@@ -1,10 +1,15 @@
+import { fc } from "@fast-check/vitest";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   deleteDesignsForTests,
   findDesignIdsForTests,
 } from "../src/delete-designs-for-tests.js";
-import { InvalidConnectionUrlError } from "../src/open-database.js";
+import {
+  InvalidConnectionUrlError,
+  openDatabase,
+  openDatabaseSession,
+} from "../src/open-database.js";
 import {
   assertSafeTestDatabaseUrl,
   resolveTestDatabaseUrl,
@@ -143,10 +148,26 @@ describe.each(GUARD_ENTRY_POINTS)(
       });
     });
 
-    describe.each([...PARSEABLE_BUT_NOT_DRIVER_SHAPED, ...ACCEPTED])(
+    describe.each(PARSEABLE_BUT_NOT_DRIVER_SHAPED)(
       "a parseable $label naming an allowlisted database",
       ({ value }) => {
-        it("makes the same decision as before: the guard judges database identity, not driver shape, and accepts", async () => {
+        it("is refused with the opener's own refusal, since the live suites could not open it", async () => {
+          stubTestUrl(value);
+
+          const error = await errorRaisedBy(() => {
+            check(value);
+          });
+
+          expect(error).toBeInstanceOf(InvalidConnectionUrlError);
+          expect(markersFoundOn(error)).toEqual([]);
+        });
+      },
+    );
+
+    describe.each(ACCEPTED)(
+      "a well-formed $label naming an allowlisted database",
+      ({ value }) => {
+        it("is accepted: the guard judges database identity and whether the URL can be opened", async () => {
           stubTestUrl(value);
 
           expect(
@@ -183,7 +204,7 @@ describe("the guard when DATABASE_URL, the application's own URL, is unparseable
   });
 });
 
-describe("the guard reads a database name only where every reader agrees (rule B9)", () => {
+describe("the guard reads a database name only where every reader agrees", () => {
   const BACKSLASH_IN_USERINFO = `postgres://a@b\\u:p@host.invalid/${ALLOWLISTED_DATABASE}`;
   const AGREED_APPLICATION_URL =
     "postgresql://appuser:apppw@app-host.invalid/appdb";
@@ -237,4 +258,174 @@ describe("the guard reads a database name only where every reader agrees (rule B
       ).toBeUndefined();
     },
   );
+});
+
+describe("the guard allows a test URL only if both entry points would open it", () => {
+  const FAKE_HEAD = "FAKEPASSHEAD_8B";
+  const FAKE_TAIL = "FAKEPASSTAIL_8B";
+  const APPLICATION_URL = "postgresql://appuser:apppw@app-host.invalid/appdb";
+  const testUrlWith = (
+    password: string,
+    databaseName = ALLOWLISTED_DATABASE,
+    query = "sslmode=require",
+  ): string =>
+    `postgresql://fakeuser_8B:${password}@fakehost-8b.invalid/${databaseName}?${query}`;
+
+  function stubBoth(testUrl: string, applicationUrl = APPLICATION_URL): void {
+    vi.stubEnv("TEST_DATABASE_URL", testUrl);
+    vi.stubEnv("DATABASE_URL", applicationUrl);
+  }
+
+  it.each(GUARD_ENTRY_POINTS)(
+    "%s refuses a password with a line break, and nothing of the value is in the refusal",
+    async (_name, check) => {
+      const value = testUrlWith(`${FAKE_HEAD}\n${FAKE_TAIL}`);
+      stubBoth(value);
+
+      const error = await errorRaisedBy(() => {
+        check(value);
+      });
+
+      expect(error).toBeInstanceOf(InvalidConnectionUrlError);
+      expect((error as Error).message).toMatch(/query endpoint/);
+      expect(
+        markersFoundOn(error, [
+          FAKE_HEAD,
+          FAKE_TAIL,
+          "fakeuser_8B",
+          "fakehost-8b",
+        ]),
+      ).toEqual([]);
+    },
+  );
+
+  it("names TEST_DATABASE_URL for a value read from it, and DATABASE_URL for one derived from it", async () => {
+    stubBoth(testUrlWith(`${FAKE_HEAD}\n${FAKE_TAIL}`));
+    const fromOverride = await errorRaisedBy(() => resolveTestDatabaseUrl());
+    vi.stubEnv("TEST_DATABASE_URL", "");
+    vi.stubEnv(
+      "DATABASE_URL",
+      testUrlWith(FAKE_HEAD, "appdb", "sslrootcert=system"),
+    );
+    const fromDerived = await errorRaisedBy(() => resolveTestDatabaseUrl());
+
+    expect((fromOverride as InvalidConnectionUrlError).variableName).toBe(
+      "TEST_DATABASE_URL",
+    );
+    expect((fromDerived as InvalidConnectionUrlError).variableName).toBe(
+      "DATABASE_URL",
+    );
+  });
+
+  it("refuses a URL a session cannot use, such as one with sslrootcert", async () => {
+    const value = testUrlWith(
+      FAKE_HEAD,
+      ALLOWLISTED_DATABASE,
+      "sslrootcert=system",
+    );
+    stubBoth(value);
+
+    const error = await errorRaisedBy(() => {
+      assertSafeTestDatabaseUrl(value);
+    });
+
+    expect((error as Error).message).toMatch(/migration session client/);
+  });
+
+  it("still reports an unlisted name as unlisted, and the application's own name as that, before the opener speaks", async () => {
+    const unlisted = testUrlWith(`${FAKE_HEAD}\n${FAKE_TAIL}`, "somedb");
+    stubBoth(unlisted);
+    const unlistedError = await errorRaisedBy(() => {
+      assertSafeTestDatabaseUrl(unlisted);
+    });
+    const sameAsApplication = testUrlWith(`${FAKE_HEAD}\n${FAKE_TAIL}`);
+    stubBoth(sameAsApplication, testUrlWith("apppw"));
+    const applicationError = await errorRaisedBy(() => {
+      assertSafeTestDatabaseUrl(sameAsApplication);
+    });
+
+    expect((unlistedError as Error).message).toMatch(
+      /not one of the databases/,
+    );
+    expect((applicationError as Error).message).toMatch(
+      /the database name DATABASE_URL points at/,
+    );
+  });
+
+  it.each([
+    [
+      "a pooled endpoint",
+      "ep-cool-1234-pooler.eu-central-1.aws.neon.tech",
+      "sslmode=require&channel_binding=require",
+    ],
+    [
+      "a direct endpoint",
+      "ep-cool-1234.eu-central-1.aws.neon.tech",
+      "sslmode=require",
+    ],
+    [
+      "an endpoint option",
+      "ep-cool-1234.eu-central-1.aws.neon.tech",
+      "sslmode=require&options=endpoint%3Dep-cool-1234",
+    ],
+  ])("still allows a real-shaped URL: %s", async (_label, host, query) => {
+    const value = `postgresql://neondb_owner:npg_Fake%2Fpass%40word@${host}/${ALLOWLISTED_DATABASE}?${query}`;
+    stubBoth(value);
+
+    expect(
+      await errorRaisedBy(() => {
+        assertSafeTestDatabaseUrl(value);
+      }),
+    ).toBeUndefined();
+    expect(await errorRaisedBy(() => resolveTestDatabaseUrl())).toBeUndefined();
+  });
+
+  it("allows only strings that both entry points open, over a sweep", () => {
+    const pieces = [
+      FAKE_HEAD,
+      FAKE_TAIL,
+      "\n",
+      "\r",
+      "\u0000",
+      "\u0100",
+      "\t",
+      " ",
+      "%40",
+      "@",
+    ];
+    const sweep = fc.record({
+      password: fc
+        .array(fc.constantFrom(...pieces), { maxLength: 4 })
+        .map((parts) => parts.join("")),
+      query: fc.constantFrom(
+        "sslmode=require",
+        "sslrootcert=system",
+        "sslcert=/x",
+        "",
+        "options=endpoint%3Dep-x",
+      ),
+      trailing: fc.constantFrom("", "\n", " "),
+      user: fc.constantFrom("fakeuser_8B", ""),
+    });
+    let allowed = 0;
+
+    fc.assert(
+      fc.property(sweep, ({ password, query, trailing, user }) => {
+        const value = `postgresql://${user}:${password}@fakehost-8b.invalid/${ALLOWLISTED_DATABASE}?${query}${trailing}`;
+        vi.stubEnv("TEST_DATABASE_URL", value);
+        vi.stubEnv("DATABASE_URL", APPLICATION_URL);
+        try {
+          assertSafeTestDatabaseUrl(value);
+        } catch {
+          return;
+        }
+        allowed += 1;
+
+        expect(() => openDatabase(value)).not.toThrow();
+        expect(() => openDatabaseSession(value)).not.toThrow();
+      }),
+      { seed: 20261010, numRuns: 1_500 },
+    );
+    expect(allowed).toBeGreaterThan(0);
+  });
 });

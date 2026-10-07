@@ -14,9 +14,9 @@ import { fileURLToPath } from "node:url";
 import type { NeonQueryFunction } from "@neondatabase/serverless";
 
 import { loadEnvLocal } from "./load-env.js";
-import { databaseNameOf } from "./migrate.js";
 import {
   MigrationExecutionError,
+  describeErrorType,
   isPrintableFailure,
   reducedCauseOf,
 } from "./migration-errors.js";
@@ -39,7 +39,7 @@ import {
   printReachedDatabaseName,
   readDeclaredEnvironment,
 } from "./migration-target.js";
-import { openDatabase } from "./open-database.js";
+import { databaseNameOf, openDatabase } from "./open-database.js";
 import type { ConnectionVariableName } from "./open-database.js";
 
 /**
@@ -179,7 +179,7 @@ async function readDocumentSchemaVersions(sql: NeonQuery): Promise<number[]> {
 export function describeStatusFailure(error: unknown): string {
   return isPrintableFailure(error)
     ? `[migrate:status] ${error.name}: ${error.message}`
-    : `[migrate:status] failed with an unexpected ${error instanceof Error ? error.name : typeof error}.`;
+    : `[migrate:status] failed with an unexpected ${describeErrorType(error)}.`;
 }
 
 // As in `migrate.ts`: `import.meta.url` percent-encodes a space and `process.argv[1]` does not (ADR 0013).

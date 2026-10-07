@@ -137,7 +137,7 @@ function sitesOutsideTheOpener(directory: string): string[] {
     .sort();
 }
 
-describe("the connection-opening census (8B, rule B5)", () => {
+describe("the connection-opening census", () => {
   it("finds the opener's own driver import, so the scan reads real source", () => {
     const opener = readFileSync(join(SOURCE_DIRECTORY, THE_OPENER), "utf8");
 

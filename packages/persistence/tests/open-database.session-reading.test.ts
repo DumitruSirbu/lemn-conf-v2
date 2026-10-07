@@ -13,7 +13,7 @@ vi.mock("@neondatabase/serverless", async (importOriginal) => ({
 
 const URL_NAMING_A_LISTED_DATABASE = "postgres://u:p@h.invalid/lemnaria_test";
 
-describe("agreedDatabaseNameOf asks the session driver for its reading (rule B9)", () => {
+describe("agreedDatabaseNameOf asks the session driver for its reading", () => {
   async function agreedName(): Promise<string> {
     const { agreedDatabaseNameOf } = await import("../src/open-database.js");
     return agreedDatabaseNameOf(URL_NAMING_A_LISTED_DATABASE);

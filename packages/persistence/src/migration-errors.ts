@@ -62,13 +62,15 @@ export interface ReducedCause {
 export function reducedCauseOf(error: unknown): ErrorOptions {
   const code = safeCodeOf(error);
   const cause: ReducedCause = {
-    name: safeNameOf(error),
+    name: describeErrorType(error),
     ...(code === undefined ? {} : { code }),
   };
   return { cause };
 }
 
-function safeNameOf(error: unknown): string {
+/** The type name of a thrown value, clamped: `typeof` for anything that is not an `Error`, and `UnknownError` when the
+ *  name is not a short identifier. Safe to print. */
+export function describeErrorType(error: unknown): string {
   const name =
     error instanceof Error ? readQuietly(error, "name") : typeof error;
   return typeof name === "string" && ERROR_NAME_PATTERN.test(name)

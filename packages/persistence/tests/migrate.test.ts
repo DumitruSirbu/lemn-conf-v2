@@ -7,11 +7,11 @@ import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import {
   applyMigrations,
-  databaseNameOf,
   describeMigrationFailure,
   describeMigrationRun,
   runMigrations,
 } from "../src/migrate.js";
+import { databaseNameOf } from "../src/open-database.js";
 import { checksumOfMigration } from "../src/migration-checksum.js";
 import {
   MigrationChecksumMismatchError,

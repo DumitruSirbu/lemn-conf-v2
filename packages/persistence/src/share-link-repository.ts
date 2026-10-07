@@ -1,8 +1,7 @@
 import type { Design, DesignId } from "@lemnaria/configurator-domain";
 import { migrateDesign } from "@lemnaria/configurator-domain";
 
-import { openDatabase } from "./open-database.js";
-import { readDatabaseUrl } from "./read-database-url.js";
+import { openApplicationDatabase } from "./open-application-database.js";
 import { retryOnTransientFailure } from "./retry-on-transient-failure.js";
 import { requireSha256Digest } from "./sha256-digest.js";
 
@@ -80,10 +79,7 @@ export class NeonShareLinkRepository implements ShareLinkRepository {
 
   /** `connectionUrl` defaults to `DATABASE_URL`; only the live tests pass it, to target their own database. */
   constructor(connectionUrl?: string) {
-    this.sql =
-      connectionUrl === undefined
-        ? openDatabase(readDatabaseUrl(), "DATABASE_URL")
-        : openDatabase(connectionUrl);
+    this.sql = openApplicationDatabase(connectionUrl);
   }
 
   /**

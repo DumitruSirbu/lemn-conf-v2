@@ -1,5 +1,4 @@
-import { openDatabase } from "./open-database.js";
-import { readDatabaseUrl } from "./read-database-url.js";
+import { openApplicationDatabase } from "./open-application-database.js";
 import { retryOnTransientFailure } from "./retry-on-transient-failure.js";
 
 /**
@@ -52,10 +51,7 @@ export function createNeonDesignRowSource(
     async fetchDesignPage({ afterId, pageSize }) {
       // Resolved per call, not at construction: a missing `DATABASE_URL` must surface where the caller can catch and
       // report it, not throw while wiring dependencies.
-      const sql =
-        connectionUrl === undefined
-          ? openDatabase(readDatabaseUrl(), "DATABASE_URL")
-          : openDatabase(connectionUrl);
+      const sql = openApplicationDatabase(connectionUrl);
       const rows = await retryOnTransientFailure(() =>
         afterId === undefined
           ? sql`
