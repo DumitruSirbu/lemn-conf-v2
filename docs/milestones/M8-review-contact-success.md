@@ -9,8 +9,10 @@
 > measurements ~~are not in yet~~ **arrived later the same day and are in the same section (written
 > at `a7b0363`)**; they changed 8B's slices and criteria and what 8F owes the e2e suite, and left
 > Q15 standing. **8B is implemented; QA's first pass found three defects, round 1 fixed them
-> (`a20432e`), and QA's re-run leaves one test failing (QA4). Both passes are adjudicated in its
-> section; round 2 is next, then one QA pass, then review. Q27 was raised by it.** **Six follow-up questions are open,
+> (`a20432e`), QA's re-run left one test failing, round 2 fixed it (`1df6d7f`), and QA's third pass
+> leaves eight failing on four findings. All three passes are adjudicated in its section. Round 3
+> is next (four items), then one QA pass under a stopping rule, then review. Q27 was raised by
+> it.** **Six follow-up questions are open,
 > Q21–Q26** (seven with Q27), and the first two —
 > where production runs and where the database lives — make five of the recorded answers
 > conditional. Dispatchable as written: **8B, 8C, 8D, 8E, 8I**.
@@ -591,7 +593,7 @@ answers; the questions each wave first waited on are in *The questions as put*.
 | Wave | Covers | Packages | Tier | Waits for, as of 2026-10-07 |
 | --- | --- | --- | --- | --- |
 | 8A | Measurements, vendor reads, the questions | none (docs, scratch) | Light | S1, S2 and S3 are in (*8A figures*, *The owner's answers*). Not closed: Q21–Q26 are open, and its review has not been run |
-| 8B | A driver error never prints the connection string | persistence, web | Full + security | **Round 1 done (`a20432e`); QA's re-run red on one test (QA4).** Round 2 (five items), one QA pass, then review. See its two adjudications |
+| 8B | A driver error never prints the connection string | persistence, web | Full + security | **Rounds 1 and 2 done (`a20432e`, `1df6d7f`); QA's third pass red on eight tests, four findings.** Round 3 (four items), one QA pass under the stopping rule, then review. See its three adjudications |
 | 8C | The review as a value: rows, room line, submit eligibility | web, domain (read) | Full | **Nothing. Dispatchable** (Q10 answered) |
 | 8D | The review route and screen 3A/3B; the CTA gets its destination | web | Light + visual; security on S1 | **Nothing but 8C. Dispatchable** (Q2 answered) |
 | 8E | The rate-limit store | persistence | Full + security | **Nothing. Dispatchable** (Q14 answered) |
@@ -1023,7 +1025,9 @@ property; the guard is unchanged over 18,980 cases [relayed]. The tree is clean 
 
 **Rules.**
 
-- **B8 — closing the session never changes the run's outcome** (QA4; B3 applied to `end()`). If
+- **B8 — ~~closing the session never changes the run's outcome~~ a close that fails never changes
+  the run's outcome** (restated by the third adjudication below: a close that never returns is
+  outside it) (QA4; B3 applied to `end()`). If
   every migration was applied and recorded, `applyMigrations` returns its summary whether or not
   the session then closed. If the run failed, it throws the run's own error. A rejection from
   `end()` is dropped in both cases and never replaces either.
@@ -1103,6 +1107,121 @@ security, as its tier says. Another adjudication is expected only if that measur
 disagreement, or the re-aimed sweep turns up a new class. The close-out names three things as
 unproven and not as clean: F3 (not approved), a real `end()` failure, and the hosting platform's
 own logger.
+
+#### 8B — adjudication of QA's third pass, 2026-10-07, later still
+
+**State.** Round 2 is `1df6d7f`, QA's tests `a83d4fd` [relayed]. The architect ran QA's six files
+there: **8 failed, 176 passed** [ran], on the four findings QA reported. B2's property, criterion
+4 and the retry predicate hold [relayed]. The tree is clean and frozen.
+
+| Item | Class | Ruling |
+| --- | --- | --- |
+| QA12 an accepted string whose compared database name is not the one either driver uses | **Implementation defect** against B7, in a reading that predates the wave. Found by the measurement the last adjudication added | B9, round 3 |
+| QA13 a session close that never settles | Reached with a mocked driver only; predates the wave; not a leak. **Recorded limit.** B8's wording promised more than it should | B8 restated; F5 |
+| QA14 after a failed connect, a close that throws or rejects | **Implementation defect** against B3, mocked only, two lines to remove | Round 3 |
+| QA15 the migration entry points name `MIGRATION_DATABASE_URL` for a value handed in | **Implementation defect** against B4's *must not*. **And a gap in round 2's punch list**, which named four files and not these two; the architect's | B4 extended, round 3 |
+| The driver's error matched by `name` and not by class | Test-fidelity problem, **closed by QA's test** | Nothing owed |
+| A `.js` file under `src/` is not read by the census | Test-fidelity problem | Fixed in round 3 |
+| `assertSafeTestDatabaseUrl`'s label; the optional `readFrom` | As QA classed them: acceptable | Nothing owed |
+
+**Rules.**
+
+- **B9 — a database name is read only where every reading of it agrees** (QA12). This package
+  compares a name in three places: the opener's shape check, the migration target, and the
+  isolation guard's two checks. All three ask one function. It answers a name only when the
+  string as written, the string as the HTTP driver re-reads it, and **the session driver's own
+  reading, asked of the driver and not copied from it**, give the same name. Otherwise it answers
+  *no name*, and every caller treats that as a refusal.
+  - *Why this and not a character.* Refusing a raw backslash would close the 346 strings QA found
+    and say nothing about the next character. Refusing *"what the URL parser normalises"* needs
+    a list of what that is. Agreement needs neither: a string on which two readers differ is
+    refused whatever made them differ. It is the rule ADR 0142 reached for one shape, stated for
+    all of them.
+  - *What the sweep must then show.* Over every accepted string, not only those naming a listed
+    database: **0** whose compared name differs from the session driver's, and **0** from the HTTP
+    re-reading. QA's 346 are each refused by the opener and by the guard.
+  - **The isolation guard's verdicts change, and this is the change.** The live suites open the
+    test URL with the driver directly, not through the opener [src: the live test files and
+    `tests/support/test-schema-lock.ts` import the driver themselves], so the guard is the only thing between such a
+    string and a `DELETE`. Two kinds of string move, both **from allowed to refused**: a test URL
+    whose name the guard read as allowlisted while a driver reads another; and any test URL when
+    the application URL's name cannot be read in agreement, since that check must fail closed.
+    **None moves from refused to allowed.** QA's `guard-compare` must show exactly that: every
+    difference is allowed→refused, every one has a disagreeing reading, 0 more permissive. The
+    migration target changes the same way through the same function.
+  - *Not harmful as found, and why that is not the reason to leave it* [inf]. In all 346 the
+    backslash stands in the userinfo, so the driver's name runs through the last `@` and cannot
+    equal a listed name; QA found none that does. That argument is about the backslash only.
+  - *Recorded limit.* For a query sent over HTTP, Neon's own endpoint reads the raw string a
+    fourth time. Nothing here can ask it. Recorded with its trigger (ADR 0118): a string this
+    package accepts that Neon routes to a database of another name.
+- **B8, restated** (QA13). ~~Closing the session never changes the run's outcome.~~ **A close that
+  fails never changes the run's outcome. A close that never returns is not bounded by this
+  wave.**
+  - *Why no timeout here.* A bound would let `applyMigrations` return while `end()` is still
+    pending and its socket still open. The CLI sets `process.exitCode` and never calls
+    `process.exit` [src, the CLI block that ends `migrate.ts`], so it would print its line and
+    still not exit.
+    Making it exit is a decision about the CLI's shutdown, with its own tests; it is not a
+    two-line bound.
+  - *Why it may wait.* It leaks nothing. The same `await` stood in the `finally` before this wave.
+    It has been seen only with a mocked driver; whether a connection dropped mid-run really leaves
+    `end()` pending is unmeasured.
+  - QA's two tests for it stay as declared deferrals under F5, in the form that goes red when the
+    hang is fixed (`engineering-conventions.md`, *A deferred test has two shapes*).
+- **B3, for the close after a failed connect** (QA14). Whatever that `end()` does — throw before
+  returning, reject, or never settle — the connect failure this package built is what is thrown,
+  and no rejection is left unhandled. An unhandled rejection is the one case where Node itself
+  prints an error object.
+- **B4, extended** (QA15). The three migration entry points follow it too. A value handed to
+  `applyMigrations`, `runMigrations` or `readDeployedSchema` is labelled with a variable only when
+  the caller that read it says which. The two CLIs do say, so the operator is still told
+  `MIGRATION_DATABASE_URL` is wrong: the owner's criterion of 2026-09-06, *"The error still names
+  which environment variable is wrong"*. A live suite that hands in the test URL is no longer told
+  the migration variable is at fault. The implementer's
+  `migration-connection-errors.test.ts`, which expects the label on a bare hand-in, is re-aimed by
+  the implementer to this rule: with the label when the caller names the variable, without it
+  when not.
+
+**F5 — a session close that never returns.** Follow-up, the coordinator's to schedule before 8S,
+with F1. First a measurement on the test database, which needs approval because it ends a
+backend there: does a connection dropped mid-run leave `end()` pending with the installed driver.
+If it does, the fix is the CLI's shutdown, as its own small wave.
+
+**Round 3's punch list** — four items, four production files.
+
+1. **B9** (QA12). `open-database.ts`, `test-database-url.ts`. `migration-target.ts` only if the
+   *no name* answer does not already reach its never-trusted refusal.
+2. **B3 at the close** (QA14). `migrate.ts`.
+3. **B4 extended** (QA15). `migrate.ts`, `migrate-status.ts`;
+   `tests/migration-connection-errors.test.ts` re-aimed.
+4. **Tests only.** `tests/connection-opening-census.test.ts` reads every script file under
+   `src/`, `.js` included.
+
+*Reading, implementer:* this adjudication; QA's `qa-8b-opener-sweep.adversarial.test.ts` (the
+pinned property and its generator), `qa-8b-thrown-cause.adversarial.test.ts`,
+the rule-B4 block of `qa-8b-connection-leaks.adversarial.test.ts`; ADR 0142, the entry on
+`databaseNameOf`; ADR 0006 and its amendment (what the guard promises); `test-database-url.ts` whole;
+`migrate.ts:60-110, 245-270`; `migrate-status.ts:70-95, 195-215`.
+*Reading, QA's next pass:* the same; `guard-compare` with the expectation above; the two
+deferrals re-aimed under F5.
+
+**Convergence, and the stopping rule the architect proposes.**
+
+- *The trend.* Pass 1 found the connection string leaving on real paths: the wave's goal. Pass 2
+  found one leak, with a mocked driver. Pass 3 found none from a real driver: one guard-integrity
+  class, two mocked lifecycles, one wrong label. Each finding was real. The wave is past the
+  point where more passes serve the owner's ruling.
+- *Necessary before review:* QA14, because it is on the goal and costs two lines; QA15, because
+  it is the rule's letter and the owner's own criterion; QA12, because the rule that closes it
+  is small and without it B7's one shape is not one. *Accepted as a recorded limit:* QA13.
+- *The rule.* After round 3, QA makes **one** pass. A new finding is fixed inside 8B only if
+  (a) text from a connection value, or anything a driver threw, leaves this package, on a path
+  the installed driver can take; or (b) something an earlier pass showed holding no longer holds.
+  Anything else is written down with an owner and its trigger (ADR 0118), and the wave goes to
+  review in that same pass. The architect classifies; QA's freedom to look is not narrowed.
+- *Whose it is.* The rule trades completeness for an end. If the coordinator thinks that trade is
+  the owner's, the two things to put to them are QA13 as a limit and the rule itself.
 
 ### 8C — the review as a value
 
