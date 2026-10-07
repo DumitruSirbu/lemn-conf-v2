@@ -39,7 +39,7 @@ when a record you rely on is marked superseded below, or when planning (architec
 | [0016](0016-hood-chimney-is-carcass.md) | The hood's carcass is canopy **and** chimney | Accepted |
 | [0017](0017-sink-base-minimum-width.md) | A catalogue entry may declare a minimum width | Accepted |
 | [0018](0018-frame-depth-is-rear-overhang.md) | `frame.d` is twice a body's rear overhang, not its depth | Accepted |
-| [0019](0019-security-baseline-writes-throttling-retention.md) | Security baseline: write auth, throttling, retention | Partly superseded → 0114, 0115 |
+| [0019](0019-security-baseline-writes-throttling-retention.md) | Security baseline: write auth, throttling, retention | Partly superseded → 0114, 0115; decision 7 retired 2026-09-15; annotated 2026-10-07 |
 | [0020](0020-a-migration-file-is-not-an-applied-migration.md) | A migration file is not an applied migration | Partly superseded → 0042, 0096 |
 | [0021](0021-corner-returns-are-structural-in-data.md) | Corner returns are structural in the catalogue data | Accepted |
 | [0022](0022-seeded-entries-declare-their-catalogue-equivalent.md) | A seeded entry declares its catalogue equivalent | Accepted (amended) |
@@ -134,7 +134,7 @@ when a record you rely on is marked superseded below, or when planning (architec
 | [0111](0111-step-1-creates-the-design-through-the-existing-mint-then-save-and-the-room-entry-lives-in-the-url.md) | Step 1 creates the design through the existing mint-then-save, hands the customer its link only once it is written, and keeps the room entry in the URL | Partly superseded → 0114 (amended) |
 | [0112](0112-the-preset-library-is-owner-authored-data-behind-a-server-side-gate.md) | The preset library is owner-authored data, saved from the editor through a server-side gate | Accepted |
 | [0113](0113-step-1-copy-is-approved-as-drafted-and-enters-the-copy-lock-in-the-wave-that-adds-it.md) | Step 1's copy is approved as drafted, and each leaf enters the copy lock in the wave that adds it | Accepted |
-| [0114](0114-a-visitor-is-a-host-only-httponly-secret-and-a-design-link-opens-only-in-its-own-browser.md) | A returning visitor is recognised by a host-only, HttpOnly secret, and a design's link opens only in the browser that owns it | Accepted (amended) |
+| [0114](0114-a-visitor-is-a-host-only-httponly-secret-and-a-design-link-opens-only-in-its-own-browser.md) | A returning visitor is recognised by a host-only, HttpOnly secret, and a design's link opens only in the browser that owns it | Accepted (amended; decision 7 noted 2026-10-07) |
 | [0115](0115-customer-profiles-replace-the-pin-and-arrive-in-m8-and-m7-ships-the-browser-cookie-and-share-links.md) | Customer profiles replace the PIN and arrive in M8; M7 ships the owner's browser cookie and short share links | Accepted |
 | [0116](0116-a-type-that-refuses-an-undesigned-shape-is-a-guard-and-the-cast-that-witnesses-it-is-confined-to-a-test.md) | A type that refuses to describe an undesigned shape is a guard, not friction, and the cast that witnesses the rule is confined to a test | Accepted (amended) |
 | [0117](0117-generation-produces-the-cheap-correct-baseline-and-the-owners-taste-enters-through-presets.md) | Generation produces a correct, cheap baseline, and the owner's taste enters through presets | Accepted |

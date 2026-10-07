@@ -99,7 +99,11 @@ the domain — both read surfaces M6's pricing waves are still writing.
 **Before M7**, because M7 adds `/configurator/room` and its six sub-states and M8 adds three more
 screens. That is two whole screens of copy. Authoring it as keys costs nothing; authoring it as
 hardcoded Romanian buys a later phase the job of hunting it down — which is what already happened
-once, and is why `apps/web/src/content/ro.ts` carries an M8 `contactPlaceholder` stub today.
+once, and is why ~~`apps/web/src/content/ro.ts`~~ carries an M8 `contactPlaceholder` stub today.
+
+> **Dated correction, 2026-10-07:** `apps/web/src/content/ro.ts` no longer exists; the
+> `contactPlaceholder` stub is the namespace at `apps/web/src/messages/ro.json:305`
+> [source-verified, Grep]. The M8 plan, *What the code has today*, says the same.
 
 ## Why M7B sits between M7 and M8
 
@@ -190,10 +194,10 @@ None of these may be closed by inventing a value. Each is listed again in the ph
 | --- | --- |
 | ~~The concrete database and its deployment story beyond local development~~ — resolved and provisioned 2026-08-25: Postgres on Neon's free tier, one `jsonb` document per design, linked to Vercel project `lemnaria-configurator-gbt` | closed |
 | ~~Backup mechanism~~ — resolved 2026-08-25: Neon's free-tier PITR is only 6 hours, so a daily scheduled export to Vercel Blob (private, 14-day rotation) supplements it; both free at POC scale | closed |
-| Design retention, deletion, and the privacy copy for a link-reachable design — decided as a placeholder (keep indefinitely, slot copy) 2026-08-25, real policy still open | M2, M8 |
+| Design retention, deletion, and the privacy copy for a link-reachable design — decided as a placeholder (keep indefinitely, slot copy) 2026-08-25, real policy still open — **partly closed 2026-10-07 by annotation:** ADR 0019's *Supersession note — 2026-09-15* retired automatic deletion of designs (*"Nothing deletes a design automatically, and nothing is scheduled to"*); retention of **contact** data and the privacy copy remain open (M8 plan, Q13) | M2, M8 |
 | Whether a shared link is read-only for a second viewer, and concurrent-edit behaviour | M2, carried |
 | How a failed background write is communicated to the customer — no mockup frame shows a persistence-failure state | M4 |
-| Whether the nightly export excludes the contact table, or Blob gains its own PII retention story | M8, settle before |
+| Whether the nightly export excludes the contact table, or Blob gains its own PII retention story — **half closed 2026-10-07 by annotation:** ADR 0012 scopes the export to `designs` alone and says *"this must not be widened"*, so it excludes the contact table; whether Blob gains a PII retention story or a second copy exists is M8 plan Q13 (ii), unanswered | M8, settle before |
 | The Hobby-plan cron frequency limit, and how the export runs where `pg_dump` is unavailable | M2 wave 2B |
 | Exact wall-length and room-height bounds | M7 |
 | ~~The real "≤ 30 cm adjustment" preset-fit threshold~~ — retired by ADR 0109 Amendment A; the mechanism this threshold belonged to is superseded | closed |

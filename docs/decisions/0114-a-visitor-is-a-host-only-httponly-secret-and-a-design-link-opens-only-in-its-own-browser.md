@@ -107,6 +107,11 @@ cookie costs one indexed lookup per request, the same order as today's `/d/{rand
 and WAF scope must include `/` and `/d/*`, and M8's retention cron deletes the visitor hash with its
 row.
 
+> **Dated note, 2026-10-07:** the clause *"M8's retention cron deletes the visitor hash with its row"* is
+> moot. [ADR 0019](0019-security-baseline-writes-throttling-retention.md)'s *Supersession note —
+> 2026-09-15: decision 7* retired the retention cron: *"Nothing deletes a design automatically, and
+> nothing is scheduled to."* The limiter and WAF scope in the same sentence stands.
+
 ## What the visitor sees when the cookie is gone
 
 Cleared browser, private window or another device: `/` has nothing to resume and opens Step 1. Under

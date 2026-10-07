@@ -53,6 +53,13 @@ the 3D editor — there is no confirm-and-continue screen between them.
 The preset is a composition of separate cabinet instances, not a single merged 3D model. Room
 dimensions and preset compatibility must be validated before a preset can be used.
 
+> **Dated corrections, 2026-10-07.** (1) *"only L is buildable today"* (item 1) is out of date: a U-shaped
+> room became buildable in M7B (STATUS, M7B row: *"a U is now buildable under `APPROVED_ROOM_POLICY` and
+> the card is live"*). (2) The preset story in items 3–4 and the paragraph above is **deferred past M8**
+> by [ADR 0131](decisions/0131-the-preset-story-is-deferred-past-m8-and-every-room-goes-from-its-dimensions-straight-to-composition.md):
+> in M8 every room goes from its dimensions straight to composition and no preset exists (M8 plan, D13).
+> The text above stays as the original product intent.
+
 ### Step 2 — Configure in 3D
 
 The most important screen in the product. The kitchen and room occupy the primary viewport. The user
@@ -156,6 +163,10 @@ Out of scope for the first release:
 - undo/redo, which the merging free-space model cannot express coherently;
 - linear and U-shaped room *layouts*, wall C, and door/window obstacles — deferred until a recipe
   and per-wall data exist, per the 2026-08-24 decision record.
+
+> **Dated correction, 2026-10-07:** the U-shaped layout and wall C are no longer deferred; they shipped
+> in M7B (the M8 plan: *"M7B shipped wall C; `WALL_DISPLAY_RANK` is A, B, C"*). The curated presets listed
+> under *In scope* are deferred past M8 by ADR 0131.
 
 ## Product principles
 

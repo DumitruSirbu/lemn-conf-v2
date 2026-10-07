@@ -32,6 +32,11 @@ replaced it — nothing is deleted or rewritten silently.
   first application). **Untouched:** the 14-day **backup** rotation, which the owner ruled separately
   the same day, and the same cron's rate-limit-counter pruning. **Consequence: no table in this
   project has a retention horizon — everything stored is permanent by default.**
+- **Annotated 2026-10-07, nothing superseded:** **ADR 0019**'s 2026-08-31 *"ship together"* sentence lost
+  its retention-cron term to the entry above (the replacement set is M8 owner question Q19, undecided),
+  and its table's `POST /api/contact` is `POST /api/contact-submissions` in `ARCHITECTURE_PROPOSAL.md`
+  §9; **ADR 0114** decision 7's *"M8's retention cron deletes the visitor hash"* is moot for the same
+  reason. Each carries a dated note in its own file.
 - **ADR 0111** Amendment A2 (a pointer cookie holding the design id) → **superseded** by **ADR 0114**
   on the owner's security requirement of 2026-09-11: the cookie holds a secret, never the id.
 - **ADR 0111** decision 7's demo interim (the editor stays at `/configurator/configure`) →

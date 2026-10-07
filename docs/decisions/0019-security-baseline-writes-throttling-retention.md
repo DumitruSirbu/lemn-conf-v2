@@ -455,3 +455,18 @@ password"*) and the rejection of Alternatives 1 (a password) and 2 (accounts). *
 reasons Alternative 1 gave — password reuse, hashing and never-logging duties, the reset path — are now
 M8's obligations, recorded in `docs/milestones/M8-review-contact-success.md`, *Customer profiles*.
 Decisions 1 (write half), 2–7 and 9–11 stand.
+
+## Annotation — 2026-10-07: two pointers found while planning M8
+
+Appended by the documentation scribe from `docs/milestones/M8-review-contact-success.md`, *What this
+revision corrected* and *Decision-record sweep*. No decision above is changed.
+
+1. **The 2026-08-31 correction's "ship together" sentence lost its middle term.** It reads *"must not
+   be exposed to real traffic until the application limiter, the 30-day abandoned-design retention
+   cron, and the staged WAF rule ship together."* The retention cron was retired by the *Supersession
+   note — 2026-09-15: decision 7* above, and the sentence was not restated. The three-part set is
+   therefore no longer buildable as written. **What replaces it is owner question Q19 in the M8 plan
+   and is undecided**; the plan's recommendation (limiter plus WAF) is a recommendation, not a ruling.
+2. **Endpoint name.** Decision 5's table calls the contact endpoint `POST /api/contact`;
+   `docs/ARCHITECTURE_PROPOSAL.md` §9 calls it `POST /api/contact-submissions`. The M8 plan's D15 uses
+   the §9 name. Two records, one endpoint; the table's text is left as accepted.

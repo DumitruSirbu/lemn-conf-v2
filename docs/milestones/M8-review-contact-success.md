@@ -3,6 +3,13 @@
 > **STATUS: PLANNED — wave plan written 2026-10-07 at `90927dc`; no wave dispatched.** M8 does not
 > start until the owner says so and M7C has closed (see *What M8 assumes*). Summary: `docs/STATUS.md`.
 >
+> **Updated 2026-10-07, later, at `7519005` on `m8-review-contact-success` [src, git].** The owner
+> answered Q1–Q20 (*The owner's answers, 2026-10-07*). **Profiles left for M8B** (Q1), so M8 is
+> seventeen waves and ends at 8T. 8A S2's vendor reads are folded in (*8A figures*); 8A S1's
+> measurements are not in yet. **Six follow-up questions are open, Q21–Q26**, and the first two —
+> where production runs and where the database lives — make five of the recorded answers
+> conditional. Dispatchable as written: **8B, 8C, 8D, 8E, 8I**.
+>
 > This file was first written before M7, M7B and M7C. It was revised in place on 2026-10-07 into a
 > wave plan. Nothing was deleted silently: every earlier claim a later record overtook is listed in
 > *What this revision corrected*, with the record that overtook it, and the owner's dated sections are
@@ -13,6 +20,13 @@ record in this repository, **[inf]** the architect's inference, with what would 
 about a vendor (Vercel, BotID, a mail provider, Postgres privileges, Node) is **[inf]** everywhere in
 this file: none was read from vendor documentation for this plan. Wave 8A reads them and replaces the
 label.
+
+**Added 2026-10-07, later.** 8A S2 read the vendors' documentation that day. **[ven]** marks a
+quotation or figure taken from its report (`m8-8a-s2/vendor-reads.md` in the session scratchpad,
+with raw copies of each page). It is another agent's read: neither the coordinator nor the architect
+re-read the vendor pages, except Next's `after.md`, which the architect read in the installed
+package. Where a wave's text still says **[inf]** about a vendor, *8A figures* is the current
+state.
 
 Reference: mobile mockup frames 3A, 3B, 4A, 4B, 4C, 5A, 5B and 2F
 (`docs/design/mockups/Lemnaria Configurator Mobil.dc.html:921-1512`); `ARCHITECTURE_PROPOSAL.md` §8, §9;
@@ -45,9 +59,12 @@ including when the submission fails. Make the write endpoints safe to meet real 
 **In.** Screens 3, 4, 5 (frames 3A, 3B, 4A, 4B, 4C, 5A, 5B) and frame 2F's two exits; the submission
 boundary and its sink; the application rate limiter over every endpoint ADR 0019 and ADR 0114 assign
 to it; the contact form's bot controls; the driver-error redaction the owner ruled into this phase;
-the CSP enforce flip; the pre-launch checks; customer profiles (ADR 0115), unless Q1 moves them.
+the CSP enforce flip; the pre-launch checks; ~~customer profiles (ADR 0115), unless Q1 moves them~~.
 
 **Out, with the owner of each.**
+
+- **Customer profiles: M8B**, by the owner's answer to Q1 on 2026-10-07 (relayed). M8B comes after
+  M8 and before launch. See *Part P*.
 
 - CRM integration: not planned (ADR 0001 decision 7).
 - The preset story (7P1, 7P2, 7G, 7B, 7C, 7F3): past M8, ADR 0131. Nothing here reads a preset.
@@ -101,8 +118,10 @@ All [src] at `90927dc`.
   `design_share_links`, asserted live (`tests/application-role-privileges.test.ts:57,92,123`).
 - **The CSP reports only** (`security-headers.ts:19-20`).
 - **Messages:** 328 leaves in `ro.json` and in `ru.json`; namespaces include `contactPlaceholder`.
-- **A DOM is available to unit tests** per file: 43 `.dom.test.ts` files declare `happy-dom`.
-  Backlog 48's *"no DOM"* is stale for those.
+- **A DOM is available to unit tests** per file: ~~43~~ **36** `.dom.test.ts` files declare
+  `happy-dom`. Backlog 48's *"no DOM"* is stale for those. **Corrected 2026-10-07:** 43 was the count
+  of files under `apps/web/tests` containing the string `vitest-environment`, not of DOM test
+  files. The coordinator recounted 36; the architect re-ran `find` and `grep` and read 36 of 36.
 
 ## Decision-record sweep
 
@@ -139,18 +158,18 @@ its wave starts. The owner may overrule any of them.
 
 | # | Decision | Warrant |
 | --- | --- | --- |
-| D1 | Screens 3–5 are addressed by the design: `/[locale]/d/{id}/review`, `…/contact`, `…/{done}`. Each is gated exactly as `/d/{id}` is. `/[locale]/configurator/contact` stays as the entry with no design (frame 2F). | [inf] from ADR 0114 d5: a design opens only at its own gated link, so a route that shows one must carry its id and pass the same gate. Falsified if the owner wants unaddressed URLs (Q2). |
+| D1 | Screens 3–5 are addressed by the design: `/[locale]/d/{id}/review`, `…/contact`, `…/done` (Q2, answered (a)). Each is gated exactly as `/d/{id}` is. `/[locale]/configurator/contact` stays as the entry with no design (frame 2F). | [inf] from ADR 0114 d5: a design opens only at its own gated link, so a route that shows one must carry its id and pass the same gate. Falsified if the owner wants unaddressed URLs (Q2). |
 | D2 | The review lists one row per body, exactly the breakdown's rows. Frame 3B's aggregated row (*"2 × 800 mm"*) is not reproduced. | [src] amounts are rounded per row (`price-breakdown-model.ts:11-13`); an aggregated row would print a figure the breakdown never shows. Falsified if the owner wants aggregation, which then needs a rounding rule. |
 | D3 | A group's *Editează* opens the editor with the group's **first body in display order** selected. | [inf] The frame says *"cu corpul preselectat"* for a group of several. Falsified if the owner wants a per-row action. |
 | D4 | The review's render and the success screen's render are the existing scene component, mounted without picking, with the room's own camera presets (`cameraPresetsForRoom`). No builder, anchor or scaling rule changes. | [doc] `DEVELOPMENT-SPEC.md` §10.1: *"Scene … one component"*. Falsified if a non-picking mount needs an adapter change. |
 | D5 | The request names a design id and the revision the review rendered. The server snapshots the stored row only at that revision; a mismatch is refused. | [doc] ARCH §8: *"the exact reviewed configuration snapshot, not whatever happens to be in mutable UI state"*. [src] the row has a revision (`design-revision.ts`). |
 | D6 | The client sends no price. The server derives it from the stored row. | [doc] ARCH §9: *"the server never trusts a client line or total"*; ADR 0004. |
 | D7 | The submission stores the server's priced lines, total and `book.version`. Nothing re-prices a stored submission. | [doc] ADR 0072's owner design, items 2 and 5: a saved kitchen *"keeps showing the price it was quoted at"*; *"Nothing auto-updates."* Answers ADR 0062's M8 consequence as *keep the snapshot*. No `pricingVersion` is added to `DesignSchema`. |
-| D8 | A submission succeeds only when its row is stored **and** the notification is accepted by the provider. A retry with the same client request id never stores a second row and re-attempts only what is missing. | [inf] Lets the app role read no contact column (Q14) and still never lose a lead silently. Depends on Q3. |
+| D8 | A submission succeeds only when its row is stored **and** the notification is accepted by the provider. A retry with the same client request id never stores a second row and re-attempts only what is missing. | [inf] Lets the app role read no contact column (Q14) and still never lose a lead silently. Depends on Q3 (answered (a)). **The notification is sent before the response, not in `after()`:** `after` schedules *"work to be executed after a response (or prerender) is finished"* [doc `next/dist/docs/01-app/03-api-reference/04-functions/after.md:6`, next 16.3.8], and work that runs after the response cannot change it. |
 | D9 | A honeypot hit, a failed bot check and a too-fast submit are refusals. None answers as a success. | [doc] ARCH §9: *"must not fake customer success"*, read to cover every false success. |
 | D10 | Counters are keyed by a SHA-256 of the bucket identity, in fixed windows. The table holds no raw address or e-mail. | [inf] Data minimisation. Residual: a fixed window admits up to twice the limit across one boundary; the security reviewer rules on it. |
 | D11 | The mint's session bucket must survive ADR 0114 H1's rotation, which changes the visitor value on every mint. The mechanism is fixed in 8F S0. | [doc] ADR 0019 d3 keys a bucket on the session; ADR 0114 H1 rotates it. **A gap between two records.** Preferred [inf]: count the visitor's own `designs` rows created in the window, since rotation moves those rows. |
-| D12 | In the application layer *"challenge"* means: the request must carry a passing bot verdict, else it is refused. | [doc] ADR 0019 d5 gives application rows the action *challenge* and defines it only for the WAF. **A gap.** Depends on Q16. |
+| D12 | In the application layer *"challenge"* means: the request must carry a passing bot verdict, else it is refused. | [doc] ADR 0019 d5 gives application rows the action *challenge* and defines it only for the WAF. **A gap.** Depends on Q16, and through it on Q21: with no bot check on the launch host, *challenge* has no mechanism and this row returns to planning. |
 | D13 | The contact card shows the review's room summary line, the body count and the price. No preset name. | [doc] ADR 0131. |
 | D14 | A kitchen with no cabinet cannot be submitted: the CTA is disabled with its reason. | [src] the breakdown is already `unavailable` for it (`price-breakdown-model.ts:118`). [doc] §13.1: never offer what cannot be satisfied. |
 | D15 | The endpoint is `POST /api/contact-submissions` (ARCH §9). ADR 0019's table calls it `POST /api/contact`. | Two records, one endpoint; the ADR gets a pointer. |
@@ -162,7 +181,79 @@ its wave starts. The owner may overrule any of them.
 None may be closed by inventing a value. Each names the first wave it blocks. Recommendations are the
 architect's.
 
-**Q1 — Are profiles part of M8, or their own milestone?** ADR 0115: *"In M8, with e-mail"*.
+### The owner's answers, 2026-10-07
+
+**The answer, verbatim** (relayed by the coordinator):
+
+> "Moldova only for now, rest as recommended"
+
+**What it was a reply to.** The coordinator had relayed Q1–Q20 as a table with the architect's
+recommendation for each. Before answering, the owner asked two things, verbatim:
+
+> "what if currently this will run only for Moldova that is not in EU?"
+
+> "to be GDPR compliant uh, the server should be in Europe I think the Vercel is only for development
+> later we will uh, develop or we will yeah deploy this in uh, uh, Moldova server on a Moldova server
+> will be this enough or do we need to do something additional to be GDPR compliant?"
+
+The coordinator then asked three things (the coordinator's wording, relayed, not quoted): where
+production runs, Vercel or a Moldovan server; where the database lives, Neon or Postgres on that
+server; who the customers are at launch, Moldova only or the diaspora too. **The owner's reply
+answers the third only.**
+
+**Ruled.**
+
+1. **Verbatim:** customers at launch are Moldova only, *"for now"*.
+2. **By reference:** Q1–Q20 *"as recommended"*. Each is recorded below as *answered 2026-10-07, as
+   recommended (relayed)*: it is the architect's recommendation as this file stated it at
+   `7519005`, accepted in one phrase. It is not the owner's own wording on that question.
+
+**Not ruled, and kept open.**
+
+- **Where production runs and where the database lives.** *"the Vercel is only for development"* and
+  *"deploy this … on a Moldova server"* are a stated intention with no date and no target. They are
+  not a ruling. Q21 and Q22. Five recorded answers depend on them and are marked **conditional**.
+- **The owner's own question about GDPR.** No agent answers it: which law governs a Moldovan shop
+  serving Moldovan customers, and what it requires, is a legal question. What this plan can supply
+  is a list of what personal data is kept, by whom and in which country; 8S prepares it.
+- **Three places where *"Moldova only"* and *"as recommended"* pull apart.** Neither reading is
+  picked here: Q23 (non-Moldovan traffic), Q24 (phone numbers), Q26 (frame 4A's hint). On Q24 the
+  coordinator told the owner that *"Moldova only"* could mean Moldovan numbers alone. That is the
+  coordinator's reading, labelled as such; the owner did not say it.
+- **One answer overtaken by a fact read after it was given:** Q4, reopened as Q25.
+
+| Q | Recorded answer (as recommended, relayed) | State |
+| --- | --- | --- |
+| 1 | (b): profiles are **M8B**, after M8, before launch | Settled |
+| 2 | (a): `/d/{id}/review`, `/d/{id}/contact`, `/d/{id}/done` | Settled |
+| 3 | (a): a stored row and an e-mail to the shop's inbox | Settled. **Owed:** the inbox address; the shop's phone number |
+| 4 | (a): Resend over plain HTTPS | **Reopened as Q25.** **Owed:** the sending domain, or the mailbox |
+| 5 | (a): the text summary and the stored snapshot; 5A's WhatsApp action is built on the customer's own share link | Settled |
+| 6 | (i) locality optional; (ii) the e-mail input appears with the *E‑mail* chip and is required then | Settled. (iii) is **Q24** |
+| 7 | (b): placeholder text and a gate line | Settled. **Owed:** the consent and privacy text |
+| 8 | (a): no response time anywhere; 4A's hint is not drawn | Settled, with **Q26** asked |
+| 9 | Both lists are slots until the owner confirms them line by line | Settled. **Owed:** the not-included list; 5A's three steps |
+| 10 | (a): drafted wording enters the copy lock in its wave; slots excluded; the Russian is re-signed at the gate | Settled |
+| 11 | (a): the e-mailed edit link is dropped | Settled |
+| 12 | (i) a callback with no design is a submission; (ii) the link e-mail is left out until the provider is live, then built as a slice of 8L | Settled |
+| 13 | (i) kept until removed by hand; (ii) no copy in Blob | Settled. (ii)'s *"Neon's six-hour restore"* is **conditional on Q22**. A sending provider may hold a further copy: Q25 |
+| 14 | Both grants as stated | Settled, with two conditions from the Postgres documentation (*8A figures*, §8) |
+| 15 | (a): the numbers stand until 8A S1 measures; (iii) 600 an hour per network for page reads, failing open | Settled. Where the address and the country come from is **conditional on Q21**; how a non-Moldovan request is treated is **Q23** |
+| 16 | (a): BotID's free tier | **Conditional on Q21** |
+| 17 | (a) if it stages cleanly in `log`, else (b) | **Conditional on Q21** |
+| 18 | (a): memory only; the sentence is reworded | Settled |
+| 19 | The set is limiter + WAF | **Conditional on Q21** for the WAF half. The storage-alert decision waits for 8A S1's figure, which was not in front of the owner |
+| 20 | The version current at launch is the first stored schema; existing rows are kept | Settled |
+
+**Still owed by the owner, as facts no agent may supply:** the shop's inbox address and phone number
+(Q3); the sending domain or mailbox (Q25); the consent and privacy text (Q7); the not-included list
+and 5A's steps (Q9); and the name of the project's Vercel plan, read off the dashboard (*8A
+figures* infers Hobby and does not know it).
+
+### The questions as put
+
+**Q1 — Are profiles part of M8, or their own milestone?** *[Answered 2026-10-07: (b), as
+recommended (relayed).]* ADR 0115: *"In M8, with e-mail"*.
 Profiles are ten waves (8N, 8P1–8P9) beside seventeen for everything else.
 (a) Keep them in M8 as Part P. (b) Make them **M8B**, after M8 and still before launch, with their
 own branch and pull request.
@@ -170,27 +261,34 @@ own branch and pull request.
 a pull request of twenty-seven waves is not a reviewable unit. It changes ADR 0115's wording, so it
 is the owner's. *Blocks:* 8N.
 
-**Q2 — The addresses of screens 3–5, and screen 5's name.** The mockup writes `/configurator/done`,
+**Q2 — The addresses of screens 3–5, and screen 5's name.** *[Answered 2026-10-07: (a), as
+recommended (relayed).]* The mockup writes `/configurator/done`,
 the architecture proposal `/configurator/success`.
 (a) `/d/{id}/review`, `/d/{id}/contact`, `/d/{id}/done` (D1). (b) the same with `/success`.
 (c) the mockup's unaddressed `/configurator/…` paths, resolved from the cookie.
 *Recommended: (a).* Frame 5B, the failure, lives on the same route, which `success` misnames.
 *Blocks:* 8D.
 
-**Q3 — How does Lemnaria receive a request?** No dashboard exists before the post-M8 one.
+**Q3 — How does Lemnaria receive a request?** *[Answered 2026-10-07: (a), as recommended
+(relayed). The address and the phone number are still owed.]* No dashboard exists before the post-M8 one.
 (a) A stored row **and** an e-mail to the shop's inbox with the customer's details and the kitchen's
 summary. (b) The row only; someone queries the database. (c) The e-mail only.
 *Recommended: (a).* It also needs two facts from the owner: the inbox address, and the shop's phone
 number for frame 5B's *"Sună direct la magazin"*. With (a) the mail provider processes personal
 data, which the privacy text must say (Q7). *Blocks:* 8J.
 
-**Q4 — The mail provider and the sending domain.** (a) Resend. (b) Postmark. (c) Amazon SES.
+**Q4 — The mail provider and the sending domain.** *[Answered 2026-10-07: (a), as recommended
+(relayed). **Reopened as Q25:** the recommendation assumed an EU region, and 8A S2 then read that
+Resend's EU region sends from Ireland while all account data is stored in the United States.]*
+(a) Resend. (b) Postmark. (c) Amazon SES.
 (d) The shop's existing mailbox over SMTP.
-*Recommended: (a), called over plain HTTPS with no SDK dependency* [inf: that it offers an HTTP API,
-a free tier sufficient for this volume and an EU region; 8A reads its documentation]. Any choice needs
+*Recommended: (a), called over plain HTTPS with no SDK dependency* [~~inf~~ **[ven]** *8A figures*
+§4: the HTTP API and the free tier are confirmed; the EU region is **not** what this sentence
+assumed]. Any choice needs
 DNS records on a Lemnaria domain, which only the owner can add. *Blocks:* 8J.
 
-**Q5 — What does the manufacturer see of the kitchen?** A design opens only in its owner's browser,
+**Q5 — What does the manufacturer see of the kitchen?** *[Answered 2026-10-07: (a), and the
+WhatsApp action built on the customer's own share link, as recommended (relayed).]* A design opens only in its owner's browser,
 and a design has one share link at a time (ADR 0114 B2), so issuing one for the shop would revoke
 the customer's.
 (a) The text summary in the e-mail and the stored snapshot; the 3D view waits for the dashboard.
@@ -201,7 +299,8 @@ decides frame 5A's *"Trimite design-ul pe WhatsApp"*: build it on the customer's
 which re-issues and so revokes a link they already sent (recommended, with the existing warning), or
 leave it out of M8. *Blocks:* 8M.
 
-**Q6 — The contact fields.** ADR 0001 d6 requires name and phone and makes e-mail optional. Three
+**Q6 — The contact fields.** *[Answered 2026-10-07: (i) and (ii) as recommended (relayed).
+**(iii) is not settled:** see Q24.]* ADR 0001 d6 requires name and phone and makes e-mail optional. Three
 things are unrecorded.
 (i) Is *Oraș sau localitate* required? *Recommended: optional.*
 (ii) No frame draws an e-mail input, but a channel chip is *E‑mail*. *Recommended:* the input appears
@@ -211,19 +310,23 @@ Italy. *Recommended:* accept a Moldovan number (0 and eight digits, or +373 and 
 international number written with `+`; frame 4B's sentence applies to the Moldovan form.
 *Blocks:* 8H.
 
-**Q7 — Consent and privacy text.** The consent sentence, where *"Detalii"* leads, the privacy notice,
+**Q7 — Consent and privacy text.** *[Answered 2026-10-07: (b), as recommended (relayed). The text
+is still owed.]* The consent sentence, where *"Detalii"* leads, the privacy notice,
 the processors it names and what it says about retention are legal copy no agent writes.
 (a) The owner supplies them before 8L. (b) 8L builds with text that is visibly a placeholder, and
 the launch gate holds a line that cannot be ticked until the owner's text replaces it.
 *Recommended: (b).* The stored submission records which consent text version was shown either way.
 *Blocks:* 8T, not the build.
 
-**Q8 — May a response time be promised?** Frame 4A draws *"În Moldova sunăm de obicei în aceeași zi
+**Q8 — May a response time be promised?** *[Answered 2026-10-07: (a), as recommended (relayed).
+Q26 asks whether "Moldova only" changes it.]* Frame 4A draws *"În Moldova sunăm de obicei în aceeași zi
 lucrătoare."* under the phone field. Frame 5A's note says *"Termenele nu sunt promise"*.
 (a) No time anywhere; 4A's hint is not drawn. (b) Keep 4A's hint as worded. (c) The owner's wording.
 *Recommended: (a) until ruled.* *Blocks:* one leaf in 8L.
 
-**Q9 — What the estimate includes, and the "not included" list.** Frame 3B lists *Blat de lucru și
+**Q9 — What the estimate includes, and the "not included" list.** *[Answered 2026-10-07, as
+recommended (relayed): slots until the owner confirms. The confirmation itself is still owed.]*
+Frame 3B lists *Blat de lucru și
 cant; Electrocasnice și chiuvetă; Transport și montaj; Racorduri electrice și sanitare*. Two records
 bear on it: the approved breakdown disclaimer already says *"Nu include transport, blat sau
 electrocasnice"* (`ro.json:217`) [src], and ADR 0092 prices two sink extras, so *"chiuvetă"* is partly
@@ -232,7 +335,8 @@ incluse"*, a commercial statement.
 *Recommended:* the owner confirms the list and 5A's three steps line by line; until then both are
 slots drawn from the existing disclaimer. *Blocks:* 8T. 8C and 8M build the slots.
 
-**Q10 — How is M8's new wording approved?** ADR 0113's *"Mark as approved at the moment"* was given
+**Q10 — How is M8's new wording approved?** *[Answered 2026-10-07: (a) with the Russian backstop,
+as recommended (relayed).]* ADR 0113's *"Mark as approved at the moment"* was given
 for Step 1.
 (a) The same rule for M8: drafted wording enters the copy lock in the wave that adds it and the owner
 adjusts later; the slots of Q7, Q8 and Q9 are excluded and wait for the owner's text.
@@ -240,19 +344,22 @@ adjusts later; the slots of Q7, Q8 and Q9 are excluded and wait for the owner's 
 *Recommended: (a), plus ADR 0095's backstop re-sign of the Russian at the gate.* *Blocks:* 8C, the
 first wave that adds a leaf.
 
-**Q11 — Does the e-mailed edit link survive?** ADR 0115 obligation 12 leaves it to this phase.
+**Q11 — Does the e-mailed edit link survive?** *[Answered 2026-10-07: (a), dropped, as recommended
+(relayed).]* ADR 0115 obligation 12 leaves it to this phase.
 (a) Drop it: the profile is the way back. (b) Keep it for a customer who submits without a profile.
 *Recommended: (a).* (b) is a second way to bind a browser to a design, sent over e-mail, with its own
 review. *Blocks:* 8M's copy.
 
-**Q12 — Frame 2F's two exits.** A device without WebGL is offered *"Vreau să mă contactați"* and
+**Q12 — Frame 2F's two exits.** *[Answered 2026-10-07: (i), and (ii)(b) then (a), as recommended
+(relayed).]* A device without WebGL is offered *"Vreau să mă contactați"* and
 *"Trimite-mi linkul pe e‑mail"*; neither has a design.
 (i) *Recommended:* a callback request with no design is a submission through the same endpoint.
 (ii) The link e-mail sends our mail to an address nobody verified. (a) Build it: fixed text, no
 customer-written content, three a day per address, under the limiter. (b) Leave that exit out of M8.
 *Recommended: (b) until Q4's provider is live, then (a) as a slice of 8L.* *Blocks:* 8H.
 
-**Q13 — How long is contact data kept, and is it backed up?** The owner's 2026-09-15 ruling was
+**Q13 — How long is contact data kept, and is it backed up?** *[Answered 2026-10-07: both as
+recommended (relayed). (ii)'s point-in-time restore is conditional on Q22.]* The owner's 2026-09-15 ruling was
 about configurations; contact details are personal data, so it is asked, not extended.
 (i) Kept until someone removes it by hand (recommended, said in the privacy text), or a stated
 period.
@@ -260,7 +367,8 @@ period.
 Blob; the shop's inbox is the second copy and Neon's six-hour point-in-time restore the third.
 *Blocks:* 8T.
 
-**Q14 — Database grants for the two new tables.** Issued by the owner after each migration, as for
+**Q14 — Database grants for the two new tables.** *[Answered 2026-10-07: both, as recommended
+(relayed).]* Issued by the owner after each migration, as for
 `design_share_links`.
 (i) Contact submissions: `INSERT`, plus `SELECT` and `UPDATE` on the non-personal columns only
 (reference, client request id, design id, revision, payload hash, timestamps, notified-at). **The
@@ -268,10 +376,15 @@ application role cannot read a name, a phone number or an e-mail address**, so a
 `DATABASE_URL` does not leak the leads.
 (ii) Rate-limit counters: `SELECT, INSERT, UPDATE, DELETE` on that table alone, because pruning is a
 delete. It holds hashes and counts.
-*Recommended: both as stated.* [inf: that Postgres permits the idempotent insert under column-scoped
-`SELECT`; 8I measures it on the test database before the grant is asked for.] *Blocks:* 8E, 8I.
+*Recommended: both as stated.* [~~inf~~ **[ven]** *8A figures* §8: Postgres permits the idempotent
+insert under column-scoped `SELECT` **if** the conflict target is written out and names only granted
+columns, and `RETURNING` names only granted columns. 8I still measures it on the test database
+before the grant is asked for.] *Blocks:* 8E, 8I.
 
-**Q15 — ADR 0019's limits against how the product is now used.** The numbers predate two facts.
+**Q15 — ADR 0019's limits against how the product is now used.** *[Answered 2026-10-07: (a), and
+600 an hour for (iii), as recommended (relayed). 8A S1's measurement is still owed. (iii)'s figure is
+an **application** limit; it was never a firewall rule, whose window is at most ten minutes (*8A
+figures* §7).]* The numbers predate two facts.
 (i) Every Step 1 *Continuă* mints a design (ADR 0111 d5). The mint limit is 5 an hour per session,
 10 an hour per network. A customer trying six room sizes in an hour is refused.
 (ii) The save limit is 300 an hour per session; the coalescer allows one save a second. About ten
@@ -284,32 +397,41 @@ number.
 owner if an ordinary session crosses half a limit. For (iii), 600 an hour per network, failing open.
 *Blocks:* 8F.
 
-**Q16 — The bot check.** (a) Vercel BotID's free tier. (b) Its paid tier. (c) None; honeypot and
-timing only. *Recommended: (a)* [inf: tiers, cost and CSP needs; 8A reads the documentation]. ADR 0019
+**Q16 — The bot check.** *[Answered 2026-10-07: (a), as recommended (relayed). **Conditional on
+Q21:** BotID is a Vercel service.]* (a) Vercel BotID's free tier. (b) Its paid tier. (c) None;
+honeypot and timing only. *Recommended: (a)* [~~inf~~ **[ven]** *8A figures* §1: the free tier and
+the API are confirmed; (b) cannot be bought on Hobby; the CSP needs are **undocumented**]. ADR 0019
 also asks for a minimum time-to-submit and gives no number: 8K proposes one and the phone gate proves
 an autofilled form sent by a real tap passes. *Blocks:* 8K.
 
-**Q17 — The one firewall rate rule.** The plan allows one `rate_limit` rule; the runbook spends it on
-`/api/`. ADR 0114 d7 wants pages in scope too.
-(a) Widen the rule to every path except static assets, if one rule can express that [inf].
+**Q17 — The one firewall rate rule.** *[Answered 2026-10-07: (a) if it stages cleanly, else (b), as
+recommended (relayed). **Conditional on Q21:** the rule is Vercel's firewall.]* The plan allows one
+`rate_limit` rule; the runbook spends it on `/api/`. ADR 0114 d7 wants pages in scope too.
+(a) Widen the rule to every path except static assets, if one rule can express that [~~inf~~
+**[ven]** *8A figures* §7: negated conditions exist, so one rule can; what happens past the included
+request count is unverified].
 (b) Keep `/api/`; pages rely on the application limiter; ADR 0114 d7 gets a dated amendment.
 *Recommended: (a) if it stages cleanly in `log` mode, else (b).* Publishing is the owner's action.
 *Blocks:* 8R.
 
-**Q18 — Frame 5B says *"Design-ul și datele tale sunt salvate pe telefon"*.** The design is saved on
+**Q18 — Frame 5B says *"Design-ul și datele tale sunt salvate pe telefon"*.** *[Answered
+2026-10-07: (a), as recommended (relayed).]* The design is saved on
 the server; D17 keeps contact details in memory only.
 (a) Memory only; the sentence is reworded to what is true (kept while this page is open).
 (b) Keep the typed details in the tab's session storage until the request is sent, amending ARCH §8.
 *Recommended: (a).* The CSP does not yet enforce, so script-readable storage is the weaker place.
 *Blocks:* 8M.
 
-**Q19 — The launch gate after the reaper's retirement.** The gate was *limiter + retention + WAF,
+**Q19 — The launch gate after the reaper's retirement.** *[Answered 2026-10-07: the set is limiter
++ WAF, as recommended (relayed). **Conditional on Q21** for the WAF half. The storage-alert decision
+is still owed: 8A S1's figure was not in front of the owner.]* The gate was *limiter + retention + WAF,
 together*. With retention retired, what gets past the limits is kept forever.
 *Recommended:* confirm the set is **limiter + WAF**; 8A states the worst case the limits admit in
 bytes per day (backlog 92), and the owner decides whether to add a storage alert on Neon.
 *Blocks:* 8T.
 
-**Q20 — The first stored schema.** ADR 0038 ends at first release. *Recommended:* the document
+**Q20 — The first stored schema.** *[Answered 2026-10-07, as recommended (relayed).]* ADR 0038
+ends at first release. *Recommended:* the document
 version current at launch is declared the first stored schema; every later model change owes a
 migration arm; rows already in production are kept (add-only). *Blocks:* 8S.
 
@@ -317,41 +439,137 @@ migration arm; rows already in production are kept (add-only). *Blocks:* 8S.
 breached-password source; session lifetime; what the dashboard's *delete* and account deletion do
 when the application role may not delete a design (recommended: profile data is scrubbed in place and
 a design is hidden, not removed); the length and character rules of a design's name; whether profile
-rows are backed up to Blob.
+rows are backed up to Blob. **Moved to M8B with Part P (Q1, 2026-10-07).**
+
+### Follow-up questions, 2026-10-07 — open
+
+Raised by the owner's answer and by 8A S2's reads. None is answered.
+
+**Q21 — Where does production run at launch?** The owner said *"the Vercel is only for development"*
+and that the product will later be deployed *"on a Moldova server"*, without a date. M8's security
+design is written for Vercel: ADR 0019 d2 makes Vercel the firewall, d4 reads the country from it,
+d9 rejects any other proxy in front, and d10 stages its rules. Off Vercel these have no
+counterpart yet:
+
+- the bot check (Q16): BotID's challenge scripts are served through `api.vercel.com` [ven §1]; how
+  it answers elsewhere is undocumented;
+- the firewall rule (Q17, 8R) and the free absorption of volume that d2 rests on;
+- the client address: on Vercel `x-forwarded-for` is overwritten by the platform [ven §2]; on
+  another host it is whatever the reverse proxy in front is configured to send;
+- the country: `x-vercel-ip-country` is Vercel's header [ven §2];
+- the scheduler for the nightly jobs, and the Blob store the backup writes to.
+
+(a) Vercel at launch, as today. (b) A Moldovan server from launch. (c) Vercel at launch; the move is
+its own later milestone, with its own security plan.
+*Recommended: the owner rules the launch host now, and (c).* Everything built and measured so far
+runs on Vercel. With (b), M8 drops the bot check, 8R and the gate's WAF half, and **launch waits for
+a hosting milestone** that replaces them and re-reads ADR 0019 d2, d4, d9 and d10; the application
+limiter alone is what d2 warns becomes the denial of service. *Blocks:* 8F S1, 8K's bot check, 8R,
+8T's gate. *Makes conditional:* Q15's sources, Q16, Q17, Q19.
+
+**Q22 — Where does the database live at launch?** Today it is Neon, in `eu-central-1` [doc ADR
+0007:32].
+(a) Neon, as today. (b) Postgres on the Moldovan server.
+*Recommended: (a) through M8.* Every connection is opened with Neon's own driver [src, the six sites
+in 8B]; that it cannot reach an ordinary Postgres server is [inf], and 8B's single opener is where a
+change would land. With (b) the six-hour point-in-time restore of Q13 (ii) goes, the backup needs a
+new home, and each store wave's live suite changes: that is the hosting milestone's work, not M8's.
+The SQL of 8E and 8I is ordinary Postgres [inf]. *Blocks:* nothing in M8 if (a). *Makes
+conditional:* Q13 (ii).
+
+**Q23 — What does "Moldova only" mean for a request from outside Moldova?** ADR 0019 d4: such
+traffic *"is never denied outright"*; it gets a tighter limit and a challenge. It gave three reasons:
+the diaspora, roaming and VPNs that geolocate to a neighbour, and the owner testing from abroad.
+*"Moldova only for now"* speaks to the first.
+(a) d4 stands: tighter and challenged, never denied. (b) Deny outright. (c) No geography: one limit
+for everyone.
+*Recommended: (a).* Two of d4's three reasons do not depend on the diaspora, and a wrongly denied
+customer simply never arrives. If Q21 is (b) there is no country header, and (c) is what remains
+unless a location database is added. *Blocks:* 8F S1, S2.
+
+**Q24 — Which phone numbers are accepted?** (Q6 (iii), narrowed.) The two readings of the owner's
+answer disagree: *"rest as recommended"* keeps Moldovan numbers plus any international number written
+with `+`; the coordinator's reading of *"Moldova only"* is Moldovan numbers alone.
+(a) Moldovan numbers only. (b) Moldovan, plus international with `+`.
+*Recommended: (a) for launch.* This reverses the architect's earlier (b), whose stated reason was
+the diaspora. Frame 4B's sentence then applies to every number. The stored form is the full
+international one either way, so widening later adds a rule and migrates nothing. *Blocks:* 8H S1.
+
+**Q25 — The mail provider, given where it keeps data.** (Q4, reopened.) The notification carries a
+name and a phone number. What 8A S2 read [ven §4]:
+
+- **Resend:** *"All account data, including email metadata, logs, and API records, is stored in the
+  United States regardless of the sending region you select"*; it *"retains email data for 30 days"*.
+- **Postmark:** *"We currently don't have plans to add servers in the EU"*.
+- **Amazon SES:** regional endpoints in Frankfurt, Ireland, Milan and Stockholm; requests are
+  signed, so no SDK means writing the signing by hand; its data-residency wording was not read.
+
+Whichever is chosen, the message ends in the shop's own inbox, whose host keeps it.
+(a) Resend, named in the privacy text as a processor in the United States. (b) Amazon SES in an EU
+region. (c) The shop's own mail host over SMTP, from a mailbox made for this and nothing else: no
+second processor. (d) Postmark.
+*Recommended: (c), if the shop's mail host allows it; else (a).* Unverified, and owed to an 8J S0
+before any code: that the host permits outbound SMTP, and the SMTP client dependency, which is a
+dependency change at the security tier [inf, both]. The mailbox must be a dedicated one: its password
+in a leaked environment must not open the shop's correspondence. Whether a United States processor
+is acceptable is the owner's and their lawyer's to say. *Blocks:* 8J S1's adapter only; the port,
+the fake and the message text do not wait.
+
+**Q26 — Frame 4A's hint, *"În Moldova sunăm de obicei în aceeași zi lucrătoare."*** (Q8, narrowed.)
+*"As recommended"* means it is not drawn. *"Moldova only"* removes the hint's qualifier as a
+difficulty, since every customer is now in Moldova; it does not say a time may be promised.
+(a) Not drawn. (b) Drawn as the frame has it.
+*Recommended: (a) stands.* The open matter was the promise, not the geography. *Blocks:* one leaf in
+8L.
 
 ## Waves
 
-| Wave | Covers | Packages | Tier | Blocked by |
+The last column was *Blocked by* and named Q1–Q20. It was restated on 2026-10-07 after the owner's
+answers; the questions each wave first waited on are in *The questions as put*.
+
+| Wave | Covers | Packages | Tier | Waits for, as of 2026-10-07 |
 | --- | --- | --- | --- | --- |
-| 8A | Measurements, vendor reads, the questions | none (docs, scratch) | Light | — |
-| 8B | A driver error never prints the connection string | persistence, web | Full + security | — |
-| 8C | The review as a value: rows, room line, submit eligibility | web, domain (read) | Full | Q10 |
-| 8D | The review route and screen 3A/3B; the CTA gets its destination | web | Light + visual; security on S1 | Q2 |
-| 8E | The rate-limit store | persistence | Full + security | Q14 |
-| 8F | The limiter and the mint (SEC-001, backlog 90) | web | Full + security | Q15 |
-| 8G | The limiter on saves, shares and reads; pruning | web, persistence | Full + security | Q15 |
-| 8H | The submission contract | domain | Full | Q6, Q12 |
-| 8I | The contact submissions store | persistence | Full + security | Q14 |
-| 8J | The mail port, the provider adapter, the shop notification | web | Full + security | Q3, Q4, Q5 |
-| 8K | `POST /api/contact-submissions` | web | Full + security | Q16 |
-| 8L | The contact screen 4A/4B/4C | web | Full + visual | Q8 |
-| 8M | Success 5A and failure 5B | web | Full + visual | Q5, Q11, Q18 |
-| 8N | Profiles: design record and owner answers | none (docs) | Light | Q1 |
-| 8P1–8P9 | Profiles (see Part P) | persistence, web | Full + security; visual where drawn | 8N |
-| 8Q | The CSP enforces | web | Full + security | — |
-| 8R | The firewall rules, staged | none (runbook, owner action) | Coordinator-only | Q17 |
-| 8S | Pre-launch checks | none (docs, owner reads) | Light | Q20 |
-| 8T | The phone gate, the desktop line, the phase gate | — | Coordinator + visual | Q7, Q9, Q13, Q19 |
+| 8A | Measurements, vendor reads, the questions | none (docs, scratch) | Light | **In progress:** S2 done, S3 answered, S1 running |
+| 8B | A driver error never prints the connection string | persistence, web | Full + security | **Nothing. Dispatchable** |
+| 8C | The review as a value: rows, room line, submit eligibility | web, domain (read) | Full | **Nothing. Dispatchable** (Q10 answered) |
+| 8D | The review route and screen 3A/3B; the CTA gets its destination | web | Light + visual; security on S1 | **Nothing but 8C. Dispatchable** (Q2 answered) |
+| 8E | The rate-limit store | persistence | Full + security | **Nothing. Dispatchable** (Q14 answered) |
+| 8F | The limiter and the mint (SEC-001, backlog 90) | web | Full + security | 8A S1's counts; **Q21** (address and country source); **Q23** |
+| 8G | The limiter on saves, shares and reads; pruning | web, persistence | Full + security | 8F |
+| 8H | The submission contract | domain | Full | **Q24**, for the phone rule in S1 only |
+| 8I | The contact submissions store | persistence | Full + security | **Nothing but 8E's migration number. Dispatchable** (Q14 answered); S0 measures first |
+| 8J | The mail port, the provider adapter, the shop notification | web | Full + security | **Q25**, for the adapter only |
+| 8K | `POST /api/contact-submissions` | web | Full + security | **Q21** (the bot check); 8F, 8H, 8I, 8J |
+| 8L | The contact screen 4A/4B/4C | web | Full + visual | 8H, 8K; **Q26** for one leaf |
+| 8M | Success 5A and failure 5B | web | Full + visual | 8L (Q5, Q11, Q18 answered) |
+| ~~8N~~ | ~~Profiles: design record and owner answers~~ | | | **Moved to M8B** (Q1) |
+| ~~8P1–8P9~~ | ~~Profiles (see Part P)~~ | | | **Moved to M8B** (Q1) |
+| 8Q | The CSP enforces | web | Full + security | 8L; a preview measurement of the bot check's scripts if Q21 keeps it |
+| 8R | The firewall rules, staged | none (runbook, owner action) | Coordinator-only | **Q21** |
+| 8S | Pre-launch checks | none (docs, owner reads) | Light | The owner's facts (Q3, Q7, Q9); **Q22** for the data list |
+| 8T | The phone gate, the desktop line, the phase gate | — | Coordinator + visual | **Q21** (the gate's WAF half); the owner's text in every slot |
 
 **Order: 8A → 8B → 8C → 8D → 8E → 8F → 8G → 8H → 8I → 8J → 8K → 8L → 8M → (8N → 8P1 … 8P9) → 8Q →
 8R → 8S → 8T.** One writing agent per tree (R2). 8B has no dependency and may run first. 8C and 8D
 come early because the review is the only part with no open security question. 8F needs 8E. 8K needs
-8F, 8H, 8I and 8J. 8Q follows 8L because 8L makes the contact pages dynamic. If Q1 is (b), 8N and
-8P1–8P9 leave for M8B and 8M's profile offer is a named interim.
+8F, 8H, 8I and 8J. 8Q follows 8L because 8L makes the contact pages dynamic. ~~If Q1 is (b), 8N and
+8P1–8P9 leave for M8B and 8M's profile offer is a named interim.~~
+
+**Restated 2026-10-07, after the owner's answers.** Q1 is (b): 8N and 8P1–8P9 have left for M8B.
+**M8 is seventeen waves and ends at 8T**, with the review, the contact form, the success and failure
+screens, the limiter, the submission boundary, the CSP and the launch gate built, and with no
+profile: a customer still reaches a design only in the browser that made it (ADR 0114), and 5A says
+so. **M8B follows and is still before launch.**
+
+**Order now: 8B → 8C → 8D → 8E → 8I**, each dispatchable as written. **8I moves ahead of 8F–8H**: its
+port takes column values, not 8H's request type, so it needs nothing from them [inf; falsified if
+8I's slice finds it must import a type 8H has not yet defined]. Then, as their questions close:
+8H (Q24) → 8J (Q25) → 8F (8A S1, Q21, Q23) → 8G → 8K (Q21) → 8L → 8M → 8Q → 8R (Q21) → 8S → 8T. A
+wave whose question is still open when its turn comes is skipped, not started on a guess.
 
 **Named interims** (`WORKFLOW.md`, *Nothing ships mid-milestone*): after 8D the review's *Cere oferta*
 leads to the placeholder contact page until 8L; after 8L a sent request shows no success screen until
-8M; 5A's profile offer is absent until 8P7.
+8M; 5A's profile offer is absent ~~until 8P7~~ **for the whole of M8, until M8B's modal wave**.
 
 **Every dispatch in M8 bans by name:** `git stash`, `git stash pop`, `git checkout -- .`,
 `git reset --hard`, `git clean`; deleting database rows; printing an environment value; creating,
@@ -375,6 +593,84 @@ printed; a request is sent to production; a loop is used to probe a limit.
 
 *QA reading:* S1's scripts and outputs; R4, R5, R9. *Reviewer reading:* this file's *Plan decisions*
 and *Owner questions*; ADR 0019.
+
+### 8A figures
+
+#### S1 — measurements: NOT IN YET (2026-10-07)
+
+**Placeholder.** 8A S1 is running. Nothing below is known until it reports; no wave may cite a
+figure from this list before then (R4).
+
+| Figure | Feeds | Value |
+| --- | --- | --- |
+| The prerendered routes, from a real build's `prerender-manifest.json` | 8Q; the CSP section | *owed* |
+| `POST /api/designs` and `PUT` counts for one ordinary customer session | Q15; 8F, 8G | *owed* |
+| The same counts for one full e2e run | 8F S0's test policy | *owed* |
+| The worst case the mint limits admit, in bytes per day | Q19's storage-alert decision; backlog 92 | *owed* |
+| Which thrown errors carry the connection string | 8B | *owed* |
+
+#### S2 — vendor reads, 2026-10-07
+
+From `m8-8a-s2/vendor-reads.md` in the session scratchpad, which keeps a raw copy of every page.
+All **[ven]**: another agent's quotations, not re-read by the architect, except §6. Section numbers
+are that report's.
+
+| § | Subject | What this plan assumed | What the documentation says |
+| --- | --- | --- | --- |
+| 1 | BotID: tiers | Q16 [inf] a free tier exists | **Confirmed.** *"BotID is available on all plans"*; Basic *"is provided free of charge for all plans"*; Deep Analysis is Pro at *"$1/1000 `checkBotId()` Deep Analysis calls"* (`vercel.com/docs/botid`, last updated 2026-06-16). *"BotID Deep Analysis is not available on Hobby."* (`vercel.com/docs/cli/firewall`) |
+| 1 | BotID: wiring | none stated | Package `botid` (published 1.5.11; **not installed here**). `withBotId(nextConfig)`; on *"Next.js 15.3+"*, `initBotId({ protect: [{ path, method }] })` in `instrumentation-client.ts`; on the server `checkBotId()`, whose answer has `isBot`. *"Not adding the protected route … will result in `checkBotId()` failing."* (`vercel.com/docs/botid/get-started`, last updated 2026-06-08) |
+| 1 | BotID: forms | none stated | *"BotID does **not** support traditional HTML forms that use the `action` and `method` attributes"*; the request must be a `fetch` or `XMLHttpRequest` from a page (`…/botid/form-submissions`). 8L already sends by `fetch`. |
+| 1 | BotID: outside production | none stated | *"Local development always returns `isBot: false`"*; *"In production, BotID always performs real bot detection."* (`…/botid/local-development-behavior`). **Undocumented:** its answer under `next start` off Vercel, which is how the e2e suite runs. |
+| 1 | BotID: CSP | Q16 [inf] | **Undocumented.** None of the five BotID pages mentions a CSP or a nonce. S2 read the published package: the client adds a same-origin script element with no nonce. That this passes `'strict-dynamic'` is S2's **[inf]**; the challenge scripts themselves were not read. |
+| 2 | Client address | 8F S1 was to learn the header | `x-forwarded-for`: *"The public IP address of the client that made the request."* *"we currently overwrite the `X-Forwarded-For` header and **do not forward external IPs**. This restriction is in place to prevent IP spoofing."* `x-real-ip` and `x-vercel-forwarded-for` are *"identical"* (`vercel.com/docs/headers/request-headers`, last updated 2025-12-13) |
+| 2 | Country | 8F S1 was to learn the header | `x-vercel-ip-country`: *"A two-character ISO 3166-1 country code for the country associated with the location of the requester's public IP address."* **Not stated:** whether a value the client sends is discarded; what it holds when the address cannot be located. |
+| 3 | Cron | [inf] the plan's cron limit | **Confirmed, no constraint.** *"Cron Jobs are available on all plans"*; 100 per project on every plan; on Hobby *"once per day"*, within the hour. *"Vercel will not retry an invocation if a cron job fails."* A run can also arrive twice (`vercel.com/docs/cron-jobs/usage-and-pricing`, last updated 2026-07-15; `…/manage-cron-jobs`) |
+| 4 | Mail | Q4 [inf] HTTP API, free tier, EU region | **Partly; see Q25.** Resend: REST over HTTPS with a bearer key; a `User-Agent` header is required or the call is refused with `403`; an optional `Idempotency-Key`, kept *"for 24 hours"*; free quota *"100 emails/day and 3,000 emails/month"*; no sandbox, and test addresses count against the quota. **The EU region is where mail is sent from, not where data is kept.** |
+| 5 | argon2id | [inf] built into the runtime | **Confirmed for Node 24.7.0 and later** (`crypto.argon2`, *"added: v24.7.0"*); it returns raw bytes, so the caller stores the salt and parameters. Vercel deploys *"the latest 24.x"*; the deployed patch version is not documented. **Now M8B's.** |
+| 6 | Work after a response | none stated | Read by the architect in the installed package (`next/dist/docs/01-app/03-api-reference/04-functions/after.md`, next 16.3.8) **[doc]**: `after` runs *"after a response (or prerender) is finished"* and is for work *"that should not block the response, such as logging and analytics"* (`:6`). The page's platform table lists *Node.js server* and *Docker container* as supported. Used for D8. |
+| 7 | Firewall: one rule for all but static paths | Q17 [inf] | **Confirmed in form.** *"Use `neg: true` to negate a condition"*; *"Conditions within a group are combined with AND."* (`vercel.com/docs/cli/firewall`). Whether the CLI accepts the exact rule is known only at staging. |
+| 7 | Firewall: limits by plan | ADR 0019's one-rule finding | Hobby: one rate-limit rule per project; window *"Minimum: 10s, Maximum: 10mins"*; *"1,000,000 Allowed requests"* included; *"Hobby projects can have up to 3 total custom firewall rules."* The **Log** action *"will not perform any blocks"*. Counters are *"tracked on a per-region basis"* (`vercel.com/docs/vercel-firewall/vercel-waf/rate-limiting`, last updated 2026-08-28) |
+| 8 | Postgres grants | Q14 [inf] | **Confirmed, with two conditions.** *"all forms of `ON CONFLICT` also require `SELECT` privilege on any column whose values are read. This includes any column mentioned in conflict_target"*; *"Use of the `RETURNING` clause requires `SELECT` privilege on all columns mentioned in `RETURNING`."* (`postgresql.org/docs/current/sql-insert.html`, PostgreSQL 18; the same in 17) |
+
+**What changes in the waves** (each is written into its wave below):
+
+- **8E, 8F:** a prune may be late, missing or repeated, so a count is taken from the current window
+  by its timestamp; an expired row that was never pruned must never count.
+- **8F S1:** on Vercel the address is read from the platform's header. Off Vercel no platform sets
+  these headers and a client may send them, so identity must not trust them there. Which host
+  applies is Q21.
+- **8I:** the insert names its conflict target and returns only granted columns; `RETURNING *` and
+  a uniqueness rule that includes a personal column both fail under the grant.
+- **8K:** the bot check sits behind a port with an injected fake, as the mail sender does.
+- **8Q:** the bot check's scripts are measured against the policy on a preview deployment, in
+  report-only, before the flip.
+- **8R:** the widened rule replaces the runbook's rule 2; it is not a fourth rule.
+
+**Still unverified, and what each blocks.**
+
+| Item | Blocks |
+| --- | --- |
+| The project's Vercel plan. S2 infers Hobby from the runbook's one-rule finding. **An inference, not a fact:** the owner reads it off the dashboard | 8R; Q16 (b) |
+| BotID's verdict under `next start` off Vercel | 8K (an S0 measurement); the e2e suite |
+| BotID's scripts under the enforced CSP | 8Q |
+| `x-vercel-ip-country` when the lookup fails, and whether a client-sent value is discarded | 8F S1: one request on a preview deployment, not a loop |
+| What happens past the included 1,000,000 rate-limited requests; whether cached responses count | 8R; Q17 (a) |
+| `ON CONFLICT DO NOTHING` with no conflict target under column grants | Nothing: 8I writes the target out |
+| The Postgres major version of the Neon database | 8I S0 reads it |
+| Whether a host other than Vercel permits outbound SMTP; the SMTP client dependency | Q25 (c); 8J S0 |
+| That Neon's driver cannot reach an ordinary Postgres server | Q22 (b) only |
+
+**Three places the architect reads S2's report differently.**
+
+1. **Nothing is staged today.** The report says the runbook *"already stages three"* rules. The
+   runbook says they were *"staged once, verified to stage cleanly, and **discarded**. The project
+   currently has **zero** custom rules"* [doc `runbooks/firewall-setup.md:7-8`]. What holds is
+   narrower: the runbook's design has three rules, which is all Hobby allows, so Q17 (a) edits its
+   second rule.
+2. **Q15 (iii) is untouched.** The report says *"600 an hour per network"* cannot be a firewall
+   rule. It was never proposed as one; it is the application limiter's figure for page reads. The
+   ten-minute ceiling binds only the edge rule, which the runbook already sets at sixty seconds.
+3. **The plan name is a guess.** It is used nowhere in this file as a fact.
 
 ### 8B — a driver error never prints the connection string
 
@@ -449,7 +745,7 @@ chosen cabinet. *Tier: Light + visual; a security reviewer reads S1 only.*
 1. A request for `/d/{id}/review` with no cookie, a malformed one, a foreign one or an unknown id is
    answered exactly as `/d/{id}` answers it, class for class (ADR 0114 H5). No query is issued
    without a well-formed cookie.
-2. The proxy admits `d/{id}/review`, `d/{id}/contact` and `d/{id}/{done}` and nothing longer or
+2. The proxy admits `d/{id}/review`, `d/{id}/contact` and `d/{id}/done` and nothing longer or
    differently named; `s/{token}/review` is not a route. The shared view shows no review control.
 3. `Verifică designul` is reachable by touch and keyboard and opens the review of the same design.
    The retired M7C test is replaced by one asserting the destination; the top bar's box and
@@ -497,6 +793,9 @@ Redis). *Tier: Full + security.*
 7. `0007` passes the unattended screen as shipped. The privilege test asserts the exact grant on the
    table once it exists, and that the role still cannot delete from `designs`.
 8. *Must not:* a statement here reads or writes `designs`; a raw address or e-mail is stored.
+9. **Added 2026-10-07 [ven §3].** A count comes from the current window alone. With an expired row
+   for the same bucket left in the table, the first hit of a new window returns 1. The nightly job
+   may be late, may not run, and may run twice; the limiter is correct in all three cases.
 
 *QA reading:* the criteria; `tests/share-link-repository.test.ts`;
 `tests/application-role-privileges.test.ts`; `migration-safety*.test.ts`. *Logic and clean-code
@@ -523,8 +822,12 @@ of SEC-001 and backlog 90. *Tier: Full + security.*
    bits agree; two IPv6 addresses exactly when their first 64 agree; an IPv4-mapped IPv6 address
    lands in its IPv4 block. An absent or unparseable address lands in one shared bucket with the
    non-MD limits. *Must not:* it is unlimited.
-2. The address is the one the platform set, never a value the client can write (8A S2 names the
-   header). A forged forwarding header does not move a request to another bucket.
+2. The address is the one the platform set, never a value the client can write. A forged forwarding
+   header does not move a request to another bucket. **Added 2026-10-07 [ven §2]:** on Vercel that
+   is `x-forwarded-for`, which the platform overwrites. Where no platform sets it (local
+   `next start`, CI, and any other host until Q21 names its proxy), a client can send these headers,
+   so identity there must come from something a client cannot write, or every request lands in the
+   one shared bucket of criterion 1. **S1 is not dispatched until Q21 and Q23 are answered.**
 3. **Independent buckets.** With the address fixed and the session changed every request, the mint
    is refused at the network limit plus one. With the session fixed and the address moved across
    blocks, it is refused at the session limit plus one, **across rotations** (D11). *Must not:* any
@@ -555,7 +858,7 @@ are removed nightly. *Tier: Full + security.*
 | --- | --- | --- | --- |
 | S1 | `PUT`/`PATCH /api/designs/{id}` enforce their row of the table. The save coalescer treats a `429` as *wait and retry*, never as a lost write | `api/designs/[id]/route.ts`, `persistence/save-coalescer.ts`, `store/configurator-store.ts`, the message files if a notice is new | ADR 0019 d5, d6; ADR 0002 d16; Q15's answer; `design-request-errors.ts`; the WEB-001 residuals in STATUS |
 | S2 | The share endpoints, the share view, `/` and `/d/*` are counted; reads fail open | `api/designs/[id]/share/route.ts`, `lib/server/visitor-resume.ts`, the two page files, `proxy.ts` only if counting belongs there | ADR 0114 d7, B5, C1, G4; Q15 (iii) |
-| S3 | The nightly job prunes expired counters. Whether it is the backup's route or a second cron entry follows 8A's reading of the plan's cron limit | `vercel.json`, a cron route, `lib/server/cron-auth.ts` (reused) | ADR 0019 d7 (the surviving half); ADR 0012; `api/cron/backup-designs/route.ts` |
+| S3 | The nightly job prunes expired counters, as **a second cron entry on its own route**: the count is no constraint (100 per project on every plan [ven §3]), and a failed prune then cannot be mistaken for a failed backup. If Q21 moves the host, the same route is called by that host's scheduler with the same secret [inf] | `vercel.json`, a cron route, `lib/server/cron-auth.ts` (reused) | ADR 0019 d7 (the surviving half); ADR 0012; `api/cron/backup-designs/route.ts` |
 
 *Criteria.* (1) Each endpoint is refused at its limit plus one per bucket and not before.
 (2) **Nothing is lost:** after a refused save, the design in the browser is still marked unsaved,
@@ -581,13 +884,15 @@ ADR 0114 B5, G4; ADR 0019 d5.
 | S3 | The snapshot: from a design, the catalogue and a book, either the canonical document with its priced lines, total and book version, or a refusal | new `contact/submission-snapshot.ts`, `index.ts` | D7, D14; ADR 0065 d7; ADR 0072; `pricing/price-design.ts`; `serialize-design.ts` |
 
 *Criteria.*
-1. **The phone, as properties** (pending Q6): normalising is idempotent; every accepted Moldovan
+1. **The phone, as properties** (~~pending Q6~~ **pending Q24; S1's `phone-number.ts` is not
+   dispatched before it is answered**): normalising is idempotent; every accepted Moldovan
    form yields the same normal form; seven and nine digits after the prefix are refused; spaces,
    dashes and brackets do not change the answer.
 2. Every text field refuses a carriage return, a line feed and any other control character. *Why:*
    these values reach an e-mail.
 3. Each field has a stated maximum length and refuses one character past it.
-4. E-mail is required exactly when the channel is e-mail (pending Q6). Consent that is not `true`
+4. E-mail is required exactly when the channel is e-mail (Q6 (ii), answered); locality may be empty
+   (Q6 (i), answered). Consent that is not `true`
    is refused with its own code.
 5. The request type has no price field (D6). An unknown extra field is refused, not ignored.
 6. **The snapshot.** Its document round-trips through `serializeDesign` byte for byte. Its total for
@@ -622,6 +927,10 @@ back. *Tier: Full + security.*
 5. The export statement still names `designs` alone. A test fails if a second table appears in it.
 6. `0008` passes the unattended screen as shipped.
 7. No error or log line from this module contains a field's value; tested with recognisable fakes.
+8. **Added 2026-10-07 [ven §8].** The insert writes its conflict target out, on the client request
+   id alone, and returns only granted columns. No uniqueness rule on the table includes a personal
+   column. A test reads the SQL text the module sends and fails on `RETURNING *` or on a returned
+   personal column; S0's live run under the application role is what proves the grant suffices.
 
 *QA reading:* the criteria; `retried-writes-leave-no-trace.test.ts`;
 `backup-restore-round-trip.adversarial.test.ts`. *Security reading:* ADR 0002 security section; ADR
@@ -653,6 +962,14 @@ variables' names in `.env.example`.
 
 **Owner action:** the provider account, the DNS records and the variables in *Proposed variables and
 resources*. Nothing is created by an agent.
+
+**Added 2026-10-07.** Q3 and Q5 are answered; **the provider is Q25 and is open.** The port, the
+configuration reader, the fake and S2's message text do not depend on it and may be built. The
+adapter (`provider-mail-sender.ts`) waits. If Q25 is (a), the adapter sends a `User-Agent` header,
+without which Resend answers `403`, and passes the client request id as `Idempotency-Key`, which
+Resend keeps for twenty-four hours [ven §4]; D8's retry must not rely on that key past a day. If
+Q25 is (c), an S0 first verifies outbound SMTP from the launch host and puts the SMTP client
+dependency to the security reviewer.
 
 ### 8K — `POST /api/contact-submissions`
 
@@ -688,6 +1005,14 @@ notification; the mark.
 10. With recognisable fakes in every field, no log line on any branch, thrown ones included,
     contains a name, a phone number, an e-mail address, a locality or a client address.
 11. A honeypot hit, a failed bot verdict and a too-fast submit are refused and store nothing (D9).
+12. **Added 2026-10-07 [ven §1].** The bot check is a port. Unit tests and the e2e suite inject a
+    fake; no test depends on the real service's answer. An S0 measures, once, what the real check
+    answers under `next start` off its platform, which the documentation does not say. *Must not:*
+    a production build can select the fake.
+
+**Added 2026-10-07: the bot check is conditional on Q21.** If the launch host is not Vercel, S1's
+`bot-check.ts` is not built, D12 returns to planning, and the honeypot and the timing check are the
+form's only bot controls until the hosting milestone names another.
 
 *QA reading:* the criteria; ARCH §10's API line; 8F's tests. No volume loop. *Logic reader:* ARCH §9;
 D5–D9; the order of checks. *Clean-code reader:* the slice files. *Security reading:* ADR 0019; ADR
@@ -707,7 +1032,8 @@ D5–D9; the order of checks. *Clean-code reader:* the slice files. *Security re
 *Criteria.*
 1. An error appears beside its field when the field is left, not before and not for other fields.
    Submitting with errors focuses the first invalid field and brings it into view.
-2. Frame 4B's sentences are used as drawn where Q6 leaves them true. No error shows a code.
+2. Frame 4B's sentences are used as drawn where Q24 leaves them true. No error shows a code. Frame
+   4A's response-time hint is not drawn (Q8), unless Q26 changes that.
 3. Consent sits beside the call to action; unticked, the request is not sent and the frame's
    sentence appears. Its text is the slot of Q7.
 4. **4C.** While sending, the button shows the loading state and cannot be activated; the form is
@@ -736,7 +1062,7 @@ nothing. *Tier: Full + visual.*
 
 | Slice | Does | Files | Reading |
 | --- | --- | --- | --- |
-| S1 | 5A: the exact channel and number, the reference with *Copiază*, *Ce urmează*, the render, *Înapoi la design*, and the WhatsApp action if Q5 keeps it | `app/[locale]/d/[id]/{done}/page.tsx`, new `contact/submission-result.tsx`, `submission-result.module.css`, the message files | frame 5A (`:1403-1460`); Q5, Q8, Q9, Q11; D4; ADR 0114 B7, D; ADR 0002 d17; `share/share-design.tsx` |
+| S1 | 5A: the exact channel and number, the reference with *Copiază*, *Ce urmează*, the render, *Înapoi la design*, and the WhatsApp action if Q5 keeps it | `app/[locale]/d/[id]/done/page.tsx`, new `contact/submission-result.tsx`, `submission-result.module.css`, the message files | frame 5A (`:1403-1460`); Q5, Q8, Q9, Q11; D4; ADR 0114 B7, D; ADR 0002 d17; `share/share-design.tsx` |
 | S2 | 5B: the plain-language failure, *Încearcă din nou*, the automatic retry when the connection returns, the direct call, the preserved state | new `contact/submission-retry.ts`, `submission-result.tsx`, `use-contact-submission.ts`, the message files | frame 5B (`:1465-1512`); Q3 (the shop's number), Q18; D8, D17; 8K's errors |
 
 *Criteria.*
@@ -744,8 +1070,9 @@ nothing. *Tier: Full + visual.*
    *Must not:* a vague promise of contact; a response time, unless Q8 allows one.
 2. Reloading the page shows the reference and the next steps without the number, since the server
    may not read it back (Q14). *Must not:* the reload shows an error or another design's reference.
-3. The saved-design sentence says *in this browser* (ADR 0114 Amendment D), and offers the profile
-   only once 8P7 exists.
+3. The saved-design sentence says *in this browser* (ADR 0114 Amendment D). ~~It offers the profile
+   only once 8P7 exists.~~ **No profile is offered in M8** (Q1); M8B's modal wave adds the offer.
+   *Must not:* 5A names a profile, an account or an e-mailed link (Q11).
 4. **5B keeps everything.** After a forced failure the design is unchanged on the server and every
    typed value is still in the form's state. The screen does not ask for re-entry.
 5. The automatic retry uses the same client request id; at most one request is in flight; it stops
@@ -762,7 +1089,13 @@ captured and inspected.
 *QA reading:* the criteria; Playwright's offline and route-abort tools; 8K's error table. *Logic
 reader:* D8; frames 5A, 5B. *Visual reading:* frames 5A, 5B.
 
-## Part P — customer profiles
+## Part P — customer profiles — MOVED TO M8B (owner, 2026-10-07)
+
+> **Not part of M8.** Q1 was answered (b), as recommended (relayed): profiles are **M8B**, after M8
+> and before launch. Waves 8N and 8P1–8P9 are not dispatched from this file. The text below is kept
+> here, unchanged, only until `docs/milestones/M8B-customer-profiles.md` exists; the architect was
+> asked to edit this file alone, so creating that one is listed for the coordinator. QP1–QP5 and
+> 8A S2's argon2id finding (*8A figures*, §5) go with it.
 
 **If Q1 is (b) this part moves to its own file, `M8B-customer-profiles.md`, unchanged.** Its slice
 tables and reading lists are written in 8N, after QP1–QP5, because every one depends on those
@@ -873,7 +1206,10 @@ renders with no violation in the console: Step 1, the editor with the scene, the
 review, contact, 5A, 5B, the load-error page, the global error and not-found pages, and the bot
 check's script. (3) An injected inline script is blocked. (4) A report route, if built, is counted
 and bounded by the limiter and stores nothing personal. (5) *Must not:* the flip lands while
-criterion 1 is unmet.
+criterion 1 is unmet. (6) **Added 2026-10-07 [ven §1].** If the bot check is kept (Q21), its
+scripts are observed on a preview deployment with the policy still in report-only, and the flip
+waits until that run shows no violation from them. The vendor documents no CSP requirement, so this
+is the only evidence there will be.
 
 *QA reading:* the criteria; `tests/lib/security-headers*`; the e2e console listeners. *Security
 reading:* ADR 0041; ADR 0019 d2.
@@ -888,6 +1224,13 @@ the endpoint names M8 actually shipped; **the owner runs and publishes them.** T
 been observed in `log` before any enforcing action, and the observation is quoted. (3) *Must not:* a
 second `rate_limit` rule is attempted; the edge is quoted anywhere as a cap.
 
+**Added 2026-10-07. This wave exists only if Q21 keeps the launch on Vercel.** If it does [ven §7]:
+the widened rule is the runbook's rule 2 edited, since its three rules are all the plan allows if
+the plan is Hobby (unverified); the rule's window is at most ten minutes, and the runbook's sixty
+seconds stands; the threshold for a rule that now counts page requests is proposed with the
+observation from `log`, not chosen beforehand; and what happens past the included request count is
+read from the dashboard before publishing. No rule exists today.
+
 ### 8S — pre-launch checks
 
 *Goal.* The things only a read of the live system, or the owner, can settle. *Tier: Light; no code.*
@@ -899,6 +1242,7 @@ second `rate_limit` rule is attempted; the edge is quoted anywhere as a cap.
 | Migrations `0007` onward are applied and their grants issued on production, proved by the deployed-schema gate | owner, coordinator | ADR 0096; ADR 0042 |
 | The largest storable row and the backup's memory use are re-measured (backlog 92) | QA | backlog 92; ADR 0019 d11 |
 | The Russian is re-signed as shipped (ADR 0095's backstop); Q7, Q8 and Q9's slots hold the owner's text | owner | ADR 0095; `docs/i18n/gate-o2-russian-review.md` |
+| **Added 2026-10-07.** A list of every kind of personal data M8 keeps: what it is, who holds it, in which country and for how long. It is the input the owner's privacy text and their lawyer need; it states facts and draws no legal conclusion. Known today: the database is Neon in `eu-central-1` [doc ADR 0007:32]; a Resend account would hold each message for thirty days in the United States [ven §4]. Not yet read: where the application's functions run, and where the Blob store is | architect, then owner | Q21, Q22, Q25; *The owner's answers*; ADR 0002 security 6; ADR 0007; ADR 0012 |
 
 ### 8T — the phone gate, the desktop line, the phase gate
 
@@ -938,19 +1282,25 @@ runbook.
 - [ ] **`429` with `Retry-After`**, and a reason Step 1 renders. — **8F**
 - [ ] **Writes fail closed, reads fail open** when the counter store is unavailable. — **8F, 8G**
 - [ ] **Every other assigned endpoint is inside the limiter:** the rotation (backlog 90), saves,
-      the share endpoints, `/`, `/d/*`, `/s/*` (ADR 0114 d7, B5), the contact endpoint, and the
-      profile endpoints (ADR 0115). — **8F, 8G, 8K, 8P3–8P5**
+      the share endpoints, `/`, `/d/*`, `/s/*` (ADR 0114 d7, B5) and the contact endpoint.
+      — **8F, 8G, 8K**. ~~and the profile endpoints (ADR 0115) — 8P3–8P5~~ **The profile endpoints
+      are M8B's gate line (Q1).**
 - [ ] **Expired counters are pruned nightly.** — **8G**
 - [ ] **The firewall rule is staged in `log` and published by the owner** (ADR 0019 d2, d4, d5).
-      — **8R**
+      — **8R**. **Conditional on Q21 (2026-10-07):** on a host other than Vercel this line has no
+      meaning as written, and the gate cannot be ticked until a hosting milestone states what
+      absorbs volume there. It is not dropped.
 - [ ] **The owner has confirmed the set without the reaper** (Q19), with 8A's worst-case figure in
-      front of them. — **8A, 8T**
+      front of them. — **8A, 8T**. *2026-10-07: the set was confirmed as recommended (relayed), but
+      before 8A S1 had a figure; this line is ticked only once the owner has seen it and decided on
+      the storage alert.*
 
 *The contact form (ADR 0019 d5; ADR 0001 d7; ADR 0002):*
 
 - [ ] Its limits: 3 an hour and 10 a day per network block, 2 an hour per session, 3 a day per
       e-mail address; tighter and challenged outside MD; fails closed. — **8K**
-- [ ] Honeypot, minimum time-to-submit, bot check. — **8K**
+- [ ] Honeypot, minimum time-to-submit, bot check. — **8K**. *The bot check is conditional on Q21;
+      how a request from outside Moldova is treated is Q23.*
 - [ ] A real sink is configured, or production says the request cannot be sent. — **8J, 8K, 8L**
 - [ ] No contact detail is in a log, a design, a URL, browser storage or the Blob export; the
       application role cannot read one. — **8I, 8K, 8L**
@@ -963,7 +1313,11 @@ runbook.
 - [ ] Live rows checked against the corrected wall bounds. — **8S**
 - [ ] The owner's text is in every slot (Q7, Q8, Q9); the Russian is re-signed. — **8S**
 - [ ] The CSP enforces. — **8Q** (see *Also blocked on this phase* below)
-- [ ] Profiles' obligations 1–12, here or in M8B (Q1). — **Part P**
+- [ ] ~~Profiles' obligations 1–12, here or in M8B (Q1). — **Part P**~~ **Moved to M8B's own gate
+      (Q1, 2026-10-07).** M8 closing does not open the product to real traffic: M8B is still before
+      launch.
+- [ ] **Added 2026-10-07.** The launch host and the database's home are ruled (Q21, Q22), and the
+      list of personal data, holders and countries is with the owner. — **8S**
 - [ ] The phone gate. — **8T**
 
 Verify using ADR 0019's intended low rates. **Do not use a high-volume loop as the regression
@@ -1112,17 +1466,25 @@ of submission, and nothing re-prices it. This follows the owner's own design rec
 | The shop's phone number | content or variable, per Q3 | frame 5B | 8M | Where it lives is decided with Q3 |
 | Table `rate_limit_counters`; grant `SELECT, INSERT, UPDATE, DELETE` on it | schema, grant | the limiter | 8E | Postgres, not Redis (ADR 0019 Alternative 4). Grant by the owner |
 | Table `contact_submissions`; column-scoped grants | schema, grant | leads | 8I | Q14 |
-| A second cron entry, or the existing one extended | `vercel.json` | pruning | 8G | Depends on the plan's cron limit [inf]; `CRON_SECRET` is reused |
+| A second cron entry ~~, or the existing one extended~~ | `vercel.json` | pruning | 8G | ~~Depends on the plan's cron limit [inf]~~ 100 entries per project on every plan, daily on Hobby **[ven §3]**; `CRON_SECRET` is reused |
 | The bot check's package, its Next configuration and its project setting | dependency, setting | Q16 | 8K | A dependency change: security tier |
 | A test-only limiter policy selector | variable, never set in a deployment | e2e | 8F | Only if 8F S0 finds no way without one; must be unreachable in production |
 | Firewall rules | platform | ADR 0019 d2 | 8R | Staged by commands an agent prepares; published by the owner |
 | A storage alert on Neon | platform | Q19 | 8T | Optional |
 | Part P: tables for profiles, sessions and e-mail tokens; a design's owning profile; their grants | schema, grant | ADR 0115 | 8P1 | QP3 decides whether any `DELETE` is asked for |
-| Part P: a password-hashing dependency | dependency | obligation 1 | 8P2 | None if the runtime has argon2id built in [inf; 8N measures] |
+| Part P: a password-hashing dependency | dependency | obligation 1 | 8P2 | None if the runtime has argon2id built in: Node has it from 24.7.0 **[ven §5]**; the deployed patch version is still to be read. **M8B's** |
 | Part P: a breached-password source | third-party call or data | obligation 2 | 8P2 | QP1 |
 
 No signing secret is proposed: sessions and tokens are random values stored as hashes, as the
 visitor cookie is [inf]; 8N confirms.
+
+**Added 2026-10-07.** The three *Part P* rows above are M8B's (Q1). The mail rows depend on Q25: with
+(c) there is no provider account and no API key, and the proposals become a dedicated mailbox at the
+shop's mail host, its SMTP host, port, user and password as variables, and an SMTP client
+dependency. The bot check's row and the firewall row exist only if Q21 keeps the launch on Vercel.
+With Q21 (b) or Q22 (b) this table is incomplete: a reverse proxy, TLS, a scheduler, a backup store
+and a database server would all be new resources, and none is proposed here because none is
+planned.
 
 ## ADRs
 
@@ -1147,10 +1509,18 @@ writes them; the architect supplies the content.
 7. M8's copy rule and its slots (Q7–Q10). A pointer on ADR 0113.
 8. The CSP enforces: how both preconditions were discharged (8Q). An amendment to ADR 0041.
 9. The first stored schema at launch (Q20). Closes ADR 0038's expiry and ADR 0111 decision 8.
-10. Customer profiles as designed (8N): storage, session, CSRF, claiming, how a session authorises a
-    claimed design, deletion. Amends ADR 0114 decision 5 and ADR 0008.
-11. If Q1 is (b): profiles become M8B. An amendment to ADR 0115.
+10. ~~Customer profiles as designed (8N): storage, session, CSRF, claiming, how a session authorises
+    a claimed design, deletion. Amends ADR 0114 decision 5 and ADR 0008.~~ **M8B's (Q1).**
+11. ~~If Q1 is (b):~~ **Owed now (Q1 answered (b), relayed, 2026-10-07):** profiles become M8B,
+    after M8 and before launch. An amendment to ADR 0115, whose title, decision 1 and the owner's
+    fifth answer in its *Context* (*"In M8, with e-mail"*) say M8.
 12. If Q17 is (b): the firewall's scope. An amendment to ADR 0114 decision 7.
+13. **Added 2026-10-07.** *"Moldova only for now"*: a dated note on ADR 0019 d4, which rests partly
+    on the diaspora. What the note says about denying, challenging or ignoring geography waits for
+    Q23; that the owner said it does not.
+14. **Added 2026-10-07.** The launch host and the database's home, once Q21 and Q22 are ruled. If
+    either leaves Vercel or Neon, ADR 0019 d2, d4, d9 and d10, ADR 0007, ADR 0012 and ADR 0054 each
+    need a dated note, and the move is planned as its own milestone.
 
 **Relied on as they stand:** 0001, 0002, 0004, 0008, 0012, 0019, 0020, 0036, 0038, 0041, 0042, 0054,
 0062, 0063, 0065, 0067, 0069, 0072, 0074, 0092, 0095, 0096, 0104, 0106, 0107, 0111, 0112, 0113, 0114,
@@ -1173,8 +1543,17 @@ writes them; the architect supplies the content.
 - **The application becoming its own denial of service.** Every refusal costs a function call and a
   database write (ADR 0019 d2). The firewall rule (8R) is what absorbs volume; the gate ships them
   together.
-- **A vendor fact assumed.** Every one is labelled [inf] and owed to 8A.
-- **Profiles' size.** Ten waves of authentication. Q1.
+- **A vendor fact assumed.** Every one is labelled [inf] and owed to 8A. *2026-10-07: 8A S2 read
+  them; what stays unverified is listed in* 8A figures.
+- ~~**Profiles' size.** Ten waves of authentication. Q1.~~ Moved to M8B.
+- **Building for a host the product will not launch on** (added 2026-10-07). The bot check, the
+  firewall rule, the address and country headers, the cron and the Blob store are Vercel's. The
+  owner has said Vercel is *"only for development"* and has not ruled where launch happens. Q21 is
+  asked before 8F S1, 8K's bot check or 8R is dispatched, so that none is built on a guess.
+- **A recorded answer read as wider than it was.** *"Rest as recommended"* accepted twenty
+  recommendations in one phrase, one of them (Q4) on a premise that was false. Each is recorded as
+  relayed; the five that depend on Q21 or Q22 are marked conditional; Q24–Q26 are asked instead of
+  inferred.
 - **A second scene mount.** The review and 5A mount the scene on new routes (D4). ADR 0144's
   first-frame bound applies; 8D's phone acceptance watches it.
 - **Grant order.** Web code that reads a table before its migration and grant are applied fails in

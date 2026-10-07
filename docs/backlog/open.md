@@ -782,6 +782,13 @@ focus-trap regression suite. Not scheduled to any wave.
 **Verified still open, 2026-09-06 (this pass):** `apps/web/package.json` still lists neither `jsdom`
 nor any `@testing-library/*` package.
 
+> **Dated annotation, 2026-10-07 — stale in part.** `apps/web/vitest.config.ts:11` still sets
+> `environment: "node"`, but `apps/web/package.json:41` now lists `happy-dom` and a DOM is available per
+> file: Glob finds **36** `apps/web/**/*.dom.test.ts` files (none `.tsx`), and a Grep for `happy-dom`
+> matches all 36 [source-verified, 2026-10-07]. The M8 plan says 43; that figure did not reproduce. No
+> `@testing-library/*` package is listed (Grep of `package.json`). Whether the focus-trap regression
+> suite this item asks for exists was not checked, so the item stays open.
+
 ## 49. The hob's front clearance reads as flush with the worktop's edge, more conspicuously at 700 — NEEDS THE OWNER
 
 **Found by wave 6U's visual verification, 2026-09-06.** The wave itself reads correctly: 190 mm of
