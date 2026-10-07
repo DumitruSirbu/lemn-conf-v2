@@ -14,7 +14,7 @@ import {
   type DesignId,
 } from "@lemnaria/configurator-domain";
 import { NextIntlClientProvider } from "next-intl";
-import { act, createElement, Fragment } from "react";
+import { act, createElement, Fragment, StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -150,6 +150,24 @@ describe("the review replaces the editor's stale clean copy of the same design",
     });
 
     expect(useConfiguratorStore.getState().canWrite).toBe(true);
+  });
+});
+
+describe("the same replacement under StrictMode's mount, cleanup, mount", () => {
+  it("replaces the copy once, keeps the answer and sends no request", async () => {
+    act(() => {
+      root.render(
+        createElement(StrictMode, null, bothScreens(newerCopy(), "5")),
+      );
+    });
+    await letTheEditorsProbeAnswer();
+
+    expect(useConfiguratorStore.getState()).toMatchObject({
+      design: newerCopy(),
+      revision: "5",
+      canWrite: true,
+    });
+    expect(requests).toEqual([]);
   });
 });
 

@@ -4,7 +4,14 @@ import { cabinetDepthMmOf } from "@lemnaria/configurator-domain";
 import { cameraPresetsForRoom, isDragGesture } from "@lemnaria/three-adapter";
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, type RefObject } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 
 import { EditorPanel } from "@/panel/editor-panel";
 import { FlaggedTotalWarning } from "@/price/flagged-total-warning";
@@ -314,6 +321,7 @@ interface ArrivalProgress {
   readonly key: string;
   hasChosenSelection: boolean;
   hasHandledSettings: boolean;
+  hasRemovedParameters: boolean;
 }
 
 /**
@@ -347,15 +355,19 @@ export function useHonourArrival({
   const searchParams = useSearchParams();
   const canWrite = useConfiguratorStore((state) => state.canWrite);
   const progress = useRef<ArrivalProgress | null>(null);
+  // The body the arrival chose and has not yet selected, and whether it is waiting for the scene. The ref is what
+  // the arrival decided and survives a remount; the state is what arms the watch below, so the watch is set up by an
+  // effect that owns its cleanup, and mount, cleanup, mount leaves it armed.
   const bodyToSelect = useRef<string | null>(null);
-  const stopWatchingTheScene = useRef<(() => void) | null>(null);
+  const [isWaitingForTheScene, setIsWaitingForTheScene] = useState(false);
 
-  useEffect(
-    () => () => {
-      stopWatchingTheScene.current?.();
-    },
-    [],
-  );
+  useEffect(() => {
+    if (!isWaitingForTheScene) return;
+    return watchForTheCustomersTap(() => {
+      bodyToSelect.current = null;
+      setIsWaitingForTheScene(false);
+    });
+  }, [isWaitingForTheScene]);
 
   useEffect(() => {
     if (!isOwner) return;
@@ -367,19 +379,17 @@ export function useHonourArrival({
         key,
         hasChosenSelection: false,
         hasHandledSettings: false,
+        hasRemovedParameters: false,
       };
     const arrivalProgress = progress.current;
+    if (arrivalProgress.hasRemovedParameters) return;
 
     if (!arrivalProgress.hasChosenSelection) {
       arrivalProgress.hasChosenSelection = true;
       bodyToSelect.current = standWhereBodyIsSeen(arrival.get("select"));
       if (bodyToSelect.current !== null) {
-        if (mustWaitForTheScene()) {
-          stopWatchingTheScene.current = watchForTheCustomersTap(() => {
-            bodyToSelect.current = null;
-            stopWatchingTheScene.current?.();
-          });
-        } else selectTheChosenBody(bodyToSelect);
+        if (mustWaitForTheScene()) setIsWaitingForTheScene(true);
+        else selectTheChosenBody(bodyToSelect);
       }
     }
     if (
@@ -391,11 +401,12 @@ export function useHonourArrival({
       if (canWrite === true) pressSettingsTrigger(settingsTrackRef.current);
     }
     removeArrivalFromUrl();
+    arrivalProgress.hasRemovedParameters = true;
   }, [isOwner, searchParams, canWrite, settingsTrackRef]);
 
   const onSceneSettled = useCallback(() => {
-    stopWatchingTheScene.current?.();
     selectTheChosenBody(bodyToSelect);
+    setIsWaitingForTheScene(false);
   }, []);
 
   return { onSceneSettled };

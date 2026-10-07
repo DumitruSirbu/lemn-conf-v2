@@ -438,6 +438,114 @@ describe("E2a: the customer's own act wins over an arrival still waiting for the
   });
 });
 
+describe("E2a under StrictMode: mount, cleanup, mount (QA12)", () => {
+  const OTHER_BODY = SEEDED_DESIGN.placements[2]?.id ?? "";
+  let scene: HTMLCanvasElement;
+
+  function pointer(type: string, x: number, y: number): void {
+    act(() => {
+      scene.dispatchEvent(
+        new PointerEvent(type, { bubbles: true, clientX: x, clientY: y }),
+      );
+    });
+  }
+
+  function tap(): void {
+    pointer("pointerdown", 100, 100);
+    pointer("pointerup", 101, 100);
+  }
+
+  beforeEach(() => {
+    scene = document.createElement("canvas");
+    document.body.append(scene);
+    arriveAt(`/ro/d/design-under-edit?select=${OWN_BODY}`);
+    render(createElement(StrictMode, null, createElement(Probe)));
+  });
+
+  afterEach(() => {
+    scene.remove();
+  });
+
+  it("is still waiting for the scene after the remount", () => {
+    expect(useConfiguratorStore.getState().selection).toBeNull();
+  });
+
+  it("drops the arrival's body when the customer taps the scene first, and keeps the customer's", () => {
+    tap();
+    act(() => {
+      useConfiguratorStore
+        .getState()
+        .select({ kind: "placement", id: OTHER_BODY });
+    });
+
+    settle();
+
+    expect(useConfiguratorStore.getState().selection).toEqual({
+      kind: "placement",
+      id: OTHER_BODY,
+    });
+  });
+
+  it("drops it for a tap on empty floor as well", () => {
+    tap();
+    act(() => {
+      useConfiguratorStore.getState().deselect();
+    });
+
+    settle();
+
+    expect(useConfiguratorStore.getState().selection).toBeNull();
+  });
+
+  it("does not drop it for an orbit drag, and selects its body once at rest", () => {
+    pointer("pointerdown", 100, 100);
+    pointer("pointerup", 220, 160);
+
+    settle();
+    settle();
+
+    expect(useConfiguratorStore.getState().selection).toEqual({
+      kind: "placement",
+      id: OWN_BODY,
+    });
+  });
+
+  it("does not drop it for a deselect that is no pointer gesture", () => {
+    act(() => {
+      useConfiguratorStore.getState().deselect();
+    });
+
+    settle();
+
+    expect(useConfiguratorStore.getState().selection).toEqual({
+      kind: "placement",
+      id: OWN_BODY,
+    });
+  });
+
+  it("leaves no listener attached once the arrival has settled", () => {
+    const removed = vi.spyOn(document, "removeEventListener");
+
+    settle();
+
+    expect(removed.mock.calls.map(([type]) => type)).toEqual(
+      expect.arrayContaining(["pointerdown", "pointerup"]),
+    );
+  });
+
+  it("leaves no listener attached once the screen has gone away", () => {
+    const removed = vi.spyOn(document, "removeEventListener");
+
+    act(() => {
+      root.unmount();
+    });
+
+    expect(removed.mock.calls.map(([type]) => type)).toEqual(
+      expect.arrayContaining(["pointerdown", "pointerup"]),
+    );
+  });
+});
+
 describe("?settings=open (E1)", () => {
   it("waits for the answer about write access: nothing is pressed and the parameter stays", () => {
     hydrate(SEEDED_DESIGN, "checking");
