@@ -1,25 +1,31 @@
 import { fc } from "@fast-check/vitest";
-import { neon } from "@neondatabase/serverless";
+import { Client, NeonDbError, neon } from "@neondatabase/serverless";
 import { describe, expect, it } from "vitest";
 
+import { DATABASE_NAMES_BY_ENVIRONMENT } from "../src/migration-target.js";
 import {
   InvalidConnectionUrlError,
+  databaseNameOf,
   openDatabase,
   openDatabaseSession,
   parseConnectionUrl,
 } from "../src/open-database.js";
 import type { ConnectionVariableName } from "../src/open-database.js";
+import { isTransientFailure } from "../src/retry-on-transient-failure.js";
 import { markersFoundOn } from "./support/leaked-connection-markers.js";
 
 /**
- * Adversarial QA of M8 wave 8B: the opener against the driver it replays, over swept strings. `neon()` only parses its
- * argument here; nothing is queried, so nothing connects.
+ * Adversarial QA of M8 wave 8B: the opener against the driver, over swept strings. `neon()` and `new Client()` only
+ * parse their argument here; nothing is queried or connected.
  */
 const QA_PASSWORD = "FAKEPASSWORD_QA8B";
 const QA_USER = "fakeuser_QA8B";
 const QA_HOST = "fakehost-qa8b.invalid";
 const QA_MARKERS: readonly string[] = [QA_PASSWORD, QA_USER, QA_HOST];
 const FAKE_DATABASE = "lemn-fake-db";
+const LISTED_NAMES: readonly string[] = [
+  ...DATABASE_NAMES_BY_ENVIRONMENT.values(),
+].flat();
 
 const VARIABLES: readonly ConnectionVariableName[] = [
   "DATABASE_URL",
@@ -37,6 +43,10 @@ const FRAGMENTS: readonly string[] = [
   QA_PASSWORD,
   QA_HOST,
   FAKE_DATABASE,
+  ...LISTED_NAMES,
+  "..",
+  "\t",
+  "'",
   ":",
   "@",
   "/",
@@ -69,7 +79,13 @@ const nearlyWellFormedValue = fc
       "postgres:",
       "mysql://",
     ),
-    user: fc.constantFrom(QA_USER, "", `${QA_USER}%ZZ`, `${QA_USER}%40`),
+    user: fc.constantFrom(
+      QA_USER,
+      "",
+      `${QA_USER}%ZZ`,
+      `${QA_USER}%40`,
+      `a@b\\${QA_USER}`,
+    ),
     password: fc.constantFrom(
       `:${QA_PASSWORD}`,
       ":",
@@ -83,8 +99,19 @@ const nearlyWellFormedValue = fc
       "",
       `${QA_HOST}:5432`,
       `${QA_HOST}:notaport`,
+      `${QA_HOST}'x`,
     ),
-    path: fc.constantFrom(`/${FAKE_DATABASE}`, "", "/", "/%ZZ", "?sslmode=x"),
+    path: fc.constantFrom(
+      `/${FAKE_DATABASE}`,
+      "",
+      "/",
+      "/%ZZ",
+      "?sslmode=x",
+      ...LISTED_NAMES.map((name) => `/${name}`),
+      ...LISTED_NAMES.map((name) => `/x/../${name}`),
+      ...LISTED_NAMES.map((name) => `/${name.slice(0, 4)}\t${name.slice(4)}`),
+      ...LISTED_NAMES.map((name) => `/${name}?dbname=other`),
+    ),
   })
   .map(
     ({ scheme, user, password, host, path }) =>
@@ -103,15 +130,77 @@ function thrownBy(run: () => unknown): unknown {
   return undefined;
 }
 
+function isAcceptedByTheOpener(value: string): boolean {
+  return thrownBy(() => openDatabase(value)) === undefined;
+}
+
+/** The string as `neon()` re-reads it: under `http:`, which is why it takes forms a `postgres:` parse does not. */
+function reparsedAsTheHttpDriverDoes(value: string): URL {
+  return new URL(`http:${value.substring(new URL(value).protocol.length)}`);
+}
+
+function lacksTheTwoSlashes(value: string): boolean {
+  const schemeLength = new URL(value).protocol.length;
+  return value.substring(schemeLength, schemeLength + 2) !== "//";
+}
+
+function nameTheHttpDriverParses(value: string): string {
+  return decodeURIComponent(
+    reparsedAsTheHttpDriverDoes(value).pathname,
+  ).replace(/^\//, "");
+}
+
+function namesNoDatabase(value: string): boolean {
+  return nameTheHttpDriverParses(value) === "";
+}
+
 describe("the opener over a sweep of assembled strings (criteria 2, 5, 7 and 8)", () => {
-  it("refuses exactly the strings neon() itself refuses", () => {
+  it("accepts no string the driver refuses, by either entry point, so the driver's echoing error is unreachable", () => {
     fc.assert(
       fc.property(anyValue, (value) => {
-        const isRefusedByTheOpener =
-          thrownBy(() => openDatabase(value, "DATABASE_URL")) !== undefined;
-        const isRefusedByTheDriver = thrownBy(() => neon(value)) !== undefined;
+        fc.pre(isAcceptedByTheOpener(value));
 
-        expect(isRefusedByTheOpener).toBe(isRefusedByTheDriver);
+        expect(thrownBy(() => neon(value))).toBeUndefined();
+        expect(thrownBy(() => new Client(value))).toBeUndefined();
+      }),
+      SWEEP,
+    );
+  });
+
+  it("refuses, beyond what neon() refuses, only a string with no // after its scheme or with no database name (rule B7)", () => {
+    fc.assert(
+      fc.property(anyValue, (value) => {
+        fc.pre(thrownBy(() => neon(value)) === undefined);
+        fc.pre(!isAcceptedByTheOpener(value));
+
+        expect(lacksTheTwoSlashes(value) || namesNoDatabase(value)).toBe(true);
+      }),
+      SWEEP,
+    );
+  });
+
+  it.each([
+    ["no database", "postgresql://u@h"],
+    ["an empty database after the slash", "postgresql://u@h/"],
+    ["one slash after the scheme", "postgres:/u:p@h/db"],
+    ["no slash after the scheme", "postgres:u:p@h/db"],
+  ])("refuses %s, a form the driver takes (rule B7)", (_form, value) => {
+    expect(thrownBy(() => neon(value))).toBeUndefined();
+    for (const open of [openDatabase, openDatabaseSession])
+      expect(thrownBy(() => open(value))).toBeInstanceOf(
+        InvalidConnectionUrlError,
+      );
+  });
+
+  it("reads the same database name the session driver would use, for every accepted string that names a listed database", () => {
+    fc.assert(
+      fc.property(anyValue, (value) => {
+        fc.pre(isAcceptedByTheOpener(value));
+        const comparedName = databaseNameOf(value);
+        fc.pre(LISTED_NAMES.includes(comparedName));
+
+        expect(new Client(value).database).toBe(comparedName);
+        expect(nameTheHttpDriverParses(value)).toBe(comparedName);
       }),
       SWEEP,
     );
@@ -181,5 +270,37 @@ describe("the opener over a sweep of assembled strings (criteria 2, 5, 7 and 8)"
     expect(error).toBeInstanceOf(InvalidConnectionUrlError);
     expect(markersFoundOn(error, QA_MARKERS)).toEqual([]);
     expect(error).not.toHaveProperty("cause");
+  });
+});
+
+describe("the driver's error is recognised by its class, now that the opener answers for the retry helper (rule B5, ADR 0145)", () => {
+  const RETRYABLE_PAYLOAD =
+    'Server error (HTTP status 500): {"message":"x","neon:retryable":true}';
+
+  function renamed(error: Error, name: string): Error {
+    error.name = name;
+    return error;
+  }
+
+  it("retries the driver's own error with the retryable payload, whatever its name says", () => {
+    expect(isTransientFailure(new NeonDbError(RETRYABLE_PAYLOAD))).toBe(true);
+    expect(
+      isTransientFailure(renamed(new NeonDbError(RETRYABLE_PAYLOAD), "Other")),
+    ).toBe(true);
+  });
+
+  it.each<[string, unknown]>([
+    [
+      "an Error that only carries the driver's name",
+      renamed(new Error(RETRYABLE_PAYLOAD), "NeonDbError"),
+    ],
+    [
+      "an object shaped like the driver's error",
+      { name: "NeonDbError", message: RETRYABLE_PAYLOAD },
+    ],
+    ["a plain Error", new Error(RETRYABLE_PAYLOAD)],
+    ["the payload as a string", RETRYABLE_PAYLOAD],
+  ])("does not retry %s", (_what, error) => {
+    expect(isTransientFailure(error)).toBe(false);
   });
 });

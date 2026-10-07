@@ -21,15 +21,17 @@ const CONNECTION_URL = `postgres://${QA_USER}:${QA_PASSWORD}@${QA_HOST}/${FAKE_D
 /** The driver takes the last `@`; a parser that takes the first reads `x` as the password and the rest as the host. */
 const UNENCODED_AT_URL = `postgres://${QA_USER}:x@${QA_PASSWORD}@${QA_HOST}/${FAKE_DATABASE}`;
 
+interface ScriptedDriver {
+  connectFailure: unknown;
+  queryFailure: unknown;
+  end: () => Promise<void>;
+}
+
 const driver = vi.hoisted(
-  (): {
-    connectFailure: unknown;
-    queryFailure: unknown;
-    endFailure: unknown;
-  } => ({
+  (): ScriptedDriver => ({
     connectFailure: undefined,
     queryFailure: undefined,
-    endFailure: undefined,
+    end: () => Promise.resolve(),
   }),
 );
 
@@ -52,8 +54,8 @@ vi.mock("@neondatabase/serverless", () => ({
       );
     }
 
-    async end(): Promise<void> {
-      await rejectionOrNothing(driver.endFailure);
+    end(): Promise<void> {
+      return driver.end();
     }
   },
   neon: () => ({
@@ -240,22 +242,117 @@ describe.each(THROWING_PATHS)("$name (rule B3)", ({ raise }) => {
   });
 });
 
-describe("applyMigrations when closing the session fails after a clean run (rule B3)", () => {
-  it("settles with nothing from which the connection can be reached", async () => {
-    driver.connectFailure = undefined;
-    driver.queryFailure = undefined;
-    driver.endFailure = Object.assign(
-      new Error(`socket hang up ${CONNECTION_URL}`),
-      { input: CONNECTION_URL },
-    );
-    const { applyMigrations } = await import("../src/migrate.js");
+const SETTLE_BOUND_MS = 2_000;
 
-    const outcome = await applyMigrations(CONNECTION_URL, [MIGRATION]).then(
-      (summary) => summary,
-      (error: unknown) => error,
-    );
-    driver.endFailure = undefined;
+type Outcome =
+  | { readonly kind: "returned"; readonly value: unknown }
+  | { readonly kind: "threw"; readonly error: unknown }
+  | { readonly kind: "did not settle" };
 
-    expect(markersReachableFrom(outcome, QA_MARKERS)).toEqual([]);
+async function outcomeWithinBound(
+  run: () => Promise<unknown>,
+): Promise<Outcome> {
+  const bound = new Promise<Outcome>((resolve) =>
+    setTimeout(() => {
+      resolve({ kind: "did not settle" });
+    }, SETTLE_BOUND_MS),
+  );
+  const settled = run().then(
+    (value): Outcome => ({ kind: "returned", value }),
+    (error: unknown): Outcome => ({ kind: "threw", error }),
+  );
+  return Promise.race([settled, bound]);
+}
+
+function closeFailure(): Error {
+  return Object.assign(new Error(`socket hang up ${CONNECTION_URL}`), {
+    input: CONNECTION_URL,
   });
-});
+}
+
+/** Every way closing a session can go wrong. The last is what the driver does once its connection has already ended:
+ *  `end()` waits for an `end` event that fired before it was called. */
+const FAILING_CLOSES: readonly [string, () => Promise<void>][] = [
+  ["rejects", () => Promise.reject(closeFailure())],
+  [
+    "throws before returning a promise",
+    () => {
+      throw closeFailure();
+    },
+  ],
+  ["never settles", () => new Promise<void>(() => undefined)],
+];
+
+describe.each(FAILING_CLOSES)(
+  "applyMigrations when closing the session %s (rule B8)",
+  (_how, end) => {
+    const unhandledRejections: unknown[] = [];
+    const recordUnhandled = (reason: unknown): void => {
+      unhandledRejections.push(reason);
+    };
+
+    async function outcomeOfARun(script: {
+      readonly connectFailure?: unknown;
+      readonly queryFailure?: unknown;
+    }): Promise<Outcome> {
+      driver.connectFailure = script.connectFailure;
+      driver.queryFailure = script.queryFailure;
+      driver.end = end;
+      unhandledRejections.length = 0;
+      process.on("unhandledRejection", recordUnhandled);
+      const { applyMigrations } = await import("../src/migrate.js");
+      try {
+        const outcome = await outcomeWithinBound(() =>
+          applyMigrations(CONNECTION_URL, [MIGRATION]),
+        );
+        await new Promise((resume) => setImmediate(resume));
+        return outcome;
+      } finally {
+        process.off("unhandledRejection", recordUnhandled);
+        driver.end = () => Promise.resolve();
+      }
+    }
+
+    it("returns the summary of a clean run", async () => {
+      const outcome = await outcomeOfARun({});
+
+      expect(outcome).toEqual({
+        kind: "returned",
+        value: { applied: [MIGRATION.fileName], alreadyApplied: [] },
+      });
+      expect(unhandledRejections).toEqual([]);
+    });
+
+    it("throws the run's own error when a statement failed", async () => {
+      const outcome = await outcomeOfARun({
+        queryFailure: Object.assign(new Error("syntax error"), {
+          code: "42601",
+        }),
+      });
+
+      expect(outcome.kind).toBe("threw");
+      const { error } = outcome as { error: Error };
+      expect(error).toBeInstanceOf(MigrationExecutionError);
+      expect(error.message).toContain(MIGRATION.fileName);
+      expect(error.cause).toEqual({ name: "Error", code: "42601" });
+      expect(markersReachableFrom(error, QA_MARKERS)).toEqual([]);
+      expect(unhandledRejections).toEqual([]);
+    });
+
+    it("throws the connect failure when the connect failed", async () => {
+      const outcome = await outcomeOfARun({
+        connectFailure: Object.assign(new Error("refused"), {
+          code: "ECONNREFUSED",
+        }),
+      });
+
+      expect(outcome.kind).toBe("threw");
+      const { error } = outcome as { error: Error };
+      expect(error).toBeInstanceOf(MigrationExecutionError);
+      expect(error.message).toContain("Could not connect");
+      expect(error.cause).toEqual({ name: "Error", code: "ECONNREFUSED" });
+      expect(markersReachableFrom(error, QA_MARKERS)).toEqual([]);
+      expect(unhandledRejections).toEqual([]);
+    });
+  },
+);

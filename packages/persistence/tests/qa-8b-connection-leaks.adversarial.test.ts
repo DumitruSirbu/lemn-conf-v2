@@ -268,3 +268,39 @@ describe("a refused shape is answered without waiting on the network (criterion 
     expect(performance.now() - startedAt).toBeLessThan(AT_ONCE_MS);
   });
 });
+
+describe("a refusal names a variable only if the value was read from it (rule B4)", () => {
+  const BAD_ESCAPE = `postgres://${QA_CREDENTIALS}%ZZ@${QA_HOST}/${FAKE_DATABASE}`;
+
+  it("names MIGRATION_DATABASE_URL when runMigrations read the value from it", async () => {
+    vi.stubEnv("MIGRATION_DATABASE_URL", BAD_ESCAPE);
+
+    const error = await errorRaisedBy(() => runMigrations());
+
+    expect((error as InvalidConnectionUrlError).variableName).toBe(
+      "MIGRATION_DATABASE_URL",
+    );
+  });
+
+  // The live suites hand these three the test database's URL, so a mistyped TEST_DATABASE_URL that passes the
+  // isolation guard is reported here: naming MIGRATION_DATABASE_URL sends the reader to the privileged credential.
+  it.each<[string, (connectionUrl: string) => Promise<unknown>]>([
+    ["applyMigrations", (connectionUrl) => applyMigrations(connectionUrl, [])],
+    ["runMigrations", (connectionUrl) => runMigrations(connectionUrl)],
+    [
+      "readDeployedSchema",
+      (connectionUrl) => readDeployedSchema(connectionUrl),
+    ],
+  ])(
+    "%s names no variable for a value its caller handed in",
+    async (_name, run) => {
+      vi.stubEnv("MIGRATION_DATABASE_URL", "");
+
+      const error = await errorRaisedBy(() => run(BAD_ESCAPE));
+
+      expect(error).toBeInstanceOf(InvalidConnectionUrlError);
+      expect((error as InvalidConnectionUrlError).variableName).toBeUndefined();
+      expect((error as Error).message).not.toMatch(/DATABASE_URL/);
+    },
+  );
+});
