@@ -53,6 +53,14 @@ test("?select= naming a body of the design selects it and is then taken off the 
   await expect(page.getByTestId("editor-panel")).toBeVisible();
   expect(addressOf(page)).toBe(`/ro/d/${seededDesign.id}`);
   expect(await historyLength(page)).toBe(lengthBefore + 1);
+  // The strip rewrites the entry in place and must hand back the router's own state with it.
+  expect(
+    await page.evaluate(() =>
+      Object.keys((window.history.state ?? {}) as object).some((key) =>
+        key.includes("NEXTJS_INTERNALS_TREE"),
+      ),
+    ),
+  ).toBe(true);
 
   await page.reload();
   await expectEditorReady(page);
