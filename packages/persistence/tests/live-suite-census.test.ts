@@ -187,6 +187,12 @@ const EXPECTED_CLASSIFICATION: Readonly<
     lock: "none",
     reason: "unit test with the driver mocked: connects nowhere",
   },
+  "test-database-connection-errors.test.ts": {
+    gate: "none",
+    lock: "none",
+    reason:
+      "fake values only, every host ends in .invalid: no database is reachable",
+  },
 };
 
 /** Every module `vitest.config.ts` lists in `setupFiles`, as written there. Vitest runs each before

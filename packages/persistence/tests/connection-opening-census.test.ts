@@ -12,19 +12,14 @@ const SOURCE_DIRECTORY = resolve(
 const THE_OPENER = "open-database.ts";
 
 /**
- * Sites that still open a connection or parse a connection string themselves, each owed to the slice that migrates it.
- * The census compares this list to the source exactly: migrating a site turns it red until its entry is deleted here,
- * and a site not listed turns it red at once.
+ * Sites outside the opener that still open a connection or parse a connection string, each owed to the slice that
+ * migrates it; empty once every site has moved. The census compares this list to the source exactly: migrating a site
+ * turns it red until its entry is deleted here, and a site not listed turns it red at once.
  */
 const SITES_OWED_TO_THE_OPENER: readonly {
   readonly site: string;
   readonly owedBy: string;
-}[] = [
-  { site: "delete-designs-for-tests.ts: neon()", owedBy: "8B S3" },
-  { site: "delete-designs-for-tests.ts: neon()", owedBy: "8B S3" },
-  { site: "test-database-url.ts: new URL()", owedBy: "8B S3" },
-  { site: "test-database-url.ts: new URL()", owedBy: "8B S3" },
-];
+}[] = [];
 
 const CONSTRUCTED_NAMES: ReadonlySet<string> = new Set(["URL", "Client"]);
 const CALLED_NAME = "neon";
@@ -89,12 +84,6 @@ describe("the connection-opening census (8B, criterion 3)", () => {
     const owed = SITES_OWED_TO_THE_OPENER.map(({ site }) => site).sort();
 
     expect(sitesOutsideTheOpener()).toEqual(owed);
-  });
-
-  it("owes every listed site to a named slice", () => {
-    expect(
-      SITES_OWED_TO_THE_OPENER.filter(({ owedBy }) => owedBy === ""),
-    ).toEqual([]);
   });
 });
 

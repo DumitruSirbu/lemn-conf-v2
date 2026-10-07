@@ -56,6 +56,21 @@ export function openDatabaseSession(
   }
 }
 
+/**
+ * `new URL` over a connection string, for a caller that compares or rewrites parts of it and so needs no more than a
+ * parseable URL. Refuses an unparseable string as the opener does: Node's own error keeps the whole string on `input`.
+ */
+export function parseConnectionUrl(
+  connectionUrl: string,
+  variableName: ConnectionVariableName,
+): URL {
+  try {
+    return new URL(connectionUrl);
+  } catch {
+    throw new InvalidConnectionUrlError(variableName);
+  }
+}
+
 export function assertConnectionUrlShape(
   connectionUrl: string,
   variableName: ConnectionVariableName,

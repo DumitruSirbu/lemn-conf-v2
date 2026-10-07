@@ -1,3 +1,7 @@
+import type { NeonQueryFunction } from "@neondatabase/serverless";
+
+import { parseConnectionUrl, openDatabase } from "./open-database.js";
+import type { ConnectionVariableName } from "./open-database.js";
 import { readDatabaseUrl } from "./read-database-url.js";
 
 /**
@@ -36,8 +40,11 @@ interface DatabaseIdentity {
  * override the path, so any second driver must be checked for how it resolves the two, or this guard checks a name
  * nothing connects to. (Only libpq's behaviour is verified.)
  */
-function identityOf(connectionUrl: string): DatabaseIdentity {
-  const url = new URL(connectionUrl);
+function identityOf(
+  connectionUrl: string,
+  variableName: ConnectionVariableName,
+): DatabaseIdentity {
+  const url = parseConnectionUrl(connectionUrl, variableName);
   return {
     host: url.hostname.toLowerCase(),
     port: url.port === "" ? DEFAULT_POSTGRES_PORT : url.port,
@@ -52,7 +59,7 @@ function identityOf(connectionUrl: string): DatabaseIdentity {
  * DELETE through in CI; the second catches an application database that is itself named `lemnaria_test`.
  */
 export function assertSafeTestDatabaseUrl(testUrl: string): void {
-  const testIdentity = identityOf(testUrl);
+  const testIdentity = identityOf(testUrl, "TEST_DATABASE_URL");
   refuseUnlessNamedAsATestDatabase(testIdentity);
   refuseTheApplicationDatabaseName(testIdentity);
 }
@@ -73,7 +80,11 @@ function refuseUnlessNamedAsATestDatabase(test: DatabaseIdentity): void {
 function refuseTheApplicationDatabaseName(test: DatabaseIdentity): void {
   const applicationUrl = process.env["DATABASE_URL"]?.trim();
   if (applicationUrl === undefined || applicationUrl === "") return;
-  if (test.databaseName !== identityOf(applicationUrl).databaseName) return;
+  if (
+    test.databaseName !==
+    identityOf(applicationUrl, "DATABASE_URL").databaseName
+  )
+    return;
 
   throw new Error(
     `Refusing to run live database tests against "${test.databaseName}" on ` +
@@ -95,6 +106,16 @@ export function resolveTestDatabaseUrl(): string {
     : refuseUnsafeTarget(override);
 }
 
+/** The guarded connection the test helpers use. A refusal names the variable the URL came from: the override when one
+ *  is set, else `DATABASE_URL`, which the URL was derived from. */
+export function openTestDatabase(): NeonQueryFunction<false, false> {
+  const sourceVariable =
+    readTestDatabaseOverride() === undefined
+      ? "DATABASE_URL"
+      : "TEST_DATABASE_URL";
+  return openDatabase(resolveTestDatabaseUrl(), sourceVariable);
+}
+
 function readTestDatabaseOverride(): string | undefined {
   const value = process.env["TEST_DATABASE_URL"]?.trim();
   return value === undefined || value === "" ? undefined : value;
@@ -112,7 +133,7 @@ function refuseUnsafeTarget(testUrl: string): string {
 }
 
 function withDatabaseName(connectionUrl: string, databaseName: string): string {
-  const url = new URL(connectionUrl);
+  const url = parseConnectionUrl(connectionUrl, "DATABASE_URL");
   url.pathname = `/${databaseName}`;
   return url.toString();
 }

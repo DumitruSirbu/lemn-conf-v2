@@ -18,42 +18,53 @@ export interface FakeConnectionValue {
 }
 
 /** Values the driver, or Node's `URL`, rejects while echoing the whole string. */
-export const REFUSED_VALUES: readonly FakeConnectionValue[] = [
-  {
-    label: "bad percent-escape",
-    value: `postgres://${FAKE_CREDENTIALS}%ZZ@${FAKE_HOST}/${FAKE_DATABASE}`,
-  },
-  {
-    label: "missing host",
-    value: `postgres://${FAKE_CREDENTIALS}@/${FAKE_DATABASE}`,
-  },
-  {
-    label: "non-URL string",
-    value: `${FAKE_PASSWORD} ${FAKE_HOST} not a url ${FAKE_USER}`,
-  },
-  {
-    label: "bad port",
-    value: `postgres://${FAKE_CREDENTIALS}@${FAKE_HOST}:notaport/${FAKE_DATABASE}`,
-  },
-  {
-    label: "wrong scheme",
-    value: `mysql://${FAKE_CREDENTIALS}@${FAKE_HOST}/${FAKE_DATABASE}`,
-  },
-];
-
-export const WELL_FORMED_UNREACHABLE_VALUE = `postgres://${FAKE_CREDENTIALS}@${FAKE_HOST}/${FAKE_DATABASE}`;
+export function refusedValuesFor(databaseName: string): FakeConnectionValue[] {
+  return [
+    {
+      label: "bad percent-escape",
+      value: `postgres://${FAKE_CREDENTIALS}%ZZ@${FAKE_HOST}/${databaseName}`,
+    },
+    {
+      label: "missing host",
+      value: `postgres://${FAKE_CREDENTIALS}@/${databaseName}`,
+    },
+    {
+      label: "non-URL string",
+      value: `${FAKE_PASSWORD} ${FAKE_HOST} not a url ${FAKE_USER}`,
+    },
+    {
+      label: "bad port",
+      value: `postgres://${FAKE_CREDENTIALS}@${FAKE_HOST}:notaport/${databaseName}`,
+    },
+    {
+      label: "wrong scheme",
+      value: `mysql://${FAKE_CREDENTIALS}@${FAKE_HOST}/${databaseName}`,
+    },
+  ];
+}
 
 /** Well-formed values the driver takes and then fails on at query time, with an error that is clean today. */
-export const ACCEPTED_VALUES: readonly FakeConnectionValue[] = [
-  {
-    label: "empty password",
-    value: `postgres://${FAKE_USER}:@${FAKE_HOST}/${FAKE_DATABASE}`,
-  },
-  {
-    label: "well-formed, unreachable",
-    value: WELL_FORMED_UNREACHABLE_VALUE,
-  },
-];
+export function acceptedValuesFor(databaseName: string): FakeConnectionValue[] {
+  return [
+    {
+      label: "empty password",
+      value: `postgres://${FAKE_USER}:@${FAKE_HOST}/${databaseName}`,
+    },
+    {
+      label: "well-formed, unreachable",
+      value: wellFormedUnreachableValueFor(databaseName),
+    },
+  ];
+}
+
+export function wellFormedUnreachableValueFor(databaseName: string): string {
+  return `postgres://${FAKE_CREDENTIALS}@${FAKE_HOST}/${databaseName}`;
+}
+
+export const REFUSED_VALUES = refusedValuesFor(FAKE_DATABASE);
+export const ACCEPTED_VALUES = acceptedValuesFor(FAKE_DATABASE);
+export const WELL_FORMED_UNREACHABLE_VALUE =
+  wellFormedUnreachableValueFor(FAKE_DATABASE);
 
 /**
  * Every place a logger or a catch block can read a marker from: `message`, `stack`, every own property (non-enumerable

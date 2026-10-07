@@ -1,8 +1,5 @@
-import { neon } from "@neondatabase/serverless";
-
 import { retryOnTransientFailure } from "./retry-on-transient-failure.js";
-
-import { resolveTestDatabaseUrl } from "./test-database-url.js";
+import { openTestDatabase } from "./test-database-url.js";
 
 /**
  * Set by vitest in every worker and by Playwright in every test worker (`TEST_WORKER_INDEX`): the closest proof that
@@ -13,7 +10,7 @@ const TEST_RUNNER_MARKER_VARIABLES = ["VITEST", "TEST_WORKER_INDEX"] as const;
 /**
  * Deletes the named designs from the test database. Test support only. It lives here because a Postgres driver appears
  * in exactly one package (`scripts/gates/boundary.sh`). The connection is resolved here, not accepted as an argument:
- * `resolveTestDatabaseUrl()` refuses anything but an allowlisted test database, so no caller can bypass the guard
+ * `openTestDatabase()` refuses anything but an allowlisted test database, so no caller can bypass the guard
  * (finding DB-001; ADR 0006's third mechanism). The function is reachable from `apps/web` through the package index, so
  * it refuses outright unless a test runner is running it.
  */
@@ -23,7 +20,7 @@ export async function deleteDesignsForTests(
   assertRunningUnderATestRunner();
   if (ids.length === 0) return;
 
-  const sql = neon(resolveTestDatabaseUrl());
+  const sql = openTestDatabase();
   // One statement per id rather than one `= any(...)`: the id list is short, and a per-row delete needs no array
   // binding.
   for (const id of ids)
@@ -43,7 +40,7 @@ export async function findDesignIdsForTests(
   assertRunningUnderATestRunner();
   if (ids.length === 0) return [];
 
-  const sql = neon(resolveTestDatabaseUrl());
+  const sql = openTestDatabase();
   const rows = (await retryOnTransientFailure(
     () => sql`select id from designs where id = any(${ids})`,
   )) as { id: string }[];
