@@ -10,9 +10,11 @@
 > at `a7b0363`)**; they changed 8B's slices and criteria and what 8F owes the e2e suite, and left
 > Q15 standing. **8B is implemented; QA's first pass found three defects, round 1 fixed them
 > (`a20432e`), QA's re-run left one test failing, round 2 fixed it (`1df6d7f`), and QA's third pass
-> leaves eight failing on four findings. All three passes are adjudicated in its section. Round 3
-> is next (four items), then one QA pass under a stopping rule, then review. Q27 was raised by
-> it.** **Six follow-up questions are open,
+> left eight failing on four findings, round 3 fixed them, and QA's final pass was green
+> (`8cd85da`). **Review round 1 found one blocker (R1.1): a value with an interior newline passes
+> the opener and its password reaches the log on the query path.** All of it is adjudicated in
+> its section. Next: fix round A (three items), a targeted QA pass, round B (clean-code), then
+> review round 2. Q27 was raised by it, and its recommendation changed to (b).** **Six follow-up questions are open,
 > Q21–Q26** (seven with Q27), and the first two —
 > where production runs and where the database lives — make five of the recorded answers
 > conditional. Dispatchable as written: **8B, 8C, 8D, 8E, 8I**.
@@ -582,8 +584,32 @@ it rejects a login, which may name the role [inf]. The role `app_designs` is alr
 this repository (ADR 0008).
 (a) Leave it: none of these is a credential. (b) Hide them too: every runtime query error is
 rebuilt as 8B's B3 rebuilds a migration error, in a later wave that touches each repository method.
-*Recommended: (a), with 8B's F3 measurement run once* to show that a rejected login does not carry
-the password. *Blocks:* nothing in 8B; its close-out says which answer it was closed under.
+~~*Recommended: (a), with 8B's F3 measurement run once* to show that a rejected login does not
+carry the password.~~ *Blocks:* nothing in 8B; its close-out says which answer it was closed under.
+
+**Changed 2026-10-07, after 8B's review round 1: the recommendation is now (b), as its own wave
+before launch.** What the security reviewer established about a query-time error, relayed:
+
+- It reaches logs only, never a response body.
+- **It carried the password.** A value with an interior newline passed the opener, the runtime
+  refused it as a header, and the driver's error quoted it whole (8B's R1.1; reproduced by the
+  architect with fake values). 8B's B10 closes that way in. It does not make option (a)'s premise,
+  *"none of these is a credential"*, true by construction: the next consumer to quote the string
+  would land on the same path.
+- An HTTP 400 from the database carries the server's message verbatim and sixteen server fields,
+  `detail` among them. On a constraint failure Postgres puts row values in `detail` [the
+  reviewer's inference], so a design document or a token hash can ride there. Backlog 84 already
+  records one instance.
+- A failed fetch names a host derived from the address, or the address it resolved to.
+
+So the question is wider than a host and a role: **it is whether the one remaining place where a
+driver's error passes through untouched should stay so.** (a) Leave it, with B10 and the fixed log
+line as the protection. (b) Rebuild every runtime query error as B3 rebuilds a migration error: a
+type name and a code, nothing else; the retry decision is taken on the raw error first, inside the
+package. *Recommended: (b).* It is the same rule 8B applied everywhere else, and R1.1 is the
+evidence that the exception was not safe. It is a wave of its own (each repository method, the
+retry wrapper, the failure log), Full tier with security, and belongs on the launch gate. F3 is
+moot under (b).
 
 ## Waves
 
@@ -593,7 +619,7 @@ answers; the questions each wave first waited on are in *The questions as put*.
 | Wave | Covers | Packages | Tier | Waits for, as of 2026-10-07 |
 | --- | --- | --- | --- | --- |
 | 8A | Measurements, vendor reads, the questions | none (docs, scratch) | Light | S1, S2 and S3 are in (*8A figures*, *The owner's answers*). Not closed: Q21–Q26 are open, and its review has not been run |
-| 8B | A driver error never prints the connection string | persistence, web | Full + security | **Rounds 1 and 2 done (`a20432e`, `1df6d7f`); QA's third pass red on eight tests, four findings.** Round 3 (four items), one QA pass under the stopping rule, then review. See its three adjudications |
+| 8B | A driver error never prints the connection string | persistence, web | Full + security | **Three fix rounds done; QA green at `8cd85da`; review round 1 found one blocker (R1.1).** Fix round A, a targeted QA pass, round B, review round 2. See its four adjudications |
 | 8C | The review as a value: rows, room line, submit eligibility | web, domain (read) | Full | **Nothing. Dispatchable** (Q10 answered) |
 | 8D | The review route and screen 3A/3B; the CTA gets its destination | web | Light + visual; security on S1 | **Nothing but 8C. Dispatchable** (Q2 answered) |
 | 8E | The rate-limit store | persistence | Full + security | **Nothing. Dispatchable** (Q14 answered) |
@@ -1222,6 +1248,133 @@ deferrals re-aimed under F5.
   review in that same pass. The architect classifies; QA's freedom to look is not narrowed.
 - *Whose it is.* The rule trades completeness for an end. If the coordinator thinks that trade is
   the owner's, the two things to put to them are QA13 as a limit and the rule itself.
+
+#### 8B — adjudication of review round 1, 2026-10-07, after QA's green pass
+
+**State.** QA's last pass was green and its tests are `8cd85da`; the coordinator re-ran the whole
+persistence suite, 53 files, 1402 passed [relayed]. Three reviewers reported. The tree is clean
+and frozen. The architect re-ran the blocker with fake values against `h.invalid`, at `8cd85da`
+[ran]:
+
+| Value | A request header takes it | The session client takes it | What a query throws |
+| --- | --- | --- | --- |
+| An interior LF, CR or NUL in the password | **no** | yes | `NeonDbError`, **the password in its message and `util.inspect`** |
+| A character above U+00FF | **no** | yes | `NeonDbError` naming that character's index and value; no password |
+| An interior tab; a trailing LF; a space; U+00E9; U+007F | yes | yes | *"fetch failed"*, nothing of the value |
+| `?sslmode=verify-full&sslrootcert=system` | yes | **no** (its constructor throws) | *"fetch failed"*, nothing of the value |
+
+**R1.1 (logic and security): confirmed. Implementation defect, and a contract gap in B9, the
+architect's.** B9 defined acceptance by what three *readers* make of the string. The HTTP driver
+also hands the string on **unread**, as a header. A value all three readers agree on can still be
+one that consumer refuses, and its refusal quotes the value. It predates the wave and is the wave's
+goal: arm (a) of the stopping rule.
+
+- **B10 — an entry point refuses a string exactly when a consumer it will use refuses it.**
+  Refusal is the union of the consumers' own refusals, **asked of the consumers**, plus B7 and B9.
+  It is never wider.
+  - *The consumers of the string, today.* For a query over HTTP: the driver's own constructor,
+    and the request header the driver puts the raw string in. For a session: the session client's
+    constructor. For both: the URL reader. Each is asked by doing what the driver will do with
+    the string, before the driver does it, where the refusal can be caught and replaced.
+  - *Which direction.* The security reviewer's, generalised: it is B9's method, extended from
+    readers to consumers. **Not a character class.** The logic reviewer's class, printable ASCII,
+    closes the same three characters and also refuses strings the runtime sends today (a
+    Latin-1 letter, a tab, a trailing newline) [ran: the header takes each], which risks a new
+    outage this wave must not cause. A stricter form was weighed too, that reading must not
+    change the string at all; the URL reader rewrites a raw `;`, `=`, `^` or `|` in a password
+    [ran], so it would refuse a password that works today, and was not taken for the same reason.
+  - *A trailing newline is accepted*, as before the wave: the header's own rule drops it [ran].
+    So is every other string a query can be completed with today.
+  - **B9, amended.** ~~…and the session driver's own reading, asked of the driver…~~ The readers
+    whose names must agree are those that take the string. **A reader that refuses it does not
+    disagree; it cannot be the one that connects.** The HTTP entry point no longer fails because
+    the session client would not build.
+  - *Does this close the class or the header?* It closes the class for the consumers that exist
+    at driver 1.1.0 and this Node. A consumer added by a later driver is not known to the rule;
+    **the sweep below is what notices one.** The by-construction answer is Q27 (b).
+- **Security R1.2, the ssl parameters: fixed by B10's amendment to B9; no owner question, and no
+  reading of Neon's documentation is needed to rule.** A URL carrying `sslrootcert=`, `sslcert=`
+  or `sslkey=` is accepted for HTTP again, exactly as before the wave. For a session it is
+  refused, as it always failed there, since the client's constructor throws on it. The refusal
+  must be true of what it refuses: it may not tell the operator to supply a user, a host and a
+  database the value already has. Per B2 as clarified, this is one more closed class with its own
+  sentence. *For the record only* (F6): whether Neon documents such a form for its strings, so
+  that the backlog can say the migration tools cannot use it.
+- **The project's own log line** (`apps/web/src/lib/server/design-failure-log.ts`). Its redaction
+  stops at the first whitespace, so a value holding a newline leaves its tail in the line. **In
+  this round**, since it is the wave's goal and one file. Rule: once a URL begins in a failure's
+  text, nothing after it in that text is logged.
+
+**The other findings, one line each.**
+
+| Finding | Ruling |
+| --- | --- |
+| Logic R1.2: a comment says a tab makes the readers differ; it does not, and the raw string with the tab goes to Neon | Comment corrected in this round. The behaviour is the recorded fourth-reading limit, with this as its first named candidate |
+| Logic R1.3: the *"characters that must not appear raw"* refusal is unreachable; a `%` in the name is told to supply *"a real host"* | Fixed in this round: the dead branch goes, and a string whose readers do not agree gets a sentence that says so. B2's third class is replaced by that one |
+| Logic R1.4: two CLI lines print an unexpected error's `name` unclamped | Fixed in this round with the clamp B3 already has |
+| Security R1.3: with an empty password the session client reads `PGPASSWORD`, `PGPORT`, `PGOPTIONS`, `PGSSLMODE` | Recorded limit. Predates the wave; it is the driver's environment, not a fallback between this project's variables (ADR 0008 holds) |
+| QA16; QA5; QA17 (mis-stated: no file is read) | As the reviewers found: record only |
+| Clean-code should-fix 1–4 | All four in this round. The titles and journal comments in QA's own files are re-worded by QA in its pass, not by the implementer |
+| Clean-code nits that are deletions: the unused export, the re-export of `databaseNameOf` through the CLI module, the second `describeErrorType` | In this round |
+| The nine-line comment that belongs in the ADR; not splitting `open-database.ts`; the optional `readFrom` shape | Recorded for the wave's ADR; no code |
+
+**What QA's sweep must now do that it did not.** It tested what the opener *accepts*. It never
+*used* an accepted string.
+
+1. **Query through every accepted string**, by each entry point, with the socket replaced and the
+   request still built by the real runtime, so that header and URL validation run. Whatever is
+   thrown carries nothing of the value: message, stack, own properties, cause chain,
+   `util.inspect`.
+2. **The converse, so that the fix causes no outage.** Over the sweep, the HTTP entry point
+   refuses a string **only if** B7 or B9 refuses it or one of its two consumers does. The same for
+   the session entry point and its one.
+3. Pins by name: an interior LF, CR and NUL refused; a character above U+00FF refused; a trailing
+   newline accepted; a URL with `sslrootcert` accepted over HTTP and refused for a session, each
+   with a refusal that is true of it.
+4. `guard-compare` again: the guard's allowed set is still a subset of the pre-wave guard's.
+
+**The fix rounds. Nine production files, so two rounds; the blocker is first.**
+
+*Round A* — behaviour; three items, three production files.
+
+1. **B10, and B9 as amended** (R1.1; security R1.2). `open-database.ts`.
+2. **The log line** (security R1.1). `apps/web/src/lib/server/design-failure-log.ts`.
+3. **A refusal says what is true** (logic R1.3, R1.2's comment; clean-code 1).
+   `migration-target.ts`, `open-database.ts`: the two placeholders declared once; the dead branch
+   removed; the stale comments at the cited lines corrected.
+
+Then QA's targeted pass: the four duties above, and nothing else is reopened.
+
+*Round B* — no behaviour but one clamp; two items, mechanical, seven production files each
+touched lightly (six of them new to this fix).
+
+4. **One clamped name, one helper** (logic R1.4; the nits). `migration-errors.ts`, `migrate.ts`,
+   `migrate-status.ts`: the printed name clamped; one `describeErrorType`; the re-export deleted
+   and its importers pointed at `open-database.ts`; `assertConnectionUrlShape` no longer exported.
+5. **The clean-code batch** (should-fix 2–4). The opening expression repeated at the three runtime
+   sites becomes one helper; the stale comment in `migration-target-cli.test.ts`; journal comments
+   and rule ids out of the implementer's test titles (ADR 0136).
+
+Round B is checked by the persistence and web suites staying green and by the clean-code
+reviewer; it gets no QA pass of its own.
+
+*Reading, implementer:* this adjudication; the three reviewers' reports; B9 and its amendment;
+`open-database.ts` whole; driver 1.1.0 where it builds the request header and where the session
+client parses its ssl parameters (the lines the reviewers cite); `design-failure-log.ts` and its
+two test files; `migration-target.ts:30-110, 205-260`; ADR 0136.
+*Reading, QA:* the same; its own `qa-8b-opener-sweep` and `qa-8b-thrown-cause` files.
+
+**After the rounds.** One review round 2 by the same three agents, each on its own findings only:
+logic and security on round A, clean-code on round B. That is what the coordinator proposed and
+it is enough. The stopping rule still holds for anything new.
+
+**Q27 changes: see its note.** R1.1 put a password on the query path, so *"none of these is a
+credential"* was false as written. B10 closes the known way there. F3 matters only under (a).
+
+**F6 — Neon's documented connection strings.** For the record, not for the ruling: one read of
+Neon's documentation for whether it gives `sslrootcert` or a sibling in the strings it hands out.
+If it does, the backlog says the migration tools cannot use that form, which was true before this
+wave. The coordinator's, with F1 and F5.
 
 ### 8C — the review as a value
 
