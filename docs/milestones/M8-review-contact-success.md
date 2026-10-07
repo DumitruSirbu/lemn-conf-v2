@@ -3168,7 +3168,8 @@ writes them; the architect supplies the content.
 8. The CSP enforces: how both preconditions were discharged (8Q). An amendment to ADR 0041.
 9. The first stored schema at launch (Q20). Closes ADR 0038's expiry and ADR 0111 decision 8.
    **No record is assigned to wave 8C by this list** (its rules C1–C3 are in the 8C section only; see
-   *8C as built*).
+   *8C as built*). **WRITTEN 2026-10-07: [ADR 0148](../decisions/0148-the-review-refuses-one-thing-at-a-time-the-first-the-customer-can-act-on-and-no-cabinet-means-nothing-lemnaria-supplies.md)
+   holds C1–C3; 8D's close adds the screen's half to it (the next free number is now 0149).**
 10. ~~Customer profiles as designed (8N): storage, session, CSRF, claiming, how a session authorises
     a claimed design, deletion. Amends ADR 0114 decision 5 and ADR 0008.~~ **M8B's (Q1).**
 11. ~~If Q1 is (b):~~ **Owed now (Q1 answered (b), relayed, 2026-10-07):** profiles become M8B,
