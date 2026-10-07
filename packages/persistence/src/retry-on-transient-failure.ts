@@ -1,4 +1,4 @@
-import { NeonDbError } from "@neondatabase/serverless";
+import { isNeonDbError } from "./open-database.js";
 
 /**
  * Neon's proxy answers a query it could not route to a suspended compute with an HTTP 500 whose payload carries this
@@ -31,9 +31,7 @@ export function isTransientFailure(error: unknown): boolean {
 }
 
 function isComputeRestartFailure(error: unknown): boolean {
-  return (
-    error instanceof NeonDbError && RETRYABLE_PAYLOAD_MARKER.test(error.message)
-  );
+  return isNeonDbError(error) && RETRYABLE_PAYLOAD_MARKER.test(error.message);
 }
 
 // Structural, not `instanceof`: an error built in another realm fails every `instanceof` check against this one.

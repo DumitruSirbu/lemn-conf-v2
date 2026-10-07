@@ -34,6 +34,25 @@ const RUNTIME_SITES: readonly RuntimeSite[] = [
   },
 ];
 
+const HANDED_IN_SITES: readonly {
+  readonly name: string;
+  readonly openWith: (connectionUrl: string) => unknown;
+}[] = [
+  {
+    name: "NeonConfigurationRepository",
+    openWith: (connectionUrl) => new NeonConfigurationRepository(connectionUrl),
+  },
+  {
+    name: "NeonShareLinkRepository",
+    openWith: (connectionUrl) => new NeonShareLinkRepository(connectionUrl),
+  },
+  {
+    name: "createNeonDesignRowSource",
+    openWith: (connectionUrl) =>
+      createNeonDesignRowSource(connectionUrl).fetchDesignPage({ pageSize: 1 }),
+  },
+];
+
 async function errorRaisedBy(open: () => unknown): Promise<unknown> {
   try {
     await open();
@@ -116,3 +135,36 @@ describe.each(ACCEPTED_VALUES)(
 function neverFound(): never {
   throw new Error("the row-source site is missing from RUNTIME_SITES");
 }
+
+describe.each(RUNTIME_SITES)("$name", ({ open }) => {
+  it("names DATABASE_URL when the value was read from it, and no variable when the caller handed the value in", async () => {
+    const [{ value }] = REFUSED_VALUES as [(typeof REFUSED_VALUES)[number]];
+    vi.stubEnv("DATABASE_URL", value);
+
+    const readFromEnvironment = await errorRaisedBy(open);
+
+    expect(
+      (readFromEnvironment as InvalidConnectionUrlError).variableName,
+    ).toBe("DATABASE_URL");
+  });
+});
+
+describe.each(HANDED_IN_SITES)(
+  "$name given a URL by its caller",
+  ({ openWith }) => {
+    describe.each(REFUSED_VALUES)("a $label", ({ value }) => {
+      it("is refused as handed in: no variable named, and no marker", async () => {
+        vi.stubEnv("DATABASE_URL", WELL_FORMED_UNREACHABLE_VALUE);
+
+        const error = await errorRaisedBy(() => openWith(value));
+
+        expect(error).toBeInstanceOf(InvalidConnectionUrlError);
+        expect((error as InvalidConnectionUrlError).variableName).toBe(
+          undefined,
+        );
+        expect((error as Error).message).not.toContain("DATABASE_URL");
+        expect(markersFoundOn(error)).toEqual([]);
+      });
+    });
+  },
+);

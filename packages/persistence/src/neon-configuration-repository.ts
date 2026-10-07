@@ -171,8 +171,11 @@ export class NeonConfigurationRepository
   private readonly sql;
 
   /** `connectionUrl` defaults to `DATABASE_URL`; only the live tests pass it, to target their own database. */
-  constructor(connectionUrl: string = readDatabaseUrl()) {
-    this.sql = openDatabase(connectionUrl, "DATABASE_URL");
+  constructor(connectionUrl?: string) {
+    this.sql =
+      connectionUrl === undefined
+        ? openDatabase(readDatabaseUrl(), "DATABASE_URL")
+        : openDatabase(connectionUrl);
   }
 
   /**

@@ -1,3 +1,4 @@
+import { fc } from "@fast-check/vitest";
 import { Client, neon } from "@neondatabase/serverless";
 import { describe, expect, it } from "vitest";
 
@@ -5,6 +6,7 @@ import {
   InvalidConnectionUrlError,
   openDatabase,
   openDatabaseSession,
+  parseConnectionUrl,
 } from "../src/open-database.js";
 import type { ConnectionVariableName } from "../src/open-database.js";
 import { isTransientFailure } from "../src/retry-on-transient-failure.js";
@@ -129,12 +131,63 @@ describe("openDatabase and the driver agree on what a connection string is", () 
     }
   }
 
-  it("accepts exactly the values `neon()` accepts, so a well-formed URL behaves as before", () => {
-    const disagreements = VALUES_BOTH_JUDGE.flatMap((value, index) =>
-      openerAccepts(value) === driverAccepts(value) ? [] : [index],
+  it("never accepts a value `neon()` rejects, so the driver's own echoing error stays unreachable", () => {
+    const acceptedByTheOpenerOnly = VALUES_BOTH_JUDGE.flatMap((value, index) =>
+      openerAccepts(value) && !driverAccepts(value) ? [index] : [],
     );
 
-    expect(disagreements).toEqual([]);
+    expect(acceptedByTheOpenerOnly).toEqual([]);
+  });
+
+  it("never accepts a swept string `neon()` rejects", () => {
+    const fragments = [
+      "postgres://",
+      "postgresql://",
+      "postgres:",
+      FAKE_USER,
+      FAKE_PASSWORD,
+      FAKE_HOST,
+      ":",
+      "@",
+      "/",
+      "?",
+      "#",
+      "%ZZ",
+      "%2F",
+      "%",
+      " ",
+      "[",
+      "5432",
+      "notaport",
+    ];
+    const swept = fc
+      .array(
+        fc.oneof(fc.constantFrom(...fragments), fc.string({ maxLength: 3 })),
+        { maxLength: 12 },
+      )
+      .map((parts) => parts.join(""));
+
+    fc.assert(
+      fc.property(swept, (value) => {
+        expect(openerAccepts(value) && !driverAccepts(value)).toBe(false);
+      }),
+      { seed: 20261008, numRuns: 3_000 },
+    );
+  });
+
+  it("refuses exactly three forms the driver takes: no database, one slash and no slash after the scheme", () => {
+    const takenByTheDriverOnly = VALUES_BOTH_JUDGE.filter(
+      (value) => driverAccepts(value) && !openerAccepts(value),
+    );
+
+    expect(takenByTheDriverOnly).toEqual(
+      expect.arrayContaining([
+        `postgres://${FAKE_USER}:${FAKE_PASSWORD}@${FAKE_HOST}`,
+        `postgres:/${FAKE_USER}:${FAKE_PASSWORD}@${FAKE_HOST}/lemn-fake-db`,
+      ]),
+    );
+    expect(driverAccepts("postgres:u:p@h/db")).toBe(true);
+    expect(openerAccepts("postgres:u:p@h/db")).toBe(false);
   });
 
   it("judges both a refused and an accepted case, so the comparison is not vacuous", () => {
@@ -256,12 +309,6 @@ describe("the one accepted shape (rule B7), pinned for both entry points", () =>
     ["a user without a password", "postgres://u@h/db"],
     ["a port and a query", "postgres://u:p@h:5432/db?sslmode=require"],
     ["a percent-encoded password", "postgres://u:p%40w@h/db"],
-    ["a host with no path, which the driver takes as `/`", "postgresql://u@h"],
-    [
-      "one slash after the scheme, which the driver re-parses as http:",
-      "postgres:/u:p@h/db",
-    ],
-    ["no slash after the scheme", "postgres:u:p@h/db"],
   ];
 
   const REFUSED_SHAPES: readonly [string, string][] = [
@@ -273,6 +320,13 @@ describe("the one accepted shape (rule B7), pinned for both entry points", () =>
     ["another database's scheme", "mysql://u:p@h/db"],
     ["a keyword string", "host=h dbname=x user=u"],
     ["an empty host", "postgres://u:p@/db"],
+    ["no database, which the driver takes", "postgresql://u@h"],
+    ["an empty database name, which the driver takes", "postgres://u@h/"],
+    [
+      "one slash after the scheme, which the driver takes",
+      "postgres:/u:p@h/db",
+    ],
+    ["no slash after the scheme, which the driver takes", "postgres:u:p@h/db"],
     ["the empty string", ""],
   ];
 
@@ -291,4 +345,77 @@ describe("the one accepted shape (rule B7), pinned for both entry points", () =>
       InvalidConnectionUrlError,
     );
   });
+});
+
+describe("a refusal names a variable only if the value was read from it (rule B4)", () => {
+  const HANDED_IN_OPENERS: readonly [
+    string,
+    (value: string) => unknown,
+    readonly string[],
+  ][] = [
+    [
+      "openDatabase",
+      (value) => openDatabase(value),
+      REFUSED_VALUES.map(({ value }) => value),
+    ],
+    [
+      "openDatabaseSession",
+      (value) => openDatabaseSession(value),
+      REFUSED_VALUES.map(({ value }) => value),
+    ],
+    [
+      "parseConnectionUrl",
+      (value) => parseConnectionUrl(value),
+      REFUSED_VALUES.filter(({ label }) =>
+        ["missing host", "non-URL string", "bad port"].includes(label),
+      ).map(({ value }) => value),
+    ],
+  ];
+
+  it.each(HANDED_IN_OPENERS)(
+    "%s refuses a handed-in value as handed in: no variable, no marker, the same four own properties",
+    (_name, open, values) => {
+      expect(values.length).toBeGreaterThan(0);
+      for (const value of values) {
+        const error = thrownBy(() => open(value));
+
+        expect(error).toBeInstanceOf(InvalidConnectionUrlError);
+        expect((error as InvalidConnectionUrlError).variableName).toBe(
+          undefined,
+        );
+        expect((error as Error).message).toMatch(
+          /^The connection string handed in is not a valid/,
+        );
+        for (const variableName of CONNECTION_VARIABLES)
+          expect((error as Error).message).not.toContain(variableName);
+        expect(markersFoundOn(error)).toEqual([]);
+        expect(Object.getOwnPropertyNames(error).sort()).toEqual([
+          "message",
+          "name",
+          "stack",
+          "variableName",
+        ]);
+      }
+    },
+  );
+
+  it("still names the variable when the caller says it read the value from one", () => {
+    const [{ value }] = REFUSED_VALUES as [(typeof REFUSED_VALUES)[number]];
+
+    const error = thrownBy(() => openDatabase(value, "DATABASE_URL"));
+
+    expect((error as InvalidConnectionUrlError).variableName).toBe(
+      "DATABASE_URL",
+    );
+    expect((error as Error).message).toMatch(/^DATABASE_URL is not a valid/);
+  });
+
+  function thrownBy(run: () => unknown): unknown {
+    try {
+      run();
+    } catch (error) {
+      return error;
+    }
+    return undefined;
+  }
 });

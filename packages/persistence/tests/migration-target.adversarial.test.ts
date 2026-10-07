@@ -8,6 +8,7 @@ import {
   assertDeclaredEnvironmentReaches,
   readDeclaredEnvironment,
 } from "../src/migration-target.js";
+import { UNLISTED_DATABASE } from "../src/test-database-url.js";
 import { spawnPersistenceCli } from "./support/spawn-persistence-cli.js";
 
 /**
@@ -466,9 +467,8 @@ describe("the CLIs, spawned — cases the implementer's CLI file does not try", 
   });
 
   it("migrate passes a matching ad-hoc label all the way to the connect step", async () => {
-    // Stronger than "no mismatch error": proves the run reached runMigrations. Accepts the plan's
-    // AC8 line, or — while the pre-existing `client.end()` hang after a failed connect stands — the
-    // unsettled-await warning Node prints at the runMigrations call.
+    // Stronger than "no mismatch error": proves the run reached runMigrations and that a failed connect
+    // settles with the plan's AC8 line.
     const result = await spawnPersistenceCli(
       "src/migrate.ts",
       [PASS_THROUGH_DATABASE],
@@ -478,9 +478,10 @@ describe("the CLIs, spawned — cases the implementer's CLI file does not try", 
     );
 
     expect(result.exitCode).not.toBe(0);
-    expect(result.stderr).toMatch(
-      /Could not connect to "<a database this repository does not list>"|unsettled top-level await[\s\S]*await runMigrations\(connectionUrl\)/,
+    expect(result.stderr).toContain(
+      `Could not connect to "${UNLISTED_DATABASE}"`,
     );
+    expect(result.stderr).not.toContain("unsettled top-level await");
     expectNothingLeaked(result.stdout, result.stderr);
   });
 

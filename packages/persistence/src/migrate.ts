@@ -68,7 +68,17 @@ export async function applyMigrations(
   try {
     return await applyPendingMigrations(client, files);
   } finally {
+    await closeQuietly(client);
+  }
+}
+
+/** The run's outcome is already decided when the session closes. A close that fails must not replace the failure that
+ *  brought us here, nor turn a run whose migrations all committed into a failed one. */
+async function closeQuietly(client: Client): Promise<void> {
+  try {
     await client.end();
+  } catch {
+    // Deliberately swallowed; see above.
   }
 }
 

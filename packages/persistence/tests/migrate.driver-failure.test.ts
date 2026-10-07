@@ -14,6 +14,7 @@ const SETTLE_BOUND_MS = 2_000;
 interface ScriptedDriver {
   connectFailure: unknown;
   queryFailure: unknown;
+  endFailure: unknown;
   readonly endCalls: number[];
 }
 
@@ -21,6 +22,7 @@ const driver = vi.hoisted(
   (): ScriptedDriver => ({
     connectFailure: undefined,
     queryFailure: undefined,
+    endFailure: undefined,
     endCalls: [],
   }),
 );
@@ -43,9 +45,11 @@ vi.mock("@neondatabase/serverless", () => ({
     // The real driver's `end()` after a failed connect waits for an `end` event that already fired.
     end(): Promise<void> {
       driver.endCalls.push(driver.endCalls.length);
-      return driver.connectFailure === undefined
+      if (driver.connectFailure !== undefined)
+        return new Promise(() => undefined);
+      return driver.endFailure === undefined
         ? Promise.resolve()
-        : new Promise(() => undefined);
+        : Promise.reject(driver.endFailure as Error);
     }
   },
 }));
@@ -82,6 +86,7 @@ async function apply(): Promise<unknown> {
 function resetDriver(): void {
   driver.connectFailure = undefined;
   driver.queryFailure = undefined;
+  driver.endFailure = undefined;
   driver.endCalls.length = 0;
 }
 
@@ -146,5 +151,56 @@ describe("applyMigrations against a driver that fails", () => {
 
     expect((error as Error).cause).toEqual({ name: "Error" });
     expect(markersFoundOn(error)).toEqual([]);
+  });
+});
+
+describe("applyMigrations when closing the session fails (rule B8)", () => {
+  async function outcomeWithinBound(): Promise<unknown> {
+    const { applyMigrations } = await import("../src/migrate.js");
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => {
+        reject(new Error("applyMigrations did not settle within the bound"));
+      }, SETTLE_BOUND_MS),
+    );
+    const settled = applyMigrations(WELL_FORMED_UNREACHABLE_VALUE, [
+      MIGRATION,
+    ]).then(
+      (summary) => summary,
+      (error: unknown) => error,
+    );
+    return Promise.race([settled, timeout]);
+  }
+
+  it("returns the summary of a clean run, since every migration committed before the close failed", async () => {
+    resetDriver();
+    driver.endFailure = new Error(`socket hang up ${FAKE_PASSWORD}`);
+
+    const outcome = await outcomeWithinBound();
+
+    expect(outcome).toEqual({ applied: ["0001_fake.sql"], alreadyApplied: [] });
+    expect(driver.endCalls).toHaveLength(1);
+  });
+
+  it("throws the run's own error when the run failed and then the close failed too", async () => {
+    resetDriver();
+    driver.queryFailure = Object.assign(new Error("syntax error"), {
+      code: "42601",
+    });
+    driver.endFailure = new Error(`socket hang up ${FAKE_PASSWORD}`);
+
+    const outcome = await outcomeWithinBound();
+
+    expect(outcome).toBeInstanceOf(MigrationExecutionError);
+    expect((outcome as Error).cause).toEqual({ name: "Error", code: "42601" });
+    expect(markersFoundOn(outcome)).toEqual([]);
+    expect(driver.endCalls).toHaveLength(1);
+  });
+
+  it("still returns the summary when the close succeeds", async () => {
+    resetDriver();
+
+    const outcome = await outcomeWithinBound();
+
+    expect(outcome).toEqual({ applied: ["0001_fake.sql"], alreadyApplied: [] });
   });
 });

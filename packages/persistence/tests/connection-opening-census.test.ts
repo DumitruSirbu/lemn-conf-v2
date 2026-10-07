@@ -18,6 +18,7 @@ const SOURCE_DIRECTORY = resolve(
   "../src",
 );
 const THE_OPENER = "open-database.ts";
+const TYPESCRIPT_SOURCE = /\.(?:ts|mts|cts|tsx)$/;
 const DRIVER_PACKAGES: readonly string[] = ["@neondatabase/serverless", "pg"];
 
 /**
@@ -28,13 +29,7 @@ const DRIVER_PACKAGES: readonly string[] = ["@neondatabase/serverless", "pg"];
 const SITES_OWED_TO_THE_OPENER: readonly {
   readonly site: string;
   readonly owedBy: string;
-}[] = [
-  {
-    site: "retry-on-transient-failure.ts: imports @neondatabase/serverless",
-    owedBy:
-      "8B, needs retry-on-transient-failure.ts: NeonDbError for instanceof",
-  },
-];
+}[] = [];
 
 /**
  * The sites in `source`: a value import of a driver package (static, re-exported, dynamic with a literal specifier, or
@@ -61,11 +56,17 @@ function connectionSitesIn(source: string): string[] {
 function siteOf(node: ts.Node): string | undefined {
   const driverImport = driverImportedBy(node);
   if (driverImport !== undefined) return `imports ${driverImport}`;
-  const isNewUrl =
-    ts.isNewExpression(node) &&
-    ts.isIdentifier(node.expression) &&
-    node.expression.text === "URL";
-  return isNewUrl ? "new URL()" : undefined;
+  return ts.isNewExpression(node) && isUrlConstructor(node.expression)
+    ? "new URL()"
+    : undefined;
+}
+
+/** `URL`, or a member named `URL` of anything: `new globalThis.URL(`, `new nodeUrl.URL(`. */
+function isUrlConstructor(expression: ts.Expression): boolean {
+  if (ts.isIdentifier(expression)) return expression.text === "URL";
+  return (
+    ts.isPropertyAccessExpression(expression) && expression.name.text === "URL"
+  );
 }
 
 function driverImportedBy(node: ts.Node): string | undefined {
@@ -124,10 +125,10 @@ function literalOf(node: ts.Node | undefined): string | undefined {
     : undefined;
 }
 
-/** Every `.ts` file under `directory` at any depth, apart from the opener at the top level, as `path: site` lines. */
+/** Every TypeScript source file under `directory` at any depth, apart from the opener at the top level, as `path: site` lines. */
 function sitesOutsideTheOpener(directory: string): string[] {
   return (readdirSync(directory, { recursive: true }) as string[])
-    .filter((path) => path.endsWith(".ts") && path !== THE_OPENER)
+    .filter((path) => TYPESCRIPT_SOURCE.test(path) && path !== THE_OPENER)
     .flatMap((path) =>
       connectionSitesIn(readFileSync(join(directory, path), "utf8")).map(
         (site) => `${path}: ${site}`,
@@ -191,6 +192,16 @@ describe("what the census recognises in a source", () => {
       ["imports pg"],
     ],
     ["new URL", "const url = new URL(text);", ["new URL()"]],
+    [
+      "new globalThis.URL",
+      "const url = new globalThis.URL(text);",
+      ["new URL()"],
+    ],
+    [
+      "new URL through a namespace import",
+      'import * as nodeUrl from "node:url";\nconst url = new nodeUrl.URL(text);',
+      ["new URL()"],
+    ],
   ])("flags %s", (_name, source, expected) => {
     expect(connectionSitesIn(source)).toEqual(expected);
   });
@@ -209,7 +220,10 @@ describe("what the census recognises in a source", () => {
       "a call in a string",
       'const text = "import pg from \\"pg\\"; new URL(x)";',
     ],
-    ["an unrelated constructor", "new Map(); new URLSearchParams();"],
+    [
+      "an unrelated constructor",
+      "new Map(); new URLSearchParams(); new Foo.URLSearchParams();",
+    ],
     ["a dynamic import that is not a literal", "await import(name);"],
   ])("does not flag %s", (_name, source) => {
     expect(connectionSitesIn(source)).toEqual([]);
@@ -217,32 +231,52 @@ describe("what the census recognises in a source", () => {
 });
 
 describe("what the census finds in a tree", () => {
-  const scratch = mkdtempSync(join(tmpdir(), "connection-census-"));
+  const scratchDirectories: string[] = [];
 
   afterAll(() => {
-    rmSync(scratch, { recursive: true, force: true });
+    for (const directory of scratchDirectories)
+      rmSync(directory, { recursive: true, force: true });
   });
 
-  function writeSource(relativePath: string, source: string): void {
-    const path = join(scratch, relativePath);
-    mkdirSync(dirname(path), { recursive: true });
-    writeFileSync(path, source);
+  function sitesIn(files: Readonly<Record<string, string>>): string[] {
+    const scratch = mkdtempSync(join(tmpdir(), "connection-census-"));
+    scratchDirectories.push(scratch);
+    for (const [relativePath, source] of Object.entries(files)) {
+      const path = join(scratch, relativePath);
+      mkdirSync(dirname(path), { recursive: true });
+      writeFileSync(path, source);
+    }
+    return sitesOutsideTheOpener(scratch);
   }
 
-  it("finds a site in a subdirectory at any depth, and skips the opener only at the top level", () => {
-    writeSource(THE_OPENER, 'import { neon } from "@neondatabase/serverless";');
-    writeSource(
-      "deep/nested/aliased.ts",
-      'import { Pool as Aliased } from "pg";',
-    );
-    writeSource(
-      `deep/${THE_OPENER}`,
-      'import { neon } from "@neondatabase/serverless";',
-    );
+  const DRIVER_IMPORT = 'import { neon } from "@neondatabase/serverless";';
 
-    expect(sitesOutsideTheOpener(scratch)).toEqual([
+  it("finds a site in a subdirectory at any depth, and skips the opener only at the top level", () => {
+    expect(
+      sitesIn({
+        [THE_OPENER]: DRIVER_IMPORT,
+        "deep/nested/aliased.ts": 'import { Pool as Aliased } from "pg";',
+        [`deep/${THE_OPENER}`]: DRIVER_IMPORT,
+      }),
+    ).toEqual([
       "deep/nested/aliased.ts: imports pg",
       `deep/${THE_OPENER}: imports @neondatabase/serverless`,
+    ]);
+  });
+
+  it("reads every TypeScript source extension, and nothing else", () => {
+    expect(
+      sitesIn({
+        "a.mts": DRIVER_IMPORT,
+        "b.cts": DRIVER_IMPORT,
+        "c.tsx": DRIVER_IMPORT,
+        "d.js": DRIVER_IMPORT,
+        "e.sql": DRIVER_IMPORT,
+      }),
+    ).toEqual([
+      "a.mts: imports @neondatabase/serverless",
+      "b.cts: imports @neondatabase/serverless",
+      "c.tsx: imports @neondatabase/serverless",
     ]);
   });
 });
