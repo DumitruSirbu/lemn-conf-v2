@@ -200,7 +200,7 @@ export function agreedDatabaseNameOf(connectionUrl: string): string {
 }
 
 /**
- * The database a connection string names, for comparison only; re-exported by `migrate.ts`. Never print it: a name is
+ * The database a connection string names, for comparison only. Never print it: a name is
  * shown only through `printListedDatabaseName` or `printReachedDatabaseName` (`migration-target.ts`). It is the name
  * {@link agreedDatabaseNameOf} gives, or a placeholder no environment lists: {@link NO_AGREED_DATABASE_NAME} when the
  * readers differ.
