@@ -40,6 +40,7 @@ const PHONE_BACK_LINKS: readonly BackLinkTestId[] = [
 ];
 const LOCALES: readonly Locale[] = ["ro", "ru"];
 const PHONE = { width: 390, height: 844 };
+const TOUCH_TARGET_PX = 44;
 
 for (const linkTestId of PHONE_BACK_LINKS) {
   test(`${linkTestId}, tapped: asks without navigating; Stay, Escape and the backdrop each close it with focus back on the link`, async ({
@@ -211,46 +212,65 @@ test("the shared variant draws neither back link and no dialog", async ({
   }
 });
 
-test("the review CTA is still text: a span with no role, no tab stop, no pointer cursor and no handler, and a tap on it does nothing", async ({
+test("the review link is a link a thumb and a keyboard can reach, and it opens the review of the same design in the language on screen, writing nothing", async ({
   page,
   seededDesign,
 }) => {
-  await openSeededDesign(page, seededDesign);
-  const designUrl = page.url();
-  const requests = recordRequests(page);
-  const reviewCta = page.getByTestId("review-cta");
+  const activations: readonly (readonly [Locale, "a tap" | "Enter"])[] = [
+    ["ro", "a tap"],
+    ["ru", "Enter"],
+  ];
+  for (const [locale, activation] of activations) {
+    await openSeededDesign(page, seededDesign, { locale });
+    const requests = recordRequests(page);
+    const reviewLink = page.getByTestId("review-cta");
+    const reviewAddress = `/${locale}/d/${seededDesign.id}/review`;
 
-  const read = await reviewCta.evaluate((element) => {
-    const reactProps = Object.entries(element).find(([key]) =>
-      key.startsWith("__reactProps$"),
-    )?.[1] as Record<string, unknown> | undefined;
-    return {
-      tagName: element.tagName,
-      role: element.getAttribute("role"),
-      tabIndex: element.getAttribute("tabindex"),
-      cursor: getComputedStyle(element).cursor,
-      hasReactProps: reactProps !== undefined,
-      handlers: Object.keys(reactProps ?? {}).filter((name) =>
-        name.startsWith("on"),
-      ),
-    };
-  });
-  await reviewCta.tap();
+    const read = await reviewLink.evaluate((element) => {
+      const box = element.getBoundingClientRect();
+      return {
+        tagName: element.tagName,
+        href: element.getAttribute("href"),
+        tabIndex: (element as HTMLElement).tabIndex,
+        cursor: getComputedStyle(element).cursor,
+        width: box.width,
+        height: box.height,
+      };
+    });
+    expect(read, locale).toMatchObject({
+      tagName: "A",
+      href: reviewAddress,
+      tabIndex: 0,
+      cursor: "pointer",
+    });
+    expect(read.height, locale).toBeGreaterThanOrEqual(TOUCH_TARGET_PX);
+    expect(read.width, locale).toBeGreaterThanOrEqual(TOUCH_TARGET_PX);
+    await expect(
+      page.getByRole("link", {
+        name: (await reviewLink.textContent()) ?? "",
+        exact: true,
+      }),
+      locale,
+    ).toHaveCount(1);
+    await reviewLink.focus();
+    await expect(reviewLink, locale).toBeFocused();
 
-  expect(read).toEqual({
-    tagName: "SPAN",
-    role: null,
-    tabIndex: null,
-    cursor: "auto",
-    hasReactProps: true,
-    handlers: [],
-  });
-  await expect(page.getByTestId(DIALOG)).toHaveCount(0);
-  expect(page.url()).toBe(designUrl);
-  expect(
-    requests.filter((request) => request.method !== "GET"),
-    JSON.stringify(requests),
-  ).toEqual([]);
+    await (activation === "a tap"
+      ? reviewLink.tap()
+      : reviewLink.press("Enter"));
+
+    await expect(page, locale).toHaveURL(reviewAddress);
+    await expect(page.getByTestId("review-bottom"), locale).toBeVisible();
+    await expect(page.getByTestId(DIALOG), locale).toHaveCount(0);
+    expect(
+      requests.filter((request) => request.method !== "GET"),
+      JSON.stringify(requests),
+    ).toEqual([]);
+    expect(
+      requests.filter((request) => request.pathname.startsWith("/api/")),
+      JSON.stringify(requests),
+    ).toEqual([]);
+  }
 });
 
 test("in an untouched editor opened by its link, the browser's own Back leaves for Step 1 without the question (S3's record; S4 asks only after an edit in an editor reached from Step 1)", async ({

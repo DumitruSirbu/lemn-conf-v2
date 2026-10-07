@@ -58,14 +58,14 @@ const BODY_COUNT_WORDS: Readonly<
   Record<CatalogueLocale, readonly (readonly [number, string])[]>
 > = {
   ro: [
-    [1, "1 corp"],
-    [2, "2 corpuri"],
-    [19, "19 corpuri"],
-    [20, "20 corpuri"],
-    [21, "21 corpuri"],
-    [101, "101 corpuri"],
-    [119, "119 corpuri"],
-    [120, "120 corpuri"],
+    [1, "1 dulap"],
+    [2, "2 dulapuri"],
+    [19, "19 dulapuri"],
+    [20, "20 dulapuri"],
+    [21, "21 dulapuri"],
+    [101, "101 dulapuri"],
+    [119, "119 dulapuri"],
+    [120, "120 dulapuri"],
   ],
   ru: [
     [1, "1 шкаф"],
@@ -89,7 +89,7 @@ const WHOLE_LINES: Readonly<
   ro: [
     [
       { shape: "linear", wallAMm: 3600, bodyCount: 1 },
-      "Liniară · 3600 mm · 1 corp",
+      "Liniară · 3600 mm · 1 dulap",
     ],
     [
       {
@@ -99,7 +99,7 @@ const WHOLE_LINES: Readonly<
         corner: "left",
         bodyCount: 14,
       },
-      "În L · 3600 × 2400 mm · cot la stânga · 14 corpuri",
+      "În L · 3600 × 2400 mm · cot la stânga · 14 dulapuri",
     ],
     [
       {
@@ -109,7 +109,7 @@ const WHOLE_LINES: Readonly<
         corner: "right",
         bodyCount: 2,
       },
-      "În L · 900 × 6000 mm · cot la dreapta · 2 corpuri",
+      "În L · 900 × 6000 mm · cot la dreapta · 2 dulapuri",
     ],
     [
       {
@@ -119,7 +119,7 @@ const WHOLE_LINES: Readonly<
         wallCMm: 3130,
         bodyCount: 21,
       },
-      "În U · 4480 × 2950 × 3130 mm · 21 corpuri",
+      "În U · 4480 × 2950 × 3130 mm · 21 dulapuri",
     ],
   ],
   ru: [
@@ -180,6 +180,34 @@ describe.each(CATALOGUES)("the room line in %s", (locale, messages) => {
 
   it.each(WHOLE_LINES[locale])("reads, for %o, %s", (roomLine, sentence) => {
     expect(content.reviewRoomLine(roomLine)).toBe(sentence);
+  });
+});
+
+describe("the Romanian body count's plural branches", () => {
+  const romanian = new Intl.PluralRules("ro");
+
+  it("are swept in every category the language has: one, few and other", () => {
+    const reached = BODY_COUNT_WORDS.ro.map(([bodyCount]) =>
+      romanian.select(bodyCount),
+    );
+
+    expect(reached.filter((category) => category === "one")).toHaveLength(1);
+    expect(
+      reached.filter((category) => category === "few").length,
+    ).toBeGreaterThanOrEqual(3);
+    expect(
+      reached.filter((category) => category === "other").length,
+    ).toBeGreaterThanOrEqual(3);
+  });
+
+  it("are each written in the leaf, and the one for twenty and above joins the noun to the number with nothing between", () => {
+    const leaf = catalogueLeaves(catalogueOf("ro").messages).find(
+      ([key]) => key === "review.bodyCount",
+    )?.[1];
+
+    expect(leaf).toBe(
+      "{bodyCount, plural, one {# dulap} few {# dulapuri} other {# dulapuri}}",
+    );
   });
 });
 
