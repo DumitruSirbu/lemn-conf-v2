@@ -2,22 +2,13 @@
 
 import { cameraPresetsForRoom } from "@lemnaria/three-adapter";
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 
-import { WebGLUnavailable } from "@/components/webgl-unavailable";
 import { useContent } from "@/i18n/use-content";
 import { useCameraPreset } from "@/scene/camera-preset-store";
 import { presetForRoom, type SceneView } from "@/scene/scene-view";
-import { detectWebGLSupport } from "@/scene/webgl-support";
+import { useWebGLSupport } from "@/scene/webgl-support";
 import { useConfiguratorStore } from "@/store/configurator-store";
-
-/** The class names the screen that places the scene gives it; the scene draws no layout of its own. */
-export interface ReviewSceneClassNames {
-  readonly viewport?: string;
-  readonly presets?: string;
-  readonly preset?: string;
-  readonly loading?: string;
-}
 
 // The view-only canvas, fetched on the screen that shows it and never rendered on the server.
 const ViewOnlyKitchenCanvas = dynamic(
@@ -28,30 +19,21 @@ const ViewOnlyKitchenCanvas = dynamic(
   { ssr: false, loading: SceneLoading },
 );
 
-type SupportState = "probing" | "supported" | "unsupported";
-
 /**
  * The kitchen as the review shows it: the editor's scene, orbitable and with the room's own camera views as
  * chips, that selects nothing and edits nothing. It draws the design the session store holds, so the screen that
- * places it hydrates the store first. A device without WebGL gets the editor's own exit.
+ * places it hydrates the store first. It neither orbits nor selects: the views change by the chips. A device
+ * without WebGL gets nothing from it: the screen answers for that with the editor's exit.
  *
  * The view is the editor's remembered one (`useCameraPreset`): one camera for one customer, so a language switch
  * does not send the review back to the overview either.
  */
-export function ReviewScene({
-  classNames = {},
-}: {
-  classNames?: ReviewSceneClassNames;
-}) {
+export function ReviewScene() {
   const content = useContent();
   const room = useConfiguratorStore((state) => state.design.room);
   const presetId = useCameraPreset((state) => state.presetId);
   const standAt = useCameraPreset((state) => state.standAt);
-  const [support, setSupport] = useState<SupportState>("probing");
-
-  useEffect(() => {
-    setSupport(detectWebGLSupport() ? "supported" : "unsupported");
-  }, []);
+  const support = useWebGLSupport();
 
   const view = useMemo<SceneView>(
     () => ({ kind: "preset", id: presetId }),
@@ -64,25 +46,20 @@ export function ReviewScene({
     [presetId, room],
   );
 
-  if (support === "unsupported") return <WebGLUnavailable />;
+  if (support === "unsupported") return null;
 
   return (
-    <div className={classNames.viewport} data-testid="review-scene">
+    <div data-testid="review-scene">
       {support === "probing" ? (
-        <div className={classNames.loading}>{content.configure.loading}</div>
+        <div>{content.configure.loading}</div>
       ) : (
         <ViewOnlyKitchenCanvas view={view} />
       )}
-      <div
-        className={classNames.presets}
-        role="group"
-        aria-label={content.configure.cameraGroupLabel}
-      >
+      <div role="group" aria-label={content.configure.cameraGroupLabel}>
         {cameraPresets.map((preset) => (
           <button
             key={preset.id}
             type="button"
-            className={classNames.preset}
             aria-pressed={preset.id === resolvedPresetId}
             onClick={() => {
               standAt(preset.id);

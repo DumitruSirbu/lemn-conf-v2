@@ -531,6 +531,10 @@ export function KitchenStage({
     invalidate();
   }, [viewKey, invalidate]);
 
+  // Where a mount with no orbit controls looks. `OrbitControls.update()` is what turns the camera towards its
+  // target in the editor; without it nothing does, so the frame loop does it from this target instead.
+  const heldLookTarget = useRef(new THREE.Vector3());
+
   useFrame((_, delta) => {
     const pending = goal.current;
     if (!pending) return;
@@ -538,8 +542,8 @@ export function KitchenStage({
       ? 1
       : 1 - Math.pow(0.001, delta / CAMERA_EASE_SECONDS);
     camera.position.lerp(pending.position, step);
-    controls?.target.lerp(pending.target, step);
-    controls?.update();
+    (controls?.target ?? heldLookTarget.current).lerp(pending.target, step);
+    faceTarget(camera, controls, heldLookTarget.current);
     followCameraRef.current();
     const cameraSettled =
       camera.position.distanceTo(pending.position) < SETTLED_METRES;
@@ -547,8 +551,8 @@ export function KitchenStage({
       !controls || controls.target.distanceTo(pending.target) < SETTLED_METRES;
     if (cameraSettled && targetSettled) {
       camera.position.copy(pending.position);
-      controls?.target.copy(pending.target);
-      controls?.update();
+      (controls?.target ?? heldLookTarget.current).copy(pending.target);
+      faceTarget(camera, controls, heldLookTarget.current);
       goal.current = null;
       // Off unless the build opted in (`scene-measurement-store.ts`).
       publishSceneMeasurement({ camera, solidsRoot: stage.solidsRoot });
@@ -567,6 +571,16 @@ export function KitchenStage({
       <primitive object={stage.room} />
     </>
   );
+}
+
+/** Turns the camera to its target: the orbit controls' own update where there are controls, else a plain look-at. */
+function faceTarget(
+  camera: THREE.Camera,
+  controls: OrbitTarget | null,
+  heldTarget: THREE.Vector3,
+): void {
+  if (controls) controls.update();
+  else camera.lookAt(heldTarget);
 }
 
 interface SelectableRoots {

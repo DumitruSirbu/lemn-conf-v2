@@ -26,11 +26,7 @@ vi.mock("@/scene/kitchen-canvas", () => ({
   },
 }));
 vi.mock("@/scene/webgl-support", () => ({
-  detectWebGLSupport: () => canvases.hasWebGL,
-}));
-vi.mock("@/components/webgl-unavailable", () => ({
-  WebGLUnavailable: () =>
-    createElement("div", { "data-testid": "webgl-unavailable" }),
+  useWebGLSupport: () => (canvases.hasWebGL ? "supported" : "unsupported"),
 }));
 
 const [{ ReviewScene }, { useCameraPreset }, { useConfiguratorStore }] =
@@ -169,15 +165,12 @@ describe("ReviewScene with WebGL", () => {
 });
 
 describe("ReviewScene without WebGL", () => {
-  it("shows the editor's own exit and mounts no canvas, without throwing", async () => {
+  it("renders nothing at all: no canvas, no chips, no exit screen and no <main>", async () => {
     canvases.hasWebGL = false;
 
     await mountScene();
 
-    expect(
-      container.querySelector('[data-testid="webgl-unavailable"]'),
-    ).not.toBeNull();
-    expect(container.querySelector('[data-testid="stub-canvas"]')).toBeNull();
-    expect(chips()).toHaveLength(0);
+    expect(container.innerHTML).toBe("");
+    expect(container.querySelector("main")).toBeNull();
   });
 });
