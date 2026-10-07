@@ -1,7 +1,10 @@
 // The model is handed a design, its price and its projection. It cannot re-derive the price (the book is named
 // only in `use-priced-design.ts`), so it asserts what it can see and throws, never renders, when they disagree.
 import {
+  buildKitchenLBodyCatalog,
+  cabinetDepthMmOf,
   KITCHEN_L_DESIGN,
+  projectDesignForDisplay,
   type Design,
   type DesignPlacement,
 } from "@lemnaria/configurator-domain";
@@ -121,15 +124,62 @@ describe("inputs that are not one design's", () => {
     ).toThrow(ReviewInputDivergenceError);
   });
 
-  it("throws, as before, for a priced body no group holds", () => {
+  it("throws its own error, not the breakdown's, for a priced body no group holds", () => {
+    const rowsOfNothing = {
+      content: ro,
+      design: SEEDED.design,
+      pricing: SEEDED.pricing,
+      groups: [],
+    };
+
+    expect(() => describeReview(rowsOfNothing)).toThrow(
+      ReviewInputDivergenceError,
+    );
+  });
+
+  it("throws its own error for a price that lacks a body the design and the rows hold", () => {
+    const withoutSecond = priceAndProject({
+      ...KITCHEN_L_DESIGN,
+      placements: KITCHEN_L_DESIGN.placements.filter(
+        ({ id }) => id !== SECOND.id,
+      ),
+    });
+
     expect(() =>
       describeReview({
         content: ro,
         design: SEEDED.design,
-        pricing: SEEDED.pricing,
-        groups: [],
+        pricing: withoutSecond.pricing,
+        groups: SEEDED.groups,
       }),
-    ).toThrow(/different placements/);
+    ).toThrow(new RegExp(`the price and the rows differ over: ${SECOND.id}`));
+  });
+
+  it("throws, with no price, for ids that repeat differently in the design and the rows", () => {
+    const catalog = buildKitchenLBodyCatalog(
+      cabinetDepthMmOf(KITCHEN_L_DESIGN),
+    );
+    const [a, b, c] = KITCHEN_L_DESIGN.placements;
+    if (a === undefined || b === undefined || c === undefined) {
+      throw new Error("the seeded design holds three bodies");
+    }
+    const asIds = (...ids: string[]): Design => ({
+      ...KITCHEN_L_DESIGN,
+      placements: [a, b, c].map((placement, index) => ({
+        ...placement,
+        id: ids[index] ?? "",
+      })),
+    });
+    const unpriced = priceAndProject(withAnUnofferedTier(KITCHEN_L_DESIGN));
+
+    expect(() =>
+      describeReview({
+        content: ro,
+        design: asIds("x", "x", "y"),
+        pricing: unpriced.pricing,
+        groups: projectDesignForDisplay(asIds("x", "y", "y"), catalog),
+      }),
+    ).toThrow(ReviewInputDivergenceError);
   });
 
   it("does not throw for the inputs of one design, priced or not", () => {

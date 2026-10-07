@@ -10,11 +10,11 @@ import {
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
-import { PriceBreakdownDivergenceError } from "@/price/price-breakdown-model";
 import {
   describeReview,
   MissingWholeKitchenTierError,
   REVIEW_READING_ORDER,
+  ReviewInputDivergenceError,
   type AvailableReview,
   type ReviewView,
 } from "@/review/review-model";
@@ -367,9 +367,9 @@ describe("when there is nothing to review", () => {
     expect(reviewViewOf(EMPTY_KITCHEN).kind).toBe("unavailable");
   });
 
-  it("refuses, as the breakdown does, a priced body that no group holds", () => {
+  it("refuses a priced body that no group holds, with the review's own error", () => {
     expect(() => reviewViewOf({ ...SEEDED, groups: [] })).toThrow(
-      PriceBreakdownDivergenceError,
+      ReviewInputDivergenceError,
     );
   });
 });

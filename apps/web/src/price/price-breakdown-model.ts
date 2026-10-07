@@ -149,14 +149,14 @@ export function holdsNothingToBreakDown(
   return holdsNoCabinets(priced) && groups.length === 0;
 }
 
-export interface DescribeBreakdownRowsInput {
+interface DescribeBreakdownRowsInput {
   readonly content: Content;
   readonly priced: PricedDesign;
   /** `projectDesignForDisplay`'s answer for the design `priced` was computed from, verbatim. */
   readonly groups: readonly DisplayGroup[];
 }
 
-export interface BreakdownRows {
+interface BreakdownRows {
   readonly groups: readonly BreakdownGroup[];
   readonly wholeKitchenRows: readonly BreakdownRow[];
 }

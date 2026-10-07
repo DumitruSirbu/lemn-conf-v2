@@ -1,16 +1,10 @@
 // The review step as a value: this module owns every rule and string, the screen the markup.
 //
-// The groups and rows are `describeBreakdownRows`'s, the breakdown's own builder, so the two surfaces
-// cannot print different amounts for one body. Nothing here sorts, groups, rounds or labels a row.
+// Rows are `describeBreakdownRows`'s, the breakdown's own builder; nothing here sorts, groups, rounds or labels
+// one. The figure is `priceDesign`'s total rounded as the price bar rounds it, never a sum of the rows.
 //
-// The figure is `priceDesign`'s total rounded as the price bar rounds it, never a sum of the rows above
-// it, and no row is labelled *total*.
-//
-// Whether the kitchen may be submitted is decided here and nowhere else. Fit is the domain query's answer,
-// asked and believed: nothing here measures a wall. One refusal at a time, the first the customer can act on: a
-// body past its wall, then nothing Lemnaria sells, then a price that cannot be computed.
-//
-// The model takes a design, its price and its projection, and throws if they are not one design's.
+// Whether the kitchen may be submitted is decided here only, and fit is the domain query's answer: nothing here
+// measures a wall. The design, its price and its projection must be one design's, or `describeReview` throws.
 import {
   cornerDirectionOf,
   findOverflowingPlacementIds,
@@ -25,7 +19,6 @@ import type { Content, ReviewRoomLine } from "@/i18n/content";
 import {
   describeBreakdownRows,
   describePlacementLabel,
-  holdsNothingToBreakDown,
   type BreakdownGroup,
   type BreakdownRow,
 } from "@/price/price-breakdown-model";
@@ -43,8 +36,8 @@ export interface ReviewSettingsRow {
   readonly settings: readonly string[];
 }
 
-/** A slot: the owner has not yet confirmed what the estimate leaves out, so the lines come from one
- *  place and nothing else writes them. */
+/** A slot drawn from the approved breakdown disclaimer: the lines come from one place and nothing else
+ *  writes them. */
 export interface ReviewNotIncludedSlot {
   readonly lines: readonly string[];
 }
@@ -102,7 +95,8 @@ export type ReviewSection =
   | Exclude<keyof AvailableReview, "kind" | "overflowWarning" | "submit">
   | "callToAction";
 
-/** The order the screen lays its sections out in: what is not included is read before the call to action. */
+/** The order the screen that renders this value lays its sections out in: what is not included is read before the
+ *  call to action. `callToAction` is a control, not a field of the value. */
 export const REVIEW_READING_ORDER: readonly ReviewSection[] = [
   "title",
   "roomLine",
@@ -143,27 +137,14 @@ export class ReviewInputDivergenceError extends Error {
 }
 
 export function describeReview(input: DescribeReviewInput): ReviewView {
+  // Asked before pricing is consulted, on every path: a body past its wall is the refusal the customer can act
+  // on, whatever pricing answered.
   const overflowingIds = findOverflowingPlacementIds(input.design);
-  if (!input.pricing.ok) return describeUnpricedReview(input, overflowingIds);
+  if (!input.pricing.ok) {
+    assertEveryPlacementIsListed(input.design, input.groups);
+    return unavailable(refuseFirstActionable(input, overflowingIds));
+  }
   return describePricedReview(input, input.pricing.priced, overflowingIds);
-}
-
-function describeUnpricedReview(
-  input: DescribeReviewInput,
-  overflowingIds: readonly string[],
-): UnavailableReview {
-  assertEveryPlacementIsListed(input.design, input.groups);
-  return {
-    kind: "unavailable",
-    submit:
-      overflowingIds.length > 0
-        ? refusePastTheWall(input, overflowingIds)
-        : refuse(
-            input.design.placements.length === 0
-              ? "NO_CABINET"
-              : "PRICING_FAILED",
-          ),
-  };
 }
 
 function describePricedReview(
@@ -171,18 +152,20 @@ function describePricedReview(
   priced: PricedDesign,
   overflowingIds: readonly string[],
 ): ReviewView {
-  const { content, design, groups } = input;
-  if (holdsNothingToBreakDown(priced, groups)) {
-    assertInputsAreOneDesigns(input, priced, overflowingIds);
-    return refuseNothingToOffer(input, overflowingIds);
-  }
-
-  const rows = describeBreakdownRows({ content, priced, groups });
   assertInputsAreOneDesigns(input, priced, overflowingIds);
   if (holdsNothingLemnariaSupplies(priced)) {
-    return refuseNothingToOffer(input, overflowingIds);
+    return unavailable(refuseFirstActionable(input, overflowingIds));
   }
+  return describeAvailableReview(input, priced, overflowingIds);
+}
 
+function describeAvailableReview(
+  input: DescribeReviewInput,
+  priced: PricedDesign,
+  overflowingIds: readonly string[],
+): AvailableReview {
+  const { content, design, groups } = input;
+  const rows = describeBreakdownRows({ content, priced, groups });
   const warning = describeFlaggedTotalWarning(priced, content.price);
   return {
     kind: "available",
@@ -194,34 +177,42 @@ function describePricedReview(
     groups: rows.groups,
     wholeKitchenRows: rows.wholeKitchenRows,
     notIncluded: describeNotIncludedSlot(content),
-    disclaimer: {
-      rounding: content.review.roundedUpNote,
-      notice: content.priceBreakdown.note,
-    },
+    disclaimer: describeDisclaimer(content),
     figure: describeStartingPrice({
       totalMinor: priced.totalMinor,
       copy: content.price,
     }),
     submit:
       overflowingIds.length > 0
-        ? refusePastTheWall(input, overflowingIds)
+        ? refuseFirstActionable(input, overflowingIds)
         : { kind: "allowed" },
     ...(warning === undefined ? {} : { overflowWarning: warning }),
   };
 }
 
-/** No figure to show, so `unavailable`; a body past its wall is still the reason given first. */
-function refuseNothingToOffer(
+function unavailable(submit: RefusedSubmit): UnavailableReview {
+  return { kind: "unavailable", submit };
+}
+
+/**
+ * The refusal order, in one place: a body past its wall, then nothing Lemnaria sells, then a price that cannot be
+ * computed. Called only for a kitchen that is refused, so the last reason is the one left.
+ */
+function refuseFirstActionable(
   input: DescribeReviewInput,
   overflowingIds: readonly string[],
-): UnavailableReview {
-  return {
-    kind: "unavailable",
-    submit:
-      overflowingIds.length > 0
-        ? refusePastTheWall(input, overflowingIds)
-        : refuse("NO_CABINET"),
-  };
+): RefusedSubmit {
+  if (overflowingIds.length > 0)
+    return refusePastTheWall(input, overflowingIds);
+  if (holdsNothingToSell(input)) return refuse("NO_CABINET");
+  return refuse("PRICING_FAILED");
+}
+
+/** Whether pricing shows nothing the customer buys; without a price, whether the design holds no body. */
+function holdsNothingToSell(input: DescribeReviewInput): boolean {
+  return input.pricing.ok
+    ? holdsNothingLemnariaSupplies(input.pricing.priced)
+    : input.design.placements.length === 0;
 }
 
 function refuse(code: "PRICING_FAILED" | "NO_CABINET"): RefusedSubmit {
@@ -255,41 +246,63 @@ function assertEveryPlacementIsListed(
     group.entries.map((entry) => entry.placementId),
   );
   const held = design.placements.map((placement) => placement.id);
-  const differences = symmetricDifference(listed, held);
-  if (differences.length > 0 || listed.length !== held.length) {
-    throw new ReviewInputDivergenceError(
-      `the rows and the design differ over: ${differences.join(", ") || "a repeated id"}`,
-    );
-  }
+  throwIfDifferent("the rows and the design", listed, held);
 }
 
+/** Run before the row builder, so a mismatch the builder would also see is this module's error, not the breakdown's. */
 function assertInputsAreOneDesigns(
   input: DescribeReviewInput,
   priced: PricedDesign,
   overflowingIds: readonly string[],
 ): void {
   assertEveryPlacementIsListed(input.design, input.groups);
-  const differences = symmetricDifference(
+  const pricedBodyIds = priced.lines.flatMap((line) =>
+    line.kind === "cabinet" ? [line.placementId] : [],
+  );
+  const listed = input.groups.flatMap((group) =>
+    group.entries.map((entry) => entry.placementId),
+  );
+  throwIfDifferent("the price and the rows", pricedBodyIds, listed);
+  throwIfDifferent(
+    "the price and the fit query",
     priced.overflowingPlacementIds,
     overflowingIds,
   );
+}
+
+function throwIfDifferent(
+  what: string,
+  left: readonly string[],
+  right: readonly string[],
+): void {
+  const differences = idsNotMatched(left, right);
   if (differences.length > 0) {
     throw new ReviewInputDivergenceError(
-      `the price and the fit query differ over: ${differences.join(", ")}`,
+      `${what} differ over: ${differences.join(", ")}`,
     );
   }
 }
 
-function symmetricDifference(
+/** The ids one list has more of than the other, counting repeats: `[a, a, b]` against `[a, b, b]` differs. */
+function idsNotMatched(
   left: readonly string[],
   right: readonly string[],
 ): readonly string[] {
-  const inLeft = new Set(left);
-  const inRight = new Set(right);
-  return [
-    ...left.filter((id) => !inRight.has(id)),
-    ...right.filter((id) => !inLeft.has(id)),
-  ];
+  const unmatched = [...right];
+  const surplus: string[] = [];
+  for (const id of left) {
+    const at = unmatched.indexOf(id);
+    if (at === -1) surplus.push(id);
+    else unmatched.splice(at, 1);
+  }
+  return [...surplus, ...unmatched];
+}
+
+function describeDisclaimer(content: Content): ReviewDisclaimer {
+  return {
+    rounding: content.review.roundedUpNote,
+    notice: content.priceBreakdown.note,
+  };
 }
 
 function countBodies(groups: readonly DisplayGroup[]): number {
@@ -365,7 +378,7 @@ function tierNameOf(
   return content.bookText(line.name, line.nameKey);
 }
 
-/** Drawn from the approved breakdown disclaimer until the owner confirms the list line by line. */
+/** This text is a slot drawn from the approved breakdown disclaimer. */
 function describeNotIncludedSlot(content: Content): ReviewNotIncludedSlot {
   return { lines: [content.priceBreakdown.disclaimer] };
 }

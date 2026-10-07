@@ -58,7 +58,8 @@ export interface StartingPriceInput {
  * Whether this priced design holds no cabinets, read off the priced result so neither price surface
  * needs the document. The whole-kitchen lines an empty design still carries would otherwise render as
  * a meaningful zero, a tier printed *inclus* over nothing. Such a design stays valid (loadable,
- * shareable) and simply has no price.
+ * shareable) and simply has no price. A body the customer supplies is still a cabinet line here; see
+ * `holdsNothingLemnariaSupplies`.
  */
 export function holdsNoCabinets(priced: PricedDesign): boolean {
   return !priced.lines.some((line) => line.kind === "cabinet");

@@ -48,6 +48,7 @@ function entriesInDisplayOrder(
   return kitchen.groups.flatMap((group) => group.entries);
 }
 
+/** Built by hand on purpose: importing `describePlacementLabel` would feed both sides of the comparison from one function. */
 function placementLabelOf(entry: DisplayEntry, content: Content): string {
   return content.priceBreakdown.placementLabel(
     content.bodyLabel(entry.label),
