@@ -20,9 +20,6 @@ const SITES_OWED_TO_THE_OPENER: readonly {
   readonly site: string;
   readonly owedBy: string;
 }[] = [
-  { site: "migrate.ts: new Client()", owedBy: "8B S2" },
-  { site: "migrate.ts: new URL()", owedBy: "8B S2" },
-  { site: "migrate-status.ts: neon()", owedBy: "8B S2" },
   { site: "delete-designs-for-tests.ts: neon()", owedBy: "8B S3" },
   { site: "delete-designs-for-tests.ts: neon()", owedBy: "8B S3" },
   { site: "test-database-url.ts: new URL()", owedBy: "8B S3" },

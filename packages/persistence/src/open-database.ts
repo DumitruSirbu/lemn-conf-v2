@@ -1,4 +1,4 @@
-import { neon } from "@neondatabase/serverless";
+import { Client, neon } from "@neondatabase/serverless";
 import type { NeonQueryFunction } from "@neondatabase/serverless";
 
 export type ConnectionVariableName =
@@ -40,6 +40,22 @@ export function openDatabase(
   }
 }
 
+/**
+ * The session counterpart of {@link openDatabase}, for the migration runner: only a session can hold a lock across a
+ * read and a write. Constructs the client and nothing else; connecting and ending stay with the caller.
+ */
+export function openDatabaseSession(
+  connectionUrl: string,
+  variableName: ConnectionVariableName,
+): Client {
+  assertConnectionUrlShape(connectionUrl, variableName);
+  try {
+    return new Client(connectionUrl);
+  } catch {
+    throw new InvalidConnectionUrlError(variableName);
+  }
+}
+
 export function assertConnectionUrlShape(
   connectionUrl: string,
   variableName: ConnectionVariableName,
@@ -69,3 +85,41 @@ function isAcceptedByTheDriver(connectionUrl: string): boolean {
     return false;
   }
 }
+
+/**
+ * The database a connection string names, and nothing else from it. Re-exported by `migrate.ts`. Exported so the no-credential-in-logs guarantee is
+ * testable directly.
+ *
+ * Never throws: `new URL` on a malformed string raises `ERR_INVALID_URL`, which carries the whole input, password
+ * included, where Node's uncaught-exception printer emits it. A scheme other than `postgres:`/`postgresql:`, or no `//`
+ * authority, gets a placeholder before any pathname is read. Without the authority (`postgres:/user:pw@host/db`) the
+ * URL parses with an empty host and a `pathname` holding the credential, which would be returned as the name and could
+ * pass `assertDeclaredEnvironmentReaches` as an unclaimed name while the driver reaches a listed environment.
+ *
+ * The pathname stays percent-encoded and keeps any backslash: `assertDeclaredEnvironmentReaches` is the one place that
+ * judges a raw `%` or `\`.
+ */
+export function databaseNameOf(connectionUrl: string): string {
+  try {
+    const url = new URL(connectionUrl);
+    if (!hasTrustedPostgresAuthority(url)) return UNTRUSTED_CONNECTION_SHAPE;
+    return url.pathname.replace(/^\//, "");
+  } catch {
+    return UNPARSEABLE_DATABASE_NAME;
+  }
+}
+
+/** Exactly `postgres:` or `postgresql:` with a non-empty host; a URL failing either test is never trusted to say what
+ *  it names (see `databaseNameOf`). */
+function hasTrustedPostgresAuthority(url: URL): boolean {
+  if (url.protocol !== "postgres:" && url.protocol !== "postgresql:")
+    return false;
+  return url.host !== "";
+}
+
+const UNPARSEABLE_DATABASE_NAME = "<unparseable connection string>";
+
+/** `databaseNameOf`'s placeholder for a URL that parses but is not a `postgres:`/`postgresql:` URL with a host.
+ *  Duplicated in `migration-target.ts`: importing it back would make an import cycle with this CLI file. */
+const UNTRUSTED_CONNECTION_SHAPE =
+  "<connection string is not a postgres:// or postgresql:// URL with a host>";

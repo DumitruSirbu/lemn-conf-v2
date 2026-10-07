@@ -11,12 +11,15 @@
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { neon } from "@neondatabase/serverless";
 import type { NeonQueryFunction } from "@neondatabase/serverless";
 
 import { loadEnvLocal } from "./load-env.js";
 import { databaseNameOf } from "./migrate.js";
-import { MigrationError, MigrationExecutionError } from "./migration-errors.js";
+import {
+  MigrationExecutionError,
+  causeUnlessItShowsTheConnection,
+  isPrintableFailure,
+} from "./migration-errors.js";
 import { readMigrationFiles } from "./migration-files.js";
 import { SELECT_APPLIED_MIGRATIONS_SQL } from "./migration-ledger.js";
 import type { AppliedMigration } from "./migration-plan.js";
@@ -34,6 +37,7 @@ import {
   assertDeclaredEnvironmentReaches,
   readDeclaredEnvironment,
 } from "./migration-target.js";
+import { openDatabase } from "./open-database.js";
 
 /**
  * Presence is asked of the catalogue (`to_regclass`), not `information_schema.tables`: that view is filtered by the
@@ -66,26 +70,27 @@ interface TablePresence {
 
 /**
  * The three reads as one value. A failure is wrapped as `MigrationExecutionError`, as `migrate.ts` wraps its connect:
- * a Neon driver error carries endpoint and host detail in its properties.
+ * a Neon driver error carries endpoint and host detail in its properties, so it stays as `cause` only when it shows
+ * none of the connection string. A string the opener refuses is raised as that refusal, outside the wrap.
  */
 export async function readDeployedSchema(
   connectionUrl: string,
 ): Promise<DeployedSchemaReading> {
+  const sql = openDatabase(connectionUrl, MIGRATION_URL_VARIABLE);
   try {
-    return await queryDeployedSchema(connectionUrl);
+    return await queryDeployedSchema(sql);
   } catch (error) {
     throw new MigrationExecutionError(
       `Could not read the schema of "${databaseNameOf(connectionUrl)}". Nothing was changed: this ` +
         `command only ever reads.`,
-      { cause: error },
+      causeUnlessItShowsTheConnection(error, connectionUrl),
     );
   }
 }
 
 async function queryDeployedSchema(
-  connectionUrl: string,
+  sql: NeonQuery,
 ): Promise<DeployedSchemaReading> {
-  const sql = neon(connectionUrl);
   const { hasLedger, hasDesigns } = await readTablePresence(sql);
 
   return {
@@ -168,7 +173,7 @@ async function readDocumentSchemaVersions(sql: NeonQuery): Promise<number[]> {
 /** Never the error object or its `cause`: a driver error's properties are where a connection string hides (ADR 0008).
  *  Mirrors `describeMigrationFailure` under this command's prefix. */
 export function describeStatusFailure(error: unknown): string {
-  return error instanceof MigrationError
+  return isPrintableFailure(error)
     ? `[migrate:status] ${error.name}: ${error.message}`
     : `[migrate:status] failed with an unexpected ${error instanceof Error ? error.name : typeof error}.`;
 }
