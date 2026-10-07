@@ -49,6 +49,21 @@ import {
   type TowerOverBottleChange,
   type TowerRunRecording,
 } from "../support/pre-tower-run-recording.js";
+import { thePlannerBeforeC5 } from "../support/before-c5-fridge-end-leftover.js";
+
+// M7C wave C5 S1: the tests here that compare with a recording of an earlier planner ask the planner as it stood
+// before the leftover beside an end fridge was absorbed into the cabinet inboard of it (`fridge-end-leftover.ts`),
+// by `thePlannerBeforeC5()`; the rest of the file runs on the shipped planner. The rule's own figures are
+// `fridge-end-leftover.rooms.test.ts`'s.
+vi.mock(
+  "../../src/generation/fridge-end-leftover.js",
+  async (importOriginal) => {
+    const { withTheFridgeEndLeafSwitchable } = await import(
+      "../support/before-c5-fridge-end-leftover.js"
+    );
+    return withTheFridgeEndLeafSwitchable(await importOriginal());
+  },
+);
 
 vi.mock(
   "../../src/generation/optional-run-items.js",
@@ -192,6 +207,7 @@ describe("the whole plan before 7D5b's tower-over-bottle change", () => {
   });
 
   it("S0b changes exactly ten drawn rooms, each by M11's change alone, and keeps the other 470 exactly", () => {
+    thePlannerBeforeC5();
     const changes = changesAgainstTheRecording(RECORDING.rooms);
 
     expect(countsOf(changes)).toEqual({
@@ -213,6 +229,7 @@ describe("the whole plan before 7D5b's tower-over-bottle change", () => {
   });
 
   it("S0b changes exactly two witness rooms, the reference room and 900 x 4100, each by M11's change alone", () => {
+    thePlannerBeforeC5();
     const changes = changesAgainstTheRecording(RECORDING.witnesses);
 
     expect(countsOf(changes)).toEqual({
@@ -228,6 +245,7 @@ describe("the whole plan before 7D5b's tower-over-bottle change", () => {
   // The classifier reads the recorded plan alone; the capture reads the composer. The two must name
   // the same rooms, or the classifier admits a change the rule never made (or misses one it did).
   it("names as changed exactly the recorded rooms the composer puts in S0b's class", () => {
+    thePlannerBeforeC5();
     const recorded = new Map([...RECORDING.rooms, ...RECORDING.witnesses]);
     const changed = roomsWith(
       changesAgainstTheRecording(recorded),

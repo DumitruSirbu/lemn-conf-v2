@@ -3,6 +3,7 @@
 // failing property says which rule and a passing one returns `[]`. Nothing here imports the planner's
 // own helpers: the run order, the drawer target, the tower's existence and the far wall's pantry
 // count are all computed again from the room, the runs and the plan's bodies.
+import { absorbedByTheOwnersRuleMm } from "./fridge-end-leftover.js";
 import type {
   DesignRoom,
   DesignWall,
@@ -415,12 +416,20 @@ function fridgeAtTheFreeEndFindings({
   const beforeTheFridge = onWall.filter(
     (base) => base.startMm < fridge.startMm,
   );
+  const movedMm = movedByTheOwnersRuleMm(findings, {
+    runs,
+    fridge,
+    wall,
+    onWall,
+  });
   const isDoorStorageFromTheCorner =
     beforeTheFridge.every(
       (base, index) =>
         base.buildId === DOOR &&
         base.startMm === run.startMm + index * MODULE_MM,
-    ) && fridge.startMm === run.startMm + beforeTheFridge.length * MODULE_MM;
+    ) &&
+    fridge.startMm ===
+      run.startMm + beforeTheFridge.length * MODULE_MM + movedMm;
   if (!isDoorStorageFromTheCorner) {
     findings.push(
       "a free-end fridge is not door storage from the corner and then the fridge",
@@ -433,6 +442,39 @@ function fridgeAtTheFreeEndFindings({
     findings.push("a free-end fridge leaves a whole module or more bare");
   }
   return findings;
+}
+
+/**
+ * M7C wave C5 S2, the owner's Q6: how far the door base directly inboard of the fridge was widened, and so how
+ * far the fridge stands past its counted start. The widening is held to the owner's rule worked out from the
+ * free run's end and the fridge's own span (never from the plan's remainder): only where the fridge is the
+ * outermost body on its wall, and by whole steps of the leftover up to 800.
+ */
+function movedByTheOwnersRuleMm(
+  findings: string[],
+  {
+    runs,
+    fridge,
+    wall,
+    onWall,
+  }: Pick<FridgePlacement, "runs" | "fridge" | "wall" | "onWall">,
+): number {
+  const inboard = onWall.find((base) => base.endMm === fridge.startMm);
+  const takenMm = inboard?.buildId === DOOR ? inboard.widthMm - MODULE_MM : 0;
+  const isOutermost = onWall[onWall.length - 1] === fridge;
+  const ruledMm =
+    isOutermost && inboard?.buildId === DOOR
+      ? absorbedByTheOwnersRuleMm({
+          leftoverMm: runs[wall].endMm - (fridge.endMm - takenMm),
+          cabinetWidthMm: MODULE_MM,
+        })
+      : 0;
+  if (takenMm !== ruledMm) {
+    findings.push(
+      `the base beside the fridge grew by ${String(takenMm)} mm, the owner's rule gives ${String(ruledMm)}`,
+    );
+  }
+  return takenMm;
 }
 
 /** *N3 revised* 3-4: `count` door bases from the corner, then the fridge, then only pantries of
@@ -448,7 +490,13 @@ function countedFridgeFindings({
 }: FridgePlacement & { readonly count: number }): readonly string[] {
   const findings: string[] = [];
   const run = runs[wall];
-  if (fridge.startMm !== run.startMm + count * MODULE_MM) {
+  const movedMm = movedByTheOwnersRuleMm(findings, {
+    runs,
+    fridge,
+    wall,
+    onWall,
+  });
+  if (fridge.startMm !== run.startMm + count * MODULE_MM + movedMm) {
     findings.push(`fridge not after ${String(count)} bases from the corner`);
   }
   const beyond = onWall.filter((base) => base.startMm >= fridge.endMm);

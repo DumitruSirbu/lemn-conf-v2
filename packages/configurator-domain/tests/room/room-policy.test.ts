@@ -138,7 +138,7 @@ describe("ENGINE_ROOM_LIMITS — every bound is the constant it is derived from"
     "wall %s's minimum is the narrowest corner's reach at any declared cabinet depth",
     (wall, readMinimumMm) => {
       expect(readMinimumMm()).toBe(narrowestCornerReachMm(wall).wallMinimumMm);
-      expect(readMinimumMm()).toBe(880);
+      expect(readMinimumMm()).toBe(870);
     },
   );
 
@@ -342,7 +342,7 @@ describe("ENGINE_ROOM_LIMITS — every room it accepts is a room a design can st
 // rather than the room.** This block instantiates the **reference** corner — the one
 // `buildLShellDesign` still copies at its own size until wave 7D7 parameterises the builders — so the
 // smallest room it can stand in is the smallest room the *product* admits, which is
-// `APPROVED_ROOM_POLICY`'s 900 × 1000. The engine's own minimum is now lower (880 on both walls, the
+// `APPROVED_ROOM_POLICY`'s 900 × 1000. The engine's own minimum is now lower (870 on both walls since ADR 0135, the
 // narrowest corner the product will build), and between the two lies a window no product path
 // reaches: a customer's room is judged against the approved policy (`apps/web/src/room/
 // room-url-state.ts`). That the derived corner fits the bound that admits it — containment and

@@ -134,7 +134,7 @@ describe("Wave 6J-a: along-wall movement is a declaration", () => {
     }
   });
 
-  it("declares only the two structural wall returns on the wall-map chain", () => {
+  it("declares only the four structural wall corner bodies on the wall-map chain", () => {
     const wallMapIds = [...buildKitchenLBodyCatalog(700)]
       .filter(([, definition]) => {
         const rule = cabinetDepthRuleOf({
@@ -146,9 +146,12 @@ describe("Wave 6J-a: along-wall movement is a declaration", () => {
       .map(([buildId]) => buildId)
       .sort();
 
+    // Two → four (M7C wave C2): the corner wall unit's rows follow the wall map as the returns do.
     expect(wallMapIds).toStrictEqual([
       "wall-corner-return-570",
       "wall-corner-return-570-top",
+      "wall-corner-x-900",
+      "wall-corner-x-900-top",
     ]);
   });
 

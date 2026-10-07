@@ -1,37 +1,19 @@
-// **What a body's fronts are, told apart** — how many of them open on hinges, how many pull out on
-// runners, and how tall each door band is.
+// What a body's fronts are, told apart: how many open on hinges, how many pull out on runners, and how
+// tall each door band is (ADR 0070 prices hinges by door leaf, runners by drawer, and a third hinge on
+// any leaf taller than 900 mm).
 //
-// ADR 0070 prices hardware **per mechanism**: hinges by door leaf, runners by drawer, and a third
-// hinge on any leaf taller than 900 mm. None of those three numbers is reachable from what the
-// catalogue declared before this module existed. `cabinetHandles` is **one** number covering two
-// different things — `base-3drawer` declares `carriesHandles(3)` and `base-sink` declares
-// `carriesHandles(2)`, and nothing in either says which are drawers — and no entry declares a door
-// band's height at all, only the placement's overall frame height. `tallPantry`
-// (`kitchen-parts.ts`) draws bands of **1290 mm and 790 mm** inside a 2200 mm frame, so a naive read
-// of the frame height would put three hinges on a 790 mm door.
-//
-// **Declared per entry, and forced to be** (ADR 0061 decision 3, §12), exactly as `cabinet-handles.ts`
-// is: pricing is a pure domain query, the domain has no meshes to look at, and telling a drawer
-// front from a door leaf inspects geometry. So the domain cannot count fronts; it can only read
-// numbers the catalogue states. What keeps them honest is a three-adapter parity gate holding every
-// declaration to the slabs actually built (`front-population.parity.test.ts`), ADR 0028's remedy for
-// two numbers agreeing by luck.
-//
-// **This module declares; it does not price.** The 900 mm hinge threshold, the runner count and the
-// push-to-open rule are ADR 0070's and belong to the wave that builds them. A declaration and its
-// first consumer in one diff is how two numbers come to agree by luck.
+// Declared per catalogue entry, because the domain has no meshes to inspect (ADR 0061 decision 3). A
+// door band's height is not the frame height: `tallPantry` draws 1290 mm and 790 mm bands inside a
+// 2200 mm frame. `front-population.parity.test.ts` in `@lemnaria/three-adapter` holds every declaration
+// to the slabs actually built. This module declares; it does not price.
 import { deriveDoorCount } from "./door-count.js";
 
-/** **Where a body's door-band heights come from.** Two shapes, because the shipped builders come in
- *  two kinds and no more:
+/** Where a body's door-band heights come from.
  *
- *  - **`declared-heights`** — the builder draws bands of fixed height whatever it is built to.
- *    `tallPantry`'s two bands are 1290 and 790 at every width, `tall-fridge-housing`'s three are
- *    1350, 530 and 190, and every seeded row is one of these by construction (ADR 0011 Gap A: one
- *    already-built body at one size).
- *  - **`one-band-under-frame`** — a `heightFlex` row, whose single band is however tall the opening
- *    made it, less a fixed inset. `wallCabinet` builds its leaves `WALL_DOOR_BAND_INSET_MM` shorter
- *    than the carcass it is given, so the band is 694 mm in a 700 mm cabinet and 394 in a 400. */
+ *  - `declared-heights`: the builder draws bands of fixed height at every width (`tallPantry`'s 1290 and
+ *    790); every seeded row is one of these (ADR 0011 Gap A).
+ *  - `one-band-under-frame`: a `heightFlex` row whose single band is the frame height less a fixed inset
+ *    (`wallCabinet`: 694 mm in a 700 mm cabinet, 394 in a 400). */
 export type DoorBandsRule =
   | {
       readonly measuredFrom: "declared-heights";
@@ -42,24 +24,15 @@ export type DoorBandsRule =
       readonly frameInsetMm: number;
     };
 
-/** **What fills a body's front, declared per catalogue entry** — never inferred from a `kind` (ADR
- *  0061's rejected alternative: `base-hob-oven` and `base-3drawer` are both `base_cabinet`), and
- *  never from a handle edge. `doorSlab(…, "top")` is a *handle placement*, and the builder's own
- *  comment says `"top"` covers "drawers, **and doors below the worktop**": `bottleCargo`, the
- *  dishwasher's decor door and the oven tower's lower leaf all take it, and `wall-lift`'s single
- *  flap takes `"bottom"`. Inferring drawer-ness from that field is ADR 0061's `kind`-is-not-enough
- *  mistake one field over.
+/** What fills a body's front, declared per catalogue entry: never inferred from a `kind` (`base-hob-oven`
+ *  and `base-3drawer` are both `base_cabinet`) nor from a handle edge (`doorSlab(…, "top")` covers
+ *  drawers and doors below the worktop alike). see ADR 0061
  *
- *  Two shapes, mirroring `CabinetHandleRule`'s own two:
+ *  - `declared-leaves`: the leaf population is fixed at every width (`base-sink`: one band of two).
+ *  - `leaves-follow-width`: a `doorCountFollowsWidth` row whose leaves per band come from
+ *    `deriveDoorCount` (`tall-pantry`: two bands, so two leaves at 400 mm and four at 600).
  *
- *  - **`declared-leaves`** — the body's leaf population is fixed at every width. `base-sink` is one
- *    band of two leaves at 600 mm and at 800.
- *  - **`leaves-follow-width`** — a row that declares `doorCountFollowsWidth`, whose leaves per band
- *    are decided at build time by `deriveDoorCount`. `tall-pantry` stacks two bands of such leaves,
- *    so it carries two leaves at 400 mm and four at 600.
- *
- *  `drawers` is a plain count in both, because no shipped builder decides a drawer count from a
- *  width — three drawers are three drawers at 300 mm and at 800. */
+ *  `drawers` is a plain count in both: no builder decides a drawer count from a width. */
 export type FrontPopulationRule =
   | {
       readonly countedFrom: "declared-leaves";
@@ -73,32 +46,21 @@ export type FrontPopulationRule =
       readonly drawers: number;
     };
 
-// **The band heights the builders draw, written down once.** They live here rather than in
-// `catalog.ts` because both catalogue populations declare them — §7's parameterised rows and
-// M2's seeded instances, which are the same builders called at one size (ADR 0011 Gap A) — and a
-// second copy in the fixture is the pair-agreeing-by-luck defect ADR 0028 exists to stop. Every
-// one of them is held to the built slab by `front-population.parity.test.ts` in
-// `@lemnaria/three-adapter`.
+// The band heights the builders draw, written down once here because both catalogue populations (§7's
+// rows and the seeded instances) declare them. Each is held to the built slab by
+// `front-population.parity.test.ts` in `@lemnaria/three-adapter`.
 
-/** **The door band a base carcass carries** — its 720 mm carcass less the 10 mm of shadow gap
- *  `baseCabinet` leaves the worktop and the plinth. The same 710 at every width and at every cabinet
- *  depth: a base body's height is fixed at the worktop line, so nothing about the setting moves it.
- *
- *  Declared here and held to the built slab by `front-population.parity.test.ts` in
- *  `@lemnaria/three-adapter`, which is the whole reason a number the builders own may be written
- *  down in the domain at all (ADR 0061 decision 3, ADR 0028's remedy). */
+/** The door band a base carcass carries: its 720 mm carcass less the 10 mm shadow gap `baseCabinet`
+ *  leaves the worktop and plinth. The same at every width and cabinet depth. */
 export const BASE_DOOR_BAND_HEIGHT_MM = 710;
 
-/** ADR 0048's pantry, and **the pair of numbers that makes this declaration necessary at all**:
- *  `tallPantry` draws bands of 1290 and 790 inside a 2200 mm frame. They do not sum to the body's
- *  height — the plinth and the carcass rails take the difference — so a reader of `heightMm` would
- *  put ADR 0070's third hinge on the 790 mm door. The band order is the builder's own and is not
- *  read: a hinge rule asks a height, never a position. */
+/** The pantry's bands: `tallPantry` draws 1290 and 790 inside a 2200 mm frame, which do not sum to its
+ *  height (the plinth and rails take the difference), so the frame height must not be read as a band.
+ *  Order is not read: a hinge rule asks a height, never a position. */
 export const PANTRY_DOOR_BAND_HEIGHTS_MM: readonly number[] = [1290, 790];
 
-/** The oven tower's two **cabinet** leaves — one under the oven, one over the microwave — inside the
- *  same 2200 mm frame. The oven's and the microwave's own fascias stand between them and are not
- *  door bands, for the reason their bars are not cabinet handles (ADR 0061 decision 2). */
+/** The oven tower's two cabinet leaves, one under the oven and one over the microwave, in the same 2200 mm
+ *  frame; the appliance fascias between them are not door bands (ADR 0061 decision 2). */
 export const OVEN_TOWER_DOOR_BAND_HEIGHTS_MM: readonly number[] = [500, 500];
 
 /** The integrated fridge housing's three leaves, bottom to top: the fridge door, the freezer door
@@ -107,28 +69,19 @@ export const FRIDGE_HOUSING_DOOR_BAND_HEIGHTS_MM: readonly number[] = [
   1350, 530, 190,
 ];
 
-/** How much shorter a wall carcass's leaf is than the carcass itself — the 3 mm shadow gap it
- *  leaves at the top and at the bottom. `wallCabinet` builds `H - 0.006` and `wallLift` the same,
- *  which is what `one-band-under-frame` states without pinning the height those rows are built to. */
+/** How much shorter a wall carcass's leaf is than the carcass: a 3 mm shadow gap at top and bottom
+ *  (`wallCabinet` and `wallLift` build `H - 0.006`). */
 export const WALL_DOOR_BAND_INSET_MM = 6;
 
-/** A wall carcass's door band at a given frame height — 694 in a 700 mm cabinet, 394 in a 400 mm
- *  one, 744 in the 750 mm box over the fridge. Written once and read by every seeded wall row, so
- *  the already-built bodies and the `heightFlex` rule that reproduces them share one arithmetic
- *  rather than agreeing by luck. */
+/** A wall carcass's door band at a frame height (694 in a 700 mm cabinet, 744 in the 750 mm box over the
+ *  fridge), so the seeded wall rows and the `heightFlex` rule that reproduces them share one arithmetic. */
 export function wallDoorBandHeightMm(frameHeightMm: number): number {
   return frameHeightMm - WALL_DOOR_BAND_INSET_MM;
 }
 
-/** Bands of fixed height, top-to-bottom order irrelevant: the gate compares them as a multiset,
- *  because what a hinge rule reads is a height and not a position.
- *
- *  **Copied and frozen, once, here.** `doorBandHeightsMm` used to hand its caller the very array a
- *  row declared — `doorBandHeightsMm(pantryQuery) === PANTRY_DOOR_BAND_HEIGHTS_MM` — and `readonly`
- *  is a compile-time promise this port cannot rely on: `BodyCatalog` is reachable from plain
- *  JavaScript, so one caller's `.sort()` reordered a module constant for the rest of the process.
- *  Fixed at declaration rather than per query, so the rule owns an array nothing else holds and no
- *  query allocates. */
+/** Bands of fixed height; order is irrelevant (the parity gate compares them as a multiset). Copied and
+ *  frozen here, once: `readonly` is compile-time only and `BodyCatalog` is reachable from plain
+ *  JavaScript, so a caller's `.sort()` would otherwise reorder a module constant for the whole process. */
 export function doorBandsMm(bandHeightsMm: readonly number[]): DoorBandsRule {
   return {
     measuredFrom: "declared-heights",
@@ -141,39 +94,28 @@ export function oneBandInsetFromFrameMm(frameInsetMm: number): DoorBandsRule {
   return { measuredFrom: "one-band-under-frame", frameInsetMm };
 }
 
-/** **A body with no door band at all** — an open shelf, a hood, a freestanding fridge, a drawer
- *  stack, a structural corner return, and `base-hob-oven`, whose one front is a fixed facade that
- *  opens nothing. Named rather than written as a bare `doorBandsMm([])`, so the declaration reads
- *  as a statement about the product instead of as an empty list somebody forgot to fill in, exactly
- *  as `NO_FRONT_ASSEMBLY_MM` and `NO_CABINET_HANDLES` do for their own fields. */
+/** A body with no door band: an open shelf, a hood, a freestanding fridge, a drawer stack, a structural
+ *  corner return, and `base-hob-oven` (its one front is a fixed facade). Named so it reads as a
+ *  statement, not an empty list somebody forgot to fill. */
 export const NO_DOOR_BANDS: DoorBandsRule = doorBandsMm([]);
 
-/** What a body with no door band declares for its leaves-per-band. **Not "one leaf that is
- *  missing"** — there is no band for a leaf to stand in, so the multiplication is over nothing.
- *  Named so a reader does not read the zero as a count that was left blank. */
+/** Leaves per band for a body with no band: there is no band for a leaf to stand in, not a blank count. */
 const NO_LEAVES_PER_BAND = 0;
 
-/** A body with no drawer. Named for `NO_DOOR_BANDS`' reason. */
+/** A body with no drawer. */
 export const NO_DRAWERS = 0;
 
-/** Everything an entry has to answer about its fronts, in one place so no row can answer two of the
- *  three questions and stay silent on the third — the DOM-002 shape, where four families inherited a
- *  depth nobody had decided for them. */
+/** Everything an entry has to answer about its fronts, so no row can answer two of the three questions
+ *  and stay silent on the third. */
 export interface DeclaredFronts {
   readonly doorBands: DoorBandsRule;
   readonly leavesPerBand: number;
   readonly drawers: number;
 }
 
-/** A body whose front population is fixed at every width it is built to.
- *
- *  **Refuses a contradictory declaration here, at construction, rather than answering zero later.**
- *  `doorLeafCount` is bands times leaves per band, so `{ bands: [710], leavesPerBand: 0 }` reports
- *  no leaves on a body with a visible 710 mm door — and ADR 0070 would then price no hinges on it.
- *  The mirror, bands with no heights against a positive leaf count, is the same silence. Both are
- *  caught as the catalogue is assembled, which is module load for all 38 shipped rows, so a bad
- *  declaration cannot reach a query at all. `(no bands, no leaves)` is not a contradiction — it is
- *  `NO_OPENING_FRONTS`, and a hood must keep declaring it. */
+/** A body whose front population is fixed at every width it is built to. Throws at construction on a
+ *  contradiction: bands with zero leaves per band would price no hinges on a visible door, and leaves
+ *  with no bands are the mirror. `(no bands, no leaves)` is `NO_OPENING_FRONTS`, not a contradiction. */
 export function carriesFronts(fronts: DeclaredFronts): FrontPopulationRule {
   refuseContradiction({
     bands: declaredBandCount(fronts.doorBands),
@@ -188,17 +130,15 @@ export function carriesFronts(fronts: DeclaredFronts): FrontPopulationRule {
   };
 }
 
-/** How many bands a rule declares, **statically** — the whole reason the contradiction above can be
- *  caught at declaration rather than at query time. A `declared-heights` rule says so by its length,
- *  and a `one-band-under-frame` rule is exactly one band whatever frame it is later asked about. */
+/** How many bands a rule declares, statically, so a contradiction is caught at declaration rather than
+ *  at query time. */
 function declaredBandCount(doorBands: DoorBandsRule): number {
   return doorBands.measuredFrom === "declared-heights"
     ? doorBands.bandHeightsMm.length
     : ONE_BAND;
 }
 
-/** A `one-band-under-frame` row's band count. Named because the `1` is the rule's whole content on
- *  that arm and not an arbitrary default. */
+/** A `one-band-under-frame` row is exactly one band whatever frame it is asked about. */
 const ONE_BAND = 1;
 
 function refuseContradiction(declared: {
@@ -214,17 +154,10 @@ function refuseContradiction(declared: {
   }
 }
 
-/** **A declaration whose two halves disagree**, refused rather than answered. Distinct from
- *  `UndeclaredFrontPopulationError` on purpose and named for what it is: nothing is missing here —
- *  both numbers are present, usable, and describe a body that cannot exist.
- *
- *  **`buildId` is optional because only one of the two callers has one, and that is the honest
- *  shape rather than a compromise.** A constructor is handed numbers and not the row they belong to
- *  — threading an id through would put one on all 38 call sites — so `carriesFronts` throws at the
- *  call site with the band rule printed, and a developer reads the stack. The catalogue-assembly
- *  sweep does have the row, and names it: an exception carries the operation, the failure type and
- *  the relevant data, and for this failure the relevant datum is *which row*. `[1290,790]` locates
- *  the pantry only for a reader who already knows the catalogue, which is no use in a log. */
+/** A declaration whose two halves disagree: both numbers are present and usable but describe a body that
+ *  cannot exist, unlike `UndeclaredFrontPopulationError`. `buildId` is optional because a constructor
+ *  has no row id (`carriesFronts` throws with the band rule printed); the catalogue-assembly sweep has
+ *  the row and names it. */
 export class ContradictoryFrontDeclarationError extends Error {
   constructor(declared: {
     readonly bands: number;
@@ -248,17 +181,11 @@ function describeRow(buildId: string | undefined): string {
 }
 
 /**
- * **The port half of the refusal above, and the half that can name the row.**
- *
- * `carriesFronts` catches every rule this repository authors, because every one of them is built by
- * it — but `BodyCatalog` is a port, and a definition assembled outside TypeScript reaches no
- * constructor at all. That is the case `refuseUndeclaredDepthRules` exists for one field over, and
- * this is the same remedy on the same seam: `buildKitchenLBodyCatalog` runs it over both populations
- * as the map is assembled, so a contradictory row cannot reach a query and the refusal names it.
- *
- * A rule that is missing, or tagged with something this module does not know, is **not** this
- * function's to refuse — that is `UndeclaredFrontPopulationError` at query time, and refusing it
- * here would make a catalogue fail to load for a row nothing had asked about yet.
+ * The port half of the refusal above, which can name the row: `BodyCatalog` is a port, so a definition
+ * assembled outside TypeScript reaches no `carriesFronts`. `buildKitchenLBodyCatalog` runs this over
+ * both populations as the map is assembled. A missing or unrecognised rule is not refused here: that
+ * is `UndeclaredFrontPopulationError` at query time, and refusing it here would fail the catalogue
+ * load for a row nothing had asked about yet.
  */
 export function refuseContradictoryFrontDeclarations(
   entries: readonly (readonly [string, DeclaresFronts])[],
@@ -294,9 +221,7 @@ function isRecognisedBands(bands: DoorBandsRule | undefined): boolean {
   );
 }
 
-/** A body whose only fronts are drawers — a pan bank, a three-drawer base, a bottle cargo's
- *  full-height pull-out. Reads as the statement it is, rather than as a `carriesFronts` call whose
- *  two door fields are both a named nothing. */
+/** A body whose only fronts are drawers: a pan bank, a three-drawer base, a bottle cargo's pull-out. */
 export function carriesDrawers(drawers: number): FrontPopulationRule {
   return carriesFronts({
     doorBands: NO_DOOR_BANDS,
@@ -305,20 +230,18 @@ export function carriesDrawers(drawers: number): FrontPopulationRule {
   });
 }
 
-/** **A body with nothing that opens** — an open shelf, a hood, a freestanding appliance, a
- *  structural corner return, and the hob-and-oven base whose single front is a facade. */
+/** A body with nothing that opens: an open shelf, a hood, a freestanding appliance, a structural corner
+ *  return, and the hob-and-oven base whose single front is a facade. */
 export const NO_OPENING_FRONTS: FrontPopulationRule =
   carriesDrawers(NO_DRAWERS);
 
-/** A row whose leaves per band follow its width through `deriveDoorCount`, and which carries no
- *  drawer. The three rows that declare `doorCountFollowsWidth` are all of this shape; a row that
- *  mixed width-derived leaves with drawers would need `carriesFronts`' general form and a
- *  `countedFrom` arm that carries both, and none exists because no such body is built. */
+/** A row whose leaves per band follow its width through `deriveDoorCount` and which carries no drawer.
+ *  No built body mixes width-derived leaves with drawers, so no `countedFrom` arm carries both. */
 export function doorLeavesFollowWidth(
   doorBands: DoorBandsRule,
 ): FrontPopulationRule {
-  // The same contradiction on this arm, where `deriveDoorCount` always answers at least one leaf: a
-  // row declaring that a width decides its leaves, in a body with nowhere for a leaf to stand.
+  // The same contradiction on this arm: `deriveDoorCount` always answers at least one leaf, so a body
+  // with no band has nowhere for it to stand.
   refuseContradiction({
     bands: declaredBandCount(doorBands),
     leavesPerBand: LEAVES_FOLLOW_THE_WIDTH,
@@ -327,35 +250,23 @@ export function doorLeavesFollowWidth(
   return { countedFrom: "leaves-follow-width", doorBands, drawers: NO_DRAWERS };
 }
 
-/** What a width-following row contributes to the contradiction check above. `deriveDoorCount` never
- *  answers zero, so any positive stand-in states the same fact: this row expects bands to put leaves
- *  in. */
+/** What a width-following row contributes to the contradiction check: `deriveDoorCount` never answers
+ *  zero, so any positive stand-in says this row expects bands to put leaves in. */
 const LEAVES_FOLLOW_THE_WIDTH = 1;
 
-/** Every rule field a refusal can name. A literal union rather than `string`, for the reason
- *  `CabinetHandleCountField` is one: a typo in a refusal message is a compile error instead of a
- *  message pointing at a field no rule has.
- *
- *  **Not "count fields", which is what this was called.** Two of the four are millimetre *lengths* —
- *  a band's height and a frame inset — and only the other two are counted objects. They share one
- *  validator because they share one shape of unusable, not because they are the same kind of
- *  number. */
+/** Every rule field a refusal can name; a literal union so a typo in a message is a compile error. Two
+ *  are millimetre lengths (`bandHeightsMm`, `frameInsetMm`) and two are counts; they share one validator
+ *  because they share one shape of unusable. */
 export type FrontPopulationField =
   | "leavesPerBand"
   | "drawers"
   | "bandHeightsMm"
   | "frameInsetMm";
 
-/** A catalogue entry that declares nothing usable about its fronts. **A programming error rather
- *  than a number to guess at** (ADR 0061 decision 4, restated one declaration over): a silent
- *  fallback to zero would price a whole kitchen's hinges at nothing, and a silent fallback to the
- *  frame height would put three hinges on a pantry's 790 mm door. Neither failure is visible in a
- *  scene, which is how four families carried a wrong `occupiedDepth` with every suite green
- *  (DOM-002).
- *
- *  `missingField` names which number was not there, so the refusal points at the row's field rather
- *  than only at the row — the shape `UndeclaredCabinetHandleCountError` arrived at after QA found
- *  its second unusable case one field later than its first. */
+/** A catalogue entry that declares nothing usable about its fronts: a programming error, not a number to
+ *  guess at. A fallback to zero would price no hinges, and a fallback to the frame height would put a
+ *  third hinge on a pantry's 790 mm door, and neither is visible in a scene. `missingField` names which
+ *  number was not there. see ADR 0061 decision 4 */
 export class UndeclaredFrontPopulationError extends Error {
   constructor(refusal: {
     readonly buildId: string;
@@ -383,13 +294,9 @@ function describeDeclared(declared: unknown): string {
   return declared === undefined ? "nothing" : JSON.stringify(declared);
 }
 
-/** What the three queries below need and nothing more: the declaration, the two dimensions a rule
- *  may be relative to, and the id a refusal has to name.
- *
- *  `rule` is typed **wider than `BodyDefinition` declares it, on purpose**, for the reason
- *  `cabinet-handles.ts` and `occupied-depth.ts` widen their own: `BodyCatalog` is a port, a
- *  definition assembled outside TypeScript can arrive with no rule at all, and that is the case
- *  these functions must refuse rather than guess at. */
+/** What the three queries below need: the declaration, the two dimensions a rule may be relative to, and
+ *  the id a refusal names. `rule` is typed wider than `BodyDefinition` declares it: `BodyCatalog` is a
+ *  port, so a definition from outside TypeScript can arrive with no rule, which must be refused. */
 export interface FrontPopulationQuery {
   readonly buildId: string;
   readonly rule: FrontPopulationRule | undefined;
@@ -400,36 +307,25 @@ export interface FrontPopulationQuery {
   readonly frameHeightMm: number;
 }
 
-/** What this module reads off a placement's body, and nothing more. **Structural rather than an
- *  import of `CabinetBody`**, for the reason `DeclaresFronts` below is structural: `void-engine.ts`
- *  imports *this* module for `FrontPopulationRule`, so an import back would be a cycle. */
+/** What this module reads off a placement's body. Structural, not an import of `CabinetBody`:
+ *  `void-engine.ts` imports this module for `FrontPopulationRule`, so an import back would be a cycle. */
 export interface PlacedBody {
   readonly buildId: string;
   readonly widthMm: number;
   readonly heightMm: number;
 }
 
-/** What this module reads off a catalogue entry. See `PlacedBody` above for why it is structural. */
+/** What this module reads off a catalogue entry; structural for `PlacedBody`'s reason. */
 export interface DeclaresFronts {
   readonly fronts?: FrontPopulationRule;
 }
 
 /**
- * **The query, built from the placement rather than assembled by hand — and this exists to remove a
- * choice, not to save typing.**
- *
- * `frameHeightMm` is what a `one-band-under-frame` row's bands are relative to, and it is the
- * **built** height: the height `buildCatalogBody` is handed, which is the placement's own. A caller
- * writing the query by hand can just as easily reach for `definition.nominalHeightMm`, which reads
- * plausible and is wrong — one `wall-cabinet` entry declares 700 while its placements are built at
- * 400, 700 and 750, so a nominal source pins every leaf at 694.
- *
- * **Nothing in the shipped catalogue would catch that.** All 26 seeded rows declare their band
- * heights outright (ADR 0011 Gap A: one already-built body at one size), so no seeded placement's
- * rule reads `frameHeightMm` at all — ADR 0070's 74-hinge cross-check answers 74 whatever is passed
- * here. The two `heightFlex` §7 rows are the only ones the input reaches, and today every band they
- * produce is under ADR 0070's 900 mm threshold, so the wrong source is silent as well as unguarded.
- * That is latency, not safety, and this constructor is what removes the chance to take it.
+ * The query, built from the placement rather than by hand. `frameHeightMm` is the built height (the
+ * placement's own, as handed to `buildCatalogBody`); reading `definition.nominalHeightMm` instead is
+ * wrong, because one `wall-cabinet` entry declares 700 while its placements are built at 400, 700 and
+ * 750. Nothing in the shipped catalogue catches that: no seeded rule reads `frameHeightMm`, and today
+ * every `heightFlex` band stays under the 900 mm hinge threshold.
  */
 export function frontPopulationQueryFor(placed: {
   readonly body: PlacedBody;
@@ -443,17 +339,10 @@ export function frontPopulationQueryFor(placed: {
   };
 }
 
-/** **The height of each door leaf this body carries, one entry per leaf** — the list ADR 0070's
- *  900 mm hinge rule is applied over, and the pairing the two counts below cannot express between
- *  them. A pantry at 600 mm answers `[1290, 1290, 790, 790]`.
- *
- *  **Published because both of this wave's test files had already rebuilt it**, five lines each,
- *  one of them with a doc comment explaining why the division is exact. A caller that has a total
- *  leaf count and a band list and reconstructs the pairing itself will sooner or later apply the
- *  threshold to the *bands* instead — which counts 45 hinges on the seeded kitchen against the
- *  correct 74, silently. The pairing is this module's fact, so it is this module's function.
- *
- *  Band-major, which is how the builders stack them: a band's leaves are adjacent. */
+/** The height of each door leaf this body carries, one entry per leaf: the list ADR 0070's 900 mm hinge
+ *  rule is applied over. A pantry at 600 mm answers `[1290, 1290, 790, 790]`. Callers must not rebuild
+ *  the band-to-leaf pairing themselves: applying the threshold to the bands instead counts 45 hinges on
+ *  the seeded kitchen against the correct 74. Band-major, as the builders stack them. */
 export function doorLeafHeightsMm(
   query: FrontPopulationQuery,
 ): readonly number[] {
@@ -463,41 +352,23 @@ export function doorLeafHeightsMm(
   );
 }
 
-/** **How many door leaves this body carries at this size** — the quantity ADR 0070's hinge rule is
- *  counted over, and the number the three-adapter parity gate holds to the built slabs.
- *
- *  The length of the list above rather than a product of two numbers, so the count and the heights
- *  cannot come apart: `tall-fridge-housing` is three bands of one leaf, `base-sink` is one band of
- *  two, and `tall-pantry` is two bands of however many `deriveDoorCount` puts in one. A drawer is
- *  not among them and never was.
- *
- *  Fails closed: a query whose entry declares nothing throws rather than answering. */
+/** How many door leaves this body carries at this size: the length of the list above, so count and heights
+ *  cannot come apart. A drawer is not a leaf. Fails closed: a query whose entry declares nothing throws. */
 export function doorLeafCount(query: FrontPopulationQuery): number {
   return doorLeafHeightsMm(query).length;
 }
 
-/** **How many drawers this body carries** — the quantity ADR 0070's runner rule is counted over. A
- *  drawer's *size* does not change the mechanism count, so no height is declared for one and none
- *  is asked for here.
- *
- *  **Its precondition is deliberately weaker than `doorLeafCount`'s on the same query**, and that is
- *  worth stating because two queries over one object with different failure conditions is what a
- *  later reader gets wrong: a leaf count routes through the band declaration and refuses an unusable
- *  one, while this reads only `drawers`. So a row with a broken band list still answers a drawer
- *  count — correct rather than lax, because a drawer has no band and there is nothing about it for a
- *  broken band list to make wrong. */
+/** How many drawers this body carries: the quantity ADR 0070's runner rule is counted over. Its
+ *  precondition is deliberately weaker than `doorLeafCount`'s: it reads only `drawers`, so a row with a
+ *  broken band list still answers a drawer count, since a drawer has no band. */
 export function drawerCount(query: FrontPopulationQuery): number {
   const rule = recognisedRuleOf(query);
   return usableCountOf(query, rule.drawers, "drawers");
 }
 
-/** **How tall each of this body's door bands is, in millimetres** — one entry per band, and the
- *  number ADR 0070's 900 mm hinge threshold is applied to. **Not the frame height**, which is the
- *  wrong number and is why this declaration exists: `tall-pantry` declares 1290 and 790 inside a
- *  2200 mm frame.
- *
- *  A body with nothing that opens answers with an empty list, which is a real answer and not a
- *  refusal — a hood has no door band. */
+/** How tall each of this body's door bands is, in millimetres, one entry per band. Not the frame height
+ *  (`tall-pantry` declares 1290 and 790 inside 2200). A body with nothing that opens answers an empty
+ *  list, which is an answer and not a refusal. */
 export function doorBandHeightsMm(
   query: FrontPopulationQuery,
 ): readonly number[] {
@@ -521,19 +392,16 @@ export function doorBandHeightsMm(
   }
 }
 
-/** The band rule a recognised declaration carries, **typed as possibly absent although the rule
- *  declares it required** — for the reason `FrontPopulationQuery.rule` itself is typed wider than
- *  `BodyDefinition` declares it. A row authored with a recognised `countedFrom` and no `doorBands`
- *  at all is the shape a definition arrives as through the `BodyCatalog` port, and it has to reach
- *  a refusal rather than crash reading a property of `undefined`. */
+/** The band rule a recognised declaration carries, typed as possibly absent although the rule requires
+ *  it: a definition arriving through the `BodyCatalog` port with a recognised `countedFrom` and no
+ *  `doorBands` must reach a refusal, not crash on `undefined`. */
 function declaredBandsOf(
   query: FrontPopulationQuery,
 ): DoorBandsRule | undefined {
   return recognisedRuleOf(query).doorBands;
 }
 
-/** How many leaves stand in one of this body's bands — declared, or derived from the width by the
- *  one threshold `deriveDoorCount` owns (ADR 0033). */
+/** How many leaves stand in one of this body's bands: declared, or derived from the width by `deriveDoorCount`. */
 function leavesPerBandOf(query: FrontPopulationQuery): number {
   const rule = recognisedRuleOf(query);
   if (rule.countedFrom === "leaves-follow-width") {
@@ -542,10 +410,8 @@ function leavesPerBandOf(query: FrontPopulationQuery): number {
   return usableCountOf(query, rule.leavesPerBand, "leavesPerBand");
 }
 
-/** The declaration, or a refusal naming the row. A rule that is missing, `null`, or tagged with a
- *  `countedFrom` this module does not know is refused here; a rule tagged with one it *does* know
- *  and carrying no number is refused by `usableCountOf` below, which is the second shape of
- *  unusable and the one that used to come back as `NaN` out of a function typed `: number`. */
+/** The declaration, or a refusal naming the row. A rule that is missing, `null` or tagged with an unknown
+ *  `countedFrom` is refused here; a recognised rule carrying no usable number is refused by `usableCountOf`. */
 function recognisedRuleOf(query: FrontPopulationQuery): FrontPopulationRule {
   switch (query.rule?.countedFrom) {
     case "declared-leaves":
@@ -559,16 +425,9 @@ function recognisedRuleOf(query: FrontPopulationQuery): FrontPopulationRule {
   }
 }
 
-/** The band heights a recognised rule declares, held to being **millimetres of a real door**: a
- *  list, every entry a positive whole number. A zero-height band is not a band, and a fraction of a
- *  millimetre is not a height the builders draw. An empty list passes and means what it says — a
- *  hood has no door band. */
-/** A band a `one-band-under-frame` row's own frame height produced, held to being a door somebody
- *  could hang. **Not a declaration check** — the inset is declared and already checked; the frame
- *  height is the *caller's* input, and a query that passes a frame shorter than the inset would
- *  otherwise get a zero or negative band back and read it as a leaf under 900 mm, which is a wrong
- *  answer rather than a crash. This module's whole premise is that a silently wrong number is worse
- *  than a refusal. */
+/** A band a `one-band-under-frame` row's frame height produced, held to being a door somebody could hang.
+ *  Not a declaration check: the frame height is the caller's input, and a frame shorter than the inset
+ *  would otherwise yield a zero or negative band read as a leaf under 900 mm, silently wrong. */
 function buildableBandHeightMm(
   query: FrontPopulationQuery,
   bandHeightMm: number,
@@ -609,6 +468,7 @@ function usableBandHeightsOf(
   });
 }
 
+/** Every entry a positive whole number of millimetres; an empty list passes (a hood has no door band). */
 function isDoorBandHeightList(
   declared: unknown,
 ): declared is readonly number[] {
@@ -625,15 +485,9 @@ function isDoorBandHeightMm(declaredHeightMm: unknown): boolean {
   );
 }
 
-/** A number a recognised rule is made of, held to being **whole, non-negative and small enough to
- *  be exact** — what a leaf count, a drawer count and a millimetre inset all have to be here. A
- *  fraction or a negative is not a value that was merely surprising: it is one nothing can be billed
- *  for or built to. `0` is a real answer and passes: a hood carries no drawer, and a row could in
- *  principle inset its band by nothing.
- *
- *  Typed `unknown` deliberately, although the rule declares every one of these fields `number`.
- *  That declaration is what the port cannot guarantee, and this function exists for exactly the
- *  values TypeScript already believes are impossible. */
+/** A number a recognised rule is made of, held to being whole, non-negative and exact: a leaf count, a
+ *  drawer count or a millimetre inset. `0` passes (a hood carries no drawer). Typed `unknown` because
+ *  the `BodyCatalog` port cannot guarantee the declared `number`. */
 function usableCountOf(
   query: FrontPopulationQuery,
   declaredCount: unknown,

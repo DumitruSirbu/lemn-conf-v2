@@ -185,30 +185,41 @@ describe("the two corner legs move with it too, which is 5F's measured gap", () 
     );
   });
 
-  // The return leg's whole job is to meet the front plane of the run it butts into — the **tall**
-  // run, not the base one: `cornerBaseReturn`'s own comment says its depth "must equal the front
-  // plane of the neighbour it butts into (0.56 against a standard base cabinet, 0.58 against a
-  // deeper tall unit)", and 0.58 is the shipped call. So the number that matters is not only that
-  // the leg moved but that it landed on that plane again, and it is measured on both bodies rather
-  // than on the constant either is built from — which is the whole reason a literal 0.58 was the
-  // wrong thing to leave here.
+  // The return leg's whole job is to stand on the same line as the run beside it. Since ADR 0135
+  // that run is a **base** run: the leg is built to its carcass front and carries its worktop
+  // overhang, so it finishes exactly where a base cabinet does, at both depths. It used to be drawn
+  // to meet the *tall* run instead, finishing on the cabinet-depth line 1 mm proud of a column
+  // (ADR 0058's `p23` as *"1 mm proud — flush"*); that relationship is gone, and what replaces it is
+  // the one every base cabinet already has beside a column — its worktop 21 mm proud, a column
+  // finishing at 599 (`tallUnitFinishedDepthMm`).
   //
-  // The 1 mm is the shipped relationship and is preserved rather than corrected: a column finishes
-  // at 599 (`tallUnitFinishedDepthMm`) and the leg at 600, which is ADR 0058's own measurement of
-  // `p23` as *"1 mm proud — flush"*. Closing it would move a shipped dimension.
+  // Measured on the bodies rather than on the constants either is built from. Both seat their back
+  // face on the wall plane (§11 row 19), so each one's own extent *is* the distance from that plane
+  // to its front. Their local `max.z` values do not line up, because their origins sit at different
+  // halves.
   it.each(DECLARED_DEPTHS_MM)(
-    "leaves the return leg 1 mm proud of the tall run it closes at %i mm",
+    "finishes the return leg level with a base cabinet at %i mm",
     (cabinetDepthMm) => {
       const kit = kitAt(cabinetDepthMm);
 
-      // Both bodies seat their back face on the wall plane (§11 row 19), so each one's own extent
-      // *is* the distance from that plane to its front — which is what has to line up. Their local
-      // `max.z` values do not, because their origins sit at different halves.
+      expect(
+        depthExtentMm(
+          kit.make.cornerBaseReturn(kit.depths.cornerReturnDepthM, 0.32),
+        ) - depthExtentMm(kit.make.baseCabinet(0.6, { doors: 2 })),
+      ).toBe(0);
+    },
+  );
+
+  it.each(DECLARED_DEPTHS_MM)(
+    "leaves the return leg's worktop 21 mm proud of the tall run, as a base cabinet's is, at %i mm",
+    (cabinetDepthMm) => {
+      const kit = kitAt(cabinetDepthMm);
+
       expect(
         depthExtentMm(
           kit.make.cornerBaseReturn(kit.depths.cornerReturnDepthM, 0.32),
         ) - depthExtentMm(kit.make.tallPantry(0.6, 2)),
-      ).toBe(1);
+      ).toBe(21);
     },
   );
 });

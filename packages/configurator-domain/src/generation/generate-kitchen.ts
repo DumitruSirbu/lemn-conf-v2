@@ -27,6 +27,7 @@ import {
   buildKitchenLBodyCatalog,
   KITCHEN_L_DESIGN,
 } from "../fixtures/kitchen-l-design.js";
+import { TOP_ROW_Y0_MM } from "../push-to-open.js";
 import {
   GENERATION_PRIORITIES,
   hobWithItsOwnOvenBuildId,
@@ -59,10 +60,16 @@ import {
 } from "./tall-end-rule.js";
 import { planUKitchenComposition } from "./u-composition.js";
 import {
+  hasRoomForATopRow,
   isAnUpperOwedOver,
+  WALL_CABINET_BUILD_ID,
   upperBuildIdOver,
+  TOP_ROLE,
+  TOP_STEP_ID_PREFIX,
   upperRoleOver,
   WALL_ROW_Y0_MM,
+  type TopRole,
+  type UpperRole,
 } from "./upper-policy.js";
 
 /** What a generated kitchen was composed from: the L's or the straight room's two-wall plan, or the
@@ -99,10 +106,13 @@ export interface LoggedSetWidth {
 
 export type GenerationCommand = LoggedInsertBody | LoggedSetWidth;
 
+/** Every role a log step carries: a planned base, the upper or hood over one, or the top cabinet over an upper. */
+export type GenerationStepRole = GenerationBaseRole | UpperRole | TopRole;
+
 export type GenerationStep =
   | {
       readonly id: string;
-      readonly role: GenerationBaseRole | "upper" | "hood";
+      readonly role: GenerationStepRole;
       readonly buildId: string;
       readonly status: "placed";
       readonly placementId: string;
@@ -110,7 +120,7 @@ export type GenerationStep =
     }
   | {
       readonly id: string;
-      readonly role: GenerationBaseRole | "upper" | "hood";
+      readonly role: GenerationStepRole;
       readonly buildId: string;
       readonly status: "not_placed";
       readonly reason: RejectionReason | GenerationPlanningReason;
@@ -152,23 +162,19 @@ interface GenerationWorld {
 
 const EMPTY_PARAMS = {} as const;
 
-/** The shell copies the reference kitchen's settings whatever room it is built for
- *  (`shell-design.ts`), so the catalogue the plan reads the block's declared sizes from is knowable
- *  before the shell the plan shapes exists. `refuseAnUnplannedShellDepth` below is what keeps that
- *  from becoming an assumption. */
+/** The shell copies the reference kitchen's settings for every room (`shell-design.ts`), so the
+ *  planning depth is known before the shell exists; `refuseAnUnplannedShellDepth` keeps that true. */
 const PLANNING_CABINET_DEPTH_MM = cabinetDepthMmOf(KITCHEN_L_DESIGN);
 
-/** The two bodies a generated kitchen may carry an oven in, which ADR 0110 E4 rules there is always
- *  exactly one of. */
+/** The two bodies a generated kitchen may carry an oven in; exactly one oven is carried (ADR 0110 E4). */
 const OVEN_BEARING_BUILD_IDS: ReadonlySet<string> = new Set([
   hobWithItsOwnOvenBuildId(),
   OVEN_TOWER_BUILD_ID,
 ]);
 
-/** ADR 0130 D6: the composer's own runs, a straight room's one wall handed over beside an empty,
- *  zero-capacity wall B — `planKitchenComposition` never branches on the shape, because a wall with
- *  no capacity cuts the reading order at 0 by the same `fitsAcrossTheCorner` arithmetic an L's own
- *  narrow prefix wall already uses. */
+/** A straight room's one wall is handed over beside an empty, zero-capacity wall B, so
+ *  `planKitchenComposition` never branches on the shape: zero capacity cuts the reading order at 0
+ *  (ADR 0137 decision 7). */
 function shellRunsFor(
   room: Design["room"],
 ): Readonly<Record<TwoWallDispatch, GenerationRun>> {
@@ -181,8 +187,7 @@ function shellRunsFor(
   return lShellFloorRuns(room);
 }
 
-/** ADR 0130 D5/D6: the shell dispatch, kept to one place so a wave that adds a fourth shape edits one
- *  function rather than every call site `buildLShellDesign` used to have alone. */
+/** The shell dispatch by room shape, kept to one place. */
 function buildShellFor(args: {
   readonly room: Design["room"];
   readonly occurredAt: string;
@@ -256,9 +261,8 @@ function planComposition(
   return planKitchenComposition({ room, runs: shellRunsFor(room), columns });
 }
 
-/** ADR 0102: the block's 600 mm and 2200 mm are the catalogue's, read here and threaded into the
- *  rule. A generation-side constant checked against the catalogue in a test would be the second
- *  authority that ADR names, not a safeguard. */
+/** The block's 600 mm and 2200 mm are the catalogue's, read here and threaded into the rule: a
+ *  generation-side copy would be a second authority (ADR 0102). */
 export function declaredColumnSizes(catalog: BodyCatalog): DeclaredColumnSizes {
   return {
     columnWidthMm: soleDeclaredWidthMm(catalog, OVEN_TOWER_BUILD_ID),
@@ -467,19 +471,30 @@ function compose(args: {
       continue;
     }
     const base = placementById(world.design, baseId);
-    const applied = insertUpper(
+    const applied = insertOver(
       world,
-      base,
-      upperId,
-      upperRole,
-      upperBuildId,
-      args.probe,
-      args.input.occurredAt,
+      {
+        id: upperId,
+        role: upperRole,
+        buildId: upperBuildId,
+        floorMm: WALL_ROW_Y0_MM,
+        over: base,
+      },
+      { probe: args.probe, occurredAt: args.input.occurredAt },
     );
     world = applied.world;
     commands.push(...applied.commands);
     steps.push(applied.step);
   }
+
+  const topRow = insertTopRow(world, steps, {
+    room: args.input.room,
+    occurredAt: args.input.occurredAt,
+    probe: args.probe,
+  });
+  world = topRow.world;
+  commands.push(...topRow.commands);
+  steps.push(...topRow.steps);
 
   const hasMinimum = ["sink", "hob"].every((role) =>
     steps.some((step) => step.id === role && step.status === "placed"),
@@ -580,35 +595,39 @@ function insertPlannedBase(
   };
 }
 
-function insertUpper(
+/** One insert into the opening over `over`: the same span, a row's floor, the body that row takes. */
+interface InsertOverSpec {
+  readonly id: string;
+  readonly role: UpperRole | TopRole;
+  readonly buildId: string;
+  readonly floorMm: number;
+  readonly over: DesignPlacement;
+}
+
+function insertOver(
   world: GenerationWorld,
-  base: DesignPlacement,
-  id: string,
-  role: "upper" | "hood",
-  buildId: string,
-  probe: BodyProbe,
-  occurredAt: string,
+  spec: InsertOverSpec,
+  when: { readonly probe: BodyProbe; readonly occurredAt: string },
 ): {
   readonly world: GenerationWorld;
   readonly step: GenerationStep;
   readonly commands: readonly GenerationCommand[];
 } {
-  const startMm = base.alongMm - base.body.widthMm / 2;
-  const endMm = base.alongMm + base.body.widthMm / 2;
+  const { id, role, buildId, over } = spec;
   const target = plannedVoid(
     world.voids,
-    base.wall,
-    WALL_ROW_Y0_MM,
-    startMm,
-    endMm,
+    over.wall,
+    spec.floorMm,
+    over.alongMm - over.body.widthMm / 2,
+    over.alongMm + over.body.widthMm / 2,
   );
   const command: LoggedInsertBody = {
     type: "insert_body",
     targetVoidId: target.id,
     buildId,
-    occurredAt,
+    occurredAt: when.occurredAt,
   };
-  const applied = runCommand(world, command, probe);
+  const applied = runCommand(world, command, when.probe);
   if (!applied.result.ok) {
     return {
       world,
@@ -619,12 +638,61 @@ function insertUpper(
   if (applied.result.effect.type !== "body_inserted") {
     throw new Error("generateKitchen: insertBody returned a non-insert effect");
   }
-  const placementId = applied.result.effect.placementId;
   return {
     world: applied.world,
-    step: placed(id, role, buildId, placementId, [command]),
+    step: placed(id, role, buildId, applied.result.effect.placementId, [
+      command,
+    ]),
     commands: [command],
   };
+}
+
+/** One top-row cabinet over every upper placed in the wall row (the hood included), in a room tall
+ *  enough to hold it. It stands over the upper, so a full-height body has none (ADR 0110 Amendment O9). */
+function insertTopRow(
+  world: GenerationWorld,
+  steps: readonly GenerationStep[],
+  input: {
+    readonly room: Design["room"];
+    readonly occurredAt: string;
+    readonly probe: BodyProbe;
+  },
+): {
+  readonly world: GenerationWorld;
+  readonly steps: readonly GenerationStep[];
+  readonly commands: readonly GenerationCommand[];
+} {
+  const topSteps: GenerationStep[] = [];
+  const commands: GenerationCommand[] = [];
+  let current = world;
+  if (!hasRoomForATopRow(input.room)) {
+    return { world, steps: topSteps, commands };
+  }
+  for (const upper of steps.filter(isAPlacedUpper)) {
+    const applied = insertOver(
+      current,
+      {
+        id: `${TOP_STEP_ID_PREFIX}${upper.id}`,
+        role: TOP_ROLE,
+        buildId: WALL_CABINET_BUILD_ID,
+        floorMm: TOP_ROW_Y0_MM,
+        over: placementById(current.design, upper.placementId),
+      },
+      { probe: input.probe, occurredAt: input.occurredAt },
+    );
+    current = applied.world;
+    commands.push(...applied.commands);
+    topSteps.push(applied.step);
+  }
+  return { world: current, steps: topSteps, commands };
+}
+
+function isAPlacedUpper(
+  step: GenerationStep,
+): step is Extract<GenerationStep, { readonly status: "placed" }> {
+  return (
+    step.status === "placed" && (step.role === "upper" || step.role === "hood")
+  );
 }
 
 function runCommand(
@@ -751,11 +819,8 @@ function placementById(design: Design, id: string): DesignPlacement {
   return placement;
 }
 
-/** ADR 0110 Amendment E4: **exactly one oven — never two, and never zero.** The block and the hob's
- *  build id are decided together, so a kitchen with no oven means a planned column was refused at
- *  insert time while the hob had already given its oven up. E4 rules that a programming error and
- *  makes it throw: logging the column *not placed* and carrying on ships a kitchen whose hob has
- *  drawers and whose oven does not exist, which is worse than a loud failure. */
+/** Exactly one oven, never two and never zero (ADR 0110 Amendment E4). Zero means a planned column was
+ *  refused after the hob gave its oven up: a programming error, so it throws rather than ships. */
 function assertExactlyOneOven(design: Design): void {
   const ovenCount = design.placements.filter((placement) =>
     OVEN_BEARING_BUILD_IDS.has(placement.body.buildId),
@@ -766,9 +831,8 @@ function assertExactlyOneOven(design: Design): void {
   );
 }
 
-/** ADR 0110 *N3 revised* 11 (RQ7): the hood over the hob is mandatory in every U, and stays where a
- *  large U's back wall is otherwise base-only. A refused hood ships a hob with nothing over it, so it
- *  throws as a missing oven does. */
+/** The hood over the hob is mandatory in every U (ADR 0110 *N3 revised* 11); a refused hood throws, as
+ *  a missing oven does. */
 function assertAHoodStandsOverTheHob(steps: readonly GenerationStep[]): void {
   const hood = steps.find((step) => step.role === "hood");
   if (hood?.status === "placed") return;

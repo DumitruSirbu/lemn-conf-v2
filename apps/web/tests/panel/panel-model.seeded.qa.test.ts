@@ -1,12 +1,5 @@
-// The panel over the **real** seeded kitchen, sweeping every placement and every derived slot.
-//
-// `selection-meta.ts`'s fixtures are the implementer's model of what a body looks like. This file
-// asks the shipped design the same questions: a fixture that disagrees with the seeded population is
-// a test that will stay green while the product is wrong.
-//
-// ADR 0011 Gap D: the column map is frozen at load time. Re-deriving it from mutated records shrinks
-// every column to what is left, a removal then frees no space, and a sweep over "the voids" sweeps
-// nothing while reporting green. Every sweep below asserts it actually swept something.
+// ADR 0011 Gap D: the column map is frozen at load; re-deriving it from mutated records would free no space and a
+// sweep over "the voids" would sweep nothing while green, so every sweep asserts it actually swept something.
 import {
   cabinetDepthMmOf,
   deriveColumns,
@@ -44,7 +37,7 @@ const PROBE = createFakeBodyProbe();
 
 const OCCURRED_AT = "2026-08-26T12:00:00.000Z";
 
-/** Frozen exactly as the store freezes it — see the file header. */
+/** Frozen exactly as the store freezes it (ADR 0011 Gap D). */
 const SEEDED_COLUMNS = deriveColumns(
   derivePlacementRecords(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG),
 
@@ -96,9 +89,8 @@ function panelAt(
       cabinetDepthMm: cabinetDepthMmOf(world.design),
     }),
     rejection,
-    // The engine's own verdicts, not a stand-in: `widthOptionsFor` runs `setWidth` once per
-    // candidate width against this design and these frozen columns. A sweep over the *shipped*
-    // kitchen is only worth running if the chips in it are the ones a customer would tap.
+    // The engine's own verdicts: `widthOptionsFor` runs `setWidth` per candidate width, so the chips are the ones a
+    // customer would tap.
     widthOptions: widthOptionsFor({
       design: world.design,
       catalog: world.catalog,
@@ -106,11 +98,9 @@ function panelAt(
       target,
       probe: PROBE,
     }),
-    // **Both of ADR 0035 decision 3's inputs, from the engine.** They are threaded here rather than
-    // left off because this file's subject is the SHIPPED kitchen: with `widthRanges` absent every
-    // section falls back to the discrete choice, and the sweeps below would then describe a control
-    // no customer ever sees while reporting green — the exact failure this milestone has shipped
-    // twice in copy.
+    // Both inputs are threaded from the engine (ADR 0035 decision 3): with `widthRanges` absent every section falls
+    // back
+    // to the discrete choice, and the sweeps would describe a control no customer sees.
     widthRanges:
       columnWidthChoices({
         design: world.design,
@@ -170,8 +160,6 @@ describe("§6.5's default handle, against every seeded placement's own y0", () =
       ]);
       swept += 1;
     }
-    // ADR 0025 added the two base corner legs; ADR 0027 merged the hob into its host and took one
-    // placement back out again.
     expect(swept).toBe(26);
     // The sweep must contain both answers, or it proves nothing about the boundary.
     expect(
@@ -182,9 +170,8 @@ describe("§6.5's default handle, against every seeded placement's own y0", () =
     ).toBeGreaterThan(0);
   });
 
-  // The scene hides handles by `isPushOpenByDefault(record.frame.y0)`; the panel marks the chip by
-  // `meta.defaultHandle`. If those two ever disagree the customer sees a chip that is not what is
-  // rendered — the exact failure `defaultHandle` was added to prevent.
+  // The scene hides handles by `isPushOpenByDefault(record.frame.y0)` and the panel marks the chip by
+  // `meta.defaultHandle`; the two must agree.
   it("marks the chip the scene is actually rendering, for every body with handles", () => {
     const world = worldFrom(KITCHEN_L_DESIGN);
     let swept = 0;
@@ -227,20 +214,11 @@ describe("§6.5's default handle, against every seeded placement's own y0", () =
   });
 });
 
-/** M5 wave 5B, **widened by ADR 0049**. The seeded bodies that render a width section: one that
- *  resolves a non-empty width set through its declared `catalogEquivalentId`, whether or not it may
- *  be resized. Written out rather than computed, so the list is a statement of the acceptance
- *  criteria and not a second copy of the implementation, and in `derivePlacementRecords` order so a
- *  sweep can compare against it directly.
- *
- *  **The five `fixedWidth` bodies joined this list on 2026-09-01** — `p2` the hob base, `p5` and
- *  `p6` the two columns, `p7` the freestanding fridge, `p13` the hood. Each renders one `active`
- *  chip at the width it is made at, carrying the engine's `NOT_RESIZABLE` sentence, because a
- *  section that vanishes tells the customer nothing.
- *
- *  The four that remain absent are the corners (`p9`, `p21`, `p25`, `p26`): they declare no
- *  catalogue equivalent, resolve no set at all, and that is missing-data-shaped rather than a fact
- *  about a cabinet, so it keeps failing loudly as no section. */
+/** The seeded bodies that render a width section: those resolving a non-empty width set through their declared
+ *  `catalogEquivalentId`, resizable or not (ADR 0049). Written out rather than computed, so the list states the
+ *  acceptance criteria and is not a second copy of the implementation; in `derivePlacementRecords` order.
+ *  A `fixedWidth` body renders one `active` chip carrying `NOT_RESIZABLE`. The four corners (`p9`, `p21`, `p25`,
+ *  `p26`) declare no catalogue equivalent and render none, which keeps failing loudly as a missing section. */
 const SEEDED_IDS_WITH_A_WIDTH_SECTION: readonly string[] = [
   "p0",
   "p1",
@@ -267,13 +245,8 @@ const SEEDED_IDS_WITH_A_WIDTH_SECTION: readonly string[] = [
 ];
 
 describe("the width section over the real kitchen", () => {
-  // §9's section 6 is "a control with something in it": a rendered width section that offers nothing
-  // to choose is worse than no section. **Wave 5D2c makes that two questions rather than one**
-  // (ADR 0035 decision 3) — a stepper is complete when it has both its buttons, a discrete choice
-  // when it has at least one chip — so it is asked of whichever control the selection got.
-  //
-  // This runs over the SHIPPED design rather than a fixture, because the fixtures give a body its
-  // widths by hand and whether the real kitchen's rows resolve any is the whole question.
+  // §9's section 6 is "a control with something in it": a stepper needs both buttons, a discrete choice at least one
+  // chip (ADR 0035 decision 3). It runs over the shipped design because fixtures give widths by hand.
   it("gives every rendered width section a control with something in it", () => {
     const world = worldFrom(KITCHEN_L_DESIGN);
     const rendered: string[] = [];
@@ -292,31 +265,15 @@ describe("the width section over the real kitchen", () => {
       if (controlSize === 0) empty.push(record.id);
     }
     expect(empty).toEqual([]);
-    // The tripwire, turned over by M5 wave 5B rather than removed. It asserted `[]` — the sweep was
-    // empty because no seeded entry had `sizesMm`, so nothing reached the check above and a
-    // zero-iteration sweep would have reported green forever. The widths have arrived, so the same
-    // line now names exactly which bodies render the section: a row that silently stops resolving a
-    // set is a failure here rather than a section that quietly disappears from the panel.
+    // Names exactly which bodies render the section, so a row that silently stops resolving a set fails here instead of
+    // vanishing from the panel.
     expect(rendered).toEqual(SEEDED_IDS_WITH_A_WIDTH_SECTION);
   });
 
-  // **Turned over three times, and each turn is a decision arriving.** M4 pinned "never free"
-  // because no resize command existed. Wave 5D gave the control `setWidth`'s real verdicts and the
-  // number held, because ADR 0031 funded a resize from an adjacent column empty at **every** level
-  // and clearing p1, p7, p12 and p24 empties none. **ADR 0035 decision 7** then made a shrink fund
-  // itself out of the space it vacates, so narrowing became reachable with no empty column anywhere.
-  //
-  // What survives all three: **growth is reachable exactly where a clear left an empty column
-  // beside the body**, because growth still has to consume space that already exists. Wave 5D2c
-  // makes that one sentence about both controls — the `+50` is disabled, and no chip above the
-  // active one is free.
-  //
-  // **Turned over a fourth time by ADR 0048, and the exception is the decision.** Clearing p7 and
-  // p24 empties the fridge column `B|2.45`, which stands next to the pantry column `B|1.80`. Every
-  // member of that column was frozen by the seeded pantry's own `fixedWidth` flag until the owner
-  // flipped it on 2026-09-01, so the empty space next door funded nothing and "no widening
-  // anywhere" held. It funds the pantry column now — which is report item 8 working — so the two
-  // members of that column are named here rather than the claim being weakened for everyone.
+  // Growth is reachable exactly where a clear left an empty column beside the body, because growth must consume space
+  // that already exists; a shrink funds itself (ADR 0035 decision 7).
+  // Clearing p7 and p24 empties the fridge column `B|2.45` beside the pantry column `B|1.80`, whose members are no
+  // longer `fixedWidth` (ADR 0048), so the two pantry members are named rather than the claim weakened for everyone.
   const PANTRY_COLUMN_IDS = ["p23", "p6"];
 
   it("offers widening only where a clear left space, which is the pantry column", () => {
@@ -345,13 +302,10 @@ describe("the width section over the real kitchen", () => {
       }
     }
     expect([...new Set(widenings)].sort()).toEqual(PANTRY_COLUMN_IDS);
-    // And the sweep is not vacuous the other way either: shrinking is reachable from a standing
-    // start, which is the whole of what decision 7 buys.
+    // Not vacuous the other way either: shrinking is reachable from a standing start.
     expect(narrowings).toBeGreaterThan(0);
-    // The second tripwire, turned over the same way. `openedKitchen` clears p1, p7, p12 and p24, so
-    // the four of them are gone from the sweep and the derived voids that replaced them render no
-    // width section at all — §9 hides Lățime on an empty slot, and that is asserted here by their
-    // absence rather than assumed.
+    // `openedKitchen` clears p1, p7, p12 and p24; the voids that replace them render no width section (§9 hides Lățime
+    // on an empty slot), asserted by their absence.
     expect(rendered).toEqual(
       SEEDED_IDS_WITH_A_WIDTH_SECTION.filter(
         (id) => !["p1", "p7", "p12", "p24"].includes(id),
@@ -361,16 +315,9 @@ describe("the width section over the real kitchen", () => {
 });
 
 describe("what a seeded width control actually offers", () => {
-  // **5D's `EXPECTED_CHIPS_MM` table is retired here, with the chips it described** (ADR 0035's
-  // consequences: "the pinned chip counts and the three pinned rows in 5D's tests go with the
-  // chips"). It named the whole intersection per body — `p0`'s 600–800, `p4`'s 300–800, `p10`'s
-  // 200–800 — which a two-button control no longer renders and therefore no longer proves. Those
-  // intersections are still pinned where they are computed, in the domain's own
-  // `set-width.columns.test.ts`; which *control* each column gets, and against the catalogue's own
-  // declared ranges, is pinned in `width-stepper.test.ts`.
-  //
-  // What is left for this file is the half neither of those covers: on the shipped design, the value
-  // the customer reads is the body's own width, and it is the width the buttons step from.
+  // 5D's `EXPECTED_CHIPS_MM` table is retired with the chips. The intersections are pinned in the domain's
+  // `set-width.columns.test.ts` and the control kind in `width-stepper.test.ts`; this pins that the value shown is the
+  // body's own width and the buttons step from it.
   it("shows each body its own width, and steps from it", () => {
     const world = worldFrom(KITCHEN_L_DESIGN);
     let checked = 0;
@@ -403,9 +350,8 @@ describe("what a seeded width control actually offers", () => {
     expect(checked).toBe(SEEDED_IDS_WITH_A_WIDTH_SECTION.length);
   });
 
-  // §13.1, and the five entries that deliberately declare no `catalogEquivalentId`: a body with no
-  // catalogue equivalent resolves no set, and `describeWidthSection` declines rather than rendering
-  // an empty row. Asserted over the shipped design, because that is the population that has them.
+  // §13.1: an entry declaring no `catalogEquivalentId` resolves no set, and `describeWidthSection` declines rather than
+  // rendering an empty row.
   it("renders no width section for a body with no catalogue equivalent", () => {
     const world = worldFrom(KITCHEN_L_DESIGN);
     const withoutEquivalent = world.records.filter(
@@ -424,18 +370,13 @@ describe("what a seeded width control actually offers", () => {
   });
 });
 
-/** Every seeded body §13.1 calls a corner: the two wall returns and, since ADR 0025, the two base
- *  legs of the L. Read off the `buildId` rather than a hardcoded id list so a corner added to the
- *  fixture is swept by these tests instead of quietly escaping them. */
+/** Every seeded body §13.1 calls a corner, read off the `buildId` so a corner added to the fixture is swept. */
 const isCorner = (record: { readonly buildId: string }) =>
   record.buildId.includes("corner");
 
 describe("§13.1's structural corners, as the seeded design ships them", () => {
-  // §13.1: "Corners are structural. No replace, no delete, never a width donor", and §11 row 16
-  // repeats it. Asserted over the SHIPPED design, because `cornerReturnMeta()` in
-  // `tests/support/selection-meta.ts` hand-builds a corner that already obeys the rule: only the
-  // seeded entries can show whether the real catalogue data earns the corner its structural
-  // treatment.
+  // §13.1: "Corners are structural. No replace, no delete, never a width donor" (§11 row 16). Asserted over the shipped
+  // design because `cornerReturnMeta()` hand-builds a corner that already obeys the rule.
   it("offers a corner its colour, the structural explanation, and nothing else", () => {
     const world = worldFrom(KITCHEN_L_DESIGN);
     const corners = world.records.filter(isCorner);
@@ -443,17 +384,10 @@ describe("§13.1's structural corners, as the seeded design ships them", () => {
     for (const corner of corners) {
       const panel = panelAt(world, { kind: "placement", id: corner.id });
       if (panel.kind !== "open") throw new Error("expected an open panel");
-      // §13.1's three refusals — replace, delete, width donor — still hold, and are what this
-      // asserts: no `replace`, no `width`, and `canDelete` false in the footer.
-      //
-      // **`finish` is the exception the owner made on 2026-09-09**, and it is the only one. M4's
-      // acceptance criterion said "a corner return, which has no finish, handle or width, shows none
-      // of those sections"; the owner's picture is why that changed — a corner left on the
-      // material's white inside a coloured kitchen, with no control anywhere to fix it.
-      //
-      // The structural explanation stays beside it. §11 row 16 requires the refusal to explain why,
-      // and a corner that offers *one* of §9's four sections still owes the customer the sentence
-      // about the other three.
+      // §13.1's refusals still hold: no `replace`, no `width`, `canDelete` false. `finish` is the one exception (ADR
+      // 0021
+      // decision 2, finish half reversed; see SUPERSESSIONS.md), and the structural explanation stays beside it (§11
+      // row 16).
       expect([
         corner.id,
         panel.sections.map((section) => section.kind),
@@ -462,17 +396,13 @@ describe("§13.1's structural corners, as the seeded design ships them", () => {
     }
   });
 
-  // §11 row 16's "refusal explains why", on a body that produces no refusal to carry it: replace,
-  // delete and width offer nothing to tap and therefore nothing to refuse, so the explanation has to
-  // be a section of its own. The reason is declared on the catalogue entry, which is what makes it
-  // survive to the panel — and, since the corner started offering *Finisaj*, what keeps it there
-  // rather than letting one live section stand in for an answer to the other three.
+  // §11 row 16's "refusal explains why" on a body that produces no refusal: replace, delete and width offer nothing to
+  // tap, so the explanation is a section of its own, declared on the catalogue entry.
   it("explains why, on all four seeded corners", () => {
     const world = worldFrom(KITCHEN_L_DESIGN);
     const corners = world.records.filter(isCorner);
-    // ADR 0025: two wall returns and, since the base legs became placements, the two base legs.
-    // §11 row 16 names the *base* corner specifically, so this count dropping back to 2 means the
-    // reported defect — tapping the base corner does nothing — has returned.
+    // §11 row 16 names the *base* corner: this count dropping back to 2 means the reported defect (tapping the base
+    // corner does nothing) has returned (ADR 0025).
     expect(corners.length).toBe(4);
     for (const corner of corners) {
       const section = sectionsAt(world, {
@@ -488,8 +418,6 @@ describe("§13.1's structural corners, as the seeded design ships them", () => {
     }
   });
 
-  // Nothing else in the kitchen may carry it: the sentence names a refusal only the corner makes, so
-  // a second body showing it would be explaining a rule it does not obey.
   it("shows the explanation nowhere else in the kitchen", () => {
     const world = openedKitchen();
     const explained: string[] = [];
@@ -505,11 +433,8 @@ describe("§13.1's structural corners, as the seeded design ships them", () => {
 });
 
 describe("§9's ACTUAL badge over the real kitchen", () => {
-  // §9 badges the current row ACTUAL rather than hiding it. ADR 0011 Gap A gives every seeded
-  // placement a NON-insertable `buildId`, so identity against the offer's id badges nothing on a
-  // freshly loaded design — the badge would appear only after a body had been swapped once. The
-  // equivalence is declared on the seeded entry instead, and this counts badges over the shipped
-  // design because a fixture cannot reproduce that mismatch.
+  // ADR 0011 Gap A gives every seeded placement a non-insertable `buildId`, so identity against the offer's id badges
+  // nothing on a fresh load; the equivalence is declared on the entry, which a fixture cannot reproduce.
   it("badges exactly one row on every seeded body that has a catalogue equivalent", () => {
     const world = worldFrom(KITCHEN_L_DESIGN);
     let badged = 0;
@@ -536,8 +461,7 @@ describe("§9's ACTUAL badge over the real kitchen", () => {
       ]).toEqual([record.id, [equivalent]]);
       badged += 1;
     }
-    // The count that was zero before the fix. Both arms must be exercised or the sweep proves
-    // nothing about either.
+    // Both arms must be exercised or the sweep proves nothing about either.
     expect(badged).toBeGreaterThan(0);
     expect(badged + unbadged).toBeGreaterThan(0);
   });
@@ -561,7 +485,6 @@ describe("§9's ACTUAL badge over the real kitchen", () => {
     expect(swept).toBeGreaterThan(0);
   });
 
-  // The badge reaches the panel row, not only the offer value.
   it("carries the badge through to the rendered swap row", () => {
     const world = worldFrom(KITCHEN_L_DESIGN);
     const section = sectionsAt(world, { kind: "placement", id: "p11" }).find(
@@ -642,10 +565,8 @@ describe("the panel is exactly the offer list, everywhere in the kitchen", () =>
     expect(swept).toBeGreaterThan(0);
   });
 
-  // §11 row 24 / §11 row 16 against the corner leg, which declares `canReplace: false`. This
-  // asserts the outcome, not the mechanism. ADR 0027 folded the hob into `p2`'s body and ADR 0038
-  // retired the document that carried it separately, so the bodies in this position are now exactly
-  // the four corner bodies — `p25`, `p26`, `p9` and `p21`. `p25` stands for all four.
+  // §11 row 24 / row 16 against the corner leg (`canReplace: false`); `p25` stands for the four corner bodies `p25`,
+  // `p26`, `p9` and `p21`.
   it("renders no replace section for the corner leg", () => {
     const world = worldFrom(KITCHEN_L_DESIGN);
     expect(

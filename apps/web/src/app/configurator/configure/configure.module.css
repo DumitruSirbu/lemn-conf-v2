@@ -647,9 +647,32 @@
     background: var(--line-soft);
   }
 
-  .back,
   .backAction {
     display: none;
+  }
+
+  /* **The way back to Step 1 is drawn on desktop too** (M7C FB-001; ADR 0104 Amendment D): the
+   * phone's `‹`, in front of the wordmark, and the one control — `.backAction` stays the phone's
+   * bottom bar's own.
+   *
+   * **It adds no nav gap, so the fit ladder's arithmetic is untouched.** `top-bar-fit.ts` counts the
+   * nav's gaps (`NAV_GAP_COUNT`) and the ruled give B closes each of them, so a fourth gap would
+   * move a ruled figure. The negative margin takes back the gap the flex row would add after this
+   * item and leaves a fixed `--desktop-back-gap` in its place. What the control costs the row is
+   * therefore a constant width, which the pill's track — measured, not computed — already carries.
+   *
+   * **That constant is real, and it is the pill's to pay: about 34 px** (22 px footprint plus the
+   * 12 px gap). The ladder's rules and counts are unchanged, but every visible step of it happens
+   * about 34 px of width earlier than before — measured at 930 px, where the pill names one setting
+   * where it named two, and at 1025 px, where the wordmark is no longer drawn. Recorded in ADR 0104
+   * Amendment D; the fit ladder itself is that ADR's decision 8. */
+  .back {
+    --desktop-back-gap: 12px;
+
+    margin-right: calc(
+      var(--top-bar-nav-gap) * -1 + var(--desktop-back-gap) +
+        (var(--back-column) - var(--touch-target)) / 2
+    );
   }
 
   /* Frame D2A `:545`. **It leaves the row below the width at which the pill can still show one whole

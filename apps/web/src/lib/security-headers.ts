@@ -1,41 +1,20 @@
 /**
- * The browser security policy, versioned in the repository rather than left to platform defaults
- * nobody reviewing this code can see (SEC-004).
- *
- * It is split in two on purpose. The headers with no per-request value are served from
- * `next.config.ts`, so they reach every response including static assets. The CSP carries a
- * per-request nonce and is therefore built in `src/proxy.ts`.
+ * The browser security policy, versioned in the repository (ADR 0041). Headers with no per-request value are served
+ * from `next.config.ts`, so they reach every response including static assets; the CSP carries a per-request nonce
+ * and is built in `src/proxy.ts`.
  */
 
 export type ContentSecurityPolicyMode = "report-only" | "enforce";
 
 /**
- * **The single switch.** `"report-only"` sends the policy as
- * `Content-Security-Policy-Report-Only`: browsers report violations and block nothing, so a
- * directive this Three.js/R3F application turns out to need cannot break the scene before anyone
- * has read a report. Changing this one constant to `"enforce"` changes the response header name and
- * nothing else.
+ * The single switch: `"report-only"` sends `Content-Security-Policy-Report-Only` (violations reported, nothing
+ * blocked); `"enforce"` changes the header name and nothing else.
  *
- * **Do not flip it until the prerendered pages render dynamically.** A nonce only reaches the HTML
- * of a dynamically rendered response. Measured against `next build` after M7 wave 7E3a (`/` and
- * `/configurator/configure` became Route Handlers — S3 — and answer no HTML at all, so they left
- * this list): `/[locale]/d/[id]` is dynamic and carries nonces on all of its scripts, but the four
- * routes in `.next/prerender-manifest.json` — `/_global-error`, `/_not-found`, and the `ro` and
- * `ru` variants of `/configurator/contact` — are prerendered and carry **none**. Their same-origin
- * chunk tags and inline RSC flight-payload scripts have page-specific content, so they cannot be
- * admitted by hash either. Under `"enforce"` every one of them would be blocked and those pages
- * would go blank. `/_global-error` is the worst of the four to lose and the easiest to miss — it
- * is the boundary that has to render when something else has already failed, and the printed build
- * route table does not list it at all.
- *
- * **There is deliberately no report sink.** A collector route would be an unauthenticated,
- * unthrottled POST endpoint anyone could flood — the same shape as SEC-001, which the owner has
- * deferred to M8 behind a launch gate, so adding one to close SEC-004 would reintroduce the finding
- * being gated. Violations therefore surface only in a viewer's browser devtools. That makes this
- * policy a **versioned, testable declaration and a staging step, not a live control today**.
- *
- * The flip to `"enforce"` is blocked on two preconditions, both tracked on the M8 launch gate:
- * a method of collecting violations, and the prerendered-pages/nonce problem above.
+ * Do not flip it while prerendered pages exist: a nonce only reaches the HTML of a dynamically rendered response, so
+ * the routes in `.next/prerender-manifest.json` (`/_global-error`, `/_not-found`, the `ro` and `ru` contact pages)
+ * carry none and would go blank under `"enforce"`. There is no report sink: a collector would be an unauthenticated,
+ * unthrottled POST endpoint (SEC-001, deferred to the M8 launch gate), so the policy is a versioned declaration and a
+ * staging step, not a live control (ADR 0041 decision 4).
  */
 export const CONTENT_SECURITY_POLICY_MODE: ContentSecurityPolicyMode =
   "report-only";
@@ -46,10 +25,7 @@ export const CSP_REPORT_ONLY_HEADER = "Content-Security-Policy-Report-Only";
 /** The request header `src/proxy.ts` hands the nonce down on, for a component that needs it. */
 export const NONCE_HEADER = "x-nonce";
 
-/**
- * Every powerful feature the configurator does not use. Listed explicitly rather than relying on a
- * wildcard so adding one later is a visible edit.
- */
+/** Every powerful feature the configurator does not use, listed explicitly so adding one later is a visible edit. */
 const DISABLED_BROWSER_FEATURES = [
   "accelerometer",
   "ambient-light-sensor",
@@ -74,11 +50,8 @@ const PERMISSIONS_POLICY = DISABLED_BROWSER_FEATURES.map(
   (feature) => `${feature}=()`,
 ).join(", ");
 
-/**
- * Headers with no per-request component. `frame-ancestors` lives in the CSP, but that CSP is
- * report-only today and does not cover static assets, so `X-Frame-Options` carries the anti-framing
- * guarantee unconditionally in the meantime.
- */
+/** Headers with no per-request component. The CSP's `frame-ancestors` is report-only today and does not cover static
+ *  assets, so `X-Frame-Options` carries the anti-framing guarantee unconditionally. */
 export const STATIC_SECURITY_HEADERS: readonly {
   key: string;
   value: string;
@@ -86,9 +59,8 @@ export const STATIC_SECURITY_HEADERS: readonly {
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "DENY" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-  // Six months, subdomains included. `preload` is deliberately withheld: submission to the browsers'
-  // built-in preload list is a public, effectively irreversible commitment binding every current and
-  // future subdomain to HTTPS, so it is the owner's decision to make, not this file's.
+  // Six months, subdomains included. `preload` is withheld: submission to the preload list is a public, effectively
+  // irreversible commitment for every subdomain, so it is the owner's decision (ADR 0041 decision 7).
   {
     key: "Strict-Transport-Security",
     value: `max-age=${String(HSTS_MAX_AGE_SECONDS)}; includeSubDomains`,
@@ -98,11 +70,10 @@ export const STATIC_SECURITY_HEADERS: readonly {
 ];
 
 /**
- * Every response on a `/s/{token}` path, redirect and page alike (M7 wave 7E3c D7): a share link is
- * handed out for one recipient, never indexed and never cached by an intermediary. `no-referrer` is
- * stricter than the site-wide `strict-origin-when-cross-origin` above — a share view must not leak
- * even the origin to whatever the recipient clicks next — so it is set here rather than folded into
- * `STATIC_SECURITY_HEADERS`, which every other route still wants the looser default from.
+ * Every response on a `/s/{token}` path, redirect and page alike: a share link is for one recipient, never indexed
+ * or cached by an intermediary. `no-referrer` is stricter than the site-wide default so a share view leaks not even
+ * the origin; it is set here rather than in `STATIC_SECURITY_HEADERS`, whose looser default other routes want
+ * (ADR 0114 Amendment B).
  */
 export const SHARE_VIEW_HEADERS: readonly { key: string; value: string }[] = [
   { key: "Referrer-Policy", value: "no-referrer" },
@@ -115,26 +86,13 @@ export function cspResponseHeaderName(mode: ContentSecurityPolicyMode): string {
 }
 
 /**
- * `script-src` is never given a blanket `'unsafe-inline'`: Next's own bootstrap scripts are
- * admitted by nonce, and `'strict-dynamic'` lets those scripts load the chunks they need.
- *
- * **`'self'` in `script-src` is inert.** A CSP3 browser that honours `'strict-dynamic'` ignores
- * every host-source expression in that directive, `'self'` included; it survives only as a
- * backward-compatibility tail for a CSP2 browser, where it would admit every same-origin script.
- * So do not add a CDN or any other host here expecting it to take effect — a test asserting the
- * host is present would pass while the allowlist was silently ignored. Removing `'strict-dynamic'`
- * is the only thing that makes host sources meaningful again.
- *
- * `style-src` does keep `'unsafe-inline'`. React writes `style` attributes (the capture harness
- * sizes its stage box that way) and drei injects style elements it does not nonce, and a style
- * injection is not the blast radius this policy exists to contain.
- *
- * `blob:` and `data:` are admitted for images and workers because that is how three.js hands
- * generated textures and loader workers to the browser.
- *
- * `upgrade-insecure-requests` is **inert while the mode is report-only** — browsers do not apply it
- * from a report-only policy. It is kept so the directive set is complete and activates on the flip
- * rather than having to be remembered then.
+ * `script-src` is never given a blanket `'unsafe-inline'`: Next's bootstrap scripts are admitted by nonce, and
+ * `'strict-dynamic'` lets them load their chunks. `'self'` there is inert: a CSP3 browser honouring `'strict-dynamic'`
+ * ignores every host-source expression, so do not add a CDN host expecting it to take effect (ADR 0041 decision 5).
+ * `style-src` keeps `'unsafe-inline'`: React writes `style` attributes and drei injects style elements it does not
+ * nonce. `blob:` and `data:` are admitted for images and workers because three.js hands generated textures and
+ * loader workers to the browser. `upgrade-insecure-requests` is inert while report-only; it stays so it activates
+ * on the flip.
  */
 export function buildContentSecurityPolicy({
   nonce,

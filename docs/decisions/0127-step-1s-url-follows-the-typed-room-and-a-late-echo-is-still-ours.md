@@ -183,3 +183,19 @@ introduced it.
   overturned.
 - F3 stays unbuilt, with its trigger and revisit condition recorded in decision 10, per ADR 0118's
   discipline for a problem that has not occurred.
+
+## Addendum — 2026-10-06: why the write goes through the router and never `history.replaceState`
+
+Filed under [ADR 0136](0136-code-and-test-comments-carry-only-what-nothing-else-can-and-history-lives-in-the-records.md)
+decision 3. Evidence tier: **recovered from a code comment on 2026-10-06 (`room-query-sync.ts`), not
+re-measured.** Cite as `see ADR 0127 decision 11`.
+
+**11. The room's URL is written with `router.replace`, never `window.history.replaceState`.** The
+native call updates the address bar and the client hooks without Next's own record of the history
+entry following it, so on a browser Back the router restores the URL it recorded and the typed room is
+gone. The comment calls this defect D4, "measured in a production build", and records that
+`eslint.config.mjs`'s room block bans the native call so the mechanism cannot return. Going through
+`router.replace` is what makes Next's record the URL intended. The debounce (decision 2) exists because
+`router.replace` re-runs the page: the settle interval keeps a customer filling three fields to a
+handful of requests where a per-keystroke write would spend one on every digit. **Where:**
+`apps/web/src/room/room-query-sync.ts`.

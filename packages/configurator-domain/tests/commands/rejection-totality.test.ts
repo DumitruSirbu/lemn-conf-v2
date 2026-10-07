@@ -1,10 +1,6 @@
-// Every refusal the commands can actually produce, swept through the locale-free domain boundary.
-//
-//   1. the design that comes back is the **exact original object** (`toBe`, not `toEqual` — a
-//      structural copy passes `toEqual` and is still a defect, because a store applying results
-//      unconditionally would replace state with an equal-but-different object);
-//   2. the code is the stable one the panel switches on;
-//   3. typed params cross intact, with no rendered message added by the domain.
+// Every refusal the commands can actually produce, swept through the locale-free domain boundary. The returned
+// design is asserted `toBe` the original object: a structural copy passes `toEqual`, and a store applying
+// results unconditionally would replace state with an equal-but-different object.
 import { describe, expect, it } from "vitest";
 
 import { CHOOSES_ITS_OWN_COLOUR } from "../../src/body-finish-rule.js";
@@ -57,22 +53,20 @@ import {
 import { LEGACY_ENUM_FINISHES } from "../../src/materials.js";
 
 const FRIDGE_COLUMN = "B|2.45";
-/** What a caller's book offers, opaque to the domain (ADR 0062 seam 1). Both whole-kitchen refusals
- *  are reached by asking for a tier that is not on it. */
+/** What a caller's book offers, opaque to the domain (ADR 0062 seam 1); both whole-kitchen refusals are reached
+ *  by asking for a tier that is not on it. */
 const OFFERED_TIER_IDS: readonly string[] = ["offered-tier"];
 
-/** §5.1's second refusal is `!canDelete (corners)`. ADR 0025 made the corner legs real placements
- *  and the shipped design reaches the code through `p25`; this synthetic entry keeps the sweep's
- *  own reading of the guard independent of that fixture, and is the shape §5.1 describes. */
+/** §5.1's second refusal is `!canDelete (corners)`. The shipped design reaches it through `p25` (ADR 0025); this
+ *  synthetic entry keeps the sweep's reading of the guard independent of that fixture. */
 const CORNER_BASE: BodyDefinition = {
   kind: "base_cabinet",
   band: "base",
   frameDepthMm: 580,
   occupiedDepth: finishesAtMm(baseFinishedDepthMm(WORKTOP_DEPTH_MM)),
   canFinish: true,
-  // Declared, because `derivePlacementRecords` resolves the colour it draws through this and refuses
-  // an entry that says nothing. Ordinary cabinetry, matching `canFinish: true` above — this fixture
-  // exists to reach §5.1's delete guard and says nothing new about colour.
+  // Declared because `derivePlacementRecords` refuses an entry that says nothing about the colour it draws;
+  // ordinary cabinetry, matching `canFinish: true`.
   finishRule: CHOOSES_ITS_OWN_COLOUR,
   canHandle: true,
   canReplace: false,
@@ -108,8 +102,8 @@ function stackOf(widthMm: number): SyntheticMember[] {
   return STANDARD_STACK.map((member) => ({ ...member, widthMm }));
 }
 
-/** The open shelf is the only catalogue body with no doors, and the seeded design contains none —
- *  so reaching FINISH_NOT_SUPPORTED means inserting one first. */
+/** The open shelf is the only catalogue body with no doors and the seeded design has none, so reaching
+ *  FINISH_NOT_SUPPORTED means inserting one first. */
 function worldWithOpenShelf(): { world: KitchenWorld; placementId: string } {
   const cleared = clearBodies(seeded(), ["p8"]);
   const result = insertInto(
@@ -140,35 +134,19 @@ function voidTarget(world: KitchenWorld, col: string, y0: number) {
 
 function buildCases(): SweepCase[] {
   const world = seeded();
-  // Wave 6Z's declared witness, and the insert is a **full-height** body so the column lifts §7's
-  // cap and the depth it decides for the body standing above genuinely moves. The insert itself
-  // fits; the re-plan of that standing body does not, because its declared equivalent is built at
-  // 300 mm and it is standing at 600.
+  // The insert is a full-height body so the column lifts §7's cap and the depth of the body above moves: the
+  // insert fits, but that body's re-plan does not (its declared equivalent is built at 300 mm, it stands at 600).
   const replanWitness = witnessWorld();
   const clearedFridge = clearBodies(world, ["p7", "p24"]);
   const clearedDishwasher = clearBodies(world, ["p1"]);
-  /** A **600 mm** column with its top slot open. The hood's route to `HEIGHT_EXCEEDS_LEVEL` used to
-   *  run through the fridge column, which is 700 mm wide — a width the hood's `[600, 900]` set does not
-   *  have, so ADR 0032 now refuses it on width before the height guard is ever reached. The code needs
-   *  an opening where only the height is wrong. */
+  /** A 600 mm column with its top slot open. The 700 mm fridge column is refused on width by the hood's
+   *  `[600, 900]` set before the height guard, so only an opening like this isolates `HEIGHT_EXCEEDS_LEVEL`. */
   const clearedTopSlot = clearBodies(world, ["p18"]);
-  // `RESIZE_OPENS_GAP` needs a shape the seeded kitchen does not have. `gapWorld` is the shipped
-  // kitchen with `A|1.30` emptied, which is what lets `A|0.75` reach 200 and widen the empty column
-  // across the corner leg.
-  //
-  // Its sibling `COLUMN_MEMBERS_UNALIGNED` is **gone**, and so is the fixture that reached it. ADR
-  // 0035 decision 6 squares a mixed-width column up instead of refusing it, so a 600 mm base under a
-  // 450 mm shelf is no longer a refusal anyone can produce — it is an ordinary resize. Removed from
-  // `ALL_REJECTION_CODES` rather than moved to `ENGINE_UNREACHABLE`: the code itself is deleted from
-  // `RejectionDetail`, so this sweep would not compile if it were still named here.
+  // `RESIZE_OPENS_GAP` needs a shape the seeded kitchen lacks: with `A|1.30` emptied, `A|0.75` can reach 200 and
+  // widen the empty column across the corner leg.
   const gapWorld = clearBodies(world, ["p0", "p11", "p17"]);
-  // §3.2 permits columns to overlap along the wall, and the shipped kitchen has them (`A|0.45`
-  // spans 0–900 across `A|0.30` and `A|0.75`). Here a 600 mm base run at 1000 (`A|1.00`) overlaps a
-  // 300 mm wall unit at 950 (`A|0.95`); shrinking the run to 500 holds its left edge and puts its
-  // new centre on 950 — the wall unit's own key. Wave 5D2b's QA found that the map was written
-  // blind and the wall unit's frozen column was overwritten with no command naming it.
-  // ADR 0035 decision 6 as amended: the hood floors its column, so a width every cabinet under it
-  // accepts is still refused when the hood is wider.
+  // ADR 0035 decision 6 as amended: the hood floors its column, so a width every cabinet under it accepts is
+  // still refused when the hood is wider.
   const hoodFlooredWorld = syntheticWorld([
     {
       id: "run",
@@ -186,6 +164,8 @@ function buildCases(): SweepCase[] {
     },
   ]);
 
+  // §3.2 permits overlapping columns. Shrinking the 600 mm run at 1000 to 500 holds its left edge and puts its
+  // centre on the wall unit's key (`A|0.95`), which an unchecked column-map write would overwrite.
   const overlappingWorld = syntheticWorld([
     {
       id: "base-run",
@@ -274,10 +254,8 @@ function buildCases(): SweepCase[] {
         insertInto(world, { kind: "placement", id: "p0" }, "base-sink-800"),
     },
     {
-      // ADR 0025 / §13.1: a corner is not a body the customer chooses, so it declares
-      // `canReplace: false`. Since ADR 0027 folded the hob into its cabinet, the non-replaceable
-      // placements are exactly the four corner bodies — the base corner leg `p25` and return `p26`,
-      // and the wall corner returns `p9` and `p21`.
+      // ADR 0025 / §13.1: a corner is not a body the customer chooses (`canReplace: false`), so the
+      // non-replaceable placements are exactly the four corner bodies: `p25`, `p26`, `p9` and `p21`.
       code: "TARGET_NOT_REPLACEABLE",
       design: world.design,
       run: () =>
@@ -335,9 +313,8 @@ function buildCases(): SweepCase[] {
         ),
     },
     {
-      // §11 row 6: the hood is fixed at 710 mm and only a `column` body may exceed its level. It
-      // is the only route to this code — a base body is refused by the band gate first, and every
-      // wall body except the hood is height-flexible.
+      // §11 row 6: the hood is fixed at 710 mm and only a `column` body may exceed its level. It is the only
+      // route to this code: a base body is refused by the band gate first and every other wall body flexes.
       code: "HEIGHT_EXCEEDS_LEVEL",
       design: clearedTopSlot.design,
       run: () =>
@@ -369,8 +346,8 @@ function buildCases(): SweepCase[] {
         ),
     },
     {
-      // ADR 0011 Gap B: the probe is an injected port, so a measurement that is not a number is a
-      // data condition the command must answer with a refusal.
+      // ADR 0011 Gap B: the probe is an injected port, so a measurement that is not a number is a data condition
+      // the command must answer with a refusal.
       code: "MEASUREMENT_UNUSABLE",
       design: clearedFridge.design,
       run: () =>
@@ -449,10 +426,8 @@ function buildCases(): SweepCase[] {
     {
       code: "NO_EMPTY_SPACE",
       design: world.design,
-      // ADR 0031's headline consequence, in the half of it ADR 0035 decision 7 left standing: a
-      // **growth** still has to consume space that is already there, and the shipped kitchen has
-      // none on either side of `A|0.75`. The tap used to be `p0` 800 → 600, which decision 7 now
-      // accepts — a shrink makes its own space.
+      // ADR 0031: a growth must consume space that is already there, and the shipped kitchen has none on either
+      // side of `A|0.75`. A shrink makes its own space (ADR 0035 decision 7), so the tap is a growth.
       run: () => resizeTo(world, "p10", 350),
     },
     {
@@ -486,8 +461,8 @@ function buildCases(): SweepCase[] {
           occurredAt: OCCURRED_AT,
         }),
     },
-    // Wave 6E's two. The list of offered tiers is the caller's, so a tier that is not on it is the
-    // whole refusal — there is no fixture to build and no book to import (ADR 0062 seam 1).
+    // The list of offered tiers is the caller's, so a tier not on it is the whole refusal: no fixture and no book
+    // to import (ADR 0062 seam 1).
     {
       code: "UNKNOWN_MATERIAL_TIER",
       design: world.design,
@@ -510,10 +485,9 @@ function buildCases(): SweepCase[] {
           occurredAt: OCCURRED_AT,
         }),
     },
-    // Wave 6Z's one, and it is the wave's **declared witness** (ADR 0093 decision 2). The shipped
-    // catalogue cannot reach it — every re-plannable row resolves to `wall-cabinet`, built anywhere
-    // between 200 and 800 mm — so the case brings its own two entries and its own design rather than
-    // moving a fixture. See `dependent-replan-witness.ts` for the shape.
+    // The declared witness (ADR 0093 decision 2). The shipped catalogue cannot reach it, since every re-plannable
+    // row resolves to `wall-cabinet` built anywhere between 200 and 800 mm, so the case brings its own two entries
+    // and design (see `dependent-replan-witness.ts`).
     {
       code: "DEPENDENT_MEMBER_NOT_REBUILDABLE",
       design: replanWitness.design,
@@ -524,8 +498,8 @@ function buildCases(): SweepCase[] {
           "tall-pantry",
         ),
     },
-    // Wave 6J-b's one. 650 is between the two declared depths rather than absurd, so the refusal
-    // is the declared set doing its job and not a bounds check catching a wild number.
+    // 650 is between the two declared depths rather than absurd, so the refusal is the declared set at work and
+    // not a bounds check catching a wild number.
     {
       code: "UNKNOWN_CABINET_DEPTH",
       design: world.design,
@@ -541,21 +515,11 @@ function buildCases(): SweepCase[] {
   ];
 }
 
-/** `NO_SNAP_POSITION` is not in the sweep because no command can reach it: `minY` is always one of
- *  the snap candidates, and `refuseHeight` has already proved that `minY + h` fits inside the span
- *  by the time the candidate list is built. It is an assertion, not a refusal a customer can see.
- *  Recorded here rather than silently omitted. */
-/** `BODY_PROBE_UNAVAILABLE` joins it for a different reason: no *command* can produce it, because
- *  `insertBody` takes a `BodyProbe` as a required argument. It is the refusal the caller returns on
- *  the command's behalf when the scene has not attached one yet, and `apps/web`'s store tests are
- *  what sweep it. */
-/** `ACCESSORY_NOT_DELETABLE` joins them for a third reason, and it is a deliberate change rather
- *  than a code slipping out of the sweep: ADR 0027 made the hob part of its cabinet's body and
- *  ADR 0038 confirmed no document was ever stored carrying the old pair, so no placement is a
- *  standalone accessory and `removePlacement` no longer has a guard to reach. §11 row 15 is
- *  satisfied by construction — a click on the hob selects `p2`, and there is no hob placement to
- *  offer a delete on. The code stays declared because it is still the sentence §11 row 15 would
- *  need the day a body stands on another one. */
+/** Codes no command can produce. `NO_SNAP_POSITION`: `minY` is always a snap candidate and `refuseHeight` has
+ *  proved `minY + h` fits. `BODY_PROBE_UNAVAILABLE`: `insertBody` requires a `BodyProbe`, so the caller returns it
+ *  and `apps/web`'s store tests sweep it. `ACCESSORY_NOT_DELETABLE`: the hob is part of its cabinet's body (ADR 0027)
+ *  so no placement is a standalone accessory and §11 row 15 holds by construction; the code stays declared for
+ *  the day a body stands on another one. */
 const ENGINE_UNREACHABLE: readonly RejectionCode[] = [
   "NO_SNAP_POSITION",
   "BODY_PROBE_UNAVAILABLE",
@@ -643,14 +607,9 @@ describe("every refusal a command can produce", () => {
 });
 
 describe("the two refusals ADR 0031's side scan can produce", () => {
-  // `NO_EMPTY_SPACE` and `RESIZE_OPENS_GAP` carry the same per-side record and are chosen from it:
-  // the phantom verdict wins whenever any side answered `opens_a_gap`. Two representations of one
-  // fact, so the invariant binding them is asserted rather than left to `refuseNoSideFunds` being
-  // read correctly by the next person (logic review R1.11).
-  //
-  // Keeping both codes is deliberate — they are different sentences about different situations, and
-  // a customer told "there is no room on either side" when the room exists but is unusable would go
-  // looking for the wrong fix.
+  // `NO_EMPTY_SPACE` and `RESIZE_OPENS_GAP` carry the same per-side record and the phantom verdict wins whenever any
+  // side answered `opens_a_gap`; the invariant binding the two is asserted. Both codes stay: they are different
+  // sentences about different situations.
   const SCAN_CODES: readonly RejectionCode[] = [
     "NO_EMPTY_SPACE",
     "RESIZE_OPENS_GAP",

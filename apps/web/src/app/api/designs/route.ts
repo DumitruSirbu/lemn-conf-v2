@@ -11,31 +11,19 @@ import { getRepository } from "@/lib/server/repository";
 import { resolveVisitorForMint, setVisitorCookie } from "@/lib/server/visitor";
 import { mintWriteToken, setWriteTokenCookie } from "@/lib/server/write-token";
 
-/** The one D6 refusal this route can answer. A log-only code, exactly like `writeForbiddenResponse`
- *  in `design-errors.ts`: the *response* says nothing more than 403, because naming the reason to a
- *  caller this route just refused to trust would hand back exactly the signal it is withholding. */
+/** The one refusal this route can answer: a log-only code, like `writeForbiddenResponse` in
+ *  `design-errors.ts`. The response says nothing more than 403, since naming the reason to a caller just refused
+ *  would hand back the signal being withheld. */
 const CROSS_SITE_MINT_REFUSED: DesignRefusal = {
   code: "CROSS_SITE_MINT_REFUSED",
   status: 403,
 };
 
 /**
- * Mints a design row, announcing any failure before the platform swallows its name.
- *
- * **This handler had no `try`/`catch` at all**, so a driver failure on *mint* — the very operation
- * the 2026-09-07 outage was failing on — reached Next as an unlabelled 500 carrying only a digest.
- * That is the state ADR 0096's Consequences describe: the question "why is production not minting?"
- * cost a query against the production database instead of a log search.
- *
- * **The throw is unchanged and so is the response** (ADR 0014 finding S2). Nothing is caught in
- * order to answer differently; the error is rethrown untouched, the platform still renders its own
- * 500 with the same digest, and the only thing that is new is a line naming the operation, the error
- * and a bounded reason. Mapping this to a JSON error instead would be a contract change no one
- * asked for — `POST` answers 201 or nothing (or, since M7 wave 7E3a, D6's 403).
- *
- * **`request` is read for its headers and its cookies only — never its body** (M7 wave 7E3a
- * criterion 3). There is nothing in a mint's body to read: the seeded fixture is the only design
- * this route ever creates, and a caller's body is ignored whether or not one was sent.
+ * Mints a design row, announcing any failure before the platform swallows its name: without the `try`/`catch` a
+ * driver failure on mint reached Next as an unlabelled 500 with only a digest (ADR 0096, Consequences). The error is
+ * rethrown untouched and the response is unchanged; only a log line naming the operation, the error and a bounded
+ * reason is new. `request` is read for its headers and cookies only, never its body.
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   if (isCrossSiteRequest(request)) return crossSiteMintRefusedResponse();
@@ -55,21 +43,14 @@ function crossSiteMintRefusedResponse(): NextResponse {
   );
 }
 
-/** Mints the first design row **and** the credential that authorises writing to it (ADR 0019
- *  decision 1): the creating browser is the only party that ever holds the token. **The design's
- *  own link no longer carries read access to anyone who has it** — since ADR 0114 Amendment H2 (M7
- *  wave 7E3b) it opens only in the browser that owns the visitor cookie; a customer who wants to
- *  share a read-only view issues a separate share link (Amendment C, M7 wave 7E3c). M2 has no
- *  Step 1 yet, so the seeded L-kitchen fixture is the only creation trigger; M7 replaces it with
- *  preset application without changing this route's contract — the repository itself has no
- *  opinion on how a `Design` came to exist (`docs/milestones/M2-void-engine.md`, "Something has to
- *  create the first design").
+/** Mints the first design row and the credential that authorises writing to it (ADR 0019 decision 1): the creating
+ *  browser is the only party that ever holds the token. The design's own link opens only in the browser that owns
+ *  the visitor cookie (ADR 0114 Amendment H2); a read-only view is a separate share link (Amendment C). The seeded
+ *  L-kitchen fixture is the only creation trigger for now.
  *
- *  Since M7 wave 7E3a it also resolves — and always sets — the visitor cookie. Since M7 wave 7E3b
- *  (Amendment H1, *"Rotate on mint"*) every mint issues a **fresh** value; a well-formed one the
- *  request already carried is never re-emitted, only rotated away from — the repository moves that
- *  browser's existing rows to the fresh value in the same transaction as the insert. Every mint
- *  therefore leaves the browser with exactly one identity, never two and never none. */
+ *  Every mint issues a fresh visitor value (ADR 0114 Amendment H1, *"Rotate on mint"*): a well-formed one the request
+ *  carried is rotated away from, never re-emitted, and the repository moves that browser's rows to the fresh value in
+ *  the insert's transaction, so a mint leaves the browser with exactly one identity. */
 async function mintDesignRow(request: NextRequest): Promise<NextResponse> {
   const writeToken = mintWriteToken();
   const visitor = resolveVisitorForMint(request);
@@ -79,11 +60,9 @@ async function mintDesignRow(request: NextRequest): Promise<NextResponse> {
     visitor: visitor.mintVisitor,
   });
 
-  // The token and the visitor value both travel in `Set-Cookie` headers only, deliberately absent
-  // from the JSON body, where script could read them and a proxy or log could retain them. The
-  // revision is the opposite kind of value and does belong here: without it the very first save
-  // would have no expectation to state, and the client would have to read the design back to learn
-  // one.
+  // The token and the visitor value travel in `Set-Cookie` headers only, absent from the JSON body where script
+  // could read them and a proxy or log retain them. The revision belongs in the body: without it the first save
+  // has no expectation to state.
   const response = NextResponse.json({ id, revision }, { status: 201 });
   setWriteTokenCookie(response, { designId: id, token: writeToken.token });
   setVisitorCookie(response, visitor.value);

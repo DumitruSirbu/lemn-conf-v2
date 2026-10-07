@@ -1,15 +1,7 @@
 import { isDeepStrictEqual } from "node:util";
 
-// **Gate O1: this inline literal is the sole Romanian wording corpus** — the approved copy, **plus
-// the drafted leaves it has to carry**, each one marked as drafted at its own site (grep `drafted`).
-//
-// **A drafted leaf is here because the lock is a deep equality against `ro.json`**
-// (`tests/i18n/romanian-copy-lock.test.ts`), not a subset check: a key the catalogue holds and this
-// file omits fails that equality. So leaving an unapproved sentence out would not keep it away from
-// the customer — it would only break the gate that notices when **any** leaf changes. The equality is
-// the mechanism, so carrying the leaf and marking it is strictly stronger than dropping it.
-//
-// Nothing in this file is evidence that a sentence was approved; the note beside it is.
+// Gate O1: the sole Romanian wording corpus: approved copy plus the drafted leaves it has to carry (grep `drafted`).
+// The lock is a deep equality against `ro.json`, so a leaf missing here fails it. Carrying a leaf is not approval.
 export const APPROVED_ROMANIAN_MESSAGES = {
   brand: "Lemnaria",
   meta: {
@@ -35,11 +27,17 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     overflowWarning:
       "Dulapurile marcate depășesc lungimea peretelui. Modifică lățimile sau elimină un dulap.",
     backAction: "Înapoi",
+    // Owner's wording for the confirmation both back links open.
+    backConfirm: {
+      title: "Modificările vor fi pierdute",
+      body: "Dacă te întorci la pasul anterior, modificările efectuate vor fi pierdute. Ești sigur că dorești să reconfigurezi mărimea bucătăriei?",
+      confirm: "Înapoi la cameră",
+      stay: "Rămân aici",
+    },
     reviewCta: "Verifică designul",
   },
-  // Step 1's screen, approved by ADR 0113 decision 2 in the wave that adds it. Every leaf is frame
-  // 1A's or 1B's wording used as written; `wallLabel.wallC` is the one drafted leaf, because no
-  // frame draws a U's third wall.
+  // Frame 1A's or 1B's wording as written, except `cornerQuestion` (the owner's) and `wallLabel.wallC` (drafted: no
+  // frame draws a U's third wall).
   room: {
     title: "Cameră",
     shapeQuestion: "Ce formă are camera?",
@@ -63,11 +61,10 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     },
     dimensionsLater: "Dimensiunile se cer după ce alegi forma.",
     planCaption: "Plan de sus · previzualizare",
-    // Wave 7F2 S1b (ADR 0126, owner ruling Q-S1b-1 = a, 2026-09-21): the plan's label and 1F's room
-    // summary read whole millimetres, the unit the fields take, in the editor's own number form. A
-    // departure from frame 1B's *"A · 3,60 m"*, recorded against ADR 0104.
+    // Whole millimetres, the unit the fields take: a departure from frame 1B's *"A · 3,60 m"* (ADR 0126).
     planWallLabel: "{wall} · {millimetres, number, ::group-off} mm",
-    cornerQuestion: "Încotro merge cotul?",
+    // The owner's wording, a departure from frame 1B's *"Încotro merge cotul?"*.
+    cornerQuestion: "În care parte se află colțul bucătăriei?",
     cornerHint: "nu se deduce din lățimi",
     cornerLeft: "La stânga",
     cornerRight: "La dreapta",
@@ -76,14 +73,9 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       wallB: "Perete B",
       wallC: "Perete C",
     },
-    // Wave 7A3 S3, approved by ADR 0113 decision 2 in the wave that adds them. **Drafted, not frame
-    // wording** — frame 1B draws neither a hint nor a help control, so no frame word is overwritten
-    // (ADR 0104; ADR 0113 decision 5). The instrument is the owner's (Q-7A3-1, 2026-09-17: an
-    // always-visible hint above the wall fields plus a help control per wall), and what it says is
-    // ADR 0120 Amendments C1 and D1: the number is the run the customer wants furnished, not the wall.
-    // Owner ruling 2026-09-17, same wave: in a room with a corner the length is measured from the corner,
-    // corner cabinet included. So walls B and C, which exist only there, say so; wall A says it in
-    // `cornerText` and keeps `text` for a straight room, which has no corner.
+    // Drafted, not frame wording: frame 1B draws neither a hint nor a help control. The number is the run the customer
+    // wants furnished, not the wall (ADR 0120 Amendments C1 and D1). In a room with a corner the length is measured
+    // from it, corner cabinet included, so walls B and C say so and wall A says it in `cornerText`.
     lengthsHint: "Introdu lungimea dulapurilor dorite, nu lungimea peretelui.",
     lengthHelp: {
       wallA: {
@@ -102,27 +94,14 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       },
     },
     heightLabel: "Înălțimea camerei",
-    // The box's suffix since ADR 0126: the fields take whole millimetres, where frame 1B draws *m*.
+    // The box's suffix: the fields take whole millimetres, where frame 1B draws *m* (ADR 0126).
     unitMillimetres: "mm",
     back: "Înapoi",
     continue: "Continuă",
-    // Sub-state 1C, wave 7F2 S1. **Owner-approved in session, 2026-09-21** (Q-7F2-1 = (a), Q-7F2-4 =
-    // (a)), and the Russian beside them in `ru.json` by the same ruling (ADR 0113 decision 2).
-    //
-    // **A departure from frame 1C, recorded against ADR 0104's sweep.** The frame's sentence —
-    // *"Acest perete este mai scurt decât putem susține. Mărește valoarea sau alege o formă
-    // liniară."* — does not ship as written: *"Acest perete"* is the noun ADR 0120 Amendment C1 rules
-    // false (the number is the run to furnish, not the wall), and *"alege o formă liniară"* suggests a
-    // shape that is not buildable until wave 7J. `wallTooShort` keeps the frame's shape with the noun
-    // corrected; the clause survives as `orChooseLinear`, **rendered only once 7J makes it true**.
-    //
-    // No leaf carries a digit, a unit or a bound (ADR 0108 decision 3, ADR 0120 decision 3): a
-    // refusal says what the room cannot hold, never how many millimetres to add. `roomTooSmall` is
-    // ADR 0110's *"honest sentence"* with its digit removed. `presetsAfterValid` is frame 1C's note,
-    // as written. `unreadable` is shown once the field loses focus (Q-7F2-4); its wording is wave 7F2
-    // S1b's (owner, 2026-09-21), replacing S1's metre sentence when the fields became whole millimetres
-    // (ADR 0126). It spells the unit out and never abbreviates it — ADR 0126 records why naming the
-    // entry unit is not *asking for millimetres* under ADR 0120 decision 3.
+    // Sub-state 1C, owner-approved (the Russian in `ru.json` likewise). Departs from frame 1C: *"Acest perete"* is the
+    // noun ADR 0120 Amendment C1 rules false, and the *"alege o formă liniară"* clause survives as `orChooseLinear`.
+    // No leaf carries a digit, a unit or a bound (ADR 0120 decision 3); `unreadable` spells the unit out, never
+    // abbreviating it (ADR 0126).
     issue: {
       wallTooShort:
         "Lungimea aceasta e mai mică decât putem mobila. Mărește valoarea.",
@@ -145,65 +124,33 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       tooLong: "{wall} prea lung",
     },
     presetsAfterValid: "Presetele apar după ce toate valorile sunt valide.",
-    // Wave 7L D8/D11, approved by ADR 0113 decision 2 in the wave that adds it. D1C's *Sugestii*
-    // card, as written (`Desktop.dc.html:248, 250`) — the desktop-only actionable suggestion the
-    // milestone's own criterion asks for. The card's action is the *Liniară* chip's own handler.
+    // D1C's *Sugestii* card, as written (`Desktop.dc.html:248, 250`); its action is the *Liniară* chip's own handler.
     suggestion: {
       title: "Sugestii",
       switchToLinear: "Treci la formă liniară pe peretele A",
     },
-    // Sub-state 1F, wave 7F4a. Frame 1F's wording used as written, with three drafted leaves called
-    // out because no frame supplies them:
-    //
-    //   - `role.preparation` — the frame draws three rows and a dropped fridge, and never the
-    //     worktop priority `GENERATION_PRIORITIES` carries.
-    //   - `rowLabel` — the structural leaf that joins a role to its extent. `room.planWallLabel`'s
-    //     own shape, and for its reason: the separator belongs to the locale, not to a component
-    //     putting two spans side by side.
-    //   - `failed` — no frame draws a composition that did not finish. It says the composition did
-    //     not complete and **nothing about the room**: a room-level reason is 7F2's sentence, shown
-    //     at 1C where the customer can act on it (wave 7F4 ruling R16).
-    //
-    // **Three leaves depart from the frame on the owner's 2026-09-15 ruling, and it is the reason
-    // they are here in this wording rather than the frame's.** The ruling, verbatim: *"instead of
-    // așezat => inclus, related to 'nu încape' => nu poate fi inclus and to be mentioned that walls
-    // size didnt provide enough space to fit all cabinets"*. So `status.placed` and
-    // `status.notPlaced` carry the owner's two words, `rule` follows them into its running text —
-    // the paragraph restates the `notPlaced` status and must not restate it in the word the owner
-    // replaced — and `dropped` names the wall sizes as the reason. `dropped` was the one leaf
-    // nobody had approved (question Q7F4-1, ADR 0110 Amendment F's instruction to confirm it); the
-    // same ruling settles it, so it is approved copy like every other leaf in this file.
-    //
-    // **`stepsLabel` is the fourth leaf that ruling reaches, settled by the owner on 2026-09-15 in
-    // its own words: *"not Ce includem but Ce este inclus"*.** The list heading had kept the frame's
-    // *Ce așezăm* after the rows below it stopped saying *așezat*, which is the one wording the
-    // ruling above cannot leave standing. The owner chose the **passive** form over the first-person
-    // *includem* an implementer had proposed, so the heading and the `status.placed` row now say
-    // *inclus* in the same voice — keep that property if this sentence is ever adjusted again.
-    //
-    // **`noPresetNotice` keeps *nu încape* deliberately**, and is not covered by either ruling: its
-    // subject is a ready-made preset fitting the room, not a cabinet being included in a
-    // composition, and *niciun preset… nu poate fi inclus* would be the wrong Romanian for what that
-    // sentence says.
-    //
-    // Frame 1F's last sentence — *"Pragurile exacte sunt decizie de produs nefinalizată"* — is
-    // deliberately **not** here (ruling R18): it announces an unfinished product decision that has
-    // since been taken, and telling a customer a threshold is undecided is not copy.
+    // Frame 1F's wording as written, with drafted leaves: `role.preparation` (no frame draws the worktop priority),
+    // `rowLabel` (the separator belongs to the locale) and `failed` (says the composition did not complete, nothing
+    // about the room; a room-level reason is 1C's sentence).
+    // Owner ruling, verbatim: *"instead of așezat => inclus, related to 'nu încape' => nu poate fi inclus and to be
+    // mentioned that walls size didnt provide enough space to fit all cabinets"* (ADR 0110 Amendment F). So
+    // `status.placed`, `status.notPlaced`, `rule` and `dropped` follow it.
+    // `stepsLabel`: owner wording *"not Ce includem but Ce este inclus"*; keep the passive *inclus* voice it
+    // shares with `status.placed`. `noPresetNotice` keeps *nu încape*: its subject is a preset fitting the room,
+    // not a cabinet.
+    // Frame 1F's last sentence (*"Pragurile exacte sunt decizie de produs nefinalizată"*) is deliberately absent: it
+    // announces a product decision since taken.
     compose: {
       title: "Preset",
       heading: "Ți-o construim pe a ta",
       roomSummary:
         "{shape} · {wallA, number, ::group-off} × {wallB, number, ::group-off} mm · h {height, number, ::group-off} mm",
-      // M7 wave 7J S4, ADR 0130 D10 — **drafted, not approved**: no frame draws a straight kitchen's
-      // 1F summary, so this restates `roomSummary`'s own two-length shape with the wall B clause
-      // dropped, the field `requiredFieldsFor("linear")` names. It is in this file for the lock's
-      // reason every drafted leaf is: a leaf `ro.json` holds and this file omits fails the equality.
+      // Drafted, not approved: no frame draws a straight kitchen's 1F summary; `roomSummary`'s shape without the
+      // wall B clause, the field `requiredFieldsFor("linear")` names.
       roomSummaryLinear:
         "{shape} · {wallA, number, ::group-off} mm · h {height, number, ::group-off} mm",
-      // M7B wave U5 S1 (ruling 2026-09-30) — **drafted, not approved**: no frame draws a U's 1F
-      // summary, so this restates `roomSummary`'s own shape with a third length, `× {wallC}`, for the
-      // three walls `wallsOf("U")` names. It carries no word the approved leaf does not: only the
-      // numbers and the separators, so the Russian is the same sentence with `мм`.
+      // Drafted, not approved: `roomSummary`'s shape with a third length for the walls `wallsOf("U")` names. Only
+      // numbers and separators, so the Russian is the same sentence with `мм`.
       roomSummaryU:
         "{shape} · {wallA, number, ::group-off} × {wallB, number, ::group-off} × {wallC, number, ::group-off} mm · h {height, number, ::group-off} mm",
       noPresetNotice:
@@ -216,12 +163,9 @@ export const APPROVED_ROMANIAN_MESSAGES = {
         hob: "Plită și cuptor",
         storage: "Depozitare",
       },
-      // Wave 7D5b's sixth 1F row (ADR 0110 Amendment M3). **Owner-approved in session, 2026-09-21**:
-      // the owner chose this wording over the short form, and the Russian beside it in `ru.json` by the
-      // same ruling (ADR 0113 decision 2; ADR 0107's precedent for recording owner-edited copy here).
-      // A departure from the approved mockup's five rows, recorded under ADR 0104. The status beside
-      // it reuses `status.*` below, and no sentence explains *nu poate fi inclus* (ADR 0113 decision
-      // 5: the domain publishes no reason).
+      // The sixth 1F row. Owner-approved wording, chosen over the short form (the Russian in `ru.json` likewise); a
+      // departure from the mockup's five rows. No sentence explains *nu poate fi inclus*: the domain publishes no
+      // reason (ADR 0113 decision 5).
       dishwasher: "Nișă mașină de spălat vase",
       rowLabel: "{role} · {extent}",
       rowWidth: "{millimetres, number, ::group-off}",
@@ -237,12 +181,8 @@ export const APPROVED_ROMANIAN_MESSAGES = {
         "Dimensiunile pereților nu au lăsat destul spațiu pentru toate dulapurile, așa că nu am putut include: {roles}. Restul bucătăriei e compus pe măsura camerei tale.",
       failed:
         "Compunerea nu s-a putut finaliza. Întoarce-te la dimensiuni și încearcă din nou.",
-      // Wave 7F4b's two, and both are **drafted, not approved**: no frame draws a hand-off, and the
-      // wave's own copy table names them as drafted for criteria 35 and 41. They are in this file
-      // because it is a deep equality against `ro.json` — a leaf missing here fails the lock — and
-      // not because anybody has read them out loud. `saveFailed` is deliberately a different
-      // sentence from `failed` above: that one has no kitchen behind it and sends the customer back
-      // to the dimensions, this one has the whole kitchen drawn above it and offers `retry`.
+      // Drafted, not approved: no frame draws a hand-off. `saveFailed` differs from `failed`: that one has no kitchen
+      // behind it and sends the customer back to the dimensions, this one has the kitchen drawn and offers `retry`.
       saveFailed:
         "Bucătăria e gata, dar nu am putut-o deschide. Încearcă din nou.",
       retry: "Încearcă din nou",
@@ -330,8 +270,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     },
     widthStepNote:
       "Lățimea se schimbă din 50 în 50 mm, mutând latura dulapului din contul spațiului liber alăturat — întâi spre dreapta, apoi spre stânga. Când un buton este gri, sub el scrie de ce.",
-    // ADR 0129 D8, approved by ADR 0113 decision 2 in the wave that adds it: the mirrored sentence
-    // for a right-hand room, otherwise word for word.
+    // The mirrored sentence for a right-hand room, otherwise word for word.
     widthStepNoteRight:
       "Lățimea se schimbă din 50 în 50 mm, mutând latura dulapului din contul spațiului liber alăturat — întâi spre stânga, apoi spre dreapta. Când un buton este gri, sub el scrie de ce.",
     widthChoiceNote:
@@ -436,14 +375,12 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       "Linkul acesta nu mai corespunde niciunei configurații salvate. Posibil că a fost ștearsă sau linkul este invalid.",
     bodyInvalid:
       "Linkul acesta nu poate întoarce nici o configurare validă. Ne pare rău.",
-    // M7 wave 7E3b, drafted and approved as drafted under ADR 0113 (ADR 0114 Amendment H2's D5).
-    // The owner may reword later (non-blocking), the same standing D10 gives the share copy below.
+    // Drafted, approved as drafted (ADR 0113); the owner may reword later.
     bodyUnavailable:
       "Această configurație nu este disponibilă în acest browser. Se deschide doar în browserul în care a fost creată.",
     startOver: "Începe o configurare nouă",
   },
-  // M7 wave 7E3c D10, drafted and approved by ADR 0113 / ADR 0114 Amendment B *Copy*, locked in
-  // this commit. The owner may reword later (non-blocking) — see D10.
+  // Drafted, approved as drafted (ADR 0113); the owner may reword later.
   share: {
     title: "Link de vizualizare",
     description:
@@ -458,8 +395,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     revoke: "Dezactivează linkul",
     revoked: "Linkul a fost dezactivat.",
     error: "Nu am putut actualiza linkul. Încearcă din nou.",
-    // Review round 2, R2.1: the retry button after a failed status read has no other approved
-    // label to borrow (D10's table names none), so it gets its own.
+    // No other approved label to borrow for the retry after a failed status read, so it has its own.
     retry: "Încearcă din nou",
   },
   contactPlaceholder: {
@@ -487,11 +423,9 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       nuc: "Nuc",
     },
   },
-  // Wave 6B-f2 relocated these 14 leaves from `sample-price-book.ts`, byte for byte, under ADR 0095
-  // Amendment B and ADR 0106. **Not new copy**: every string below was owner-authored in the book
-  // and is locked here at the wording it shipped with, so a reword is an unapproved change in the
-  // same way any other leaf's is. The two brand tiers name no `name` leaf on purpose — *Hettich*
-  // and *Blum* are proper nouns and render from the book's own field in every locale.
+  // Relocated byte for byte from `sample-price-book.ts` (ADR 0106): owner-authored, locked at the wording it shipped
+  // with, so a reword is an unapproved change. The two brand tiers name no `name` leaf on purpose: *Hettich* and
+  // *Blum* render from the book's own field in every locale.
   priceBook: {
     hardware: {
       standard: {

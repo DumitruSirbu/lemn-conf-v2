@@ -1,21 +1,17 @@
-// M7 wave 7E3b S6 (ADR 0114 Amendment H6, D2): the owner's ruling "Web Lock + random" closes the
-// two-tab mint race in the browser rather than the server. Two tabs of one browser share the same
-// visitor cookie jar but not the same JS heap, so nothing in-process can serialise them — the Web
-// Locks API is scoped to origin and storage partition, exactly the jar's own scope, which is why a
-// private window or another profile gets an independent lock and an independent race never
-// happens there.
+// Closes the two-tab mint race in the browser (ADR 0114 Amendment H6). Two tabs of one browser share
+// a visitor cookie jar but not a JS heap, so nothing in-process can serialise them; the Web Locks API
+// is scoped to origin and storage partition, exactly the jar's own scope, so a private window or
+// another profile gets an independent lock and never races.
 
-/** The one lock name every `POST /api/designs` takes. A single well-known name, not one per
- *  design: there is nothing to create yet when a mint starts, so there is no id to key a lock by. */
+/** One well-known name for every `POST /api/designs`, not one per design: nothing exists yet when a
+ *  mint starts, so there is no id to key a lock by. */
 const LEMNARIA_CREATE_DESIGN_LOCK = "lemnaria:create-design";
 
-/** How long a mint waits to acquire the lock before proceeding unlocked. A peer mint still holding
- *  it after this long has almost certainly failed — the mint itself is otherwise unbounded (ADR
- *  0010), so this bounds only the *wait*, never the request the winner is making. */
+/** How long a mint waits to acquire the lock before proceeding unlocked. A peer still holding it
+ *  after this long has almost certainly failed; this bounds only the wait, never the winner's request. */
 const LOCK_ACQUIRE_TIMEOUT_MS = 10_000;
 
-/** The one shape this module needs from `navigator.locks` — declared structurally so a test can
- *  fake it without constructing a real `LockManager`. */
+/** The one shape this module needs from `navigator.locks`, declared structurally so a test can fake it. */
 interface LockRequester {
   request<T>(
     name: string,
@@ -24,10 +20,8 @@ interface LockRequester {
   ): Promise<T>;
 }
 
-/** Marks an error as `run`'s own, raised after the lock was granted and `run` had genuinely begun
- *  — the one signal {@link withCreateDesignLock} needs to tell that case apart from the wait for
- *  the lock itself timing out, without a mutable flag a closure would have to set (and which
- *  static analysis then cannot prove was ever read after being set). */
+/** Marks an error as `run`'s own, raised after the lock was granted, so {@link withCreateDesignLock}
+ *  can tell it from the wait timing out without a mutable flag that static analysis cannot prove read. */
 class LockedRunFailure extends Error {
   constructor(public override readonly cause: unknown) {
     super("withCreateDesignLock: the locked run threw");
@@ -36,30 +30,25 @@ class LockedRunFailure extends Error {
 }
 
 /**
- * Runs `run` — exclusively, across every tab of this browser — through the Web Locks API when it
- * exists, or immediately when it does not.
+ * Runs `run` exclusively across every tab of this browser through the Web Locks API, or immediately
+ * when it is absent.
  *
- * **Held across the whole of `run`, including reading its response body** (D2): a second tab's own
- * `request` for this name is granted only once this call's callback has *settled*, by which point
- * the mint response's `Set-Cookie` has already been stored in the jar (the Fetch Standard stores it
- * while the response headers are processed, before `fetch` itself resolves) — so the second tab's
- * own mint, once it runs, reads the first tab's rotated cookie rather than the one it started with.
+ * Held across the whole of `run`, including reading its response body: a second tab's request is
+ * granted only once the callback has settled, by which point the mint's `Set-Cookie` is already
+ * stored (the Fetch Standard stores it while headers are processed), so the second mint reads the
+ * first tab's rotated cookie.
  *
- * **Feature detection, not a polyfill.** `navigator.locks?.request` absent — Safari before 15.4,
- * older Chromium and Firefox, and any non-browser caller — runs `run` unlocked. This is the
- * accepted residual (ADR 0114 H6): those browsers can still lose a design to the two-tab race: the
- * measured cost is recorded there, not repeated here.
+ * Feature detection, not a polyfill: where `navigator.locks?.request` is absent (Safari before 15.4,
+ * older Chromium and Firefox, non-browser callers) `run` goes unlocked, the accepted residual of
+ * ADR 0114 H6. A wait longer than {@link LOCK_ACQUIRE_TIMEOUT_MS} also proceeds unlocked, never
+ * failing the caller's mint over a peer's stuck one. It uses an `AbortController` and a cleared
+ * timer rather than `AbortSignal.timeout`: a test advances the timer, and clearing it leaves no
+ * pending timeout behind a settled wait.
  *
- * **A wait longer than {@link LOCK_ACQUIRE_TIMEOUT_MS} also proceeds unlocked**, never failing the
- * caller's own mint over a peer's stuck one. Built from an `AbortController` and a cleared timer
- * rather than `AbortSignal.timeout` for `requestWithinTimeout`'s own reason: the timer is what a
- * test advances, and clearing it stops a settled wait leaving a pending timeout behind it.
- *
- * The distinction that makes proceeding unlocked safe: a {@link LockedRunFailure} means `run` was
- * genuinely called and threw, so it is unwrapped and rethrown as-is — but every other rejection
- * from `locks.request` (the wait itself aborting; a driver defect) means `run` never started, so
- * falls through to a second, unlocked call. Minting twice for one customer action is worse than
- * minting unlocked once.
+ * Proceeding unlocked is safe because a {@link LockedRunFailure} means `run` was called and threw, so
+ * it is rethrown as-is, while any other rejection from `locks.request` (the wait aborting; a driver
+ * defect) means `run` never started and falls through to one unlocked call. Minting twice for one
+ * customer action is worse than minting unlocked once.
  */
 export async function withCreateDesignLock<T>(
   run: () => Promise<T>,
@@ -89,8 +78,7 @@ export async function withCreateDesignLock<T>(
   }
 }
 
-/** `navigator` itself is absent on the server, and `locks` is absent on an unsupporting browser —
- *  two separate reasons the same fallback below has to cover. */
+/** `navigator` is absent on the server and `locks` on an unsupporting browser: two reasons for one fallback. */
 function readLockRequester(): LockRequester | undefined {
   if (typeof navigator === "undefined") return undefined;
   return navigator.locks as LockRequester | undefined;

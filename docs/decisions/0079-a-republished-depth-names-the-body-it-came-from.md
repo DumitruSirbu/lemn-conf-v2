@@ -9,6 +9,12 @@ Date: 2026-09-05
 Type: Decision + Finding
 Milestone: M6 — wave 6K-c's own residue, found by adversarial QA before the wave was committed
 
+**Pointer, 2026-10-01 — `:63` lists `base-corner-return-320` at 0.6 exactly; that holds no longer.**
+[ADR 0135](0135-the-corner-pieces-stand-on-the-runs-lines-and-the-base-return-is-a-base-body-with-a-fixed-front.md)
+gives the return the base finished depth (0.62 at 600, 0.72 at 700), so the pair listing for that body
+is dated 2026-09-05. The decision is unchanged; the new tie arithmetic was not re-run [inference].
+Nothing here is struck.
+
 ## Context
 
 [ADR 0073](0073-a-frozen-extent-records-the-body-its-depth-came-from.md) gave a frozen extent one new

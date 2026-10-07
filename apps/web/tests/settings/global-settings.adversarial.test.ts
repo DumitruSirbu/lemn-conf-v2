@@ -1,30 +1,3 @@
-// **Adversarial QA for wave 6G**: the properties the example tests state on one input, swept; the
-// arithmetic re-derived from a source that is not the one under test; and the two boundaries the
-// shipped tests step over.
-//
-// Four claims this file exists to attack, each written against the way the shipped guard could be
-// green while the claim is false:
-//
-// 1. **The delta is compared against the function that produces it.** Both sides of
-//    `whole-kitchen-tiers.test.ts`'s central assertion are `priceDesign`, which is the shape
-//    `docs/WORKFLOW.md` names as the commonest weak guard. The hardware delta is re-derived here
-//    from the **book's rates and an independently counted mechanism population** —
-//    `countHardwareMechanisms` over `projectDesignForDisplay`, never through `priceDesign` — so an
-//    agreement is an agreement between two things. It counted *handles* until wave 6T priced
-//    hardware per mechanism (ADR 0070 decision 1); a handle population would now assert the
-//    superseded basis as correct.
-// 2. **A delta measured with the other group "held at what the design carries" could depend on the
-//    held group.** If it did, the number beside *Furnir natural* would move when a customer changed
-//    a hardware tier they are not looking at. Swept over the whole 3 × 3 cross product, plus the
-//    unset design, in both directions.
-// 3. **The `+` is arithmetic in a label unless exactly one module writes it.** Wave 6C's criterion
-//    is *one* formatter; a sign is half a figure. Swept over the formatter's whole domain and
-//    guarded at the source, and the rendered badge is re-derived from the measured delta rather than
-//    from the view that rendered it.
-// 4. **An omitted clause can be omitted from the copy and still reach the screen.** The shipped
-//    guard reads the markup, which is the right place — this adds the one route markup cannot see,
-//    a stylesheet `content:` declaration, and proves the markup predicate itself rejects a clause
-//    hidden behind `display: none` or `aria-hidden` rather than being satisfied by one.
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import {
   countCabinetsWearingAChosenFinish,
@@ -106,9 +79,8 @@ describe("the global-settings ICU literal sweep", () => {
   });
 });
 
-/** Every whole-kitchen state a design can be in, including the one that names nothing. `undefined`
- *  is a member and not an omission: a fresh design carries no `settings` key at all, and that is the
- *  state every customer opens the sheet in for the first time. */
+/** Every whole-kitchen state a design can be in. `undefined` is a member: a fresh design carries no tier ids, the
+ *  state every customer first opens the sheet in. */
 const EVERY_CARRIED_SELECTION: readonly (WholeKitchenSelections | undefined)[] =
   [
     undefined,
@@ -124,10 +96,7 @@ function designCarrying(
   selections: WholeKitchenSelections | undefined,
 ): Design {
   if (selections === undefined) {
-    // The seeded design chooses neither tier, which *is* the unset state — asserted rather than
-    // assumed, so this arm cannot quietly stop being the case it is named for. Wave 6J-a made
-    // `settings` always present by persisting `cabinetDepthMm`, so the two tier ids are what carry
-    // the meaning; the key's own absence no longer does.
+    // The seeded design chooses neither tier id, which is the unset state; asserted so this arm cannot stop being it.
     expect(KITCHEN_L_DESIGN.settings?.materialTierId).toBeUndefined();
     expect(KITCHEN_L_DESIGN.settings?.hardwareTierId).toBeUndefined();
     return KITCHEN_L_DESIGN;
@@ -156,20 +125,9 @@ function deltaOf(group: OfferedTierGroup, tierId: string): number {
 }
 
 /**
- * **The handle population, counted without pricing anything.**
- *
- * The one expected side that is not `priceDesign`. `whole-kitchen-tiers.test.ts` compares a measured
- * delta against a second call to the same query, which cannot fail for the reason it was written;
- * this walks the projection and asks the domain's own `countHardwareMechanisms` per body, which is
- * the quantity ADR 0070 decision 1 defines and the population the hardware line is billed on.
- *
- * **It counts mechanisms and not handles since wave 6T.** A handle population would now assert the
- * superseded basis as correct: `base-panbank`'s two handles are drawers, a `handle: "push"` body
- * carries none at all, and hinges are counted by leaf. `cabinetHandleCount` still answers ADR 0061
- * decision 2's question and nothing prices it.
- *
- * It computes no door or leaf count of its own, and it is a **test**: the seam guard's prohibition
- * is on a module under `src/` deriving one, not on a measurement re-deriving the domain's answer.
+ * The hardware population counted without pricing anything, so the expected delta is independent of `priceDesign`.
+ * It counts mechanisms (ADR 0070 decision 1), not handles: `base-panbank`'s two handles are drawers and a `push`
+ * body carries none. A test may derive this; the seam guard only forbids a `src/` module doing so.
  */
 function countMechanismsIn(design: Design): HardwareMechanismCounts {
   return countHardwareMechanisms(
@@ -180,8 +138,7 @@ function countMechanismsIn(design: Design): HardwareMechanismCounts {
   );
 }
 
-/** The **superseded** denominator, kept only so an assertion below can say the mechanism count is
- *  not it. ADR 0061 decision 2's handle count survives the wave with no production reader. */
+/** The superseded handle-count denominator, kept only so an assertion can say the mechanism count is not it. */
 function countHandlesIn(design: Design): number {
   return projectDesignForDisplay(design, KITCHEN_L_BODY_CATALOG)
     .flatMap((group) => group.entries)
@@ -273,9 +230,8 @@ function groupNamed(
   return group;
 }
 
-/** These fixtures are about deltas, badges and copy, never about access. Stated rather than
- *  defaulted: `GlobalSettingsSurface.editability` is a required prop precisely so a write surface
- *  cannot silently default to permitted (M6-AUD-001). */
+/** These fixtures are not about access: stated rather than defaulted, because `editability` is a required prop so
+ *  a write surface cannot silently default to permitted. */
 const WRITABLE_ACCESS = describeEditability(
   {
     canWrite: true,
@@ -300,8 +256,6 @@ function markupOf(view: GlobalSettingsView): string {
 
 describe("a delta cannot depend on a setting the customer is not looking at", () => {
   it("gives a material tier the same delta under every hardware tier the design could carry", () => {
-    // The whole cross product, plus the unset design. If the held group did not cancel out, this is
-    // where the number beside *Furnir natural* would move when a hardware chip changed.
     for (const tierId of MATERIAL_TIER_IDS) {
       const measured = EVERY_CARRIED_SELECTION.map((selections) =>
         deltaOf(measure(designCarrying(selections)).material, tierId),
@@ -326,12 +280,8 @@ describe("a delta cannot depend on a setting the customer is not looking at", ()
   });
 
   it("measures against the book's default rather than against the tier the design already carries", () => {
-    // **Characterisation, and the wave's one product question.** The baseline is the group's
-    // `defaultTierId`, so a customer who has already applied *Furnir natural* re-opens the sheet and
-    // reads *de la +18 000* beside the tier they own and *inclus* beside the one that would make
-    // their kitchen cheaper. That is the module's stated rule — the badge is a price-list delta from
-    // what a kitchen gets for free, not the cost of the change in front of the customer — and it is
-    // pinned here so moving it is a decision somebody takes rather than a diff nobody reads.
+    // Characterisation: the baseline is the group's `defaultTierId`, so a customer already on *Furnir natural* still
+    // reads *de la +18 000* beside the tier they own. Pinned so moving it is a decision rather than an unread diff.
     const onVeneer = measure(
       designCarrying({ materialTierId: "material.veneer" }),
     );
@@ -361,15 +311,11 @@ describe("a delta cannot depend on a setting the customer is not looking at", ()
 
 describe("the arithmetic, re-derived from something that is not priceDesign", () => {
   it("bills a hardware delta at the book's rates times a mechanism population counted from the catalogue", () => {
-    // The independent expected side. `whole-kitchen-tiers.test.ts` only asserts the delta is
-    // *larger* than one mechanism's rate, which a delta computed on any denominator above one would
-    // satisfy; this names the denominator.
+    // The independent expected side; the shipped test only asserts the delta exceeds one mechanism's rate.
     const mechanisms = totalMechanismsIn(KITCHEN_L_DESIGN);
     const hardware = measure(KITCHEN_L_DESIGN).hardware;
 
-    // The denominators this assertion would still pass under if it were wrong. A mechanism count
-    // that happened to equal the body count — or the handle count the wave superseded — would make
-    // those readings indistinguishable from this one.
+    // The denominators this would still pass under if wrong: the body count and the superseded handle count.
     expect(mechanisms).not.toBe(KITCHEN_L_DESIGN.placements.length);
     expect(mechanisms).not.toBe(countHandlesIn(KITCHEN_L_DESIGN));
     expect(mechanisms).toBeGreaterThan(1);
@@ -385,8 +331,7 @@ describe("the arithmetic, re-derived from something that is not priceDesign", ()
   });
 
   it("keeps that denominator when the kitchen loses bodies, rather than holding a shipped constant", () => {
-    // A second population, so the agreement above cannot be one arithmetic coincidence: half the
-    // kitchen has half the handles and every hardware delta follows it.
+    // A second population, so the agreement above is not one arithmetic coincidence.
     const wallBOnly: Design = {
       ...KITCHEN_L_DESIGN,
       placements: KITCHEN_L_DESIGN.placements.filter(
@@ -405,8 +350,6 @@ describe("the arithmetic, re-derived from something that is not priceDesign", ()
   });
 
   it("charges nothing for any hardware tier in a kitchen with no bodies, and says so in words", () => {
-    // The boundary the sheet is reachable at. No body means no mechanism, so every hardware tier is
-    // billed on zero and the badge is the ruled word rather than a *de la +0*.
     const empty: Design = { ...KITCHEN_L_DESIGN, placements: [] };
 
     expect(totalMechanismsIn(empty)).toBe(0);
@@ -420,8 +363,7 @@ describe("the arithmetic, re-derived from something that is not priceDesign", ()
   });
 
   it("still charges the material tiers in that empty kitchen, which is what makes the zero above a measurement", () => {
-    // Without this, "every hardware delta is zero" would also be what a measurement that had stopped
-    // measuring looks like.
+    // Without this, an all-zero hardware delta is also what a measurement that stopped measuring looks like.
     const empty: Design = { ...KITCHEN_L_DESIGN, placements: [] };
 
     expect(deltaOf(measure(empty).material, "material.veneer")).toBe(
@@ -477,10 +419,8 @@ describe("the sign is part of the figure, and the figure rounds exactly once", (
   });
 
   it("would sign a zero, and the model is what keeps that off the screen", () => {
-    // `describeAddedAmount(0)` is `"+0"`, which is the number-that-is-not-a-price ADR 0001 decision 4
-    // rules out. The formatter is not where that is decided — `describeDelta` short-circuits above
-    // it — so both halves are stated: the formatter's behaviour, and the fact that nothing reaches
-    // it with a zero.
+    // `describeAddedAmount(0)` is `"+0"`, a number that is not a price. `describeDelta` short-circuits above the
+    // formatter, so both halves are asserted: the formatter's behaviour, and that nothing reaches it with a zero.
     expect(describeAddedAmount(0)).toBe("+0");
     for (const view of [viewOf(KITCHEN_L_DESIGN)]) {
       for (const group of view.groups) {
@@ -492,9 +432,8 @@ describe("the sign is part of the figure, and the figure rounds exactly once", (
   });
 
   it("prints every badge as the measured delta formatted by the one formatter, never as the view's own string", () => {
-    // Both sides deliberately do not come from the model: the expected text is built from the
-    // **measured** delta through the published formatter, and the actual text is read off the
-    // rendered page. A second rounding rule inside the model would show up here as a mismatch.
+    // Expected text is built from the measured delta through the published formatter and actual text is read off the
+    // rendered page, so neither side comes from the model.
     const view = viewOf(KITCHEN_L_DESIGN);
     const offer = measure(KITCHEN_L_DESIGN);
     const markup = markupOf(view);
@@ -537,9 +476,7 @@ describe("the sign, the step and the separator live in one module and no other",
   }
 
   it("writes no arithmetic on a displayed amount anywhere in the three modules this wave added", () => {
-    // The shipped seam guard refuses `Math.*`. These are the other spellings a second rounding site
-    // takes — a division by the minor-unit base, a fixed-point format, a locale formatter — none of
-    // which names `Math` at all.
+    // The seam guard refuses `Math.*`; these are the other spellings of a second rounding site, none naming `Math`.
     for (const path of THIS_SURFACE) {
       const source = sourceOf(path);
       expect(source, path).not.toMatch(/toFixed|toPrecision|Intl\./);
@@ -549,10 +486,8 @@ describe("the sign, the step and the separator live in one module and no other",
   });
 
   it("leaves the delta's sign in the formatter, so no label authors arithmetic of its own", () => {
-    // A `+` written in front of an interpolated amount is a figure being composed outside the one
-    // module allowed to compose one, and it is invisible to a guard that only looks for rounding.
-    // Matched on that exact shape rather than on any `+`, so a developer error message that joins
-    // two strings is not mistaken for one.
+    // A `+` before an interpolated amount composes a figure outside the one allowed module; matched on that shape so
+    // an error message joining two strings is not mistaken for one.
     for (const path of THIS_SURFACE) {
       expect(sourceOf(path), path).not.toMatch(/\+\s*\$\{/);
     }
@@ -594,11 +529,9 @@ describe("the two words on the badge cannot drift from the two above the figure"
 });
 
 describe("how many bodies, and which part of the document says so", () => {
-  /** `projectDesignForDisplay` maps `placements` one-to-one, so the projected count and
-   *  `placements.length` are **equal for every design that projects at all** — the criterion's two
-   *  candidate sources cannot be told apart by their answer. What can be told apart is whether the
-   *  sheet follows the projection when the document grows space that is not a body, which is what
-   *  the two sweeps below measure. */
+  /** The projection maps `placements` one-to-one, so the projected count equals `placements.length` for any design
+   *  that projects; the sweeps measure whether the sheet follows the projection when the document grows non-body
+   *  space. */
   const anyPlacementSubset = fc
     .subarray([...KITCHEN_L_DESIGN.placements], { minLength: 0 })
     .map((placements) => ({ ...KITCHEN_L_DESIGN, placements }));
@@ -611,18 +544,9 @@ describe("how many bodies, and which part of the document says so", () => {
   }
 
   /**
-   * **Whether this design is one the sheet can be measured at at all** — asked of the book's own
-   * rates, never of a list of build ids.
-   *
-   * Wave 6T prices hardware per mechanism (ADR 0070 decision 1), and Hettich's drawer figure is a
-   * runners-only product line the owner ruled stays understated against Standard's complete box. So
-   * a **drawer-dominant** design prices Hettich *below* the default tier.
-   *
-   * **Wave 6W ruled what the customer sees there, and it is not a refusal** (ADR 0092 decision 12,
-   * interim pending owner review): the sheet renders, every tier stays choosable, and the tier that
-   * prices below the default states **no amount at all**. So this predicate no longer selects a case
-   * the sheet cannot be measured at — it selects the case where one badge is missing on purpose, and
-   * the sweep asserts the sentence at *every* population rather than branching away from some.
+   * Whether any hardware tier prices below the default for this design, asked of the book's rates. Hettich's drawer
+   * figure is runners-only and stays understated against Standard, so a drawer-dominant design renders the sheet with
+   * no badge on the tier below the default (ADR 0092 decision 12).
    */
   function pricesAnyTierBelowItsDefault(design: Design): boolean {
     const defaultAmount = bookAmountFor(
@@ -645,8 +569,7 @@ describe("how many bodies, and which part of the document says so", () => {
       const view = viewOf(design);
       expect(statedCount(view)).toBe(projected);
 
-      // The half that keeps the predicate honest, now that neither side of it throws: exactly the
-      // populations the book inverts on carry a hardware option with no badge, and no others do.
+      // Exactly the populations the book inverts on carry a hardware option with no badge, and no others.
       const silentOptions = groupNamed(view, "hardware").options.filter(
         (option) => option.deltaText === undefined,
       );
@@ -656,13 +579,8 @@ describe("how many bodies, and which part of the document says so", () => {
     },
   );
 
-  /** The witness the sweep above finds by chance, pinned so it is a statement rather than a seed:
-   *  one `base-drawer3-600` carries three drawers and no hinge, and Hettich's understated drawer
-   *  rate puts it 4 200 minor below Standard.
-   *
-   *  **The design and its arithmetic are untouched by wave 6W; what moved is what is asserted of
-   *  the sheet.** It renders, it states its one body, every tier is still listed and choosable, and
-   *  the tier that prices below the default is the only one carrying no amount. */
+  /** One `base-drawer3-600` (three drawers, no hinge) prices Hettich 4 200 minor below Standard: the sheet renders,
+   *  every tier stays choosable, and only that tier states no amount. */
   it("renders the sheet for a drawer-dominant design, with no amount on the tier that prices below the default", () => {
     const drawersOnly: Design = {
       ...KITCHEN_L_DESIGN,
@@ -685,8 +603,7 @@ describe("how many bodies, and which part of the document says so", () => {
     const view = viewOf(drawersOnly);
     const hardware = groupNamed(view, "hardware");
 
-    // On the page and not only in the model: 6W's first criterion is that the sheet *renders* for
-    // this design, and every tier's own name is on it whether or not it states an amount.
+    // On the page, not only in the model: every tier's name is shown whether or not it states an amount.
     const markup = markupOf(view);
     for (const tier of SAMPLE_PRICE_BOOK.hardware.tiers) {
       expect(markup, tier.tierId).toContain(tier.name);
@@ -701,10 +618,8 @@ describe("how many bodies, and which part of the document says so", () => {
       hardware.options.map((option) => [option.tierId, option.deltaText]),
     ).toEqual([
       [SAMPLE_PRICE_BOOK.hardware.defaultTierId, ro.priceBreakdown.included],
-      // The one that prices below the default: offered, selectable, and silent about its amount.
       ["hardware.soft-close", undefined],
-      // And the tier on the other side of the default still states its own, so what is missing
-      // above is one tier's badge rather than the group's arithmetic.
+      // The tier above the default still states its amount, so only the one tier's badge is missing.
       [
         dearerTierId,
         ro.globalSettings.tierDelta(
@@ -721,10 +636,8 @@ describe("how many bodies, and which part of the document says so", () => {
   });
 
   it("does not count empty columns, and does not count the space a column map freezes", () => {
-    // The half of the criterion that is falsifiable: `emptyColumns` and `columnExtents` are space
-    // the customer can see in the scene and cannot see in this count, because neither carries a
-    // catalogue entry, a label or a price. A count taken from anywhere but the projection would have
-    // to decide what to do with them; this one does not have to.
+    // `emptyColumns` and `columnExtents` are space in the scene but carry no entry, label or price, so a count taken
+    // from the projection ignores them.
     const space: EmptyColumn = {
       wall: "A",
       alongMm: 3_000,
@@ -778,14 +691,9 @@ describe("wave 6F's clause is absent, and cannot be put back by anything that pa
   });
 
   it("cannot be injected by the sheet's own stylesheet, which no markup assertion can see", () => {
-    // The one route past a guard that reads rendered markup: `::after { content: "…" }` puts words
-    // on the screen that are in no string and in no element. `starting-price.adversarial.test.ts`
-    // already holds the three stylesheets that render the *De la* label to this rule; this wave
-    // added a fourth that renders customer-visible copy and was not in that list.
-    //
-    // **An empty `content: ""` is allowed by name**, and only that: the pill's 44 px hit area is a
-    // pseudo-element with no text in it (ADR 0104 decision 5 — the target may not change the painted
-    // box), which cannot put a clause on the screen. Every other value still fails.
+    // The one route past a markup guard: `::after { content: "…" }`. `starting-price.adversarial.test.ts` holds the
+    // other stylesheets. An empty `content: ""` is allowed (the pill's 44 px hit area, ADR 0104 decision 5); every
+    // other value fails.
     const declarations = readFileSync(
       resolve(
         import.meta.dirname,
@@ -800,13 +708,8 @@ describe("wave 6F's clause is absent, and cannot be put back by anything that pa
   });
 
   it("would fail the markup assertion if it were hidden rather than omitted", () => {
-    // The guard's own falsifiability. A clause behind `display: none` or `aria-hidden` is still in
-    // the markup, so the shipped predicate refuses it rather than being satisfied by it — asserted
-    // by running that predicate over exactly those two shapes.
-    //
-    // **The three literals are deliberate and cannot be read from the catalogue**: wave 6F's clause
-    // was *removed* from it, so there is no leaf to name. A probe for an absent sentence has to
-    // spell it. Wave 6B-j's allow-list, not a conversion.
+    // A clause behind `display: none` or `aria-hidden` is still in the markup, so the shipped predicate must refuse
+    // both shapes. The literals are spelled out because the clause was removed from the catalogue: no leaf to name.
     const hidden = [
       /* eslint-disable no-restricted-syntax -- 6B-j allow-list: markup probes for a clause wave 6F removed from the catalogue, so there is no leaf to name. */
       '<p style="display:none">și poate limita unele finisaje per corp</p>',

@@ -824,3 +824,55 @@ on its recorded face at all; it tiles each free run to its planned end
 ([ADR 0110](0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md)
 Amendment B).
 
+## Addendum — 2026-10-06: two reasons that lived only in code comments
+
+Filed under [ADR 0136](0136-code-and-test-comments-carry-only-what-nothing-else-can-and-history-lives-in-the-records.md)
+decision 3. Evidence tier for both: **recovered from code comments on 2026-10-06, not re-measured**;
+the figures are quoted from those comments as they stood, never re-derived. Cite as
+`see ADR 0090 addendum 2026-10-06, item N`.
+
+### Item 1 — The corner reach compared across the corner is the carcass seat, not the space a body fills
+
+*Promoted from [backlog 50](../backlog/open.md) (closed 2026-09-09), which holds the fuller
+narrative; the finding that opened it is the *"validator is blind to a cross-wall corner
+intersection"* section above. [ADR 0110](0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md)
+Amendment O5 affirms the rule (*"The reach stays the carcass seat"*) and bands it by height.*
+
+- **Rule.** `RECORDED_SPAN_OVERLAPS_CORNER_BODY` measures a body's reach across the corner by its
+  **carcass seat** (`frameDepthMm`), not by `occupiedDepthM`. A recorded column's reach is the
+  ladder `recordedReachMm` reads: the deepest seat among its members (banded by height, ADR 0110
+  Amendment O5); failing that, the seat of the body `depthFromBuildId` names (ADR 0073 decision 1);
+  failing that, the recorded `depthMm`.
+- **Why.** The two numbers disagree exactly where this comparison looks. The comment's figures, after
+  ADR 0135: `base-corner-x-900` seats on 550 and *occupies* 620 (560 and 630 before ADR 0135 moved the
+  joint), and `base-corner-return-320`'s slab stands 50 mm proud of its own 570 carcass front. So the
+  shipped kitchen's two corner legs share 50 mm of plan area **by design** — two worktop slabs meeting
+  at an L-joint. Measured against the occupied depth the gate marks the demo kitchen on its own
+  declared geometry, "and a gate that does that is not read the first time it fires on something
+  real". Measured against the seat it is silent there and reproduces the two defects backlog 50 was
+  opened for.
+- **The trap.** `frameDepthMm` is ADR 0018's encoding of twice a body's rear overhang and **is not a
+  depth**: `hood-600` seats on 700 and fills 500. Nothing outside this comparison may read it as a
+  distance from the wall; `occupiedDepthM` is the answer to *how much space does this fill* (ADR 0040
+  decision 1). The seat is right here only because both walls' runs are laid out against each other at
+  the carcass line.
+- **Known better shape, not built.** An occupied-depth reach with an exemption for the two structural
+  corner legs is more truthful about solid; it is a new rule with its own record owed (backlog 50,
+  *STILL OPEN*).
+- **Where.** `packages/configurator-domain/src/validate-design.ts`: `carcassSeatMmOf`,
+  `recordedReachMm`.
+
+### Item 2 — `deriveRecordedColumns` is a sibling pipeline, not `deriveColumns` with the clip moved
+
+*Amendment B records the two-faces rule; this item records why the recorded face is a second
+pipeline.*
+
+- **Rule.** `deriveRecordedColumns` (the recorded face) stays a separate pipeline from `deriveColumns`
+  (the published face). They differ by one stage, `clipEmptyColumnsAtWallEnd`.
+- **Why.** Lifting the clip to the end of `deriveColumns` would let one function serve both faces, and
+  it is not a no-op: the merge is capped at 800 mm (ADR 0052), so a pair the clip narrows below the cap
+  merges where the same pair uncapped declines. "Two pipelines differing by one stage change no
+  published answer; one pipeline with a moved stage changes some."
+- **Where.** `packages/configurator-domain/src/void-engine.ts`: `deriveRecordedColumns`,
+  `deriveColumns`.
+

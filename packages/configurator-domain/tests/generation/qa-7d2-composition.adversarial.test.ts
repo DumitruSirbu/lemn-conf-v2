@@ -30,6 +30,8 @@ import {
   type GenerationCommand,
   type GenerationStep,
 } from "../../src/index.js";
+import { asBeforeAdr0135 } from "../support/before-adr-0135.js";
+import { asBeforeTheCornerUnit } from "../support/before-c2-corner-unit.js";
 import { narrowerEnteredWall } from "../support/entered-walls.js";
 import { twoWallPlanOf } from "../support/two-wall-plan-of.js";
 import {
@@ -38,6 +40,8 @@ import {
   createLeaseLedger,
 } from "../support/fake-probe.js";
 
+/** The wall-only strips' recorded depth before the unit stood over them: the wall cabinet's, 330 at 600. */
+const WALL_STRIP_DEPTH_MM = 330;
 const OCCURRED_AT = "2026-09-11T12:00:00.000Z";
 const CORE_ORDER = ["fridge", "sink", "preparation", "hob"] as const;
 const TALL_BODY_PREFIX = "tall-";
@@ -128,7 +132,7 @@ function isTallColumn(base: { readonly buildId: string }): boolean {
 }
 
 function baseSteps(steps: readonly GenerationStep[]) {
-  return steps.filter((step) => !["upper", "hood"].includes(step.role));
+  return steps.filter((step) => !["upper", "hood", "top"].includes(step.role));
 }
 
 function commandKey(command: GenerationCommand): string {
@@ -557,7 +561,7 @@ describe("7D2 planned shell and leftover invariants", () => {
     },
   );
 
-  it("pins the reference wall-A base intervals and leaves the corner wall band empty", () => {
+  it("pins the reference wall-A base intervals and leaves the corner wall band to the unit alone", () => {
     const result = successful(KITCHEN_L_DESIGN.room);
     const intervalsByRole = ["sink", "preparation", "hob"].map((id) => {
       const step = result.log.steps.find(
@@ -576,14 +580,18 @@ describe("7D2 planned shell and leftover invariants", () => {
       ["preparation", "A", { startMm: 1500, endMm: 2100 }],
       ["hob", "A", { startMm: 2100, endMm: 2700 }],
     ]);
+    // Nothing generated stands in the corner wall band: the one body there is the shell's own corner wall
+    // unit (`p27`, M7C wave C2), which is structural and not a generated upper.
     expect(
-      result.design.placements.filter(
-        (placement) =>
-          placement.wall === "A" &&
-          placement.y0Mm === 1500 &&
-          placementInterval(placement).startMm < 900,
-      ),
-    ).toEqual([]);
+      result.design.placements
+        .filter(
+          (placement) =>
+            placement.wall === "A" &&
+            placement.y0Mm === 1500 &&
+            placementInterval(placement).startMm < 900,
+        )
+        .map((placement) => placement.id),
+    ).toEqual(["p27"]);
   });
 
   it.each([
@@ -633,6 +641,55 @@ describe("7D2 planned shell and leftover invariants", () => {
     });
     const digest = createHash("sha256")
       .update(canonicalSerializeDesign(shell))
+      .digest("hex");
+
+    // 46526a61… → 86f517c1… (M7C wave C2): the corner wall unit's two placements, the X-leg column's
+    // height, and the two wall-only strips that are gone, nothing else. The next test puts them back, and
+    // the one after it the ADR 0135 fields as well (8f1066f1… before both).
+    expect(digest).toBe(
+      "86f517c1250e8145221eba95f28c37d8898090ed3e7f475aed5d9a96ccffcada",
+    );
+  });
+
+  it("differs from the ADR 0135 recording only by the corner wall unit and the strips it covers", () => {
+    const shell = buildLShellDesign({
+      room: KITCHEN_L_DESIGN.room,
+      occurredAt: OCCURRED_AT,
+    });
+    const digest = createHash("sha256")
+      .update(
+        canonicalSerializeDesign(
+          asBeforeTheCornerUnit(
+            JSON.parse(JSON.stringify(shell)) as never,
+            WALL_STRIP_DEPTH_MM,
+            KITCHEN_L_DESIGN.room.heightMm,
+          ) as unknown as Parameters<typeof canonicalSerializeDesign>[0],
+        ),
+      )
+      .digest("hex");
+
+    expect(digest).toBe(
+      "46526a6143d8805327b55da56f6ea85018b878ba8e7a271263aecd079d12ddb9",
+    );
+  });
+
+  it("differs from the 7D1 recording only by the fields ADR 0135 moved", () => {
+    const shell = buildLShellDesign({
+      room: KITCHEN_L_DESIGN.room,
+      occurredAt: OCCURRED_AT,
+    });
+    const digest = createHash("sha256")
+      .update(
+        canonicalSerializeDesign(
+          asBeforeAdr0135(
+            asBeforeTheCornerUnit(
+              JSON.parse(JSON.stringify(shell)) as never,
+              WALL_STRIP_DEPTH_MM,
+              KITCHEN_L_DESIGN.room.heightMm,
+            ),
+          ) as Parameters<typeof canonicalSerializeDesign>[0],
+        ),
+      )
       .digest("hex");
 
     expect(digest).toBe(
@@ -705,11 +762,18 @@ describe("7D2 command and log truth", () => {
           .flatMap((step) => step.commands)
           .map(commandKey),
       );
+      const topInsertKeys = new Set(
+        result.log.steps
+          .filter((step) => step.role === "top")
+          .flatMap((step) => step.commands)
+          .map(commandKey),
+      );
       const phases = result.log.commands.map((command) => {
         const key = commandKey(command);
         if (baseInsertKeys.has(key)) return 0;
         if (resizeKeys.has(key)) return 1;
         if (upperInsertKeys.has(key)) return 2;
+        if (topInsertKeys.has(key)) return 3;
         throw new Error(`unclassified command ${key}`);
       });
       expect(phases).toEqual([...phases].sort());

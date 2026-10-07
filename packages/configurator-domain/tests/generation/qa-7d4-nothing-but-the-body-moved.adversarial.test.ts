@@ -1,31 +1,9 @@
-// M7 wave 7D4 slice S4 — criteria 2 and 21, the two that say *deep-equal to 7D3's*.
-//
-// **Neither can be proved against this wave's own output**, and that is the whole difficulty of the
-// slice. A plan compared with a plan rebuilt from the module that composed it agrees with itself
-// whatever that module does; a width neutrality asserted that way is a tautology wearing a
-// criterion's number. So both properties run against a **recording** of 7D3's composition, captured
-// by restoring this wave's two production modules to their pre-wave bytes and sweeping the same
-// rooms. `tests/support/composed-run-baseline.ts` carries the method and
-// `7d3-composition-baseline.json` carries the result.
-//
-// **What the recording is asked.** Criterion 2: for every room, every planned base's `id`, `role`,
-// `wall`, `startMm`, `endMm` and `widthMm`, the floor widths, the remainders, the dropped list and
-// the chosen wall cut are 7D3's, and the **only** difference anywhere is `buildId`, on the
-// preparation role and on the storage run's own slots. Criterion 21: the wall row is 7D3's to the
-// character — this wave composes no upper at all — and no lift or open shelf stands in any generated
-// design.
-//
-// **What the recording cannot say about the half M7 wave 7D8 moved, and what stands in for it.** The
-// re-key moves 82 of the 240 recorded rooms, and for those the comparison below degenerates into
-// *the digest changed* — which any wrong plan also satisfies. So the moved half is pinned instead:
-// `RE_KEYED_WITNESSES` holds five whole plans, chosen across the shapes those 82 take, and
-// `7d8-re-keyed-baseline.json` records the rest of them for the wave that changes this next.
-//
-// A storage slot is reached through `isComposedStorageSlot` and never through `role === "storage"` or a
-// width: the block's full-height columns carry that role deliberately (ADR 0110 E5.2), and the two
-// naive scopings are wrong on 32.8 % and 14.9 % of placed rooms against output that is right (D12).
+// Criteria 2 and 21 are asserted against a recording of the pre-7D4 composition, never against this module's own
+// output, which would agree with itself whatever the module does (`tests/support/composed-run-baseline.ts`).
+// A storage slot is reached through `isComposedStorageSlot`, never `role === "storage"` or a width: the block's
+// full-height columns carry that role deliberately (ADR 0110 E5.2).
 import { fc } from "@fast-check/vitest";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   BOTTLE_CARGO_BUILD_ID,
@@ -77,30 +55,38 @@ import {
   parseRecordedCanonicalPlan,
   withTheDishwasherTradeUndone,
 } from "../support/pre-width-run-recording.js";
+import { thePlannerBeforeC5 } from "../support/before-c5-fridge-end-leftover.js";
+
+// Tests that compare with a recording of an earlier planner run `thePlannerBeforeC5()` (fridge-end leftover not
+// absorbed); the rest of the file runs the shipped planner.
+vi.mock(
+  "../../src/generation/fridge-end-leftover.js",
+  async (importOriginal) => {
+    const { withTheFridgeEndLeafSwitchable } = await import(
+      "../support/before-c5-fridge-end-leftover.js"
+    );
+    return withTheFridgeEndLeafSwitchable(await importOriginal());
+  },
+);
 
 const OCCURRED_AT = "2026-09-11T12:00:00.000Z";
 const CATALOG = buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN));
 const DECLARED_COLUMNS = declaredColumnSizes(CATALOG);
 const BASELINE = readComposedRunBaseline();
 
-/** Measured at this seed: 209 of the 240 drawn rooms compose a kitchen — 87.1 %, against risk 14's
- *  89.0 % for the same arm under `fc.integer`. The floor **fails** the suite rather than warning, so
- *  a sweep that drifted into refusals cannot report coverage it does not have. */
+/** Fails the suite rather than warning, so a sweep that drifted into refusals cannot report coverage it does not
+ *  have. */
 const PLACED_ROOMS_FLOOR = 200;
 
-/** Every arm below is floored at the hundred samples risk 14's table is written in terms of. */
 const ARM_FLOOR = 100;
 
-/** The two rows the owner ruled out the same day they were planned (D8). Neither has ever been
- *  generated, and criterion 21 exists so the next reader of D8's struck text does not re-add one
- *  without a new dated ruling. */
+/** Rows the owner ruled out; criterion 21 stops a later reader re-adding one without a new dated ruling. */
 const NEVER_GENERATED_UPPERS = ["wall-lift", "open-shelf"];
 
-/** The four recorded witnesses **outside** M7 wave 7D8's re-key: wall A is the wider entered wall in
- *  every one, so criterion 5's *"nothing outside P1 moves"* is what they assert, field by field,
- *  against 7D3's recording. */
+/** Recorded witnesses outside the wider-wall re-key: wall A is the wider entered wall in every one, so every
+ *  field must equal the recording. */
 const UNMOVED_WITNESS_ROOMS: readonly DesignRoom[] = [
-  // Recorded under the pre-7A3 rectangle and kept: the recording is frozen, not the policy (M7 7A3).
+  // The recording is frozen, not the policy: these were recorded under an earlier rectangle policy and are kept.
   { shape: "L", widthMm: 6300, depthMm: 4700, heightMm: 2600 },
   { shape: "L", widthMm: 6300, depthMm: 5100, heightMm: 2600 },
   { shape: "L", widthMm: 5700, depthMm: 4100, heightMm: 2600 },
@@ -108,30 +94,14 @@ const UNMOVED_WITNESS_ROOMS: readonly DesignRoom[] = [
 ];
 
 /**
- * The rooms M7 wave 7D8 **does** move, pinned whole.
- *
- * **The sweep below can only say of these that the digest changed, and any wrong plan says that
- * too.** 82 of the 240 recorded rooms are re-keyed, and the comparison against 7D3's recording turns
- * into an inequality for every one of them — 34 % of the recording, and the half this wave exercised
- * hardest. These pins are what makes the other half of the claim reviewable by a person: not *it
- * moved* but *it moved to this*.
- *
- * **Why pinned rather than derived from the recorded pre-state.** The re-key is not a letter swap.
- * Wall A's run starts at 900 mm and wall B's at 1000, and the two corner reaches differ, so
- * exchanging the walls moves every `startMm` and `endMm` in the plan. A test that computed the
- * post-state from the pre-state would be re-implementing the composer beside it — a tautology with
- * no marker on it, which is worse than the inequality it replaced.
- *
- * **Chosen for shape coverage across the 82**, because 900 x 4700 is the degenerate case: wall A's
- * run is empty there, so it says nothing about a kitchen that stands on both walls. Every room here
- * except that one is drawn by the recorded sweep itself, so what a pin adds is exactly the field
- * detail the digest threw away.
+ * The rooms the wider-wall re-key moves, pinned whole: against the recording they can only be shown unequal, which
+ * any wrong plan also is. Pinned rather than derived from the pre-state, because the re-key moves every `startMm`
+ * and `endMm` (wall A's run starts at 900 mm, wall B's at 1000), so deriving it would re-implement the composer.
+ * 900 x 4700 is the degenerate shape: wall A's run is empty there.
  */
 const RE_KEYED_WITNESSES = [
   {
-    // Two core bodies on the reversed wall, which is the only shape where the reversal is
-    // **visible**: wall A carries sink then fridge from the corner outward, so the run reads fridge
-    // then sink from its free end. A wall carrying one core body is reversed into itself.
+    // A wall carrying one core body reverses into itself, so two is the only shape where the reversal shows.
     name: "the reversed wall carries two core bodies (2289 x 2796)",
     room: { shape: "L", widthMm: 2289, depthMm: 2796, heightMm: 2670 },
     plan: [
@@ -148,19 +118,8 @@ const RE_KEYED_WITNESSES = [
     ],
   },
   {
-    // Composed slots on the narrower wall and the drawer group astride the hob on the wider one.
-    // **Moved from 3367 x 3506 in M7 wave 7D5 S1**, where the bottle took wall B's only slot.
-    //
-    // **Re-pinned in M7 wave 7D5 S2, and the subject it was chosen for has left this room (owner
-    // ruling Q-H6a = A; ADR 0123).** Until S2 wall B's one remaining module after the bottle was the
-    // post-hob drawer slot, so a slot lookup on the wrong letter had somewhere wrong to land here. The
-    // pan drawer now stands immediately before the hob and takes that module, so wall B holds no
-    // composed slot and the post-hob drawer is gone — the rule's own answer, not a regression. No
-    // recorded room can carry that subject any more: its physical-wall-B population is 0 across the
-    // approved policy. It is witnessed past the policy, declared, in `drawer-rows.test.ts` (D15.7,
-    // 4100 x 6100) and `qa-7d8-the-run-follows-the-wider-wall.adversarial.test.ts` (7c). This pin
-    // keeps the room as what it now is: every core module where S1 left it, the pan drawer between
-    // the preparation cabinet and the hob, and the hob and bottle one module further along.
+    // Wall B holds no composed slot: the pan drawer takes the module after the preparation cabinet (ADR 0123).
+    // No recorded room carries that subject any more; it is witnessed in `drawer-rows.test.ts` (D15.7).
     name: "the pan drawer takes wall B's last module (3348 x 3831)",
     room: { shape: "L", widthMm: 3348, depthMm: 3831, heightMm: 2778 },
     plan: [
@@ -169,8 +128,7 @@ const RE_KEYED_WITNESSES = [
       "dropped=",
       "remainder=548/130",
       "floorWidths=600,600,700/600,600,600,600,300",
-      // 7D5b S1 / ADR 0110 M1: was `storage:A:0~storage~base-cabinet~…`. Wall A's first slot from the
-      // corner faces the sink across it, so M1 converts it; span, role and every other line unmoved.
+      // ADR 0110 M1: wall A's first slot faces the sink across the corner, so it is the dishwasher.
       "dishwasher~storage~base-dishwasher~A~900~1500~600",
       "storage:A:1~storage~base-cabinet~A~1500~2100~600",
       "fridge~fridge~fridge-free~A~2100~2800~700",
@@ -182,9 +140,7 @@ const RE_KEYED_WITNESSES = [
     ],
   },
   {
-    // The block, three columns of it, standing at wall B's free end because the run ends there (ADR
-    // 0110 Amendment I) — with the hob carrying drawers instead of its own oven because a tower
-    // stands, and three door slots filling wall A ahead of the fridge.
+    // The hob carries drawers instead of its own oven because a tower stands.
     name: "a three-column block on the wider wall (3849 x 5065)",
     room: { shape: "L", widthMm: 3849, depthMm: 5065, heightMm: 3546 },
     plan: [
@@ -193,8 +149,6 @@ const RE_KEYED_WITNESSES = [
       "dropped=",
       "remainder=448/0",
       "floorWidths=600,600,600,700/600,600,600,300,600,600,764",
-      // 7D5b S1 / ADR 0110 M1: was `storage:A:0~storage~base-cabinet~…`, converted across the corner
-      // as in the room above; nothing else in this plan moved.
       "dishwasher~storage~base-dishwasher~A~900~1500~600",
       "storage:A:1~storage~base-cabinet~A~1500~2100~600",
       "storage:A:2~storage~base-cabinet~A~2100~2700~600",
@@ -209,9 +163,7 @@ const RE_KEYED_WITNESSES = [
     ],
   },
   {
-    // The drop order reached, twice: wall A is 912 mm, which leaves it no run at all, and what wall B
-    // can seat is the sink and the hob. A re-key that moved a *kept* body would show here as a
-    // changed `dropped` list rather than only as a changed position.
+    // A re-key that moved a kept body would show as a changed `dropped` list, not only a changed position.
     name: "two roles dropped and the kitchen at its minimum (912 x 2783)",
     room: { shape: "L", widthMm: 912, depthMm: 2783, heightMm: 3539 },
     plan: [
@@ -226,25 +178,8 @@ const RE_KEYED_WITNESSES = [
     ],
   },
   {
-    // The fifth recorded witness, and the degenerate shape: wall A's run is empty, so the whole
-    // kitchen stands on wall B and the re-key reverses which end of it the run starts at. Two things
-    // follow and both are below.
-    //
-    // 1. **The run turned around.** 7D3 recorded `storage, storage, hob, preparation, sink, fridge`
-    //    from the corner outward; the run now reads from wall A's free end, so the same order stands
-    //    corner-outward as `fridge, sink, preparation, hob, ...`.
-    // 2. **The block followed the run onto wall B** (ADR 0110 Amendment I; 7D8 criterion 10). The hob
-    //    now ends the run on the free-end wall, which is E3's clause 2, so the two modules the
-    //    recording holds as composed storage slots are a tall oven tower and a pantry column — and
-    //    the hob carries drawers instead of its own oven, because a tower stands. Since M7 wave 7D5
-    //    S1 the 300 mm bottle after the hob costs the pantry column and the tower remains.
-    //
-    // **Re-pinned for 7D5b S2 / ADR 0110 M7/M10: this is plan B5's (d) witness.** No door cabinet
-    // stands beside the sink, (b) has no pantry to take, so the dishwasher is traded for the bottle: it
-    // is read directly after the sink, the preparation cabinet, the hob and the tower one module
-    // further along (the tower 300 mm, the bottle's width less), and the freed 300 mm fills the 300 mm
-    // remainder. Was: remainder 0/300, floor widths /700,600,600,600,300,600, preparation 2200-2800,
-    // hob 2800-3400, the bottle 3400-3700 and the tower 3700-4300.
+    // Wall A's run is empty, so the whole kitchen stands on wall B and the re-key reverses where the run starts.
+    // The dishwasher is traded for the bottle (ADR 0110 M7/M10, plan B5 (d)); the hob carries drawers (a tower stands).
     name: "the whole kitchen on one wall (900 x 4700)",
     room: { shape: "L", widthMm: 900, depthMm: 4700, heightMm: 2600 },
     plan: [
@@ -267,16 +202,13 @@ const RE_KEYED_WITNESSES = [
   readonly plan: readonly string[];
 }[];
 
-/** Wall B wider by the length the customer entered — M7 wave 7D8's key, and the only thing that
- *  decides which half of the recording a room belongs to (ADR 0120 Amendment E). */
+/** Wall B wider by the entered length: decides which half of the recording a room belongs to (ADR 0120 Amendment E). */
 function isWallBWider(room: DesignRoom): boolean {
   return widerEnteredWall(room) === "B";
 }
 
-/** Is this a room whose composition 7D8 moved? The re-key runs the reading order along the wider
- *  entered wall, so it reaches every **placed** room where wall B is the wider one and no other: a
- *  room the policy admits but the composer refuses holds no bases to move, and its recorded line is
- *  the same refusal on both sides. */
+/** The re-key reaches every placed room where wall B is wider; a room the composer refuses holds no bases to move,
+ *  and its recorded line is the same refusal on both sides. */
 function reKeyedByWave7D8(
   room: DesignRoom,
   plan: KitchenCompositionPlan,
@@ -316,9 +248,7 @@ function baseRowOf(kitchen: GeneratedKitchen) {
   return kitchen.design.placements.filter((placement) => placement.y0Mm === 0);
 }
 
-/** The wall row's floor as the generated design reports it — the lowest row standing off the floor —
- *  so the suppression rule below reads the boundary back instead of restating a generation-side
- *  constant. */
+/** The wall row's floor as the generated design reports it (the lowest row off the floor), not a restated constant. */
 function wallRowFloorMm(design: Design): number {
   const raised = design.placements
     .map((placement) => placement.y0Mm)
@@ -337,18 +267,13 @@ function declaredHeightMm(buildId: string): number {
   return nominalHeightMm;
 }
 
-/**
- * A witness room's composed plan beside what 7D3 recorded for it, **in whichever of the recording's
- * two forms holds that room**: the whole masked plan for one of the five rooms recorded as a
- * witness, the masked digest for one of the 240 rooms the recorded sweep drew. Either way the right
- * side is the pre-wave capture and never this wave's own output.
- */
+/** A room's composed plan beside the recording's, whichever form holds it: the whole masked plan for a recorded
+ *  witness, the masked digest for a swept room. The right side is always the pre-wave capture. */
 function comparedWithTheRecording(room: DesignRoom): {
   readonly composed: string;
   readonly recorded: string;
 } {
-  // 7D5b S1 / ADR 0110 M1/M8/M9: compared before the dishwasher, so an inequality here is the re-key's
-  // and never the dishwasher's own re-identification.
+  // Compared before the dishwasher, so an inequality here is the re-key's and not the dishwasher's re-identification.
   const plan = planBeforeTheDishwasher(planFor(room));
   if (BASELINE.witnesses.has(roomKey(room))) {
     return {
@@ -366,20 +291,12 @@ function hasPanDrawer(plan: KitchenCompositionPlan): boolean {
   return plan.bases.some((base) => base.buildId === PAN_DRAWER_BODY);
 }
 
-/** One storage module: the pan drawer's width, and so the width of the slot it took. */
 const PAN_DRAWER_WIDTH_MM = 600;
 
 /**
- * **7D5 S2, criterion 2 restated under owner rulings Q-H6b and Q-H6c.** Where the pan drawer stands
- * without the bottle, the plan is 7D3's with exactly one change: a 600 mm pan drawer immediately
- * before the hob, the hob and every slot after it one module further along, and the hob's wall's
- * outermost slot gone to pay for it — never a tall column (Q-H6c), because the bottle gave way
- * instead. This undoes that change and nothing else, so the result hashing to 7D3's recorded digest
- * proves every other field of the plan unmoved; any other difference, or a pan drawer paid for some
- * other way, leaves the digest unequal and the room reported.
- *
- * It reads the hob's wall forward, corner to free end, as the suffix wall is laid out; a hob on the
- * reversed prefix wall would be undone wrongly and reported rather than passed.
+ * Undoes the pan drawer where it stands without the bottle: the hob and every slot after it move one module back and
+ * the door slot that paid for it is restored, so hashing to the recording proves every other field unmoved.
+ * Reads the hob's wall corner to free end; a hob on the reversed wall is undone wrongly and so reported, not passed.
  */
 function withThePanDrawerUndone(plan: KitchenCompositionPlan): {
   readonly plan: KitchenCompositionPlan;
@@ -431,14 +348,8 @@ function withThePanDrawerUndone(plan: KitchenCompositionPlan): {
   };
 }
 
-/**
- * **7D5 S2, criterion 21 restated under Q-H6b and Q-H6c.** The wall row moved in those rooms because
- * the bases beneath it did, and in one way only: 7D3's hood over the hob and upper over the slot after
- * it are now an upper over the pan drawer and the hood one module further along. No upper was added,
- * lost or re-bodied. This swaps that one adjacent pair back — the hood to the pan drawer's opening,
- * the pan drawer's upper renamed to the restored slot's and stood where the hood was — and touches
- * nothing else, so the result hashing to 7D3's recorded row proves every other character unmoved.
- */
+/** Swaps the hood/upper pair the pan drawer moved back, touching nothing else, so hashing to the recorded row
+ *  proves every other character unmoved. */
 function wallRowWithThePanDrawerUndone(
   row: string,
   restoredSlotId: string,
@@ -461,22 +372,18 @@ function wallRowWithThePanDrawerUndone(
  *  wall, then along. */
 const WALL_ROW_ALONG_FIELD = 5;
 
-/** 7D5 S3 / Q-H5: the threshold drawer's and the bottle's planned ids, spelled as literals so a wrong
- *  constant and a wrong composer cannot agree. */
+/** Planned ids and width as literals, so a wrong constant and a wrong composer cannot agree. */
 const THRESHOLD_DRAWER_PLANNED_ID = "threshold-drawer";
 const BOTTLE_PLANNED_ID = "bottle";
 const BOTTLE_WIDTH_MM = 300;
 
-/** The column a threshold drawer's price is paid in: the block's outermost, which beyond the tower is
- *  always a pantry (ADR 0110 E5). */
+/** The column a threshold drawer's price is paid in: the block's outermost, a pantry beyond the tower (ADR 0110 E5). */
 const RESTORED_COLUMN_BODY = "tall-pantry";
 
-/** ADR 0110 E: a block is at most three columns. Q-H5's two prices split on it exactly — over the
- *  approved 10 mm grid the bottle gave way in the 6 195 threshold-drawer rooms whose block is whole,
- *  and a column (3 → 2) in the 9 600 whose block is not (owner's measurement, 2026-09-21). */
+/** ADR 0110 E: a block is at most three columns. The threshold drawer cost the bottle where the block is whole and a
+ *  column where it is not. */
 const WHOLE_BLOCK_COLUMNS = 3;
 
-/** What undoing Q-H5 found in a plan, and the plan 7D5 S2 composed before it. */
 type ThresholdDrawerUndo =
   | { readonly kind: "none"; readonly plan: KitchenCompositionPlan }
   | {
@@ -486,18 +393,9 @@ type ThresholdDrawerUndo =
   | { readonly kind: "unruled"; readonly reason: string };
 
 /**
- * **7D5 S3 / Q-H5 (owner ruling 2026-09-21), criteria 2 and 21 restated.** Where the plain cabinets
- * reach six with fewer than two drawers, one 600 mm `threshold-drawer` stands after the hob — in the
- * bottle's place where that costs no tall column, and otherwise after the bottle at the cost of the
- * block's outermost column. This undoes exactly that and nothing else, returning the plan S2 composed:
- * the drawer removed, and either the 300 mm bottle stood back in its opening with the block drawn
- * 300 mm back toward it, or the block drawn 600 mm back with its outermost column restored. What that
- * plan then goes through is S2's own normalisation, unchanged — so a room S2 would have hashed to
- * 7D3's recording is still hashed, byte for byte.
- *
- * A threshold drawer the ruling does not account for — a second one, one not standing immediately
- * after the hob or the bottle, one not followed directly by the block, or one whose price cannot be
- * restored as one column — is answered `unruled` and reported, never undone.
+ * Undoes the threshold drawer and nothing else: the drawer is removed and either the 300 mm bottle is restored (block
+ * drawn 300 mm back) or the block's outermost column is (block drawn 600 mm back). A drawer the ruling does not
+ * account for is answered `unruled` and reported, never undone.
  */
 function withTheThresholdDrawerUndone(
   plan: KitchenCompositionPlan,
@@ -532,8 +430,8 @@ function withTheThresholdDrawerUndone(
   };
 }
 
-/** The ruling's shape, checked before anything is undone: one drawer, `base-3drawer`, one module wide,
- *  read immediately after the hob or the bottle and immediately before the block, if any. */
+/** The ruling's shape, checked before anything is undone: one `base-3drawer`, one module wide, read directly after
+ *  the hob or the bottle and directly before the block, if any. */
 function whyTheThresholdDrawerIsUnruled(
   plan: KitchenCompositionPlan,
   thresholdDrawers: readonly PlannedGenerationBase[],
@@ -564,8 +462,7 @@ function whyTheThresholdDrawerIsUnruled(
   return undefined;
 }
 
-/** The block's columns on one wall, corner outward: the storage-role modules the catalogue declares
- *  in its `column` band, which excludes the fridge by role. */
+/** The block's columns on one wall, corner outward: storage-role modules in the `column` band (not the fridge). */
 function blockColumnsOn(
   plan: KitchenCompositionPlan,
   wall: PlannedGenerationBase["wall"],
@@ -580,9 +477,8 @@ function blockColumnsOn(
     .sort((left, right) => left.startMm - right.startMm);
 }
 
-/** Q-H5's first price undone: the bottle back in the drawer's opening, and the block drawn back by the
- *  difference with its outermost column at one module. The slack that frees is 300 mm or more, past
- *  E6.2's 200 mm absorb window, so it is the wall's remainder. */
+/** First price undone: the bottle back in the drawer's opening, the block drawn back by the difference. The slack
+ *  freed is 300 mm or more, past E6.2's 200 mm absorb window, so it is the wall's remainder (ADR 0110 E6.2). */
 function withTheBottleRestored(
   plan: KitchenCompositionPlan,
   thresholdDrawer: PlannedGenerationBase,
@@ -625,9 +521,8 @@ function withTheBottleRestored(
   );
 }
 
-/** Q-H5's second price undone: the block drawn back by one module into the drawer's opening, and the
- *  column it cost restored at its outer end — carrying the outermost column's width, which E6.2 lets
- *  absorb the run-end remainder, so the remainder itself does not move. */
+/** Second price undone: the block drawn back one module and its outermost column restored at the outer end. That
+ *  column keeps the outermost column's width, which E6.2 lets absorb the run-end remainder, so it does not move. */
 function withTheOutermostColumnRestored(
   plan: KitchenCompositionPlan,
   thresholdDrawer: PlannedGenerationBase,
@@ -677,25 +572,15 @@ function withFloorWidthsRecomputed(
   };
 }
 
-/** 7D5 S3 / Q-H5, criterion 21: where a column paid for the threshold drawer, the wall row gained
- *  exactly the drawer's own upper and nothing else — the column it cost reached the wall row and
- *  stood none. This removes that one step, so the result hashing to 7D3's recorded row (through S2's
- *  pan-drawer swap where one stands) proves every other character unmoved. */
-// ---------------------------------------------------------------------------------------------
-// 7D5b S1 / ADR 0110 M1/M8/M9 — the dishwasher, undone before anything else is compared.
-// ---------------------------------------------------------------------------------------------
-
-/** The dishwasher's planned id and body, literals so a wrong constant and a wrong leaf cannot agree. */
+/** Literals, so a wrong constant and a wrong leaf cannot agree. */
 const DISHWASHER_PLANNED_ID = "dishwasher";
 const DISHWASHER_BODY = "base-dishwasher";
 const PAN_DRAWER_PLANNED_ID = "pan-drawer";
 const PREPARATION_PLANNED_ID = "preparation";
 const COMPOSED_SLOT_ID_PREFIX = "storage:";
 
-/** What undoing the dishwasher found, the plan without it, and the planned ids it renamed (the id the
- *  plan carries now → the id it carried before S1), which the wall row's step ids follow. 7D5b S2 /
- *  ADR 0110 M7/M10: a traded dishwasher is undone too, and each module it moved carries its shift
- *  along the wall (now minus before), which the uppers over it follow. */
+/** What undoing the dishwasher found. `renamedIds` maps the id the plan carries now to the id it carried before;
+ *  `shiftedMm` is each traded module's shift along the wall (now minus before), which the uppers over it follow. */
 type DishwasherUndo =
   | {
       readonly kind:
@@ -712,19 +597,14 @@ type DishwasherUndo =
   | { readonly kind: "unruled"; readonly reason: string };
 
 /**
- * **7D5b S1 / ADR 0110 M1/M8/M9, criteria 2 and 21 restated.** The dishwasher is a re-identification
- * and never a width change, so undoing it touches identity only:
+ * Undoes the dishwasher, identity only (ADR 0110 M1/M8/M9):
  *
- * - **M1** — a 600 mm composed door slot beside the sink became `dishwasher`. It goes back to
- *   `base-cabinet` under the slot id it had: `storage:<wall>:<n>`, where *n* counts the composed
- *   slots standing before it on its wall from the corner, as the storage run numbers them.
- * - **M7(e)** — the preparation 3-drawer beside the sink became `dishwasher` and the pan drawer beyond
- *   it took the preparation id and role (M9). The dishwasher goes back to the preparation 3-drawer,
- *   and the pan drawer back to `pan-drawer`, role `storage`, still `base-panbank`.
+ * - **M1** — the composed 600 mm door slot beside the sink goes back to `base-cabinet` under `storage:<wall>:<n>`,
+ *   where *n* counts the composed slots before it on its wall from the corner.
+ * - **M7(e)** — the dishwasher goes back to the preparation 3-drawer and the pan drawer to `pan-drawer`, role
+ *   `storage`, still `base-panbank`.
  *
- * Every span, remainder and floor width is left as composed: the result hashing to the recording is
- * what proves S1 moved nothing else. A dishwasher the rulings do not account for — a second one, one
- * at another width or role, one not beside the sink — is answered `unruled` and reported.
+ * Spans, remainders and floor widths stay as composed. A dishwasher the rulings do not account for is `unruled`.
  */
 function withTheDishwasherUndone(plan: KitchenCompositionPlan): DishwasherUndo {
   const dishwashers = plan.bases.filter(
@@ -741,8 +621,8 @@ function withTheDishwasherUndone(plan: KitchenCompositionPlan): DishwasherUndo {
   if (preparation?.buildId === PAN_DRAWER_BODY) {
     return withTheDrawerSwapUndone(plan, { dishwasher, preparation });
   }
-  // 7D5b S2 / ADR 0110 M7/M10: a dishwasher read directly after the sink on the hob's wall is a
-  // trade, never M1's converted slot; it is undone to S1's plan, where S1 stood none.
+  // A dishwasher read directly after the sink on the hob's wall is a trade (ADR 0110 M7/M10), never M1's converted
+  // slot; it is undone to the plan before the trade.
   const arm = dishwasherArmOf(plan);
   if (arm === "(b)" || arm === "(d)" || arm === "(c)") {
     const traded = withTheDishwasherTradeUndone(plan);
@@ -866,10 +746,9 @@ function withTheDrawerSwapUndone(
   };
 }
 
-/** Criterion 21's half of the undo: an upper's step id names the base it stands over, so every upper
- *  over a renamed base takes the name that base had. Renamed simultaneously, since (e) swaps two.
- *  7D5b S2 / ADR 0110 M7/M10: a traded dishwasher's own upper goes with it, and every upper or hood
- *  over a module the trade moved is drawn back by that module's shift; nothing else is touched. */
+/** An upper's step id names the base it stands over, so every upper over a renamed base takes the name that base had,
+ *  renamed simultaneously since (e) swaps two. A traded dishwasher's upper goes with it, and every upper or hood over
+ *  a module the trade moved is drawn back by that module's shift. */
 function wallRowWithTheDishwasherUndone(
   row: string,
   undo: {
@@ -904,10 +783,9 @@ function drawnBackAlong(step: string, shiftedMm: number): string {
   return fields.join("~");
 }
 
-/** E1's threshold as the owner stated it (ADR 0110 wave 7D5, Q-H5): the plain cabinets — composed
- *  slots, the pan drawer and the threshold drawer — reach six with fewer than two drawers among them.
- *  Asked of a plan with its dishwasher undone, it names the rooms where 7D5 S3 stood a threshold
- *  drawer and M2's *"dishwasher first"* now withholds it. */
+/** E1's threshold: the plain cabinets (composed slots, pan drawer, threshold drawer) reach six with fewer than two
+ *  drawers. Asked of a plan with its dishwasher undone, it names the rooms where M2's dishwasher-first withholds the
+ *  threshold drawer (ADR 0110 M2). */
 const LARGE_RUN_PLAIN_CABINET_COUNT = 6;
 const LARGE_RUN_DRAWER_COUNT = 2;
 
@@ -931,8 +809,7 @@ function wouldHaveStoodAThresholdDrawer(
   );
 }
 
-/** The plan as S2/S3 composed it, before S1's dishwasher, with the undo's own verdict. Throws on an
- *  unruled dishwasher only where the caller has nowhere to report it (the named witnesses). */
+/** The plan before the dishwasher. Throws on an unruled dishwasher, for callers with nowhere to report it. */
 function planBeforeTheDishwasher(
   plan: KitchenCompositionPlan,
 ): KitchenCompositionPlan {
@@ -941,6 +818,8 @@ function planBeforeTheDishwasher(
   return undone.plan;
 }
 
+/** Criterion 21: where a column paid for the threshold drawer, the wall row gained exactly the drawer's own upper;
+ *  removing that step proves every other character unmoved. */
 function wallRowWithTheThresholdDrawerUndone(row: string): string {
   return row
     .split("|")
@@ -950,18 +829,10 @@ function wallRowWithTheThresholdDrawerUndone(row: string): string {
 
 describe("criterion 2 — this wave moves a body's identity and nothing else", () => {
   it("composes 7D3's plan to the millimetre wherever 7D8 did not re-key the run", () => {
-    // **This is the comparison working, not the recording going stale, and the split is the whole
-    // assertion.** M7 wave 7D8 keyed the reading order onto the wider entered wall, which moves the
-    // plan in the rooms where wall B is wider — 82 395 placed rooms, 38.95 % — and in **no** other
-    // room: criterion 5 states it as *"nothing outside P1 moves"*, 0 field differences over the
-    // 129 156 rooms of P2 and P3. So this sweep asserts both halves against the same recording. A
-    // recording re-taken from this wave's own output would make the whole comparison a tautology and
-    // is what `composed-run-baseline.ts`'s header exists to forbid.
-    //
-    // **The outcome is collected and asserted after the sweep rather than inside it**, because the
-    // recording is keyed by room: a failing property shrinks toward small rooms, and the first room
-    // the shrinker reaches that the capture never saw throws *"the baseline holds no room"* over the
-    // top of the real counterexample.
+    thePlannerBeforeC5();
+    // Both halves of the re-key are asserted against the same recording: rooms where wall B is wider move, no other
+    // room does. The outcome is collected and asserted after the sweep: a failing property shrinks toward rooms the
+    // capture never saw, and `recordedRoom` throwing there would mask the real counterexample.
     const arms = { outsideTheReKey: 0, moved: 0, wallBWiderButRefused: 0 };
     const unexpected: string[] = [];
     let placed = 0;
@@ -985,16 +856,13 @@ describe("criterion 2 — this wave moves a body's identity and nothing else", (
       fc.property(recordedLRoom(), (room) => {
         const composedPlan = planFor(room);
         if (composedPlan.minimumMet) placed += 1;
-        // 7D5 S3 / Q-H5: the threshold drawer is undone first, returning S2's plan — which the rest of
-        // this property then normalises exactly as it did before S3. See `withTheThresholdDrawerUndone`.
         const undone = withTheThresholdDrawerUndone(composedPlan);
         if (undone.kind === "unruled") {
           unexpected.push(`${roomKey(room)} ${undone.reason}`);
           return;
         }
-        // 7D5b S1 / ADR 0110 M1/M8/M9: then the dishwasher, identity only — see
-        // `withTheDishwasherUndone`. M2's re-plan needs no undo of its own: deciding the dishwasher
-        // first only withholds threshold drawers, and a withheld drawer leaves S2's plan standing.
+        // M2's re-plan needs no undo of its own: deciding the dishwasher first only withholds threshold drawers,
+        // and a withheld drawer leaves the earlier plan standing (ADR 0110 M2).
         const dishwasherUndo = withTheDishwasherUndone(undone.plan);
         if (dishwasherUndo.kind === "unruled") {
           unexpected.push(`${roomKey(room)} ${dishwasherUndo.reason}`);
@@ -1041,8 +909,6 @@ describe("criterion 2 — this wave moves a body's identity and nothing else", (
             unexpected.push(`${roomKey(room)} invalid drawer identity`);
           }
         } else {
-          // 7D5 S2 / Q-H6b / Q-H6c: a pan drawer standing without the bottle is undone before the
-          // comparison, and only that — see `withThePanDrawerUndone`.
           const standsAPanDrawer = hasPanDrawer(plan);
           if (standsAPanDrawer && movedByTheReKey) panDrawerUndone.moved += 1;
           else if (standsAPanDrawer) panDrawerUndone.outsideTheReKey += 1;
@@ -1065,9 +931,8 @@ describe("criterion 2 — this wave moves a body's identity and nothing else", (
 
     expect(unexpected).toEqual([]);
     expect(placed).toBeGreaterThanOrEqual(PLACED_ROOMS_FLOOR);
-    // **The draw is fixed by the recording — the same seed and the same 240 runs — so the split is
-    // asserted exactly rather than floored.** A room the capture never saw makes `recordedRoom`
-    // throw, so a generator that drifted fails this file loudly whatever a floor said.
+    // The draw is the recording's, so the split is asserted exactly; a room the capture never saw makes
+    // `recordedRoom` throw.
     expect(arms).toEqual({
       outsideTheReKey: 135,
       moved: 82,
@@ -1075,36 +940,16 @@ describe("criterion 2 — this wave moves a body's identity and nothing else", (
     });
     expect(bottleNormalized).toBeGreaterThan(0);
     expect(bottleWithDrawer).toBeGreaterThan(0);
-    // 7D5 S2 (Q-H6b / Q-H6c): the rooms whose pan drawer stands without the bottle, all of them
-    // reached — 12 of this draw outside the re-key, whose undone plan must hash to 7D3's, and 7 inside
-    // it, whose undone plan must still differ. Exact, because the draw is the recording's.
     expect(panDrawerUndone).toEqual({ outsideTheReKey: 12, moved: 7 });
-    // 7D5 S3 / Q-H5: the eight threshold-drawer rooms of this draw, all outside the re-key. With the
-    // drawer undone the S2 split above is exactly what it was — the two where a column gave way and
-    // no bottle stands are among the 12, and now hash to 7D3's recording through the pan-drawer undo;
-    // the six others stand a bottle again and take the bottle branch, as they did at S2.
-    //
-    // **7D5b S1 / ADR 0110 M2 re-plans all eight of them, and the undo above is no longer reached in
-    // this draw.** Was `{ bottleGaveWay: 4, columnGaveWayBesideTheBottle: 2, columnGaveWayWithoutIt:
-    // 2 }`. Each of the eight had *D* exactly six with one drawer; M1 converts a door slot beside the
-    // sink in every one, *D* excludes the dishwasher (M2), so *D* is five and the drawer is withheld —
-    // and a withheld drawer leaves S2's plan, which then hashes to 7D3's through the dishwasher undo.
-    // The eight are counted back below from the undone plan, so this zero cannot be an empty draw.
+    // M2 re-plans every threshold-drawer room of this draw, so the undo is never reached here; the count below
+    // proves the zero is not an empty draw (ADR 0110 M2).
     expect(thresholdDrawerUndone).toEqual({
       bottleGaveWay: 0,
       columnGaveWayBesideTheBottle: 0,
       columnGaveWayWithoutIt: 0,
     });
     expect(thresholdDrawersWithheldByM2).toBe(8);
-    // 7D5b S1 / ADR 0110 M1/M8/M9: 119 of the 209 placed rooms stand a dishwasher — 87 by M1's
-    // converted door slot and 32 by M7(e)'s drawer swap — and every one undoes, identity only, to a
-    // plan that hashes to 7D3's recording (or, re-keyed, still differs from it). Exact: the draw is
-    // the recording's.
-    // 7D5b S2 / ADR 0110 M7/M10: 29 more stand a traded dishwasher — (b) 14, (d) 2, (c) 13 — and each
-    // is undone to S1's plan (the dishwasher out, the sink's wall drawn back 600 mm, the one body it
-    // gave up restored), which then takes the same path S1's plan took. The four bottle-less (c) rooms
-    // outside the re-key (4289 x 1004 x 3896 among them) hash to 7D3's recording byte for byte. Was
-    // `{ doorCabinet: 87, drawerSwap: 32 }`.
+    // Arms (b), (d) and (c) are the dishwasher trades of ADR 0110 M7/M10.
     expect(dishwasherUndone).toEqual({
       doorCabinet: 87,
       drawerSwap: 32,
@@ -1117,8 +962,6 @@ describe("criterion 2 — this wave moves a body's identity and nothing else", (
   it.each(UNMOVED_WITNESS_ROOMS)(
     "renders back to 7D3's own plan once the door body is restored, in %o",
     (room) => {
-      // 7D5b S1 / ADR 0110 M1/M8/M9: the dishwasher is undone first (identity only), so the door body
-      // is restored over the plan S1 re-identified. Was `planFor(room)` directly.
       const plan = planBeforeTheDishwasher(planFor(room));
       if (plan.bases.some((base) => base.buildId === BOTTLE_CARGO_BUILD_ID)) {
         const recorded = parseRecordedCanonicalPlan(
@@ -1157,11 +1000,8 @@ describe("criterion 2 — this wave moves a body's identity and nothing else", (
             .sort(),
         );
       } else {
-        // The sweep above says a plan is unchanged; this says **what changed and to what**, field by
-        // field, at the rooms this wave's rulings name. Restoring the door body to the two modules the
-        // wave may re-body must reproduce 7D3's recorded plan exactly — which proves in one assertion
-        // that no other field moved, that no other build id moved, and that both modules were door
-        // cabinets before this wave.
+        // Restoring the door body to the two modules the wave may re-body must reproduce the recorded plan exactly,
+        // so no other field or build id moved.
         expect(canonicalPlanWithTheDoorBodyRestored(plan)).toBe(
           recordedWitness(BASELINE, room),
         );
@@ -1172,14 +1012,9 @@ describe("criterion 2 — this wave moves a body's identity and nothing else", (
   it.each(UNMOVED_WITNESS_ROOMS)(
     "leaves every block column and the hob exactly as 7D3 composed them, in %o",
     (room) => {
-      // Criterion 2 names these separately and D12 says why: a block column carries `role: "storage"`
-      // deliberately, so a rule that reached its subject by role would sweep the block in and read
-      // 7D3's correct output as this wave's defect. Each module the wave may **not** move is looked
-      // for in 7D3's recording with all seven of its fields at once.
-      //
-      // 7D5b S1 / ADR 0110 M1/M8/M9: read over the plan with its dishwasher undone. The dishwasher is
-      // not a module `isMovedByThisWave` names, so read raw it is sought in 7D3's recording under an id
-      // 7D3 never composed; undone, it is the door slot it was.
+      // A block column carries `role: "storage"` deliberately, so a rule reaching its subject by role would sweep
+      // the block in. The dishwasher is undone first: read raw, it is sought in the recording under an id the
+      // recording never composed.
       const plan = planBeforeTheDishwasher(planFor(room));
       if (plan.bases.some((base) => base.buildId === BOTTLE_CARGO_BUILD_ID)) {
         const recorded = parseRecordedCanonicalPlan(
@@ -1217,15 +1052,8 @@ describe("criterion 2 — this wave moves a body's identity and nothing else", (
   it.each(UNMOVED_WITNESS_ROOMS)(
     "moves a body at all, and only in a module it is allowed to, in %o",
     (room) => {
-      // Without this the two assertions above pass over a wave that composed nothing: an empty
-      // change also renders back to 7D3's plan.
-      //
-      // **The second assertion is here because the first one alone was measured green under
-      // sabotage.** With `THREE_DRAWER_BASE_BUILD_ID` set to the door id — one line in
-      // `body-choice.ts`, and a wave that composes no drawer anywhere — a count of modules *whose
-      // body equals that constant* is every door cabinet in the run, and this test passed. A guard
-      // that reads the thing it guards out of the constant it is checking proves only that the
-      // constant equals itself.
+      // An empty change also renders back to the recorded plan, so the drawers must exist. The constant must differ
+      // from the door id: a count of bodies equal to it is every door cabinet if it is set to the door id.
       const drawers = planFor(room).bases.filter(
         (base) => base.buildId === THREE_DRAWER_BASE_BUILD_ID,
       );
@@ -1241,14 +1069,8 @@ describe("criterion 2 — this wave moves a body's identity and nothing else", (
   it.each(RE_KEYED_WITNESSES)(
     "composes the re-keyed plan whole, with $name",
     ({ room, plan }) => {
-      // Pinned with real build ids and no masking, so a later wave that moves one of these rooms
-      // again has to say so here. `canonicalPlanWithTheDoorBodyRestored` is deliberately **not**
-      // used: the masking that makes the recording comparable across 7D4's body change would hide
-      // half of what these witnesses exist to show.
-      //
-      // **Re-pinned for M7 wave 7D5 S1.** Every core module stands exactly where 7D8 pinned it; the
-      // only change is the 300 mm bottle immediately after the hob, paid for by the run-end
-      // remainder, a storage slot, or a block column (ADR 0120 Amendment E keeps the cut).
+      // Real build ids, unmasked: the door-body masking that makes the recording comparable would hide half of what
+      // these witnesses show.
       expect(canonicalPlan(planFor(room)).split("|")).toEqual(plan);
     },
   );
@@ -1256,7 +1078,6 @@ describe("criterion 2 — this wave moves a body's identity and nothing else", (
   it.each(RE_KEYED_WITNESSES)(
     "moved against 7D3's recording rather than agreeing with it, with $name",
     ({ room }) => {
-      // The assertion that keeps each pin above from being satisfiable by a wave that did nothing.
       const { composed, recorded } = comparedWithTheRecording(room);
 
       expect(composed).not.toBe(recorded);
@@ -1264,28 +1085,8 @@ describe("criterion 2 — this wave moves a body's identity and nothing else", (
   );
 
   it("sweeps rooms that hold composed slots, block columns and storage on both walls", () => {
-    // The recording proves nothing about rooms it never reached. Measured at this seed over the 240
-    // drawn rooms before M7 wave 7D8: composed slots in 127, a block in 112, wall-B storage in 105.
-    //
-    // **The wall-B storage arm now measures 62 in this draw, and the hundred it owes has moved
-    // rather than been given up.** The re-key turns composed slots on wall B into block columns
-    // wherever wall B is the wider wall, so the arm thinned — and this draw **cannot** be widened to
-    // compensate, because the seed and run count are the recording's and re-taking the recording
-    // from this wave's own output is what criterion 11 forbids. Under ADR 0091 Amendment A the
-    // sample floor is asserted where the population still lives, at full strength and against a
-    // deterministic grid rather than a draw:
-    // `qa-7d8-the-run-follows-the-wider-wall.adversarial.test.ts`, *stands every composed drawer on
-    // the wider entered wall* — 8 615 swept plans, 2 343 composing a drawer, and at least 100 of
-    // them holding a composed slot on each wall. (Since M7 wave 7D5 S2 that hundred is held over a
-    // declared band past the policy, because no admitted room keeps it — ADR 0123; see 7c there.)
-    // What is asserted here is the exact split of this fixed draw, which is a stronger statement
-    // about the recording's reach than a floor was.
-    //
-    // **M7 wave 7D5 S1 moves it from 62 to 59, and only by the bottle's own cost.** Where the 300 mm
-    // cargo after the hob is paid for by wall B's one composed slot the arm loses that room; where it
-    // is paid for by a block column the leftover can seat a slot and the arm gains one. No core role
-    // changes wall or position in this draw (checked against `7d8-re-keyed-baseline.json` and
-    // `7d5-pre-width-baseline.json`), because the bottle is appended only where the core's cut holds.
+    // The draw cannot be widened (seed and run count are the recording's), so the wall-B composed-slot sample floor
+    // is asserted in `qa-7d8-the-run-follows-the-wider-wall.adversarial.test.ts` (ADR 0123) and the exact split here.
     const arms = {
       composedSlots: 0,
       composedSlotsBeforeTheDishwasher: 0,
@@ -1323,25 +1124,12 @@ describe("criterion 2 — this wave moves a body's identity and nothing else", (
       { numRuns: BASELINE_RUNS, seed: BASELINE_SEED },
     );
 
-    // **M7 wave 7D5 S2 (Q-H6a = A; ADR 0123) moves two of these, and only by the pan drawer's own
-    // cost.** The pan drawer before the hob spends one 600 mm module of the hob's wall, and where that
-    // module was a room's last composed slot the room leaves the arm: composed slots 110 at 7D5 S1 →
-    // 91 in this draw, wall-B storage 59 → 55 (both measured against S1's source). The draw cannot be widened (it is the recording's), so the composed-slot
-    // hundred is re-sited rather than lowered: it is asserted at full strength over the policy-wide
-    // 1 000-run draw in `qa-7d4-composed-bodies.adversarial.test.ts`, *gives every other composed slot
-    // the door body* (two or more slots, at least 100). What is asserted here is this fixed draw's
-    // exact reach, as the wall-B arm already was.
-    //
-    // **7D5b S1 / ADR 0110 M1 moves it again, 91 → 70, and only by the dishwasher's own conversion.**
-    // In 21 rooms of this draw the storage run's one composed slot is the 600 mm door cabinet beside
-    // the sink — across the corner, or along the sink's wall — and M1 re-identifies it as the
-    // dishwasher, so the room holds no composed slot any more. The second number proves it: with the
-    // dishwasher undone the arm is S2's 91 again, so no slot was lost any other way.
+    // Exact counts of this fixed draw. The composed-slot sample floor is asserted over the policy-wide draw in
+    // `qa-7d4-composed-bodies.adversarial.test.ts`. The dishwasher's conversion (ADR 0110 M1) is the only slot lost:
+    // with it undone the count returns to its earlier value.
     expect(arms.composedSlots).toBe(70);
     expect(arms.composedSlotsBeforeTheDishwasher).toBe(91);
     expect(arms.blockColumns).toBeGreaterThanOrEqual(ARM_FLOOR);
-    // 7D5b S1 / ADR 0110 M1: 55 → 45 for the same reason — in ten rooms wall B's only composed slot is
-    // the one beside the sink — and 55 again with the dishwasher undone.
     expect(arms.wallBStorage).toBe(45);
     expect(arms.wallBStorageBeforeTheDishwasher).toBe(55);
   });
@@ -1349,11 +1137,9 @@ describe("criterion 2 — this wave moves a body's identity and nothing else", (
 
 describe("criterion 21 — the wall row is asserted, not composed", () => {
   it("reproduces 7D3's wall row character for character wherever 7D8 did not re-key", () => {
-    // Criterion 21 asked that **no** character of the wall row moved, and it still asks that of
-    // every room outside M7 wave 7D8's re-key. Inside it the row follows the bases it stands over:
-    // the run turned around, so the openings did. **The split is asserted, not the aggregate** — a
-    // wall row that changed in a room where the floor did not is this wave composing an upper, which
-    // it must never do.
+    thePlannerBeforeC5();
+    // Outside the re-key no character of the wall row moves; inside it the row follows the bases. A row that changed
+    // where the floor did not means a body composed an upper.
     const arms = { outsideTheReKey: 0, moved: 0, refused: 0 };
     const unexpected: string[] = [];
     let withUppers = 0;
@@ -1370,14 +1156,12 @@ describe("criterion 21 — the wall row is asserted, not composed", () => {
             unexpected.push(`${roomKey(room)} refused`);
           return;
         }
-        // 7D5 S3 / Q-H5: S2's plan first, as in criterion 2's sweep above.
         const undone = withTheThresholdDrawerUndone(twoWallPlanOf(kitchen.log));
         if (undone.kind === "unruled") {
           unexpected.push(`${roomKey(room)} ${undone.reason}`);
           return;
         }
-        // 7D5b S1 / ADR 0110 M1/M8/M9: then the dishwasher, as in criterion 2's sweep. Its upper names
-        // the base beneath it, so the row takes the renamed ids back below; nothing else in it moves.
+        // The dishwasher's upper names the base beneath it, so the row takes the renamed ids back below.
         const dishwasherUndo = withTheDishwasherUndone(undone.plan);
         if (dishwasherUndo.kind === "unruled") {
           unexpected.push(`${roomKey(room)} ${dishwasherUndo.reason}`);
@@ -1407,10 +1191,8 @@ describe("criterion 21 — the wall row is asserted, not composed", () => {
             );
           }
         } else {
-          // 7D5 S2 / Q-H6b / Q-H6c: where the pan drawer stands without the bottle the wall row moved
-          // with the bases beneath it, and only so — see `wallRowWithThePanDrawerUndone`.
-          // 7D5 S3 / Q-H5: only a column-paid threshold drawer reaches this branch — where the bottle
-          // gave way it stands again above — and its one upper is removed before S2's swap.
+          // Only a column-paid threshold drawer reaches this branch (where the bottle gave way it stands again
+          // above); its one upper is removed before the pan-drawer swap.
           const standsAThresholdDrawer = undone.kind === "columnGaveWay";
           if (standsAThresholdDrawer) thresholdDrawerRowsUndone += 1;
           if (dishwasherUndo.kind !== "none") dishwasherRowsUndone += 1;
@@ -1448,18 +1230,9 @@ describe("criterion 21 — the wall row is asserted, not composed", () => {
 
     expect(unexpected).toEqual([]);
     expect(withUppers).toBeGreaterThanOrEqual(PLACED_ROOMS_FLOOR);
-    // Exact, for the reason the sibling sweep above gives: the draw is fixed by the recording.
     expect(arms).toEqual({ outsideTheReKey: 127, moved: 82, refused: 31 });
-    // 7D5 S2: the same 12 + 7 pan-drawer-without-bottle rooms as criterion 2's sweep above.
     expect(panDrawerRowsUndone).toBe(19);
-    // 7D5 S3 / Q-H5: criterion 2's two column-paid, bottle-less threshold-drawer rooms — **0 since
-    // 7D5b S1**: M2 withholds every threshold drawer of this draw (see criterion 2's sweep). Was 2.
     expect(thresholdDrawerRowsUndone).toBe(0);
-    // 7D5b S1 / ADR 0110 M1/M8/M9: bottle-less rooms whose row was compared with its dishwasher undone.
-    // Exact, the draw being the recording's: 24 of the rooms outside the bottle branch stand one.
-    // 7D5b S2 / ADR 0110 M7/M10: 24 -> 28. The four bottle-less (c) rooms of criterion 2's sweep are
-    // compared with the trade undone: the dishwasher's upper removed and every upper and hood over
-    // the moved modules drawn back 600 mm, and each row then hashes to 7D3's.
     expect(dishwasherRowsUndone).toBe(28);
   });
 
@@ -1489,7 +1262,6 @@ describe("criterion 21 — the wall row is asserted, not composed", () => {
 
     expect(hoods).toBeGreaterThanOrEqual(PLACED_ROOMS_FLOOR);
     // The fridge and the block's columns are what reach it, counted per body rather than per room.
-    // Measured at this seed: 458 across the 209 composed kitchens.
     expect(bodiesReachingTheWallRow).toBeGreaterThanOrEqual(ARM_FLOOR);
   });
 
@@ -1519,9 +1291,8 @@ describe("criterion 21 — the wall row is asserted, not composed", () => {
   });
 
   it("logs a refused upper as not placed and removes nothing beneath it", () => {
-    // The one clause of criterion 21 no sweep with an accepting probe can reach. The probe refuses
-    // every body the **catalogue** declares in the wall band rather than two named ids, so a wall
-    // row that gained a third body would still be refused here.
+    // The one clause of criterion 21 no accepting-probe sweep reaches. The probe refuses every body the catalogue
+    // declares in the wall band, so a third wall-row body would still be refused.
     const ordinary = generated(KITCHEN_L_DESIGN.room);
     const ledger = createLeaseLedger();
     const refusingEveryUpper: BodyProbeFactory = (cabinetDepthMm) => {

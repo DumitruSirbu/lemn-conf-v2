@@ -1,11 +1,10 @@
-// M7 wave 7D5b slice S2 — the dishwasher's trades (ADR 0110 Amendment M7 (b), (d), (c), in M10's
-// precedence). Where S1's leaf found no module beside the sink to convert, the dishwasher is traded in
-// for exactly one body the run gives up: a pantry column, the bottle, or last of all the oven tower.
+// The dishwasher's trades (ADR 0110 Amendment M7 (b), (d), (c), in M10's precedence). Where no module
+// beside the sink can convert, the dishwasher is traded in for exactly one body the run gives up: a
+// pantry column, the bottle, or last of all the oven tower.
 //
-// `optional-run-items.ts` calls this once its pan drawer and bottle are decided and before its
-// threshold drawer (M2, *"dishwasher first"*). The composer's `planOf` arrives through the context and
-// the bottle-free run arrives from the caller, which owns the bottle, so this module imports neither
-// the composer nor the optional items.
+// `optional-run-items.ts` calls this once its pan drawer and bottle are decided and before its threshold
+// drawer. The composer's `planOf` arrives through the context and the bottle-free run from the caller,
+// which owns the bottle, so this module imports neither the composer nor the optional items.
 
 import { BOTTLE_CARGO_BUILD_ID } from "./body-choice.js";
 import {
@@ -41,15 +40,12 @@ export interface DishwasherTradeRuns {
 const SINK_ROLE: GenerationRunItem["role"] = "sink";
 
 /**
- * **ADR 0110 Amendment M7 (b), (d), (c), in M10's precedence** — wave 7D5b S2. Where the plan S1's leaf
- * leaves has no dishwasher (no free door cabinet beside the sink, and no (e) swap), the owner allows it
- * to push out, in order, a pantry column, the bottle, and last of all the oven tower: *"dishwasher
- * should replace a oven tower if there is no place to keep both and only if hub is with oven"*. M10's
- * order is a coordinator ruling the owner may overturn. The first trade that fits in place and gives up
- * exactly the body its ruling names is taken; where none does the run is unchanged, and the kitchen goes
- * without (omission, as in S1). The fridge and the core roles are never offered: every candidate
- * inserts on the run's own cut, so each keeps its wall (the in-place construction of ADR 0120
- * Amendment E).
+ * ADR 0110 Amendment M7 (b), (d), (c), in M10's precedence. Where the plan has no dishwasher (no free
+ * door cabinet beside the sink, and no (e) swap), it may push out, in order, a pantry column, the
+ * bottle, and last the oven tower, and only where the hob then takes the oven. The first trade that fits in
+ * place and gives up exactly the body its ruling names is taken; where none does the run is unchanged
+ * and the kitchen goes without. The fridge and the core roles are never offered: every candidate
+ * inserts on the run's own cut, so each keeps its wall.
  */
 export function withTheDishwasherTradedIn(
   context: DishwasherTradeContext,
@@ -130,10 +126,9 @@ const THE_BOTTLE: RuledLoss = {
   isTheHobSwapped: false,
 };
 
-/** **(c) the oven tower, the last resort** (ADR 0110 M7(c), M10, M12). Owner: *"dishwasher should
- *  replace a oven tower if there is no place to keep both and only if hub is with oven"*. The tower
- *  alone — a pantry outboard of it would go too, and is refused — and the hob takes its own oven, so
- *  the kitchen keeps at least one. */
+/** **(c) the oven tower, the last resort** (ADR 0110 M7(c), M12), only where the hob then takes the oven. The
+ *  tower alone (a pantry outboard of it would go too, and is refused); the hob takes its own oven, so
+ *  the kitchen keeps one. */
 const THE_OVEN_TOWER: RuledLoss = {
   buildId: OVEN_TOWER_BUILD_ID,
   isTheHobSwapped: true,
@@ -156,13 +151,12 @@ function dishwasherTradesInPrecedence(
 }
 
 /**
- * **The one test every trade is held to** (ADR 0110 M7, and M8's narrowed D7: no drawer cabinet is
- * given up). Wall by wall, the traded kitchen stands every body the kitchen without it stood, save
- * exactly one of the ruled body — nothing else lost, nothing gained but the dishwasher — and its hob's
- * body changes exactly where the ruling says. Keyed on the wall as well as the body, so a door cabinet
- * that pays the 600 mm on the sink's wall, or moves to the other wall, is a cost the ruling never named.
- * The dishwasher is left out of the body count in both plans, so its presence in the traded one is
- * asserted on its own.
+ * The one test every trade is held to (ADR 0110 M7; no drawer cabinet is given up, M8 D7). Wall by
+ * wall, the traded kitchen stands every body the kitchen without it stood save exactly one of the ruled
+ * body, and its hob's body changes exactly where the ruling says. Keyed on the wall as well as the
+ * body, so a door cabinet that pays the 600 mm on the sink's wall, or moves to the other wall, is a
+ * cost the ruling never named. The dishwasher is left out of the count in both plans, so its presence
+ * is asserted on its own.
  */
 function givesUpExactlyTheRuledBody(
   plans: ComparedPlans,
@@ -221,14 +215,11 @@ function isTheHobSwapped(plans: ComparedPlans): boolean {
 }
 
 /**
- * The dishwasher read directly after the sink, on the sink's side of the cut, so it abuts the sink on
- * the sink's own wall, every other item keeps its wall, and the bodies between the sink and the module
- * the trade frees shift one module along it (*sink · dishwasher · drawers · hob*). Its id is not a
- * composed slot's, so *D* never counts it (M2), and S1's leaf declines the plan that carries it.
- *
- * The plan's *"or else directly before it"* is not offered: it adds the same 600 mm to the same wall,
- * so it fits, and costs, exactly where this does, and a branch no room can reach is not a shipped rule
- * (ADR 0093 decision 1).
+ * The dishwasher read directly after the sink, on the sink's side of the cut: it abuts the sink on its
+ * own wall, every other item keeps its wall, and the bodies between the sink and the freed module shift
+ * one module along (*sink · dishwasher · drawers · hob*). Its id is not a composed slot's, so *D* never
+ * counts it. The plan's "or else directly before it" is not offered: it adds the same 600 mm to the
+ * same wall, and a branch no room can reach is not a shipped rule (ADR 0093 decision 1).
  */
 function withTheDishwasherAfterTheSink(run: RunLayout): RunLayout {
   const sinkAt = run.ordered.findIndex((item) => item.role === SINK_ROLE);

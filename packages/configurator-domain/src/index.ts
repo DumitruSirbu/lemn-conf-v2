@@ -5,18 +5,17 @@ export const CONFIGURATOR_DOMAIN_PACKAGE =
 export * from "./schemas.js";
 export * from "./room-transforms.js";
 export * from "./design.js";
-// The finish shape, the three materials and their palettes (ADR 0071). Exported beside `design.js`
-// because `CabinetBody.finish` is one of its values, and read by every surface that offers a colour.
+// The finish shape, the three materials and their palettes (ADR 0071), beside `design.js` because
+// `CabinetBody.finish` is one of its values.
 export * from "./materials.js";
-// Which material a design is on, resolved by the two rules every reader of `materialTierId` owes:
-// PAL when unset, and an answer rather than a throw when the id names nothing declared.
+// Which material a design is on: PAL when unset, and an answer rather than a throw when the id names
+// nothing declared.
 export * from "./design-material.js";
-// The colour a cabinet is actually wearing, over the three levels ADR 0099 decision 1 orders. The
-// one authority: `@lemnaria/three-adapter` reads its answer and never the precedence rule.
+// The colour a cabinet wears, over the three levels of ADR 0099 decision 1. The one authority:
+// `@lemnaria/three-adapter` reads its answer and never the precedence rule.
 export * from "./resolved-finish.js";
-// The count the material change's confirmation is conditional on (ADR 0081 decision 1), and — since
-// ADR 0099 decision 7 — its second arm. Beside `materials.js` because it is the second query the
-// same declaration answers.
+// The count the material change's confirmation is conditional on (ADR 0081 decision 1) and its second
+// arm (ADR 0099 decision 7).
 export * from "./chosen-finishes.js";
 export * from "./design-bounds.js";
 export * from "./validate-design.js";
@@ -25,9 +24,8 @@ export * from "./void-engine.js";
 export * from "./millimetres.js";
 export * from "./bands.js";
 export * from "./catalog.js";
-// Deliberately not `export *`: the lookup and `declaredWorktopDepthsMm` stay module-internal, so no
-// second caller can derive a wall depth from a worktop that is not `WORKTOP_DEPTH_MM` — which is a
-// fresh way for two numbers to disagree, the defect this module closes.
+// Not `export *`: the lookup and `declaredWorktopDepthsMm` stay module-internal, so no second caller
+// can derive a wall depth from a worktop that is not `WORKTOP_DEPTH_MM`.
 export {
   finishesAtMm,
   NO_FRONT_ASSEMBLY_MM,
@@ -84,9 +82,8 @@ export {
   type FrontPopulationRule,
   type PlacedBody,
 } from "./front-population.js";
-// The one answer to *"does this front carry a handle bar"* (ADR 0092 decision 3, Amendment C).
-// Exported because the three-adapter is a consumer: `scene-sync.ts` hides the bars by this and no
-// longer restates the rule, so the scene and the price cannot answer it differently.
+// The one answer to whether a front carries a handle bar (ADR 0092 decision 3, Amendment C). The
+// three-adapter's `scene-sync.ts` hides bars by this, so the scene and the price cannot differ.
 export {
   isPushToOpen,
   TOP_ROW_Y0_MM,
@@ -100,9 +97,8 @@ export {
   TALL_DOOR_LEAF_THRESHOLD_MM,
   type HardwareMechanismCounts,
 } from "./hardware-mechanisms.js";
-// `buildToTheClearanceM` and `shallowerBuildDepthM` stay module-internal: they are how
-// `resolveDepthM` applies the declaration, and a second caller outside this package would be a
-// second way to mint a build depth that no declaration produced — the defect ADR 0060 closes.
+// `buildToTheClearanceM` and `shallowerBuildDepthM` stay module-internal: a second caller outside this
+// package would be a second way to mint a build depth no declaration produced (ADR 0060).
 export {
   cabinetDepthRuleOf,
   columnBuildDepthM,
@@ -155,10 +151,9 @@ export {
   WORKTOP_DEPTH_MM,
 } from "./worktop-depth.js";
 export * from "./body-probe.js";
-// ADR 0083 decision 5: the run-end panel's seat is a domain fact, so wall A's occupied width and
-// the panel on screen come from one rule. Deliberately not `export *`: `blocksSeat`, the overlap
-// test and the touching tolerance stay module-internal, so no second caller can mint a seat the
-// veto never saw — which is the two-derivations defect this module closes.
+// ADR 0083 decision 5: the run-end panel's seat is a domain fact, so wall A's occupied width and the
+// panel on screen come from one rule. Not `export *`: `blocksSeat`, the overlap test and the touching
+// tolerance stay module-internal, so no second caller can mint a seat the veto never saw.
 export {
   RUN_END_PANEL_EDGE_OFFSET_M,
   RUN_END_PANEL_GAP_M,
@@ -166,9 +161,8 @@ export {
   RUN_END_PANEL_THICKNESS_M,
   runEndPanelSeatM,
 } from "./run-end-panel.js";
-// ADR 0090 decision 5: the whole frozen-map answer at a new cabinet depth, in the package that holds
-// the three inputs it needs. Exported beside the command that publishes it — the store no longer
-// computes any part of this map and reads it off `CabinetDepthSetEffect.columns`.
+// ADR 0090 decision 5: the whole frozen-map answer at a new cabinet depth, published beside the
+// command that uses it; the store reads it off `CabinetDepthSetEffect.columns`.
 export {
   frozenMapAtCabinetDepth,
   type FrozenMapAtCabinetDepthInput,
@@ -194,10 +188,9 @@ export {
   findOverflowingPlacementIds,
   wallLengthMm,
 } from "./queries/overflowing-placements.js";
-// Where a kitchen's two sink extras go (ADR 0070 decision 4, ADR 0092 decision 10). Deliberately not
-// `export *`: the overlap arithmetic, the host predicate and the tie-break stay module-internal, so
-// no second caller can derive a rack's position by a rule the query never saw — the two-derivations
-// defect this module exists to close.
+// Where a kitchen's two sink extras go (ADR 0070 decision 4, ADR 0092 decision 10). Not `export *`:
+// the overlap arithmetic, host predicate and tie-break stay module-internal, so no second caller can
+// derive a rack's position by a rule the query never saw.
 export {
   findSinkAccessories,
   type SinkAccessoryPositions,
@@ -207,28 +200,25 @@ export * from "./queries/width-steps.js";
 export * from "./queries/vacated-void.js";
 export * from "./pricing/price-book.js";
 export * from "./pricing/price-lines.js";
-// The book's ingress (ADR 0062 seam 1): a composition root parses once, and every consumer of a book
-// downstream of it is reading a shape something has established rather than a type somebody
-// declared.
+// The book's ingress (ADR 0062 seam 1): a composition root parses once, so every consumer downstream
+// reads a shape something has established rather than a type somebody declared.
 export * from "./pricing/parse-price-book.js";
 export * from "./pricing/price-design.js";
-// The barrel is the **one** module that names the sample book (ADR 0062 seam 1): the query takes a
-// book as a parameter and imports none, so a composition root picks this up from the package's
-// public entry point and a book from another source is later a substitution rather than a refactor.
+// The one module that names the sample book (ADR 0062 seam 1): the query imports no book, so a
+// composition root picks it up here and a book from another source is a substitution.
 // `pricing-seams.test.ts` holds the import graph to that.
 export * from "./pricing/sample-price-book.js";
 export * from "./fixtures/kitchen-l-design.js";
 export * from "./serialize-design.js";
 export * from "./repository.js";
 export * from "./migrate-design.js";
-// The room a customer types, judged against policy data (ADR 0108). The policy is a parameter of
-// the validator and not an import of it; the owner-approved one is exported for `apps/web`'s
-// composition root to hand in — the price book's shape (ADR 0062 seam 1). The engine's own limits
-// are deliberately not exported (Amendment B): they are what the approved policy is guarded
+// The room a customer types, judged against policy data (ADR 0108). The policy is a parameter of the
+// validator, and the owner-approved one is exported for `apps/web`'s composition root to hand in. The
+// engine's own limits stay unexported (Amendment B): they are what the approved policy is guarded
 // against, never a policy a surface may run on.
 export { APPROVED_ROOM_POLICY } from "./room/approved-room-policy.js";
-// The one question a surface asks about a shape it offers. Exported beside the policy's types so a
-// card reads the policy instead of spelling a shape's letter; `ENGINE_ROOM_LIMITS` stays unexported.
+// The one question a surface asks about a shape it offers, so a card reads the policy instead of
+// spelling a shape's letter.
 export { isShapeBuildable } from "./room/room-policy.js";
 export type {
   BuildableShapes,
@@ -260,15 +250,12 @@ export {
   carriesCornerDirection,
   cornerDirectionOf,
 } from "./room/corner-direction.js";
-// Which walls a shape has (ADR 0132 decision 5, M7B plan D7).
+// Which walls a shape has (ADR 0132 decision 5).
 export { wallsOf } from "./room/walls-of-shape.js";
-// **How wide the corner assembly is built** (7D6's J1′, ADR 0120 Amendment A). Three entry points
-// published and no fourth: `narrowestCornerReachMm` answers the *bound* and takes no room, the
-// other two answer one (depth, room), and their return types differ so the two questions cannot be
-// confused at a call site. Exported for wave 7D7's builders, which take the corner's size as a
-// parameter instead of holding it as a literal. The module's `cornerAlongWallCentreMm` — the far
-// edge's other half, which refuses a centre that is not a whole millimetre — stays in the package:
-// the fixture is its only caller, and nothing outside the domain places a corner.
+// How wide the corner assembly is built (ADR 0120 Amendment A): `narrowestCornerReachMm` answers the
+// bound and takes no room, the other two answer one (depth, room), and their return types differ so
+// the questions cannot be confused. `cornerAlongWallCentreMm` stays in the package: nothing outside
+// the domain places a corner.
 export {
   CORNER_ASSEMBLY_PIECES,
   cornerAssemblyWidthsMm,
@@ -283,14 +270,12 @@ export {
   type NarrowestCornerReach,
   type SizedCornerPiece,
 } from "./corner-assembly-size.js";
-// ADR 0121, ADR 0132 decision 2 (M7B U2 slice S1): which of a U's two corners a structural piece
-// belongs to — the one fact the adapter reads to choose a right corner's mirrored wrapper, and
-// never a position it compares itself (`cornerOf`'s own head comment). The right corner's own
-// sizing and placement stay unexported, the same choice `cornerAlongWallCentreMm` already made:
-// nothing outside the domain places a corner, only reads which one a piece is in.
+// Which of a U's two corners a structural piece belongs to (ADR 0132 decision 2): the one
+// fact the adapter reads to choose a right corner's mirrored wrapper. The right corner's sizing and
+// placement stay unexported, as `cornerAlongWallCentreMm` is.
 export { cornerOf, type Corner } from "./corner-assembly-size.js";
-// The design composition starts from (ADR 0110 decision 1, Amendment B): the entered room, the
-// corner that fits under its ceiling, and every free run recorded as empty space.
+// The design composition starts from (ADR 0110 decision 1, Amendment B): the entered room, the corner
+// that fits under its ceiling, and every free run recorded as empty space.
 export {
   buildLinearShellDesign,
   buildLShellDesign,
@@ -311,14 +296,19 @@ export {
   type UShellDesignInput,
   type UShellInputRefusal,
 } from "./generation/shell-design.js";
-export * from "./generation/leftover-rule.js";
+// Named, not `export *`: the absorb rule beside `planLeftover` is internal to generation.
+export {
+  MAX_GENERATED_LEFTOVER_MM,
+  planLeftover,
+  STORAGE_BODY_WIDTH_MM,
+  type LeftoverPlan,
+} from "./generation/leftover-rule.js";
 export * from "./generation/body-choice.js";
 export { DISHWASHER_PLANNED_WIDTH_MM } from "./generation/dishwasher-beside-the-sink.js";
 export * from "./generation/generation-priorities.js";
-// The U's own three-wall plan (ADR 0110 Amendment N), pure, and the plan `generateKitchen` composes a U from.
-// `UKitchenCompositionPlan` and `UPlannedGenerationBase` are `run-layout.ts`'s, re-exported here
-// directly because `generation-priorities.ts` — the only other re-exporter of that module's types —
-// is not touched for the U.
+// The U's own three-wall plan (ADR 0110 Amendment N). `UKitchenCompositionPlan` and
+// `UPlannedGenerationBase` are re-exported directly because `generation-priorities.ts`, the only
+// other re-exporter of `run-layout.ts`'s types, is not touched for the U.
 export type {
   UKitchenCompositionPlan,
   UPlannedGenerationBase,

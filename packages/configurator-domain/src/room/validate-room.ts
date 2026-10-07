@@ -13,8 +13,8 @@ import type {
 
 export type RoomShape = "linear" | "L" | "U";
 
-/** Which way the corner turns. Carried and **never read** by validation (ADR 0108 decision 5): the
- *  frames say it *"nu se deduce din lățimi"*, and what it does to the kitchen is owner question Q6. */
+/** Which way the corner turns. Carried and never read by validation (ADR 0108 decision 5): the frames
+ *  say it *"nu se deduce din lățimi"*. */
 export type CornerDirection = "left" | "right";
 
 /** A length as the form hands it over: millimetres, or `undefined` when the field is empty. */
@@ -57,8 +57,8 @@ export type RoomIssueCode =
   | "HEIGHT_TOO_LOW"
   | "HEIGHT_TOO_HIGH";
 
-/** A field and a code, and **nothing else — in particular no number** (ADR 0108 decision 3). A
- *  refusal that carried its limit would be one ICU argument away from printing an unapproved bound. */
+/** A field and a code and no number (ADR 0108 decision 3): a refusal carrying its limit would be one
+ *  ICU argument away from printing an unapproved bound. */
 export interface RoomIssue {
   readonly field: RoomField;
   readonly code: RoomIssueCode;
@@ -105,8 +105,8 @@ export function validateRoomInput(
   }
 }
 
-/** A fresh object on every call — never a shared constant — so a caller that mutates one refusal
- *  cannot change what the next call returns (purity, asserted directly). */
+/** A fresh object on every call, never a shared constant, so a caller that mutates one refusal cannot
+ *  change what the next call returns. */
 function shapeNotBuildable(): RoomValidation {
   return {
     ok: false,
@@ -153,9 +153,8 @@ function validateLRoom(input: LRoomInput, bounds: LRoomBounds): RoomValidation {
     };
   }
   // ADR 0108 decision 8: `wallLengthMm`'s mapping, so the fit gate reads back the walls entered.
-  // ADR 0129 D2/D3: the direction is carried onto the room, never read to judge it (the issues
-  // above are computed with no reference to `input.cornerDirection`) — and written only for
-  // "right", so a left-hand room stays the same four keys it was before this wave.
+  // ADR 0129 D2/D3: the direction is carried onto the room, never read to judge it, and written only
+  // for "right", so a left-hand room keeps its four keys.
   return {
     ok: true,
     room: {
@@ -175,11 +174,9 @@ interface LinearRoomBounds {
   readonly height: MillimetreBounds;
 }
 
-/** ADR 0130 D2/D3: one wall, no coupled minimum-kitchen gate (there is no second wall to couple
- *  against — the wall's own bound already is *sink + hob*), and `depthMm` fixed to the policy's own
- *  `LinearWallBounds.depthMm` (`LINEAR_ROOM_DEPTH_MM`, handed through the policy rather than imported
- *  here — see that field's own comment) rather than read from any entered field. No `cornerDirection`
- *  is ever carried (ADR 0130 D7 / ADR 0129 D2/D3): there is no corner for one to describe. */
+/** ADR 0130 decisions 1, 2: one wall, no coupled minimum-kitchen gate (the wall's own bound already is
+ *  sink + hob), and `depthMm` fixed to `LinearWallBounds.depthMm`, handed through the policy rather
+ *  than imported here. No `cornerDirection` is carried (ADR 0130 decision 6): there is no corner. */
 function validateLinearRoom(
   input: LinearRoomInput,
   bounds: LinearRoomBounds,
@@ -226,11 +223,10 @@ interface URoomBounds {
   readonly height: MillimetreBounds;
 }
 
-/** ADR 0132 decision 8 / Q-U4(b): a U carries no corner direction at all — the toggle is hidden at
- *  entry, so `input.cornerDirection` is never read here (ADR 0108 decision 5's rule, extended) and
- *  never written onto the room; `DesignRoomSchema` itself refuses a U that carries one. Every field is
- *  judged first; then, where the policy requires it, the coupled minimum-kitchen gate (ADR 0108 H3),
- *  refused on the room-level field with no number (RQ8), exactly as for the L. */
+/** ADR 0132 decision 8: a U carries no corner direction, so `input.cornerDirection` is never read or
+ *  written onto the room, and `DesignRoomSchema` refuses a U that carries one. Every field is judged
+ *  first; then, where the policy requires it, the coupled minimum-kitchen gate (ADR 0108 H3), refused
+ *  on the room-level field with no number, as for the L. */
 function validateURoom(input: URoomInput, bounds: URoomBounds): RoomValidation {
   const wallA = judgeField(
     input.wallAMm,

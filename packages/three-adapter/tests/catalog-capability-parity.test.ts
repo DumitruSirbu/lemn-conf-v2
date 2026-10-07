@@ -1,20 +1,7 @@
-// The gate ADR 0027's `base-hob-oven` needed and no layer had: **a catalogue entry's declared
-// capability flags must match the meshes its builder actually produces.**
-//
-// §9 opens with "never offer what cannot be satisfied" and §13.1 decides "disable, don't warn — any
-// size or body that cannot be satisfied is greyed and unclickable". `canFinish` and `canHandle` are
-// the two flags that decide whether §9 renders a section at all, and they live in the domain, which
-// has no meshes. Only this package can tell whether the body behind the flag has anything to
-// recolour or any handle to hide, so the two halves have never been checked against each other —
-// which is how `base-hob-oven` shipped declaring both `true` over an open-front carcass whose only
-// handle belongs to the oven.
-//
-// Scope is `KITCHEN_L_BODY_CATALOG`, **both** of its populations (ADR 0011 Gap A): §7's insertable
-// entries, built by `buildCatalogBody` at their own nominal size, and M2's seeded instances, built
-// by `buildDecomposedBody` at the one size each of them has. One rule, read off both — the seeded
-// half is the half the customer actually selects in the shipped kitchen, and gating only the
-// insertable half is how three seeded bodies carried `base-hob-oven`'s defect past the gate that
-// was written for it.
+// A catalogue entry's declared `canFinish` / `canHandle` must match the meshes its builder produces: the flags live
+// in the domain, which has no meshes, and §9 renders a section from them ("never offer what cannot be satisfied").
+// Scope is both populations of `KITCHEN_L_BODY_CATALOG` (ADR 0011 Gap A): insertable entries built by
+// `buildCatalogBody`, and seeded instances built by `buildDecomposedBody`, which is the half the customer selects.
 import {
   KITCHEN_L_BODY_CATALOG,
   type BodyDefinition,
@@ -36,16 +23,17 @@ import {
   installHeadlessDocument,
 } from "./support/headless-canvas.js";
 
-/** `finishes.ts`'s own `FRONT_MESH_NAME`, written out rather than imported: a gate that reads its
- *  definition of a front out of the code it is checking proves only that the code equals itself.
- *  Note `door_front` is the generic front name in this kit — `base-panbank` uses it for drawer
- *  fronts too — so an entry with no `drawer_front` mesh is not thereby frontless. */
+/**
+ * `finishes.ts`'s `FRONT_MESH_NAME`, written out rather than imported: a gate reading its definition of a front out
+ * of the code it checks proves only that the code equals itself. `door_front` is the generic front name (`base-panbank`
+ * uses it for drawer fronts), so an entry with no `drawer_front` mesh is not thereby frontless.
+ */
 const FRONT_MESH_NAME = /door_front|drawer_front/;
 
-/** `body-finish-surfaces.ts`'s `WEARS_THE_BODYS_FINISH_KEY`, written out for the same reason the
- *  regex above is: this gate must not read its definition of *paintable* out of the module it is
- *  gating. A body's colour reaches its fronts **plus** every mesh carrying this key, which since
- *  2026-09-09 is the only way the open shelf and the four corner bodies are painted at all. */
+/**
+ * `body-finish-surfaces.ts`'s `WEARS_THE_BODYS_FINISH_KEY`, written out for the same reason: a body's colour reaches
+ * its fronts plus every mesh carrying this key, the only way the open shelf and the corner bodies are painted.
+ */
 const WEARS_THE_BODYS_FINISH_KEY = "lemnaria:wearsTheBodysFinish";
 
 /** The group `barHandle` builds. Both a cabinet's handle and an appliance's are one of these. */
@@ -62,19 +50,11 @@ const ALL_BUILD_IDS: readonly string[] = [
   ...SEEDED_BUILD_IDS,
 ];
 
-/** Entries whose flags are known **not** to match their geometry, exempted from the rule below and
- *  pinned to the inverse assertion instead — the companion test asserts each of these still
- *  violates it, so a repaired entry cannot quietly outlive its exemption.
- *
- *  **Empty since 2026-09-01, and it was `base-dishwasher` and `base-dishwasher-600` that emptied
- *  it.** They were the one open niche, seen from each population, and the open product question
- *  behind them — an integrated dishwasher usually wears a decor door, in which case the flags are
- *  right and the *geometry* is what is missing — was decided that way by the owner and recorded as
- *  [ADR 0051](../../../docs/decisions/0051-the-dishwasher-niche-wears-a-decor-door.md), closing
- *  `docs/BACKLOG.md` entry 11. `dishwasherHousing` now builds its own `door_front` and the
- *  appliance behind it carries no bar, so both flags became true of the geometry and both ids are
- *  gated below like every other. Their numbers are pinned by the census control at the foot of
- *  this file, which is where a regression would show. */
+/**
+ * Entries whose flags are known not to match their geometry, exempted from the rule and pinned to the inverse by
+ * the companion test, so a repaired entry cannot outlive its exemption. Empty since ADR 0051 (the dishwasher niche
+ * now wears a decor door); the census control at the foot of the file pins their numbers.
+ */
 const RECORDED_CAPABILITY_GAPS: readonly string[] = [];
 
 const GATED_BUILD_IDS = ALL_BUILD_IDS.filter(
@@ -92,26 +72,17 @@ interface CapabilityCensus {
   readonly canFinish: boolean;
   readonly canHandle: boolean;
   readonly fronts: number;
-  /** Fronts **plus** declared surfaces — what `collectPaintedSurfaces` reaches, and so the number
-   *  `canFinish` is actually held against. It was `fronts` alone until the open shelf and the corner
-   *  bodies gained declarations; on a body that declares none it is still `fronts`. */
+  /** Fronts plus declared surfaces: what `collectPaintedSurfaces` reaches, and what `canFinish` is held against. */
   readonly paintedSurfaces: number;
   readonly cabinetHandles: number;
 }
 
-/** How a cabinet's handle is told from an appliance's, and the reason a bare `handle_bar` count
- *  cannot do it: `base-hob-oven` has one and none of it is the cabinet's, while `tall-oven-tower`
- *  has four of which exactly two are the cabinet's — the other two are the oven's and the
- *  microwave's. The test at the foot of this file measures both numbers.
- *
- *  **Since wave 6L the rule is `isCabinetHandleGroup`, imported rather than restated here**
- *  (ADR 0061 decision 1). It used to be a private copy, which was the right call while the gate was
- *  its only reader; now the path that *applies* a handle choice reads the same function, and one
- *  rule with two callers is what makes "the gate and the renderer agree" a fact instead of a
- *  coincidence. What that costs is stated and paid below: a gate reading its rule out of the code it
- *  checks proves only that the code equals itself, so `agrees with the rule this gate would write
- *  itself` re-derives the rule from `FRONT_MESH_NAME` above and holds the imported one to it over
- *  the whole catalogue. */
+/**
+ * A bare `handle_bar` count cannot tell a cabinet's handle from an appliance's: `base-hob-oven` has one that is
+ * the oven's, `tall-oven-tower` has four of which two are the cabinet's. The rule is `isCabinetHandleGroup`,
+ * imported so the gate and the renderer share it (ADR 0061 decision 1); the "agrees with the rule this gate
+ * would write itself" test holds it to an independent re-derivation.
+ */
 function censusOf(buildId: string, widthMm?: number): CapabilityCensus {
   const definition = definitionOf(buildId);
   const built = buildBodyOf(buildId, definition, widthMm);
@@ -148,13 +119,11 @@ function definitionOf(buildId: string): BodyDefinition {
   return definition;
 }
 
-/** The two populations differ only here: an insertable entry is parameterised and has to be given a
- *  size, a seeded one is one hardcoded call at the one size it has. Everything above and below this
- *  function is shared. */
-/** ADR 0033 gave the width a say in what gets drawn — a merged cabinet's door count follows it — so
- *  a caller that cares which form it measures passes one. The default is still the entry's narrowest
- *  declared width, which is what every flag-implication sweep below wants: the *least* a builder
- *  ever draws is the hardest case for "declares a front and draws one". */
+/**
+ * The populations differ only here: an insertable entry is given a size, a seeded one is one hardcoded call. The
+ * default width is the entry's narrowest, the hardest case for "declares a front and draws one"; a caller that cares
+ * which form it measures passes one (a merged cabinet's door count follows its width, ADR 0033).
+ */
 function buildBodyOf(
   buildId: string,
   definition: BodyDefinition,
@@ -168,8 +137,10 @@ function buildBodyOf(
   });
 }
 
-/** This gate's own reading of ADR 0061's rule, written from `FRONT_MESH_NAME` above and used
- *  nowhere but the independence assertion: a handle group whose parent also holds a front. */
+/**
+ * This gate's own reading of ADR 0061's rule, used only by the independence assertion: a handle group whose parent
+ * also holds a front.
+ */
 function opensAFront(node: THREE.Object3D): boolean {
   if (isMesh(node) || node.name !== HANDLE_GROUP_NAME) return false;
   const owner = node.parent;
@@ -186,24 +157,17 @@ describe("every catalogue entry's capability flags match what its builder draws"
     );
   });
 
-  // The membership assertion the test above cannot make. `GATED = ALL.filter(id => !RECORDED
-  // .includes(id))`, so `[...GATED, ...RECORDED]` equals `ALL` for *any* subset of it — that guard
-  // closes stale exemptions, not the list's contents. Widening the list has to mean editing a test
-  // that names what is being added, out loud.
+  // The membership assertion the test above cannot make: `GATED` is derived from `ALL`, so that equality holds for any
+  // subset of `RECORDED`. Widening the list has to mean editing a test that names what is added.
   it("has no recorded gaps: every entry in both populations is gated", () => {
     expect([...RECORDED_CAPABILITY_GAPS]).toEqual([]);
     expect(GATED_BUILD_IDS).toEqual(ALL_BUILD_IDS);
   });
 
-  // The two population sizes ADR 0027's amendment states, so the prose cannot drift from the map.
-  // **Sixteen since ADR 0033**, where there were eighteen: `base-2door` + `base-1door` and
-  // `wall-2door` + `wall-1door` are one entry each, and the door count moved out of the id.
-  // **Twenty-two seeded since ADR 0038**, where there were twenty-three: `cooktop-600` was kept
-  // only so a document saved before ADR 0027 could still resolve its `buildId`, and no such
-  // document was ever stored.
+  // The population sizes are pinned so the prose cannot drift from the map.
   it("gates both populations of the one map, not just the insertable half", () => {
     expect(CATALOG_BUILD_IDS.length).toBe(16);
-    expect(SEEDED_BUILD_IDS.length).toBe(22);
+    expect(SEEDED_BUILD_IDS.length).toBe(24);
     expect(ALL_BUILD_IDS.length).toBe(
       CATALOG_BUILD_IDS.length + SEEDED_BUILD_IDS.length,
     );
@@ -211,11 +175,10 @@ describe("every catalogue entry's capability flags match what its builder draws"
     expect(new Set(ALL_BUILD_IDS).size).toBe(ALL_BUILD_IDS.length);
   });
 
-  /** **`canFinish` implies a *painted surface*, not a front.** It was a front until 2026-09-09, and
-   *  that reading is what let `base-corner-return-320` — a carcass and a worktop, no door anywhere —
-   *  be the one body this gate would have refused a colour to. `applyBodyFinish` paints
-   *  `collectPaintedSurfaces`, so this is the number the flag has to be held against or the gate
-   *  checks a rule the renderer stopped following. */
+  /**
+   * `canFinish` implies a painted surface, not a front: `applyBodyFinish` paints `collectPaintedSurfaces`, so that is
+   * the number the flag is held against (`base-corner-return-320` has no door at all).
+   */
   it.each(GATED_BUILD_IDS)(
     "%s: canFinish implies a painted surface, canHandle implies a cabinet handle",
     (buildId) => {
@@ -232,12 +195,8 @@ describe("every catalogue entry's capability flags match what its builder draws"
     },
   );
 
-  // The exemption list, asserted from the other side: each entry on it really does violate the
-  // rule. The day someone repairs one, this goes red and the list shrinks with it.
-  //
-  // One test that loops rather than `it.each`, which generates no test at all over an empty list —
-  // and the list is empty since ADR 0051. The assertion has to survive the list being empty, or the
-  // next entry added to it would arrive with no inverse pin at all.
+  // Each exempted entry really does violate the rule, so a repaired one turns this red. A loop rather than `it.each`,
+  // which generates no test over an empty list: the list is empty now, and its next entry needs an inverse pin.
   it("holds each recorded gap to still declaring a capability its geometry lacks", () => {
     for (const buildId of RECORDED_CAPABILITY_GAPS) {
       const census = censusOf(buildId);
@@ -250,13 +209,10 @@ describe("every catalogue entry's capability flags match what its builder draws"
     }
   });
 
-  // The gate's own premise. If the front regex or the handle rule matched nothing anywhere, every
-  // implication above would hold vacuously for the entries that declare the flags `false`, and the
-  // two that matter would be the only failures — which reads as a catalogue defect rather than as a
-  // broken gate. These two entries are the control.
+  // The gate's own premise: if the front regex or the handle rule matched nothing, every implication above would hold
+  // vacuously for entries declaring the flags `false`. This entry is the control.
   it("recognises a real front and a real cabinet handle when it sees one", () => {
-    // At 800 mm, so the merged entry builds its **two-door** form — the control needs a body with
-    // real fronts and real handles on it, and after ADR 0033 which one that is depends on the width.
+    // At 800 mm so the merged entry builds its two-door form (its door count follows width, ADR 0033).
     expect(censusOf("base-cabinet", 800)).toMatchObject({
       fronts: 2,
       paintedSurfaces: 2,
@@ -264,16 +220,16 @@ describe("every catalogue entry's capability flags match what its builder draws"
     });
   });
 
-  /** The second half of that premise, and the one the widened rule turns on: **a painted surface
-   *  that is not a front is counted.** Without this the two numbers could be the same field twice
-   *  and the sweep above would still pass everywhere. `base-corner-return-320` is the sharpest case
-   *  in the catalogue — no door, no drawer, one declared carcass — and `open-shelf-600` is the case
-   *  the mechanism was built for. */
+  /**
+   * The second half of the premise: a painted surface that is not a front is counted, else the two numbers could
+   * be one field twice. `base-corner-return-320` has a declared carcass and fixed front that no front regex names
+   * (ADR 0135); `open-shelf-600` is the case the mechanism was built for.
+   */
   it("counts a declared painted surface that no front regex can name", () => {
     expect(censusOf("base-corner-return-320")).toMatchObject({
       canFinish: true,
       fronts: 0,
-      paintedSurfaces: 1,
+      paintedSurfaces: 2,
     });
     expect(censusOf("open-shelf-600")).toMatchObject({
       fronts: 0,
@@ -281,18 +237,11 @@ describe("every catalogue entry's capability flags match what its builder draws"
     });
   });
 
-  // And the case a `handle_bar` count would get wrong, measured rather than asserted from memory:
-  // the hob base's only handle is the oven's, so it has none of its own, and the tower builds four
-  // bars of which two are the cabinet's.
-  //
-  // Its one front is the hob band's filler panel (Q6, owner 2026-09-01), which is why the two flags
-  // now differ: a fixed facade is something to finish and nothing to open, so `canFinish` follows
-  // the front and `canHandle` follows the cabinet-handle count, exactly as the gate above reads
-  // them. Before wave 5B6 both numbers were zero and both flags were `false`.
-  // ADR 0051, both populations of the repaired entry. The niche is an ordinary fronted base body
-  // now: one `door_front`, one cabinet handle, and **one** `handle_bar` in the whole group — the
-  // door's. A second bar here would mean the appliance was built exposed again, which is the
-  // regression that would silently put an appliance's handle under a cabinet-hardware chip.
+  // A `handle_bar` count would get this wrong: the hob base's only handle is the oven's, and the tower builds four bars
+  // of which two are the cabinet's. The hob base's one front is its filler panel, so `canFinish` follows the front and
+  // `canHandle` the cabinet-handle count.
+  // ADR 0051: the niche is an ordinary fronted body with one `door_front`, one cabinet handle and one `handle_bar` (the
+  // door's); a second bar would mean the appliance was built exposed again.
   it("counts the dishwasher niche's decor door and its one cabinet handle", () => {
     for (const buildId of ["base-dishwasher", "base-dishwasher-600"]) {
       expect(censusOf(buildId), buildId).toMatchObject({
@@ -305,10 +254,8 @@ describe("every catalogue entry's capability flags match what its builder draws"
     }
   });
 
-  // **The price of importing the rule instead of restating it.** Every node of every body in both
-  // populations, judged twice: once by `isCabinetHandleGroup` and once by this file's own reading of
-  // it. A widening of the shared rule that made some body pass its declared count would part the two
-  // here, which is the failure the old private copy was guarding against.
+  // Every node of every body is judged by `isCabinetHandleGroup` and by this file's own reading of it, so a widening
+  // of the shared rule that parts the two fails here.
   it("agrees with the rule this gate would write itself, over every node of every body", () => {
     let handleGroupsSeen = 0;
 

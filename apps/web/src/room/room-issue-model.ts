@@ -1,11 +1,9 @@
-// Wave 7F2: what sub-state 1C tells the customer, as data. **Presentation, and pure** — no React, no
-// DOM, no clock. It judges nothing: the domain's `validateRoomInput` (through `parseRoomUrlState`) and
-// `isShapeBuildable` are the only authorities on whether a room is allowed (ADR 0108 decision 1), and
-// this module only decides *where* each of their answers is shown and *which leaf* says it.
+// What sub-state 1C tells the customer, as pure data. It judges nothing: `validateRoomInput` (through
+// `parseRoomUrlState`) and `isShapeBuildable` alone say whether a room is allowed (ADR 0108 decision
+// 1); this module decides where each answer is shown and which leaf says it.
 //
-// It keys on the domain's **codes and fields**, never on a bound or a string (ADR 0121 decision 2):
-// no `minMm`, `maxMm` or `minimumKitchen` is read here, so no number can reach a sentence (ADR 0108
-// decision 3, ADR 0120 decision 3).
+// It keys on the domain's codes and fields, never on a bound or a string (ADR 0121 decision 2): no
+// `minMm`, `maxMm` or `minimumKitchen` is read, so no number reaches a sentence (ADR 0108 decision 3).
 import {
   isShapeBuildable,
   validateRoomInput,
@@ -25,10 +23,9 @@ import type { RoomDraft, RoomLengthField } from "./room-draft";
 import { requiredFieldsFor, type RoomUrlState } from "./room-url-state";
 
 /**
- * **The two codes 1C can never carry.** `parseRoomUrlState` sends a field that does not read as whole
- * millimetres to 1B as a marked field, so `validateRoomInput` only ever sees whole positive
- * millimetres there. Excluded by name, so the table below stays total over what *can* arrive — and a
- * test asserts the reachability, so the exclusion goes red the day one of them becomes reachable.
+ * The two codes 1C can never carry: `parseRoomUrlState` sends a field that does not read as whole
+ * millimetres to 1B, so `validateRoomInput` only sees whole positive millimetres there. Excluded by
+ * name so the table below stays total over what can arrive.
  */
 type RoomIssueCodeUnreachableAtOneC =
   | "VALUE_MISSING"
@@ -40,10 +37,8 @@ export type ReachableRoomIssueCode = Exclude<
 >;
 
 /**
- * **The one table from code to leaf, and the compile guard wave 7J inherits.** `satisfies` makes it
- * total: a code the domain adds stops this module compiling until its sentence exists, and a code
- * the domain removes is an excess property. Keys are spelled in full so next-intl's generated
- * declaration checks each one.
+ * The one table from code to leaf. `satisfies` makes it total: a code the domain adds stops this
+ * compiling until its sentence exists. Keys are spelled in full so next-intl's declaration checks each.
  */
 export const ROOM_ISSUE_MESSAGE_KEYS = {
   SHAPE_NOT_BUILDABLE: "room.issue.shapeNotBuildable",
@@ -57,8 +52,8 @@ export const ROOM_ISSUE_MESSAGE_KEYS = {
 export type RoomIssueMessageKey =
   (typeof ROOM_ISSUE_MESSAGE_KEYS)[ReachableRoomIssueCode];
 
-/** The plan's input contract, re-exported so a caller of this model reads its whole output from here.
- *  Defined by the plan, which consumes it: the dependency runs one way, issue model to plan. */
+/** Re-exported so a caller reads this model's whole output from here; the plan defines them, so the
+ *  dependency runs one way, issue model to plan. */
 export type { MarkedPlanWall, PlanWallIssueLabelKey };
 
 /** The codes that mark a wall: a wall's own length, and nothing else. */
@@ -67,36 +62,33 @@ type WallLengthIssueCode = Extract<
   "WALL_TOO_SHORT" | "WALL_TOO_LONG"
 >;
 
-/** Frame 1C's plan label (*"B prea scurt"*). `satisfies` holds it total over the codes that mark a
- *  wall and to the plan's own label keys. */
+/** The plan label (*"B prea scurt"*), total over the codes that mark a wall. */
 const PLAN_WALL_ISSUE_LABEL_KEYS = {
   WALL_TOO_SHORT: "room.planWallIssue.tooShort",
   WALL_TOO_LONG: "room.planWallIssue.tooLong",
 } as const satisfies Record<WallLengthIssueCode, PlanWallIssueLabelKey>;
 
-/** The refusal beside the shape choice at 1A, 1B and 1C — the same leaf the domain's code names. */
+/** The refusal beside the shape choice at 1A, 1B and 1C: the leaf the domain's code names. */
 export const SHAPE_REFUSAL_MESSAGE_KEY =
   ROOM_ISSUE_MESSAGE_KEYS.SHAPE_NOT_BUILDABLE;
 
-/** Frame 1C's note, as written. Shown at 1C and nowhere else. */
+/** Shown at 1C and nowhere else. */
 export const ONE_C_NOTE_MESSAGE_KEY = "room.presetsAfterValid";
 
-/** Frame 1C's own clause, kept for the day wave 7J makes a straight kitchen true (section 8). */
 export const LINEAR_SUGGESTION_MESSAGE_KEY = "room.issue.orChooseLinear";
 
-/** Text in a field that does not read as whole millimetres (Q-7F2-4, ADR 0126). Shown once the field
- *  loses focus. */
+/** Text in a field that does not read as whole millimetres (ADR 0126), shown once the field loses focus. */
 export const UNREADABLE_LENGTH_MESSAGE_KEY = "room.issue.unreadable";
 
-/** The plan's wall for each wall field — the structural dependency the red wall follows. */
+/** The plan's wall for each wall field: the dependency the red wall follows. */
 const PLAN_WALL_OF_FIELD: Readonly<
   Record<Exclude<RoomLengthField, "height">, PlanWallId>
 > = { wallA: "A", wallB: "B", wallC: "C" };
 
 export interface RoomIssueInput {
   readonly draft: RoomDraft;
-  /** `parseRoomUrlState` of **this draft's** canonical query — the question `roomInDraft` asks — never
-   *  the address bar's, which trails the draft by the settle interval (7F2 addition 1). */
+  /** `parseRoomUrlState` of this draft's canonical query (what `roomInDraft` asks), never the address
+   *  bar's, which trails the draft by the settle interval. */
   readonly draftState: RoomUrlState;
   readonly policy: RoomPolicy;
 }
@@ -148,7 +140,7 @@ function fieldReasonOf(issue: RoomIssue): readonly RoomFieldReason[] {
 }
 
 /** A `shape` issue is the room's, except the shape refusal, which `isShapeRefused` carries from the
- *  policy so it shows at 1A and 1B too rather than only once every field is typed. */
+ *  policy so it shows at 1A and 1B too. */
 function roomReasonOf(issue: RoomIssue): readonly RoomIssueMessageKey[] {
   if (isLengthField(issue.field)) return [];
   if (issue.code === "SHAPE_NOT_BUILDABLE") return [];
@@ -192,8 +184,8 @@ function unreadableFieldsOf(draft: RoomDraft): readonly RoomLengthField[] {
   });
 }
 
-/** Section 8's gate, asked of the domain and never of a bound: the same entry, as a straight room on
- *  wall A. Never true under the approved policy; wave 7J owes the positive arm. */
+/** The same entry as a straight room on wall A, asked of the domain and never of a bound. Never true
+ *  under the approved policy, so the positive arm is not yet exercised. */
 function validatesAsStraightRoom({ draft, policy }: RoomIssueInput): boolean {
   const straightRoom = {
     shape: "linear",

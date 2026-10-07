@@ -22,6 +22,10 @@ import {
   waitForSettleAfter,
 } from "./mirror-flow";
 import { countPixels, toRgb } from "./pixels";
+import { FIRST_FRAME_FREEZE_TIMEOUT_MS } from "./seeded-design";
+
+/** Covers the 302 s or more this set took on the CI runner. See ADR 0144 d2. */
+export const MIRROR_CAPTURE_SET_TIMEOUT_MS = 600_000;
 
 const CAPTURE_DIR =
   process.env.QA_7I_CAPTURE_DIR ?? path.join(tmpdir(), "qa-7i-captures");
@@ -215,12 +219,12 @@ export async function runMirrorCaptureSet(
   await expect(page.getByTestId("mirror-shot-left")).toHaveAttribute(
     "data-ready",
     "true",
-    { timeout: 20_000 },
+    { timeout: FIRST_FRAME_FREEZE_TIMEOUT_MS },
   );
   await expect(page.getByTestId("mirror-shot-right")).toHaveAttribute(
     "data-ready",
     "true",
-    { timeout: 20_000 },
+    { timeout: FIRST_FRAME_FREEZE_TIMEOUT_MS },
   );
   await capture(page, `${viewport}-mirror-shot`);
 

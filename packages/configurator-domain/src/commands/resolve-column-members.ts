@@ -20,23 +20,15 @@ import type {
   Resolved,
 } from "./width-resize-model.js";
 
-/** §9's `canWidth` read from the engine's end, for the body the customer actually selected: a
- *  `fixedWidth` entry is made at one size, and a body with no §7 equivalent (the corners, ADR 0011
- *  Gap A) has nothing to be rebuilt through.
+/** §9's `canWidth` read from the engine's end, for the body the customer selected: a `fixedWidth` entry
+ *  is made at one size, and a body with no §7 equivalent (the corners, ADR 0011 Gap A) has nothing to
+ *  be rebuilt through.
  *
- *  **Both halves refuse, and the refusal says which one did** (`NotResizableCause`). The two
- *  conditions are not exclusive and the caller cannot tell them apart from the outside: a row that
- *  is `fixedWidth` and also unfinished satisfies both, and reading the flag back off the record
- *  would call it a cabinet made at one width. ADR 0049 puts this sentence on screen for `fixed`
- *  alone, so the one function that already knows which fact refused is the one that publishes it —
- *  the answer still has a single author, and now so does the reason.
- *
- *  `unresolvable` wins when both hold, because a row with no entry to be rebuilt through has no
- *  label of its own either and is named by its `kind` instead.
- *
- *  **Identity is declared, never inferred.** The equivalent comes from `resolveCatalogEquivalent`,
- *  which reads the pointer the row declares (ADR 0022) and verifies it is `insertable`. §5.4's
- *  `buildIdOf` mesh-tree inspection is closed by name in ADR 0011 Gap A, §6.3 and §13.2. */
+ *  Both halves refuse and the refusal says which one did (`NotResizableCause`): they are not exclusive,
+ *  and a row that is `fixedWidth` and also unfinished satisfies both. `unresolvable` wins when both
+ *  hold, because a row with no entry has no label of its own and is named by its `kind`. Identity is
+ *  declared, never inferred: `resolveCatalogEquivalent` reads the declared pointer (ADR 0022) and
+ *  verifies it is `insertable`. */
 export function resolveResizableBody(
   catalog: BodyCatalog,
   record: PlacementRecord,
@@ -57,32 +49,21 @@ export function resolveResizableBody(
   };
 }
 
-/** ADR 0031 rule 1 as ADR 0035 decision 6 amends it: the scope is the column, so **every** member
- *  has to be rebuildable — **except the hood, which the column's width does not govern at all**.
+/** ADR 0031 rule 1 as ADR 0035 decision 6 amends it: the scope is the column, so every member has to be
+ *  rebuildable, except the hood, which the column's width does not govern.
  *
- *  A corner, an appliance or a hob standing at any level stops the whole move, and the refusal names
- *  that body rather than the selected one, because the customer is looking at something else
- *  entirely and needs to be told what is in the way.
+ *  A corner, an appliance or a hob at any level stops the whole move, and the refusal names that body
+ *  rather than the selected one, because the customer is looking at something else.
  *
- *  **The hood is the one member that is neither.** It is sized to the cooktop it extracts over, not
- *  to the run it hangs on (owner, 2026-08-28: *"the cabinets is resizable but the hood over it
- *  should remain same size"*), so it does not narrow the column's widths, it does not stop the move,
- *  and it does not take the new width. It still **moves**: it re-centres over the run beneath it
- *  (ADR 0039 decision 4), which is why it comes back in a list of its own rather than being dropped.
- *  A hood that cannot be rebuilt at all still refuses the move, because re-centring it is not
- *  optional.
+ *  The hood is sized to the cooktop it extracts over, not the run it hangs on: it does not narrow the
+ *  column's widths, stop the move, or take the new width. It still **moves**, re-centring over the run
+ *  beneath it (ADR 0039 decision 4), so it comes back in a list of its own; one that cannot be rebuilt
+ *  still refuses the move. It stays an ordinary placement; see `EXTRACTOR_HOOD_KIND` for why the test
+ *  is a `kind`.
  *
- *  It stays an ordinary placement in its column throughout — the exemption is from the width rule,
- *  not from the model. See `EXTRACTOR_HOOD_KIND` for why the test is a `kind` and not a new flag.
- *
- *  **The exemption is about the hood's siblings, not about the hood itself.** It answers what
- *  happens to a hood when *something else* is resized, which is the whole of what ADR 0035 decision
- *  6 and ADR 0039 decision 4 decide. A customer selecting the hood and choosing its own width is
- *  decision 5's control, and what should happen to the run underneath then — nothing, most likely —
- *  is **not decided by any record**. So the selected body is always a full member of its column,
- *  hood or not, and that path behaves exactly as it did before this wave. Flagged for the owner
- *  rather than answered here; the shipped `hood-600` is `fixedWidth`, so nothing reachable today
- *  depends on the answer. */
+ *  The exemption is about the hood's siblings. A customer resizing the hood itself is a different
+ *  control whose effect on the run beneath is decided by no record, so the selected body is always a
+ *  full member of its column. Nothing reachable depends on it: the shipped `hood-600` is `fixedWidth`. */
 export function splitColumnMembers(
   context: ColumnContext,
   selected: ColumnMember,
@@ -116,12 +97,10 @@ export function toColumnMember(
   };
 }
 
-/** One **sibling** of the selected body, resolved the same way — the selected body itself comes in
- *  already resolved, because §9's `canWidth` is answered on it by the caller.
- *
- *  A hood is asked only whether it can be **rebuilt**, never whether it can be **resized**: it keeps
- *  the width it has, so `fixedWidth` is not a fact about it that this move can violate. That is what
- *  lets the seeded `hood-600` — `fixedWidth: true` — re-centre over a run that resized under it. */
+/** One **sibling** of the selected body, resolved the same way (the selected body arrives resolved,
+ *  because the caller answers §9's `canWidth` on it). A hood is asked only whether it can be
+ *  **rebuilt**, never resized: it keeps its width, so `fixedWidth` cannot be violated, which lets the
+ *  seeded `hood-600` re-centre over a run that resized under it. */
 function resolveMember(
   context: ColumnContext,
   record: PlacementRecord,
@@ -169,10 +148,9 @@ function resolveRebuildableHood(
   };
 }
 
-/** ADR 0035 decision 6 as amended, and ADR 0039 decision 4: the exemption is keyed off the hood's
- *  declared catalogue identity and nothing else. Deliberately **not** a `PlacementRecord` flag —
- *  ADR 0038 deleted the standalone-accessory machinery and the owner asked for this "without
- *  separating it again from cabinets". */
+/** The exemption is keyed off the hood's declared catalogue identity and nothing else (ADR 0035
+ *  decision 6, ADR 0039 decision 4): deliberately not a `PlacementRecord` flag, so the hood is not
+ *  separated again from cabinets. */
 export function isHood(record: PlacementRecord): boolean {
   return record.kind === EXTRACTOR_HOOD_KIND;
 }
@@ -194,10 +172,10 @@ function columnMembers(
   return records.filter((record) => record.col === col);
 }
 
-/** The §7 entry a body would be rebuilt through, in its insertable shape. A resize rebuilds through
- *  the catalogue equivalent, so **a resized seeded body migrates its `buildId`**: after resizing a
- *  `base-drawer2-600` the stored placement carries `base-panbank`. It has to —
- *  `buildDecomposedBody` takes no width, and every seeded id is one fixed geometry. */
+/** The §7 entry a body would be rebuilt through, in its insertable shape. A resize rebuilds through the
+ *  catalogue equivalent, so **a resized seeded body migrates its `buildId`** (`base-drawer2-600`
+ *  becomes `base-panbank`): `buildDecomposedBody` takes no width and every seeded id is one fixed
+ *  geometry. */
 export function resolveRebuildBody(
   catalog: BodyCatalog,
   record: PlacementRecord,
@@ -207,17 +185,11 @@ export function resolveRebuildBody(
   return toInsertableBody(equivalent.buildId, equivalent.definition);
 }
 
-/** The descriptor a refusal names this placement by — §9's header rule, resolved through the same
- *  `describeBodyName`, so a body and the sentence refusing it never disagree.
- *
- *  It publishes a descriptor rather than the raw `kind`: every caller puts the resolved string
- *  inside a refusal sentence the customer reads, and a bare `kind` is an internal identifier. The
- *  four corner rows are the ones exposed — they are the bodies with no catalogue equivalent to
- *  inherit a name from (ADR 0022) — so before this, `setWidth` on a wall corner return answered
- *  `„corner_wall_return" nu își poate schimba lățimea.`
- *
- *  A `buildId` the catalogue does not hold at all is named by the record's own kind, which is the
- *  only fact left about it. */
+/** The descriptor a refusal names this placement by (§9's header rule), resolved through
+ *  `describeBodyName` so a body and the sentence refusing it never disagree. It publishes a descriptor,
+ *  not the raw `kind`, because the customer reads it: the six corner rows have no catalogue equivalent
+ *  to inherit a name from (ADR 0022). A `buildId` the catalogue does not hold is named by the
+ *  record's own kind. */
 export function describeRecordLabel(
   catalog: BodyCatalog,
   record: PlacementRecord,

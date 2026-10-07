@@ -147,14 +147,25 @@ when a record you rely on is marked superseded below, or when planning (architec
 | [0124](0124-the-wall-maxima-move-together-and-one-number-not-two.md) | The two horizontal wire bounds move together, as one number, not two | Accepted |
 | [0125](0125-the-corner-minima-stay-at-900-and-1000-as-a-deliberate-margin-above-what-the-engine-needs.md) | The corner minima stay at 900 / 1000, as a deliberate margin above what the engine needs | Accepted |
 | [0126](0126-the-rooms-lengths-are-typed-in-whole-millimetres.md) | The room's lengths are typed in whole millimetres, and the URL keeps its metre wire form | Accepted |
-| [0127](0127-step-1s-url-follows-the-typed-room-and-a-late-echo-is-still-ours.md) | Step 1's URL follows the typed room, and a late echo is still ours | Accepted |
+| [0127](0127-step-1s-url-follows-the-typed-room-and-a-late-echo-is-still-ours.md) | Step 1's URL follows the typed room, and a late echo is still ours | Accepted (amended) |
 | [0128](0128-live-persistence-suites-serialise-through-a-declared-transaction-scoped-readers-writer-lock.md) | Live persistence suites serialise through a declared, transaction-scoped readers–writer lock | Accepted |
 | [0129](0129-a-right-hand-l-is-the-left-hand-design-drawn-in-a-reflection-and-the-reflection-is-a-per-group-primitive.md) | A right-hand L is the left-hand design drawn in a reflection, and the reflection is a per-group primitive | Proposed |
-| [0130](0130-a-straight-kitchen-is-the-composers-run-on-one-wall-with-no-corner.md) | A straight kitchen is the composer's run on one wall with no corner | Proposed |
+| [0130](0130-a-straight-kitchen-is-the-composers-run-on-one-wall-with-no-corner.md) | A straight kitchen is the composer's run on one wall with no corner | Accepted (was Proposed until 2026-10-06) |
 | [0131](0131-the-preset-story-is-deferred-past-m8-and-every-room-goes-from-its-dimensions-straight-to-composition.md) | The preset story is deferred past M8, and every room goes from its dimensions straight to composition | Accepted |
 | [0132](0132-wall-c-is-a-world-wall-and-only-the-right-corner-is-drawn-in-a-reflection.md) | Wall C is a world wall, and only the right corner is drawn in a reflection | Accepted |
 | [0133](0133-the-first-server-rendered-frame-is-the-loaded-design-and-no-module-store-is-written-on-the-server.md) | The first server-rendered frame is the loaded design, and no module store is written on the server | Accepted (security review owed at U7 S0) |
 | [0134](0134-a-u-gets-no-step-one-suggestion-of-its-own-and-the-straight-kitchen-suggestion-keeps-its-shape-independent-gate.md) | A U gets no Step 1 suggestion of its own, and the straight-kitchen suggestion keeps its shape-independent gate | Accepted |
+| [0135](0135-the-corner-pieces-stand-on-the-runs-lines-and-the-base-return-is-a-base-body-with-a-fixed-front.md) | The corner pieces stand on the run's lines, and the base return is a base body with a fixed front | Accepted (S1 `c4eeea6`, S2 `48bbc0c`) |
+| [0136](0136-code-and-test-comments-carry-only-what-nothing-else-can-and-history-lives-in-the-records.md) | Code and test comments carry only what nothing else can, and history lives in the records | Accepted (amended) |
+| [0137](0137-engine-validation-and-generation-reasons-recovered-from-code-comments.md) | Engine, validation and generation: reasons recovered from code comments | Accepted |
+| [0138](0138-price-arithmetic-price-book-parsing-and-rounded-figures-recovered-from-code-comments.md) | Price arithmetic, price-book parsing and rounded figures: reasons recovered from code comments | Accepted |
+| [0139](0139-the-room-screens-routing-generation-and-back-guard-reasons-recovered-from-code-comments.md) | The room screen's routing, generation lifecycle, back guard and plan scale: reasons recovered from code comments | Accepted |
+| [0140](0140-chrome-price-surface-and-scene-reasons-recovered-from-code-comments.md) | Chrome, price surface and scene: reasons recovered from code comments | Accepted |
+| [0141](0141-romanian-copy-rulings-recovered-from-the-copy-lock-and-a-test.md) | Romanian copy rulings recovered from the copy lock and a test | Accepted |
+| [0142](0142-persistence-concurrency-migration-safety-and-api-reasons-recovered-from-code-comments.md) | Persistence concurrency, migration safety and API reasons recovered from code comments | Accepted |
+| [0143](0143-three-adapter-test-expectations-recovered-from-test-comments.md) | Three-adapter test expectations recovered from test comments | Accepted |
+| [0144](0144-an-e2e-wait-on-the-editor-outlasts-the-first-webgl-frames-freeze-by-one-named-bound.md) | An e2e wait on the editor outlasts the first WebGL frame's freeze, by one named bound | Accepted |
+| [0145](0145-a-persistence-retry-covers-an-empty-reply-and-a-retried-write-leaves-no-trace.md) | A persistence retry covers an empty reply, and a retried write leaves no trace (supersedes 0142 d2, d3) | Accepted |
 
 ## Adding the next one
 

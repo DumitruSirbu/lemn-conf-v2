@@ -25,10 +25,12 @@
     "test:e2e": "pnpm --filter @lemnaria/web run test:e2e",
     "typecheck": "pnpm --workspace-concurrency=1 --recursive run typecheck"
   },
-  "//pnpm": "overrides.@vercel/blob>undici: @vercel/blob 2.8.0 (latest) declares undici 6.x and resolves 6.28.0, which carries GHSA-rfgv-xxqx-mfg5 (high), GHSA-3wwx-pv8p-q78v and GHSA-r53p-7pc4-xj5r, all patched in 6.28.1. @vercel/blob declares undici ^6.23.0, so a lockfile refresh alone now resolves a patched 6.x; the pin keeps the audit gate from regressing on a stale lockfile. Drop it once the lockfile no longer needs it.",
+  "//pnpm": "overrides.@vercel/blob>undici: @vercel/blob 2.8.0 (latest) declares undici 6.x and resolves 6.28.0, which carries GHSA-rfgv-xxqx-mfg5 (high), GHSA-3wwx-pv8p-q78v and GHSA-r53p-7pc4-xj5r, all patched in 6.28.1. @vercel/blob declares undici ^6.23.0, so a lockfile refresh alone now resolves a patched 6.x; the pin keeps the audit gate from regressing on a stale lockfile. Drop it once the lockfile no longer needs it. overrides.postcss>source-map-js: postcss 8.5.23 (via next and next-intl) and 8.5.26 (via vite) declare ^1.2.1 and the lockfile resolved 1.2.1, which carries GHSA-68fv-2mgg-jv7q (high), patched in 1.2.2. The range already admits 1.2.2, so the pin only guards against a stale lockfile; drop it once the lockfile no longer needs it. overrides.next>sharp: next 16.3.8 (also via next-intl) declares sharp ^0.35.4 and the lockfile resolved 0.35.4, which carries GHSA-wq5f-xc86-pv6w (high, librsvg), patched in 0.35.5. The range already admits 0.35.5, so the pin only guards against a stale lockfile; drop it once the lockfile no longer needs it.",
   "pnpm": {
     "overrides": {
-      "@vercel/blob>undici": "6.28.1"
+      "@vercel/blob>undici": "6.28.1",
+      "postcss>source-map-js": "1.2.2",
+      "next>sharp": "0.35.5"
     }
   },
   "devDependencies": {

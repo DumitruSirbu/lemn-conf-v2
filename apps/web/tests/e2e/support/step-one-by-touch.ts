@@ -1,14 +1,7 @@
-// Support for M7 wave 7K, the mobile gate (`docs/milestones/M7-room-and-presets.md`, *Wave 7K — the
-// plan*, D4 and D5): navigation, recorders and readouts for `mobile-gate.e2e.spec.ts`, and **no
-// assertion** — every claim the gate makes stays in the spec (`browser-and-visual-qa.md`, *Browser
-// test design*).
-//
-// **By touch, and nothing but** (D5, criterion 1). Every control here is reached with `tap()` and
-// every digit with `pressSequentially`, which is what a soft keyboard produces. There is no `click`,
-// no mouse, no `fill` over a length and no `goto` to a room query in this file.
-//
-// The scene readout and its projection arithmetic are **imported** from `mirror-flow.ts`, which
-// already exports them (D4) — a third copy would be the duplication G17 records.
+// Navigation, recorders and readouts for `mobile-gate.e2e.spec.ts`, and no assertion: every claim stays in the spec.
+// By touch only: every control is reached with `tap()` and every digit with `pressSequentially`, as a soft keyboard
+// types; no `click`, mouse, `fill` over a length or `goto` to a room query. The scene readout and projection
+// arithmetic are imported from `mirror-flow.ts`, not copied.
 import { readFileSync } from "node:fs";
 
 import {
@@ -36,12 +29,10 @@ export type LengthField = "wallA" | "wallB" | "wallC" | "height";
 
 const DESIGNS_ENDPOINT = "/api/designs";
 
-/** The step pill's denominator: Step 1 of 4 at the room, step 2 of 4 in the editor (G15). */
+/** The step pill's denominator: Step 1 of 4 at the room, step 2 of 4 in the editor. */
 const TOTAL_STEPS = 4;
 
-// -------------------------------------------------------------------------------------------
-// Copy, resolved from the message catalogues the app renders — never spelled here.
-// -------------------------------------------------------------------------------------------
+// Copy is resolved from the message catalogues the app renders, never spelled here.
 
 const MESSAGES_BY_LOCALE: Readonly<Record<Locale, Messages>> = {
   ro: readMessages("ro"),
@@ -61,8 +52,8 @@ function translatorFor(locale: Locale) {
   return createTranslator({ locale, messages: MESSAGES_BY_LOCALE[locale] });
 }
 
-/** The pill's accessible name at `step` — `configure.step`, the leaf both the room and the editor
- *  render their pill's `aria-label` from (G15). */
+/** The pill's accessible name at `step`: `configure.step`, the leaf both the room and the editor render their
+ *  `aria-label` from. */
 export function stepSentence(locale: Locale, step: number): string {
   return translatorFor(locale)("configure.step", {
     step,
@@ -74,10 +65,6 @@ export function stepSentence(locale: Locale, step: number): string {
 export function cameraGroupLabel(locale: Locale): string {
   return translatorFor(locale)("configure.cameraGroupLabel");
 }
-
-// -------------------------------------------------------------------------------------------
-// Step 1: where things are, and how a finger reaches them.
-// -------------------------------------------------------------------------------------------
 
 export function roomPath(locale: Locale): string {
   return `/${locale}/configurator/room`;
@@ -92,7 +79,7 @@ export function isEditorUrl(url: URL, locale: Locale): boolean {
   return new RegExp(`^/${locale}/d/[^/]+$`).test(url.pathname);
 }
 
-/** The screen, and the marker the sub-state is read off (`room-screen.tsx:153-157`). */
+/** The screen, and the marker the sub-state is read off. */
 export function roomScreen(page: Page): Locator {
   return page.locator("main[data-room-substate]");
 }
@@ -131,17 +118,14 @@ export async function eraseDigits(
   }
 }
 
-/** The id the hand-off navigated to. The path segment is escaped on the way in
- *  (`use-generation.ts:434`), so it is unescaped on the way out. */
+/** The id the hand-off navigated to; the path segment is escaped on the way in, so it is unescaped here. */
 export function idInEditorUrl(url: string): string {
   const id = new URL(url).pathname.split("/").pop();
   if (id === undefined || id === "") throw new Error(`no design id in ${url}`);
   return decodeURIComponent(id);
 }
 
-// -------------------------------------------------------------------------------------------
-// Recorders — observation only (the plan's *Must not happen*: no interception alters a response).
-// -------------------------------------------------------------------------------------------
+// Recorders observe only: no interception alters a response.
 
 /** One save the browser sent: the row it was aimed at, and the document it carried. */
 export interface CapturedSave {
@@ -153,10 +137,9 @@ export interface CapturedSave {
 export interface DesignWrites {
   readonly postCount: () => number;
   readonly saves: () => readonly CapturedSave[];
-  /** The ids every successful `POST /api/designs` answered with, once their bodies have been read —
-   *  awaiting any mint still in flight. The fixture below deletes exactly these (ADR 0006; criterion
-   *  16), which is why an id is taken from the observed response and never from a URL the test might
-   *  not reach (risk R7). */
+  /** The ids every successful `POST /api/designs` answered with, awaiting any mint still in flight. The fixture
+   *  deletes exactly these, so an id is taken from the observed response and never from a URL the test might not
+   *  reach. */
   readonly mintedIds: () => Promise<readonly string[]>;
   /** The same ids, but a mint whose response has not arrived within `timeoutMs` is logged and
    *  skipped rather than awaited — for teardown, which must neither hang nor throw. */
@@ -231,9 +214,8 @@ function definedIds(ids: readonly (string | undefined)[]): string[] {
 export function recordDesignWrites(page: Page): DesignWrites {
   let posts = 0;
   const saves: CapturedSave[] = [];
-  // Registered when the `POST` **leaves the browser**, not when its response arrives: an assertion
-  // that throws while the mint is still in flight (criterion 14 holds it for 1.5 s) must not leave
-  // teardown with an empty list and the row in the database (risk R7).
+  // Registered when the `POST` leaves the browser, not when its response arrives: an assertion that throws while the
+  // mint is in flight must not leave teardown with an empty list and the row in the database.
   const mints: Promise<string | undefined>[] = [];
 
   page.on("request", (request) => {
@@ -272,8 +254,8 @@ function readableRecordOf(pathnames: readonly string[]): PathnameRecord {
   };
 }
 
-/** The main frame's committed pathnames, in order — same-document (router) commits included, which
- *  is what lets the gate say *"no other pathname"* between a tap and the editor (criterion 6). */
+/** The main frame's committed pathnames, in order, same-document (router) commits included, so the gate can say
+ *  "no other pathname" between a tap and the editor. */
 export type CommittedPathnames = PathnameRecord;
 
 export function recordCommittedPathnames(page: Page): CommittedPathnames {
@@ -285,9 +267,8 @@ export function recordCommittedPathnames(page: Page): CommittedPathnames {
   return readableRecordOf(pathnames);
 }
 
-/** The pathname of every request the page **issued**, in order, whatever became of it. A router
- *  `push` requests its target the instant it runs, so this sees a navigation that a slow response or
- *  a cold compile would keep from ever being committed (criterion 14). */
+/** The pathname of every request the page issued, in order, whatever became of it. A router `push` requests its
+ *  target the instant it runs, so this sees a navigation that a slow response or cold compile never commits. */
 export type RequestedPathnames = PathnameRecord;
 
 export function recordRequestedPathnames(page: Page): RequestedPathnames {
@@ -311,14 +292,14 @@ export function recordPageErrors(page: Page): readonly string[] {
   return errors;
 }
 
-/** How long teardown waits for a mint still in flight — the emulated 1.5 s round trip of criterion 14
- *  many times over, on `next dev` — before it logs the id as unrecoverable and moves on. */
+/** How long teardown waits for a mint still in flight (the emulated 1.5 s round trip, many times over, on `next dev`)
+ *  before it logs the id as unrecoverable and moves on. */
 const MINT_RESPONSE_BOUND_IN_TEARDOWN_MS = 15_000;
 
 /**
- * The test fixture every gate test runs under: its own page's writes and commits recorded from before
- * the first navigation, its page errors collected, and — in teardown, which Playwright runs whether
- * the test passed or not — every design it minted deleted.
+ * The fixture every gate test runs under: its page's writes and commits recorded from before the first navigation,
+ * its page errors collected, and, in teardown, which runs whether or not the test passed, every design it minted
+ * deleted.
  */
 export const test = base.extend<{
   designWrites: DesignWrites;
@@ -343,11 +324,7 @@ export const test = base.extend<{
   },
 });
 
-// -------------------------------------------------------------------------------------------
-// In-page observers, for what only an atomic read inside the browser can tell.
-// -------------------------------------------------------------------------------------------
-
-/** What the page saw between *Continuă* at 1D and the editor (criterion 6). */
+/** What the page saw between *Continuă* at 1D and the editor. */
 export interface HandOffObservation {
   /** 1F was on screen while the pill still announced step 1. */
   readonly sawComposeAtStepOne: boolean;
@@ -360,9 +337,8 @@ export interface HandOffObservation {
 const HAND_OFF_KEY = "__mobileGateHandOff";
 
 /**
- * Watches 1F from inside the page, so *"1F at step 1"* is one read of one DOM rather than two reads a
- * navigation could fall between. Installed at 1D; the hand-off is a client-side `push`, so the window
- * — and this record — survive into the editor.
+ * Watches 1F from inside the page, so *"1F at step 1"* is one read of one DOM that a navigation cannot fall between.
+ * The hand-off is a client-side `push`, so the window, and this record, survive into the editor.
  */
 export async function watchTheHandOff(
   page: Page,
@@ -415,8 +391,8 @@ export async function readTheHandOff(
   );
 }
 
-/** Design writes as the page's own `fetch` saw them, and the count at the instant a finger touched
- *  1F's *Înapoi* (criterion 14's precondition, read atomically in the browser). */
+/** Design writes as the page's own `fetch` saw them, and the count at the instant a finger touched 1F's *Înapoi*,
+ *  read atomically in the browser. */
 export interface WritesInPage {
   readonly pending: number;
   readonly settled: number;
@@ -427,10 +403,9 @@ export interface WritesInPage {
 const WRITES_KEY = "__mobileGateWrites";
 
 /**
- * Counts `POST`/`PUT` to `/api/designs` in flight, by wrapping `fetch` **for observation only**: the
- * request goes out unchanged and the caller receives the very response the network produced. The
- * repository reads the global `fetch` at call time (`fetch-configuration-repository.ts:322-324`), so
- * a wrapper installed at 1D sees the hand-off's writes.
+ * Counts `POST`/`PUT` to `/api/designs` in flight by wrapping `fetch` for observation only: the request and its
+ * response pass unchanged. The repository reads the global `fetch` at call time, so a wrapper installed at 1D sees the
+ * hand-off's writes.
  */
 export async function watchDesignWritesInPage(page: Page): Promise<void> {
   await page.evaluate(
@@ -489,7 +464,7 @@ export async function readDesignWritesInPage(
   );
 }
 
-/** Resolves once a design write is in flight in the page — the moment criterion 14 taps at. */
+/** Resolves once a design write is in flight in the page. */
 export async function waitForAWriteInFlight(
   page: Page,
   timeoutMs: number,
@@ -516,8 +491,8 @@ export async function waitForWritesToSettle(
   );
 }
 
-/** Chrome's own network emulation (`room-late-echo.e2e.spec.ts`'s precedent, G12): every request
- *  pays `latencyMs`. Returns the undo. */
+/** Chrome's own network emulation (`room-late-echo.e2e.spec.ts`'s precedent): every request pays `latencyMs`.
+ *  Returns the undo. */
 export async function emulateNetworkLatency(
   page: Page,
   latencyMs: number,
@@ -537,10 +512,6 @@ export async function emulateNetworkLatency(
     await session.detach();
   };
 }
-
-// -------------------------------------------------------------------------------------------
-// The stored design, read back from the same browser.
-// -------------------------------------------------------------------------------------------
 
 export interface StoredDesignRead {
   readonly status: number;
@@ -567,10 +538,6 @@ export async function readStoredDesign(
   );
 }
 
-// -------------------------------------------------------------------------------------------
-// The editor end (D9): a base-row body, measured on the scene the customer is looking at.
-// -------------------------------------------------------------------------------------------
-
 export interface TapTarget {
   readonly placementId: string;
   /** Viewport coordinates, as `page.touchscreen.tap` takes them. */
@@ -583,7 +550,7 @@ const FLOOR_TOLERANCE_M = 0.01;
 /** …and ends well below the wall row's 1.5 m floor, which is what separates it from a full-height
  *  column that also stands on the floor. */
 const BASE_ROW_TOP_LIMIT_M = 1.2;
-/** mirror-flow's rule (`:316-317`): a projected centre inside the canvas's middle 80 %. */
+/** mirror-flow's rule: a projected centre inside the canvas's middle 80 %. */
 const MIDDLE_BAND_FROM = 0.1;
 const MIDDLE_BAND_TO = 0.9;
 
@@ -598,17 +565,16 @@ function isInsideTheMiddleBand(px: number, spanPx: number): boolean {
   return px > spanPx * MIDDLE_BAND_FROM && px < spanPx * MIDDLE_BAND_TO;
 }
 
-/** How far a body's centre stands from the corner the two walls meet at. The farthest is preferred
- *  for mirror-flow's reason (`:308-315`): a corner return's bounding-box centre sits over air. */
+/** How far a body's centre stands from the corner the two walls meet at. The farthest is preferred, as in
+ *  mirror-flow: a corner return's bounding-box centre sits over air. */
 function distanceFromCornerM(body: SceneBodyBounds): number {
   const [x, , z] = centreOf(body);
   return Math.hypot(x, z);
 }
 
 /**
- * The base-row body to tap, chosen **from the scene readout at the current camera** — never a stored
- * pixel (G14): its projected centre lies in the canvas's middle 80 % on both axes, and the canvas
- * itself is what the browser reports at that point, so no overlay would take the touch.
+ * The base-row body to tap, chosen from the scene readout at the current camera, never a stored pixel: its projected
+ * centre lies in the canvas's middle 80 % on both axes, and the canvas is topmost there, so no overlay takes the touch.
  */
 export async function findBaseRowTapTarget(page: Page): Promise<TapTarget> {
   const scene = await readScene(page);

@@ -1,9 +1,17 @@
 # ADR 0130 — A straight kitchen is the composer's run on one wall with no corner
 
-Status: Proposed — with wave 7J's plan, 2026-09-24
+Status: Accepted — owner ruling, 2026-10-06. ~~Proposed — with wave 7J's plan, 2026-09-24~~ (the
+original status, kept visible). Reason: wave 7J shipped it (`docs/STATUS.md` records *"M7 wave 7J is
+DONE"*, last updated 2026-09-28, straight kitchens through composition); the owner moved it from
+Proposed to Accepted on 2026-10-06.
 Date: 2026-09-24
 Type: Decision
 Milestone: M7, wave 7J (`docs/milestones/M7-room-and-presets.md`, *Wave 7J — the plan (2026-09-24)*)
+
+**Pointer, 2026-10-01.** The sweep row at `:102` cites *"7D2 c. 14 … no uppers over the corner"*. That
+criterion is overturned for an L and a U by
+[ADR 0110 Amendment O](0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md#amendment-o--2026-10-01-a-fixed-corner-wall-unit-stands-over-every-generated-corner-the-top-row-the-validators-banded-reach-and-the-fridge-gap-absorb)
+(O3). For a straight kitchen it stands, since a straight kitchen has no corner. Nothing here is struck.
 
 ## Context
 

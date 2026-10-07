@@ -1,28 +1,15 @@
 import { neon } from "@neondatabase/serverless";
 
 import { readDatabaseUrl } from "./read-database-url.js";
-import { retryOnComputeRestart } from "./retry-on-compute-restart.js";
+import { retryOnTransientFailure } from "./retry-on-transient-failure.js";
 
 /**
- * Raw `designs` rows, mirroring the table's columns one-to-one (see
- * `migrations/0001_create_designs.sql`) rather than the domain `Design` type.
- *
- * A backup deliberately carries the raw `schema_version` each row was written with: a restore has
- * to migrate every row from the version it was stored at, and a `Design` that has already been
- * through `migrateDesign` has lost that information.
- *
- * It carries `write_token_hash` for a sharper reason: that column *is* edit access (ADR 0019
- * decision 1). Restore a design without it and the row comes back readable and permanently
- * unwritable, so every customer silently loses the ability to edit their own kitchen — and nothing
- * looks broken until one of them tries to save. Exporting it is safe by the same argument that
- * justifies hashing at rest: the column holds a SHA-256 digest, never a token, so a leaked backup
- * yields values that cannot be presented as credentials.
- *
- * It carries `visitor_hash` for the same reason, one column over: since M7 wave 7E3a that column
- * *is* read access (ADR 0114 decision 5). A restore that drops it brings every design back
- * unreadable to the visitor who owns it — the row exists, the id still resolves, and the "not
- * available in this browser" page is all that loads. Safe to export by the same digest argument:
- * it is a SHA-256 hash of the visitor cookie, never the cookie.
+ * Raw `designs` rows mirroring the table's columns one-to-one (`migrations/0001_create_designs.sql`), not the domain
+ * `Design`: a restore migrates each row from the `schema_version` it was written with, which `migrateDesign` would
+ * erase. It carries `write_token_hash` because that column is edit access (ADR 0019 decision 1): a restore without it
+ * returns rows readable and permanently unwritable. It carries `visitor_hash` because that column is read access (ADR
+ * 0114 decision 5): without it a restored design is unreadable to its owner. Both are SHA-256 digests, never tokens or
+ * cookies, so a leaked backup yields nothing presentable as a credential.
  */
 export interface DesignBackupRow {
   readonly id: string;
@@ -34,13 +21,8 @@ export interface DesignBackupRow {
   readonly visitor_hash: string | null;
 }
 
-/**
- * One page of a keyset walk over `designs`, ordered by `id`.
- *
- * Keyset rather than `offset`: the walk is the backup's, so it must not re-read rows it has already
- * exported when a concurrent insert shifts every later offset, and `where id > ?` costs the same on
- * page one and page ten thousand.
- */
+/** One page of a keyset walk over `designs`, ordered by `id`. Keyset, not `offset`: a concurrent insert must not shift
+ *  later pages, and `where id > ?` costs the same on every page. */
 export interface DesignRowPageQuery {
   /** Exclusive lower bound — the last `id` the previous page returned. Absent for the first page. */
   readonly afterId?: string;
@@ -48,42 +30,31 @@ export interface DesignRowPageQuery {
 }
 
 /**
- * Paged read of `designs` rows in `id` order. An interface so callers can substitute a fake in
- * tests without a live database.
- *
- * Paged rather than "fetch them all": the only caller is the nightly backup, and a whole-table read
- * put the entire database in memory as driver row objects at once — growth was O(total stored data)
- * with nothing bounding it, so the recovery mechanism was guaranteed to fail exactly when the
- * database had grown large enough for recovery to matter (finding DB-002).
+ * Paged read of `designs` rows in `id` order; an interface so tests can substitute a fake. Paged because a whole-table
+ * read put the entire database in memory, so the backup would fail exactly when the database had grown large enough
+ * for recovery to matter (finding DB-002).
  */
 export interface DesignRowSource {
   fetchDesignPage(query: DesignRowPageQuery): Promise<DesignBackupRow[]>;
 }
 
 /**
- * Reads `designs` rows for the scheduled backup, one bounded page at a time.
- *
- * Scoped to `designs` alone, deliberately — never widen it to another **table**. The column list
- * grows with the table's columns (a restore must reproduce the row, not a subset of it); what must
- * never grow is the set of tables this reads. M8 adds a contact table
- * holding personal data, and a database-wide export would sweep contact submissions into Blob under
- * the backup's 14-day rotation, contradicting the stricter handling contact data is promised
- * (`docs/decisions/0002-db-backed-shareable-persistence.md`, "Security and backups"). A
- * second, separately-scoped export is the right way to back up another table.
- *
- * Lives here rather than in the web app because this package is the only place allowed to import a
- * Postgres driver: keeping every statement in one package is what makes "no string-built SQL
- * anywhere" auditable in a single place.
+ * Reads `designs` rows for the scheduled backup, one bounded page at a time. Scoped to the `designs` table alone: never
+ * widen it to another table. M8 adds a contact table holding personal data, and a database-wide export would sweep it
+ * into Blob under the backup's 14-day rotation, against the stricter handling contact data is promised
+ * (`docs/decisions/0002-db-backed-shareable-persistence.md`, "Security and backups"). Back up another table with a
+ * second, separately scoped export. It lives here because this package is the only place allowed to import a Postgres
+ * driver.
  */
 export function createNeonDesignRowSource(
   connectionUrl?: string,
 ): DesignRowSource {
   return {
     async fetchDesignPage({ afterId, pageSize }) {
-      // Resolved per call, not at construction: a missing `DATABASE_URL` must surface where the
-      // caller can catch, log and report it, not throw while wiring dependencies.
+      // Resolved per call, not at construction: a missing `DATABASE_URL` must surface where the caller can catch and
+      // report it, not throw while wiring dependencies.
       const sql = neon(connectionUrl ?? readDatabaseUrl());
-      const rows = await retryOnComputeRestart(() =>
+      const rows = await retryOnTransientFailure(() =>
         afterId === undefined
           ? sql`
               select id, schema_version, document, created_at, updated_at, write_token_hash,

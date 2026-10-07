@@ -29,46 +29,37 @@ import { forgetAppliedMigrations } from "./support/migration-ledger-probe.js";
 import { holdExclusiveTestSchemaLock } from "./support/test-schema-lock.js";
 
 // Exclusive: this file drops the revision column, and no other run may use the test database
-// while it is missing (M7 wave 7T, T-J5).
+// while it is missing.
 holdExclusiveTestSchemaLock();
 
 const SUITE_NAME =
   "the configuration repository's live suite (live test database)";
 
-// Never the application database — `liveTestDatabaseUrl` resolves through `resolveTestDatabaseUrl`,
-// which throws rather than resolving to it. These tests insert and delete rows; pointed at the
-// app's own database they would eventually destroy real customer designs.
+// Never the application database: `liveTestDatabaseUrl` throws rather than resolving to it, and
+// these tests insert and delete rows.
 const hasLiveDatabase = isLiveTestDatabaseConfigured;
 const testDatabaseUrl = liveTestDatabaseUrl;
 if (!hasLiveDatabase) announceSkippedLiveSuite(SUITE_NAME);
 
-// Whether an application database URL exists to compare the test database against. CI configures
-// none on purpose, and with nothing to compare, the not-the-application's-own check would assert
-// nothing — so it runs only where both URLs exist (coordinator, 2026-09-22). Deliberately not the
-// file's gate: every other test here needs only the test database.
+// CI configures no application database URL on purpose, so the not-the-application's-own check
+// runs only where both URLs exist. It is not the file's gate: every other test needs only the test one.
 const hasApplicationDatabaseUrl =
   (process.env["DATABASE_URL"]?.trim() ?? "") !== "";
 
 const SOURCE_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "../src");
 
-// Stand-ins for the SHA-256 hex digests the web layer derives from a real write token. The
-// repository never hashes anything itself — it only ever compares what it is handed against what
-// the row holds — so opaque distinct strings exercise the predicate exactly as real digests would.
+// Opaque stand-ins for SHA-256 hex digests: the repository never hashes, it only compares what it
+// is handed against what the row holds.
 const CORRECT_TOKEN_HASH = "a".repeat(64);
 const WRONG_TOKEN_HASH = "b".repeat(64);
 
-/** A stand-in visitor hash: this file is about the write-token predicate, not visitor identity, so
- *  every mint below needs one well-formed value and nothing more. */
 const VISITOR_HASH = "d".repeat(64);
 
-/** What `0004_add_design_revision.sql` gives every row, existing or new. Stated rather than read
- *  back, so a migration that quietly changed the default would fail these tests instead of being
- *  followed by them. */
+// What `0004_add_design_revision.sql` gives every row. Stated, not read back, so a changed default
+// fails these tests instead of being followed by them.
 const FIRST_REVISION = "1";
 
 describe("NeonConfigurationRepository (live test database)", () => {
-  // Rows these tests mint, deleted after each test. Without this the suite is not repeatable in the
-  // F.I.R.S.T. sense — every run would leave orphans and the table would grow without bound.
   const mintedIds: DesignId[] = [];
 
   async function mintTracking(
@@ -100,8 +91,7 @@ describe("NeonConfigurationRepository (live test database)", () => {
     return (await repository.load(id)).design;
   }
 
-  /** A row as it exists before ADR 0019: no write token at all. Inserted directly, because the
-   *  repository has no way left to create one. */
+  // Inserted directly: the repository can no longer create a row without a write token.
   async function insertTokenlessRow(): Promise<DesignId> {
     const id = generateDesignId();
     await neon(testDatabaseUrl)`
@@ -197,8 +187,6 @@ describe("NeonConfigurationRepository (live test database)", () => {
         }),
       ).rejects.toThrow(DesignWriteForbiddenError);
 
-      // The refusal is worthless if the row moved anyway, and a rejected promise says nothing about
-      // the row — so the row itself is what is asserted.
       expect(canonicalSerializeDesign(await loadedDesign(repository, id))).toBe(
         before,
       );
@@ -214,7 +202,6 @@ describe("NeonConfigurationRepository (live test database)", () => {
         KITCHEN_L_DESIGN,
         CORRECT_TOKEN_HASH,
       );
-      // A second design, minted normally, whose own credential must not reach across to the first.
       await mintTrackingId(repository, KITCHEN_L_DESIGN, WRONG_TOKEN_HASH);
       const before = canonicalSerializeDesign(
         await loadedDesign(repository, victimId),
@@ -241,9 +228,8 @@ describe("NeonConfigurationRepository (live test database)", () => {
     async () => {
       const repository = testRepository();
 
-      // Identical rejection for "unknown" and "wrong credential": the conditional update cannot
-      // tell them apart, and nothing above it may be able to either, or the write path becomes an
-      // existence oracle for design ids.
+      // Unknown and wrong-credential must be indistinguishable, or the write path is an existence
+      // oracle for design ids.
       await expect(
         repository.saveAuthorized({
           id: "does-not-exist-00000000",
@@ -270,8 +256,7 @@ describe("NeonConfigurationRepository (live test database)", () => {
         canonicalSerializeDesign(KITCHEN_L_DESIGN),
       );
 
-      // `null = $hash` is never true in SQL, so a tokenless row fails closed rather than open.
-      // There is no hash anyone can present that satisfies the predicate.
+      // `null = $hash` is never true in SQL, so a tokenless row fails closed.
       await expect(
         repository.saveAuthorized({
           id,
@@ -287,9 +272,8 @@ describe("NeonConfigurationRepository (live test database)", () => {
     },
   );
 
-  // Every shape that is not a SHA-256 digest, refused as a class rather than one discovered value
-  // at a time. `""` and `" "` are the ones with the sharpest teeth: SQL compares them by equality,
-  // so a row stored with either is writable by anyone who presents the same value.
+  // `""` and `" "` matter most: SQL compares by equality, so a row stored with either is writable
+  // by anyone presenting the same value.
   const NON_DIGEST_HASHES: readonly {
     readonly name: string;
     readonly hash: string;
@@ -380,8 +364,6 @@ describe("the write-token migration", () => {
   it.skipIf(!hasLiveDatabase)(
     "actually adds write_token_hash to designs, asserted against the catalogue rather than an exit code",
     async () => {
-      // `pnpm run migrate` once exited 0 having migrated nothing (ADR 0013), so a zero exit status
-      // is not evidence a migration ran. The catalogue is.
       const columns = (await neon(testDatabaseUrl)`
         select column_name, data_type, is_nullable
         from information_schema.columns
@@ -398,8 +380,6 @@ describe("the write-token migration", () => {
   it.skipIf(!hasLiveDatabase)(
     "refuses a non-digest hash at the database, not only in application code",
     async () => {
-      // `requireSha256Digest` is not on the path a manual insert or a restore takes, so the rule
-      // is stated where the data lives as well.
       const sql = neon(testDatabaseUrl);
 
       await expect(
@@ -428,9 +408,6 @@ describe("the write-token migration", () => {
   it.skipIf(!hasLiveDatabase)(
     "is skipped on a re-run, so a second migrate neither fails nor duplicates the column",
     async () => {
-      // Before Wave S10 this asserted idempotence, because every file re-executed on every run.
-      // The ledger now skips what is already applied, so the guarantee it pins is the stronger one:
-      // a second run reports having applied nothing and leaves the column exactly as it was.
       const summary = await runMigrations(testDatabaseUrl);
       expect(summary.applied).toEqual([]);
 
@@ -444,16 +421,6 @@ describe("the write-token migration", () => {
   );
 });
 
-/**
- * WEB-003. Until wave S11 a save matched a row by id and write token alone, so two tabs holding one
- * legitimate cookie could both load a design, both edit it destructively, and both be told they had
- * saved — the second write silently replacing the first.
- *
- * Every test here fails against that implementation, and the reason is structural rather than
- * incidental: `AuthorizedSave` had no `expectedRevision` field to supply and `designs` had no
- * `revision` column to compare, so the pre-fix repository cannot express these calls at all. The
- * two that would still compile — the increment and the backfill — read a column that did not exist.
- */
 describe("saveAuthorized revisions (WEB-003)", () => {
   const mintedIds: DesignId[] = [];
   const REVISION_AFTER_ONE_SAVE = "2";
@@ -501,7 +468,6 @@ describe("saveAuthorized revisions (WEB-003)", () => {
   it.skipIf(!hasLiveDatabase)(
     "lets the first of two saves from one revision win, and refuses the second without writing it",
     async () => {
-      // The exploit, reproduced: one design, one credential, two tabs that both read revision 1.
       const repository = testRepository();
       const { id, revision } = await mintTracking(repository);
       const firstTab = designNamed("saved-by-the-first-tab");
@@ -524,8 +490,6 @@ describe("saveAuthorized revisions (WEB-003)", () => {
         }),
       ).rejects.toThrow(DesignWriteConflictError);
 
-      // The refusal is worthless if the row moved anyway: what is stored must still be the first
-      // tab's design, which is exactly what the old implementation destroyed.
       expect(saved.revision).toBe(REVISION_AFTER_ONE_SAVE);
       const stored = await repository.load(id);
       expect(canonicalSerializeDesign(stored.design)).toBe(
@@ -588,8 +552,6 @@ describe("saveAuthorized revisions (WEB-003)", () => {
         }),
       ).rejects.toThrow(DesignWriteConflictError);
 
-      // A refusal that still moved the counter would make the next legitimate save conflict too,
-      // turning one stale tab into a design nobody can write.
       expect((await repository.load(id)).revision).toBe(revision);
     },
   );
@@ -597,10 +559,8 @@ describe("saveAuthorized revisions (WEB-003)", () => {
   it.skipIf(!hasLiveDatabase)(
     "answers the wrong credential with the forbidden refusal whatever revision it claims",
     async () => {
-      // The disclosure rule: a conflict is only ever reported to a caller whose token matched, so
-      // nobody else can tell a stale write from an unauthorised one — or learn that the design
-      // exists at all. The current revision is the sharpest case, because it is the one claim that
-      // would otherwise be "correct except for the token".
+      // A conflict is reported only to a caller whose token matched. The current revision is the
+      // sharpest case: the one claim that would otherwise be "correct except for the token".
       const repository = testRepository();
       const { id, revision } = await mintTracking(repository);
 
@@ -637,9 +597,8 @@ describe("saveAuthorized revisions (WEB-003)", () => {
     },
   );
 
-  // A revision is a caller-supplied string, so every shape a caller can send has to produce a
-  // refusal rather than a database error surfacing as a 500. `''` and the tautology are the sharp
-  // ones: compared as a number rather than as text, one of them raises and the other could match.
+  // Every caller-supplied shape must produce a refusal, never a database error surfacing as a 500.
+  // `''` and the tautology are the sharp ones: compared as a number, one raises and the other could match.
   const NON_REVISION_VALUES: readonly { name: string; value: string }[] = [
     { name: "an empty string", value: "" },
     { name: "a single space", value: " " },
@@ -683,8 +642,6 @@ describe("saveAuthorized revisions (WEB-003)", () => {
   );
 });
 
-/** M7 wave 7E3b S1, D3 / ADR 0114 Amendment H3: `saveAuthorized`'s ownership column, from the same
- *  statement as the update. */
 describe("saveAuthorized's ownership column (Amendment H3)", () => {
   const mintedIds: DesignId[] = [];
   const OWNER_HASH = "18".repeat(32);
@@ -788,17 +745,13 @@ describe("saveAuthorized's ownership column (Amendment H3)", () => {
         requestVisitor: { kind: "present", visitorHash: OWNER_HASH },
       });
 
-      // The write token alone still authorises the save (decision 2) — the write must land even
-      // though the carried visitor value has already been rotated away.
+      // The write token alone authorises the save: it must land although the visitor value was rotated.
       expect(staleSave.revision).not.toBe(revision);
       expect(staleSave.ownsVisitor).toBe(false);
     },
   );
 });
 
-/** M7 wave 7E3a S3, D3: the resume query, run for real rather than only against a repository
- *  double — the double cannot prove the ordering, the isolation, or that `0005`'s index is even the
- *  right shape for the columns this file's own SQL names. */
 describe("resumeVisitor (D3)", () => {
   const mintedIds: DesignId[] = [];
 
@@ -862,8 +815,7 @@ describe("resumeVisitor (D3)", () => {
       const otherVisitorHash = "9".repeat(64);
       await mintWithVisitor(otherVisitorHash);
       const nullHashId = await mintWithVisitor(VISITOR_HASH);
-      // A pre-0005 row, simulated: minted with a hash, then nulled out directly, since `mint` has
-      // no way left to create one.
+      // A pre-0005 row, simulated: `mint` can no longer create one, so null the hash directly.
       await neon(testDatabaseUrl)`
         update designs set visitor_hash = null where id = ${nullHashId}
       `;
@@ -876,9 +828,6 @@ describe("resumeVisitor (D3)", () => {
   );
 });
 
-/** M7 wave 7E3b S1, D1 / ADR 0114 Amendment H1 ("Rotate on mint"): a mint that carries a
- *  well-formed old visitor value moves that browser's rows to the fresh one, in the same
- *  transaction as the insert. */
 describe("mint rotation (Amendment H1)", () => {
   const mintedIds: DesignId[] = [];
 
@@ -936,8 +885,7 @@ describe("mint rotation (Amendment H1)", () => {
       const newHash = "11".repeat(32);
       const id = await mintFresh(oldHash);
 
-      // The rotation is a side effect of minting a second design under the browser's fresh value —
-      // that new design's own id, not the old one, is what resume answers next (it is the newest).
+      // Rotation is a side effect of minting; resume then answers the new design, being the newest.
       const { id: newId } = await testRepository().mint({
         design: KITCHEN_L_DESIGN,
         writeTokenHash: CORRECT_TOKEN_HASH,
@@ -957,7 +905,6 @@ describe("mint rotation (Amendment H1)", () => {
         kind: "found",
         id: newId,
       });
-      // The moved design is still readable under the fresh value, alongside the one just minted.
       await expect(
         testRepository().loadOwned({ id, visitorHash: newHash }),
       ).resolves.toMatchObject({ kind: "found" });
@@ -998,8 +945,6 @@ describe("mint rotation (Amendment H1)", () => {
       const untouchedHash = "14".repeat(32);
       const untouchedId = await mintFresh(untouchedHash);
 
-      // A second, unrelated fresh mint — it carries no old value to rotate away from, so it must
-      // not touch the row above at all.
       await mintFresh("15".repeat(32));
 
       expect((await rowFor(untouchedId)).visitor_hash).toBe(untouchedHash);
@@ -1007,9 +952,6 @@ describe("mint rotation (Amendment H1)", () => {
   );
 });
 
-/** M7 wave 7E3b S1, D4 / ADR 0114 Amendment H2: the gated read, driven directly rather than only
- *  through a repository double — a double cannot prove the predicate is one statement over one
- *  snapshot, which is the property this port exists for. */
 describe("loadOwned (Amendment H2)", () => {
   const mintedIds: DesignId[] = [];
   const OWNER_HASH = "16".repeat(32);
@@ -1106,8 +1048,7 @@ describe("loadOwned (Amendment H2)", () => {
     },
   );
 
-  /** A row as it exists before ADR 0114 (M7 wave 7E3a): no visitor at all. Inserted directly,
-   *  because `mint` has no way left to create one. */
+  // Inserted directly: `mint` can no longer create a row without a visitor.
   async function insertTokenlessOwnerlessRow(): Promise<DesignId> {
     const id = generateDesignId();
     await neon(testDatabaseUrl)`
@@ -1118,8 +1059,7 @@ describe("loadOwned (Amendment H2)", () => {
     return id;
   }
 
-  /** A row whose document fails `migrateDesign`'s own validation — inserted directly, because
-   *  `mint` never accepts a document this shape. */
+  // Inserted directly: `mint` never accepts a document that fails `migrateDesign`'s validation.
   async function insertInvalidDocumentRow(
     visitorHash: string,
   ): Promise<DesignId> {
@@ -1153,8 +1093,7 @@ describe("the design-revision migration (WEB-003)", () => {
 
       expect(columns).toHaveLength(1);
       expect(columns[0]?.data_type).toBe("bigint");
-      // Nullable would be a row no predicate can ever match: `revision = $1` is never true for
-      // NULL, so such a design would be permanently unwritable by its own owner.
+      // Nullable would make a design permanently unwritable: `revision = $1` is never true for NULL.
       expect(columns[0]?.is_nullable).toBe("NO");
       expect(columns[0]?.column_default).toBe(FIRST_REVISION);
     },
@@ -1163,22 +1102,16 @@ describe("the design-revision migration (WEB-003)", () => {
   it.skipIf(!hasLiveDatabase)(
     "backfills rows that already existed, rather than leaving them without a revision",
     async () => {
-      // The strongest form of the question, and the only one that proves the *file* rather than the
-      // state a previous run happened to leave: take the column away, put a row in as it would have
-      // existed before this migration, then make the runner apply the migration again.
+      // Proves the file, not state a previous run left: drop the column, insert a pre-migration row,
+      // then make the runner apply the migration again.
       const sql = neon(testDatabaseUrl);
       const legacyId = generateDesignId();
       try {
-        // Forget the ledger row before dropping the column, never after: killed between the two,
-        // a run leaves only a forgotten tail, which the next `runMigrations` re-applies and
-        // re-records. The other order leaves the ledger claiming a column that is gone, which is
-        // BACKLOG 69's second error and wedges every later run (review finding R1.2).
-        //
-        // Every version from REVISION_VERSION upward, not only REVISION_VERSION itself (WEB-003,
-        // the same argument `neon-configuration-repository.adversarial.test.ts`'s
-        // WRITE_TOKEN_MIGRATION_VERSIONS makes): forgetting 4 while a later migration stays
-        // recorded is itself the gap the runner refuses, and 0005 is exactly such a later migration
-        // now.
+        // Forget the ledger rows before dropping the column, never after: a run killed in between then
+        // leaves only a forgotten tail that the next `runMigrations` re-applies. The other order leaves
+        // the ledger claiming a missing column and wedges every later run.
+        // Forget every version from REVISION_VERSION up: forgetting 4 while a later migration stays
+        // recorded is a gap the runner refuses.
         await forgetAppliedMigrations(
           testDatabaseUrl,
           REVISION_AND_LATER_VERSIONS,
@@ -1197,8 +1130,8 @@ describe("the design-revision migration (WEB-003)", () => {
         `) as { revision: string }[];
         expect(rows[0]?.revision).toBe(FIRST_REVISION);
       } finally {
-        // Unconditional: a dropped column or a forgotten ledger row left behind wedges every other
-        // suite in this package, which shares one database.
+        // Unconditional: a dropped column or forgotten ledger row wedges every other suite sharing
+        // this database.
         await runMigrations(testDatabaseUrl);
         await sql`delete from designs where id = ${legacyId}`;
       }
@@ -1224,10 +1157,8 @@ describe("the design-revision migration (WEB-003)", () => {
 /** The version `0004_add_design_revision.sql` occupies in the ledger. */
 const REVISION_VERSION = 4;
 
-/** Every migration at or after `REVISION_VERSION`, read from disk rather than written down — the
- *  same argument `migrate.test.ts`'s `VERSIONS_AFTER_THE_FIRST` makes: a literal list here would go
- *  stale the moment a later migration shipped, and staleness here is destructive (a forgotten
- *  ledger row with a later one left recorded is the gap the runner refuses), not merely wrong. */
+// Read from disk, not listed: a stale literal list here is destructive (a forgotten ledger row
+// with a later one still recorded is a gap the runner refuses), not merely wrong.
 const REVISION_AND_LATER_FILES = readMigrationFiles().filter(
   (migration) => migration.version >= REVISION_VERSION,
 );
@@ -1257,16 +1188,13 @@ describe("NeonConfigurationRepository connection setup", () => {
       "utf8",
     );
 
-    // A time-of-check/time-of-use split is the specific regression this pins: the credential and,
-    // since WEB-003, the expected revision must both live in the `update` itself.
+    // Pins against a time-of-check/time-of-use split: the credential and the expected revision
+    // must both live in the `update` itself.
     expect(source).toMatch(
       /update designs[\s\S]*?and write_token_hash = \$\{writeTokenHash\}[\s\S]*?and revision::text = \$\{expectedRevision\}[\s\S]*?returning revision/,
     );
-    // The one read that is allowed is the CTE **inside** that same statement, which shares the
-    // update's snapshot — it is what lets a conflict be told apart from a refusal without a second
-    // round trip that could see a different row. It must sit in the same tagged template as the
-    // update, which is what this shape asserts, and `saveAuthorized` must issue exactly one query,
-    // which `neon-configuration-repository.adversarial.test.ts` asserts by counting them.
+    // The one allowed read is the CTE inside the update's own statement, sharing its snapshot;
+    // `saveAuthorized` must issue exactly one query (counted in the adversarial test file).
     expect(source).toMatch(
       /with authorised as \([\s\S]*?select 1 from designs[\s\S]*?\), updated as \([\s\S]*?update designs/,
     );

@@ -179,9 +179,11 @@ test("invalid locale shapes and prefixed tooling are 404 while unprefixed toolin
   const internal = await request.get("/internal/scene-shot", {
     maxRedirects: 0,
   });
-  // The verification-only route is available under `next dev` and deliberately gated off by
-  // default under `next start`; either way, locale routing must leave the unprefixed path in place.
-  expect(internal.status()).toBe(process.env.CI === undefined ? 200 : 404);
+  // The verification-only route is gated off under `next start` unless opted in, and this suite's
+  // server opts in (`playwright.config.ts`, for the capture specs), so it answers 200 in both
+  // modes. That the gate withholds it without the flag is `route-availability.test.ts`'s; here the
+  // unprefixed path must stay in place and not be redirected.
+  expect(internal.status()).toBe(200);
   expect(internal.headers().location).toBeUndefined();
   assertCsp(internal);
 });

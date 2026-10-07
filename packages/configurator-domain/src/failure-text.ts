@@ -1,14 +1,8 @@
-// How a validation failure is *described*, in one place.
+// How a validation failure is described, in one place, shared with `apps/web/src/lib/server/design-errors.ts`
+// so the caps and the bounding cannot drift between two copies.
 //
-// Review finding F3: this rule was implemented twice — once here in the domain and once in
-// `apps/web/src/lib/server/design-errors.ts` — with the caps declared in both and the Zod-issue
-// interface duplicated. The two halves had already drifted: the web copy's issue summary was not
-// itself bounded, and stayed within the cap only because its one call site happened to bound it
-// afterwards. One module, imported by both, and the bounding applied unconditionally.
-//
-// Everything a caller passes through here is attacker-influenced — an incoming payload, or a stored
-// row an owner wrote — so a description's cost must be a constant and nothing in it may forge a log
-// line.
+// Everything a caller passes through here is attacker-influenced (an incoming payload, or a stored row
+// an owner wrote), so a description's cost must be constant and nothing in it may forge a log line.
 
 /** Characters of reason that survive. */
 const MAX_FAILURE_REASON_LENGTH = 300;
@@ -25,9 +19,8 @@ export interface SchemaIssueShape {
 
 /**
  * The last line of defence before a string becomes an exception message or a log line: no control
- * characters, so nothing can forge a line, and a hard cap, so nothing can flood one.
- *
- * Applied unconditionally by the describers below rather than left to a call site to remember.
+ * characters, so nothing can forge a line, and a hard cap, so nothing can flood one. Applied
+ * unconditionally by the describers below rather than left to a call site.
  */
 export function boundedFailureReason(reason: string): string {
   const singleLine = reason.replace(/[\p{Cc}\p{Cf}]/gu, " ");
@@ -37,13 +30,10 @@ export function boundedFailureReason(reason: string): string {
 }
 
 /**
- * The *shape* of a schema failure — how many issues, and where they are — never the values that
- * caused them.
- *
- * `ZodError.message` is the thing to avoid: it renders the whole tree, so 300 malformed placements
- * produce a single line of roughly 300,000 characters, and an unrecognised key is echoed verbatim
- * into it. That is both an amplification and a way to write forged lines into this application's
- * log. A path and a code carry everything a genuine client bug needs and nothing the caller chose.
+ * The shape of a schema failure (how many issues, and where), never the values that caused them.
+ * `ZodError.message` renders the whole tree, so 300 malformed placements give a line of about 300,000
+ * characters and an unrecognised key is echoed verbatim into this application's log. A path and a code
+ * carry everything a genuine client bug needs.
  */
 export function describeSchemaIssues(
   issues: readonly SchemaIssueShape[],

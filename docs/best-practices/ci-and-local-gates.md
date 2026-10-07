@@ -354,16 +354,19 @@ Third-party actions are pinned by full commit SHA, with the tag recorded in a tr
 `permissions: contents: read`; in-flight runs are cancelled only for pull requests, so post-merge
 `main` runs always complete.
 
-**The `test` job's ceiling is raised, not split (owner ruling, 2026-09-30).** It runs every package's
-unit suite serially in one job with `timeout-minutes: 45` (raised from 30 on 2026-10-01, owner: the job took
-28m59s in run 36828202847). The limit was 15 until PR run 36765806056
-cancelled it: the domain package alone took 14.9 min on the runner. The owner chose to raise the
-ceiling over splitting the job per package: unit tests are cheap, and each extra machine repeats
-install and build. ADR 0105 A's split-per-machine budget governs the **e2e** legs only. If the
-`test` job nears 45 minutes, put the choice to the owner again rather than raising it silently.
+**Unit tests run one leg per package, and `test` is their summary (owner ruling, 2026-10-07).** The
+matrix job `test package (<package>)` runs `pnpm --filter @lemnaria/<package> run test` for each of
+the four workspace packages on its own runner, `fail-fast: false`, 45 minutes per leg. `test` needs
+that job and fails unless every leg succeeded, so the required check's name is unchanged and the leg
+names are free to change. This replaces the ruling of 2026-09-30, which raised the single job's
+ceiling rather than splitting it: that job took 43 minutes in run 37544936477 (domain 24.5,
+persistence 9.5, web 6.2, three-adapter 2.2), with the e2e shards waiting behind it, and the
+repository is now public, so the repeated install per leg spends nothing rationed. `pnpm test` and
+`pnpm ci:local` are unchanged and still run the four suites serially. If the domain leg nears its
+45 minutes, the next step is Vitest's `--shard` on that leg, put to the owner first.
 
-The `test` job needs the `TEST_DATABASE_URL` repository secret, pointing at the dedicated Neon test
-database. `DATABASE_URL` is deliberately unset there: no application runs in CI, so there is no
+The persistence leg needs the `TEST_DATABASE_URL` repository secret, pointing at the dedicated Neon test
+database, and is the only leg given it. `DATABASE_URL` is deliberately unset there: no application runs in CI, so there is no
 application database for the isolation guard to compare against. A Postgres service container is not
 usable — the driver is `@neondatabase/serverless`, which speaks HTTP/WebSocket to Neon.
 

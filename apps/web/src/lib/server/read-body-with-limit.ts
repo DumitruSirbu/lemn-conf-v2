@@ -1,19 +1,12 @@
 /**
- * SEC-002: the size gate, and the reason it reads the stream rather than a header.
- *
- * `Content-Length` is a claim the caller makes, and a `Transfer-Encoding: chunked` request need not
- * make it at all — so a limit enforced on the header is a limit an attacker opts out of. This
- * counts the bytes it has actually received and stops reading the moment they exceed the budget,
- * which is also what keeps the cost of a refusal bounded: an oversized body is never buffered
- * whole, only up to the first chunk that crosses the line.
- *
- * It runs **before** any parsing or semantic validation, so nothing downstream ever holds a
- * document larger than the limit.
+ * SEC-002: the size gate, reading the stream rather than a header. `Content-Length` is a claim the caller makes and a
+ * chunked request need not make it, so a header limit is one an attacker opts out of. This counts received bytes and
+ * stops at the first chunk past the budget, so an oversized body is never buffered whole. It runs before any parsing,
+ * so nothing downstream holds a document larger than the limit.
  */
 
-/** Why a body was not read. Tagged rather than a bare `false` because the two refusals are
- *  different answers to the caller: an oversized body is the caller's payload (413), a broken
- *  stream is a transport failure that produced no payload at all (400). */
+/** Why a body was not read: an oversized body is the caller's payload (413), a broken stream a transport failure
+ *  with no payload (400). */
 export type BoundedBodyFailure = "too-large" | "stream-failed";
 
 /** Tagged rather than a nullable string: an empty body, an oversized one and a broken one are three
@@ -23,21 +16,17 @@ export type BoundedBodyOutcome =
   | { readonly ok: false; readonly failure: BoundedBodyFailure };
 
 /**
- * **This function does not reject** (review finding F1). `reader.read()` rejects when the request
- * stream errors — a client that sends `Transfer-Encoding: chunked`, writes half a document and then
- * resets the connection — and that rejection used to escape the route handler, so Next answered
- * with a framework 500 carrying a stack trace into the log. That is the exact failure mode the
- * route's own parse handling exists to remove, arriving one step earlier. The reader owns its own
- * failure and returns it, so the route keeps one shape for every outcome.
+ * This function does not reject: `reader.read()` rejects when the request stream errors (a chunked client that writes
+ * half a document and resets), and letting that escape the route handler would answer a framework 500 with a stack
+ * trace in the log. The reader owns its failure and returns it, so the route keeps one shape for every outcome.
  */
 export async function readUtf8BodyWithLimit(
   body: ReadableStream<Uint8Array> | null,
   maxBytes: number,
 ): Promise<BoundedBodyOutcome> {
   if (body === null) return { ok: true, value: "" };
-  // `getReader()` is inside the try, not above it: it throws `TypeError` on an already-locked
-  // stream, and a lock taken by a middleware or an instrumentation hook must reach the caller as
-  // a refusal like any other transport failure, not as a throw out of this function.
+  // `getReader()` is inside the try: it throws `TypeError` on an already-locked stream (a lock taken by middleware or
+  // an instrumentation hook), which must reach the caller as a refusal.
   let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
   try {
     reader = body.getReader();
@@ -70,17 +59,11 @@ async function decodeWithinLimit(
 }
 
 /**
- * The refusal is **decided before the stream is cancelled**, and nothing cancelling does can change
- * it.
- *
- * `cancel()` on a stream that has already errored returns a promise rejected with the stored error.
- * Letting that reach `readUtf8BodyWithLimit`'s catch retags an oversized body as `stream-failed`,
- * which the route answers with a **logged 400** instead of a silent 413 — one attacker-chosen log
- * write per oversized request, which is precisely the amplification the byte limit exists to
- * remove. A client only has to send one chunk past the limit and then reset the connection.
- *
- * The body being over the limit is already established at this point; a cancel that rejects adds no
- * fact, so its rejection is discarded rather than answered.
+ * The refusal is decided before the stream is cancelled, and nothing cancelling does can change it. `cancel()` on an
+ * already-errored stream rejects with the stored error; letting that reach `readUtf8BodyWithLimit`'s catch would
+ * retag an oversized body as `stream-failed`, answered with a logged 400 instead of a silent 413: one attacker-chosen
+ * log write per request, the amplification the byte limit exists to remove. The rejection adds no fact, so it is
+ * discarded.
  */
 async function refuseOversized(
   reader: ReadableStreamDefaultReader<Uint8Array>,

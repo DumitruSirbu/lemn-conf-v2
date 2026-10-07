@@ -1,48 +1,8 @@
-// **The breakdown's owner-ruled copy, pinned by literals and traced to where it was ruled.**
-//
-// Copy is the one thing in this project that cannot be re-derived from the code: a wrong number
-// eventually surfaces in a measurement, a reworded sentence surfaces only in front of a customer.
-// So the assertions here are literal, and each one also asserts the string is present in the frame
-// that ruled it — a pin that would hold for any wording is not a pin, which is the defect wave 6A4
-// shipped and this file exists not to repeat.
-//
-// **And the same rule asserted where a string sweep cannot see it: against rendered output.**
-//
-// "No surface says the rounded lines add up to the rounded total" has **one** rule, one pattern and
-// one exception list — all three in `tests/support/ruled-price-copy.ts`, read by this file and by
-// `starting-price.adversarial.test.ts` alike. What differs is where each asks the question. The
-// other guard sweeps the strings in `ro.*`; that cannot see a figure composed at render time from
-// numbers, because such a thing need not appear in copy at all. A rule and a bare `7 000` with no
-// label is exactly the subtotal the criterion forbids, and it carries no word to sweep.
-//
-// So the sweep below is the **least** important of the three assertions. The one that matters is
-// structural rather than lexical: **every digit on the page traces to a row or to the one figure.**
-// A subtotal is an extra number whatever produced it and whatever it is called, so it fails that
-// count — and it fails it whether the extra amount was invented in the component or added to the
-// view by the model.
-//
-// **Which layer is safe by construction, and which two are not.** Written down because a structural
-// guarantee nobody has recorded is one a later refactor removes without knowing it was load-bearing.
-//
-//   - `PriceBreakdownSurface` **cannot** render an unlabelled computed number. `AvailableBreakdown`
-//     has no number-typed field anywhere — every leaf of it is a `string` — the component's props
-//     are `{ id, ref, view, onClose }`, and it imports no pricing module and no copy module. It is
-//     handed no number, so it has nothing to add. That is a real guarantee, not a test result, and
-//     it is the reason the surface is not where a subtotal would come from.
-//   - `PriceBreakdown`, the **container**, can. It holds `pricing: PricingResult` in scope and
-//     renders JSX, so `<span>{pricing.priced.totalMinor + x}</span>` would compile and lint clean.
-//   - `describePriceBreakdown`, the **model**, can. It could sum two lines, put the result through
-//     `describeRoundedAmount`, and hand the surface one more ordinary `amountText`. The view being
-//     number-free stops the component, not the model. **The model does no arithmetic today — no
-//     `+` on any amount, only `map` and `filter` — but that is a property of the current code and
-//     not of its types.**
-//
-// The count assertion exists for the second and third of those. It is built from the rows and the
-// figure rather than from the view as a whole, so an amount the model invented as a new field
-// cannot justify its own presence on the page.
-//
-// **The word sweep this replaced would have caught neither route**, which is why it is kept here as
-// the last line rather than the first: a subtotal composed from numbers carries no word to sweep.
+// Literal assertions, each also checked against the frame that ruled the string: a pin that holds for any wording is
+// not a pin. The sum-claim rule (`tests/support/ruled-price-copy.ts`) is also asserted on rendered output, which a
+// string sweep cannot see: every digit on the page must trace to a row or to the one figure. `PriceBreakdownSurface`
+// is handed no number so it cannot add one, but the container and `describePriceBreakdown` can (the model does no
+// arithmetic today, a property of the code and not of its types), so the count is built from rows and figure only.
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { createElement } from "react";
@@ -75,11 +35,8 @@ import {
   SUM_CLAIM_WORDS,
 } from "../support/ruled-price-copy";
 
-/** Frame 2D itself. The mobile file is the priority surface and the only one carrying every frame;
- *  D2D draws the same sheet as a popover and its own disclaimer stops one clause short — see
- *  `ro.priceBreakdown.disclaimer` for why the fuller sentence is the one that ships. */
-/** The desktop file, read for one reason only: it is where the **question mark** the owner ruled onto
- *  this control comes from. Frame 2D draws the wording unpunctuated. */
+/** The desktop file, read only for the question mark the owner ruled onto this control; frame 2D (the mobile file,
+ *  the only one carrying every frame) draws the wording unpunctuated. */
 const DESKTOP_FRAMES = readFileSync(
   resolve(
     import.meta.dirname,
@@ -102,12 +59,10 @@ function readStylesheet(name: string): string {
   return readFileSync(resolve(SURFACE_SOURCE, name), "utf8");
 }
 
-/** Re-derived rather than imported, so an agreement here is not an agreement with itself — the same
- *  discipline `starting-price.adversarial.test.ts` keeps with the same number. */
+/** Re-derived rather than imported, so an agreement here is not an agreement with itself. */
 const ROUNDING_STEP_MDL = 1000;
 
-/** What a breakdown row prints where it prints no number. Read from the catalogue rather than
- *  spelled here, so a copy edit moves the filter with the sentence. */
+/** What a breakdown row prints where it prints no number, read from the catalogue so a copy edit moves the filter. */
 const WORDS_INSTEAD_OF_AN_AMOUNT: readonly string[] = [
   ro.priceBreakdown.included,
   ro.priceBreakdown.notIncluded,
@@ -140,23 +95,19 @@ function renderedMarkup(view: AvailableBreakdown = shippedBreakdown()): string {
   );
 }
 
-/** What a customer reads. Tags are stripped because an attribute is not copy and a class name is
- *  not a number. */
+/** What a customer reads: tags are stripped because an attribute is not copy and a class name is not a number. */
 function visibleText(markup: string): string {
   return markup.replaceAll(/<[^>]*>/g, " ");
 }
 
-/** Every number a reader sees, in the order they see it. A grouped amount is **one** token —
- *  *"95 000"* is a figure, not a 95 beside a 000 — which is what lets an extra number be counted as
- *  an extra rather than disappearing into the grouping. */
+/** Every number a reader sees, in order. A grouped amount is one token (*"95 000"* is a figure), so an extra number
+ *  counts as an extra rather than disappearing into the grouping. */
 function numberTokens(text: string): string[] {
   return text.match(/\d+(?: \d{3})*/g) ?? [];
 }
 
-/** Every number the surface is *entitled* to show, built from the rows and the one figure and from
- *  nothing else. Deliberately not "every number anywhere in the view": an extra amount added to the
- *  model as a new field would then justify itself, which is one of the two ways a subtotal can
- *  arrive. */
+/** Every number the surface is entitled to show, from the rows and the one figure only: "every number in the view"
+ *  would let an amount added to the model as a new field justify itself. */
 function accountedForNumbers(view: AvailableBreakdown): string[] {
   const rows = [
     ...view.groups.flatMap((group) => group.rows),
@@ -171,8 +122,8 @@ function accountedForNumbers(view: AvailableBreakdown): string[] {
   ];
 }
 
-/** The `color` and `background` a rule paints with — the same reading `price-bar-layout.test.ts`
- *  does, so the third site is compared to the two it has to match rather than to a repeated hex. */
+/** The `color` and `background` a rule paints with, read as `price-bar-layout.test.ts` reads them, so the third site
+ *  is compared to the other two rather than to a repeated hex. */
 function paletteOf(stylesheet: string, ruleName: string): [string, string] {
   const block = new RegExp(`\\.${ruleName} \\{([^}]*)\\}`).exec(
     stylesheet,
@@ -187,13 +138,8 @@ function paletteOf(stylesheet: string, ruleName: string): [string, string] {
 
 describe("every ruled string, as a literal and in the frame that ruled it", () => {
   it("heads the surface with frame 2D's title, and the owner's question mark", () => {
-    // **The `?` is part of the sentence since 2026-09-09** — the owner replaced the caret beside this
-    // control with it: *"replace the `^` with `?`"*. So the frame is asserted on the **wording**,
-    // which it carries verbatim, and the mark on the file the mark comes from: the desktop frames
-    // punctuate their own longer heading *"Ce se include în acest preț?"* exactly this way.
-    //
-    // **Frame 2D itself draws the wording unpunctuated**, so the mark is a supersession of that frame
-    // by its own author, dated — the same shape as the price label's, and recorded beside the string.
+    // The `?` is an owner ruling that supersedes frame 2D, which draws the wording unpunctuated: the wording is
+    // asserted on the frame and the mark on the desktop frames, which punctuate their longer heading likewise.
     expect(ro.priceBreakdown.title).toBe("De ce acest preț?");
     expect(FRAME_2D).toContain("De ce acest preț");
     expect(FRAME_2D).not.toContain("De ce acest preț?");
@@ -201,9 +147,8 @@ describe("every ruled string, as a literal and in the frame that ruled it", () =
   });
 
   it("carries no caret beside that control any more, on either shell", () => {
-    // The other half of the ruling, and the reason it belongs in the string rather than in a span: a
-    // caret is decoration and was correctly `aria-hidden`, a question mark is punctuation and has to
-    // be read out. One treatment for both shells — frame 2A's own `⌃` goes with it.
+    // A caret was decoration (`aria-hidden`); a question mark is punctuation and is read out. One treatment for both
+    // shells: frame 2A's `⌃` goes with it.
     const component = readStylesheet("price-breakdown.tsx");
 
     expect(component).not.toContain("DISCLOSURE_GLYPH");
@@ -214,9 +159,8 @@ describe("every ruled string, as a literal and in the frame that ruled it", () =
   });
 
   it("states the exclusions and the on-site measurement, verbatim", () => {
-    // ADR 0036 decision 3 rides on the worktop clause: the worktop influences neither geometry nor
-    // price, which is why wave 6K's depth control adds no price line. Weaken this sentence and that
-    // reasoning loses the only place it is written down for a customer.
+    // ADR 0036 decision 3 rides on the worktop clause: the worktop influences neither geometry nor price, so weakening
+    // this sentence loses the only customer-facing place that is written.
     expect(ro.priceBreakdown.disclaimer).toBe(
       "Prețul afișat este estimativ. Nu include transport, blat sau electrocasnice — suma finală se stabilește după măsurare.",
     );
@@ -277,10 +221,8 @@ describe("every ruled string, as a literal and in the frame that ruled it", () =
   });
 
   it("names a whole-kitchen line by its category and the book's tier name", () => {
-    // **`accessory` joined the record at wave 6T2**, and the key is what that wave is about: the
-    // breakdown selected these rows by *"not a cabinet"*, so an accessory line found no word here
-    // and rendered `undefined · Uscător de vase` while compiling (ADR 0092 decision 11). The word
-    // itself is drafted copy, not ruled — frames 2D / D2D show no accessory row.
+    // `accessory` is the key that matters: rows were once selected by "not a cabinet", so an accessory line rendered
+    // `undefined · Uscător de vase` while compiling (ADR 0092 decision 11). The word is drafted, not ruled.
     expect(ro.priceBreakdown.wholeKitchenCategories).toEqual({
       hardware: "Feronerie",
       material: "Material",
@@ -302,10 +244,8 @@ describe("every ruled string, as a literal and in the frame that ruled it", () =
 
 describe("no surface claims the rounded lines add up to the rounded total", () => {
   it("shows no number that is not a row's or the one figure's", () => {
-    // **The assertion that closes the purely numeric subtotal**: a rule and a bare `7 000` with no
-    // label carries nothing to sweep for, and it still fails here, because it is a number nothing
-    // accounts for. Order as well as count, which is free and says the rows did not merely happen
-    // to total the right quantity of digits.
+    // Closes the purely numeric subtotal: a bare `7 000` carries nothing to sweep and still fails, being a number
+    // nothing accounts for. Order is asserted as well as count.
     const view = shippedBreakdown();
 
     expect(numberTokens(visibleText(renderedMarkup(view)))).toEqual(
@@ -314,8 +254,7 @@ describe("no surface claims the rounded lines add up to the rounded total", () =
   });
 
   it("would catch a subtotal that carries no words at all", () => {
-    // The counterfactual, and the reason the assertion above is not vacuous. Nothing about this
-    // element is lexically wrong — it is a number, and that is the whole problem with it.
+    // The counterfactual that keeps the assertion above non-vacuous: nothing about this element is lexically wrong.
     const view = shippedBreakdown();
 
     expect(
@@ -324,9 +263,8 @@ describe("no surface claims the rounded lines add up to the rounded total", () =
   });
 
   it("shows a figure the rendered rows do not add up to, by more than a whole step", () => {
-    // The *reason* the rule exists, asserted on what is actually on the page rather than on the
-    // priced lines behind it. Each amount is rounded up on its own, so a customer adding the rows
-    // lands somewhere else entirely — and no element may present itself as their sum.
+    // The reason the rule exists, on what is on the page: each amount is rounded up on its own, so a customer adding
+    // the rows lands elsewhere and no element may present itself as their sum.
     const view = shippedBreakdown();
     const text = visibleText(renderedMarkup(view));
     const amountsOf = (tokens: string[]): number[] =>
@@ -335,9 +273,8 @@ describe("no surface claims the rounded lines add up to the rounded total", () =
     const rowTotal = amountsOf(
       [...view.groups.flatMap((group) => group.rows), ...view.wholeKitchenRows]
         .map((row) => row.amountText)
-        // The two rows that print words instead of a number: a free tier reads *inclus*, and a
-        // body the manufacturer does not supply reads *nu este inclus*. Neither is an amount, and
-        // adding either to the sum below reads as `NaN` rather than as a figure.
+        // Rows that print words, not a number (a free tier reads *inclus*, an unsupplied body *nu este inclus*);
+        // summing either gives NaN.
         .filter(
           (amountText) => !WORDS_INSTEAD_OF_AN_AMOUNT.includes(amountText),
         ),
@@ -349,14 +286,9 @@ describe("no surface claims the rounded lines add up to the rounded total", () =
   });
 
   it("puts no sum-family word on the surface outside the two sentences ruled to carry one", () => {
-    // The lexical axis, and the least of the three: it reads the **one** word list and the **one**
-    // exception list the string-level guard reads, so the rule has a single set of literals however
-    // many places assert it.
-    //
-    // The words only, not the `+` and `=` the copy sweep also refuses — the catalogue ships
-    // *"Coloană cuptor + microunde"*, so a legitimate plus sign reaches this page from the
-    // projection. `ruled-price-copy.ts` records why that difference is real rather than a
-    // convenience.
+    // The lexical axis, the least of the three: it reads the one word list and one exception list the string guard
+    // reads. Words only, not the `+` and `=`: the catalogue ships *"Coloană cuptor + microunde"*, so a legitimate plus
+    // reaches this page (see `ruled-price-copy.ts`).
     let text = visibleText(renderedMarkup());
     for (const ruled of RULED_TO_CONTAIN_A_SUM_WORD)
       text = text.replace(ruled, "");
@@ -365,11 +297,8 @@ describe("no surface claims the rounded lines add up to the rounded total", () =
   });
 
   it("still reaches both excluded sentences on the surface, so neither exception has gone stale", () => {
-    // The other half of an exception, and the half that rots quietly. Here the exclusion is a
-    // `String.replace`, so a ruled sentence that stopped being rendered would make the strip a
-    // no-op and leave the sweep passing about a surface it is no longer describing. The string
-    // guard keeps the same assertion in its own terms; now that the list is shared, an exception
-    // that died would otherwise die silently in two places at once.
+    // The exclusion is a `String.replace`, so a ruled sentence that stopped rendering would make the strip a no-op and
+    // leave the sweep passing about a surface it no longer describes.
     const text = visibleText(renderedMarkup());
 
     for (const ruled of RULED_TO_CONTAIN_A_SUM_WORD)
@@ -385,9 +314,8 @@ describe("no surface claims the rounded lines add up to the rounded total", () =
   });
 
   it("labels the figure at the foot De la, never as a total of the rows above it", () => {
-    // The same claim the model suite makes, through the other entry point: `describePriceBreakdown`
-    // is a second path a figure label can reach, and the figure is the bar's restated — reading it
-    // as a sum of the lines is exactly what its label has to prevent.
+    // Through the other entry point: `describePriceBreakdown` is a second path a figure label can reach, and reading
+    // the figure as a sum of the lines is what its label has to prevent.
     expect(shippedBreakdown()).toMatchObject({
       figure: { label: ro.price.startingPrefix },
     });
@@ -396,11 +324,8 @@ describe("no surface claims the rounded lines add up to the rounded total", () =
 
 describe("the flagged total wears the caution palette on this surface too", () => {
   it("paints it from the same two values the bar and §9's footer use", () => {
-    // ADR 0065 decision 8, at its third site. The two shipped ones are held to each other by
-    // `price-bar-layout.test.ts`; this is the third, and a third set of hexes nobody compares is how
-    // one of them drifts into the refusal's red.
-    // The bar's own copy of the palette moved with the sentence: ADR 0104 decision 8b took it out
-    // of the top bar and onto the scene, so the pair is read from the surface it is now painted on.
+    // ADR 0065 decision 8, at its third site: the two shipped ones are held together by `price-bar-layout.test.ts`.
+    // The pair is read from `flagged-total-warning.module.css`, where the sentence now lives (ADR 0104 decision 8b).
     expect(
       paletteOf(readStylesheet("price-breakdown.module.css"), "overflow"),
     ).toEqual(

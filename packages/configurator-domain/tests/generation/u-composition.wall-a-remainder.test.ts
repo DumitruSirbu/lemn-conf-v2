@@ -9,11 +9,25 @@
 // difference here is a rule change to adjudicate, never a figure to tune.
 import { createHash } from "node:crypto";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { uShellFloorRuns, type DesignRoom } from "../../src/index.js";
+import { beforeC5 } from "../support/before-c5-fridge-end-leftover.js";
 import { basesOn, planFor, uRoom } from "../support/u-plan-fixtures.js";
 import { isWallAFill } from "../support/u-plan-invariants.js";
+
+// M7C wave C5 S2: the digests below are the ADR's model as it stood before the owner's Q6 gave the leftover
+// beyond a U's end fridge to the cabinet inboard of it, so each is reproduced with the planner asked as it
+// stood before that rule (`beforeC5`); the current plan's own digests follow them.
+vi.mock(
+  "../../src/generation/fridge-end-leftover.js",
+  async (importOriginal) => {
+    const { withTheFridgeEndLeafSwitchable } = await import(
+      "../support/before-c5-fridge-end-leftover.js"
+    );
+    return withTheFridgeEndLeafSwitchable(await importOriginal());
+  },
+);
 
 const GRID_STEP_MM = 100;
 const RECORDED_DIGESTS = {
@@ -23,6 +37,16 @@ const RECORDED_DIGESTS = {
     "43097f1c8ed0fe4fe6ff1a9fa37e8b470f76363c13b2e7ac999c35efa6aa9b0d",
   engineBandAt2600:
     "d4a63e4d8370211ceb80495ffeeb8f5df8ae43f7ac4a2e82d602205df6a35c08",
+} as const;
+
+/** The digests of today's plans, after the owner's Q6 (M7C wave C5 S2). */
+const DIGESTS_AFTER_C5 = {
+  gridAt2600:
+    "4af63ed7405bdaf15452c4b8ca5db5266cffa98f2beaab7e974851dae82e1991",
+  gridAt2199:
+    "6e95bfb8352c99285dd26519285b587dbef648ad55d64ee1462e345d3c48195f",
+  engineBandAt2600:
+    "6ffe7f39b0db5061c133b5189abcaf412c2dbc429a0bf3e1915fa50bd3fd32e1",
 } as const;
 
 function range(fromMm: number, toMm: number, stepMm: number): number[] {
@@ -76,19 +100,24 @@ describe("the plan's digests are the ADR's model (N11.8, N11.9)", () => {
   it("over the approved grid at 2600 mm", () => {
     const rooms = roomsOf({ wallAMm: GRID_WALL_A_MM, heightMm: 2600 });
 
-    expect(digestOf(rooms)).toBe(RECORDED_DIGESTS.gridAt2600);
+    expect(beforeC5(() => digestOf(rooms))).toBe(RECORDED_DIGESTS.gridAt2600);
+    expect(digestOf(rooms)).toBe(DIGESTS_AFTER_C5.gridAt2600);
   });
 
   it("over the approved grid at 2199 mm, below the column", () => {
     const rooms = roomsOf({ wallAMm: GRID_WALL_A_MM, heightMm: 2199 });
 
-    expect(digestOf(rooms)).toBe(RECORDED_DIGESTS.gridAt2199);
+    expect(beforeC5(() => digestOf(rooms))).toBe(RECORDED_DIGESTS.gridAt2199);
+    expect(digestOf(rooms)).toBe(DIGESTS_AFTER_C5.gridAt2199);
   });
 
   it("over the engine band A 1800-2699, where wall A's remainder is under 300 mm", () => {
     const rooms = roomsOf({ wallAMm: ENGINE_BAND_WALL_A_MM, heightMm: 2600 });
 
-    expect(digestOf(rooms)).toBe(RECORDED_DIGESTS.engineBandAt2600);
+    expect(beforeC5(() => digestOf(rooms))).toBe(
+      RECORDED_DIGESTS.engineBandAt2600,
+    );
+    expect(digestOf(rooms)).toBe(DIGESTS_AFTER_C5.engineBandAt2600);
   });
 });
 

@@ -29,7 +29,8 @@ describe("a cabinet-handle count is declared, per entry", () => {
 
     expect(undeclared).toEqual([]);
     // Not a vacuous sweep over an empty map.
-    expect(KITCHEN_L_BODY_CATALOG.size).toBe(38);
+    // 38 → 40 (M7C wave C2): the corner wall unit's two rows.
+    expect(KITCHEN_L_BODY_CATALOG.size).toBe(40);
   });
 
   it("counts the handles a fixed body draws, whatever width it is asked about", () => {

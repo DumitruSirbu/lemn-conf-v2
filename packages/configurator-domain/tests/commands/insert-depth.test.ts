@@ -1,16 +1,8 @@
-// Which depth `insertBody` builds against — `DEVELOPMENT-SPEC.md` §5.2's `b.mk(w, h, void.d)` and
-// §5.3's "the current body's `frame` **is** the target opening".
-//
-// The production defect: the depth came from `target.column.d`, which §3.2 defines as the MAX over
-// the whole vertical run, so a wall cabinet was built to the depth of the base cabinet underneath
-// it. Replacing a wall cabinet with another catalogue wall cabinet changed its depth on 7 of the
-// shipped kitchen's 10 columns — in both directions — and the replacement stopped lining up with
-// its neighbours. Photographed on a customer's handset.
-//
-// ADR 0018 is why the numbers here are `frame.d`: that field is twice a body's rear overhang, and
-// only `wallCabinet` and `openShelf` consume the depth they are handed at all. For those two the
-// carcass is centred on z = 0, so the overhang is half the depth and the two numbers coincide —
-// which is exactly the population this file sweeps.
+// Which depth `insertBody` builds against: `DEVELOPMENT-SPEC.md` §5.2's `b.mk(w, h, void.d)` and §5.3's "the
+// current body's `frame` **is** the target opening". The depth comes from the void, not `target.column.d` (§3.2's MAX
+// over the vertical run), so a wall cabinet is not built to the depth of the base cabinet under it. The numbers
+// are `frame.d` (ADR 0018): twice a body's rear overhang, equal to the depth only for `wallCabinet` and
+// `openShelf`, the population this file sweeps.
 import { describe, expect, it } from "vitest";
 
 import {
@@ -40,9 +32,8 @@ import {
 const seeded = (): KitchenWorld =>
   createWorld(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG);
 
-/** Every seeded body a wall cabinet can be swapped into: the whole wall and top population, less
- *  the structural corner returns §13.1 forbids replacing. Swept rather than sampled, because the
- *  defect was uniform in shape and various in size — the same wrong rule read 330, 500 and 600. */
+/** Every seeded body a wall cabinet can be swapped into, less the structural corner returns §13.1 forbids
+ *  replacing. Swept rather than sampled: the wrong rule read 330, 500 and 600. */
 function replaceableWallBodies(world: KitchenWorld): PlacementRecord[] {
   return world.records.filter(
     (record) =>
@@ -50,62 +41,40 @@ function replaceableWallBodies(world: KitchenWorld): PlacementRecord[] {
   );
 }
 
-/** A wall entry bounded 300–800 with no hole in the middle, so it fills whatever opening it is
- *  swapped into. It was `wall-2door` until ADR 0032 made a bounded set a bound on the `'fit'` path
- *  too: the sweep below runs over every seeded wall and top body, and three of them stand at 300 or
- *  700 mm. ADR 0035 makes every cabinetry row a bound, and a shelf has no door count — so this is
- *  the entry with no ADR 0030 gap in its range. Depth is this file's subject, so the body it swaps
- *  in must not refuse on width halfway through.  */
+/** A wall entry bounded 300-800 with no hole in the middle, so it fills whatever opening it is swapped into:
+ *  depth is this file's subject, so the body swapped in must not refuse on width halfway through. */
 const SWAP_BUILD_ID = "open-shelf";
 
-/** §7's head-clearance cap on a wall carcass over a worktop, in metres, at the shipped 600 mm
- *  worktop. Restated here rather than imported from `insert-fit.ts`: a test that reads the number
- *  it is checking out of the code under test proves nothing — move the constant and both sides move
- *  together. The three-adapter's `swap-depth.test.ts` restates the same rule in millimetres for the
- *  same reason.
- *
- *  M5 wave 5A moved it from 0.4 to 0.33. The cap is no longer a literal of its own: it and §7's
- *  `nominalDepthMm` both read the worktop → wall depth map, which is what
- *  `worktop-depth.test.ts` gates. */
+/** §7's head-clearance cap on a wall carcass over a worktop, in metres, at the shipped 600 mm worktop. Restated
+ *  rather than imported from `insert-fit.ts`: a test that reads the number it checks out of the code under test
+ *  moves with it. Both read the worktop to wall depth map that `worktop-depth.test.ts` gates. */
 const CAP_OVER_WORKTOP_M = 0.33;
 
 /** The same rule in millimetres, for the assertions that read a recorded `seatDepthMm`. */
 const CAP_OVER_WORKTOP_MM = 330;
 
-/** §7's head-clearance cap on a wall carcass, in the one shipped case where it bites on a swap.
- *  Stated as data rather than imported from the code under test, and as a single named exception
- *  rather than a re-run of the rule: of the seeded wall bodies deeper than 330 mm, only the hood
- *  stands over something that is not a full-height unit — `p2`, a base cabinet — so only its
- *  replacement is built shallower than the body it replaces. The three deep cabinets on wall B hang
- *  over `p5`, `p6` and `p7`, all full-height, where the cap is lifted, and they keep their own
- *  depth — which is backlog entry 5's whole decision. */
+/** §7's head-clearance cap in the one shipped case where it bites on a swap, stated as data rather than a re-run
+ *  of the rule: of the seeded wall bodies deeper than 330 mm, only the hood (`p13`) stands over something that is
+ *  not a full-height unit. The three deep cabinets on wall B hang over full-height `p5`, `p6` and `p7`, where the
+ *  cap is lifted and they keep their depth (ADR 0060). */
 const CAPPED_BY_HEAD_CLEARANCE_MM: Readonly<Record<string, number>> = {
   p13: 330,
 };
 
-/** ADR 0036 decision 1: a declared dimension is the **finished** cabinet, so `wallCabinet` builds
- *  its shell at the declared depth less an 18 mm door and the 21 mm its bar handle stands proud of
- *  that. A seeded wall row's `frame.d` is therefore the *shell* — 291 where the cabinet is 330 —
- *  and the depth a replacement is built against is the declared number, not the recorded one.
- *
- *  Restated here rather than imported, like `CAP_OVER_WORKTOP_M` above and for the same reason.
- *
- *  Reading `frame.d` as the depth is what would compound: 330 → 291 → 252 on successive swaps, with
- *  `refuseBuiltSize` checking width and height only so nothing would see it (ADR 0018 clause 4).
- *  The two-swap round trip below is the assertion that it does not. */
+/** ADR 0036 decision 1: a declared dimension is the finished cabinet, so `wallCabinet` builds its shell at the
+ *  declared depth less an 18 mm door and the 21 mm its bar handle stands proud. A seeded wall row's `frame.d` is
+ *  therefore the shell (291 where the cabinet is 330), and a replacement is built against the declared depth.
+ *  Reading `frame.d` as the depth would compound 330, 291, 252 on successive swaps, unseen by `refuseBuiltSize`;
+ *  the two-swap round trip below asserts it does not (ADR 0018 clause 4). */
 const WALL_FRONT_ASSEMBLY_MM = 39;
 
-/** The same cap as **recorded**, which since wave 5F is a different number from the cap itself.
- *  ADR 0036 decision 1 makes 330 the *finished* depth of a wall cabinet, so its shell — and
- *  therefore its seat, which is what `seatDepthMm` stores — is that less the 39 mm door-and-handle
- *  front assembly. Keeping the two constants apart is the point: the rule the cap states is about
- *  the cabinet a person leans under, and the number the design stores is about where its back face
- *  lands (ADR 0018). */
+/** The same cap as recorded: 330 is the finished depth, so the stored seat (`seatDepthMm`) is that less the 39 mm
+ *  door-and-handle front assembly. The two stay apart: the cap is about the cabinet a person leans under, the
+ *  stored number about where its back face lands (ADR 0018). */
 const CAP_OVER_WORKTOP_SEAT_MM = CAP_OVER_WORKTOP_MM - WALL_FRONT_ASSEMBLY_MM;
 
-/** The kinds whose builder stands a door in front of the shell. ADR 0066 split the two corner
- *  returns out of `wall_cabinet` into names of their own; they are still fronted wall carcasses, so
- *  a membership test keeps this helper covering the same bodies it covered before the rename. */
+/** The kinds whose builder stands a door in front of the shell; the two corner returns (ADR 0066) are still
+ *  fronted wall carcasses. */
 const FRONTED_WALL_KINDS: readonly string[] = [
   WALL_CABINET_KIND,
   WALL_CORNER_RETURN_KIND,
@@ -126,9 +95,8 @@ describe("insertBody — the depth a swap in place builds against (§5.3)", () =
   const targets = replaceableWallBodies(world);
 
   it("sweeps every seeded wall and top body, and the column depth really does differ", () => {
-    // Guards the sweep against going vacuous. If every target's own depth happened to equal its
-    // column's, the assertions below would hold under the defect too — which is the trap the
-    // clean-code round caught in Wave 3A, one file over.
+    // Guards the sweep against going vacuous: if every target's own depth equalled its column's, the assertions
+    // would hold under the defect too.
     expect(targets.length).toBeGreaterThanOrEqual(13);
     const differing = targets.filter(
       (record) => world.columns.get(record.col)?.d !== record.frame.d,
@@ -190,8 +158,8 @@ describe("insertBody — the depth a swap in place builds against (§5.3)", () =
 });
 
 describe("insertBody — the depth an insert into an empty void builds against (§5.2)", () => {
-  /** The seeded kitchen with a wall body, a top body and two whole columns taken out, so the sweep
-   *  below sees openings of three different depths rather than one repeated. */
+  /** The seeded kitchen with a wall body, a top body and two whole columns taken out, so the sweep sees openings
+   *  of three different depths rather than one repeated. */
   function openedWorld(): KitchenWorld {
     return clearBodies(advancePast(seeded(), ["p9", "p21"]), [
       "p7",
@@ -215,20 +183,12 @@ describe("insertBody — the depth an insert into an empty void builds against (
     })[0]?.buildId;
   }
 
-  /** The four voids in this opened kitchen where §7's head-clearance cap bites: every wall-level
-   *  opening that offers a wall cabinet and has no full-height member left standing under it.
-   *  Named individually rather than recomputed, so this file states the outcome instead of
-   *  re-running the rule it is checking.
-   *
-   *  The fridge column's two openings are here, and they are the wave-A regression this file now
-   *  pins: `p7` — a full-height `fridge-free` — was cleared away with `p24`, so nothing holds a
-   *  wall carcass out any more and it recedes to 330 rather than building to the column's frozen
-   *  680 mm. Backlog entry 5 records that consequence as deliberate.
-   *
-   *  `B|0.61`'s two openings are not here even though nothing full-height stands under them
-   *  either: they are 330 mm deep, so `min(d, 0.33)` is a no-op and the void's own depth is the
-   *  answer either way. `B|2.45:v0` is a floor-level opening that offers a base body, and §7's cap
-   *  is a rule about wall carcasses only. */
+  /** The four voids in this opened kitchen where §7's cap bites: every wall-level opening that offers a wall
+   *  cabinet with no full-height member left under it. Named individually so the file states the outcome rather
+   *  than re-running the rule. The fridge column's two openings are here: `p7`, a full-height `fridge-free`, was
+   *  cleared with `p24`, so a wall carcass recedes to 330 rather than the column's frozen 680 mm (ADR 0060).
+   *  `B|0.61`'s two openings are not: they are 330 mm deep, so the cap is a no-op. `B|2.45:v0` offers a base body
+   *  and the cap applies to wall carcasses only. */
   const CAPPED_BY_HEAD_CLEARANCE = new Set([
     "A|1.30:v0:1.50",
     "A|2.00:v0:2.20",
@@ -263,28 +223,17 @@ describe("insertBody — the depth an insert into an empty void builds against (
     // Both halves have to be exercised, or the sweep proves only the half it happened to reach.
     expect(capped).toHaveLength(CAPPED_BY_HEAD_CLEARANCE.size);
 
-    // An empty void has no outgoing body, so its own `d` — §3.3's, stamped from the column that
-    // owns it — is the only depth the model holds for it, and it is the depth of the translucent
-    // box the customer tapped. The sweep is worthless if it swept nothing.
+    // An empty void has no outgoing body, so its own `d` (§3.3's, stamped from the column that owns it) is the
+    // depth of the translucent box the customer tapped. The sweep is worthless if it swept nothing.
     expect(measured.length).toBeGreaterThanOrEqual(4);
   });
 });
 
-// ---------------------------------------------------------------------------------------------
-// The wave-A regression: an empty opening is not an opening over a column.
-// ---------------------------------------------------------------------------------------------
-
-/** Backlog entry 5's rule is "over a full-height column there is nothing to lean over", and the
- *  first implementation read it as its contrapositive — cap wherever a worktop is present. The two
- *  are not the same, because a column can be **empty**: the absence of a worktop is not the presence
- *  of a column, and empty is exactly what a delete produces.
- *
- *  Three clicks reached it in the shipped kitchen. `p0` is an 800 mm sink spanning 1300–2100 mm, so
- *  it overhangs column `A|2.00`; `p1` is that column's own base cabinet; `p12` is the wall body
- *  above them. With all three gone the column holds nothing at all — and `Column.d` is §3.2's MAX
- *  over the run, **frozen at load** (ADR 0011 Gap D), so it still measures 580 mm: the depth of the
- *  base cabinet the customer had just deleted. A wall carcass built to it lands 250 mm proud of its
- *  own neighbours. */
+/** An empty opening is not an opening over a column. The rule is that over a full-height column there is nothing
+ *  to lean over (ADR 0060); capping wherever a worktop is present is its contrapositive, wrong because a column can
+ *  be empty. Deleting `p0` (the sink overhanging `A|2.00`), `p1` (its base cabinet) and `p12` (the wall body above)
+ *  leaves a column holding nothing whose `Column.d` (§3.2's MAX over the run, frozen at load, ADR 0011 Gap D) still
+ *  measures the deleted base cabinet's depth. */
 describe("insertBody — a wall carcass over an emptied column (backlog entry 5)", () => {
   const EMPTIED_COLUMN = "A|2.00";
   const WALL_VOID_Y0_M = 1.5;
@@ -318,17 +267,9 @@ describe("insertBody — a wall carcass over an emptied column (backlog entry 5)
     const world = emptiedWorld();
     const opening = voidAt(world, EMPTIED_COLUMN, WALL_VOID_Y0_M);
 
-    // The trap, stated: the opening really does still carry the deleted base run's own depth, so
-    // an uncapped build is a 620 mm carcass and this sweep is not vacuous.
-    //
-    // **620, not 580, since wave S9 (DOM-002).** The number is the *deepest member's* occupied
-    // depth, and this column's was a dishwasher niche, whose worktop reaches 620 mm from the wall.
-    // 580 was the seat encoding that member records (ADR 0018), which is 40 mm short of the space
-    // it filled — the assertion pinned the defect, and what it is about, that the frozen depth
-    // survives the delete and the cap is what holds the build back, is unchanged.
-    //
-    // **632 until ADR 0051**, when the niche stopped exposing the appliance's own door bar and
-    // started wearing a decor door that finishes behind its own worktop like every other base body.
+    // The trap: the opening still carries the deleted base run's own depth, so an uncapped build is a 620 mm
+    // carcass and the sweep is not vacuous. 620 is the deepest member's occupied depth: a dishwasher niche whose
+    // decor door finishes behind its own worktop (ADR 0051).
     expect(toMillimetres(opening.d)).toBe(620);
     expect(world.columns.get(EMPTIED_COLUMN)?.hasFullHeightUnder).toBe(false);
 
@@ -339,8 +280,7 @@ describe("insertBody — a wall carcass over an emptied column (backlog entry 5)
   });
 
   it("lands the new carcass level with the wall cabinets either side of it", () => {
-    // The defect as the customer saw it: p11 and p14 flank the emptied column at 330 mm, so a
-    // 580 mm neighbour between them is the visible harm and 330 is what the cap is worth.
+    // p11 and p14 flank the emptied column at 330 mm, so a 580 mm neighbour between them is the visible harm.
     const result = insertWallCabinet(emptiedWorld());
     const after = createWorld(result.design, KITCHEN_L_BODY_CATALOG);
     const depthsMm = ["p11", result.effect.placementId, "p14"].map((id) =>
@@ -349,9 +289,7 @@ describe("insertBody — a wall carcass over an emptied column (backlog entry 5)
       ),
     );
 
-    // All three are seats now, and all three are the same seat: that they *match* is the whole
-    // point of the assertion, and 291 beside 291 is level in exactly the way 580 beside 330 was
-    // not.
+    // All three are seats now and all three the same seat: 291 beside 291 is level as 580 beside 330 was not.
     expect(depthsMm).toEqual([
       CAP_OVER_WORKTOP_SEAT_MM,
       CAP_OVER_WORKTOP_SEAT_MM,
@@ -361,11 +299,8 @@ describe("insertBody — a wall carcass over an emptied column (backlog entry 5)
   });
 
   it("keeps the carcass capped when a base cabinet is put back underneath it", () => {
-    // The same defect reached from the other direction. Under the old predicate the wall body was
-    // built at 580 while the column was empty, and putting a base cabinet back flipped the column
-    // to "has a worktop" — but nothing re-derives a placed body's depth, so the 580 mm carcass
-    // simply stayed there, over a counter, which is the one shape backlog entry 5 exists to
-    // prevent.
+    // The same defect from the other direction: a wall body built at 580 while the column was empty stays there when
+    // a base cabinet restores the worktop, because nothing re-derives a placed body's depth.
     const withWallBody = insertWallCabinet(emptiedWorld());
     const wallPlacementId = withWallBody.effect.placementId;
     const beforeBase = advance(emptiedWorld(), withWallBody.design);
@@ -410,9 +345,8 @@ describe("openingFromPlacement — depth is the body's, not the vacated slot's",
     const opening = openingFromPlacement(record, world.records, world.columns);
 
     expect(toMillimetres(opening.d)).toBe(330);
-    // 620, not 580, since wave S9 (DOM-002): the column's depth is its base cabinet's **worktop**,
-    // and 580 was that cabinet's seat encoding. The assertion is that the column is deeper than the
-    // body standing in it, which is more true at 620 than it was at 580.
+    // The column's depth is its base cabinet's worktop; the assertion is that the column is deeper than the body
+    // standing in it.
     expect(toMillimetres(world.columns.get("A|1.30")?.d ?? 0)).toBe(620);
   });
 });

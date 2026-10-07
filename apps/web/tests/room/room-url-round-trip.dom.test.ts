@@ -1,24 +1,8 @@
 // @vitest-environment happy-dom
 //
-// **The URL as the room's only store** — wave 7F1 slice 5 and wave 7F1-D45, criteria 7, 9, 11, 13's
-// query arm, 18, 20 and 22.
-//
-// The whole screen is rendered through the real `parseRoomUrlState`, and the **address bar** is what
-// every claim below is read off: `window.location.search` after a keystroke is the customer's own
-// evidence that a half-entered room would survive a reload. The sub-state under test is asserted
-// before anything is read off it, so a fixture that quietly stopped resolving where it was meant to
-// could not make the assertions below pass over a screen nobody meant to draw.
-//
-// **The navigation is mocked at `next/navigation`, one layer below the component's own import**, so
-// next-intl's href construction is exercised rather than stubbed — and the spies are what prove
-// *when* the query is written and how often (criteria 11 and 19).
-//
-// **Under ruling R9 the component no longer writes the address bar itself, so the harness closes the
-// loop the router closes.** `useSearchParams` is mocked beside the router, and the `replace` double
-// **applies** the href it is handed — to the live query and to `window.location` — and re-renders.
-// A double that recorded the call without applying it would let every assertion in this file pass
-// over a screen that never updates, which is why *"the router double applies the write it records"*
-// below asserts the double itself.
+// The router is mocked at `next/navigation`, so next-intl's href construction still runs. The `replace` double
+// applies the href it is handed to the live query and `window.location` and re-renders: a recording-only double
+// would let every assertion pass over a screen that never updates.
 import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -72,33 +56,25 @@ import { DEPART_TO_PRESETS, DepartureProbe } from "../support/departure-probe";
 /** Criterion 7 asks for at least 500 cases; a render each is what makes them cost anything. */
 const SWEEP_RUNS = 500;
 
-/** The editor's own back link, spelled out beside the sweep so a passing property cannot hide a
- *  broken concrete case — this is the case wave 7E2's visual check could not verify, because no
- *  field existed to read it out of. */
+/** The editor's own back link, spelled out beside the sweep so a passing property cannot hide a broken case. */
 const THE_BACK_LINK =
   "?shape=L&wallA=3.56&wallB=2.92&height=2.6&direction=left";
 /** What the link's fields show: whole millimetres, the notation the customer types (ADR 0126). */
 const THE_BACK_LINK_FIELDS = { wallA: "3560", wallB: "2920", height: "2600" };
 
-/** The same room with a ceiling below the approved 2 200 mm minimum. Chosen, before wave 7F2, so that
- *  *Continuă* could be tapped with no composition taking the form away; since 7F2 the one test that
- *  uses it runs on the departure probe instead (criterion 13), and the fixture is kept unchanged so
- *  the URL it asserts is the one it always was. */
+/** A refused room (ceiling below the approved 2 200 mm minimum, no wallA); its URL is asserted verbatim, so the
+ *  fixture must not change. */
 const A_REFUSED_ROOM_MISSING_WALL_A =
   "shape=L&wallB=2.92&height=2.1&direction=left";
 
 let container: HTMLDivElement;
 let root: Root;
 
-/** What the route hands the screen: **nothing but its optional policy** (ruling R9). A browser does
- *  not hand the client a new server render in the middle of an entry, and the props that used to
- *  carry one are gone — so a URL change re-renders the screen against the live query alone, which
- *  is the only reading of the URL left. */
+/** The route hands the screen nothing but its optional policy, so a URL change re-renders against the live query. */
 const screenProps: RoomScreenProps = {};
 
-/** Whether the `replace` double echoes the write straight back into the live query. Criterion 22
- *  needs *"the push has not fired yet"* and *"the push fires once the flush comes back"* as two
- *  ordered claims, which a double that always echoes cannot tell apart. */
+/** Whether the `replace` double echoes a write straight back into the live query. Criterion 22 needs "the push has
+ *  not fired yet" and "it fires once the flush comes back" as two ordered claims. */
 let echoesEveryWrite = true;
 let withheldEcho: string | undefined;
 
@@ -138,8 +114,7 @@ function queryOf(search: string): RoomSearchParams {
 /** Whether `arriveAt` re-renders the departure probe rather than the screen (7F2 criterion 13). */
 let mountsTheDepartureProbe = false;
 
-/** A fresh arrival. The route hands the screen nothing (ruling R9), so the browser's URL is the
- *  whole of it. */
+/** A fresh arrival; the browser's URL is the whole of it. */
 function render(search: string): void {
   mountsTheDepartureProbe = false;
   arriveAt(search);
@@ -162,9 +137,8 @@ function arriveAt(search: string): void {
   });
 }
 
-/** A new element every time. Handing `root.render` the element it already holds is a bailout, and a
- *  bailout here would make the router double look like it worked while the screen never re-read the
- *  query — the failure mode the double exists to avoid. */
+/** A new element every time: rendering the element the root already holds is a bailout, and the screen would never
+ *  re-read the query. */
 function theScreen(): ReactElement {
   return createElement(NextIntlClientProvider, {
     children: mountsTheDepartureProbe
@@ -185,8 +159,7 @@ function searchOf(href: string): string {
   return questionMark === -1 ? "" : href.slice(questionMark + 1);
 }
 
-/** The typing stopping. Everything the screen writes is written here, `URL_SETTLE_MS` after the
- *  last keystroke — a URL that lags the field by a beat is the debounce working. */
+/** The typing stopping: everything the screen writes is written `URL_SETTLE_MS` after the last keystroke. */
 function settle(): void {
   act(() => {
     vi.advanceTimersByTime(URL_SETTLE_MS);
@@ -223,13 +196,8 @@ function fieldFor(field: string): HTMLInputElement {
 }
 
 /**
- * A keystroke, as the browser delivers it: the control's own value changes and React is told.
- *
- * **Written through the prototype's setter rather than as `input.value = …`.** React defines its own
- * `value` property *on the element* to track what it last rendered, so a plain assignment updates
- * that tracker too and the `input` event that follows looks like no change at all — the component
- * would never hear the digit. Addressing the prototype with the element as the receiver reaches the
- * DOM's setter, which is the one the browser itself uses.
+ * A keystroke through the prototype's setter. React defines its own `value` on the element to track the last
+ * render, so a plain assignment updates that tracker and the `input` event then looks like no change.
  */
 function type(field: string, text: string): void {
   act(() => {
@@ -296,10 +264,8 @@ afterEach(() => {
 
 describe("the harness closes the loop the router closes (wave risk 6)", () => {
   it("applies the write it records, rather than only recording it", () => {
-    // Without this the double would be the defect: every address-bar assertion in this file would
-    // pass over a screen that never saw its own write. Both halves are the claim — the URL the
-    // customer now has, **and** the component having observed it, which is the only thing that can
-    // stop the next settle from writing the same query again.
+    // Both halves are the claim: the URL the customer has, and the component having observed it, which is what stops
+    // the next settle writing the same query again.
     render("?shape=L");
 
     settle();
@@ -344,9 +310,8 @@ describe("a stored room lands in the fields to the millimetre (criterion 7)", ()
 
 describe("the URL is the room's only store (criterion 9)", () => {
   it("keeps a second store out of the whole room directory", () => {
-    // The must-not half, read over every module under `src/room` rather than over the two this file
-    // renders: a copy of the room kept anywhere else is a second authority on what the customer
-    // entered, and the URL would stop being the thing a reload restores from (ADR 0111 decision 3).
+    // Read over every module under `src/room`: a copy of the room kept elsewhere is a second authority, and the URL
+    // would stop being what a reload restores from (ADR 0111 decision 3).
     for (const source of roomModuleSources()) {
       expect(source).not.toMatch(
         /localStorage|sessionStorage|indexedDB|document\.cookie|zustand|useConfiguratorStore/,
@@ -355,10 +320,8 @@ describe("the URL is the room's only store (criterion 9)", () => {
   });
 
   it("keeps the native history write out of the whole room directory", () => {
-    // Defect D4's own mechanism, banned by `eslint.config.mjs`'s room block and asserted here as
-    // well, because a lint rule and a directory can stop agreeing. `window.history.replaceState`
-    // moves the address bar without Next's record of the entry following it, so the room survives
-    // until the first browser Back and not one gesture longer.
+    // Banned by `eslint.config.mjs`'s room block and asserted here too, since a lint rule and a directory can disagree.
+    // `history.replaceState` moves the address bar without Next's record following it: the room lasts until Back.
     for (const source of roomModuleSources()) {
       expect(source).not.toMatch(/history\.(pushState|replaceState)\s*\(/);
     }
@@ -383,9 +346,8 @@ describe("the URL is the room's only store (criterion 9)", () => {
   });
 
   it("keeps a field that does not read as a length out of the query", () => {
-    // *"3,6"* — the metre habit — is not whole millimetres, and the parser's own answer to a query
-    // without `wallA` is 1B with the field marked — which is exactly the state the customer is in.
-    // No raw draft text ever reaches the URL.
+    // *"3,6"* is not whole millimetres, so no raw draft text reaches the URL, and the parser answers 1B with the field
+    // marked.
     render("?shape=L");
 
     type("wallA", "3,6");
@@ -440,12 +402,8 @@ describe("the URL is the room's only store (criterion 9)", () => {
 
 describe("the plan redraws on every keystroke, locally (criterion 11)", () => {
   it("changes wall A's geometry in the same tick as the digit, and asks the router for nothing", () => {
-    // **Criterion 11's two arms in one test, so they cannot drift into two files that agree
-    // separately and disagree together.** The mechanism is a `router.replace` debounced on
-    // `URL_SETTLE_MS` (ruling R9): going through the router is what makes Next's own record of the
-    // history entry the URL we intend, which `use-router.md:50` says a search-param-only navigation
-    // does without freshly creating the segment. What must never happen is a navigation **per
-    // keystroke** — it would re-run the page for every digit.
+    // Both arms in one test so they cannot drift apart. The write is a `router.replace` debounced on
+    // `URL_SETTLE_MS`; a navigation per keystroke would re-run the page for every digit.
     render("?shape=L&wallA=3.56&wallB=2.92&height=2.6&direction=left");
     const before = drawnWallAWidthPx();
 
@@ -457,8 +415,7 @@ describe("the plan redraws on every keystroke, locally (criterion 11)", () => {
   });
 
   it("writes once, after the typing stops", () => {
-    // **The count is the load-bearing half**: a replace per keystroke also ends on the right URL,
-    // and only the number of calls tells the two apart.
+    // The count is the load-bearing half: a replace per keystroke also ends on the right URL.
     render("?shape=L");
 
     type("wallA", "356");
@@ -485,10 +442,8 @@ describe("the plan redraws on every keystroke, locally (criterion 11)", () => {
 
 describe("re-seed on a different room; never on our own echo (criterion 20)", () => {
   it("leaves a typed value exactly as typed when the write comes back", () => {
-    // I3 and I1 at their sharpest. *"03500"* and *"3500"* are the same room, so a re-seed on the
-    // echo would be invisible to every URL assertion in this file and would still rewrite the field
-    // under the caret 400 ms after the customer stopped typing. A leading zero is normalised only by
-    // a refill from the URL, never by our own echo (ADR 0126).
+    // *"03500"* and *"3500"* are the same room, so a re-seed on our own echo is invisible to URL assertions yet would
+    // rewrite the field under the caret; a leading zero is normalised only by a refill from the URL (ADR 0126).
     render("?shape=L&wallA=3.56&wallB=2.92&height=2.6&direction=left");
 
     type("wallA", "03500");
@@ -501,9 +456,7 @@ describe("re-seed on a different room; never on our own echo (criterion 20)", ()
   });
 
   it("leaves text that is not yet a length standing after the write", () => {
-    // The residue this design accepts, stated as the behaviour it protects: *"3,6"* reaches no query
-    // and must survive the write that drops it, because it is what the customer typed — refused,
-    // never stripped (ADR 0126).
+    // *"3,6"* reaches no query and must survive the write that drops it: refused, never stripped (ADR 0126).
     render("?shape=L&wallA=3.56&wallB=2.92&height=2.6&direction=left");
 
     type("wallA", "3,6");
@@ -514,9 +467,8 @@ describe("re-seed on a different room; never on our own echo (criterion 20)", ()
   });
 
   it("re-seeds every field, the shape and the direction when another room arrives", () => {
-    // **The browser's Back, as the client sees it**: the live query becomes another entry's and no
-    // new page render happens — the page segment is reused (`upgrading/version-15.md:525`). Defect
-    // D4's fix is that this re-seeds rather than leaving the room the customer has left standing.
+    // The browser's Back as the client sees it: the live query becomes another entry's with no new page render (the
+    // segment is reused), so the screen must re-seed rather than leave the room the customer has left.
     render(THE_BACK_LINK);
 
     arriveAt("?shape=L&wallA=4.2&wallB=3.1&height=2.5&direction=right");
@@ -526,9 +478,7 @@ describe("re-seed on a different room; never on our own echo (criterion 20)", ()
     expect(cornerControl("right").checked).toBe(true);
   });
 
-  // Restated 2026-09-29 (M7B U5 S1, Q-U4 (b)): the U arm of the test above named a direction and
-  // expected the toggle to show it. A U has one hand, so the link's direction is ignored and no
-  // toggle is drawn.
+  // A U has one hand, so the link's direction is ignored and no toggle is drawn.
   it("re-seeds a U's three walls when it arrives, ignoring a direction the link names", () => {
     render(THE_BACK_LINK);
 
@@ -544,7 +494,6 @@ describe("re-seed on a different room; never on our own echo (criterion 20)", ()
   });
 
   it("asks the router for nothing when the room that arrives is already canonical", () => {
-    // The other half of the re-seed: a traversal onto a canonical URL is not a reason to write one.
     render(THE_BACK_LINK);
     browser.replace.mockClear();
 
@@ -557,11 +506,9 @@ describe("re-seed on a different room; never on our own echo (criterion 20)", ()
 
 describe("a deliberate navigation flushes first and leaves second (criterion 22)", () => {
   it("issues the replace at once and no push in the same tick", () => {
-    // **Both halves are the criterion.** *Cancel the timer and push* loses the last 400 ms of typing
-    // from the entry left behind, which is D4 again on the fastest customer path; *replace and push
-    // in one tick* loses the replace entirely, because Next marks a pending action discarded when a
-    // navigation dispatches (`app-router-instance.js:146-160`) and only a committed action writes
-    // history.
+    // Both halves are the criterion: cancelling the timer and pushing loses the last 400 ms of typing from the entry
+    // left behind, and replace-then-push in one tick loses the replace, because Next discards a pending action when a
+    // navigation dispatches.
     render("?shape=L&wallB=2.92&height=2.6&direction=left");
     withholdTheEcho();
 
@@ -591,10 +538,8 @@ describe("a deliberate navigation flushes first and leaves second (criterion 22)
   });
 
   it("flushes before the back button leaves, and pushes the bare path once it lands", () => {
-    // The back button pushes the shape step as a **new entry** (the bare pathname, which is never
-    // demoted), so 1B stays behind as a back-target exactly as it does after the CTA — which is why
-    // this button flushes too. It is also the gesture that minted the entry defect D4's Back came
-    // from, so this is the reported defect step for step rather than its class.
+    // The back button pushes the shape step as a new entry (the bare pathname), so 1B stays behind as a back-target and
+    // must be flushed first, as after the CTA.
     render("?shape=L&wallB=2.92&height=2.6&direction=left");
     withholdTheEcho();
     type("wallA", "3560");
@@ -610,18 +555,12 @@ describe("a deliberate navigation flushes first and leaves second (criterion 22)
   });
 
   it("keeps the departure alive when a keystroke lands after the tap", () => {
-    // **The dead-CTA case, and the one input this design gives up to remove it.** Without the
-    // suppression rule the late keystroke starts its own write, that write overtakes the flush, the
-    // departure fails to recognise its own echo and disarms — and *Continuă* does nothing, with no
-    // hard navigation behind it to cover the tap. So no second write starts while a departure is in
-    // flight, and the character typed in that window is lost from both the URL and the field. **A
-    // stray character beats a primary button that did nothing**, and on a phone the tap blurs the
-    // field first, so the input this costs is rarer than the one it fixes.
+    // The dead-CTA case: without the suppression rule a late keystroke's write overtakes the flush, the departure
+    // misses its own echo and disarms, and *Continuă* does nothing. So no second write starts during a departure, and
+    // the late character is lost from URL and field.
     //
-    // **Driven on the departure probe** (re-homed by wave 7F2, criterion 13). The gesture needs a
-    // field left to type into after the tap. On a room the domain accepts, *Continuă* replaces the
-    // form with sub-state 1F in the same commit (7F4a); on one it refuses, *Continuă* is inactive
-    // (7F2, ADR 0120 decision 4). The probe runs the same sync and the same `departTo("presets")`.
+    // Driven on the departure probe: a room the domain accepts replaces the form on *Continuă* and one it refuses
+    // leaves it inactive, so only the probe leaves a field to type into after the tap.
     renderTheDepartureProbe(`?${A_REFUSED_ROOM_MISSING_WALL_A}`);
     withholdTheEcho();
     type("wallA", "3560");
@@ -642,10 +581,8 @@ describe("a deliberate navigation flushes first and leaves second (criterion 22)
   });
 
   it("still canonicalises a room that arrives while a departure is in flight", () => {
-    // **The effect order is what this holds.** The departure resolves before the write effect on
-    // every URL change, so a traversal disarms *and* the room it landed on still gets the one
-    // canonicalising write it is owed. Ordered the other way, the suppression rule above would eat
-    // it and the customer would sit on a URL with no `direction`.
+    // Effect order is what this holds: the departure resolves before the write effect on every URL change, so a
+    // traversal disarms and the room it landed on still gets its one canonicalising write.
     render("?shape=L&wallB=2.92&height=2.6&direction=left");
     withholdTheEcho();
     type("wallA", "3560");
@@ -677,11 +614,8 @@ describe("a deliberate navigation flushes first and leaves second (criterion 22)
   });
 
   it("writes nothing once the back button's own entry has arrived", () => {
-    // **I6, at the moment it is easiest to break.** The back button pushes the bare pathname, so the
-    // live query stops naming a room — and the step is still on screen, because the shape branch is
-    // the route's until slice B moves it. A settle that rewrote the address bar here would put
-    // `?shape=L&direction=left` back onto the entry the customer just navigated to, undoing the
-    // navigation about 400 ms after they made it.
+    // The back button pushes the bare pathname, so the live query stops naming a room while the step is still on
+    // screen; a settle that rewrote the address bar would restore `?shape=L&direction=left` onto the entry just left.
     render(THE_BACK_LINK);
     click("room-back");
 
@@ -725,8 +659,8 @@ describe("mirroring changes the direction and nothing else (criterion 13's query
 
 describe("direction is written, and its absence keeps its meaning (criterion 18)", () => {
   it("shows the toggle at left and writes it on the first sync", () => {
-    // The first sync is now the debounced `router.replace`, and it **rewrites the current entry**:
-    // a push here would give the customer a Back that leads to the same screen minus one key.
+    // The first sync is the debounced `router.replace`, which rewrites the current entry: a push would give a Back to
+    // the same screen minus one key.
     render("?shape=L");
 
     settle();
@@ -737,9 +671,8 @@ describe("direction is written, and its absence keeps its meaning (criterion 18)
   });
 
   it("leaves the parser's reading of an absent direction exactly as it was", () => {
-    // The middle layer, asserted here as well as at `room-url-state.test.ts:304`, because confusing
-    // the three layers is the whole risk ruling R6 was corrected over. An absent `direction` marks
-    // the field and resolves to 1B — it never resolves silently to left.
+    // The middle layer, also asserted in `room-url-state.test.ts`: an absent `direction` marks the field and resolves
+    // to 1B, never silently to left.
     expect(parseRoomUrlState({ shape: "L" })).toStrictEqual({
       substate: "1B",
       shape: "L",
@@ -748,8 +681,7 @@ describe("direction is written, and its absence keeps its meaning (criterion 18)
   });
 
   it("keeps a stored room's absent direction meaning left", () => {
-    // The outermost layer: `DesignRoom` carries no corner direction at all, and ADR 0053's reading
-    // of that absence is left. Wave 7I owns persisting a right-turning choice.
+    // `DesignRoom` carries no corner direction at all, so an absent one means left.
     const stored: DesignRoom = {
       shape: "L",
       widthMm: 3560,

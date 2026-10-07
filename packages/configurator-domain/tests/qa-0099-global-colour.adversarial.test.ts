@@ -1,33 +1,5 @@
-// **Adversarial QA of wave W3 — ADR 0099's two-level colour.**
-//
-// The wave shipped with its author's own tests. This file attacks the claims those tests make,
-// from the outside, on the acceptance criteria ADR 0099 decision 11 states rather than on the
-// implementation's shape.
-//
-// **What it goes after, and why each is here rather than assumed covered:**
-//
-// - **Precedence at its boundaries** — never chose, chose then cleared, chose *the same value the
-//   kitchen holds*, a kitchen colour set before any cabinet exists. The author's file asserts the
-//   three levels on one material with one pair of colours; a sweep over all three declared
-//   materials and every finish each of them offers is what a `??` chain written the wrong way round
-//   for one material would still pass.
-// - **Override preservation across interleavings** (acceptance 1). The author's property runs
-//   `setGlobalFinish` on a static document. The claim ADR 0099 decision 2 actually makes is about
-//   the *document over time*, so this file interleaves the global change with insert, delete,
-//   resize and depth change — the three commands that rebuild bodies through `carriedAppearance`,
-//   which is the one place a resolved colour could be stamped into `body.finish`.
-// - **Both arms of the amended confirmation** (acceptance 6), asserted separately, so an
-//   implementation that got the base right and dropped the arm fails on the arm alone.
-// - **The write seam.** `validate-design.ts` states ADR 0057's invariant as *"no stored design holds
-//   a finish its material does not offer"* and ADR 0099 decision 6 extends that invariant to
-//   `settings.finish`. Whether the extension reached the validator is asserted here rather than
-//   read off a comment.
-// - **Round trip and the no-rollback window** (acceptance 10 and decision 10), characterised rather
-//   than fixed.
-//
-// Assertions are on the **document**, never on a view: a surface rendering the right colour out of a
-// document that grew a `finish` key has already converted a following cabinet into an overriding
-// one, and the *second* global change would move nothing.
+// Assertions are on the document, never a view: a view can show the right colour from a document that grew a
+// `finish` key, and the next global change would then move nothing.
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
@@ -107,9 +79,7 @@ const PAL_GRI = paletteFinish("pal.gri-havanna");
 const VENEER_NUC = paletteFinish("veneer.nuc");
 const MDF_RED = freeColourFinish("#ff0000");
 
-/** Every finish a declared material offers, as concrete values a sweep can draw from. A RAL picker
- *  offers no palette entry, so MDF contributes free colours rather than an empty list — otherwise a
- *  sweep "over all three materials" would silently skip the one whose control differs most. */
+/** Finishes a material offers; a ral-picker material contributes free colours so no material is skipped. */
 function offeredFinishesOf(material: Material): readonly Finish[] {
   if (material.colourControl.shape === "ral-picker") {
     return [freeColourFinish("#123456"), freeColourFinish("#abcdef")];
@@ -149,8 +119,7 @@ function withGlobalFinish(design: Design, finish: Finish): Design {
   return { ...design, settings: { ...design.settings, finish } };
 }
 
-/** A design carrying no `settings.finish` key at all — absence, not `undefined`, because the two
- *  round-trip differently through a save. */
+/** A design with no `settings.finish` key: absence round-trips differently from `undefined`. */
 function withoutGlobalFinish(design: Design): Design {
   const settings: DesignSettings = { ...design.settings };
   delete settings.finish;
@@ -178,8 +147,6 @@ function applyGlobalFinish(design: Design, finish: Finish): Design {
   return result.design;
 }
 
-/** Which placement ids carry a `finish` key, and what each one is — the document-level fact every
- *  preservation claim in this file is measured on. */
 function carriedFinishes(design: Design): Record<string, string> {
   const carried: Record<string, string> = {};
   for (const placement of design.placements) {
@@ -191,10 +158,6 @@ function carriedFinishes(design: Design): Record<string, string> {
 }
 
 describe("ADR 0099 decision 1 — precedence, swept over every declared material", () => {
-  // The author's file asserts the order on PAL with two colours. A `??` chain written
-  // `settings.finish ?? placement.body.finish` passes that for a design where the two happen to
-  // agree; this cannot, because it demands the cabinet's value back while the kitchen holds a
-  // different one, for every material and every colour each of them offers.
   it("returns the cabinet's own colour over the kitchen's, for every material and every pair", () => {
     fc.assert(
       fc.property(
@@ -263,13 +226,7 @@ describe("ADR 0099 decision 1 — precedence, swept over every declared material
 });
 
 describe("ADR 0099 decision 5 — chose-the-same-value is not the same state as following", () => {
-  /**
-   * **The distinction the whole record stands on.** A cabinet that explicitly chose the colour the
-   * kitchen happens to hold resolves identically to one that is merely following it — so the only
-   * way to tell them apart is what the *next* global change does. If `setGlobalFinish` ever stamped
-   * a resolved colour in, or if a clear ever wrote the current global value into the key, these two
-   * would converge and the customer's choice would be gone.
-   */
+  // Choosing the colour the kitchen holds differs from following only in what the next global change does.
   it("diverges on the next global change, though the two resolve alike today", () => {
     const following = withGlobalFinish(
       designOn(PAL_ID, [placementWearing(0, undefined)]),
@@ -286,11 +243,9 @@ describe("ADR 0099 decision 5 — chose-the-same-value is not the same state as 
     expect(firstChoosing).toBeDefined();
     if (firstFollowing === undefined || firstChoosing === undefined) return;
 
-    // Today they wear the same colour.
     expect(resolvedFinishOf(firstFollowing, following)).toEqual(
       resolvedFinishOf(firstChoosing, choosing),
     );
-    // And the document already tells them apart.
     expect(firstFollowing.body).not.toHaveProperty("finish");
     expect(firstChoosing.body.finish).toEqual(PAL_GRI);
 
@@ -309,9 +264,7 @@ describe("ADR 0099 decision 5 — chose-the-same-value is not the same state as 
     expect(resolvedFinishOf(afterChoosing, movedChoosing)).toEqual(PAL_GRI);
   });
 
-  // ADR 0099 decision 7's amended base makes the *count* deliberately blind to this distinction.
-  // Asserted rather than left implicit, because it is a real consequence: the confirmation cannot
-  // see an override that agrees with the kitchen, and the second arm is what covers the loss.
+  // The count is blind to an override equal to the kitchen colour; the second confirmation arm covers that loss.
   it("is a distinction countCabinetsWearingAChosenFinish deliberately cannot see", () => {
     const choosing = withGlobalFinish(
       designOn(PAL_ID, [placementWearing(0, PAL_GRI)]),
@@ -324,16 +277,12 @@ describe("ADR 0099 decision 5 — chose-the-same-value is not the same state as 
 
     expect(countCabinetsWearingAChosenFinish(choosing)).toBe(0);
     expect(countCabinetsWearingAChosenFinish(following)).toBe(0);
-    // ...and the second arm is what makes the press still owe a confirmation.
     expect(wouldDiscardTheGlobalFinish(choosing, VENEER_ID)).toBe(true);
   });
 });
 
 describe("ADR 0099 acceptance 3 — a cleared override never re-acquires the key", () => {
-  /** The author's file asserts two global changes after a clear on a design that *already* had a
-   *  global colour. The sharper case is a clear on a design with **no** global colour at all: a
-   *  clear that wrote the resolved default in would put the *material's* default into the key, and
-   *  the first global change afterwards would then move nothing. */
+  // A clear on a design with no global colour must not write the material default into the key.
   it("survives a clear made before any global colour exists, then follows the first change", () => {
     const overriding = designOn(PAL_ID, [placementWearing(0, PAL_ANTRACIT)]);
     const cleared = clearFinish({
@@ -361,9 +310,7 @@ describe("ADR 0099 acceptance 3 — a cleared override never re-acquires the key
     }
   });
 
-  /** Set → clear → set → clear, four presses, and the key must be gone at the end. A clear
-   *  implemented as `finish: undefined` passes a `toBeUndefined` check and fails this one, because
-   *  `JSON.stringify` is what a save actually writes. */
+  // A clear written as `finish: undefined` passes toBeUndefined; JSON.stringify is what a save writes.
   it("leaves a body that serialises without the key after a set/clear cycle", () => {
     const design = withoutGlobalFinish(
       designOn(PAL_ID, [placementWearing(0, undefined)]),
@@ -397,9 +344,6 @@ describe("ADR 0099 acceptance 3 — a cleared override never re-acquires the key
 });
 
 describe("ADR 0099 acceptance 4 — a kitchen colour set before the cabinet exists", () => {
-  /** **The kitchen with nothing in it**, which is the boundary the sheet reaches on a design a
-   *  customer has only just started: a colour chosen before any cabinet exists must be storable, and
-   *  it must be stored at the whole-kitchen level rather than nowhere. */
   it("is settable on a design holding no placements at all", () => {
     const empty = withoutGlobalFinish({
       ...KITCHEN_L_DESIGN,
@@ -414,10 +358,7 @@ describe("ADR 0099 acceptance 4 — a kitchen colour set before the cabinet exis
     expect(resolvedDefaultFinishOf(painted)).toEqual(PAL_ANTRACIT);
   });
 
-  /** `insertBody` after a global change: the new body carries no `finish` and therefore renders the
-   *  global colour. The opening is made by removing a seeded body, because a void is derived from a
-   *  frozen column and a design holding no placements has none — the empty kitchen above is the same
-   *  criterion at the only level a document can actually reach it. */
+  // The opening comes from removing a seeded body: voids derive from a frozen column, so an empty design has none.
   it("is followed by a cabinet inserted afterwards, which grows no finish key", () => {
     const opened = clearBodies(
       createWorld(everyCabinetFollowing(PAL_ID), CATALOG),
@@ -453,9 +394,7 @@ describe("ADR 0099 acceptance 4 — a kitchen colour set before the cabinet exis
   });
 });
 
-/** The first opening in this world that has something insertable in it, and what to insert — asked
- *  through `offersFor` so a fixture picks a body the command will actually accept rather than one
- *  the band gate refuses. */
+/** First insertable opening and body, asked through `offersFor` so the command accepts it. */
 function firstOfferedInsert(
   world: ReturnType<typeof createWorld>,
 ): { readonly voidId: string; readonly buildId: string } | undefined {
@@ -477,17 +416,8 @@ function firstOfferedInsert(
 }
 
 describe("ADR 0099 decision 2 — no command path stamps a resolved colour into a body", () => {
-  /**
-   * **The claim the author proves on a static document, attacked over time.**
-   *
-   * `insertBody` and the resize rebuild both go through `carriedAppearance`, which copies
-   * `PlacementRecord.finishKey` onto the new body — and that record is derived from
-   * `body.finish`. If any of those seams ever read the *resolved* finish instead, a following
-   * cabinet would silently become an overriding one and the next global change would move nothing.
-   *
-   * The sequence is shuffled rather than fixed, so an ordering that only fails when the global
-   * change lands *between* two structural commands cannot hide.
-   */
+  // carriedAppearance copies finishKey (derived from body.finish); reading the resolved finish there would turn
+  // followers into overriders. Shuffled order covers a global change landing between two structural commands.
   it("keeps every following cabinet following across a shuffled command sequence", () => {
     const steps = ["colour", "remove", "insert", "resize", "depth"] as const;
 
@@ -503,7 +433,6 @@ describe("ADR 0099 decision 2 — no command path stamps a resolved colour into 
             world = runStep(world, step, globalFinish);
           }
 
-          // The document must not have grown a single `finish` key, whatever the order was.
           expect(carriedFinishes(world.design)).toEqual({});
           for (const placement of world.design.placements) {
             expect(placement.body).not.toHaveProperty("finish");
@@ -514,8 +443,6 @@ describe("ADR 0099 decision 2 — no command path stamps a resolved colour into 
     );
   });
 
-  /** The same sequence over a kitchen where every cabinet *did* choose: nothing may be rewritten,
-   *  and the values must come back byte-identical. */
   it("keeps every chosen colour byte-identical across the same shuffled sequence", () => {
     const steps = ["colour", "remove", "insert", "resize", "depth"] as const;
 
@@ -536,7 +463,6 @@ describe("ADR 0099 decision 2 — no command path stamps a resolved colour into 
             world = runStep(world, step, globalFinish);
           }
 
-          // Every id that survived the sequence still wears exactly what it wore.
           const after = carriedFinishes(world.design);
           for (const [id, finish] of Object.entries(after)) {
             if (before[id] !== undefined) expect(finish).toBe(before[id]);
@@ -550,9 +476,7 @@ describe("ADR 0099 decision 2 — no command path stamps a resolved colour into 
 
 type Step = "colour" | "remove" | "insert" | "resize" | "depth";
 
-/** One step of the interleaving. A refusal is not a failure — the sequence is deliberately allowed
- *  to reach states where a resize or an insert is illegal — but a step that *succeeds* must leave
- *  the colour rules intact, which is what the callers assert. */
+/** A refused step is not a failure; callers assert that a succeeding step keeps the colour rules intact. */
 function runStep(
   world: ReturnType<typeof createWorld>,
   step: Step,
@@ -616,9 +540,7 @@ function runStep(
   return result.ok ? advance(world, result.design) : world;
 }
 
-/** Every body the catalogue says can wear a colour, wearing one. Bodies that cannot are left alone,
- *  because `carriedAppearance` refuses to carry one onto them and a fixture that wrote one would be
- *  measuring a state no seam produces. */
+/** Paints only bodies that can finish: carriedAppearance refuses to carry a colour onto the others. */
 function paintEveryFinishableBody(design: Design, finish: Finish): Design {
   const records = derivePlacementRecords(design, CATALOG);
   const finishable = new Set(
@@ -660,9 +582,7 @@ describe("ADR 0099 acceptance 5 — a material change re-resolves both levels, o
     expect(result.design.settings?.finish).toEqual(
       materialById(VENEER_ID).defaultFinish,
     );
-    // The global reset is *not* a cabinet: exactly one placement moved.
     expect(result.effect.resolvedFinishCount).toBe(1);
-    // ...and the following cabinet did not grow a key.
     expect(result.design.placements[1]?.body).not.toHaveProperty("finish");
   });
 
@@ -695,9 +615,6 @@ describe("ADR 0099 acceptance 5 — a material change re-resolves both levels, o
     expect(result.design.placements[0]?.body.finish).toEqual(PAL_ANTRACIT);
   });
 
-  /** *"Once, not per cabinet"*, measured on a document with many cabinets: the global reset must be
-   *  a single value, not something written per placement, and it must be the *new* material's
-   *  default rather than the nearest colour to the old one. */
   it("writes one global value however many cabinets the document holds", () => {
     const design = withGlobalFinish(
       designOn(
@@ -720,10 +637,7 @@ describe("ADR 0099 acceptance 5 — a material change re-resolves both levels, o
     expect(carriedFinishes(result.design)).toEqual({});
   });
 
-  /** ADR 0099 decision 6's *certainty*: between any two different declared materials, the offers are
-   *  disjoint, so the global colour is reset **every** time. Swept over every ordered pair and every
-   *  colour the source material offers, so a pair that happened to share a value would fail here
-   *  rather than in production. */
+  // Offers of two different declared materials are disjoint, so the reset happens every time (ADR 0099 decision 6).
   it("resets the global colour for every ordered pair of different declared materials", () => {
     for (const from of MATERIALS) {
       for (const to of MATERIALS) {
@@ -747,14 +661,8 @@ describe("ADR 0099 acceptance 5 — a material change re-resolves both levels, o
 });
 
 describe("ADR 0099 acceptance 6 — both arms of the confirmation, separately", () => {
-  /**
-   * **ADR 0099 acceptance 6's own fixture, word for word**: *"a design where every cabinet matches
-   * the global colour and none matches `material.defaultFinish`"*.
-   *
-   * The cabinets **carry** the colour rather than merely following it, which is what makes the first
-   * half non-vacuous: on a kitchen where nobody chose anything the count is zero under the old base
-   * too, and a test built that way passes for an implementation that never moved the base at all.
-   */
+  // Cabinets carry the colour rather than follow it: with none chosen the count is zero under the old base too,
+  // and the test would pass vacuously (ADR 0099 acceptance 6).
   const followingAKitchenColour = withGlobalFinish(
     designOn(PAL_ID, [
       placementWearing(0, PAL_ANTRACIT),
@@ -804,8 +712,6 @@ describe("ADR 0099 acceptance 6 — both arms of the confirmation, separately", 
     ).toBe(false);
   });
 
-  /** The arm must be true exactly when the material change would actually discard the colour, which
-   *  is a fact about `setMaterialTier`'s own output rather than about a predicate read twice. */
   it("agrees with what setMaterialTier actually does, over every material and colour", () => {
     for (const from of MATERIALS) {
       for (const finish of offeredFinishesOf(from)) {
@@ -836,11 +742,8 @@ describe("ADR 0099 acceptance 6 — both arms of the confirmation, separately", 
   });
 });
 
-// **The hood, and only bodies like it.** ADR 0099 acceptance 8 was written when `canFinish: false`
-// meant one thing; since the owner's ruling of 2026-09-09 it means two, and the half this block
-// asserts is the appliance half. The corner bodies and the open shelf carry the same flag and are
-// now *painted* with the kitchen — see
-// `structural-cabinetry-follows-the-kitchens-colour.test.ts`, which names all four.
+// This block covers appliances only; corner bodies and the open shelf share canFinish: false but follow the
+// kitchen colour, see structural-cabinetry-follows-the-kitchens-colour.test.ts.
 describe("ADR 0099 acceptance 8 — an appliance is untouched at both levels", () => {
   const hoodId = "p13";
 
@@ -990,23 +893,14 @@ describe("ADR 0099 acceptance 10 and decision 10 — round trip, and the rollbac
     );
   });
 
-  /** **The forward direction is safe**, which is the half decision 10 asserts by measurement: a
-   *  document written *without* the key parses against the schema that has it. */
   it("parses a settings container written before the key existed", () => {
     const legacy = { materialTierId: PAL_ID, cabinetDepthMm: 600 };
 
     expect(DesignSettingsSchema.safeParse(legacy).success).toBe(true);
   });
 
-  /**
-   * **The hazard, characterised rather than fixed** (ADR 0099 decision 10).
-   *
-   * `DesignSettingsSchema` is a `strictObject`, so a build that does not declare `finish` refuses
-   * every document that carries it. This reconstructs that build's schema — the current one minus
-   * the key — and shows the refusal, which is what the wave's close-out has to state as a
-   * no-rollback window. **This test asserts the hazard is real; it does not ask for it to be
-   * removed.**
-   */
+  // Characterises the no-rollback hazard: a build whose strict settings schema lacks `finish` refuses documents
+  // carrying it. See ADR 0099 decision 10.
   it("is refused by a strict settings schema that does not declare the key", () => {
     const rolledBack = DesignSettingsSchema.omit({ finish: true });
     const carrying = {
@@ -1021,14 +915,6 @@ describe("ADR 0099 acceptance 10 and decision 10 — round trip, and the rollbac
 });
 
 describe("ADR 0099 decision 6 — ADR 0057's invariant at the write seam", () => {
-  /**
-   * **The claim under test is `validate-design.ts`'s own sentence**: *"no stored design holds a
-   * finish its material does not offer"*. ADR 0099 decision 6 says that invariant *"now has to
-   * cover `settings.finish` as well as every `body.finish`"*.
-   *
-   * The per-placement half is asserted first, so this file cannot pass by the validator being
-   * broken for both.
-   */
   it("refuses a placement wearing a colour the material does not offer", () => {
     const design = designOn(VENEER_ID, [placementWearing(0, MDF_RED)]);
 
@@ -1039,12 +925,6 @@ describe("ADR 0099 decision 6 — ADR 0057's invariant at the write seam", () =>
     ).toBe(true);
   });
 
-  // **DEFECT — reported, not worked around.** `findUnofferedFinishIssues` iterates
-  // `design.placements` only, so a document whose *whole-kitchen* colour the material does not offer
-  // is accepted at `PUT /api/designs/[id]` while the identical colour on a body is refused. The load
-  // seam corrects it on the way back out, so nothing crashes — but the invariant ADR 0099 decision 6
-  // extends is enforced at one of the two seams ADR 0057 built it for.
-  // Production: packages/configurator-domain/src/validate-design.ts:131.
   it("refuses a whole-kitchen colour the material does not offer", () => {
     const design = withGlobalFinish(designOn(VENEER_ID, []), MDF_RED);
 
@@ -1054,10 +934,7 @@ describe("ADR 0099 decision 6 — ADR 0057's invariant at the write seam", () =>
     expect(issues.length).toBeGreaterThan(0);
   });
 
-  /** **The safety net that keeps such a row loading** (`migrate-design.ts`'s
-   *  `resolveGlobalFinishTheMaterialDoesNotOffer`), which is the only thing standing between the
-   *  hole above and a customer's kitchen. A stored document whose whole-kitchen colour the material
-   *  does not offer must load as that material's declared default rather than be refused. */
+  // The load seam's safety net: such a stored colour loads as the material's default instead of being refused.
   it("corrects a stored whole-kitchen colour the material does not offer, on load", () => {
     const stored = {
       ...withGlobalFinish(everyCabinetFollowing(VENEER_ID), MDF_RED),
@@ -1074,8 +951,6 @@ describe("ADR 0099 decision 6 — ADR 0057's invariant at the write seam", () =>
     );
   });
 
-  /** ...and it leaves a colour the material *does* offer alone, so the correction is not a blanket
-   *  rewrite that would discard a legitimate choice on every load. */
   it("leaves a stored whole-kitchen colour the material offers untouched, on load", () => {
     const stored = withGlobalFinish(
       everyCabinetFollowing(VENEER_ID),
@@ -1102,9 +977,6 @@ describe("ADR 0099 decision 6 — ADR 0057's invariant at the write seam", () =>
 });
 
 describe("ADR 0099 decision 2 — the command's shape, asserted structurally", () => {
-  /** *"It does not take the placements, a placement id, or anything that could be turned into
-   *  one"*. Asserted on the argument object the command is actually called with, so a later edit
-   *  that widened the input would fail here rather than in a review. */
   it("accepts exactly a design, a finish and a clock", () => {
     const input = {
       design: withoutGlobalFinish(everyCabinetFollowing(PAL_ID)),
@@ -1121,8 +993,6 @@ describe("ADR 0099 decision 2 — the command's shape, asserted structurally", (
     expect(result.ok).toBe(true);
   });
 
-  /** The effect names no cabinet either — `MaterialTierSetEffect.resolvedFinishCount` exists because
-   *  ADR 0057's reset moves cabinets, and this command moves none. */
   it("publishes an effect carrying no placement id and no count", () => {
     const result = setGlobalFinish({
       design: withoutGlobalFinish(everyCabinetFollowing(PAL_ID)),
@@ -1164,8 +1034,6 @@ describe("resolvedDefaultFinishOf — the second reader, at its boundaries", () 
     ).toBeUndefined();
   });
 
-  /** A design with no `settings` container at all — the state every document written before wave 6E
-   *  is in — resolves to PAL's declared default rather than throwing. */
   it("answers PAL's default for a design carrying no settings container", () => {
     const design: Design = { ...KITCHEN_L_DESIGN, placements: [] };
     const bare = { ...design };
@@ -1176,8 +1044,6 @@ describe("resolvedDefaultFinishOf — the second reader, at its boundaries", () 
     );
   });
 
-  /** An undeclared material carrying a global colour still resolves to that colour: absence of a
-   *  declaration removes the *fallback*, not the middle level. */
   it("still answers the global colour when the material is undeclared", () => {
     const design = withGlobalFinish(designOn(UNDECLARED_ID, []), VENEER_NUC);
 
@@ -1185,17 +1051,9 @@ describe("resolvedDefaultFinishOf — the second reader, at its boundaries", () 
   });
 });
 
-// **ADR 0099 Amendment A section 3 — the record carries two colours and they are not one answer.**
-//
-// `finishKey` is the cabinet's own choice, and `carriedAppearance` (`commands/insert-body.ts`)
-// copies it back into `body.finish` on an insert and on the resize rebuild. `drawnFinish` is
-// `resolvedFinishOf`'s answer, and it exists so the renderer can stop skipping a cabinet that chose
-// nothing. Resolving *into* `finishKey` was tried and reverted for exactly that reason, so the
-// separation **is** the safety guarantee and is asserted here rather than described in a comment.
-//
-// The document-level half of the same guarantee — that no body grows a `finish` key across insert,
-// resize, delete, depth change and a global colour change in any order — is the shuffled property
-// under *"ADR 0099 decision 2"* above, which asserts **key absence** and never a value.
+// finishKey is the cabinet's own choice and is copied back into body.finish on insert and resize; drawnFinish is the
+// resolved answer for the renderer. Resolving into finishKey would stamp followers into overriders.
+// See ADR 0099 Amendment A section 3.
 describe("ADR 0099 Amendment A section 3 — the draw-only colour on a placement record", () => {
   const FINISHABLE_PLACEMENT_ID = "p1";
 
@@ -1215,8 +1073,7 @@ describe("ADR 0099 Amendment A section 3 — the draw-only colour on a placement
 
     const record = recordFor(design, FINISHABLE_PLACEMENT_ID);
     expect(record.drawnFinish).toEqual(PAL_ANTRACIT);
-    // Key absence rather than `toBeUndefined`, for the reason ADR 0099 Amendment A section 1
-    // records: a value assertion passes while the key is being stamped.
+    // Key absence rather than `toBeUndefined`: a value assertion passes while the key is being stamped.
     expect(record).not.toHaveProperty("finishKey");
   });
 
@@ -1241,9 +1098,7 @@ describe("ADR 0099 Amendment A section 3 — the draw-only colour on a placement
     expect(record).not.toHaveProperty("finishKey");
   });
 
-  /** An undeclared material declares no default to fall back to (ADR 0078 decision 3) and that
-   *  state loads rather than being refused, so the field is absent rather than holding a colour
-   *  this product never declared. */
+  /** An undeclared material declares no default and loads rather than being refused, so the field is absent. */
   it("carries no drawn colour at all for an undeclared material and no global colour", () => {
     const design = withoutGlobalFinish(everyCabinetFollowing(UNDECLARED_ID));
 
@@ -1252,14 +1107,7 @@ describe("ADR 0099 Amendment A section 3 — the draw-only colour on a placement
     expect(record).not.toHaveProperty("finishKey");
   });
 
-  /** **The whole point, swept over every declared material and every colour each of them offers.**
-   *  A global change moves the drawn colour of every following cabinet and leaves every `finishKey`
-   *  absent — acceptance criteria 1 and 6 read off the record rather than off a surface.
-   *
-   *  **The split is read off each entry's own `finishRule`, never off a list of ids** (owner's
-   *  ruling, 2026-09-09; backlog entry 60). Cabinetry follows the kitchen whether or not it can
-   *  choose for itself, and an appliance is painted at no level — so the sweep asks the declaration
-   *  rather than assuming every body takes the colour, which it did until that ruling. */
+  /** The split is read off each entry's `finishRule`, never a list of ids: an appliance is painted at no level. */
   it("moves every following cabinet's drawn colour and no cabinet's own, for every material", () => {
     for (const tierId of [PAL_ID, MDF_ID, VENEER_ID]) {
       for (const finish of offeredFinishesOf(materialById(tierId))) {
@@ -1277,7 +1125,6 @@ describe("ADR 0099 Amendment A section 3 — the draw-only colour on a placement
     }
   });
 
-  /** The catalogue's own declaration, asked of the entry rather than restated here. */
   function isNeverPainted(buildId: string): boolean {
     const definition = CATALOG.get(buildId);
     return (

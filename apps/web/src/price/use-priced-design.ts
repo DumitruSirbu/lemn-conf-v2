@@ -1,16 +1,13 @@
 "use client";
 
-// **The composition root for pricing**, and the only module in this application that names a price
-// book.
+// The composition root for pricing, and the only module in this application that names a price book.
 //
 // ADR 0062 seam 1: `priceDesign` takes the book as a parameter and nothing under
-// `packages/configurator-domain/src/pricing/` imports one, so a manufacturer-supplied book is later
-// a substitution here rather than a refactor anywhere.
+// `packages/configurator-domain/src/pricing/` imports one, so a manufacturer-supplied book is a
+// substitution here, not a refactor.
 //
-// **Derived on every render, stored nowhere** (§12, and wave 6C's criterion): the memo is keyed on
-// the two store slices the answer depends on, so a design change re-prices and nothing else does.
-// That is caching a pure query, not persisting a total — `DesignSchema` has no price field and
-// gains none.
+// Derived on every render, stored nowhere (§12): the memo is keyed on the two store slices the answer
+// depends on. That caches a pure query and does not persist a total; `DesignSchema` has no price field.
 import {
   parsePriceBook,
   priceDesign,
@@ -30,32 +27,23 @@ import {
 } from "./whole-kitchen-tiers";
 
 /**
- * **The book, read once at the ingress** — the composition root's whole job, and the reason both
- * hooks below take a `PriceBook` from here rather than naming the sample themselves.
- *
- * `PriceBook` is a TypeScript declaration, and ADR 0062 seam 1 is precisely the seam that cannot
- * keep it: a manufacturer-supplied book is versioned data assembled elsewhere. `parsePriceBook`
- * establishes the shape once so that everything downstream — `priceDesign`'s rule sweep and
- * `offerWholeKitchenTiers`' bare `group.tiers.map` — is reading a fact instead of a promise
- * (M6-AUD-002).
- *
- * **At module scope rather than in a `useMemo`**, because "once" means once for the process and not
- * once per hook: two `useMemo(..., [])` would be two parses of one constant, and neither hook's own
- * memo keys change when a design does. The two memos below keep the dependencies they had.
+ * The book, read once at the ingress. `PriceBook` is only a TypeScript declaration, and a
+ * manufacturer-supplied book is versioned data assembled elsewhere (ADR 0062 seam 1), so
+ * `parsePriceBook` establishes its shape once and everything downstream (`priceDesign`'s rule sweep,
+ * `offerWholeKitchenTiers`' bare `group.tiers.map`) reads a fact. Module scope, so once means once
+ * per process, not once per hook.
  */
 const PARSED_PRICE_BOOK = parsePriceBook(SAMPLE_PRICE_BOOK);
 
 /**
- * **The sample book did not parse.** A defect in this repository rather than a fact about the
- * customer's kitchen, so it leaves as itself — the stance `refuseUnreadableFrontsCause` takes in the
- * domain — and never as a rendered state nobody has designed.
+ * The sample book did not parse: a defect in this repository, not a fact about the customer's
+ * kitchen, so it leaves as itself rather than as an undesigned rendered state.
  *
- * Raised only by the tier offer, and only because there is no honest degraded answer for it: an
- * empty group would make `global-settings-model.ts` throw `UnofferedDefaultTierError` anyway, and
- * inventing a default would be this module deciding what an unset kitchen costs. **What the settings
- * sheet should show when no book can be read at all is an open product question** — it has never been
- * asked, because until now no book could fail to be read. `usePricedDesign` has a real answer and
- * gives it: a refusal, which every price surface already renders as no figure.
+ * Raised only by the tier offer, which has no honest degraded answer: an empty group would make
+ * `global-settings-model.ts` throw `UnofferedDefaultTierError` anyway, and inventing a default would
+ * decide what an unset kitchen costs. What the settings sheet should show when no book can be read is
+ * an open product question. `usePricedDesign` answers with a refusal, which every price surface
+ * renders as no figure.
  */
 export class UnreadablePriceBookError extends Error {
   constructor(detail: string) {
@@ -65,38 +53,26 @@ export class UnreadablePriceBookError extends Error {
 }
 
 /**
- * **The two readers of `PARSED_PRICE_BOOK`, and the reason there are two rather than one.**
- *
- * The hooks below need genuinely different answers to one failed parse, which is the whole content
- * of `UnreadablePriceBookError`'s doc: the tier offer has no honest degraded form and leaves as
- * itself, while a price surface already renders a `PricingResult` refusal as no figure. A single
- * reader would have to pick one of those for both.
- *
- * What is shared is that the module constant is named here and in no hook, so "did the book parse?"
- * is asked in exactly two places and each answer is stated once.
+ * One of the two readers of `PARSED_PRICE_BOOK`: the hooks need different answers to one failed
+ * parse (the tier offer throws, a price surface renders a refusal), so a single reader would have to
+ * pick one for both. The constant is named only in these two readers.
  */
 function readPriceBook(): PriceBook {
   if (PARSED_PRICE_BOOK.ok) return PARSED_PRICE_BOOK.book;
   throw new UnreadablePriceBookError(PARSED_PRICE_BOOK.failure.detail);
 }
 
-/** The parse as it stands, for the caller that answers with a refusal rather than a throw. Handed on
- *  whole rather than pre-branched: `PricingResult` and `PriceBookParseResult` carry the same
- *  `PricingFailure`, so the hook restates nothing this reader would have to restate for it. */
+/** The parse as it stands, for the caller that answers with a refusal rather than a throw;
+ *  `PricingResult` and `PriceBookParseResult` carry the same `PricingFailure`. */
 function priceBookOrRefusal(): PriceBookParseResult {
   return PARSED_PRICE_BOOK;
 }
 
 /**
- * The current design, priced. Both price surfaces read this one hook — frames 2A / D2A's bar and
- * §9 item 7's footer — so neither can be looking at a different number from the other.
- *
- * The whole-kitchen selections come straight off `design.settings` (wave 6E). Nothing is defaulted
- * here: a design carrying no container, or one carrying only the other key, is priced at the book's
- * own default tier, which is book data rather than a rule living in this hook.
- *
- * **A book that did not parse is a refusal, not a throw**: `PricingResult` already carries one, and
- * every price surface already renders a failure as no figure at all rather than as a zero.
+ * The current design, priced. The bar and §9's footer both read this one hook, so neither can show a
+ * different number. Whole-kitchen selections come straight off `design.settings`, with nothing
+ * defaulted here: a missing key is priced at the book's own default tier. A book that did not parse
+ * is a refusal, not a throw, which every price surface renders as no figure rather than a zero.
  */
 export function usePricedDesign(): PricingResult {
   const design = useConfiguratorStore((state) => state.design);
@@ -116,16 +92,12 @@ export function usePricedDesign(): PricingResult {
 }
 
 /**
- * Every whole-kitchen tier the book offers, each measured against its group's default — frames
- * 2E / D2E's *inclus* and *de la +9 000*, and the `availableTierIds` the 6E commands take.
+ * Every whole-kitchen tier the book offers, each measured against its group's default (*inclus*,
+ * *de la +9 000*), and the `availableTierIds` the whole-kitchen commands take.
  *
- * **Here rather than in the settings surface, and that is the point.** A surface importing
- * `SAMPLE_PRICE_BOOK` for a tier list would make two modules name a book, which is the drift ADR
- * 0062 seam 1 closes and `whole-kitchen-tiers.seams.test.ts` now measures. The arithmetic itself is
- * `offerWholeKitchenTiers`, which takes a book and names none.
- *
- * Memoised on the same two store slices `usePricedDesign` is, for the same reason: it is six
- * evaluations of the same pure query, derived on render and stored nowhere.
+ * Here, not in the settings surface: a surface importing `SAMPLE_PRICE_BOOK` would make two modules
+ * name a book, the drift ADR 0062 seam 1 closes. Memoised on the same two store slices as
+ * `usePricedDesign`: six evaluations of one pure query, stored nowhere.
  */
 export function useWholeKitchenTierOffer(): WholeKitchenTierOffer {
   const design = useConfiguratorStore((state) => state.design);

@@ -21,6 +21,9 @@ export interface ScenePoint {
   readonly y: number;
 }
 
+/** Where §11 row 21's band starts: a top-row body stands with its bottom here. */
+export const TOP_ROW_BOTTOM_M = 2.2;
+
 /** The middle of the §11 row 21 band (2.20–2.60 m): the row the side presets must keep tappable. */
 export const TOP_ROW_MIDDLE_M = 2.4;
 

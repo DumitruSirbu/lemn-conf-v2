@@ -1,9 +1,3 @@
-// **Adversarial QA on wave 6Z at the store seam** — ADR 0103 decisions 2, 3, 6 and 9, attacked from
-// the sides the wave's own suite does not enter: the §5.3 swap, the delete/insert round trip, the
-// commands that must *not* re-plan, and the two declared settings with a setting change in between.
-//
-// Everything here is driven through the ordinary store on `KITCHEN_L_DESIGN`, through the offer
-// list's own openings, so every state is a route a customer has.
 import {
   buildKitchenLBodyCatalog,
   cabinetDepthMmOf,
@@ -31,18 +25,16 @@ const OCCURRED_AT = "2026-09-08T12:00:00.000Z";
 const DEEP_TOP = "p23";
 const FULL_HEIGHT_UNDER_IT = "p6";
 
-/** The row every re-plannable body in this column resolves to (ADR 0022), and the front assembly its
- *  entry declares. Both seats below are `columnBuildDepthMm` less that assembly, so nothing in this
- *  file is a depth literal and a third declared depth sweeps for free (ADR 0058 decision 2). */
+/** The row every re-plannable body in this column resolves to (ADR 0022), and its declared front assembly. Both seats
+ *  below are `columnBuildDepthMm` less that assembly, so no depth literal appears and a third declared depth sweeps. */
 const REPLANNED_BUILD_ID = "wall-cabinet";
 const FRONT_ASSEMBLY_MM = frontAssemblyOf(REPLANNED_BUILD_ID);
 
 function frontAssemblyOf(buildId: string): number {
   const definition = KITCHEN_L_BODY_CATALOG.get(buildId);
   if (!definition) throw new Error(`the suite needs ${buildId}`);
-  // A `wall-plane` row states a finished depth outright and has no front assembly to subtract — and
-  // is excluded from the re-plan for exactly that reason (ADR 0103 decision 4 point 3), so reading
-  // one here would mean this suite is measuring a body the wave never touches.
+  // A `wall-plane` row states a finished depth outright and is excluded from the re-plan (ADR 0103 decision 4 point 3),
+  // so reading one here would measure a body the re-plan never touches.
   const rule = definition.occupiedDepth;
   if (rule.measuredFrom !== "recorded-shell") {
     throw new Error(`${buildId} is not a recorded-shell entry`);
@@ -112,9 +104,8 @@ function insertAt(
   return lastPlacementId(store);
 }
 
-/** §5.3's route: the customer taps a standing body and picks another one, and the command replaces
- *  it in place. It reaches `insertBody` exactly as an insert into an opening does, so it reaches the
- *  dependent re-plan — which is the half this file is here to check. */
+/** §5.3's route: a swap in place reaches `insertBody` as an insert into an opening does, so it reaches the
+ *  dependent re-plan. */
 function swapInPlace(
   store: Store,
   placementId: string,
@@ -143,11 +134,8 @@ function placement(store: Store, placementId: string): DesignPlacement {
   return found;
 }
 
-/** **The seat the body actually stands at, read off the derived record rather than off the stored
- *  placement.** A freshly loaded fixture carries no `seatDepthMm` at all — the field is written by
- *  the first command that builds the body — so a test that compared the persisted field would find
- *  `undefined` at the shallow setting and could not state a before/after at all. `frame.d` is the
- *  same quantity `frozen-source-invariant.ts` compares a lifted seat against. */
+/** The seat the body stands at, read off the derived record: a freshly loaded fixture carries no `seatDepthMm` until a
+ *  command builds the body. `frame.d` is what `frozen-source-invariant.ts` compares a lifted seat against. */
 function seatMmOf(store: Store, placementId: string): number {
   const record = store
     .getState()
@@ -160,10 +148,8 @@ function alongWallMOf(store: Store, placementId: string): number {
   return placement(store, placementId).alongMm / 1000;
 }
 
-/** Every extent the store publishes and every source the document records, as one comparable value —
- *  ADR 0103 decision 9's "no published extent moves" criterion. `hasFullHeightUnder` is deliberately
- *  absent: it is a fact about now, not an extent, and the whole point of these commands is to flip
- *  it. */
+/** Every extent the store publishes and every recorded source, as one comparable value. `hasFullHeightUnder` is
+ *  absent: it is a fact about now, not an extent. */
 function publishedExtents(store: Store) {
   return {
     columns: [...store.getState().columns.entries()]
@@ -190,10 +176,8 @@ function publishedExtents(store: Store) {
   };
 }
 
-/** The published column keys, **other than its own**, that a placed body's span reaches into along
- *  its own wall. The same geometry `overlapsAlongWall` reads, written out here off the published
- *  record and map so the assertion states a fact about the kitchen rather than re-using the
- *  function under test. */
+/** The published column keys, other than its own, that a placed body's span reaches into along its wall. The geometry
+ *  of `overlapsAlongWall`, written out so the assertion does not reuse the function under test. */
 function columnsTheBodyReachesInto(
   store: Store,
   placementId: string,
@@ -215,9 +199,7 @@ function columnsTheBodyReachesInto(
     .map(([key]) => key);
 }
 
-/** The names of the columns the store publishes, sorted — the key space on its own, apart from the
- *  extents `publishedExtents` carries with it, because a slide is expected to rename every one of
- *  them and what must not change is how many there are. */
+/** The key space on its own: a slide renames every column, and what must not change is how many there are. */
 function publishedColumnKeys(store: Store): readonly string[] {
   return [...store.getState().columns.keys()].sort();
 }
@@ -232,9 +214,8 @@ function recordsAddressingNoColumn(store: Store): readonly string[] {
     .map((record) => `${record.id}@${record.col}`);
 }
 
-/** Wave 6Y's two instruments, read as one list. ADR 0103 decision 10 owes the enumeration; this file
- *  asserts the **lines**, not the count, so a reading that is swapped for another of the same length
- *  is caught too. */
+/** The two frozen-source instruments as one list. The lines are asserted, not the count, so a reading swapped for
+ *  another of the same length is caught (ADR 0103 decision 10). */
 function frozenSourceReadings(store: Store): readonly string[] {
   return [
     ...unexplainedColumns(store.getState()),
@@ -245,9 +226,8 @@ function frozenSourceReadings(store: Store): readonly string[] {
 const DECLARED_DEPTHS = declaredCabinetDepthsMm();
 
 describe("the §5.3 swap reaches the re-plan, at every declared setting", () => {
-  // The wave's own store suite only ever inserts into an opening. A swap in place is the same code
-  // path (`insertBody`, DEVELOPMENT-SPEC §5.3) and is the shortest tap sequence a customer has for
-  // the owner's S1: select the full-height cabinet, pick an ordinary one. No delete in between.
+  // A swap in place is the same code path as an insert (`insertBody`, DEVELOPMENT-SPEC §5.3) and the shortest tap
+  // sequence to the owner's S1: select the full-height cabinet, pick an ordinary one.
   it.each(DECLARED_DEPTHS.map((cabinetDepthMm) => ({ cabinetDepthMm })))(
     "caps the standing top when the full-height cabinet is swapped for an ordinary one at $cabinetDepthMm",
     ({ cabinetDepthMm }) => {
@@ -268,10 +248,9 @@ describe("the §5.3 swap reaches the re-plan, at every declared setting", () => 
   it.each(DECLARED_DEPTHS.map((cabinetDepthMm) => ({ cabinetDepthMm })))(
     "publishes at $cabinetDepthMm the extents it published before the swap",
     ({ cabinetDepthMm }) => {
-      // The snapshot is taken **after one unrelated command on the other wall**, because a freshly
-      // loaded design carries no `columnExtents` at all — `projectFrozenMap` writes the whole map on
-      // whatever command comes first, and comparing a map against its own absence would measure that
-      // projection rather than the swap.
+      // Snapshot after one unrelated command on the other wall: a fresh design carries no `columnExtents`, and
+      // `projectFrozenMap` writes the whole map on the first command, so comparing against its absence would measure
+      // that projection rather than the swap.
       const store = setDepth(createStore(), cabinetDepthMm);
       remove(store, "p1");
       const before = publishedExtents(store);
@@ -280,8 +259,7 @@ describe("the §5.3 swap reaches the re-plan, at every declared setting", () => 
       swapInPlace(store, FULL_HEIGHT_UNDER_IT, "base-cabinet");
 
       expect(publishedExtents(store)).toEqual(before);
-      // Non-vacuity: the swap did move the standing top, so the equality above is a statement about
-      // a command that did something (ADR 0093 decision 1).
+      // Non-vacuity: the swap did move the standing top.
       expect(seatMmOf(store, DEEP_TOP)).toBe(
         seatTheColumnDecides(cabinetDepthMm, false),
       );
@@ -291,10 +269,8 @@ describe("the §5.3 swap reaches the re-plan, at every declared setting", () => 
   it.each(DECLARED_DEPTHS.map((cabinetDepthMm) => ({ cabinetDepthMm })))(
     "reports at $cabinetDepthMm the frozen-source readings the delete route already reports",
     ({ cabinetDepthMm }) => {
-      // ADR 0103 decision 10 owes an enumeration of what wave 6Y's instruments say in the states this
-      // wave reaches. The wave's own suite enumerates the delete-then-insert route; the swap reaches
-      // the **same end state** by a different tap, so the two must read alike. Asserted as the lines
-      // rather than as their count, so a reading swapped for another of the same length is caught.
+      // The swap reaches the same end state as delete-then-insert by a different tap, so the two must read alike;
+      // asserted as lines, not counts.
       const bySwap = setDepth(createStore(), cabinetDepthMm);
       swapInPlace(bySwap, FULL_HEIGHT_UNDER_IT, "base-cabinet");
 
@@ -305,8 +281,7 @@ describe("the §5.3 swap reaches the re-plan, at every declared setting", () => 
       expect(frozenSourceReadings(bySwap)).toEqual(
         frozenSourceReadings(byDelete),
       );
-      // Non-vacuity in both directions: the two routes really did reach the same re-planned state,
-      // and they are being compared on a state the re-plan wrote.
+      // Non-vacuity: both routes reached the same re-planned state.
       expect(seatMmOf(bySwap, DEEP_TOP)).toBe(seatMmOf(byDelete, DEEP_TOP));
       expect(seatMmOf(bySwap, DEEP_TOP)).toBe(
         seatTheColumnDecides(cabinetDepthMm, false),
@@ -316,9 +291,8 @@ describe("the §5.3 swap reaches the re-plan, at every declared setting", () => 
 });
 
 describe("the re-plan does not accumulate across a delete and a re-insert", () => {
-  // ADR 0103 decision 2's asymmetry, driven far enough to catch a re-plan that adds rather than
-  // decides: a delete re-plans nothing, so the top holds whatever the last insert gave it, and the
-  // same insert repeated writes the same seat rather than a deeper one each time.
+  // A delete re-plans nothing, so the top holds whatever the last insert gave it, and the same insert repeated writes
+  // the same seat rather than a deeper one each time (ADR 0103 decision 2).
   it.each(DECLARED_DEPTHS.map((cabinetDepthMm) => ({ cabinetDepthMm })))(
     "returns the top to one seat however many times the body below is replaced at $cabinetDepthMm",
     ({ cabinetDepthMm }) => {
@@ -340,8 +314,7 @@ describe("the re-plan does not accumulate across a delete and a re-insert", () =
         seats.push(seatMmOf(store, DEEP_TOP));
       }
 
-      // Read the sequence rather than only its last term: the delete holds, and each insert writes
-      // the seat the column decides — never a drifting one.
+      // Read the sequence, not only its last term: the delete holds and each insert writes the seat the column decides.
       expect(seats).toEqual([
         lifted,
         capped,
@@ -379,9 +352,8 @@ describe("the re-plan does not accumulate across a delete and a re-insert", () =
 });
 
 describe("an insert into a column with nothing re-plannable over it writes nothing else", () => {
-  // ADR 0103 decision 3's pass-through by identity, asserted over the **whole document** rather than
-  // over one placement: an insert that re-plans nothing must leave every other placement the same
-  // object, not merely an equal one.
+  // Pass-through by identity over the whole document (ADR 0103 decision 3): an insert that re-plans nothing leaves
+  // every other placement the same object, not merely an equal one.
   it.each(DECLARED_DEPTHS.map((cabinetDepthMm) => ({ cabinetDepthMm })))(
     "passes every standing placement through by reference at $cabinetDepthMm",
     ({ cabinetDepthMm }) => {
@@ -416,19 +388,10 @@ describe("an insert into a column with nothing re-plannable over it writes nothi
     },
   );
 
-  // **The overlap clause is live on the shipped kitchen, and this records that it is** — because the
-  // easy reading of its 786/24 offer sweep is that it never fires here, and that reading is wrong in
-  // a way that would invite deleting the clause.
-  //
-  // Overhanging is not "being wider than your own column". Wall A's wall-band and base-band extents
-  // overlap **each other**: `A|0.30` runs 300–900 and `A|0.45` runs 450–1350. So an ordinary
-  // `wall-cabinet` that exactly fills `A|0.30` still reaches 450 mm into `A|0.45` and 150 mm into
-  // `A|0.75`, and the clause adds both keys to the affected set on a tap any customer has.
-  //
-  // The sweep stays at 24 not because nothing is added but because nothing added needs to move: the
-  // bodies standing in those columns are already at the depth their column decides, so `replanOne`
-  // passes them through by identity. That is the fix's own claim — *"widening the set costs nothing
-  // where nothing moved"* — and this is where it is measured rather than asserted in a comment.
+  // The overlap clause is live on the shipped kitchen, so do not delete it as unreachable: wall A's wall and base
+  // extents overlap (`A|0.30` runs 300–900, `A|0.45` 450–1350), so an exact-fit `wall-cabinet` reaches into
+  // `A|0.45` and `A|0.75`. Nothing added needs to move, since those bodies already stand at their column's depth and
+  // `replanOne` passes them through by identity.
   it("reaches across into neighbouring columns and still writes none of them", () => {
     const store = createStore();
     remove(store, "p8");
@@ -447,13 +410,11 @@ describe("an insert into a column with nothing re-plannable over it writes nothi
     store.getState().insert("wall-cabinet");
     expect(store.getState().lastRejection).toBeNull();
 
-    // The geometry the clause reads, measured off the published record and map rather than taken
-    // from the command — so this states a fact about the kitchen, not about the implementation.
+    // Measured off the published record and map, not taken from the command.
     const placedId = lastPlacementId(store);
     const overhung = columnsTheBodyReachesInto(store, placedId);
     expect(overhung.length).toBeGreaterThan(0);
 
-    // And every one of them comes through untouched, by reference.
     const after = store.getState().design.placements;
     const rewritten = after.filter(
       (candidate) => !before.some((original) => Object.is(original, candidate)),
@@ -463,9 +424,8 @@ describe("an insert into a column with nothing re-plannable over it writes nothi
 });
 
 describe("the commands that must not re-plan", () => {
-  // ADR 0103 decision 2 names one trigger and one only: a successful insert. A width resize rebuilds
-  // the members of the column it resizes (ADR 0031) and must not acquire the dependent re-plan while
-  // it is in there — the wave's own file comment says there is to be no mirror of it.
+  // ADR 0103 decision 2 names one trigger, a successful insert. A width resize rebuilds its column's members (ADR 0031)
+  // and must not acquire the dependent re-plan.
   it("moves no depth when the full-height member under the top is resized", () => {
     const deepest = Math.max(...DECLARED_DEPTHS);
     const store = setDepth(createStore(), deepest);
@@ -477,9 +437,7 @@ describe("the commands that must not re-plan", () => {
     store.getState().setWidth(500);
     expect(store.getState().lastRejection).toBeNull();
 
-    // Non-vacuity: the resize *did* reach the standing top — it rebuilt it at the new column width —
-    // so "the depth did not move" is a statement about a body the command wrote, not about one it
-    // never looked at.
+    // Non-vacuity: the resize did reach the standing top, rebuilding it at the new column width.
     expect(placement(store, DEEP_TOP).body.widthMm).toBe(500);
     expect(widthBefore).not.toBe(500);
     expect(seatMmOf(store, DEEP_TOP)).toBe(lifted);
@@ -492,8 +450,8 @@ describe("the commands that must not re-plan", () => {
 
     remove(store, FULL_HEIGHT_UNDER_IT);
 
-    // Reference identity, so a delete that re-plans to the same number is caught as readily as one
-    // that re-plans to a different one. Non-vacuity: the delete did change the column's own answer.
+    // Reference identity, so a delete that re-plans to the same number is caught too. Non-vacuity: the delete did
+    // change the column's own answer.
     expect(placement(store, DEEP_TOP)).toBe(before);
     expect(
       store.getState().columns.get(`B|${(before.alongMm / 1000).toFixed(2)}`)
@@ -501,16 +459,9 @@ describe("the commands that must not re-plan", () => {
     ).toBe(false);
   });
 
-  // **Pre-existing behaviour, pinned here because it stands next door to the wave and reads like
-  // its work.** `rebuild`'s own comment says a resize changes a width and nothing else — *"the level
-  // slot, the span it belongs to and the depth are the opening this body already stands in"* — and
-  // that is not what happens: the rebuild goes through `evaluateInsertFit`, so `resolveDepthM`
-  // re-answers the depth of **the body being resized** from the column, and the transient a delete
-  // left behind self-heals on a tap that has nothing to do with it.
-  //
-  // Reachable with no insert at all, so it is not wave 6Z's and this file does not treat it as a
-  // defect. It is recorded because the number it produces is the number the re-plan produces, and a
-  // later reader comparing the two will otherwise credit it to the wrong command.
+  // Pre-existing behaviour, pinned because it reads like the wave's work: the rebuild goes through
+  // `evaluateInsertFit`, so `resolveDepthM` re-answers the depth of the body being resized from the column, and the
+  // transient a delete left self-heals on a resize. Reachable with no insert, so it is not the re-plan's.
   it.each(DECLARED_DEPTHS.map((cabinetDepthMm) => ({ cabinetDepthMm })))(
     "re-decides at $cabinetDepthMm the depth of the very top it resizes, with no insert involved",
     ({ cabinetDepthMm }) => {
@@ -532,9 +483,8 @@ describe("the commands that must not re-plan", () => {
 });
 
 describe("a setting change after a re-plan still lands on the declared line", () => {
-  // ADR 0103 decision 11 accepts that the identity migration is one-way. What must still hold is
-  // that the migrated body follows the setting like any other `cabinet-depth` row — so the depth
-  // command and the re-plan cannot come to disagree about where this top belongs.
+  // ADR 0103 decision 11 accepts that the identity migration is one-way; the migrated body must still follow the
+  // setting like any other `cabinet-depth` row, so the depth command and the re-plan cannot disagree.
   it.each(
     DECLARED_DEPTHS.flatMap((from) =>
       DECLARED_DEPTHS.filter((to) => to !== from).map((to) => ({ from, to })),
@@ -554,15 +504,10 @@ describe("a setting change after a re-plan still lands on the declared line", ()
     expect(seatMmOf(store, DEEP_TOP)).toBe(seatTheColumnDecides(from, false));
   });
 
-  // **The key slide, which is where a re-plan could quietly cost a column.** A depth change moves
-  // wall B's runs by *different* amounts — ADR 0089's corner slide is the corner body's own depth
-  // change, so the wall corner return travels 80 mm while everything past it travels 100 — and
-  // `setCabinetDepth` has no key-collision guard of the kind a width resize carries. A re-plan that
-  // moved a body along the wall, or that left one addressing a key nothing publishes, would show up
-  // here and nowhere else: the seats would still be right.
-  //
-  // Measured across the slide, and it holds: the shipped kitchen and the re-planned kitchen both
-  // keep twelve keys, every record resolves to one of them, and the round trip restores the names.
+  // The key slide, where a re-plan could quietly cost a column: a depth change moves wall B's runs by different
+  // amounts (the wall corner return travels 80 mm, everything past it 100; ADR 0089) and `setCabinetDepth` has no
+  // key-collision guard like a width resize's. A re-plan that moved a body along the wall or left one addressing an
+  // unpublished key would show only here, since the seats would still be right. Twelve keys are kept.
   it.each(
     DECLARED_DEPTHS.flatMap((from) =>
       DECLARED_DEPTHS.filter((to) => to !== from).map((to) => ({ from, to })),
@@ -578,13 +523,11 @@ describe("a setting change after a re-plan still lands on the declared line", ()
 
       setDepth(store, to);
 
-      // Two keys collapsing into one is a **shorter** list, and every body that lost its column is
-      // named. Both are asserted, because a collision shows as one or the other depending on which
-      // of the two chains arrives second.
+      // Two keys collapsing is a shorter list, and every body that lost its column is named; both are asserted, since a
+      // collision shows as one or the other depending on which chain arrives second.
       expect(publishedColumnKeys(store).length).toBe(namesBefore.length);
       expect(recordsAddressingNoColumn(store)).toEqual([]);
-      // Non-vacuity: the slide really did happen, so the two assertions above are about a map that
-      // moved rather than one that sat still.
+      // Non-vacuity: the slide really happened.
       expect(publishedColumnKeys(store)).not.toEqual(namesBefore);
 
       setDepth(store, from);
@@ -596,10 +539,8 @@ describe("a setting change after a re-plan still lands on the declared line", ()
 });
 
 describe("a deepening re-plan writes no colour either", () => {
-  // ADR 0099 decision 2 and ADR 0103 decision 6. `a-replan-does-not-record-the-drawn-colour.test.ts`
-  // covers the **capping** direction; a rebuild is a rebuild, and the deepening direction — S2, a
-  // full-height cabinet put under a shallow top — goes through the same `carriedAppearance` call and
-  // was never run under a kitchen colour.
+  // `a-replan-does-not-record-the-drawn-colour.test.ts` covers the capping direction; this covers the deepening one (a
+  // full-height cabinet under a shallow top) through the same `carriedAppearance` call (ADR 0103 decision 6).
   const GLOBAL_COLOUR = paletteFinish("pal.antracit");
   const CHOSEN_COLOUR = paletteFinish("pal.stejar-bardolino");
 
@@ -621,8 +562,7 @@ describe("a deepening re-plan writes no colour either", () => {
   it("leaves a top that chose nothing carrying no finish key at all", () => {
     const store = deepenedUnderAKitchenColour();
 
-    // Key presence, never the rendered value: a value assertion passes while the key is being
-    // stamped (ADR 0103 decision 6).
+    // Key presence, never the rendered value: a value assertion passes while the key is being stamped.
     expect("finish" in placement(store, DEEP_TOP).body).toBe(false);
     expect(seatMmOf(store, DEEP_TOP)).toBe(
       seatTheColumnDecides(Math.max(...DECLARED_DEPTHS), true),

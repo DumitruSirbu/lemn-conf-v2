@@ -1,14 +1,6 @@
-// Column identity across an ADR 0031 resize — ADR 0011 Gap D, and the half of M5 that is silent
-// today.
-//
-// A column's key comes from a body's **centre** (§3.2), and a resize is the only operation that
-// moves a body horizontally. Get this wrong in one direction and a whole column's worth of empty
-// slots appears where nothing was deleted; get it wrong in the other and §10's delete stops
-// producing openings at all. Each test below is named for the failure it catches.
-//
-// **Two keys move, never one.** Under ADR 0031 the resized column moves off its key and the empty
-// column funding it moves off its own — the second is the part `rederiveTouchedColumns` cannot do,
-// because an empty column has no member to re-derive an extent from.
+// A column's key comes from a body's centre (§3.2) and a resize is the only operation that moves a body horizontally.
+// Two keys move, never one (ADR 0031): the resized column and the empty column funding it. The second is what
+// `rederiveTouchedColumns` cannot do, because an empty column has no member to re-derive an extent from.
 import { describe, expect, it } from "vitest";
 
 import {
@@ -40,15 +32,14 @@ function kitchen(): KitchenWorld {
   return createWorld(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG);
 }
 
-/** The shipped kitchen with `A|2.00` emptied through the real delete. It is the fixture almost
- *  every test here needs, because the shipped kitchen has **no empty column at load** and ADR 0031
- *  funds a resize from nowhere else — width editing is in practice a second step of deleting. */
+/** The shipped kitchen with `A|2.00` emptied through the real delete: it has no empty column at load and ADR 0031
+ *  funds a resize from nowhere else. */
 function kitchenWithEmptyColumn(): KitchenWorld {
   return clearBodies(kitchen(), ["p1", "p12", "p18"]);
 }
 
-/** A missing column is a defect in the thing under test, so it fails loudly here rather than
- *  turning into an `undefined` that a `toEqual` might quietly accept. */
+/** A missing column is a defect in the thing under test, so it fails loudly instead of becoming an `undefined` that a
+ *  `toEqual` might accept. */
 function nonNull(column: Column | undefined): Column {
   if (!column) throw new Error("Expected a column");
   return column;
@@ -106,8 +97,6 @@ describe("no opening ever appears where a body physically stands", () => {
     expect(
       resized.voids.filter((opening) => overlapsBody(opening, resized.records)),
     ).toEqual([]);
-    // The openings did move — the empty column shrank into 800 mm at a new key — which is exactly
-    // why the old "the opening set must not change at all" rule had to be re-stated.
     expect(openingKeys(resized.voids)).toEqual([
       "A|1.90@0.000+0.860",
       "A|1.90@1.500+0.700",
@@ -138,29 +127,14 @@ describe("no opening ever appears where a body physically stands", () => {
         }
       }
     }
-    // **Counted here, and named in `qa-w5c.adversarial.test.ts`.** The list used to be spelled out
-    // in this file so the sweep could not pass by accepting nothing, and so that what the shipped
-    // kitchen reaches after one delete was visible in the source. ADR 0035 decision 7 took that
-    // population from 44 to 230 by making every shrink self-funding, and 230 lines of fixture in a
-    // test whose subject is a *phantom opening* buries the assertion above them.
-    //
-    // The itemisation did not go away: the adversarial file pins the 26 taps accepted at load, the
-    // 32 each clear gains, and the 2 lost to this very refusal, from the same width list. What is
-    // left here is the guard against a vacuous sweep, which is what the number was always for.
-    //
-    // **230 until ADR 0043**, 2026-09-01: dropping the remainder floor lets a growth stop short of
-    // consuming the whole freed column, which adds eight taps. **278 since ADR 0048**, which
-    // unfroze the seeded pantry's column — four shrinks on each of `p6` and `p23` in every one of
-    // the nine cleared worlds, less the one clear that deletes them, plus their growths off the two
-    // neighbouring clears. The subject of this test is unmoved — every one of the 278 is still
-    // checked for a phantom opening, and none appears.
+    // Counted here and itemised in `qa-w5c.adversarial.test.ts`; the number guards against a sweep that accepts
+    // nothing.
     expect(accepted.length).toBe(278);
   });
 });
 
-/** Every column of the shipped kitchen whose members are all deletable. The three that are missing
- *  hold a structural corner, which §13.1 makes non-deletable — so they can never become the empty
- *  space ADR 0031 spends. */
+/** Every column of the shipped kitchen whose members are all deletable. The three missing hold a structural corner,
+ *  which §13.1 makes non-deletable, so they can never become the empty space ADR 0031 spends. */
 const CLEARABLE_COLUMNS: readonly {
   readonly key: string;
   readonly ids: readonly string[];
@@ -178,11 +152,8 @@ const CLEARABLE_COLUMNS: readonly {
 
 describe("the anti-invariant: frozen columns through a resize", () => {
   it("would report the whole resized column as free space", () => {
-    // Demonstrated rather than asserted in the abstract. Run the resize's design through the frozen
-    // map the store holds for every *other* command and `A|1.30` still carries the regions of three
-    // bodies that have moved to `A|1.20` — three openings on a stretch of wall where the sink and
-    // two cabinets are standing — while the empty column at `A|2.00` is counted a second time at
-    // its old 600 mm.
+    // Run through the frozen map every other command uses, `A|1.30` still carries the regions of the three bodies that
+    // moved to `A|1.20`, and the empty column at `A|2.00` is counted a second time at its old 600 mm.
     const world = kitchenWithEmptyColumn();
     const result = resizeTo(world, "p0", 600);
     expect(result.ok).toBe(true);
@@ -227,9 +198,7 @@ describe("a delete after a resize produces openings at the resized width", () =>
 
 describe("delete alone still keeps every column frozen", () => {
   it("clears the fridge column into three openings, never zero", () => {
-    // §10's signature flow, and ADR 0011 Gap D verbatim: a global recompute on delete makes the
-    // delete do nothing at all. This wave adds a per-operation update, and this is the assertion
-    // that it stayed per-operation.
+    // §10's signature flow (ADR 0011 Gap D): a global recompute on delete would make the delete do nothing.
     const cleared = clearBodies(kitchen(), ["p7", "p24"]);
     const opened = cleared.voids.filter((record) => record.col === "B|2.45");
 
@@ -271,8 +240,6 @@ describe("only the two keys the resize moved change", () => {
         extentOf(column),
       );
     }
-    // And the keys it did move really are those four, so the exclusion above is not hiding a
-    // change somewhere else.
     expect(
       [...resized.columns.keys()]
         .filter((key) => !world.columns.has(key))
@@ -286,9 +253,8 @@ describe("only the two keys the resize moved change", () => {
   });
 
   it("carries the empty column's frozen regions and top onto its new key", () => {
-    // ADR 0031 rule 4, and the reason the empty column is patched in `setWidth` rather than left to
-    // `rederiveTouchedColumns`: it has no member to derive an extent from, and its regions are the
-    // openings the delete freed. Re-deriving them would take them away — §10's flow, verbatim.
+    // ADR 0031 rule 4: the empty column is patched in `setWidth` rather than left to `rederiveTouchedColumns`, which
+    // has no member to derive from and would take away the regions the delete freed.
     const world = kitchenWithEmptyColumn();
     const before = nonNull(world.columns.get("A|2.00"));
 
@@ -298,7 +264,6 @@ describe("only the two keys the resize moved change", () => {
     expect(after.regions).toEqual(before.regions);
     expect(after.top).toBe(before.top);
     expect(after.d).toBe(before.d);
-    // Only the width and the along-wall centre moved.
     expect(after.w).toBeCloseTo(0.8, 9);
     expect(after.x).toBeCloseTo(1.9, 9);
     expect(after.z).toBe(before.z);
@@ -346,15 +311,8 @@ function runMember(
 
 describe("the resized column keeps the openings a delete freed (FINDING Q1.1)", () => {
   it("moves the freed slot with the column instead of dropping it", () => {
-    // ADR 0011 Gap D, in the one column the ADR's own protection did not reach.
-    // `rederiveTouchedColumns` answers a key from the members **left** under it, so a column that
-    // had a member deleted earlier in the session lost that member's region the moment a resize
-    // re-derived it — and the opening the customer had just freed vanished, with no void and no way
-    // back. ADR 0031 is what made it reachable: before column scope, a resize never moved a key
-    // with a deleted sibling under it.
-    //
-    // Clear `A|0.30` for the empty space, delete `p10`, and the wall slot at `A|0.75` is derived.
-    // Narrow the top cabinet still standing above it and the slot must move, not disappear.
+    // `rederiveTouchedColumns` answers a key from the members left under it, so a resize would drop the region of a
+    // member deleted earlier and the opening the customer freed would vanish. `A|0.75`'s wall slot must move.
     const world = clearBodies(kitchen(), ["p8", "p15", "p10"]);
     expect(openingKeys(world.voids)).toContain("A|0.75@1.500+0.700");
 
@@ -367,8 +325,6 @@ describe("the resized column keeps the openings a delete freed (FINDING Q1.1)", 
   });
 
   it("keeps the base slot under a wall run that narrows", () => {
-    // The same defect one level down, and the more expensive one: the freed base slot is the only
-    // place a base cabinet can go back.
     const world = clearBodies(kitchen(), ["p0", "p1", "p12", "p18"]);
     expect(openingKeys(world.voids)).toContain("A|1.30@0.000+0.860");
 
@@ -378,8 +334,6 @@ describe("the resized column keeps the openings a delete freed (FINDING Q1.1)", 
   });
 
   it("carries the resized column's frozen regions, top and depth onto its new key", () => {
-    // The same guarantee the empty column already had, now stated for the run that moved. Only
-    // `w`, the along-wall centre and the key change.
     const world = kitchenWithEmptyColumn();
     const before = nonNull(world.columns.get("A|1.30"));
 
@@ -397,10 +351,8 @@ describe("the resized column keeps the openings a delete freed (FINDING Q1.1)", 
 
 describe("the funding side is chosen with the phantom test, not before it (FINDING Q1.2)", () => {
   it("falls through to the left when the right would open a gap", () => {
-    // Right is tried first. With `A|1.30` empty it funds the move geometrically and then derives a
-    // 900 mm opening over the corner leg `p25`; the scan must carry on to `A|0.30`, which funds it
-    // and stands over nothing. Before this, clearing a *second* column made a move that was legal
-    // with one clear illegal with two — more space, fewer options.
+    // Right is tried first: with `A|1.30` empty it funds the move and then derives a 900 mm opening over the corner
+    // leg `p25`, so the scan must carry on to `A|0.30`, which stands over nothing.
     const leftOnly = clearBodies(kitchen(), ["p8", "p15"]);
     expect(resizeTo(leftOnly, "p10", 200).ok).toBe(true);
 
@@ -409,15 +361,12 @@ describe("the funding side is chosen with the phantom test, not before it (FINDI
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    // Funded from the left: `A|0.30` widens from 600 to 700 and `A|1.30` is untouched.
     expect(result.effect.emptyColumnKey).toBe("A|0.30");
     expect(result.effect.emptyColumnWidthMm).toBe(700);
     expect(nonNull(result.effect.columns.get("A|1.30")).w).toBeCloseTo(0.8, 9);
   });
 
   it("refuses only when no side can fund the move without a phantom", () => {
-    // With just the right column empty there is nowhere to fall through to, so the refusal stands —
-    // and it names both sides, so the customer knows which one to clear.
     const rightOnly = clearBodies(kitchen(), ["p0", "p11", "p17"]);
 
     const result = resizeTo(rightOnly, "p10", 200);
@@ -467,17 +416,11 @@ describe("the effect names the empty column on both sides of the move (GAP Q1.4)
   });
 });
 
-// ---------------------------------------------------------------------------
-// §2's whole-millimetre rule binds what the **document** stores, and nothing else.
-// ---------------------------------------------------------------------------
+// §2's whole-millimetre rule binds what the document stores, and nothing else.
 
-/** A catalogue with one entry whose widths are odd, which the shipped one has no way to express —
- *  every real set is a multiple of 50. It is the only way to reach an odd empty-column remainder at
- *  all: a member's centre moves by half the delta, so the delta must be even for the move to be
- *  persistable, and the remainder is then odd only if the empty column's own width is.
- *
- *  801 is the even-delta width (601 → 801 moves each centre 100 mm) and 800 the odd-delta one
- *  (601 → 800 moves them 99.5), so both halves of §2's rule are reachable from one entry. */
+/** A catalogue with one entry whose widths are odd (every shipped set is a multiple of 50), the only way to reach an
+ *  odd empty-column remainder. 801 is the even-delta width (601 -> 801 moves each centre 100 mm) and 800 the odd-delta
+ *  one (601 -> 800 moves them 99.5), so both halves of §2's rule are reachable from one entry. */
 const ODD_WIDTHS_MM = [601, 800, 801];
 const ODD_BUILD_ID = "qa-odd-widths";
 
@@ -491,9 +434,8 @@ function oddWidthCatalog(): BodyCatalog {
       {
         ...panbank,
         sizesMm: ODD_WIDTHS_MM,
-        // Both fields, never one. Overriding `sizesMm` alone would leave the pan bank's own
-        // 300–800 cabinetry bound behind from the spread, and 801 would be refused by a rule this
-        // fixture is not about — the footgun ADR 0035's `discreteWidths` helper exists to close.
+        // Override both fields: `sizesMm` alone would leave the pan bank's 300-800 cabinetry bound behind from the
+        // spread and refuse 801 by a rule this fixture is not about.
         widthRangesMm: ODD_WIDTHS_MM.map((size) => ({
           minMm: size,
           maxMm: size,
@@ -532,10 +474,8 @@ function oddWidthRun(widthMm: number): KitchenWorld {
 
 describe("the empty column's centre is derived state, not a persisted one (R1.5)", () => {
   it("accepts a move that leaves the empty column at an odd width", () => {
-    // 601 → 801 spends 200 of a 601 mm empty column and leaves 401. Its new centre is whatever it
-    // is; nothing writes it as millimetres, so §2 has nothing to say about it. Refusing here — as
-    // the command used to, under a code naming `alongMm`, a placement field this value is not —
-    // rejected a state the model represents perfectly.
+    // 601 -> 801 leaves a 401 mm empty column. Its centre is derived state, never written as millimetres, so §2 has
+    // nothing to say about it.
     const world = oddWidthRun(601);
 
     const result = resizeTo(world, "l", 801);
@@ -547,20 +487,15 @@ describe("the empty column's centre is derived state, not a persisted one (R1.5)
       result.effect.columns.get(String(result.effect.emptyColumnNewKey)),
     );
     expect(moved.w).toBeCloseTo(0.401, 9);
-    // And the members, which *are* persisted, landed on whole millimetres.
     for (const placement of result.design.placements) {
       expect(Number.isInteger(placement.alongMm)).toBe(true);
     }
   });
 
-  // Wave 5B2b. The extent's own centre is the other half of §2's rule, and it is a **different**
-  // expression from the members' — whole when the *delta* is even, where this one is whole only
-  // when `extent.centreMm` is. `resolveColumnExtent` unions the members' edges, so two members one
-  // millimetre apart in the same column key give an odd extent and a half-millimetre centre.
-  //
-  // Since ADR 0044 that centre is written: it becomes an `emptyColumns` entry, which
-  // `projectEmptyColumns` refuses rather than rounds. Refused here, the customer reads a sentence;
-  // unrefused, the refusal arrives as a throw out of `setWidth` with nothing catching it.
+  // The extent's centre is a different expression from the members': `resolveColumnExtent` unions the members' edges,
+  // so two members one millimetre apart give an odd extent and a half-millimetre centre. That centre becomes an
+  // `emptyColumns` entry, which `projectEmptyColumns` refuses rather than rounds (ADR 0044); unrefused here it would
+  // be a throw out of `setWidth`.
   it("refuses a frozen centre that is not a whole millimetre", () => {
     const world = createWorld(
       {
@@ -593,8 +528,7 @@ describe("the empty column's centre is derived state, not a persisted one (R1.5)
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.reason.code).toBe("NON_INTEGER_MILLIMETRES");
-    // Named for the quantity that is actually fractional: the members' centres are whole here, so
-    // a refusal blaming `alongMm` would send the reader to the wrong number.
+    // Named for the quantity that is actually fractional: the members' centres are whole, so `alongMm` would mislead.
     if (result.reason.code !== "NON_INTEGER_MILLIMETRES") return;
     // The union of the two members' edges is 700–1301, so the extent is 601 wide centred on
     // 1000.5; the 1 mm the shrink vacates is centred on 1300.5.
@@ -605,8 +539,7 @@ describe("the empty column's centre is derived state, not a persisted one (R1.5)
   });
 
   it("still refuses a member centre that is not a whole millimetre", () => {
-    // The half of the rule that binds the document: 601 → 800 is a delta of 199, so each member's
-    // centre would move by 99.5 mm and `DesignSchema` stores an integer.
+    // 601 -> 800 is a delta of 199, so each member's centre would move by 99.5 mm and `DesignSchema` stores integers.
     const world = oddWidthRun(601);
     const result = setWidth({
       design: world.design,
@@ -626,9 +559,8 @@ describe("the empty column's centre is derived state, not a persisted one (R1.5)
   });
 
   it("refuses that identically whichever side would fund it (R1.4)", () => {
-    // Why returning immediately is right rather than a second Q1.2. A member's centre is
-    // `columnCentre ± (newWidth − oldWidth) / 2`, so its parity is a fact about the two widths —
-    // the other side would answer the same, and ending the scan costs nothing.
+    // A member's centre is `columnCentre +- (newWidth - oldWidth) / 2`, so its parity depends only on the two widths;
+    // the other side would answer the same and ending the scan costs nothing.
     const left = oddWidthRun(601);
     const bothSides = clearBodies(
       createWorld(
@@ -669,11 +601,8 @@ describe("the empty column's centre is derived state, not a persisted one (R1.5)
 
 describe("a body that lands on an existing column key merges into it", () => {
   it("takes the MIN width, the MAX depth, and keeps every member's region", () => {
-    // ADR 0031 makes this **unreachable through `setWidth`**: every member of a column moves by the
-    // same amount into space that is empty at every level, so a resized column can never come to
-    // rest on a key another run already holds. The merge rule still has to be right, because
-    // backlog 2's re-split will reach it — so it is asserted on the mechanism directly, with a
-    // record set in which one body has moved onto a key that is already occupied.
+    // Unreachable through `setWidth`: every member moves by the same amount into space empty at every level. So the
+    // merge rule is asserted on the mechanism, with a record set where one body has moved onto an occupied key.
     const before = recordsFor([
       { id: "b", alongMm: 1400, widthMm: 400, y0Mm: 1500 },
       { id: "c", alongMm: 1300, widthMm: 800, y0Mm: 2200 },
@@ -701,17 +630,14 @@ describe("a body that lands on an existing column key merges into it", () => {
       [1.5, 2.2],
       [2.2, 2.6],
     ]);
-    // Nothing was dropped: both members resolve to the merged key.
     expect(after.filter((record) => record.col === "A|1.30")).toHaveLength(2);
   });
 });
 
 describe("the column update is expressible for a re-split", () => {
   it("yields a coherent map when one body becomes two, without touching the function", () => {
-    // Backlog 2's re-split, fed straight to the update: the record set before holds one 800 mm
-    // body and the set after holds two 400 mm bodies at the same total width. The function takes
-    // the two record sets and the frozen map, and knows nothing about donors or targets — which is
-    // exactly why it survived ADR 0031's pivot untouched.
+    // One 800 mm body becomes two 400 mm bodies at the same total width. The function takes the two record sets and
+    // the frozen map and knows nothing about donors or targets.
     const before = recordsFor([
       { id: "x", alongMm: 1300, widthMm: 800, y0Mm: 1500 },
       { id: "y", alongMm: 2000, widthMm: 600, y0Mm: 1500 },
@@ -739,11 +665,9 @@ describe("the column update is expressible for a re-split", () => {
     expect([...updated.keys()].sort()).toEqual(["A|1.10", "A|1.50", "A|2.00"]);
     expect(updated.get("A|1.10")?.w).toBeCloseTo(0.4, 9);
     expect(updated.get("A|1.50")?.w).toBeCloseTo(0.4, 9);
-    // The untouched key comes through exactly as it was.
     expect(extentOf(nonNull(updated.get("A|2.00")))).toEqual(
       extentOf(nonNull(frozen.get("A|2.00"))),
     );
-    // And the split produces no phantom opening: the two halves cover what the one body covered.
     expect(recomputeVoids(after, updated)).toEqual([]);
   });
 });

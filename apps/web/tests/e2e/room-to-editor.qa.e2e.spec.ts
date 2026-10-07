@@ -80,7 +80,9 @@ test("a composed kitchen opens in the editor, and the editor leads back to the r
   // **7E2 criterion 5, now with fields to fill.** The back control's href is built from the design's
   // own room, so this is the room the customer typed making the full round trip through the
   // database and back into the form.
+  // M7C C1 S3: the link asks first, and *Înapoi la cameră* is the navigation.
   await page.getByTestId("top-bar-back").click();
+  await page.getByTestId("back-confirm-confirm").click();
 
   await expect(page).toHaveURL(THE_TYPED_ROOM);
   await expect(roomScreen(page)).toHaveAttribute("data-room-substate", "1D");

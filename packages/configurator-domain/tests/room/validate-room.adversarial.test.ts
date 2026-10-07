@@ -1,11 +1,5 @@
-// Wave 7A adversarial QA — ADR 0108 attacked from outside the implementer's own fixtures.
-//
-// The implementer's suites judge the engine's limits with inputs read off the engine's limits, so a
-// validator that quietly consulted `ENGINE_ROOM_LIMITS` instead of its argument would pass them all.
-// Here every policy is **written out as numbers that disagree with the engine's**, or drawn at
-// random, and each verdict is compared with an oracle written from the punch list's words rather than
-// from the validator's code. The runtime values a form could hand over past the type — `null`, a
-// string, a boxed number — are fed in as well, because the web calls this from form state.
+// Policies are written out as numbers that disagree with the engine's, or drawn at random, so a validator that
+// consulted `ENGINE_ROOM_LIMITS` instead of its argument fails; the oracle is written from the punch list's words.
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -73,8 +67,8 @@ const ROOM_ISSUE_CODES: readonly RoomIssueCode[] = [
   "HEIGHT_TOO_HIGH",
 ];
 
-/** Keeps wave 7A's arbitrary-policy tests focused on independent field bounds. The 7A2 suites use
- *  the engine and approved generated-kitchen policies, whose dimensions are independently guarded. */
+/** Keeps the arbitrary-policy tests focused on independent field bounds; the engine and approved policies are
+ *  guarded elsewhere. */
 const PERMISSIVE_MINIMUM_KITCHEN = {
   isRequired: false,
   sinkWidthMm: 1,
@@ -87,9 +81,8 @@ const SHAPE_ALONE: RoomValidation = {
   issues: [{ field: "shape", code: "SHAPE_NOT_BUILDABLE" }],
 };
 
-/** A policy the owner might approve, **deliberately disagreeing with the engine's limits on every
- *  bound** — every minimum above them and every maximum below them — so a validator reading the
- *  engine's constant instead of its argument answers differently here. */
+/** A policy disagreeing with the engine's limits on every bound (every minimum above, every maximum below), so a
+ *  validator reading the engine's constant instead of its argument answers differently. */
 const NARROWER_OWNER_POLICY: RoomPolicy = {
   approval: "owner-approved",
   buildableShapes: {
@@ -122,10 +115,9 @@ const BUILDS_NOTHING: RoomPolicy = {
   heightBounds: { minMm: 1, maxMm: MAX_ROOM_HEIGHT_MM },
 };
 
-/** The validator, with the whole-result shape checked on every call: a refusal is exactly
- *  `{ ok, issues }`, an acceptance exactly `{ ok, room }` of its four keys plus `cornerDirection`
- *  only when the room is right-hand (ADR 0129 D2/D3), and every issue exactly `{ field, code }`
- *  with both drawn from the published enums and **no digit anywhere in what a surface is handed**. */
+/** The validator, with the whole-result shape checked on every call: `{ ok, issues }` or `{ ok, room }` (with
+ *  `cornerDirection` only for a right-hand room, ADR 0129 D2/D3), each issue `{ field, code }` from the published
+ *  enums, and no digit anywhere in what a surface is handed. */
 function judge(input: unknown, policy: RoomPolicy): RoomValidation {
   const result = validateRoomInput(input as RoomInput, policy);
   if (result.ok) {
@@ -213,9 +205,7 @@ function lInputPastMaximaOf(policy: RoomPolicy): LRoomInput {
   return lInput(wallA, wallB, height);
 }
 
-// -------------------------------------------------------------------------------------------------
-// The oracle: the punch list's words, not the validator's code.
-// -------------------------------------------------------------------------------------------------
+// The oracle is written from the punch list's words, not from the validator's code.
 
 interface FieldOracle {
   readonly field: RoomField;
@@ -295,10 +285,6 @@ function expectedLValidation(
     },
   };
 }
-
-// -------------------------------------------------------------------------------------------------
-// Generators.
-// -------------------------------------------------------------------------------------------------
 
 /** Legal bounds for one axis: whole, positive, ordered, and at or below that axis's wire bound
  *  (ADR 0108 decision 7). */
@@ -381,13 +367,7 @@ const anyValue: fc.Arbitrary<unknown> = fc.oneof(
   fc.constantFrom(null, "3600", "", true, 3600n, [3600], new Number(3600)),
 );
 
-// =================================================================================================
-// The policy is the parameter.
-// =================================================================================================
-
 describe("validateRoomInput reads the policy it is handed, not the engine's constant", () => {
-  // The three cases below lean on these fixtures disagreeing with the engine in a stated direction; if
-  // an engine limit moves past one, this fails first and names the stale fixture.
   it("uses fixtures that disagree with the engine's limits on every bound, in the stated direction", () => {
     const engine = lFieldBoundsOf(ENGINE_ROOM_LIMITS);
     const narrower = lFieldBoundsOf(NARROWER_OWNER_POLICY);
@@ -521,10 +501,6 @@ describe("validateRoomInput reads the policy it is handed, not the engine's cons
   });
 });
 
-// =================================================================================================
-// Shape first and alone.
-// =================================================================================================
-
 describe("validateRoomInput judges the shape first and alone", () => {
   it("refuses any L under a policy that builds no shape, whatever its dimensions", () => {
     fc.assert(
@@ -583,10 +559,6 @@ describe("validateRoomInput judges the shape first and alone", () => {
   });
 });
 
-// =================================================================================================
-// Every field, in field order — and only the L's fields.
-// =================================================================================================
-
 describe("validateRoomInput judges every field of an L, in field order, and no other field", () => {
   it("never reports wall C for an L, whatever an extra wallCMm key holds", () => {
     fc.assert(
@@ -619,10 +591,6 @@ describe("validateRoomInput judges every field of an L, in field order, and no o
     );
   });
 });
-
-// =================================================================================================
-// A typed boundary the web crosses with form state.
-// =================================================================================================
 
 describe("validateRoomInput refuses a value that is not a number rather than coercing it", () => {
   it.each([
@@ -687,10 +655,6 @@ describe("validateRoomInput refuses a value that is not a number rather than coe
   });
 });
 
-// =================================================================================================
-// Whole millimetres or refused, at the floating-point edges.
-// =================================================================================================
-
 describe("validateRoomInput never rounds, at the edges of floating point", () => {
   it.each([
     [899.9999999999999, "VALUE_NOT_WHOLE_MILLIMETRES"],
@@ -737,14 +701,8 @@ describe("validateRoomInput never rounds, at the edges of floating point", () =>
   });
 });
 
-// =================================================================================================
-// The direction is carried and never read.
-// =================================================================================================
-
-// ADR 0129 D2/D3 changed what "never reads" means: the direction is carried onto the room now, so
-// this suite asserts the part that is still true — `ok` and `issues` never vary with it, including
-// for a nonsense value, which is refused on its own account rather than because it was read as a
-// direction — and moves the room-shape assertion to a `left`/`right` pair below.
+// `ok` and `issues` never vary with the direction (it is carried onto the room, ADR 0129 D2/D3); a nonsense value is
+// refused on its own account.
 describe("validateRoomInput never reads the corner direction to judge a room", () => {
   it("answers with the same ok and issues whatever the direction holds, including nonsense", () => {
     fc.assert(
@@ -828,10 +786,6 @@ describe("validateRoomInput never reads the corner direction to judge a room", (
   });
 });
 
-// =================================================================================================
-// Pure.
-// =================================================================================================
-
 describe("validateRoomInput is pure", () => {
   function deepFrozen<T>(value: T): T {
     if (typeof value === "object" && value !== null) {
@@ -866,10 +820,6 @@ describe("validateRoomInput is pure", () => {
   });
 });
 
-// =================================================================================================
-// The engine's limits — honest, whole, and loadable in any order.
-// =================================================================================================
-
 /** Source text with comments and string literals blanked, so what is left is code. */
 function codeOf(relativePath: string): string {
   return readFileSync(path.join(SOURCE, relativePath), "utf8")
@@ -879,11 +829,9 @@ function codeOf(relativePath: string): string {
 }
 
 describe("ENGINE_ROOM_LIMITS — no bound is written as a number", () => {
-  // The implementer's drift test compares each bound with its source, so a hand-edit to a number the
-  // source does *not* yield turns red. A hand-edit to the number it *does* yield today — `minMm: 900`
-  // — passes that test and is exactly ADR 0108 decision 6's "never written as a literal". Only the
-  // module's text can tell the two apart. `0`, `1` and `2` are `LEVELS[0]`, the level's top `[1]`,
-  // an empty-list check and the half-width; anything else is a chosen number.
+  // A hand-edit to the number a bound yields today (`minMm: 900`) passes the drift test but breaks ADR 0108
+  // decision 6; only the module's text tells them apart. `0`, `1` and `2` are `LEVELS[0]`, the level's top `[1]`,
+  // an empty-list check and the half-width.
   it("room-policy.ts contains no numeric literal but the indices 0 and 1 and the half-width 2", () => {
     const numericLiterals =
       codeOf("room/room-policy.ts").match(/(?<![\w.])\d[\d_.eE]*/g) ?? [];
@@ -915,13 +863,8 @@ describe("ENGINE_ROOM_LIMITS — every bound is a whole millimetre", () => {
 });
 
 describe("ENGINE_ROOM_LIMITS — a wall at its minimum holds its own corner at every offered depth", () => {
-  // ADR 0108 decision 6 derives each L wall minimum from where the reference kitchen's structural
-  // corner ends, "so a wall shorter than this cannot hold its own corner" — measured on
-  // `KITCHEN_L_DESIGN`, which stands at one cabinet depth. The depth setting moves wall B's run
-  // (`along-wall-chain-shift.ts`: the corner's reach into wall B follows the base carcass), and ADR
-  // 0083 decision 1 already holds the demo room to clearing its run at **both** offered depths. A
-  // minimum is only "what the engine can build at all" if it holds the corner at every depth the
-  // customer can then choose.
+  // The depth setting moves wall B's run (`along-wall-chain-shift.ts`), so a wall minimum is "what the engine can
+  // build" only if it holds the corner at every offered depth (see ADR 0108 decision 6).
   const OCCURRED_AT = "2026-09-11T10:00:00.000Z";
 
   function atCabinetDepth(cabinetDepthMm: number): Design {
@@ -956,14 +899,9 @@ describe("ENGINE_ROOM_LIMITS — a wall at its minimum holds its own corner at e
     );
   }
 
-  // **Restated by wave 7D6's J1′, 2026-09-17, and the corner it is asked about is what changed.**
-  // The engine's minimum is the reach of the **narrowest** corner the product will build, sized for
-  // the room it stands in (ADR 0120 Amendment A), so the claim *"a wall at its minimum holds its own
-  // corner"* is now a claim about that corner: in a room at the minima, every piece of the assembly
-  // ends at or before its wall's end, at every offered depth. Measured against the derivation
-  // because there is no design to measure — generation never builds in that room, the approved
-  // policy refusing it (the arm below, which still measures the **reference** corner, is what covers
-  // the rooms the product does build in).
+  // The engine's minimum is the reach of the narrowest corner the product builds, sized for its room (see ADR 0120
+  // Amendment A). Measured against the derivation because generation never builds at the minima; the arm below
+  // measures the reference corner.
   it.each(
     declaredCabinetDepthsMm().flatMap((depthMm) => [
       [depthMm, "A" as const],
@@ -1016,16 +954,9 @@ describe("ENGINE_ROOM_LIMITS — a wall at its minimum holds its own corner at e
   );
 });
 
-// =================================================================================================
-// The depth guard, made structural.
-// =================================================================================================
-
 describe("validate-room.ts can read no depth, because it can read nothing but its arguments", () => {
-  // `demo-room-envelope.test.ts` holds the exempted writer to a list of depth names. A list is only
-  // as good as its spellings — it is case-sensitive, so `setCabinetDepth` and
-  // `declaredCabinetDepthsMm` slip it, and `baseCarcassDepthMm` (`catalog.ts`) and `occupiedDepthM`
-  // (`occupied-depth.ts`) are depth reads it never names. A module with no value imports cannot
-  // reach any of them, whatever they are called.
+  // `demo-room-envelope.test.ts` guards by a name list, which a spelling slips (`setCabinetDepth`,
+  // `baseCarcassDepthMm`, `occupiedDepthM`); a module with no value imports cannot reach any depth read.
   it("imports types only", () => {
     const source = readFileSync(
       path.join(SOURCE, "room/validate-room.ts"),

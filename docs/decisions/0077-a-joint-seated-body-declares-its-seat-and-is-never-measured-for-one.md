@@ -5,6 +5,13 @@ Date: 2026-09-05
 Type: Finding + Decision
 Milestone: M6 — new waves 6K-h and 6K-g, **in that order**; closes the exclusion [ADR 0075](0075-a-recorded-shell-declares-its-shell-not-its-finished-depth.md)'s amendment clause 4 reported and could not rule on
 
+**Pointer, 2026-10-01 — the return's 580 (`:39`) is restated by
+[ADR 0135](0135-the-corner-pieces-stand-on-the-runs-lines-and-the-base-return-is-a-base-body-with-a-fixed-front.md).**
+`base-corner-return-320` is built to `D − 30` and declares and measures 570 at 600. The 2026-09-05
+table is a dated measurement and is not edited. Decision 4's read-side rule stays scoped to the joint
+arm and is **not extended** to the return, so a design stored before the change keeps a recorded
+return seat of 680 (580) against a 670 body. Nothing here is struck.
+
 ## Context
 
 **Read the Addendum of 2026-09-05 with this record.** The body below rules on one clause; a second

@@ -1,55 +1,37 @@
-// **What colour a body is drawn in — declared per catalogue entry, never inferred from a flag and
-// never read off a list of build ids.**
+// What colour a body is drawn in, declared per catalogue entry and never inferred from a flag or read
+// off a list of build ids (ADR 0099 Amendment B2): cabinetry and the corners choose their own, the open
+// shelf follows the kitchen's, and appliances are never painted.
 //
-// The owner's ruling of 2026-09-09: *"structural cabinetry follows the kitchen, appliances never
-// do"*, and *"open shelves can have and by default should inherit global set color"*. That splits a
-// class `canFinish: false` used to hold whole. Four seeded corner bodies, an open shelf, a hood and
-// a freestanding fridge all declared the same `false`, and ADR 0099 decision 8 read it as *"painted
-// at neither level"* for all of them. After the ruling the corners and the shelf take the kitchen's
-// colour and the two machines take none, so **one boolean can no longer carry the answer**.
+// `canFinish: false` covers the open shelf, the hood and the freestanding fridge alike, yet they differ on
+// colour, so one boolean cannot carry the answer. This is a second declaration, not a widening of
+// `canFinish`, because the two answer different questions:
 //
-// It is a second declaration rather than a widening of `canFinish`, because the two answer different
-// questions and only one of them moved:
+// - `canFinish`: may this body's document carry a colour of its own? The control gate: `setFinish`
+//   refuses without it (`commands/set-appearance.ts`), `carriedAppearance` copies none
+//   (`commands/built-body.ts`), the load seam strips one (`migrate-design.ts`), and §9 renders no
+//   *Finisaj* section. A following body gains no control and its `finish` key stays absent
+//   (ADR 0099 decision 2).
+// - `finishRule`: what colour is this body drawn in? What `PlacementRecord.drawnFinish` answers
+//   (ADR 0099 Amendment A section 3).
 //
-// - **`canFinish`** — *may this body's document carry a colour of its own?* It is the control gate:
-//   `setFinish` refuses a body without it (`commands/set-appearance.ts`), `carriedAppearance` does
-//   not copy a colour onto one (`commands/built-body.ts`), the load seam strips one that arrived
-//   anyway (`migrate-design.ts`) and §9 renders no *Finisaj* section. **The ruling changes it for no
-//   body**: a following body follows, it does not choose, so it still gains no control and its
-//   `finish` key must stay absent (ADR 0099 decision 2).
-// - **`finishRule`** — *what colour is this body drawn in?* The question `PlacementRecord.drawnFinish`
-//   exists to answer (ADR 0099 Amendment A section 3), and the one the ruling moved.
+// They correlate in one direction and `bodyFinishRuleOf` refuses an entry where they disagree: a body
+// chooses its own colour if and only if it can be finished.
 //
-// They are correlated in exactly one direction and `bodyFinishRuleOf` refuses an entry where they
-// disagree, so the pair cannot silently drift into two authorities: **a body chooses its own colour
-// if and only if it can be finished.** The other two arms say "no control" in two different ways,
-// and that difference is the whole ruling.
-//
-// The stance is `cabinet-depth-rule.ts`'s, for the reason ADR 0058 decision 2 gives — *"a constant
-// that silently stops tracking anything rots; a declaration is greppable and testable"* — and
-// ADR 0103 decision 4 repeats one declaration over. There is deliberately no arm meaning "unknown"
-// and no default: an entry that answers none of these has not been thought about, and
-// `bodyFinishRuleOf` throws rather than guessing. Reading absence as *chooses* would paint a fridge;
-// reading it as *never* would leave the next structural body white between coloured neighbours,
-// which is the defect this record closes (backlog entry 60).
+// The stance is `cabinet-depth-rule.ts`'s (ADR 0058 decision 2, ADR 0103 decision 4): there is no
+// "unknown" arm and no default, and `bodyFinishRuleOf` throws on an entry that answers none. Reading
+// absence as "chooses" would paint a fridge; reading it as "never" would leave the next structural body
+// uncoloured between coloured neighbours (backlog entry 60).
 
-/** **Which colour a body is drawn in** — declared per catalogue entry (`BodyDefinition.finishRule`).
+/** Which colour a body is drawn in, declared per catalogue entry (`BodyDefinition.finishRule`).
  *
- *  Three answers, because the shipped catalogue holds three kinds of body and no more:
- *
- *  - **`chooses-its-own-colour`** — ordinary cabinetry. The customer may pick a colour for this body
- *    alone, and where they picked none it follows the kitchen and then the material's declared
- *    default (ADR 0099 decision 1's order, unchanged). Most of the catalogue, and the only arm that
- *    reads `placement.body.finish`.
- *  - **`follows-the-kitchens-colour`** — structural cabinetry and the open shelf. It is cabinetry, so
- *    it wears the kitchen's colour; it is not a body a customer selects a finish on (§13.1: *"corners
- *    are structural"*), so it never carries a choice of its own and **its own `finish` key is never
- *    read**. A colour that reached such a body's document by a restored backup or another client is
- *    therefore not drawn, which is the protection `canFinish` used to give at the renderer.
- *  - **`is-never-painted`** — a machine somebody else builds. A hood is a canopy and a chimney and a
- *    freestanding fridge is an appliance; neither is cabinetry and no colour reaches either at any
- *    level. **Not an exception being granted** — it is a statement that the body is not cabinetry,
- *    the same fact `IS_A_MANUFACTURED_SIZE` states about its depth. */
+ *  - `chooses-its-own-colour`: cabinetry, the corners included. The customer may pick a colour for this body alone,
+ *    and where they picked none it follows the kitchen and then the material's default (ADR 0099
+ *    decision 1). The only arm that reads `placement.body.finish`.
+ *  - `follows-the-kitchens-colour`: the open shelf only (the corners now choose). It wears the kitchen's
+ *    colour but a customer selects no finish on it (§13.1), so its own `finish` key is never read: a
+ *    colour reaching its document by a restored backup or another client is not drawn.
+ *  - `is-never-painted`: a hood or a freestanding fridge. Not cabinetry, so no colour reaches it at any
+ *    level; the same kind of fact `IS_A_MANUFACTURED_SIZE` states about depth. */
 export type BodyFinishRule =
   | "chooses-its-own-colour"
   | "follows-the-kitchens-colour"
@@ -65,11 +47,8 @@ export const FOLLOWS_THE_KITCHENS_COLOUR: BodyFinishRule =
 /** An appliance: no colour at any level, at any time. */
 export const IS_NEVER_PAINTED: BodyFinishRule = "is-never-painted";
 
-/** A catalogue entry that says nothing about the colour it is drawn in. **A programming error rather
- *  than a body to guess at**: read as *chooses* it paints an appliance the kitchen's colour, and read
- *  as *never* it leaves the next structural body standing white between coloured neighbours — which
- *  is backlog entry 60, the defect that produced this declaration. Neither failure is visible in a
- *  scene until a customer applies a colour, which is precisely why absence is refused. */
+/** A catalogue entry that says nothing about the colour it is drawn in: a programming error, not a
+ *  body to guess at. Neither wrong reading is visible in a scene until a customer applies a colour. */
 export class UndeclaredBodyFinishRuleError extends Error {
   constructor(buildId: string, declared: unknown) {
     super(
@@ -80,11 +59,10 @@ export class UndeclaredBodyFinishRuleError extends Error {
   }
 }
 
-/** The two declarations disagree on the one thing that binds them: **a body chooses its own colour
- *  if and only if it can be finished.** An entry declaring `chooses-its-own-colour` with no control
- *  offers a choice nothing can make; one declaring a control while following or never painting draws
- *  a colour the customer picked nowhere. Refused where the two meet, so neither field can become a
- *  second authority on the other. */
+/** The two declarations disagree on the one thing that binds them: a body chooses its own colour if
+ *  and only if it can be finished. `chooses-its-own-colour` with no control offers a choice nothing can
+ *  make; a control while following or never painting draws a colour picked nowhere. Refused where the
+ *  two meet, so neither field becomes a second authority on the other. */
 export class ContradictoryBodyFinishRuleError extends Error {
   constructor(buildId: string, rule: BodyFinishRule, canFinish: boolean) {
     super(
@@ -99,21 +77,18 @@ function describeDeclared(declared: unknown): string {
   return declared === undefined ? "nothing" : JSON.stringify(declared);
 }
 
-/** What this module needs and nothing more: the two declarations, and the id a refusal has to name.
- *
- *  `rule` is typed **wider than `BodyDefinition` declares it, on purpose**, for the reason
- *  `CabinetDepthRuleQuery` widens its own: `BodyCatalog` is a port, a definition assembled outside
- *  TypeScript can arrive with no rule at all, and that is the case this module must refuse rather
- *  than guess at. */
+/** What this module needs: the two declarations and the id a refusal names. `rule` is typed wider than
+ *  `BodyDefinition` declares it, as in `CabinetDepthRuleQuery`: `BodyCatalog` is a port, and a
+ *  definition assembled outside TypeScript can arrive with no rule, which this module must refuse. */
 export interface BodyFinishRuleQuery {
   readonly buildId: string;
   readonly rule: BodyFinishRule | undefined;
-  /** `BodyDefinition.canFinish` for the same entry — the control gate the rule must agree with. */
+  /** `BodyDefinition.canFinish` for the same entry: the control gate the rule must agree with. */
   readonly canFinish: boolean;
 }
 
-/** **The rule this entry declares**, or a refusal naming the entry. Fails closed, twice: once for an
- *  entry that declares nothing, and once for one whose two declarations disagree. */
+/** The rule this entry declares, or a refusal naming the entry. Fails closed, for an entry that
+ *  declares nothing and for one whose two declarations disagree. */
 export function bodyFinishRuleOf(query: BodyFinishRuleQuery): BodyFinishRule {
   const rule = declaredRuleOf(query);
   if (choosesItsOwnColour(rule) !== query.canFinish) {
@@ -126,9 +101,8 @@ export function bodyFinishRuleOf(query: BodyFinishRuleQuery): BodyFinishRule {
   return rule;
 }
 
-/** **Does this body carry a colour of its own?** Phrased as a question about the arm rather than as
- *  an equality at each call site, so a fourth arm is a compile error here instead of a silent
- *  `false` wherever the answer is asked. */
+/** Does this body carry a colour of its own? Phrased as a question about the arm so a fourth arm is a
+ *  compile error here instead of a silent `false` wherever the answer is asked. */
 export function choosesItsOwnColour(rule: BodyFinishRule): boolean {
   switch (rule) {
     case "chooses-its-own-colour":

@@ -1,38 +1,16 @@
-// **The one place an amount becomes a figure a customer reads.**
+// The one place an amount becomes a figure a customer reads: prefixed *De la*, rounded up to the
+// thousand MDL ([ADR 0001](../../../../docs/decisions/0001-initial-product-and-stack.md) decision 4).
+// A second rounding site would let two surfaces show different numbers for one kitchen.
 //
-// [ADR 0001](../../../../docs/decisions/0001-initial-product-and-stack.md) decision 4 and the
-// mockups' presentation rule: prefixed *De la*, rounded **up** to the thousand MDL. Wave 6C's
-// criterion is not "the figures are formatted correctly" but "**one** function formats them" — a
-// second rounding site is the defect the criterion exists to prevent, because two sites drift and
-// the drift is invisible until a customer reads two different numbers for one kitchen.
+// Rounded lines and a rounded total need not sum, and that is deliberate: four 1 800 MDL lines round
+// to 4 × 2 000 = 8 000, their 7 200 total rounds to 8 000 only by coincidence, and at 1 200 apiece
+// it is 8 000 against 5 000. No surface may claim they sum; the disclaimer *"Toate sumele sunt
+// prețuri de pornire, rotunjite în sus"* carries it.
 //
-// **The deliberate consequence, stated here because it looks like a bug:** rounded lines and a
-// rounded total need not sum. Rounding four 1 800 MDL lines up gives 4 × 2 000 = 8 000; rounding
-// their 7 200 total gives 8 000 only by coincidence, and at 1 200 apiece it is 8 000 against 5 000.
-// **No surface may claim they sum.** Wave 6D's disclaimer — *"Toate sumele sunt prețuri de pornire,
-// rotunjite în sus"* — is what carries it; wave 6C shows the total alone and no line, so it makes
-// no such claim.
-//
-// **What *De la* claims, now that a tier can price below the default** (wave 6W, ADR 0092
-// decision 12). The claim is left **true and unqualified**, and the reasoning is recorded here
-// because the alternative was reached for first and rejected.
-//
-// M6's PAL-as-both-defaults ruling justified itself partly on *De la* being a **floor**, and 6W
-// falsifies one reading of that: a drawer-dominant kitchen costs *less* at Hettich than at the
-// default hardware tier, so the default-tier total is no longer the cheapest total the customer
-// could reach. But that reading — *no choice you could make costs less than this* — is a sentence in
-// a repository record, not one this product ever put on a screen. What the customer is shown is
-// `priceBreakdown.disclaimer`: a starting price for **the kitchen as it currently stands**, rounded
-// up, excluding transport, worktop and appliances, with the final sum set after the on-site
-// measurement. Every clause of that stays true when a tier prices below the default, because the
-// figure is re-derived from the design the customer is looking at — choose Hettich and the figure
-// itself comes down with it. So there is nothing to qualify: qualifying it would mean adding a
-// clause about a claim the copy does not make.
-//
-// **Interim, pending owner review** — the marker wave 6G set. If the owner reads *De la* as a
-// cross-tier floor rather than a pre-measurement one, the fix is a copy change to
-// `price.startingPrefix` and `priceBreakdown.disclaimer`, and this comment is where it lands;
-// no arithmetic here moves either way, which is why the wave does not wait on the answer.
+// *De la* stays true and unqualified when a tier prices below the default (ADR 0092 decision 12): it
+// claims a starting price for the kitchen as it stands, re-derived from the current design, not a
+// cross-tier floor. Interim, pending owner review: a floor reading would be a copy change to
+// `price.startingPrefix` and `priceBreakdown.disclaimer`, with no arithmetic moving.
 //
 // Rounding is presentation and lives only here: `packages/configurator-domain/src/pricing/` keeps
 // exact integer minor units and never rounds.
@@ -40,7 +18,7 @@ import { type PricedDesign } from "@lemnaria/configurator-domain";
 
 import type { Content } from "@/i18n/content";
 
-/** MDL minor units are bani, as the price book's own head comment states. */
+/** MDL minor units are bani. */
 const MINOR_UNITS_PER_MDL = 100;
 
 /** The step every displayed figure is rounded up to. */
@@ -50,42 +28,20 @@ const MINOR_UNITS_PER_ROUNDING_STEP = MINOR_UNITS_PER_MDL * ROUNDING_STEP_MDL;
 
 const DIGITS_PER_GROUP = 3;
 
-/** The mockups group with a space — *"43 000 MDL"* — and grouping is done here rather than through
- *  `Intl.NumberFormat` on purpose: its output depends on the runtime's locale data, and this figure
- *  goes into a customer-facing document. The same reasoning that keeps the price lines' tie-break a
- *  byte comparison rather than `localeCompare` (wave 6B) applies to the number beside them.
- *
- *  **Measured on this runtime rather than argued, 2026-09-10** (Node 24.19.0, against `143000`), so
- *  that the next reader does not re-open the question:
- *
- *  - `Intl.NumberFormat("ro")` → `"143.000"`, a **period**. `"ro-MD"` is the same, and renders the
- *    currency as **`"L"`** rather than `MDL`.
- *  - `Intl.NumberFormat("ru")` → `"143 000"` with **U+00A0**, which is not the shipped byte either.
- *
- *  What ships, and what ADR 0003 and ADR 0104 make the specification for this screen, is
- *  `143 000 MDL` — U+0020, currency after the amount, no decimals. So `Intl` here would not localise
- *  the figure; it would change it, and an unapproved copy change arriving through a library is still
- *  an unapproved copy change. **The separator is a product constant, not a locale variable**, and
- *  ADR 0095 Amendment C narrows `Intl` out of `price/` entirely for that reason. An ICU number
- *  skeleton cannot help either: it can switch grouping off — which is why the millimetre leaves use
- *  `::group-off` — but it cannot choose the separator glyph.
- *
- *  **What is translatable is the join, not the digits**: `price.amountWithCurrency` owns where the
- *  currency sits relative to the amount and what it is called. See `formatRoundedAmount`. */
+/** Grouped with a space (*"143 000 MDL"*: U+0020, currency after the amount, no decimals) here rather
+ *  than through `Intl.NumberFormat`, whose output varies with runtime locale data and would change the
+ *  approved figure. Measured on Node 24.19.0 against `143000`: `"ro"` gives `"143.000"`, `"ro-MD"`
+ *  renders the currency as `L`, `"ru"` uses U+00A0. The separator is a product constant (ADR 0095
+ *  Amendment C narrows `Intl` out of `price/`), and an ICU skeleton can switch grouping off but not
+ *  choose the glyph. Only the join, `price.amountWithCurrency`, is translatable. */
 const THOUSANDS_SEPARATOR = " ";
 
-/** The mockups' own mark for an amount a choice *adds* to the figure rather than being it — frames
- *  2E / D2E's *+9 000*. See `describeAddedAmount`. */
 const ADDED_AMOUNT_SIGN = "+";
 
-/** A figure as a surface renders it: the ruled label above, the rounded amount below.
- *
- *  Two fields rather than one sentence because the mockups style them differently — the label is
- *  small, letter-spaced and uppercased by CSS — and a component that had to split a joined string
- *  to do that would be formatting a figure of its own. */
+/** A figure as a surface renders it. Two fields because the label is styled apart from the amount
+ *  (small, letter-spaced, uppercased by CSS), so no component splits a joined string. */
 export interface PriceFigure {
-  /** `price.startingPrefix`, and since the owner's ruling of 2026-09-09 there is no other —
-   *  **no surface composes a prefix of its own** and none is offered a choice. */
+  /** `price.startingPrefix`, the only prefix: no surface composes its own. */
   readonly label: string;
   /** The rounded amount joined to its currency by `price.amountWithCurrency`, e.g. `"43 000 MDL"`. */
   readonly amountText: string;
@@ -94,49 +50,21 @@ export interface PriceFigure {
 export interface StartingPriceInput {
   /** Exact minor units, as a priced line or a priced total publishes them. */
   readonly totalMinor: number;
-  /** The active locale's price copy. The label is composed from it here, so no surface is handed
-   *  the choice — see this module's head comment on the withdrawn second prefix. */
+  /** The active locale's price copy; the label is composed from it here. */
   readonly copy: Content["price"];
 }
 
 /**
- * **There is no second label, and its absence is a ruling rather than an omission.**
- *
- * Until 2026-09-09 a figure standing under a refused edit was called *"De la neschimbat"* — frames
- * D2C and 2C draw it, ADR 0024's third frame-2C requirement was closed by it, and
- * `describeStartingLabel` chose between the two prefixes here so that three surfaces could not
- * disagree about which one to use.
- *
- * **The owner removed it**: *"event to state that your change didn't changed the price, I didn't
- * request this"*, and, on the reasoning put to them, *"exactly this is the solution"* — §9's refusal
- * banner already tells the customer the edit was refused, in a sentence, at the place they were
- * looking. A price that has not moved after a refused edit is the **expected** outcome, not a
- * surprise needing narration, and a second signal at the other end of the screen restated the
- * banner and fired on refusals nobody would look at the price for at all.
- *
- * So a figure has one label, this module composes it, and no surface is handed a choice: the
- * refusal never reaches a price model at all.
- */
-
-/**
- * **Whether this priced design holds no cabinets at all** — M6-AUD-014's discriminator, in the one
- * module both price surfaces already import so they cannot come to disagree about what "empty"
- * means.
- *
- * Read off the priced result rather than off the design, so neither model has to be handed a
- * document it otherwise does not need: a design with placements always produces `cabinet` lines and
- * a design with none never does. The whole-kitchen lines an empty design still carries are exactly
- * what would otherwise render as a meaningful zero — a tier printed *inclus* over nothing.
- *
- * The owner's ruling (2026-09-09) is that such a design stays **valid**: loadable, shareable,
- * refused at no seam. It simply has no price, and the surfaces say so rather than printing one.
+ * Whether this priced design holds no cabinets, read off the priced result so neither price surface
+ * needs the document. The whole-kitchen lines an empty design still carries would otherwise render as
+ * a meaningful zero, a tier printed *inclus* over nothing. Such a design stays valid (loadable,
+ * shareable) and simply has no price.
  */
 export function holdsNoCabinets(priced: PricedDesign): boolean {
   return !priced.lines.some((line) => line.kind === "cabinet");
 }
 
-/** Builds the one shape a figure may be rendered from. Every displayed price on every surface — the
- *  bar, §9's footer, wave 6D's lines and 6G's sheet — comes through here. */
+/** Builds the one shape a figure may be rendered from; every displayed price comes through here. */
 export function describeStartingPrice(input: StartingPriceInput): PriceFigure {
   return {
     label: input.copy.startingPrefix,
@@ -144,11 +72,7 @@ export function describeStartingPrice(input: StartingPriceInput): PriceFigure {
   };
 }
 
-/**
- * The rounding rule itself, in whole MDL, published so that nothing needs a second implementation
- * of it to reason about a set of figures — wave 6D rounds lines and the total through this exact
- * function, and so does the test that shows the two do not sum.
- */
+/** The rounding rule itself, in whole MDL, published so lines and total share one implementation. */
 export function roundUpToThousandMdl(totalMinor: number): number {
   assertExactMinorAmount(totalMinor);
   return (
@@ -157,63 +81,31 @@ export function roundUpToThousandMdl(totalMinor: number): number {
 }
 
 /**
- * One amount, rounded and grouped, **without the currency** — what frames 2D and D2D print against
- * every line of the breakdown.
- *
- * Here rather than in the breakdown for the reason this whole module exists: grouping is formatting,
- * and a second `THOUSANDS_SEPARATOR` somewhere else is a second formatter however small. The
- * currency is left off because the mockups state it once per surface, on the figure the lines sit
- * under, and repeating it on every line is not what was drawn.
- *
- * Rounds through `roundUpToThousandMdl`, the same site the total uses, which is exactly why the
- * lines and the total **need not sum** — see this module's head comment, and the disclaimer in
- * `priceBreakdown.note` that carries it.
+ * One amount, rounded and grouped, without the currency, which the mockups state once per surface.
+ * Rounds through `roundUpToThousandMdl`, the total's own site, so lines and total need not sum (see
+ * the head comment and `priceBreakdown.note`).
  */
 export function describeRoundedAmount(amountMinor: number): string {
   return groupThousands(roundUpToThousandMdl(amountMinor));
 }
 
 /**
- * **An amount a choice *adds*, signed** — frames 2E / D2E's *+9 000*, the figure their *de la*
- * badge is built from.
+ * An amount a choice adds, signed (*+9 000*), rounded through `roundUpToThousandMdl` so a delta and
+ * the total it moves share one rule. The sign is arithmetic, so it lives here, not in a message leaf.
  *
- * Rounded through `roundUpToThousandMdl` like every other displayed amount, so a tier's delta and
- * the total it moves cannot round by two different rules. The sign lives here rather than in the
- * catalogue — where the currency's *name* now does — because it is arithmetic rather than a word,
- * and a `+` written into a message leaf is somebody authoring arithmetic into a label.
- *
- * **Only a non-negative amount reaches this**, still, and by two rules rather than one since
- * wave 6W (`whole-kitchen-tiers.ts`'s `BelowDefaultTierRule`): a **material** tier cheaper than its
- * group's default is refused where the delta is measured (`NegativeTierDeltaError`), because what is
- * wrong with it is a fact about the book; a **hardware** tier cheaper than its group's default is a
- * fact about the customer's own kitchen and states no amount at all, so none arrives here. The sign
- * is still not this module's question, and `assertExactMinorAmount` below would refuse a negative
- * here anyway.
+ * Only a non-negative amount arrives (`whole-kitchen-tiers.ts`'s `BelowDefaultTierRule`): a material
+ * tier cheaper than its default is refused where the delta is measured (`NegativeTierDeltaError`),
+ * and a cheaper hardware tier states no amount. `assertExactMinorAmount` refuses a negative anyway.
  */
 export function describeAddedAmount(amountMinor: number): string {
   return `${ADDED_AMOUNT_SIGN}${describeRoundedAmount(amountMinor)}`;
 }
 
 /**
- * **The join, and the only part of a figure a translator may move.**
- *
- * It was `` `${amount} ${PRICE_BOOK_CURRENCY}` `` until wave 6B-g, which is a word order and a
- * currency name written into a template literal — the one thing about a price that genuinely does
- * vary by language. `price.amountWithCurrency` owns it now, so *MDL* against *лей*, and the currency
- * before the amount against after it, are decisions the owner rules at Gate O2 rather than facts
- * about this file. `PRICE_BOOK_CURRENCY` stays in the price book and is not duplicated into
- * `messages/`.
- *
- * **No ADR rules which module holds that constant**, and this note used to cite ADR 0062 for it,
- * which contains no mention of a currency at all. What the record does say: ADR 0001 decision 4 puts
- * the product's prices in MDL, and ADR 0062 decision 1's *one authority, one shape* keeps every
- * amount, tier, delta and rule inside the book — the currency's name is none of those four. The
- * constant is in the book because the book is what declares one and `parse-price-book.ts` refuses a
- * book declaring any other; the placement was right and the citation was not.
- *
- * The digits are not translatable and do not pass through the catalogue as a number: the leaf takes
- * an already-grouped `{amount}` string, so no ICU number skeleton and no CLDR grouping rule can
- * reach the figure. See `THOUSANDS_SEPARATOR` above for the measurement behind that.
+ * The join is the only part of a figure a translator may move: `price.amountWithCurrency` owns the
+ * currency's name and its position. `PRICE_BOOK_CURRENCY` stays in the price book, whose parser
+ * refuses any other currency. The leaf takes an already-grouped `{amount}` string, so no ICU number
+ * skeleton or CLDR grouping rule reaches the digits (see `THOUSANDS_SEPARATOR`).
  */
 function formatRoundedAmount(
   totalMinor: number,
@@ -222,9 +114,8 @@ function formatRoundedAmount(
   return copy.amountWithCurrency(describeRoundedAmount(totalMinor));
 }
 
-/** A price that is not a whole, non-negative count of the smallest unit is a price something has
- *  already rounded or a sign error, and rendering either would put an invented number in front of a
- *  customer. Refused rather than coerced. */
+/** A price that is not a whole, non-negative count of minor units was already rounded or has a sign
+ *  error; it is refused rather than coerced, as rendering it would invent a number. */
 function assertExactMinorAmount(totalMinor: number): void {
   if (Number.isSafeInteger(totalMinor) && totalMinor >= 0) return;
   throw new RangeError(
@@ -242,12 +133,9 @@ function groupThousands(amountMdl: number): string {
 }
 
 /**
- * ADR 0065 decision 7b's ruled warning, present exactly when the priced total is flagged.
- *
- * Here rather than on either surface because **the flag travels with the total wherever a total is
- * shown** (decision 6), and a surface that builds a figure without asking this question is how the
- * flag went missing on the one total the mobile customer can see: §9's sheet covers the bar, and the
- * footer showed an overflowing total with nothing beside it.
+ * ADR 0065 decision 7b's warning, present exactly when the priced total is flagged. Here, not on a
+ * surface, because the flag travels with the total wherever one is shown (decision 6): a surface
+ * that builds a figure without asking can omit it on the one total a mobile customer sees.
  */
 export function describeFlaggedTotalWarning(
   priced: PricedDesign,

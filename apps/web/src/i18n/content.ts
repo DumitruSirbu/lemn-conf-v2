@@ -17,14 +17,9 @@ function assertNever(value: never): never {
 }
 
 /**
- * Resolves a locale-free `BodyLabel` through the active message catalogue — §9's header, the ACTUAL
- * badge, every offer row, the priced breakdown line, and the `{label}` inside a refusal.
- *
- * The two inner switches are **literal-key** and exhaustive, never `` translate(`catalog.kinds.${k}`) ``.
- * A template key defeats next-intl's generated declaration, which is the one property ADR 0095
- * decision 1 chose the library for: a catalogue row added without a message leaf must be a compile
- * error rather than a blank label. It is also what makes `corner_wall_return_top`'s `rowWord`
- * argument mandatory rather than remembered.
+ * Resolves a locale-free `BodyLabel` through the message catalogue. Both inner switches use literal keys, never
+ * `` translate(`catalog.kinds.${k}`) ``: a template key defeats next-intl's generated declaration, so a catalogue
+ * row without a message leaf must be a compile error (ADR 0095 decision 1).
  */
 export function resolveBodyLabel(
   translate: ContentTranslator,
@@ -37,8 +32,7 @@ export function resolveBodyLabel(
       return resolveKindLabel(translate, label.bodyKind);
     case "emptySlot":
       return translate("catalog.emptySlot");
-    // ADR 0033's count, wrapped around a name that is never itself counted — `labelWithDoors`
-    // throws on a nested wrap, so this recursion is one level deep by construction.
+    // ADR 0033's count wraps a name that is never itself counted: `labelWithDoors` throws on a nested wrap.
     case "withDoors":
       return translate("catalog.bodyLabelWithDoors", {
         name: resolveBodyLabel(translate, label.name),
@@ -50,9 +44,8 @@ export function resolveBodyLabel(
 }
 
 /**
- * §9's header line renders `Perete X · band · W × H mm` from this, and ADR 0066's top-row kind leaf
- * reads the same word. Takes the **raw** band, so a seeded top-row cabinet still reads as the top
- * row even though §5.2's gate treats it as `wall`.
+ * The row word for §9's header and ADR 0066's top-row kind leaf. Takes the raw band, so a seeded top-row
+ * cabinet still reads as the top row although §5.2's gate treats it as `wall`.
  */
 export function resolveBandLabel(
   translate: ContentTranslator,
@@ -72,20 +65,15 @@ export function resolveBandLabel(
   }
 }
 
-/** §11 row 24's fallback, and §9's header before it: a body the catalogue cannot name is still
- *  named. Never a key path, never an empty string, and never the raw `kind` id. */
+/** §11 row 24's fallback: a body the catalogue cannot name is still named, never by a key path, an empty
+ *  string or the raw `kind` id. */
 function resolveUnknownBody(translate: ContentTranslator): string {
   return translate("catalog.unknownKind");
 }
 
 /**
- * A palette entry's name, resolved from the entry id the domain publishes — ADR 0071's six decors
- * and two woods, which `materials.ts` declares as ids and no longer as Romanian words.
- *
- * **A literal-key switch over a closed id union**, for `resolveEntryLabel`'s reason and one more: a
- * ninth entry added to `PALETTE_ENTRY_IDS` is a compile error here rather than a chip whose label is
- * the key path, and `` translate(`finish.${entryId}`) `` — which the ids would otherwise spell
- * exactly — would defeat the generated declaration that makes that true.
+ * A palette entry's name from the entry id the domain publishes (ADR 0071). A literal-key switch over a closed
+ * id union, as in `resolveBodyLabel`: a new `PALETTE_ENTRY_IDS` entry is a compile error here.
  */
 export function resolveFinishName(
   translate: ContentTranslator,
@@ -114,22 +102,10 @@ export function resolveFinishName(
 }
 
 /**
- * **One rendered field of a price book row** — a tier's or an accessory's name or description, as
- * ADR 0106 decision 1 publishes it: the row's own authored text, and the catalogue leaf it names
- * where it names one.
- *
- * **The key wins when present, and the authored text is the fallback rather than a hole.** A row
- * naming no key renders what it was typed with, in whatever language that was — which is ADR 0106
- * decision 2 and the shape a manufacturer-entered row needs after M8, since a dashboard user types
- * a name and does not mint a catalogue key. A row naming a key **this build has no arm for** lands
- * on the same path: a book arrives from outside TypeScript through ADR 0062's seam, so an unknown
- * key is reachable and is answered with the book's own words rather than with a key path on screen.
- *
- * The arms are literal keys for `resolveEntryLabel`'s reason. The shipped book's keys are swept for
- * totality by `price-book-text.test.ts` — **and it is the `ru` arm of that sweep that bites, not the
- * `ro` one.** Every Romanian leaf is the row's authored word byte for byte, so an arm deleted here
- * falls back to that same word and the Romanian pass stays green; only the Russian pass sees the
- * difference. A `ro`-only run says nothing about whether this switch is total.
+ * One rendered field of a price book row (ADR 0106 decision 1): the catalogue leaf the row's key names, else the
+ * row's own authored text. A key this build has no arm for also falls back to that text, because a book arrives
+ * from outside TypeScript. The arms are literal keys; only the `ru` pass of `price-book-text.test.ts` catches
+ * a deleted arm, since every Romanian leaf equals the authored word.
  */
 export function resolveBookText(
   translate: ContentTranslator,
@@ -216,8 +192,8 @@ function resolveEntryLabel(
       return translate("catalog.entries.tall-fridge-housing");
     case "fridge-free":
       return translate("catalog.entries.fridge-free");
-    // A `BodyCatalog` can arrive from outside TypeScript (ADR 0062's seam, wave 6J's migration), so
-    // a build id with no leaf is reachable and is named rather than rendered as a hole.
+    // A `BodyCatalog` can arrive from outside TypeScript (ADR 0062), so a build id with no leaf is reachable
+    // and is named rather than rendered as a hole.
     default:
       return resolveUnknownBody(translate);
   }
@@ -252,8 +228,7 @@ function resolveKindLabel(
       return translate("catalog.kinds.corner_base_return");
     case "corner_wall_return":
       return translate("catalog.kinds.corner_wall_return");
-    // ADR 0066: the one kind leaf taking an argument. The row word comes from `band.top`, which is
-    // the same word §9's header calls this body's row, so the two cannot drift to two spellings.
+    // ADR 0066: the one kind leaf taking an argument; the row word comes from `band.top`, as in §9's header.
     case "corner_wall_return_top":
       return translate("catalog.kinds.corner_wall_return_top", {
         rowWord: resolveBandLabel(translate, "top"),
@@ -265,11 +240,8 @@ function resolveKindLabel(
 }
 
 /**
- * ADR 0129 D8, corrected by review L1.1: the domain's `"right"`/`"left"` mean +along/−along
- * (G9), never a screen side, and **which screen side +along reads as depends on the wall, not
- * only on the room's direction** — `along-wall.ts`'s own mapping is wall A's +x, wall B's +z, and
- * D4's mirror negates world x and never z. Measured against the real camera projection
- * (`qa-7i-screen-side.adversarial.test.ts`, which this table restates rather than assumes):
+ * The domain's `"right"`/`"left"` mean +along/−along, never a screen side, and which screen side +along reads
+ * as depends on the wall, not only on the room's direction (ADR 0129 D8). Measured against the camera projection:
  *
  * | wall | direction | +along reads on screen |
  * | ---  | ---       | ---                     |
@@ -280,17 +252,9 @@ function resolveKindLabel(
  * | C    | left      | right                   |
  * | C    | right     | left                    |
  *
- * **Wall C (M7B U5 S2, D15) is wall B's row turned over**, because its camera is wall B's reflected in
- * x = W/2 (ADR 0132 decision 1): it crosses for a *right*-hand room. A U has no right-hand variant
- * (decision 8; `cornerDirectionOf` answers left for it), so in the product wall C never crosses —
- * the right row is what the rule answers for a room that cannot exist, kept so the rule stays the
- * camera's and not a guess. `cross-on-screen.projection.test.ts` measures all six pairs.
- *
- * So the crossing — screen word is the domain word's opposite — happens on wall A for a
- * right-hand room and on wall B for a **left**-hand one (wall B's own mapping is already crossed
- * at the domain's canonical, unmirrored left, because +z reads screen-left there independently of
- * any mirror). `screenSideOf` is the one place either crossing happens — everywhere else in this
- * file still reads `side.side` as the domain wrote it.
+ * Wall C is wall B's row turned over: its camera is wall B's reflected in x = W/2. A U has no right-hand
+ * variant, so wall C never crosses in the product; its right row is what the rule answers for a room that
+ * cannot exist. `screenSideOf` is the one place a crossing happens; elsewhere `side.side` is the domain's.
  */
 export function crossesOnScreen(
   wall: DesignWall,
@@ -312,9 +276,8 @@ function screenSideOf(
   return domainSide === "right" ? "left" : "right";
 }
 
-/** next-intl 4.14.2's generated argument parser types a select-only message as accepting no values.
- * An exact-value `selectordinal` keeps this one catalogue leaf typed without changing its output;
- * these numbers are only the adapter's exhaustive side/reason selector, never domain data. */
+/** next-intl 4.14.2's generated parser types a select-only message as taking no values, so this leaf uses an
+ *  exact-value `selectordinal`: typed, same output. The numbers are a side/reason selector, never domain data. */
 function resolveEmptySpaceSide(
   translate: ContentTranslator,
   side: EmptySpaceSide,
@@ -396,25 +359,17 @@ function resolveWidthsMadeClause(
   });
 }
 
-/** Resolves a locale-free domain refusal through the active message catalogue. The exhaustive
- * literal-key switch keeps all 35 codes checked against both the domain union and generated ICU
- * argument declarations.
+/** Resolves a locale-free domain refusal through the message catalogue. The exhaustive literal-key switch keeps
+ *  every code checked against the domain union and the generated ICU argument declarations.
  *
- * **The descriptor is resolved before it is interpolated, and that order is forced rather than
- * chosen.** ICU cannot reference a sub-message by argument, so a message reading `„{label}”` needs a
- * resolved string; no `rejection.*` leaf changed for this, and each of them still declares `{label}`
- * as a plain string argument. */
+ *  The descriptor is resolved before it is interpolated: ICU cannot reference a sub-message by argument, so a
+ *  message reading `„{label}”` needs a resolved string. */
 export function resolveRejection(
   translate: ContentTranslator,
   detail: RejectionDetail,
-  // ADR 0129 D8. Both optional and defaulting to wall A / left rather than threaded to every
-  // caller: only a width-resize refusal's `sides` ever reads either (`resolveEmptySpaceSides`),
-  // and a caller with no selection in scope — `global-settings.tsx`'s whole-kitchen-settings
-  // refusal, whose codes can never carry an `EmptySpaceSide` (L1.6; pinned by
-  // `qa-7i-side-words.adversarial.test.ts`) — is unaffected by the defaults either way. Wall A is
-  // the default rather than an arbitrary choice: it is the one wall whose own crossing rule
-  // (`crossesOnScreen`) agrees with `cornerDirection`'s default of left, so an omitted wall reads
-  // exactly as this function did before wave 7I added a direction at all.
+  // Both default to wall A / left rather than being threaded to every caller: only a width-resize refusal's
+  // `sides` reads either (`resolveEmptySpaceSides`). Wall A is the default because its crossing rule agrees with
+  // `cornerDirection`'s default of left (ADR 0129 D8).
   wall: DesignWall = "A",
   cornerDirection: CornerDirection = "left",
 ): string {
@@ -610,33 +565,24 @@ export function resolveRejection(
   }
 }
 
-/**
- * Resolves the content shape the pre-i18n models already consume. Every leaf comes from the active
- * request/provider locale; closures preserve the existing model-facing function signatures while
- * delegating interpolation and plural selection to ICU.
- */
+/** Resolves the content shape the pre-i18n models consume: every leaf comes from the active locale, and the
+ *  closures keep the model-facing signatures while ICU does interpolation and plural selection. */
 export function resolveContent(translate: ContentTranslator) {
   return {
-    // `cornerDirection` stays the second positional argument, unchanged from wave 7I's own S3b:
-    // every existing two-argument call (`content.rejection(detail, direction)`, panel-model.ts and
-    // the test suites alike) keeps meaning what it always meant. `wall` is new and third, read only
-    // by a refusal whose `sides` actually names one (`resolveEmptySpaceSides`); a caller with no
-    // wall in scope gets `resolveRejection`'s own default.
+    // `cornerDirection` stays the second positional argument, so existing two-argument calls keep their meaning.
+    // `wall` is third and read only by a refusal whose `sides` names one; a caller with no wall gets the default.
     rejection: (
       detail: RejectionDetail,
       cornerDirection?: CornerDirection,
       wall?: DesignWall,
     ) => resolveRejection(translate, detail, wall, cornerDirection),
-    /** A domain descriptor resolved through `catalog.*`, not a content family — see
-     *  `resolveBodyLabel`. Held on `Content` for `rejection`'s reason: a model already threading the
-     *  resolved content has no translator of its own. */
+    /** A domain descriptor resolved through `catalog.*` (see `resolveBodyLabel`). Held on `Content` because a
+     *  model already threading the resolved content has no translator of its own. */
     bodyLabel: (label: BodyLabel) => resolveBodyLabel(translate, label),
     bandLabel: (band: Band) => resolveBandLabel(translate, band),
     finishName: (entryId: PaletteEntryId) =>
       resolveFinishName(translate, entryId),
-    /** A price book row's rendered sentence — see `resolveBookText`. A descriptor resolver like
-     *  the three above and not a content family: the words are the book's, and what the catalogue
-     *  holds is the translation of the rows this product ships. */
+    /** A price book row's rendered sentence (see `resolveBookText`): a descriptor resolver, not a content family. */
     bookText: (authored: string, key: string | undefined) =>
       resolveBookText(translate, authored, key),
     brand: translate("brand"),
@@ -648,6 +594,12 @@ export function resolveContent(translate: ContentTranslator) {
       localeMenu: translate("configure.localeMenu"),
       back: translate("configure.back"),
       backAction: translate("configure.backAction"),
+      backConfirm: {
+        title: translate("configure.backConfirm.title"),
+        body: translate("configure.backConfirm.body"),
+        confirm: translate("configure.backConfirm.confirm"),
+        stay: translate("configure.backConfirm.stay"),
+      },
       reviewCta: translate("configure.reviewCta"),
       orbitHint: translate("configure.orbitHint"),
       cameraGroupLabel: translate("configure.cameraGroupLabel"),
@@ -745,10 +697,8 @@ export function resolveContent(translate: ContentTranslator) {
         wider: translate("panel.widthStepAriaLabels.wider"),
       },
       widthStepNote: translate("panel.widthStepNote"),
-      // ADR 0129 D8: the reflected sentence for a right-hand room — same rule, opposite screen
-      // words. A new leaf rather than an ICU selector on the room's direction, because
-      // `widthStepNote` is a static translation with no runtime argument today; the caller
-      // (`panel-model.ts`) picks between the two by `cornerDirectionOf(design.room)`.
+      // ADR 0129 D8: the reflected sentence for a right-hand room. A separate leaf rather than an ICU selector,
+      // because `widthStepNote` takes no runtime argument; `panel-model.ts` picks by `cornerDirectionOf(design.room)`.
       widthStepNoteRight: translate("panel.widthStepNoteRight"),
       widthChoiceNote: translate("panel.widthChoiceNote"),
       structuralTitle: translate("panel.structuralTitle"),
@@ -816,9 +766,8 @@ export function resolveContent(translate: ContentTranslator) {
         translate("globalSettings.pillHardware", { categoryWord, tierName }),
       pillDepth: (cabinetDepthMm: number) =>
         translate("globalSettings.pillDepth", { cabinetDepthMm }),
-      /** The pill names every setting whether or not it draws it: `+N` is a visual economy and a
-       *  swatch is not something a screen reader can read. The separator is a catalogue leaf for
-       *  the reason every other join in this module is one. */
+      /** The pill names every setting whether or not it draws it: `+N` is a visual economy a screen reader
+       *  cannot read. */
       pillNameAllSettings: (settings: readonly string[]) =>
         translate("globalSettings.pillNameAllSettings", {
           openLabel: translate("globalSettings.open"),
@@ -858,7 +807,7 @@ export function resolveContent(translate: ContentTranslator) {
       title: translate("designLoadError.title"),
       bodyNotFound: translate("designLoadError.bodyNotFound"),
       bodyInvalid: translate("designLoadError.bodyInvalid"),
-      // M7 wave 7E3b D5: the "wrong browser" refusal (ADR 0114 decision 5).
+      // The "wrong browser" refusal (ADR 0114 decision 5).
       bodyUnavailable: translate("designLoadError.bodyUnavailable"),
       startOver: translate("designLoadError.startOver"),
     },

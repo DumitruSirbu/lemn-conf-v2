@@ -35,29 +35,31 @@ const hingedFloorMm = (() => {
 
 const declaredDepthsMm = [600, 700] as const;
 const boundaryWallsMm = [
-  880, 881, 882, 899, 900, 1000, 1200, 2200, 6300,
+  870, 871, 880, 881, 882, 899, 900, 1000, 1200, 2200, 6300,
 ] as const;
 
 describe("7D7 S3a room-sized corner widths", () => {
   for (const cabinetDepthMm of declaredDepthsMm) {
     propertyTest.prop([
-      fc.integer({ min: 880, max: 6300 }),
-      fc.integer({ min: 880, max: 6300 }),
+      fc.integer({ min: 870, max: 6300 }),
+      fc.integer({ min: 870, max: 6300 }),
     ])(
       `chooses the largest even buildable width on both walls at ${String(cabinetDepthMm)} mm depth`,
       (wallAMm, wallBMm) => {
         const inRoom = room(wallAMm, wallBMm);
         const widths = cornerAssemblyWidthsMm({ cabinetDepthMm, room: inRoom });
-        expect(widths.pieces).toHaveLength(4);
+        expect(widths.pieces).toHaveLength(6); // 4 → 6 (M7C wave C2)
 
         for (const piece of widths.pieces) {
           const wallMm = piece.wall === "A" ? wallAMm : wallBMm;
           const nearMm = nearEdgeMm(cabinetDepthMm, piece.wall, piece.band);
           const referenceMm =
-            piece.wall === "A" ? 900 : piece.band === "base" ? 320 : 570;
+            piece.wall === "A" ? 900 : piece.band === "base" ? 330 : 570;
+          // Wall A's piece in each row is blind for what stands in front of it on wall B in that row: the
+          // run's carcass front in the base row, the wall depth in the wall and top rows (M7C wave C2).
           const minimumMm =
             piece.wall === "A"
-              ? cabinetDepthMm - 20 + hingedFloorMm
+              ? nearEdgeMm(cabinetDepthMm, "B", piece.band) + hingedFloorMm
               : hingedFloorMm;
           const ceilingMm = Math.min(referenceMm, wallMm - nearMm);
           const farEdge = cornerFarEdgeMm({
@@ -87,15 +89,15 @@ describe("7D7 S3a room-sized corner widths", () => {
   }
 
   it.each([
-    room(880, 880),
-    room(881, 881),
+    room(870, 870),
+    room(871, 871),
     room(900, 1000),
     room(900, 2200),
     room(2100, 1000),
     KITCHEN_L_DESIGN.room,
     room(6300, 6300),
   ])(
-    "writes four in-wall structural records and no inverted empty spans for %o",
+    "writes six in-wall structural records and no inverted empty spans for %o",
     (inRoom) => {
       const shell = buildLShellDesign({ room: inRoom, occurredAt });
       expect(shell.placements.map(({ id }) => id)).toEqual([
@@ -103,6 +105,9 @@ describe("7D7 S3a room-sized corner widths", () => {
         "p26",
         "p9",
         "p21",
+        // The corner wall unit's two (M7C wave C2).
+        "p27",
+        "p28",
       ]);
       expect(findOverflowingPlacementIds(shell)).toEqual([]);
 
@@ -132,21 +137,21 @@ describe("7D7 S3a room-sized corner widths", () => {
     },
   );
 
-  it("leaves only the last millimetre unused at the 881 mm wall ends", () => {
-    const shell = buildLShellDesign({ room: room(881, 881), occurredAt });
+  it("leaves only the last millimetre unused at the 871 mm wall ends", () => {
+    const shell = buildLShellDesign({ room: room(871, 871), occurredAt });
     expect(
       shell.placements.map(({ alongMm, body }) => alongMm + body.widthMm / 2),
-    ).toEqual([880, 880, 880, 880]);
-    expect(lShellFloorRuns(room(881, 881))).toEqual({
-      A: { wall: "A", startMm: 880, endMm: 880 },
-      B: { wall: "B", startMm: 880, endMm: 880 },
+    ).toEqual([870, 870, 870, 870, 870, 870]); // the unit's two (M7C wave C2) end at 870 too
+    expect(lShellFloorRuns(room(871, 871))).toEqual({
+      A: { wall: "A", startMm: 870, endMm: 870 },
+      B: { wall: "B", startMm: 870, endMm: 870 },
     });
     expect(
       (shell.emptyColumns ?? []).filter(({ wall }) => wall === "B"),
     ).toEqual([]);
   });
 
-  it.each([room(880, 880), room(881, 881), room(900, 1000)])(
+  it.each([room(870, 870), room(871, 871), room(900, 1000)])(
     "records zero floor capacity and no wall-B tiles when the reserve spends the run in %o",
     (inRoom) => {
       const runs = lShellFloorRuns(inRoom);
@@ -163,8 +168,8 @@ describe("7D7 S3a room-sized corner widths", () => {
   );
 
   propertyTest.prop([
-    fc.integer({ min: 880, max: 6300 }),
-    fc.integer({ min: 880, max: 6300 }),
+    fc.integer({ min: 870, max: 6300 }),
+    fc.integer({ min: 870, max: 6300 }),
   ])(
     "keeps the sized shell and recorded runs inside mixed wall lengths",
     (wallAMm, wallBMm) => {
@@ -201,8 +206,8 @@ describe("7D7 S3a room-sized corner widths", () => {
   );
 
   propertyTest.prop([
-    fc.integer({ min: 880, max: 2200 }),
-    fc.integer({ min: 880, max: 2200 }),
+    fc.integer({ min: 870, max: 2200 }),
+    fc.integer({ min: 870, max: 2200 }),
   ])(
     "never throws an internal error for an engine-admitted small room",
     (wallAMm, wallBMm) => {
@@ -216,7 +221,7 @@ describe("7D7 S3a room-sized corner widths", () => {
     },
   );
 
-  it.each([room(879, 880), room(880, 879)])(
+  it.each([room(869, 870), room(870, 869)])(
     "refuses %o outside the engine at the shell boundary with a typed error",
     (inRoom) => {
       try {
@@ -261,6 +266,7 @@ function nearEdgeMm(
   band: "base" | "wall" | "top",
 ) {
   if (wall === "A") return 0;
-  if (band === "base") return cabinetDepthMm - 20;
+  // The run's carcass front (ADR 0135), which was the run's seat, `cabinetDepthMm - 20`.
+  if (band === "base") return cabinetDepthMm - 30;
   return cabinetDepthMm === 600 ? 330 : 400;
 }

@@ -5,10 +5,13 @@
 import { test } from "@playwright/test";
 
 import { deleteMintedDesigns } from "./support/minted-designs";
-import { runMirrorCaptureSet } from "./support/qa-7i-captures";
+import {
+  MIRROR_CAPTURE_SET_TIMEOUT_MS,
+  runMirrorCaptureSet,
+} from "./support/qa-7i-captures";
 
 test.describe("7I QA — the mirror capture set (mobile)", () => {
-  test.setTimeout(300_000);
+  test.setTimeout(MIRROR_CAPTURE_SET_TIMEOUT_MS);
   const mintedIds: string[] = [];
 
   test.afterAll(async () => {

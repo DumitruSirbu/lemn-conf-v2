@@ -1,12 +1,8 @@
 "use client";
 
-// §9's panel, rendered. Frames 2B and D2B on mobile and desktop respectively — one set of section
-// components, two shells, and the shell is a CSS branch (`editor-panel.module.css`) rather than a
-// React one. Nothing in this file can see the viewport, which is how §10.1's "branch on layout, not
-// on logic" is enforced by construction rather than by review.
-//
-// No product rule lives here either. Every section, every disabled state and every sentence arrives
-// already decided in the `PanelView` that `describePanel` produced; this file chooses markup.
+// §9's panel: one set of section components, two shells, the shell being a CSS branch
+// (`editor-panel.module.css`), so nothing here can see the viewport. No product rule lives here:
+// every section, disabled state and sentence arrives decided in the `PanelView`.
 import { freeColourFinish, type Finish } from "@lemnaria/configurator-domain";
 import type { CSSProperties } from "react";
 
@@ -35,14 +31,11 @@ import type {
   WidthStepperSection,
 } from "./panel-model";
 
-/** The `view` arrives as a prop rather than from `usePanelView` here, so that the screen above can
- *  gate frame 2A's instruction copy on the very same value: §9's open/closed rule then has one
- *  expression instead of two that can drift apart. */
+/** `view` is a prop so the screen above gates its instruction copy on the same value: §9's
+ *  open/closed rule keeps one expression. */
 export function EditorPanel({ view }: { readonly view: PanelView }) {
   const deselect = useConfiguratorStore((state) => state.deselect);
 
-  // Frames 2A and D2A: with nothing selected there is no panel at all — the scene is full width and
-  // carries the instruction copy itself.
   if (view.kind === "closed") return null;
 
   return (
@@ -60,28 +53,15 @@ export function EditorPanel({ view }: { readonly view: PanelView }) {
   );
 }
 
-/** §9 puts a message beside the control that produced it, and this one was produced by the panel
- *  as a whole — so it sits directly under the header, above the scrolling body, where it cannot be
- *  scrolled past. `role="status"` rather than `alert` even for the failure: the edit is already
- *  applied and nothing is waiting on the customer.
+/** The panel-wide message, under the header and above the scrolling body. `role="status"`, not
+ *  `alert`: the edit is already applied.
  *
- *  Rendered **always**, empty when there is nothing to say. Many screen readers announce only
- *  *changes* to a live region that was already in the accessibility tree, so a region mounted at
- *  the same moment its first message appears can be announced late or not at all — and for a
- *  read-only customer this notice is the only thing explaining why nothing responds. Empty it
- *  collapses to nothing visible (`[data-empty="true"]`); it is not hidden, because `display: none`
- *  would take it back out of the tree and undo the whole point.
+ *  Always rendered, empty when silent: a live region mounted with its first message can be announced
+ *  late or not at all. Empty it collapses (`[data-empty="true"]`) and must never be `display: none`,
+ *  which would remove it from the accessibility tree.
  *
- *  A button appears for each action the notice carries — the write-access check having failed
- *  (finding WEB-002), or the stored design having moved on (finding WEB-003). Whether they are
- *  offered is `describePanel`'s decision, not this component's; what each one does is wiring, and
- *  wiring is what belongs here.
- *
- *  They sit **inside** the live region, and that is the right place for them rather than an
- *  oversight: pressing retry moves `canWrite` back to `"checking"`, so the sentence beside it
- *  changes from "could not be checked" to "checking". Re-announcing the region is exactly what
- *  should happen — the press has no other visible result, and a screen-reader user would otherwise
- *  have no confirmation that anything happened at all. */
+ *  The action buttons sit inside the live region on purpose: retry changes the sentence beside it,
+ *  and that re-announcement is a screen-reader user's only confirmation the press happened. */
 function PanelNoticeRow({
   notice,
 }: {
@@ -104,8 +84,6 @@ function PanelNoticeRow({
   );
 }
 
-/** The test id each action carries, so a browser test presses a named control rather than the
- *  n-th button in a paragraph. */
 const NOTICE_ACTION_TEST_IDS: Record<PanelNoticeAction["kind"], string> = {
   "retry-access-check": "panel-access-retry",
   "reload-stored": "panel-conflict-reload",
@@ -128,13 +106,8 @@ function PanelNoticeButton({ action }: { readonly action: PanelNoticeAction }) {
   );
 }
 
-/**
- * What each notice action does. One place, so a button cannot be wired to the wrong reducer.
- *
- * `reload-stored` is `location.reload()` and not a store action on purpose: the whole point of that
- * choice is to discard this browser's unsaved design and take the stored one, which is what a
- * reload is — modelling it as state would imply the store survives it (WEB-003).
- */
+/** `reload-stored` is `location.reload()`, not a store action: it discards this browser's unsaved
+ *  design, and modelling it as state would imply the store survives it. */
 function useNoticeActions(): (kind: PanelNoticeAction["kind"]) => void {
   const retryWriteAccessCheck = useConfiguratorStore(
     (state) => state.retryWriteAccessCheck,
@@ -227,8 +200,7 @@ function ReplaceSectionView({ section }: { readonly section: ReplaceSection }) {
           </span>
         ) : null}
       </div>
-      {/* §13.1: a row list, not a grid — at 390 px a row gives the name full width and makes the
-          whole strip the tap target. No pagination anywhere; the slot knows its width and band. */}
+      {/* §13.1: a row list, not a grid; at 390 px the whole strip is the tap target. */}
       <ul className={styles.rows} data-testid="replace-rows">
         {section.rows.map((row) => (
           <OfferRowView key={row.buildId} row={row} onPick={insert} />
@@ -276,15 +248,9 @@ function OfferRowView({
   );
 }
 
-/** Frame 2B's 54 x 54 tile, which is what tells a full-height column apart from a base cabinet
- *  before the label is read.
- *
- *  §13.4 requires a CSS `background-image` and **not** an `<img>`, and the reason is specific: an
- *  unresolved value paints an empty tile, where an `<img>` with no source fires a failed request and
- *  shows a broken-image glyph in the middle of the offer list. Do not "improve" this into an `<img>`.
- *
- *  Decorative, so `aria-hidden`: the row already names the cabinet in text one element away, and a
- *  label here would have a screen reader announce every row twice. */
+/** §13.4 requires a CSS `background-image`, not an `<img>`: an unresolved value paints an empty tile,
+ *  where an `<img>` fires a failed request and shows a broken-image glyph. Decorative, so
+ *  `aria-hidden`: the row already names the cabinet. */
 function OfferThumbnail({ url }: { readonly url: string | undefined }) {
   return (
     <span
@@ -298,10 +264,8 @@ function OfferThumbnail({ url }: { readonly url: string | undefined }) {
   );
 }
 
-/** §9's own colour control: the shared one below, wired to the **per-placement** command. The store
- *  read lives here rather than inside the control because ADR 0099 decision 9 has the global
- *  settings sheet render the same control against a *pending* whole-kitchen choice that writes
- *  nothing until *Aplică* — one control, two writers, chosen by the caller. */
+/** The shared colour control wired to the per-placement command; the store read lives here because
+ *  the global settings sheet renders the same control against a pending choice (ADR 0099 decision 9). */
 function CabinetFinishSection({
   section,
 }: {
@@ -318,17 +282,9 @@ function CabinetFinishSection({
   );
 }
 
-/** ADR 0071 decision 3's three controls, and the only place the choice between them is made in
- *  this file. The branch is on `section.control`, which `describeFinishSection` copied from the
- *  material's declaration — nothing here counts chips, and nothing here may start to.
- *
- *  `data-finish-control` carries the shape into the DOM so a browser test can tell a decor list
- *  from two wood swatches from a picker without inferring it from how many buttons it found.
- *
- *  **Exported since ADR 0099 decision 9**, so the global settings sheet renders this control rather
- *  than a second colour picker of its own. It takes `onPick` and reads no store: what a press writes
- *  is the caller's — a cabinet's own colour in §9, the sheet's pending global colour in the fourth
- *  group — and a control that reached for `setFinish` itself could only ever have one. */
+/** ADR 0071 decision 3's three controls, chosen by `section.control` (from the material's
+ *  declaration); nothing here may count chips. Exported for the global settings sheet (ADR 0099
+ *  decision 9): it reads no store, because what a press writes is the caller's. */
 export function FinishSectionView({
   section,
   onPick,
@@ -336,9 +292,8 @@ export function FinishSectionView({
 }: {
   readonly section: FinishSection;
   readonly onPick: (finish: Finish) => void;
-  /** ADR 0099 decision 8's press, when there is a level to go back to. Absent on the global settings
-   *  sheet, which *is* that level — and `section.follow` is absent there too, so the chip and its
-   *  handler arrive together or not at all. */
+  /** ADR 0099 decision 8's press. Absent on the global settings sheet, which is that level, where
+   *  `section.follow` is absent too. */
   readonly onFollow?: () => void;
 }) {
   const follow =
@@ -360,25 +315,15 @@ export function FinishSectionView({
   );
 }
 
-/** The chip and the press that goes with it, which arrive together or not at all — the shape
- *  `MaterialResetConfirmStep` uses one surface over, for its reason: a flag beside data that may or
- *  may not be there is two ways to say one thing. */
+/** The chip and its press, which arrive together or not at all. */
 interface FollowTheKitchenStep {
   readonly chip: FollowTheKitchenChip;
   readonly onFollow: () => void;
 }
 
-/** ADR 0099 decision 8's control, on **its own full-width row directly under the colour control**.
- *
- *  It used to be drawn as one more chip inside the scrolling row, on the argument that it is a
- *  choice among the choices. **The owner overruled that on 2026-09-10** and the reason is the
- *  decision's own: this is a *reset*, not a colour, and a reset that lives in a horizontally
- *  scrolling carousel can scroll out of sight — which turns the way back out of an override into
- *  something a customer has to hunt for, reintroducing as a scroll position the one-way door
- *  decision 8 exists to prevent. Fixed row, centred label, always where it was left.
- *
- *  It carries `.followRow` rather than `.swatch` deliberately: a later change to swatch styling
- *  must not be able to drag this control back into looking like a colour. */
+/** ADR 0099 decision 8's reset, on its own full-width row under the colour control, never inside the
+ *  scrolling chip row where it could scroll out of sight. It uses `.followRow`, not `.swatch`, so
+ *  swatch styling cannot make it look like a colour. */
 function FollowTheKitchenButton({
   step,
 }: {
@@ -400,8 +345,7 @@ function FollowTheKitchenButton({
   );
 }
 
-/** PAL's six factory decors and veneer's two woods. One projection, two layouts: the list runs down
- *  the sheet at full width where a decor's name needs the room, and the pair sits side by side. */
+/** PAL's decors and veneer's two woods: one projection, two layouts (a full-width list, a side-by-side pair). */
 function PaletteSwatchView({
   section,
   onPick,
@@ -419,8 +363,7 @@ function PaletteSwatchView({
     >
       <span className={styles.sectionTitle}>{section.title}</span>
       <div
-        // PAL's list scrolls as §10's chip row does; veneer's pair fills the row. The class is
-        // chosen from the declared shape, never from how many chips arrived.
+        // Chosen from the declared shape, never from how many chips arrived.
         className={
           section.control === "decor-list" ? styles.chipRow : styles.woodPair
         }
@@ -430,19 +373,15 @@ function PaletteSwatchView({
           <SwatchButton key={chip.value} chip={chip} onPick={onPick} />
         ))}
       </div>
-      {/* **Outside `colour-options`, and that is the point** (owner ruling, 2026-09-10): the decor
-          list keeps its carousel untouched, and the way back sits still beneath it instead of
-          scrolling away with the colours. */}
+      {/* Outside `colour-options` so the way back does not scroll away with the colours. */}
       {follow === undefined ? null : <FollowTheKitchenButton step={follow} />}
       <p className={styles.note}>{section.note}</p>
     </section>
   );
 }
 
-/** The swatch paints from the one hex the model carried over from the adapter, published as a
- *  custom property because a stylesheet cannot import a constant. A wood adds a grain **derived
- *  from that same property** — there is no second colour authored in CSS for it, which is what
- *  stopped the two surfaces from disagreeing about what a decor looks like. */
+/** Paints from the adapter's hex, published as a custom property because a stylesheet cannot import
+ *  a constant; a wood's grain derives from that same property, so no second colour is authored in CSS. */
 function SwatchButton({
   chip,
   onPick,
@@ -470,13 +409,9 @@ function SwatchButton({
   );
 }
 
-/** MDF's control: any colour, because painted MDF can be any colour. A native colour input, so the
- *  customer gets their platform's own picker rather than a grid this product would have to author
- *  and would then be claiming to manufacture.
- *
- *  The value is **lower-cased before it is written**. `FinishSchema` admits both cases and
- *  ADR 0081 decision 1 rules no second, case-folding equality, so `#ECEEEB` and `#eceeeb` would be
- *  two different chosen colours to every reader that compares them. */
+/** MDF's control: a native colour input. The value is lower-cased before it is written: `FinishSchema`
+ *  admits both cases and no reader case-folds (ADR 0081 decision 1), so `#ECEEEB` and `#eceeeb`
+ *  would be two different colours. */
 function RalPickerView({
   section,
   onPick,
@@ -506,9 +441,7 @@ function RalPickerView({
         />
         <span className={styles.pickerLabel}>{section.label}</span>
       </label>
-      {/* **A picker needs the way back more than a swatch list does**: every hex it can produce is a
-          choice, so without this an MDF cabinet has no way at all to stop choosing. Same full-width
-          row as under the decors, in the same place relative to the control it resets. */}
+      {/* Without this an MDF cabinet has no way to stop choosing: every hex is a choice. */}
       {follow === undefined ? null : <FollowTheKitchenButton step={follow} />}
       <ChipReason reason={section.reason} />
       <p className={styles.note}>{section.note}</p>
@@ -544,18 +477,14 @@ function HandleSectionView({ section }: { readonly section: HandleSection }) {
   );
 }
 
-/** §13.1's "greyed and unclickable, WITH the reason", for the two chip families that have no
- *  secondary line of their own to displace. The model decides whether there is a reason; this
- *  renders it. A disabled button is not focusable, so the reason has to be readable without
- *  reaching the control. */
+/** §13.1's reason for a disabled chip. A disabled button is not focusable, so the reason must be
+ *  readable without reaching the control. */
 function ChipReason({ reason }: { readonly reason: string | undefined }) {
   if (reason === undefined) return null;
   return <span className={styles.chipReason}>{reason}</span>;
 }
 
-/** §9's width control, and since wave 5D2c there are two of them (ADR 0035 decision 3). Which one
- *  this selection gets is the model's answer, published as `control`; this file renders the shape it
- *  is given and decides nothing. */
+/** §9's width control, in two shapes (ADR 0035 decision 3); the model's `control` picks one. */
 function WidthSectionView({ section }: { readonly section: WidthSection }) {
   return section.control === "stepper" ? (
     <WidthStepperView section={section} />
@@ -564,16 +493,9 @@ function WidthSectionView({ section }: { readonly section: WidthSection }) {
   );
 }
 
-/** ADR 0035 decision 1's `+50` / `−50`.
- *
- *  The current width sits **between** the two buttons rather than in the section head, because it is
- *  the value the pair operates on and at 390 px the head is already carrying the title. It is a
- *  `<output>`: the number changes as a result of the buttons beside it, which is exactly what that
- *  element is for, and it gives a screen reader something to announce on a step without a live
- *  region of the panel's own invention.
- *
- *  A button at a bound stays mounted and disabled with its reason under it (ADR 0032) — never
- *  removed, which would silently turn the pair into a single control and say nothing about why. */
+/** ADR 0035 decision 1's `+50` / `−50`. The width is an `<output>` between the buttons, so a screen
+ *  reader announces a step. A button at a bound stays mounted and disabled with its reason, never
+ *  removed. */
 function WidthStepperView({
   section,
 }: {
@@ -609,10 +531,8 @@ function WidthStepView({
       type="button"
       className={styles.widthStep}
       data-testid={`width-step-${step.direction}`}
-      // **The label goes only on an enabled button.** `aria-label` *replaces* an element's contents
-      // in the accessible name computation, so a labelled disabled button announced "Micșorează
-      // lățimea cu 50 mm" and never the bound underneath it — §13.1's "greyed and unclickable **with
-      // the reason**" became sighted-only, which the chip row it replaced never was (5D2c QA S1).
+      // `aria-label` replaces the contents in the accessible name, so it goes only on an enabled
+      // button; a disabled one must announce its reason.
       {...(step.reason === undefined ? { "aria-label": step.ariaLabel } : {})}
       disabled={step.isDisabled}
       onClick={() => {
@@ -625,10 +545,8 @@ function WidthStepView({
   );
 }
 
-/** ADR 0035 decision 3's discrete choice — wave 5D's chip row, now rendered only where the widths
- *  are genuinely a set. §9's three chip states drive styling only: §13.1's "disable, don't warn"
- *  dashes a `blocked` chip. Which states are clickable is the model's answer (`isDisabled`), not
- *  this file's, and so is whether a chip carries a reason. */
+/** ADR 0035 decision 3's discrete choice, for widths that are genuinely a set. `state` drives styling
+ *  only; clickability (`isDisabled`) and the reason are the model's. */
 function WidthChoiceView({
   section,
 }: {
@@ -667,9 +585,7 @@ function WidthChoiceView({
   );
 }
 
-/** §10's viewing model: **Gata** and × are both *view* actions. Neither commits and neither
- *  cancels — every edit already applied the moment it was made — so both simply clear the
- *  selection, and there is no pending state for either to resolve. */
+/** §10's viewing model: **Gata** and × only clear the selection; every edit is already applied. */
 function PanelFooterRow({
   footer,
   onDone,
@@ -680,8 +596,7 @@ function PanelFooterRow({
   const remove = useConfiguratorStore((state) => state.remove);
   return (
     <footer className={styles.footer}>
-      {/* §9 item 7 and frame 2B: the running total sits at the left of the footer row, opposite the
-          actions. Absent on a failed or unsupplied pricing query — see `PanelFooter.price`. */}
+      {/* §9 item 7: the running total, absent on a failed or unsupplied pricing query. */}
       {footer.price === undefined ? null : (
         <p
           className={styles.footerPrice}
@@ -697,10 +612,8 @@ function PanelFooterRow({
           </span>
         </p>
       )}
-      {/* The same live region the bar carries, for the same reason and in the same shape: mounted
-          whether or not there is a warning, and `display: contents` so the footer measures the same
-          either way. On mobile this is the announcement that matters, because §9's sheet covers the
-          bar and this is the only total on screen. */}
+      {/* Mounted whether or not there is a warning, and `display: contents` so the footer measures
+          the same either way. On mobile this is the only total on screen, the sheet covering the bar. */}
       <div
         className={styles.footerPriceRegion}
         role="status"

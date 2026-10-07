@@ -1,11 +1,3 @@
-// Wave 7H: the drawn room is the room the customer entered.
-//
-// The characterisation test beside this one pins the shell at **one** room. This file is the other
-// half: that the shell is a correct function of the room at **every** room the owner approved, that
-// nothing else in the scene moves when it changes, and that redrawing it frees what it replaces.
-//
-// **The seeded picture changes in this wave, by the owner's ruling.** A difference from any earlier
-// capture or screenshot of the 4200 x 3400 room is expected rather than a finding.
 import {
   derivePlacementRecords,
   KITCHEN_L_BODY_CATALOG,
@@ -38,22 +30,22 @@ import {
   SEEDED_ROOM,
 } from "./support/approved-rooms.js";
 
-/** Ruled fixed at 300 mm (Q7H-2) and written here as the expectation rather than imported from the
- *  module under test: a constant read from the production file would agree with itself. */
+/**
+ * Fixed at 300 mm and written as the expectation rather than imported: a constant read from the production file
+ * would agree with itself.
+ */
 const CORNER_OVERHANG_M = 0.3;
 
 const METRE_EPSILON = 1e-6;
 
-/** One plank and one tile, in metres, as the reference room draws them: 4 repeats across a
- *  4.2 x 3.4 m floor and 6 across a 3.5 m backsplash. A floorboard and a wall tile are manufactured
- *  sizes, so these are what must not move when the room does. */
+/**
+ * One plank and one tile in metres, as the reference room draws them: manufactured sizes, so these are what must
+ * not move when the room does.
+ */
 const FLOOR_PLANK_SIZE_M = { alongWallA: 1.05, alongWallB: 0.85 };
 const BACKSPLASH_TILE_WIDTH_M = 3.5 / 6;
 
-/** The eight corners of the owner-approved policy box, plus the seeded triple.
- *
- *  The seeded room is explicit because a sweep over a 5400 x 4100 x 1700 mm box will essentially
- *  never generate 3560 x 2920 x 2600, and that room is the one the preset library is built on. */
+/** The eight corners of the policy box, plus the seeded room, which a sweep would essentially never generate. */
 const SAMPLED_ROOMS: readonly DesignRoom[] = [
   ...boxCornerRooms(),
   SEEDED_ROOM,
@@ -88,8 +80,7 @@ const roomArbitrary = fc.record({
   }),
 });
 
-/** A kit is a whole room's worth of geometry and baked canvas textures, so a property that builds
- *  one per run is charged for it. Forty runs over three integer axes still crosses every band. */
+/** A kit is a whole room's geometry and baked canvases, so a property that builds one per run is charged for it. */
 const PROPERTY_RUNS = { numRuns: 40 };
 
 describe("the drawn room is the entered room", () => {
@@ -101,26 +92,22 @@ describe("the drawn room is the entered room", () => {
       const depthM = room.depthMm / 1000;
       const heightM = room.heightMm / 1000;
 
-      // Wall A's plane is z = 0 and wall B's is x = 0 — the anchor this module adopts from wave
-      // 7F1's criterion 12, declared in the domain at `room-transforms.ts:29-49`.
+      // Wall A's plane is z = 0 and wall B's is x = 0: the anchor declared in the domain's `room-transforms.ts`.
       expectMetres(drawn.wallA.min.z, 0);
       expectMetres(drawn.wallA.max.z, 0);
       expectMetres(drawn.wallB.min.x, 0);
       expectMetres(drawn.wallB.max.x, 0);
 
-      // Each walks "along" from the corner they share, and runs one overhang behind it.
       expectMetres(drawn.wallA.min.x, -CORNER_OVERHANG_M);
       expectMetres(drawn.wallA.max.x, widthM);
       expectMetres(drawn.wallB.min.z, -CORNER_OVERHANG_M);
       expectMetres(drawn.wallB.max.z, depthM);
 
-      // Both planes stand on the floor and reach the entered ceiling.
       expectMetres(drawn.wallA.min.y, 0);
       expectMetres(drawn.wallA.max.y, heightM);
       expectMetres(drawn.wallB.min.y, 0);
       expectMetres(drawn.wallB.max.y, heightM);
 
-      // The floor carries the same overhang on both axes and reaches the end of both walls.
       expectMetres(drawn.floor.min.x, -CORNER_OVERHANG_M);
       expectMetres(drawn.floor.max.x, widthM);
       expectMetres(drawn.floor.min.z, -CORNER_OVERHANG_M);
@@ -157,15 +144,10 @@ describe("the drawn room is the entered room", () => {
   );
 });
 
-/** Q7H-4: the backsplash means *"behind the worktop"*, and it follows the **room's** wall A.
- *
- *  **Two readings were refused and are named here so the next reader does not restore one.** It
- *  does not follow the **records** as ADR 0045's run-end panel does — records never reach a shell
- *  build, and plumbing them there is a larger change than this wave's scaling rule. It is not left
- *  a **literal** 3.5 m either: that only made sense while the drawn wall ran past the entered one.
- *
- *  The four numbers the ruling was made on, at the seeded room: the base run ends at 3500 mm, the
- *  run-end panel seats at 3510, the backsplash spanned 0 -> 3500, and the room is 3560. */
+/**
+ * The backsplash follows the room's wall A. It must not follow the records (they never reach a shell build) and
+ * must not stay a literal 3.5 m, which only made sense while the drawn wall ran past the entered one.
+ */
 describe("the wall-A backsplash follows the room", () => {
   it.each(SAMPLED_ROOMS)(
     "spans the corner to the end of wall A at $widthMm x $depthMm x $heightMm",
@@ -203,11 +185,10 @@ describe("the shell reads no depth", () => {
     }
   });
 
-  /** **The fifth child does vary with the depth, and it is not the room doing it.** The finished
-   *  end spans the cabinet's depth so that it closes the run it caps — 0.6 at 600 mm and 0.7 at
-   *  700, which wave 6I2 established — and that is a property of the run, not of the shell's
-   *  extent. Recorded rather than asserted away, because a reader comparing whole shells across
-   *  depths will otherwise read it as this wave's defect. */
+  /**
+   * The run-end panel does vary with depth (0.6 at 600 mm, 0.7 at 700): it closes the run, which is the run's rule,
+   * not the room's.
+   */
   it("draws the run-end panel at the cabinet's depth, which is the run's rule and not the room's", () => {
     const at600 = meshNamed(
       shellFor(SEEDED_ROOM, 600).shell,
@@ -237,9 +218,7 @@ describe("the run-end panel follows the records, not the shell", () => {
     },
   );
 
-  /** Non-vacuity for the sweep above: the panel's seat and its visibility really are the records'
-   *  to decide, so "it never moved" is a claim about the shell rather than about a panel that
-   *  cannot move at all. */
+  /** Non-vacuity for the sweep above: the panel's seat and visibility really are the records' to decide. */
   it("takes its seat and its visibility from the records", () => {
     const whole = panelAfterSync(SEEDED_ROOM, SEEDED_RECORDS, SEEDED_ROOM);
     const emptied = panelAfterSync(SEEDED_ROOM, [], SEEDED_ROOM);
@@ -252,10 +231,10 @@ describe("the run-end panel follows the records, not the shell", () => {
   });
 });
 
-/** Criterion 4. A body is `syncSolidBodies`' and the shell is not its neighbour: no translation,
- *  rotation or scale of any body, appliance, sink, handle or chamfer may be attributable to the
- *  drawn room — **and no change to its material, its map, or that map's repeat**, which is the
- *  arm a transform comparison cannot see. */
+/**
+ * No transform, material, map or map repeat of any body may be attributable to the drawn room; the material and
+ * map arm is the one a transform comparison cannot see.
+ */
 describe("no body moves, and none is re-dressed", () => {
   propertyTest.prop([roomArbitrary], PROPERTY_RUNS)(
     "mounts every body exactly as a scene with no shell at all does",
@@ -272,10 +251,10 @@ describe("no body moves, and none is re-dressed", () => {
   );
 });
 
-/** Criterion 19, stated as an assertion rather than a warning. `M.tile` dresses the counter's
- *  `backsplash` and the open shelf's `back_panel` as well as the shell's, so re-tiling it in place
- *  to correct the room would introduce a defect into the customer's kitchen while fixing the room
- *  around it — and nothing in the fidelity gate looks at a texture repeat. */
+/**
+ * `M.tile` also dresses the counter's `backsplash` and the open shelf's `back_panel`, so re-tiling it in place
+ * would corrupt the customer's kitchen, and no fidelity gate looks at a texture repeat.
+ */
 describe("the shell's own resources stay private to the shell", () => {
   it.each(SAMPLED_ROOMS)(
     "leaves the kit's shared materials and maps untouched at $widthMm x $depthMm x $heightMm",
@@ -310,9 +289,7 @@ describe("the shell's own resources stay private to the shell", () => {
   });
 });
 
-/** Criterion 17 (Q7H-6). The assertion is on the **density**, never on the repeat count: a count
- *  that happens to be right for one room is the defect restated, and a test that pins the count
- *  pins the defect. */
+/** Asserted on density, never on the repeat count: a count right for one room is the defect restated. */
 describe("a plank and a tile keep their world size in every room", () => {
   propertyTest.prop([roomArbitrary], PROPERTY_RUNS)(
     "tiles the floor and the backsplash at constant world density",
@@ -329,9 +306,10 @@ describe("a plank and a tile keep their world size in every room", () => {
   );
 });
 
-/** Criterion 18, and fact A's reason for it: the four resized shell geometries are outside the
- *  kit's geometry cache and outside its owned set, so **no existing teardown path frees a replaced
- *  one** and a leak here is invisible to every other criterion in this wave. */
+/**
+ * The four resized shell geometries are outside the kit's cache and owned set, so no existing teardown path frees
+ * a replaced one.
+ */
 describe("the shell frees what it replaces", () => {
   it("disposes every geometry it replaces, exactly once", () => {
     const { kit, shell } = shellFor(SEEDED_ROOM);
@@ -344,8 +322,7 @@ describe("the shell frees what it replaces", () => {
     for (const dispose of replaced) expect(dispose).toHaveBeenCalledOnce();
   });
 
-  /** Only the two tiled children carry a material of their own; the wall planes share the paint the
-   *  builder cloned and the resize never touches it, which is why they are not in this list. */
+  /** Only the two tiled children carry a material of their own; the wall planes share the paint the builder cloned. */
   it("disposes every material and map it replaces, exactly once", () => {
     const { kit, shell } = shellFor(SEEDED_ROOM);
     const replaced = ["floor", "backsplash_wall_a"].flatMap((name) => {
@@ -390,13 +367,10 @@ describe("the shell frees what it replaces", () => {
   });
 });
 
-/** What lets `kitchen-stage.tsx` redraw the room from an effect instead of rebuilding the stage:
- *  the kitchen standing in the room is untouched by the redraw, down to object identity.
- *
- *  Identity rather than value, deliberately. A cabinet whose geometry was replaced by an identical
- *  one would pass every world-transform comparison in this file and still be a re-upload of every
- *  buffer on the customer's handset — and if the old one were not freed, a leak per correction to a
- *  wall length. */
+/**
+ * The redraw leaves the kitchen untouched down to object identity: an identical replacement geometry would still
+ * re-upload every buffer on a handset, and leak if the old one were not freed.
+ */
 describe("redrawing the room leaves the kitchen standing in it alone", () => {
   it("keeps every mounted body's geometry and material as the same objects, undisposed", () => {
     const { kit, shell, solidsRoot } = mountedKitchenAt(SEEDED_ROOM);
@@ -422,22 +396,10 @@ describe("redrawing the room leaves the kitchen standing in it alone", () => {
     for (const dispose of disposals) expect(dispose).not.toHaveBeenCalled();
   });
 
-  /**
-   * **The one shape that would free a texture the whole scene renders from.**
-   *
-   * `buildFinishMaterial` is `(isOak ? M.oak : M.door).clone()`, and three's `Material.copy`
-   * assigns `map` **by reference** — so a **wood** decor's material carries `oakTex` *itself*, the
-   * kit's own, shared by every oak surface including `end_panel_right`. Five of the eight palette
-   * entries are woods.
-   *
-   * **A shell child is painted since the owner's ruling of 2026-09-17** — `paintRunEndPanel` puts
-   * exactly such a clone on `end_panel_right` so it inherits the kitchen's colour. That panel is
-   * also the one shell child this resize never touches, so the case is staged here on the `floor`
-   * instead: the release must refuse a material it did not clone wherever one turns up, not only on
-   * the child that happens to be out of its reach. Before the resize kept a record of what it had
-   * cloned, this case freed `oakTex` and dropped it from the ownership record — black surfaces
-   * everywhere oak is drawn, and nothing thrown.
-   */
+  // `buildFinishMaterial` clones `M.oak` and three's `Material.copy` assigns `map` by reference, so a wood finish
+  // carries the kit's own `oakTex`, shared by every oak surface. The release must refuse a material it did not
+  // clone, else it frees `oakTex` (black oak everywhere, nothing thrown). Staged on `floor`: the painted
+  // `end_panel_right` is the one shell child the resize never touches.
   it("refuses to free the kit's wood texture when a derived finish is painted onto a shell child", () => {
     const { kit, shell } = shellFor(SEEDED_ROOM);
     const floor = meshNamed(shell, "floor");
@@ -446,7 +408,6 @@ describe("redrawing the room leaves the kitchen standing in it alone", () => {
     );
     floor.material = woodFinish;
 
-    // The premise, checked rather than assumed: the clone's map really is the kit's own object.
     const oakTexture = required(mapOf(floor), "the wood finish's map");
     expect(oakTexture).toBe(kit.M.oak.map);
     const owned = kitOwnedResources(kit.M);
@@ -477,13 +438,8 @@ describe("redrawing the room leaves the kitchen standing in it alone", () => {
     expect(disposeMap).toHaveBeenCalledOnce();
   });
 
-  /** **A room equal by value but not by identity must redraw nothing.**
-   *
-   *  Every command path spreads `{...design}` today, so `room` keeps its object identity and an
-   *  identity check would pass — right up until a save round-trip, a re-hydrate or a
-   *  `structuredClone` rebuilt it. At that point every design mutation would silently become four
-   *  geometry rebuilds and two clone-and-dispose cycles on a handset, with nothing failing. This is
-   *  the case that would go red then, so `structuredClone` is the point of it. */
+  // A room equal by value but not by identity must redraw nothing: a save round-trip, re-hydrate or `structuredClone`
+  // rebuilds `room`, and an identity check would turn every mutation into geometry rebuilds on a handset.
   it("redraws nothing for a room rebuilt from the same three numbers", () => {
     const { kit, shell } = shellFor(SEEDED_ROOM);
     const resized = resizedChildren(shell);
@@ -536,14 +492,10 @@ describe("redrawing the room leaves the kitchen standing in it alone", () => {
   });
 });
 
-/** Criterion 7's shell half, and the limit Q7H-3 names rather than hides.
- *
- *  **What is provable here and what is not.** That the drawn wall contains the entered wall is the
- *  shell's own claim and is asserted for every sampled room above. Whether a *body* is contained is
- *  a claim about the record set: the seeded records fit the seeded room, and
- *  `OVERFLOWING_KITCHEN_L_DESIGN` deliberately does not — ADR 0065 **marks** such a body rather
- *  than moving it, and since the drawn wall *is* the entered wall, past the end of the wall is past
- *  the end of the plane by construction. Both are pinned, so neither reading is lost. */
+/**
+ * The drawn wall is the entered wall, so a body past its end is past the plane by construction. The seeded
+ * records fit; `OVERFLOWING_KITCHEN_L_DESIGN` deliberately does not, and ADR 0065 marks such a body, not moves it.
+ */
 describe("a body inside its wall is drawn over the floor, and a marked one is not", () => {
   it("keeps every seeded body inside the drawn room", () => {
     const { withShell } = mountedSceneAt(SEEDED_ROOM, SEEDED_RECORDS);
@@ -563,8 +515,7 @@ describe("a body inside its wall is drawn over the floor, and a marked one is no
     }
   });
 
-  /** The fixture's one marked body stands a millimetre past the end of **wall B**, and the drawn
-   *  wall B is the entered `depthMm`, so it is past the end of the plane by construction. */
+  /** The fixture's one marked body stands a millimetre past the end of wall B. */
   it("draws a marked body past the end of its drawn wall", () => {
     const overflowingRecords = derivePlacementRecords(
       OVERFLOWING_KITCHEN_L_DESIGN,
@@ -645,8 +596,7 @@ interface PanelAfterSync {
   readonly visible: boolean;
 }
 
-/** The panel of a shell **drawn** at `drawnRoom`, seated by records standing in `recordRoom`. The
- *  two rooms are separate arguments on purpose: that is the whole question. */
+/** The panel of a shell drawn at `drawnRoom`, seated by records standing in `recordRoom`: two rooms on purpose. */
 function panelAfterSync(
   drawnRoom: DesignRoom,
   records: readonly PlacementRecord[],
@@ -713,8 +663,7 @@ function bodyResourcesOf(solidsRoot: THREE.Group): BodyResource[] {
   });
 }
 
-/** Every fact about a mounted body that the shell must not touch: where it stands and how it is
- *  dressed. Read as plain values, so the two sides can come from different kits. */
+/** Facts about a mounted body the shell must not touch, as plain values so the two sides can use different kits. */
 interface BodyFacts {
   readonly placementId: string;
   readonly meshes: readonly {
@@ -774,8 +723,10 @@ function placedBodies(solidsRoot: THREE.Group): THREE.Object3D[] {
   );
 }
 
-/** The four children this wave redraws. The run-end panel is deliberately absent: it is the one
- *  shell child built through the kit's shared geometry cache, and nothing here may free it. */
+/**
+ * The four children the resize redraws; the run-end panel is absent because it is built through the kit's shared
+ * geometry cache and nothing here may free it.
+ */
 function resizedChildren(shell: THREE.Group): THREE.Mesh[] {
   return ["floor", "wall_back", "wall_left", "backsplash_wall_a"].map((name) =>
     meshNamed(shell, name),

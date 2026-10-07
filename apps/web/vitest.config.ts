@@ -14,6 +14,10 @@ export default defineConfig({
     // whole project onto it; this is the one thing they all need and none of them should own.
     setupFiles: ["./tests/support/vitest.setup.ts"],
     passWithNoTests: false,
+    // Guards against a hang, not against a slow test, as in the domain package: the 2-core CI runner
+    // ran a property file 4.5x its local time, and the 5 s default failed a 1.2 s test there (ci run
+    // 37544936477).
+    testTimeout: 30_000,
   },
   // Bundle next-intl so the alias below is applied to its extensionless `next/server` import.
   ssr: { noExternal: ["next-intl"] },

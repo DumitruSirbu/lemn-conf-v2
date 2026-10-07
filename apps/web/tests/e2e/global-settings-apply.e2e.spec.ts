@@ -1,6 +1,7 @@
 import { expect, type Page } from "@playwright/test";
 
 import {
+  expectWriteAccessApplied,
   openSeededDesign,
   test,
   type SeededDesign,
@@ -80,9 +81,34 @@ async function wearSettings(
 }
 
 async function openSheet(page: Page): Promise<void> {
-  await expect(page.getByTestId("global-settings-trigger")).toBeEnabled();
+  await expectWriteAccessApplied(page);
   await page.getByTestId("global-settings-trigger").tap();
   await expect(page.getByTestId("global-settings-surface")).toBeVisible();
+}
+
+/**
+ * Presses *Aplică* and returns once the save it causes has been answered. The sheet closes at the
+ * press, but the `PUT` leaves about 35 ms later; a reload taken in between aborts it (status −1) and
+ * the document is read back unsaved. The response is the thing the reload must wait for, so the
+ * wait is on it, not on a pause.
+ */
+async function applyAndAwaitSave(
+  page: Page,
+  seededDesign: SeededDesign,
+): Promise<void> {
+  const saved = page.waitForResponse(
+    (response) =>
+      response.request().method() === "PUT" &&
+      new URL(response.url()).pathname === `/api/designs/${seededDesign.id}`,
+  );
+  // Both are awaited together so a failed press surfaces as itself and not as a pending `saved`.
+  const [response] = await Promise.all([saved, pressApplyAndAwaitClose(page)]);
+  expect(response.status()).toBe(200);
+}
+
+async function pressApplyAndAwaitClose(page: Page): Promise<void> {
+  await page.getByTestId("global-settings-apply").tap();
+  await expect(page.getByTestId("global-settings-surface")).toHaveCount(0);
 }
 
 /** The tier id the sheet paints as checked in a group, read off the rendered radios rather than off
@@ -123,8 +149,7 @@ for (const group of ["material", "hardware"] as const) {
 
     // No radio is touched. The old sheet's *Aplică* compared the withdrawn pending id against the
     // identical applied id and exited as unchanged — the whole defect in one press.
-    await page.getByTestId("global-settings-apply").tap();
-    await expect(page.getByTestId("global-settings-surface")).toHaveCount(0);
+    await applyAndAwaitSave(page, seededDesign);
 
     // The reload is what makes this about the document rather than about the store's memory.
     await openSeededDesign(page, seededDesign);
@@ -160,8 +185,7 @@ test("commits a material and a depth in one press, as one write", async ({
     .locator("input:not(:checked)")
     .first()
     .tap();
-  await page.getByTestId("global-settings-apply").tap();
-  await expect(page.getByTestId("global-settings-surface")).toHaveCount(0);
+  await applyAndAwaitSave(page, seededDesign);
 
   await openSeededDesign(page, seededDesign);
   await page.waitForTimeout(SCENE_SETTLE_MS);

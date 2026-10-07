@@ -31,43 +31,6 @@ import {
   type SeededDesign,
 } from "./support/seeded-design";
 
-/**
- * **Adversarial QA against wave 6V**, and it exists because two of that wave's claims are true only
- * about things it did not measure.
- *
- * 6V's own evidence file (`pixel-counter-witness.desktop.e2e.spec.ts`) shows the differencing
- * counter surviving fronts that break the retired ones, and that reproduces exactly. What it does
- * not show is either of the following, both of which this file measures on the running app:
- *
- * - **The casing pass reaches the framebuffer.** Work item 1's remedy is a second, near-black
- *   outline pass, and its acceptance criterion asks for an outline *distinguishable from a front
- *   painted the highlight's own colour* in a captured render. `selection-outline.test.ts` proves
- *   the two constants are 242.5 apart in the model; the differencing counter proves *something*
- *   changed. Neither says the near-black is on screen — the outline is expanded 3 mm past the body
- *   and crosses onto neighbours and background, so a red-only outline over a red front would still
- *   difference by roughly the same count. Measured here directly and separately.
- * - **Whether the mark counter's threshold survives the woods.** 6V records that `veneer.nuc`
- *   measures 0, 0 and 3 pixels past a threshold of 50 and files ADR 0091 finding 5's model bound of
- *   137 as one the renderer does not reach. **Both readings were of the wrong document**: the
- *   fixture wrote a per-placement finish and no kitchen colour, so under ADR 0099 Amendment B its
- *   structural bodies followed `material.veneer`'s declared default and it was **oak** on screen.
- *   Measured properly, oak reaches a red excess of 76 and puts 194 041 / 193 783 / 278 066 pixels
- *   past 50 with no mark anywhere on it, against a ceiling of 40. A counter that may meet a wood now
- *   clears `MARK_MIN_RED_EXCESS_OVER_ANY_FINISH` (`support/pixels.ts`), and this file photographs the
- *   wood that was never photographed and holds it there.
- *
- * Every design minted here is deleted afterwards (ADR 0006).
- */
-
-/** `editor-rail.desktop.e2e.spec.ts`'s taps and patch, deliberately not re-derived: this file is a
- *  third reading of the same rectangle and a patch of its own would measure a different thing.
- *
- *  **Copied across on 2026-09-08**, when the top-bar ruling took the canvas to y 121, 1440 × 779 and
- *  those taps were re-measured against the running app. Both were re-confirmed on a repainted
- *  document reached through `/d/{id}`, which is the route this file drives — five clicks each,
- *  right body 5/5. The patch is unchanged and still contains `p0`'s own region (page x 432–592,
- *  y 479–706). */
-
 const SCENE_SETTLE_MS = 2500;
 const RENDER_SETTLE_MS = 400;
 
@@ -75,12 +38,8 @@ const RENDER_SETTLE_MS = 400;
 const NOISE_FLOOR = 8;
 const MAX_UNCHANGED_PIXELS = 10;
 
-/**
- * The casing counted by nearness to its own constant, at a third of the ball the selection counter
- * uses. Narrow deliberately: `pal.antracit` (`#2b2d30`) is 50.9 from this constant, so a 60-unit
- * ball would be breached by a decor the product ships. At 40 the only thing in the patch that
- * satisfies it is the pass itself, which the control reading below demonstrates rather than assumes.
- */
+/** The casing counted by nearness to its own constant, at a third of the selection counter's ball: `pal.antracit`
+ *  (`#2b2d30`) is 50.9 away, so a 60-unit ball would be breached by a decor the product ships. */
 const CASING_TOLERANCE = 40;
 const CASING = {
   kind: "near",
@@ -88,80 +47,27 @@ const CASING = {
   tolerance: CASING_TOLERANCE,
 } as const;
 
-/** Re-measured 2026-09-11 at 1440 x 900: **616** near-black pixels in the sink patch with the sink
- *  cabinet selected on a kitchen painted `#ff2d2d`, and **0** with a different body selected. The
- *  floor is half the measurement; the ceiling is the same slack every other absence here uses.
- *
- *  **Why it moved from 1 923.** ADR 0107 decision 5 halved the highlight on the owner's ruling, and
- *  the casing is a *sum* — `SELECTION_OUTLINE_WIDTH_PX + 2` — so the near-black rim visible either
- *  side of the core went from 2 px to 1 px. The count fell by more than the half that implies
- *  (3.1x, not 2x) because at a 1 px rim anti-aliasing blends most of the edge toward the front's own
- *  colour, and a blended sample leaves the tolerance ball. **The rim is now at its resolution floor**:
- *  it still reaches the framebuffer, deterministically and at 616 px on two consecutive runs, but a
- *  further thinning has no pixels left to give.
- *
- *  **The sum form did not protect the rim here, and this comment should not be read as claiming it
- *  did.** `SELECTION_OUTLINE_CASING_WIDTH_PX` adds a constant rather than scaling by a ratio so that
- *  the rim survives a change to the core — but `378776a` moved the addend too, 4 → 2, so the rim
- *  halved with everything else. `selection-outline.ts` states the intended discipline: if the owner
- *  asks for thinner again, **the core is what moves and the addend stays at 2**. Under that
- *  discipline the rim holds; it was departed from once, and this floor is the consequence.
- *
- *  The floor is re-measured rather than lowered until it passes. It still discriminates by a wide
- *  margin: see `MAX_ABSENT_CASING_PIXELS` below for what else in the scene is near-black and by how
- *  much this floor still clears it. */
+/** Measured at 1440 x 900: 616 near-black pixels in the sink patch with the sink cabinet selected on a `#ff2d2d`
+ *  kitchen, 0 with another body selected. The floor is half the measurement. The rim is at its 1 px resolution floor
+ *  since the highlight was halved (ADR 0107 decision 5), so a thinner outline moves the core and not the casing's
+ *  addend (`selection-outline.ts`). */
 const MIN_CASING_PIXELS = 300;
 
 /**
- * **What may read near-black in this patch when nothing is selected.**
- *
- * **This constant's premise changed on 2026-09-16 and the number followed it.** It used to say *the
- * casing pass is the only near-black source in the patch*, with 10 as slack over a control measured
- * at **0**. That was exactly true until M7 wave 7H made the camera a function of the customer's
- * room; the scene re-framed, and a deliberately black strip came into the patch.
- *
- * **What it is, identified rather than tolerated.** `bowl_edge_back` — `kitchen-parts.ts:1455`, in
- * the `"sink-faucet"` builder — a 558 x 12 x 2 mm box of `M.shadowGap` seated at y = -0.024 under
- * `sink_rim_back`, whose own comment calls it the *"inner shadow line right under the rim"*. It is
- * authored black on purpose and is **not** a defect: no seam, no z-fighting, nothing to fix in
- * geometry. It reads as 14 pixels on one 1 px diagonal, and it cannot be excluded by moving the
- * box — it sits inside `p0`'s highlight, which is what the patch exists to contain.
- *
- * **Two palette members fall inside `CASING_TOLERANCE`, and both are named because the second is a
- * near miss rather than an absence.** Swept over all 14 of `kitchen-parts.ts`'s declared materials,
- * measured from `SELECTION_OUTLINE_CASING_COLOR` (`#101010`):
- *
- * - `M.shadowGap` `#16181a`, distance **14.1** — the sink rim strips, `drain_hole`, and the
- *   corner-return carcasses' `front_liner`. This is the one in the patch today.
- * - `M.glassDark` `#15171a`, distance **13.2** — smoked glass, which is the **hob top**. It sits
- *   just *outside* this patch's right edge today. A camera change that brings it in would add far
- *   more than 14, and the next reader needs to know it was a near miss.
- *
- * The third-nearest is `M.dark` (graphite, `#3a3d40`) at **78**, comfortably outside the 40-ball, so
- * nothing else in the palette can enter without a new material.
- *
- * **Why 50 and not 15.** The count is anti-aliasing-sensitive: the visible line is about 73 px long
- * and only 14 samples currently clear the ball, so another GPU or driver moves it by several either
- * way. A ceiling of 15 would be calibrated to one machine. **The gate keeps its teeth regardless:**
- * `MIN_CASING_PIXELS` is 300 against a control of 14, which is **~21x separation**, so deleting the
- * casing pass still fails this spec by a wide margin. That ratio is what justifies the slack, not
- * the observation.
+ * What may read near-black in this patch with nothing selected: `bowl_edge_back`, a deliberately black `M.shadowGap`
+ * strip (about 14 pixels on one 1 px diagonal) inside `p0`'s highlight, which moving the box cannot exclude.
+ * `M.glassDark` (the hob top, distance 13.2 from the casing) sits just outside the patch's right edge: a camera change
+ * bringing it in adds far more than 14. 50 and not 15 because the count is anti-aliasing-sensitive; `MIN_CASING_PIXELS`
+ * is 300 against that control, about 21x apart, so deleting the casing pass still fails by a wide margin.
  */
 const MAX_ABSENT_CASING_PIXELS = 50;
 
-/** `overflow-mark.e2e.spec.ts`'s own slack for an absence, reused so the two files agree on what
- *  counts as "no mark on screen". **The slack is shared; the threshold is not** — that gate counts a
- *  white kitchen at 50 and this file counts woods at 80, for the reason `support/pixels.ts` records. */
+/** `overflow-mark.e2e.spec.ts`'s slack for an absence, shared so the two files agree on what "no mark on screen"
+ *  means. The threshold is not shared: see `support/pixels.ts`. */
 const MAX_ABSENT_MARK_PIXELS = 40;
 
-/**
- * **The threshold this file's own measurement retired**, kept so the reason 80 exists stays
- * falsifiable rather than becoming a number in a comment.
- *
- * An unmarked oak kitchen — the veneer tier's declared default, and so the wood a customer reaches
- * by choosing the tier and nothing else — puts 194 041 / 193 783 / 278 066 pixels past this in the
- * three camera presets. Nearly all of them are ordinary door fronts, untouched by any recent change.
- */
+/** The retired threshold, kept so the reason 80 exists stays falsifiable: an unmarked oak kitchen (the veneer tier's
+ *  declared default) puts six figures of pixels past it in each camera preset, nearly all ordinary door fronts. */
 const RETIRED_MARK_MIN_RED_EXCESS = 50;
 const MIN_OAK_RETIRED_MARK_PIXELS = 100_000;
 
@@ -178,22 +84,10 @@ const MDF = "material.painted-mdf";
 const VENEER = "material.veneer";
 
 /**
- * **The two woods and where each one's red excess actually stops**, which is what turns "under the
- * threshold" from a pass into a separation.
- *
- * Each `ceilingRedExcess` is a **dense edge measured on the running app**, not a bound argued from
- * the palette: the wood piles tens of thousands of pixels at exactly that value and none above its
- * own maximum. Counting at the edge and again at the threshold brackets the wood's ceiling
- * from both sides — a lighting or tone-mapping change that pushes the wood up fails the first
- * assertion, and one that stops rendering it warm at all fails the second. A single "under 80"
- * assertion would pass on a kitchen that had gone grey.
- *
- * Measured 2026-09-09 at 1440 × 900, whole canvas, nothing selected, no mark on the document:
- *
- * | wood   | max excess | pixels at its edge |
- * | ------ | ---------- | ------------------ |
- * | oak    |         76 | 51 841 at 72       |
- * | walnut |         51 | 27 879 at 45       |
+ * The two woods and where each one's red excess stops, so "under the threshold" is a separation. Each
+ * `ceilingRedExcess` is a dense edge measured on the running app (oak max 76, 51 841 pixels at 72; walnut max 51,
+ * 27 879 at 45). Counting at the edge and at the threshold brackets the wood: a tone-mapping change that pushes it up
+ * fails the first, one that stops rendering it warm fails the second. One "under 80" would pass on a grey kitchen.
  */
 const UNMARKED_WOODS = [
   {
@@ -208,27 +102,17 @@ const UNMARKED_WOODS = [
   },
 ] as const;
 
-/** Under half of the smaller of the two piles above, so a camera or tone-mapping nudge has room to
- *  move the population without either hiding a regression or passing on stray warm pixels. */
+/** Under half of the smaller pile above, so a camera or tone-mapping nudge has room to move the population without
+ *  hiding a regression. */
 const MIN_WOOD_CEILING_PIXELS = 10_000;
-/** The unpainted seeded design reads **16** at the lower of the two edges. */
+/** The unpainted seeded design reads 16 at the lower of the two edges. */
 const MAX_UNPAINTED_CEILING_PIXELS = 100;
 
 /**
- * Repaints the stored seeded kitchen in one finish on one material, built from the document the
- * API returned rather than from a literal, and returns what the saved document then wears so the
- * fixture property is read off the document instead of assumed.
- *
- * **It writes the colour at both levels, and neither half is redundant** (ADR 0099, Amendment B).
- * A cabinet that *chooses its own colour* reads `placement.body.finish` first; a structural body
- * **follows the kitchen**, and `drawnFinishOf` deliberately ignores `placement.body.finish` for it,
- * because such a body has no control the customer could have used. So a document carrying only the
- * per-placement half paints the fronts and leaves every structural body on the material's declared
- * default — measured on this fixture: `material.veneer` defaults to `veneer.stejar`, so a "walnut
- * kitchen" written that way rendered four oak bodies, and it was oak that breached the mark
- * counter here. `settings.finish` is what makes the whole kitchen one colour; `body.finish` is what
- * makes the fronts follow it. **Delete either and the document stops saying what the case's name
- * claims.**
+ * Repaints the stored seeded kitchen in one finish on one material, from the document the API returned, and returns
+ * what the saved document then wears. It writes the colour at both levels (ADR 0099 Amendment B): a structural body
+ * follows `settings.finish` and `drawnFinishOf` ignores `placement.body.finish` for it, so one level alone leaves the
+ * structural bodies on the material's declared default (oak for veneer).
  */
 async function storeAKitchenWearing(
   page: Page,
@@ -301,12 +185,8 @@ interface StoredKitchenColour {
   readonly finishes: string[];
 }
 
-/** The fixture property every colour-keyed count below rests on, asserted rather than argued
- *  (wave 6V work item 3): the whole kitchen wears one known finish, and it is not vacuous.
- *
- *  **Both levels, because a body that follows the kitchen reads only one of them.** Asserting the
- *  per-placement half alone is what let a "walnut kitchen" pass this guard with four oak bodies in
- *  it — see `storeAKitchenWearing`. */
+/** The fixture property every colour-keyed count below rests on: the whole kitchen wears one known finish, at both
+ *  levels, since a body that follows the kitchen reads only one of them (see `storeAKitchenWearing`). */
 function expectTheWholeKitchenWears(
   stored: StoredKitchenColour,
   finish: Finish,
@@ -350,18 +230,9 @@ async function wholeCanvas(page: Page): Promise<CapturedPatch> {
 }
 
 /**
- * **Work item 1's product claim, measured on the screen rather than in the constants.**
- *
- * The front and the outline's core are the same declared colour here, so the only thing in the sink
- * patch that can read near-black is the casing pass. The control capture — the same patch, the same
- * document, a different body selected — is what turns that from an argument into a measurement: it
- * reads 0, so the count with the body selected is the pass and nothing else.
- *
- * This is the assertion the differencing counter cannot make. `buildSelectionOutline` expands the
- * traced edges 3 mm past the body, so an outline drawn *only* in the highlight's colour still
- * crosses onto neighbours and background and still differences by five figures against the
- * unselected capture — 10 104 measured on this very fixture. A wave that kept only that count would
- * stay green with the casing pass deleted, which is the half of item 1 nothing else asserts.
+ * The front and the outline's core are the same colour here, so only the casing pass can read near-black in the sink
+ * patch; the control capture (another body selected) reads 0. The differencing counter cannot assert this: an outline
+ * drawn only in the highlight's colour still crosses onto neighbours and background and differences by five figures.
  */
 test("the near-black casing pass reaches the framebuffer on a front painted the highlight's own colour", async ({
   page,
@@ -394,9 +265,7 @@ test("the near-black casing pass reaches the framebuffer on a front painted the 
     "the casing pass, on a front wearing the core's own colour",
   ).toBeGreaterThanOrEqual(MIN_CASING_PIXELS);
 
-  // And the two passes really are the pair `selection-outline.ts` claims: the front is one colour
-  // and it cannot be both of them. Asserted on the constants the render was built from, beside the
-  // pixels, rather than left to a package a viewport away.
+  // The front is one colour and cannot be both passes; asserted on the constants the render was built from.
   expect(SELECTION_OUTLINE_CASING_COLOR).not.toBe(SELECTION_HIGHLIGHT_COLOR);
   const casing = toRgb(SELECTION_OUTLINE_CASING_COLOR);
   const worn = [0xff, 0x2d, 0x2d] as const;
@@ -409,13 +278,8 @@ test("the near-black casing pass reaches the framebuffer on a front painted the 
 });
 
 /**
- * **Where each wood's red excess really stops, against the threshold that has to clear it.**
- *
- * ADR 0091 decision 4b pins the tinted woods at a red excess of 137 in the model, and wave 6V filed
- * that as an upper bound the renderer does not reach, on the strength of a walnut kitchen measuring
- * 0, 0 and 3 past a threshold of 50. The threshold has moved to 80 because that reading was of a
- * document that wrote no kitchen colour and therefore rendered oak; both woods are photographed here
- * on documents that say what their names claim, and each is bracketed rather than merely passed.
+ * Where each wood's red excess stops, against the threshold that has to clear it (ADR 0091 models 137, which the
+ * renderer does not reach). Both woods are photographed on documents that say what their names claim, each bracketed.
  */
 for (const wood of UNMARKED_WOODS) {
   test(`an unmarked kitchen in ${wood.name} stays under the mark counter in every preset`, async ({
@@ -431,8 +295,7 @@ for (const wood of UNMARKED_WOODS) {
     );
     await openAndSettle(page, seededDesign);
 
-    // Nothing is selected, so no outline is on screen: the outline's own red clears the mark's
-    // threshold by 130 and would be counted as a wash.
+    // Nothing is selected: the outline's own red clears the mark's threshold by 130 and would be counted as a wash.
     expect((await readSelection(page)).selectionId).toBe("");
 
     const presetButtons = page.locator('[role="group"] button');
@@ -460,18 +323,9 @@ for (const wood of UNMARKED_WOODS) {
 }
 
 /**
- * **The measurement that retired the threshold of 50, kept as a measurement.**
- *
- * Oak is what a customer gets by choosing the veneer tier and nothing else, and until this file was
- * fixed nothing had ever photographed it: the shipped mark gate asserts `expectNoPlacementWearsAFinish`,
- * so its bodies fall back to melamine's white at a red excess of about 0, and the adversarial case
- * beside it photographed the one wood that happened to sit just under the old line. On oak the
- * retired counter reports a mark over a fifth of the canvas on a document with no mark anywhere on
- * it — six figures against a ceiling of 40.
- *
- * Both counts are taken from **the same captures**, which is what makes this a statement about the
- * threshold rather than about two renders: the identical pixels are a wash at 50 and are silent at
- * 80.
+ * Oak is what the veneer tier gives by default and had never been photographed: the retired 50 counter reports a mark
+ * over a fifth of the canvas on a document with none. Both counts come from the same captures, so this is a statement
+ * about the threshold: a wash at 50, silent at 80.
  */
 test("the retired threshold of 50 reports a mark on an unmarked oak kitchen, and 80 does not", async ({
   page,
@@ -507,9 +361,8 @@ test("the retired threshold of 50 reports a mark on an unmarked oak kitchen, and
   }
 });
 
-/** The control for the cases above: the design the shipped mark gate photographs is not merely
- *  under the threshold, it is nowhere near either wood's edge — so that gate is not living on a
- *  margin the way the adversarial reading of 50 suggested. */
+/** The control for the cases above: the design the shipped mark gate photographs is nowhere near either wood's edge,
+ *  so that gate lives on no margin. */
 test("the design the mark gate photographs leaves both woods' bands empty", async ({
   page,
   seededDesign,
@@ -534,14 +387,8 @@ test("the design the mark gate photographs leaves both woods' bands empty", asyn
 });
 
 /**
- * **The noise floor's one measured non-zero, pinned rather than left to be rediscovered.**
- *
- * 6V records the floor as slack over a measured zero, in every camera preset, over both patches and
- * the whole canvas, immediately, after 1 200 ms and under a hover. Re-measured independently, all of
- * those still read 0 at a floor of 0 — and one state does not: a camera preset switched away and
- * back leaves **85** pixels of the canvas different at a floor of 0. Every one of them moves by less
- * than 4, so the declared floor of 8 absorbs the lot, which is what this asserts. No spec
- * differences across a preset change today; this is the assertion that notices if the drift grows.
+ * The noise floor's one measured non-zero: a preset switched away and back leaves 85 pixels different at a floor of
+ * 0, each by less than 4, so the declared floor of 8 absorbs them. This notices if the drift grows.
  */
 test("a camera preset round-trip leaves the canvas unchanged at the declared noise floor", async ({
   page,

@@ -31,6 +31,7 @@ import {
   type PlacementRecord,
   type VoidRecord,
 } from "../../src/index.js";
+import { CORNER_WALL_UNIT_TEMPLATES } from "../../src/fixtures/kitchen-l-design.js";
 import { alongWallCoordinate, LEVELS } from "../../src/module-grid.js";
 import {
   RUN_END_PANEL_GAP_M,
@@ -89,12 +90,16 @@ export function isStructuralBuildId(buildId: string): boolean {
   return SHELL_CATALOG.get(buildId)?.structuralReason !== undefined;
 }
 
-/** The reference's whole structural assembly — the pieces a low ceiling excludes included, because
- *  an excluded piece still reserves its footprint (Adjudication 7D1-P, P5 (iii)). */
-export const STRUCTURAL_ASSEMBLY: readonly DesignPlacement[] =
-  KITCHEN_L_DESIGN.placements.filter((placement) =>
+/** The whole structural assembly a shell is cut from — the pieces a low ceiling excludes included,
+ *  because an excluded piece still reserves its footprint (Adjudication 7D1-P, P5 (iii)): the reference's
+ *  own, then the corner wall unit's two (M7C wave C2), which the shell templates and the seeded kitchen
+ *  does not carry. A base-only back wall (a large U) has the first part only. */
+export const STRUCTURAL_ASSEMBLY: readonly DesignPlacement[] = [
+  ...KITCHEN_L_DESIGN.placements.filter((placement) =>
     isStructuralBuildId(placement.body.buildId),
-  );
+  ),
+  ...CORNER_WALL_UNIT_TEMPLATES,
+];
 
 /** Every band a room of this height has any of, each cut at `min(height, grid top)`. */
 export function bandsUnder(heightMm: number): readonly BandMm[] {

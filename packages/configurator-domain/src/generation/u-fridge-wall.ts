@@ -29,14 +29,11 @@ export interface FridgePlacement {
   readonly position: UPlacementPosition | undefined;
 }
 
-/** *N3 revised* 2 (RQ2, RQ9): the fridge stands on the wider side wall, or the other side wall if it
- *  does not fit there, or is dropped if it fits neither. **The RQ9 fallback measures 0 rooms on the
- *  approved grid** — the two side walls share the identical "entered − 1000" free-run formula
- *  (`corner-assembly-size.ts`'s own proof that both X-legs size identically), so a side wall too
- *  short for the fridge by capacity is, provably and not merely by measurement, the **narrower** one
- *  by entered length too, and the wider one is tried first. The branch is kept anyway, with a
- *  declared witness (ADR 0123) rather than a sweep floor that would read 0 for a population that
- *  cannot exist on any orderable room. */
+/** The fridge stands on the wider side wall, or the other side wall if it does not fit there, or is dropped
+ *  if it fits neither (N3 revised 2). The fallback measures 0 rooms on the approved grid: both side walls
+ *  share the "entered − 1000" free-run formula (`corner-assembly-size.ts`), so a side wall too short for the
+ *  fridge is provably the narrower one and the wider is tried first. The branch is kept, with a declared
+ *  witness rather than a sweep floor that would read 0 for an impossible population (ADR 0123). */
 export function placedFridge(
   room: DesignRoom,
   runs: Readonly<Record<DesignWall, UGenerationRun>>,
@@ -50,9 +47,8 @@ export function placedFridge(
   );
 }
 
-/** *N3 revised* 2: the wider side wall by entered length carries the fridge, wall B on a tie —
- *  the L's own tie rule (`generation-priorities.ts`'s *"equal walls keep wall B as the prefix"*).
- *  The other side wall is the far wall. */
+/** The wider side wall by entered length carries the fridge, wall B on a tie (the L's tie rule in
+ *  `generation-priorities.ts`: equal walls keep wall B as the prefix). The other side wall is the far wall. */
 interface FridgeWallCandidates {
   readonly primary: DesignWall;
   readonly secondary: DesignWall;
@@ -108,10 +104,9 @@ function placementOn(
     : undefined;
 }
 
-/** ADR 0110 N9.2: a dropped fridge leaves its wall's whole free run empty, and A4 forbids a bare run
- *  end of 600 mm or more. The wall takes door bases from its corner, and the bare remainder (< 600 mm)
- *  stays at the free end. These bases stand before the sink in run order, so they never become
- *  drawer units. */
+/** A dropped fridge leaves its wall's whole free run empty, and A4 forbids a bare run end of 600 mm or
+ *  more, so the wall takes door bases from its corner and the bare remainder (< 600 mm) stays at the free
+ *  end. These bases stand before the sink in run order, so they never become drawer units (ADR 0110 N9.2). */
 function droppedFridgePlacement(
   walls: WallRoles,
   runs: Readonly<Record<DesignWall, UGenerationRun>>,
@@ -134,16 +129,15 @@ function droppedFridgePlacement(
 interface PlacedFridgeWallLayout {
   readonly isPlaced: true;
   readonly bases: readonly UPlannedGenerationBase[];
-  /** *N3 revised* 3's own count, or `"free-end"`. */
+  /** The counted position (N3 revised 3), or `"free-end"`. */
   readonly position: UPlacementPosition;
 }
 
 type FridgeWallLayout = PlacedFridgeWallLayout | { readonly isPlaced: false };
 
-/** Where the fridge and its counted bases stand on `wall`, or nothing when even the fridge alone
- *  does not fit the wall's own free run — `n` falls by one at a time until it does, and at `n = 0`
- *  the layout degrades to *N3 revised* 3's free-end case (`fridgeAtTheFreeEnd`), whether zero was
- *  chosen outright by the wall's own length or reached by falling. */
+/** Where the fridge and its counted bases stand on `wall`, or nothing when even the fridge alone does not
+ *  fit the wall's free run: `n` falls by one until it does, and at `n = 0` the layout degrades to the
+ *  free-end case (`fridgeAtTheFreeEnd`), whether zero was chosen outright or reached by falling. */
 function fridgeWallLayout(
   wall: DesignWall,
   room: DesignRoom,
@@ -165,10 +159,9 @@ function fridgeWallLayout(
     : fridgeCountedFromTheCorner(wall, run, n);
 }
 
-/** *N3 revised* 3's short-wall case (ADR 0110 N11.1): door storage from the corner, the fridge directly
- *  after it, and the bare remainder (< 600 mm, A4) beyond the fridge at the free end — the L's own
- *  convention, where a fridge "at the free end" is the last body before it. That remainder stays bare:
- *  the pantry gap belongs to a counted position only, so `planUTallLayout` is given no gap here. */
+/** N3 revised 3's short-wall case (ADR 0110 N11.1): door storage from the corner, the fridge directly after
+ *  it, and the bare remainder (< 600 mm, A4) beyond the fridge at the free end, as in the L. That remainder
+ *  stays bare: the pantry gap belongs to a counted position only, so `planUTallLayout` is given no gap. */
 function fridgeAtTheFreeEnd(
   wall: DesignWall,
   run: UGenerationRun,
@@ -182,10 +175,10 @@ function fridgeAtTheFreeEnd(
   };
 }
 
-/** *N3 revised* 3's long-wall case: `n` bases from the corner, then the fridge. The stretch from the
- *  fridge to the free end is left unfilled here — the tall layout tiles it with `tall-pantry` columns
- *  (*N3 revised* 4), read off this plan's `remainderMm` for the fridge wall. `fridgeAtTheFreeEnd`
- *  reuses it with the count that leaves a bare remainder under one module. */
+/** N3 revised 3's long-wall case: `n` bases from the corner, then the fridge. The stretch from the fridge
+ *  to the free end is left unfilled here: the tall layout tiles it with `tall-pantry` columns, read off this
+ *  plan's `remainderMm` for the fridge wall. `fridgeAtTheFreeEnd` reuses it with the count that leaves a
+ *  bare remainder under one module. */
 function fridgeCountedFromTheCorner(
   wall: DesignWall,
   run: UGenerationRun,

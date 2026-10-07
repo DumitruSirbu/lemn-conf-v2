@@ -59,15 +59,9 @@ describe("the one catalogue, two populations (ADR 0011 Gap A)", () => {
 });
 
 describe("every declared catalogue equivalent resolves to an insertable row", () => {
-  // ADR 0022: a seeded body is priced, sized and named through the §7 row it points at. A pointer
-  // naming no row, or naming a row that is not insertable, is a **catalogue** defect, and asserting
-  // it here rather than guarding it in a reader covers `resolveCatalogEquivalent`'s three callers at
-  // once — pricing, `resolveBuildableSizes`, and whichever reader is added next. A guard in the
-  // pricing query would have covered pricing only, and would need re-inventing at every new reader.
-  //
-  // It is also what makes the worse latent case unreachable rather than merely unobserved: a book
-  // that happens to price a seeded id would price a body with a dangling pointer under the wrong
-  // rule and refuse nothing at all.
+  // ADR 0022: a seeded body is priced, sized and named through the §7 row it points at. A dangling or non-insertable
+  // pointer is a catalogue defect; asserting it here covers every `resolveCatalogEquivalent` caller at once, where a
+  // guard in one reader would cover only that reader.
 
   it("resolves every pointer the catalogue declares, in both populations", () => {
     const declared = [...KITCHEN_L_BODY_CATALOG].flatMap(
@@ -77,7 +71,6 @@ describe("every declared catalogue equivalent resolves to an insertable row", ()
           : [[buildId, definition.catalogEquivalentId] as const],
     );
 
-    // Not a vacuous sweep: wave 6A2 gave eighteen seeded rows a pointer.
     expect(declared.length).toBeGreaterThan(17);
     for (const [buildId, equivalentId] of declared) {
       const equivalent = KITCHEN_L_BODY_CATALOG.get(equivalentId);
@@ -91,9 +84,8 @@ describe("every declared catalogue equivalent resolves to an insertable row", ()
   });
 
   it("leaves the structural corners pointing at nothing, and that is the right answer", () => {
-    // The other half: a sweep that only checked declared pointers would pass on a catalogue that
-    // declared none. ADR 0021 makes these four structural and §13.1 says a customer never chooses
-    // one, so having no equivalent is correct for them and is what a book prices under their own id.
+    // A sweep over declared pointers alone would pass on a catalogue that declared none. These six are structural
+    // (ADR 0021), so having no equivalent is correct for them.
     const withoutPointer = [...KITCHEN_L_BODY_CATALOG]
       .filter(
         ([, definition]) =>
@@ -107,6 +99,8 @@ describe("every declared catalogue equivalent resolves to an insertable row", ()
       "base-corner-x-900",
       "wall-corner-return-570",
       "wall-corner-return-570-top",
+      "wall-corner-x-900",
+      "wall-corner-x-900-top",
     ]);
   });
 });
@@ -142,16 +136,13 @@ describe("kind labels", () => {
     }
   });
 
-  // §11 row 24: a fallback set once produced six guaranteed-refused rows for the hob.
   it("reports an unknown kind as unknown", () => {
     expect(isKnownKind("teleporter")).toBe(false);
   });
 });
 
-// Backlog entry 1's rule half. The defect was that §7 had **no** hob-bearing entry at all, so a
-// deleted hob could never be offered back; the outcome half — that one actually goes into the
-// vacated opening and is built with a hob on it — is `hob-base.test.ts` in `@lemnaria/three-adapter`,
-// where the real builders and the real probe are.
+// Backlog entry 1's rule half: §7 must hold a hob-bearing entry so a deleted hob can be offered back. The outcome
+// half is `hob-base.test.ts` in `@lemnaria/three-adapter`.
 describe("ADR 0027's hob-bearing bases", () => {
   const HOB_ENTRIES = ["base-hob-2drawer", "base-hob-oven"] as const;
 
@@ -174,8 +165,8 @@ describe("ADR 0027's hob-bearing bases", () => {
     },
   );
 
-  // Two rows, so two `catalog.entries.*` leaves and two names in the picker. The words themselves
-  // are the catalogue's since 6B-f and are checked in `apps/web/tests/i18n/body-label.test.ts`.
+  // Two rows, so two `catalog.entries.*` leaves and two names in the picker; the words are checked in
+  // `apps/web/tests/i18n/body-label.test.ts`.
   it("gives the two entries different ids, so the picker can tell them apart", () => {
     const [twoDrawer, oven] = HOB_ENTRIES;
     expect(twoDrawer).not.toBe(oven);
@@ -183,52 +174,20 @@ describe("ADR 0027's hob-bearing bases", () => {
 });
 
 describe("every insertable entry's two depth fields agree", () => {
-  // The defect class M5 wave 5A met twice. `insertableBody` stamps `frameDepthMm` from the shape's
-  // `nominalDepthMm`, and an entry built by spreading a helper and then overriding only the nominal
-  // leaves `frameDepthMm` behind at the helper's number. It happened to `hood` (QA finding Q1.1,
-  // inherited from the map-governed `WALL_DEPTH_MM`) and to `fridge-free` (560 from
-  // `fullHeightUnit` against a 680 nominal).
-  //
-  // It matters because `void-engine.ts` takes `frameDepthMm` as the fallback for a placement with
-  // no measured `seatDepthMm` — optional in `DesignSchema`, so such a design validates — and a
-  // frame depth that is not the body's own depth seats its back face off the wall plane (§11
-  // row 19). Inert through the UI, since `insertBody` always records a seat, which is exactly what
-  // let both instances survive.
-  //
-  // Swept across the whole catalogue rather than asserted per entry, so a third instance cannot be
-  // introduced by the same spread-and-override shape.
-  // The one named exception, and it is a decision rather than a leak. ADR 0039 decision 2 hangs the
-  // hood at the **front** — its front face on the 600 mm cabinet-depth line, so a standard 500 mm
-  // hood leaves 100 mm of gap behind it — and `frameDepthMm` is twice the *rear overhang* (ADR
-  // 0018), not a depth. Seating the hood on its own nominal is precisely what decision 2 replaced,
-  // so this entry seats on `2 × cabinetDepth − 500` instead. §11 row 19's second named exception,
-  // after ADR 0025's corner leg: declared and measured, never a tolerance that drifted.
-  //
-  // Named here rather than filtered out, so the sweep still covers it and a *second* entry cannot
-  // acquire the disagreement by accident.
+  // `insertableBody` stamps `frameDepthMm` from the shape's `nominalDepthMm`, so an entry built by spreading a helper
+  // and overriding only the nominal keeps the helper's frame depth. `void-engine.ts` falls back to `frameDepthMm` for a
+  // placement with no `seatDepthMm`, and a frame depth that is not the body's own seats its back face off the wall
+  // plane (§11 row 19). Swept over the whole catalogue so a new instance of that shape cannot arrive.
+  // The hood is a named exception rather than a filtered one, so the sweep still covers it and a second entry cannot
+  // acquire the disagreement by accident: ADR 0039 decision 2 hangs it at the front, and `frameDepthMm` is twice the
+  // rear overhang (ADR 0018), so it seats on `2 × cabinetDepth − 500`.
   const FRONT_HUNG_SEAT_MM: Readonly<Record<string, number>> = {
     hood: 2 * 600 - 500,
   };
 
-  /**
-   * **This gate asserted `frameDepthMm === nominalDepthMm` until 2026-09-05, and that premise is
-   * superseded by [ADR 0075](../../../docs/decisions/0075-a-recorded-shell-declares-its-shell-not-its-finished-depth.md)
-   * decision 1.** It was true of every row only because the fronted wall rows were **wrong**: they
-   * stated the finished 330 where ADR 0018 fixes this field as twice the rear overhang, and
-   * `wallCabinet` builds `D − 39` centred on `z = 0`. Held to equality, `rebuildDepthM`'s worked
-   * convergence becomes `330 → 369 → 408` and `occupiedDepthM` publishes a 369 mm wall cabinet
-   * nobody manufactures.
-   *
-   * **The claim it makes now is stronger, not weaker**: the frame depth is the nominal *less what
-   * the builder puts in front of it*, which the row already declares as
-   * `occupiedDepth.frontAssemblyMm`. That is one number for every `recorded-shell` row —
-   * `wall-cabinet` and `wall-lift` at 39, `open-shelf` at 0 — and equality for every row whose
-   * builder seats the whole declared depth. Equality was the special case all along.
-   *
-   * `hood` stays a named exception because ADR 0039 hangs it at the **front**, so neither reading
-   * applies; it is named rather than filtered so the sweep still covers it and a second entry cannot
-   * acquire the disagreement by accident.
-   */
+  /** Equality holds for a row whose builder seats the whole declared depth; for a `recorded-shell` row the frame depth
+   *  is the nominal less `occupiedDepth.frontAssemblyMm`, what the builder puts in front of it (ADR 0075 decision 1).
+   *  `hood` is the named exception above. */
   it.each(INSERTABLE_BODY_DEFINITIONS)(
     "%s seats on the depth its builder actually leaves behind it",
     (buildId, definition) => {
@@ -248,8 +207,8 @@ describe("every insertable entry's two depth fields agree", () => {
     },
   );
 
-  // The rewrite above would be vacuous if every row were `wall-plane`. Both arms must be reached,
-  // and the `recorded-shell` arm must contain rows on both sides of a zero front assembly.
+  // The sweep above would be vacuous if every row were `wall-plane`: both arms must be reached, and the
+  // `recorded-shell` arm must contain rows on both sides of a zero front assembly.
   it("reaches both arms, and a fronted row and an unfronted one", () => {
     const shells = INSERTABLE_BODY_DEFINITIONS.filter(
       ([, definition]) =>
@@ -279,12 +238,9 @@ describe("every insertable entry's two depth fields agree", () => {
 });
 
 describe("every insertable entry declares the bound its widths come from", () => {
-  // ADR 0035 decision 2 replaced `sizesAreStandardLadder` with a bound, and this is the guard that
-  // boolean's guard became. The failure it catches has not changed shape: a row built by spreading
-  // `baseCabinet` or `wallCabinet` and then overriding only `sizesMm` keeps the **cabinetry** bound
-  // it inherited from the spread, so a dishwasher niche would accept every width from 300 to 800.
-  // `cabinetryWidths` and `discreteWidths` each write both fields, which is why that cannot happen
-  // by accident — this is the second line, not the only one.
+  // A row built by spreading `baseCabinet` or `wallCabinet` and overriding only `sizesMm` keeps the cabinetry bound it
+  // inherited, so a dishwasher niche would accept every width from 300 to 800. `cabinetryWidths` and `discreteWidths`
+  // each write both fields; this is the second line of defence (ADR 0035 decision 2).
   it.each(INSERTABLE_BODY_DEFINITIONS)(
     "%s declares ranges its own chips sit inside",
     (buildId, definition) => {
@@ -301,19 +257,11 @@ describe("every insertable entry declares the bound its widths come from", () =>
     },
   );
 
-  // **The same guard's third field, and it is the one that was missing.** The two assertions above
-  // read `widthRangesMm` and `sizesMm`; nothing read `widthFlex`, which is the field that decides
-  // **which resolver an insert takes** — `'fit'` goes to `resolveFitWidth` and builds the opening,
-  // a millimetre set goes to `resolveFixedSetWidth` and takes the widest listed size that fits.
-  //
-  // A row can therefore declare a perfectly good bound, publish chips inside it, satisfy both
-  // assertions above, and still build 600 into every opening from 600 up. That is the hood's
-  // finding R1.2 verbatim (`insert-fit.ts`, `resolveFixedSetWidth`), and ADR 0048's `tall-pantry`
-  // is the second row exposed to it: its `widthFlex: "fit"` sits **after** the `fullHeightUnit`
-  // spread that stamps `COLUMN_WIDTHS_MM`, so moving that one line above the spread would silently
-  // restore the fixed set — an **ordering** mistake, invisible to a guard that reads only the two
-  // fields the row got right. QA on wave 5B8 found this blind spot; the pin is here rather than in
-  // that wave's own file because the rule is the catalogue's, not the pantry's.
+  // `widthFlex` decides which resolver an insert takes: `'fit'` goes to `resolveFitWidth` and builds the opening, a
+  // millimetre set goes to `resolveFixedSetWidth` and takes the widest listed size that fits. A row with a good bound
+  // and good chips but a fixed `widthFlex` still builds 600 into every opening from 600 up. `tall-pantry`'s
+  // `widthFlex: "fit"` sits after the `fullHeightUnit` spread that stamps `COLUMN_WIDTHS_MM`; moving it above the
+  // spread would silently restore the fixed set (ADR 0048).
   it.each(INSERTABLE_BODY_DEFINITIONS)(
     "%s declares the flexibility its own ranges imply",
     (buildId, definition) => {
@@ -328,9 +276,8 @@ describe("every insertable entry declares the bound its widths come from", () =>
         ).toBe("fit");
         return;
       }
-      // A discrete row's declared set and its offered sizes are the same list, so a row that
-      // overrode one without the other — the shape `discreteWidths` exists to prevent — fails here
-      // rather than at the resolver.
+      // A discrete row's declared set and offered sizes are the same list, so a row that overrode one without the other
+      // fails here rather than at the resolver.
       expect(
         definition.widthFlex,
         `${buildId} is discrete, so its flexibility is its own set`,
@@ -338,9 +285,8 @@ describe("every insertable entry declares the bound its widths come from", () =>
     },
   );
 
-  // Both shapes ADR 0035 recognises, named rather than counted. A cabinetry row moving into the
-  // discrete list would lose its stepper; an appliance row moving into the cabinetry list would let
-  // a customer step a dishwasher niche to 550, which is decision 3 by name.
+  // Both shapes ADR 0035 recognises, named rather than counted: an appliance row moving into the cabinetry list would
+  // let a customer step a dishwasher niche to 550 (decision 3).
   it("has entries of both shapes, so neither is untested", () => {
     const stepped = INSERTABLE_BODY_DEFINITIONS.filter(([, definition]) =>
       (definition.widthRangesMm ?? []).some(
@@ -357,8 +303,7 @@ describe("every insertable entry declares the bound its widths come from", () =>
       "wall-lift",
       "open-shelf",
       "hood",
-      // ADR 0048: the one full-height row with a stepper. It is last because it is last in §7's
-      // order, and it is here at all because no appliance inside it fixes its width.
+      // ADR 0048: the one full-height row with a stepper; no appliance inside it fixes its width.
       "tall-pantry",
     ]);
 
@@ -368,9 +313,8 @@ describe("every insertable entry declares the bound its widths come from", () =>
       ),
     ).map(([buildId]) => buildId);
 
-    // ADR 0035 decision 3's exclusion: the appliance is the fixed thing and the cabinet is built
-    // around it. `base-bottle-cargo` is on this list for ADR 0026's reason instead — its members are
-    // not established (backlog entry 2), and stepping it would invent 250 as a manufactured width.
+    // ADR 0035 decision 3's exclusion: the appliance is the fixed thing. `base-bottle-cargo` is here for ADR 0026's
+    // reason: its members are not established, and stepping it would invent 250 as a manufactured width.
     expect(discrete).toEqual([
       "base-hob-2drawer",
       "base-hob-oven",
@@ -382,10 +326,8 @@ describe("every insertable entry declares the bound its widths come from", () =>
     ]);
   });
 
-  // ADR 0035 decision 1: 200–800, at 50 mm, **unbroken**. Pinned on the two hinged rows because they
-  // are the ones whose chips were a curated list of five in ADR 0033 — the list six ADRs kept
-  // correcting — and because 450 is the width the owner named on 2026-08-28 when they retired
-  // ADR 0030's 400 mm one-door cap. A hole reappearing between 400 and 500 fails here first.
+  // ADR 0035 decision 1: 200–800 at 50 mm, unbroken, pinned on the two hinged rows; a hole between 400 and 500 fails
+  // here first.
   it("steps a hinged cabinet's chips from 200 to 800 with no hole", () => {
     for (const buildId of ["base-cabinet", "wall-cabinet"]) {
       const definition = KITCHEN_L_BODY_CATALOG.get(buildId);
@@ -396,13 +338,8 @@ describe("every insertable entry declares the bound its widths come from", () =>
   });
 });
 
-// ---------------------------------------------------------------------------------------------
-// ADR 0033's amendment, as ADR 0035 leaves it: a hinged cabinet's widths are one continuous bound.
-// ---------------------------------------------------------------------------------------------
-
-// ADR 0029's defect class was "the label and the builder disagreed about the door count". They now
-// read one function, so they agree by construction — but the flip is the one width where an edit
-// could reintroduce it, and the geometry is pinned there while the *label* was not (logic review N7).
+// Label and builder read one function for the door count, so they agree by construction; the flip is the one width
+// where an edit could reintroduce a disagreement, and the label was not pinned there.
 describe("the name a customer reads flips with the door count", () => {
   const hingedRow = (buildId: string) => {
     const definition = KITCHEN_L_BODY_CATALOG.get(buildId);
@@ -437,15 +374,8 @@ describe("the widths a body may actually be built to", () => {
     return found;
   };
 
-  // The amendment's own table, transcribed and then flattened by the owner's 2026-08-28 ruling. Each
-  // row is a width and the rule that decides it, so a failure names the rule rather than an
-  // arithmetic slip.
-  //
-  // **There is no refused band in the middle any more.** The table carried one at 401–599 under
-  // ADR 0033, and at 401–499 under a first pass at this wave; both were ADR 0030's 400 mm one-door
-  // cap. The owner retired that cap in the same breath as moving the threshold — "let's add this 450
-  // for one door… two doors start from 500" — so the width now decides the door **count** and never
-  // whether the cabinet exists at all. Only the two ends refuse.
+  // Each row is a width and the rule that decides it, so a failure names the rule. There is no refused band in the
+  // middle: the width decides the door count and never whether the cabinet exists (ADR 0035 decision 4).
   it.each([
     [199, false, "under ADR 0026's declared floor"],
     [200, true, "the bound opens at 200 (ADR 0026's floor)"],
@@ -472,14 +402,11 @@ describe("the widths a body may actually be built to", () => {
     expect(acceptsWidthMm(bodyOf("base-cabinet"), widthMm)).toBe(expected);
   });
 
-  // **Cabinetry is continuous between its bounds; appliances are discrete** (ADR 0035 decision 3).
-  // Asserted on the rows it is about: a dishwasher niche is 450 or 600 because dishwashers are, and
-  // one millimetre off either is not a size it comes in.
+  // Cabinetry is continuous between its bounds; appliances are discrete (ADR 0035 decision 3): a dishwasher niche is
+  // 450 or 600, and one millimetre off either is not a size it comes in.
   it("keeps every appliance row discrete", () => {
-    // **Neither `base-sink` nor `hood` is on this list, and both absences are decisions.** ADR 0033's
-    // amendment reads the sink base as *cabinetry with a fixed aperture* — the 560 mm bowl is fixed,
-    // the carcass around it is not — and ADR 0035 decision 5 gives the hood the same 600–800 bounds
-    // every other cabinetry entry carries. Their own cases are below.
+    // Neither `base-sink` (cabinetry with a fixed aperture, ADR 0033) nor `hood` (ADR 0035 decision 5) is on this list;
+    // their own cases are below.
     for (const [buildId, sizesMm] of [
       ["base-dishwasher", [450, 600]],
       ["base-bottle-cargo", [200, 300]],
@@ -492,7 +419,6 @@ describe("the widths a body may actually be built to", () => {
           `${buildId}@${String(widthMm)}`,
         ).toBe(true);
       }
-      // One millimetre off any of its sizes is not a size it comes in.
       for (const widthMm of sizesMm) {
         expect(
           acceptsWidthMm(body, widthMm + 1),
@@ -502,9 +428,8 @@ describe("the widths a body may actually be built to", () => {
     }
   });
 
-  // ADR 0033's amendment: the sink base is continuous from its aperture to §7's ceiling. 559 is
-  // refused by ADR 0017's floor and not by this range — the two guards stay ordered rather than
-  // stacked, which `minimum-width.adversarial.test.ts` asserts by code.
+  // 559 is refused by ADR 0017's floor and not by this range: the two guards stay ordered rather than stacked, and
+  // `minimum-width.adversarial.test.ts` asserts that by code.
   it("makes the sink base continuous from its aperture upward", () => {
     const sink = bodyOf("base-sink");
     expect(acceptsWidthMm(sink, 559)).toBe(false);
@@ -514,9 +439,8 @@ describe("the widths a body may actually be built to", () => {
     expect(acceptsWidthMm(sink, 801)).toBe(false);
   });
 
-  // ADR 0035 decision 5, on the row the owner ruled on by name: the hood starts at 600 — its `−50`
-  // is greyed out there — and stops at §7's ceiling like every other cabinetry entry. 700 is now a
-  // hood, and 900 is not: the discrete `{600, 900}` set went with the ladder.
+  // ADR 0035 decision 5: the hood starts at 600 and stops at §7's ceiling like every other cabinetry entry; 700 is a
+  // hood and 900 is not.
   it("bounds the hood at 600–800", () => {
     const hood = bodyOf("hood");
     expect(acceptsWidthMm(hood, 599)).toBe(false);
@@ -526,9 +450,7 @@ describe("the widths a body may actually be built to", () => {
     expect(acceptsWidthMm(hood, 900)).toBe(false);
   });
 
-  // ADR 0035 decision 2: a plain cabinetry row is one range, floor to ceiling. It replaces the
-  // standard ladder's `[floor, ∞)`, and the ceiling is the visible difference — a ladder was silent
-  // about everything above 800 rather than permitting it, which is the fact ADR 0035 settles.
+  // ADR 0035 decision 2: a plain cabinetry row is one range, floor to ceiling.
   it("bounds a plain cabinetry row from §2's floor to §7's ceiling", () => {
     const panbank = bodyOf("base-panbank");
     expect(acceptsWidthMm(panbank, 299)).toBe(false);
@@ -538,15 +460,9 @@ describe("the widths a body may actually be built to", () => {
     expect(acceptsWidthMm(panbank, 801)).toBe(false);
   });
 
-  // **The invariant that keeps §9 honest**, and the reason chips and ranges may differ without
-  // drifting: every width the panel renders as a chip must be a width the engine will accept. A chip
-  // outside every range is ADR 0017's "offered then refused" failure one layer up.
-  // **The shape of a declared range, guarded rather than repaired** (logic review R1.4). A declared
-  // range short-circuits the derivation, so it is the one arm that can express nonsense: an empty
-  // list refuses every width and an inverted `minMm > maxMm` refuses silently, and neither is a rule
-  // — both are a defect in the catalogue. `resolveWidthRangesMm` raises a declared minimum to the
-  // floor that governs the entry, which is a *rule* and belongs in the function; it deliberately does
-  // not repair a malformed list, because a row nobody can read is not a row to guess at.
+  // A declared range short-circuits the derivation, so it can express nonsense: an empty list refuses every width and
+  // an inverted range refuses silently. `resolveWidthRangesMm` raises a declared minimum to the entry's floor (a rule)
+  // but does not repair a malformed list.
   it("declares only ranges that are a range at all, and none under its floor", () => {
     for (const [buildId, definition] of INSERTABLE_BODY_DEFINITIONS) {
       const declared = definition.widthRangesMm;
@@ -560,9 +476,8 @@ describe("the widths a body may actually be built to", () => {
           range.minMm,
           `${buildId} range ${String(range.minMm)}–${String(range.maxMm)}`,
         ).toBeLessThanOrEqual(range.maxMm);
-        // At or above the floor `buildableSizes` applies, so a range can never reach under ADR 0017's
-        // or ADR 0026's floor — the invariant `resolveWidthRangesMm` also enforces, asserted on the
-        // shipped rows so a row that starts relying on the clamp is visible here first.
+        // At or above the floor `buildableSizes` applies, so a range never reaches under ADR 0017's or ADR 0026's
+        // floor; a row that starts relying on the clamp is visible here first.
         expect(
           range.minMm,
           `${buildId} range opens under its own floor`,
@@ -571,9 +486,8 @@ describe("the widths a body may actually be built to", () => {
     }
   });
 
-  // The clamp itself, on a synthetic row, since no shipped entry needs it: a range that opens under
-  // the entry's floor is raised to the floor rather than believed. Without this the resize path —
-  // whose only width predicate is `acceptsWidthMm` — would accept a width the insert path refuses.
+  // The clamp itself, on a synthetic row since no shipped entry needs it: without it the resize path, whose only width
+  // predicate is `acceptsWidthMm`, would accept a width the insert path refuses.
   it("raises a declared range to the floor that governs the entry", () => {
     const wall = bodyOf("wall-cabinet");
     const underfloor = {

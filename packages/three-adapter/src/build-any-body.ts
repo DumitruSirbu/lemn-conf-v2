@@ -28,7 +28,7 @@ import type { Kit } from "./kitchen-parts.js";
 /**
  * One body of either family, at the size a catalogue row would be built to.
  *
- * **The four structural corner decompositions read `size.widthM`.** Their recorded widths are set
+ * **The six structural corner decompositions read `size.widthM`.** Their recorded widths are set
  * when the shell is generated and stay frozen through a depth change (ADR 0089); their heights and
  * depth arguments still come from the fixed builders and kit. Every other seeded decomposition
  * ignores `size` and keeps its reference geometry. The base return's seat follows the kit's own

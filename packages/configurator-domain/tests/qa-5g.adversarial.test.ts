@@ -1,16 +1,7 @@
-// Adversarial QA for M5 wave 5G — ADR 0052: 800 mm is the ceiling on any empty column.
-//
-// The wave covers the span arithmetic and the map-level normaliser in `empty-column-ceiling.test.ts`
-// and criterion 5G-4's two headline cases in `qa-5b2a.adversarial.test.ts` (a 900 mm version 1 entry
-// loads as 800 + 100; the same entry in a version 2 document is refused). What is attacked here is
-// everything **around** those two: the boundary the cap turns on, what the split produces at every
-// width rather than at one, the entry bound the security review asked to be asserted, the fixed
-// point the schema restamp rests on, and the entries the migration refuses rather than carries.
-//
-// It also attacks the premise the whole normalisation rests on — *an entry whose pieces would land
-// between millimetres is unreachable*. That is asserted rather than accepted, by measuring the free
-// spans generated command sequences actually produce, because a span of odd width is exactly the
-// stored document `migrateFromV1` refuses instead of carrying.
+// ADR 0052: 800 mm is the ceiling on any empty column. Attacks what `empty-column-ceiling.test.ts` and
+// `qa-5b2a.adversarial.test.ts` leave: the boundary, the split at every width, the entry bound, the restamp's fixed
+// point, the entries the migration refuses, and the premise that an odd-width entry is unreachable (measured over
+// generated command sequences).
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
@@ -46,14 +37,10 @@ const CATALOG = KITCHEN_L_BODY_CATALOG;
 const NOW = "2026-08-25T00:00:00.000Z";
 const PROBE = createFakeProbe({ catalog: CATALOG });
 
-/** A document with no placements, so nothing the migration produces can be refused for a reason
- *  other than the one under test: an entry that overlaps a body, or shares a key with one, would
- *  make every assertion below pass for the wrong reason. The seeded kitchen was used for exactly
- *  such a fixture in the wave's own write-seam test — see `refuses a hand-built version 2 document`
- *  below, which pins the codes rather than trusting the status. */
-/** The room is deliberately **not** `3600 × 2400`: that pair is the room correction's trigger
- *  (`migrate-design.ts`), and this file is about the `emptyColumns` ceiling rather than about a
- *  room. Every entry below stays inside the narrower runs. */
+/** A document with no placements, so nothing the migration produces can be refused for a reason other than the
+ *  one under test. */
+/** The room is deliberately not `3600 × 2400`, the room correction's trigger (`migrate-design.ts`): this file is
+ *  about the `emptyColumns` ceiling. */
 const EMPTY_ROOM: Design = {
   room: { shape: "L", widthMm: 3560, depthMm: 2830, heightMm: 2600 },
   presetId: null,
@@ -96,9 +83,8 @@ function spanOf(entries: readonly EmptyColumn[]) {
 }
 
 describe("criterion 5G-4, load half: a stored version 1 document survives the ceiling", () => {
-  /** The share link the wave exists to protect. A 900 mm entry is what a pre-5G shrink wrote — the
-   *  plan measures it at nine taps, two since wave 5B8 — and it must come back as the columns the
-   *  new rule allows rather than as an `InvalidDesignError` the reader cannot act on. */
+  /** The share link the wave exists to protect: a 900 mm entry written before the ceiling must come back as the
+   *  columns the rule allows, not as an `InvalidDesignError` the reader cannot act on. */
   it("splits a 900 mm version 1 entry into 800 + 100 over the same span", () => {
     const stored = withEntries(EMPTY_ROOM, [emptyColumnAt(1000, 900)]);
 
@@ -106,11 +92,9 @@ describe("criterion 5G-4, load half: a stored version 1 document survives the ce
 
     const entries = loaded.emptyColumns ?? [];
     expect(entries.map((entry) => entry.widthMm)).toStrictEqual([800, 100]);
-    // Every millimetre kept, and the outer edges unmoved: clamping would silently delete wall,
-    // which ADR 0052 rejected by name.
+    // Every millimetre kept and the outer edges unmoved: clamping would silently delete wall (rejected by ADR 0052).
     expect(spanOf(entries)).toStrictEqual(spanOf(stored.emptyColumns ?? []));
-    // Two entries, two keys. A normalisation whose pieces collided would write a document its own
-    // validator refuses — the failure ADR 0052 names as this wave's specific risk.
+    // Two entries, two keys: a normalisation whose pieces collided would write a document its own validator refuses.
     expect(
       new Set(
         entries.map((entry) =>
@@ -118,7 +102,6 @@ describe("criterion 5G-4, load half: a stored version 1 document survives the ce
         ),
       ).size,
     ).toBe(entries.length);
-    // Every other frozen fact is the same space's.
     for (const entry of entries) {
       expect({
         y0Mm: entry.y0Mm,
@@ -128,9 +111,8 @@ describe("criterion 5G-4, load half: a stored version 1 document survives the ce
     }
   });
 
-  /** The other seam of criterion 5G-4. `migrateFromV2` validates without normalising, so the same
-   *  bytes under a version 2 stamp are refused — and refused with the code ADR 0052 added, not with
-   *  whatever else the fixture happened to trip. */
+  /** The other seam: `migrateFromV2` validates without normalising, so the same bytes under a version 2 stamp are
+   *  refused with the code ADR 0052 added, not whatever else the fixture happened to trip. */
   it("refuses the same document declared version 2, naming the cap", () => {
     const stored = withEntries(EMPTY_ROOM, [emptyColumnAt(1000, 900)]);
 
@@ -138,8 +120,8 @@ describe("criterion 5G-4, load half: a stored version 1 document survives the ce
     expect(() => load(2, stored)).toThrow(/EMPTY_COLUMN_WIDER_THAN_CAP/);
   });
 
-  /** The boundary, from both sides and at both seams. 800 is not oversized and must not be touched;
-   *  801 is. A cap written `>=` instead of `>` would split the 800 and this is what would say so. */
+  /** The boundary, from both sides and at both seams: 800 is not oversized, 801 is. A cap written `>=` instead of
+   *  `>` would split the 800. */
   it("leaves exactly 800 alone and refuses exactly 801, at both versions", () => {
     const atCap = withEntries(EMPTY_ROOM, [emptyColumnAt(1000, 800)]);
 
@@ -158,9 +140,8 @@ describe("criterion 5G-4, load half: a stored version 1 document survives the ce
     ).toContain("EMPTY_COLUMN_WIDER_THAN_CAP");
   });
 
-  /** What the split produces further out, swept rather than sampled: a whole number of ceilings
-   *  leaves no remainder, and anything between leaves exactly one. The plan asks for 1600 and 2400
-   *  by name; the sweep is what stops the arithmetic being right at those two and wrong between. */
+  /** Swept rather than sampled: a whole number of ceilings leaves no remainder and anything between leaves exactly
+   *  one. The plan names 1600 and 2400; the sweep covers the widths between. */
   propertyTest.prop([fc.integer({ min: 401, max: 1700 }).map((mm) => mm * 2)])(
     "cuts any even version 1 entry into ceiling-sized pieces and one remainder",
     (widthMm) => {
@@ -183,10 +164,8 @@ describe("criterion 5G-4, load half: a stored version 1 document survives the ce
     },
   );
 
-  /** The restamp in `neon-configuration-repository.ts` writes `schema_version = 2` over a row that
-   *  arrived as version 1, and its comment rests on this: *a normalised document is a fixed point of
-   *  `migrateFromV1`*. If it were not, a row half-way through the change would load differently
-   *  depending on which stamp it carried. */
+  /** The restamp in `neon-configuration-repository.ts` writes `schema_version = 2` over a row that arrived as
+   *  version 1 and rests on this: a normalised document is a fixed point of `migrateFromV1`. */
   it("is a fixed point, so the version 2 restamp is safe in both directions", () => {
     const normalised = load(
       1,
@@ -215,19 +194,12 @@ describe("criterion 5G-4, load half: a stored version 1 document survives the ce
     });
   });
 
-  /** The security review's own assertion, made executable: an oversized entry that splits into many
-   *  must not be able to push the array past `MAX_EMPTY_COLUMNS`. The schema bounds what *arrives*
-   *  and nothing else bounds what the migration produces, so this is the one place it can be said.
-   *
-   *  **Not reachable from an honest document** — the shipped kitchen derives thirteen columns in
-   *  total against a bound of 1893 (M7B wave U1 slice S2, ADR 0132 decision 5) — so this is a
-   *  hostile-input refusal, not a share link at risk.
-   *
-   *  **146 entries, not 98**: each 10 000 mm entry splits into 13 pieces at the 800 mm ceiling (12
-   *  full plus a 400 mm remainder), and 98 × 13 = 1274 no longer exceeds the wave's wider bound.
-   *  146 × 13 = 1898 does, with the same margin 98 held over the narrower one. */
+  /** The security review's assertion: an oversized entry that splits into many must not push the array past
+   *  `MAX_EMPTY_COLUMNS`, which nothing else bounds on the migration's output. Not reachable from an honest document,
+   *  so this is a hostile-input refusal. 146 entries of 10 000 mm each split into 13 pieces at the 800 mm ceiling
+   *  (12 full plus a 400 mm remainder), and 146 × 13 = 1898 exceeds the bound. */
   it("refuses a version 1 document whose normalisation would exceed the entry bound", () => {
-    // A storable room, not a policy one (M7 7A3): the migration is judged here, not Step 1.
+    // A storable room, not a policy one: the migration is judged here, not Step 1.
     const wideRoom: Design = {
       ...EMPTY_ROOM,
       room: { shape: "L", widthMm: 6300, depthMm: 5100, heightMm: 2600 },
@@ -245,16 +217,10 @@ describe("criterion 5G-4, load half: a stored version 1 document survives the ce
     );
   });
 
-  /** **A version 1 entry of odd width is refused rather than split, and that is pinned here because
-   *  the plan calls it unreachable rather than handled.**
-   *
-   *  It is forced by the wire, not by an oversight: `alongMm` is a whole millimetre, so a piece
-   *  1 mm wide sits at a half-millimetre centre no document can carry, and rounding it would key the
-   *  piece as its neighbour. The entry therefore goes forward as it was and
-   *  `assertDesignValidForCatalog` refuses it.
-   *
-   *  What makes that acceptable is reachability, and reachability is asserted below rather than
-   *  argued: `no pre-5G empty column the product can write has an odd width`. */
+  /** A version 1 entry of odd width is refused rather than split: `alongMm` is a whole millimetre, so a 1 mm piece
+   *  would sit at a half-millimetre centre no document can carry, and rounding would key it as its neighbour. The
+   *  entry goes forward as it was and `assertDesignValidForCatalog` refuses it; that no pre-5G empty column the
+   *  product can write has an odd width is asserted below. */
   it("refuses an odd-width version 1 entry instead of rounding a piece onto a millimetre", () => {
     const stored = withEntries(EMPTY_ROOM, [emptyColumnAt(1000, 901)]);
 
@@ -268,13 +234,10 @@ describe("criterion 5G-4, load half: a stored version 1 document survives the ce
 });
 
 describe("the map-level normaliser's decline paths", () => {
-  /** `splitOversizedEmptyColumns` declines whole when a piece would land on a key the map already
-   *  holds — and a decline leaves the oversized column standing, which `projectEmptyColumns` then
-   *  writes into a document `validateDesignForCatalog` refuses. That is the wave's own named risk
-   *  arriving from the other side, so the branch is exercised rather than assumed dead.
-   *
-   *  Constructed, not reached: it needs two member-less columns under 20 mm apart, which
-   *  `deriveColumnKeyAt`'s 10 mm bucket makes a hand-built map only. */
+  /** `splitOversizedEmptyColumns` declines whole when a piece would land on a key the map already holds, which
+   *  leaves the oversized column standing for `projectEmptyColumns` to write into a document
+   *  `validateDesignForCatalog` refuses. Constructed, not reached: it needs two member-less columns under 20 mm
+   *  apart, which `deriveColumnKeyAt`'s 10 mm bucket makes a hand-built map only. */
   it("leaves an oversized column standing when a piece would collide, rather than half-splitting", () => {
     const wide = frozenColumn("A|0.90", 900, 1400);
     const blocker = frozenColumn("A|1.30", 1300, 4);
@@ -290,9 +253,7 @@ describe("the map-level normaliser's decline paths", () => {
     expect(split.get("A|0.90")?.w).toBeCloseTo(1.4, 9);
   });
 
-  /** The consequence of that decline, stated so nobody reads the branch as harmless: the map it
-   *  returns projects to a document the write seam refuses. It is the shape a fourth producer would
-   *  take, and the reason the store-level property in
+  /** The consequence of that decline: the map it returns projects to a document the write seam refuses, which is why
    *  `apps/web/tests/store/qa-5g.adversarial.test.ts` asserts validity rather than width. */
   it("projects a declined column into a document the validator refuses", () => {
     const wide = frozenColumn("A|0.90", 900, 1400);
@@ -335,18 +296,11 @@ function frozenColumn(key: string, centreMm: number, widthMm: number): Column {
 }
 
 describe("the premise the version 1 normalisation rests on", () => {
-  /** **What a pre-5G build could have stored, catalogued.**
-   *
-   *  Before this wave `resolveColumns` was derive, merge, re-answer — no split — so the entry the
-   *  build that wrote the rows in the application database would have written for a freed span is
-   *  the span itself, as one column. That span survives this wave as the *contiguous run of
-   *  member-less columns* the split leaves behind, so it is measured here rather than reasoned about.
-   *
-   *  Two things are asserted over every such run. Its width is **even**, which is what makes
-   *  `migrateFromV1`'s split land on whole millimetres and the odd-width refusal above unreachable
-   *  from the product; and an entry of that width really is carried by the migration rather than
-   *  refused. The run also asserts its own reach: a generator that never freed a span over the
-   *  ceiling would prove nothing, so the states that did are counted. */
+  /** What a pre-5G build could have stored, catalogued: it wrote a freed span as one column, which now survives as
+   *  the contiguous run of member-less columns the split leaves behind, so it is measured here. Asserted over every
+   *  such run: its width is even (so `migrateFromV1`'s split lands on whole millimetres and the odd-width refusal
+   *  above is unreachable from the product) and an entry of that width is carried, not refused. A generator that
+   *  never freed a span over the ceiling would prove nothing, so those states are counted. */
   it("frees no odd-width span, and every oversized one is carried by migrateFromV1", () => {
     let oversizedSpans = 0;
     let spansSeen = 0;
@@ -458,9 +412,8 @@ function removeFirst(world: World, ids: readonly string[]): World {
   return world;
 }
 
-/** The pantry, resized by one step. **A refusal is a legal step** — a pantry already at its floor
- *  refuses from ordinary input, and a generator that threw on one would only ever explore its first
- *  few states. */
+/** The pantry, resized by one step. A refusal is a legal step: a pantry at its floor refuses from ordinary input,
+ *  and a generator that threw on one would explore only its first few states. */
 function resizePantry(world: World, deltaMm: number): World {
   const pantry = world.records.find((record) => record.id === "p6");
   if (!pantry) return world;

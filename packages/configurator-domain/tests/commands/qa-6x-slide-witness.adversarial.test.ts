@@ -1,36 +1,8 @@
-// Adversarial QA on wave 6X — **what the witness rests on, asserted rather than assumed.**
-//
-// Wave 6X exists because a rule the tree cannot distinguish from its own absence is unshipped
-// ([ADR 0093](../../../../docs/decisions/0093-a-rule-the-shipped-kitchen-cannot-exercise-owes-a-witness-not-a-moved-fixture.md)
-// decision 1). Its witness is `6x-slide-witness.test.ts`, and every one of its criteria stands on
-// four unasserted preconditions. This file asserts them, and adds the two sweeps the wave's
-// example-shaped criteria leave open.
-//
-// - **Item 3's design must be one the product would accept**, or the wave's non-vacuity case is a
-//   hand-built object no route could produce and ADR 0093's conditional owner input arises. Parsed
-//   through `CurrentDesignSchema` and validated against the catalogue here.
-// - **The modelled planning map is production's only while no placement carries a seat.**
-//   `planningDesign` strips the seats of every body that follows the setting (ADR 0077 decision 8);
-//   a model that rebuilds records from the stored placements does not. `plannedMapOf` in
-//   `qa-6k-i-planning-map.adversarial.test.ts` throws when handed a seat for exactly this reason,
-//   and 6X's own model carries no such guard — so the precondition is measured here instead.
-// - **Item 4's histogram fixes a multiset of reasons and not an assignment.** Three `not deletable`
-//   and three heightFlex rebuilds is the same histogram whichever three members carry which, so the
-//   assignment
-//   is pinned per id below — and with it the second reason three of those members carry, which is
-//   what makes the histogram's labels a property of the predicate's arm order as well as of wall B.
-// - **The 820 / 860 gap is the premise of the whole record** (ADR 0093's measured section), and it
-//   is measured here through the command rather than beside it: a depth change rewrites four wall-A
-//   base rows from 820 to 860 and no wall-B body at all, in both directions.
-//
-// And two sweeps, both of which go red where the wave's examples would stay green:
-//
-// - **the consequence in the other direction** — 700 → 600 as well as 600 → 700, on the same
-//   declared design. Item 3 asserts one direction, and ADR 0090 decision 2's ladder is claimed
-//   *"in both directions"*;
-// - **the reachability boundary over every wall-B void of every single-delete trail**, not the one
-//   void item 5 measures. ADR 0093's claim is that *no* shipped command writes a seeded-style
-//   820 mm row onto wall B, and one insert into one void does not measure that.
+// What `6x-slide-witness.test.ts` rests on, asserted: its declared design is one the product accepts; the modelled
+// planning map is production's only while no placement carries a seat (`planningDesign` strips the seats of bodies
+// that follow the setting, ADR 0077 decision 8); the per-member assignment behind its histogram; and the 820 / 860
+// gap, measured through the command. Two sweeps go red where its examples stay green: both directions of the depth
+// change, and every wall-B void of every single-delete trail.
 import { describe, expect, it } from "vitest";
 
 import { alongWallShiftByColumnMm } from "../../src/along-wall-chain-shift.js";
@@ -76,15 +48,12 @@ const SHALLOW_MM = 600;
 const DEEP_MM = 700;
 const DECLARED_MM = [SHALLOW_MM, DEEP_MM] as const;
 
-/** §7's base rows reach the worktop line; a seeded base row records the carcass without it. The gap
- *  between the two is what ADR 0090 decision 6 protects, and what wall B does not have. */
+/** §7's base rows reach the worktop line; a seeded base row records the carcass without it. */
 const WORKTOP_LINE_MM = 860;
 const SEEDED_BASE_CARCASS_MM = 820;
 
-/** Wave 6X's declared wall-B column, reproduced here rather than imported: a witness whose
- *  preconditions are asserted against a copy of the design proves nothing about the design the
- *  witness runs on, so the two must be the same literal shape and are checked against each other
- *  in the first test below. */
+/** The witness's declared wall-B column, reproduced rather than imported: preconditions asserted against a copy
+ *  prove nothing about the design the witness runs on. */
 const DECLARED_WALL_B_COLUMN: readonly DesignPlacement[] = [
   {
     id: "d1",
@@ -130,8 +99,7 @@ function withADeclaredWallBColumn(cabinetDepthMm: number): Design {
   };
 }
 
-/** The frozen map the product would project for this design, over the columns as they stood before
- *  the deletes — the construction wave 6X uses, so the document is the product's own. */
+/** The frozen map the product would project, over the columns as they stood before the deletes. */
 function afterDeleting(
   design: Design,
   placementIds: readonly string[],
@@ -173,8 +141,7 @@ function changeTo(design: Design, cabinetDepthMm: number) {
   });
 }
 
-/** The pre-command design with only the along-wall coordinates the command moved its bodies to, read
- *  off the command's own output — ADR 0088 decision 2's one author for the ladder. */
+/** The pre-command design with only the along-wall coordinates the command moved bodies to (ADR 0090 decision 2). */
 function slidAsTheCommandDid(design: Design, cabinetDepthMm: number): Design {
   const result = changeTo(design, cabinetDepthMm);
   if (!result.ok) throw new Error(`refused: ${result.reason.code}`);
@@ -186,8 +153,8 @@ function slidAsTheCommandDid(design: Design, cabinetDepthMm: number): Design {
     placements: design.placements.map((placement) => {
       const arrived = arrivedAt.get(placement.id);
       if (!arrived) throw new Error(`${placement.id} left the design`);
-      // **Only the coordinate.** Taking the arrived placement whole would carry the rebuilt body and
-      // its new seat into an operand that is pre-command by requirement.
+      // Only the coordinate: taking the arrived placement whole would carry the rebuilt body and its new seat into an
+      // operand that is pre-command by requirement.
       return arrived.alongMm === placement.alongMm
         ? placement
         : { ...placement, alongMm: arrived.alongMm };
@@ -280,10 +247,6 @@ function wallBRecordsAt(
   ).filter((record) => record.wall === "B");
 }
 
-// ---------------------------------------------------------------------------------------------
-// The witness's own preconditions.
-// ---------------------------------------------------------------------------------------------
-
 describe("the design wave 6X declares is a design the product accepts", () => {
   it.each(DECLARED_MM)(
     "parses under the current write contract and reports no fatal validation issue at %i mm",
@@ -305,21 +268,14 @@ describe("the design wave 6X declares is a design the product accepts", () => {
         ).toStrictEqual([]);
       }
 
-      // Not only fatal: a warning-severity issue on the wave's own fixture is still a document the
-      // product would complain about. The design that carries no frozen map is ordinary at both
-      // depths, and the one that carries a map is ordinary at the depth it was declared at.
+      // Not only fatal: a warning-severity issue on the fixture is still a document the product would complain about.
       expect(codesOn(withADeclaredWallBColumn(cabinetDepthMm))).toStrictEqual(
         [],
       );
 
-      // **At 700 it is not ordinary, and that is this witness's own point restated by a second
-      // reader.** `seededAt` swaps `settings.cabinetDepthMm` and moves no placement, so wall B's run
-      // stands where the 600 mm kitchen put it while the catalogue is built at 700: the corner leg's
-      // carcass goes 560 → 660 against a base return still starting at 580, and the wall band's goes
-      // 291 → 361 against a wall return still starting at 330. **80 mm and 31 mm** — the two
-      // overlaps backlog 50 was opened for, to the millimetre (ADR 0089 decision 3). Since
-      // 2026-09-09 the gate says so, as a `mark`; the document still loads, which is what the fatal
-      // assertion above proves and what the owner ruled the severity for.
+      // At 700 the declared design is not ordinary: `seededAt` moves no placement, so wall B's run stands where the
+      // 600 mm kitchen put it while the catalogue is built at 700. The gate reports the overlap as a `mark`; the
+      // document still loads, which the fatal assertion above proves.
       expect(
         new Set(codesOn(theDeclaredDesignAt(cabinetDepthMm))),
       ).toStrictEqual(
@@ -337,8 +293,7 @@ describe("the design wave 6X declares is a design the product accepts", () => {
     const dishwasher = seeded.get("p1");
     const top = seeded.get("p15");
 
-    // The declared column is wall A's `A|2.00` shape transposed, and that is what makes it a design
-    // the catalogue and the schema already accept rather than a shape invented for the test.
+    // The declared column is wall A's `A|2.00` shape transposed, a design the catalogue and schema already accept.
     expect(DECLARED_WALL_B_COLUMN[0]?.body).toStrictEqual(dishwasher?.body);
     expect(DECLARED_WALL_B_COLUMN[1]?.body).toStrictEqual(top?.body);
   });
@@ -357,14 +312,13 @@ describe("the design wave 6X declares is a design the product accepts", () => {
         .filter((placement) => placement.wall === "B")
         .map((placement) => placement.alongMm)
         .sort((left, right) => left - right),
-    ).toStrictEqual([615, 615, 740, 1200, 1200, 1800, 1800, 2450, 2450]);
+    ).toStrictEqual([615, 615, 735, 1200, 1200, 1800, 1800, 2450, 2450]);
   });
 });
 
 describe("the precondition the modelled planning map is production's under", () => {
-  // `planningDesign` clears the seat of every body that follows the setting before deriving its
-  // records; a model that reads the stored placements does not. The two agree only while no
-  // placement carries a seat, and 6X's model — unlike `plannedMapOf` — does not check.
+  // `planningDesign` clears the seat of every body that follows the setting before deriving its records; a model that
+  // reads stored placements agrees only while no placement carries a seat.
   it.each(DECLARED_MM)(
     "has no placement carrying a stored seat, on either design, at %i mm",
     (cabinetDepthMm) => {
@@ -378,12 +332,8 @@ describe("the precondition the modelled planning map is production's under", () 
   );
 });
 
-// ---------------------------------------------------------------------------------------------
-// The fixture limitation, pinned as an assignment rather than as a histogram.
-// ---------------------------------------------------------------------------------------------
-
-/** Why this member cannot be the survivor the consequence needs — wave 6X's own predicate, so the
- *  assignment below is pinned against the same reasons its histogram counts. */
+/** Why this member cannot be the survivor the consequence needs; the assignment below is pinned against the same
+ *  reasons the witness's histogram counts. */
 function whyItCannotWitness(
   record: PlacementRecord,
   cabinetDepthMm: number,
@@ -399,9 +349,8 @@ function whyItCannotWitness(
     record,
   );
   if (!body) return "no catalogue equivalent";
-  // ADR 0101: a `heightFlex` body builds to the opening §5.2 hands it, so it can never require more
-  // height than its column offers and can never produce the refusal. The three deep tops reached
-  // this arm the day their pin was withdrawn, and their `wall-cabinet` equivalent is `heightFlex`.
+  // ADR 0101: a `heightFlex` body builds to the opening §5.2 hands it, so it never requires more height than its
+  // column offers and never produces the refusal.
   if (body.heightFlex) return "builds to the opening it is given";
   return body.nominalHeightMm === record.heightMm
     ? "rebuilds to the height it records"
@@ -409,10 +358,7 @@ function whyItCannotWitness(
 }
 
 describe("wall B's limitation, by member and not by count", () => {
-  // A histogram of 3 / 1 / 3 / 2 is satisfied by any assignment with those totals: swap which three
-  // members are structural and which three build to their opening, and the count is unchanged. The
-  // assignment is
-  // the fact, so the assignment is what is asserted.
+  // A histogram of reasons is satisfied by any assignment with the same totals; the assignment is the fact.
   it.each(DECLARED_MM)(
     "gives each of the nine wall-B members its own reason at %i mm",
     (cabinetDepthMm) => {
@@ -427,8 +373,7 @@ describe("wall B's limitation, by member and not by count", () => {
         p9: "not deletable",
         p21: "not deletable",
         p7: "manufactured-size",
-        // "pinned" until ADR 0101 withdrew ADR 0058's pin. Their exclusion is now the structural
-        // one: `wall-cabinet` is `heightFlex`, so §5.2 builds it to the opening it is handed.
+        // `wall-cabinet` is `heightFlex`, so §5.2 builds it to the opening it is handed.
         p22: "builds to the opening it is given",
         p23: "builds to the opening it is given",
         p24: "builds to the opening it is given",
@@ -438,10 +383,8 @@ describe("wall B's limitation, by member and not by count", () => {
     },
   );
 
-  // **Every reason that applies, not the first one an `if` ladder reaches.** Three members carry two
-  // reasons apiece, so the wave's 3 / 1 / 3 / 2 histogram is a property of its arm ordering as much
-  // as of the fixture: label the corner returns by the reason that actually excludes them — they have
-  // no §7 row to be rebuilt through — and the same nine members give 0 / 1 / 3 / 2 / 3.
+  // Every reason that applies, not the first an `if` ladder reaches: the corner returns have no §7 row to be rebuilt
+  // through, so the histogram is a property of arm ordering as well as of the fixture.
   it.each(DECLARED_MM)(
     "carries two exclusions on each corner return and one on every other wall-B member, at %i mm",
     (cabinetDepthMm) => {
@@ -486,9 +429,8 @@ describe("wall B's limitation, by member and not by count", () => {
     },
   );
 
-  // ADR 0093's premise, measured through the command rather than through a predicate beside it: the
-  // 820 / 860 gap is what a depth change rewrites, it is carried by **four** wall-A base rows rather
-  // than by the dishwasher niche alone, and no wall-B body's height moves in either direction.
+  // ADR 0093's premise, measured through the command: a depth change rewrites the 820 / 860 gap on four wall-A
+  // base rows and moves no wall-B body's height, in either direction.
   it.each([
     [SHALLOW_MM, DEEP_MM],
     [DEEP_MM, SHALLOW_MM],
@@ -527,13 +469,9 @@ describe("wall B's limitation, by member and not by count", () => {
   });
 });
 
-// ---------------------------------------------------------------------------------------------
-// The consequence, in the direction wave 6X does not assert.
-// ---------------------------------------------------------------------------------------------
-
 describe("the consequence runs in both directions", () => {
-  // ADR 0090 decision 2's ladder is claimed in both directions, and a slide that is right going out
-  // and wrong coming back leaves the customer's kitchen at the coordinates of a setting it left.
+  // A slide right going out and wrong coming back leaves the kitchen at the coordinates of a setting it left
+  // (ADR 0090 decision 2).
   it.each([
     [SHALLOW_MM, DEEP_MM],
     [DEEP_MM, SHALLOW_MM],
@@ -585,16 +523,12 @@ describe("the consequence runs in both directions", () => {
         (placement) => placement.id === THE_SURVIVING_BASE,
       );
       expect(rebuilt?.body.heightMm).toBe(WORKTOP_LINE_MM);
-      // The along-wall coordinate the whole divergence is about, asserted beside the height so a
-      // rebuild that fitted at the wrong coordinate is not read as agreement.
+      // The along-wall coordinate the divergence is about, asserted beside the height so a rebuild that fitted at the
+      // wrong coordinate is not read as agreement.
       expect(rebuilt?.alongMm).toBe(toMm === DEEP_MM ? 1300 : 1100);
     },
   );
 });
-
-// ---------------------------------------------------------------------------------------------
-// The reachability boundary, swept rather than sampled.
-// ---------------------------------------------------------------------------------------------
 
 interface InsertedRow {
   readonly trail: string;
@@ -662,10 +596,8 @@ function everyWallBInsertOf(
 }
 
 describe("no shipped insert writes a seeded-style row onto wall B", () => {
-  // Item 5 measures one void of one trail. ADR 0093's claim is about every route, so every wall-B
-  // void of every single delete is swept: an insert that recorded the carcass instead of the worktop
-  // line would make item 3's design reachable, and the wave says so is a better finding than its own
-  // criterion.
+  // An insert recording the carcass instead of the worktop line would make the declared design reachable (ADR 0093
+  // decision 3b), so every wall-B void of every single delete is swept rather than one void.
   it.each(DECLARED_MM)(
     "records the height §7 offered, never the seeded carcass, over every wall-B void of every single delete at %i mm",
     (cabinetDepthMm) => {
@@ -684,11 +616,7 @@ describe("no shipped insert writes a seeded-style row onto wall B", () => {
         ),
       ];
 
-      // **The measured population, not a floor under it.** A `toBeGreaterThan(20)` here would
-      // stay green after losing 35 of the 56 rows this sweep actually visits, which is the
-      // weakness this wave exists to remove — the same standard `6x-slide-witness.test.ts:710`
-      // already applies to its own count. 56 at both settings: the seeded wall B offers 8 voids,
-      // and each of the six deletable rows opens one more.
+      // The measured population, not a floor: `toBeGreaterThan(20)` would stay green after losing most of these rows.
       expect(rows.length).toBe(56);
       expect(
         rows.filter((row) => row.heightMm !== row.offeredHeightMm),

@@ -292,6 +292,8 @@ for (const { locale, direction } of L_JOURNEYS) {
 
     await test.step("the editor's room back link, tapped, lands on 1D with every field refilled (criterion 10)", async () => {
       await page.getByTestId("top-bar-back").tap();
+      // M7C C1 S3: the link asks first, and *Înapoi la cameră* is the navigation.
+      await page.getByTestId("back-confirm-confirm").tap();
       await expect(page).toHaveURL(typedLRoomUrl(locale, direction));
       await expect(roomScreen(page)).toHaveAttribute(
         "data-room-substate",

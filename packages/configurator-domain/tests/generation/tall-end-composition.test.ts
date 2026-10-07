@@ -1,10 +1,6 @@
-// M7 wave 7D3 slice S2 — what the block must never disturb: the surviving core, the wall cut, the
-// leftover rule's arithmetic, and the one-attempt-per-planned-body guarantee (ADR 0110 Amendment E5).
-//
-// **The oracle for "what 7D2 produced" is the rule refused, not a recorded fixture.** Planning the
-// same room with a declared column height no approved room can reach makes E3's fourth clause false
-// everywhere, so the planner composes exactly what it composed before this wave — and the comparison
-// stays true when a width changes rather than going stale.
+// What the block must never disturb: the surviving core, the wall cut, the leftover rule's arithmetic and one attempt
+// per planned body (ADR 0110 Amendment E5). The oracle for "what 7D2 produced" is the rule refused: a declared column
+// height no approved room reaches makes E3's fourth clause false everywhere, so the planner composes as before.
 import { fc } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
@@ -38,15 +34,14 @@ const HOB_WITH_DRAWERS = "base-hob-2drawer";
 const HOB_WITH_OVEN = "base-hob-oven";
 const MAX_BLOCK_COLUMNS = 3;
 
-// M7B U1 slice S1's minimal type-level fix: `DesignWall` widened to include `"C"` (ADR 0132), but
-// this suite reads `lShellFloorRuns`' own two-wall composer. Wall C's own suite is U3's.
+// `DesignWall` also has "C"; this suite reads `lShellFloorRuns`' two-wall composer.
 type TwoWallDispatch = Extract<DesignWall, "A" | "B">;
 
 const CATALOG = buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN));
 const DECLARED_COLUMNS = declaredColumnSizes(CATALOG);
 
-/** The same catalogue with a column too tall for any room the engine admits, so E3 clause 4 is false
- *  everywhere and the planner is 7D2's. */
+/** The catalogue with a column too tall for any admitted room, so E3 clause 4 is false everywhere and the planner
+ *  is 7D2's. */
 const NO_ROOM_IS_TALL_ENOUGH = {
   ...DECLARED_COLUMNS,
   columnHeightMm: Number.MAX_SAFE_INTEGER,
@@ -85,10 +80,9 @@ function planFor(
   });
 }
 
-/** The full-height bodies composition stood that the reading order did not — read off the
- *  catalogue's own `column` band rather than a list of build ids this file would keep in step by
- *  hand (ADR 0102), so a fourth body reaching the free end is caught rather than ignored.
- *  `fridge-free` is declared in the same band and is Amendment A1's, so its role excludes it. */
+/** The full-height bodies composition stood that the reading order did not, read off the catalogue's `column` band
+ *  rather than a build-id list (ADR 0102), so a fourth body reaching the free end is caught. `fridge-free` shares the
+ *  band and is excluded by its role. */
 function blockOf(plan: KitchenCompositionPlan) {
   return plan.bases.filter(
     (base) =>
@@ -96,9 +90,8 @@ function blockOf(plan: KitchenCompositionPlan) {
   );
 }
 
-/** 7D5b S1 / ADR 0110 M1/M2/M9: where (e) swapped the drawer cabinets, the preparation role is read
- *  where the preparation cabinet stood — the dishwasher's module — because M9 moves the role onto the
- *  pan drawer by identity alone. So the shape compared is the core as composed, before that swap. */
+/** Where (e) swapped the drawer cabinets, the preparation role is read where the preparation cabinet stood, because
+ *  M9 moves the role onto the pan drawer by identity alone: this is the core as composed before the swap. */
 function coreShapeOf(plan: KitchenCompositionPlan, room: DesignRoom) {
   const dishwasher = plan.bases.find(
     (base) => base.buildId === DISHWASHER_BUILD_ID,
@@ -122,8 +115,7 @@ function coreShapeOf(plan: KitchenCompositionPlan, room: DesignRoom) {
     });
 }
 
-/** 7D5b S2 / ADR 0110 M7/M10: whether a core module stands beyond the traded dishwasher on its wall —
- *  one of the bodies the trade shifted one module along the sink's wall. */
+/** Whether a core module stands beyond the traded dishwasher on its wall, among the bodies the trade shifted. */
 function isBeyond(
   core: { readonly wall: TwoWallDispatch; readonly startMm: number },
   traded: PlannedBase,
@@ -131,17 +123,12 @@ function isBeyond(
   return core.wall === traded.wall && core.startMm >= traded.endMm;
 }
 
-/** The dishwasher's planned width as a literal (ADR 0121 decision 3(b)), and so the one distance a
- *  trade may shift the sink's wall. */
+/** The dishwasher's planned width as a literal (ADR 0121 decision 4), the one distance a trade may shift the wall. */
 const DISHWASHER_WIDTH_MM = 600;
 
-/**
- * 7D5b S2 / ADR 0110 M7/M10: the dishwasher S2 traded in, told from S1's by where it stands. A traded
- * dishwasher is a run item read directly after the sink, so on the free-end wall it starts where the sink
- * ends; S1's M1 conversions never stand on the free-end wall, and (e)'s is marked by the pan drawer
- * carrying the preparation role. Measured over the approved L at 10 mm and 2600 mm against the tree with
- * S2 switched off: this signature finds exactly the 18 200 (b), 2 600 (d) and 10 400 (c) rooms.
- */
+/** The traded dishwasher, told from S1's by where it stands: a run item read directly after the sink, so on the
+ *  free-end wall it starts where the sink ends. M1 conversions never stand there; (e)'s is marked by the pan drawer
+ *  carrying the preparation role. */
 function tradedDishwasherOf(
   plan: KitchenCompositionPlan,
   room: DesignRoom,
@@ -164,8 +151,8 @@ function isDrawerSwapped(plan: KitchenCompositionPlan): boolean {
   );
 }
 
-/** 7D5b S2: 12 % of the rule-planned approved L at 50 mm carries a traded dishwasher; 300 draws delivered
- *  31-39 over 8 unseeded runs, floored well below. */
+/** 12 % of the rule-planned approved L at 50 mm carries a traded dishwasher; 300 draws delivered 31-39 over 8
+ *  unseeded runs, floored well below. */
 const TRADED_SHIFT_ARM_FLOOR = 10;
 
 /** The pan drawer's own width (7D5 S2), and so the only distance the block may move the hob. */
@@ -185,14 +172,9 @@ function shiftedBy<
   };
 }
 
-/**
- * The wall the run ends on, and the wall the block therefore stands at the free end of: the **wider
- * entered wall**, and wall A where the two are equal (ADR 0120 Amendment E; ADR 0110 Amendment I,
- * which overturns Amendment E's *"wall A and nowhere else"*).
- *
- * **Derived in `entered-walls.ts` from the room's two entered numbers rather than read back off the
- * plan**, so a block that moved to the other wall fails these assertions instead of redefining them.
- */
+/** The wall the run ends on and the block stands at the free end of: the wider entered wall, wall A where equal (ADR
+ *  0110 Amendment I). Derived in `entered-walls.ts` from the entered numbers, not read back off the plan, so a block
+ *  on the other wall fails these assertions instead of redefining them. */
 function freeEndWallOf(room: DesignRoom): TwoWallDispatch {
   return widerEnteredWall(room);
 }
@@ -223,28 +205,20 @@ function freeEndBeside(
   return planLeftover(run.endMm - run.startMm - standingWidthMm);
 }
 
-/** 7D5 S3 / Q-H5 (owner ruling 2026-09-21): the threshold drawer is a module of the run, read after the
- *  hob, and never a leftover module the block may take — the owner sanctions it costing one column. */
+/** The threshold drawer is a module of the run, read after the hob, never a leftover module the block may take; it
+ *  may cost one column (see ADR 0110 L1). */
 const THRESHOLD_DRAWER_ID = "threshold-drawer";
 const PAN_DRAWER_ID = "pan-drawer";
 const THRESHOLD_DRAWER_MOST_COLUMNS = 1;
-/** 7D5 S3: measured at 80-96 of 4000 unseeded draws over 8 runs; set well below so a seed cannot trip
- *  it, while a composer that stopped standing the drawer still fails.
- *
- *  7D5b S1 / ADR 0110 M1/M2/M9: the population shrank, not the instrument's need. With the dishwasher
- *  decided first and out of *D*, the threshold drawer costs a column against S1 in 2 590 rooms of the
- *  approved L at 10 mm and 2600 mm, where it cost one in 9 600 (27 %; the census in
- *  `pan-drawer-before-the-hob.test.ts`), and 4000 draws now reached 15-34 over 20 unseeded runs. The
- *  sample is raised to `THRESHOLD_ARM_DRAWS`, which reached 82-120 over 20 unseeded runs, and the floor
- *  is left where it was rather than cut to fit a thinner sample (ADR 0091 Amendment A). */
+/** Measured 82-120 of `THRESHOLD_ARM_DRAWS` over 20 unseeded runs, floored well below so a seed cannot trip it; the
+ *  sample is raised rather than the floor cut to fit a thinner one (ADR 0091 Amendment A). */
 const THRESHOLD_ARM_FLOOR = 30;
 const THRESHOLD_ARM_DRAWS = 16_000;
 
-/** 7D5b S2 / ADR 0110 M7/M10: against the free end with its module handed back, a traded dishwasher
- *  costs one column in every one of its 31 200 rooms (approved L, 10 mm, 2600 mm). */
+/** Against the free end with its module handed back, a traded dishwasher costs one column wherever it stands. */
 const COLUMNS_A_TRADED_DISHWASHER_COSTS = 1;
-/** 12.7 % of placed rooms carry a traded dishwasher, 4.2 % a (c) one. Measured over 8 unseeded runs of
- *  16 000 draws: 2 022-2 079 and 652-704; floored far below both. */
+/** 12.7 % of placed rooms carry a traded dishwasher, 4.2 % a (c) one (2 022-2 079 and 652-704 over 8 unseeded runs
+ *  of 16 000 draws); floored far below both. */
 const TRADED_DISHWASHER_ARM_FLOOR = 300;
 const TOWER_TRADED_ARM_FLOOR = 200;
 
@@ -254,10 +228,9 @@ function thresholdDrawerWidthOf(plan: KitchenCompositionPlan): number {
     .reduce((sum, base) => sum + base.widthMm, 0);
 }
 
-/** The free end E3 reads: what the run leaves beside every module it stood, the pan drawer and the
- *  threshold drawer included. 7D5 S3 / Q-H5: `freeEndOf` counts the pan drawer's module as leftover,
- *  which was the same answer while the pan drawer never cost a column (J1); beside a threshold drawer
- *  that cost one, it is not, so both drawers are read here as the run modules they are. */
+/** The free end E3 reads: what the run leaves beside every module it stood, the pan drawer and threshold drawer
+ *  included. `freeEndOf` counts the pan drawer's module as leftover, which is wrong beside a threshold drawer that
+ *  cost a column. */
 function freeEndBesideTheThresholdDrawerOf(
   plan: KitchenCompositionPlan,
   room: DesignRoom,
@@ -272,8 +245,7 @@ function freeEndBesideTheThresholdDrawerOf(
   });
 }
 
-/** 7D5 S3 / Q-H5: the free end the threshold drawer's module is handed back to — the block the
- *  kitchen would have had without it. */
+/** The free end the threshold drawer's module is handed back to: the block the kitchen would have had without it. */
 function freeEndWithoutTheThresholdDrawerOf(
   plan: KitchenCompositionPlan,
   room: DesignRoom,
@@ -286,8 +258,8 @@ function freeEndWithoutTheThresholdDrawerOf(
   });
 }
 
-/** 7D5b S2 / ADR 0110 M7/M10: the free end with the traded dishwasher's module handed back — the block
- *  the kitchen would have had without the trade, the threshold drawer still standing. */
+/** The free end with the traded dishwasher's module handed back: the block the kitchen would have had without the
+ *  trade, the threshold drawer still standing. */
 function freeEndWithoutTheTradedDishwasherOf(
   plan: KitchenCompositionPlan,
   room: DesignRoom,
@@ -304,10 +276,9 @@ function isRunModuleBesideTheThresholdDrawer(base: PlannedBase): boolean {
   return isCoreOrBottle(base) || base.id === PAN_DRAWER_ID;
 }
 
-/** E3's four clauses and E6.2's one refusal, restated from the ADR's own inputs — the declared
- *  column sizes and ADR 0052's ceiling on an empty column — rather than from the rule's code.
- *  `leftover` is the free end the block is decided on: 7D5 S3 / Q-H5 reads it beside the threshold
- *  drawer, and `freeEndWithoutTheThresholdDrawerOf` gives the block it would have had. */
+/** E3's four clauses and E6.2's one refusal, restated from the ADR's inputs (declared column sizes and ADR 0052's
+ *  ceiling on an empty column) rather than from the rule's code. `leftover` is the free end the block is decided on:
+ *  read beside the threshold drawer, with `freeEndWithoutTheThresholdDrawerOf` giving the block it would have had. */
 function expectedBlockSize(
   plan: KitchenCompositionPlan,
   room: DesignRoom,
@@ -332,27 +303,14 @@ function expectedBlockSize(
 
 describe("the threshold and the block's size (criterion 6)", () => {
   it("stands a block exactly when the four clauses hold, at the largest size that fits", () => {
-    // **E3 clause 2 — the hob standing anywhere but the free-end wall — is no longer sampled here,
-    // and the clause is not weakened: it moved.** The run now follows the wider entered wall and the
-    // hob is the run's last core role, so the hob stands on the free-end wall in every room the
-    // approved policy admits (M7 wave 7D8 criterion 1, 0 exceptions on both arms). The clause is
-    // asserted at the rule's own unit boundary instead, against a declared input rather than a room:
-    // `tall-end-rule.test.ts`, `hobStandsOnTheFreeEndWall: false` — ADR 0091 Amendment A, coverage
-    // moved rather than dropped. The `qualifies` expression above still reads it, so a composer that
-    // stopped honouring it fails on the size rather than on an arm count.
+    // E3 clause 2 (the hob off the free-end wall) is no longer sampled: the run follows the wider wall, so the hob
+    // always stands there. The clause is asserted at the rule's unit boundary in `tall-end-rule.test.ts` (ADR 0091
+    // Amendment A); the `qualifies` expression still reads it.
     //
-    // 7D5 S3 / Q-H5 (owner ruling 2026-09-21): restated for the threshold drawer. The block is E3 on the
-    // free end the run leaves beside that drawer, and against the block the drawer's module would
-    // have given it, the drawer costs at most the one column the owner sanctions.
-    //
-    // 7D5b S2 / ADR 0110 M7/M10: restated for the traded dishwasher, which is a run module read after
-    // the sink and never a leftover module (4202 x 1000: E3's four clauses hold on the run without it,
-    // and it stands 0 columns because (c) traded the lone tower). The four clauses are read on the free
-    // end beside it; against the block its module would have given back, it costs exactly one column
-    // wherever it stands — the pantry column (b), the lone tower (c), or, in (d), the column the 300 mm
-    // the bottle gave up could not pay for — and never one where no traded dishwasher stands. Where the
-    // column it cost was the block's last, the hob carries the oven (M12). Measured exact against the
-    // approved L at 10 mm and 2600 mm: 31 200 traded rooms, every one costing one column.
+    // Restated for the threshold drawer (at most one column, ADR 0110 L1) and the traded dishwasher, a run module
+    // read after the sink and never a leftover module: against the block its module would give back it costs exactly
+    // one column wherever it stands, and none where no traded dishwasher stands. Where that column was the block's
+    // last, the hob carries the oven (M12).
     const arms = {
       none: 0,
       dropped: 0,
@@ -422,16 +380,15 @@ describe("the threshold and the block's size (criterion 6)", () => {
     for (const [arm, count] of Object.entries(sampledArms)) {
       expect(count, `the ${arm} arm never fired`).toBeGreaterThanOrEqual(100);
     }
-    // Reported rather than floored, and asserted as the must-not it now is: a sample that found the
-    // hob off the free-end wall would mean criterion 1 had stopped holding and the re-sited clause
-    // above had become reachable from a room again.
+    // Asserted as a must-not: a sample finding the hob off the free-end wall means the re-sited clause above became
+    // reachable from a room again.
     expect(hobOffTheFreeEndWall).toBe(0);
-    // 7D5 S3 / Q-H5: the sanctioned cost must be sampled, or the restatement above is idle.
+    // The sanctioned cost must be sampled, or the restatement above is idle.
     expect(
       thresholdDrawerCostAColumn,
       "no sample saw the threshold drawer cost a column",
     ).toBeGreaterThanOrEqual(THRESHOLD_ARM_FLOOR);
-    // 7D5b S2 / ADR 0110 M7/M10: both arms of the trade's restatement, or it is idle.
+    // Both arms of the trade's restatement, or it is idle.
     expect(
       tradedDishwasher.costAColumn,
       "no sample stood a traded dishwasher",
@@ -464,15 +421,8 @@ describe("the hob follows the block, and only the block (criteria 3, 5)", () => 
       { numRuns: 900 },
     );
 
-    // An *if and only if* needs both sides sampled: a run that never stood a tower would agree with
-    // a planner that never substitutes, and one that always did would agree with a planner that
-    // always substitutes.
-    //
-    // **The sample was raised from 300 and neither floor was lowered.** M7 wave 7D8 lets the block
-    // follow the run onto wall B, so a tower stands in 34 275 more rooms than it did (criterion 10)
-    // and the no-tower arm thinned to 77 of 300 draws. The arm did not empty; the instrument stopped
-    // reaching its hundred, and a floor cut to fit a shrunken sample is the failure ADR 0091
-    // Amendment A forbids.
+    // An if-and-only-if needs both sides sampled. The sample was raised from 300 rather than a floor cut: the
+    // no-tower arm thinned once the block followed the run onto wall B (ADR 0091 Amendment A).
     expect(arms.withATower, "the tower arm never fired").toBeGreaterThanOrEqual(
       100,
     );
@@ -483,10 +433,8 @@ describe("the hob follows the block, and only the block (criteria 3, 5)", () => 
   });
 
   it("stands every column on the wider entered wall and none against a run's corner end", () => {
-    // **The letter moved and the rule did not.** ADR 0110 Amendment I overturns Amendment E's *"wall
-    // A … and nowhere else"*: the block follows the run, and the run follows the wider entered wall,
-    // so a column stands on wall B in 47 175 placed rooms (7D8 criterion 10). What never moved is
-    // that a column stands at the run's **free** end and never against its corner.
+    // A column stands at the run's free end and never against its corner; the block follows the run, which follows
+    // the wider entered wall (ADR 0110 Amendment I).
     const arms = { onWallA: 0, onWallB: 0 };
     fc.assert(
       fc.property(approvedRoom, (room) => {
@@ -505,15 +453,10 @@ describe("the hob follows the block, and only the block (criteria 3, 5)", () => 
       { numRuns: 900 },
     );
 
-    // The loop body is the whole assertion, so a sample that stood no block asserts nothing at all —
-    // and a rule stated as *the wider wall* needs both arms, or it agrees with the letter it replaced.
-    //
-    // **Each arm carries risk 14's hundred, and the sample was raised from 300 to reach it rather
-    // than the floor lowered to fit** — the same trade this file's tower arm made three tests above.
-    // The wall-B arm is the scarce one: measured over 60 unseeded draws of 900, it never fell below
-    // 338 columns and the wall-A arm never below 856, where 300 draws put wall B as low as 92. Two
-    // floors of a hundred also state the old combined floor of 150 and more, so it is gone rather
-    // than restated.
+    // The loop body is the whole assertion, so a sample that stood no block asserts nothing, and a rule stated as
+    // "the wider wall" needs both arms. Each arm carries a floor of 100; the sample was raised from 300 to reach it
+    // rather than the floor lowered. Wall B is the scarce arm: over 60 unseeded draws of 900 it never fell below 338
+    // columns and wall A never below 856.
     expect(arms.onWallA, "the wall-A arm never fired").toBeGreaterThanOrEqual(
       100,
     );
@@ -552,26 +495,11 @@ describe("the hob follows the block, and only the block (criteria 3, 5)", () => 
 });
 
 describe("what the block must not disturb (criteria 12, 13)", () => {
-  // Second restatement of 7D3 criterion 12 (the first was 7D5 S1, ADR 0110 Amendment J4). 7D5 S2 (owner
-  // ruling 2026-09-21, Q-H6a = A): with no block the 600 mm pan drawer before the hob takes the
-  // module the block would have stood in, and the block never gives a column up for it, so the hob
-  // may stand exactly one pan drawer later in the rule-refused plan. Every core role still keeps its
-  // wall — so the cut is unchanged — and `dropped` is unchanged; no other core position may move.
-  //
-  // Third restatement, 7D5b S1 / ADR 0110 M1/M2/M9. The property's counterexample is (e): where the
-  // rule-refused plan stands the pan drawer (the block is what refuses it) and has no door cabinet
-  // beside the sink, the drawer swap moves the preparation role one module along onto the pan drawer,
-  // while the plan with the block stands no pan drawer and so no swap — 900 x 4100 x 2200 first among
-  // 4 368 rooms of the approved L at 50 mm and ceilings 2200 / 2600 / 3900, every one of them this
-  // class and no other. The role's move is identity-only (M9), so `coreShapeOf` reads the preparation
-  // role at the module the preparation cabinet stood in, and every position is still asserted.
-  //
-  // Fourth restatement, 7D5b S2 / ADR 0110 M7/M10. Counterexample 4502 x 1000 x 2200: with the rule the
-  // dishwasher takes the lone tower by (c) and stands directly after the sink, so the preparation
-  // cabinet and the hob stand one 600 mm module further along wall A than in the rule-refused plan,
-  // which has no block to trade and so no dishwasher. That is the ruled shift, and it is allowed only
-  // beyond a traded dishwasher, on its wall: `coreShapeOf` hands those modules back by exactly its
-  // width, and every other position is still asserted.
+  // The rule-refused plan differs from the planned one only by: the pan drawer taking the module the block would have
+  // stood in, so the hob may stand one pan drawer later (ADR 0110 K1); the (e) swap moving the preparation role onto
+  // the pan drawer by identity alone (M9), which `coreShapeOf` reads at the preparation cabinet's module; and a
+  // traded dishwasher shifting the preparation cabinet and hob one 600 mm module along its wall (M7). Every other
+  // core position is asserted.
   it("leaves the surviving core, the dropped list and the wall cut where 7D2 put them, but for the pan drawer's shift of the hob", () => {
     let withABlock = 0;
     let panDrawerOnlyWithoutTheBlock = 0;
@@ -609,13 +537,12 @@ describe("what the block must not disturb (criteria 12, 13)", () => {
       panDrawerOnlyWithoutTheBlock,
       "the pan-drawer arm never fired",
     ).toBeGreaterThanOrEqual(50);
-    // 7D5b S1 / ADR 0110 M1/M2/M9: the counterexample's own arm, or the restated `coreShapeOf` is idle.
-    // Measured at 35-49 of 300 unseeded draws over 20 runs; floored well below that.
+    // The counterexample's own arm, or the restated `coreShapeOf` is idle; measured 35-49 of 300 draws, floored below.
     expect(
       drawerSwapOnOneSideOnly,
       "no sample swapped the drawer cabinets on one side only",
     ).toBeGreaterThanOrEqual(20);
-    // 7D5b S2 / ADR 0110 M7/M10: the ruled shift's own arm, or the restated `coreShapeOf` is idle.
+    // The ruled shift's own arm, or the restated `coreShapeOf` is idle.
     expect(
       shiftedByATradedDishwasher,
       "no sample stood a traded dishwasher",
@@ -664,14 +591,9 @@ describe("what the block must not disturb (criteria 12, 13)", () => {
       { numRuns: 1000 },
     );
 
-    // The clause this is really about is "**including 0** in the absorb case" (criterion 13), which
-    // only a sample whose outermost column took a merged width exercises at all.
-    //
-    // **The floors are set from observed runs, not from the uniform rate.** Over uniform draws the
-    // absorb arm is 14 % of rooms, which at 300 runs predicts 42; `fc.integer` is boundary-biased and
-    // actually delivered 17, so a floor picked from the uniform model is a flaky gate. The sample is
-    // raised instead and both floors left far enough below what the generator delivers that a seed
-    // cannot trip them, while still failing a run that genuinely stopped reaching the arm.
+    // The clause this is about is "including 0" in the absorb case, which only a sample whose outermost
+    // column took a merged width exercises. The floors come from observed runs, not the uniform rate (`fc.integer` is
+    // boundary-biased: 17 delivered where 42 was predicted), so a seed cannot trip them.
     expect(withABlock, "the block arm never fired").toBeGreaterThanOrEqual(100);
     expect(
       withAnAbsorb,
@@ -693,12 +615,11 @@ describe("every planned body is attempted exactly once (criterion 15)", () => {
         if (!result.ok) return;
         if (blockOf(twoWallPlanOf(result.log)).length > 0) withABlock += 1;
         const baseStepIds = result.log.steps
-          .filter((step) => !["upper", "hood"].includes(step.role))
+          .filter((step) => !["upper", "hood", "top"].includes(step.role))
           .map((step) => step.id);
 
-        // Every planned base, plus the core roles the plan had no wall for — and nothing else. A
-        // body that fell through `compose`'s passes would go missing from this list while its tile
-        // stayed empty and the hob had already given up its oven.
+        // Every planned base plus the core roles the plan had no wall for, and nothing else: a body falling through
+        // `compose`'s passes would otherwise go missing unnoticed.
         expect([...baseStepIds].sort()).toEqual(
           [
             ...result.log.plan.bases.map((base) => base.id),
@@ -737,12 +658,8 @@ describe("the room rule is unmoved (criterion 17)", () => {
   });
 
   it("keeps the approved policy's own numbers where the wave found them", () => {
-    // The wall maxima were 6300 / 5100 when 7D3 left them; M7 7A3 moved both to the owner's 6000 mm
-    // (ADR 0120 Amendment B2). Everything else here is still what 7D3 found.
-    //
-    // 7J S5, ADR 0108 Amendment G: the straight kitchen's own wall A, 1200–6000, joins the L here —
-    // the one shape this fixed snapshot did not carry before wave 7J admitted it. M7B U6 S1 (census D8)
-    // adds the U the same way: ADR 0108 H1–H4's literals, which `approved-room-policy.test.ts` pins.
+    // A fixed snapshot of the approved policy (ADR 0108 Amendment G, H1-H4); `approved-room-policy.test.ts` pins the
+    // same numbers.
     expect(APPROVED_ROOM_POLICY).toEqual({
       approval: "owner-approved",
       buildableShapes: {

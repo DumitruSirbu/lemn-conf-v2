@@ -101,29 +101,11 @@ const LAYOUT_TOLERANCE_PX = 1;
 /** Criterion 4's band tolerance. */
 const BAND_TOLERANCE_PX = 0.5;
 /**
- * Criterion 8's accepted pre-hydration window (M7 wave 7L risk R9): the most recorded paints of the
- * phone render a 1440 px load may show before the first measured one.
- *
- * **Bound per leg, not one shared ceiling (7L review finding F3).** A single 12-paint bound was
- * loose enough that reverting either S5 fix — the `useLayoutEffect` timing or the border-style
- * extraction (`plan-preview.tsx`) — still passed: a `useEffect` revert alone raises the count by
- * exactly one paint (measured below), nowhere near 12. Each leg's own ceiling, one above its own
- * measured maximum, closes that gap instead.
- *
- * **Measured 2026-09-29**, 10 runs per leg, both `first load` and `after reload`, zero variance
- * across every run:
- * - **Production build (CI)**: fixed code 4 (first load) / 3 (after reload); `useLayoutEffect`
- *   reverted to `useEffect` alone: 5 / 4 — one paint over the fixed ceiling, every run.
- * - **`next dev` (local)**: fixed code 7 / 7; the same revert: 8 / 8.
- *
- * A bound of 6 (production) or 10 (dev) — looser, "reasonable headroom" values tried first — passed
- * with the `useEffect` revert still in place on both legs, which is exactly the false green this
- * finding names. The counts above show no run-to-run variance under this harness (each record is a
- * DOM mutation batch tied to React's own render scheduling, not a timed frame), so each leg's bound
- * is set to its own measured ceiling with no slack past it: a regression of even one paint on either
- * leg reddens criterion 8, and the fixed code passes every time.
+ * Mutation batches, not frames, before the first measured paint; the count rises with machine load, so
+ * each leg's bound is its measured maximum under load and cannot see a one-paint regression (that is
+ * pinned in `plan-preview.dom.test.ts`). See ADR 0139 d11.
  */
-const MAX_PRE_HYDRATION_PLAN_PAINTS = process.env.CI === undefined ? 7 : 4;
+const MAX_PRE_HYDRATION_PLAN_PAINTS = process.env.CI === undefined ? 9 : 7;
 
 // -------------------------------------------------------------------------------------------
 // Rooms, in the URL's own metres (ADR 0126).
@@ -571,15 +553,8 @@ test.describe("criterion 8: nothing sized for another box is shown", () => {
         description: `${load}: ${String(windowLength)} of ${String(paints.length)}`,
       });
 
-      // **Accepted limitation, not a defect — coordinator ruling on wave 7L, recorded as 7L risk R9 in
-      // docs/milestones/M7-room-and-presets.md.** Zero is not achievable: the server has no viewport
-      // hint, and the phone's server render must stay byte-identical at every viewport, so the
-      // server always emits the phone-sized (unmeasured) drawing. A desktop browser paints that
-      // before the ResizeObserver fill mode can resolve after hydration; closing the gap entirely
-      // was attempted and either broke phone SSR byte-identity or raised a hydration mismatch.
-      // What stays strict: the window converges (a measured paint exists), it is bounded, every
-      // paint inside it is the phone render rather than some other wrong size, and every paint
-      // after it is measured and box-sized.
+      // The server cannot know the viewport and the phone's server render must stay byte-identical, so a
+      // desktop load always paints the phone-sized drawing first; see ADR 0139 d11.
       expect(
         windowLength,
         `${load} never converged: ${detail}`,
@@ -1774,23 +1749,8 @@ interface PlanPaint {
 }
 
 /**
- * Records the box every time the DOM changes while it holds a drawn wall — including the nodes the
- * HTML parser inserts from the server render, before any script has run.
- *
- * **Still watches the whole document, not just the box's own subtree — tried and reverted (7L review
- * finding F3).** Scoping the observer to the box (with a narrow hand-off observer watching only for
- * its first arrival, then re-attaching to the box itself) was measured against this suite's own
- * fixed code and against the `useLayoutEffect`→`useEffect` revert this file's `MAX_PRE_HYDRATION_
- * PLAN_PAINTS` comment measures: **scoped, both read 1 of 2 paints, on every leg, fixed or
- * reverted — the regression became invisible.** A `MutationObserver` fires once per microtask
- * checkpoint at which a mutation was recorded, not once per browser paint; box-scoped, the box
- * mutates the same fixed number of times (unmeasured → measured) whichever effect commits it, so the
- * count cannot see *when* that commit happened relative to a paint — only document-wide observation,
- * with its unrelated hydration mutations landing in the same or a different microtask checkpoint
- * depending on that timing, happens to expose it. Document-wide is kept, deliberately, because it is
- * the version that still catches the defect this criterion exists for; the trade-off — a count that
- * also reflects unrelated hydration activity — is why each leg's ceiling is set at its own measured
- * value with no headroom, below.
+ * Records the box on every DOM change while it holds a drawn wall, including parser-inserted nodes.
+ * Document-wide because a box-scoped count is blind to commit timing; see ADR 0139 d11.
  */
 async function recordPlanPaints(page: Page): Promise<void> {
   await page.addInitScript(() => {

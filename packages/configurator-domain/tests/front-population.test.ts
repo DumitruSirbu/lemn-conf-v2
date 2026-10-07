@@ -1,15 +1,5 @@
-// ADR 0070's first two implementation gaps, from the domain side: door leaves and drawers are two
-// declared counts, door band heights are declared per entry, every shipped entry carries all three,
-// and an entry that carries none refuses rather than guesses.
-//
-// **The wave's own regression is here** — the table of `cabinetHandleCount` recorded before the
-// split, and the identity that reproduces it after. Nothing about the split may move a handle count,
-// and the strongest check available to it is ADR 0070's independently derived figure for the seeded
-// kitchen: 36 door leaves and 5 drawers, from which its 74 hinges follow.
-//
-// What this file cannot check is whether a declaration is *true of the meshes* — the domain has no
-// meshes. That is `front-population.parity.test.ts` in `@lemnaria/three-adapter`, and the two halves
-// are the whole gate.
+// Door leaves and drawers are two declared counts, band heights are declared per entry, and an entry that carries
+// none refuses. Whether a declaration is true of the meshes is `front-population.parity.test.ts`'s (three-adapter).
 import { describe, expect, it } from "vitest";
 
 import {
@@ -49,10 +39,8 @@ import {
   SAMPLE_PRICE_BOOK_VERSION,
 } from "../src/pricing/sample-price-book.js";
 
-/** A width and a frame height a `declared-leaves` row ignores by construction — the argument every
- *  seeded row is asked about, and deliberately not a real one, for the reason
- *  `cabinet-handle-count.parity.test.ts` uses an unusable width: a row that silently took a
- *  width-following rule would otherwise resolve against a plausible cabinet here. */
+/** A width and frame height a `declared-leaves` row ignores by construction and deliberately not a real one, so a
+ *  row that silently took a width-following rule would not resolve against a plausible cabinet. */
 const UNUSED_MM = 0;
 
 /** A query at the size a `declared-leaves` rule ignores, for asserting a constructor's own meaning
@@ -68,9 +56,7 @@ function atUnusedSize(
   };
 }
 
-/** A rule shape TypeScript would refuse, as the `BodyCatalog` port can supply one. Cast through
- *  `unknown` because that is exactly the point: these are the values the type system already
- *  believes are impossible. */
+/** A rule shape TypeScript refuses, as the `BodyCatalog` port can supply one; cast through `unknown`. */
 function asRule(declared: unknown): FrontPopulationRule {
   return declared as FrontPopulationRule;
 }
@@ -89,10 +75,8 @@ function definitionOf(buildId: string): BodyDefinition {
   return definition;
 }
 
-/** Every entry in the one map, at every size the entry can be asked about: an insertable row at each
- *  width it declares and its nominal height, a seeded row at the one already-built body it is
- *  (ADR 0011 Gap A). The same sweep `cabinet-handle-count.parity.test.ts` runs, because the identity
- *  below has to hold over exactly the rows that gate declares. */
+/** Every entry at every size it can be asked about: an insertable row at each declared width and its nominal
+ *  height, a seeded row at its one built body (ADR 0011 Gap A); as in `cabinet-handle-count.parity.test.ts`. */
 const GATED_BODIES: readonly FrontPopulationQuery[] = [
   ...KITCHEN_L_BODY_CATALOG,
 ].flatMap(([buildId, definition]) => {
@@ -115,7 +99,7 @@ describe("a body's fronts are declared, per entry", () => {
 
     expect(undeclared).toEqual([]);
     // Not a vacuous sweep over an empty map.
-    expect(KITCHEN_L_BODY_CATALOG.size).toBe(38);
+    expect(KITCHEN_L_BODY_CATALOG.size).toBe(40); // 38 → 40 (M7C wave C2)
   });
 
   it("sweeps every width an insertable row declares, not one row per entry", () => {
@@ -126,11 +110,9 @@ describe("a body's fronts are declared, per entry", () => {
   });
 });
 
-// **The before/after table.** `cabinetHandleCount` is untouched by this wave and stays the honest
-// declared side of the handle meshes (ADR 0061); what is new is that the same number is now also
-// the sum of two others. The identity is *asserted*, never enforced by construction: it holds today
-// only because every shipped row declares `handlesPerLeaf: 1`, and a future row with two bars on a
-// leaf, or a `handle: "push"` row with mechanisms and no handle at all, would break it truthfully.
+// `cabinetHandleCount` is the declared side of the handle meshes (ADR 0061) and is also the sum of leaves and
+// drawers. The identity is asserted, not enforced: it holds because every shipped row declares `handlesPerLeaf: 1`,
+// and a row with two bars on a leaf would break it truthfully.
 describe("the split preserves every entry's handle count", () => {
   it.each(
     GATED_BODIES.map(
@@ -152,9 +134,8 @@ describe("the split preserves every entry's handle count", () => {
     },
   );
 
-  // The identity above would pass vacuously on a catalogue of hoods. These are the rows it is
-  // actually about: the same declared `2` meaning two leaves on one and two drawers on the other,
-  // which is ADR 0070's own statement of why one number could not serve both.
+  // The identity would pass vacuously on a catalogue of hoods; these rows declare `2` meaning two leaves on one and
+  // two drawers on the other (ADR 0070).
   it("separates the two rows ADR 0070 names, which declare the same handle count", () => {
     const sink = {
       buildId: "base-sink",
@@ -186,15 +167,12 @@ describe("the split preserves every entry's handle count", () => {
   });
 });
 
-// **ADR 0070's cross-check, and the strongest one this wave has.** The owner derived 74 hinges and
-// 5 drawers for the seeded kitchen from the real catalogue and the builders' own door-band heights,
-// before any of this was declared — an independent derivation, which is the only reason the numbers
-// mean anything. 74 hinges is 2 per leaf with a third on each leaf over 900 mm: 34 × 2 + 2 × 3, so
-// 36 leaves. **This wave does not count hinges** (that is ADR 0070's rule and wave 6T's work); it
-// asserts the two populations the rule is counted over.
+// ADR 0070's independently derived figures for the seeded kitchen: 36 door leaves and 5 drawers, from which its 74
+// hinges follow (2 per leaf, a third on each leaf over 900 mm: 34 × 2 + 2 × 3). Only the two populations are
+// asserted here, not hinges.
 describe("the seeded kitchen's declared fronts", () => {
-  // Through `frontPopulationQueryFor`, which is the seam wave 6T reads: a test that assembled the
-  // query by hand would be checking a call site nothing ships.
+  // Through `frontPopulationQueryFor`, the seam hinge pricing reads: a hand-assembled query would check a call site
+  // nothing ships.
   const seeded = KITCHEN_L_PLACEMENTS.map((placement) =>
     frontPopulationQueryFor({
       body: placement.body,
@@ -224,14 +202,11 @@ describe("the seeded kitchen's declared fronts", () => {
     ]);
   });
 
-  // The band heights the hinge rule will read, and the reason they are declared: two of the seeded
-  // kitchen's 36 leaves are over ADR 0070's 900 mm threshold, and both are the pantry's lower band
-  // — inside a body whose declared frame height is 2200.
+  // Two of the seeded kitchen's 36 leaves are over ADR 0070's 900 mm threshold, both the pantry's lower band inside
+  // a body declared 2200 high.
   it("has exactly two leaves taller than the 900 mm ADR 0070 counts a third hinge at", () => {
-    // `doorLeafHeightsMm`, not a reconstruction from a count and a band list. This file and the
-    // three-adapter parity gate had each written that reconstruction independently, which is what
-    // moved it into the module: a caller doing it by hand applies the threshold to the *bands*
-    // sooner or later, and that counts 45 hinges here against the correct 74.
+    // `doorLeafHeightsMm`, not a reconstruction from a count and a band list: applying the threshold to the bands
+    // counts 45 hinges here against the correct 74.
     const leafHeights = seeded.flatMap((query) => doorLeafHeightsMm(query));
 
     expect(leafHeights.length).toBe(36);
@@ -242,7 +217,6 @@ describe("the seeded kitchen's declared fronts", () => {
 });
 
 describe("door band heights are declared, not read off the frame", () => {
-  // The defect the declaration exists to prevent, stated as an inequality rather than implied.
   it("declares a pantry's bands that do not sum to its frame height", () => {
     const pantry = definitionOf("tall-pantry-600");
     const bands = doorBandHeightsMm({
@@ -303,11 +277,8 @@ describe("door band heights are declared, not read off the frame", () => {
   });
 });
 
-// **The input the 74-hinge cross-check cannot see.** Every seeded row declares its band heights, so
-// no seeded placement's rule reads `frameHeightMm` — pass 12345 for every one of them and the design
-// still answers 36 leaves and 74 hinges. That blindness is a property of the fixture, not a defect,
-// but it means the cross-check is no guard at all on the height source, and wave 6T's first mistake
-// would be silent. These are the tests that do guard it.
+// Every seeded row declares its band heights, so no seeded placement reads `frameHeightMm` and the 74-hinge
+// cross-check is blind to the height source; these tests guard it.
 describe("the frame height is an input, and something must depend on it", () => {
   const wallCabinetAt = (frameHeightMm: number): FrontPopulationQuery =>
     frontPopulationQueryFor({
@@ -316,8 +287,7 @@ describe("the frame height is an input, and something must depend on it", () => 
     });
 
   it("changes a heightFlex row's answer when the frame height changes", () => {
-    // From the failing side: if this passed with the same list at both heights, the input would be
-    // decorative and a wrong source would be undetectable.
+    // From the failing side: with the same list at both heights the input would be decorative.
     expect(doorLeafHeightsMm(wallCabinetAt(700))).toEqual([694, 694]);
     expect(doorLeafHeightsMm(wallCabinetAt(400))).toEqual([394, 394]);
     expect(doorLeafHeightsMm(wallCabinetAt(12345))).toEqual([12339, 12339]);
@@ -343,8 +313,7 @@ describe("the frame height is an input, and something must depend on it", () => 
     }
   });
 
-  // And the blindness itself, stated rather than left implicit — so nobody reads the 36/5 assertions
-  // above as evidence that the height source is right.
+  // The blindness itself: the 36/5 assertions above are no evidence that the height source is right.
   it("leaves the seeded design's answer unchanged at any frame height, which is why it is no guard", () => {
     const atAnyHeight = (frameHeightMm: number): number =>
       KITCHEN_L_PLACEMENTS.reduce(
@@ -386,8 +355,8 @@ describe("a declared band list is the catalogue's to keep", () => {
   });
 });
 
-// A declaration whose two halves disagree describes a body that cannot exist, and it used to answer
-// zero leaves — which ADR 0070 would price as zero hinges on a cabinet with a visible door.
+// A declaration whose two halves disagree describes a body that cannot exist; it used to answer zero leaves, that
+// is zero hinges on a visible door (ADR 0070).
 describe("a contradictory declaration is refused where it is written", () => {
   it("refuses bands with no leaves to stand in them", () => {
     expect(() =>
@@ -434,9 +403,8 @@ describe("a contradictory declaration is refused where it is written", () => {
     expect(drawerCount(atUnusedSize(carriesDrawers(3)))).toBe(3);
   });
 
-  // **The port half, which is the one that can name the row.** A definition assembled outside
-  // TypeScript passes no constructor at all, so `carriesFronts` never sees it; the sweep
-  // `buildKitchenLBodyCatalog` runs beside `refuseUndeclaredDepthRules` does, and it has the id.
+  // The port half can name the row: a definition assembled outside TypeScript passes no constructor, so
+  // `carriesFronts` never sees it; `buildKitchenLBodyCatalog` runs this sweep beside `refuseUndeclaredDepthRules`.
   it("names the row when the contradiction arrives through the port", () => {
     const throughThePort: readonly (readonly [string, DeclaresFronts])[] = [
       ["base-sink", definitionOf("base-sink")],
@@ -451,9 +419,8 @@ describe("a contradictory declaration is refused where it is written", () => {
     expect(sweep).toThrow(/wall-cabinet-from-outside/);
   });
 
-  // A rule that is missing or wears a tag this module does not know is **not** this sweep's to
-  // refuse — that is the query-time refusal's, and failing catalogue load over a row nothing has
-  // asked about yet would be the wrong failure at the wrong moment.
+  // A missing or unknown rule is the query-time refusal's, not this sweep's: failing catalogue load over a row
+  // nothing has asked about would be the wrong failure.
   it("lets an undeclared or unrecognised row through to the query-time refusal", () => {
     const unreadable: readonly (readonly [string, DeclaresFronts])[] = [
       ["nothing-declared", {}],
@@ -471,10 +438,9 @@ describe("a contradictory declaration is refused where it is written", () => {
     }).not.toThrow();
   });
 
-  // All 38 shipped rows are constructed as the catalogue is assembled, which is module load — so
-  // this sweep is a statement that the refusal above has already run over every one of them.
+  // Every shipped row is constructed at module load, so this sweep says the refusal above has already run over each.
   it("has already run over both populations by the time this file loads", () => {
-    expect(KITCHEN_L_BODY_CATALOG.size).toBe(38);
+    expect(KITCHEN_L_BODY_CATALOG.size).toBe(40); // 38 → 40 (M7C wave C2)
     for (const [buildId, definition] of KITCHEN_L_BODY_CATALOG) {
       const bands = doorBandHeightsMm({
         buildId,
@@ -519,14 +485,11 @@ describe("leaves that follow a width", () => {
   });
 });
 
-// ADR 0061 decision 4, one declaration over. `BodyCatalog` is a port, and a definition assembled
-// outside TypeScript can arrive with no rule at all — or with a rule that carries the tag and not
-// the number, the second shape of unusable that QA found one field later than the first on
-// `cabinet-handles.ts`. Both must refuse rather than answer zero.
+// ADR 0061 decision 4: `BodyCatalog` is a port, so a definition from outside TypeScript can carry no rule, or a tag
+// without the number; both must refuse rather than answer zero.
 describe("an entry that declares nothing refuses", () => {
-  /** Each case names the query that reads the field it is missing. A rule with no drawer count is
-   *  perfectly usable for a leaf count, so asserting every query refuses every case would pass by
-   *  accident on the wrong function. */
+  /** Each case names the query that reads its missing field; a rule with no drawer count is usable for a leaf
+   *  count, so asserting every query refuses every case would pass by accident on the wrong function. */
   const unusable: readonly [
     string,
     unknown,
@@ -612,9 +575,7 @@ describe("an entry that declares nothing refuses", () => {
     expect(() => ask(query)).toThrow(/base-sink/);
   });
 
-  // Never a `NaN` quantity out of a function typed `: number` — the shape QA found on
-  // `cabinet-handles.ts` one field later than its first refusal, and the one nothing downstream can
-  // even compare.
+  // Never a `NaN` quantity out of a function typed `: number`; nothing downstream can even compare it.
   it("never answers a leaf count that is not a number", () => {
     const taggedWithNoNumbers = {
       buildId: "base-sink",
@@ -642,31 +603,11 @@ describe("an entry that declares nothing refuses", () => {
   });
 });
 
-// **Wave 6S declares and prices nothing.** ADR 0070 replaces `HardwareTier.perCabinetHandleMinor`,
-// and until the wave that does it the shipped hardware line still multiplies a rate by the cabinet
-// handle count. These are the seeded design's totals recorded before the split, asserted directly
-// rather than inferred from "we only touched declarations" — the whole point of a value-preserving
-// wave is that the value is checked and not asserted in prose.
 /**
- * **Wave 6S declared these fronts and changed no price. Wave 6T priced them, and this block records
- * what moved and what did not** (ADR 0070 decision 1, planned by ADR 0092 decision 6).
- *
- * The cabinet lines are untouched — every figure below still differs from the one beside it by a
- * *hardware* amount alone, which is what keeps this a check on the split rather than a restatement
- * of the book. What moved is the hardware basis: the seeded kitchen's 41 cabinet handles were
- * replaced as the quantity by its 74 hinges and 5 drawers, and the Standard tier stopped costing
- * nothing.
- *
- * **The three hardware amounts are ADR 0092 decision 6's table, reconciled to ADR 0070's own hinge
- * and drawer columns** — 1 300 + 3 200, 6 290 + 3 130, 5 550 + 4 185 MDL — **plus a push column
- * that record never published** (ADR 0092 Amendment C): the seeded kitchen's top row carries 16
- * latches. Hettich and Blum land on the leu; Standard lands 2.40 MDL above, which is the owner's
- * rounding of 1 302.40 down to 1 300. The hinge and drawer terms are written out because they
- * reconcile against the owner's own columns; **the push term is read from the book**, because the
- * three push rates are drafted placeholders and a literal here would make one load-bearing.
- * `hardware-tier-reconciliation.test.ts` is where that derivation is asserted; here the point is
- * only that the whole design's total is the old cabinet total plus exactly that hardware line and
- * nothing else has drifted.
+ * Every total differs from the one beside it by a hardware amount alone. The hinge and drawer terms are ADR 0092
+ * decision 6's table (Standard lands 2.40 MDL above the owner's rounding of 1 302.40 to 1 300); the push term is read
+ * from the book because the push rates are drafted placeholders (ADR 0092 Amendment C). The derivation is
+ * `hardware-tier-reconciliation.test.ts`'s.
  */
 describe("what wave 6S declared, wave 6T prices", () => {
   const priceAt = (hardwareTierId: string | undefined) => {
@@ -693,21 +634,12 @@ describe("what wave 6S declared, wave 6T prices", () => {
     return line.amountMinor;
   };
 
-  /** What the seeded design cost with **no** hardware billed — the figure every total below is this
-   *  plus one hardware line. It was the whole design's total until wave 6T, when the Standard tier
-   *  stopped being zero.
-   *
-   *  **Down 1 490 000 from 9 427 500 on the owner's ruling of 2026-09-10**, which stopped charging
-   *  for the two rows the manufacturer does not supply: the seeded kitchen's `hood-600` (290 000)
-   *  and its `fridge-free-700` (1 200 000). The housings around them are joinery and are unchanged,
-   *  which is why the drop is exactly those two lines and not an appliance-shaped share of the
-   *  kitchen. */
+  /** The seeded design's price with no hardware billed; every total below is this plus one hardware line. It does
+   *  not charge the rows the manufacturer does not supply, `hood-600` (290 000) and `fridge-free-700` (1 200 000). */
   const CABINETRY_AND_MATERIAL_MINOR = 7_937_500;
 
-  /** ADR 0070 decision 4's two sink extras, which wave 6T2 added to every one of these totals: the
-   *  seeded kitchen holds one sink under one wall cabinet, so it earns one cover and one rack. Flat
-   *  and identical in all three tier columns, which is what says they sit outside the tier —
-   *  `sink-extras.test.ts` is where that is reconciled against ADR 0070's own column. */
+  /** ADR 0070 decision 4's sink extras: one cover and one rack, flat in all three tier columns and so outside the
+   *  tier (reconciled in `sink-extras.test.ts`). */
   const SINK_EXTRAS_MINOR = 60_000;
 
   /** The seeded kitchen's 16 latches, pinned as the count they are — a product fact answerable
@@ -727,7 +659,7 @@ describe("what wave 6S declared, wave 6T prices", () => {
       ["hardware.standard", "hardware.soft-close", "hardware.premium"],
     );
 
-    // The default tier is Standard, and it is no longer free (ADR 0092 decision 15's interim).
+    // The default tier is Standard (ADR 0092 decision 15's interim).
     expect(totalAt(undefined)).toBe(totalAt("hardware.standard"));
     expect(totalAt("hardware.standard")).toBe(
       CABINETRY_AND_MATERIAL_MINOR +
@@ -749,13 +681,10 @@ describe("what wave 6S declared, wave 6T prices", () => {
     );
   });
 
-  /** **The cabinetry did not move.** The three totals above differ from each other by a hardware
-   *  amount alone, so subtracting each design's own hardware line must return one number — and it
-   *  must be the number this design priced at before either wave touched it. This is what makes the
-   *  block above a check on the hardware basis rather than three fresh expectations. */
+  /** **The cabinetry did not move.** Subtracting each design's own hardware line must return one number, the one
+   *  it priced at before hardware was billed. */
   it("leaves every cabinet and material line exactly where wave 6S found them", () => {
-    // The sink extras come off with the hardware, because they too are a whole-figure term that does
-    // not move with the tier — the point of subtracting is to recover the *cabinetry*.
+    // The sink extras come off with the hardware: they are a whole-figure term that does not move with the tier.
     const withoutHardware = SAMPLE_PRICE_BOOK.hardware.tiers.map(
       (tier) =>
         totalAt(tier.tierId) -
@@ -768,11 +697,8 @@ describe("what wave 6S declared, wave 6T prices", () => {
     );
   });
 
-  /** **The handle count survives the wave and stops being what hardware is billed by.** The seeded
-   *  design's 41 handles are the 36 leaves plus 5 drawers above, and that identity is still what
-   *  makes the split checkable. What no longer holds is that any tier spread divides by 41: ADR
-   *  0070 decision 1 prices per mechanism, so the spread is a function of 74 hinges, 5 drawers and
-   *  16 latches, and there is no per-handle rate left to recover from it. */
+  /** The seeded design's 41 handles are the 36 leaves plus 5 drawers; ADR 0070 decision 1 prices per mechanism,
+   *  so no tier spread divides by 41. */
   it("keeps the 41 handles the split reproduces, and prices none of them", () => {
     const handlesInSeededDesign = KITCHEN_L_PLACEMENTS.reduce(
       (sum, placement) =>

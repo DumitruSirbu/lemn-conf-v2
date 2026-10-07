@@ -1,21 +1,9 @@
-// **The pure pricing query**: one design, one catalogue, one book, one answer.
+// The pure pricing query: one design, one catalogue, one book, one answer.
 //
-// A rebuild rather than an adaptation (ADR 0004: no pricing code survived M2 to adapt), against the
-// millimetre `Design`/placement model.
-//
-// Three properties this module exists to hold, each of which is cheap here and expensive to
-// retrofit:
-//
-// - **It imports no book.** The book is a parameter (ADR 0062 seam 1). Nothing under `pricing/`
-//   imports `sample-price-book.ts` — `pricing-seams.test.ts` asserts the import graph, not just the
-//   intention.
-// - **It re-derives no order and no label.** `projectDesignForDisplay` is the one projection every
-//   surface lists a design from, so the price lines' order **is** the breakdown's order and M8's:
-//   wall → normalised band → `y0Mm` → `alongMm` → placement id, which after ADR 0063 is row-major.
-//   Pricing does not sort, group or name anything of its own.
-// - **It fails whole.** Every refusal returns before a single line is published.
-//
-// I/O-free, rendering-free, persistence-free: a function of its arguments returning plain data.
+// - It imports no book: the book is a parameter (ADR 0062 seam 1), and nothing under `pricing/`
+//   imports `sample-price-book.ts`.
+// - It re-derives no order and no label: line order is `projectDesignForDisplay`'s (ADR 0063).
+// - It fails whole: every refusal returns before a single line is published.
 import { widthDerivedDoorLeafCount } from "../cabinet-handles.js";
 import { resolveCatalogEquivalent } from "../catalog.js";
 import type { Design } from "../design.js";
@@ -65,18 +53,11 @@ import type {
   WholeKitchenPriceLine,
 } from "./price-lines.js";
 
-/** The whole-kitchen choices a design was configured with — since wave 6E, `design.settings`,
- *  passed straight through by the caller holding the book.
+/** The whole-kitchen choices a design was configured with, passed in by the caller holding the book.
+ *  An absent choice is priced at the book's own default tier.
  *
- *  **Passed in rather than read off the document here**, because this module takes a `Design` and
- *  still must not reach into it for a choice the *caller* is entitled to override; an absent choice
- *  is priced at the book's own default tier, which is book data and not a rule living here.
- *
- *  Each key is `string | undefined` rather than merely optional, and that is not decoration under
- *  `exactOptionalPropertyTypes`: `DesignSettings` is inferred from a Zod `.optional()`, which is
- *  present-and-`undefined`-assignable, so a plain `?: string` here would refuse the very value 6E
- *  exists to pass. The two readings mean the same thing to `selectTier`, which takes
- *  `string | undefined`. */
+ *  Each key is `string | undefined`, not merely optional: `DesignSettings` is inferred from a Zod
+ *  `.optional()`, which `exactOptionalPropertyTypes` would refuse to assign to a plain `?: string`. */
 export interface WholeKitchenSelections {
   readonly hardwareTierId?: string | undefined;
   readonly materialTierId?: string | undefined;
@@ -86,10 +67,9 @@ export interface WholeKitchenSelections {
 export interface PriceDesignRequest {
   readonly design: Design;
   readonly catalog: BodyCatalog;
-  /** Supplied by the caller. See this module's head comment: the query imports no book. */
+  /** Supplied by the caller: the query imports no book. */
   readonly book: PriceBook;
-  /** The version the caller asked to price at. Matched for **equality** against the book's own —
-   *  no "current version" fallback, and no migration inside pricing. */
+  /** Matched for **equality** against the book's own version: no "current version" fallback. */
   readonly pricingVersion: string;
   readonly selections?: WholeKitchenSelections | undefined;
 }
@@ -149,9 +129,8 @@ export function priceDesign(request: PriceDesignRequest): PricingResult {
   };
 }
 
-/** Every refusal that can be decided before a line exists, in the order
- *  `CONFIGURATION_MODEL.md` states: the book itself, then the version, then the design against the
- *  catalogue. */
+/** Every refusal that can be decided before a line exists: the book, then the version, then the
+ *  design against the catalogue. */
 function refuseUnusableRequest(
   request: PriceDesignRequest,
 ): PricingFailure | undefined {
@@ -162,18 +141,8 @@ function refuseUnusableRequest(
   );
 }
 
-/**
- * **What the book has to be before any of it is read** — every check `parse-price-book.ts` makes,
- * asked once, here.
- *
- * It used to be a list of refusals written against a `PriceBook` parameter, each of which
- * dereferenced the section it was about. `refuseRepeatedRuleId` reaching `book.hardware.tiers.map`
- * meant a book missing its `hardware` section threw a `TypeError` **out of the function whose whole
- * job is to reject malformed books** (M6-AUD-002), during render, with no error boundary above it.
- * The declared type is what a caller promises, and ADR 0062 seam 1 is the seam that cannot keep the
- * promise; the parser is what turns it into a fact, so this query's success-or-refusal contract
- * holds for **any** input.
- */
+/** Asks once every check `parse-price-book.ts` makes. Dereferencing a malformed book here would throw
+ *  a `TypeError` out of the function whose job is to reject malformed books (ADR 0062 seam 1). */
 function refuseUnusableBook(book: PriceBook): PricingFailure | undefined {
   const parsed = parsePriceBook(book);
   return parsed.ok ? undefined : parsed.failure;
@@ -190,9 +159,8 @@ function refuseVersionMismatch(
   );
 }
 
-/** The projection **throws** `UnknownBodyError` for a `buildId` the catalogue does not hold, which
- *  is right for it and wrong here: this query refuses with a code. Asked first, so the throw is
- *  unreachable rather than caught. */
+/** The projection **throws** `UnknownBodyError` for a `buildId` the catalogue does not hold; this
+ *  query refuses with a code, so it asks first and the throw is unreachable. */
 function refuseUncatalogedBody(
   request: PriceDesignRequest,
 ): PricingFailure | undefined {
@@ -208,8 +176,7 @@ function refuseUncatalogedBody(
   return undefined;
 }
 
-/** The design's bodies in the one display order (ADR 0063, row-major), flattened out of the
- *  projection's groups. The groups are the breakdown's headings; a price line list is flat. */
+/** The design's bodies in the one display order (ADR 0063), flattened out of the projection's groups. */
 function listEntriesInDisplayOrder(
   request: PriceDesignRequest,
 ): readonly DisplayEntry[] {
@@ -279,13 +246,10 @@ function priceOnePlacement(
       placementId: entry.placementId,
       buildId: entry.buildId,
       pricedAsBuildId,
-      // The projection's label and the projection's width. A label pricing derived itself would be
-      // a second authority for the name of a body, which is what wave 6A exists to prevent.
+      // The projection's label and width: a label pricing derived itself would be a second authority.
       label: entry.label,
       widthMm: entry.widthMm,
-      // The one place the book's optional declaration becomes a fact every reader can rely on
-      // (ADR 0062 seam 1: absence is an ordinary declaration, not an omission). Defaulted here and
-      // nowhere else, so no surface has to know what a missing `suppliedBy` means.
+      // The one place the book's optional `suppliedBy` is defaulted (ADR 0062 seam 1).
       suppliedBy: rule.suppliedBy ?? DEFAULT_CABINET_SUPPLIER,
       quantity: 1,
       unitAmountMinor: amountMinor,
@@ -294,14 +258,9 @@ function priceOnePlacement(
   };
 }
 
-/** `amountForBody` **throws** for a formula carrying a coefficient that is not an exact count of
- *  minor units (ADR 0062 seam 1: a book is assembled outside TypeScript, so its declared `number`
- *  is a promise and not a fact). That is right for it — there is no number to guess at — and this
- *  query refuses with a code instead, so the conversion is here and this function does nothing
- *  else. The same shape `refuseUnreadableFronts` has, for the same reason.
- *
- *  `undefined` travels through untouched: a shape nothing implements is the caller's other refusal
- *  and is not this one. */
+/** `amountForBody` **throws** for a coefficient that is not an exact count of minor units (ADR 0062
+ *  seam 1); this query refuses with a code instead. `undefined` passes through untouched: an
+ *  unimplemented formula shape is the caller's other refusal. */
 function evaluateFormula(
   rule: CabinetPriceRule,
   body: PricedBody,
@@ -318,16 +277,12 @@ function evaluateFormula(
 }
 
 /**
- * **The catalogue row a body is priced as** — its equivalent (ADR 0022, ADR 0029) where it declares
- * one, and its own id where it does not.
+ * The catalogue row a body is priced as: its equivalent (ADR 0022) where it declares one, its own id
+ * where it does not.
  *
- * The one lookup pricing must **not** copy from the projection, which resolves the literal `buildId`
- * only: that is correct for a label, and it would fail whole on every seeded body here, because
- * ADR 0011 Gap A gives every seeded entry a non-insertable id that no §7 rule is written for.
- *
- * The fallback is not a guess — it is the four corner bodies, which are structural (ADR 0021),
- * which nothing in §7 builds, and for which having no equivalent is the correct answer rather than
- * a missing one. A book therefore prices them under their own ids.
+ * Do not copy the projection's literal-`buildId` lookup: every seeded body has a non-insertable id
+ * (ADR 0011 Gap A) that no price rule names. The six corner bodies have no equivalent by design
+ * (ADR 0021) and are priced under their own ids.
  */
 function resolvePricingRow(catalog: BodyCatalog, buildId: string): PricingRow {
   const equivalent = resolveCatalogEquivalent(catalog, buildId);
@@ -343,32 +298,20 @@ function resolvePricingRow(catalog: BodyCatalog, buildId: string): PricingRow {
   };
 }
 
-/** The catalogue row a body is priced as, carried as the pair it was looked up as. The definition
- *  travels with the id because the two shapes ADR 0068 added read the row as well as name it, and
- *  looking it up twice is how the id and the row it stands for start to diverge. */
+/** The row a body is priced as, with its definition: looking the row up twice lets id and row diverge. */
 interface PricingRow {
   readonly buildId: string;
   readonly definition: BodyDefinition | undefined;
-  /** Set only when the entry **declares** an equivalent that did not resolve — a broken pointer, as
-   *  opposed to the corners' correct absence. Message material and nothing more: see
-   *  `describeUnresolvedRule`. */
+  /** Set only when the entry **declares** an equivalent that did not resolve (a broken pointer, as
+   *  opposed to a corner's correct absence). Message material only: see `describeUnresolvedRule`. */
   readonly unresolvedEquivalentId?: string;
 }
 
 /**
- * **Why no rule was found, said in the terms the book's author has to act on.**
- *
- * `resolveCatalogEquivalent` answers `undefined` in three situations a caller cannot tell apart: the
- * entry declares no equivalent, the declared one is not in the catalogue, and the declared one is
- * there but is not insertable. The `?? buildId` fallback is right for the first — the four
- * structural corners have no equivalent and are priced under their own ids (ADR 0021, ADR 0022) —
- * and for the other two it produced a sentence that sent the reader hunting for a rule keyed on a
- * **seeded** id, which ADR 0022's whole premise says no book should ever hold.
- *
- * **Wording only, deliberately.** The behaviour is unchanged and there is no new failure code: a
- * pricing-specific code for a broken catalogue pointer would put the check in the wrong layer and
- * would be one more code wave 6C has to render or ignore. What makes a dangling pointer
- * unreachable is the catalogue-integrity assertion in `catalog.test.ts`, not a guard here.
+ * Words the reason no rule was found for the book's author. `resolveCatalogEquivalent` answers
+ * `undefined` for three cases (no equivalent declared, declared one missing, declared one not
+ * insertable); wording only, with no new failure code, because a dangling pointer is guarded by the
+ * catalogue-integrity assertion in `catalog.test.ts`.
  */
 function describeUnresolvedRule(pricedAs: PricingRow): string {
   if (pricedAs.unresolvedEquivalentId === undefined) {
@@ -381,20 +324,13 @@ function describeUnresolvedRule(pricedAs: PricingRow): string {
 }
 
 /**
- * **What a formula is allowed to know about this body**: the width and the height the projection
- * derived, and the door leaves its width decides.
+ * What a formula may know about a body: the placement's width and height (a body built to its
+ * opening stands at a height its catalogue row does not state), and its door leaves.
  *
- * The width and the height are the **placement's** — a body built to its opening stands at a height
- * its catalogue row does not state, which is exactly why the owner ruled height a price input
- * (2026-09-03).
- *
- * The leaf count is read from the **priced-as** row, and that is deliberate and is the opposite of
- * what `countHardwareMechanisms` does. A door step is part of a price *rule*, so it is a property of
- * the catalogue row the body is priced as; a *mechanism* count is a property of the already-built
- * body standing in the design. The difference is load-bearing rather than academic: every seeded row
- * declares `carriesHandles(n)` frozen at the size it was built, so reading the leaf count off the
- * placement's own entry would give a resized seeded `wall-2door-600` **no** step at 800 mm while an
- * inserted `wall-cabinet` beside it got one — two identical bodies at two prices.
+ * The leaf count is read from the **priced-as** row, the opposite of `countHardwareMechanisms`
+ * (which counts the built body): seeded rows freeze `carriesHandles(n)` at their built size, so
+ * reading the placement's own entry would give a resized seeded `wall-2door-600` no door step at
+ * 800 mm while an inserted `wall-cabinet` beside it got one (ADR 0092 decision 1).
  */
 function describePricedBody(
   entry: DisplayEntry,
@@ -420,11 +356,9 @@ function describePricedBody(
   }
 }
 
-/** Hardware, then material — after **all** placement lines, and both always emitted. A tier that
- *  costs nothing produces a line whose amount is zero, which the breakdown renders *inclus*; a rule
- *  that is missing is a refusal, never a zero, because omission must never be read as "included".
- *  A tier whose *amount* is missing is the same refusal for the same reason — `checkedBookAmount`,
- *  which is what stops a `null` from arriving at the line as an honest-looking zero. */
+/** Hardware, then material, after **all** placement lines, both always emitted. A free tier is a
+ *  zero-amount line (rendered *inclus*); a missing rule or amount is a refusal, never a zero, because
+ *  omission must never be read as "included". */
 function priceWholeKitchen(
   entries: readonly DisplayEntry[],
   request: PriceDesignRequest,
@@ -472,9 +406,8 @@ function priceWholeKitchen(
   return { value: [hardwareLine.value, materialLine.value] };
 }
 
-/** **`find` is safe here only because the book was parsed**: two tiers sharing an id would resolve to
- *  whichever was declared first, making a customer's price depend on the book's typing order
- *  (M6-AUD-003). `refuseRepeatedTierId` is what makes that unreachable, across both groups. */
+/** `find` is safe only because the book was parsed: `refuseRepeatedTierId` makes a tier id shared
+ *  across both groups unreachable, so the price never depends on the book's typing order. */
 function selectTier<TTier extends TierIdentity>(
   group: TierGroup<TTier>,
   chosenTierId: string | undefined,
@@ -493,15 +426,9 @@ function selectTier<TTier extends TierIdentity>(
 }
 
 /**
- * **An amount the book states outright, before anything is multiplied by it** — a tier's, or an
- * accessory's per-unit rate. The field name travels with the number because a refusal has to say
- * which one was malformed, and because the number alone has lost that by the time it reaches the
- * guard.
- *
- * `declared` is typed `unknown` although `HardwareTier`, `MaterialTier` and `AccessoryRule` all
- * declare `number`, for the reason `usableCoefficientOf` widens its own parameter: ADR 0062 seam 1
- * makes a book versioned data authored outside TypeScript, so a declared `number` is a promise and
- * not a fact.
+ * An amount the book states outright, with the field name a refusal must report. `declared` is
+ * `unknown` although the tier and accessory types declare `number`: a book is data authored outside
+ * TypeScript (ADR 0062 seam 1).
  */
 interface DeclaredBookAmount {
   readonly declared: unknown;
@@ -509,15 +436,11 @@ interface DeclaredBookAmount {
 }
 
 /**
- * **What this whole kitchen's hardware costs at this tier** — the hardware line's unit amount, and
- * the line's whole amount, because the line's quantity is 1 (ADR 0092 decision 4). Three rates
- * cannot share one unit price, and 74 hinges plus 5 drawers do not add to a quantity anything can
- * be priced by.
+ * The hardware line's unit amount and whole amount, because its quantity is 1: three rates cannot
+ * share one unit price (ADR 0092 decision 4).
  *
- * **All three rates are checked, whatever the design counts.** A book declaring `null` for its
- * push-to-open rate is malformed whether or not this particular kitchen has a push body — and the
- * seeded kitchen has none, so checking only the rates with a non-zero count would let that book
- * through every reconciliation this wave asserts.
+ * All three rates are checked whatever the design counts: a book declaring `null` for its
+ * push-to-open rate is malformed even when this kitchen has no push body.
  */
 function hardwareUnitAmount(
   tier: HardwareTier,
@@ -538,8 +461,8 @@ function hardwareUnitAmount(
   );
 }
 
-/** A hardware tier's three rates, in the order they are charged. A list rather than three spellings,
- *  so the sweep that checks them and the terms built from them cannot disagree about which three. */
+/** A hardware tier's three rates, in the order they are charged: one list drives both the check and
+ *  the terms built from it. */
 const HARDWARE_RATE_FIELDS: readonly HardwareRateField[] = [
   "perHingeMinor",
   "perDrawerMinor",
@@ -551,17 +474,13 @@ type HardwareRateField =
   | "perDrawerMinor"
   | "perPushToOpenMinor";
 
-/** One rate a tier declares, once it is known to be an exact count of minor units. The field travels
- *  with the number because the mechanism count it is charged over is chosen by it. */
+/** One rate a tier declares, known to be an exact count of minor units; the field picks the count. */
 interface CheckedHardwareRate {
   readonly field: HardwareRateField;
   readonly minor: number;
 }
 
-/** **All three rates are checked, whatever the design counts, and before the design is read at
- *  all.** A book declaring `null` for its push-to-open rate is malformed whether or not this
- *  particular kitchen has a push body — and the seeded kitchen has none, so checking only the rates
- *  with a non-zero count would let that book through every reconciliation this wave asserts. */
+/** Checks all three rates before the design is read at all (see `hardwareUnitAmount`). */
 function checkedHardwareRates(
   tier: HardwareTier,
 ): Attempt<readonly CheckedHardwareRate[]> {
@@ -586,7 +505,7 @@ function chargedOverMechanisms(
   }));
 }
 
-/** Which of the three counts a rate is charged over (ADR 0070 decision 1, ADR 0092 decision 2). */
+/** Which of the three counts a rate is charged over (ADR 0092 decision 2). */
 function mechanismsChargedAt(
   counts: HardwareMechanismCounts,
   field: HardwareRateField,
@@ -601,8 +520,7 @@ function mechanismsChargedAt(
   }
 }
 
-/** One of a hardware tier's three rates, carrying **its own** field name so a refusal says which of
- *  the three was unusable rather than only which tier was. */
+/** One of a tier's three rates, carrying its own field name so a refusal names the rate, not the tier. */
 function hardwareRate(
   tier: HardwareTier,
   field: HardwareRateField,
@@ -611,9 +529,8 @@ function hardwareRate(
 }
 
 /** Every mechanism the design carries, or a refusal naming the first body whose fronts could not be
- *  read. **Guarded body by body before the total is taken**, because the error `countHardwareMechanisms`
- *  throws carries the build id in its message and a build id is not a placement id — and ADR 0092
- *  decision 1 requires the refusal to name both. */
+ *  read. Guarded body by body first: the error `countHardwareMechanisms` throws names a build id, and
+ *  the refusal must name the placement too (ADR 0092 decision 1). */
 function countMechanisms(
   entries: readonly DisplayEntry[],
   catalog: BodyCatalog,
@@ -625,20 +542,9 @@ function countMechanisms(
   return { value: countHardwareMechanisms(entries, catalog) };
 }
 
-/** `countHardwareMechanisms` **throws** for a body whose fronts cannot be read (ADR 0092 decision 1),
- *  which is right for it: reading a missing declaration as zero mechanisms would price a whole
- *  kitchen's hinges at nothing and look implemented. This query refuses with a code instead, so the
- *  conversion is here and this function does nothing else — the shape the handle count's own
- *  conversion had before ADR 0092 replaced the hardware quantity basis.
- *
- *  **Two declared causes convert, and everything else propagates unchanged** (ADR 0092 decision 16).
- *  A bare `catch` labelled a `TypeError` from a malformed port object as a data condition and gave
- *  `UnbuildableDoorBandError` — a placement height, not a missing declaration — the name of a cause
- *  it is not. A code family is declared per cause (ADR 0069), and *"or anything else"* is not one:
- *  a third "unexpected" code would be the same relabelling wearing an honest name. Throwing out of a
- *  query that runs in render is this repository's own stance already — `projectDesignForDisplay`
- *  throws `UnknownBodyError` — and this narrowed catch is what asserts that the only errors this
- *  path produces are the two named below. */
+/** `countHardwareMechanisms` **throws** for a body whose fronts cannot be read; this query refuses
+ *  with a code instead. Only the two declared causes convert and everything else propagates
+ *  unchanged: a bare catch would relabel a `TypeError` as a data condition (ADR 0092 decision 16). */
 function refuseUnreadableFronts(
   entry: DisplayEntry,
   catalog: BodyCatalog,
@@ -651,9 +557,8 @@ function refuseUnreadableFronts(
   }
 }
 
-/** Which of the two declared causes this is. Anything else is a defect in this repository rather
- *  than a fact about the customer's kitchen, so it leaves as itself — same instance, same stack —
- *  and never as a refusal a surface could render. */
+/** Anything but the two declared causes is a defect, so it leaves as itself (same instance, same
+ *  stack) and never as a refusal a surface could render. */
 function refuseUnreadableFrontsCause(
   error: unknown,
   entry: DisplayEntry,
@@ -669,21 +574,14 @@ function refuseUnreadableFrontsCause(
   throw error;
 }
 
-/** What a material tier charges once for the whole kitchen — the 2E sheet's *de la +9 000* delta,
- *  which is the largest single figure the book states. */
+/** What a material tier charges once for the whole kitchen. */
 function wholeKitchenAmount(tier: MaterialTier): DeclaredBookAmount {
   return { declared: tier.wholeKitchenMinor, field: "wholeKitchenMinor" };
 }
 
-/** **Both whole-kitchen lines carry `quantity: 1`** (ADR 0092 decision 4). The material line always
- *  did; the hardware line does now that it prices three mechanisms at three rates, because three
- *  rates cannot share one unit price and 74 hinges plus 5 drawers do not add to a quantity anything
- *  can be priced by. `amountMinor === quantity × unitAmountMinor` still holds, trivially — and it is
- *  a published invariant of every line, so it holds here by construction rather than by luck.
- *
- *  Takes an **already-checked** amount: the two kinds reach one by different routes — a material
- *  tier declares its amount outright, a hardware tier declares three rates that are multiplied by a
- *  count — and folding both into this function would give it two reasons to change. */
+/** Both whole-kitchen lines carry `quantity: 1` (ADR 0092 decision 4), so
+ *  `amountMinor === quantity × unitAmountMinor` holds by construction. Takes an **already-checked**
+ *  amount: the two kinds reach one by different routes, and folding both in gives two reasons to change. */
 function wholeKitchenLine(line: {
   readonly kind: "hardware" | "material";
   readonly tier: HardwareTier | MaterialTier;
@@ -710,24 +608,15 @@ function wholeKitchenLine(line: {
   };
 }
 
-/** A whole-kitchen line is billed once for the kitchen, so its quantity is one. Named rather than
- *  written as a bare `1` twice, because it is the same fact both times. */
 const WHOLE_KITCHEN_QUANTITY = 1;
 
 /**
- * **The sink extras, after every other line** — ADR 0070 decision 4, as ADR 0092 decision 11 prices
- * it. Two lines at most, and often none.
+ * The sink extras, after every other line (ADR 0092 decision 11). Two lines at most, often none.
  *
- * **Per sink, never per kitchen** (owner, 2026-09-04). The cover's quantity is the number of sink
- * bodies; the rack's is the number of sinks that resolved a host. A two-sink kitchen is billed two
- * covers and two racks **even where both racks resolve to the same wall cabinet** — no
- * de-duplication, which was the recommendation on record and which the owner ruled against.
- *
- * **A quantity of zero is no line at all, and that is the whole point of the omission.** A kitchen
- * with no sink has neither line, and a sink with no wall cabinet above it has the cover and not the
- * rack. Publishing a zero instead would render *inclus* in the breakdown — telling a customer a
- * drying rack they are not getting is included in the price. 6B's rule holds in both directions:
- * omission never means *included*, and a zero never means *missing*.
+ * Per sink, never per kitchen: the cover's quantity is the number of sink bodies, the rack's the
+ * number of sinks that resolved a host, with no de-duplication when two racks share a wall cabinet.
+ * A quantity of zero is no line at all: a zero would render *inclus* and tell the customer a rack
+ * they are not getting is included.
  */
 function priceAccessories(
   entries: readonly DisplayEntry[],
@@ -754,9 +643,8 @@ function priceAccessories(
   return { value: lines };
 }
 
-/** One accessory the design earns, priced — or **nothing at all** where it earns none of it.
- *  `undefined` is the omission, a real answer, and the one thing this must never turn into an
- *  amount of zero. */
+/** One accessory the design earns, priced, or `undefined` where it earns none: an omission, which
+ *  must never turn into an amount of zero. */
 function accessoryLine(billed: {
   readonly rule: AccessoryRule | undefined;
   readonly accessoryId: AccessoryId;
@@ -764,9 +652,8 @@ function accessoryLine(billed: {
 }): Attempt<AccessoryPriceLine | undefined> {
   if (billed.quantity < ONE_ACCESSORY) return { value: undefined };
 
-  // A book holding no rule for an accessory this design **earns** cannot price the design, and it
-  // is refused rather than skipped: a skipped line is an omission, and omission would say the
-  // customer is not getting a cover they are.
+  // A missing rule for an accessory the design earns is refused, not skipped: a skipped line would
+  // read as omission.
   const { rule } = billed;
   if (!rule) {
     return refusal(
@@ -803,16 +690,11 @@ function accessoryLine(billed: {
   };
 }
 
-/** The smallest quantity that is a line. Below it there is nothing to bill, and the line is omitted
- *  rather than published at nothing. */
 const ONE_ACCESSORY = 1;
 
-/** The catalogue leaves a book row names for its rendered text (ADR 0106 decision 1), carried
- *  onto the line that prices it.
- *
- *  **Absent rather than present-and-`undefined`** where the row names none, so a line's own shape
- *  says which of the two resolution paths it takes and a row that names no key is indistinguishable
- *  from the dashboard-authored row ADR 0106 decision 2 keeps `name` required for. */
+/** The catalogue text keys a book row names (ADR 0106 decision 1), carried onto its line. Absent
+ *  rather than present-and-`undefined`, so a row naming no key stays distinguishable from a
+ *  dashboard-authored row. */
 function textKeysOf(row: {
   readonly nameKey?: string | undefined;
   readonly descriptionKey?: string | undefined;
@@ -826,17 +708,11 @@ function textKeysOf(row: {
 }
 
 /**
- * `usableCoefficientOf` **throws** for a tier or accessory amount that is not an exact count of
- * minor units, exactly as it does for a cabinet coefficient and for the same ADR 0062 seam 1
- * reason. This query
- * refuses with a code instead, so the conversion is here and this function does nothing else —
- * the shape `evaluateFormula` already has for the cabinet path.
+ * `usableCoefficientOf` **throws** for a tier or accessory amount that is not an exact count of minor
+ * units; this query refuses with a code instead.
  *
- * **`refuseUnpublishableAmount` cannot stand in for this and never could.** A `null`, `false`, `[]`
- * or `""` amount multiplied by a mechanism count is `0`: exact, non-negative, and published as a
- * line the breakdown renders *inclus* — omission read as "included", which is the one reading
- * `priceWholeKitchen` exists to prevent. `true` is worse still: a whole material upgrade billed at
- * one ban.
+ * `refuseUnpublishableAmount` cannot stand in for it: a `null`, `false`, `[]` or `""` amount times a
+ * mechanism count is `0`, which publishes as *inclus*, and `true` bills a whole material upgrade at one ban.
  */
 function checkedBookAmount(
   amount: DeclaredBookAmount,
@@ -850,15 +726,10 @@ function checkedBookAmount(
 }
 
 /**
- * `exactAmountOfTerms` **throws** where a product or a running sum leaves the exact-integer range,
- * exactly as it does on the cabinet path and for the same reason. This query refuses with a code
- * instead, so the conversion is here and this function does nothing else — the shape
- * `evaluateFormula` and `checkedBookAmount` already have.
- *
- * **The three rates being each exact is not the same fact as their total being exact**, which is why
- * this stands beside `checkedHardwareRates` rather than inside it: two products that leave the safe
- * range and a sum that lands back inside it published 8 minor units where the integers give 11, and
- * every downstream guard accepted it because 8 is exact and non-negative.
+ * `exactAmountOfTerms` **throws** where a product or running sum leaves the exact-integer range; this
+ * query refuses with a code instead. Separate from `checkedHardwareRates`: three exact rates do not
+ * make an exact total, since two out-of-range products and a sum landing back inside the range would
+ * publish a wrong amount that every later guard accepts.
  */
 function checkedAmountOfTerms(
   terms: readonly PricedTerm[],
@@ -881,14 +752,12 @@ function indexRulesByBuildId(
   return new Map(rules.map((rule) => [rule.buildId, rule]));
 }
 
-/** An amount is a whole count of minor units. A fraction is not a surprising price — it is one
- *  something has already rounded, and rounding belongs to presentation. */
+/** An amount is a whole count of minor units; rounding belongs to presentation. */
 function isExactAmount(amountMinor: number): boolean {
   return Number.isSafeInteger(amountMinor);
 }
 
-/** Everything a finished amount has to be before it may appear on a line, integrality first: a
- *  fraction is the more specific fact about the number, and a negative fraction is both. */
+/** Everything a finished amount must be before it may appear on a line, integrality first. */
 function refuseUnpublishableAmount(
   amountMinor: number,
   ruleId: string,
@@ -913,15 +782,9 @@ function refuseInexactAmount(
   );
 }
 
-/** **A cabinet the customer would be paid to take.** Every coefficient a book states may be
- *  negative and the arithmetic stays exact, so integrality says nothing here: a manufacturer typing
- *  a minus sign through ADR 0062's dashboard published a line at a negative amount and a total that
- *  under-quoted, with no refusal anywhere (QA 6B2).
- *
- *  Asked of the **amount** rather than of the coefficients, because that is where the question
- *  actually is: a negative rate is not wrong in itself — a discount term the owner ruled would be
- *  one — and what may never be published is a line the whole of which is below zero. The total
- *  needs no guard of its own: it is a sum of lines that have each passed this one. */
+/** Asked of the **amount**, not the coefficients: a negative rate (a discount term) is legitimate, but
+ *  a line whose whole amount is below zero may never be published. The total needs no guard of its
+ *  own, being a sum of lines that each passed this one. */
 function refuseNegativeAmount(
   amountMinor: number,
   ruleId: string,
@@ -935,9 +798,8 @@ function refuseNegativeAmount(
   );
 }
 
-/** The refusal half of every step below `priceDesign`. A step answers with a value or with the one
- *  failure that ends the whole query — there is no third branch, because there is no partial
- *  result. */
+/** A step answers with a value or with the one failure that ends the whole query; there is no
+ *  partial result. */
 interface Refused {
   readonly failure: PricingFailure;
 }
@@ -956,15 +818,9 @@ function refusal(
 }
 
 /**
- * The one place a `PricingFailure` is built, and therefore the one place its `detail` is made safe
- * to log or render.
- *
- * **Bounded unconditionally here rather than at each call site**, which is `failure-text.ts`'s own
- * discipline and the reason validation's copy of this bug is fixed and pricing's was not. Two
- * populations reach these strings: a book value, which ADR 0062 seam 1 puts outside TypeScript and
- * which `usableCoefficientOf` stringifies whole into its message, and `selectTier`'s tier id, which
- * comes straight off `request.selections` and is therefore **caller-chosen**. An unbounded,
- * un-scrubbed string from either is an amplification and a way to forge a log line.
+ * The one place a `PricingFailure` is built, so the one place `detail` is made safe to log or render.
+ * Bounded here rather than per call site: book values (ADR 0062 seam 1) and the caller-chosen tier id
+ * both reach these strings, and an unbounded, un-scrubbed one amplifies and can forge a log line.
  */
 function failWith(
   code: PricingFailureCode,

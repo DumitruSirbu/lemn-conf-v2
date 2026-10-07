@@ -44,8 +44,8 @@ type ParsedURoomInput = RoomInput & {
   readonly wallBMm: number;
   readonly wallCMm: number;
   readonly heightMm: number;
-  /** A U has one hand (ADR 0132 decision 8, Q-U4 (b)), so this is never read from the URL: the
-   *  domain's `URoomInput` still names the field, and this is the one value it is given. */
+  /** A U has one hand (ADR 0132 decision 8): never read from the URL. `URoomInput` still names the field, and
+   *  this is its one value. */
   readonly cornerDirection: typeof ONLY_HAND_OF_A_U;
 };
 
@@ -80,21 +80,17 @@ export type RoomUrlState =
 const ROOM_SHAPES = new Set<RoomShape>(["linear", "L", "U"]);
 const CORNER_DIRECTIONS = new Set<CornerDirection>(["left", "right"]);
 
-/** A U's one hand (ADR 0132 decision 8, Q-U4 (b)): the value `URoomInput` is given, never read from
- *  the URL. */
+/** A U's one hand (ADR 0132 decision 8): the value `URoomInput` is given, never read from the URL. */
 const ONLY_HAND_OF_A_U = "left" as const satisfies CornerDirection;
 
-/** Whether a shape has a corner and yet no direction to choose — a U (ADR 0132 decision 8, Q-U4 (b):
- *  it shows no toggle, carries no `direction`, and its plan is drawn unmirrored). **Derived from the
- *  domain's two answers, never spelled** (AC8): the shape turns a corner (`wallsOf`) and does not
- *  carry a corner direction (`carriesCornerDirection`, beside `cornerDirectionOf`). A straight room
- *  has neither, and is not one-handed: it has nothing to be handed. */
+/** Whether a shape turns a corner yet has no direction to choose: a U shows no toggle and carries no `direction`
+ *  (ADR 0132 decision 8). Derived from the domain's `wallsOf` and `carriesCornerDirection`, never spelled; a
+ *  straight room is not one-handed, it has nothing to be handed. */
 export function hasOneHand(shape: RoomShape): boolean {
   return turnsACorner(shape) && !carriesCornerDirection(shape);
 }
 
-/** Whether a shape carries the toggle and a `direction` in its URL (criterion 6) is the domain's
- *  answer, `carriesCornerDirection`, re-exported so the screens keep reading it from here. */
+/** Re-exported so the screens read whether a shape carries the toggle and a `direction` from here. */
 export { carriesCornerDirection };
 
 /** Whether a shape has more than the one wall a straight room has — read from the domain's own
@@ -103,9 +99,8 @@ export function turnsACorner(shape: RoomShape): boolean {
   return wallsOf(shape).length > 1;
 }
 
-/** Resolves the URL into the earliest room sub-state that can truthfully represent it. The room is
- *  judged against `policy`, which is the owner-approved one everywhere but a test that states a shape
- *  the approved policy does not build yet (ADR 0116's witness). */
+/** Resolves the URL into the earliest room sub-state that can truthfully represent it. Judged against `policy`:
+ *  the approved one, except in a test that states a shape it does not build yet (ADR 0116). */
 export function parseRoomUrlState(
   searchParams: RoomSearchParams,
   policy: RoomPolicy = APPROVED_ROOM_POLICY,
@@ -180,10 +175,8 @@ function directionOfParsedInput(
 }
 
 /**
- * Reopens Step 1 from a stored room without carrying document or presentation state in the URL.
- * ADR 0129 D9: the direction is `cornerDirectionOf(room)`, which maps an absent key to left — so a
- * document from before this wave still reopens on the left toggle, exactly as it always has. A U's
- * URL carries no direction at all (`serialiseRoomInput`).
+ * Reopens Step 1 from a stored room without document or presentation state in the URL. The direction is
+ * `cornerDirectionOf(room)`, which maps an absent key to left (ADR 0129 D9); a U's URL carries none.
  */
 export function roomHrefFromDesignRoom(room: DesignRoom): string {
   const lengths = Object.fromEntries(
@@ -209,15 +202,10 @@ export interface DesignRoomLength {
 }
 
 /**
- * **The one `DesignRoom` → wall/height mapping**, so `roomHrefFromDesignRoom` above and
- * `generation-steps.tsx`'s `roomDraftFor` cannot map a stored room's numbers two different ways
- * (7L review finding F5). `widthMm` is wall A; `depthMm` is wall B, but only for a room that turns a
- * corner — a straight room's `depthMm` is the drawn floor's depth in front of the run (ADR 0130 D3),
- * never a wall the customer typed. A `Record` over `DesignRoom["shape"]`, so a shape `DesignRoom`
- * learns to carry a third wall in is a compile error here, not a call site silently missing one.
- *
- * **The U arm** maps `wallCMm` to `"wallC"`, matching `room.wallLabel.wallC` and the URL's own
- * `wallC` field (G11); `roomHrefFromDesignRoom` reads it since M7B wave U5 slice S1.
+ * The one `DesignRoom` to wall/height mapping, shared with `generation-steps.tsx`'s `roomDraftFor`. `widthMm` is
+ * wall A; `depthMm` is wall B only for a room that turns a corner (a straight room's `depthMm` is the drawn floor's
+ * depth, not a typed wall; ADR 0130 decision 2). A `Record` over `DesignRoom["shape"]`, so a new shape is a compile
+ * error here. The U arm maps `wallCMm` to `"wallC"`, as `room.wallLabel.wallC` and the URL do.
  */
 const DESIGN_ROOM_LENGTHS = {
   linear: (room) => [
@@ -239,10 +227,8 @@ const DESIGN_ROOM_LENGTHS = {
   Record<DesignRoom["shape"], (room: DesignRoom) => readonly DesignRoomLength[]>
 >;
 
-/** `DesignRoom.wallCMm` is optional in the wire type even though the schema requires it on a `"U"`
- *  (ADR 0132 decision 6's refinement is a runtime check, not a narrowed type) — so a well-formed U
- *  room is asserted here rather than trusted, the same discipline `millimetresOf` below applies to a
- *  missing field. */
+/** `DesignRoom.wallCMm` is optional in the wire type though the schema requires it on a `"U"` (ADR 0132 decision
+ *  6): a well-formed U room is asserted here rather than trusted. */
 function requireWallCMm(room: DesignRoom): number {
   if (room.wallCMm === undefined) {
     throw new Error("a U room's own mapping carries no wallCMm");
@@ -282,9 +268,8 @@ export function isCornerDirection(
 
 type LengthField = "wallA" | "wallB" | "wallC" | "height";
 
-/** The field a wall's length is entered in. A `Record` over the domain's walls, so a wall the domain
- *  learns is a compile error here. Exported for the plan preview, which draws walls and needs the
- *  same answer the form and the URL have. */
+/** The field a wall's length is entered in; a `Record` over the domain's walls, so a new wall is a compile error
+ *  here. `fieldOfWall` is exported for the plan preview. */
 const FIELD_OF_WALL = {
   A: "wallA",
   B: "wallB",
@@ -295,10 +280,8 @@ export function fieldOfWall(wall: DesignWall): Exclude<LengthField, "height"> {
   return FIELD_OF_WALL[wall];
 }
 
-/** The length fields a shape is entered with, in the order the URL and the form both read them:
- *  one per wall the domain says the shape has (`wallsOf`, M7B plan D7), then the height. Exported
- *  rather than copied: a wall added to a shape in the domain grows the query, the form and the plan
- *  together, so the three cannot disagree about what a shape is made of (backlog 76). */
+/** The length fields a shape is entered with, in the order the URL and the form both read them: one per wall
+ *  `wallsOf` says the shape has, then the height. Exported so query, form and plan agree what a shape is made of. */
 export function requiredFieldsFor(shape: RoomShape): readonly LengthField[] {
   return [...wallsOf(shape).map(fieldOfWall), "height"];
 }

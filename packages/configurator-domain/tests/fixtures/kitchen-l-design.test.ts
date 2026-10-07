@@ -65,12 +65,12 @@ describe("KITCHEN_L_DESIGN", () => {
     expect(declared).toBeGreaterThan(0);
   });
 
-  // Absent means "no catalogue equivalent", and exactly four seeded entries are in that position:
+  // Absent means "no catalogue equivalent", and exactly six seeded entries are in that position:
   // nothing in §7 builds any of the corner bodies. Named, so adding a pointer to one of them — or
   // losing one from another entry — is a test failure rather than a quietly missing badge. The two
   // `base-corner-*` entries joined the list with ADR 0025: §13.1 says a corner is not a body a
   // customer chooses, so having no equivalent is their correct answer.
-  it("leaves only the four corner bodies without an equivalent", () => {
+  it("leaves only the six corner bodies without an equivalent", () => {
     const unpointed = [...KITCHEN_L_BODY_CATALOG]
       .filter(
         ([, definition]) =>
@@ -83,6 +83,8 @@ describe("KITCHEN_L_DESIGN", () => {
       "base-corner-x-900",
       "wall-corner-return-570",
       "wall-corner-return-570-top",
+      "wall-corner-x-900",
+      "wall-corner-x-900-top",
     ]);
   });
 

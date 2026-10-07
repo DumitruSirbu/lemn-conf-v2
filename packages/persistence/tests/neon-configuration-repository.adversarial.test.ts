@@ -1,10 +1,3 @@
-// Adversarial QA for M3 Wave 3C-2a, the authorisation predicate itself.
-//
-// The implementer's suite proves the predicate refuses a wrong hash and leaves `document` alone.
-// This file attacks what that leaves open: the *other* column a refused write could move, the shapes
-// of hash a caller can supply that are neither "right" nor "obviously wrong", and the structural
-// claim that there is no read before the write — which no black-box test can observe, because a
-// read-then-write with a narrow enough window behaves identically until it does not.
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -33,8 +26,8 @@ import {
 import { forgetAppliedMigrations } from "./support/migration-ledger-probe.js";
 import { holdExclusiveTestSchemaLock } from "./support/test-schema-lock.js";
 
-// Exclusive: this file drops write_token_hash and asserts a whole-table count, and neither is
-// safe while another run uses the test database (M7 wave 7T, T-J5).
+// Exclusive: this file drops write_token_hash and asserts a whole-table count, neither safe while another run
+// uses the test database.
 holdExclusiveTestSchemaLock();
 
 const SUITE_NAME =
@@ -46,23 +39,20 @@ if (!hasLiveDatabase) announceSkippedLiveSuite(SUITE_NAME);
 
 const SOURCE_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "../src");
 
-/** Every design in this file is minted and then attacked without ever being saved, so the revision
- *  a legitimate save would state is the one the mint produced. */
+/** Designs here are never saved after minting, so a legitimate save states the minted revision. */
 const FIRST_REVISION = "1";
 
 const CORRECT_TOKEN_HASH = "c".repeat(64);
 
-/** This file attacks the write-token predicate, never visitor identity, so every mint needs one
- *  well-formed visitor hash and nothing more. */
+/** This file attacks the write-token predicate, never visitor identity, so one well-formed visitor hash suffices. */
 const VISITOR_HASH = "e".repeat(64);
 const ATTACKER_DESIGN: Design = {
   ...KITCHEN_L_DESIGN,
   presetId: "overwritten-by-attacker",
 };
 
-/** Every hash shape an attacker can present that is not simply "a different digest". Each one is a
- *  way a predicate could be coaxed into matching if it were built by string concatenation, compared
- *  case-insensitively, trimmed, or evaluated with SQL's own truthiness rather than by equality. */
+// Hash shapes that could match if the predicate were built by concatenation, compared case-insensitively,
+// trimmed, or evaluated with SQL truthiness rather than equality.
 const HOSTILE_HASHES: readonly {
   readonly name: string;
   readonly hash: string;
@@ -108,16 +98,13 @@ describe("the write-authorisation predicate under attack (live test database)", 
     return id;
   }
 
-  /** The whole row as the database holds it — `document` **and** `updated_at`. A refusal that left
-   *  the document alone but bumped the timestamp would still have written to the row, and would
-   *  still be visible to anything that reads `updated_at` (ADR 0019 decision 7's retention sweep
-   *  reads exactly this column, so a bumped timestamp keeps an abandoned design alive forever). */
+  // The whole row — `document` and `updated_at`: a refusal that bumps the timestamp has still written to the row
+  // and would keep an abandoned design alive past the retention sweep.
   async function readRow(
     id: DesignId,
   ): Promise<{ document: string; updatedAt: string }> {
-    // `updated_at::text` rather than the driver's `Date`: a `Date` stringifies to second
-    // resolution, so two writes inside the same second would look identical and every negative
-    // assertion below would pass without proving anything.
+    // `updated_at::text`, not the driver's `Date`: a Date has second resolution, so two writes in one second
+    // would look identical and every negative assertion would pass vacuously.
     const rows = (await neon(testDatabaseUrl)`
       select document, updated_at::text as updated_at from designs where id = ${id}
     `) as { document: unknown; updated_at: string }[];
@@ -216,13 +203,8 @@ describe("the write-authorisation predicate under attack (live test database)", 
     30_000,
   );
 
-  // R1 QA-D, flipped — and the fix went further than the finding asked. The reported hole was `''`
-  // (`'' = ''` is true, so such a row is writable by anyone presenting an empty hash). `mint` now
-  // requires a **64-character lowercase hex SHA-256 digest**, which closes the reported case and the
-  // whole class of guessable values around it, including the whitespace shape I flagged as an open
-  // boundary. Unreachable through the route either way — `mintWriteToken` always yields a digest —
-  // but the port's contract is that an unauthorised write is unrepresentable, and a predicate
-  // satisfiable by a guessable value is the hole in exactly that claim.
+  // `mint` accepts only a 64-character lowercase hex SHA-256 digest: `'' = ''` is true, so a row minted with an
+  // empty or guessable hash would be writable by anyone presenting the same value.
   const DEGENERATE_HASHES: readonly {
     readonly name: string;
     readonly hash: string;
@@ -262,7 +244,6 @@ describe("the write-authorisation predicate under attack (live test database)", 
         );
       }
 
-      // A refusal that let the row land anyway would be worthless.
       expect(await countRows()).toBe(before);
     },
     30_000,
@@ -301,15 +282,8 @@ describe("the write-authorisation predicate under attack (live test database)", 
     },
   );
 
-  // The question behind QA-D, answered against the live column rather than argued: which values
-  // satisfy `write_token_hash = ''` trivially? Exactly one — in Postgres `text`, `''` is the only
-  // value equal to `''`. Whitespace is not blank-padded away, case is significant, a trailing space
-  // is significant, and `''` is not NULL. So the "equivalent to empty" class the mint guard had to
-  // cover has a single member, and the digest check above is comfortably wider than it needs to be.
-  //
-  // This is not a fact about SQL in the abstract — it is a fact about this **column's type**. On
-  // `char(n)` the comparison is blank-padded and `'' = ' '` is true, which would make the guard
-  // insufficient overnight. That is why it is asserted against the live column rather than argued.
+  // Asserted against the live column, not argued: only `''` equals `''` in Postgres `text`. On `char(n)` the
+  // comparison is blank-padded, `'' = ' '` would be true, and the empty-hash guard would be insufficient.
   it.skipIf(!hasLiveDatabase)(
     "has exactly one value equal to the empty hash, which is why refusing '' is enough",
     async () => {
@@ -334,7 +308,6 @@ describe("the write-authorisation predicate under attack (live test database)", 
       expect(equality?.trailing_space_ignored).toBe(false);
       expect(equality?.empty_is_null).toBe(false);
 
-      // And the column really is `text`, not a blank-padded `char(n)` where the above would flip.
       const [column] = (await neon(testDatabaseUrl)`
         select data_type from information_schema.columns
         where table_name = 'designs' and column_name = 'write_token_hash'
@@ -343,9 +316,8 @@ describe("the write-authorisation predicate under attack (live test database)", 
     },
   );
 
-  // R3.4. `requireSha256Digest` guards the application's path; the check constraint guards the
-  // paths application code is not on — a manual insert, and the restore runbook. Asserted by
-  // driving raw SQL past the repository, which is the only way to reach the constraint at all.
+  // The check constraint guards paths application code is not on (a manual insert, the restore runbook); only raw
+  // SQL past the repository reaches it.
   it.skipIf(!hasLiveDatabase)(
     "refuses a degenerate hash at the database level, not only in application code",
     async () => {
@@ -457,9 +429,7 @@ describe("the write-authorisation predicate under attack (live test database)", 
 
       expect(ownerResult.status).toBe("fulfilled");
       expect(attackerResult.status).toBe("rejected");
-      // Read back through the repository so the comparison is canonical: `jsonb` does not preserve
-      // key order, so comparing raw JSON text would fail for a reason that has nothing to do with
-      // authorisation.
+      // Read through the repository: `jsonb` does not preserve key order, so raw JSON text would differ spuriously.
       expect(
         canonicalSerializeDesign((await testRepository().load(id)).design),
       ).toBe(canonicalSerializeDesign(authorised));
@@ -496,11 +466,8 @@ describe("the write-authorisation predicate under attack (live test database)", 
   );
 });
 
-// The invariant the milestone says "must not be softened", checked structurally rather than
-// behaviourally. A read-then-write cannot be distinguished from a conditional update by any test
-// that observes only outcomes — the TOCTOU window is narrow and non-deterministic, and a suite that
-// waited to observe it would be flaky rather than adversarial. So the claim is checked where it is
-// actually decidable: in the source.
+// Checked structurally: a read-then-write has a narrow, nondeterministic TOCTOU window that no test observing
+// only outcomes can distinguish from a conditional update.
 describe("saveAuthorized is one statement, and the predicate is in it", () => {
   const source = readFileSync(
     resolve(SOURCE_DIR, "neon-configuration-repository.ts"),
@@ -521,9 +488,7 @@ describe("saveAuthorized is one statement, and the predicate is in it", () => {
 
     expect(queries).toHaveLength(1);
     expect(body).toMatch(/and write_token_hash = \$\{writeTokenHash\}/);
-    // WEB-003: the revision belongs in the same predicate as the credential. Written as a second
-    // statement it would be a read-then-write, which is the very window this whole file exists to
-    // deny — one tab could pass the check and lose the row to the other between the two.
+    // The revision shares the credential's predicate: a second statement would reopen the read-then-write window.
     expect(body).toMatch(/and revision::text = \$\{expectedRevision\}/);
     expect(body).toMatch(/returning revision/);
   });
@@ -531,15 +496,11 @@ describe("saveAuthorized is one statement, and the predicate is in it", () => {
   it("reads nothing before it writes", () => {
     const body = bodyOfSaveAuthorized().toLowerCase();
 
-    // A `select` is allowed **only** inside the single statement's own CTE, which shares the
-    // update's snapshot — that is what lets a conflict be told apart from a refusal without a
-    // second round trip that could see a different row. Anything outside it would be a read the
-    // update does not see, so what is forbidden is a second query, and the count above is what
-    // forbids it.
+    // A `select` is allowed only inside the single statement's own CTE, which shares the update's snapshot; a
+    // second query is forbidden by the count above.
     expect(body).toContain("with authorised as (");
     expect(body).not.toContain("this.load(");
-    // A comparison in application code is the other shape this must not take: the hash is compared
-    // by Postgres, so there is nothing here to make timing-safe (and nothing here that is not).
+    // Postgres compares the hash, so an application-side comparison (timing-safe or not) must not appear.
     expect(body).not.toContain("timingsafeequal");
     expect(body).not.toMatch(/writetokenhash\s*===/);
     expect(body).not.toMatch(/writetokenhash\s*!==/);
@@ -552,25 +513,10 @@ describe("saveAuthorized is one statement, and the predicate is in it", () => {
   });
 });
 
-// Lead 7, in its strongest form. Asserting that the column exists proves nothing about the
-// migration: it would pass on a database where someone had added the column by hand, and it would
-// pass on a run where `runMigrations` did nothing at all — which is precisely the failure ADR 0013
-// records (`pnpm run migrate` exiting 0 having migrated nothing, on a checkout whose path contains
-// a space, as this one's does). So the column is **removed** and the migration is asked to put it
-// back. Only a migration that actually executes can pass this.
-//
-// Since Wave S10 the runner keeps a ledger and skips what it has already applied, so the ledger
-// rows for the write-token migrations are forgotten alongside the column. That is not a weakening:
-// the test now proves the stronger thing, that what the runner executes is decided by the ledger
-// and not by luck. Both files are forgotten, not just 0002, because 0003's check constraint went
-// with the dropped column and because leaving 0003 recorded while 0002 is not is exactly the gap
-// the runner refuses.
-//
-// **Every version from 2 upward, not only 2 and 3** (WEB-003). The runner refuses a ledger with a
-// hole in it, so forgetting 2 while a later migration stays recorded is itself the gap — it wedges
-// the shared test database rather than re-running the migration under test. Anything added after
-// 0004 belongs in this list for the same reason. `0005` joined it for exactly that reason, and `0006`
-// for the same reason again.
+// The column is removed and the migration asked to put it back: only a migration that actually executes passes,
+// where a no-op `runMigrations` exiting 0 would not (see ADR 0013). The ledger rows are forgotten too, for every
+// version from 2 up: the runner refuses a ledger with a hole, so a later recorded migration would wedge the
+// shared test database. A migration added after 0006 belongs in this list for the same reason.
 const WRITE_TOKEN_MIGRATION_VERSIONS = [2, 3, 4, 5, 6];
 describe("the write-token migration actually executes", () => {
   const sql = hasLiveDatabase ? neon(testDatabaseUrl) : undefined;
@@ -587,10 +533,8 @@ describe("the write-token migration actually executes", () => {
     "re-adds the column after it is dropped, so a no-op run cannot pass",
     async () => {
       if (!sql) return;
-      // Forget the ledger rows before dropping the column, never after: killed between the two, a
-      // run leaves only a forgotten tail, which the next `runMigrations` re-applies and re-records.
-      // The other order leaves the ledger claiming a column that is gone, which is BACKLOG 69's
-      // second error and wedges every later run (review finding R1.2).
+      // Forget the ledger rows before dropping the column, never after: a run killed between the two must leave only
+      // a forgotten tail, not a ledger claiming a missing column, which wedges every later run.
       await forgetAppliedMigrations(
         testDatabaseUrl,
         WRITE_TOKEN_MIGRATION_VERSIONS,
@@ -609,7 +553,7 @@ describe("the write-token migration actually executes", () => {
 
       const columns = await writeTokenColumns();
       expect(columns).toHaveLength(1);
-      // Nullable, so pre-ADR-0019 rows fail closed rather than being rejected at insert time.
+      // Nullable, so rows predating the write token fail closed rather than being rejected at insert time.
       expect(columns[0]?.is_nullable).toBe("YES");
     },
     30_000,
@@ -626,9 +570,7 @@ describe("the write-token migration actually executes", () => {
         visitor: { kind: "fresh", visitorHash: VISITOR_HASH },
       });
       try {
-        // Forgotten first, so the migrations genuinely re-execute against a table that already
-        // holds rows. Without this the ledger would skip them and the assertion below would be
-        // true of a run that did nothing at all.
+        // Forgotten first so the migrations re-execute against a populated table; otherwise the ledger skips them.
         await forgetAppliedMigrations(
           testDatabaseUrl,
           WRITE_TOKEN_MIGRATION_VERSIONS,
@@ -648,10 +590,8 @@ describe("the write-token migration actually executes", () => {
   );
 });
 
-// M7 wave 7E3a, S1: `0005_add_design_visitor_hash.sql`'s constraint and index, read back live —
-// the same argument as the write-token constraint tests above. Application code is not the only
-// path to this column (a manual insert, the restore runbook), so the guard has to be proven at the
-// database, not only in `mint`'s own validation.
+// Application code is not the only path to this column (a manual insert, the restore runbook), so the guard is
+// proven at the database.
 describe("0005's visitor_hash constraint and index, read back live", () => {
   it.skipIf(!hasLiveDatabase)(
     "refuses a degenerate hash at the database level, not only in application code",
@@ -727,18 +667,10 @@ describe("0005's visitor_hash constraint and index, read back live", () => {
           values (${id}, 1, ${KITCHEN_L_DESIGN}, ${probeHash})
         `;
 
-        // A sequential scan can win the planner's cost estimate on a table this small regardless of
-        // the index, which would make the plan look right for the wrong reason. Forcing it off is
-        // what makes "an index scan was chosen" evidence about the index rather than about the
-        // table's size — the contract is that the shape supports one, not that the planner always
-        // picks it.
-        //
-        // **Both statements inside one `sql.transaction(...)`, never two bare calls.** Neon's HTTP
-        // driver opens a fresh implicit transaction for every plain `sql\`...\`` call, so a `set
-        // local` issued that way is scoped to a transaction that has already committed by the time
-        // a second call runs its own — the setting would silently do nothing, and review round 1
-        // caught exactly that (L1.1). `transaction()` submits both queries over one connection, so
-        // the session-local setting from the first is still in effect for the `explain` beside it.
+        // A sequential scan can win on a table this small regardless of the index; forcing it off makes "an index scan
+        // was chosen" evidence about the index's shape.
+        // Both statements in one `sql.transaction(...)`: Neon's HTTP driver commits each bare call separately,
+        // so a separate `set local` would silently do nothing.
         const [, plan] = (await sql.transaction([
           sql`set local enable_seqscan = off`,
           sql`
@@ -748,11 +680,7 @@ describe("0005's visitor_hash constraint and index, read back live", () => {
           `,
         ])) as [unknown, { "QUERY PLAN": unknown }[]];
 
-        // "Index Only Scan", not "Index Scan": the index's own columns are `visitor_hash`,
-        // `updated_at` and `id`, so the query above (`select id ... where visitor_hash = ...`) is
-        // answered from the index alone, with no heap fetch. Both are index scans; only the
-        // narrower one is what the planner actually picks here, which is stronger evidence for the
-        // index's shape, not weaker.
+        // "Index Only Scan" is accepted: the index holds visitor_hash, updated_at and id, so no heap fetch is needed.
         const planText = JSON.stringify(plan);
         expect(planText).toMatch(/Index (Only )?Scan/);
         expect(planText).not.toContain("Seq Scan");
@@ -764,12 +692,8 @@ describe("0005's visitor_hash constraint and index, read back live", () => {
   );
 });
 
-// M7 wave 7E3c, S1: `0006_create_design_share_links.sql`'s table, constraint, foreign key and index,
-// read back live — the same argument as the write-token and visitor-hash constraint tests above.
-// Application code is not the only path to this table (a manual insert, the restore runbook), so
-// every guarantee below is proven at the database. **Written for the mini-gate's post-apply run
-// (§3) and not run by this implementer**: `0006` reaches no database, including the test one, until
-// the security reviewer has read it and the coordinator has run the migration suite once.
+// Application code is not the only path to this table (a manual insert, the restore runbook), so each guarantee
+// is proven at the database.
 describe("0006's design_share_links table, read back live", () => {
   const DEGENERATE_TOKEN_HASHES = [
     "",
@@ -780,9 +704,7 @@ describe("0006's design_share_links table, read back live", () => {
     "a".repeat(63),
   ];
 
-  /** A bare `designs` row with no share links yet, for a share-link test to attach to and delete
-   *  when it is done. Direct SQL, as the visitor-hash block above inserts directly, because this
-   *  describe block is about the schema and not about `NeonConfigurationRepository`. */
+  /** A bare `designs` row for a share-link test to attach to; direct SQL, as this block tests the schema. */
   async function insertDesignForShareLinks(): Promise<string> {
     const id = `qa-0006-design-${String(Date.now())}-${String(Math.random()).slice(2)}`;
     await neon(testDatabaseUrl)`
@@ -949,9 +871,7 @@ describe("0006's design_share_links table, read back live", () => {
   );
 });
 
-// M7 wave 7E3a adversarial QA: D2's guard on `mint`, D3's ordering at its edges (a tie, created vs
-// updated, a save jumping ahead) and hostile hash shapes presented to the lookup. Here, not in a new
-// file, because a new live file would have to register a lock mode and move ADR 0128's census.
+// Lives here, not in a new file: a new live file would have to register a lock mode and move ADR 0128's census.
 describe("7E3a QA — mint's visitor-hash guard and resumeVisitor's ordering, live", () => {
   const QA_VISITOR = "7e3a".repeat(16);
   const created: DesignId[] = [];
@@ -1142,13 +1062,7 @@ describe("7E3a QA — mint's visitor-hash guard and resumeVisitor's ordering, li
   );
 });
 
-/**
- * M7 wave 7E3b, adversarial QA for D1 / ADR 0114 Amendment H1's own retry and atomicity claim
- * (criterion 8). `mint`'s public surface always generates a fresh id, so a genuine retry cannot be
- * driven through it directly; the shape `mintStatements` submits is reproduced here with the driver
- * itself, exactly as `0005`'s and `0006`'s own blocks drive raw SQL past the repository to prove a
- * database-level guarantee no double can stand in for.
- */
+// `mint` always generates a fresh id, so a genuine retry cannot be driven through it; the tests use the driver itself.
 describe("mint rotation — atomicity and retry (Amendment H1, criterion 8)", () => {
   const mintedIds: DesignId[] = [];
 
@@ -1179,9 +1093,7 @@ describe("mint rotation — atomicity and retry (Amendment H1, criterion 8)", ()
     await neon(testDatabaseUrl)`delete from designs where id = any(${ids})`;
   });
 
-  /** The wire shape `@neondatabase/serverless` POSTs for `sql.transaction([...])`, and the shape
-   *  its response carries back — array-mode rows, named by a parallel `fields` array — reused here
-   *  only to decode the replay's own answer, never to build a request by hand. */
+  /** Neon HTTP `sql.transaction` response shape: array-mode rows named by a parallel `fields` array. */
   interface NeonHttpTransactionResult {
     fields: { name: string }[];
     rows: unknown[][];
@@ -1190,8 +1102,6 @@ describe("mint rotation — atomicity and retry (Amendment H1, criterion 8)", ()
     results: NeonHttpTransactionResult[];
   }
 
-  /** Reads the last statement's first row as an object, keyed by its own `fields` — the columns
-   *  `mintStatements`'s closing `select` names, whatever order the driver put them in. */
   function lastRowOf(
     body: NeonHttpTransactionResponseBody,
   ): Record<string, unknown> {
@@ -1207,13 +1117,8 @@ describe("mint rotation — atomicity and retry (Amendment H1, criterion 8)", ()
   }
 
   it.skipIf(!hasLiveDatabase)(
-    // L1.1: earlier versions of this test retyped `mintStatements`'s SQL by hand, which had
-    // already drifted from the production shape once. Retyping it again would only be as
-    // trustworthy as this file's own transcription. Instead, `neonConfig.fetchFunction` — the same
-    // seam `retry-on-compute-restart.test.ts` stubs offline — is pointed at the real network here,
-    // so it can *record* the exact request `mint` sends without changing what is sent. That
-    // captured request is then POSTed again, live, unmodified: the retry this test proves
-    // idempotent is the one production code actually issues, not a copy of it.
+    // `neonConfig.fetchFunction` records the exact request `mint` sends; replaying it unmodified proves the retry
+    // production actually issues is idempotent, not a hand-copied SQL shape.
     "the production rotation transaction, replayed live from its own captured wire bytes, answers the same revision twice and leaves one row (S6 criterion 4, L1.1)",
     async () => {
       const oldHash = "20".repeat(32);
@@ -1249,7 +1154,6 @@ describe("mint rotation — atomicity and retry (Amendment H1, criterion 8)", ()
       if (wireRequest === undefined)
         throw new Error("the driver sent no request to capture");
 
-      // The retry: the exact bytes production sent, POSTed a second time, live.
       const replayed = await realFetch(wireRequest.url, wireRequest.init);
       expect(replayed.status).toBe(200);
       const replayedRow = lastRowOf(
@@ -1281,9 +1185,8 @@ describe("mint rotation — atomicity and retry (Amendment H1, criterion 8)", ()
               update designs set visitor_hash = ${newHash}
               where visitor_hash = ${oldHash}
             `,
-            // Bypasses `requireSha256Digest` by going straight at the driver — the only way to make
-            // this statement fail without also making the insert's own well-formedness the thing
-            // under test. `write_token_hash_is_sha256` (`0003`) refuses it at the database.
+            // Straight at the driver, bypassing `requireSha256Digest`, so the insert fails at the database
+            // (`write_token_hash_is_sha256`, 0003) and not in validation.
             sql`
               insert into designs (id, schema_version, document, write_token_hash, visitor_hash)
               values (${generateDesignId()}, 1, ${KITCHEN_L_DESIGN}, 'not-a-digest', ${newHash})
@@ -1293,8 +1196,7 @@ describe("mint rotation — atomicity and retry (Amendment H1, criterion 8)", ()
         ),
       ).rejects.toThrow(/write_token_hash_is_sha256/);
 
-      // The whole transaction rolled back, including the update that ran first — one Postgres
-      // transaction, not three independent statements.
+      // The whole transaction rolled back, including the update that ran first.
       expect(await visitorHashOf(existingId)).toBe(oldHash);
     },
   );
@@ -1340,11 +1242,6 @@ describe("mint rotation — atomicity and retry (Amendment H1, criterion 8)", ()
   );
 });
 
-/**
- * M7 wave 7E3b adversarial QA (the second pass, after S4): criterion 5 as a property over a
- * sequence of real mints, the gate's predicate against hostile hash shapes, and the two races the
- * plan records as R3 — measured here rather than assumed.
- */
 describe("7E3b QA — rotation over a sequence, the gate's predicate, and the R3 races (live)", () => {
   const mintedIds: DesignId[] = [];
 
@@ -1458,9 +1355,7 @@ describe("7E3b QA — rotation over a sequence, the gate's predicate, and the R3
     120_000,
   );
 
-  /** Shapes a caller could present as the visitor hash that are neither the owner's nor simply a
-   *  different digest — every one must answer `none`, including the owner's hash in another case,
-   *  padded, or wrapped in SQL. */
+  /** Shapes that are neither the owner's hash nor merely another digest; every one must answer `none`. */
   const HOSTILE_VISITOR_HASHES = [
     "",
     " ",
@@ -1557,12 +1452,8 @@ describe("7E3b QA — rotation over a sequence, the gate's predicate, and the R3
   );
 
   it.skipIf(!hasLiveDatabase)(
-    // R2.1: this ran sequentially — mint, then rotate-mint, then save — which is exactly
-    // `neon-configuration-repository.test.ts`'s "answers false for the value a rotation already
-    // moved away from" (Amendment H3's own reason), duplicated rather than raced. A genuine race
-    // instead: a raw client holds the rotation's own row lock open inside its own transaction, so
-    // the save's own `UPDATE` — targeting the same row by id — blocks on it exactly as two truly
-    // concurrent requests would, and proceeds only once the rotation commits.
+    // A raw client holds the rotation's row lock open so the save's UPDATE genuinely blocks on it, as two concurrent
+    // requests would; a sequential mint, rotate, save would duplicate a case in neon-configuration-repository.test.ts.
     "R3, a save racing a genuinely concurrent rotation: the save's own UPDATE blocks on the rotation's row lock, then answers ownsVisitor: false (S6 criterion 7 residual)",
     async () => {
       const oldHash = "47".repeat(32);
@@ -1658,10 +1549,8 @@ describe("7E3b QA — rotation over a sequence, the gate's predicate, and the R3
   );
 
   it.skipIf(!hasLiveDatabase)(
-    // S6 criterion 4's third bullet, kept against random rotation (H1/H6) rather than deleted with
-    // H4: under plain random rotation there is no derivation to attack — a rotate mint always draws
-    // a fresh value regardless of what `fromVisitorHash` names — so a planted `P` that owns no row
-    // moves nothing and reaches nothing, which this test measures directly rather than assumes.
+    // A rotate mint always draws a fresh value regardless of `fromVisitorHash`, so a planted P that owns no row
+    // moves nothing and reaches nothing.
     "S6 criterion 4: a planted P owns nothing, so an attacker's mint from it gets its own fresh value and reads nothing of the victim's",
     async () => {
       const ownerHash = "44".repeat(32);
@@ -1686,7 +1575,6 @@ describe("7E3b QA — rotation over a sequence, the gate's predicate, and the R3
       });
       mintedIds.push(attacker.id);
 
-      // The victim's row never moved — nothing owned `plantedP`, so the `update` matched no row.
       expect((await rawRows([victim.id])).get(victim.id)?.visitor_hash).toBe(
         ownerHash,
       );

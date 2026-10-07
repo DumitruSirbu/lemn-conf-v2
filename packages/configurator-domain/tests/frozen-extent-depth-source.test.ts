@@ -134,14 +134,14 @@ describe("the tie-break's undeclared arm, and why it cannot be reached", () => {
   // that tie at the millimetre, one of them declaring nothing: the comparator refuses rather than
   // falling through to the byte order.
   it("refuses a tie whose member declares no depth rule", () => {
-    const definition = CATALOG.get(TIED_APPLIANCE);
-    if (!definition)
-      throw new Error(`${TIED_APPLIANCE} is not in the catalogue`);
+    const definition = CATALOG.get(TIED_PARTNER);
+    if (!definition) throw new Error(`${TIED_PARTNER} is not in the catalogue`);
     const stripped = { ...definition };
     delete stripped.depthRule;
-    const undeclared = new Map(CATALOG).set(TIED_APPLIANCE, stripped);
-    // `hood-600` against `base-corner-return-320`: both declare 600 exactly, so key 1 cannot decide
-    // and key 2 is reached. Asserted below rather than trusted.
+    const undeclared = new Map(CATALOG).set(TIED_PARTNER, stripped);
+    // `base-sink-800` against `base-corner-return-320`: both finish at the base run's worktop line
+    // (ADR 0135 put the return there), so key 1 cannot decide and key 2 is reached. Asserted below
+    // rather than trusted.
     const design = tiedColumn();
 
     expect(() => columnsWith(design, undeclared)).toThrow(
@@ -150,7 +150,7 @@ describe("the tie-break's undeclared arm, and why it cannot be reached", () => {
     // Non-vacuous twice over: the same two members decide fine while the declaration is present, and
     // they really do tie, so the throw came from key 2 rather than from key 1 or the derivation.
     expect(() => columnsWith(design, CATALOG)).not.toThrow();
-    expect(declaredDepthOf(TIED_APPLIANCE)).toBe(declaredDepthOf(TIED_RETURN));
+    expect(declaredDepthOf(TIED_PARTNER)).toBe(declaredDepthOf(TIED_RETURN));
   });
 });
 
@@ -275,7 +275,7 @@ describe("the commands that move an extent without touching its depth", () => {
 /** Two catalogue rows that declare **exactly** the same occupied depth, so key 1 cannot separate
  *  them and the tie-break's later keys are reached. Both follow the setting, which is what makes key 3
  *  the decider in the ordinary case. */
-const TIED_APPLIANCE = "hood-600";
+const TIED_PARTNER = "base-sink-800";
 const TIED_RETURN = "base-corner-return-320";
 
 function declaredDepthOf(buildId: string): number {
@@ -301,7 +301,7 @@ function tiedColumn(): Design {
         wall: "B",
         alongMm: 1000,
         y0Mm: 1500,
-        body: { buildId: TIED_APPLIANCE, widthMm: 600, heightMm: 600 },
+        body: { buildId: TIED_PARTNER, widthMm: 800, heightMm: 820 },
       },
     ],
     emptyColumns: [],

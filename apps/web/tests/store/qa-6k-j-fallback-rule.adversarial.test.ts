@@ -1,14 +1,3 @@
-// Adversarial QA on wave 6K-j — an empty space follows the setting, and the fallback is not a
-// ratchet ([ADR 0080](../../../../docs/decisions/0080-an-empty-space-follows-the-setting-and-a-fallback-is-not-a-ratchet.md)).
-//
-// The wave rewrites one arm of `frozenDepthAtThisSetting`: an extent with no re-answerable source is
-// classified by *"was this depth ever more than this rule could have produced at the setting being
-// left"*, and only the surplus half keeps the deeper-only MAX. Everything it touches is legacy — a
-// document written before wave 6K-c — so the whole file works on documents whose `depthFromBuildId`
-// has been removed, which is what those documents look like.
-//
-// This file attacks the rule itself. `qa-6k-j-closure.adversarial.test.ts` attacks the population
-// claim beside it.
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import {
   buildKitchenLBodyCatalog,
@@ -31,18 +20,18 @@ import { columnKeyAt } from "../support/wall-b-column-keys";
 const OCCURRED_AT = "2026-09-05T12:00:00.000Z";
 const DEEPER_MM = 700;
 
-/** `A|0.30`: a wall run over nothing but the undeletable corner base. Cleared it is the member-less
- *  **wall** column the ratchet bit — the one published depth this wave moves. */
+/** `A|0.30`: a wall run over nothing but the undeletable corner base; cleared it is the member-less **wall**
+ *  column the ratchet bit. */
 const WALL_KEY = "A|0.30";
 const WALL_MEMBERS = ["p8", "p15"];
 
-/** `A|2.00`: the dishwasher niche. Cleared it is a member-less **base** column frozen at 620, a
- *  depth `columnBuildDepthM` cannot express at either setting — the surplus. */
+/** `A|2.00`: the dishwasher niche. Cleared it is a member-less **base** column frozen at 620, a depth
+ *  `columnBuildDepthM` cannot express at either setting, so it is the surplus. */
 const BASE_KEY = "A|2.00";
 const BASE_MEMBERS = ["p1", "p12", "p18"];
 
-/** `A|1.30`: the sink run, and the only column on either wall wide enough to take a full-height body
- *  whose `widthFlex: "fit"` then spans **past its own column** into `A|2.00`'s. */
+/** `A|1.30`: the sink run, the only column wide enough to take a full-height body whose `widthFlex: "fit"`
+ *  spans past its own column into `A|2.00`'s. */
 const SINK_KEY = "A|1.30";
 const SINK_MEMBERS = ["p0", "p11", "p17"];
 
@@ -99,9 +88,8 @@ const stripSource = (entry: EmptyColumn): EmptyColumn => {
   return stripped;
 };
 
-/** The held design re-read as a **pre-6K-c** document: every `depthFromBuildId` removed, and each
- *  remaining entry optionally rewritten. Both frozen arrays, because a column with members and one
- *  without are the same fact under two keys (ADR 0053). */
+/** The held design as a document predating recorded sources, each remaining entry optionally rewritten; both frozen
+ *  arrays, since a column with members and one without are the same fact under two keys (ADR 0053). */
 function asLegacyDocument(
   store: Store,
   rewrite: (entry: EmptyColumn) => EmptyColumn = (entry) => entry,
@@ -121,8 +109,8 @@ function asLegacyDocument(
   );
 }
 
-/** The build ceiling this rule answers with — 330/400 with nothing full-height under the opening,
- *  600/700 with one — in the millimetres the assertions are written in. */
+/** The build ceiling this rule answers with, in millimetres: 330/400 with nothing full-height under the opening,
+ *  600/700 with one. */
 function ceilingMm(
   cabinetDepthMm: number,
   hasFullHeightUnder: boolean,
@@ -130,21 +118,14 @@ function ceilingMm(
   return columnBuildDepthM({ cabinetDepthMm, hasFullHeightUnder }) * 1000;
 }
 
-/** **ADR 0073 decision 3 as wave 6K-c shipped it**, as a reference model: the deeper-only MAX with
- *  no freeze-time question at all. Every assertion that says "this wave keeps less than 6K-c would"
- *  is measured against this and not against a remembered number. */
+/** The previous fallback as a reference model: the deeper-only MAX with no freeze-time question at all. */
 function sixKcFallbackMm(frozenMm: number, newCeilingMm: number): number {
   return Math.max(frozenMm, newCeilingMm);
 }
 
-// =================================================================================================
-// The boundary the wave chose, and the epsilon it chose it with.
-// =================================================================================================
-
 describe("the surplus predicate's own boundary", () => {
-  /** A member-less legacy wall column at one stored depth, at one stored setting. `A|0.30` is the
-   *  only column on either wall that can be emptied and left with no full-height member near it, so
-   *  it is the clean `hasFullHeightUnder: false` probe. */
+  /** A member-less legacy wall column at one stored depth and setting; `A|0.30` is the clean
+   *  `hasFullHeightUnder: false` probe. */
   function wallColumnFrozenAt(depthMm: number, settingMm: number): Store {
     const cleared = removeAll(createStore(), WALL_MEMBERS);
     if (settingMm !== DEFAULT_CABINET_DEPTH_MM) setDepth(cleared, settingMm);
@@ -155,18 +136,9 @@ describe("the surplus predicate's own boundary", () => {
     );
   }
 
-  // **Both arms, swept a millimetre at a time.** Re-authored to the corrected boundary
-  // ([ADR 0080](../../../../docs/decisions/0080-an-empty-space-follows-the-setting-and-a-fallback-is-not-a-ratchet.md)
-  // amendment C): the rule is `|column.d − atFreezeM| <= EPSILON`, an **equality**, so only a depth
-  // sitting exactly on the ceiling of the setting being left follows the setting. The assertion this
-  // replaces read `frozenMm <= atFreezeMm`, which characterised the `<=` this file's own F1 example
-  // falsified — a raised ceiling swallowing a legacy 620 that no version of this rule ever published.
-  //
-  // The claim is *stronger*, not weaker: everything strictly below the freeze-time ceiling used to be
-  // asserted as following the setting and is now asserted as a surplus, and the two answers differ
-  // wherever `newM < frozenMm < atFreezeMm`. Swept rather than sampled, because a discrete `it.each`
-  // of 330/400 would pass against `>=`, against `>`, and against a predicate reading the *new*
-  // ceiling instead of the one being left.
+  // Swept a millimetre at a time, not sampled: a discrete 330/400 `it.each` would pass against `>=`, against `>`, and
+  // against a predicate reading the new ceiling. The rule is the equality `|column.d - atFreezeM| <= EPSILON`
+  // (ADR 0080 amendment C), so only a depth exactly on the ceiling being left follows the setting.
   propertyTest.prop([
     fc.integer({ min: 200, max: 900 }),
     fc.constantFrom(...declaredCabinetDepthsMm()),
@@ -187,18 +159,15 @@ describe("the surplus predicate's own boundary", () => {
         // The rule's own previous answer: it follows the setting exactly, in both directions.
         expect(publishedMm).toBeCloseTo(newMm, 6);
       } else {
-        // Anything else is a surplus this rule cannot claim to have written: deeper-only, ADR 0073
-        // decision 3 unchanged. Below the new ceiling that MAX returns the new ceiling anyway, which
-        // is why the two forms agree there and differ only in `(newM, atFreezeM)`.
+        // Anything else is a surplus this rule cannot claim to have written: deeper-only. Below the new ceiling that
+        // MAX returns the new ceiling anyway, so the two forms differ only in `(newM, atFreezeM)`.
         expect(publishedMm).toBeCloseTo(sixKcFallbackMm(frozenMm, newMm), 6);
       }
     },
   );
 
-  // The transition itself, named at the millimetre so a regression reads as a number and not as a
-  // property failure. Leaving 700, the ceiling is 400: one millimetre either side of it is a surplus,
-  // and only 400 follows the setting down to 330. The 399 row is what the `<=` rule got wrong — it
-  // published 330 there too, and a 399 is not a depth this rule ever wrote.
+  // Named at the millimetre so a regression reads as a number: leaving 700 the ceiling is 400, 399 and 401 are
+  // surplus, and only 400 follows the setting down to 330.
   it("switches arms on the ceiling it is leaving and one millimetre either side of it", () => {
     const atThreeNinetyNine = wallColumnFrozenAt(399, DEEPER_MM);
     const atFourHundred = wallColumnFrozenAt(400, DEEPER_MM);
@@ -213,11 +182,8 @@ describe("the surplus predicate's own boundary", () => {
     expect(depthMmOf(atFourHundredOne, WALL_KEY)).toBeCloseTo(401, 6);
   });
 
-  // **Whether any reachable document lands inside the band.** `FROZEN_SURPLUS_EPSILON_M` is 1e-9 m
-  // and every stored depth is a whole millimetre (`EmptyColumnSchema.depthMm` is `z.int()`), so a
-  // stored depth is either exactly on a ceiling or a full millimetre — six orders of magnitude —
-  // away from it. The band therefore changes no stored document's answer, and its only effect is on
-  // an in-session float, which is the reason it was chosen over a bare `<=`.
+  // `FROZEN_SURPLUS_EPSILON_M` is 1e-9 m and every stored depth is a whole millimetre (`EmptyColumnSchema.depthMm` is
+  // `z.int()`), so no stored document lands inside the band; it only affects an in-session float.
   propertyTest.prop([
     fc.integer({ min: 1, max: 2000 }),
     fc.constantFrom(...declaredCabinetDepthsMm()),
@@ -233,9 +199,8 @@ describe("the surplus predicate's own boundary", () => {
     },
   );
 
-  // …and the in-session half of the same argument: a column this arm answered holds the ceiling
-  // **to the bit**, so the next call's subtraction is exactly zero rather than an epsilon away from
-  // it. Asserted with `toBe` deliberately — `toBeCloseTo` is what would hide a drift here.
+  // A column this arm answered holds the ceiling to the bit, so the next call subtracts to exactly zero; `toBe`
+  // because `toBeCloseTo` would hide a drift.
   it("publishes the ceiling bit-for-bit, so the next call subtracts to exactly zero", () => {
     const store = asLegacyDocument(removeAll(createStore(), WALL_MEMBERS));
 
@@ -248,15 +213,9 @@ describe("the surplus predicate's own boundary", () => {
   });
 });
 
-// =================================================================================================
-// `hasFullHeightUnder`: the live predicate feeds both ceilings, and it is asked in both directions.
-// =================================================================================================
-
 describe("hasFullHeightUnder feeds both ceilings, and the asymmetry runs both ways", () => {
-  /** The one action on the shipped fixture that puts a full-height member over a column that holds
-   *  none of its own: `A|1.30` is 800 mm wide, `tall-pantry` is `widthFlex: "fit"`, so the inserted
-   *  body spans 1300–2100 and overlaps `A|2.00`'s 2000–2600 column. `isFullHeightUnder` is asked of
-   *  every full-height record on the wall by overlap, not of the column's own membership. */
+  /** A `tall-pantry` inserted into the cleared sink run `A|1.30` (800 mm wide): it fills [900, 1700] and only ABUTS
+   *  the 600 mm dishwasher slot `A|2.00`, [1700, 2300]. */
   function withAPantryStandingOverTheDishwasherSlot(): Store {
     const store = removeAll(createStore(), [...SINK_MEMBERS, ...BASE_MEMBERS]);
     const opening = store
@@ -269,11 +228,23 @@ describe("hasFullHeightUnder feeds both ceilings, and the asymmetry runs both wa
     return store;
   }
 
-  it("turns the predicate true on a member-less neighbouring column", () => {
+  // Population pin (ADR 0123): the pantry's span meets the slot's at a point, so a member-less column whose predicate
+  // is TRUE is not reachable here; those cases are declared witnesses in `frozen-map-declared-witnesses.test.ts`.
+  // This goes red if a later change makes the state reachable again.
+  it("leaves the member-less dishwasher slot beside an inserted pantry reading false, the spans abutting", () => {
     const store = withAPantryStandingOverTheDishwasherSlot();
+    const pantry = store
+      .getState()
+      .design.placements.find(
+        (placement) => placement.body.buildId === "tall-pantry",
+      );
+    const slot = columnOf(store, BASE_KEY);
 
-    // The premise every assertion below rests on, measured rather than assumed.
-    expect(columnOf(store, BASE_KEY).hasFullHeightUnder).toBe(true);
+    expect(pantry && pantry.alongMm - pantry.body.widthMm / 2).toBe(900);
+    expect(pantry && pantry.alongMm + pantry.body.widthMm / 2).toBe(1700);
+    expect(slot.x * 1000 - (slot.w * 1000) / 2).toBeCloseTo(1700, 6);
+    expect(slot.x * 1000 + (slot.w * 1000) / 2).toBeCloseTo(2300, 6);
+    expect(slot.hasFullHeightUnder).toBe(false);
     expect(depthMmOf(store, BASE_KEY)).toBeCloseTo(620, 6);
     expect(
       store.getState().records.some((record) => record.col === BASE_KEY),
@@ -281,8 +252,7 @@ describe("hasFullHeightUnder feeds both ceilings, and the asymmetry runs both wa
     ).toBe(false);
   });
 
-  // **The direction the wave names.** A deleted full-height member lowers the freeze-time ceiling,
-  // so a frozen depth that sat on it becomes a surplus and is kept. Confirmed.
+  // A deleted full-height member lowers the freeze-time ceiling, so a depth on it becomes a surplus and is kept.
   it("keeps more when the full-height member is gone", () => {
     const store = asLegacyDocument(removeAll(createStore(), ["p6", "p23"]));
     const cleared = columnOf(store, "B|1.80");
@@ -290,46 +260,19 @@ describe("hasFullHeightUnder feeds both ceilings, and the asymmetry runs both wa
 
     setDepth(store, DEEPER_MM);
 
-    // 600 is on the ceiling a live `true` would have given, and above the `false` one — so the
-    // live answer is what makes it a surplus and keeps it.
+    // 600 is on the ceiling a live `true` would give and above the `false` one, so the live answer makes it a surplus.
     expect(ceilingMm(DEFAULT_CABINET_DEPTH_MM, true)).toBeCloseTo(600, 6);
     expect(ceilingMm(DEFAULT_CABINET_DEPTH_MM, false)).toBeLessThan(600);
-    // ADR 0090 decision 2: the depth does not move and the wall-B coordinate does — a deeper corner
-    // on wall A takes more of wall B. Only the anchor is setting-dependent.
+    // ADR 0090 decision 2: the depth does not move and the wall-B coordinate does.
     expect(depthMmOf(store, columnKeyAt("B|1.80", DEEPER_MM))).toBeCloseTo(
       600,
       6,
     );
   });
 
-  // **The direction the wave says cannot happen.**
-  //
-  // ADR 0080 decision 4: *"`hasFullHeightUnder` is the live predicate… It can only ever make this
-  // rule keep more"*, repeated verbatim in `apps/web/src/store/apply-command-result.ts:492-495`
-  // (*"the asymmetry it can produce runs one way only… which keeps more, never less"*), and carried
-  // into the wave's own acceptance criterion (*"so the rule keeps more, never less"*).
-  //
-  // It is false, and the counterexample needs no hand-built geometry — only a full-height body the
-  // customer inserted, standing over a legacy extent:
-  //
-  //   1. Clear the sink run and the dishwasher slot, insert `tall-pantry` into the sink run. Its
-  //      `widthFlex: "fit"` spans 1300-2100, so `A|2.00`'s member-less 620 mm slot now reports
-  //      `hasFullHeightUnder: true`.
-  //   2. Take the kitchen to 700 and save. **Under HEAD the frozen number crosses untouched** —
-  //      ADR 0080's own measurement says so in as many words: *"`A|2.00` reads 620 in a 700 mm
-  //      kitchen"* — and no `depthFromBuildId` is written, because that field is wave 6K-c's.
-  //   3. Load that document here and take the kitchen back to 600.
-  //
-  // The live `true` raises the freeze-time ceiling from 400 to **700**, so a 620 that was a surplus
-  // at every `false` ceiling is read as this rule's own previous answer and follows the setting to
-  // `columnBuildDepthM(600, true)` = **600**. ADR 0073 decision 3 as 6K-c shipped it answers
-  // `max(620, 600)` = **620**. The rule kept 20 mm **less**, which is the freed opening ADR 0011
-  // Gap D holds and the harm decision 2 refuses option O2 for, arriving on the axis decision 4
-  // declared closed.
-  // The control for the finding below, and the half of it that passes: **the same document without
-  // the pantry** keeps its 620 at both settings, because with `hasFullHeightUnder: false` the
-  // freeze-time ceiling is 400 and 620 is a surplus. So the only thing that changes the answer is
-  // the live predicate, which is what makes the next test a statement about the asymmetry.
+  // Control for the declared witnesses (ADR 0080 decision 4, ADR 0123): a full-height member over a member-less legacy
+  // slot is not reached by inserting a pantry beside it. Here a legacy 620 with nothing full-height over it keeps at
+  // both settings: the predicate is false, so the freeze-time ceiling is 400 and 620 is a surplus.
   it("keeps a legacy 620 at both settings when nothing full-height stands over it", () => {
     const atSevenHundred = setDepth(
       removeAll(createStore(), [...SINK_MEMBERS, ...BASE_MEMBERS]),
@@ -346,74 +289,11 @@ describe("hasFullHeightUnder feeds both ceilings, and the asymmetry runs both wa
 
     expect(depthMmOf(legacy, BASE_KEY)).toBeCloseTo(620, 6);
   });
-
-  it("keeps less when a full-height member stands over a legacy extent", () => {
-    const atSevenHundred = setDepth(
-      withAPantryStandingOverTheDishwasherSlot(),
-      DEEPER_MM,
-    );
-    // HEAD's document: the frozen number carried verbatim across the setting change, no source.
-    const legacy = asLegacyDocument(atSevenHundred, (entry) =>
-      entry.wall === "A" && entry.alongMm === 2000
-        ? { ...entry, depthMm: 620 }
-        : entry,
-    );
-    const frozen = columnOf(legacy, BASE_KEY);
-    expect(frozen.hasFullHeightUnder).toBe(true);
-    expect(frozen.d * 1000).toBeCloseTo(620, 6);
-
-    setDepth(legacy, DEFAULT_CABINET_DEPTH_MM);
-
-    expect(depthMmOf(legacy, BASE_KEY)).toBeCloseTo(
-      sixKcFallbackMm(620, ceilingMm(DEFAULT_CABINET_DEPTH_MM, true)),
-      6,
-    );
-  });
-
-  // The same sweep, re-authored to the corrected boundary (ADR 0080 amendment C and I). It stated the
-  // defect as a property — *every* legacy depth up to the 700 ceiling collapsing to 600 under a
-  // full-height member — and that is exactly what the equality ends: only a depth **on** the ceiling
-  // it is leaving is this rule's own previous answer, so `700` follows the setting to 600 and every
-  // other depth in the range is a surplus and is kept, deeper-only.
-  //
-  // The range still spans both sides of both ceilings, so the assertion covers the shapes the old one
-  // did and asserts more of them: 500 through 699 flipped from "collapses to 600" to "is kept".
-  propertyTest.prop([fc.integer({ min: 500, max: 800 })])(
-    "follows the setting only from the ceiling it is leaving, under a full-height member",
-    (frozenMm) => {
-      const atSevenHundred = setDepth(
-        withAPantryStandingOverTheDishwasherSlot(),
-        DEEPER_MM,
-      );
-      const legacy = asLegacyDocument(atSevenHundred, (entry) =>
-        entry.wall === "A" && entry.alongMm === 2000
-          ? { ...entry, depthMm: frozenMm }
-          : entry,
-      );
-      expect(columnOf(legacy, BASE_KEY).hasFullHeightUnder).toBe(true);
-
-      setDepth(legacy, DEFAULT_CABINET_DEPTH_MM);
-
-      const expectedMm =
-        frozenMm === ceilingMm(DEEPER_MM, true)
-          ? ceilingMm(DEFAULT_CABINET_DEPTH_MM, true)
-          : sixKcFallbackMm(
-              frozenMm,
-              ceilingMm(DEFAULT_CABINET_DEPTH_MM, true),
-            );
-      expect(depthMmOf(legacy, BASE_KEY)).toBeCloseTo(expectedMm, 6);
-    },
-  );
 });
 
-// =================================================================================================
-// A ratchet the previous rule already wrote into a stored document.
-// =================================================================================================
-
 describe("a ratchet already written into a document", () => {
-  /** Wave 6K-a's own output, which is what the legacy population holds: a member-less wall column
-   *  deepened to 400 at 700 and then **saved while the kitchen was back at 600**, because the
-   *  deeper-only MAX held it there. ADR 0080's measurement table records exactly this row. */
+  /** A member-less wall column deepened to 400 at 700 and saved while the kitchen was back at 600 under the old
+   *  deeper-only MAX: the legacy population's row (ADR 0080 measurement table). */
   function documentCarryingTheOldRatchet(): Store {
     return asLegacyDocument(removeAll(createStore(), WALL_MEMBERS), (entry) =>
       entry.wall === "A" && entry.alongMm === 300
@@ -422,23 +302,17 @@ describe("a ratchet already written into a document", () => {
     );
   }
 
-  // **The wave ends the ratchet as a transition and does not clear it from the documents the old
-  // rule already wrote.** At 600 an unsourced 400 is deeper than `columnBuildDepthM(600, false)`, so
-  // the surplus arm keeps it — which is ADR 0080 decision 4's own sentence (*"a document at 600
-  // carrying an unsourced 400 and a document at 700 carrying an unsourced 400 are two different
-  // documents"*) and is therefore the declared behaviour rather than a defect. It is asserted here
-  // because no criterion of the wave states it: the owner's 70 mm-proud wall opening survives the
-  // load, and survives every command that is not a depth change.
+  // The ratchet ends as a transition but is not cleared from documents already written: at 600 an unsourced 400 is
+  // deeper than `columnBuildDepthM(600, false)`, so the surplus arm keeps it (ADR 0080 decision 4), through load and
+  // every command that is not a depth change.
   it("still publishes 400 in a 600 mm kitchen on load", () => {
     const store = documentCarryingTheOldRatchet();
 
     expect(depthMmOf(store, WALL_KEY)).toBeCloseTo(400, 6);
     expect(ceilingMm(DEFAULT_CABINET_DEPTH_MM, false)).toBeCloseTo(330, 6);
-    // And a reload does not move it either: the document answers the same way twice.
     expect(depthMmOf(reload(store), WALL_KEY)).toBeCloseTo(400, 6);
   });
 
-  // It takes a **whole round trip** to clear, which is the shape of the residue the wave leaves.
   it("needs a 600 to 700 to 600 round trip before it follows the setting", () => {
     const store = documentCarryingTheOldRatchet();
 
@@ -450,10 +324,6 @@ describe("a ratchet already written into a document", () => {
     expect(depthMmOf(store, WALL_KEY)).toBeCloseTo(330, 6);
   });
 });
-
-// =================================================================================================
-// Round trips longer than two.
-// =================================================================================================
 
 describe("over round trips longer than two", () => {
   const LEGACY_SCENARIOS: readonly (readonly [string, () => Store])[] = [
@@ -488,11 +358,9 @@ describe("over round trips longer than two", () => {
     );
   }
 
-  // **ADR 0073's consequence says a round trip does not return; this establishes what it does
-  // instead.** After the first depth change the whole published map is a function of the setting
-  // alone — so the sequence collapses to a two-cycle and nothing accumulates, whatever order the
-  // settings arrive in. Swept over sequences rather than the one 700 → 600 leg, because a rule that
-  // drifted by a millimetre per leg would pass any two-step test.
+  // After the first depth change the whole published map is a function of the setting alone, so a sequence collapses
+  // to a two-cycle and nothing accumulates. Swept over sequences because a rule drifting a millimetre per leg would
+  // pass any two-step test.
   propertyTest.prop([
     fc.array(fc.constantFrom(...declaredCabinetDepthsMm()), {
       minLength: 3,
@@ -516,8 +384,6 @@ describe("over round trips longer than two", () => {
     }
   });
 
-  // The two fixed points the cycle is made of, named so a regression is legible: the fallback's own
-  // answer alternates with the setting, and the surplus does not move at all.
   it("alternates the wall column and pins the base slot over four legs", () => {
     const wall = asLegacyDocument(removeAll(createStore(), WALL_MEMBERS));
     const base = asLegacyDocument(removeAll(createStore(), BASE_MEMBERS));
@@ -541,14 +407,9 @@ describe("over round trips longer than two", () => {
   });
 });
 
-// =================================================================================================
-// A fallback depth buried under an intervening command.
-// =================================================================================================
-
 describe("a depth the fallback produced, then buried", () => {
-  /** The wall opening the fallback deepened, refilled and emptied again. This is the state-versus-
-   *  transition shape: `column.d` has been rewritten by a command that is not a depth change between
-   *  the two settings, so the predicate must still classify it from the document it is handed. */
+  /** The wall opening the fallback deepened, refilled and emptied again: a non-depth command rewrote `column.d`, so
+   *  the predicate must still classify from the document it is handed. */
   it("re-sources a fallback depth through an insert and a delete, and follows the setting after", () => {
     const store = asLegacyDocument(removeAll(createStore(), WALL_MEMBERS));
     setDepth(store, DEEPER_MM);
@@ -570,13 +431,10 @@ describe("a depth the fallback produced, then buried", () => {
 
     setDepth(store, DEFAULT_CABINET_DEPTH_MM);
 
-    // The insert re-sourced the column, so the sourced arm — not the fallback — answers now, and it
-    // answers with the wall map's own row rather than with the 400 the fallback left behind.
+    // The insert re-sourced the column, so the sourced arm answers with the wall map's own row, not the fallback's 400.
     expect(depthMmOf(store, WALL_KEY)).toBeCloseTo(330, 6);
   });
 
-  // The surplus half of the same shape: refilling and re-emptying a legacy base slot must not turn
-  // its 620 into something the fallback can claim.
   it("keeps a legacy base slot's surplus through an insert and a delete", () => {
     const store = asLegacyDocument(removeAll(createStore(), BASE_MEMBERS));
     const opening = store
@@ -596,7 +454,7 @@ describe("a depth the fallback produced, then buried", () => {
     const deepenedMm = depthMmOf(store, BASE_KEY);
     setDepth(store, DEFAULT_CABINET_DEPTH_MM);
 
-    // Never the wall map's 330 or 400, at either setting — the criterion's own words.
+    // Never the wall map's 330 or 400, at either setting.
     expect(deepenedMm).toBeGreaterThan(ceilingMm(DEEPER_MM, false));
     expect(depthMmOf(store, BASE_KEY)).toBeGreaterThan(
       ceilingMm(DEFAULT_CABINET_DEPTH_MM, false),
@@ -604,15 +462,10 @@ describe("a depth the fallback produced, then buried", () => {
   });
 });
 
-// =================================================================================================
-// Merged, split and clipped legacy extents.
-// =================================================================================================
-
 describe("merged and split legacy extents", () => {
-  // Three member-less legacy columns at once, two of them the fallback's own answer and one a
-  // surplus, sharing a wall and overlapping each other's spans. Each must be classified on its own
-  // depth: the merge takes the leftmost-shallowest member's whole column (ADR 0079 decision 7), so a
-  // shape that classified the run rather than the column would answer 330 for the 620 slot.
+  // Three member-less legacy columns sharing a wall, two the fallback's own answer and one a surplus: each is
+  // classified on its own depth, because the merge takes the leftmost-shallowest member's whole column (ADR 0079
+  // decision 7), so classifying the run would answer 330 for the 620 slot.
   it("classifies each piece of a cleared run on its own depth", () => {
     const store = asLegacyDocument(
       removeAll(createStore(), [
@@ -646,10 +499,6 @@ describe("merged and split legacy extents", () => {
   });
 });
 
-// =================================================================================================
-// One document, one answer, whatever route reached it.
-// =================================================================================================
-
 describe("one document answers one way, whatever route reached it", () => {
   function inMillimetres(store: Store): Record<string, number> {
     return Object.fromEntries(
@@ -660,9 +509,7 @@ describe("one document answers one way, whatever route reached it", () => {
     );
   }
 
-  // ADR 0011's 2026-08-26 correction. The implementer drove one scenario by three routes; this
-  // drives four scenarios by five, including routes that go through the wire in the middle, and
-  // compares the whole map rather than one key.
+  // Four scenarios by five routes, some through the wire midway, comparing the whole map rather than one key.
   it("publishes one map for five routes, on every legacy scenario", () => {
     const scenarios: readonly (readonly [string, readonly string[]])[] = [
       ["a cleared wall column", WALL_MEMBERS],

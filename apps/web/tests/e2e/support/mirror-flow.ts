@@ -4,7 +4,11 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
 import { ro } from "../../support/romanian-content.e2e";
-import { issueShareLink, openSharedDesign } from "./seeded-design";
+import {
+  issueShareLink,
+  openSharedDesign,
+  FIRST_FRAME_FREEZE_TIMEOUT_MS,
+} from "./seeded-design";
 
 const ROOM = "/ro/configurator/room";
 
@@ -105,13 +109,14 @@ export async function readSettleCount(page: Page): Promise<number> {
   return raw ? Number(raw) : 0;
 }
 
+/** See ADR 0144 d2. */
 export async function waitForSettleAfter(
   page: Page,
   previous: number,
 ): Promise<number> {
   await expect(async () => {
     expect(await readSettleCount(page)).toBeGreaterThan(previous);
-  }).toPass({ timeout: 20_000 });
+  }).toPass({ timeout: FIRST_FRAME_FREEZE_TIMEOUT_MS });
   return readSettleCount(page);
 }
 

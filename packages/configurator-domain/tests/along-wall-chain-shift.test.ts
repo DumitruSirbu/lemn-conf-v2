@@ -409,7 +409,8 @@ describe("how far a column's own members moved", () => {
     const shifts = seededShift();
 
     expect(shifts.get("B|0.61")).toBe(70);
-    expect(shifts.get("B|0.74")).toBe(100);
+    // B|0.74 → B|0.73 (ADR 0135): the return is centred at 735 since the joint moved.
+    expect(shifts.get("B|0.73")).toBe(100);
     expect(shifts.get("B|1.20")).toBe(100);
     expect(shifts.get("B|1.80")).toBe(100);
     expect(shifts.get("B|2.45")).toBe(100);

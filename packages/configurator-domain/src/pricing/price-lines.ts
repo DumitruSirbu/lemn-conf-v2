@@ -1,11 +1,9 @@
-// What a priced design **is**: an ordered list of traceable lines, an exact total, and what the book
-// says about itself — its version, its status, and whether its amounts have been costed at all —
-// carried forward. Plus every way pricing can refuse.
+// What a priced design is: an ordered list of traceable lines, an exact total, and the book's version,
+// status and provisional flag carried forward; plus every way pricing can refuse.
 //
-// No Romanian copy lives here and none may. A pricing failure is never shown to a customer (wave 6C:
-// a failure renders *no* figure — not a zero, not a stale one, not a dash that reads as free), and
-// the flagged-total warning is owner-ruled copy belonging to the surface that renders it
-// (ADR 0065 decision 7b). A domain module inventing either would be inventing product copy.
+// No Romanian copy lives here: a pricing failure renders no figure (not a zero, a stale one or a dash),
+// and the flagged-total warning is owner-ruled copy belonging to the rendering surface (ADR 0065
+// decision 7b).
 import type { BodyLabel } from "../catalog.js";
 import type {
   CabinetSupplier,
@@ -42,25 +40,21 @@ export interface CabinetPriceLine extends PriceLineCommon {
   readonly placementId: string;
   /** The literal `buildId` standing in the design. */
   readonly buildId: string;
-  /** The catalogue row the rule was resolved through — the equivalent (ADR 0022) where the body has
-   *  one, and the body's own id where it has none. Published so a line names both the body the
-   *  customer owns and the row it was priced as. */
+  /** The catalogue row the rule was resolved through: the equivalent (ADR 0022) where the body has one,
+   *  its own id where it has none. */
   readonly pricedAsBuildId: string;
   readonly label: BodyLabel;
   readonly widthMm: number;
-  /** **Who supplies this body** — the book's own declaration, defaulted once here and never
-   *  re-derived (`DEFAULT_CABINET_SUPPLIER`). Always present, so a surface reads a fact instead of
-   *  interpreting an absence.
-   *
-   *  A `customer` line is drawn in the scene, listed in the breakdown, and adds nothing to the
-   *  total. Published **beside** `amountMinor` rather than inferred from it: a manufacturer row can
-   *  be free too, and telling a customer their fridge is *included* is the defect this closes. */
+  /** Who supplies this body: the book's declaration, defaulted once (`DEFAULT_CABINET_SUPPLIER`),
+   *  always present. A `customer` line is drawn and listed but adds nothing to the total. Published
+   *  beside `amountMinor`, not inferred from it: a manufacturer row can be free too, and telling a
+   *  customer their fridge is *included* is the defect this closes. */
   readonly suppliedBy: CabinetSupplier;
 }
 
-/** A whole-kitchen tier, priced once after every placement line. Carries the tier's own key beside
- *  its authored name (ADR 0106 decision 1) so the breakdown resolves the same words the settings
- *  sheet does — the line publishes the descriptor and resolves nothing. */
+/** A whole-kitchen tier, priced once after every placement line. Carries the tier's key beside its
+ *  authored name (ADR 0106 decision 1) so the breakdown resolves the same words as the settings sheet;
+ *  the line resolves nothing. */
 export interface WholeKitchenPriceLine extends PriceLineCommon {
   readonly kind: "hardware" | "material";
   readonly tierId: string;
@@ -70,20 +64,14 @@ export interface WholeKitchenPriceLine extends PriceLineCommon {
   readonly descriptionKey?: string | undefined;
 }
 
-/** **An extra the design earns rather than chooses** — ADR 0070 decision 4's two sink extras, and
- *  today no others. Carries the same book-data-rendered shape a tier line does (ADR 0062's third
- *  prohibition: never copy in a component that happens to agree with a number) and **no `tierId`**,
- *  because an accessory has no tier: it is not offered at grades and no control selects it.
- *
- *  Its `quantity` is a count of sinks, so `amountMinor` is that count times the book's per-unit
- *  amount. **A quantity of zero is not a line**: the query omits it rather than publishing an
- *  amount of nothing, which the breakdown would render *inclus* — telling a customer a rack they
- *  are not getting is included. */
+/** An extra the design earns rather than chooses: the two sink extras (ADR 0070 decision 4). The same
+ *  book-data-rendered shape as a tier line (ADR 0062: no copy in a component) and no `tierId`, since no
+ *  control selects it. `quantity` is a count of sinks. A quantity of zero is not a line: it would render
+ *  *inclus* and tell a customer a rack they are not getting is included. */
 export interface AccessoryPriceLine extends PriceLineCommon {
   readonly kind: "accessory";
-  /** Which of the book's named accessory rules produced this line. Stable, and not the rule id: one
-   *  says *which accessory*, the other says *which priced rule* — the same split `tierId` and
-   *  `ruleId` keep on a tier line. */
+  /** Which of the book's named accessory rules produced this line: not the rule id, as `tierId` is not
+   *  `ruleId` on a tier line. */
   readonly accessoryId: string;
   readonly name: string;
   readonly description: string;
@@ -96,44 +84,32 @@ export type PriceLine =
   | WholeKitchenPriceLine
   | AccessoryPriceLine;
 
-/** A priced design. Derived on every read and stored nowhere: §12's *"derive from `placements`,
- *  never store a total"*, which is why `DesignSchema` gains no price field in this wave or any
- *  later one. */
+/** A priced design. Derived on every read and stored nowhere (§12: never store a total), so
+ *  `DesignSchema` has no price field. */
 export interface PricedDesign {
   readonly currency: PriceBookCurrency;
-  /** The book's version, carried so a snapshot can later be checked against the book it was priced
-   *  under rather than re-priced under whatever is current (M8's inheritance, ADR 0062 seam 3). */
+  /** The book's version, so a snapshot can be checked against the book it was priced under
+   *  (ADR 0062 seam 3). */
   readonly pricingVersion: string;
   readonly status: PriceBookStatus;
-  /** **Whether anybody has ever costed the amounts this was priced from**, carried from the book
-   *  beside `status` and never derived here.
-   *
-   *  A different question from `status`, and both are needed: `status` says whether a priced result
-   *  may be shown as a commercial offer, this says whether the figures behind it are placeholders.
-   *  Every book this repository ships is both — `estimate` and provisional — which is exactly why a
-   *  surface cannot infer one from the other and why dropping this one silently would let 6C's
-   *  price bar present a placeholder as though it had been costed.
-   *
-   *  Data only. What a surface does with it is 6C's and 6D's, as the flagged total's wording is
-   *  (ADR 0065 decision 7b): no copy for it lives here. */
+  /** Whether anybody has costed the amounts this was priced from, carried from the book beside
+   *  `status`: a different question, since `status` says whether a result may be shown as a commercial
+   *  offer and this whether the figures are placeholders. Every shipped book is `estimate` and
+   *  provisional, so a surface cannot infer one from the other. Data only: no copy for it lives here. */
   readonly amountsProvisional: boolean;
-  /** Placement lines in the projection's order, then hardware, then material, then accessories.
-   *
-   *  Accessories are **appended** rather than interleaved, which is what keeps every shipped
-   *  *"hardware then material"* assertion true (ADR 0092 decision 11). */
+  /** Placement lines in the projection's order, then hardware, then material, then accessories:
+   *  appended rather than interleaved so every "hardware then material" assertion holds
+   *  (ADR 0092 decision 11). */
   readonly lines: readonly PriceLine[];
   /** The exact sum of every line, in minor units. Presentation rounds; this does not. */
   readonly totalMinor: number;
-  /** The placements reaching past the end of their wall, **derived from the design being priced**
-   *  through `findOverflowingPlacementIds` (ADR 0069 decision 5c), so a surface marks the same
-   *  bodies the scene marks (ADR 0065 decision 6) and no caller can hand pricing a set computed off
-   *  a different document. **Every one of them is priced**: excluding a body that does not fit would
-   *  make the total drop at the moment part of the kitchen became unbuildable, which is the named
-   *  defect that decision rejects. */
+  /** The placements reaching past the end of their wall, derived from the design being priced through
+   *  `findOverflowingPlacementIds` (ADR 0069 decision 5c), so a surface marks the bodies the scene
+   *  marks. Every one is priced: excluding a body that does not fit would make the total drop when part
+   *  of the kitchen became unbuildable (ADR 0065 decision 6). */
   readonly overflowingPlacementIds: readonly string[];
-  /** Whether the total must be shown flagged. Derived from the list above and published beside it,
-   *  so a surface asking *"is this total flagged?"* does not have to know that an empty array is
-   *  the answer "no". */
+  /** Whether the total must be shown flagged: derived from the list above and published beside it, so
+   *  a surface does not have to know an empty array means no. */
   readonly totalIsFlagged: boolean;
 }
 
@@ -153,37 +129,27 @@ export type PricingFailureCode =
   | "UNKNOWN_FORMULA_SHAPE"
   /** A selection, or a book's own default, names a tier the book does not hold. */
   | "UNKNOWN_TIER"
-  /** The row a body is **priced as** declares no usable door-leaf count, so the price's door step
-   *  cannot be taken (`describePricedBody`). The name is older than what the code means by it: since
-   *  wave 6T this is raised on the door-step path alone, never on a hardware quantity — a body whose
-   *  mechanisms cannot be counted raises `UNDECLARED_FRONT_POPULATION` instead. */
+  /** The row a body is priced as declares no usable door-leaf count, so the door step cannot be taken
+   *  (`describePricedBody`). Raised on the door-step path alone, never on a hardware quantity: a body
+   *  whose mechanisms cannot be counted raises `UNDECLARED_FRONT_POPULATION`. */
   | "UNDECLARED_HANDLE_COUNT"
   /** A catalogue entry declares no usable front population, so its hinges, drawers and push-to-open
-   *  latches cannot be counted (ADR 0092 decision 1). **Never read as zero mechanisms**: that would
-   *  price a whole kitchen's hardware at nothing and look implemented. */
+   *  latches cannot be counted (ADR 0092 decision 1). Never read as zero mechanisms: that would price a
+   *  whole kitchen's hardware at nothing. */
   | "UNDECLARED_FRONT_POPULATION"
-  /** A placement's own frame height leaves a `one-band-under-frame` row no band a door could be
-   *  hung in, so its leaves — and the hinges counted over them — cannot be read
-   *  (`UnbuildableDoorBandError`, ADR 0092 decision 16). **A different cause from the code above,
-   *  so a different code**: nothing is missing from the catalogue, the fault is the height on the
-   *  placement, and labelling it as a missing declaration sends whoever reads it to the wrong file.
-   *  **Reachable only from a `wall-cabinet` or a `wall-lift`, and only on a document no validator
-   *  passed**: those two are the `one-band-under-frame` rows, and `open-shelf` declares
-   *  `NO_OPENING_FRONTS`, so its `doorBandHeightsMm` answers `[]` and it can never raise this. A
-   *  band at or below `WALL_DOOR_BAND_INSET_MM` needs a frame of 6 mm or less, and
-   *  `findBodyDimensionIssues` floors a placement at `MIN_BODY_HEIGHT_MM` (300), so a **validated**
-   *  design cannot carry one — this code exists for the hand-edited and migrated documents that
-   *  reach pricing without passing through it. Names the placement and the build id; the band height
-   *  that is not a door is in `detail`. */
+  /** A placement's own frame height leaves a `one-band-under-frame` row no band a door could be hung
+   *  in, so its leaves, and the hinges counted over them, cannot be read (`UnbuildableDoorBandError`,
+   *  ADR 0092 decision 16). A different cause from the code above: nothing is missing from the
+   *  catalogue, the height on the placement is the fault. Reachable only from a `wall-cabinet` or
+   *  `wall-lift` on a document no validator passed: a validated design cannot carry a frame of 6 mm or
+   *  less (`findBodyDimensionIssues` floors it at `MIN_BODY_HEIGHT_MM`). Names the placement and build
+   *  id; the band height is in `detail`. */
   | "UNBUILDABLE_DOOR_BAND"
   /** An amount or a total is not an exact safe integer of minor units. */
   | "INVALID_AMOUNT";
 
-/** Why pricing refused, naming the thing it could not resolve.
- *
- *  Every failure names an id where there is one to name — the criterion is *"returns a failure
- *  naming the id it could not resolve"* — and `detail` is English developer text, deliberately not
- *  copy. */
+/** Why pricing refused, naming the id it could not resolve where there is one. `detail` is English
+ *  developer text, not copy. */
 export interface PricingFailure {
   readonly code: PricingFailureCode;
   readonly detail: string;
@@ -194,10 +160,8 @@ export interface PricingFailure {
 }
 
 /**
- * **Fail whole.** Either every line and the total, or no line and no total.
- *
- * There is no partial branch on purpose: a breakdown missing one body reads as a cheaper kitchen,
- * and a total that silently dropped a cabinet is worse than no total at all.
+ * Fail whole: every line and the total, or none. A breakdown missing one body reads as a cheaper
+ * kitchen.
  */
 export type PricingResult =
   | { readonly ok: true; readonly priced: PricedDesign }

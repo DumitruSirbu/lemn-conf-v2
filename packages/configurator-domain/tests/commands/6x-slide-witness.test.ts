@@ -1,28 +1,8 @@
-// Wave 6X — **the slide is witnessed by an assertion, not by a redecorated demo**
-// ([ADR 0093](../../../../docs/decisions/0093-a-rule-the-shipped-kitchen-cannot-exercise-owes-a-witness-not-a-moved-fixture.md)).
-//
-// [ADR 0090](../../../../docs/decisions/0090-a-frozen-space-slides-with-its-run-and-follows-the-body-it-recorded.md)
-// decision 6 requires `rebuildEveryBodyAt`'s **planning** map to be built from the frozen extents as
-// decision 2 moves them, which is why `frozenExtentsSlidAlongTheWall` is exported. Adversarial QA
-// then measured that removing it is byte-identical over 284 delete × depth trails and green across
-// the whole tree: the rule is correct-but-unobservable, and ADR 0093 decision 1 rules that *"a
-// ruled behaviour that the tree cannot distinguish from its own absence is unshipped"*.
-//
-// This file is the witness, in the two halves ADR 0093 decision 3 keeps apart:
-//
-// - **the divergence** (3a), on the shipped kitchen at 700 mm — the wall-B half keyed at the
-//   arriving coordinates and carrying the document's own extents, against the same map built from
-//   un-slid extents, where the document's extents strand on the coordinates the run is leaving;
-// - **the consequence** (3b), on a design *this file declares* — the refusal the divergence would
-//   produce if wall B held a column that could reach it. It cannot, and the last two describes say
-//   why by measurement rather than by prose: no wall-B member of the shipped kitchen is both
-//   removable and rebuilt taller than it records, and a body inserted through §7 records the
-//   worktop line rather than a seeded carcass height.
-//
-// **The seeded design does not move** (ADR 0093 decision 2, on ADR 0090 Amendment B's reasoning
-// transposed from the room to the placements): a criterion whose ability to fail depends on which
-// bodies the demo happens to carry has an undeclared coupling, so the fixture that makes the rule
-// falsifiable is declared here.
+// The slide is witnessed by an assertion, not by a redecorated demo (ADR 0093 decision 3). Half 3a: the planning map's
+// wall-B divergence on the shipped kitchen at 700 mm. Half 3b: the refusal that divergence would produce, on a design
+// this file declares because the shipped kitchen cannot reach it (ADR 0090 decision 6).
+// The seeded design does not move: a criterion whose ability to fail depends on which bodies the demo carries has an
+// undeclared coupling (ADR 0093 decision 2).
 import { describe, expect, it } from "vitest";
 
 import { alongWallShiftByColumnMm } from "../../src/along-wall-chain-shift.js";
@@ -65,30 +45,24 @@ const SHALLOW_MM = 600;
 const DEEP_MM = 700;
 const DECLARED_MM = [SHALLOW_MM, DEEP_MM] as const;
 
-/** §7's base rows reach the worktop line. A seeded base row records the carcass without it, and the
- *  820 / 860 gap between the two is the whole of what decision 6 protects — see ADR 0088's `A|2.00`
- *  reproduction, which is the one column of the shipped kitchen that carries it. */
+/** Base rows built through §7 reach the worktop line (860); a seeded base row records the carcass without it (820). */
 const BASE_BODY_HEIGHT_MM = 860;
 const SEEDED_BASE_CARCASS_MM = 820;
 
-/** A column's three carried facts in the unit the document records them in, so an expectation reads
- *  as the entry it came from rather than as a float. */
+/** A column's carried facts in millimetres, the unit the document records them in. */
 interface CarriedExtentMm {
   readonly y0Mm: number;
   readonly topMm: number;
   readonly widthMm: number;
   readonly depthMm: number;
   readonly depthFromBuildId: string;
-  /** The spans the column publishes. **The one field that tells the two operands apart here**: a
-   *  stored extent restores as the single span `[y0Mm, topMm]`, while a derived column keeps one
-   *  span per member group. Everything else about wall B's five columns agrees, because every one
-   *  of them is fully occupied on the shipped kitchen. */
+  /** The spans the column publishes: a stored extent restores as the single span `[y0Mm, topMm]`, a derived column
+   *  keeps one per member group. The one field that tells the two operands apart here. */
   readonly regionsMm: readonly (readonly [number, number])[];
 }
 
-/** The five wall-B columns at the coordinates the run **arrives** at when the kitchen goes to
- *  700 mm, each carrying the extent the document records for it — ADR 0093 decision 3a's primary
- *  criterion, per key and with its own numbers. */
+/** The five wall-B columns at the coordinates the run arrives at when the kitchen goes to 700 mm, each carrying
+ *  the extent the document records for it. */
 const ARRIVING_WALL_B: readonly (CarriedExtentMm & {
   readonly key: string;
   readonly recordedAtAlongMm: number;
@@ -104,12 +78,14 @@ const ARRIVING_WALL_B: readonly (CarriedExtentMm & {
     regionsMm: [[1500, 2600]],
   },
   {
-    key: "B|0.84",
-    recordedAtAlongMm: 740,
+    // The return starts at the run's carcass front, 570 / 670; its far edge stays on the 900 / 1000 reach (ADR 0135).
+    key: "B|0.83",
+    recordedAtAlongMm: 735,
     y0Mm: 0,
     topMm: 820,
-    widthMm: 320,
-    depthMm: 700,
+    widthMm: 330,
+    // The return carries the run's worktop overhang, so it finishes on the run's line (ADR 0135).
+    depthMm: 720,
     depthFromBuildId: "base-corner-return-320",
     regionsMm: [[0, 820]],
   },
@@ -129,11 +105,7 @@ const ARRIVING_WALL_B: readonly (CarriedExtentMm & {
     y0Mm: 0,
     topMm: 2600,
     widthMm: 600,
-    // **700 from the top rather than 699 from the pantry, since ADR 0101.** The two are a
-    // millimetre apart and the §3.2 MAX takes the deeper, so unpinning the top moved this column's
-    // source as well as its number. The same pair at 600 already reads `wall-2door-600-deep-top` at
-    // 600 against the pantry's 599 — see `LEAVING_WALL_B` — which is the relationship being
-    // restored, not a new one.
+    // 700 from the top rather than 699 from the pantry: a millimetre apart, and §3.2 MAX takes the deeper (ADR 0101).
     depthMm: 700,
     depthFromBuildId: "wall-2door-600-deep-top",
     regionsMm: [[0, 2600]],
@@ -150,10 +122,8 @@ const ARRIVING_WALL_B: readonly (CarriedExtentMm & {
   },
 ];
 
-/** The same five extents where the un-slid map leaves them: on the coordinates the run is
- *  **leaving**, member-less, and — because nothing standing there re-derives their depth axis — at
- *  the *600 mm* kitchen's own depths inside a 700 mm kitchen. `B|1.20` at 638 mm beside the slid
- *  map's `B|1.30` at 738 is the sharpest single number in this file. */
+/** The same five extents where the un-slid map leaves them: on the coordinates the run is leaving, member-less, and
+ *  at the 600 mm kitchen's own depths. `B|1.20` at 638 mm beside the slid map's `B|1.30` at 738 is the sharpest. */
 const LEAVING_WALL_B: readonly (CarriedExtentMm & { readonly key: string })[] =
   [
     {
@@ -166,11 +136,11 @@ const LEAVING_WALL_B: readonly (CarriedExtentMm & { readonly key: string })[] =
       regionsMm: [[1500, 2600]],
     },
     {
-      key: "B|0.74",
+      key: "B|0.73",
       y0Mm: 0,
       topMm: 820,
-      widthMm: 320,
-      depthMm: 600,
+      widthMm: 330,
+      depthMm: 620,
       depthFromBuildId: "base-corner-return-320",
       regionsMm: [[0, 820]],
     },
@@ -203,24 +173,21 @@ const LEAVING_WALL_B: readonly (CarriedExtentMm & { readonly key: string })[] =
     },
   ];
 
-/** What the un-slid map's five **arriving** keys carry instead: the columns the records imply. The
- *  floor, the top and the width agree with the document on this fixture — every wall-B column is
- *  fully occupied — and the spans do not, which is the divergence stated as a value. */
+/** What the un-slid map's five arriving keys carry instead: the columns the records imply. Floor, top and width
+ *  agree with the document on this fixture; the spans do not. */
 const ARRIVING_WITHOUT_THE_SLIDE: ReadonlyMap<
   string,
   readonly (readonly [number, number])[]
 > = new Map([
   ["B|0.69", [[1500, 2200] as const, [2200, 2600] as const]],
-  ["B|0.84", [[0, 820] as const]],
+  ["B|0.83", [[0, 820] as const]],
   ["B|1.30", [[0, 2200] as const, [2200, 2600] as const]],
   ["B|1.90", [[0, 2200] as const, [2200, 2600] as const]],
   ["B|2.55", [[0, 1850] as const, [1850, 2600] as const]],
 ]);
 
-/** The shipped kitchen carrying the frozen map the product would write for it — the document
- *  `setCabinetDepth` actually receives, built through `projectFrozenMap` rather than hand-written
- *  for the reason `set-cabinet-depth.plans-against-the-frozen-extent.test.ts` states: an entry
- *  written here would be an assertion about a document the product does not produce. */
+/** The shipped kitchen carrying the frozen map the product would write, built through `projectFrozenMap`: a
+ *  hand-written entry would assert about a document the product does not produce. */
 function carryingItsProjectedFrozenMap(design: Design): Design {
   const catalog = buildKitchenLBodyCatalog(SHALLOW_MM);
   const records = derivePlacementRecords(design, catalog);
@@ -230,8 +197,7 @@ function carryingItsProjectedFrozenMap(design: Design): Design {
   );
 }
 
-/** The same construction after a set of ordinary deletes: the frozen map is projected from the
- *  columns **before** them, so the survivors' extents keep what the deleted members implied. */
+/** The same after ordinary deletes: the frozen map is projected from the columns before them. */
 function afterDeleting(
   design: Design,
   placementIds: readonly string[],
@@ -267,12 +233,8 @@ function changeTo(design: Design, cabinetDepthMm: number) {
   });
 }
 
-/** The pre-command design with **only** the along-wall coordinates the command moved its bodies to,
- *  read off the command's own output and paired by id.
- *
- *  ADR 0090 decision 2's ladder is not re-derived here — a second author for it is what ADR 0088
- *  decision 2 exists to prevent — and the same construction is `qa-6k-i-planning-map.adversarial.test.ts`'s
- *  for the same reason. */
+/** The pre-command design with only the along-wall coordinates the command moved its bodies to, read off the
+ *  command's own output so the ladder has no second author (ADR 0090 decision 2). */
 function slidAsTheCommandDid(design: Design, cabinetDepthMm: number): Design {
   const result = changeTo(design, cabinetDepthMm);
   if (!result.ok) throw new Error(`refused: ${result.reason.code}`);
@@ -291,14 +253,13 @@ function slidAsTheCommandDid(design: Design, cabinetDepthMm: number): Design {
   };
 }
 
-/** The three operands `rebuildEveryBodyAt` builds its planning map from, derived once so the map
- *  with the slide and the map without it differ in that one place and nowhere else. */
+/** The three operands `rebuildEveryBodyAt` builds its planning map from, derived once so the maps differ in the
+ *  slide only. */
 interface PlanningOperands {
   /** The bodies as they arrive at the new setting. */
   readonly records: readonly PlacementRecord[];
-  /** The document's extents at the coordinates the run is **leaving** — the operand
-   *  `frozenExtentsSlidAlongTheWall` is handed, which production pairs with pre-command records at
-   *  the previous catalogue (`heldRunAcrossTheCommand`). */
+  /** The document's extents at the coordinates the run is **leaving**: the operand `frozenExtentsSlidAlongTheWall`
+   *  is handed, paired in production with pre-command records (`heldRunAcrossTheCommand`). */
   readonly frozen: ReadonlyMap<string, Column>;
   /** The same extents on the coordinates the run is **arriving** at, through the production slide. */
   readonly slid: ReadonlyMap<string, Column>;
@@ -417,10 +378,6 @@ function carriedExtentOf(column: Column): CarriedExtentMm {
   };
 }
 
-// ---------------------------------------------------------------------------------------------
-// Work item 2 — the divergence, on the shipped kitchen. ADR 0093 decision 3a.
-// ---------------------------------------------------------------------------------------------
-
 describe("the planning map's wall-B half at 700 mm, on the shipped kitchen", () => {
   it("keys the five wall-B columns where the run arrives and carries the document's extent onto each", () => {
     const design = carryingItsProjectedFrozenMap(KITCHEN_L_DESIGN);
@@ -468,8 +425,7 @@ describe("the planning map's wall-B half at 700 mm, on the shipped kitchen", () 
       ].sort((left, right) => left.localeCompare(right)),
     );
     for (const expected of LEAVING_WALL_B) {
-      // Member-less, and that is the point: the run has moved on and the document's extent is filed
-      // under a column no placement stands in.
+      // Member-less: the run has moved on and the extent is filed under a column no placement stands in.
       expect(occupied.has(expected.key), expected.key).toBe(false);
       expect(
         carriedExtentOf(columnAt(unslid, expected.key)),
@@ -485,10 +441,8 @@ describe("the planning map's wall-B half at 700 mm, on the shipped kitchen", () 
     }
   });
 
-  // **Not "the two maps differ".** An inequality stays green under a slide that moves the wrong
-  // distance; every number here is a value, and the pair worth reading twice is `B|1.20`'s depth of
-  // 638 mm — the 600 mm kitchen's own oven-tower clearance, standing inside a 700 mm kitchen where
-  // the slid map's `B|1.30` publishes 738.
+  // Not "the two maps differ": an inequality stays green under a slide that moves the wrong distance. `B|1.20`'s 638 mm
+  // is the 600 mm kitchen's oven-tower clearance inside a 700 mm kitchen; the slid map's `B|1.30` publishes 738.
   it("plans the arriving keys from the records rather than from the document when the slide is removed", () => {
     const design = carryingItsProjectedFrozenMap(KITCHEN_L_DESIGN);
     const maps = planningMapsOf(design, DEEP_MM);
@@ -504,8 +458,7 @@ describe("the planning map's wall-B half at 700 mm, on the shipped kitchen", () 
     expect(maps.slid.has("B|1.20")).toBe(false);
   });
 
-  // ADR 0090 decision 2 rung 1: wall A is anchored at the corner and does not move. A wave that made
-  // it move has broken the rung the whole ladder rests on.
+  // ADR 0090 decision 2, rung 1: wall A is anchored at the corner and does not move.
   it("leaves wall A identical across the two maps, key for key and value for value", () => {
     const design = carryingItsProjectedFrozenMap(KITCHEN_L_DESIGN);
     const maps = planningMapsOf(design, DEEP_MM);
@@ -517,17 +470,9 @@ describe("the planning map's wall-B half at 700 mm, on the shipped kitchen", () 
   });
 });
 
-// ---------------------------------------------------------------------------------------------
-// Work item 3 — the consequence, on a design this file declares. ADR 0093 decision 3b.
-// ---------------------------------------------------------------------------------------------
-
-/** **The wall-B column the shipped kitchen does not have**, and ADR 0093 decision 2's reason for
- *  declaring it here rather than seeding it: a criterion that could only fail because the demo
- *  happens to carry a particular body has an undeclared coupling.
- *
- *  `B|1.20`'s two seeded members are replaced by the shape ADR 0088 measured on `A|2.00` — a
- *  placement recording the seeded 820 mm carcass under an ordinary, deletable top. Everything else
- *  in the room is the shipped kitchen's, so nothing but this column can account for a difference. */
+/** The wall-B column the shipped kitchen does not have, declared here rather than seeded (ADR 0093 decision 2).
+ *  `B|1.20`'s two seeded members become a placement recording the seeded 820 mm carcass under an ordinary, deletable
+ *  top: the shape measured on `A|2.00`. */
 const DECLARED_WALL_B_COLUMN: readonly DesignPlacement[] = [
   {
     id: "d1",
@@ -566,8 +511,8 @@ function withADeclaredWallBColumn(): Design {
   };
 }
 
-/** The declared design after the ordinary delete, carrying the frozen map the product projects for
- *  it: `B|1.20` recorded at `topMm` 2600 with one 820 mm member standing in it. */
+/** The declared design after the ordinary delete, with the frozen map the product projects: `B|1.20` recorded at
+ *  `topMm` 2600 with one 820 mm member standing in it. */
 function theDeclaredDesign(): Design {
   return afterDeleting(withADeclaredWallBColumn(), [THE_DELETED_MEMBER]);
 }
@@ -647,13 +592,9 @@ describe("the consequence, on a wall-B column this file declares", () => {
     expect(millimetres(fitted.plan.heightM)).toBe(BASE_BODY_HEIGHT_MM);
   });
 
-  // The fit above is evaluated outside the command that runs it, so the command is asked the same
-  // question directly: nothing here rests on a seam reproduced beside the product.
-  //
-  // **The refusal code is the expectation's own subject rather than a boolean**, because this is the
-  // assertion that goes red when `rebuildEveryBodyAt` stops sliding: a `toBe(true)` on `ok` reports
-  // `expected false to be true` and says nothing about *which* refusal, and the whole point of the
-  // wave is that the red carries its numbers.
+  // The fit above is evaluated outside the command, so the command is asked directly. The refusal code is the
+  // expectation's subject rather than a boolean: it is what goes red, with its numbers, when `rebuildEveryBodyAt`
+  // stops sliding.
   it("changes the kitchen's depth and rebuilds that body to the worktop line", () => {
     const result = changeTo(theDeclaredDesign(), DEEP_MM);
 
@@ -667,27 +608,14 @@ describe("the consequence, on a wall-B column this file declares", () => {
   });
 });
 
-// ---------------------------------------------------------------------------------------------
-// Work item 4 — the shipped kitchen's limitation, derived from the fixture's own entries.
-// ADR 0085 decision 3: relevance is observed, never declared, so this is a sweep and not a list of
-// five build ids. It goes red the day wall B gains a column that could witness item 3, which is the
-// direction that wants noticing.
-// ---------------------------------------------------------------------------------------------
+// Relevance is observed, never declared (ADR 0085 decision 3): this sweep goes red the day wall B gains a column
+// that could witness the consequence.
 
-/** Every wall-B member of the shipped kitchen, at both declared settings. */
 const WALL_B_MEMBER_COUNT = 9;
 
-/** Why this member cannot be the survivor item 3 needs, or `undefined` if it could be.
- *
- *  **The `heightFlex` arm is ADR 0101's**, and it replaces an exclusion that was accidental. Until
- *  2026-09-07 the three deep tops were ADR 0058 pins, so they left through the `follows` arm and the
- *  question of what their rebuild would need was never put. Unpinned, they reach the height
- *  comparison — and `wall-cabinet` is `heightFlex`, so §5.2 builds it to the opening it is handed
- *  and it can never require more height than the column offers. Its 700 mm nominal against their
- *  recorded 400 and 750 is not a shortfall; it is a number the fit never reads.
- *
- *  So the finding stands and rests on something better: wall B could not witness item 3 because of
- *  what its members *are*, not because two of them happened to be held at one depth. */
+/** Why this member cannot be the survivor the consequence needs, or `undefined` if it could. `wall-cabinet` is
+ *  `heightFlex`, so §5.2 builds it to the opening it is handed and it never requires more height than the column
+ *  offers (ADR 0101). */
 function whyItCannotWitness(
   record: PlacementRecord,
   cabinetDepthMm: number,
@@ -727,15 +655,12 @@ describe("why no wall-B column of the shipped kitchen can be that design", () =>
         )
         .map((record) => `${record.id} ${record.buildId}`);
 
-      // Non-vacuity as the measured population rather than as a `> 0`: a fixture that loses a
-      // wall-B body turns this red instead of quietly sweeping a smaller set.
+      // Non-vacuity as the measured population rather than `> 0`: a fixture that loses a wall-B body turns this red.
       expect(records.length).toBe(WALL_B_MEMBER_COUNT);
       expect(couldWitness).toStrictEqual([]);
     },
   );
 
-  // The disjunction above is only as strong as its arms being reached, so each one is measured on
-  // the fixture rather than left as a branch nothing takes.
   it("reaches every arm of that disjunction on the shipped wall B", () => {
     const records = derivePlacementRecords(
       KITCHEN_L_DESIGN,
@@ -751,8 +676,7 @@ describe("why no wall-B column of the shipped kitchen can be that design", () =>
     expect(
       [...reasons].sort(([left], [right]) => left.localeCompare(right)),
     ).toStrictEqual([
-      // `p22`, `p23` and `p24` — the three deep tops, whose `wall-cabinet` equivalent is
-      // `heightFlex`. They counted as `pinned` until ADR 0101; see `whyItCannotWitness`.
+      // `p22`, `p23` and `p24`: the three deep tops, whose `wall-cabinet` equivalent is `heightFlex`.
       ["builds to the opening it is given", 3],
       ["manufactured-size", 1],
       ["not deletable", 3],
@@ -761,12 +685,8 @@ describe("why no wall-B column of the shipped kitchen can be that design", () =>
   });
 });
 
-// ---------------------------------------------------------------------------------------------
-// Work item 5 — the reachability boundary, as an assertion rather than as an opinion.
-// ADR 0093 decision 3b: item 3's document is not reachable from today's seed, because a body
-// inserted through §7 records the worktop line and no shipped command writes a seeded-style 820 mm
-// row onto wall B. A wave that finds it *is* reachable has found something better than this test.
-// ---------------------------------------------------------------------------------------------
+// A body inserted through §7 records the worktop line, and no shipped command writes a seeded-style 820 mm row onto
+// wall B (ADR 0093 decision 3b).
 
 describe("item 3's design is not reachable from today's seed", () => {
   it("records 860 and not 820 for a base body inserted into a wall-B column through the §7 offer list", () => {
@@ -807,7 +727,6 @@ describe("item 3's design is not reachable from today's seed", () => {
       cabinetDepthMm: SHALLOW_MM,
     }).find((offer) => offer.buildId === "base-dishwasher");
 
-    // §7 offers it, and the offer's own answer for what it would build to is the worktop line.
     expect([offered?.buildsToWidthMm, offered?.buildsToHeightMm]).toEqual([
       600,
       BASE_BODY_HEIGHT_MM,

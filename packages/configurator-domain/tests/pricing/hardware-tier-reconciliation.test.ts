@@ -1,29 +1,9 @@
-// **Wave 6T's reconciliation: the sample hardware rates against ADR 0070's own totals table**
-// (ADR 0092 decision 6).
-//
-// ADR 0070's figures were derived by the owner **before the front declarations existed** — from a
-// hinge count and a drawer count arrived at by hand. That independence is the only reason this file
-// means anything: it is not the book restated, it is two derivations of one number meeting. **If
-// they disagree the declaration is wrong and the wave stops**; the expected figures are not adjusted
-// to whatever the code produces (ADR 0028 is on record for what that costs).
-//
-// **The hardware-only column is 6T's, and the sink column arrived at 6T2**, which is the last block
-// in this file. ADR 0092 Amendment A moved the two sink extras out of 6T; with 6T2 landed the whole
-// figure can be reconciled here for the first time, and Amendment C says in what form.
-//
-// **Restated by wave 6T-a, and restated rather than extended** (ADR 0092 Amendment C). The seeded
-// kitchen carries 16 push-to-open fronts, not zero, so the hardware **line** is ADR 0070's two
-// columns *plus a push column that record never published*. The split that follows from it runs
-// through the whole file:
-//
-// - **The hinge and drawer terms stay literal**, because they are what reconciles against ADR 0070's
-//   own owner-derived columns and 74 and 5 do not move.
-// - **The push term is computed from the book** — `16 × the tier's declared rate` — because the
-//   three push rates are drafted placeholders with no supplier source, and a test typing the product
-//   would make one load-bearing in exactly the way ADR 0092 decision 3 forbids.
-// - **No tier ordering is asserted anywhere in this file.** At 16 latches the drafted rates put
-//   Hettich above Blum, inverting ADR 0070's own totals; Amendment C rules that neither ordering is
-//   pinned while the magnitudes are drafted.
+// Reconciles the sample hardware rates against ADR 0070's own totals table (ADR 0092 decision 6). ADR 0070's figures
+// were derived by the owner before the front declarations existed, so this is two derivations of one number meeting:
+// if they disagree the declaration is wrong, and the expected figures are not adjusted to whatever the code produces.
+// The seeded kitchen carries push-to-open fronts, so the hardware line is ADR 0070's two columns plus a push column
+// that record never published (ADR 0092 Amendment C). The hinge and drawer terms stay literal; the push term is
+// computed from the book because the push rates are drafted placeholders, and no tier ordering is asserted anywhere.
 import { describe, expect, it } from "vitest";
 
 import type { Design } from "../../src/design.js";
@@ -46,9 +26,8 @@ const SEEDED_ENTRIES = projectDesignForDisplay(
   CATALOG,
 ).flatMap((group) => group.entries);
 
-/** ADR 0070's hinge and drawer columns, in **lei**, exactly as the owner wrote them — the whole
- *  seeded kitchen at each tier. Kept in lei rather than converted here so a reader can put this
- *  table beside the ADR's without arithmetic. */
+/** ADR 0070's hinge and drawer columns in lei, as the owner wrote them for the whole seeded kitchen at each tier, so
+ *  a reader can put this table beside the ADR's without arithmetic. */
 const ADR_0070_TOTALS_LEI = {
   "hardware.standard": { hinges: 1_300, drawers: 3_200 },
   "hardware.soft-close": { hinges: 6_290, drawers: 3_130 },
@@ -57,11 +36,8 @@ const ADR_0070_TOTALS_LEI = {
 
 const BANI_PER_LEU = 100;
 
-/** **Standard's hinge column is rounded and the other two are not.** 74 hinges at 17.60 lei is
- *  1 302.40, which the owner wrote as 1 300 — so the reconciliation lands 2.40 lei above ADR 0070's
- *  Standard row and exactly on Hettich's and Blum's. Stated as a per-tier tolerance rather than
- *  applied silently, because a tolerance that covers every tier would hide a rate that is simply
- *  wrong. */
+/** Standard's hinge column is rounded by the owner: 74 hinges at 17.60 lei is 1 302.40, written as 1 300. A per-tier
+ *  tolerance rather than a blanket one, which would hide a rate that is simply wrong. */
 const ROUNDING_ALLOWANCE_MINOR: Readonly<Record<string, number>> = {
   "hardware.standard": 240,
   "hardware.soft-close": 0,
@@ -76,8 +52,8 @@ function tierOf(tierId: string): HardwareTier {
   return tier;
 }
 
-/** The hardware line the shipped query publishes for the seeded kitchen at this tier. Read off
- *  `priceDesign` rather than recomposed, so what is reconciled is what a customer would be shown. */
+/** The hardware line the shipped query publishes for the seeded kitchen at this tier, so what is reconciled is what a
+ *  customer is shown. */
 function hardwareLineAt(tierId: string) {
   const result = priceDesign({
     design: KITCHEN_L_DESIGN,
@@ -96,9 +72,7 @@ function hardwareLineAt(tierId: string) {
   return line;
 }
 
-/** The three counts, pinned as numbers because they are product facts derived from the design and
- *  the catalogue and answerable without any amount (ADR 0092 Amendment C). Everything the file
- *  computes from the book is multiplied by one of them. */
+/** The three counts, pinned as numbers: product facts answerable without any amount (ADR 0092 Amendment C). */
 const SEEDED_MECHANISM_COUNTS = { hinges: 74, drawers: 5, pushToOpen: 16 };
 
 describe("the seeded kitchen's mechanisms are ADR 0070's own count, plus the column it never published", () => {
@@ -127,14 +101,8 @@ describe("the sample rates reconcile to ADR 0070's totals table", () => {
     },
   );
 
-  /**
-   * The hardware-only column of ADR 0092 decision 6's table, on the line a customer is shown —
-   * **hinges and drawers as literals, latches from the book**.
-   *
-   * The literal is the sum of the two columns the test above reconciles against ADR 0070, and it
-   * stays a literal for the same reason they do. The push term is `16 × the tier's own declared
-   * rate`, so replacing a drafted rate with a measured one moves the book and moves no expectation.
-   */
+  /** The hardware-only column of ADR 0092 decision 6's table, on the line a customer is shown. Hinges and drawers are
+   *  literals; the push term is `16 × the tier's declared rate`, so a measured rate moves the book, no expectation. */
   it.each([
     ["hardware.standard", 130_240 + 320_000],
     ["hardware.soft-close", 629_000 + 313_000],
@@ -154,9 +122,8 @@ describe("the sample rates reconcile to ADR 0070's totals table", () => {
     },
   );
 
-  /** **The Standard tier stopped being zero**, which is the customer-visible half of ADR 0092
-   *  decision 15's interim. Pinned from the failing side: a wave that reverted the baseline without
-   *  saying so goes red here rather than in a total nobody reads. */
+  /** The Standard tier is billed, not included (ADR 0092 decision 15's interim); pinned so a reverted baseline goes red
+   *  here rather than in a total nobody reads. */
   it("bills the default hardware tier rather than including it", () => {
     const defaultTier = tierOf(BOOK.hardware.defaultTierId);
 
@@ -165,14 +132,9 @@ describe("the sample rates reconcile to ADR 0070's totals table", () => {
         320_000 +
         SEEDED_MECHANISM_COUNTS.pushToOpen * defaultTier.perPushToOpenMinor,
     );
-    // **A deliberate Romanian literal in a package that publishes none.** It is a *negative* claim
-    // about the book's own authored prose — ADR 0106 decision 2 keeps that text required, in
-    // whatever language the row was typed in, so a manufacturer-entered row still renders — and the
-    // only way to say "this sentence is not there" is to spell it. Wave 6B-j's allow-list.
-    //
-    // **The literal lives inside a regex, not a string.** A diacritic scanner that reads quoted and
-    // template strings only cannot see this line — one did not, twice — so 6B-j's rule must scan
-    // regex literals too, or it will report this package clean while the word is still in it.
+    // A deliberate Romanian literal: a negative claim about the book's own authored prose (ADR 0106 decision 2 keeps it
+    // required), which can only be spelled. It lives inside a regex because a diacritic scanner reading only quoted and
+    // template strings cannot see it, so the 6B-j rule must scan regex literals too.
     // eslint-disable-next-line no-restricted-syntax -- 6B-j allow-list: a negative claim about the book's own authored prose, which ADR 0106 decision 2 keeps required — and it lives in a regex, which is why the third selector exists.
     expect(defaultTier.description).not.toMatch(/incluse? în preț/i);
   });
@@ -202,17 +164,10 @@ const EVERY_TIER_ID = [
 ] as const;
 
 /**
- * **The defect ADR 0070 exists to remove, asserted on the line a customer is billed on.**
- *
- * A push-to-open front carries hinges, runners and a latch and **no handle at all**, so the
- * superseded per-handle quantity billed a kitchen where every front is push-to-open at exactly
- * zero. `hardware-mechanisms.test.ts` pins the counts; this pins the price, because the count being
- * right is not the same statement as the money reaching the line.
- *
- * **The fixture is a genuine push kitchen and is named for what it is.** Its predecessor stamped
- * `push` onto every placement including `hood-600`, `open-shelf-600`, `fridge-free-700` and both
- * corner returns — bodies whose definitions permit no mode — so it exercised the *opposite*
- * direction of the defect while claiming to demonstrate this one (ADR 0092 Amendment C).
+ * ADR 0070's defect, asserted on the billed line: a push-to-open front carries hinges, runners and a latch and no
+ * handle, so the superseded per-handle quantity billed an all-push kitchen at zero. `hardware-mechanisms.test.ts`
+ * pins the counts; this pins the price. The fixture stamps `push` only where the definition permits a mode (ADR 0092
+ * Amendment C).
  */
 describe("a push-to-open kitchen's hardware is not zero", () => {
   const PUSH_WHEREVER_PERMITTED: Design = {
@@ -224,9 +179,8 @@ describe("a push-to-open kitchen's hardware is not zero", () => {
     ),
   };
 
-  /** 39 of the kitchen's 41 opening fronts. The two that keep their bars are `base-corner-x-900`'s
-   *  leaf and `wall-corner-return-570`'s: both declare `canHandle: false` and both stand below the
-   *  top row, so no recorded mode reaches them and the slot does not hide them either. */
+  /** Every opening front except two: `base-corner-x-900`'s leaf and `wall-corner-return-570`'s declare
+   *  `canHandle: false` and stand below the top row, so no recorded mode reaches them. */
   const PUSH_FRONTS_WHEN_PERMITTED = 39;
 
   it("counts a latch on every front the customer can choose one for", () => {
@@ -259,15 +213,10 @@ describe("a push-to-open kitchen's hardware is not zero", () => {
 });
 
 /**
- * **The other direction, from the failing side** (ADR 0092 decision 3, Amendment C).
- *
- * `wall-corner-return-570` declares `canHandle: false` beside `carriesHandles(1)` and one door leaf:
- * its bar is built and, below the top row, visible. A hand-edited or migrated document recording
- * `handle: "push"` on it does not take that bar away in the scene, so it must not be billed a latch
- * either — and the count that read the recorded mode billed one.
- *
- * A fixture that only stamps `push` on `canHandle: true` bodies cannot witness this, which is why
- * it is a design of its own rather than a case added to the one above.
+ * ADR 0092 decision 3, Amendment C: `wall-corner-return-570` declares `canHandle: false` beside `carriesHandles(1)` and
+ * one leaf, so its bar is built and visible below the top row. A recorded `handle: "push"` on it does not remove the
+ * bar in the scene, so it must not be billed a latch. A fixture stamping `push` only on `canHandle: true` bodies
+ * cannot witness this.
  */
 describe("a recorded push on a body that permits no mode is billed no latch", () => {
   const RECORDED_PUSH_ON_A_VISIBLE_BAR: Design = {
@@ -308,19 +257,13 @@ describe("a recorded push on a body that permits no mode is billed no latch", ()
 });
 
 /**
- * **What the rates relate to each other, and deliberately not which tier is dearest.**
- *
- * A *"the seeded kitchen orders Standard, Hettich, Blum"* assertion stood here and is **deleted
- * rather than updated** (ADR 0092 Amendment C). At 16 latches the drafted push rates put Hettich
- * (11 340 MDL) above Blum (11 335), inverting the order ADR 0070's own totals table states — so
- * whichever order a test pinned would be pinning a placeholder with no supplier source, in one
- * direction or the other. Neither is asserted until the owner supplies the three real figures.
+ * What the rates relate to each other, deliberately not which tier is dearest: at 16 latches the drafted push rates
+ * put Hettich above Blum, inverting ADR 0070's totals table, so any pinned order would pin a placeholder with no
+ * supplier source (ADR 0092 Amendment C).
  */
 describe("the tier rates relate to each other in ways the book itself decides", () => {
-  /** ADR 0070's Hettich drawer figure is a **runners-only** product line while Standard's and
-   *  Blum's are complete boxes, and the owner ruled it stays that way: *"for Hettich use it as it
-   *  is"*. A wave that quietly makes the three comparable has overturned a decision, and this is
-   *  what it would have to change to do so. */
+  /** ADR 0070's Hettich drawer figure is a runners-only product line while Standard's and Blum's are complete boxes,
+   *  and the owner ruled it stays that way (ADR 0092); a wave making the three comparable overturns that decision. */
   it("keeps Hettich's drawer rate understated against both complete-box tiers", () => {
     expect(tierOf("hardware.soft-close").perDrawerMinor).toBeLessThan(
       tierOf("hardware.standard").perDrawerMinor,
@@ -330,15 +273,9 @@ describe("the tier rates relate to each other in ways the book itself decides", 
     );
   });
 
-  /** **The book's own quantifier for when the order inverts, and it has three terms.** Hettich
-   *  prices below Standard exactly when a design's drawer saving outweighs both its hinge surcharge
-   *  and its latch surcharge. The two-term form — *"drawers > 4.81 × hinges"* — was derived at zero
-   *  push mechanisms and is false in general now that the seeded kitchen carries 16: Hettich's
-   *  drafted push rate sits **above** Standard's, so every latch pushes Hettich further up
-   *  (ADR 0092 decision 12, Amendment C).
-   *
-   *  Every coefficient is read from the book and none is restated beside it, so the derivation
-   *  survives the owner replacing the drafted push figures — the value 5.71 does not. */
+  /** Hettich prices below Standard exactly when a design's drawer saving outweighs both its hinge and latch surcharges
+   *  (ADR 0092 decision 12, Amendment C); the two-term form is false once the seeded kitchen carries latches. Every
+   *  coefficient is read from the book, so replacing the drafted push figures keeps the derivation valid. */
   it("inverts only where the drawer saving outweighs the hinge and latch surcharges", () => {
     const standard = tierOf("hardware.standard");
     const hettich = tierOf("hardware.soft-close");
@@ -347,13 +284,9 @@ describe("the tier rates relate to each other in ways the book itself decides", 
       hettich.perPushToOpenMinor - standard.perPushToOpenMinor;
     const drawerSavingMinor = standard.perDrawerMinor - hettich.perDrawerMinor;
 
-    // Hettich costs more per hinge and less per drawer, which is what makes an inversion possible at
-    // all. Those two signs are the precondition, not the conclusion. **The latch surcharge's sign is
-    // deliberately not asserted**: both push rates are drafted placeholders with no supplier source
-    // (ADR 0092 Amendment C), so pinning their order pins a figure the owner has not ruled — and the
-    // inequality below needs no such pin, being sign-agnostic in that term. A *positive* latch
-    // surcharge makes the inversion harder to reach rather than possible, and the seeded assertion
-    // clears on the hinge term alone.
+    // Hettich costs more per hinge and less per drawer, which makes an inversion possible: the precondition, not the
+    // conclusion. The latch surcharge's sign is deliberately not asserted: the push rates are drafted placeholders
+    // (ADR 0092 Amendment C) and the inequality below is sign-agnostic in that term.
     expect(hingeSurchargeMinor).toBeGreaterThan(0);
     expect(drawerSavingMinor).toBeGreaterThan(0);
 
@@ -370,10 +303,8 @@ describe("the tier rates relate to each other in ways the book itself decides", 
     );
   });
 
-  /** **The negative-delta witness, pinned as a passing test** (ADR 0092 decision 12). A design of
-   *  one `base-3drawer` carries three drawers and no hinge, so it is past the ratio above and
-   *  Hettich prices *below* the default tier. Wave 6W owns what a customer should be shown for it;
-   *  6T owns that the number is on record and is not discovered again by accident. */
+  /** The negative-delta witness (ADR 0092 decision 12): a design of one `base-3drawer` carries three drawers and no
+   *  hinge, so Hettich prices below the default tier. */
   it("prices a lone base-3drawer at Hettich below Standard", () => {
     const design = {
       ...KITCHEN_L_DESIGN,
@@ -404,9 +335,8 @@ describe("the tier rates relate to each other in ways the book itself decides", 
       return line.amountMinor;
     };
 
-    // **The witness survives the third term** (ADR 0092 decision 12, Amendment C): it stands at
-    // `y0` 0 and records no mode, so it carries 3 drawers, 0 hinges and 0 latches and the latch
-    // surcharge multiplies by nothing. The delta is the same −4 200 it was at zero push.
+    // It stands at `y0` 0 and records no mode, so it carries 3 drawers, 0 hinges and 0 latches and the latch surcharge
+    // multiplies by nothing: the delta is the same as at zero push.
     expect(
       countHardwareMechanisms(
         projectDesignForDisplay(design, CATALOG).flatMap(
@@ -423,30 +353,21 @@ describe("the tier rates relate to each other in ways the book itself decides", 
 });
 
 /**
- * **The whole figure, and the wave that can first state it** (ADR 0092 decision 6, Amendment A,
- * restated by Amendment C).
- *
- * ADR 0070's totals table gives the seeded kitchen ~5 100 / ~10 020 / ~10 335 MDL at Standard,
- * Hettich and Blum. Those are **column** checks — hinges, drawers and the flat sink extras — and no
- * longer the whole figure, because Amendment C added a push column that record never published. So
- * the total is `450_240 + 60_000 + 16 × the tier's own declared push rate`, per tier.
- *
- * **The hinge, drawer and extras terms are literals and the push term is not**, and the split is the
- * whole discipline: the first three reconcile against owner-derived figures and do not move, while
- * the three push rates are drafted placeholders with no supplier source (ADR 0092 open input 1). A
- * test typing their product would make a placeholder a pinned expectation.
+ * The whole figure (ADR 0092 decision 6, Amendment A, restated by Amendment C): per tier, hinges and drawers, plus the
+ * flat sink extras, plus 16 × the tier's declared push rate. The first three terms are literals because they
+ * reconcile against owner-derived figures; the push term is not, since the push rates are drafted placeholders with
+ * no supplier source (ADR 0092 open input 1).
  */
 describe("the seeded kitchen's whole hardware-and-extras figure, per tier", () => {
-  /** ADR 0070's hinge and drawer columns, summed — the same literal the hardware-line block above
-   *  reconciles, restated as one number because this block is about the whole figure. */
+  /** ADR 0070's hinge and drawer columns, summed; the same literal the hardware-line block above reconciles. */
   const HINGES_AND_DRAWERS_MINOR: Readonly<Record<string, number>> = {
     "hardware.standard": 130_240 + 320_000,
     "hardware.soft-close": 629_000 + 313_000,
     "hardware.premium": 555_000 + 418_500,
   };
 
-  /** ADR 0070's flat *"Sink extras 600"*, identical in all three of its tier columns — which is what
-   *  says the extras sit outside the tier rather than inside it. */
+  /** ADR 0070's flat "Sink extras 600", identical in all three tier columns, which says the extras sit outside the
+   *  tier. */
   const SINK_EXTRAS_MINOR = 60_000;
 
   function pricedAt(tierId: string): PricedDesign {
@@ -486,8 +407,8 @@ describe("the seeded kitchen's whole hardware-and-extras figure, per tier", () =
     },
   );
 
-  /** **The extras are the same 60 000 in every column**, which is the property that says they are
-   *  outside the tier. Derived by subtracting each tier's own hardware line rather than restated. */
+  /** The extras are the same in every column, which says they sit outside the tier; derived from each tier's own
+   *  accessory lines rather than restated. */
   it("charges the same extras whichever hardware tier is chosen", () => {
     const extrasAt = EVERY_TIER_ID.map((tierId) =>
       pricedAt(tierId)

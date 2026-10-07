@@ -5,15 +5,26 @@
 //
 // These tests pin the two halves of that: the legs behave exactly like the wall returns `p9`/`p21`
 // that already carried `STRUCTURAL_CORNER`, and adding them changed no derived state anywhere else.
+import type { Design } from "../../src/design.js";
 import { describe, expect, it } from "vitest";
 
-import { isKnownKind, kindLabel } from "../../src/catalog.js";
+import {
+  baseCarcassFrontMm,
+  baseCornerXFrameDepthMm,
+  baseFinishedDepthMm,
+  isKnownKind,
+  kindLabel,
+} from "../../src/catalog.js";
 
 import { removePlacement } from "../../src/commands/remove-placement.js";
+import { setCabinetDepth } from "../../src/commands/set-cabinet-depth.js";
+import { validateDesignForCatalog } from "../../src/validate-design.js";
 import {
+  buildKitchenLBodyCatalog,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
 } from "../../src/fixtures/kitchen-l-design.js";
+import { occupiedDepthOfEntryM } from "../../src/occupied-depth.js";
 import { describeSelection } from "../../src/queries/describe-selection.js";
 import { offersFor } from "../../src/queries/offers.js";
 import {
@@ -24,6 +35,7 @@ import {
   type ColumnExtent,
 } from "../../src/void-engine.js";
 import { OCCURRED_AT } from "../support/commands.js";
+import { createFakeProbeFactory } from "../support/fake-probe.js";
 import { createWorld } from "../support/kitchen-world.js";
 
 const CORNER_BASE_IDS = ["p25", "p26"] as const;
@@ -168,7 +180,8 @@ describe("adding the base corner changed no other derived state", () => {
     const added = [...after.columns.keys()].filter(
       (key) => !before.columns.has(key),
     );
-    expect(added.sort()).toEqual(["A|0.45", "B|0.74"]);
+    // B|0.74 → B|0.73 (ADR 0135): the return is centred at 735.
+    expect(added.sort()).toEqual(["A|0.45", "B|0.73"]);
     for (const [key, column] of before.columns) {
       expect([key, extentOf(after.columns.get(key))]).toEqual([
         key,
@@ -215,7 +228,7 @@ describe("adding the base corner changed no other derived state", () => {
   // legs are the only members of two brand-new columns.
   it.each([
     ["A|0.45", "p25", 0.9],
-    ["B|0.74", "p26", 0.32],
+    ["B|0.73", "p26", 0.33], // 320 → 330 wide, B|0.74 → B|0.73 (ADR 0135)
   ])("seats %s as a full single-member column", (key, id, widthM) => {
     const column = seeded().columns.get(key);
     expect(column?.regions).toEqual([[0, 0.82]]);
@@ -236,18 +249,28 @@ describe("the corner legs' seat is the L-joint, not the wall (ADR 0025)", () => 
     );
 
   // The whole point of the ADR, expressed as numbers `buildKitchen()` also produces: the X-leg's
-  // carcass is 600 deep but seats 280 mm off the wall, because it must meet the 580 mm return leg
-  // on a shared face at z = 0.58. `frameDepthMm` is the seat, doubled — never a depth.
-  it("seats the X-leg so its carcass front meets the return leg's own depth", () => {
+  // carcass is 590 deep but seats 275 mm off the wall, because it must meet the return leg at the
+  // joint, z = 0.57 — the return's near edge along its wall, and the base run's carcass front.
+  // `frameDepthMm` is the seat, doubled — never a depth. ADR 0135 moved the joint from 0.58 and the
+  // leg from 600 deep seated at 280: its back face stays at −0.020, ADR 0025 decision 3's pin, so
+  // `KNOWN_WALL_GAP_M` is unchanged. The return's own depth is 570, the joint's number again.
+  it("seats the X-leg so its carcass front meets the return leg's near edge", () => {
     const xLeg = recordFor("p25");
     const returnLeg = recordFor("p26");
-    expect(xLeg?.frame.z).toBeCloseTo(0.28, 9);
-    expect(returnLeg?.frame.x).toBeCloseTo(0.29, 9);
+    // 0.28 → 0.275 (ADR 0135): the leg is built 590 deep and seated at half its 550 frame.
+    expect(xLeg?.frame.z).toBeCloseTo(0.275, 9);
+    // 0.29 → 0.285: the return is built 570 deep with its back face on the wall.
+    expect(returnLeg?.frame.x).toBeCloseTo(0.285, 9);
 
-    const X_LEG_CARCASS_DEPTH_M = 0.6;
-    const RETURN_LEG_DEPTH_M = 0.58;
+    const X_LEG_CARCASS_DEPTH_M = 0.59;
     const xLegCarcassFront = (xLeg?.frame.z ?? 0) + X_LEG_CARCASS_DEPTH_M / 2;
-    expect(xLegCarcassFront).toBeCloseTo(RETURN_LEG_DEPTH_M, 9);
+    const returnNearEdge =
+      (returnLeg?.frame.z ?? 0) - (returnLeg?.frame.w ?? 0) / 2;
+    expect(xLegCarcassFront).toBeCloseTo(returnNearEdge, 9);
+    expect(xLegCarcassFront).toBeCloseTo(0.57, 9);
+    // The back face did not move: ADR 0025 decision 3's pin by value.
+    const xLegBackFace = (xLeg?.frame.z ?? 0) - X_LEG_CARCASS_DEPTH_M / 2;
+    expect(xLegBackFace).toBeCloseTo(-0.02, 9);
   });
 
   // Along the wall the two legs butt their neighbours exactly, which is what a gap or an overlap
@@ -277,5 +300,136 @@ describe("the corner legs' seat is the L-joint, not the wall (ADR 0025)", () => 
     expect(recomputeVoids(records, columns)).toEqual(
       recomputeVoids(records, columns),
     );
+  });
+});
+
+describe("the base return stands on the run's lines (ADR 0135)", () => {
+  const BASE_RETURN_BUILD_ID = "base-corner-return-320";
+  const RUN_CARCASS_FRONT_MM_BY_DEPTH = [
+    [600, 570],
+    [700, 670],
+  ] as const;
+
+  it.each(RUN_CARCASS_FRONT_MM_BY_DEPTH)(
+    "names the run's carcass front at a %i mm kitchen as %i mm",
+    (cabinetDepthMm, carcassFrontMm) => {
+      expect(baseCarcassFrontMm(cabinetDepthMm)).toBe(carcassFrontMm);
+    },
+  );
+
+  it.each(RUN_CARCASS_FRONT_MM_BY_DEPTH)(
+    "seats the return on the run's carcass front at a %i mm kitchen",
+    (cabinetDepthMm, carcassFrontMm) => {
+      const definition =
+        buildKitchenLBodyCatalog(cabinetDepthMm).get(BASE_RETURN_BUILD_ID);
+
+      expect(definition?.frameDepthMm).toBe(carcassFrontMm);
+    },
+  );
+
+  it.each(RUN_CARCASS_FRONT_MM_BY_DEPTH)(
+    "finishes the return where a base run does at a %i mm kitchen",
+    (cabinetDepthMm) => {
+      const definition =
+        buildKitchenLBodyCatalog(cabinetDepthMm).get(BASE_RETURN_BUILD_ID);
+      if (!definition) throw new Error(`${BASE_RETURN_BUILD_ID} is missing`);
+
+      const finishedMm = Math.round(
+        occupiedDepthOfEntryM({ buildId: BASE_RETURN_BUILD_ID, definition }) *
+          1000,
+      );
+
+      expect(finishedMm).toBe(baseFinishedDepthMm(cabinetDepthMm));
+    },
+  );
+});
+
+describe("the X-leg stands on the run's lines (ADR 0135, the joint move)", () => {
+  const X_LEG_BUILD_ID = "base-corner-x-900";
+  const X_LEG_FRAME_MM_BY_DEPTH = [
+    [600, 550],
+    [700, 650],
+  ] as const;
+
+  it.each(X_LEG_FRAME_MM_BY_DEPTH)(
+    "records the X-leg's seat doubled at a %i mm kitchen as %i mm, its back face staying 20 mm behind the wall",
+    (cabinetDepthMm, frameDepthMm) => {
+      const definition =
+        buildKitchenLBodyCatalog(cabinetDepthMm).get(X_LEG_BUILD_ID);
+
+      expect(baseCornerXFrameDepthMm(cabinetDepthMm)).toBe(frameDepthMm);
+      expect(definition?.frameDepthMm).toBe(frameDepthMm);
+      // The leg's front is the run's carcass front and its back is 20 mm inside the wall, so its
+      // footprint is the front plus 20 and its seat is half the front less 20: 570 and 550/2 at 600.
+      expect(baseCarcassFrontMm(cabinetDepthMm) - frameDepthMm).toBe(20);
+    },
+  );
+
+  it.each(X_LEG_FRAME_MM_BY_DEPTH)(
+    "finishes the X-leg where a base run does at a %i mm kitchen",
+    (cabinetDepthMm) => {
+      const definition =
+        buildKitchenLBodyCatalog(cabinetDepthMm).get(X_LEG_BUILD_ID);
+      if (!definition) throw new Error(`${X_LEG_BUILD_ID} is missing`);
+
+      const finishedMm = Math.round(
+        occupiedDepthOfEntryM({ buildId: X_LEG_BUILD_ID, definition }) * 1000,
+      );
+
+      expect(finishedMm).toBe(baseFinishedDepthMm(cabinetDepthMm));
+    },
+  );
+
+  it("starts the seeded return at the joint, 570 mm, and ends it on the 900 mm reach", () => {
+    const placement = KITCHEN_L_DESIGN.placements.find(
+      ({ id }) => id === "p26",
+    );
+    if (!placement) throw new Error("the seeded return is missing");
+
+    expect(placement.body.widthMm).toBe(330);
+    expect(placement.alongMm - placement.body.widthMm / 2).toBe(570);
+    expect(placement.alongMm + placement.body.widthMm / 2).toBe(900);
+  });
+
+  // ADR 0135 accepts that a kitchen stored before the joint moved keeps its 320 mm return, 10 mm short of
+  // the X-leg's new front, and shows a slit, with no migration. What must hold is that it still loads:
+  // no finding on it at its own depth, and the depth command still takes it to 700.
+  describe("a design stored with the return as it was before the joint moved", () => {
+    const BEFORE_RETURN_WIDTH_MM = 320;
+    const BEFORE_RETURN_CENTRE_MM = 740;
+    const stored: Design = {
+      ...KITCHEN_L_DESIGN,
+      placements: KITCHEN_L_DESIGN.placements.map((placement) =>
+        placement.id === "p26"
+          ? {
+              ...placement,
+              alongMm: BEFORE_RETURN_CENTRE_MM,
+              body: { ...placement.body, widthMm: BEFORE_RETURN_WIDTH_MM },
+            }
+          : placement,
+      ),
+    };
+
+    it("reports no finding at its own depth", () => {
+      expect(validateDesignForCatalog(stored, KITCHEN_L_BODY_CATALOG)).toEqual(
+        [],
+      );
+    });
+
+    it("takes the depth command to 700 without refusal or finding", () => {
+      const result = setCabinetDepth({
+        design: stored,
+        catalogAt: buildKitchenLBodyCatalog,
+        cabinetDepthMm: 700,
+        probeAt: createFakeProbeFactory(),
+        occurredAt: OCCURRED_AT,
+      });
+
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(
+        validateDesignForCatalog(result.design, buildKitchenLBodyCatalog(700)),
+      ).toEqual([]);
+    });
   });
 });

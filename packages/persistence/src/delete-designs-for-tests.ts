@@ -1,35 +1,21 @@
 import { neon } from "@neondatabase/serverless";
 
-import { retryOnComputeRestart } from "./retry-on-compute-restart.js";
+import { retryOnTransientFailure } from "./retry-on-transient-failure.js";
 
 import { resolveTestDatabaseUrl } from "./test-database-url.js";
 
 /**
- * Set by vitest in every worker it runs, and by Playwright in every test worker it forks
- * (`playwright/lib/worker/workerProcessEntry.js` assigns `TEST_WORKER_INDEX`). Presence of one of
- * them is the closest thing to proof that this process is a test runner rather than the
- * application.
+ * Set by vitest in every worker and by Playwright in every test worker (`TEST_WORKER_INDEX`): the closest proof that
+ * this process is a test runner and not the application.
  */
 const TEST_RUNNER_MARKER_VARIABLES = ["VITEST", "TEST_WORKER_INDEX"] as const;
 
 /**
- * Deletes the named designs from the **test** database. **Test support only.**
- *
- * It lives here for the reason every other statement in this package does: a Postgres driver
- * appears in exactly one package, which is what makes "no string-built SQL anywhere" auditable in
- * one place (`scripts/gates/boundary.sh`). A suite that mints rows still has to remove them
- * (ADR 0006's third mechanism), and doing that with its own `neon()` call put a driver import in
- * `apps/web` — a real boundary violation, and one the gate could not see until the file was
- * committed, because `git grep` searches tracked files only.
- *
- * The connection is resolved here rather than accepted as an argument. Accepting one meant the
- * caller decided which database a `DELETE` reached, and no caller ever ran the guard this comment
- * used to promise (finding DB-001). `resolveTestDatabaseUrl()` refuses anything but an allowlisted
- * test database, so there is no argument through which that refusal can be bypassed.
- *
- * "Never call this from application code" is enforced rather than documented: the function is
- * reachable from `apps/web` through the package index, so it refuses outright unless a test runner
- * is what is running it.
+ * Deletes the named designs from the test database. Test support only. It lives here because a Postgres driver appears
+ * in exactly one package (`scripts/gates/boundary.sh`). The connection is resolved here, not accepted as an argument:
+ * `resolveTestDatabaseUrl()` refuses anything but an allowlisted test database, so no caller can bypass the guard
+ * (finding DB-001; ADR 0006's third mechanism). The function is reachable from `apps/web` through the package index, so
+ * it refuses outright unless a test runner is running it.
  */
 export async function deleteDesignsForTests(
   ids: readonly string[],
@@ -38,23 +24,18 @@ export async function deleteDesignsForTests(
   if (ids.length === 0) return;
 
   const sql = neon(resolveTestDatabaseUrl());
-  // One statement per id rather than one `= any(...)`: the id list is short, and a per-row delete
-  // needs no array binding to be correct.
+  // One statement per id rather than one `= any(...)`: the id list is short, and a per-row delete needs no array
+  // binding.
   for (const id of ids)
-    await retryOnComputeRestart(
+    await retryOnTransientFailure(
       () => sql`delete from designs where id = ${id}`,
     );
 }
 
 /**
- * Answers which of `ids` still have a row — read-only, and behind the same guard as
- * {@link deleteDesignsForTests}. **Test support only.**
- *
- * M7 wave 7E3b's own reason for existing (S4, criterion 9): since ADR 0114 decision 5, an e2e spec
- * proving a row was deleted can no longer do it by reading `GET /api/designs/{id}` and expecting
- * 404 — every cookie-less caller answers 404 whether or not the row exists, which makes that
- * assertion true before the delete runs as well as after it. Reading the table directly is the only
- * way left to tell "deleted" from "never readable here" apart.
+ * Answers which of `ids` still have a row: read-only, behind the same guard as {@link deleteDesignsForTests}. Test
+ * support only. Since ADR 0114 decision 5 every cookie-less caller gets 404 whether or not a row exists, so an e2e spec
+ * can prove a delete only by reading the table directly.
  */
 export async function findDesignIdsForTests(
   ids: readonly string[],
@@ -63,7 +44,7 @@ export async function findDesignIdsForTests(
   if (ids.length === 0) return [];
 
   const sql = neon(resolveTestDatabaseUrl());
-  const rows = (await retryOnComputeRestart(
+  const rows = (await retryOnTransientFailure(
     () => sql`select id from designs where id = any(${ids})`,
   )) as { id: string }[];
   return rows.map((row) => row.id);

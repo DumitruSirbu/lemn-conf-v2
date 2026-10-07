@@ -1,44 +1,19 @@
-// **Backlog 50 / M6-AUD-008, first half: the one overlap the load and write gate cannot see.**
+// Backlog 50 / M6-AUD-008: `findWallOverlaps` never compares the same along-wall coordinate on wall A and wall B (§2),
+// which is right everywhere except at the corner, where a wall-A body's depth is measured along wall B
+// (`along-wall-chain-shift.ts`): wall B's first several hundred millimetres are inside wall A's corner body.
 //
-// `findWallOverlaps` groups spans by wall, and `groupSpansByWall` says why:
+// The severity is `mark`: a new refusal code makes a stored document unloadable (ADR 0052, ADR 0065), so the overlap
+// is reported and carried and the document still loads. Severity is declared per code (ADR 0069).
 //
-//   > "Both walls originate at the same corner and walk their own axis (§2), so the same along-wall
-//   > coordinate on wall A and on wall B are two different places and are never compared."
+// The third block is a witness for a different gap: `findWallOverlaps` returns early with no frozen map, and two
+// placements in one span are never named on either wall (a placement carries no reportable path, `overlapCodeFor`).
 //
-// True everywhere except at the corner, where a wall-A body's **depth** is measured along wall B —
-// the exact fact `along-wall-chain-shift.ts` is built on. So wall B's first several hundred
-// millimetres are inside wall A's corner body, and a span recorded there overlaps a solid.
+// `alongMm` is a centre, not a left edge (§12), so every span is derived through `spanOf`.
 //
-// **It was a witness until 2026-09-09, and the second block below is now an invariant.** It pinned
-// the gap as an executable fact so that the wave closing it would start from a red test rather than
-// from a paragraph; that wave added `findCornerOverlaps` and `RECORDED_SPAN_OVERLAPS_CORNER_BODY`,
-// so the assertion that used to read "reports nothing" was inverted rather than deleted — it is the
-// same document and the same arithmetic, and only the expected answer moved.
-//
-// **The severity is `mark`, ruled by the owner on 2026-09-09** for the reason `PLACEMENT_PAST_WALL_END`
-// is one (ADR 0065): a new refusal code makes an already-stored document unloadable, which is
-// ADR 0052's dead link. The overlap is reported and carried, the document still loads, and nothing
-// is moved out from under the customer. Severity is declared per code (ADR 0069).
-//
-// **The third block is still a witness**, and deliberately so: it records a *different* gap —
-// `findWallOverlaps` returns early when the document carries no frozen map at all, and two
-// **placements** in one span are never named on either wall. The corner comparison does not close
-// it and was not asked to: a placement carries no reportable path (`overlapCodeFor`), and backlog 50
-// records that second fact as wider than the entry itself.
-//
-// **`alongMm` is a centre, not a left edge** — §12, and `validate-design.ts`'s own `toStoredSpan`
-// and `toPlacementSpan` both read `alongMm ± widthMm / 2`. Every span below is derived through
-// `spanOf` for that reason: the first version of this file did the arithmetic as though the field
-// were an edge, and although the overlap it named was real, a computation on a convention the
-// domain does not use cannot honestly claim to follow a fixture that moves.
-//
-// **The reach used is the corner body's carcass seat, not the space it fills** — ruled 2026-09-09,
-// against this file's own first answer. The seat is 560 mm and the occupied depth is 630, and the
-// 70 mm between them is `base-corner-x-900`'s corner worktop (ADR 0025). Measured against 630 the
-// gate marks the **shipped** kitchen, whose two corner legs share 50 mm of plan area because their
-// worktops meet at the L-joint; measured against 560 it is silent there and reproduces both defects
-// backlog 50 was opened for, to the millimetre. The block at the foot of this file is that
-// reproduction, and it is the reason the number is what it is.
+// The reach is the corner body's carcass seat (550 mm), not its occupied depth (620; 560 and 630 before ADR 0135 moved
+// the joint): the 70 mm between is the leg's 20 mm behind the wall plane and its worktop's 50 mm overhang (ADR 0025).
+// Against 620 the gate marks the shipped kitchen, whose two corner legs' worktops meet at the L-joint; against 550 it
+// is silent there and reproduces both defects backlog 50 was opened for, as the block at the foot shows.
 import { describe, expect, it } from "vitest";
 
 import type { Design, DesignPlacement, EmptyColumn } from "../src/design.js";
@@ -162,9 +137,7 @@ describe("the same-wall sweep, which works", () => {
 });
 
 describe("the corner, which it now sees", () => {
-  // The same overlap, moved to the other side of the corner. Wall B's first millimetres are
-  // occupied by wall A's corner body; this space is filed under wall B and shares solid with it.
-  // The only difference from the block above is which wall the span is filed under.
+  // The same overlap filed under wall B: its first millimetres are inside wall A's corner body.
   const space = spaceAt("B", 300, WIDTH_OF_A_TEST_SPACE_MM);
 
   it("really does construct an overlap, in millimetres, before claiming one is missed", () => {
@@ -184,9 +157,8 @@ describe("the corner, which it now sees", () => {
     ]);
   });
 
-  // Non-vacuity, ADR 0093: the finding above has to be *about* the corner body. Take that body out
-  // of the design and the same space on the same wall at the same height is reported by nothing —
-  // so the comparison is reading wall A's placements and not merely firing on a wall-B entry.
+  // Non-vacuity (ADR 0093): take the corner body out and the same space is reported by nothing, so the comparison
+  // reads wall A's placements.
   it("goes quiet when the body it names is not in the design", () => {
     const withoutTheCornerBody: Design = {
       ...designHolding(space),
@@ -197,12 +169,9 @@ describe("the corner, which it now sees", () => {
     expect(validateDesignForCatalog(withoutTheCornerBody, catalog)).toEqual([]);
   });
 
-  // **Where the reach ends is a decision, so it is asserted as one rather than left as a number
-  // that happened to change.** The corner body has two fronts: its carcass at 560 and its corner
-  // worktop at 630, ten millimetres further than a straight run's slab reaches (ADR 0025). The gate
-  // reads the first. The seventy millimetres between them are deliberately **outside** the reach,
-  // because the shipped kitchen puts `base-corner-return-320` at 580 — inside the worktop and clear
-  // of the carcass — and two worktop slabs meeting at an L-joint is what a corner is, not a finding.
+  // Where the reach ends is a decision, asserted as one: the corner body has a carcass front at 550 and a corner
+  // worktop at 620 (ADR 0135; 560 and 630 under ADR 0025). The gate reads the first, so the 70 mm between are outside
+  // the reach: `base-corner-return-320` stands at 570, inside the worktop and clear of the carcass.
   it("takes its reach from the corner body's carcass and not from its worktop", () => {
     const definition = catalog.get(cornerBody().body.buildId);
     if (!definition) throw new Error("the corner body left the catalogue");
@@ -217,10 +186,8 @@ describe("the corner, which it now sees", () => {
     ).toBeGreaterThan(cornerBodyReachOnWallB().endMm);
   });
 
-  // And the boundary that reach is: a space starting exactly where the carcass ends abuts it and is
-  // not inside it — the same `<`-not-`<=` rule the same-wall sweep uses, and the reason the shipped
-  // corner returns report nothing. It stands inside the worktop line and is still silent, which is
-  // the ruling above with a document behind it.
+  // The boundary: a space starting exactly where the carcass ends abuts it and is not inside it (the same `<`-not-`<=`
+  // rule as the same-wall sweep), which is why the shipped corner returns report nothing.
   it("says nothing about a space that starts exactly where the carcass ends", () => {
     const reachEndMm = cornerBodyReachOnWallB().endMm;
     const abutting = spaceAt(
@@ -246,11 +213,9 @@ describe("the corner, which it now sees", () => {
 });
 
 describe("and the sweep it still skips entirely", () => {
-  // A second fact, wider than backlog 50 states it and measured here: `findWallOverlaps` returns
-  // early when a document carries neither `emptyColumns` nor `columnExtents`, so two **placements**
-  // occupying one span are never compared — on either wall, corner or not. Shipped documents always
-  // carry a frozen map (ADR 0090 decision 1, commands return it), so this is about a hand-crafted
-  // document at the load seam, which is the same seam the severity ruling is about.
+  // A second fact: `findWallOverlaps` returns early when a document carries neither `emptyColumns` nor
+  // `columnExtents`, so two placements in one span are never compared on either wall. Shipped documents always carry
+  // a frozen map (ADR 0090 decision 1), so this is about a hand-crafted document at the load seam.
   const MOVED_ID = "p26";
 
   function movedOntoTheCornerBody(): Design {
@@ -269,8 +234,7 @@ describe("and the sweep it still skips entirely", () => {
   }
 
   it("really does put two bodies in one span, on one wall", () => {
-    // The half the first version of this block left out: without it, "reports nothing" would keep
-    // passing for the wrong reason the day the fixture's widths move.
+    // Without this, "reports nothing" would pass for the wrong reason once the fixture's widths move.
     const moved = movedOntoTheCornerBody().placements.find(
       (placement) => placement.id === MOVED_ID,
     );
@@ -292,10 +256,8 @@ describe("and the sweep it still skips entirely", () => {
 });
 
 describe("and the document still loads, which is what the severity buys", () => {
-  // **The half a severity ruling is actually about** (ADR 0052): a new *refusal* code makes an
-  // already-stored document unloadable, and a customer whose saved kitchen stops opening has lost
-  // it. So the proof this wave owes is not that the code exists — it is that the seam which throws
-  // on a bad document does not throw on this one.
+  // What a severity ruling is about (ADR 0052): a new refusal code makes a stored document unloadable, so the seam
+  // that throws on a bad document must not throw on this one.
   const space = spaceAt("B", 300, WIDTH_OF_A_TEST_SPACE_MM);
 
   it("declares the code a mark, per code, as ADR 0069 requires", () => {
@@ -322,9 +284,8 @@ describe("and the document still loads, which is what the severity buys", () => 
   });
 
   it("survives the whole loader, not merely the validator it ends with", () => {
-    // `migrateDesign` is the seam a stored row actually arrives through, and it is what would throw
-    // an `InvalidDesignError` mid-hydration. Run at the version this build writes, so the document
-    // takes no migration arm and the only thing it can fail on is the gate this wave changed.
+    // `migrateDesign` is the seam a stored row arrives through and would throw an `InvalidDesignError` mid-hydration;
+    // run at the version this build writes, so only the gate can fail.
     const loaded = migrateDesign(
       CURRENT_SCHEMA_VERSION,
       designHolding(space),
@@ -335,10 +296,7 @@ describe("and the document still loads, which is what the severity buys", () => 
   });
 });
 
-// M7B U1 slice S4 (ADR 0132 decision 7 / D10): the A∩C corner, swept exactly as A∩B and never
-// merged with it. `isShapeBuildable("U", …)` stays false through this wave, so every design below
-// is hand-built rather than reachable through the product — the same status a hand-crafted wall-C
-// body already has in an L document (ADR 0132's own caveat, U1 S1's close-out).
+// The A∩C corner is swept exactly as A∩B and never merged with it (ADR 0132 D10); every design below is hand-built.
 describe("the A∩C corner", () => {
   const ROOM_WIDTH_MM = 3600;
   // Centred so its mirrored span at A∩C — `W − (alongMm ± 450)` — is `[0, 900]`, exactly
@@ -394,11 +352,8 @@ describe("the A∩C corner", () => {
     expect(validateDesignForCatalog(design, catalog)).toEqual([]);
   });
 
-  // AC7: wall B and wall C are opposite side runs, never corner partners. Shaped so a naive
-  // all-pairs sweep — one that compared every two walls rather than only the one that shares a
-  // corner with wall A — would flag them: the wall-B space's own span and the wall-C body's carcass
-  // reach satisfy `intersectsAcrossTheCorner`'s arithmetic exactly as the positive cases above do.
-  // With no wall-A body in the design for either to pair against, nothing is reported.
+  // AC7: wall B and wall C are opposite side runs, never corner partners: shaped so a naive all-pairs sweep would flag
+  // them, yet with no wall-A body to pair against nothing is reported.
   it("never compares a wall-B space against a wall-C body", () => {
     const wallBSpace = spaceAt("B", 300, WIDTH_OF_A_TEST_SPACE_MM);
     const wallCBody: DesignPlacement = {
@@ -418,17 +373,16 @@ describe("the A∩C corner", () => {
 });
 
 describe("the two overlaps backlog 50 was opened for, reproduced", () => {
-  // **The check that the reach is the one the entry measured**, and the reason the seat won the
-  // 2026-09-09 ruling. Entry 50 records the pre-6J-c geometry as `base-corner-return-320` overlapping
-  // wall A's corner by **80 mm** and `wall-corner-return-570` by **31 mm** (ADR 0089 decision 3, at
-  // `14cef90`). Both fall straight out of the carcass seats the gate now reads. Off the occupied
-  // depths they would have been 150 and 70, and the entry does not say that — so a wave that changes
-  // the reach and leaves this block green has changed it to a number nobody measured.
+  // The reach is the one the entry measured: entry 50's 80 mm and 31 mm overlaps (ADR 0089 decision 3) are carcass-seat
+  // figures; off the occupied depths they would be 150 and 70, so a wave that changes the reach and leaves this green
+  // has changed it to a number nobody measured.
   const BASE_RETURN_START_MM = 480;
   const WALL_RETURN_START_MM = 260;
 
-  it("reproduces the base return's 80 mm off the reach the gate reads", () => {
-    expect(seatOf("base-corner-x-900") - BASE_RETURN_START_MM).toBe(80);
+  // 80 → 70 (ADR 0135): the entry's 80 mm is the X-leg's 560 seat less the 480 the return then started at; the seat is
+  // 550 now that the joint moved, so the same arithmetic reads 70.
+  it("reproduces the base return's 70 mm off the reach the gate reads", () => {
+    expect(seatOf("base-corner-x-900") - BASE_RETURN_START_MM).toBe(70);
   });
 
   it("reproduces the wall return's 31 mm off the same reach, one band up", () => {

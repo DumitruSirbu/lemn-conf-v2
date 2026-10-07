@@ -1,6 +1,7 @@
 import { expect, type Page } from "@playwright/test";
 
 import { ro } from "../support/romanian-content.e2e";
+import { readSettleCount, waitForSettleAfter } from "./support/mirror-flow";
 import { openSeededDesign, test } from "./support/seeded-design";
 
 /**
@@ -64,24 +65,6 @@ interface SceneBodyBounds {
 interface SceneCamera {
   readonly projection: number[];
   readonly view: number[];
-}
-
-async function readSettleCount(page: Page): Promise<number> {
-  const raw = await page
-    .getByTestId("selection-debug")
-    .getAttribute("data-scene-settle-count");
-  return raw ? Number(raw) : 0;
-}
-
-/** Waits for the camera to land **after** `previous`, so an already-settled scene cannot answer. */
-async function waitForSettleAfter(
-  page: Page,
-  previous: number,
-): Promise<number> {
-  await expect(async () => {
-    expect(await readSettleCount(page)).toBeGreaterThan(previous);
-  }).toPass({ timeout: 20_000 });
-  return readSettleCount(page);
 }
 
 async function readScene(page: Page): Promise<{

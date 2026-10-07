@@ -6,30 +6,13 @@ import { create } from "zustand";
 import { isSelectionDebugEnabled } from "@/app/configurator/configure/selection-debug-availability";
 
 /**
- * **What the running scene measured, for `SelectionDebug` to publish and the e2e suite to read.**
- *
- * M7 wave 7H criterion 11 asks a browser to prove §11 row 21: the 2.20–2.60 m row of every wall
- * cabinet projects at least a tap target at 390 × 844. That is unanswerable from outside the canvas
- * — Playwright cannot query WebGL — and it may not be answered from **screenshot pixels** either,
- * which is what the criterion's *must not* rules out.
- *
- * **So this publishes observations, never conclusions**, and the distinction is the whole design:
- *
- * - The **camera's own two matrices**, as the renderer holds them after the ease has landed. Not
- *   the preset, and not anything `cameraPresetsForRoom` returns — the *result* of that function
- *   having been applied and eased to. A spec that projected through a camera the production framing
- *   function had just handed it would be checking that function against itself.
- * - Each mounted body's **world-space bounds**, for every body carrying a `placementId`. Not "the
- *   ceiling row": which bodies are in that row is the assertion's own business, and a readout that
- *   pre-selected them would decide the thing being measured.
- *
- * The projection arithmetic, the choice of band, and the tap target all stay in the spec. Nothing
- * here computes a pixel.
- *
- * **A store of its own, beside `camera-preset-store.ts`, for that file's own reason**: the camera is
- * not part of the design, so none of this may go near `store/configurator-store.ts`. It is also not
- * state any customer surface renders from — `SelectionDebug` is the only reader, and it is off
- * unless the flag is on.
+ * What the running scene measured, for `SelectionDebug` to publish and the e2e suite to read. §11 row 21 (every
+ * 2.20-2.60 m wall cabinet projects at least a tap target at 390 x 844) cannot be answered from outside the canvas or
+ * from screenshot pixels, so this publishes observations, never conclusions: the camera's own two matrices after the
+ * ease has landed (not anything `cameraPresetsForRoom` returns, which would check that function against itself) and
+ * each mounted body's world bounds (not "the ceiling row": choosing it is the assertion's business). The projection
+ * arithmetic, band and tap target stay in the spec. The store is separate from `store/configurator-store.ts` because
+ * the camera is not part of the design; `SelectionDebug` is the only reader.
  */
 export interface SceneBodyBounds {
   readonly placementId: string;
@@ -39,14 +22,10 @@ export interface SceneBodyBounds {
 
 export interface SceneMeasurement {
   /**
-   * Increments once each time the camera's ease lands.
-   *
-   * **A counter rather than a boolean, and that is not a detail.** A spec that waited for
-   * `settled === true` would race: the scene is *already* settled when a preset button is tapped,
-   * so the flag it is waiting for is the one it must not accept. Recording the count before the tap
-   * and waiting for a larger one is immune to that, and immune to a runner slow enough that the
-   * ease has not begun when the wait starts. `CAMERA_EASE_SECONDS` is 0.7 s and the runner is
-   * slower than a laptop.
+   * Increments once each time the camera's ease lands. A counter, not a boolean: the scene is already settled
+   * when a preset button is tapped, so a spec waiting for `settled === true` would accept the frame before the
+   * move. Recording the count before the tap and waiting for a larger one is immune to that and to a slow
+   * runner (`CAMERA_EASE_SECONDS` is 0.7 s).
    */
   readonly settleCount: number;
   /** `camera.projectionMatrix.elements`, column-major, as three.js holds them. */
@@ -65,13 +44,10 @@ export const useSceneMeasurement = create<SceneMeasurementState>(() => ({
 }));
 
 /**
- * **Off unless the build opted in**, exactly as `SelectionDebug` itself is, and read as the literal
- * member expression Next substitutes at build time — handing `process.env` over whole defeats the
- * substitution and reaches for a `process` the browser does not have
- * (`selection-debug-availability.ts`).
- *
- * The gate is here rather than at the call site so that a disabled build pays one function call
- * rather than a walk over every mounted body's geometry on every camera settle.
+ * Off unless the build opted in, as `SelectionDebug` is, and read as the literal member expression Next
+ * substitutes at build time: handing `process.env` over whole defeats the substitution
+ * (`selection-debug-availability.ts`). The gate is here so a disabled build pays one function call rather than a
+ * walk over every body's geometry on each camera settle.
  */
 const IS_PUBLISHED = isSelectionDebugEnabled(
   process.env.NEXT_PUBLIC_LEMNARIA_ENABLE_SELECTION_DEBUG,

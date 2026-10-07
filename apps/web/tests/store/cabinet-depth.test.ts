@@ -1,11 +1,5 @@
-// Wave 6K-a: the store's catalogue is always the one built at the held design's own cabinet depth.
-//
-// The defect these tests close is silent by construction. `/api/designs/[id]` already answers with a
-// document carrying `settings.cabinetDepthMm`, and a store that closed over one `BodyCatalog` for
-// its lifetime would evaluate a 700 mm kitchen against a 600 mm map — its records, its voids and
-// every later command — with nothing to see. So every assertion here is a **measurable consequence**
-// of the depth a map was built at, never a comparison of two catalogue objects: two maps from the
-// same builder are equally plausible objects, and only the numbers in them tell the depths apart.
+// Every assertion is a measurable consequence of the depth a map was built at, never a comparison of two catalogue
+// objects: two maps from the same builder are equally plausible objects.
 import {
   buildKitchenLBodyCatalog,
   declaredCabinetDepthsMm,
@@ -26,16 +20,11 @@ import { assertSourcesExplainTheirDepths } from "../support/frozen-source-invari
 
 const OCCURRED_AT = "2026-09-04T12:00:00.000Z";
 const DEEPER_MM = 700;
-/** Not offered, and below no floor — so the refusal it earns is `UNKNOWN_CABINET_DEPTH` and not the
- *  dishwasher floor's, which is a different rule with its own tests one package over. */
+/** Not offered, and below no floor, so the refusal it earns is `UNKNOWN_CABINET_DEPTH`, not the dishwasher floor's. */
 const UNDECLARED_MM = 650;
 
-/** A body whose depth follows the setting (ADR 0058), so its frame depth is the one number that says
- *  which depth a catalogue was built at.
- *
- *  The corner rather than a drawer stack, because a depth change resolves every seeded body to its
- *  parameterised equivalent — `base-drawer3-600` becomes `base-3drawer` and is no longer placed —
- *  and this one keeps its id across the rebuild, so the same lookup reads both designs. */
+/** A body whose depth follows the setting, so its frame depth says which depth a catalogue was built at. The corner,
+ *  not a drawer stack: a depth change replaces `base-drawer3-600` with `base-3drawer`, while this id survives. */
 const DEPTH_FOLLOWING_BUILD_ID = "base-corner-x-900";
 
 function frameDepthMm(catalog: BodyCatalog): number {
@@ -60,9 +49,8 @@ const FRAME_DEPTH_WHEN_DEEPER_MM = frameDepthMm(
   buildKitchenLBodyCatalog(DEEPER_MM),
 );
 
-/** The document a load actually delivers at the deeper setting: produced by the domain command, so
- *  its bodies are the ones the engine would have written rather than the seeded design with one
- *  number edited into it. */
+/** The document a load delivers at the deeper setting, produced by the domain command so its bodies are the ones the
+ *  engine would have written. */
 const DEEPENED_DESIGN: Design = (() => {
   const result = setCabinetDepthOnDesign({
     design: KITCHEN_L_DESIGN,
@@ -75,16 +63,10 @@ const DEEPENED_DESIGN: Design = (() => {
   return result.design;
 })();
 
-/** The other document a load delivers at the deeper setting, and the one the **geometry** is
- *  measurable on: a stored kitchen that declares the depth and whose bodies carry no measured seat
- *  of their own.
- *
- *  It is needed because `deriveFrame` prefers `placement.body.seatDepthMm` over the catalogue's
- *  `frameDepthMm` (ADR 0011 Gap B), so every body a depth change rebuilt carries its own depth in
- *  the document — and a store answering from the wrong catalogue would still produce the right
- *  frames for `DEEPENED_DESIGN` above. This shape is what `migrateDesign` parses and what
- *  `/api/designs/[id]` returns for a document written without measured seats, and here the
- *  catalogue is the **only** thing that can supply the depth. */
+/** The document whose geometry is measurable: it declares the depth but its bodies carry no measured seat.
+ *  `deriveFrame` prefers `placement.body.seatDepthMm` over the catalogue's `frameDepthMm` (ADR 0011 Gap B), so a
+ *  store answering from the wrong catalogue would still draw `DEEPENED_DESIGN` right; here only the catalogue
+ *  supplies the depth. */
 const DECLARED_DEEP_DESIGN: Design = {
   ...KITCHEN_L_DESIGN,
   settings: { ...KITCHEN_L_DESIGN.settings, cabinetDepthMm: DEEPER_MM },
@@ -106,9 +88,7 @@ function createStore(overrides: StoreOverrides = {}) {
 }
 
 describe("the depth a store's catalogue is built at", () => {
-  // The premise every other test rests on, asserted rather than assumed: a second depth is offered,
-  // it is not the default, and it produces a genuinely different frame depth. Without this the file
-  // could pass while both sides of every comparison were the same number.
+  // The premise every other test rests on: without it both sides of every comparison could be the same number.
   it("has two declared depths whose bodies are built to different frames", () => {
     expect(declaredCabinetDepthsMm()).toContain(DEEPER_MM);
     expect(DEEPER_MM).not.toBe(DEFAULT_CABINET_DEPTH_MM);
@@ -141,9 +121,7 @@ describe("the depth a store's catalogue is built at", () => {
     );
   });
 
-  // The catalogue is what the records are derived from, so a rebuilt map that never reached
-  // `deriveGeometry` would leave the published geometry answering at the old depth — the frames the
-  // scene draws and the columns the voids come out of.
+  // A rebuilt map that never reached `deriveGeometry` would leave the frames and the columns at the old depth.
   it("derives the hydrated design's geometry from that rebuilt catalogue", () => {
     const store = createStore();
     const seatedAtDefaultM = recordFrameDepthM(store.getState().records);
@@ -212,8 +190,7 @@ describe("setCabinetDepth", () => {
     expect(store.getState().lastRejection?.code).toBe("UNKNOWN_CABINET_DEPTH");
   });
 
-  // The same safety net `insert` carries, and the same refusal: every body is rebuilt through the
-  // insert path, so there is nothing to rebuild against without a probe.
+  // Every body is rebuilt through the insert path, so there is nothing to rebuild against without a probe.
   it("refuses with BODY_PROBE_UNAVAILABLE when no probe is attached", () => {
     const store = createStore({ withProbe: false });
     const heldDesign = store.getState().design;
@@ -226,8 +203,6 @@ describe("setCabinetDepth", () => {
     expect(store.getState().lastRejection?.code).toBe("BODY_PROBE_UNAVAILABLE");
   });
 
-  // A refusal must not persist anything — the store's standing rule for every command, restated
-  // here because this is the first one whose success also replaces the catalogue.
   it("schedules no save on a refusal", () => {
     const saved: Design[] = [];
     const store = createConfiguratorStore({
@@ -245,16 +220,10 @@ describe("setCabinetDepth", () => {
   });
 });
 
-// A column is §3.2's space a run occupies, and its depth axis — `d`, and the across-wall origin at
-// `d / 2` — is a function of the bodies standing in it. A depth change rebuilds every one of those
-// bodies, so it is the one command after which a frozen extent cannot be carried forward unchanged.
-//
-// The extent is still frozen on its **along-wall and vertical** axes (ADR 0011 Gap D, ADR 0053): the
-// width a partial delete left behind is the customer's, not a function of anything. Only the depth
-// axis moves, and only where a member is standing there to measure it.
+// A depth change rebuilds every body in a column, so it is the one command after which a frozen extent cannot be
+// carried forward unchanged on its depth axis; the along-wall and vertical axes stay frozen (ADR 0011 Gap D).
 describe("the columns a depth change publishes", () => {
-  /** A base run on wall A, occupied throughout — the ordinary case, where every member moves with
-   *  the setting and the column's whole depth axis is derivable from them. */
+  /** A base run on wall A, occupied throughout: every member moves with the setting. */
   const OCCUPIED_BASE_KEY = "A|1.30";
 
   it("deepens an occupied column to the bodies the change rebuilt", () => {
@@ -263,10 +232,8 @@ describe("the columns a depth change publishes", () => {
 
     store.getState().setCabinetDepth(DEEPER_MM);
 
-    // ADR 0079 decision 10 part 2: the state predicate, run here as well as in this wave's own file,
-    // so an ordinary depth-change test carries it. A published depth that no longer names the body it
-    // came from is invisible to every other assertion below — both 6K-c defects looked exactly like a
-    // green run of this test.
+    // ADR 0079 decision 10 part 2: a published depth that no longer names the body it came from is invisible to every
+    // other assertion here.
     assertSourcesExplainTheirDepths(store.getState(), "after setCabinetDepth");
     expect(beforeM).toBeCloseTo(0.62, 6);
     expect(columnOf(store.getState().columns, OCCUPIED_BASE_KEY).d).toBeCloseTo(
@@ -275,8 +242,7 @@ describe("the columns a depth change publishes", () => {
     );
   });
 
-  // The origin is the column's own half-depth on the wall's normal (`deriveColumns`), so a depth
-  // that moved without its origin would leave the run drawn where the shallower kitchen stood.
+  // The origin is the column's half-depth on the wall's normal (`deriveColumns`).
   it("moves that column's across-wall origin with its depth", () => {
     const store = createStore();
     const beforeM = columnOf(store.getState().columns, OCCUPIED_BASE_KEY).z;
@@ -290,9 +256,8 @@ describe("the columns a depth change publishes", () => {
     );
   });
 
-  // The durable half. `applyCommandResult` projects the map it publishes into `columnExtents`, and
-  // that document is what the coalescer saves — so a stale map does not merely mis-answer this
-  // session, it reloads stale for good.
+  // `applyCommandResult` projects the published map into `columnExtents`, which the coalescer saves: a stale map
+  // would reload stale.
   it("writes the deepened extent into the document it hands on to be saved", () => {
     const store = createStore();
 
@@ -306,12 +271,8 @@ describe("the columns a depth change publishes", () => {
     expect(stored?.depthMm).toBe(720);
   });
 
-  // The anti-invariant, and the half ADR 0011 Gap D exists to protect: re-deriving an occupied
-  // column's extent from its current members is what a frozen extent **stops** doing. Delete the
-  // base body out of a column that still carries a wall body and the freed opening is 620 mm deep
-  // because a base cabinet stood there; a depth change must not collapse it to the 330 mm the
-  // remaining wall body implies. The column deepens to its members or stays where it was frozen —
-  // never shallower than either.
+  // A frozen extent stops re-deriving from its members: deleting the base body leaves a 620 mm opening that a depth
+  // change must not collapse to the 330 mm the remaining wall body implies (ADR 0011 Gap D).
   it("never makes a frozen extent shallower than it was frozen at", () => {
     const store = createStore();
     store.getState().select({ kind: "placement", id: "p1" });
@@ -333,21 +294,8 @@ function columnOf(columns: ReadonlyMap<string, Column>, key: string): Column {
   return column;
 }
 
-// **Flipped by wave 6K-c, and flipped rather than deleted**: a removed expected failure is
-// indistinguishable from one that never existed (`docs/WORKFLOW.md`). The assertion below is exactly
-// the one the failing guard carried.
-//
-// Wave 6K-a's `atCurrentCabinetDepth` re-answered a frozen extent from the members standing in it.
-// It could not re-answer the half **no member explains**: the body that froze the depth is gone, and
-// the mapping is per chain rather than a delta, so a base run goes 620 → 720 while a wall run goes
-// 330 → 400. [ADR 0073](../../../../docs/decisions/0073-a-frozen-extent-records-the-body-its-depth-came-from.md)
-// rules on it — a frozen extent records the `buildId` its depth came from, and a depth change
-// re-asks that entry in the catalogue built at the new setting — and wave 6K-c implements it.
-//
-// **`it.fails` passes on any throw**, so a guard whose body crashes asserts nothing and the suite
-// still reports green. Wave 6K-b's adapter guard
-// (`packages/three-adapter/tests/qa-6k-b-probe-kit-depth.adversarial.test.ts`) was briefly in that
-// state. Print what one produces before trusting it.
+// A member-less column follows the setting like its run. The mapping is per chain, not a delta (base 620 → 720,
+// wall 330 → 400), because a frozen extent records the `buildId` its depth came from (ADR 0073).
 describe("a member-less column after a depth change", () => {
   it("follows the setting like the run it sits in", () => {
     const store = createStore();
@@ -357,29 +305,15 @@ describe("a member-less column after a depth change", () => {
 
     store.getState().setCabinetDepth(DEEPER_MM);
 
-    // The base run beside it deepens by the setting's own delta; the freed opening does not.
     const runM = columnOf(store.getState().columns, "A|1.30").d;
     const freedAfterM = columnOf(store.getState().columns, "A|2.00").d;
     expect(freedAfterM - freedM).toBeCloseTo(runM - 0.62, 6);
   });
 });
 
-// **The customer-visible claim, and the one the visual pass measured through the UI.**
-//
-// A body's `seatDepthMm` is twice its rear overhang (ADR 0018), so it is what places the body
-// against the wall — 100 mm of seat is 50 mm of position. Before wave 6K-e the store handed
-// `setCabinetDepth` the scene's standing probe, whose kit was at the depth the session was
-// **leaving**, so on the way back from 700 every rebuilt body was seated for a 700 mm kitchen and
-// stood 50 mm proud of the back wall in a 600 mm one. Measured in a browser at 390 x 844 on
-// 2026-09-04, before the fix:
-//
-//     base carcasses  0.000..0.620 -> 0.050..0.670   (the whole run 50 mm off the wall)
-//     end panel       80 mm of carcass standing in front of the panel meant to hide it
-//     at 700          the run 50 mm *inside* the wall (min z = -0.05)
-//
-// Asserted here on the seat rather than on a column depth, because the columns came back correctly
-// even while this was broken — a column is derived from the catalogue, a body's position from the
-// measured seat, and only the second one moved.
+// A body's `seatDepthMm` is twice its rear overhang (ADR 0018), so 100 mm of seat is 50 mm of position. Asserted on
+// the seat, not a column depth: a column derives from the catalogue and a body's position from the measured seat,
+// so a wrong seat leaves the columns correct.
 describe("the round trip a customer takes, measured where they can see it", () => {
   it("returns every body to the depth it stood at when it started", () => {
     const store = createStore();
@@ -395,17 +329,13 @@ describe("the round trip a customer takes, measured where they can see it", () =
     );
     expect(moved.length).toBeGreaterThan(0);
 
-    // And they come back — every placement, so a body seated right by luck cannot carry one that
-    // was not. Before wave 6K-e the base run came back 50 mm out.
+    // Every placement comes back, so a body seated right by luck cannot carry one that was not.
     expect(seatedDepthsByPlacementId(store)).toEqual(startedAt);
   });
 });
 
-/** Where every body's back face stands, as `frame.d` — `deriveFrame`'s
- *  `seatDepthMm ?? frameDepthMm`, so a seeded body with no measured seat and a rebuilt one with one
- *  are read the same way. That resolution is the point: the seeded design carries **no** seats at
- *  all and every body carries one after a rebuild, so comparing raw seats would compare `undefined`
- *  with a number and say nothing about where anything stands. */
+/** Where every body's back face stands, as `frame.d` (`deriveFrame`'s `seatDepthMm ?? frameDepthMm`): the seeded
+ *  design carries no seats and a rebuilt body carries one, so comparing raw seats would say nothing. */
 function seatedDepthsByPlacementId(
   store: ReturnType<typeof createStore>,
 ): ReadonlyMap<string, number> {

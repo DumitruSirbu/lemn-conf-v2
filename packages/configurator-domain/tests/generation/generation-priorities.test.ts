@@ -15,6 +15,12 @@ import {
   planLeftover,
   type DesignRoom,
 } from "../../src/index.js";
+import {
+  absorbedByTheOwnersRuleMm,
+  fridgeEndCabinetOf,
+  ONE_STORAGE_MODULE_MM,
+  widenedBesideTheEndFridgeMm,
+} from "../support/fridge-end-leftover.js";
 
 /** What `generateKitchen` reads off the catalogue and hands the planner (ADR 0110 E, wave 7D3). */
 const CATALOG = buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN));
@@ -289,8 +295,22 @@ describe("planKitchenComposition", () => {
             // subtraction on that one wall rather than relaxed to `run − composed`, which is
             // *exactly* the quantity a body planned over its module and a remainder reduced to match
             // leave unchanged — a 700 mm cabinet sold as a 600 mm one, invisible to that form.
+            //
+            // **And the one other subtraction, M7C wave C5 S1 (the owner's Q6):** where the fridge ends the
+            // wall and a door cabinet stands inboard of it, that cabinet takes what the owner's rule gives
+            // it. Its width is checked against the rule worked out here from the leftover, so a cabinet
+            // widened by any other amount fails by its own width and never hides in the remainder.
+            const leftoverMm = finalLeftoverMm % ONE_STORAGE_MODULE_MM;
+            const ruledMm =
+              fridgeEndCabinetOf(plan, wall) === undefined
+                ? 0
+                : absorbedByTheOwnersRuleMm({
+                    leftoverMm,
+                    cabinetWidthMm: ONE_STORAGE_MODULE_MM,
+                  });
+            expect(widenedBesideTheEndFridgeMm(plan, wall)).toBe(ruledMm);
             expect(plan.remainderMm[wall]).toBe(
-              (finalLeftoverMm % 600) - absorbedIntoTheBlockMm(plan, wall),
+              leftoverMm - absorbedIntoTheBlockMm(plan, wall) - ruledMm,
             );
           }
         },

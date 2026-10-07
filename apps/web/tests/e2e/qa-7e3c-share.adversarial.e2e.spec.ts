@@ -14,6 +14,7 @@ import { SINK_CABINET_TAP, tapCanvas } from "./support/canvas-taps";
 import { deleteMintedDesigns } from "./support/minted-designs";
 import { canonicaliseRowIds } from "./support/rsc-row-ids";
 import {
+  expectWriteAccessApplied,
   issueShareLink,
   mintSeededDesign,
   openSeededDesign,
@@ -662,7 +663,7 @@ test.describe("criterion 14 — the link never reaches storage, the URL or the c
 
     await page.reload();
     await page.waitForSelector("canvas", { state: "attached" });
-    await expect(page.getByTestId("global-settings-trigger")).toBeEnabled();
+    await expectWriteAccessApplied(page);
     await page.getByTestId("global-settings-trigger").tap();
     await expect(page.getByTestId("share-design-status")).toBeVisible();
     await expect(page.getByTestId("share-design-link")).toHaveCount(0);

@@ -134,16 +134,30 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
-  test:
-    name: test
+  # One leg per workspace package (owner ruling, 2026-10-07, replacing the 2026-09-30 ruling that
+  # raised the single job's ceiling rather than splitting it). The single job ran the four suites
+  # one after another for 43 minutes in run 37544936477 — 24.5 of them the domain package — and the
+  # e2e shards wait behind it. The repository is public, so the repeated install per leg costs
+  # nothing that is rationed.
+  #
+  # **These leg names are not contracts; `test` below is.** It is the summary job, exactly as
+  # `e2e (desktop)` is for its shards.
+  #
+  # Each leg runs its package's own `test` script, which builds the workspace packages it consumes
+  # first, so a leg depends on nothing another leg left behind.
+  test-package:
+    name: test package (${{ matrix.package }})
     if: github.event.action != 'labeled'
     runs-on: ubuntu-latest
-    # Owner ruling 2026-09-30: the unit-test job raises its ceiling rather than splitting (the
-    # split-per-machine rule of ADR 0105 A is for e2e). Measured: the domain package alone took
-    # 14.9 min on the runner (run 36765806056), cancelled at 15. Raised again to 45 (owner, 2026-10-01):
-    # the whole job took 28m59s in run 36828202847, leaving almost no margin under 30.
+    # The ceiling the single job carried (owner, 2026-10-01), now per leg. The longest leg is the
+    # domain package: 24.5 min in run 37544936477.
     timeout-minutes: 45
     needs: install
+    strategy:
+      # One package's failure should not hide whether the other three are green.
+      fail-fast: false
+      matrix:
+        package: [configurator-domain, persistence, three-adapter, web]
     env:
       # Points at the dedicated Neon test database and nothing else, and it
       # is what the live persistence suites gate on — they ran on
@@ -170,7 +184,11 @@ jobs:
       # A Postgres service container is not usable here — the driver is
       # @neondatabase/serverless, which speaks to Neon over HTTP/WebSocket
       # and does not connect to a stock postgres image without a proxy.
-      TEST_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+      #
+      # Only the persistence leg receives it: no other package's unit suite
+      # reads a connection variable, and a leg that cannot reach the database
+      # cannot run concurrently against it.
+      TEST_DATABASE_URL: ${{ matrix.package == 'persistence' && secrets.TEST_DATABASE_URL || '' }}
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -186,6 +204,7 @@ jobs:
       # Fail before vitest with a clear message if the secret is missing,
       # rather than surfacing it as a driver error mid-suite.
       - name: Assert the test database secret is present
+        if: matrix.package == 'persistence'
         run: |
           if [ -z "$TEST_DATABASE_URL" ]; then
               echo "TEST_DATABASE_URL is not set. The live persistence suite needs the"
@@ -194,8 +213,33 @@ jobs:
               exit 1
           fi
           echo "TEST_DATABASE_URL present; database name: $(node -e "console.log(new URL(process.env.TEST_DATABASE_URL).pathname.slice(1))")"
-      - name: Test
-        run: pnpm test
+      - name: Test (${{ matrix.package }})
+        run: pnpm --filter "@lemnaria/${{ matrix.package }}" run test
+
+  # The required check, and the job the e2e shards and `prior unit tests` read. `needs` names the
+  # matrix job, whose result is the aggregate of all its legs, and this **fails unless they all
+  # succeeded** — a leg that was skipped or cancelled is not a pass.
+  #
+  # `always()` is what lets it run and *fail* when a leg failed; without it a failed `needs` would
+  # leave this job skipped, and a skipped required check counts as passing. The `labeled` condition
+  # is the legs' own, repeated: on that run this job must report skipped, as the single `test` job
+  # did, which is what `prior unit tests` exists to keep honest.
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    needs: test-package
+    if: ${{ always() && github.event.action != 'labeled' }}
+    steps:
+      - name: Require every package's unit tests to have passed
+        env:
+          LEGS_RESULT: ${{ needs.test-package.result }}
+        run: |
+          echo "test package legs: $LEGS_RESULT"
+          if [ "$LEGS_RESULT" != "success" ]; then
+              echo "Not every package's unit tests succeeded; see the test package jobs."
+              exit 1
+          fi
 
   # Added 2026-09-02. Until then nothing anywhere ran Playwright: `ci:local` did
   # not, and neither did this workflow, so §10's signature flow sat red for six

@@ -96,7 +96,7 @@ describe("buildUShellDesign — the document it writes", () => {
   });
 });
 
-describe("buildUShellDesign — the right corner's four placements (AC1's build-id half)", () => {
+describe("buildUShellDesign — the right corner's six placements (AC1's build-id half)", () => {
   it("carries the same four build ids the left corner's own placements do, only relabelled", () => {
     const shell = shellIn(engineUAtMinima());
     const left = shell.placements.filter(
@@ -118,8 +118,10 @@ describe("buildUShellDesign — the right corner's four placements (AC1's build-
       placement.id.startsWith("right-"),
     );
 
+    // A, A, A, C, C, C (M7C wave C2): the X-leg and the corner wall unit's two pieces on wall A, the
+    // returns on wall C. The engine minima are a small U, so the back wall is not base-only.
     expect(right.map((placement) => placement.wall).sort()).toStrictEqual(
-      ["A", "C", "C", "C"].sort(),
+      ["A", "A", "A", "C", "C", "C"].sort(),
     );
   });
 });

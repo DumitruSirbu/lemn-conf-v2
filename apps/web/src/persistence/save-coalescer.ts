@@ -1,9 +1,6 @@
-// The write path of decisions 13-17
-// (`docs/decisions/0002-db-backed-shareable-persistence.md`): the edit path never blocks on
-// a write, writes are coalesced so a burst of commands produces one save of the final state (not a
-// queue of intermediate ones), and a failed write is surfaced and retried without ever reverting
-// the already-applied edit. Its caller is the store's `onDesignChanged` seam, which fires after
-// every successful command — mint-on-first-write is simply the first of those, not a special case.
+// The write path (ADR 0002 decisions 13-17): the edit path never blocks on a write, writes coalesce into one save
+// of the final state, and a failed write is surfaced and retried without reverting the applied edit.
+// Its caller is the store's `onDesignChanged` seam; mint-on-first-write is simply the first of those.
 import type { Design, DesignId } from "@lemnaria/configurator-domain";
 import type { DesignRevision } from "@lemnaria/persistence";
 
@@ -14,21 +11,14 @@ import {
 } from "./design-request-errors";
 
 /**
- * The three failures are separate values because the customer's situation — and therefore what a
- * surface may honestly tell them — is different in each:
- *
- * - `error` is a failure worth retrying: a retry is already armed, and the unwritten state is still
- *   queued behind it. Writing continues.
- * - `stopped` is a terminal failure that is not about the credential (`WriteNotRetryableError`:
- *   a 400 from a stale bundle, a 413). Writing is over for this design and no retry will happen, so
- *   the state on screen is the only copy of it.
- * - `unauthorized` is terminal too, but the one terminal case a surface can say something useful
- *   about (ADR 0019 decision 1: the write credential is a cookie this browser simply does not hold —
- *   the design is read-only here, not failing to save).
- * - `conflict` is terminal **until the customer chooses** (WEB-003): the credential is right and the
- *   stored design has moved on, so no retry can succeed and none is armed. Unlike the two above it
- *   is recoverable, by reloading the stored design or by overwriting it deliberately, and the state
- *   on screen is intact meanwhile.
+ * What the customer's situation is, and so what a surface may honestly say:
+ * - `error`: retryable; a retry is armed and the unwritten state stays queued behind it.
+ * - `stopped`: terminal and not about the credential (`WriteNotRetryableError`: a 400 from a stale bundle, a
+ *   413). No retry will happen, so the state on screen is the only copy.
+ * - `unauthorized`: terminal; this browser does not hold the write credential (ADR 0019 decision 1), so the
+ *   design is read-only here rather than failing to save.
+ * - `conflict`: terminal until the customer chooses; the stored design has moved on, so no retry can succeed.
+ *   Recoverable by reloading the stored design or overwriting it deliberately.
  */
 export type SaveStatus =
   | "idle"
@@ -57,9 +47,8 @@ function backoffDelayMs(retryCount: number): number {
   );
 }
 
-/** One save request, and what a successful one answers with. Mirrors
- *  `fetch-configuration-repository.ts`'s own types, declared here so the coalescer depends on a
- *  shape rather than on that class. */
+/** One save request and what a successful one answers with. Mirrors `fetch-configuration-repository.ts`'s types
+ *  so the coalescer depends on a shape rather than on that class. */
 export interface CoalescedSaveRequest {
   readonly id: DesignId | null;
   readonly design: Design;
@@ -86,20 +75,15 @@ export interface SaveCoalescerDependencies {
   /** Unlike an id, the generation also distinguishes two fresh designs that both carry `null`. */
   readonly getGeneration: () => number;
   /**
-   * The revision the store believes the current design stands at, read **once per identity queue**
-   * when that queue is created (WEB-003).
-   *
-   * It is not read per job on purpose. A job scheduled while an earlier save for the same design is
-   * still in flight would capture the revision that save is about to consume, and would then be
-   * refused as stale for no reason. The queue owns the revision instead, and only a successful save
-   * advances it — see `runSave`.
+   * The revision the store believes the current design stands at, read once per identity queue when it is created.
+   * Not read per job: a job scheduled while a save is in flight would capture the revision that save is about to
+   * consume and be refused as stale. Only a successful save advances it (see `runSave`).
    */
   readonly getRevision: () => DesignRevision | null;
   /**
-   * Re-reads a design's current revision from the server. The "re-read" half of an explicit
-   * overwrite, and the only thing in this module that may raise the revision a queue expects
-   * without a save having produced it — which is exactly what makes an overwrite a deliberate act
-   * rather than a retry.
+   * Re-reads a design's current revision from the server: the "re-read" half of an explicit overwrite, and the
+   * only thing here that may raise a queue's expected revision without a save, which makes an overwrite
+   * deliberate rather than a retry.
    */
   readonly readCurrentRevision: (id: DesignId) => Promise<DesignRevision>;
   /** Called after a successful save, scoped to the generation that scheduled it. */
@@ -111,12 +95,8 @@ export interface SaveCoalescer {
   /** Queues `design` to be persisted. Returns immediately; the write happens off this call. */
   scheduleSave: (design: Design) => void;
   /**
-   * The customer's answer to a conflict: write `design` over whatever the stored design has become
-   * (WEB-003). Re-reads the current revision first, so the overwrite is conditional on the state it
-   * is actually replacing — a blind write with no expectation would reintroduce the very defect
-   * this wave removed, one press further away.
-   *
-   * A no-op unless this design is in `conflict`, so a stray press cannot overwrite anything.
+   * The customer's answer to a conflict: write `design` over the stored one. Re-reads the current revision
+   * first, so the overwrite stays a conditional write. A no-op unless this design is in `conflict`.
    */
   overwriteConflict: (design: Design) => void;
 }
@@ -132,10 +112,8 @@ interface IdentityQueue {
   /** `null` until this provisional queue completes its first successful save. */
   designId: DesignId | null;
   /**
-   * The revision the next write for this identity must expect. Seeded from the store when the queue
-   * is created, `null` while the identity is still provisional, and advanced **only** by a
-   * successful save — so a retry re-sends the revision the failed attempt used, never one a
-   * different write already consumed.
+   * The revision the next write for this identity must expect: seeded from the store, `null` while provisional,
+   * and advanced only by a successful save, so a retry re-sends the revision the failed attempt used.
    */
   expectedRevision: DesignRevision | null;
   /** The newest generation that scheduled work for this persisted identity. */
@@ -173,18 +151,10 @@ export function createSaveCoalescer(
   const refusedPersisted = new Map<DesignId, RefusedStatus>();
   const refusedProvisional = new Map<number, RefusedStatus>();
   /**
-   * The design an in-flight overwrite will write, per identity — the newest one offered while its
-   * re-read is still out.
-   *
-   * It exists because the conflict must **stay** in place across that await. Clearing it first left
-   * a window in which an ordinary edit was no longer blocked: it went out against the revision that
-   * had just been refused, conflicted again, and re-armed the refusal — so the overwrite, arriving
-   * a moment later, was itself refused and sent nothing. The customer pressed a destructive-choice
-   * control and watched it do nothing (review finding F1).
-   *
-   * Holding the edit rather than refusing it is what makes `CONFLICT_NOTICE`'s promise true: the
-   * panel stays editable, so an edit made between the press and the round trip is part of what
-   * "overwrite with what you see now" means, and it is what gets written.
+   * The design an in-flight overwrite will write, per identity: the newest one offered while its re-read is out.
+   * The conflict must stay in place across that await: clearing it first would let an ordinary edit go out against
+   * the refused revision, conflict again and re-arm the refusal, so the overwrite itself would then be refused.
+   * Holding the edit rather than refusing it keeps the panel editable and writes the latest state.
    */
   const overwritesInFlight = new Map<DesignId, Design>();
 
@@ -193,8 +163,8 @@ export function createSaveCoalescer(
     const refusedStatus = refusalStatus(job);
     if (refusedStatus !== undefined) {
       if (heldByOverwrite(job, design)) return;
-      // A terminal identity is still terminal on return to it. Reporting this synchronously avoids
-      // accepting a local edit while silently declining even to queue its write.
+      // A terminal identity is still terminal on return to it; report it synchronously rather than silently
+      // decline to queue the write.
       deps.onSaveStatusChange(refusedStatus, job.generation);
       return;
     }
@@ -208,11 +178,8 @@ export function createSaveCoalescer(
       queue.retryCount = 0;
       clearRetryTimer(queue);
       invalidateReady(queue);
-      // The load that advanced the generation read this design afresh, so the store's revision is
-      // newer than the one this queue was seeded with — and a queue sitting in retry backoff
-      // survives a hydrate away and back carrying the stale one (review finding F4). It fails
-      // closed, as a spurious conflict rather than a lost update, but a design nothing else touched
-      // should not conflict at all.
+      // The load that advanced the generation read this design afresh, so the store's revision is newer than the
+      // seeded one; a queue left in retry backoff would otherwise carry the stale one and conflict spuriously.
       queue.expectedRevision = deps.getRevision();
     }
     queue.pending = job;
@@ -220,8 +187,7 @@ export function createSaveCoalescer(
     requestSave();
   }
 
-  /** The immutable snapshot every save is built from: what is on screen, whose design it is, and
-   *  which load generation asked. The revision is deliberately **not** part of it — see
+  /** The immutable snapshot every save is built from. The revision is deliberately not part of it: see
    *  `getRevision`. */
   function jobFor(design: Design): SaveJob {
     return {
@@ -423,9 +389,8 @@ export function createSaveCoalescer(
       refusedPersisted.set(job.designId, status);
     }
 
-    // A stale in-flight refusal belongs to the persisted identity, not merely to the generation
-    // that issued the request. If that identity has since become current again, surface the stop to
-    // its newest generation before clearing its pending work.
+    // A stale in-flight refusal belongs to the persisted identity: if that identity is current again, surface the
+    // stop to its newest generation before clearing its pending work.
     const affectedGeneration = queue.pending?.generation ?? queue.generation;
     queue.pending = null;
     invalidateReady(queue);
@@ -434,9 +399,8 @@ export function createSaveCoalescer(
     requestSave();
   }
 
-  /** Which terminal state a refusal leaves the identity in. A conflict is separated from the rest
-   *  because it is the only one the customer can act on; falling through to `stopped` would be safe
-   *  but would hide the two choices behind an apology. */
+  /** Which terminal state a refusal leaves the identity in. A conflict is separated because it is the only one
+   *  the customer can act on. */
   function refusedStatusFor(failure: WriteNotRetryableError): RefusedStatus {
     if (failure instanceof WriteConflictError) return "conflict";
     if (failure instanceof WriteNotAuthorizedError) return "unauthorized";
@@ -444,13 +408,10 @@ export function createSaveCoalescer(
   }
 
   /**
-   * The customer chose to overwrite: re-read the revision the stored design now stands at, then
-   * queue the newest document against **that** — so the overwrite is still a conditional write, and
-   * a third tab that saved in the meantime conflicts again rather than being silently discarded.
-   *
-   * The conflict is **not** cleared here. It stays until the moment the save is actually queued, so
-   * nothing slips out against the revision that was just refused (review finding F1); edits made
-   * meanwhile are held by `heldByOverwrite` rather than refused.
+   * The customer chose to overwrite: re-read the stored revision, then queue the newest document against that, so
+   * a third tab that saved meanwhile conflicts again instead of being discarded. The conflict is cleared when the
+   * save is queued, not here, so nothing goes out against the refused revision; edits meanwhile are held by
+   * `heldByOverwrite`.
    */
   function overwriteConflict(design: Design): void {
     const job = jobFor(design);
@@ -489,9 +450,7 @@ export function createSaveCoalescer(
     }
   }
 
-  /** An overwrite that did not happen leaves the design exactly as conflicted as it was — the
-   *  refusal was never lifted — so this only has to say so, rather than leaving the customer
-   *  watching a save that is not coming. */
+  /** An overwrite that did not happen leaves the design as conflicted as it was, so this only says so. */
   function reportConflictStanding(job: SaveJob): void {
     deps.onSaveStatusChange("conflict", job.generation);
   }
@@ -517,9 +476,8 @@ export function createSaveCoalescer(
     // newer edit, retry the immutable snapshot that failed.
     queue.pending ??= failedJob;
     queue.retryCount += 1;
-    // Entering backoff and remaining ready are mutually exclusive states. A same-generation edit
-    // may already have issued a FIFO ticket while the failed request was in flight; invalidate it
-    // now so the retry timer can issue the one replacement ticket when this queue becomes ready.
+    // Entering backoff and remaining ready are mutually exclusive: invalidate any FIFO ticket issued while the
+    // failed request was in flight, so the retry timer issues the one replacement.
     invalidateReady(queue);
     queue.retryTimer = setTimeout(() => {
       queue.retryTimer = null;

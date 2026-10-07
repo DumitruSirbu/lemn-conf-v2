@@ -8,6 +8,7 @@ import {
   waitForFirstSave,
 } from "./support/panel";
 import {
+  expectWriteAccessApplied,
   issueShareLink,
   openSeededDesign,
   openSharedDesign,
@@ -130,7 +131,7 @@ async function wearColour(
 }
 
 async function openSheet(page: Page): Promise<void> {
-  await expect(page.getByTestId("global-settings-trigger")).toBeEnabled();
+  await expectWriteAccessApplied(page);
   await page.getByTestId("global-settings-trigger").tap();
   await expect(page.getByTestId("global-settings-surface")).toBeVisible();
 }

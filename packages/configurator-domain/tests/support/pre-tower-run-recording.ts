@@ -1,26 +1,7 @@
-// M7 wave 7D5b — the readers for the two recordings either side of S0b (the oven tower over the
-// bottle, ADR 0110 Amendment M11), the classifier that says how they may differ, and the classifier
-// that says how a plan may differ from the post-tower recording once S1 adds the dishwasher (ADR 0110
-// Amendment M1, M2, M7(e), M8, M9).
-//
-// - **`7d5b-pre-tower-baseline.json`**, slice S0: **captured from `acb7b6f` with the production tree
-//   clean**, the pre-state of S0b.
-// - **`7d5b-post-tower-baseline.json`**, slice S0b: **captured from `c0018ef` plus S0b's uncommitted
-//   edit to `optional-run-items.ts` (blob `7e8cbc1`), with no other production file changed**, the
-//   pre-state of S1.
-//
-// Both by the method the earlier recordings used: rooms drawn from `approvedLRoom()` at seed 20260921
-// and 480 runs (`fc.sample` and `fc.assert` draw the same rooms at that seed; both were checked), keys
-// sorted, each composed through `planKitchenComposition` over `lShellFloorRuns` and stored as the whole
-// `canonicalPlan` string, so a later comparison names the field and the module that moved. **The two
-// draw the same 480 rooms and the same 16 witnesses**, which is what lets them be compared room by room
-// without asking the planner anything. Beside the draw each records the plan's named witness rooms at
-// 2600 mm, whole, because a 480-room draw reaches the 5 260-room class S0b changes only ten times and
-// never at the rooms the plan and the owner reason from.
-//
-// **Never re-captured to fit a later wave** (plan risk 5): a late fix that moved either state is a new
-// recording beside these, not a patch to them. Decoding goes through the pre-width reader's
-// `parseRecordedCanonicalPlan`, so every whole-plan recording is read by one parser.
+// Readers for the two plan recordings either side of S0b (the oven tower over the bottle, ADR 0110 Amendment M11)
+// and the classifiers that say how a plan may differ from each. The baselines were captured at `acb7b6f` and at
+// `c0018ef` plus S0b's edit alone, over the same 480 drawn rooms (seed 20260921) and 16 witnesses, so they compare
+// room by room. Never re-captured to fit a later wave: a later change gets a new recording beside these.
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -116,10 +97,6 @@ export function roomFromRecordedKey(key: string): DesignRoom {
   return { shape: "L", widthMm, depthMm, heightMm };
 }
 
-// ---------------------------------------------------------------------------------------------
-// The one change S0b may make to a recorded plan.
-// ---------------------------------------------------------------------------------------------
-
 /** How a plan relates to the plan recorded before S0b. */
 export type TowerOverBottleChange =
   | "unchanged"
@@ -156,14 +133,11 @@ export function towerOverBottleChangeBetween(plans: {
 }
 
 /**
- * The plan S0b makes of a recorded pre-S0b plan it applies to, or `undefined` where it does not apply.
- * It applies where the recorded kitchen stands S1's bottle immediately after a `base-hob-oven`, on the
- * hob's wall, with **no tall column** (the bottle took the whole block) and **no pan drawer** (none
- * depends on the bottle). The result: the bottle's module becomes the block's innermost column, a
- * 600 mm oven tower starting where the bottle started; the hob becomes `base-hob-2drawer`; that wall's
- * floor width reads 600 where it read 300 and its remainder shrinks by the 300 mm difference. **Every
- * other field — every other module's id, role, body, wall and span, the cut, the dropped list, the
- * other wall — is carried unchanged**, so any further difference is "changed otherwise".
+ * The plan S0b makes of a recorded pre-S0b plan, or `undefined` where it does not apply: S1's bottle directly after
+ * a `base-hob-oven` on the hob's wall, with no tall column and no pan drawer. The bottle's module becomes a 600 mm
+ * oven tower where the bottle started, the hob becomes `base-hob-2drawer`, and that wall's floor width reads 600
+ * for 300 with its remainder 300 mm smaller. Every other field is unchanged, so any further difference is
+ * "changed otherwise".
  */
 export function withTheOvenTowerKeptOverTheBottle(
   before: RecordedCanonicalPlan,
@@ -236,12 +210,8 @@ function floorWidthsWithTheTower(
   );
 }
 
-// ---------------------------------------------------------------------------------------------
-// The changes S1 may make to a plan recorded after S0b (ADR 0110 Amendment M1, M2, M7(e), M8, M9).
-// ---------------------------------------------------------------------------------------------
-
-/** How a plan relates to the plan recorded after S0b, before S1. The M2 classes carry the leaf's own
- *  re-identification (M1 or (e)) on top of the re-planned run. */
+/** How a plan relates to the plan recorded after S0b, before S1 (ADR 0110 Amendment M1, M2). The M2 classes carry
+ *  the leaf's own re-identification (M1 or (e)) on top of the re-planned run. */
 export type DishwasherChange =
   | "unchanged"
   | "M1: a door cabinet on the sink's wall converted"
@@ -323,8 +293,6 @@ export function dishwasherChangeBetween(plans: {
   return matched === undefined ? "changed otherwise" : matched[0];
 }
 
-// --- M1 -------------------------------------------------------------------------------------
-
 type BesideTheSink = (
   plan: RecordedCanonicalPlan,
   base: RecordedPlanModule,
@@ -387,8 +355,6 @@ function facesTheSinkAcrossTheCorner(cornerEndMm: CornerEnds): BesideTheSink {
   };
 }
 
-// --- (e) ------------------------------------------------------------------------------------
-
 /** **M7(e), modelled by M8/M9**: only where no free door cabinet stands beside the sink, the preparation
  *  3-drawer beside it becomes the dishwasher, and the pan drawer directly beyond it — on the side away
  *  from the sink — takes id and role `preparation`, keeping its `base-panbank` body. */
@@ -435,8 +401,6 @@ function panDrawerBeyond(
   );
 }
 
-// --- M2 -------------------------------------------------------------------------------------
-
 /** The leaf as S1 applies it to a re-planned run: M1 on the sink's wall, else across the corner, else
  *  (e); `undefined` where none applies (then S1 could not have re-planned the threshold drawer away). */
 function withTheLeaf(
@@ -451,8 +415,8 @@ function withTheLeaf(
   );
 }
 
-/** **M2, a column back** (E3: *"block 2 → 3"*): the threshold drawer's module goes, and the block is
- *  re-laid from where it stood with one more pantry column at its free end. */
+/** **M2, a column back**: the threshold drawer's module goes, and the block is re-laid from where it stood with
+ *  one more pantry column at its free end. */
 function withAColumnForTheThresholdDrawer(
   before: RecordedCanonicalPlan,
 ): RecordedCanonicalPlan | undefined {
@@ -468,9 +432,8 @@ function withAColumnForTheThresholdDrawer(
   });
 }
 
-/** **M2, the bottle back** (E3: *"where L2 step 1 had put the threshold drawer in its place"*): the
- *  threshold drawer's module becomes the 300 mm bottle, and the same block is re-laid after it. Only
- *  where no bottle stood. */
+/** **M2, the bottle back**: the threshold drawer's module becomes the 300 mm bottle and the same block is re-laid
+ *  after it. Only where no bottle stood. */
 function withTheBottleForTheThresholdDrawer(
   before: RecordedCanonicalPlan,
 ): RecordedCanonicalPlan | undefined {
@@ -498,13 +461,10 @@ function withTheBottleForTheThresholdDrawer(
 }
 
 /**
- * The plan with the threshold drawer replaced (or removed) and the block beyond it re-laid by the
- * tall-end rule's own geometry (ADR 0110 E6.2): the columns, in the given bodies, stand one declared
- * module each from where the drawer's replacement ends; the wall's free end is where the recorded run
- * reached (its last module's end plus its remainder); and a bare remainder merges into the outermost
- * column only where that column is a door column and the merged opening is at most the empty-column
- * ceiling. Every module before the drawer, the other wall, the cut and `dropped` are carried unchanged,
- * and the wall's floor widths are the re-laid modules' widths.
+ * The plan with the threshold drawer replaced (or removed) and the block beyond it re-laid by the tall-end rule's
+ * geometry (ADR 0110 E6.2): the columns stand one declared module each from where the replacement ends, the wall's
+ * free end is where the recorded run reached, and a bare remainder merges into the outermost column only where
+ * that is a door column and the merged opening is at most the empty-column ceiling. Everything else is unchanged.
  */
 function withTheBlockRelaid(
   before: RecordedCanonicalPlan,
@@ -603,8 +563,6 @@ function modulesBeyond(
     .sort((left, right) => left.startMm - right.startMm);
 }
 
-// --- shared ---------------------------------------------------------------------------------
-
 function asTheDishwasher(base: RecordedPlanModule): RecordedPlanModule {
   return { ...base, ...DISHWASHER_IDENTITY };
 }
@@ -633,11 +591,7 @@ function sinkOf(plan: RecordedCanonicalPlan): RecordedPlanModule | undefined {
   return plan.bases.find((base) => base.role === SINK_ROLE);
 }
 
-// ---------------------------------------------------------------------------------------------
-// The trades S2 may make to S1's plan (ADR 0110 Amendment M7 (b), (d), (c), M10, M12).
-// ---------------------------------------------------------------------------------------------
-
-/** How a live plan relates to S1's plan for the same room (the leaf on, S2's trades off). */
+/** How a live plan relates to S1's plan for the same room (leaf on, S2's trades off; ADR 0110 Amendment M7). */
 export type DishwasherTrade =
   | "unchanged"
   | "(b): one pantry column traded"
@@ -682,12 +636,11 @@ const TRADES_BY_BODIES: readonly (readonly [DishwasherTrade, TradedBodies])[] =
   ];
 
 /**
- * Classifies the live plan against S1's, both in `canonicalPlan` form. A trade is named only where the
- * live plan is S1's with exactly this done: one dishwasher (its own id, role and 600 mm width) stands
- * directly beyond the sink on the sink's wall; every module between the sink and the body given up is
- * S1's module 600 mm further along, the hob changing only its body and only in (c); the modules on the
- * sink's other side and on the other wall, `minimumMet` and `dropped` are S1's exactly; and the bodies
- * given up and added are exactly the trade's. Anything more or less is "changed otherwise".
+ * Classifies the live plan against S1's, both in `canonicalPlan` form. A trade is named only where the live plan is
+ * S1's with exactly this done: one 600 mm dishwasher stands directly beyond the sink on its wall, every module
+ * between the sink and the body given up is S1's 600 mm further along (the hob changing only its body, and only
+ * in (c)), the sink's other side, the other wall, `minimumMet` and `dropped` are S1's exactly, and the bodies
+ * given up and added are the trade's. Anything else is "changed otherwise".
  */
 export function dishwasherTradeBetween(plans: {
   readonly afterS1: string;

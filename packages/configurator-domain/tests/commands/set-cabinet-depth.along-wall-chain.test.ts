@@ -124,7 +124,8 @@ describe("wall B's run at the deeper setting", () => {
   it("stands where the corner leaves it, body by body", () => {
     const deep = changeTo(KITCHEN_L_DESIGN, DEEP_MM);
 
-    expect(spanById(deep, "p26")).toEqual([680, 1000]);
+    // [680, 1000] → [670, 1000] (ADR 0135): the return starts at the run's carcass front, `D − 30`.
+    expect(spanById(deep, "p26")).toEqual([670, 1000]);
     expect(spanById(deep, "p5")).toEqual([1000, 1600]);
     expect(spanById(deep, "p6")).toEqual([1600, 2200]);
     expect(spanById(deep, "p7")).toEqual([2200, 2900]);

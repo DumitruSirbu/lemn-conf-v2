@@ -213,8 +213,10 @@ describe("AC1 — the right corner is the left corner of the swapped room, refle
 
   it("puts the right X-leg's far edge at W exactly and never overlaps the left X-leg", () => {
     overTheEngineURange((shell) => {
+      // The X-legs are wall A's base-row pieces; its wall and top rows carry the corner wall unit (M7C
+      // wave C2), the same width and span, which this is not about.
       const xLegs = structural(shell)
-        .filter((placement) => placement.wall === "A")
+        .filter((placement) => placement.wall === "A" && placement.y0Mm === 0)
         .map((placement) => ({
           startMm: placement.alongMm - placement.body.widthMm / 2,
           endMm: placement.alongMm + placement.body.widthMm / 2,
@@ -251,7 +253,12 @@ describe("AC1 — the right corner is the left corner of the swapped room, refle
         cornerOf(piece, shell.room, catalog),
       );
       const heightKeepsTheWallRow = shell.room.heightMm >= 2600;
-      const perCorner = heightKeepsTheWallRow ? 4 : undefined;
+      // Six, with the corner wall unit's two (M7C wave C2), and four where the back wall is base-only: a
+      // large U, whose three entered walls total 10 000 mm or more.
+      const isLargeU =
+        shell.room.widthMm + shell.room.depthMm + (shell.room.wallCMm ?? 0) >=
+        10_000;
+      const perCorner = heightKeepsTheWallRow ? (isLargeU ? 4 : 6) : undefined;
 
       expect(new Set(shell.placements.map(({ id }) => id)).size).toBe(
         shell.placements.length,
@@ -315,8 +322,16 @@ describe("AC2 — the U shell against its own reflection", () => {
 
   it("leaves at most the one odd millimetre of wall A unrecorded, in each band", () => {
     overTheEngineURange((shell) => {
+      // Over the corner base the unit's rows must fit under the ceiling to be built (M7C wave C2): the wall
+      // row from 2200 and the top row from 2600. Below that its footprint stays reserved and unrecorded,
+      // as above the side wall's own returns — except on a base-only back wall, which tiles the strips.
+      const isLargeU =
+        shell.room.widthMm + shell.room.depthMm + (shell.room.wallCMm ?? 0) >=
+        10_000;
+      const probeIsOver = (y: number) =>
+        y < 1500 || isLargeU || shell.room.heightMm >= (y < 2200 ? 2200 : 2600);
       for (const probeYMm of [400, 1800, 2400].filter(
-        (y) => y < shell.room.heightMm,
+        (y) => y < shell.room.heightMm && probeIsOver(y),
       )) {
         const covered = [
           ...shell.placements.map((placement) => ({

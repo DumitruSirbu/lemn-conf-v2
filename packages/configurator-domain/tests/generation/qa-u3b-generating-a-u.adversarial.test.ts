@@ -55,10 +55,17 @@ function composed(room: DesignRoom) {
 
 /** A wall's bodies inside its floor run (the corner pieces left out) at one height band, as
  *  `buildId@start-end`, from its corner. */
+/** The wall row is 1500 up to the top row's floor, which is 2200 (M7C wave C3 stands bodies there). */
+function inBand(y0Mm: number, band: "floor" | "upper" | "top"): boolean {
+  if (band === "floor") return y0Mm < WALL_ROW_FLOOR_MM;
+  if (band === "upper") return y0Mm >= WALL_ROW_FLOOR_MM && y0Mm < 2200;
+  return y0Mm >= 2200;
+}
+
 function bodiesOn(
   design: Design,
   wall: DesignWall,
-  band: "floor" | "upper",
+  band: "floor" | "upper" | "top",
 ): readonly string[] {
   const run = uShellFloorRuns(design.room)[wall];
   return design.placements
@@ -68,11 +75,7 @@ function bodiesOn(
         placement.alongMm - placement.body.widthMm / 2 >= run.startMm &&
         placement.alongMm + placement.body.widthMm / 2 <= run.endMm,
     )
-    .filter((placement) =>
-      band === "floor"
-        ? placement.y0Mm < WALL_ROW_FLOOR_MM
-        : placement.y0Mm >= WALL_ROW_FLOOR_MM,
-    )
+    .filter((placement) => inBand(placement.y0Mm, band))
     .map((placement) => ({
       buildId: placement.body.buildId,
       startMm: placement.alongMm - placement.body.widthMm / 2,
@@ -240,6 +243,9 @@ describe("wall A's fill and the upper over it (N11.9, S2 (3))", () => {
         "wall-cabinet@900-1500",
         `wall-cabinet@${span}`,
       ]);
+      expect(bodiesOn(design, "A", "top")).toStrictEqual(
+        bodiesOn(design, "A", "upper"),
+      );
     },
   );
 });

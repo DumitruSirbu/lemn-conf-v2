@@ -1,21 +1,8 @@
-// §5.5's finish, for one body or for a whole room.
-//
-// It began as a port of the finish switch in
-// `design-source/Modern Kitchen Cabinets 3D (3)/preset-shots.html`, so that the M1 fidelity
-// capture could reproduce the reference's four preset renders under their own conditions. M4's
-// editor panel made finish a *per-placement* choice (`PlacementRecord.finishKey`), and
-// `scene-sync.ts` now applies it to a single mounted body at mount time; the whole-room call the
-// capture route makes is unchanged and still recolours every front it is handed.
-//
-// Because a per-placement finish is re-applied every time a body re-signs, the recoloured
-// materials are **cached per kit** rather than cloned per front: a customer stepping through the
-// decors would otherwise strand one clone per front per step, and `disposeSolidBody` disposes
-// geometries only — a body's materials belong to its kit, never to the body.
-//
-// Wave 6R re-opened that hazard from the other side. A decor cache is safe because the decors are a
-// declared table; MDF's colour picker is not a table, and its key space is every hex a pointer
-// passes over. The free-colour half of the cache therefore has a **ceiling**
-// (`MAX_FREE_COLOUR_MATERIALS_PER_KIT` below) where the palette half needs none.
+// §5.5's finish, for one body or for a whole room. Recoloured materials are cached per kit, not cloned per front: a
+// per-placement finish is re-applied every time a body re-signs, and `disposeSolidBody` disposes geometries only, so a
+// clone per front per step would be stranded. The free-colour half of the cache has a ceiling
+// (`MAX_FREE_COLOUR_MATERIALS_PER_KIT`) because MDF's picker key space is every hex a pointer passes over; the palette
+// half is a declared table and needs none.
 import {
   FREE_COLOUR_PATTERN,
   MalformedColourValueError,
@@ -34,17 +21,10 @@ import type { KitMaterials } from "./kitchen-parts.js";
 import { isMesh } from "./three-guards.js";
 
 /**
- * **How one finish is drawn, and the one hex it is drawn from.**
- *
- * `color` is a single declared value with two readers on purpose: it is the colour `M.door` is
- * repainted with for a flat decor, the tint `M.oak`'s wood texture is multiplied by for a wood, and
- * — through `swatchOf` below — the hex a surface paints its swatch with in either case. Two hex
- * codes for one decor is ADR 0028's failure in the one place a customer can see both at once.
- *
- * `isOak` says which material the colour is applied to. It carries what
- * `solidColorOf("oak")`'s refusal used to say — *a wood is a material, not a colour* — as a
- * declared fact rather than as a hole in the publication: the value below is an **approximation**
- * of a wood and not the wood itself, which is what ADR 0071 decision 2 licenses.
+ * How one finish is drawn, from one declared hex. `color` has two readers on purpose: the colour `M.door` is repainted
+ * with (flat decor) or `M.oak`'s texture is tinted by (wood), and, through `swatchOf`, the hex a surface paints its
+ * swatch with: two hex codes for one decor is ADR 0028's failure. `isOak` says which material takes the colour; a wood
+ * here is an approximation of the wood, not the wood itself (ADR 0071 decision 2).
  */
 interface FinishDefinition {
   readonly color: string;
@@ -56,33 +36,20 @@ function flatColour(color: string): FinishDefinition {
   return { color, isOak: false };
 }
 
-/** A wood: `M.oak`'s one texture, tinted. **There is exactly one wood texture generator in this
- *  package** — `woodTex` (`kitchen-parts.ts`) — and this wave adds none. It is instantiated twice
- *  there, as `oakTex` and as the floor's `floorTex`; only `oakTex` becomes `M.oak`, so the **five**
- *  woods below are that one grain at five tints. A second generator would be photoreal rendering,
- *  which ADR 0071 decision 2 puts out of scope.
- *
- *  The tint **multiplies** the grain, so a wood renders darker and grainier in the 3D than its
- *  swatch reads at 34 px. The five keep their declared order under that shared map, and it is the
- *  part a customer is picking on: the three oaks lighten to darken as Bardolino (`#d8b483`), the
- *  *Stejar* veneer (`#cba173`) and Halifax (`#b09272`), and both walnuts are darker than all three —
- *  *Nuc Warmia* (`#8a5c3b`), then the *Nuc* veneer (`#6f4630`). */
+/** A wood: `M.oak`'s one texture, tinted. There is exactly one wood texture generator (`woodTex` in
+ *  `kitchen-parts.ts`), so the five woods are one grain at five tints; a second generator would be photoreal
+ *  rendering, out of scope (ADR 0071 decision 2). The tint multiplies the grain, so the 3D reads darker than the
+ *  swatch, but the declared order holds: Bardolino (`#d8b483`), *Stejar* veneer (`#cba173`) and Halifax (`#b09272`) are
+ *  lighter than *Nuc Warmia* (`#8a5c3b`) and the *Nuc* veneer (`#6f4630`). */
 function tintedWood(color: string): FinishDefinition {
   return { color, isOak: true };
 }
 
 /**
- * **Every palette entry the domain declares, drawn.** ADR 0071 decision 4's six PAL decors and
- * decision 3's two veneer woods.
- *
- * **Total by annotation, and that is the point.** `Record<PaletteEntryId, …>` makes a decor
- * declared in `materials.ts` and missing here a **compile failure**, rather than a lookup that
- * misses and leaves the front in the kit's own default white — which is M4's *Finisaj* defect
- * (`docs/STATUS.md`) one layer down. The ids are the domain's, not a second list beside them: this
- * table says how each is drawn and never which exist.
- *
- * *Alb* and *Antracit* keep the exact hexes this file has drawn since M1, so the two decors that
- * wave 6P's migration maps the shipped `white` and `graphite` onto are the same colours they were.
+ * Every palette entry the domain declares, drawn (ADR 0071 decisions 3 and 4). Total by annotation: a decor declared in
+ * `materials.ts` and missing here is a compile failure, not a lookup that leaves the front on the kit's default white.
+ * The ids are the domain's: this table says how each is drawn, never which exist. *Alb* and *Antracit* keep the hexes
+ * drawn since M1.
  */
 const PALETTE_FINISHES: Readonly<Record<PaletteEntryId, FinishDefinition>> = {
   "pal.alb": flatColour("#eceeeb"),
@@ -95,8 +62,8 @@ const PALETTE_FINISHES: Readonly<Record<PaletteEntryId, FinishDefinition>> = {
   "veneer.nuc": tintedWood("#6f4630"),
 };
 
-/** A finish as one stable string, for a scene signature that has to notice a change without
- *  understanding it. Both kinds are tagged, so a decor id and a colour value can never collide. */
+/** A finish as one stable string for a scene signature; both kinds are tagged, so a decor id and a colour value cannot
+ *  collide. */
 export function finishSignature(finish: Finish | undefined): string {
   if (!finish) return "";
   return finish.kind === "palette-entry"
@@ -105,17 +72,10 @@ export function finishSignature(finish: Finish | undefined): string {
 }
 
 /**
- * **What a surface paints beside a decor's name**, for callers outside the adapter that must show
- * the same colour the materials are built from — the panel's swatches above all.
- *
- * **Total over every finish**, where `FINISH_COLORS` was a map with a hole in it and
- * `solidColorOf("oak")` threw for the one entry that had no hex to publish. That refusal has not
- * been deleted; the publication changed shape so that it has nothing left to refuse — every
- * declared entry now states a colour, and the only value that can still fail to be one is a free
- * colour arriving from a stored document, which is what `finishDefinitionOf` refuses below.
- *
- * `isWood` is published beside the hex rather than a second hex: a swatch that wants to look like
- * timber derives its grain from this one value and does not author a second.
+ * What a surface paints beside a decor's name, for callers outside the adapter that must show the same colour the
+ * materials are built from (the panel's swatches). Total over every finish: only a free colour from a stored document
+ * can fail to be a colour, which `finishDefinitionOf` refuses. `isWood` is published beside the hex so a swatch derives
+ * its grain from the one value.
  */
 export interface FinishSwatch {
   readonly color: string;
@@ -127,12 +87,9 @@ export function swatchOf(finish: Finish): FinishSwatch {
   return { color: definition.color, isWood: definition.isOak };
 }
 
-/** **How this finish is drawn, whichever kind it is.** A palette entry reads the declared table; a
- *  free colour — MDF's RAL pick — is its own flat colour over `M.door`, which is why no table can
- *  hold it and why `FinishSchema`'s pattern is re-asserted here rather than trusted.
- *
- *  Throws rather than painting something: a value that is not a colour reaching this far has
- *  bypassed both the schema and the command, and `new THREE.Color` would have taken it as white. */
+/** How this finish is drawn, whichever kind. A free colour (MDF's RAL pick) is its own flat colour over `M.door`, so no
+ *  table can hold it and `FinishSchema`'s pattern is re-asserted here. Throws: a non-colour reaching this far bypassed
+ *  the schema and the command, and `new THREE.Color` would take it as white. */
 function finishDefinitionOf(finish: Finish): FinishDefinition {
   if (finish.kind === "palette-entry") return PALETTE_FINISHES[finish.entryId];
   if (!FREE_COLOUR_PATTERN.test(finish.value)) {
@@ -143,30 +100,20 @@ function finishDefinitionOf(finish: Finish): FinishDefinition {
 
 const FRONT_MESH_NAME = /door_front|drawer_front/;
 
-/** One recoloured material per kit per finish, shared by every front wearing that finish exactly
- *  as `kit.M`'s own materials are shared — and owned by the kit, so `disposeKitAndStage` frees it
- *  with the materials it was cloned from. */
+/** One recoloured material per kit per finish, shared by every front wearing it and owned by the kit, so
+ *  `disposeKitAndStage` frees it with the materials it was cloned from. */
 const FINISH_MATERIAL_KEY_PREFIX = "finish:";
 
 /**
- * **The ceiling on the free-colour half of that cache**, which the palette half does not need: a
- * decor is one of eight declared ids, and a free colour is any of sixteen million.
- *
- * Derived rather than picked. A finish is a **per-placement** choice, so the most distinct colours
- * a supported room can wear at one time is one per placement, and `MAX_PLACEMENTS` is the domain's
- * own count of those (against 26 in the shipped seeded kitchen). A memo of that size
- * therefore has room for every colour a room is actually wearing; what a drag across the picker
- * pushes out of it are the intermediate colours the pointer passed through, and a live colour that
- * is pushed out is rebuilt the next time its body re-signs.
+ * The ceiling on the free-colour half of that cache (a decor is one of eight declared ids, a free colour any of sixteen
+ * million). A finish is per placement, so a supported room wears at most `MAX_PLACEMENTS` colours at once; a drag
+ * across the picker pushes out intermediate colours, and a live one pushed out is rebuilt when its body next re-signs.
  */
 const MAX_FREE_COLOUR_MATERIALS_PER_KIT = MAX_PLACEMENTS;
 
-/** **What counts as a front**, for every reader in this package. `cabinet-handle-meshes.ts` asks the same
- *  question from the other side — a handle is the cabinet's when the group it hangs from holds one
- *  of these — and asking it of a second regex is how two definitions of a front drift apart.
- *
- *  Note `door_front` is the generic front name in this kit: `base-panbank` uses it for drawer fronts
- *  too, so a body with no `drawer_front` mesh is not thereby frontless. */
+/** What counts as a front, for every reader in this package: `cabinet-handle-meshes.ts` asks the same question from the
+ *  other side, and a second regex is how two definitions drift apart. `door_front` is the generic front name:
+ *  `base-panbank` uses it for drawer fronts too, so a body with no `drawer_front` mesh is not frontless. */
 export function isFrontMesh(node: THREE.Object3D): node is THREE.Mesh {
   return isMesh(node) && FRONT_MESH_NAME.test(node.name);
 }
@@ -179,16 +126,10 @@ export function collectFronts(root: THREE.Object3D): THREE.Mesh[] {
   return fronts;
 }
 
-/** **Every surface a body wears its colour on** — its fronts, plus any mesh its builder declared
- *  (`body-finish-surfaces.ts`). Strictly wider than `collectFronts`, and deliberately a *second*
- *  function rather than a widening of it: `collectFronts` answers *what is a front*, which
- *  `cabinet-handle-meshes.ts` and the whole-room repaint in `kitchen-stage.tsx` both depend on and
- *  neither of which is asking about paint. An open shelf has no front and is painted; the two
- *  questions came apart on 2026-09-09 and now have a function each.
- *
- *  A mesh could satisfy both predicates; it is collected once, because a front that also declared
- *  itself would otherwise be assigned the same material twice — harmless today and the kind of thing
- *  that stops being harmless when somebody counts. */
+/** Every surface a body wears its colour on: its fronts plus any mesh its builder declared (`body-finish-surfaces.ts`).
+ *  Deliberately a second function, not a widening of `collectFronts`: that answers "what is a front", which
+ *  `cabinet-handle-meshes.ts` and the whole-room repaint in `kitchen-stage.tsx` depend on, while an open shelf has no
+ *  front and is painted. A mesh satisfying both is collected once. */
 export function collectPaintedSurfaces(root: THREE.Object3D): THREE.Mesh[] {
   const painted: THREE.Mesh[] = [];
   root.traverse((o) => {
@@ -208,12 +149,8 @@ export function applyFinish(
   }
 }
 
-/** §5.5's per-placement finish: recolours this body's own painted surfaces and nothing else's.
- *
- *  **`collectPaintedSurfaces`, not `collectFronts`** (owner's ruling, 2026-09-09; backlog entry 60).
- *  An open shelf follows the kitchen's colour and has no front to carry it, so painting only fronts
- *  left it exactly as its builder made it while every test stayed green — the failure mode the mesh
- *  census in that entry exists to record. */
+/** §5.5's per-placement finish: recolours this body's own painted surfaces and nothing else's. It uses
+ *  `collectPaintedSurfaces`, not `collectFronts`: an open shelf follows the kitchen's colour and has no front. */
 export function applyBodyFinish(
   body: THREE.Object3D,
   M: KitMaterials,
@@ -222,8 +159,8 @@ export function applyBodyFinish(
   applyFinish(collectPaintedSurfaces(body), M, finish);
 }
 
-/** The two halves of the cache, told apart by the kind of finish and never by how many keys have
- *  arrived: a decor is retained for the kit's life, a free colour only while it is recent. */
+/** The two halves of the cache are told apart by the kind of finish, not by key count: a decor is retained for the
+ *  kit's life, a free colour only while it is recent. */
 function finishMaterial(M: KitMaterials, finish: Finish): THREE.Material {
   const key = FINISH_MATERIAL_KEY_PREFIX + finishSignature(finish);
   const build = () => buildFinishMaterial(M, finish);

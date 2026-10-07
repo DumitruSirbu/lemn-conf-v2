@@ -1,17 +1,10 @@
 "use client";
 
-// The top bar's one measurement, and the two decisions taken from it: how many settings the pill
-// names, and what the row gives up to leave room for them.
-//
-// **One owner and one observation.** The pill's ladder and the row's gives are answers to the same
-// question — how much room is there — so they are decided together, from the same measured track, in
-// the component that owns the grid. Splitting them would let the row and the pill chase each other
-// across frames.
-//
-// **Nothing here decides anything.** `settings/settings-pill-fit.ts` holds the ladder and
-// `top-bar-fit.ts` holds the gives; both are pure functions over measured widths, asserted as values.
-// This hook measures, remembers, and skips a state write when the answer has not changed — so
-// dragging a window edge re-renders on a rung change and not per frame.
+// The top bar's one measurement and the two decisions taken from it: how many settings the pill names, and what the
+// row gives up to leave room for them. Decided together from one measured track, in the component that owns the grid,
+// so the row and the pill cannot chase each other across frames. The ladder (`settings/settings-pill-fit.ts`) and
+// the gives (`top-bar-fit.ts`) are pure; this hook measures, remembers, and skips a state write when the answer is
+// unchanged, so dragging a window edge re-renders on a rung change, not per frame.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, RefObject } from "react";
 
@@ -37,10 +30,10 @@ export interface TopBarFitState {
   readonly pill: SettingsPillView;
   /** How many of them the pill names. The rest are counted. */
   readonly visibleCount: number;
-  /** Frame D2A's wordmark, or nothing — give C, ruled by the owner on 2026-09-09. */
+  /** Frame D2A's wordmark, or nothing: give C. */
   readonly isWordmarkDrawn: boolean;
-  /** The row's two gaps, published for the stylesheet to read — the same hop `price-bar.tsx` uses
-   *  for its reserved height, because a stylesheet cannot import a value. */
+  /** The row's two gaps, published for the stylesheet to read (as `price-bar.tsx` does for its reserved height),
+   *  because a stylesheet cannot import a value. */
   readonly spacingMetrics: CSSProperties;
   /** Goes on the settings grid item: **the pill's track is what is measured**, not the pill, so the
    *  ladder can see room the pill is not currently using. */
@@ -51,8 +44,7 @@ export interface TopBarFitState {
   readonly onPillMeasured: (measurements: SettingsPillMeasurements) => void;
 }
 
-/** The pill's track, **and the row it was measured in** — the two are one fact and are stored as
- *  one. See `measuringIn` below for what separating them cost. */
+/** The pill's track and the row it was measured in: one fact, stored as one (see `measuringIn`). */
 interface MeasuredTrack {
   readonly pillTrackPx: number;
   readonly measuredIn: TopBarConfiguration;
@@ -81,19 +73,15 @@ export function useTopBarFit(): TopBarFitState {
   const [track, setTrack] = useState<MeasuredTrack | undefined>(undefined);
   const [configuration, setConfiguration] =
     useState<TopBarConfiguration>(D2A_AS_DRAWN);
-  // **First paint has no measurement**, so the pill renders at rung 1 for the settings it has and
-  // settles on the first observation. The alternative — starting at the floor — would make every
-  // desktop width flash a counter it does not need.
+  // First paint has no measurement, so the pill renders every setting and settles on the first observation;
+  // starting at the floor would flash a counter at every desktop width.
   const [visibleCount, setVisibleCount] = useState(pill.settings.length);
 
   /**
-   * **The configuration the observer is measuring in**, kept in a ref because the observer is
-   * registered once and would otherwise close over the configuration it was registered under.
-   *
-   * It is not an optimisation. A track measured in one configuration and read in another is a
-   * measurement of a row that is not on screen, and the model's normalisation would undo the wrong
-   * gives — measured 2026-09-09 at the width where the wordmark returns (923 px): the row grew a
-   * label it had no room for and held it for about 250 ms before the next observation took it back.
+   * The configuration the observer is measuring in, in a ref because the observer is registered once and would
+   * close over the configuration it was registered under. A track measured in one configuration and read in another
+   * describes a row that is not on screen and the model would undo the wrong gives: at the width where the wordmark
+   * returns, the row grew a label it had no room for until the next observation.
    */
   const measuringIn = useRef(configuration);
   measuringIn.current = configuration;
@@ -170,13 +158,9 @@ export function useTopBarFit(): TopBarFitState {
 }
 
 /**
- * The room the pill actually has: the cell's box **less its own padding**.
- *
- * The cell carries the gap between the nav and the pill — the row's spacing lives on the cells so
- * the band's rule is never broken by a grid gap — so its border box is wider than anything the pill
- * can use. Measured 2026-09-09: reading the border box made the track 28 px too generous at frame
- * D2A's spacing and 9 px at frame 2A's, which is a rung's worth of error at exactly the widths where
- * a rung changes.
+ * The room the pill actually has: the cell's box less its own padding. The cell carries the gap between nav and
+ * pill (the row's spacing lives on the cells), so its border box overstates the room by 28 px at frame D2A's
+ * spacing and 9 px at frame 2A's: a rung's worth of error exactly where a rung changes.
  */
 function contentWidthOf(element: HTMLElement): number {
   const style = getComputedStyle(element);
@@ -187,9 +171,8 @@ function contentWidthOf(element: HTMLElement): number {
   );
 }
 
-/** **A shell whose frame draws no wordmark has no gives to spend** — frame 2A draws neither the
- *  wordmark nor a second spacing, and its chip's own `max-width` is what bounds the ladder there. So
- *  the pill simply takes the track it was measured in. */
+/** A shell whose frame draws no wordmark has no gives to spend: frame 2A draws neither the wordmark nor a second
+ *  spacing, and its chip's own `max-width` bounds the ladder, so the pill takes the track it was measured in. */
 function fitOf(
   input: Parameters<typeof describeTopBarFit>[0],
   configuration: TopBarConfiguration,

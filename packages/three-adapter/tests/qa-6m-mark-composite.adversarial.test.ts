@@ -1,49 +1,10 @@
-// What the overflow mark actually puts on screen, as opposed to what its constant declares.
-//
-// `overflow-mark.test.ts` pins `OVERFLOW_MARK_COLOR` at 90 units from `SELECTION_HIGHLIGHT_COLOR`
-// and concludes that the mark can never be counted as a highlight. **That is arithmetic on two
-// constants, and no pixel on screen is either of them.** The wash is translucent: every pixel it
-// covers is `OVERFLOW_MARK_OPACITY` of the mark over `1 - OVERFLOW_MARK_OPACITY` of the body
-// underneath, and it is that blend the desktop e2e's counter and `pixels.ts`'s void counter see. A
-// wash over a warm, bright front composites much closer to signal red than the constant does.
-//
-// **Re-quantified 2026-09-06 under ADR 0091 decision 4**, which this file is the subject of.
-//
-// Wave 6M shipped it sweeping a `KITCHEN_PALETTE` of the five §5.5 enum finishes and resting on
-// "the kitchen contains no such colour". Wave 6R retires that premise from both ends: ADR 0071
-// decision 4 tints five woods warmer than anything the old sweep covered, and ADR 0078 decision 1
-// gives MDF a picker that admits **every** six-digit hex — including `SELECTION_HIGHLIGHT_COLOR`'s
-// own `#ff2d2d`. So the two sweeping blocks below are re-quantified onto **the finishes the
-// pixel-counting e2e specs actually put on screen**, derived by reading the fixtures those specs
-// load rather than restated beside them; a fixture that starts wearing a finish makes them go red,
-// which is the point — the instrument's validity is a fact about the fixture and now says so. The
-// third block is not softened but **inverted**: the base colours that break the count are asserted
-// as reached facts, each with the control that reaches it named.
-//
-// **These three counters are unfit for an open palette, and wave 6V has now dealt with each.**
-// `pixels.ts`'s `near`, `blueTint` and `redTint` all identify a thing by its colour, which only
-// works while the product's colours are closed and warm; after 6R a customer's own front can be any
-// of the three signal colours. 6V's outcome, per counter:
-//
-// - **`near` is retired.** A selection is a state the app toggles, so it is counted as the
-//   difference between two captures of one rectangle in two states, and the base colour — whatever
-//   it is — is in both frames and cancels.
-// - **`blueTint` and `redTint` survive, conditionally.** A void's fill is carried by an *unselected*
-//   void too, and ADR 0065's mark follows from a room measurement no M6 control changes, so neither
-//   is a state a difference can see. Each caller now asserts the fixture property that makes its
-//   count sound before taking it — the shape decision 4a puts into this file, applied at the e2e
-//   seam.
-//
-// 6V also closed the product half: the selection outline no longer vanishes against a front painted
-// its own hex, because `selection-outline.ts` now draws a near-black casing pass under the red core.
-//
-// The breach block below is 6V's success criterion and 6V did not edit it: it is a fact about the
-// colour space, not about the instrument. **One of its numbers is not reached through the
-// renderer, and that is a fact about tone mapping rather than a correction to it** — the wood
-// breach it records is arithmetic on the model colours, and a walnut kitchen photographed in the
-// running app measures 0, 0 and 3 counted pixels across the canvas in the three camera presets
-// (`apps/web/tests/e2e/pixel-counter-witness.desktop.e2e.spec.ts`). The margin the model leaves is
-// real; the screen does not spend it.
+// What the overflow mark puts on screen, not what its constant declares: the wash is translucent, so
+// every pixel it covers is `OVERFLOW_MARK_OPACITY` of the mark over the body beneath, and that blend is
+// what the desktop e2e's counter and `pixels.ts`'s void counter see. A wash over a warm, bright front
+// composites much closer to signal red than the constant does (ADR 0091 decision 4).
+// The fixture sweeps quantify over the finishes the pixel-counting e2e specs actually put on screen,
+// derived from their fixtures; the breach block records the base colours that break the count as facts.
+// The wood breach is arithmetic on the model colours: tone mapping means the rendered app spends less of it.
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
@@ -86,18 +47,11 @@ const MARK_MIN_RED_EXCESS = 50;
  *  shape, so the witness below is asserted *through* `materialOffersFinish` and never about it. */
 const MDF_MATERIAL_ID = "material.painted-mdf";
 
-/** How far a recorded margin may have drifted before this file is wrong about it. ADR 0091's
- *  finding 1 is the reason it is stated at all: *Stejar Halifax* measures 59.31 composing its tint
- *  in floating point and 59.61 rounding the tinted base to integers first, so a criterion pinned to
- *  an exact float is decided by where a `Math.round` was placed rather than by the colour.
- *
- *  **0.1, and the number is chosen against the table it polices rather than against that 0.3.** At
- *  0.5 the two *Stejar* decors — 59.80 and 59.31 apart — could be swapped in `RECORDED_WOOD_MARGINS`
- *  with this file still green, which is ADR 0091 decision 4b's *"a named set, not a minimum"*
- *  decaying back into a minimum. The recorded values are therefore two-decimal measurements and the
- *  window is narrower than the closest gap between any two of them; the rounding hazard finding 1
- *  names is a different composition of the same colour, and a re-composition that moves a wood by
- *  0.3 is meant to be read, not absorbed. */
+/** How far a recorded margin may drift before this file is wrong about it. An exact float is not pinned:
+ *  *Stejar Halifax* measures 59.31 composing its tint in floating point and 59.61 rounding to integers
+ *  first (ADR 0091 finding 1). The window is narrower than the closest gap between two recorded values
+ *  (the *Stejar* decors, 59.80 and 59.31): a wider one lets them swap in `RECORDED_WOOD_MARGINS` with the
+ *  table still green, turning "a named set, not a minimum" (ADR 0091 decision 4b) back into a minimum. */
 const MARGIN_TOLERANCE_UNITS = 0.1;
 
 type Rgb = readonly [number, number, number];
@@ -109,16 +63,12 @@ function kitchenPartsSource(): string {
   );
 }
 
-/** A wood's swatch hex is a **tint**, not the colour on screen: the grain it multiplies is what the
- *  framebuffer sees, so the two wood tones are read out of the call that builds them. Reading beats
- *  repeating: oak is the warmest thing in the kitchen and therefore the case that matters most, and
- *  a second copy of those hexes is how this sweep would stop tracking the material. */
+/** A wood's swatch hex is a tint, not the colour on screen: the grain it multiplies is what the
+ *  framebuffer sees. The two oak tones are read out of the call that builds them, not copied. */
 function oakWoodColors(): readonly [Rgb, Rgb] {
-  // Matched on the **binding**, and on every declaration of it rather than the first. Identifying
-  // the grain by its third argument — the seed `7` — read whichever `woodTex` call came first in the
-  // file, so a second texture seeded the same way, added above `oakTex`, would have been swept here
-  // in oak's place with nothing going red. The floor texture is seeded 19 today; that is a value,
-  // not a guarantee.
+  // Matched on the binding and on every declaration of it: identifying the grain by its seed argument
+  // would read whichever `woodTex` call came first, so a second texture seeded the same way would be
+  // swept in oak's place with nothing going red.
   const calls = [
     ...kitchenPartsSource().matchAll(
       /const oakTex = woodTex\("(#[0-9a-f]{6})",\s*"(#[0-9a-f]{6})"/g,
@@ -132,9 +82,8 @@ function oakWoodColors(): readonly [Rgb, Rgb] {
   return [rgbOfHex(call[1]), rgbOfHex(call[2])];
 }
 
-/** What a front with **no finish on it** is painted, read out of the kit that paints it for the
- *  same reason as `oakWoodColors` — this is the colour every front in both pixel-counting fixtures
- *  actually wears, and a copy of it here would stop tracking `M.door` the day the kit is repainted. */
+/** What a front with no finish is painted, read out of the kit like `oakWoodColors` so it keeps
+ *  tracking `M.door`: it is the colour every front in both pixel-counting fixtures wears. */
 function doorFrontColor(): Rgb {
   const declaration = /door: phys\("door_matte_white", "(#[0-9a-f]{6})"/.exec(
     kitchenPartsSource(),
@@ -185,12 +134,9 @@ function roundedHundredth(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
-/** **What one finish actually puts in the framebuffer**, which is `buildFinishMaterial`'s two arms
- *  expressed as colours: a flat decor or a free colour is its own hex on `M.door`, and a wood is
- *  `M.oak`'s single grain — both of its tones — **multiplied** by the declared tint.
- *
- *  The multiply stays in floating point because that is where the GPU does it. Rounding the tinted
- *  base to integers first moves *Stejar Halifax* by 0.3 units, which is ADR 0091 finding 1. */
+/** What one finish puts in the framebuffer: a flat decor or free colour is its own hex on `M.door`; a
+ *  wood is `M.oak`'s grain (both tones) multiplied by the declared tint. The multiply stays in floating
+ *  point, as on the GPU: rounding the tinted base first moves *Stejar Halifax* by 0.3 (ADR 0091 finding 1). */
 function renderedBasesOf(finish: Finish): readonly Rgb[] {
   const swatch = swatchOf(finish);
   const tint = rgbOfHex(swatch.color);
@@ -203,14 +149,10 @@ function renderedBasesOf(finish: Finish): readonly Rgb[] {
   );
 }
 
-/** **Every finish the two pixel-counting e2e specs put on a front**, read off the designs they
- *  load. `editor-rail.desktop.e2e.spec.ts` opens the seeded `KITCHEN_L_DESIGN` through
- *  `support/seeded-design.ts`'s fixture; `overflow-mark.e2e.spec.ts` stores the same placements with
- *  `NARROWED_ROOM_OVERFLOWING_DESIGN`'s narrower room width.
- *
- *  Derived rather than declared, per ADR 0091 decision 4a: this returns nothing today, and the day
- *  a fixture wears a decor it returns that decor's rendered bases and the sweeps below re-measure
- *  against them. */
+/** Every finish the two pixel-counting e2e specs put on a front, read off the designs they load:
+ *  `KITCHEN_L_DESIGN` (`editor-rail.desktop.e2e.spec.ts`) and `NARROWED_ROOM_OVERFLOWING_DESIGN`
+ *  (`overflow-mark.e2e.spec.ts`). Derived, not declared (ADR 0091 decision 4a): empty today, and the day
+ *  a fixture wears a decor the sweeps below re-measure against it. */
 function finishesWornByTheFixtures(): readonly Finish[] {
   return [
     ...KITCHEN_L_DESIGN.placements,
@@ -218,8 +160,7 @@ function finishesWornByTheFixtures(): readonly Finish[] {
   ].flatMap((placement) => placement.body.finish ?? []);
 }
 
-/** The fronts as those two specs photograph them. A fixture wearing no finish renders in `M.door`'s
- *  own colour, which is why the door hex is here and the eight declared decors are not. */
+/** The fronts as those two specs photograph them: a fixture wearing no finish renders in `M.door`'s colour. */
 function fixtureFrontBases(): readonly (readonly [string, Rgb])[] {
   const worn = finishesWornByTheFixtures();
   if (worn.length === 0) return [["unfinished front", doorFrontColor()]];
@@ -231,25 +172,18 @@ function fixtureFrontBases(): readonly (readonly [string, Rgb])[] {
   );
 }
 
-/** **What the pixel-counting specs actually have on screen**: the fixtures' fronts, plus the two
- *  greys `globals.css` sets behind the scene. The background hexes stay literal because they are
- *  authored in another package's stylesheet, and ADR 0091 decision 4a names `kitchen-l-design.ts`
- *  and `kitchen-parts.ts` as the sources to derive from. */
+/** What the pixel-counting specs have on screen: the fixtures' fronts, plus the two greys `globals.css`
+ *  sets behind the scene. The background hexes stay literal: another package's stylesheet authors them. */
 const FIXTURE_PALETTE: readonly (readonly [string, Rgb])[] = [
   ...fixtureFrontBases(),
   ["paper", rgbOfHex("#faf8f4")] as const,
   ["stage", rgbOfHex("#f2f0ea")] as const,
 ];
 
-/** Lighting and ACES tone mapping move a material's declared colour a long way in both directions
- *  before it reaches the framebuffer, so each entry is **swept** rather than sampled at its nominal
- *  value — from deep shadow to a highlight that clamps every channel. Carried past the point where
- *  the minimum stops moving: extending the sweep to 8 finds no closer composite, so this range
- *  contains the worst case rather than merely ending before it.
- *
- *  Per channel and clamped, which matters: red clamps first on a warm colour, so the far end of the
- *  sweep is not the near end scaled — it is a differently-hued colour, and that is where a warm
- *  base's composite comes nearest to the selection's red. */
+/** Lighting and ACES tone mapping move a declared colour a long way both ways, so each entry is swept
+ *  from deep shadow to a highlight that clamps every channel, past the point where the minimum stops
+ *  moving. Per channel and clamped: red clamps first on a warm colour, so the far end is a
+ *  differently-hued colour, which is where a warm base composites nearest the selection's red. */
 const BRIGHTNESS_FACTORS = Array.from(
   { length: 78 },
   (_, step) => 0.15 + step * 0.05,
@@ -279,15 +213,9 @@ describe("a washed pixel is never counted as a selection pixel, on the fixture",
   const selection = rgbOf(SELECTION_HIGHLIGHT_COLOR);
 
   it("is quantified over fronts that wear no finish, and says so", () => {
-    // The non-obvious fact the whole block rests on, asserted rather than assumed: neither
-    // pixel-counting spec ever touches the finish control, and `placement()` in
-    // `kitchen-l-design.ts` writes no `finish` key, so every front in both is `M.door`'s own white.
-    // The e2e's "zero pixels clear 50 in any camera preset" is a true fact **about this fixture**,
-    // and wave 6M universally-quantified it into a fact about the palette.
-    // **The fixtures have fronts at all**, asserted first: `finishesWornByTheFixtures()` is empty
-    // for a design that wears no finish *and* for a design that has no bodies, and the second reads
-    // as a green tick under a thesis about what the specs photograph. Emptying `placements` in
-    // either fixture must break this file, not satisfy it.
+    // Neither pixel-counting spec touches the finish control and `placement()` in `kitchen-l-design.ts`
+    // writes no `finish` key, so every front is `M.door`'s own white. Fronts must exist at all:
+    // `finishesWornByTheFixtures()` is also empty for a design with no bodies.
     expect(KITCHEN_L_DESIGN.placements.length).toBeGreaterThan(0);
     expect(NARROWED_ROOM_OVERFLOWING_DESIGN.placements.length).toBeGreaterThan(
       0,
@@ -313,20 +241,10 @@ describe("a washed pixel is never counted as a selection pixel, on the fixture",
   }
 
   it("records the measured margin, and on this fixture it exceeds the constants' 90", () => {
-    // Recorded so a later reader sees the real number rather than re-deriving it from two hexes.
-    //
-    // Two figures, because the fronts and the background are different claims. ADR 0091's 128.5 is
-    // the **front's** margin — its finding 6's `#eceeeb` row — and it is what changes the day a
-    // fixture wears a decor. The paper and stage greys the same block sweeps sit slightly nearer at
-    // 126.7, so the whole sweep's minimum is pinned beside it rather than rounded up to the ADR's
-    // headline number.
-    //
-    // **The comparison against the constants' 90 has flipped, and the flip is the finding.** Wave
-    // 6M swept oak and measured 76.1 — a third of the declared headroom spent by the blend, which
-    // was this file's original point. Quantified onto fronts that are near-white, the blend lands
-    // *further* from the selection than the two constants are from each other. Nothing improved:
-    // the warm cases moved out of this sweep and into the breach block below, where they are
-    // asserted as reached rather than as absent.
+    // ADR 0091's 128.5 is the fronts' margin (its finding 6, `#eceeeb`) and changes the day a fixture
+    // wears a decor; the paper and stage greys sit nearer at 126.7, so the whole sweep's minimum is
+    // pinned beside it. Over near-white fronts the blend lands further from the selection than the
+    // constants' 90; the warm cases are asserted as reached in the breach block below.
     const closestOverTheFronts = closestCompositeOver(fixtureFrontBases());
     const closestOverEverything = closestCompositeOver(FIXTURE_PALETTE);
 
@@ -353,9 +271,8 @@ describe("a washed pixel is never counted as a void's blue fill, on the fixture"
   }
 });
 
-/** The five woods ADR 0071 declares, **found by asking how each is drawn** rather than listed: a
- *  palette entry is a wood when the adapter paints it onto `M.oak`'s grain. A sixth wood added to
- *  the domain enters this set on its own and the margin table below goes red naming it. */
+/** The five woods ADR 0071 declares, found by how each is drawn (painted onto `M.oak`'s grain): a sixth
+ *  wood enters this set on its own and the margin table below goes red naming it. */
 function declaredWoodFinishes(): readonly Finish[] {
   return PALETTE_ENTRIES.map((entry) => paletteFinish(entry.entryId)).filter(
     (finish) => swatchOf(finish).isWood,
@@ -366,9 +283,8 @@ function labelOf(finish: Finish): string {
   return finish.kind === "palette-entry" ? finish.entryId : finish.value;
 }
 
-/** The composite margins ADR 0091 measured for the five woods, **as a set with each entry named**.
- *  A single minimum would hide which decor moved, which is the failure mode the relayed table that
- *  put *Halifax* at 60.0 actually had. */
+/** The composite margins ADR 0091 measured for the five woods, as a set with each entry named: a single
+ *  minimum would hide which decor moved. */
 const RECORDED_WOOD_MARGINS: Readonly<Record<string, number>> = {
   "pal.stejar-bardolino": 59.8,
   "pal.stejar-halifax": 59.31,
@@ -377,12 +293,9 @@ const RECORDED_WOOD_MARGINS: Readonly<Record<string, number>> = {
   "veneer.nuc": 43.04,
 };
 
-/** **What one wood's red excess is**, as two measurements rather than one.
- *
- *  The sweep's maximum alone is not a name. *Nuc Warmia* and veneer *Nuc* both reach 137 — the
- *  sweep's bright end clamps red at 255 on every wood, so two different tints arrive at the same
- *  ceiling and the table cannot tell them apart however tight its tolerance is. The tint's own tone
- *  is where they differ, so it is recorded beside the ceiling and the pair identifies the wood. */
+/** One wood's red excess as two measurements: the sweep's maximum alone does not name a wood, since
+ *  *Nuc Warmia* and veneer *Nuc* both reach 137 (the bright end clamps red at 255). The tint's own tone
+ *  differs, so the pair identifies the wood. */
 interface UnmarkedRedExcess {
   /** The highest the brightness sweep reaches, against `MARK_MIN_RED_EXCESS`'s 50. */
   readonly atItsBrightest: number;
@@ -390,12 +303,8 @@ interface UnmarkedRedExcess {
   readonly perTone: readonly number[];
 }
 
-/** The unmarked red-excesses ADR 0091 measured, named the same way. `redTint` has never had a block
- *  in this file, which is why a breach that predates wave 6R went unrecorded until now.
- *
- *  **Matched exactly**, with no tolerance: every figure here is a `Math.round` of a channel
- *  difference and therefore an integer, so a window of even 1 would let the two *Stejar* decors —
- *  108 and 109 — swap places with this file still green. */
+/** The unmarked red-excesses ADR 0091 measured, named the same way. Matched exactly: every figure is an
+ *  integer, and a window of even 1 would let the two *Stejar* decors (108 and 109) swap places. */
 const RECORDED_UNMARKED_RED_EXCESS: Readonly<
   Record<string, UnmarkedRedExcess>
 > = {
@@ -428,10 +337,7 @@ function unmarkedRedExcessOf(finish: Finish): UnmarkedRedExcess {
   };
 }
 
-/** The counters' other side, and the one that says why the e2e gate is still honest today. It is a
- *  fact about the **fixture**, so it lives outside the breach block below — which ADR 0091 makes
- *  wave 6V's success criterion and forbids 6V to edit. This is the property wave 6V's work item 3
- *  turns into an executable assertion at the e2e seam. */
+/** Why the e2e gate is honest today: a fact about the fixture, so it lives outside the breach block below. */
 describe("an unwashed pixel of the fixture's own fronts is counted by nothing", () => {
   const selection = rgbOf(SELECTION_HIGHLIGHT_COLOR);
 
@@ -449,20 +355,11 @@ describe("an unwashed pixel of the fixture's own fronts is counted by nothing", 
 });
 
 /**
- * **What the outline itself is counted by** — the premise no counter ever asserted (wave 6V work
- * item 7).
- *
- * `overflow-mark.e2e.spec.ts` counts the mark by red-over-both-channels and asserts, in the one
- * direction it could, that a screen full of mark contains no highlight. The other direction was
- * never checked and does not hold: the outline's red core **is** `SELECTION_HIGHLIGHT_COLOR`, whose
- * red exceeds both its other channels by 210 against that counter's threshold of 50, so a selection
- * on screen is counted as a wash. Measured in the running app at 6 454 pixels, on a body the
- * document says is not marked. The mark gate is sound because it counts with **nothing selected**,
- * which is now an assertion there rather than an accident of how the spec was written.
- *
- * Wave 6V's casing pass is swept here too, because a second colour drawn by the outline is a second
- * chance to be counted as something else — and it is not: near-black is neither red-dominant nor
- * blue-dominant, and it is 242.49 from the selection's own ball.
+ * `overflow-mark.e2e.spec.ts` counts the mark by red-over-both-channels and asserts that a screen full
+ * of mark contains no highlight. The converse does not hold: the outline's red core is
+ * `SELECTION_HIGHLIGHT_COLOR`, whose red exceeds both other channels by 210 against a threshold of 50,
+ * so a selection is counted as a wash. The mark gate is sound because it counts with nothing selected.
+ * The casing pass is swept too: near-black is neither red- nor blue-dominant, 242.49 from the selection.
  */
 describe("the selection outline's own two colours, against all three counters", () => {
   const selection = rgbOf(SELECTION_HIGHLIGHT_COLOR);
@@ -483,15 +380,10 @@ describe("the selection outline's own two colours, against all three counters", 
   });
 });
 
-/** **Every finish that is one flat colour**, found by asking how each is drawn rather than listed —
- *  the same derivation `declaredWoodFinishes` uses, negated. Two sources, because a front can be
- *  wearing either: the declared palette's non-wood decors, and the two free colours
- *  `LEGACY_ENUM_FINISHES` still names, which are what a document written under the shipped enum is
- *  carrying when it reaches the migration. `white` and `graphite` are palette entries and dedupe
- *  onto their own rows; `oak` is a wood and is filtered out here.
- *
- *  A ninth decor, or a sixth legacy name, joins this set on its own and the table below goes red
- *  naming it. */
+/** Every finish that is one flat colour, found by how each is drawn (`declaredWoodFinishes` negated):
+ *  the palette's non-wood decors and the free colours `LEGACY_ENUM_FINISHES` names, which a document
+ *  written under the old enum carries. Entries dedupe by label; a new decor or legacy name joins the
+ *  set and turns the table below red naming it. */
 function flatFinishes(): readonly Finish[] {
   const byLabel = new Map<string, Finish>();
   for (const finish of [
@@ -502,13 +394,9 @@ function flatFinishes(): readonly Finish[] {
   return [...byLabel.values()];
 }
 
-/** What each flat finish is, and how far its washed pixel lands from the selection's ball.
- *
- *  **The hex is recorded beside the margin because a margin alone does not name a colour.**
- *  `pal.gri-havanna`'s `#9a938a` is declared in `finishes.ts` and was, until this table, the one
- *  finish colour in the product that no test read — the other four are pinned by
- *  `qa-6p-bridge-values.adversarial.test.ts` through their legacy names, and a decor with no legacy
- *  name inherited no pin. */
+/** What each flat finish is, and how far its washed pixel lands from the selection's ball. The hex is
+ *  recorded beside the margin because a margin alone does not name a colour: `pal.gri-havanna` has no
+ *  legacy name, so `qa-6p-bridge-values.adversarial.test.ts` does not pin its `#9a938a`. */
 interface FlatFinishRecord {
   readonly hex: string;
   readonly margin: number;
@@ -522,26 +410,17 @@ const RECORDED_FLAT_FINISHES: Readonly<Record<string, FlatFinishRecord>> = {
   "#8d9a84": { hex: "#8d9a84", margin: 129.13 },
 };
 
-/** The nearest either counter's threshold comes to a flat finish anywhere in the sweep — the two
- *  numbers that say how much of this block is headroom rather than luck. Both belong to one decor:
- *  *Antracit* is the darkest and bluest thing the palette declares, so it owns the void margin
- *  washed and unwashed alike, and *Gri Havanna* owns the mark margin at 11 against a threshold of
- *  50. Recorded so a warmer or bluer decor added later moves a number a reader can see. */
+/** The nearest either counter's threshold comes to a flat finish in the sweep. *Antracit*, the darkest
+ *  and bluest decor, owns the void margin washed and unwashed; *Gri Havanna* owns the mark margin at 11
+ *  against 50. Recorded so a warmer or bluer decor added later moves a visible number. */
 const RECORDED_FLAT_WORST_CASES = {
   washedBlueOverRed: -35.04,
   unwashedBlueOverRed: 20,
   unwashedRedExcess: 11,
 } as const;
 
-/** **The rest of the palette, swept.** The two fixture blocks above quantify over the fronts the
- *  pixel-counting specs photograph, which today wear no finish at all; the block below them
- *  quantifies over the woods, every one of which breaches a counter. Between the two sat five
- *  finishes a customer can choose and no block measured — the three flat decors and the two legacy
- *  free colours. `pal.antracit` used to be swept, as one of wave 6M's five enum finishes, and lost
- *  its sweep when that premise was retired.
- *
- *  They are all benign, and that is the point of recording them: *benign* is a measurement here and
- *  not an assumption, and the day a decor is repainted warmer this block is what says so. */
+/** The flat finishes the fixture does not wear: the three flat decors and the two legacy free colours.
+ *  "Benign" is a measurement here, not an assumption: the day a decor is repainted warmer this block says so. */
 describe("a flat finish the fixture does not wear is counted by nothing either", () => {
   const selection = rgbOf(SELECTION_HIGHLIGHT_COLOR);
 
@@ -609,9 +488,7 @@ describe("the base colours that break the count, and the control that reaches th
   const selection = rgbOf(SELECTION_HIGHLIGHT_COLOR);
 
   it("maps the region: only a saturated red composites into the selection's ball", () => {
-    // The map of the offending region, swept over the whole cube rather than argued. Both bounds
-    // are unchanged from wave 6M — they are true, and they are what wave 6V needs to know which
-    // colours its replacement counter has to survive.
+    // The offending region, swept over the whole cube rather than argued.
     const offending: Rgb[] = [];
     for (let red = 0; red < 256; red += 3)
       for (let green = 0; green < 256; green += 3)
@@ -633,9 +510,8 @@ describe("the base colours that break the count, and the control that reaches th
   });
 
   it("offers the highlight's own hex through MDF's picker", () => {
-    // ADR 0078 decision 1, asserted through the query the reset rule and both load seams read
-    // rather than restated about it: a RAL picker offers every free colour `FinishSchema` admits,
-    // and `#ff2d2d` is one. Storable, loadable, and — since wave 6R's free-colour arm — painted.
+    // ADR 0078 decision 1, asserted through the query the reset rule and both load seams read: a RAL
+    // picker offers every free colour `FinishSchema` admits, and `#ff2d2d` is one.
     expect(
       materialOffersFinish(
         materialById(MDF_MATERIAL_ID),
@@ -645,9 +521,8 @@ describe("the base colours that break the count, and the control that reaches th
   });
 
   it("paints a front the counter cannot tell from a selection, with nothing selected", () => {
-    // The load-bearing number, and it is model-independent: a front painted the highlight's own hex
-    // is at distance 0 by identity, so every pixel of it is counted as selection pixels while no
-    // body is selected at all. This is the product hole ADR 0091 records and wave 6V's item 1 owns.
+    // Model-independent: a front painted the highlight's own hex is at distance 0 by identity, so every
+    // pixel is counted as selection with no body selected (the product hole ADR 0091 records).
     const painted = renderedBasesOf(freeColourFinish("#ff2d2d"));
 
     expect(painted).toHaveLength(1);
@@ -655,8 +530,8 @@ describe("the base colours that break the count, and the control that reaches th
   });
 
   it("keeps that front inside the ball once the overflow wash covers it", () => {
-    // The other model-independent number: one blend at a declared opacity. Marked or unmarked, an
-    // MDF kitchen painted this colour is counted as selected.
+    // Model-independent: one blend at a declared opacity. Marked or not, an MDF kitchen in this colour
+    // is counted as selected.
     const closest = closestCompositeToTheSelection(freeColourFinish("#ff2d2d"));
 
     expect(closest).toBeLessThan(SELECTION_PIXEL_TOLERANCE);
@@ -666,11 +541,10 @@ describe("the base colours that break the count, and the control that reaches th
   });
 
   it("puts every declared wood inside the ball under the wash, and names each", () => {
-    // All five, not two. Under ADR 0071 decision 2 the woods are one grain at five tints and the
-    // tint multiplies, so every wood is darker and more red-dominant than the untinted oak the old
-    // sweep measured at 76.1. Clearing the ball would need green/red around 0.87 — a near-neutral
-    // warm grey — which ADR 0091 decision 2 refuses by name: a test instrument gets no vote on what
-    // the product looks like.
+    // Under ADR 0071 decision 2 the woods are one grain at five tints that multiply, so every wood is
+    // darker and more red-dominant than untinted oak. Clearing the ball would need green/red around 0.87
+    // (a near-neutral warm grey), which ADR 0091 decision 2 refuses: a test instrument gets no vote on
+    // the product's look.
     const measured = Object.fromEntries(
       declaredWoodFinishes().map((finish) => [
         labelOf(finish),
@@ -694,10 +568,9 @@ describe("the base colours that break the count, and the control that reaches th
   });
 
   it("lets an unmarked wood front clear the mark's own red-excess threshold", () => {
-    // `redTint`'s premise — "red over green **and** blue is what only the mark is" — has been false
-    // since M1 and no block in this file has ever tested it. `M.oak`'s untinted grain alone reaches
-    // 78 against a threshold of 50; every declared wood reaches further, because the tint deepens
-    // the same grain. It is invisible today only because the seeded fixture writes no `finish` key.
+    // `redTint`'s premise, that red over green and blue is what only the mark is, is false: `M.oak`'s
+    // untinted grain alone reaches 78 against a threshold of 50, and every wood reaches further. It is
+    // invisible today only because the seeded fixture writes no `finish` key.
     const untintedOak = Math.max(
       ...oakWoodColors().flatMap((tone) =>
         litVariants(tone).map((lit) => redExcess(lit)),

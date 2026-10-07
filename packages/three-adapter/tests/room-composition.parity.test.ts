@@ -305,10 +305,10 @@ describe("the L-joint butts rather than overlaps, at either declared depth", () 
   );
 
   // And the joint really does move with the setting, so the equality above is not two constants
-  // agreeing. 580 at a 600 mm kitchen and 680 at a 700 mm one: half the base carcass the leg is
-  // seated on, plus half its own footprint, which is the declared depth.
+  // agreeing. 570 at a 600 mm kitchen and 670 at a 700 mm one (580 and 680 before ADR 0135): the base
+  // run's carcass front, which is the leg's seat plus half its own footprint.
   it("moves the joint along wall B as the cabinet deepens", () => {
-    expect(carcassEdgeMm(600, "corner_base_x", "front")).toBe(580);
-    expect(carcassEdgeMm(700, "corner_base_x", "front")).toBe(680);
+    expect(carcassEdgeMm(600, "corner_base_x", "front")).toBe(570);
+    expect(carcassEdgeMm(700, "corner_base_x", "front")).toBe(670);
   });
 });

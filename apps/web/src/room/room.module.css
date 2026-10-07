@@ -1241,6 +1241,7 @@
     display: flex;
     height: 88px;
     padding: 0 40px;
+    align-items: center;
     justify-content: flex-end;
     border-top-color: var(--line-soft);
   }
@@ -1605,6 +1606,7 @@
   .composeFooter {
     height: 88px;
     padding: 0 40px;
+    align-items: center;
     justify-content: space-between;
     border-top-color: var(--line-soft);
   }

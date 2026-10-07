@@ -79,6 +79,14 @@
  * `room.compose.roomSummaryU`, a U's 1F summary: `roomSummary`'s own sentence with a third length.
  * Drafted, not approved (no frame draws it), by the coordinator's ruling of 2026-09-30. **One added
  * and no existing hash moved.**
+ *
+ * **Rebaselined over exactly one — `room.cornerQuestion` — by M7C wave C1 slice S2** (FB-008; plan
+ * question Q7, approved by the owner 2026-10-01). The Step 1 corner question is reworded. **One moved
+ * and no others.**
+ *
+ * **Grown, never rebaselined, by M7C wave C1 slice S3** (ADR 0113 decision 2) — the four
+ * `configure.backConfirm.*` leaves, the confirmation both back links open (FB-001; plan question
+ * Q1b, approved by the owner 2026-10-01). **Four added (the heading on the owner's follow-up answer, 2026-10-01) and no existing hash moved.**
  */
 export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "catalog.base-3drawer.300":
@@ -401,6 +409,14 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "4bfbe1717bfe9d344704abd58c6957384246befb9b22421e1df335a081f49efd",
   "content.static.configure.backAction":
     "43d3098298b6c977289100d20e77ff8d3274e4f7333e01fc200b5e88d7e7f541",
+  "content.static.configure.backConfirm.title":
+    "525c38050e04a71ce9ace1ae03e06392d837f991307a638dd9968c25800e6b9d",
+  "content.static.configure.backConfirm.body":
+    "2a9f2b0b07cf27e5d33c33c03ae0e0ec9b119457fcaf31d7dfa0b8c9830377b7",
+  "content.static.configure.backConfirm.confirm":
+    "9f9aeea8945cfe0f0aef5568c8c2ebaddae1aa440d0619932106f2474ec94277",
+  "content.static.configure.backConfirm.stay":
+    "0f56d6d006edf3e75786fdf4b706166c02a1cbf6f34eca0c6a16c3275f078126",
   "content.static.configure.cameraGroupLabel":
     "3d05f2d6ca7168d9618a83204ce235370febe452213c882a6d0600ec74ba3ab8",
   "content.static.configure.cameraPresets.overview":
@@ -785,7 +801,7 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "room.cornerLeft":
     "86dcbf5c87dc08b9ef49f2b0de4e96b2ccb572727795df8ddbde7bbd63d83e62",
   "room.cornerQuestion":
-    "498eb900296c7dfda503e3451c1e9f25f642d0b75b6f2df378e898bcccf3b435",
+    "7371593167fc420150b133fc608ee4cffe16b6352ad95ce26b433af76096aab3",
   "room.cornerRight":
     "22ac05eb611df45e116bcbec6a8d48544680d714dd7b7f5343a2ea2794d141d1",
   "room.dimensionsLater":

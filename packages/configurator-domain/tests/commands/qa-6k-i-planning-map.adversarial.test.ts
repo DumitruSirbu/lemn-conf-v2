@@ -1,19 +1,8 @@
-// Wave 6K-i, adversarial — **the arms of the axis split the wave's own reproduction cannot reach**.
-//
-// `set-cabinet-depth.plans-against-the-frozen-extent.test.ts` measures the split on the fixture
-// ADR 0088 measured: `A|2.00` with `p12` and `p18` deleted. On that fixture only one of the three
-// carried fields can differ between the stored extent and the derived column — the `top`. The floor
-// and the width agree there whatever the merge does, so an implementation that took either from the
-// derived column keeps that file green. Measured 2026-09-06: taking both `w` and `regions` from the
-// derived column passes all 2 945 domain tests and all 1 601 `apps/web` tests.
-//
-// This file reaches the arms that measurement left unguarded:
-//
-// - **the floor**, on the one delete that collapses it — the base body, not the shelves above it;
-// - **the width**, which no reachable state of this fixture can move, asserted as the fixture fact
-//   it is so that the day a body makes it movable this goes red instead of staying silent;
-// - **the member-less arm**, non-vacuously — the wave's own cap test iterates over an empty set;
-// - **the whole ordinary-delete population**, rather than the one pair the record names.
+// The arms of the axis split that `set-cabinet-depth.plans-against-the-frozen-extent.test.ts` cannot reach: on its
+// fixture (ADR 0088's `A|2.00` with `p12` and `p18` deleted) only the `top` can differ between the stored extent and
+// the derived column, so an implementation taking the floor or width from the derived column keeps it green. Here:
+// the floor, the width (asserted as the fixture fact it is), the member-less arm non-vacuously, and the whole
+// ordinary-delete population.
 import { describe, expect, it } from "vitest";
 
 import { alongWallShiftByColumnMm } from "../../src/along-wall-chain-shift.js";
@@ -54,13 +43,11 @@ const COLLAPSED_FLOOR_MM = 1500;
 const STORED_FLOOR_MM = 0;
 const STORED_TOP_MM = 2600;
 
-/** `p5` and `p22` — the oven tower and the cabinet over it, which is the whole of `B|1.20`. The
- *  document that comes back carries a genuine member-less column, which the wave's own fixture
- *  (`p12` + `p18`) does not: it leaves `A|2.00` occupied by design. */
+/** `p5` and `p22`: the oven tower and the cabinet over it, the whole of `B|1.20`. The result carries a genuine
+ *  member-less column, which the `p12` + `p18` fixture does not. */
 const THE_WHOLE_OVEN_TOWER: readonly string[] = ["p5", "p22"];
 
-/** The oven tower plus the whole of `A|2.00` — the dishwasher niche and the two bodies above it. The
- *  document that comes back records a member-less column on **each** wall, which is what the
+/** The oven tower plus the whole of `A|2.00`. The result records a member-less column on each wall, which the
  *  corner-anchor assertion needs: wall A's only reachable move is the member-less rungs'. */
 const BOTH_COLUMNS_EMPTIED: readonly string[] = [
   THE_BASE_BODY,
@@ -69,9 +56,8 @@ const BOTH_COLUMNS_EMPTIED: readonly string[] = [
   ...THE_WHOLE_OVEN_TOWER,
 ];
 
-/** The shipped kitchen after a set of ordinary deletes, with the frozen map the product would
- *  carry — `publishedColumns` returns the map unchanged on a delete (ADR 0011 Gap D) and
- *  `projectFrozenMap` writes the survivors out. */
+/** The shipped kitchen after ordinary deletes with the frozen map the product would carry (`publishedColumns`
+ *  returns it unchanged on a delete, ADR 0011 Gap D; `projectFrozenMap` writes the survivors out). */
 function afterDeleting(placementIds: readonly string[]): Design {
   const catalog = buildKitchenLBodyCatalog(600);
   const beforeTheDeletes = deriveColumns(
@@ -104,13 +90,9 @@ function recordsAt(
   );
 }
 
-/** The pre-command design with **only** the along-wall coordinates the command actually moved its
- *  bodies to, **read off the command's own output** and paired by id.
- *
- *  ADR 0090 decision 2's ladder is not re-derived here: a second author for it is exactly what
- *  ADR 0088 decision 2 exists to prevent, and a model that computed its own shift could agree with
- *  the command today and part from it later. Running the command and measuring where each body
- *  landed cannot. */
+/** The pre-command design with only the along-wall coordinates the command moved its bodies to, read off the
+ *  command's own output and paired by id. ADR 0090 decision 2's ladder is not re-derived here: a second author for it
+ *  could agree with the command today and part from it later (ADR 0088 decision 2). */
 function slidAsTheCommandDid(design: Design, cabinetDepthMm: number): Design {
   const result = setCabinetDepth({
     design,
@@ -135,16 +117,12 @@ function slidAsTheCommandDid(design: Design, cabinetDepthMm: number): Design {
   };
 }
 
-/** The three operands the command's planning map is built from, derived once so the map with the
- *  slide and the map without it differ in that one place and nowhere else.
- *
- *  Seat clearing is the one thing `planningDesign` does that this does not, and it is a no-op here
- *  rather than an approximation — asserted below, not assumed. */
+/** The three operands the command's planning map is built from, derived once so the maps with and without the slide
+ *  differ in that one place. Seat clearing is a no-op here, asserted below, not assumed. */
 interface PlanningOperands {
   /** The bodies as they arrive at the new setting. */
   readonly records: readonly PlacementRecord[];
-  /** The document's extents restored at the coordinates the run is **leaving** — the operand as it
-   *  stood before ADR 0090 decision 2's slide was introduced. */
+  /** The document's extents restored at the coordinates the run is leaving, as before ADR 0090 decision 2's slide. */
   readonly frozen: ReadonlyMap<string, Column>;
   /** The same extents on the coordinates the run is **arriving** at. */
   readonly slid: ReadonlyMap<string, Column>;
@@ -202,25 +180,12 @@ function planningOperandsOf(
   };
 }
 
-/** The planning map the command builds, assembled here from the same three operands **in the same
- *  order**: the frozen map at the coordinates the run is leaving, slid onto the coordinates it is
- *  arriving at, then merged with the records that arrive there.
- *
- *  **The slide is part of the model and not an omission**, because it decides which columns the
- *  member-less arm below iterates. Omitting it keys the restored extents where the run is *leaving*
- *  while `occupied` names where it is *arriving*, so at 700 every wall-B run's stale extent reads as
- *  member-less and the cap and the wall-end bound are evaluated against 600 mm coordinates — the one
- *  input ADR 0090 Amendment B found dangerous is the one such a model never supplies.
- *
- *  **Where the slide's two call sites are covered.** `set-cabinet-depth.frozen-map.test.ts` asserts
- *  `CabinetDepthSetEffect.columns` — the **republished** map, which is ADR 0090 decision 2. The
- *  **planning** call site is ADR 0090 decision 6 and is the reason the export exists; this file is
- *  what reaches it, and a full witness for it is wave 6X's (ADR 0093) rather than this file's.
- *
- *  **The field selection is *not* indifferent to the key space its operands share.** That is true of
- *  the occupied arms, where the merge is a lookup under one key, and false of the member-less arm,
- *  where the key space decides the *set* being iterated.
- */
+/** The planning map the command builds from the same three operands in the same order: the frozen map at the
+ *  coordinates the run is leaving, slid onto those it is arriving at, then merged with the arriving records. The slide
+ *  is part of the model: omitting it keys restored extents where the run is leaving while `occupied` names where it
+ *  arrives, so at 700 every wall-B extent reads as member-less and the cap and wall-end bound are evaluated at 600 mm
+ *  coordinates (ADR 0090 Amendment B). `set-cabinet-depth.frozen-map.test.ts` covers the republish call site; this
+ *  file reaches the planning one (ADR 0090 decision 6). */
 function plannedMapOf(
   design: Design,
   cabinetDepthMm: number,
@@ -233,10 +198,8 @@ function plannedMapOf(
   );
 }
 
-/** The same map the wave's predecessor built: the recorded extents restored at the coordinates the
- *  run is leaving, with no slide between them and the merge. This is "before the slide was
- *  introduced" as a value rather than as a memory of a commit, so wall A's no-move can be asserted
- *  against it key for key. */
+/** The map before the slide existed, as a value: recorded extents at the leaving coordinates with no slide before
+ *  the merge, so wall A's no-move can be asserted against it key for key. */
 function plannedMapBeforeTheSlideOf(
   design: Design,
   cabinetDepthMm: number,
@@ -249,9 +212,8 @@ function plannedMapBeforeTheSlideOf(
   );
 }
 
-/** The records that arrive at the new setting — the key space `plannedMapOf`'s result is in, so a
- *  caller asking "which of these columns holds a member" asks it there rather than at the
- *  coordinates the run left. */
+/** The records that arrive at the new setting: the key space `plannedMapOf`'s result is in, so "which of these
+ *  columns holds a member" is asked there rather than at the coordinates the run left. */
 function arrivingRecordsAt(
   design: Design,
   cabinetDepthMm: number,
@@ -265,9 +227,8 @@ function arrivingRecordsAt(
   );
 }
 
-/** One wall's entries, in one order, so two maps built from the same records can be compared whole
- *  rather than field by field — a regression that rewrote `x`, `z` or `d` on wall A is caught by the
- *  same assertion as one that moved its key. */
+/** One wall's entries in one order, so two maps from the same records are compared whole: a regression rewriting
+ *  `x`, `z` or `d` on wall A is caught by the same assertion as one that moved its key. */
 function columnsOnWall(
   map: ReadonlyMap<string, Column>,
   wall: Column["wall"],
@@ -285,9 +246,8 @@ function floorMm(column: Column | undefined): number {
 }
 
 describe("the floor the surviving members no longer imply", () => {
-  // `deriveFreeSpans` reads `min(regions)` and `top` and nothing between them, so a collapsed floor
-  // mis-plans the same four hops a collapsed top does. The wave's fixture cannot show it: `p12` and
-  // `p18` are the two members *above* the base, so the base is what stays and the floor never moves.
+  // `deriveFreeSpans` reads `min(regions)` and `top` only, so a collapsed floor mis-plans the same hops a collapsed
+  // top does; the `p12` + `p18` fixture keeps the base, so its floor never moves.
   it.each(DECLARED_MM)(
     "carries the stored floor into the planning map at %i mm, not the surviving members'",
     (cabinetDepthMm) => {
@@ -331,13 +291,9 @@ describe("the floor the surviving members no longer imply", () => {
   );
 });
 
-// **The width arm is unfalsifiable on this fixture, and that is a fact about the fixture.** `w` is a
-// MIN over the members' frames, so it can only part from the stored extent in a column whose members
-// are not all the same width — and no column of the shipped kitchen has one. An implementation that
-// took `w` from the derived column passes every test in this tree; nothing here can catch it, and a
-// test claiming to would be asserting `600 === 600`. Pinned as the precondition instead, so a wave
-// that seats a narrower body beside a wider one in the same column turns this red and is told the
-// coverage is owed.
+// The width arm is unfalsifiable on this fixture: `w` is a MIN over the members' frames, so it can part from the
+// stored extent only in a column of mixed-width members, and the shipped kitchen has none. Pinned as the
+// precondition, so a body seated beside a wider one turns this red and the owed coverage is flagged.
 describe("the width arm, and why no assertion in this tree can move it", () => {
   it("has no column whose members differ in width, at either setting", () => {
     for (const cabinetDepthMm of DECLARED_MM) {
@@ -358,16 +314,10 @@ describe("the width arm, and why no assertion in this tree can move it", () => {
   });
 });
 
-// **ADR 0090 decision 2, rung 1: wall A is anchored at the corner and does not move.** The wave's
-// only assertion of this was `along-wall-chain-shift.ts`'s own unit test, one rung below the map. It
-// cannot see a regression that reaches wall A by another route — `atDerivedDepth` rewrites `x` and
-// `z` on every entry it touches, and a wall-A entry re-keyed or re-seated there would leave the
-// ladder's return value untouched and every other assertion in this file green.
-//
-// The baseline is the map *before the slide was introduced*, built as a value from the same operands
-// rather than remembered from a commit: pass the recorded extents straight to the merge with no
-// slide between. Wall A must be identical across that difference; wall B must not be, or the
-// comparison is measuring a slide that does nothing.
+// ADR 0090 decision 2, rung 1: wall A is anchored at the corner and does not move. `atDerivedDepth` rewrites `x` and
+// `z` on every entry, so a wall-A entry re-keyed or re-seated there would leave the ladder's return value untouched.
+// The baseline is the map before the slide, built as a value from the same operands; wall A must be identical across
+// that difference and wall B must not, or the slide does nothing.
 describe("wall A does not move, key for key", () => {
   it.each(DECLARED_MM)(
     "plans every wall-A column exactly as it did before the slide, at %i mm",
@@ -379,10 +329,8 @@ describe("wall A does not move, key for key", () => {
 
       const wallA = columnsOnWall(plannedMapOf(design, cabinetDepthMm), "A");
 
-      // Non-vacuity on the rung that can actually move: an **occupied** wall-A extent takes rung 1
-      // and its members' delta is zero whatever the corner rule says, so a fixture of those alone
-      // would pass even with the anchor deleted. `A|2.00` emptied is a wall-A extent that reaches
-      // rungs 3 and 4, where a chain shift is a real number.
+      // Non-vacuity on the rung that can move: an occupied wall-A extent takes rung 1 with zero delta whatever the
+      // corner rule says; `A|2.00` emptied reaches rungs 3 and 4, where a chain shift is a real number.
       expect(wallA.length).toBeGreaterThan(0);
       expect(
         wallA.filter(([, column]) => !occupied.has(column.key)).length,
@@ -403,18 +351,11 @@ describe("wall A does not move, key for key", () => {
 });
 
 describe("the member-less arm, on a document that carries one", () => {
-  // ADR 0052's ceiling and ADR 0069's clip are `deriveColumns`' own tail. The wave's cap assertion
-  // ran on the `p12` + `p18` fixture, where every planned column is occupied, so its loop body never
-  // executed; it has been deleted rather than trimmed. This one starts from a document that really
-  // does carry a member-less column.
-  //
-  // **The population is asserted before its members are**, and that is what makes this able to fail
-  // for the reason it exists. The cap and the wall-end bound are satisfied by a stale 600 mm extent
-  // in a 2920 mm wall — `B|2.45` w700 gives a far edge of 2800 — so a model that dropped the slide
-  // would pass every per-column assertion below while iterating five wall-B runs' leaving-coordinate
-  // extents instead of the one column that genuinely holds nothing. The count is what separates
-  // them, and it is the document's own rather than a literal: a slide moves a member-less column and
-  // never creates or destroys one.
+  // ADR 0052's ceiling and ADR 0069's clip are `deriveColumns`' own tail; this starts from a document that really
+  // carries a member-less column. The population is asserted before its members: a stale 600 mm extent satisfies the
+  // cap and wall-end bound (`B|2.45` w700 gives a far edge of 2800), so a model dropping the slide would pass every
+  // per-column assertion while iterating the wrong extents. The count is the document's own: a slide never creates or
+  // destroys a member-less column.
   it.each(DECLARED_MM)(
     "plans exactly the columns the document records as member-less, at %i mm",
     (cabinetDepthMm) => {
@@ -427,24 +368,16 @@ describe("the member-less arm, on a document that carries one", () => {
         ...plannedMapOf(design, cabinetDepthMm).values(),
       ].filter((column) => !occupied.has(column.key));
 
-      // Non-vacuity, and the reason this file exists: the wave's own version of this assertion
-      // iterated over nothing.
+      // Non-vacuity: a version of this assertion iterating over nothing would pass.
       expect(memberLess.length).toBeGreaterThan(0);
       expect(memberLess.length).toBe((design.emptyColumns ?? []).length);
     },
   );
 
-  // **Two bounds, and only one of them is this path's.** ADR 0069's wall-end clip really does run
-  // here: `clipEmptyColumnsAtWallEnd` is the first stage of `publishedFunnel`, so the far edge below
-  // is a number this map computed.
-  //
-  // ADR 0052's 800 mm ceiling is **not**. `splitOversizedEmptyColumns` is not in the funnel — the
-  // split is `apply-command-result.ts`'s and the refusal is `validate-design.ts`'s, both upstream of
-  // any document that reaches here. Asserting `w <= 800` on this map therefore measured the
-  // *document*, not the plan, while naming the cap. What this path owes instead is that it neither
-  // splits nor widens what it was handed: every member-less planned width is a width the document
-  // recorded. The document's own compliance with the ceiling is asserted separately below, as the
-  // precondition it is, so the 800 stays pinned without this test claiming to enforce it.
+  // Only ADR 0069's wall-end clip runs here (`clipEmptyColumnsAtWallEnd` is the first stage of `publishedFunnel`).
+  // ADR 0052's 800 mm ceiling does not: the split is `apply-command-result.ts`'s and the refusal is
+  // `validate-design.ts`'s, both upstream. So this asserts the path neither splits nor widens what it was handed;
+  // the document's own compliance is asserted separately as the precondition.
   it.each(DECLARED_MM)(
     "carries every member-less column at its recorded width and inside its wall at %i mm",
     (cabinetDepthMm) => {
@@ -484,9 +417,8 @@ describe("the member-less arm, on a document that carries one", () => {
 });
 
 describe("no ordinary delete leaves the shipped kitchen unable to change its depth", () => {
-  // The wave names one pair. This is every one of them: each single delete and each pair, at both
-  // declared settings — 714 commands, and the population the store's four-step sweep reaches only a
-  // sample of. Measured at `2073b2a` the `A|2.00` pairs refuse `HEIGHT_EXCEEDS_LEVEL`.
+  // Every single delete and each pair, at both declared settings: a population the store's four-step sweep reaches
+  // only a sample of.
   it("succeeds on every single and paired delete, at both settings", () => {
     const ids = KITCHEN_L_DESIGN.placements.map((placement) => placement.id);
     const deletions: string[][] = [[], ...ids.map((id) => [id])];
@@ -517,9 +449,7 @@ describe("no ordinary delete leaves the shipped kitchen unable to change its dep
       }
     }
 
-    // Non-vacuity, as the measured count rather than as an arithmetic restatement of the loop: the
-    // shipped kitchen's 26 placements give 352 delete sets and 704 commands. A fixture that loses a
-    // body turns this red rather than quietly sweeping a smaller population.
+    // Non-vacuity as the measured count: the shipped kitchen's 26 placements give 352 delete sets and 704 commands.
     expect(commandsRun).toBe(704);
     expect(refusals).toStrictEqual([]);
   });

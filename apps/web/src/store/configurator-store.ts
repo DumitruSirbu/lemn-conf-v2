@@ -1,15 +1,8 @@
-// Work item 6's store half (`docs/milestones/M2-void-engine.md`), extended by M3 work item 9 with
-// the four commands: `remove`, `insert`, `setFinish`, `setHandle`.
+// The store adapts the UI to the domain commands: call the command, apply its result in one `set()`,
+// schedule the save. Every product rule lives in `@lemnaria/configurator-domain`.
 //
-// Each action is the adapter the milestone's Boundaries section describes — call the domain
-// command, apply its result in one `set()`, schedule the save — and nothing more. Every product
-// rule lives in `@lemnaria/configurator-domain`; a guard re-implemented here would be a second
-// place for the rules to drift apart.
-//
-// A column's **extent** is frozen load-time state (ADR 0011 Gap D): derived at store creation and
-// in `hydrate`, and never by a command. `deriveGeometry` is therefore the load path only. Its one
-// live field, `hasFullHeightUnder` — whether a full-height member still stands under the opening —
-// is re-answered from the new records after every command; see `applyCommandResult`.
+// A column's extent is frozen load-time state, derived at creation and in `hydrate` and never by a command
+// (ADR 0011 Gap D). Only `hasFullHeightUnder` is re-answered after every command (`applyCommandResult`).
 import {
   buildKitchenLBodyCatalog,
   cabinetDepthMmOf,
@@ -73,82 +66,53 @@ export type WholeKitchenApplyOutcome =
       readonly reason: RejectionReason;
     };
 
-/** The save-coalescer's own status, re-exported rather than restated: the store is where the UI
- *  reads it from, and two copies of the union would be free to drift. `idle` covers both "never
- *  saved" and "last save succeeded" — `hasPersistedSuccessfully` is the field that distinguishes
- *  those two, per the milestone's "never write, never shareable" rule. */
+/** The save-coalescer's status, re-exported so the union has one copy. `idle` covers both "never saved"
+ *  and "last save succeeded"; `hasPersistedSuccessfully` tells them apart. */
 export type { SaveStatus };
 
 /**
- * Whether this browser may edit a design, as **four** states rather than two.
- *
- * The two non-boolean states are both "no answer yet", told apart by whether one is still coming.
- * `"checking"` is the `/d/{id}` load's honest opening position: the write-token cookie is scoped
- * `Path=/api/designs/{id}` (ADR 0019 decision 1), so the request that rendered the page never
- * carried it and the server could not have answered — `useWriteAccessProbe` is asking the one route
- * that can. `"check-failed"` is that probe having failed; nothing further is in flight, and only a
- * retry changes it.
- *
- * They are spelled out rather than encoded as an absent field, because absence already means the
- * opposite thing one module away — `fetch-configuration-repository.ts` reads an absent `canWrite`
- * as **false**, the safe reading of a load answer that did not arrive. Two opposite defaults for
- * the same missing value is how a genuinely read-only design gets marked writable with no type
- * error; named states remove the default from both.
- *
- * **Neither non-boolean state is writable** (see `isReadOnly`). Until wave S7 `"unknown"` was
- * deliberately read as writable, so `/d/{id}` rendered fully interactive before anything knew
- * whether it could write — and a probe that failed left that optimism standing for good. A reader
- * on a blocked API then edited, believed it saved, and watched the controls disable *after* the
- * refusal, with the unsaved edit still on screen. `DEVELOPMENT-SPEC.md` §9 forbids exactly that:
- * never offer what cannot be satisfied. The interface now waits for the answer, which is a change
- * to what it *offers* only — `canWrite` stays advisory and authorises nothing (ADR 0019 decision 1;
- * `hasWriteCredentialFor` is still the sole authorisation).
+ * Whether this browser may edit a design: four states, not two. `"checking"` and `"check-failed"` both mean "no
+ * answer yet": the write-token cookie is scoped `Path=/api/designs/{id}`, so the request that rendered `/d/{id}`
+ * never carried it and `useWriteAccessProbe` asks the one route that can (ADR 0019 decision 1); `"check-failed"`
+ * means that probe failed. Named states, not an absent field: the repository reads an absent `canWrite` as false,
+ * and two opposite defaults for one missing value could mark a read-only design writable. Neither is writable
+ * (`isReadOnly`).
  */
 export type WriteAccess = boolean | "checking" | "check-failed";
 
 export interface ConfiguratorState {
   readonly design: Design;
   readonly records: readonly PlacementRecord[];
-  /** The catalogue the **held design's own cabinet depth** builds, published so a caller of
-   *  `describeSelection` or `offersFor` reads the same map the commands do. A component importing a
-   *  catalogue by name would be free to pick a different one from the store's.
-   *
-   *  Derived, never passed in (wave 6K-a): the store takes `catalogAt` and builds this itself, so a
-   *  design at 700 mm can never be held beside a map built at 600. */
+  /** The catalogue the held design's own cabinet depth builds, so `describeSelection` and `offersFor` read
+   *  the same map the commands do. Derived from `catalogAt`, never passed in: a 700 mm design can never be
+   *  held beside a map built at 600. */
   readonly catalog: BodyCatalog;
-  /** Extent frozen at load time, `hasFullHeightUnder` live — see the file header and ADR 0011
-   *  Gap D. **The published face**: what `voids` are derived from, so nothing past the end of a
-   *  wall is ever offered or drawn (ADR 0069). */
+  /** Extent frozen at load time, `hasFullHeightUnder` live (file header). The published face: `voids` derive
+   *  from it so nothing past a wall's end is offered or drawn (ADR 0069). */
   readonly columns: ReadonlyMap<string, Column>;
-  /** The same map with ADR 0069's wall-end cap not applied — **what a command is handed and what
-   *  the document is projected from** (ADR 0090 Amendment B and its addendum, and
-   *  `AppliedCommandState.recordedColumns`). Backlog 52 added the first half: a command whose
-   *  `effect.columns` replaces the map whole must edit the face it is allowed to rewrite. */
+  /** The same map without ADR 0069's wall-end cap: what a command is handed and the document is projected
+   *  from (ADR 0090 Amendment B). A command whose `effect.columns` replaces the map whole must edit this
+   *  face. */
   readonly recordedColumns: ReadonlyMap<string, Column>;
   readonly voids: readonly VoidRecord[];
   readonly selection: Selection;
   readonly select: (target: NonNullable<Selection>) => void;
   readonly deselect: () => void;
-  /** The last refusal, and the only thing a refused command changes. Transient: it is never part
-   *  of the design, a successful command clears it, and so does moving the selection — the
-   *  sentence was rendered about the target that refused, per §8's `rejected` message. */
+  /** The last refusal, the only thing a refused command changes. Transient: a successful command or a
+   *  selection move clears it, since the sentence was about the target that refused. */
   readonly lastRejection: RejectionReason | null;
   readonly remove: () => void;
   readonly insert: (buildId: string) => void;
   readonly setFinish: (finish: Finish) => void;
-  /** ADR 0099 decision 8: this cabinet stops choosing and follows the kitchen's colour again. It
-   *  takes no finish, because it writes none — the key is deleted, which is what makes the cabinet
-   *  track the *next* global change as well as this one. */
+  /** This cabinet follows the kitchen's colour again (ADR 0099 decision 8). The finish key is deleted, so
+   *  the cabinet also tracks the next global change. */
   readonly clearFinish: () => void;
   readonly setHandle: (handle: Handle) => void;
-  /** §5.4's resize, and the last of §9's five verbs to be wired. It takes a width and nothing else:
-   *  which bodies move, which column funds it and whether it is legal at all are ADR 0031's rules,
-   *  and they live in the command. */
+  /** The resize (DEVELOPMENT-SPEC §5.4); takes a width only. Which bodies move and whether it is legal are
+   *  the command's decision (ADR 0031). */
   readonly setWidth: (widthMm: number) => void;
-  /** Wave 6E's two whole-kitchen settings. Neither needs a selection — they apply to every body —
-   *  and both take the tier ids the caller's price book offers, because **the store names no price
-   *  book**: `use-priced-design.ts` is the one module in this application that does (ADR 0062
-   *  seam 1), and wave 6G is what supplies the list from there. */
+  /** The whole-kitchen settings. Neither needs a selection, and both take the tier ids the caller's price
+   *  book offers: the store names no price book (ADR 0062 seam 1); `use-priced-design.ts` does. */
   readonly setMaterialTier: (
     tierId: string,
     availableTierIds: readonly string[],
@@ -157,135 +121,100 @@ export interface ConfiguratorState {
     tierId: string,
     availableTierIds: readonly string[],
   ) => void;
-  /** Wave 6J-b's depth, as the third whole-kitchen setting. It takes a depth and nothing else:
-   *  which depths are offered and the 520 mm floor are ADR 0059's rules and live in the command.
-   *
-   *  It needs the body probe for the same reason `insert` and `setWidth` do — every body is rebuilt
-   *  through `evaluateInsertFit` — and refuses `BODY_PROBE_UNAVAILABLE` without one. */
+  /** Depth, the third whole-kitchen setting; takes a depth only. The offered depths and the 520 mm floor
+   *  are the command's (ADR 0059). Refuses `BODY_PROBE_UNAVAILABLE` without a probe, because every body is
+   *  rebuilt through `evaluateInsertFit`. */
   readonly setCabinetDepth: (cabinetDepthMm: number) => void;
   /**
-   * **Wave W2: the three settings above as one press** (M6-AUD-004). Every requested change is run
-   * against the previous one's design before anything is held, so the store commits all of them or
-   * none — a depth refused after a material succeeded now leaves the document exactly as it was.
-   *
-   * **It reports whether it committed**, unlike every other action here, and that is deliberate
-   * rather than a lapse: the sheet stays open on a refusal and names the setting that refused, and
-   * reading `lastRejection` afterwards cannot tell this press's refusal from one already on screen.
-   * The domain's own commands answer the same way, so this mirrors their shape rather than
-   * inventing one.
+   * The three settings above as one press: every change runs against the previous one's design, so the
+   * store commits all or none. Unlike every other action it reports whether it committed: the sheet stays
+   * open on a refusal and names the setting, and `lastRejection` cannot tell this press's refusal from one
+   * already on screen.
    */
   readonly applyWholeKitchenSettings: (
     request: WholeKitchenSettingsRequest,
   ) => WholeKitchenApplyOutcome;
   /**
-   * **The factory the scene attached** — the single source, and the one thing
-   * `isBodyProbeAttached` is derived from.
-   *
-   * **Nothing here holds a probe** (ADR 0076 decision 2). A published `bodyProbe` was a lease taken
-   * once and never given back, at five sites including `hydrate`, so a `/d/{id}` link to a 700 mm
-   * design opened in a 600 mm session stranded a GPU kit on first paint. Every consumer borrows for
-   * its own scope instead: `insert` and `setWidth` lease at `cabinetDepthMmOf(design)`,
-   * `setCabinetDepth` at the depth it is moving to, and the width hooks take one lease around both
-   * their queries.
-   *
-   * The factory, not a probe, for the reason `BodyProbeFactory` gives: the adapter's base,
-   * full-height, appliance and hood builders ignore the depth they are handed and build the kit's
-   * own, so a probe over the old kit measures the old depth whatever it is asked for.
+   * The factory the scene attached; `isBodyProbeAttached` derives from it. The store holds no probe (ADR 0076
+   * decision 2): each consumer leases for its own scope. A factory, not a probe, because the adapter's builders
+   * ignore the depth they are handed, so a probe over the old kit measures the old depth.
    */
   readonly probeAt: BodyProbeFactory | undefined;
-  /** Whether `insert` can do anything. False until the scene calls `attachBodyProbe`, and
-   *  published so a control is disabled rather than offered and then refused ("never offer what
-   *  cannot be satisfied", §9). `insert` refuses `BODY_PROBE_UNAVAILABLE` if one is called anyway.
-   *
-   *  Derived from `probeAt !== undefined` and written only by attach/detach. One source is
-   *  strictly better than two that must agree (ADR 0076 decision 6). */
+  /** Whether `insert` can do anything: false until the scene calls `attachBodyProbe`, so a control is
+   *  disabled rather than offered then refused (§9). Derived from `probeAt !== undefined` and written only
+   *  by attach/detach (ADR 0076 decision 6). */
   readonly isBodyProbeAttached: boolean;
   readonly attachBodyProbe: (probeAt: BodyProbeFactory) => void;
-  /** The scene's unmount half. The store is module-scoped and outlives any one mounted scene, so
-   *  without this the flag would keep claiming a probe that measures inside a room nobody renders. */
+  /** The scene's unmount half: the store outlives any scene, so without it the flag would claim a probe
+   *  that measures a room nobody renders. */
   readonly detachBodyProbe: () => void;
   readonly designId: DesignId | null;
   /**
-   * The revision the stored design stood at when this browser last heard from the server — from the
-   * load that hydrated it, or from the last save that succeeded (WEB-003).
-   *
-   * `null` means no row exists yet: a fresh, never-minted design. It is opaque: nothing here parses
-   * it, compares it for order, or derives the next one. Only the server's own answer advances it.
+   * The revision the stored design stood at when this browser last heard from the server: the hydrating
+   * load or the last successful save. `null` means no row exists yet. Opaque: only the server's answer
+   * advances it.
    */
   readonly revision: DesignRevision | null;
   readonly saveStatus: SaveStatus;
-  /** A future share-link UI gates on this, not on `designId !== null` alone: a design that has
-   *  never been written successfully must not present a shareable link (write-path decision 17). */
+  /** Gate a share-link UI on this, not on `designId !== null`: a never-written design must not present a
+   *  shareable link. */
   readonly hasPersistedSuccessfully: boolean;
   /**
-   * Whether this browser holds the design's write credential (ADR 0019 decision 1), as the server
-   * reported it on the load that produced this state — or `"checking"` / `"check-failed"` where no
-   * load has answered yet. Published so §9's panel can disable what it cannot perform; it is a
-   * **fact carried in**, never a decision made here — what the panel does with it is
-   * `describePanel`'s rule, and what a write is allowed to do is the row's.
+   * Whether a command has changed the design since it was loaded: *is there anything for Back to lose*. Not
+   * a save status. Only an applied command that changed the document sets it, so a refusal, a selection and
+   * a no-op (re-pressing the worn handle) leave it false. `hydrate` clears it and a save never writes it.
+   */
+  readonly hasBeenEdited: boolean;
+  /**
+   * Whether this browser holds the write credential (ADR 0019 decision 1), as the load reported it, or
+   * `"checking"` / `"check-failed"` before an answer. A fact carried in, never decided here: `describePanel`
+   * decides what the panel does with it.
    */
   readonly canWrite: WriteAccess;
-  /** Records the server's answer about write access, which for the load-by-link path arrives after
-   *  the design does — see `LoadedDesignState.canWrite`. Ignored when the store has since moved to
-   *  a different design, because the answer is per-design and would otherwise be applied to one it
-   *  was never about. */
+  /** The server's answer about write access, which on the load-by-link path arrives after the design
+   *  (`LoadedDesignState.canWrite`). Ignored when the store has moved to a different design: the answer is
+   *  per-design. */
   readonly applyWriteAccess: (access: {
     designId: DesignId;
     canWrite: boolean;
   }) => void;
-  /** Records that the probe could not answer at all — a dropped request, a blocked API, an offline
-   *  browser. It moves `canWrite` to `"check-failed"`, which the panel renders as a retryable
-   *  notice rather than as either verdict: a network failure is not evidence about access in either
-   *  direction, and turning it into "writable" is what wave S7 removed. */
+  /** The probe could not answer at all (dropped request, blocked API, offline). Moves `canWrite` to
+   *  `"check-failed"`, a retryable notice: a network failure is no evidence either way and must not be read
+   *  as "writable". */
   readonly failWriteAccessCheck: (attempt: { designId: DesignId }) => void;
-  /** The retry behind that notice. Puts `canWrite` back to `"checking"`, which is what the probe
-   *  effect watches — `"checking"` means "a check is wanted and none has answered", so restoring it
-   *  *is* asking again, and no separate attempt counter can drift away from it. A no-op unless the
-   *  last check actually failed, so a stray press cannot discard an answer the probe already gave. */
+  /** The retry behind that notice: back to `"checking"`, which the probe effect watches. A no-op unless the
+   *  last check failed, so a stray press cannot discard an answer the probe already gave. */
   readonly retryWriteAccessCheck: () => void;
-  /** Replaces the store's design wholesale — the load-by-link path (`/d/[id]`). The loaded design
-   *  already round-tripped through the database, so it counts as persisted; clears the selection,
-   *  since an id selected in the previous design has no guaranteed meaning in the new one. */
+  /** Replaces the design wholesale (the `/d/[id]` load). It round-tripped the database, so it counts as
+   *  persisted. Clears the selection, whose ids may mean nothing in the new design. */
   readonly hydrate: (loaded: LoadedDesignState) => void;
   readonly setSaveStatus: (status: SaveStatus) => void;
-  /** Records a successful save's id and the revision it produced — the save-coalescer's `onSaved`
-   *  hook. The two arrive together because a save answers both, and an id kept without its new
-   *  revision would leave the next write expecting one already consumed. */
+  /** A successful save's id and revision, the coalescer's `onSaved` hook. They arrive together: an id kept
+   *  without its new revision would make the next write expect one already consumed. */
   readonly applySaved: (saved: {
     id: DesignId;
     revision: DesignRevision;
   }) => void;
   /**
-   * The customer's answer to `saveStatus: "conflict"` (WEB-003): write what is on screen over the
-   * stored design, having first re-read the revision it now stands at.
-   *
-   * The other answer — reload the stored design and lose the local edit — is not a store action.
-   * It is a page reload, which discards this whole state by definition; giving it a reducer here
-   * would imply the store survives it.
+   * The customer's answer to `saveStatus: "conflict"`: write what is on screen over the stored design after
+   * re-reading its revision. The other answer, reloading, is a page reload and not a store action.
    */
   readonly overwriteConflict: () => void;
 }
 
-/** One load's worth of state: the document, the id it lives under, and this browser's access to
- *  it. Passed as one object because they are three halves of a single event and always move
- *  together — a `hydrate` that took them positionally would let two of them be swapped silently. */
+/** One load's state: the document, its id and this browser's access, passed as one object so `hydrate`
+ *  cannot have two of them swapped positionally. */
 export interface LoadedDesignState {
   readonly design: Design;
   readonly designId: DesignId;
-  /** The revision this document was read at. **Required** for the reason `canWrite` is: a loader
-   *  that dropped it would leave the first save with no expectation to state, and the route refuses
-   *  a save that states none. */
+  /** The revision this document was read at. Required: a loader that dropped it would leave the first save
+   *  with no expectation to state, which the route refuses. */
   readonly revision: DesignRevision;
   /**
-   * **Required**, so that a loader which does not know has to say so. `/d/{id}` passes
-   * `"checking"` — its own request could not carry the `Path=/api/designs/{id}` cookie — and
-   * `applyWriteAccess` settles it from the one route the cookie does reach. A loader that knows
-   * passes the boolean.
-   *
-   * It is required rather than optional-defaulting-to-writable because the obvious call,
-   * `hydrate({ design: await repository.load(id), designId })`, drops `canWrite` (the
-   * `ConfigurationRepository` contract has no such field) and would have marked a genuinely
-   * read-only design writable with no type error and no lint warning. Now it does not compile.
+   * Required so a loader that does not know has to say so: `/d/{id}` passes `"checking"` and
+   * `applyWriteAccess` settles it. Not optional-defaulting-to-writable: `hydrate({ design: await
+   * repository.load(id), designId })` would drop `canWrite` (the repository contract has none) and mark a
+   * read-only design writable with no type error.
    */
   readonly canWrite: WriteAccess;
 }
@@ -293,40 +222,32 @@ export interface LoadedDesignState {
 export interface ConfiguratorStoreOptions {
   readonly design: Design;
   /**
-   * **A factory, never an already-built catalogue** — the same ruling `setCabinetDepth` carries one
-   * package over, for the same reason. A `catalog: BodyCatalog` field lets a caller hand in a design
-   * at 700 mm beside a map built at 600, and nothing downstream can tell the two apart: the store's
-   * geometry, its voids and every later command would answer at the wrong depth, silently. Taking
-   * the factory makes that call site impossible to write rather than merely wrong.
+   * A factory, never a built catalogue: a `catalog` field would let a caller hand in a 700 mm design beside
+   * a map built at 600, and every geometry, void and command would answer at the wrong depth silently.
    */
   readonly catalogAt: (cabinetDepthMm: number) => BodyCatalog;
-  /** Defaults to `null`: the seeded fixture starts out unminted, matching M2's "mint on first
-   *  write" trigger. */
+  /** Defaults to `null`: the seeded fixture starts unminted. */
   readonly designId?: DesignId | null;
-  /** The revision `designId`'s row stands at. Meaningless without one, and `null` alongside one is
-   *  a store whose first save the route will refuse — nothing in the app constructs that. */
+  /** The revision `designId`'s row stands at. Meaningless without a design id; `null` alongside one makes
+   *  the first save refused. */
   readonly revision?: DesignRevision | null;
-  /** Wave 3C-2b's seam. Called **after** the store has applied a successful command, never before
-   *  it and never on a refusal, and never awaited — no interaction blocks on a write. 3C-2b passes
-   *  the save coalescer's `scheduleSave` here; until then it is a no-op. */
+  /** Called after the store applies a successful command, never on a refusal and never awaited, so no
+   *  interaction blocks on a write. Receives the save coalescer's `scheduleSave`. */
   readonly onDesignChanged?: (design: Design) => void;
   /**
-   * The singleton persistence seam advances its generation when hydration switches design
-   * identity. Other store instances have no background writer and leave this unset.
+   * Advances the singleton persistence seam's generation when hydration switches design identity. Other
+   * store instances have no background writer and leave this unset.
    */
   readonly onDesignIdentityChanged?: () => void;
   /** The overwrite half of WEB-003's conflict choice, wired to the coalescer at the singleton seam.
    *  Other store instances have no background writer and leave this unset. */
   readonly onOverwriteRequested?: (design: Design) => void;
-  /** The domain reads no clock, so the caller supplies `occurredAt`. Injected so a test can pin
-   *  it and so nothing in the domain has to be mocked to make a timestamp predictable. */
+  /** The domain reads no clock, so the caller supplies `occurredAt`; injected so a test can pin it. */
   readonly now?: () => string;
   /**
-   * Defaults to `true`, and the default is the whole point: a design that has never been minted has
-   * no credential to hold *yet*, because the customer is about to mint it on their first mutation.
-   * Only a **loaded** design can be read-only, and that case arrives through `hydrate` carrying the
-   * server's answer. A fresh configurator that believed itself read-only would refuse every edit it
-   * is about to be granted — a worse failure than the one `canWrite` exists to fix.
+   * Defaults to `true`: a never-minted design has no credential yet and mints on its first mutation. Only a
+   * loaded design can be read-only, via `hydrate`. A fresh configurator that believed itself read-only would
+   * refuse every edit it is about to be granted.
    */
   readonly canWrite?: boolean;
   /** Tests inject a fake probe here. The app cannot: the real probe needs a `Kit` and the mounted
@@ -334,51 +255,35 @@ export interface ConfiguratorStoreOptions {
   readonly probeAt?: BodyProbeFactory;
 }
 
-/** What every command needs from the store: the current design, the column map — extents frozen,
- *  `hasFullHeightUnder` current — and what is selected. Passed as one object so each action stays
- *  the call/apply/schedule adapter. */
+/** What every command needs from the store: the design, the column map and the selection, passed as one
+ *  object so each action stays the call/apply/schedule adapter. */
 interface CommandContext {
   readonly design: Design;
-  /** Read from state rather than closed over at construction: a depth change replaces it, and a
-   *  command answered against the map the store opened with would evaluate the new design at the
-   *  old depth. */
+  /** Read from state, not closed over at construction: a depth change replaces it. */
   readonly catalog: BodyCatalog;
-  /** **The recorded face** (ADR 0090 Amendment B's addendum, backlog 52). `setWidth` and
-   *  `insertBody` return a map that *replaces* this one whole, so a published map handed in here
-   *  comes back out as the document's own record: an unrelated resize on wall A took 100 mm off a
-   *  wall-B space the room-derived cap had bounded, permanently and silently. The cap belongs to
-   *  what is offered, so the map a command edits is the one it has never touched — the same rule
-   *  `applyCommandResult` already follows for its fall-through arm.
-   *
-   *  Safe to look a void up in because the cap preserves a column's key
-   *  (`clip-empty-columns-at-wall-end.ts`): a void carries the published key, which is the recorded
-   *  key, so nothing here resolves against a column that is not there. */
+  /** The recorded face (ADR 0090 Amendment B). `setWidth` and `insertBody` return a map that replaces this
+   *  one whole, so handing in the published map would persist ADR 0069's wall-end cap into the document.
+   *  Safe to look a void up in: the cap preserves a column's key (`clip-empty-columns-at-wall-end.ts`). */
   readonly columns: ReadonlyMap<string, Column>;
-  /** **The published openings**, and the other half of what backlog 52 left open. `insertBody`
-   *  built its own list from `columns` above, so handing it the recorded face handed it a recorded
-   *  *opening* — a body placed 100 mm past the end of wall B out of an opening ADR 0069's owner
-   *  ruling says may never be offered at all. The same list §9's offer list is drawn from
-   *  (`use-panel-view.ts`), so a tap does what the row it came from said. */
+  /** The published openings, the list §9's offer list is drawn from (`use-panel-view.ts`). `insertBody`
+   *  must match what was offered, not openings rebuilt from the recorded face, which ADR 0069 says may never
+   *  be offered. */
   readonly voids: readonly VoidRecord[];
   readonly target: CommandTarget;
 }
 
 function deriveGeometry(design: Design, catalog: BodyCatalog) {
   const records = derivePlacementRecords(design, catalog);
-  // ADR 0044 and ADR 0053: the placements build the columns they imply, and the document carries
-  // both halves of what they cannot — the spaces with no member left (a shrink's strip, a cleared
-  // run) and the frozen extents of the columns whose members no longer reach as far as the customer
-  // left them (a partial delete, a cleared column refilled with a body that fits). Without these two
-  // arguments the frozen map survives the session and dies at the reload.
+  // ADR 0044 and ADR 0053: the document carries what placements cannot: spaces with no member left and the
+  // frozen extents of columns whose members no longer reach as far as the customer left them. Without both
+  // arguments the frozen map dies at reload.
   const stored = {
     emptyColumns: design.emptyColumns,
     columnExtents: design.columnExtents,
   };
-  // **Two faces of one map** (ADR 0090 Amendment B). `deriveColumns` ends in ADR 0069's wall-end cap
-  // and is what openings, the scene and an insert are matched against; `deriveRecordedColumns` is
-  // the same derivation without it and is what the next command's projection is built from. The cap
-  // bounds what is published and does not rewrite what is recorded — otherwise a space flush to a
-  // wall's end loses 100 mm at 700 and keeps the loss at 600, one command at a time.
+  // Two faces of one map (ADR 0090 Amendment B). `deriveColumns` ends in ADR 0069's wall-end cap and is what
+  // openings, the scene and an insert match against; `deriveRecordedColumns` omits it and feeds the next
+  // command's projection, so the cap bounds what is published without rewriting what is recorded.
   const columns = deriveColumns(records, stored, design.room);
   const recordedColumns = deriveRecordedColumns(
     records,
@@ -393,8 +298,41 @@ function nowInIsoMilliseconds(): string {
   return new Date().toISOString();
 }
 
-/** Builds a fresh store instance for a fixed design/catalog pair. The app itself uses the single
- *  `useConfiguratorStore` instance below — this factory exists so tests never share state. */
+/** What a command rewrites whether or not the kitchen changed: the timestamp and the two projections of the
+ *  frozen column map, re-projected by every command (`commands/reconcile-command-result.ts`), so they can
+ *  differ after a no-op. */
+function withoutBookkeeping(design: Design): Design {
+  return {
+    ...design,
+    updatedAt: "",
+    emptyColumns: undefined,
+    columnExtents: undefined,
+  };
+}
+
+function hasSameContent(before: Design, after: Design): boolean {
+  return isDeepEqual(withoutBookkeeping(before), withoutBookkeeping(after));
+}
+
+function isDeepEqual(left: unknown, right: unknown): boolean {
+  if (Object.is(left, right)) return true;
+  if (typeof left !== "object" || typeof right !== "object") return false;
+  if (left === null || right === null) return false;
+  if (Array.isArray(left) !== Array.isArray(right)) return false;
+  const leftKeys = Object.keys(left);
+  const rightKeys = Object.keys(right);
+  return (
+    leftKeys.length === rightKeys.length &&
+    leftKeys.every(
+      (key) =>
+        Object.hasOwn(right, key) &&
+        isDeepEqual(Reflect.get(left, key), Reflect.get(right, key)),
+    )
+  );
+}
+
+/** Builds a fresh store for a fixed design/catalog pair. The app uses the single `useConfiguratorStore`
+ *  below; tests use this so state is never shared. */
 export function createConfiguratorStore(
   options: ConfiguratorStoreOptions,
 ): UseBoundStore<StoreApi<ConfiguratorState>> {
@@ -403,9 +341,9 @@ export function createConfiguratorStore(
   const onDesignChanged = options.onDesignChanged ?? (() => undefined);
   const now = options.now ?? nowInIsoMilliseconds;
 
-  /** One map per depth for the life of the store. `catalog` is published state that components read
-   *  through selectors, so rebuilding an equal-but-new `Map` after every command would re-render all
-   *  of them for a value that did not move. Bounded by the declared depths (ADR 0059). */
+  /** One map per depth for the life of the store: `catalog` is published state, so rebuilding an equal
+   *  `Map` after every command would re-render every selector for an unmoved value. Bounded by the declared
+   *  depths (ADR 0059). */
   const catalogsByDepthMm = new Map<number, BodyCatalog>();
   const catalogFor = (forDesign: Design): BodyCatalog => {
     const cabinetDepthMm = cabinetDepthMmOf(forDesign);
@@ -417,25 +355,18 @@ export function createConfiguratorStore(
   };
 
   return create<ConfiguratorState>((set, get) => {
-    /** Apply and schedule, in one `set()`. Shared by the targeted commands below and by wave 6E's
-     *  whole-kitchen pair, which have no target to resolve first. */
+    /** Apply and schedule in one `set()`; shared by the targeted commands and the whole-kitchen pair, which
+     *  have no target. */
     const applyResult = (result: CommandResult) => {
       const state = get();
-      // The catalogue the result is applied with is the one the store then holds, and both are read
-      // off the **result's own** design. A depth change is the only command that moves it, and this
-      // is what stops it being applied against the map the previous depth built.
-      //
-      // **A refusal needs no branch, and that does not rest on `refuse` returning the same object.**
-      // The lookup is keyed on the design's *depth*, and a refusal cannot change one — so it resolves
-      // to the held map whether identity is preserved or not. The only shape that would break it is a
-      // refusal carrying a design at a different depth, which is a defect in the command however the
-      // store is written. Identity buys the branchlessness its readability, not its safety.
+      // The catalogue comes from the result's own design: a depth change is the only command that moves it,
+      // so it is never applied against the previous depth's map. A refusal needs no branch: it cannot change
+      // the depth, so the lookup resolves to the held map.
       const catalog = catalogFor(result.design);
       const application = applyCommandResult({
         result,
         catalog,
-        // The **recorded** face: ADR 0069's cap belongs to what is offered, never to what is
-        // stored, so the map that becomes the next document is the one it has not touched.
+        // The recorded face: ADR 0069's cap belongs to what is offered, never to what is stored.
         columns: state.recordedColumns,
         selection: state.selection,
       });
@@ -443,16 +374,19 @@ export function createConfiguratorStore(
         set(application.state);
         return;
       }
-      // The catalogue follows the held depth. The probe no longer needs to: every consumer leases
-      // at `cabinetDepthMmOf(design)` when it needs one, so nothing survives here that could still
-      // describe the kitchen the store has left (ADR 0076 decision 2).
-      set({ ...application.state, catalog });
+      // The catalogue follows the held depth; the probe does not (ADR 0076 decision 2).
+      set({
+        ...application.state,
+        catalog,
+        hasBeenEdited:
+          state.hasBeenEdited ||
+          !hasSameContent(state.design, application.state.design),
+      });
       onDesignChanged(application.state.design);
     };
 
-    /** Call, apply, schedule — in that order, and in one `set()`. A command with no selected
-     *  target never reaches the domain, so it borrows the domain's own code for a selection that
-     *  resolves to nothing rather than inventing a store-local one. */
+    /** Call, apply, schedule in one `set()`. With no selected target the domain is never reached: the store
+     *  refuses `TARGET_NOT_FOUND` itself. */
     const runCommand = (
       command: (context: CommandContext) => CommandResult,
     ) => {
@@ -511,10 +445,9 @@ export function createConfiguratorStore(
                     occurredAt: now(),
                   }),
                 )
-              : // A missing probe is a refusal, not a throw: `isBodyProbeAttached` exists so a
-                // control is never offered before the scene is ready, and this is the safety net
-                // beneath that. It sits **after** the selection check, so `insert` fails the same
-                // way the other three commands do when nothing is selected.
+              : // A missing probe is a refusal, not a throw: `isBodyProbeAttached` keeps controls from being
+                // offered earlier. It follows the selection check, so `insert` fails like the other commands
+                // with nothing selected.
                 refuse(current, { code: "BODY_PROBE_UNAVAILABLE", params: {} }),
         );
       },
@@ -565,8 +498,7 @@ export function createConfiguratorStore(
                   occurredAt: now(),
                 }),
               )
-            : // The same safety net `insert` carries, for the same reason: §9 disables a chip it
-              // cannot satisfy, and this is what happens if one is tapped anyway.
+            : // The same safety net as `insert`: a chip tapped despite §9 disabling it.
               refuse(current, { code: "BODY_PROBE_UNAVAILABLE", params: {} }),
         );
       },
@@ -597,19 +529,15 @@ export function createConfiguratorStore(
           probeAt
             ? setCabinetDepthOnDesign({
                 design: state.design,
-                // The factory, handed straight through: the command builds the map at the depth it
-                // is about to write, and `applyResult` then holds the map that same document
-                // declares. Neither half is given a chance to name a depth of its own.
+                // The factory, handed straight through: the command builds the map at the depth it writes
+                // and `applyResult` holds the map that same document declares.
                 catalogAt: options.catalogAt,
                 cabinetDepthMm,
-                // The factory, not a probe: the command leases one at the depth it is moving to and
-                // releases it, so the scene's standing kit is never the thing that measures a
-                // kitchen it is not standing at.
+                // The factory, not a probe: the command leases one at the depth it is moving to.
                 probeAt,
                 occurredAt: now(),
               })
-            : // The same safety net `insert` and `setWidth` carry: every body is rebuilt through the
-              // insert path, so there is nothing to rebuild against without a probe.
+            : // The same safety net as `insert` and `setWidth`: every body is rebuilt through the insert path.
               refuse(state.design, {
                 code: "BODY_PROBE_UNAVAILABLE",
                 params: {},
@@ -625,8 +553,7 @@ export function createConfiguratorStore(
           occurredAt: now(),
         });
         if (preflight.outcome === "refused") {
-          // The one thing a refusal writes, exactly as `applyResult` writes it for a single
-          // command: the sentence, and nothing of the design.
+          // The one thing a refusal writes, as in `applyResult`: the sentence, nothing of the design.
           set({ lastRejection: preflight.reason });
           return {
             committed: false,
@@ -634,8 +561,7 @@ export function createConfiguratorStore(
             reason: preflight.reason,
           };
         }
-        // `"unchanged"` runs no command, so it schedules no save: an untouched sheet must leave the
-        // document — and its `updatedAt` — exactly where it found them.
+        // `"unchanged"` runs no command and schedules no save: an untouched sheet leaves `updatedAt` as found.
         if (preflight.outcome === "ready") applyResult(preflight.result);
         return { committed: true };
       },
@@ -658,11 +584,10 @@ export function createConfiguratorStore(
       saveStatus: "idle",
       canWrite: options.canWrite ?? true,
       hasPersistedSuccessfully: designId !== null,
+      hasBeenEdited: false,
       hydrate: (loaded) => {
-        // The load half of the invariant, and where it actually bit: `/api/designs/[id]` already
-        // answers with a document carrying its own `settings.cabinetDepthMm`, so a store that
-        // re-used the map it opened with would evaluate a 700 mm kitchen at 600 mm — its geometry,
-        // its voids and every command after it.
+        // A loaded document carries its own `settings.cabinetDepthMm`: reusing the opening map would
+        // evaluate a 700 mm kitchen at 600 mm.
         const loadedCatalog = catalogFor(loaded.design);
         const geometry = deriveGeometry(loaded.design, loadedCatalog);
         if (get().designId !== loaded.designId)
@@ -677,13 +602,10 @@ export function createConfiguratorStore(
           revision: loaded.revision,
           canWrite: loaded.canWrite,
           hasPersistedSuccessfully: true,
-          // A save status is evidence about the generation that produced it and about no other,
-          // which is the same reason `save-coalescer.ts` binds jobs and refusals to identity.
-          // Carried across, `unauthorized` would render a freshly loaded design this browser owns as
-          // read-only (`isReadOnly` reads it), and the only thing that clears `unauthorized` is a
-          // successful write — whose every control the read-only panel has just disabled. That is a
-          // deadlock no interaction can leave, only a full page reload. `error` and `stopped` leak
-          // the previous design's failure notice onto a design that never failed.
+          hasBeenEdited: false,
+          // A save status describes the generation that produced it, so it resets on load. A carried
+          // `unauthorized` would render a design this browser owns as read-only, and only a successful write
+          // clears it, which the read-only panel has disabled: a deadlock only a reload leaves.
           saveStatus: "idle",
         });
       },
@@ -694,9 +616,7 @@ export function createConfiguratorStore(
       failWriteAccessCheck: ({ designId: attemptedFor }) => {
         const state = get();
         if (state.designId !== attemptedFor) return;
-        // A boolean is an answer the server actually gave. A later probe failing — a retry, or a
-        // second effect run — must not demote it back to "we do not know", which would take a
-        // writable panel away from its own author on the strength of a dropped packet.
+        // A boolean is an answer the server gave: a later failed probe must not demote it to "unknown".
         if (typeof state.canWrite === "boolean") return;
         set({ canWrite: "check-failed" });
       },
@@ -718,8 +638,8 @@ export function createConfiguratorStore(
 }
 
 /**
- * The app mounts one store and one coalescer for the tab. Identity is therefore a session concern,
- * kept at their wiring seam rather than exposed as customer-facing Zustand state.
+ * The app mounts one store and one coalescer per tab; identity is a session concern kept at their wiring
+ * seam, not customer-facing state.
  */
 let saveGeneration = 0;
 
@@ -727,10 +647,8 @@ function advanceSaveGeneration(): void {
   saveGeneration += 1;
 }
 
-/** The store the browser's session runs on — no hard-coded canvas id anywhere, per the milestone's
- *  "Shared" acceptance bullet: the selection owns the target, not any one canvas. Not exported: the
- *  app reads it through `useConfiguratorStore` below, which is the one place that answers a *server*
- *  snapshot from anywhere but this store's own initial state. */
+/** The browser session's store. Not exported: the app reads it through `useConfiguratorStore`, the one place
+ *  that answers a server snapshot from anywhere but this store's own initial state. */
 const sessionStore = createConfiguratorStore({
   design: KITCHEN_L_DESIGN,
   catalogAt: buildKitchenLBodyCatalog,
@@ -764,20 +682,10 @@ function useSessionStoreSlice(
 }
 
 /**
- * The single store instance the app mounts against, with zustand's own call shape.
- *
- * **It differs from a bound zustand store in one thing: the server snapshot.** zustand answers
- * `useSyncExternalStore`'s server snapshot with `getInitialState()`, which for a module singleton is
- * the seeded L — so the server HTML, and React's hydration pass over it, showed the seeded L for
- * every design that was not (backlog 98). Here the server snapshot comes from the nearest
- * `ConfiguratorSnapshotProvider`'s per-render store, and the subscription, `getState`, `setState`
- * and `subscribe` all still address the one session store, so the save coalescer's wiring (ADR 0010
- * decision 2) is untouched.
- *
- * **During the hydration render the hook reads that snapshot store**, so an action selected through
- * it is the snapshot store's own. On the client the provider makes those the session store's actions
- * (`configurator-snapshot.tsx`), so one called before the first post-hydration re-render still
- * reaches the session and its save.
+ * The single store the app mounts against, with zustand's call shape. Its server snapshot is not zustand's
+ * `getInitialState()` (the seeded L, wrong for every other design) but the nearest `ConfiguratorSnapshotProvider`'s
+ * per-render store (ADR 0133); subscription, `getState`, `setState` and `subscribe` still address the session
+ * store, and on the client the provider swaps in the session's actions (`configurator-snapshot.tsx`).
  */
 export const useConfiguratorStore: UseBoundStore<StoreApi<ConfiguratorState>> =
   Object.assign(useSessionStoreSlice, {
@@ -787,22 +695,18 @@ export const useConfiguratorStore: UseBoundStore<StoreApi<ConfiguratorState>> =
     subscribe: sessionStore.subscribe,
   });
 
-/** The session's one coalescer, and the whole of the client write path's wiring (ADR 0010
- *  decision 2). Built on first use rather than at module load for two reasons: this module is
- *  imported by server components too, and `useConfiguratorStore` is not yet initialised while its
- *  own options object is being evaluated. */
+/** The session's one coalescer (ADR 0010 decision 2), built on first use: this module is imported by server
+ *  components, and `useConfiguratorStore` is not initialised while its own options object is evaluated. */
 let saveCoalescer: SaveCoalescer | null = null;
 
-/** Hands a just-applied design to the coalescer and returns. Never awaited by the store, so no
- *  interaction ever blocks on a write (persistence decision 13); the store calls it only after a
- *  successful command, so a refusal persists nothing. */
+/** Hands a just-applied design to the coalescer and returns; never awaited, so no interaction blocks on a
+ *  write. Called only after a successful command. */
 function persistDesignChange(design: Design): void {
   sessionSaveCoalescer().scheduleSave(design);
 }
 
-/** The overwrite half of WEB-003's choice. It reaches the same coalescer as every ordinary save,
- *  because the overwrite has to reconcile with whatever that coalescer already has queued, retrying
- *  or refused for this design — a second writer beside it would be a second lost-update mechanism. */
+/** The overwrite half of the conflict choice. It goes through the same coalescer so it reconciles with
+ *  whatever that coalescer has queued, retrying or refused for this design. */
 function overwriteConflictingDesign(design: Design): void {
   sessionSaveCoalescer().overwriteConflict(design);
 }

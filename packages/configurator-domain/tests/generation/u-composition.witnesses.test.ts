@@ -58,14 +58,16 @@ describe("N4′'s seven witnesses (U3a AC2)", () => {
     expect(plan.towerPosition).toBeUndefined();
   });
 
-  it("3600 / 2400 / 2000: B fridge (bare 100), A core, C hob + bottle (bare 100), no tower", () => {
+  // B's 100 mm beyond the fridge is the owner's Q6 case (M7C wave C5 S2): the cabinet beside the fridge takes it,
+  // so B has no bare end left.
+  it("3600 / 2400 / 2000: B fridge (its 100 mm taken by the cabinet), A core, C hob + bottle (bare 100), no tower", () => {
     const plan = planFor(uRoom(3600, 2400, 2000));
 
     expect(rolesAndBuildIdsOn(plan, "B")).toStrictEqual([
       { role: "storage", buildId: "base-cabinet" },
       { role: "fridge", buildId: "fridge-free" },
     ]);
-    expect(plan.remainderMm.B).toBe(100);
+    expect(plan.remainderMm.B).toBe(0);
     expect(rolesAndBuildIdsOn(plan, "A")).toStrictEqual([
       { role: "sink", buildId: "base-sink" },
       { role: "storage", buildId: "base-dishwasher" },
@@ -300,14 +302,16 @@ describe("ADR 0110 N10.6's six added witnesses (U3a AC2)", () => {
 });
 
 describe("ADR 0110 N11.1: a free-end fridge stands right after its door storage, the remainder beyond it (U3a AC2)", () => {
-  it("3600 / 2400 / 2000: B is door base 900-1500 and fridge 1500-2200, with 100 mm bare beyond; A and C unchanged", () => {
+  // The 100 mm beyond the fridge is the owner's Q6 case (M7C wave C5 S2): the door base takes it (50 mm steps) and
+  // the fridge moves out to the free end, so nothing is left bare.
+  it("3600 / 2400 / 2000: B is door base 900-1600 and fridge 1600-2300, the 100 mm beyond it taken by the base; A and C unchanged", () => {
     const plan = planFor(uRoom(3600, 2400, 2000));
 
     expect(positionedBasesOn(plan, "B")).toStrictEqual([
-      body("base-cabinet", 900, 1500),
-      body("fridge-free", 1500, 2200, "fridge"),
+      body("base-cabinet", 900, 1600),
+      body("fridge-free", 1600, 2300, "fridge"),
     ]);
-    expect(plan.remainderMm.B).toBe(100);
+    expect(plan.remainderMm.B).toBe(0);
     expect(positionedBasesOn(plan, "A")).toStrictEqual([
       body("base-sink", 900, 1500, "sink"),
       body("base-dishwasher", 1500, 2100),
@@ -456,10 +460,11 @@ describe("ADR 0110 N11.3: the sink never leaves wall A (U3a AC2)", () => {
       body("base-3drawer", 1500, 2100, "preparation"),
       body("base-hob-oven", 2100, 2700, "hob"),
     ]);
+    // B's run is 900-2900; the 100 mm beyond the fridge is the owner's Q6 case (M7C wave C5 S2).
     expect(positionedBasesOn(plan, "B")).toStrictEqual([
       body("base-cabinet", 900, 1500),
-      body("base-cabinet", 1500, 2100),
-      body("fridge-free", 2100, 2800, "fridge"),
+      body("base-cabinet", 1500, 2200),
+      body("fridge-free", 2200, 2900, "fridge"),
     ]);
   });
 });

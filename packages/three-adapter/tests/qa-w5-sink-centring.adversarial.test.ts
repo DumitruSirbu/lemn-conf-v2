@@ -1,23 +1,10 @@
-// **Adversarial QA on ADR 0098 — is the sink *derived*, or is 110 a constant tuned to two data
-// points?**
-//
-// `sink-front-clearance.parity.test.ts` gates the ruling over `declaredCabinetDepthsMm()`, which is
-// exactly two numbers. Two points determine a line, so a seat computed by *any* affine rule in the
-// cabinet depth reproduces them; the shipped defect ADR 0098 fixed was itself an affine rule (a seat
-// frozen at zero) that happened to look right at one of them. This file attacks that from the side
-// the declared map cannot reach:
-//
-//   - the relation is swept over hundreds of undeclared depths, so a tuned pair of numbers breaks;
-//   - the 578 mm floor ADR 0098 decision 6 derives is probed on both sides of its transition, where
-//     the sign of the faucet's clearance changes — including at `MIN_CABINET_DEPTH_MM`, which
-//     decision 6 says does **not** protect it;
-//   - the hob and the sink are required to derive their seats by the **same shape**, which is the
-//     owner's *"same principle as with hob"* stated as an invariant rather than as a comment;
-//   - the stone is required to tile its own worktop exactly, which is what stops a future seat from
-//     being applied to the assembly and not to the hole (or the other way round).
-//
-// **Nothing here reads a constant out of the module under test.** Every number is written as data or
-// derived from the owner's ruling, and every measurement is taken off named meshes in a built body.
+// Is the sink's 110 mm derived, or a constant tuned to two data points? (ADR 0098)
+// `sink-front-clearance.parity.test.ts` gates only `declaredCabinetDepthsMm()`, which is two numbers, so
+// any affine rule in the depth reproduces them. This file sweeps undeclared depths, probes the 578 mm floor
+// (decision 6) on both sides of its transition, requires hob and sink to derive their seats by the same
+// shape, and requires the stone to tile its own worktop exactly.
+// Nothing reads a constant out of the module under test: every number is data or derived from the ruling,
+// and every measurement is taken off named meshes in a built body.
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import {
   declaredCabinetDepthsMm,
@@ -39,13 +26,13 @@ const FRONT_CLEARANCE_MM = 110;
 /** The bowl and the hole cut for it: a manufactured size, and the same 400 the aperture is. */
 const APERTURE_DEPTH_MM = 400;
 
-/** ADR 0098 decision 6: `faucetToWallMm(d) = d − 578`. The depth at which the escutcheon meets the
- *  wall plane, derived in the record from the declared constants and re-measured here. */
+/** ADR 0098 decision 6: `faucetToWallMm(d) = d − 578`, the depth at which the escutcheon meets the
+ *  wall plane; re-measured here. */
 const FAUCET_MEETS_THE_WALL_AT_MM = 578;
 
-/** ADR 0087 decision 1's declared fact for the hob, one body over. It is **not** derived from the
- *  sink's and may never be: two appliances, two reasons. It is here only so the *shape* of the two
- *  derivations can be compared without either number being read out of the module. */
+/** ADR 0087 decision 1's declared fact for the hob. Never derived from the sink's: two appliances, two
+ *  reasons. Here so the shape of the two derivations can be compared without reading either number out
+ *  of the module. */
 const HOB_FRONT_CLEARANCE_MM = 10;
 
 /** The one depth the owner's word "centred" is a ruling *about*. */
@@ -66,14 +53,10 @@ const SWEPT_BODY_HEIGHT_M = 0.86;
 const SWEPT_BODY_DEPTH_M = 0.58;
 const SWEPT_BODY_WIDTH_MM = 800;
 
-/** **Every claim in this file is a difference, so the rounding happens once, on the difference.**
- *  A worktop at an odd cabinet depth sits on a half-millimetre — `counterDepthMm` is `d + 20` and
- *  the slab is centred — so rounding each end first turns an exact 1 mm gap into 0 or 2. The
- *  shipped suite never sees this because both declared depths are even; a sweep does, and rounding
- *  a difference is the honest measurement either way.
- *
- *  `+ 0` normalises IEEE-754's negative zero: a gap that rounds down from a hair below zero is
- *  `-0`, which `toEqual` distinguishes from `0` and which is not a distinction about geometry. */
+/** Every claim is a difference, so rounding happens once, on the difference: a worktop at an odd cabinet
+ *  depth sits on a half-millimetre (`counterDepthMm` is `d + 20`, centred), so rounding each end first
+ *  turns an exact 1 mm gap into 0 or 2. `+ 0` normalises negative zero, which `toEqual` distinguishes
+ *  from `0` and which is not a distinction about geometry. */
 const gapMm = (far: number, near: number): number =>
   Math.round((far - near) * 1000) + 0;
 
@@ -116,10 +99,9 @@ function boundsOf(root: THREE.Object3D, ...names: string[]): THREE.Box3 {
   return bounds;
 }
 
-/** The planes every claim below is a relation between, read off named meshes and left in **metres**
- *  so the rounding happens on the difference: the stone's two edges, the hole's two edges and the
- *  back of the faucet. The hole is read off the slabs that bound it rather than off the bowl, so
- *  "the rim lands on it" stays a claim about two independently measured things. */
+/** The planes every claim relates, read off named meshes and left in metres so rounding happens on the
+ *  difference. The hole is read off the slabs that bound it, not the bowl, so "the rim lands on it"
+ *  relates two independently measured things. */
 interface DepthAxisM {
   readonly worktopFront: number;
   readonly worktopBack: number;
@@ -141,11 +123,9 @@ function depthAxisOf(body: THREE.Object3D): DepthAxisM {
 }
 
 describe("the sink's 110 mm is a relation and not a constant tuned to two depths", () => {
-  // **The attack.** `SINK_SEAT_OFFSET_M` is derived, so the clearance in front is the same number at
-  // every depth the builder can be handed — not merely at the two the map declares. A seat that had
-  // been fitted to the declared pair (a literal, a lookup table, an interpolation between 600 and
-  // 700) reproduces both declared rows and breaks the moment a third depth is asked for, which is
-  // what `makeKit` will be handed the day the owner declares one.
+  // The clearance in front is the same number at every depth the builder can be handed, not only the two
+  // declared: a seat fitted to the declared pair (a literal, a table, an interpolation) breaks when a
+  // third depth is asked for.
   propertyTest.prop([fc.integer({ min: 490, max: 1400 })])(
     "leaves the same worktop in front of the bowl at every buildable depth",
     (cabinetDepthMm) => {
@@ -158,10 +138,8 @@ describe("the sink's 110 mm is a relation and not a constant tuned to two depths
     },
   );
 
-  // And the other half of the derivation: every millimetre of added depth lands **behind**. Stated
-  // as the gap's own arithmetic rather than as "it grows", so a seat that gave the back 50 and the
-  // front 50 — the reading ADR 0098 rejected, and the one "centred at every depth" would produce —
-  // fails here rather than passing a monotonicity check.
+  // Every millimetre of added depth lands behind, stated as the gap's own arithmetic rather than "it grows":
+  // a seat that split the addition front and back (the reading ADR 0098 rejected) fails here.
   propertyTest.prop([fc.integer({ min: 490, max: 1400 })])(
     "gives the whole of the added depth to the gap behind the faucet",
     (cabinetDepthMm) => {
@@ -177,8 +155,7 @@ describe("the sink's 110 mm is a relation and not a constant tuned to two depths
     },
   );
 
-  // ADR 0098 decision 6, at its transition rather than near it. The record derives 578 from the
-  // constants; this measures the sign change on both sides of it, which is the only evidence that
+  // ADR 0098 decision 6 at its transition: the sign change on both sides of 578 is the only evidence that
   // the derived floor is the built one.
   it.each([
     { cabinetDepthMm: 577, expected: -1 },
@@ -196,14 +173,10 @@ describe("the sink's 110 mm is a relation and not a constant tuned to two depths
     },
   );
 
-  // **The anti-invariant decision 6 names and deliberately leaves unguarded**, pinned so it cannot
-  // become a surprise: the declared *minimum* cabinet depth does not protect the sink. At 520 the
-  // faucet stands 58 mm **through** the wall plane and becomes the back-most part of its own body,
-  // silently changing what that body occupies. Only `requireDeclaredCabinetDepthMm` keeps that
-  // unreachable, and only for as long as every declared depth is above 578.
-  //
-  // This is a characterisation, not an approval. Whoever declares a third depth below 578 must
-  // re-read ADR 0098 decision 6; this test is what makes that unmissable.
+  // Anti-invariant ADR 0098 decision 6 leaves unguarded: the declared minimum cabinet depth does not
+  // protect the sink. At 520 the faucet stands 58 mm through the wall plane and becomes the back-most part
+  // of its body. Only `requireDeclaredCabinetDepthMm` keeps that unreachable, while every declared depth
+  // is above 578. A characterisation, not an approval: declaring a depth below 578 means re-reading decision 6.
   it("does not protect the sink at MIN_CABINET_DEPTH_MM, which decision 6 says it does not", () => {
     const axis = depthAxisOf(sinkAt(MIN_CABINET_DEPTH_MM));
     const wholeBody = new THREE.Box3().setFromObject(
@@ -225,10 +198,8 @@ describe("the sink's 110 mm is a relation and not a constant tuned to two depths
 });
 
 describe("'centred' is a ruling about 600 and 'like the hob' carries it everywhere else", () => {
-  // The two sentences are one instruction, and only one depth satisfies both literally. Asserted as
-  // an **equality at 600 and an inequality everywhere else**, so a future change that re-centred the
-  // sink at every depth — the option ADR 0098 rejected, and the one that splits the added 100 mm
-  // evenly — fails here even though it would still satisfy "the gap behind grew".
+  // Equality at 600 and inequality everywhere else, so a change that re-centred the sink at every depth
+  // (the option ADR 0098 rejected) fails even though it would still satisfy "the gap behind grew".
   it("splits the worktop evenly at 600 and nowhere else", () => {
     const atSix = depthAxisOf(sinkAt(DEPTH_THE_CENTRING_IS_RULED_AT_MM));
 
@@ -248,10 +219,8 @@ describe("'centred' is a ruling about 600 and 'like the hob' carries it everywhe
     }
   });
 
-  // **Non-vacuity for the shipped gate.** `sink-front-clearance.parity.test.ts`'s centring case
-  // loops over `declaredCabinetDepthsMm()` and `continue`s at every depth but 600, so it asserts
-  // nothing at all the day 600 stops being declared — it passes over an empty set. ADR 0093
-  // decision 1. Nothing there is weakened; the missing precondition is stated here instead.
+  // Non-vacuity for the shipped gate: `sink-front-clearance.parity.test.ts`'s centring case `continue`s at
+  // every depth but 600, so it asserts nothing the day 600 stops being declared (ADR 0093 decision 1).
   it("keeps 600 in the declared map, which is what makes the centring case assert anything", () => {
     expect(declaredCabinetDepthsMm()).toContain(
       DEPTH_THE_CENTRING_IS_RULED_AT_MM,
@@ -260,11 +229,10 @@ describe("'centred' is a ruling about 600 and 'like the hob' carries it everywhe
 });
 
 describe("the hob and the sink derive their seats by one shape", () => {
-  // The owner's *"same principle as with hob"* as an invariant over both appliances at once: each
-  // declares its clearance in **front**, so that number is depth-invariant, and each gives the whole
-  // of any added depth to the gap **behind**. If one of the two were ever re-frozen as a literal
-  // seat — the defect ADR 0087 found in the hob and ADR 0098 found in the sink — its front clearance
-  // would start tracking the depth and this fails for that appliance alone.
+  // The owner's "same principle as with hob" as an invariant over both appliances: each declares its
+  // clearance in front (depth-invariant) and gives all added depth to the gap behind. A seat re-frozen as
+  // a literal (the defect ADR 0087 found in the hob, ADR 0098 in the sink) makes that appliance's front
+  // clearance track the depth, and fails for it alone.
   it.each([
     {
       what: "sink",
@@ -291,9 +259,8 @@ describe("the hob and the sink derive their seats by one shape", () => {
         return {
           cabinetDepthMm,
           frontMm: gapMm(stone.max.z, boundsOf(body, frontMesh).max.z),
-          // The gap behind, less the depth that was added since the shallowest swept kitchen. It is
-          // the added depth landing behind that makes this constant; a rule that split the addition
-          // evenly would grow it by half of every step.
+          // The gap behind less the depth added since the shallowest swept kitchen: constant only if the
+          // added depth lands behind; an even split would grow it by half of every step.
           rearBeyondTheAdditionMm:
             gapMm(boundsOf(body, backMesh).min.z, stone.min.z) -
             (cabinetDepthMm - SHALLOWEST_SWEPT_DEPTH_MM),
@@ -312,9 +279,8 @@ describe("the hob and the sink derive their seats by one shape", () => {
     },
   );
 
-  // …and the two numbers stay different numbers. ADR 0098's Consequences: *"`HOB_FRONT_CLEARANCE_MM`
-  // is 10 and this is 110; they are different appliances with different reasons and neither number
-  // may be derived from the other."* A wave that unified them would pass every relation above.
+  // The hob's 10 and the sink's 110 are different appliances with different reasons and neither may be
+  // derived from the other (ADR 0098 Consequences); unifying them would pass every relation above.
   it("keeps the two clearances independent numbers", () => {
     const sink = depthAxisOf(sinkAt(DEPTH_THE_CENTRING_IS_RULED_AT_MM));
     const hobBody = bodyAt(
@@ -333,11 +299,9 @@ describe("the hob and the sink derive their seats by one shape", () => {
 });
 
 describe("the stone tiles its own worktop, at every depth and down to the narrowest sink", () => {
-  // ADR 0098 decision 5's real content: **four slabs and one assembly drawn from one seat.** The
-  // shipped gate checks the rim against the aperture; this checks the *stone* against itself — that
-  // the four slabs cover the whole worktop rectangle except the hole, with no gap and no overlap.
-  // A seat applied to three of the four is a body with a visible slot in it that every
-  // envelope-shaped gate passes.
+  // ADR 0098 decision 5: four slabs and one assembly drawn from one seat. This checks the stone against
+  // itself: the slabs cover the worktop except the hole, with no gap or overlap. A seat applied to three of
+  // the four leaves a visible slot that every envelope-shaped gate passes.
   propertyTest.prop([
     fc.integer({ min: 560, max: 1400 }),
     fc.constantFrom(NARROWEST_SINK_WIDTH_MM, 600, 700, 800),
@@ -368,11 +332,8 @@ describe("the stone tiles its own worktop, at every depth and down to the narrow
     },
   );
 
-  // The width boundary the catalogue actually offers: at `SINK_MIN_WIDTH_MM` the 560 mm bowl fills
-  // the carcass, so the two flanking slabs are exactly zero wide. Characterised rather than
-  // asserted away — it is the catalogue's own floor and it predates ADR 0098 — because a future
-  // widening of the aperture would turn these into **negative** slabs, which is a body drawn
-  // inside out and is what this pins.
+  // At `SINK_MIN_WIDTH_MM` the 560 mm bowl fills the carcass, so the flanking slabs are exactly zero wide.
+  // Pinned because a wider aperture would make them negative: a body drawn inside out.
   it("collapses the flanking slabs to nothing at the narrowest offered sink, never past it", () => {
     for (const cabinetDepthMm of declaredCabinetDepthsMm()) {
       const sides = boundsOf(
@@ -389,10 +350,9 @@ describe("the stone tiles its own worktop, at every depth and down to the narrow
 });
 
 describe("the sink in the room it ships in", () => {
-  // The gate one level up from the body: the seeded room's own sink base, measured **in room
-  // coordinates** against the wall it stands against. ADR 0098's rear gap is only real if the
-  // faucet is in front of the wall plane in the assembled kitchen, not merely inside its own body's
-  // envelope — and the wall is drawn by a different builder from the cabinet.
+  // One level up from the body: the seeded room's sink base in room coordinates, against the wall it
+  // stands against. The wall is drawn by a different builder from the cabinet, so the rear gap is only
+  // real if the faucet is in front of the wall plane in the assembled kitchen.
   it.each(declaredCabinetDepthsMm())(
     "keeps the faucet in front of the wall it stands against at %i mm",
     (cabinetDepthMm) => {
@@ -417,8 +377,7 @@ describe("the sink in the room it ships in", () => {
     },
   );
 
-  // Exactly one sink in the shipped room, so the measurement above is about a body and not about
-  // the union of two. Non-vacuity for the `boundsOf` union.
+  // Exactly one sink, so the measurement above is about a body and not the union of two.
   it.each(declaredCabinetDepthsMm())(
     "holds exactly one sink assembly at %i mm",
     (cabinetDepthMm) => {

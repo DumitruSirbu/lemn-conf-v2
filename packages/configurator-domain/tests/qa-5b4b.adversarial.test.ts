@@ -1,24 +1,3 @@
-// Adversarial QA for M5B wave 5B4b — ADR 0046 part 2, the capped merge.
-//
-// Three things the wave's own criteria leave open, each found by applying a named mutant and seeing
-// green:
-//
-// 1. **No fixture merges more than two columns into one block.** Criteria 1, 3, 4 and 9 all run on
-//    runs of two or three columns whose greedy answer is a *pair* plus a leftover, so a scan that
-//    stopped every block at two members is indistinguishable from the shipped one. Maximality — "the
-//    **widest** contiguous sub-run" — is the whole of ADR 0046 rule 1 and nothing asserted it.
-// 2. **Criterion 9's own named mutant survives its fixture.** Carrying the previous block's total
-//    into the next block leaves three 300s and 300 + 500 + 300 unchanged; it takes six columns
-//    before the two answers part company, and it does not break the fixpoint, so only a positional
-//    assertion on a longer chain catches it.
-// 3. **The odd-total decline is asserted through `projectEmptyColumns` but never through a command.**
-//    Criterion 8 says `applyCommandResult` never throws; the store half of that is
-//    `apps/web/tests/store/qa-5b4b.adversarial.test.ts`, and what is asked here is the domain half on
-//    all five projected fields rather than on two of them.
-//
-// It also carries the adjudication of `qa-5b2b`'s restated round-trip property: the merge makes the
-// literal key-set equality false, and this asserts what stays true underneath it, so that a merge
-// which genuinely *broke* the round trip could not hide behind the restatement.
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
@@ -95,9 +74,8 @@ function load(design: Design): Loaded {
   return { columns, records, voids: recomputeVoids(records, columns) };
 }
 
-/** Wide enough that `loadStored`'s widest sweep (buckets up to 27, at 150 mm cells) never
- *  reaches the wall's own end — this file is about the merge's round trip, not
- *  `clipEmptyColumnsAtWallEnd`, which has its own test file. */
+/** Wide enough that `loadStored`'s widest sweep (buckets up to 27, at 150 mm cells) never reaches the wall's
+ *  own end; wall-end clipping has its own test. */
 const ROOM: DesignRoom = {
   shape: "L",
   widthMm: 7000,
@@ -105,8 +83,7 @@ const ROOM: DesignRoom = {
   heightMm: 2600,
 };
 
-/** The stored spaces straight into `deriveColumns`, with no placements — `qa-5b2b`'s own round trip,
- *  which runs on a frozen map rather than on a document. */
+/** The stored spaces straight into `deriveColumns`, with no placements: a round trip on a frozen map. */
 function loadStored(emptyColumns: readonly EmptyColumn[]): Loaded {
   const columns = deriveColumns([], { emptyColumns: emptyColumns }, ROOM);
   return { columns, records: [], voids: recomputeVoids([], columns) };
@@ -140,8 +117,7 @@ function emptyExtentsOf(loaded: Loaded): Record<string, ExtentMm> {
   return extents;
 }
 
-/** Abutting spaces laid from one edge, exactly as `layOutFromLeftEdge` in the wave's own file: each
- *  centre is the running edge plus half the width. */
+/** Abutting spaces laid from one edge: each centre is the running edge plus half the width. */
 function layOutFromLeftEdge(
   widths: readonly number[],
   firstEdgeMm: number,
@@ -157,9 +133,8 @@ function layOutFromLeftEdge(
 }
 
 describe("a block is the widest run under the cap, not the first pair under it", () => {
-  // ADR 0046 rule 1 is *widest*, and every fixture in the wave's own file has a greedy answer of two
-  // columns plus a leftover. Stop the scan at two members and criteria 1, 2, 3, 4, 9 and 12 are all
-  // still green; four 200s is the shortest run where two-at-a-time and widest part company.
+  // ADR 0046 rule 1 is *widest*: a scan that stops every block at two members passes every pair-plus-leftover
+  // fixture, and four 200s is the shortest run where two-at-a-time and widest part company.
   it("merges four abutting 200s into one 800, not into two 400s", () => {
     const loaded = load(
       designWith(layOutFromLeftEdge([200, 200, 200, 200], 1000)),
@@ -170,10 +145,9 @@ describe("a block is the widest run under the cap, not the first pair under it",
     });
   });
 
-  // Criterion 9's own named mutant — "seed each run with the previous block's accumulated total" —
-  // leaves three 300s and 300 + 500 + 300 untouched *and* stays a fixpoint, so the criterion it was
-  // written for cannot fail it. Six 200s is where it shows: carrying 800 forward makes the second
-  // block a single 200 instead of a 400, and the answer is positional.
+  // A mutant seeding each run with the previous block's accumulated total leaves three 300s and 300 + 500 + 300
+  // unchanged and stays a fixpoint. Six 200s shows it: carrying 800 forward makes the second block a single 200
+  // instead of a 400.
   it("takes a second block at its own full width after a first block hit the cap", () => {
     const loaded = load(
       designWith(layOutFromLeftEdge([200, 200, 200, 200, 200, 200], 1000)),
@@ -185,8 +159,7 @@ describe("a block is the widest run under the cap, not the first pair under it",
     });
   });
 
-  // The fixpoint, on a chain long enough for maximality to matter: the wave's own fixpoint test runs
-  // on two three-column chains, and a block capped at two members is a fixpoint on both.
+  // A block capped at two members is a fixpoint on two three-column chains, so this chain is longer.
   it("returns its own output unchanged on a six-column chain", () => {
     const first = load(
       designWith(layOutFromLeftEdge([200, 200, 200, 200, 200, 200], 1000)),
@@ -199,23 +172,16 @@ describe("a block is the widest run under the cap, not the first pair under it",
 });
 
 describe("the merge conserves the wall it merges, which is what the restated round trip rests on", () => {
-  // **The adjudication of `qa-5b2b`'s restated property.** That property asserted that the key set
-  // `deriveColumns(projectEmptyColumns(frozen))` restores equals `frozen`'s own, and 5B4b restated it
-  // against the *merged* map. A correct merge does make the literal reading false — merging is a
-  // total function on the map that combines keys — but "the merge changed it" is also what a merge
-  // that lost a space would say. What survives a correct merge is conservation: the millimetres of
-  // wall the frozen columns own are exactly the millimetres the restored ones own, and every frozen
-  // span lies inside exactly one restored span. A dropped or moved column is red here whatever the
-  // merge does, which is what makes the restatement honest rather than an assertion weakened to fit.
+  // What survives a correct merge is conservation: the millimetres of wall the frozen columns own equal those the
+  // restored ones own, and every frozen span lies inside exactly one restored span. A dropped or moved column is
+  // red whatever the merge does, so the restated round-trip property is not weakened to fit.
   propertyTest.prop([
     fc.uniqueArray(fc.integer({ min: 0, max: 27 }), {
       minLength: 1,
       maxLength: 12,
     }),
   ])("owns the same millimetres of wall after a round trip", (buckets) => {
-    // 150 mm cells on a 150 mm lattice, so neighbouring buckets abut and merge while the rest do
-    // not — `qa-5b2b`'s own fixture shape, which is what makes this the adjudication of its
-    // restated property rather than a new one.
+    // 150 mm cells on a 150 mm lattice, so neighbouring buckets abut and merge while the rest do not.
     const frozen = loadStored(
       buckets.map((bucket) => emptySpace(bucket * 150 + 75, 150)),
     );
@@ -262,9 +228,8 @@ function coveredMillimetresOf(loaded: Loaded): readonly number[] {
 }
 
 describe("the depth envelope neither invents depth nor merges across a real difference", () => {
-  // The team's explicit case, and the one ADR 0046 rule 2 does not name: a cleared wall-depth column
-  // beside a cleared base-depth one. 270 mm apart is far past `LEVEL_SNAP_M`, so they stay two — and
-  // each keeps the depth it had, which is what a body is offered.
+  // A cleared wall-depth column beside a cleared base-depth one, a case ADR 0046 rule 2 does not name: 270 mm
+  // apart is far past `LEVEL_SNAP_M`, so they stay two and each keeps its depth.
   it("keeps a 330 mm wall column out of a 600 mm base column", () => {
     const loaded = load(
       designWith([
@@ -281,11 +246,8 @@ describe("the depth envelope neither invents depth nor merges across a real diff
     expect(depthMmOfOpeningIn(loaded, "A|2.30")).toBe(600);
   });
 
-  // The other side of the tolerance, and the reason the envelope is `min(d)` rather than `max(d)`:
-  // two columns 20 mm apart in depth **do** merge, and the merged column publishes the shallower of
-  // the two. The 20 mm the deeper member gives up is real depth lost; offering the extra 20 mm
-  // instead would be depth invented, and ADR 0046's own note picks the safe side. Asserted so that a
-  // later switch to `max` is a red test rather than a reviewer's catch.
+  // The envelope is `min(d)`, not `max(d)`: columns 20 mm apart in depth merge and publish the shallower,
+  // because offering the extra 20 mm would be depth invented (ADR 0046's note). A switch to `max` must be red.
   it("publishes the shallower depth when two columns merge inside the tolerance", () => {
     const loaded = load(
       designWith([
@@ -300,8 +262,7 @@ describe("the depth envelope neither invents depth nor merges across a real diff
     expect(depthMmOfOpeningIn(loaded, "A|2.15")).toBe(580);
   });
 
-  // One millimetre past the tolerance and they are two columns again, so the predicate is a
-  // comparison against `LEVEL_SNAP_M` rather than a comparison that happens to be true.
+  // One millimetre past the tolerance they are two columns again: the predicate compares against `LEVEL_SNAP_M`.
   it("keeps two columns 21 mm apart in depth separate", () => {
     const loaded = load(
       designWith([
@@ -324,9 +285,8 @@ function depthMmOfOpeningIn(loaded: Loaded, key: string): number {
 }
 
 describe("geometry, and not the cap, is what stops a merge across a standing body", () => {
-  /** A real 800 mm sink seated across 1900–2700, which is the shape the seeded corner has and the
-   *  seeded corner cannot demonstrate: `A|0.30` + `A|0.75` total 900, so the **cap** turns them away
-   *  before `standsIn` is ever asked. This run totals 600. */
+  /** A real 800 mm sink seated across 1900–2700. The seeded corner cannot demonstrate this: `A|0.30` + `A|0.75`
+   *  total 900, so the cap turns them away before `standsIn` is asked; this run totals 600. */
   const SINK_ACROSS_THE_RUN = [
     {
       id: "p0",
@@ -347,9 +307,7 @@ describe("geometry, and not the cap, is what stops a merge across a standing bod
     expect(600).toBeLessThanOrEqual(MAX_EMPTY_COLUMN_WIDTH_MM);
   });
 
-  // The identical run, the identical widths, the identical cap — and the only difference is a body
-  // standing under it. Touching edges alone would merge here, and the space published would be space
-  // the sink is occupying.
+  // Same run, same widths, same cap; only a body standing under it differs. Touching edges alone would merge.
   it("declines the identical run once a body stands across it", () => {
     const loaded = load(designWith(RUN_OVER_THE_SINK, SINK_ACROSS_THE_RUN));
 
@@ -362,9 +320,8 @@ describe("geometry, and not the cap, is what stops a merge across a standing bod
 });
 
 describe("an unmergeable run is declined, and stays projectable on every field", () => {
-  // The odd-total decline, stated as a worked example rather than only as a swept property: two
-  // 51 mm spaces laid from a half-millimetre edge are each on an integer centre — which is what a
-  // document stores — while their merged centre is 1050.5. The merge leaves them alone.
+  // Two 51 mm spaces laid from a half-millimetre edge are each on an integer centre (what a document stores)
+  // while their merged centre is 1050.5, so the merge leaves them alone.
   it("leaves an odd-total run of two unmerged rather than keying it half a millimetre out", () => {
     const loaded = load(designWith(layOutFromLeftEdge([51, 51], 999.5)));
 
@@ -377,11 +334,8 @@ describe("an unmergeable run is declined, and stays projectable on every field",
     ).not.toThrow();
   });
 
-  // Criterion 8 on **all five** projected fields. `landsOnWholeMillimetres` guards the centre and
-  // the width; `y0Mm`, `topMm` and `depthMm` are whole only because `measure` refused every column
-  // that was not, and that is an argument rather than an assertion until it is swept. This is the
-  // pair of expressions the phase has twice been caught by — the guarded one and the projected one —
-  // asked as one question.
+  // Every projected field is whole: `landsOnWholeMillimetres` guards centre and width, while `y0Mm`, `topMm` and
+  // `depthMm` are whole only because `measure` refused every column that was not; swept, so that is asserted.
   propertyTest.prop([
     fc.boolean(),
     fc.array(fc.integer({ min: 25, max: 400 }), { minLength: 2, maxLength: 5 }),
@@ -394,8 +348,8 @@ describe("an unmergeable run is declined, and stays projectable on every field",
       const design = designWith(
         layOutFromLeftEdge(widths, odd ? 999.5 : 1000, { depthMm, topMm }),
       );
-      // Conservation, not wall-end clipping, is this property's subject — widened so the sweep's
-      // widest run (five 800 mm columns from a 1000 mm left edge) never reaches wall A's own end.
+      // Conservation, not wall-end clipping, is the subject: widened so five 800 mm columns from a 1000 mm edge
+      // never reach wall A's own end.
       const loaded = load({
         ...design,
         room: { ...design.room, widthMm: 6000 },
@@ -409,8 +363,7 @@ describe("an unmergeable run is declined, and stays projectable on every field",
         expect(Number.isInteger(entry.y0Mm)).toBe(true);
         expect(Number.isInteger(entry.topMm)).toBe(true);
         expect(Number.isInteger(entry.depthMm)).toBe(true);
-        // Never invented: the merge takes the conservative envelope, so no published column is
-        // deeper or taller than the members it came from.
+        // Never invented: the merge takes the conservative envelope, so no column is deeper or taller than its members.
         expect(entry.depthMm).toBe(depthMm);
         expect(entry.topMm).toBe(topMm);
       }
@@ -421,10 +374,8 @@ describe("an unmergeable run is declined, and stays projectable on every field",
   );
 });
 
-/** The seeded kitchen is fully occupied and publishes no openings at all, so the seeded half of the
- *  sweep below has to free one first: the hob column, whose three members are all deletable. The
- *  frozen map is the one the design loaded with, because ADR 0011 Gap D leaves a delete's extents
- *  alone — re-deriving from the remaining records is what makes the freed column vanish. */
+/** The seeded kitchen is fully occupied and publishes no openings, so the hob column (all three members
+ *  deletable) is freed first. The frozen map is the loaded one: ADR 0011 Gap D leaves a delete's extents alone. */
 function clearedHobColumn(): Loaded {
   const cleared = ["p2", "p13", "p19"].reduce((current: Design, id) => {
     const result = removePlacement({
@@ -443,8 +394,7 @@ function clearedHobColumn(): Loaded {
     KITCHEN_L_DESIGN.room,
   );
   const records = derivePlacementRecords(cleared, CATALOG);
-  // The store's `resolveColumns` in one line: merge over the published map, then re-answer
-  // `hasFullHeightUnder` over the extents the merge just wrote.
+  // The store's `resolveColumns` in one line: merge over the published map, then re-answer `hasFullHeightUnder`.
   const columns = withCurrentFullHeightMembers(
     mergeAdjacentEmptyColumns(frozen, records),
     records,
@@ -453,14 +403,9 @@ function clearedHobColumn(): Loaded {
 }
 
 describe("a void's key and a void's coordinate are one fact, which is what the restatement rests on", () => {
-  // **The adjudication of `vacated-void.test.ts`'s restated fixture.** "Ignores a slot in another
-  // column" used to be built as a slot carrying `col: "A|2.00"` while standing at the vacated body's
-  // own `x` of 1.3, and 5B4b moved it. Restating a test that a change made false is how a regression
-  // hides, so the judgement it rests on is asserted here rather than argued: `recomputeVoids` derives
-  // a void's `col` and its along-wall coordinate from the same column, so `deriveColumnKeyAt` over a
-  // void's own coordinate is always its own `col`. The old fixture was therefore a record no
-  // derivation produces, and the restated one — the slot standing where its key says it stands — is
-  // the same criterion asked of a reachable state.
+  // `recomputeVoids` derives a void's `col` and its along-wall coordinate from the same column, so
+  // `deriveColumnKeyAt` over a void's own coordinate is always its own `col`; a fixture whose key disagrees with
+  // its coordinate is a record no derivation produces.
   it.each([
     ["a cleared column of the seeded kitchen", clearedHobColumn()],
     [
@@ -509,11 +454,9 @@ describe("the §5.1 fallback, attacked", () => {
     };
   }
 
-  // The key is the primary match and the geometry is the fallback, in that order — and the order is
-  // load-bearing because columns overlap. `A|0.45`'s 900 mm corner base spans the ground under both
-  // `A|0.30` and `A|0.75`, so a wider opening can contain the vacated centre while the vacated
-  // column's own opening is sitting right there. Put the wider one first in the list: a fallback that
-  // ran before the key match would take it.
+  // The key is the primary match and geometry the fallback, in that order, because columns overlap: `A|0.45`'s
+  // 900 mm corner base spans the ground under both `A|0.30` and `A|0.75`. The wider one is listed first, so a
+  // fallback running before the key match would take it.
   it("prefers the vacated column's own opening to a wider one that also contains it", () => {
     const wider = slot({ id: "wider", col: "A|0.45", x: 0.45, w: 0.9 });
     const own = slot({ id: "own", col: "A|0.30", x: 0.3, w: 0.6 });
@@ -524,9 +467,8 @@ describe("the §5.1 fallback, attacked", () => {
     ).toBe("own");
   });
 
-  // Strict containment, at the boundary that decides it: an opening whose right edge lands exactly on
-  // the vacated centre touches it and does not contain it. Relax either comparison to `<=` and the
-  // opening beside the freed space claims the selection.
+  // Strict containment: an opening whose edge lands exactly on the vacated centre touches and does not contain
+  // it; relaxing either comparison to `<=` lets the neighbour claim the selection.
   it.each([
     ["its right edge on the vacated centre", { x: 1.0, w: 0.6 }],
     ["its left edge on the vacated centre", { x: 1.6, w: 0.6 }],
@@ -536,8 +478,8 @@ describe("the §5.1 fallback, attacked", () => {
     expect(findVacatedVoid([touching], stoodAt())).toBeUndefined();
   });
 
-  // The fallback is geometric, so the wall is part of the geometry: wall B's openings are measured on
-  // `z` and a wall-A delete must never reach them, however the two coordinates happen to line up.
+  // The fallback is geometric, so the wall is part of it: wall B's openings are measured on `z` and a wall-A
+  // delete must never reach them.
   it("ignores an opening on the other wall at the same along-wall coordinate", () => {
     const otherWall = slot({
       id: "other-wall",
@@ -550,9 +492,8 @@ describe("the §5.1 fallback, attacked", () => {
     expect(findVacatedVoid([otherWall], stoodAt())).toBeUndefined();
   });
 
-  // And the same fallback works on wall B, which is the branch `alongWallCoordinate` exists to keep
-  // from being transposed: the coordinate read is `z`, and a slot whose `x` would contain the centre
-  // is not a match.
+  // The wall-B branch, which `alongWallCoordinate` keeps from being transposed: the coordinate read is `z`, so a
+  // slot whose `x` would contain the centre is not a match.
   it("selects a containing opening on wall B by its own along-wall coordinate", () => {
     const onB = slot({
       id: "on-b",
@@ -571,20 +512,15 @@ describe("the §5.1 fallback, attacked", () => {
 });
 
 describe("the inversion guard, asserted as the document rather than as the map", () => {
-  /** Two 1 mm-tall spaces whose floors are 20 mm apart: they agree on every condition within
-   *  `LEVEL_SNAP_M`, and the conservative envelope — highest floor, lowest top — turns them inside
-   *  out. */
+  /** Two 1 mm-tall spaces whose floors are 20 mm apart agree on every condition within `LEVEL_SNAP_M`, and the
+   *  conservative envelope (highest floor, lowest top) turns them inside out. */
   const SHORTER_THAN_THE_TOLERANCE_THEY_AGREE_WITHIN = [
     emptySpace(2000, 300, { y0Mm: 0, topMm: 1 }),
     emptySpace(2300, 300, { y0Mm: 20, topMm: 21 }),
   ];
 
-  // The wave's own inversion test asserts the two keys first and the document second, so the second
-  // half never runs once the first fails. This asserts **only** the document, because that is the
-  // half that says why the guard is a security fix: an inverted interval overlaps nothing, so
-  // neither `standsIn` nor the document's own overlap sweep can see it, and `EMPTY_COLUMN_INVERTED`
-  // is the one refusal that can — which means a merge without the guard writes a design the customer
-  // can no longer save, with nothing in session saying so.
+  // Asserts only the document: an inverted interval overlaps nothing, so only `EMPTY_COLUMN_INVERTED` can see it,
+  // and a merge without the guard writes a design the customer can no longer save, with nothing saying so.
   it("projects a document the validator accepts", () => {
     const design = designWith(SHORTER_THAN_THE_TOLERANCE_THEY_AGREE_WITHIN);
     const loaded = load(design);
@@ -599,17 +535,15 @@ describe("the inversion guard, asserted as the document rather than as the map",
 });
 
 describe("wall B merges on its own axis", () => {
-  // `alongWallPosition`'s other branch, which the whole shipped merge route never reaches: every
-  // merge fixture in this wave is on wall A, where `x` moves and `z` is the half-depth. Transposed,
-  // the merged column steps off the wall and keys at its own depth.
+  // `alongWallPosition`'s other branch, which the shipped merge route never reaches: transposed, the merged
+  // column steps off the wall and keys at its own depth.
   it("moves z and leaves x at the column's half-depth", () => {
     const design = designWith([
       emptySpace(2000, 300, { wall: "B" }),
       emptySpace(2300, 300, { wall: "B" }),
     ]);
-    // This is about the axis transpose, not about wall length — the fixture room's own wall B
-    // (`depthMm: 2400`) is shorter than the merged run's 2450 mm far edge, which would otherwise
-    // clip the very column the test means to read back untouched.
+    // The room's wall B (`depthMm: 2400`) is shorter than the merged run's 2450 mm far edge, which would clip the
+    // column the test reads back untouched.
     const loaded = load({ ...design, room: { ...design.room, depthMm: 4200 } });
 
     const merged = loaded.columns.get("B|2.15");

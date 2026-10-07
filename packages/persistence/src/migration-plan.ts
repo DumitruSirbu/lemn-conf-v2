@@ -12,12 +12,8 @@ export interface AppliedMigration {
 }
 
 /**
- * The migrations still to run, in order, given what the ledger says has already been applied.
- *
- * Pure on purpose: every refusal this runner can make about *what* to apply is decided here, from
- * two plain lists, so each rule can be tested without a database and without racing one. The
- * database-shaped concerns — the advisory lock, the transaction, the insert — live in `migrate.ts`
- * and decide only *how*.
+ * The migrations still to run, in order, given what the ledger says was applied. Pure on purpose: every refusal about
+ * what to apply is decided here from two plain lists, testable without a database; `migrate.ts` decides only how.
  */
 export function planPendingMigrations(
   files: readonly MigrationFile[],
@@ -43,21 +39,11 @@ export function planPendingMigrations(
 }
 
 /**
- * A ledger row whose file is missing has two very different causes, and telling the operator the
- * wrong one sends them looking for something that never happened.
- *
- * **This checkout is older than the database.** 0004 shipped and applied; the deployment was rolled
- * back for an unrelated reason; the operator ran `migrate` from the older revision as the restore
- * runbook's drill step instructs. Every file this checkout has *is* in the ledger, and the ledger
- * simply goes further. Nobody deleted anything, so a message about deletion misdirects.
- *
- * **A genuine hole.** A ledger version sits below the highest version on disk with no file to match
- * it — the definition of a schema change that ran has been removed or renamed away.
- *
- * Both are refused. The first is benign as a *state* but not as a *result*: reporting success would
- * tell the operator the database is at the schema this checkout expects, which is precisely what it
- * is not, and this runner cannot know whether the extra migration is compatible with the code being
- * rolled back to. So it stops, and says which of the two it is.
+ * A ledger row whose file is missing has two causes, and naming the wrong one misdirects the operator. This checkout
+ * may be older than the database (the ledger simply goes further; nothing was deleted), or a ledger version below the
+ * highest on disk has no file (a migration that ran was removed or renamed). Both are refused: reporting success on the
+ * first would claim the database is at the schema this checkout expects, and this runner cannot know the extra
+ * migration is compatible with the code being rolled back to.
  */
 function assertEveryAppliedMigrationStillHasItsFile(
   files: readonly MigrationFile[],
@@ -106,9 +92,8 @@ function describeOrphans(orphans: readonly AppliedMigration[]): string {
 }
 
 /**
- * The checksum hashes the file's bytes, so renaming a migration without editing it changes nothing
- * it can see. The ledger records `file_name` precisely so this is answerable — and until it was
- * compared, the refusal message promised to catch a rename that in fact passed silently.
+ * The checksum hashes the file's bytes, so renaming a migration without editing it changes nothing it can see. The
+ * ledger records `file_name` so a rename is caught here.
  */
 function assertFileNameUnchanged(
   file: MigrationFile,
@@ -132,9 +117,8 @@ function assertChecksumUnchanged(
 }
 
 /**
- * A file already applied, sitting after one that is not, means the database skipped a step: it
- * holds the later schema change without the earlier one. Running the earlier migration now would
- * apply it against a shape it was never written for, so this refuses instead.
+ * A file already applied after one that is not means the database skipped a step; running the earlier migration now
+ * would apply it against a shape it was never written for, so this refuses.
  */
 function assertNothingEarlierIsStillPending(
   file: MigrationFile,
@@ -150,7 +134,6 @@ function assertNothingEarlierIsStillPending(
   );
 }
 
-/** Built here so the long refusal message stays out of the guard above. */
 function checksumMismatchError(
   file: MigrationFile,
   appliedRow: AppliedMigration,

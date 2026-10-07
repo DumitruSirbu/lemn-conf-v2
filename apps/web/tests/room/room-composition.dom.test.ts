@@ -1,32 +1,14 @@
 // @vitest-environment happy-dom
-//
-// **Sub-state 1F, driven through the real screen** — M7 wave 7F4a, criteria 24, 25, 26, 27, 28, 29,
-// 31, 32 and 35.
-//
-// Three things are mocked and each for a stated reason.
-//
-// **`next/navigation`, one layer below the component's own import**, exactly as
-// `room-screen.dom.test.ts` mocks it: what a spy receives is the localized URL the browser would be
-// sent to, and next-intl's href construction is exercised rather than stubbed.
-//
-// **`@lemnaria/three-adapter`, over the real module.** Only `makeKit`, `createBodyProbe` and
-// `disposeKit` are replaced — the three the run's probe factory calls — so the **lease bracket in
-// `use-generation.ts` is the code under test** rather than a stand-in for it, and the ledger counts
-// the real allocations and releases that file makes. Everything else in the adapter is the adapter's.
-//
-// **`generateKitchen`, wrapped rather than replaced.** The default is the domain's own
-// implementation, so every assertion below runs against a genuinely composed log; the spy is there to
-// count calls (criterion 27) and, in two tests, to make the engine refuse or throw (criterion 35).
-//
-// Romanian is never spelled here: every expected sentence is read out of the imported catalogue.
+// `next/navigation` is mocked one layer below the component's import, so spies receive the localized href.
+// Only `makeKit`, `createBodyProbe` and `disposeKit` are replaced in the adapter, so the lease bracket in
+// `use-generation.ts` stays under test.
 import type { BodyProbe, BodyProbeLease } from "@lemnaria/configurator-domain";
 import { NextIntlClientProvider } from "next-intl";
 import { act, createElement, StrictMode, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-/** The address bar, the live query and the router. `search` is what `useSearchParams` reads: under
- *  ruling R9 the screen derives the room from the query the browser holds. */
+/** The address bar, the live query and the router; `search` is what `useSearchParams` reads. */
 const browser = vi.hoisted(() => ({
   pathname: "/ro/configurator/room",
   search: "",
@@ -51,11 +33,8 @@ vi.mock("next/navigation", async (importOriginal) => ({
   }),
 }));
 
-// **`createFakeBodyProbe` is reached through a static import at the bottom of this file, never from
-// inside the factory.** `tests/support/fake-body-probe.ts` itself imports `@lemnaria/three-adapter`
-// for `isCatalogBuildId`, so an `await import(…)` of it *here* asks the adapter's own mock factory to
-// finish before it can finish — a cycle that hangs the run rather than failing it, which is an hour
-// nobody should spend twice.
+// `createFakeBodyProbe` is imported statically below, never via `await import` in this factory: its module imports
+// `@lemnaria/three-adapter`, so a dynamic import here would wait on this very mock factory and hang the run.
 vi.mock("@lemnaria/three-adapter", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("@lemnaria/three-adapter")>();
@@ -100,8 +79,7 @@ const ROOM_QUERY = "shape=L&wallA=4.2&wallB=3&height=2.5&direction=left";
 const SMALLEST_ROOM_QUERY =
   "shape=L&wallA=0.9&wallB=2.2&height=2.2&direction=left";
 
-/** The depth the lease in the throwing test is taken at. It only has to be a depth — nothing is
- *  measured — and it is the kitchen's declared one so the fake kit is the one the run would build. */
+/** Any depth would do; it is the kitchen's declared one so the fake kit is the one the run would build. */
 const DECLARED_CABINET_DEPTH_MM = 600;
 
 /** The probe the fake kit answers with. It measures what the builder would actually produce, so an
@@ -112,13 +90,10 @@ function fakeProbeAtKitDepth(cabinetDepthMm: number | undefined): BodyProbe {
   });
 }
 
-/** How long a run may take before this file gives up on it. A settled run takes about 15 ms here;
- *  the margin is for the tap that pays for the adapter's dynamic import.
- *
- *  **Polled rather than slept through, and every test waits for its own run to end.** A fixed sleep
- *  that came up short left the previous run in flight, so its `generateKitchen` call and its kit
- *  landed in the *next* test's counters — which is what a leaked asynchronous run always does to a
- *  suite, and it read as *"the generator was called twice"*. */
+/**
+ * How long a run may take before this file gives up on it; the margin covers the adapter's dynamic import.
+ * Polled, not slept through: a run left in flight leaks its `generateKitchen` call and kit into the next test.
+ */
 const RUN_TIMEOUT_MS = 3000;
 const POLL_MS = 5;
 
@@ -135,24 +110,9 @@ function render(locale: CatalogueLocale = "ro"): void {
 }
 
 /**
- * The same screen under `<StrictMode>`, which is **the configuration the application actually ships
- * to development**: `next.config.ts:9` sets `reactStrictMode: true`. Criterion 27 is otherwise proved
- * against a React that single-invokes effects, which is not the React a developer runs.
- *
- * **What this catches, measured by breaking it rather than argued** (2026-09-14). Two effect-started
- * shapes were substituted for the handler and this file re-run:
- *
- *   - **A mount effect** — caught, loudly and by eleven tests: the composition starts with no tap at
- *     all, so the form is never drawn and the top bar reads *Preset* on arrival.
- *   - **An effect keyed on a tap flag** — **not** caught by this test, and the reason is worth
- *     knowing: React re-runs effects at **mount** only, so an effect whose first run is an *update*
- *     is invoked once under StrictMode just as it is without it. It was caught by *"balances the
- *     ledger over two runs in succession"* instead, because a dep that does not change cannot fire a
- *     second run.
- *
- * So R15's rule holds, and its **stated reason is narrower than it reads**: *"an effect that
- * generates runs twice in development"* is true of a mount effect and not of a tap-flag one. Both are
- * refused here; only the first is refused by StrictMode.
+ * The same screen under `<StrictMode>`, which `next.config.ts` enables in development.
+ * StrictMode re-runs effects at mount only: a mount effect that generates is caught here, one keyed on a tap flag
+ * by *"balances the ledger over two runs in succession"*.
  */
 function renderUnderStrictMode(locale: CatalogueLocale = "ro"): void {
   renderWrappedIn((screen) => createElement(StrictMode, null, screen), locale);
@@ -176,8 +136,7 @@ function renderWrappedIn(
   });
 }
 
-/** Real timers throughout: the run deliberately crosses a `requestAnimationFrame` before it blocks
- *  (criterion 29), and fake timers would let it skip the very frame that proves the point. */
+/** Real timers throughout: the run crosses a `requestAnimationFrame` before it blocks, which fake timers would skip. */
 async function waitUntil(settled: () => boolean, what: string): Promise<void> {
   for (let waited = 0; waited < RUN_TIMEOUT_MS; waited += POLL_MS) {
     if (settled()) return;
@@ -244,11 +203,8 @@ function queryOf(href: unknown): URLSearchParams {
 }
 
 /**
- * The settle's `router.replace` coming back as the query the browser holds.
- *
- * The router here is a spy, so nothing moves the address bar on its own — which is what lets a test
- * hold a departure **in flight** and tap again before it lands. Delivering the echo is what resolves
- * it, and `useRoomDeparture` pushes only when the live query comes back as the exact text it flushed.
+ * The settle's `router.replace` coming back as the query the browser holds. The router is a spy, so a test can hold
+ * a departure in flight; `useRoomDeparture` pushes only when the live query returns the exact text it flushed.
  */
 function deliverTheFlush(): void {
   const flushed: unknown = browser.replace.mock.calls.at(-1)?.[0];
@@ -265,10 +221,8 @@ function lengthField(field: string): HTMLInputElement {
   return control;
 }
 
-/** A keystroke as the browser delivers it. Written through the prototype's setter rather than as
- *  `input.value = …`: React defines its own `value` property on the element to track what it last
- *  rendered, so a plain assignment updates that tracker too and the `input` event looks like no
- *  change at all. `room-url-round-trip.dom.test.ts` carries the same note. */
+/** A keystroke written through the prototype's setter: React tracks `value` on the element, so a plain assignment
+ *  updates that tracker and the `input` event looks like no change. */
 function typeIntoLengthField(field: string, text: string): void {
   act(() => {
     const control = lengthField(field);
@@ -305,41 +259,17 @@ afterEach(() => {
 });
 
 /**
- * **The hand-off wave 7F4b added, held open here rather than left to the network** (2026-09-15).
- *
- * A composition that settles now mints a design, and until this stub existed that `POST` left
- * `happy-dom` opening a real socket to `localhost:3000` — an `ECONNREFUSED` per settled run, whose
- * timing decided how far the hand-off got and therefore whether a second `browser.push` had landed
- * by the time an assertion below counted them. **This file's subject is the composition**, and every
- * assertion in it predates the hand-off; holding the write open keeps each one measuring what it was
- * written to measure and leaves every push count the departure's alone.
- *
- * **It never answers, rather than failing**, so the hand-off gets no further than its first `fetch`:
- * `compose` marks the run `saving` before the write is issued and nothing moves it off that, where a
- * rejection would land after the test that started it had finished and update `RoomScreen` outside
- * `act`. **Every push and request count below is counted against that stop** — a hand-off allowed to
- * settle here would add a second `browser.push` and a `PUT` to totals this file reads as the
- * departure's alone. The hand-off's own guarantees — one row, navigation only after the write, and
- * the disarm — are `room-handoff.dom.test.ts`'s.
+ * Holds every request open so a settled run's hand-off stops at its first `fetch` instead of opening a real socket.
+ * It never answers: a rejection would land after the test ended and update `RoomScreen` outside `act`.
+ * Push and request counts below are therefore the departure's alone; the hand-off's guarantees are
+ * `room-handoff.dom.test.ts`'s.
  */
 function holdEveryRequestOpen(): void {
   vi.stubGlobal("fetch", () => new Promise<Response>(() => undefined));
 }
 
-/**
- * **The two departure sequences this wave made new, and the reason they are tested here.**
- *
- * `qa-7f1-d45-convergence.adversarial.test.ts` pins the departure machine over sequences, and every
- * one of its sequences **leads with *Continuă***. From 7F4a on, that first tap replaces the form with
- * 1F whenever the draft resolves to a room the domain accepts — so those exact gestures became
- * unperformable and were re-pointed at a draft that does not compose.
- *
- * What is left reachable at a composable draft is the mirror image, and it was **never** covered by
- * that file because it did not exist until this wave: a departure armed by ***Înapoi*** that a
- * *Continuă* tap then overrides **while starting a run**, and a departure armed by *Continuă* whose
- * flush lands after the customer has already left 1F. Both go through the untouched machine in
- * `room-query-sync.ts`; what is new is the run alongside it.
- */
+// The sequences reachable only at a composable draft; those in `qa-7f1-d45-convergence.adversarial.test.ts` lead
+// with *Continuă*, which opens 1F here.
 describe("a departure in flight, with a composition beside it", () => {
   it("lets the primary tap override an armed back tap and compose the room it flushed", async () => {
     render();
@@ -349,15 +279,12 @@ describe("a departure in flight, with a composition beside it", () => {
     tapFormBack();
     tapContinue();
 
-    // Nothing has left yet: both taps are waiting on the same flush.
     expect(browser.push).not.toHaveBeenCalled();
     deliverTheFlush();
     await settleComposition();
 
-    // The second button's destination wins — the room's query, not the shape step's bare pathname.
     expect(browser.push).toHaveBeenCalledTimes(1);
     expect(queryOf(browser.push.mock.calls[0]?.[0]).get("wallA")).toBe("4.3");
-    // And exactly one composition ran, for the room the customer typed rather than the stale URL.
     expect(vi.mocked(generateKitchen)).toHaveBeenCalledTimes(1);
     expect(vi.mocked(generateKitchen).mock.calls[0]?.[0].room.widthMm).toBe(
       4300,
@@ -371,22 +298,15 @@ describe("a departure in flight, with a composition beside it", () => {
 
     tapContinue();
     await settleComposition();
-    // 1F's own back is a **state clear**, not a departure: it does not disarm the flush the tap
-    // issued, and it must not strand the customer when that flush finally echoes.
+    // 1F's own back is a state clear, not a departure: it does not disarm the flush, which must not strand the
+    // customer.
     tapComposeBack();
     expect(maybeAt("room-fields")).not.toBe(null);
 
     deliverTheFlush();
 
-    // The push fires, and it carries the room the customer is looking at — the URL already showing,
-    // so it mints no history entry.
-    //
-    // **The seam this named for 7F4b, and where it was settled.** The late thing a primary tap arms
-    // is no longer only this flush: it also arms a write, whose own navigation *does* move the
-    // customer. That one is disarmed by the run token — `room-handoff.dom.test.ts`'s
-    // *"lets the write land but moves nobody when the customer has gone back"*. **This push stayed a
-    // no-op**, and `room-query-sync.ts` was not touched to make it one: its destination is still the
-    // room's own query, which is the URL already showing.
+    // The push fires and carries the room already showing, so it mints no history entry; the write's own navigation is
+    // disarmed by the run token (`room-handoff.dom.test.ts`).
     expect(browser.push).toHaveBeenCalledTimes(1);
     expect(queryOf(browser.push.mock.calls[0]?.[0]).get("wallA")).toBe("4.3");
     expect(maybeAt("room-fields")).not.toBe(null);
@@ -396,8 +316,7 @@ describe("a departure in flight, with a composition beside it", () => {
 
 describe("entering composition (criteria 24, 27, 29)", () => {
   it("is reached from the tap and appears nowhere in the URL", async () => {
-    // The guard the rest of this file stands on: a query that did not resolve to 1D would make every
-    // assertion below pass over a screen nobody meant to draw.
+    // Precondition: a query not resolving to 1D would make every assertion below pass over the wrong screen.
     expect(
       parseRoomUrlState(Object.fromEntries(new URLSearchParams(ROOM_QUERY)))
         .substate,
@@ -410,9 +329,7 @@ describe("entering composition (criteria 24, 27, 29)", () => {
 
     expect(browser.search).toBe(ROOM_QUERY);
     expect(pushState).not.toHaveBeenCalled();
-    // The departure still happens exactly as it did before this wave: one push, carrying the
-    // canonical room and no key composition invented. What the spy receives is the localized href
-    // next-intl builds, because the mock sits one layer below the component's own router import.
+    // The spy receives next-intl's localized href, because the mock sits one layer below the component's router import.
     expect(browser.push).toHaveBeenCalledTimes(1);
     const destination = new URL(
       String(browser.push.mock.calls[0]?.[0]),
@@ -427,10 +344,8 @@ describe("entering composition (criteria 24, 27, 29)", () => {
 
     tapContinue();
 
-    // Asserted *before* the run settles, and this is criterion 29's whole mechanism: the list is on
-    // the glass while `generateKitchen` has not been entered.
     expect(vi.mocked(generateKitchen)).not.toHaveBeenCalled();
-    // Six rows since wave 7D5b: the dishwasher's joined the five (ADR 0110 Amendment M3).
+    // Six rows, the dishwasher's among them (ADR 0110 Amendment M3).
     expect(rowStatuses()).toEqual([
       "pending",
       "pending",
@@ -461,9 +376,7 @@ describe("entering composition (criteria 24, 27, 29)", () => {
   });
 
   it("calls the generator exactly once per tap under StrictMode too", async () => {
-    // **The configuration the application ships** (`next.config.ts:9`), and the only one in which the
-    // defect R15 forbids is visible: an effect that generated would build two kits here and one
-    // everywhere else in this file. One tap, one call — asserted where a double would show.
+    // StrictMode is the configuration the app runs in development; an effect that generated would build two kits here.
     renderUnderStrictMode();
 
     tapContinue();
@@ -479,7 +392,6 @@ describe("entering composition (criteria 24, 27, 29)", () => {
     tapContinue();
     await settleComposition();
 
-    // Six rows since wave 7D5b: the dishwasher's joined the five (ADR 0110 Amendment M3).
     expect(rowStatuses()).toHaveLength(6);
     expect(rowStatuses()).not.toContain("pending");
   });
@@ -511,13 +423,11 @@ describe("the top bar in composition (criterion 25)", () => {
 describe("the body is replaced, not hidden (criterion 26)", () => {
   it("removes the form from the DOM and restores the draft exactly on the back control", async () => {
     render();
-    // A notation the refill would not reproduce — `canonicalRoomQuery` writes `4.2`, which comes back
-    // as *"4200"*, and the customer typed a leading zero (ADR 0126). It survives only if nothing
-    // re-seeded the draft from the query, which is the claim.
-    //
-    // **Why not text that never parsed at all**: an L asks for three lengths, and a field that does
-    // not read as a length puts the room back at 1B, where there is no room to compose. The
-    // unparsed-residue half of criterion 26 is unreachable from 1F by construction.
+    // A notation the refill would not reproduce: `canonicalRoomQuery` writes `4.2`, which reads back as "4200" (ADR
+    // 0126).
+    // The leading zero survives only if nothing re-seeded the draft from the query.
+    // Text that never parsed is unreachable here: an unreadable length puts the room back at 1B, with nothing to
+    // compose.
     typeIntoLengthField("wallA", "04200");
 
     tapContinue();
@@ -536,7 +446,6 @@ describe("the body is replaced, not hidden (criterion 26)", () => {
 
 describe("the rows the frame draws (criteria 31, 32)", () => {
   it("draws a dropped role as the frame draws it, and never strikes its text", async () => {
-    // The owner's smallest accepted room: the fridge has no wall to stand on.
     browser.search = SMALLEST_ROOM_QUERY;
     render();
 
@@ -579,9 +488,9 @@ describe("the kit is borrowed and released on every path (criterion 28)", () => 
   });
 
   it("balances the ledger when the composition throws", async () => {
-    // The throw is placed *inside* `lease.use`, which is where a real one happens: it is the
-    // `finally` in `createBodyProbeLease` that this asserts, reached through the factory
-    // `use-generation.ts` builds.
+    // The throw is placed inside `lease.use`, as a real one would be, so the `finally` in `createBodyProbeLease` is
+    // what
+    // is asserted.
     vi.mocked(generateKitchen).mockImplementationOnce((input) => {
       const lease: BodyProbeLease = input.probeAt(DECLARED_CABINET_DEPTH_MM);
       return lease.use(() => {
@@ -601,8 +510,7 @@ describe("the kit is borrowed and released on every path (criterion 28)", () => 
 
     tapContinue();
     tapComposeBack();
-    // The run cannot be cancelled — `generateKitchen` is one synchronous call — so what is asserted
-    // is that it still gives the kit back after the customer has gone.
+    // `generateKitchen` is one synchronous call and cannot be cancelled; the abandoned run must still return the kit.
     await settleReleasedKits(1);
 
     expect(kitLedger).toEqual({ built: 1, disposed: 1 });
@@ -676,15 +584,8 @@ describe("a refusal or a throw is a dead end the customer can leave (criterion 3
   );
 
   it("draws no row at all when the refusal's own log holds placed bodies", async () => {
-    // **`generateKitchen`'s second refusal arm** (`generate-kitchen.ts:296-300`): the plan's minimum
-    // was met, and then `insertBody` refused the sink or the hob at the real probe. The log it
-    // refuses over carries the bodies that *did* insert — here the fridge — and folding it into rows
-    // put ***Frigider · 700 — inclus*** under ***Compunerea nu s-a putut finaliza***, for a design
-    // that was discarded and that nobody will ever open (coordinator's ruling, 2026-09-15).
-    //
-    // Mocked rather than provoked, because reaching this arm through the engine needs a plan whose
-    // arithmetic and whose probe disagree. The shape of the value is the domain's own: `ok: false`
-    // with a log whose steps include a `placed` one.
+    // The engine's second refusal arm: the refusal's log holds placed bodies (here the fridge), yet a discarded design
+    // must draw no row. Mocked: reaching it through the engine needs a plan whose arithmetic and probe disagree.
     vi.mocked(generateKitchen).mockImplementationOnce((input) => ({
       ok: false,
       reason: { code: "MINIMUM_NOT_MET", params: {} },
@@ -724,17 +625,11 @@ describe("a refusal or a throw is a dead end the customer can leave (criterion 3
     tapContinue();
     await settleFailure();
 
-    // No row, rather than rows the view remembers to hide: `GenerationRunState`'s `failed` member
-    // carries none.
     expect(rowStatuses()).toEqual([]);
     expect(maybeAt("room-compose-rows")).toBe(null);
     expect(maybeAt("room-compose-row-fridge")).toBe(null);
-    // **The sweep reads the screen with the rule paragraph removed, and that is not a relaxation.**
-    // Since the owner's 2026-09-15 ruling `status.placed` is *inclus* and `status.notPlaced` is *nu
-    // poate fi inclus* — the first is a substring of the second — and the rule paragraph, which this
-    // screen draws in every phase, contains the second by design. Left whole, the assertion would
-    // fail on approved copy rather than on a drawn row. Every other node still has to be free of the
-    // word, so a fridge row leaking onto a failed screen is caught exactly as before.
+    // The rule paragraph is removed before the sweep: `status.placed` (*inclus*) is a substring of `status.notPlaced`,
+    // which the rule paragraph contains by design.
     const textOutsideTheRule = container.textContent.replace(
       roMessages.room.compose.rule,
       "",
@@ -749,18 +644,9 @@ describe("a refusal or a throw is a dead end the customer can leave (criterion 3
 });
 
 /**
- * **A browser Back out of 1F clears the run and shows the form** — the coordinator's ruling of
- * 2026-09-15, and there was no coverage of the gesture at all before it.
- *
- * The screen cannot read this traversal off the URL, which is why it is an event here and a
- * `popstate` in `room-screen.tsx`. `departTo("presets")` **pushes** the room's own query and the
- * entry behind it is the settle's `replace` of that same query, so **both entries carry the same
- * text**: `liveText` does not move, the sub-state is 1D on both sides, and an effect keyed on either
- * cannot fire. What the customer saw before this ruling was 1F still on the glass and a Back button
- * that appeared to do nothing.
- *
- * R13 is untouched: nothing about composition is written to or read from the URL — the run is ended
- * by the gesture.
+ * A browser Back out of 1F is a `popstate` event (`room-screen.tsx`), not a URL change: `departTo("presets")` pushes
+ * the room's own query over an entry holding the same text, so `liveText` does not move and no effect keyed on it
+ * fires.
  */
 describe("a browser Back out of composition", () => {
   function pressBrowserBack(): void {
@@ -790,8 +676,9 @@ describe("a browser Back out of composition", () => {
     pressBrowserBack();
 
     expect(maybeAt("room-fields")).not.toBe(null);
-    // The run cannot be cancelled — `generateKitchen` is one synchronous call — so what is asserted
-    // is that the abandoned run releases its kit and never paints over the form (the run token).
+    // `generateKitchen` is one synchronous call and cannot be cancelled; the abandoned run must release its kit and
+    // never
+    // paint over the form (the run token).
     await settleReleasedKits(1);
     expect(kitLedger).toEqual({ built: 1, disposed: 1 });
     expect(maybeAt("room-compose")).toBe(null);

@@ -1,13 +1,3 @@
-// Adversarial QA for wave 5D2b — ADR 0035 decisions 6 and 7.
-//
-// The wave lets a resize *create* a column where none existed, and exempts the hood from its
-// column's width. Both change what the frozen column map holds after a command and what physically
-// stands where, so every test here is about the map and the geometry it names rather than about the
-// placement widths the implementer's own tests already pin.
-//
-// **Three of these failed when QA wrote them; all three are closed.** FINDING C was the last, and it
-// was an open product decision rather than a defect — the owner answered it on 2026-08-29 and the row
-// below now asserts the answer.
 import { describe, expect, it } from "vitest";
 
 import type { DesignPlacement, DesignWall } from "../../src/design.js";
@@ -47,10 +37,8 @@ function placement(
 
 const OVERLAP_EPSILON_M = 1e-6;
 
-// M7B U1 slice S1's minimal type-level fix: `Column["wall"]` (`DesignWall`) is widened to include
-// `"C"` (ADR 0132), and ADR 0132 decision 1 keeps wall C's along on world `z`, the same axis wall
-// B's already reads — so the `wall === "A" ? x : z` split below stays correct for every wall this
-// type now names.
+// `Column["wall"]` includes "C"; ADR 0132 decision 1 keeps wall C's along on world `z`, like wall B's, so the
+// `wall === "A" ? x : z` split stays correct for every wall.
 function alongOf(
   wall: DesignWall,
   at: { readonly x: number; readonly z: number },
@@ -79,8 +67,8 @@ function totalOn(
     .reduce((sum, column) => sum + Math.round(column.w * 1e6) / 1e3, 0);
 }
 
-/** Every key in the map is the key its own geometry derives — the invariant the wave's collision
- *  guard exists to protect, stated over the whole map rather than over the one key it checks. */
+/** Every key in the map is the key its own geometry derives, asked of the whole map rather than of the one
+ *  key the collision guard checks. */
 function findMiskeyedColumns(columns: ReadonlyMap<string, Column>): string[] {
   const violations: string[] = [];
   for (const [key, column] of columns) {
@@ -128,8 +116,8 @@ function bodiesInOpenings(
   return [...new Set(found)].sort();
 }
 
-/** Two solid bodies occupying the same place — §3.1 read across columns rather than within one.
- *  Nothing in the engine asks this, and the hood exemption is the first rule that can produce it. */
+/** Two solid bodies in the same place (§3.1 read across columns); the hood exemption is the first rule that
+ *  can produce it. */
 function findInterpenetratingBodies(
   records: readonly PlacementRecord[],
 ): string[] {
@@ -164,24 +152,11 @@ function findInterpenetratingBodies(
  *  publishes them. Wide enough to cover every chip any member offers. */
 const STEPS = [200, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 800];
 
-// **FIXED.** The resize is now refused `COLUMN_KEY_COLLISION` rather than silently overwriting the
-// third column. Refusing is the decided answer and matches how the *created strip's* collision was
-// already handled: §3.2's key is a position, two columns cannot hold one, and losing a run with no
-// command naming it is the worst of the three outcomes. These assertions were written expecting the
-// move to succeed and preserve both columns; they now pin the refusal instead.
+// §3.2's key is a position and two columns cannot hold one, so a colliding resize is refused, not overwritten.
 describe("FINDING A — the resized column's new key must not replace another column", () => {
-  // §3.2's columns may overlap along the wall, which is exactly the premise the wave's own guard is
-  // built on: `vacatedEmptySpace` (set-width.ts:~880) refuses when the **created** strip keys onto a
-  // column the frozen map already holds. The **resized** column's new key is never asked the same
-  // question, and every accepted resize moves that key.
-  //
-  // `moveFrozenColumns` (set-width.ts:~1200) deletes the two old keys and then `updated.set`s the
-  // two new ones. A `set` onto a third column's key overwrites it — `regions`, `top`, `d`, `w` and
-  // all. The bodies filed under that key still derive it, so `refuseColumnDrift` sees nothing.
-  //
-  // A 600 mm base run at 1000 (700–1300) and a 300 mm wall unit at 950 (800–1100), filed under
-  // `A|1.00` and `A|0.95`. Shrinking the base run to 500 holds its left edge at 700 and puts its new
-  // centre at 950 — `A|0.95`, the wall unit's own column.
+  // §3.2's columns may overlap along the wall: a 600 mm base run at 1000 (700–1300) and a 300 mm wall unit at
+  // 950 (800–1100), filed under `A|1.00` and `A|0.95`. Shrinking the base run to 500 holds its left edge and
+  // puts its new centre at 950, the wall unit's own column.
   function overlappingColumns(): KitchenWorld {
     return syntheticWorld([
       placement("base-run", 1000, 0, "base-panbank", 600, 860),
@@ -197,8 +172,7 @@ describe("FINDING A — the resized column's new key must not replace another co
   });
 
   it("refuses rather than losing the wall unit's frozen column", () => {
-    // The wall unit was neither resized nor moved, so ADR 0011 Gap D says its frozen extent comes
-    // through untouched. Before the fix it came through as the base run's.
+    // The wall unit was neither resized nor moved, so its frozen extent must come through untouched (ADR 0011 Gap D).
     const world = overlappingColumns();
     const before = world.columns.get("A|0.95");
 
@@ -207,7 +181,6 @@ describe("FINDING A — the resized column's new key must not replace another co
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.reason.code).toBe("COLUMN_KEY_COLLISION");
-    // The design is untouched, so the column it would have clobbered is still exactly itself.
     const untouched = world.columns.get("A|0.95");
     expect(untouched && extentOf(untouched)).toEqual(
       before && extentOf(before),
@@ -215,8 +188,7 @@ describe("FINDING A — the resized column's new key must not replace another co
   });
 
   it("conserves the along-wall total, by refusing the move that would not", () => {
-    // 900 mm of column before (600 + 300). The accepted move gave 600 (500 + the 100 strip): the
-    // wall unit's 300 mm column simply gone. Refusing is what conserves it.
+    // 900 mm of column before (600 + 300); the refused move would have dropped the wall unit's 300 mm column.
     const world = overlappingColumns();
     const before = totalOn(world.columns, "A");
 
@@ -227,9 +199,8 @@ describe("FINDING A — the resized column's new key must not replace another co
   });
 
   it("does the same thing on a growth, so the hole predates decision 7", () => {
-    // The guard added by this wave is on the created strip only, and the identical collision on the
-    // resized column's own key is reachable through ADR 0031's original path — a growth consuming an
-    // empty column that was already there.
+    // The guard on the created strip does not cover the resized column's own key: a growth consuming an empty
+    // column that was already there reaches the same collision (ADR 0031).
     const world = clearBodies(
       syntheticWorld([
         placement("run-base", 1000, 0, "base-panbank", 300, 860),
@@ -249,21 +220,11 @@ describe("FINDING A — the resized column's new key must not replace another co
   });
 });
 
-// **FIXED.** The exemption is now scoped to the hoods of the column being resized, so a hood in a
-// different column is visible to the phantom check again and this move is refused. The assertion
-// below was written expecting the move to succeed with no opening over the hood; the honest outcome
-// is that it does not succeed at all.
 describe("FINDING B — the hood exemption must not let a real phantom opening through", () => {
-  // `bodiesUnderOpenings` (set-width.ts:~1390) skips **every** hood in the design, on both sides of
-  // the before/after diff — not only the hood in the column being resized. A hood standing in a
-  // different column is therefore invisible to the phantom check, and the empty column funding a
-  // shrink can widen straight over it.
-  //
-  // This is the shipped kitchen's own measured `RESIZE_OPENS_GAP` scenario with a hood in the role
-  // of the corner leg. A 600 mm run at 1000 (700–1300); an empty column at 1600 (1300–1900); a hood
-  // in its own overlapping column at 950 (650–1250). Shrinking the run to 300 holds its left edge at
-  // 700 and hands 300 mm back to the empty column, which becomes 1000–1900 — 250 mm of it over the
-  // hood, at wall level, where before the resize there was none.
+  // The exemption is scoped to the hoods of the column being resized, so a hood in another column stays visible
+  // to the phantom check. A 600 mm run at 1000 (700–1300); an empty column at 1600 (1300–1900); a hood in its own
+  // overlapping column at 950 (650–1250). Shrinking the run to 300 would widen the empty column to 1000–1900,
+  // 250 mm of it over the hood.
   function hoodBesideEmptySpace(): KitchenWorld {
     return clearBodies(
       syntheticWorld([
@@ -287,9 +248,7 @@ describe("FINDING B — the hood exemption must not let a real phantom opening t
 
     const result = resizeTo(world, "run-base", 300);
 
-    // `RESIZE_OPENS_GAP` is the whole point of the phantom check: the empty column funding this
-    // shrink would widen across 250 mm of a hood standing in another column. The hood is exempt
-    // from this check only while it belongs to the column being resized.
+    // The empty column funding this shrink would widen across 250 mm of a hood standing in another column.
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.reason.code).toBe("RESIZE_OPENS_GAP");
@@ -298,15 +257,9 @@ describe("FINDING B — the hood exemption must not let a real phantom opening t
 });
 
 describe("FINDING C — a re-centring hood may not be pushed through the cabinet next door", () => {
-  // ADR 0035 decision 6 as amended keeps the hood's width and re-centres it on the run. When the run
-  // shrinks, the hood therefore overhangs **both** edges — the vacated strip on one side, and
-  // whatever is standing on the other. Nothing checked the far side.
-  //
-  // A wall cabinet at 400 (100–700) beside a 600 mm run at 1000 (700–1300) carrying a 600 mm hood.
-  // Shrinking the run to 300 leaves the run at 700–1000 and the hood at 550–1150: 150 mm of hood
-  // inside the wall cabinet. Both bodies are wall-level, both are solid, and they now share the
-  // space. Before this wave the hood was a full member and took the column's width, so this shape
-  // was not representable.
+  // ADR 0035 decision 6 keeps the hood's width and re-centres it on the run, so a shrinking run leaves the hood
+  // overhanging both edges. A wall cabinet at 400 (100–700) beside a 600 mm run at 1000 (700–1300) carrying a
+  // 600 mm hood: shrinking the run to 300 would put 150 mm of hood inside the wall cabinet.
   function hoodBesideACabinet(): KitchenWorld {
     return syntheticWorld([
       placement("left-base", 400, 0, "base-panbank", 600, 860),
@@ -322,16 +275,8 @@ describe("FINDING C — a re-centring hood may not be pushed through the cabinet
     );
   });
 
-  // **DECIDED 2026-08-29, and un-skipped as the assertion that the shrink is refused.** QA left this
-  // skipped because ADR 0039 sanctions the hood overhanging and says nothing about the overhang
-  // landing on a *cabinet*, so the three answers — refuse the shrink, allow the overlap, clamp the
-  // hood — were a product question rather than a defect.
-  //
-  // The owner chose none of the three as a guard: *"if 600 is minimum for the hood, then is logic to
-  // set the minimum 600 mm, and grey out the −50mm button."* **The floor makes the state
-  // unreachable**, which is why the assertion below is a refusal and not a geometry check. A column
-  // holding a 600 mm hood cannot be narrowed to 300, so there is no "after the shrink" to inspect —
-  // and the `−50` carries that as its reason before the tap, per ADR 0032, rather than failing on it.
+  // The hood's 600 mm floor makes the overhang unreachable: a column holding it cannot be narrowed to 300, so
+  // the assertion is a refusal, not a geometry check (ADR 0035 decision 6).
   it("refuses the shrink that would push it there", () => {
     const world = hoodBesideACabinet();
 
@@ -343,9 +288,7 @@ describe("FINDING C — a re-centring hood may not be pushed through the cabinet
   });
 
   it("still refuses at the first step past the hood's width, not only at the extreme", () => {
-    // 550 is the tap a customer actually makes: one press of `−50` from 600. It re-centred the hood
-    // 25 mm into the neighbour, and eight presses buried 200 mm of it. One press is refused for the
-    // same reason the eighth is.
+    // 550 is the tap a customer actually makes, one press of `−50` from 600; it is refused like the extreme.
     const world = hoodBesideACabinet();
 
     const result = resizeTo(world, "run-base", 550);
@@ -356,8 +299,6 @@ describe("FINDING C — a re-centring hood may not be pushed through the cabinet
   });
 
   it("leaves nothing interpenetrating at any width the column still accepts", () => {
-    // The invariant behind the refusal, swept rather than argued: every width the run can still
-    // reach leaves the hood inside it, so no accepted move produces the overlap.
     const world = hoodBesideACabinet();
     const violations: string[] = [];
 
@@ -380,9 +321,8 @@ describe("FINDING C — a re-centring hood may not be pushed through the cabinet
 });
 
 describe("run-total conservation and geometry, swept over the shipped kitchen", () => {
-  // Every body, at every chip §9 can render, and the four facts an accepted resize must not break.
-  // All four hold: the shipped kitchen has no two columns whose keys a resize can collide, so
-  // FINDING A is unreachable from this fixture.
+  // Every body at every chip §9 can render, against the four facts an accepted resize must not break. The
+  // shipped kitchen has no two columns whose keys a resize can collide.
   function sweep(
     check: (world: KitchenWorld, result: never, tap: string) => string[],
   ): string[] {
@@ -475,11 +415,8 @@ describe("run-total conservation and geometry, swept over the shipped kitchen", 
 
 describe("the strip a shrink creates", () => {
   it("becomes a selectable opening at 50 mm, with nothing that can be built in it", () => {
-    // ADR 0037 permits leaving an unusable strip empty, and `MIN_SPAN_M` floors an opening's
-    // **height**, never its width — so the strip is not filtered out of §4's openings. Recorded
-    // rather than asserted against: three openings, 50 mm wide, sixteen catalogue rows offered and
-    // none of them buildable. That is the §11 row 17 shape ("an opening with zero valid contents"),
-    // arrived at from the other direction.
+    // ADR 0037 permits leaving an unusable strip empty, and `MIN_SPAN_M` floors an opening's height, never its
+    // width, so the strip stays among §4's openings: three 50 mm openings with no offers (§11 row 17's shape).
     const world = kitchen();
 
     const result = resizeTo(world, "p4", 550);
@@ -509,9 +446,8 @@ describe("the strip a shrink creates", () => {
   });
 
   it("is refused outright when its key collides, even though the other side is empty", () => {
-    // `VACATED_SPACE_SIDE` is fixed to `right` and the collision guard has no mirror: a strip whose
-    // key is taken ends the shrink with `NO_EMPTY_SPACE`, without trying the left edge — which here
-    // is open wall with nothing on it at all.
+    // `VACATED_SPACE_SIDE` is fixed to `right` and the collision guard has no mirror: a strip whose key is taken
+    // ends the shrink with `COLUMN_KEY_COLLISION` without trying the left edge, which here is open wall.
     const world = syntheticWorld([
       placement("run-base", 1000, 0, "base-panbank", 600, 860),
       placement("blocker", 1150, 1500, "open-shelf", 300, 700),
@@ -521,8 +457,7 @@ describe("the strip a shrink creates", () => {
 
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    // One guard answers this since clean-code review R3.5, and it answers with *where* the strip
-    // would land rather than with "there is no space" — the space is exactly what there is.
+    // The code names where the strip would land, not that there is no space.
     expect(result.reason.code).toBe("COLUMN_KEY_COLLISION");
   });
 });
@@ -538,11 +473,6 @@ describe("the load census, re-derived from the rules rather than from the code",
   // | `A|0.75` 300 | p10, p16 | 200–800 | 2 | 10 |
   // | `A|2.00` 600 | p1, p12, p18 | {450, 600} (§11 row 14) | 1 | 0 |
   // | `B|1.80` 600 | p6, p23 | 400–800 (ADR 0048's pantry bound) | 4 | 4 |
-  //
-  // **The last row is ADR 0048 and it is the only one that moved.** The seeded pantry `p6` declared
-  // `fixedWidth: true` until the owner flipped it on 2026-09-01, so its column contributed nothing
-  // to any of the three counts; the pantry's own 400 mm floor is what makes the intersection start
-  // there rather than at the wall cabinet's 200.
   //
   // Shrinks accepted: 4×3 + 6×3 + 7×2 + 2×2 + 1×3 + 4×2 = 12 + 18 + 14 + 4 + 3 + 8 = **59**.
   // `NO_EMPTY_SPACE`: every growth, since the kitchen loads with no empty column, plus the two
@@ -568,10 +498,8 @@ describe("the load census, re-derived from the rules rather than from the code",
   });
 
   it("refuses exactly the two taps whose vacated strip keys onto the corner leg's column", () => {
-    // `A|0.30` spans 0–600 and `A|0.45` — the corner leg `p25` — spans 0–900. Narrowing to 300
-    // vacates 300–600, centre 450, key `A|0.45`. Every other step misses it: 200 → `A|0.40`,
-    // 250 → `A|0.43`, 350 → `A|0.48`, 400 → `A|0.50`, 450 → `A|0.53`, 500 → `A|0.55`,
-    // 550 → `A|0.58`. So 300 and only 300 collides, on both members.
+    // `A|0.30` spans 0–600 and the corner leg `p25`'s `A|0.45` spans 0–900. Narrowing to 300 vacates 300–600,
+    // centre 450, key `A|0.45`; every other step lands on a free key (200 → `A|0.40` … 550 → `A|0.58`).
     const world = kitchen();
     const refused: string[] = [];
     for (const id of ["p8", "p15"]) {

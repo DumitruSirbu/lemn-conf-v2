@@ -4,53 +4,25 @@ import { alongThisCanvas } from "./canvas-taps";
 import { openSeededDesign, type SeededDesign } from "./seeded-design";
 
 /**
- * Navigation and selector helpers for the specs that drive §9's panel by touch. No assertion lives
- * here (`docs/best-practices/browser-and-visual-qa.md`): these only move the app and read what it
- * says.
- *
- * The verbs are driven through the real panel — `panel-remove` and the `offer-{buildId}` rows —
- * which is what M4 replaced `TemporaryDevControls` with. The numbers the specs assert on come from
- * `[data-testid="selection-debug"]`, the one hook `ConfigureScreen` renders for the purpose. That
- * hook exists only in a build that set `NEXT_PUBLIC_LEMNARIA_ENABLE_SELECTION_DEBUG=1` (finding
- * WEB-004); `playwright.config.ts` sets it on the server it starts, and nothing else does.
- *
- * The column under test is the fridge column of `KITCHEN_L_DESIGN` (`B|2.45`), which stands on
- * **wall B**. The overview preset frames it behind the near cabinets, so every helper here assumes
- * the "Perete B" camera preset; `openFridgeColumnView` is what selects it. The pixel constants
- * below were found by tapping the running scene in that preset and reading the selection back —
- * they are sensitive to `CAMERA_PRESETS.wallB` and to the seeded design, and to nothing else.
+ * Navigation and selector helpers for the specs that drive §9's panel by touch; no assertion lives here
+ * (`docs/best-practices/browser-and-visual-qa.md`). The numbers come from `[data-testid="selection-debug"]`, which
+ * exists only in a build with `NEXT_PUBLIC_LEMNARIA_ENABLE_SELECTION_DEBUG=1` (`playwright.config.ts` sets it).
+ * The column under test is the fridge column of `KITCHEN_L_DESIGN` (`B|2.45`) on wall B, framed by the "Perete B"
+ * preset that `openFridgeColumnView` selects; the tap constants below depend on `CAMERA_PRESETS.wallB` and the seeded
+ * design and nothing else.
  */
 
-/** A vertical line down the middle of the fridge column, clear of the camera preset buttons.
- *
- *  **Converted through `alongThisCanvas` at every use**, and only the horizontal half of the rule:
- *  the y positions below are already fractions of the live canvas, so running the whole point
- *  through `atThisCanvas` would scale them twice. A shorter canvas widens the camera's horizontal
- *  field, so a world position moves *toward* the centre — wave 6G's band moves this line from 65 to
- *  73.75 — which no fraction of the height can express. See `support/canvas-taps.ts`.
- *
- *  **Re-measured 2026-09-16: 65 → 45.** Wave 7H made the camera presets a function of the
- *  customer's room, so *Perete B* now frames that room rather than the reference one and the
- *  columns moved across the canvas. At 65 the scan walked the **next** column down and reported
- *  `p23, p6` and a void where it wanted `p24, p7` — which is the error this constant's own message
- *  was written to produce, working exactly as intended.
- *
- *  **Re-found by tapping, not computed.** A grid of real taps was walked across the running scene
- *  in this preset and the selected id read back; the fridge column stands at x ∈ [20, 45] and 45 was
- *  confirmed at every y in the scan. Deriving it from the new camera would have made this scan agree
- *  with the camera by construction. */
+/** A vertical line down the middle of the fridge column, clear of the camera preset buttons. Converted through
+ *  `alongThisCanvas` at every use, horizontal half only: the y positions are already fractions of the live canvas, and
+ *  a shorter canvas moves a world position toward the centre (see `support/canvas-taps.ts`). Re-found by tapping (the
+ *  column stands at x in [20, 45], 45 confirmed at every y), not derived from the camera, which would agree with the
+ *  camera by construction. */
 export const FRIDGE_COLUMN_TAP_X = 45;
 
-/** Top of the column (the 2.6 m ceiling line) down to the floor, in steps of ~2.5% of the canvas.
- *  The column is ~62% of the canvas here, so the shortest opening M3 can produce in it — a 400 mm
- *  top slot, ~9.5% — is crossed by at least three of these.
- *
- *  **Fractions of the canvas, not page pixels.** They were found as 120 to 700 down a 789 px
- *  canvas, which is why they are written as those numbers over that one — the provenance is the
- *  point. Absolute pixels stopped being right the moment the screen's chrome changed: wave 6C's
- *  price bar takes 92 px of the 390 × 844 viewport, so the scene shrank, the column moved up with
- *  it, and the last few taps landed past the bottom of the canvas on the bar itself. A perspective
- *  projection scales with the viewport, so a fraction follows it and a pixel does not. */
+/** Top of the column (the 2.6 m ceiling line) down to the floor in steps of ~2.5% of the canvas, so the shortest
+ *  opening the column can hold (a 400 mm top slot, ~9.5%) is crossed by at least three taps. Fractions of the canvas,
+ *  not page pixels (found as 120 to 700 down a 789 px canvas): a perspective projection scales with the viewport, and
+ *  absolute pixels stopped being right when the screen's chrome changed. */
 const CANVAS_HEIGHT_THE_TAPS_WERE_FOUND_ON = 789;
 const FIRST_TAP_FRACTION = 120 / CANVAS_HEIGHT_THE_TAPS_WERE_FOUND_ON;
 const LAST_TAP_FRACTION = 700 / CANVAS_HEIGHT_THE_TAPS_WERE_FOUND_ON;
@@ -81,8 +53,7 @@ const CAMERA_SETTLE_MS = 1500;
 /** One frame plus React's commit, after a tap or a command. */
 const PICK_SETTLE_MS = 80;
 const COMMAND_SETTLE_MS = 300;
-/** The first mutation on `/d/{id}` writes — it no longer mints (wave 7E4 G4) — and a save is a real
- *  network round trip to the database, so it is polled for rather than assumed. */
+/** The first mutation on `/d/{id}` writes rather than mints; a save is a network round trip, so it is polled for. */
 const SAVE_TIMEOUT_MS = 5000;
 const SAVE_POLL_MS = 100;
 
@@ -141,15 +112,8 @@ export async function readSelection(page: Page): Promise<SelectionReadout> {
   });
 }
 
-/**
- * Clears the selection so the canvas is reachable again.
- *
- * This is the one thing M3's dev panel did not need. That panel was collapsed by default and sat
- * at the right of the stage; §9's sheet covers ~78 dvh of a 390 × 844 viewport whenever anything is
- * selected, so every canvas tap below its top edge would be intercepted by it. Dismissing between
- * taps is therefore part of scanning a column, not a tidiness step — and it is exactly §10's own
- * viewing model, which is what a customer does to look at the scene.
- */
+/** Clears the selection so the canvas is reachable: §9's sheet covers ~78 dvh whenever anything is selected, so every
+ *  canvas tap below its top edge would be intercepted. Dismissing between taps is part of scanning a column. */
 export async function dismissPanel(page: Page): Promise<void> {
   if ((await page.getByTestId("editor-panel").count()) === 0) return;
   await page.getByTestId("panel-close").tap();
@@ -174,14 +138,9 @@ export interface ColumnTarget {
   readonly description: string;
 }
 
-/** Taps down the column until the wanted thing is selected, and leaves it selected — so the panel
- *  is open on it when this returns, which is what the caller then presses controls in.
- *
- *  Throws by name when the whole column goes by without a match, rather than returning
- *  `undefined` and letting the caller run on. The pixel constants at the top of this file are
- *  pinned to `CAMERA_PRESETS.wallB` and to the seeded design; when either moves, every tap misses
- *  and the next person should meet this sentence immediately instead of a ten-minute test timeout
- *  pointing at a tap. */
+/** Taps down the column until the wanted thing is selected and leaves it selected, so the panel is open on it.
+ *  Throws by name when the whole column goes by without a match: the tap constants are pinned to
+ *  `CAMERA_PRESETS.wallB` and the seeded design, and when either moves every tap misses. */
 export async function requireInFridgeColumn(
   page: Page,
   target: ColumnTarget,
@@ -231,9 +190,8 @@ export function describeOpenings(
   }));
 }
 
-/** The design's own stored revision, read the same way the client repository does — a fresh `GET`,
- *  never the value a page happens to hold in memory. Throws by name on anything but `200`, rather
- *  than parsing a body that answered the failure instead of the design. */
+/** The design's stored revision, read as the client repository does: a fresh `GET`, never a value the page holds.
+ *  Throws by name on anything but `200`. */
 export async function storedRevision(page: Page, id: string): Promise<string> {
   return page.evaluate(async (designId) => {
     const response = await fetch(`/api/designs/${designId}`, {
@@ -250,24 +208,11 @@ export async function storedRevision(page: Page, id: string): Promise<string> {
 }
 
 /**
- * Waits for the first save whose revision moves past `baselineRevision`, and returns that revision.
- *
- * On `/d/{id}` the first successful mutation **writes** — it does not mint (wave 7E4 G4): the id
- * was already fixed by the fixture's own mint, so "an id exists" proves nothing any more. This
- * polls the design's own stored revision until it has moved past the baseline, which only a
- * `PUT`/`PATCH` answered `200` can do — `saveAuthorized`'s whole contract refuses to move it
- * otherwise — rather than racing a single `page.waitForResponse` against a save that may already
- * have landed by the time this is called.
- *
- * **`baselineRevision` defaults to `seededDesign.revision`, which is what makes the default call the
- * *first* save after minting** — the name's own claim. `seededDesign.revision` is fixed at mint time
- * and this function never updates it, so calling it a second time against the same design with the
- * default would find the revision already past that stale baseline and return at once, proving
- * nothing about the write it was asked to wait for. A caller confirming a **later** save passes the
- * revision the previous `waitForFirstSave` (or an equivalent read) returned, as `baselineRevision` —
- * "first" then means the first save after that explicit point, not after the mint.
- *
- * Throws by name if the deadline passes with the revision unmoved.
+ * Waits for the first save whose revision moves past `baselineRevision`, and returns it. On `/d/{id}` the first
+ * mutation writes rather than mints, so the stored revision is polled (only a `PUT`/`PATCH` answered `200` moves it)
+ * instead of racing one `waitForResponse` against a save that may already have landed. `baselineRevision` defaults
+ * to `seededDesign.revision`, fixed at mint time and never updated: a second call with the default returns at once,
+ * so a caller confirming a later save passes the previous call's revision. Throws by name if the deadline passes.
  */
 export async function waitForFirstSave(
   page: Page,

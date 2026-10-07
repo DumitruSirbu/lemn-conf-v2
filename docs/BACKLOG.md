@@ -93,7 +93,7 @@ status corrections, in one of these two files:
 | 60 | A colour leaves the structural corner base white, and nothing tells the customer why | open.md — ruled and shipped 2026-09-09 in two waves; the ADR 0099 amendment is still owed |
 | 61 | The open shelf sits on the handle line where the owner ruled it onto the door line | open.md — ruled 2026-09-09, deferred to its own wave |
 | 62 | The narrower stacking fix on desktop — delete a number instead of adding one | open.md — waiting on a z-index audit across 900–1920 px, not taken on the last day of M6 |
-| 63 | A hood is offered over wall A's corner, accepted, and then marked | open.md — recorded 2026-09-11 (M7 7D1 QA Q1.3), pre-existing, no owner |
+| 63 | A hood is offered over wall A's corner, accepted, and then marked | open.md — recorded 2026-09-11 (M7 7D1 QA Q1.3), pre-existing, no owner; **narrowed 2026-10-01 (M7C C2, `0a1a69a`), not closed**: remains on the seeded kitchen, a U of 10 m or more, and designs stored before it |
 | 64 | The run-end panel is not checked against the end of wall A | resolved.md — **closed 2026-09-11 by M7 wave 7D1b (`f61c361` + `85091cc`)** |
 | 65 | An `it.fails` shell at height 2188–2199 can yield `PLACEMENT_ABOVE_ROOM` against `FIT_TOLERANCE_M`'s 12 mm | open.md — recorded 2026-09-11 (M7 7D1 QA Q3.1), pre-existing, not reachable by an approved room, no owner |
 | 66 | The catalogue has three full-height rows and no broom / utility unit | open.md — ruled 2026-09-14 (ADR 0110 Amendment E, E12.4): new tall bodies wait for beta feedback |
@@ -133,6 +133,24 @@ status corrections, in one of these two files:
 | 100 | Six orphan design rows in the test database | open.md — found 2026-09-30 at M7B wave U5's visual review; not deleted (add-only); **owner answered 2026-09-30 (Q-U7-2): "Leave them"** |
 | 101 | The shape-refusal region is kept on purpose, though no shipped path draws it | open.md — recorded 2026-09-30 at M7B wave U6's close-out; if a future policy stops stating a shape, the e2e tests removed in U6 (E3, E4's U half, E5, E9) must come back; no owner |
 | 102 | Dev-only security candidates from the undici review (js-yaml, vitest, Node's bundled undici) | open.md — found 2026-09-30; lockfile refresh, a major vitest upgrade and a Node patch release respectively; not scheduled, no owner |
+| 103 | Editing the room's size keeps none of the customer's changes | open.md — wanted by the owner 2026-10-01 (M7C Q1); not built, no phase |
+| 104 | A cabinet cannot be resized through a fixed-width neighbour | open.md — asked by the owner 2026-10-01 (M7-FB-010, M7C Q6); the generator half is M7C wave C5; not built, no phase |
+| 105 | Step 1's desktop footer departs from the mockup frames in three places | open.md — found 2026-10-01 by C1 S1's review; not fixed, no owner |
+| 106 | The e2e desktop shard 2/3 sits at exactly its 70-test budget | open.md — found 2026-10-01 by C1 S1's QA; not scheduled, no owner |
+| 107 | A design stored before ADR 0135 keeps the old corner geometry | open.md — accepted pre-release 2026-10-01; read-side fix not built; the record is ADR 0135 |
+| 108 | `wallCabinet`'s two-door leaves are 3 mm apart where the kit's `GAP` is 4 mm | open.md — found 2026-10-01 by C2 S1's review; pre-existing, not changed; no owner |
+| 109 | The corner wall unit's names and prices are placeholders awaiting the owner | open.md — M7C plan Q8 (i)/(ii); built with defaults 2026-10-01; owner input pending |
+| 110 | A wall door beside a hood or fridge at the unit's far edge cannot open past about 90° | open.md — a manufacturing note, not a defect; recorded 2026-10-01 from C2 S2 |
+| 111 | On the 900 px desktop card the back confirmation's text is left-aligned and its buttons centred | open.md — found 2026-10-02 by C1 S3's QA; the owner asked for the buttons only; no owner |
+| 112 | The settings confirmation's alignment has no unit-level guard | open.md — found 2026-10-02 by C1 S3's QA; only the browser specs catch it; not scheduled |
+| 113 | The shared confirmation component still lives under `apps/web/src/settings/` | open.md — recorded 2026-10-02; move when a third asker appears |
+| 114 | Two e2e helpers break on the generated top row | open.md — found 2026-10-02 by C3 S1's QA; **closed 2026-10-06, fixed in `fecd430` (CE S1)** |
+| 115 | The 2600 mm top-row line is derived in two places | open.md — recorded 2026-10-02 by C3 S1; pinned by QA; not scheduled |
+| 116 | A refused top-row insert becomes a `not_placed` step with no customer-visible reason | open.md — recorded 2026-10-02 by C3 S1; not observed in the census |
+| 117 | The remote test database drops connections intermittently (a share-POST 500, a persistence lock test) | open.md — found 2026-10-06 by the pre-push gate; unexplained; no owner |
+| 118 | Dev-scope advisories in the lockfile (tinypool, js-yaml, brace-expansion, braces, vitest); extends 102 | open.md — found 2026-10-06 by the security review; not scheduled, no owner |
+| 119 | A client transition probes write access for the design being left | open.md — found 2026-10-06 by CE S2; harmless (the answer is dropped); a fix is production code; owner's call |
+| 120 | The first WebGL frame can hold "Se verifică accesul" for seconds on a slow device | open.md — found 2026-10-06 by CE S2; a product question, not a defect; no owner |
 
 ## 2026-09-06 audit note
 

@@ -1,20 +1,17 @@
 // The vocabulary a generated run is planned in: its items, how its reading order is cut across the
 // corner, and the plan it becomes.
 //
-// **A module of its own only to keep the composer's graph acyclic.** `generation-priorities.ts`
-// composes the core run and builds the plan, and `optional-run-items.ts` decides the bottle, the pan
-// drawer and the threshold drawer on it; the first calls the second, so the types and the one fit
-// test both read cannot live in either. Not re-exported from the package index: the public types
-// below reach it through `generation-priorities.ts`, under the names they always had.
+// A module of its own only to keep the composer's graph acyclic: `generation-priorities.ts` calls
+// `optional-run-items.ts`, so the types and the one fit test both read cannot live in either. Not
+// re-exported from the package index: the public types below reach it through `generation-priorities.ts`.
 
 import type { DesignRoom, DesignWall } from "../design.js";
 import { DOOR_BASE_BUILD_ID } from "./body-choice.js";
 import { STORAGE_BODY_WIDTH_MM } from "./leftover-rule.js";
 
-// M7B U1 slice S1's minimal type-level fix: `DesignWall` widened to include `"C"` (ADR 0132), but
-// this composer reads exactly two walls — `readingOrderWallsFor` never returns a third — so its own
-// exhaustive `Record`s stay keyed on the two it actually builds. Wiring a wall-C arm into this
-// composer is U3's (ADR 0132 *Consequences*), not this narrowing.
+// This composer reads exactly two walls (`readingOrderWallsFor` never returns a third), so its exhaustive
+// `Record`s stay keyed on the two it builds although `DesignWall` includes "C". A wall-C arm belongs to the
+// U composer (ADR 0132 Consequences).
 export type TwoWallDispatch = Extract<DesignWall, "A" | "B">;
 
 export type GenerationCoreRole = "fridge" | "sink" | "preparation" | "hob";
@@ -70,14 +67,12 @@ export interface KitchenCompositionPlan {
   readonly remainderMm: Readonly<Record<TwoWallDispatch, number>>;
 }
 
-// M7B U3a slice S1: the U's own three-wall plan (ADR 0110 Amendment N). A three-wall composition is
-// a different shape of thing from the L's two-wall reading order and cut — a U has two corners and
-// two side walls that never mirror each other (ADR 0132 Q-U5) — so it gets its own plan type rather
-// than a `DesignWall` squeezed into `TwoWallDispatch`'s two slots. `TwoWallDispatch` and
-// `KitchenCompositionPlan` are untouched; nothing above this line changed for the U.
+// The U's own three-wall plan (ADR 0110 Amendment N): a U has two corners and two side walls that never
+// mirror each other, so it gets its own plan type rather than a `DesignWall` squeezed into
+// `TwoWallDispatch`'s two slots.
 
-/** One base the U planner placed, on whichever of the three walls it stands on — `PlannedGenerationBase`'s
- *  own shape, `wall` widened to `DesignWall` since a U plan places bases on A, B and C alike. */
+/** One base the U planner placed: `PlannedGenerationBase`'s shape with `wall` widened to `DesignWall`,
+ *  since a U plan places bases on A, B and C alike. */
 export interface UPlannedGenerationBase {
   readonly id: string;
   readonly role: GenerationBaseRole;
@@ -88,21 +83,18 @@ export interface UPlannedGenerationBase {
   readonly endMm: number;
 }
 
-/** Where the fridge or the far wall's tower stands, read as *N3 revised* 3 and 10 count it: the
- *  number of base bodies between the corner and the item, or `"free-end"` where the item stands
- *  flush against the wall's own free end instead (fixes RQ18's stop-and-report, AC3: a position
- *  field replaces the heuristic classifiers `u-composition.test.ts` and `u-tall-layout.test.ts` used
- *  to read a plan's own bases back apart). */
+/** Where the fridge or the far wall's tower stands: the number of base bodies between the corner and the
+ *  item, or `"free-end"` where it stands flush against the wall's free end (ADR 0110 Amendment N, N3 revised
+ *  3 and 10). */
 export type UPlacementPosition = "free-end" | number;
 
-/** The direction wall A's run is read in, from the corner it shares with the fridge wall: the
- *  along-wall coordinate increases when that corner is wall A's own start, and decreases when it is
- *  wall A's end (*N3 revised* 5's "packed from the fridge corner"). Computed once, from the fridge
- *  wall (`u-fridge-wall.ts`), and read by every later decision that walks wall A in run order. */
+/** The direction wall A's run is read in, from the corner it shares with the fridge wall: increasing when
+ *  that corner is wall A's start, decreasing when it is wall A's end. Computed once from the fridge wall
+ *  (`u-fridge-wall.ts`) and read by every later decision that walks wall A in run order. */
 export type WallAReadingDirection = "increasing" | "decreasing";
 
-/** The U's own plan — `KitchenCompositionPlan`'s shape over three walls instead of two, which
- *  `generateKitchen` reads to compose a U. */
+/** The U's own plan: `KitchenCompositionPlan`'s shape over three walls, read by `generateKitchen` to
+ *  compose a U. */
 export interface UKitchenCompositionPlan {
   readonly room: DesignRoom;
   /** Spatial order, corner to free end on each wall, matching the shell's tile order. */
@@ -112,30 +104,28 @@ export interface UKitchenCompositionPlan {
   readonly minimumMet: boolean;
   /** Each wall's bare end, after wall A's remainder fill (ADR 0110 N11.9): wall A's is under 300 mm. */
   readonly remainderMm: Readonly<Record<DesignWall, number>>;
-  /** `undefined` when the fridge was dropped (*N3 revised* 2's RQ9 branch). */
+  /** `undefined` when the fridge was dropped. */
   readonly fridgePosition: UPlacementPosition | undefined;
-  /** `undefined` when no oven tower stands (E4's other branch: the hob keeps its own oven). */
+  /** `undefined` when no oven tower stands (the hob keeps its own oven, E4). */
   readonly towerPosition: UPlacementPosition | undefined;
 }
 
-/** One of the three walls' free run, corner to free end — `uShellFloorRuns`'s own shape
- *  (`shell-design.ts:806-830`), restated here so `u-composition.ts` and `u-tall-layout.ts` share one
- *  type rather than each naming a dependency on the shell builder, or on each other. */
+/** One of the three walls' free run, corner to free end: `uShellFloorRuns`'s shape, restated so
+ *  `u-composition.ts` and `u-tall-layout.ts` share one type instead of each depending on the shell builder
+ *  or on each other. */
 export interface UGenerationRun {
   readonly wall: DesignWall;
   readonly startMm: number;
   readonly endMm: number;
 }
 
-/** ADR 0110 *N3 revised* 1: the entered total run at or above which a U is "large", driving the
- *  tall-cabinet, oven and back-wall rules `u-composition.ts` and `u-tall-layout.ts` own. Owner,
- *  relayed (N1.3's follow-up): *"one 'large U' threshold, A + B + C ≥ 10 m"*. Ten metres over the
- *  three **entered** lengths — never the free-run capacity, the same "entered, not capacity" key ADR
- *  0120 E2 ruled for the L's own wall assignment. Kept here rather than in either composer, so
- *  neither restates it for the other (ADR 0102). */
+/** The entered total run at or above which a U is "large" (A + B + C ≥ 10 m), driving the tall-cabinet, oven
+ *  and back-wall rules of `u-composition.ts` and `u-tall-layout.ts`. Over the three entered lengths, never
+ *  free-run capacity. Kept here so neither composer restates it for the other. see ADR 0110 Amendment N,
+ *  N3 revised 1 */
 export const LARGE_U_TOTAL_MM = 10_000;
 
-/** The three **entered** lengths of a U, summed: the key `isLargeU` and the drawer target both read. */
+/** The three entered lengths of a U, summed: the key `isLargeU` and the drawer target both read. */
 export function enteredTotalMm(room: DesignRoom): number {
   if (room.wallCMm === undefined) {
     throw new Error(
@@ -149,16 +139,24 @@ export function isLargeU(room: DesignRoom): boolean {
   return enteredTotalMm(room) >= LARGE_U_TOTAL_MM;
 }
 
-/** *N3 revised* 3's boundaries on a wall's entered length: at most 3000 mm is a short wall, up to
- *  4000 mm a middle one, and beyond that a long one. The fridge wall's count from the corner and the
- *  far wall's tower both read them, so they are stated once. */
+/** Whether the back wall, wall A, carries no wall-row or top-row body in this room, the hood and the top
+ *  cabinet over it aside. Only a large U's does: its wall-A strips are tiled and nothing else stands above
+ *  its base row. Read by the shell (which pieces stand over a corner, which rows wall A's run starts past)
+ *  and by the upper policy (which bases are owed an upper), so the two cannot disagree. see ADR 0110
+ *  Amendment N, N3 revised 11 */
+export function isBackWallBaseOnly(room: DesignRoom): boolean {
+  return room.shape === "U" && isLargeU(room);
+}
+
+/** Boundaries on a wall's entered length: at most 3000 mm is a short wall, up to 4000 mm a middle one,
+ *  beyond that a long one. The fridge wall's count from the corner and the far wall's tower both read them
+ *  (N3 revised 3). */
 export const SHORT_SIDE_WALL_MAX_MM = 3000;
 export const MIDDLE_SIDE_WALL_MAX_MM = 4000;
 
-/** *N3 revised* 3's own table (RQ3's *"both from corner"*): `n` base cabinets stand between a
- *  corner and the fridge, or — RQ5's *"both from corner"* again — between a corner and the tower on
- *  a long far wall. One function, so `u-composition.ts`'s own count and `u-tall-layout.ts`'s cannot
- *  part on the same boundary (ADR 0102). Zero at 3000 mm or less; two at 3001-4000; three above. */
+/** `n` base cabinets stand between a corner and the fridge, or between a corner and the tower on a long
+ *  far wall. One function so `u-composition.ts`'s count and `u-tall-layout.ts`'s cannot part on a boundary:
+ *  zero at 3000 mm or less, two at 3001–4000, three above. */
 export function baseCountFromTheCorner(enteredLengthMm: number): 0 | 2 | 3 {
   if (enteredLengthMm <= SHORT_SIDE_WALL_MAX_MM) return 0;
   if (enteredLengthMm <= MIDDLE_SIDE_WALL_MAX_MM) return 2;
@@ -207,9 +205,8 @@ export function doorBasesFrom(spec: {
 type BodyToPlace = Pick<UPlannedGenerationBase, "id" | "buildId" | "widthMm">;
 
 /** `bodies` one after another on `wall` as storage, each starting where `startMmAt` says for its
- *  reading-order offset from the first body's own start and its width. The start function is the
- *  only thing that differs between a wall read in increasing coordinates and one read from its far
- *  end. */
+ *  reading-order offset and width. The start function is the only thing that differs between a wall read
+ *  in increasing coordinates and one read from its far end. */
 export function placedInSequence(spec: {
   readonly wall: DesignWall;
   readonly bodies: readonly BodyToPlace[];

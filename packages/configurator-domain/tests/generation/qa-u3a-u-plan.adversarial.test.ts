@@ -6,7 +6,7 @@
 // on either wall, a hand-built room where the bottle alone would make a tower reachable, and AC4's
 // byte-identity of the L (both corner directions) and the straight kitchen against the pre-wave tree.
 import { fc, test as propertyTest } from "@fast-check/vitest";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   generateKitchen,
@@ -14,6 +14,11 @@ import {
   type DesignRoom,
   type DesignWall,
 } from "../../src/index.js";
+import { asBeforeAdr0135 } from "../support/before-adr-0135.js";
+import { beforeC5 } from "../support/before-c5-fridge-end-leftover.js";
+import { withTheCornerUnitPutBack } from "../support/before-c2-corner-unit.js";
+import { withTheTopRowTakenOff } from "../support/before-c3-top-row.js";
+import { withTheOldOverlapPutBack } from "../support/before-c7-span-overlap.js";
 import { createFakeProbeFactory } from "../support/fake-probe.js";
 import {
   DIGEST_OCCURRED_AT,
@@ -27,11 +32,48 @@ import {
 } from "../support/u-plan-invariants.js";
 import { planFor, uRoom } from "../support/u-plan-fixtures.js";
 
+// M7C wave C5 S1: the recordings below up to C7's are of planners that stood before the leftover beside an
+// end fridge was absorbed (`fridge-end-leftover.ts`), so each chain step asks the planner as it stood before.
+vi.mock(
+  "../../src/generation/fridge-end-leftover.js",
+  async (importOriginal) => {
+    const { withTheFridgeEndLeafSwitchable } = await import(
+      "../support/before-c5-fridge-end-leftover.js"
+    );
+    return withTheFridgeEndLeafSwitchable(await importOriginal());
+  },
+);
+
 const SAMPLES = 1500;
 /** AC4's recording: `digestGeneratedKitchens` run through `generateKitchen` on the tree
  *  before U3a's first commit (source extracted with `git archive`, run through this same support
  *  module). 933 rooms: 900 L rooms (no corner direction, left, right) and 33 straight rooms. */
-const PRE_WAVE_L_AND_LINEAR_DIGEST =
+const DIGEST_AFTER_C2 =
+  "f34c9d8ad5fed98bbd31a9733ed59503a757f0fd3fedc796caed48f9cabd74f1";
+/** The recording as M7C wave C3 restated it: every room 2600 high or more gains a top-row cabinet over each
+ *  wall-row body (the straight rooms too), and no room shorter does. The step above reproduces
+ *  `DIGEST_AFTER_C2` from today's output with those bodies taken off. */
+const DIGEST_AFTER_C3 =
+  "78c7bc964d5cdcef2866169400156ecf37d62638cf847c5923aa1de6db70d973";
+/** The recording as M7C wave C5 S1 restated it: where the fridge ends a run with 50-299 mm beyond it and a
+ *  door cabinet stands inboard, that cabinet is planned wider and the fridge moves out by the same amount
+ *  (the base, its upper and the top cabinet over it, the fridge's span, the plan's remainder and floor
+ *  widths, and the commands that place them). */
+const DIGEST_AFTER_C5 =
+  "c32ccbbd8026c533bfce83dd7fbe70bfe6ea02dd43021938258ffdcb23bf58da";
+/** The recording as M7C wave C7 restated it: a wall-row or top-row cabinet beside a full-height member
+ *  takes the wall depth (seat 291), where the centre-read overlap built it deep (561). */
+const DIGEST_AFTER_C7 =
+  "de301e0538427c1f800e067417ca3c10585b56738fa1b1770dfc8bffb3322382";
+/** The recording as U3a took it, before ADR 0135. ADR 0135 moved the base return's centre, width and
+ *  recorded column depth and the X-leg's recorded column depth (`support/before-adr-0135.ts` names
+ *  each); the sweep below reproduces this value from today's output with exactly those fields put
+ *  back, which is what makes the move four fields and not a regenerated baseline. */
+/** The recording as ADR 0135 restated it, before the corner wall unit (M7C wave C2). */
+const DIGEST_AFTER_ADR_0135 =
+  "3448d4b12bb46f955e9f5cbe23e32d7d7523f3a89149ce063bb741e453278734";
+
+const DIGEST_BEFORE_ADR_0135 =
   "3ed0b98c05af4526f8ee6a7dda466d68e3b79fcfd4f605185663b0b453713fd1";
 
 function findingsFor(room: DesignRoom): readonly string[] {
@@ -305,15 +347,63 @@ describe("the fridge wall never carries a drawer unit (owner, 2026-09-29)", () =
 });
 
 describe("the L, the mirrored L and the straight kitchen are byte-identical to the pre-wave tree (U3a AC4)", () => {
-  it("reproduces the pre-wave digest over 933 generated kitchens", () => {
+  const generated = (room: unknown) =>
+    generateKitchen({
+      room: room as DesignRoom,
+      occurredAt: DIGEST_OCCURRED_AT,
+      probeAt: createFakeProbeFactory(),
+    });
+
+  const generatedBeforeC5 = (room: unknown) => beforeC5(() => generated(room));
+
+  // Restated by ADR 0135 and M7C waves C2, C3, C7 and C5; the steps below walk it back to the pre-wave value.
+  it("reproduces the recorded digest over 933 generated kitchens", () => {
+    expect(digestGeneratedKitchens(generated)).toBe(DIGEST_AFTER_C5);
+  });
+
+  it("differs from the C7 recording only by the fridge-end cabinet, its upper and the fridge's move", () => {
+    expect(digestGeneratedKitchens(generatedBeforeC5)).toBe(DIGEST_AFTER_C7);
+  });
+
+  it("differs from the C3 recording only by the seat of cabinets beside a full-height member, and the above", () => {
     const digest = digestGeneratedKitchens((room) =>
-      generateKitchen({
-        room: room as DesignRoom,
-        occurredAt: DIGEST_OCCURRED_AT,
-        probeAt: createFakeProbeFactory(),
-      }),
+      withTheOldOverlapPutBack(generatedBeforeC5(room)),
     );
 
-    expect(digest).toBe(PRE_WAVE_L_AND_LINEAR_DIGEST);
+    expect(digest).toBe(DIGEST_AFTER_C3);
+  });
+
+  it("differs from the C2 recording only by the top row's cabinets, steps and commands, and that seat", () => {
+    const digest = digestGeneratedKitchens((room) =>
+      withTheTopRowTakenOff(withTheOldOverlapPutBack(generatedBeforeC5(room))),
+    );
+
+    expect(digest).toBe(DIGEST_AFTER_C2);
+  });
+
+  it("differs from the ADR 0135 recording only by the corner wall unit and the strips it covers, and the above", () => {
+    const digest = digestGeneratedKitchens((room) =>
+      withTheCornerUnitPutBack(
+        withTheTopRowTakenOff(
+          withTheOldOverlapPutBack(generatedBeforeC5(room)),
+        ),
+      ),
+    );
+
+    expect(digest).toBe(DIGEST_AFTER_ADR_0135);
+  });
+
+  it("differs from the pre-wave recording only by the fields ADR 0135 and the corner unit moved, and the above", () => {
+    const digest = digestGeneratedKitchens((room) =>
+      asBeforeAdr0135(
+        withTheCornerUnitPutBack(
+          withTheTopRowTakenOff(
+            withTheOldOverlapPutBack(generatedBeforeC5(room)),
+          ),
+        ),
+      ),
+    );
+
+    expect(digest).toBe(DIGEST_BEFORE_ADR_0135);
   });
 });

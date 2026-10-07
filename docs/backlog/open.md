@@ -1405,6 +1405,15 @@ then marks. Dropping it from the offer would be a new rule — "an entry that wo
 offered" — for the owner. **Composition never produces it**: M7 wave 7D2 places nothing over wall A's
 corner zone (milestone, *Adjudication 7D1-Q1*).
 
+**Narrowed 2026-10-01 by M7C wave C2 (`0a1a69a`), not closed.** [ADR 0110 Amendment O](../decisions/0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md#amendment-o--2026-10-01-a-fixed-corner-wall-unit-stands-over-every-generated-corner-the-top-row-the-validators-banded-reach-and-the-fridge-gap-absorb)
+(O8) records that the opening no longer exists in any room that gets the corner wall unit. It remains on
+**the seeded reference kitchen**, on **the back wall of a U of 10 m or more** (where the unit is
+deliberately absent), and on **designs stored before `0a1a69a`**. **A narrowed validator case came with
+it** (Amendment O5): a wall-B wall-row body that starts between the unit's 291 mm seat and 330 mm is no
+longer flagged, though the closure is solid there. It is reachable only by a hand-made or corrupted
+document, and safe because the side return's near edge and the closure's front come from one wall-depth
+map and no command moves a structural piece [relayed from the logic review R6.2].
+
 ## 65. An `it.fails` shell at height 2188–2199 can yield `PLACEMENT_ABOVE_ROOM` against `FIT_TOLERANCE_M`'s 12 mm — RECORDED 2026-09-11, PRE-EXISTING, NOT REACHABLE, NO OWNER
 
 Found by M7 wave 7D1's QA, round 3 (finding Q3.1, Low), and pre-existing rather than introduced by the
@@ -2018,3 +2027,177 @@ development tooling; none is in the shipped runtime.
   Node patch release, not the lockfile.
 
 No owner, no phase.
+
+## 103. Editing the room's size keeps none of the customer's changes — WANTED BY THE OWNER 2026-10-01, NOT BUILT, NO PHASE
+
+The owner, verbatim (M7C Q1): *"what if I done a lot of changes but I need only to edit the size, going
+back will wipe out all my changes, looks like I need the ability to edit room size withgout loosing
+current work. I know this can change a lot, especially when will be reduced the size, there should be
+decission what to drop from cabinets."* **Today:** continuing from Step 1 generates a new design; no edit
+is carried over; the old design stays stored (ADR 0111 d5) and opens only from its own link until M8
+(ADR 0114 d4). M7C C1 S3's confirmation is the owner's stated minimum, not this entry. **Cost:** a room
+change applied to a stored design, not a regeneration. Growing a wall adds empty space; shrinking one
+needs an undecided rule for what is dropped or narrowed. A domain milestone of its own, with owner
+questions first.
+
+## 104. A cabinet cannot be resized through a fixed-width neighbour — ASKED BY THE OWNER 2026-10-01, NOT BUILT, NO PHASE
+
+The owner asked on 2026-10-01 (M7-FB-010) how hard it is to widen a cabinet without removing the fridge
+beside it, and on M7C Q6 sent this half to the backlog; the generator half is M7C wave C5. A resize is
+funded by adjacent empty space only (ADR 0031); moving the fridge inside the command is §13.2's rejected
+auto-shift. **Cost:** a new funding arm in `plan-width-funding.ts`, column moves, the frozen map and every
+body stacked over the neighbour; one Full-tier domain wave.
+
+## 105. Step 1's desktop footer departs from the mockup frames in three places — FOUND 2026-10-01 BY C1 S1's REVIEW, NOT FIXED, NO OWNER
+
+**Found by the review of M7C wave C1 S1 (`8269440`), which centred the footer controls and left these
+alone [relayed from that review].** (1) *"Înapoi"* ships as a 96 × 52 bordered button where frames
+D1B, D1C and D1F draw bare text. (2) The disabled *"Continuă"* lacks the frames' 1 px border. (3) On 1F,
+`.composeCta` keeps `flex: 1` (`apps/web/src/room/room.module.css:1054-1056`, read 2026-10-01), so the
+call to action spans the footer where frame D1F draws it content-width at the right. The mockups are the
+chrome specification (ADR 0104); each of the three is a departure from them with no recorded ruling. No
+owner, no phase.
+
+## 106. The e2e desktop shard 2/3 sits at exactly its 70-test budget — FOUND 2026-10-01 BY C1 S1's QA, NOT SCHEDULED
+
+**Found when C1 S1's QA spec was added [relayed].** `docs/best-practices/ci-and-local-gates.md`,
+*The per-shard test budget* (`:453-466`), names 70 tests as the largest shard and the ratchet; the guard
+is `pnpm gate:e2e-shard-budget`. The next desktop e2e spec lands the shard over the budget unless the
+shards are rebalanced or a fourth is added. M7C waves C1 S3 and C2 to C4 each add or restate e2e specs.
+Not measured by the scribe. No owner, no phase.
+
+## 107. A design stored before ADR 0135 keeps the old corner geometry — ACCEPTED PRE-RELEASE, 2026-10-01, READ-SIDE FIX NOT BUILT
+
+[ADR 0135](../decisions/0135-the-corner-pieces-stand-on-the-runs-lines-and-the-base-return-is-a-base-body-with-a-fixed-front.md),
+*Consequences*, holds the measurement and the reasoning; it is not repeated here. In short: a design
+stored before C4 S2 (`48bbc0c`) shows a permanent 10 mm slit in the carcass and the worktop stone at the
+corner, and one depth-changed before C4 S1 (`c4eeea6`) stands 5 mm off the wall. A load-time re-derivation
+of the structural return's width would amend ADR 0089 and count as a migration under ADR 0038 decision 1.
+The owner was told. No owner, no phase.
+
+## 108. `wallCabinet`'s two-door leaves are 3 mm apart where the kit's `GAP` is 4 mm — FOUND 2026-10-01 BY C2 S1's REVIEW, PRE-EXISTING, NOT CHANGED
+
+**Found by the review of M7C wave C2 slice S1 (`075529b`) [relayed].** In `wallCabinet`, a two-door body
+sizes each leaf `dw = (W - 0.009) / 2` (`packages/three-adapter/src/kitchen-parts.ts:1752`, read
+2026-10-01), which leaves 3 mm between the two leaves, where the kit's `GAP` is 0.004
+(`kitchen-parts.ts:838`). Nothing was changed, because every parity pin of an ordinary wall cabinet would
+move. No owner, no phase.
+
+## 109. The corner wall unit's names and prices are placeholders — AWAITING THE OWNER, BUILT WITH DEFAULTS 2026-10-01
+
+M7C plan Q8 (i) and (ii). The unit (`wall-corner-x-900` and `-top`) reuses the side corner pieces' names
+(*Dulap suspendat de colț*, *Dulap de colț rând de sus*, ADR 0066) and their placeholder prices, 160 000
+and 90 000 in the book's units, each plus the leaf's hardware line
+([ADR 0110 Amendment O](../decisions/0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md#amendment-o--2026-10-01-a-fixed-corner-wall-unit-stands-over-every-generated-corner-the-top-row-the-validators-banded-reach-and-the-fridge-gap-absorb),
+O7). Both are marked *pending owner input*. The owner has not answered. Non-blocking; no phase.
+
+## 110. A wall door beside a hood or fridge at the corner unit's far edge cannot open past about 90° — RECORDED 2026-10-01, A MANUFACTURING NOTE, NOT A DEFECT
+
+Beside a body standing proud at the unit's far edge (x 900), a hood (291–321 mm proud) or a fridge
+(317–387 mm), the unit's leaf cannot open past about 90° [doc-quoted: M7C plan, C2 S2, *At the far edge*].
+The kit draws no hinge, so this is true of any wall door beside such a body, and a real cranked hinge
+moves the door clear. C2 S2 carries a note and no criterion, since a criterion would test the model's
+pivot. No generation rule: a hood stands at 900 only over a hob. No owner, no phase.
+
+## 111. On the 900 px desktop card the back confirmation's text is left-aligned and its buttons are centred — FOUND 2026-10-02 BY C1 S3's QA, OWNER ASKED FOR THE BUTTONS ONLY
+
+**Found by QA of M7C wave C1 slice S3 (`01c40be`) [relayed].** The owner asked, verbatim, *"also the
+buttons center to modal"*, and the buttons were centred. The heading and body stay left-aligned. In
+Russian, with a two-line body, the buttons sit visibly off the text's axis: the text starts at x 297 and the
+buttons are around x 720 at 1440 px [relayed, QA]. Not changed, because the owner asked for the buttons
+only. A one-line decision for the owner if it reads wrong. No owner, no phase.
+
+## 112. The settings confirmation's alignment has no unit-level guard — FOUND 2026-10-02 BY C1 S3's QA, NOT SCHEDULED
+
+**Found by QA of C1 S3 [relayed].** The back confirmation centres its buttons and the settings
+(material-change) confirmation keeps `justify-content: space-between`; the difference is a property of the
+asker. Adding the centred class to the settings call site leaves the unit suite green. Only QA's browser
+specs catch it, `top-bar-back.qa-m7c-c1-s3.adversarial.desktop.e2e.spec.ts` and its mobile counterpart
+(the file names are the coordinator's; not re-read by the scribe). No owner, no phase.
+
+## 113. The shared confirmation component lives under `apps/web/src/settings/` though `configure/` now uses it — RECORDED 2026-10-02, MOVE WHEN A THIRD ASKER APPEARS
+
+**Recorded at the close of C1 S3 [relayed].** The component and its styles
+(`global-settings.module.css`) stay under `apps/web/src/settings/`, although the editor's back links, in
+`configure/`, now use it as well as the settings strip. The extraction was for reuse and not a move
+(M7C plan, C1 S3). **Trigger:** a third asker. Then move it to a shared location. No owner, no phase.
+
+## 114. Two e2e helpers break on the generated top row — FOUND 2026-10-02 BY C3 S1's QA — CLOSED 2026-10-06, FIXED IN `fecd430` (CE S1)
+
+**Read by QA, not run [relayed].** (1) `apps/web/tests/e2e/support/qa-u5-cutaway.ts:101, :145, :233`: wall
+B's top-row openings in the U 3000 fixture drop from three to one, and the taps aim at the wall's middle and
+expect a void. (2) `apps/web/tests/e2e/support/u-gate-journeys.ts:498-503, :520-531`: `toEqual([hood])` now
+gets the hood and a wall cabinet, and `find` returns the generated top over the hood. Both follow from
+`02b1c7b` and are owed to M7C wave CE, which restates what earlier waves moved. Not re-read by the scribe.
+
+## 115. The 2600 mm top-row line is derived in two places — RECORDED 2026-10-02 BY C3 S1, PINNED, NOT SCHEDULED
+
+The line is `TOP_ROW_Y0_MM + HEIGHT_FLEX_MIN_OPENING_MM` in `upper-policy.ts` and `y0 + height ≤ room
+height` for the corner top unit in `shell-design.ts` [relayed]. They agree while that constant equals the
+unit's 400. QA's test *"agrees with the corner's own top units at every height"* pins that both switch at
+the same millimetre. If either figure moves, the pin goes red first. No owner, no phase.
+
+## 116. A refused top-row insert becomes a `not_placed` step with no customer-visible reason — RECORDED 2026-10-02 BY C3 S1, NOT OBSERVED
+
+Generation continues past a refused top insert, as it does for the wall row. None occurs in the census, and
+a property test now fails if one appears [relayed]. If it ever does, the customer sees a kitchen with no
+top cabinet over that body and no explanation. No owner, no phase.
+
+## 117. The remote test database drops connections intermittently (first seen as a 500 on `POST /api/designs/{id}/share`) — FOUND 2026-10-06 BY THE PRE-PUSH GATE, UNEXPLAINED
+
+**Widened 2026-10-06 [coordinator-run].** Five pre-push gate runs that day failed in turn on: (1) the
+share 500 below; (2) criterion 8's paint bound (fixed in `d015738`, ADR 0139 decision 11); (3) SCA, a new
+advisory (fixed in `8d357a2`); (4) `packages/persistence/tests/qa-7t-s2b-lock.adversarial.test.ts`, "the
+named timeout > carries SQLSTATE 55P03 …", `Error: Connection terminated unexpectedly`, which passed 45/45
+five times alone right after; (5) all green. **Items (1) and (4) are the same family [inference]: the
+remote test database (Neon, `TEST_DATABASE_URL`) dropping a connection.** No M7C change touches
+persistence or the share route. **Cost:** each blocked gate run is about 15 minutes.
+
+**First observed [coordinator-run].** The first pre-push gate run on 2026-10-06 failed
+`linear-flow.e2e.spec.ts:22` (mobile) because the share POST answered 500. The server log shows
+`⨯ SyntaxError: Unexpected end of JSON input at JSON.parse` for that page, and **no `reportDesignFailure`
+log line before it**, which the route's catch would emit. Unexplained. It passed 5 of 5 run alone
+afterwards. No M7C change touches the share route or persistence. **Inference, not verified:** an empty
+response from the remote test database's HTTP driver. **Also noted:** the pre-push gate runs Playwright
+with 8 workers against one dev server while the runner uses 1, so the gate sees more load than the
+runner; the second gate run failed on criterion 8 (8 > 7) before CE S3a (ADR 0139 decision 11). No owner,
+no phase; re-open if it recurs on the runner.
+
+**Status after CE S4 (`556abb3`, 2026-10-06): stays open.** An empty reply is now retried (ADR 0145). A
+mid-reply drop and `Connection terminated unexpectedly` are not (owner ruling). The share 500's source is
+still not established: the route's catch would have logged a repository error and none was seen.
+
+## 118. Dev-scope advisories in the lockfile — FOUND 2026-10-06 BY THE SECURITY REVIEW, NOT SCHEDULED
+
+**Source [reviewer-run `pnpm audit --json`, 2026-10-06].** CI's `pnpm audit --audit-level=high --dev` is
+non-blocking (`ci.yml:747-749`). Backlog 102 already holds js-yaml and vitest; this entry adds the
+rest and does not replace it.
+
+- **2 critical.** tinypool 1.1.1 via vitest 3.2.6: GHSA-5gmw-xhrv-c9v3 (fixed from 2.1.1) and
+  GHSA-85c8-ppgw-ccpr (from 2.1.2).
+- **6 high.** js-yaml 4.3.1 via eslint: GHSA-2883-xcg3-v3hh (from 4.3.2). brace-expansion 1.1.18 and 2.1.4
+  via eslint and typescript-eslint's minimatch: GHSA-qhr7-859c-m2p7, GHSA-6j4f-fj2g-mc7p. braces 3.0.3 via
+  typescript-eslint > fast-glob > micromatch: GHSA-vfj7-8cjw-p6xm, **no patched version**.
+- **4 moderate.** vitest and @vitest/mocker 3.2.6: GHSA-82fw-gwwq-j7x9 (from 4.1.11); brace-expansion:
+  GHSA-q2hr-2g5m-vwhr.
+- **Exposure.** None runs behind a network listener (no vitest browser, ui or api server); the attacker
+  must already control repo code or config. The reviewer also noted, **unverified**, that `next dev` binds
+  0.0.0.0 by default, so a dev server is LAN-reachable.
+- **Likely routes [inference].** A vitest 4.1.11 or later upgrade probably clears tinypool; a lockfile
+  refresh or overrides for brace-expansion and js-yaml; braces only by dropping the dependency path.
+  No owner, no phase.
+
+## 119. A client transition probes write access for the design being left — FOUND 2026-10-06 BY CE S2, HARMLESS
+
+**Source [implementer-run, trace-verified].** After a transition from design B to design A, A's
+`store.hydrate` sets `canWrite: "checking"`, and the still-mounted B tree's effect
+(`hydrate-and-configure.tsx:82`, deps `[designId, canWrite]`) fires one probe for B. It is harmless:
+`applyWriteAccess` drops the answer (`configurator-store.ts:613`). The cost is one wasted request. A fix is
+production code (Full tier). The owner's call; no owner, no phase.
+
+## 120. The first WebGL frame can hold "Se verifică accesul" for seconds on a slow device — FOUND 2026-10-06 BY CE S2, A PRODUCT QUESTION
+
+**Source [implementer-run, trace- and profile-verified; ADR 0144 decision 1].** The write-access probe
+answers in milliseconds, but the settings trigger enables only after the first frame's main-thread block:
+7-11 s under local load, 7-10 s on the runner. A real low-end device may show the disabled state for that
+long. A product question, not a defect; no owner, no phase.

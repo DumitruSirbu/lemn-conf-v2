@@ -1,81 +1,49 @@
-// How deep the space a placed body fills actually is — which is **not** `frame.d`.
+// How deep the space a placed body fills actually is, which is not `frame.d`.
 //
-// ADR 0018: `frame.d` is twice a body's rear overhang, an encoding that exists so
-// `deriveCabinetWorldTransform` can land any bounding box on the wall plane (§11 row 19). §3.1 says
-// what a depth is — *"`h`, `d` from the **full extent** — a body must clear the ceiling with
-// everything it carries"* — and the encoding is not that number. Everywhere the model reads a depth
-// — the column extent §3.2 derives as the MAX over its members, and the opening a swap sees — has
-// to convert first, and this is the one place that conversion lives (ADR 0040 decision 1).
+// `frame.d` is twice a body's rear overhang, an encoding that lets `deriveCabinetWorldTransform` land
+// any bounding box on the wall plane (ADR 0018; §11 row 19). §3.1's depth is the full extent, so
+// everywhere the model reads a depth (§3.2's column MAX, a swap's opening) it converts first, and this
+// is the one place that conversion lives (ADR 0040 decision 1).
 //
-// **What wave S9 changed (DOM-002).** The conversion used to be a two-armed `kind` switch with a
-// catch-all `return record.frame.d`, and the catch-all was wrong for every body it caught: a base
-// run publishes 580 for a 620 mm worktop, a pantry 560 for 599, a freestanding fridge 680 for 742,
-// the corner leg 560 for 630. An opening derived from those is **shallower than the body that just
-// vacated it**, so the body no longer fits back into the space it left. The catch-all is gone: a
-// body's finished depth is now declared by its catalogue entry, and a definition that declares
-// nothing throws instead of guessing.
+// A body's finished depth is declared by its catalogue entry, and a definition that declares nothing
+// throws rather than guessing: a `frame.d` catch-all under-reports base runs (580 for 620), pantries
+// and the freestanding fridge, giving an opening shallower than the body that vacated it. Only ADR
+// 0040 decision 1's third arm changed from a guess to a declaration; a recorded seat is still
+// converted back and never read as a depth.
 //
-// **This supersedes half of ADR 0040 decision 1, and that record carries the dated amendment saying
-// so** (2026-08-31). It stated the rule as "the cabinet-depth line for a hood, `frame.d + 39` for a
-// fronted wall carcass, `frame.d` for everything else", and the last clause is no longer true. What
-// the decision is *about* — that a recorded seat is converted back and never read as a depth, in one
-// place — is untouched and is what this module still is. Only the third arm changed, from a guess to
-// a declaration.
-//
-// **What wave 6I2 changed (ADR 0060).** Nothing about the value or the meaning — the change is that
-// the answer now has a **name and a type of its own**. `occupiedDepthM` is a *clearance*, and
-// `resolveDepthM` was handing the same number to the probe as *"the depth to build the next body
-// to"*, a manufactured size (`docs/BACKLOG.md` entry 15). The build depth is declared separately in
-// `cabinet-depth-rule.ts` as `BuildDepthM`, and the two are different nominal types, so handing one
-// where the other is wanted no longer compiles.
+// The answer is a clearance with its own nominal type, distinct from the build depth declared in
+// `cabinet-depth-rule.ts` as `BuildDepthM` (ADR 0060), so handing one where the other is wanted does
+// not compile.
 import { toMetres } from "./millimetres.js";
 import type { BodyDefinition, PlacementRecord } from "./void-engine.js";
 
-/** **How much space a body occupies, handles and appliances included** — §3.1's full extent on the
- *  depth axis, and the type the clearance fact is stated in (ADR 0060 decision 1).
- *
- *  Nominal on purpose, and the pairing with `BuildDepthM` is the point rather than either type
- *  alone: `Column.d` (§3.2's MAX), `VoidRecord.d` and `InsertOpening.d` are all this, and none of
- *  them is a depth anybody manufactures. A `ClearanceM` is a `number` and flows freely into the
- *  arithmetic a clearance belongs in; it is **not** a `BuildDepthM` and cannot become one except
- *  through the single named crossing `buildToTheOpeningM`. */
+/** How much space a body occupies, handles and appliances included: §3.1's full extent on the depth
+ *  axis (ADR 0060 decision 1). `Column.d` (§3.2's MAX), `VoidRecord.d` and `InsertOpening.d` are all
+ *  this, and none is a depth anybody manufactures. A `ClearanceM` flows freely into clearance
+ *  arithmetic but becomes a `BuildDepthM` only through the named crossing `buildToTheClearanceM`. */
 export type ClearanceM = number & { readonly __clearanceM: unique symbol };
 
-/** A depth already measured as a clearance, re-entering the type that says so.
- *
- *  `Column.d` and `VoidRecord.d` carry §3.2's MAX as a plain `number` — the frozen map persists it
- *  and a stored extent arrives off the wire (ADR 0044, ADR 0053) — so this is where a wire number
- *  is restated as the clearance it is. Deliberately **not** a way to obtain a build depth: nothing
- *  here can produce a `BuildDepthM`. */
+/** A depth already measured as a clearance, re-entering the type that says so. `Column.d` and
+ *  `VoidRecord.d` carry §3.2's MAX as a plain `number` because the frozen map persists it and a stored
+ *  extent arrives off the wire (ADR 0044, ADR 0053). Not a way to obtain a build depth. */
 export function recordedClearanceM(depthM: number): ClearanceM {
   return depthM as ClearanceM;
 }
 
-/** **How a body's finished front relates to the seat it records** — declared per catalogue entry
- *  (`BodyDefinition.occupiedDepth`), never inferred from a kind, a band or a builder name. ADR 0022:
- *  an entry declares what it is.
+/** How a body's finished front relates to the seat it records, declared per catalogue entry
+ *  (`BodyDefinition.occupiedDepth`) and never inferred from a kind, a band or a builder name
+ *  (ADR 0022).
  *
- *  Two shapes, because the shipped builders come in two kinds and no more:
+ *  - `recorded-shell`: the builder centres its shell on `z = 0`, so `frame.d` is that shell and the
+ *    finished body is the shell plus whatever stands in front (a fronted wall carcass adds ADR 0036
+ *    decision 1's 39 mm assembly; an open shelf adds nothing). Seeded wall/top rows are declared here
+ *    too, so they answer through the same rule as the §7 row their `catalogEquivalentId` swaps to.
+ *  - `wall-plane`: the builder ignores the depth it is handed, so the body fills one declared distance
+ *    from the wall plane. Every base, full-height, appliance and corner body, and the front-hung hood
+ *    (ADR 0039 decision 2).
  *
- *  - **`recorded-shell`** — the builder centres its shell on `z = 0`, so `frame.d` *is* that shell
- *    and the finished body is the shell plus whatever stands in front of it. The wall carcasses are
- *    the whole of this set (ADR 0018's own note on which builders consume a depth): a fronted one
- *    adds ADR 0036 decision 1's 39 mm door-and-handle assembly, an open shelf adds nothing.
- *
- *    **A statement about where the shell sits, not about what the builder is handed.** The §7 rows
- *    take a depth argument and the seeded wall/top rows do not — `buildDecomposedBody` builds one
- *    fixed instance each — but both centre their shell on `z = 0`, which is the whole of what this
- *    rule needs. The seeded rows are declared here rather than as a `wall-plane` distance so that
- *    they and the §7 row their `catalogEquivalentId` swaps them for answer through the same rule.
- *  - **`wall-plane`** — the builder ignores the depth it is handed and always builds the same body,
- *    so the space it fills is one declared distance from the wall plane. Every base, full-height,
- *    appliance and corner body is in this set, and so is the front-hung hood (ADR 0039 decision 2),
- *    whose front face lands on the cabinet-depth line whatever seat it records.
- *
- *  There is deliberately no `recorded-shell` arm for a base or a column. `frame.d` is 580 for a base
- *  carcass whose shell is 560, so "shell plus a front" would be arithmetic on a number that is not a
- *  shell — a fiction that happens to land on the right answer, which is the class of defect ADR 0028
- *  exists to stop. */
+ *  No `recorded-shell` arm for a base or a column: `frame.d` is 580 for a base carcass whose shell is
+ *  560, so "shell plus a front" would be arithmetic on a number that is not a shell (ADR 0028). */
 export type OccupiedDepthRule =
   | { readonly measuredFrom: "wall-plane"; readonly finishedDepthMm: number }
   | {
@@ -83,8 +51,8 @@ export type OccupiedDepthRule =
       readonly frontAssemblyMm: number;
     };
 
-/** A body whose builder always produces the same geometry: it finishes this far from the wall
- *  plane, whatever seat the placement recorded. */
+/** A body whose builder always produces the same geometry: it finishes this far from the wall plane,
+ *  whatever seat the placement recorded. */
 export function finishesAtMm(finishedDepthMm: number): OccupiedDepthRule {
   return { measuredFrom: "wall-plane", finishedDepthMm };
 }
@@ -95,16 +63,12 @@ export function shellPlusFrontMm(frontAssemblyMm: number): OccupiedDepthRule {
   return { measuredFrom: "recorded-shell", frontAssemblyMm };
 }
 
-/** A body with no front standing in front of its shell — an open shelf, which is its declared depth
- *  all by itself. Named rather than written as a bare `0`, so the rule reads as a statement about
- *  the product instead of as an arithmetic no-op. */
+/** A body with no front in front of its shell (an open shelf). Named so the rule reads as a statement
+ *  about the product, not an arithmetic no-op. */
 export const NO_FRONT_ASSEMBLY_MM = 0;
 
-/** A placement whose catalogue entry declares no depth rule, or declares one this module does not
- *  recognise. **It is a programming error rather than a number to guess at** — the same stance
- *  `UnknownWorktopDepthError` takes, and for the same reason: the guess that used to stand here
- *  (`return record.frame.d`) under-reported four body families and produced openings too shallow for
- *  the bodies that had just vacated them. */
+/** A placement whose catalogue entry declares no depth rule, or one this module does not recognise: a
+ *  programming error, not a number to guess at, as in `UnknownWorktopDepthError`. */
 export class UndeclaredOccupiedDepthError extends Error {
   constructor(buildId: string, declared: unknown) {
     super(
@@ -119,19 +83,18 @@ function describeDeclared(declared: unknown): string {
   return declared === undefined ? "nothing" : JSON.stringify(declared);
 }
 
-/** What `occupiedDepthFromSeat` needs and nothing more: the declaration, the seat the rule may be
- *  relative to, and the id a refusal has to name. */
+/** What `occupiedDepthFromSeat` needs: the declaration, the seat the rule may be relative to, and the
+ *  id a refusal names. */
 interface DeclaredSeat {
   readonly buildId: string;
-  /** **Typed wider than `BodyDefinition` declares it, on purpose.** `BodyCatalog` is a port: a
-   *  definition assembled outside TypeScript can arrive with no rule at all, and that is the case
-   *  this module must refuse rather than guess at. */
+  /** Typed wider than `BodyDefinition` declares it: `BodyCatalog` is a port, and a definition
+   *  assembled outside TypeScript can arrive with no rule, which this module must refuse. */
   readonly rule: OccupiedDepthRule | undefined;
   readonly seatDepthM: number;
 }
 
 /** The declared rule, applied. Separate from `occupiedDepthM` so the widening above happens at a
- *  function boundary and the undeclared case is reachable instead of merely unrepresentable. */
+ *  function boundary and the undeclared case is reachable. */
 function occupiedDepthFromSeat(seat: DeclaredSeat): ClearanceM {
   switch (seat.rule?.measuredFrom) {
     case "wall-plane":
@@ -145,19 +108,16 @@ function occupiedDepthFromSeat(seat: DeclaredSeat): ClearanceM {
   }
 }
 
-/** The distance from the wall plane to the front of the space this body fills — §3.1's full extent
- *  on the depth axis, and the single answer `deriveColumns` (§3.2's MAX) and `openingFromPlacement`
- *  (§5.3's swap opening) both read.
+/** The distance from the wall plane to the front of the space this body fills: the single answer
+ *  `deriveColumns` (§3.2's MAX) and `openingFromPlacement` (§5.3) both read.
  *
- *  **A clearance, and never a build depth** (ADR 0060 decision 1). Its MAX over a column includes an
- *  appliance's door bars — 742 mm over the freestanding fridge — which is the correct answer to
- *  "how much space does this occupy" and no answer at all to "how deep do we build the next body".
- *  `columnBuildDepthM` in `cabinet-depth-rule.ts` answers the second, and the `ClearanceM` /
- *  `BuildDepthM` pair is what stops one being read as the other.
+ *  A clearance, never a build depth (ADR 0060 decision 1): its MAX over a column includes an
+ *  appliance's door bars (742 mm over the freestanding fridge), the right answer to "how much space
+ *  does this occupy" and none to "how deep do we build the next body" (`columnBuildDepthM` in
+ *  `cabinet-depth-rule.ts`).
  *
- *  Fails closed. Every reachable placement has a catalogue entry — `derivePlacementRecords` throws
- *  `UnknownBodyError` before this is called — so the only way here without a rule is a `BodyCatalog`
- *  that omitted one, which is a defect in that catalogue and not an occasion for a fallback. */
+ *  Fails closed: every reachable placement has an entry (`derivePlacementRecords` throws
+ *  `UnknownBodyError` first), so a missing rule is a defect in the `BodyCatalog`, not a fallback. */
 export function occupiedDepthM(record: PlacementRecord): ClearanceM {
   return occupiedDepthFromSeat({
     buildId: record.buildId,
@@ -166,27 +126,21 @@ export function occupiedDepthM(record: PlacementRecord): ClearanceM {
   });
 }
 
-/** What `occupiedDepthOfEntryM` is asked about: one row of the catalogue, and the id it is filed
- *  under, because the refusal has to name it. */
+/** What `occupiedDepthOfEntryM` is asked about: one catalogue row and the id it is filed under, which
+ *  a refusal names. */
 export interface CatalogEntryDepthQuery {
   readonly buildId: string;
   readonly definition: BodyDefinition;
 }
 
-/** **The same declared answer as `occupiedDepthM`, asked of a catalogue entry instead of a placed
- *  body** — ADR 0073 decision 2, for a frozen extent whose member is gone.
+/** The same declared answer as `occupiedDepthM`, asked of a catalogue entry instead of a placed body
+ *  (ADR 0073 decision 2), for a frozen extent whose member is gone. No second rule: `finishesAtMm`
+ *  answers directly and is not a function of the setting, and `shellPlusFrontMm` answers over the
+ *  entry's `frameDepthMm`, `deriveFrame`'s fallback for a placement with no measured seat (ADR 0011
+ *  Gap B). Build the catalogue at the new cabinet depth and the answer follows the setting.
  *
- *  It introduces no arithmetic and no second rule: `finishesAtMm` answers directly and is not a
- *  function of the depth at all, so a `manufactured-size` machine and ADR 0058's two pinned tops come
- *  back unmoved without being named anywhere; `shellPlusFrontMm` answers over the entry's own
- *  `frameDepthMm`, which is exactly `deriveFrame`'s documented fallback for a placement with no
- *  measured seat (ADR 0011 Gap B) — and an extent with no member is precisely that case. Build the
- *  catalogue at the new cabinet depth and the answer follows the setting, because the map is what
- *  wave 6H parameterised.
- *
- *  It lives here, beside `occupiedDepthM`, because this module is the **one** place the declaration
- *  is applied (ADR 0040 decision 1). A caller reading `occupiedDepth` off a definition itself would
- *  be a second author for the switch, which is the shape ADR 0028 exists to stop. */
+ *  Lives here because this module is the one place the declaration is applied (ADR 0040 decision 1);
+ *  a caller reading `occupiedDepth` itself would be a second author for the switch (ADR 0028). */
 export function occupiedDepthOfEntryM(
   entry: CatalogEntryDepthQuery,
 ): ClearanceM {

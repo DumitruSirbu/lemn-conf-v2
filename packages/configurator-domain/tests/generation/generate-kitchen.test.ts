@@ -107,14 +107,18 @@ describe("generateKitchen", () => {
         (placement) => placement.body.buildId === "hood",
       ),
     ).toBe(true);
+    // Only the shell's own corner wall unit stands in the corner wall band (M7C wave C2); nothing is
+    // generated there.
     expect(
-      result.design.placements.some(
-        (placement) =>
-          placement.wall === "A" &&
-          placement.y0Mm === 1500 &&
-          placement.alongMm < 900,
-      ),
-    ).toBe(false);
+      result.design.placements
+        .filter(
+          (placement) =>
+            placement.wall === "A" &&
+            placement.y0Mm === 1500 &&
+            placement.alongMm < 900,
+        )
+        .map((placement) => placement.id),
+    ).toEqual(["p27"]);
 
     const placedSteps = result.log.steps.filter(
       (step) => step.status === "placed",
@@ -132,10 +136,20 @@ describe("generateKitchen", () => {
       ["upper", "hood"].includes(step.role),
     );
     expect(firstUpperIndex).toBeGreaterThan(0);
+    // The top row (ADR 0110 Amendment O9) closes the log: after the uppers, and only top steps follow.
+    const firstTopIndex = result.log.steps.findIndex(
+      (step) => step.role === "top",
+    );
+    expect(firstTopIndex).toBeGreaterThan(firstUpperIndex);
     expect(
       result.log.steps
-        .slice(firstUpperIndex)
+        .slice(firstUpperIndex, firstTopIndex)
         .every((step) => ["upper", "hood"].includes(step.role)),
+    ).toBe(true);
+    expect(
+      result.log.steps
+        .slice(firstTopIndex)
+        .every((step) => step.role === "top"),
     ).toBe(true);
     for (const step of placedSteps) {
       expect(
@@ -803,7 +817,8 @@ function upperMismatches(input: {
       (step) =>
         !suppressed.has(step.id) &&
         step.role !== "upper" &&
-        step.role !== "hood",
+        step.role !== "hood" &&
+        step.role !== "top",
     )
     .flatMap((baseStep) => {
       const upperRole = baseStep.id === "hob" ? "hood" : "upper";

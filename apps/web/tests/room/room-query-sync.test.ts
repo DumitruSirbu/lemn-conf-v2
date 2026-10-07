@@ -1,14 +1,3 @@
-// **The convergence loop's pure half** — M7 wave 7F1-D45, criteria 20 and 21, ruling R9.
-//
-// No DOM and no router: the rule that decides whether a live query is *our own write coming back* or
-// *a different room the customer is now in* is a function of five values, and it is asserted here as
-// one. The component behaviours that rest on it are `room-url-round-trip.dom.test.ts`'s.
-//
-// **Criterion 21 is the load-bearing one.** A replace loop — render writes, write re-renders,
-// re-render writes — is the only failure in this design that gets *worse* with traffic, costs a
-// request per settle interval per customer, and is invisible in development. What forbids it is that
-// `canonical ∘ draftFrom` is a **fixed point**, swept below over queries the parser accepts and
-// queries it refuses alike.
 import { fc } from "@fast-check/vitest";
 import {
   APPROVED_ROOM_POLICY,
@@ -51,8 +40,7 @@ function draftOf(search: string): RoomDraft {
   return roomDraftFromQuery(roomShapeInQuery(query) ?? "L", query);
 }
 
-/** A query as the browser hands it over: a repeated key stays an array, because that is what
- *  `singleValue` reads and a collapsed one would be a different question. */
+/** A query as the browser hands it over: a repeated key stays an array, since `singleValue` reads it. */
 function queryOf(search: string): RoomSearchParams {
   return queryFromSearchParams(new URLSearchParams(search));
 }
@@ -61,8 +49,7 @@ function canonicalTextOf(draft: RoomDraft): string {
   return canonicalRoomQuery(draft).toString();
 }
 
-/** What the screen would read, stated once so each case below names only what it varies. No write
- *  is in flight unless a case says so, which is D45's own rule. */
+/** What the screen would read, stated once so each case names only what it varies; no write is in flight by default. */
 function reconcile(input: {
   draft: RoomDraft;
   lastSeenText: string;
@@ -87,9 +74,6 @@ const A_TYPED_L_ROOM =
 
 describe("the URL changed, or the draft did (criterion 20)", () => {
   it("leaves the draft untouched while only the draft is moving", () => {
-    // The typing path, and the reason a keystroke can never re-seed: typing moves the canonical
-    // query and leaves the live one where it was, so the rule sees a live query it has already
-    // reconciled against and does nothing at all.
     const typing = withEnteredText(draftOf(A_TYPED_L_ROOM), {
       field: "wallA",
       text: "3500",
@@ -106,9 +90,7 @@ describe("the URL changed, or the draft did (criterion 20)", () => {
   });
 
   it("keeps the draft, and text that is not yet a length, when our own write echoes back", () => {
-    // I1. *"3,6"* — the metre habit — is not whole millimetres and is nowhere in the canonical query,
-    // so the write that comes back cannot carry it — which is exactly why the echo must not re-seed
-    // the field.
+    // "3,6" is not whole millimetres, so the canonical query cannot carry it and the echo must not re-seed the field.
     const halfTyped = withEnteredText(draftOf("shape=L&height=2.6"), {
       field: "wallA",
       text: "3,6",
@@ -121,16 +103,13 @@ describe("the URL changed, or the draft did (criterion 20)", () => {
       liveText: ourOwnWrite,
     });
 
-    // **Identity, not equality, and load-bearing beyond this module:** `use-typing-pause.ts` tells our
-    // own echo from an arrival by this very object, so a copy here would end every burst on its echo.
+    // Identity, not equality: `use-typing-pause.ts` tells our own echo from an arrival by this object.
     expect(reconciled.draft).toBe(halfTyped);
     expect(lengthShown(reconciled.draft, "wallA")).toBe("3,6");
     expect(reconciled.lastSeenText).toBe(ourOwnWrite);
   });
 
   it("re-seeds every field, the shape and the direction for a room the draft did not write", () => {
-    // The rule's reason for existing: a browser Back hands the client another entry's query, and
-    // the draft standing over it is the room the customer has just left.
     const theRoomLeftBehind = draftOf(A_TYPED_L_ROOM);
     const theRoomBackLandsOn =
       "shape=U&wallA=4.2&wallB=3.1&wallC=2.18&height=2.5&direction=right";
@@ -149,9 +128,7 @@ describe("the URL changed, or the draft did (criterion 20)", () => {
   });
 
   it("keeps the shape it has when the live query names none, and clears what the query cannot answer", () => {
-    // *Înapoi* pushes the bare pathname, so the live query answers nothing. The draft has no shape
-    // to fall back on but its own — and the fields it still shows are the ones the URL no longer
-    // holds, which is why the write side refuses to sync at all while this is the live query (I6).
+    // `Înapoi` pushes the bare pathname; the write side refuses to sync while that is the live query.
     const reconciled = reconcile({
       draft: draftOf(A_TYPED_L_ROOM),
       lastSeenText: A_TYPED_L_ROOM,
@@ -164,7 +141,7 @@ describe("the URL changed, or the draft did (criterion 20)", () => {
   });
 
   it("re-seeds from a repeated key as the parser reads it — as no value at all", () => {
-    // Risk 4, at the seam it would enter through. `useSearchParams().get()` would answer 3.56 here.
+    // `useSearchParams().get()` would answer 3.56 here.
     const reconciled = reconcile({
       draft: draftOf("shape=L"),
       lastSeenText: "shape=L",
@@ -196,8 +173,7 @@ describe("a repeated key is not a value (risk 4)", () => {
   });
 });
 
-/** A length as it could arrive in a query: values the parser reads, values it refuses, and the
- *  shapes of text that are neither. */
+/** A length as it could arrive in a query: values the parser reads, values it refuses, and neither. */
 const ANY_LENGTH_TEXT = fc.oneof(
   fc
     .integer({ min: 1, max: 9_999_999 })
@@ -229,9 +205,6 @@ const ANY_ARRIVING_QUERY = fc.record({
 
 describe("the loop settles, and it settles once (criterion 21)", () => {
   it("writes a canonical query that reading and writing again reproduces exactly", () => {
-    // `canonical ∘ draftFrom` is idempotent, so a screen that arrives at a non-canonical URL writes
-    // **once** and then sees its own write. Without this the effect would find the live query and
-    // the draft's query different forever, and issue a navigation every settle interval.
     fc.assert(
       fc.property(
         ANY_ARRIVING_QUERY,
@@ -255,9 +228,6 @@ describe("the loop settles, and it settles once (criterion 21)", () => {
   });
 
   it("reconciles an arriving query into a draft that reconciles to itself", () => {
-    // The same property stated over the rule that uses it: once the write has echoed back, a second
-    // pass over the same live query is a no-op, which is what "it settles once" means at the seam
-    // the component reads.
     fc.assert(
       fc.property(ANY_ARRIVING_QUERY, (query) => {
         const shape = roomShapeInQuery(query) ?? "L";
@@ -279,10 +249,6 @@ describe("the loop settles, and it settles once (criterion 21)", () => {
     );
   });
 });
-
-// ---------------------------------------------------------------------------------------------
-// M7 wave 7F2, slice S3b — a late echo of our own write is ours, not a traversal
-// ---------------------------------------------------------------------------------------------
 
 /** The empty L room 1B opens on, as the first settle writes it. */
 const THE_EMPTY_L_ROOM = "shape=L&direction=left";
@@ -312,8 +278,6 @@ function arrivingTextOf(query: Record<string, string>): string {
 
 describe("an older write of ours echoing after the draft moved on (S3b-5, S3b-3, S3b-4)", () => {
   it("keeps the draft object, and forgets that write, when it echoes after a newer keystroke", () => {
-    // The QA repro, at the seam: *3* was written, *36* was typed during the write's round trip, and
-    // the write came back. HEAD read it as another room and put *3* back in the field.
     const writtenAtThree = canonicalTextOf(typedIntoWallA("3"));
     const typedOnToThirtySix = typedIntoWallA("36");
 
@@ -324,8 +288,7 @@ describe("an older write of ours echoing after the draft moved on (S3b-5, S3b-3,
       writtenNotYetSeen: [writtenAtThree],
     });
 
-    // **Identity, not equality**, for the same reason as the echo case above: `use-typing-pause.ts`
-    // tells an arrival from our own echo by this object, so a copy would end the burst on the echo.
+    // Identity, not equality: `use-typing-pause.ts` tells an arrival from our own echo by this object.
     expect(reconciled.draft).toBe(typedOnToThirtySix);
     expect(lengthShown(reconciled.draft, "wallA")).toBe("36");
     expect(reconciled.lastSeenText).toBe(writtenAtThree);
@@ -333,8 +296,7 @@ describe("an older write of ours echoing after the draft moved on (S3b-5, S3b-3,
   });
 
   it("forgets the echoed write and every older one, and keeps the writes sent after it", () => {
-    // Next discards a pending navigation when a newer one is dispatched, so once a write has echoed
-    // nothing sent before it can still commit.
+    // Next discards a pending navigation when a newer one is dispatched, so nothing sent before an echo can commit.
     const [first, second, third] = ["3", "36", "365"].map((text) =>
       canonicalTextOf(typedIntoWallA(text)),
     );
@@ -350,9 +312,8 @@ describe("an older write of ours echoing after the draft moved on (S3b-5, S3b-3,
   });
 
   it("keeps a write still coming when the first of two copies of a repeated text echoes", () => {
-    // QA finding F1 (S3b.10): 3, then 36, then back to 3 writes A, B, A. Under a commit race the
-    // first A arrives while B is still coming, so B must stay, or it re-seeds when it lands and the
-    // digit typed since is lost. The text cannot say which A arrived, so the rule keeps both.
+    // 3, 36, back to 3 writes A, B, A. Under a commit race the first A arrives while B is still coming, so B must
+    // stay; the text cannot say which A arrived, so the rule keeps both.
     const [atThree, atThirtySix] = ["3", "36"].map((text) =>
       canonicalTextOf(typedIntoWallA(text)),
     );
@@ -408,14 +369,8 @@ describe("an older write of ours echoing after the draft moved on (S3b-5, S3b-3,
   });
 
   it("keeps D45's residue exactly: an arrival equal to the draft's text keeps it, whatever was written", () => {
-    // D45's accepted residue must not move in either direction. The `draftText` branch keeps the
-    // draft object and its unparsed text whether or not that text was ever written, and consults
-    // nothing else. What it does to the list is the pruning rule: the list left is exactly the writes
-    // sent after the **oldest** copy of the arrival, and empty if the arrival matches no entry. Why the
-    // oldest and not the newest is S3b.10's two-history argument, restated at `writtenAfter`: once a
-    // text repeats, the same inputs describe a commit race, where a later write is still coming, and
-    // a discard, where none is, and only keeping it loses no digit. The list is also emptied by every
-    // `popstate` and every departure; those are the hook's, asserted in `room-late-echo.dom.test.ts`.
+    // The `draftText` branch keeps the draft and its unparsed text whether or not it was written; the list left
+    // is the writes after the oldest copy of the arrival (`writtenAfter`).
     fc.assert(
       fc.property(
         ANY_DRAFT_WITH_UNPARSED_TEXT,
@@ -460,9 +415,8 @@ function withTextInserted(
   }, list);
 }
 
-/** The oracle for the pruning rule (S3b.10): everything after the **oldest** copy of `arrived`, or
- *  nothing if it was never written. Written as a walk from the oldest end rather than as the
- *  production's index arithmetic, so the two cannot share a slip. */
+/** The oracle for the pruning rule: everything after the oldest copy of `arrived`, or nothing. Walks from the
+ *  oldest end so it shares no index arithmetic with the production code. */
 function writtenAfterOldestCopyOf(
   list: readonly string[],
   arrived: string,
@@ -494,12 +448,8 @@ const ANY_LOOP_EVENT: fc.Arbitrary<LoopEvent> = fc.oneof(
   fc.constant({ kind: "traversal" } as const),
 );
 
-/**
- * How the writes come back, in dispatch order always:
- * - **discard** — a dispatch discards every write still in flight, so only the newest can echo;
- * - **commit race** — every write echoes, oldest first;
- * - **mixed** — any in-flight write may echo, and the ones before it were discarded.
- */
+/** How the writes come back, in dispatch order: discard (only the newest echoes), commit race (all, oldest
+ *  first), mixed (any in-flight write may echo, the ones before it were discarded). */
 type DeliveryOrder = "discard" | "commit race" | "mixed";
 
 const EVERY_DELIVERY_ORDER: readonly DeliveryOrder[] = [
@@ -508,12 +458,8 @@ const EVERY_DELIVERY_ORDER: readonly DeliveryOrder[] = [
   "mixed",
 ];
 
-/**
- * The loop driven through `reconcileRoomDraft`, standing in for the hook: a settle writes whenever
- * the draft's text differs from the live one and records the write, as the hook does, so a text
- * typed back to (a backspace) is written, and recorded, twice. After every arrival that changes the
- * live text, it asserts the bound the rule can know (S3b.10).
- */
+/** The loop driven through `reconcileRoomDraft`, standing in for the hook: a settle writes and records whenever
+ *  the draft's text differs from the live one, so a text typed back to (a backspace) is recorded twice. */
 class ReconciliationLoop {
   private draft = draftOf(THE_EMPTY_L_ROOM);
   private lastSeenText = THE_EMPTY_L_ROOM;
@@ -627,7 +573,7 @@ function approvedLengthRange(): MillimetreBounds {
   };
 }
 
-/** The widest value criterion S1b-4's property sweeps: nine kilometres, far past any room. */
+/** Nine kilometres, far past any room: the widest value the round-trip property sweeps. */
 const LARGEST_ROUND_TRIPPED_MM = 9_000_000;
 
 const L_ROOM_FIELDS: readonly RoomLengthField[] = ["wallA", "wallB", "height"];
@@ -739,17 +685,9 @@ function theHrefTheSyncWouldAskFor(queryText: string): string {
 }
 
 describe("a flushed query comes back byte-identical (the departure's premise)", () => {
-  // **This is what strand-freedom actually rests on, and criterion 21 does not guard it.**
-  // Idempotence is a property of `canonical ∘ draftFrom` — the parse/format round trip. A departure
-  // recognises its own flush by **string equality** between the text it wrote and
-  // `useSearchParams().toString()` after the router has committed, so what has to hold is that
-  // next-intl's serialisation and `URLSearchParams`' reproduce the canonical text exactly: same key
-  // order, same percent-encoding.
-  //
-  // **If this went red, every departure would strand and criterion 21 would stay green** — the
-  // flush would never equal the live query, the push would never fire, and both buttons would go
-  // dead with the idempotence sweep still passing. That is why it is asserted here by name instead
-  // of being inferred from a departure test happening to pass.
+  // A departure recognises its own flush by string equality with `useSearchParams().toString()`, so next-intl's
+  // serialisation must reproduce the canonical text exactly. Criterion 21 does not guard this: a mismatch would
+  // strand every departure while the idempotence sweep stays green.
 
   it("survives next-intl's href builder and the browser's own re-serialisation", () => {
     fc.assert(
@@ -768,8 +706,7 @@ describe("a flushed query comes back byte-identical (the departure's premise)", 
   });
 
   it("keeps the canonical key order the parser and the serialiser both read", () => {
-    // The concrete case beside the property, because *"same bytes"* is mostly a claim about order
-    // and a sweep over generated rooms can agree on order by luck of one shape.
+    // The concrete case beside the property: a sweep over generated rooms can agree on order by luck of one shape.
     const flushed =
       "shape=U&wallA=3.56&wallB=2.92&wallC=2.18&height=2.6&direction=left";
 
@@ -779,8 +716,6 @@ describe("a flushed query comes back byte-identical (the departure's premise)", 
   });
 
   it("puts the flushed query on the locale's own path", () => {
-    // The other half of the href, so a builder that silently stopped prefixing would be a failure
-    // here rather than a mystery in the DOM suites.
     expect(theHrefTheSyncWouldAskFor("shape=L&direction=left")).toBe(
       `/${LOCALE}${ROOM_PATHNAME}?shape=L&direction=left`,
     );

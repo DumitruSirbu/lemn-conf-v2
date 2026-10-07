@@ -1,27 +1,9 @@
-// M7 wave 7D4 slice S4 — criterion 15, the wave's only assertion outside `configurator-domain`.
-//
-// **Risk 8 is what this file is for.** Until 7D4 `base-3drawer` stood in a kitchen only where a
-// customer put one. Its fronts, its handles and its price are now produced by a **run**, so a later
-// wave that changes that row's declaration changes generated kitchens — and generation had no parity
-// coverage of it at all. Everything here is built through the **real probe**, never a fake: a fake
-// reports back the depth it was handed, so a domain test with one cannot see a body that does not
-// stand where the plan says (backlog entry 9).
-//
-// **A drawer is reached through provenance, never through a build id, and that is a measured
-// correction rather than a preference.** The **preparation** core module carries `base-3drawer` from
-// this wave on (ADR 0110 Amendment F5), so *a placement whose build id is the drawer's* is satisfied
-// in every placed kitchen whether or not the storage run composed one. Measured: with the composer's
-// drawer slot set to `undefined` — the wave's central rule deleted outright — the build-id form of
-// this file passed 15 of 15 while the domain suite went 8 red. Every claim about *the slot the run
-// reaches after the hob* therefore goes through `isComposedStorageSlot` and the log's own step, which is
-// the only thing that says which module planned a placement.
-//
-// **The composed slots still take two bodies; the third arrives as a module of its own.** 7D4 placed
-// `base-panbank` nowhere. Since 7D5 S2 / Q-H6a (ADR 0110 Amendments J, K) the plan's own `pan-drawer`
-// module stands it immediately before the hob — never in a composed storage slot — and since
-// S3 / Q-H5 (Amendment L) a `threshold-drawer` module stands a second `base-3drawer` after the hob in
-// *D* >= 6 kitchens short of drawers. Neither is a composed slot (`isComposedStorageSlot` answers
-// false), so each claim below reaches them through the log's step id, never through a build id.
+// Generated runs are built through the real probe, never a fake: a fake reports back the depth it was
+// handed, so it cannot see a body that does not stand where the plan says.
+// A drawer is reached through provenance (`isComposedStorageSlot` and the log's step id), never through a
+// build id: the `preparation` module also stands `base-3drawer`, so a build-id check passes in every placed
+// kitchen whether or not the storage run composed one (ADR 0110 F6). `pan-drawer` and `threshold-drawer` are
+// modules of their own, not composed slots, and are reached through the log's step id too.
 import {
   buildKitchenLBodyCatalog,
   cabinetDepthMmOf,
@@ -63,9 +45,8 @@ import {
 
 const OCCURRED_AT = "2026-09-11T12:00:00.000Z";
 
-/** `room-composition.parity.test.ts`'s own tolerance, retyped rather than imported for the reason
- *  that file's neighbours retype it: a gate that reads its definition of *touching* out of the code
- *  it checks proves only that the code equals itself. */
+/** `room-composition.parity.test.ts`'s tolerance, retyped: a gate reading its definition of *touching*
+ *  out of the code it checks proves only that the code equals itself. */
 const SHARED_FACE_TOLERANCE_M = 0.0005;
 const WALL_PLANE_EPSILON_M = 1e-6;
 const SHELL_MESH_NAME =
@@ -75,32 +56,11 @@ const SHELL_MESH_NAME =
 const DRAWER_FRONT_MESH_NAME = "drawer_front";
 const DOOR_FRONT_MESH_NAME = "door_front";
 
-/** The rooms every geometry assertion below is run over. The reference room is kept as the
- *  **counter-case**: generation stands no drawer in a composed slot in it at all — both of its wall-B
- *  composed slots take the door body and its only `base-3drawer` is the preparation core module — so it
- *  is the room that catches a claim selecting a drawer by build id. 6 300 x 4 700 stands one in a
- *  composed slot; the other two carry their drawers in the plan's own modules instead.
- *
- *  **The wall-B room moved for M7 wave 7D8 and the reason it was chosen did not.** It was
- *  900 x 4700, where the whole run stood on wall B and the layout ran against the reading order.
- *  After the re-key that room's run follows wall B the other way, the block takes its free end and it
- *  composes **no** storage slot at all — so it can no longer sample a drawer in a composed slot.
- *  1 500 x 3 400 was then chosen as the same subject on the same wall.
- *
- *  **7D5 S2 / Q-H6a moved the drawer again.** 1 500 x 3 400's hob wall has one slot left, the pan
- *  drawer takes it and the post-hob drawer slot is gone (ADR 0110 K1), so it is kept here as the room
- *  where the pan drawer displaces the composed drawer (`PAN_DRAWER_TAKES_THE_ONLY_SLOT_ROOM`), and the
- *  wall-B drawer-slot witness moves to 4 100 x 6 100 (K8's declared witness).
- *  **S3 / Q-H5:** 5 100 x 4 700 is the room that stands a `threshold-drawer`, measured through the
- *  real probe, inside the approved policy.
- *
- *  **7D5b S1 / ADR 0110 M1/M8/M9.** 1 500 x 3 400's one composed slot faces the sink across the corner,
- *  so M1 made it the dishwasher and the room holds no composed slot: it is kept as the room whose
- *  dishwasher is built (`DISHWASHER_TAKES_THE_ONLY_SLOT_ROOM`), and its composed-slot witness moves to
- *  1 500 x 4 600 — a wall-B-wider room with a door slot on wall A, whose sink has no door cabinet
- *  beside it, so M7(e) swaps the drawers there (`E_SWAP_ROOM`). 5 100 x 4 700 lost its threshold drawer
- *  to M2 (*D* fell from six to five when M1 converted wall B's first slot); the threshold witness
- *  moves to 5 200 x 5 300, one of the rooms that still stands one. */
+// Rooms every geometry assertion runs over, each measured through the real probe. The reference room
+// is the counter-case: no drawer stands in a composed slot there (both wall-B composed slots take the
+// door body), so it catches a claim that selects a drawer by build id.
+// 1500 x 3400: the hob wall has one slot and the pan drawer takes it, leaving no post-hob drawer slot
+// (ADR 0110 K1). Its one composed slot faces the sink across the corner, so it is the dishwasher (ADR 0110 M1).
 const PAN_DRAWER_TAKES_THE_ONLY_SLOT_ROOM: Design["room"] = {
   shape: "L",
   widthMm: 1500,
@@ -108,12 +68,15 @@ const PAN_DRAWER_TAKES_THE_ONLY_SLOT_ROOM: Design["room"] = {
   heightMm: 2600,
 };
 const DISHWASHER_TAKES_THE_ONLY_SLOT_ROOM = PAN_DRAWER_TAKES_THE_ONLY_SLOT_ROOM;
+// 1500 x 4600: wall B is wider and wall A has a door slot whose sink has no door cabinet beside it,
+// so ADR 0110 M7(e) swaps the drawers there.
 const E_SWAP_ROOM: Design["room"] = {
   shape: "L",
   widthMm: 1500,
   depthMm: 4600,
   heightMm: 2600,
 };
+// 5200 x 5300 stands a `threshold-drawer` inside the approved policy (ADR 0110 Amendment L).
 const THRESHOLD_DRAWER_ROOM: Design["room"] = {
   shape: "L",
   widthMm: 5200,
@@ -122,20 +85,19 @@ const THRESHOLD_DRAWER_ROOM: Design["room"] = {
 };
 const SAMPLE_ROOMS: readonly Design["room"][] = [
   KITCHEN_L_DESIGN.room,
-  // Past the approved 6000 mm on purpose (M7 7A3): 7D4's measured witness, a storable room.
+  // 6300 is past the approved 6000 mm on purpose: a measured witness that is still storable.
   { shape: "L", widthMm: 6300, depthMm: 4700, heightMm: 2600 },
   PAN_DRAWER_TAKES_THE_ONLY_SLOT_ROOM,
   E_SWAP_ROOM,
   THRESHOLD_DRAWER_ROOM,
 ];
 
-/** 7D5b S1 / ADR 0110 M1: every sample room but the one whose only slot became the dishwasher. */
+/** Every sample room but the one whose only slot became the dishwasher (ADR 0110 M1). */
 const COMPOSED_SLOT_ROOMS: readonly Design["room"][] = SAMPLE_ROOMS.filter(
   (room) => room !== DISHWASHER_TAKES_THE_ONLY_SLOT_ROOM,
 );
 
-/** The rooms whose plan stands a `pan-drawer` module (7D5 S2 / Q-H6a). The reference room is the
- *  counter-case and is not listed: its plan has none. */
+/** The rooms whose plan stands a `pan-drawer` module; the reference room's plan has none. */
 const PAN_DRAWER_ROOMS: readonly Design["room"][] = SAMPLE_ROOMS.filter(
   (room) => room !== KITCHEN_L_DESIGN.room,
 );
@@ -152,21 +114,16 @@ interface DrawerSlotRoom {
   readonly wall: DesignWall;
 }
 
-/** The two rooms whose generated run stands the drawer body in a slot the **storage run** composed,
- *  chosen so the slot lands on a different wall in each. Measured through the real probe: at
- *  6300 x 4700 wall A is the wider wall and the slot is its first composed one, standing behind the
- *  core; at 4100 x 6100 wall B is the wider wall, so the run ends there and the slot is wall B's
- *  first composed one — while wall A's composed slots are read **before** the hob and keep their
- *  doors (D15.7 on physical wall B, 7D8's P6a). */
+/** The two rooms whose generated run stands the drawer body in a slot the storage run composed, on a
+ *  different wall in each. At 6300 x 4700 wall A is the wider wall and the slot is its first composed one,
+ *  behind the core; at 4100 x 6100 wall B is wider, the run ends there and the slot is wall B's first
+ *  composed one, while wall A's composed slots are read before the hob and keep their doors. */
 const DRAWER_SLOT_ROOMS: readonly DrawerSlotRoom[] = [
-  // Past the approved 6000 mm on purpose (M7 7A3): 7D4's measured witness, a storable room.
   {
     room: { shape: "L", widthMm: 6300, depthMm: 4700, heightMm: 2600 },
     wall: "A",
   },
-  // 7D5 S2 / Q-H6a: was 1500 x 3400, where the pan drawer now takes the hob wall's only slot and the
-  // post-hob drawer slot is gone (ADR 0110 K1). Wall B 6100 mm is past the approved 6000 mm on
-  // purpose: K8 empties D15.7's physical wall-B arm inside the policy and declares this room instead.
+  // Wall B 6100 mm is past the approved 6000 mm on purpose: ADR 0110 K8 declares this room the witness.
   {
     room: { shape: "L", widthMm: 4100, depthMm: 6100, heightMm: 2600 },
     wall: "B",
@@ -239,9 +196,8 @@ function placementBodies(rendered: RenderedDesign) {
   });
 }
 
-/** The planned id behind each built placement, read off the log's own step. A placement carries the
- *  shell's id and no provenance of its own, and the log's step is the only thing that says which
- *  module of the plan produced it. */
+/** The planned id behind each built placement, read off the log's step: a placement carries no
+ *  provenance of its own, so the step is the only thing saying which module produced it. */
 function plannedIdByPlacement(log: GenerationLog): ReadonlyMap<string, string> {
   return new Map(
     log.steps.flatMap((step) =>
@@ -259,8 +215,8 @@ function plannedBodies(rendered: RenderedDesign) {
   });
 }
 
-/** Every built body standing in a slot the **storage run** composed. Never `role === "storage"`,
- *  which the tall-end block's full-height columns also carry (ADR 0110 E5.2), and never a build id. */
+/** Every built body standing in a slot the storage run composed. Never `role === "storage"`, which the
+ *  tall-end block's full-height columns also carry (ADR 0110 F6), and never a build id. */
 function composedSlotBodies(rendered: RenderedDesign) {
   return plannedBodies(rendered).filter(({ plannedId }) =>
     isComposedStorageSlot({ id: plannedId }),
@@ -287,8 +243,8 @@ function plannedBodyOf(rendered: RenderedDesign, plannedId: string) {
   return only;
 }
 
-/** 7D5b S1 / ADR 0110 M8/M9: the plan's pan drawer, found by its body. In an M7(e) room it carries
- *  the preparation id and role, so an id lookup would find nothing there. */
+/** The plan's pan drawer, found by its body: in an M7(e) room it carries the preparation id and role,
+ *  so an id lookup would find nothing (ADR 0110 M9). */
 function plannedPanDrawerOf(rendered: RenderedDesign) {
   const found = plannedBodies(rendered).filter(
     ({ placement }) => placement.body.buildId === PAN_DRAWER_BASE_BUILD_ID,
@@ -352,9 +308,8 @@ function declaredFrontsOf(placement: DesignPlacement, design: Design) {
 }
 
 describe("a generated run's storage bodies, built by the real adapter", () => {
-  // 7D5b S1 / ADR 0110 M1/M8/M9: over `COMPOSED_SLOT_ROOMS`, since 1500 x 3400 has no composed slot
-  // left (its dishwasher is asserted below); its slot witness is 1500 x 4600. The pan drawer's planned
-  // id may be `preparation` where the plan's preparation module is the pan drawer (M9).
+  // Over `COMPOSED_SLOT_ROOMS`: 1500 x 3400 has no composed slot (its dishwasher is asserted below). The
+  // pan drawer's planned id may be `preparation` where that module is the pan drawer (ADR 0110 M9).
   it.each(COMPOSED_SLOT_ROOMS)(
     "fills its composed slots from the two composed bodies and stands the pan drawer only as the plan's pan-drawer module in %o",
     (room) => {
@@ -389,8 +344,6 @@ describe("a generated run's storage bodies, built by the real adapter", () => {
               !slot.endsWith(THREE_DRAWER_BASE_BUILD_ID),
           ),
         ).toEqual([]);
-        // 7D5 S2 / Q-H6a: was `not.toContain(PAN_DRAWER_BASE_BUILD_ID)` over every placement. The pan
-        // drawer now stands wherever the plan's own `pan-drawer` module put it, and nowhere else.
         expect(panDrawerBodies).toEqual(plannedPanDrawers);
       } finally {
         disposeKit(rendered.kit, rendered.room);
@@ -401,9 +354,8 @@ describe("a generated run's storage bodies, built by the real adapter", () => {
   it.each(DRAWER_SLOT_ROOMS)(
     "stands the drawer body in exactly one composed slot, on the wall the reading order reaches after the hob, in %o",
     ({ room, wall }) => {
-      // **The wave's central rule, asserted where a build id cannot answer it.** The preparation core
-      // module carries the same body, so `a drawer exists` is true in every placed kitchen; what is
-      // true only while the composer's rule holds is that a slot the *storage run* composed carries one.
+      // Asserted where a build id cannot answer: the preparation module carries the same body, so "a
+      // drawer exists" is true everywhere; only the composer's rule puts one in a storage-run slot.
       const rendered = render(generated(room));
       try {
         const drawerSlots = composedSlotBodies(rendered).filter(
@@ -445,8 +397,6 @@ describe("a generated run's storage bodies, built by the real adapter", () => {
     },
   );
 
-  // 7D5 S2 / Q-H6a: the witness 1500 x 3400 left the drawer-slot rooms above because the pan drawer
-  // took its hob wall's only slot (ADR 0110 K1). It is kept here as the room that shows the swap.
   it("stands the pan drawer on the hob's wall and no drawer in a composed slot where the hob's wall has one slot, in 1500 x 3400", () => {
     const rendered = render(generated(PAN_DRAWER_TAKES_THE_ONLY_SLOT_ROOM));
     try {
@@ -472,10 +422,9 @@ describe("a generated run's storage bodies, built by the real adapter", () => {
     }
   });
 
-  // 7D5b S1 / ADR 0110 M1: the subject 1500 x 3400 kept after its only slot was converted. What the
-  // builder draws for `base-dishwasher` (`dishwasherHousing`): a plinth, two carcass sides, a back
-  // panel, the integrated machine (`dw_body`) and **one decor door** (`door_front`) with its handle —
-  // not an open niche. So the built body is asserted against the catalogue's declared fronts.
+  // `base-dishwasher` (`dishwasherHousing`) draws a plinth, two carcass sides, a back panel, the
+  // integrated machine (`dw_body`) and one decor door (`door_front`) with its handle, not an open niche;
+  // so the built body is asserted against the catalogue's declared fronts.
   it("builds the plan's dishwasher as a housing with one decor door and no drawer, across the corner from the sink, in 1500 x 3400", () => {
     const rendered = render(generated(DISHWASHER_TAKES_THE_ONLY_SLOT_ROOM));
     try {
@@ -499,16 +448,16 @@ describe("a generated run's storage bodies, built by the real adapter", () => {
         dishwasher.placement.alongMm,
         sink.placement.wall,
         sink.placement.alongMm,
-        // A placement's `alongMm` is its centre: both modules span 900–1500, the first from the corner
-        // on their own walls, which is what *across the corner* means (M1).
+        // `alongMm` is a placement's centre: both modules span 900-1500 on their own walls, the first
+        // from the corner, which is what *across the corner* means (ADR 0110 M1).
       ]).toEqual(["A", 1200, "B", 1200]);
     } finally {
       disposeKit(rendered.kit, rendered.room);
     }
   });
 
-  // 7D5b S1 / ADR 0110 M7(e), M8, M9: the owner's preview, built — sink · dishwasher · pan drawer ·
-  // hob, the dishwasher sharing a face with the sink on one side and the pan drawer on the other.
+  // ADR 0110 M7(e): sink, dishwasher, pan drawer, hob, the dishwasher sharing a face with the sink on one
+  // side and the pan drawer on the other.
   it("builds sink, dishwasher and pan-drawer preparation side by side on one wall, in 1500 x 4600", () => {
     const rendered = render(generated(E_SWAP_ROOM));
     try {
@@ -543,9 +492,8 @@ describe("a generated run's storage bodies, built by the real adapter", () => {
   it.each(PAN_DRAWER_ROOMS)(
     "builds the plan's pan drawer as a pan-drawer body sharing a face with the hob, in %o",
     (room) => {
-      // 7D5 S2 / Q-H6a: the pan drawer stands immediately before the hob. Which side is "before" is
-      // the domain's reading order; what the adapter must honour is that the two bodies touch.
-      // 7D5b S1 / ADR 0110 M8/M9: the pan drawer is found by its body (see `plannedPanDrawerOf`).
+      // Which side is "before" the hob is the domain's reading order; the adapter must honour only that
+      // the two bodies touch. The pan drawer is found by its body (see `plannedPanDrawerOf`).
       const rendered = render(generated(room));
       try {
         const hob = plannedBodyOf(rendered, HOB_MODULE_ID);
@@ -565,10 +513,9 @@ describe("a generated run's storage bodies, built by the real adapter", () => {
     },
   );
 
-  // 7D5b S1 / ADR 0110 M2: was 5100 x 4700, whose threshold drawer M2 withholds; see THRESHOLD_DRAWER_ROOM.
   it("builds the plan's threshold drawer as three drawer fronts, on the far side of the hob from the pan drawer, in 5200 x 5300", () => {
-    // S3 / Q-H5: a `threshold-drawer` module stands a 600 mm `base-3drawer` after the hob in a
-    // D >= 6 kitchen short of drawers. It is not a composed slot, so it is reached by its step id.
+    // A `threshold-drawer` module stands a 600 mm `base-3drawer` after the hob in a D >= 6 kitchen short of
+    // drawers (ADR 0110 Amendment L). It is not a composed slot, so it is reached by its step id.
     const rendered = render(generated(THRESHOLD_DRAWER_ROOM));
     try {
       const threshold = plannedBodyOf(rendered, THRESHOLD_DRAWER_MODULE_ID);
@@ -604,8 +551,6 @@ describe("a generated run's storage bodies, built by the real adapter", () => {
       try {
         const storageBodies = placementBodies(rendered).filter(
           ({ placement }) =>
-            // 7D5 S2 / Q-H6a: the pan drawer now stands in generated runs, so its fronts join the check.
-            // 7D5b S1 / ADR 0110 M1: the dishwasher now stands in generated runs too.
             [
               DOOR_BASE_BUILD_ID,
               THREE_DRAWER_BASE_BUILD_ID,

@@ -1,35 +1,13 @@
-// **Adversarial QA for wave W2, attack 5: a clamp built on a declared constant.**
-//
-// M6-AUD-016's mechanism was not that either popover was too tall in the abstract. It was that
-// `.body` scrolled internally, so the box kept its full drawn height while the footer holding
-// *Aplică* — a primary action with no scrim-click equivalent — was pushed below the screen and
-// nothing inside the surface looked wrong. The fix clamps `max-height` to the viewport.
-//
-// **`--popover-top: 128px` is asserted, not measured**, and the shape of the guarantee is arithmetic
-// rather than declarative. What the constant has to stand above is the **top of the surface in the
-// viewport**, and since 2026-09-09 the two surfaces reach that top by different routes:
+// A clamp built on a declared constant: `--popover-top: 128px` is asserted, not measured, and the guarantee is
+// arithmetic. The constant must stand above the surface's top in the viewport:
 //
 //     price-breakdown    anchor bottom + margin-top   ≤  --popover-top + --safe-gap
 //     global-settings    its declared `top`           ≤  --popover-top + --safe-gap
 //
-// The settings modal is **viewport-positioned** since the owner's ruling of that date — *"center
-// this modal"* — because centring in the viewport cannot be reached from a containing block that
-// shrink-wraps the pill. That is a re-pointing of this file and not a weakening of it: the settings
-// surface's top stopped being unmeasurable here and became a number this runtime can read, so the
-// claim about it got **stronger**, while the breakdown's is unchanged.
-//
-// A node runtime still cannot measure an anchor's bottom. What it can do is hold every part of the
-// right-hand side that a stylesheet declares, publish the budget the constant leaves for the one
-// surface that still needs one, and refuse the shapes that would break the guarantee no matter what
-// the measurement turns out to be:
-//
-//   - a clamp that is not a `min()`, which could make a surface **taller** than its drawn height;
-//   - the two popovers taking different tokens, which is how one gets fixed and the other rots;
-//   - a footer that can shrink, which puts the mechanism back inside a correctly clamped box;
-//   - a bottom-anchored mobile sheet with no `env(safe-area-inset-bottom)`.
-//
-// What only a browser can settle is named in the last block, and measured by the two e2e specs the
-// wave added — which cannot run here.
+// A node runtime cannot measure an anchor's bottom, so this holds what a stylesheet declares and refuses the shapes
+// that break the guarantee: a clamp that is not a `min()` (it could make a surface taller than drawn), the two
+// popovers taking different tokens, a footer that can shrink, and a bottom-anchored mobile sheet with no
+// `env(safe-area-inset-bottom)`. What only a browser can settle is measured by e2e specs that cannot run here.
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -40,8 +18,7 @@ function readStylesheet(relativePath: string): string {
   return readFileSync(resolve(SOURCE_ROOT, relativePath), "utf8");
 }
 
-/** Declarations only. Every one of these files argues with itself in comments, and a comment that
- *  names a property is exactly the false positive a text guard has to rule out. */
+/** Declarations only: a comment that names a property is the false positive a text guard has to rule out. */
 function declarationsOf(stylesheet: string): string {
   return stylesheet.replaceAll(/\/\*[\s\S]*?\*\//g, "");
 }
@@ -78,10 +55,8 @@ function surfaceRulesOf(stylesheet: string): readonly string[] {
   );
 }
 
-/** How far below its anchor a surface hangs, in either spelling a stylesheet may use for it: a
- *  `margin-top`, or the offset inside frame D2E's own `top: calc(100% + 33px)`. The number is what
- *  `--popover-top` stands in for on an anchor-hung surface, so reading only one spelling would let
- *  the other change the geometry without moving the budget. */
+/** How far below its anchor a surface hangs, in either spelling: a `margin-top`, or frame D2E's own
+ *  `top: calc(100% + 33px)`. Reading only one would let the other change the geometry without moving the budget. */
 function offsetBelowTheAnchorOf(name: string, desktopRule: string): number {
   const declared =
     /margin-top:\s*(\d+)px/.exec(desktopRule)?.[1] ??
@@ -101,13 +76,9 @@ function pixelPropertyOf(rule: string, name: string): number {
 }
 
 /**
- * **Where the settings modal's top edge lands in the viewport**, computed from the four properties
- * its own rule declares rather than from a literal.
- *
- * It is viewport-positioned since the centring ruling, so unlike the breakdown there is no anchor
- * left to stand in for — the number is fully determined by the stylesheet and this runtime can have
- * it. The arithmetic is the rule's own, restated here rather than imported, because a guard that
- * evaluates the expression it is guarding agrees with whatever the expression says.
+ * Where the settings modal's top edge lands in the viewport, computed from the four properties its rule declares. It
+ * is viewport-positioned, so no anchor stands in and the stylesheet determines the number. The arithmetic is restated
+ * rather than imported, because a guard that evaluates the expression it guards agrees with whatever it says.
  */
 function viewportTopOfTheSettingsModal(desktopRule: string): number {
   const band = pixelPropertyOf(desktopRule, "desktop-band-height");
@@ -126,9 +97,8 @@ function ruleBodyOf(stylesheet: string, selector: string): string {
 
 describe("the token the clamp is built on", () => {
   it("is declared once, on :root, so both stylesheets resolve the same number", () => {
-    // A CSS module cannot see a custom property declared on another module's class. Declared
-    // anywhere but the document root, `min()` would fall back to the drawn height and the clamp
-    // would silently do nothing at all.
+    // A CSS module cannot see a custom property declared on another module's class. Declared anywhere but the root,
+    // `min()` would fall back to the drawn height and the clamp would silently do nothing.
     const root = /:root\s*\{([^}]*)\}/.exec(globals)?.[1] ?? "";
 
     expect(root).toContain("--popover-top:");
@@ -138,18 +108,10 @@ describe("the token the clamp is built on", () => {
   });
 
   it("leaves a measurable budget for the anchor it is standing in for, and this is that number", () => {
-    // **The claim the whole clamp rests on, written as arithmetic rather than as prose.** An
-    // anchor-hung surface's top is its anchor's bottom plus its own `margin-top`, so the constant is
-    // only honest while the anchor's bottom stays under this budget. Published here so a later
-    // reader measures against a number rather than re-deriving it, and so a change to either token
-    // has to be a decision about the layout.
-    //
-    // **One surface, where there were two.** The settings modal left this claim on 2026-09-09 by
-    // becoming viewport-positioned, and it left it *upwards*: its top is now declared outright and
-    // is asserted directly below, which is a stronger statement than a budget for a number nobody
-    // here can see. What remains anchor-hung is the breakdown's popover, whose 16 px margin is
-    // frame D2D's own — so the budget widens from the settings surface's 33 px hang to that 16, and
-    // the two literals below move with it.
+    // An anchor-hung surface's top is its anchor's bottom plus its `margin-top`, so the constant is honest only while
+    // the anchor's bottom stays under this budget; published as arithmetic so a change to either token is a decision
+    // about the layout. Only the breakdown's popover is anchor-hung (its 16 px margin is frame D2D's own); the settings
+    // modal's top is asserted directly below.
     const popoverTop = readPixelToken("popover-top");
     const safeGap = readPixelToken("safe-gap");
     const hang = offsetBelowTheAnchorOf(
@@ -163,12 +125,9 @@ describe("the token the clamp is built on", () => {
     expect(popoverTop + safeGap - hang).toBe(128);
   });
 
-  /** **And the surface that no longer needs a budget is held to the thing the budget stood for.**
-   *  The clamp is correct exactly while a surface's top sits at or above `--popover-top`; for the
-   *  settings modal that top is now a number this file can compute, so the guarantee is asserted
-   *  rather than reasoned about. Measured in a browser at 90.5 at 900, 1100, 1440 and 1920 px wide
-   *  by `global-settings-centred.desktop.e2e.spec.ts`, which is the same number this arithmetic
-   *  gives. */
+  /** The centred settings modal's top is computable here, so the clamp's premise (top at or above `--popover-top`) is
+   *  asserted directly. `global-settings-centred.desktop.e2e.spec.ts` measured the same 90.5 at 900, 1100, 1440 and
+   *  1920 px wide. */
   it("keeps the centred modal's own top above the constant the clamp assumes", () => {
     const declaredTop = viewportTopOfTheSettingsModal(
       surfaceRulesOf(settings).at(-1) ?? "",
@@ -192,9 +151,8 @@ describe("both desktop popovers", () => {
   });
 
   it("take a min() rather than a bare viewport height, so the clamp can only ever shrink them", () => {
-    // The direction a clamp must fail in. `calc(100dvh - …)` alone would make both surfaces *grow*
-    // on a tall screen past the height frames D2D and D2E draw, which is a different regression
-    // wearing the same fix.
+    // The direction a clamp must fail in: `calc(100dvh - …)` alone would let both surfaces grow past the height
+    // frames D2D and D2E draw.
     for (const { name, stylesheet } of EVERY_POPOVER) {
       const desktop = surfaceRulesOf(stylesheet).at(-1) ?? "";
       const drawn = /min\((\d+)px/.exec(desktop)?.[1];
@@ -214,15 +172,10 @@ describe("both desktop popovers", () => {
     }
   });
 
-  /** **The breakdown's popover still hangs from its own trigger, and that is now a rule about one
-   *  surface rather than about both.** `--popover-top` stands in for this anchor's bottom, which
-   *  only means anything while the surface is positioned against it: switched to `position: fixed`
-   *  it would keep the clamp and lose the thing being clamped.
-   *
-   *  **It must not follow the settings modal to the viewport's centre** (M6-AUD-013). That surface
-   *  is modal — a scrim, `aria-modal`, a focus trap — and centring a modal is ordinary; this one is
-   *  deliberately non-modal and explains a figure the customer can still see beside it. The two
-   *  diverged on purpose, so the divergence is asserted rather than left to a comment. */
+  /** `--popover-top` stands in for this anchor's bottom, which means something only while the surface is positioned
+   *  against it: `position: fixed` would keep the clamp and lose the thing being clamped. It must not follow the
+   *  settings modal to the viewport's centre: that surface is modal (scrim, `aria-modal`, focus trap) and this one is
+   *  deliberately non-modal, explaining a figure still visible beside it. */
   it("leaves the breakdown's popover hanging from its anchor rather than from the viewport", () => {
     const desktop = surfaceRulesOf(breakdown).at(-1) ?? "";
 
@@ -243,8 +196,7 @@ describe("both desktop popovers", () => {
     expect(desktop).toMatch(/left:\s*0;/);
     expect(desktop).toMatch(/right:\s*0;/);
     expect(desktop).toMatch(/margin-inline:\s*auto;/);
-    // The frame's own width and M6-AUD-016's guard, both kept: centring the **used** width is what
-    // makes the two compatible, so the clamped box is centred rather than pinned to one side.
+    // The frame's own width and the clamp's guard, both kept: centring the used width makes them compatible.
     expect(desktop).toMatch(/width:\s*900px;/);
     expect(desktop).toMatch(/max-width:\s*calc\(100vw - 48px\);/);
   });
@@ -252,10 +204,9 @@ describe("both desktop popovers", () => {
 
 describe("what the clamp does to the surface it clamps", () => {
   it("leaves the scrolling body as the only thing that flexes, so a clamped footer is not clipped", () => {
-    // **The audit's own mechanism, guarded from the inside.** A footer free to shrink would be
-    // squeezed by the clamp instead of the body scrolling — the same disappearing *Aplică*, now
-    // inside a box that fits the screen. `flex: 1` with a zero basis on `.body` is what sends every
-    // pixel of slack, positive or negative, to the scroller.
+    // A footer free to shrink would be squeezed by the clamp instead of the body scrolling, the same disappearing
+    // *Aplică* inside a box that fits the screen; `flex: 1` with a zero basis on `.body` sends all slack to the
+    // scroller.
     for (const { name, stylesheet } of EVERY_POPOVER) {
       const body = ruleBodyOf(stylesheet, ".body");
       const footer = ruleBodyOf(stylesheet, ".footer");

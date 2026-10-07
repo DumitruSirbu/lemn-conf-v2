@@ -22,6 +22,12 @@
     "loading": "Se încarcă modelul 3D…",
     "overflowWarning": "Dulapurile marcate depășesc lungimea peretelui. Modifică lățimile sau elimină un dulap.",
     "backAction": "Înapoi",
+    "backConfirm": {
+      "title": "Modificările vor fi pierdute",
+      "body": "Dacă te întorci la pasul anterior, modificările efectuate vor fi pierdute. Ești sigur că dorești să reconfigurezi mărimea bucătăriei?",
+      "confirm": "Înapoi la cameră",
+      "stay": "Rămân aici"
+    },
     "reviewCta": "Verifică designul"
   },
   "room": {
@@ -48,7 +54,7 @@
     "dimensionsLater": "Dimensiunile se cer după ce alegi forma.",
     "planCaption": "Plan de sus · previzualizare",
     "planWallLabel": "{wall} · {millimetres, number, ::group-off} mm",
-    "cornerQuestion": "Încotro merge cotul?",
+    "cornerQuestion": "În care parte se află colțul bucătăriei?",
     "cornerHint": "nu se deduce din lățimi",
     "cornerLeft": "La stânga",
     "cornerRight": "La dreapta",

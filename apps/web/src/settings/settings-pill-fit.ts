@@ -1,21 +1,9 @@
-// How many of the pill's settings are named and how many are counted — the owner's ruling of
-// 2026-09-09, as a value.
-//
-// > *"keep labels full width, need just ot calculate the remaining space and decide, how many global
-// > setting fit tyo be show and display with separation like in dektop header, and if one or multiple
-// > not fit, count those that not fit and add that count after `+`"*
-//
-// **A pure function over measured widths, in the shape `describeChipAvailability` uses**
-// (`panel/panel-model.ts`), so the rung the pill is on can be pinned as a value without a browser.
-// No component decides it and no markup encodes it (ADR 0104 decision 3).
-//
-// **Rungs 1 to 3 are a count and rung 4 is a width, and the two must not be confused.** `flex`
-// shrinks a box; it does not choose how many children to render. So this module decides *how many
-// labels are drawn* and nothing else — the last label's ellipsis is the mockups' own
-// `min-width: 0; overflow: hidden; text-overflow: ellipsis` and is performed by CSS.
-//
-// **No pixel constant is declared here.** Every width arrives measured, and the hysteresis margin is
-// composed from the pill's own separator and gap (ADR 0104 decision 9).
+// How many of the pill's settings are named and how many are counted, as a pure function over measured widths (the
+// shape of `describeChipAvailability`), so the rung is pinned as a value without a browser (ADR 0104 decision 3).
+// Show as many whole labels as fit, separated as in the desktop header, and count the rest after a `+`. Rungs 1 to 3
+// are a count and rung 4 a width: `flex` shrinks a box but does not choose how many children render, so this module
+// decides only how many labels are drawn; the last label's ellipsis is CSS. No pixel constant is declared here: every
+// width arrives measured and the hysteresis margin is the pill's own separator plus gap (ADR 0104 decision 9).
 
 /** The widths the pill spends whatever it names, all measured in the pill's own typography. */
 export interface SettingsPillFixedWidths {
@@ -52,9 +40,8 @@ export interface SettingsPillFit {
   readonly hiddenCount: number;
 }
 
-/** Thrown rather than answered, because there is no honest answer: the floor of the ladder is *one
- *  label and a counter*, so a pill with nothing to name is a caller that should not have drawn one
- *  (ADR 0104 decision 3 — "never a bare `+3`"). */
+/** Thrown rather than answered: the floor is one label and a counter (ADR 0104 decision 3, never a bare `+3`),
+ *  so a pill with nothing to name is a caller that should not have drawn one. */
 export class EmptySettingsPillError extends Error {
   constructor() {
     super("a settings pill names at least one setting; none was given");
@@ -63,19 +50,11 @@ export class EmptySettingsPillError extends Error {
 }
 
 /**
- * The ladder, in one comparison per rung.
- *
- * **The floor is one label, never zero** — the owner's *"`Pal melaminat + 2` => `Pal mela.. + 2`"*.
- * Below the width one whole label needs, the count stops falling and the label ellipsises instead.
- *
- * **A label is hidden only when there is no room for it**, which is why the largest fitting count is
- * taken rather than the first that fails: adding the last label also *removes* the counter, so the
- * widths are not monotone in the count and a first-failure scan would hide a label that fits.
- *
- * **Hysteresis, and its margin is the pill's own separator and gap.** Showing one more label needs
- * the room for that label plus what separates it; hiding one needs the room to fall below the label
- * alone. The two thresholds differ by exactly that margin, so a width on the boundary cannot
- * oscillate, and no pixel constant is introduced to achieve it.
+ * The ladder, in one comparison per rung. The floor is one label, never zero: below the width one whole label needs,
+ * the count stops falling and the label ellipsises. The largest fitting count is taken, not the first that fails:
+ * adding the last label also removes the counter, so widths are not monotone in the count. Hysteresis: showing one
+ * more label needs room for it plus its separator, hiding one needs the room to fall below the label alone; the
+ * thresholds differ by exactly the pill's separator and gap, so a boundary width cannot oscillate.
  */
 export function chooseVisibleSettingLabels(
   input: SettingsPillFitInput,
@@ -107,14 +86,10 @@ export function chooseVisibleSettingLabels(
 }
 
 /**
- * **How many settings a track of this width can name**, with no hysteresis and no memory — the rung
- * a pill would settle on if it were being drawn for the first time at this width.
- *
- * Exported and named because it has **two** readers and one definition is what keeps them agreeing:
- * `chooseVisibleSettingLabels` above takes it as the shrink branch's answer, and `top-bar-fit.ts`
- * asks it twice — once for the track with the wordmark and once for the track without — to decide
- * whether the wordmark's return would cost a name. Two copies of *"the largest count that fits"* is
- * how the row and the pill come to disagree about the same width.
+ * How many settings a track of this width can name, with no hysteresis or memory: the rung a pill would settle
+ * on if drawn for the first time at this width. Exported because it has two readers and one definition keeps
+ * them agreeing: `chooseVisibleSettingLabels` takes it as the shrink branch's answer, and `top-bar-fit.ts` asks
+ * it with and without the wordmark to decide whether the wordmark's return would cost a name.
  */
 export function visibleCountThatFitsWithin(
   input: SettingsPillFitInput,
@@ -131,10 +106,9 @@ export function visibleCountThatFitsWithin(
 }
 
 /**
- * What the pill measures when it names `visibleCount` of `labelWidthsPx.length` settings.
- *
- * Exported because the row above the pill needs it too: which rung the pill can reach is what
- * decides whether the wordmark is drawn (`configure/top-bar-fit.ts`).
+ * What the pill measures when it names `visibleCount` of `labelWidthsPx.length` settings. Exported because the
+ * row above the pill needs it too: which rung the pill can reach decides whether the wordmark is drawn
+ * (`configure/top-bar-fit.ts`).
  */
 export function widthNeededForVisibleLabels(
   visibleCount: number,
@@ -160,12 +134,9 @@ export function widthNeededForVisibleLabels(
 }
 
 /**
- * The labels a rung actually draws — **a setting with no text of its own draws none**.
- *
- * The kitchen's colour is one when a free MDF colour is chosen: it has no name, so the owner ruled
- * (2026-09-09) that the swatch wears it and nothing is written. It is still a *shown* setting, so it
- * is not counted after the `+`; it simply costs the pill no label, no separator and no gap. A model
- * that spent a separator on it would put a `│` around nothing.
+ * The labels a rung actually draws: a setting with no text of its own draws none. A free MDF colour has no name,
+ * so the swatch wears it and nothing is written. It is still a shown setting, so it is not counted after the
+ * `+`, and it costs no label, separator or gap (a `│` around nothing).
  */
 function drawnLabelsIn(
   visibleCount: number,

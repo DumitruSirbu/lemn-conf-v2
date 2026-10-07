@@ -378,6 +378,10 @@ Recorded by the architect in [wave 7E3b's plan](../milestones/M7-room-and-preset
 
 - **The choice, verbatim:** *"Rotate on mint"*. It was chosen over backlog 81's option (a), which would have accepted the fixation with CSP enforcement in M8 as a named dependency.
 - **What it supersedes:** F3's and 7E3a D1's reuse clause (*"reuses a well-formed cookie from the request and re-emits it"*).
+> **Dated pointer, 2026-10-06:** `retryOnComputeRestart` is now `retryOnTransientFailure`
+> ([ADR 0145](0145-a-persistence-retry-covers-an-empty-reply-and-a-retried-write-leaves-no-trace.md)), and an
+> empty reply now also triggers the retry.
+
 - **What now happens.** Every `POST /api/designs` that passes F4 issues a fresh 256-bit value. When the request carried a well-formed value, the browser's existing rows move from that value's hash to the new one. The move shares one transaction with the insert, and it is idempotent under the retry `retryOnComputeRestart` may make:
   1. the `update` of the old hash to the new;
   2. an `insert … on conflict (id) do nothing`;
@@ -441,6 +445,10 @@ It is not identical across the two classes. The API half of criterion 2 is uncha
   - The one client module that `POST`s `/api/designs` takes an exclusive Web Lock, `lemnaria:create-design`, for the whole request. A second tab's mint therefore starts only after the first tab's response has set its cookie, and carries that cookie.
   - The lock shares its scope with the cookie jar (origin and storage partition). It reads and writes no cookie, so decision 1 stands.
   - A browser without the API mints unlocked. So does a wait on the lock longer than 10 s.
+> **Dated pointer, 2026-10-06 (R2.3):** the retry is now `retryOnTransientFailure` (ADR 0145) and an empty
+> reply also triggers it. An empty 2xx follows an attempt that completed, so a mint holding the Web Lock can
+> spend about three query times plus 2 s, still under the 10 s acquire timeout. R2.3 stays inference.
+
 - **Accepted residual (SEC-7E3b.8, resolved 2026-09-23 at close-out).** Browsers without Web Locks (Safari before 15.4 and older engines) and non-browser clients can still race. Measured on `next start`, two overlapping mints from one value lost every earlier design in **29 of 30 rounds** through the lock's own client path. QA's re-measurement of the raw, unlocked race — the same shape a Web-Lock-absent browser hits — was **15 of 15 raw concurrent fetches from one value lost earlier designs**, quoted alongside the 29/30 rather than in its place: the two numbers measure the same defect from two entry points, not two defects. **A second route into the same race**: the lock's own 10 s acquire timeout (`LOCK_ACQUIRE_TIMEOUT_MS`, D2) falls back to an unlocked mint, so a tab that waits past 10 s races exactly as an API-absent browser does. The rationale for that fallback — *"a peer mint still holding the lock after 10 s has almost certainly failed"* — is **inference, not a measured bound**: logic reviewer R2.3 notes a cold Neon connection retries at 0.5 s + 1.5 s backoff (`retry-on-compute-restart.ts`) and a serverless cold start can plausibly exceed 10 s on its own, so a slow-but-live peer mint, not only a failed one, can trip the fallback and enter the race. The save-versus-mint half of that race (H3) is also unchanged.
 - **Rejected:**
   - H4's conditional HMAC, for SEC-7E3b.5;

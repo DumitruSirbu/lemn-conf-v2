@@ -1,9 +1,3 @@
-// Wave 6B: the pure pricing query.
-//
-// The failures this file exists to detect are the ones that would look green under a weaker suite:
-// a price that is really a width lookup, an order pricing arrived at by itself, a seeded body priced
-// through the literal `buildId` the projection resolves, a handle line counting meshes, and a total
-// that quietly drops the bodies that do not fit.
 import { describe, expect, it } from "vitest";
 
 import { entryLabel } from "../../src/catalog.js";
@@ -51,9 +45,8 @@ import {
 const CATALOG = KITCHEN_L_BODY_CATALOG;
 const BOOK = SAMPLE_PRICE_BOOK;
 
-/** What the book's **default** hardware tier charges the seeded kitchen, recomposed from that
- *  tier's own three rates and the design's own three counts. Never a literal here: the
- *  reconciliation to ADR 0092 decision 6's table is `hardware-tier-reconciliation.test.ts`'s job. */
+/** What the default hardware tier charges the seeded kitchen, recomposed from the tier's three rates and the
+ *  design's three counts. Never a literal: the reconciliation to ADR 0092 decision 6 is another file's job. */
 function hardwareAmountOfDefaultTier(): number {
   const tier = BOOK.hardware.tiers.find(
     (candidate) => candidate.tierId === BOOK.hardware.defaultTierId,
@@ -73,8 +66,7 @@ function hardwareAmountOfDefaultTier(): number {
   );
 }
 
-/** The seeded design with its placements replaced, so a test writes only the document it is about
- *  while the room and the timestamps stay the ones the product ships. */
+/** The seeded design with its placements replaced; the room and timestamps stay as shipped. */
 function designOf(placements: readonly DesignPlacement[]) {
   return { ...KITCHEN_L_DESIGN, placements: [...placements] };
 }
@@ -142,8 +134,6 @@ function ruleFor(buildId: string): CabinetPriceRule {
   return rule;
 }
 
-/** The sample book with one rule replaced or removed, so a test can construct the case it is about
- *  without authoring a second book and without touching the shipped one. */
 function bookWithout(buildId: string): PriceBook {
   return {
     ...BOOK,
@@ -151,8 +141,7 @@ function bookWithout(buildId: string): PriceBook {
   };
 }
 
-/** The seeded catalogue with one entry amended. Used to construct the divergence the shipped
- *  catalogue does not currently exhibit — see the handle-count block below. */
+/** The seeded catalogue with one entry amended, to construct a divergence the shipped catalogue lacks. */
 function catalogWith(
   buildId: string,
   amendment: Partial<BodyDefinition>,
@@ -162,10 +151,8 @@ function catalogWith(
   return new Map(CATALOG).set(buildId, { ...definition, ...amendment });
 }
 
-/** The seeded catalogue with one entry's handle declaration **absent** — the shape a definition
- *  assembled outside TypeScript arrives in, which is the case ADR 0061 decision 4 requires to fail
- *  loudly. The key is removed rather than set to `undefined`, because those are different documents
- *  and only the first is reachable through the `BodyCatalog` port. */
+/** One entry's handle declaration **absent**, as a definition assembled outside TypeScript arrives (ADR 0061
+ *  decision 4). The key is removed, not set to `undefined`: only the first is reachable through `BodyCatalog`. */
 function catalogDeclaringNoHandles(buildId: string): BodyCatalog {
   const definition = CATALOG.get(buildId);
   if (!definition) throw new Error(`fixture has no entry "${buildId}"`);
@@ -176,10 +163,8 @@ function catalogDeclaringNoHandles(buildId: string): BodyCatalog {
   return new Map(CATALOG).set(buildId, undeclared);
 }
 
-/** The amount the sample book's own coefficients say a body of this row, width and height comes to,
- *  applied by hand rather than by a second call into the query's arithmetic. The door leaves are the
- *  one number read from production code, and deliberately: the whole point of the count is that
- *  pricing and the handle line derive it in exactly one place. */
+/** The amount the sample book's coefficients give a body, applied by hand rather than through the query's
+ *  arithmetic. The door leaves are the one number read from production code, so both derive it in one place. */
 function expectedAmountFor(
   buildId: string,
   body: { readonly widthMm: number; readonly heightMm: number },
@@ -246,9 +231,8 @@ describe("a price is a formula over width, never a table keyed on the ladder", (
 });
 
 describe("the price steps where the door count does, and nowhere else", () => {
-  // Owner, 2026-09-03: another door is another handle, another set of mechanisms and more
-  // processing margin, so the amount **steps** at `deriveDoorCount`'s threshold instead of sliding
-  // through it. Front material is roughly unchanged, so the width term stays beside the step.
+  // Another door is another handle and more processing, so the amount steps at `deriveDoorCount`'s threshold
+  // and the width term stays beside the step (ADR 0068).
 
   it("changes by exactly the width coefficient at every width but the threshold", () => {
     const { formula } = ruleFor("wall-cabinet");
@@ -276,9 +260,8 @@ describe("the price steps where the door count does, and nowhere else", () => {
   });
 
   it("steps twice for a two-band column and once for a one-band cabinet", () => {
-    // Wave 6G's recorded trap: `deriveDoorCount` answers leaves **per band**, so a pantry that
-    // gains two leaves at the threshold must gain two steps. A step read straight off
-    // `deriveDoorCount` would under-charge every banded cabinet by half.
+    // `deriveDoorCount` answers leaves per band, so a pantry gaining two leaves at the threshold gains two steps;
+    // a step read straight off it would under-charge every banded cabinet by half.
     const oneBand = ruleFor("wall-cabinet").formula;
     const twoBands = ruleFor("tall-pantry").formula;
     if (!("perDoorLeafMinor" in oneBand) || !("perDoorLeafMinor" in twoBands)) {
@@ -297,9 +280,8 @@ describe("the price steps where the door count does, and nowhere else", () => {
   });
 
   it("steps a resized seeded body exactly as it steps the row it is priced as", () => {
-    // Every seeded row declares `carriesHandles(n)` frozen at the size it was built, so a step read
-    // off the placement's own entry would give a widened seeded wall cabinet no step at all while
-    // an inserted `wall-cabinet` beside it got one — two identical bodies at two prices.
+    // Seeded rows freeze `carriesHandles(n)` at their build size, so a step read off the placement's own entry
+    // would price a widened seeded wall cabinet and an inserted `wall-cabinet` differently.
     for (const widthMm of [400, 600]) {
       expect(
         amountOfOneBody({ buildId: "wall-2door-600", widthMm, heightMm: 700 }),
@@ -310,9 +292,7 @@ describe("the price steps where the door count does, and nowhere else", () => {
   });
 
   it("does not step a row whose front population is fixed at every width", () => {
-    // `base-sink` has two doors and neither of them follows its width, so its price is flat in
-    // leaves and the whole fact folds into its base coefficient — which is why one shape covered
-    // the catalogue before either of these decisions.
+    // `base-sink` has two doors that do not follow its width, so its price is flat in leaves.
     expect(
       widthDerivedDoorLeafCount({
         buildId: "base-sink",
@@ -340,8 +320,7 @@ describe("the price steps where the door count does, and nowhere else", () => {
 });
 
 describe("a body built to its opening is priced by the height it was built to", () => {
-  // Owner, 2026-09-03: `wall-lift` and `open-shelf` build to the opening, so two instances of one
-  // catalogue row stand at two heights. Height is an input **beside** width, not a front area.
+  // `wall-lift` and `open-shelf` build to the opening: height is an input beside width, not a front area (ADR 0068).
 
   it("prices two heights of one row differently, at one width", () => {
     const short = amountOfOneBody({
@@ -380,9 +359,8 @@ describe("a body built to its opening is priced by the height it was built to", 
   });
 
   it("is not a front area: the width term is unchanged by the height", () => {
-    // The rejected alternative, made falsifiable. Under an area model the amount added by 100 mm of
-    // width would be three times larger at 900 mm tall than at 300; under the ruled model it is the
-    // same number, because the two terms are added and not multiplied.
+    // Falsifies the rejected area model: under it 100 mm of width would cost three times more at 900 mm tall than
+    // at 300 mm; under the ruled additive model it costs the same.
     const widthRiseAt = (heightMm: number) =>
       amountOfOneBody({ buildId: "open-shelf", widthMm: 700, heightMm }) -
       amountOfOneBody({ buildId: "open-shelf", widthMm: 600, heightMm });
@@ -391,8 +369,7 @@ describe("a body built to its opening is priced by the height it was built to", 
   });
 
   it("leaves a row of fixed height priced identically at every height", () => {
-    // `base-cabinet` is hinged and is **not** `heightFlex`, so it takes the step term and no height
-    // term. The pair of assertions is what stops the height term being given to every row.
+    // `base-cabinet` is hinged and not `heightFlex`: it takes the step term and no height term.
     const amounts = new Set(
       [700, 720, 900].map((heightMm) =>
         amountOfOneBody({ buildId: "base-cabinet", widthMm: 600, heightMm }),
@@ -406,7 +383,7 @@ describe("a body built to its opening is priced by the height it was built to", 
   });
 
   it("prices the one row that is height-flexible AND hinged by both terms", () => {
-    // ADR 0068's population correction, as behaviour: `wall-cabinet` must move on **both** axes.
+    // ADR 0068's population correction: `wall-cabinet` must move on both axes.
     const at = (widthMm: number, heightMm: number) =>
       amountOfOneBody({ buildId: "wall-cabinet", widthMm, heightMm });
 
@@ -449,8 +426,7 @@ describe("the line order is the projection's, which is row-major", () => {
         ].includes(placementId),
       );
 
-    // The whole hanging row left to right, then the whole top row. The column-major order wave 6A
-    // first shipped would read p8, p15, p10, p16, …
+    // The whole hanging row left to right, then the whole top row, not column-major.
     expect(wallASuspended).toEqual([
       "p8",
       "p10",
@@ -468,11 +444,9 @@ describe("the line order is the projection's, which is row-major", () => {
   });
 
   it("prices the same design identically however its placements are stored", () => {
-    // The order is a function of the design, not of the array the document happens to hold — which
-    // holds only because the comparator is total, and it is total only because placement ids are
-    // unique (`findDuplicatePlacementIds`, the validator's guarantee and not the schema's).
-    // Swept over every rotation rather than over one shuffle, so a pair that ties on four keys is
-    // reached from both sides.
+    // The order is a function of the design, not of the array order: the comparator is total only because
+    // placement ids are unique (`findDuplicatePlacementIds`). Swept over every rotation so ties are reached
+    // from both sides.
     const lines = cabinetLinesOf(pricedSeededKitchen()).map(
       (line) => line.placementId,
     );
@@ -496,9 +470,8 @@ describe("the line order is the projection's, which is row-major", () => {
     }
   });
 
-  /** **Placements, hardware, material, accessories** (ADR 0092 decision 11). The accessories are
-   *  appended rather than interleaved, which is what keeps 6B's *"hardware then material"* claim
-   *  true; the seeded kitchen holds a sink under a wall cabinet, so it earns both of them. */
+  /** Placements, hardware, material, accessories (ADR 0092 decision 11): accessories are appended, so
+   *  "hardware then material" holds. The seeded kitchen earns both accessories. */
   it("puts the whole-kitchen and accessory lines after every placement line, in that order", () => {
     const kinds = pricedSeededKitchen().lines.map((line) => line.kind);
 
@@ -526,9 +499,8 @@ describe("rule resolution goes through catalogEquivalentId", () => {
 
     expect(lines).toHaveLength(KITCHEN_L_DESIGN.placements.length);
 
-    // The projection resolves the literal `buildId`, which is right for a label and would fail
-    // whole here: the sample book names not one seeded id, because §7's rows are what a price rule
-    // belongs to. This is the assertion that a lookup copied from 6A would fail.
+    // The projection resolves the literal `buildId`; a lookup copied from it would fail here, because the sample
+    // book names no seeded id.
     const namedByTheBook = new Set(
       BOOK.cabinetRules.map((rule) => rule.buildId),
     );
@@ -552,11 +524,8 @@ describe("rule resolution goes through catalogEquivalentId", () => {
   });
 });
 
-/** **The hardware line is one line at `quantity: 1`** since wave 6T (ADR 0092 decision 4): three
- *  per-mechanism rates cannot share one unit price, so the line no longer publishes a count and the
- *  count has to be read where it is derived. `cabinetHandleCount` survives with no production
- *  reader and its parity gate with it, so it is asserted directly here; what the *price* is billed
- *  off is the mechanism count, which is asserted through the line's amount. */
+/** The hardware line is one line at `quantity: 1` (ADR 0092 decision 4). `cabinetHandleCount` has no production
+ *  reader, so it is asserted directly; the price is billed off the mechanism count, asserted through the amount. */
 describe("the mechanism count comes from the placement's own entry", () => {
   const PREMIUM = { hardwareTierId: "hardware.premium" } as const;
 
@@ -584,9 +553,8 @@ describe("the mechanism count comes from the placement's own entry", () => {
     );
   }
 
-  /** What the design would be billed if `countHardwareMechanisms` were reading the same entries the
-   *  query reads — recomposed here from the projection and the book, so a query that swapped which
-   *  row it counted off goes red on the *amount* rather than on nothing. */
+  /** What the design would be billed if `countHardwareMechanisms` read the same entries as the query, so a query
+   *  that counted off another row goes red on the amount. */
   function expectedHardwareAmount(
     design: Design,
     catalog: BodyCatalog,
@@ -603,9 +571,8 @@ describe("the mechanism count comes from the placement's own entry", () => {
   }
 
   it("holds the oven tower's declared handle count at two", () => {
-    // The declared count the mesh parity gate holds, read straight off the row — ADR 0061's two,
-    // against the four bars the builder draws. It has no production reader since wave 6T and this
-    // is what keeps it from silently drifting.
+    // The declared count the mesh parity gate holds (ADR 0061's two against the four bars the builder draws);
+    // production no longer reads it.
     expect(
       cabinetHandleCount({
         buildId: "tall-oven-tower-600",
@@ -644,10 +611,8 @@ describe("the mechanism count comes from the placement's own entry", () => {
   });
 
   it("reads a seeded corner's count off its own row even when that row names an equivalent", () => {
-    // `wall-corner-return-570` declares one handle; `wall-cabinet`'s per-door rule at 570 mm yields
-    // two. The two agree today only because the corner declares no equivalent — one plausible edit
-    // away, and the sibling rows all carry that spread already. So the divergence is constructed
-    // here rather than waited for.
+    // `wall-corner-return-570` declares one handle where `wall-cabinet`'s per-door rule at 570 mm yields two; the
+    // shipped catalogue does not exhibit that divergence, so it is constructed here.
     const named = catalogWith("wall-corner-return-570", {
       catalogEquivalentId: "wall-cabinet",
     });
@@ -673,10 +638,8 @@ describe("the mechanism count comes from the placement's own entry", () => {
       selections: PREMIUM,
     });
 
-    // The rule resolved through the equivalent…
     expect(lineFor(priced, "c").pricedAsBuildId).toBe("wall-cabinet");
-    // …and the mechanism count did not: the corner declares one leaf, `wall-cabinet` at 570 mm
-    // would derive two, and the hardware amount is the corner's own.
+    // The corner declares one leaf where `wall-cabinet` at 570 mm derives two; the hardware amount is the corner's.
     expect(hardwareLineOf(priced).amountMinor).toBe(
       expectedHardwareAmount(corner, named),
     );
@@ -704,10 +667,8 @@ describe("the mechanism count comes from the placement's own entry", () => {
   });
 
   it("sums the seeded kitchen's declared counts and nothing else", () => {
-    // Both halves of the split ADR 0070 made: the handle count the parity gate still holds, and the
-    // mechanism count the price is now billed off. They are different numbers on purpose —
-    // `base-panbank`'s two handles are drawers and its leaves are none — so asserting one says
-    // nothing about the other.
+    // The two halves of the split (ADR 0070) are different numbers on purpose: `base-panbank`'s two handles are
+    // drawers and its leaves are none, so asserting one says nothing about the other.
     const declaredHandles = KITCHEN_L_DESIGN.placements.reduce(
       (handles, placement) =>
         handles +
@@ -729,13 +690,8 @@ describe("the mechanism count comes from the placement's own entry", () => {
 });
 
 describe("a tier that costs nothing is a line, and a missing rule is never a zero", () => {
-  /** **The two defaults stopped being alike in wave 6T** (ADR 0092 decision 15, shipped as an
-   *  interim). The default *material* tier still costs nothing, so its line is a zero the breakdown
-   *  renders *inclus*. The default *hardware* tier no longer does: Standard prices the seeded
-   *  kitchen's mechanisms, because ADR 0070's totals table is the only figure on record for what a
-   *  Standard tier costs and it does not say nothing. Whether the customer's Standard line should
-   *  be that number or zero is an open owner input; a line at zero is still not the same thing as a
-   *  rule that is missing, in either group, and that is what this block is about. */
+  /** The default material tier costs nothing (an *inclus* zero line); the default hardware tier prices the seeded
+   *  kitchen's mechanisms (ADR 0092 decision 15). A zero line is still not a missing rule, in either group. */
   it("emits a priced hardware line and a zero material line for the default tiers", () => {
     const priced = pricedSeededKitchen();
     const wholeKitchen = priced.lines.filter(
@@ -788,7 +744,6 @@ describe("fail whole", () => {
       placementId: "x",
       id: "wall-cabinet",
     });
-    // No partial line set and no partial total: the failure branch carries neither.
     expect(result).not.toHaveProperty("priced");
   });
 
@@ -875,21 +830,13 @@ describe("fail whole", () => {
 });
 
 describe("an overflowing design is priced in full and the total is flagged", () => {
-  /** Far enough along any wall that a body centred there passes its end, whichever wall it stands
-   *  on. Applied as a shift, so the placements keep their relative order and the projection's line
-   *  order with them. */
+  /** Far enough along any wall that a body centred there passes its end. Applied as a shift, so relative order
+   *  and the projection's line order are kept. */
   const PAST_EVERY_WALL_MM = 9_000;
 
-  /**
-   * The body that is pushed past its wall: a base body that **holds no sink and hosts no rack**.
-   *
-   * **Chosen by that property rather than by being first, and the reason is wave 6T2.** The seeded
-   * kitchen's first placement is `p0`, its sink, standing under `p11`; shifting it 9 m along the
-   * wall takes it out from under every wall cabinet, so the design legitimately stops earning a
-   * drying rack and the total legitimately falls by that line. This block is about a body that does
-   * not fit still being priced, and a fixture that also moved an accessory would fail it for a
-   * reason that is not the defect it guards.
-   */
+  /** The body pushed past its wall: a base body that holds no sink and hosts no rack. Shifting a sink out from
+   *  under its wall cabinet legitimately drops the drying-rack line, which would fail this block for another
+   *  reason. */
   function movedBody(): DesignPlacement {
     const found = KITCHEN_L_DESIGN.placements.find((placement) => {
       const definition = CATALOG.get(placement.body.buildId);
@@ -899,8 +846,7 @@ describe("an overflowing design is priced in full and the total is flagged", () 
     return found;
   }
 
-  /** The seeded kitchen fits, so the overflow is made in the **document**: since ADR 0069 decision
-   *  5c `priceDesign` derives the fact from the design it is pricing and accepts no report. */
+  /** The overflow is made in the document: `priceDesign` derives the fact from the design (ADR 0069 decision 5c). */
   function withOneBodyPastItsWall(): Design {
     const moved = movedBody();
     return {
@@ -925,16 +871,14 @@ describe("an overflowing design is priced in full and the total is flagged", () 
   }
 
   it("prices every body, including the one that does not fit", () => {
-    // Pinned so a fixture change that started moving the sink again is visible here rather than in
-    // a total nobody reads.
+    // Pinned so a fixture change that moved the sink again is visible here.
     expect(movedBody().id).toBe("p1");
 
     const design = withOneBodyPastItsWall();
     const overflowing = pricedSeededKitchen({ design });
     const [marked] = findOverflowingPlacementIds(design);
 
-    // The defect this asserts against: excluding the marked body would drop the total at the moment
-    // part of the kitchen became unbuildable, and read as a cheaper kitchen.
+    // Excluding the marked body would drop the total once part of the kitchen became unbuildable.
     expect(overflowing.totalMinor).toBe(pricedSeededKitchen().totalMinor);
     expect(cabinetLinesOf(overflowing)).toHaveLength(design.placements.length);
     expect(cabinetLinesOf(overflowing).map((line) => line.placementId)).toEqual(
@@ -957,9 +901,7 @@ describe("an overflowing design is priced in full and the total is flagged", () 
     expect(pricedSeededKitchen().totalIsFlagged).toBe(false);
   });
 
-  /** What the deleted `UNKNOWN_OVERFLOW_PLACEMENT` refusal was really protecting: the flag matches
-   *  the document. Deriving it makes a mismatch unrepresentable rather than refused, so the
-   *  statement is now about the flag *following* an edit. */
+  /** The overflow flag matches the document; it is derived, so the statement is about it following an edit. */
   it("clears the flag when the overflowing body is deleted", () => {
     const repaired = withThatBodyDeleted();
 
@@ -1005,10 +947,8 @@ describe("nothing is rounded and nothing is stored", () => {
   });
 
   it("carries the book's provisional-amounts flag forward, and fabricates no value for it", () => {
-    // The flag says whether anybody has ever costed these figures, which `status` does not: every
-    // shipped book is `estimate` **and** provisional, so a surface cannot read one off the other.
-    // Asserted in both directions, because a result that hard-coded `true` would look identical to
-    // one that carried the flag on the only book this repository ships.
+    // The flag says whether anybody has costed these figures, which `status` does not: every shipped book is
+    // `estimate` and provisional. Asserted both ways so a hard-coded `true` fails.
     const costed: PriceBook = { ...BOOK, amountsProvisional: false };
 
     expect(BOOK.amountsProvisional).toBe(true);
@@ -1019,9 +959,8 @@ describe("nothing is rounded and nothing is stored", () => {
   });
 
   it("refuses a book that declares no provisional-amounts flag rather than reading it as false", () => {
-    // A book assembled outside TypeScript can omit it, and an absent flag carried forward would
-    // publish `undefined` — which every surface reads as "these amounts have been costed", the one
-    // direction this flag must never fail in.
+    // A book assembled outside TypeScript can omit the flag; an absent one must not publish `undefined`, which every
+    // surface reads as costed.
     const undeclared: Record<string, unknown> = { ...BOOK };
     delete undeclared["amountsProvisional"];
 
@@ -1059,21 +998,14 @@ describe("nothing is rounded and nothing is stored", () => {
   });
 });
 
-/**
- * **The catch around the mechanism count converts two declared causes and relabels nothing**
- * (ADR 0092 decision 16). It used to wrap `countHardwareMechanisms` in a bare `catch` and call
- * everything that came out of it `UNDECLARED_FRONT_POPULATION` — a missing declaration, a placement
- * height that leaves no door, and a genuine `TypeError` all under one name. A code family is
- * declared per cause (ADR 0069), so each of the three is asserted here separately.
- */
+/** The catch around the mechanism count converts two declared causes and relabels nothing (ADR 0092 decision 16);
+ *  each of the three causes is asserted separately. */
 describe("the pricing catch names its causes", () => {
-  /** The tallest frame that leaves a `one-band-under-frame` row nothing to hang a door in: the band
-   *  is the frame less the declared inset, so at exactly the inset the band is zero. Read off the
-   *  declaration rather than typed, because the boundary is the constant's and not this test's. */
+  /** The tallest frame that leaves a `one-band-under-frame` row no door: at exactly the declared inset the band
+   *  is zero. Read off the declaration, because the boundary is the constant's. */
   const NO_BAND_LEFT_FRAME_HEIGHT_MM = WALL_DOOR_BAND_INSET_MM;
 
-  /** A `wall-cabinet` built too short to carry a door, priced with everything else shipping as it
-   *  ships — so what refuses is the placement's own height and not a doctored catalogue. */
+  /** A `wall-cabinet` built too short to carry a door, so the placement's own height refuses, not the catalogue. */
   function priceAWallCabinetAt(frameHeightMm: number) {
     return priceDesign({
       design: designOf([
@@ -1095,12 +1027,10 @@ describe("the pricing catch names its causes", () => {
       placementId: "flat",
       id: "wall-cabinet",
     });
-    // The band height is the fact this cause turns on, so it survives into the detail.
     expect(result.failure.detail).toContain("0 mm door band");
   });
 
-  /** The same row one millimetre taller builds a 1 mm band, which is a door as far as this check is
-   *  concerned — so the refusal above is the boundary and not the whole height range. */
+  /** One millimetre taller builds a 1 mm band, which counts as a door: the refusal above is the boundary. */
   it("prices the same row at the first frame height that leaves a band", () => {
     expect(priceAWallCabinetAt(NO_BAND_LEFT_FRAME_HEIGHT_MM + 1).ok).toBe(true);
   });
@@ -1130,11 +1060,8 @@ describe("the pricing catch names its causes", () => {
     });
   });
 
-  /** **A defect in this repository, not a data condition.** `BodyCatalog` is a port, so a
-   *  definition can arrive with a `fronts` accessor that throws — the shape a `TypeError` reaches
-   *  this seam in. It must come back out as **the same instance**: a refusal here would report a
-   *  bug to a customer as a fact about their kitchen, and a third "unexpected" code would be the
-   *  relabelling this change removes, renamed. */
+  /** A defect, not a data condition. A `fronts` accessor that throws (a `TypeError`) must come back out as the same
+   *  instance: a refusal would report a bug to a customer as a fact about their kitchen. */
   it("lets an error it declares no cause for propagate as the same instance", () => {
     const thrownByThePort = new TypeError("fronts is not an object");
     const request = {
@@ -1167,8 +1094,7 @@ describe("the pricing catch names its causes", () => {
     return new Map(CATALOG).set(buildId, definition);
   }
 
-  /** One row whose `fronts` cannot be read at all — an accessor rather than a bad value, because a
-   *  bad value is a declaration the domain refuses by name and this case is the one it does not. */
+  /** One row whose `fronts` cannot be read: an accessor, not a bad value, which the domain refuses by name. */
   function catalogWhoseFrontsThrow(
     buildId: string,
     thrown: unknown,

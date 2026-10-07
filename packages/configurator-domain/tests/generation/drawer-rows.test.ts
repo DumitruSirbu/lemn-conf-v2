@@ -1,32 +1,11 @@
-// M7 wave 7D4 slice S2 — the two rows that take a drawer body, and the reading order that locates
-// the second of them.
-//
-// The owner's run order puts a drawer group astride the hob (ADR 0110 Amendment H1). 7D4 builds only
-// the width-neutral half of it: the **preparation** cabinet and **the first storage slot after the
-// hob in the reading order** take the drawer body, every other storage slot takes the door body, and
-// no width, count, remainder or cut moves.
-//
-// **The wall-B case is written first, and it is the reason this file exists.** *The first slot after
-// the hob* is the **reading** order, not *the same wall, further along*. The two definitions
-// disagree wherever the hob stands on the wall the layout runs in reverse, and **nothing else in the
-// wave goes red when the wrong one is built**: the count, the widths, the remainder and the
-// provenance all stay correct while the drawer stands in the wrong module or in none (ruling D15.7).
-//
-// **Re-keyed for M7 wave 7D8 slice S3.** The wall read in reverse is no longer wall B: it is the
-// **narrower entered wall**, because the run now follows the wider one (ADR 0120 Amendment E, ADR
-// 0110 Amendment I). Every assertion below that named a letter has been re-derived from the rule.
-// **The population that separates the two definitions of *after the hob* emptied with that re-key**
-// — the hob is the reading order's last core role and it now always stands on the wider wall — so
-// that half of D15.7 is witnessed at the composer's unit boundary instead, in
-// `qa-7d8-the-run-follows-the-wider-wall.adversarial.test.ts` (ADR 0091 Amendment A: the invariant
-// moved, and it is asserted there at least as strongly).
-//
-// **The reading order below is re-derived from the entered wall lengths and the plan's own spatial
-// positions**, never from a planned id and never from production's own helper, so this file and
-// `generation-priorities.ts` agree only if both read the owner's wider-wall rule the same way. A
-// storage slot is reached through `isComposedStorageSlot` and never through `role === "storage"`:
-// the block's full-height columns carry that role deliberately (E5.2), and a rule scoped by it is
-// wrong on a third of all placed rooms against output that is correct (D12).
+// The preparation cabinet and the first storage slot after the hob in the reading order take the drawer body (ADR 0110
+// Amendment H1); every other storage slot takes the door body, and no width, count, remainder or cut moves.
+// "After the hob" is the reading order, not "the same wall, further along": the two disagree where the hob stands on
+// the wall the layout reads in reverse, and nothing else goes red when the wrong one is built. That population
+// emptied; the half it separated is witnessed in `qa-7d8-the-run-follows-the-wider-wall.adversarial.test.ts`.
+// The reading order is re-derived from the entered wall lengths and the plan's own positions, never from production's
+// helper (ADR 0120 Amendment E). A storage slot is reached through `isComposedStorageSlot`, never `role === "storage"`:
+// the block's full-height columns carry that role deliberately (E5.2).
 import { describe, expect, it } from "vitest";
 
 import {
@@ -48,6 +27,7 @@ import {
   type PlannedGenerationBase,
 } from "../../src/index.js";
 import { narrowerEnteredWall } from "../support/entered-walls.js";
+import { ruledSlotWidthMm } from "../support/fridge-end-leftover.js";
 
 const CATALOG = buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN));
 const DECLARED_COLUMNS = declaredColumnSizes(CATALOG);
@@ -71,21 +51,17 @@ function alongTheWall(
 }
 
 /**
- * The wall the kitchen is laid out against the reading order on — the run's **first** half, read
- * from that wall's free end toward the corner (ADR 0110 Amendment A1 and D2).
- *
- * **It is the narrower entered wall, and wall B where the two are equal**, because the run follows
- * the wider one (ADR 0120 Amendment E). **Derived in `entered-walls.ts` from the room's own two
- * numbers and never imported from `generation-priorities.ts`**: production's `isLaidOutInReverse` is
- * the expression this file exists to disagree with, and importing it would turn an independent
- * oracle into a tautology (7D8 adjudication, finding C2).
+ * The wall the kitchen is laid out against the reading order on: the run's first half, read from that wall's free end
+ * toward the corner (ADR 0110 A1 and D2). It is the narrower entered wall, wall B where equal, because the run follows
+ * the wider one (ADR 0120 Amendment E). Derived in `entered-walls.ts`, never imported from `generation-priorities.ts`:
+ * production's `isLaidOutInReverse` is the expression this file exists to disagree with.
  */
 function wallReadInReverse(room: DesignRoom): DesignWall {
   return narrowerEnteredWall(room);
 }
 
-/** The kitchen in the order it is read: the reversed wall from its free end toward the corner, then
- *  the other wall from the corner outward. That single reversal is the whole of D15.7. */
+/** The kitchen in the order it is read: the reversed wall from its free end toward the corner, then the other wall
+ *  from the corner outward. */
 function inReadingOrder(
   plan: KitchenCompositionPlan,
 ): readonly PlannedGenerationBase[] {
@@ -111,7 +87,7 @@ function bodiesOf(bases: readonly PlannedGenerationBase[]): readonly string[] {
   return bases.map((base) => base.buildId);
 }
 
-/** 7D5b S1 / ADR 0110 M1/M8/M9: the one module the dishwasher leaf re-identified, read by its body. */
+/** The one module the dishwasher leaf re-identified, read by its body. */
 function dishwasherOf(plan: KitchenCompositionPlan): PlannedGenerationBase {
   const dishwashers = plan.bases.filter(
     (base) => base.buildId === DISHWASHER_BUILD_ID,
@@ -128,35 +104,23 @@ function isTheSink(base: PlannedGenerationBase | undefined): boolean {
 }
 
 describe("D15.7 — the slot after the hob is found in the reading order and not along one wall", () => {
-  // The witness that separates *after the hob in the reading order* from *the first slot on a named
-  // wall*. The run starts at the narrower wall's free end, reads that wall's slots, crosses the corner
-  // and reaches the hob among the wider wall's core. The slot the run reaches next is the wider wall's;
-  // **every slot on the narrower wall is a module the run passed before the hob** and must keep its
-  // door.
+  // Separates "after the hob in the reading order" from "the first slot on a named wall": the run starts at the
+  // narrower wall's free end, crosses the corner and reaches the hob among the wider wall's core, so every slot on the
+  // narrower wall was passed before the hob and keeps its door.
   //
-  // **Restated for M7 wave 7D5 S2 (owner ruling Q-H6a = A, 2026-09-21; ADR 0123).** The pan drawer
-  // now stands immediately before the hob wherever the hob's wall has room for it, and where that wall
-  // has room for only one more module the pan drawer takes it and this rule's post-hob slot is gone.
-  // The population this describe needs — a post-hob slot on the wider wall **and** a composed slot on
-  // the narrower one — fell from 56 866 rooms to 431 (architect's census, 10 mm grid), every one at
-  // wall A exactly 6000 mm, and its physical-wall-B arm fell from 26 975 to 0. The old subject,
-  // 1500 x 4410, is one of the rooms that emptied: the pan drawer took wall B's only post-hob module.
-  //
-  // The rule's branch is kept, so its witness is kept too (ADR 0123 decision 1), on both mirrors:
-  // - **hob on wall A** — 6000 x 4100, a real room of the 431 the approved policy still admits;
-  // - **hob on wall B** — 4100 x 6100, the same kitchen mirrored. **The approved policy cannot admit
-  //   it**: wall B's run starts 100 mm further from the corner than wall A's, so a wall B of 6000 mm
-  //   leaves 5000 mm of run where the core, the pan drawer, the bottle, one slot and the three-column
-  //   block need 5100. It is declared here as a room the composer is judged on (as criterion 1's
-  //   headline rooms are), and the test below asserts it lies outside the policy so the day the policy
-  //   widens this witness is re-examined rather than quietly duplicated (ADR 0093 decision 3b).
+  // The pan drawer takes the hob's wall's last module where there is room for only one more, which emptied this
+  // population; the rule's branch and its witnesses are kept on both mirrors (ADR 0123 decision 1):
+  // - hob on wall A: 6000 x 4100, admitted by the approved policy;
+  // - hob on wall B: 4100 x 6100, the mirror. The policy cannot admit it (wall B's run starts 100 mm further from the
+  //   corner, leaving 5000 mm where the core, pan drawer, bottle, one slot and block need 5100), so a test below
+  //   asserts it lies outside the policy and the witness is re-examined when the policy widens (ADR 0093 decision 3b).
   const D15_7_WITNESSES = [
     {
       name: "hob on wall A, 6000 x 4100",
       room: { shape: "L", widthMm: 6000, depthMm: 4100, heightMm: 2600 },
       hobWall: "A",
-      // 7D5b S1 / ADR 0110 M1/M8/M9: wall B's first slot, at 900, faces the sink across the corner,
-      // so M1 made it the dishwasher; it leaves this list and is asserted below as `dishwasherAt`.
+      // Wall B's first slot, at 900, faces the sink across the corner, so M1 made it the dishwasher (ADR 0110); it is
+      // asserted below as `dishwasherAt`.
       slots: [
         ["A", 3600, THREE_DRAWER_BASE_BUILD_ID],
         ["B", 1500, DOOR_BASE_BUILD_ID],
@@ -218,17 +182,10 @@ describe("D15.7 — the slot after the hob is found in the reading order and not
   it.each(D15_7_WITNESSES)(
     "leaves every slot the run read before the hob a door, though one is a wall's first slot, $name",
     ({ room, slots, dishwasherAt, hobStartMm }) => {
-      // The same disagreement seen spatially, and the form that fails loudest under the wrong rule: an
-      // implementation that sought the slot on the **narrower** wall — or on a fixed letter — finds a
-      // slot the run read before the hob and gives it the drawer, while the widths, the count, the
-      // remainder and every module's provenance stay exactly as they are below.
-      //
-      // **What these rooms can no longer separate, and where that went instead.** *The first slot
-      // after the hob* and *the first slot on the hob's own wall* name the same module in every room
-      // the approved policy admits, because the hob always stands on the wall the run reads last. That
-      // half of D15.7 is witnessed at the composer's unit boundary in
-      // `qa-7d8-the-run-follows-the-wider-wall.adversarial.test.ts` — *the drawer stands at the prefix
-      // wall's highest slot index* — under ADR 0091 Amendment A.
+      // The same disagreement seen spatially: an implementation that sought the slot on the narrower wall, or on a
+      // fixed letter, gives a slot read before the hob the drawer while widths, count, remainder and provenance stay
+      // as below. In every admitted room the first slot after the hob is also the first on the hob's own wall, so the
+      // descending-index half is witnessed in `qa-7d8-the-run-follows-the-wider-wall.adversarial.test.ts`.
       const plan = planFor(room);
       const composed = plan.bases.filter(isComposedStorageSlot);
 
@@ -241,9 +198,8 @@ describe("D15.7 — the slot after the hob is found in the reading order and not
           )
           .map((slot) => [slot.wall, slot.startMm, slot.buildId]),
       ).toEqual(slots);
-      // 7D5b S1 / ADR 0110 M1/M8/M9: the narrower wall's **first** slot — the one a wall-scoped rule
-      // would have drawered — is now the dishwasher, a module read before the hob that took neither
-      // drawer body. The run reads it immediately before crossing to the sink.
+      // The narrower wall's first slot, which a wall-scoped rule would have drawered, is the dishwasher (ADR 0110 M1):
+      // read directly before the sink and given neither drawer body.
       const dishwasher = dishwasherOf(plan);
       const read = inReadingOrder(plan);
       expect([dishwasher.wall, dishwasher.startMm, dishwasher.endMm]).toEqual(
@@ -259,8 +215,6 @@ describe("D15.7 — the slot after the hob is found in the reading order and not
   it.each(D15_7_WITNESSES)(
     "stands the pan drawer immediately before the hob and after the preparation cabinet, $name",
     ({ room }) => {
-      // M7 wave 7D5 S2 (Q-H6a = A): the module that emptied D15.7's population is itself pinned
-      // here, so the witness says what took the post-hob slot's place rather than only that it moved.
       const read = inReadingOrder(planFor(room));
       const hobAt = read.findIndex((base) => base.role === "hob");
 
@@ -275,9 +229,8 @@ describe("D15.7 — the slot after the hob is found in the reading order and not
   );
 
   it("declares its wall-B witness outside the approved policy, because no admitted room reaches it", () => {
-    // ADR 0123 decision 3: the unreachable arm is stated as a test, not a comment. A later wave that
-    // widens wall B far enough to admit this room goes red here and is sent to re-measure the
-    // three-arm sweep below rather than keep a declared witness the sweep now duplicates.
+    // The unreachable arm is stated as a test (ADR 0123 decision 3): a later wave that widens wall B enough to admit
+    // this room goes red here and re-measures the sweep below.
     const l = APPROVED_ROOM_POLICY.buildableShapes.L;
     if (!l) throw new Error("the approved policy declares no L");
     const wallBWitness = D15_7_WITNESSES[1].room;
@@ -287,8 +240,8 @@ describe("D15.7 — the slot after the hob is found in the reading order and not
   });
 });
 
-// The headline rooms were approved when 7D4 named them and sit past the 6000 mm M7 7A3 ruled; they are
-// kept on purpose, because the composer is judged here, not the policy.
+// These rooms sit past the policy's 6000 mm wall A; kept on purpose, because the composer is judged here, not the
+// policy.
 describe("criterion 1 — the two drawer rows at the wave's two headline rooms", () => {
   const BLOCK_AT_THE_FREE_END = [
     ["tall-oven-tower", 600, 4200, 4800],
@@ -299,10 +252,8 @@ describe("criterion 1 — the two drawer rows at the wave's two headline rooms",
   it.each([4700, 5100])(
     "makes the preparation cabinet and the post-hob slot drawers at 6300 × %i",
     (depthMm) => {
-      // **Re-pinned for M7 wave 7D5 S2 (Q-H6a = A; ADR 0123).** 7D4 read two slots after the hob here,
-      // a drawer then a door. The pan drawer now stands immediately before the hob, which spends one
-      // 600 mm module of the hob's wall, so one slot remains after the hob — still the drawer — and no
-      // door follows it. D15.7's subject is untouched: the first slot after the hob takes the drawer.
+      // The pan drawer stands immediately before the hob, so one slot remains after it, still the drawer, and no door
+      // follows it.
       const plan = planFor({
         shape: "L",
         widthMm: 6300,
@@ -326,13 +277,9 @@ describe("criterion 1 — the two drawer rows at the wave's two headline rooms",
   it.each([4700, 5100])(
     "leaves every slot the run reads before the hob a door at 6300 × %i",
     (depthMm) => {
-      // The second drawer of the owner's group stands left of the hob — 7D5 S2's pan drawer, a width
-      // change (D15.2) that is not a composed slot, so it does not appear in this list. These are
-      // wall B's, which the order names as *the door cabinet between fridge and sink* (H2).
-      //
-      // 7D5b S1 / ADR 0110 M1/M8/M9: 7D4 read five doors here. Wall B's first slot faces the sink
-      // across the corner and M1 made it the dishwasher, so four doors remain, and the fifth module is
-      // asserted as the dishwasher the run reads last before the sink — never a drawer.
+      // The pan drawer, the group's second drawer, is not a composed slot and is not in this list. These are wall B's
+      // slots, the door cabinet between fridge and sink (H2). Wall B's first slot is the dishwasher (ADR 0110 M1), so
+      // four doors remain and the dishwasher is the module read last before the sink.
       const plan = planFor({
         shape: "L",
         widthMm: 6300,
@@ -355,8 +302,7 @@ describe("criterion 1 — the two drawer rows at the wave's two headline rooms",
   it.each([4700, 5100])(
     "keeps a three-column block after the bottle at 6300 × %i",
     (depthMm) => {
-      // Not composed slots: the bottle shifts the block inward by one half-module while preserving
-      // its three catalogue-declared column bodies.
+      // Not composed slots: the bottle shifts the block inward by one half-module, keeping its three column bodies.
       const plan = planFor({
         shape: "L",
         widthMm: 6300,
@@ -402,11 +348,9 @@ describe("criterion 1 — the two drawer rows at the wave's two headline rooms",
   );
 });
 
-// 7D5b S1 / ADR 0110 M1/M8/M9: the boundary room's one composed slot faces the sink across the corner,
-// so M1 made it the dishwasher. The merge subject is kept **in the same room, on the dishwasher's
-// module**: the re-identification keeps the span the merge stepped back, so the module still stands
-// at one module inside the 698 mm opening, now under a discrete-width body — the harder case the
-// buildability test below was written against.
+// The boundary room's one composed slot faces the sink across the corner, so M1 made it the dishwasher (ADR 0110).
+// The merge subject stays on that module: it keeps the span the merge stepped back, so it stands at one module inside
+// the 698 mm opening, now under a discrete-width body.
 describe("criterion 10 — the free-end merge still lands on a body that can take it", () => {
   const MERGE_BOUNDARY: DesignRoom = {
     shape: "L",
@@ -431,13 +375,9 @@ describe("criterion 10 — the free-end merge still lands on a body that can tak
   });
 
   it("gives that slot a body the catalogue declares buildable at the planned width", () => {
-    // Read off the catalogue entry rather than asserted by name: a `fixedWidth` or discrete-width
-    // row dropped into the merged 698 mm opening would move a tile boundary the merge and
-    // `plannedVoid` both depend on, whichever body the rule assigned.
-    //
-    // 7D5b S1 / ADR 0110 M1/M8/M9: was `widthFlex === "fit"` on the door slot. The dishwasher is a
-    // discrete-width row, so buildable means its declared widths include the planned 600 — not the
-    // merged 698 the opening would otherwise offer it.
+    // Read off the catalogue entry, not asserted by name: a fixed- or discrete-width row dropped into the merged 698 mm
+    // opening would move a tile boundary the merge and `plannedVoid` depend on. The dishwasher is a discrete-width row,
+    // so buildable means its declared widths include the planned 600, not the merged 698.
     const plan = planFor(MERGE_BOUNDARY);
     const dishwasher = dishwasherOf(plan);
     const widthFlex = CATALOG.get(dishwasher.buildId)?.widthFlex;
@@ -448,12 +388,8 @@ describe("criterion 10 — the free-end merge still lands on a body that can tak
   });
 
   it("leaves it undrawered — now the dishwasher — because the run reads it before the hob", () => {
-    // Wall B's slot stands between the fridge's end of the run and the corner; the hob is on wall A,
-    // past the corner. Under *the same wall, further along* there is no candidate at all here — the
-    // two definitions agree only by accident, and this pins which one produced the answer.
-    //
-    // 7D5b S1 / ADR 0110 M1/M8/M9: was `[DOOR_BASE_BUILD_ID]` over composed slots; the module is now
-    // the dishwasher, read before the hob, and no drawer body reached it.
+    // Wall B's slot stands between the fridge's end of the run and the corner; the hob is on wall A, past it. Under
+    // "the same wall, further along" there is no candidate here, so this pins which definition produced the answer.
     const plan = planFor(MERGE_BOUNDARY);
     const read = inReadingOrder(plan);
     const hobAt = read.findIndex((base) => base.role === "hob");
@@ -464,25 +400,11 @@ describe("criterion 10 — the free-end merge still lands on a body that can tak
   });
 });
 
-// ---------------------------------------------------------------------------------------------
-// The composer's half of criteria 6, 7, 9 and 11, swept over the approved policy on a coarse grid.
-// The arms are counted and floored: 71.4 % of placed rooms have no post-hob slot at all (D15.3's
-// ceiling, and 7D5's justification), so a sweep that never reached the other two arms would pass
-// while proving nothing about the rule this slice exists for.
-//
-// **M7 wave 7D5 S2 emptied the wall-B arm and thinned the wall-A arm, and neither floor was lowered
-// to 0 (ADR 0123).** Under the owner's Q-H6a = A the pan drawer takes the hob's wall's last module
-// wherever that wall has room for only one more, so the post-hob slot survives only where the hob's
-// wall holds the core, the pan drawer, the bottle, one slot and the whole block. Measured on this
-// grid at 7D5 S2: 2 544 plans, 2 500 with no post-hob slot, **44 on wall A — every one at wall A
-// exactly 6000 mm — and 0 on wall B.** This is an emptied population, not a stale instrument: the
-// architect's 10 mm census agrees (D15.7's population 56 866 → 431, physical wall B 26 975 → 0).
-// - **wall A** is floored at the population it still has on this grid, 40;
-// - **wall B** is no longer sought here. Its arm is witnessed by the declared 4100 x 6100 room in
-//   the D15.7 block above, which also asserts that room lies outside the policy — so a policy that
-//   refills this arm turns that test red and sends its author back to restore the floor here.
-//   (7D8's history of this floor: 30, on 60 measured, physical wall B, P6a.)
-// ---------------------------------------------------------------------------------------------
+// The composer's half of criteria 6, 7, 9 and 11, swept over the approved policy on a coarse grid. Arms are counted and
+// floored so a sweep that never reached the other arms cannot pass vacuously. The post-hob slot survives only where the
+// hob's wall holds the core, pan drawer, bottle, one slot and the whole block, which empties wall B and thins wall A
+// (ADR 0123): wall A is floored at the population it still has on this grid, and wall B is witnessed by the declared
+// 4100 x 6100 room above, which also asserts it lies outside the policy.
 
 const GRID_STEP_MM = 100;
 
@@ -523,9 +445,8 @@ describe("criteria 6, 7, 9 and 11 over the approved policy", () => {
     expect(SWEPT_PLANS.length).toBeGreaterThanOrEqual(1500);
     expect(arms.none).toBeGreaterThanOrEqual(500);
     expect(arms.wallA).toBeGreaterThanOrEqual(40);
-    // M7 wave 7D5 S2 / Q-H6a, ADR 0123: the wall-B arm is covered by the declared 4100 x 6100 witness
-    // above and deliberately carries no floor here — a floor of 0 would make "we stopped testing
-    // this" the contract.
+    // The wall-B arm carries no floor, because a floor of 0 would make "we stopped testing this" the contract; the
+    // declared 4100 x 6100 witness covers it (ADR 0123).
   });
 
   it("gives a kitchen at most one drawer slot, and it is always the first after the hob", () => {
@@ -557,22 +478,23 @@ describe("criteria 6, 7, 9 and 11 over the approved policy", () => {
     }
   });
 
-  it("stands every composed slot at one module, drawer or door", () => {
+  // One module, plus what the cabinet beside an end fridge absorbs; the figure is worked out from the run and the
+  // fridge's span, so a slot widened by any other amount fails.
+  it("stands every composed slot at one module, drawer or door, but for the one beside an end fridge", () => {
     for (const plan of SWEPT_PLANS) {
+      const runs = lShellFloorRuns(plan.room);
       for (const slot of plan.bases.filter(isComposedStorageSlot)) {
-        expect(slot.widthMm, slot.id).toBe(STORAGE_MODULE_WIDTH_MM);
-        expect(slot.endMm - slot.startMm, slot.id).toBe(
-          STORAGE_MODULE_WIDTH_MM,
-        );
+        const widthMm = ruledSlotWidthMm(plan, slot, runs[slot.wall].endMm);
+
+        expect(slot.widthMm, slot.id).toBe(widthMm);
+        expect(slot.endMm - slot.startMm, slot.id).toBe(widthMm);
       }
     }
   });
 
-  // 7D5b S1 / ADR 0110 M1/M8/M9: was *the preparation body is always `base-3drawer`*. Under M7(e) the
-  // dishwasher takes the preparation 3-drawer beside the sink and the preparation id and role move
-  // onto the pan drawer directly beyond it (M9), whose body stays `base-panbank` (M8 narrows F5/D7).
-  // The drawer body is kept; which of the two is the rule's, not the room's: a pan-drawer prep only
-  // with the dishwasher abutting it where the 3-drawer stood, and no second pan drawer.
+  // Under M7(e) the dishwasher takes the preparation 3-drawer beside the sink and the preparation id and role move onto
+  // the pan drawer directly beyond it (ADR 0110 M8/M9): a pan-drawer preparation only with the dishwasher abutting it,
+  // and no second pan drawer.
   it("makes the preparation cabinet a drawer body wherever it is placed, at one module", () => {
     let placed = 0;
     let swapped = 0;

@@ -25,6 +25,7 @@ import {
 } from "../../src/index.js";
 import { ENGINE_ROOM_LIMITS } from "../../src/room/room-policy.js";
 import { MAX_EMPTY_COLUMN_WIDTH_MM } from "../../src/module-grid.js";
+import { LARGE_U_TOTAL_MM } from "../../src/generation/run-layout.js";
 import { engineUWallBounds } from "../support/room-input.js";
 import {
   bandsUnder,
@@ -108,13 +109,25 @@ function leftFarEdgeMm(
   const piece = widths.pieces.find(
     (candidate) => candidate.wall === wall && candidate.band === band.name,
   );
-  if (piece === undefined) return 0;
+  if (piece === undefined || backWallHasNoUnit(room, wall, band)) return 0;
   return cornerFarEdgeMm({
     widths,
     cabinetDepthMm: SHELL_CABINET_DEPTH_MM,
     wall,
     band: piece.band,
   }).farEdgeMm;
+}
+
+/** Whether the corner wall unit stands over wall A's corner bases in this room (M7C wave C2): everywhere but
+ *  a large U, whose back wall is base-only. Where it does not, wall A's wall and top rows have no corner
+ *  piece, and their recorded run is the whole wall less nothing, as it was for every room before. */
+function backWallHasNoUnit(room: DesignRoom, wall: DesignWall, band: BandMm) {
+  return (
+    wall === "A" &&
+    band.name !== "base" &&
+    room.wallCMm !== undefined &&
+    room.widthMm + room.depthMm + room.wallCMm >= LARGE_U_TOTAL_MM
+  );
 }
 
 /** The right corner's own far edge on `wall` in `band`, or 0 where none stands there — wall C's own
@@ -156,7 +169,9 @@ function rightNearEdgeMm(
   const piece = widths.pieces.find(
     (candidate) => candidate.wall === wall && candidate.band === band.name,
   );
-  if (piece === undefined) return wallLengthMmValue;
+  if (piece === undefined || backWallHasNoUnit(room, wall, band)) {
+    return wallLengthMmValue;
+  }
   const centre = rightCornerAlongWallCentreMm({
     widths,
     cabinetDepthMm: SHELL_CABINET_DEPTH_MM,

@@ -17,6 +17,7 @@ import {
 } from "./support/u-scene.js";
 
 const EXACT_M = 1e-6;
+const IN_FRONT_OF_THE_RETURN_M = 0.05;
 
 beforeAll(() => {
   installHeadlessDocument();
@@ -78,7 +79,14 @@ describe.each(
 
     it("selects the right base return from the room side, never its wall or its X-leg", () => {
       const box = worldBox(mountedById(scene, "right-p26"));
-      const aim = new THREE.Vector3(box.min.x - 1, 0.4, centreOf(box).z);
+      // Just in front of the return's face, and not a metre: in the narrowest U a metre in front of
+      // the right return is inside the left one, and since ADR 0135 that body has a fixed front for
+      // a ray leaving its carcass to hit from behind.
+      const aim = new THREE.Vector3(
+        box.min.x - IN_FRONT_OF_THE_RETURN_M,
+        0.4,
+        centreOf(box).z,
+      );
 
       expect(clickAlong(scene, aim, new THREE.Vector3(1, 0, 0))).toBe(
         "right-p26",

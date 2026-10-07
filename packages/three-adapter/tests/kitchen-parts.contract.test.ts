@@ -134,7 +134,8 @@ describe("the chamfer", () => {
   it("keeps the chamfered box at its nominal outer size", () => {
     expectSize(
       findMesh(kit.builders["base-corner-x"](), "carcass"),
-      [0.9, 0.72, 0.6],
+      // 0.6 → 0.59 (ADR 0135): the leg is the run's carcass front, 570, plus its 20 mm behind the wall.
+      [0.9, 0.72, 0.59],
     );
   });
 
@@ -349,11 +350,38 @@ describe("handles", () => {
   });
 });
 
+describe("the corner wall unit on the kit's surface", () => {
+  it("is a member of the kit's factories, building one group with one leaf and its own closure and stile", () => {
+    expect(kit.make.wallCornerX).toBeTypeOf("function");
+
+    const unit = kit.make.wallCornerX(0.9);
+
+    expect(unit.name).toBe("wall_corner_x");
+    expect(meshNames(unit).sort()).toEqual(
+      [
+        "carcass_back",
+        "carcass_shell",
+        "corner_closure",
+        "corner_stile",
+        "door_front",
+        "front_liner",
+        "handle_bar",
+        "handle_stem",
+        "handle_stem",
+      ].sort(),
+    );
+  });
+
+  it("is not a reference builder: the builders keep exactly the reference's keys", () => {
+    expect(Object.keys(kit.builders)).not.toContain("wall-corner-x");
+  });
+});
+
 describe("the two corner legs", () => {
   it("computes each leg's plinth recess from its own depth only", () => {
     const xLeg = kit.make.cornerBaseX(0.9);
     const xPlinth = worldBox(xLeg, findMesh(xLeg, "plinth"));
-    expect(xPlinth.max.z).toBeCloseTo(0.6 / 2 - 0.06, 6);
+    expect(xPlinth.max.z).toBeCloseTo(0.59 / 2 - 0.06, 6); // from its own 0.59 depth since ADR 0135
     for (const depth of [0.56, 0.58, 0.62]) {
       const leg = kit.make.cornerBaseReturn(depth, 0.32);
       const plinth = worldBox(leg, findMesh(leg, "plinth"));
@@ -364,7 +392,7 @@ describe("the two corner legs", () => {
     }
   });
 
-  it("butts the two worktops at world z = 0.630 with no interior overlap", () => {
+  it("butts the two worktops at world z = 0.620 with no interior overlap", () => {
     const room = kit.builders["kitchen-l"]();
     room.updateWorldMatrix(true, true);
     const xLeg = room.children.find((c) => c.name === "corner_base_x");
@@ -382,8 +410,9 @@ describe("the two corner legs", () => {
       findMesh(required(returnLeg, "corner return leg"), "countertop"),
     );
     expect(xTop.min.z).toBeCloseTo(-0.01, 3);
-    expect(xTop.max.z).toBeCloseTo(0.63, 3);
-    expect(returnTop.min.z).toBeCloseTo(0.63, 3);
+    // 0.63 → 0.62 (ADR 0135): the X-leg's worktop front is the run's, D + 20 from its wall.
+    expect(xTop.max.z).toBeCloseTo(0.62, 3);
+    expect(returnTop.min.z).toBeCloseTo(0.62, 3);
     expect(returnTop.max.z).toBeCloseTo(0.9, 3);
     for (const box of [xTop, returnTop]) {
       expect(box.min.y).toBeCloseTo(0.82, 3);

@@ -5,6 +5,11 @@ Date: 2026-09-11
 Type: Decision
 Milestone: M7 — waves 7D1 and 7D2 (architect's plan, `docs/milestones/M7-room-and-presets.md`)
 
+**Pointer, 2026-10-01 — Amendment O (the last section of this file) is the owner's answer to M7C's
+Q2.** It overturns 7D1-Q1 criterion 14, restates B2's zero start for wall A, strikes 7D6 J2, overrides
+E12.4 for one unit, withdraws E11.1 and E11.3 (the top row is built in C3 S1, `02b1c7b`) and records the fridge-gap absorb
+(decided, not built). Nothing above is erased.
+
 ## Context
 
 When no preset fits, frames 1F/D1F compose a kitchen instead of dead-ending: items in priority
@@ -3643,7 +3648,7 @@ with the RQ17 default, `TOWER_BARE=1`. `u0-measure-rq.out` holds the E6.2 altern
 | --- | --- |
 | 2700 / 1000 / 1000 | **Refused** |
 | 3000 / 1000 / 1000 | No fridge (neither side wall holds it). A: sink, hob (`base-hob-oven`). No tower |
-| 3600 / 2400 / 2000 | B: 1 storage, fridge (bare 100 **beyond the fridge, at the free end: N11.1**). A: sink, dishwasher, preparation. C: hob, ~~(bare 400)~~ **bottle (bare 100), N9.3**. No tower, `base-hob-oven` |
+| 3600 / 2400 / 2000 | B: 1 storage, fridge (bare 100 **beyond the fridge, at the free end: N11.1**; **dated 2026-10-05: O10 (`58f6fc5`) absorbs it, remainder 0**). A: sink, dishwasher, preparation. C: hob, ~~(bare 400)~~ **bottle (bare 100), N9.3**. No tower, `base-hob-oven` |
 | 3600 / 3500 / 2200 | B: 2 base, fridge, 1 pantry. A: sink, dishwasher, preparation. C: hob, then the tower at the free end. `base-hob-2drawer` |
 | 4000 / 4500 / 1200 | B: 3 base, fridge, 1 pantry (bare 400). A: sink, preparation, hob, ~~(dishwasher dropped; bare 400)~~ **bottle (bare 100)**; the dishwasher is dropped. C: empty (bare 200). No tower |
 | 5000 / 4000 / 3000 | Large. B: 2 base, fridge, ~~1 door~~ **1 pantry** (bare 500, RQ13). A: sink, dishwasher, preparation, hob, ~~1 storage (bare 200)~~ **bottle (bare 500)**; no uppers, with voids. C: 2 storage **(both `base-panbank`, RQ18 (a), N9.1)**, tower (bare 200 beyond it, RQ17). **3 drawer units (the preparation and 2 on C) of `N(T)` = 5; the count yields.** ~~2 × `base-panbank`~~ **`base-panbank`, `base-3drawer` (RQ19 (a), `84bab2e`).** **Moves again under N10 (RQ21): A: sink, dishwasher, preparation, hob, `base-panbank` (bare 200), no bottle. C: `base-panbank`, `base-3drawer`, tower (bare 200). 4 drawer units** |
@@ -4141,6 +4146,10 @@ the fridge stands directly after it, and the bare remainder (under 600 mm, A4) i
 fridge, at the free end. **That remainder stays bare.** No pantry and no door goes in it, whatever
 its width. The counted case, `n` = 2 or 3, does not change.
 
+> **Dated pointer, 2026-10-05: overturned for a 50–299 mm remainder by O10 (C5 S2, `58f6fc5`).** The door
+> cabinet beside the fridge absorbs it in 50 mm steps; the rest stays bare. N3r 3's "any bare remainder
+> beyond it" is overturned the same way. Text above is kept as written.
+
 - *Doc-quoted, the rule.* The record states it three times:
   - N3 item 3: *"the fridge stands at the free end, with any bare remainder beyond it at the free end
     (the L's convention)"*.
@@ -4400,14 +4409,14 @@ other N4′ and N10.6 witness measures unchanged.
 
 | A / B / C | Ruling | Predicted |
 | --- | --- | --- |
-| 3600 / 2400 / 2000 | N11.1 | B: `base-cabinet` 900–1500, fridge 1500–2200, bare 100 beyond. A and C unchanged |
+| 3600 / 2400 / 2000 | N11.1 | B: `base-cabinet` 900–1500, fridge 1500–2200, bare 100 beyond. A and C unchanged. **Restated 2026-10-05 (O10, `58f6fc5`): base 900–1600, fridge 1600–2300, remainder 0** |
 | 3600 / 2800 / 2800 | N11.1 | B: `base-cabinet` 900–1500, fridge 1500–2200, bare 500 beyond, no pantry. C unchanged |
 | 4000 / 2000 / 2000 | N11.1 | B: fridge 900–1600, bare 300 beyond |
 | 4800 / 4400 / 4400 | N11.2, exactly 600 | A: …, `base-hob-2drawer` 2700–3300, `base-panbank` 3300–3900 (bare 0, no bottle). C: `base-panbank`, `base-3drawer`, `base-3drawer`, tower 2700–3300, `base-cabinet` (bare 400). **Was** A: …, hob, bottle (bare 300); C: 2 × `base-panbank`, 2 × `base-3drawer`, tower |
 | 5400 / 3400 / 3400 | N11.2, 1200 | ~~A: …, hob, 2 × `base-panbank` (bare 0). C: 2 × `base-3drawer`, tower 2100–2700, `base-cabinet`.~~ **RQ23: unchanged.** A: …, `base-hob-2drawer`, bottle, `base-panbank` (bare 300). C: `base-panbank`, 2 × `base-3drawer`, tower 2700–3300 |
 | 6000 / 6000 / 6000 | N11.2, 1800 | ~~A: sink, dishwasher, preparation, `base-hob-2drawer`, 2 × `base-panbank`, `base-3drawer` (bare 0). C: `base-3drawer`, 2 × `base-cabinet`, tower at 2700–3300 (`n` = 3), 4 × `base-cabinet` (bare 200).~~ **RQ23: unchanged, as N10 left it.** A: …, hob, bottle, 2 × `base-panbank` (bare 300). C: 2 × `base-3drawer`, `base-cabinet`, tower, 4 × `base-cabinet` (bare 200) |
 | 2399 / 3000 / 3000 | N11.3 | `minimumMet: false` (freeA 599) |
-| 2400 / 3000 / 3000 | N11.3 | Composes: the sink at A 900–1500 (freeA 600); C: dishwasher, preparation, `base-hob-oven`. B, per N11.1: 2 × `base-cabinet` 900–2100, fridge 2100–2800 |
+| 2400 / 3000 / 3000 | N11.3 | Composes: the sink at A 900–1500 (freeA 600); C: dishwasher, preparation, `base-hob-oven`. B, per N11.1: 2 × `base-cabinet` 900–2100, fridge 2100–2800. **Restated 2026-10-05 (O10, `58f6fc5`): base 1500–2200, fridge 2200–2900** |
 | 3600 / 3500 / 2200, h 2199 | N11.4 | B: 2 × `base-cabinet`, fridge 2100–2800, `base-cabinet` 2800–3400, no pantry. At h 2200, the pantry stands, as in N4′ |
 
 #### N11.6 — found while adjudicating, for U3b: wall A's remainder at its low end cannot be built from widths alone
@@ -4686,3 +4695,266 @@ decision 4 stands unchanged. Nothing is owed by this question; the text below is
 **It does not block S1.** Under either answer the fill is a `base-cabinet` of the remainder's
 width. (B) is a catalogue change (`TWO_DOOR_MIN_WIDTH_MM`, a dated amendment to ADR 0035 decision 4,
 and the price book), not a composition change. It would be its own item.
+
+## Amendment O — 2026-10-01: a fixed corner wall unit stands over every generated corner; the top row, the validator's banded reach and the fridge-gap absorb
+
+**Written for M7C wave C2** (`docs/milestones/M7C-m7-feedback-fixes.md`, *C2 — the corner wall unit*, and
+`docs/M7-FEEDBACK.md`, M7-FB-004 and M7-FB-011). **Decided and landed are kept apart.** C2 S1 is committed
+as `075529b` (the builder, nothing mounted). C2 S2 (the domain, the shell, the prices, the validator) is
+committed as `0a1a69a` (hashes read from the branch's reflog). Both are on branch `m7c-m7-feedback-fixes`,
+not pushed and not run on the CI runner; the figures in O8 were measured by QA before the commit. **O9 (the top row, wave C3) is decided and its slice S1 is committed as `02b1c7b`;
+O10 (the fridge-gap absorb, wave C5) is decided and not built.** Labels: **[doc-quoted]** from the plan or a record,
+**[relayed]** measured or stated by QA, a reviewer or the coordinator and not re-run by the scribe,
+**[source-verified]** read at the file named, **[inference]**.
+
+### O1 — the owner's words, 2026-10-01
+
+**Q2 (FB-004, FB-011), verbatim, typos included. None of the offered options was selected:**
+
+> *"I think in the reference there is a good example of how the corner cabinets should be placed, even
+> that is not perfect but at least is exists. I now that corner is somehow a 2 cabinets cabinet (it has 2
+> parts) and only one has door the wider part has door. So I gave no idea on what sizes should be there,
+> make calculations yourselve but corner should be fixed, non editable and cover all empty space withing
+> the corner"*
+
+**Q9, the handles.** After seeing captures of the built unit the owner wrote, verbatim: *"so put handles
+opposite to be able to open it from edges to not have door opening conflict"*. The coordinator put the
+swing comparison back to the owner, and the owner then **selected *"Keep as built"*** (handles at the
+corner, hinges on the outer edges, for both corner wall doors) and, on whether the base corner cabinet is
+meant too, **selected *"No, wall cabinets only"***. Both are selections of offered options, not prose.
+The coordinator also relayed a sentence, *"keep handles as you draw, no changes"*; the plan does not
+carry it, so it is [relayed] and nothing here rests on it. [doc-quoted: plan, *Q9* and *Gate G-C2*.]
+
+**Large U, Q8 (iii) and Q3.** The owner **selected *"No, back wall stays base-only"*** for a U of 10 m or
+more, and **selected *"Was under 10 m; keep rule"*** on M7-FB-005. Selections, not prose.
+
+**The owner's reading of "fixed, non editable"** is the plan's: the unit cannot be moved, replaced,
+deleted or resized, and takes a colour like the corner pieces beside it (O6). It is not a statement the
+owner made about colour.
+
+### O2 — the decision: one structural corner wall unit on wall A
+
+At each corner of a **generated** L, right-hand L, or U whose entered walls total under 10 000 mm, the
+shell carries one structural unit on wall A, covering the stretch from the corner to the base X-leg's far
+edge, 900 mm [doc-quoted: plan, C2 table]:
+
+- **Two parts, as the owner describes.** A **blind** part behind the side wall's corner cabinet, as deep
+  as that cabinet's finished depth (330 mm at depth 600, 400 mm at 700), closed by a blind closure; a
+  fixed **stile** 65 mm wide; and **one leaf**, the wider part's door (537 mm at 600, 467 mm at 700), whose
+  far edge stands 3 mm from the unit's end. *"The wider part has the door"* holds at both depths: the door
+  part is 570 at 600 and 500 at 700.
+- **Hinge** at the far edge, away from the corner; **handle** on the corner side (O1, Q9).
+- **Two heights.** A **wall-row unit**, 700 high from y 1500, build id `wall-corner-x-900`; and a **top
+  unit**, 400 high from y 2200, `wall-corner-x-900-top`, **only in a room at least 2600 high**, built **with**
+  its bar and then hidden (push-to-open, §13.1). Below 2600 nothing stands above the middle unit and its
+  footprint stays reserved and untiled, as above the side return today.
+- **A right-hand corner of a U** carries the same body in its own mirrored wrapper (ADR 0132 decision 2).
+- **Generated shells only.** The seeded reference kitchen keeps `p8`, `p10`, `p15` and `p16`: it is the
+  supplier's corner, pinned mesh for mesh by M1's parity gate. The one route by which a customer can meet it
+  is a mint whose first save failed: the store then resumes `KITCHEN_L_DESIGN`
+  (`api/designs/route.ts:77`, `configurator-store.ts:735`, per the plan [doc-quoted]). C2 does not change
+  that route; it is named here and not denied.
+- The width is the corner reach, recorded at generation and **frozen at a depth change** (ADR 0089);
+  `blindSpanMm` stays one value for every wall-A piece, so the unit and the X-leg below it have the same
+  width in every room by construction. The plan's earlier band-aware arm was removed on QA's Q4.3.
+
+**Alternatives considered, and why each lost:**
+
+| Option | Why it lost |
+| --- | --- |
+| An ordinary 570 mm cabinet (the plan's first recommendation) | Withdrawn on the owner's Q2 answer: the owner described a two-part unit. |
+| The reference's arrangement, a 600 and a 300 over the corner (`p8`, `p10`) | The owner called it *"not perfect"*: the 600's corner-side door stands behind the side wall's corner cabinet [doc-quoted: plan, *What the reference has*]. It stays, for the seeded kitchen only. |
+| Handles on the outer edges, hinges at the corner (Q9 (a)) | Two doors hinged at an inside corner swing into each other's fronts: with one open, the other is blocked, and both cannot stand open at 90°. The owner asked for it, was shown the figures, and kept the built arrangement. The only conflict left is two bars 64 mm apart at the corner. |
+| Only the new unit's handle on the outer edge (Q9 (c)) | Works only if the side door is opened first. |
+| Empty, as 7D1-Q1 criterion 14 had it | The owner's *"cover all empty space"* and FB-004's *"the kitchen looks incomplete"*. |
+
+### O3 — records overturned or restated, by name
+
+- **Overturned: 7D1-Q1 criterion 14** (*"composition places nothing in the wall band over wall A's corner
+  zone … left as an empty column the customer can fill"*, archived M7 plan). The architect's adjudication,
+  not an owner ruling; reversed by the owner's Q2. Its property, no `RECORDED_SPAN_OVERLAPS_CORNER_BODY`,
+  holds because a structural piece now stands there.
+- **Restated: ADR 0130's sweep row** (`:102`, *"7D2 c. 14 … no uppers over the corner"*). For a straight
+  kitchen it stands, because there is no corner. For an L and a U, the stretch is the unit's and not an
+  empty column.
+- **Restated: B2's zero start for wall A's wall and top bands** (*"0 for wall A's wall and top bands, where
+  nothing structural stands above the corner base"*). It now holds only on a base-only back wall (O4).
+- **Struck: 7D6 J2**, *"No piece is added or removed here"* (`corner-assembly-size.ts:58-62`, plan; the
+  plan's other citation reads `:59-61`). The assembly is **six** corner pieces, not four.
+- **Overridden for this unit only: E12.4**, *"adding new cabinets will be like after having the beta
+  testing"* (recorded under new tall body types). By the owner's Q2 instruction. E12.4 stands for every
+  other new body. **ADR 0117's cheap baseline is narrowed the same way**: every cornered kitchen gains
+  priced pieces (O7).
+
+### O4 — the large-U exception, and one predicate
+
+In a U whose entered walls total **10 000 mm or more**, **no unit stands on the back wall**. The strip is
+tiled as before, 800 + 100 at both corners, the explicit right strip included, and stays free for the
+customer to fill by hand. ADR 0110 N1.3's threshold stands, and so does *N3 revised* **11** (a large U's
+wall A gets no generated wall-row or top-row body, and the hood is mandatory). [doc-quoted: plan, Q3 and
+Q8 (iii); *N3 revised* 11, read above.] The plan cites *"N3r 9 and 11"*; item 9 is the oven rule and has
+no bearing here.
+
+The shell asks one room-level predicate, **`isBackWallBaseOnly`**, in two places: which corner pieces
+`cornerPiecesUnder` and `rightCornerPiecesUnder` instantiate, and which bands `wallRowStartMm("A")` reads.
+It is lifted from `upper-policy.ts` (where it reads `isLargeU`) to beside `isLargeU` in `run-layout.ts` and
+read by both callers; a second copy is the defect ADR 0102 names. Boundary: 9 999 and 10 000.
+
+### O5 — the validator's reach is banded by the body it is compared with
+
+`validate-design.ts`'s corner sweep gave a recorded column that holds members the **deepest carcass seat of
+the whole column**. The unit and the base X-leg share the recorded column `A|0.45`, y 0 to 2600, so the
+whole column reached 550 and met the side wall's corner cabinet (along from 330, reach 291, y 1500–2200).
+Every generated shell then reported `RECORDED_SPAN_OVERLAPS_CORNER_BODY` although at that height the
+column reaches 291.
+
+**The rule.** When a recorded column that holds members is compared with a body across the corner, its
+reach is the deepest carcass seat among the members whose vertical span **overlaps** that body's (a
+positive overlap; abutting is not overlapping). If no member overlaps, the reach is the column's deepest
+seat, as before. Member-less entries are untouched. The reach stays the carcass seat. **This amends one
+sentence of backlog 50's ruling**, *"over the whole column … an entry describes a column and not a band of
+one"* (`deepestSeatByColumnMm`'s comment). Rejected: another column key (the key is wall and along only);
+exempting structural pairs (it hides a real check); splitting the unit into two bodies (it is one cabinet).
+
+**It can only remove a finding**: the banded reach is never greater than the column's deepest seat. QA
+found 0 findings gained over 100,000 arbitrary documents [relayed].
+
+**The one narrowed case (logic review R6.2, relayed).** A wall-B wall-row body that starts between the
+unit's 291 seat and 330 is no longer flagged, though the closure is solid there. It is reachable only by a
+hand-made or corrupted document. It is safe by construction: the side return's near edge and the closure's
+front come from the same wall-depth map, and no command moves a structural piece. [relayed; the
+construction argument is the reviewer's and was not re-read by the scribe.]
+
+### O6 — colour
+
+The unit takes a per-body finish like every corner piece: the owner's ruling of **2026-09-09, backlog 60**,
+*"support setting custom color for all corner cabinet parts."* [source-verified:
+`packages/three-adapter/src/body-finish-surfaces.ts:31-32`.] `STRUCTURAL_CORNER` carries `canFinish: true`.
+Four meshes of the unit wear the finish: shell, closure, stile, leaf. ADR 0021 decision 2's *"no finish"*
+was already reversed for the corner bodies by that ruling. *"Non editable"* means no replace, delete,
+resize or handle choice; `removePlacement`, a replace and `setWidth` each refuse it.
+
+### O7 — names and prices, placeholders pending Q8
+
+**Q8 (i) and (ii) are non-blocking; their defaults are built and labelled** [doc-quoted: plan, the question
+heading of Q8 is damaged in the file; the two items are legible]. (i) *Price:* no price row exists; the
+side wall's corner cabinet's placeholder figures are used: **160 000** for the wall-row unit and
+**90 000** for the top unit, in the book's own units, each plus the kitchen **hardware line per leaf**
+(+3 520 and +7 520 respectively [doc-quoted: plan, *As built*]). (ii) *Name:* the side wall's kinds are
+reused, *"Dulap suspendat de colț"* and *"Dulap de colț rând de sus"* (ADR 0066), one name at one amount
+twice not confusing a breakdown. Both are marked *pending owner input*.
+
+### O8 — measured (QA, full census, [relayed])
+
+- **245,211 L and 92,781 U rooms:** the only differences are the strip tiles removed, the unit or units
+  added, and the X-leg's recorded column top. **0 findings; 0 verdict changes.**
+- **66,711 large-U rooms** byte-identical; the boundary 9 999 / 10 000 reads as O4 says. The 66,711 is the
+  coordinator's figure; the plan says only *"a large U byte-identical"*.
+- **Designs stored before the change** load, edit and price identically, with no unit forced in. They keep
+  their 800 + 100 empty columns and what the customer put there (ADR 0038: no migration).
+- **1,726 rooms** now store no `emptyColumns` key [doc-quoted: plan, *As built*].
+- **L 900 × 2200** composes with its back wall entirely unit; **L 900 × 1000** is still refused by Step 1
+  (ADR 0125 is unchanged).
+- Price per corner: +160 000 and +90 000 plus the two hardware lines (O7).
+
+**Backlog 63 (a hood offered over the corner) is narrowed, not closed.** The opening is gone in every
+room that gets the unit. It remains on the seeded kitchen, on the back wall of a U of 10 m or more, and on
+designs stored before this change.
+
+### O9 — the top row (Q4): decided; wave C3 slice S1 committed as `02b1c7b`
+
+**Q4 (M7-FB-003), a relayed selection: *"Generate a top row"*.** [doc-quoted: plan, Q4.] A 400 mm
+push-to-open cabinet above every wall cabinet and above the hood, in every shape, in rooms at least
+2600 mm high; doors, not lift fronts; none above tall columns. About 6 more cabinets per kitchen
+[plan, C0], so the price rises. The owner was told the price would rise when selecting. **E11 is withdrawn:
+E11.1 and E11.3 are struck by name** (E11.1: *"Composition places no body in the top row (2200–2600)"*,
+owner 2026-09-14, *"let's stick to what we have now. Get some feedback."*; E11.3's taller uppers are
+**withdrawn, not built**: a room of 3900 gets a 400 mm top cabinet with wall above it). **F9's lift rule is
+not taken** (doors, not lifts), its 120–165 mm clearance note kept; F9's trigger (*"the first wave that
+composes a top row"*) is C3's. The corner's top unit (O2) is the shell's and is not a top-row body; C3's
+count excludes structural pieces.
+
+**What C3 S1 built** (committed as `02b1c7b`, hash read from the branch's reflog; QA green on the full
+census, logic review approve; not pushed, not run on the CI runner). Everything below is
+[relayed: logic review R8.8 and QA, via the coordinator], checked against the plan's *C3* section where the
+plan speaks.
+
+1. **The rule.** Generation inserts, through logged `insert_body` commands, after every upper and hood, one
+   400 mm `wall-cabinet` at y 2200 over each generated wall cabinet and over the hood, of the span of the
+   body below. Its door count follows its width by the catalogue rule the cabinet below follows. **None** over
+   a fridge, a full-height column or a corner piece (the corner carries its own top unit). On a **large U**
+   (10 m or more, O4) only the hood on the back wall gets one, since the back wall is base-only.
+2. **The 2600 line is derived, not stated.** It is `TOP_ROW_Y0_MM` (2200) plus
+   `HEIGHT_FLEX_MIN_OPENING_MM` (400), which mirrors `insertBody`'s own `OPENING_TOO_SHORT` refusal. The
+   corner top unit uses a second expression (its y0 plus its height no more than the room height). The two
+   agree while that constant equals the unit's 400. QA pins that both switch at the same millimetre: no top
+   row to 2599, a top row from exactly 2600, always 400 high. [The plan states only *"at least 2600 mm
+   high"*.]
+3. **No recorded handle.** Push-to-open is resolved by the slot (y0 at or above 2200), as
+   `DEVELOPMENT-SPEC.md` §13.1 has it and as ADR 0011 Gap C decided (`top` is a row, not a catalogue band;
+   push-to-open is decided by the slot, not the body, `0011…md:149`). A top body's record band therefore
+   reads `wall` by design. The per-cabinet handle command can still show a bar, reversibly. **There is no
+   kitchen-wide handle command**: the plan's criterion 3 (*"a kitchen-wide handle change does not show a bar
+   on it"*) names one that does not exist.
+4. **A refused top insert is a `not_placed` step, not a throw**, as for the wall row. QA found none in the
+   census.
+5. **Measured** (QA, full census): L 245,211, U 92,781 and straight 5,101 rooms, heights 2400 to 3900, depth
+   700. The only difference from C2's output is the top bodies. 0 findings; 0 verdict changes. Peak 54
+   placements against the cap of 279 (`design-bounds.ts:133`, read; the plan's C0 predicted 54). Designs
+   stored before the change load unchanged, with no top row forced in.
+6. **Price consequence, placeholders.** One `cabinet.wall-cabinet` line per top body plus its hardware
+   line. L 4100 / 3300 / 2600: 5,999,920 → 7,634,640 (about +27 %). U 4000 / 3000 / 2800: 8,620,720 →
+   10,576,480 (the book's units). **The owner was told the price would rise when selecting.** Shown the app's
+   own figures after the change, the owner **selected *"Yes, keep it"* on 2026-10-01** (a selected option,
+   not prose): U 3000 / 2400 / 2600, 56 000 → 71 000 MDL; L 4100 / 3300, 60 000 → 77 000 MDL. Placeholder
+   prices [relayed]. The earlier "no answer on the amount" is superseded by that selection.
+7. **Dated notes.** E11.1 and E11.3 are withdrawn by the owner on 2026-10-01. F9's lift rule is not taken.
+   **ADR 0117's *"no top row"* statement (`:283`, read) is superseded for generation**, by this ruling.
+
+### O10 — the fridge-gap absorb (Q6): BUILT (C5 S1 `0e7e5ea`, S2 `58f6fc5`)
+
+**Q6 (M7-FB-010), a relayed selection: *"Absorb gaps under 300 mm"*.** [doc-quoted: plan, Q6.] Where the
+fridge ends a run with under 300 mm beyond it, the door cabinet beside it grows in 50 mm steps up to
+800 mm and the fridge moves out by the same amount. Only where the neighbour is a door cabinet. On a side
+wall the 100 mm reserve stays free (F7, ADR 0108 H3). It **departs from A4, D2, *N3 revised* 4 and
+RQ25a** for this one case; E6's absorb beside a tower is the precedent. The editor half, resizing a
+cabinet through a standing fridge, is **not built** and is backlog 104 (§13.2's rejected auto-shift).
+**Nothing of this is built.**
+
+**Update, 2026-10-05: S1 is built for L and straight, in `0e7e5ea`; the U is pending S2.** The growth is
+`max(0, min(floor50(r), floor50(800 - w)))`, applied after the dishwasher (M2). This corrects the plan's
+`800 - w`, which is not a whole step for a width that is not a multiple of 50: the coordinator ruled that
+the owner's Q6 words (*"grows in 50 mm steps up to 800 mm"*) govern. The 100 mm side reserve is never spent
+at the generated depth; at a 600 to 700 depth change the slide uses it, as for any pre-C5 room with no bare
+remainder (F7, 0108 H3). E6's absorb shares the headroom helper, unchanged. [QA census] 44,766 of 245,211 L
+rooms change; straight 0 of 481; U 0. About 17,925 L rooms per ceiling keep a bare 50-299 mm leftover
+because the fridge's neighbour is the dishwasher (16,300) or the sink (1,625), correct under "only where
+the neighbour is a door cabinet". The editor half remains not built (backlog 104). Record:
+`milestones/M7C-m7-feedback-fixes.md`, *C5 S1 as built*.
+
+**Update, later 2026-10-05: S2 is built for the U, in `58f6fc5`.** The same rule on the fridge wall (B or
+C), run last in `composedPlan`. With pantries beyond the fridge it is not outermost and nothing changes.
+**It also overturns N11.1** (*"That remainder stays bare…"*, for 50–299 mm) **and N3r 3's "any bare
+remainder beyond it"**; the owner's Q6 answer covers the U and the plan scoped S2 to it, so this is a
+missing citation, not a new decision. Pointers were added at N11.1, the N4′ row and the two N11 witness
+rows (3600/2400/2000, 2400/3000/3000). [QA census, against `0e7e5ea`] 4,752 of 86,706 U rooms change (B
+2,444, C 2,308); L and straight byte-identical. **Owner-visible:** 1,152 U rooms keep a bare 50–299 mm
+because nothing stands inboard of the corner fridge (beside S1's 17,925 L rooms).
+
+### Decision-record sweep
+
+| Record | What it says | How it is settled |
+| --- | --- | --- |
+| This ADR, E11.1 and E11.3; F9 | No generated top row; a composed top row is lift cabinets. | **Struck / not applied by O9**: decided; built in C3 S1, `02b1c7b`. |
+| This ADR, B2; 7D1-Q1 c. 14; 7D6 J2 | Zero start over the corner; an empty column; four corner pieces. | **Restated, overturned and struck by O3.** |
+| This ADR, N1.3, *N3 revised* 11 | The back wall is base-only in a large U. | **Unchanged** (O4). |
+| This ADR, A4, D2, *N3 revised* 4, RQ25a; E6; F7; **N11.1; N3r 3 "any bare remainder beyond it"** | Remainders stay bare; E6 absorbs ≤ 200 beside a tower; the 100 mm side reserve; the U's fridge remainder stays bare. | **Departed from for one case (O10)**, F7 kept; N11.1 and N3r 3 overturned for 50–299 mm by S2 (`58f6fc5`). |
+| This ADR, E12.4 | New cabinets wait for beta. | **Overridden for one unit (O3).** |
+| [0021](0021-corner-returns-are-structural-in-data.md) decision 2 | No finish, handle or width for a corner return. | **Unchanged for handle and width; the finish half was reversed on 2026-09-09 (backlog 60)** and the unit follows that. |
+| [0066](0066-the-wall-corner-returns-get-their-own-kinds-and-names.md) | Each corner row has its own kind and name. | **Reused, not extended** (O7); own names await Q8 (ii). |
+| [0089](0089-the-along-wall-chain-is-kept-and-its-reader-is-the-depth-command.md) | Corner widths are frozen at a depth change; a 30 mm upper-row residue on the side walls. | **Unchanged**; the unit's 900 mm is frozen and does not slide (plan, C2 *Stored designs*). |
+| [0132](0132-wall-c-is-a-world-wall-and-only-the-right-corner-is-drawn-in-a-reflection.md) decisions 2, 7 | The right corner is drawn in a reflection; D10's `findCornerOverlaps` gains the A∩C corner. | **Followed** (O2); the sweep's reach is banded (O5). |
+| [0117](0117-generation-produces-the-cheap-correct-baseline-and-the-owners-taste-enters-through-presets.md) | Generation produces a cheap baseline; new bodies wait. | **Narrowed** (O3). |
+| [0125](0125-the-corner-minima-stay-at-900-and-1000-as-a-deliberate-margin-above-what-the-engine-needs.md) | Approved corner minima 900 / 1000. | **Unchanged**; L 900 × 1000 is still refused. |
+| [0130](0130-a-straight-kitchen-is-the-composers-run-on-one-wall-with-no-corner.md) | A straight kitchen has no corner; its sweep row cites c. 14. | **Restated** (O3). |
+| [0135](0135-the-corner-pieces-stand-on-the-runs-lines-and-the-base-return-is-a-base-body-with-a-fixed-front.md) | The corner pieces stand on the run's lines. | **Disjoint**: ADR 0135 moves the base row's joint; the wall rows' near edge is a separate arm. |

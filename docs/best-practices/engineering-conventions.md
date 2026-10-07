@@ -177,6 +177,66 @@ Romanian. Ask these in order and stop at the first *yes*:
 A model test that reaches for `ro.` has probably answered question 2 wrongly, and owes a one-line
 comment saying why the descriptor would not do.
 
+## Comments in code and tests
+
+Owner ruling, 2026-10-05 (ADR 0136): decision history belongs in `docs/decisions/` and
+`docs/milestones/`, not in source. Every agent re-reads a comment on every file read, and history
+in code goes stale silently. A comment survives only if it passes this test.
+
+**Test.** If this comment were deleted, could a competent reader reintroduce a bug or waste real
+time, **and** is the information not recoverable from the code, its names, or a cited ADR/spec
+section? Yes to both: keep it, compressed. Otherwise delete it. Tests are not a recovery source: a
+reader of a source file does not open its tests.
+
+**Delete:**
+
+- Decision history and rationale: "decided in ADR…", "was X, now Y", owner rulings, dates,
+  alternatives considered.
+- Wave, milestone or FB ids used as narrative ("added in wave 7D4").
+- Anything the code or a name already says; commented-out code; a TODO with no issue reference;
+  decorative banners.
+- Multi-paragraph block rationale whose substance is in an ADR.
+- In tests: a scenario retold above a test whose name already states it, QA-wave journals,
+  "this test exists because…", and self-asserted guard strength (see *A comment claiming a guard is
+  not a guard* below).
+
+**Keep, compressed:**
+
+- A hidden invariant the types cannot express: units (mm vs m), axis or handedness, "must run
+  before X".
+- A workaround for a named library, browser or driver bug, with the name and version.
+- A warning of consequence ("throws, unlike `lookUpMaterial`").
+- Why a non-obvious constant or threshold has its value, with the ADR or DEVELOPMENT-SPEC row that
+  defines it.
+- A tool directive (`@ts-expect-error`, `eslint-disable`, `"use client"`, `@vitest-environment`,
+  `prettier-ignore`, istanbul/v8 ignore), always with its reason.
+- A lint-functional comment, one line. `eslint.config.mjs` extends `eslint.configs.recommended` and
+  `tseslint.configs.strictTypeChecked` (source-verified), so `no-empty` and `no-fallthrough` are
+  live: the comment that is a block's only content (`catch { // ignore }`, an intentionally empty
+  function or branch) and a `// falls through` / `// no default` marker must stay. A block must
+  never become empty.
+- A one-line doc comment on public API.
+- Approved Romanian copy that a rule or test depends on, quoted.
+- In tests also: the header on an `it.fails` / `skip` naming the wave that owes the flip (see *A
+  deferred test has two shapes*); one line on what a counterexample or sabotage proves; one line on
+  why a fixture exists or must not be widened.
+
+**Form.** The claim plus its consequence, nothing else. Two lines is the default, each at most 120
+characters; a stated invariant that genuinely needs more (a coordinate, anchor or units contract)
+may run to about 4. At most one pointer, written `see ADR 0110 O10` or `see DEVELOPMENT-SPEC §6.2`;
+a pointer replaces an explanation, it does not decorate one. No dates, names, "Note that", history
+or wave ids; the one exception is the deferred-test header that names the wave owing the flip. One
+comment per concept. Prefer a better name or an extracted well-named function.
+
+**Unsure whether the reason is in an ADR?** Grep `docs/decisions/` for the rule and its constant.
+Found: if the code at that spot would look wrong, surprising or "fixable" to a reader who has not
+read the record (a trap), keep a one-line statement of the constraint plus the pointer; delete
+outright only where the code is unsurprising without it. Not found and the reason is load-bearing: keep it compressed
+and report it as "needs an ADR home". Never delete a load-bearing reason because it is long.
+
+A stripping pass is proved beyond the emitted-JS diff, which cannot see lint or lost knowledge: see
+ADR 0136, Consequences.
+
 ## Tests
 
 - One logical behaviour per test, named after the failure it detects.

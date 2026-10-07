@@ -244,7 +244,8 @@ describe("who is re-planned is read off declarations, never off a list of ids", 
   it("admits a population the shipped catalogue actually has", () => {
     // Measured on 2026-09-08 and asserted exactly, not as a floor: a rule that stopped tracking
     // half the catalogue would still clear a floor, and this number moving is a reader's business.
-    expect(admitted.length).toBe(14);
+    // 14 → 16 (M7C wave C2): the corner wall unit's two rows decide their depth as the returns do.
+    expect(admitted.length).toBe(16);
   });
 
   it("admits the wall and top carcasses and excludes everything the decision names", () => {

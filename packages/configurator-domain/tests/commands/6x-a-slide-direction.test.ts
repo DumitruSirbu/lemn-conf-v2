@@ -1,32 +1,5 @@
-// Wave 6X-a — **the ladder's direction is asserted, not only its existence**
-// ([ADR 0093](../../../../docs/decisions/0093-a-rule-the-shipped-kitchen-cannot-exercise-owes-a-witness-not-a-moved-fixture.md)
-// Amendment A §6).
-//
-// Wave 6X witnesses that `frozenExtentsSlidAlongTheWall` moves a frozen extent. It does not witness
-// **which way**. Adversarial QA measured the gap: swapping `cabinetDepthMm` and
-// `previousCabinetDepthMm` at `rebuildEveryBodyAt`'s planning call site slides a member-less extent
-// 100 mm the *wrong* way — `B|1.10` where the rule says `B|1.30` — and leaves the whole tree green.
-// ADR 0093 decision 1 rules that a behaviour the tree cannot distinguish from its own absence is
-// unshipped; a **direction** the tree cannot distinguish from its own reverse is unshipped by the
-// same sentence, one rung down.
-//
-// The swap reaches exactly the rungs with the least evidence behind them. `alongWallQueryFor` feeds
-// the two settings to `fromCabinetDepthMm` / `toCabinetDepthMm`, which only the **declared-chain**
-// rungs (3 and 4) read; an occupied extent takes rung 2 and moves by `membersShiftMm`, which the
-// swap cannot touch. So this file is in four parts:
-//
-// - **the declared-chain rung, by value** — the member-less extent's arriving key and along-wall
-//   coordinate as literals, in both directions, with the coordinate the swap produces named beside
-//   the one the rule produces, so a rung that moves the right distance the wrong way is told apart
-//   from one that does not move at all;
-// - **the occupied rungs' indifference** — asserted rather than assumed, because an occupied extent
-//   that *did* move under the swap would mean the ladder is not the ladder ADR 0090 decision 2
-//   describes;
-// - **wall A unmoved**, key for key and value for value (decision 2 rung 1);
-// - **the command's own output**, on a design this file declares. The shipped kitchen cannot show
-//   the mis-slide at the command boundary — measured below, and it is why the whole tree stays
-//   green — so the consequence is witnessed the way ADR 0093 decision 2 requires: by a declared
-//   document, never by moving the seeded one.
+// Swapping `cabinetDepthMm` and `previousCabinetDepthMm` at `rebuildEveryBodyAt`'s planning call slides a
+// member-less extent the wrong way, and only the declared-chain rungs read them (ADR 0093 Amendment A §6).
 import { describe, expect, it } from "vitest";
 
 import {
@@ -61,27 +34,18 @@ const OCCURRED_AT = "2026-09-07T10:00:00.000Z";
 const SHALLOW_MM = 600;
 const DEEP_MM = 700;
 
-/** §7's base rows reach the worktop line; a placement that records only the carcass records 820. The
- *  gap between the two is what turns a planning column's top into a refusal — ADR 0088's `A|2.00`. */
+/** §7's base rows reach the worktop line; a placement recording only the carcass records 820, which turns a
+ *  planning column's top into a refusal (ADR 0088's `A|2.00`). */
 const BASE_BODY_HEIGHT_MM = 860;
 const SEEDED_BASE_CARCASS_MM = 820;
 
-/** `p5` and `p22` — the oven tower and the cabinet over it, the whole of the shipped kitchen's
- *  `B|1.20`. Deleting both leaves the one genuinely member-less column on wall B, which is the only
- *  column of the shipped kitchen that reaches rung 3 at all. */
+/** The oven tower and the cabinet over it, the whole of `B|1.20`: deleting both leaves the one member-less
+ *  wall-B column, the only shipped column that reaches rung 3. */
 const THE_WHOLE_OVEN_TOWER: readonly string[] = ["p5", "p22"];
 
-// ---------------------------------------------------------------------------------------------
-// The numbers this wave exists to pin. Both of them, per direction: what the rule produces, and
-// what the swapped operands produce.
-// ---------------------------------------------------------------------------------------------
-
-/** One direction of travel, with the member-less extent's three coordinates in millimetres.
- *
- *  `alongWallShiftMm` is a difference of two corner reaches, so `base-formula`'s reach of 560 at
- *  600 mm and 660 at 700 mm makes the shift ±100 — and reversing the operands negates it rather
- *  than zeroing it. **That is the whole of what this file measures**: the swap does not stop the
- *  extent, it turns it round, and `arrivesAtMm` and `arrivesAtMmSwapped` sit 200 mm apart. */
+/** One direction of travel, with the member-less extent's coordinates in millimetres. `alongWallShiftMm` is a
+ *  difference of corner reaches (`base-formula`: 560 at 600, 660 at 700), so the shift is ±100 and swapping
+ *  the operands negates it rather than zeroing it. */
 interface DirectionOfTravel {
   readonly label: string;
   readonly startsAtMm: number;
@@ -91,11 +55,9 @@ interface DirectionOfTravel {
   readonly arrivesAtKey: string;
   readonly arrivesAtMmSwapped: number;
   readonly arrivesAtKeySwapped: string;
-  /** The recorded source the chain is read from — `deriveColumns` names the member that won §3.2's
-   *  MAX, and the rebuild renames it once the kitchen has been through the command. */
+  /** The recorded source the chain is read from: `deriveColumns` names the member that won §3.2's MAX. */
   readonly recordedSource: string;
-  /** The occupied wall-B keys the same map carries, which rung 2 puts there and the swap cannot
-   *  reach. Literals, so a wave that moved one of them has to say so. */
+  /** The occupied wall-B keys the same map carries, which rung 2 puts there and the swap cannot reach. */
   readonly occupiedWallBKeys: readonly string[];
   /** Every wall-A key in the same map. Rung 1: wall A is anchored at the corner. */
   readonly wallAKeys: readonly string[];
@@ -111,7 +73,7 @@ const DEEPENING: DirectionOfTravel = {
   arrivesAtMmSwapped: 1100,
   arrivesAtKeySwapped: "B|1.10",
   recordedSource: "tall-oven-tower-600",
-  occupiedWallBKeys: ["B|0.69", "B|0.84", "B|1.90", "B|2.55"],
+  occupiedWallBKeys: ["B|0.69", "B|0.83", "B|1.90", "B|2.55"],
   wallAKeys: [
     "A|0.30",
     "A|0.45",
@@ -133,7 +95,7 @@ const SHALLOWING: DirectionOfTravel = {
   arrivesAtMmSwapped: 1400,
   arrivesAtKeySwapped: "B|1.40",
   recordedSource: "tall-oven-tower",
-  occupiedWallBKeys: ["B|0.61", "B|0.74", "B|1.80", "B|2.45"],
+  occupiedWallBKeys: ["B|0.61", "B|0.73", "B|1.80", "B|2.45"],
   wallAKeys: [
     "A|0.30",
     "A|0.45",
@@ -147,22 +109,15 @@ const SHALLOWING: DirectionOfTravel = {
 
 const BOTH_DIRECTIONS: readonly DirectionOfTravel[] = [DEEPENING, SHALLOWING];
 
-/** The chain shift the two arriving coordinates are 2 × apart by. Named rather than inlined so the
- *  criterion *"the 100 mm the swap displaces is named with both numbers"* is one readable line. */
+/** The chain shift the two arriving coordinates are 2 × apart by. */
 const CHAIN_SHIFT_MM = 100;
 
-/** Every body of the shipped kitchen's `B|1.20` is a base-run body, so the extent it leaves behind
- *  slides on the base run's carcass — 560 mm of corner reach at 600 and 660 at 700. */
+/** Every body of the shipped kitchen's `B|1.20` is a base-run body, so the extent it leaves behind slides on
+ *  the base run's carcass: 560 mm of corner reach at 600 and 660 at 700. */
 const THE_RECORDED_SOURCE_CHAIN: AlongWallDepthChain = "base-formula";
 
-// ---------------------------------------------------------------------------------------------
-// The documents, and the operands the command's planning map is built from.
-// ---------------------------------------------------------------------------------------------
-
-/** The design carrying the frozen map the product would carry after these deletes: `publishedColumns`
- *  returns the map unchanged on a delete (ADR 0011 Gap D) and `projectFrozenMap` writes the survivors
- *  out. Copied from the 6K-i adversarial file's `afterDeleting` rather than shared, because that file
- *  reads the setting off `KITCHEN_L_DESIGN` and this one deletes from a 700 mm document too. */
+/** The design carrying the frozen map the product would carry after these deletes: `publishedColumns` returns
+ *  the map unchanged on a delete (ADR 0011 Gap D) and `projectFrozenMap` writes the survivors out. */
 function afterDeleting(
   design: Design,
   placementIds: readonly string[],
@@ -198,9 +153,8 @@ function changeTo(design: Design, cabinetDepthMm: number) {
   });
 }
 
-/** The shipped kitchen at the setting a direction **starts** from, so the 700 → 600 case is a real
- *  700 mm document rather than a 600 mm one asked a backwards question: its wall-B run stands where
- *  the command put it and its oven tower has been rebuilt to `tall-oven-tower`. */
+/** The shipped kitchen at the setting a direction starts from, so 700 → 600 is a real 700 mm document with its
+ *  oven tower rebuilt to `tall-oven-tower`, not a 600 mm one asked a backwards question. */
 function theShippedKitchenAt(cabinetDepthMm: number): Design {
   if (cabinetDepthMm === cabinetDepthMmOf(KITCHEN_L_DESIGN)) {
     return KITCHEN_L_DESIGN;
@@ -210,9 +164,8 @@ function theShippedKitchenAt(cabinetDepthMm: number): Design {
   return result.design;
 }
 
-/** The pre-command design with **only** the along-wall coordinates the command actually moved its
- *  bodies to, read off the command's own output and paired by id — 6K-i's rule, unchanged: a second
- *  author for ADR 0090 decision 2's ladder is what ADR 0088 decision 2 exists to prevent. */
+/** The pre-command design with only the along-wall coordinates the command moved its bodies to, read off its
+ *  own output by id: a second author for ADR 0090 decision 2's ladder is what ADR 0088 decision 2 prevents. */
 function slidAsTheCommandDid(design: Design, cabinetDepthMm: number): Design {
   const result = changeTo(design, cabinetDepthMm);
   if (!result.ok) throw new Error(`refused: ${result.reason.code}`);
@@ -231,9 +184,9 @@ function slidAsTheCommandDid(design: Design, cabinetDepthMm: number): Design {
   };
 }
 
-/** The five operands `rebuildEveryBodyAt` passes the slide, assembled here in the same order and
- *  from the same derivations `heldRunAcrossTheCommand` uses. Returned as the query rather than as a
- *  map, so the two callers below differ in the operand **order** and in nothing else. */
+/** The five operands `rebuildEveryBodyAt` passes the slide, assembled in the same order from the same
+ *  derivations as `heldRunAcrossTheCommand`. Returned as the query so the two callers differ in operand
+ *  order only. */
 function slideOperandsOf(
   design: Design,
   cabinetDepthMm: number,
@@ -269,9 +222,7 @@ function slidAsProductionPassesTheOperands(
   return frozenExtentsSlidAlongTheWall(slideOperandsOf(design, cabinetDepthMm));
 }
 
-/** The same map with the two depth operands the other way round — the weakening ADR 0093
- *  Amendment A §6 measured, expressed as a value here so its result can be asserted rather than
- *  remembered from a mutation run. */
+/** The same map with the two depth operands swapped: the weakening of ADR 0093 Amendment A §6, as a value. */
 function slidWithTheDepthOperandsSwapped(
   design: Design,
   cabinetDepthMm: number,
@@ -298,9 +249,8 @@ function alongWallMm(column: Column): number {
   return millimetres(alongWallCoordinate(column.wall, column));
 }
 
-/** One wall's entries in one order, so two maps can be compared whole rather than field by field —
- *  a regression that rewrote `x`, `z` or `d` is caught by the same assertion as one that moved a
- *  key. */
+/** One wall's entries in one order, so two maps compare whole: a regression that rewrote `x`, `z` or `d` is
+ *  caught as well as a moved key. */
 function columnsOnWall(
   map: ReadonlyMap<string, Column>,
   wall: Column["wall"],
@@ -325,10 +275,6 @@ function memberLessWallBKeys(
   return keysOnWall(map, "B").filter((key) => !occupied.includes(key));
 }
 
-// ---------------------------------------------------------------------------------------------
-// Part 1 — the declared-chain rung, by value, per direction.
-// ---------------------------------------------------------------------------------------------
-
 describe("the member-less extent's arriving coordinate, and the one the swapped operands give it", () => {
   it.each(BOTH_DIRECTIONS)(
     "slides the oven tower's frozen extent to its arriving coordinate at $label, and to the mirror of it when the depth operands are swapped",
@@ -338,9 +284,8 @@ describe("the member-less extent's arriving coordinate, and the one the swapped 
         THE_WHOLE_OVEN_TOWER,
       );
 
-      // The preconditions that make the two coordinates below the *document's* rather than two
-      // literals that happen to differ: the extent really is member-less, it really is recorded at
-      // `leavesFromMm`, and the chain it slides on really is the recorded source's.
+      // The extent is member-less, recorded at `leavesFromMm`, and on the recorded source's chain, so the two
+      // coordinates below are the document's and not two literals that happen to differ.
       expect(design.emptyColumns).toStrictEqual([
         {
           wall: "B",
@@ -362,7 +307,7 @@ describe("the member-less extent's arriving coordinate, and the one the swapped 
         direction.endsAtMm,
       );
 
-      // **The rule's answer, by value.** Not "it moved", not a bound: the key and the coordinate.
+      // The rule's answer, by value: the key and the coordinate.
       expect(
         memberLessWallBKeys(slid, direction.occupiedWallBKeys),
       ).toStrictEqual([direction.arrivesAtKey]);
@@ -370,8 +315,8 @@ describe("the member-less extent's arriving coordinate, and the one the swapped 
         direction.arrivesAtMm,
       );
 
-      // **The swap's answer, by value, beside it.** The same 100 mm, negated — which is what tells a
-      // rung that moves the right distance the wrong way apart from one that does not move.
+      // The swap's answer, by value: the same 100 mm negated, which tells a rung that moves the right distance the
+      // wrong way from one that does not move.
       expect(
         memberLessWallBKeys(swapped, direction.occupiedWallBKeys),
       ).toStrictEqual([direction.arrivesAtKeySwapped]);
@@ -383,11 +328,8 @@ describe("the member-less extent's arriving coordinate, and the one the swapped 
     },
   );
 
-  // The displacement stated against the shift rule itself, so the pair above cannot be satisfied by
-  // two numbers that merely differ, and neither coordinate can be quietly edited to accommodate a
-  // defect (ADR 0090 decision 7). `1300 - 1200` is what `alongWallShiftMm` answers for the move
-  // being made and `1100 - 1200` is what it answers for its reverse — the corner reach's own
-  // 560 → 660, not a literal restated here.
+  // The displacement against the shift rule itself, so the pair above cannot be satisfied by two numbers that
+  // merely differ and no coordinate can be quietly edited to accommodate a defect (ADR 0090 decision 7).
   it.each(BOTH_DIRECTIONS)(
     "displaces the extent by the corner's own gain one way and by its reverse the other, at $label",
     (direction) => {
@@ -410,10 +352,6 @@ describe("the member-less extent's arriving coordinate, and the one the swapped 
     },
   );
 });
-
-// ---------------------------------------------------------------------------------------------
-// Part 2 — the occupied rung is indifferent to the operand order, and that is asserted.
-// ---------------------------------------------------------------------------------------------
 
 describe("the occupied extents, which move by their own members and not by the setting", () => {
   it.each(BOTH_DIRECTIONS)(
@@ -438,8 +376,7 @@ describe("the occupied extents, which move by their own members and not by the s
           direction.occupiedWallBKeys.includes(key),
         );
 
-      // Non-vacuity first: rung 2 has to be carrying real columns here, or the equality below is a
-      // comparison of two empty lists.
+      // Non-vacuity: rung 2 must carry real columns here or the equality compares two empty lists.
       expect(occupied(slid).map(([key]) => key)).toStrictEqual([
         ...direction.occupiedWallBKeys,
       ]);
@@ -447,10 +384,6 @@ describe("the occupied extents, which move by their own members and not by the s
     },
   );
 });
-
-// ---------------------------------------------------------------------------------------------
-// Part 3 — wall A is anchored at the corner. ADR 0090 decision 2 rung 1.
-// ---------------------------------------------------------------------------------------------
 
 describe("wall A, which is anchored at the corner and moves for no operand order", () => {
   it.each(BOTH_DIRECTIONS)(
@@ -475,8 +408,8 @@ describe("wall A, which is anchored at the corner and moves for no operand order
       expect(columnsOnWall(swapped, "A")).toStrictEqual(
         columnsOnWall(slid, "A"),
       );
-      // Key for key **and value for value** against the operand the slide was handed, so a wall-A
-      // entry re-keyed or re-seated by either order is caught rather than compared with its twin.
+      // Value for value against the operand the slide was handed, so an entry re-keyed or re-seated by either
+      // order is caught.
       expect(columnsOnWall(slid, "A")).toStrictEqual(
         columnsOnWall(operands.frozen, "A"),
       );
@@ -484,27 +417,13 @@ describe("wall A, which is anchored at the corner and moves for no operand order
   );
 });
 
-// ---------------------------------------------------------------------------------------------
-// Part 4 — the consequence at the command boundary, on a design this file declares.
-// ADR 0093 decision 2: the seeded kitchen does not move.
-// ---------------------------------------------------------------------------------------------
-
-/** **Two 200 mm columns 200 mm apart, which is the pitch the mis-slide can be seen at.**
- *
- *  A mis-slid member-less extent changes no output unless it lands on the key of a column that
- *  holds a record: `deriveColumnsOverFrozenExtents` merges by key, and a member-less planning column
- *  standing on its own is read by nothing. The displacement is one chain shift each way, so the
- *  swapped destination is 2 × 100 mm from the correct one — and a column exactly 200 mm from the
- *  member-less one is what the swap collides with.
- *
- *  §7's hinged base row opens at 200 mm (`HINGED_CABINET_MIN_WIDTH_MM`), so two 200 mm columns
- *  centred 200 mm apart abut without overlapping. The shipped kitchen has no such pair — measured
- *  below — which is exactly why swapping the operands leaves the whole tree green.
- *
- *  `u1` is the survivor: a placement recording the seeded 820 mm carcass under an ordinary,
- *  deletable top, the shape ADR 0088 measured on `A|2.00`. `v1` is the whole of the column that goes
- *  member-less, and it is 820 mm tall so the extent it leaves behind records a top of 820 — the
- *  number that refuses `u1`'s 860 mm rebuild once it lands on `u1`'s column. */
+/**
+ * Two 200 mm columns 200 mm apart: the pitch the mis-slide is visible at, because a mis-slid member-less
+ * extent changes no output unless it lands on a column holding a record, and the swap lands 2 × 100 mm from
+ * the rule. The shipped kitchen has no such pair, so swapping the operands leaves the rest of the tree green.
+ * `u1` survives with the seeded 820 mm carcass; `v1` goes member-less with top 820, which refuses `u1`'s
+ * 860 mm rebuild when it lands on `u1`'s column.
+ */
 const DECLARED_COLUMN_PITCH_MM = 200;
 const DECLARED_COLUMN_WIDTH_MM = 200;
 const THE_SURVIVING_BASE = "u1";
@@ -547,9 +466,8 @@ const DECLARED_WALL_B_COLUMNS: readonly DesignPlacement[] = [
   },
 ];
 
-/** Where the two declared columns stand once the run has moved: both slide by their own chain's
- *  100 mm, so they stay 200 mm apart — and the member-less extent slid the wrong way lands exactly
- *  on the occupied one. */
+/** Where the declared columns stand once the run has moved: both slide by their chain's 100 mm and stay 200 mm
+ *  apart, and a member-less extent slid the wrong way lands exactly on the occupied one. */
 const OCCUPIED_ARRIVES_AT_KEY = "B|1.10";
 const MEMBER_LESS_ARRIVES_AT_KEY = "B|1.30";
 const MEMBER_LESS_ARRIVES_AT_MM = 1300;
@@ -601,11 +519,9 @@ describe("the consequence at the command boundary, on a pitch the mis-slide can 
     ).toBe(SEEDED_BASE_CARCASS_MM);
   });
 
-  // **The assertion the wave is for.** With the operands the right way round the member-less extent
-  // goes to `B|1.30` and `B|1.10` keeps its recorded 2600 mm top, so the surviving base rebuilds to
-  // the worktop line. With them swapped the extent goes to `B|1.10` instead, overwrites that top
-  // with its own 820, and the 860 mm rebuild is refused — `HEIGHT_EXCEEDS_LEVEL`, at the command's
-  // own boundary. The refusal code is the subject rather than a boolean so the red carries a number.
+  // With the operands the right way round the member-less extent goes to `B|1.30` and `B|1.10` keeps its
+  // recorded 2600 mm top, so the base rebuilds to the worktop line. Swapped, the extent overwrites that top with
+  // its own 820 and the 860 mm rebuild is refused (`HEIGHT_EXCEEDS_LEVEL`).
   it("changes the kitchen's depth and rebuilds the surviving base to the worktop line", () => {
     const result = changeTo(theDeclaredDesign(), DEEP_MM);
 
@@ -636,8 +552,7 @@ describe("the consequence at the command boundary, on a pitch the mis-slide can 
     ]);
   });
 
-  // The collision is the mechanism, and it is asserted as a value so the test above cannot go green
-  // for a different reason: swapped, the two columns share one key and the 820 mm top wins.
+  // The collision is the mechanism, asserted as a value so the test above cannot go green for another reason.
   it("puts the mis-slid extent on the occupied column's own key, and its 820 mm top over the recorded 2600", () => {
     const design = theDeclaredDesign();
 
@@ -654,10 +569,8 @@ describe("the consequence at the command boundary, on a pitch the mis-slide can 
     );
   });
 
-  // **Why nothing else in the tree can see the swap**, observed rather than declared (ADR 0085
-  // decision 3). On the shipped kitchen the mis-slid extent lands on `B|1.10`, where no placement
-  // stands, so no rebuild is planned against it and the command's output is unchanged. The shipped
-  // kitchen's own wall-B pitch is what puts it there, and it is stated as the fixture fact it is.
+  // On the shipped kitchen the mis-slid extent lands on `B|1.10`, where no placement stands, so no rebuild is
+  // planned against it: why nothing else in the tree sees the swap (ADR 0085 decision 3).
   it("has no shipped wall-B column standing where the mis-slide would land it", () => {
     for (const direction of BOTH_DIRECTIONS) {
       const design = afterDeleting(

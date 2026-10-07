@@ -1,12 +1,7 @@
-// The store's half of `docs/milestones/M3-mutations.md` work item 9: turn a domain `CommandResult`
-// into the exact state the store should hold next.
-//
-// It lives beside the store rather than inside it for two reasons. The store's four actions stay
-// the "call, apply, schedule" adapter the milestone's Boundaries section requires, and the two
-// invariants that are easiest to break here — frozen columns and a selection that never dangles —
-// become testable without zustand.
-//
-// No product rule lives here. Every guard and the ADR-sensitive reconciliation live in the domain;
+// The store's half of `docs/milestones/M3-mutations.md` work item 9: turn a domain `CommandResult` into the exact
+// state the store holds next. It lives beside the store so the store's actions stay the call/apply/schedule
+// adapter and the two easiest invariants to break (frozen columns, a selection that never dangles) are testable
+// without zustand. No product rule lives here: guards and the ADR-sensitive reconciliation live in the domain;
 // this adapter decides which existing thing is selected and shapes the store update.
 import {
   findVacatedVoid,
@@ -31,22 +26,16 @@ export type Selection = {
 export interface AppliedCommandState {
   readonly design: Design;
   readonly records: readonly PlacementRecord[];
-  /** **The published face**: the frozen extents with `hasFullHeightUnder` re-answered from the new
-   *  records, and every member-less column bounded by the length of the wall it stands on. This is
-   *  what openings are derived from, what the scene draws and what an insert is matched against —
-   *  ADR 0069's owner ruling, that nothing past the end of a wall is ever offered. */
+  /** The published face: frozen extents with `hasFullHeightUnder` re-answered from the new records and every
+   *  member-less column bounded by its wall's length. Openings, the scene and inserts derive from it (ADR 0069:
+   *  nothing past a wall's end is ever offered). */
   readonly columns: ReadonlyMap<string, Column>;
-  /** **The recorded face**: the same map with ADR 0069's wall-end cap *not* applied, which is what
-   *  the document is projected from (ADR 0090 Amendment B).
-   *
-   *  > A pass that derives its answer from the **room** may bound what the map publishes and may not
-   *  > rewrite what the document records.
-   *
-   *  The cap is the only stage on that side of the line. The free-ground clip, ADR 0052's split and
-   *  ADR 0046's merge derive from the placements or from a declared ceiling and are in both faces:
-   *  no setting change undoes them. The cap is different because wave 6J-c made the wall's own
-   *  length reversible from the customer's side — a space flush to wall B's end lost 100 mm at 700
-   *  and kept the loss on the way back to 600, schema-valid and validator-silent. */
+  /** The recorded face: the same map without ADR 0069's wall-end cap, which the document is projected from
+   *  (ADR 0090 Amendment B). A pass that derives its answer from the room may bound what the map publishes and
+   *  may not rewrite what the document records. The cap is the only such stage: the free-ground clip, ADR 0052's
+   *  split and ADR 0046's merge derive from placements or a declared ceiling and are in both faces. The wall's
+   *  own length is reversible, so a cap written into the document would not undo itself (a space flush to
+   *  wall B's end lost 100 mm at 700 and kept the loss back at 600). */
   readonly recordedColumns: ReadonlyMap<string, Column>;
   readonly voids: readonly VoidRecord[];
   readonly selection: Selection;
@@ -65,24 +54,16 @@ export type CommandApplication =
 export interface ApplyCommandResultInput {
   readonly result: CommandResult;
   readonly catalog: BodyCatalog;
-  /** ADR 0011 Gap D: a column's **extent** is frozen at load time. It is an *input* to the
-   *  recompute here, never an output — recomputing it from the mutated records would shrink a
-   *  column to fit what is left, so a delete would free space that produces no void at all.
-   *
-   *  `hasFullHeightUnder` is the one field that is not part of that extent and *is* re-answered:
-   *  frozen, a column whose full-height unit was deleted in this session went on reporting one
-   *  standing there while the same design reloaded reported none.
-   *
-   *  **The store's recorded face, not its published one** (ADR 0090 Amendment B). Handing the
-   *  wall-bounded map in would carry ADR 0069's cap into the next command's record and out through
-   *  `projectFrozenMap`, which is the defect that amendment closes — one command per 100 mm, and
-   *  each document valid on its own. */
+  /** A column's extent is frozen at load time (ADR 0011 Gap D): an input to the recompute, never an output,
+   *  since recomputing it from the mutated records would shrink a column to fit what is left and a delete would
+   *  free space that produces no void. `hasFullHeightUnder` is the one field outside that extent and is
+   *  re-answered. This is the store's recorded face, not its published one (ADR 0090 Amendment B): the
+   *  wall-bounded map would carry ADR 0069's cap into the next command's record and out through
+   *  `projectFrozenMap`. */
   readonly columns: ReadonlyMap<string, Column>;
-  /** What is selected right now, which a **whole-kitchen** command leaves exactly where it was: it
-   *  points at no cabinet, so it moves no selection (wave 6E). Every other effect names the
-   *  placement it acted on and decides this for itself, so this is only ever read on those two
-   *  arms — and it is required rather than defaulted, because a default here would silently
-   *  deselect whatever the caller forgot to pass. */
+  /** What is selected now, which a whole-kitchen command leaves where it was: it points at no cabinet. Every
+   *  other effect names the placement it acted on, so this is read only on those arms. Required rather than
+   *  defaulted: a default would silently deselect whatever the caller forgot to pass. */
   readonly selection: Selection;
 }
 
@@ -102,14 +83,10 @@ export function applyCommandResult(
   return {
     applied: true,
     state: {
-      // Uncaught by design. `projectFrozenMap` throws `UnprojectableColumnError` only for a
-      // frozen column the document cannot carry, and swallowing it here would save a design whose
-      // empty space is silently missing — the defect ADR 0044 exists to fix, arriving by a new
-      // route. A loud failure is the lesser harm, so this seam does not catch.
-      // **Projected from the recorded face** (ADR 0090 Amendment B): the document keeps the width
-      // the customer left, and a recorded extent the wall no longer covers is *marked* rather than
-      // shortened — the same treatment ADR 0065 gives a placement the same slide pushes past the
-      // same wall.
+      // Uncaught by design: `projectFrozenMap` throws `UnprojectableColumnError` only for a frozen column the
+      // document cannot carry, and swallowing it would save a design whose empty space is silently missing
+      // (ADR 0044). Projected from the recorded face (ADR 0090 Amendment B): the document keeps the width the
+      // customer left, and an extent the wall no longer covers is marked rather than shortened (ADR 0065).
       design: reconciled.design,
       records: reconciled.records,
       columns: reconciled.columns,
@@ -126,20 +103,11 @@ export function applyCommandResult(
   };
 }
 
-/** **The depth command's own map, and no arm of this module's own** — ADR 0090 decision 5.
- *
- *  ADR 0073's, ADR 0079's and ADR 0080's depth rules stood here until wave 6J-d and now live in
- *  `frozen-map-at-cabinet-depth.ts`. They moved for the reason ADR 0088 decision 2 requires a wave to
- *  state: once wave 6J-c made wall B's run slide, answering them needs the pre-command design, the
- *  catalogue at the depth being left and the shift itself, all three of which `setCabinetDepth` holds
- *  natively and none of which this module is given. Repairing that here would also have put a product
- *  rule in a file whose head comment says none lives here.
- *
- *  The domain-owned reconciliation now keeps that funnel and void recompute shared with generation;
- *  this adapter keeps the selection.
- */
+// The depth command's frozen map is its own (`frozen-map-at-cabinet-depth.ts`, ADR 0090 decision 5): answering
+// the depth rules needs the pre-command design, the catalogue at the depth being left and the shift, which
+// `setCabinetDepth` holds and this module is not given. No arm of this module repairs them.
 
-/** §5.1's closing step and the milestone's "selection never dangles" criterion, as one function:
+/** §5.1's closing step and "the selection never dangles", as one function:
  *  decide what the command points at, then keep it only if it still exists. */
 function resolveSelection(
   effect: CommandEffect,
@@ -162,18 +130,10 @@ function intendSelection(
     const vacated = findVacatedVoid(voids, effect.vacated);
     return vacated ? { kind: "void", id: vacated.id } : null;
   }
-  // Wave 6E's two, wave 6J-b's third and ADR 0099's fourth: a whole-kitchen setting acts on no
-  // cabinet, so it has no placement to point at and the selection the customer is holding is
-  // carried through untouched. It is still put through `isStillPresent` below, which is what keeps
-  // "the selection never dangles" one rule rather than one rule with an exception.
-  //
-  // A depth change rebuilds every body but keeps every placement **id**, so the held selection is
-  // still the same cabinet afterwards — a deeper one. Carrying it through is what stops a customer
-  // losing their place because the kitchen got deeper around them.
-  //
-  // A global colour change is the strongest case of the four: `setGlobalFinish` writes one settings
-  // key and touches no placement at all (ADR 0099 decision 2), so there is nothing for a selection
-  // to have lost.
+  // A whole-kitchen setting (material tier, hardware tier, global colour, cabinet depth) acts on no cabinet, so
+  // the held selection is carried through, still put through `isStillPresent` so "the selection never dangles"
+  // has no exception. A depth change keeps every placement id, so the same cabinet stays selected, now deeper;
+  // `setGlobalFinish` touches no placement at all (ADR 0099 decision 2).
   if (
     effect.type === "material_tier_set" ||
     effect.type === "hardware_tier_set" ||

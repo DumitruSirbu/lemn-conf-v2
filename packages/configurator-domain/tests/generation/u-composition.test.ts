@@ -5,6 +5,7 @@
 import { describe, expect, it } from "vitest";
 
 import { uShellFloorRuns, type DesignWall } from "../../src/index.js";
+import { absorbedByTheOwnersRuleMm } from "../support/fridge-end-leftover.js";
 import {
   LARGE_U_TOTAL_MM,
   isLargeU,
@@ -181,7 +182,16 @@ describe("the fridge's own count from the corner (N3r 3)", () => {
     const fridge = onB[fridgeIndex];
 
     expect(fridgeIndex).toBe(onB.length - 1);
-    expect(fridge?.startMm).toBe(runB.startMm + fridgeIndex * 600);
+    // M7C wave C5 S2 (the owner's Q6): the leftover beyond the fridge, worked out from the run's end alone, goes
+    // to the cabinet beside it in whole steps, and the fridge stands that far past its counted start.
+    const countedStartMm = runB.startMm + fridgeIndex * 600;
+    const leftoverMm = runB.endMm - (countedStartMm + 700);
+    const movedMm = absorbedByTheOwnersRuleMm({
+      leftoverMm,
+      cabinetWidthMm: 600,
+    });
+    expect(fridge?.startMm).toBe(countedStartMm + movedMm);
+    expect(onB[fridgeIndex - 1]?.widthMm).toBe(600 + movedMm);
     expect(runB.endMm - (fridge?.endMm ?? 0)).toBeLessThan(600);
   });
 

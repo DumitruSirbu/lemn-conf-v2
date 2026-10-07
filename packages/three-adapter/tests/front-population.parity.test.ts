@@ -150,7 +150,8 @@ function declaredLeafHeightsMm(body: GatedBody): number[] {
 
 describe("every catalogue entry's declared fronts match what its builder draws", () => {
   it("gates both populations of the one map, at every width an insertable row declares", () => {
-    expect(SEEDED_BUILD_IDS.length).toBe(22);
+    // 22 → 24 (M7C wave C2): the corner wall unit's two rows.
+    expect(SEEDED_BUILD_IDS.length).toBe(24);
 
     const gatedIds = new Set(GATED_BODIES.map(({ buildId }) => buildId));
     expect(gatedIds.size).toBe(KITCHEN_L_BODY_CATALOG.size);

@@ -63,6 +63,21 @@ import {
   type DishwasherTrade,
   type TowerOverBottleChange,
 } from "../support/pre-tower-run-recording.js";
+import { thePlannerBeforeC5 } from "../support/before-c5-fridge-end-leftover.js";
+
+// M7C wave C5 S1: the tests here that compare with a recording of an earlier planner ask the planner as it stood
+// before the leftover beside an end fridge was absorbed into the cabinet inboard of it (`fridge-end-leftover.ts`),
+// by `thePlannerBeforeC5()`; the rest of the file runs on the shipped planner. The rule's own figures are
+// `fridge-end-leftover.rooms.test.ts`'s.
+vi.mock(
+  "../../src/generation/fridge-end-leftover.js",
+  async (importOriginal) => {
+    const { withTheFridgeEndLeafSwitchable } = await import(
+      "../support/before-c5-fridge-end-leftover.js"
+    );
+    return withTheFridgeEndLeafSwitchable(await importOriginal());
+  },
+);
 
 vi.mock(
   "../../src/generation/dishwasher-beside-the-sink.js",
@@ -203,6 +218,7 @@ describe("the whole plan after 7D5b's tower-over-bottle change (S1's pre-state)"
   });
 
   it("is reproduced byte for byte, in every drawn room and witness, by the planner with S1's leaf switched off", () => {
+    thePlannerBeforeC5();
     const recorded = [...POST_TOWER.rooms, ...POST_TOWER.witnesses];
 
     const differing = recorded.filter(
@@ -216,6 +232,7 @@ describe("the whole plan after 7D5b's tower-over-bottle change (S1's pre-state)"
   });
 
   it("differs from S1's planner in 277 drawn rooms, each by one of S1's changes alone, and equals it in the other 203", () => {
+    thePlannerBeforeC5();
     const changes = changesAgainstTheRecording(POST_TOWER.rooms);
 
     expect(countsOf(changes)).toEqual({
@@ -229,6 +246,7 @@ describe("the whole plan after 7D5b's tower-over-bottle change (S1's pre-state)"
   });
 
   it("names the drawn rooms of S1's rarer classes: M1 on the sink's wall and both M2 re-plans", () => {
+    thePlannerBeforeC5();
     const changes = changesAgainstTheRecording(POST_TOWER.rooms);
 
     expect({

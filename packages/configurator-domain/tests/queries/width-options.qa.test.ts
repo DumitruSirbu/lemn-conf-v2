@@ -1,14 +1,5 @@
-// Adversarial QA on M5 wave 5D's `widthOptionsFor` (ADR 0034).
-//
-// The implementer's suite proves the query agrees with `setWidth` **on the widths it publishes**.
-// The claim ADR 0034 actually makes is stronger and has a second direction: a chip is free *if and
-// only if* the command would succeed, which also forbids a width the command accepts and the row
-// never mentions. That direction cannot be checked by iterating the row, so everything here sweeps
-// widths the row does **not** contain as well.
-//
-// The rest is the ground a per-fixture table misses: an unaligned column, an odd-parity width, a
-// design that has already been resized once, purity and determinism, and the three shapes that must
-// produce no section at all.
+// `widthOptionsFor` (ADR 0034): a chip is free if and only if the command would succeed, which also forbids a
+// width the command accepts and the row never mentions, so the sweeps here cover widths the row does not contain.
 import { describe, expect, it } from "vitest";
 
 import { setWidth } from "../../src/commands/set-width.js";
@@ -94,9 +85,8 @@ function catalogWith(
   });
 }
 
-/** Wider than any catalogue set, on whole millimetres and on the odd ones between them: the sweep
- *  has to be able to find a width the command accepts that the row never offered, and such a width
- *  would by definition not be in any list a test could copy from production. */
+/** Wider than any catalogue set, on whole millimetres and the odd ones between them: the sweep must be able to
+ *  find a width the command accepts that the row never offered, so the list cannot be copied from production. */
 const SWEPT_WIDTHS_MM: readonly number[] = (() => {
   const widths = new Set<number>();
   for (let widthMm = 100; widthMm <= 1200; widthMm += 5) widths.add(widthMm);
@@ -107,9 +97,8 @@ const SWEPT_WIDTHS_MM: readonly number[] = (() => {
 })();
 
 describe("the iff, in the direction iterating the row cannot see", () => {
-  // **The under-offer direction.** ADR 0034's Context names it as one of the two defects the wave
-  // closes — `A|3.20` accepted 300 and the panel did not offer it — so a test that only walks the
-  // published row would have read green through exactly the bug the wave exists to fix.
+  // The under-offer direction: `A|3.20` accepted 300 and the panel did not offer it, and a test that only walks
+  // the published row reads green through that bug.
   it.each([
     ["the shipped kitchen", kitchen, 59],
     ["a kitchen with an emptied column", kitchenWithEmptyColumn, 56],
@@ -137,35 +126,21 @@ describe("the iff, in the direction iterating the row cannot see", () => {
         }
       }
       expect(missing).toEqual([]);
-      // The acceptance count, pinned per world rather than floored. **51 and 48 became 59 and 56
-      // under ADR 0048**, which flipped the seeded pantry `p6` to resizable and unfroze the wall
-      // cabinet `p23` standing in its column: four shrinks each, in both worlds, because the clear
-      // that makes the second world is on wall A and does not touch that column. Before that,
-      // **0 and 12 became 51 and 48 under ADR 0035 decision 7**, which is the whole of that decision seen from the panel's side:
-      // the shipped kitchen abuts no empty column and used to accept nothing at all, and now accepts
-      // every shrink its columns agree on. It was 0 and 3 until decision 2 stepped the chips at
-      // 50 mm, and 0 and 12 after it.
-      //
-      // The emptied world accepts **fewer** than the shipped one, which reads backwards and is
-      // right: clearing `A|2.00` deletes `p1`, `p12` and `p18`, and those three bodies carried more
-      // load-census shrinks between them than the growths the freed 600 mm buys back. A clear
-      // subtracts bodies as well as adding space, and only the second half was visible before
-      // decision 7. A floor of zero here would have let the sweep pass while finding nothing to
-      // compare.
+      // The acceptance count is pinned per world, not floored: a floor of zero would let the sweep pass while
+      // finding nothing to compare. The emptied world accepts fewer because clearing `A|2.00` deletes `p1`, `p12`
+      // and `p18`, which carried more shrinks than the freed 600 mm buys back in growths.
       expect(accepted).toBe(expectedAccepted);
     },
   );
 
-  // The over-offer direction, restated over a swept range rather than over the row: nothing the row
-  // calls `available` may be refused, and nothing it calls `refused` may be accepted.
+  // The over-offer direction over a swept range: nothing `available` may be refused, nothing `refused` accepted.
   it("never calls a width available that the command refuses", () => {
     const world = kitchenWithEmptyColumn();
     const disagreements: string[] = [];
     for (const record of world.records) {
       for (const option of optionsFor(world, record.id)) {
         if (option.verdict.status === "current") continue;
-        // ADR 0049's chip offers no move either, and the command refuses it — see the `fixed`
-        // verdict's own suite for the half of the property that does apply to it.
+        // ADR 0049's `fixed` chip offers no move either and the command refuses it; its verdict has its own suite.
         if (option.verdict.status === "fixed") continue;
         const accepts = commandAccepts(world, record.id, option.widthMm);
         if (accepts !== (option.verdict.status === "available")) {
@@ -180,8 +155,8 @@ describe("the iff, in the direction iterating the row cannot see", () => {
 });
 
 describe("exactly one active chip, on every body that renders a section", () => {
-  /** Every shape of column the engine can be standing in when the panel opens. Each is asked the
-   *  same question, because §9's "one active chip" is not contingent on how far the command gets. */
+  /** Every shape of column the engine can be standing in when the panel opens, each asked the same question: §9's
+   *  one active chip does not depend on how far the command gets. */
   function worlds(): readonly [string, KitchenWorld][] {
     const resized = (() => {
       const world = kitchenWithEmptyColumn();
@@ -228,10 +203,9 @@ describe("exactly one active chip, on every body that renders a section", () => 
   });
 });
 
-/** A column holding a 400 mm body under a 600 mm one — reachable with one ordinary insert, and the
- *  shape `resolveColumnExtent` used to refuse and now squares up (ADR 0035 decision 6). Each member
- *  still reads its **own** active chip, which is where reading `active` out of a refusal code would
- *  lose it. */
+/** A column holding a 400 mm body under a 600 mm one, reachable with one ordinary insert and squared up by
+ *  `resolveColumnExtent` (ADR 0035 decision 6). Each member still reads its own active chip, which reading
+ *  `active` out of a refusal code would lose. */
 function unalignedColumnWorld(): KitchenWorld {
   return syntheticWorld([
     placementAt("wide", 1000, 600),
@@ -245,14 +219,9 @@ function unalignedColumnWorld(): KitchenWorld {
 
 describe("a column whose members are not flush", () => {
   it("offers its shrinks and refuses its growths for want of space, not for want of alignment", () => {
-    // **This row asserted `COLUMN_MEMBERS_UNALIGNED` on every chip until ADR 0035 decision 6.** The
-    // column is now squared up rather than locked out, so the row it publishes is an ordinary one:
-    // every width below the column's extent is `available` — decision 7 funds it out of the space
-    // the shrink vacates — and every width above it is `NO_EMPTY_SPACE`, because this synthetic
-    // world has no empty column to grow into.
-    //
-    // Both halves are asserted, because "no chip says UNALIGNED any more" would also be true of a
-    // row that had stopped rendering.
+    // The column is squared up rather than locked out: every width below its extent is `available` (funded from
+    // the space the shrink vacates, ADR 0035 decision 7) and every width above is `NO_EMPTY_SPACE`, as this
+    // synthetic world has no empty column. Both halves are asserted, so a row that stopped rendering cannot pass.
     const world = unalignedColumnWorld();
     const options = optionsFor(world, "wide");
     expect(options.length).toBeGreaterThan(1);
@@ -336,14 +305,9 @@ describe("an odd-parity width is refused, never offered", () => {
   });
 });
 
-/** ADR 0049, which overturned this file's own former expectation: these used to publish nothing,
- *  and the customer got a vanished `LĂȚIME` section with no explanation. They now publish the one
- *  width they are made at, with the engine's reason.
- *
- *  Every `fixedWidth` body in the shipped kitchen, not a chosen one: `base-hob-2drawer` is the body
- *  from report item 9, and the other three reach the same arm through different catalogue rows.
- *  `p6` was the fifth until ADR 0048 made the seeded pantry resizable — it publishes a nine-width
- *  stepper now, which is that record rather than a hole in this one. */
+/** ADR 0049: these publish the one width they are made at, with the engine's reason, rather than no section.
+ *  Every `fixedWidth` body in the shipped kitchen, not a chosen one: `base-hob-2drawer` and three others reach the
+ *  same arm through different catalogue rows. */
 describe("a cabinet made at one width publishes that width, with the reason", () => {
   it.each(["p2", "p5", "p7", "p13"])(
     "renders one active chip carrying NOT_RESIZABLE for the fixedWidth body %s",
@@ -361,9 +325,8 @@ describe("a cabinet made at one width publishes that width, with the reason", ()
     },
   );
 
-  // The reason is the command's own, carried whole rather than re-derived (ADR 0032 rule 2): the
-  // label the sentence names is the label `setWidth` would have named, so the section cannot start
-  // telling the customer about a different cabinet than the refusal does.
+  // The reason is the command's own, carried whole rather than re-derived, so the section names the same label
+  // `setWidth` would have named.
   it("carries the very refusal setWidth produces for the same body", () => {
     const world = kitchen();
     const [only] = optionsFor(world, "p2");
@@ -390,15 +353,9 @@ describe("a cabinet made at one width publishes that width, with the reason", ()
 });
 
 describe("no section at all, and the ways to get there", () => {
-  /** **The anti-invariant, and the one way ADR 0049 can go wrong.** `columnWidthChoices` answered
-   *  `undefined` in two materially different situations and only one of them was changed: a
-   *  `fixedWidth` cabinet is a correct fact about a real cabinet, while a body that resolves no
-   *  width set at all is missing catalogue data (FINDING R2.7). A chipless section would make broken
-   *  data look like a constrained product.
-   *
-   *  So this asks for the two conditions **at once** — `fixedWidth` *and* no set — which is
-   *  precisely the input that would slip through if the new arm were reached before the set was
-   *  resolved. The hob entry's floor is lifted above the only width it lists, so its set is empty
+  /** The anti-invariant for ADR 0049: a `fixedWidth` cabinet is a correct fact, while a body that resolves no width
+   *  set is missing catalogue data, and a chipless section would make broken data look like a constrained product.
+   *  Both conditions at once: the hob entry's floor is lifted above the only width it lists, so its set is empty
    *  while its flag is untouched, and the answer must stay "no section". */
   it("still publishes nothing for a fixedWidth body whose floor empties its set", () => {
     const world = createWorld(
@@ -446,9 +403,8 @@ describe("asking is not editing, and asking twice gives the same answer", () => 
     expect(JSON.stringify([...world.columns.values()])).toBe(columns);
   });
 
-  // Determinism, and independence from call order: the panel memoises on its inputs, so a query
-  // that answered differently on a second call would leave the chips whatever the last render made
-  // them.
+  // Determinism and independence from call order: the panel memoises on its inputs, so a query answering
+  // differently on a second call would leave the chips as the last render made them.
   it("answers identically on a second call, and in reverse order", () => {
     const world = kitchenWithEmptyColumn();
     const first = world.records.map((record) => optionsFor(world, record.id));
@@ -461,13 +417,8 @@ describe("asking is not editing, and asking twice gives the same answer", () => 
 });
 
 describe("a refused chip carries the engine's refusal unchanged", () => {
-  // The implementer's suite checks one body. This checks every refused chip in the kitchen, code and
-  // params alike — a query that re-derived a reason would agree on the common codes and diverge on
-  // the ones that carry a member's label or a size list.
-  //
-  // **141 → 90 under ADR 0035 decision 7**, and the arithmetic is the same subtraction the census
-  // makes: 141 − 51 = 90. Every chip that stopped being refused is one of the 51 shrinks the shipped
-  // kitchen now accepts; no chip changed the *reason* it is refused.
+  // Every refused chip in the kitchen, code and params alike: a query that re-derived a reason would agree on the
+  // common codes and diverge on those carrying a member's label or a size list.
   it("matches the command's code and params on every refused chip in the kitchen", () => {
     const world = kitchen();
     let refusals = 0;
@@ -502,11 +453,9 @@ describe("a refused chip carries the engine's refusal unchanged", () => {
 });
 
 describe("the column that refuses before it looks at the width", () => {
-  // `A|2.60` holds the hob base `p2` and the hood `p13` beside the wall cabinet `p19`, and both are
-  // `fixedWidth`. So `p19`'s row is refused by `COLUMN_MEMBER_NOT_RESIZABLE` — a fact about its
-  // neighbours, decided before the requested width is looked at and long before empty space is
-  // scanned for. This is the exact path on which reading `active` out of `WIDTH_UNCHANGED` would
-  // leave the section with no active chip, so the code is pinned rather than left as prose.
+  // `A|2.60` holds the `fixedWidth` hob base `p2` and hood `p13` beside `p19`, so `p19`'s row is refused
+  // `COLUMN_MEMBER_NOT_RESIZABLE` before the requested width is looked at: the path where reading `active` out of
+  // `WIDTH_UNCHANGED` would leave the section with no active chip.
   it("refuses p19 for its immovable column-mates, and still marks its own width current", () => {
     const options = optionsFor(kitchen(), "p19");
     const codes = options.map((option) =>
@@ -522,9 +471,8 @@ describe("the column that refuses before it looks at the width", () => {
     ).toBe(600);
   });
 
-  // The fallback `columnWidthChoices` takes when the column cannot be resolved: the selected body's
-  // own set, so the customer still sees the widths their cabinet is made in — each disabled and each
-  // saying what is in the way, rather than the section vanishing.
+  // The fallback `columnWidthChoices` takes when the column cannot be resolved: the selected body's own set, each
+  // width disabled and saying what is in the way, rather than the section vanishing.
   it("falls back to the selected body's own set rather than to no section", () => {
     expect(
       optionsFor(kitchen(), "p19").map((option) => option.widthMm),

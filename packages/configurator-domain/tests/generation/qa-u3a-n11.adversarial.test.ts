@@ -86,10 +86,12 @@ describe("N11.3: the sink never leaves wall A", () => {
       "base-3drawer@1500-2100",
       "base-hob-oven@2100-2700",
     ]);
+    // B's free run is 900-2900: two cabinets and the fridge reach 2800, and the owner's Q6 (M7C wave C5 S2)
+    // gives the 100 mm beyond the fridge to the cabinet beside it, so the fridge stands at 2200-2900.
     expect(bodiesOn(plan, "B")).toStrictEqual([
       "base-cabinet@900-1500",
-      "base-cabinet@1500-2100",
-      "fridge-free@2100-2800",
+      "base-cabinet@1500-2200",
+      "fridge-free@2200-2900",
     ]);
   });
 

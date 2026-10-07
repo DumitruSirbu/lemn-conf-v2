@@ -1,23 +1,5 @@
-// The selection highlight: "the customer can see, without reading anything, which cabinet is
-// being edited" (`DEVELOPMENT-SPEC.md` §6.1's picking result made visible, and the M2 mobile gate
-// "a selected body and a selected slot are visually distinguishable without opening any panel").
-//
-// It replaces a `THREE.BoxHelper`. The helper failed the gate three ways at once, and each of the
-// three is a decision recorded below: it drew the *bounding box* rather than the body, so its rear
-// edges cut through the room and read as noise; it drew one-pixel lines, because WebGL ignores
-// `LineBasicMaterial.linewidth` on every desktop platform; and it was depth-tested only, so the
-// part of a selected body standing behind the worktop or a neighbour simply had no highlight.
-//
-// A box does survive here, in one place and one only: the faint pass that ignores depth. That is
-// not the helper reinstated — it is a locator for a hidden selection, at a fifth of the opacity
-// and half the width of the outline that identifies the body, and it is a box precisely *because*
-// it is drawn through the geometry in front of it, where anything richer becomes the noise the
-// helper was rejected for.
-//
-// **Three passes since wave 6V**, and the middle one is the product half of ADR 0091: a near-black
-// casing between the ghost and the red core, so the highlight is a *pair* of colours rather than
-// one. A flat front is one colour and can equal either constant; it cannot equal both.
-// `SELECTION_OUTLINE_CASING_COLOR` carries the argument and the measured bound.
+// The selection highlight: three `LineSegments2` passes (ghost, casing, core) over the target's own edges. Lines are
+// `LineSegments2` because WebGL ignores `LineBasicMaterial.linewidth` on desktop, so a basic line is always 1 px wide.
 import * as THREE from "three";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
@@ -30,87 +12,34 @@ import { NOOP_RAYCAST } from "./void-mesh.js";
 import { inheritWallTag } from "./wall-tag.js";
 
 /**
- * Signal red, chosen for contrast against the **declared** palette: the warm paper/stage background
- * (`globals.css` `--paper #faf8f4`, `--stage #f2f0ea`), ADR 0071's six PAL decors and two veneer
- * woods, and the room's own white walls and worktop. Against those it still reads — none of them is
- * saturated in the red channel alone, and the warmest wood keeps a green channel well clear of this
- * one's.
- *
- * **It is not a hue the kitchen cannot contain, and it is no longer countable** (ADR 0091, wave 6R).
- * ADR 0071 decision 3 gives MDF a RAL picker and ADR 0078 decision 1 rules its offer to be every
- * free colour `FinishSchema` admits, so a customer can paint a front `0xff2d2d` exactly; wave 6R's
- * free-colour arm then puts that colour in the framebuffer, where the outline tracing it is at
- * distance 0 from the surface it is supposed to distinguish. `editor-rail.desktop.e2e.spec.ts`
- * counts selection pixels by nearness to this constant, and that measurement is valid only because
- * the seeded fixture wears no finish —
- * `packages/three-adapter/tests/qa-6m-mark-composite.adversarial.test.ts` asserts that premise and
- * the breach beside it.
- *
- * **Wave 6V closes the product half, and it does it beside this constant rather than by moving it**
- * — the picker admits every hex, so repainting would relocate the hole, not close it. What the
- * outline now distinguishes itself by is `SELECTION_OUTLINE_CASING_COLOR`: a *pair* of colours, and
- * a flat front is one colour, so no front can equal both. See that constant for the bound.
+ * Signal red, chosen against the declared palette (stage, paper, PAL decors, veneers, white walls). It is not a hue
+ * the kitchen cannot contain: MDF's RAL picker admits `#ff2d2d` on a front, so contrast comes from the casing pass
+ * (`SELECTION_OUTLINE_CASING_COLOR`), not from this constant (ADR 0091). `editor-rail.desktop.e2e.spec.ts` counts
+ * selection pixels by nearness to it, which is valid only while the seeded fixture wears no finish.
  */
 export const SELECTION_HIGHLIGHT_COLOR = 0xff2d2d;
 
 /**
- * **The second, contrasting pass — the half a front cannot equal.**
- *
- * ADR 0091's wave 6V, work item 1. A customer can paint a front `#ff2d2d` through MDF's RAL picker
- * (ADR 0078 decision 1), and a red line traced onto that front is at distance 0 from it: the
- * highlight disappears into the surface it is supposed to identify. The remedy is explicitly *not*
- * a different red — every hex is reachable, so a new constant only relocates the collision.
- *
- * Instead the outline is drawn twice, in two colours far apart: this near-black casing at
- * `SELECTION_OUTLINE_CASING_WIDTH_PX`, and the signal red on top of it at
- * `SELECTION_OUTLINE_WIDTH_PX`, leaving the casing showing as a rim on either side. **A flat front
- * is a single colour and the two constants are 242.5 apart, so the nearest any front gets to both at
- * once is 121.4 — more than twice the instrument's own 60-unit tolerance** — asserted over the whole 24-bit cube in
- * `selection-outline.test.ts` rather than argued here. Paint the front red and the black rim reads;
- * paint it black and the red core reads.
- *
- * **Near-black rather than white**, measured on the real render at 1440 x 900: this kitchen is a
- * bright one — paper `#faf8f4`, stage `#f2f0ea`, white walls, an `#eceeeb` unfinished front — so a
- * white casing is invisible over most of the scene, which is the same defect one shade over. Dark
- * reads against the kitchen *and* against a saturated front, and against `pal.antracit` the red
- * core is what reads.
- *
- * Not `0x000000`: the casing is an interface colour drawn over a tone-mapped photograph, and pure
- * black on a lit edge reads as a shadow the renderer put there rather than as a line the app drew.
+ * The second, contrasting pass. A customer can paint a front `#ff2d2d` through MDF's RAL picker and a red line on it
+ * would vanish, and every hex is reachable, so a different red only relocates the collision. The outline is drawn
+ * twice in two colours far apart, this near-black casing under the red core, so no single-colour front can equal
+ * both: the nearest any front gets to both is 121.4 (asserted in `selection-outline.test.ts`). Near-black, not white:
+ * the kitchen is bright, so a white casing is invisible. Not `0x000000`: pure black on a lit edge reads as a shadow.
  */
 export const SELECTION_OUTLINE_CASING_COLOR = 0x101010;
 
-/** Screen-space pixels, and honestly so: `LineSegments2` draws each segment as camera-facing
- *  quads, which is why this number has an effect at all. Setting `linewidth` on an ordinary
- *  `LineBasicMaterial` — what the `BoxHelper` used — is silently ignored by ANGLE and by every
- *  desktop OpenGL driver, so the old highlight was always exactly one pixel wide.
- *
- *  **4 -> 2 on the owner's ruling of 2026-09-10**: *"I would prefer for the highlight thinner
- *  lines, current red lines are too thick."* The casing moved with it — see below — because
- *  narrowing the core alone would have left a 2 px black rim on either side of a 2 px red core, and
- *  the highlight would have read as a black outline with a red seam rather than as a red one. */
+/** Screen-space pixels: `LineSegments2` draws camera-facing quads, so the width takes effect, unlike `linewidth` on
+ *  an ordinary `LineBasicMaterial`, which ANGLE and every desktop OpenGL driver ignore. */
 export const SELECTION_OUTLINE_WIDTH_PX = 2;
 
-/** The casing's width, and the reason it is a **sum** rather than a ratio: what has to survive is
- *  the **rim**, and a rim is a difference of widths in screen pixels. At 4 against 2 the casing
- *  shows 1 px on each side of the core at every camera distance, because `LineSegments2` sizes its
- *  quads in screen space. A ratio would make the rim vanish as the line narrows, which is exactly
- *  the case — a body far from the camera — where it is needed most.
- *
- *  **The addend narrowed 4 -> 2 with the core**, so the proportion the pair was designed at is
- *  kept: the casing is twice the core and the rim is half of it. A 1 px rim is the floor — below
- *  this the casing stops being a rim and becomes an antialiasing artefact, so if the owner asks for
- *  thinner again, the core is what moves and this addend stays at 2. */
+/** A **sum**, not a ratio: what must survive is the rim, a difference of widths in screen pixels, and a ratio would
+ *  make it vanish as the line narrows (a body far from the camera). A 1 px rim is the floor: below it the casing
+ *  becomes an antialiasing artefact, so thinning the highlight moves the core and this addend stays at 2. */
 export const SELECTION_OUTLINE_CASING_WIDTH_PX = SELECTION_OUTLINE_WIDTH_PX + 2;
 
-/** The occluded half of the outline: drawn without depth testing so a selected body standing
- *  behind the worktop, the hood or a neighbouring column still shows which body it is. Thinner and
- *  far fainter than the solid pass, for two reasons measured on the real render: at anything near
- *  full opacity it cannot be told from the near line, so the highlight reads as floating in front
- *  of whatever covers it; and because it ignores depth it draws *every* interior edge of the body
- *  — shelves, carcass panels, the sink bowl — over the fronts, which at 0.4 turned an outlined
- *  cabinet into a red cage. At this weight it locates a hidden selection without competing with
- *  the outline that matters. */
+/** The occluded half: drawn without depth testing so a body behind the worktop or a neighbour still shows. Thin and
+ *  faint, measured on the real render: near full opacity it reads as floating in front of what covers it, and at 0.4
+ *  its interior edges (shelves, carcass panels, sink bowl) became a red cage over the fronts. */
 export const OCCLUDED_OUTLINE_OPACITY = 0.18;
 export const OCCLUDED_OUTLINE_WIDTH_PX = 2;
 
@@ -118,9 +47,8 @@ export const OCCLUDED_OUTLINE_WIDTH_PX = 2;
  *  buried inside its own 1.6 mm chamfer and z-fighting with it. */
 const BODY_OUTLINE_MARGIN_M = 0.003;
 
-/** A void is already drawn as a translucent blue box with dashed blue edges 14 mm inside its frame
- *  (`void-mesh.ts`). Expanding its selection outline by exactly that inset lands the red on the
- *  void's own frame instead of on top of the blue dashes, so the two never coincide. */
+/** A void is drawn with dashed blue edges 14 mm inside its frame (`void-mesh.ts`); expanding its outline by that
+ *  inset puts the red on the frame, not on top of the dashes. */
 const VOID_OUTLINE_MARGIN_M = 0.014;
 
 /** Matches `void-mesh.ts`'s dash rhythm: a selected void keeps the dashed language it already
@@ -128,14 +56,12 @@ const VOID_OUTLINE_MARGIN_M = 0.014;
 const DASH_SIZE_M = 0.02;
 const GAP_SIZE_M = 0.012;
 
-/** Degrees. Below 45° because a chamfered box has no 90° edges to find — `chamferBox` bevels every
- *  one of them by 1.6 mm, so the sharpest crease in this kitchen is the 45° chamfer face itself,
- *  and a threshold above it would return an empty outline. */
+/** Degrees. Below 45° because the sharpest crease on a `chamferBox` is its 45° chamfer face; a higher threshold
+ *  returns an empty outline. */
 const EDGE_THRESHOLD_DEGREES = 20;
 
-/** Drawn after the room, ghost first, then the casing, then the core: each pass must win over the
- *  one before it wherever both land on a pixel. Every pass writes no depth, so the order here is
- *  the only thing deciding which colour a shared pixel ends up. */
+/** Ghost first, then casing, then core. Every pass writes no depth, so render order alone decides which colour a
+ *  shared pixel ends up with. */
 const OCCLUDED_RENDER_ORDER = 999;
 const CASING_RENDER_ORDER = 1000;
 const VISIBLE_RENDER_ORDER = 1001;
@@ -143,8 +69,7 @@ const VISIBLE_RENDER_ORDER = 1001;
 export interface SelectionOutlineInput {
   /** The mounted body or void group the outline traces. */
   readonly target: THREE.Object3D;
-  /** The object the outline will be added to. The outline's transform is expressed relative to it,
-   *  so the caller may add it to any ancestor of the target without the two drifting apart. */
+  /** The object the outline is added to. Its transform is relative to it, so any ancestor of the target works. */
   readonly parent: THREE.Object3D;
   readonly kind: SelectionKind;
 }
@@ -153,24 +78,18 @@ export interface SelectionOutline {
   readonly group: THREE.Group;
   /** The depth-tested pass — the outline where the body is actually visible. */
   readonly visibleLine: LineSegments2;
-  /** The wider near-black pass drawn directly beneath `visibleLine`, on the same edges, so the
-   *  highlight shows a rim in a colour the front it traces cannot also be wearing. */
+  /** The wider near-black pass directly beneath `visibleLine` on the same edges, so the highlight keeps a rim the
+   *  front it traces cannot also be wearing. */
   readonly casingLine: LineSegments2;
   /** The pass that ignores depth, so occluded parts of the selection still read. */
   readonly occludedLine: LineSegments2;
 }
 
 /**
- * Builds the highlight for one selected body or void: a thick red outline of the target's **own
- * edges**, depth-tested and solid, over a near-black casing of the same edges two pixels wider on
- * each side, over a faint twelve-edge box that ignores depth and says only where the selection is
- * when something covers it (`boxGeometryAround`).
- *
- * The edges come from `EdgesGeometry` over every *visible* mesh in the target, which is what makes
- * this the body's form rather than a box around it: the carcass, the door and drawer divisions and
- * the visible handles are all in it, and the hidden push-to-open handles (§6.5 builds and hides
- * them) are not. Nothing here is a raycast target — `NOOP_RAYCAST`, the same rule §6.1 states for
- * void outlines, applied for the same reason.
+ * Builds the highlight for one selected body or void: a red outline of the target's own edges (depth-tested), over a
+ * wider near-black casing of the same edges, over a faint twelve-edge box that ignores depth (`boxGeometryAround`).
+ * Edges come from `EdgesGeometry` over every visible mesh, so hidden push-to-open handles (§6.5) are not traced.
+ * Nothing here is a raycast target (`NOOP_RAYCAST`, DEVELOPMENT-SPEC §6.1).
  */
 export function buildSelectionOutline(
   input: SelectionOutlineInput,
@@ -190,9 +109,8 @@ export function buildSelectionOutline(
     color: SELECTION_HIGHLIGHT_COLOR,
     name: "selection_outline_occluded",
   });
-  // One geometry for both depth-tested passes, because they trace exactly the same edges and it is
-  // the largest buffer the outline owns. `disposeSelectionOutline` deduplicates by identity, which
-  // is the rule that makes sharing safe here.
+  // One geometry for both depth-tested passes: it is the largest buffer, and `disposeSelectionOutline` deduplicates
+  // by identity.
   const tracedEdges = new LineSegmentsGeometry().setPositions(positions);
   const casingLine = buildOutlinePass(tracedEdges, {
     isDashed: isVoid,
@@ -223,8 +141,7 @@ export function buildSelectionOutline(
   return { group, visibleLine, casingLine, occludedLine };
 }
 
-/** Geometries **and** materials: unlike a body, a selection outline owns everything inside it —
- *  the same rule, and the same reason, as `disposeVoidMesh`. */
+/** Geometries and materials: a selection outline owns everything inside it, as `disposeVoidMesh` does. */
 export function disposeSelectionOutline(outline: THREE.Object3D): void {
   const disposed = new Set<THREE.BufferGeometry>();
   outline.traverse((node) => {
@@ -261,20 +178,12 @@ function buildOutlinePass(
     opacity: options.opacity,
     depthTest: options.isDepthTested,
     depthWrite: false,
-    // The renderer tone-maps the whole scene (`stage.ts`, ACES filmic). An interface colour is not
-    // part of the photograph: without this the chosen colour would land on screen desaturated and
-    // several shades off, which is how a "contrasting" highlight ends up not contrasting — and it
-    // is what keeps the two passes exactly as far apart on screen as they are declared to be.
+    // An interface colour is not part of the photograph: tone mapping would desaturate it and shrink the declared
+    // separation between the two passes.
     toneMapped: false,
-    // QA 7I-Q1. `LineSegments2`'s vertex shader builds each segment's quad in **screen space** — a
-    // winding the model matrix never touches — but three still flips `gl.frontFace` for any object
-    // whose `matrixWorld` determinant is negative (`WebGLRenderer.js:1180`), which is *right* for an
-    // ordinary mesh (D4/A8: the model's own winding is reflected with it) and *wrong* here, where
-    // there is no model winding to compensate for: under a mirrored root the flip culls every
-    // segment of this outline, invisibly, because a `FrontSide` line still renders on an unmirrored
-    // one. D5's "no `DoubleSide`" is about **body geometry**, where it would hide a genuine
-    // inside-out carcass; a screen-space line quad has no inside to hide, so double-siding it is in
-    // scope and carries none of D5's risk.
+    // `LineSegments2` builds its quads in screen space, but three flips `gl.frontFace` when `matrixWorld`'s determinant
+    // is negative (`WebGLRenderer.js`), which would cull every segment under a mirrored root. Double-siding a
+    // screen-space quad hides nothing; the ban on `DoubleSide` applies to body geometry only (ADR 0129 Amendment (a)).
     side: THREE.DoubleSide,
   });
 
@@ -286,16 +195,8 @@ function buildOutlinePass(
   return line;
 }
 
-/**
- * The twelve edges of the box the outline occupies.
- *
- * This is what the depth-ignoring pass draws, and it is deliberately the crudest shape there is:
- * a pass that ignores depth draws *through* the body it traces, so handing it the full form —
- * every shelf, carcass panel and sink bowl edge — turned an outlined cabinet into a red cage over
- * its own doors. Measured on the real render at 1440 x 900, not reasoned about. Twelve faint lines
- * say "the selection is over here, behind this" and nothing more; the outline that identifies the
- * body is the solid, form-following one drawn on top of it.
- */
+/** The twelve edges of the box the outline occupies, for the depth-ignoring pass. Deliberately crude: that pass draws
+ *  through the body, so the full form (every shelf and carcass edge) became a red cage over the doors. */
 function boxGeometryAround(positions: readonly number[]): LineSegmentsGeometry {
   const box = new THREE.Box3().setFromArray(positions);
   const corners = [box.min.x, box.max.x].flatMap((x) =>
@@ -303,8 +204,7 @@ function boxGeometryAround(positions: readonly number[]): LineSegmentsGeometry {
       [box.min.z, box.max.z].map((z) => new THREE.Vector3(x, y, z)),
     ),
   );
-  // Corner index bits: 4 = max x, 2 = max y, 1 = max z. A pair differing in exactly one bit is an
-  // edge of the box; every other pair is a face or body diagonal.
+  // Corner index bits: 4 = max x, 2 = max y, 1 = max z. A pair differing in exactly one bit is a box edge.
   const edges: number[] = [];
   for (let from = 0; from < corners.length; from += 1) {
     for (let to = from + 1; to < corners.length; to += 1) {
@@ -365,13 +265,9 @@ function appendMeshEdges(
 }
 
 /**
- * Scales the collected points about their own bounding-box centre so the outline sits `marginM`
- * outside the form it traces, on all three axes.
- *
- * A uniform scale would not do: these bodies are not centred on their own origin (the origin is at
- * the floor, at the back face — §6.2), so scaling about it would *move* the outline off the body
- * rather than grow it around it. A degenerate axis — a panel with no thickness — is left alone
- * rather than divided by.
+ * Scales the points about their bounding-box centre so the outline sits `marginM` outside the form on all three axes.
+ * Not about the origin: a body's origin is at the floor, at the back face (§6.2), so that would move the outline off
+ * the body. A degenerate axis (a panel with no thickness) is left alone rather than divided by.
  */
 function expandFromCentre(positions: number[], marginM: number): void {
   if (positions.length === 0) return;

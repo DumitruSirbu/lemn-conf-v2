@@ -1,21 +1,8 @@
-// The top bar refreshed against the owner's own frames, and what it costs the scene.
-//
-// `.screen` is a `100dvh` grid whose only flexible row is the stage, so every pixel the top bar takes
-// is a pixel the canvas loses. **ADR 0104 changes what this file reads, and the change is the point
-// of the wave.** Until it, the desktop band's 76 px was *arithmetic* — `17.5 + 40 + 17.5 + 1` of
-// padding around the locale chip — which reached frame D2A's declared number by a different route.
-// That route is closed: the frame's own `Verifică designul` is **48 px** and does not fit inside 40,
-// so the band takes D2A's declared `height: 76px` with no padding-block, and this file reads the
-// declaration and then holds every cell's content under it.
-//
-// **The mobile band is still a sum**, because frame 2A declares no height at all: it is padding plus
-// the tallest child plus the rule. Only the tallest child changed — from the locale chip to the
-// settings chip the frame draws beside it.
-//
-// No type spans that arithmetic — it is a stylesheet — so this file reads the declarations back out
-// as text and adds them up, exactly as `price-bar-layout.test.ts` reads the bar's own. The browser
-// measurement of the same claims is `tests/e2e/top-bar.e2e.spec.ts` and its desktop twin; this is the
-// half that fails in CI on a machine with no browser.
+// `.screen` is a `100dvh` grid whose only flexible row is the stage, so every pixel the top bar takes is a pixel the
+// canvas loses. The desktop band is frame D2A's declared `height: 76px` (ADR 0104); the mobile band is a sum, since
+// frame 2A declares no height.
+// A stylesheet has no type to span this arithmetic, so the declarations are read back out as text and added up, as
+// `price-bar-layout.test.ts` does; the browser measurement is `tests/e2e/top-bar.e2e.spec.ts` and its desktop twin.
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -39,9 +26,8 @@ const priceBarStylesheet = readFileSync(
   resolve(import.meta.dirname, "../../../../src/price/price-bar.module.css"),
   "utf8",
 );
-/** The settings pill's own stylesheet. **New to this file with ADR 0104 decision 2**: the pill is a
- *  cell of the top bar now, and on mobile it is the row's tallest child — so the band's height
- *  cannot be computed without it. */
+/** The settings pill's stylesheet: a top-bar cell, and on mobile the row's tallest child, so the band's height cannot
+ *  be computed without it. */
 const settingsStylesheet = readFileSync(
   resolve(
     import.meta.dirname,
@@ -55,23 +41,18 @@ const contentSource = readFileSync(
   "utf8",
 );
 
-/** What the band measured before the refresh: `16 + 14` (the back link's line) `+ 9 + 3` (the gap
- *  and the progress bar) `+ 12 + 1`. It is quoted in `price-bar.module.css` as the budget the
- *  desktop price cell's padding was chosen against, so it is a number two files agree on rather than
- *  one this test invented. */
+/** The band's height before the refresh: `16 + 14 + 9 + 3 + 12 + 1`, also quoted in `price-bar.module.css` as the
+ *  budget the desktop price cell's padding was chosen against. */
 const HEIGHT_AT_BASE_COMMIT_PX = 55;
 
-/** Frame D2A's own declaration — `height: 76px` on the band, taken as written (ADR 0104's
- *  re-derivation of the owner's 2026-09-07 ruling). */
+/** Frame D2A's own declaration, `height: 76px` on the band, taken as written (ADR 0104). */
 const RULED_DESKTOP_HEIGHT_PX = 76;
 
 /** What the ruling spends on desktop, stated as a number so it cannot be spent twice. */
 const RULED_CANVAS_COST_PX = 21;
 
-/** **What the withdrawn settings strip gives back**, measured in a browser at `6d53d38` before this
- *  wave touched anything: the strip's own desktop row was 45.00 px at 900, 1000, 1100, 1440 and
- *  1920, and the canvas began at y = 121 at every one of them. ADR 0094 accepted that cost
- *  knowingly; ADR 0104 decision 2 withdraws the row that charged it. */
+/** What the withdrawn settings strip gave back: its desktop row measured 45.00 px at every width from 900 to 1920
+ *  (ADR 0094 decision 2, withdrawn by ADR 0104 decision 2). */
 const STRIP_BAND_AT_BASE_COMMIT_PX = 45;
 
 /** The `@media (min-width: 900px)` branch is the desktop shell; everything above it is the mobile
@@ -90,20 +71,14 @@ const [MOBILE_SETTINGS_CSS, DESKTOP_SETTINGS_CSS] =
   splitAtBreakpoint(settingsStylesheet);
 
 /**
- * Everything a class declares, comments stripped — these stylesheets' commentary names properties
- * and numbers they do not declare, which is precisely the false positive a text guard has to rule
- * out.
- *
- * **Every block whose selector list names the class, not only its own rule.** The top bar's five
- * cells share one rule for the paint they have in common — the paper and the band's rule — and a
- * reader that only matched `.nav {` would report that shared declaration as absent, which is a guard
- * lying about a stylesheet rather than reading it.
+ * Everything a class declares, comments stripped (they name properties and numbers they do not declare).
+ * Every block whose selector list names the class counts, not only its own rule: the five cells share one rule for
+ * their common paint, and matching only `.nav {` would report it absent.
  */
 function declarationsOf(css: string, rule: string): string {
   const flattened = css
     .replace(/\/\*[\s\S]*?\*\//g, "")
-    // The desktop branch is one `@media` block wrapping the rules this reads. Dropping the opener
-    // leaves a flat list of rules, which is all the matcher below can walk.
+    // The desktop branch is one `@media` block; dropping its opener leaves a flat list of rules the matcher can walk.
     .replace(/@media[^{]*\{/g, "");
   // The class itself, never a pseudo-element on it: `.locale::before` is frame D2A's divider, and a
   // reader that took it for `.locale` would report the divider's own declarations as the cell's.
@@ -133,21 +108,15 @@ function verticalPaddingOf(declarations: string): number | undefined {
 function fontSizeOf(declarations: string): number | undefined {
   const shorthand = /font:\s*\d+\s+([\d.]+)px\s*\//.exec(declarations)?.[1];
   if (shorthand !== undefined) return Number(shorthand);
-  // A rule may name its own line box rather than inline it — `.back` declares `--back-line: 17px`
-  // and spends it twice, on the glyph and on the negative margin that keeps its 44 px target from
-  // changing what the row lays out. Resolved here so the reader still sees one number.
+  // A rule may name its own line box (`.back` declares `--back-line: 17px`); resolved here so the reader sees one
+  // number.
   const named = /font:\s*\d+\s+var\((--[\w-]+)\)/.exec(declarations)?.[1];
   if (named !== undefined) return pixelsOf(declarations, named);
   return pixelsOf(declarations, "font-size");
 }
 
-/**
- * A rule as the shell in question renders it: the desktop branch's declarations layered over the
- * base ones, or the base ones alone.
- *
- * Returned as a reader rather than a merged string, because the two blocks may each declare the
- * same property and "the desktop value if there is one" is the only merge that means anything.
- */
+/** A rule as the shell renders it: the desktop branch's declarations layered over the base ones. Returned as a reader
+ *  because both blocks may declare the same property and the desktop value is the one that wins. */
 function ruleReader(
   rule: string,
   shell: "mobile" | "desktop",
@@ -182,13 +151,9 @@ function localeChipHeight(shell: "mobile" | "desktop"): number {
 }
 
 /**
- * The settings pill's outer height — frame D2A's declared `height: 40px` on desktop, and on mobile
- * its border, padding and **its own tallest child**.
- *
- * That last clause is where the plan's arithmetic was wrong and the stylesheet is right: the chip's
- * tallest child is the **swatch** at 14 px, not the 11 px label line, so frame 2A's chip is
- * `1 + 7 + 14 + 7 + 1 = 30` rather than 27 — and the band it sets is 53 rather than 50. The number is
- * derived here rather than pinned, so the frame's own declarations remain the source.
+ * The settings pill's outer height: frame D2A's declared `height: 40px` on desktop; on mobile its border, padding and
+ * its own tallest child, which is the 14 px swatch, not the 11 px label. Derived rather than pinned, so the frame's
+ * declarations stay the source.
  */
 function settingsPillHeight(shell: "mobile" | "desktop"): number {
   const pill = ruleReader("pill", shell, SETTINGS_SHEETS);
@@ -215,12 +180,8 @@ function reviewCtaHeight(shell: "mobile" | "desktop"): number {
 }
 
 /**
- * The price cell's own content.
- *
- * **The figure is one line, on both shells** — frame D2A's `de la 101 000 MDL`, which the owner
- * ruled onto the phone as well on 2026-09-09 — so the label and the amount sit *beside* each other
- * and the taller of the two is the line, not their sum. On desktop the breakdown's control stands
- * under that line, which is frame D2A's own column.
+ * The price cell's own content. The figure is one line on both shells (frame D2A's `de la 101 000 MDL`), so the label
+ * and amount sit beside each other and the taller is the line; on desktop the breakdown's control stands under it.
  */
 function priceCellHeight(shell: "mobile" | "desktop"): number {
   const label = fontSizeOf(declarationsOf(priceBarStylesheet, "label")) ?? 0;
@@ -266,9 +227,8 @@ function childHeights(shell: "mobile" | "desktop"): Record<string, number> {
   };
 }
 
-/** The mobile band's own outer height: its vertical padding twice, its tallest child, and the rule
- *  beneath it. **Frame 2A declares no height**, so the band *is* this sum — which is why the mobile
- *  half of this file still adds up and the desktop half no longer does. */
+/** The mobile band's outer height: vertical padding twice, the tallest child and the rule beneath. Frame 2A declares
+ *  no height, so the band is this sum. */
 function mobileHeaderHeight(): number {
   const cell = ruleReader("nav", "mobile");
   const tallestChild = Math.max(...Object.values(childHeights("mobile")));
@@ -279,9 +239,8 @@ function mobileHeaderHeight(): number {
   );
 }
 
-/** The desktop band's **declared** height, read off `.screen`'s own row track rather than summed.
- *  Frame D2A declares `height: 76px` and the 48 px CTA does not fit inside the sum that used to
- *  reach the same number. */
+/** The desktop band's declared height, read off `.screen`'s row track rather than summed: the 48 px CTA does not fit
+ *  inside the sum that once reached 76. */
 function declaredDesktopBandHeight(): number {
   const rows = /grid-template-rows:\s*([^;]+);/.exec(
     declarationsOf(DESKTOP_CSS, "screen"),
@@ -294,36 +253,28 @@ function declaredDesktopBandHeight(): number {
 
 describe("the top bar's box, which the scene pays for", () => {
   it("is frame 2A's own 53 px on mobile, one child taller than the band it replaced", () => {
-    // `11 + 30 + 11` plus the rule. The tallest child is the settings chip the frame draws in this
-    // row — `1 + 7 + 14 + 7 + 1`, the swatch setting it rather than the label — where it used to be
-    // the 25 px locale chip. **The phone's scene pays 5 px for it**, and gets the 76 px settings band
-    // ADR 0104 decision 2 withdraws in exchange.
+    // `11 + 30 + 11` plus the rule. The tallest child is the settings chip (`1 + 7 + 14 + 7 + 1`, the swatch setting
+    // it).
     expect(mobileHeaderHeight()).toBe(53);
     expect(mobileHeaderHeight()).toBeLessThan(HEIGHT_AT_BASE_COMMIT_PX);
   });
 
   it("takes the settings chip as its tallest child on mobile, which is what sets that 53", () => {
-    // Non-vacuity for the sum above: it is only the band's height while the chip is what the band
-    // sizes to. Named per shell rather than assumed, because the two frames draw different things
-    // tallest — see the desktop case below.
+    // Non-vacuity for the sum above: it is the band's height only while the settings chip is what the band sizes to.
     const heights = childHeights("mobile");
 
     expect(Math.max(...Object.values(heights))).toBe(heights.settingsPill);
   });
 
   it("is frame D2A's own declared 76 px on desktop, and no longer a sum that reaches it", () => {
-    // **The derivation dies and the number survives** (ADR 0104). The band used to be
-    // `17.5 + 40 + 17.5 + 1` of padding around the locale chip; frame D2A's `Verifică designul` is
-    // 48 px and does not fit inside 40, so the row declares the frame's own height and every cell
-    // stretches into it.
+    // The old `17.5 + 40 + 17.5 + 1` sum cannot hold the 48 px `Verifică designul`, so the row declares the frame's own
+    // height and every cell stretches into it (ADR 0104).
     expect(declaredDesktopBandHeight()).toBe(RULED_DESKTOP_HEIGHT_PX);
     expect(declarationsOf(DESKTOP_CSS, "nav")).toContain("padding-block: 0;");
   });
 
   it("holds every cell's own content inside that declared height", () => {
-    // What the sum used to prove, restated for a declared box and over **five** cells rather than
-    // two: a control taller than the band would overflow it silently, where before it would have
-    // grown the band and shown up as a canvas cost.
+    // A control taller than the declared band would overflow it silently, where a sum would have grown the band.
     const heights = childHeights("desktop");
 
     expect(Object.keys(heights).length).toBe(7);
@@ -332,10 +283,7 @@ describe("the top bar's box, which the scene pays for", () => {
   });
 
   it("names the child that killed the desktop sum, and it is not the locale chip", () => {
-    // **The frame's own arithmetic, stated.** The withdrawn derivation was `17.5 + 40 + 17.5 + 1`
-    // around the 40 px locale chip. Frame D2A's `Verifică designul` is **48**, so it does not fit
-    // inside 40 and the band could not go on being that sum. The tallest child is named rather than
-    // assumed, because that is the assumption the old case made and this wave broke.
+    // The tallest child is named rather than assumed: the withdrawn sum assumed the 40 px locale chip.
     const heights = childHeights("desktop");
 
     expect(Math.max(...Object.values(heights))).toBe(heights.reviewCta);
@@ -344,31 +292,24 @@ describe("the top bar's box, which the scene pays for", () => {
   });
 
   it("costs the desktop canvas exactly the 21 px the ruling accepted, and no more", () => {
-    // The cost is asserted rather than described, so a later edit that quietly spends a
-    // twenty-second pixel of scene fails here.
     expect(declaredDesktopBandHeight() - HEIGHT_AT_BASE_COMMIT_PX).toBe(
       RULED_CANVAS_COST_PX,
     );
   });
 
   it("gives the desktop canvas back more than the band ever cost it, because the strip's row is gone", () => {
-    // The sibling claim ADR 0104 decision 10 makes, in the two numbers that make it: the band still
-    // costs 21 px against the base commit, and the withdrawn strip returns the 45 px it charged at
-    // every desktop width. Measured in a browser before the wave, and the stylesheet half of the
-    // proof is that no rule for that band exists any more.
+    // The band still costs 21 px against the base commit and the withdrawn strip returns the 45 px it charged (ADR 0104
+    // decision 10); no rule for that band exists any more.
     expect(declarationsOf(stylesheet, "settingsRow")).toBe("");
     expect(STRIP_BAND_AT_BASE_COMMIT_PX - RULED_CANVAS_COST_PX).toBe(24);
   });
 
   it("stretches every top-bar cell to the ruled band, so the bar keeps one unbroken rule", () => {
-    // Each of the five cells draws the same `border-bottom`, and across the top bar the five are
-    // read as one line. A cell that centred itself would hang its rule at its own box's foot and
-    // break the line in two.
+    // A cell that centred itself would hang its rule at its own box's foot and break the one line the five cells draw.
     expect(declarationsOf(DESKTOP_CSS, "priceRow")).toContain(
       "align-items: stretch;",
     );
-    // A grid item stretches into its row by default; what would break the rule is a cell opting out
-    // of that, so what is asserted is that none of the five does.
+    // A grid item stretches by default; what would break the rule is a cell opting out, so none of the five may.
     for (const cell of ["nav", "settings", "locale", "priceRow", "actions"]) {
       const declarations = `${declarationsOf(MOBILE_CSS, cell)}${declarationsOf(DESKTOP_CSS, cell)}`;
       expect(declarations, cell).not.toContain("align-self:");
@@ -386,9 +327,8 @@ describe("the top bar's box, which the scene pays for", () => {
   });
 
   it("declares no height on the mobile band, and no scrolling on either", () => {
-    // The half that was protecting something and still is: a band that scrolled would hide a control
-    // rather than report it. The *height* half now holds for mobile only — the desktop row declares
-    // frame D2A's own, deliberately, and `declaredDesktopBandHeight` above reads it.
+    // A band that scrolled would hide a control rather than report it; the desktop row declares frame D2A's height on
+    // purpose.
     expect(declarationsOf(MOBILE_CSS, "nav")).not.toMatch(
       /(?:^|[;\s])(?:min-)?height:/,
     );
@@ -410,8 +350,7 @@ describe("the row the refreshed frames replaced", () => {
   });
 
   it("lays the band out as one row rather than a column", () => {
-    // The five cells are grid items of the screen now, so "one row" is the screen's own template:
-    // one row for the whole top bar, with the three mobile cells side by side in it.
+    // The five cells are grid items of the screen, so "one row" is the screen's own template.
     const screen = declarationsOf(MOBILE_CSS, "screen");
 
     expect(screen).toContain('"nav      settings locale"');
@@ -421,9 +360,7 @@ describe("the row the refreshed frames replaced", () => {
   });
 
   it("truncates the title on mobile instead of growing the band or evicting the chip", () => {
-    // A flex item's automatic minimum size is its min-content width, so `min-width: 0` is what makes
-    // the ellipsis reachable at all — without it a long title pushes the locale chip off the screen
-    // rather than being cut.
+    // A flex item's minimum size is its min-content width, so `min-width: 0` is what makes the ellipsis reachable.
     const title = declarationsOf(MOBILE_CSS, "title");
 
     expect(title).toContain("flex: 1;");
@@ -434,10 +371,7 @@ describe("the row the refreshed frames replaced", () => {
   });
 
   it("keeps the locale chip out of the flexible space on both shells", () => {
-    // **The mechanism changed with the structure and the property did not.** The chip used to be
-    // pushed to the right-hand end by `margin-left: auto` inside a flex header; it is a grid item of
-    // its own now, and what keeps it out of the slack is its track being `auto` on both shells while
-    // the settings track takes the residue.
+    // The chip is its own grid item; its track is `auto` on both shells while the settings track takes the residue.
     expect(declarationsOf(MOBILE_CSS, "locale")).toContain("flex: 0 0 auto;");
     expect(declarationsOf(MOBILE_CSS, "screen")).toContain(
       "grid-template-columns: minmax(0, 1fr) auto auto;",
@@ -447,18 +381,21 @@ describe("the row the refreshed frames replaced", () => {
     );
   });
 
-  it("shows exactly one of the back control and the wordmark per shell, and a third state", () => {
-    // §10.1's one permitted fork, taken in CSS: two markup branches would be two copies of the row.
+  it("shows the wordmark on desktop only, the top bar's back control on both, and a third state", () => {
+    // §10.1's one permitted fork, taken in CSS: two markup branches would be two copies of the row. The bottom bar's
+    // `.backAction` stays the phone's.
     expect(declarationsOf(MOBILE_CSS, "wordmark")).toContain("display: none;");
-    expect(declarationsOf(DESKTOP_CSS, "back")).toContain("display: none;");
+    expect(declarationsOf(DESKTOP_CSS, "back")).not.toContain("display: none;");
+    expect(declarationsOf(DESKTOP_CSS, "backAction")).toContain(
+      "display: none;",
+    );
     expect(declarationsOf(DESKTOP_CSS, "wordmark")).toContain(
       "display: block;",
     );
-    // **The third state, ruled by the owner on 2026-09-09** (ADR 0104 decision 8, give C): the
-    // wordmark also leaves the desktop row when the fit model says the pill can no longer show one
-    // whole setting name beside it. It is a data attribute on the screen and **not** a width
-    // threshold — criterion 4i — and it is scoped to the nav so the hidden probe the decision is
-    // measured from keeps its own width.
+    // The third state (ADR 0104 decision 8): the wordmark also leaves the desktop row when the fit model says the pill
+    // cannot show one whole setting name beside it. It is a data attribute, not a width threshold (criterion 4i), and
+    // is
+    // scoped to the nav so the hidden probe keeps its own width.
     expect(DESKTOP_CSS).toContain(
       '.screen[data-wordmark="dropped"] .nav .wordmark',
     );
@@ -467,10 +404,17 @@ describe("the row the refreshed frames replaced", () => {
     );
   });
 
+  it("declares a margin on the desktop back control that cancels the nav gap (a declaration pin; the measured effect is the e2e containment test's)", () => {
+    // `top-bar-fit.ts` counts three nav gaps; a fourth would move give B's ruled savings. The
+    // control's margin cancels the flex gap that follows it, whichever of the two spacings is drawn.
+    expect(declarationsOf(DESKTOP_CSS, "back")).toContain(
+      "var(--top-bar-nav-gap) * -1",
+    );
+  });
+
   it("declares no width threshold of its own, at any point in the file", () => {
-    // ADR 0094 criterion 4i, met as written rather than argued around: the only `@media` in this
-    // stylesheet is the shell fork the application already had. Every other decision — the label
-    // count, the gaps, the wordmark — is a comparison against a measured width.
+    // ADR 0094 criterion 4i: the only `@media` is the shell fork the application already had; every other decision is a
+    // comparison against a measured width.
     expect(stylesheet.match(/@media/g)).toHaveLength(1);
     expect(stylesheet).toContain(DESKTOP_BRANCH_OPENER);
   });
@@ -478,10 +422,8 @@ describe("the row the refreshed frames replaced", () => {
 
 describe("the step number has one source", () => {
   it("resolves the pill and the sentence from one pair of step arguments", () => {
-    // The two constants this used to read moved into ICU arguments in 6B-d, and the module that
-    // held them was deleted in 6B-f. The invariant is unchanged and is checked where it now lives:
-    // both catalogue leaves are resolved with the *same* `{ step, totalSteps }`, so the pill and the
-    // caption cannot state two different progressions.
+    // Both catalogue leaves are resolved with the same `{ step, totalSteps }`, so the pill and the caption cannot state
+    // two progressions.
     const stepArguments = [
       ...contentSource.matchAll(
         /translate\("configure\.(?:step|stepPill)", (\{ step: \d+, totalSteps: \d+ \})\)/g,
@@ -493,8 +435,6 @@ describe("the step number has one source", () => {
   });
 
   it("draws the same numbers in both, so the two cannot disagree", () => {
-    // The behavioural half of the source check above: whatever the constants are set to, the pill
-    // and the caption state them in the same order.
     const digitsOf = (copy: string): readonly string[] =>
       copy.match(/\d+/g) ?? [];
 
@@ -505,35 +445,31 @@ describe("the step number has one source", () => {
   });
 
   it("keeps the sentence as the pill's accessible name", () => {
-    // The pill draws "2/4", which read aloud is two numbers and a slash. The caption it replaced
-    // said "Pasul 2 din 4", and that is what the accessibility tree keeps.
+    // The pill draws "2/4", which read aloud is two numbers and a slash; the accessibility tree keeps the sentence.
     expect(screenSource).toContain("aria-label={content.configure.step}");
     expect(screenSource).toContain("{content.configure.stepPill}");
   });
 });
 
 describe("the locale chip is the control that opens the language menu", () => {
-  /** **The cell left the screen with the owner's 2026-09-10 ruling** — the menu is positioned against
-   *  it, so the cell and the popover that fills it are one component — and this is what reads it. */
+  /** The menu is positioned against the cell, so the cell and the popover that fills it are one component. */
   const menuSource = readFileSync(
     resolve(CONFIGURE_DIRECTORY, "locale-menu.tsx"),
     "utf8",
   );
 
   it("stands in the row as its own grid item and nothing else", () => {
-    // The band is still five cells. What changed is who renders the fifth: `.locale` is a direct
-    // child of `.screen` either way, which is what the two shells' `grid-template-areas` require.
+    // `.locale` is a direct child of `.screen`, which the two shells' `grid-template-areas` require.
     expect(screenSource).toContain("<LocaleMenu />");
     expect(screenSource).not.toContain("styles.locale}");
     expect(menuSource).toContain("<div className={styles.locale}");
   });
 
   it("is a button that opens a list of links, one per configured locale", () => {
-    // **The ruling, and it replaces wave 6B-i's link-shaped toggle.** The trigger *opens* something,
-    // so it is a button and says so; each choice still *is* a URL, so it stays an anchor — shareable,
-    // openable in a new tab, and navigated client-side by next-intl so the store survives the switch.
-    // The list is `menu.choices`, which is `routing.locales`: a third language is a third item with
-    // no edit here — `tests/i18n/locale-menu-scales.dom.test.ts` drives exactly that.
+    // The trigger opens something, so it is a button; each choice is a URL, so it stays an anchor (shareable, new-tab,
+    // client-side navigation keeps the store). The list is `routing.locales`:
+    // `tests/i18n/locale-menu-scales.dom.test.ts`
+    // drives a third language.
     expect(menuSource).toContain("styles.localeChip");
     expect(menuSource).toContain("<button");
     expect(menuSource).toContain('type="button"');
@@ -545,14 +481,14 @@ describe("the locale chip is the control that opens the language menu", () => {
   });
 
   it("is named by a sentence rather than by the two letters it draws", () => {
-    // `RO` read aloud names neither the language of the page nor what the control does, and which
-    // language is current would otherwise be carried by the chip's colour alone.
+    // `RO` read aloud names neither the page's language nor the control's purpose, and the current language would
+    // otherwise be carried by colour alone.
     expect(menuSource).toContain("aria-label={content.configure.localeMenu}");
   });
 
   it("hangs the menu off the cell without letting it leave the phone's viewport", () => {
-    // §10.1's picking gate is 390 px and this cell is the last in the row on both shells, so the
-    // list is anchored to the cell's trailing edge and bounded by the paper it stands on.
+    // §10.1's picking gate is 390 px and this cell is last in the row on both shells: the list is anchored to its
+    // trailing edge and bounded by the paper it stands on.
     const list = /\.localeList \{([^}]*)\}/.exec(stylesheet)?.[1];
     if (!list) throw new Error("the menu declares no box");
 
@@ -563,17 +499,15 @@ describe("the locale chip is the control that opens the language menu", () => {
   });
 
   it("gives every choice §10.1's own touch target", () => {
-    // Unlike the chip, no frame fixes this row's box, so the 44 px target simply *is* the row rather
-    // than an invisible overlay beside it.
+    // No frame fixes this row's box, so the 44 px target is the row itself rather than an overlay beside it.
     expect(declarationsOf(MOBILE_CSS, "localeOption")).toContain(
       "min-height: var(--touch-target);",
     );
   });
 
   it("keeps the frames' painted box and takes its touch target beside it", () => {
-    // §10.1's 44 px, taken vertically only: the painted chip stays 25 px on mobile and 40 on
-    // desktop, and a horizontally grown hit area would make ADR 0082 decision 1's clip predicate
-    // report this control as truncated.
+    // §10.1's 44 px is taken vertically only: a horizontally grown hit area would make ADR 0082 decision 1's clip
+    // predicate report the control as truncated.
     const hitArea = /\.localeChip::after \{([^}]*)\}/.exec(stylesheet)?.[1];
     if (!hitArea) throw new Error("the chip declares no hit area");
 
@@ -590,11 +524,8 @@ describe("the locale chip is the control that opens the language menu", () => {
     expect(declarationsOf(MOBILE_CSS, "localeCaret")).not.toBe("");
   });
 
-  /** **What the flag replaced, and what it did not.** The owner's 2026-09-10 ruling put a flag on
-   *  every row in place of the dot that used to mark one — so the mark is gone and the state it
-   *  carried had nowhere to go but the two cues that already carried it: `aria-current` for a screen
-   *  reader, weight and colour for everyone else. A flag identifies a language; it cannot say which
-   *  language is current, and this is the check that fails if the weight follows the dot out. */
+  // A flag identifies a language but cannot say which is current: `aria-current` and weight/colour carry that, and this
+  // fails if the weight leaves with the dot.
   it("still marks the current language once the dot is gone", () => {
     expect(declarationsOf(MOBILE_CSS, "localeOptionCurrent")).toContain(
       "font-weight: 700;",
@@ -604,10 +535,8 @@ describe("the locale chip is the control that opens the language menu", () => {
   });
 
   it("sizes the flag beside each name, and gives the white band an edge", () => {
-    // The flags are locale data (`i18n/locale-flags.tsx`) and cannot reach this stylesheet's names,
-    // so the one `svg` a choice contains is selected by element. Russia's top band is white and this
-    // menu stands on `--paper`; a `box-shadow` rather than a border, so the ring cannot move the
-    // endonyms the flags align.
+    // The flags are locale data (`i18n/locale-flags.tsx`), so the one `svg` a choice contains is selected by element.
+    // Russia's white band needs an edge on `--paper`, drawn as a `box-shadow` so it cannot move the endonyms.
     const flag = /\.localeOption svg \{([^}]*)\}/.exec(stylesheet)?.[1];
     if (!flag) throw new Error("the choice's flag declares no box");
 

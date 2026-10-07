@@ -1,23 +1,6 @@
 // @vitest-environment happy-dom
-//
-// **Adversarial QA — wave 7F1, the seam between the query and the fields** (criteria 3, 4, 7, 9, 10
-// and 18).
-//
-// Ruling R2 gave the screen the raw `query` beside the parsed `state`, because the 1B branch of
-// `parseRoomUrlState` discards the lengths that already read. Two readings of one URL is a seam, and
-// a seam is where the two can disagree — so every claim below is read off **both ends at once**: the
-// address bar, and the value the field actually shows.
-//
-// The queries are hostile on purpose: repeated keys, a `direction` on a shape with no corner, a
-// `wallB` on a straight room, a length past `Number.MAX_SAFE_INTEGER`, a fraction of a millimetre.
-// None of them may crash the screen, put a value in a field the customer never entered, or leave a
-// key in the URL that `serialiseRoomInput` would not have written.
-//
-// **Under ruling R9 the screen asks a router instead of writing the address bar itself**, so the
-// harness closes the loop the router closes: `useSearchParams` is mocked beside the router and the
-// `replace` double applies the href it is handed to both, then re-renders. Every address-bar claim
-// is therefore read after a `settle()` — the URL lags the field by `URL_SETTLE_MS`, and that is the
-// debounce working rather than a defect.
+// The `replace` double applies its href to both the live query and the address bar, then re-renders, so every
+// address-bar claim is read after `settle()`: the URL lags the field by `URL_SETTLE_MS`.
 import { fc } from "@fast-check/vitest";
 import {
   APPROVED_ROOM_POLICY,
@@ -67,12 +50,10 @@ import {
 
 import roMessages from "../../src/messages/ro.json";
 
-/** A render each, so the sweep costs a DOM tree per case. Criterion 7 asks for at least 500 and this
- *  file asks a harder question of the same rooms: that the URL the screen writes is a fixed point. */
+/** A render each, so the sweep costs a DOM tree per case. */
 const SWEEP_RUNS = 250;
 
-/** The shapes the screen can be entered at, and the fields each one asks for — taken from the URL
- *  parser rather than restated, which is criterion 4's own rule applied to the test. */
+/** The shapes the screen can be entered at, and the fields each one asks for, taken from the URL parser. */
 const EVERY_SHAPE: readonly RoomShape[] = ["linear", "L", "U"];
 
 /** Every module the room is built from, as source. A claim about what the directory does **not**
@@ -114,10 +95,8 @@ const ANY_APPROVED_L_ROOM = fc.record({
   }),
 });
 
-/** What the route hands the screen: **nothing but its optional policy** (ruling R9). The browser
- *  hands the client another entry's query, not another server render, and the props that used to
- *  carry the server's parse are gone — so there is no second reading of the URL for a stale one to
- *  hide in. */
+/** What the route hands the screen: nothing but its optional policy, so there is no second reading of the URL for
+ *  a stale one to hide in. */
 let screenProps: RoomScreenProps;
 
 function render(search: string, policy?: RoomPolicy): void {
@@ -209,9 +188,8 @@ function addressBar(): string {
   return window.location.search;
 }
 
-/** What the fields say, in whole millimetres, for the shape the URL names — read by the field's own
- *  parser, since a field takes whole millimetres (ADR 0126). `undefined` where a field stands empty
- *  or holds text that is not a length. */
+/** What the fields say, in whole millimetres (ADR 0126), read by the field's own parser; `undefined` where a field
+ *  stands empty or holds text that is not a length. */
 function millimetresShown(
   shape: RoomShape,
 ): Readonly<Record<string, number | undefined>> {
@@ -275,15 +253,10 @@ describe("the query and the fields never disagree about the room (criteria 7 and
   });
 
   it("settles in at most one write, and asks for none on the settle after that", () => {
-    // **Criterion 21, and the only guard on the wave's first-ranked risk.** A replace loop — render
-    // writes, write re-renders, re-render writes — is the one failure here that gets *worse* with
-    // traffic: a request per settle interval, per customer, forever, and invisible in development
-    // where one machine's requests look free. The fixed point behind it is
-    // `room-query-sync.test.ts`'s idempotence property; this is the same claim read off the screen,
-    // where a render that rewrote the query would show up as a second call.
-    //
-    // **Do not weaken this to "the URL ends up right".** A screen that writes the same query every
-    // 400 ms ends up right too.
+    // The only guard on a replace loop (render writes, write re-renders): a request per settle interval per customer,
+    // invisible in development. The fixed point is `room-query-sync.test.ts`'s; this reads it off the screen, where a
+    // rewrite shows up as a second call. Do not weaken it to "the URL ends up right": a screen that writes the same
+    // query every 400 ms ends up right too.
     fc.assert(
       fc.property(ANY_APPROVED_L_ROOM, (room: DesignRoom) => {
         browser.replace.mockClear();
@@ -303,10 +276,8 @@ describe("the query and the fields never disagree about the room (criteria 7 and
   });
 
   it("settles in at most one write from a query that is not canonical to begin with", () => {
-    // The arriving-URL half: an absent `direction` and an unknown key both make the first render
-    // disagree with the URL, so exactly **one** canonicalising write follows — a `replace`, never a
-    // push, because a push would give the customer a Back that leads to the same screen minus one
-    // key.
+    // An absent `direction` and an unknown key make the first render disagree with the URL: exactly one
+    // canonicalising `replace` follows, never a push (Back would lead to the same screen minus a key).
     render("?utm_source=newsletter&shape=L&wallA=3.56&wallB=2.92&height=2.6");
 
     settle();
@@ -322,8 +293,7 @@ describe("the query and the fields never disagree about the room (criteria 7 and
   });
 
   it("keeps the zero inside a length rather than trailing it", () => {
-    // Criterion 7's formatting edge, read off the screen rather than off the refill: the wire's 3.06
-    // must show as 3060. Drawn as 3600 it would be a room 540 mm wider than the one that was stored.
+    // The wire's 3.06 must show as 3060; drawn as 3600 it would be a room 540 mm wider than the one stored.
     render("?shape=L&wallA=3.06&wallB=2.92&height=2.6&direction=left");
     settle();
 
@@ -338,12 +308,8 @@ describe("the query and the fields never disagree about the room (criteria 7 and
 
 describe("a hostile query reaches neither a field nor the query it writes (criteria 9 and 10)", () => {
   it("reads a repeated key as no value at all, and drops it", () => {
-    // `?wallA=3.56&wallA=4.2` is two answers to one question. The parser refuses to pick one, and
-    // the form must refuse the same way: a field showing 3,56 here would be the screen choosing a
-    // room the customer never entered.
-    // It is also the boundary `useSearchParams().get()` would silently cross: it answers with the
-    // **first** of the two, so the live query is read through `getAll` (`queryFromSearchParams`) and
-    // a repeated key stays an array all the way to `singleValue`.
+    // Two answers to one question: the parser refuses to pick one and the form must too. `useSearchParams().get()`
+    // would answer with the first, so the live query is read through `getAll` (`queryFromSearchParams`).
     render("?shape=L&wallA=3.56&wallA=4.2&height=2.6&direction=left");
     settle();
 
@@ -375,8 +341,7 @@ describe("a hostile query reaches neither a field nor the query it writes (crite
   );
 
   it("drops a direction handed to a shape that turns no corner", () => {
-    // A contradiction, not a value: a straight room has no corner to point anywhere. The toggle is
-    // absent from the tree (criterion 6) and the key is absent from the query (criterion 9).
+    // A contradiction, not a value: a straight room has no corner to point anywhere.
     render("?shape=linear&wallA=3.56&height=2.6&direction=right");
     settle();
 
@@ -397,8 +362,7 @@ describe("a hostile query reaches neither a field nor the query it writes (crite
   });
 
   it("refuses an unreadable direction and shows the toggle at left", () => {
-    // R6's draft layer, under a value rather than under an absence: `direction=sideways` is not a
-    // direction, so the draft starts where frame 1B draws it and the first sync says so.
+    // `direction=sideways` is not a direction, so the draft starts where frame 1B draws it and the first sync says so.
     render("?shape=L&wallA=3.56&wallB=2.92&height=2.6&direction=sideways");
     settle();
 
@@ -407,11 +371,8 @@ describe("a hostile query reaches neither a field nor the query it writes (crite
   });
 
   it("asks the router for nothing at all while no shape is chosen", () => {
-    // **I6.** 1A is the one sub-state with no sync: until *Continuă* there is no room to store, and
-    // a screen that rewrote the URL here would erase the link the customer arrived on before they
-    // had done anything. The claim is made against the router rather than the address bar, because
-    // under ruling R9 the component is no longer the writer — reading `window.location` here would
-    // pass over a screen that had asked for a navigation and simply not been given one yet.
+    // 1A has no sync: rewriting the URL before *Continuă* would erase the link the customer arrived on. Asserted
+    // against the router, since `window.location` would pass over a navigation requested but not yet applied.
     render("?shape=bogus");
 
     settle();
@@ -435,17 +396,15 @@ describe("the fields a shape asks for, at 1B and in the DOM (criterion 4)", () =
   });
 
   it("fills a U's three walls from the URL and carries them back into it", () => {
-    // Wave risk 4: the U's third field is reachable by URL alone and the visual gate never sees it.
-    // This is the field, the value and the round trip, asserted where a property over
-    // `requiredFieldsFor` cannot reach — in the rendered tree.
+    // The U's third field is reachable by URL alone, and the visual gate never sees it.
     render(
       "?shape=U&wallA=3.56&wallB=2.92&wallC=2.18&height=2.6&direction=left",
     );
     settle();
 
     expect(fieldFor("wallC").value).toBe("2180");
-    // No `direction`: restated 2026-09-29 (M7B U5 S1, Q-U4 (b)) — a U has one hand, and the URL it
-    // writes back names none, though the one it was opened with did.
+    // No `direction`: a U has one hand, so the URL it writes back names none, though the one it was opened with
+    // did (ADR 0132 decision 8).
     expect([...new URLSearchParams(addressBar()).keys()]).toEqual([
       "shape",
       "wallA",
@@ -453,18 +412,15 @@ describe("the fields a shape asks for, at 1B and in the DOM (criterion 4)", () =
       "wallC",
       "height",
     ]);
-    // Restated at M7B U6 S1 (census W5): this U is a room the approved policy accepts (3560 on A,
-    // 2920 and 2180 on the sides), so Continue leads on.
+    // This U is a room the approved policy accepts (3560 on A, 2920 and 2180 on the sides), so Continue leads on.
     expect(continueButton().disabled).toBe(false);
   });
 });
 
 describe("buildability is the policy's answer and never a shape's letter (criterion 3)", () => {
   it("refuses to continue from a filled L once the policy stops stating it", () => {
-    // The mirror of slice 4's fabricated-policy arm, and it needs no cast: `BuildableShapes` makes
-    // `L` optional, so a policy stating nothing is constructible. Every length reads, the shape is
-    // the one shipped today — and the CTA is still refused, which it could not be if the component
-    // spelled `L`.
+    // `BuildableShapes` makes `L` optional, so a policy stating nothing needs no cast; the CTA is still refused,
+    // which it could not be if the component spelled `L`.
     const statesNoShape: RoomPolicy = {
       ...APPROVED_ROOM_POLICY,
       buildableShapes: {},
@@ -490,9 +446,8 @@ describe("buildability is the policy's answer and never a shape's letter (criter
   });
 
   it("asks no module under src/room to name a shape to decide it", () => {
-    // Criterion 3 by construction. `isShapeBuildable` is the only buildability question in the
-    // directory, and nothing beside it compares a shape to a letter for the answer: wave 7J turns
-    // the straight kitchen on by adding bounds, with no edit here.
+    // `isShapeBuildable` is the only buildability question in the directory; nothing beside it compares a shape to a
+    // letter.
     for (const [name, source] of ROOM_MODULE_SOURCES) {
       const code = source
         .replace(/\/\*[\s\S]*?\*\//g, "")
@@ -523,16 +478,14 @@ describe("direction is written for every shape that carries the toggle (criterio
   });
 
   it("leaves the parser marking an absent direction for an L, rather than reading it as left", () => {
-    // The middle layer, kept separate from the draft's: the parser has never defaulted, and a
-    // form that taught it to would change 7E1's shipped contract.
+    // The parser has never defaulted `direction`; a form that taught it to would change its shipped contract.
     const state = parseRoomUrlState({ shape: "L" });
 
     expect(state.markedFields).toContain("direction");
   });
 
-  // Restated 2026-09-29 (M7B U5 S1; Q-U4 (b), ADR 0132 decision 8): a U has one hand, so it draws no
-  // toggle, writes no `direction`, and the parser marks nothing for its absence. These were the U
-  // arms of the two tests above, written while nothing had said what a U's corner meant.
+  // A U has one hand, so it draws no toggle, writes no `direction`, and the parser marks nothing for its absence
+  // (ADR 0132 decision 8).
   it("draws no toggle for a U and writes no direction on the first sync", () => {
     render("?shape=U");
     settle();
@@ -550,9 +503,8 @@ describe("direction is written for every shape that carries the toggle (criterio
   });
 
   it("keeps the three layers apart: the toggle shows left where the parser marks it", () => {
-    // Collapsing any layer into another is what ruling R6 was corrected over. Here both readings of
-    // the same URL are taken at once: the parser still calls `direction` unanswered, and the form
-    // still shows an answer — and neither statement is derived from the other.
+    // Both readings of one URL are taken at once: the parser calls `direction` unanswered, the form shows an answer,
+    // and neither is derived from the other.
     const query = { shape: "L" } as const;
     const state = parseRoomUrlState(query);
 
@@ -567,10 +519,8 @@ describe("direction is written for every shape that carries the toggle (criterio
 
 describe("what the CTA pushes is what serialiseRoomInput would write (criterion 9)", () => {
   it("flushes the retype into the entry it leaves, then pushes the same query", () => {
-    // **I5, end to end.** The tap comes *inside* the settle interval, so there is a write pending:
-    // the departure flushes it at once — not on the settle — and the push follows only once that
-    // flush has been observed coming back. Cancelling the timer instead would leave the entry
-    // behind holding 2,92, which is defect D4 on the fastest customer path.
+    // The tap comes inside the settle interval, so a write is pending: the departure flushes it at once and pushes
+    // only after the flush is observed coming back. Cancelling the timer would leave the entry holding 2,92.
     render("?shape=L&wallA=3.56&wallB=2.92&height=2.6&direction=left");
     type("wallB", "2400");
 

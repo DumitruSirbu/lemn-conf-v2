@@ -1,12 +1,6 @@
-// M6 wave 6H: **the cabinet depth is a parameter, not a module constant.**
-//
-// The wave's hard gate is that parameterising moves nothing — the same bar wave 5F cleared — so the
-// 600 mm build is checked against a table of today's shipped numbers **written here as data**. A
-// test that reads the values it is checking out of the module it checks proves nothing, which is
-// the stance `worktop-depth.test.ts` already takes about the depth map's own rows.
-//
-// The second half is the falsifiable one ADR 0036 decision 5 asks for: a catalogue built at 700
-// describes a *different* kitchen, and it must, or the control wave 6J ships would be a no-op.
+// The cabinet depth is a parameter, not a module constant: the 600 mm build is checked against a table of today's
+// shipped numbers written here as data (a test reading its values from the module it checks proves nothing), and a
+// catalogue built at 700 must describe a different kitchen (ADR 0036 decision 5).
 import { describe, expect, it } from "vitest";
 
 import {
@@ -44,15 +38,10 @@ const DECLARED_DEPTHS_MM = declaredWorktopDepthsMm();
 /** ADR 0039 decision 1: *"hood is always standard"* — the one body the depth map does not reach. */
 const HOOD_BODY_DEPTH_MM = 500;
 
-/** Every depth-bearing field of the shipped catalogue, as it stands **before** this wave: the
- *  entry's nominal, the `frameDepthMm` fallback `void-engine.ts` seats an unmeasured placement
- *  from, and the finished depth its `occupiedDepth` rule declares (or the front assembly, for the
- *  wall carcasses whose depth is a placement variable).
- *
- *  Transcribed from the built catalogue on 2026-09-02, at the declared 600 mm. Not one of these
- *  numbers may move: M1's parity gate diffs the geometry these drive at 1e-6 m, and exact equality
- *  here is the stricter statement of the same thing — a millimetre is a thousand times that
- *  tolerance. */
+/** Every depth-bearing field of the shipped catalogue at the declared 600 mm, transcribed as data: the entry's
+ *  nominal, the `frameDepthMm` fallback `void-engine.ts` seats an unmeasured placement from, and the finished depth
+ *  its `occupiedDepth` rule declares (or the front assembly, for wall carcasses whose depth is a placement variable).
+ *  None may move; exact equality is stricter than M1's 1e-6 m parity gate. */
 const SHIPPED_AT_600: readonly (readonly [
   string,
   number,
@@ -67,20 +56,10 @@ const SHIPPED_AT_600: readonly (readonly [
   ["base-bottle-cargo", 580, 580, wallPlane(620)],
   ["base-sink", 580, 580, wallPlane(620)],
   ["base-dishwasher", 580, 580, wallPlane(620)],
-  // **Re-baselined 2026-09-05, declared rather than silent** (`docs/WORKFLOW.md`: a re-baseline is
-  // announced, never relaxed). `frameDepthMm` moved 330 → 291 for the two fronted wall rows under
-  // ADR 0075 decision 1: this field is twice the rear overhang (ADR 0018) and `wallCabinet` builds
-  // `D − 39` centred on z = 0, so 330 was the finished cabinet standing in a field that means the
-  // shell. The arithmetic, written out because a moved snapshot number is otherwise indistinguishable
-  // from a hidden defect: **330 declared − 39 front assembly = 291 shell**. The nominal is untouched
-  // at 330 — that is what §7 declares, what the customer is told (ADR 0036 decision 1) and what the
-  // builder is handed.
-  //
-  // **No geometry moves.** M1's parity gate diffs `makeKit()`'s builders, which read no catalogue
-  // field; this one is only `deriveFrame`'s fallback for a placement with **no measured seat**, and
-  // the seeded rows spread `wallCarcass`, which sets one. What changes is a stored document that
-  // carries an unmeasured `wall-cabinet` placement: it seated 39 mm off the wall plane before and
-  // seats correctly now — a correction on load, not a migration.
+  // `frameDepthMm` is 291 for the two fronted wall rows (ADR 0075 decision 1): the field is twice the rear overhang
+  // (ADR 0018) and `wallCabinet` builds `D − 39` centred on z = 0, so 330 declared − 39 front assembly = 291 shell.
+  // The nominal stays 330, what §7 declares and the customer is told (ADR 0036 decision 1). The field is only
+  // `deriveFrame`'s fallback for a placement with no measured seat; no builder reads it.
   ["wall-cabinet", 330, 291, recordedShell(39)],
   ["wall-lift", 330, 291, recordedShell(39)],
   ["open-shelf", 330, 330, recordedShell(0)],
@@ -99,9 +78,8 @@ function recordedShell(frontAssemblyMm: number) {
   return { measuredFrom: "recorded-shell", frontAssemblyMm };
 }
 
-/** Every depth-bearing field of one entry as a single comparable value. "Moved" has to be all three
- *  and not the finished depth alone: a fronted wall carcass declares the same `+39` rule at both
- *  depths, and what the setting moves is the shell that rule is measured from. */
+/** Every depth-bearing field of one entry as one comparable value: "moved" needs all three, since a fronted wall
+ *  carcass declares the same `+39` rule at both depths and the setting moves the shell it is measured from. */
 function depthFactsJson(definition: BodyDefinition): string {
   return JSON.stringify([
     definition.nominalDepthMm,
@@ -165,9 +143,8 @@ describe("the shipped catalogue is the 600 mm build, to the millimetre", () => {
 });
 
 describe("a catalogue built at 700 describes a different kitchen", () => {
-  // ADR 0036 decision 5: changing the setting adapts every cabinet, with nothing left behind. The
-  // falsifiable form of "no module-level constant fixes these at 600" is that the same build
-  // function, given 700, answers differently — a constant cannot.
+  // ADR 0036 decision 5: the falsifiable form of "no module-level constant fixes these at 600" is that the same
+  // build function, given 700, answers differently.
   it("moves a wall entry's nominal depth to the map's second row", () => {
     expect(entryAt(600, "wall-cabinet").nominalDepthMm).toBe(330);
     expect(entryAt(700, "wall-cabinet").nominalDepthMm).toBe(400);
@@ -197,12 +174,9 @@ describe("a catalogue built at 700 describes a different kitchen", () => {
     }
   });
 
-  // **6H's recorded carry-out, closed by wave 6I.** This test read `580` at both depths and said
-  // *"6I is expected to change this line"*: a base entry's `nominalDepthMm` was the literal
-  // `BASE_DEPTH_MM`, so a catalogue built at 700 declared a body finishing at 720 on a 580 mm seat —
-  // a back face 50 mm off the wall plane for any placement `void-engine.ts` had to fall back to it
-  // for (§11 row 19). Both numbers are measured on the built meshes by
-  // `occupied-depth.parity.test.ts`; they are written here as data for 6H's own reason.
+  // A base entry's `nominalDepthMm` must follow the setting: a literal `BASE_DEPTH_MM` once left a body finishing at
+  // 720 on a 580 mm seat at 700 (§11 row 19). Both numbers are measured on the built meshes by
+  // `occupied-depth.parity.test.ts`; they are written here as data.
   it("moves the base seat with the setting, which 6H left as a literal", () => {
     expect(entryAt(600, "base-cabinet").nominalDepthMm).toBe(580);
     expect(entryAt(700, "base-cabinet").nominalDepthMm).toBe(680);
@@ -210,11 +184,8 @@ describe("a catalogue built at 700 describes a different kitchen", () => {
 });
 
 describe("wave 6I: every base-band body follows the formula, not just `baseCabinet`", () => {
-  // The carry-out `docs/milestones/M5-width.md` hands M6 by name. 5F's QA measured the corner,
-  // return, dishwasher and oven-tower bodies staying byte-identical across depths while
-  // `baseCabinet` moved; the criterion is that each moves by **the same amount** as the formula
-  // moves that one by. The mesh-backed half of this lives in `@lemnaria/three-adapter`
-  // (`occupied-depth.parity.test.ts`); this is the declaration it holds to.
+  // The corner, return, dishwasher and oven-tower bodies must each move by the amount the formula moves
+  // `baseCabinet`; the mesh-backed half is `occupied-depth.parity.test.ts` in `@lemnaria/three-adapter`.
   const BASE_BAND_BUILD_IDS = buildInsertableBodyDefinitions(WORKTOP_DEPTH_MM)
     .filter(([, definition]) => definition.band === "base")
     .map(([buildId]) => buildId);
@@ -248,8 +219,7 @@ describe("wave 6I: every base-band body follows the formula, not just `baseCabin
     },
   );
 
-  // The shift being 100 is what stops "they all agree" from being satisfied by nothing moving at
-  // all — the exact failure mode 5F's QA found, where four families agreed by all standing still.
+  // The shift being 100 stops "they all agree" being satisfied by nothing moving at all.
   it("moves them by the 100 mm the two declared depths differ by", () => {
     expect(finishedDepthShiftMm("base-cabinet")).toBe(100);
   });
@@ -264,9 +234,7 @@ describe("wave 6I: every base-band body follows the formula, not just `baseCabin
 });
 
 describe("wave 6I: a full-height cabinet is cabinetry and what stands in it is not", () => {
-  // The criterion is that each body **states which of the two it is** and that a test asserts the
-  // split rather than everything moving together. `COLUMN_DEPTH_MM` and
-  // `OVEN_TOWER_FINISHED_DEPTH_MM` were both literals before this wave.
+  // Each body states which of the two it is, and a test asserts the split rather than everything moving together.
   it("moves a column's carcass with the setting", () => {
     expect(entryAt(600, "tall-pantry").nominalDepthMm).toBe(560);
     expect(entryAt(700, "tall-pantry").nominalDepthMm).toBe(660);
@@ -285,10 +253,9 @@ describe("wave 6I: a full-height cabinet is cabinetry and what stands in it is n
     }
   });
 
-  // **The split.** The tower's finished depth moves by the same 100 the pantry's does, and the gap
-  // between them — the oven's and the microwave's own fascias and bars — is the same 39 mm at both
-  // depths. A wave that had scaled the appliances with the setting would move the tower by more; one
-  // that had pinned the whole body would move it by nothing. Both are excluded here.
+  // The tower's finished depth moves by the same 100 the pantry's does, and the gap between them (the oven's and
+  // microwave's fascias and bars) is 39 mm at both depths: scaling the appliances would move it by more, pinning the
+  // body by nothing.
   it("keeps the appliance fronts a manufactured size at both depths", () => {
     for (const cabinetDepthMm of DECLARED_DEPTHS_MM) {
       expect(
@@ -311,15 +278,10 @@ describe("wave 6I: a full-height cabinet is cabinetry and what stands in it is n
 });
 
 describe("wave 6I: an entry that neither tracks the setting nor declares an exception fails", () => {
-  // ADR 0058 decisions 2 and 3. The pin on the two deliberately deep top cabinets has to be a
-  // **declaration**, because a constant that has silently stopped tracking anything and a body that
-  // was deliberately held still are indistinguishable once the person who wrote it has gone — which
-  // is exactly what `BASE_DEPTH_MM` (6H) and `COLUMN_DEPTH_MM` (this wave) turned out to be.
-  //
-  // The two entries ADR 0058 names are **seeded**, so the falsifiable form over them lives with the
-  // seeded catalogue. What is asserted here is the mechanism they will use, over the §7 population:
-  // every entry declares, the declaration and the measured movement agree, and an entry that
-  // declares nothing is refused rather than read as pinned.
+  // ADR 0058 decisions 2 and 3: a pin must be a declaration, since a constant that stopped tracking anything and a
+  // body deliberately held still are indistinguishable later. The entries ADR 0058 names are seeded, so this asserts
+  // the mechanism over the §7 population: every entry declares, declaration and measured movement agree, and an
+  // undeclared entry is refused rather than read as pinned.
   const ENTRIES_AT_600 = buildInsertableBodyDefinitions(600);
 
   it.each(ENTRIES_AT_600.map(([buildId]) => buildId))(
@@ -358,11 +320,8 @@ describe("wave 6I: an entry that neither tracks the setting nor declares an exce
     ).toThrow(/invented-row/);
   });
 
-  // **And the refusal is wired to something that runs.** The block above proves the function
-  // refuses; without this one it could still have been a function nothing production called, which
-  // is what the seeded population — whose `depthRule` is optional — needed protecting from. The
-  // guard is fed a fabricated undeclared row rather than the shipped map, because the shipped map
-  // has no such row and could not grow one without this sweep failing first.
+  // The refusal must be wired to something that runs: the guard is fed a fabricated undeclared row, because the
+  // shipped map has none and could not grow one without this sweep failing first.
   it("assembles the shipped catalogue at both depths without refusing a row", () => {
     for (const cabinetDepthMm of DECLARED_DEPTHS_MM) {
       expect(() => buildKitchenLBodyCatalog(cabinetDepthMm)).not.toThrow();
@@ -375,11 +334,9 @@ describe("wave 6I: an entry that neither tracks the setting nor declares an exce
     }).toThrow(UndeclaredCabinetDepthRuleError);
   });
 
-  // **No shipped row declares a pin since ADR 0101**, which unpinned the three deep tops, so this
-  // suite declares its own — ADR 0093 decision 2's pattern, and ADR 0101 decision 3's instruction
-  // that the arm keeps its rule while losing its population. Delete the `pinned` case from
-  // `depthFollowsSetting` or from `cabinetDepthRuleOf` and this goes red; nothing in the seeded
-  // kitchen would.
+  // No shipped row declares a pin since ADR 0101, so this suite declares its own (ADR 0093 decision 2): delete the
+  // `pinned` case from `depthFollowsSetting` or `cabinetDepthRuleOf` and this goes red; nothing in the seeded kitchen
+  // would.
   it("reads a pin as an exception rather than as a body that happens not to move", () => {
     const pinned = pinnedAtFinishedDepthMm(600, "base-formula");
 
@@ -431,10 +388,8 @@ describe("an undeclared cabinet depth refuses to build a catalogue at all", () =
     expect(requireDeclaredCabinetDepthMm(700)).toBe(700);
   });
 
-  // ADR 0028 decision 4, carried through the parameterisation rather than softened by it: wall
-  // depths are manufactured sizes, so a missing row is a programming error. 650 would interpolate
-  // to 372 and 800 would extrapolate to 500 — a plausible future row, and deliberately not a
-  // commitment. A half-built catalogue at an undeclared depth is worse than no catalogue.
+  // ADR 0028 decision 4: wall depths are manufactured sizes, so a missing row is a programming error. 650 would
+  // interpolate to 372 and 800 extrapolate to 500, a plausible future row and not a commitment.
   it.each([650, 800, 620, 0, -600, 599.9, Number.NaN])(
     "throws for %p rather than interpolating, rounding or defaulting",
     (cabinetDepthMm) => {
@@ -461,9 +416,8 @@ describe("an undeclared cabinet depth refuses to build a catalogue at all", () =
 });
 
 describe("the hood's finished line follows the setting and its body does not", () => {
-  // ADR 0039 decisions 1 and 2, asserted at **both** depths so the growing gap cannot later be
-  // "fixed" by putting the hood back on the depth map. A hood is a manufactured appliance sized to
-  // the cooktop it covers, hung at the front; the space behind it is what the chimney hides.
+  // ADR 0039 decisions 1 and 2, asserted at both depths so the growing gap cannot later be fixed by putting the hood
+  // back on the depth map: a hood is sized to its cooktop and hung at the front.
   it.each([
     { cabinetDepthMm: 600, concealedGapMm: 100 },
     { cabinetDepthMm: 700, concealedGapMm: 200 },
@@ -497,16 +451,9 @@ describe("the hood's finished line follows the setting and its body does not", (
 });
 
 describe("ADR 0101: the deep top cabinets follow the setting, over the whole catalogue", () => {
-  // **This block was ADR 0058 decision 3's falsifiable form until 2026-09-07** — build the catalogue
-  // at 600 and at 700, and these two entries' finished depth is identical (600) at both. ADR 0101
-  // withdrew the pin: the three placements these two rows carry were the only ones of twenty-five
-  // that did not follow the setting, and the owner reported them as wrong at 700.
-  //
-  // What replaces it is the same shape aimed at the new rule. Their depth is answered by
-  // `columnBuildDepthMm`'s **lifted arm** — they hang over full-height columns — so it is the
-  // cabinet-depth line at every setting, 600 at 600 and 700 at 700. Decision 3's other half is
-  // unchanged and is what makes this non-vacuous: a row that declares an exception still must not
-  // move, and `fridge-free-700` is the row that carries that now.
+  // ADR 0101 withdrew the pin on these two rows: their depth is `columnBuildDepthMm`'s lifted arm (they hang over
+  // full-height columns), so it is the cabinet-depth line at every setting. A row that declares an exception still
+  // must not move; `fridge-free-700` carries that now (ADR 0058 decision 3).
   const DEEP_TOP_BUILD_IDS = [
     "wall-2door-600-deep-top",
     "wall-2door-700-over-fridge",
@@ -519,10 +466,8 @@ describe("ADR 0101: the deep top cabinets follow the setting, over the whole cat
     return definition;
   }
 
-  /** How far this body's finished front stands from the wall plane. A `wall-plane` rule states it
-   *  outright; a `recorded-shell` rule states only what stands in front of the seat, so the seat has
-   *  to be added back. Both arms are needed: the two deep top rows are fronted top carcasses and
-   *  most of the catalogue is not. */
+  /** How far this body's finished front stands from the wall plane: a `wall-plane` rule states it, a `recorded-shell`
+   *  rule states only what stands in front of the seat, so the seat is added back. Both arms are needed. */
   function finishedDepthMm(definition: BodyDefinition): number {
     return definition.occupiedDepth.measuredFrom === "wall-plane"
       ? definition.occupiedDepth.finishedDepthMm
@@ -533,9 +478,8 @@ describe("ADR 0101: the deep top cabinets follow the setting, over the whole cat
     "%s finishes at the cabinet-depth line at both declared depths",
     (buildId) => {
       for (const cabinetDepthMm of DECLARED_DEPTHS_MM) {
-        // Deliberately compared against `columnBuildDepthMm`'s lifted arm and not against a literal
-        // 600/700 pair: it is the authority a rebuild of these rows reads, and a third declared
-        // depth must not need this line edited (ADR 0101's closing consequence).
+        // Compared against `columnBuildDepthMm`'s lifted arm, not a literal 600/700 pair, so a third declared depth
+        // needs no edit here (ADR 0101).
         expect(finishedDepthMm(entryOf(cabinetDepthMm, buildId))).toBe(
           columnBuildDepthMm({ cabinetDepthMm, hasFullHeightUnder: true }),
         );
@@ -551,17 +495,13 @@ describe("ADR 0101: the deep top cabinets follow the setting, over the whole cat
         follows: "cabinet-depth",
         alongWallPositionFollows: "base-formula",
       });
-      // ADR 0101 decision 1: the equivalence gate reads this off the entry, never off its name or
-      // its number. A row that is deep and forgets to declare it disagrees with its catalogue
-      // equivalent and is caught there instead.
+      // ADR 0101 decision 1: the equivalence gate reads this off the entry, never its name or number.
       expect(entry.builtDepthFollowsALiftedColumn).toBe(true);
     }
   });
 
-  // The other half of ADR 0058 decision 3, and the half that makes the first non-vacuous:
-  // everything that is not a machine **has** moved. Without it the exception would be satisfied
-  // just as well by a catalogue in which nothing moved at all — which is the state wave 6I found
-  // the seeded map in, and the reason the decision insists the exception be a declaration.
+  // The other half of ADR 0058 decision 3: everything that is not a machine has moved, else the exception would be
+  // satisfied by a catalogue in which nothing moved.
   it("has moved every other cabinetry entry, in both populations", () => {
     const rows = [...buildKitchenLBodyCatalog(600).keys()].map((buildId) => {
       const rule = cabinetDepthRuleOf({

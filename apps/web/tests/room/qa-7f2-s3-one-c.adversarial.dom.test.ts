@@ -1,21 +1,6 @@
 // @vitest-environment happy-dom
 //
-// **Adversarial QA for M7 wave 7F2, slice S3 — 1C on the form.** Attacks the implementer's claims
-// rather than restating `room-one-c.dom.test.ts`:
-//
-// - **Criterion 4's ordering.** The pause and the settle are both `URL_SETTLE_MS`, so a fake clock
-//   that runs every due timer together cannot tell which fired first. `advanceTimersToNextTimer`
-//   runs **one** timer, so the reason can be asserted on screen in the tick before any router call.
-// - **The one clock, over sequences** (C-7F2-1 extended 2026-09-21), including a fabricated policy
-//   (ADR 0116's shape): whatever the customer does, no 1C surface shows beside an active *Continuă*,
-//   nothing shown is false of the draft on screen, and once typing has paused the screen is exactly
-//   the parser's reading of the draft.
-// - **The residue the implementer named**: a *Continuă* held active mid-burst over a refused room.
-// - **Everything that is not a keystroke** landing mid-burst: a paste, clearing a field, a shape or
-//   corner change, a history traversal, and an unmount with the pause still armed.
-//
-// The harness is `room-one-c.dom.test.ts`'s: the real screen over a mocked router one layer below
-// next-intl, with the router's echo optionally withheld.
+// The real screen over a mocked router one layer below next-intl, with the router's echo optionally withheld.
 import { fc } from "@fast-check/vitest";
 import {
   APPROVED_ROOM_POLICY,
@@ -84,10 +69,6 @@ const A_ROOM_AWAITING_ITS_CEILING =
 /** Frame 1C's own example: wall B too short and nothing else. */
 const THE_FRAMES_ROOM =
   "shape=L&wallA=3.6&wallB=0.45&height=2.6&direction=left";
-
-// ---------------------------------------------------------------------------------------------
-// Harness
-// ---------------------------------------------------------------------------------------------
 
 let container: HTMLDivElement;
 let root: Root;
@@ -175,12 +156,9 @@ function advance(milliseconds: number): void {
 }
 
 /**
- * The callbacks handed to `setTimeout` for `URL_SETTLE_MS`, in the order they were armed.
- *
- * **Why not `vi.advanceTimersToNextTimer`:** it follows the step with a zero tick, which runs every
- * other timer due at the same instant — measured here: the timer count reads 0 after one call. The
- * pause and the settle are due at the same instant, so it cannot tell them apart. Capturing the two
- * callbacks and firing them one at a time can.
+ * The callbacks handed to `setTimeout` for `URL_SETTLE_MS`, in the order they were armed. Not
+ * `vi.advanceTimersToNextTimer`: it follows the step with a zero tick that runs every other timer due at the same
+ * instant, so it cannot tell the pause from the settle; firing captured callbacks one at a time can.
  */
 function captureTheSettleIntervalTimers(): (() => void)[] {
   const armed: (() => void)[] = [];
@@ -243,9 +221,8 @@ function isAnyOneCSurfaceShown(): boolean {
   );
 }
 
-/** The oracle reads a room the way the screen does, against **the screen's own policy** (M7B U5
- *  review: `RoomScreen`'s `policy` now reaches the URL parse), so a policy that builds a U reaches 1D
- *  here as it does on screen. Undefined is the approved policy, the parser's own default. */
+/** The oracle parses against the screen's own policy, so a policy that builds a U reaches 1D as on screen.
+ *  Undefined is the approved policy. */
 function parsed(search: string): RoomUrlState {
   return parseRoomUrlState(queryEntriesOf(search), screenPolicy);
 }
@@ -287,10 +264,6 @@ afterEach(() => {
   container.remove();
   vi.useRealTimers();
 });
-
-// ---------------------------------------------------------------------------------------------
-// Criterion 4 — the reason is on screen before the settle has made any router call
-// ---------------------------------------------------------------------------------------------
 
 describe("the pause fires in a tick of its own, before the settle writes (criterion 4)", () => {
   it("arms exactly two timers on the keystroke: the pause, then the settle", () => {
@@ -347,14 +320,9 @@ describe("the pause fires in a tick of its own, before the settle writes (criter
   });
 });
 
-// ---------------------------------------------------------------------------------------------
-// The implementer's residue — a Continue held active mid-burst over a refused room
-// ---------------------------------------------------------------------------------------------
-
 describe("a tap on a Continue held active mid-burst over a room the domain refuses", () => {
   it("never composes, never reaches 1D, and leaves the customer on the form with the reasons shown", () => {
-    // A valid room; wall A retyped to *"8"* (8 mm, too short) and the button tapped inside the pause,
-    // while it is still held active from the valid room the burst began on.
+    // A valid room; wall A retyped to *"8"* (too short) and the button tapped inside the pause, while held active.
     render(A_VALID_ROOM);
     type("wallA", "8");
     expect(continueButton().disabled).toBe(false);
@@ -370,8 +338,6 @@ describe("a tap on a Continue held active mid-burst over a room the domain refus
   });
 
   it("makes no router call and ends the pause, so every 1C surface shows at once (coordinator ruling 2026-09-22)", () => {
-    // Rewritten from QA's first pass, which pinned the tap as a flush and a push of the refused
-    // query. The ruling replaced that claim: the tap departs nowhere and shows why.
     render(A_VALID_ROOM);
     type("wallA", "8");
 
@@ -418,16 +384,10 @@ describe("a tap on a Continue held active mid-burst over a room the domain refus
   });
 });
 
-// ---------------------------------------------------------------------------------------------
-// What is not a keystroke, landing mid-burst
-// ---------------------------------------------------------------------------------------------
-
 describe("a history traversal mid-burst is an arrival, not typing", () => {
   it("shows the arrived room's 1C at once and leaves Continue inactive over it", () => {
-    // A valid room; the customer starts retyping wall A, then presses Back inside the pause onto
-    // frame 1C's room. That room was **arrived at** — `room-one-c.dom.test.ts` rests its
-    // properties on exactly this: "a room arrived at is not a room being typed, so every 1C surface
-    // is on screen at once". The burst's hold must not outlive the draft it was holding for.
+    // Back inside the pause lands on frame 1C's room. A room arrived at is not a room being typed, so every 1C surface
+    // shows at once; the burst's hold must not outlive the draft it was holding for.
     render(A_VALID_ROOM);
     type("wallA", "8");
 
@@ -473,8 +433,8 @@ describe("after an arrival, the next keystroke starts a burst of its own (F1's s
 
 describe("our own echo is not an arrival", () => {
   it("keeps a burst running when the flush of Back echoes mid-burst", () => {
-    // *Înapoi* flushes the draft at once, so its echo lands inside the pause with the draft's own
-    // text. `reconcileRoomDraft` keeps the draft's identity on an echo, and the burst must survive it.
+    // *Înapoi* flushes at once, so its echo lands inside the pause with the draft's own text; `reconcileRoomDraft`
+    // keeps the draft's identity on an echo and the burst must survive it.
     render(A_VALID_ROOM);
     type("wallA", "8");
 
@@ -491,9 +451,8 @@ describe("a changed sentence mid-burst waits for the pause (review finding R1.1)
   const TOO_LONG_A = "shape=L&wallA=6.5&wallB=2.4&height=2.6&direction=left";
 
   it("shows nothing of wall A from 6500 down to empty and up to 4500, and leads on at 4500", () => {
-    // The reviewer's scenario: a too-long reason showing, backspaced through two too-short prefixes,
-    // emptied, and retyped through three more to a valid length. No step may show the too-short
-    // sentence or its label before a pause, nor keep the too-long one once it is false.
+    // A too-long reason showing, backspaced through two too-short prefixes, emptied and retyped to a valid length: no
+    // step may show the too-short sentence or label before a pause, nor keep the too-long one once it is false.
     render(TOO_LONG_A);
     withholdTheEchoes();
     expect(fieldsWithAReason()).toEqual(["wallA"]);
@@ -506,8 +465,7 @@ describe("a changed sentence mid-burst waits for the pause (review finding R1.1)
       expect(fieldsWithAReason(), text).toEqual([]);
       expect(fieldsMarkedInvalid(), text).toEqual([]);
       expect(markedPlanWalls(), text).toEqual([]);
-      // The note was showing when the burst began and holds wherever the draft is still 1C, so it
-      // is off only while the field is empty (1B) — and back on at *"4"*.
+      // The note was showing when the burst began and holds while the draft is 1C: off only while the field is empty.
       expect(isNoteShown(), text).toBe(text !== "");
       expect(continueButton().disabled, text).toBe(true);
     }
@@ -540,8 +498,7 @@ describe("a changed sentence mid-burst waits for the pause (review finding R1.1)
 
 describe("the parse of the draft is never older than the draft (parse-once refactor)", () => {
   it("departs with the arrived room when Continue is tapped straight after an arrival mid-burst", () => {
-    // Mid-burst over a valid room the customer's draft is refused; a traversal then lands on another
-    // valid room. The tap must judge — and flush — the room on screen, not the typed one.
+    // The tap must judge, and flush, the room on screen and not the typed one.
     const ARRIVED = "shape=L&wallA=4.2&wallB=3.1&height=2.5&direction=left";
     expect(parsed(new URLSearchParams(ARRIVED).toString()).substate).toBe("1D");
     render(A_VALID_ROOM);
@@ -563,8 +520,7 @@ describe("the parse of the draft is never older than the draft (parse-once refac
     withholdTheEchoes();
     type("wallA", "3");
     arriveAt(A_VALID_ROOM);
-    // The URL never learned of the keystroke, so this arrival is the query already held and changes
-    // nothing: the burst runs on, the button is still held, and the draft on screen is still refused.
+    // The URL never learned of the keystroke, so this arrival is the query already held: the burst runs on.
     expect(fieldFor("wallA").value).toBe("3");
     expect(continueButton().disabled).toBe(false);
 
@@ -577,9 +533,8 @@ describe("the parse of the draft is never older than the draft (parse-once refac
 
 describe("a chip or the corner never starts a burst", () => {
   it("shows the refused shape's note at once when a chip is chosen outside any burst", () => {
-    // Under a policy that states no U (census W9: the approved policy refuses no shape since M7B U6),
-    // a filled U is refused for its shape alone. Back to L (valid), then U again with no keystroke
-    // anywhere: nothing is being typed, so 1C shows as soon as the chip is chosen.
+    // A policy that states no U refuses a filled U for its shape alone. With no keystroke anywhere nothing is being
+    // typed, so 1C shows as soon as the chip is chosen.
     render(
       "shape=U&wallA=3.6&wallB=2.4&wallC=2.4&height=2.6&direction=left",
       policyWithoutU(),
@@ -613,11 +568,6 @@ describe("a chip or the corner never starts a burst", () => {
   });
 });
 
-// 7L D9/criterion 13: the suggestion left this describe's one region for two, each present, empty,
-// from 1B on — `room-one-c-reasons` and `room-one-c-note` — so it is never announced from inside
-// either while carrying no reason of its own. The tests below are F3's original two, restated over
-// the two regions rather than one; the third ("carries no field reason…") needed no change, because
-// `elementAt(STATUS).textContent` already flattens both regions' text regardless of nesting.
 describe("1C is announced into two status regions that were already there (F3, 7L D9/A13)", () => {
   const STATUS = "room-one-c-status";
   const REASONS = "room-one-c-reasons";
@@ -677,13 +627,9 @@ describe("1C is announced into two status regions that were already there (F3, 7
     expect(status.querySelector("[data-testid^='room-length-reason-']")).toBe(
       null,
     );
-    // 7J S5: this room's wall A (3600) and height (2600) now validate as a straight kitchen on
-    // their own (ADR 0108 Amendment G), so the status carries the suggestion beside the presets
-    // note — the same room `qa-7f2-s4-shape-refusal.adversarial.test.ts`'s "shows for an L refused
-    // on a field" fixture names — where it used to carry the note alone. **7L D9:** the suggestion
-    // (now the clause and, in the same DOM, D1C's card — `.suggestionCard` is hidden by CSS, not
-    // omitted) is a sibling of the two regions rather than a child of either — `status.textContent`
-    // still equals the concatenation, since it flattens every descendant's text regardless of depth.
+    // This room's wall A and height validate as a straight kitchen on their own (ADR 0108 Amendment G), so the status
+    // carries the suggestion beside the presets note. The suggestion is a sibling of the two regions, not a child, and
+    // `status.textContent` flattens every descendant, so it still equals the concatenation.
     expect(status.textContent).toBe(
       elementAt("room-suggestion-group").textContent +
         elementAt("room-presets-after-valid").textContent,
@@ -701,12 +647,9 @@ describe("1C is announced into two status regions that were already there (F3, 7
     expect(continueButton().hasAttribute("aria-describedby")).toBe(false);
   });
 
-  // F1 (7L review, 2026-09-29): a room-level reason (ROOM_TOO_SMALL_FOR_KITCHEN) names no field, so
-  // before this fix the suggestion sat between the two live regions, inside neither, and no field's
-  // `aria-describedby` named it either — reachable from nothing on screen. 1800×1200×2600mm,
-  // direction left, is the reviewer's own reproduction: wall A (1800) passes as a straight room on
-  // its own, so the suggestion fires, while wall A and B together leave no room for the sink and the
-  // hob past the corner cabinet, so the coupled rule fires as a room reason and zero field reasons.
+  // A room-level reason (ROOM_TOO_SMALL_FOR_KITCHEN) names no field, so the suggestion must be reachable from it via
+  // `aria-describedby`. 1800×1200×2600 mm: wall A passes as a straight room alone, so the suggestion fires, while A
+  // and B together leave no room for sink and hob past the corner cabinet: one room reason, zero field reasons.
   it("a room-level reason with no field of its own still reaches the suggestion (F1)", () => {
     render("shape=L&wallA=1.8&wallB=1.2&height=2.6&direction=left");
 
@@ -831,12 +774,7 @@ describe("edits that are not a digit keep to the one clock", () => {
   });
 });
 
-// ---------------------------------------------------------------------------------------------
-// The one clock, over sequences — including a fabricated policy
-// ---------------------------------------------------------------------------------------------
-
-/** ADR 0116's R8 fabricated policy: the approved one with no U, which since M7B U6 is the only way
- *  to give the sequences a shape the policy refuses. */
+/** The approved policy with no U: the only way to give the sequences a shape the policy refuses (ADR 0116). */
 const POLICIES: readonly (readonly [string, RoomPolicy])[] = [
   ["approved", APPROVED_ROOM_POLICY],
   ["stating no U", policyWithoutU()],
@@ -930,8 +868,7 @@ function draftOnScreen(shape: RoomShape): RoomDraft {
   );
 }
 
-/** This file's own reading of which sentence each code is shown with — the plan's section 5 table,
- *  written out so the oracle is not the issue model under test. */
+/** This file's own reading of which sentence each code is shown with, so the oracle is not the model under test. */
 const FIELD_SENTENCE_KEY: Readonly<Record<string, string>> = {
   WALL_TOO_SHORT: "room.issue.wallTooShort",
   WALL_TOO_LONG: "room.issue.wallTooLong",
@@ -995,8 +932,7 @@ function expectedOneCOf(state: RoomUrlState): ExpectedOneC {
   };
 }
 
-/** What the screen may show mid-burst: only what showed at the burst's start **and** still holds,
- *  sentence for sentence (C-7F2-1, review finding R1.1). */
+/** What the screen may show mid-burst: only what showed at the burst's start and still holds, sentence for sentence. */
 function heldThroughTheBurst(
   now: ExpectedOneC,
   atStart: ExpectedOneC,
@@ -1109,8 +1045,8 @@ function arriveReseeding(search: string, model: SequenceModel): void {
   model.sinceKeystrokeMs = Infinity;
 }
 
-/** Only an enabled button over a draft the domain refuses: a 1D tap composes and takes the form
- *  away. The ruling: no router call at the tap, and the pause ends there. */
+/** Only an enabled button over a draft the domain refuses (a 1D tap composes and takes the form away): no router
+ *  call at the tap, and the pause ends there. */
 function tapContinueOverARefusedDraft(model: SequenceModel): void {
   if (continueButton().disabled) return;
   const state = parsed(

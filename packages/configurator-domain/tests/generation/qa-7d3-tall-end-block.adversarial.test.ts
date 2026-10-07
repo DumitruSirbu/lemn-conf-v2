@@ -1,21 +1,3 @@
-// Independent adversarial QA for M7 wave 7D3 slice S2 — ADR 0110 Amendment E's block of full-height
-// columns at wall A's free end, and the hob that follows it.
-//
-// **Two of these close a hole that was opened rather than found.** Wave 7D2's assertions had to move
-// for S2's ruling, and some came back weaker than they went in or stopped covering what their own
-// comment claims: criterion 6's dropped-core arm is counted over a uniform room generator that draws
-// the discriminating case about once in three hundred; and a body silently planned over its module,
-// with the wall's reported remainder reduced to match, was left uncovered when the remainder
-// assertion was relaxed to `run − composed` — the one quantity such a pair leaves unchanged.
-//
-// Two sibling repairs live where their subjects do rather than here, because a second copy would be
-// the duplication this wave spent its criterion 23 avoiding: the **remainder identity** is narrowed
-// in place in `generation-priorities.test.ts`, and the **plannable build id** guard is derived from
-// real plans in `qa-7d3-upper-suppression.adversarial.test.ts`.
-//
-// The rest read the block off the **built design** wherever the wave's own tests read it off the
-// plan, so a plan that says one thing and a kitchen that is another is a disagreement between two
-// derivations rather than two readings of one number.
 import { fc } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
@@ -44,6 +26,7 @@ import {
 } from "../../src/index.js";
 import { widerEnteredWall } from "../support/entered-walls.js";
 import { createFakeProbeFactory } from "../support/fake-probe.js";
+import { ruledSlotWidthMm } from "../support/fridge-end-leftover.js";
 
 const OCCURRED_AT = "2026-09-11T12:00:00.000Z";
 const OVEN_TOWER = "tall-oven-tower";
@@ -95,11 +78,9 @@ function blockOf(plan: KitchenCompositionPlan) {
 }
 
 /**
- * The wall the run ends on, and so the wall the block stands at the free end of: the **wider entered
- * wall**, wall A where the two are equal (ADR 0120 Amendment E; ADR 0110 Amendment I, which
- * overturns Amendment E's *"wall A and nowhere else"* on the owner's ruling that the block follows
- * the run). Derived in `entered-walls.ts` from the two entered numbers rather than read back off the
- * plan, so a block that moved to the other wall fails these assertions instead of redefining them.
+ * The wall the run ends on, so the wall the block stands at the free end of: the wider entered wall, wall A
+ * where the two are equal (ADR 0110 Amendment I). Derived from the entered numbers, not read back off the plan,
+ * so a block that moved to the other wall fails these assertions instead of redefining them.
  */
 function freeEndWallOf(room: DesignRoom): "A" | "B" {
   return widerEnteredWall(room);
@@ -117,20 +98,18 @@ function freeEndOf(plan: KitchenCompositionPlan, room: DesignRoom) {
         (base.role !== "storage" ||
           base.buildId === BOTTLE_CARGO_BUILD_ID ||
           base.buildId === PAN_DRAWER_BASE_BUILD_ID ||
-          // 7D5 S3 / Q-H5: a fixed run item too. Only the storage count moved without it — one
-          // 600 mm module leaves the remainder this file asserts unchanged — but the input is E3's.
+          // A fixed run item too (ADR 0110 Q-H5): the leftover rule's input counts it.
           base.id === THRESHOLD_DRAWER_PLANNED_ID),
     )
     .reduce((sum, base) => sum + base.widthMm, 0);
   return planLeftover(run.endMm - run.startMm - fixedRunWidthMm);
 }
 
-/** 7D5 S3 / Q-H5: the threshold drawer's planned id, spelled as a literal so a wrong constant and a
- *  wrong composer cannot agree. */
+/** The threshold drawer's planned id, a literal so a wrong constant and a wrong composer cannot agree. */
 const THRESHOLD_DRAWER_PLANNED_ID = "threshold-drawer";
 
-/** 7D5b S2 / ADR 0110 M7/M10: E3's input with every run module the composer stood read as standing —
- *  `freeEndOf` above predates the traded dishwasher, whose module the leftover rule never gives. */
+/** E3's input with every run module the composer stood read as standing: `freeEndOf` omits the traded
+ *  dishwasher, whose module the leftover rule never gives. */
 function freeEndBesideEveryRunModuleOf(
   plan: KitchenCompositionPlan,
   room: DesignRoom,
@@ -152,8 +131,8 @@ function freeEndBesideEveryRunModuleOf(
   return planLeftover(run.endMm - run.startMm - standingWidthMm);
 }
 
-/** Q-H5's price is one tall column at most (owner, 2026-09-21), and in the approved policy the only
- *  block it is paid from is the full one: 3 -> 2. */
+/** Q-H5's price is one tall column at most, and in the approved policy the only block it is paid from is the
+ *  full one: 3 -> 2. */
 const FULL_BLOCK_COLUMNS = 3;
 const COLUMNS_A_THRESHOLD_DRAWER_MAY_COST = 1;
 
@@ -169,9 +148,9 @@ interface BlockStepDown {
   readonly thresholdDrawersAfter: number;
 }
 
-/** 7D5 S3 / Q-H5: the one step down the block may take besides `1 -> 0` — the full block losing
- *  exactly one column, in the room where a threshold drawer first stands. A room that already held
- *  the drawer has no new drawer to pay for a column it loses. */
+/** The one step down the block may take besides `1 -> 0`: the full block losing exactly one column, in the
+ *  room where a threshold drawer first stands. A room that already held the drawer has no new drawer to pay
+ *  for a column it loses. */
 function isAColumnPaidForByANewThresholdDrawer(step: BlockStepDown): boolean {
   return (
     step.fromColumns === FULL_BLOCK_COLUMNS &&
@@ -183,11 +162,9 @@ function isAColumnPaidForByANewThresholdDrawer(step: BlockStepDown): boolean {
 }
 
 /**
- * 7D5b S2 / ADR 0110 M7/M10: the dishwasher S2 traded in, told from S1's by where it stands. A traded
- * dishwasher is a run item read directly after the sink, so on the free-end wall it starts where the sink
- * ends; S1's M1 conversions never stand on the free-end wall, and (e)'s is marked by the pan drawer
- * carrying the preparation role. Measured over the approved L at 10 mm and 2600 mm against the tree with
- * S2 switched off: this signature finds exactly the 18 200 (b), 2 600 (d) and 10 400 (c) rooms.
+ * The dishwasher a trade stood in, told from M1's conversions by where it stands (ADR 0110 M7/M10). It is read
+ * directly after the sink, so on the free-end wall it starts where the sink ends; M1's conversions never stand
+ * on the free-end wall, and (e)'s is marked by the pan drawer carrying the preparation role.
  */
 function tradedDishwasherOf(plan: KitchenCompositionPlan, room: DesignRoom) {
   const wall = freeEndWallOf(room);
@@ -225,9 +202,8 @@ interface RoomsAcrossAStep {
   };
 }
 
-/** 7D5b S2 / ADR 0110 M7(b): a pantry column paid for by a dishwasher that stands in the room where one
- *  first stands — the room before had none at all — keeping at least the oven tower innermost, and the
- *  hob its drawers. */
+/** A pantry column paid for by a dishwasher that stands in the room where one first stands (the room before
+ *  had none), keeping at least the oven tower innermost and the hob its drawers (ADR 0110 M7(b)). */
 function isAPantryColumnTakenByANewDishwasher(
   rooms: RoomsAcrossAStep,
 ): boolean {
@@ -242,9 +218,9 @@ function isAPantryColumnTakenByANewDishwasher(
   );
 }
 
-/** 7D5b S2 / ADR 0110 M7(c), M10: the lone oven tower taken by the dishwasher where (d) no longer fits —
- *  the room before stood its traded dishwasher in the bottle's place beside the tower; this one gives the
- *  bottle back, gives up the tower, and the hob carries the oven. */
+/** The lone oven tower taken by the dishwasher where (d) no longer fits (ADR 0110 M7(c)): the room before
+ *  stood its traded dishwasher in the bottle's place beside the tower; this one gives the bottle back, gives
+ *  up the tower, and the hob carries the oven. */
 function isTheTowerTakenWhereTheBottleTradeStops(
   rooms: RoomsAcrossAStep,
 ): boolean {
@@ -292,16 +268,11 @@ const approvedRoom = fc.record({
 });
 
 describe("E3 clause 1 decides something, and it is asserted where it decides it", () => {
-  // Criterion 6's "**must not:** a block in a room whose `dropped` list is non-empty". The clause is
-  // R5 stated as a precondition: a kitchen that gave up its fridge for want of space has no business
-  // gaining a second oven.
+  // A kitchen that dropped a core role for want of space must not gain a block.
   //
-  // **Swept rather than sampled, and that is the point.** Removing `coreSurvivedWhole` from
-  // `isABlockAffordable` changes the plan in 0.06 % of the approved policy — two wall A values per
-  // wall B — so a uniform property over 4 000 rooms draws the deciding room about once and passes
-  // whether the clause is there or not. The dropped-core counter fails when the sweep stops reaching
-  // the invariant. After 7D5 S1 the optional bottle consumes the formerly discriminating leftover,
-  // so the counter that claimed clause 1 alone decided those rooms no longer has a live population.
+  // Swept, not sampled: removing `coreSurvivedWhole` from `isABlockAffordable` changes only a fraction of a
+  // percent of the approved policy, so a uniform property over 4 000 rooms draws the deciding room about once
+  // and passes either way. The counter fails when the sweep stops reaching the invariant.
   it("stands no block in a room that dropped a core role, wherever that is decidable", () => {
     let droppedCoreRooms = 0;
     for (
@@ -337,16 +308,9 @@ describe("E3 clause 1 decides something, and it is asserted where it decides it"
 });
 
 describe("no body is silently planned over its own module", () => {
-  // The half of the compensating defect that `generation-priorities.test.ts`'s remainder assertion
-  // does **not** claim, and the one that makes the pair impossible to *build* rather than merely
-  // visible: every composed body stands at a width its own declaration accounts for, **per body**,
-  // including the columns' bound. A storage cabinet silently planned at 700 mm is a cabinet the
-  // customer is charged 600 for, and it survives a later wave that changes how remainders are
-  // reported.
-  //
-  // The modulo identity itself is asserted once, where its subject lives — `planKitchenComposition`'s
-  // own suite, narrowed in place to subtract only E6.2's absorb. A second copy here would be the
-  // duplication this wave spent its criterion 23 avoiding.
+  // Every composed body stands at a width its own declaration accounts for, per body, including the columns'
+  // bound: a storage cabinet silently planned at 700 mm is charged as 600. The modulo identity itself is
+  // asserted once, in `planKitchenComposition`'s own suite.
   it("plans every composed body at a width its declaration accounts for", () => {
     const declaredCoreWidthMm = new Map(
       GENERATION_PRIORITIES.map((priority) => [
@@ -379,26 +343,17 @@ describe("no body is silently planned over its own module", () => {
             continue;
           }
           if (base.buildId === PAN_DRAWER_BASE_BUILD_ID) {
-            // **Added by 7D5 S2 as a branch of its own, not by widening the slot pair below.** The
-            // pan drawer is a run item the composer reads before the hob (ADR 0110 Amendment J1),
-            // not a body a composed slot takes, so putting `base-panbank` into the pair would let a
-            // slot silently take it and stay green — and so would this branch, were it not to refuse
-            // a composed slot's id. This file's subject is the width, and the width is one storage
-            // module. Where it stands, in which rooms and at what cost is asserted per
-            // room in `tests/generation/pan-drawer-before-the-hob.test.ts` (the census), per ADR 0091
-            // Amendment A.2 — this branch is not authority for any of that.
+            // A branch of its own, not a widening of the slot pair below: `base-panbank` in the pair would let a
+            // composed slot silently take it. Where it stands is asserted in `pan-drawer-before-the-hob.test.ts`.
             expect(declared, label).toBeDefined();
             expect(isComposedStorageSlot(base), label).toBe(false);
             expect(base.widthMm, label).toBe(STORAGE_MODULE_WIDTH_MM);
             continue;
           }
           if (base.buildId === DISHWASHER_BUILD_ID) {
-            // 7D5b S1 / ADR 0110 M1/M8/M9: **a declared branch of its own, not a third member of the
-            // slot pair below**, for the pan drawer's reason. The dishwasher re-identifies a module
-            // already planned beside the sink (a 600 mm door slot under M1, the preparation 3-drawer
-            // under M7(e)) and never changes its width; adding it to the pair would let any composed
-            // slot silently take it. So it must refuse a composed slot's id, and stand at the one width
-            // the catalogue's discrete list offers the generator.
+            // Same reason as the pan drawer: it re-identifies a module already planned beside the sink and never
+            // changes its width, so it must refuse a composed slot's id and stand at the catalogue's one discrete
+            // width (ADR 0110 M1/M8/M9).
             expect(declared, label).toBeDefined();
             expect(isComposedStorageSlot(base), label).toBe(false);
             expect(base.id, label).toBe("dishwasher");
@@ -408,26 +363,23 @@ describe("no body is silently planned over its own module", () => {
             continue;
           }
           if (declared?.band !== "column") {
-            // **Widened by 7D4 S2, and reported as a deviation rather than made quietly.** This
-            // file's subject is the **width**, and the width clause below is byte-unchanged. The
-            // identity clause said *the door body and nothing else*, which 7D4 makes false on
-            // purpose: the slot standing first after the hob in the reading order takes the drawer
-            // body (ADR 0110 Amendment H1, 7D4 D15.7). Widened to the pair a slot may take rather
-            // than deleted, so a third body planned into a composed slot still fails here.
-            //
-            // **The identity invariant moved rather than weakened, and this is where it went:**
-            // `tests/generation/drawer-rows.test.ts`, *"gives a kitchen at most one drawer slot, and
-            // it is always the first after the hob"* — set equality against
-            // `slotsAfterTheHob(plan).slice(0, 1)`, so too many drawers and too few both fail.
-            // **The clause below cannot make that distinction and must not be read as authority for
-            // it**: it stays green whether one composed slot holds a drawer or every one does, which
-            // was measured in both directions. ADR 0091 Amendment A.2 admits a widening **only**
-            // with this pointer; without it the clause reads as proving a property it cannot see.
+            // The pair a composed slot may take: the door body, or the drawer body for the slot first after the hob
+            // (ADR 0110 Amendment H1). Widened rather than deleted, so a third body still fails here. This clause
+            // cannot tell one drawer slot from every slot a drawer: `drawer-rows.test.ts` asserts that
+            // (ADR 0091 Amendment A.2).
             expect(
               [DOOR_BASE_BUILD_ID, THREE_DRAWER_BASE_BUILD_ID],
               label,
             ).toContain(base.buildId);
-            expect(base.widthMm, label).toBe(STORAGE_MODULE_WIDTH_MM);
+            // One module plus what the owner's Q6 gives the cabinet beside an end fridge, worked out from the run and
+            // the fridge's span, so a slot widened by any other amount still fails on its width.
+            expect(base.widthMm, label).toBe(
+              ruledSlotWidthMm(
+                plan,
+                base,
+                lShellFloorRuns(room)[base.wall].endMm,
+              ),
+            );
             continue;
           }
           // A column is its declared width, except the outermost one, which is the `'fit'` door
@@ -452,22 +404,16 @@ describe("no body is silently planned over its own module", () => {
   });
 });
 
-// The plannable-build-id guard that slice S2 outgrew lives where its subject does — it is E7's
-// input, so it is repaired in `qa-7d3-upper-suppression.adversarial.test.ts` rather than copied
-// here. A second copy would be the second authority this wave spent its criterion 23 avoiding.
-
 describe("exactly one oven, read off the built kitchen", () => {
-  // Criterion 2 in both directions, and deliberately **not** through `assertExactlyOneOven`: that
-  // post-condition is production's own, so a test that only observes it passing observes production
-  // agreeing with itself. This counts the bodies in the design.
+  // Not through `assertExactlyOneOven`: that post-condition is production's own, so observing it pass observes
+  // production agreeing with itself. This counts the bodies in the design.
   it(
     "carries one oven-bearing body in every generated kitchen, in both arms",
     { timeout: 60_000 },
     () => {
       const arms = { withATower: 0, withoutOne: 0 };
       let generated = 0;
-      // Generation is swept, not the policy (M7 7A3): wall A keeps the pre-7A3 6300, and wall B adds
-      // the band the policy admits since, from its first value to its maximum.
+      // Generation is swept, not the policy: wall A to 6300, wall B from its first value to its maximum.
       for (let widthMm = 900; widthMm <= 6300; widthMm += 9) {
         for (const depthMm of [
           1000,
@@ -511,26 +457,17 @@ describe("exactly one oven, read off the built kitchen", () => {
 });
 
 describe("the block shrinks in exactly one shape, swept in two dimensions", () => {
-  // Criterion 22. The wave's own sweep holds wall B at 1700; the `1 → 0` claim is about the whole
-  // policy, and a `2 → 1` step reachable only at some other wall B would be invisible to it.
+  // Swept across wall B because a `2 -> 1` step reachable only at some other wall B would be invisible at 1700.
   it("never steps down except from one column to none, over every sampled wall B", () => {
-    // **7D5 S3 / Q-H5, restated narrowly** (owner ruling 2026-09-21): the threshold drawer may cost
-    // the block one tall column — 9 600 rooms of the approved 10 mm grid step 3 → 2 for it. That step
-    // is sanctioned only as 3 -> 2, only into the room where exactly one `threshold-drawer` first
-    // stands (its neighbour had none); every other step down that is not `1 -> 0` still fails. Was: `steps.filter(step => !step.startsWith("1->0"))` equal to `[]`.
-    //
-    // **7D5b S2 / ADR 0110 M7/M10, restated narrowly again.** The dishwasher's trades add two ruled
-    // steps, each attributed exactly: (b)'s one pantry column, only into the room where a traded
-    // dishwasher first stands and the oven tower stays innermost (5102 x 1000/1200/1600, 4402 x 1700);
-    // and (c)'s `1 -> 0`, only where (d)'s dishwasher beside the tower gives way to (c)'s beside the
-    // bottle (4602 x 1000/1200/1600, 3902 x 1700). And `1 -> 0` itself is no longer sanctioned bare: it
-    // must be E6.2's refusal — remainder inside the window, no traded dishwasher either side — or (c).
-    // Was: `!(previous === 1 && size === 0)` accepted any `1 -> 0`.
+    // Sanctioned steps down: `1 -> 0` only as E6.2's refusal (remainder inside the window, no traded dishwasher
+    // either side) or (c)'s tower trade; 3 -> 2 only into the room where exactly one `threshold-drawer` first
+    // stands (ADR 0110 Q-H5); (b)'s one pantry column only into the room where a traded dishwasher first stands
+    // with the oven tower innermost.
     const steps = new Map<string, number>();
     const unsanctioned: string[] = [];
     let paidForByAThresholdDrawer = 0;
     const tradeSteps = { pantryColumn: 0, ovenTower: 0, loneTowerRefused: 0 };
-    // Wall B reaches the policy's maximum, through the band M7 7A3 admitted from 5101.
+    // Wall B reaches the policy's maximum, including the band from 5101.
     for (const depthMm of [
       1000,
       1200,
@@ -586,8 +523,7 @@ describe("the block shrinks in exactly one shape, swept in two dimensions", () =
     }
 
     expect(unsanctioned).toEqual([]);
-    // 7D5b S2 / ADR 0110 M7/M10: each sanctioned shape reached, pinned so a trade that stops (or starts)
-    // stepping the block in these twelve wall B sweeps fails on the count.
+    // Each sanctioned shape is reached, so a trade that stops or starts stepping the block fails on the count.
     expect(tradeSteps).toEqual({
       pantryColumn: 4,
       ovenTower: 4,
@@ -605,19 +541,10 @@ describe("the block shrinks in exactly one shape, swept in two dimensions", () =
 });
 
 describe("the centring hazard across the whole absorb window", () => {
-  // **7D5's owed absorb-window re-measurement, re-taken at 7D5b S2 / ADR 0110 M7/M10** (M7 plan, 7D5b
-  // slice S2: *"7D5's owed absorb-window re-measurement … bind[s] here"*). The window is the rooms where
-  // E3 would stand a block — no core role dropped, a leftover module at the free end — and the free end's
-  // remainder is `0 < r <= 200`, so E6 / E6.2 decides it: the outermost door column takes the merged
-  // opening (block of two or three), or a lone fixed-width tower cannot and the block falls to none.
-  //
-  // The free end is read beside every run module the composer stood — the core, the bottle, the pan and
-  // threshold drawers, and a traded dishwasher. **S2 moves no room into or out of the window**: its
-  // dishwasher takes one whole 600 mm module, so the remainder is unchanged; measured identical against
-  // the tree with S2 switched off (74 700 / 64 300 / 10 400), and at 2200 and 3900 mm ceilings. What S2
-  // moves is inside it: 5 200 window rooms carry a (b) dishwasher, each a three-column block now two.
-  // Not comparable with 7D5 E6's 39 530 / 53 320, which counted wall A's remainder over the pre-7A3
-  // rectangle before 7D8 re-keyed the run and before 7A3 widened the policy.
+  // The window is the rooms where E3 would stand a block (no core role dropped, a leftover module at the free
+  // end) with the free end's remainder `0 < r <= 200`, so E6 / E6.2 decides: the outermost door column takes the
+  // merged opening, or a lone fixed-width tower cannot and the block falls to none. The free end is read beside
+  // every run module the composer stood, a traded dishwasher included; that module is a whole 600 mm.
   it("pins the window at the approved L's 10 mm grid: 74 700 rooms, 64 300 absorbed, 10 400 lone towers refused", () => {
     const census = {
       placed: 0,
@@ -672,13 +599,12 @@ describe("the centring hazard across the whole absorb window", () => {
     });
   }, 120_000);
 
-  // Criterion 8 / risk 1. The wave pins 4000 x 3000 as its witness; the window is `0 < r <= 200` and
-  // covers about a third of eligible rooms. A merge that fired at one remainder and not another, or
-  // that left the run short of the wall's reachable end, is invisible to a single witness.
+  // A merge that fired at one remainder and not another, or left the run short of the wall's reachable end, is
+  // invisible to a single witness; the window is `0 < r <= 200`.
   it("leaves the tower's opening at 600, the run flush, and no column resized, at every remainder in the window", () => {
     const remaindersSeen = new Set<number>();
     let roomsInTheWindow = 0;
-    // The pre-7A3 approved rectangle, kept on purpose: the planner is swept, not the policy (M7 7A3).
+    // Fixed depths and widths 900-6300, not the approved policy: the planner is what is swept.
     for (const depthMm of [1700, 2400, 3000, 4100, 5100]) {
       for (let widthMm = 900; widthMm <= 6300; widthMm += 1) {
         const room = roomOf(widthMm, depthMm);
@@ -745,13 +671,8 @@ describe("the centring hazard across the whole absorb window", () => {
       remaindersSeen.size,
       "one remainder proves nothing about a 200 mm window",
     ).toBeGreaterThan(20);
-    // **Given a budget, not left on the 5 s default, and the coverage is not the thing to cut.**
-    // Measured 2026-09-16: 3 710 ms run alone, 4 912 ms inside the full suite — 98 % of the default,
-    // so it passes in isolation and fails under parallel load. It plans ~27 000 rooms because the
-    // window is `0 < r <= 200` across five depths, and this sweep is the *only* thing in the tree
-    // that catches a tower centred in a merged void: `insertPlannedBase`'s width check compares the
-    // body's width against the planned width, which a fixed-width body dropped into a wider opening
-    // passes (7D3 close-out, finding 1). Sampling the window would return exactly the hole the
-    // sweep exists to close.
+    // Budgeted explicitly, as it is slower than the 5 s default under parallel load. It plans ~27 000 rooms and is
+    // the only thing that catches a tower centred in a merged void (`insertPlannedBase`'s width check passes a
+    // fixed-width body in a wider opening); sampling the window would reopen that hole.
   }, 120_000);
 });

@@ -1,19 +1,8 @@
 /**
- * The refusal that turns ADR 0096 decision 3's "runs against each deployed environment by name"
- * from a printed line into a checked one.
- *
- * `migrate` and `migrate:status` are both told which environment they are checking, as a required
- * argument. Until now nothing compared that declaration with the database `MIGRATION_DATABASE_URL`
- * actually reaches — `migrate` did not even read its argument (G1 of
- * `docs/milestones/migration-environment-safety-check.md`), and `migrate:status` only printed both
- * names side by side. On 2026-09-28 that gap let `pnpm --filter @lemnaria/persistence run migrate
- * preview`, read as a database selector, apply two migrations to production ahead of schedule
- * because the credential in scope was production's all along.
- *
- * This module holds no I/O and no CLI wiring — see `migrate.ts` and `migrate-status.ts` for where
- * the check is called, always before either command opens a connection or reads anything. It only
- * ever refuses; it never selects or guesses a database, so ADR 0096 decision 3 is extended rather
- * than amended.
+ * Turns ADR 0096 decision 3's "runs against each deployed environment by name" from a printed line into a checked one:
+ * `migrate` and `migrate:status` take the environment as a required argument, and this compares it with the database
+ * `MIGRATION_DATABASE_URL` reaches. Both CLIs call it before they connect. No I/O; it only refuses and never selects
+ * or guesses a database. Without it, `migrate preview` could apply migrations to production on a production credential.
  */
 
 import {
@@ -23,22 +12,10 @@ import {
 import { ALLOWED_TEST_DATABASE_NAMES } from "./test-database-url.js";
 
 /**
- * The permanent environments this repository deploys to, and the database name(s) each one's
- * credential may legitimately reach.
- *
- * A `Map`, not an object literal, so a declared label of `__proto__`, `constructor` or `toString`
- * is never "listed" by accident. `test` is **the same array reference** as
- * `ALLOWED_TEST_DATABASE_NAMES`, imported rather than copied, so the two can never drift apart
- * (ADR 0102: a second list of test-database names would be a second authority for one fact).
- *
- * No `staging` key, deliberately. `lemn-conf-v2-staging` is not a staging environment — every live
- * suite deletes rows from it, and `.env.example` and `test-database-url.ts` both warn against the
- * misreading a `staging` label would teach. Declared `staging`, a run is refused, and the refusal
- * names `test`, the environment that actually claims that database.
- *
- * Adding a fourth permanent environment is a one-line reviewed edit, exactly as an entry to
- * `ALLOWED_TEST_DATABASE_NAMES` already is. A temporary or ad-hoc database — a restore drill, say —
- * needs no edit here at all: `assertDeclaredEnvironmentReaches` admits it under its own name.
+ * The permanent environments and the database name(s) each one's credential may reach. A `Map`, so a label such as
+ * `__proto__` or `toString` is never "listed" by accident. `test` is the same array as `ALLOWED_TEST_DATABASE_NAMES`,
+ * imported so the two cannot drift (ADR 0102). No `staging` key: `lemn-conf-v2-staging` is a test database every live
+ * suite deletes from, so a `staging` label is refused and told to say `test`.
  */
 export const DATABASE_NAMES_BY_ENVIRONMENT: ReadonlyMap<
   string,
@@ -49,28 +26,19 @@ export const DATABASE_NAMES_BY_ENVIRONMENT: ReadonlyMap<
   ["test", ALLOWED_TEST_DATABASE_NAMES],
 ]);
 
-/** `databaseNameOf`'s own placeholder for a connection string it could not parse (`migrate.ts`),
- *  duplicated here rather than imported. `migrate.ts` imports this module to call the check below,
- *  so importing the placeholder back would put this pure module in an import cycle with a CLI file.
- *  The two are kept from drifting apart by `migration-target.test.ts`, which feeds the check the
- *  placeholder `databaseNameOf` actually returns for a malformed URL rather than asserting this
- *  literal in isolation. */
+/** `databaseNameOf`'s placeholder for an unparseable connection string (`migrate.ts`), duplicated rather than
+ *  imported: `migrate.ts` imports this module, so importing it back would make an import cycle. */
 const UNPARSEABLE_DATABASE_NAME = "<unparseable connection string>";
 
-/** `databaseNameOf`'s placeholder for a connection string that parses but is not a plain
- *  `postgres:`/`postgresql:` URL with a host (Findings A/B, security and logic review) — duplicated
- *  here for the same import-cycle reason as `UNPARSEABLE_DATABASE_NAME` above, and kept from
- *  drifting apart by the same style of test. */
+/** `databaseNameOf`'s placeholder for a string that parses but is not a `postgres:`/`postgresql:` URL with a host;
+ *  duplicated for the same import-cycle reason. */
 const UNTRUSTED_CONNECTION_SHAPE =
   "<connection string is not a postgres:// or postgresql:// URL with a host>";
 
 /**
- * The environment this run declares it is checking. Required, and never defaulted: ADR 0096
- * decision 3 asks for a guard that runs "against each deployed environment by name", and a default
- * is how a check ends up aimed at whatever the machine happened to hold.
- *
- * `commandName` names the CLI that is asking, so the usage line an operator reads tells them to
- * re-run the command they actually typed — `migrate` never tells them to run `migrate:status`.
+ * The environment this run declares it is checking. Required and never defaulted (ADR 0096 decision 3): a default is
+ * how a check ends up aimed at whatever the machine happened to hold. `commandName` makes the usage line name the
+ * command the operator actually typed.
  */
 export function readDeclaredEnvironment(
   argv: readonly string[],
@@ -88,26 +56,14 @@ export function readDeclaredEnvironment(
 }
 
 /**
- * Refuses to proceed when the declared environment and the database
- * `MIGRATION_DATABASE_URL` reaches disagree. Called by both CLIs before they open a connection or
- * read anything, so a mismatch leaks no credential and does no work — see `migrate.ts` and
- * `migrate-status.ts`.
- *
- * The rule, matching `docs/milestones/migration-environment-safety-check.md`'s *Decision* 2:
- * - a **listed** environment (`production`, `preview`, `test`) passes only when the database
- *   reached is one of that environment's own names;
- * - an **unlisted** label passes only as the exact, unclaimed name of the database it reaches — an
- *   ad-hoc database (a restore drill, say) is declared by its own name, and a listed environment's
- *   database can never be reached under any other label, so `migrate lemn-conf-v2` is refused and
- *   told to say `production`;
- * - an empty database name, `databaseNameOf`'s unparseable placeholder, and its untrusted-connection-
- *   shape placeholder (a scheme other than `postgres:`/`postgresql:`, or no host at all) are always
- *   refused;
- * - a database name whose raw path contains `%` or `\` is always refused, regardless of what
- *   environment is declared (see `hasUndecodedPathCharacters` below).
- *
- * Receives only the two names, never a connection string: the refusal this throws is built from
- * `environment` and `databaseName` alone, so it can never quote a credential.
+ * Refuses to proceed when the declared environment and the database `MIGRATION_DATABASE_URL` reaches disagree. Both
+ * CLIs call it before they open a connection, so a mismatch does no work. The rule
+ * (`docs/milestones/migration-environment-safety-check.md`, Decision 2):
+ * - a listed environment passes only when the database reached is one of its own names;
+ * - an unlisted label passes only as the exact, unclaimed name of the database it reaches, so a listed environment's
+ *   database is never reachable under another label;
+ * - an empty name, either `databaseNameOf` placeholder, or a raw path containing `%` or `\` is always refused.
+ * Receives only the two names, never a connection string, so a refusal can never quote a credential.
  */
 export function assertDeclaredEnvironmentReaches({
   environment,
@@ -131,33 +87,17 @@ export function assertDeclaredEnvironmentReaches({
 }
 
 /**
- * `databaseNameOf` returns a connection string's path exactly as written — still percent-encoded,
- * with any backslash untouched — but `@neondatabase/serverless`'s WebSocket `Client` re-parses the
- * URL and decodes the path (`decodeURIComponent`, then `decodeURI`, treating `\` as a path
- * separator) before it connects. A raw path of `/lemn%2Dconf%2Dv2` therefore reaches this check as
- * the literal, unclaimed string `lemn%2Dconf%2Dv2` while the driver actually connects to
- * `lemn-conf-v2` — an unlisted label equal to that raw string would otherwise pass as its own
- * unclaimed ad-hoc database and then reach a listed environment's database at connect time.
- *
- * Refusing every raw path containing either character, unconditionally, closes the
- * percent-encoding/backslash-separator class of bypass rather than only the specific encodings this
- * was found with: a real Neon database name is a plain identifier and never contains `%` or `\`, so
- * a path that does is inherently suspicious regardless of what it would decode to. This deliberately
- * does not reproduce the driver's decode algorithm — a second copy of that logic here could itself
- * drift from a future driver quirk.
- *
- * This is not the only class of check-versus-driver disagreement, and does not claim to be: a
- * connection string with no `//` authority at all (`postgres:/user:pw@host/db`) diverges from the
- * driver in a different way that contains neither `%` nor `\`, and is refused separately —
- * `databaseNameOf` never lets that shape reach this function as a raw name at all (see its own doc
- * comment and `UNTRUSTED_CONNECTION_SHAPE` below).
+ * `databaseNameOf` returns the path as written, but the driver's WebSocket `Client` decodes it (`decodeURIComponent`,
+ * `decodeURI`, `\` as a path separator) before connecting, so a raw `lemn%2Dconf%2Dv2` would pass as an unclaimed
+ * ad-hoc name while the driver reaches `lemn-conf-v2`. Any `%` or `\` is refused unconditionally: a real Neon database
+ * name has neither, and reproducing the driver's decode here could drift from it. A string with no `//` authority
+ * diverges differently and never reaches this function (see `databaseNameOf`).
  */
 function hasUndecodedPathCharacters(databaseName: string): boolean {
   return /[%\\]/.test(databaseName);
 }
 
-/** The permissive half of the unlisted rule: an ad-hoc label is trusted only as the database's own,
- *  unclaimed name — never as a listed environment's name under a different label. */
+/** The permissive half of the unlisted rule: an ad-hoc label is trusted only as the database's own unclaimed name. */
 function reachesItsOwnUnclaimedName(
   environment: string,
   databaseName: string,
@@ -167,11 +107,9 @@ function reachesItsOwnUnclaimedName(
   return environmentClaiming(databaseName) === undefined;
 }
 
-/** The three placeholders `describeReachedDatabase` names below (empty, unparseable, and not a
- *  plain postgres/postgresql URL with a host): no label, listed or unlisted, may ever reach any of
- *  them, and no re-export of the same `MIGRATION_DATABASE_URL` can change that — only a different,
- *  valid connection string can. Shared by the unlisted-label check above and by the retry guidance
- *  in `buildRefusal` below, so the two can never describe this class of value differently. */
+/** The three placeholders (empty, unparseable, not a postgres URL with a host): no label may reach them, and
+ *  re-exporting the same URL cannot help, only a different valid one. Shared by the label check and
+ *  `describeRetryGuidance` so they describe this class of value the same way. */
 function isNeverTrustedShape(databaseName: string): boolean {
   return (
     databaseName === "" ||
@@ -180,9 +118,8 @@ function isNeverTrustedShape(databaseName: string): boolean {
   );
 }
 
-/** The listed environment whose own names include `databaseName`, if any. Consulted both to decide
- *  whether an unlisted label may pass and to name, in a refusal, which environment a mismatched
- *  database actually belongs to. */
+/** The listed environment whose own names include `databaseName`: decides whether an unlisted label may pass, and
+ *  names the owner in a refusal. */
 function environmentClaiming(databaseName: string): string | undefined {
   for (const [environment, names] of DATABASE_NAMES_BY_ENVIRONMENT) {
     if (names.includes(databaseName)) return environment;
@@ -203,8 +140,7 @@ function refuseListedMismatch(
   );
 }
 
-/** A single name is quoted bare; more than one is quoted as a list, so `production`'s refusal reads
- *  "reaches "lemn-conf-v2"" while `test`'s reads "reaches one of "lemnaria_test", "...-staging"". */
+/** A single name is quoted bare; several are quoted as a list. */
 function describeExpectedNames(names: readonly string[]): string {
   const quoted = names.map((name) => `"${name}"`);
   const [onlyName] = quoted;
@@ -213,9 +149,8 @@ function describeExpectedNames(names: readonly string[]): string {
     : `one of ${quoted.join(", ")}`;
 }
 
-/** The refusal for a raw path shaped like a decode bypass — see `hasUndecodedPathCharacters`. Named
- *  separately from `refuseUnlistedMismatch` because "an unclaimed name" is the wrong expectation to
- *  print here: no environment may ever declare a name like this, listed or not. */
+/** The refusal for a raw path shaped like a decode bypass (see `hasUndecodedPathCharacters`). "An unclaimed name" would
+ *  be the wrong expectation to print: no environment may declare such a name. */
 function refuseUndecodedPathCharacters(
   environment: string,
   databaseName: string,
@@ -256,15 +191,8 @@ function buildRefusal(
   );
 }
 
-/**
- * The retry advice appended to every refusal above.
- *
- * A never-trusted shape (`isNeverTrustedShape`) gets its own sentence rather than the general one
- * below: that sentence's "if this really is your intended target, set MIGRATION_DATABASE_URL…" would
- * wrongly suggest an operator could make an empty, unparseable, or non-postgres connection string
- * pass by re-exporting the same value — no label ever admits one, so the only fix is a different,
- * valid URL.
- */
+/** The retry advice appended to every refusal. A never-trusted shape gets its own sentence: the general advice would
+ *  suggest re-setting the same value, and no label admits one. */
 function describeRetryGuidance(
   environment: string,
   databaseName: string,

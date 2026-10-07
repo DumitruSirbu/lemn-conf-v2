@@ -7,6 +7,10 @@ Milestone: M6 — implements [ADR 0081](0081-a-material-change-confirms-only-whe
 **corrects wave 6Q-c's presence condition and the scope of ADR 0081 decision 4's inequality**; binds
 wave 6Q-c
 
+**Pointer, 2026-10-01.** The confirmation component is now shared with the editor's back links, with
+other copy ([ADR 0104 Amendment D](0104-the-mockups-are-the-chrome-specification-and-the-strips-own-row-is-withdrawn.md#amendment-d-2026-10-01--q1-answered-the-back-to-room-link-is-drawn-on-desktop-and-both-back-links-ask-before-they-leave)).
+What counts as a chosen colour, and which change owes one, is unchanged. Nothing here is struck.
+
 ## Context
 
 [ADR 0081](0081-a-material-change-confirms-only-when-a-chosen-colour-would-be-lost.md) (2026-09-05)

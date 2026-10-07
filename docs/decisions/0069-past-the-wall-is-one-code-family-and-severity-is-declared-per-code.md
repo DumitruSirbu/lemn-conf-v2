@@ -8,6 +8,11 @@ decision 7; amends [ADR 0053](0053-the-design-document-records-the-whole-frozen-
 list; leaves [ADR 0044](0044-an-empty-space-is-recorded-in-the-design-document.md)'s nine refusals
 intact in meaning.
 
+**Pointer, 2026-10-01.** The corner sweep's reach for a recorded column that holds members is banded by
+the body it is compared with ([ADR 0110 Amendment O](0110-generation-inserts-through-the-command-path-and-the-corner-is-structural-data.md#amendment-o--2026-10-01-a-fixed-corner-wall-unit-stands-over-every-generated-corner-the-top-row-the-validators-banded-reach-and-the-fridge-gap-absorb),
+O5). It can only remove a finding. No code is added and no severity is changed by it [per the plan, C2 S2
+item 6; not re-read in `validate-design.ts` by the scribe]. Nothing here is struck.
+
 ## Context
 
 Wave 6A3 demoted **one** validation code — `PLACEMENT_PAST_WALL_END` — out of the findings that

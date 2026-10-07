@@ -1,74 +1,10 @@
-// M7 wave 7D5b slice S0 — the plan's figures re-taken from the real planner at HEAD `acb7b6f`, before
-// any 7D5b production edit, over the approved L rectangle on a 10 mm grid at 2200, 2600 and 3900 mm.
+// Re-takes the milestone plan's figures (E1-E8) from the real planner over the approved L rectangle, on a 10 mm grid
+// at 2200, 2600 and 3900 mm ceilings. Every HEAD figure is read off HEAD's plan reconstructed on S0b's plan
+// (`planBeforeS0b`); that reconstruction is proved byte for byte only on the 496 rooms the pre-tower recording holds.
+// The S0b and S1 models restate the plan's arithmetic over the real composer's context; they do not prove S0b or S1.
 //
-// **What this file measures, and in which tier.** The plan (`docs/milestones/M7-room-and-presets.md`,
-// *Wave 7D5b*, E1–E8) was measured on a scratch build with the wave's rules behind switches. S0 owes a
-// re-take from the repository's own suites, and a divergence is a finding about the plan. Two tiers:
-//
-// - **HEAD facts** — read off the plans `planKitchenComposition` returns today: E1's HEAD column, E2's
-//   M1 population and its arms, E4's free-end rooms, E6's (e) eligibility, and E7's bottle-cost
-//   populations. E7 asks what the block would keep **without** the bottle, so it is answered by the
-//   composer's own `tallColumnCountOf`, captured from the call HEAD makes (see
-//   `composition-context-capture.ts`) rather than re-derived here.
-// - **Models of S0b and S1, over the real composer's context** — E7's after-S0b totals and E3's
-//   *dishwasher first* effect on the threshold drawer. Neither rule exists at HEAD, so these are the
-//   plan's own arithmetic restated as questions to `planOf` / `tallColumnCountOf`, and they are
-//   evidence that the plan's figures follow from HEAD, **not** evidence that S0b or S1 builds them.
-//   Those slices' own criteria are the proof, and this model is not a substitute for them.
-//
-// **Not re-taken here, because nothing at HEAD can answer them:** E8's (b), (d) and (c) trades and
-// every E1 figure after S2 (196 621 dishwashers, 156 886 oven-tower rooms, 367 428 columns, 173 691
-// bottles, 48 590 without). They need S2's insertion and shift, which is S2's to build and S2's QA to
-// measure.
-//
-// **Restated for S0b (ADR 0110 Amendment M11, narrowed), which changes 5 260 rooms per ceiling and so
-// takes HEAD's plan out of the live planner's reach.** Each assertion now says which plan it reads:
-//
-// - **Re-pointed at the recording: every HEAD figure.** They are read off **HEAD's plan,
-//   reconstructed**: the live plan, except in the rooms where the restated decision says S0b kept the
-//   tower, where it is the composer's own plan of the run HEAD decided there (S1's bottle kitchen). The
-//   reconstruction is proved to be HEAD's output, byte for byte, **only on the 496 rooms the pre-tower
-//   recording holds** (480 drawn, 16 witnesses, captured at `acb7b6f`; the first test below). Over the
-//   other ~245 000 placed rooms per ceiling the "HEAD column" is that reconstruction, not a measurement
-//   of HEAD: where the restatement of M11 is false it **is** the live plan, so a production change
-//   outside M11's rooms would move the HEAD figures and the live ones together, and no room-by-room
-//   comparison here would name it. What would catch it is aggregate: E1's HEAD column, E2, E4, E6 and
-//   E7's populations are still pinned to the figures S0 took from the live planner at `acb7b6f`,
-//   before S0b existed, so a change that moves any of those counts goes red; a change that moves none
-//   of them is caught only by the recordings' 496 rooms. The full-grid HEAD-against-S0b diff (5 260
-//   rooms per ceiling, no other room changed) is a scratch measurement by the implementer and QA, not a
-//   test here.
-// - **Live, restated to post-S0b figures:** the reconstruction check of the composer's decision (now
-//   with M11 in it), E1's post-S0b column, E7's post-S0b outcome by room (which replaces the old
-//   *"the hob is not the oven"* list, now 5 260 rooms by design), T3's outcome for the 41 400
-//   outer-column rooms M11 must leave alone, S0b's own census (which replaces the
-//   S0b model: `columnsRegained` is now the live plan against HEAD's), the dishwasher-first model (which
-//   was already modelled on top of S0b, and now reads the live plan), and E2's tie guard.
-//
-// **Restated for S1 (ADR 0110 Amendment M1, M2), which adds the dishwasher to `planOf` and so to every
-// plan the live planner returns.** Nothing here measures S1 (`dishwasher-beside-the-sink.test.ts` does).
-// Every figure keeps its figure and changes only the plan it is read from:
-//
-// - **S0b's plan** is the planner with S1's leaf switched off (`beforeS1`, `composition-context-capture`),
-//   proved byte for byte against the post-tower recording by `qa-7d5b-post-tower-recorded`. What the
-//   header above calls *live, post-S0b* — E1's post-S0b column, E7's outcomes, T3, S0b's census and
-//   the dishwasher-first model — reads it, as do the composer's counterfactual plans (`planOf`) those
-//   figures ask for.
-// - **HEAD's plan** is reconstructed on S0b's plan (`planBeforeS0b`), and proved against the pre-tower
-//   recording as before.
-// - **Live, with S1**: the decision restatement is checked a second time on the live plan, and **E2's
-//   tie guard reads every plan the live leaf was handed** — the final run's and each threshold
-//   candidate's — rather than a finished plan, in which M1 has already converted the door slot and a
-//   tie could no longer be seen.
-//
-// **Restated for S2 (ADR 0110 Amendment M7 (b), (d), (c), M10).** S2 trades a dishwasher in after the
-// pan-drawer and bottle decision, where S1 placed none, so the finished live plan is no longer `planOf`
-// of the decided run in the traded rooms. `beforeS1` now switches S2's trades off as well as the leaf,
-// so S0b's plan is S0b's again; the decision restatement is checked on S1's plan (`withS1Alone`), and
-// a live mismatch is allowed only in a room S2 traded in — one whose live plan differs from S1's.
-//
-// Every body, id and width is a literal (ADR 0121 decision 3(b)), and a composed storage slot is
-// reached through `isComposedStorageSlot`, never through its id.
+// Every body, id and width is a literal and a composed storage slot is reached through `isComposedStorageSlot`,
+// never through its id (ADR 0121 decision 3(b)).
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
 import {
@@ -88,8 +24,7 @@ import {
 } from "../../src/index.js";
 import { canonicalPlan } from "../support/composed-run-baseline.js";
 
-// M7B U1 slice S1's minimal type-level fix: `DesignWall` widened to include `"C"` (ADR 0132), but
-// this census reads `lShellFloorRuns`' own two-wall composer. Wall C's own census is U3's.
+// `DesignWall` includes "C"; this census reads `lShellFloorRuns`' two-wall composer only.
 type TwoWallDispatch = Extract<DesignWall, "A" | "B">;
 import {
   beforeS1,
@@ -110,6 +45,19 @@ import {
   towerOverBottleChangeBetween,
 } from "../support/pre-tower-run-recording.js";
 import { yieldToTheEventLoop } from "../support/yield-to-the-event-loop.js";
+import { thePlannerBeforeC5 } from "../support/before-c5-fridge-end-leftover.js";
+
+// Tests that compare with a recording of an earlier planner ask `thePlannerBeforeC5()`; the rest run the shipped
+// planner.
+vi.mock(
+  "../../src/generation/fridge-end-leftover.js",
+  async (importOriginal) => {
+    const { withTheFridgeEndLeafSwitchable } = await import(
+      "../support/before-c5-fridge-end-leftover.js"
+    );
+    return withTheFridgeEndLeafSwitchable(await importOriginal());
+  },
+);
 
 vi.mock(
   "../../src/generation/optional-run-items.js",
@@ -169,10 +117,6 @@ const APPROVED_L = (() => {
   if (!shape) throw new Error("the approved policy has no L");
   return shape;
 })();
-
-// ---------------------------------------------------------------------------------------------
-// The census, one per ceiling, taken once and read by every test below.
-// ---------------------------------------------------------------------------------------------
 
 interface HeadTotals {
   swept: number;
@@ -296,14 +240,10 @@ function eachCeiling(): readonly (readonly [number, Census])[] {
   });
 }
 
-// ---------------------------------------------------------------------------------------------
-// The figures.
-// ---------------------------------------------------------------------------------------------
-
 describe("7D5b S0 — the pre-state, re-taken from the real planner at HEAD", () => {
-  // The re-pointing every HEAD figure below rests on. Refused rooms are included: S0b must not move
-  // them, and the reconstruction reads them as the live planner's.
+  // Refused rooms are included: S0b must not move them, and the reconstruction reads them as the live planner's.
   it("reconstructs HEAD's plan exactly in every room and witness the pre-tower recording holds", () => {
+    thePlannerBeforeC5();
     const recording = readPreTowerRunRecording();
     const recorded = [...recording.rooms, ...recording.witnesses];
 
@@ -378,11 +318,8 @@ describe("7D5b S0 — the pre-state, re-taken from the real planner at HEAD", ()
     }
   });
 
-  // S1 criterion 8's population, guarded from S0 on: a free door cabinet on **both** sides of the sink
-  // would need a ranking the owner never gave, and the leaf has no ranking branch. Read off **every plan
-  // the live leaf was handed** — a finished plan has had its door slot converted already, so a tie in it
-  // would read as none. The two arms' reach is pinned beside it: the guard sees each arm in the rooms
-  // E2 counts, so an empty tie list is not an empty input.
+  // A free door cabinet on both sides of the sink would need a ranking the owner never gave; the leaf has none.
+  // Read off every plan the leaf was handed: a finished plan has its door slot converted, so a tie would read as none.
   it("E2 — the tie population is empty, live: no plan the S1 leaf reads has a free door cabinet on both sides of the sink", () => {
     for (const [ceilingMm, census] of eachCeiling()) {
       const { both, leafReadASameWallSlot, leafReadAnAcrossTheCornerSlot } =
@@ -430,8 +367,8 @@ describe("7D5b S0 — the pre-state, re-taken from the real planner at HEAD", ()
     }
   });
 
-  // The plan's four rows leave one band out: a shorter wall of 2.2-2.3 m beside a longer one under
-  // 2.8 m. It is pinned here so the table's denominators account for every placed room.
+  // The plan's four rows leave one band out (shorter wall 2.2-2.3 m, longer under 2.8 m); pinned so the
+  // denominators cover every placed room.
   it("E2 — the rule of thumb in metres, with the band the plan's table omits", () => {
     for (const [ceilingMm, census] of eachCeiling()) {
       expect(census.metreTable, `${String(ceilingMm)} mm`).toEqual({
@@ -582,10 +519,6 @@ describe("7D5b S0 — the pre-state, re-taken from the real planner at HEAD", ()
     }
   });
 });
-
-// ---------------------------------------------------------------------------------------------
-// The sweep.
-// ---------------------------------------------------------------------------------------------
 
 async function censusAt(ceilingMm: number): Promise<Census> {
   const census = emptyCensus();
@@ -760,10 +693,6 @@ function isAReconstructionFault(
   );
 }
 
-// ---------------------------------------------------------------------------------------------
-// E2 and E4 — a door cabinet beside the sink.
-// ---------------------------------------------------------------------------------------------
-
 function countBesideTheSink(
   census: Census,
   reading: RoomReading,
@@ -929,10 +858,6 @@ function narrowerWallOf(room: DesignRoom): DesignWall {
   return room.depthMm > room.widthMm ? "A" : "B";
 }
 
-// ---------------------------------------------------------------------------------------------
-// E6 — (e), the drawer swap: no free door cabinet beside the sink, and two drawer cabinets or more.
-// ---------------------------------------------------------------------------------------------
-
 function countDrawerSwapEligibility(
   census: Census,
   reading: RoomReading,
@@ -992,10 +917,6 @@ function hasPanDrawerDirectlyBeyond(
   );
 }
 
-// ---------------------------------------------------------------------------------------------
-// E7 — what S1's bottle cost, asked of the composer.
-// ---------------------------------------------------------------------------------------------
-
 function countBottleCost(
   census: Census,
   reading: RoomReading,
@@ -1049,10 +970,8 @@ function outcomeAfterS0b(planAfterS0b: KitchenCompositionPlan): string {
   return `${tower}, ${hobOf(planAfterS0b).buildId}, ${panDrawer}`;
 }
 
-// ---------------------------------------------------------------------------------------------
-// S0b: where the bottle took the oven tower and no pan drawer stands beside it, S0b's plan is the one
-// the composer makes of the core alone, and it differs from HEAD's by M11's change only.
-// ---------------------------------------------------------------------------------------------
+// Where the bottle took the oven tower and no pan drawer stands beside it, S0b's plan is the composer's plan of
+// the core alone, and it differs from HEAD's by M11's change only.
 
 function countTowerOverBottle(census: Census, reading: RoomReading): void {
   const { plan, planAfterS0b, where } = reading;
@@ -1102,13 +1021,8 @@ function bodiesBesidesBottleTowerAndHob(plan: KitchenCompositionPlan): string {
     .join("|");
 }
 
-// ---------------------------------------------------------------------------------------------
-// The S1 model (Q-DW2, dishwasher first): the leaf re-identifies one module on the plan the threshold
-// rule reads. M1 turns the door slot beside the sink into the dishwasher, taking it out of *D*; (e)
-// moves the preparation role onto the pan drawer, taking that module out of *D* and out of its
-// drawers. The threshold drawer then stands only where that plan is still short of drawers; its
-// candidates are chosen on fit and columns, which a re-identification does not move.
-// ---------------------------------------------------------------------------------------------
+// The S1 model (dishwasher first): the leaf re-identifies one module on the plan the threshold rule reads, taking it
+// out of D. The threshold drawer then stands only where that plan is still short of drawers.
 
 function countDishwasherFirstModel(
   census: Census,
@@ -1207,10 +1121,6 @@ function isPlainCabinet(base: PlannedGenerationBase): boolean {
     base.id === THRESHOLD_DRAWER_ID
   );
 }
-
-// ---------------------------------------------------------------------------------------------
-// Small readers.
-// ---------------------------------------------------------------------------------------------
 
 function isDoorCabinet(base: PlannedGenerationBase): boolean {
   return isComposedStorageSlot(base) && base.buildId === DOOR_BODY;

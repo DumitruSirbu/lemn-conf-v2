@@ -18,7 +18,7 @@
 // (b) a pantry column, (d) the bottle, whose 300 mm the remainder gave, or (c) the oven tower, with the
 // hob taking the oven. It undoes the trade to S1's plan and then S1's own dishwasher, and every arm
 // below is chosen on that undone plan, so a (d) room is read with the bottle it stood at S1.
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   BOTTLE_CARGO_BUILD_ID,
@@ -42,6 +42,21 @@ import {
   STORAGE_SLOT_ID,
   THRESHOLD_DRAWER_ID,
 } from "../support/pre-width-run-recording.js";
+import { thePlannerBeforeC5 } from "../support/before-c5-fridge-end-leftover.js";
+
+// M7C wave C5 S1: the tests here that compare with a recording of an earlier planner ask the planner as it stood
+// before the leftover beside an end fridge was absorbed into the cabinet inboard of it (`fridge-end-leftover.ts`),
+// by `thePlannerBeforeC5()`; the rest of the file runs on the shipped planner. The rule's own figures are
+// `fridge-end-leftover.rooms.test.ts`'s.
+vi.mock(
+  "../../src/generation/fridge-end-leftover.js",
+  async (importOriginal) => {
+    const { withTheFridgeEndLeafSwitchable } = await import(
+      "../support/before-c5-fridge-end-leftover.js"
+    );
+    return withTheFridgeEndLeafSwitchable(await importOriginal());
+  },
+);
 
 const CATALOG = buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN));
 const DECLARED_COLUMNS = declaredColumnSizes(CATALOG);
@@ -138,6 +153,7 @@ function roomFromKey(key: string): DesignRoom {
 
 describe("the whole plan before 7D5's width change", () => {
   it("keeps the exact pre-S1 plan for every room where S1 omits the bottle", () => {
+    thePlannerBeforeC5();
     let exactNoBottleComparisons = 0;
     let normalizedBottleComparisons = 0;
     let panDrawerComparisons = 0;
@@ -334,6 +350,7 @@ describe("the whole plan before 7D5's width change", () => {
   it.each(THRESHOLD_DRAWER_CORRUPTION_CASES)(
     "rejects a threshold-drawer room where %s",
     (_, rejectingClause, witness) => {
+      thePlannerBeforeC5();
       const { key, room, recorded, plan } = firstRoomWhere(witness.isWanted);
       witness.mutate(plan);
 
