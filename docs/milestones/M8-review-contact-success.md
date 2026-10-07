@@ -13,8 +13,10 @@
 > left eight failing on four findings, round 3 fixed them, and QA's final pass was green
 > (`8cd85da`). **Review round 1 found one blocker (R1.1): a value with an interior newline passes
 > the opener and its password reaches the log on the query path.** All of it is adjudicated in
-> its section. Next: fix round A (three items), a targeted QA pass, round B (clean-code), then
-> review round 2. Q27 was raised by it, and its recommendation changed to (b).** **Six follow-up questions are open,
+> its section. ~~Next: fix round A (three items), a targeted QA pass, round B (clean-code), then
+> review round 2.~~ **Round A is done (`f1a1d00`) and its targeted QA pass is green; QA19 (the
+> live suites reach the driver past the guard) joins round B as rule B11. Next: round B (three
+> items), a QA check of B11 only, then review round 2.** Q27 was raised by it, and its recommendation changed to (b). **Six follow-up questions are open,
 > Q21–Q26** (seven with Q27), and the first two —
 > where production runs and where the database lives — make five of the recorded answers
 > conditional. Dispatchable as written: **8B, 8C, 8D, 8E, 8I**.
@@ -619,7 +621,7 @@ answers; the questions each wave first waited on are in *The questions as put*.
 | Wave | Covers | Packages | Tier | Waits for, as of 2026-10-07 |
 | --- | --- | --- | --- | --- |
 | 8A | Measurements, vendor reads, the questions | none (docs, scratch) | Light | S1, S2 and S3 are in (*8A figures*, *The owner's answers*). Not closed: Q21–Q26 are open, and its review has not been run |
-| 8B | A driver error never prints the connection string | persistence, web | Full + security | **Three fix rounds done; QA green at `8cd85da`; review round 1 found one blocker (R1.1).** Fix round A, a targeted QA pass, round B, review round 2. See its four adjudications |
+| 8B | A driver error never prints the connection string | persistence, web | Full + security | **Three fix rounds done; QA green at `8cd85da`; review round 1 found one blocker (R1.1), fixed in round A (`f1a1d00`), targeted QA green.** Round B (B11 for QA19, plus the mechanical batch), a QA check of B11, review round 2. See its adjudications |
 | 8C | The review as a value: rows, room line, submit eligibility | web, domain (read) | Full | **Nothing. Dispatchable** (Q10 answered) |
 | 8D | The review route and screen 3A/3B; the CTA gets its destination | web | Light + visual; security on S1 | **Nothing but 8C. Dispatchable** (Q2 answered) |
 | 8E | The rate-limit store | persistence | Full + security | **Nothing. Dispatchable** (Q14 answered) |
@@ -1355,8 +1357,9 @@ touched lightly (six of them new to this fix).
    sites becomes one helper; the stale comment in `migration-target-cli.test.ts`; journal comments
    and rule ids out of the implementer's test titles (ADR 0136).
 
-Round B is checked by the persistence and web suites staying green and by the clean-code
-reviewer; it gets no QA pass of its own.
+~~Round B is checked by the persistence and web suites staying green and by the clean-code
+reviewer; it gets no QA pass of its own.~~ **Superseded the same day by *QA19, and round B
+restated*, below: round B gains one behavioural item (B11), which gets its own QA check.**
 
 *Reading, implementer:* this adjudication; the three reviewers' reports; B9 and its amendment;
 `open-database.ts` whole; driver 1.1.0 where it builds the request header and where the session
@@ -1375,6 +1378,76 @@ credential"* was false as written. B10 closes the known way there. F3 matters on
 Neon's documentation for whether it gives `sslrootcert` or a sibling in the strings it hands out.
 If it does, the backlog says the migration tools cannot use that form, which was true before this
 wave. The coordinator's, with F1 and F5.
+
+#### 8B — QA19, and round B restated, 2026-10-07, after the targeted pass
+
+**State.** Round A is `f1a1d00`, QA's tests `adf4827`; persistence 1451 passed, 0 failed
+[relayed, QA-run]. The four duties hold [relayed]: of 265 strings accepted for queries and 391
+for a session, each then *used*, 0 carried any part of the value, where the same harness finds 207
+against the opener before round A.
+
+**QA19 — stopping-rule arm (a). Implementation gap against B10; in scope.** A test URL with a line
+break in its password passes the isolation guard, and
+`tests/support/migration-ledger-probe.ts` then calls the driver with it directly; the header error
+that follows carries the password, the user and the host [relayed; QA demonstrated it, unpinned].
+On the CI runner that is the test database's owner credential. S3's own reason applies unchanged:
+*"They hold the test database's owner credential and run on the CI runner"*. B10 put the
+consumers' check in the opener; the live suites do not go through the opener.
+
+- **B11 — the guard allows a test URL only if this package would itself open it, by both entry
+  points.** `assertSafeTestDatabaseUrl` asks the opener; it does not repeat the opener's checks.
+  A string a query consumer or the session client would refuse is refused by the guard first, with
+  the opener's own refusal.
+  - *Why at the guard and not at each helper.* The live test files call the driver themselves in
+    many places, by design, and every one of them is classified against a gate by the live-suite
+    census (`tests/live-suite-census.test.ts`). The guard is that gate. One place covers the three
+    support helpers and every live file, including ones not yet written. Sending each helper
+    through the opener, or widening B5's census to `tests/`, would cover only the files someone
+    remembered.
+  - *Why both entry points.* One test URL is used for both in a single run: the suites migrate it
+    through a session and query it over HTTP. A URL only one of them takes cannot run the suite.
+  - **The guard's verdicts change again, allowed→refused only.** What moves: a test URL the guard
+    allowed and an entry point refuses — one with no user, one a request header will not take,
+    one the session client will not build from. The live suite could not run on any of them. **None
+    moves from refused to allowed.** The guard's two name checks are untouched.
+  - *What it does not cover* [recorded]. A test that builds its own connection string, or reads
+    the variable without the guard, is outside it; the live-suite census is a tripwire for that,
+    by its own words *"not a sandbox against an adversarial author"*.
+
+**QA20 and QA21 — confirmed as (c): recorded, each with an owner.**
+
+- **QA20.** The log line still shows text before a URL, a URL that directly follows `_`, and a
+  credential written without `://`. The installed driver produces none of them in what QA
+  measured. *Owner:* the Q27 (b) wave, which would stop logging a driver's text at all; if the
+  owner answers (a), a backlog entry. *Trigger:* a driver message that quotes a value in one of
+  those three forms.
+- **QA21.** A Latin-1 character in the string is sent as one byte, and what Neon reads from it is
+  unmeasured. This is the recorded fourth-reading limit, with logic R1.2's tab. *Owner:* the
+  wave's ADR records it; the coordinator files it with F1, F5 and F6. *Trigger:* a string this
+  package accepts that Neon routes to a database of another name.
+
+**Round B, restated** — ~~no behaviour but one clamp; two items~~ **one behavioural item and the
+mechanical batch; three items, eight production files, six of them touched by one line or one
+move.** Not a third round.
+
+1. **B11** (QA19). `test-database-url.ts`, `open-database.ts` (whatever the guard needs to ask;
+   `assertConnectionUrlShape` stays exported only if the guard is what uses it). A test pins it at
+   the guard: every string the guard allows is opened by both entry points, and QA19's value is
+   refused.
+2. **One clamped name, one helper** (logic R1.4; the nits) — as item 4 above, unchanged.
+3. **The clean-code batch** (should-fix 2–4) — as item 5 above, unchanged.
+
+*Reading, implementer:* this note and the review-round adjudication above it; B10 and B9 as
+amended; `test-database-url.ts` whole; `open-database.ts:55-125`;
+`tests/support/migration-ledger-probe.ts` and `tests/support/test-schema-lock.ts` (read, not
+edited); `tests/live-suite-census.test.ts`, its header; ADR 0006 and its amendment.
+
+**How round B is checked.** Item 1 gets a QA check of its own, and only it: QA's harness that
+*uses* accepted strings is run over the strings **the guard allows**, with 0 carrying any part of
+the value; `guard-compare` shows only allowed→refused, each one a string an entry point refuses;
+QA19's scratch test is re-aimed at the guard and pinned. Items 2 and 3 are checked by the
+persistence and web suites staying green. **Review round 2:** logic and security re-read round A
+**and item 1**; clean-code re-reads items 2 and 3. The stopping rule holds for anything new.
 
 ### 8C — the review as a value
 
