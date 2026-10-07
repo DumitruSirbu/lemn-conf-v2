@@ -1018,7 +1018,7 @@ both in M9.
 | 8A | Stays. Measurements, reads and answers are in | Its review; nothing else |
 | 8B | **Done** (`4b8f4a4`, ADR 0146) [relayed] | — |
 | 8C | Stays. ~~In adversarial QA~~ ~~QA green (`5c1ae3e`); adjudicated 2026-10-07: a fix round of four items (C1–C3)~~ **DONE 2026-10-07, commits `97e75c6` … `3bda09d`, not pushed.** Logic and clean-code review approve. See *8C as built* | ~~The fix round, a QA check of it, then logic and clean-code review.~~ — Q30 is settled as C3 |
-| 8D | Stays | ~~8C closed. **Dispatchable then**~~ 8C is closed. **Dispatchable once the architect adds two criteria** (*8C as built*, *carried to 8D*) |
+| 8D | Stays | ~~8C closed. **Dispatchable then**~~ 8C is closed. ~~Dispatchable once the architect adds two criteria~~ **Dispatchable: restated 2026-10-07 as four slices, criteria 11–15 added** (*8D, restated for dispatch*). S1 first |
 | 8E | Stays | **Nothing. Dispatchable** |
 | 8I | Stays | 8E's migration number. **Dispatchable** |
 | 8H | Stays; Q24 settled | **Nothing. Dispatchable** |
@@ -2182,6 +2182,11 @@ under *Wording, for the owner* are unchanged and unanswered, apart from the refu
 *Goal.* The customer reaches the review from the editor, reads it on a phone, and goes back to a
 chosen cabinet. *Tier: Light + visual; a security reviewer reads S1 only.*
 
+> **Made dispatchable 2026-10-07, after 8C closed (`3bda09d`; close-out `223997c`) [relayed].** The
+> slice table below is superseded by the one in *8D, restated for dispatch* at the end of this
+> section: four slices, checked against the tree. Criteria 1–10 stand; 7 and 10 are restated there
+> and 11–15 are added.
+
 | Slice | Does | Files | Reading |
 | --- | --- | --- | --- |
 | S1 | The gated route and the shell. The server page runs the same owned load as the editor's and answers the same refusals; the proxy's allow-list admits the three new families exactly | `app/[locale]/d/[id]/review/page.tsx`, a new `app/d/[id]/review/review-screen.tsx`, `proxy.ts`, `app/d/[id]/hydrate-and-configure.tsx` (the hydration, shared and not copied) | D1, Q2; ADR 0114 d5, H2, H5, G5; ADR 0133; `app/[locale]/d/[id]/page.tsx`; `proxy.ts` `isCustomerPath` |
@@ -2227,6 +2232,141 @@ visual agent inspects each capture and reports what it could not verify.
 guard; ADR 0144 (wait bounds); `pnpm gate:e2e-shard-budget`. *Combined reviewer:* the slice files;
 ADR 0104; 8C's model. *Security reading:* S1's two route files and `proxy.ts`; ADR 0114 d5, H2, H5.
 *Visual reading:* frames 3A, 3B; this wave's criteria; `browser-and-visual-qa.md`.
+
+#### 8D, restated for dispatch — 2026-10-07
+
+**What the tree has** [src, at `223997c`]. The editor's page is `app/[locale]/d/[id]/page.tsx`; it
+reads the visitor cookie, calls `loadOwned`, and answers `DesignLoadError` with `unavailable` or
+`invalid`. Client parts live beside it without the locale: `app/d/[id]/hydrate-and-configure.tsx`.
+The share view has its own sibling hydrator, `app/s/[token]/shared-design-view.tsx`. The call to
+action is a `span` in `configure-screen.tsx`. `src/review/` holds `review-model.ts` and nothing
+else. `KitchenStage` picks on every tap and has no way to be told not to. The proxy admits `d/{id}`
+as exactly two segments.
+
+**Tier, confirmed: Light + visual; a security reader on S1.** The contract is settled by 8C. What
+the security reader is for: this is a second door to a design that opens only in its own browser
+(ADR 0114 d5). They check that both doors answer through one function, so they cannot drift; that
+the proxy admits the new families exactly; and that a request without a well-formed cookie still
+issues no query. **No limiter stands in front of this route until 8G.** That is an interim, not a
+finding: the route costs what `/d/{id}` costs, one indexed lookup.
+
+| Slice | Does | Files (production) | Reading |
+| --- | --- | --- | --- |
+| S1 | The gated route. The editor's page and the review's page answer the owned load through **one** function, so every refusal is the same by construction. A sibling hydrator puts the design in the store and shows a heading. The proxy admits `d/{id}/review`, `…/contact` and `…/done` | new `app/[locale]/d/[id]/review/page.tsx`; a new module for the shared owned load; `app/[locale]/d/[id]/page.tsx` (to call it); new `app/d/[id]/review/hydrate-and-review.tsx`; `proxy.ts` | D1, Q2 (answered); ADR 0114 d5, H2, H5, G5; ADR 0133; `app/[locale]/d/[id]/page.tsx`; `app/d/[id]/hydrate-and-configure.tsx` and `app/s/[token]/shared-design-view.tsx` (the two existing hydrators); `store/configurator-snapshot.tsx`; `proxy.ts`, `isCustomerPath`; `tests/app/qa-7e3b-design-page-gate.adversarial.test.ts`; `tests/proxy.test.ts` |
+| S2 | The scene, to look at and not to edit: a mount that selects nothing on a tap, with the room's three views as chips and *Vezi în 3D* | `scene/kitchen-stage.tsx`, `scene/kitchen-canvas.tsx`, new `review/review-scene.tsx` | D4; ADR 0074; ADR 0144; `configure-screen.tsx:80-110, 180-205` (how the editor mounts the canvas and the view chips); frame 3A (`…Mobil.dc.html:996-1001`); `tests/app/configure-screen-single-mount.test.ts` |
+| S3 | Frames 3A and 3B as a screen: the one place that hands the model its inputs; the sections in the model's order; the bottom region; the refused and the unavailable states | new `review/use-review.ts`; new `app/d/[id]/review/review-screen.tsx` and `review.module.css`; new `review/review-groups.tsx`; `review/review-model.ts` (the reading order's two new entries, nothing else). The message files change with it as one leaf set | 8C *as built* and its adjudication (C1–C3); criteria 7, 9–15; frames 3A, 3B (`:969-1157`); ADR 0065 d6, d7, 7b; ADR 0104 d1–d3; `price/price-breakdown.tsx` (how the breakdown derives the same inputs); `price/use-priced-design.ts`; `price/price-bar.tsx`; `scene/overflow-warning-layout.ts`; `engineering-conventions.md`, *Localised copy*; ADR 0113 and Q10 |
+| S4 | The editor's side: *Verifică designul* becomes a link; `?select=` and `?settings=open` are honoured once on arrival; the review's call to action waits for the save | `configure-screen.tsx`, `configure.module.css`, `store/configurator-store.ts`; `use-back-guard.ts` only if the guard must let the forward navigation pass | ADR 0104 d6 and Amendment D; M7C C1 S3 and S4 *as built*; ADR 0139; `back-guard.ts`; `tests/e2e/qa-m7c-c1-s3-back.adversarial.e2e.spec.ts` (the test this slice retires); `persistence/save-coalescer.ts` |
+
+**Order: S1 → S2 → S3 → S4.** One writer. S3 is the largest and stays under five production files
+because the scene is S2's.
+
+**Criteria restated.**
+
+7. ~~When 8C answers `refused`, *Cere oferta* is disabled, the reason is on screen above it, and
+   each named body links to the editor with that body selected.~~ When the model answers
+   `refused`, *Cere oferta* is disabled and **its sentence is on screen with it at every scroll
+   position** (criterion 12). Each body the refusal names is listed as a link that opens the
+   editor with that body selected (criterion 13). The sentence is
+   `content.review.refusalReasons[code]`; the screen writes none of its own.
+10. One place hands `describeReview` its three inputs, **`review/use-review.ts`**. It reads the
+    design and the catalogue from the store once, prices through `usePricedDesign`, and projects
+    the groups from that same design; nothing else imports `describeReview`. *Must not:* the
+    design comes from the page's props while the price or the groups come from the store, or the
+    reverse; a projection is kept from an earlier design.
+    *How a test shows it.* (i) An import check, by parsing: one importer. (ii) Behaviour: with the
+    hook mounted, a body is widened by one step through the store's own command; in the very next
+    view the row for that body carries the new width and the figure equals the price bar's. A
+    stale projection with the same ids and the same fit, which 8C's rule C2 cannot see (QA5 of
+    8C), fails (ii).
+
+**Criteria added.**
+
+11. **The reading order gains two entries**, `overflowWarning` and `refusal`, after `disclaimer`
+    and before `figure` (logic R1.4 of 8C's review). The constant is the model's and S3 changes
+    it; the screen follows it, and the DOM test of criterion 9 covers the two new entries.
+    *Why there.* ADR 0065 d6: *"the flag travels with the total"*, so the flagged-total sentence
+    stands with the figure; and a control that is off stands with its reason (§9: disabled with
+    reason), so the refusal stands with the call to action. The frames draw neither state.
+12. **The bottom region.** Pinned, in this order: the flagged-total sentence when the total is
+    flagged; the refusal's sentence when refused; the figure; the call to action. *Must not:* the
+    call to action is ever off without its sentence on screen; the region hides the list's last
+    row. With both sentences showing, in Russian, at 390 × 844, the list scrolls until its last
+    row is clear of the region. **If that region then takes more than half the viewport's height,
+    the implementer stops and reports**: the design returns to planning and is not squeezed. [The
+    half is the architect's tripwire, not a measured figure.]
+13. **The bodies a refusal names** are listed as links directly above the bottom region, last in
+    the page's flow, each opening the editor with that body selected. In an `available` review
+    each such body's row is also marked. In an `unavailable` review there are no rows, and the
+    list is the only place they appear. *Must not:* a name is composed by the screen; it is the
+    model's.
+14. **An unavailable review** shows the top bar, the heading, the refusal's sentence, the named
+    bodies if any, the call to action off, and the way back to the editor. *Must not:* a figure,
+    a zero, an empty list, the not-included block or the scene's chips are drawn for it.
+15. **A stored design the load seam refuses** (logic R1.1 of 8C's review). A row naming a body the
+    catalogue does not hold is refused where it is loaded, as `UNKNOWN_BUILD_ID`
+    [src `validate-design.ts:167`], and the editor's page answers the *invalid* load-error page
+    for it. The review's page answers the same page through the same function (S1), so
+    `use-review.ts` never holds such a design and the projection's `UnknownBodyError` is not
+    reached. *Must not:* that error, or any other, reaches the route's error boundary from a
+    stored row; the two pages answer differently for one row. A test loads one such row through
+    both.
+
+**The sentence printed twice** (logic R1.3 of 8C's review). The not-included slot and the
+disclaimer's notice both open with the same words, so screen 3 says them twice. **8D draws both,
+as the model returns them.** Both are approved copy and criterion 6 of 8C is met. *Must not:* the
+screen drops, merges or rewords either to hide it. It goes to the owner with Q9, where the
+not-included list is settled anyway.
+
+**Named interims 8D leaves.**
+
+- *Cere oferta* leads to the existing placeholder contact page until 8L builds `/d/{id}/contact`.
+- The proxy admits `d/{id}/contact` and `d/{id}/done`; until 8L and 8M each answers not-found.
+- No limiter stands in front of the route until 8G.
+- The not-included list is slot text (Q9); the room line counts in *corp*, the refusals say
+  *dulapuri* (the open half of Q31).
+- Desktop: the phone's layout, responsive, at 900 px and 1440 px; no desktop chrome is designed.
+
+**Reading lines.**
+
+- *QA:* the criteria; `tests/app/qa-7e3b-design-page-gate.adversarial.test.ts` and
+  `tests/proxy.test.ts` (the editor route's refusals, to be matched class for class);
+  `tests/e2e/qa-m7c-c1-s3-back.adversarial.e2e.spec.ts`; the top-bar box and containment tests;
+  the `.dom.test.ts` pattern; ADR 0144 (wait bounds); `pnpm gate:e2e-shard-budget` (backlog 106).
+- *Combined reviewer:* the four slices' files; 8C *as built*; ADR 0104; criteria 7 and 9–15.
+- *Security, S1 only:* S1's five files; ADR 0114 d5, H2, H5, G5; ADR 0133; criteria 1, 2, 15.
+- *Visual:* `browser-and-visual-qa.md`, the sections *Visual and mobile verification*, *A trap that
+  produces confident wrong measurements, not an error* with its second instance, and *The tree a
+  verifier measures must not move under it*. **390 × 844 first**, set before the page loads, real
+  touch, `ro` and `ru`. Compared against frames 3A and 3B (`…Mobil.dc.html:969-1157`). The
+  captures must show: 3A from the top; 3B's end with the not-included block above the bottom
+  region; a U kitchen with its wall C group; each of the three views; a kitchen with a body past
+  its wall, both sentences in the bottom region and the list's last row scrolled clear of it; an
+  unavailable review; the call to action waiting on a save. Then 900 px and 1440 px as the
+  separate desktop line. Each capture is inspected and what could not be verified is said.
+
+**Where rules C1–C3 live: an ADR, now.** The plan is archived when M8 closes, and these three are
+shipped behaviour that a later reader would otherwise get wrong, C3 above all: it reverses the
+order first built, and this plan once quoted it as ADR 0065's when it is not. The scribe writes
+it; the architect's content:
+
+- the review refuses one thing at a time, the first the customer can act on: a body past its
+  wall, then nothing Lemnaria supplies, then a price that cannot be computed (C3);
+- *no cabinet* means nothing Lemnaria supplies, read from the supplier each line publishes and
+  never from a zero (C1; ADR 0107 d2); and what is left as it was, the price bar's zero;
+- the model takes three inputs and throws when they are not one design's, and why it does not
+  price for itself (C2; ADR 0062 seam 1); fit is the one query's answer, and the priced list is
+  that same answer;
+- a body is named by the row's own labeller; rows are one per body, never aggregated (D2); an
+  empty kitchen cannot be submitted (D14);
+- what ADR 0065 d7 does and does not say, with the plan's own 2026-09-03 criterion beside it.
+
+8D's close adds to the same record what the screen settles: the routes (D1, Q2), which body a
+group's *Editează* selects (D3), the view-only scene (D4), and where the two sentences stand
+(criteria 11–13). One record for the review step, not two.
+
+**Owner questions for 8D: none new.** The open half of Q31 does not block it. The duplicated
+sentence goes with Q9. What a refused stored row shows is not the owner's: the load-error page
+already exists.
 
 ### 8E — the rate-limit store
 
