@@ -20,3 +20,15 @@ export {
   type PhoneNumberResult,
   type PhoneRefusalCode,
 } from "./phone-number.js";
+export {
+  CONTACT_INTENTS,
+  validateContactSubmission,
+  type ContactIntent,
+  type ContactSubmissionRequest,
+  type ContactSubmissionValidation,
+  type DesignReference,
+  type SubmissionCode,
+  type SubmissionField,
+  type SubmissionIssue,
+  type SubmissionTarget,
+} from "./contact-submission.js";

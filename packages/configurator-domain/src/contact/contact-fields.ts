@@ -26,7 +26,7 @@ export type ConsentTextVersion = (typeof CONSENT_TEXT_VERSIONS)[number];
 export const CONTACT_CHANNELS = ["phone", "whatsapp", "email"] as const;
 export type ContactChannel = (typeof CONTACT_CHANNELS)[number];
 
-const CONTACT_FIELDS = [
+export const CONTACT_FIELDS = [
   "name",
   "phone",
   "locality",
