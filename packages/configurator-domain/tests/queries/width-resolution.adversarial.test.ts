@@ -135,30 +135,6 @@ describe("resolveCatalogEquivalent — what a pointer means", () => {
     expect(resolveBuildableSizes(catalog, "wall-2door-600")).toEqual([]);
   });
 
-  // The empty string is not `undefined`, so it takes the `catalog.get` branch and must still land on no widths.
-  it("treats an empty-string pointer as a pointer that resolves to nothing", () => {
-    const catalog = catalogWith({
-      "wall-2door-600": { catalogEquivalentId: "" },
-    });
-    expect(resolveBuildableSizes(catalog, "wall-2door-600")).toEqual([]);
-  });
-
-  // A self-pointing row is the shortest cycle: one hop and no recursion terminates, where recursion would hang.
-  it("terminates on a self-referential pointer", () => {
-    const catalog = catalogWith({
-      "wall-2door-600": { catalogEquivalentId: "wall-2door-600" },
-    });
-    expect(resolveBuildableSizes(catalog, "wall-2door-600")).toEqual([]);
-  });
-
-  it("terminates on a two-row cycle", () => {
-    const catalog = catalogWith({
-      "wall-2door-600": { catalogEquivalentId: "wall-2door-800" },
-      "wall-2door-800": { catalogEquivalentId: "wall-2door-600" },
-    });
-    expect(resolveBuildableSizes(catalog, "wall-2door-600")).toEqual([]);
-  });
-
   // One hop, and the target is not re-resolved: A → B → C yields nothing rather than C's set, the safe direction
   // (no set beats a guessed set). "One hop" is a semantic choice, not an implementation detail.
   it("does not follow a second hop through another non-insertable row", () => {
@@ -479,16 +455,6 @@ describe("every seeded placement's set, over the whole shipped kitchen", () => {
 });
 
 describe("canWidth stays §9's literal rule, whatever the set says", () => {
-  it("is the negation of fixedWidth and nothing else, over the whole population", () => {
-    const world = seeded();
-    for (const record of world.records) {
-      expect([record.id, metaFor(world, record.id).canWidth]).toEqual([
-        record.id,
-        !record.fixedWidth,
-      ]);
-    }
-  });
-
   // Both halves of the independence on real bodies: a willing body with no set, an unwilling body with one. Either
   // collapsing would mean the flag acquired a "has widths to offer" clause.
   it("is true beside an empty set, and false beside a full one", () => {

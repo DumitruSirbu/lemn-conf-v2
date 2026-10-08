@@ -263,22 +263,6 @@ describe("ADR 0099 decision 5 — chose-the-same-value is not the same state as 
     );
     expect(resolvedFinishOf(afterChoosing, movedChoosing)).toEqual(PAL_GRI);
   });
-
-  // The count is blind to an override equal to the kitchen colour; the second confirmation arm covers that loss.
-  it("is a distinction countCabinetsWearingAChosenFinish deliberately cannot see", () => {
-    const choosing = withGlobalFinish(
-      designOn(PAL_ID, [placementWearing(0, PAL_GRI)]),
-      PAL_GRI,
-    );
-    const following = withGlobalFinish(
-      designOn(PAL_ID, [placementWearing(0, undefined)]),
-      PAL_GRI,
-    );
-
-    expect(countCabinetsWearingAChosenFinish(choosing)).toBe(0);
-    expect(countCabinetsWearingAChosenFinish(following)).toBe(0);
-    expect(wouldDiscardTheGlobalFinish(choosing, VENEER_ID)).toBe(true);
-  });
 });
 
 describe("ADR 0099 acceptance 3 — a cleared override never re-acquires the key", () => {

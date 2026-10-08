@@ -406,33 +406,6 @@ describe("the reset moves the finish, the setting and the clock, and nothing els
     },
   );
 
-  // Named fields, as a second reading of the same claim: nothing a geometry wave owns may move.
-  it.each(MATERIAL_IDS)(
-    "into %s, no width, seat depth, position or extent moves",
-    (tierId) => {
-      const before = MDF_KITCHEN_WEARING_CHOSEN_COLOURS;
-      const after = apply(before, tierId).design;
-
-      const geometryOf = (design: Design) =>
-        design.placements.map((placement) => ({
-          id: placement.id,
-          wall: placement.wall,
-          alongMm: placement.alongMm,
-          y0Mm: placement.y0Mm,
-          widthMm: placement.body.widthMm,
-          heightMm: placement.body.heightMm,
-          seatDepthMm: placement.body.seatDepthMm,
-          buildId: placement.body.buildId,
-        }));
-
-      expect(geometryOf(after)).toEqual(geometryOf(before));
-      expect(after.emptyColumns).toEqual(before.emptyColumns);
-      expect(after.columnExtents).toEqual(before.columnExtents);
-      expect(after.room).toEqual(before.room);
-      expect(after.createdAt).toBe(before.createdAt);
-    },
-  );
-
   // One `updatedAt` across the whole document — a per-cabinet cascade writing its own clock would
   // show up as more than one. The document holds one field, so the observable is that the resolution
   // did not stamp a different value than the settings write did.

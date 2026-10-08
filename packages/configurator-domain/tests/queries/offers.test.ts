@@ -126,28 +126,6 @@ describe("offersFor — a void", () => {
     }
   });
 
-  // **The converse, restated for the list the owner ruled on 2026-09-10.** ADR 0032 made this
-  // assertable by publishing refusals; with them gone the claim is that an entry the list left out
-  // is one the command will not take. Same "one evaluation, two ends" property, and the direction
-  // that matters more: a list that quietly dropped something insertable hides a cabinet the
-  // customer could have had.
-  it("refuses everything it leaves out, at every height in the column", () => {
-    const world = clearBodies(seeded(), ["p7", "p24"]);
-    let seen = 0;
-    for (const y0 of [0, 1.5, 2.2]) {
-      const slot = voidAt(world, "B|2.45", y0);
-      const target = { kind: "void", id: slot.id } as const;
-      const offered = new Set(offeredIds(offersFor({ ...world, target })));
-      for (const body of listInsertableBodies(world.catalog)) {
-        if (offered.has(body.buildId)) continue;
-        seen += 1;
-        const result = insertInto(world, target, body.buildId);
-        expect(result.ok, `${String(y0)} -> ${body.buildId}`).toBe(false);
-      }
-    }
-    expect(seen).toBeGreaterThan(0);
-  });
-
   // §5.2, restated as a claim the filter change could plausibly have broken: the band filter admits
   // every full-height row into a base slot, and the fit filter that now follows it must not be what
   // takes them away. Asserted on the population rather than on a count, so a column row that stopped

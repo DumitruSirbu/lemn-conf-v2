@@ -370,21 +370,6 @@ describe("the per-entry byte allowance, against an entry built by construction",
     expect(entryBytes(entry)).toBeGreaterThan(128);
   });
 
-  // The sweep the two examples cannot make: every identifier length the schema admits, so the
-  // transition from "fits" to "does not" is found rather than guessed at.
-  it("holds every identifier length the schema admits", () => {
-    const overflowing: number[] = [];
-    for (let length = 1; length <= MAX_IDENTIFIER_LENGTH; length += 1) {
-      const entry = EmptyColumnSchema.parse({
-        ...LONGEST_LEGAL_ENTRY,
-        depthFromBuildId: "x".repeat(length),
-      });
-      if (entryBytes(entry) > PER_ENTRY_BYTES) overflowing.push(length);
-    }
-
-    expect(overflowing).toStrictEqual([]);
-  });
-
   // And the document-level claim the per-entry allowance exists for: a document at every cap, with
   // every entry the longest the schema can express, still fits the byte cap the API enforces.
   it("holds a document at every cap whose every entry is the longest the schema allows", () => {

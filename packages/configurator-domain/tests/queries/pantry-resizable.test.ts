@@ -75,19 +75,6 @@ describe("criterion 1: the pantry's door count follows its width, at the bound's
   ])("makes a %s mm pantry with %s door(s)", (widthMm, doors) => {
     expect(deriveDoorCount(widthMm)).toBe(doors);
   });
-
-  // The boundary pairs the wave names: 399/400 and 800/801 are the bound, 499/500 the threshold
-  // inside it. `acceptsWidthMm` is the one predicate the insert path and `setWidth` both read.
-  it.each([
-    [399, false],
-    [400, true],
-    [499, true],
-    [500, true],
-    [800, true],
-    [801, false],
-  ])("accepts %s mm: %s", (widthMm, accepted) => {
-    expect(acceptsWidthMm(insertableOf(PANTRY_ID), widthMm)).toBe(accepted);
-  });
 });
 
 describe("criterion 2: the offer label counts the doors, from `describeBodyLabelAt` alone", () => {

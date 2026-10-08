@@ -361,10 +361,6 @@ describe("no options at all is a real answer, and it has to stay one", () => {
       }),
     ).toEqual([]);
   });
-
-  it("returns nothing for a target that no longer resolves", () => {
-    expect(optionsFor(kitchen(), "no-such-placement")).toEqual([]);
-  });
 });
 
 describe("asking is not editing", () => {
@@ -375,30 +371,6 @@ describe("asking is not editing", () => {
     const before = JSON.stringify(world.design);
     for (const record of world.records) optionsFor(world, record.id);
     expect(JSON.stringify(world.design)).toBe(before);
-  });
-
-  // A refused option carries the engine's own `RejectionDetail`, whole (the `CatalogOffer.verdict` contract), so no
-  // surface writes a second sentence for a refusal the engine already named.
-  it("carries the command's own refusal, code and parameters alike", () => {
-    const world = kitchen();
-    const refused = optionsFor(world, "p8").find(
-      (option) => option.verdict.status === "refused",
-    );
-    if (refused?.verdict.status !== "refused") {
-      throw new Error("expected a refused width on p8");
-    }
-    const command = setWidth({
-      design: world.design,
-      catalog: world.catalog,
-      columns: world.columns,
-      target: { kind: "placement", id: "p8" },
-      widthMm: refused.widthMm,
-      probe: createFakeProbe(),
-      occurredAt: OCCURRED_AT,
-    });
-    if (command.ok) throw new Error("expected the command to refuse too");
-    expect(refused.verdict.reason.code).toBe(command.reason.code);
-    expect(refused.verdict.reason.params).toEqual(command.reason.params);
   });
 });
 

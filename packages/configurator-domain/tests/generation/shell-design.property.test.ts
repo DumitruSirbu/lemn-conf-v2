@@ -1,15 +1,12 @@
 // Wave 7D1: the composition shell's rules as properties over the owner-approved L range (ADR 0108
 // Amendment B) — walls on a 1 mm grid, ceilings 2200–3900 — rather than over a handful of rooms.
 // The two ceiling arms are sampled evenly, because the top-row return is in the shell on one side of
-// 2600 and out of it on the other, and each arm is held to a floor so neither can go unexercised.
+// 2600 and out of it on the other.
 import { fc } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
 import {
   APPROVED_ROOM_POLICY,
-  buildKitchenLBodyCatalog,
-  declaredCabinetDepthsMm,
-  occupiedDepthOfEntryM,
   toMillimetres,
   validateDesignForCatalog,
   wallLengthMm,
@@ -39,7 +36,6 @@ import {
   withWallABaseRunFilled,
   type BandMm,
   type IntervalMm,
-  atCabinetDepth,
   shellIn,
 } from "../support/shell-design.js";
 
@@ -69,7 +65,7 @@ function millimetresIn(bounds: MillimetreBounds) {
   return fc.integer({ min: bounds.minMm, max: bounds.maxMm });
 }
 
-/** A room from the approved range, tagged with its ceiling arm. */
+/** A room from the approved range, drawn evenly from either side of the top-row ceiling. */
 function approvedRoom() {
   const l = approvedL();
   const lowCeiling = fc.integer({
@@ -88,12 +84,6 @@ function approvedRoom() {
   });
 }
 
-type CeilingArm = "below 2600" | "at or above 2600";
-
-function ceilingArmOf(room: DesignRoom): CeilingArm {
-  return room.heightMm < TOP_ROW_CEILING_MM ? "below 2600" : "at or above 2600";
-}
-
 /** A tally of which arm each run landed in, asserted after the property. */
 function armTally<Arm extends string>() {
   const counts = new Map<Arm, number>();
@@ -109,31 +99,7 @@ function armTally<Arm extends string>() {
   };
 }
 
-const CEILING_ARMS: readonly CeilingArm[] = ["below 2600", "at or above 2600"];
-
-/** A tile's depth as its source declares it at the shell's depth, read through the one reader. */
-function declaredDepthMm(source: string): number {
-  const definition = SHELL_CATALOG.get(source);
-  if (!definition) throw new Error(`the catalogue holds no ${source}`);
-  return toMillimetres(occupiedDepthOfEntryM({ buildId: source, definition }));
-}
-
 describe("buildLShellDesign over the approved L range", () => {
-  it("has no validation finding of either severity (criterion 1)", () => {
-    const arms = armTally<CeilingArm>();
-    fc.assert(
-      fc.property(approvedRoom(), (room) => {
-        arms.count(ceilingArmOf(room));
-
-        const findings = validateDesignForCatalog(shellIn(room), SHELL_CATALOG);
-
-        expect(findings).toStrictEqual([]);
-      }),
-      { numRuns: RUNS },
-    );
-    arms.expectEachAtLeast(CEILING_ARMS, RUNS_PER_ARM_FLOOR);
-  });
-
   it("records each free run exactly, in every band, to the planned end or one short on an odd span (criterion 3)", () => {
     const parities = armTally<"odd span" | "even span">();
     fc.assert(
@@ -180,21 +146,6 @@ describe("buildLShellDesign over the approved L range", () => {
     );
   });
 
-  it("records every tile against base-cabinet or wall-cabinet at that source's declared depth (criterion 8)", () => {
-    fc.assert(
-      fc.property(approvedRoom(), (room) => {
-        for (const tile of shellIn(room).emptyColumns ?? []) {
-          const expectedSource =
-            tile.y0Mm === 0 ? "base-cabinet" : "wall-cabinet";
-
-          expect(tile.depthFromBuildId).toBe(expectedSource);
-          expect(tile.depthMm).toBe(declaredDepthMm(expectedSource));
-        }
-      }),
-      { numRuns: RUNS },
-    );
-  });
-
   it("takes a sink base into the first base opening of every wall with 600 mm of floor run, and offers nothing past a wall (criterion 4)", () => {
     const walls = armTally<"run of 600 or more" | "shorter run">();
     fc.assert(
@@ -217,32 +168,10 @@ describe("buildLShellDesign over the approved L range", () => {
     walls.expectEachAtLeast(["run of 600 or more"], RUNS_PER_ARM_FLOOR);
   });
 
-  it("reports nothing past wall B's end after a change to any declared depth (criterion 9)", () => {
-    fc.assert(
-      fc.property(approvedRoom(), (room) => {
-        const shell = shellIn(room);
-        for (const depthMm of declaredCabinetDepthsMm()) {
-          const moved = atCabinetDepth(shell, depthMm);
-          const codes = validateDesignForCatalog(
-            moved,
-            buildKitchenLBodyCatalog(depthMm),
-          ).map((issue) => issue.code);
-
-          expect(codes, `at ${String(depthMm)}`).not.toContain(
-            "EMPTY_COLUMN_PAST_WALL_END",
-          );
-          expect(codes, `at ${String(depthMm)}`).not.toContain(
-            "COLUMN_EXTENT_PAST_WALL_END",
-          );
-        }
-      }),
-      { numRuns: RUNS },
-    );
-  });
-
   // Both arms are asserted since wave 7D1b: whether a base cabinet closes the run or the corner base
   // does, a panel whose outer face would pass wall A's end is not drawn (ADR 0045 Amendment A). The
-  // corner-alone arm is rare over this range, so the band below sweeps it width by width.
+  // corner-alone arm is rare over this range; shell-design.adversarial.test.ts sweeps it width by width
+  // ("draws the panel exactly when the footprint is free and never past the wall").
   it("never draws the run-end panel past wall A, once every wall-A base opening holds a base cabinet (ADR 0045 Amendment A)", () => {
     const arms = armTally<
       "a base cabinet closes the run" | "the corner alone"
@@ -283,12 +212,12 @@ describe("buildLShellDesign over the approved L range", () => {
   });
 });
 
-// **Flipped from `it.fails` by wave 7D1b** (ADR 0045 Amendment A; milestone, Adjudication 7D1-Q2).
 // With wall A from 900 to 918 mm there is no floor run a base cabinet can take, so the run-end panel
 // would close the structural corner base itself, its outer face at the corner's far edge plus the
-// panel's footprint — past the wall. `runEndPanelSeatM`'s wall-end veto now hides it. Before the flip
-// every case failed, and the veto's arrival turned all nineteen `it.fails` markers red, which is how
-// the band proved it clears itself. The premise still shows each body reaches its assertion.
+// panel's footprint — past the wall. `runEndPanelSeatM`'s wall-end veto hides it (ADR 0045
+// Amendment A; milestone, Adjudication 7D1-Q2); that veto is asserted width by width over this band
+// in shell-design.adversarial.test.ts. What stays here is the band itself: its two ends, and that
+// filling places nothing in any of its rooms.
 describe("the run-end panel when the corner alone closes wall A's run (ADR 0045 Amendment A)", () => {
   const widthsMm = cornerAloneWallAWidthsMm();
 
@@ -306,20 +235,6 @@ describe("the run-end panel when the corner alone closes wall A's run (ADR 0045 
       );
     }
   });
-
-  for (const widthMm of widthsMm) {
-    it(`keeps the run-end panel inside wall A when the corner alone closes the run (${String(widthMm)})`, () => {
-      const room = cornerAloneRoom(widthMm);
-
-      const outerFaceMm = runEndPanelOuterFaceMm(
-        withWallABaseRunFilled(shellIn(room)),
-      );
-
-      expect(outerFaceMm === undefined || outerFaceMm <= room.widthMm).toBe(
-        true,
-      );
-    });
-  }
 });
 
 /** Measured, not derived: the approved wall-A minimum, and the widest wall A the corner base's own

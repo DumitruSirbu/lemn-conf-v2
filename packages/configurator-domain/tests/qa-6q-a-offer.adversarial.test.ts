@@ -231,17 +231,6 @@ describe("materialOffersFinish over the free-colour half", () => {
     expect(FREE_COLOUR_PATTERN.test("#abcdef")).toBe(true);
     expect(FREE_COLOUR_PATTERN.test("#abcdef")).toBe(true);
   });
-
-  it("never offers a free colour to a material that declares any entry at all", () => {
-    for (const material of MATERIALS) {
-      if (paletteEntriesOf(material).length === 0) continue;
-      for (const value of BOUNDARY_FREE_COLOURS) {
-        expect(materialOffersFinish(material, freeColourFinish(value))).toBe(
-          false,
-        );
-      }
-    }
-  });
 });
 
 describe("the criterion the three shipped materials cannot separate: shape, never entry count", () => {

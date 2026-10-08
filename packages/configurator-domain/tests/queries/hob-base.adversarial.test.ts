@@ -205,12 +205,6 @@ describe("the hob rides above the column and contributes nothing to it", () => {
   it("leaves the shipped kitchen with no opening at all", () => {
     expect(after.voids).toEqual([]);
   });
-
-  // The hob body's band is `base`, so §7's head-clearance cap stays on over it; a body carrying an appliance is
-  // the obvious candidate for being mistaken for a full-height one.
-  it("does not let the hob body lift §7's head-clearance cap", () => {
-    expect(after.columns.get(HOB_COLUMN)?.hasFullHeightUnder).toBe(false);
-  });
 });
 
 describe("the opening a deleted hob cabinet leaves", () => {

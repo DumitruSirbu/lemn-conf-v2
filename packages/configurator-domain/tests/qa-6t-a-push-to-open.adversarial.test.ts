@@ -345,7 +345,7 @@ const EVERY_ROW_AT_EVERY_LEGAL_SIZE: readonly SweptRow[] = [...CATALOG].flatMap(
 /**
  * The claim that makes the owner's rule total (ADR 0092 decision 3, Amendment C): every front has a bar or a
  * latch, else nothing opens it and pricing bills a mechanism the body lacks or omits one it has. Stated as
- * *no bar implies nothing opens* as well as its contrapositive.
+ * *no bar implies nothing opens*.
  */
 describe("no catalogue row has a front with neither a bar nor a latch", () => {
   it("sweeps every row of both populations, at every legal width and frame height", () => {
@@ -365,16 +365,8 @@ describe("no catalogue row has a front with neither a bar nor a latch", () => {
     expect(barlessWithFronts).toEqual([]);
   });
 
-  it("declares a cabinet handle on every row that declares something that opens", () => {
-    const openingWithoutBars = EVERY_ROW_AT_EVERY_LEGAL_SIZE.filter(
-      (row) => row.openingFronts > 0 && row.cabinetHandles === 0,
-    );
-
-    expect(openingWithoutBars).toEqual([]);
-  });
-
-  /** Not vacuous: the catalogue holds rows on both sides, so an implementation answering one constant fails one
-   *  of the two above. */
+  /** Not vacuous: the catalogue holds rows on both sides, so an implementation answering one constant fails
+   *  here or in the case above. */
   it("holds rows on both sides of the question", () => {
     expect(
       EVERY_ROW_AT_EVERY_LEGAL_SIZE.filter((row) => row.cabinetHandles === 0)

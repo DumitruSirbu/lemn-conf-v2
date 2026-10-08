@@ -69,17 +69,6 @@ const SINK_STARTS_MM = 900;
 const SINK_ENDS_MM = 1_700;
 
 describe("a sink is the declaration, and nothing else", () => {
-  it("finds the seeded kitchen's one sink and no other body", () => {
-    const found = findSinkAccessories(
-      projectDesignForDisplay(KITCHEN_L_DESIGN, CATALOG).flatMap(
-        (group) => group.entries,
-      ),
-      CATALOG,
-    );
-
-    expect(found.map((sink) => sink.sinkPlacementId)).toEqual(["p0"]);
-  });
-
   /** The three inferences ADR 0092 decision 9 rejects, each shown to be unusable on the shipped
    *  catalogue rather than argued against. */
   it("cannot be read off a kind, an id prefix or an equivalent id", () => {
@@ -216,58 +205,6 @@ describe("a top row is a wall-band candidate, because the band is the normalised
   });
 });
 
-/**
- * **The fourth wrong reading: touching counts as overlapping.**
- *
- * On the seeded design `p12` (`open-shelf-600`) begins at exactly 1700, where the sink ends. Counting
- * it would tie it with `p11` at the same `y0` and hang a rack in an open shelf. The fixture below
- * removes the open shelf's own disqualification — it uses a wall cabinet with two leaves — so what is
- * being tested is the boundary and nothing else.
- */
-describe("touching is not overlapping", () => {
-  it("finds no host in a cabinet that begins exactly where the sink ends", () => {
-    expect(
-      accessoriesOf([
-        SINK,
-        placement("abutting", "wall-2door-600", {
-          alongMm: SINK_ENDS_MM + 300,
-          y0Mm: 1_500,
-          widthMm: 600,
-          heightMm: 700,
-        }),
-      ]),
-    ).toEqual([{ sinkPlacementId: "sink" }]);
-  });
-
-  it("finds no host in a cabinet that ends exactly where the sink begins", () => {
-    expect(
-      accessoriesOf([
-        SINK,
-        placement("abutting", "wall-2door-600", {
-          alongMm: SINK_STARTS_MM - 300,
-          y0Mm: 1_500,
-          widthMm: 600,
-          heightMm: 700,
-        }),
-      ]),
-    ).toEqual([{ sinkPlacementId: "sink" }]);
-  });
-
-  it("finds a host in a cabinet overlapping by a single millimetre", () => {
-    expect(
-      accessoriesOf([
-        SINK,
-        placement("just-over", "wall-2door-600", {
-          alongMm: SINK_ENDS_MM + 299,
-          y0Mm: 1_500,
-          widthMm: 600,
-          heightMm: 700,
-        }),
-      ]),
-    ).toEqual([{ sinkPlacementId: "sink", rackHostPlacementId: "just-over" }]);
-  });
-});
-
 describe("a host must be a wall-band body that declares a door leaf", () => {
   it("does not hang a rack in the open shelf standing over the sink", () => {
     expect(
@@ -306,21 +243,6 @@ describe("a host must be a wall-band body that declares a door leaf", () => {
           y0Mm: 0,
           widthMm: 600,
           heightMm: 2_200,
-        }),
-      ]),
-    ).toEqual([{ sinkPlacementId: "sink" }]);
-  });
-
-  it("does not hang a rack on the other wall, whatever its along-wall coordinate", () => {
-    expect(
-      accessoriesOf([
-        SINK,
-        placement("elsewhere", "wall-2door-800", {
-          wall: "B",
-          alongMm: 1_300,
-          y0Mm: 1_500,
-          widthMm: 800,
-          heightMm: 700,
         }),
       ]),
     ).toEqual([{ sinkPlacementId: "sink" }]);

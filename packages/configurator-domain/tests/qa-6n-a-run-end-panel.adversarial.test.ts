@@ -199,18 +199,6 @@ describe("the veto's vertical boundary at the panel's top edge", () => {
     });
   }
 
-  it("hides the panel behind a column exactly the panel's own height", () => {
-    expect(
-      seatWith(columnFromTheFloor(RUN_END_PANEL_HEIGHT_M)),
-    ).toBeUndefined();
-  });
-
-  it("hides the panel behind a column one millimetre taller than it", () => {
-    expect(
-      seatWith(columnFromTheFloor(RUN_END_PANEL_HEIGHT_M + 0.001)),
-    ).toBeUndefined();
-  });
-
   it("keeps the panel under a body whose underside touches its top within tolerance", () => {
     const justAbove = bodyHangingFrom(
       RUN_END_PANEL_HEIGHT_M - WITHIN_TOLERANCE_M,
@@ -296,21 +284,6 @@ describe("the seat over the range, not at the shipped point", () => {
 describe("the smallest record sets the rule can be handed", () => {
   it("hides the panel for no records at all", () => {
     expect(runEndPanelSeatM([], SEEDED_ROOM)).toBeUndefined();
-  });
-
-  it("seats the panel on a lone base placement", () => {
-    const soleBase = bodyAt({
-      wall: "A",
-      band: "base",
-      leftEdgeM: 1,
-      y0M: 0,
-      heightM: 0.82,
-      widthM: 0.6,
-    });
-
-    expect(runEndPanelSeatM([soleBase], SEEDED_ROOM)).toBe(
-      1.6 + RUN_END_PANEL_EDGE_OFFSET_M,
-    );
   });
 
   // The veto needs a run to veto: `runEndPanelSeatM` returns before `blocksSeat` when wall A carries

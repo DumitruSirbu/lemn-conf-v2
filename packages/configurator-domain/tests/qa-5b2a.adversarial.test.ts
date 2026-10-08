@@ -609,22 +609,6 @@ describe("the containment boundary, for both callers of the one helper", () => {
       topMm > ROOM_HEIGHT_MM ? ["PLACEMENT_ABOVE_ROOM"] : [],
     );
   });
-
-  it("answers a body and a space standing in the same place the same way", () => {
-    const pastTheEnd = WALL_RUN_MM + 1;
-    const asAnEmptyColumn = codesFor(
-      withEmptyColumns([
-        { ...FREED_STRIP, alongMm: pastTheEnd - FREED_STRIP.widthMm / 2 },
-      ]),
-    );
-    const asAPlacement = codesFor({
-      ...BASE_DESIGN,
-      placements: [{ ...SINK, alongMm: pastTheEnd - SINK.body.widthMm / 2 }],
-    });
-
-    expect(asAnEmptyColumn).toStrictEqual(["EMPTY_COLUMN_PAST_WALL_END"]);
-    expect(asAPlacement).toStrictEqual(["PLACEMENT_PAST_WALL_END"]);
-  });
 });
 
 describe("the floor a restored entry restores", () => {

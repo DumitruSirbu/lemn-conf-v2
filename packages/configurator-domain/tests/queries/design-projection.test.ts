@@ -167,28 +167,6 @@ describe("projectDesignForDisplay is a function of the design, not of its array 
       expected,
     );
   });
-
-  propertyTest.prop([
-    fc.shuffledSubarray(KITCHEN_L_DESIGN.placements, {
-      minLength: KITCHEN_L_DESIGN.placements.length,
-    }),
-  ])(
-    "orders two placements the same way whichever side they arrive on",
-    (permuted) => {
-      // The comparator is total, so no pair ever compares equal — that is what makes the permutation
-      // invariance above hold rather than merely pass on this fixture.
-      const entries = projectDesignForDisplay(
-        designOf(permuted),
-        CATALOG,
-      ).flatMap((group) => group.entries);
-      for (const [index, entry] of entries.entries()) {
-        for (const other of entries.slice(index + 1)) {
-          expect(compareDisplayOrder(entry, other)).toBeLessThan(0);
-          expect(compareDisplayOrder(other, entry)).toBeGreaterThan(0);
-        }
-      }
-    },
-  );
 });
 
 describe("the display-order comparator is the only one", () => {

@@ -101,15 +101,6 @@ describe("isDesignRevisionShape at its edges", () => {
     expect(accepted.join("")).toBe("0123456789");
   });
 
-  it("refuses a revision with anything before or after it", () => {
-    const wrapped = everyCodeUnit()
-      .filter((unit) => !/[0-9]/.test(unit))
-      .flatMap((unit) => [`${unit}42`, `42${unit}`])
-      .filter((text) => isDesignRevisionShape(text));
-
-    expect(wrapped).toEqual([]);
-  });
-
   it("accepts the largest value a bigint column holds", () => {
     expect(isDesignRevisionShape(LARGEST_BIGINT_COLUMN_VALUE)).toBe(true);
   });

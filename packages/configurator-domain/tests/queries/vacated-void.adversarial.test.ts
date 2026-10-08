@@ -125,6 +125,9 @@ describe("every LEVELS boundary, approached from both sides", () => {
     },
   );
 
+  // R2.1 / F1. Two level-adjacent slots share a module line. Widening the search at the top made them
+  // overlap by `FIT_TOLERANCE_M`, and `find` returned the lower one — so deleting a top-row unit
+  // selected the wall slot beneath it (§11 row 2's failure shape, one level up).
   it("never returns a slot that merely ends where the body started", () => {
     for (const boundaryM of BOUNDARIES) {
       const voids: VoidRecord[] = [

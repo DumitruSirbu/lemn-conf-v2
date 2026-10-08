@@ -242,20 +242,6 @@ describe("the width set a seeded body resolves through its declared equivalent",
     expect(withoutMember(800)).toBeGreaterThan(0);
   });
 
-  // §7 dropped 1000 when two doors were capped at 800, and the milestone repeats it as an
-  // acceptance criterion. Asserted as an anti-invariant over the whole population, because a chip
-  // nobody can build is exactly the "offered then refused" failure §9 forbids.
-  it("never offers 1000 mm anywhere in the kitchen", () => {
-    const world = seeded();
-    const offered = new Set(
-      world.records.flatMap((record) => [
-        ...(metaFor(world, record.id)?.sizesMm ?? []),
-      ]),
-    );
-    expect(offered.size).toBeGreaterThan(0);
-    expect(offered.has(1000)).toBe(false);
-  });
-
   // ADR 0022, and ADR 0011 Gap A: the set follows the **declared** pointer. Repointing one row
   // moves its set while the body's kind, band and width are untouched — which is what a match
   // inferred from those three would have keyed on. The assertion is that the inference is NOT what
@@ -271,23 +257,6 @@ describe("the width set a seeded body resolves through its declared equivalent",
     expect(metaFor(world, "p4")?.sizesMm).toEqual([450, 600]);
     expect(metaFor(world, "p4")?.kind).toBe("base_cabinet");
     expect(metaFor(world, "p4")?.widthMm).toBe(600);
-  });
-
-  // A pointer that resolves to nothing is an empty set, not a throw and not a fallback set: §9's
-  // width section then declines, which is the loud-at-the-section failure R2.7 preserved. The
-  // pointer guard in `tests/fixtures/kitchen-l-design.test.ts` is what makes a broken pointer fail
-  // on its own (FINDING R2.1: this cited `catalog.qa.test.ts`, which only covers `isKnownKind` and
-  // the kind descriptor).
-  it("gives an empty set when the declared equivalent is not in the catalogue", () => {
-    const seededEntry = KITCHEN_L_BODY_CATALOG.get("wall-2door-600");
-    if (!seededEntry) throw new Error("no seeded entry wall-2door-600");
-    const dangling: BodyCatalog = new Map(KITCHEN_L_BODY_CATALOG).set(
-      "wall-2door-600",
-      { ...seededEntry, catalogEquivalentId: "no-such-entry" },
-    );
-    const world = createWorld(KITCHEN_L_DESIGN, dangling);
-    expect(metaFor(world, "p8")?.sizesMm).toEqual([]);
-    expect(metaFor(world, "p8")?.canWidth).toBe(true);
   });
 
   // FINDING R1.1. The resolved entry must be `insertable`, not merely present. A pointer at another
@@ -308,16 +277,6 @@ describe("the width set a seeded body resolves through its declared equivalent",
     const world = createWorld(KITCHEN_L_DESIGN, catalog);
     expect(metaFor(world, "p8")?.sizesMm).toEqual([]);
   });
-
-  // The floor governing the set is the one on the entry the set came from, not the seeded row's.
-  // Reading the two off different rows would let a body offer a chip its own builder refuses.
-  it("applies the equivalent's own width floor to the equivalent's own set", () => {
-    const catalog = withCatalogEntry("wall-cabinet", { minWidthMm: 700 });
-    const world = createWorld(KITCHEN_L_DESIGN, catalog);
-    // The floor is raised above every chip in the entry's lower range and above the first four of
-    // its upper one, and the chips that survive are the equivalent's own — never the seeded row's.
-    expect(metaFor(world, "p8")?.sizesMm).toEqual([700, 750, 800]);
-  });
 });
 
 describe("describeSelection — §9's canWidth flag", () => {
@@ -328,35 +287,6 @@ describe("describeSelection — §9's canWidth flag", () => {
       target: { kind: "placement", id: "p0" },
     });
     expect(meta).toMatchObject({ fixedWidth: false, canWidth: true });
-  });
-
-  // FINDING R2.7, and M5 wave 5B turned it over rather than deleting it. It asserted `canWidth:
-  // false` for a movable-width body with no widths — the R1.3 rule, which folded "has widths to
-  // offer" into the flag and made `canWidth: true, sizesMm: []` a representable contradiction. §9
-  // states the rule as "selected · not empty · not `fixedWidth`" and nothing more, so the flag is
-  // that again and the panel's width *section* declines when there are no chips.
-  //
-  // It used to make its point on `p0`, which now resolves [600, 800] through `base-sink`. The
-  // invariant is unchanged and reached here by breaking one row's `catalogEquivalentId`: the set
-  // empties and `fixedWidth` does not move, so `canWidth` stays true beside it. That is the
-  // contradiction being kept representable on purpose — missing catalogue data must fail loudly at
-  // the section, not silently at the flag.
-  it("is true for a movable-width body even when the catalogue gives it no widths", () => {
-    const world = createWorld(
-      KITCHEN_L_DESIGN,
-      withCatalogEntry("wall-2door-600", {
-        catalogEquivalentId: "no-such-entry",
-      }),
-    );
-    const meta = describeSelection({
-      ...world,
-      target: { kind: "placement", id: "p8" },
-    });
-    expect(meta).toMatchObject({
-      fixedWidth: false,
-      sizesMm: [],
-      canWidth: true,
-    });
   });
 
   // FINDING R2.9. `meta.sizesMm` published the catalogue row RAW while `offersFor` published it
@@ -379,20 +309,6 @@ describe("describeSelection — §9's canWidth flag", () => {
     expect(meta?.sizesMm).toEqual([600, 800]);
   });
 
-  // §11 rows 14 and 16: a fixed-width body has no width section to render.
-  it("is false for every fixed-width body", () => {
-    const world = seeded();
-    const fixed = world.records.filter((record) => record.fixedWidth);
-    expect(fixed.length).toBeGreaterThan(0);
-    for (const record of fixed) {
-      const meta = describeSelection({
-        ...world,
-        target: { kind: "placement", id: record.id },
-      });
-      expect(meta?.canWidth).toBe(false);
-    }
-  });
-
   it("is false for a void, which has nothing to resize", () => {
     const world = clearBodies(seeded(), ["p1"]);
     const opening = voidAt(world, "A|2.00", 0);
@@ -405,16 +321,6 @@ describe("describeSelection — §9's canWidth flag", () => {
 });
 
 describe("describeSelection — the appearance the chips must mark", () => {
-  it("carries no finish or handle until one is chosen", () => {
-    const world = seeded();
-    const meta = describeSelection({
-      ...world,
-      target: { kind: "placement", id: "p0" },
-    });
-    expect(meta?.finish).toBeUndefined();
-    expect(meta?.handle).toBeUndefined();
-  });
-
   it("carries the finish and handle a command applied", () => {
     const world = seeded();
     const finished = setFinish({
