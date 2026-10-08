@@ -418,14 +418,23 @@ describe("the L and straight shells are byte-identical to the shells before wall
     return { ...child, mapRepeat: undefined };
   }
 
-  /** `RecordedShellChild` holds no scale, so a child stretched instead of rebuilt keeps every recorded fact and
-   *  still draws a different room. Held beside the record, child by child. */
+  /** `RecordedShellChild` holds no scale, so a node stretched instead of rebuilt keeps every recorded fact and
+   *  still draws a different room. Read off the shell group itself and each child: a scale on the group moves
+   *  every child's world box while leaving each child's own scale at one. */
   const UNSCALED = [1, 1, 1];
+  const SHELL_GROUP_LABEL = "the shell group";
 
-  function scaledChildrenOf(shell: THREE.Object3D): string[] {
-    return shell.children
-      .filter((child) => !child.scale.equals(new THREE.Vector3(...UNSCALED)))
-      .map((child) => child.name);
+  function scaledNodesOf(shell: THREE.Object3D): string[] {
+    if (shell.children.length === 0) {
+      throw new Error("The shell has no children to read a scale off");
+    }
+    const nodes: (readonly [string, THREE.Object3D])[] = [
+      [SHELL_GROUP_LABEL, shell],
+      ...shell.children.map((child) => [child.name, child] as const),
+    ];
+    return nodes
+      .filter(([, node]) => !node.scale.equals(new THREE.Vector3(...UNSCALED)))
+      .map(([label]) => label);
   }
 
   it.each(RECORDED_ROOMS)(
@@ -436,7 +445,7 @@ describe("the L and straight shells are byte-identical to the shells before wall
       const drawn = shell.children.map(recordedFactsOf);
 
       expect(drawn).toStrictEqual(NON_U_SHELLS_BEFORE_WALL_C[recordedKey]);
-      expect(scaledChildrenOf(shell)).toEqual([]);
+      expect(scaledNodesOf(shell)).toEqual([]);
     },
   );
 
@@ -463,7 +472,7 @@ describe("the L and straight shells are byte-identical to the shells before wall
     expect(fiveOriginals.map(withoutMapRepeat)).toStrictEqual(
       NON_U_SHELLS_BEFORE_WALL_C.L.map(withoutMapRepeat),
     );
-    expect(scaledChildrenOf(shell)).toEqual([]);
+    expect(scaledNodesOf(shell)).toEqual([]);
     fiveOriginals.forEach((child, index) => {
       const recorded = required(
         NON_U_SHELLS_BEFORE_WALL_C.L[index],
