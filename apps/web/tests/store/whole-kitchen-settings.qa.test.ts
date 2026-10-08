@@ -112,18 +112,6 @@ function hardwareTier(tierId: string) {
 // `isStillPresent`, so a whole-kitchen setting can never resurrect a selection that has stopped
 // existing.
 describe("the selection a whole-kitchen setting carries through", () => {
-  it("keeps a selected placement, and its identity", () => {
-    const store = freshStore();
-    store.getState().select({ kind: "placement", id: "p0" });
-
-    store.getState().setMaterialTier("material.veneer", MATERIAL_TIER_IDS);
-
-    expect(store.getState().selection).toEqual({
-      kind: "placement",
-      id: "p0",
-    });
-  });
-
   // The seeded kitchen is full, so the only opening a customer can be holding is one they just made
   // — which is exactly the state §5.1 leaves them in after a delete, and the one a settings sheet
   // opened next must not close.

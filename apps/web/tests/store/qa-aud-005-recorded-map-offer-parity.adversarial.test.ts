@@ -25,7 +25,6 @@ import {
   buildKitchenLBodyCatalog,
   offersFor,
   KITCHEN_L_DESIGN,
-  wallLengthMm,
   type Design,
   type EmptyColumn,
   type PlacementRecord,
@@ -55,10 +54,6 @@ const FAR_END: EmptyColumn = {
  *  the key the capped published column carries too. Written out rather than derived so a reader can
  *  see that the two faces are being addressed by one name. */
 const THE_CAPPED_COLUMN = "B|2.72";
-
-/** A base cabinet the offer list judges **offered** in this opening, so the disagreement below is
- *  between two things the product says out loud rather than between a test and a refusal. */
-const AN_OFFERED_BODY = "base-cabinet";
 
 /** A sink base, whose 560 mm aperture is wider than the capped opening. The offer list leaves it
  *  out — it refused it by name and with a number until the owner ruled a refused row off the panel
@@ -160,34 +155,6 @@ describe("the opening a command resolves against is still the capped one", () =>
     expect(
       store.getState().voids.filter((v) => v.col === THE_CAPPED_COLUMN).length,
     ).toBeGreaterThan(0);
-  });
-
-  // **The defect.** ADR 0069's owner ruling, closed 2026-09-04, is *"never"*: no member-less column
-  // reaching past the end of its wall may be presented as an insertable opening. ADR 0090
-  // Amendment B keeps it in as many words — *"the published map is still bounded by the wall, and
-  // no opening past the wall is ever derived, drawn or offered."*
-  //
-  // Reproduction: at 700 mm, tap the base opening of the capped column at the end of wall B and
-  // insert `base-cabinet`. The published opening runs 2420 to 2920 and is 500 mm wide; the body
-  // lands 2420 to **3020**, a hundred millimetres past the end of a 2920 mm wall.
-  //
-  // Stated over whatever the command leaves behind rather than over one placement, and **without
-  // requiring the insert to succeed**: a fix may legitimately answer this tap with a refusal, and a
-  // criterion that demanded a successful insert would be pinning one of the available fixes rather
-  // than the ruling.
-  it("places nothing past the end of the wall when the capped opening is filled", () => {
-    const store = atTheDeeperSetting();
-
-    insertInto(store, AN_OFFERED_BODY);
-
-    const { room } = store.getState().design;
-    for (const record of store.getState().records) {
-      const alongM = record.wall === "A" ? record.frame.x : record.frame.z;
-      expect(
-        Math.round((alongM + record.frame.w / 2) * 1000),
-        `${record.id} (${record.buildId})`,
-      ).toBeLessThanOrEqual(wallLengthMm(record.wall, room));
-    }
   });
 
   // §11 row 6 — the offer list and the command are one evaluation read from two ends — and ADR

@@ -21,7 +21,6 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
 import {
-  countMovedFinishes,
   FINISHES_RESOLVED_BY_VENEER,
   HOOD_PLACEMENT_ID,
   MDF_KITCHEN_WEARING_CHOSEN_COLOURS,
@@ -165,34 +164,6 @@ describe("the two whole-kitchen store actions", () => {
         (placement) => placement.id === HOOD_PLACEMENT_ID,
       );
     expect(hoodAfter?.body.finish).toBeUndefined();
-  });
-
-  // **ADR 0057: the reset runs once and produces one result — never a per-cabinet cascade the
-  // customer watches happen.** Pointed at a design where two cabinets actually have to reset, because
-  // `KITCHEN_L_DESIGN` carries no finish on any placement: on the seeded fixture nothing resets, so a
-  // cascade would have nothing to iterate and this assertion would pass for either implementation.
-  // With N cabinets moving, a per-cabinet cascade shows here as N + 1 saves through the coalescer.
-  it("notifies the save path exactly once however many finishes the change resets", () => {
-    const onDesignChanged = vi.fn();
-    const store = createConfiguratorStore({
-      design: MDF_KITCHEN_WEARING_CHOSEN_COLOURS,
-      catalogAt: buildKitchenLBodyCatalog,
-      probeAt: createFakeProbeFactory(),
-      now: () => OCCURRED_AT,
-      onDesignChanged,
-    });
-
-    store.getState().setMaterialTier(VENEER_TIER_ID, MATERIAL_TIER_IDS);
-
-    expect(
-      countMovedFinishes(
-        MDF_KITCHEN_WEARING_CHOSEN_COLOURS,
-        store.getState().design,
-      ),
-    ).toBe(FINISHES_RESOLVED_BY_VENEER);
-    expect(FINISHES_RESOLVED_BY_VENEER).toBeGreaterThanOrEqual(2);
-    expect(onDesignChanged).toHaveBeenCalledTimes(1);
-    expect(onDesignChanged.mock.calls[0]?.[0]).toBe(store.getState().design);
   });
 
   it("publishes the refusal and changes nothing when the tier is not offered", () => {

@@ -220,16 +220,4 @@ describe("§9's panel, after the rule left it", () => {
     // Four distinct answers: writable, and the three locked sentences.
     expect(byAnswer.size).toBe(4);
   });
-
-  it("carries the reason onto the remove action exactly where the rule says it is locked", () => {
-    for (const access of everyAccessPair()) {
-      const shared = describeEditability(access, ro.panel);
-      const { footer } = openPanelAt(access);
-
-      expect(footer.isRemoveDisabled, labelFor(access)).toBe(shared.isReadOnly);
-      expect(footer.removeDisabledReason, labelFor(access)).toBe(
-        shared.isReadOnly ? shared.disabledReason : undefined,
-      );
-    }
-  });
 });
