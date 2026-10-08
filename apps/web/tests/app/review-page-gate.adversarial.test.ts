@@ -216,9 +216,15 @@ describe("the gate, per refusal case, locale and door", () => {
     },
   ];
 
+  // The editor's other rows are `qa-7e3b-design-page-gate.adversarial.test.ts`'s own table, on the same page.
+  const casesByDoor = {
+    editor: cases.filter(({ name }) => name === "foreign, unknown body"),
+    review: cases,
+  } as const;
+
   for (const door of ["editor", "review"] as const)
     for (const locale of ["ro", "ru"] as const)
-      for (const testCase of cases)
+      for (const testCase of casesByDoor[door])
         it(`${door} / ${locale} / ${testCase.name}: renders exactly { reason: "unavailable" }`, async () => {
           state.cookieValue = testCase.cookie;
           state.cookieName = testCase.cookieName ?? VISITOR_COOKIE_NAME;

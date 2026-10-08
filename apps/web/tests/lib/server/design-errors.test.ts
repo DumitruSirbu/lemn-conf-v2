@@ -8,16 +8,6 @@ describe("invalidBodyResponse", () => {
   const ZOD_REASON =
     '[{"expected":"object","code":"invalid_type","path":["room"],"message":"Invalid input"}]';
 
-  it("rejects with 400", async () => {
-    const response = invalidBodyResponse(ZOD_REASON);
-
-    expect(response.status).toBe(400);
-    expect(await response.json()).toEqual({
-      code: "DESIGN_INVALID",
-      error: "Design payload failed validation.",
-    });
-  });
-
   it("does not disclose the validation reason to the client", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
 

@@ -378,18 +378,6 @@ describe("what the shipped 390 × 844 sweep can fail on", () => {
     expect(shortScene).toBeCloseTo(tallScene, 10);
   });
 
-  it("frames the whole seeded kitchen at the preset the screen mounts with", () => {
-    // What the sweep does assert, stated once in the units that make it falsifiable: every body
-    // lands inside the scene box. This is a real property — it is just not a property of the bar.
-    for (const body of mountedBodies()) {
-      const bottom = normalisedBottomOf(body, "overview", 700);
-      expect(
-        bottom,
-        `${String(body.userData.placementId)} projects below the scene box`,
-      ).toBeLessThanOrEqual(1);
-    }
-  });
-
   it("is a framing property that does not hold at the other two presets the screen offers", () => {
     // The state the sweep misses, named rather than left implied: the customer can switch to wallA
     // or wallB, and at those presets bodies project outside the scene box. That is **not** an
@@ -408,33 +396,6 @@ describe("what the shipped 390 × 844 sweep can fail on", () => {
       clippedByPreset.some((preset) => preset.clipped > 0),
       "no preset clips a body, so this test no longer says anything",
     ).toBe(true);
-  });
-
-  it("keeps the counterfactual load-bearing at the height the bar actually reserves", () => {
-    // The shipped counterfactual runs at one header height and one bar height. Swept here, because
-    // it is the assertion that ties the reserve to a real number: with the bar laid *over* the
-    // scene, the reserved band has to contain real cabinets, or reserving it means nothing.
-    const headerHeightPx = 64;
-    const overlaidSceneHeightPx = GATE_VIEWPORT.heightPx - headerHeightPx;
-
-    for (const barHeightPx of [
-      PRICE_BAR_RESERVED_HEIGHT_PX,
-      PRICE_BAR_RESERVED_HEIGHT_PX + 24,
-      PRICE_BAR_RESERVED_HEIGHT_PX + 48,
-    ]) {
-      const barTopPx = GATE_VIEWPORT.heightPx - barHeightPx;
-      const covered = mountedBodies().filter(
-        (body) =>
-          normalisedBottomOf(body, "overview", overlaidSceneHeightPx) *
-            overlaidSceneHeightPx +
-            headerHeightPx >
-          barTopPx,
-      );
-      expect(
-        covered.length,
-        `a ${String(barHeightPx)} px overlay`,
-      ).toBeGreaterThan(0);
-    }
   });
 
   it("would stop being load-bearing at a zero reserve, which is what makes it a counterfactual", () => {

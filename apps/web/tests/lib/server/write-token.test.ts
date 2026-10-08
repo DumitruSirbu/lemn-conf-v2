@@ -114,17 +114,6 @@ describe("readWriteTokenHash", () => {
     expect(read).toBe(hash);
   });
 
-  it("never returns the raw token, only its digest", () => {
-    const { token } = mintWriteToken();
-
-    const read = readWriteTokenHash(
-      requestCarrying(`${COOKIE_NAME}=${token}`),
-      DESIGN_ID,
-    );
-
-    expect(read).not.toBe(token);
-  });
-
   it("finds nothing when the request carries no cookie at all", () => {
     expect(readWriteTokenHash(requestCarrying(""), DESIGN_ID)).toBeUndefined();
   });

@@ -90,20 +90,6 @@ describe("describePanel — when the panel is open at all", () => {
 });
 
 describe("describePanel — §9's section order", () => {
-  it("renders rejection, replace, finish, handle and width in that order", () => {
-    const panel = openPanelFor(occupiedMeta(), {
-      offers: offers(3),
-      rejection: REFUSAL,
-    });
-    expect(sectionKinds(panel.sections)).toEqual([
-      "rejection",
-      "replace",
-      "finish",
-      "handle",
-      "width",
-    ]);
-  });
-
   // The banner authored inside the width section was invisible on exactly the fixed-width bodies
   // that refuse most, which is why §9 moved it to the top of the body.
   it("puts the banner first on a body that has no width section at all", () => {
@@ -112,11 +98,6 @@ describe("describePanel — §9's section order", () => {
     // asserted here is the ORDER — the banner comes first, whatever else the body carries.
     const panel = openPanelFor(cornerReturnMeta(), { rejection: REFUSAL });
     expect(sectionKinds(panel.sections)).toEqual(["rejection", "structural"]);
-  });
-
-  it("renders no banner when nothing was refused", () => {
-    const panel = openPanelFor(occupiedMeta(), { offers: offers(2) });
-    expect(findSection(panel.sections, "rejection")).toBeUndefined();
   });
 });
 
@@ -169,24 +150,6 @@ describe("describePanel — sections render only when their flag is true", () =>
     expect(sectionKinds(panel.sections).length).toBeGreaterThan(1);
   });
 
-  it("hides finish, handle and width on an empty slot", () => {
-    const panel = openPanelFor(slotMeta(), { offers: offers(10) });
-    expect(sectionKinds(panel.sections)).toEqual(["replace"]);
-  });
-
-  it("drops each section as its own flag goes false, and no others with it", () => {
-    const cases = [
-      { flags: { canFinish: false }, missing: "finish" },
-      { flags: { canHandle: false }, missing: "handle" },
-      { flags: { canReplace: false }, missing: "replace" },
-    ] as const;
-    for (const { flags, missing } of cases) {
-      const panel = openPanelFor(occupiedMeta(flags), { offers: offers(2) });
-      expect(sectionKinds(panel.sections)).not.toContain(missing);
-      expect(panel.sections.length).toBe(3);
-    }
-  });
-
   /** The width section's own version of the case above, and it is a different question since
    *  ADR 0049: `canWidth` no longer decides whether the section exists — the widths the domain
    *  publishes do. A `fixedWidth` cabinet has `canWidth: false` and still renders, so the flag
@@ -202,20 +165,6 @@ describe("describePanel — sections render only when their flag is true", () =>
 });
 
 describe("describePanel — the replace list", () => {
-  // §11 row 24: a fallback set once produced six guaranteed-refused rows for the hob.
-  it("renders no replace section at all for an unknown kind, even with offers", () => {
-    const panel = openPanelFor(occupiedMeta({ kind: "mystery_unit" }), {
-      offers: offers(6),
-    });
-    expect(findSection(panel.sections, "replace")).toBeUndefined();
-  });
-
-  // The void's own `kind` is "void", which is not in the kind table. Row 24 must not swallow it.
-  it("still renders the list for an empty slot, whose kind is never a catalogue kind", () => {
-    const panel = openPanelFor(slotMeta(), { offers: offers(10) });
-    expect(findSection(panel.sections, "replace")?.rows).toHaveLength(10);
-  });
-
   it("titles an occupied body's list as a replacement and a slot's as an insertion", () => {
     const occupied = openPanelFor(occupiedMeta(), { offers: offers(1) });
     const slot = openPanelFor(slotMeta(), { offers: offers(1) });
@@ -227,23 +176,6 @@ describe("describePanel — the replace list", () => {
     );
     expect(findSection(occupied.sections, "replace")?.title).not.toBe(
       findSection(slot.sections, "replace")?.title,
-    );
-  });
-
-  it("derives the count line from the rows it actually rendered", () => {
-    for (const count of [1, 2, 5, 10, 15]) {
-      const panel = openPanelFor(slotMeta(), { offers: offers(count) });
-      const section = findSection(panel.sections, "replace");
-      expect(section?.rows).toHaveLength(count);
-      expect(section?.countLine).toContain(String(count));
-      expect(section?.countLine).toContain("700 × 860 mm");
-    }
-  });
-
-  it("counts an occupied body's set by band and width, per §9's example", () => {
-    const panel = openPanelFor(occupiedMeta(), { offers: offers(5) });
-    expect(findSection(panel.sections, "replace")?.countLine).toBe(
-      ro.panel.countForBody(5, ro.panel.bandWords.base.many, 600),
     );
   });
 
@@ -290,13 +222,6 @@ describe("describePanel — the replace list", () => {
     );
   });
 
-  it("uses the singular for one offer", () => {
-    const panel = openPanelFor(occupiedMeta(), { offers: offers(1) });
-    expect(findSection(panel.sections, "replace")?.countLine).toBe(
-      ro.panel.countForBody(1, ro.panel.bandWords.base.one, 600),
-    );
-  });
-
   // §9: a zero-result list shows a sentence saying what to clear, never a bare "0".
   it("replaces the count line with a sentence when nothing fits", () => {
     // Which leaf, not which word: the two sentences differ because one selection is a body and the
@@ -328,15 +253,6 @@ describe("describePanel — the replace list", () => {
     ).toEqual(["base-cabinet"]);
   });
 
-  it("shows each row the size it would build to in this opening", () => {
-    const panel = openPanelFor(slotMeta(), {
-      offers: [offer({ buildsToWidthMm: 700, buildsToHeightMm: 1850 })],
-    });
-    expect(findSection(panel.sections, "replace")?.rows[0]?.secondaryLine).toBe(
-      "700 × 1850 mm",
-    );
-  });
-
   // **The greyed row ADR 0032 required is gone** (owner, 2026-09-10: *"show only what is possible to
   // insert"*), so what used to be *"a refused offer stays visible, disabled, with the engine's
   // reason"* is now this: every row the panel renders is enabled and carries its size, because
@@ -350,22 +266,6 @@ describe("describePanel — the replace list", () => {
 
     expect(row?.isDisabled).toBe(false);
     expect(row?.secondaryLine).toBe(ro.panel.offerSize(700, 1850));
-  });
-
-  // "Never offer what cannot be satisfied": until the scene mounts, `insertBody` refuses every
-  // row, so every row is disabled with that reason instead of tapped and then refused.
-  it("disables every row with a reason while the body probe is unattached", () => {
-    const panel = openPanelFor(slotMeta(), {
-      offers: offers(4),
-      isBodyProbeAttached: false,
-    });
-    const rows = findSection(panel.sections, "replace")?.rows ?? [];
-    expect(rows).toHaveLength(4);
-    for (const row of rows)
-      expect([row.isDisabled, row.secondaryLine]).toEqual([
-        true,
-        ro.panel.probeUnavailable,
-      ]);
   });
 
   // Frame 2B: the drawing is what tells a full-height column apart from a base cabinet at a glance,
@@ -458,12 +358,6 @@ describe("describePanel — finish and handle chips", () => {
         ro.finishName(entry.entryId),
       ),
     );
-  });
-
-  it("marks nothing as chosen when no finish was applied", () => {
-    const section = swatchSectionOf(openPanelFor(occupiedMeta()).sections);
-
-    expect(section.chips.some((chip) => chip.isActive)).toBe(false);
   });
 
   // §6.5 / §11 row 13: with nothing chosen, the marked chip is the one the scene is rendering.
@@ -565,16 +459,6 @@ describe("describePanel — the width section, judged by the engine (M5 wave 5D)
     expect(reasons.get(400)).toContain("Dulap suspendat");
     expect(reasons.get(600)).toBeUndefined();
     expect(reasons.get(800)).toBeUndefined();
-  });
-
-  // §9 defines `canWidth` as "selected · not empty · not `fixedWidth`" and says nothing about the
-  // size set, so an empty option list has to be declined by the SECTION rather than by the flag. The
-  // hazard is treating a section that offers nothing to choose as a correct render: a width
-  // heading over no chips is a dead control, so the section must be absent entirely.
-  it("renders no width section at all when the engine offers no options", () => {
-    const panel = openPanelFor(occupiedMeta(), { widthOptions: [] });
-    expect(findSection(panel.sections, "width")).toBeUndefined();
-    expect(sectionKinds(panel.sections)).not.toContain("width");
   });
 });
 

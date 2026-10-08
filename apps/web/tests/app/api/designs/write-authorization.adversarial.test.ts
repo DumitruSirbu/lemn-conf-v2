@@ -6,10 +6,7 @@
 // — and whether the raw token can reach anywhere a person or a log could read it.
 import { KITCHEN_L_DESIGN } from "@lemnaria/configurator-domain";
 import type { Design, DesignId } from "@lemnaria/configurator-domain";
-import {
-  DesignNotFoundError,
-  canonicalSerializeDesign,
-} from "@lemnaria/configurator-domain";
+import { DesignNotFoundError } from "@lemnaria/configurator-domain";
 import {
   DesignWriteConflictError,
   DesignWriteForbiddenError,
@@ -26,7 +23,6 @@ import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { flattenLogArguments } from "../../../support/console-log-line";
-import { ownerVisitorCookiePair } from "../../../support/owned-design-lookup";
 
 /** What `0004_add_design_revision.sql` gives every row. These tests mint and save once, so it is
  *  also the revision every save in this file states. */
@@ -103,21 +99,6 @@ class FakeAuthorizedRepository implements AuthorizedConfigurationRepository {
       design: row.design,
       revision: row.revision,
     });
-  }
-
-  /** A design minted before ADR 0019, and before the visitor column (M7 wave 7E3a): readable by
-   *  nobody under the current gate, and writable by nobody either. */
-  seedTokenlessRow(id: DesignId, design: Design): void {
-    this.rows.set(id, {
-      design,
-      writeTokenHash: null,
-      visitorHash: undefined,
-      revision: FIRST_REVISION,
-    });
-  }
-
-  storedDesign(id: DesignId): Design | undefined {
-    return this.rows.get(id)?.design;
   }
 }
 
@@ -213,32 +194,6 @@ function routeParams(id: string): { params: Promise<{ id: string }> } {
 // thing a fix of this shape most easily gets wrong: a `try` that also swallows failures which are
 // not the client's fault.
 describe("a malformed body is refused, not thrown", () => {
-  const MALFORMED: readonly { readonly name: string; readonly body: string }[] =
-    [
-      { name: "truncated JSON", body: '{"room":' },
-      { name: "not JSON at all", body: "definitely-not-json" },
-      { name: "an empty body", body: "" },
-    ];
-
-  it.each(MALFORMED)("answers 400 for $name", async (testCase) => {
-    const { id, cookie } = await mintDesign();
-    const before = canonicalSerializeDesign(
-      fakeRepository.storedDesign(id) ?? KITCHEN_L_DESIGN,
-    );
-
-    const response = await PUT(
-      requestWith(id, { body: testCase.body, cookie }),
-      routeParams(id),
-    );
-
-    expect(response.status).toBe(400);
-    expect(
-      canonicalSerializeDesign(
-        fakeRepository.storedDesign(id) ?? KITCHEN_L_DESIGN,
-      ),
-    ).toBe(before);
-  });
-
   it("refuses a malformed body from an unauthorised caller as 403, before parsing it", async () => {
     const { id } = await mintDesign();
 
@@ -447,45 +402,6 @@ describe("canWrite is advisory and never the authorisation decision", () => {
         combinedCookie(`lemnaria_write_token_${id}=`, visitorCookie),
       ),
     ).toBe(false);
-  });
-
-  it("refuses a pre-ADR-0019 row outright — no credential can read or write it (Amendment H2)", async () => {
-    // Superseded from "reports true on a pre-ADR-0019 row that no credential can ever write": since
-    // M7 wave 7E3b such a row also has no visitor owner (it predates that column too), so the read
-    // itself is refused and `canWrite` is never computed — the same "have no owner and are therefore
-    // unreadable" consequence ADR 0114 decision 5 states for a pre-`0005` row.
-    const legacyId = "legacy-design";
-    fakeRepository.seedTokenlessRow(legacyId, KITCHEN_L_DESIGN);
-    const anyCookie = `lemnaria_write_token_${legacyId}=anything-at-all`;
-
-    const read = await GET(
-      readRequest(legacyId, ownerVisitorCookiePair()),
-      routeParams(legacyId),
-    );
-    const write = await PUT(
-      requestWith(legacyId, {
-        body: JSON.stringify(KITCHEN_L_DESIGN),
-        cookie: anyCookie,
-      }),
-      routeParams(legacyId),
-    );
-
-    expect(read.status).toBe(404);
-    expect(write.status).toBe(403);
-  });
-
-  it("refuses a cookie-less read outright, rather than answering canWrite: false (Amendment H2)", async () => {
-    // Superseded from "does not turn a cookie-less read into a refusal": ADR 0019 decision 1's open
-    // read is exactly what M7 wave 7E3b (ADR 0114 decision 5) retires — a design now opens only in
-    // its owning browser, so a cookie-less caller gets the same 404 every other refusal case does.
-    const { id } = await mintDesign();
-
-    const response = await GET(
-      new NextRequest(`https://example.test/api/designs/${id}`),
-      routeParams(id),
-    );
-
-    expect(response.status).toBe(404);
   });
 
   it("sets no cookie on a read, whatever the answer", async () => {

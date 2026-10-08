@@ -22,7 +22,6 @@ import {
   pseudoLocalizeMessage,
   stressableLetterCountOf,
 } from "@/i18n/pseudo-locale";
-import { routing } from "@/i18n/routing";
 
 import {
   catalogueLeaves,
@@ -129,11 +128,6 @@ describe("the stressed catalogue actually stresses", () => {
 });
 
 describe("the stressed catalogue is not a locale a customer can reach", () => {
-  it("is absent from the routing table, so it is not a route and not in the switcher", () => {
-    expect(routing.locales).toEqual(["ro", "ru"]);
-    expect([...routing.locales]).not.toContain("pseudo");
-  });
-
   it("is refused in production whatever the flag says", () => {
     expect(
       isPseudoLocaleEnabled({

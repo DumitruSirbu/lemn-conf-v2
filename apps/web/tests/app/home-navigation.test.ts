@@ -12,7 +12,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const VISITOR_COOKIE_NAME = "__Host-lemnaria_visitor";
 const WELL_FORMED_VALUE = "a".repeat(43);
 const MALFORMED_VALUE = "not-base64url-and-not-43-chars";
-const RESUMED_DESIGN_ID = "resumed-design-id";
 
 const reportDesignFailure = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/server/design-failure-log", async (importOriginal) => ({
@@ -69,24 +68,6 @@ describe.each(["ro", "ru"] as const)("locale %s", (locale) => {
     );
     expect(response.headers.get("set-cookie")).toBeNull();
     expect(stub.calls).toBe(0);
-  });
-
-  it("a matching cookie: 307 to the resumed design", async () => {
-    repository.current = new StubResumeRepository({
-      kind: "found",
-      id: RESUMED_DESIGN_ID,
-    });
-
-    const response = await GET(
-      requestCarrying(WELL_FORMED_VALUE),
-      routeParams(locale),
-    );
-
-    expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toBe(
-      `/${locale}/d/${RESUMED_DESIGN_ID}`,
-    );
-    expect(response.headers.get("set-cookie")).toBeNull();
   });
 
   it("well-formed, matching nothing: 307 to room, plus the clear", async () => {

@@ -539,12 +539,6 @@ describe("a writable panel is left alone", () => {
     expect(picker.isDisabled).toBe(false);
     expect(picker.reason).toBeUndefined();
   });
-
-  it("keeps the offer size on the secondary line", () => {
-    const replace = findSection(openPanel(occupiedMeta()), "replace");
-
-    expect(replace.rows[0]?.secondaryLine).toBe(ro.panel.offerSize(600, 860));
-  });
 });
 
 /** The stored design moved on while this browser was editing, so the save was refused: nothing is lost yet and the

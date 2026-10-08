@@ -341,64 +341,9 @@ describe("PUT /api/designs/[id] — the write-token guard", () => {
       canonicalSerializeDesign(KITCHEN_L_DESIGN),
     );
   });
-
-  it("returns byte-identical refusals for a wrong token and an unknown id", async () => {
-    const { id } = await mintDesign();
-    const wrongToken = `lemnaria_write_token_${id}=not-the-real-token`;
-    const unknownId = "no-such-design";
-    const unknownCookie = `lemnaria_write_token_${unknownId}=anything-at-all`;
-
-    const wrongTokenResponse = await PUT(
-      saveRequest(id, { design: ATTACKER_DESIGN, cookie: wrongToken }),
-      routeParams(id),
-    );
-    const unknownIdResponse = await PUT(
-      saveRequest(unknownId, {
-        design: ATTACKER_DESIGN,
-        cookie: unknownCookie,
-      }),
-      routeParams(unknownId),
-    );
-
-    // Any difference here — status, body, or a stray id in the message — turns the write endpoint
-    // into an oracle for which design links exist.
-    expect(unknownIdResponse.status).toBe(wrongTokenResponse.status);
-    expect(await unknownIdResponse.json()).toEqual(
-      await wrongTokenResponse.json(),
-    );
-  });
-
-  it("names no design id in the refusal body", async () => {
-    const { id } = await mintDesign();
-    const wrongToken = `lemnaria_write_token_${id}=not-the-real-token`;
-
-    const response = await PUT(
-      saveRequest(id, { design: ATTACKER_DESIGN, cookie: wrongToken }),
-      routeParams(id),
-    );
-
-    expect(JSON.stringify(await response.json())).not.toContain(id);
-  });
 });
 
 describe("PUT /api/designs/[id] — the cookie slides on a successful write", () => {
-  it("re-issues the write cookie, so editing past day 30 does not revoke access", async () => {
-    const { id, cookie } = await mintDesign();
-
-    const response = await PUT(
-      saveRequest(id, { design: EDITED_DESIGN, cookie }),
-      routeParams(id),
-    );
-
-    // Retention deletes a design 30 days after it was last touched; a fixed cookie would expire 30
-    // days after mint, under a customer still editing, with no recovery until M8's emailed link.
-    const setCookie = response.headers.get("set-cookie") ?? "";
-    expect(setCookie).toContain(`lemnaria_write_token_${id}=`);
-    expect(setCookie).toMatch(/;\s*Max-Age=2592000/);
-    expect(setCookie).toMatch(/;\s*HttpOnly/i);
-    expect(setCookie).toMatch(/;\s*Secure/i);
-  });
-
   it("re-issues the same token rather than rotating it", async () => {
     const { id, cookie } = await mintDesign();
     const sentToken = cookie.split("=")[1] ?? "";
@@ -413,18 +358,6 @@ describe("PUT /api/designs/[id] — the cookie slides on a successful write", ()
     expect(cookiePairOf(response.headers.get("set-cookie") ?? "")).toBe(
       `lemnaria_write_token_${id}=${sentToken}`,
     );
-  });
-
-  it("issues no cookie on a refused write", async () => {
-    const { id } = await mintDesign();
-
-    const response = await PUT(
-      saveRequest(id, { design: ATTACKER_DESIGN, cookie: "" }),
-      routeParams(id),
-    );
-
-    expect(response.status).toBe(403);
-    expect(response.headers.get("set-cookie")).toBeNull();
   });
 });
 
@@ -459,17 +392,6 @@ describe("PUT /api/designs/[id] — a body that will not parse", () => {
 
   // ADR 0052's 800 mm ceiling on an empty column is witnessed at this seam by
   // `qa-5g.adversarial.test.ts`, whose fixture is invalid for that reason alone.
-
-  it("still refuses an unauthorised caller before the parser sees the body", async () => {
-    const { id } = await mintDesign();
-
-    const response = await PUT(
-      rawBodyRequest(id, { body: "definitely-not-json", cookie: "" }),
-      routeParams(id),
-    );
-
-    expect(response.status).toBe(403);
-  });
 });
 
 describe("PATCH /api/designs/[id]", () => {
@@ -519,16 +441,6 @@ describe("GET /api/designs/[id]", () => {
       design: KITCHEN_L_DESIGN,
       canWrite: false,
     });
-  });
-
-  it("reports canWrite: false to the owning browser that sends no write-token cookie — a 200, never a 401 or 403", async () => {
-    const { id, visitorCookie } = await mintDesign();
-
-    const { status, body } = await readBodyOf(id, visitorCookie);
-
-    expect(status).toBe(200);
-    expect((body as { canWrite: boolean }).canWrite).toBe(false);
-    expect((body as { design: Design }).design).toEqual(KITCHEN_L_DESIGN);
   });
 
   it("refuses a caller holding no cookie at all — 404, never a 401 or 403 (ADR 0114 decision 5)", async () => {

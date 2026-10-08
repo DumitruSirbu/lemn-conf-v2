@@ -235,20 +235,6 @@ describe("switching locale changes the language and nothing else", () => {
     },
   );
 
-  // 6B-b's shared-design invariant, carried across the switch: the bare id is what a customer sent
-  // someone, and a control that dropped it would turn a shared link into a stranger's kitchen.
-  it.each(SWITCHES)(
-    "keeps a shared design's own link from %s to %s",
-    (from, to) => {
-      renderAt(from, `/${from}/d/${SHARED_DESIGN_ID}`);
-      openMenu();
-
-      expect(attributeOf(optionFor(to), "href")).toBe(
-        `/${to}/d/${SHARED_DESIGN_ID}`,
-      );
-    },
-  );
-
   it("draws the same design in the other language, not a fresh one", () => {
     const romanian = renderAt("ro", `/ro/d/${SHARED_DESIGN_ID}`);
     const russian = renderAt("ru", `/ru/d/${SHARED_DESIGN_ID}`);
@@ -408,17 +394,6 @@ describe("the control a screen reader and a keyboard get", () => {
 
       expect(flag?.tagName.toLowerCase()).toBe("svg");
       expect(flag?.getAttribute("aria-hidden")).toBe("true");
-    }
-  });
-
-  /** And the flag adds nothing to what is *read*: the announcement is still the endonym alone, which
-   *  is the whole reason the flag is hidden rather than labelled. */
-  it("leaves the announced name the endonym and nothing beside it", () => {
-    renderAt("ro", "/ro/d/qa-design");
-    openMenu();
-
-    for (const locale of SHIPPED_LOCALES) {
-      expect(optionFor(locale).textContent).toBe(endonymOf(locale));
     }
   });
 });

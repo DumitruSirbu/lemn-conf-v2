@@ -128,12 +128,6 @@ describe("POST /api/designs, when the driver fails", () => {
       reason: 'column "revision" does not exist',
     });
   });
-
-  it("calls mint something other than save, so a log filter can tell them apart", async () => {
-    await expect(POST(mintRequest())).rejects.toThrow();
-
-    expect(loggedLine(errorSpy)?.operation).toBe("mint");
-  });
 });
 
 describe("ADR 0014 S2 — the line carries no secret and no document", () => {

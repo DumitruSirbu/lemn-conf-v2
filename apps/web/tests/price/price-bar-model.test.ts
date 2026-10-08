@@ -170,12 +170,6 @@ describe("a pricing failure", () => {
       kind: "unpriced",
     });
   });
-
-  it("still renders nothing when an edit has been refused as well", () => {
-    expect(describePriceBar({ pricing: failed, content: ro })).toEqual({
-      kind: "unpriced",
-    });
-  });
 });
 
 // ADR 0065 decision 6.

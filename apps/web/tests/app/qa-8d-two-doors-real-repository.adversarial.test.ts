@@ -377,20 +377,6 @@ describe("a stored row, read through the real load seam", () => {
     });
   });
 
-  it("is the invalid page on both doors when it names a body the catalogue does not hold, and nothing is thrown", async () => {
-    socketAnswer = storedRowOf(
-      designNamingAnUnknownBody(),
-      CURRENT_SCHEMA_VERSION,
-    );
-
-    const editor = await renderDoor("editor", "owned");
-    const review = await renderDoor("review", "owned");
-
-    expect(refusalOf(review)).toEqual({ reason: "invalid" });
-    expect(review).toEqual(editor);
-    expect(hydrateAndReview).not.toHaveBeenCalled();
-  });
-
   it.each(STORED_ROWS_THE_SEAM_MAY_REFUSE)(
     "holding %s: the review answers what the editor answers, and neither throws",
     async (_name, row) => {

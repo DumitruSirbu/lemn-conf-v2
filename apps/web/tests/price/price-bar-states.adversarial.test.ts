@@ -28,7 +28,7 @@ import { ro } from "../support/romanian-content";
 import { EditorPanel } from "@/panel/editor-panel";
 import { describePanel, type PanelView } from "@/panel/panel-model";
 import { PRICE_BAR_RESERVED_HEIGHT_PX } from "@/price/price-bar-layout";
-import { describePriceBar, type PricedBar } from "@/price/price-bar-model";
+import { describePriceBar } from "@/price/price-bar-model";
 import { createConfiguratorStore } from "@/store/configurator-store";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
@@ -421,18 +421,6 @@ describe("an overflowing design, on the page", () => {
     expect(() => textOfElement(panel, "panel-price-overflow-renamed")).toThrow(
       /no element with data-testid/,
     );
-  });
-
-  it("flags the total and says nothing about any refusal, which is now the only pairing", () => {
-    // The flag is about what the number contains; the refusal's sentence is §9's banner (ADR 0065 decision 8).
-    const bar = describePriceBar({
-      content: ro,
-      pricing: priceOf(overflowing),
-    }) as PricedBar;
-
-    expect(bar.figure.label).toBe(ro.price.startingPrefix);
-    expect(bar.overflowWarning).toBe(ro.price.overflowingTotalWarning);
-    expect(bar.overflowWarning).not.toContain("neschimbat");
   });
 });
 

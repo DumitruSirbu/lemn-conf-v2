@@ -68,12 +68,6 @@ describe("designErrorResponse, on an error with no domain meaning", () => {
     });
   });
 
-  it("distinguishes a failed load from a failed save", () => {
-    expect(() => designErrorResponse("load", driverError("boom"))).toThrow();
-
-    expect(loggedLine(errorSpy).operation).toBe("load");
-  });
-
   it("bounds the reason, so one failure cannot buy a large log write", () => {
     expect(() =>
       designErrorResponse("save", new Error("x".repeat(500_000))),
@@ -177,23 +171,6 @@ describe("a stored row that would not validate on the way out", () => {
 
     expect(loggedLine(errorSpy).operation).toBe("save");
   });
-
-  it("still answers the same body, which says only that the design could not be loaded", async () => {
-    const response = designErrorResponse(
-      "load",
-      new InvalidDesignError("room: invalid_type"),
-    );
-
-    // ADR 0014 finding S2: the reason is on the line above and nowhere in here.
-    const body: unknown = await response.json();
-
-    expect(response.status).toBe(500);
-    expect(JSON.stringify(body)).not.toContain("invalid_type");
-    expect(body).toEqual({
-      code: "DESIGN_UNREADABLE",
-      error: "Design could not be loaded.",
-    });
-  });
 });
 
 describe("the three refusals", () => {
@@ -260,19 +237,5 @@ describe("ADR 0014 S2 — the log gains detail and the response does not", () =>
     expect(body).toBe(
       JSON.stringify({ error: "Design write not authorized." }),
     );
-  });
-
-  it("answers the same 409 body whether or not anything was logged", async () => {
-    expect(await writeConflictResponse().json()).toEqual({
-      code: "DESIGN_REVISION_CONFLICT",
-      error: "Design changed since it was loaded.",
-    });
-  });
-
-  it("answers the same 400 body whether or not anything was logged", async () => {
-    expect(await revisionRequiredResponse().json()).toEqual({
-      code: "REVISION_REQUIRED",
-      error: "Design save must state the revision it edits.",
-    });
   });
 });

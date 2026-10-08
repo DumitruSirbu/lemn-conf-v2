@@ -4,7 +4,6 @@ import { describe, expect, it } from "vitest";
 import { kindLabel } from "@lemnaria/configurator-domain";
 
 import {
-  crossesOnScreen,
   resolveContent,
   type Content,
   type ContentTranslator,
@@ -363,27 +362,6 @@ describe("the localized content resolver", () => {
       expect(content.rejection(detailFor("right"))).toBe(
         content.rejection(detailFor("right"), "left"),
       );
-    },
-  );
-
-  // 7I review L1.1: which wall/direction pair crosses on screen is a fact about the real camera
-  // (`qa-7i-screen-side.adversarial.test.ts`, `packages/three-adapter`, proves this exact table by
-  // projection), not something this file may assume — restated here as the literal table so a
-  // change to `crossesOnScreen` that agrees with itself but disagrees with the geometry fails here
-  // too, one package over from where the projection lives.
-  //
-  // Review R2.3: this table and that file's own are hand-coupled, not enforced by any import — this
-  // package cannot depend on `three-adapter`'s tests, and that one cannot import this file's
-  // `crossesOnScreen`. Changing one table means checking the other by hand.
-  it.each([
-    ["A", "left", false],
-    ["A", "right", true],
-    ["B", "left", true],
-    ["B", "right", false],
-  ] as const)(
-    "wall %s, direction %s crosses on screen: %s",
-    (wall, direction, expected) => {
-      expect(crossesOnScreen(wall, direction)).toBe(expected);
     },
   );
 

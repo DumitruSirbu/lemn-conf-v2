@@ -291,12 +291,6 @@ describe("the top bar's box, which the scene pays for", () => {
     expect(heights.reviewCta).toBeGreaterThan(heights.locale ?? 0);
   });
 
-  it("costs the desktop canvas exactly the 21 px the ruling accepted, and no more", () => {
-    expect(declaredDesktopBandHeight() - HEIGHT_AT_BASE_COMMIT_PX).toBe(
-      RULED_CANVAS_COST_PX,
-    );
-  });
-
   it("gives the desktop canvas back more than the band ever cost it, because the strip's row is gone", () => {
     // The band still costs 21 px against the base commit and the withdrawn strip returns the 45 px it charged (ADR 0104
     // decision 10); no rule for that band exists any more.

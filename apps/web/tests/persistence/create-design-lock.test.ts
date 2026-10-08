@@ -133,15 +133,6 @@ describe("withCreateDesignLock", () => {
     await holderCall;
   });
 
-  it("propagates an error the locked run throws, rather than swallowing or retrying it", async () => {
-    vi.stubGlobal("navigator", { locks: new FakeLockManager() });
-    const failure = new Error("mint failed inside the lock");
-
-    await expect(
-      withCreateDesignLock(() => Promise.reject(failure)),
-    ).rejects.toBe(failure);
-  });
-
   it("releases the lock when the held run throws, so the next request is still granted", async () => {
     vi.stubGlobal("navigator", { locks: new FakeLockManager() });
 

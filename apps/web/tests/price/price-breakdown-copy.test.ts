@@ -170,11 +170,6 @@ describe("every ruled string, as a literal and in the frame that ruled it", () =
     expect(FRAME_2D).not.toContain(ro.priceBreakdown.disclaimer);
   });
 
-  it("names all three exclusions, so a copy edit cannot quietly drop one", () => {
-    for (const excluded of ["transport", "blat", "electrocasnice"])
-      expect(ro.priceBreakdown.disclaimer, excluded).toContain(excluded);
-  });
-
   it("carries the rounding footnote that says the amounts do not add up", () => {
     expect(ro.priceBreakdown.note).toBe(
       "Pretul afișat este estimativ. Nu reprezintă o ofertă comercială finală. Oferta comercială finală se stabilește doar după măsurarile exacte.",

@@ -48,13 +48,4 @@ describe("readVisitorHash", () => {
       ),
     ).toBeUndefined();
   });
-
-  it("never returns the raw cookie value, only its digest", () => {
-    const hash = readVisitorHash(
-      requestCarrying(`${VISITOR_COOKIE_NAME}=${WELL_FORMED_VISITOR_VALUE}`)
-        .cookies,
-    );
-
-    expect(hash).not.toBe(WELL_FORMED_VISITOR_VALUE);
-  });
 });

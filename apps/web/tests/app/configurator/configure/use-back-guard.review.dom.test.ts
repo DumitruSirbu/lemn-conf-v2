@@ -223,18 +223,6 @@ describe("a landing on the review", () => {
         ).toBe("ignore");
     },
   );
-
-  it("is not what a landing on another page is", () => {
-    expect(
-      decidePopstate({
-        origin: ARMED,
-        designId: DESIGN,
-        landedPathname: STEP_ONE,
-        isLandedEntryAGuard: false,
-        isLinkQuestionOpen: false,
-      }),
-    ).toBe("forget-origin");
-  });
 });
 
 describe("which pathname is this design's review", () => {

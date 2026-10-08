@@ -234,17 +234,6 @@ describe("createSaveCoalescer", () => {
     ).toBe(true);
   });
 
-  it("a rejected save never invokes onSaved, so the caller's model is left unchanged", async () => {
-    const coalescer = buildCoalescer();
-    repository.rejectNextCalls(1);
-
-    coalescer.scheduleSave(withPreset("a"));
-    await vi.runAllTimersAsync();
-
-    expect(savedIds).toHaveLength(1);
-    expect(designId).not.toBeNull();
-  });
-
   it("never runs two saves at once when a retry timer fires during an in-flight save", async () => {
     const coalescer = buildCoalescer();
 

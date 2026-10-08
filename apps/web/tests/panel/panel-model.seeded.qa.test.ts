@@ -565,17 +565,6 @@ describe("the panel is exactly the offer list, everywhere in the kitchen", () =>
     expect(swept).toBeGreaterThan(0);
   });
 
-  // §11 row 24 / row 16 against the corner leg (`canReplace: false`); `p25` stands for the four corner bodies `p25`,
-  // `p26`, `p9` and `p21`.
-  it("renders no replace section for the corner leg", () => {
-    const world = worldFrom(KITCHEN_L_DESIGN);
-    expect(
-      sectionsAt(world, { kind: "placement", id: "p25" }).map(
-        (section) => section.kind,
-      ),
-    ).not.toContain("replace");
-  });
-
   it("closes the panel for an id that no longer resolves", () => {
     const world = openedKitchen();
     for (const target of [

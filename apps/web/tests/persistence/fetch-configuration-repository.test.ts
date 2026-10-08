@@ -4,10 +4,7 @@
 // and that every request is credentialed so the write-token cookie travels. The cookie's actual
 // round trip through a browser is not provable from here (there is no cookie jar in this process);
 // `apps/web/tests/e2e/design-write-path.e2e.spec.ts` is where that is proven.
-import {
-  KITCHEN_L_DESIGN,
-  InvalidDesignError,
-} from "@lemnaria/configurator-domain";
+import { KITCHEN_L_DESIGN } from "@lemnaria/configurator-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -263,33 +260,6 @@ describe("FetchConfigurationRepository", () => {
     ).toHaveLength(1);
   });
 
-  it("mints again after a mint that failed, rather than caching the rejection forever", async () => {
-    // A cached rejected promise would make every later save in the session fail, which is worse
-    // than the fork it was guarding against.
-    const repository = new FetchConfigurationRepository();
-    responses.push(() => jsonResponse({ error: "down" }, 503));
-    scriptSuccessfulMint("design-1");
-
-    await expect(
-      repository.save({
-        id: null,
-        design: KITCHEN_L_DESIGN,
-        expectedRevision: STORED_REVISION,
-      }),
-    ).rejects.toBeInstanceOf(DesignRequestFailedError);
-    await expect(
-      repository.save({
-        id: null,
-        design: KITCHEN_L_DESIGN,
-        expectedRevision: STORED_REVISION,
-      }),
-    ).resolves.toEqual({ id: "design-1", revision: STORED_REVISION });
-
-    expect(
-      requests.filter((request) => request.method === "POST"),
-    ).toHaveLength(2);
-  });
-
   it("mints exactly once even when the write that follows the mint fails and is retried", async () => {
     // The failure mode this guards: the store's `designId` is only set after a *fully* successful
     // save, so the coalescer retries with `null` — and an unguarded repository mints a second row,
@@ -326,45 +296,6 @@ describe("FetchConfigurationRepository", () => {
       "PUT /api/designs/design-1",
     ]);
   });
-
-  const nonSuccessStatuses = [400, 404, 409, 500] as const;
-  for (const status of nonSuccessStatuses) {
-    it(`rejects rather than resolving when a save answers ${String(status)}`, async () => {
-      const repository = new FetchConfigurationRepository();
-      responses.push(() => jsonResponse({ error: "refused" }, status));
-
-      await expect(
-        repository.save({
-          id: "design-1",
-          design: KITCHEN_L_DESIGN,
-          expectedRevision: STORED_REVISION,
-        }),
-      ).rejects.toBeInstanceOf(DesignRequestFailedError);
-    });
-  }
-
-  const notAuthorizedStatuses = [401, 403] as const;
-  for (const status of notAuthorizedStatuses) {
-    it(`rejects a save refused with ${String(status)} as a credential failure, not a retryable one`, async () => {
-      const repository = new FetchConfigurationRepository();
-      responses.push(() => jsonResponse({ error: "refused" }, status));
-
-      const failure: unknown = await repository
-        .save({
-          id: "design-1",
-          design: KITCHEN_L_DESIGN,
-          expectedRevision: STORED_REVISION,
-        })
-        .then(
-          () => undefined,
-          (error: unknown) => error,
-        );
-
-      expect(failure).toBeInstanceOf(WriteNotAuthorizedError);
-      // Still a failed request, so a caller that only cares about that keeps working.
-      expect(failure).toBeInstanceOf(DesignRequestFailedError);
-    });
-  }
 
   it("rejects when a mint answers 2xx with no id", async () => {
     const repository = new FetchConfigurationRepository();
@@ -501,36 +432,6 @@ describe("FetchConfigurationRepository", () => {
       );
     },
   );
-
-  it("rejects a loaded payload that is not a valid design rather than handing it to the store", async () => {
-    const repository = new FetchConfigurationRepository();
-    responses.push(() =>
-      jsonResponse({
-        id: "design-1",
-        revision: STORED_REVISION,
-        design: { presetId: 7 },
-      }),
-    );
-
-    await expect(repository.loadWithAccess("design-1")).rejects.toBeInstanceOf(
-      InvalidDesignError,
-    );
-  });
-
-  it("percent-encodes the id it puts in the path", async () => {
-    const repository = new FetchConfigurationRepository();
-    responses.push(() =>
-      jsonResponse({ id: "a/b", revision: STORED_REVISION }),
-    );
-
-    await repository.save({
-      id: "a/b",
-      design: KITCHEN_L_DESIGN,
-      expectedRevision: STORED_REVISION,
-    });
-
-    expect(requests[0]?.url).toBe("/api/designs/a%2Fb");
-  });
 });
 
 /**

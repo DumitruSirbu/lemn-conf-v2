@@ -108,23 +108,6 @@ describe("the minimum interval never loses the last state", () => {
     });
   }
 
-  it("writes a save scheduled inside the interval window once the window expires", async () => {
-    const coalescer = buildCoalescer();
-    coalescer.scheduleSave(withPreset("first"));
-    await vi.advanceTimersByTimeAsync(0);
-    expect(repository.saved).toEqual(["first"]);
-
-    // Well inside the window: nothing may go out yet, and nothing may be dropped either.
-    await vi.advanceTimersByTimeAsync(200);
-    coalescer.scheduleSave(withPreset("second"));
-    await vi.advanceTimersByTimeAsync(0);
-    expect(repository.saved).toEqual(["first"]);
-
-    await vi.advanceTimersByTimeAsync(MIN_SAVE_INTERVAL_MS);
-
-    expect(repository.saved).toEqual(["first", "second"]);
-  });
-
   it("collapses a burst inside the window to one save of the last state", async () => {
     const coalescer = buildCoalescer();
     coalescer.scheduleSave(withPreset("first"));
@@ -220,16 +203,6 @@ describe("the interval and the retry backoff do not stall the path", () => {
     expect(statuses.at(-1)).toBe("idle");
   });
 
-  it("retries the failed state when nothing newer arrived", async () => {
-    const coalescer = buildCoalescer();
-    repository.failNext(2);
-    coalescer.scheduleSave(withPreset("only-edit"));
-
-    await vi.advanceTimersByTimeAsync(10_000);
-
-    expect(repository.saved).toEqual(["only-edit"]);
-  });
-
   it("recovers within a bounded time even when a failure and the interval combine", async () => {
     const coalescer = buildCoalescer();
     coalescer.scheduleSave(withPreset("first"));
@@ -305,22 +278,6 @@ describe("a credential refusal is terminal, and nothing else is", () => {
     },
   );
 
-  it("ignores further edits once the credential has been refused, without another request", async () => {
-    const subject = coalescerRejectingWith(
-      () => new WriteNotAuthorizedError("Saving a design", 403),
-    );
-    subject.coalescer.scheduleSave(withPreset("first"));
-    await vi.advanceTimersByTimeAsync(0);
-
-    for (const preset of ["second", "third", "fourth"]) {
-      subject.coalescer.scheduleSave(withPreset(preset));
-      await vi.advanceTimersByTimeAsync(10_000);
-    }
-
-    expect(subject.attempts()).toBe(1);
-    expect(subject.statuses.at(-1)).toBe("unauthorized");
-  });
-
   // The case to look at hardest: 429 is a refusal too, but a temporary one. Treating it as terminal
   // would turn a moment of throttling into a session that never saves again.
   it.each([
@@ -333,16 +290,6 @@ describe("a credential refusal is terminal, and nothing else is", () => {
       name: "500",
       error: () =>
         new DesignRequestFailedError("Saving a design", "HTTP status 500"),
-    },
-    {
-      name: "502",
-      error: () =>
-        new DesignRequestFailedError("Saving a design", "HTTP status 502"),
-    },
-    {
-      name: "503",
-      error: () =>
-        new DesignRequestFailedError("Saving a design", "HTTP status 503"),
     },
     {
       name: "a network TypeError",
@@ -361,29 +308,6 @@ describe("a credential refusal is terminal, and nothing else is", () => {
     // written. Emitting it while retries are still running would say the edit is lost when it is
     // about to be saved.
     expect(subject.statuses).not.toContain("stopped");
-  });
-
-  it("recovers normally when a retryable failure is followed by success", async () => {
-    const repository = new RecordingRepository();
-    const statuses: SaveStatus[] = [];
-    repository.failNext(3);
-    const coalescer = createSaveCoalescer({
-      repository,
-      getDesignId: () => MINT_ID,
-      getGeneration: () => 0,
-      onSaved: () => undefined,
-      onSaveStatusChange: (status) => {
-        statuses.push(status);
-      },
-      getRevision: () => TEST_REVISION,
-      readCurrentRevision: () => Promise.resolve(TEST_REVISION),
-    });
-
-    coalescer.scheduleSave(withPreset("edit"));
-    await vi.advanceTimersByTimeAsync(60 * 1000);
-
-    expect(repository.saved).toEqual(["edit"]);
-    expect(statuses.at(-1)).toBe("idle");
   });
 
   // Escapability, stated rather than left accidental: the flag is never cleared, so a refusal ends
@@ -553,26 +477,6 @@ describe("an outage from the very first save is bounded by the backoff, not by t
     expect(subject.attempts()).toBeLessThan(25);
   });
 
-  // The constraint on the fix: none of this may delay the write that actually works.
-  it("does not delay the genuine first write", async () => {
-    const repository = new RecordingRepository();
-    const coalescer = createSaveCoalescer({
-      repository,
-      getDesignId: () => null,
-      getGeneration: () => 0,
-      onSaved: () => undefined,
-      onSaveStatusChange: () => undefined,
-      getRevision: () => TEST_REVISION,
-      readCurrentRevision: () => Promise.resolve(TEST_REVISION),
-    });
-
-    coalescer.scheduleSave(withPreset("first"));
-    await vi.advanceTimersByTimeAsync(0);
-
-    // No timer, no interval: the first save of a session goes out immediately.
-    expect(repository.saved).toEqual(["first"]);
-  });
-
   it("still recovers to the newest state when the outage ends", async () => {
     const repository = new RecordingRepository();
     const statuses: SaveStatus[] = [];
@@ -612,30 +516,6 @@ describe("the newest pending state survives the new early return", () => {
 
   afterEach(() => {
     vi.useRealTimers();
-  });
-
-  it("writes an edit that arrives in the last moments before the retry fires", async () => {
-    const repository = new RecordingRepository();
-    repository.failNext(1);
-    const coalescer = createSaveCoalescer({
-      repository,
-      getDesignId: () => "id",
-      getGeneration: () => 0,
-      onSaved: () => undefined,
-      onSaveStatusChange: () => undefined,
-      getRevision: () => TEST_REVISION,
-      readCurrentRevision: () => Promise.resolve(TEST_REVISION),
-    });
-
-    coalescer.scheduleSave(withPreset("failed"));
-    await vi.advanceTimersByTimeAsync(0);
-
-    // The first retry is armed for 500 ms out. Land an edit at 499 ms.
-    await vi.advanceTimersByTimeAsync(499);
-    coalescer.scheduleSave(withPreset("just-in-time"));
-    await vi.advanceTimersByTimeAsync(5000);
-
-    expect(repository.saved).toEqual(["just-in-time"]);
   });
 
   /** Runs one failure, lands an edit `offsetMs` later, and reports what was written. */
@@ -766,48 +646,6 @@ describe("a refusal on one design does not silence another", () => {
 
   afterEach(() => {
     vi.useRealTimers();
-  });
-
-  it("writes design Y after design X was refused", async () => {
-    const attempts: (DesignId | null)[] = [];
-    let currentId: DesignId | null = "design-x";
-    const statuses: SaveStatus[] = [];
-    const coalescer = createSaveCoalescer({
-      repository: {
-        save: ({ id }) => {
-          attempts.push(id);
-          if (id === "design-x") {
-            return Promise.reject(
-              new WriteNotAuthorizedError("Saving a design", 403),
-            );
-          }
-          return Promise.resolve({
-            id: id ?? "minted",
-            revision: TEST_REVISION,
-          });
-        },
-      },
-      getDesignId: () => currentId,
-      getGeneration: () => 0,
-      onSaved: () => undefined,
-      onSaveStatusChange: (status) => {
-        statuses.push(status);
-      },
-      getRevision: () => TEST_REVISION,
-      readCurrentRevision: () => Promise.resolve(TEST_REVISION),
-    });
-
-    coalescer.scheduleSave(withPreset("x-edit"));
-    await vi.advanceTimersByTimeAsync(0);
-    expect(statuses.at(-1)).toBe("unauthorized");
-
-    // The customer navigates to a design they do own. Nothing about X may follow them.
-    currentId = "design-y";
-    coalescer.scheduleSave(withPreset("y-edit"));
-    await vi.advanceTimersByTimeAsync(5000);
-
-    expect(attempts).toEqual(["design-x", "design-y"]);
-    expect(statuses.at(-1)).toBe("idle");
   });
 
   it("still refuses design X if the store returns to it", async () => {

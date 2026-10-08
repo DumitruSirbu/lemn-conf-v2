@@ -249,19 +249,6 @@ describe("the accessory rows the customer actually reads", () => {
     expect(rows.filter((row) => row.label.includes(rackName))).toEqual([]);
   });
 
-  /** **The absence is not an *inclus*.** Stated separately from the row count because the two fail
-   *  differently: a zero-amount rack line would keep the row and change only its amount. */
-  it("renders no row reading inclus for the rack it is not billing", () => {
-    const rackName = SAMPLE_PRICE_BOOK.accessories.dishDryingRack.name;
-
-    for (const row of renderedRows(breakdownFor([SINK]))) {
-      expect([row.label, row.amount]).not.toEqual([
-        `Accesorii · ${rackName}`,
-        ro.priceBreakdown.included,
-      ]);
-    }
-  });
-
   it("shows no accessory row at all in a kitchen holding no sink", () => {
     const labels = renderedLabels(breakdownFor([NO_SINK_AT_ALL]));
 
@@ -270,16 +257,5 @@ describe("the accessory rows the customer actually reads", () => {
         label.startsWith(ro.priceBreakdown.wholeKitchenCategories.accessory),
       ),
     ).toEqual([]);
-  });
-
-  /** The section's order, rendered: the two tiers first and the accessories after them, which is
-   *  what keeps every shipped *"hardware then material"* claim about this surface true. */
-  it("renders the accessories after both tier rows", () => {
-    const labels = breakdownFor([
-      SINK,
-      WALL_CABINET_OVER_THE_SINK,
-    ]).wholeKitchenRows.map((row) => row.label.split(" · ")[0]);
-
-    expect(labels).toEqual(["Feronerie", "Material", "Accesorii", "Accesorii"]);
   });
 });

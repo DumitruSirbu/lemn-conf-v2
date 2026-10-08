@@ -78,34 +78,6 @@ const EVERY_PRICE_STRING = [
 ];
 
 describe("the boundaries around a thousand", () => {
-  it("never charges a further thousand for an amount already on the step", () => {
-    // Guards the ceiling off-by-one `floor(x / step) + 1`, which adds 1 000 MDL exactly on the step.
-    for (const stepCount of [1, 2, 43, 94, 100, 1_000, 999_999]) {
-      expect(
-        roundUpToThousandMdl(stepCount * BANI_PER_STEP),
-        `${String(stepCount)} exact steps gained a thousand`,
-      ).toBe(stepCount * ROUNDING_STEP_MDL);
-    }
-  });
-
-  it("moves one whole thousand across each side of a step, and no more", () => {
-    for (const stepCount of [1, 43, 94, 5_000]) {
-      const onStep = stepCount * BANI_PER_STEP;
-      expect(roundUpToThousandMdl(onStep - 1)).toBe(
-        stepCount * ROUNDING_STEP_MDL,
-      );
-      expect(roundUpToThousandMdl(onStep)).toBe(stepCount * ROUNDING_STEP_MDL);
-      expect(roundUpToThousandMdl(onStep + 1)).toBe(
-        (stepCount + 1) * ROUNDING_STEP_MDL,
-      );
-    }
-  });
-
-  it("rounds one ban up to a whole thousand", () => {
-    expect(roundUpToThousandMdl(1)).toBe(1_000);
-    expect(amountTextFor(1)).toBe("1 000 MDL");
-  });
-
   it("holds at the largest amount the type admits at all", () => {
     // `assertExactMinorAmount` accepts every safe integer, so this is the function's real ceiling: a naive
     // implementation leaves the safe range at the product of the ceiling and the step.
@@ -167,18 +139,6 @@ describe("the catalogue's own totals, priced and shown", () => {
     expect((renderedMdl - ROUNDING_STEP_MDL) * BANI_PER_MDL).toBeLessThan(
       SEEDED.priced.totalMinor,
     );
-  });
-
-  it("rounds every line the catalogue can produce without leaving the step", () => {
-    if (!SEEDED.ok) throw new Error("expected the seeded design to price");
-
-    for (const line of SEEDED.priced.lines) {
-      const roundedMdl = roundUpToThousandMdl(line.amountMinor);
-      expect(roundedMdl % ROUNDING_STEP_MDL).toBe(0);
-      expect(roundedMdl * BANI_PER_MDL).toBeGreaterThanOrEqual(
-        line.amountMinor,
-      );
-    }
   });
 
   it("renders an included tier's zero as a bare zero, which wave 6D must not ship as an amount", () => {

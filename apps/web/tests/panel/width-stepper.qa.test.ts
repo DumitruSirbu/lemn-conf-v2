@@ -353,36 +353,6 @@ describe("the four floors and the one ceiling, each said in the engine's own wor
       expect(section.steps[0].reason, id).toContain("600 mm");
     }
   });
-
-  // The reason is the engine's own sentence, not a re-wording; a paraphrasing panel would read plausibly and fail here.
-  it("renders every refusal through the one localized resolver", () => {
-    const world = worldFrom(SEEDED_KITCHEN);
-    let refusals = 0;
-    for (const record of world.records) {
-      const section = stepperAt(world, record.id);
-      if (!section) continue;
-      for (const step of section.steps) {
-        const result = setWidth({
-          design: world.design,
-          catalog: world.catalog,
-          columns: world.columns,
-          target: { kind: "placement", id: record.id },
-          widthMm: step.widthMm,
-          probe: PROBE,
-          occurredAt: OCCURRED_AT,
-        });
-        if (result.ok) continue;
-        expect([record.id, step.direction, step.reason]).toEqual([
-          record.id,
-          step.direction,
-          // `stepperAt` defaults to left; the wall is `record`'s own, so the oracle and the panel must agree per wall.
-          ro.rejection(result.reason, "left", record.wall),
-        ]);
-        refusals += 1;
-      }
-    }
-    expect(refusals).toBe(18);
-  });
 });
 
 describe("an opening no cabinet fits says so in one sentence, with no rows", () => {

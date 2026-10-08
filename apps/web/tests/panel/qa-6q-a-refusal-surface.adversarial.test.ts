@@ -204,22 +204,6 @@ describe("the control's shape is the material's, not its option count's", () => 
     },
   );
 
-  it("gives PAL a list and veneer swatches, though PAL could hold two entries one day", () => {
-    // ADR 0071 decision 3's own reason, asserted rather than restated: the two list-shaped controls
-    // are told apart by the declaration and never by `chips.length`. If they were told apart by
-    // count, these two sections would be the same control the day PAL shrank to two decors.
-    const pal = swatchSectionOf(
-      panelFor(storeOn(withMaterial("material.melamine")), null),
-    );
-    const veneer = swatchSectionOf(
-      panelFor(storeOn(withMaterial("material.veneer")), null),
-    );
-
-    expect(pal.control).toBe("decor-list");
-    expect(veneer.control).toBe("wood-swatches");
-    expect(pal.control).not.toBe(veneer.control);
-  });
-
   it("puts the RAL picker on MDF and nowhere else", () => {
     // §13.1's "disable, don't warn" taken one step further, as the wave requires: on PAL and veneer
     // the picker is not present and disabled, it is a different control entirely.

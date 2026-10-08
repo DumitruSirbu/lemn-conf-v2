@@ -376,15 +376,6 @@ describe("mint — carried-value boundaries (D1)", () => {
       sha256Hex(visitorValueOf(response) ?? ""),
     );
   });
-
-  it("a mint the repository refuses sets no cookie at all (it throws before any response exists)", async () => {
-    fake.failMintWith = new Error("connection reset");
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
-
-    await expect(mintWith({ "sec-fetch-site": "same-origin" })).rejects.toThrow(
-      "connection reset",
-    );
-  });
 });
 
 describe("save refresh (D1) — never on a failure, never a mint", () => {

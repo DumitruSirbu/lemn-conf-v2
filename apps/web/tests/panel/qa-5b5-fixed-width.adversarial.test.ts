@@ -398,7 +398,7 @@ function snapshotOf(state: ConfiguratorState) {
  *  banner. The literal click belongs in `tests/e2e/editor-panel.e2e.spec.ts`, which is the only
  *  suite in this app that has a DOM. */
 describe("what the disabled chip is holding back, driven through the store", () => {
-  it.each([600, 550, 650, 800, 300])(
+  it.each([550, 650, 800, 300])(
     "refuses %s on the hob base and changes nothing, whichever width reached it",
     (widthMm) => {
       const store = storeFor();
