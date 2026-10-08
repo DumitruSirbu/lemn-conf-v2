@@ -239,13 +239,17 @@ export function paletteEntriesOf(material: Material): readonly PaletteEntry[] {
  *  It asks the control's declared `shape` and never counts entries: counting would misclassify veneer the
  *  day it gains a third wood. A RAL picker offers every free colour `FinishSchema` admits and no palette
  *  entry: no RAL set is declared, and narrowing to a table nobody authored would reset colours a customer
- *  chose. Absence is not asked about: a body wearing no finish never reaches this query. */
+ *  chose. "Admits" is the schema's own `FREE_COLOUR_PATTERN`, not the `kind` alone: `Finish` is an inferred
+ *  type, so a malformed value type-checks and must still be refused (ADR 0078 decision 6). Absence is not
+ *  asked about: a body wearing no finish never reaches this query. */
 export function materialOffersFinish(
   material: Material,
   finish: Finish,
 ): boolean {
   if (material.colourControl.shape === "ral-picker") {
-    return finish.kind === "free-colour";
+    return (
+      finish.kind === "free-colour" && FREE_COLOUR_PATTERN.test(finish.value)
+    );
   }
   return (
     finish.kind === "palette-entry" &&
