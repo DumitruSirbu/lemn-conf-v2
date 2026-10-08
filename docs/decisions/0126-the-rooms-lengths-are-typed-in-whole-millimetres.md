@@ -184,6 +184,18 @@ chrome.
 - `room.unitMetres` and `formatMetresForDisplay` are retired from the product surface once slice S1b
   ships; `room.unitMillimetres` and `parseMillimetres` take their place under `src/room`.
 
+> **Dated note, 2026-10-08 (tests-review fix-up, ADR 0152; nothing struck) [relayed by the coordinator, who read the source;
+> QA confirmed by mutation].** Asked what a metres field should do with a dangling separator (`3,` `3.` `,5` `.45`), the owner
+> answered, verbatim: *"is now milimiters so no separator should be accepted"*. This **confirms** the rule above and changes no
+> code: the customer's length fields take whole millimetres, digits only (`apps/web/src/room/parse-millimetres.ts`, pattern
+> `/^[0-9]+$/`, refusal `notDigits`). `parse-metres.ts` is now only the reader of the URL's metre wire form, where a separator
+> between digits is the format by design, and it refuses all four dangling forms. Commit `eaef634` pins both: the four forms
+> assert `refusal("notANumber")` in `parse-metres.adversarial.test.ts` and join the `notDigits` table in
+> `parse-millimetres.test.ts`. **The coordinator's reading, not the owner's:** the either-answer tests concerned the URL
+> reader, and refusing the four agrees with the owner's sentence, this record and today's behaviour. **Not decided:** whether
+> the URL itself should move from metres to millimetres with no separator; existing shared links carry metres, so that would
+> be its own decision (backlog 154).
+
 ## Decision-record sweep
 
 | Record | What it says | How it is settled here |

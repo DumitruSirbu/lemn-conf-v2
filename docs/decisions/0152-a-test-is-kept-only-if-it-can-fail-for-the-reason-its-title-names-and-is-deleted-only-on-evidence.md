@@ -1,7 +1,8 @@
 # ADR 0152 — A test is kept only if it can fail for the reason its title names, and it is deleted only on evidence
 
-Status: Accepted, **except decision 4 (the audit recurs, incrementally), which is the coordinator's proposal and is not
-ruled.** The owner's sentence in *Context* is the ruling; every rule below says whose it is.
+Status: Accepted. **Decision 4 (the audit recurs, incrementally) was ruled by the owner on 2026-10-08, after this record was
+written.** The owner's sentence in *Context* and the ruling in decision 4 are the owner's; every other rule below says whose
+it is.
 Date: 2026-10-08
 Type: Decision
 Milestone: M8 (raised by `docs/TESTS_REVIEW.md` and its fix-up, on branch `m8-review-contact-success`)
@@ -91,7 +92,13 @@ The architect stated that no earlier record rules on (a) to (d), from its own gr
 > identical input and call, shown by reading and recorded as such. Where implication rests on something incidental and no
 > permitted mutation separates them, keep both. A migration or the DML is never mutated to decide it.
 
-### 4. The audit recurs, incrementally (the coordinator's proposal, put to the owner in conversation; the owner did not object and did not rule: **proposed, not ruled**)
+### 4. The audit recurs, incrementally (**ruled by the owner, 2026-10-08**)
+
+**Ruled 2026-10-08 [relayed by the coordinator].** Asked how the test audit should run by default, the owner chose
+**"Incremental (Recommended)"**, whose description read "Only test files changed since the last audited commit; a full-suite
+pass only when you ask for one." This was first recorded the same day as the coordinator's proposal, to which the owner had
+not objected. **Still unruled:** the baseline commit for the first incremental audit. The natural reading is the tip at which
+the first full pass closed; nobody ruled it.
 
 The owner triggers the audit from time to time. **By default it covers the test files changed since the last audited
 commit**; a full pass runs only on request in words. The role card is
@@ -142,4 +149,4 @@ overturned. ADR 0078, 0084, 0031, 0022 and 0150 receive dated notes of their own
   [doc, `TESTS_REVIEW.md`, *What is still open*]; the next audit should not treat "one test" as a finding.
 - Open and recorded in the backlog: the metres-field dangling separator (no record decides it), the `test.fixme` of row
   2881, a third copy of the undeclared-or-offers check, and `e2e-shard-budget`, which failed at `ee834b6` and blocked a push (fixed in `8aba717`, 2026-10-08; backlog 147, 153).
-- Decision 4 stands as a proposal until the owner rules.
+- Decision 4 is the owner's ruling (above). The first audit's baseline commit is not ruled.

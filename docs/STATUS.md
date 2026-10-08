@@ -5,6 +5,18 @@ session can learn fast where the project stands, without reading eight phase pla
 
 > ## The tests review is DONE, and the shard gate it broke is fixed (`8aba717`) — 2026-10-08
 >
+> **Update, 2026-10-08, after `eaef634` [relayed by the coordinator, who ran the commands]: everything from the tests review is
+> closed.** The owner ruled ADR 0152 decision 4 (**"Incremental (Recommended)"**), ruled backlog 148 (*"is now milimiters so no
+> separator should be accepted"*; pinned in `eaef634`, ADR 0126 has a dated note), chose to delete the empty `test.fixme` of
+> backlog 149 (the gap stays recorded), and chose **"No, I'll push myself (Recommended)"**. Backlog 153 is closed: the desktop
+> ceiling is 67 (`18283a8`). **`pnpm ci:local` at `18283a8`, coordinator, clean tree: all gates green, safe to push** (domain
+> 7695, persistence 1751 + 1 skipped, three-adapter 4284, `apps/web` 5898, e2e 677 + 1 skipped). `eaef634` changed three test
+> files only; the `apps/web` Vitest suite was re-run there (335 files, 5902 passed, typecheck clean). **A full gate at `eaef634`
+> has not been run at the time of writing.** The branch is 55 commits past `a2a6dfd` at `eaef634`, **none pushed; the owner will
+> push.** The 13 agent worktrees were removed by the coordinator. **Still open:** whether the URL should carry millimetres
+> (backlog 154) and the first incremental audit's baseline commit (not ruled). The paragraphs below are history where they say
+> the owner decides or the ceiling is 70.
+>
 > **Update, 2026-10-08, after `dc74dcc` [relayed by the coordinator, who ran the commands]:** the owner decided backlog 147
 > (*"ok do option 1, split the file"*) and `8aba717` split `room-desktop-line.desktop.e2e.spec.ts` into three files (2, 37 and
 > 30 tests) plus `support/room-desktop-line.ts`; desktop shards are now 65 / 67 / 61 against a ceiling of 70.
@@ -17,7 +29,7 @@ session can learn fast where the project stands, without reading eight phase pla
 > found and fixed**, neither reachable by a customer: `materialOffersFinish` offered a malformed free colour (`38fa058`,
 > `74bcc20`), and `setFinish` / `setGlobalFinish` succeeded with a finish their own schema refuses on an undeclared material
 > (`6eef46c`). New records: [ADR 0152](decisions/0152-a-test-is-kept-only-if-it-can-fail-for-the-reason-its-title-names-and-is-deleted-only-on-evidence.md)
-> (its decision 4, that the audit recurs incrementally, is **proposed, not ruled**), the skill
+> (its decision 4, that the audit recurs incrementally, was proposed here and **ruled by the owner later the same day**), the skill
 > `skills/lemnaria-test-audit/SKILL.md`, the role `.claude/agents/configurator-test-auditor.md` and its Codex twin
 > `agents/test-auditor.md`. **No audit has been run with the skill or the role yet.**
 >
@@ -1166,9 +1178,10 @@ policy, so every per-endpoint limit is application code.
 
 > **FIRST, 2026-10-08, after the tests review: backlog 147 (`e2e-shard-budget`) is decided and fixed in `8aba717`, and the full local
 > gate is green there [relayed]; nothing is pushed and no push has been asked for.** (Written before that as "the owner decides
-> 147; until then no push is possible"; that is history.) Still the owner's: the desktop ceiling (backlog 153), backlog 148 (a dangling separator in
-> a metres field) and 149 (the empty `test.fixme`), and ruling on [ADR 0152](decisions/0152-a-test-is-kept-only-if-it-can-fail-for-the-reason-its-title-names-and-is-deleted-only-on-evidence.md)
-> decision 4. The next test audit, when the owner triggers one, follows `skills/lemnaria-test-audit/SKILL.md`; its baseline commit
+> 147; until then no push is possible"; that is history.) **Superseded later the same day:** the ceiling (153), the dangling separator (148), the fixme (149) and
+> [ADR 0152](decisions/0152-a-test-is-kept-only-if-it-can-fail-for-the-reason-its-title-names-and-is-deleted-only-on-evidence.md)
+> decision 4 are all decided or closed (see the update at the top of this file); the owner will push. Still open: backlog 154 (the URL's
+> wire form). The next test audit, when the owner triggers one, follows `skills/lemnaria-test-audit/SKILL.md`; its baseline commit
 > is not ruled. The entry below is unchanged and is the M8 state.
 >
 > **RESUME HERE — 2026-10-08, latest of all, after wave 8H. Wave 8H ("the submission contract") is DONE; the next dispatchable waves are 8I and 8J. 8F waits on the triage of the three red `CI=1` specs (backlog 125) and its dispatch reads 8E's "What later waves inherit", ADR 0149 and its amendment, and "The digest secret" under 8I.**

@@ -146,7 +146,7 @@ when a record you rely on is marked superseded below, or when planning (architec
 | [0123](0123-a-ruled-behaviour-whose-population-empties-keeps-its-branch-and-converts-its-sweep-coverage-into-a-declared-witness.md) | A ruled behaviour whose discriminating population empties keeps its branch, and its sweep coverage converts to a declared witness | Accepted |
 | [0124](0124-the-wall-maxima-move-together-and-one-number-not-two.md) | The two horizontal wire bounds move together, as one number, not two | Accepted |
 | [0125](0125-the-corner-minima-stay-at-900-and-1000-as-a-deliberate-margin-above-what-the-engine-needs.md) | The corner minima stay at 900 / 1000, as a deliberate margin above what the engine needs | Accepted |
-| [0126](0126-the-rooms-lengths-are-typed-in-whole-millimetres.md) | The room's lengths are typed in whole millimetres, and the URL keeps its metre wire form | Accepted |
+| [0126](0126-the-rooms-lengths-are-typed-in-whole-millimetres.md) | The room's lengths are typed in whole millimetres, and the URL keeps its metre wire form | Accepted; dated note 2026-10-08 (0152) |
 | [0127](0127-step-1s-url-follows-the-typed-room-and-a-late-echo-is-still-ours.md) | Step 1's URL follows the typed room, and a late echo is still ours | Accepted (amended) |
 | [0128](0128-live-persistence-suites-serialise-through-a-declared-transaction-scoped-readers-writer-lock.md) | Live persistence suites serialise through a declared, transaction-scoped readers–writer lock | Accepted |
 | [0129](0129-a-right-hand-l-is-the-left-hand-design-drawn-in-a-reflection-and-the-reflection-is-a-per-group-primitive.md) | A right-hand L is the left-hand design drawn in a reflection, and the reflection is a per-group primitive | Proposed |
@@ -172,7 +172,7 @@ when a record you rely on is marked superseded below, or when planning (architec
 | [0149](0149-the-rate-limit-store-keeps-one-row-per-bucket-per-window-refuses-a-broken-promise-and-may-count-high-but-never-low-between-prunes.md) | The rate-limit store keeps one row per bucket per window, refuses a broken promise, and may count high but never low between prunes | Accepted (row added 2026-10-08 by the scribe; the record's own status was not re-read) |
 | [0150](0150-the-submission-contract-is-one-io-free-definition-a-request-holds-no-price-reads-only-what-the-sender-wrote-and-the-snapshot-and-the-review-share-one-refusal-rule.md) | The submission contract is one I/O-free definition: a request holds no price, reads only what the sender wrote, and the snapshot and the review share one refusal rule | Accepted (row added 2026-10-08 by the scribe; annotated 2026-10-08, 0152) |
 | [0151](0151-a-test-may-delete-the-rows-tests-added-and-never-a-row-a-production-user-added.md) | A test may delete the rows tests added, and never a row a production user added | Accepted; the marker is not ruled |
-| [0152](0152-a-test-is-kept-only-if-it-can-fail-for-the-reason-its-title-names-and-is-deleted-only-on-evidence.md) | A test is kept only if it can fail for the reason its title names, and it is deleted only on evidence | Accepted; decision 4 (the audit recurs, incrementally) is proposed, not ruled |
+| [0152](0152-a-test-is-kept-only-if-it-can-fail-for-the-reason-its-title-names-and-is-deleted-only-on-evidence.md) | A test is kept only if it can fail for the reason its title names, and it is deleted only on evidence | Accepted; decision 4 (the audit recurs, incrementally) ruled by the owner 2026-10-08 |
 
 ## Adding the next one
 

@@ -529,8 +529,11 @@ acceptable**, and it is the owner's to keep or remove.
 > **Dated note, 2026-10-08 [relayed by the coordinator]:** the file above was split in `8aba717` into
 > `room-desktop-line.criteria-03`, `.criteria-04-10` and `.criteria-12-17` (`.desktop.e2e.spec.ts`; 2, 37 and 30 tests). The
 > largest desktop shard of 3 is now 67 and the ceiling is still 70 (derived budget 66, so it could come down to 67, not be
-> removed; backlog 153). The paragraph above is kept as the state before the split. `scripts/gates/e2e-shard-budget.mjs`'s own
-> comment still names the old file and 69; it has not been updated.
+> removed; backlog 153). The paragraph above is kept as the state before the split.
+>
+> **Corrected 2026-10-08, later [relayed]:** `18283a8` lowered `RATCHETED_CEILINGS.desktop` from 70 to 67 and rewrote
+> `scripts/gates/e2e-shard-budget.mjs`'s comment (the gate failed at 66, naming shard 2). The ceiling is 67, the script's comment is
+> current, and backlog 153 is closed. The entry still cannot be deleted until the derived budget is enough.
 
 **2. Tests are not equal, so a count budget can pass a slow shard.** Measured locally 2026-09-30 with
 `--workers=1`, through `next dev` on the maintainer's laptop (full run green: desktop 185 passed;

@@ -2539,7 +2539,14 @@ recommendation, and what the gate's own comment asks for); (2) raise desktop to 
 restore the deleted specs. **The pre-push hook runs this gate, so the branch cannot be pushed until this is decided.**
 Related: entry 106 (desktop shard 2 of 3 sat at exactly its 70-test budget). **Owner:** the owner.
 
-## 148. A metres field and a dangling separator (`3,` `3.` `,5` `.45`): refuse, or read as 3000 / 3000 / 500 / 450 mm? — FOUND 2026-10-08 BY THE TESTS REVIEW, A PRODUCT QUESTION
+## 148. A metres field and a dangling separator (`3,` `3.` `,5` `.45`): refuse, or read as 3000 / 3000 / 500 / 450 mm? — FOUND 2026-10-08 BY THE TESTS REVIEW — CLOSED 2026-10-08, RULED BY THE OWNER AND PINNED IN `eaef634`
+
+**Closed 2026-10-08 [relayed by the coordinator, who read the source; QA confirmed by mutation].** Asked the question, the owner
+answered, verbatim: *"is now milimiters so no separator should be accepted"*. The customer's length fields already refuse any
+separator (`parse-millimetres.ts`, `/^[0-9]+$/`, `notDigits`, ADR 0126); `parse-metres.ts` is only the URL wire-form reader and
+refuses all four forms. **The coordinator's reading, not the owner's:** the either-answer tests concerned the URL reader. `eaef634`
+pins the four forms as `refusal("notANumber")` and in the `notDigits` table, red under mutation [QA's recorded runs]. The open
+question that remains is entry 154. The text below is the entry as first written and is kept as history.
 
 **Source [doc, `docs/TESTS_REVIEW.md` line 285; the architect's reading, relayed].** No decision record rules on it. Four
 tests in `parse-metres` accept either answer (`expectRefusedOrExactly`), so they cannot tell the two behaviours apart; the
@@ -2547,7 +2554,14 @@ review's mutation turned the parser's pattern from `\d+` to `\d*` and the four s
 the parser: which answer is today's behaviour is unverified.** The same file's tests `refuses ","` and `refuses "."` went red
 under that mutation [doc, same row], which suggests a lone separator is refused; that is an inference and does not decide
 `3,`. **Owner:** the owner (a product question first).
-## 149. The empty `test.fixme` in `global-settings-apply.e2e.spec.ts` is the only record of an unasserted behaviour — TESTS REVIEW ROW 2881, 2026-10-08
+
+## 149. The empty `test.fixme` in `global-settings-apply.e2e.spec.ts` is the only record of an unasserted behaviour — TESTS REVIEW ROW 2881, 2026-10-08 — THE QUESTION CLOSED 2026-10-08 (fixme deleted in `eaef634`); THE GAP STAYS OPEN
+
+**Question closed 2026-10-08 [relayed by the coordinator].** Asked what happens to the empty `test.fixme`, the owner chose
+**"Delete it (Recommended)"**. `eaef634` removed it; the e2e listing went from 678 to 677 tests [QA's listing]. **The gap is not
+closed and stays recorded here:** "the sheet stays open" after a `BODY_PROBE_UNAVAILABLE` refusal is asserted one layer down and
+not in a browser, because no browser route reaches a detached probe. The refusal is live. Trigger: a browser route that can
+reach a detached probe. The text below is the entry as first written, kept as history.
 
 **Source [relayed; the fixme's presence checked at `apps/web/tests/e2e/global-settings-apply.e2e.spec.ts:214`].** That `test.fixme`
 is the only record that "the sheet stays open" after a `BODY_PROBE_UNAVAILABLE` refusal is not asserted in a browser. The
@@ -2576,7 +2590,14 @@ two-tab lock's desktop run had added 3 rounds of a probabilistic race that the m
 [relayed]. **Trigger:** the next test audit ([ADR 0152](../decisions/0152-a-test-is-kept-only-if-it-can-fail-for-the-reason-its-title-names-and-is-deleted-only-on-evidence.md)
 decision 4): it should not report "one test" as a finding by itself. No owner.
 
-## 153. The desktop e2e ceiling is still 70 with a largest shard of 67, and the gate script's comment is stale — RECORDED 2026-10-08, AFTER `8aba717`
+## 153. The desktop e2e ceiling is still 70 with a largest shard of 67, and the gate script's comment is stale — RECORDED 2026-10-08, AFTER `8aba717` — CLOSED 2026-10-08, FIXED IN `18283a8`
+
+**Closed 2026-10-08 [relayed by the coordinator, who ran the gate].** `RATCHETED_CEILINGS.desktop` went from 70 to 67 in
+`scripts/gates/e2e-shard-budget.mjs`, with its comment rewritten (no single desktop file is over budget; the largest shard is 67
+against a derived budget of 66 because a shard is whole files; the ceiling only comes down). Its own test asserts 67, and three
+test comments now point at the split spec files. The developer's run showed the gate failing at 66 naming shard 2. The entry
+cannot be deleted from `RATCHETED_CEILINGS` until the derived budget is enough. `pnpm ci:local` at `18283a8`: all gates green. The
+text below is the entry as first written, kept as history.
 
 **Source [relayed by the coordinator, who ran the gate].** After the split (entry 147) the largest desktop shard is 67. The
 derived budget is 66, so `RATCHETED_CEILINGS.desktop` (70) could come down to 67 but not be removed. Lowering it is the
@@ -2585,3 +2606,12 @@ figure 69; it is code and has not been edited. Three test files also still name 
 (`qa-7l-suggestion-card-is-the-chip.adversarial.dom.test.ts`, `u-gate.e2e.spec.ts`,
 `qa-m7c-c1-footer-centring.adversarial.desktop.e2e.spec.ts`). **Owner:** the owner for the ceiling; the next developer
 dispatch for the comments.
+
+## 154. Should the room URL carry millimetres instead of metres? — RECORDED 2026-10-08, AN OPEN QUESTION, NOT DECIDED
+
+**Source [relayed by the coordinator; told to the owner as undecided].** After the owner's answer on entry 148, the customer's
+fields take whole millimetres with no separator (ADR 0126), but the URL (`room-url-state.ts`, `room-query-sync.ts`) still carries
+metres, where a separator between digits is the format by design. Whether the URL should switch to millimetres with no separator
+is **not decided**. Existing shared links carry metres, so a switch is its own decision with its own compatibility question.
+**Owner:** the owner. **Trigger:** the URL's wire form is next touched. See the dated note in
+[ADR 0126](../decisions/0126-the-rooms-lengths-are-typed-in-whole-millimetres.md).

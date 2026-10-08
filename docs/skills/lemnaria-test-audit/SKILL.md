@@ -18,8 +18,8 @@ the writing rules are in `docs/best-practices/engineering-conventions.md`, *Test
 The owner triggers it, from time to time. **Default scope: the test files changed since the last audited commit**,
 found with `git diff --name-only <commit>..HEAD`, where `<commit>` is the audited commit recorded in the newest report
 under `docs/test-audits/`. When there is no report yet, **the baseline is not ruled**: the first full pass audited `fd2c958`
-(`docs/TESTS_REVIEW.md`) and the fix-up since then changed 360 test files, so ask the coordinator for the commit. A full-suite pass only when the dispatch asks for it in words. The decision that the audit
-recurs this way is **proposed, not ruled** (ADR 0152 decision 4). The report records the audited commit.
+(`docs/TESTS_REVIEW.md`) and the fix-up since then changed 360 test files, so ask the coordinator for the commit. A full-suite pass only when the dispatch asks for it in words. That the audit
+recurs this way is **the owner's ruling of 2026-10-08, "Incremental (Recommended)"** (ADR 0152 decision 4). The report records the audited commit.
 
 ## What to look for
 

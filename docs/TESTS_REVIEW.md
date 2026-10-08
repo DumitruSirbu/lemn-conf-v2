@@ -3550,10 +3550,14 @@ QA agent's recorded run, not re-run by the coordinator.
 | E1 | `apps/web` Playwright specs | 12 rows | 9 deleted, 1 deleted by reading, 1 strengthened, 1 kept. E2e 691 → 677 passed. Logic review: sound, no restore | `ee834b6` |
 | Z1 | Last leftovers: `scripts/gates/boundary.test.mjs`, one `apps/web` row, one spec header | rows 2859, 2966 | 5 gate rows and 1 web test deleted against mutations; gate tests 40 → 35, `apps/web` 5898 passed, re-run by the coordinator | `5d3a92a` |
 | S1 | `apps/web` Playwright: the shard gate | backlog 147 | Owner chose to split `room-desktop-line.desktop.e2e.spec.ts` (69 tests) into three files (2, 37, 30) plus shared helpers; a move, not a rewrite, 193 desktop titles identical [relayed]. Desktop shards 65 / 67 / 61; full local gate green | `8aba717` |
+| S2 | `scripts/gates/e2e-shard-budget.mjs`: the ceiling | backlog 153 | `RATCHETED_CEILINGS.desktop` 70 → 67, comment rewritten, its test asserts 67, three test comments repointed [relayed]; the gate failed at 66 naming shard 2 | `18283a8` |
+| S3 | `apps/web` tests: two owner rulings | backlog 148, 149 | Dangling separator: the four forms pinned as `refusal("notANumber")` in `parse-metres.adversarial.test.ts` and in the `notDigits` table of `parse-millimetres.test.ts`, red under mutation [QA's recorded runs]; the empty `test.fixme` of row 2881 deleted (e2e listing 678 → 677). Web Vitest 5902 passed, typecheck clean, coordinator's run | `eaef634` |
 
 Full local gate (`pnpm ci:local`) at `ee834b6`, run by the coordinator on a clean tree: format, lint, typecheck, test, e2e, build, boundary, lockfile and sca PASS — domain 7695, persistence 1751 (+1 skipped), three-adapter 4284, `apps/web` 5899, e2e 677 passed (1 skipped). **`e2e-shard-budget` FAILS**: removing three desktop spec files moved Playwright's split, and desktop shard 1 of 3 now holds 132 tests against a ceiling of 70.
 
 Full local gate at `8aba717`, run by the coordinator on a clean tree [relayed]: `LOCAL CI PASSED — all gates green, safe to push.` Format, lint, typecheck, test, e2e-shard-budget, e2e, build, boundary, lockfile and sca PASS. Domain 301 files / 7695 passed; persistence 66 files / 1751 passed (1 skipped); three-adapter 127 files / 4284 passed; `apps/web` 335 files / 5898 passed; e2e 677 passed (1 skipped), 10.8 min. Desktop shards 65 / 67 / 61 against the ceiling of 70.
+
+Full local gate at `18283a8`, run by the coordinator on a clean tree [relayed]: `LOCAL CI PASSED — all gates green, safe to push.` All gates PASS, `e2e-shard-budget` included. Domain 7695 passed; persistence 1751 passed (1 skipped); three-adapter 4284 passed; `apps/web` 5898 passed; e2e 677 passed (1 skipped), 11.6 min. The ceiling is now 67. A full gate at `eaef634` had not been run when this was written; only the `apps/web` Vitest suite (335 files, 5902 passed) and typecheck were re-run there.
 
 ## Statistics — what the fix-up changed
 
@@ -3636,6 +3640,9 @@ These are net figures: the after column includes the tests added while making fa
 two fixes, so it understates how many cases were removed. Test files changed between `a2a6dfd` and `5d3a92a`:
 360 files, 4,005 lines added, 8,716 removed (`git diff --shortstat`).
 
+Later, `eaef634` added four cases to `apps/web` (5,902 passed, coordinator's run) and removed the skipped e2e placeholder (the
+e2e listing went from 678 to 677 tests, QA's listing); the table above is left as the runs it names.
+
 **What it found beyond the list**
 
 - **Two production defects, both fixed, neither reachable by a customer.** `materialOffersFinish` offered a
@@ -3664,9 +3671,11 @@ two fixes, so it understates how many cases were removed. Test files changed bet
 **What is still open**
 
 - **`e2e-shard-budget` was decided and fixed in `8aba717`** (the owner chose to split the file); the full local gate is
-  green there. What is left is the desktop ceiling, still 70 against a largest shard of 67 (backlog 153).
-- A product question no record answers: whether a metres field accepts a dangling separator (`3,` `,5`).
-- The empty `test.fixme` of row 2881 records a behaviour no browser test asserts.
+  green there. The desktop ceiling was then lowered from 70 to 67 in `18283a8` (backlog 153, closed); the full gate is green there.
+- The dangling separator: **ruled and pinned** (the owner, 2026-10-08: *"is now milimiters so no separator should be accepted"*;
+  `eaef634`). What remains open is whether the room URL should carry millimetres instead of metres (backlog 154).
+- The empty `test.fixme` of row 2881: **deleted in `eaef634`** at the owner's choice. The gap it recorded (no browser test asserts
+  that the sheet stays open after a `BODY_PROBE_UNAVAILABLE` refusal) stays recorded in backlog 149.
 - Many behaviours now rest on one test each. The QA agents listed them per wave and the reviewers checked
   each remaining test is sound, but the lists were not collected into this file, so no total is given.
 - **A file with no row is not proven clean.** This pass worked the review's list; the review's own recall is
