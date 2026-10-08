@@ -4492,6 +4492,101 @@ five questions and no others:*
 4. Is any check more than linear in the input, before 8K's body limit has bounded it?
 5. Is the client request id safe as a header's value and as a key, as shaped?
 
+#### 8H — adjudication of QA, 2026-10-08
+
+**State.** QA's files are `4a37d56` [ran: `git log`]. Domain: 7492 passed, 5 failed on two
+findings. Web: 6200 passed. Typechecks and boundary exit 0 [relayed, QA-run]. Criteria 1 to 13
+hold apart from the findings, and the parity of criterion 7 holds with no disagreement.
+
+| Finding | Class | Ruling |
+| --- | --- | --- |
+| F1 a Moldovan number may begin with 0 | **Contract gap**, and a false sentence of mine | Criterion 16 |
+| F2 an inherited property is read as the sender's | **Implementation defect** (criterion 5), with a comment and a test that say otherwise | Criterion 17 |
+| F3 the rule believes facts that contradict each other | **Contract gap**, in the reading I accepted | Criterion 18 |
+| F4 no normalisation of composed and decomposed letters | **Contract gap** | Criterion 19 |
+| F5 a name of invisible characters that are not format characters | Contract gap, low | **Recorded limit.** Trigger: the shop receives a request with a blank name. The phone is what the shop calls, and it is sound |
+| F6 the consent version is trimmed before it is matched | Nit | In the round: a closed set is matched exactly, as reading 8c ruled for the channel |
+| F7 symbol and non-enumerable keys are not seen | Contract gap, low | **Recorded, no action.** The input is JSON's, which has neither |
+| F8 an object from another realm is not an object | For 8K | **Recorded for 8K.** It errs toward refusing. 8K's test posts a real request through the route and must get past it |
+| F9 a served list holding `""`; F10 `-0` carried | Nits | **No action.** The list is the application's own constant, and `-0` leaves as `0` in JSON |
+| F11 the snapshot serialises and never parses | **Contract gap** against criterion 6 | Criterion 20 |
+| F12 nineteen digits is wider than the column | Nit, and persistence's | **Backlog**, owner whoever next opens `design-revision.ts`. The two predicates are tied; narrowing one alone breaks the tie. *For 8K:* a revision the column cannot hold is a mismatch, a refusal and not a failure |
+
+**Criterion 16, added — a Moldovan subscriber number does not begin with 0 (F1).** I wrote that
+*"00373…"* and *"+373 (0)…"* are *"refused today"*. At exactly one length they were not, and a
+number nobody can dial was stored.
+
+- *The rule, and what it rests on.* The 0 in *"0 and eight digits"* is the prefix. A number whose
+  own first digit were 0 would be written with two, and two zeros is how a call abroad begins.
+  So the eight digits do not start with 0. **[inf: this is how a plan with that prefix is built;
+  no record here states Moldova's, and nobody read it.]** Which other first digits exist is a
+  fact about the numbering plan that I do not rule.
+- *The refusal* is not *incomplete* and not *too many*: neither sentence would be true.
+- *With Q33:* if the owner accepts those spellings, they are read as what they mean, the 0
+  dropped or the `00` read as `+`. This criterion is what makes that reading safe, and it stands
+  either way.
+
+**Criterion 17, added — only what the sender wrote is read (F2).** Every field, at every level,
+is read as the object's own property. **The check is in `validateContactFields` itself**, since
+the form calls it without the request around it. *Must not:* a consent, a channel or a locality
+is accepted from anything the body did not hold. The comment and the test that claimed this are
+made true or removed.
+
+**Criterion 18, added — the rule refuses facts that cannot all be true (F3).** Criterion 14
+stands and is not enough: the rule is exported, and a rule that can be talked into *allowed* is
+one careless caller from sending the shop a kitchen that cannot be built (ADR 0065 d7).
+
+- The list handed in names only bodies the design holds. Where the design was priced, it is the
+  same set as the price's own list, which pricing took from the query. Otherwise the rule
+  **throws** a named error: it is a caller's defect and no customer's refusal. So *allowed* now
+  means the price itself found no body past a wall.
+- **The review checks its inputs before it asks the rule**, so its own error is the one that is
+  thrown, as 8C's files expect. *Must not:* a `qa-8c-*` or `qa-8d-*` file goes red or is edited.
+  **If the check cannot be added without that, the implementer stops and names the test.**
+- Sets are compared, not order: the query's order and the display's differ, and both are right.
+
+**Criterion 19, added — one stored form for one name (F4).** Every typed text field is brought to
+Unicode's composed form, NFC, after format characters are removed and before it is trimmed,
+measured or returned. A hundred letters are a hundred however the keyboard built them. *Must
+not:* the compatibility form is used, which would change letters the customer chose.
+
+**Criterion 20, added — the snapshot holds a design, by its own check (F11).** The snapshot is
+kept for good and nothing re-prices it, so it does not rest on what its caller validated.
+`snapshotSubmission` parses what it is handed and prices and serialises the parsed design. A
+value that is not a design **throws**; it is not a fourth refusal, since no customer can mend it.
+
+**Noted, and right as built.** With only customer-supplied bodies and no price, the refusal is
+`PRICING_FAILED`: without a price there is no supplier to read. The review says the same, and
+criterion 15 lets the endpoint say why. QA's two totals against the shipped book, 530 560 and
+530 260, are pins on that book and move with it, on purpose.
+
+**The fix round. Five items over seven production files, so it is two dispatches. They share no
+file and may run side by side.**
+
+| # | Does | Files | Dispatch |
+| --- | --- | --- | --- |
+| 1 | Criterion 17 (F2) | `contact/contact-fields.ts`, `contact/contact-submission.ts` | A |
+| 2 | Criterion 16 (F1) | `contact/phone-number.ts` | A |
+| 3 | Criterion 19 (F4); F6 | `contact/contact-fields.ts` | A |
+| 4 | Criteria 15, 18 and 20 | `contact/submission-eligibility.ts`, `contact/submission-snapshot.ts`, `apps/web/src/review/review-model.ts` | B |
+| 5 | The re-export goes; its test moves to the domain | `apps/web/src/price/starting-price.ts`; the test | B |
+
+*Reading, A:* this section; *S1's readings*; the three files. *Reading, B:* this section; *S3 as
+built*; ADR 0148 decisions 1 to 3; `qa-8c-fit-is-the-querys-answer` and
+`qa-8c-inputs-are-one-designs`, read and not edited.
+
+**After the round.**
+
+- **QA:** its five red tests go green untouched. It adds criteria 16 to 20, and **runs the parity
+  property again**, since dispatch B moves the order of the review's own checks: no disagreement,
+  as before.
+- **Then the three readers, as named.** Logic gains the question whether criterion 18 can throw
+  for any kitchen the review used to draw. Security is told F2 is known and fixed, and checks the
+  fix under its third question.
+
+*For the scribe, at the close:* the limits F5 and F7; F8 and F12's sentence under 8K; the
+backlog entry for F12; criterion 16's evidence tier in the wave's ADR; Q33 still open.
+
 ### 8I — the contact submissions store
 
 *Goal.* Requests are stored once, apart from designs, and the running application cannot read them
