@@ -3161,6 +3161,65 @@ mat"*, *"stejar"*, *"grafit"*) [src `…Mobil.dc.html:1012-1126`].
   a row. I recommend the first until the owner asks otherwise, and it is not mine to settle.
 - *For the visual pass:* capture one row with a free colour in each language.
 
+#### 8D2 — S2 as built, and three rulings, 2026-10-08
+
+S2 is `76df1b8` [ran: `git log`]. **Nothing in it has been seen in a browser**: every width and
+height below is the implementer's arithmetic from the styles [relayed], and QA and the visual pass
+measure them. Web vitest 6155 passed, typecheck exit 0 [relayed, coordinator-run].
+
+**Ruling 1 — the Russian call to action stands on two lines. Accepted as built; a named departure
+from frame 3A; not a blocker; shown to the owner at the hand check.** For the record: the
+implementer was told to stop and report if the row did not fit, and built the wrap before it was
+ruled. The ruling accepts the result; it does not make that the way to get one.
+
+- *What it is:* *"Запросить предложение"* breaks at its space inside the 52 px button; the words,
+  their size and the button's height are the approved ones. The frame draws one line because the
+  Romanian fits on one [src `…Mobil.dc.html:1063-1068`]; it draws no Russian.
+- *Why this and not the others.* A shorter Russian label is copy, and the owner's. The figure
+  above the button in Russian only is a layout that forks by language, is what 8D had, and made
+  the region 33 px taller where criterion 12's half presses hardest. A smaller or narrower figure
+  shrinks the one thing the bar is for. The wrap changes no word and no size, and by arithmetic
+  the Russian region with three sentences falls from 377.5 px to about 344.5 px.
+- **Criterion 6, added.** At 390 × 844 in Russian the label is whole on exactly two lines, broken
+  at its space; the button is 52 px tall; the figure is on one line; the bar does not scroll
+  sideways. In Romanian the label is on one line. *Must not:* a word is broken, clipped,
+  ellipsised or set smaller; the figure wraps or is cut; the button grows past 52 px. Checked with
+  the longest figure the price book can produce, not only the seeded one.
+- **A limit, stated and not measured.** Nothing lets the button break a word
+  [src `review.module.css:459-474`: no `overflow-wrap`], so below some width *"предложение"*
+  overruns its button instead. By the relayed estimates that is a content width under about 283 px
+  with a six-digit figure and about 301 px with seven [inf, my sum]; 390 px gives 354. No record
+  names a narrower supported width than 390 px [ran: a search of the best-practice guides and the
+  spec found none]. QA reports the width at which it first fails; the wave does not chase it.
+- *For the owner, at the hand check:* the two-line Russian button as built, beside the one
+  alternative that is theirs, a shorter Russian label.
+
+**Ruling 2 — the three view chips stand in a row under the picture. Confirmed.** The frame's
+*"[ randare finală · 3 unghiuri ]"* is not chrome: it is a bracketed monospace note on a hatched
+placeholder [src `…Mobil.dc.html:999-1000`], saying what the block is. 8D's ruling 1a read it as
+three angles, reached by the three chips, and that stands. The frame draws no control for them, so
+their place was never the frame's; over the picture they covered about a fifth of it. Under it
+they cover nothing and keep 44 px. *The cost, to be measured:* the list starts 54 px lower.
+
+- **Criterion 7, added.** The picture is 158 px and no chip overlaps it; *Vezi în 3D* stays in
+  its lower corner as frame 3A places it; each chip is at least 44 px tall. Criteria 16 to 18 of
+  8D hold unchanged.
+- *For the visual pass:* how much of the first group shows in the first screenful, in the four
+  cases 8D measured, so the owner sees the 54 px with the scene's height. An observation, not a
+  criterion.
+- *For the scribe, at this wave's close:* ADR 0148 Amendment A says *"the chips over it"* in its
+  hand-check list; a dated note says they stand under the picture since 8D2.
+
+**Ruling 3 — the caption is `--ink-faint`, not the frame's `#7d7a72`. Confirmed, and it is
+recorded.** ADR 0104's sweep: *"`--ink-faint: #6b6860` replaces the frames' `#7d7a72`. Kept, and
+it outranks the frame. A contrast ruling is not chrome taste. Every other colour in the frames is
+taken literally."* [doc]. The frame's caption is exactly that grey, so the token is the frame's
+value as the owner corrected it, and no departure.
+
+*QA and the visual pass gain:* criteria 6 and 7; the tripwire of criterion 4 re-measured, since
+the 344.5 px is arithmetic; the bar with a flagged total and with a refusal; an unavailable
+review, whose bar is the call to action alone.
+
 ### 8E — the rate-limit store
 
 *Goal.* Postgres counts requests per bucket and window, atomically (ADR 0019 Alternative 4 rejected
