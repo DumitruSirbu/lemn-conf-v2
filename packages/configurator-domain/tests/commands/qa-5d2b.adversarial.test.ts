@@ -185,6 +185,8 @@ describe("FINDING A — the resized column's new key must not replace another co
     expect(untouched && extentOf(untouched)).toEqual(
       before && extentOf(before),
     );
+    // The refusal is total: the map the command was handed still holds the resized column's own key too.
+    expect([...world.columns.keys()].sort()).toEqual(["A|0.95", "A|1.00"]);
   });
 
   it("does the same thing on a growth, so the hole predates decision 7", () => {

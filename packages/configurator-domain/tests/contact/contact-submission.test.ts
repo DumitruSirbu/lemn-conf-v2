@@ -407,10 +407,10 @@ describe("validateContactSubmission: the honeypot is carried as a yes or no", ()
   /** Mirrors `HONEYPOT_MAX_LENGTH` in the source, which is private. */
   const HONEYPOT_MAX = 256;
 
-  it.each(["\u0000"])("reads %j as filled: any text at all is", (honeypot) => {
-    expect(requestOf({ ...DESIGN_REQUEST, honeypot }).isHoneypotFilled).toBe(
-      true,
-    );
+  it('reads "\\u0000" as filled: any text at all is', () => {
+    expect(
+      requestOf({ ...DESIGN_REQUEST, honeypot: "\u0000" }).isHoneypotFilled,
+    ).toBe(true);
   });
 
   it("accepts exactly the honeypot's maximum and refuses one past it", () => {

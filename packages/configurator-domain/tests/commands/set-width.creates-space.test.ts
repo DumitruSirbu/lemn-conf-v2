@@ -37,10 +37,6 @@ function extentMm(
 }
 
 describe("a shrink with no empty column anywhere", () => {
-  // `A|3.20` is `p4`, `p14` and `p20`, all 600 mm and all cabinetry, at the far end of wall A. The
-  // shipped kitchen abuts it with `A|2.60` on one side and the wall on the other, and derives no
-  // void at all — so before decision 7 every chip on all three bodies was `NO_EMPTY_SPACE`.
-
   it("holds the run's far edge and takes the space off the near one", () => {
     // `A|3.20` spans 2900–3500. Narrowing to 500 holds the left edge at 2900 — the boundary with
     // `A|2.60`, which nobody asked to move — and the run finishes at 3400. The 100 mm between 3400

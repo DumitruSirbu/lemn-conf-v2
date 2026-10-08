@@ -212,7 +212,7 @@ describe("the default material, three ways of saying nothing", () => {
     );
   });
 
-  it("writes PAL's own decor through PAL named explicitly", () => {
+  it("writes PAL's own decor on a design that names PAL explicitly", () => {
     const result = apply(
       withMaterial("material.melamine"),
       { kind: "placement", id: FINISHABLE_ID },

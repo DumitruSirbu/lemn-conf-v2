@@ -152,16 +152,14 @@ describe("removePlacement — success", () => {
 });
 
 describe("removePlacement — rejection sweep", () => {
-  it.each([["structural body", KITCHEN_L_DESIGN, "p25", "placement"]] as const)(
-    "returns the exact original design and changes nothing (%s)",
-    (_case, design, id, kind) => {
-      const before = JSON.stringify(design);
-      const result = removeFrom(design, id, kind);
-      expect(result.ok).toBe(false);
-      expect(result.design).toBe(design);
-      expect(result.design.updatedAt).toBe(design.updatedAt);
-      expect(JSON.stringify(design)).toBe(before);
-      expect(result).not.toHaveProperty("effect");
-    },
-  );
+  it("returns the exact original design and changes nothing (structural body)", () => {
+    const design = KITCHEN_L_DESIGN;
+    const before = JSON.stringify(design);
+    const result = removeFrom(design, "p25", "placement");
+    expect(result.ok).toBe(false);
+    expect(result.design).toBe(design);
+    expect(result.design.updatedAt).toBe(design.updatedAt);
+    expect(JSON.stringify(design)).toBe(before);
+    expect(result).not.toHaveProperty("effect");
+  });
 });
