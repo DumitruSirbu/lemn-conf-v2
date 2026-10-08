@@ -5,6 +5,7 @@ import {
   type ContactFieldCode,
   type ContactFields,
 } from "./contact-fields.js";
+import { isDesignId, isDesignRevisionShape } from "../repository.js";
 
 // The request a contact form sends. Strict at every level: an unknown field is refused, so a client
 // cannot add a price, a total or a book version and have it ignored (D6). A refusal names a field and
@@ -26,25 +27,11 @@ const REQUEST_KEYS = [
 
 const DESIGN_REFERENCE_KEYS = ["id", "revision"] as const;
 
-/** `nanoid()` at its default: 21 characters of `A-Za-z0-9_-` (`packages/persistence`'s
- *  `generate-design-id.ts`, which this package cannot import). */
-const DESIGN_ID_SHAPE = /^[A-Za-z0-9_-]{21}$/;
-
-/** A digit run with no leading zero, at most nineteen digits: the persistence package's
- *  `DESIGN_REVISION_SHAPE`, which a `bigint` column bounds. Kept a string, never a number. */
-const DESIGN_REVISION_SHAPE = /^[1-9][0-9]{0,18}$/;
-
 /** Wide enough for a UUID (36) or a `nanoid` (21); narrow enough that it is a key and not a body. */
 const CLIENT_REQUEST_ID_SHAPE = /^[A-Za-z0-9_-]{16,64}$/;
 
-/** A language code as the routing list spells it: two or three lowercase letters. */
-const LOCALE_SHAPE = /^[a-z]{2,3}$/;
-
 /** Characters, counted as code points. The honeypot's content has no meaning here. */
 const HONEYPOT_MAX_LENGTH = 256;
-
-/** A day, in milliseconds: no honest form is open longer, and it keeps the number a number. */
-const ELAPSED_MS_MAX = 86_400_000;
 
 export type SubmissionField =
   | "request"
@@ -65,7 +52,8 @@ export type SubmissionCode =
   | "UNKNOWN_FIELD"
   | "DESIGN_AND_INTENT_BOTH"
   | "DESIGN_OR_INTENT_MISSING"
-  | "UNKNOWN_INTENT";
+  | "UNKNOWN_INTENT"
+  | "UNKNOWN_LOCALE";
 
 export interface SubmissionIssue {
   readonly field: SubmissionField;
@@ -128,14 +116,22 @@ type AcceptedJudgements = {
   >;
 };
 
-/** Every failing field is reported once, in field order, with no value in the refusal. */
+/** Every failing field is reported once, in field order, with no value in the refusal. `servedLocales`
+ *  is the application's own list, passed in and never defaulted, since a default would be a second
+ *  list; an empty one is the caller's mistake and throws. */
 export function validateContactSubmission(
   input: unknown,
+  servedLocales: readonly string[],
 ): ContactSubmissionValidation {
+  if (servedLocales.length === 0) {
+    throw new RangeError(
+      "validateContactSubmission: the list of served locales is empty",
+    );
+  }
   if (!isPlainObject(input)) {
     return { ok: false, issues: [issue("request", "NOT_AN_OBJECT")] };
   }
-  const judgements = judgeRequest(input);
+  const judgements = judgeRequest(input, servedLocales);
   const unknownKeys = unknownKeyIssues(input, REQUEST_KEYS, "request");
   if (unknownKeys.length > 0 || !isAccepted(judgements)) {
     return {
@@ -146,16 +142,19 @@ export function validateContactSubmission(
   return { ok: true, request: assemble(judgements) };
 }
 
-function judgeRequest(request: PlainObject): RequestJudgements {
+function judgeRequest(
+  request: PlainObject,
+  servedLocales: readonly string[],
+): RequestJudgements {
   return {
     contact: judgeContact(fieldOf(request, "contact")),
     target: judgeTarget(request),
     clientRequestId: judgeToken(
       fieldOf(request, "clientRequestId"),
-      CLIENT_REQUEST_ID_SHAPE,
+      isClientRequestId,
       "clientRequestId",
     ),
-    locale: judgeToken(fieldOf(request, "locale"), LOCALE_SHAPE, "locale"),
+    locale: judgeLocale(fieldOf(request, "locale"), servedLocales),
     honeypot: judgeHoneypot(fieldOf(request, "honeypot")),
     elapsedMs: judgeElapsedMs(fieldOf(request, "elapsedMs")),
   };
@@ -223,10 +222,10 @@ function judgeDesignTarget(raw: unknown): Outcome<SubmissionTarget> {
 function judgeDesignReference(raw: unknown): Outcome<DesignReference> {
   if (!isPlainObject(raw)) return failed(issue("design", "NOT_AN_OBJECT"));
   const unknownKeys = unknownKeyIssues(raw, DESIGN_REFERENCE_KEYS, "design");
-  const id = judgeToken(fieldOf(raw, "id"), DESIGN_ID_SHAPE, "design.id");
+  const id = judgeToken(fieldOf(raw, "id"), isDesignId, "design.id");
   const revision = judgeToken(
     fieldOf(raw, "revision"),
-    DESIGN_REVISION_SHAPE,
+    isDesignRevisionShape,
     "design.revision",
   );
   if (unknownKeys.length > 0 || !id.ok || !revision.ok) {
@@ -244,12 +243,33 @@ function judgeIntentTarget(raw: unknown): Outcome<SubmissionTarget> {
 
 function judgeToken(
   raw: unknown,
-  shape: RegExp,
+  hasShape: (text: string) => boolean,
   field: SubmissionField,
 ): Outcome<string> {
+  const text = judgeText(raw, field);
+  if (!text.ok) return text;
+  return hasShape(text.value) ? text : failed(issue(field, "MALFORMED"));
+}
+
+function judgeLocale(
+  raw: unknown,
+  servedLocales: readonly string[],
+): Outcome<string> {
+  const text = judgeText(raw, "locale");
+  if (!text.ok) return text;
+  return servedLocales.includes(text.value)
+    ? text
+    : failed(issue("locale", "UNKNOWN_LOCALE"));
+}
+
+function judgeText(raw: unknown, field: SubmissionField): Outcome<string> {
   if (raw === undefined) return failed(issue(field, "REQUIRED"));
   if (typeof raw !== "string") return failed(issue(field, "NOT_TEXT"));
-  return shape.test(raw) ? succeeded(raw) : failed(issue(field, "MALFORMED"));
+  return succeeded(raw);
+}
+
+function isClientRequestId(text: string): boolean {
+  return CLIENT_REQUEST_ID_SHAPE.test(text);
 }
 
 function judgeHoneypot(raw: unknown): Outcome<string> {
@@ -267,13 +287,10 @@ function judgeElapsedMs(raw: unknown): Outcome<number> {
     : failed(issue("elapsedMs", "MALFORMED"));
 }
 
+/** Any whole number a JSON number holds exactly: a slow submission is not refused here (too fast is
+ *  8K's judgement). */
 function isElapsedMs(value: unknown): value is number {
-  return (
-    typeof value === "number" &&
-    Number.isInteger(value) &&
-    value >= 0 &&
-    value <= ELAPSED_MS_MAX
-  );
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
 }
 
 /** One issue for the object however many keys are unknown, and none names a key: the key is the

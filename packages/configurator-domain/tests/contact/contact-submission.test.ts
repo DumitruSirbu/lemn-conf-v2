@@ -4,11 +4,17 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   CONSENT_TEXT_VERSIONS,
   CONTACT_INTENTS,
-  validateContactSubmission,
+  validateContactSubmission as validateAgainstLocales,
   type ContactFields,
   type ContactSubmissionRequest,
   type SubmissionIssue,
 } from "../../src/contact/index.js";
+
+const SERVED_LOCALES = ["ro", "ru"];
+
+function validateContactSubmission(input: unknown) {
+  return validateAgainstLocales(input, SERVED_LOCALES);
+}
 
 const DESIGN_ID = "abcdefghijklmnopqrstu";
 const REQUEST_ID = "0123456789abcdef";
@@ -171,7 +177,7 @@ describe("validateContactSubmission: unknown fields are refused, not ignored", (
       issuesOf({ ...DESIGN_REQUEST, price: 1, locale: "ROMANIAN" }),
     ).toEqual([
       { field: "request", code: "UNKNOWN_FIELD" },
-      { field: "locale", code: "MALFORMED" },
+      { field: "locale", code: "UNKNOWN_LOCALE" },
     ]);
   });
 
@@ -386,14 +392,36 @@ describe("validateContactSubmission: the locale", () => {
     expect(issuesOf({ ...DESIGN_REQUEST, locale })).toEqual([]);
   });
 
-  it.each(["RO", "r", "romanian", "ro\n", "ro-MD", "", " ro"])(
-    "refuses %j as MALFORMED",
+  it.each(["RO", "r", "romanian", "ro\n", "ro-MD", "", " ro", "en"])(
+    "refuses %j, which the application does not serve, as UNKNOWN_LOCALE",
     (locale) => {
       expect(issuesOf({ ...DESIGN_REQUEST, locale })).toEqual([
-        { field: "locale", code: "MALFORMED" },
+        { field: "locale", code: "UNKNOWN_LOCALE" },
       ]);
     },
   );
+
+  it("judges against the list it is given, not a list of its own", () => {
+    const request = { ...DESIGN_REQUEST, locale: "en" };
+
+    expect(validateAgainstLocales(request, ["en"]).ok).toBe(true);
+    expect(validateAgainstLocales(request, ["ro", "ru"]).ok).toBe(false);
+    expect(
+      validateAgainstLocales({ ...DESIGN_REQUEST, locale: "ro" }, ["en"]).ok,
+    ).toBe(false);
+  });
+
+  it.each([
+    ["a request", DESIGN_REQUEST],
+    ["something that is not a request", null],
+  ])("throws on an empty list, whatever it is given: %s", (_name, input) => {
+    expect(() => validateAgainstLocales(input, [])).toThrow(RangeError);
+  });
+
+  it("has no default list: calling it without one is a type error", () => {
+    // @ts-expect-error -- the list is required; a default would be a second list
+    expect(() => validateAgainstLocales(DESIGN_REQUEST)).toThrow();
+  });
 
   it("requires it, and refuses one that is not text", () => {
     expect(issuesOf(without(DESIGN_REQUEST, "locale"))).toEqual([
@@ -436,18 +464,25 @@ describe("validateContactSubmission: the honeypot and the elapsed time carry no 
     ]);
   });
 
-  it.each([0, 1, 4_999, 86_400_000])(
-    "accepts %d ms, whatever it implies",
-    (elapsedMs) => {
-      expect(requestOf({ ...DESIGN_REQUEST, elapsedMs }).elapsedMs).toBe(
-        elapsedMs,
-      );
-    },
-  );
+  it.each([
+    0,
+    1,
+    4_999,
+    86_400_000,
+    86_400_001,
+    10 ** 12,
+    Number.MAX_SAFE_INTEGER,
+  ])("accepts %d ms: a slow submission is not refused here", (elapsedMs) => {
+    expect(requestOf({ ...DESIGN_REQUEST, elapsedMs }).elapsedMs).toBe(
+      elapsedMs,
+    );
+  });
 
   it.each([
     -1,
-    86_400_001,
+    Number.MIN_SAFE_INTEGER,
+    Number.MAX_SAFE_INTEGER + 1,
+    1e21,
     1.5,
     Number.NaN,
     Number.POSITIVE_INFINITY,

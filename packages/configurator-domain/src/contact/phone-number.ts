@@ -11,9 +11,10 @@ const INTERNATIONAL_MIN_DIGITS = 7;
 /** E.164 (ITU-T) allows at most fifteen digits, calling code included. */
 const INTERNATIONAL_MAX_DIGITS = 15;
 
-/** Spaces (a no-break space is one), hyphens and round brackets are how people group a number. Format
- *  characters (direction marks, zero-width) arrive with a pasted number and are not seen. */
-const IGNORED_CHARACTERS = /[ \u00A0()\-\p{Cf}]/gu;
+/** Any space separator (Unicode Zs: no-break, narrow no-break, figure), hyphens and round brackets are
+ *  how people group a number. Format characters (direction marks, zero-width) arrive with a pasted
+ *  number and are not seen. */
+const IGNORED_CHARACTERS = /[\p{Zs}()\-\p{Cf}]/gu;
 
 /** A calling code never starts with 0, so `+0…` is not an international number. */
 const INTERNATIONAL_SHAPE = /^\+[1-9][0-9]*$/;

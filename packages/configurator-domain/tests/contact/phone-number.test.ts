@@ -13,6 +13,9 @@ const IGNORED_CHARACTERS = [
   "(",
   ")",
   "\u00a0",
+  "\u202f",
+  "\u2007",
+  "\u3000",
   "\u200e",
   "\u202e",
   "\u00ad",
@@ -85,6 +88,9 @@ describe("normalisePhoneNumber: accepted shapes", () => {
     ["+40 721 234 567", "+40721234567"],
     ["+1 (212) 555-0100", "+12125550100"],
     ["079\u00a0123\u00a0456", "+37379123456"],
+    ["079\u202f123\u202f456", "+37379123456"],
+    ["079\u2007123\u2007456", "+37379123456"],
+    ["+373\u3000 79\u1680123456", "+37379123456"],
     ["\u200e+373 79 123 456\u200f", "+37379123456"],
     ["+40\u00ad721 234 567", "+40721234567"],
   ])("reads %j as %s", (entered, normalForm) => {
@@ -123,6 +129,31 @@ describe("normalisePhoneNumber: accepted shapes", () => {
     expect(refusedCode(normalisePhoneNumber("0791"))).toBe(
       "PHONE_MOLDOVAN_INCOMPLETE",
     );
+  });
+});
+
+function codePointLabel(character: string): string {
+  return `U+${(character.codePointAt(0) ?? 0).toString(16).toUpperCase().padStart(4, "0")}`;
+}
+
+describe("normalisePhoneNumber: every space separator is grouping", () => {
+  const SPACE_SEPARATORS = Array.from(
+    { length: 0x10000 },
+    (_unused, codePoint) => String.fromCodePoint(codePoint),
+  ).filter((character) => /^\p{Zs}$/u.test(character));
+
+  it("finds the Unicode space separators the test sweeps", () => {
+    expect(SPACE_SEPARATORS.length).toBeGreaterThanOrEqual(17);
+  });
+
+  it.each(
+    SPACE_SEPARATORS.map(
+      (character) => [codePointLabel(character), character] as const,
+    ),
+  )("reads %s between digits as grouping", (_label, character) => {
+    expect(
+      accepted(normalisePhoneNumber(`079${character}123${character}456`)),
+    ).toBe("+37379123456");
   });
 });
 
