@@ -321,8 +321,18 @@ const DOMAIN_IMPORT_PATTERNS = [
  *  against a restricted name. Dynamic `import()` and `require` are separate syntax and are listed.
  *  `no-new-func` closes `new Function("return …")`.
  *
- *  **Where the reach is narrower than the name.** An aliased re-export of the clip under another name
- *  is not seen, and nothing here stops the shell calling the void engine's other passes. */
+ *  **The second pass.** Three forms the first pass let through, each caught by a source-text test:
+ *  `module.require(…)` (a member call ending in `require`), a *local* `function
+ *  clipEmptyColumnsAtWallEnd` declared and called in the file (any `Identifier` carrying either name,
+ *  whatever it is bound to), and a bare side-effect `import "…/clip-empty-columns-at-wall-end.js"`
+ *  (a path restriction on the two defining modules, with no `importNames`).
+ *
+ *  **Where the reach is narrower than the name.** The path restriction covers the two defining modules
+ *  only: `body-probe.ts` and `pricing/*` — which the adversarial test also keeps out of the shell — are
+ *  not listed, and that test still guards them by loaded value. An alias of the clip made from a
+ *  re-export under another name, and `const { require: load } = module`, are not seen. A string
+ *  built at run time and passed to `module.require` is caught as the member call, not as a path.
+ *  Nothing here stops the shell calling the void engine's other passes. */
 const SHELL_DESIGN_FORBIDDEN_NAMES = [
   "clipEmptyColumnsAtWallEnd",
   "removePlacement",
@@ -338,6 +348,14 @@ const SHELL_DESIGN_IMPORT_PATTERN = {
   message: SHELL_DESIGN_MUST_NOT_CLIP_OR_REMOVE,
 };
 
+const SHELL_DESIGN_FORBIDDEN_MODULE_PATTERNS = [
+  "clip-empty-columns-at-wall-end",
+  "commands/remove-placement",
+].map((modulePath) => ({
+  regex: `(?:^|/)${modulePath}(?:\\.[jt]s)?$`,
+  message: `Even a bare side-effect import of ${modulePath} is a way round the name rule. ${SHELL_DESIGN_MUST_NOT_CLIP_OR_REMOVE}`,
+}));
+
 const SHELL_DESIGN_LATE_BINDING_SELECTORS = [
   {
     selector: "ImportExpression",
@@ -346,6 +364,15 @@ const SHELL_DESIGN_LATE_BINDING_SELECTORS = [
   {
     selector: "CallExpression[callee.name='require']",
     message: `require() is a way round the import rule. ${SHELL_DESIGN_MUST_NOT_CLIP_OR_REMOVE}`,
+  },
+  {
+    selector:
+      "MemberExpression:matches([computed=false][property.name='require'], [property.value='require'])",
+    message: `module.require() and globalThis.require() are ways round the import rule. ${SHELL_DESIGN_MUST_NOT_CLIP_OR_REMOVE}`,
+  },
+  {
+    selector: `Identifier[name=/^(${SHELL_DESIGN_FORBIDDEN_NAMES.join("|")})$/]`,
+    message: `The name is reserved, whether imported, declared locally or called. ${SHELL_DESIGN_MUST_NOT_CLIP_OR_REMOVE}`,
   },
 ];
 
@@ -543,7 +570,13 @@ export default tseslint.config(
     rules: {
       "no-restricted-imports": [
         "error",
-        { patterns: [...DOMAIN_IMPORT_PATTERNS, SHELL_DESIGN_IMPORT_PATTERN] },
+        {
+          patterns: [
+            ...DOMAIN_IMPORT_PATTERNS,
+            SHELL_DESIGN_IMPORT_PATTERN,
+            ...SHELL_DESIGN_FORBIDDEN_MODULE_PATTERNS,
+          ],
+        },
       ],
       "no-restricted-syntax": [
         "error",
