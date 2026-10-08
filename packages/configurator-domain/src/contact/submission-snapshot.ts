@@ -1,3 +1,5 @@
+import { DesignSchema, type Design } from "../design.js";
+import { describeSchemaIssues } from "../failure-text.js";
 import {
   priceDesign,
   type PriceDesignRequest,
@@ -29,14 +31,31 @@ export type SubmissionSnapshotResult =
   | { readonly ok: true; readonly snapshot: SubmissionSnapshot }
   | { readonly ok: false; readonly refusal: SubmissionRefusal };
 
+/** What was handed in is not a design. The caller's defect, so it is thrown and is not a fourth refusal;
+ *  it names the shape of what failed (paths and codes), never a value. */
+export class SubmissionDesignInvalidError extends Error {
+  constructor(issues: Parameters<typeof describeSchemaIssues>[0]) {
+    super(
+      `The submission's design is not a design: ${describeSchemaIssues(issues)}`,
+    );
+    this.name = "SubmissionDesignInvalidError";
+  }
+}
+
+/**
+ * The snapshot is kept for good and nothing re-prices it, so it rests on no caller's validation: the design
+ * is parsed with `DesignSchema`, the wire schema every stored document passes, and it is the PARSED design
+ * that is priced and serialised, so the stored document always parses again. A value that is not a design
+ * throws `SubmissionDesignInvalidError`.
+ */
 export function snapshotSubmission(
   request: SubmissionSnapshotRequest,
 ): SubmissionSnapshotResult {
-  const { design } = request;
+  const design = parseDesign(request.design);
   const eligibility = judgeSubmissionEligibility({
     design,
     overflowingPlacementIds: findOverflowingPlacementIds(design),
-    pricing: priceDesign({ ...request, selections: design.settings }),
+    pricing: priceDesign({ ...request, design, selections: design.settings }),
   });
   if (eligibility.kind === "refused") {
     return { ok: false, refusal: eligibility.refusal };
@@ -48,4 +67,11 @@ export function snapshotSubmission(
       priced: eligibility.priced,
     },
   };
+}
+
+function parseDesign(candidate: unknown): Design {
+  const parsed = DesignSchema.safeParse(candidate);
+  if (!parsed.success)
+    throw new SubmissionDesignInvalidError(parsed.error.issues);
+  return parsed.data;
 }

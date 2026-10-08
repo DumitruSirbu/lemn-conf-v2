@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   holdsNothingLemnariaSupplies,
   judgeSubmissionEligibility,
+  SubmissionFactsContradictionError,
   KITCHEN_L_DESIGN,
   priceDesign,
   type Design,
@@ -23,10 +24,12 @@ const PRICED_SEEDED = priceDesign({
   selections: KITCHEN_L_DESIGN.settings,
 });
 
-const PRICING_REFUSED: PricingResult = {
-  ok: false,
-  failure: { code: "INVALID_PRICE_BOOK", detail: "unreadable" },
-};
+const PRICING_FAILURE = {
+  code: "INVALID_PRICE_BOOK",
+  detail: "unreadable",
+} as const;
+
+const PRICING_REFUSED: PricingResult = { ok: false, failure: PRICING_FAILURE };
 
 function pricedOf(result: PricingResult): PricedDesign {
   if (!result.ok) throw new Error("expected the seeded kitchen to price");
@@ -55,6 +58,21 @@ describe("judgeSubmissionEligibility: the order of the three refusals (ADR 0148 
     throw new Error("the seeded kitchen holds two bodies");
   }
 
+  /** The same price, as it would be had pricing found these bodies past their wall. */
+  function flagging(
+    priced: PricedDesign,
+    ids: readonly string[],
+  ): PricingResult {
+    return {
+      ok: true,
+      priced: {
+        ...priced,
+        overflowingPlacementIds: [...ids],
+        totalIsFlagged: true,
+      },
+    };
+  }
+
   const SUPPLIED_BY_CUSTOMER: PricingResult = {
     ok: true,
     priced: pricedAllSuppliedByCustomer(),
@@ -69,9 +87,13 @@ describe("judgeSubmissionEligibility: the order of the three refusals (ADR 0148 
     [
       "a body past its wall and a kitchen of nothing Lemnaria supplies",
       [FIRST],
-      SUPPLIED_BY_CUSTOMER,
+      flagging(pricedAllSuppliedByCustomer(), [FIRST]),
     ],
-    ["a body past its wall and a price that is fine", [FIRST], PRICED_SEEDED],
+    [
+      "a body past its wall and a price that is fine",
+      [FIRST],
+      flagging(pricedOf(PRICED_SEEDED), [FIRST]),
+    ],
   ])(
     "says BODIES_PAST_WALL for %s",
     (_name, overflowingPlacementIds, pricing) => {
@@ -95,7 +117,7 @@ describe("judgeSubmissionEligibility: the order of the three refusals (ADR 0148 
     const eligibility = judgeSubmissionEligibility({
       design: KITCHEN_L_DESIGN,
       overflowingPlacementIds: [SECOND, FIRST],
-      pricing: PRICED_SEEDED,
+      pricing: flagging(pricedOf(PRICED_SEEDED), [FIRST, SECOND]),
     });
 
     expect(eligibility).toMatchObject({
@@ -134,7 +156,24 @@ describe("judgeSubmissionEligibility: the order of the three refusals (ADR 0148 
         overflowingPlacementIds: [],
         pricing: PRICING_REFUSED,
       }),
-    ).toEqual({ kind: "refused", refusal: { code: "PRICING_FAILED" } });
+    ).toEqual({
+      kind: "refused",
+      refusal: { code: "PRICING_FAILED", failure: PRICING_FAILURE },
+    });
+  });
+
+  it("carries the pricing failure as priceDesign returned it, the same object", () => {
+    const eligibility = judgeSubmissionEligibility({
+      design: KITCHEN_L_DESIGN,
+      overflowingPlacementIds: [],
+      pricing: PRICING_REFUSED,
+    });
+
+    expect(
+      eligibility.kind === "refused" &&
+        eligibility.refusal.code === "PRICING_FAILED" &&
+        eligibility.refusal.failure,
+    ).toBe(PRICING_FAILURE);
   });
 
   it("allows a kitchen that fits, is priced and holds a body Lemnaria supplies, carrying the price it judged", () => {
@@ -171,7 +210,81 @@ describe("judgeSubmissionEligibility: the order of the three refusals (ADR 0148 
   });
 });
 
+function pricedUnder(design: Design): PricedDesign {
+  return pricedOf(
+    priceDesign({
+      design,
+      catalog: catalogOf(design),
+      book: SAMPLE_BOOK,
+      pricingVersion: SAMPLE_BOOK.version,
+      selections: design.settings,
+    }),
+  );
+}
+
+const SUPPLIED_IDS = new Set(
+  pricedOf(PRICED_SEEDED).lines.flatMap((line) =>
+    line.kind === "cabinet" && line.suppliedBy === "customer"
+      ? [line.placementId]
+      : [],
+  ),
+);
+
+/** Only these bodies kept, and the recorded spaces dropped with the rest. */
+function keepingOnly(ids: ReadonlySet<string>): Design {
+  return {
+    ...NO_BODIES,
+    emptyColumns: [],
+    columnExtents: [],
+    placements: KITCHEN_L_DESIGN.placements.filter(({ id }) => ids.has(id)),
+  };
+}
+
 describe("holdsNothingLemnariaSupplies: read off the supplier, never off an amount", () => {
+  it("sees, in the seeded kitchen, bodies the customer supplies and bodies Lemnaria sells", () => {
+    expect(SUPPLIED_IDS.size).toBeGreaterThan(0);
+    expect(SUPPLIED_IDS.size).toBeLessThan(KITCHEN_L_DESIGN.placements.length);
+  });
+
+  it("is true for a kitchen priced from bodies the customer supplies alone", () => {
+    const supplied = pricedUnder(keepingOnly(SUPPLIED_IDS));
+
+    expect(supplied.lines.some((line) => line.kind === "cabinet")).toBe(true);
+    expect(holdsNothingLemnariaSupplies(supplied)).toBe(true);
+  });
+
+  it("is true for a kitchen priced with no body, which holds nothing to supply either", () => {
+    expect(
+      holdsNothingLemnariaSupplies(pricedUnder(keepingOnly(new Set()))),
+    ).toBe(true);
+  });
+
+  it("is false once one body is sold, however many are supplied beside it", () => {
+    const sold = KITCHEN_L_DESIGN.placements.find(
+      ({ id }) => !SUPPLIED_IDS.has(id),
+    );
+    if (sold === undefined) throw new Error("the seeded kitchen sells a body");
+
+    const mixed = pricedUnder(keepingOnly(new Set([...SUPPLIED_IDS, sold.id])));
+
+    expect(holdsNothingLemnariaSupplies(mixed)).toBe(false);
+  });
+
+  it("is true for supplied bodies whatever their amount says", () => {
+    const supplied = pricedUnder(keepingOnly(SUPPLIED_IDS));
+
+    expect(
+      holdsNothingLemnariaSupplies({
+        ...supplied,
+        lines: supplied.lines.map((line) =>
+          line.kind === "cabinet"
+            ? { ...line, unitAmountMinor: 50_000, amountMinor: 50_000 }
+            : line,
+        ),
+      }),
+    ).toBe(true);
+  });
+
   it("is false for a kitchen with manufacturer bodies", () => {
     expect(holdsNothingLemnariaSupplies(pricedOf(PRICED_SEEDED))).toBe(false);
   });
@@ -206,5 +319,65 @@ describe("holdsNothingLemnariaSupplies: read off the supplier, never off an amou
         ),
       }),
     ).toBe(false);
+  });
+});
+
+describe("judgeSubmissionEligibility: facts that cannot all be true throw", () => {
+  const [FIRST, SECOND] = KITCHEN_L_DESIGN.placements.map(({ id }) => id);
+  if (FIRST === undefined || SECOND === undefined) {
+    throw new Error("the seeded kitchen holds two bodies");
+  }
+  const priced = pricedOf(PRICED_SEEDED);
+
+  function judge(
+    overflowingPlacementIds: readonly string[],
+    flagged: readonly string[],
+  ) {
+    return judgeSubmissionEligibility({
+      design: KITCHEN_L_DESIGN,
+      overflowingPlacementIds,
+      pricing: {
+        ok: true,
+        priced: {
+          ...priced,
+          overflowingPlacementIds: [...flagged],
+          totalIsFlagged: flagged.length > 0,
+        },
+      },
+    });
+  }
+
+  it("throws on a list that names a body the design does not hold, priced or not", () => {
+    const unheld = (pricing: PricingResult) => () =>
+      judgeSubmissionEligibility({
+        design: KITCHEN_L_DESIGN,
+        overflowingPlacementIds: ["no-such-body"],
+        pricing,
+      });
+
+    expect(unheld(PRICING_REFUSED)).toThrow(SubmissionFactsContradictionError);
+    expect(unheld(PRICED_SEEDED)).toThrow(SubmissionFactsContradictionError);
+  });
+
+  it.each([
+    ["flags a body the list lacks", [], [FIRST]],
+    ["lacks a body the list names", [FIRST], []],
+    ["flags one body where the list names another", [FIRST], [SECOND]],
+    ["flags one of the two the list names", [FIRST, SECOND], [FIRST]],
+  ])("throws when the price %s", (_name, list, flagged) => {
+    expect(() => judge(list, flagged)).toThrow(
+      SubmissionFactsContradictionError,
+    );
+  });
+
+  it("accepts the same bodies in another order: sets are compared, not sequences", () => {
+    expect(judge([SECOND, FIRST], [FIRST, SECOND])).toMatchObject({
+      kind: "refused",
+      refusal: { code: "BODIES_PAST_WALL", placementIds: [SECOND, FIRST] },
+    });
+  });
+
+  it("names the bodies in the error and nothing else about the design", () => {
+    expect(() => judge([], [FIRST])).toThrow(FIRST);
   });
 });

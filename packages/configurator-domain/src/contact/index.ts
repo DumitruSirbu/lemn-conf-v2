@@ -35,12 +35,14 @@ export {
 export {
   holdsNothingLemnariaSupplies,
   judgeSubmissionEligibility,
+  SubmissionFactsContradictionError,
   type SubmissionEligibility,
   type SubmissionFacts,
   type SubmissionRefusal,
 } from "./submission-eligibility.js";
 export {
   snapshotSubmission,
+  SubmissionDesignInvalidError,
   type SubmissionSnapshot,
   type SubmissionSnapshotRequest,
   type SubmissionSnapshotResult,

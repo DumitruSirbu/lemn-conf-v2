@@ -59,15 +59,11 @@ export interface StartingPriceInput {
  * needs the document. The whole-kitchen lines an empty design still carries would otherwise render as
  * a meaningful zero, a tier printed *inclus* over nothing. Such a design stays valid (loadable,
  * shareable) and simply has no price. A body the customer supplies is still a cabinet line here; see
- * `holdsNothingLemnariaSupplies`.
+ * the domain's `holdsNothingLemnariaSupplies`.
  */
 export function holdsNoCabinets(priced: PricedDesign): boolean {
   return !priced.lines.some((line) => line.kind === "cabinet");
 }
-
-/** Moved to the domain beside the submission rule (ADR 0148 decision 2); re-exported so the price surfaces keep
- *  one import site. */
-export { holdsNothingLemnariaSupplies } from "@lemnaria/configurator-domain";
 
 /** Builds the one shape a figure may be rendered from; every displayed price comes through here. */
 export function describeStartingPrice(input: StartingPriceInput): PriceFigure {

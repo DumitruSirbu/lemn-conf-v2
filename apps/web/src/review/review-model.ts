@@ -175,17 +175,27 @@ export class ReviewInputDivergenceError extends Error {
   }
 }
 
+/** The inputs are checked before the rule is asked, so a mismatch is this module's error and not the rule's. */
 export function describeReview(input: DescribeReviewInput): ReviewView {
-  const eligibility = judgeSubmissionEligibility({
-    design: input.design,
-    overflowingPlacementIds: findOverflowingPlacementIds(input.design),
-    pricing: input.pricing,
-  });
+  const overflowingIds = findOverflowingPlacementIds(input.design);
   if (!input.pricing.ok) {
     assertEveryPlacementIsListed(input.design, input.groups);
-    return unavailable(refusedSubmitOf(input, eligibility));
+    return unavailable(refusedSubmitOf(input, judgeFor(input, overflowingIds)));
   }
-  return describePricedReview(input, input.pricing.priced, eligibility);
+  const { priced } = input.pricing;
+  assertInputsAreOneDesigns(input, priced, overflowingIds);
+  return describePricedReview(input, priced, judgeFor(input, overflowingIds));
+}
+
+function judgeFor(
+  input: DescribeReviewInput,
+  overflowingPlacementIds: readonly string[],
+): SubmissionEligibility {
+  return judgeSubmissionEligibility({
+    design: input.design,
+    overflowingPlacementIds,
+    pricing: input.pricing,
+  });
 }
 
 function describePricedReview(
@@ -193,7 +203,6 @@ function describePricedReview(
   priced: PricedDesign,
   eligibility: SubmissionEligibility,
 ): ReviewView {
-  assertInputsAreOneDesigns(input, priced, overflowingIdsOf(eligibility));
   if (holdsNothingLemnariaSupplies(priced)) {
     return unavailable(refusedSubmitOf(input, eligibility));
   }
@@ -305,16 +314,6 @@ function refusedSubmitFrom(
   return refusal.code === "BODIES_PAST_WALL"
     ? refusePastTheWall(input, refusal.placementIds)
     : { kind: "refused", code: refusal.code, bodies: [] };
-}
-
-/** The rule refuses with `BODIES_PAST_WALL` whenever the fit query names a body, so the list is its refusal's. */
-function overflowingIdsOf(
-  eligibility: SubmissionEligibility,
-): readonly string[] {
-  return eligibility.kind === "refused" &&
-    eligibility.refusal.code === "BODIES_PAST_WALL"
-    ? eligibility.refusal.placementIds
-    : [];
 }
 
 function refusePastTheWall(

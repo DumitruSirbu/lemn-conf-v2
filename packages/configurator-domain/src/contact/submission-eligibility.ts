@@ -1,5 +1,10 @@
 import type { Design } from "../design.js";
-import type { PricedDesign, PricingResult } from "../pricing/price-lines.js";
+import { boundedFailureReason } from "../failure-text.js";
+import type {
+  PricedDesign,
+  PricingFailure,
+  PricingResult,
+} from "../pricing/price-lines.js";
 
 // The one place the rule for "may this kitchen be submitted" is written (ADR 0148 decisions 1 and 2): the
 // review's call to action and the server's snapshot both ask it, so a screen cannot offer what the endpoint
@@ -12,7 +17,12 @@ export type SubmissionRefusal =
       readonly placementIds: readonly string[];
     }
   | { readonly code: "NO_CABINET" }
-  | { readonly code: "PRICING_FAILED" };
+  | {
+      readonly code: "PRICING_FAILED";
+      /** As `priceDesign` returned it, for the endpoint to log. It holds design data and no contact
+       *  field, and no screen prints it. */
+      readonly failure: PricingFailure;
+    };
 
 /** An allowed kitchen was priced, so it carries the price it was judged on. */
 export type SubmissionEligibility =
@@ -26,14 +36,29 @@ export interface SubmissionFacts {
   readonly pricing: PricingResult;
 }
 
+/** The facts handed to the rule cannot all be true: a defect in the caller, never a customer's refusal. */
+export class SubmissionFactsContradictionError extends Error {
+  constructor(detail: string) {
+    super(
+      `The submission facts contradict each other: ${boundedFailureReason(detail)}`,
+    );
+    this.name = "SubmissionFactsContradictionError";
+  }
+}
+
 /**
  * One refusal at a time, the first the customer can act on: a body past its wall, then nothing Lemnaria
  * supplies, then a price that cannot be computed. Fit is judged whatever pricing answered, and a design with
  * no body is `NO_CABINET` even when pricing failed: that is known from the design alone.
+ *
+ * The rule believes the fit list it is handed, so it throws where the facts contradict each other. On the
+ * server only `snapshotSubmission` puts the facts together, from one design; nothing that answers a request
+ * calls this with a list of its own making (criterion 14).
  */
 export function judgeSubmissionEligibility(
   facts: SubmissionFacts,
 ): SubmissionEligibility {
+  assertFactsAgree(facts);
   if (facts.overflowingPlacementIds.length > 0) {
     return refused({
       code: "BODIES_PAST_WALL",
@@ -41,7 +66,9 @@ export function judgeSubmissionEligibility(
     });
   }
   if (holdsNothingToSupply(facts)) return refused({ code: "NO_CABINET" });
-  if (!facts.pricing.ok) return refused({ code: "PRICING_FAILED" });
+  if (!facts.pricing.ok) {
+    return refused({ code: "PRICING_FAILED", failure: facts.pricing.failure });
+  }
   return { kind: "allowed", priced: facts.pricing.priced };
 }
 
@@ -61,6 +88,29 @@ function holdsNothingToSupply(facts: SubmissionFacts): boolean {
   return facts.pricing.ok
     ? holdsNothingLemnariaSupplies(facts.pricing.priced)
     : facts.design.placements.length === 0;
+}
+
+/** Sets, not sequences: the query's order and the display's differ and both are right. */
+function assertFactsAgree(facts: SubmissionFacts): void {
+  const given = new Set(facts.overflowingPlacementIds);
+  const held = new Set(facts.design.placements.map(({ id }) => id));
+  const unheld = [...given].filter((id) => !held.has(id));
+  if (unheld.length > 0) {
+    throw new SubmissionFactsContradictionError(
+      `the fit list names bodies the design does not hold: ${unheld.join(", ")}`,
+    );
+  }
+  if (!facts.pricing.ok) return;
+  const own = new Set(facts.pricing.priced.overflowingPlacementIds);
+  const differing = [
+    ...[...given].filter((id) => !own.has(id)),
+    ...[...own].filter((id) => !given.has(id)),
+  ];
+  if (differing.length > 0) {
+    throw new SubmissionFactsContradictionError(
+      `the fit list and the price's own list differ over: ${differing.join(", ")}`,
+    );
+  }
 }
 
 function refused(refusal: SubmissionRefusal): SubmissionEligibility {

@@ -9,6 +9,7 @@ import {
   priceDesign,
   pricedByWidth,
   snapshotSubmission,
+  SubmissionDesignInvalidError,
   drawnButNotSupplied,
   type Design,
   type DesignPlacement,
@@ -349,7 +350,10 @@ describe("the snapshot's refusals", () => {
 
     expect(
       refusalOf({ ...requestFor(kitchen), pricingVersion: "not-this-book" }),
-    ).toEqual({ code: "PRICING_FAILED" });
+    ).toMatchObject({
+      code: "PRICING_FAILED",
+      failure: { code: "PRICING_VERSION_MISMATCH" },
+    });
   });
 
   it("puts a body past its wall before a price that cannot be computed", () => {
@@ -423,5 +427,53 @@ describe("the snapshot holds no contact field and no shown figure, by type", () 
 
     expect(keys.length).toBeGreaterThan(50);
     expect(keys.filter((key) => CONTACT_KEY.test(key))).toEqual([]);
+  });
+});
+
+describe("the snapshot holds a design, by its own parse (criterion 20)", () => {
+  const KITCHEN = {
+    name: "seeded",
+    design: KITCHEN_L_DESIGN,
+    catalog: catalogOf(KITCHEN_L_DESIGN),
+  };
+  const throwsFor = (design: unknown) => () =>
+    snapshotSubmission({ ...requestFor(KITCHEN), design: design as Design });
+
+  it.each([
+    ["null", null],
+    ["a string", "design"],
+    ["an empty object", {}],
+    [
+      "a design with a field the schema does not know",
+      { ...KITCHEN_L_DESIGN, price: 1 },
+    ],
+    [
+      "a design with a placement that is not one",
+      { ...KITCHEN_L_DESIGN, placements: [{}] },
+    ],
+    [
+      "a design with a room of the wrong type",
+      { ...KITCHEN_L_DESIGN, room: "L" },
+    ],
+  ])("throws for %s, and does not refuse it", (_name, design) => {
+    expect(throwsFor(design)).toThrow(SubmissionDesignInvalidError);
+  });
+
+  it("names the shape of what failed and no value", () => {
+    const secret = "SECRET-ROOM-VALUE";
+
+    expect(throwsFor({ ...KITCHEN_L_DESIGN, room: secret })).not.toThrow(
+      secret,
+    );
+    expect(throwsFor({ ...KITCHEN_L_DESIGN, room: secret })).toThrow("room");
+  });
+
+  it("stores the serialisation of the parsed design, which parses again", () => {
+    const { document } = snapshotOf(requestFor(KITCHEN));
+
+    expect(DesignSchema.safeParse(JSON.parse(document)).success).toBe(true);
+    expect(document).toBe(
+      canonicalSerializeDesign(DesignSchema.parse(KITCHEN_L_DESIGN)),
+    );
   });
 });
