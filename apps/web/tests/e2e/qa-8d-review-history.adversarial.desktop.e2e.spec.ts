@@ -21,6 +21,7 @@ import {
   REVIEW_BOTTOM,
   REVIEW_CTA,
   reviewPath,
+  tabThroughTheReview,
 } from "./support/qa-8d-review";
 import { openSeededDesign, test as seededTest } from "./support/seeded-design";
 import { test as stepOneTest } from "./support/step-one-by-touch";
@@ -56,7 +57,7 @@ stepOneTest(
 );
 
 seededTest(
-  "from an untouched editor the review is one entry further and Back returns without a question; a group's edit link then opens the editor with its first body selected, and Back returns to the review",
+  "from an untouched editor the review is one entry further and Back returns without a question; no link that takes keyboard focus on the review sits under its pinned foot at 1440 or 900 px; a group's edit link then opens the editor with its first body selected, and Back returns to the review",
   async ({ page, seededDesign }) => {
     await openSeededDesign(page, seededDesign);
     const editorUrl = page.url();
@@ -73,6 +74,16 @@ seededTest(
 
     await goForwardAndSettle(page);
     await expectReviewDrawn(page);
+    for (const width of [1440, 900]) {
+      await page.setViewportSize({ width, height: 900 });
+      const tabbed = await tabThroughTheReview(page);
+      console.log(`FOCUS desktop ${String(width)} ${JSON.stringify(tabbed)}`);
+      expect(tabbed.focused, String(width)).toBeGreaterThan(5);
+      expect(
+        tabbed.leastRoomAbove,
+        `${String(width)}: ${tabbed.lowest}`,
+      ).toBeGreaterThanOrEqual(0);
+    }
     const edit = page.getByTestId("review-group-edit").first();
     const selected = new URL(
       (await edit.getAttribute("href")) ?? "",

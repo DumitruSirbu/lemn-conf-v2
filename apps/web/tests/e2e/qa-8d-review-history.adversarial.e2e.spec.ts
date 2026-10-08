@@ -23,6 +23,7 @@ import {
   REVIEW_BOTTOM,
   REVIEW_CTA,
   reviewPath,
+  scrollReserveAtTheFoot,
   settingsSheet,
 } from "./support/qa-8d-review";
 import { openSeededDesign, test as seededTest } from "./support/seeded-design";
@@ -161,6 +162,7 @@ seededTest(
   "a group's edit link opens the editor one entry further with that group's first body selected and the address clean; Back returns to the review, and Forward re-selects nothing",
   async ({ page, seededDesign }) => {
     await openReview(page, seededDesign);
+    expect(await scrollReserveAtTheFoot(page)).not.toBe("");
     const lengthOnTheReview = await historyLength(page);
     const edit = page.getByTestId("review-group-edit").nth(1);
     const selected = new URL(
@@ -176,6 +178,8 @@ seededTest(
     expect((await readSelection(page)).selectionId).toBe(selected);
     await expect(page.getByTestId("editor-panel")).toBeVisible();
     expect(await historyLength(page)).toBe(lengthOnTheReview + 1);
+    // What the review reserved at the viewport's foot for its pinned region does not follow the customer here.
+    expect(await scrollReserveAtTheFoot(page)).toBe("");
 
     await page.getByTestId("panel-close").tap();
     await expect(page.getByTestId("editor-panel")).toHaveCount(0);

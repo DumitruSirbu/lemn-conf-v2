@@ -22,6 +22,7 @@ import {
   REVIEW_CTA,
   reviewPath,
   SAVE_WAIT,
+  tabThroughTheReview,
   toTheDesignApi,
   touchTheMiddleOf,
 } from "./support/qa-8d-review";
@@ -225,6 +226,8 @@ for (const [name, status, sentence] of REFUSED_SAVES) {
     await editThenOpenTheReviewAtOnce(page, seededDesign.id);
 
     await expectCallToActionOffBecauseOf(page, sentence);
+    // Only a conflict is settled in the editor; these draw no link there.
+    await expect(page.getByTestId("review-open-editor")).toHaveCount(0);
     await expect(page.locator(SETTINGS_ROW)).not.toHaveText(
       savedSettings ?? "",
     );
@@ -332,24 +335,6 @@ test("in a U, the conflict link arrives with the editor's conflict notice and bo
   }
 });
 
-for (const [name, status] of [
-  ["a refused write", 403],
-  ["a stopped save", 422],
-] as const) {
-  test(`${name} (${String(status)}) draws no link to the editor in the foot: only a conflict is settled there`, async ({
-    page,
-    seededDesign,
-  }) => {
-    await openSeededDesign(page, seededDesign);
-    await answerSavesWith(page, seededDesign.id, refuseWith(status));
-
-    await editThenOpenTheReviewAtOnce(page, seededDesign.id);
-
-    await expect(page.getByTestId(SAVE_WAIT)).toBeVisible();
-    await expect(page.getByTestId("review-open-editor")).toHaveCount(0);
-  });
-}
-
 // The Russian the foot must show, written out so the page is not compared with the catalogue it reads.
 const RUSSIAN_CONFLICT =
   "Кухню изменили в другой вкладке или на другом устройстве, поэтому твоё изменение не сохранено. Выбери в редакторе, какую версию оставить, и тогда запрашивай предложение.";
@@ -388,6 +373,10 @@ test("the tallest foot the review can have, in Russian: a kitchen past its wall 
     ).toBeInViewport();
     expect(region.height).toBeLessThanOrEqual(region.viewportHeight / 2);
     await captureEvidence(page, "save-wait-tallest-foot-ru");
+    const tabbed = await tabThroughTheReview(page);
+    console.log(`FOCUS three sentences ru ${JSON.stringify(tabbed)}`);
+    expect(tabbed.focused).toBeGreaterThan(10);
+    expect(tabbed.leastRoomAbove, tabbed.lowest).toBeGreaterThanOrEqual(0);
 
     await page.evaluate(() => {
       window.scrollTo(0, document.documentElement.scrollHeight);

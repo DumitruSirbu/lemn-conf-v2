@@ -29,6 +29,7 @@ import {
   REVIEW_SCENE,
   reviewPath,
   sectionsInDocumentOrder,
+  tabThroughTheReview,
   touchTheMiddleOf,
 } from "./support/qa-8d-review";
 import { test, type Locale } from "./support/seeded-design";
@@ -417,6 +418,16 @@ for (const [spec, wording] of KITCHENS) {
           locale,
         ).toBeLessThanOrEqual(regionTop);
         await captureEvidence(page, `screen-${spec.name}-${locale}-end`);
+
+        const tabbed = await tabThroughTheReview(page);
+        console.log(
+          `FOCUS no sentence ${spec.name} ${locale} ${JSON.stringify(tabbed)}`,
+        );
+        expect(tabbed.focused, locale).toBeGreaterThan(5);
+        expect(
+          tabbed.leastRoomAbove,
+          `${locale}: ${tabbed.lowest}`,
+        ).toBeGreaterThanOrEqual(0);
       }
     } finally {
       await deleteMintedDesigns(minted);
@@ -513,6 +524,11 @@ for (const locale of LOCALES) {
         );
       }
       await captureEvidence(page, `screen-past-the-wall-${locale}-end`);
+
+      const tabbed = await tabThroughTheReview(page);
+      console.log(`FOCUS two sentences ${locale} ${JSON.stringify(tabbed)}`);
+      expect(tabbed.focused).toBeGreaterThan(10);
+      expect(tabbed.leastRoomAbove, tabbed.lowest).toBeGreaterThanOrEqual(0);
 
       await named.first().tap();
       await page.waitForURL(`/${locale}/d/${kitchen.id}`);

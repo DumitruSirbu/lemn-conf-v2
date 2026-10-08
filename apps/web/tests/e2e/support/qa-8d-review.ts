@@ -440,3 +440,71 @@ export async function captureEvidence(
   const fileName = name.replaceAll(/[^\w.-]+/g, "-");
   await page.screenshot({ path: `${directory}/${fileName}.png`, fullPage });
 }
+
+export interface FocusUnderTheFoot {
+  /** How many links and controls took focus while tabbing, the pinned region's own left out. */
+  readonly focused: number;
+  /** The least room left between a focused box's bottom edge and the region's top edge; negative is under it. */
+  readonly leastRoomAbove: number;
+  readonly lowest: string;
+}
+
+/**
+ * Tabs forward through the review from the top of the page and back again with Shift+Tab, and reports the focused
+ * box that came nearest to, or under, the pinned region. The region's own controls are left out: they are the region.
+ */
+export async function tabThroughTheReview(
+  page: Page,
+): Promise<FocusUnderTheFoot> {
+  await page.evaluate(() => {
+    window.scrollTo(0, 0);
+    (document.activeElement as HTMLElement | null)?.blur();
+  });
+  let focused = 0;
+  let leastRoomAbove = Number.POSITIVE_INFINITY;
+  let lowest = "";
+  const readTheFocusedBox = async (): Promise<string> => {
+    const read = await page.evaluate((regionTestId) => {
+      const active = document.activeElement;
+      const region = document.querySelector(`[data-testid="${regionTestId}"]`);
+      if (active === null || active === document.body || region === null)
+        return { key: "", room: null as number | null };
+      const key = `${active.tagName}|${active.getAttribute("href") ?? ""}|${active.textContent.trim().slice(0, 24)}`;
+      if (region.contains(active) || active.closest("main") === null)
+        return { key, room: null as number | null };
+      return {
+        key,
+        room:
+          region.getBoundingClientRect().top -
+          active.getBoundingClientRect().bottom,
+      };
+    }, REVIEW_BOTTOM);
+    if (read.room !== null) {
+      focused += 1;
+      if (read.room < leastRoomAbove) {
+        leastRoomAbove = read.room;
+        lowest = read.key;
+      }
+    }
+    return read.key;
+  };
+  const tabUntilItComesRound = async (key: "Tab" | "Shift+Tab") => {
+    const seen = new Set<string>();
+    for (let presses = 0; presses < 120; presses += 1) {
+      await page.keyboard.press(key);
+      const focusedKey = await readTheFocusedBox();
+      if (focusedKey === "" || seen.has(focusedKey)) return;
+      seen.add(focusedKey);
+    }
+  };
+  await tabUntilItComesRound("Tab");
+  await tabUntilItComesRound("Shift+Tab");
+  return { focused, leastRoomAbove, lowest };
+}
+
+/** What the viewport reserves at its foot for a scroll made to show something, as the page has set it. */
+export async function scrollReserveAtTheFoot(page: Page): Promise<string> {
+  return page.evaluate(
+    () => document.documentElement.style.scrollPaddingBottom,
+  );
+}
