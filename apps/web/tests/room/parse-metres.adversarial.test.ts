@@ -71,11 +71,6 @@ function metresText(mm: bigint, separator: "," | "."): string {
   return `${String(wholeMetres)}${separator}${decimals}`;
 }
 
-function expectRefusedOrExactly(text: string, mm: number): void {
-  const parsed = parseMetresToMillimetres(text);
-  if (parsed.ok) expect(parsed.mm).toBe(mm);
-}
-
 // -------------------------------------------------------------------------------------------------
 // Generators.
 // -------------------------------------------------------------------------------------------------
@@ -282,16 +277,16 @@ describe("parseMetresToMillimetres — separators", () => {
     expect(parseMetresToMillimetres(text)).toStrictEqual(refusal("notANumber"));
   });
 
-  // Not fixed by the punch list either way; whatever the parser answers, it must not be a room the
-  // customer did not type.
-  it.each([
-    ["3,", 3000],
-    ["3.", 3000],
-    [",5", 500],
-    [".45", 450],
-  ] as const)("reads %j as nothing, or as exactly %i mm", (text, mm) => {
-    expectRefusedOrExactly(text, mm);
-  });
+  // A separator with digits on one side only is not the wire form (owner ruling, 2026-10-08; ADR
+  // 0126): the URL writes a separator between digits, and the fields take no separator at all.
+  it.each(["3,", "3.", ",5", ".45"])(
+    "refuses %j, whose separator has digits on one side only",
+    (text) => {
+      expect(parseMetresToMillimetres(text)).toStrictEqual(
+        refusal("notANumber"),
+      );
+    },
+  );
 });
 
 describe("parseMetresToMillimetres — signs, exponents, units and number syntax", () => {

@@ -193,27 +193,3 @@ test("commits a material and a depth in one press, as one write", async ({
   expect(after.materialTierId).not.toBe(before.materialTierId);
   expect(after.cabinetDepth).not.toBe(before.cabinetDepth);
 });
-
-/**
- * **The refusal half of M6-AUD-004, and why it is not asserted in a browser yet.**
- *
- * The reachable refusal is `setCabinetDepth`'s `BODY_PROBE_UNAVAILABLE`, which needs the scene's
- * probe to be detached. `kitchen-stage.tsx` attaches it in an effect inside the R3F canvas subtree
- * and detaches it only in that effect's cleanup, so **no deterministic browser route to the state
- * exists**: removing the `<canvas>` node from page script does not unmount the React tree that owns
- * the probe, and racing the mount is a flake rather than a test.
- *
- * The criterion is met at the store instead, against the real `applyWholeKitchenSettings` with no
- * probe attached — `tests/store/whole-kitchen-apply.test.ts`, "commits nothing at all, so the
- * material and hardware it also asked for are unchanged". What is missing here is only the browser's
- * confirmation that the *sheet* stays open, which the surface's own markup asserts one layer down.
- *
- * Left as `fixme` rather than deleted so the gap is visible: it closes the day the scene exposes a
- * detach a spec can reach, or the day a second reachable refusal path appears in the press.
- */
-test.fixme(
-  "commits nothing and stays open when one half of the press is refused",
-  () => {
-    // Intentionally empty — see the comment above.
-  },
-);
