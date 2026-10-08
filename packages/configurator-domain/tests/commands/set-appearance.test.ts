@@ -45,6 +45,27 @@ function unvalidatedFreeColour(value: string): Finish {
   return { kind: "free-colour", value };
 }
 
+/** The seeded kitchen with a catalogue open shelf in wall A's first column: the one body here that
+ *  cannot wear a finish. Throws rather than returning a half-built fixture. */
+function kitchenWithAnOpenShelf(): {
+  readonly design: typeof KITCHEN_L_DESIGN;
+  readonly placementId: string;
+} {
+  const cleared = clearBodies(
+    createWorld(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG),
+    ["p8"],
+  );
+  const slot = cleared.voids.find((record) => record.col === "A|0.30");
+  if (!slot) throw new Error("fixture: no opening in column A|0.30");
+  const shelf = insertInto(
+    cleared,
+    { kind: "void", id: slot.id },
+    "open-shelf",
+  );
+  if (!shelf.ok) throw new Error(`fixture: ${shelf.reason.code}`);
+  return { design: shelf.design, placementId: shelf.effect.placementId };
+}
+
 /** *Antracit*, a PAL decor. The fixture carries no settings, so it is a PAL kitchen — and since
  *  wave 6Q-a the colour a success is asserted with has to be one PAL offers, or the command refuses
  *  before it records anything. *Salvie* used to stand here and is now the refusal below. */
@@ -184,25 +205,38 @@ describe("setFinish", () => {
   // and `hood-600` both carry `canFinish: true`, which their geometry does not support), so this
   // inserts a catalogue open shelf and finishes that.
   it("refuses a body with no doors", () => {
-    const world = createWorld(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG);
-    const cleared = clearBodies(world, ["p8"]);
-    const slot = cleared.voids.find((record) => record.col === "A|0.30");
-    expect(slot).toBeDefined();
-    const shelf = insertInto(
-      cleared,
-      { kind: "void", id: slot?.id ?? "" },
-      "open-shelf",
-    );
-    expect(shelf.ok).toBe(true);
-    if (!shelf.ok) return;
+    const shelf = kitchenWithAnOpenShelf();
 
     const result = setFinish({
       design: shelf.design,
       catalog: KITCHEN_L_BODY_CATALOG,
       occurredAt: OCCURRED_AT,
-      target: { kind: "placement", id: shelf.effect.placementId },
+      target: { kind: "placement", id: shelf.placementId },
       finish: LEGACY_ENUM_FINISHES.sage,
     });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason.code).toBe("FINISH_NOT_SUPPORTED");
+    expect(result.reason.params).toEqual({
+      label: kindLabel("open_shelf_unit"),
+    });
+    expect(result.design).toBe(shelf.design);
+  });
+
+  // The module's own order (its header): whether the body can wear a finish at all is asked before
+  // whether this one is offered, because naming the colour at a body with no doors sends the customer
+  // to the wrong control. A value the schema refuses does not change which question comes first.
+  it("names the body, not the colour, when a doorless body is handed a value the schema refuses", () => {
+    const shelf = kitchenWithAnOpenShelf();
+
+    const result = setFinish({
+      design: shelf.design,
+      catalog: KITCHEN_L_BODY_CATALOG,
+      occurredAt: OCCURRED_AT,
+      target: { kind: "placement", id: shelf.placementId },
+      finish: unvalidatedFreeColour("#b8c4a1\n"),
+    });
+
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.reason.code).toBe("FINISH_NOT_SUPPORTED");
@@ -266,6 +300,11 @@ describe("setFinish and a value FinishSchema refuses", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(bodyOf(result.design, "p0")?.finish).toEqual(finish);
+    expect(result.effect).toEqual({
+      type: "finish_set",
+      placementId: "p0",
+      finish,
+    });
     expect(DesignSchema.safeParse(result.design).success).toBe(true);
   });
 });

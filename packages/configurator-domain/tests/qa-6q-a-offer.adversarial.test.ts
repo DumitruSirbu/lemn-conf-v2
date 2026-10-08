@@ -467,6 +467,44 @@ describe("materialOffersFinish over free colours built around the constructor (A
     expect(answers).toEqual([false, true, false, true, true]);
   });
 
+  // `RegExp.test` coerces its argument, so a value that is not a string and prints as a colour would
+  // pass the pattern alone. The object is cast, as an untyped caller's would arrive.
+  it.each([
+    ["an array holding a colour", ["#abcdef"]],
+    ["a String object", new String("#abcdef")],
+    ["an object that prints as a colour", { toString: () => "#abcdef" }],
+    ["a number", 0xabcdef],
+    ["a number that prints as six digits", 123456],
+    ["null", null],
+    ["undefined", undefined],
+  ])("refuses a free colour whose value is %s on the picker", (_, value) => {
+    const finish = { kind: "free-colour", value } as unknown as Finish;
+
+    expect(materialOffersFinish(materialById(PICKER_MATERIAL_ID), finish)).toBe(
+      false,
+    );
+  });
+
+  // **A limit, pinned so it is not read as an oversight.** The query looks at `kind` and `value` and
+  // at nothing else: an extra key is the schema's to refuse, and the commands refuse it through
+  // `designOffersFinish` (`design-material.offer.test.ts`, "a well-formed colour carrying an entry
+  // id"). Making the query refuse it would be a second schema, and that is the change this row stops.
+  it("still offers a well-formed colour carrying an extra key, which the commands and not the query refuse", () => {
+    const colourCarryingAnEntry = {
+      kind: "free-colour",
+      value: "#abcdef",
+      entryId: "pal.alb",
+    } as Finish;
+
+    expect(
+      materialOffersFinish(
+        materialById(PICKER_MATERIAL_ID),
+        colourCarryingAnEntry,
+      ),
+    ).toBe(true);
+    expect(FinishSchema.safeParse(colourCarryingAnEntry).success).toBe(false);
+  });
+
   it("refuses a palette entry id no material declares, on every material", () => {
     const undeclaredEntry = {
       kind: "palette-entry",
@@ -483,8 +521,9 @@ describe("materialOffersFinish over free colours built around the constructor (A
   // **An agreement check, not a pin.** Its expected side is `FinishSchema` itself, so it cannot say
   // what a free colour is — the literal tables above do that. What it adds is that the picker's offer
   // and the schema are one set over strings nobody hand-picked: a query narrower or wider than the
-  // schema anywhere in the drawn space fails here even where no table row stands.
-  it("agrees with FinishSchema on the picker over generated strings, with both answers drawn", () => {
+  // schema anywhere in the drawn space fails here even where no table row stands. It draws string
+  // values only; a value of another type is the table's, above.
+  it("agrees with FinishSchema on the picker over generated string values, with both answers drawn", () => {
     const picker = materialById(PICKER_MATERIAL_ID);
     const hexColour = fc.stringMatching(/^#[0-9a-fA-F]{6}$/);
     const oneCharacterReplaced = fc

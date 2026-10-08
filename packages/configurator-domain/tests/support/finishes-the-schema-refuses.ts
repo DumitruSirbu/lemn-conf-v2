@@ -33,6 +33,10 @@ export const FINISHES_THE_SCHEMA_REFUSES: readonly (readonly [
     "a kind the union does not carry",
     { kind: "ral", value: "#abcdef" } as unknown as Finish,
   ],
+  [
+    "a well-formed colour inside an array",
+    { kind: "free-colour", value: ["#abcdef"] } as unknown as Finish,
+  ],
   ["a bare colour string", "#abcdef" as unknown as Finish],
   ["null", null as unknown as Finish],
 ];
@@ -41,7 +45,8 @@ export const FINISHES_THE_SCHEMA_REFUSES: readonly (readonly [
 export const UNDECLARED_MATERIAL_ID = "material.laminate";
 
 /** The three answers a material lookup can give a refused value: PAL offers entries, MDF offers
- *  colours, and an undeclared id offers nothing and refuses nothing. */
+ *  colours, and an undeclared id makes no offer of its own. The schema check still applies on all
+ *  three, so each of them refuses every value above. */
 export const MATERIALS_A_REFUSED_FINISH_MEETS: readonly (readonly [
   string,
   string,

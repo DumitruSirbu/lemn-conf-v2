@@ -455,17 +455,55 @@ describe("buildLShellDesign over the approved range and its edges", () => {
       Math.max(...LEVELS.map(([, topM]) => topM)),
     );
     const wallRowFloorMm = toMillimetres(LEVELS[1]?.[0] ?? Number.NaN);
-
-    assertOverTheRange((room) => {
-      for (const tile of shellIn(room).emptyColumns ?? []) {
-        const expectedFloorMm =
-          tile.depthFromBuildId === NEUTRAL_SOURCE_BY_FLOOR.floor
-            ? 0
-            : wallRowFloorMm;
-        expect(tile.y0Mm).toBe(expectedFloorMm);
+    const highestCeilingMm = approvedL().height.maxMm;
+    const floorOf = {
+      [NEUTRAL_SOURCE_BY_FLOOR.floor]: 0,
+      [NEUTRAL_SOURCE_BY_FLOOR.wallOnly]: wallRowFloorMm,
+    } as const;
+    const tilesSeen = {
+      [NEUTRAL_SOURCE_BY_FLOOR.floor]: 0,
+      [NEUTRAL_SOURCE_BY_FLOOR.wallOnly]: 0,
+    };
+    const holdsItsExtent = (room: DesignRoom, shell: Design): void => {
+      for (const tile of shell.emptyColumns ?? []) {
+        const source = tile.depthFromBuildId as keyof typeof floorOf;
+        tilesSeen[source] += 1;
+        expect(tile.y0Mm, JSON.stringify(room)).toBe(floorOf[source]);
         expect(tile.topMm).toBe(Math.min(room.heightMm, moduleGridTopMm));
       }
+    };
+
+    // An L records floor tiles only, so the L sweep runs the floor arm alone; the wall-only arm runs
+    // on a large U, the one room that records such a tile, at every ceiling above the wall row.
+    assertOverTheRange((room) => {
+      holdsItsExtent(room, shellIn(room));
     });
+    expect(tilesSeen[NEUTRAL_SOURCE_BY_FLOOR.wallOnly]).toBe(0);
+    expect(tilesSeen[NEUTRAL_SOURCE_BY_FLOOR.floor]).toBeGreaterThan(0);
+
+    fc.assert(
+      fc.property(
+        fc.integer({ min: wallRowFloorMm + 1, max: highestCeilingMm }),
+        (heightMm) => {
+          const room: DesignRoom = {
+            shape: "U",
+            widthMm: 4000,
+            depthMm: 3600,
+            wallCMm: 3600,
+            heightMm,
+          };
+          holdsItsExtent(
+            room,
+            buildUShellDesign({ room, occurredAt: SHELL_OCCURRED_AT }),
+          );
+        },
+      ),
+      {
+        numRuns: 100,
+        examples: [[wallRowFloorMm + 1], [highestCeilingMm]],
+      },
+    );
+    expect(tilesSeen[NEUTRAL_SOURCE_BY_FLOOR.wallOnly]).toBeGreaterThan(0);
   });
 
   it("builds the room the room form accepted, end to end, at the approved maximum", () => {

@@ -13,6 +13,7 @@ import {
 import {
   FINISHES_THE_SCHEMA_REFUSES,
   kitchenMadeOf,
+  MATERIALS_A_REFUSED_FINISH_MEETS,
   REFUSED_FINISH_CASES,
   UNDECLARED_MATERIAL_ID,
 } from "./support/finishes-the-schema-refuses.js";
@@ -90,8 +91,14 @@ describe("designOffersFinish over values the schema refuses", () => {
     },
   );
 
-  it("sweeps ten refused values over three materials, so no arm is empty", () => {
-    expect(FINISHES_THE_SCHEMA_REFUSES).toHaveLength(10);
-    expect(REFUSED_FINISH_CASES).toHaveLength(30);
+  it("sweeps eleven refused values over PAL, MDF and one undeclared id", () => {
+    expect(FINISHES_THE_SCHEMA_REFUSES).toHaveLength(11);
+    expect(
+      MATERIALS_A_REFUSED_FINISH_MEETS.map(([, materialId]) => materialId),
+    ).toStrictEqual([
+      "material.melamine",
+      "material.painted-mdf",
+      "material.laminate",
+    ]);
   });
 });
