@@ -2,7 +2,7 @@ import { fc, test as propertyTest } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
 import {
-  CONSENT_TEXT_VERSION_MAX_LENGTH,
+  CONSENT_TEXT_VERSIONS,
   CONTACT_CHANNELS,
   CONTACT_EMAIL_MAX_LENGTH,
   CONTACT_LOCALITY_MAX_LENGTH,
@@ -15,13 +15,15 @@ import {
   type ContactIssue,
 } from "../../src/contact/index.js";
 
+const KNOWN_CONSENT_TEXT_VERSION = CONSENT_TEXT_VERSIONS[0];
+
 const VALID_INPUT: ContactFieldsInput = {
   name: "Andrei Munteanu",
   phone: "079 123 456",
   locality: "Calarasi",
   channel: "phone",
   consent: true,
-  consentTextVersion: "2026-10-08",
+  consentTextVersion: KNOWN_CONSENT_TEXT_VERSION,
 };
 
 const VALID_EMAIL_INPUT: ContactFieldsInput = {
@@ -52,8 +54,15 @@ function contactOf(input: ContactFieldsInput) {
 
 /** The five fields whose value is typed text that reaches an e-mail, each with a baseline that is
  *  valid for it and a way to place a value in it. */
+type TextFieldName =
+  | "name"
+  | "phone"
+  | "locality"
+  | "email"
+  | "consentTextVersion";
+
 const TEXT_FIELDS: readonly {
-  readonly field: ContactField;
+  readonly field: TextFieldName;
   readonly baseline: ContactFieldsInput;
   readonly validValue: string;
 }[] = [
@@ -61,7 +70,11 @@ const TEXT_FIELDS: readonly {
   { field: "phone", baseline: VALID_INPUT, validValue: "079123456" },
   { field: "locality", baseline: VALID_INPUT, validValue: "Orhei" },
   { field: "email", baseline: VALID_EMAIL_INPUT, validValue: "ana@example.md" },
-  { field: "consentTextVersion", baseline: VALID_INPUT, validValue: "v1" },
+  {
+    field: "consentTextVersion",
+    baseline: VALID_INPUT,
+    validValue: KNOWN_CONSENT_TEXT_VERSION,
+  },
 ];
 
 function withValue(
@@ -87,7 +100,7 @@ describe("validateContactFields: a valid submission", () => {
       locality: "Calarasi",
       channel: "phone",
       email: undefined,
-      consentTextVersion: "2026-10-08",
+      consentTextVersion: KNOWN_CONSENT_TEXT_VERSION,
     });
   });
 
@@ -150,10 +163,8 @@ describe("validateContactFields: control characters", () => {
     ["escape", "\u001b"],
     ["delete", "\u007f"],
     ["a C1 control (next line)", "\u0085"],
-    ["a line separator", " "],
-    ["a paragraph separator", " "],
-    ["a right-to-left override", "‮"],
-    ["a zero-width space", "​"],
+    ["a line separator", "\u2028"],
+    ["a paragraph separator", "\u2029"],
     ["an unpaired surrogate", "\ud800"],
   ] as const;
 
@@ -211,6 +222,76 @@ describe("validateContactFields: control characters", () => {
   });
 });
 
+describe("validateContactFields: format characters are removed", () => {
+  const FORMAT_CHARACTERS = [
+    ["a left-to-right mark", "\u200e"],
+    ["a right-to-left mark", "\u200f"],
+    ["a right-to-left override", "\u202e"],
+    ["a zero-width space", "\u200b"],
+    ["a zero-width joiner", "\u200d"],
+    ["a soft hyphen", "\u00ad"],
+    ["a byte order mark", "\ufeff"],
+  ] as const;
+
+  describe.each(TEXT_FIELDS)("in $field", (row) => {
+    const stored = (input: ContactFieldsInput): string | undefined =>
+      contactOf(input)[row.field];
+
+    propertyTest.prop([
+      fc.array(
+        fc.tuple(
+          fc.constantFrom(
+            ...FORMAT_CHARACTERS.map(([, character]) => character),
+          ),
+          fc.nat({ max: row.validValue.length }),
+        ),
+        { minLength: 1, maxLength: 5 },
+      ),
+    ])("stores the same value however many are inserted", (insertions) => {
+      const dirty = insertions.reduce(
+        (value, [character, position]) =>
+          value.slice(0, position) + character + value.slice(position),
+        row.validValue,
+      );
+
+      expect(stored(withValue(row.baseline, row.field, dirty))).toBe(
+        stored(withValue(row.baseline, row.field, row.validValue)),
+      );
+    });
+
+    it("reads a value of nothing but format characters as empty", () => {
+      const allFormat = FORMAT_CHARACTERS.map(
+        ([, character]) => character,
+      ).join("");
+      const code = codeOf(
+        row.field,
+        withValue(row.baseline, row.field, allFormat),
+      );
+
+      expect(code).toBe(row.field === "locality" ? undefined : "REQUIRED");
+    });
+  });
+
+  it("does not change a phone's normal form", () => {
+    const clean = contactOf({ ...VALID_INPUT, phone: "+373 79 123 456" });
+    const dirty = contactOf({
+      ...VALID_INPUT,
+      phone: "\u200e+373\u200f 79\u202e 123 \u00ad456\ufeff",
+    });
+
+    expect(dirty.phoneNormalForm).toBe(clean.phoneNormalForm);
+    expect(dirty.phone).toBe("+373 79 123 456");
+  });
+
+  it("counts the length of what is stored, not of what was pasted", () => {
+    const pasted = "a\u200b".repeat(CONTACT_NAME_MAX_LENGTH);
+
+    expect(contactOf({ ...VALID_INPUT, name: pasted }).name).toHaveLength(
+      CONTACT_NAME_MAX_LENGTH,
+    );
+  });
+});
+
 describe("validateContactFields: maximum lengths", () => {
   /** Valid for its field at exactly `length` characters once trimmed. */
   const FIELDS_AT_LENGTH: readonly {
@@ -243,12 +324,6 @@ describe("validateContactFields: maximum lengths", () => {
       baseline: VALID_INPUT,
       maxLength: CONTACT_PHONE_MAX_LENGTH,
       valueOfLength: (length) => `+373${" ".repeat(length - 12)}79123456`,
-    },
-    {
-      field: "consentTextVersion",
-      baseline: VALID_INPUT,
-      maxLength: CONSENT_TEXT_VERSION_MAX_LENGTH,
-      valueOfLength: (length) => "v".repeat(length),
     },
   ];
 
@@ -294,8 +369,11 @@ describe("validateContactFields: maximum lengths", () => {
 
 describe("validateContactFields: the phone", () => {
   it.each([
-    ["0791", "PHONE_INCOMPLETE"],
-    ["0791234567", "PHONE_TOO_MANY_DIGITS"],
+    ["0791", "PHONE_MOLDOVAN_INCOMPLETE"],
+    ["+373 79 12", "PHONE_MOLDOVAN_INCOMPLETE"],
+    ["0791234567", "PHONE_MOLDOVAN_TOO_MANY_DIGITS"],
+    ["+39 12", "PHONE_INTERNATIONAL_INCOMPLETE"],
+    ["+1234567890123456", "PHONE_INTERNATIONAL_TOO_MANY_DIGITS"],
     ["79123456", "PHONE_FORMAT_UNRECOGNISED"],
   ] as const)(
     "surfaces the phone rule's refusal of %j as %s",
@@ -303,6 +381,14 @@ describe("validateContactFields: the phone", () => {
       expect(codeOf("phone", { ...VALID_INPUT, phone })).toBe(code);
     },
   );
+
+  it("accepts a no-break space as grouping", () => {
+    expect(
+      contactOf({ ...VALID_INPUT, phone: "079\u00a0123\u00a0456" }),
+    ).toMatchObject({
+      phoneNormalForm: "+37379123456",
+    });
+  });
 });
 
 describe("validateContactFields: the e-mail follows the channel", () => {
@@ -378,13 +464,21 @@ describe("validateContactFields: consent", () => {
     },
   );
 
-  it("refuses a text version that is not an identifier", () => {
+  it.each(["v 1", "placeholder-2", "PLACEHOLDER", "2026-10-08"])(
+    "refuses the text version %j, which is not in the closed set, with its own code",
+    (consentTextVersion) => {
+      expect(issuesOf({ ...VALID_INPUT, consentTextVersion })).toEqual([
+        { field: "consentTextVersion", code: "UNKNOWN_CONSENT_TEXT_VERSION" },
+      ]);
+    },
+  );
+
+  it.each(CONSENT_TEXT_VERSIONS)("accepts the text version %s", (version) => {
     expect(
-      codeOf("consentTextVersion", {
-        ...VALID_INPUT,
-        consentTextVersion: "v 1",
-      }),
-    ).toBe("MALFORMED");
+      contactOf({ ...VALID_INPUT, consentTextVersion: version }),
+    ).toMatchObject({
+      consentTextVersion: version,
+    });
   });
 });
 

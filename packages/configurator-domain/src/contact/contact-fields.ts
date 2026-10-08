@@ -17,7 +17,11 @@ export const CONTACT_EMAIL_MAX_LENGTH = 254;
 /** Room for the longest E.164 number (`+` and fifteen digits) with its grouping characters. */
 export const CONTACT_PHONE_MAX_LENGTH = 32;
 
-export const CONSENT_TEXT_VERSION_MAX_LENGTH = 32;
+/** The consent texts a page can have shown. The client states which; only a member is accepted, so no
+ *  stored row holds an identifier nobody published. A member is never removed once a submission could
+ *  carry it. */
+export const CONSENT_TEXT_VERSIONS = ["placeholder"] as const;
+export type ConsentTextVersion = (typeof CONSENT_TEXT_VERSIONS)[number];
 
 export const CONTACT_CHANNELS = ["phone", "whatsapp", "email"] as const;
 export type ContactChannel = (typeof CONTACT_CHANNELS)[number];
@@ -33,11 +37,13 @@ const CONTACT_FIELDS = [
 ] as const;
 export type ContactField = (typeof CONTACT_FIELDS)[number];
 
-/** Control, format (bidirectional overrides, zero-width), unpaired-surrogate, line and paragraph
- *  separator characters: none can be shown on one line of an e-mail or stored as well-formed UTF-8. */
-const FORBIDDEN_CHARACTER = /[\p{Cc}\p{Cf}\p{Cs}\p{Zl}\p{Zp}]/u;
+/** Format characters (direction marks, zero-width, soft hyphen) arrive with pasted text and cannot be
+ *  seen. They are removed, not refused, so a stored or mailed value never holds one. */
+const FORMAT_CHARACTER = /\p{Cf}/gu;
 
-const CONSENT_TEXT_VERSION_SHAPE = /^[A-Za-z0-9._-]+$/;
+/** Control, unpaired-surrogate, line and paragraph separator characters: none can be shown on one line
+ *  of an e-mail or stored as well-formed UTF-8. */
+const FORBIDDEN_CHARACTER = /[\p{Cc}\p{Cs}\p{Zl}\p{Zp}]/u;
 
 export type ContactFieldCode =
   | "REQUIRED"
@@ -47,7 +53,8 @@ export type ContactFieldCode =
   | "MALFORMED"
   | PhoneRefusalCode
   | "UNKNOWN_CHANNEL"
-  | "CONSENT_NOT_GIVEN";
+  | "CONSENT_NOT_GIVEN"
+  | "UNKNOWN_CONSENT_TEXT_VERSION";
 
 export interface ContactIssue {
   readonly field: ContactField;
@@ -69,7 +76,7 @@ export interface ContactFields {
   readonly channel: ContactChannel;
   /** Present exactly when `channel` is `"email"`. */
   readonly email: string | undefined;
-  readonly consentTextVersion: string;
+  readonly consentTextVersion: ConsentTextVersion;
 }
 
 export type ContactFieldsValidation =
@@ -87,7 +94,7 @@ interface FieldJudgements {
   readonly channel: Judgement<ContactChannel>;
   readonly email: Judgement<string | undefined>;
   readonly consent: Judgement<true>;
-  readonly consentTextVersion: Judgement<string>;
+  readonly consentTextVersion: Judgement<ConsentTextVersion>;
 }
 
 type AcceptedJudgements = {
@@ -152,16 +159,21 @@ function judgeRequiredText(raw: unknown, maxLength: number): Judgement<string> {
   return bounded.ok && bounded.value === "" ? refuse("REQUIRED") : bounded;
 }
 
-/** Forbidden characters are looked for before trimming: a trailing line feed is a refusal, not
- *  whitespace to be quietly dropped. */
 function judgeBoundedText(raw: unknown, maxLength: number): Judgement<string> {
+  const trimmed = judgeTrimmedText(raw);
+  return trimmed.ok && countCharacters(trimmed.value) > maxLength
+    ? refuse("TOO_LONG")
+    : trimmed;
+}
+
+/** Format characters go first, then forbidden ones are looked for before trimming: a trailing line
+ *  feed is a refusal, not whitespace to be quietly dropped. */
+function judgeTrimmedText(raw: unknown): Judgement<string> {
   if (raw === undefined) return accept("");
   if (typeof raw !== "string") return refuse("NOT_TEXT");
-  if (FORBIDDEN_CHARACTER.test(raw)) return refuse("FORBIDDEN_CHARACTER");
-  const trimmed = raw.trim();
-  return countCharacters(trimmed) > maxLength
-    ? refuse("TOO_LONG")
-    : accept(trimmed);
+  const visible = raw.replace(FORMAT_CHARACTER, "");
+  if (FORBIDDEN_CHARACTER.test(visible)) return refuse("FORBIDDEN_CHARACTER");
+  return accept(visible.trim());
 }
 
 function countCharacters(text: string): number {
@@ -204,12 +216,17 @@ function judgeConsent(raw: unknown): Judgement<true> {
   return raw === true ? accept(true) : refuse("CONSENT_NOT_GIVEN");
 }
 
-function judgeConsentTextVersion(raw: unknown): Judgement<string> {
-  const version = judgeRequiredText(raw, CONSENT_TEXT_VERSION_MAX_LENGTH);
+function judgeConsentTextVersion(raw: unknown): Judgement<ConsentTextVersion> {
+  const version = judgeTrimmedText(raw);
   if (!version.ok) return version;
-  return CONSENT_TEXT_VERSION_SHAPE.test(version.value)
-    ? version
-    : refuse("MALFORMED");
+  if (version.value === "") return refuse("REQUIRED");
+  return isConsentTextVersion(version.value)
+    ? accept(version.value)
+    : refuse("UNKNOWN_CONSENT_TEXT_VERSION");
+}
+
+function isConsentTextVersion(value: string): value is ConsentTextVersion {
+  return CONSENT_TEXT_VERSIONS.some((version) => version === value);
 }
 
 function accept<Value>(value: Value): Judgement<Value> {

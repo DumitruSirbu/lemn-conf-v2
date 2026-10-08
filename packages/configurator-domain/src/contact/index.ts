@@ -1,11 +1,12 @@
 export {
-  CONSENT_TEXT_VERSION_MAX_LENGTH,
+  CONSENT_TEXT_VERSIONS,
   CONTACT_CHANNELS,
   CONTACT_EMAIL_MAX_LENGTH,
   CONTACT_LOCALITY_MAX_LENGTH,
   CONTACT_NAME_MAX_LENGTH,
   CONTACT_PHONE_MAX_LENGTH,
   validateContactFields,
+  type ConsentTextVersion,
   type ContactChannel,
   type ContactField,
   type ContactFieldCode,

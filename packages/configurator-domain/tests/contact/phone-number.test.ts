@@ -6,7 +6,17 @@ import {
   type PhoneNumberResult,
 } from "../../src/contact/phone-number.js";
 
-const GROUPING_CHARACTERS = [" ", "-", "(", ")"] as const;
+/** Grouping characters, a no-break space, and format characters (direction marks, a soft hyphen). */
+const IGNORED_CHARACTERS = [
+  " ",
+  "-",
+  "(",
+  ")",
+  "\u00a0",
+  "\u200e",
+  "\u202e",
+  "\u00ad",
+] as const;
 
 function digitString(length: number): fc.Arbitrary<string> {
   return fc
@@ -34,7 +44,7 @@ const otherInternational = (totalDigits: number) =>
  *  character. */
 function withGrouping(plain: string): fc.Arbitrary<string> {
   const gap = fc
-    .array(fc.constantFrom(...GROUPING_CHARACTERS), { maxLength: 2 })
+    .array(fc.constantFrom(...IGNORED_CHARACTERS), { maxLength: 2 })
     .map((characters) => characters.join(""));
   return fc
     .array(gap, { minLength: plain.length + 1, maxLength: plain.length + 1 })
@@ -74,6 +84,9 @@ describe("normalisePhoneNumber: accepted shapes", () => {
     ["  079123456  ", "+37379123456"],
     ["+40 721 234 567", "+40721234567"],
     ["+1 (212) 555-0100", "+12125550100"],
+    ["079\u00a0123\u00a0456", "+37379123456"],
+    ["\u200e+373 79 123 456\u200f", "+37379123456"],
+    ["+40\u00ad721 234 567", "+40721234567"],
   ])("reads %j as %s", (entered, normalForm) => {
     expect(accepted(normalisePhoneNumber(entered))).toBe(normalForm);
   });
@@ -93,10 +106,22 @@ describe("normalisePhoneNumber: accepted shapes", () => {
 
   it("tells an international number that is too short from one that is too long", () => {
     expect(refusedCode(normalisePhoneNumber("+123456"))).toBe(
-      "PHONE_INCOMPLETE",
+      "PHONE_INTERNATIONAL_INCOMPLETE",
     );
     expect(refusedCode(normalisePhoneNumber("+1234567890123456"))).toBe(
-      "PHONE_TOO_MANY_DIGITS",
+      "PHONE_INTERNATIONAL_TOO_MANY_DIGITS",
+    );
+  });
+
+  it("tells the Moldovan form from the international one, which frame 4B's sentence needs", () => {
+    expect(refusedCode(normalisePhoneNumber("+39 12"))).toBe(
+      "PHONE_INTERNATIONAL_INCOMPLETE",
+    );
+    expect(refusedCode(normalisePhoneNumber("+373 12"))).toBe(
+      "PHONE_MOLDOVAN_INCOMPLETE",
+    );
+    expect(refusedCode(normalisePhoneNumber("0791"))).toBe(
+      "PHONE_MOLDOVAN_INCOMPLETE",
     );
   });
 });
@@ -125,7 +150,9 @@ describe("normalisePhoneNumber: refused shapes", () => {
   });
 
   it("refuses the national prefix alone as incomplete", () => {
-    expect(refusedCode(normalisePhoneNumber("0"))).toBe("PHONE_INCOMPLETE");
+    expect(refusedCode(normalisePhoneNumber("0"))).toBe(
+      "PHONE_MOLDOVAN_INCOMPLETE",
+    );
   });
 });
 
@@ -180,19 +207,37 @@ describe("normalisePhoneNumber: properties", () => {
   );
 
   propertyTest.prop([fc.constantFrom("0", "+373"), digitString(7)])(
-    "seven digits after a Moldovan prefix are refused as incomplete",
+    "seven digits after a Moldovan prefix are refused as a Moldovan number that is incomplete",
     (prefix, subscriberDigits) => {
       expect(refusedCode(normalisePhoneNumber(prefix + subscriberDigits))).toBe(
-        "PHONE_INCOMPLETE",
+        "PHONE_MOLDOVAN_INCOMPLETE",
       );
     },
   );
 
   propertyTest.prop([fc.constantFrom("0", "+373"), digitString(9)])(
-    "nine digits after a Moldovan prefix are refused as too many",
+    "nine digits after a Moldovan prefix are refused as a Moldovan number with too many",
     (prefix, subscriberDigits) => {
       expect(refusedCode(normalisePhoneNumber(prefix + subscriberDigits))).toBe(
-        "PHONE_TOO_MANY_DIGITS",
+        "PHONE_MOLDOVAN_TOO_MANY_DIGITS",
+      );
+    },
+  );
+
+  propertyTest.prop([otherInternational(6)])(
+    "six digits of another country are refused as an international number that is incomplete",
+    (entered) => {
+      expect(refusedCode(normalisePhoneNumber(entered))).toBe(
+        "PHONE_INTERNATIONAL_INCOMPLETE",
+      );
+    },
+  );
+
+  propertyTest.prop([otherInternational(16)])(
+    "sixteen digits of another country are refused as an international number with too many",
+    (entered) => {
+      expect(refusedCode(normalisePhoneNumber(entered))).toBe(
+        "PHONE_INTERNATIONAL_TOO_MANY_DIGITS",
       );
     },
   );

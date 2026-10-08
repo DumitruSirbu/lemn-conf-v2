@@ -11,18 +11,23 @@ const INTERNATIONAL_MIN_DIGITS = 7;
 /** E.164 (ITU-T) allows at most fifteen digits, calling code included. */
 const INTERNATIONAL_MAX_DIGITS = 15;
 
-/** Spaces, hyphens and round brackets are how people group a number; none of them is a digit. */
-const GROUPING_CHARACTERS = /[ ()-]/g;
+/** Spaces (a no-break space is one), hyphens and round brackets are how people group a number. Format
+ *  characters (direction marks, zero-width) arrive with a pasted number and are not seen. */
+const IGNORED_CHARACTERS = /[ \u00A0()\-\p{Cf}]/gu;
 
 /** A calling code never starts with 0, so `+0…` is not an international number. */
 const INTERNATIONAL_SHAPE = /^\+[1-9][0-9]*$/;
 
 const MOLDOVAN_NATIONAL_SHAPE = /^0[0-9]*$/;
 
-/** Codes only (ADR 0095): fewer digits than the form needs, more than it allows, or neither form. */
+/** Codes only (ADR 0095): fewer digits than the form needs, more than it allows, or neither form.
+ *  The Moldovan form and the international one are told apart because frame 4B's "8 cifre după
+ *  prefix" is true of the first and false of the second. */
 export type PhoneRefusalCode =
-  | "PHONE_INCOMPLETE"
-  | "PHONE_TOO_MANY_DIGITS"
+  | "PHONE_MOLDOVAN_INCOMPLETE"
+  | "PHONE_MOLDOVAN_TOO_MANY_DIGITS"
+  | "PHONE_INTERNATIONAL_INCOMPLETE"
+  | "PHONE_INTERNATIONAL_TOO_MANY_DIGITS"
   | "PHONE_FORMAT_UNRECOGNISED";
 
 export type PhoneNumberResult =
@@ -30,7 +35,7 @@ export type PhoneNumberResult =
   | { readonly ok: false; readonly code: PhoneRefusalCode };
 
 export function normalisePhoneNumber(entered: string): PhoneNumberResult {
-  const compact = entered.replace(GROUPING_CHARACTERS, "");
+  const compact = entered.replace(IGNORED_CHARACTERS, "");
   if (INTERNATIONAL_SHAPE.test(compact)) {
     return judgeInternationalDigits(compact.slice(1));
   }
@@ -45,20 +50,20 @@ function judgeInternationalDigits(digits: string): PhoneNumberResult {
     return judgeMoldovanSubscriber(digits.slice(MOLDOVA_CALLING_CODE.length));
   }
   if (digits.length < INTERNATIONAL_MIN_DIGITS) {
-    return refuse("PHONE_INCOMPLETE");
+    return refuse("PHONE_INTERNATIONAL_INCOMPLETE");
   }
   if (digits.length > INTERNATIONAL_MAX_DIGITS) {
-    return refuse("PHONE_TOO_MANY_DIGITS");
+    return refuse("PHONE_INTERNATIONAL_TOO_MANY_DIGITS");
   }
   return { ok: true, normalForm: `+${digits}` };
 }
 
 function judgeMoldovanSubscriber(subscriberDigits: string): PhoneNumberResult {
   if (subscriberDigits.length < MOLDOVAN_SUBSCRIBER_DIGITS) {
-    return refuse("PHONE_INCOMPLETE");
+    return refuse("PHONE_MOLDOVAN_INCOMPLETE");
   }
   if (subscriberDigits.length > MOLDOVAN_SUBSCRIBER_DIGITS) {
-    return refuse("PHONE_TOO_MANY_DIGITS");
+    return refuse("PHONE_MOLDOVAN_TOO_MANY_DIGITS");
   }
   return {
     ok: true,
