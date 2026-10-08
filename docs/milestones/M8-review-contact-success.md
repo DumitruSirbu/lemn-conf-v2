@@ -5115,8 +5115,9 @@ and `SELECT` are as answered. Nothing is added.
   architect's, they disagreed, and this settles them.
 - *Inside or outside the answer.* Every privilege in the narrower set is one the owner approved, so
   issuing it goes past nothing he said. It is not the set he was shown. **He is told so in words
-  when he is asked to issue it.** If he prefers the wider set, no code changes; criterion 3's
-  expected set does.
+  when he is asked to issue it.** ~~If he prefers the wider set, no code changes; criterion 3's
+  expected set does.~~ **(Struck 2026-10-08: the narrowing is load-bearing, and the wider set is
+  not a free choice. *8I — the security read of `0008`*, S-R1.1.)**
 - *Not taken.* The grant as worded (above). Narrowing `SELECT` as well, to the four columns the
   statements read: it is not measured under exactly four, 8K may need the row's age for the
   provider's day-long key [doc 8J criterion 11], and the other three being readable is what the
@@ -5227,6 +5228,8 @@ The architect's.** `xmax` is refused (probe 21).
 | `intent` | `text`, null when a design is named | no |
 | `design_document`, `priced` | `jsonb`, null for a callback | no |
 
+- **(2026-10-08: a third check, that both snapshots are JSON objects, is added before the file
+  freezes. *8I — the security read of `0008`*, S-R1.3.)**
 - *Two table checks*, each reading only whether a non-personal column is null: exactly one of a
   design id and an intent; the revision, the document and the price are present exactly when the
   design id is.
@@ -5298,7 +5301,8 @@ the reference has its generator, so S1 is six production files and more than fiv
   design repository changes; the store reads a variable but its connection (criterion 10); anything
   under `apps/` changes.
 
-*Criteria, as they now stand for dispatch.* 1 to 10 keep their numbers.
+*Criteria, as they now stand for dispatch.* 1 to 10 keep their numbers. **(Criteria 2, 9 and 12
+are amended the same day, and R6 gains five lines: *8I — the security read of `0008`*, below. Paste both.)**
 
 1. One client request id stores one row and answers one reference, also for N concurrent calls, of
    which exactly one answers *new*. The same id with another digest answers *conflict*, and every
@@ -5372,6 +5376,96 @@ yet.
 **Not proven, after S0.** Anything as `app_designs`: R1's statements have run nowhere. The grant
 with two connections (R2). The HTTP driver's error fields (R3). `do update`'s atomicity is
 recalled, not quoted (R2). That `has_column_privilege` counts a table-wide grant [inf, recalled].
+
+##### 8I — the security read of `0008`, ruled 2026-10-08
+
+**State.** HEAD is `049ed39` [ran: `git log`]; `0008` is on disk, untracked, read whole. The
+security reader [relayed; they fetched the PostgreSQL 18 pages]: **the file may be applied as it
+is, no must-fix.** The rulings are the architect's. The file changes twice before it freezes.
+
+**The developer's changes to `0008`, exactly. Nothing else in the file changes.**
+
+1. *Header, the sentence ending at line 10* (S-R1.2). In place of *"snapshots (the canonical design
+   document, and the design priced as `priceDesign` returned it) are not."*:
+   *"snapshots (the design document, and the design priced as `priceDesign` returned it) are not.
+   `jsonb` keeps a document's content and not its bytes, as `designs.document` does."*
+2. *Header, the sentence at lines 24–25* (S-R1.3). In place of *"The two table checks below say
+   exactly that, and read only whether non-personal columns are null."*: *"The first two table
+   checks below say exactly that, and read only whether non-personal columns are null. The third
+   says each snapshot is a JSON object: a document encoded twice arrives as a JSON string, and it
+   would sit unseen in a column the application role cannot read back. A callback's two nulls pass
+   it."*
+3. *A third table constraint, after `contact_submissions_snapshot_follows_the_design`* (S-R1.3):
+
+   ```sql
+   constraint contact_submissions_snapshot_is_two_objects check (
+     jsonb_typeof(design_document) = 'object' and jsonb_typeof(priced) = 'object'
+   )
+   ```
+
+4. `migrate:unattended-check` is run again and quoted. The screen matches a `create table if not
+   exists` by its head and applies its function-call rule to an added column and a guarded
+   constraint only [src `migration-safety.ts:42-46, 449-457, 532-535`], so it should pass [inf].
+   **If it is refused, the developer removes change 3 and the second half of change 2, and
+   reports;** S1b's contract suite then holds the type alone.
+
+**The rulings.**
+
+- **S-R1.1: taken. R1's narrowing is load-bearing.** Under the wider grant an upsert that set a
+  stored digest to a bad value would fail the digest's check, and the error's `DETAIL` would show
+  the **stored** row's name, phone and e-mail [security's inf, from the executor's source,
+  unmeasured]. R1's sentence is struck. **Were the wider set ever asked for, a rolled-back probe in
+  S0's form comes first, with stored and proposed personal values that differ.** *A rule for every
+  later migration of this table:* **no constraint reads a column the role may `UPDATE`.** Today
+  that column is notified-at, and no check names it [src `0008:47-76`].
+- **S-R1.2: the columns stay `jsonb`, and the header stops saying *canonical*.** Nothing needs the
+  bytes `text` would keep: the digest covers the request and not the snapshot [doc ADR 0150],
+  nothing re-prices a stored request (D7), and `designs.document` is `jsonb` already.
+- **S-R1.3: the check is taken.** It guards every writer for as long as the table lives, where a
+  test guards today's store; the role cannot read the column back, so a quoted string would never
+  be noticed; and after the freeze it costs a migration. It reads two non-personal columns, so
+  criterion 9 holds. A check passes when it is true or null, so a callback's nulls pass [inf,
+  recalled; **S1b's contract suite stores a callback on the test database, which proves it**].
+- **The developer's (c), (d) and (e): nothing changes.** An e-mail's presence would be a check on a
+  personal column (R5). The four closed lists are code's, and a list in a frozen file needs a
+  migration to grow. A stored row is a consent given; ADR 0150 leaves the other two out.
+
+**Criteria, amended.**
+
+- **2, added.** A test holds the generator to its alphabet and its eight characters. **That test,
+  not the column's check, is what holds the forty bits:** the check admits six characters. *Must
+  not, in any later wave:* a page or a route opens anything by a reference alone.
+- **9, added.** The test that reads the migration also fails when a constraint names a column the
+  role may `UPDATE`, and when the file calls a function other than `now()` and `jsonb_typeof` on
+  the two snapshot columns.
+- **12, added.** The shared check refuses **a revision above 9223372036854775807, by value**: the
+  domain's shape admits nineteen digits, and otherwise a person's details reach the server before
+  `22003` does. It refuses a document that does not parse to an object and a price that is not
+  one. **The property *the store accepts what the domain accepts* stays on the id alone.**
+- **S1b, item 5, added.** As the test database's owner, after a `record` for a design: both
+  snapshots are objects. After one for a callback: both are null.
+
+**R6, added: what a leaked credential can also do. Recorded limits, each the security reader's.**
+
+- **Clear or re-date notified-at**, not only set it. Cleared, a retry can notify the shop a second
+  time once the provider's day-long key has lapsed [inf]. Postgres has no grant for *set once*.
+- **Add rows of any size, with any dates.** `INSERT` is table-wide, so an added row's created-at
+  and notified-at are the sender's. *Not taken:* `INSERT` on sixteen columns. It is unmeasured with
+  the upsert, and the same credential re-dates notified-at anyway.
+- **Link the requests of one browser**, through a design id to `designs.visitor_hash`.
+- **Confirm a guessed set of contact details, if `DIGEST_SECRET` leaks with it.** Both are
+  variables of one deployment, so a leak of the environment is a leak of both [inf].
+- *Trigger for all four:* the delivery milestone's review of what the role holds.
+
+**For the owner, the scribe and the backlog. None blocks S1a or S1b.**
+
+- *The runbook, for `0008`, the scribe's at close.* Before the grant: read `pg_default_acl` on each
+  database, since a default privilege grants without anyone issuing it. After applying: eighteen
+  columns and eight constraints by name (the primary key, the reference's uniqueness, three column
+  checks, three table checks), since `create table if not exists` passes over an older table.
+- *Backlog, the coordinator's to open if it is not there:* the only consent text version is
+  `"placeholder"` [src `contact-fields.ts:26`]. A launch item, and the owner's words.
+- *Still unmeasured:* S-R1.1's mechanism; the screen on change 3, until the developer runs it.
 
 ### 8J — mail, and the shop's notification
 
