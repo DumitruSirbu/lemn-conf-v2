@@ -281,6 +281,7 @@ const ADAPTER_IMPORT_BOUNDARY =
 const WEB_IMPORT_BOUNDARY =
   "Import workspace packages through their public entry point; design-source is reference material, not a runtime dependency.";
 
+// Shared with the shell-design block, which restates it (flat config replaces a rule's options).
 const DOMAIN_IMPORT_PATTERNS = [
   {
     group: [
@@ -315,24 +316,14 @@ const DOMAIN_IMPORT_PATTERNS = [
  *  command; a shell that did either itself would carry a second, private copy of a rule the engine
  *  already owns. This replaces three tests that read `shell-design.ts` as text.
  *
- *  **The reach.** `importNames` on a match-everything pattern covers a named import from any module —
- *  `void-engine.js` re-exports the clip, so naming the defining file alone would miss it — and a
- *  namespace import (`import * as engine`) of any module, because ESLint reports a namespace import
- *  against a restricted name. Dynamic `import()` and `require` are separate syntax and are listed.
- *  `no-new-func` closes `new Function("return …")`.
+ *  **Reach.** Any import of either name from any module, a namespace import of any module, a bare
+ *  import of either defining module, dynamic `import()`, `require(…)` and `module.require(…)`, any
+ *  identifier carrying either name (a local declaration included), and `new Function`.
  *
- *  **The second pass.** Three forms the first pass let through, each caught by a source-text test:
- *  `module.require(…)` (a member call ending in `require`), a *local* `function
- *  clipEmptyColumnsAtWallEnd` declared and called in the file (any `Identifier` carrying either name,
- *  whatever it is bound to), and a bare side-effect `import "…/clip-empty-columns-at-wall-end.js"`
- *  (a path restriction on the two defining modules, with no `importNames`).
- *
- *  **Where the reach is narrower than the name.** The path restriction covers the two defining modules
- *  only: `body-probe.ts` and `pricing/*` — which the adversarial test also keeps out of the shell — are
- *  not listed, and that test still guards them by loaded value. An alias of the clip made from a
- *  re-export under another name, and `const { require: load } = module`, are not seen. A string
- *  built at run time and passed to `module.require` is caught as the member call, not as a path.
- *  Nothing here stops the shell calling the void engine's other passes. */
+ *  **Limits.** An import of the clip under another name, re-exported by a module this block does not
+ *  restrict (`body-probe.ts`, `pricing/*`), is unseen, and the adversarial test guards those by loaded
+ *  value; so is `const { require: load } = module`. Nothing stops the shell calling the void engine's
+ *  other passes. */
 const SHELL_DESIGN_FORBIDDEN_NAMES = [
   "clipEmptyColumnsAtWallEnd",
   "removePlacement",
@@ -504,6 +495,8 @@ export default tseslint.config(
     // — 21 of those in three files whose literals are the subject, 33 at individual sites.
     //
     // `src/messages/**` is the one place Romanian belongs, and `ro.d.json.ts` is its generated type.
+    //
+    // A later block restates this list for `packages/configurator-domain/src/generation/shell-design.ts`.
     name: "6B-j: no Romanian literal outside the message catalogue",
     files: [
       "apps/web/src/**/*.{ts,tsx}",

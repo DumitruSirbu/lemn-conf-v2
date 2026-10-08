@@ -69,8 +69,8 @@ export interface GlobalFinishInput {
  *
  * It refuses a colour the design's material does not offer, with `setFinish`'s code and reason
  * (ADR 0078 decision 6), and a value `FinishSchema` refuses on any material. An undeclared
- * `materialTierId` offers nothing and refuses nothing *as an offer* — any schema-valid colour passes — so
- * the recovery path keeps working. Setting the colour already set is not a refusal, as in both tier
+ * `materialTierId` makes no offer of its own, so any schema-valid colour passes and the recovery path
+ * keeps working. Setting the colour already set is not a refusal, as in both tier
  * commands.
  */
 export function setGlobalFinish(

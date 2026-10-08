@@ -226,8 +226,8 @@ export interface PanelFooter {
   readonly removeDisabledReason?: string;
   readonly removeLabel: string;
   readonly doneLabel: string;
-  /** §9 item 7's price, and "De la neschimbat" while a refusal stands. Absent when no price was supplied or pricing
-   *  failed, rendering the same either way: a zero or dash would read as free. */
+  /** §9 item 7's price: the starting-price figure, its label and rounded amount. Absent when no price was supplied or
+   *  pricing failed, rendering the same either way: a zero or dash would read as free. */
   readonly price?: PriceFigure;
   /** ADR 0065 decision 7b's warning, on the same condition the bar flags its total; present only where `price` is.
    *  On mobile the footer carries the only total on screen (decision 6). */
