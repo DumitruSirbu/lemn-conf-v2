@@ -3536,7 +3536,10 @@ Redis). *Tier: Full + security.*
 *Criteria.*
 1. **No lost update.** N concurrent hits on one bucket and window return the counts 1…N exactly once
    each, on the live test database, under ADR 0128's lock.
-2. A hit one millisecond before a window's end and one at its start land in different windows.
+2. ~~A hit one millisecond before a window's end and one at its start land in different windows.~~
+   **(Restated 2026-10-08, see the adjudication.)** The caller supplies each window, half-open.
+   Two adjacent windows of one key are two rows, and an instant equal to a window's end belongs to
+   the next. Which window holds an instant is 8F's.
 3. One request's buckets are written in one round trip.
 4. The key column accepts only a 64-character lowercase hex digest, by a check constraint.
 5. Prune removes every expired row and no live one, and is safe to run twice.
@@ -3553,7 +3556,137 @@ Redis). *Tier: Full + security.*
 readers:* the slice files. *Security reading:* ADR 0019 d2, d3; ADR 0008; the migration.
 
 **Owner action after this wave:** apply `0007` and issue Q14 (ii)'s grant on preview, then
-production. The commands are prepared, not run, by an agent.
+production. The commands are prepared, not run, by an agent. **Added 2026-10-08:** then run
+`tests/application-role-privileges.test.ts` against that database and quote its result, with the
+`rate_limit_counters` test *run and not skipped*. Until then criterion 7's grant half is
+**written and never executed**, and the close-out says so in those words.
+
+#### 8E — adjudication of QA, 2026-10-08
+
+**State.** S1 is `ec2f181`; QA's files are `087e09f` [ran: `git log`]. At `ec2f181`: typecheck
+and lint exit 0, 1539 passed, boundary and the unattended screen exit 0 [relayed,
+coordinator-run]. With QA's files: 4 failed, 1706 passed, on two findings [relayed, QA-run].
+Criteria 1, 3, 4, 5, 8 and 9 hold on the live test database [relayed, QA-run].
+
+| Finding | Class | Ruling |
+| --- | --- | --- |
+| F1 two callers, one key and start, two ends | **Contract gap** | Rule S1 and criterion 10, below |
+| F2 a null row leaves as a bare `TypeError` | **Implementation defect** against criterion 6 | Fixed: a row that is not an object is the typed error |
+| The comment at `rate-limit-store.ts:168-169` cites ADR 0145 d1 for *"ran nothing"* | **Implementation defect**, in a comment that states a reason no record gives | Restated; rule S2 |
+| Criterion 7's grant test has never run and is blind to `PUBLIC` | **Test-fidelity problem**; the blindness is inherited | This table's test is rewritten here; the older three go to the backlog |
+
+**The developer's three readings.**
+
+1. *The caller supplies a half-open window.* **Confirmed.** A Chișinău day is 23, 24 or 25 hours,
+   so the store cannot know a window's length. **Criterion 2 is restated to the store's half:**
+   two adjacent windows of one key are two rows, and an instant equal to a window's end belongs to
+   the next. Which window holds an instant is 8F's, under its criterion 8.
+2. *One row per bucket per window, keyed by key and start.* **Confirmed**, and criterion 9 rests
+   on it. It is only sound with rule S1.
+3. *A cold-start refusal is repeated; an empty reply on a hit is not.* **The behaviour is
+   confirmed; its stated reason is overturned.** Rule S2.
+
+**Rule S1 — one key, one policy; and a broken promise is refused, never counted (F1).**
+
+- *The contract, which is 8F's to keep:* a bucket's key is the digest of **the policy's name and
+  the subject together**. Two policies never share a key. This is not a corner. 8G and 8K keep
+  two limits on one subject [doc, this plan, 8F's restated criterion 3], and an hour's window and
+  a day's begin at the same instant every midnight. With the subject alone in the digest, F1
+  happens daily.
+- *What this layer does when it is broken:* **it refuses.** A hit whose window end differs from
+  the stored row's rejects with a named, typed error of its own, since it is the caller's mistake
+  and not the database's silence. *Why not keep the later end:* the row would then hold two
+  policies' hits added together, and the store would hand back a number that is no policy's
+  count. A wrong count given as a count is what criterion 6 forbids.
+- **Criterion 10, added.** For one key and start: a hit stating the stored end counts; a hit
+  stating any other end rejects with the named error, **and nothing of that request is counted,
+  in any of its buckets**; the stored row's count and end are as they were; a prune at the
+  shorter end removes nothing live. The fake does the same. *Must not:* `0007`'s bytes change; the
+  error's message or cause carries a key.
+- *On "nothing is counted":* QA showed on the live database that a statement the database refuses
+  counts none of its buckets (the overflow test). A refusal raised by the statement itself keeps
+  that true here, and the table's own window check may serve [inf, unrun]. **If it cannot be had
+  without a new migration, the implementer stops and reports**; the fallback, the other buckets
+  counted, is then recorded as a limit and not chosen quietly.
+
+**Rule S2 — a count may err high and never low (reading 3).**
+
+- *What the records say.* ADR 0145 decision 1 names which failures are repeated. It does not say
+  a cold-start refusal ran nothing. The retry's own comment says the opposite of both: they
+  *"can follow a statement that already ran"* [src `retry-on-transient-failure.ts:26-27`], and the
+  project's harness loses a cold-start reply *after the write lands*
+  [src `tests/support/lose-the-first-reply.ts`]. No record measures which is true of Neon.
+- *The ruling.* **Repeating a hit after a cold-start refusal is accepted, knowing it may count
+  one request up to three times.** The other choice refuses the first design after the database
+  has slept, which at this traffic is the ordinary first request of a morning. An empty reply is
+  not repeated: it follows a reply that began well, so the hit most likely landed [inf]; the
+  request is refused and its hit may stand. Both err the same way.
+- **Criterion 11, added, as a property.** Under any sequence of lost replies, of either kind and
+  at either point, a bucket's stored count is never less than the number of requests answered
+  with a count, and never more than the number of attempts sent. *Must not:* a request is
+  answered with a count while its hit is absent.
+- *This is an exception to ADR 0145 decision 2's headline*, the owner's *"a retry never leaves a
+  trace"*. That decision lists designs, links and visitor moves, and a counter is none of them;
+  but an over-count is a trace. **It is the architect's ruling, open to the owner**, and it goes
+  to them in those words with the limit's own *"track and adjust later"*.
+- *The comment* says what is true: a repeat can count a hit twice; that is accepted after a
+  cold-start refusal and not after an empty reply; the reason is this ruling, cited by the wave's
+  ADR and not by ADR 0145 decision 1.
+
+**Criterion 7's grant half.** The test follows its file's pattern exactly, and the pattern is
+weak in three ways the file already had: it runs only where `DATABASE_URL` is set, which CI never
+does [relayed]; it reads `role_table_grants` for `current_user`, which does not show what `PUBLIC`
+holds; and it names no schema [src `tests/application-role-privileges.test.ts:60-66, 140-178`].
+
+- *What 8E owes:* its own table's test asks the database for the **effective** privilege, on
+  `public.rate_limit_counters` by name: select, insert, update and delete held; truncate,
+  references and trigger not. That sees a grant to `PUBLIC` and cannot read another schema's
+  table. It still skips where the table is absent, and so it still has not run.
+- *What 8E does not owe:* the same weakness on `designs`, `schema_migrations` and
+  `design_share_links`. **Backlog**, owner the coordinator with the security reviewer, trigger
+  the delivery milestone's launch gate. And a database on which CI can run this file: the
+  delivery milestone's.
+
+**The `beforeAll` that deletes by era, then by key. Allowed, on three conditions.** It runs only
+against the guarded test database. The eras are allocated in **one support file** that both
+suites import, so *"no other writer uses this era"* is read in one place and not trusted to two
+comments. And it **reports how many rows it removed**, so an interrupted run is seen and not
+healed in silence. The incident that produced it is the owner's and is not ruled here.
+
+**What 8F inherits. Recorded, not built.**
+
+- The key is the digest of policy and subject (rule S1); 8F carries a property for it.
+- **8F fails closed on any throw, of any class, from construction on.** The validation refusals
+  are plain `Error`s; the Neon store's constructor throws on an unusable `DATABASE_URL`
+  [src `:105-107`]; `RateLimitStoreError` and the new error are two more.
+- The fake never fails. It does not reproduce an overflow, an unreadable window or a lost reply.
+  A test of failing closed brings its own store that rejects.
+- A count may be high by a repeat (rule S2), so a refusal at exactly the limit is not proof the
+  customer made twenty requests.
+
+**The fix round.** One implementer, three production files.
+
+| # | Does | Files |
+| --- | --- | --- |
+| 1 | Rule S1: the mismatch refused, with its named error, in the store and the fake | `rate-limit-store.ts`, `fake-rate-limit-store.ts`, `index.ts` |
+| 2 | F2: a row that is not an object is the typed error | `rate-limit-store.ts` |
+| 3 | Rule S2: the comment restated; the port's doc says a count may err high and never low, and that a key is one policy's | `rate-limit-store.ts` |
+| 4 | The grant test for this table by effective privilege, with its schema | `tests/application-role-privileges.test.ts` |
+| 5 | Its own contract suite follows 1 to 3 | `tests/rate-limit-store.test.ts` |
+
+*Reading:* this section; ADR 0145; the three slice files; QA's three files, read and not edited.
+*Must not:* a `qa-*` file is edited; `0007` changes.
+
+**Then QA, on its own files:** the four tests on F1 are re-aimed at criterion 10, the two that
+fail and the two that pin the first end; F2's go green untouched; criterion 11's property is
+added; the eras move to the support file. **Then review, Full + security:** *logic* reads the
+store, criteria 10 and 11 and ADR 0145; *clean-code* reads the three slice files; *security*
+reads the migration, the grant test, ADR 0008 and ADR 0019 d2, d3, and answers whether an error
+can carry a key or a window.
+
+*For the scribe, at the close:* the wave's ADR records S1, S2 as the architect's and open to the
+owner, and the grant half as unexecuted; ADR 0145 gains a dated note that a counter is a fourth
+caller class, counted and erring high; the backlog gains the older tables' grant tests.
 
 ### 8F — the limiter and the mint
 
