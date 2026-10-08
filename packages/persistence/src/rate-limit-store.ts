@@ -14,7 +14,8 @@ export interface RateLimitWindow {
   readonly endsAt: Date;
 }
 
-/** What one hit is counted against: `key` is the SHA-256 digest of the bucket's identity, never the identity itself. */
+/** What one hit is counted against: `key` is the SHA-256 digest of the policy's name and the subject together, never
+ *  either itself. A key belongs to one policy, so two policies never state different ends for one key and start. */
 export interface RateLimitBucket {
   readonly key: string;
   readonly window: RateLimitWindow;
@@ -25,8 +26,10 @@ export type RateLimitOperation = "record hits" | "prune expired windows";
 export interface RateLimitStore {
   /**
    * Adds one hit to every bucket in one round trip and returns each bucket's count in its own window, in the order
-   * given. A count includes this hit and comes from that window's row alone. Rejects with `RateLimitStoreError`
-   * when the database gives no trustworthy answer; the caller refuses the request rather than counting it.
+   * given. A count includes this hit and comes from that window's row alone. A count may err high, when a repeated
+   * statement counts a hit twice, and never low. Rejects with `RateLimitStoreError` when the database gives no
+   * trustworthy answer, and with `RateLimitWindowConflictError` when a bucket's stored window ends elsewhere than the
+   * request says; the caller refuses the request either way, and the second counts none of its buckets.
    */
   recordHits(buckets: readonly RateLimitBucket[]): Promise<readonly number[]>;
   /** Deletes every window that ended at or before `now` and returns how many rows went. Safe to run again. */
@@ -45,6 +48,18 @@ export class RateLimitStoreError extends Error {
     );
     this.name = "RateLimitStoreError";
     this.operation = operation;
+  }
+}
+
+/** A hit stated a window end that differs from the one already stored for its key and start: the caller's mistake,
+ *  not the database's silence. Nothing of the request was counted. Its message names no key and no window. */
+export class RateLimitWindowConflictError extends Error {
+  constructor() {
+    super(
+      "Refusing to count a hit: a bucket's window was already recorded with a different end, so no hit of this " +
+        "request was counted.",
+    );
+    this.name = "RateLimitWindowConflictError";
   }
 }
 
@@ -97,6 +112,9 @@ interface RemovedRow {
   removed: unknown;
 }
 
+const WINDOW_CHECK_VIOLATION = "23514";
+const WINDOW_CHECK_NAME = "rate_limit_counters_window_is_not_empty";
+
 /** `RateLimitStore` on Neon Postgres, counting in `rate_limit_counters` (migration `0007`). */
 export class NeonRateLimitStore implements RateLimitStore {
   private readonly sql;
@@ -110,6 +128,9 @@ export class NeonRateLimitStore implements RateLimitStore {
    * One statement for every bucket: an upsert is atomic per row, so N concurrent hits on one bucket and window return
    * 1…N once each. Rows go in `order by` key, so two requests sharing buckets lock them in the same order and cannot
    * deadlock. It names `rate_limit_counters` alone.
+   *
+   * A hit stating a different end than the stored row sets that row's end to its start, which the table's own window
+   * check refuses: the whole statement fails and no bucket of the request is counted.
    */
   async recordHits(
     buckets: readonly RateLimitBucket[],
@@ -132,7 +153,12 @@ export class NeonRateLimitStore implements RateLimitStore {
               as hit (bucket_key, window_start, window_end)
             order by hit.bucket_key, hit.window_start
             on conflict (bucket_key, window_start)
-            do update set hits = counter.hits + 1
+            do update set
+              hits = counter.hits + 1,
+              window_end = case
+                when counter.window_end = excluded.window_end then counter.window_end
+                else counter.window_start
+              end
             returning counter.bucket_key, counter.window_start, counter.hits
           `,
         ),
@@ -165,8 +191,9 @@ export class NeonRateLimitStore implements RateLimitStore {
   }
 }
 
-/** An empty reply can follow a hit that already committed, and repeating it would count that hit twice. Only the
- *  proxy's cold-start refusal, which ran nothing, is safe to repeat (ADR 0145 decision 1). */
+/** A repeated hit can be counted twice, which a limiter accepts and a count may therefore err high. That is accepted
+ *  after a cold-start refusal, so the first request after the database slept is not refused, and not after an empty
+ *  reply, which follows a reply that began well so the hit most likely landed. The 8E adjudication rules both. */
 async function refusingToRepeatAnEmptyReply<Result>(
   query: () => PromiseLike<Result>,
 ): Promise<Result> {
@@ -196,7 +223,9 @@ async function failAsStoreError<Row>(
   runQuery: () => PromiseLike<unknown>,
 ): Promise<Row[]> {
   const reply = await runKeepingNothingTheDriverThrew(operation, runQuery);
-  if (!Array.isArray(reply)) throw new RateLimitStoreError(operation);
+  if (!Array.isArray(reply) || !reply.every(isObject)) {
+    throw new RateLimitStoreError(operation);
+  }
   return reply as Row[];
 }
 
@@ -209,8 +238,29 @@ async function runKeepingNothingTheDriverThrew(
   } catch (error) {
     const failure =
       error instanceof UnrepeatableFailure ? error.original : error;
-    throw new RateLimitStoreError(operation, reducedCauseOf(failure));
+    throw storeFailureFrom(operation, failure);
   }
+}
+
+function storeFailureFrom(
+  operation: RateLimitOperation,
+  failure: unknown,
+): Error {
+  return isWindowEndConflict(failure)
+    ? new RateLimitWindowConflictError()
+    : new RateLimitStoreError(operation, reducedCauseOf(failure));
+}
+
+function isWindowEndConflict(failure: unknown): boolean {
+  return (
+    isNeonDbError(failure) &&
+    failure.code === WINDOW_CHECK_VIOLATION &&
+    failure.constraint === WINDOW_CHECK_NAME
+  );
+}
+
+function isObject(value: unknown): value is object {
+  return typeof value === "object" && value !== null;
 }
 
 function countsInRequestOrder(

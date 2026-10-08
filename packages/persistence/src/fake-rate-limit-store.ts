@@ -1,4 +1,5 @@
 import {
+  RateLimitWindowConflictError,
   identityOf,
   requireValidBuckets,
   requireValidInstant,
@@ -20,6 +21,7 @@ export class FakeRateLimitStore implements RateLimitStore {
     buckets: readonly RateLimitBucket[],
   ): Promise<readonly number[]> {
     requireValidBuckets(buckets);
+    this.requireStoredEndsToAgree(buckets);
     return buckets.map((bucket) => this.addHit(bucket));
   }
 
@@ -31,6 +33,17 @@ export class FakeRateLimitStore implements RateLimitStore {
     );
     for (const [identity] of expired) this.windowsByIdentity.delete(identity);
     return expired.length;
+  }
+
+  private requireStoredEndsToAgree(buckets: readonly RateLimitBucket[]): void {
+    const disagrees = buckets.some((bucket) => {
+      const stored = this.windowsByIdentity.get(identityOf(bucket));
+      return (
+        stored !== undefined &&
+        stored.endsAtMs !== bucket.window.endsAt.getTime()
+      );
+    });
+    if (disagrees) throw new RateLimitWindowConflictError();
   }
 
   private addHit(bucket: RateLimitBucket): number {

@@ -1,9 +1,12 @@
+import { inspect } from "node:util";
+
 import { NeonDbError } from "@neondatabase/serverless";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   NeonRateLimitStore,
   RateLimitStoreError,
+  RateLimitWindowConflictError,
 } from "../src/rate-limit-store.js";
 import type { RateLimitBucket } from "../src/rate-limit-store.js";
 import {
@@ -64,6 +67,15 @@ function hitRow(key: string, hits: unknown): object {
 function coldStartRefusal(): NeonDbError {
   return new NeonDbError(
     'Server error (HTTP status 500): {"message":"Couldn\'t connect to compute node","neon:retryable":true}',
+  );
+}
+
+function checkViolation(constraint: string): NeonDbError {
+  return Object.assign(
+    new NeonDbError(
+      `new row for relation "rate_limit_counters" violates check constraint "${constraint}"`,
+    ),
+    { code: "23514", constraint },
   );
 }
 
@@ -210,6 +222,8 @@ describe("NeonRateLimitStore.recordHits when the database fails", () => {
     ["a count that is null", [hitRow(FIRST_KEY, null), hitRow(SECOND_KEY, 1)]],
     ["a fractional count", [hitRow(FIRST_KEY, 1.5), hitRow(SECOND_KEY, 1)]],
     ["no rows at all", []],
+    ["a row that is null", [null, hitRow(SECOND_KEY, 1)]],
+    ["a row that is a number", [hitRow(FIRST_KEY, 1), 7]],
     ["a reply that is not a list of rows", { rows: [] }],
   ])("rejects with the typed error on %s", async (_label, reply) => {
     answerWith(reply);
@@ -217,6 +231,35 @@ describe("NeonRateLimitStore.recordHits when the database fails", () => {
     const error = await rejectionOf(newStore().recordHits(BUCKETS));
 
     expect(error).toBeInstanceOf(RateLimitStoreError);
+  });
+
+  it("rejects with its own named error when the table's window check refuses a different end, naming no key", async () => {
+    failWith(checkViolation("rate_limit_counters_window_is_not_empty"));
+
+    const error = await rejectionOf(newStore().recordHits(BUCKETS));
+
+    expect(error).toBeInstanceOf(RateLimitWindowConflictError);
+    expect(error).not.toBeInstanceOf(RateLimitStoreError);
+    expect(inspect(error, { depth: null })).not.toContain(FIRST_KEY);
+    expect((error as Error).cause).toBeUndefined();
+  });
+
+  it("does not take another check constraint's refusal for a conflicting window end", async () => {
+    failWith(checkViolation("rate_limit_counters_hits_is_positive"));
+
+    const error = await rejectionOf(newStore().recordHits(BUCKETS));
+
+    expect(error).toBeInstanceOf(RateLimitStoreError);
+  });
+
+  it("states in the statement that a different end ends the row's window, so the table's check fails the whole statement", async () => {
+    answerWith([hitRow(FIRST_KEY, 1), hitRow(SECOND_KEY, 1)]);
+
+    await newStore().recordHits(BUCKETS);
+
+    expect(driver.statements[0]?.text).toMatch(
+      /when counter\.window_end = excluded\.window_end then counter\.window_end\s+else counter\.window_start/,
+    );
   });
 
   it("does not repeat a hit after an empty reply, which may follow a hit that committed", async () => {
@@ -283,12 +326,15 @@ describe("NeonRateLimitStore.pruneExpired", () => {
   it("rejects with the typed error when the database fails, and on a reply that is not a count", async () => {
     failWith(Object.assign(new Error("boom"), { code: "57P01" }));
     answerWith([{ removed: "many" }]);
+    answerWith([null]);
     const store = newStore();
 
     const failed = await rejectionOf(store.pruneExpired(WINDOW_END));
     const malformed = await rejectionOf(store.pruneExpired(WINDOW_END));
+    const nullRow = await rejectionOf(store.pruneExpired(WINDOW_END));
 
-    expect([failed, malformed]).toEqual([
+    expect([failed, malformed, nullRow]).toEqual([
+      expect.any(RateLimitStoreError),
       expect.any(RateLimitStoreError),
       expect.any(RateLimitStoreError),
     ]);

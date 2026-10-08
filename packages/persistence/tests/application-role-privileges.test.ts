@@ -149,9 +149,9 @@ describe.skipIf(!hasLiveDatabase)("the application's database role", () => {
     );
   });
 
-  // Conditional on the table's existence, as for `design_share_links` above: `DELETE` is granted on this table
-  // alone, because the prune deletes expired windows (Q14 (ii)), and designs stay undeletable.
-  it("holds exactly select, insert, update and delete on rate_limit_counters, once it exists", async (context) => {
+  // Asks the database what the role effectively holds, so a grant to `PUBLIC` or to an inherited role counts, on the
+  // table named with its schema. `DELETE` is held here alone, because the prune deletes expired windows.
+  it("effectively holds select, insert, update and delete on public.rate_limit_counters, and no other privilege, once it exists", async (context) => {
     const sql = neon(readDatabaseUrl());
 
     const [tableProbe] = (await sql`
@@ -159,22 +159,28 @@ describe.skipIf(!hasLiveDatabase)("the application's database role", () => {
     `) as { exists: boolean }[];
     context.skip(
       tableProbe?.exists !== true,
-      "rate_limit_counters does not exist yet on this database",
+      "public.rate_limit_counters does not exist yet on this database",
     );
 
-    const grants = (await sql`
-      select privilege_type
-      from information_schema.role_table_grants
-      where grantee = current_user and table_name = 'rate_limit_counters'
-      order by privilege_type
-    `) as { privilege_type: string }[];
+    const [held] = (await sql`
+      select
+        has_table_privilege(current_user, 'public.rate_limit_counters', 'SELECT') as can_select,
+        has_table_privilege(current_user, 'public.rate_limit_counters', 'INSERT') as can_insert,
+        has_table_privilege(current_user, 'public.rate_limit_counters', 'UPDATE') as can_update,
+        has_table_privilege(current_user, 'public.rate_limit_counters', 'DELETE') as can_delete,
+        has_table_privilege(current_user, 'public.rate_limit_counters', 'TRUNCATE') as can_truncate,
+        has_table_privilege(current_user, 'public.rate_limit_counters', 'REFERENCES') as can_reference,
+        has_table_privilege(current_user, 'public.rate_limit_counters', 'TRIGGER') as can_trigger
+    `) as Record<string, boolean>[];
 
-    expect(grants.map((row) => row.privilege_type)).toEqual([
-      "DELETE",
-      "INSERT",
-      "SELECT",
-      "UPDATE",
-    ]);
-    await expectRefused("delete from designs where id = 'no-such-design'");
+    expect(held).toEqual({
+      can_select: true,
+      can_insert: true,
+      can_update: true,
+      can_delete: true,
+      can_truncate: false,
+      can_reference: false,
+      can_trigger: false,
+    });
   });
 });

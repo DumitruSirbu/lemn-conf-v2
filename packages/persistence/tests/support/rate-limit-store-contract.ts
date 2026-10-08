@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { RateLimitWindowConflictError } from "../../src/rate-limit-store.js";
 import type {
   RateLimitBucket,
   RateLimitStore,
@@ -103,6 +104,43 @@ export function describeRateLimitStoreContract({
       ]);
 
       expect(firstHitOfNewWindow).toBe(1);
+    });
+
+    it("refuses a second end for one key and start, counting nothing of the request and leaving the row as it was", async () => {
+      const store = createStore();
+      const startsAt = hourWindowNumber(2).startsAt;
+      const hour = { startsAt, endsAt: new Date(startsAt.getTime() + HOUR_MS) };
+      const day = {
+        startsAt,
+        endsAt: new Date(startsAt.getTime() + 24 * HOUR_MS),
+      };
+      const stored = bucket(day);
+      const bystander = bucket(hourWindowNumber(3));
+      await store.recordHits([stored]);
+
+      const refusal = await store
+        .recordHits([bystander, { key: stored.key, window: hour }])
+        .catch((error: unknown) => error);
+      const afterTheRefusal = await store.recordHits([bystander, stored]);
+      await store.pruneExpired(hour.endsAt);
+      const afterThePrune = await store.recordHits([stored]);
+
+      expect(refusal).toBeInstanceOf(RateLimitWindowConflictError);
+      expect((refusal as Error).message).not.toContain(stored.key);
+      expect(afterTheRefusal).toEqual([1, 2]);
+      expect(afterThePrune).toEqual([3]);
+    });
+
+    it("counts a hit that states the stored end, however many times it is stated", async () => {
+      const store = createStore();
+      const only = bucket(hourWindowNumber(0));
+
+      const counts = await Promise.all([
+        store.recordHits([only]),
+        store.recordHits([{ ...only, window: { ...only.window } }]),
+      ]);
+
+      expect(counts.flat().sort()).toEqual([1, 2]);
     });
 
     it("refuses a key that is not a lowercase SHA-256 digest, counting nothing", async () => {
