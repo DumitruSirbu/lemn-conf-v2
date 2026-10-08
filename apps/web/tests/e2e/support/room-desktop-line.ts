@@ -1,60 +1,44 @@
-// **Step 1's desktop line** — M7 wave 7L, slice S5 (`docs/milestones/M7-room-and-presets.md`,
-// *Wave 7L — the plan (2026-09-28)*, D12 and §5): the **layout contract** of frames D1A, D1B, D1C
-// and D1F, asserted at the `desktop` project's 1440 x 900 unless a test names another viewport.
-//
-// **Not a desktop replay of the 7K journey** (D12). The rules are one implementation (§10.1), 7K
-// proves the journey by touch, and `linear-flow.desktop` and `mirror-real-flow.desktop` already walk
-// Step 1 at this viewport. What is asserted here is geometry, boundaries, reach and the suggestion
-// card — each measured against the page's own boxes, and any figure taken from a frame cited to its
-// mockup line (`docs/design/mockups/Lemnaria Configurator Desktop.dc.html`).
-//
-// **A width lives in CSS only** (D2, criterion 2): nothing under `src/room` reads `matchMedia` or
-// `innerWidth`. That is a grep over the source, not a claim this spec makes — every viewport below is
-// set with `setViewportSize` and read back off the layout, never off a breakpoint the test knows.
-//
-// **1F is held on screen, never raced.** The design write that ends composition (`POST
-// /api/designs`) is held by `page.route` for as long as a test measures 1F and then aborted, so no
-// row is minted and nothing here owes ADR 0006 a cleanup.
-//
-// A defect this spec finds stays red: the product is fixed in its own dispatch, never by weakening
-// an assertion here.
+// **Step 1's desktop line: what its three spec files share.** The viewports, frame figures, rooms,
+// shared assertions, navigation and readouts of `room-desktop-line.criteria-03`, `-04-10` and
+// `-12-17.desktop.e2e.spec.ts`, moved here unchanged when the one spec was split by criterion so that no
+// file outgrows an e2e shard (`scripts/gates/e2e-shard-budget.mjs`). The head comment of each spec
+// carries the contract; nothing here is a test.
 import { readFileSync } from "node:fs";
 
 import {
   expect,
-  test,
   type Browser,
   type Locator,
   type Page,
   type Route,
 } from "@playwright/test";
 
-import { countPixels } from "./support/pixels";
-import { stepSentence } from "./support/step-one-by-touch";
+import { countPixels } from "./pixels";
+import { stepSentence } from "./step-one-by-touch";
 
-type Locale = "ro" | "ru";
+export type Locale = "ro" | "ru";
 
-const LOCALES: readonly Locale[] = ["ro", "ru"];
+export const LOCALES: readonly Locale[] = ["ro", "ru"];
 
-interface Viewport {
+export interface Viewport {
   readonly width: number;
   readonly height: number;
 }
 
 /** The `desktop` project's own viewport (`playwright.config.ts:58-68`). */
-const DESKTOP: Viewport = { width: 1440, height: 900 };
+export const DESKTOP: Viewport = { width: 1440, height: 900 };
 /** One pixel either side of the codebase's one breakpoint (D2, criterion 3). */
-const LAST_PHONE_WIDTH: Viewport = { width: 899, height: 900 };
-const FIRST_DESKTOP_WIDTH: Viewport = { width: 900, height: 900 };
+export const LAST_PHONE_WIDTH: Viewport = { width: 899, height: 900 };
+export const FIRST_DESKTOP_WIDTH: Viewport = { width: 900, height: 900 };
 /** A short laptop (criterion 10, risk R7). */
-const SHORT_DESKTOP: Viewport = { width: 1280, height: 720 };
+export const SHORT_DESKTOP: Viewport = { width: 1280, height: 720 };
 /** The frames' own width (`Desktop.dc.html:51`). */
-const WIDE_DESKTOP: Viewport = { width: 1920, height: 1080 };
+export const WIDE_DESKTOP: Viewport = { width: 1920, height: 1080 };
 /** The phone the `mobile` project pins, reached here by resizing (criterion 14). */
-const PHONE: Viewport = { width: 390, height: 844 };
+export const PHONE: Viewport = { width: 390, height: 844 };
 
 /** Criterion 17's widths, each at a height inside its 720–1080 band. */
-const SIDEWAYS_VIEWPORTS: readonly Viewport[] = [
+export const SIDEWAYS_VIEWPORTS: readonly Viewport[] = [
   FIRST_DESKTOP_WIDTH,
   SHORT_DESKTOP,
   DESKTOP,
@@ -66,52 +50,54 @@ const SIDEWAYS_VIEWPORTS: readonly Viewport[] = [
 // -------------------------------------------------------------------------------------------
 
 /** D1A `:52`: the top bar's band. */
-const TOP_BAR_BAND_PX = 76;
+export const TOP_BAR_BAND_PX = 76;
 /** D1A `:52`: `padding: 0 40px` — the locale chip's right edge stands this far in. */
-const TOP_BAR_INSET_PX = 40;
+export const TOP_BAR_INSET_PX = 40;
 /** D1A `:61`: the cards' column. */
-const SHAPE_COLUMN_MAX_PX = 1120;
+export const SHAPE_COLUMN_MAX_PX = 1120;
 /** D1A `:94`: *Continuă*'s height. */
-const CTA_HEIGHT_PX = 52;
+export const CTA_HEIGHT_PX = 52;
 /** D1B `:114`: the form column. */
-const FORM_COLUMN_MAX_PX = 520;
+export const FORM_COLUMN_MAX_PX = 520;
 /** D1B `:115`: the gap between the form column and the plan panel; D1F `:475` draws the same. */
-const COLUMN_GAP_PX = 56;
+export const COLUMN_GAP_PX = 56;
 /** D1B `:179`: the plan panel. */
-const PLAN_PANEL_MAX_PX = 900;
+export const PLAN_PANEL_MAX_PX = 900;
 /** D1B `:183, 185`: 26 px walls, 14 px labels, a label standing 20 px off its wall (7L D6 b). */
-const DESKTOP_WALL_PX = 26;
-const DESKTOP_LABEL_LINE_PX = 14;
-const DESKTOP_LABEL_GAP_PX = 20;
+export const DESKTOP_WALL_PX = 26;
+export const DESKTOP_LABEL_LINE_PX = 14;
+export const DESKTOP_LABEL_GAP_PX = 20;
 /** The lane the drawing is never painted in: a label line and its gap (7L D6, criterion 7). */
-const DESKTOP_LABEL_LANE_PX = DESKTOP_LABEL_LINE_PX + DESKTOP_LABEL_GAP_PX;
+export const DESKTOP_LABEL_LANE_PX =
+  DESKTOP_LABEL_LINE_PX + DESKTOP_LABEL_GAP_PX;
 /** The shortest box the desktop set can draw in: the lane, a wall, and the line beside the deepest
  *  wall (7L D6 e). */
-const DESKTOP_MINIMUM_BOX_HEIGHT_PX =
+export const DESKTOP_MINIMUM_BOX_HEIGHT_PX =
   DESKTOP_LABEL_LANE_PX + DESKTOP_WALL_PX + DESKTOP_LABEL_LINE_PX;
 /** D1F `:475`: the steps column. */
-const STEPS_COLUMN_MAX_PX = 620;
+export const STEPS_COLUMN_MAX_PX = 620;
 /** D1F `:509`: the composition's plan panel. */
-const COMPOSE_PANEL_MAX_PX = 840;
+export const COMPOSE_PANEL_MAX_PX = 840;
 /** `globals.css`'s `--touch-target`, written out: read from the page it would agree with any value. */
-const TOUCH_TARGET_PX = 44;
+export const TOUCH_TARGET_PX = 44;
 
 /** Every "±1" the criteria allow. */
-const LAYOUT_TOLERANCE_PX = 1;
+export const LAYOUT_TOLERANCE_PX = 1;
 /** Criterion 4's band tolerance. */
-const BAND_TOLERANCE_PX = 0.5;
+export const BAND_TOLERANCE_PX = 0.5;
 /**
  * Mutation batches, not frames, before the first measured paint; the count rises with machine load, so
  * each leg's bound is its measured maximum under load and cannot see a one-paint regression (that is
  * pinned in `plan-preview.dom.test.ts`). See ADR 0139 d11.
  */
-const MAX_PRE_HYDRATION_PLAN_PAINTS = process.env.CI === undefined ? 9 : 7;
+export const MAX_PRE_HYDRATION_PLAN_PAINTS =
+  process.env.CI === undefined ? 9 : 7;
 
 // -------------------------------------------------------------------------------------------
 // Rooms, in the URL's own metres (ADR 0126).
 // -------------------------------------------------------------------------------------------
 
-interface RoomWitness {
+export interface RoomWitness {
   readonly name: string;
   readonly query: string;
 }
@@ -119,7 +105,7 @@ interface RoomWitness {
 /** Frame D1C's own room (`Desktop.dc.html:198-272`): an L at 3600 x 450 x 2600. Wall B is under the
  *  approved L minimum, wall A and the height validate as a straight room — so wall B is refused and
  *  the linear suggestion shows (`room-issue-model.ts`'s `isLinearSuggested`). */
-const FRAME_ONE_C_ROOM = {
+export const FRAME_ONE_C_ROOM = {
   name: "frame D1C's L room (3600 x 450 x 2600)",
   query: "shape=L&wallA=3.6&wallB=0.45&height=2.6&direction=left",
   /** Wall A and the height as the customer typed them, which a switch to linear keeps. */
@@ -128,12 +114,12 @@ const FRAME_ONE_C_ROOM = {
   asLinearQuery: "shape=linear&wallA=3.6&height=2.6",
 } as const;
 /** 1C's vertical worst case (7F2 criterion 14): both walls too short and the ceiling too low. */
-const WORST_CASE_ROOM: RoomWitness = {
+export const WORST_CASE_ROOM: RoomWitness = {
   name: "1C's worst case (800 x 800 x 2000)",
   query: "shape=L&wallA=0.8&wallB=0.8&height=2&direction=left",
 };
 /** D1B's own room (`Desktop.dc.html:179-188`), 3,60 m x 2,40 m, with the phone's 2600 ceiling. */
-const TYPED_L_ROOM = {
+export const TYPED_L_ROOM = {
   wallA: 3600,
   wallB: 2400,
   height: 2600,
@@ -141,7 +127,7 @@ const TYPED_L_ROOM = {
 } as const;
 
 /** The four 1B states criterion 6 and 16 walk: both L corners, the straight room, the U. */
-const ONE_B_STATES = [
+export const ONE_B_STATES = [
   {
     name: "an L room, left corner",
     shape: "L",
@@ -159,10 +145,14 @@ const ONE_B_STATES = [
 /** Which shapes draw the corner toggle. **Restated 2026-09-30 (M7B U5 S1; Q-U4 (b), ADR 0132
  *  decision 8): a U has one hand, so it draws none** — as a straight room, which has no corner, draws
  *  none. This spec expected the toggle on a U while nothing had said what a U's corner meant. */
-const DRAWS_THE_CORNER_TOGGLE = { L: true, linear: false, U: false } as const;
+export const DRAWS_THE_CORNER_TOGGLE = {
+  L: true,
+  linear: false,
+  U: false,
+} as const;
 
 /** 1B for each shape, as the settle writes it: a straight room carries no direction (ADR 0130 D7). */
-const ONE_B_QUERY = {
+export const ONE_B_QUERY = {
   L: "shape=L&direction=left",
   linear: "shape=linear",
   U: "shape=U&direction=left",
@@ -170,14 +160,14 @@ const ONE_B_QUERY = {
 
 /** The fields each shape asks for, in field order (`requiredFieldsFor`), written out so the order
  *  the page draws is checked against something other than itself. */
-const FIELD_ORDER = {
+export const FIELD_ORDER = {
   L: ["wallA", "wallB", "height"],
   linear: ["wallA", "height"],
   U: ["wallA", "wallB", "wallC", "height"],
 } as const;
 
 /** Rooms the large plan is fitted to (criterion 7) — at least one per binding axis and per shape. */
-const FITTED_ROOMS = [
+export const FITTED_ROOMS = [
   {
     name: "D1B's L, wall A binding",
     query: TYPED_L_ROOM.query,
@@ -209,789 +199,27 @@ const FITTED_ROOMS = [
 // Copy — the top bar's titles, read from the catalogues the app renders.
 // -------------------------------------------------------------------------------------------
 
-interface RoomTitles {
+export interface RoomTitles {
   readonly room: {
     readonly title: string;
     readonly compose: { readonly title: string };
   };
 }
 
-function titlesFor(locale: Locale): RoomTitles {
+export function titlesFor(locale: Locale): RoomTitles {
   return JSON.parse(
     readFileSync(
-      new URL(`../../src/messages/${locale}.json`, import.meta.url),
+      new URL(`../../../src/messages/${locale}.json`, import.meta.url),
       "utf8",
     ),
   ) as RoomTitles;
 }
 
 // ===========================================================================================
-// Criterion 3 — one breakpoint, the codebase's.
-// ===========================================================================================
-
-test.describe("criterion 3: 899 px is the phone and 900 px is the desktop", () => {
-  test("1A: at 899 px the cards stack in one column above a full-width Continue; at 900 px they stand in one row", async ({
-    page,
-  }) => {
-    await page.setViewportSize(LAST_PHONE_WIDTH);
-    await openRoom(page, "ro");
-    const phone = await readShapeStep(page);
-    expect(nth(phone.cards, 1).top, JSON.stringify(phone)).toBeGreaterThan(
-      nth(phone.cards, 0).bottom - LAYOUT_TOLERANCE_PX,
-    );
-    expect(nth(phone.cards, 1).left).toBeCloseTo(nth(phone.cards, 0).left, 0);
-    expect(width(phone.continueBox)).toBeCloseTo(phone.footerContentWidth, 0);
-
-    await page.setViewportSize(FIRST_DESKTOP_WIDTH);
-    await expect
-      .poll(async () => rowSpread(await readShapeStep(page)))
-      .toBeLessThanOrEqual(LAYOUT_TOLERANCE_PX);
-    const desktop = await readShapeStep(page);
-    expect(width(desktop.continueBox), JSON.stringify(desktop)).toBeLessThan(
-      desktop.footerContentWidth / 2,
-    );
-  });
-
-  test("1C: at 899 px the plan is above the fields in one column with no Sugestii card and an unmeasured plan; at 900 px the plan is beside them, measured, and the card shows", async ({
-    page,
-  }) => {
-    await page.setViewportSize(LAST_PHONE_WIDTH);
-    await openRoom(page, "ro", FRAME_ONE_C_ROOM.query);
-    await expect(page.getByTestId("room-linear-suggestion")).toBeVisible();
-
-    const phone = await readDimensionsLayout(page);
-    const phoneDetail = JSON.stringify(phone);
-    expect(phone.plan.bottom, phoneDetail).toBeLessThanOrEqual(
-      present(phone.corner, "the corner toggle").top + LAYOUT_TOLERANCE_PX,
-    );
-    expect(phone.plan.left, phoneDetail).toBeCloseTo(phone.fields.left, 0);
-    expect(phone.cta.right, phoneDetail).toBeCloseTo(
-      phone.footerContentRight,
-      0,
-    );
-    expect(width(phone.cta), phoneDetail).toBeGreaterThan(
-      phone.footerContentWidth / 2,
-    );
-    expect(
-      await page.getByTestId("room-suggestion-card").boundingBox(),
-    ).toBeNull();
-    await expect(page.getByTestId("room-plan-box")).toHaveAttribute(
-      "data-plan-measured",
-      "false",
-    );
-
-    await page.setViewportSize(FIRST_DESKTOP_WIDTH);
-    await expect(page.getByTestId("room-suggestion-card")).toBeVisible();
-    await expect(page.getByTestId("room-plan-box")).toHaveAttribute(
-      "data-plan-measured",
-      "true",
-    );
-    const desktop = await readDimensionsLayout(page);
-    const desktopDetail = JSON.stringify(desktop);
-    expect(desktop.plan.left, desktopDetail).toBeGreaterThan(
-      desktop.fields.right,
-    );
-    expect(width(desktop.cta), desktopDetail).toBeLessThan(
-      desktop.footerContentWidth / 2,
-    );
-  });
-});
-
-// ===========================================================================================
-// Criterion 4 — the top bar is D1A's.
-// ===========================================================================================
-
-test.describe("criterion 4: the top bar is D1A's", () => {
-  for (const locale of LOCALES) {
-    for (const witness of [
-      { name: "1A", query: "" },
-      { name: "1B", query: "shape=L&direction=left" },
-      { name: "1C", query: FRAME_ONE_C_ROOM.query },
-      { name: "1D", query: TYPED_L_ROOM.query },
-    ]) {
-      test(`${witness.name} in ${locale}: a 76 px band, the step pill, the room title, the locale chip 40 px from the edge and nothing painted before it`, async ({
-        page,
-      }) => {
-        await openRoom(page, locale, witness.query);
-        await expect(roomScreen(page)).toHaveAttribute(
-          "data-room-substate",
-          witness.name,
-        );
-
-        await expectTheTopBarOfD1A(page, {
-          locale,
-          title: titlesFor(locale).room.title,
-        });
-      });
-    }
-  }
-});
-
-// ===========================================================================================
-// Criterion 5 — D1A.
-// ===========================================================================================
-
-test.describe("criterion 5: D1A", () => {
-  for (const locale of LOCALES) {
-    test(`three cards in one row, in frame order, in a column of at most 1120 px centred in the body, glyph above name, in ${locale}`, async ({
-      page,
-    }) => {
-      await openRoom(page, locale);
-      const layout = await readShapeStep(page);
-      const detail = JSON.stringify(layout);
-
-      expect(layout.cardIds, detail).toEqual([
-        "room-shape-card-linear",
-        "room-shape-card-L",
-        "room-shape-card-U",
-      ]);
-      expect(rowSpread(layout), detail).toBeLessThanOrEqual(
-        LAYOUT_TOLERANCE_PX,
-      );
-      for (const [index, card] of layout.cards.entries()) {
-        if (index === 0) continue;
-        expect(card.left, detail).toBeGreaterThan(
-          nth(layout.cards, index - 1).right,
-        );
-      }
-      const column = unionOf(layout.cards);
-      expect(width(column), detail).toBeLessThanOrEqual(
-        SHAPE_COLUMN_MAX_PX + LAYOUT_TOLERANCE_PX,
-      );
-      expect(
-        Math.abs(centreX(column) - layout.bodyContentCentreX),
-        detail,
-      ).toBeLessThanOrEqual(LAYOUT_TOLERANCE_PX);
-      for (const card of layout.glyphsAndNames) {
-        expect(card.glyphBottom, detail).toBeLessThanOrEqual(
-          card.nameTop + LAYOUT_TOLERANCE_PX,
-        );
-      }
-    });
-
-    test(`Continue is right-aligned in the footer, 52 px tall and narrower than it; the U card draws no refusal and enables Continue, in ${locale}`, async ({
-      page,
-    }) => {
-      await openRoom(page, locale);
-      const layout = await readShapeStep(page);
-      const detail = JSON.stringify(layout);
-
-      expect(layout.continueBox.right, detail).toBeCloseTo(
-        layout.footerContentRight,
-        0,
-      );
-      expect(height(layout.continueBox), detail).toBeCloseTo(CTA_HEIGHT_PX, 0);
-      expect(width(layout.continueBox), detail).toBeLessThan(
-        layout.footerContentWidth,
-      );
-
-      // Restated at M7B U6 S1 (census E1): the approved policy builds the U, so its card draws no
-      // refusal and Continue leads on.
-      await page.getByTestId("room-shape-card-U").click();
-      await expect(page.getByTestId("room-shape-refusal")).toHaveCount(0);
-      await expect(continueButton(page)).toBeEnabled();
-    });
-  }
-});
-
-// ===========================================================================================
-// Criterion 6 — D1B.
-// ===========================================================================================
-
-test.describe("criterion 6: D1B", () => {
-  for (const locale of LOCALES) {
-    for (const state of ONE_B_STATES) {
-      test(`${state.name} in ${locale}: a form column of at most 520 px, 56 px from a plan panel that fills the body's height, fields in one row in field order, the toggle above them`, async ({
-        page,
-      }) => {
-        await openRoom(page, locale, state.query);
-        await expect(page.getByTestId("room-lengths-hint")).toBeVisible();
-        // 1B has no lengths, so there is no drawing yet — only the measured box.
-        await expect(page.getByTestId("room-plan-box")).toHaveAttribute(
-          "data-plan-measured",
-          "true",
-        );
-
-        const layout = await readDimensionsLayout(page);
-        const detail = JSON.stringify(layout);
-
-        expect(width(layout.fields), detail).toBeLessThanOrEqual(
-          FORM_COLUMN_MAX_PX + LAYOUT_TOLERANCE_PX,
-        );
-        expect(width(layout.chips), detail).toBeLessThanOrEqual(
-          FORM_COLUMN_MAX_PX + LAYOUT_TOLERANCE_PX,
-        );
-        expect(
-          Math.abs(layout.plan.left - layout.fields.right - COLUMN_GAP_PX),
-          detail,
-        ).toBeLessThanOrEqual(LAYOUT_TOLERANCE_PX);
-        expect(
-          Math.abs(layout.plan.bottom - layout.bodyContentBottom),
-          detail,
-        ).toBeLessThanOrEqual(LAYOUT_TOLERANCE_PX);
-        expect(width(layout.plan), detail).toBeLessThanOrEqual(
-          PLAN_PANEL_MAX_PX + LAYOUT_TOLERANCE_PX,
-        );
-
-        expect(layout.fieldOrder, detail).toEqual([
-          ...FIELD_ORDER[state.shape],
-        ]);
-        const labelTops = layout.labels.map((label) => label.top);
-        expect(
-          Math.max(...labelTops) - Math.min(...labelTops),
-          detail,
-        ).toBeLessThanOrEqual(LAYOUT_TOLERANCE_PX);
-        for (const [index, label] of layout.labels.entries()) {
-          if (index === 0) continue;
-          expect(label.left, detail).toBeGreaterThan(
-            nth(layout.labels, index - 1).left,
-          );
-        }
-
-        if (!DRAWS_THE_CORNER_TOGGLE[state.shape]) {
-          expect(layout.corner, detail).toBeNull();
-        } else {
-          expect(layout.corner, detail).not.toBeNull();
-          expect(
-            present(layout.corner, "the corner toggle").bottom,
-            detail,
-          ).toBeLessThanOrEqual(Math.min(...labelTops) + LAYOUT_TOLERANCE_PX);
-        }
-      });
-    }
-  }
-});
-
-// ===========================================================================================
-// Criterion 7 — the large live plan is fitted to the box it measures.
-// ===========================================================================================
-
-test.describe("criterion 7: the large live plan", () => {
-  for (const room of FITTED_ROOMS) {
-    test(`${room.name}: fitted to the measured box on its binding axis, one scale for every wall, 26 px walls and 14 px labels inside the box and off every bar`, async ({
-      page,
-    }) => {
-      await openRoom(page, "ro", room.query);
-      await expectMeasuredPlan(page);
-
-      const drawing = await readPlanDrawing(page);
-      expectTheDesktopDrawingFitted(drawing, room.wallsMm);
-    });
-  }
-
-  test("a typed length redraws at the same box, and the fit holds", async ({
-    page,
-  }) => {
-    await openRoom(page, "ro", TYPED_L_ROOM.query);
-    await expectMeasuredPlan(page);
-    const before = await readPlanDrawing(page);
-
-    const wallA = page.getByTestId("room-length-wallA");
-    await wallA.fill("");
-    await wallA.pressSequentially("5200");
-    await expect(page.getByTestId("room-plan-label-A")).toContainText("5200");
-
-    const after = await readPlanDrawing(page);
-    expect(after.boxWidth, JSON.stringify({ before, after })).toBeCloseTo(
-      before.boxWidth,
-      1,
-    );
-    expect(after.boxHeight).toBeCloseTo(before.boxHeight, 1);
-    expectTheDesktopDrawingFitted(after, { A: 5200, B: TYPED_L_ROOM.wallB });
-  });
-
-  test("a resize from 1440 to 1100 wide redraws at the new box, and the fit holds", async ({
-    page,
-  }) => {
-    await openRoom(page, "ro", TYPED_L_ROOM.query);
-    await expectMeasuredPlan(page);
-    const wide = await readPlanDrawing(page);
-
-    await page.setViewportSize({ width: 1100, height: DESKTOP.height });
-    await expect
-      .poll(async () => (await readPlanDrawing(page)).boxWidth)
-      .toBeLessThan(wide.boxWidth - 100);
-    await expect
-      .poll(async () => {
-        const drawing = await readPlanDrawing(page);
-        return Math.abs(drawing.svgWidth - drawing.boxWidth);
-      })
-      .toBeLessThanOrEqual(LAYOUT_TOLERANCE_PX);
-
-    expectTheDesktopDrawingFitted(await readPlanDrawing(page), {
-      A: TYPED_L_ROOM.wallA,
-      B: TYPED_L_ROOM.wallB,
-    });
-  });
-});
-
-// ===========================================================================================
-// Criterion 8 — nothing sized for another box is ever shown.
-// ===========================================================================================
-
-test.describe("criterion 8: nothing sized for another box is shown", () => {
-  test("at 1440 px, at first load and after a reload, the drawing is measured and box-sized within a bounded pre-hydration window and on every paint after it", async ({
-    page,
-  }) => {
-    await recordPlanPaints(page);
-    await openRoom(page, "ro", TYPED_L_ROOM.query);
-    await expectMeasuredPlan(page);
-    const firstLoad = await readPlanPaints(page);
-
-    await page.reload();
-    await expectMeasuredPlan(page);
-    const afterReload = await readPlanPaints(page);
-
-    for (const [load, paints] of [
-      ["first load", firstLoad],
-      ["after reload", afterReload],
-    ] as const) {
-      const detail = JSON.stringify(paints);
-      const windowLength = paints.findIndex(isMeasuredAndBoxSized);
-      test.info().annotations.push({
-        type: "pre-hydration paints",
-        description: `${load}: ${String(windowLength)} of ${String(paints.length)}`,
-      });
-
-      // The server cannot know the viewport and the phone's server render must stay byte-identical, so a
-      // desktop load always paints the phone-sized drawing first; see ADR 0139 d11.
-      expect(
-        windowLength,
-        `${load} never converged: ${detail}`,
-      ).toBeGreaterThanOrEqual(0);
-      expect(windowLength, `${load}: ${detail}`).toBeLessThanOrEqual(
-        MAX_PRE_HYDRATION_PLAN_PAINTS,
-      );
-      expect(
-        paints
-          .slice(0, windowLength)
-          .filter((paint) => paint.measured !== "false"),
-        `${load}: a pre-hydration paint that is not the phone render: ${detail}`,
-      ).toEqual([]);
-      expect(
-        paints
-          .slice(windowLength)
-          .filter((paint) => !isMeasuredAndBoxSized(paint)),
-        `${load}: a paint after convergence is unmeasured or not box-sized: ${detail}`,
-      ).toEqual([]);
-    }
-  });
-
-  test("at 390 px the plan never enters fill mode, at first load or after a reload", async ({
-    page,
-  }) => {
-    await page.setViewportSize(PHONE);
-    await recordPlanPaints(page);
-    await openRoom(page, "ro", TYPED_L_ROOM.query);
-    await expect(page.getByTestId("room-plan-label-A")).toBeVisible();
-    const firstLoad = await readPlanPaints(page);
-
-    await page.reload();
-    await expect(page.getByTestId("room-plan-label-A")).toBeVisible();
-    const afterReload = await readPlanPaints(page);
-
-    for (const paints of [firstLoad, afterReload]) {
-      const detail = JSON.stringify(paints);
-      expect(paints.length, detail).toBeGreaterThan(0);
-      expect(
-        paints.filter((paint) => paint.measured !== "false"),
-        detail,
-      ).toEqual([]);
-      expect(
-        paints.filter((paint) => paint.inlineHeight === ""),
-        detail,
-      ).toEqual([]);
-    }
-  });
-});
-
-// ===========================================================================================
-// Criterion 9 — never a throw, and never a wider document.
-// ===========================================================================================
-
-test.describe("criterion 9: never a throw", () => {
-  test("at 900 x 400 the page raises no error, the drawing stays inside its clipping box and the document is no wider than the viewport", async ({
-    page,
-  }) => {
-    const pageErrors = recordPageErrors(page);
-    await page.setViewportSize({ width: 900, height: 400 });
-    await openRoom(page, "ro", TYPED_L_ROOM.query);
-    await expectMeasuredPlan(page);
-
-    const drawing = await readPlanDrawing(page);
-    expect(drawing.overflow, JSON.stringify(drawing)).toBe("hidden");
-    expect(await documentScrollsSideways(page)).toBe(false);
-    expect(pageErrors).toEqual([]);
-  });
-
-  test("a box held below the desktop minimum is drawn at the minimum and clipped, with no error and no wider document", async ({
-    page,
-  }) => {
-    const pageErrors = recordPageErrors(page);
-    await openRoom(page, "ro", TYPED_L_ROOM.query);
-    await expectMeasuredPlan(page);
-
-    // **The floor cannot be reached by a viewport alone**: `.planCard` spans every row of the form
-    // column's grid, so the box is never shorter than the column it stands beside — measured
-    // 188 x 259 px at 900 x 400, against the desktop set's 26 x 74 minimum. The box is
-    // therefore held under the minimum here, in the page, to exercise the floor D6 e promises.
-    const shortBoxPx = DESKTOP_MINIMUM_BOX_HEIGHT_PX - 30;
-    await page.addStyleTag({
-      content: `[data-testid="room-plan-box"] { flex: 0 0 auto !important; height: ${String(shortBoxPx)}px !important; }`,
-    });
-    await expect
-      .poll(async () => (await readPlanDrawing(page)).boxHeight)
-      .toBeLessThan(DESKTOP_MINIMUM_BOX_HEIGHT_PX);
-    await expect
-      .poll(async () => (await readPlanDrawing(page)).svgHeight)
-      .toBeGreaterThanOrEqual(DESKTOP_MINIMUM_BOX_HEIGHT_PX);
-
-    const drawing = await readPlanDrawing(page);
-    expect(drawing.svgHeight, JSON.stringify(drawing)).toBeGreaterThan(
-      drawing.boxHeight,
-    );
-    expect(drawing.overflow).toBe("hidden");
-    expect(await documentScrollsSideways(page)).toBe(false);
-    expect(pageErrors).toEqual([]);
-  });
-});
-
-// ===========================================================================================
-// Criterion 10 — D1C.
-// ===========================================================================================
-
-test.describe("criterion 10: D1C", () => {
-  for (const locale of LOCALES) {
-    test(`${FRAME_ONE_C_ROOM.name} in ${locale}: wall B red in its box, label and plan; the reason below the row, spanning it; then the clause, the card and the note; Continue disabled`, async ({
-      page,
-    }) => {
-      await openRoom(page, locale, FRAME_ONE_C_ROOM.query);
-      await expect(roomScreen(page)).toHaveAttribute(
-        "data-room-substate",
-        "1C",
-      );
-      await expectMeasuredPlan(page);
-
-      const red = await readWallBRefusalPaint(page);
-      const redDetail = JSON.stringify(red);
-      expect(red.inputInvalid, redDetail).toBe("true");
-      expect(red.labelColour, redDetail).toBe(red.refusal);
-      expect(red.boxBorderColour, redDetail).toBe(red.refusal);
-      expect(red.planWallFill, redDetail).toBe(red.refusal);
-      expect(red.planLabelColour, redDetail).toBe(red.refusal);
-      expect(red.otherPlanWallsMarked, redDetail).toEqual([]);
-
-      const column = await readOneCColumn(page);
-      const detail = JSON.stringify(column);
-      expect(column.reasons.length, detail).toBe(1);
-      const reason = nth(column.reasons, 0);
-      expect(reason.top, detail).toBeGreaterThanOrEqual(
-        column.fieldRowBottom - LAYOUT_TOLERANCE_PX,
-      );
-      expect(
-        Math.abs(reason.left - column.firstFieldLeft),
-        detail,
-      ).toBeLessThanOrEqual(LAYOUT_TOLERANCE_PX);
-      expect(
-        Math.abs(reason.right - column.lastFieldRight),
-        detail,
-      ).toBeLessThanOrEqual(LAYOUT_TOLERANCE_PX);
-      expect(column.clause, detail).not.toBeNull();
-      expect(column.card, detail).not.toBeNull();
-      expect(column.note, detail).not.toBeNull();
-      expect(
-        present(column.clause, "the clause").top,
-        detail,
-      ).toBeGreaterThanOrEqual(reason.bottom);
-      expect(
-        present(column.card, "the card").top,
-        detail,
-      ).toBeGreaterThanOrEqual(present(column.clause, "the clause").bottom);
-      expect(
-        present(column.note, "the note").top,
-        detail,
-      ).toBeGreaterThanOrEqual(present(column.card, "the card").bottom);
-      await expect(continueButton(page)).toBeDisabled();
-    });
-
-    for (const viewport of [DESKTOP, SHORT_DESKTOP]) {
-      test(`${WORST_CASE_ROOM.name} at ${String(viewport.width)} x ${String(viewport.height)} in ${locale}: every reason under the row, every field and Continue reachable, the footer fixed, nothing sideways`, async ({
-        page,
-      }) => {
-        await page.setViewportSize(viewport);
-        await openRoom(page, locale, WORST_CASE_ROOM.query);
-        await expect(
-          page.getByTestId("room-length-reason-height"),
-        ).toBeVisible();
-
-        const column = await readOneCColumn(page);
-        const detail = JSON.stringify(column);
-        expect(column.reasons.length, detail).toBe(3);
-        for (const reason of column.reasons) {
-          expect(reason.top, detail).toBeGreaterThanOrEqual(
-            column.fieldRowBottom - LAYOUT_TOLERANCE_PX,
-          );
-          expect(
-            Math.abs(reason.left - column.firstFieldLeft),
-            detail,
-          ).toBeLessThanOrEqual(LAYOUT_TOLERANCE_PX);
-          expect(
-            Math.abs(reason.right - column.lastFieldRight),
-            detail,
-          ).toBeLessThanOrEqual(LAYOUT_TOLERANCE_PX);
-        }
-
-        const footerBefore = await footerBox(page);
-        await expectEveryTargetReachable(page);
-        const footerAfter = await footerBox(page);
-        expect(
-          footerAfter,
-          JSON.stringify({ footerBefore, footerAfter }),
-        ).toEqual(footerBefore);
-        expect(footerAfter.bottom).toBeCloseTo(viewport.height, 0);
-      });
-    }
-  }
-});
-
-// ===========================================================================================
-// Criterion 12 — the card is the chip.
-// ===========================================================================================
-
-test.describe("criterion 12: the suggestion card is the linear chip", () => {
-  test("activating the card settles the same query and the same fields as the chip, lands on 1D, focuses the chip, and writes and composes nothing", async ({
-    browser,
-  }) => {
-    const byCard = await settleFromFrameRoom(browser, (page) =>
-      page.getByTestId("room-suggestion-action").click(),
-    );
-    const byChip = await settleFromFrameRoom(browser, (page) =>
-      page.getByTestId("room-shape-chip-control-linear").click(),
-    );
-    const detail = JSON.stringify({ byCard, byChip });
-
-    expect(byCard.query, detail).toEqual(byChip.query);
-    expect(byCard.query, detail).toEqual(
-      canonicalQuery(FRAME_ONE_C_ROOM.asLinearQuery),
-    );
-    expect(byCard.substate, detail).toBe("1D");
-    expect(byCard.fields, detail).toEqual(FRAME_ONE_C_ROOM.typed);
-    expect(byCard.fields, detail).toEqual(byChip.fields);
-    expect(byCard.focusedTestId, detail).toBe("room-shape-chip-control-linear");
-    expect(byCard.designWrites, detail).toEqual([]);
-    expect(byCard.everComposed, detail).toBe(false);
-  });
-
-  test("activated from the keyboard, the card moves focus to the linear chip, never to the body", async ({
-    browser,
-  }) => {
-    const byKeyboard = await settleFromFrameRoom(browser, async (page) => {
-      await page.getByTestId("room-suggestion-action").focus();
-      await page.keyboard.press("Enter");
-    });
-    const detail = JSON.stringify(byKeyboard);
-
-    expect(byKeyboard.focusedTestId, detail).toBe(
-      "room-shape-chip-control-linear",
-    );
-    expect(byKeyboard.substate, detail).toBe("1D");
-    expect(byKeyboard.designWrites, detail).toEqual([]);
-  });
-});
-
-// ===========================================================================================
-// Criterion 14 — desktop-only is layout-only.
-// ===========================================================================================
-
-test.describe("criterion 14: desktop-only is layout-only", () => {
-  test("at 390 x 844 the Sugestii card has no box and no tab stop while the clause shows as today; at 1440 the same walk reaches the card", async ({
-    page,
-  }) => {
-    await page.setViewportSize(PHONE);
-    await openRoom(page, "ro", FRAME_ONE_C_ROOM.query);
-    await expect(page.getByTestId("room-linear-suggestion")).toBeVisible();
-
-    expect(
-      await page.getByTestId("room-suggestion-card").boundingBox(),
-    ).toBeNull();
-    await expect(page.getByTestId("room-suggestion-card")).toBeHidden();
-    const phoneStops = await tabStops(page);
-    expect(phoneStops, JSON.stringify(phoneStops)).not.toContain(
-      "room-suggestion-action",
-    );
-    // The walk is not vacuous: it reaches the controls on either side of the card.
-    expect(phoneStops).toContain("room-length-height");
-    expect(phoneStops).toContain("room-back");
-
-    await page.setViewportSize(DESKTOP);
-    await page.reload();
-    await expect(page.getByTestId("room-suggestion-card")).toBeVisible();
-    expect(await tabStops(page)).toContain("room-suggestion-action");
-  });
-
-  test("at 390 x 844 the 1F plan aside has no box and is not visible; at 1440 it is drawn", async ({
-    page,
-  }) => {
-    test.setTimeout(COMPOSE_TIMEOUT_MS);
-    await page.setViewportSize(PHONE);
-    const heldWrites = await holdDesignWrites(page);
-    try {
-      await openRoom(page, "ro", TYPED_L_ROOM.query);
-      await composeAndHold(page);
-
-      expect(
-        await page.getByTestId("room-compose-plan").boundingBox(),
-      ).toBeNull();
-      await expect(page.getByTestId("room-compose-plan")).toBeHidden();
-
-      await page.setViewportSize(DESKTOP);
-      await expect(page.getByTestId("room-compose-plan")).toBeVisible();
-    } finally {
-      await heldWrites.release();
-    }
-  });
-});
-
-// ===========================================================================================
-// Criterion 15 — D1F.
-// ===========================================================================================
-
-test.describe("criterion 15: D1F", () => {
-  for (const locale of LOCALES) {
-    test(`in ${locale}: the steps column beside the room's own plan, the labels 1D showed and nothing marked, no drawn body, the form unmounted rather than hidden, and the composition title`, async ({
-      page,
-    }) => {
-      test.setTimeout(COMPOSE_TIMEOUT_MS);
-      const heldWrites = await holdDesignWrites(page);
-      try {
-        await openRoom(page, locale, TYPED_L_ROOM.query);
-        await expectMeasuredPlan(page);
-        const labelsAtOneD = await planLabelTexts(page);
-
-        await composeAndHold(page);
-        await expectMeasuredPlan(page);
-
-        const layout = await readComposeLayout(page);
-        const detail = JSON.stringify(layout);
-        expect(width(layout.steps), detail).toBeLessThanOrEqual(
-          STEPS_COLUMN_MAX_PX + LAYOUT_TOLERANCE_PX,
-        );
-        expect(width(layout.panel), detail).toBeLessThanOrEqual(
-          COMPOSE_PANEL_MAX_PX + LAYOUT_TOLERANCE_PX,
-        );
-        expect(
-          Math.abs(layout.panel.left - layout.steps.right - COLUMN_GAP_PX),
-          detail,
-        ).toBeLessThanOrEqual(LAYOUT_TOLERANCE_PX);
-
-        expect(await planLabelTexts(page), detail).toEqual(labelsAtOneD);
-        const drawing = await readPlanDrawing(page);
-        expect(drawing.walls.map((wall) => wall.marked)).toEqual([
-          "false",
-          "false",
-        ]);
-        expect(drawing.labels.map((label) => label.marked)).toEqual([
-          "false",
-          "false",
-        ]);
-        expect(layout.canvasCount, detail).toBe(0);
-        await expect(page.getByTestId("room-fields")).toHaveCount(0);
-
-        await expectTheTopBarOfD1A(page, {
-          locale,
-          title: titlesFor(locale).room.compose.title,
-        });
-      } finally {
-        await heldWrites.release();
-      }
-    });
-  }
-});
-
-// ===========================================================================================
-// Criterion 16 — help targets.
-// ===========================================================================================
-
-test.describe("criterion 16: help targets", () => {
-  for (const viewport of [DESKTOP, FIRST_DESKTOP_WIDTH]) {
-    for (const locale of LOCALES) {
-      for (const shape of ["linear", "L", "U"] as const) {
-        test(`a ${shape} room at ${String(viewport.width)} x ${String(viewport.height)} in ${locale}: each wall's help is a 44 px square whose hit area covers no input`, async ({
-          page,
-        }) => {
-          await page.setViewportSize(viewport);
-          await openRoom(page, locale, ONE_B_QUERY[shape]);
-          await expect(page.getByTestId("room-lengths-hint")).toBeVisible();
-
-          const layout = await helpTargetsAndInputs(page);
-          const detail = JSON.stringify(layout);
-          expect(layout.targets.length, detail).toBe(
-            FIELD_ORDER[shape].length - 1,
-          );
-          for (const target of layout.targets) {
-            expect(width(target.box), detail).toBeCloseTo(TOUCH_TARGET_PX, 0);
-            expect(height(target.box), detail).toBeCloseTo(TOUCH_TARGET_PX, 0);
-            expect(width(target.hit), detail).toBeGreaterThanOrEqual(
-              TOUCH_TARGET_PX - SCAN_STEP_PX,
-            );
-            expect(height(target.hit), detail).toBeGreaterThanOrEqual(
-              TOUCH_TARGET_PX - SCAN_STEP_PX,
-            );
-            expect(
-              layout.inputs.filter((input) => overlaps(target.hit, input.box)),
-              detail,
-            ).toEqual([]);
-          }
-        });
-      }
-    }
-  }
-});
-
-// ===========================================================================================
-// Criterion 17 — nothing sideways.
-// ===========================================================================================
-
-test.describe("criterion 17: nothing scrolls sideways", () => {
-  const STATES = [
-    { name: "1A", query: "" },
-    { name: "1B, an L room", query: "shape=L&direction=left" },
-    { name: "1B, a straight room", query: "shape=linear" },
-    { name: "1B, a U room", query: "shape=U&direction=left" },
-    { name: "1C's worst case", query: WORST_CASE_ROOM.query },
-  ];
-
-  for (const locale of LOCALES) {
-    for (const state of STATES) {
-      test(`${state.name} in ${locale}, at 900, 1280, 1440 and 1920 wide`, async ({
-        page,
-      }) => {
-        await openRoom(page, locale, state.query);
-        await expectNothingSidewaysAtEveryWidth(page);
-      });
-    }
-
-    test(`1F in ${locale}, at 900, 1280, 1440 and 1920 wide`, async ({
-      page,
-    }) => {
-      test.setTimeout(COMPOSE_TIMEOUT_MS);
-      const heldWrites = await holdDesignWrites(page);
-      try {
-        await openRoom(page, locale, TYPED_L_ROOM.query);
-        await composeAndHold(page);
-        await expectNothingSidewaysAtEveryWidth(page);
-      } finally {
-        await heldWrites.release();
-      }
-    });
-  }
-});
-
-// ===========================================================================================
 // Shared assertions — criteria that more than one sub-state owes.
 // ===========================================================================================
 
-async function expectTheTopBarOfD1A(
+export async function expectTheTopBarOfD1A(
   page: Page,
   expected: { readonly locale: Locale; readonly title: string },
 ): Promise<void> {
@@ -1034,9 +262,9 @@ async function expectTheTopBarOfD1A(
 
 /** Rendering noise on a flat fill: the band is one colour with no gradient and no image, so anything
  *  past this is a painted thing rather than antialiasing. */
-const PAPER_TOLERANCE = 3;
+export const PAPER_TOLERANCE = 3;
 
-function expectTheDesktopDrawingFitted(
+export function expectTheDesktopDrawingFitted(
   drawing: PlanDrawing,
   wallsMm: Readonly<Partial<Record<"A" | "B" | "C", number>>>,
 ): void {
@@ -1089,7 +317,7 @@ function expectTheDesktopDrawingFitted(
 
 /** Owner ruling R4: one px/mm for every drawn wall, ±1 px over the longest wall. The length a wall
  *  runs is its long side less nothing — a wall down the screen starts under wall A's thickness. */
-function expectOneScaleForEveryWall(
+export function expectOneScaleForEveryWall(
   drawing: PlanDrawing,
   wallsMm: Readonly<Partial<Record<"A" | "B" | "C", number>>>,
 ): void {
@@ -1110,7 +338,9 @@ function expectOneScaleForEveryWall(
   }
 }
 
-async function expectNothingSidewaysAtEveryWidth(page: Page): Promise<void> {
+export async function expectNothingSidewaysAtEveryWidth(
+  page: Page,
+): Promise<void> {
   for (const viewport of SIDEWAYS_VIEWPORTS) {
     await page.setViewportSize(viewport);
     const overflow = await readSidewaysOverflow(page);
@@ -1129,7 +359,7 @@ async function expectNothingSidewaysAtEveryWidth(page: Page): Promise<void> {
 /** Every chip, field, reason, note and *Continuă* can be scrolled to and tapped at its centre, and
  *  nothing in the form column scrolls sideways — `room-length-fields-fit.e2e.spec.ts`'s reach claim,
  *  at desktop. */
-async function expectEveryTargetReachable(page: Page): Promise<void> {
+export async function expectEveryTargetReachable(page: Page): Promise<void> {
   const column = await formColumnScroll(page);
   const detail = JSON.stringify(column);
   expect(column.scrollWidth, detail).toBeLessThanOrEqual(column.clientWidth);
@@ -1163,35 +393,39 @@ async function expectEveryTargetReachable(page: Page): Promise<void> {
 // Navigation — how the tests reach a state. No assertion lives below this line.
 // ===========================================================================================
 
-const COMPOSE_TIMEOUT_MS = 90_000;
+export const COMPOSE_TIMEOUT_MS = 90_000;
 
-function roomScreen(page: Page): Locator {
+export function roomScreen(page: Page): Locator {
   return page.locator("main[data-room-substate]");
 }
 
-function continueButton(page: Page): Locator {
+export function continueButton(page: Page): Locator {
   return page.getByTestId("room-continue");
 }
 
-async function openRoom(page: Page, locale: Locale, query = ""): Promise<void> {
+export async function openRoom(
+  page: Page,
+  locale: Locale,
+  query = "",
+): Promise<void> {
   const search = query === "" ? "" : `?${query}`;
   await page.goto(`/${locale}/configurator/room${search}`);
   await roomScreen(page).waitFor();
 }
 
-async function expectMeasuredPlan(page: Page): Promise<void> {
+export async function expectMeasuredPlan(page: Page): Promise<void> {
   const box = page.getByTestId("room-plan-box");
   await expect(box).toHaveAttribute("data-plan-measured", "true");
   await expect(box.locator("rect").first()).toBeAttached();
 }
 
-interface HeldWrites {
+export interface HeldWrites {
   readonly release: () => Promise<void>;
 }
 
 /** Holds every `POST /api/designs` — the mint that ends composition — so 1F stays on screen for as
  *  long as a test measures it, and aborts them on release so no row is ever written. */
-async function holdDesignWrites(page: Page): Promise<HeldWrites> {
+export async function holdDesignWrites(page: Page): Promise<HeldWrites> {
   const held: Route[] = [];
   const isDesignMint = (url: URL) => url.pathname === "/api/designs";
   await page.route(isDesignMint, async (route) => {
@@ -1213,7 +447,7 @@ async function holdDesignWrites(page: Page): Promise<HeldWrites> {
 
 /** From a valid room at 1D: *Continuă*, then wait for the composition to finish while its write is
  *  held. */
-async function composeAndHold(page: Page): Promise<void> {
+export async function composeAndHold(page: Page): Promise<void> {
   await continueButton(page).click();
   await expect(page.getByTestId("room-compose-notice")).toHaveAttribute(
     "data-compose-phase",
@@ -1222,7 +456,7 @@ async function composeAndHold(page: Page): Promise<void> {
   );
 }
 
-interface SettledShapeChange {
+export interface SettledShapeChange {
   readonly query: string;
   readonly substate: string | null;
   readonly fields: Readonly<Record<string, string>>;
@@ -1233,7 +467,7 @@ interface SettledShapeChange {
 
 /** Opens frame D1C's room in a fresh page, activates something, and reads the state it settled in:
  *  the canonical query, the fields as typed, where focus went, and anything written or composed. */
-async function settleFromFrameRoom(
+export async function settleFromFrameRoom(
   browser: Browser,
   activate: (page: Page) => Promise<void>,
 ): Promise<SettledShapeChange> {
@@ -1285,14 +519,14 @@ async function settleFromFrameRoom(
 }
 
 /** A query with its keys sorted, so two settles are compared by content rather than key order. */
-function canonicalQuery(search: string): string {
+export function canonicalQuery(search: string): string {
   const params = new URLSearchParams(search);
   params.sort();
   return params.toString();
 }
 
 /** The `data-testid` (or tag) of each stop a keyboard walk from the top of the page lands on. */
-async function tabStops(page: Page): Promise<readonly string[]> {
+export async function tabStops(page: Page): Promise<readonly string[]> {
   await page.evaluate(() => {
     (document.activeElement as HTMLElement | null)?.blur();
   });
@@ -1310,13 +544,13 @@ async function tabStops(page: Page): Promise<readonly string[]> {
 }
 
 /** More than one pass over 1C's controls, so a stop that exists is met. */
-const MAX_TAB_STOPS = 30;
+export const MAX_TAB_STOPS = 30;
 
 // ===========================================================================================
 // Readouts — measurement only, taken in the page.
 // ===========================================================================================
 
-interface Rect {
+export interface Rect {
   readonly left: number;
   readonly top: number;
   readonly right: number;
@@ -1324,32 +558,32 @@ interface Rect {
 }
 
 /** The item a readout needs, or a thrown error naming it — never a silent `undefined`. */
-function nth<T>(items: readonly T[], index: number): T {
+export function nth<T>(items: readonly T[], index: number): T {
   const item = items[index];
   if (item === undefined)
     throw new Error(`no item ${String(index)} of ${String(items.length)}`);
   return item;
 }
 
-function present<T>(value: T | null | undefined, what: string): T {
+export function present<T>(value: T | null | undefined, what: string): T {
   if (value === null || value === undefined)
     throw new Error(`missing: ${what}`);
   return value;
 }
 
-function width(rect: Rect): number {
+export function width(rect: Rect): number {
   return rect.right - rect.left;
 }
 
-function height(rect: Rect): number {
+export function height(rect: Rect): number {
   return rect.bottom - rect.top;
 }
 
-function centreX(rect: Rect): number {
+export function centreX(rect: Rect): number {
   return (rect.left + rect.right) / 2;
 }
 
-function unionOf(rects: readonly Rect[]): Rect {
+export function unionOf(rects: readonly Rect[]): Rect {
   return {
     left: Math.min(...rects.map((rect) => rect.left)),
     top: Math.min(...rects.map((rect) => rect.top)),
@@ -1358,7 +592,7 @@ function unionOf(rects: readonly Rect[]): Rect {
   };
 }
 
-function overlaps(first: Rect, second: Rect): boolean {
+export function overlaps(first: Rect, second: Rect): boolean {
   return (
     first.left < second.right &&
     second.left < first.right &&
@@ -1368,7 +602,7 @@ function overlaps(first: Rect, second: Rect): boolean {
 }
 
 /** Half a pixel off every side: a label *touching* a bar at a shared sub-pixel edge is not over it. */
-function shrunk(rect: Rect): Rect {
+export function shrunk(rect: Rect): Rect {
   return {
     left: rect.left + 0.5,
     top: rect.top + 0.5,
@@ -1378,12 +612,12 @@ function shrunk(rect: Rect): Rect {
 }
 
 /** The spread of the cards' tops — zero when they stand in one row. */
-function rowSpread(layout: ShapeStepLayout): number {
+export function rowSpread(layout: ShapeStepLayout): number {
   const tops = layout.cards.map((card) => card.top);
   return Math.max(...tops) - Math.min(...tops);
 }
 
-interface ShapeStepLayout {
+export interface ShapeStepLayout {
   readonly cardIds: readonly string[];
   readonly cards: readonly Rect[];
   readonly glyphsAndNames: readonly {
@@ -1396,7 +630,7 @@ interface ShapeStepLayout {
   readonly footerContentWidth: number;
 }
 
-async function readShapeStep(page: Page): Promise<ShapeStepLayout> {
+export async function readShapeStep(page: Page): Promise<ShapeStepLayout> {
   return page.getByTestId("room-shapes").evaluate((shapes) => {
     const need = <T>(value: T | null | undefined, what: string): T => {
       if (value === null || value === undefined)
@@ -1447,7 +681,7 @@ async function readShapeStep(page: Page): Promise<ShapeStepLayout> {
   });
 }
 
-interface DimensionsLayout {
+export interface DimensionsLayout {
   readonly chips: Rect;
   readonly corner: Rect | null;
   readonly fields: Rect;
@@ -1460,7 +694,9 @@ interface DimensionsLayout {
   readonly footerContentWidth: number;
 }
 
-async function readDimensionsLayout(page: Page): Promise<DimensionsLayout> {
+export async function readDimensionsLayout(
+  page: Page,
+): Promise<DimensionsLayout> {
   return page.getByTestId("room-fields").evaluate((fields) => {
     const need = <T>(value: T | null | undefined, what: string): T => {
       if (value === null || value === undefined)
@@ -1512,7 +748,7 @@ async function readDimensionsLayout(page: Page): Promise<DimensionsLayout> {
   });
 }
 
-interface OneCColumn {
+export interface OneCColumn {
   readonly fieldRowBottom: number;
   readonly firstFieldLeft: number;
   readonly lastFieldRight: number;
@@ -1523,7 +759,7 @@ interface OneCColumn {
 }
 
 /** 1C's column: where the row of field boxes ends, the reasons under it, and what follows. */
-async function readOneCColumn(page: Page): Promise<OneCColumn> {
+export async function readOneCColumn(page: Page): Promise<OneCColumn> {
   return page.getByTestId("room-fields").evaluate((fields) => {
     const need = <T>(value: T | null | undefined, what: string): T => {
       if (value === null || value === undefined)
@@ -1557,7 +793,7 @@ async function readOneCColumn(page: Page): Promise<OneCColumn> {
   });
 }
 
-interface WallBRefusalPaint {
+export interface WallBRefusalPaint {
   readonly refusal: string;
   readonly inputInvalid: string | null;
   readonly labelColour: string;
@@ -1567,7 +803,9 @@ interface WallBRefusalPaint {
   readonly otherPlanWallsMarked: readonly string[];
 }
 
-async function readWallBRefusalPaint(page: Page): Promise<WallBRefusalPaint> {
+export async function readWallBRefusalPaint(
+  page: Page,
+): Promise<WallBRefusalPaint> {
   return page.getByTestId("room-length-wallB").evaluate((input) => {
     const need = <T>(value: T | null | undefined, what: string): T => {
       if (value === null || value === undefined)
@@ -1615,7 +853,7 @@ async function readWallBRefusalPaint(page: Page): Promise<WallBRefusalPaint> {
   });
 }
 
-interface TopBarReadout {
+export interface TopBarReadout {
   readonly viewportWidth: number;
   readonly band: Rect;
   readonly chip: Rect;
@@ -1624,7 +862,7 @@ interface TopBarReadout {
   readonly paper: readonly [number, number, number];
 }
 
-async function readTopBar(page: Page): Promise<TopBarReadout> {
+export async function readTopBar(page: Page): Promise<TopBarReadout> {
   return page.getByTestId("top-bar-title").evaluate((title) => {
     const need = <T>(value: T | null | undefined, what: string): T => {
       if (value === null || value === undefined)
@@ -1670,17 +908,17 @@ async function readTopBar(page: Page): Promise<TopBarReadout> {
   });
 }
 
-interface PlanDrawingWall extends Rect {
+export interface PlanDrawingWall extends Rect {
   readonly id: "A" | "B" | "C";
   readonly marked: string | null;
 }
 
-interface PlanDrawingLabel extends Rect {
+export interface PlanDrawingLabel extends Rect {
   readonly fontSize: string;
   readonly marked: string | null;
 }
 
-interface PlanDrawing {
+export interface PlanDrawing {
   readonly measured: string | null;
   readonly overflow: string;
   readonly boxWidth: number;
@@ -1694,7 +932,7 @@ interface PlanDrawing {
 /** The drawing in the box's own coordinates — the padding box, which is what the SVG and the labels
  *  are positioned against. Each bar is matched to its wall through the label drawn from the same
  *  wall, in the same order (`plan-preview.tsx` maps both off one list). */
-async function readPlanDrawing(page: Page): Promise<PlanDrawing> {
+export async function readPlanDrawing(page: Page): Promise<PlanDrawing> {
   return page.getByTestId("room-plan-box").evaluate((box) => {
     const boxRect = box.getBoundingClientRect();
     const originX = boxRect.left + box.clientLeft;
@@ -1737,11 +975,11 @@ async function readPlanDrawing(page: Page): Promise<PlanDrawing> {
   });
 }
 
-async function planLabelTexts(page: Page): Promise<readonly string[]> {
+export async function planLabelTexts(page: Page): Promise<readonly string[]> {
   return page.locator("[data-testid^='room-plan-label-']").allTextContents();
 }
 
-interface PlanPaint {
+export interface PlanPaint {
   readonly measured: string | null;
   readonly svgWidth: number;
   readonly boxWidth: number;
@@ -1752,7 +990,7 @@ interface PlanPaint {
  * Records the box on every DOM change while it holds a drawn wall, including parser-inserted nodes.
  * Document-wide because a box-scoped count is blind to commit timing; see ADR 0139 d11.
  */
-async function recordPlanPaints(page: Page): Promise<void> {
+export async function recordPlanPaints(page: Page): Promise<void> {
   await page.addInitScript(() => {
     const paints: unknown[] = [];
     (window as unknown as { __planPaints: unknown[] }).__planPaints = paints;
@@ -1773,26 +1011,28 @@ async function recordPlanPaints(page: Page): Promise<void> {
   });
 }
 
-function isMeasuredAndBoxSized(paint: PlanPaint): boolean {
+export function isMeasuredAndBoxSized(paint: PlanPaint): boolean {
   return (
     paint.measured === "true" &&
     Math.abs(paint.svgWidth - paint.boxWidth) <= LAYOUT_TOLERANCE_PX
   );
 }
 
-async function readPlanPaints(page: Page): Promise<readonly PlanPaint[]> {
+export async function readPlanPaints(
+  page: Page,
+): Promise<readonly PlanPaint[]> {
   return page.evaluate(
     () => (window as unknown as { __planPaints: PlanPaint[] }).__planPaints,
   );
 }
 
-interface ComposeLayout {
+export interface ComposeLayout {
   readonly steps: Rect;
   readonly panel: Rect;
   readonly canvasCount: number;
 }
 
-async function readComposeLayout(page: Page): Promise<ComposeLayout> {
+export async function readComposeLayout(page: Page): Promise<ComposeLayout> {
   return page.getByTestId("room-compose").evaluate((compose) => {
     const need = <T>(value: T | null | undefined, what: string): T => {
       if (value === null || value === undefined)
@@ -1817,7 +1057,7 @@ async function readComposeLayout(page: Page): Promise<ComposeLayout> {
   });
 }
 
-interface SidewaysOverflow {
+export interface SidewaysOverflow {
   readonly document: {
     readonly scrollWidth: number;
     readonly clientWidth: number;
@@ -1830,7 +1070,9 @@ interface SidewaysOverflow {
 }
 
 /** The document, and every column the screen is built of — the top bar, the body and the footer. */
-async function readSidewaysOverflow(page: Page): Promise<SidewaysOverflow> {
+export async function readSidewaysOverflow(
+  page: Page,
+): Promise<SidewaysOverflow> {
   return page.evaluate(() => {
     const columns = [
       ...document.querySelectorAll("main[data-room-substate] > div"),
@@ -1849,7 +1091,7 @@ async function readSidewaysOverflow(page: Page): Promise<SidewaysOverflow> {
   });
 }
 
-async function documentScrollsSideways(page: Page): Promise<boolean> {
+export async function documentScrollsSideways(page: Page): Promise<boolean> {
   return page.evaluate(
     () =>
       document.documentElement.scrollWidth >
@@ -1857,7 +1099,7 @@ async function documentScrollsSideways(page: Page): Promise<boolean> {
   );
 }
 
-interface FormColumnScroll {
+export interface FormColumnScroll {
   readonly overflowX: string;
   readonly overflowY: string;
   readonly scrollWidth: number;
@@ -1865,7 +1107,7 @@ interface FormColumnScroll {
 }
 
 /** The first ancestor of the fields that clips or scrolls — the form column. */
-async function formColumnScroll(page: Page): Promise<FormColumnScroll> {
+export async function formColumnScroll(page: Page): Promise<FormColumnScroll> {
   return page.getByTestId("room-fields").evaluate((fields) => {
     let column: HTMLElement | null = fields.parentElement;
     while (
@@ -1885,7 +1127,7 @@ async function formColumnScroll(page: Page): Promise<FormColumnScroll> {
   });
 }
 
-async function footerBox(page: Page): Promise<Rect> {
+export async function footerBox(page: Page): Promise<Rect> {
   return continueButton(page).evaluate((cta) => {
     const need = <T>(value: T | null | undefined, what: string): T => {
       if (value === null || value === undefined)
@@ -1900,14 +1142,14 @@ async function footerBox(page: Page): Promise<Rect> {
   });
 }
 
-interface Reach {
+export interface Reach {
   readonly isTopmostAtItsCentre: boolean;
   readonly clippedPx: number;
 }
 
 /** Whether a tap at the element's centre lands on it, and how much of it its scrolling column — or,
  *  outside one, the viewport — still cuts off (`room-length-fields-fit.e2e.spec.ts`'s `reachOf`). */
-async function reachOf(target: Locator): Promise<Reach> {
+export async function reachOf(target: Locator): Promise<Reach> {
   return target.evaluate((element) => {
     const box = element.getBoundingClientRect();
     const answered = document.elementFromPoint(
@@ -1935,11 +1177,11 @@ async function reachOf(target: Locator): Promise<Reach> {
 }
 
 /** The grid the hit area is sampled on. A measured side can read short of the true one by a step. */
-const SCAN_STEP_PX = 0.5;
+export const SCAN_STEP_PX = 0.5;
 /** How far past the button's own box the grid reaches, so a widened target is not cut off by it. */
-const SCAN_MARGIN_PX = 24;
+export const SCAN_MARGIN_PX = 24;
 
-interface HelpLayout {
+export interface HelpLayout {
   readonly inputs: readonly { readonly id: string; readonly box: Rect }[];
   readonly targets: readonly {
     readonly id: string;
@@ -1950,7 +1192,7 @@ interface HelpLayout {
 
 /** Every visible input, and each help button's hit area as `elementFromPoint` answers it —
  *  `room-length-fields-fit.e2e.spec.ts`'s scan, at desktop. */
-async function helpTargetsAndInputs(page: Page): Promise<HelpLayout> {
+export async function helpTargetsAndInputs(page: Page): Promise<HelpLayout> {
   return page.evaluate(
     ({ step, margin }) => {
       const rectOf = (element: Element) => {
@@ -1994,7 +1236,7 @@ async function helpTargetsAndInputs(page: Page): Promise<HelpLayout> {
   );
 }
 
-function recordPageErrors(page: Page): readonly string[] {
+export function recordPageErrors(page: Page): readonly string[] {
   const errors: string[] = [];
   page.on("pageerror", (error) => {
     errors.push(error.message);
