@@ -169,6 +169,10 @@ status corrections, in one of these two files:
 | 136 | The boundary gate's supplier-folder check has no manifest behind it (`vi.mock` of a `design-source` path passes); `capture-reference-rig.mjs:29` names a path in `design-source/` | open.md — found 2026-10-08 by M8 8D3's combined review; no owner, no phase |
 | 137 | The boundary gate knows two driver names (`postgres`, `pg-pool`, a relative path into persistence's `node_modules` pass) | open.md — found 2026-10-08 by M8 8D3's combined review; no owner, no phase |
 | 138 | The boundary gate flags a string literal containing `import 'pg'` | open.md — found 2026-10-08 by M8 8D3's combined review; a false positive, none on the real tree; no owner |
+| 139 | The older three tables' grant tests are blind to `PUBLIC`; grant option, column grants, the database-owner gap, `CREATE`/`TEMP`, and the file's clean-code R2.1/R2.2 | open.md — found 2026-10-08 by M8 8E's QA and security review; owner the coordinator with the security reviewer; trigger the delivery milestone's launch gate |
+| 140 | CI never sets `DATABASE_URL`, so the privilege file never runs on a runner | open.md — recorded 2026-10-08 at M8 8E's close; the delivery milestone's |
+| 141 | One code-less `NeonDbError` among 150 concurrent hits, seen once | open.md — recorded 2026-10-08; not reproduced; trigger: a recurrence |
+| 142 | Four owner decisions from 8E: S2's over-count; the keyed hash at 8K's S0; the two guarded deletes at production; whether the suite reads production at all | open.md — recorded 2026-10-08; the owner's |
 
 ## 2026-09-06 audit note
 

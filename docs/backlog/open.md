@@ -2423,3 +2423,50 @@ such use exists on the real tree that anyone has recorded. No owner, no phase.
 
 **Source [m8-8d-review-combined, relayed; the reviewer ran a probe].** A false positive, not a miss. None on
 the real tree. No owner, no phase.
+
+## 139. The older three tables' grant tests are blind to `PUBLIC`, and the privilege file has further gaps — FOUND 2026-10-08 BY M8 8E's QA AND SECURITY REVIEW, OWNER THE COORDINATOR WITH THE SECURITY REVIEWER
+
+**Source [8E adjudication of QA and *the three reviews*, relayed by the coordinator].** The grant tests for
+`designs`, `schema_migrations` and `design_share_links` in `packages/persistence/tests/application-role-privileges.test.ts`
+read `role_table_grants` for `current_user`. That view does not show what `PUBLIC` holds, and the queries name no
+schema. 8E's own table was rewritten to ask the server for the effective privilege (ADR 0149 decisions 5 and 6); these
+three were not. Gathered here:
+
+- **S-R1.9:** grant option and column grants are not asked about. The shared helper learns both once, for all four
+  tables.
+- **The database-owner gap:** the guard reads `datdba` once; `memberOf` never shows `pg_database_owner`'s implicit
+  member.
+- `CREATE` on the database and `TEMP` are not asked.
+- **Clean-code R2.1 / R2.2** in that file: the `to_regclass`-skip and the grant query are repeated; the doc block's
+  placement. The file also still carries wave-history comments from before 8E.
+
+**Trigger:** the delivery milestone's launch gate. When the three tests move to effective privilege they take the
+helper under `tests/support/`.
+
+## 140. CI never sets `DATABASE_URL`, so the privilege file never runs on a runner — RECORDED 2026-10-08 AT M8 8E's CLOSE, THE DELIVERY MILESTONE'S
+
+**Source [8E adjudication, relayed].** The persistence suite's privilege file runs only where `DATABASE_URL` is set,
+which CI does not do. Criterion 7's grant half has therefore never run on a runner, and the 8E grant test has never run
+anywhere (ADR 0149, *Not proven*). Needs a database CI can reach with the application role. Owner: the delivery
+milestone.
+
+## 141. Once, one of 150 concurrent hits was rejected with a `NeonDbError` that carried no SQLSTATE — SEEN ONCE, NOT REPRODUCED, 2026-10-08
+
+**Source [m8-8e-qa, relayed; the logic reviewer's reading is src, driver 1.1.0].** 150 concurrent hits, one rejected
+with `RateLimitStoreError`, cause `{ name: "NeonDbError" }`. 12 isolated runs and three further full runs were green.
+The store constructs no `NeonDbError`; a code-less one is a rejected fetch, a non-400 status, or a 400 without a code:
+transport or proxy [inf from that reading]. It failed closed. The test now records the HTTP status. **Trigger:** a
+recurrence, which the test names. No owner until then.
+
+## 142. Four owner decisions from wave 8E are pending — RECORDED 2026-10-08
+
+1. **Rule S2's over-count** (ADR 0149 decision 3): a retried hit may count high. The architect's ruling, open to the
+   owner, to be put with the limit's "track and adjust later".
+2. **The keyed hash**, decided in 8K's S0 before an e-mail is a subject. Keyed is recommended; a key added later
+   restarts every count.
+3. **Whether the two guarded deletes at production stay.** Removing both loses nothing if the owner wants no
+   write-shaped statement sent.
+4. **Whether the persistence suite should read production at all** (the repo-root `.env.local`, `environments-and-resources.md`).
+
+Also unruled and the owner's: whether the deletion of the 3 rows QA's crashed cleanup left in the test database's
+`rate_limit_counters` was within the rules.

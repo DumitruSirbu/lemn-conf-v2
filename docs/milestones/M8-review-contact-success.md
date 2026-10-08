@@ -1113,8 +1113,8 @@ both in M9.
 | 8D | **DONE 2026-10-08, commits `7fa5258` … `9f4c123`, not pushed.** See *8D as built* and ADR 0148 Amendment A | ~~Dispatchable: restated 2026-10-07 as four slices, criteria 11–15 added (*8D, restated for dispatch*). S1 first~~ — Done. 8D2 follows |
 | 8D2 | **DONE 2026-10-08, commits `3ffad38` … `0fad22c`, not pushed.** Added the same day from 8D's visual review: the rows' second line and the bottom bar, as frames 3A and 3B draw them. See *8D2 as closed* and ADR 0148 Amendment B | ~~8D closed. One owner point: the material pill on screens 3–5~~ — Done. The pill stays the owner's question |
 | 8D3 | **DONE 2026-10-08, commits `b5aed77` … `be4ffe2`, not pushed.** The boundary gate, red at `ad535d0`, with backlog 121. See *8D3 as closed* | ~~Backlog 121 before 8E~~ — Done |
-| 8E | Stays. **Dispatched 2026-10-08** (a developer is writing `packages/persistence`; nothing else recorded here) | ~~Nothing. Dispatchable~~ — 8D3 |
-| 8I | Stays | 8E's migration number. **Dispatchable** |
+| 8E | **DONE 2026-10-08, commits `ec2f181` … `c8305b1`, not pushed.** The rate-limit store. See *8E as closed* and [ADR 0149](../decisions/0149-the-rate-limit-store-keeps-one-row-per-bucket-per-window-refuses-a-broken-promise-and-may-count-high-but-never-low-between-prunes.md). **Owner action outstanding:** apply `0007` and its grant by the runbook | ~~Dispatched~~ — Done |
+| 8I | Stays | ~~8E's migration number~~ — 8E took `0007`. **Dispatchable** |
 | 8H | Stays; Q24 settled | **Nothing. Dispatchable** |
 | 8J | ~~**Changed:** no provider adapter~~ **Restored: a Resend adapter** (owner, 2026-10-07) | **Nothing to build it. Dispatchable whole**, after 8D. Proving it end to end waits for the owner: the three variables on a deployment, and a sender the provider accepts |
 | 8F | **Changed:** identity through a port; one bucket, 20 a day per ~~address~~ **block of 256 (/24; /64 for IPv6)** (Q28 and Q32 answered) | The three red `CI=1` specs triaged; 8E. ~~**Q32** sets one number and does not block the build~~ |
@@ -3556,7 +3556,8 @@ Redis). *Tier: Full + security.*
 readers:* the slice files. *Security reading:* ADR 0019 d2, d3; ADR 0008; the migration.
 
 **Owner action after this wave:** apply `0007` and issue Q14 (ii)'s grant on preview, then
-production. The commands are prepared, not run, by an agent. **Added 2026-10-08:** then run
+production, **by [the runbook](../runbooks/applying-a-table-migration-and-its-application-role-grant.md)**
+(2026-10-08). The commands are prepared, not run, by an agent. **Added 2026-10-08:** then run
 `tests/application-role-privileges.test.ts` against that database and quote its result, with the
 `rate_limit_counters` test *run and not skipped*. Until then criterion 7's grant half is
 **written and never executed**, and the close-out says so in those words.
@@ -3927,7 +3928,92 @@ needs no new entry.
   worked case. This plan's *Owner action after this wave* and the environments guide point at
   it.
 
+#### 8E as closed, 2026-10-08
+
+**Shipped, on `m8-review-contact-success`, not pushed [coordinator ran `git log`; HEAD `c8305b1`]:** `ec2f181` S1;
+`087e09f` QA round 1 (red: F1, F2); `91be523` adjudication; `9444910` fix round (S1 refusal, F2, grant test);
+`3ad36c3` deadlock ruling; `c317371` QA's sharpened race; `33778b1` the prune's lock order; `a681234` QA round 2 (F3);
+`9f58c47` F3 ruling; `0abe863` F3 fix; `ae1a8dd` QA round 3, green, the commit the three reviewers read; `004c8a1`
+reviews ruled; `98b1f6b` review round items 1 to 4 (criterion 13); `aa8a015` item 5 (the Neon class moved); `c8305b1`
+QA round 4, green. Files under `packages/persistence/` [source-verified by reviewers]: `src/migrations/0007_create_rate_limit_counters.sql`,
+`src/rate-limit-store.ts` (the port; loads no driver), `src/neon-rate-limit-store.ts`, `src/fake-rate-limit-store.ts`,
+exports in `src/index.ts`; tests and support files as listed in the hand-over, with QA's `qa-8e-*` files.
+
+**Evidence, by who ran it.**
+
+- *Coordinator-run.* At `c8305b1`: `pnpm --filter @lemnaria/persistence run test` exit 0, 64 files, 1788 passed, 1
+  skipped; typecheck 0. At `aa8a015`: persistence typecheck 0, lint 0, web typecheck 0, `pnpm gate:boundary` 0; both
+  SQL template strings byte-identical to `ae1a8dd` (758 and 587 characters); a grep of the port and the fake for the
+  driver, the opener and the retry found no match. At `ae1a8dd`: `migrate:unattended-check` 0.
+- *QA (m8-8e-qa), live test database.* 150 concurrent hits return 1…150 once each; exactly one HTTP request for 1, 2
+  and 1000 buckets; 20 non-digest key shapes refused by code and by the constraint; prune exact at the boundary, twice
+  and concurrently. The race (16 hits listing 150 expired rows against 8 prunes, 3 rounds): 10 of 10 runs red with
+  SQLSTATE `40P01` against the unordered prune (counts 6, 3, 4, 10, 19, 8, 9, 2, 3, 6), then 30 of 30 green at
+  `33778b1`, every expired row gone. Criterion 10 live and in the fake, including two callers racing a fresh key with
+  different ends (never a mixed row). Criterion 11 over all 25 two-step and 12 seeded six-step lost-reply sequences
+  through `loseTheFirstReply`: answered ≤ stored ≤ attempts. Criterion 13: the privilege file run as a child process
+  against the test database (the role owns `designs`): every test failed at the guard, none passed or skipped; the
+  pure reasons function over all 96 fact combinations. Rows left after every run: 0 for the keys issued (1842 in the
+  last).
+- *Reviews, at `ae1a8dd`.* Logic: approve with should-fix. Clean-code: approve with should-fix. Security: approve, no
+  must-fix in code. Re-checks at `c8305b1`: all three closed their items. Logic's one open condition, the code citing
+  ADR 0149 at `neon-rate-limit-store.ts:50` and `:127`, is closed by the ADR now existing.
+
+**Incidents and corrections, plainly.**
+
+1. *The privilege test and production.* Since M2 the test sent `truncate designs`, `drop table designs`, `create table
+   privilege_probe` and two deletes of nonexistent rows at `DATABASE_URL`, which on a developer machine resolves
+   through the repo-root `.env.local` to production [doc `environments-and-resources.md:64`]. Every ordinary
+   persistence-suite run sent them; they were refused because the role is the application's. Found by the security
+   reviewer, traced by the architect, fixed in `98b1f6b`. The file now prints `reached database "lemn-conf-v2" as role
+   "app_designs"` [coordinator-run]. **Not verified:** nobody inspected the production database; "refused" is inferred
+   from the tests having passed. **Still true after the fix:** every suite run reaches production for this file with
+   catalog reads and the two guarded deletes. Security rules that acceptable; removing both loses nothing if the owner
+   wants no write-shaped statement sent. That, and the environment table's shape, are the owner's.
+2. *QA's first live run crashed its own cleanup* and left 3 rows in the test database's `rate_limit_counters`; QA
+   deleted them by era, then by key. The architect allowed the `beforeAll` on three conditions (one eras support file;
+   the removed count reported; test database only), now met. **Whether the original deletion was within the rules is
+   the owner's, and unruled.**
+3. *Seen once, not reproduced.* 1 of 150 concurrent hits rejected with `RateLimitStoreError`, cause `{ name:
+   "NeonDbError" }` with no SQLSTATE; 12 isolated runs and three further full runs green. The logic reviewer [src,
+   driver 1.1.0]: the store constructs no `NeonDbError`; a code-less one is a rejected fetch, a non-400 status, or a
+   400 without a code, so transport or proxy. It failed closed. The test now records the HTTP status. Backlog 141.
+4. *The developer's first report lost the test run's exit code behind a trailing pipe;* the coordinator re-ran it.
+
+**Not proven.** The grant test's body has **never executed anywhere**: the table is absent from the database
+`DATABASE_URL` reaches, so it skips, and the result "exactly four" is observed nowhere. Nothing ran on a CI runner;
+`pnpm check`, `pnpm ci:local` and e2e were not run. The prune's lock order is documented [logic reviewer, Postgres 17
+docs]; that an insert consumes its select's rows in order is observed (30 of 30), not documented. Criterion 11 holds
+*within the harness's reach*: not two losses inside one call, not a lost reply interleaved with another caller, not a
+lost reply on a prune, on the live database. The server versions of preview and production are unread, as is whether
+their application roles hold any membership (QA: the test database's role is in `pg_maintain`, so the grant test would
+be red on `MAINTAIN` there, correctly). HOT updates when `window_end` is rewritten with itself are inference (the cost
+if wrong is index churn).
+
+**Deviations.** Criteria 10 to 13 were added during the wave (rule S1, rule S2, one lock order, the privilege file safe
+on any credential), and criteria 2, 7 and 11 were restated, each in the sections above. Criterion 12's lock-order claim
+is a recorded limit with a trigger (a `40P01` from this module, or a new major Postgres version). The ruling was
+that no `qa-*` file is edited by the implementer beyond import lines for C-R1.2. The clean-code re-check confirmed it
+from `git diff ae1a8dd..aa8a015`: two added import lines naming the moved class and two removed entries, nothing else
+[relayed, reviewer-run]; QA confirmed the same of its own files [relayed, QA-run].
+
+**Owner action outstanding.** Apply `0007` and its grant, preview then production, by [the
+runbook](../runbooks/applying-a-table-migration-and-its-application-role-grant.md), quoting the privilege test's
+`reached database … as role …` line with the table's test run and not skipped. Four decisions: backlog 142.
+
+**Deferred.** The older tables' grant tests (backlog 139, owner the coordinator with the security reviewer, trigger the
+delivery milestone's launch gate); CI with `DATABASE_URL` (140, the delivery milestone); the one-off `NeonDbError`
+(141, trigger a recurrence). Rule S2 and the unkeyed digest are recorded in ADR 0149.
+
+**Documentation updated.** [ADR 0149](../decisions/0149-the-rate-limit-store-keeps-one-row-per-bucket-per-window-refuses-a-broken-promise-and-may-count-high-but-never-low-between-prunes.md)
+(new); ADR 0145 (dated note); the runbook (new); `environments-and-resources.md` (the repo-root row); backlog 139 to
+142; `STATUS.md`.
+
 ### 8F — the limiter and the mint
+
+> **8F's dispatch must read *What later waves inherit* in *8E — the three reviews, ruled 2026-10-08* and ADR 0149
+> before anything else here.** It lists the key's encoding and its property, the deadline, failing closed on any throw,
+> and the fake's limits.
 
 *Goal.* `POST /api/designs` is bounded by ADR 0019's independent buckets. Closes the application half
 of SEC-001 and backlog 90. *Tier: Full + security.*
