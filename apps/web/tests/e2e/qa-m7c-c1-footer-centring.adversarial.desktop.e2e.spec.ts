@@ -8,7 +8,7 @@
 // or a child that opts out with `align-self` (both measured in this wave's QA). This reads the boxes.
 //
 // **1F is held on screen, never raced** — the design write is held by `page.route` and aborted, as
-// `room-desktop-line.desktop.e2e.spec.ts` does, so no row is ever written.
+// `holdDesignWrites` in `support/room-desktop-line.ts` does, so no row is ever written.
 //
 // Each test prints one `FOOTER_GEOMETRY` line, which is how the horizontal positions were compared
 // against the unfixed stylesheet: the same run, twice, and a diff of the two lines' `left`/`right`.

@@ -37,7 +37,7 @@ test("the derived budget is the 30-minute target over the measured rate, rounded
 });
 
 test("desktop is enforced at its ratchet above the derived budget, mobile at the derived budget", () => {
-  assert.equal(enforcedBudget("desktop"), 70);
+  assert.equal(enforcedBudget("desktop"), 67);
   assert.equal(enforcedBudget("mobile"), 125);
 });
 
