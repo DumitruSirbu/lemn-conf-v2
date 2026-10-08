@@ -1215,8 +1215,8 @@ both in M9.
 | 8D2 | **DONE 2026-10-08, commits `3ffad38` … `0fad22c`, not pushed.** Added the same day from 8D's visual review: the rows' second line and the bottom bar, as frames 3A and 3B draw them. See *8D2 as closed* and ADR 0148 Amendment B | ~~8D closed. One owner point: the material pill on screens 3–5~~ — Done. The pill stays the owner's question |
 | 8D3 | **DONE 2026-10-08, commits `b5aed77` … `be4ffe2`, not pushed.** The boundary gate, red at `ad535d0`, with backlog 121. See *8D3 as closed* | ~~Backlog 121 before 8E~~ — Done |
 | 8E | **DONE 2026-10-08, commits `ec2f181` … `c8305b1`, not pushed.** The rate-limit store. See *8E as closed* and [ADR 0149](../decisions/0149-the-rate-limit-store-keeps-one-row-per-bucket-per-window-refuses-a-broken-promise-and-may-count-high-but-never-low-between-prunes.md). **Owner action outstanding:** apply `0007` and its grant by the runbook | ~~Dispatched~~ — Done |
-| 8I | Stays | ~~8E's migration number~~ — 8E took `0007`. **Dispatchable** |
-| 8H | Stays; Q24 settled | **Nothing. Dispatchable** |
+| 8I | Stays. ~~Blocked 2026-10-08 on the keyed-digest question~~ **Unblocked the same day: the owner said yes** | ~~8E's migration number~~ — 8E took `0007`. **Dispatchable.** Its dispatch reads *The digest secret* (below, under 8I) and ADR 0150's *What later waves inherit*; it never touches the secret |
+| 8H | **DONE 2026-10-08, commits `aecacbd` … `2b8c60b`, not pushed.** The submission contract. See *8H as closed* and [ADR 0150](../decisions/0150-the-submission-contract-is-one-io-free-definition-a-request-holds-no-price-reads-only-what-the-sender-wrote-and-the-snapshot-and-the-review-share-one-refusal-rule.md). `2b8c60b` is unreviewed | ~~Nothing. Dispatchable~~ — Done |
 | 8J | ~~**Changed:** no provider adapter~~ **Restored: a Resend adapter** (owner, 2026-10-07) | **Nothing to build it. Dispatchable whole**, after 8D. Proving it end to end waits for the owner: the three variables on a deployment, and a sender the provider accepts |
 | 8F | **Changed:** identity through a port; one bucket, 20 a day per ~~address~~ **block of 256 (/24; /64 for IPv6)** (Q28 and Q32 answered) | The three red `CI=1` specs triaged; 8E. ~~**Q32** sets one number and does not block the build~~ |
 | 8G | Changed lightly | 8F |
@@ -4860,7 +4860,76 @@ which no retry mends, and one for two requests in flight under one key, which a 
   lone `+` while the customer is still typing; it owns the new leaf of criterion 22.
 
 **Backlog.** Any export of contact data neutralises a leading `=`, `+`, `-` or `@`. *Trigger:* an
-export is built; ADR 0012 has none today.
+export is built; ADR 0012 has none today. **(Filed 2026-10-08 as backlog 144.)**
+
+#### 8H as closed, 2026-10-08
+
+**Shipped, on `m8-review-contact-success`, not pushed [coordinator ran `git log`; HEAD `2b8c60b`]:** `aecacbd` S1;
+`e135d52` S1 follow-up (criteria 9 to 11); `8da0e6a` S2; `a9e1843` S2 follow-up (12, 13); `8539f66` S3; `4a37d56` QA round 1
+(red: two defects); `1bd2e80` fix A (16, 17, 19); `928b443` fix B (15, 18, 20); `62ed5bc` QA round 2, green, the commit
+the three reviewers read; `57cb8ea` review round A (21, 22, 23); `85465d6` review round B; `fd2c958` QA round 3, green;
+`2b8c60b` clean-code cleanup (tests and leftovers, no behaviour change). Plan commits between them: `f9c0363`, `fd99306`,
+`d973ffc`, `4cb9a53`, `fe27483`, `6092895`, `0952422`, `cb08196`.
+
+What exists, under `packages/configurator-domain/src/` [source-verified by reviewers]: `contact/phone-number.ts`,
+`contact/contact-fields.ts`, `contact/input-checks.ts`, `contact/contact-submission.ts`,
+`contact/submission-eligibility.ts`, `contact/submission-snapshot.ts`; `repository.ts` (`isDesignId`,
+`isDesignRevisionShape`); `failure-text.ts` (blanks Zl and Zp too). Web: `apps/web/src/review/review-model.ts` calls the
+rule and `apps/web/src/price/starting-price.ts` no longer re-exports the supplier check. Persistence tests tie the id
+generator and the revision check to the domain's predicates. The decisions: [ADR
+0150](../decisions/0150-the-submission-contract-is-one-io-free-definition-a-request-holds-no-price-reads-only-what-the-sender-wrote-and-the-snapshot-and-the-review-share-one-refusal-rule.md).
+
+**Evidence, by who ran it.**
+
+- *Coordinator-run.* At `2b8c60b`: domain typecheck exit 0, lint exit 0, tests 300 files, 7857 passed; web typecheck exit 0;
+  no `qa-*` file in the diff. At `85465d6`: web lint 0, typecheck 0, vitest 335 files, 6227 passed. At `fd2c958`: **one**
+  web-suite run showed 1 failed of 6227 (exit 1), which test was not captured; four runs straight after were 6227 passed.
+  **An unidentified intermittent failure, seen once in five runs** (backlog 145).
+- *QA (m8-8h-qa).* Round 1 red on two defects (F1 phone, F2 prototype read), five tests; round 2 green, criteria 14 to 20;
+  round 3 green, criteria 21 to 23. Parity property, zero disagreements, per arm judged / allowed / `PRICING_FAILED` /
+  `NO_CABINET` / bodies past a wall: straight 2355 / 94 / 564 / 287 / 1410; L 2425 / 88 / 528 / 269 / 1540; right-hand L
+  the same; U 2400 / 87 / 522 / 266 / 1525, identical in rounds 2 and 3. The hand-summed literal 53 500 re-derived by QA;
+  two totals against the shipped book with sums shown (530 560 and 530 260). Timing after the fix: the worst still-composed
+  input about 1 ms; one million units 4 to 5 ms; before the fix the developer measured 2356 ms at 100 000 units and the
+  security reviewer 234 s at one million.
+- *Reviews at `62ed5bc`.* Logic: one must-fix (surrogate halves split by a format character reunite into an invisible
+  character), one should-fix. Clean-code: no must-fix, six should-fix, read no test. Security (scoped): one must-fix
+  (quadratic composition before any bound), one should-fix. *Re-checks at `fd2c958`:* logic closed all five (own probes; a
+  sweep of about 1.1 million "incomplete" answers each with an accepted completion); security closed all four (own probes;
+  400 000 random sequences, none accepted holding a forbidden character; eight shown to be the ceiling); clean-code closed
+  its items, read the implementer's tests (eight files fully, five in part) and found three should-fix in tests.
+  **Those three were applied in `2b8c60b`, which no reviewer has re-read.**
+- *Vendor, 2026-10-08 [the security reviewer fetched the page, relayed].* Resend: an Idempotency-Key may be *"up to 256
+  characters"*; two `409` answers (`invalid_idempotent_request`, `concurrent_idempotent_requests`).
+
+**Deviations, with their rationale.** The slice table's three slices grew twenty-three criteria; 1 to 8 were the plan's, 9 to
+11 S1's follow-up, 12 and 13 S2's, 14 to 20 the QA and S3 adjudications, 21 to 23 the reviews'. Tier changed from Full to
+Full + security, scoped, by the architect's ruling in *S3 as built*. The rule is handed the fit query's answer and does not
+ask it (accepted, *S3 as built*). Two criteria of the architect's (10 and 19) caused the two must-fix defects; criteria 21
+restated both. Criterion 6's "literal already pinned" did not exist; restated in *S3, restated*.
+
+**Owner's answers recorded at this close** (the section *The owner's answers of 2026-10-08* has the words): S2's over-count
+accepted; Q33 as built; criterion 16 confirmed by his second sentence; the test-deletion rule ([ADR
+0151](../decisions/0151-a-test-may-delete-the-rows-tests-added-and-never-a-row-a-production-user-added.md)); the digest
+secret, one secret, keying 8F from its first deploy ([ADR 0149](../decisions/0149-the-rate-limit-store-keeps-one-row-per-bucket-per-window-refuses-a-broken-promise-and-may-count-high-but-never-low-between-prunes.md)
+amendment). **A contradiction found while recording:** the 8E plan text and ADR 0149 said the suite reaches production; since
+the owner's change to Vercel's Development `DATABASE_URL` it reaches preview (coordinator-run); the guide's row and the
+runbook are corrected.
+
+**Not proven.** Nothing ran on a CI runner; `pnpm check`, `pnpm ci:local` and e2e were not run at `2b8c60b` (the coordinator
+runs `ci:local` after this close-out; it is not claimed here). `2b8c60b` is unreviewed. The intermittent web failure is
+unidentified. Whether every stored design id has the generator's shape is unmeasured (backlog 146, the owner counts before 8L
+S2). Which first digits Moldovan numbers use beyond "not 0" was not asked. A right-to-left dash in a mail client is
+inference. No route, store or mail uses this code yet.
+
+**Deferred.** F5 and F7 as limits and F12 (backlog 143) in ADR 0150; F8 and F12's sentence to 8K; the export neutralisation
+(backlog 144, trigger an export); the stored-ids count (146, the owner, before 8L S2). What 8I, 8J, 8K and 8L inherit: ADR
+0150, *What later waves inherit*, and the lists under *the three reviews* above.
+
+**Documentation updated.** ADR 0150 (new); ADR 0151 (new) and a note on ADR 0006; ADR 0149 (dated amendment);
+`best-practices/environments-and-resources.md` (the repo-root row, test-deletion rule, `DIGEST_SECRET`); the runbook for a
+table migration (default target corrected; the next table is 8I's, not 8H's); backlog 142 updated and 143 to 146 added;
+`STATUS.md`. **Still owed:** the `DIGEST_SECRET` rotation runbook under `docs/runbooks/`, with 8F.
 
 ### 8I — the contact submissions store
 

@@ -2,7 +2,13 @@
 
 Applies to any migration that creates a table the application must read or write. The first worked case is
 `0007_create_rate_limit_counters.sql` (wave 8E, [ADR 0149](../decisions/0149-the-rate-limit-store-keeps-one-row-per-bucket-per-window-refuses-a-broken-promise-and-may-count-high-but-never-low-between-prunes.md)).
-Wave 8H's table needs the same steps.
+~~Wave 8H's table needs the same steps.~~ **Corrected 2026-10-08:** wave 8H builds no table; the next table is wave 8I's
+`contact_submissions` (migration `0008`), and it needs the same steps.
+
+**Where the suite points by default (corrected 2026-10-08).** The repo-root `.env.local` now holds the preview database's
+application role, so an ordinary persistence run reaches `lemn-conf-v2-preview` and not production
+([environments-and-resources.md](../best-practices/environments-and-resources.md)). Production's grants are checked only by
+a deliberate run of steps 5 to 7 with the production application role's URL as `DATABASE_URL` for that one invocation.
 
 **Agents prepare these commands and never run them.** The owner runs them. Order of environments: **preview first,
 then production.** Rules that apply throughout: environment variables and resources are add-only, and no secret or URL

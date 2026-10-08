@@ -172,7 +172,11 @@ status corrections, in one of these two files:
 | 139 | The older three tables' grant tests are blind to `PUBLIC`; grant option, column grants, the database-owner gap, `CREATE`/`TEMP`, and the file's clean-code R2.1/R2.2 | open.md — found 2026-10-08 by M8 8E's QA and security review; owner the coordinator with the security reviewer; trigger the delivery milestone's launch gate |
 | 140 | CI never sets `DATABASE_URL`, so the privilege file never runs on a runner | open.md — recorded 2026-10-08 at M8 8E's close; the delivery milestone's |
 | 141 | One code-less `NeonDbError` among 150 concurrent hits, seen once | open.md — recorded 2026-10-08; not reproduced; trigger: a recurrence |
-| 142 | Four owner decisions from 8E: S2's over-count; the keyed hash at 8K's S0; the two guarded deletes at production; whether the suite reads production at all | open.md — recorded 2026-10-08; the owner's |
+| 142 | Owner decisions from 8E: ~~S2's over-count~~ and ~~the keyed hash~~ decided 2026-10-08; what remains is whether the two guarded deletes (now on preview) stay, and the `.gitignore` line `vercel env pull` added | open.md — recorded 2026-10-08, updated at 8H's close; the owner's |
+| 143 | The revision shape admits nineteen digits, past a bigint column's range (F12) | open.md — found 2026-10-08 by M8 8H's QA; persistence's; trigger: `design-revision.ts` is next opened |
+| 144 | Any export of contact data neutralises a leading `=`, `+`, `-` or `@` | open.md — recorded 2026-10-08 at 8H's close; trigger: an export is built |
+| 145 | A web-suite run failed once (1 of 6227), unidentified | open.md — seen once in five runs 2026-10-08; trigger: a recurrence, with its name |
+| 146 | Count the stored design ids that lack the generator's shape, before 8L S2 | open.md — recorded 2026-10-08; the owner's; before 8L S2 ships |
 
 ## 2026-09-06 audit note
 

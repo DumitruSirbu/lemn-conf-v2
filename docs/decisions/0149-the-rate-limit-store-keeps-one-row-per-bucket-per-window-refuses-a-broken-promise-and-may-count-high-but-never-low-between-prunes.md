@@ -169,3 +169,37 @@ policy with no bucket when it is built.
 - **[reviewers, at `ae1a8dd`]** logic: approve with should-fix; clean-code: approve with should-fix; security: approve,
   no must-fix in code. At `c8305b1` all three closed their items.
 - **Not run:** `pnpm check`, `pnpm ci:local`, e2e; anything on a CI runner.
+
+## Amendment — 2026-10-08, at wave 8H's close: rule S2 accepted; the digest is keyed, by one secret
+
+Written by the documentation scribe from `docs/milestones/M8-review-contact-success.md` (*The owner's answers of
+2026-10-08*, items 1, 5 and 6; *The digest secret*, under 8I). The owner's words reached the scribe relayed. Nothing above
+is rewritten; the decisions stand, and these two statements are superseded as marked.
+
+**1. Rule S2 (decision 3) is accepted by the owner.** Asked whether a hit repeated after the database has slept may be
+counted up to three times against the twenty-a-day limit, he chose *"Accept (Recommended)"* [relayed]. The header's
+*"open to the owner"* is discharged for decision 3. *Not asked and unchanged:* that an empty reply is not repeated, and the
+bounds of criterion 11.
+
+**2. The keyed-hash recommendation is replaced by the owner's decision.** *Limits recorded, not fixed* above says the
+digest is unkeyed, accepted for 8E and 8F, and that whether it is keyed is decided in 8K's S0; *What later waves inherit*
+gives 8K *"whether the digest is keyed, in its S0"*. **Superseded.** The owner said *"lets add this secret"* (to a keyed
+digest for the contact request's conflict check) and then, asked whether 8F's rate-limit keys should use it from the start,
+*"lets use same secret"* [both relayed]. So: **one secret, `DIGEST_SECRET`; the rate-limit keys are keyed with it from 8F's
+first deploy.** 8F is not built yet [ran: `apps/web/src/lib/server/rate-limit` did not exist], so no key is re-keyed and no
+count restarts for this reason. The two uses are kept apart by what is digested: HMAC-SHA-256 of an encoding that begins
+with a purpose from a closed set written in code, then the fields each marked with its length. That encoding is **the
+architect's, not the owner's**, and the security reader checks it at 8F's S0. Its name, shape and the way tests run without
+it are the architect's, in the plan's *The digest secret*. 8K adds the second purpose and writes no digest code of its own.
+
+**Two consequences, said to the owner with the runbook.** Rotation makes a contact request whose retry falls across it
+conflict (the row is found and its digest differs), and every rate-limit count starts again. Until the variable is set in an
+environment, 8F's code creates no design there. See `best-practices/environments-and-resources.md`.
+
+**3. A correction to *Still true after the fix*.** That paragraph says every persistence-suite run on a developer machine
+reaches production. The owner has since changed Vercel's Development `DATABASE_URL` and pulled it again; the coordinator ran
+the privilege test alone and it printed `reached database "lemn-conf-v2-preview" as role "app_designs"`, 10 passed, 1
+skipped, exit 0 [coordinator-run]. **The suite no longer reaches production from that machine.** The skipped test was
+reported to be the `rate_limit_counters` grant test, because the table is not on preview either [coordinator-run, relayed];
+the grant half of criterion 7 therefore has still never executed anywhere. Production's grants are checked only by a
+deliberate run per the runbook.

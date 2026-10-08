@@ -153,6 +153,11 @@ goes through review.
 
 Documentation only. No environment variable, no database, no role and no code were changed by it.
 
+## Note, 2026-10-08 — which rows a test may delete
+
+[ADR 0151](0151-a-test-may-delete-the-rows-tests-added-and-never-a-row-a-production-user-added.md) records the owner's
+ruling on what cleanup may delete: rows that tests added, never a row a production user added. Nothing above is changed.
+
 ## Note, 2026-10-07 — the refusals' wording changed, and the guard also asks the opener
 
 By [ADR 0146](0146-nothing-copied-from-a-connection-value-or-thrown-by-a-driver-leaves-the-persistence-package.md)

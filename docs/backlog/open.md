@@ -2458,15 +2458,46 @@ The store constructs no `NeonDbError`; a code-less one is a rejected fetch, a no
 transport or proxy [inf from that reading]. It failed closed. The test now records the HTTP status. **Trigger:** a
 recurrence, which the test names. No owner until then.
 
-## 142. Four owner decisions from wave 8E are pending — RECORDED 2026-10-08
+## 142. Four owner decisions from wave 8E are pending — RECORDED 2026-10-08; UPDATED 2026-10-08 AT 8H's CLOSE: TWO DECIDED, ONE MOOT, ONE NEW
 
-1. **Rule S2's over-count** (ADR 0149 decision 3): a retried hit may count high. The architect's ruling, open to the
-   owner, to be put with the limit's "track and adjust later".
-2. **The keyed hash**, decided in 8K's S0 before an e-mail is a subject. Keyed is recommended; a key added later
-   restarts every count.
-3. **Whether the two guarded deletes at production stay.** Removing both loses nothing if the owner wants no
-   write-shaped statement sent.
-4. **Whether the persistence suite should read production at all** (the repo-root `.env.local`, `environments-and-resources.md`).
+1. ~~**Rule S2's over-count** (ADR 0149 decision 3): a retried hit may count high. The architect's ruling, open to the
+   owner, to be put with the limit's "track and adjust later".~~ **Decided 2026-10-08: accepted**, *"Accept
+   (Recommended)"* [owner, relayed]. ADR 0149's amendment.
+2. ~~**The keyed hash**, decided in 8K's S0 before an e-mail is a subject. Keyed is recommended; a key added later
+   restarts every count.~~ **Decided 2026-10-08: keyed, one secret, from 8F's first deploy** (*"lets add this secret"*,
+   *"lets use same secret"* [owner, relayed]). ADR 0149's amendment; `DIGEST_SECRET` in `environments-and-resources.md`.
+3. **Whether the two guarded deletes stay.** Removing both loses nothing if the owner wants no write-shaped statement
+   sent. **They now go to the preview database**, not production, since the repo-root `.env.local` was repointed
+   [coordinator-run]. Still the owner's.
+4. ~~**Whether the persistence suite should read production at all**~~ **Largely moot:** by default it no longer does
+   (see 3). A deliberate run against production per the runbook remains the way to check its grants.
+5. **New:** `vercel env pull` appended `.env*` to `.gitignore` on 2026-10-08. The line is uncommitted and the owner's to
+   keep or drop. (The tracked pattern before it was `.env*.local`.)
 
-Also unruled and the owner's: whether the deletion of the 3 rows QA's crashed cleanup left in the test database's
-`rate_limit_counters` was within the rules.
+~~Also unruled and the owner's: whether the deletion of the 3 rows QA's crashed cleanup left in the test database's
+`rate_limit_counters` was within the rules.~~ **Ruled 2026-10-08:** *"If were added by tests , delete , if added by
+production user keep"*; [ADR 0151](../decisions/0151-a-test-may-delete-the-rows-tests-added-and-never-a-row-a-production-user-added.md).
+
+## 143. The revision shape admits nineteen digits, past a bigint column's range (QA F12) — FOUND 2026-10-08 BY M8 8H's QA
+
+**Source [m8-8h-qa, relayed; the plan's 8H adjudication].** `isDesignRevision` (persistence) and the domain's
+`isDesignRevisionShape` accept nineteen digits, which is wider than the column holds. A revision the column cannot hold is
+a mismatch, a refusal and not a failure (for 8K). The two predicates are tied by a persistence property, so narrowing one
+alone breaks the tie. **Owner:** persistence's: whoever next opens `design-revision.ts`. **Trigger:** that file is opened.
+
+## 144. Any export of contact data must neutralise a leading `=`, `+`, `-` or `@` — RECORDED 2026-10-08 AT M8 8H's CLOSE
+
+**Source [the plan's 8H, *Backlog*].** A name or locality may be a spreadsheet formula; the validated request accepts it
+and the mail does nothing to make it live. **Trigger:** an export of contact data is built. ADR 0012 has none today.
+
+## 145. A web-suite run failed once, unidentified — SEEN ONCE IN FIVE RUNS, 2026-10-08, AT `fd2c958`
+
+**Source [coordinator-run, relayed].** One run of the web suite showed 1 failed of 6227 (exit 1); which test was not
+captured. Four runs straight after were 6227 passed. **Trigger:** a recurrence, with the failing test's name. No owner until
+then.
+
+## 146. Count the stored design ids that do not have the generator's shape before 8L S2 gates a page — OWNER, RECORDED 2026-10-08
+
+**Source [the plan's 8H, *S2's readings*].** Whether every stored design id has the shape the generator makes is not
+measured. A page that refuses by `isDesignId` would close an older design's link. The owner reads the live ids once, a
+count and no value. **Owner:** the owner. **Trigger:** before 8L's S2 ships.
