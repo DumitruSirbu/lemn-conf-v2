@@ -181,8 +181,8 @@ describe("leaving the sheet with a choice pending", () => {
     press("global-settings-apply");
 
     expect(surface()).toBeNull();
-    expect(useConfiguratorStore.getState().design.settings?.hardwareTierId).toBe(
-      pendingTier,
-    );
+    expect(
+      useConfiguratorStore.getState().design.settings?.hardwareTierId,
+    ).toBe(pendingTier);
   });
 });

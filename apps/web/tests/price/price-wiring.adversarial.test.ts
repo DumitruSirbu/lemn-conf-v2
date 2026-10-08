@@ -456,8 +456,8 @@ describe("what the shipped 390 × 844 sweep can fail on", () => {
     expect(coveredByAnOverlayOf(0)).toBe(0);
     // And the height the bar really reserves is not that zero: it covers bodies a zero reserve leaves alone. Read
     // from the constant, so a reserve set to nothing fails here and not only in the case above.
-    expect(
-      coveredByAnOverlayOf(PRICE_BAR_RESERVED_HEIGHT_PX),
-    ).toBeGreaterThan(coveredByAnOverlayOf(0));
+    expect(coveredByAnOverlayOf(PRICE_BAR_RESERVED_HEIGHT_PX)).toBeGreaterThan(
+      coveredByAnOverlayOf(0),
+    );
   });
 });

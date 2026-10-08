@@ -170,7 +170,9 @@ const WORLDS: readonly (readonly [string, () => World])[] = [
   ["a kitchen already resized once", () => worldFrom(resizedDesign())],
 ];
 
-const WORLDS_HOLDING_VOIDS = WORLDS.filter(([name]) => name !== SHIPPED_KITCHEN);
+const WORLDS_HOLDING_VOIDS = WORLDS.filter(
+  ([name]) => name !== SHIPPED_KITCHEN,
+);
 
 // -------------------------------------------------------------------------------------------
 // The widened contract: what may now gain a section, and what still may not.

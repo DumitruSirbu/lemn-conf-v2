@@ -67,12 +67,13 @@ const anyDraft: fc.Arbitrary<RoomDraft> = fc
 
 /** The fields each shape asks for, written out. Asked of `requiredFieldsFor`, a field dropped there would leave both
  *  sides of every comparison below together. */
-const FIELDS_ASKED_FOR: Readonly<Record<RoomShape, readonly RoomLengthField[]>> =
-  {
-    linear: ["wallA", "height"],
-    L: ["wallA", "wallB", "height"],
-    U: ["wallA", "wallB", "wallC", "height"],
-  };
+const FIELDS_ASKED_FOR: Readonly<
+  Record<RoomShape, readonly RoomLengthField[]>
+> = {
+  linear: ["wallA", "height"],
+  L: ["wallA", "wallB", "height"],
+  U: ["wallA", "wallB", "wallC", "height"],
+};
 
 const ASCII_DIGITS_ONLY = /^[0-9]+$/;
 const LARGEST_SAFE_MM = BigInt(Number.MAX_SAFE_INTEGER);

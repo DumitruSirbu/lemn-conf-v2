@@ -426,9 +426,9 @@ const FILLED_ROOM_QUERY: Readonly<Record<RoomShape, string>> = {
 
 /** The approved policy with one shape's bounds taken out and every other statement left as it is. */
 function policyWithdrawing(shape: RoomShape): RoomPolicy {
-  const stillStated = Object.entries(APPROVED_ROOM_POLICY.buildableShapes).filter(
-    ([stated]) => stated !== shape,
-  );
+  const stillStated = Object.entries(
+    APPROVED_ROOM_POLICY.buildableShapes,
+  ).filter(([stated]) => stated !== shape);
   return {
     ...APPROVED_ROOM_POLICY,
     buildableShapes: Object.fromEntries(

@@ -29,21 +29,32 @@ import { PAL_KITCHEN } from "../support/panel-material";
 import { occupiedMeta, offers } from "../support/selection-meta";
 import { noWidthIsFree } from "../support/width-options";
 
-const EVERY_WRITE_ACCESS: readonly WriteAccess[] = [
-  true,
-  false,
-  "checking",
-  "check-failed",
-];
+/**
+ * Every member of each union, keyed by the member. A `Record` over a union must name every key, so a union that
+ * gains a member fails the typecheck here until the sweep is widened. Typed as a plain array, a list that fell short
+ * compiled and swept a product that was no longer the whole one.
+ */
+const WRITE_ACCESS_BY_NAME: Readonly<Record<`${WriteAccess}`, WriteAccess>> = {
+  true: true,
+  false: false,
+  checking: "checking",
+  "check-failed": "check-failed",
+};
 
-const EVERY_SAVE_STATUS: readonly SaveStatus[] = [
-  "idle",
-  "saving",
-  "error",
-  "stopped",
-  "unauthorized",
-  "conflict",
-];
+const SAVE_STATUS_BY_NAME: Readonly<Record<SaveStatus, SaveStatus>> = {
+  idle: "idle",
+  saving: "saving",
+  error: "error",
+  stopped: "stopped",
+  unauthorized: "unauthorized",
+  conflict: "conflict",
+};
+
+const EVERY_WRITE_ACCESS: readonly WriteAccess[] =
+  Object.values(WRITE_ACCESS_BY_NAME);
+
+const EVERY_SAVE_STATUS: readonly SaveStatus[] =
+  Object.values(SAVE_STATUS_BY_NAME);
 
 interface Access {
   readonly canWrite: WriteAccess;
