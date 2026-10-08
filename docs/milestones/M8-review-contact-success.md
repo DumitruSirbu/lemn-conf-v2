@@ -6,7 +6,8 @@
 > **Updated 2026-10-08, latest: wave 8D is DONE (`7fa5258` … `9f4c123`), not pushed.** The review route and
 > screen 3A/3B shipped; see *8D as built* and Amendment A of
 > [ADR 0148](../decisions/0148-the-review-refuses-one-thing-at-a-time-the-first-the-customer-can-act-on-and-no-cabinet-means-nothing-lemnaria-supplies.md).
-> **M8 is sixteen waves** (8D2 was added after 8D). Next: **8D2**, then 8E, 8I, 8H and 8J are dispatchable.
+> **Wave 8D2 is DONE (`3ffad38` … `0fad22c`), not pushed; see *8D2 as closed*.**
+> **M8 is sixteen waves** (8D2 was added after 8D). Next: 8E, 8I, 8H and 8J are dispatchable (backlog 121 before 8E).
 > Q29, Q31 and Q32 are answered (Resend; *dulapuri*; the /24). The paragraphs below that say 8D is
 > dispatchable, or M8 is fifteen waves, are history.
 >
@@ -1110,7 +1111,7 @@ both in M9.
 | 8B | **Done** (`4b8f4a4`, ADR 0146) [relayed] | — |
 | 8C | Stays. ~~In adversarial QA~~ ~~QA green (`5c1ae3e`); adjudicated 2026-10-07: a fix round of four items (C1–C3)~~ **DONE 2026-10-07, commits `97e75c6` … `3bda09d`, not pushed.** Logic and clean-code review approve. See *8C as built* | ~~The fix round, a QA check of it, then logic and clean-code review.~~ — Q30 is settled as C3 |
 | 8D | **DONE 2026-10-08, commits `7fa5258` … `9f4c123`, not pushed.** See *8D as built* and ADR 0148 Amendment A | ~~Dispatchable: restated 2026-10-07 as four slices, criteria 11–15 added (*8D, restated for dispatch*). S1 first~~ — Done. 8D2 follows |
-| 8D2 | **Added 2026-10-08** from 8D's visual review: the rows' second line and the bottom bar, as frames 3A and 3B draw them | 8D closed. One owner point: the material pill on screens 3–5 |
+| 8D2 | **DONE 2026-10-08, commits `3ffad38` … `0fad22c`, not pushed.** Added the same day from 8D's visual review: the rows' second line and the bottom bar, as frames 3A and 3B draw them. See *8D2 as closed* and ADR 0148 Amendment B | ~~8D closed. One owner point: the material pill on screens 3–5~~ — Done. The pill stays the owner's question |
 | 8E | Stays | **Nothing. Dispatchable** |
 | 8I | Stays | 8E's migration number. **Dispatchable** |
 | 8H | Stays; Q24 settled | **Nothing. Dispatchable** |
@@ -3075,7 +3076,8 @@ the brief's account of the owner's "yes for resend" agrees with it, and nothing 
 ### 8D2 — screen 3 against its frames (added 2026-10-08)
 
 *Goal.* The review's rows and its bottom bar read as frames 3A and 3B draw them. ~~**Not started;
-follows 8D's close.**~~ **S1 committed `3ffad38`, S2 in hand (2026-10-08).** *Tier: Light + visual*, with QA owning the parity of the new line.
+follows 8D's close.**~~ ~~**S1 committed `3ffad38`, S2 in hand (2026-10-08).**~~ **DONE 2026-10-08, commits
+`3ffad38` … `0fad22c`, not pushed; see *8D2 as closed*.** *Tier: Light + visual*, with QA owning the parity of the new line.
 *Why its own wave:* it changes the review's model, which 8C closed and ADR 0148 records, and 8D
 has had its two QA passes and its review.
 
@@ -3260,9 +3262,12 @@ nothing.** `ReviewRow` keeps its optional detail, which is the whole-kitchen row
 comment says so truly. One unit test: the lookup throws for an id the review does not hold.
 
 **The nits, in the same round.** R1.3: the test named for one detail per body counts
-`rowDetails` and loses its unrelated assertion. R1.4: `.sentence` is deleted; no source or test
-names the class [ran: a search of `apps/web/src` and `apps/web/tests` at HEAD]. R1.5: one of
-the two matching comments goes.
+`rowDetails` and loses its unrelated assertion. R1.4: ~~`.sentence` is deleted; no source or test
+names the class [ran: a search of `apps/web/src` and `apps/web/tests` at HEAD]~~ **WITHDRAWN,
+corrected 2026-10-08 at close: `.sentence` is composed by `.flagged`, `.refusal` and `.waiting`
+in `review.module.css` (lines 394, 403, 420) [relayed: the combined reviewer's re-check at
+`0fad22c`]. The search above covered TS and TSX only, and so did the reviewer's; the class stays.**
+R1.5: one of the two matching comments goes.
 
 **The round.** One implementer; files `price/price-breakdown-model.ts`, `review/review-model.ts`,
 `review/review-groups.tsx`, `review.module.css`, `review/review-scene.tsx`, and the two test
@@ -3276,6 +3281,80 @@ on its row**. ADR 0099 decides by whether the body holds its own choice, not by 
 differs: *"Clearing **deletes the key**; it must never write the current global value into it"*
 [doc, `:118`]. So *"alb mat"* can stand on one row of an all-white kitchen. Right by the record;
 the owner may find it odd.
+
+#### 8D2 as closed, 2026-10-08
+
+**DONE, commits `3ffad38` … `0fad22c` on `m8-review-contact-success`, local, not pushed**
+[coordinator-run: `git log`]. Not archived: M8 is open.
+
+**Shipped.** `3ffad38` S1 (row detail: `AvailableReview.rowDetails`, two-line rows); `76df1b8` S2
+(the bottom bar as frame 3A draws it; the view chips under the picture); `fae29fa` and `3c2da91`
+the architect's rulings on S1 and S2; `074e9c5` adversarial QA, green; `36f5846` QA's addendum
+(criteria 6 and 7); `b1b3d51` the architect's ruling on the review; `0fad22c` the review's fix
+round (R1.1, R1.2 and the nits). Criteria 1 to 7 as written above, criterion 2 restated by *S1 as
+built* and criterion 5 by the review ruling. ADR 0148 Amendment B records the decisions.
+
+**Verification, by who ran it.**
+
+- *Coordinator-run, at `0fad22c`* (working tree before the commit, same content): `pnpm --filter
+  @lemnaria/web run typecheck` exit 0; `pnpm --filter @lemnaria/web exec vitest run` exit 0, 331
+  files, 6172 tests passed; `prettier --check` on the five changed files exit 0. The commit's
+  pre-commit hook passed.
+- *QA (m8-8d-qa), at `074e9c5`:* vitest 6168 passed; e2e on the dev server, mobile 489 and desktop
+  201 passed; the pinned region's maximum 344.5 px, 40.8% of 844. *Addendum, `36f5846`:* the
+  Russian call to action is exactly two lines in 52 px; the word spills only at viewports of 330 px
+  and under (the architect recorded: nothing spills at 345 px and above; it first enters the
+  padding at 300 to 330 px depending on the figure).
+- *Combined reviewer (m8-8d-review-combined):* approve, with should-fix R1.1, note R1.2 and nits
+  R1.3 to R1.5. Re-check at `0fad22c`, read from the diff, vitest not run: R1.1, R1.2, R1.3 and
+  R1.5 closed; **R1.4 withdrawn** (see its correction above).
+- *Visual verifier (m8-8d-verify-visual), at `0fad22c`, production build, Chromium 390 × 844 with a
+  touch harness:* region heights ro / ru, none 86.0 / 86.0; one sentence 148.8 / 148.8; two 193.6 /
+  211.0; three 309.7 / 344.5 px (maximum 40.8%). The bar matches frame 3A (padding 13 / 18 / 20,
+  caption 10.5 px uppercase, figure 21 px bold, call to action 52 px high, radius 12). The ro button
+  is 123.2 × 52 on one line; the ru button 226.4 × 52 on two lines, unclipped; the bar wraps in
+  neither language. Rows 13 / 18.2 over 11 / 14.3, the second line in `#6b6860`; a body's own
+  finish and own handle print on the second line in ro and ru. The picture is 158 px, the chips 10
+  px beneath it, 44 px tall; only the 3D link covers the picture (6.1% ro, 8.3% ru of its area);
+  swipes from the picture and the chip row scroll the page. The ru bar holds at 390, 375, 360, 340
+  and 320 px. Desktop at 900 and 1440 px: column 640 px, no horizontal overflow. Console: only the
+  constant Permissions-Policy and CSP report-only lines.
+- *Complete rows in the first screenful, after 8D2 against before* (visual verifier, same
+  harness): L-ro 6 against 11; L-ru 6 against 9 plus 1 cut; U-ro 4 against 7; U-ru 3 plus 1 cut
+  against 6 plus 1 cut. **This is the cost of ruling 2 and of the second line, roughly half the
+  rows; the owner's call at the hand check (backlog 133).**
+
+**Deviation, with rationale.** The Russian call to action is on two lines where frame 3A draws one:
+a named departure, accepted (ruling 1, criterion 6). The chips stand under the picture and not over
+it (ruling 2, criterion 7). Both are in ADR 0148 Amendment B.
+
+**Correction to an earlier claim.** The coordinator's earlier *"format:check exit 0"* at `074e9c5`
+proved nothing: `@lemnaria/web` has no `format:check` script, so the filtered command ran nothing.
+The format gate exists only at the repo root (`pnpm format:check`). The five-file `prettier --check`
+at `0fad22c` above is the observation that stands, and it is not the whole-tree gate.
+
+**Not proven.**
+
+- No real device, no iOS Safari, nothing run on a CI runner. `pnpm ci:local` and the full `CI=1`
+  e2e suite were not run at `0fad22c`. e2e was not re-run after the fix round (the architect ruled
+  that QA does not re-run).
+- A free colour's hex on a row: not producible through the UI, whose body panel offers only decor
+  swatches. Reading 2 therefore has no capture.
+- A seven-digit figure in the bar: the widest tried was "103 000 MDL".
+- Tab audits with zero and with three sentences (only two were run). The unavailable review's
+  screenshots were measured and not looked at.
+- The facts line's wording was not compared against the frame's wording.
+- A faint vertical hairline left of the RU chip at 1440 px, cause not found (carried from 8D;
+  backlog 134).
+
+**Added to the owner's hand-check list.** The first screenful of the review holds about half the
+rows it held before 8D2 (figures above); with it the picture's height (158 px), the two-line
+Russian button against a shorter Russian label, and the free-colour value on a row (Reading 2).
+The chips now stand under the picture, which retires *"the chips over the scene"* from the list.
+
+**Deferred.** Backlog 133 (the first screenful), 134 (the hairline) and 135 (no `error.tsx`), with
+the owners named there. The material pill on screens 3 to 5 stays the owner's question and is not
+a slice. Waves 8E, 8I, 8H and 8J are dispatchable; backlog 121's gate-script fix comes before 8E.
 
 ### 8E — the rate-limit store
 

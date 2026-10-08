@@ -2374,3 +2374,29 @@ design id before it queries. It predates the wave, is the same on both doors and
 design id's shape stand in existing tests, so the fix is not free. **Owner: wave 8L, slice S2**, which adds the
 next caller: an id that has not the shape of a design id is refused as *unavailable* before any query, in the one
 function, for every door at once.
+
+## 133. The review's first screenful holds about half the rows it held before 8D2 — RECORDED 2026-10-08 AT M8 8D2's CLOSE, AN OWNER HAND-CHECK ITEM
+
+**Source [visual verifier m8-8d-verify-visual, at `0fad22c`, production build, Chromium 390 × 844, relayed].**
+Complete rows in the first screenful, after 8D2 against before: L-ro 6 against 11; L-ru 6 against 9 plus 1 cut;
+U-ro 4 against 7; U-ru 3 plus 1 cut against 6 plus 1 cut. The cost comes from the two-line rows and from the chips
+standing under the picture, which starts the list 54 px lower (8D2 ruling 2). Both were ruled; the size of the
+cost is what the owner has not seen. **Owner: the owner's hand check**, alongside the picture's height (158 px).
+What deciding costs: a taller or shorter picture, or chips elsewhere, is a change to `review.module.css` and
+criteria 7 and 12 of 8D2/8D; nothing is built.
+
+## 134. A faint vertical hairline left of the Russian chip at 1440 px — CARRIED FROM 8D, CAUSE NOT FOUND, 2026-10-08
+
+**Source [m8-8d-verify-visual, relayed].** Seen again at 1440 px at 8D2's close, cause not found. Probably the
+"faint vertical line beside the locale chip at 1440 px" already listed in entry 124 (item 2) [inf: same viewport,
+same chip, neither attributed; falsified by finding two causes]. Kept as its own entry so a look has a place to
+record the cause. Low; no owner, no phase; needs a look before a fix.
+
+## 135. The app has no `error.tsx` or `global-error.tsx`, so a render-time throw shows Next's default error screen — FOUND 2026-10-08 BY M8 8D2's COMBINED REVIEW, NO OWNER
+
+**Source [m8-8d-review-combined, relayed; the reviewer ran `find` under `apps/web/src/app` and found neither
+file].** Any throw during rendering reaches the customer as Next's default error screen. Newly reachable cases
+include the review model's throws, among them `MissingRowDetailError` added by 8D2's fix round (`0fad22c`), which
+is by design a branch that cannot happen when the model is consistent. Not observed as a defect. Deciding it is a
+product question (what the customer sees, in both languages, and what is logged) and new copy. Whether M9 (delivery preparation) is its home is
+not established by anything read. No owner, no phase.

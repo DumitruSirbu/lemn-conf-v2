@@ -163,6 +163,9 @@ status corrections, in one of these two files:
 | 130 | A two-finger pinch may read as a tap and drop a pending arrival | open.md — recorded 2026-10-08 at M8 8D's close; an inference; trigger: the first real-device pass |
 | 131 | The camera chips are written twice (editor and review) | open.md — recorded 2026-10-08 (8D ruling 5); trigger: a third place that draws them |
 | 132 | `loadOwnedDesign` takes an id of any shape | open.md — found 2026-10-08 by M8 8D's security review (R1.2); owner: wave 8L, slice S2 |
+| 133 | The review's first screenful holds about half the rows it held before 8D2 | open.md — recorded 2026-10-08 at M8 8D2's close; the owner's hand check |
+| 134 | A faint vertical hairline left of the Russian chip at 1440 px | open.md — carried from 8D, cause not found; probably 124 item 2; no owner |
+| 135 | The app has no `error.tsx` or `global-error.tsx` | open.md — found 2026-10-08 by M8 8D2's combined review; no owner, no phase |
 
 ## 2026-09-06 audit note
 

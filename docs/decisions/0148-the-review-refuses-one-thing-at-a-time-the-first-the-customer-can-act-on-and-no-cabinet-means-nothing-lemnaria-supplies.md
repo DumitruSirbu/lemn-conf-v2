@@ -460,3 +460,53 @@ Branch `m8-review-contact-success`, local, not pushed. Wave 8D is `7fa5258` to `
   plan.
 - Wave 8D2 changes the review's rows and bottom bar, and so this record's model half; it appends to this record.
 - Backlog 16 is the one item here that touches what the customer sees, and it is the owner's to look at.
+
+## Amendment B — 2026-10-08: what wave 8D2 settled about screen 3
+
+Written by the documentation scribe at wave 8D2's close from `docs/milestones/M8-review-contact-success.md` (the
+*8D2* section: *S1 as built*, *S2 as built, and three rulings*, *QA's figures and the review's one fix*, *8D2 as
+closed*). Nothing here was re-run by the scribe, who has no shell, and no ruling is new: each is the architect's,
+in the plan, and is recorded here so the reason lives beside the rule. Evidence and who ran it: the plan's *8D2 as
+closed*. Commits `3ffad38` … `0fad22c`.
+
+**B1. A body's row draws its label over two lines.** The first line is the body's name; the second states the
+body's width and, exactly when the body carries its own, its finish and its handle. The amount stays the
+breakdown's, and the rows are still one per body (decision 4). The second line comes from
+`AvailableReview.rowDetails`, a map beside the rows, so `groups` is still the breakdown's.
+
+- *Decision 4, noted.* It says the name in a refusal equals the row's label. That stays true of the value, now
+  stated as: the label is the first line's name and the body's width through the breakdown's own label leaf, and
+  the second line's first fact is that same width. The words on screen are no longer one string (*"Dulap bază 3
+  sertare"* over *"600 mm"*); what ties a refusal to its row is the mark, as criterion 13 of 8D has it.
+- *One labeller with one name inside it* (review R1.1): `describePlacementLabel` passes
+  `describePlacementName(entry, content)` to the label leaf, so a row's name and its label are not read from the
+  entry by two routes. A body with no detail makes the lookup throw a named error in the model (R1.2,
+  `MissingRowDetailError`), and the screen decides nothing.
+- *Interim, the owner's wording:* a body's own free colour is printed as its value. No frame shows a colour on a
+  row and a free colour has no approved name. A body's own finish equal to the kitchen's is stated on its row,
+  because ADR 0099 decides by whether the body holds its own choice.
+
+**B2. The view chips stand in a row under the picture, and only the *Vezi în 3D* link covers it.** Over the
+picture they covered about a fifth of it; under it they cover nothing and keep 44 px (criterion 7). **This
+supersedes "the chips over it" in A7's hand-check list**; the list item that remains is the picture's height and the
+cost in rows (backlog 133). Rulings 1a and 5 of Amendment A (the chips are how the views change; two copies, not
+three) are unchanged.
+
+**B3. A named departure: the Russian call to action is on two lines.** *"Запросить предложение"* breaks at its
+space inside a 52 px button; the frame draws one line because the Romanian fits on one and draws no Russian. The
+words, their size and the button's height are the approved ones. Accepted as built, not a blocker, shown to the
+owner at the hand check, with a shorter Russian label as the alternative that is the owner's (criterion 6). Limit,
+measured by QA: the word first enters the button's padding at 300 to 330 px depending on the figure, and nothing
+spills at 345 px and above; trigger (ADR 0118): a supported width under 345 px is named, or a kitchen prices at
+seven digits. The caption is `--ink-faint` (`#6b6860`), not the frame's `#7d7a72`, by ADR 0104's sweep.
+
+**B4. Criterion 5, restated.** Not *"the breakdown or the price bar changes"* but: **what the breakdown and the
+price bar print must not change.** The proof is that their own tests and both parity files pass untouched; a change
+to a function they call that alters no string they print is not forbidden. The restated criterion is what let B1's
+labeller fix edit `price/price-breakdown-model.ts`.
+
+**B5. Limits recorded.** The first screenful of the review holds about half the rows it did before 8D2 (backlog
+133). A render-time throw, including `MissingRowDetailError`, shows Next's default error screen because the app has
+no `error.tsx` or `global-error.tsx` (backlog 135). Not proven: a real device, iOS Safari, a CI runner; the full
+`CI=1` e2e suite and e2e after the fix round; a free colour's value on a row (not producible through the UI); a
+seven-digit figure in the bar (widest tried 103 000 MDL); the facts line's wording against the frame's.
