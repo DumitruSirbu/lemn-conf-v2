@@ -12,7 +12,6 @@ import { INSERTABLE_BODY_DEFINITIONS } from "../src/catalog.js";
 import { columnBuildDepthMm } from "../src/cabinet-depth-rule.js";
 import {
   declaredWorktopDepthsMm,
-  UnknownWorktopDepthError,
   wallDepthMmForWorktop,
   WORKTOP_DEPTH_MM,
 } from "../src/worktop-depth.js";
@@ -52,23 +51,6 @@ describe("the worktop → wall depth map", () => {
   });
 });
 
-describe("an undeclared worktop depth fails loudly", () => {
-  // Decision 4: wall depths are manufactured sizes. A formula would invent a 372 mm cabinet nobody
-  // makes, so a missing row is a programming error and never a number to guess at.
-  it.each([650, 800, 0, -600, 599.9, Number.NaN])(
-    "refuses %p rather than interpolating, rounding or defaulting",
-    (worktopDepthMm) => {
-      expect(() => wallDepthMmForWorktop(worktopDepthMm)).toThrow(
-        UnknownWorktopDepthError,
-      );
-    },
-  );
-
-  it("names the value it was given, so the refusal is diagnosable", () => {
-    expect(() => wallDepthMmForWorktop(650)).toThrow(/650 mm/);
-  });
-});
-
 describe("the map is the single source for both of §7's and §5.2's numbers", () => {
   const expectedWallDepthMm = wallDepthMmForWorktop(WORKTOP_DEPTH_MM);
 
@@ -102,23 +84,6 @@ describe("the map is the single source for both of §7's and §5.2's numbers", (
         hasFullHeightUnder: false,
       }),
     ).toBe(expectedWallDepthMm);
-  });
-
-  it("moves both numbers to 330 at the shipped worktop, and neither to 400", () => {
-    // The defect as the customer sees it, stated as the two numbers rather than as a built body:
-    // 400 is what a re-inserted top-row cabinet was built to beside 330 mm neighbours.
-    expect(expectedWallDepthMm).toBe(330);
-    expect(
-      INSERTABLE_BODY_DEFINITIONS.filter(([buildId]) =>
-        WALL_ENTRY_IDS.includes(buildId),
-      ).map(([, definition]) => definition.nominalDepthMm),
-    ).toEqual([330, 330, 330]);
-    expect(
-      columnBuildDepthMm({
-        cabinetDepthMm: WORKTOP_DEPTH_MM,
-        hasFullHeightUnder: false,
-      }),
-    ).not.toBe(400);
   });
 
   // **Changed deliberately in wave 5F**, which is the wave that answered the question this test

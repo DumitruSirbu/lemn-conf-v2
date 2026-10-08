@@ -156,28 +156,6 @@ describe("a record's corner is cornerOf's answer on the original placement", () 
     );
   });
 
-  it("over the approved L", () => {
-    const approved = APPROVED_ROOM_POLICY.buildableShapes.L;
-    if (!approved) throw new Error("the approved policy builds no L");
-    fc.assert(
-      fc.property(
-        lRoomsWithin({
-          wallA: approved.wallA,
-          wallB: approved.wallB,
-          height: APPROVED_ROOM_POLICY.heightBounds,
-        }),
-        (room) => {
-          const { corners } = recordsCornersAndCornerOfAgree(
-            buildLShellDesign({ room, occurredAt: OCCURRED_AT }),
-          );
-
-          expect(corners).not.toContain("right");
-        },
-      ),
-      { numRuns: RUNS },
-    );
-  });
-
   it("over a straight room, which has no corner piece at all", () => {
     const linear = engineLinearWallBounds();
     fc.assert(

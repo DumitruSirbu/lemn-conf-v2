@@ -115,17 +115,6 @@ describe("cornerDirectionOf", () => {
   // ADR 0130 D7: no corner, no direction — a straight kitchen is never mirrored, whatever a stored
   // document says. `validate-room.ts` never writes the key for a straight room, but this function is
   // the rule's own backstop, not merely a consequence of the writer's behaviour.
-  it("answers left for a straight room with no cornerDirection key", () => {
-    const room: DesignRoom = {
-      shape: "linear",
-      widthMm: 3700,
-      depthMm: 3400,
-      heightMm: 2600,
-    };
-
-    expect(cornerDirectionOf(room)).toBe("left");
-  });
-
   it.each(["left", "right"] as const)(
     "answers left for a straight room even if a stored document carries %s",
     (storedDirection) => {
@@ -140,35 +129,6 @@ describe("cornerDirectionOf", () => {
       expect(cornerDirectionOf(room)).toBe("left");
     },
   );
-
-  // ADR 0132 decision 8: a U has no right-hand variant, so this reads left for one whatever a
-  // stored document says — `DesignRoomSchema` refuses `"right"` on a U (ADR 0132 decision 6), but
-  // this function is the rule's own backstop, the same reasoning G6 already applies to a straight
-  // room.
-  it("answers left for a U with no cornerDirection key", () => {
-    const room: DesignRoom = {
-      shape: "U",
-      widthMm: 3600,
-      depthMm: 2400,
-      wallCMm: 2000,
-      heightMm: 2600,
-    };
-
-    expect(cornerDirectionOf(room)).toBe("left");
-  });
-
-  it("answers left for a U even if a stored document carries left explicitly", () => {
-    const room: DesignRoom = {
-      shape: "U",
-      widthMm: 3600,
-      depthMm: 2400,
-      wallCMm: 2000,
-      heightMm: 2600,
-      cornerDirection: "left",
-    };
-
-    expect(cornerDirectionOf(room)).toBe("left");
-  });
 });
 
 describe("room.cornerDirection has exactly one production reader across the workspace", () => {

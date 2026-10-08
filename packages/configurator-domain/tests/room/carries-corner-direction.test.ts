@@ -71,6 +71,8 @@ describe.each(SHAPES)("%s: carriesCornerDirection", (shape) => {
 });
 
 describe("the shapes that do and do not", () => {
+  // ADR 0132 decision 8: a U has no right-hand variant, so `cornerDirectionOf` reads left for one
+  // whatever a stored document says — the function is the rule's own backstop, as for a straight room.
   it("is true for an L and false for a straight room and for a U", () => {
     expect(carriesCornerDirection("L")).toBe(true);
     expect(carriesCornerDirection("linear")).toBe(false);

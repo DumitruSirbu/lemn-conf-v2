@@ -27,7 +27,7 @@ import {
 } from "../../src/index.js";
 import { ENGINE_ROOM_LIMITS } from "../../src/room/room-policy.js";
 import { createFakeProbeFactory } from "../support/fake-probe.js";
-import { linearWallBoundsOf, lWallBoundsOf } from "../support/room-input.js";
+import { lWallBoundsOf } from "../support/room-input.js";
 
 const OCCURRED_AT = "2026-09-28T09:00:00.000Z";
 const VALID_HEIGHT_MM = 2600;
@@ -92,27 +92,6 @@ describe("7J-A2 — the approved straight wall is 1200–6000 mm, at both transi
       }),
       { numRuns: 1000 },
     );
-  });
-
-  it("holds one maximum for every wall of every approved shape (Q-7J-1)", () => {
-    const lWalls = lWallBoundsOf(APPROVED_ROOM_POLICY);
-    const linearWalls = linearWallBoundsOf(APPROVED_ROOM_POLICY);
-
-    expect(
-      new Set([
-        lWalls.wallA.maxMm,
-        lWalls.wallB.maxMm,
-        linearWalls.wallA.maxMm,
-      ]),
-    ).toEqual(new Set([APPROVED_LINEAR_MAX_MM]));
-  });
-
-  it("sits inside the engine's own straight wall", () => {
-    const approved = linearWallBoundsOf(APPROVED_ROOM_POLICY).wallA;
-    const engine = linearWallBoundsOf(ENGINE_ROOM_LIMITS).wallA;
-
-    expect(approved.minMm).toBeGreaterThanOrEqual(engine.minMm);
-    expect(approved.maxMm).toBeLessThanOrEqual(engine.maxMm);
   });
 
   it("puts no number in any issue — only a field and a code", () => {

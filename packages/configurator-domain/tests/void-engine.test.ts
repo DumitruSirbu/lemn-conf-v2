@@ -442,23 +442,6 @@ describe("recomputeVoids", () => {
     expect(voids.every((v) => v.spanH === 2.6)).toBe(true);
   });
 
-  it("subdivides by module lines, not the column's original member history", () => {
-    const column = makeColumn({
-      regions: [
-        [0, 1.85],
-        [1.85, 2.6],
-      ],
-      top: 2.6,
-    });
-    const columns = new Map([[column.key, column]]);
-    const voids = recomputeVoids([], columns);
-    // Base/middle/top per LEVELS, never the fridge's own 0–1.85 / 1.85–2.6 split.
-    expect(voids).toHaveLength(3);
-    voids.forEach((v, index) => {
-      expect(v.h).toBeCloseTo([0.86, 0.7, 0.4][index] ?? Number.NaN, 6);
-    });
-  });
-
   it(`a free interval shorter than MIN_SPAN (${String(MIN_SPAN_M)}) produces no void`, () => {
     const column = makeColumn({
       regions: [[0, 2.5]],

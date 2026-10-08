@@ -6,20 +6,11 @@
 import { fc } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
-import {
-  isShapeBuildable,
-  APPROVED_ROOM_POLICY,
-  type DesignRoom,
-} from "../../src/index.js";
+import { APPROVED_ROOM_POLICY, type DesignRoom } from "../../src/index.js";
 import { generateU } from "../support/generated-u.js";
-import { engineUWallBounds, uWallBoundsOf } from "../support/room-input.js";
+import { engineUWallBounds } from "../support/room-input.js";
 import { uRoom } from "../support/u-plan-fixtures.js";
 import { gateVerdictFor } from "../support/u-gate-verdict.js";
-
-const REFUSED_FOR_THE_KITCHEN = {
-  ok: false,
-  issues: [{ field: "shape", code: "ROOM_TOO_SMALL_FOR_KITCHEN" }],
-} as const;
 
 const APPROVED_HEIGHTS_MM = [2200, 2600, 3900] as const;
 
@@ -40,53 +31,9 @@ function isAdmitted(room: DesignRoom): boolean {
   return gateVerdictFor(room).ok;
 }
 
-describe("validateRoomInput's U gate at H3's boundary pairs (U3b AC2)", () => {
-  it.each([
-    ["B = C = 1000", 2999, 1000, 1000, 3000],
-    ["B = C = 1599", 2999, 1599, 1599, 3000],
-  ])(
-    "%s: wall A 2999 is refused and 3000 accepted",
-    (_label, refusedAMm, depthMm, wallCMm, acceptedAMm) => {
-      expect(gateVerdictFor(uRoom(refusedAMm, depthMm, wallCMm))).toStrictEqual(
-        REFUSED_FOR_THE_KITCHEN,
-      );
-      expect(gateVerdictFor(uRoom(acceptedAMm, depthMm, wallCMm)).ok).toBe(
-        true,
-      );
-    },
-  );
-
-  it.each([2999, 2700])(
-    "A %i, B 6000: wall C 1599 is refused and 1600 accepted",
-    (wallAMm) => {
-      expect(gateVerdictFor(uRoom(wallAMm, 6000, 1599))).toStrictEqual(
-        REFUSED_FOR_THE_KITCHEN,
-      );
-      expect(gateVerdictFor(uRoom(wallAMm, 6000, 1600)).ok).toBe(true);
-    },
-  );
-
-  it("reads the narrower side wall as the far wall, whichever letter it has (C when they are equal)", () => {
-    expect(isAdmitted(uRoom(2999, 1599, 6000))).toBe(false);
-    expect(isAdmitted(uRoom(2999, 1600, 6000))).toBe(true);
-    expect(isAdmitted(uRoom(2999, 1599, 1599))).toBe(false);
-    expect(isAdmitted(uRoom(2999, 1600, 1600))).toBe(true);
-  });
-
-  it("returns the refusal on the room-level field with no number, as the L does", () => {
-    const verdict = gateVerdictFor(uRoom(2999, 1000, 1000));
-
-    expect(verdict).toStrictEqual(REFUSED_FOR_THE_KITCHEN);
-    expect(JSON.stringify(verdict)).not.toMatch(/\d/);
-  });
-
-  it("judges a field before the kitchen: a wall below its bound is that wall's issue alone", () => {
-    expect(gateVerdictFor(uRoom(2699, 1000, 1000))).toStrictEqual({
-      ok: false,
-      issues: [{ field: "wallA", code: "WALL_TOO_SHORT" }],
-    });
-  });
-
+// H3's boundary pairs themselves, and the refusal's exact shape, are asserted under the approved policy
+// in qa-m7b-u6-switch.adversarial.test.ts; 2999 / 1000 / 1000 is the first of them, refused there.
+describe("validateRoomInput's U gate is the policy's to switch (U3b AC2)", () => {
   it("applies only where the policy requires it: the engine's own U leaves the rule off", () => {
     const engineOnly = {
       ...APPROVED_ROOM_POLICY,
@@ -98,15 +45,6 @@ describe("validateRoomInput's U gate at H3's boundary pairs (U3b AC2)", () => {
     };
 
     expect(gateVerdictFor(uRoom(2999, 1000, 1000), engineOnly).ok).toBe(true);
-  });
-
-  // Restated at M7B U6 S1 (census D6): the approved policy states the U, and the gate above now runs
-  // under it, so the H3 pairs are the product's own verdicts.
-  it("states the U under the approved policy, whose gate is the one every pair above ran under", () => {
-    expect(isShapeBuildable("U", APPROVED_ROOM_POLICY)).toBe(true);
-    expect(uWallBoundsOf(APPROVED_ROOM_POLICY).minimumKitchen.isRequired).toBe(
-      true,
-    );
   });
 });
 

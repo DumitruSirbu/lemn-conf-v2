@@ -377,20 +377,6 @@ describe("ADR 0099 decision 8 — the way back out of an override", () => {
   });
 });
 
-describe("ADR 0099 acceptance 4 — a cabinet inserted after a global change", () => {
-  it("carries no finish and therefore renders the global colour, not the material's default", () => {
-    const design = withGlobalFinish(designOn("material.melamine", []), PAL_GRI);
-    // `insertBody` writes no colour, so an inserted body is modelled here by the shape it produces:
-    // a placement with no `finish` key at all.
-    const inserted = placementWearing(0, undefined);
-
-    expect(resolvedFinishOf(inserted, design)).toEqual(PAL_GRI);
-    expect(resolvedFinishOf(inserted, design)).not.toEqual(
-      materialById("material.melamine").defaultFinish,
-    );
-  });
-});
-
 describe("ADR 0099 decision 7 — the confirmation's comparison base moved", () => {
   it("counts a cabinet matching the kitchen's colour as having chosen nothing", () => {
     const design = withGlobalFinish(

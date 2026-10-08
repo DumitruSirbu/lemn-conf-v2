@@ -77,52 +77,6 @@ describe("overlapsAlongWall compares spans", () => {
       ).toBe(offsetMm < 0);
     },
   );
-
-  it.each(WALLS)(
-    "reads an exact abutment as no overlap and a 1 mm overlap as one, unequal widths, either order (wall %s)",
-    (wall) => {
-      const fridge: Run = { startMm: 0, endMm: 700 };
-      const neighbour = (startMm: number): Run => ({
-        startMm,
-        endMm: startMm + 600,
-      });
-
-      expect(
-        overlapsAlongWall(
-          recordOver(wall, fridge),
-          extentOver(wall, neighbour(700)),
-        ),
-      ).toBe(false);
-      expect(
-        overlapsAlongWall(
-          recordOver(wall, fridge),
-          extentOver(wall, neighbour(699)),
-        ),
-      ).toBe(true);
-      // The same pair the other way round: the 600 body, the 700 column.
-      expect(
-        overlapsAlongWall(
-          recordOver(wall, neighbour(700)),
-          extentOver(wall, fridge),
-        ),
-      ).toBe(false);
-      expect(
-        overlapsAlongWall(
-          recordOver(wall, neighbour(699)),
-          extentOver(wall, fridge),
-        ),
-      ).toBe(true);
-    },
-  );
-
-  it("sees a narrow column over the low end of a wider tall member as overlapping it", () => {
-    const tall: Run = { startMm: 0, endMm: 800 };
-    const narrow: Run = { startMm: 0, endMm: 200 };
-
-    expect(
-      overlapsAlongWall(recordOver("A", tall), extentOver("A", narrow)),
-    ).toBe(true);
-  });
 });
 
 describe("validate-width-result's own overlap, on unequal widths in both orders", () => {

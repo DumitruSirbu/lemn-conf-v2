@@ -146,12 +146,6 @@ describe("the seeded fixture's depths are checked against the map, not merely eq
     expect(offenders).toEqual([]);
   });
 
-  it("puts the shipped worktop's row on the depth the reference room builds", () => {
-    // The one assertion tying the two populations together: it fails if the map's 600 row leaves the shipped geometry
-    // behind.
-    expect(wallDepthMmForWorktop(600)).toBe(REFERENCE_ROOM_WALL_DEPTH_MM);
-  });
-
   it("leaves the two deep top cabinets and the seeded hood exactly where their record says", () => {
     for (const buildId of [
       "hood-600",

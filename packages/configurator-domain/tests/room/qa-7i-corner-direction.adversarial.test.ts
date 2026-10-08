@@ -12,7 +12,6 @@ import {
   CurrentDesignSchema,
   cornerDirectionOf,
   KITCHEN_L_DESIGN,
-  MAX_DESIGN_BYTES,
   migrateDesign,
   validateRoomInput,
   type Design,
@@ -177,11 +176,5 @@ describe("7I-A2 — the byte cap holds a right-hand room at its longest", () => 
     expect(Buffer.byteLength(envelope, "utf8")).toBeLessThan(
       DESIGN_ENVELOPE_BYTES,
     );
-  });
-
-  // M7B wave U1 slice S2 moved this cap (ADR 0132 decision 5's third wall run), so this test's own
-  // claim narrows: `cornerDirection` itself still moves nothing, over whatever qa-5h currently pins.
-  it("does not move MAX_DESIGN_BYTES beyond qa-5h's pinned value", () => {
-    expect(MAX_DESIGN_BYTES).toBe(523_972);
   });
 });

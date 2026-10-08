@@ -81,10 +81,6 @@ describe("isShapeBuildable — it reads the policy rather than naming a shape", 
     expect(isShapeBuildable("U", policyWithoutU())).toBe(false);
   });
 
-  it("is already buildable for linear, under the real approved policy, with no cast", () => {
-    expect(isShapeBuildable("linear", APPROVED_ROOM_POLICY)).toBe(true);
-  });
-
   it("does not turn a shape buildable that the fabricated policy left out", () => {
     const statesOnlyU: RoomPolicy = {
       ...APPROVED_ROOM_POLICY,

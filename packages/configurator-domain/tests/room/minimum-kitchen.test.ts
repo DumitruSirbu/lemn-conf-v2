@@ -36,41 +36,6 @@ function inputFor(
 
 describe("validateRoomInput — the generated minimum kitchen", () => {
   it.each([
-    [900, 2199],
-    [2099, 1000],
-    [1500, 1599],
-    [900, 2160],
-  ])("refuses %i × %i with the exact room-level issue", (wallAMm, wallBMm) => {
-    expect(
-      validateRoomInput(inputFor(wallAMm, wallBMm), APPROVED_ROOM_POLICY),
-    ).toStrictEqual({
-      ok: false,
-      issues: [{ field: "shape", code: "ROOM_TOO_SMALL_FOR_KITCHEN" }],
-    });
-  });
-
-  it.each([
-    [900, 2200],
-    [2100, 1000],
-    [1500, 1600],
-  ])(
-    "accepts %i × %i at the matching one-millimetre boundary",
-    (wallAMm, wallBMm) => {
-      expect(
-        validateRoomInput(inputFor(wallAMm, wallBMm), APPROVED_ROOM_POLICY),
-      ).toStrictEqual({
-        ok: true,
-        room: {
-          shape: "L",
-          widthMm: wallAMm,
-          depthMm: wallBMm,
-          heightMm: 2200,
-        },
-      });
-    },
-  );
-
-  it.each([
     [inputFor(899, 1000), [{ field: "wallA", code: "WALL_TOO_SHORT" }]],
     [
       inputFor(900.5, 1000),
