@@ -332,7 +332,7 @@ hand-picked example). Several pairs are byte-equivalent, for example `write-auth
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
 | 246 | composes the measured chrome from two measured halves | 1 | **No production input** (static) | overflow-warning-viewport.test.ts:246 `expect(MEASURED_HEADER_PX + SETTINGS_ROW_PX).toBeCloseTo(MEASURED_CHROME_ABOVE_CANVAS_PX, 4)`: all three operands are consts declared in the test file (55, 43.9375, 98.9375); no production symbol is read. Stays green when the production constant changes. | **W1-A unchanged** — control of a test-local detector, test-local measurement, or the review was wrong (see the wave report) |
-| 340 | leaves the strip identical at every band height, with a ${settingsRowPx} px settings row | 2 | **No production input** (static) | overflow-warning-viewport.test.ts:340-346: `BAND_HEIGHTS_PX.map(() => stripAboveTheSheetPx(MEASURED_HEADER_PX, settingsRowPx))` ignores its argument and the helper is test-local with no band parameter, so Set size is 1 by construction (both settings-row cases). The production constant only seeds the unused band-height array. | **W1-A unchanged** — control of a test-local detector, test-local measurement, or the review was wrong (see the wave report) |
+| 340 | leaves the strip identical at every band height, with a ${settingsRowPx} px settings row | 2 | **No production input** (static) | overflow-warning-viewport.test.ts:340-346: `BAND_HEIGHTS_PX.map(() => stripAboveTheSheetPx(MEASURED_HEADER_PX, settingsRowPx))` ignores its argument and the helper is test-local with no band parameter, so Set size is 1 by construction (both settings-row cases). The production constant only seeds the unused band-height array. | **W2-C deleted** (architect ruling) — a tautology: the callback ignores its element, so the set size is 1 by construction |
 
 **`tests/scene/qa-6m-criteria.adversarial.test.ts`**
 
@@ -705,7 +705,7 @@ hand-picked example). Several pairs are byte-equivalent, for example `write-auth
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
 | 143 | offers an entry if and only if that entry is one the material declares | 1 | **Mutation survived**. Mutation: src/materials.ts:233 paletteEntriesOf returns entries.slice(1) (drops each palette material's first entry). Went red instead: same file 'offers exactly the entry ids this file names, material by material' and 'splits twenty-four pairs eight/sixteen' went red (EXIT=1) | Expected value is paletteEntriesOf(material).some(...) and the query reads the same helper, so a change inside paletteEntriesOf moves both. (A different mutation, paletteEntriesOf returning every material's entries, did turn this test red, because the RAL branch of the query bypasses the helper.) Only the hand tables pin the content. | **D1-B unchanged** — review wrong: already red under a correctly aimed mutation |
-| 348 | answers true only for finishes the schema itself admits | 1 | **Mutation survived**. Mutation: src/materials.ts materialOffersFinish body replaced by `return true`. Went red instead: same file 'offers exactly the entry ids this file names, material by material', 'splits twenty-four pairs eight/sixteen' and 'offers an entry if and only if...' went red (EXIT=1) | Every finish fed in comes from everyPaletteFinish() or freeColourFinish('#000000'), all schema-valid, so FinishSchema.safeParse(finish).success is true whatever materialOffersFinish answers; the offer result only gates a `continue`. | **D1-B open** — contract question: a malformed free colour built around the constructors is answered `true` |
+| 348 | answers true only for finishes the schema itself admits | 1 | **Mutation survived**. Mutation: src/materials.ts materialOffersFinish body replaced by `return true`. Went red instead: same file 'offers exactly the entry ids this file names, material by material', 'splits twenty-four pairs eight/sixteen' and 'offers an entry if and only if...' went red (EXIT=1) | Every finish fed in comes from everyPaletteFinish() or freeColourFinish('#000000'), all schema-valid, so FinishSchema.safeParse(finish).success is true whatever materialOffersFinish answers; the offer result only gates a `continue`. | **D3 strengthened — found a defect, fixed.** `materialOffersFinish` offered a malformed free colour (against ADR 0078); fixed in `38fa058`. The test pins 43 colours built around the constructor. Its adversarial pass found a second door (`setFinish` on an undeclared material), fixed in `6eef46c` |
 
 **`tests/qa-6t-a-push-to-open.adversarial.test.ts`**
 
@@ -729,7 +729,7 @@ hand-picked example). Several pairs are byte-equivalent, for example `write-auth
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 709 | reads room.cornerDirection on exactly one code line / reads no other spelling of the field in code | 2 | **Mutation survived**. Mutation: src/design.ts:151 refusal predicate made unsatisfiable (`isU && room.cornerDirection === "right" && Math.abs(0) > 1`), line text still matching the regex. Went red instead: same file 'AC3 — DesignRoomSchema refuses every hostile wallCMm on a U > reports both faults of a U with no wallCMm that also claims a right-hand corner' went red (EXIT=1) | Both cases are regexes over design.ts source lines (one reader of room.cornerDirection, no destructuring/bracket spelling); they assert a structural rule and say nothing about whether the refusal still fires. | **D1-B open** — structural rule, needs a decision |
+| 709 | reads room.cornerDirection on exactly one code line / reads no other spelling of the field in code | 2 | **Mutation survived**. Mutation: src/design.ts:151 refusal predicate made unsatisfiable (`isU && room.cornerDirection === "right" && Math.abs(0) > 1`), line text still matching the regex. Went red instead: same file 'AC3 — DesignRoomSchema refuses every hostile wallCMm on a U > reports both faults of a U with no wallCMm that also claims a right-hand corner' went red (EXIT=1) | Both cases are regexes over design.ts source lines (one reader of room.cornerDirection, no destructuring/bracket spelling); they assert a structural rule and say nothing about whether the refusal still fires. | **kept** (architect ruling) — an accepted structural guard: ADR 0129 decision 2 names one production reader, and a missing second reader has no behaviour to assert |
 | 733 | mirrorUDesign — a hand-worked reflection (swaps B and C... / refuses to mirror a document that is not a U) | 2 | **No production input** (static) | Both cases call only mirrorUDesign from tests/support/mirror-u-design.ts and compare to literals in the test (e.g. [["a","A",3150],["b","C",740]]); the single src symbol it imports (deriveColumnKeyAt) is used only by mirroredColumnKey for void records, which these cases never touch. | **D1-B unchanged** — self-test of a test-local or `tests/support` helper; no production behaviour named |
 
 **`tests/qa-room-correction.adversarial.test.ts`**
@@ -811,7 +811,7 @@ hand-picked example). Several pairs are byte-equivalent, for example `write-auth
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 159 | keeps room + presetId + both timestamps inside the 1024-byte envelope with the key present | 1 | **Mutation survived**. Mutation: src/design-bounds.ts:169 DESIGN_ENVELOPE_BYTES 1024 -> 100. Went red instead: tests/room/qa-7i-corner-direction.adversarial.test.ts 'does not move MAX_DESIGN_BYTES beyond qa-5h's pinned value' red (file EXIT=1) | The case builds its own JSON envelope with a hand-typed 1024 and measures it; production feeds only the MAX_ROOM_* digit counts, so the real allowance and serialisation are never read. The MAX_DESIGN_BYTES literal pin in the next case is what catches the change. | **D1-B open** — `DESIGN_ENVELOPE_BYTES` is private, needs a decision |
+| 159 | keeps room + presetId + both timestamps inside the 1024-byte envelope with the key present | 1 | **Mutation survived**. Mutation: src/design-bounds.ts:169 DESIGN_ENVELOPE_BYTES 1024 -> 100. Went red instead: tests/room/qa-7i-corner-direction.adversarial.test.ts 'does not move MAX_DESIGN_BYTES beyond qa-5h's pinned value' red (file EXIT=1) | The case builds its own JSON envelope with a hand-typed 1024 and measures it; production feeds only the MAX_ROOM_* digit counts, so the real allowance and serialisation are never read. The MAX_DESIGN_BYTES literal pin in the next case is what catches the change. | **D3 strengthened** — `DESIGN_ENVELOPE_BYTES` exported (`38fa058`); the test compares with it and keeps a literal pin of 1024; red under mutation |
 
 **`tests/room/qa-7j-straight-room.adversarial.test.ts`**
 
@@ -1097,7 +1097,7 @@ mutation is equivalent on shipped data, or the behaviour is unguarded everywhere
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 310 | adds no caller of resolvedFinishOf and no second writer of body.finish / takes no probe lease in the insert path | 2 | Mutation survived, no witness. Mutation: src/commands/replan-dependent-members.ts:~190 — rebuilt placement body gains a `['fin'+'ish']: 'mutant'` key | Substring scan of source text passes a computed key. No other test in replan-dependent-members, qa-6z, insert-body, insert-depth, qa-item8, qa-0099c went red, so nothing asserts the colour is not written behaviourally here (the file says the store suite does). Landing not proven. | **D1-B part** — not equivalent, **previously unguarded**: case 1 now a real test, red under mutation; case 2 **open**, needs a decision |
+| 310 | adds no caller of resolvedFinishOf and no second writer of body.finish / takes no probe lease in the insert path | 2 | Mutation survived, no witness. Mutation: src/commands/replan-dependent-members.ts:~190 — rebuilt placement body gains a `['fin'+'ish']: 'mutant'` key | Substring scan of source text passes a computed key. No other test in replan-dependent-members, qa-6z, insert-body, insert-depth, qa-item8, qa-0099c went red, so nothing asserts the colour is not written behaviourally here (the file says the store suite does). Landing not proven. | **D1-B, D2-C settled** — not equivalent, **previously unguarded**: case 1 a real test, red under mutation; case 2 kept as an accepted structural guard (architect, ADR 0103 decision 8), retitled "spells no `.use(` in the two insert-path files" |
 
 **`tests/commands/set-cabinet-depth.frozen-map.test.ts`**
 
@@ -1521,14 +1521,14 @@ mutation is equivalent on shipped data, or the behaviour is unguarded everywhere
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 43 | reads %i as the room line's last words | 15 | 15 of the 18 rows are the same reviewRoomLine call and the same words as qa-8c's table. Unique here: 0 in both locales (an ICU =0 branch would show only here) and ru 101. Caution: the category-completeness test at review-body-count.test.ts:58 reads this same table. **Keep:** `apps/web/tests/review/qa-8c-room-line-and-copy.adversarial.test.ts:168` |
+| 43 | reads %i as the room line's last words | 15 | 15 of the 18 rows are the same reviewRoomLine call and the same words as qa-8c's table. Unique here: 0 in both locales (an ICU =0 branch would show only here) and ru 101. Caution: the category-completeness test at review-body-count.test.ts:58 reads this same table. **Keep:** `apps/web/tests/review/qa-8c-room-line-and-copy.adversarial.test.ts:168` | **W2-C kept** — 15 of its rows cannot go: another test reads the same table and would be left with one category |
 
 **`tests/review/review-model.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
 | 117 | is the priced total rounded up as the price bar rounds it (kitchen %i) | 4 | The figure is describeStartingPrice(totalMinor) with no kitchen-dependent branch; qa-8c:368 checks it against the raw catalogue, the bar and the breakdown in both locales, and :588/:613 pin the boundaries. **Keep:** `apps/web/tests/review/qa-8c-parity-with-the-price-surfaces.adversarial.test.ts:368` | **W2-B deleted** — a kept test went red under a mutation |
-| 198 | names one length for a straight room... / names two lengths for an L... / names three lengths for a U... / states the corner side for an L... / states no corner side for a straight room or a U | 7 | qa-8c:277 asserts lengths-then-count for every arm and :291 the corner side in both locales, including a left L with cornerDirection absent (tests/support/varied-kitchens.ts:52-63) and a right-hand L. The three fixed rooms reach no other branch. **Keep:** `apps/web/tests/review/qa-8c-room-line-and-copy.adversarial.test.ts:277` | **W2-B part** — four titles deleted (kept tests red); "states no corner side for a straight room or a U" **open**: no signal from either test |
+| 198 | names one length for a straight room... / names two lengths for an L... / names three lengths for a U... / states the corner side for an L... / states no corner side for a straight room or a U | 7 | qa-8c:277 asserts lengths-then-count for every arm and :291 the corner side in both locales, including a left L with cornerDirection absent (tests/support/varied-kitchens.ts:52-63) and a right-hand L. The three fixed rooms reach no other branch. **Keep:** `apps/web/tests/review/qa-8c-room-line-and-copy.adversarial.test.ts:277` | **W2-B, W2-C deleted** — four titles in W2-B; the fifth in W2-C once the right mutation was found (the first was equivalent): qa-8c "names in $locale the corner side an L has, and no side for any other shape" goes red |
 | 271 | takes its title from the review's own leaf / labels the estimate a starting price, rounded up... / returns the not-included slot from the approved breakdown disclaimer alone | 3 | Title, figure label, disclaimer and not-included slot are asserted at qa-8c:334-353 in both locales against the raw JSON; here the expected side is the same resolver the model calls. **Keep:** `apps/web/tests/review/qa-8c-room-line-and-copy.adversarial.test.ts:334` | **W2-B deleted** — a kept test went red under a mutation |
 
 **`tests/review/review-parity.test.ts`**
@@ -1555,19 +1555,19 @@ mutation is equivalent on shipped data, or the behaviour is unguarded everywhere
 | --- | --- | --- | --- | --- |
 | 221 | carry the review's row label in %s | 2 | Refusal labels come from one describePlacementLabel call (src/review/review-model.ts:337-340); qa-8c:152 checks them against the rows and the breakdown in both locales, and review-submit-precedence.test.ts:226 again. **Keep:** `apps/web/tests/review/qa-8c-submit-eligibility.adversarial.test.ts:152` | **W2-B deleted** — a kept test went red under a mutation |
 | 273 | is a refusal of the submission and not of the review: an overflowing kitchen still shows its figure | 1 | qa-8c:129 asserts kind 'available' with BODIES_PAST_WALL over every overflow maker and arm; one seeded kitchen adds no branch. **Keep:** `apps/web/tests/review/qa-8c-submit-eligibility.adversarial.test.ts:129` | **W2-B deleted** — a kept test went red under a mutation |
-| 314 | is refused loudly rather than naming fewer bodies than the query reports | 1 | The cited twin path is stale: the stray-body cases are at review-input-divergence.test.ts:52 (priced, same /stray-body/ throw) and :110 (unpriced, overflowing stray). No single removed check reddens this and leaves both green. **Keep:** `apps/web/tests/review/review-input-divergence.test.ts:52` | **W2-B open** — not a duplicate but a fake check: it stays green with both checks it names removed |
+| 314 | is refused loudly rather than naming fewer bodies than the query reports | 1 | The cited twin path is stale: the stray-body cases are at review-input-divergence.test.ts:52 (priced, same /stray-body/ throw) and :110 (unpriced, overflowing stray). No single removed check reddens this and leaves both green. **Keep:** `apps/web/tests/review/review-input-divergence.test.ts:52` | **W2-C strengthened** — it was a fake check filed as a duplicate; now red when the rows-against-design check is removed, and the only test red when that check is skipped on an overflowing kitchen |
 
 **`tests/room/dimensions-form.dom.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 562 | does not give wall A of a %s room the straight room's reading | 2 | For L and U, :548 already asserts wall A reads cornerText (test-local explanationFor, :374-381). The only extra is cornerText != text, both pinned by the copy lock; move that guard into :548 if the case is deleted. **Keep:** `apps/web/tests/room/dimensions-form.dom.test.ts:548` |
+| 562 | does not give wall A of a %s room the straight room's reading | 2 | For L and U, :548 already asserts wall A reads cornerText (test-local explanationFor, :374-381). The only extra is cornerText != text, both pinned by the copy lock; move that guard into :548 if the case is deleted. **Keep:** `apps/web/tests/room/dimensions-form.dom.test.ts:548` | **W2-C merged then deleted** — the readings guard moved into the kept test first, proven red |
 
 **`tests/room/generation-steps.dom.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 643 | does not print wall B's number in wall C's place: the two differ on screen | 1 | The property at :616 asserts the whole summary string with B before C for independent random lengths in both locales; a B/C swap fails every sample where they differ. **Keep:** `apps/web/tests/room/generation-steps.dom.test.ts:616` |
+| 643 | does not print wall B's number in wall C's place: the two differ on screen | 1 | The property at :616 asserts the whole summary string with B before C for independent random lengths in both locales; a B/C swap fails every sample where they differ. **Keep:** `apps/web/tests/room/generation-steps.dom.test.ts:616` | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
 
 **`tests/room/metres-text.test.ts`**
 
@@ -1586,7 +1586,7 @@ mutation is equivalent on shipped data, or the behaviour is unguarded everywhere
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 497 | marks the same wall ids in both directions, for %s | 8 | :410 asserts both directions equal the arm's fixed expectedMarks over the same rooms, which implies left equals right. **Keep:** `apps/web/tests/room/plan-preview-model-marking.test.ts:410` |
+| 497 | marks the same wall ids in both directions, for %s | 8 | :410 asserts both directions equal the arm's fixed expectedMarks over the same rooms, which implies left equals right. **Keep:** `apps/web/tests/room/plan-preview-model-marking.test.ts:410` | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
 
 **`tests/room/qa-7f1-copy-and-conversions.adversarial.test.ts`**
 
@@ -1604,13 +1604,13 @@ mutation is equivalent on shipped data, or the behaviour is unguarded everywhere
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 572 | is present in both catalogues | 1 | :474 forces every leaf under room.issue into SECTION_5_KEYS, so orChooseLinear is in the tables that :486 and :495 compare verbatim against the approved ro and ru sentences. Verbatim equality with a non-empty sentence implies not ''. **Keep:** `apps/web/tests/room/qa-7f2-s1-issue-model.adversarial.test.ts:486` |
+| 572 | is present in both catalogues | 1 | :474 forces every leaf under room.issue into SECTION_5_KEYS, so orChooseLinear is in the tables that :486 and :495 compare verbatim against the approved ro and ru sentences. Verbatim equality with a non-empty sentence implies not ''. **Keep:** `apps/web/tests/room/qa-7f2-s1-issue-model.adversarial.test.ts:486` | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
 
 **`tests/room/qa-7f2-s2-red-wall.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 440 | marks exactly the walls the domain refuses on a U, wall C included | 1 | Same generator (anyTypedRoom), same oracle (expectedMarksFor), same expression. :399 draws shape from ['linear','L','U'] over 1000 runs (about 333 U rooms) against this case's 200 U rooms, so it is a smaller sample of the same population. **Keep:** `apps/web/tests/room/qa-7f2-s2-red-wall.adversarial.test.ts:399` |
+| 440 | marks exactly the walls the domain refuses on a U, wall C included | 1 | Same generator (anyTypedRoom), same oracle (expectedMarksFor), same expression. :399 draws shape from ['linear','L','U'] over 1000 runs (about 333 U rooms) against this case's 200 U rooms, so it is a smaller sample of the same population. **Keep:** `apps/web/tests/room/qa-7f2-s2-red-wall.adversarial.test.ts:399` | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
 
 **`tests/room/qa-7f2-s5-incomplete-plan.adversarial.test.ts`**
 
@@ -1622,33 +1622,33 @@ mutation is equivalent on shipped data, or the behaviour is unguarded everywhere
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 782 | carries saveFailed and retry in Romanian and in Russian, key-identical and non-empty | 1 | catalogue-parity.test.ts:49 asserts the same ordered key set for every leaf in ro and ru and that no leaf is blank, which contains both properties for room.compose. The two keys' presence in ro is held by the rendered assertions at :693 and :737 and by the copy lock. **Keep:** `apps/web/tests/i18n/catalogue-parity.test.ts:49` |
+| 782 | carries saveFailed and retry in Romanian and in Russian, key-identical and non-empty | 1 | catalogue-parity.test.ts:49 asserts the same ordered key set for every leaf in ro and ru and that no leaf is blank, which contains both properties for room.compose. The two keys' presence in ro is held by the rendered assertions at :693 and :737 and by the copy lock. **Keep:** `apps/web/tests/i18n/catalogue-parity.test.ts:49` | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
 
 **`tests/room/room-handoff.dom.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 419 | issues no second POST when a retry follows a failed write | 1 | Same flow and counts (POST 1, PUT 2) as qa-7f4b :456 under the same plain render, and again under StrictMode at :488; the one extra, the second PUT's url equal to the first, is asserted at qa-7f4b :657. No retry-mint change reddens this alone. **Keep:** `apps/web/tests/room/qa-7f4b-handoff.adversarial.test.ts:456` |
-| 519 | writes to the already-minted row and opens it when the retry succeeds | 1 | Its single assertion, editorPushes equals the one editor href after a failed write and a retry, is asserted in the same flow at qa-7f4b :469 and :501 (EDITOR_HREF is the same string, :76), together with the request counts. **Keep:** `apps/web/tests/room/qa-7f4b-handoff.adversarial.test.ts:456` |
+| 419 | issues no second POST when a retry follows a failed write | 1 | Same flow and counts (POST 1, PUT 2) as qa-7f4b :456 under the same plain render, and again under StrictMode at :488; the one extra, the second PUT's url equal to the first, is asserted at qa-7f4b :657. No retry-mint change reddens this alone. **Keep:** `apps/web/tests/room/qa-7f4b-handoff.adversarial.test.ts:456` | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
+| 519 | writes to the already-minted row and opens it when the retry succeeds | 1 | Its single assertion, editorPushes equals the one editor href after a failed write and a retry, is asserted in the same flow at qa-7f4b :469 and :501 (EDITOR_HREF is the same string, :76), together with the request counts. **Keep:** `apps/web/tests/room/qa-7f4b-handoff.adversarial.test.ts:456` | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
 
 **`tests/room/room-issue-model.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 593 | accepts a straight kitchen at 1D with the same fields that used to refuse it | 1 | Same draft as :671, which asserts the 1D substate; its other expect, isShapeRefused false for a linear with exactly these four texts, is the 'linear / every field typed' row of :517 plus the literal at :534. Nothing reddens it without reddening one of those. **Keep:** `apps/web/tests/room/room-issue-model.test.ts:671` |
-| 837 | covers all six reachable codes | 1 | Both key sets are held total and excess-free by the compiler against the same type: ROOM_ISSUE_MESSAGE_KEYS satisfies Record<ReachableRoomIssueCode, string> (room-issue-model.ts:43-50) and REACHABLE_CODES satisfies Record<ReachableRoomIssueCode, true> (:60-70). It touches no catalogue, so the ro and ru runs under describe.each are the same assertion twice. **Keep:** `apps/web/tests/room/room-issue-model.test.ts:60` |
+| 593 | accepts a straight kitchen at 1D with the same fields that used to refuse it | 1 | Same draft as :671, which asserts the 1D substate; its other expect, isShapeRefused false for a linear with exactly these four texts, is the 'linear / every field typed' row of :517 plus the literal at :534. Nothing reddens it without reddening one of those. **Keep:** `apps/web/tests/room/room-issue-model.test.ts:671` | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
+| 837 | covers all six reachable codes | 1 | Both key sets are held total and excess-free by the compiler against the same type: ROOM_ISSUE_MESSAGE_KEYS satisfies Record<ReachableRoomIssueCode, string> (room-issue-model.ts:43-50) and REACHABLE_CODES satisfies Record<ReachableRoomIssueCode, true> (:60-70). It touches no catalogue, so the ro and ru runs under describe.each are the same assertion twice. **Keep:** `apps/web/tests/room/room-issue-model.test.ts:60` | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
 
 **`tests/room/room-query-sync.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 207 | writes a canonical query that reading and writing again reproduces exactly | 1 | Body identical to d45 :211. Its three generator extras reach no branch of their own: utm_source is never read by roomDraftFromQuery (room-query-sync.ts:427-439), and '3,560.00' and '99999999999999999999' fall in the notANumber and unsafe-integer refusals (parse-metres.ts:33, :55) that d45's fc.string and '9007199254740.992' already hit. Delete this one only; s12.3 is the one that stays. **Keep:** `apps/web/tests/room/qa-7f1-d45-convergence.adversarial.test.ts:211` |
+| 207 | writes a canonical query that reading and writing again reproduces exactly | 1 | Body identical to d45 :211. Its three generator extras reach no branch of their own: utm_source is never read by roomDraftFromQuery (room-query-sync.ts:427-439), and '3,560.00' and '99999999999999999999' fall in the notANumber and unsafe-integer refusals (parse-metres.ts:33, :55) that d45's fc.string and '9007199254740.992' already hit. Delete this one only; s12.3 is the one that stays. **Keep:** `apps/web/tests/room/qa-7f1-d45-convergence.adversarial.test.ts:211` | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
 
 **`tests/room/room-screen.dom.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 355 | continues once the L is chosen | 1 | Strict subset of :388 in the same describe: that case chooses L, clicks Continue and expects the push, and a disabled button's click() dispatches nothing, so a disabled CTA after choosing L already fails there. **Keep:** `apps/web/tests/room/room-screen.dom.test.ts:388` |
+| 355 | continues once the L is chosen | 1 | Strict subset of :388 in the same describe: that case chooses L, clicks Continue and expects the push, and a disabled button's click() dispatches nothing, so a disabled CTA after choosing L already fails there. **Keep:** `apps/web/tests/room/room-screen.dom.test.ts:388` | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
 
 **`tests/room/room-url-round-trip.dom.test.ts`**
 
@@ -1661,165 +1661,165 @@ mutation is equivalent on shipped data, or the behaviour is unguarded everywhere
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 222 | omits document, locale, and revision state | 1 | :181 asserts the complete href string for a stored L, which fixes the key list exactly; the forbidden-key loop then follows from the key list. The only difference is the height literal, 2500 against 2600, and 2500 is round-tripped at :207. **Keep:** `apps/web/tests/room/room-url-state.test.ts:181` |
+| 222 | omits document, locale, and revision state | 1 | :181 asserts the complete href string for a stored L, which fixes the key list exactly; the forbidden-key loop then follows from the key list. The only difference is the height literal, 2500 against 2600, and 2500 is round-tripped at :207. **Keep:** `apps/web/tests/room/room-url-state.test.ts:181` | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
 
 **`tests/scene/kitchen-stage-view-only.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 232 | leaves an empty selection empty after a tap | 1 | :215 proves the view-only stage registers no pointer listener, so tapTheCanvas() calls nothing and this reduces to 'mounting leaves a null selection null'. :221 covers a tap over a standing selection with pick not called. Only a stage that selected something on mount without any listener could redden this alone. **Keep:** `apps/web/tests/scene/kitchen-stage-view-only.test.ts:215` |
+| 232 | leaves an empty selection empty after a tap | 1 | :215 proves the view-only stage registers no pointer listener, so tapTheCanvas() calls nothing and this reduces to 'mounting leaves a null selection null'. :221 covers a tap over a standing selection with pick not called. Only a stage that selected something on mount without any listener could redden this alone. **Keep:** `apps/web/tests/scene/kitchen-stage-view-only.test.ts:215` | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
 
 **`tests/scene/overflow-mark.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 345 | builds no mark on the next pass once nothing overflows | 1 | The react mock (:42-58) gives a fresh useRef and useMemo on every KitchenStage call and mountWith replaces the store state, so nothing carries from the first mount to the second: after mockClear it is :254's mount and :254's assertion. The mark leaving on cleanup, which is the defect the comment names, is asserted at :332-343. **Keep:** `apps/web/tests/scene/overflow-mark.test.ts:254` |
+| 345 | builds no mark on the next pass once nothing overflows | 1 | The react mock (:42-58) gives a fresh useRef and useMemo on every KitchenStage call and mountWith replaces the store state, so nothing carries from the first mount to the second: after mockClear it is :254's mount and :254's assertion. The mark leaving on cleanup, which is the defect the comment names, is asserted at :332-343. **Keep:** `apps/web/tests/scene/overflow-mark.test.ts:254` | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
 
 **`tests/scene/overflow-warning-loading.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 126 | says nothing about an overflow on a design that has none either | 1 | The static render is always in the loading state, so the gate is closed for both designs; any implementation that passes :112 (silent with overflowing bodies) passes this unless it warns more for a design with no overflow. It does not do what its comment claims, since nothing in this file ever renders the sentence; that counterfactual lives in overflow-warning.test.ts:99 and :106. **Keep:** `apps/web/tests/scene/overflow-warning-loading.test.ts:112` |
+| 126 | says nothing about an overflow on a design that has none either | 1 | The static render is always in the loading state, so the gate is closed for both designs; any implementation that passes :112 (silent with overflowing bodies) passes this unless it warns more for a design with no overflow. It does not do what its comment claims, since nothing in this file ever renders the sentence; that counterfactual lives in overflow-warning.test.ts:99 and :106. **Keep:** `apps/web/tests/scene/overflow-warning-loading.test.ts:112` | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
 
 **`tests/scene/overflow-warning-viewport.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 303 | is nowhere near the strip a selection can see: header ${headerHeightPx} px, settings row ${settingsRowPx} px, band ${bandHeightPx} px | 54 | Both sides are test-local arithmetic (sceneHeightFor :173, stripAboveTheSheetPx :185); header and settings row cancel, leaving 844*0.78 - 125.6875 - band > 0, so there are 3 distinct inequalities, not 54. The only production input is OVERFLOW_WARNING_RESERVED_HEIGHT_PX, which :323 pins to within half a pixel (margin 477), and that implies all three (461 and 445 at +16 and +32). **Keep:** `apps/web/tests/scene/overflow-warning-viewport.test.ts:323` |
+| 303 | is nowhere near the strip a selection can see: header ${headerHeightPx} px, settings row ${settingsRowPx} px, band ${bandHeightPx} px | 54 | Both sides are test-local arithmetic (sceneHeightFor :173, stripAboveTheSheetPx :185); header and settings row cancel, leaving 844*0.78 - 125.6875 - band > 0, so there are 3 distinct inequalities, not 54. The only production input is OVERFLOW_WARNING_RESERVED_HEIGHT_PX, which :323 pins to within half a pixel (margin 477), and that implies all three (461 and 445 at +16 and +32). **Keep:** `apps/web/tests/scene/overflow-warning-viewport.test.ts:323` | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
 
 **`tests/scene/overflow-warning.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 92 | carries the noun the owner settled on, and not the wording it replaced | 1 | The file's own header (:73-76) says the wording is byte-pinned by the copy lock and deliberately not spelled again; this case spells part of it again. romanian-copy-lock.test.ts:16 holds the whole sentence, and qa-6m-criteria.adversarial.test.ts:210 already asserts the noun. **Keep:** `apps/web/tests/i18n/romanian-copy-lock.test.ts:16` |
-| 145 | says it as soon as the scene is mounted, on the same design | 1 | Its two expects are exactly :134 (loading, overflowing, sentence absent) and :102 (mounted, overflowing, sentence present), on the same fixture through the same two helpers. Those two cases together are the counterfactual it describes. **Keep:** `apps/web/tests/scene/overflow-warning.test.ts:99` |
+| 92 | carries the noun the owner settled on, and not the wording it replaced | 1 | The file's own header (:73-76) says the wording is byte-pinned by the copy lock and deliberately not spelled again; this case spells part of it again. romanian-copy-lock.test.ts:16 holds the whole sentence, and qa-6m-criteria.adversarial.test.ts:210 already asserts the noun. **Keep:** `apps/web/tests/i18n/romanian-copy-lock.test.ts:16` | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
+| 145 | says it as soon as the scene is mounted, on the same design | 1 | Its two expects are exactly :134 (loading, overflowing, sentence absent) and :102 (mounted, overflowing, sentence present), on the same fixture through the same two helpers. Those two cases together are the counterfactual it describes. **Keep:** `apps/web/tests/scene/overflow-warning.test.ts:99` | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
 
 **`tests/scene/qa-6m-overflow-source.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 349 | are all released when a design change replaces them | 1 | Mount, run the cleanups once, disposeOverflowMark called once: that is the first half of :335 (afterFirstTeardown toBe 1) and of overflow-mark.test.ts:332. No design change happens in the body, so the title's claim is not what it tests. **Keep:** `apps/web/tests/scene/qa-6m-overflow-source.adversarial.test.ts:335` |
+| 349 | are all released when a design change replaces them | 1 | Mount, run the cleanups once, disposeOverflowMark called once: that is the first half of :335 (afterFirstTeardown toBe 1) and of overflow-mark.test.ts:332. No design change happens in the body, so the title's claim is not what it tests. **Keep:** `apps/web/tests/scene/qa-6m-overflow-source.adversarial.test.ts:335` | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
 
 **`tests/settings/global-colour-group.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 474 | clears the pending colour rather than committing it and resetting it after | 3 | :474 (PAL to veneer drops PAL_GRI) and :487 (PAL to PAL keeps it) are single cells of the sweep at qa-0099 :424, which runs every ordered material pair, the same-material pair included, over every offered colour with the same chooseFinishIn/chooseTierIn calls. :499 (veneer's default is marked) is the first expect of qa-0099 :474. **Keep:** `apps/web/tests/settings/qa-0099-global-colour.adversarial.test.ts:424` |
+| 474 | clears the pending colour rather than committing it and resetting it after | 3 | :474 (PAL to veneer drops PAL_GRI) and :487 (PAL to PAL keeps it) are single cells of the sweep at qa-0099 :424, which runs every ordered material pair, the same-material pair included, over every offered colour with the same chooseFinishIn/chooseTierIn calls. :499 (veneer's default is marked) is the first expect of qa-0099 :474. **Keep:** `apps/web/tests/settings/qa-0099-global-colour.adversarial.test.ts:424` | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
 
 **`tests/settings/global-settings-modal-centring.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 179 | leaves the settings modal at least the safe gap under it at any height | 1 | POPOVER_TOP + SAFE_GAP - TOP >= SAFE_GAP is POPOVER_TOP >= TOP with SAFE_GAP on both sides, which is the settings-modal row of the it.each at :149-153. Same three numbers, same pass/fail. **Keep:** `apps/web/tests/settings/global-settings-modal-centring.test.ts:149` |
+| 179 | leaves the settings modal at least the safe gap under it at any height | 1 | POPOVER_TOP + SAFE_GAP - TOP >= SAFE_GAP is POPOVER_TOP >= TOP with SAFE_GAP on both sides, which is the settings-modal row of the it.each at :149-153. Same three numbers, same pass/fail. **Keep:** `apps/web/tests/settings/global-settings-modal-centring.test.ts:149` | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
 
 **`tests/settings/global-settings-model.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 480 | calls the total what every other surface calls it, since there is one name left | 1 | Its first expect is the same assertion as :477 on the same view, and the second (not containing 'neschimbat') follows from toBe. Its own comment says the ruling it was written for is withdrawn. **Keep:** `apps/web/tests/settings/global-settings-model.test.ts:471` |
-| 548 | still hands apply the ids the 6E commands accept | 1 | :528 (in this same file, not the shell file the finding names) asserts tierIds toEqual the book's full tier list for both groups; that the default is among them is then a fact about SAMPLE_PRICE_BOOK, not about this surface. **Keep:** `apps/web/tests/settings/global-settings-model.test.ts:528` |
+| 480 | calls the total what every other surface calls it, since there is one name left | 1 | Its first expect is the same assertion as :477 on the same view, and the second (not containing 'neschimbat') follows from toBe. Its own comment says the ruling it was written for is withdrawn. **Keep:** `apps/web/tests/settings/global-settings-model.test.ts:471` | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
+| 548 | still hands apply the ids the 6E commands accept | 1 | :528 (in this same file, not the shell file the finding names) asserts tierIds toEqual the book's full tier list for both groups; that the default is among them is then a fact about SAMPLE_PRICE_BOOK, not about this surface. **Keep:** `apps/web/tests/settings/global-settings-model.test.ts:528` | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
 
 **`tests/settings/global-settings-shell.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 268 | is genuinely unpriceable, so this is the case it is named for | 1 | A fixture witness on the domain pricer, the same assertion as global-settings-model.test.ts:524 on the same withdrawn tier. A pricer that began accepting a withdrawn tier reddens both; the only thing it sees alone is this file's own designCarrying helper, which is test code. **Keep:** `apps/web/tests/settings/global-settings-model.test.ts:524` |
+| 268 | is genuinely unpriceable, so this is the case it is named for | 1 | A fixture witness on the domain pricer, the same assertion as global-settings-model.test.ts:524 on the same withdrawn tier. A pricer that began accepting a withdrawn tier reddens both; the only thing it sees alone is this file's own designCarrying helper, which is test code. **Keep:** `apps/web/tests/settings/global-settings-model.test.ts:524` | **W2-C kept** — only this witness goes red; it is the premise of its file's own fixture |
 
 **`tests/settings/global-settings.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 515 | pins both spellings by literal, so the composition cannot change either silently | 1 | tierDelta('+9 000') is one sample of the property directly above it (any string gives 'de la ' + it) and is also pinned at global-settings-model.test.ts:406; 'De la' is held by romanian-copy-lock.test.ts:16 and :444; the third expect is the first two composed. **Keep:** `apps/web/tests/settings/global-settings.adversarial.test.ts:506` |
+| 515 | pins both spellings by literal, so the composition cannot change either silently | 1 | tierDelta('+9 000') is one sample of the property directly above it (any string gives 'de la ' + it) and is also pinned at global-settings-model.test.ts:406; 'De la' is held by romanian-copy-lock.test.ts:16 and :444; the third expect is the first two composed. **Keep:** `apps/web/tests/settings/global-settings.adversarial.test.ts:506` | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
 
 **`tests/settings/material-reset-confirm.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 196 | never asks about a press that would run no material command | 1 | The 25 pairs at the fixture's four chosen colours are 25 of :172's 75 cells, built by the same viewFor, and the table already answers false on every absent-pending and same-id cell. No implementation reddens this while :172 is green. **Keep:** `apps/web/tests/settings/material-reset-confirm.adversarial.test.ts:172` |
-| 468 | is composed about the stored document, not about the seeded kitchen | 1 | viewFor is called without a design, so it uses the same MDF fixture as the table: this is exactly :172's 'mdf → veneer, 0 chosen' cell. The seeded kitchen reaching the model through its own count is asserted in material-reset-confirm.test.ts:263-271. **Keep:** `apps/web/tests/settings/material-reset-confirm.adversarial.test.ts:172` |
+| 196 | never asks about a press that would run no material command | 1 | The 25 pairs at the fixture's four chosen colours are 25 of :172's 75 cells, built by the same viewFor, and the table already answers false on every absent-pending and same-id cell. No implementation reddens this while :172 is green. **Keep:** `apps/web/tests/settings/material-reset-confirm.adversarial.test.ts:172` | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
+| 468 | is composed about the stored document, not about the seeded kitchen | 1 | viewFor is called without a design, so it uses the same MDF fixture as the table: this is exactly :172's 'mdf → veneer, 0 chosen' cell. The seeded kitchen reaching the model through its own count is asserted in material-reset-confirm.test.ts:263-271. **Keep:** `apps/web/tests/settings/material-reset-confirm.adversarial.test.ts:172` | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
 
 **`tests/settings/qa-0104-the-pill-at-every-rung.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 289 | draws no divider around the colour it does not write | 1 | Implied by two cases in the same file: :170 pins MDF at EVERY_SETTING to 3 labels, and :269 (EVERY_RUNG = [1,2,3,4], both designs) pins separators === labels - 1 at rung 4. 3 labels and 2 separators cannot fail without one of those failing. **Keep:** `apps/web/tests/settings/qa-0104-the-pill-at-every-rung.adversarial.test.ts:269` |
+| 289 | draws no divider around the colour it does not write | 1 | Implied by two cases in the same file: :170 pins MDF at EVERY_SETTING to 3 labels, and :269 (EVERY_RUNG = [1,2,3,4], both designs) pins separators === labels - 1 at rung 4. 3 labels and 2 separators cannot fail without one of those failing. **Keep:** `apps/web/tests/settings/qa-0104-the-pill-at-every-rung.adversarial.test.ts:269` | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
 
 **`tests/settings/qa-6t-negative-delta.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 253 | puts the pinned witness 4 200 minor below the default, and still offers it every tier | 1 | Same solo base-drawer3-600 design as row 1 of :217 (tierIds, inverting delta undefined, shortfall derived). Its only extra, the -4_200 literal, is pinned on the same design and arithmetic at global-settings.adversarial.test.ts:598-601 and again as a total at qa-6w :578; tiers-vs-tierIds on that witness is covered at global-settings.adversarial.test.ts:612-614. **Keep:** `apps/web/tests/settings/qa-6t-negative-delta.adversarial.test.ts:217` |
-| 271 | keeps refusing a material book whose default is not its cheapest tier, on the very design the hardware rule spares | 1 | qa-6w :446 runs the identical call (DRAWERS_ONLY = solo base-drawer3-600, material defaultTierId set to material.veneer) and asserts the exact error object and sentence, which is strictly stronger than toThrow(NegativeTierDeltaError). The better twin is :446, not the property at :484, which does not guarantee sampling this population. **Keep:** `apps/web/tests/settings/qa-6w-below-default-tier.adversarial.test.ts:446` |
+| 253 | puts the pinned witness 4 200 minor below the default, and still offers it every tier | 1 | Same solo base-drawer3-600 design as row 1 of :217 (tierIds, inverting delta undefined, shortfall derived). Its only extra, the -4_200 literal, is pinned on the same design and arithmetic at global-settings.adversarial.test.ts:598-601 and again as a total at qa-6w :578; tiers-vs-tierIds on that witness is covered at global-settings.adversarial.test.ts:612-614. **Keep:** `apps/web/tests/settings/qa-6t-negative-delta.adversarial.test.ts:217` | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
+| 271 | keeps refusing a material book whose default is not its cheapest tier, on the very design the hardware rule spares | 1 | qa-6w :446 runs the identical call (DRAWERS_ONLY = solo base-drawer3-600, material defaultTierId set to material.veneer) and asserts the exact error object and sentence, which is strictly stronger than toThrow(NegativeTierDeltaError). The better twin is :446, not the property at :484, which does not guarantee sampling this population. **Keep:** `apps/web/tests/settings/qa-6w-below-default-tier.adversarial.test.ts:446` | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
 
 **`tests/settings/qa-w2-popover-viewport-clamp.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 131 | keeps the centred modal's own top above the constant the clamp assumes | 1 | Same four tokens, same formula, same 90.5 (centring :137) and same <= --popover-top (centring :149-153). Only residual: this one reads the tokens from the last .surface block rather than the first match in the file, which matters only if a token were declared twice with different values. **Keep:** `apps/web/tests/settings/global-settings-modal-centring.test.ts:137` |
-| 192 | positions the settings modal against the viewport and centres it there | 1 | The same six declarations on the same last .surface block of global-settings.module.css. The twin uses exact strings (centring :195-200), this one whitespace-tolerant regexes, so the twin is at least as strict on every line. **Keep:** `apps/web/tests/settings/global-settings-modal-centring.test.ts:190` |
+| 131 | keeps the centred modal's own top above the constant the clamp assumes | 1 | Same four tokens, same formula, same 90.5 (centring :137) and same <= --popover-top (centring :149-153). Only residual: this one reads the tokens from the last .surface block rather than the first match in the file, which matters only if a token were declared twice with different values. **Keep:** `apps/web/tests/settings/global-settings-modal-centring.test.ts:137` | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
+| 192 | positions the settings modal against the viewport and centres it there | 1 | The same six declarations on the same last .surface block of global-settings.module.css. The twin uses exact strings (centring :195-200), this one whitespace-tolerant regexes, so the twin is at least as strict on every line. **Keep:** `apps/web/tests/settings/global-settings-modal-centring.test.ts:190` | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
 
 **`tests/store/cabinet-depth-legacy-fallback.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 209 | keeps an unresolvable source on a surplus and drops it on a ceiling answer | 1 | Same columns and members (BASE_KEY A\|2.00 / p1,p12,p18 is frozen-source's DISHWASHER_KEY; WALL_KEY A\|0.30 / p8,p15), same source id, same 700 step. frozen-source :579 and :603 assert both outcomes plus the depths and the stored entry; this case asserts only the two depthFromBuildId reads. **Keep:** `apps/web/tests/store/cabinet-depth-frozen-source.test.ts:579` |
+| 209 | keeps an unresolvable source on a surplus and drops it on a ceiling answer | 1 | Same columns and members (BASE_KEY A\|2.00 / p1,p12,p18 is frozen-source's DISHWASHER_KEY; WALL_KEY A\|0.30 / p8,p15), same source id, same 700 step. frozen-source :579 and :603 assert both outcomes plus the depths and the stored entry; this case asserts only the two depthFromBuildId reads. **Keep:** `apps/web/tests/store/cabinet-depth-frozen-source.test.ts:579` | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
 
 **`tests/store/configurator-store.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 460 | publishes the store-owned refusal as a locale-free descriptor | 1 | Both build a store with no probeAt, select a placement, insert, and assert lastRejection toEqual { code: 'BODY_PROBE_UNAVAILABLE', params: {} }; commands :226 additionally asserts the store is unchanged. The selected id and build id differ but the guard refuses before reading either. **Keep:** `apps/web/tests/store/configurator-store.commands.test.ts:226` |
-| 472 | fails on the selection first, exactly as remove, setFinish and setHandle do | 1 | commands :259 asserts TARGET_NOT_FOUND for the same no-probe, nothing-selected insert('base-cabinet'), and for the with-probe store too. The deselect() here is a no-op on a fresh store. **Keep:** `apps/web/tests/store/configurator-store.commands.test.ts:259` |
+| 460 | publishes the store-owned refusal as a locale-free descriptor | 1 | Both build a store with no probeAt, select a placement, insert, and assert lastRejection toEqual { code: 'BODY_PROBE_UNAVAILABLE', params: {} }; commands :226 additionally asserts the store is unchanged. The selected id and build id differ but the guard refuses before reading either. **Keep:** `apps/web/tests/store/configurator-store.commands.test.ts:226` | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
+| 472 | fails on the selection first, exactly as remove, setFinish and setHandle do | 1 | commands :259 asserts TARGET_NOT_FOUND for the same no-probe, nothing-selected insert('base-cabinet'), and for the with-probe store too. The deselect() here is a no-op on a fresh store. **Keep:** `apps/web/tests/store/configurator-store.commands.test.ts:259` | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
 
 **`tests/store/configurator-store.commands.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 168 | takes the hob away with the cabinet it is built into | 1 | Identical steps and identical two assertions on HOB_HOST_ID (removeById is select + remove, commands :55); adversarial :423 adds expectStoreInvariants. **Keep:** `apps/web/tests/store/configurator-store.adversarial.test.ts:423` |
-| 581 | keeps every column's extent identical across every kind of command | 1 | adversarial :104 runs remove, insert, setFinish, setHandle and refusals, comparing columnExtents and the key set after every step; this compares once at the end over a subset of those command kinds. I found no command arm it reaches that the sweep does not. **Keep:** `apps/web/tests/store/configurator-store.adversarial.test.ts:104` |
-| 656 | calls onDesignChanged after the store has applied the edit, with the new design | 1 | onDesignChanged has one call site for every command (configurator-store.ts:393), so 'called after the store applied, with the store's design' is the same fact for remove as for setFinish/setHandle at adversarial :342; the call count for remove is at :318-336. **Keep:** `apps/web/tests/store/configurator-store.adversarial.test.ts:342` |
+| 168 | takes the hob away with the cabinet it is built into | 1 | Identical steps and identical two assertions on HOB_HOST_ID (removeById is select + remove, commands :55); adversarial :423 adds expectStoreInvariants. **Keep:** `apps/web/tests/store/configurator-store.adversarial.test.ts:423` | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
+| 581 | keeps every column's extent identical across every kind of command | 1 | adversarial :104 runs remove, insert, setFinish, setHandle and refusals, comparing columnExtents and the key set after every step; this compares once at the end over a subset of those command kinds. I found no command arm it reaches that the sweep does not. **Keep:** `apps/web/tests/store/configurator-store.adversarial.test.ts:104` | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
+| 656 | calls onDesignChanged after the store has applied the edit, with the new design | 1 | onDesignChanged has one call site for every command (configurator-store.ts:393), so 'called after the store applied, with the store's design' is the same fact for remove as for setFinish/setHandle at adversarial :342; the call count for remove is at :318-336. **Keep:** `apps/web/tests/store/configurator-store.adversarial.test.ts:342` | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
 
 **`tests/store/empty-columns-reload.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 167 | writes no emptyColumns key at all when a command leaves nothing empty | 1 | Identical steps (select p0, setFinish oak) and the identical not.toHaveProperty('emptyColumns'); qa-5b2b :339 adds canonical-byte equality and the columnExtents count. **Keep:** `apps/web/tests/store/qa-5b2b.adversarial.test.ts:339` |
+| 167 | writes no emptyColumns key at all when a command leaves nothing empty | 1 | Identical steps (select p0, setFinish oak) and the identical not.toHaveProperty('emptyColumns'); qa-5b2b :339 adds canonical-byte equality and the columnExtents count. **Keep:** `apps/web/tests/store/qa-5b2b.adversarial.test.ts:339` | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
 
 **`tests/store/qa-5b2b.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 305 | shrinks 601 → 600 without throwing out of the command | 1 | :317 runs the same setWidth(600) on the same fixture and rethrows if it throws, then also checks integer centres, so it fails whenever this does. Caveat for the kept test: its integer loop is vacuous if emptyColumns is empty. **Keep:** `apps/web/tests/store/qa-5b2b.adversarial.test.ts:317` |
+| 305 | shrinks 601 → 600 without throwing out of the command | 1 | :317 runs the same setWidth(600) on the same fixture and rethrows if it throws, then also checks integer centres, so it fails whenever this does. Caveat for the kept test: its integer loop is vacuous if emptyColumns is empty. **Keep:** `apps/web/tests/store/qa-5b2b.adversarial.test.ts:317` | **W2-C deleted** — a kept test went red under a mutation. The kept test's loop ran zero times on real code (its fixture recorded no empty column); fixed: it now runs over a store that records one, red on the centre assertion |
 
 **`tests/store/qa-6k-a-cabinet-depth.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 162 | returns every column the swap does not re-declare the depth of | 1 | :179 asserts the whole columnDepthsM map toEqual the starting map after the same 600-700-600 trip, which implies every toBeCloseTo here. The only extra is a >= 6 floor on a test-local partition helper. **Keep:** `apps/web/tests/store/qa-6k-a-cabinet-depth.adversarial.test.ts:179` |
+| 162 | returns every column the swap does not re-declare the depth of | 1 | :179 asserts the whole columnDepthsM map toEqual the starting map after the same 600-700-600 trip, which implies every toBeCloseTo here. The only extra is a >= 6 floor on a test-local partition helper. **Keep:** `apps/web/tests/store/qa-6k-a-cabinet-depth.adversarial.test.ts:179` | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
 
 **`tests/store/qa-aud-005-recorded-map-offer-parity.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 178 | places nothing past the end of the wall when the capped opening is filled | 1 | Same fixture (FAR_END, p7/p24 removed, 700 mm) and the same every-record-inside-the-wall assertion; the twin runs it for every offered row, and base-cabinet is one (twin :116 inserts it without refusal). If base-cabinet left the list, twin :152 would require the tap to be refused. **Keep:** `apps/web/tests/store/the-opening-a-command-fills-is-the-published-one.test.ts:176` |
+| 178 | places nothing past the end of the wall when the capped opening is filled | 1 | Same fixture (FAR_END, p7/p24 removed, 700 mm) and the same every-record-inside-the-wall assertion; the twin runs it for every offered row, and base-cabinet is one (twin :116 inserts it without refusal). If base-cabinet left the list, twin :152 would require the tap to be refused. **Keep:** `apps/web/tests/store/the-opening-a-command-fills-is-the-published-one.test.ts:176` | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
 
 **`tests/store/qa-w2-editability-extraction.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 213 | carries the reason onto the remove action exactly where the rule says it is locked | 1 | Same 4 x 6 product, same openPanelAt fixtures, the same two footer assertions; editability.test.ts:112 also asserts the loop ran 24 times. The stronger whole-view case at :184 in this file is untouched. **Keep:** `apps/web/tests/store/editability.test.ts:112` |
+| 213 | carries the reason onto the remove action exactly where the rule says it is locked | 1 | Same 4 x 6 product, same openPanelAt fixtures, the same two footer assertions; editability.test.ts:112 also asserts the loop ran 24 times. The stronger whole-view case at :184 in this file is untouched. **Keep:** `apps/web/tests/store/editability.test.ts:112` | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
 
 **`tests/store/whole-kitchen-settings.qa.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 115 | keeps a selected placement, and its identity | 1 | Same fresh store, same select p0, same setMaterialTier, same selection assertion; only the tier id differs (veneer vs painted-mdf), and KITCHEN_L_DESIGN carries no finish for either to reset. The dangling-selection cases below it in the QA file are the real addition. **Keep:** `apps/web/tests/store/whole-kitchen-settings.test.ts:124` |
+| 115 | keeps a selected placement, and its identity | 1 | Same fresh store, same select p0, same setMaterialTier, same selection assertion; only the tier id differs (veneer vs painted-mdf), and KITCHEN_L_DESIGN carries no finish for either to reset. The dangling-selection cases below it in the QA file are the real addition. **Keep:** `apps/web/tests/store/whole-kitchen-settings.test.ts:124` | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
 
 **`tests/store/whole-kitchen-settings.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 175 | notifies the save path exactly once however many finishes the change resets | 1 | qa-6q-b :103 asserts one onDesignChanged call carrying the store's design for every material id on the same fixture, :74 asserts exactly p0 and p1 move with length FINISHES_RESOLVED_BY_VENEER, and :119 adds a single store publication. Assumes MATERIAL_IDS includes veneer (imported, not opened). **Keep:** `apps/web/tests/store/qa-6q-b-cascade.adversarial.test.ts:103` |
+| 175 | notifies the save path exactly once however many finishes the change resets | 1 | qa-6q-b :103 asserts one onDesignChanged call carrying the store's design for every material id on the same fixture, :74 asserts exactly p0 and p1 move with length FINISHES_RESOLVED_BY_VENEER, and :119 adds a single store publication. Assumes MATERIAL_IDS includes veneer (imported, not opened). **Keep:** `apps/web/tests/store/qa-6q-b-cascade.adversarial.test.ts:103` | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
 
 #### `packages/configurator-domain` — 191 entries, 369 cases
 
@@ -1963,7 +1963,7 @@ mutation is equivalent on shipped data, or the behaviour is unguarded everywhere
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 158 | still accepts nothing at all in the two columns an appliance freezes | 1 | The toEqual at :86 fixes the complete accepted list from the same census(kitchen()) call and it contains no p2, p13, p19, p5 or p7 tap, so their absence is strictly implied. **Keep:** `packages/configurator-domain/tests/commands/qa-w5c.enumeration.test.ts:77` | **D2-A kept, no signal** — three independent guards hold the frozen columns, so no single mutation reddens either test |
+| 158 | still accepts nothing at all in the two columns an appliance freezes | 1 | The toEqual at :86 fixes the complete accepted list from the same census(kitchen()) call and it contains no p2, p13, p19, p5 or p7 tap, so their absence is strictly implied. **Keep:** `packages/configurator-domain/tests/commands/qa-w5c.enumeration.test.ts:77` | **D2-C deleted by reading** (architect ruling) — strictly implied by its Keep's exact list on the same call; its two why-comments moved onto the Keep |
 | 420 | accepts 546 taps across the nine deletable columns | 1 | Each row of :401 fixes the cleared world's accepted set exactly (gained equal, losses on surviving bodies equal, the load list fixed at :86), so the sum over the nine rows is determined; the test's own comment gives the arithmetic. The number 546 is also asserted from an independent sweep at qa-w5b1.adversarial.test.ts:677. **Keep:** `packages/configurator-domain/tests/commands/qa-w5c.enumeration.test.ts:401` | **D2-A deleted** — a kept test went red under a mutation; logic review: sound |
 
 **`tests/commands/qa-waves-ac.adversarial.test.ts`**
@@ -2171,10 +2171,10 @@ mutation is equivalent on shipped data, or the behaviour is unguarded everywhere
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 122 | has no validation finding of either severity (criterion 1) | 1 | adversarial :320-337 asserts findingsOf(shell, SHELL_CABINET_DEPTH_MM) is [] over the same approved-L arbitrary (200 runs) plus every edge room, with the same catalogue (SHELL_CATALOG is buildKitchenLBodyCatalog(SHELL_CABINET_DEPTH_MM), support/shell-design.ts:49). The property test's only extra is a ceiling-arm tally of its own generator. **Keep:** `packages/configurator-domain/tests/generation/shell-design.adversarial.test.ts:320` |
-| 183 | records every tile against base-cabinet or wall-cabinet at that source's declared depth (criterion 8) | 1 | adversarial :355 checks the same two tile fields at every declared depth incl. the shell's own, after setCabinetDepth (which republishes the map even at the same depth). A wrong as-built depthMm/depthFromBuildId that the republish repaired would still go red at adversarial :339 (map after there-and-back must equal the as-built map byte for byte); one it preserved goes red at :355. Expected sources are the same test-local literals in both files (adversarial :93). **Keep:** `packages/configurator-domain/tests/generation/shell-design.adversarial.test.ts:355` |
-| 220 | reports nothing past wall B's end after a change to any declared depth (criterion 9) | 1 | The candidate asserts two issue codes are absent after a move to each declared depth; adversarial :320-337 asserts no finding of any code as built, at every other declared depth, and back at the shell's depth, over the same arbitrary plus edge rooms. Strict subset. **Keep:** `packages/configurator-domain/tests/generation/shell-design.adversarial.test.ts:320` |
-| 310 | keeps the run-end panel inside wall A when the corner alone closes the run (<width>) | 19 | adversarial :865 sweeps every wall A 900-2000 including the bare shell (closings[0]) and requires the panel hidden whenever less than the 19 mm footprint is free, which is stricter than 'absent or <= wall'. The only input difference is wall B (min vs 2000), which runEndPanelSeatM cannot read: it uses wallLengthMm('A', room) and wall-A records only (src/run-end-panel.ts:78-124). **Keep:** `packages/configurator-domain/tests/generation/shell-design.adversarial.test.ts:865` |
+| 122 | has no validation finding of either severity (criterion 1) | 1 | adversarial :320-337 asserts findingsOf(shell, SHELL_CABINET_DEPTH_MM) is [] over the same approved-L arbitrary (200 runs) plus every edge room, with the same catalogue (SHELL_CATALOG is buildKitchenLBodyCatalog(SHELL_CABINET_DEPTH_MM), support/shell-design.ts:49). The property test's only extra is a ceiling-arm tally of its own generator. **Keep:** `packages/configurator-domain/tests/generation/shell-design.adversarial.test.ts:320` | **D2-C deleted** — a kept test went red under a mutation |
+| 183 | records every tile against base-cabinet or wall-cabinet at that source's declared depth (criterion 8) | 1 | adversarial :355 checks the same two tile fields at every declared depth incl. the shell's own, after setCabinetDepth (which republishes the map even at the same depth). A wrong as-built depthMm/depthFromBuildId that the republish repaired would still go red at adversarial :339 (map after there-and-back must equal the as-built map byte for byte); one it preserved goes red at :355. Expected sources are the same test-local literals in both files (adversarial :93). **Keep:** `packages/configurator-domain/tests/generation/shell-design.adversarial.test.ts:355` | **D2-C deleted** — a kept test went red under a mutation; the Keep named above stays green, the guard is "carries its frozen map byte-identically" |
+| 220 | reports nothing past wall B's end after a change to any declared depth (criterion 9) | 1 | The candidate asserts two issue codes are absent after a move to each declared depth; adversarial :320-337 asserts no finding of any code as built, at every other declared depth, and back at the shell's depth, over the same arbitrary plus edge rooms. Strict subset. **Keep:** `packages/configurator-domain/tests/generation/shell-design.adversarial.test.ts:320` | **D2-C deleted** — a kept test went red under a mutation |
+| 310 | keeps the run-end panel inside wall A when the corner alone closes the run (<width>) | 19 | adversarial :865 sweeps every wall A 900-2000 including the bare shell (closings[0]) and requires the panel hidden whenever less than the 19 mm footprint is free, which is stricter than 'absent or <= wall'. The only input difference is wall B (min vs 2000), which runEndPanelSeatM cannot read: it uses wallLengthMm('A', room) and wall-A records only (src/run-end-panel.ts:78-124). **Keep:** `packages/configurator-domain/tests/generation/shell-design.adversarial.test.ts:865` | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/generation/tall-end-rule.test.ts`**
 
@@ -2229,7 +2229,7 @@ mutation is equivalent on shipped data, or the behaviour is unguarded everywhere
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 499 | refuses rather than raising, at any list the book carries | 1 | :485-497 calls parsePriceBook uncaught through parseDetailOf (:467-470) over the same paths with the same raising proxy, so any raise this test would report already fails :485 as an uncaught error. **Keep:** `packages/configurator-domain/tests/pricing/parse-price-book.test.ts:485` | **D2-B kept, no signal** — the flagged test fails only if a raise escapes both the per-read guards and the backstop |
+| 499 | refuses rather than raising, at any list the book carries | 1 | :485-497 calls parsePriceBook uncaught through parseDetailOf (:467-470) over the same paths with the same raising proxy, so any raise this test would report already fails :485 as an uncaught error. **Keep:** `packages/configurator-domain/tests/pricing/parse-price-book.test.ts:485` | **D2-C deleted by reading** (architect ruling) — the same proxies are parsed uncaught by another test, and "never throws" has its own |
 
 **`tests/pricing/price-design.test.ts`**
 
@@ -2299,260 +2299,260 @@ mutation is equivalent on shipped data, or the behaviour is unguarded everywhere
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 157 | refuses rather than emitting two entries that share one restored key | 1 | Both columns carry non-whole-mm centres, so toEmptyColumn throws in exactMillimetresOf (src/void-engine.ts, 'is not a whole millimetre') on the first one; no key-sharing path runs. Every rounding/tolerance mutant I tried (round, ceil, 0.2 mm tolerance) also reddens :143, which stops throwing. The only unique content is the message regex. **Keep:** `packages/configurator-domain/tests/project-empty-columns.test.ts:143` |
+| 157 | refuses rather than emitting two entries that share one restored key | 1 | Both columns carry non-whole-mm centres, so toEmptyColumn throws in exactMillimetresOf (src/void-engine.ts, 'is not a whole millimetre') on the first one; no key-sharing path runs. Every rounding/tolerance mutant I tried (round, ceil, 0.2 mm tolerance) also reddens :143, which stops throwing. The only unique content is the message regex. **Keep:** `packages/configurator-domain/tests/project-empty-columns.test.ts:143` | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/qa-0099-global-colour.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 268 | is a distinction countCabinetsWearingAChosenFinish deliberately cannot see | 1 | countCabinetsWearingAChosenFinish (src/chosen-finishes.ts:39) returns 0 for an override equal to the kitchen colour at :684 (two cabinets wearing PAL_ANTRACIT under a PAL_ANTRACIT kitchen, non-default per :675) and wouldDiscardTheGlobalFinish(.., VENEER) is true at :688. :268 repeats both on pal.gri-havanna with one cabinet; the extra `following` arm is the `finish === undefined` early return. No branch differs. **Keep:** `packages/configurator-domain/tests/qa-0099-global-colour.adversarial.test.ts:684` |
+| 268 | is a distinction countCabinetsWearingAChosenFinish deliberately cannot see | 1 | countCabinetsWearingAChosenFinish (src/chosen-finishes.ts:39) returns 0 for an override equal to the kitchen colour at :684 (two cabinets wearing PAL_ANTRACIT under a PAL_ANTRACIT kitchen, non-default per :675) and wouldDiscardTheGlobalFinish(.., VENEER) is true at :688. :268 repeats both on pal.gri-havanna with one cabinet; the extra `following` arm is the `finish === undefined` early return. No branch differs. **Keep:** `packages/configurator-domain/tests/qa-0099-global-colour.adversarial.test.ts:684` | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/qa-5b2a.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 613 | answers a body and a space standing in the same place the same way | 1 | The property cases at :531 and :571 pin example [1] (endMm = WALL_RUN_MM + 1) with the identical strip and SINK fixtures and expect exactly ['EMPTY_COLUMN_PAST_WALL_END'] and ['PLACEMENT_PAST_WALL_END']. :613 asserts those same two arrays (lines 625-626) and never compares the two answers to each other. **Keep:** `packages/configurator-domain/tests/qa-5b2a.adversarial.test.ts:531` |
+| 613 | answers a body and a space standing in the same place the same way | 1 | The property cases at :531 and :571 pin example [1] (endMm = WALL_RUN_MM + 1) with the identical strip and SINK fixtures and expect exactly ['EMPTY_COLUMN_PAST_WALL_END'] and ['PLACEMENT_PAST_WALL_END']. :613 asserts those same two arrays (lines 625-626) and never compares the two answers to each other. **Keep:** `packages/configurator-domain/tests/qa-5b2a.adversarial.test.ts:531` | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/qa-6a4.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 278 | bites: the same sweep the wave runs fails on a misspelt kind | 1 | The mutated half runs isKnownKind over a catalogue the test misspelt itself, which :253 already asserts (isKnownKind(typo) false). The unmutated half is the seeded-kind sweep at tests/fixtures/wall-corner-return-kinds.test.ts:139-141 restated. It exercises the test's own predicate, not a production branch. **Keep:** `packages/configurator-domain/tests/qa-6a4.adversarial.test.ts:236` |
+| 278 | bites: the same sweep the wave runs fails on a misspelt kind | 1 | The mutated half runs isKnownKind over a catalogue the test misspelt itself, which :253 already asserts (isKnownKind(typo) false). The unmutated half is the seeded-kind sweep at tests/fixtures/wall-corner-return-kinds.test.ts:139-141 restated. It exercises the test's own predicate, not a production branch. **Keep:** `packages/configurator-domain/tests/qa-6a4.adversarial.test.ts:236` | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/qa-6k-c-frozen-source.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 375 | holds every identifier length the schema admits | 1 | entryBytes grows by exactly one byte per added 'x', so only the last iteration (length MAX_IDENTIFIER_LENGTH) can overflow, and that entry is LONGEST_LEGAL_ENTRY asserted at :333. There is no transition to find. Only incidental extra: it would throw if identifierSchema gained a minimum length above 1. **Keep:** `packages/configurator-domain/tests/qa-6k-c-frozen-source.adversarial.test.ts:333` |
+| 375 | holds every identifier length the schema admits | 1 | entryBytes grows by exactly one byte per added 'x', so only the last iteration (length MAX_IDENTIFIER_LENGTH) can overflow, and that entry is LONGEST_LEGAL_ENTRY asserted at :333. There is no transition to find. Only incidental extra: it would throw if identifierSchema gained a minimum length above 1. **Keep:** `packages/configurator-domain/tests/qa-6k-c-frozen-source.adversarial.test.ts:333` | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/qa-6n-a-run-end-panel.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 202 | hides the panel behind a column exactly the panel's own height / one millimetre taller than it | 2 | The sweep at :231 builds columnFromTheFloor(h/1000) for every h in 1..1640 and expects the seat blocked; 820 (the panel height) and 821 are two of its iterations with the same helper and expectation, and its failure output lists the offending heights. The tolerance boundaries are the separate cases at :214 and :222. **Keep:** `packages/configurator-domain/tests/qa-6n-a-run-end-panel.adversarial.test.ts:231` |
-| 301 | seats the panel on a lone base placement | 1 | The next case builds the identical soleBase (leftEdge 1, width 0.6, SEEDED_ROOM) and asserts the identical line, runEndPanelSeatM([soleBase], SEEDED_ROOM) toBe 1.6 + RUN_END_PANEL_EDGE_OFFSET_M, as its non-vacuity precondition (:339-341). The property at :269 covers the general rule. **Keep:** `packages/configurator-domain/tests/qa-6n-a-run-end-panel.adversarial.test.ts:320` |
+| 202 | hides the panel behind a column exactly the panel's own height / one millimetre taller than it | 2 | The sweep at :231 builds columnFromTheFloor(h/1000) for every h in 1..1640 and expects the seat blocked; 820 (the panel height) and 821 are two of its iterations with the same helper and expectation, and its failure output lists the offending heights. The tolerance boundaries are the separate cases at :214 and :222. **Keep:** `packages/configurator-domain/tests/qa-6n-a-run-end-panel.adversarial.test.ts:231` | **D2-C deleted** — a kept test went red under a mutation |
+| 301 | seats the panel on a lone base placement | 1 | The next case builds the identical soleBase (leftEdge 1, width 0.6, SEEDED_ROOM) and asserts the identical line, runEndPanelSeatM([soleBase], SEEDED_ROOM) toBe 1.6 + RUN_END_PANEL_EDGE_OFFSET_M, as its non-vacuity precondition (:339-341). The property at :269 covers the general rule. **Keep:** `packages/configurator-domain/tests/qa-6n-a-run-end-panel.adversarial.test.ts:320` | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/qa-6q-a-offer.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 235 | never offers a free colour to a material that declares any entry at all | 1 | Same calls on a subset of :159's (material, colour) pairs with the same expected false: the materials with entries are exactly the decor-list and wood-swatches ones, and a ral-picker control has no entries field (:277). The shape-versus-entry-count distinction is carried by the synthetics from :252 on. **Keep:** `packages/configurator-domain/tests/qa-6q-a-offer.adversarial.test.ts:159` |
+| 235 | never offers a free colour to a material that declares any entry at all | 1 | Same calls on a subset of :159's (material, colour) pairs with the same expected false: the materials with entries are exactly the decor-list and wood-swatches ones, and a ral-picker control has no entries field (:277). The shape-versus-entry-count distinction is carried by the synthetics from :252 on. **Keep:** `packages/configurator-domain/tests/qa-6q-a-offer.adversarial.test.ts:159` | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/qa-6q-b-command.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 410 | into %s, no width, seat depth, position or extent moves | 3 | neutralisedDocument (:334) spreads the whole design and masks only updatedAt, settings.materialTierId and body.finish, so :373's toEqual already covers every field listed here (placement id/wall/alongMm/y0Mm/width/height/seatDepth/buildId, emptyColumns, columnExtents, room, createdAt). The case calls itself 'a second reading of the same claim'. **Keep:** `packages/configurator-domain/tests/qa-6q-b-command.adversarial.test.ts:373` |
+| 410 | into %s, no width, seat depth, position or extent moves | 3 | neutralisedDocument (:334) spreads the whole design and masks only updatedAt, settings.materialTierId and body.finish, so :373's toEqual already covers every field listed here (placement id/wall/alongMm/y0Mm/width/height/seatDepth/buildId, emptyColumns, columnExtents, room, createdAt). The case calls itself 'a second reading of the same claim'. **Keep:** `packages/configurator-domain/tests/qa-6q-b-command.adversarial.test.ts:373` | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/qa-6t-a-push-to-open.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 354 | declares a cabinet handle on every row that declares something that opens | 1 | Filter `openingFronts > 0 && cabinetHandles === 0` is :347's `cabinetHandles === 0 && openingFronts > 0` with the operands swapped, over the same EVERY_ROW_AT_EVERY_LEGAL_SIZE, expecting []. The 'contrapositive' is the same set. **Keep:** `packages/configurator-domain/tests/qa-6t-a-push-to-open.adversarial.test.ts:346` |
+| 354 | declares a cabinet handle on every row that declares something that opens | 1 | Filter `openingFronts > 0 && cabinetHandles === 0` is :347's `cabinetHandles === 0 && openingFronts > 0` with the operands swapped, over the same EVERY_ROW_AT_EVERY_LEGAL_SIZE, expecting []. The 'contrapositive' is the same set. **Keep:** `packages/configurator-domain/tests/qa-6t-a-push-to-open.adversarial.test.ts:346` | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/qa-7d6-corner-literal-sweep-scope.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 65 | finds nothing under src/%s that the shipped one-level sweep would skip | 2 | The recursive and one-level listings can differ only when a subdirectory holds a .ts file, and :74 asserts the stronger fact that src/generation and src/room have no subdirectory at all. Anything that reddens :65 reddens :74. **Keep:** `packages/configurator-domain/tests/qa-7d6-corner-literal-sweep-scope.adversarial.test.ts:74` |
+| 65 | finds nothing under src/%s that the shipped one-level sweep would skip | 2 | The recursive and one-level listings can differ only when a subdirectory holds a .ts file, and :74 asserts the stronger fact that src/generation and src/room have no subdirectory at all. Anything that reddens :65 reddens :74. **Keep:** `packages/configurator-domain/tests/qa-7d6-corner-literal-sweep-scope.adversarial.test.ts:74` | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/qa-8h-design-identifiers.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 104 | refuses a revision with anything before or after it | 1 | :88 tries every UTF-16 unit before '7' and :96 every unit after it, expecting only digits to pass; this repeats that with '42' for the non-digit units. Every leniency I tried (trim, Number(), a dropped anchor, an optional sign) is caught by :88 or :96 first; unlike the design-id case, the swept position here is the prefix/suffix itself. **Keep:** `packages/configurator-domain/tests/qa-8h-design-identifiers.adversarial.test.ts:88` |
+| 104 | refuses a revision with anything before or after it | 1 | :88 tries every UTF-16 unit before '7' and :96 every unit after it, expecting only digits to pass; this repeats that with '42' for the non-digit units. Every leniency I tried (trim, Number(), a dropped anchor, an optional sign) is caught by :88 or :96 first; unlike the design-id case, the swept position here is the prefix/suffix itself. **Keep:** `packages/configurator-domain/tests/qa-8h-design-identifiers.adversarial.test.ts:88` | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/qa-room-migration.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 181 | still loads from wall B after wave 6A3 | 1 | The it.each at :194 loads the same EDITED_PAST_WALL_B at versions 1 and 2 and asserts the room, the placements and the overflow id, so any throw fails it. :181 is the version-2 arm with only not.toThrow. **Keep:** `packages/configurator-domain/tests/qa-room-migration.adversarial.test.ts:194` |
-| 241 | names only the body the customer moved on a whole seeded row at version %i | 2 | Same document (seeded row, pre-correction room, one 800 mm wall-B body centred at 3200), same versions [1,2], same findOverflowingPlacementIds toStrictEqual ['edited'] as qa-6a3:166. Its fixture at :227 is used by nothing else in this file. Delete this copy only; s30.2 is the one to keep. **Keep:** `packages/configurator-domain/tests/qa-6a3.adversarial.test.ts:166` |
+| 181 | still loads from wall B after wave 6A3 | 1 | The it.each at :194 loads the same EDITED_PAST_WALL_B at versions 1 and 2 and asserts the room, the placements and the overflow id, so any throw fails it. :181 is the version-2 arm with only not.toThrow. **Keep:** `packages/configurator-domain/tests/qa-room-migration.adversarial.test.ts:194` | **D2-C deleted** — a kept test went red under a mutation |
+| 241 | names only the body the customer moved on a whole seeded row at version %i | 2 | Same document (seeded row, pre-correction room, one 800 mm wall-B body centred at 3200), same versions [1,2], same findOverflowingPlacementIds toStrictEqual ['edited'] as qa-6a3:166. Its fixture at :227 is used by nothing else in this file. Delete this copy only; s30.2 is the one to keep. **Keep:** `packages/configurator-domain/tests/qa-6a3.adversarial.test.ts:166` | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/queries/describe-selection.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 236 | never offers 1000 mm anywhere in the kitchen | 1 | width-resolution :463 collects the same meta.sizesMm over every seeded record plus every catalogue sizesMm and asserts the exact list 200..800 (and `has(1000)` false). The candidate's set is a subset of that one with a weaker assertion. **Keep:** `packages/configurator-domain/tests/queries/width-resolution.adversarial.test.ts:463` |
-| 269 | gives an empty set when the declared equivalent is not in the catalogue | 1 | Identical edit (wall-2door-600 pointed at 'no-such-entry'), placement (p8), entry point (describeSelection) and assertions (sizesMm [], canWidth true) as width-resolution :510. **Keep:** `packages/configurator-domain/tests/queries/width-resolution.adversarial.test.ts:510` |
-| 302 | applies the equivalent's own width floor to the equivalent's own set | 1 | Same edit (wall-cabinet minWidthMm 700), same placement p8 through describeSelection, same expected [700, 750, 800] as width-resolution :269. **Keep:** `packages/configurator-domain/tests/queries/width-resolution.adversarial.test.ts:269` |
-| 332 | is true for a movable-width body even when the catalogue gives it no widths | 1 | Same broken pointer on wall-2door-600 and same p8 answers (canWidth true, sizesMm []) as width-resolution :510, and as s31.14 in this file. The extra fixedWidth:false is the fixture's own value, tied to canWidth for every seeded body at width-resolution :482. **Keep:** `packages/configurator-domain/tests/queries/width-resolution.adversarial.test.ts:510` |
-| 371 | is false for every fixed-width body | 1 | describe-selection.qa :34 asserts canWidth === !record.fixedWidth for every seeded record with both populations required non-empty (width-resolution :482 repeats it). This is the fixed half of that equality over the same world. **Keep:** `packages/configurator-domain/tests/queries/describe-selection.qa.test.ts:34` |
-| 396 | carries no finish or handle until one is chosen | 1 | describe-selection.qa :179 asserts finish and handle undefined on every untouched seeded body through the same describeSelection call; p0 is one of them. **Keep:** `packages/configurator-domain/tests/queries/describe-selection.qa.test.ts:179` |
+| 236 | never offers 1000 mm anywhere in the kitchen | 1 | width-resolution :463 collects the same meta.sizesMm over every seeded record plus every catalogue sizesMm and asserts the exact list 200..800 (and `has(1000)` false). The candidate's set is a subset of that one with a weaker assertion. **Keep:** `packages/configurator-domain/tests/queries/width-resolution.adversarial.test.ts:463` | **D2-C deleted** — a kept test went red under a mutation |
+| 269 | gives an empty set when the declared equivalent is not in the catalogue | 1 | Identical edit (wall-2door-600 pointed at 'no-such-entry'), placement (p8), entry point (describeSelection) and assertions (sizesMm [], canWidth true) as width-resolution :510. **Keep:** `packages/configurator-domain/tests/queries/width-resolution.adversarial.test.ts:510` | **D2-C deleted** — a kept test went red under a mutation |
+| 302 | applies the equivalent's own width floor to the equivalent's own set | 1 | Same edit (wall-cabinet minWidthMm 700), same placement p8 through describeSelection, same expected [700, 750, 800] as width-resolution :269. **Keep:** `packages/configurator-domain/tests/queries/width-resolution.adversarial.test.ts:269` | **D2-C deleted** — a kept test went red under a mutation |
+| 332 | is true for a movable-width body even when the catalogue gives it no widths | 1 | Same broken pointer on wall-2door-600 and same p8 answers (canWidth true, sizesMm []) as width-resolution :510, and as s31.14 in this file. The extra fixedWidth:false is the fixture's own value, tied to canWidth for every seeded body at width-resolution :482. **Keep:** `packages/configurator-domain/tests/queries/width-resolution.adversarial.test.ts:510` | **D2-C deleted** — a kept test went red under a mutation |
+| 371 | is false for every fixed-width body | 1 | describe-selection.qa :34 asserts canWidth === !record.fixedWidth for every seeded record with both populations required non-empty (width-resolution :482 repeats it). This is the fixed half of that equality over the same world. **Keep:** `packages/configurator-domain/tests/queries/describe-selection.qa.test.ts:34` | **D2-C deleted** — a kept test went red under a mutation |
+| 396 | carries no finish or handle until one is chosen | 1 | describe-selection.qa :179 asserts finish and handle undefined on every untouched seeded body through the same describeSelection call; p0 is one of them. **Keep:** `packages/configurator-domain/tests/queries/describe-selection.qa.test.ts:179` | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/queries/design-projection.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 175 | orders two placements the same way whichever side they arrive on | 1 | The adversarial property asserts the same strict two-way comparison (plus reflexivity) over generated documents that collide on every key, which the seeded fixture never does. On the seeded design a comparator returning 0 or an inconsistent sign for a pair already breaks the permutation-invariance property at :165 in the same describe. **Keep:** `packages/configurator-domain/tests/queries/design-projection.adversarial.test.ts:352` |
+| 175 | orders two placements the same way whichever side they arrive on | 1 | The adversarial property asserts the same strict two-way comparison (plus reflexivity) over generated documents that collide on every key, which the seeded fixture never does. On the seeded design a comparator returning 0 or an inconsistent sign for a pair already breaks the permutation-invariance property at :165 in the same describe. **Keep:** `packages/configurator-domain/tests/queries/design-projection.adversarial.test.ts:352` | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/queries/hob-base.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 211 | does not let the hob body lift §7's head-clearance cap | 1 | after.columns.get(HOB_COLUMN)?.hasFullHeightUnder toBe(false) is asserted verbatim at :202 on the same `after`; :211 is that line alone. **Keep:** `packages/configurator-domain/tests/queries/hob-base.adversarial.test.ts:193` |
+| 211 | does not let the hob body lift §7's head-clearance cap | 1 | after.columns.get(HOB_COLUMN)?.hasFullHeightUnder toBe(false) is asserted verbatim at :202 on the same `after`; :211 is that line alone. **Keep:** `packages/configurator-domain/tests/queries/hob-base.adversarial.test.ts:193` | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/queries/offers.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 115 | offers nothing that the insert command would then refuse / refuses everything it leaves out, at every height in the column | 1 | Keep :115: it requires a non-empty offer list at each of the three heights, so a shared fit regression that refuses everything in the B\|2.45 top slot at both ends reddens it while affordance-gates stays consistent and green. :133 (the converse) adds no per-slot claim and is contained in affordance-gates' 'refuses every entry it left out' over a world clearing p7, p24 and p2 (p2 is on wall A at 2600). **Keep:** `packages/configurator-domain/tests/queries/offers.test.ts:115` |
+| 115 | offers nothing that the insert command would then refuse / refuses everything it leaves out, at every height in the column | 1 | Keep :115: it requires a non-empty offer list at each of the three heights, so a shared fit regression that refuses everything in the B\|2.45 top slot at both ends reddens it while affordance-gates stays consistent and green. :133 (the converse) adds no per-slot claim and is contained in affordance-gates' 'refuses every entry it left out' over a world clearing p7, p24 and p2 (p2 is on wall A at 2600). **Keep:** `packages/configurator-domain/tests/queries/offers.test.ts:115` | **D2-C part** — Pair: only the converse deleted (kept test red); "offers nothing the command would refuse" stays |
 
 **`tests/queries/pantry-resizable.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 81 | accepts %s mm: %s | 6 | The sweep at :196 calls acceptsWidthMm(insertableOf(PANTRY_ID), w) for every w in 200..900 expecting `w >= 400 && w <= 800`, which contains 399, 400, 499, 500, 800 and 801 with the same expected values and names the failing width. **Keep:** `packages/configurator-domain/tests/queries/pantry-resizable.test.ts:196` |
+| 81 | accepts %s mm: %s | 6 | The sweep at :196 calls acceptsWidthMm(insertableOf(PANTRY_ID), w) for every w in 200..900 expecting `w >= 400 && w <= 800`, which contains 399, 400, 499, 500, 800 and 801 with the same expected values and names the failing width. **Keep:** `packages/configurator-domain/tests/queries/pantry-resizable.test.ts:196` | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/queries/qa-6t2-rack-host.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 112 | hangs a wall-B sink's rack in the wall-B cabinet above it / does not hang a wall-B sink's rack in a wall-A cabinet at the same coordinate | 2 | The it.each at :133 has the rows ['B','B','host'] and ['B','A',undefined] with the same sinkOn(wall) and the same wall-2door-800 host at 1300/1500/800/700; the two named cases differ only in the host's id string. **Keep:** `packages/configurator-domain/tests/queries/qa-6t2-rack-host.adversarial.test.ts:133` |
-| 262 | resolves the one the projection orders first, whichever way the array holds them | 1 | The property at :275 shuffles the same three placements (sink, aaa-twin, zzz-twin) through all six orders and expects 'aaa-twin'; the two orders here are among them. Sampled rather than enumerated, but six permutations over the default run count leaves no realistic gap. **Keep:** `packages/configurator-domain/tests/queries/qa-6t2-rack-host.adversarial.test.ts:275` |
+| 112 | hangs a wall-B sink's rack in the wall-B cabinet above it / does not hang a wall-B sink's rack in a wall-A cabinet at the same coordinate | 2 | The it.each at :133 has the rows ['B','B','host'] and ['B','A',undefined] with the same sinkOn(wall) and the same wall-2door-800 host at 1300/1500/800/700; the two named cases differ only in the host's id string. **Keep:** `packages/configurator-domain/tests/queries/qa-6t2-rack-host.adversarial.test.ts:133` | **D2-C deleted** — a kept test went red under a mutation |
+| 262 | resolves the one the projection orders first, whichever way the array holds them | 1 | The property at :275 shuffles the same three placements (sink, aaa-twin, zzz-twin) through all six orders and expects 'aaa-twin'; the two orders here are among them. Sampled rather than enumerated, but six permutations over the default run count leaves no realistic gap. **Keep:** `packages/configurator-domain/tests/queries/qa-6t2-rack-host.adversarial.test.ts:275` | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/queries/sink-accessories.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 72 | finds the seeded kitchen's one sink and no other body | 1 | :117 makes the same findSinkAccessories call on the seeded design and asserts toEqual([{ sinkPlacementId: 'p0', rackHostPlacementId: 'p11' }]), which fixes both the single record and its sink id. **Keep:** `packages/configurator-domain/tests/queries/sink-accessories.test.ts:117` |
-| 228 | finds no host in a cabinet that begins exactly where the sink ends / ends exactly where the sink begins / overlapping by a single millimetre | 3 | Centres 2000, 600 and 1999 for a 600 mm wall-2door-600 at y0 1500 over the 900-1700 sink are FIRST_TOUCHING_MM (600), LAST_TOUCHING_MM (2000) and LAST_TOUCHING_MM - 1 in qa-6t2 :233, same build id and sink, plus the swept property at :216. 'A sink with no host is still listed' stays covered by :272. **Keep:** `packages/configurator-domain/tests/queries/qa-6t2-rack-host.adversarial.test.ts:233` |
-| 314 | does not hang a rack on the other wall, whatever its along-wall coordinate | 1 | Same fixture to the millimetre (sink base-sink-800 at 1300/0/800/820 on A; wall-2door-800 on B at 1300/1500/800/700) through the same projectDesignForDisplay + findSinkAccessories path; the it.each row [A,B,undefined] asserts one sink with no host. Dropping the wall clause at sink-accessories.ts:121 reddens both; no change reddens only this one. **Keep:** `packages/configurator-domain/tests/queries/qa-6t2-rack-host.adversarial.test.ts:133` |
+| 72 | finds the seeded kitchen's one sink and no other body | 1 | :117 makes the same findSinkAccessories call on the seeded design and asserts toEqual([{ sinkPlacementId: 'p0', rackHostPlacementId: 'p11' }]), which fixes both the single record and its sink id. **Keep:** `packages/configurator-domain/tests/queries/sink-accessories.test.ts:117` | **D2-C deleted** — a kept test went red under a mutation |
+| 228 | finds no host in a cabinet that begins exactly where the sink ends / ends exactly where the sink begins / overlapping by a single millimetre | 3 | Centres 2000, 600 and 1999 for a 600 mm wall-2door-600 at y0 1500 over the 900-1700 sink are FIRST_TOUCHING_MM (600), LAST_TOUCHING_MM (2000) and LAST_TOUCHING_MM - 1 in qa-6t2 :233, same build id and sink, plus the swept property at :216. 'A sink with no host is still listed' stays covered by :272. **Keep:** `packages/configurator-domain/tests/queries/qa-6t2-rack-host.adversarial.test.ts:233` | **D2-C deleted** — a kept test went red under a mutation |
+| 314 | does not hang a rack on the other wall, whatever its along-wall coordinate | 1 | Same fixture to the millimetre (sink base-sink-800 at 1300/0/800/820 on A; wall-2door-800 on B at 1300/1500/800/700) through the same projectDesignForDisplay + findSinkAccessories path; the it.each row [A,B,undefined] asserts one sink with no host. Dropping the wall clause at sink-accessories.ts:121 reddens both; no change reddens only this one. **Keep:** `packages/configurator-domain/tests/queries/qa-6t2-rack-host.adversarial.test.ts:133` | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/queries/vacated-void.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 53 | gives the boundary to the slot above it, not to the one that ends there | 1 | The sweep at adversarial :119 builds an ends-here/starts-here pair at every LEVELS boundary including 2.2 (lower slot y0 2.2-0.7, h 0.7, top computes to exactly 2.2, the same float as 1.5+0.7) with the lower slot first in the array, and asserts the starting slot wins. Restoring FIT_TOLERANCE_M at the top bound of vacated-void.ts:41 reddens both; the candidate's only extra is the spec-shaped ids. **Keep:** `packages/configurator-domain/tests/queries/vacated-void.adversarial.test.ts:119` |
+| 53 | gives the boundary to the slot above it, not to the one that ends there | 1 | The sweep at adversarial :119 builds an ends-here/starts-here pair at every LEVELS boundary including 2.2 (lower slot y0 2.2-0.7, h 0.7, top computes to exactly 2.2, the same float as 1.5+0.7) with the lower slot first in the array, and asserts the starting slot wins. Restoring FIT_TOLERANCE_M at the top bound of vacated-void.ts:41 reddens both; the candidate's only extra is the spec-shaped ids. **Keep:** `packages/configurator-domain/tests/queries/vacated-void.adversarial.test.ts:119` | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/queries/width-options.qa.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 137 | never calls a width available that the command refuses | 1 | Identical world (clearBodies(kitchen(), p1/p12/p18)), identical loop skipping current and fixed, identical comparison of chip status with setWidth(...).ok; helpers optionsFor/commandAccepts are textually the same in both files. width-options.test.ts:109 additionally maps the status to exactly available/refused and guards compared > 20, so it is the stronger of the pair. **Keep:** `packages/configurator-domain/tests/queries/width-options.test.ts:109` |
-| 360 | still publishes nothing for a fixedWidth body whose floor empties its set | 1 | qa-5b5 row 'the resolved entry's floor is above the only width it lists' applies minWidthMm 900 to base-hob-2drawer on KITCHEN_L_DESIGN and asserts optionsFor(world,'p2') toEqual [] plus columnWidthChoices and widthStepsFor undefined and the fixedWidth flag still true; the 550-650 sweep at :126 also brackets the edge. Strict subset. **Keep:** `packages/configurator-domain/tests/queries/qa-5b5-fixed-width.adversarial.test.ts:103` |
-| 370 | publishes the chip for the same body when the floor is left alone | 1 | expect(optionsFor(kitchen(),'p2')).toHaveLength(1) on the unedited shipped kitchen is asserted verbatim at qa-5b5 :120 and again at :217. It is only a non-vacuity anchor for s31.45; if that case goes, this goes with it. **Keep:** `packages/configurator-domain/tests/queries/qa-5b5-fixed-width.adversarial.test.ts:120` |
+| 137 | never calls a width available that the command refuses | 1 | Identical world (clearBodies(kitchen(), p1/p12/p18)), identical loop skipping current and fixed, identical comparison of chip status with setWidth(...).ok; helpers optionsFor/commandAccepts are textually the same in both files. width-options.test.ts:109 additionally maps the status to exactly available/refused and guards compared > 20, so it is the stronger of the pair. **Keep:** `packages/configurator-domain/tests/queries/width-options.test.ts:109` | **D2-C deleted** — a kept test went red under a mutation |
+| 360 | still publishes nothing for a fixedWidth body whose floor empties its set | 1 | qa-5b5 row 'the resolved entry's floor is above the only width it lists' applies minWidthMm 900 to base-hob-2drawer on KITCHEN_L_DESIGN and asserts optionsFor(world,'p2') toEqual [] plus columnWidthChoices and widthStepsFor undefined and the fixedWidth flag still true; the 550-650 sweep at :126 also brackets the edge. Strict subset. **Keep:** `packages/configurator-domain/tests/queries/qa-5b5-fixed-width.adversarial.test.ts:103` | **D2-C deleted** — a kept test went red under a mutation |
+| 370 | publishes the chip for the same body when the floor is left alone | 1 | expect(optionsFor(kitchen(),'p2')).toHaveLength(1) on the unedited shipped kitchen is asserted verbatim at qa-5b5 :120 and again at :217. It is only a non-vacuity anchor for s31.45; if that case goes, this goes with it. **Keep:** `packages/configurator-domain/tests/queries/qa-5b5-fixed-width.adversarial.test.ts:120` | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/queries/width-options.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 365 | returns nothing for a target that no longer resolves | 1 | The qa it.each runs optionsFor(kitchen(), id) toEqual [] for ['', 'p8 ', 'P8', 'no-such-placement']; the candidate is the fourth row exactly, same helper, same world. **Keep:** `packages/configurator-domain/tests/queries/width-options.qa.test.ts:382` |
-| 382 | carries the command's own refusal, code and parameters alike | 1 | qa :422 walks every record of the same shipped kitchen (p8 included), re-runs setWidth for every refused chip and compares the whole reason (code and params), pinning 86 refusals; the candidate compares code and params for p8's first refused chip only. Strict subset. **Keep:** `packages/configurator-domain/tests/queries/width-options.qa.test.ts:422` |
+| 365 | returns nothing for a target that no longer resolves | 1 | The qa it.each runs optionsFor(kitchen(), id) toEqual [] for ['', 'p8 ', 'P8', 'no-such-placement']; the candidate is the fourth row exactly, same helper, same world. **Keep:** `packages/configurator-domain/tests/queries/width-options.qa.test.ts:382` | **D2-C deleted** — a kept test went red under a mutation |
+| 382 | carries the command's own refusal, code and parameters alike | 1 | qa :422 walks every record of the same shipped kitchen (p8 included), re-runs setWidth for every refused chip and compares the whole reason (code and params), pinning 86 refusals; the candidate compares code and params for p8's first refused chip only. Strict subset. **Keep:** `packages/configurator-domain/tests/queries/width-options.qa.test.ts:422` | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/queries/width-resolution.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 139 | treats an empty-string pointer... / terminates on a self-referential pointer / terminates on a two-row cycle | 3 | resolveCatalogEquivalent (catalog.ts:948-960) is one hop: catalog.get(pointer) then insertable !== true returns undefined. '' misses the map exactly as 'no-such-entry' does (:127); a self pointer and a two-row cycle land on a non-insertable row exactly as :164 does. Any implementation that starts following pointers (recursion or loop) already reddens :164, because wall-2door-800 carries catalogEquivalentId 'wall-cabinet' (kitchen-l-design.ts:472-481) and would yield a set. No change found that reddens only these three. **Keep:** `packages/configurator-domain/tests/queries/width-resolution.adversarial.test.ts:127 and :164` |
-| 482 | is the negation of fixedWidth and nothing else, over the whole population | 1 | Same seeded world, same loop, same expect([id, canWidth]) toEqual [id, !record.fixedWidth] through describeSelection; the qa twin adds both-answers-present and the willing count. Strict subset. **Keep:** `packages/configurator-domain/tests/queries/describe-selection.qa.test.ts:34` |
+| 139 | treats an empty-string pointer... / terminates on a self-referential pointer / terminates on a two-row cycle | 3 | resolveCatalogEquivalent (catalog.ts:948-960) is one hop: catalog.get(pointer) then insertable !== true returns undefined. '' misses the map exactly as 'no-such-entry' does (:127); a self pointer and a two-row cycle land on a non-insertable row exactly as :164 does. Any implementation that starts following pointers (recursion or loop) already reddens :164, because wall-2door-800 carries catalogEquivalentId 'wall-cabinet' (kitchen-l-design.ts:472-481) and would yield a set. No change found that reddens only these three. **Keep:** `packages/configurator-domain/tests/queries/width-resolution.adversarial.test.ts:127 and :164` | **D2-C deleted** — a kept test went red under a mutation |
+| 482 | is the negation of fixedWidth and nothing else, over the whole population | 1 | Same seeded world, same loop, same expect([id, canWidth]) toEqual [id, !record.fixedWidth] through describeSelection; the qa twin adds both-answers-present and the willing count. Strict subset. **Keep:** `packages/configurator-domain/tests/queries/describe-selection.qa.test.ts:34` | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/resolved-finish.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 378 | carries no finish and therefore renders the global colour, not the material's default | 1 | Same call as :94: a placementWearing(0, undefined) on a melamine design with global PAL_GRI, resolvedFinishOf toEqual PAL_GRI. The extra not.toEqual(material default) is implied by the equality (PAL_GRI differs from the default or the line could not pass). insertBody is never called, so ADR 0099 acceptance 4 is modelled, not exercised. **Keep:** `packages/configurator-domain/tests/resolved-finish.test.ts:94` |
+| 378 | carries no finish and therefore renders the global colour, not the material's default | 1 | Same call as :94: a placementWearing(0, undefined) on a melamine design with global PAL_GRI, resolvedFinishOf toEqual PAL_GRI. The extra not.toEqual(material default) is implied by the equality (PAL_GRI differs from the default or the line could not pass). insertBody is never called, so ADR 0099 acceptance 4 is modelled, not exercised. **Keep:** `packages/configurator-domain/tests/resolved-finish.test.ts:94` | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/room/corner-direction.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 118 | answers left for a straight room with no cornerDirection key | 1 | cornerDirectionOf (corner-direction.ts:34-37) returns 'left' for an absent key on either side of the carries guard, so this input cannot tell the guard from its absence; the stored-key rows at :129 are what exercise the linear arm and the absent-key default is pinned on the L just above. No change found that reddens only this case. **Keep:** `packages/configurator-domain/tests/room/corner-direction.test.ts:129` |
-| 148 | answers left for a U with no cornerDirection key | 1 | Absent key on a U answers 'left' with or without the guard. Adding U to SHAPES_WITH_A_CHOSEN_DIRECTION leaves this green and reddens only carries-corner-direction.test.ts:60-75 (carriesCornerDirection('U') false; right-hand U reads left). **Keep:** `packages/configurator-domain/tests/room/carries-corner-direction.test.ts:72` |
-| 160 | answers left for a U even if a stored document carries left explicitly | 1 | An explicit 'left' on a U returns 'left' through either arm of corner-direction.ts:35-36; no line of the function can be changed to redden this without also reddening the L 'reads an explicit left' row or the right-hand-U case. **Keep:** `packages/configurator-domain/tests/room/carries-corner-direction.test.ts:72` |
+| 118 | answers left for a straight room with no cornerDirection key | 1 | cornerDirectionOf (corner-direction.ts:34-37) returns 'left' for an absent key on either side of the carries guard, so this input cannot tell the guard from its absence; the stored-key rows at :129 are what exercise the linear arm and the absent-key default is pinned on the L just above. No change found that reddens only this case. **Keep:** `packages/configurator-domain/tests/room/corner-direction.test.ts:129` | **D2-C deleted** — a kept test went red under a mutation |
+| 148 | answers left for a U with no cornerDirection key | 1 | Absent key on a U answers 'left' with or without the guard. Adding U to SHAPES_WITH_A_CHOSEN_DIRECTION leaves this green and reddens only carries-corner-direction.test.ts:60-75 (carriesCornerDirection('U') false; right-hand U reads left). **Keep:** `packages/configurator-domain/tests/room/carries-corner-direction.test.ts:72` | **D2-C deleted** — a kept test went red under a mutation |
+| 160 | answers left for a U even if a stored document carries left explicitly | 1 | An explicit 'left' on a U returns 'left' through either arm of corner-direction.ts:35-36; no line of the function can be changed to redden this without also reddening the L 'reads an explicit left' row or the right-hand-U case. **Keep:** `packages/configurator-domain/tests/room/carries-corner-direction.test.ts:72` | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/room/is-shape-buildable.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 84 | is already buildable for linear, under the real approved policy, with no cast | 1 | isShapeBuildable('linear', APPROVED_ROOM_POLICY) === true is asserted by :52 (buildable shapes toEqual the hand-written ['linear','L','U']) and by the it.each at :62. The 'with no cast' in the title is wave history, not a behaviour. **Keep:** `packages/configurator-domain/tests/room/is-shape-buildable.test.ts:52` |
+| 84 | is already buildable for linear, under the real approved policy, with no cast | 1 | isShapeBuildable('linear', APPROVED_ROOM_POLICY) === true is asserted by :52 (buildable shapes toEqual the hand-written ['linear','L','U']) and by the it.each at :62. The 'with no cast' in the title is wave history, not a behaviour. **Keep:** `packages/configurator-domain/tests/room/is-shape-buildable.test.ts:52` | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/room/minimum-kitchen.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 38 | refuses %i × %i with the exact room-level issue / accepts %i × %i at the matching one-millimetre boundary | 7 | Six of the seven pairs (900x2199, 2099x1000, 1500x1599 refused; 900x2200, 2100x1000, 1500x1600 accepted) are rows of qa-7a3 'judges %s' with the same toStrictEqual refusal or accepted room under APPROVED_ROOM_POLICY, through the same validateRoomInput. 900x2160 is refused in adversarial :227 at both directions and both height edges; its exact issue shape is the one qa-7a3 pins on its neighbours. Only the height literal differs. **Keep:** `packages/configurator-domain/tests/room/qa-7a3-the-6000mm-boundaries.adversarial.test.ts:165 and packages/configurator-domain/tests/room/minimum-kitchen.adversarial.test.ts:227` |
+| 38 | refuses %i × %i with the exact room-level issue / accepts %i × %i at the matching one-millimetre boundary | 7 | Six of the seven pairs (900x2199, 2099x1000, 1500x1599 refused; 900x2200, 2100x1000, 1500x1600 accepted) are rows of qa-7a3 'judges %s' with the same toStrictEqual refusal or accepted room under APPROVED_ROOM_POLICY, through the same validateRoomInput. 900x2160 is refused in adversarial :227 at both directions and both height edges; its exact issue shape is the one qa-7a3 pins on its neighbours. Only the height literal differs. **Keep:** `packages/configurator-domain/tests/room/qa-7a3-the-6000mm-boundaries.adversarial.test.ts:165 and packages/configurator-domain/tests/room/minimum-kitchen.adversarial.test.ts:227` | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/room/qa-7i-corner-direction.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 178 | does not move MAX_DESIGN_BYTES beyond qa-5h's pinned value | 1 | expect(MAX_DESIGN_BYTES).toBe(523_972) appears verbatim at design-bounds.test.ts:50 and qa-5h.adversarial.test.ts:569; this third copy exercises nothing about cornerDirection and its own title defers to qa-5h. **Keep:** `packages/configurator-domain/tests/design-bounds.test.ts:50` |
+| 178 | does not move MAX_DESIGN_BYTES beyond qa-5h's pinned value | 1 | expect(MAX_DESIGN_BYTES).toBe(523_972) appears verbatim at design-bounds.test.ts:50 and qa-5h.adversarial.test.ts:569; this third copy exercises nothing about cornerDirection and its own title defers to qa-5h. **Keep:** `packages/configurator-domain/tests/design-bounds.test.ts:50` | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/room/qa-7j-straight-room.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 98 | holds one maximum for every wall of every approved shape (Q-7J-1) | 1 | approved-room-policy.test.ts:257-272 collects the same L and linear wall maxima plus the U's three and asserts the Set equals {6000}; this is the same read with three fewer walls. Strict subset. **Keep:** `packages/configurator-domain/tests/room/approved-room-policy.test.ts:257` |
-| 111 | sits inside the engine's own straight wall | 1 | The it.each at :288 runs expectHeldInsideEngine (:131-146) for the field named 'linear wall A' (:95): approved.minMm >= engine.minMm and approved.maxMm <= engine.maxMm, the two assertions here, plus min < max. **Keep:** `packages/configurator-domain/tests/room/approved-room-policy.test.ts:288` |
+| 98 | holds one maximum for every wall of every approved shape (Q-7J-1) | 1 | approved-room-policy.test.ts:257-272 collects the same L and linear wall maxima plus the U's three and asserts the Set equals {6000}; this is the same read with three fewer walls. Strict subset. **Keep:** `packages/configurator-domain/tests/room/approved-room-policy.test.ts:257` | **D2-C deleted** — a kept test went red under a mutation |
+| 111 | sits inside the engine's own straight wall | 1 | The it.each at :288 runs expectHeldInsideEngine (:131-146) for the field named 'linear wall A' (:95): approved.minMm >= engine.minMm and approved.maxMm <= engine.maxMm, the two assertions here, plus min < max. **Keep:** `packages/configurator-domain/tests/room/approved-room-policy.test.ts:288` | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/room/u-minimum-kitchen.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 44 | %s: wall A 2999 is refused and 3000 accepted / A %i, B 6000: wall C 1599 is refused and 1600 accepted / reads the narrower side wall as the far wall | 5 | Every refusal and acceptance here is a row of H3_PAIRS (2999/3000 at B=C=1000 and 1599; C 1599/1600 at A 2999 and 2700 with B 6000; the B/C mirror at 2999) asserted with the same strict TOO_SMALL or .ok through validateRoomInput under APPROVED_ROOM_POLICY at the same 2600 height. The one room not literally in the table, 2999/1600/1600 accepted, is dominated by the table's 2700/1600/1600 accepted. **Keep:** `packages/configurator-domain/tests/room/qa-m7b-u6-switch.adversarial.test.ts:163` |
-| 76 | returns the refusal on the room-level field with no number, as the L does | 1 | 2999/1000/1000 is H3_PAIRS' first row, asserted toStrictEqual the room-level TOO_SMALL object; strict equality to an object holding no digit already implies the JSON no-digit check, which approved-u-bounds.test.ts:83 also makes on 2700/1000/1000. **Keep:** `packages/configurator-domain/tests/room/qa-m7b-u6-switch.adversarial.test.ts:163` |
-| 83 | judges a field before the kitchen: a wall below its bound is that wall's issue alone | 1 | Identical input (2699/1000/1000, height 2600, approved policy) and identical toStrictEqual lone wallA WALL_TOO_SHORT as u6 :202. **Keep:** `packages/configurator-domain/tests/room/qa-m7b-u6-switch.adversarial.test.ts:202` |
-| 105 | states the U under the approved policy, whose gate is the one every pair above ran under | 1 | isShapeBuildable('U', APPROVED) true is is-shape-buildable.test.ts:80; uWallBoundsOf(APPROVED).minimumKitchen.isRequired true is approved-room-policy.test.ts:246-252 and the full pin at :235. Two restated facts, no new one. **Keep:** `packages/configurator-domain/tests/room/approved-room-policy.test.ts:246` |
+| 44 | %s: wall A 2999 is refused and 3000 accepted / A %i, B 6000: wall C 1599 is refused and 1600 accepted / reads the narrower side wall as the far wall | 5 | Every refusal and acceptance here is a row of H3_PAIRS (2999/3000 at B=C=1000 and 1599; C 1599/1600 at A 2999 and 2700 with B 6000; the B/C mirror at 2999) asserted with the same strict TOO_SMALL or .ok through validateRoomInput under APPROVED_ROOM_POLICY at the same 2600 height. The one room not literally in the table, 2999/1600/1600 accepted, is dominated by the table's 2700/1600/1600 accepted. **Keep:** `packages/configurator-domain/tests/room/qa-m7b-u6-switch.adversarial.test.ts:163` | **D2-C deleted** — a kept test went red under a mutation |
+| 76 | returns the refusal on the room-level field with no number, as the L does | 1 | 2999/1000/1000 is H3_PAIRS' first row, asserted toStrictEqual the room-level TOO_SMALL object; strict equality to an object holding no digit already implies the JSON no-digit check, which approved-u-bounds.test.ts:83 also makes on 2700/1000/1000. **Keep:** `packages/configurator-domain/tests/room/qa-m7b-u6-switch.adversarial.test.ts:163` | **D2-C deleted** — a kept test went red under a mutation |
+| 83 | judges a field before the kitchen: a wall below its bound is that wall's issue alone | 1 | Identical input (2699/1000/1000, height 2600, approved policy) and identical toStrictEqual lone wallA WALL_TOO_SHORT as u6 :202. **Keep:** `packages/configurator-domain/tests/room/qa-m7b-u6-switch.adversarial.test.ts:202` | **D2-C deleted** — a kept test went red under a mutation |
+| 105 | states the U under the approved policy, whose gate is the one every pair above ran under | 1 | isShapeBuildable('U', APPROVED) true is is-shape-buildable.test.ts:80; uWallBoundsOf(APPROVED).minimumKitchen.isRequired true is approved-room-policy.test.ts:246-252 and the full pin at :235. Two restated facts, no new one. **Keep:** `packages/configurator-domain/tests/room/approved-room-policy.test.ts:246` | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/room/validate-room.property.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 293 | is a room DesignRoomSchema parses unchanged | 1 | The test at :304 draws oneof(validLRoomInput, anyLRoomInput) and for every accepted room asserts DesignRoomSchema.parse(result.room) toStrictEqual result.room (:321), plus the exact room; half its draws are this test's arbitrary. Superset, same policy default. **Keep:** `packages/configurator-domain/tests/room/validate-room.property.test.ts:304` |
+| 293 | is a room DesignRoomSchema parses unchanged | 1 | The test at :304 draws oneof(validLRoomInput, anyLRoomInput) and for every accepted room asserts DesignRoomSchema.parse(result.room) toStrictEqual result.room (:321), plus the exact room; half its draws are this test's arbitrary. Superset, same policy default. **Keep:** `packages/configurator-domain/tests/room/validate-room.property.test.ts:304` | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/room/validate-room.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 62 | refuses a U as its shape alone under a policy that states no U bounds | 1 | Same policy construction (ENGINE_ROOM_LIMITS with only L) and same SHAPE_ALONE result as the property, whose anyURoomInput draws undefined, integers and doubles per field; any change that judges a U's fields before its shape reddens the property on essentially every draw. **Keep:** `packages/configurator-domain/tests/room/validate-room.property.test.ts:203` |
-| 130 | refuses a straight kitchen as its shape alone under a policy that states no linear bounds | 1 | As s32.25 for linear: identical policy and expected SHAPE_NOT_BUILDABLE; anyLinearRoomInput includes the all-undefined input class this example uses. **Keep:** `packages/configurator-domain/tests/room/validate-room.property.test.ts:187` |
-| 280 | hands the fit gate back the walls that were entered | 1 | The property asserts wallLengthMm('A'/'B', acceptedRoom(input)) equals the entered walls for every draw of validLRoomInput (bounds-inclusive integers), plus height and shape; the example is one point of it and a mapping bug fails on every draw. **Keep:** `packages/configurator-domain/tests/room/validate-room.property.test.ts:279` |
-| 326 | hands the fit gate back the wall A that was entered, and a wall B of 0 (D4) | 1 | The property at :390 asserts wall A as entered and wall B === 0 for every valid linear draw; the example is one point of it. **Keep:** `packages/configurator-domain/tests/room/validate-room.property.test.ts:390` |
+| 62 | refuses a U as its shape alone under a policy that states no U bounds | 1 | Same policy construction (ENGINE_ROOM_LIMITS with only L) and same SHAPE_ALONE result as the property, whose anyURoomInput draws undefined, integers and doubles per field; any change that judges a U's fields before its shape reddens the property on essentially every draw. **Keep:** `packages/configurator-domain/tests/room/validate-room.property.test.ts:203` | **D2-C deleted** — a kept test went red under a mutation |
+| 130 | refuses a straight kitchen as its shape alone under a policy that states no linear bounds | 1 | As s32.25 for linear: identical policy and expected SHAPE_NOT_BUILDABLE; anyLinearRoomInput includes the all-undefined input class this example uses. **Keep:** `packages/configurator-domain/tests/room/validate-room.property.test.ts:187` | **D2-C deleted** — a kept test went red under a mutation |
+| 280 | hands the fit gate back the walls that were entered | 1 | The property asserts wallLengthMm('A'/'B', acceptedRoom(input)) equals the entered walls for every draw of validLRoomInput (bounds-inclusive integers), plus height and shape; the example is one point of it and a mapping bug fails on every draw. **Keep:** `packages/configurator-domain/tests/room/validate-room.property.test.ts:279` | **D2-C deleted** — a kept test went red under a mutation |
+| 326 | hands the fit gate back the wall A that was entered, and a wall B of 0 (D4) | 1 | The property at :390 asserts wall A as entered and wall B === 0 for every valid linear draw; the example is one point of it. **Keep:** `packages/configurator-domain/tests/room/validate-room.property.test.ts:390` | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/run-end-panel.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 88 | seats the seeded panel on M1's parity number | 1 | runEndPanelSeatM(SEEDED_RECORDS, SEEDED_ROOM) toBeCloseTo(3.51, 9) is repeated at :198, which also asserts equality with the independently transcribed shipped rule; same call, same records, same room. **Keep:** `packages/configurator-domain/tests/run-end-panel.test.ts:194` |
+| 88 | seats the seeded panel on M1's parity number | 1 | runEndPanelSeatM(SEEDED_RECORDS, SEEDED_ROOM) toBeCloseTo(3.51, 9) is repeated at :198, which also asserts equality with the independently transcribed shipped rule; same call, same records, same room. **Keep:** `packages/configurator-domain/tests/run-end-panel.test.ts:194` | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/validate-design.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 346 | is a refusal and not a mark, which ADR 0069 decision 2 leaves no discretion about | 1 | FATAL_VALIDATION_CODES and MARK_VALIDATION_CODES are both derived in the test from DESIGN_ISSUE_SEVERITY_BY_CODE (:39-40), whose values are typed 'mark' \| 'refusal'. :479 pins the mark set to exactly four named codes, so PLACEMENT_WEARS_UNOFFERED_FINISH becoming a mark already reddens it. **Keep:** `packages/configurator-domain/tests/validate-design.test.ts:479` |
-| 490 | keeps all three before-wall-start codes fatal | 1 | Same reasoning as s33.5: with a two-valued, type-enforced severity and the mark set pinned to exactly four codes at :479, any of the three before-wall-start codes becoming a mark reddens :479. **Keep:** `packages/configurator-domain/tests/validate-design.test.ts:479` |
+| 346 | is a refusal and not a mark, which ADR 0069 decision 2 leaves no discretion about | 1 | FATAL_VALIDATION_CODES and MARK_VALIDATION_CODES are both derived in the test from DESIGN_ISSUE_SEVERITY_BY_CODE (:39-40), whose values are typed 'mark' \| 'refusal'. :479 pins the mark set to exactly four named codes, so PLACEMENT_WEARS_UNOFFERED_FINISH becoming a mark already reddens it. **Keep:** `packages/configurator-domain/tests/validate-design.test.ts:479` | **D2-C deleted** — a kept test went red under a mutation |
+| 490 | keeps all three before-wall-start codes fatal | 1 | Same reasoning as s33.5: with a two-valued, type-enforced severity and the mark set pinned to exactly four codes at :479, any of the three before-wall-start codes becoming a mark reddens :479. **Keep:** `packages/configurator-domain/tests/validate-design.test.ts:479` | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/void-engine-span-overlap.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 81 | reads an exact abutment as no overlap and a 1 mm overlap as one, unequal widths, either order (wall %s) | 4 | The seam property at :50 runs 500 draws over every wall with offsets -1/0/+1 on either side and widths 50-1200, each draw a full abut-or-overlap check; the 700/600 example is one point of it and the centre-as-start defect fails it on almost every draw. The narrow-over-wide example at :118 is likewise one draw class of the 1000-run oracle property at :36. **Keep:** `packages/configurator-domain/tests/void-engine-span-overlap.test.ts:36 and :50` |
+| 81 | reads an exact abutment as no overlap and a 1 mm overlap as one, unequal widths, either order (wall %s) | 4 | The seam property at :50 runs 500 draws over every wall with offsets -1/0/+1 on either side and widths 50-1200, each draw a full abut-or-overlap check; the 700/600 example is one point of it and the centre-as-start defect fails it on almost every draw. The narrow-over-wide example at :118 is likewise one draw class of the 1000-run oracle property at :36. **Keep:** `packages/configurator-domain/tests/void-engine-span-overlap.test.ts:36 and :50` | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/void-engine.corner-record.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 159 | over the approved L | 1 | Same helper and builder as :137 over a room box contained in the engine's L box, with a strictly weaker assertion (no toContain('left')). derivePlacementRecords has no policy-dependent branch for the approved sub-box to reach. **Keep:** `packages/configurator-domain/tests/void-engine.corner-record.test.ts:137` |
+| 159 | over the approved L | 1 | Same helper and builder as :137 over a room box contained in the engine's L box, with a strictly weaker assertion (no toContain('left')). derivePlacementRecords has no policy-dependent branch for the approved sub-box to reach. **Keep:** `packages/configurator-domain/tests/void-engine.corner-record.test.ts:137` | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/void-engine.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 446 | subdivides by module lines, not the column's original member history | 1 | Byte-identical fixture to :428 (regions [0,1.85],[1.85,2.6], top 2.6, no bodies). :428 asserts the exact [y0, y0+h] pairs with toEqual, which fixes count and heights; this re-asserts length 3 and the heights by toBeCloseTo. **Keep:** `packages/configurator-domain/tests/void-engine.test.ts:428` |
+| 446 | subdivides by module lines, not the column's original member history | 1 | Byte-identical fixture to :428 (regions [0,1.85],[1.85,2.6], top 2.6, no bodies). :428 asserts the exact [y0, y0+h] pairs with toEqual, which fixes count and heights; this re-asserts length 3 and the heights by toBeCloseTo. **Keep:** `packages/configurator-domain/tests/void-engine.test.ts:428` | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/worktop-depth.qa.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 149 | puts the shipped worktop's row on the depth the reference room builds | 1 | wallDepthMmForWorktop(600) toBe 330 is the first DECLARED_ROWS row at worktop-depth.test.ts:43 and is asserted again at worktop-depth.qa.test.ts:225; here only the name of the literal differs. **Keep:** `packages/configurator-domain/tests/worktop-depth.test.ts:43` |
+| 149 | puts the shipped worktop's row on the depth the reference room builds | 1 | wallDepthMmForWorktop(600) toBe 330 is the first DECLARED_ROWS row at worktop-depth.test.ts:43 and is asserted again at worktop-depth.qa.test.ts:225; here only the name of the literal differs. **Keep:** `packages/configurator-domain/tests/worktop-depth.test.ts:43` | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/worktop-depth.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 58 | refuses %p rather than interpolating, rounding or defaulting / names the value it was given, so the refusal is diagnosable | 7 | All six inputs (650, 800, 0, -600, 599.9, NaN) are rows of the qa sweep at :182, which asserts instanceOf UnknownWorktopDepthError, the '<input> mm' text (so '650 mm') and the declared rows, and adds -0, 600.0000001, both infinities and MAX_SAFE_INTEGER. Strict subset. **Keep:** `packages/configurator-domain/tests/worktop-depth.qa.test.ts:182` |
-| 107 | moves both numbers to 330 at the shipped worktop, and neither to 400 | 1 | expectedWallDepthMm is wallDepthMmForWorktop(WORKTOP_DEPTH_MM) with 600 pinned at :51 and 600->330 at :43; the three nominal depths equal it at :84; columnBuildDepthMm equals it at :94, which implies not 400. Every assertion here is the conjunction of those. **Keep:** `packages/configurator-domain/tests/worktop-depth.test.ts:84` |
+| 58 | refuses %p rather than interpolating, rounding or defaulting / names the value it was given, so the refusal is diagnosable | 7 | All six inputs (650, 800, 0, -600, 599.9, NaN) are rows of the qa sweep at :182, which asserts instanceOf UnknownWorktopDepthError, the '<input> mm' text (so '650 mm') and the declared rows, and adds -0, 600.0000001, both infinities and MAX_SAFE_INTEGER. Strict subset. **Keep:** `packages/configurator-domain/tests/worktop-depth.qa.test.ts:182` | **D2-C deleted** — a kept test went red under a mutation |
+| 107 | moves both numbers to 330 at the shipped worktop, and neither to 400 | 1 | expectedWallDepthMm is wallDepthMmForWorktop(WORKTOP_DEPTH_MM) with 600 pinned at :51 and 600->330 at :43; the three nominal depths equal it at :84; columnBuildDepthMm equals it at :94, which implies not 400. Every assertion here is the conjunction of those. **Keep:** `packages/configurator-domain/tests/worktop-depth.test.ts:84` | **D2-C deleted** — a kept test went red under a mutation; the Keep named above stays green, the guards are "maps a %i mm worktop" and "caps a wall carcass" |
 
 #### `packages/persistence` — 25 entries, 43 cases
 
@@ -2866,50 +2866,50 @@ mutation is equivalent on shipped data, or the behaviour is unguarded everywhere
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 345 | renders no progress segments and declares no rule for them | 1 | styles.progress / styles.headerRow appear nowhere in configure-screen.tsx or configure.module.css (grep empty). A reintroduced top-bar class is already caught by qa-w4-top-bar.adversarial.test.ts:121, which toEqual's the exact list of className={styles.*} before the stage; the remaining half only forbids a dead CSS rule by two historical names. |
+| 345 | renders no progress segments and declares no rule for them | 1 | styles.progress / styles.headerRow appear nowhere in configure-screen.tsx or configure.module.css (grep empty). A reintroduced top-bar class is already caught by qa-w4-top-bar.adversarial.test.ts:121, which toEqual's the exact list of className={styles.*} before the stage; the remaining half only forbids a dead CSS rule by two historical names. | **W2-C deleted** — obsolete: 0 hits in source, removed by `901d1cf` |
 
 **`tests/app/locale-layout.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 20 | owns only the five customer entrypoints beneath [locale] / leaves configure and shared-design support at stable alias paths | 1 | Case 1 is kept: a route file is imported by nothing, so deleting [locale]/configurator/contact/page.tsx or re-adding an unlocalised app/page.tsx breaks no import and only this test notices (its title's 'five' is stale — d/[id]/review exists — but the assertions are live). Case 2 is redundant: configure-screen.tsx and hydrate-and-configure.tsx are imported by dozens of tests, so existsSync adds nothing. |
+| 20 | owns only the five customer entrypoints beneath [locale] / leaves configure and shared-design support at stable alias paths | 1 | Case 1 is kept: a route file is imported by nothing, so deleting [locale]/configurator/contact/page.tsx or re-adding an unlocalised app/page.tsx breaks no import and only this test notices (its title's 'five' is stale — d/[id]/review exists — but the assertions are live). Case 2 is redundant: configure-screen.tsx and hydrate-and-configure.tsx are imported by dozens of tests, so existsSync adds nothing. | **W2-C part** — case 2 deleted; both files are imported by other tests |
 
 **`tests/e2e/global-settings-apply.e2e.spec.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 214 | commits nothing and stays open when one half of the press is refused | 1 | test.fixme with an empty body: it never runs and asserts nothing, so deleting it removes no protection. The commit-nothing half is asserted at store/whole-kitchen-apply.test.ts:79. It is a deliberate gap marker (the sheet staying open in a browser is unasserted) — move that note to docs/BACKLOG.md rather than lose it. |
+| 214 | commits nothing and stays open when one half of the press is refused | 1 | test.fixme with an empty body: it never runs and asserts nothing, so deleting it removes no protection. The commit-nothing half is asserted at store/whole-kitchen-apply.test.ts:79. It is a deliberate gap marker (the sheet staying open in a browser is unasserted) — move that note to docs/BACKLOG.md rather than lose it. | **W2-C not done** — Playwright spec; deferred to the main checkout |
 
 **`tests/e2e/kitchen-stage.e2e.spec.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 105 | a selected body renders a visible highlight distinct from no selection | 1 | test.skip, unconditionally: it never runs. Its own comment says 'Skipped, not owed' (the sheet covers the patch at 390x844); HIGHLIGHT_REGION (:31) is used nowhere else. The highlight is asserted at editor-rail.desktop.e2e.spec.ts:215. |
+| 105 | a selected body renders a visible highlight distinct from no selection | 1 | test.skip, unconditionally: it never runs. Its own comment says 'Skipped, not owed' (the sheet covers the patch at 390x844); HIGHLIGHT_REGION (:31) is used nowhere else. The highlight is asserted at editor-rail.desktop.e2e.spec.ts:215. | **W2-C not done** — Playwright spec; deferred to the main checkout |
 
 **`tests/price/price-bar-states.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 253 | shows the same figure it showed before, and says nothing about the refusal | 1 | Same describePriceBar call on the seeded design; :86 asserts label === startingPrefix === 'De la', which already excludes 'neschimbat'. No refusal is passed, so the title's second half is not exercised. |
+| 253 | shows the same figure it showed before, and says nothing about the refusal | 1 | Same describePriceBar call on the seeded design; :86 asserts label === startingPrefix === 'De la', which already excludes 'neschimbat'. No refusal is passed, so the title's second half is not exercised. | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
 
 **`tests/price/starting-price.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 184 | renders an included tier's zero as a bare zero, which wave 6D must not ship as an amount | 1 | Wave 6D shipped: describeRowAmount maps zero to inclus (src/price/price-breakdown-model.ts:249-252). amountTextFor(0) === '0 MDL' is starting-price.test.ts:72; the rest pins a fixture fact and the absence of a key nothing reads. |
-| 392 | offers no surface a choice of prefix to compose | 1 | describeStartingLabel exists nowhere under apps/web/src or packages/configurator-domain/src (grep -rn: no hit). A prefix chooser under any other name passes; the behaviour is held by the label assertions at starting-price.test.ts:28-34. |
+| 184 | renders an included tier's zero as a bare zero, which wave 6D must not ship as an amount | 1 | Wave 6D shipped: describeRowAmount maps zero to inclus (src/price/price-breakdown-model.ts:249-252). amountTextFor(0) === '0 MDL' is starting-price.test.ts:72; the rest pins a fixture fact and the absence of a key nothing reads. | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
+| 392 | offers no surface a choice of prefix to compose | 1 | describeStartingLabel exists nowhere under apps/web/src or packages/configurator-domain/src (grep -rn: no hit). A prefix chooser under any other name passes; the behaviour is held by the label assertions at starting-price.test.ts:28-34. | **W2-C deleted** — obsolete: `describeStartingLabel` has 0 hits in web and domain source |
 
 **`tests/price/starting-price.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 37 | is the only prefix a figure can carry, since the owner removed the other | 1 | Second 'neschimbat' sweep over the same price section as adversarial:381, which reads the raw catalogue and the removed key; the label assertion repeats :28-34. Keep the adversarial one. |
+| 37 | is the only prefix a figure can carry, since the owner removed the other | 1 | Second 'neschimbat' sweep over the same price section as adversarial:381, which reads the raw catalogue and the removed key; the label assertion repeats :28-34. Keep the adversarial one. | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
 
 **`tests/scene/overflow-warning-viewport.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 363 | was survivable before 6G's row, which is why the first placement was defensible | 1 | It computes a layout that no longer exists on either count (a flow band and no settings row) from test-local arithmetic. Its one production input, the reserved height, is pinned by :351 (30.74) and :323 (477), so no production change reddens it alone; it records why an abandoned placement was once defensible. |
+| 363 | was survivable before 6G's row, which is why the first placement was defensible | 1 | It computes a layout that no longer exists on either count (a flow band and no settings row) from test-local arithmetic. Its one production input, the reserved height, is pinned by :351 (30.74) and :323 (477), so no production change reddens it alone; it records why an abandoned placement was once defensible. | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
 
 #### `packages/configurator-domain` — 2 entries, 2 cases
 
@@ -2917,13 +2917,13 @@ mutation is equivalent on shipped data, or the behaviour is unguarded everywhere
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 275 | E1 head column / E2 (x5) / E4 / E6 (x2) / E7 HEAD-figure census tests | 1 | Only 'E1 — HEAD's column' is a figure of a planner that no longer ships: every number in it is the post-S0b column (:291) shifted by the 5 260 rooms pinned live at :484. The other eight are not obsolete. They run the shipped planner with the leaves switched and pin preconditions the shipped S1 leaf relies on: no room has a free door cabinet on both sides of the sink (the leaf has no ranking), every converted cabinet is on the narrower wall, the (e) rooms' shape, the free-end remainder never wider than 200 mm, and M11's 5 260 / 11 240 split. |
+| 275 | E1 head column / E2 (x5) / E4 / E6 (x2) / E7 HEAD-figure census tests | 1 | Only 'E1 — HEAD's column' is a figure of a planner that no longer ships: every number in it is the post-S0b column (:291) shifted by the 5 260 rooms pinned live at :484. The other eight are not obsolete. They run the shipped planner with the leaves switched and pin preconditions the shipped S1 leaf relies on: no room has a free door cabinet on both sides of the sink (the leaf has no ranking), every converted cabinet is on the narrower wall, the (e) rooms' shape, the free-end remainder never wider than 200 mm, and M11's 5 260 / 11 240 split. | **D2-C part** — the HEAD column only deleted, superseded by `4e88ae0`; the other eight tests stay |
 
 **`tests/generation/shell-design.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 1150 | computes the run-end panel for every band room without throwing | 1 | No it.fails remains for the band (rtk proxy grep 'it\.fails' tests/generation finds only comments; property.test.ts:286 records the flip). The same 19 rooms (wall A 900-918, wallB.min, 2600) run the same runEndPanelSeatM call through runEndPanelOuterFaceMm at property.test.ts:310-321 with a real assertion, so a throw fails there too; the count of 19 is pinned by the premise at property.test.ts:295. Do not delete this and s26.9's group without keeping adversarial :865. |
+| 1150 | computes the run-end panel for every band room without throwing | 1 | No it.fails remains for the band (rtk proxy grep 'it\.fails' tests/generation finds only comments; property.test.ts:286 records the flip). The same 19 rooms (wall A 900-918, wallB.min, 2600) run the same runEndPanelSeatM call through runEndPanelOuterFaceMm at property.test.ts:310-321 with a real assertion, so a throw fails there too; the count of 19 is pinned by the premise at property.test.ts:295. Do not delete this and s26.9's group without keeping adversarial :865. | **D2-C deleted** — obsolete: no `it.fails` call remains; a throwing veto reddens five other tests |
 
 ## 4. Useless
 
@@ -2933,85 +2933,85 @@ mutation is equivalent on shipped data, or the behaviour is unguarded everywhere
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 286 | is exactly the owner's wording in %s | 1 | The ro row is redundant: romanian-copy-lock.test.ts:16 holds all of ro.json to APPROVED_ROMANIAN_MESSAGES leaf for leaf. The ru row is kept: 'Изменения будут потеряны' is owner-approved wording (2026-10-01) and no other unit test pins ru.json's leaf; golden-output hashes render ro.json only, the other literal is e2e support (tests/e2e/support/qa-m7c-c1-s3-back.ts:24). |
+| 286 | is exactly the owner's wording in %s | 1 | The ro row is redundant: romanian-copy-lock.test.ts:16 holds all of ro.json to APPROVED_ROMANIAN_MESSAGES leaf for leaf. The ru row is kept: 'Изменения будут потеряны' is owner-approved wording (2026-10-01) and no other unit test pins ru.json's leaf; golden-output hashes render ro.json only, the other literal is e2e support (tests/e2e/support/qa-m7c-c1-s3-back.ts:24). | **W2-C part** — the Romanian row deleted (copy lock red); the Russian row stays |
 
 **`tests/e2e/overflow-mark.e2e.spec.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 194 | the mark's colour cannot be counted as the selection highlight | 1 | Touches no page: it computes the RGB distance between two production constants. packages/three-adapter/tests/overflow-mark.test.ts:76-82 already asserts that distance exceeds the selection tolerance and rounds to 90, in a unit test; the operational half is the next e2e case. |
+| 194 | the mark's colour cannot be counted as the selection highlight | 1 | Touches no page: it computes the RGB distance between two production constants. packages/three-adapter/tests/overflow-mark.test.ts:76-82 already asserts that distance exceeds the selection tolerance and rounds to 90, in a unit test; the operational half is the next e2e case. | **W2-C not done** — Playwright spec; deferred to the main checkout |
 
 **`tests/e2e/pixel-counter-witness.adversarial.desktop.e2e.spec.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 330 | the retired threshold of 50 reports a mark on an unmarked oak kitchen, and 80 does not | 1 | Its unique assertion counts pixels against a test-local retired threshold (50), which documents the instrument and guards no product rule. Its other assertion (MARK <= MAX_ABSENT_MARK_PIXELS on whole-oak, every preset) is the oak row of the loop at :285, which also asserts oak is warm up to excess 72. |
+| 330 | the retired threshold of 50 reports a mark on an unmarked oak kitchen, and 80 does not | 1 | Its unique assertion counts pixels against a test-local retired threshold (50), which documents the instrument and guards no product rule. Its other assertion (MARK <= MAX_ABSENT_MARK_PIXELS on whole-oak, every preset) is the oak row of the loop at :285, which also asserts oak is warm up to excess 72. | **W2-C not done** — Playwright spec; deferred to the main checkout |
 
 **`tests/i18n/content.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 493 | matches the prior 1–200 bands and identifies zero as the sole 0–200 divergence | 1 | Calls no production code: compares Intl.PluralRules('ro') with a test-local priorCategory (content.test.ts:495); grep finds no such legacy function left in apps/web/src/i18n. The CLDR bands production relies on are pinned by the it.each at content.test.ts:463. |
+| 493 | matches the prior 1–200 bands and identifies zero as the sole 0–200 divergence | 1 | Calls no production code: compares Intl.PluralRules('ro') with a test-local priorCategory (content.test.ts:495); grep finds no such legacy function left in apps/web/src/i18n. The CLDR bands production relies on are pinned by the it.each at content.test.ts:463. | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
 
 **`tests/i18n/golden-output.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 324 | records Gate O1's 12 semantic corrections distinctly | 1 | GATE_O1_SEMANTIC_CORRECTION_KEYS is declared in the test file (golden-output.test.ts:31) and its only other reader (:310) is vacuous now that STAGED_... is [] (:48). Length/Set size test the literal itself; key-existence in ro.json is already enforced by the copy lock (isRomanianCopyApproved, :252). |
+| 324 | records Gate O1's 12 semantic corrections distinctly | 1 | GATE_O1_SEMANTIC_CORRECTION_KEYS is declared in the test file (golden-output.test.ts:31) and its only other reader (:310) is vacuous now that STAGED_... is [] (:48). Length/Set size test the literal itself; key-existence in ro.json is already enforced by the copy lock (isRomanianCopyApproved, :252). | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
 
 **`tests/price/price-wiring.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 362 | projects to the same normalised bounds whatever height the bar takes | 1 | Builds its own THREE.PerspectiveCamera (wiring:316-334) and compares its projection at two aspects; no project code but the preset constants is involved, identical on both sides. It tests three's projection maths. |
+| 362 | projects to the same normalised bounds whatever height the bar takes | 1 | Builds its own THREE.PerspectiveCamera (wiring:316-334) and compares its projection at two aspects; no project code but the preset constants is involved, identical on both sides. It tests three's projection maths. | **W2-C kept, unverified** — settling it needs a three-adapter mutation |
 
 **`tests/price/qa-6bg-money-seam.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 222 | carries the ruled key rather than a second spelling of it | 1 | Compares tests/support/ruled-price-copy.ts:70 to its own literal; reads no production code. The real pin is starting-price.adversarial:586, which discovers the leaves carrying the currency. |
+| 222 | carries the ruled key rather than a second spelling of it | 1 | Compares tests/support/ruled-price-copy.ts:70 to its own literal; reads no production code. The real pin is starting-price.adversarial:586, which discovers the leaves carrying the currency. | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
 
 **`tests/price/qa-6t2-accessory-rows.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 216 | has a word for every kind the section is meant to list | 1 | copy:226 asserts wholeKitchenCategories toEqual the full three-key object, which fixes the key set; the copy lock pins it again. |
+| 216 | has a word for every kind the section is meant to list | 1 | copy:226 asserts wholeKitchenCategories toEqual the full three-key object, which fixes the key set; the copy lock pins it again. | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
 
 **`tests/review/qa-8c-room-line-and-copy.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 363 | calls it a starting price, rounded up / says it is no commercial offer and waits on measurement | 2 | Matches three ro.json leaves against literals with no review code; the copy lock deep-equals the catalogue to approved-romanian-messages.ts (startingPrefix :286, note :297, roundedUpNote :318), which pins them exactly. |
+| 363 | calls it a starting price, rounded up / says it is no commercial offer and waits on measurement | 2 | Matches three ro.json leaves against literals with no review code; the copy lock deep-equals the catalogue to approved-romanian-messages.ts (startingPrefix :286, note :297, roundedUpNote :318), which pins them exactly. | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
 
 **`tests/room/room-issue-model.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 498 | publishes the unreadable leaf the copy lock holds (and its three siblings at 605, 681, 727) | 3 | Three are redundant: rendered text is compared against the literal leaf for the shape refusal (room-screen.dom.test.ts:703, qa-7f2-s4 dom :163), the suggestion (qa-m7b-u6-switch dom :171, qa-7f2-s4 dom :607) and the note (room-one-c.dom.test.ts:825), so :605, :681 and :727 add nothing. Keep :498: every other test reads the unreadable sentence through UNREADABLE_LENGTH_MESSAGE_KEY itself (room-unreadable-on-blur.dom.test.ts:181, qa-7f2-s5b :188), so repointing the constant at another existing leaf is caught only by the literal. |
+| 498 | publishes the unreadable leaf the copy lock holds (and its three siblings at 605, 681, 727) | 3 | Three are redundant: rendered text is compared against the literal leaf for the shape refusal (room-screen.dom.test.ts:703, qa-7f2-s4 dom :163), the suggestion (qa-m7b-u6-switch dom :171, qa-7f2-s4 dom :607) and the note (room-one-c.dom.test.ts:825), so :605, :681 and :727 add nothing. Keep :498: every other test reads the unreadable sentence through UNREADABLE_LENGTH_MESSAGE_KEY itself (room-unreadable-on-blur.dom.test.ts:181, qa-7f2-s5b :188), so repointing the constant at another existing leaf is caught only by the literal. | **W2-C part** — three deleted (rendered-text tests red); one stays |
 
 **`tests/room/room-unreadable-on-blur.dom.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 310 | names the entry unit in words in Romanian, which ADR 0126 allows | 1 | The Romanian sentence is pinned whole, twice: qa-7f2-s1 :445/:486 compares room.issue.unreadable verbatim ('Scrie valoarea în milimetri, doar cu cifre.') and romanian-copy-lock.test.ts:16 holds ro.json leaf for leaf. Which leaf the constant names is pinned at room-issue-model.test.ts:498. This depends on :498 staying (see s13.1). |
+| 310 | names the entry unit in words in Romanian, which ADR 0126 allows | 1 | The Romanian sentence is pinned whole, twice: qa-7f2-s1 :445/:486 compares room.issue.unreadable verbatim ('Scrie valoarea în milimetri, doar cu cifre.') and romanian-copy-lock.test.ts:16 holds ro.json leaf for leaf. Which leaf the constant names is pinned at room-issue-model.test.ts:498. This depends on :498 staying (see s13.1). | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
 
 **`tests/settings/global-settings.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 68 | detects digits and sum claims nested inside ICU branches | 1 | It exercises only tests/support/icu-authored-literals.ts and a test-side regex on strings built in the test. The same witness, digit and sum-claim mutants inside ICU branches, is at starting-price.adversarial.test.ts:308-327. Its one extra is descent into a select branch; if that matters, add a select mutant to :308. |
+| 68 | detects digits and sum claims nested inside ICU branches | 1 | It exercises only tests/support/icu-authored-literals.ts and a test-side regex on strings built in the test. The same witness, digit and sum-claim mutants inside ICU branches, is at starting-price.adversarial.test.ts:308-327. Its one extra is descent into a select branch; if that matters, add a select mutant to :308. | **W2-C kept** — self-test of a support helper |
 
 **`tests/settings/material-reset-confirm.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 429 | keeps `materialWarning` itself untouched, which is a different string entirely | 1 | It compares catalogue strings with each other and builds no view; all of them are fixed by romanian-copy-lock.test.ts:16. The behaviour it is about, that the confirm step does not carry materialWarning and the choosing step does, is asserted on markup at :405-427. |
+| 429 | keeps `materialWarning` itself untouched, which is a different string entirely | 1 | It compares catalogue strings with each other and builds no view; all of them are fixed by romanian-copy-lock.test.ts:16. The behaviour it is about, that the confirm step does not carry materialWarning and the choosing step does, is asserted on markup at :405-427. | **W2-C deleted** — a kept test went red under a mutation; logic review: sound |
 
 **`tests/settings/qa-0099-global-colour.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 575 | declares every new key as a non-empty string | 3 | Read as :575 (non-empty), :586 (no English) and :412 (two sentences differ); the finding does not name its third case. All three are properties of Romanian strings fixed by romanian-copy-lock.test.ts:16; blank leaves are refused catalogue-wide at catalogue-parity.test.ts:49; the strings reaching the page is asserted at :597 and :611, and :611's negative control already fails if the two sentences were equal. |
+| 575 | declares every new key as a non-empty string | 3 | Read as :575 (non-empty), :586 (no English) and :412 (two sentences differ); the finding does not name its third case. All three are properties of Romanian strings fixed by romanian-copy-lock.test.ts:16; blank leaves are refused catalogue-wide at catalogue-parity.test.ts:49; the strings reaching the page is asserted at :597 and :611, and :611's negative control already fails if the two sentences were equal. | **W2-C part** — two deleted; "uses two different sentences" stays as a non-vacuity witness |
 
 #### `packages/configurator-domain` — 31 entries, 34 cases
 
@@ -3019,172 +3019,172 @@ mutation is equivalent on shipped data, or the behaviour is unguarded everywhere
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 384 | reproduces the base return's 70 mm off the reach the gate reads / reproduces the wall return's 31 mm off the same reach, one band up | 1 | seatOf is a test helper reading catalogue frameDepthMm, so neither case sees the validator's reach. Base case confirmed: base-corner-x-900's seat is pinned as D - 50 at commands/qa-c4s2-corner-joint.adversarial.test.ts:135 and 480 is test-local. Wall case kept: I found no other test pinning wall-2door-600's 291 mm seat (grep over tests). |
+| 384 | reproduces the base return's 70 mm off the reach the gate reads / reproduces the wall return's 31 mm off the same reach, one band up | 1 | seatOf is a test helper reading catalogue frameDepthMm, so neither case sees the validator's reach. Base case confirmed: base-corner-x-900's seat is pinned as D - 50 at commands/qa-c4s2-corner-joint.adversarial.test.ts:135 and 480 is test-local. Wall case kept: I found no other test pinning wall-2door-600's 291 mm seat (grep over tests). | **D2-C part** — base case only deleted (kept test red); the wall case stays |
 
 **`tests/body-label.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 118 | keeps the empty slot its own case rather than a body with no name | 1 | It restates catalog.ts:798. The BodyLabel union constrains the value, and apps/web/tests/i18n/body-label.test.ts:99-106 (and qa-6bf :292) pin by behaviour that EMPTY_SLOT_LABEL resolves to catalog.emptySlot and to no body's name. |
+| 118 | keeps the empty slot its own case rather than a body with no name | 1 | It restates catalog.ts:798. The BodyLabel union constrains the value, and apps/web/tests/i18n/body-label.test.ts:99-106 (and qa-6bf :292) pin by behaviour that EMPTY_SLOT_LABEL resolves to catalog.emptySlot and to no body's name. | **D2-C kept** — the only domain test of `EMPTY_SLOT_LABEL` |
 
 **`tests/commands/bottle-cargo-width-floor.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 109 | leaves §2's MIN_W at 300 mm | 1 | The 299 and 300 rows of :96 already pin the floor by behaviour through insert-fit.ts:418 (opening.w < MIN_WIDTH_M): any edit to MIN_WIDTH_M of a millimetre or more flips one of them. The right-hand side here is a test-local 300. |
+| 109 | leaves §2's MIN_W at 300 mm | 1 | The 299 and 300 rows of :96 already pin the floor by behaviour through insert-fit.ts:418 (opening.w < MIN_WIDTH_M): any edit to MIN_WIDTH_M of a millimetre or more flips one of them. The right-hand side here is a test-local 300. | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/commands/insert-body.boundaries.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 43 | is the value the spec's tolerance table states | 1 | The same describe pins the constant behaviourally to [12.0, 12.1) mm: 688 accepted (:47), 687 refused (:58), 687.9 refused (:69). Any move of FIT_TOLERANCE_M (void-engine.ts:50) of 0.1 mm or more turns one of those red, so the literal 0.012 check adds nothing. |
+| 43 | is the value the spec's tolerance table states | 1 | The same describe pins the constant behaviourally to [12.0, 12.1) mm: 688 accepted (:47), 687 refused (:58), 687.9 refused (:69). Any move of FIT_TOLERANCE_M (void-engine.ts:50) of 0.1 mm or more turns one of those red, so the literal 0.012 check adds nothing. | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/commands/minimum-width.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 200 | declares the aperture as its minimum | 1 | The toEqual at :229 lists ['base-sink', SINK_MIN_WIDTH_MM] among the declared floors, so sink.minWidthMm === 560 is pinned there with the same literal; :89/:100 pin it behaviourally at 559/560. |
+| 200 | declares the aperture as its minimum | 1 | The toEqual at :229 lists ['base-sink', SINK_MIN_WIDTH_MM] among the declared floors, so sink.minWidthMm === 560 is pinned there with the same literal; :89/:100 pin it behaviourally at 559/560. | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/commands/qa-c4s2-corner-joint.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 230 | states the engine floor on every corner-taking wall, and the approved minima unchanged | 1 | Every value is pinned elsewhere: the approved minima as literals at tests/room/approved-room-policy.test.ts:171-172 (L 900/1000) and :229-231 (U 1000/1000); the 870 engine floor behaviourally by the sweep at :260 (L wall A, L wall B, U side wall), with U wallC tied to wallB at tests/room/room-policy.test.ts:272-273. The sweep at :296 also holds 900/1000 at their boundaries. |
+| 230 | states the engine floor on every corner-taking wall, and the approved minima unchanged | 1 | Every value is pinned elsewhere: the approved minima as literals at tests/room/approved-room-policy.test.ts:171-172 (L 900/1000) and :229-231 (U 1000/1000); the 870 engine floor behaviourally by the sweep at :260 (L wall A, L wall B, U side wall), with U wallC tied to wallB at tests/room/room-policy.test.ts:272-273. The sweep at :296 also holds 900/1000 at their boundaries. | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/commands/qa-w5b1.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 80 | keeps MIN_WIDTH_M at 300 mm and MIN_SPAN_M at 300 mm | 1 | Both literals are pinned elsewhere: MIN_SPAN_M toBe(0.3) at tests/void-engine.boundaries.test.ts:54 and MIN_WIDTH_M * 1000 toBe(300) at tests/commands/bottle-cargo-width-floor.test.ts:110, each independently, so lowering both together still fails. |
-| 553 | keeps its declared floor at 200 mm | 1 | The cargo's 200 mm floor is pinned as a literal at bottle-cargo-width-floor.test.ts:199, queries/width-resolution.adversarial.test.ts:555 and in the declared-floors list at minimum-width.test.ts:229, and behaviourally at 199/200 by the sweep at qa-waves-ac.adversarial.test.ts:139. |
+| 80 | keeps MIN_WIDTH_M at 300 mm and MIN_SPAN_M at 300 mm | 1 | Both literals are pinned elsewhere: MIN_SPAN_M toBe(0.3) at tests/void-engine.boundaries.test.ts:54 and MIN_WIDTH_M * 1000 toBe(300) at tests/commands/bottle-cargo-width-floor.test.ts:110, each independently, so lowering both together still fails. | **D2-C deleted** — a kept test went red under a mutation |
+| 553 | keeps its declared floor at 200 mm | 1 | The cargo's 200 mm floor is pinned as a literal at bottle-cargo-width-floor.test.ts:199, queries/width-resolution.adversarial.test.ts:555 and in the declared-floors list at minimum-width.test.ts:229, and behaviourally at 199/200 by the sweep at qa-waves-ac.adversarial.test.ts:139. | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/contact/qa-8h-submission-snapshot.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 638 | still states the rows this sum is made from | 1 | It reads SAMPLE_PRICE_BOOK rows back against test-local constants. The two hand-summed tests after it price four widths (600, 400, 500, 499) to exact line amounts, so any change to base, per-mm, per-leaf, per-hinge or the melamine amount already fails them; this test adds only a clearer message. Deleting it leaves BASE/PER_* unused, so remove them with it. |
+| 638 | still states the rows this sum is made from | 1 | It reads SAMPLE_PRICE_BOOK rows back against test-local constants. The two hand-summed tests after it price four widths (600, 400, 500, 499) to exact line amounts, so any change to base, per-mm, per-leaf, per-hinge or the melamine amount already fails them; this test adds only a clearer message. Deleting it leaves BASE/PER_* unused, so remove them with it. | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/corner-assembly-size.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 512 | is read from the bound rather than typed, and is 900 × 1000 × 2200 while the bound is unmoved | 1 | It compares a test-local room built from the policy's minima with the literals 900/1000/2200. Those three bounds are pinned as literals in approved-room-policy.test.ts:163-175, and 1000 again in the test directly above (corner-assembly-size.test.ts:507-510). No production logic runs; only the test's own roomAtApprovedWalls helper. |
+| 512 | is read from the bound rather than typed, and is 900 × 1000 × 2200 while the bound is unmoved | 1 | It compares a test-local room built from the policy's minima with the literals 900/1000/2200. Those three bounds are pinned as literals in approved-room-policy.test.ts:163-175, and 1000 again in the test directly above (corner-assembly-size.test.ts:507-510). No production logic runs; only the test's own roomAtApprovedWalls helper. | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/design-bounds.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 45 | keeps MAX_COLUMN_EXTENTS equal to MAX_PLACEMENTS, never a separately chosen cap | 1 | The identical expect(MAX_COLUMN_EXTENTS).toBe(MAX_PLACEMENTS) stands at column-extents.test.ts:397 and at qa-5h.adversarial.test.ts:533, the latter with the literal 279 beside it. A separately chosen cap also moves MAX_DESIGN_BYTES (design-bounds.ts:180-184), pinned to 523_972 two lines below. The finding covers only the line-45 test. |
+| 45 | keeps MAX_COLUMN_EXTENTS equal to MAX_PLACEMENTS, never a separately chosen cap | 1 | The identical expect(MAX_COLUMN_EXTENTS).toBe(MAX_PLACEMENTS) stands at column-extents.test.ts:397 and at qa-5h.adversarial.test.ts:533, the latter with the literal 279 beside it. A separately chosen cap also moves MAX_DESIGN_BYTES (design-bounds.ts:180-184), pinned to 523_972 two lines below. The finding covers only the line-45 test. | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/generation/qa-7d4-composed-bodies.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 613 | leaves the preparation cabinet optional now that it carries a drawer body | 1 | The preparation row's buildId, required flag and width are a toMatchObject subset of the literal toEqual at generation-priorities.test.ts:96-108 (base-3drawer, 600, required false). No behaviour runs here. |
+| 613 | leaves the preparation cabinet optional now that it carries a drawer body | 1 | The preparation row's buildId, required flag and width are a toMatchObject subset of the literal toEqual at generation-priorities.test.ts:96-108 (base-3drawer, 600, required false). No behaviour runs here. | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/generation/qa-7d5-pre-width-recorded.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 439 | identifies the exact committed pre-S1 source and records every sampled plan whole | 1 | It reads the recording's own metadata back (source string, seed, 480, line shape) and calls no production code. The count is not left unguarded without it: the sweep's arms are literals summing to 480 and asserted equal to RECORDING.runs (:244-263), and every line is parsed by the sweep. What goes is the provenance string only; keep it if the owner wants the fixture's origin asserted rather than documented. |
+| 439 | identifies the exact committed pre-S1 source and records every sampled plan whole | 1 | It reads the recording's own metadata back (source string, seed, 480, line shape) and calls no production code. The count is not left unguarded without it: the sweep's arms are literals summing to 480 and asserted equal to RECORDING.runs (:244-263), and every line is parsed by the sweep. What goes is the provenance string only; keep it if the owner wants the fixture's origin asserted rather than documented. | **D2-C kept** — a recording-fixture identity other tests rely on |
 
 **`tests/generation/qa-7d5b-post-tower-recorded.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 194 | identifies the exact source, the draw and the witnesses / draws the pre-tower recording's rooms and witnesses, in the same order / decodes every recorded plan through the shared parser | 3 | All three read fixtures and test support only. The count is held by toHaveLength(496) at :230, a missing pre-tower room throws in recordedChanges (:176-178), and every recorded plan is parsed and its key turned back into a room by the byte-for-byte test at :221, which fails if either step is wrong. No production change can turn these three red. Provenance string and seed are the only content lost. |
+| 194 | identifies the exact source, the draw and the witnesses / draws the pre-tower recording's rooms and witnesses, in the same order / decodes every recorded plan through the shared parser | 3 | All three read fixtures and test support only. The count is held by toHaveLength(496) at :230, a missing pre-tower room throws in recordedChanges (:176-178), and every recorded plan is parsed and its key turned back into a room by the byte-for-byte test at :221, which fails if either step is wrong. No production change can turn these three red. Provenance string and seed are the only content lost. | **D2-C kept** — a recording-fixture identity other tests rely on |
 
 **`tests/generation/qa-7d5b-pre-tower-recorded.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 173 | identifies the exact committed source, the draw and the witnesses / decodes every recorded plan through the shared parser | 2 | Fixture metadata and a parser round trip, no production call. The room and witness counts are pinned by the tests below as literals (470 + 10 at :211, 14 + 2 at :232), which also parse every recorded plan. What is lost is the provenance string, the seed and the names of the fourteen unchanged witness rooms. |
+| 173 | identifies the exact committed source, the draw and the witnesses / decodes every recorded plan through the shared parser | 2 | Fixture metadata and a parser round trip, no production call. The room and witness counts are pinned by the tests below as literals (470 + 10 at :211, 14 + 2 at :232), which also parse every recorded plan. What is lost is the provenance string, the seed and the names of the fourteen unchanged witness rooms. | **D2-C kept** — a recording-fixture identity other tests rely on |
 
 **`tests/generation/qa-u3b-generating-a-u.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 164 | runs its gate under an approved policy that states the U | 1 | expect(isShapeBuildable('U', APPROVED_ROOM_POLICY)).toBe(true) restates policy content that approved-room-policy.test.ts:282 already pins (approved shapes sorted equal ['L','U','linear']); no generation code runs in it. |
+| 164 | runs its gate under an approved policy that states the U | 1 | expect(isShapeBuildable('U', APPROVED_ROOM_POLICY)).toBe(true) restates policy content that approved-room-policy.test.ts:282 already pins (approved shapes sorted equal ['L','U','linear']); no generation code runs in it. | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/generation/u-composition.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 23 | is the owner's 10 m threshold | 1 | u-composition.test.ts:27-41 holds both sides of the threshold through isLargeU (4000+3000+3000 large, 3999+3000+3000 not), which fixes LARGE_U_TOTAL_MM at exactly 10 000; the literal check at :24 can only fail when :27 does. |
+| 23 | is the owner's 10 m threshold | 1 | u-composition.test.ts:27-41 holds both sides of the threshold through isLargeU (4000+3000+3000 large, 3999+3000+3000 not), which fixes LARGE_U_TOTAL_MM at exactly 10 000; the literal check at :24 can only fail when :27 does. | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/pricing/hardware-tier-reconciliation.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 267 | keeps Hettich's drawer rate understated against both complete-box tiers | 1 | :87-101 pins each tier's perDrawerMinor x 5 to ADR 0070's literal drawer column with no allowance (3 200 / 3 130 / 4 185 lei), which fixes all three rates exactly; the ordering at :267-274 cannot fail while that is green and runs no production code. |
+| 267 | keeps Hettich's drawer rate understated against both complete-box tiers | 1 | :87-101 pins each tier's perDrawerMinor x 5 to ADR 0070's literal drawer column with no allowance (3 200 / 3 130 / 4 185 lei), which fixes all three rates exactly; the ordering at :267-274 cannot fail while that is green and runs no production code. | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/pricing/parse-price-book.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 352 | bounds coefficients so that every term and every partial sum stays exact | 1 | Restates the bound's inequality with the literals 4 and 10_000; parse-boundary :388-400 asserts the same inequality with the term count read off the constructors and MAX_DESIGN_DIMENSION_MM, so it fails whenever this does and also when either factor moves. Of the three copies (this, parse-boundary :388, regate :584) keep :388. |
+| 352 | bounds coefficients so that every term and every partial sum stays exact | 1 | Restates the bound's inequality with the literals 4 and 10_000; parse-boundary :388-400 asserts the same inequality with the term count read off the constructors and MAX_DESIGN_DIMENSION_MM, so it fails whenever this does and also when either factor moves. Of the three copies (this, parse-boundary :388, regate :584) keep :388. | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/qa-0099-global-colour.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 904 | is refused by a strict settings schema that does not declare the key | 1 | The decisive assertion runs on DesignSettingsSchema.omit({finish:true}), a schema the test builds itself, so it shows zod's strictObject+omit behaviour for a hypothetical rolled-back build. The one production fact underneath (the settings container is strict) is pinned at the load path by design-settings.qa.test.ts:146 'refuses an undeclared setting'; that the real schema accepts `finish` is exercised throughout the same file. |
+| 904 | is refused by a strict settings schema that does not declare the key | 1 | The decisive assertion runs on DesignSettingsSchema.omit({finish:true}), a schema the test builds itself, so it shows zod's strictObject+omit behaviour for a hypothetical rolled-back build. The one production fact underneath (the settings container is strict) is pinned at the load path by design-settings.qa.test.ts:146 'refuses an undeclared setting'; that the real schema accepts `finish` is exercised throughout the same file. | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/qa-5b2a.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 131 | is derived from the key resolution, not from a width or a band count | 1 | (6300/10+1)*3 is 1893, and qa-5h:542 pins MAX_EMPTY_COLUMNS 1893 and MAX_PLACEMENTS 279 as literals, which also implies the `> MAX_PLACEMENTS` line. Nothing here runs a derivation; any change to the constant reddens :542 identically. Valid only while :542 is kept (see s29.3). |
+| 131 | is derived from the key resolution, not from a width or a band count | 1 | (6300/10+1)*3 is 1893, and qa-5h:542 pins MAX_EMPTY_COLUMNS 1893 and MAX_PLACEMENTS 279 as literals, which also implies the `> MAX_PLACEMENTS` line. Nothing here runs a derivation; any change to the constant reddens :542 identically. Valid only while :542 is kept (see s29.3). | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/qa-5h.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 532 | bounds the occupied half by the placements, not by the wall's keys | 1 | :542 pins MAX_PLACEMENTS and MAX_COLUMN_EXTENTS both at 279, which implies both assertions here (equal to each other, equal to 279). No change to src/design-bounds.ts:146 reddens :532 without reddening :542. |
-| 564 | raises the byte cap by exactly the allowance both frozen-map arrays share | 1 | perEntryBytes is arithmetic over the four constants :542 already pins plus the literals 512 and 1024 typed in the test: (523972 - 279*512 - 1024) / (1893 + 279) = 175. It cannot fail while :542 passes, and its other assertion repeats 523_972. No parse or serialise path runs. |
+| 532 | bounds the occupied half by the placements, not by the wall's keys | 1 | :542 pins MAX_PLACEMENTS and MAX_COLUMN_EXTENTS both at 279, which implies both assertions here (equal to each other, equal to 279). No change to src/design-bounds.ts:146 reddens :532 without reddening :542. | **D2-C deleted** — a kept test went red under a mutation |
+| 564 | raises the byte cap by exactly the allowance both frozen-map arrays share | 1 | perEntryBytes is arithmetic over the four constants :542 already pins plus the literals 512 and 1024 typed in the test: (523972 - 279*512 - 1024) / (1893 + 279) = 175. It cannot fail while :542 passes, and its other assertion repeats 523_972. No parse or serialise path runs. | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/qa-6k-c-frozen-source.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 198 | is one ULP away from having one | 1 | Asserts only that a floating-point near-miss (gap < 1e-9 m) exists in today's catalogue. If depth arithmetic changes so those pairs become exact ties that part, :194 (TIES_THAT_PART is []) goes red; if they become harmless, this reddens with no rule broken. Non-vacuity of the tie set is :151's job. |
-| 342 | costs the same bytes in every key order the wire can present | 1 | JSON.stringify of the same keys and values has the same byte length in any key order, so `sizes.size === 1` cannot fail for any production change. The remaining `<= PER_ENTRY_BYTES` is :333's assertion on the same LONGEST_LEGAL_ENTRY. |
+| 198 | is one ULP away from having one | 1 | Asserts only that a floating-point near-miss (gap < 1e-9 m) exists in today's catalogue. If depth arithmetic changes so those pairs become exact ties that part, :194 (TIES_THAT_PART is []) goes red; if they become harmless, this reddens with no rule broken. Non-vacuity of the tie set is :151's job. | **D2-C kept** — production reaches it and no other test asserts the same |
+| 342 | costs the same bytes in every key order the wire can present | 1 | JSON.stringify of the same keys and values has the same byte length in any key order, so `sizes.size === 1` cannot fail for any production change. The remaining `<= PER_ENTRY_BYTES` is :333's assertion on the same LONGEST_LEGAL_ENTRY. | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/qa-6q-a-offer.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 97 | carries three materials and eight entry ids, so a shrunken declaration fails loudly | 1 | Three materials is implied by :103 (OFFERED_ENTRY_IDS keys equal MATERIALS ids) and eight entry ids by :131's `answers` toHaveLength(24) with :117's exact sets. A shrunken or grown declaration already reddens one of those. Valid only while :131 is kept (see s30.19). |
+| 97 | carries three materials and eight entry ids, so a shrunken declaration fails loudly | 1 | Three materials is implied by :103 (OFFERED_ENTRY_IDS keys equal MATERIALS ids) and eight entry ids by :131's `answers` toHaveLength(24) with :117's exact sets. A shrunken or grown declaration already reddens one of those. Valid only while :131 is kept (see s30.19). | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/qa-accessory-deletion.qa.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 118 | no opening can be shorter than the retired accessory threshold | 1 | RETIRED_ACCESSORY_MAX_HEIGHT_M is a test-local 0.3 (:39), so the assertion is MIN_SPAN_M toBe 0.3, which void-engine.boundaries.test.ts:54 states against the spec's tolerance table. The 'no body lands under it' claim is the sweeps at :78 and :125. |
+| 118 | no opening can be shorter than the retired accessory threshold | 1 | RETIRED_ACCESSORY_MAX_HEIGHT_M is a test-local 0.3 (:39), so the assertion is MIN_SPAN_M toBe 0.3, which void-engine.boundaries.test.ts:54 states against the spec's tolerance table. The 'no body lands under it' claim is the sweeps at :78 and :125. | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/queries/width-resolution.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 594 | names every entry in the catalogue declaring a floor under the default | 1 | The census is a legitimate ADR 0026 tripwire, not useless in itself, but it is a restatement: qa-waves-ac.adversarial.test.ts:272-289 runs the identical filter over INSERTABLE_BODY_DEFINITIONS (minWidthMm < 300) and pins the identical three-id list in the same order. A fourth declaring row reddens both. |
+| 594 | names every entry in the catalogue declaring a floor under the default | 1 | The census is a legitimate ADR 0026 tripwire, not useless in itself, but it is a restatement: qa-waves-ac.adversarial.test.ts:272-289 runs the identical filter over INSERTABLE_BODY_DEFINITIONS (minWidthMm < 300) and pins the identical three-id list in the same order. A fourth declaring row reddens both. | **D2-C deleted** — a kept test went red under a mutation |
 
 **`tests/repository.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 63 | can be thrown and caught as a distinct error type | 1 | The test constructs and throws the error itself and asserts toThrow(InvalidDesignError): it exercises throw/instanceof, not repository.ts:43-48. Renaming this.name, dropping boundedFailureReason or changing the message prefix all leave it green; the class's behaviour is asserted through real producers elsewhere. |
+| 63 | can be thrown and caught as a distinct error type | 1 | The test constructs and throws the error itself and asserts toThrow(InvalidDesignError): it exercises throw/instanceof, not repository.ts:43-48. Renaming this.name, dropping boundedFailureReason or changing the message prefix all leave it green; the class's behaviour is asserted through real producers elsewhere. | **D2-C deleted** — it threw and caught its own instance; green under a renamed `name` and a changed prefix. Gap noted: nothing in the suite pins `InvalidDesignError`'s name or prefix |
 
 **`tests/validate-design.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 208 | wall $wall's run ends at $runEndMm, inside its own bound / declares the two runs the demo room is built to clear | 1 | Confirmed for 'declares the two runs' only: the room literal {3560, 2920} is pinned whole at demo-room-envelope.test.ts:69 and restated in qa-6a3 :37-38. The two run-end rows stay: wall B's seeded run ending at 2800 (and A's at 3500) is the ADR 0083 measurement the 2920 clearance is reasoned from, and I found no other test pinning 2800; 'accepts the shipped design' at :84 only shows the run is inside the bound, not where it ends. |
+| 208 | wall $wall's run ends at $runEndMm, inside its own bound / declares the two runs the demo room is built to clear | 1 | Confirmed for 'declares the two runs' only: the room literal {3560, 2920} is pinned whole at demo-room-envelope.test.ts:69 and restated in qa-6a3 :37-38. The two run-end rows stay: wall B's seeded run ending at 2800 (and A's at 3500) is the ADR 0083 measurement the 2920 clearance is reasoned from, and I found no other test pinning 2800; 'accepts the shipped design' at :84 only shows the run is inside the bound, not where it ends. | **D2-C part** — "declares the two runs" only deleted (kept test red); the two run-end rows stay |
 
 **`tests/void-engine.boundaries.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 53 | is the value the spec's tolerance table states | 1 | The cases at :64 and :69 use the literal 300 mm one micron either side (no void below, a void above, in both levels), which fixes MIN_SPAN_M to within a micron through behaviour; the bare literal adds nothing they do not catch. |
+| 53 | is the value the spec's tolerance table states | 1 | The cases at :64 and :69 use the literal 300 mm one micron either side (no void below, a void above, in both levels), which fixes MIN_SPAN_M to within a micron through behaviour; the bare literal adds nothing they do not catch. | **D2-C deleted** — a kept test went red under a mutation |
 
 #### `packages/persistence` — 2 entries, 2 cases
 
@@ -3540,7 +3540,10 @@ QA agent's recorded run, not re-run by the coordinator.
 | D2-B | `packages/configurator-domain`, section 2, doc lines 2047–2297 | 65 rows | 56 deleted, 3 part, 1 kept (no signal), 4 not done (2174–2177), 1 deleted without a red; 132 cases removed. Domain suite 7603 passed, re-run by the coordinator. Logic review pending | `c7caf58` |
 | W2-A | `apps/web`, section 2, doc lines 1185–1513 | 75 rows | 67 deleted, 1 part, 7 Playwright rows not done; 138 cases removed. Logic review: sound, no restore; its follow-ups applied. A missing guard found and added: a failed locked run executes once | `3a0baa6`, `d85c27c`, `70134c0` |
 | W2-B (partial) | `apps/web`, section 2, `tests/review` and eight `tests/room` rows | 18 rows | 16 deleted, 1 part, 1 open (a fake check filed as a duplicate); 68 cases removed. Web suite 6032 passed, re-run by the coordinator | `fc26bd6` |
-| P1-R | `packages/persistence`: logic review follow-ups and architect rulings | rows 1156, 1157, 2575, 2600, 2639, 2647, 3201 | Logic review of P1: sound, no restore. Four follow-ups applied; four duplicates deleted by reading on the architect's ruling. Suite 1751 passed, 1 skipped, re-run by the coordinator | this commit |
+| P1-R | `packages/persistence`: logic review follow-ups and architect rulings | rows 1156, 1157, 2575, 2600, 2639, 2647, 3201 | Logic review of P1: sound, no restore. Four follow-ups applied; four duplicates deleted by reading on the architect's ruling. Suite 1751 passed, 1 skipped, re-run by the coordinator | `cdf9764` |
 | — | Logic review of D2-B | — | Sound, no restore; every removed test maps to a review row | — |
+| D2-C | `packages/configurator-domain`: the rest of section 2, sections 3 and 4, three architect rulings | about 105 rows | Net 150 cases removed. 5 kept, 4 part. Logic review pending | `44bb7ae` to `ec6bd4d` |
+| W2-C | `apps/web`: the rest of section 2, sections 3 and 4 | about 85 rows | 134 cases removed; 2 fake checks found among the "duplicates" and made real (rows 1558, 1792). Logic review of W2-B and W2-C: sound, no restore; its follow-ups applied. 4 Playwright rows not done | `887727d` to `044b630` |
+| D3 | `packages/configurator-domain`: architect rulings on rows 708 and 814 | 2 rows | **Two production defects found and fixed**, both in whether a malformed free colour is offered, neither reachable by a customer: the query (`38fa058`) and the two finish commands on an undeclared material (`6eef46c`). Tests in `7cdf446`. Logic review pending | `38fa058`, `7cdf446`, `6eef46c` |
 
-No wave so far found a production defect.
+Suites on the integrated branch, re-run by the coordinator: domain 7551 passed, `apps/web` 5899 passed, typechecks and root lint clean.
