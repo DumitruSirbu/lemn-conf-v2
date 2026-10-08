@@ -2643,7 +2643,9 @@ between sections and between groups at 390 px, in pixels, beside the frame's own
 
 **The shard budget.** Mobile shards stand at 120, 123, 112 and 114 of 125 after QA's additions
 [relayed]. The re-run adds about five tests. QA runs `pnpm gate:e2e-shard-budget` after adding
-them. If a shard goes over, **a fifth mobile shard is added**, by the owner's standing rule that
+them. If a shard goes over, **a fifth mobile shard is added** *(corrected 2026-10-08: it took
+six; five left 135 tests on one shard, so the budget guard asked for six, as of `c62feb1`
+[relayed])*, by the owner's standing rule that
 the budget governs. That is a change to `ci.yml` and to the gate's own count, made by the
 coordinator in its own commit before the push, not by the implementer inside a behaviour fix.
 
@@ -2773,8 +2775,11 @@ half. Spacing against the frame's own values: 15/15, 15/15, 10/10, 10/10; paddin
 
 - **G1 — the parameter leaves at the outcome, and there are four outcomes.** The body is selected
   when the scene rests; the customer acts first (E2a); the body is not in the design; **no scene
-  will ever exist** on this device. Until one of them, `?select=` stays on the URL, so a reload or
-  a language switch in the wait starts the same arrival again and does not lose it. *Must not:*
+  will ever exist** on this device. Until one of them, `?select=` stays on the URL, so a reload
+  ~~or a language switch~~ in the wait starts the same arrival again and does not lose it.
+  **(Restated 2026-10-08, review round 2: the language switch is withdrawn from this sentence. The
+  language menu's links carry the path and no query, which is backlog 73; see *Review round 2 and
+  the close*.)** *Must not:*
   the parameter is gone while its arrival is still pending. The hook moves to its own file beside
   `use-back-guard.ts`.
 - **G2 — an arrival with a body stands at that body's own wall view. Always.** This replaces E2's
@@ -2909,6 +2914,78 @@ count, before QA touches the specs again.
 **After that:** the wave goes on as the review adjudication set it: the combined reviewer and the
 visual verifier re-check their own findings, and it closes.
 
+*Corrected 2026-10-08:* the sentence above about a fifth shard was short by one. **Mobile e2e runs
+in six shards** as of `c62feb1`, at 83, 79, 81, 83, 95 and 63 of 125 [relayed]: with five, one
+shard held 135.
+
+#### 8D — review round 2 and the close, 2026-10-08
+
+**State.** HEAD is `9f4c123`: QA's re-aim, green; e2e in dev mode whole, mobile 482 and desktop
+201 passed; web vitest 6121 passed, typecheck and `format:check` exit 0 [relayed, coordinator-run].
+**Combined reviewer: approve. Visual verifier: its findings closed; the tripwire unchanged at
+377.52 px, 44.73%.**
+
+**R2.1 — a language switch during the wait drops the arrival. None of the three arms; recorded.**
+G1 said a reload *or a language switch* in the wait starts the same arrival again. The reload
+does; QA showed it. The language switch does not: the menu's links carry the path and no query
+[src `configure/locale-menu.tsx:139`], so the parameter is gone with the navigation. Nobody has
+seen it in a browser; the reviewer read it from source and QA could not send a switch in the
+wait.
+
+- *Why recorded and not fixed here.* Arm (b) needs a failure in a browser, and there is none.
+  More to the point, **this is backlog 73**, the same line of the same file, found in M7:
+  *"`locale-menu.tsx` links to `menu.pathname` without the room's query string"*. There it loses
+  a typed room; here it loses a pending selection for the length of the wait (about 5 s in the
+  verifier's eleven arrivals [relayed]), after which the customer taps the body. One fix serves
+  both, and it belongs with the entry that loses work.
+- *What changes in the text:* G1's sentence is restated above to the reload. Its *must not*
+  stands for the hook, which is all it governs: the hook removes a parameter only at its outcome.
+- *Owner:* whoever takes backlog 73. *For the scribe, entry 73 gains:* the editor's two arrival
+  parameters are dropped by the same links. The menu is drawn on three screens: the room entry,
+  the editor and the review [src `room-screen.tsx:149`, `configure-screen.tsx:178`,
+  `review-screen.tsx:105`]. *What must not change when it is fixed:* the switch still *"changes the
+  language and not the place"* [src `i18n/use-locale-menu.ts:31`], so the path is the same page's;
+  the review, which has no query of its own, gains none; and a parameter the hook has already
+  removed does not come back through the link. That hook's comment also calls `/d/{id}` *"the only
+  route that renders this menu"*, which three call sites contradict; it is corrected with the fix.
+
+**The two leftovers.** Two doc comments in `use-honour-arrival.ts` still run past ADR 0136's
+length: a nit, trimmed by the next wave that opens the file, and named in the close-out so it is
+not rediscovered. The visual verifier's judgement that the 44 px chips cover about a quarter of
+the 158 px scene: **to 8D2**, which is in the review's stylesheet anyway, and to the owner at the
+hand check with the scene's height, since the two are one question.
+
+**The wave may close.** No finding is open under the stopping rule.
+
+**What 8D's close-out records, beyond the usual.**
+
+- **In ADR 0148, added to the review step's record:** the routes (D1, Q2); which body a group's
+  *Editează* selects (D3); the view-only scene (D4) with rulings 1a, 2, 3, 4; criteria 11–13 as
+  measured; and the rules as they finally stand — E1; **G2 in place of E2**; E2a; E3 and E3a; E4;
+  E5 and E5a; **G1 restated to the reload**; G3. With each superseded wording struck, not removed.
+- **The architect's rulings the owner may overrule:** the scene does not orbit; without WebGL the
+  review is frame 2F's exit whole; the scene is 158 px, the frame's; no material pill on screens
+  3–5; the review shows the newest copy the tab can know (E3); an arrival always stands at the
+  body's own wall view (G2); the customer's own act cancels a pending arrival (E2a).
+- **The hand-check list for the owner:** the scene's height and the chips over it; the pill; that
+  the rows' second line and the bottom bar's layout come in 8D2; **backlog 16 as it now shows: a
+  customer who taps a named cabinet lands with it selected and, on a phone, not visible** (the
+  visual verifier: eleven arrivals, *"Body visible: no"* in every one); with Q9, the sentence
+  printed twice and the two words without diacritics.
+- **Backlog:** 16, widened (the U overview's crop; the wall views' ends; QA15's figures; that it
+  bears on the review's links); 73, widened (R2.1); the editor's conflict notice shown only in the
+  panel (QA11); the locale chip's height (V7); a faint line at 1440 px the verifier could not
+  attribute; QA10 beside 125; the chips written twice (ruling 5); the two long comments.
+- **Wave 8D2's scope:** the rows' second line; the bottom bar as the frame; the chips over the
+  scene; the pill if the owner asks for it.
+- **What 8K, 8L and 8M inherit from the security review:** each new page calls the shared owned
+  load itself; the id's shape goes into that one function in 8L S2; and 8K's list of what the
+  endpoint must enforce. Each is already written into its wave.
+- **Named as unproven, not as clean:** criterion 15 in a browser; a timing difference between the
+  doors; which body each overflow mark belongs to; a real touch before the scene rests; a language
+  switch in the wait; pinch; iOS Safari; a real runner; the whole suite under `CI=1`; the
+  first-frame freeze and the release of the WebGL context, which the verifier did not confirm.
+
 ### 8D2 — screen 3 against its frames (added 2026-10-08)
 
 *Goal.* The review's rows and its bottom bar read as frames 3A and 3B draw them. **Not started;
@@ -2929,6 +3006,11 @@ the breakdown still holds for amounts and order, and the name in a refusal still
 row calls the body. (3) D2 stands: one row per body, never *"2 × 800"*. (4) The bottom region is
 re-measured in Russian with three sentences; criterion 12's half still binds, and the wave stops
 if it is reached. (5) *Must not:* the breakdown or the price bar changes.
+
+*Added 2026-10-08, from 8D's second visual pass.* The three view chips, 44 px each, cover about a
+quarter of the 158 px scene [the verifier's judgement, relayed]. S2 looks at where they stand, and
+its capture shows the scene with them. Whether the scene should be taller is the owner's, at the
+hand check; the chips keep their touch size either way.
 
 *Open, for the owner, with the hand check of 8D:* whether the material pill belongs in the top
 bar of screens 3–5. If yes, it is a third slice here.
