@@ -1145,7 +1145,7 @@ mutation is equivalent on shipped data, or the behaviour is unguarded everywhere
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 148 | leaves the page behind it reachable to the pointer, as it already was to Tab | 1 | Second read | Fake check, to be strengthened rather than deleted. 'price-breakdown-scrim' exists nowhere in apps/ or packages/ except this line, so not.toBe can only fail on a literal revert. A full-viewport overlay under any other (or no) test id — the reintroduction the comment claims to catch — passes. Assert what IS at (40,400), e.g. the stage/canvas, instead. |
+| 148 | leaves the page behind it reachable to the pointer, as it already was to Tab | 1 | Second read | Fake check, to be strengthened rather than deleted. 'price-breakdown-scrim' exists nowhere in apps/ or packages/ except this line, so not.toBe can only fail on a literal revert. A full-viewport overlay under any other (or no) test id — the reintroduction the comment claims to catch — passes. Assert what IS at (40,400), e.g. the stage/canvas, instead. | **E1 strengthened** — the review was right: a full-screen layer left all four tests green. Now asserts what is under the pointer; red under the same mutation |
 
 #### `packages/persistence` — 6 entries, 6 cases
 
@@ -1254,38 +1254,38 @@ mutation is equivalent on shipped data, or the behaviour is unguarded everywhere
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 18 | a foreign visitor's /d/{id} answers the unavailable refusal, with no probe and an untouched jar; a cookie-less context's /d/{id} answers the unavailable refusal, with no probe and no cookie ever set | 2 | Bodies identical to the mobile file. Every assertion is server-decided (the refusal element's text, canvas count 0, cookie-jar equality, no probe request); design-load-error.module.css has no @media branch and the page is a server component. No viewport-specific production change can separate the two. **Keep:** `apps/web/tests/e2e/design-owner-gate.e2e.spec.ts:17` |
+| 18 | a foreign visitor's /d/{id} answers the unavailable refusal, with no probe and an untouched jar; a cookie-less context's /d/{id} answers the unavailable refusal, with no probe and no cookie ever set | 2 | Bodies identical to the mobile file. Every assertion is server-decided (the refusal element's text, canvas count 0, cookie-jar equality, no probe request); design-load-error.module.css has no @media branch and the page is a server component. No viewport-specific production change can separate the two. **Keep:** `apps/web/tests/e2e/design-owner-gate.e2e.spec.ts:17` | **E1 deleted** — the Keep went red by assertion under a mutation; logic review: sound |
 
 **`tests/e2e/global-settings.e2e.spec.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 216 | cancels on Escape after focus has left the controls, and returns focus to the trigger | 1 | Open, one Tab, Escape, then surface gone and focus on the trigger: this is exactly stop = 1 of the sweep at :327 (stops 0..4), with the same two assertions. **Keep:** `apps/web/tests/e2e/global-settings.e2e.spec.ts:327` |
+| 216 | cancels on Escape after focus has left the controls, and returns focus to the trigger | 1 | Open, one Tab, Escape, then surface gone and focus on the trigger: this is exactly stop = 1 of the sweep at :327 (stops 0..4), with the same two assertions. **Keep:** `apps/web/tests/e2e/global-settings.e2e.spec.ts:327` | **E1 deleted** — the Keep went red by assertion under a mutation; logic review: sound |
 
 **`tests/e2e/pixel-counter-witness.desktop.e2e.spec.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 271 | the outline is still counted over a front wearing the highlight's own hex | 1 | Only the '#ff2d2d' row: :291 runs the same store/verify/open/capture sequence on the same finish and ends with the identical expectTheDifferencingCounterIsUnmoved call. The '#cc2222' and walnut rows are new inputs and stay. **Keep:** `apps/web/tests/e2e/pixel-counter-witness.desktop.e2e.spec.ts:291` |
+| 271 | the outline is still counted over a front wearing the highlight's own hex | 1 | Only the '#ff2d2d' row: :291 runs the same store/verify/open/capture sequence on the same finish and ends with the identical expectTheDifferencingCounterIsUnmoved call. The '#cc2222' and walnut rows are new inputs and stay. **Keep:** `apps/web/tests/e2e/pixel-counter-witness.desktop.e2e.spec.ts:291` | **E1 deleted by reading** — strictly implied: same file, same store, open and capture steps, and the Keep ends on the identical assertion; logic review: strict |
 
 **`tests/e2e/qa-7e3b-s6-two-tab-convergence.adversarial.desktop.e2e.spec.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 20 | round N/3: two tabs of one context converge on the lock, and every design stays reachable | 3 | Same runOneTwoTabRound helper and the same failureReason === null assertion as the mobile file (10 rounds); the Web Lock race is client-JS and server behaviour with no viewport branch, as the file's own header says. Costs three more samples of a probabilistic race, nothing structural. **Keep:** `apps/web/tests/e2e/qa-7e3b-s6-two-tab-convergence.adversarial.e2e.spec.ts:20` |
+| 20 | round N/3: two tabs of one context converge on the lock, and every design stays reachable | 3 | Same runOneTwoTabRound helper and the same failureReason === null assertion as the mobile file (10 rounds); the Web Lock race is client-JS and server behaviour with no viewport branch, as the file's own header says. Costs three more samples of a probabilistic race, nothing structural. **Keep:** `apps/web/tests/e2e/qa-7e3b-s6-two-tab-convergence.adversarial.e2e.spec.ts:20` | **E1 deleted** — the Keep went red by assertion under a mutation; logic review: sound |
 
 **`tests/e2e/qa-7f2-s5b-unreadable.adversarial.e2e.spec.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 86 | a tap on wall B's help, made while wall A holds unreadable text, still opens it, in ${locale} | 2 | Same URL, same fill of '3,6', same two assertions (wall A reason count 1, help aria-expanded true) as the 'a mouse click' row at :275, which also asserts the sentence enters after the click. Only locator.click() vs mouse.click(x,y) at the button's centre differs. **Keep:** `apps/web/tests/e2e/qa-7f2-s5b-unreadable.adversarial.e2e.spec.ts:275` |
-| 102 | a touch tap on wall B's help, made while wall A holds unreadable text, still opens it, in ${locale} | 2 | Touch counterpart: the 'a touch tap' row at :275 uses the same setup and the same two assertions plus the press-order check. Only locator.tap() vs touchscreen.tap(x,y) differs. **Keep:** `apps/web/tests/e2e/qa-7f2-s5b-unreadable.adversarial.e2e.spec.ts:275` |
+| 86 | a tap on wall B's help, made while wall A holds unreadable text, still opens it, in ${locale} | 2 | Same URL, same fill of '3,6', same two assertions (wall A reason count 1, help aria-expanded true) as the 'a mouse click' row at :275, which also asserts the sentence enters after the click. Only locator.click() vs mouse.click(x,y) at the button's centre differs. **Keep:** `apps/web/tests/e2e/qa-7f2-s5b-unreadable.adversarial.e2e.spec.ts:275` | **E1 deleted** — the Keep went red by assertion under a mutation; logic review: sound |
+| 102 | a touch tap on wall B's help, made while wall A holds unreadable text, still opens it, in ${locale} | 2 | Touch counterpart: the 'a touch tap' row at :275 uses the same setup and the same two assertions plus the press-order check. Only locator.tap() vs touchscreen.tap(x,y) differs. **Keep:** `apps/web/tests/e2e/qa-7f2-s5b-unreadable.adversarial.e2e.spec.ts:275` | **E1 deleted** — the Keep went red by assertion under a mutation; logic review: sound |
 
 **`tests/e2e/visitor-identity.desktop.e2e.spec.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 26 | mints exactly one __Host- visitor cookie with the required attributes, over http://localhost | 1 | Cookie attributes read from the context jar and the /ro 307 resume: all server-decided, nothing rendered is asserted. Both projects are Chromium against the same webServer; the file's own header says nothing here is viewport-dependent. **Keep:** `apps/web/tests/e2e/visitor-identity.e2e.spec.ts:23` |
+| 26 | mints exactly one __Host- visitor cookie with the required attributes, over http://localhost | 1 | Cookie attributes read from the context jar and the /ro 307 resume: all server-decided, nothing rendered is asserted. Both projects are Chromium against the same webServer; the file's own header says nothing here is viewport-dependent. **Keep:** `apps/web/tests/e2e/visitor-identity.e2e.spec.ts:23` | **E1 deleted** — the Keep went red by assertion under a mutation; logic review: sound |
 
 **`tests/i18n/content.test.ts`**
 
@@ -2878,13 +2878,13 @@ mutation is equivalent on shipped data, or the behaviour is unguarded everywhere
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 214 | commits nothing and stays open when one half of the press is refused | 1 | test.fixme with an empty body: it never runs and asserts nothing, so deleting it removes no protection. The commit-nothing half is asserted at store/whole-kitchen-apply.test.ts:79. It is a deliberate gap marker (the sheet staying open in a browser is unasserted) — move that note to docs/BACKLOG.md rather than lose it. | **W2-C not done** — Playwright spec; deferred to the main checkout |
+| 214 | commits nothing and stays open when one half of the press is refused | 1 | test.fixme with an empty body: it never runs and asserts nothing, so deleting it removes no protection. The commit-nothing half is asserted at store/whole-kitchen-apply.test.ts:79. It is a deliberate gap marker (the sheet staying open in a browser is unasserted) — move that note to docs/BACKLOG.md rather than lose it. | **E1 kept** — review wrong: not obsolete, the refusal is live and no browser route reaches it. The empty `fixme` is the only record that "the sheet stays open" is unasserted in a browser; a BACKLOG entry is owed |
 
 **`tests/e2e/kitchen-stage.e2e.spec.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 105 | a selected body renders a visible highlight distinct from no selection | 1 | test.skip, unconditionally: it never runs. Its own comment says 'Skipped, not owed' (the sheet covers the patch at 390x844); HIGHLIGHT_REGION (:31) is used nowhere else. The highlight is asserted at editor-rail.desktop.e2e.spec.ts:215. | **W2-C not done** — Playwright spec; deferred to the main checkout |
+| 105 | a selected body renders a visible highlight distinct from no selection | 1 | test.skip, unconditionally: it never runs. Its own comment says 'Skipped, not owed' (the sheet covers the patch at 390x844); HIGHLIGHT_REGION (:31) is used nowhere else. The highlight is asserted at editor-rail.desktop.e2e.spec.ts:215. | **E1 deleted** — skipped unconditionally since `20a0104`; superseded by `editor-rail.desktop.e2e.spec.ts` "a selected body's outline changes its own region and nothing else" |
 
 **`tests/price/price-bar-states.adversarial.test.ts`**
 
@@ -2939,13 +2939,13 @@ mutation is equivalent on shipped data, or the behaviour is unguarded everywhere
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 194 | the mark's colour cannot be counted as the selection highlight | 1 | Touches no page: it computes the RGB distance between two production constants. packages/three-adapter/tests/overflow-mark.test.ts:76-82 already asserts that distance exceeds the selection tolerance and rounds to 90, in a unit test; the operational half is the next e2e case. | **W2-C not done** — Playwright spec; deferred to the main checkout |
+| 194 | the mark's colour cannot be counted as the selection highlight | 1 | Touches no page: it computes the RGB distance between two production constants. packages/three-adapter/tests/overflow-mark.test.ts:76-82 already asserts that distance exceeds the selection tolerance and rounds to 90, in a unit test; the operational half is the next e2e case. | **E1 deleted** — touches no page; the unit test in `three-adapter` goes red under the mutation. The colour distance is now pinned as a rounded 90, not 90.14 |
 
 **`tests/e2e/pixel-counter-witness.adversarial.desktop.e2e.spec.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 330 | the retired threshold of 50 reports a mark on an unmarked oak kitchen, and 80 does not | 1 | Its unique assertion counts pixels against a test-local retired threshold (50), which documents the instrument and guards no product rule. Its other assertion (MARK <= MAX_ABSENT_MARK_PIXELS on whole-oak, every preset) is the oak row of the loop at :285, which also asserts oak is warm up to excess 72. | **W2-C not done** — Playwright spec; deferred to the main checkout |
+| 330 | the retired threshold of 50 reports a mark on an unmarked oak kitchen, and 80 does not | 1 | Its unique assertion counts pixels against a test-local retired threshold (50), which documents the instrument and guards no product rule. Its other assertion (MARK <= MAX_ABSENT_MARK_PIXELS on whole-oak, every preset) is the oak row of the loop at :285, which also asserts oak is warm up to excess 72. | **E1 deleted** — under the mutation the Keep went red while this test stayed green, so it was the weaker of the two |
 
 **`tests/i18n/content.test.ts`**
 
@@ -3545,5 +3545,7 @@ QA agent's recorded run, not re-run by the coordinator.
 | D2-C | `packages/configurator-domain`: the rest of section 2, sections 3 and 4, three architect rulings | about 105 rows | Net 150 cases removed. 5 kept, 4 part. Logic review pending | `44bb7ae` to `ec6bd4d` |
 | W2-C | `apps/web`: the rest of section 2, sections 3 and 4 | about 85 rows | 134 cases removed; 2 fake checks found among the "duplicates" and made real (rows 1558, 1792). Logic review of W2-B and W2-C: sound, no restore; its follow-ups applied. 4 Playwright rows not done | `887727d` to `044b630` |
 | D3 | `packages/configurator-domain`: architect rulings on rows 708 and 814 | 2 rows | **Two production defects found and fixed**, both in whether a malformed free colour is offered, neither reachable by a customer: the query (`38fa058`) and the two finish commands on an undeclared material (`6eef46c`). Tests in `7cdf446`. Logic review pending | `38fa058`, `7cdf446`, `6eef46c` |
+| D3-B, D3-C, D2-R | `packages/configurator-domain`: QA rounds on the two fixes, review follow-ups | — | Full review tier on the fixes: QA green, logic review and clean-code review both "approve with minor findings", follow-ups applied. Logic review of D2-C: sound, no restore | `b6d2ab1`, `0a351f0`, `74bcc20`, `781727a` |
+| E1 | `apps/web` Playwright specs | 12 rows | 9 deleted, 1 deleted by reading, 1 strengthened, 1 kept. E2e 691 → 677 passed. Logic review: sound, no restore | `ee834b6` |
 
-Suites on the integrated branch, re-run by the coordinator: domain 7551 passed, `apps/web` 5899 passed, typechecks and root lint clean.
+Full local gate (`pnpm ci:local`) at `ee834b6`, run by the coordinator on a clean tree: format, lint, typecheck, test, e2e, build, boundary, lockfile and sca PASS — domain 7695, persistence 1751 (+1 skipped), three-adapter 4284, `apps/web` 5899, e2e 677 passed (1 skipped). **`e2e-shard-budget` FAILS**: removing three desktop spec files moved Playwright's split, and desktop shard 1 of 3 now holds 132 tests against a ceiling of 70.
