@@ -18,12 +18,13 @@ export interface SchemaIssueShape {
 }
 
 /**
- * The last line of defence before a string becomes an exception message or a log line: no control
- * characters, so nothing can forge a line, and a hard cap, so nothing can flood one. Applied
- * unconditionally by the describers below rather than left to a call site.
+ * The last line of defence before a string becomes an exception message or a log line: no control,
+ * format, line-separator or paragraph-separator characters, so nothing can forge a line, and a hard cap,
+ * so nothing can flood one. Applied unconditionally by the describers below rather than left to a call
+ * site.
  */
 export function boundedFailureReason(reason: string): string {
-  const singleLine = reason.replace(/[\p{Cc}\p{Cf}]/gu, " ");
+  const singleLine = reason.replace(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/gu, " ");
   return singleLine.length <= MAX_FAILURE_REASON_LENGTH
     ? singleLine
     : `${singleLine.slice(0, MAX_FAILURE_REASON_LENGTH)}… (truncated)`;

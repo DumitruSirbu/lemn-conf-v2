@@ -3,9 +3,10 @@
 // Rows are `describeBreakdownRows`'s, the breakdown's own builder; nothing here sorts, groups, rounds or labels
 // one. The figure is `priceDesign`'s total rounded as the price bar rounds it, never a sum of the rows.
 //
-// Whether the kitchen may be submitted is the domain's one rule (`judgeSubmissionEligibility`), given the fit
-// query's answer: nothing here measures a wall or orders the refusals. The design, its price and its projection
-// must be one design's, or `describeReview` throws.
+// Which refusal a kitchen gets is the domain's one rule (`judgeSubmissionEligibility`), given the fit query's
+// answer: nothing here measures a wall or orders the refusals. Whether there is a figure to draw at all is this
+// module's own question (see `describePricedReview`). The design, its price and its projection must be one
+// design's, or `describeReview` throws.
 import {
   cornerDirectionOf,
   findOverflowingPlacementIds,
@@ -180,7 +181,9 @@ export function describeReview(input: DescribeReviewInput): ReviewView {
   const overflowingIds = findOverflowingPlacementIds(input.design);
   if (!input.pricing.ok) {
     assertEveryPlacementIsListed(input.design, input.groups);
-    return unavailable(refusedSubmitOf(input, judgeFor(input, overflowingIds)));
+    return unavailable(
+      refusedSubmitOfUnavailable(input, judgeFor(input, overflowingIds)),
+    );
   }
   const { priced } = input.pricing;
   assertInputsAreOneDesigns(input, priced, overflowingIds);
@@ -203,8 +206,11 @@ function describePricedReview(
   priced: PricedDesign,
   eligibility: SubmissionEligibility,
 ): ReviewView {
+  // What to draw is not the refusal rule: this asks the domain's predicate, which the rule uses too, for
+  // whether any figure is worth showing. A kitchen past its wall that supplies nothing is refused for the wall
+  // and also has nothing to draw; both are right.
   if (holdsNothingLemnariaSupplies(priced)) {
-    return unavailable(refusedSubmitOf(input, eligibility));
+    return unavailable(refusedSubmitOfUnavailable(input, eligibility));
   }
   return describeAvailableReview(input, priced, eligibility);
 }
@@ -235,7 +241,7 @@ function describeAvailableReview(
     }),
     submit:
       eligibility.kind === "refused"
-        ? refusedSubmitFrom(input, eligibility.refusal)
+        ? toRefusedSubmit(input, eligibility.refusal)
         : { kind: "allowed" },
     ...(warning === undefined ? {} : { overflowWarning: warning }),
   };
@@ -294,8 +300,8 @@ function unavailable(submit: RefusedSubmit): UnavailableReview {
   return { kind: "unavailable", submit };
 }
 
-/** The domain rule refuses every kitchen that reaches here: no price, or nothing Lemnaria supplies. */
-function refusedSubmitOf(
+/** The domain rule refuses every kitchen with nothing to draw, so an eligible one here is a defect. */
+function refusedSubmitOfUnavailable(
   input: DescribeReviewInput,
   eligibility: SubmissionEligibility,
 ): RefusedSubmit {
@@ -304,10 +310,11 @@ function refusedSubmitOf(
       "an unavailable review was judged eligible for submission",
     );
   }
-  return refusedSubmitFrom(input, eligibility.refusal);
+  return toRefusedSubmit(input, eligibility.refusal);
 }
 
-function refusedSubmitFrom(
+/** The one mapping from the domain's refusal onto the review's. */
+function toRefusedSubmit(
   input: DescribeReviewInput,
   refusal: SubmissionRefusal,
 ): RefusedSubmit {

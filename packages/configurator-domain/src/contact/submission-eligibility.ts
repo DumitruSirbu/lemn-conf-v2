@@ -6,9 +6,9 @@ import type {
   PricingResult,
 } from "../pricing/price-lines.js";
 
-// The one place the rule for "may this kitchen be submitted" is written (ADR 0148 decisions 1 and 2): the
-// review's call to action and the server's snapshot both ask it, so a screen cannot offer what the endpoint
-// refuses. Fit is passed in as the fit query's answer, never measured here.
+// The one place the rule for "may this kitchen be submitted" is written (see ADR 0148): the review's call to
+// action and the server's snapshot both ask it, so a screen cannot offer what the endpoint refuses. Fit is
+// passed in as the fit query's answer, never measured here.
 
 export type SubmissionRefusal =
   | {
@@ -53,7 +53,7 @@ export class SubmissionFactsContradictionError extends Error {
  *
  * The rule believes the fit list it is handed, so it throws where the facts contradict each other. On the
  * server only `snapshotSubmission` puts the facts together, from one design; nothing that answers a request
- * calls this with a list of its own making (criterion 14).
+ * calls this with a list of its own making (see ADR 0150).
  */
 export function judgeSubmissionEligibility(
   facts: SubmissionFacts,
@@ -73,8 +73,8 @@ export function judgeSubmissionEligibility(
 }
 
 /**
- * Whether every body in this priced design is one the customer supplies (ADR 0107 decision 2), which
- * includes holding none. Read off each line's published supplier, never its amount: a manufacturer body
+ * Whether every body in this priced design is one the customer supplies, which includes holding none
+ * (see ADR 0107). Read off each line's published supplier, never its amount: a manufacturer body
  * can price to zero and is still something Lemnaria supplies.
  */
 export function holdsNothingLemnariaSupplies(priced: PricedDesign): boolean {
@@ -90,27 +90,46 @@ function holdsNothingToSupply(facts: SubmissionFacts): boolean {
     : facts.design.placements.length === 0;
 }
 
-/** Sets, not sequences: the query's order and the display's differ and both are right. */
 function assertFactsAgree(facts: SubmissionFacts): void {
-  const given = new Set(facts.overflowingPlacementIds);
-  const held = new Set(facts.design.placements.map(({ id }) => id));
-  const unheld = [...given].filter((id) => !held.has(id));
+  assertFitNamesOnlyHeldBodies(facts);
+  assertFitMatchesThePrice(facts);
+}
+
+function assertFitNamesOnlyHeldBodies(facts: SubmissionFacts): void {
+  const unheld = idsOnlyIn(
+    facts.overflowingPlacementIds,
+    facts.design.placements.map(({ id }) => id),
+  );
   if (unheld.length > 0) {
     throw new SubmissionFactsContradictionError(
       `the fit list names bodies the design does not hold: ${unheld.join(", ")}`,
     );
   }
+}
+
+/** Only a priced design has a list of its own to differ from. */
+function assertFitMatchesThePrice(facts: SubmissionFacts): void {
   if (!facts.pricing.ok) return;
-  const own = new Set(facts.pricing.priced.overflowingPlacementIds);
+  const priceFlags = facts.pricing.priced.overflowingPlacementIds;
   const differing = [
-    ...[...given].filter((id) => !own.has(id)),
-    ...[...own].filter((id) => !given.has(id)),
+    ...idsOnlyIn(facts.overflowingPlacementIds, priceFlags),
+    ...idsOnlyIn(priceFlags, facts.overflowingPlacementIds),
   ];
   if (differing.length > 0) {
     throw new SubmissionFactsContradictionError(
       `the fit list and the price's own list differ over: ${differing.join(", ")}`,
     );
   }
+}
+
+/** The ids `ids` holds that `others` does not. Sets, not sequences: the query's order and the display's
+ *  differ and both are right. */
+function idsOnlyIn(
+  ids: readonly string[],
+  others: readonly string[],
+): readonly string[] {
+  const known = new Set(others);
+  return [...new Set(ids)].filter((id) => !known.has(id));
 }
 
 function refused(refusal: SubmissionRefusal): SubmissionEligibility {

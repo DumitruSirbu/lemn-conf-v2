@@ -13,8 +13,8 @@ import {
   type SubmissionRefusal,
 } from "./submission-eligibility.js";
 
-// What a submission stores of the kitchen (D7): the canonical document and the design priced under the book
-// of the version asked for. No contact field and no rounded figure is part of it; rounding is a screen's.
+// What a submission stores of the kitchen: the canonical document and the design priced under the book of
+// the version asked for. No contact field and no rounded figure is part of it; rounding is a screen's.
 
 /** `selections` are the design's own settings, as every price surface passes them. */
 export type SubmissionSnapshotRequest = Omit<PriceDesignRequest, "selections">;
@@ -44,9 +44,8 @@ export class SubmissionDesignInvalidError extends Error {
 
 /**
  * The snapshot is kept for good and nothing re-prices it, so it rests on no caller's validation: the design
- * is parsed with `DesignSchema`, the wire schema every stored document passes, and it is the PARSED design
- * that is priced and serialised, so the stored document always parses again. A value that is not a design
- * throws `SubmissionDesignInvalidError`.
+ * is parsed, and it is the PARSED design that is priced and serialised, so the stored document always parses
+ * again. A value that is not a design throws `SubmissionDesignInvalidError`.
  */
 export function snapshotSubmission(
   request: SubmissionSnapshotRequest,
@@ -69,6 +68,9 @@ export function snapshotSubmission(
   };
 }
 
+/** The wire schema only, `DesignSchema`, which every stored document passes. The catalogue's rules are not
+ *  applied: the review does not hold a design to them either, so a snapshot that did would refuse a kitchen
+ *  the screen offers. */
 function parseDesign(candidate: unknown): Design {
   const parsed = DesignSchema.safeParse(candidate);
   if (!parsed.success)

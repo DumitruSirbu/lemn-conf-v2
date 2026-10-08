@@ -377,6 +377,18 @@ describe("judgeSubmissionEligibility: facts that cannot all be true throw", () =
     });
   });
 
+  it("cannot be made to forge a line by a separator in an id", () => {
+    const forged = `p0${String.fromCodePoint(0x2028)}FORGED`;
+
+    expect(() =>
+      judgeSubmissionEligibility({
+        design: KITCHEN_L_DESIGN,
+        overflowingPlacementIds: [forged],
+        pricing: PRICING_REFUSED,
+      }),
+    ).toThrow(/p0 FORGED/);
+  });
+
   it("names the bodies in the error and nothing else about the design", () => {
     expect(() => judge([], [FIRST])).toThrow(FIRST);
   });
