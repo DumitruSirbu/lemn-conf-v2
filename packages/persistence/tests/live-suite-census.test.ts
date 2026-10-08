@@ -148,6 +148,12 @@ const EXPECTED_CLASSIFICATION: Readonly<
     reason:
       "adversarial QA of 8E: writes counter rows under random keys in its own era and needs the schema intact (M8 8E QA)",
   },
+  "table-privileges.test.ts": {
+    gate: "live test database",
+    lock: "none",
+    reason:
+      "reads the server's privilege catalogue and one system table; writes nothing and touches no table of ours (M8 wave 8E)",
+  },
   "retried-writes-leave-no-trace.test.ts": {
     gate: "live test database",
     lock: "shared",

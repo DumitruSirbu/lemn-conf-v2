@@ -2,6 +2,11 @@ import { neon } from "@neondatabase/serverless";
 import { describe, expect, it } from "vitest";
 
 import { readDatabaseUrl } from "../src/read-database-url.js";
+import {
+  TABLE_PRIVILEGES_EVERY_SERVER_KNOWS,
+  privilegesHeldOn,
+  tablePrivilegesTheServerKnows,
+} from "./support/table-privileges.js";
 
 /**
  * M2 work item 8: the application connects with a least-privilege role, not the database owner.
@@ -150,7 +155,8 @@ describe.skipIf(!hasLiveDatabase)("the application's database role", () => {
   });
 
   // Asks the database what the role effectively holds, so a grant to `PUBLIC` or to an inherited role counts, on the
-  // table named with its schema. `DELETE` is held here alone, because the prune deletes expired windows.
+  // table named with its schema. The privileges come from the server, so one it adds later (`MAINTAIN` on 17) is
+  // asserted not held too. `DELETE` is held here alone, because the prune deletes expired windows.
   it("effectively holds select, insert, update and delete on public.rate_limit_counters, and no other privilege, once it exists", async (context) => {
     const sql = neon(readDatabaseUrl());
 
@@ -162,25 +168,16 @@ describe.skipIf(!hasLiveDatabase)("the application's database role", () => {
       "public.rate_limit_counters does not exist yet on this database",
     );
 
-    const [held] = (await sql`
-      select
-        has_table_privilege(current_user, 'public.rate_limit_counters', 'SELECT') as can_select,
-        has_table_privilege(current_user, 'public.rate_limit_counters', 'INSERT') as can_insert,
-        has_table_privilege(current_user, 'public.rate_limit_counters', 'UPDATE') as can_update,
-        has_table_privilege(current_user, 'public.rate_limit_counters', 'DELETE') as can_delete,
-        has_table_privilege(current_user, 'public.rate_limit_counters', 'TRUNCATE') as can_truncate,
-        has_table_privilege(current_user, 'public.rate_limit_counters', 'REFERENCES') as can_reference,
-        has_table_privilege(current_user, 'public.rate_limit_counters', 'TRIGGER') as can_trigger
-    `) as Record<string, boolean>[];
+    const known = await tablePrivilegesTheServerKnows(sql);
+    expect(known).toEqual(
+      expect.arrayContaining([...TABLE_PRIVILEGES_EVERY_SERVER_KNOWS]),
+    );
+    const held = await privilegesHeldOn(
+      sql,
+      "public.rate_limit_counters",
+      known,
+    );
 
-    expect(held).toEqual({
-      can_select: true,
-      can_insert: true,
-      can_update: true,
-      can_delete: true,
-      can_truncate: false,
-      can_reference: false,
-      can_trigger: false,
-    });
+    expect(held).toEqual(["DELETE", "INSERT", "SELECT", "UPDATE"]);
   });
 });
