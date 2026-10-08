@@ -2783,7 +2783,9 @@ half. Spacing against the frame's own values: 15/15, 15/15, 10/10, 10/10; paddin
   leave a wall whole and still not show it: from wall A's view a U's wall C is off the screen.
   Asking instead whether a view *shows* a wall needs a definition for each shape and each screen,
   and the visual pass found the overview of a U on a phone is itself a close crop of wall A. The
-  wall's own view is the one made to show it, in a straight room, an L and a U alike.
+  wall's own view is ~~the one made to show it~~ **the one whose subject is that wall** (corrected
+  2026-10-08 by QA15: at 390 px it does not frame the wall's ends; see *QA15 classified*), in a
+  straight room, an L and a U alike.
   - *What the rule promises, restated.* The body is selected and the camera is on its wall. On a
     phone the editor's sheet then covers most of the scene, as it does for any selection; that is
     the editor's viewing model and not this rule's.
@@ -2848,6 +2850,64 @@ nothing to re-read. **The stopping rule above still applies.**
 **For the owner, none of it before the wave closes.** At the hand check: the scene's height; the
 pill left out of screens 3–5; and that the rows' second line and the bottom bar's layout come in
 8D2. With Q9, as before: the sentence printed twice and the two words without diacritics.
+
+#### 8D — QA15 classified under the stopping rule, 2026-10-08
+
+**State.** The review fix is `8c53977`; QA's tests `12a506b` [relayed]. G1 and G3 hold in a
+browser. Two tests are left failing on one finding, QA15: an arrival stands at the body's own wall
+view, selected, and at 390 px some bodies are wholly outside that view's frame. In a U the first
+base body of wall A spans −2.30 to −1.14 where the frame is −1 to 1, and the refusal's wall C body
+1.19 to 2.30; six of eight first bodies straddle the edge [QA's measurement, relayed].
+
+**Classification: none of the three arms. Recorded, not fixed in 8D.** By the text as it stands:
+
+- **(a)** The doors and the review's requests are not involved.
+- **(b)** No rule or restated criterion fails. G2 promises that *"the body is selected and the
+  camera is on its wall"*: QA found exactly that, at rest, for every U group and three L
+  journeys. Criterion 13 promises a link *"opening the editor with that body selected"*: met.
+  Criterion 17, as restated, promises the same eye and target for the same chip: met. The two
+  red tests assert *on screen*, which the coordinator asked QA to measure and which no rule in
+  force promises.
+- **(c)** Nothing that held has stopped holding. A wall's view frames a wall this way for any
+  selection made any way; the arrival did not make it so.
+
+**A correction to G2's reasoning.** It said the wall's own view *"is the one made to show it"*.
+**At 390 px that is false for bodies near a wall's ends.** The rule stands, because no other view
+is better and a condition on *shows* was the thing G2 gave up; its reason is restated: the wall's
+own view is the one whose subject is that wall. And criterion 13's purpose is only half served:
+the body is selected and the panel is open on it, where it is resized or removed, and it may not
+be visible.
+
+**This is backlog 16, which the owner has already ruled, and it is wider than that entry says.**
+Entry 16: *"Ruled by the owner, 2026-09-05: fit-to-run framing on the Perete A preset, so the run
+end is on screen at 390 px"*; *"Not built yet"* [doc `backlog/open.md:247-251`]. QA15 and the
+visual pass's V4 are the same matter on more views. **For the scribe, entry 16 gains:** the
+overview of a U on a phone crops to wall A (V4); a wall's own view leaves bodies at the wall's
+ends outside the frame, with QA15's figures; that it now bears on the review's links, which land
+on a selected body the customer may not see; and that the ruled answer, framing fitted to the
+run, has to cover walls B and C and the overview, not wall A alone.
+
+- *Why not in 8D.* The fix is how the stage frames a view on a tall, narrow canvas. That is the
+  3D adapter's, with anchors and a fidelity gate, at the Full tier; this wave is Light, and D4
+  keeps every M8 wave out of the adapter.
+- *Owner and trigger.* It is not waiting for a trigger: it has happened and is ruled. It waits for
+  a wave. **Whose call: the owner's, at the hand check, where they should see it:** a customer
+  who taps a named cabinet lands on an editor whose panel is open on it while the cabinet may be
+  off the canvas. *Recommended:* its own wave before M8's phone gate (8T), with D4 lifted for that
+  wave by name, since 8T walks a refused kitchen back to the body to be fixed.
+
+**What QA does with its two red tests.** It re-aims each to what G2 promises: the wall's own
+view, the body selected at rest, the remembered view updated. And it keeps the on-screen
+measurement beside each as a **declared deferral**, in the form that goes red on the day the
+framing is fixed (`engineering-conventions.md`, *A deferred test has two shapes*), naming backlog
+16. The measurement is not lost and does not hold the wave.
+
+**The shard budget.** Mobile shard 3 is at 125 of 125 [relayed]. The re-aim adds tests. **The
+coordinator adds the fifth mobile shard now**, in its own commit, to `ci.yml` and to the gate's
+count, before QA touches the specs again.
+
+**After that:** the wave goes on as the review adjudication set it: the combined reviewer and the
+visual verifier re-check their own findings, and it closes.
 
 ### 8D2 — screen 3 against its frames (added 2026-10-08)
 
