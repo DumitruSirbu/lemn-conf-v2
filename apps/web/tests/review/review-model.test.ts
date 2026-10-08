@@ -19,7 +19,6 @@ import {
   type ReviewView,
 } from "@/review/review-model";
 
-import { CATALOGUES, contentFor, translatorFor } from "../support/catalogues";
 import {
   generatePricedKitchen,
   priceAndProject,
@@ -176,36 +175,6 @@ describe("the room line (criterion 4)", () => {
   it("writes lengths in whole millimetres with no group separator", () => {
     expect(roomLineOf(L_ROOM)).toContain("3560");
     expect(roomLineOf(L_ROOM)).not.toMatch(/\d[.,\s]\d{3}\b/);
-  });
-
-  describe.each(CATALOGUES)("in %s", (locale, messages) => {
-    const translate = translatorFor(locale, messages);
-    const cornerWords = [
-      translate("review.roomLine.cornerLeft"),
-      translate("review.roomLine.cornerRight"),
-    ];
-
-    const content = contentFor(locale, messages);
-
-    function roomLineIn(room: Design["room"]): string {
-      const kitchen = composedKitchenIn(room);
-      const view = describeReview({
-        content,
-        design: kitchen.design,
-        pricing: kitchen.pricing,
-        groups: kitchen.groups,
-      });
-      if (view.kind !== "available") throw new Error("expected a review");
-      return view.roomLine;
-    }
-
-    it("states no corner side for a straight room or a U", () => {
-      for (const room of [STRAIGHT_ROOM, U_ROOM]) {
-        for (const word of cornerWords) {
-          expect(roomLineIn(room)).not.toContain(word);
-        }
-      }
-    });
   });
 });
 

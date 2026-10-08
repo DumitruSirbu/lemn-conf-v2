@@ -275,8 +275,12 @@ describe("the sentence for each reason", () => {
 });
 
 describe("a refusal that names a body no row lists", () => {
+  // The price agrees with the fit query that the stray body is past its wall and prices only the listed bodies,
+  // so the one disagreement left is between the design and the rows: without that refusal the review would
+  // answer BODIES_PAST_WALL and name nobody.
   it("is refused loudly rather than naming fewer bodies than the query reports", () => {
     const seeded = priceAndProject(KITCHEN_L_DESIGN);
+    if (!seeded.pricing.ok) throw new Error("the seeded design is priced");
     const [first] = KITCHEN_L_DESIGN.placements;
     if (first === undefined) throw new Error("the seeded design has bodies");
     const stray: DesignPlacement = {
@@ -284,15 +288,21 @@ describe("a refusal that names a body no row lists", () => {
       id: "stray-body",
       alongMm: ownWallLengthMm(KITCHEN_L_DESIGN, first.wall) + 1,
     };
+    const design: Design = {
+      ...KITCHEN_L_DESIGN,
+      placements: [...KITCHEN_L_DESIGN.placements, stray],
+    };
+    const pricing: PricedKitchen["pricing"] = {
+      ok: true,
+      priced: {
+        ...seeded.pricing.priced,
+        overflowingPlacementIds: [stray.id],
+      },
+    };
 
-    expect(() =>
-      viewOf({
-        ...seeded,
-        design: {
-          ...KITCHEN_L_DESIGN,
-          placements: [...KITCHEN_L_DESIGN.placements, stray],
-        },
-      }),
-    ).toThrow(/stray-body/);
+    expect(findOverflowingPlacementIds(design)).toEqual(["stray-body"]);
+    expect(() => viewOf({ ...seeded, design, pricing })).toThrow(
+      /the rows and the design differ over: stray-body/,
+    );
   });
 });
