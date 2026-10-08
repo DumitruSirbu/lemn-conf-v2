@@ -264,13 +264,17 @@ async function expectTheDifferencingCounterIsUnmoved(
 }
 
 /**
- * The outline stays visible against a front painted its own colour: the highlight's exact hex, a near neighbour and
- * one wood. `selection-outline.ts` adds a near-black casing under the red core; this measures it on the running app,
- * where tone mapping, the real materials and the real line widths are involved.
+ * The outline stays visible against a front painted close to its own colour: a near neighbour of the highlight's hex
+ * and one wood (the exact hex is the next case, which ends on the same measurement). `selection-outline.ts` adds a
+ * near-black casing under the red core; this measures it on the running app, where tone mapping, the real materials
+ * and the real line widths are involved.
  */
 for (const [label, materialTierId, finish] of [
-  ["the highlight's own hex", MDF, freeColourFinish("#ff2d2d")],
-  ["a near neighbour of it", MDF, freeColourFinish("#cc2222")],
+  [
+    "a near neighbour of the highlight's own hex",
+    MDF,
+    freeColourFinish("#cc2222"),
+  ],
   ["a wood", VENEER, paletteFinish("veneer.nuc")],
 ] as const) {
   test(`the outline is still counted over a front wearing ${label}`, async ({

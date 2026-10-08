@@ -27,8 +27,6 @@ const WALL_CABINET_TAP = { x: 230, y: 110 };
  *  used: the strip above a sheet pinned at 78 dvh shrinks faster than the canvas, so a converted `y` would land on
  *  the sheet. */
 const BACKGROUND_ABOVE_SHEET_TAP = { x: 310, y: 100 };
-/** Page coordinates for a screenshot clip, not converted by `tapCanvas`; only the skipped case reads it. */
-const HIGHLIGHT_REGION = { x: 110, y: 380, width: 160, height: 280 };
 
 /** The last case works in the *Perete B* preset, where the fridge column is face on (`support/panel.ts`); the vacated
  *  860 mm base slot's id encodes its column and floor line. Canvas coordinates, converted like the two above. */
@@ -98,17 +96,6 @@ test("tapping empty background deselects", async ({ page }) => {
     expect(await readTarget(page)).toEqual(NOTHING_SELECTED);
   }).toPass({ timeout: 2000 });
   await expect(page.getByTestId("editor-panel")).toHaveCount(0);
-});
-
-/** Skipped, not owed: at 390 x 844 the patch is behind §9's sheet, so two captures would differ because a sheet
- *  appeared. The highlight is asserted on desktop, in `editor-rail.desktop.e2e.spec.ts`. */
-test.skip("a selected body renders a visible highlight distinct from no selection", async ({
-  page,
-}) => {
-  const before = await page.screenshot({ clip: HIGHLIGHT_REGION });
-  await tapCanvas(page, SINK_CABINET_TAP);
-  const after = await page.screenshot({ clip: HIGHLIGHT_REGION });
-  expect(Buffer.compare(before, after)).not.toBe(0);
 });
 
 /** The delete goes through §9's footer control (`panel-remove`) and makes the void the tap then selects, since

@@ -81,40 +81,9 @@ for (const locale of LOCALES) {
     await expect(page.getByTestId("room-corner-right")).toHaveCount(0);
   });
 
-  // The sentence is inserted under wall A on pointerdown, before the click. Wall B's help button sits
-  // below it and moves down by the sentence's height between the press and the release.
-  test(`a tap on wall B's help, made while wall A holds unreadable text, still opens it, in ${locale}`, async ({
-    page,
-  }) => {
-    await page.goto(`/${locale}/configurator/room?${A_VALID_U}`);
-    const wallA = page.getByTestId("room-length-wallA");
-    await wallA.click();
-    await wallA.fill("3,6");
-    const help = page.getByTestId("room-length-help-wallB");
-
-    await help.click();
-
-    await expect(reasonOf(page, "wallA")).toHaveCount(1);
-    await expect(help).toHaveAttribute("aria-expanded", "true");
-  });
-
-  // The same tap made with the touchscreen, the way the mobile project's customer makes it.
-  test(`a touch tap on wall B's help, made while wall A holds unreadable text, still opens it, in ${locale}`, async ({
-    page,
-  }) => {
-    await page.goto(`/${locale}/configurator/room?${A_VALID_U}`);
-    const wallA = page.getByTestId("room-length-wallA");
-    await wallA.click();
-    await wallA.fill("3,6");
-    const help = page.getByTestId("room-length-help-wallB");
-
-    await help.tap();
-
-    await expect(reasonOf(page, "wallA")).toHaveCount(1);
-    await expect(help).toHaveAttribute("aria-expanded", "true");
-  });
-
-  // Control: with wall A readable nothing is inserted, and the same tap opens the help.
+  // Control for the press-order cases further down, where wall A holds unreadable text and its sentence
+  // would move wall B's help between the press and the release: with wall A readable nothing is
+  // inserted, and a tap opens the help.
   test(`a tap on wall B's help opens it when wall A is readable, in ${locale}`, async ({
     page,
   }) => {

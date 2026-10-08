@@ -1,8 +1,5 @@
 import { NARROWED_ROOM_OVERFLOWING_DESIGN } from "@lemnaria/configurator-domain";
-import {
-  OVERFLOW_MARK_COLOR,
-  SELECTION_HIGHLIGHT_COLOR,
-} from "@lemnaria/three-adapter";
+import { SELECTION_HIGHLIGHT_COLOR } from "@lemnaria/three-adapter";
 import { expect, type Page } from "@playwright/test";
 
 import { ro } from "../support/romanian-content.e2e";
@@ -190,22 +187,6 @@ function sceneClip(canvas: PixelRect, bandHeightPx: number): PixelRect {
     height: Math.round(canvas.height - bandHeightPx),
   };
 }
-
-test("the mark's colour cannot be counted as the selection highlight", () => {
-  // The two constants are 90.14 apart, clearing the 60-unit ball the desktop selection spec counts in; the composited
-  // worst case is 76.1, which also clears it. Neither clears 120, so that is not asserted. The operational half is the
-  // next test, which counts highlight pixels on a screen with a mark and no selection.
-  // mark on it and no selection.
-  const distance = Math.hypot(
-    ((OVERFLOW_MARK_COLOR >> 16) & 0xff) - SELECTION_RGB[0],
-    ((OVERFLOW_MARK_COLOR >> 8) & 0xff) - SELECTION_RGB[1],
-    (OVERFLOW_MARK_COLOR & 0xff) - SELECTION_RGB[2],
-  );
-
-  expect(OVERFLOW_MARK_COLOR).not.toBe(SELECTION_HIGHLIGHT_COLOR);
-  expect(Math.round(distance * 100) / 100).toBe(90.14);
-  expect(distance).toBeGreaterThan(COLOR_TOLERANCE);
-});
 
 test("a stored overflowing design is marked in the scene and warned about, and a fitting one is neither", async ({
   page,

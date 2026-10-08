@@ -16,11 +16,9 @@ import { mintSeededDesign, type DesignAccessProbe } from "./seeded-design";
  * even at CI's ten-times-slower pace, and a failing round is reported by name rather than by
  * number inside one long failure.
  *
- * **Round count.** `DEFAULT_MOBILE_ROUNDS`/`DEFAULT_DESKTOP_ROUNDS` below are what CI runs; set
- * `E2E_TWO_TAB_ROUNDS` to run more locally (30 was this criterion's own original bar). Desktop
- * defaults lower than mobile only to keep both projects' own share of the suite comparable — the
- * property under test does not vary by viewport (every other twin in this directory carries the
- * same reasoning).
+ * **Round count.** `DEFAULT_MOBILE_ROUNDS` below is what CI runs; set `E2E_TWO_TAB_ROUNDS` to run
+ * more locally (30 was this criterion's own original bar). Only the mobile project runs it — the
+ * property under test does not vary by viewport.
  *
  * A fully-typed room query, matching `room-to-editor.qa.e2e.spec.ts`'s own `THE_TYPED_ROOM` — a
  * room comfortably inside the approved bounds, so composition is the thing under test rather than
@@ -33,7 +31,6 @@ const TYPED_ROOM_QUERY =
   "shape=L&wallA=3.56&wallB=4.25&height=2.7&direction=left";
 
 export const DEFAULT_MOBILE_ROUNDS = 10;
-export const DEFAULT_DESKTOP_ROUNDS = 3;
 
 const ROUNDS_ENV_VAR = "E2E_TWO_TAB_ROUNDS";
 

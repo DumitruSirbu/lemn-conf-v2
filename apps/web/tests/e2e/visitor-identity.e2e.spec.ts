@@ -5,9 +5,10 @@ import { mintSeededDesign } from "./support/seeded-design";
 
 /**
  * M7 wave 7E3a — criterion 6 / plan §4: measuring `Secure` on `http://localhost`, over a real
- * browser rather than argued. Run in both Playwright projects (mobile and desktop), which is what
- * "over a real browser" means here — no `context.addCookies` is used, because whether a *planted*
- * `__Host-` cookie is accepted is not the question this file answers.
+ * browser rather than argued. Run in the mobile project alone: nothing here is viewport-dependent,
+ * and both projects are the same Chromium against the same `webServer`. No `context.addCookies` is
+ * used, because whether a *planted* `__Host-` cookie is accepted is not the question this file
+ * answers.
  *
  * §4 has four steps; steps 1-3 are asserted below (since M7 wave 7E3a S3, which lands
  * `/[locale]/route.ts`). Step 4 is a QA sabotage run, not an automated assertion — the plan

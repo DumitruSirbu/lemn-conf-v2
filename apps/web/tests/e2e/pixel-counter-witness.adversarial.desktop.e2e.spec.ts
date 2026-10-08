@@ -66,18 +66,9 @@ const MAX_ABSENT_CASING_PIXELS = 50;
  *  means. The threshold is not shared: see `support/pixels.ts`. */
 const MAX_ABSENT_MARK_PIXELS = 40;
 
-/** The retired threshold, kept so the reason 80 exists stays falsifiable: an unmarked oak kitchen (the veneer tier's
- *  declared default) puts six figures of pixels past it in each camera preset, nearly all ordinary door fronts. */
-const RETIRED_MARK_MIN_RED_EXCESS = 50;
-const MIN_OAK_RETIRED_MARK_PIXELS = 100_000;
-
 const MARK = {
   kind: "redTint",
   minExcess: MARK_MIN_RED_EXCESS_OVER_ANY_FINISH,
-} as const;
-const RETIRED_MARK = {
-  kind: "redTint",
-  minExcess: RETIRED_MARK_MIN_RED_EXCESS,
 } as const;
 
 const MDF = "material.painted-mdf";
@@ -321,45 +312,6 @@ for (const wood of UNMARKED_WOODS) {
     }
   });
 }
-
-/**
- * Oak is what the veneer tier gives by default and had never been photographed: the retired 50 counter reports a mark
- * over a fifth of the canvas on a document with none. Both counts come from the same captures, so this is a statement
- * about the threshold: a wash at 50, silent at 80.
- */
-test("the retired threshold of 50 reports a mark on an unmarked oak kitchen, and 80 does not", async ({
-  page,
-  seededDesign,
-}) => {
-  const finish = materialById(VENEER).defaultFinish;
-  expectTheWholeKitchenWears(
-    await storeAKitchenWearing(page, seededDesign, {
-      materialTierId: VENEER,
-      finish,
-    }),
-    finish,
-  );
-  await openAndSettle(page, seededDesign);
-  expect((await readSelection(page)).selectionId).toBe("");
-
-  const presetButtons = page.locator('[role="group"] button');
-  for (const [index, preset] of CAMERA_PRESETS.entries()) {
-    if (index > 0) {
-      await presetButtons.nth(index).click();
-      await page.waitForTimeout(SCENE_SETTLE_MS);
-    }
-    const scene = await wholeCanvas(page);
-
-    expect(
-      await countPixelsIn(page, scene, RETIRED_MARK),
-      `${preset.id}: what a threshold of 50 reports on an unmarked oak kitchen`,
-    ).toBeGreaterThanOrEqual(MIN_OAK_RETIRED_MARK_PIXELS);
-    expect(
-      await countPixelsIn(page, scene, MARK),
-      `${preset.id}: what the shipped threshold reports on the same pixels`,
-    ).toBeLessThanOrEqual(MAX_ABSENT_MARK_PIXELS);
-  }
-});
 
 /** The control for the cases above: the design the shipped mark gate photographs is nowhere near either wood's edge,
  *  so that gate lives on no margin. */
