@@ -35,16 +35,32 @@ const ALL_VIOLATIONS = [
 ];
 
 // The scoped driver is refused as any quoted string, so only the plain driver's rows prove the
-// keyword form; each form therefore stands once for each driver.
-const IMPORT_FORMS = [
+// keyword form. The scoped driver stands in the three forms its own pattern can tell apart: the
+// name, the other quote and a subpath.
+const FORMS_THE_QUOTED_NAME_TELLS_APART = [
   ["a one-line import", 'import { a } from "NAME";'],
   ["a single-quoted import", "import { a } from 'NAME';"],
+  ["a subpath import", 'import { a } from "NAME/web";'],
+];
+
+const FORMS_ONLY_THE_KEYWORD_TELLS_APART = [
   ["a wrapped import", 'import {\n  a,\n  b,\n} from "NAME";'],
   ["a re-export", 'export { a } from "NAME";'],
   ["a bare import", 'import "NAME";'],
   ["a dynamic import", 'const driver = await import("NAME");'],
   ["a require", 'const driver = require("NAME");'],
-  ["a subpath import", 'import { a } from "NAME/web";'],
+];
+
+const REFUSED_IMPORTS = [
+  ["the scoped driver", "DRIVER", FORMS_THE_QUOTED_NAME_TELLS_APART],
+  [
+    "the plain driver",
+    "PLAIN_DRIVER",
+    [
+      ...FORMS_THE_QUOTED_NAME_TELLS_APART,
+      ...FORMS_ONLY_THE_KEYWORD_TELLS_APART,
+    ],
+  ],
 ];
 
 const DRIVER_PLACEHOLDERS = [
@@ -83,8 +99,8 @@ const SOURCE_EXTENSIONS = [
   "cjs",
 ];
 
-for (const [driver, placeholder] of DRIVER_PLACEHOLDERS) {
-  for (const [form, template] of IMPORT_FORMS) {
+for (const [driver, placeholder, forms] of REFUSED_IMPORTS) {
+  for (const [form, template] of forms) {
     test(`refuses ${form} of ${driver} outside the persistence package`, () => {
       const outcome = runGateWith({
         "apps/web/src/sample.ts": template.replace("NAME", placeholder),

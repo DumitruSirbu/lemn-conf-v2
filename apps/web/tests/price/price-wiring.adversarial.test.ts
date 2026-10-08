@@ -341,8 +341,9 @@ function cornersOf(box: THREE.Box3): THREE.Vector3[] {
 }
 
 /** The body's lowest projected point as a **fraction of the scene box**, which is the quantity the
- *  shipped gate ultimately compares. Kept in normalised units here on purpose — see the first test
- *  below for why that is the whole point. */
+ *  shipped gate ultimately compares. Kept in normalised units here on purpose: a perspective camera's
+ *  vertical field of view does not change with the aspect ratio, so the fraction is the same whatever
+ *  height the bar takes, and `bottomPx <= barTopPx` reduces to `normalised <= 1`. */
 function normalisedBottomOf(
   body: THREE.Object3D,
   presetId: (typeof CAMERA_PRESETS)[number]["id"],
@@ -359,25 +360,6 @@ function normalisedBottomOf(
 }
 
 describe("what the shipped 390 × 844 sweep can fail on", () => {
-  it("projects to the same normalised bounds whatever height the bar takes", () => {
-    // **The finding this block exists for.** A perspective camera's *vertical* field of view does
-    // not change with the aspect ratio, so shrinking the scene box scales every projected pixel with
-    // it. `bottomPx = normalised * sceneHeight + sceneTop` and `barTopPx = sceneTop + sceneHeight`,
-    // so `bottomPx <= barTopPx` reduces to `normalised <= 1` — a statement about the camera framing
-    // the kitchen, with the bar's height cancelled out of both sides.
-    //
-    // Verified by mutation against the shipped file: replacing its `BAR_HEIGHTS_PX` with
-    // `[92, 600, 700]` — a 700 px bar on an 844 px viewport, leaving an 80 px scene — leaves all 23
-    // of its assertions green. The seven header heights cancel the same way.
-    const body = mountedBodies()[0];
-    if (!body) throw new Error("no body mounted");
-
-    const tallScene = normalisedBottomOf(body, "overview", 700);
-    const shortScene = normalisedBottomOf(body, "overview", 80);
-
-    expect(shortScene).toBeCloseTo(tallScene, 10);
-  });
-
   it("is a framing property that does not hold at the other two presets the screen offers", () => {
     // The state the sweep misses, named rather than left implied: the customer can switch to wallA
     // or wallB, and at those presets bodies project outside the scene box. That is **not** an

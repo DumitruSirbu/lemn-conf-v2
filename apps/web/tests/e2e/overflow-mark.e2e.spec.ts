@@ -32,8 +32,9 @@ const RENDER_SETTLE_MS = 400;
 /**
  * The mark is counted by its red excess, not by distance to `OVERFLOW_MARK_COLOR`: the 32 % wash blends with whatever
  * the body is painted, so the nearest scene pixel only moves from 108.71 to 62.32, and a ball wide enough to catch it
- * would also catch the selection highlight (90.14 away). Differencing two captures is unavailable (ADR 0091 decision
- * 6): the flagged total grows the price row and shifts the canvas box, so 19 % to 43 % of any rectangle moves.
+ * would also catch the selection highlight (about 90 away; `packages/three-adapter/tests/overflow-mark.test.ts` pins
+ * the rounded distance). Differencing two captures is unavailable (ADR 0091 decision 6): the flagged total grows the
+ * price row and shifts the canvas box, so 19 % to 43 % of any rectangle moves.
  *
  * The count is sound only on this fixture, asserted below: no body wears a finish (a `#ff2d2d` kitchen reports 16 416
  * such pixels with no mark) and nothing is selected (a selection outline counts as a mark).
@@ -41,7 +42,8 @@ const RENDER_SETTLE_MS = 400;
  * The threshold is 50 where the witness specs use 80, because it is a property of what the document under the wash is
  * painted: over this white kitchen the wash carries little red (7 494 marked pixels at 50, 252 at 80) and this is the
  * one counter with its own control (`fittingPixels`, 0). A counter that may meet a wood needs
- * `MARK_MIN_RED_EXCESS_OVER_ANY_FINISH`, since an unmarked oak kitchen puts six figures of pixels past 50.
+ * `MARK_MIN_RED_EXCESS_OVER_ANY_FINISH`: an unmarked oak kitchen carries a red excess of 72 or more on at least
+ * 10 000 pixels in every preset, well past 50 (`pixel-counter-witness.adversarial.desktop.e2e.spec.ts` asserts it).
  */
 const MARK_MIN_RED_EXCESS = 50;
 const MARK = { kind: "redTint", minExcess: MARK_MIN_RED_EXCESS } as const;

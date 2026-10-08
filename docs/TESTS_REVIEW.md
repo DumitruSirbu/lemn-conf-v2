@@ -2856,7 +2856,7 @@ mutation is equivalent on shipped data, or the behaviour is unguarded everywhere
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 86 | refuses <form> of the scoped driver outside the persistence package (8 rows) | 5 | boundary.sh:67 refuses the scoped name as any quoted string, so the wrapped, re-export, bare, dynamic and require rows are indistinguishable from the one-line row, and their keyword forms are proven by the plain-driver rows through the shared alternation at :16/:66. Keep three scoped rows: one-line (base), single-quoted (only row on the quote class of :67) and subpath (only row on its subpath group); they become the sole cover the day the scoped name is dropped from :16. **Keep:** `scripts/gates/boundary.test.mjs:86` |
+| 86 | refuses <form> of the scoped driver outside the persistence package (8 rows) | 5 | boundary.sh:67 refuses the scoped name as any quoted string, so the wrapped, re-export, bare, dynamic and require rows are indistinguishable from the one-line row, and their keyword forms are proven by the plain-driver rows through the shared alternation at :16/:66. Keep three scoped rows: one-line (base), single-quoted (only row on the quote class of :67) and subpath (only row on its subpath group); they become the sole cover the day the scoped name is dropped from :16. **Keep:** `scripts/gates/boundary.test.mjs:86` | **Z1 part** — the five flagged rows deleted: across 15 mutations of `boundary.sh` none was ever the only row red. The three rows named to keep stay; two of them were each the sole red row under their own mutation |
 
 ## 3. Obsolete
 
@@ -2963,7 +2963,7 @@ mutation is equivalent on shipped data, or the behaviour is unguarded everywhere
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 362 | projects to the same normalised bounds whatever height the bar takes | 1 | Builds its own THREE.PerspectiveCamera (wiring:316-334) and compares its projection at two aspects; no project code but the preset constants is involved, identical on both sides. It tests three's projection maths. | **W2-C kept, unverified** — settling it needs a three-adapter mutation |
+| 362 | projects to the same normalised bounds whatever height the bar takes | 1 | Builds its own THREE.PerspectiveCamera (wiring:316-334) and compares its projection at two aspects; no project code but the preset constants is involved, identical on both sides. It tests three's projection maths. | **Z1 deleted** — green under three project mutations that each reddened a neighbour (camera preset moved, field of view changed, reserved height zeroed); it tested three's projection maths |
 
 **`tests/price/qa-6bg-money-seam.adversarial.test.ts`**
 
@@ -3547,5 +3547,7 @@ QA agent's recorded run, not re-run by the coordinator.
 | D3 | `packages/configurator-domain`: architect rulings on rows 708 and 814 | 2 rows | **Two production defects found and fixed**, both in whether a malformed free colour is offered, neither reachable by a customer: the query (`38fa058`) and the two finish commands on an undeclared material (`6eef46c`). Tests in `7cdf446`. Logic review pending | `38fa058`, `7cdf446`, `6eef46c` |
 | D3-B, D3-C, D2-R | `packages/configurator-domain`: QA rounds on the two fixes, review follow-ups | — | Full review tier on the fixes: QA green, logic review and clean-code review both "approve with minor findings", follow-ups applied. Logic review of D2-C: sound, no restore | `b6d2ab1`, `0a351f0`, `74bcc20`, `781727a` |
 | E1 | `apps/web` Playwright specs | 12 rows | 9 deleted, 1 deleted by reading, 1 strengthened, 1 kept. E2e 691 → 677 passed. Logic review: sound, no restore | `ee834b6` |
+
+| Z1 | Last leftovers: `scripts/gates/boundary.test.mjs`, one `apps/web` row, one spec header | rows 2859, 2966 | 5 gate rows and 1 web test deleted against mutations; gate tests 40 → 35, `apps/web` 5898 passed, re-run by the coordinator | this commit |
 
 Full local gate (`pnpm ci:local`) at `ee834b6`, run by the coordinator on a clean tree: format, lint, typecheck, test, e2e, build, boundary, lockfile and sca PASS — domain 7695, persistence 1751 (+1 skipped), three-adapter 4284, `apps/web` 5899, e2e 677 passed (1 skipped). **`e2e-shard-budget` FAILS**: removing three desktop spec files moved Playwright's split, and desktop shard 1 of 3 now holds 132 tests against a ceiling of 70.
