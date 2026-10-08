@@ -18,6 +18,7 @@ import {
   type Design,
 } from "../../src/index.js";
 import {
+  DESIGN_ENVELOPE_BYTES,
   MAX_ROOM_DEPTH_MM,
   MAX_ROOM_HEIGHT_MM,
   MAX_ROOM_WIDTH_MM,
@@ -170,7 +171,12 @@ describe("7I-A2 — the byte cap holds a right-hand room at its longest", () => 
       updatedAt: "2026-09-23T10:00:00.000Z",
     });
 
-    expect(Buffer.byteLength(envelope, "utf8")).toBeLessThan(1024);
+    // The literal is the non-vacuity pin: the comparison below reads production's own allowance, so
+    // without it an allowance raised to any size would keep this green.
+    expect(DESIGN_ENVELOPE_BYTES).toBe(1024);
+    expect(Buffer.byteLength(envelope, "utf8")).toBeLessThan(
+      DESIGN_ENVELOPE_BYTES,
+    );
   });
 
   // M7B wave U1 slice S2 moved this cap (ADR 0132 decision 5's third wall run), so this test's own

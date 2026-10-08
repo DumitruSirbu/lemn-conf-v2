@@ -344,16 +344,202 @@ describe("the query is a query", () => {
       }
     }
   });
+});
 
-  it("answers true only for finishes the schema itself admits", () => {
-    for (const material of MATERIALS) {
-      for (const finish of [
-        ...everyPaletteFinish(),
-        freeColourFinish("#000000"),
-      ]) {
-        if (!materialOffersFinish(material, finish)) continue;
-        expect(FinishSchema.safeParse(finish).success).toBe(true);
+// **`Finish` is an inferred type, so a malformed colour type-checks.** Both constructors validate, and
+// every case above feeds the query through them — which is why this block's predecessor could not
+// fail: it only ever asked about finishes the schema had already admitted. The objects below are
+// built around the constructors, as a caller holding the type and not the function can build them,
+// and every expected answer is a literal written here: neither `FREE_COLOUR_PATTERN` nor
+// `FinishSchema` supplies one.
+
+/** A free colour as its type allows it and `freeColourFinish` would refuse to build it. */
+function unvalidatedFreeColour(value: string): Finish {
+  return { kind: "free-colour", value };
+}
+
+/** Each is one step off a six-digit hex colour, or a string a different pattern would let through. */
+const MALFORMED_FREE_COLOURS = [
+  ["empty", ""],
+  ["the hash alone", "#"],
+  ["five digits", "#abcde"],
+  ["seven digits", "#abcdef0"],
+  ["the three-digit shorthand", "#abc"],
+  ["eight digits, as a colour with alpha", "#aabbccdd"],
+  ["no hash", "abcdef"],
+  ["no hash at the right length", "abcdef0"],
+  ["two hashes", "##abcde"],
+  ["a hash at the wrong end", "abcdef#"],
+  ["g, one past the last hex digit", "#abcdeg"],
+  ["G, one past the last hex digit", "#ABCDEG"],
+  ["a slash, one before 0", "#/00000"],
+  ["a colon, one past 9", "#:00000"],
+  ["an at sign, one before A", "#@00000"],
+  ["a backtick, one before a", "#`00000"],
+  ["a leading space", " #abcdef"],
+  ["a trailing space", "#abcdef "],
+  ["a space where a digit belongs", "#abcde "],
+  ["a trailing newline", "#abcdef\n"],
+  ["a trailing carriage return and newline", "#abcdef\r\n"],
+  ["a leading newline", "\n#abcdef"],
+  ["a second colour on a second line", "#abcdef\n#abcdef"],
+  ["a junk line above a colour", "junk\n#abcdef"],
+  ["a trailing NUL", "#abcdef\u0000"],
+  ["a prefix", "x#abcdef"],
+  ["a suffix", "#abcdefx"],
+  ["full-width hex digits", "#ａｂｃｄｅｆ"],
+  ["Arabic-Indic digits", "#١٢٣٤٥٦"],
+  ["a sign", "#-12345"],
+  ["a decimal point", "#12.456"],
+  ["a CSS function", "rgb(0,0,0)"],
+  ["a CSS colour name", "white"],
+  ["a palette entry id", "pal.alb"],
+] as const;
+
+/** Both cases, both ends of each digit range, and the two colours the declaration itself uses. */
+const WELL_FORMED_FREE_COLOURS = [
+  "#000000",
+  "#999999",
+  "#aaaaaa",
+  "#ffffff",
+  "#AAAAAA",
+  "#FFFFFF",
+  "#09afAF",
+  "#eceeeb",
+  "#8d9a84",
+] as const;
+
+const PICKER_MATERIAL_ID = "material.painted-mdf";
+const ENTRY_MATERIAL_IDS = ["material.melamine", "material.veneer"] as const;
+
+describe("materialOffersFinish over free colours built around the constructor (ADR 0078 decisions 1, 6)", () => {
+  it("stands on the declared picker and the two declared entry controls", () => {
+    expect(materialById(PICKER_MATERIAL_ID).colourControl.shape).toBe(
+      "ral-picker",
+    );
+    expect(
+      ENTRY_MATERIAL_IDS.map((id) => materialById(id).colourControl.shape),
+    ).toEqual(["decor-list", "wood-swatches"]);
+  });
+
+  it.each(MALFORMED_FREE_COLOURS)(
+    "refuses %s (%j) on the picker, declared and synthetic",
+    (_, value) => {
+      const finish = unvalidatedFreeColour(value);
+
+      expect(
+        materialOffersFinish(materialById(PICKER_MATERIAL_ID), finish),
+      ).toBe(false);
+      expect(
+        materialOffersFinish(
+          materialWithControl({ shape: "ral-picker" }),
+          finish,
+        ),
+      ).toBe(false);
+    },
+  );
+
+  it.each(WELL_FORMED_FREE_COLOURS)(
+    "offers %s on the picker, so the refusals above are not a query that refuses every colour",
+    (value) => {
+      const finish = unvalidatedFreeColour(value);
+
+      expect(
+        materialOffersFinish(materialById(PICKER_MATERIAL_ID), finish),
+      ).toBe(true);
+      expect(
+        materialOffersFinish(
+          materialWithControl({ shape: "ral-picker" }),
+          finish,
+        ),
+      ).toBe(true);
+    },
+  );
+
+  it.each([
+    ...MALFORMED_FREE_COLOURS.map(([, value]) => value),
+    ...WELL_FORMED_FREE_COLOURS,
+  ])(
+    "refuses %j on both materials that carry entries, well formed or not",
+    (value) => {
+      for (const materialId of ENTRY_MATERIAL_IDS) {
+        expect(
+          materialOffersFinish(
+            materialById(materialId),
+            unvalidatedFreeColour(value),
+          ),
+        ).toBe(false);
       }
-    }
+    },
+  );
+
+  it("answers the same malformed colour the same way twice, and a well-formed one after it", () => {
+    // The pattern object is shared with `freeColourFinish` and the schema. A sticky or global flag
+    // would make the second answer depend on the first.
+    const picker = materialById(PICKER_MATERIAL_ID);
+    const answers = ["#abcdef\n", "#abcdef", "#abcdef\n", "#abcdef", "#abcdef"]
+      .map(unvalidatedFreeColour)
+      .map((finish) => materialOffersFinish(picker, finish));
+
+    expect(answers).toEqual([false, true, false, true, true]);
+  });
+
+  it("refuses a palette entry id no material declares, on every material", () => {
+    const undeclaredEntry = {
+      kind: "palette-entry",
+      entryId: "pal.nu-exista",
+    } as unknown as Finish;
+
+    expect(
+      MATERIALS.map((material) =>
+        materialOffersFinish(material, undeclaredEntry),
+      ),
+    ).toEqual([false, false, false]);
+  });
+
+  // **An agreement check, not a pin.** Its expected side is `FinishSchema` itself, so it cannot say
+  // what a free colour is — the literal tables above do that. What it adds is that the picker's offer
+  // and the schema are one set over strings nobody hand-picked: a query narrower or wider than the
+  // schema anywhere in the drawn space fails here even where no table row stands.
+  it("agrees with FinishSchema on the picker over generated strings, with both answers drawn", () => {
+    const picker = materialById(PICKER_MATERIAL_ID);
+    const hexColour = fc.stringMatching(/^#[0-9a-fA-F]{6}$/);
+    const oneCharacterReplaced = fc
+      .tuple(hexColour, fc.nat({ max: 6 }), fc.string({ maxLength: 1 }))
+      .map(
+        ([colour, at, replacement]) =>
+          colour.slice(0, at) + replacement + colour.slice(at + 1),
+      );
+    const oneCharacterInserted = fc
+      .tuple(hexColour, fc.nat({ max: 7 }), fc.string({ minLength: 1 }))
+      .map(
+        ([colour, at, inserted]) =>
+          colour.slice(0, at) + inserted + colour.slice(at),
+      );
+    const drawnAnswers = { offered: 0, refused: 0 };
+
+    fc.assert(
+      fc.property(
+        fc.oneof(
+          hexColour,
+          oneCharacterReplaced,
+          oneCharacterInserted,
+          fc.string(),
+        ),
+        (value) => {
+          const finish = unvalidatedFreeColour(value);
+          const isOffered = materialOffersFinish(picker, finish);
+          drawnAnswers[isOffered ? "offered" : "refused"] += 1;
+
+          expect(isOffered, JSON.stringify(value)).toBe(
+            FinishSchema.safeParse(finish).success,
+          );
+        },
+      ),
+      { numRuns: 2_000 },
+    );
+
+    expect(drawnAnswers.offered).toBeGreaterThan(100);
+    expect(drawnAnswers.refused).toBeGreaterThan(100);
   });
 });

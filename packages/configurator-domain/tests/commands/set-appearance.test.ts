@@ -9,10 +9,12 @@ import {
 } from "../../src/fixtures/kitchen-l-design.js";
 import { clearBodies, insertInto, OCCURRED_AT } from "../support/commands.js";
 import { createWorld } from "../support/kitchen-world.js";
+import { DesignSchema } from "../../src/design.js";
 import {
   freeColourFinish,
   LEGACY_ENUM_FINISHES,
   paletteFinish,
+  type Finish,
 } from "../../src/materials.js";
 
 const base = {
@@ -30,6 +32,12 @@ function withMaterial(materialTierId: string): typeof KITCHEN_L_DESIGN {
     ...KITCHEN_L_DESIGN,
     settings: { ...KITCHEN_L_DESIGN.settings, materialTierId },
   };
+}
+
+/** A free colour as `Finish` types it and `freeColourFinish` refuses to build it: the type is
+ *  inferred from the schema, so a malformed value compiles and reaches the command. */
+function unvalidatedFreeColour(value: string): Finish {
+  return { kind: "free-colour", value };
 }
 
 /** *Antracit*, a PAL decor. The fixture carries no settings, so it is a PAL kitchen — and since
@@ -92,6 +100,60 @@ describe("setFinish", () => {
       finish: freeColourFinish("#b8c4a1"),
     });
     expect(result.ok).toBe(true);
+  });
+
+  // ADR 0078 decision 6 on the picker itself: MDF offers every free colour the schema admits and no
+  // other. A value built around `freeColourFinish` is one the schema refuses, so storing it would hand
+  // the write seam a document it rejects whole.
+  it.each([
+    ["empty", ""],
+    ["five digits", "#b8c4a"],
+    ["seven digits", "#b8c4a10"],
+    ["no hash", "b8c4a1"],
+    ["a non-hex digit", "#b8c4ag"],
+    ["a leading space", " #b8c4a1"],
+    ["a trailing newline", "#b8c4a1\n"],
+    ["a CSS colour name", "white"],
+  ])(
+    "refuses a malformed free colour on the picker's material: %s",
+    (_, value) => {
+      const mdfDesign = withMaterial("material.painted-mdf");
+      const snapshot = JSON.stringify(mdfDesign);
+
+      const result = setFinish({
+        ...base,
+        design: mdfDesign,
+        target: { kind: "placement", id: "p0" },
+        finish: unvalidatedFreeColour(value),
+      });
+
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.reason.code).toBe("FINISH_NOT_OFFERED");
+      expect(result.reason.params).toEqual({});
+      expect(result.design).toBe(mdfDesign);
+      expect(JSON.stringify(mdfDesign)).toBe(snapshot);
+    },
+  );
+
+  // The second door behind decision 3. An undeclared material makes no offer, so the command never
+  // asks `materialOffersFinish` — and nothing else asks whether the value is a colour at all. "Refuses
+  // nothing" is a ruling about which colours a material offers; it is not a ruling that the command
+  // may return, as a success, a document `DesignSchema` refuses.
+  it("never succeeds with a design its own schema refuses, on an undeclared material", () => {
+    const staleTierDesign = withMaterial("material.laminate");
+    expect(DesignSchema.safeParse(staleTierDesign).success).toBe(true);
+
+    const result = setFinish({
+      ...base,
+      design: staleTierDesign,
+      target: { kind: "placement", id: "p0" },
+      finish: unvalidatedFreeColour("#b8c4a1\n"),
+    });
+
+    const isStoringAnUnparseableDesign =
+      result.ok && !DesignSchema.safeParse(result.design).success;
+    expect(isStoringAnUnparseableDesign).toBe(false);
   });
 
   // ADR 0078 decision 3: a stored tier id naming no declared material is a reachable state — wave
