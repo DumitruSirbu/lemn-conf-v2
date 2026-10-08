@@ -39,8 +39,8 @@ export type {
   ShareLinkStatus,
   ShareLinkStatusOutcome,
 } from "./share-link-repository.js";
+export { NeonRateLimitStore } from "./neon-rate-limit-store.js";
 export {
-  NeonRateLimitStore,
   RateLimitStoreError,
   RateLimitWindowConflictError,
 } from "./rate-limit-store.js";

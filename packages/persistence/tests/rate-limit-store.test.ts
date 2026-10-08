@@ -3,8 +3,8 @@ import { inspect } from "node:util";
 import { NeonDbError } from "@neondatabase/serverless";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { NeonRateLimitStore } from "../src/neon-rate-limit-store.js";
 import {
-  NeonRateLimitStore,
   RateLimitStoreError,
   RateLimitWindowConflictError,
 } from "../src/rate-limit-store.js";

@@ -2,8 +2,8 @@ import { NeonDbError } from "@neondatabase/serverless";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FakeRateLimitStore } from "../src/fake-rate-limit-store.js";
+import { NeonRateLimitStore } from "../src/neon-rate-limit-store.js";
 import {
-  NeonRateLimitStore,
   RateLimitStoreError,
   RateLimitWindowConflictError,
 } from "../src/rate-limit-store.js";

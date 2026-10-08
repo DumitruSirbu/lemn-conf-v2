@@ -4,7 +4,7 @@ import { neon } from "@neondatabase/serverless";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { runMigrations } from "../src/migrate.js";
-import { NeonRateLimitStore } from "../src/rate-limit-store.js";
+import { NeonRateLimitStore } from "../src/neon-rate-limit-store.js";
 import {
   announceSkippedLiveSuite,
   isLiveTestDatabaseConfigured,

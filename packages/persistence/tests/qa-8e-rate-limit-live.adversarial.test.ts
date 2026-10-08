@@ -12,8 +12,8 @@ import {
 } from "vitest";
 
 import { runMigrations } from "../src/migrate.js";
+import { NeonRateLimitStore } from "../src/neon-rate-limit-store.js";
 import {
-  NeonRateLimitStore,
   RateLimitStoreError,
   RateLimitWindowConflictError,
 } from "../src/rate-limit-store.js";
