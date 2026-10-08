@@ -46,7 +46,7 @@ status corrections, in one of these two files:
 | 13 | The insert path ignores a width bound | resolved.md — closed 2026-09-06 (this pass), fixed by ADR 0032 rule 4 |
 | 14 | Keep only the last few database dumps | resolved.md |
 | 15 | A wall cabinet over a full-height column is built to a depth no one manufactures | resolved.md |
-| 16 | No camera preset frames the right end of wall A's base run at the mobile viewport | open.md |
+| 16 | No camera preset frames the right end of wall A's base run at the mobile viewport | open.md — ruled 2026-09-05, not built; **widened 2026-10-08 by M8 wave 8D: walls B and C and the U overview too, and the review's links land on a body the customer may not see; the owner's call at the hand check** |
 | 17 | An emptied wall-A base run may render no void to insert into | open.md |
 | 18 | A cabinet-hardware choice reaches the oven's and the microwave's bars in `tall-oven-tower` | resolved.md |
 | 19 | The dishwasher decor door meets its own appliance at a 520 mm cabinet depth | resolved.md |
@@ -103,7 +103,7 @@ status corrections, in one of these two files:
 | 70 | The editor allows a kitchen with no oven | open.md — owner principle recorded 2026-09-21 (ADR 0110 Amendment M, M12), no owner, no phase yet |
 | 71 | Re-tapping the selected *Vedere generală* chip does not reset the camera | open.md — seen by the 7D5b visual gate, 2026-09-21; no owner, no phase |
 | 72 | Wide-U facing labels overlap | open.md — pre-existing, confirmed 2026-09-22 by M7 wave 7F2's visual gate; no owner, no phase |
-| 73 | Language switch at Step 1B drops the room | open.md — confirmed 2026-09-22 by M7 wave 7F2's visual gate; contradicts `use-locale-menu.ts`'s own contract; no owner, no phase |
+| 73 | Language switch at Step 1B drops the room | open.md — confirmed 2026-09-22 by M7 wave 7F2's visual gate; contradicts `use-locale-menu.ts`'s own contract; no owner, no phase. **2026-10-08 (M8 wave 8D, R2.1): the same links drop the editor's two arrival parameters, and the menu is drawn on three screens** |
 | 74 | An open help popover covers the field above it | open.md — found 2026-09-22, M7 wave 7F2's S5b × 7A3 interaction; low; no owner, no phase |
 | 75 | A second field problem is not re-announced while the note already shows | open.md — raised 2026-09-22 by M7 wave 7F2's S3 review R1.6; needs copy; no owner, no phase |
 | 76 | `DRAWABLE_WALLS` has no exhaustiveness tie to `requiredFieldsFor` | open.md — raised 2026-09-22 by M7 wave 7F2's S5 review R1.4; no owner, no phase |
@@ -130,13 +130,13 @@ status corrections, in one of these two files:
 | 97 | Generation below the approved ceiling floor (2200) throws for every shape | open.md — found 2026-09-30 at M7B wave U3b's close-out; a U throws from 1900 (RQ7's hood), the L succeeds at 2000; unreachable under approved heights; no owner, no phase |
 | 98 | A reload shows the seeded L (3 chips) before the loaded design | open.md — found 2026-09-30 at M7B wave U5's close-out; pre-existing since zustand 5, beside 83; latent cross-request store write for a security reviewer; not a U6 blocker; no owner, no phase |
 | 99 | Plan-preview label fit has known limits (three cases) | open.md — found 2026-09-30 at M7B wave U5's review; recorded in test comments, not fixed; needs a copy or layout decision; no owner, no phase |
-| 100 | Six orphan design rows in the test database | open.md — found 2026-09-30 at M7B wave U5's visual review; not deleted (add-only); **owner answered 2026-09-30 (Q-U7-2): "Leave them"** |
+| 100 | Six orphan design rows in the test database | open.md — found 2026-09-30 at M7B wave U5's visual review; not deleted (add-only); **owner answered 2026-09-30 (Q-U7-2): "Leave them"**; one more row 2026-10-07 (8A S1) and five more 2026-10-08 (8D's visual verifier), which that answer does not cover |
 | 101 | The shape-refusal region is kept on purpose, though no shipped path draws it | open.md — recorded 2026-09-30 at M7B wave U6's close-out; if a future policy stops stating a shape, the e2e tests removed in U6 (E3, E4's U half, E5, E9) must come back; no owner |
 | 102 | Dev-only security candidates from the undici review (js-yaml, vitest, Node's bundled undici) | open.md — found 2026-09-30; lockfile refresh, a major vitest upgrade and a Node patch release respectively; not scheduled, no owner |
 | 103 | Editing the room's size keeps none of the customer's changes | open.md — wanted by the owner 2026-10-01 (M7C Q1); not built, no phase |
 | 104 | A cabinet cannot be resized through a fixed-width neighbour | open.md — asked by the owner 2026-10-01 (M7-FB-010, M7C Q6); the generator half is M7C wave C5; not built, no phase |
 | 105 | Step 1's desktop footer departs from the mockup frames in three places | open.md — found 2026-10-01 by C1 S1's review; not fixed, no owner |
-| 106 | The e2e desktop shard 2/3 sits at exactly its 70-test budget | open.md — found 2026-10-01 by C1 S1's QA; not scheduled, no owner |
+| 106 | The e2e desktop shard 2/3 sits at exactly its 70-test budget | open.md — found 2026-10-01 by C1 S1's QA; not scheduled, no owner. Updated 2026-10-08: desktop 69 / 70 / 62 of 70, mobile now six shards |
 | 107 | A design stored before ADR 0135 keeps the old corner geometry | open.md — accepted pre-release 2026-10-01; read-side fix not built; the record is ADR 0135 |
 | 108 | `wallCabinet`'s two-door leaves are 3 mm apart where the kit's `GAP` is 4 mm | open.md — found 2026-10-01 by C2 S1's review; pre-existing, not changed; no owner |
 | 109 | The corner wall unit's names and prices are placeholders awaiting the owner | open.md — M7C plan Q8 (i)/(ii); built with defaults 2026-10-01; owner input pending |
@@ -154,10 +154,15 @@ status corrections, in one of these two files:
 | 121 | F1 — `scripts/gates/boundary.sh` matches a driver import on one line only | open.md — found 2026-10-07 by M8 8B's QA; the coordinator schedules it before wave 8E |
 | 122 | F5 — a session close that never returns hangs `applyMigrations` | open.md — found 2026-10-07 by M8 8B's QA; unmeasured; the coordinator, before 8S, after the owner approves a measurement |
 | 123 | F6 — do Neon's connection strings carry `sslrootcert` or a sibling? | open.md — recorded 2026-10-07; a documentation read, the coordinator's |
-| 124 | QA18 (census blind to a second `Client` through the opener), "Finding …" journal comments in three test files, and two 8C review nits in `review-model.ts` | open.md — recorded 2026-10-07; low priority, no owner |
-| 125 | Three e2e specs fail under `CI=1`, uninvestigated | open.md — found 2026-10-07 by M8 8A S1; triage before wave 8F |
+| 124 | QA18 (census blind to a second `Client` through the opener), "Finding …" journal comments in three test files, and two 8C review nits in `review-model.ts` | open.md — recorded 2026-10-07; low priority, no owner. Gained 2026-10-08 (8D): two long comments in `use-honour-arrival.ts`, an unattributed line beside the locale chip at 1440 px, the Russian top-bar title truncated, the chip's height |
+| 125 | Three e2e specs fail under `CI=1`, uninvestigated | open.md — found 2026-10-07 by M8 8A S1; triage before wave 8F. A fourth, `top-bar-back…desktop:179`, failed once on 2026-10-08 (8D's QA10) |
 | 126 | The price bar and the breakdown print "De la 0 MDL" for a kitchen holding only customer-supplied bodies | open.md — found 2026-10-07 by M8 8C's QA (QA1); what such a kitchen should show is the owner's; no phase |
 | 127 | No test pins the Russian wording of any leaf, project-wide | open.md — found 2026-10-07 by M8 8C's QA (a surviving mutation); no owner, no phase |
+| 128 | The editor shows a save conflict only inside the panel; an editor with nothing selected says nothing | open.md — found 2026-10-08 by M8 8D's QA (QA11); M4's open question; a product question first, no phase |
+| 129 | A real finger during the scene's first frame is delivered after the rest and lands on the just-opened panel | open.md — recorded 2026-10-08 at M8 8D's close, unmeasured; trigger: the first real-device pass |
+| 130 | A two-finger pinch may read as a tap and drop a pending arrival | open.md — recorded 2026-10-08 at M8 8D's close; an inference; trigger: the first real-device pass |
+| 131 | The camera chips are written twice (editor and review) | open.md — recorded 2026-10-08 (8D ruling 5); trigger: a third place that draws them |
+| 132 | `loadOwnedDesign` takes an id of any shape | open.md — found 2026-10-08 by M8 8D's security review (R1.2); owner: wave 8L, slice S2 |
 
 ## 2026-09-06 audit note
 

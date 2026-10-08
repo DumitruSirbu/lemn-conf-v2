@@ -265,6 +265,30 @@ at the position measured, the presets simply do not show it.
 **Not scheduled.** No milestone currently owns the camera presets' framing at the mobile viewport;
 this is a new gap, not a regression of anything M5B changed.
 
+### Widened 2026-10-08, at M8 wave 8D's close — it now bears on the review's links
+
+**Sources [doc, M8 plan, *8D — QA15 classified under the stopping rule* and *review round 2 and the close*; ADR
+0148 Amendment A, A8].** Wave 8D's QA and visual verifier found the same matter on more views. Nothing is fixed.
+
+- **The overview of a U on a phone crops to wall A** (the visual verifier's V4). Both screens hand the stage one
+  preset; the canvases differ in shape, so what is cropped differs [inf]. Noticed in 8D, not caused by it.
+- **A wall's own view leaves bodies at the wall's ends outside the frame at 390 px** (QA15) [QA-run, relayed]. In a
+  U the first *Perete A · bază* body spans −2.30 to −1.14 and the refusal's wall C body 1.19 to 2.30 in normalised
+  device x, where the frame is −1 to 1; 6 of 8 U first bodies, and 5 of 8 in the narrowed L, straddle the edge.
+- **The review's links now land on a selected body the customer may not see.** *Editează*, the refusal's named
+  bodies and the conflict link select a body at its wall's own view (ADR 0148, rule G2); the panel is open on it
+  and the cabinet may be off the canvas. In eleven arrivals the visual verifier saw the right view and the right
+  body selected and no body visible above the editor's sheet [reviewer-run, relayed].
+- **The ruled answer must cover walls B and C and the overview, not wall A alone.**
+- **QA keeps two declared deferrals** in `apps/web/tests/e2e/qa-8d-review-arrival.adversarial.e2e.spec.ts`; they go
+  red on the day the framing is fixed, and are re-aimed then.
+
+**Why it is not fixed.** It is how the stage frames a view on a tall, narrow canvas: the 3D adapter's, with
+anchors and a fidelity gate, at the Full tier, and D4 keeps every M8 wave out of the adapter. **It waits for a
+wave, not a trigger.** **The owner's call at the hand check.** *Recommended, the architect's:* its own wave before
+M8's phone gate (8T), with D4 lifted for that wave by name, since 8T walks a refused kitchen back to the body to be
+fixed.
+
 ## 53. A LAUNCH REQUIREMENT DECIDED ON DAY ONE THAT NO MILESTONE OWNS: Russian is a supported locale
 
 **This is not new scope, and that is the finding.**
@@ -1769,6 +1793,19 @@ typed room instead of carrying it to the new locale. This contradicts `use-local
 documented contract, which describes the query as preserved. Severity: medium — a customer who
 switches language mid-entry loses typed work, silently. No owner, no phase yet.
 
+**Added 2026-10-08, from M8 wave 8D's review round 2 (R2.1) [doc, M8 plan; ADR 0148 Amendment A].** The same links
+lose the editor's two arrival parameters (`?select=`, `?settings=open`): while the editor, reached by a review
+link, waits for the scene, a language switch removes the parameter with the navigation, so a pending selection is
+lost for the length of the wait (about 5 s in the verifier's eleven arrivals [reviewer-run, relayed]). Nobody has seen it in a browser; the reviewer read it
+from source (`configure/locale-menu.tsx:139`) and QA could not send a switch in the wait. The menu is drawn on
+**three screens**: the room entry, the editor and the review (`room-screen.tsx:149`, `configure-screen.tsx:178`,
+`review-screen.tsx:105`). **One fix serves both**, and it belongs with this entry, which loses work.
+*What must hold when it is fixed:* the switch still *"changes the language and not the place"*
+(`i18n/use-locale-menu.ts:31`), so the path is the same page's; the review, which has no query of its own, gains
+none; and a parameter the arrival hook has already removed does not come back through the link. That hook's
+comment also calls `/d/{id}` *"the only route that renders this menu"*, which three call sites contradict; it is
+corrected with the fix. **Owner:** whoever takes this entry.
+
 ## 74. An open help popover covers the field above it — FOUND 2026-09-22, LOW, NO OWNER, NO PHASE
 
 **Found during M7 wave 7F2's S5b × 7A3 interaction**, 2026-09-22, visual gate: `.lengthHelpText`
@@ -2024,6 +2061,11 @@ the test database, undeleted as its brief required (add-only); it is recorded in
 It belongs with these rows and with backlog 79's; the same owner decision covers it, and no answer to
 Q-U7-2 extends to it.
 
+**Five more, 2026-10-08, from M8 wave 8D's visual verifier [reviewer-run, relayed].** The verifier created five
+designs through the app and left them in the test database, undeleted (add-only): `dnWHjvrO-7480l3hh3u2c`,
+`FzHpljg1AMT0zJWGuc13z`, `fRvYfjiUgKIbHIHnts9Yj`, `W2eQRlJLDYlzek4SaX0Fv` and `y_9k4CnmX1Mo9h7wXnRDS`. They belong
+with the rows above and with backlog 79's; no earlier answer extends to them.
+
 ## 101. The shape-refusal region is kept on purpose, though no shipped path draws it — RECORDED 2026-09-30, NO OWNER
 
 **Recorded at M7B wave U6's close-out.** `room-shape-refusal` and `room.issue.shapeNotBuildable` stay:
@@ -2080,6 +2122,10 @@ owner, no phase.
 is `pnpm gate:e2e-shard-budget`. The next desktop e2e spec lands the shard over the budget unless the
 shards are rebalanced or a fourth is added. M7C waves C1 S3 and C2 to C4 each add or restate e2e specs.
 Not measured by the scribe. No owner, no phase.
+
+**Update 2026-10-08, M8 wave 8D [QA-run, relayed].** At `9f4c123` the desktop shards stand at 69 / 70 / 62 of 70,
+so the middle shard is still exactly at the ceiling; the mobile project went to six shards in `c62feb1` (83 / 79 /
+81 / 83 / 95 / 63 of 125).
 
 ## 107. A design stored before ADR 0135 keeps the old corner geometry — ACCEPTED PRE-RELEASE, 2026-10-01, READ-SIDE FIX NOT BUILT
 
@@ -2258,6 +2304,12 @@ of the same kind, in `apps/web/src/review/review-model.ts`: a comment on `refuse
 called only for a refused kitchen, though the available path calls it too; and the listed-ids expression
 is built twice. Same trigger: when that file is next touched.
 
+**Added 2026-10-08, from M8 wave 8D's close (combined reviewer and visual verifier, relayed).** (1) Two doc
+comments in `use-honour-arrival.ts` still run past ADR 0136's length; trimmed by the next wave that opens the file.
+(2) A faint vertical line beside the locale chip at 1440 px that the visual verifier could not attribute. (3) The
+editor's Russian top-bar title is truncated to *"Конфигур…"* (pre-existing). (4) The locale chip's height, a
+shared component (the verifier's V7). Same trigger as above, except that (4) and (2) need a look first.
+
 ## 125. Three e2e specs fail under `CI=1` and nobody has investigated them — FOUND 2026-10-07 BY M8 8A S1, TRIAGE BEFORE 8F
 
 **Source [doc, M8 plan, *8A figures* S1 row B ii].** A full e2e run with `CI=1` (a build and `next start`)
@@ -2267,6 +2319,10 @@ canWrite: true"*). Backlog 117 (the remote test database dropping connections) d
 is a separate entry; whether they are the same family is unknown. **Owner:** the coordinator. **Trigger:**
 wave 8F is not dispatched until each has been re-run alone and recorded as a flake, a test fault or a defect
 (plan, 8F S0, item 5).
+
+**A fourth, 2026-10-08 (QA10, M8 wave 8D's QA) [QA-run, relayed].** `top-bar-back…desktop:179` (the Control/Meta
+click) failed once under `CI=1` on a 5 s URL wait and passed 4 of 4 on repeat. A pre-existing desktop spec, not
+8D's; classified test-fidelity. It joins the three above for the 8F S0 triage.
 
 ## 126. The price bar and the breakdown print "De la 0 MDL" for a kitchen holding only customer-supplied bodies — FOUND 2026-10-07 BY M8 8C's QA, A PRODUCT QUESTION
 
@@ -2281,3 +2337,40 @@ show? **Owner:** the owner's; C1 itself is the architect's ruling and open to th
 **Source [doc, M8 plan, 8C adjudication, *Wording, for the owner*, relayed from QA].** QA's surviving
 mutation: the plan records only that no test pins the Russian wording anywhere in the project. A fidelity
 fact, not a defect in shipped copy. **Owner:** none; no phase.
+
+## 128. The editor shows a save conflict only inside the panel, so an editor with nothing selected says nothing — FOUND 2026-10-08 BY M8 8D's QA (QA11), PRE-DATES THE WAVE
+
+**Source [doc, M8 plan, 8D adjudication of QA's re-run, rule E5a; ADR 0148 Amendment A].** The editor draws a
+save conflict, and its two controls (reload, overwrite), in the panel, and the panel needs a selection. It is
+the question M4 left open: how a failed background write is told to the customer. The review's conflict link works
+around it by arriving with the first body selected. **A kitchen with no body has no panel to open, and the link
+then lands on an editor that says nothing.** **Owner:** none; a product question first. No phase.
+
+## 129. A real finger during the scene's first frame is delivered only after the scene rests, and lands on the just-opened panel — RECORDED 2026-10-08 AT M8 8D's CLOSE, UNMEASURED
+
+**Source [doc, the coordinator's close-out brief, relayed].** An arrival selects its body when the scene comes to
+rest (about 2.8 s after it mounts); a touch made before then reaches the page after the rest and lands on the
+panel that has just opened. A real touch before the scene rests is on 8D's unproven list; it was not measured.
+**Trigger:** the first real-device pass (iOS Safari is also unproven). **Owner:** the coordinator, at that pass.
+
+## 130. A two-finger pinch may read as a tap and drop a pending arrival — RECORDED 2026-10-08 AT M8 8D's CLOSE, AN INFERENCE
+
+**Source [inf, the combined reviewer's R1.4, relayed].** The customer's own act cancels a pending arrival (ADR 0148,
+E2a); a pinch on the scene during the wait may be read as a tap and cancel it. Not measured; falsified by a real
+pinch that leaves the arrival pending. **Trigger:** the first real-device pass. **Owner:** the coordinator.
+
+## 131. The camera chips are written twice — RECORDED 2026-10-08 (8D ruling 5), TRIGGER NAMED
+
+**Source [doc, M8 plan, 8D restated, ruling 5].** The editor draws the room's view chips and the review draws its
+own; the review styles its own from `review.module.css`. Extracting them now would disturb the tests that read
+`configure.module.css`, and two copies are not three. **Trigger: a third place that draws them** (ADR 0118).
+**Owner:** the wave that adds that place.
+
+## 132. `loadOwnedDesign` takes an id of any shape — FOUND 2026-10-08 BY M8 8D's SECURITY REVIEW (R1.2), POINTER ONLY
+
+**Source [doc, M8 plan, 8D adjudication of review round 1; the reviewer's inference that it is no oracle].** The
+shared owned load, which both `/d/{id}` and `/d/{id}/review` call, does not check that an id has the shape of a
+design id before it queries. It predates the wave, is the same on both doors and answers alike. Ids that are not a
+design id's shape stand in existing tests, so the fix is not free. **Owner: wave 8L, slice S2**, which adds the
+next caller: an id that has not the shape of a design id is refused as *unavailable* before any query, in the one
+function, for every door at once.

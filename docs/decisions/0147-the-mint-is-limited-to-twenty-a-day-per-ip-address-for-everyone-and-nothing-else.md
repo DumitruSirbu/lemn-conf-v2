@@ -1,9 +1,14 @@
 # ADR 0147 — The mint is limited to 20 a day per IP address, for everyone, and nothing else
 
-Status: Accepted
+Status: Accepted (amended 2026-10-08: Amendment A, the unit for IPv4 is a block of 256 addresses; the title's *"per IP address"* is overtaken for IPv4)
 Date: 2026-10-07
 Type: Decision
 Milestone: M8 (waves 8E, 8F and 8G build it; the delivery milestone inherits what it leaves open)
+
+**Read Amendment A at the end first.** The record was written while Q32 was open, and the owner answered it the
+same day, after the record: the 20 a day is counted per block of 256 addresses for IPv4, not per address. The
+title and the unit wherever this text says *address* are overtaken for IPv4; the text is kept and struck where it
+says so.
 
 Supersedes, **for the mint only**, three decisions of
 [ADR 0019](0019-security-baseline-writes-throttling-retention.md): the mint's row in decision 5, decision 4 as
@@ -93,7 +98,10 @@ second tier and no challenge. Whether they ever get one belongs to the delivery 
   change; fixed in 8G's and 8K's own first slice. [inf]
 - **SEC-001's gate does not close in M8.** See below.
 
-### Open: Q32 — for IPv4, one address or the block of 256 around it?
+### ~~Open: Q32~~ Answered 2026-10-07, after this record: the block of 256 (Amendment A)
+
+~~Open: Q32 — for IPv4, one address or the block of 256 around it?~~ The question as it stood when the record was
+written:
 
 The owner said *"per user (ip)"*. ADR 0019 decision 3 counts a /24, to catch *"floods from one host or
 network"*, and warns in the same row that *"CGNAT and mobile carriers put thousands of real customers behind one
@@ -154,7 +162,8 @@ goes on the delivery milestone's list of what data is held where.
 3. **Keep the hourly limits beside 20 a day.** Put to the owner as a question; the answer was *"20 per day"*.
 4. **A per-browser bucket kept beside the address.** Not taken: *"per user (ip)"*. A browser bucket is reset by
    clearing cookies, which ADR 0019 decision 3 already said is its weakness.
-5. **A /24 for IPv4.** Not decided: it is Q32.
+5. ~~**A /24 for IPv4.** Not decided: it is Q32.~~ **Taken, by the owner, 2026-10-07, after this record was written
+   (Amendment A).**
 
 ## Consequences
 
@@ -168,6 +177,46 @@ goes on the delivery milestone's list of what data is held where.
 - The delivery milestone inherits: the DDoS half of Q23 (a bot shield or captcha), whether the one limit gains a
   second tier, the client address and country source, the launch gate, and the data list. See
   [M9](../milestones/M9-delivery-preparation.md).
-- If Q32 is answered "the block", one number in 8F's policy changes and the reduction already exists.
+- ~~If Q32 is answered "the block", one number in 8F's policy changes and the reduction already exists.~~ It was
+  answered "the block"; see Amendment A.
 - The 20 is provisional: the owner said *"we can track and adjust later"*. Changing it is a datum, not a
   decision to re-open.
+
+## Amendment A — 2026-10-08: the unit for IPv4 is the block of 256 (Q32 answered)
+
+Written by the documentation scribe from `docs/milestones/M8-review-contact-success.md` (*The owner's answers to
+Q29, Q31 and Q32, 2026-10-07*) and the coordinator's close-out brief. The conversation is **relayed by the
+coordinator**; the owner's two lines are quoted as relayed.
+
+**The ruling.** Asked Q32, the owner replied first *"hmm what is more limited"*. The coordinator answered that the
+block of 256 is the stricter (20 a day shared by 256 addresses, harder to walk around for someone with many nearby
+addresses, likelier to refuse unrelated customers on one provider's range; a shared single address shares its 20
+either way) and that the architect and the coordinator had both recommended a single address [the coordinator's
+wording, relayed]. The owner then ruled, verbatim as relayed:
+
+> 32 -go with Per block of 256
+
+**It was chosen against both recommendations, after the trade-off was heard.** It is the owner's ruling.
+
+**What changes.**
+
+- **The unit.** For IPv4 the counter is per /24 (a block of 256 addresses), not per address. The decision's
+  *"per IP address"* and the title are overtaken for IPv4. The file keeps its name.
+- **IPv6** stays the /64. That is **the architect's reading of ADR 0019 decision 3 and not the owner's sentence**
+  (*"per-address IPv6 is worthless…"*, *"IPv6 /64 aggregation is not optional"*).
+- **The bound.** One block: **20 rows a day, 10.0 MiB at the largest design** [arithmetic on 8A S1's size
+  (523,972 bytes a row), the architect's, in the plan]. The earlier figure in this record's *What 20 a day admits*
+  is per address; it is now per block.
+- **Who shares an allowance.** Everyone whose address falls in the same 256 shares the 20, whether or not they share
+  an address. A customer can be refused for another customer's use of the same provider range. No record measures
+  how Moldovan providers allocate addresses [inf that sharing is common].
+- **What is still not bounded.** Abuse spread over many blocks is not bounded by the application, as before, and
+  remains a named interim for the delivery milestone.
+- **How the stored value reads (plan decision D10, restated).** There are about sixteen million /24 blocks, so an
+  unkeyed hash of one is undone by trying them all, more easily than a hash of a single address. What it then
+  reveals is a block of 256 addresses and not a person's address, and the row lives a day. The keyed hash is still
+  put to 8E's security reviewer and is not built by default.
+- **8F** sets the policy's prefix to /24 for IPv4 and /64 for IPv6; the wave was to build the reduction for any
+  prefix. **8E** is unchanged: the table stores a hash of the block.
+
+Nothing else in this record changes.

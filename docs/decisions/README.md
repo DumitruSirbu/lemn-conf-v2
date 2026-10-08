@@ -167,8 +167,8 @@ when a record you rely on is marked superseded below, or when planning (architec
 | [0144](0144-an-e2e-wait-on-the-editor-outlasts-the-first-webgl-frames-freeze-by-one-named-bound.md) | An e2e wait on the editor outlasts the first WebGL frame's freeze, by one named bound | Accepted |
 | [0145](0145-a-persistence-retry-covers-an-empty-reply-and-a-retried-write-leaves-no-trace.md) | A persistence retry covers an empty reply, and a retried write leaves no trace (supersedes 0142 d2, d3) | Accepted |
 | [0146](0146-nothing-copied-from-a-connection-value-or-thrown-by-a-driver-leaves-the-persistence-package.md) | Nothing copied from a connection value, and nothing a driver threw, leaves the persistence package | Accepted |
-| [0147](0147-the-mint-is-limited-to-twenty-a-day-per-ip-address-for-everyone-and-nothing-else.md) | The mint is limited to 20 a day per IP address, for everyone, and nothing else (supersedes 0019 d5's mint row, d4 and d3's session bucket, for the mint) | Accepted |
-| [0148](0148-the-review-refuses-one-thing-at-a-time-the-first-the-customer-can-act-on-and-no-cabinet-means-nothing-lemnaria-supplies.md) | The review refuses one thing at a time, the first the customer can act on, and "no cabinet" means nothing Lemnaria supplies | Accepted (8D adds the screen's half at its close) |
+| [0147](0147-the-mint-is-limited-to-twenty-a-day-per-ip-address-for-everyone-and-nothing-else.md) | The mint is limited to 20 a day per IP address, for everyone, and nothing else (supersedes 0019 d5's mint row, d4 and d3's session bucket, for the mint) | Accepted (amended 2026-10-08: IPv4 is counted per block of 256, not per address) |
+| [0148](0148-the-review-refuses-one-thing-at-a-time-the-first-the-customer-can-act-on-and-no-cabinet-means-nothing-lemnaria-supplies.md) | The review refuses one thing at a time, the first the customer can act on, and "no cabinet" means nothing Lemnaria supplies | Accepted (amended 2026-10-08: Amendment A, wave 8D's screen) |
 
 ## Adding the next one
 

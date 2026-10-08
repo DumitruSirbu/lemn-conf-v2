@@ -57,6 +57,13 @@ replaced it — nothing is deleted or rewritten silently.
   decision 4 for any endpoint other than the mint. **Not ruled, in ADR 0147:** IPv4 as one address or a /24
   (Q32), the meaning of a day (the architect's), how an address is stored. ADR 0147 also records that the
   launch gate (the 2026-08-31 correction) moves whole to the delivery milestone, the architect's derivation.
+- **ADR 0147**'s title and decision, *"per IP address"* → **amended for IPv4** by its own **Amendment A**
+  (2026-10-08) on the owner's answer to Q32 (*"32 -go with Per block of 256"*, relayed): the 20 a day is counted
+  per /24, not per address. The Q32 section and Alternative 5 are struck in place. IPv6 stays the /64, the
+  architect's reading and not the owner's sentence. Nothing in ADR 0019 moves further.
+- **ADR 0148** gained **Amendment A** (2026-10-08), wave 8D's half; nothing in an earlier record is superseded.
+  Inside it, E2's condition is replaced by G2, and G1's *"or a language switch"* is struck; the plan keeps the
+  original wording.
 - **Annotated 2026-10-07, M8 wave 8C's close-out, nothing superseded:** the scope ruling (hosting and delivery
   preparation are a separate milestone) carries pointers on **ADR 0114** decision 7 and B5 (the limiter's scope
   is the application's in M8, the WAF's is the delivery milestone's), **ADR 0115** and M8B (M8B builds on M8's

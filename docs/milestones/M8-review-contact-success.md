@@ -3,6 +3,13 @@
 > **STATUS: PLANNED — wave plan written 2026-10-07 at `90927dc`; no wave dispatched.** M8 does not
 > start until the owner says so and M7C has closed (see *What M8 assumes*). Summary: `docs/STATUS.md`.
 >
+> **Updated 2026-10-08, latest: wave 8D is DONE (`7fa5258` … `9f4c123`), not pushed.** The review route and
+> screen 3A/3B shipped; see *8D as built* and Amendment A of
+> [ADR 0148](../decisions/0148-the-review-refuses-one-thing-at-a-time-the-first-the-customer-can-act-on-and-no-cabinet-means-nothing-lemnaria-supplies.md).
+> **M8 is sixteen waves** (8D2 was added after 8D). Next: **8D2**, then 8E, 8I, 8H and 8J are dispatchable.
+> Q29, Q31 and Q32 are answered (Resend; *dulapuri*; the /24). The paragraphs below that say 8D is
+> dispatchable, or M8 is fifteen waves, are history.
+>
 > **Scope restated 2026-10-07, after the owner's answers to Q21–Q27.** Hosting, the database's
 > home, the mail provider, the bot check, the firewall and the rebuilding of runtime errors go to
 > **a separate delivery-preparation milestone**; M8 is *"functionality and basic security for
@@ -949,6 +956,10 @@ otherwise. **Wave 8C's section is not edited here: its QA is running.** *Blocks:
 **Q31 — *Dulapuri* or *corpuri* on screen 3?** *[**Answered 2026-10-07, later: "dulapuri
 everywhere"**, for every place a cabinet is counted or named as a unit, the room line's count
 included. Open only for the four lines that are not counts. See the section above.]*
+*[**The four lines answered later, during wave 8D, 2026-10-07 (relayed): the owner's words and the accepted
+proposals are in ADR 0148 Amendment A, *The owner's copy rulings*: *"Materialul dulapului și al fronturilor"*,
+*dulapul chiuvetei*, *chiuveta everywhere*, and the Russian *шкаф*/*мойку* lines. Not settled: the Russian count
+word, which also counts a fridge and a hood.**]*
 *[Earlier the same day:* **Half answered 2026-10-07.** The owner,
 verbatim, of the refusal sentences: "dulapuri". The three `review.refusalReasons` sentences
 already say so and stand as written. **Still open, asked by the coordinator and not answered:**
@@ -1098,7 +1109,7 @@ both in M9.
 | 8A | Stays. Measurements, reads and answers are in | Its review; nothing else |
 | 8B | **Done** (`4b8f4a4`, ADR 0146) [relayed] | — |
 | 8C | Stays. ~~In adversarial QA~~ ~~QA green (`5c1ae3e`); adjudicated 2026-10-07: a fix round of four items (C1–C3)~~ **DONE 2026-10-07, commits `97e75c6` … `3bda09d`, not pushed.** Logic and clean-code review approve. See *8C as built* | ~~The fix round, a QA check of it, then logic and clean-code review.~~ — Q30 is settled as C3 |
-| 8D | Stays | ~~8C closed. **Dispatchable then**~~ 8C is closed. ~~Dispatchable once the architect adds two criteria~~ **Dispatchable: restated 2026-10-07 as four slices, criteria 11–15 added** (*8D, restated for dispatch*). S1 first |
+| 8D | **DONE 2026-10-08, commits `7fa5258` … `9f4c123`, not pushed.** See *8D as built* and ADR 0148 Amendment A | ~~Dispatchable: restated 2026-10-07 as four slices, criteria 11–15 added (*8D, restated for dispatch*). S1 first~~ — Done. 8D2 follows |
 | 8D2 | **Added 2026-10-08** from 8D's visual review: the rows' second line and the bottom bar, as frames 3A and 3B draw them | 8D closed. One owner point: the material pill on screens 3–5 |
 | 8E | Stays | **Nothing. Dispatchable** |
 | 8I | Stays | 8E's migration number. **Dispatchable** |
@@ -2263,6 +2274,7 @@ under *Wording, for the owner* are unchanged and unanswered, apart from the refu
 
 *Goal.* The customer reaches the review from the editor, reads it on a phone, and goes back to a
 chosen cabinet. *Tier: Light + visual; a security reviewer reads S1 only.*
+**DONE 2026-10-08, `7fa5258` … `9f4c123`, not pushed: see *8D as built* at the end of this section.**
 
 > **Made dispatchable 2026-10-07, after 8C closed (`3bda09d`; close-out `223997c`) [relayed].** The
 > slice table below is superseded by the one in *8D, restated for dispatch* at the end of this
@@ -2985,6 +2997,80 @@ hand check with the scene's height, since the two are one question.
   doors; which body each overflow mark belongs to; a real touch before the scene rests; a language
   switch in the wait; pinch; iOS Safari; a real runner; the whole suite under `CI=1`; the
   first-frame freeze and the release of the WebGL context, which the verifier did not confirm.
+
+#### 8D as built — 2026-10-08
+
+**Done.** Branch `m8-review-contact-success`, local, **not pushed**. HEAD `0ddbf65` at the time of writing
+(the docs commit that holds the close-out list); the wave's last code and test commit is `9f4c123`. Base `7af6737`.
+Commits, oldest first [coordinator-run, from the brief; the roles are the brief's]: `7fa5258` S1, the gated route;
+`cafcf95` S2, the view-only scene; `b2b24e3` S2b, no orbit and the WebGL hook; `02e7fa0` S3, the screen;
+`75860c1` S4, the editor's side; `2d05dac` copy (*dulap* in the settings heading and the two sink extras);
+`95a72fb` QA pass 1 (red: five tests, four findings); `a04a1fc` copy (*chiuvetă*; *шкаф*); `247d729` fix round 1
+(E1–E5); `a863ea3` QA re-run (red: QA8); `7261f82` fix round 2 (E3a, E2a, E5a); `52958da` QA final (red in dev:
+QA12); `67770c3` the StrictMode fix; `04883c9` QA confirmation (green); `8c53977` the review fix (G1–G3; the
+frame's scene height and title); `12a506b` QA check (red: QA15); `c62feb1` CI, the mobile e2e project in six
+shards (a coordinator-only change); `9f4c123` QA re-aim (green). The plan's adjudications are the `docs:` commits
+between them. ADR 0148 is `dee2c82`, and its Amendment A is written with this close-out.
+
+**What shipped.** `/[locale]/d/{id}/review`, gated through the one owned load the editor's page also uses, and
+the proxy's locale routing for `…/review`, `…/contact` and `…/done`; screens 3A and 3B as one page with a pinned
+bottom region; the view-only scene with its three chips and *Vezi în 3D*; the editor's side (*Verifică designul* a
+link; `?select=` and `?settings=open` honoured once on arrival). The rules, the reasons, the alternatives not
+taken, the limits and the unproven list are **ADR 0148 Amendment A** and are not restated here.
+
+**Evidence, with who ran it.**
+
+- [coordinator-run, at `9f4c123`] `apps/web` vitest exit 0, 329 files, 6121 passed; web typecheck exit 0;
+  whole-tree `pnpm format:check` exit 0. The shard-budget guard and its own tests exit 0 at `c62feb1`. **Not run:**
+  `pnpm check`, `pnpm ci:local`, a build. **Nothing has run on a CI runner since the branch was cut, so the
+  six-shard workflow and the earlier CI step change are unproven there.**
+- [QA-run, six passes, a real browser] At `9f4c123`: e2e in dev mode in full, mobile 482 passed, 0 failed,
+  2 skipped, desktop 201 passed. Under `CI=1` a subset (the 8D specs and the back-guard specs), mobile 91 passed,
+  desktop 12 passed. **The full suite under `CI=1` was green at `7261f82` (mobile 480 passed, desktop 201 passed)
+  and has not been repeated at HEAD.** Shard budget: desktop 69 / 70 / 62 of 70; mobile 83 / 79 / 81 / 83 / 95 /
+  63 of 125. Measured at 390 × 844: the two doors answer with equal status, headers and refusal markup for no
+  cookie, a malformed cookie, a foreign visitor and an unknown id in ro and ru; with the real repository and the
+  socket replaced, 17 non-visitor cookies × 10 ids sent 0 queries and a visitor sent exactly 1 per door; the
+  pinned bottom region in Russian is 243.95 px with two sentences (28.9% of 844) and 377.5 px with three and the
+  link (44.7%); 24 stale replacements under eight workers sent 0 requests (21 of 24 red with the fix reverted);
+  the wall C arrival's cause is the stage's first cut computation running with the camera at its seating position.
+- [reviewer-run] Combined: round 1 approve with should-fix, round 2 approve. Security: approve, four notes,
+  *"the review door upholds ADR 0114 d5 exactly as the editor's does, by construction"*. Visual: two rounds on a
+  production build in Chromium at 390 × 844 with real touch; the bottom region's largest measured height 377.52 px
+  (44.73% of 844), unchanged between rounds; spacing 15 / 15 / 10 px and page padding 18 px, matching the frame;
+  the scene 158 px; V1, V2, V3 (as to the view) and V6 closed.
+
+**Review rounds and material findings.** QA pass 1: four findings (E1–E5 followed). QA's re-run: QA8 (a request
+the review must not send), fixed as E3a. Review round 1: R1.1 (a parameter taken off the URL too early; G1), visual
+V3 (a body not on screen after a wall change; G2), V2 (focus under the region; G3), and the frame's scene height
+and title. QA15 (a body outside the frame at its wall's own view) was classified under the stopping rule as none of
+its arms and recorded as backlog 16's matter. Review round 2: R2.1 (a language switch in the wait), recorded as
+backlog 73's. No finding is open under the stopping rule.
+
+**Deviations, with rationale** (all in the plan's adjudications): E2 replaced by G2 (a rule about *cut* walls was
+the wrong question); G1 restated to the reload; criterion 17 restated (the same eye and target, not the same
+crop); criterion 2 clarified (the proxy's list is not a gate); the scene 158 px and no material pill on screens 3–5
+(frame fidelity); the rows' second line and the bottom bar's layout moved to **wave 8D2**; the fifth mobile shard
+became the sixth (five left one shard at 135).
+
+**Named interims 8D leaves.** *Cere oferta* leads to the existing placeholder contact page until 8L; the proxy
+admits `d/{id}/contact` and `d/{id}/done`, which answer not-found until 8L and 8M (as the plan states them); no
+limiter stands in front of the route until 8G; the not-included list is slot text (Q9); desktop is the phone's
+layout at 900 and 1440 px.
+
+**Documentation updated.** ADR 0148 Amendment A; ADR 0147 Amendment A; the decision index and `SUPERSESSIONS.md`;
+this file; `docs/STATUS.md`; `docs/backlog/open.md` and `docs/BACKLOG.md` (16, 73, 100, 106, 124, 125 and five
+new entries); `docs/milestones/M9-delivery-preparation.md`; `docs/best-practices/ci-and-local-gates.md` (checked).
+
+**Deferred, with owner or wave.** Wave **8D2** (the rows' second line, the bottom bar, the chips over the scene;
+the pill if the owner asks). Backlog 16 as it now shows, **the owner's call at the hand check; the architect
+recommends its own wave before 8T.** Backlog 73 (whoever takes it). The id's shape in the shared load: **wave 8L,
+slice S2.** 8K, 8L and 8M each call the shared owned load themselves (written into each). The remaining items are
+backlog entries 124, 125 and five new ones.
+
+**Mail provider.** The plan already records that the owner chose Resend knowing it stores account data and 30 days
+of mail content in the United States (*The owner's answers to Q29, Q31 and Q32*, "Confirmed later the same day");
+the brief's account of the owner's "yes for resend" agrees with it, and nothing was added to that section.
 
 ### 8D2 — screen 3 against its frames (added 2026-10-08)
 
