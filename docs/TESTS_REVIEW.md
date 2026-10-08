@@ -3663,6 +3663,7 @@ two fixes, so it understates how many cases were removed. Test files changed bet
   `room-desktop-line.desktop.e2e.spec.ts`, or raise the desktop shard count from 3 to 7.
 - A product question no record answers: whether a metres field accepts a dangling separator (`3,` `,5`).
 - The empty `test.fixme` of row 2881 records a behaviour no browser test asserts.
-- Roughly forty behaviours now rest on one test each; the wave reports name them.
+- Many behaviours now rest on one test each. The QA agents listed them per wave and the reviewers checked
+  each remaining test is sound, but the lists were not collected into this file, so no total is given.
 - **A file with no row is not proven clean.** This pass worked the review's list; the review's own recall is
   unknown.
