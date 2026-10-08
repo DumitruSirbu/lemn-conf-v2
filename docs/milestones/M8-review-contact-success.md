@@ -427,7 +427,9 @@ Blob; the shop's inbox is the second copy and Neon's six-hour point-in-time rest
 (i) Contact submissions: `INSERT`, plus `SELECT` and `UPDATE` on the non-personal columns only
 (reference, client request id, design id, revision, payload hash, timestamps, notified-at). **The
 application role cannot read a name, a phone number or an e-mail address**, so a leaked
-`DATABASE_URL` does not leak the leads.
+`DATABASE_URL` does not leak the leads. **(Narrowed 2026-10-08, the architect's, on 8I S0's
+figures: `UPDATE` is asked for on notified-at alone, not on the seven. `INSERT` and `SELECT` are as
+answered. The exact statements, and why: *8I — S0's figures, and S1 restated for dispatch*, R1.)**
 (ii) Rate-limit counters: `SELECT, INSERT, UPDATE, DELETE` on that table alone, because pruning is a
 delete. It holds hashes and counts.
 *Recommended: both as stated.* [~~inf~~ **[ven]** *8A figures* §8: Postgres permits the idempotent
@@ -4939,7 +4941,7 @@ back. *Tier: Full + security.*
 | Slice | Does | Files | Reading |
 | --- | --- | --- | --- |
 | S0 | Measures, on the test database, that the idempotent insert works under Q14 (i)'s column grants. Reports before S1 | scratchpad | Q14; ADR 0006; `environments-and-resources.md` |
-| S1 | Migration `0008`: personal columns separate from the rest. A port that records a request and answers its reference, whether it is new and whether it was notified; and marks one notified. A fake | `migrations/0008_create_contact_submissions.sql`, new `contact-submission-store.ts`, `fake-contact-submission-store.ts`, `index.ts` | D7, D8, D16; ADR 0002 security 6, d24; ADR 0008; ADR 0012; ADR 0020, 0042, 0096; ADR 0128; ADR 0145 |
+| S1 | Migration `0008`: personal columns separate from the rest. A port that records a request and answers its reference, whether it is new and whether it was notified; and marks one notified. A fake. **(Restated 2026-10-08 as S1a and S1b, with a third operation: *8I — S0's figures, and S1 restated for dispatch*, R5 and R7.)** | ~~`migrations/0008_create_contact_submissions.sql`, new `contact-submission-store.ts`, `fake-contact-submission-store.ts`, `index.ts`~~ **(six files in two dispatches, R7)** | D7, D8, D16; ADR 0002 security 6, d24; ADR 0008; ADR 0012; ADR 0020, 0042, 0096; ADR 0128; ADR 0145 |
 
 *Criteria.*
 1. Two records with one client request id store one row and answer one reference, also when
@@ -4947,7 +4949,8 @@ back. *Tier: Full + security.*
 2. The reference is unique and random (D16); a collision is retried, never surfaced.
 3. **Under the application role**, selecting a personal column is refused by the database; so are
    `DELETE` and an `UPDATE` of any column but notified-at. Asserted live, beside the existing
-   privilege tests.
+   privilege tests. **(Restated 2026-10-08: the catalog is asked first, for every column, and no
+   statement that could change or show a row is sent. *8I — S0's figures, and S1 restated for dispatch*, criterion 3.)**
 4. A retried write leaves no second row (ADR 0145).
 5. The export statement still names `designs` alone. A test fails if a second table appears in it.
 6. `0008` passes the unattended screen as shipped.
@@ -4955,13 +4958,17 @@ back. *Tier: Full + security.*
 8. **Added 2026-10-07 [ven §8].** The insert writes its conflict target out, on the client request
    id alone, and returns only granted columns. No uniqueness rule on the table includes a personal
    column. A test reads the SQL text the module sends and fails on `RETURNING *` or on a returned
-   personal column; S0's live run under the application role is what proves the grant suffices.
+   personal column; ~~S0's live run under the application role is what proves the grant suffices.~~
+   **(2026-10-08: S0 ran as a scratch role holding the same grants, in a session; not as
+   `app_designs` and not over the HTTP driver. What is and is not proven: *8I — S0's figures, and S1 restated for dispatch*.)**
 
 *QA reading:* the criteria; `retried-writes-leave-no-trace.test.ts`;
 `backup-restore-round-trip.adversarial.test.ts`. *Security reading:* ADR 0002 security section; ADR
 0008; ADR 0012; the migration.
 
-**Owner action after this wave:** apply `0008` and issue Q14 (i)'s grants, preview then production.
+**Owner action after this wave:** ~~apply `0008` and issue Q14 (i)'s grants, preview then production.~~
+**(2026-10-08: apply `0008`, then issue the three statements of R1 in *8I — S0's figures, and S1 restated for dispatch*, which are narrower
+than Q14 (i) as worded; preview, then production.)**
 
 #### The digest secret — decided by the owner 2026-10-08; its rules
 
@@ -5042,7 +5049,7 @@ row and its notice untouched. *When:* whenever that environment's variables may 
 | Slice | Does | Files | Reading |
 | --- | --- | --- | --- |
 | S0 | As written: measures, under Q14 (i)'s column grants, that the idempotent insert works. **Added:** that the application's role can compare a request's digest and read no personal column while doing it | scratchpad | Q14; ADR 0006; this section |
-| S1 | As written, with one column made exact: **`payload_digest`, sixty-four lowercase hexadecimal characters by a check, handed in by the caller.** The port takes it as a value it cannot make | as written | this section; `sha256-digest.ts` |
+| S1 | As written, with one column made exact: **`payload_digest`, sixty-four lowercase hexadecimal characters by a check, handed in by the caller.** The port takes it as a value it cannot make. **(Split 2026-10-08 into S1a and S1b: *8I — S0's figures, and S1 restated for dispatch*, R7.)** | as written | this section; `sha256-digest.ts` |
 
 - **Criterion 1, made exact.** One request id and the same digest answer the stored reference.
   One request id and another digest are refused with their own code, and the stored row is as it
@@ -5064,6 +5071,307 @@ or log line carries a field's value (criterion 7). **And in 8F's S0:** ~~that ke
 is right;~~ the encoding against forgery by a subject **and against one use being read as the
 other, now that one secret serving both is the owner's ruling**; the refusal when the variable is
 unusable; and that no fallback exists.
+
+#### 8I — S0's figures, and S1 restated for dispatch, 2026-10-08
+
+**State.** HEAD was `35a3974` when this was read, tree clean; `dd21412` landed while it was written
+and touches no file cited here [ran: `git log`, `git diff --name-only`]. S0 is in. Every figure below is
+**[developer-run]**: the architect read the raw output and the script (`m8-8i-dev/run4.txt` and
+`s0-measure.mts`, session scratchpad) and re-ran nothing. A probe is cited by the number its line
+begins with. **[src]** is a file read at HEAD, **[doc]** this plan or an ADR, **[inf]** the
+architect's inference, with what would falsify it.
+
+**What S0 ran on.** `lemn-conf-v2-staging`, PostgreSQL 18.6, one transaction, rolled back; 23 roles
+and 11 relations before, and the same after [the after-check is relayed by the coordinator; it is
+not in `run4.txt`]. A scratch table of ten columns and a scratch role holding
+`INSERT`, `SELECT` on the seven non-personal columns and `UPDATE (notified_at)`; then a second
+variant with `UPDATE` on all seven. **Not what it ran on:** the role `app_designs`; the HTTP driver
+(it used a session); two connections at once; the table as S1 makes it (no `jsonb`, no nullable
+column but notified-at); an identity or a sequence.
+
+| Measured | Probes |
+| --- | --- |
+| One statement answers a new id, the same id with the same digest, and the same id with another digest: `insert … on conflict (client_request_id) do update set notified_at = t.notified_at returning t.reference, (t.reference = $2), (t.payload_digest = $5), t.notified_at` | 06–08 |
+| `do nothing … returning` answers no row on a replay, so the reference needs a second read | 03, 04 |
+| A read by client request id, comparing the digest, names no personal column and is answered | 04, 25–27 |
+| Refused with `42501`: `returning *`, a personal column, the whole row, `xmax`; `set` or `where` on a personal column inside `do update`; `select`, `where` and `order by` on a personal column, `select *`; `delete`, `truncate`; an `update` of every column but notified-at, and one of notified-at with a personal column in its `where`; the targeted insert once `SELECT` on the client request id is revoked | 11–13, 21; 18, 19; 28–34; 36–38; 40–49; 65 |
+| A reference already stored, under the targeted statement: `23505` on the reference's own named constraint, and its `DETAIL` holds the key. With no target written, a duplicate is answered as no row and no error | 10; 15 |
+| A check violation's `DETAIL` lists the row the statement sent, personal values included. **It ran as the scratch role, not the owner** [src `s0-measure.mts:69` sets the role, `:124` is the first reset, the two probes are `:97-98`] | 22, 23 |
+| Under the wider variant the role rewrote a stored reference, design id and digest, and an upsert replaced a stored reference | 52–54, 59 |
+| `count(*)` is answered. `pg_stats` shows the role no row for a personal column, before and after `ANALYZE`, and three for the others | 35; 50, 51, 62 |
+| With a unique index on the e-mail, the targeted insert answers `23505` for an address already stored | 64 |
+
+**R1 — the grant. The architect's ruling, inside the owner's answer as its ceiling; the owner
+issues it and may overrule it.** Q14 (i) as answered: `INSERT`, and `SELECT` and `UPDATE` on the
+seven non-personal columns. **Narrowed: `UPDATE`, from the seven to notified-at alone.** `INSERT`
+and `SELECT` are as answered. Nothing is added.
+
+- *Why.* (a) Probes 52–54 and 59: with the wider privilege a leaked credential makes a stored
+  request answer another reference, or makes a changed payload read as the same one, and criterion
+  1's *"the stored row is as it was"* would rest on the code alone. (b) *"Grant it when a feature
+  actually needs it, not pre-emptively"* [doc ADR 0008]; after the insert the store writes one
+  column. (c) The plan said both on one day. Q14's parenthesis lists what is non-personal and was
+  read for both verbs, while criterion 3 allowed notified-at only. Both sentences are the
+  architect's, they disagreed, and this settles them.
+- *Inside or outside the answer.* Every privilege in the narrower set is one the owner approved, so
+  issuing it goes past nothing he said. It is not the set he was shown. **He is told so in words
+  when he is asked to issue it.** If he prefers the wider set, no code changes; criterion 3's
+  expected set does.
+- *Not taken.* The grant as worded (above). Narrowing `SELECT` as well, to the four columns the
+  statements read: it is not measured under exactly four, 8K may need the row's age for the
+  provider's day-long key [doc 8J criterion 11], and the other three being readable is what the
+  owner was told.
+- **The statements the owner is asked to issue, after `0008`, by the runbook's step 4:**
+
+  ```sql
+  GRANT INSERT ON TABLE public.contact_submissions TO app_designs;
+  GRANT SELECT (
+      reference, client_request_id, design_id, design_revision, payload_digest, created_at, notified_at
+    ) ON TABLE public.contact_submissions TO app_designs;
+  GRANT UPDATE (notified_at) ON TABLE public.contact_submissions TO app_designs;
+  ```
+
+  Not `ALL`, not `WITH GRANT OPTION`, nothing to `PUBLIC`, no table-wide `SELECT`, `UPDATE` or
+  `DELETE`. **S1 does not wait for this.**
+
+**R2 — the insert's form: `do update` that changes nothing. The architect's.** It is the statement
+of probes 06–08. `do nothing` with a read is not taken.
+
+- *Why.* One statement answers new, replay and conflict. It is the form the counter store already
+  uses [src `neon-rate-limit-store.ts`]. Postgres says of `do update` that it gives an atomic
+  insert-or-update outcome under concurrency [inf: recalled from the `INSERT` page, not fetched
+  today; **the logic reader quotes the page, or this reason goes**]. A `do nothing` whose read is in
+  the same statement reads at the statement's own snapshot: a twin that commits after the statement
+  began is skipped by the insert and unseen by the read, so the answer is no row and no error
+  [inf, not measured]. A read in a second statement would see it, at two round trips and an answer
+  put together from two moments.
+- *Cost.* A replay writes a new version of a row whose every value is unchanged. `record` meets a
+  stored row only when the lookup said absent and a twin landed in between, or when a statement is
+  repeated (ADR 0145), so it is rare [doc 8K, *the order of checks*].
+- **What QA proves live**, through the store, over the HTTP driver, on the test database:
+  1. N concurrent `record` calls with one id and one digest, each with its own proposal: one row, N
+     equal references, exactly one *new*. Run often enough to be a race; QA says how often and why.
+  2. The same with two digests mixed: one row, whole from one caller, never columns of two; every
+     caller holding the other digest answers *conflict*; the row is the same before and after.
+  3. `record` racing `markNotified`: once any answer says notified, none after it says otherwise,
+     and the stored instant never changes once set.
+  4. The first reply lost (`lose-the-first-reply.ts`), for `record` and for the mark: the rows equal
+     a clean run's, and the repeated `record` answers *new*.
+- **What QA cannot prove:** any of it under the column grants with two connections. A role made in
+  an open transaction is invisible to a second connection, and a committed role is a provisioned
+  resource no agent makes. Recorded as unproven until the owner's grant on preview. [inf: a
+  privilege is checked for a statement and does not depend on who else is writing.]
+
+**R3 — a driver's error carries the row, so nothing of it leaves. The architect's, applying ADR
+0146 B3.** Probes 22 and 23: the `DETAIL` of a `23514` holds every value the statement sent. Probe
+10: a `23505` holds the key.
+
+- **Every failure leaves as one store error** whose cause is `reducedCauseOf`'s two fields, the
+  type name and the SQLSTATE [src `migration-errors.ts`]. *Must not:* the driver's `message`,
+  `detail`, `where`, `hint`, `constraint` or the error itself rides on anything thrown. The store
+  logs nothing.
+- **`23505` on the reference's constraint** is consumed inside the store (R4). **Any other `23505`,
+  a `23514`, a `23502` and every other failure** is the store error. A reply that is not exactly the
+  rows the statement names is the store error, with no cause.
+- **The digest's shape is refused in code before a statement is sent: yes.** So is everything else
+  the table constrains but the reference's uniqueness: the id's shape, the reference's, a target
+  that is neither or both, a design without its snapshot. One check, shared by both stores, as
+  `requireValidBuckets` is; a refusal says which part and holds no value. *Why, when B3 already
+  keeps the `DETAIL` in:* it is the caller's defect and deserves its own sentence; a statement
+  certain to fail does not carry a person's details to the server, whose own log may keep a failed
+  row [inf; what Neon keeps is not known]; and it holds if a later change lets a cause through.
+- **Criterion 7's test is B1's form.** A driver error holding a recognisable fake of every stored
+  field (the contact fields, the document, the price) in its message, its detail, every own property
+  and a nested cause: none appears in the thrown error's message, stack, own properties, cause chain
+  or `util.inspect` at unlimited depth.
+- *Not measured:* which fields the HTTP driver's error has. QA captures one real `23514` on the test
+  database with fakes and feeds it through the store's translation.
+
+**R4 — *new* is the stored reference equalling this call's proposal, computed in the statement.
+The architect's.** `xmax` is refused (probe 21).
+
+- *Sound because* a proposal is drawn fresh for each call from forty random bits (R5): a replay's
+  proposal equals the stored reference once in 2^40. And it is right under ADR 0145: a repeated
+  statement re-sends the same proposal, so a call whose first attempt landed still answers *new*
+  [inf; R2's proof 4].
+- **What it asks of criterion 2.** Inside one call, a **transient repeat re-sends the same
+  proposal** and a **collision draws a new one**. A collision is SQLSTATE `23505` **and** the
+  constraint named `contact_submissions_reference_is_unique`, read for the comparison and not
+  copied. At most three proposals, then the store error: three collisions in forty bits is a broken
+  generator, which should be seen and not looped on [inf]. *Must not:* a collision is answered as a
+  replay, a conflict or a success; another request's row changes; `on conflict` is written without
+  its target (probe 15).
+- *For 8K, recorded:* **whether to send is decided on *notified*, never on *new*.**
+
+**R5 — the table, and the port. The architect's; the reference's look is owner-visible.**
+
+*The role reads these seven, by Q14 (i).*
+
+| Column | Type and rule |
+| --- | --- |
+| `client_request_id` | `text`, the primary key and the conflict target. Check `^[A-Za-z0-9_-]{16,64}$`, the domain's shape [src `contact-submission.ts`]. Plain `text`, no `citext`, no `lower()`: with the check, equal means the same bytes [inf] |
+| `reference` | `text not null`, unique under the name `contact_submissions_reference_is_unique`. Check `^[0-9A-Z-]{6,32}$`: a label and not a body. The exact look is code's, so it can change without a migration |
+| `design_id` | `text`, null for a callback. **No foreign key:** a cascade would delete a lead with its design and a restriction would refuse the owner's manual delete; the row holds its own snapshot. No shape check: not every stored id is known to have the generator's shape (backlog 146) |
+| `design_revision` | `bigint`, null with the design id |
+| `payload_digest` | `text not null`, check `^[0-9a-f]{64}$` |
+| `created_at` | `timestamptz not null default now()` |
+| `notified_at` | `timestamptz`, null until marked |
+
+*The role writes these once and reads none of them.*
+
+| Column | Type | Personal |
+| --- | --- | --- |
+| `name`, `phone`, `phone_normal_form`, `locality`, `channel` | `text not null` (`locality` may be empty) | yes |
+| `email` | `text`, present exactly when the channel is e-mail | yes |
+| `consent_text_version`, `locale` | `text not null` | no |
+| `intent` | `text`, null when a design is named | no |
+| `design_document`, `priced` | `jsonb`, null for a callback | no |
+
+- *Two table checks*, each reading only whether a non-personal column is null: exactly one of a
+  design id and an intent; the revision, the document and the price are present exactly when the
+  design id is.
+- **D7.** The priced lines, the total and the book's version are stored whole, as `priceDesign`
+  returned them, in `priced` (`lines`, `totalMinor`, `pricingVersion`) [src `price-lines.ts:89-114`].
+  No column repeats one: a second copy could disagree. They are not personal. **The role does not
+  read them:** they are not in Q14's list and nothing built reads them back.
+- *Must not:* a check on a personal column; a default but `now()`; a generated column; an index but
+  the two unique ones; an identity or a sequence; a uniqueness rule that includes a personal column.
+  Probe 64 is why for the last: the insert would tell the role whether an address is already stored.
+- **Criterion 9, against every column.** `payload_digest` comes from personal fields, outside the
+  database and outside this package, under the secret. `phone_normal_form` comes from the phone and
+  is itself unread. `reference` comes from nothing. The two instants are the server's clock. The
+  checks read whether five non-personal columns are null. It holds. What the readable seven say of a
+  person: that a request exists [inf].
+- **The reference: `LM-` and eight characters of `0123456789ABCDEFGHJKMNPQRSTVWXYZ`**, drawn with
+  `nanoid`, the package `generateDesignId` already uses [src `generate-design-id.ts`]. Forty bits;
+  no `I`, `L`, `O` or `U` among the eight, so it reads aloud. Frame 5A's four digits cannot be
+  random: among ten thousand values a collision is likelier than not by about the hundred and
+  twentieth request. It is a label and is meant to open nothing [inf; **the security reader
+  confirms that nothing treats it as a credential**]. The owner sees it on 5A and may ask for
+  another look at no cost to the schema.
+
+*The port: three operations, and nothing that returns a personal field, the snapshot, a list or a
+count; no delete.*
+
+| Operation | Takes | Answers |
+| --- | --- | --- |
+| The lookup | a client request id and a digest | *absent*; *stored* with the reference and whether notified; or *conflict* |
+| Record | the id; the digest, which it cannot make; the validated request's contact fields, locale and target; for a design, 8H's snapshot. Not the honeypot's answer, not the elapsed time | *stored* with the reference, whether new, whether notified; or *conflict* |
+| Mark notified | a client request id | nothing. A second mark keeps the first instant. No such row is the store error |
+
+- *Conflict* is an outcome, as this package's other outcomes are, and not an exception. **It holds
+  no reference and nothing of whether a notice was sent** [doc ADR 0150, *8K*].
+- *Whether notified* is `notified_at is not null`, computed in the statement. The instant does not
+  leave the store. The mark writes `coalesce(notified_at, now())`, the database's clock.
+- *Why a lookup, when `record` answers the same:* 8K counts the contact buckets only for a new
+  request and before anything is stored [doc 8K, *the order of checks*; criterion 6].
+- *Every statement's predicate is the primary key.* The lookup and the mark are probes 04, 25–27
+  and 39, with `coalesce` in place of `now()` [inf: it reads a granted column].
+- *The fake* keeps the same contract in memory, takes its proposals from the caller so a test can
+  force a collision, and lets a test read what it holds. The Neon store has no such reading.
+  Production wiring passes no proposer (8K's; the security reader checks it there).
+
+**R6 — `count(*)` is a recorded limit, not a ruling. The architect's, said to the owner with the
+grant.** Postgres has no privilege to read a column and not count its rows, and without `SELECT` on
+the client request id the insert is refused (probe 65). What a leaked `DATABASE_URL` shows of the
+requests, in full: how many; when each came and was notified; each one's reference, design id,
+revision and keyed digest; and, through `designs`, the kitchen as it is now. **Not who and not how
+to reach them** (probes 28–34, 50, 51), **and not the price quoted**, which is outside the seven. It
+can also add rows, and **mark a
+request notified, which stops a retry from notifying the shop.** That comes with the one `UPDATE`
+the flow needs. *Trigger for more:* the delivery milestone's way to see a request never notified.
+
+**R7 — scope: two dispatches.** The Neon class has its own file beside its port (8E, C-R1.2), and
+the reference has its generator, so S1 is six production files and more than five items.
+
+| Slice | Does, in this order | Production files | Reading |
+| --- | --- | --- | --- |
+| S1a | (1) `0008`, in `0007`'s form, and `migrate:unattended-check`. **Stop: the security reader reads the file and R1's statements before any other command runs.** (2) The port: its types, outcomes, error and the one check. (3) The reference's generator and its predicate. (4) The fake, and one contract suite both stores will run. (5) The exports | `migrations/0008_create_contact_submissions.sql`; new `contact-submission-store.ts`, `generate-submission-reference.ts`, `fake-contact-submission-store.ts`; `index.ts` | this section; Q14 with its pointer; D7, D8, D16; `0007_create_rate_limit_counters.sql`, `0006_create_design_share_links.sql` (the header, the frozen bytes); `migration-safety.ts`; `rate-limit-store.ts`, `fake-rate-limit-store.ts`, `sha256-digest.ts`, `generate-design-id.ts`, `design-revision.ts` (a shape stated twice and tied by a property); the domain's `contact/contact-submission.ts`, `contact-fields.ts`, `submission-snapshot.ts`, `pricing/price-lines.ts:89-114`; `tests/support/rate-limit-store-contract.ts`; ADR 0008 and its notes; ADR 0146 B2, B3; ADR 0150 decisions 3 and 5 and *What later waves inherit*; ADR 0020, 0042, 0096; ADR 0136 |
+| S1b | (1) The Neon store's three statements. (2) The collision loop and the failure translation. (3) A test that reads every statement's text and the migration's (criteria 8, 9). (4) The grant test and a column helper (criterion 3). (5) The contract suite on the test database, and the export test (criterion 5) | new `neon-contact-submission-store.ts`; `index.ts` | this section; `neon-rate-limit-store.ts` whole; `retry-on-transient-failure.ts`; `open-application-database.ts`; `migration-errors.ts`; `design-row-source.ts`; `tests/application-role-privileges.test.ts`, `tests/support/table-privileges.ts`, `connection-facts.ts`; *8E — the three reviews*, criterion 13; S0's `run4.txt`; ADR 0145 with its note of 2026-10-08; ADR 0146 B1 to B3; ADR 0128; ADR 0149; ADR 0151 |
+
+- **Why the stop in S1a.** Live suites apply the pending migrations to the test database
+  [src `tests/neon-rate-limit-store.test.ts:53`, `retried-writes-leave-no-trace.test.ts:179`], and
+  a file's bytes are frozen where it has run. So the first run of the persistence suite with `0008`
+  on disk fixes the table there. If the screen refuses a clause of R5, the developer reports before
+  changing the table.
+- *Must not, both slices:* `0001` to `0007` change; a statement of the counter store or of the
+  design repository changes; the store reads a variable but its connection (criterion 10); anything
+  under `apps/` changes.
+
+*Criteria, as they now stand for dispatch.* 1 to 10 keep their numbers.
+
+1. One client request id stores one row and answers one reference, also for N concurrent calls, of
+   which exactly one answers *new*. The same id with another digest answers *conflict*, and every
+   value of the stored row is as it was. A row is never made of two callers' values.
+2. The reference is drawn from a cryptographic generator and from nothing else: no clock, counter,
+   id or digest. A collision is retried as R4 says and never surfaced. A replay whose proposal
+   equals **another** request's reference answers the replayed row and no error.
+3. **The role holds exactly R1's set, and the test follows the catalog, not a list of three.** For
+   every column the catalog lists for the table: `SELECT` is held exactly on the seven, `UPDATE`
+   exactly on notified-at. On the table: `INSERT` and no other privilege the server knows. So a
+   column added later is unread until someone names it. **Built as 8E's criterion 13:** the catalog
+   is asked first; a statement is sent only after the catalog said it will be refused, and only one
+   that would touch and show nothing if allowed (a personal column read `where false`; a delete and
+   an update of a non-notified column for an id that does not exist). Skipped while the table is
+   absent; red once it exists without its grant.
+4. A repeated statement leaves no second row, and a repeated mark keeps the first instant (ADR
+   0145). A replayed `record` never clears a mark.
+5. The export statement still names `designs` alone. A test fails if a second table appears in it.
+6. `0008` passes the unattended screen as shipped, and its bytes do not change after the first live
+   run.
+7. No error from this module holds a field's value, tested in B1's form (R3). The module logs
+   nothing.
+8. Every `on conflict` writes its target, the client request id alone. Every `returning`, `where`
+   and `set` names only granted columns. A test reads the text of each statement and fails on
+   `returning *`, on a column outside the seven anywhere but the insert's column list, and on an
+   untargeted `on conflict`.
+9. Nothing the database or this package can compute is derived from a personal column, checked
+   against R5's *must not* list in the migration's text and in every statement.
+10. The store holds no secret and reads no variable but its connection.
+11. **Added.** The lookup sends no write. For an id never stored it answers *absent*; for a stored
+    one, the reference, *notified* and *conflict* are exactly what a `record` of the same id and
+    digest would answer.
+12. **Added.** A value the table would refuse is refused in code first, by the one shared check,
+    with no value in the refusal. A property ties the store's id shape to the domain's: every id
+    `validateContactSubmission` accepts, the store accepts.
+13. **Added.** The fake and the Neon store pass one contract suite. The port has no operation that
+    answers a personal field, the snapshot, a list or a count.
+
+*QA reading:* the criteria above, and R2's four proofs; S0's `run4.txt`;
+`retried-writes-leave-no-trace.test.ts` and `support/lose-the-first-reply.ts`;
+`qa-8e-rate-limit-live.adversarial.test.ts` (the form of a race);
+`qa-8e-rate-limit-driver-failures.adversarial.test.ts` and `support/leaked-connection-markers.ts`
+(a driver's error with markers); `backup-restore-round-trip.adversarial.test.ts`;
+`support/rate-limit-test-eras.ts`; ADR 0128; ADR 0146 B1; ADR 0151. Its rows carry a marker only
+tests write, in the client request id, are deleted on the test database alone, and the count
+removed is reported. No real person's details in any fake.
+
+*Logic reader:* R2, R4, R5; the port and both stores; ADR 0145; D8; 8K's *order of checks*; the
+PostgreSQL `INSERT` page on `ON CONFLICT`, to quote for R2. *Clean-code reader:* the six files and
+their tests; `rate-limit-store.ts`, `neon-rate-limit-store.ts` and `fake-rate-limit-store.ts` as
+the pattern; ADR 0136; `engineering-conventions.md`. *Security reader:* **first, alone, at S1a's
+stop: the migration and R1's statements.** Then R1, R3, R6; criteria 3, 7, 8, 9, 10; `run4.txt`; the
+grant test and its helper; *8E — the three reviews*, criterion 13; ADR 0002's security section; ADR
+0008; ADR 0012; ADR 0146 whole; the PostgreSQL pages for `has_column_privilege` and for what an
+error's `DETAIL` shows a role, to check the two inferences this section rests on them.
+
+**For the owner. None of it blocks S1.**
+
+- The three statements of R1, after `0008`, preview then production, **and that they are narrower
+  than what Q14 (i) said.**
+- What a leaked credential still shows and can do (R6).
+- The reference's look (R5), when he sees 5A.
+
+**For 8K's S0, recorded and not decided here.** A retry of a request that was stored and not
+notified rebuilds the notice from the live design, at the stated revision. If the customer has
+edited since, or the price book has changed, the same bytes cannot be rebuilt [inf, from 8J
+criterion 11 and 8K's order of checks]. Reading the stored snapshot back would be a wider grant
+than Q14 and is the owner's. The row's age is readable under R1 and the port does not answer it
+yet.
+
+**Not proven, after S0.** Anything as `app_designs`: R1's statements have run nowhere. The grant
+with two connections (R2). The HTTP driver's error fields (R3). `do update`'s atomicity is
+recalled, not quoted (R2). That `has_column_privilege` counts a table-wide grant [inf, recalled].
 
 ### 8J — mail, and the shop's notification
 
