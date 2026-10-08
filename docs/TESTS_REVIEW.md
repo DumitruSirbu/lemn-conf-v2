@@ -111,289 +111,289 @@ hand-picked example). Several pairs are byte-equivalent, for example `write-auth
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 346 | ignores a case-variant prefix `__host-lemnaria_visitor` | 1 | **Mutation survived**. Mutation: apps/web/src/lib/server/visitor.ts readVisitorValue — also reads cookie `__host-lemnaria_visitor` as a fallback. Went red instead: apps/web/tests/app/api/designs/qa-7e3b-owner-gate.adversarial.test.ts:314 property 'criterion 2 — one refusal across every refusal case (GET)' went red (passes on baseline, EXIT=0) | Test only asserts minted value != KNOWN_VALUE; under H1 every mint is fresh so adopting the wrong-case name still passes. No visitor-identity/qa-7e3a-visitor test went red. |
+| 346 | ignores a case-variant prefix `__host-lemnaria_visitor` | 1 | **Mutation survived**. Mutation: apps/web/src/lib/server/visitor.ts readVisitorValue — also reads cookie `__host-lemnaria_visitor` as a fallback. Went red instead: apps/web/tests/app/api/designs/qa-7e3b-owner-gate.adversarial.test.ts:314 property 'criterion 2 — one refusal across every refusal case (GET)' went red (passes on baseline, EXIT=0) | Test only asserts minted value != KNOWN_VALUE; under H1 every mint is fresh so adopting the wrong-case name still passes. No visitor-identity/qa-7e3a-visitor test went red. | **W1-A strengthened** — red under mutation |
 
 **`tests/app/api/designs/share-link-route.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 364 | covers every case × method combination (${MATRIX_CASES.length} total) | 1 | **No production input** (static) | share-link-route.test.ts:365 `expect(MATRIX_CASES.length).toBe(ALL_REFUSAL_CASES.length * ALL_METHODS.length)`; MATRIX_CASES is the flatMap of those same two file-local arrays (lines 328, 348, 356-361). No production symbol feeds either side. |
+| 364 | covers every case × method combination (${MATRIX_CASES.length} total) | 1 | **No production input** (static) | share-link-route.test.ts:365 `expect(MATRIX_CASES.length).toBe(ALL_REFUSAL_CASES.length * ALL_METHODS.length)`; MATRIX_CASES is the flatMap of those same two file-local arrays (lines 328, 348, 356-361). No production symbol feeds either side. | **W1-A strengthened** — red under mutation |
 
 **`tests/app/api/designs/write-authorization.adversarial.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 361 | is absent from the mint response body and from the GET response | 1 | **Mutation survived**. Mutation: apps/web/src/app/api/designs/route.ts:~66 body { id, revision } -> { id, revision, token: writeToken.token }. Went red instead: apps/web/tests/app/api/designs/write-authorization.test.ts 'POST /api/designs > never puts the token in the response body, where script could read it' went red | mintedBody comes from a second POST whose token differs from the first mint's `token`, so the not.toContain can never fail; GET half is real. |
+| 361 | is absent from the mint response body and from the GET response | 1 | **Mutation survived**. Mutation: apps/web/src/app/api/designs/route.ts:~66 body { id, revision } -> { id, revision, token: writeToken.token }. Went red instead: apps/web/tests/app/api/designs/write-authorization.test.ts 'POST /api/designs > never puts the token in the response body, where script could read it' went red | mintedBody comes from a second POST whose token differs from the first mint's `token`, so the not.toContain can never fail; GET half is real. | **W1-A strengthened** — red under mutation |
 
 **`tests/app/api/designs/write-authorization.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 466 | refuses an empty column wider than the ceiling, and stores nothing | 1 | **Mutation survived**. Mutation: packages/configurator-domain/src/validate-design.ts:236 deleted `...findOversizedEmptyColumns(emptyColumns),` (domain rebuilt, restored, rebuilt). Went red instead: apps/web/tests/app/api/designs/qa-5g.adversarial.test.ts:188 'refuses a space one millimetre over the ceiling, and stores nothing' went red | Fixture also overlaps seeded placements so the overlap refusal alone yields 400 DESIGN_INVALID; the single-fault twin in qa-5g is the real witness. |
+| 466 | refuses an empty column wider than the ceiling, and stores nothing | 1 | **Mutation survived**. Mutation: packages/configurator-domain/src/validate-design.ts:236 deleted `...findOversizedEmptyColumns(emptyColumns),` (domain rebuilt, restored, rebuilt). Went red instead: apps/web/tests/app/api/designs/qa-5g.adversarial.test.ts:188 'refuses a space one millimetre over the ceiling, and stores nothing' went red | Fixture also overlaps seeded placements so the overlap refusal alone yields 400 DESIGN_INVALID; the single-fault twin in qa-5g is the real witness. | **W1-A removed** — redundant; a named sibling went red under the same mutation |
 
 **`tests/app/configurator/configure/qa-w4-top-bar.adversarial.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 249 | starts the canvas where the stylesheets put it / accounts for every pixel of the viewport it was measured at / puts every tap inside the canvas box the spec declares | 1 | **No production input** (static). Mutation: configure.module.css:596 desktop row 76px -> 80px (to settle the other two cases) | Group split. Only 'puts every tap inside the canvas box the spec declares' is static: `expect(Number(y)).toBeGreaterThan(originY)` compares tests/e2e/support/desktop-scene-points.ts against numbers parsed from prose in the e2e spec; no production symbol feeds it. The other two are tied to the stylesheet's 76px (DESKTOP_HEADER_HEIGHT_PX) and went red, so they are killed. |
+| 249 | starts the canvas where the stylesheets put it / accounts for every pixel of the viewport it was measured at / puts every tap inside the canvas box the spec declares | 1 | **No production input** (static). Mutation: configure.module.css:596 desktop row 76px -> 80px (to settle the other two cases) | Group split. Only 'puts every tap inside the canvas box the spec declares' is static: `expect(Number(y)).toBeGreaterThan(originY)` compares tests/e2e/support/desktop-scene-points.ts against numbers parsed from prose in the e2e spec; no production symbol feeds it. The other two are tied to the stylesheet's 76px (DESKTOP_HEADER_HEIGHT_PX) and went red, so they are killed. | **W1-A strengthened** — red under mutation |
 
 **`tests/app/configurator/configure/top-bar-box.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 468 | is a button that opens a list of links, one per configured locale / is named by a sentence rather than by the two letters it draws / keeps the sentence as the pill's accessible name | 3 | **Mutation survived**. Mutation: locale-menu.tsx: aria-haspopup="true" and (separately) aria-label={content.configure.localeMenu} turned into attribute-position /* comments */; configure-screen.tsx:148 aria-label={content.configure.step} likewise. Went red instead: tests/i18n/locale-menu.dom.test.ts 'gives ro/ru a trigger that says what it opens...' (haspopup) and 'names ro's/ru's trigger with a sentence...' (aria-label) went red | Source-text toContain passes while the attribute is gone from the rendered element. The pill's aria-label mutation (case 3) is survived-unwitnessed: the whole tests/app/configurator/configure dir (214 tests) stayed green. |
-| 522 | draws the caret the frames draw, and hides it from a screen reader | 1 | **Mutation survived**. Mutation: locale-menu.tsx:123 removed aria-hidden="true" from the localeCaret span. Went red instead: tests/i18n/locale-menu.dom.test.ts 'hides the caret from the accessibility tree, and draws it for everyone else' went red | Case asserts only the '▾' text and a non-empty .localeCaret rule; nothing about hiding it from a screen reader. |
+| 468 | is a button that opens a list of links, one per configured locale / is named by a sentence rather than by the two letters it draws / keeps the sentence as the pill's accessible name | 3 | **Mutation survived**. Mutation: locale-menu.tsx: aria-haspopup="true" and (separately) aria-label={content.configure.localeMenu} turned into attribute-position /* comments */; configure-screen.tsx:148 aria-label={content.configure.step} likewise. Went red instead: tests/i18n/locale-menu.dom.test.ts 'gives ro/ru a trigger that says what it opens...' (haspopup) and 'names ro's/ru's trigger with a sentence...' (aria-label) went red | Source-text toContain passes while the attribute is gone from the rendered element. The pill's aria-label mutation (case 3) is survived-unwitnessed: the whole tests/app/configurator/configure dir (214 tests) stayed green. | **W1-A part** — two cases removed as redundant (siblings red); the pill's accessible name strengthened and moved to `locale-menu.dom` |
+| 522 | draws the caret the frames draw, and hides it from a screen reader | 1 | **Mutation survived**. Mutation: locale-menu.tsx:123 removed aria-hidden="true" from the localeCaret span. Went red instead: tests/i18n/locale-menu.dom.test.ts 'hides the caret from the accessibility tree, and draws it for everyone else' went red | Case asserts only the '▾' text and a non-empty .localeCaret rule; nothing about hiding it from a screen reader. | **W1-A removed** — redundant; a named sibling went red under the same mutation |
 
 **`tests/app/configurator/configure/top-bar-fit.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 277 | returns 105 px to the pill when it does, composed from the two frames' own gaps | 1 | **No production input** (static) | top-bar-fit.test.ts:277 `expect(DEMAND_PX.asDrawn - DEMAND_PX.gapsClosed).toBeCloseTo(105, 2)`; DEMAND_PX is the file-local object at line 42 with literals asDrawn: 918.55 and gapsClosed: 813.55 (918.55-813.55=105). D2A_SPACING/FRAME_2A_SPACING are not read by either operand. |
+| 277 | returns 105 px to the pill when it does, composed from the two frames' own gaps | 1 | **No production input** (static) | top-bar-fit.test.ts:277 `expect(DEMAND_PX.asDrawn - DEMAND_PX.gapsClosed).toBeCloseTo(105, 2)`; DEMAND_PX is the file-local object at line 42 with literals asDrawn: 918.55 and gapsClosed: 813.55 (918.55-813.55=105). D2A_SPACING/FRAME_2A_SPACING are not read by either operand. | **W1-A strengthened** — red under mutation |
 
 **`tests/app/ink-faint-contrast.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 99 | is darker than the value the mockups drew, which is why this file exists | 1 | **Mutation survived**. Mutation: apps/web/src/app/globals.css:17 --ink-faint #6b6860 -> #8a877f (a lighter grey than the mockups' #7d7a72). Went red instead: same file, the four 'clears 4.5:1 on ...' cases went red | The production-facing half is only `expect(inkFaint).not.toBe('#7d7a72')`; the contrast line uses a literal and --paper, not --ink-faint. Reverting the token to exactly #7d7a72 does turn the case red (EXIT=1), but any other failing grey leaves it green, so the 'darker than' title is not what it checks. |
+| 99 | is darker than the value the mockups drew, which is why this file exists | 1 | **Mutation survived**. Mutation: apps/web/src/app/globals.css:17 --ink-faint #6b6860 -> #8a877f (a lighter grey than the mockups' #7d7a72). Went red instead: same file, the four 'clears 4.5:1 on ...' cases went red | The production-facing half is only `expect(inkFaint).not.toBe('#7d7a72')`; the contrast line uses a literal and --paper, not --ink-faint. Reverting the token to exactly #7d7a72 does turn the case red (EXIT=1), but any other failing grey leaves it green, so the 'darker than' title is not what it checks. | **W1-A strengthened** — red under mutation |
 
 **`tests/app/shared-design-page.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 55 | hashes a well-formed token and looks it up | 1 | **Mutation survived**. Mutation: apps/web/src/lib/server/sha256-hex.ts:19 sha256Hex returns its input unchanged. Went red instead: tests/lib/server/visitor.test.ts 'readVisitorHash > returns the SHA-256 digest of a well-formed cookie value' (and 5 more, incl. share-link-route.test.ts 'POST issues a link...') went red | Expected value is sha256Hex(token) from the same module the page calls, so the case proves only pass-through. Hash correctness is witnessed in other files. |
+| 55 | hashes a well-formed token and looks it up | 1 | **Mutation survived**. Mutation: apps/web/src/lib/server/sha256-hex.ts:19 sha256Hex returns its input unchanged. Went red instead: tests/lib/server/visitor.test.ts 'readVisitorHash > returns the SHA-256 digest of a well-formed cookie value' (and 5 more, incl. share-link-route.test.ts 'POST issues a link...') went red | Expected value is sha256Hex(token) from the same module the page calls, so the case proves only pass-through. Hash correctness is witnessed in other files. | **W1-A strengthened** — red under mutation |
 
 **`tests/i18n/content.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 143 | keeps catalogue key and public argument checking in the TypeScript contract | 1 | **No production input** (static) | content.test.ts:144-145 `expect(CONTENT_TRANSLATOR_REJECTS_UNKNOWN_KEY).toBe(true)` is a file-local const typed `"panel.clsoe" extends ContentKey ? false : true = true` (line 33-35), and `CONTENT_SIGNATURE_WITNESSES` is toEqual-ed against an identical literal written in the same file (lines 58-70 vs 145-151). The contract lives in tsc, not in this runtime assertion; no production value feeds either side. |
-| 463 | selects the %s CLDR category at %i | 7 | **Mutation survived**. Mutation: apps/web/src/messages/ro.json:158 panel.countForBody `few {# dulapuri}` -> `few {# dulapur}`. Went red instead: tests/i18n/golden-output.test.ts 'matches the checked-in fixture-id to SHA-256 manifest' and tests/i18n/romanian-copy-lock.test.ts 'holds ro.json to the locked corpus leaf for leaf' went red | Both sides come from the same catalogue (resolved content vs translate('panel.countForBody')), so any wording of any plural branch passes; only Intl.PluralRules is compared to a literal. Copy lock and golden hashes are the real witnesses. |
+| 143 | keeps catalogue key and public argument checking in the TypeScript contract | 1 | **No production input** (static) | content.test.ts:144-145 `expect(CONTENT_TRANSLATOR_REJECTS_UNKNOWN_KEY).toBe(true)` is a file-local const typed `"panel.clsoe" extends ContentKey ? false : true = true` (line 33-35), and `CONTENT_SIGNATURE_WITNESSES` is toEqual-ed against an identical literal written in the same file (lines 58-70 vs 145-151). The contract lives in tsc, not in this runtime assertion; no production value feeds either side. | **W1-A unchanged** — a `tsc` guard, not a Vitest one: a deliberate type violation fails the typecheck |
+| 463 | selects the %s CLDR category at %i | 7 | **Mutation survived**. Mutation: apps/web/src/messages/ro.json:158 panel.countForBody `few {# dulapuri}` -> `few {# dulapur}`. Went red instead: tests/i18n/golden-output.test.ts 'matches the checked-in fixture-id to SHA-256 manifest' and tests/i18n/romanian-copy-lock.test.ts 'holds ro.json to the locked corpus leaf for leaf' went red | Both sides come from the same catalogue (resolved content vs translate('panel.countForBody')), so any wording of any plural branch passes; only Intl.PluralRules is compared to a literal. Copy lock and golden hashes are the real witnesses. | **W1-A strengthened** — red under mutation |
 
 **`tests/i18n/price-book-text.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 273 | recognises each of the three claims the owner trimmed / recognises the same claim in Russian / lets a ruled leaf through | 3 | **No production input** (static) | price-book-text.test.ts:273-330: assertions are `INCLUSION_WORDS.ro.test(claim)`, `INCLUSION_WORDS.ru.test(claim)` and `unruledInclusionClaimsIn(leaves, ...)` over string/array literals in the case; INCLUSION_WORDS (line 214) and unruledInclusionClaimsIn (line 236) are declared in the same file. No catalogue or production symbol feeds the asserted expressions; they are positive controls for the sweep's own detector (their stated purpose). |
-| 332 | records a reason for every exemption it holds | 1 | **No production input** (static) | price-book-text.test.ts:332 `for (const entry of RULED_TO_STATE_INCLUSION)` iterates the file-local `const RULED_TO_STATE_INCLUSION: readonly RuledInclusionClaim[] = [];` (line 235), so zero expectations run. It becomes live only if someone adds an entry; no production edit can fail it. |
+| 273 | recognises each of the three claims the owner trimmed / recognises the same claim in Russian / lets a ruled leaf through | 3 | **No production input** (static) | price-book-text.test.ts:273-330: assertions are `INCLUSION_WORDS.ro.test(claim)`, `INCLUSION_WORDS.ru.test(claim)` and `unruledInclusionClaimsIn(leaves, ...)` over string/array literals in the case; INCLUSION_WORDS (line 214) and unruledInclusionClaimsIn (line 236) are declared in the same file. No catalogue or production symbol feeds the asserted expressions; they are positive controls for the sweep's own detector (their stated purpose). | **W1-A unchanged** — control of a test-local detector, test-local measurement, or the review was wrong (see the wave report) |
+| 332 | records a reason for every exemption it holds | 1 | **No production input** (static) | price-book-text.test.ts:332 `for (const entry of RULED_TO_STATE_INCLUSION)` iterates the file-local `const RULED_TO_STATE_INCLUSION: readonly RuledInclusionClaim[] = [];` (line 235), so zero expectations run. It becomes live only if someone adds an entry; no production edit can fail it. | **W1-A strengthened** — red under mutation |
 
 **`tests/lib/persistence-imports.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 106 | recognises a value import as one, so the sweep above is not vacuous | 1 | **No production input** (static) | persistence-imports.test.ts:106-132 feeds template-string literals to importsTypesOnly and persistenceImportsIn, both declared in the same file (lines 51-72); PERSISTENCE_PACKAGE is a file-local const. No production module is read. It is a self-test of the sweep's matcher, which is its stated purpose. |
+| 106 | recognises a value import as one, so the sweep above is not vacuous | 1 | **No production input** (static) | persistence-imports.test.ts:106-132 feeds template-string literals to importsTypesOnly and persistenceImportsIn, both declared in the same file (lines 51-72); PERSISTENCE_PACKAGE is a file-local const. No production module is read. It is a self-test of the sweep's matcher, which is its stated purpose. | **W1-A unchanged** — control of a test-local detector, test-local measurement, or the review was wrong (see the wave report) |
 
 **`tests/lib/server/qa-7e3b-shared-repository-type.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 28 | declares its shape as the write port with load omitted, plus the gated read | 1 | **Mutation survived**. Mutation: apps/web/src/lib/server/repository.ts:24 SharedRepository = AuthorizedConfigurationRepository & ... (Omit removed), with the Omit text kept in a // comment. Went red instead: not a vitest test: `tsc --project tsconfig.json --noEmit` (tests/ is in the include) reports tests/lib/server/qa-7e3b-shared-repository-type.test.ts(17,1): error TS2578 Unused '@ts-expect-error' directive. tests/lib/server (127 vitest tests) stayed green. | The runtime case is a regex over source text and passes with the Omit in a comment while `load` is reachable. The real guard is the typecheck gate, which the mutation does trip. |
+| 28 | declares its shape as the write port with load omitted, plus the gated read | 1 | **Mutation survived**. Mutation: apps/web/src/lib/server/repository.ts:24 SharedRepository = AuthorizedConfigurationRepository & ... (Omit removed), with the Omit text kept in a // comment. Went red instead: not a vitest test: `tsc --project tsconfig.json --noEmit` (tests/ is in the include) reports tests/lib/server/qa-7e3b-shared-repository-type.test.ts(17,1): error TS2578 Unused '@ts-expect-error' directive. tests/lib/server (127 vitest tests) stayed green. | The runtime case is a regex over source text and passes with the Omit in a comment while `load` is reachable. The real guard is the typecheck gate, which the mutation does trip. | **W1-A unchanged** — a `tsc` guard, not a Vitest one: a deliberate type violation fails the typecheck |
 
 **`tests/lib/server/write-token.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 65 | calls no non-cryptographic random source anywhere in the module | 1 | **Mutation survived**. Mutation: apps/web/src/lib/server/write-token.ts:31 randomBytes(WRITE_TOKEN_BYTES) replaced by Buffer.from(Array.from({length}, () => Math["random"]() * 256)). Went red instead: tests/lib/server/write-token.test.ts 'mintWriteToken > draws its token from the platform CSPRNG, at 256 bits' went red | Source regex misses Math["random"](); the behavioural spy test is the real guard here (unlike share-token, where a dummy randomBytes call also defeats the spy, see s06.3). |
+| 65 | calls no non-cryptographic random source anywhere in the module | 1 | **Mutation survived**. Mutation: apps/web/src/lib/server/write-token.ts:31 randomBytes(WRITE_TOKEN_BYTES) replaced by Buffer.from(Array.from({length}, () => Math["random"]() * 256)). Went red instead: tests/lib/server/write-token.test.ts 'mintWriteToken > draws its token from the platform CSPRNG, at 256 bits' went red | Source regex misses Math["random"](); the behavioural spy test is the real guard here (unlike share-token, where a dummy randomBytes call also defeats the spy, see s06.3). | **W1-A strengthened** — red under mutation |
 
 **`tests/lib/use-after-press.dom.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 234 | an element's own blur leaves the action waiting | 1 | **Mutation survived**. Mutation: apps/web/src/lib/use-after-press.ts:~99 blur listener: removed the isOwnEventOf(event) guard so every window blur calls interrupted(). Went red instead: tests/lib/use-after-press.dom.test.ts 'what does not interrupt a press held down (review R1.1) > a synthetic blur that bubbles from an element leaves the action waiting' (line ~246) went red | A non-bubbling blur dispatched on the element never reaches the window's bubble-phase listener, so runs() is 0 whether or not the guard exists; the bubbling-blur case is the real guard. |
+| 234 | an element's own blur leaves the action waiting | 1 | **Mutation survived**. Mutation: apps/web/src/lib/use-after-press.ts:~99 blur listener: removed the isOwnEventOf(event) guard so every window blur calls interrupted(). Went red instead: tests/lib/use-after-press.dom.test.ts 'what does not interrupt a press held down (review R1.1) > a synthetic blur that bubbles from an element leaves the action waiting' (line ~246) went red | A non-bubbling blur dispatched on the element never reaches the window's bubble-phase listener, so runs() is 0 whether or not the guard exists; the bubbling-blur case is the real guard. | **W1-A removed** — redundant; a named sibling went red under the same mutation |
 
 **`tests/panel/qa-5b5-fixed-width.adversarial.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 211 | gives no width section to any void in %s | 1 | **Mutation survived**. Mutation: apps/web/src/panel/panel-model.ts:~816 — deleted the `if (options.length === 0) return undefined;` gate in describeWidthSection so empty-option targets (voids) get a width section. Went red instead: same file:211 rows 'a kitchen with an emptied column' and 'a kitchen already resized once' went red | Shipped-kitchen row has zero voids, so the loop never runs and the closing `toBeGreaterThanOrEqual(0)` is always true; the mutation landed (two sibling rows red) yet that row stayed green. Reader is right for that row only. |
+| 211 | gives no width section to any void in %s | 1 | **Mutation survived**. Mutation: apps/web/src/panel/panel-model.ts:~816 — deleted the `if (options.length === 0) return undefined;` gate in describeWidthSection so empty-option targets (voids) get a width section. Went red instead: same file:211 rows 'a kitchen with an emptied column' and 'a kitchen already resized once' went red | Shipped-kitchen row has zero voids, so the loop never runs and the closing `toBeGreaterThanOrEqual(0)` is always true; the mutation landed (two sibling rows red) yet that row stayed green. Reader is right for that row only. | **W1-A strengthened** — red under mutation |
 
 **`tests/panel/qa-6q-a-refusal-surface.adversarial.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 165 | names every declared material exactly once, and three distinct shapes | 1 | **No production input** (static) | `expect(new Set(Object.values(CONTROL_BY_MATERIAL)).size).toBe(3)` is over CONTROL_BY_MATERIAL, a table the test file declares itself. Only the other assertion in the case (`Object.keys(CONTROL_BY_MATERIAL)` equals `MATERIALS.map(...)`) reads production; I did not mutate that half, so the case as a whole is not vacuous. |
+| 165 | names every declared material exactly once, and three distinct shapes | 1 | **No production input** (static) | `expect(new Set(Object.values(CONTROL_BY_MATERIAL)).size).toBe(3)` is over CONTROL_BY_MATERIAL, a table the test file declares itself. Only the other assertion in the case (`Object.keys(CONTROL_BY_MATERIAL)` equals `MATERIALS.map(...)`) reads production; I did not mutate that half, so the case as a whole is not vacuous. | **W1-A strengthened** — red under mutation |
 
 **`tests/persistence/client-write-path.adversarial.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 185 | keeps the id stable across every write after the mint | 1 | **Mutation survived**. Mutation: apps/web/src/persistence/save-coalescer.ts:161 — scheduleSave returns early when the identity already has a design id (no PUT after the mint). Went red instead: tests/persistence/client-write-path.adversarial.test.ts:166 'writes the last design of a burst that spans the interval window' went red | With no PUT ever sent, the `for (const write of writesOf())` loop runs zero times and the case passes; no non-empty guard. Reader is right. |
+| 185 | keeps the id stable across every write after the mint | 1 | **Mutation survived**. Mutation: apps/web/src/persistence/save-coalescer.ts:161 — scheduleSave returns early when the identity already has a design id (no PUT after the mint). Went red instead: tests/persistence/client-write-path.adversarial.test.ts:166 'writes the last design of a burst that spans the interval window' went red | With no PUT ever sent, the `for (const write of writesOf())` loop runs zero times and the case passes; no non-empty guard. Reader is right. | **W1-A strengthened** — red under mutation |
 
 **`tests/price/amount-with-currency-seam.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 132 | changes no minor-unit value when the locale changes | 1 | **Mutation survived**. Mutation: packages/configurator-domain/src/pricing/price-design.ts:103 — totalMinor gains +1 when Intl default locale is en-US (domain rebuilt). Went red instead: packages/configurator-domain/tests/pricing/price-design.test.ts 'returns the exact sum of its lines in minor units' and 'prices an empty design as its two whole-kitchen lines' went red | priceSeededKitchen() takes no locale, so both arms run identical code in one process and always agree; an ambient-locale dependence in priceDesign is invisible. Reader is right: it is a determinism check. price-bar-model.test.ts also green. |
+| 132 | changes no minor-unit value when the locale changes | 1 | **Mutation survived**. Mutation: packages/configurator-domain/src/pricing/price-design.ts:103 — totalMinor gains +1 when Intl default locale is en-US (domain rebuilt). Went red instead: packages/configurator-domain/tests/pricing/price-design.test.ts 'returns the exact sum of its lines in minor units' and 'prices an empty design as its two whole-kitchen lines' went red | priceSeededKitchen() takes no locale, so both arms run identical code in one process and always agree; an ambient-locale dependence in priceDesign is invisible. Reader is right: it is a determinism check. price-bar-model.test.ts also green. | **W1-A strengthened** — red under mutation |
 
 **`tests/price/price-bar-states.adversarial.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 441 | is a real occlusion, not a hypothetical: the sheet's box contains the bar's | 1 | **Mutation survived**. Mutation: apps/web/src/price/price-bar-layout.ts:20 — PRICE_BAR_RESERVED_HEIGHT_PX 92 -> 700. Went red instead: tests/price/price-bar-viewport.test.ts 'keeps every body tappable with a 48 px header and a 700 px bar' (and many sibling rows) went red; tests/scene/overflow-warning-viewport.test.ts also red | The closing arithmetic uses literals (844, 0.78, 92) the test wrote, so changing the real constant is invisible; the CSS regexes check .shell text only. Reader is right. |
+| 441 | is a real occlusion, not a hypothetical: the sheet's box contains the bar's | 1 | **Mutation survived**. Mutation: apps/web/src/price/price-bar-layout.ts:20 — PRICE_BAR_RESERVED_HEIGHT_PX 92 -> 700. Went red instead: tests/price/price-bar-viewport.test.ts 'keeps every body tappable with a 48 px header and a 700 px bar' (and many sibling rows) went red; tests/scene/overflow-warning-viewport.test.ts also red | The closing arithmetic uses literals (844, 0.78, 92) the test wrote, so changing the real constant is invisible; the CSS regexes check .shell text only. Reader is right. | **W1-A strengthened** — red under mutation |
 
 **`tests/price/price-wiring.adversarial.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 440 | would stop being load-bearing at a zero reserve, which is what makes it a counterfactual | 1 | **Mutation survived**. Mutation: apps/web/src/price/price-bar-layout.ts:20 — PRICE_BAR_RESERVED_HEIGHT_PX 92 -> 0. Went red instead: same file, 'keeps the counterfactual load-bearing at the height the bar actually reserves' went red | The case never reads the constant: it compares projected bottoms to the 844 viewport height with a 64 px header, a pure framing property. The sibling case that does read the constant is the one that notices a zero reserve (the in-test comment says as much). |
+| 440 | would stop being load-bearing at a zero reserve, which is what makes it a counterfactual | 1 | **Mutation survived**. Mutation: apps/web/src/price/price-bar-layout.ts:20 — PRICE_BAR_RESERVED_HEIGHT_PX 92 -> 0. Went red instead: same file, 'keeps the counterfactual load-bearing at the height the bar actually reserves' went red | The case never reads the constant: it compares projected bottoms to the 844 viewport height with a 64 px header, a pure framing property. The sibling case that does read the constant is the one that notices a zero reserve (the in-test comment says as much). | **W1-A strengthened** — red under mutation |
 
 **`tests/price/starting-price.adversarial.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 308 | kills digit and sum-claim mutations authored inside ICU branches | 1 | **No production input** (static) | Inputs are string literals the test wrote (`<strong>Total 3 items</strong>`, a plural message) fed to authoredLiteralsIn from tests/support/icu-authored-literals; SUM_CLAIM_PATTERN is declared in the test file. Asserted lines: `expect(taggedLiterals).toEqual(["Total 3 items"])` and the regex matches on it. It is non-vacuity for a support helper, as the reader said. |
+| 308 | kills digit and sum-claim mutations authored inside ICU branches | 1 | **No production input** (static) | Inputs are string literals the test wrote (`<strong>Total 3 items</strong>`, a plural message) fed to authoredLiteralsIn from tests/support/icu-authored-literals; SUM_CLAIM_PATTERN is declared in the test file. Asserted lines: `expect(taggedLiterals).toEqual(["Total 3 items"])` and the regex matches on it. It is non-vacuity for a support helper, as the reader said. | **W1-A unchanged** — control of a test-local detector, test-local measurement, or the review was wrong (see the wave report) |
 
 **`tests/proxy.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 488 | applies the exact static header set to every route | 1 | **Mutation survived**. Mutation: apps/web/src/lib/security-headers.ts:69 — X-DNS-Prefetch-Control value "off" -> "on". Went red instead: tests/lib/security-headers.test.ts 'STATIC_SECURITY_HEADERS > is exactly the versioned set every response must carry' went red | Expected side is `[...STATIC_SECURITY_HEADERS]` from the same module next.config spreads, so a changed value stays equal on both sides; the sibling :495 pins only four keys. The value is pinned elsewhere (security-headers.test.ts), so the property is guarded, just not by this case. |
+| 488 | applies the exact static header set to every route | 1 | **Mutation survived**. Mutation: apps/web/src/lib/security-headers.ts:69 — X-DNS-Prefetch-Control value "off" -> "on". Went red instead: tests/lib/security-headers.test.ts 'STATIC_SECURITY_HEADERS > is exactly the versioned set every response must carry' went red | Expected side is `[...STATIC_SECURITY_HEADERS]` from the same module next.config spreads, so a changed value stays equal on both sides; the sibling :495 pins only four keys. The value is pinned elsewhere (security-headers.test.ts), so the property is guarded, just not by this case. | **W1-A unchanged** — control of a test-local detector, test-local measurement, or the review was wrong (see the wave report) |
 
 **`tests/review/qa-8c-room-line-and-copy.adversarial.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 189 | are swept in every category the language has: one, few and other | 1 | **No production input** (static) | `reached = BODY_COUNT_WORDS.ro.map(([bodyCount]) => romanian.select(bodyCount))` where BODY_COUNT_WORDS is a const table declared at qa-8c-room-line-and-copy.adversarial.test.ts:57 and `romanian` is `new Intl.PluralRules("ro")` (Node ICU). The asserts count categories; no apps/web or domain symbol is involved. |
+| 189 | are swept in every category the language has: one, few and other | 1 | **No production input** (static) | `reached = BODY_COUNT_WORDS.ro.map(([bodyCount]) => romanian.select(bodyCount))` where BODY_COUNT_WORDS is a const table declared at qa-8c-room-line-and-copy.adversarial.test.ts:57 and `romanian` is `new Intl.PluralRules("ro")` (Node ICU). The asserts count categories; no apps/web or domain symbol is involved. | **W1-A unchanged** — control of a test-local detector, test-local measurement, or the review was wrong (see the wave report) |
 
 **`tests/review/qa-8h-one-caller-of-the-rule.adversarial.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 189 | hands the rule no list but the fit query's answer for the design under review | 1 | **Mutation survived**. Mutation: apps/web/src/review/review-model.ts:~197 — judgeFor passes `overflowingPlacementIds.filter(() => false)` to the rule (ignores the list, keeps every searched source string). Went red instead: tests/review/qa-8c-fit-is-the-querys-answer.adversarial.test.ts 'refuses a kitchen that fits, naming the bodies the query reports' (3 red) and review-submit-eligibility.test.ts (15+ red) | Caveat: the literal `overflowingPlacementIds: []` DID turn this case red, via its `not.toMatch(/overflowingPlacementIds\s*:\s*\[/)` clause, so it is not blind to that edit; only a behavioural change spelled differently passes. The text pin is a guard, and the behaviour is guarded by the sibling suites. |
+| 189 | hands the rule no list but the fit query's answer for the design under review | 1 | **Mutation survived**. Mutation: apps/web/src/review/review-model.ts:~197 — judgeFor passes `overflowingPlacementIds.filter(() => false)` to the rule (ignores the list, keeps every searched source string). Went red instead: tests/review/qa-8c-fit-is-the-querys-answer.adversarial.test.ts 'refuses a kitchen that fits, naming the bodies the query reports' (3 red) and review-submit-eligibility.test.ts (15+ red) | Caveat: the literal `overflowingPlacementIds: []` DID turn this case red, via its `not.toMatch(/overflowingPlacementIds\s*:\s*\[/)` clause, so it is not blind to that edit; only a behavioural change spelled differently passes. The text pin is a guard, and the behaviour is guarded by the sibling suites. | **W1-A removed** — redundant; a named sibling went red under the same mutation |
 
 **`tests/room/attempt-construction-sites.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 67 | counts a second call site, including one the compiler would accept | 1 | **No production input** (static) | `expect(callSitesIn(twoSites)).toBe(2)` and `expect(callSitesIn("export function createDesignCreationAttempt({ design }) {")).toBe(0)`: callSitesIn is a regex helper declared at attempt-construction-sites.test.ts:21 and the inputs are two string literals in the case. Matcher self-check, as the reader said; the real guards are the cases at :54 and :61. |
+| 67 | counts a second call site, including one the compiler would accept | 1 | **No production input** (static) | `expect(callSitesIn(twoSites)).toBe(2)` and `expect(callSitesIn("export function createDesignCreationAttempt({ design }) {")).toBe(0)`: callSitesIn is a regex helper declared at attempt-construction-sites.test.ts:21 and the inputs are two string literals in the case. Matcher self-check, as the reader said; the real guards are the cases at :54 and :61. | **W1-A unchanged** — control of a test-local detector, test-local measurement, or the review was wrong (see the wave report) |
 
 **`tests/room/composition-bundle.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 113 | crosses a frame with both calls, not just a timer or just an animation frame | 1 | **Mutation survived**. Mutation: apps/web/src/room/use-generation.ts:388-393 — theNextPaint calls requestAnimationFrame(noop) and setTimeout(noop) but resolves immediately. Went red instead: tests/room/qa-7f4a-composition-run.adversarial.test.ts 'balances the ledger when a second run starts before the first has settled' and 'never paints the abandoned run's outcome...' went red | The case regex-extracts the function text and checks it contains both call names, so a body that resolves in the same tick still passes. Reader is right. generation-steps.dom and room-composition.dom stayed green. |
+| 113 | crosses a frame with both calls, not just a timer or just an animation frame | 1 | **Mutation survived**. Mutation: apps/web/src/room/use-generation.ts:388-393 — theNextPaint calls requestAnimationFrame(noop) and setTimeout(noop) but resolves immediately. Went red instead: tests/room/qa-7f4a-composition-run.adversarial.test.ts 'balances the ledger when a second run starts before the first has settled' and 'never paints the abandoned run's outcome...' went red | The case regex-extracts the function text and checks it contains both call names, so a body that resolves in the same tick still passes. Reader is right. generation-steps.dom and room-composition.dom stayed green. | **W1-A strengthened** — red under mutation |
 
 **`tests/room/dimensions-form.dom.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 684 | would catch $pattern, which matches $sample | 9 | **No production input** (static) | `expect(sample).toMatch(pattern)` iterates BOUND_WORDS, a const table declared at dimensions-form.dom.test.ts:411 holding both pattern and sample (10 `sample:` entries counted by grep, 9 pattern rows per the batch). Neither side reads ro.json or the form; the real check is the sibling at :672. |
+| 684 | would catch $pattern, which matches $sample | 9 | **No production input** (static) | `expect(sample).toMatch(pattern)` iterates BOUND_WORDS, a const table declared at dimensions-form.dom.test.ts:411 holding both pattern and sample (10 `sample:` entries counted by grep, 9 pattern rows per the batch). Neither side reads ro.json or the form; the real check is the sibling at :672. | **W1-A unchanged** — control of a test-local detector, test-local measurement, or the review was wrong (see the wave report) |
 
 **`tests/room/parse-metres.adversarial.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 312 | reads %j as nothing, or as exactly %i mm | 4 | **Mutation survived**. Mutation: apps/web/src/room/parse-metres.ts:21 — METRES_PATTERN /^(\d+)(?:[.,](\d+))?$/ -> /^(\d*)(?:[.,](\d*))?$/ (empty whole or fraction part accepted). Went red instead: same file: 'agrees with an integer-only reading of the rule' (property test), 'refuses ","' and 'refuses "."' went red | expectRefusedOrExactly accepts a refusal or the exact value, and under the mutation '3,', '3.', ',5', '.45' read as exactly 3000/3000/500/450, so all four pass. Reader is right: the cases cannot fail for the shapes they name unless the parser yields a wrong positive value. |
-| 410 | multiplies nothing and uses no float, rounding or locale machinery | 1 | **Mutation survived**. Mutation: apps/web/src/room/parse-metres.ts:51 — `Number(whole + millimetreDigits)` replaced by `(Number(whole + "." + millimetreDigits) / 0.001) \| 0` (float division, no `*`, `Math.` or banned name). Went red instead: parse-metres.adversarial.test.ts 'reads back every value from 1 to 99 999 mm written with a decimal point' and the oracle property tests (8 red); parse-metres.test.ts 'reads back every value from 1 to 99 999 mm written with a decimal comma' red | The case regexes the comment-stripped source for `*\|parseFloat\|Math.\|toFixed\|toPrecision\|Intl\|toLocale`; a float path spelled with `/ 0.001 \| 0` slips through. Conversely the earlier regex edit (`\d*` in the pattern) turned it red by accident, since the character `*` is banned. Behaviour is guarded by the oracle/sweeps, not by this case. |
+| 312 | reads %j as nothing, or as exactly %i mm | 4 | **Mutation survived**. Mutation: apps/web/src/room/parse-metres.ts:21 — METRES_PATTERN /^(\d+)(?:[.,](\d+))?$/ -> /^(\d*)(?:[.,](\d*))?$/ (empty whole or fraction part accepted). Went red instead: same file: 'agrees with an integer-only reading of the rule' (property test), 'refuses ","' and 'refuses "."' went red | expectRefusedOrExactly accepts a refusal or the exact value, and under the mutation '3,', '3.', ',5', '.45' read as exactly 3000/3000/500/450, so all four pass. Reader is right: the cases cannot fail for the shapes they name unless the parser yields a wrong positive value. | **W1-A unchanged** — control of a test-local detector, test-local measurement, or the review was wrong (see the wave report) |
+| 410 | multiplies nothing and uses no float, rounding or locale machinery | 1 | **Mutation survived**. Mutation: apps/web/src/room/parse-metres.ts:51 — `Number(whole + millimetreDigits)` replaced by `(Number(whole + "." + millimetreDigits) / 0.001) \| 0` (float division, no `*`, `Math.` or banned name). Went red instead: parse-metres.adversarial.test.ts 'reads back every value from 1 to 99 999 mm written with a decimal point' and the oracle property tests (8 red); parse-metres.test.ts 'reads back every value from 1 to 99 999 mm written with a decimal comma' red | The case regexes the comment-stripped source for `*\|parseFloat\|Math.\|toFixed\|toPrecision\|Intl\|toLocale`; a float path spelled with `/ 0.001 \| 0` slips through. Conversely the earlier regex edit (`\d*` in the pattern) turned it red by accident, since the character `*` is banned. Behaviour is guarded by the oracle/sweeps, not by this case. | **W1-A strengthened** — red under mutation |
 
 **`tests/room/parse-metres.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 89 | renders the sweep's two spellings the way a person would write them | 1 | **No production input** (static) | Asserts `[metresWithTrailingZeros(4100), metresWithoutTrailingZeros(4100)]` equals `["4,100", "4,1"]` (and two more literal pairs); both helpers are declared at parse-metres.test.ts:17 and :24. parseMetresToMillimetres is not called in this case. |
+| 89 | renders the sweep's two spellings the way a person would write them | 1 | **No production input** (static) | Asserts `[metresWithTrailingZeros(4100), metresWithoutTrailingZeros(4100)]` equals `["4,100", "4,1"]` (and two more literal pairs); both helpers are declared at parse-metres.test.ts:17 and :24. parseMetresToMillimetres is not called in this case. | **W1-A unchanged** — control of a test-local detector, test-local measurement, or the review was wrong (see the wave report) |
 
 **`tests/room/plan-preview-model.facing-labels.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 442 | agrees with QA's whole-string measurement of the widest reason, to a hundredth of an em | 1 | **No production input** (static) | Asserts `summedAdvanceEm("B слишком короткая")` against `116.59 / 11`. summedAdvanceEm is declared in the test file (:397) and reads REASON_GLYPH_ADVANCE_EM from tests/support/plan-reason-glyphs; the string is a literal. PLAN_LABEL_REASON_MAX_EM and the catalogue are not in the expression. |
+| 442 | agrees with QA's whole-string measurement of the widest reason, to a hundredth of an em | 1 | **No production input** (static) | Asserts `summedAdvanceEm("B слишком короткая")` against `116.59 / 11`. summedAdvanceEm is declared in the test file (:397) and reads REASON_GLYPH_ADVANCE_EM from tests/support/plan-reason-glyphs; the string is a literal. PLAN_LABEL_REASON_MAX_EM and the catalogue are not in the expression. | **W1-A strengthened** — red under mutation |
 
 **`tests/room/qa-7f1-url-seam.adversarial.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 448 | asks no module under src/room to name a shape to decide it | 1 | **Mutation survived**. Mutation: apps/web/src/room/one-c-surfaces.ts:129 — `isShapeBuildable(draft.shape, policy)` replaced by `draft.shape !== "U"`. Went red instead: apps/web/tests/room/qa-7f1-url-seam.adversarial.test.ts > 'fills a U's three walls from the URL and carries them back into it' went red (1 failed, 27 passed in the file) | The title case greps comment-stripped sources for `buildableShapes[.[]` and for `isShapeBuildable(` in room-screen.tsx, so a hardcoded shape letter in another module passes. Mutation landed: the file's behavioural cases catch it, this one does not. |
+| 448 | asks no module under src/room to name a shape to decide it | 1 | **Mutation survived**. Mutation: apps/web/src/room/one-c-surfaces.ts:129 — `isShapeBuildable(draft.shape, policy)` replaced by `draft.shape !== "U"`. Went red instead: apps/web/tests/room/qa-7f1-url-seam.adversarial.test.ts > 'fills a U's three walls from the URL and carries them back into it' went red (1 failed, 27 passed in the file) | The title case greps comment-stripped sources for `buildableShapes[.[]` and for `isShapeBuildable(` in room-screen.tsx, so a hardcoded shape letter in another module passes. Mutation landed: the file's behavioural cases catch it, this one does not. | **W1-A strengthened** — red under mutation |
 
 **`tests/room/qa-7f2-s1b-millimetres.adversarial.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 360 | names the metre formatter nowhere under src, and keeps the wire's formatter on the URL modules | 1 | **Mutation survived**. Mutation: apps/web/src/room/dimensions-form.tsx:341 — unit span rendered through new local `toMetresLabel(1000)` ("1 m") instead of room.unitMillimetres. Went red instead: apps/web/tests/room/qa-7f2-s1b-millimetres.adversarial.dom.test.ts — 'Step 1 shows no metre anywhere…' (7 cases incl. 'prints the millimetre unit in every field's box, in ro') went red | Test greps for two retired identifiers (which exist nowhere in src) and a fixed list of metresTextForUrl( callers; a new metre helper under another name passes. The rendered-screen DOM sweep is the real guard. |
+| 360 | names the metre formatter nowhere under src, and keeps the wire's formatter on the URL modules | 1 | **Mutation survived**. Mutation: apps/web/src/room/dimensions-form.tsx:341 — unit span rendered through new local `toMetresLabel(1000)` ("1 m") instead of room.unitMillimetres. Went red instead: apps/web/tests/room/qa-7f2-s1b-millimetres.adversarial.dom.test.ts — 'Step 1 shows no metre anywhere…' (7 cases incl. 'prints the millimetre unit in every field's box, in ro') went red | Test greps for two retired identifiers (which exist nowhere in src) and a fixed list of metresTextForUrl( callers; a new metre helper under another name passes. The rendered-screen DOM sweep is the real guard. | **W1-A removed** — redundant; a named sibling went red under the same mutation |
 
 **`tests/room/qa-7f2-s5b-unreadable.adversarial.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 92 | equals the definition for any shape and any texts, settled (and mid-burst at 104) | 2 | **Mutation survived**. Mutation: apps/web/src/room/parse-millimetres.ts:~31 — refuse a multi-char text starting with '0' as notDigits. Went red instead: apps/web/tests/room/room-issue-model.test.ts > 'does not report a leading zero as unreadable: it is one reading of a digit string'; apps/web/tests/room/qa-7f2-s5b-unreadable.adversarial.dom.test.ts > 'shows it on every field of a U after "0003600" is left only when the parser refuses it (readable: true)' | Oracle expectedUnreadable re-calls parseMillimetres and requiredFieldsFor, so a parser change moves both sides; both property cases (settled and mid-burst) stayed green. It still guards the filter/pass-through, not the parser's verdicts. |
+| 92 | equals the definition for any shape and any texts, settled (and mid-burst at 104) | 2 | **Mutation survived**. Mutation: apps/web/src/room/parse-millimetres.ts:~31 — refuse a multi-char text starting with '0' as notDigits. Went red instead: apps/web/tests/room/room-issue-model.test.ts > 'does not report a leading zero as unreadable: it is one reading of a digit string'; apps/web/tests/room/qa-7f2-s5b-unreadable.adversarial.dom.test.ts > 'shows it on every field of a U after "0003600" is left only when the parser refuses it (readable: true)' | Oracle expectedUnreadable re-calls parseMillimetres and requiredFieldsFor, so a parser change moves both sides; both property cases (settled and mid-burst) stayed green. It still guards the filter/pass-through, not the parser's verdicts. | **W1-A strengthened** — red under mutation |
 
 **`tests/room/room-url-round-trip.dom.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 311 | keeps a second store out of the whole room directory; keeps the native history write out of the whole room directory | 2 | **Mutation survived**. Mutation: A: apps/web/src/room/room-screen.tsx:78 — `window["local" + "Storage"].setItem("room", liveQuery)` in RoomScreen; B: same place — `window["hist" + "ory"].replaceState(null, "", pathname + "?" + liveQuery + "&x=1")`. Went red instead: B only: apps/web/tests/room/qa-7f1-url-seam.adversarial.test.ts (20 failures, e.g. 'settles in at most one write, and asks for none on the settle after that'). A: 117 tests across round-trip, room-screen.dom and url-seam stay green. | Both cases regex the source for literal API names; string-concatenated bracket access passes. The history case is witnessed by other tests (the write really lands); the storage case is survived-unwitnessed, since nothing behavioural reads storage. |
+| 311 | keeps a second store out of the whole room directory; keeps the native history write out of the whole room directory | 2 | **Mutation survived**. Mutation: A: apps/web/src/room/room-screen.tsx:78 — `window["local" + "Storage"].setItem("room", liveQuery)` in RoomScreen; B: same place — `window["hist" + "ory"].replaceState(null, "", pathname + "?" + liveQuery + "&x=1")`. Went red instead: B only: apps/web/tests/room/qa-7f1-url-seam.adversarial.test.ts (20 failures, e.g. 'settles in at most one write, and asks for none on the settle after that'). A: 117 tests across round-trip, room-screen.dom and url-seam stay green. | Both cases regex the source for literal API names; string-concatenated bracket access passes. The history case is witnessed by other tests (the write really lands); the storage case is survived-unwitnessed, since nothing behavioural reads storage. | **W1-A strengthened** — red under mutation |
 
 **`tests/room/step-one-carries-a-u.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 196 | would notice a comparison if one were added | 1 | **No production input** (static) | step-one-carries-a-u.test.ts:197-199 `expect('if (shape === "U") return;').toMatch(COMPARES_TO_U)` (and two more): the subject is a string literal written in the test, the pattern is the test-local const COMPARES_TO_U (line 178). No production symbol feeds either side; it is a regex self-check guarding the it.each scan above it. |
+| 196 | would notice a comparison if one were added | 1 | **No production input** (static) | step-one-carries-a-u.test.ts:197-199 `expect('if (shape === "U") return;').toMatch(COMPARES_TO_U)` (and two more): the subject is a string literal written in the test, the pattern is the test-local const COMPARES_TO_U (line 178). No production symbol feeds either side; it is a regex self-check guarding the it.each scan above it. | **W1-A unchanged** — control of a test-local detector, test-local measurement, or the review was wrong (see the wave report) |
 
 **`tests/scene/overflow-warning-viewport.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 246 | composes the measured chrome from two measured halves | 1 | **No production input** (static) | overflow-warning-viewport.test.ts:246 `expect(MEASURED_HEADER_PX + SETTINGS_ROW_PX).toBeCloseTo(MEASURED_CHROME_ABOVE_CANVAS_PX, 4)`: all three operands are consts declared in the test file (55, 43.9375, 98.9375); no production symbol is read. Stays green when the production constant changes. |
-| 340 | leaves the strip identical at every band height, with a ${settingsRowPx} px settings row | 2 | **No production input** (static) | overflow-warning-viewport.test.ts:340-346: `BAND_HEIGHTS_PX.map(() => stripAboveTheSheetPx(MEASURED_HEADER_PX, settingsRowPx))` ignores its argument and the helper is test-local with no band parameter, so Set size is 1 by construction (both settings-row cases). The production constant only seeds the unused band-height array. |
+| 246 | composes the measured chrome from two measured halves | 1 | **No production input** (static) | overflow-warning-viewport.test.ts:246 `expect(MEASURED_HEADER_PX + SETTINGS_ROW_PX).toBeCloseTo(MEASURED_CHROME_ABOVE_CANVAS_PX, 4)`: all three operands are consts declared in the test file (55, 43.9375, 98.9375); no production symbol is read. Stays green when the production constant changes. | **W1-A unchanged** — control of a test-local detector, test-local measurement, or the review was wrong (see the wave report) |
+| 340 | leaves the strip identical at every band height, with a ${settingsRowPx} px settings row | 2 | **No production input** (static) | overflow-warning-viewport.test.ts:340-346: `BAND_HEIGHTS_PX.map(() => stripAboveTheSheetPx(MEASURED_HEADER_PX, settingsRowPx))` ignores its argument and the helper is test-local with no band parameter, so Set size is 1 by construction (both settings-row cases). The production constant only seeds the unused band-height array. | **W1-A unchanged** — control of a test-local detector, test-local measurement, or the review was wrong (see the wave report) |
 
 **`tests/scene/qa-6m-criteria.adversarial.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 172 | keeps the flagged total's sentence out of the scene warning's surface | 1 | **Mutation survived**. Mutation: apps/web/src/scene/overflow-warning.tsx:~43 — destructure `const { overflowingTotalWarning } = content.price;` and render it instead of content.configure.overflowWarning. Went red instead: apps/web/tests/scene/overflow-warning.test.ts > 'renders the sentence while a body reaches past the end of its wall' (and 'says it as soon as the scene is mounted…'); qa-6m-criteria.adversarial.test.ts > 'still reports the same body once it has been through the wire…' and 'does say something one millimetre the other side…' | The test only checks four sources for the literal dotted key `price.overflowingTotalWarning`; a destructured read passes. The render tests catch the wrong sentence on screen, so the text check adds nothing on its own. |
+| 172 | keeps the flagged total's sentence out of the scene warning's surface | 1 | **Mutation survived**. Mutation: apps/web/src/scene/overflow-warning.tsx:~43 — destructure `const { overflowingTotalWarning } = content.price;` and render it instead of content.configure.overflowWarning. Went red instead: apps/web/tests/scene/overflow-warning.test.ts > 'renders the sentence while a body reaches past the end of its wall' (and 'says it as soon as the scene is mounted…'); qa-6m-criteria.adversarial.test.ts > 'still reports the same body once it has been through the wire…' and 'does say something one millimetre the other side…' | The test only checks four sources for the literal dotted key `price.overflowingTotalWarning`; a destructured read passes. The render tests catch the wrong sentence on screen, so the text check adds nothing on its own. | **W1-A strengthened** — red under mutation |
 
 **`tests/settings/cabinet-depth-control.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 121 | falls back to the default depth when the design carries none | 1 | **Mutation survived**. Mutation: apps/web/src/settings/global-settings-model.ts:~496 toDepthGroupView — fallback selects the first offered depth that is not DEFAULT_CABINET_DEPTH_MM. Went red instead: apps/web/tests/settings/qa-w2-depth-group-fallback.adversarial.test.ts > 'leaves an unnamed depth unnamed while displaying the default it is built at' (and 'checks the depth the design is actually built at…') | The candidate asserts only `selected` has length 1, so a wrong default passes. The sibling that shares the fixture asserts the value and goes red. |
-| 199 | is not refused, and does move the document - so the guard is the only thing stopping it | 2 | **Mutation survived**. Mutation: apps/web/src/store/whole-kitchen-apply.ts:~118,~143 — isTierChange and isDepthChange return `requested !== undefined` (no compare against what is stored); this is where the no-op guard actually lives, not global-settings.tsx:210. Went red instead: apps/web/tests/store/whole-kitchen-apply.test.ts > 'a press that asks for nothing new > writes nothing, so an untouched sheet cannot move updatedAt'; tests/store/qa-w2-apply-atomicity.adversarial.test.ts > 'writes one document, because the second asks for nothing the first did not already store' | Both cases call store.setCabinetDepth directly and never reach the apply path, so removing the guard cannot turn them red; they pin domain behaviour (no de-dup, fresh placements reference). Other store tests guard the real no-op. |
+| 121 | falls back to the default depth when the design carries none | 1 | **Mutation survived**. Mutation: apps/web/src/settings/global-settings-model.ts:~496 toDepthGroupView — fallback selects the first offered depth that is not DEFAULT_CABINET_DEPTH_MM. Went red instead: apps/web/tests/settings/qa-w2-depth-group-fallback.adversarial.test.ts > 'leaves an unnamed depth unnamed while displaying the default it is built at' (and 'checks the depth the design is actually built at…') | The candidate asserts only `selected` has length 1, so a wrong default passes. The sibling that shares the fixture asserts the value and goes red. | **W1-A strengthened** — red under mutation |
+| 199 | is not refused, and does move the document - so the guard is the only thing stopping it | 2 | **Mutation survived**. Mutation: apps/web/src/store/whole-kitchen-apply.ts:~118,~143 — isTierChange and isDepthChange return `requested !== undefined` (no compare against what is stored); this is where the no-op guard actually lives, not global-settings.tsx:210. Went red instead: apps/web/tests/store/whole-kitchen-apply.test.ts > 'a press that asks for nothing new > writes nothing, so an untouched sheet cannot move updatedAt'; tests/store/qa-w2-apply-atomicity.adversarial.test.ts > 'writes one document, because the second asks for nothing the first did not already store' | Both cases call store.setCabinetDepth directly and never reach the apply path, so removing the guard cannot turn them red; they pin domain behaviour (no de-dup, fresh placements reference). Other store tests guard the real no-op. | **W1-A unchanged** — control of a test-local detector, test-local measurement, or the review was wrong (see the wave report) |
 
 **`tests/settings/global-settings-shell.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 523 | is because the command underneath does not de-duplicate: a redundant set still moves updatedAt | 1 | **Mutation survived**. Mutation: apps/web/src/store/whole-kitchen-apply.ts:~118,~143 — isTierChange and isDepthChange stop comparing against the stored value. Went red instead: apps/web/tests/store/whole-kitchen-apply.test.ts > 'writes nothing, so an untouched sheet cannot move updatedAt'; tests/store/qa-w2-apply-atomicity.adversarial.test.ts (2 cases) | The guard is in store/whole-kitchen-apply.ts, not global-settings.tsx:210. The test calls setMaterialTier twice and checks updatedAt moved, so deleting the guard cannot affect it; it would go red only if the domain command started de-duplicating. |
+| 523 | is because the command underneath does not de-duplicate: a redundant set still moves updatedAt | 1 | **Mutation survived**. Mutation: apps/web/src/store/whole-kitchen-apply.ts:~118,~143 — isTierChange and isDepthChange stop comparing against the stored value. Went red instead: apps/web/tests/store/whole-kitchen-apply.test.ts > 'writes nothing, so an untouched sheet cannot move updatedAt'; tests/store/qa-w2-apply-atomicity.adversarial.test.ts (2 cases) | The guard is in store/whole-kitchen-apply.ts, not global-settings.tsx:210. The test calls setMaterialTier twice and checks updatedAt moved, so deleting the guard cannot affect it; it would go red only if the domain command started de-duplicating. | **W1-A unchanged** — control of a test-local detector, test-local measurement, or the review was wrong (see the wave report) |
 
 **`tests/settings/global-settings.adversarial.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 710 | would fail the markup assertion if it were hidden rather than omitted | 1 | **No production input** (static) | global-settings.adversarial.test.ts:710-720: `for (const markup of hidden) expect(markup).toMatch(/finisaj/i)` where `hidden` is three HTML string literals declared inside the test, each containing 'finisaje per corp'. No production symbol feeds either side; the real guard is the case at :687 (markup of the real sheet not matching /finisaj/). |
+| 710 | would fail the markup assertion if it were hidden rather than omitted | 1 | **No production input** (static) | global-settings.adversarial.test.ts:710-720: `for (const markup of hidden) expect(markup).toMatch(/finisaj/i)` where `hidden` is three HTML string literals declared inside the test, each containing 'finisaje per corp'. No production symbol feeds either side; the real guard is the case at :687 (markup of the real sheet not matching /finisaj/). | **W1-A unchanged** — control of a test-local detector, test-local measurement, or the review was wrong (see the wave report) |
 
 **`tests/settings/qa-6w-below-default-tier.adversarial.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 516 | absorbs a hardware tier that is cheaper on all three rates, and no runtime rule reports it | 1 | **No production input** (static) | Second half only (the first, offerOf(...)/offeredDeltaFor, is real and was not mutated): qa-6w-below-default-tier.adversarial.test.ts:545-556 `expect(cheapestAtSeeded?.tierId).toBe(INVERTING_TIER_ID)`, where cheapestAtSeeded sorts the test-local hardwareAmountFor (:86) over `dominated`, a book the test builds with bookWithHardwareRates lowering INVERTING_TIER_ID's rates by 1. The only non-test input is the sample price book used as fixture data; no pricing or offer code runs. |
+| 516 | absorbs a hardware tier that is cheaper on all three rates, and no runtime rule reports it | 1 | **No production input** (static) | Second half only (the first, offerOf(...)/offeredDeltaFor, is real and was not mutated): qa-6w-below-default-tier.adversarial.test.ts:545-556 `expect(cheapestAtSeeded?.tierId).toBe(INVERTING_TIER_ID)`, where cheapestAtSeeded sorts the test-local hardwareAmountFor (:86) over `dominated`, a book the test builds with bookWithHardwareRates lowering INVERTING_TIER_ID's rates by 1. The only non-test input is the sample price book used as fixture data; no pricing or offer code runs. | **W1-A strengthened** — red under mutation |
 
 **`tests/settings/qa-w2-depth-group-fallback.adversarial.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 147 | is that the sheet offers fewer depths than the schema accepts, and today it offers all of them | 1 | **Mutation survived**. Mutation: apps/web/src/settings/global-settings-model.ts:484 offeredCabinetDepthsMm — appended .slice(0, -1) (drops the last depth). Went red instead: apps/web/tests/settings/cabinet-depth-control.test.ts: 'offers exactly the depths the map declares, in the map's own order' (+2 more) went red | The test re-implements the filter inline over declaredCabinetDepthsMm() and MIN_CABINET_DEPTH_MM and never calls offeredCabinetDepthsMm or settingsView, so the title's claim about the sheet is unguarded by this test; the mutation is caught only by a sibling file. |
+| 147 | is that the sheet offers fewer depths than the schema accepts, and today it offers all of them | 1 | **Mutation survived**. Mutation: apps/web/src/settings/global-settings-model.ts:484 offeredCabinetDepthsMm — appended .slice(0, -1) (drops the last depth). Went red instead: apps/web/tests/settings/cabinet-depth-control.test.ts: 'offers exactly the depths the map declares, in the map's own order' (+2 more) went red | The test re-implements the filter inline over declaredCabinetDepthsMm() and MIN_CABINET_DEPTH_MM and never calls offeredCabinetDepthsMm or settingsView, so the title's claim about the sheet is unguarded by this test; the mutation is caught only by a sibling file. | **W1-A strengthened** — red under mutation |
 
 **`tests/settings/qa-w2-opening-choice.adversarial.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 375 | leaves the document byte-identical when it ends in cancel, whatever it opened on | 1 | **Mutation survived**. Mutation: apps/web/src/settings/global-settings.tsx:142 close() (the onCancel handler) — made it throw before doing anything. Went red instead: apps/web/tests/settings/global-settings-inert.dom.test.ts: 'the settings sheet and the screen behind it > gives the screen back when it closes' went red | storeFor() builds a store that is never passed to pressesFrom(), which is a pure reducer over (design, presses); the equality compares the store's serialisation to itself. Cancel is never exercised, so a close() that wrote would not be seen. |
+| 375 | leaves the document byte-identical when it ends in cancel, whatever it opened on | 1 | **Mutation survived**. Mutation: apps/web/src/settings/global-settings.tsx:142 close() (the onCancel handler) — made it throw before doing anything. Went red instead: apps/web/tests/settings/global-settings-inert.dom.test.ts: 'the settings sheet and the screen behind it > gives the screen back when it closes' went red | storeFor() builds a store that is never passed to pressesFrom(), which is a pure reducer over (design, presses); the equality compares the store's serialisation to itself. Cancel is never exercised, so a close() that wrote would not be seen. | **W1-A strengthened** — red under mutation |
 
 **`tests/store/qa-5b2b.adversarial.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 198 | never excludes a member-less column, which is all this wave stores | 1 | **Mutation survived**. Mutation: packages/configurator-domain/src/void-engine.ts:~647 projectFrozenMap — pushes every column into columnExtents as well as emptyColumns; domain rebuilt. Went red instead: apps/web/tests/store/qa-5b2b.adversarial.test.ts: 'the seam writes one document per state... > writes no entry at a key a placement is filed under' went red | keysThePlacementsCannotAnswer only visits keys that deriveColumns(records, {}) emits, i.e. keys of occupied columns, so the intersection with member-less keys is empty by construction; the test cannot see the projection. |
+| 198 | never excludes a member-less column, which is all this wave stores | 1 | **Mutation survived**. Mutation: packages/configurator-domain/src/void-engine.ts:~647 projectFrozenMap — pushes every column into columnExtents as well as emptyColumns; domain rebuilt. Went red instead: apps/web/tests/store/qa-5b2b.adversarial.test.ts: 'the seam writes one document per state... > writes no entry at a key a placement is filed under' went red | keysThePlacementsCannotAnswer only visits keys that deriveColumns(records, {}) emits, i.e. keys of occupied columns, so the intersection with member-less keys is empty by construction; the test cannot see the projection. | **W1-A unchanged** — control of a test-local detector, test-local measurement, or the review was wrong (see the wave report) |
 
 **`tests/store/qa-6k-d-second-deepening.adversarial.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 219 | sweeps both terminal depths | 1 | **No production input** (static) | expect(SEQUENCES).toHaveLength(16) and the filter counts of 8 run over SEQUENCES, built at line 211 by flatMap over the literal [600,700]. Only DEFAULT_CABINET_DEPTH_MM is a production symbol, used as a filter key; no production edit that leaves the file loadable changes the result. |
+| 219 | sweeps both terminal depths | 1 | **No production input** (static) | expect(SEQUENCES).toHaveLength(16) and the filter counts of 8 run over SEQUENCES, built at line 211 by flatMap over the literal [600,700]. Only DEFAULT_CABINET_DEPTH_MM is a production symbol, used as a filter key; no production edit that leaves the file loadable changes the result. | **W1-A strengthened** — red under mutation |
 
 **`tests/store/qa-w2-editability-extraction.adversarial.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 127 | sweeps every pair the two unions can form, so neither list is short | 1 | **No production input** (static) | expect(everyAccessPair().length).toBe(EVERY_WRITE_ACCESS.length * EVERY_SAVE_STATUS.length): both lists are literals declared at lines 32-46 of the test (typed readonly WriteAccess[]/SaveStatus[], which TS does not check for exhaustiveness) and everyAccessPair is a local flatMap; no production symbol feeds it. |
+| 127 | sweeps every pair the two unions can form, so neither list is short | 1 | **No production input** (static) | expect(everyAccessPair().length).toBe(EVERY_WRITE_ACCESS.length * EVERY_SAVE_STATUS.length): both lists are literals declared at lines 32-46 of the test (typed readonly WriteAccess[]/SaveStatus[], which TS does not check for exhaustiveness) and everyAccessPair is a local flatMap; no production symbol feeds it. | **W1-A strengthened** — the review was right that TypeScript did not check exhaustiveness; both lists rebuilt from `Record`s over the unions, a new member now fails `tsc` |
 
 #### `packages/configurator-domain` — 86 entries, 169 cases
 
@@ -844,84 +844,84 @@ hand-picked example). Several pairs are byte-equivalent, for example `write-auth
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 154 | covers the whole catalogue, with the recorded gaps named rather than dropped | 1 | **No production input** (static) | catalog-capability-parity.test.ts:155 `expect([...GATED_BUILD_IDS, ...RECORDED_CAPABILITY_GAPS].sort()).toEqual([...ALL_BUILD_IDS].sort())`: RECORDED_CAPABILITY_GAPS is the file-local `[]` (line 58) and GATED_BUILD_IDS is ALL_BUILD_IDS.filter(not in RECORDED) (line 60), so left side equals ALL by construction for whatever the catalogue holds; ALL feeds both sides. |
-| 162 | has no recorded gaps: every entry in both populations is gated | 1 | **No production input** (static) | Lines 163-164: `expect([...RECORDED_CAPABILITY_GAPS]).toEqual([])` compares the file's own constant `[]` to `[]`, and `expect(GATED_BUILD_IDS).toEqual(ALL_BUILD_IDS)` compares ALL.filter(x => ![].includes(x)) to ALL. Only editing the test file can turn it red. |
-| 200 | holds each recorded gap to still declaring a capability its geometry lacks | 1 | **No production input** (static) | The body is `for (const buildId of RECORDED_CAPABILITY_GAPS) { ... expect ... }` and RECORDED_CAPABILITY_GAPS is the file-local `readonly string[] = []` (line 58), so no iteration and no assertion ever runs; the file's own comment says the list is empty. |
+| 154 | covers the whole catalogue, with the recorded gaps named rather than dropped | 1 | **No production input** (static) | catalog-capability-parity.test.ts:155 `expect([...GATED_BUILD_IDS, ...RECORDED_CAPABILITY_GAPS].sort()).toEqual([...ALL_BUILD_IDS].sort())`: RECORDED_CAPABILITY_GAPS is the file-local `[]` (line 58) and GATED_BUILD_IDS is ALL_BUILD_IDS.filter(not in RECORDED) (line 60), so left side equals ALL by construction for whatever the catalogue holds; ALL feeds both sides. | **T1 strengthened** — red under mutation |
+| 162 | has no recorded gaps: every entry in both populations is gated | 1 | **No production input** (static) | Lines 163-164: `expect([...RECORDED_CAPABILITY_GAPS]).toEqual([])` compares the file's own constant `[]` to `[]`, and `expect(GATED_BUILD_IDS).toEqual(ALL_BUILD_IDS)` compares ALL.filter(x => ![].includes(x)) to ALL. Only editing the test file can turn it red. | **T1 unchanged** — reads a test-local list or self-tests a test-local instrument; no production behaviour named |
+| 200 | holds each recorded gap to still declaring a capability its geometry lacks | 1 | **No production input** (static) | The body is `for (const buildId of RECORDED_CAPABILITY_GAPS) { ... expect ... }` and RECORDED_CAPABILITY_GAPS is the file-local `readonly string[] = []` (line 58), so no iteration and no assertion ever runs; the file's own comment says the list is empty. | **T1 unchanged** — reads a test-local list or self-tests a test-local instrument; no production behaviour named |
 
 **`tests/finishes.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 151 | publishes isWood beside the hex rather than a second colour | 1 | **Mutation survived**. Mutation: packages/three-adapter/src/finishes.ts:87 swatchOf returns `isWood: !definition.isOak`. Went red instead: tests/finishes.test.ts "a wood is one texture at several tints... > draws pal.alb on the kit's one oak map" (+9 more, incl. 'publishes that same value as the swatch, and calls it no wood') red, file EXIT=1 | Only the key set ['color','isWood'] is asserted, never the isWood values, so inverted values pass; the WOODS/FLATS cases and the free-colour case catch them. |
+| 151 | publishes isWood beside the hex rather than a second colour | 1 | **Mutation survived**. Mutation: packages/three-adapter/src/finishes.ts:87 swatchOf returns `isWood: !definition.isOak`. Went red instead: tests/finishes.test.ts "a wood is one texture at several tints... > draws pal.alb on the kit's one oak map" (+9 more, incl. 'publishes that same value as the swatch, and calls it no wood') red, file EXIT=1 | Only the key set ['color','isWood'] is asserted, never the isWood values, so inverted values pass; the WOODS/FLATS cases and the free-colour case catch them. | **T1 strengthened** — red under mutation |
 
 **`tests/insert-depth.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 352 | keeps the hood out of the map, and hangs it at the front instead | 1 | **Mutation survived**. Mutation: configurator-domain/src/commands/insert-fit.ts:~672 resolveDepthM lifted arm returns 0.33 m instead of declaredM (domain rebuilt). Went red instead: packages/three-adapter/tests/insert-depth.test.ts 'p22 keeps its 600 mm ... where the cap is lifted' and 'p24 ...' (also two entry-10 cases) went red | The case only reads recorded seatDepthMm of seeded p13 via derivePlacementRecords and never calls insertBody, so the depth map is not exercised; flattening the map leaves it green. |
+| 352 | keeps the hood out of the map, and hangs it at the front instead | 1 | **Mutation survived**. Mutation: configurator-domain/src/commands/insert-fit.ts:~672 resolveDepthM lifted arm returns 0.33 m instead of declaredM (domain rebuilt). Went red instead: packages/three-adapter/tests/insert-depth.test.ts 'p22 keeps its 600 mm ... where the cap is lifted' and 'p24 ...' (also two entry-10 cases) went red | The case only reads recorded seatDepthMm of seeded p13 via derivePlacementRecords and never calls insertBody, so the depth map is not exercised; flattening the map leaves it green. | **T1 strengthened** — red under mutation |
 
 **`tests/kitchen-parts.parity.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 1076 | refuses a node declared both added and removed | 1 | **No production input** (static) | openLedger (kitchen-parts.parity.test.ts:614) and BOTH_WAYS fixture are declared in the test file; the asserted throw comes from the test-local refuseTwoDeclarationsOnOneNode. No production symbol feeds it. |
-| 1082 | opens on every declaration this file actually makes | 1 | **No production input** (static) | Calls test-local openLedger on test-local DECLARED_STRUCTURAL_CHANGES / DECLARED_DIVERGENCES / DECLARED_MESH_RENAMES and asserts not.toThrow; no production code runs. |
+| 1076 | refuses a node declared both added and removed | 1 | **No production input** (static) | openLedger (kitchen-parts.parity.test.ts:614) and BOTH_WAYS fixture are declared in the test file; the asserted throw comes from the test-local refuseTwoDeclarationsOnOneNode. No production symbol feeds it. | **T1 unchanged** — reads a test-local list or self-tests a test-local instrument; no production behaviour named |
+| 1082 | opens on every declaration this file actually makes | 1 | **No production input** (static) | Calls test-local openLedger on test-local DECLARED_STRUCTURAL_CHANGES / DECLARED_DIVERGENCES / DECLARED_MESH_RENAMES and asserts not.toThrow; no production code runs. | **T1 unchanged** — reads a test-local list or self-tests a test-local instrument; no production behaviour named |
 
 **`tests/kitchen-shell.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 200 | mutation control: a current-record-derived shell restores p7 and duplicates the hob | 1 | **Mutation survived**. Mutation: three-adapter/src/kitchen-shell.ts:54 discarded = [] (shell keeps every customer body). Went red instead: packages/three-adapter/tests/kitchen-shell.test.ts 'contains exactly the five documented room children' (+ 'mounts only the shell when ... zero placements', 'does not restore p0..' ) went red | The shell under assertion comes from test-local buildForbiddenRecordDerivedShell over kit.builders['kitchen-l']; buildKitchenShell is never called. |
+| 200 | mutation control: a current-record-derived shell restores p7 and duplicates the hob | 1 | **Mutation survived**. Mutation: three-adapter/src/kitchen-shell.ts:54 discarded = [] (shell keeps every customer body). Went red instead: packages/three-adapter/tests/kitchen-shell.test.ts 'contains exactly the five documented room children' (+ 'mounts only the shell when ... zero placements', 'does not restore p0..' ) went red | The shell under assertion comes from test-local buildForbiddenRecordDerivedShell over kit.builders['kitchen-l']; buildKitchenShell is never called. | **T1 unchanged** — reads a test-local list or self-tests a test-local instrument; no production behaviour named |
 
 **`tests/measure-built-body.adversarial.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 218 | gives the hood the declared 100 mm and every other body none | 1 | **No production input** (static) | Asserts Object.keys(ROW_19_DECLARED_WALL_GAP_M) equals ['hood'] and ROW_19_DECLARED_WALL_GAP_M['hood'] closeTo 0.6-0.5; the const is declared at measure-built-body.adversarial.test.ts:183 in the same file. No production symbol is read. |
+| 218 | gives the hood the declared 100 mm and every other body none | 1 | **No production input** (static) | Asserts Object.keys(ROW_19_DECLARED_WALL_GAP_M) equals ['hood'] and ROW_19_DECLARED_WALL_GAP_M['hood'] closeTo 0.6-0.5; the const is declared at measure-built-body.adversarial.test.ts:183 in the same file. No production symbol is read. | **T1 strengthened** — red under mutation |
 
 **`tests/picking.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 162 | a void never swallows a click aimed at a different cabinet standing elsewhere | 1 | **Mutation survived**. Mutation: three-adapter/src/picking.ts pick(): void hit wins over solid hit. Went red instead: packages/three-adapter/tests/picking.test.ts 'row 22: a solid cabinet is selected even when a void lies along the same ray' went red | The voids group passed is empty, so no void is ever on the ray; the test only checks nearest-of-two solids. |
+| 162 | a void never swallows a click aimed at a different cabinet standing elsewhere | 1 | **Mutation survived**. Mutation: three-adapter/src/picking.ts pick(): void hit wins over solid hit. Went red instead: packages/three-adapter/tests/picking.test.ts 'row 22: a solid cabinet is selected even when a void lies along the same ray' went red | The voids group passed is empty, so no void is ever on the ray; the test only checks nearest-of-two solids. | **T1 strengthened** — red under mutation |
 
 **`tests/qa-0099c-each-unchoosing-body-by-name.adversarial.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 316 | names both appliances | 1 | **No production input** (static) | APPLIANCES = UNCHOOSING.filter(family==='appliance') where UNCHOOSING is a literal table at qa-0099c-...adversarial.test.ts:71; expected ['fridge-free-700','hood-600'] is another literal. No production call. |
-| 372 | names it | 1 | **No production input** (static) | REPAINTED_STRUCTURAL filters the same test-local UNCHOOSING table (line 71) and is compared to ['open-shelf-600'] literal. |
-| 399 | has no structural body left with nothing for the colour to reach | 1 | **No production input** (static) | Filters the test-local UNCHOOSING table for structural rows with paintedSurfaceCount 0 and expects []; second expect asserts the table lacks 'base-corner-return-320'. Both sides are the file's own table. |
+| 316 | names both appliances | 1 | **No production input** (static) | APPLIANCES = UNCHOOSING.filter(family==='appliance') where UNCHOOSING is a literal table at qa-0099c-...adversarial.test.ts:71; expected ['fridge-free-700','hood-600'] is another literal. No production call. | **T1 strengthened** — red under mutation |
+| 372 | names it | 1 | **No production input** (static) | REPAINTED_STRUCTURAL filters the same test-local UNCHOOSING table (line 71) and is compared to ['open-shelf-600'] literal. | **T1 strengthened** — red under mutation |
+| 399 | has no structural body left with nothing for the colour to reach | 1 | **No production input** (static) | Filters the test-local UNCHOOSING table for structural rows with paintedSurfaceCount 0 and expects []; second expect asserts the table lacks 'base-corner-return-320'. Both sides are the file's own table. | **T1 strengthened** — red under mutation |
 
 **`tests/qa-7h-resize-in-place.adversarial.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 92 | reports a replaced geometry that nobody freed | 1 | **Mutation survived**. Mutation: three-adapter/src/kitchen-shell.ts:264 replaceGeometry no longer calls previous.dispose(). Went red instead: packages/three-adapter/tests/qa-7h-resize-in-place.adversarial.test.ts 'leaves nothing attached disposed and nothing replaced alive, over 100 corrections' went red | The test swaps floor.geometry itself and asks its own ResourceLedger; the shell is only a fixture. Harness self-test, as labelled. |
+| 92 | reports a replaced geometry that nobody freed | 1 | **Mutation survived**. Mutation: three-adapter/src/kitchen-shell.ts:264 replaceGeometry no longer calls previous.dispose(). Went red instead: packages/three-adapter/tests/qa-7h-resize-in-place.adversarial.test.ts 'leaves nothing attached disposed and nothing replaced alive, over 100 corrections' went red | The test swaps floor.geometry itself and asks its own ResourceLedger; the shell is only a fixture. Harness self-test, as labelled. | **T1 unchanged** — reads a test-local list or self-tests a test-local instrument; no production behaviour named |
 
 **`tests/qa-7j-straight-room.adversarial.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 151 | never seats a panel at x ≤ 0 or past wall A's end at %i mm | 13 | **Mutation survived**. Mutation: configurator-domain/src/run-end-panel.ts:81 runEndPanelSeatM always returns undefined (domain rebuilt). Went red instead: packages/three-adapter/tests/kitchen-shell.run-end-panel.test.ts 'stands at the reference room's 3.51 m' (and domain tests/run-end-panel.test.ts 'seats the seeded panel on M1's parity number') went red | Both assertions sit behind `if (seatM === undefined) return;`, so a function that never seats a panel passes all 13 rows with zero assertions. |
+| 151 | never seats a panel at x ≤ 0 or past wall A's end at %i mm | 13 | **Mutation survived**. Mutation: configurator-domain/src/run-end-panel.ts:81 runEndPanelSeatM always returns undefined (domain rebuilt). Went red instead: packages/three-adapter/tests/kitchen-shell.run-end-panel.test.ts 'stands at the reference room's 3.51 m' (and domain tests/run-end-panel.test.ts 'seats the seeded panel on M1's parity number') went red | Both assertions sit behind `if (seatM === undefined) return;`, so a function that never seats a panel passes all 13 rows with zero assertions. | **T1 strengthened** — red under mutation |
 
 **`tests/qa-c2s1-corner-wall-unit.adversarial.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 311 | is measured at both corners of a U, in both rows, at all three depth states | 1 | **No production input** (static) | everyPlacedUnit().length = 3*(4*2+1+2*4) is fixed by the test's ROOMS list and sceneOf's own rows/corners (design.room.heightMm, shape==='U'); units are built by the test via kit.make.wallCornerX. Production only matters in that generateKitchen/setCabinetDepth must not throw. No mutation attempted. |
+| 311 | is measured at both corners of a U, in both rows, at all three depth states | 1 | **No production input** (static) | everyPlacedUnit().length = 3*(4*2+1+2*4) is fixed by the test's ROOMS list and sceneOf's own rows/corners (design.room.heightMm, shape==='U'); units are built by the test via kit.make.wallCornerX. Production only matters in that generateKitchen/setCabinetDepth must not throw. No mutation attempted. | **T1 unchanged** — reads a test-local list or self-tests a test-local instrument; no production behaviour named |
 
 **`tests/stage.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 192 | would lose the row to a camera pulled back to hold the longest approved wall | 1 | **Mutation survived**. Mutation: three-adapter/src/stage.ts:276 PRESET_DISTANCE_M * 3 (preset pulled back). Went red instead: packages/three-adapter/tests/stage.test.ts 'the ceiling row stays tappable > overview/wallA/wallB projects the 2.20-2.60 row taller than a tap target' went red | The camera is hand-built with z=15.385 and only wallA.target is read from production; it is a falsification control for thinnestBandPx. |
+| 192 | would lose the row to a camera pulled back to hold the longest approved wall | 1 | **Mutation survived**. Mutation: three-adapter/src/stage.ts:276 PRESET_DISTANCE_M * 3 (preset pulled back). Went red instead: packages/three-adapter/tests/stage.test.ts 'the ceiling row stays tappable > overview/wallA/wallB projects the 2.20-2.60 row taller than a tap target' went red | The camera is hand-built with z=15.385 and only wallA.target is read from production; it is a falsification control for thinnestBandPx. | **T1 unchanged** — reads a test-local list or self-tests a test-local instrument; no production behaviour named |
 
 **`tests/the-corner-wears-a-colour.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 226 | paints the carcass of every one of the four corners | 1 | **No production input** (static) | CORNERS is a literal table at the-corner-wears-a-colour.test.ts:57 and CARCASS_MESH_NAMES a literal Set; both assertions filter and compare these. No kit or production symbol is touched. |
+| 226 | paints the carcass of every one of the four corners | 1 | **No production input** (static) | CORNERS is a literal table at the-corner-wears-a-colour.test.ts:57 and CARCASS_MESH_NAMES a literal Set; both assertions filter and compare these. No kit or production symbol is touched. | **T1 strengthened** — red under mutation |
 
 ### 1b. Mutation survived, but nothing else went red either
 
@@ -934,156 +934,156 @@ mutation is equivalent on shipped data, or the behaviour is unguarded everywhere
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 191 | appears in exactly one production module, which imports server-only / has no environment conditional on Secure | 1 | Mutation survived, no witness. Mutation: visitor.ts VISITOR_COOKIE_ATTRIBUTES secure: true -> !Reflect.has(globalThis,'location') (an environment conditional with no `process.env`) | Case 'has no environment conditional on Secure' is only not.toMatch(/process\.env/) over source text, so a conditional spelled otherwise passes. Mutation is true under the node test env so no behavioural test can see it; the other case (server-only import / name literal) is a genuine spelling pin and was not weakened. The reader's own proposed mutation would in fact turn the line-225 secure===true test red. |
+| 191 | appears in exactly one production module, which imports server-only / has no environment conditional on Secure | 1 | Mutation survived, no witness. Mutation: visitor.ts VISITOR_COOKIE_ATTRIBUTES secure: true -> !Reflect.has(globalThis,'location') (an environment conditional with no `process.env`) | Case 'has no environment conditional on Secure' is only not.toMatch(/process\.env/) over source text, so a conditional spelled otherwise passes. Mutation is true under the node test env so no behavioural test can see it; the other case (server-only import / name literal) is a genuine spelling pin and was not weakened. The reader's own proposed mutation would in fact turn the line-225 secure===true test red. | **W1-B strengthened** — red under mutation |
 
 **`tests/app/configurator/configure/use-back-guard.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 243 | the wiring no harness can stand in for (has the configure screen ask for the owner's variant only...; records Step 1's hand-over before the push...) | 2 | Mutation survived, no witness. Mutation: configure-screen.tsx:73 `isOwner: variant === "owner"` -> `... \|\| true` (guard for shared variant); use-generation.ts:301 `recordEditorOpenedFromStepOne(id)` -> `if (id === "") recordEditorOpenedFromStepOne(id)` | Both source-text cases stay green while behaviour changes. No other test went red: tests/app/configurator (221), configure-screen-shared-variant, shared-design-view, and the room/use-back-guard dom suites (115) all passed under the mutations, so the wiring is unguarded elsewhere (e2e not run). |
+| 243 | the wiring no harness can stand in for (has the configure screen ask for the owner's variant only...; records Step 1's hand-over before the push...) | 2 | Mutation survived, no witness. Mutation: configure-screen.tsx:73 `isOwner: variant === "owner"` -> `... \|\| true` (guard for shared variant); use-generation.ts:301 `recordEditorOpenedFromStepOne(id)` -> `if (id === "") recordEditorOpenedFromStepOne(id)` | Both source-text cases stay green while behaviour changes. No other test went red: tests/app/configurator (221), configure-screen-shared-variant, shared-design-view, and the room/use-back-guard dom suites (115) all passed under the mutations, so the wiring is unguarded elsewhere (e2e not run). | **W1-B strengthened** — **previously unguarded**; red under mutation |
 
 **`tests/app/internal/mirror-shot/page.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 34 | renders on a production server that set the flag | 1 | Mutation survived, no witness. Mutation: apps/web/src/app/internal/mirror-shot/page.tsx:16 `return <MirrorShot />` -> `return <div />` | Only toBeDefined on the returned element, with MirrorShot mocked to null. tests/app/internal (29 tests) all stayed green; the only other file naming mirror-shot is that test, so the area is unguarded outside Playwright (not run). |
+| 34 | renders on a production server that set the flag | 1 | Mutation survived, no witness. Mutation: apps/web/src/app/internal/mirror-shot/page.tsx:16 `return <MirrorShot />` -> `return <div />` | Only toBeDefined on the returned element, with MirrorShot mocked to null. tests/app/internal (29 tests) all stayed green; the only other file naming mirror-shot is that test, so the area is unguarded outside Playwright (not run). | **W1-B strengthened** — **previously unguarded**; red under mutation |
 
 **`tests/app/internal/scene-shot/page.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 38 | renders on a production server that set the flag | 1 | Mutation survived, no witness. Mutation: apps/web/src/app/internal/scene-shot/page.tsx: returned <div data-w={request.width} /> instead of <SceneShot ... /> with its parsed props | resolves.toBeDefined passes for any element. tests/app/internal, room-page and locale-layout (43 tests) stayed green; shot-request.test.ts covers the parser but nothing asserts the page hands it to SceneShot. |
+| 38 | renders on a production server that set the flag | 1 | Mutation survived, no witness. Mutation: apps/web/src/app/internal/scene-shot/page.tsx: returned <div data-w={request.width} /> instead of <SceneShot ... /> with its parsed props | resolves.toBeDefined passes for any element. tests/app/internal, room-page and locale-layout (43 tests) stayed green; shot-request.test.ts covers the parser but nothing asserts the page hands it to SceneShot. | **W1-B strengthened** — **previously unguarded**; red under mutation |
 
 **`tests/app/review-screen.dom.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 589 | what the stylesheet declares (the layout itself is the visual pass's) | 5 | Mutation survived, no witness. Mutation: review.module.css: appended later rules .bottom{position:static}, .buyRow{flex-wrap:wrap}, .picture{height:300px}, .cta{min-height:20px} | ruleBody() takes the first matching rule, so a later override defeats the cases for .bottom sticky, .picture 158px (twice), .buyRow no-wrap and .cta 52px; I did not mutate the other selectors. review-screen.dom.test and review-stylesheet-classes.test (53 tests) stayed green; layout is only seen in Playwright (not run). |
+| 589 | what the stylesheet declares (the layout itself is the visual pass's) | 5 | Mutation survived, no witness. Mutation: review.module.css: appended later rules .bottom{position:static}, .buyRow{flex-wrap:wrap}, .picture{height:300px}, .cta{min-height:20px} | ruleBody() takes the first matching rule, so a later override defeats the cases for .bottom sticky, .picture 158px (twice), .buyRow no-wrap and .cta 52px; I did not mutate the other selectors. review-screen.dom.test and review-stylesheet-classes.test (53 tests) stayed green; layout is only seen in Playwright (not run). | **W1-B strengthened** — red under mutation |
 
 **`tests/lib/server/share-token.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 67 | calls no non-cryptographic random source anywhere in the module | 1 | Mutation survived, no witness. Mutation: apps/web/src/lib/server/share-token.ts:44 default drawBytes -> a function that calls randomBytes(count) and discards it, returning Uint8Array.from({length}, () => Math["random"]() * 256) | Regex /Math\s*\.\s*random\s*\(/ misses Math["random"](). The 'draws its bytes from the platform CSPRNG by default' spy test stays green too (the dummy randomBytes call satisfies it); share-token, write-token and share-link-route suites (68) all passed. Weak entropy is only guarded by spelling. |
+| 67 | calls no non-cryptographic random source anywhere in the module | 1 | Mutation survived, no witness. Mutation: apps/web/src/lib/server/share-token.ts:44 default drawBytes -> a function that calls randomBytes(count) and discards it, returning Uint8Array.from({length}, () => Math["random"]() * 256) | Regex /Math\s*\.\s*random\s*\(/ misses Math["random"](). The 'draws its bytes from the platform CSPRNG by default' spy test stays green too (the dummy randomBytes call satisfies it); share-token, write-token and share-link-route suites (68) all passed. Weak entropy is only guarded by spelling. | **W1-B strengthened** — **previously unguarded**; red under mutation |
 
 **`tests/panel/finish-swatch-colors.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 33 | publishes the chip's own colour as the one custom property / paints the swatch from that property / derives a wood's grain from the same property | 3 | Mutation survived, no witness. Mutation: apps/web/src/panel/editor-panel.module.css:end — appended `.swatchColor { background: #ff00ff !important; }` (swatches paint magenta) | The three cases only call toContain on the CSS/TSX source text; the appended override leaves every searched substring in place. Sibling files qa-6p-finish-dom, qa-6r-control-shape, follow-the-kitchen-colour also stayed green (EXIT=0), so nothing in these suites witnesses the painted colour. |
+| 33 | publishes the chip's own colour as the one custom property / paints the swatch from that property / derives a wood's grain from the same property | 3 | Mutation survived, no witness. Mutation: apps/web/src/panel/editor-panel.module.css:end — appended `.swatchColor { background: #ff00ff !important; }` (swatches paint magenta) | The three cases only call toContain on the CSS/TSX source text; the appended override leaves every searched substring in place. Sibling files qa-6p-finish-dom, qa-6r-control-shape, follow-the-kitchen-colour also stayed green (EXIT=0), so nothing in these suites witnesses the painted colour. | **W1-B strengthened** — red under mutation |
 
 **`tests/panel/follow-the-kitchen-colour.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 186 | wires the store's clearFinish, which is the press no node runtime can drive | 1 | Mutation survived, no witness. Mutation: apps/web/src/panel/editor-panel.tsx:280 — replaced `onFollow={clearFinish}` with `onFollow={() => undefined}` plus a comment line `// onFollow={clearFinish}` | Test regex-matches editor-panel.tsx source; the commented-out text satisfies both regexes while the Follow press is a no-op. Whole file, settings/qa-0099-global-colour, settings/qa-w2-locked-surface-reach and store/backlog-51 all stayed green. |
+| 186 | wires the store's clearFinish, which is the press no node runtime can drive | 1 | Mutation survived, no witness. Mutation: apps/web/src/panel/editor-panel.tsx:280 — replaced `onFollow={clearFinish}` with `onFollow={() => undefined}` plus a comment line `// onFollow={clearFinish}` | Test regex-matches editor-panel.tsx source; the commented-out text satisfies both regexes while the Follow press is a no-op. Whole file, settings/qa-0099-global-colour, settings/qa-w2-locked-surface-reach and store/backlog-51 all stayed green. | **W1-B strengthened** — **previously unguarded**; red under mutation |
 
 **`tests/panel/panel-store-seam.qa.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 333 | reads the reflected width note on a right-hand room | 1 | Mutation survived, no witness. Mutation: apps/web/src/panel/use-panel-view.ts:~59 — passed `direction: "left"` to describePanel instead of the selected direction | The test builds its own panelFromStore mirror (which derives direction itself), so the real hook is never run. Whole file plus width-stepper.qa, width-stepper.wall-c and i18n/qa-7i-side-words all green under the mutation; only the e2e capture (not runnable here) guards the hook. |
+| 333 | reads the reflected width note on a right-hand room | 1 | Mutation survived, no witness. Mutation: apps/web/src/panel/use-panel-view.ts:~59 — passed `direction: "left"` to describePanel instead of the selected direction | The test builds its own panelFromStore mirror (which derives direction itself), so the real hook is never run. Whole file plus width-stepper.qa, width-stepper.wall-c and i18n/qa-7i-side-words all green under the mutation; only the e2e capture (not runnable here) guards the hook. | **W1-B strengthened** — **previously unguarded**; red under mutation |
 
 **`tests/persistence/save-coalescer.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 151 | returns synchronously without ever handing the caller a promise to await | 1 | Mutation survived, no witness. Mutation: apps/web/src/persistence/save-coalescer.ts:161 — made scheduleSave `async ... Promise<void>` | The only assertion is `not.toThrow()`; the return value is never inspected. Whole file and save-coalescer.adversarial, .conflict, client-write-generation all stayed green, so the guarantee rests on the TypeScript type alone (test's own comment concedes it). |
+| 151 | returns synchronously without ever handing the caller a promise to await | 1 | Mutation survived, no witness. Mutation: apps/web/src/persistence/save-coalescer.ts:161 — made scheduleSave `async ... Promise<void>` | The only assertion is `not.toThrow()`; the return value is never inspected. Whole file and save-coalescer.adversarial, .conflict, client-write-generation all stayed green, so the guarantee rests on the TypeScript type alone (test's own comment concedes it). | **W1-B strengthened** — red under mutation |
 
 **`tests/persistence/share-link-client.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 90 | turns a refusal into one ShareLinkRequestFailedError, carrying no status or body (%s) | 3 | Mutation survived, no witness. Mutation: apps/web/src/persistence/share-link-client.ts:~74 — request() now throws ShareLinkRequestFailedError carrying `${method} ${status} ${body text}` on any non-ok response | Case asserts only `rejects.toThrow(ShareLinkRequestFailedError)` (class), never the message, so an error carrying status and body passes for issue/revoke/status. Whole file and tests/share/share-design.dom.test.ts also green; e2e specs not runnable here. |
+| 90 | turns a refusal into one ShareLinkRequestFailedError, carrying no status or body (%s) | 3 | Mutation survived, no witness. Mutation: apps/web/src/persistence/share-link-client.ts:~74 — request() now throws ShareLinkRequestFailedError carrying `${method} ${status} ${body text}` on any non-ok response | Case asserts only `rejects.toThrow(ShareLinkRequestFailedError)` (class), never the message, so an error carrying status and body passes for issue/revoke/status. Whole file and tests/share/share-design.dom.test.ts also green; e2e specs not runnable here. | **W1-B strengthened** — **previously unguarded**; red under mutation |
 
 **`tests/price/price-bar-layout.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 195 | is published as a custom property by the component | 1 | Mutation survived, no witness. Mutation: apps/web/src/price/price-bar.tsx:16 — the published PRICE_BAR_METRICS is `{"--price-bar-height": "0px"}`; the original literal kept in a dead UNUSED_METRICS const | Test is toContain on price-bar.tsx source, so a dead constant satisfies it while the bar publishes 0px. aud-014, price-wiring.adversarial and qa-6bg-money-seam also green; no test renders PriceBar's style attribute. |
+| 195 | is published as a custom property by the component | 1 | Mutation survived, no witness. Mutation: apps/web/src/price/price-bar.tsx:16 — the published PRICE_BAR_METRICS is `{"--price-bar-height": "0px"}`; the original literal kept in a dead UNUSED_METRICS const | Test is toContain on price-bar.tsx source, so a dead constant satisfies it while the bar publishes 0px. aud-014, price-wiring.adversarial and qa-6bg-money-seam also green; no test renders PriceBar's style attribute. | **W1-B strengthened** — **previously unguarded**; red under mutation |
 
 **`tests/price/price-bar-model.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 114 | leaves the figure byte-identical, because the model never sees the refusal | 1 | Mutation survived, no witness. Mutation: apps/web/src/price/price-bar-model.ts:56 — describePriceBar returns the unpriced bar whenever an extra `rejection` input is present (no caller supplies one) | Case compares pricedBarFor(KITCHEN_L_DESIGN) with a second identical call; no refusal is ever supplied. A refusal-sensitive model survives. A call-counter mutation (odd calls +10,000,000 minor units; +1 was rounded away) turns it red, so it is only a determinism check. No other test goes red under the refusal mutation, so landing is unwitnessed. |
-| 121 | cannot be handed to this model at all | 1 | Mutation survived, no witness. Mutation: apps/web/src/price/price-bar-model.ts:56 — describePriceBar honours an extra optional `rejection` input (same mutation as s09.1) | Asserts Object.keys of an object literal the test built (`{ pricing: ... }`); describePriceBar and DescribePriceBarInput are never involved. Quote: `expect(Object.keys({ pricing: priceOf(KITCHEN_L_DESIGN) })).toEqual(["pricing"])`. Effectively static-proved, mutation confirmed it cannot see an added input. |
+| 114 | leaves the figure byte-identical, because the model never sees the refusal | 1 | Mutation survived, no witness. Mutation: apps/web/src/price/price-bar-model.ts:56 — describePriceBar returns the unpriced bar whenever an extra `rejection` input is present (no caller supplies one) | Case compares pricedBarFor(KITCHEN_L_DESIGN) with a second identical call; no refusal is ever supplied. A refusal-sensitive model survives. A call-counter mutation (odd calls +10,000,000 minor units; +1 was rounded away) turns it red, so it is only a determinism check. No other test goes red under the refusal mutation, so landing is unwitnessed. | **W1-B strengthened** — red under mutation |
+| 121 | cannot be handed to this model at all | 1 | Mutation survived, no witness. Mutation: apps/web/src/price/price-bar-model.ts:56 — describePriceBar honours an extra optional `rejection` input (same mutation as s09.1) | Asserts Object.keys of an object literal the test built (`{ pricing: ... }`); describePriceBar and DescribePriceBarInput are never involved. Quote: `expect(Object.keys({ pricing: priceOf(KITCHEN_L_DESIGN) })).toEqual(["pricing"])`. Effectively static-proved, mutation confirmed it cannot see an added input. | **W1-B strengthened** — as a `tsc` guard (TS2578 under the mutation) |
 
 **`tests/price/qa-m6-wave-b-tier-deltas.adversarial.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 99 | names the two groups' deltas apart even where both offer the same amounts | 1 | Mutation survived, no witness. Mutation: apps/web/src/price/whole-kitchen-tiers.ts:101-105 — offerWholeKitchenTiers hands both groups one merged delta map (material and hardware flattened, keyed by bare tierId) | Body only checks the two id sets are disjoint and tierIds equal the book lists; no delta is compared. With disjoint ids a flattened map is behaviourally equivalent, and parsePriceBook refuses colliding ids, so the mutation is probably equivalent; whole-kitchen-tier-group-keys and three settings suites also green. |
-| 170 | never shows a material tier an amount measured for a hardware one | 1 | Mutation survived, no witness. Mutation: apps/web/src/price/whole-kitchen-tiers.ts:101-105 — offerWholeKitchenTiers hands both groups one merged delta map (material and hardware flattened, keyed by bare tierId) | Collided book is refused by the parser, so deltas are undefined and `hardwareAmounts.has(undefined)` over a set of defined numbers is satisfied by absence. The flattening mutation is unreachable for any book that parses (likely equivalent), so nothing in these suites can witness it. |
+| 99 | names the two groups' deltas apart even where both offer the same amounts | 1 | Mutation survived, no witness. Mutation: apps/web/src/price/whole-kitchen-tiers.ts:101-105 — offerWholeKitchenTiers hands both groups one merged delta map (material and hardware flattened, keyed by bare tierId) | Body only checks the two id sets are disjoint and tierIds equal the book lists; no delta is compared. With disjoint ids a flattened map is behaviourally equivalent, and parsePriceBook refuses colliding ids, so the mutation is probably equivalent; whole-kitchen-tier-group-keys and three settings suites also green. | **W1-B unchanged** — equivalent mutant by reading only; the parser's refusal of colliding ids was not verified |
+| 170 | never shows a material tier an amount measured for a hardware one | 1 | Mutation survived, no witness. Mutation: apps/web/src/price/whole-kitchen-tiers.ts:101-105 — offerWholeKitchenTiers hands both groups one merged delta map (material and hardware flattened, keyed by bare tierId) | Collided book is refused by the parser, so deltas are undefined and `hardwareAmounts.has(undefined)` over a set of defined numbers is satisfied by absence. The flattening mutation is unreachable for any book that parses (likely equivalent), so nothing in these suites can witness it. | **W1-B unchanged** — equivalent mutant by reading only; the parser's refusal of colliding ids was not verified |
 
 **`tests/room/plan-preview.dom.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 270 | draws the border and sets the label's type from those published figures | 1 | Mutation survived, no witness. Mutation: apps/web/src/room/room.module.css:EOF — appended `.planBox { border: 0; }` | Test only toContain()s the declaration string; a later override that removes the border leaves it green. plan-preview.dom, qa-7f2-s2-red-wall, dimensions-form.dom, facing-labels (156 tests) all stay green, so the area is unguarded for computed effect. |
-| 437 | declares the frame's red once, on the plan box, for the bar and its label to share | 1 | Mutation survived, no witness. Mutation: apps/web/src/room/room.module.css:EOF — appended `.planWallLabel[data-marked="true"] { color: inherit !important; }` | Asserts source spelling of --refusal and the rule regex; override defeating the red passes, and 156 tests across 4 sibling files stay green. Bar fill red is covered separately, label colour effect is not. |
+| 270 | draws the border and sets the label's type from those published figures | 1 | Mutation survived, no witness. Mutation: apps/web/src/room/room.module.css:EOF — appended `.planBox { border: 0; }` | Test only toContain()s the declaration string; a later override that removes the border leaves it green. plan-preview.dom, qa-7f2-s2-red-wall, dimensions-form.dom, facing-labels (156 tests) all stay green, so the area is unguarded for computed effect. | **W1-B strengthened** — red under mutation |
+| 437 | declares the frame's red once, on the plan box, for the bar and its label to share | 1 | Mutation survived, no witness. Mutation: apps/web/src/room/room.module.css:EOF — appended `.planWallLabel[data-marked="true"] { color: inherit !important; }` | Asserts source spelling of --refusal and the rule regex; override defeating the red passes, and 156 tests across 4 sibling files stay green. Bar fill red is covered separately, label colour effect is not. | **W1-B strengthened** — red under mutation |
 
 **`tests/room/room-screen.dom.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 254 | composes the pill from the approved leaves and never from the numbers | 1 | Mutation survived, no witness. Mutation: apps/web/src/room/room-screen.tsx:143 — pill rendered as `(translate('configure.stepPill', ...), `${String(1)}/${String(4)}`)` | Source-text check passes for an aliased hardcoded pill; all 57 tests in room-screen.dom.test.ts stay green because ro and ru both define stepPill as '{step}/{totalSteps}', so the render is identical. The mutation is observably equivalent under current catalogues, so no behavioural test could witness it. |
+| 254 | composes the pill from the approved leaves and never from the numbers | 1 | Mutation survived, no witness. Mutation: apps/web/src/room/room-screen.tsx:143 — pill rendered as `(translate('configure.stepPill', ...), `${String(1)}/${String(4)}`)` | Source-text check passes for an aliased hardcoded pill; all 57 tests in room-screen.dom.test.ts stay green because ro and ru both define stepPill as '{step}/{totalSteps}', so the render is identical. The mutation is observably equivalent under current catalogues, so no behavioural test could witness it. | **W1-B strengthened** — red under mutation |
 
 **`tests/room/step-one-desktop-footer-centring.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 33 | the desktop Step 1 footers (3 cases) | 3 | Mutation survived, no witness. Mutation: apps/web/src/room/room.module.css:EOF — appended later @media (min-width: 900px) rule setting .footer/.dimensionsFooter/.composeFooter to align-items: flex-start; height: 40px | The tests regex the first matching desktop rule body, so a later override of both the centring and the 88px height leaves all 3 green; 116 tests across 4 room CSS-reading siblings also stay green. The file header concedes this; computed layout is left to an e2e spec (not run here). |
+| 33 | the desktop Step 1 footers (3 cases) | 3 | Mutation survived, no witness. Mutation: apps/web/src/room/room.module.css:EOF — appended later @media (min-width: 900px) rule setting .footer/.dimensionsFooter/.composeFooter to align-items: flex-start; height: 40px | The tests regex the first matching desktop rule body, so a later override of both the centring and the 88px height leaves all 3 green; 116 tests across 4 room CSS-reading siblings also stay green. The file header concedes this; computed layout is left to an e2e spec (not run here). | **W1-B strengthened** — red under mutation |
 
 **`tests/scene/camera-preset-survives-a-locale-switch.dom.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 79 | is still where they left it after the subtree remounts | 1 | Mutation survived, no witness. Mutation: apps/web/src/app/configurator/configure/configure-screen.tsx:65-66 — presetId/standAt taken from local `useState(storedPresetId)` instead of the store (store hook still called) | The test mounts a test-local CameraReadout against the real zustand store, never ConfigureScreen, so it cannot see how the screen holds the camera. 22 tests (url-seam siblings: qa-7j-camera-row, single-mount, scene-view) plus 72 more across 6 other ConfigureScreen suites all stay green: no test anywhere guards the remount behaviour of the screen. |
-| 95 | takes the preset from the store rather than holding it in state | 1 | Mutation survived, no witness. Mutation: apps/web/src/app/configurator/configure/configure-screen.tsx:65-66 — same local-state mutation, keeping `useCameraPreset` text, untyped `useState(...)`, no `setPresetId` | Three string checks on configure-screen.tsx source; any state holder under a different type/setter name passes while the store import stays. Nothing else in the suite fails either, so the wiring is guarded only by this text check. |
+| 79 | is still where they left it after the subtree remounts | 1 | Mutation survived, no witness. Mutation: apps/web/src/app/configurator/configure/configure-screen.tsx:65-66 — presetId/standAt taken from local `useState(storedPresetId)` instead of the store (store hook still called) | The test mounts a test-local CameraReadout against the real zustand store, never ConfigureScreen, so it cannot see how the screen holds the camera. 22 tests (url-seam siblings: qa-7j-camera-row, single-mount, scene-view) plus 72 more across 6 other ConfigureScreen suites all stay green: no test anywhere guards the remount behaviour of the screen. | **W1-B strengthened** — **previously unguarded**; red under mutation |
+| 95 | takes the preset from the store rather than holding it in state | 1 | Mutation survived, no witness. Mutation: apps/web/src/app/configurator/configure/configure-screen.tsx:65-66 — same local-state mutation, keeping `useCameraPreset` text, untyped `useState(...)`, no `setPresetId` | Three string checks on configure-screen.tsx source; any state holder under a different type/setter name passes while the store import stays. Nothing else in the suite fails either, so the wiring is guarded only by this text check. | **W1-B strengthened** — **previously unguarded**; red under mutation |
 
 **`tests/scene/kitchen-stage-disposal.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 214 | hands the teardown the kit, room, ground, blob and lights it mounted | 1 | Mutation survived, no witness. Mutation: apps/web/src/scene/kitchen-stage.tsx:248-249 — stage built with `ground: createContactBlob(), blob: createShadowGround()` (swapped) | Ground and blob are only checked toBeInstanceOf(Object3D) and both mocks return a Group, so swapping them is invisible. 37 tests in 6 sibling kitchen-stage/review-scene suites also stay green; only an omitted field would be detected. |
+| 214 | hands the teardown the kit, room, ground, blob and lights it mounted | 1 | Mutation survived, no witness. Mutation: apps/web/src/scene/kitchen-stage.tsx:248-249 — stage built with `ground: createContactBlob(), blob: createShadowGround()` (swapped) | Ground and blob are only checked toBeInstanceOf(Object3D) and both mocks return a Group, so swapping them is invisible. 37 tests in 6 sibling kitchen-stage/review-scene suites also stay green; only an omitted field would be detected. | **W1-B strengthened** — **previously unguarded**; red under mutation |
 
 **`tests/scene/overflow-warning-layout.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 93 | the warning is an overlay on the scene, taking none of its height (7 cases, from 'stands inside the viewport...') | 5 | Mutation survived, no witness. Mutation: configure.module.css:EOF — later `.sceneFooter { position: static; bottom: auto; pointer-events: auto; flex-direction: row }` and `.viewport { position: static; display: grid; grid-template: auto 1fr / auto }`; overflow-warning.module.css:EOF — later `.warning { background: transparent }` and `.warning::after { content : "x" }` | 5 of the 7 cases are defeated by later CSS overrides (they regex the first matching block); 141 tests across overflow-warning, -viewport, price-bar-viewport and single-mount siblings stay green. The two markup cases ('stands inside the viewport', 'stacks below the orbit hint') were not mutated, so they are not covered by this verdict. |
+| 93 | the warning is an overlay on the scene, taking none of its height (7 cases, from 'stands inside the viewport...') | 5 | Mutation survived, no witness. Mutation: configure.module.css:EOF — later `.sceneFooter { position: static; bottom: auto; pointer-events: auto; flex-direction: row }` and `.viewport { position: static; display: grid; grid-template: auto 1fr / auto }`; overflow-warning.module.css:EOF — later `.warning { background: transparent }` and `.warning::after { content : "x" }` | 5 of the 7 cases are defeated by later CSS overrides (they regex the first matching block); 141 tests across overflow-warning, -viewport, price-bar-viewport and single-mount siblings stay green. The two markup cases ('stands inside the viewport', 'stacks below the orbit hint') were not mutated, so they are not covered by this verdict. | **W1-B strengthened** — red under mutation |
 
 **`tests/settings/global-colour-group.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 311 | wires the production sheet's own handler, which no node runtime can open the sheet to prove | 1 | Mutation survived, no witness. Mutation: apps/web/src/settings/global-settings.tsx:188 — chooseFinish body replaced by `void finish;` (JSX prop text unchanged) | Regex only sees `onChooseFinish={chooseFinish}` in the source. 64 tests across global-colour-group, global-settings-inert.dom, global-settings-shell, qa-0099-global-colour and withdrawn-tier-recovery stay green with a dead handler, so no unit/DOM test presses a colour swatch through the real sheet (an e2e spec exists, not run here). |
-| 532 | leaves the stored document byte-identical to the one the sheet opened on | 1 | Mutation survived, no witness. Mutation: apps/web/src/settings/global-settings.tsx:338 — onCancel={close} replaced by `() => { applyPending(); close(); }` | The property reduces presses through chooseTierIn/chooseDepthIn/chooseFinishIn and never touches the store with them, so a cancel that applies pending cannot affect it. 79 tests across 6 settings suites stay green; only the e2e apply spec (not run) could catch it. |
+| 311 | wires the production sheet's own handler, which no node runtime can open the sheet to prove | 1 | Mutation survived, no witness. Mutation: apps/web/src/settings/global-settings.tsx:188 — chooseFinish body replaced by `void finish;` (JSX prop text unchanged) | Regex only sees `onChooseFinish={chooseFinish}` in the source. 64 tests across global-colour-group, global-settings-inert.dom, global-settings-shell, qa-0099-global-colour and withdrawn-tier-recovery stay green with a dead handler, so no unit/DOM test presses a colour swatch through the real sheet (an e2e spec exists, not run here). | **W1-B strengthened** — **previously unguarded**; red under mutation |
+| 532 | leaves the stored document byte-identical to the one the sheet opened on | 1 | Mutation survived, no witness. Mutation: apps/web/src/settings/global-settings.tsx:338 — onCancel={close} replaced by `() => { applyPending(); close(); }` | The property reduces presses through chooseTierIn/chooseDepthIn/chooseFinishIn and never touches the store with them, so a cancel that applies pending cannot affect it. 79 tests across 6 settings suites stay green; only the e2e apply spec (not run) could catch it. | **W1-B removed** — redundant; W1-A's "writes nothing to the document when the customer cancels" went red |
 
 **`tests/settings/pending-choice-invariant.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 135 | leaves the stored document byte-identical to the one the sheet opened on | 1 | Mutation survived, no witness. Mutation: apps/web/src/settings/global-settings.tsx:338 — onCancel={close} replaced by `() => { applyPending(); close(); }` | Same shape as s15.3: pendingAfter(presses) is a pure reducer fold, the store is built and compared but never passed to anything. Cancel applying the pending choice leaves it and 78 other settings tests green. |
+| 135 | leaves the stored document byte-identical to the one the sheet opened on | 1 | Mutation survived, no witness. Mutation: apps/web/src/settings/global-settings.tsx:338 — onCancel={close} replaced by `() => { applyPending(); close(); }` | Same shape as s15.3: pendingAfter(presses) is a pure reducer fold, the store is built and compared but never passed to anything. Cancel applying the pending choice leaves it and 78 other settings tests green. | **W1-B removed** — redundant; W1-A's "writes nothing to the document when the customer cancels" went red |
 
 **`tests/settings/qa-0104-the-pill-at-every-rung.adversarial.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 234 | draws at least one label and exactly one swatch at %i drawn, on both designs | 4 | Mutation survived, no witness. Mutation: apps/web/src/settings/global-settings.tsx:273-284 — removed the `<span className={styles.swatch} aria-hidden="true" …/>` from the pill (diff confirmed) | The swatch assertion is `countOf(markup,'aria-hidden="true"') > 0`, satisfied by separators and the caret. 167 tests across the pill file, global-settings-shell/adversarial/model, qa-0099, qa-6p-finish-dom and starting-price stay green with no swatch drawn. |
+| 234 | draws at least one label and exactly one swatch at %i drawn, on both designs | 4 | Mutation survived, no witness. Mutation: apps/web/src/settings/global-settings.tsx:273-284 — removed the `<span className={styles.swatch} aria-hidden="true" …/>` from the pill (diff confirmed) | The swatch assertion is `countOf(markup,'aria-hidden="true"') > 0`, satisfied by separators and the caret. 167 tests across the pill file, global-settings-shell/adversarial/model, qa-0099, qa-6p-finish-dom and starting-price stay green with no swatch drawn. | **W1-B strengthened** — **previously unguarded**; red under mutation |
 
 **`tests/settings/qa-w2-locked-surface-reach.adversarial.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 234 | guards the commit itself, on every handler that can reach it | 1 | Mutation survived, no witness. Mutation: apps/web/src/settings/global-settings.tsx:211 applyPending — replaced 'if (editability.isReadOnly) return;' with the comment '// editability.isReadOnly' | The regex only checks the substring 'editability.isReadOnly' occurs inside the applyPending body, so a comment satisfies it. Whole file (8) and read-only-global-settings.test.ts (10) stayed green too; no unit test reacts, so the removed guard is unguarded outside e2e. |
+| 234 | guards the commit itself, on every handler that can reach it | 1 | Mutation survived, no witness. Mutation: apps/web/src/settings/global-settings.tsx:211 applyPending — replaced 'if (editability.isReadOnly) return;' with the comment '// editability.isReadOnly' | The regex only checks the substring 'editability.isReadOnly' occurs inside the applyPending body, so a comment satisfies it. Whole file (8) and read-only-global-settings.test.ts (10) stayed green too; no unit test reacts, so the removed guard is unguarded outside e2e. | **W1-B strengthened** — the review's mutation is equivalent on the rendered sheet (the button is disabled); a DOM test now holds the guard and the disabled door together |
 
 **`tests/settings/share-design-mounted.test.ts`**
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 12 | is imported and rendered exactly once, inside the choosing step's body | 1 | Mutation survived, no witness. Mutation: apps/web/src/settings/global-settings.tsx:531 — replaced '{shareControl}' with '{null}' (control never rendered; import and line 331 intact) | Text-only assertions on global-settings.tsx. Whole file, tests/share/share-design.dom.test.ts (16), global-settings-seams (9) and read-only-global-settings (10) all stayed green; only the e2e spec tests/e2e/share-design.e2e.spec.ts would see it and cannot run here. |
+| 12 | is imported and rendered exactly once, inside the choosing step's body | 1 | Mutation survived, no witness. Mutation: apps/web/src/settings/global-settings.tsx:531 — replaced '{shareControl}' with '{null}' (control never rendered; import and line 331 intact) | Text-only assertions on global-settings.tsx. Whole file, tests/share/share-design.dom.test.ts (16), global-settings-seams (9) and read-only-global-settings (10) all stayed green; only the e2e spec tests/e2e/share-design.e2e.spec.ts would see it and cannot run here. | **W1-B strengthened** — **previously unguarded**; red under mutation |
 
 #### `packages/configurator-domain` — 7 entries, 10 cases
 
@@ -1135,7 +1135,7 @@ mutation is equivalent on shipped data, or the behaviour is unguarded everywhere
 
 | Line | Test | Cases | Proof | Why | Status |
 | --- | --- | --- | --- | --- | --- |
-| 141 | resolves every slab constant through the domain module | 1 | Mutation survived, no witness. Mutation: three-adapter/src/kitchen-parts.ts: removed the 4 domain imports/re-export, declared local export const copies with identical values | toBe on numbers cannot tell a re-export from a same-value copy; the mutation is behaviourally equivalent, so nothing anywhere went red. The file's source-scan test inspects kitchen-shell.ts, not kitchen-parts.ts. |
+| 141 | resolves every slab constant through the domain module | 1 | Mutation survived, no witness. Mutation: three-adapter/src/kitchen-parts.ts: removed the 4 domain imports/re-export, declared local export const copies with identical values | toBe on numbers cannot tell a re-export from a same-value copy; the mutation is behaviourally equivalent, so nothing anywhere went red. The file's source-scan test inspects kitchen-shell.ts, not kitchen-parts.ts. | **T1 unchanged** — equivalent mutant (by reading; no differing-value mutation run) |
 
 ### 1c. Judged by reading only (Playwright and persistence suites, not run)
 
@@ -2672,183 +2672,183 @@ mutation is equivalent on shipped data, or the behaviour is unguarded everywhere
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 243 | keeps the worktop's overhang a constant at every depth | 1 | The it.each at :211 asserts carcass 560/660/760 and worktop 620/720/820 with toBe at the same three depths on the same builder call, so each difference is 60 by arithmetic. The candidate cannot fail while those rows pass. **Keep:** `packages/three-adapter/tests/cabinet-depth-source.test.ts:211` |
+| 243 | keeps the worktop's overhang a constant at every depth | 1 | The it.each at :211 asserts carcass 560/660/760 and worktop 620/720/820 with toBe at the same three depths on the same builder call, so each difference is 60 by arithmetic. The candidate cannot fail while those rows pass. **Keep:** `packages/three-adapter/tests/cabinet-depth-source.test.ts:211` | **T2 deleted** — the Keep test went red under a mutation; logic review: sound |
 
 **`tests/catalog-bodies.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 578 | a height-flexible body builds its carcass at the 400 mm minimum opening | 1 | The whole case, not only its repeated 'wall-cabinet' entry: SIZE_CASES builds wall-cabinet, wall-lift and open-shelf at 0.6 x TOP_SLOT_HEIGHT_M (0.4) and checks carcass height within FIT_TOLERANCE_M (catalog-bodies.test.ts:129-:138, :210-:212), which is what passesBuiltSizeGate computes (adversarial :86-:90). Only the requested depth differs (400 vs 330 mm), which does not enter the height. **Keep:** `packages/three-adapter/tests/catalog-bodies.test.ts:129` |
+| 578 | a height-flexible body builds its carcass at the 400 mm minimum opening | 1 | The whole case, not only its repeated 'wall-cabinet' entry: SIZE_CASES builds wall-cabinet, wall-lift and open-shelf at 0.6 x TOP_SLOT_HEIGHT_M (0.4) and checks carcass height within FIT_TOLERANCE_M (catalog-bodies.test.ts:129-:138, :210-:212), which is what passesBuiltSizeGate computes (adversarial :86-:90). Only the requested depth differs (400 vs 330 mm), which does not enter the height. **Keep:** `packages/three-adapter/tests/catalog-bodies.test.ts:129` | **T2 deleted** — the Keep test went red under a mutation; logic review: sound |
 
 **`tests/catalog-bodies.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 90 | SIZE_CASES rows built from BASE_BUILD_IDS/WALL_BUILD_IDS listing the same id twice | 16 | BASE_BUILD_IDS lists 'base-cabinet' twice (:91-:92) and WALL_BUILD_IDS lists 'wall-cabinet' twice (:97-:98), so the flatMaps at :105 and :129 emit identical cases twice: 4 base (4 widths) and 12 wall (4 widths x 3 size variants). Removing one entry from each list removes exactly the 16 repeats. **Keep:** `packages/three-adapter/tests/catalog-bodies.test.ts:105` |
-| 198 | covers exactly the catalogue's insertable entries, in both directions | 1 | Set equality of CATALOG_BUILD_IDS and the insertable definitions' ids; the adversarial file asserts each inclusion separately (:167 no missing builder, :175 no orphaned builder) and names the offending ids on failure. Keep either the single case or the pair, not both. **Keep:** `packages/three-adapter/tests/catalog-bodies.adversarial.test.ts:167` |
+| 90 | SIZE_CASES rows built from BASE_BUILD_IDS/WALL_BUILD_IDS listing the same id twice | 16 | BASE_BUILD_IDS lists 'base-cabinet' twice (:91-:92) and WALL_BUILD_IDS lists 'wall-cabinet' twice (:97-:98), so the flatMaps at :105 and :129 emit identical cases twice: 4 base (4 widths) and 12 wall (4 widths x 3 size variants). Removing one entry from each list removes exactly the 16 repeats. **Keep:** `packages/three-adapter/tests/catalog-bodies.test.ts:105` | **T2 deleted** — the Keep test went red under a mutation; logic review: sound |
+| 198 | covers exactly the catalogue's insertable entries, in both directions | 1 | Set equality of CATALOG_BUILD_IDS and the insertable definitions' ids; the adversarial file asserts each inclusion separately (:167 no missing builder, :175 no orphaned builder) and names the offending ids on failure. Keep either the single case or the pair, not both. **Keep:** `packages/three-adapter/tests/catalog-bodies.adversarial.test.ts:167` | **T2 deleted** — the Keep test went red under a mutation; logic review: sound |
 
 **`tests/hob-base.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 160 | base-hob-oven carries an oven and base-hob-2drawer does not | 1 | Same two builds at the same size (600 x 860 x 580 mm; HOB_BASE_SIZE at adversarial :44) and the same pair of assertions on 'oven_cavity' as hob-base.adversarial.test.ts:144-:151. **Keep:** `packages/three-adapter/tests/hob-base.adversarial.test.ts:144` |
+| 160 | base-hob-oven carries an oven and base-hob-2drawer does not | 1 | Same two builds at the same size (600 x 860 x 580 mm; HOB_BASE_SIZE at adversarial :44) and the same pair of assertions on 'oven_cavity' as hob-base.adversarial.test.ts:144-:151. **Keep:** `packages/three-adapter/tests/hob-base.adversarial.test.ts:144` | **T2 deleted** — the Keep test went red under a mutation; logic review: sound |
 
 **`tests/hob-front-clearance.parity.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 216 | grows that gap by exactly what the setting grows by | 1 | SHALLOWEST and DEEPEST are this file's own literals 600 and 700 (:26-:27), and the rows at :201 pin the same expression at 90 and 190 with toBe, so the difference is 100 by arithmetic. The comment's promise that a third declared depth would extend it does not hold: the depths are local constants, not read from production. **Keep:** `packages/three-adapter/tests/hob-front-clearance.parity.test.ts:201` |
+| 216 | grows that gap by exactly what the setting grows by | 1 | SHALLOWEST and DEEPEST are this file's own literals 600 and 700 (:26-:27), and the rows at :201 pin the same expression at 90 and 190 with toBe, so the difference is 100 by arithmetic. The comment's promise that a third declared depth would extend it does not hold: the depths are local constants, not read from production. **Keep:** `packages/three-adapter/tests/hob-front-clearance.parity.test.ts:201` | **T2 deleted** — the Keep test went red under a mutation; logic review: sound |
 
 **`tests/kitchen-parts.contract.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 375 | is not a reference builder: the builders keep exactly the reference's keys | 1 | kitchen-parts.parity.test.ts:1097-:1100 requires the ported kit's builder keys to equal the reference's exactly, so any extra key, 'wall-corner-x' included, already fails there. The candidate checks one absent key of that set. **Keep:** `packages/three-adapter/tests/kitchen-parts.parity.test.ts:1097` |
+| 375 | is not a reference builder: the builders keep exactly the reference's keys | 1 | kitchen-parts.parity.test.ts:1097-:1100 requires the ported kit's builder keys to equal the reference's exactly, so any extra key, 'wall-corner-x' included, already fails there. The candidate checks one absent key of that set. **Keep:** `packages/three-adapter/tests/kitchen-parts.parity.test.ts:1097` | **T2 deleted** — the Keep test went red under a mutation; logic review: sound |
 
 **`tests/kitchen-shell.room-shaped.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 427 | still frees the material and map it cloned on the previous resize | 1 | Same fresh shellFor(SEEDED_ROOM), same resize to 5000x4000x3000, same dispose-once spies on the floor's material and map; :326 does that for floor plus backsplash_wall_a. Strict subset; despite the title no 'previous resize' is staged. **Keep:** `packages/three-adapter/tests/kitchen-shell.room-shaped.test.ts:326` |
+| 427 | still frees the material and map it cloned on the previous resize | 1 | Same fresh shellFor(SEEDED_ROOM), same resize to 5000x4000x3000, same dispose-once spies on the floor's material and map; :326 does that for floor plus backsplash_wall_a. Strict subset; despite the title no 'previous resize' is staged. **Keep:** `packages/three-adapter/tests/kitchen-shell.room-shaped.test.ts:326` | **T2 deleted** — the Keep test went red under a mutation; logic review: sound |
 
 **`tests/kitchen-shell.u.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 277 | keeps an L's and a straight room's floor at depthMm plus the overhang | 1 | Cited twin (linear:85) is not the subsumer, but kitchen-shell.u.test.ts:430 strict-equals the floor's geometry size, position and rotation for the same L_ROOM and LINEAR_ROOM (3700x3400), which fixes max z. Only an unrecorded mesh scale could separate them, and scale on a fresh build is caught by the characterisation file. **Keep:** `packages/three-adapter/tests/kitchen-shell.u.test.ts:430` |
-| 481 | leaves an L's floor no different whether or not wall C is in the shell | 1 | Same L->U->L trip; :452 strict-equals the floor's size, position and rotation to the recorded L, which implies an unchanged z extent. Caveat: recordedFactsOf (u.test:404) drops scale, so a floor left scaled (not rebuilt) after the return trip is seen only here; add scale to that record if deleting. **Keep:** `packages/three-adapter/tests/kitchen-shell.u.test.ts:452` |
+| 277 | keeps an L's and a straight room's floor at depthMm plus the overhang | 1 | Cited twin (linear:85) is not the subsumer, but kitchen-shell.u.test.ts:430 strict-equals the floor's geometry size, position and rotation for the same L_ROOM and LINEAR_ROOM (3700x3400), which fixes max z. Only an unrecorded mesh scale could separate them, and scale on a fresh build is caught by the characterisation file. **Keep:** `packages/three-adapter/tests/kitchen-shell.u.test.ts:430` | **T2 merged then deleted** — the Keep test missed a stretched floor; a no-scale assertion (children and the shell group) was added first |
+| 481 | leaves an L's floor no different whether or not wall C is in the shell | 1 | Same L->U->L trip; :452 strict-equals the floor's size, position and rotation to the recorded L, which implies an unchanged z extent. Caveat: recordedFactsOf (u.test:404) drops scale, so a floor left scaled (not rebuilt) after the return trip is seen only here; add scale to that record if deleting. **Keep:** `packages/three-adapter/tests/kitchen-shell.u.test.ts:452` | **T2 merged then deleted** — the Keep test missed a stretched floor; a no-scale assertion (children and the shell group) was added first |
 
 **`tests/measure-built-body.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 123 | leaves the room with the same children in the same order | 1 | measureBuiltBody's add/remove (src/measure-built-body.ts:71-82) is not build-id dependent; the twin checks length plus identity per index over three measurements, stronger than this deep toEqual over two. **Keep:** `packages/three-adapter/tests/measure-built-body.adversarial.test.ts:283` |
-| 189 | row 19: seats $name on wall A / on wall B (3 bodies each) | 6 | Adversarial :192/:204 seat the same sink/wall-cabinet/pantry (plus four more) on both walls against the same plane, and :223 pins the seat as a whole millimetre, so the rounding in the twin cannot hide an error the raw-float path would show. Only the wall cabinet's 0.33 vs 0.56 m depth differs; the measurement is geometric, no depth branch. **Keep:** `packages/three-adapter/tests/measure-built-body.adversarial.test.ts:192` |
+| 123 | leaves the room with the same children in the same order | 1 | measureBuiltBody's add/remove (src/measure-built-body.ts:71-82) is not build-id dependent; the twin checks length plus identity per index over three measurements, stronger than this deep toEqual over two. **Keep:** `packages/three-adapter/tests/measure-built-body.adversarial.test.ts:283` | **T2 deleted** — the Keep test went red under a mutation; logic review: sound |
+| 189 | row 19: seats $name on wall A / on wall B (3 bodies each) | 6 | Adversarial :192/:204 seat the same sink/wall-cabinet/pantry (plus four more) on both walls against the same plane, and :223 pins the seat as a whole millimetre, so the rounding in the twin cannot hide an error the raw-float path would show. Only the wall cabinet's 0.33 vs 0.56 m depth differs; the measurement is geometric, no depth branch. **Keep:** `packages/three-adapter/tests/measure-built-body.adversarial.test.ts:192` | **T2 deleted** — the Keep test went red under a mutation; logic review: sound |
 
 **`tests/overflow-mark.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 69 | is a different value from the selection highlight | 1 | Inequality of the two constants is strictly implied by the next case's distance > tolerance and round(distance) == 90. **Keep:** `packages/three-adapter/tests/overflow-mark.test.ts:73` |
+| 69 | is a different value from the selection highlight | 1 | Inequality of the two constants is strictly implied by the next case's distance > tolerance and round(distance) == 90. **Keep:** `packages/three-adapter/tests/overflow-mark.test.ts:73` | **T2 deleted** — the Keep test went red under a mutation; logic review: sound |
 
 **`tests/pantry-resize.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 156 | builds three different trees at the three widths, so nothing is being scaled | 1 | The it.each at :115 pins carcass_shell's span to exactly widthM and forbids any wider mesh at 0.4/0.6/0.8, so the widest span is 0.4, 0.6, 0.8: three distinct values follow. The title's anti-scaling claim is not what it asserts; :169 onward carries that. **Keep:** `packages/three-adapter/tests/pantry-resize.test.ts:115` |
+| 156 | builds three different trees at the three widths, so nothing is being scaled | 1 | The it.each at :115 pins carcass_shell's span to exactly widthM and forbids any wider mesh at 0.4/0.6/0.8, so the widest span is 0.4, 0.6, 0.8: three distinct values follow. The title's anti-scaling claim is not what it asserts; :169 onward carries that. **Keep:** `packages/three-adapter/tests/pantry-resize.test.ts:115` | **T2 deleted** — the Keep test went red under a mutation; logic review: sound |
 
 **`tests/perete-a-framing.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 128 | sits further out than the reference preset did, which is the cost of the ruling | 1 | Same panelUnderPereteA(SEEDED_ROOM).nearestEdgePx; :115 holds it to 596.2 +/- 0.05, which implies > 514.9. It records a cost, not a requirement; no production change reddens it alone. **Keep:** `packages/three-adapter/tests/perete-a-framing.test.ts:115` |
+| 128 | sits further out than the reference preset did, which is the cost of the ruling | 1 | Same panelUnderPereteA(SEEDED_ROOM).nearestEdgePx; :115 holds it to 596.2 +/- 0.05, which implies > 514.9. It records a cost, not a requirement; no production change reddens it alone. **Keep:** `packages/three-adapter/tests/perete-a-framing.test.ts:115` | **T2 deleted** — the Keep test went red under a mutation; logic review: sound |
 
 **`tests/picking.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 73 | never leaves three.js's 1 m default in place | 1 | threshold toBe(constant) and constant toBe(0.008) at :69-70 imply it is not three's default 1. Holds only while the 0.008 literal at :70 stays (see s38.2, refuted). **Keep:** `packages/three-adapter/tests/picking.test.ts:67` |
-| 127 | row 22: a solid cabinet is selected even when a void lies along the same ray | 1 | pick() (src/picking.ts:97) tries solids first; here the cabinet is also the nearer hit, so even a nearest-hit-wins regression stays green. The cutaway case puts a synced void on the same ray and asserts the same id; the kind 'placement' label is asserted at picking.test.ts:177. **Keep:** `packages/three-adapter/tests/picking.cutaway.test.ts:164` |
+| 73 | never leaves three.js's 1 m default in place | 1 | threshold toBe(constant) and constant toBe(0.008) at :69-70 imply it is not three's default 1. Holds only while the 0.008 literal at :70 stays (see s38.2, refuted). **Keep:** `packages/three-adapter/tests/picking.test.ts:67` | **T2 deleted** — the Keep test went red under a mutation; logic review: sound |
+| 127 | row 22: a solid cabinet is selected even when a void lies along the same ray | 1 | pick() (src/picking.ts:97) tries solids first; here the cabinet is also the nearer hit, so even a nearest-hit-wins regression stays green. The cutaway case puts a synced void on the same ray and asserts the same id; the kind 'placement' label is asserted at picking.test.ts:177. **Keep:** `packages/three-adapter/tests/picking.cutaway.test.ts:164` | **T2 deleted** — the Keep test went red under a mutation; logic review: sound |
 
 **`tests/push-to-open-seam.parity.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 255 | answers the same for every seeded placement / answers the same when every placement records %s | 4 | Both files compare the same sceneHidesBarsOn over the same seeded records in the same four handle states (undefined/push/steel/black). The parity oracle at push-to-open-seam.parity.test.ts:248 is built from production's own record.canHandle and isPushOpenByDefault, so it moves with a defect; qa-6t-a's oracle (:99) reads the document, the catalogue row and a literal 2200, so anything reddening the parity cases reddens it too. **Keep:** `packages/three-adapter/tests/qa-6t-a-scene-price-seam.adversarial.test.ts:143` |
+| 255 | answers the same for every seeded placement / answers the same when every placement records %s | 4 | Both files compare the same sceneHidesBarsOn over the same seeded records in the same four handle states (undefined/push/steel/black). The parity oracle at push-to-open-seam.parity.test.ts:248 is built from production's own record.canHandle and isPushOpenByDefault, so it moves with a defect; qa-6t-a's oracle (:99) reads the document, the catalogue row and a literal 2200, so anything reddening the parity cases reddens it too. **Keep:** `packages/three-adapter/tests/qa-6t-a-scene-price-seam.adversarial.test.ts:143` | **T2 deleted** — the Keep test went red under a mutation; logic review: sound |
 
 **`tests/qa-6k-d-real-probe-round-trip.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 108 | returns every wall column to the depth it started at | 1 | Same 600->700->600 trip with the real probe; qa-6k-de:152 compares every column (A\|0.30 and A\|0.75 included) on the unfiltered design and :163-186 adds per-placement seats, so a member hidden under a column MAX is still seen. The structural-body filter here is the workaround wave 6K-d removed. Column depths derive from integer millimetres, so the tighter tolerance adds nothing. **Keep:** `packages/three-adapter/tests/qa-6k-de-repeated-real-probe.adversarial.test.ts:152` |
+| 108 | returns every wall column to the depth it started at | 1 | Same 600->700->600 trip with the real probe; qa-6k-de:152 compares every column (A\|0.30 and A\|0.75 included) on the unfiltered design and :163-186 adds per-placement seats, so a member hidden under a column MAX is still seen. The structural-body filter here is the workaround wave 6K-d removed. Column depths derive from integer millimetres, so the tighter tolerance adds nothing. **Keep:** `packages/three-adapter/tests/qa-6k-de-repeated-real-probe.adversarial.test.ts:152` | **T2 deleted** — the Keep test went red under a mutation; logic review: sound |
 
 **`tests/qa-6k-de-repeated-real-probe.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 148 | changes depth without throwing on the unfiltered design | 1 | changeTo(KITCHEN_L_DESIGN, DEEPER_MM) is the first call inside :152 (and of every later case); a throw fails those identically. No assertion of its own beyond not.toThrow. **Keep:** `packages/three-adapter/tests/qa-6k-de-repeated-real-probe.adversarial.test.ts:152` |
+| 148 | changes depth without throwing on the unfiltered design | 1 | changeTo(KITCHEN_L_DESIGN, DEEPER_MM) is the first call inside :152 (and of every later case); a throw fails those identically. No assertion of its own beyond not.toThrow. **Keep:** `packages/three-adapter/tests/qa-6k-de-repeated-real-probe.adversarial.test.ts:152` | **T2 deleted** — the Keep test went red under a mutation; logic review: sound |
 
 **`tests/qa-6t-a-scene-price-seam.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 216 | keeps the bars on at 2199 and takes them off at 2200 | 1 | The it.each at :242 asserts the same scene answer at 2199 and 2200 on the same solo body plus the latch count, and :226 requires a single flip at 2200. The extra built > 0 check is already enforced by sceneHidesBarsOn throwing (:90). **Keep:** `packages/three-adapter/tests/qa-6t-a-scene-price-seam.adversarial.test.ts:242` |
+| 216 | keeps the bars on at 2199 and takes them off at 2200 | 1 | The it.each at :242 asserts the same scene answer at 2199 and 2200 on the same solo body plus the latch count, and :226 requires a single flip at 2200. The extra built > 0 check is already enforced by sceneHidesBarsOn throwing (:90). **Keep:** `packages/three-adapter/tests/qa-6t-a-scene-price-seam.adversarial.test.ts:242` | **T2 deleted** — the Keep test went red under a mutation; logic review: sound |
 
 **`tests/qa-7d1b-panel-wall-end-veto.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 189 | re-syncs on a room change alone, with the records untouched | 1 | STEPS 1->2 and 4->5 at :121-150 are the same two room-only transitions with the identical SEEDED_RECORDS array, asserting the same panel.visible false then true (plus identity and seat). No input or assertion here that :153 lacks. **Keep:** `packages/three-adapter/tests/qa-7d1b-panel-wall-end-veto.adversarial.test.ts:153` |
+| 189 | re-syncs on a room change alone, with the records untouched | 1 | STEPS 1->2 and 4->5 at :121-150 are the same two room-only transitions with the identical SEEDED_RECORDS array, asserting the same panel.visible false then true (plus identity and seat). No input or assertion here that :153 lacks. **Keep:** `packages/three-adapter/tests/qa-7d1b-panel-wall-end-veto.adversarial.test.ts:153` | **T2 deleted** — the Keep test went red under a mutation; logic review: sound |
 
 **`tests/qa-7h-preset-stands-clear.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 118 | $id puts no wall between the eye and its target at $widthMm x $depthMm x $heightMm | 33 | Over the identical presetsAcross(SAMPLED_ROOMS) table, expectStandsInTheRoom (:226) already holds the eye's x and z strictly > 0 (:85) and :103 holds the target's x and z >= 0 and <= the room. This case re-asserts the weaker >= 0 on the same four numbers. Keep :85 and :103. **Keep:** `packages/three-adapter/tests/qa-7h-preset-stands-clear.adversarial.test.ts:85` |
+| 118 | $id puts no wall between the eye and its target at $widthMm x $depthMm x $heightMm | 33 | Over the identical presetsAcross(SAMPLED_ROOMS) table, expectStandsInTheRoom (:226) already holds the eye's x and z strictly > 0 (:85) and :103 holds the target's x and z >= 0 and <= the room. This case re-asserts the weaker >= 0 on the same four numbers. Keep :85 and :103. **Keep:** `packages/three-adapter/tests/qa-7h-preset-stands-clear.adversarial.test.ts:85` | **T2 deleted** — the Keep test went red under a mutation; logic review: sound |
 
 **`tests/qa-item8-deep-top-geometry.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 160 | builds both deep tops to the cabinet-depth line at %i mm | 2 | pairedKitAt (:89) is kitAt with the declared wall row; same buildDecomposedBody, same two deep-top ids, same expected cabinetDepth - 39 at 600 and 700 as :135, which already separates the two sources by crossing them. The trailing not.toBe at :178 compares two test-side constants. **Keep:** `packages/three-adapter/tests/qa-item8-deep-top-geometry.adversarial.test.ts:135` |
+| 160 | builds both deep tops to the cabinet-depth line at %i mm | 2 | pairedKitAt (:89) is kitAt with the declared wall row; same buildDecomposedBody, same two deep-top ids, same expected cabinetDepth - 39 at 600 and 700 as :135, which already separates the two sources by crossing them. The trailing not.toBe at :178 compares two test-side constants. **Keep:** `packages/three-adapter/tests/qa-item8-deep-top-geometry.adversarial.test.ts:135` | **T2 deleted** — the Keep test went red under a mutation; logic review: sound |
 
 **`tests/qa-w5-sink-centring.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 224 | keeps 600 in the declared map, which is what makes the centring case assert anything | 1 | The identical expect(declaredCabinetDepthsMm()).toContain(DEPTH_THE_CENTRING_IS_RULED_AT_MM) already sits inside the shipped centring case it exists to keep honest (:210), beside a stronger measured.length check at :213. **Keep:** `packages/three-adapter/tests/sink-front-clearance.parity.test.ts:210` |
+| 224 | keeps 600 in the declared map, which is what makes the centring case assert anything | 1 | The identical expect(declaredCabinetDepthsMm()).toContain(DEPTH_THE_CENTRING_IS_RULED_AT_MM) already sits inside the shipped centring case it exists to keep honest (:210), beside a stronger measured.length check at :213. **Keep:** `packages/three-adapter/tests/sink-front-clearance.parity.test.ts:210` | **T2 deleted** — the Keep test went red under a mutation; logic review: sound |
 
 **`tests/right-corner-wrapper.wall-guard.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 108 | wraps wall A's right X-leg and not its left one, by their records' corners | 1 | Same rightIdsOf(shellRecords()); :63 strict-equals the wrapped set to [right-p21, right-p25, right-p26, right-p9], which contains right-p25 and excludes p25. **Keep:** `packages/three-adapter/tests/right-corner-wrapper.wall-guard.test.ts:63` |
+| 108 | wraps wall A's right X-leg and not its left one, by their records' corners | 1 | Same rightIdsOf(shellRecords()); :63 strict-equals the wrapped set to [right-p21, right-p25, right-p26, right-p9], which contains right-p25 and excludes p25. **Keep:** `packages/three-adapter/tests/right-corner-wrapper.wall-guard.test.ts:63` | **T2 deleted** — the Keep test went red under a mutation; logic review: sound |
 
 **`tests/scene-sync.appearance.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 307 | keeps a black handle hidden when the mode is push | 1 | Records handleMode 'push' on a default wall-row record and checks no handle mesh is visible; scene-sync.test.ts:302-312 does exactly that (id 'push') and scene-sync.adversarial.test.ts:359 repeats it at a low slot. Nothing black is recorded despite the title, and the loop is vacuous if no handle is built. **Keep:** `packages/three-adapter/tests/scene-sync.test.ts:302` |
+| 307 | keeps a black handle hidden when the mode is push | 1 | Records handleMode 'push' on a default wall-row record and checks no handle mesh is visible; scene-sync.test.ts:302-312 does exactly that (id 'push') and scene-sync.adversarial.test.ts:359 repeats it at a low slot. Nothing black is recorded despite the title, and the loop is vacuous if no handle is built. **Keep:** `packages/three-adapter/tests/scene-sync.test.ts:302` | **T2 deleted** — the Keep test went red under a mutation; logic review: sound |
 
 **`tests/scene-sync.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 285 | push-to-open by slot (3 cases: top-row hides, wall-row shows, recorded mode over slot default) | 1 | Only :294 (wall-row default shows) is subsumed, by the adversarial 'just below the top row' row. :285 is the only one asserting countHandles > 0, without which 'hidden' is satisfied by building no handle; :302 records 'steel' on the top row, while the adversarial case at :347-351 actually records 'black'. **Keep:** `packages/three-adapter/tests/scene-sync.adversarial.test.ts:337` |
+| 285 | push-to-open by slot (3 cases: top-row hides, wall-row shows, recorded mode over slot default) | 1 | Only :294 (wall-row default shows) is subsumed, by the adversarial 'just below the top row' row. :285 is the only one asserting countHandles > 0, without which 'hidden' is satisfied by building no handle; :302 records 'steel' on the top row, while the adversarial case at :347-351 actually records 'black'. **Keep:** `packages/three-adapter/tests/scene-sync.adversarial.test.ts:337` | **T2 part** — only the wall-row case was redundant and deleted; the other two stay |
 
 **`tests/stage.u-cameras.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 95 | offers a U [overview, wallA, wallB, wallC], in that order | 1 | Which presets a room offers depends on shape alone; the twin asserts the identical four-id list on eight Us spanning the engine minimum and maximum (support/u-scene.ts:179), three of which are this case's rooms. **Keep:** `packages/three-adapter/tests/qa-u4-u-cameras.adversarial.test.ts:71` |
-| 122 | %s U: position and target are wallB's, at C, with x replaced by W − x | 3 | Minimum, middle and maximum U are rows of SWEPT_US, where qa-u4:83 asserts the same reflection on all six coordinates and :110 ties a U's wallB to the L's, so the U stand-in adds nothing. The 2700x1600x1600 and 3000x3000x3000 rooms (AC4 (c)'s) are not in SWEPT_US; those two rows are not shown redundant. **Keep:** `packages/three-adapter/tests/qa-u4-u-cameras.adversarial.test.ts:83` |
-| 189 | %s U: looks at the middle of the drawn floor, depth max(B, C) / 2 | 3 | qa-u4:144 asserts the same target x and z (plus y) for the minimum, middle and maximum U. The 2700x1600x1600 and 3000x3000x3000 rows are not in SWEPT_US (support/u-scene.ts:179) and stay. **Keep:** `packages/three-adapter/tests/qa-u4-u-cameras.adversarial.test.ts:144` |
-| 255 | leaves wallA and wallB where they were: neither reads C | 1 | qa-u4:110 holds wallA and wallB of each of eight Us (C both longer and shorter than B, the 4500x3000 middle included) equal to the same room as an L, which has no C at all; independence from C follows. No branch of its own. **Keep:** `packages/three-adapter/tests/qa-u4-u-cameras.adversarial.test.ts:110` |
+| 95 | offers a U [overview, wallA, wallB, wallC], in that order | 1 | Which presets a room offers depends on shape alone; the twin asserts the identical four-id list on eight Us spanning the engine minimum and maximum (support/u-scene.ts:179), three of which are this case's rooms. **Keep:** `packages/three-adapter/tests/qa-u4-u-cameras.adversarial.test.ts:71` | **T2 deleted** — the Keep test went red under a mutation; logic review: sound |
+| 122 | %s U: position and target are wallB's, at C, with x replaced by W − x | 3 | Minimum, middle and maximum U are rows of SWEPT_US, where qa-u4:83 asserts the same reflection on all six coordinates and :110 ties a U's wallB to the L's, so the U stand-in adds nothing. The 2700x1600x1600 and 3000x3000x3000 rooms (AC4 (c)'s) are not in SWEPT_US; those two rows are not shown redundant. **Keep:** `packages/three-adapter/tests/qa-u4-u-cameras.adversarial.test.ts:83` | **T2 part** — 3 of 5 rows deleted (they are in the swept set); 2 stay |
+| 189 | %s U: looks at the middle of the drawn floor, depth max(B, C) / 2 | 3 | qa-u4:144 asserts the same target x and z (plus y) for the minimum, middle and maximum U. The 2700x1600x1600 and 3000x3000x3000 rows are not in SWEPT_US (support/u-scene.ts:179) and stay. **Keep:** `packages/three-adapter/tests/qa-u4-u-cameras.adversarial.test.ts:144` | **T2 part** — 3 of 5 rows deleted (they are in the swept set); 2 stay |
+| 255 | leaves wallA and wallB where they were: neither reads C | 1 | qa-u4:110 holds wallA and wallB of each of eight Us (C both longer and shorter than B, the 4500x3000 middle included) equal to the same room as an L, which has no C at all; independence from C follows. No branch of its own. **Keep:** `packages/three-adapter/tests/qa-u4-u-cameras.adversarial.test.ts:110` | **T2 deleted** — the Keep test went red under a mutation; logic review: sound |
 
 **`tests/swap-depth.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 216 | keeps a deep replacement stable when it is swapped a second time | 1 | qa-waves-ac:146 swaps the same p22 ten times across wall-cabinet, open-shelf and wall-lift with the same occupied-depth measure and expects 600 every time; the first hop here (seeded -> open-shelf = 600) is also swap-depth.test.ts:190. Only the open-shelf -> wall-lift ordering is not literally in the rotation, and the built depth comes from the opening, not from the body replaced. **Keep:** `packages/three-adapter/tests/qa-waves-ac.adversarial.test.ts:146` |
+| 216 | keeps a deep replacement stable when it is swapped a second time | 1 | qa-waves-ac:146 swaps the same p22 ten times across wall-cabinet, open-shelf and wall-lift with the same occupied-depth measure and expects 600 every time; the first hop here (seeded -> open-shelf = 600) is also swap-depth.test.ts:190. Only the open-shelf -> wall-lift ordering is not literally in the rotation, and the built depth comes from the opening, not from the body replaced. **Keep:** `packages/three-adapter/tests/qa-waves-ac.adversarial.test.ts:146` | **T2 deleted** — the Keep test went red under a mutation; logic review: sound |
 
 **`tests/the-corner-wears-a-colour.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 302 | paints its carcass and its door in the kitchen's colour | 1 | The CORNERS row for base-corner-x-900 (p25, painted [carcass, door_front], :57-61) runs the identical following(HALIFAX) scene and the identical coloursOf equality at :240-247, plus a scene-was-painted witness. **Keep:** `packages/three-adapter/tests/the-corner-wears-a-colour.test.ts:240` |
-| 313 | paints them in a colour chosen for that corner, over the kitchen's | 1 | Identical to the p25 row of the it.each at :342-352: same wearingOn(following(HALIFAX), p25, NUC_WARMIA), same two meshes, same hex, and the sweep adds the kitchen-still-Halifax witness. **Keep:** `packages/three-adapter/tests/the-corner-wears-a-colour.test.ts:342` |
+| 302 | paints its carcass and its door in the kitchen's colour | 1 | The CORNERS row for base-corner-x-900 (p25, painted [carcass, door_front], :57-61) runs the identical following(HALIFAX) scene and the identical coloursOf equality at :240-247, plus a scene-was-painted witness. **Keep:** `packages/three-adapter/tests/the-corner-wears-a-colour.test.ts:240` | **T2 deleted** — the Keep test went red under a mutation; logic review: sound |
+| 313 | paints them in a colour chosen for that corner, over the kitchen's | 1 | Identical to the p25 row of the it.each at :342-352: same wearingOn(following(HALIFAX), p25, NUC_WARMIA), same two meshes, same hex, and the sweep adds the kitchen-still-Halifax witness. **Keep:** `packages/three-adapter/tests/the-corner-wears-a-colour.test.ts:342` | **T2 deleted** — the Keep test went red under a mutation; logic review: sound |
 
 **`tests/void-mesh.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 61 | tags the group root with the void id for picking to climb to | 1 | void-mesh.ts:73 is the only line that writes userData.voidId and syncVoidMeshes mounts buildVoidMesh's group unchanged, so scene-sync.test.ts:326 fails on any change to that tag; the picking cutaway cases depend on it too. **Keep:** `packages/three-adapter/tests/scene-sync.test.ts:318` |
+| 61 | tags the group root with the void id for picking to climb to | 1 | void-mesh.ts:73 is the only line that writes userData.voidId and syncVoidMeshes mounts buildVoidMesh's group unchanged, so scene-sync.test.ts:326 fails on any change to that tag; the picking cutaway cases depend on it too. **Keep:** `packages/three-adapter/tests/scene-sync.test.ts:318` | **T2 deleted** — the Keep test went red under a mutation; logic review: sound |
 
 **`tests/wall-corner-x.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 463 | is worn by the carcass shell, the closure, the stile and the leaf, and by nothing inside the box | 1 | wall-corner-x-mounted.test.ts:130 asserts the identical sorted four-name list from collectPaintedSurfaces for both mounted rows (p27 and p28) of the same builder; nothing on the mount path marks surfaces, so a builder regression fails there too. **Keep:** `packages/three-adapter/tests/wall-corner-x-mounted.test.ts:130` |
+| 463 | is worn by the carcass shell, the closure, the stile and the leaf, and by nothing inside the box | 1 | wall-corner-x-mounted.test.ts:130 asserts the identical sorted four-name list from collectPaintedSurfaces for both mounted rows (p27 and p28) of the same builder; nothing on the mount path marks surfaces, so a builder regression fails there too. **Keep:** `packages/three-adapter/tests/wall-corner-x-mounted.test.ts:130` | **T2 deleted** — the Keep test went red under a mutation; logic review: sound |
 
 #### `scripts/gates` — 1 entries, 5 cases
 
@@ -3206,39 +3206,39 @@ mutation is equivalent on shipped data, or the behaviour is unguarded everywhere
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 241 | takes the room, so no caller can build a shell without naming one | 1 | toHaveLength(2) reads the function's declared arity, which the compiler enforces at every call site. It stays green if the room parameter is ignored (the five characterisation rows at :232 catch that) and cannot detect a caller omitting it. |
-| 317 | declares these three, under these ids, in this order / $id stands where HEAD puts it | 4 | The triples are a live specified value (viewingDirectionOf reads them, src/stage.ts:404), but another test already pins them: qa-7h-preset-stands-clear.adversarial.test.ts:208-:223 asserts id, order, position and target of all three with one toEqual. The four cases here restate that. |
-| 347 | is measuring the seeded room the presets were framed on | 1 | Restates KITCHEN_L_DESIGN.room's three numbers; no adapter code runs. A moved seed room already turns kitchen-shell.characterisation.test.ts:229 red (floor 3.86 x 3.22 and wall heights are recorded per child) and :339 (514.9 px). Diagnostic value only. |
+| 241 | takes the room, so no caller can build a shell without naming one | 1 | toHaveLength(2) reads the function's declared arity, which the compiler enforces at every call site. It stays green if the room parameter is ignored (the five characterisation rows at :232 catch that) and cannot detect a caller omitting it. | **T2 kept** — review wrong: the only test of this behaviour, and the compiler does not enforce it once the parameter has a default |
+| 317 | declares these three, under these ids, in this order / $id stands where HEAD puts it | 4 | The triples are a live specified value (viewingDirectionOf reads them, src/stage.ts:404), but another test already pins them: qa-7h-preset-stands-clear.adversarial.test.ts:208-:223 asserts id, order, position and target of all three with one toEqual. The four cases here restate that. | **T2 deleted** — the Keep test went red under a mutation; logic review: sound |
+| 347 | is measuring the seeded room the presets were framed on | 1 | Restates KITCHEN_L_DESIGN.room's three numbers; no adapter code runs. A moved seed room already turns kitchen-shell.characterisation.test.ts:229 red (floor 3.86 x 3.22 and wall heights are recorded per child) and :339 (514.9 px). Diagnostic value only. | **T2 deleted** — the Keep test went red under a mutation; logic review: sound |
 
 **`tests/overflow-mark.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 85 | stays red rather than drifting into the void meshes' blue | 1 | A mark turned blue is already caught, more strictly, by qa-6m-mark-composite 'a washed pixel is never counted as a void's blue fill' (:260-262), which blends OVERFLOW_MARK_COLOR at production opacity over every fixture base and brightness. This case reads the bare constant only. |
+| 85 | stays red rather than drifting into the void meshes' blue | 1 | A mark turned blue is already caught, more strictly, by qa-6m-mark-composite 'a washed pixel is never counted as a void's blue fill' (:260-262), which blends OVERFLOW_MARK_COLOR at production opacity over every fixture base and brightness. This case reads the bare constant only. | **T2 deleted** — the Keep test went red under a mutation; logic review: sound |
 
 **`tests/perete-a-framing.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 94 | puts the seeded room inside that band, but only just | 1 | Compares fixture/test-local constants only. A seeded room outside the band already fails :115 (panel.isVisible) and an empty band makes fc.integer throw in the property at :104; the 41 mm literal re-pins the 3560 seed width (and contradicts the comment's 40). |
+| 94 | puts the seeded room inside that band, but only just | 1 | Compares fixture/test-local constants only. A seeded room outside the band already fails :115 (panel.isVisible) and an empty band makes fc.integer throw in the property at :104; the 41 mm literal re-pins the 3560 seed width (and contradicts the comment's 40). | **T2 deleted** — the Keep test went red under a mutation; logic review: sound |
 
 **`tests/qa-6m-mark-composite.adversarial.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 368 | is counted as a mark by the mark's own threshold, which is why that gate counts nothing selected | 1 | Arithmetic on SELECTION_HIGHLIGHT_COLOR alone (red excess 210 > 50); no code path runs and nothing depends on the selection being red-dominant, the comment at :357-362 says the gate is sound for another reason. A moved selection colour is already caught by overflow-mark.test.ts:82 (distance 90) and this file's :376 (242.49). |
+| 368 | is counted as a mark by the mark's own threshold, which is why that gate counts nothing selected | 1 | Arithmetic on SELECTION_HIGHLIGHT_COLOR alone (red excess 210 > 50); no code path runs and nothing depends on the selection being red-dominant, the comment at :357-362 says the gate is sound for another reason. A moved selection colour is already caught by overflow-mark.test.ts:82 (distance 90) and this file's :376 (242.49). | **T2 deleted** — the Keep test went red under a mutation; logic review: sound |
 
 **`tests/sink-declaration.parity.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 184 | is not a kind test, because the sink rows share their kind with rows that hold none | 1 | declaresASink(base-3drawer) false is already the base-3drawer row of the iff sweep at :126 (a kind-based declaresASink fails there). The kind literals are catalogue data, pinned for the same stated premise in configurator-domain/tests/queries/sink-accessories.test.ts:85-88. |
+| 184 | is not a kind test, because the sink rows share their kind with rows that hold none | 1 | declaresASink(base-3drawer) false is already the base-3drawer row of the iff sweep at :126 (a kind-based declaresASink fails there). The kind literals are catalogue data, pinned for the same stated premise in configurator-domain/tests/queries/sink-accessories.test.ts:85-88. | **T2 deleted** — the Keep test went red under a mutation; logic review: sound |
 
 **`tests/stage.test.ts`**
 
 | Line | Test | Cases | Why | Status |
 | --- | --- | --- | --- | --- |
-| 370 | does not reproduce the reference triples at the seeded room | 1 | The [1.9, 2.1, 5.6] literal is pinned with all three reference triples at kitchen-shell.characterisation.test.ts:311-330. The negative half only fails if the seeded room returns the reference targets again, which stage.non-u-presets.test.ts:296 (seeded-room row, toEqual) and perete-a-framing.test.ts:119 (596.2 px) already catch. |
+| 370 | does not reproduce the reference triples at the seeded room | 1 | The [1.9, 2.1, 5.6] literal is pinned with all three reference triples at kitchen-shell.characterisation.test.ts:311-330. The negative half only fails if the seeded room returns the reference targets again, which stage.non-u-presets.test.ts:296 (seeded-room row, toEqual) and perete-a-framing.test.ts:119 (596.2 px) already catch. | **T2 deleted** — Keep test red under mutation. The Keep reference above is stale (that block went under row 3210); the camera triples are pinned by `qa-7h-preset-stands-clear.adversarial.test.ts` "leaves the recorded reference triples exactly where they were" |
 
 ## Appendix — candidates that were raised and then cleared
 
@@ -3527,4 +3527,11 @@ QA agent's recorded run, not re-run by the coordinator.
 | Wave | Scope | Entries | Result | Commit |
 | --- | --- | --- | --- | --- |
 | D1-A | `packages/configurator-domain`, section 1a, `along-wall-chain-shift` to `u-composition.s3` | 37 rows | 26 strengthened, 1 removed, 3 part, 6 unchanged, 1 open; 1 red on real code (`set-width`, line 514), ruled a wrong test and fixed in D1-B | `80b39cc` |
-| D1-B | `packages/configurator-domain`, section 1a from `pricing/finish-never-prices` to `void-engine`, and section 1b | 56 rows | 24 strengthened, 1 removed, 3 part, 24 unchanged (12 review wrong, 1 equivalent mutant), 3 open, 1 settled; 4 requirements had no guard before. Domain suite 7857 passed, 0 failed | this commit |
+| D1-B | `packages/configurator-domain`, section 1a from `pricing/finish-never-prices` to `void-engine`, and section 1b | 56 rows | 24 strengthened, 1 removed, 3 part, 24 unchanged (12 review wrong, 1 equivalent mutant), 3 open, 1 settled; 4 requirements had no guard before. Domain suite 7857 passed, 0 failed | `4d44e45` |
+| D1 structural | `eslint.config.mjs`, `replan-dependent-members.ts` | — | Developer change for the architect's rulings on rows 508, 564, 576: a lint rule for `shell-design.ts`, and `columnDecidesItsDepth` exported at module level. The tests that use them follow | `1b162cc` |
+| T1 | `packages/three-adapter`, sections 1a and 1b | 19 rows | 10 strengthened, 9 unchanged (8 test-local, 1 equivalent mutant) | `e61c451` |
+| T2 | `packages/three-adapter`, sections 2 and 4 | 45 rows | 39 deleted, 2 merged then deleted, 3 part, 1 kept; 107 cases removed. Logic review: sound, no restore; its one follow-up (R1.2) applied. Suite 4284 passed, re-run by the coordinator | `8038015`, `8419592` |
+| W1-A | `apps/web`, section 1a | 53 rows | 29 strengthened, 5 removed, 1 part, 18 unchanged (2 are `tsc` guards) | `1b543d0`, `9a7af8e` |
+| W1-B | `apps/web`, section 1b | 30 rows | 26 strengthened (14 previously unguarded), 2 removed, 2 equivalent mutants by reading. Suite 6237 passed, typecheck clean, re-run by the coordinator | `f090eb4` |
+
+`packages/three-adapter` is complete. No wave so far found a production defect.
