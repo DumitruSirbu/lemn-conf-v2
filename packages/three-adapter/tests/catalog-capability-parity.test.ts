@@ -151,9 +151,13 @@ function opensAFront(node: THREE.Object3D): boolean {
 }
 
 describe("every catalogue entry's capability flags match what its builder draws", () => {
+  // Held against the domain's own keys, not `ALL_BUILD_IDS`: `GATED` is cut from `ALL`, so that comparison holds for
+  // any catalogue. This one fails when the adapter's builder table and the catalogue's insertable half part.
   it("covers the whole catalogue, with the recorded gaps named rather than dropped", () => {
+    const catalogueBuildIds = [...KITCHEN_L_BODY_CATALOG.keys()];
+
     expect([...GATED_BUILD_IDS, ...RECORDED_CAPABILITY_GAPS].sort()).toEqual(
-      [...ALL_BUILD_IDS].sort(),
+      catalogueBuildIds.sort(),
     );
   });
 

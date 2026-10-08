@@ -188,6 +188,16 @@ function declaredWallGapM(request: BodyProbeRequest): number {
   return ROW_19_DECLARED_WALL_GAP_M[request.buildId] ?? 0;
 }
 
+/** ADR 0039's gap behind a 500 mm hood whose face is on the 600 mm line, and the row of `SEATED_CASES` it belongs to. */
+const HOOD_WALL_GAP_MM = 100;
+const HOOD_CASE_NAME = "the hood";
+
+/** A measured distance in millimetres, rounded to the micrometre `FLOAT_EPSILON_METRES` allows. `+ 0` because a
+ *  rounded `-0` is not `toEqual` to `0`. */
+function wholeMicrometresAsMm(metres: number): number {
+  return Math.round(metres * 1e6) / 1000 + 0;
+}
+
 describe("row 19 survives the integer-millimetre round trip", () => {
   it.each(SEATED_CASES)("seats $name on wall A", (testCase) => {
     const seated = seatThroughTheDocument(testCase.request, "A", testCase.y0M);
@@ -215,9 +225,34 @@ describe("row 19 survives the integer-millimetre round trip", () => {
 
   // The exception must stay an exception: every other body still lands flat on the plane, and the
   // hood's gap is exactly the 100 mm ADR 0039 declares — not merely "nonzero".
+  // Measured on the seated bodies and held to literals, never to `ROW_19_DECLARED_WALL_GAP_M`: the two sweeps above
+  // subtract that table, so a gap written into it is a gap they forgive.
   it("gives the hood the declared 100 mm and every other body none", () => {
+    const gapsMm = SEATED_CASES.map((testCase) => {
+      const seated = seatThroughTheDocument(
+        testCase.request,
+        "A",
+        testCase.y0M,
+      );
+      return [
+        testCase.name,
+        wholeMicrometresAsMm(
+          seated.min.z - readWallPlaneM(room, WALL_A_MESH_NAME),
+        ),
+      ];
+    });
+
+    expect(gapsMm).toEqual(
+      SEATED_CASES.map((testCase) => [
+        testCase.name,
+        testCase.name === HOOD_CASE_NAME ? HOOD_WALL_GAP_MM : 0,
+      ]),
+    );
     expect(Object.keys(ROW_19_DECLARED_WALL_GAP_M)).toEqual(["hood"]);
-    expect(ROW_19_DECLARED_WALL_GAP_M["hood"]).toBeCloseTo(0.6 - 0.5, 9);
+    expect(ROW_19_DECLARED_WALL_GAP_M["hood"]).toBeCloseTo(
+      HOOD_WALL_GAP_MM / 1000,
+      9,
+    );
   });
 
   it.each(SEATED_CASES)(

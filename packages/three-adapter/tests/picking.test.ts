@@ -169,11 +169,39 @@ describe("pick", () => {
     cabinetB.userData["placementId"] = "base-b";
     solids.add(cabinetA, cabinetB);
     solids.updateMatrixWorld(true);
+
+    // A cleared column between the two, so the ray crosses its void before it reaches cabinet B: a nearest-hit rule
+    // and a voids-first rule both answer the void here. Row 22's void lies behind its cabinet and cannot tell them apart.
     const voids = new THREE.Group();
+    const { group } = buildVoidMesh({
+      id: "A|1.40:v0:0.00",
+      col: "A|1.40",
+      wall: "A",
+      x: 1.4,
+      z: 0,
+      ry: 0,
+      w: 0.6,
+      d: 0.56,
+      y0: 0,
+      h: 0.86,
+      spanY0: 0,
+      spanH: 0.86,
+    });
+    voids.add(group);
+    voids.updateMatrixWorld(true);
 
     const raycaster = createPickingRaycaster();
-    raycastDown(raycaster, 2, 1, 0);
+    raycaster.set(new THREE.Vector3(0.5, 0.43, 0), new THREE.Vector3(1, 0, 0));
 
+    const nearestVoidHit = required(
+      raycaster.intersectObject(voids, true)[0],
+      "the ray must cross the void",
+    );
+    const nearestSolidHit = required(
+      raycaster.intersectObject(solids, true)[0],
+      "the ray must reach a cabinet",
+    );
+    expect(nearestVoidHit.distance).toBeLessThan(nearestSolidHit.distance);
     expect(pick(raycaster, solids, voids)).toEqual({
       kind: "placement",
       id: "base-b",

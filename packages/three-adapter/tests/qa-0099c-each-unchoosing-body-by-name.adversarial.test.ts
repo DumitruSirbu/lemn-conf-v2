@@ -212,6 +212,72 @@ function materialsWithAndWithout(
   return { without, with_ };
 }
 
+const SEEDED_RECORDS = derivePlacementRecords(
+  KITCHEN_L_DESIGN,
+  KITCHEN_L_BODY_CATALOG,
+);
+
+/** The seeded kitchen's 26 bodies less its two appliances, stated so a sweep over "every cabinet" has a floor. */
+const SEEDED_CABINETRY_COUNT = 24;
+
+/** The rule the catalogue declares for this body, through the domain's fail-closed resolver. */
+function declaredRuleOf(buildId: string): BodyFinishRule {
+  const definition = KITCHEN_L_BODY_CATALOG.get(buildId);
+  if (!definition) throw new Error(`No catalogue entry for "${buildId}"`);
+  return bodyFinishRuleOf({
+    buildId,
+    rule: definition.finishRule,
+    canFinish: definition.canFinish,
+  });
+}
+
+/** Every material instance under a body in build order: by position, because a body repeats mesh names. */
+function materialsInBuildOrder(root: THREE.Object3D): THREE.Material[] {
+  const found: THREE.Material[] = [];
+  root.traverse((node) => {
+    if (!isMesh(node)) return;
+    if (Array.isArray(node.material)) {
+      throw new Error(`Mesh "${node.name}" carries a material array`);
+    }
+    found.push(node.material);
+  });
+  return found;
+}
+
+/**
+ * For every body of the design, how many of its meshes wear another material instance once the kitchen takes this
+ * colour. Two separate roots, as in `materialsWithAndWithout`.
+ */
+function repaintedMeshCounts(
+  design: Design,
+  colour: Finish,
+): ReadonlyMap<string, number> {
+  solidsRoot = new THREE.Group();
+  drawn(withoutKitchenColour(design));
+  const bare = new Map(
+    design.placements.map((placement) => [
+      placement.id,
+      materialsInBuildOrder(mounted(placement.id)),
+    ]),
+  );
+
+  solidsRoot = new THREE.Group();
+  drawn(withKitchenColour(design, colour));
+  return new Map(
+    design.placements.map((placement) => {
+      const before = bare.get(placement.id) ?? [];
+      const after = materialsInBuildOrder(mounted(placement.id));
+      if (after.length !== before.length) {
+        throw new Error(`"${placement.id}": mesh set moved under a colour`);
+      }
+      return [
+        placement.id,
+        after.filter((material, index) => material !== before[index]).length,
+      ];
+    }),
+  );
+}
+
 /**
  * The mirror of `expectSameMaterials`, asserted on the instance rather than a hex because two declared colours
  * can coincide. The mesh set must be identical either way.
@@ -313,11 +379,26 @@ const REPAINTED_STRUCTURAL = UNCHOOSING.filter(
 const APPLIANCES = UNCHOOSING.filter((row) => row.family === "appliance");
 
 describe("backlog 60 — an appliance is painted at neither level, by name", () => {
+  // Read off the records the scene paints from: a body is an appliance here when the coloured kitchen hands it no
+  // colour to draw, which is the domain's answer and not this file's `family` column.
   it("names both appliances", () => {
-    expect(APPLIANCES.map((row) => row.buildId).sort()).toEqual([
+    const coloured = withKitchenColour(
+      followingOn("material.melamine"),
+      ANTRACIT,
+    );
+
+    const handedNoColour = derivePlacementRecords(
+      coloured,
+      KITCHEN_L_BODY_CATALOG,
+    ).filter((record) => record.drawnFinish === undefined);
+
+    expect(handedNoColour.map((record) => record.buildId).sort()).toEqual([
       "fridge-free-700",
       "hood-600",
     ]);
+    expect(APPLIANCES.map((row) => row.placementId).sort()).toEqual(
+      handedNoColour.map((record) => record.id).sort(),
+    );
   });
 
   it.each(APPLIANCES)(
@@ -369,10 +450,25 @@ describe("backlog 60 — an appliance is painted at neither level, by name", () 
 
 /** Every structural body the colour reaches, by whatever surface; asserted on instance so it holds without fronts. */
 describe("backlog 60 — the kitchen's colour reaches the one structural body left here", () => {
+  // Counted on the mounted scene: of the seeded bodies that follow the kitchen's colour without choosing one, which
+  // ones a colour repaints, and how many of their meshes. The table's `paintedSurfaceCount` is held to that number.
   it("names it", () => {
-    expect(REPAINTED_STRUCTURAL.map((row) => row.buildId).sort()).toEqual([
-      "open-shelf-600",
-    ]);
+    const repainted = repaintedMeshCounts(
+      followingOn("material.melamine"),
+      ANTRACIT,
+    );
+
+    const reachedFollowers = SEEDED_RECORDS.filter(
+      (record) =>
+        declaredRuleOf(record.buildId) === FOLLOWS_THE_KITCHENS_COLOUR,
+    )
+      .map((record) => [record.buildId, repainted.get(record.id)] as const)
+      .filter(([, meshCount]) => meshCount !== 0);
+
+    expect(reachedFollowers).toEqual([["open-shelf-600", 6]]);
+    expect(
+      REPAINTED_STRUCTURAL.map((row) => [row.buildId, row.paintedSurfaceCount]),
+    ).toEqual(reachedFollowers);
   });
 
   it.each(REPAINTED_STRUCTURAL)("$buildId ($family) is repainted", (row) => {
@@ -397,11 +493,21 @@ describe("backlog 60 — the corner base return's one outward surface, repainted
    * named here so the emptiness is about that body, not a filter that stopped matching.
    */
   it("has no structural body left with nothing for the colour to reach", () => {
-    const nothingToPaint = UNCHOOSING.filter(
-      (row) => row.family === "structural" && row.paintedSurfaceCount === 0,
+    const repainted = repaintedMeshCounts(
+      followingOn("material.melamine"),
+      ANTRACIT,
     );
 
-    expect(nothingToPaint.map((row) => row.buildId)).toEqual([]);
+    const cabinetry = SEEDED_RECORDS.filter(
+      (record) => declaredRuleOf(record.buildId) !== IS_NEVER_PAINTED,
+    );
+    const nothingReached = cabinetry.filter(
+      (record) => repainted.get(record.id) === 0,
+    );
+
+    expect(cabinetry).toHaveLength(SEEDED_CABINETRY_COUNT);
+    expect(cabinetry.map((record) => record.id)).toContain(RETURN_LEG_ID);
+    expect(nothingReached.map((record) => record.buildId)).toEqual([]);
     expect(UNCHOOSING.map((row) => row.buildId)).not.toContain(
       "base-corner-return-320",
     );

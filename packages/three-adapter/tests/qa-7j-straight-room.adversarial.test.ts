@@ -9,7 +9,6 @@ import {
   derivePlacementRecords,
   generateKitchen,
   runEndPanelSeatM,
-  toMetres,
   type BodyProbeFactory,
   type DesignRoom,
 } from "@lemnaria/configurator-domain";
@@ -143,14 +142,42 @@ describe("7J-A11 — the straight run's one end panel, swept over the approved w
     };
   }
 
-  const WIDTHS_MM = [
-    1200, 1201, 1799, 1800, 2000, 2499, 2500, 3100, 3699, 4001, 4899, 5999,
-    6000,
+  /** The panel's centre stands 10 mm past the last base cabinet and its outer face 9 mm past that, so a run needs
+   *  19 mm of wall left over to be closed. Written out, not imported from the seat's own module. */
+  const PANEL_HALF_THICKNESS_MM = 9;
+  const NO_PANEL = "none";
+  const MM_PER_M = 1000;
+  /** A seat arrives as 2.4099999999999997 m; a thousandth of a millimetre forgives that and nothing a fitter sees. */
+  const FLOAT_NOISE_MM = 0.001;
+
+  /**
+   * Each width with the seat it must produce, in millimetres along wall A. A row with no expectation passed for a
+   * function that never seats a panel, so every row states one: `NO_PANEL` where the run ends closer than 19 mm to
+   * the wall's end, or where the generator stands a column in the seat.
+   */
+  const SEATS_BY_WIDTH_MM: readonly {
+    readonly widthMm: number;
+    readonly seatMm: number | typeof NO_PANEL;
+    readonly because: string;
+  }[] = [
+    { widthMm: 1200, seatMm: NO_PANEL, because: "the run ends on the wall" },
+    { widthMm: 1201, seatMm: NO_PANEL, because: "1 mm is left past the run" },
+    { widthMm: 1799, seatMm: 1510, because: "the run ends at 1500" },
+    { widthMm: 1800, seatMm: NO_PANEL, because: "the run ends on the wall" },
+    { widthMm: 2000, seatMm: 1810, because: "the run ends at 1800" },
+    { widthMm: 2499, seatMm: 2410, because: "the run ends at 2400" },
+    { widthMm: 2500, seatMm: NO_PANEL, because: "the run ends on the wall" },
+    { widthMm: 3100, seatMm: NO_PANEL, because: "the run ends on the wall" },
+    { widthMm: 3699, seatMm: 3410, because: "the run ends at 3400" },
+    { widthMm: 4001, seatMm: NO_PANEL, because: "a column stands in the seat" },
+    { widthMm: 4899, seatMm: NO_PANEL, because: "a column stands in the seat" },
+    { widthMm: 5999, seatMm: NO_PANEL, because: "a column stands in the seat" },
+    { widthMm: 6000, seatMm: NO_PANEL, because: "a column stands in the seat" },
   ];
 
-  it.each(WIDTHS_MM)(
-    "never seats a panel at x ≤ 0 or past wall A's end at %i mm",
-    (widthMm) => {
+  it.each(SEATS_BY_WIDTH_MM)(
+    "never seats a panel at x ≤ 0 or past wall A's end at $widthMm mm ($because)",
+    ({ widthMm, seatMm }) => {
       const room = linearRoom(widthMm);
       const result = generateKitchen({
         room,
@@ -165,9 +192,14 @@ describe("7J-A11 — the straight run's one end panel, swept over the approved w
 
       const seatM = runEndPanelSeatM(records, room);
 
+      expect(
+        seatM === undefined ? NO_PANEL : Math.round(seatM * MM_PER_M),
+      ).toBe(seatMm);
       if (seatM === undefined) return;
       expect(seatM).toBeGreaterThan(0);
-      expect(seatM).toBeLessThanOrEqual(toMetres(widthMm));
+      expect(seatM * MM_PER_M + PANEL_HALF_THICKNESS_MM).toBeLessThanOrEqual(
+        widthMm + FLOAT_NOISE_MM,
+      );
     },
   );
 });
