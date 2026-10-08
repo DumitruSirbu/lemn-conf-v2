@@ -135,7 +135,7 @@ run_gate e2e-shard-budget sh -c \
 # gains nothing from sharding and would pay a dev-server boot per shard.
 run_gate e2e pnpm test:e2e
 run_gate build pnpm build
-run_gate boundary sh scripts/gates/boundary.sh
+run_gate boundary pnpm gate:boundary
 run_gate lockfile sh scripts/gates/lockfile.sh
 run_gate sca pnpm audit --audit-level=high --prod
 

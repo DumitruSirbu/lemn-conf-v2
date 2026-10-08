@@ -756,8 +756,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      # Same script .githooks/pre-push runs, so the local gate and this one
-      # cannot drift apart. Rationale for each check lives in the script.
+      # Same script .githooks/pre-commit and .githooks/pre-push run, so the local
+      # gates and this one cannot drift apart. Rationale for each check lives in
+      # the script. Its test needs only git and the runner's own Node.
+      - name: Boundary gate refuses what it claims to
+        run: node --test scripts/gates/boundary.test.mjs
       - name: Architectural boundaries
         run: sh scripts/gates/boundary.sh
 
