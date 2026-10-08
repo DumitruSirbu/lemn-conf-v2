@@ -422,6 +422,10 @@ describe("a database that does not answer", () => {
     const editor = await answerOf("editor", "owned");
     const review = await answerOf("review", "owned");
 
+    // The failure the doors met is the database's, sent as a query each: not the refusal this test gives a request
+    // it does not recognise, which would fail both doors alike too.
+    expect(requestsPastTheDriver).toEqual([]);
+    expect(sentQueries).toHaveLength(DOORS.length);
     expect(isValidElement(review)).toBe(false);
     expect(review).toEqual(editor);
     expect(JSON.stringify(review)).not.toContain("qa_password");
