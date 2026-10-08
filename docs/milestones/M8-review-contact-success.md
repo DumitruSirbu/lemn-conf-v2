@@ -4174,7 +4174,8 @@ ADR 0114 B5, G4; ADR 0019 d5.
    form yields the same normal form; seven and nine digits after the prefix are refused; spaces,
    dashes and brackets do not change the answer.
 2. Every text field refuses a carriage return, a line feed and any other control character. *Why:*
-   these values reach an e-mail.
+   these values reach an e-mail. **(Added 2026-10-08, see *S1's readings*: an invisible format
+   character is removed and not refused, and no stored value holds one.)**
 3. Each field has a stated maximum length and refuses one character past it.
 4. E-mail is required exactly when the channel is e-mail (Q6 (ii), answered); locality may be empty
    (Q6 (i), answered). Consent that is not `true`
@@ -4190,6 +4191,99 @@ ADR 0114 B5, G4; ADR 0019 d5.
 
 *QA reading:* the criteria; `tests/pricing/`; `scripts/gates/boundary.sh`; `fast-check`. *Logic
 reader:* ADR 0001, 0065, 0072; ARCH §9. *Clean-code reader:* the slice files.
+
+#### 8H — S1's readings, ruled 2026-10-08
+
+S1 is `aecacbd` [ran: `git log`]; domain typecheck and lint exit 0, 6511 passed, boundary 0
+[relayed, coordinator-run]. Ten readings. **Seven stand, three change, one question is the
+owner's.** None of the bounds below is in a record; where I confirm one it is the architect's
+reading, and the wave's ADR says so.
+
+| # | Reading | Ruling |
+| --- | --- | --- |
+| 1 | The normal form is `+` and digits; a Moldovan number is `+373` and exactly eight | **Confirmed.** Criterion 1, and frame 4B's *"8 cifre după prefix"* [doc `…Mobil.dc.html:1288`] |
+| 2 | An international number is `+`, a first digit 1 to 9, seven to fifteen digits | **Confirmed, as bounds from outside the records.** Fifteen is E.164's ceiling and seven a judgement of the shortest in use [inf: the implementer's knowledge and mine; nobody read the standard here]. Technical, not the owner's |
+| 3 | Grouping is space, hyphen and round brackets; a dot, a no-break space and `00373…` are refused | **The three stand; the rest is Q33, the owner's.** Below |
+| 4 | Three phone codes | **Changed: criterion 9.** Below |
+| 5 | Lengths: name 100, locality 100, e-mail 254, phone as typed 32, in code points after trimming | **Confirmed.** Criterion 3 asked for a stated maximum and these are stated. 8I's columns and 8L's inputs take the same exported constants; *must not:* a second literal |
+| 6 | Cc, Cf, Cs, Zl and Zp are refused, before trimming | **Changed for Cf: criterion 10.** Below |
+| 7 | With another channel, an e-mail is neither judged nor carried | **Confirmed.** The input does not exist for that channel (Q6 (ii)), and an address the customer did not ask us to use is not kept. *Must not:* the dropped value reaches the store, the mail or a log |
+| 8 | `z.email()` after the length check; a non-ASCII address is refused | **Confirmed, as a recorded limit** with its trigger (ADR 0118): a customer reports a refused address. The customer with one can choose the phone |
+| 9 | The consent text's version is any identifier the client sends | **Changed: criterion 11.** Below |
+| 10 | The result is `validate-room.ts`'s shape; no value in a refusal | **Confirmed** (ADR 0095; ADR 0108 d3) |
+
+**Criterion 9, added — a phone refusal says which form it judged (reading 4).** Frame 4B's
+sentence, *"Așteptăm 8 cifre după prefix"*, is true of a Moldovan number and false of *"+39 12"*.
+As built both are `PHONE_INCOMPLETE`, so 8L cannot know which sentence is true. A refusal tells
+the Moldovan form from the international one, by a code or by a code and a datum that is not a
+number. *Must not:* a refusal carries a digit count, or the typed value.
+
+**Criterion 10, added — an invisible format character is removed, not refused (reading 6).**
+Cc, Cs, Zl and Zp are refused as built: criterion 2, and a line break reaches a browser's
+one-line input only from a client that is not one. **Cf is different, and wider than criterion 2
+asked.** A number copied from a contact card or a spreadsheet often carries direction marks, and
+a place name copied from a page a soft hyphen [inf, from experience, unmeasured here]. Refused,
+the customer is told a character is forbidden in a value that looks right, and cannot find it.
+Removed, the danger the refusal guarded against is gone as well, since a direction override that
+is not stored cannot reorder a line in the shop's mail.
+
+- Every Cf character is removed from every text field before anything else is judged, the phone
+  included. *Must not:* a value that is returned, stored or mailed holds one; a customer is
+  refused for one.
+- *The cost, named:* a joiner that a few scripts spell with is removed too, and such a name is
+  stored slightly misspelt and not refused. The customers are Romanian and Russian speakers.
+  **Architect's ruling, open to the owner.**
+
+**Criterion 11, added — the consent text's version is the client's to state and the code's to
+recognise (reading 9).** *Who supplies it:* the client. Q7's answer has the submission record
+*"which consent text version was shown"*, and only the page knows what it showed; a server that
+stamped its own would record the wrong one for a tab left open across a deploy. *But not any
+string:* the version is one of **a closed set declared in the domain**, and one outside it is
+refused with its own code. So no row holds an identifier nobody published. Today the set has one
+member, and it names the placeholder (Q7 (b)). *Must not:* the set is written twice; a version is
+removed from it once a submission could carry it.
+
+**Q33, for the owner — which ways of writing a number are accepted?** The rule the owner agreed
+is *"0 and eight digits, or +373 and eight"*, and an international number *"written with `+`"*.
+S1 builds exactly that. Four things a real customer types are therefore refused today:
+*"069.123.456"*, with dots; *"00373 69 123 456"*, with `00` for `+`; *"+373 (0)69 123 456"*, with
+the 0 kept after the code; and *"69123456"*, eight digits and no prefix. A fifth, a no-break space
+from a pasted number, I rule myself: it is a space, and is grouping. *Recommended:* accept all
+four, since each has one reading and the normal form is the same. *If unanswered:* as built. It
+blocks nothing, and widening later moves no stored value. *Not ruled.*
+
+**For 8L, recorded.** A Romanian number typed as at home, *"0722 123 456"*, is read as a Moldovan
+number with too many digits. The sentence for that refusal says how to write a number from
+outside Moldova. It is a new leaf and the owner's copy.
+
+**The follow-up to S1, before S2. The same implementer, three items, two production files.**
+
+| # | Does | Files |
+| --- | --- | --- |
+| 1 | Criterion 10: Cf removed in every field; a no-break space is grouping | `contact/contact-fields.ts`, `contact/phone-number.ts` |
+| 2 | Criterion 9: the two forms told apart | `contact/phone-number.ts`, `contact/contact-fields.ts` |
+| 3 | Criterion 11: the closed set and its code | `contact/contact-fields.ts`, `index.ts` |
+
+*Reading:* this section; ADR 0095; the two files.
+
+**S2's dispatch — confirmed as the slice table has it, with five things made exact.**
+
+- **Strict at every level.** An unknown field is refused at the top of the request **and inside
+  the contact fields**, where S1's own type would let one pass unseen
+  [src `contact-fields.ts:57-60`]. Reading 7 is not an exception to this: an e-mail is a known
+  field, dropped for a stated reason.
+- **No price, by type and by test (criterion 5, D6):** a request carrying a total, a line or a
+  book version is refused as an unknown field.
+- **The design reference** is an id and a revision in the shapes the domain and the store already
+  give them, or it is absent together with an intent from a closed set, which today has one
+  member, the callback of Q12 (i). *Must not:* both, or neither.
+- **The locale** is one of the locales the application serves. One list of them exists in the
+  repository; S2 does not write a second.
+- **The client request id, the honeypot and the timing fields** get a shape and a bound here and
+  no meaning: what a filled honeypot or a fast submit is, is 8K's (D9), and the package reads no
+  clock (criterion 8).
+
+S2's result has S1's shape: every failing field once, a code each, no value.
 
 ### 8I — the contact submissions store
 
