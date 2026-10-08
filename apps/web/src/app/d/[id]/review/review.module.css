@@ -87,18 +87,21 @@
   color: var(--ink-muted);
 }
 
-/* The scene is a box of its own height: the canvas fills it and the chips and the link float over it. */
+/* The scene: the picture, then the views under it. Frame 3A draws the picture alone at 158 px with the 3D link in
+ * its lower corner; the three views are this product's own, and stand below the picture so that none of them covers
+ * it. */
 .scene {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.picture {
   position: relative;
   height: 158px;
   overflow: hidden;
   background: var(--stage);
   border-radius: 13px;
-}
-
-.sceneFill {
-  position: absolute;
-  inset: 0;
 }
 
 .sceneLoading {
@@ -112,10 +115,8 @@
 }
 
 .presets {
-  position: absolute;
-  top: 10px;
-  left: 10px;
   display: flex;
+  flex-wrap: wrap;
   gap: 7px;
 }
 
@@ -124,7 +125,7 @@
   padding: 8px 12px;
   font: 400 11px/1 var(--font-ui);
   color: var(--ink-muted);
-  background: rgb(250 248 244 / 72%);
+  background: var(--paper);
   border: 1px solid var(--line);
   border-radius: var(--radius-chip);
   cursor: pointer;
@@ -133,7 +134,7 @@
 .preset[aria-pressed="true"] {
   font-weight: 700;
   color: var(--accent-strong);
-  background: rgb(250 248 244 / 92%);
+  background: var(--surface);
 }
 
 .view3d {
@@ -424,9 +425,11 @@
   border-radius: 10px;
 }
 
+/* Frame 3A's bar: the figure under its small caption at the left, the call to action at the right, on one row in
+ * both languages. The figure keeps its width; the call to action is what gives way, by wrapping its label at a
+ * space (never mid-word, never smaller) inside its 52 px, so the row never wraps and the region never grows. */
 .buyRow {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
@@ -434,34 +437,45 @@
 
 .figure {
   display: flex;
-  flex-direction: row;
-  gap: 6px;
-  align-items: baseline;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 3px;
   margin: 0;
 }
 
 .figureLabel {
-  font: 400 21px/1 var(--font-ui);
-  text-transform: lowercase;
+  font: 400 10.5px/1 var(--font-ui);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
 }
 
 .figureAmount {
   font: 700 21px/1 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .cta {
   display: flex;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   align-items: center;
   justify-content: center;
+  min-width: 0;
   min-height: 52px;
-  padding: 0 22px;
-  font: 700 15px/1 var(--font-ui);
+  padding: 8px 22px;
+  font: 700 15px/1.15 var(--font-ui);
+  text-align: center;
   color: var(--paper);
   text-decoration: none;
   background: var(--accent);
   border: 0;
   border-radius: 12px;
+}
+
+/* With no figure beside it (a review that cannot be shown) the call to action takes the bar. */
+.buyRow > .cta:only-child {
+  flex: 1 1 auto;
 }
 
 /* Off, and still focusable so its reason is read with it: `aria-disabled` and `aria-describedby`, not the

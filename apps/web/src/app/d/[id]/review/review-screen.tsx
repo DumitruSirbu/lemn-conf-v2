@@ -136,8 +136,7 @@ function AvailableBody({
           {review.roomLine}
         </p>
       </div>
-      <div className={styles.scene}>
-        <ReviewScene support="supported" />
+      <ReviewScene support="supported">
         <Link
           prefetch={false}
           className={styles.view3d}
@@ -145,7 +144,7 @@ function AvailableBody({
         >
           {content.reviewScreen.view3d}
         </Link>
-      </div>
+      </ReviewScene>
       <div className={styles.settingsRow} data-section="settingsRow">
         <div className={styles.settingsText}>
           <span className={styles.settingsNames}>

@@ -163,6 +163,22 @@ describe("ReviewScene with WebGL", () => {
   });
 });
 
+describe("ReviewScene's structure", () => {
+  it("stands the views in a row after the picture, and draws what it is given over the picture", async () => {
+    await mountScene();
+
+    const scene = container.querySelector('[data-testid="review-scene"]');
+    const [picture, views] = [...(scene?.children ?? [])];
+
+    expect(
+      picture?.querySelector('[data-testid="stub-canvas"]'),
+    ).not.toBeNull();
+    expect(views?.getAttribute("role")).toBe("group");
+    expect(picture?.contains(views ?? null)).toBe(false);
+    expect(views?.querySelectorAll("button")).toHaveLength(L_CAMERA_CHIPS);
+  });
+});
+
 describe("ReviewScene without WebGL", () => {
   it("renders nothing at all: no canvas, no chips, no exit screen and no <main>", async () => {
     canvases.hasWebGL = false;

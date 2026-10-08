@@ -234,6 +234,47 @@ describe("an available review of a kitchen that fits", () => {
   });
 });
 
+describe("the bar under the list", () => {
+  it("stands the figure at the left, its caption over it, and the call to action at its right", () => {
+    const page = render(KITCHEN_L_DESIGN);
+    const row = bottomOf(page).querySelector('[class*="buyRow"]');
+    const figure = row?.querySelector('[data-section="figure"]');
+
+    expect(
+      [...(row?.children ?? [])].map((child) =>
+        child.getAttribute("data-section"),
+      ),
+    ).toEqual(["figure", "callToAction"]);
+    expect(
+      [...(figure?.children ?? [])].map((part) =>
+        part.className.replace(/_[a-z0-9]+$/i, ""),
+      ),
+    ).toEqual(["_figureLabel", "_figureAmount"]);
+    expect(figure?.querySelector('[class*="figureLabel"]')?.textContent).toBe(
+      ro.price.startingPrefix,
+    );
+  });
+
+  it("says the same in Russian, with the Russian caption", () => {
+    const page = render(KITCHEN_L_DESIGN, "ru");
+
+    expect(
+      bottomOf(page).querySelector('[class*="figureLabel"]')?.textContent,
+    ).toBe(ruMessages.price.startingPrefix);
+  });
+
+  it("is the call to action alone when there is no figure to show", () => {
+    const page = render(withAnUnofferedTier(KITCHEN_L_DESIGN));
+    const row = bottomOf(page).querySelector('[class*="buyRow"]');
+
+    expect(row?.children).toHaveLength(1);
+    expect(row?.firstElementChild?.getAttribute("data-section")).toBe(
+      "callToAction",
+    );
+    expect(ctaOf(page).getAttribute("aria-disabled")).toBe("true");
+  });
+});
+
 describe("a body's row is two lines", () => {
   const [first, second] = KITCHEN_L_DESIGN.placements;
   if (first === undefined || second === undefined)
@@ -559,13 +600,49 @@ describe("what the stylesheet declares (the layout itself is the visual pass's)"
   );
 
   it("draws the scene at frame 3A's 158 px", () => {
-    expect(ruleBody(".scene")).toContain("height: 158px");
+    expect(ruleBody(".picture")).toContain("height: 158px");
   });
 
   it("undoes the editor's rule under the language menu's cell, with more weight than its own", () => {
     expect(STYLESHEET).toMatch(
       /\.nav \.localeSlot > \* \{\s*border-bottom: 0;/,
     );
+  });
+
+  it("never lets the bar wrap, and lets only the call to action give way, by its label's spaces", () => {
+    expect(ruleBody(".buyRow")).not.toContain("flex-wrap");
+    expect(ruleBody(".buyRow")).toContain("justify-content: space-between");
+    expect(ruleBody(".figure")).toContain("flex: 0 0 auto");
+    expect(ruleBody(".figure")).toContain("flex-direction: column");
+    expect(ruleBody(".figureAmount")).toContain("white-space: nowrap");
+    expect(ruleBody(".cta")).toContain("flex: 0 1 auto");
+    expect(ruleBody(".cta")).toContain("min-width: 0");
+  });
+
+  it("truncates and shrinks nothing in the bar", () => {
+    for (const selector of [
+      ".cta",
+      ".figure",
+      ".figureLabel",
+      ".figureAmount",
+    ]) {
+      expect(ruleBody(selector)).not.toMatch(
+        /text-overflow|overflow:|word-break|font-size/,
+      );
+    }
+    expect(ruleBody(".figureAmount")).toContain("font: 700 21px");
+    expect(ruleBody(".cta")).toContain("font: 700 15px");
+  });
+
+  it("captions the figure small and in capitals, as frame 3A does", () => {
+    expect(ruleBody(".figureLabel")).toContain("font: 400 10.5px");
+    expect(ruleBody(".figureLabel")).toContain("text-transform: uppercase");
+  });
+
+  it("puts the views in the flow under the picture, not over it", () => {
+    expect(ruleBody(".presets")).not.toContain("position: absolute");
+    expect(ruleBody(".picture")).toContain("height: 158px");
+    expect(ruleBody(".view3d")).toContain("position: absolute");
   });
 
   it("draws a wait with no red edge", () => {
