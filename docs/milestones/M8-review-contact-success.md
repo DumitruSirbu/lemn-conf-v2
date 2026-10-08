@@ -3688,6 +3688,73 @@ can carry a key or a window.
 owner, and the grant half as unexecuted; ADR 0145 gains a dated note that a counter is a fourth
 caller class, counted and erring high; the backlog gains the older tables' grant tests.
 
+#### 8E — a deadlock between hits and a prune, ruled 2026-10-08
+
+**State.** The fix round is `9444910` [ran: `git log`]; 4 failed, 1715 passed, the four being
+QA's F1 tests awaiting their re-aim [relayed, coordinator-run]. S1 was reached through the
+table's own window check, `0007` untouched [src `rate-limit-store.ts:151-162`].
+
+**What was seen** [relayed, developer-run, once]. QA's race of 40 seven-bucket hits against 12
+prunes of six of their rows failed in one run of five: 4 hits rejected, each with SQLSTATE
+`40P01`. It was green in QA's four runs before the fix round.
+
+**Class: contract gap, closed in the implementation.** No criterion says what holds while a prune
+runs beside hits; criterion 9 speaks of a prune that is late, missing or repeated, not of one in
+progress. *"No deadlock"* stood in a test's title and in the hit's own comment, which promises it
+for hits alone [src `:129-130`]. The hit locks its rows by key and start; the prune names no
+order [src `:176-183`]. Two statements that lock two shared rows in different orders can each
+wait on the other [inf; QA predicted it and one run showed it].
+
+**Ruling — the prune takes its locks in the hit's order. Option (a). Fixed now, by the
+implementer, in one statement of one file.**
+
+- *Why fix what is rare.* A deadlocked hit fails closed and is never a wrong count. In production
+  it needs a request with two limits whose windows have both just ended, at the moment the prune
+  runs: midnight, for 8G and 8K. That is rare, and it would make the limiter's behaviour depend
+  on when a job is scheduled, which is what criterion 9 exists to forbid.
+- *Why not tolerate it (b):* the test would stop proving the thing in its title. *Why not repeat
+  a `40P01` (c):* it would be safe to count, since a deadlock's victim ran nothing, but it treats
+  the symptom, and each one first waits out the database's deadlock timeout. With one order there
+  is none to repeat. A `40P01` seen after this is a finding, not a case.
+- *Why not skip locked rows:* criterion 5 has the prune remove **every** expired row.
+- **Criterion 12, added. One lock order.** Every statement here that can lock more than one row
+  of the table takes them by key, then by start; the prune is one. With hits racing prunes of
+  rows they share, no hit and no prune is rejected, each live window's counts are 1…N once each,
+  and every expired row is gone at the end. *Must not:* a test accepts a `40P01`; the store
+  repeats one; the prune leaves an expired row because it was locked; `0007` changes.
+- *The hit's comment* then says what is true of the module, not of hits alone.
+- *The prune as a victim, as built:* a `40P01` is a decoded refusal, which the retry does not
+  repeat [src `retry-on-transient-failure.ts:26-28`], so that run fails with the typed error and
+  the next night's removes the rows. Unchanged, and after this ruling unreachable.
+
+**Does S1's `set window_end = …` bear on it? I judge not, and it is not measured.** The upsert
+locked the conflicting row before S1 and locks it the same way now; `window_end` is in no key.
+Where the ends agree the value is written as itself [inf, from how I recall Postgres deciding
+both things; the logic reviewer checks it against the documentation]. And the runs do not show a
+change: at one failure in five, four green runs in a row happen four times in ten. **Whether the
+fix round made it likelier is not established, and need not be:** one order removes the cause
+under either statement.
+
+**How it is proved. One in five is too rare to prove by a handful of green runs, so the test is
+sharpened first and the fix is measured against that.**
+
+1. **QA, before the fix, at `9444910`:** the race is made to fail often — more shared rows in a
+   request, more rounds — until the unordered prune deadlocks in **at least five runs of ten**,
+   and those runs are quoted. If it cannot be brought that high, QA reports the rate it reached
+   and the count in step 3 is set from it.
+2. **The implementer:** the prune's order. Nothing else.
+3. **QA, after:** the same sharpened race, **thirty runs in a row green**, by that test's name
+   alone, with the rows left behind counted at the end: none. At a true rate of one in two,
+   thirty green runs by chance is under one in a thousand million; had only the original one in
+   five been kept, thirty would still leave about one chance in eight hundred.
+4. **The logic reviewer, by construction:** reads the statement and says where the locks are
+   taken and in what order, quoting Postgres's documentation of a locking clause under an
+   `order by`. Runs alone cannot show an order; the reading does.
+
+*Order of work:* QA's baseline; the implementer's one statement; QA's thirty runs and its F1
+re-aim together; then review as ruled. *Reading for both:* this section;
+`rate-limit-store.ts`; QA's race test.
+
 ### 8F — the limiter and the mint
 
 *Goal.* `POST /api/designs` is bounded by ADR 0019's independent buckets. Closes the application half
