@@ -937,6 +937,25 @@ by production user keep"*.
   the rule that resources are add-only, which it qualifies for rows. `docs/WORKFLOW.md` needs a
   pointer at most.
 
+**5. A fifth, the same day — the keyed digest: yes.** His words: *"lets add this secret"*
+[relayed].
+
+- *What he was told before he answered* [the coordinator's account, relayed]: a plain hash of a
+  name and a phone, in a column the application's role reads, can be guessed back; the answer is
+  a digest keyed with a secret held only in the server's environment; it costs one new variable
+  that he sets in every environment; it does not help if the database credential and the
+  environment both leak; and the same question was coming for rate-limit keys, so one secret
+  could serve both.
+- *One sentence he was told that I correct here, so the runbook is right:* that rotating it
+  *"only makes an in-flight retry look new"*. A retry across a rotation is answered as a
+  **conflict**, not taken as new: the row with that request id is found and its digest differs.
+  And rotation has a second consequence he was not told in those words: **every rate-limit count
+  starts again**. Neither changes his answer's sense; both go to him with the runbook.
+- **Ruled by him:** the secret exists, and the conflict digest is keyed with it.
+- **Not ruled by him, and mine:** its name, its shape, that one secret serves both uses, that
+  8F keys from the start, and how tests run without it. All are in *The digest secret*, under
+  8I. The security reader confirms the second and third at 8F's S0.
+
 **A fact recorded with these, coordinator-run [relayed].** The owner changed Vercel's Development
 `DATABASE_URL` and pulled it again. The privilege test now prints *reached database
 "lemn-conf-v2-preview" as role "app_designs"*: 10 passed, 1 skipped, exit 0. **So the persistence
@@ -3994,7 +4013,9 @@ needs no new entry.
 - *The keyed hash* is a security question and is the reviewer's recommendation, not my ruling:
   unkeyed for 8E and 8F as a recorded limit, decided in 8K's S0, keyed recommended there. One
   consequence to say with it: adding a key later changes every key, so every count starts again
-  at that deploy. Harmless for a day's limit, and better known beforehand.
+  at that deploy. Harmless for a day's limit, and better known beforehand. **(Overtaken
+  2026-10-08: the owner said yes to the secret, and 8F keys from the start, so no count restarts
+  for this reason. See *The digest secret*, under 8I.)**
 - *The nine steps for applying `0007` and its grant* belong in `docs/runbooks/`, named for the
   operation and not the wave, since 8H's table will need the same steps; `0007` is its first
   worked case. This plan's *Owner action after this wave* and the environments guide point at
@@ -4116,6 +4137,17 @@ of SEC-001 and backlog 90. *Tier: Full + security.*
 > Criterion 2 is proved under *none*; on the development host it rests on that host's
 > documentation and one request on a deployment. **Waits for the three red `CI=1` specs to be
 > triaged. Q32 sets one number and does not block it.**
+>
+> **Added 2026-10-08: every bucket's key is a keyed digest, from the first commit** (*The digest
+> secret*, under 8I; rule S1 of 8E as restated). **S1 gains the module:** one function that
+> digests a purpose and its fields under a key it is handed, and one that reads `DIGEST_SECRET`
+> and refuses when it is unset or not sixty-four hexadecimal characters; `.env.example` gains the
+> name. **S0 gains two things to settle with the security reader:** that keying from the start is
+> right, and the encoding. **The e2e harness makes a fresh value for each run.** *Criterion,
+> added:* with the variable unset the mint is refused as a store failure is, and no row is
+> written; *must not:* any key but the variable's is ever used. **Owner action before this wave
+> is merged: `DIGEST_SECRET` set in production, preview, development and `apps/web/.env.local`.
+> Until it is, that environment creates no design.**
 
 | Slice | Does | Files | Reading |
 | --- | --- | --- | --- |
@@ -4785,7 +4817,8 @@ which no retry mends, and one for two requests in flight under one key, which a 
     under which the role reads no contact column. The security reader's answer is a digest keyed
     with a secret kept outside the database, which is a new variable. **It is the same question
     as the keyed hash recorded for 8K's S0, and it now comes first: it goes to the owner before
-    8I's migration is written.**
+    8I's migration is written.** **(Answered 2026-10-08: yes, *"lets add this secret"*
+    [relayed]. 8I is unblocked; see *The digest secret*, under 8I.)**
 - **8J:**
   - A customer's text appears only in the plain-text body, one value to a line behind a fixed
     label, and never in a header.
@@ -4840,6 +4873,103 @@ back. *Tier: Full + security.*
 0008; ADR 0012; the migration.
 
 **Owner action after this wave:** apply `0008` and issue Q14 (i)'s grants, preview then production.
+
+#### The digest secret — decided by the owner 2026-10-08; its rules
+
+*"lets add this secret"* [the owner, relayed]. What follows is the architect's, except where it
+says otherwise. **No agent generates, sets, reads or prints the value, in any environment.**
+
+**1. The variable.**
+
+- **Name:** `DIGEST_SECRET`, beside `CRON_SECRET` in `.env.example`, with a comment and no value.
+- **What it holds:** thirty-two random bytes written as sixty-four lowercase hexadecimal
+  characters. **The owner runs, himself, once for each environment:** `openssl rand -hex 32`,
+  the command ADR 0008 and ADR 0009 already give for a secret [doc].
+- **A different value in each environment**, so one that leaks from a preview opens nothing in
+  production. Local development and preview write to one database (ADR 0054) under different
+  values; that is harmless, since a digest is never read back for its meaning.
+- **Where the owner sets it:** production, preview and development on the host, and
+  `apps/web/.env.local` for `pnpm dev`. Add-only, as every variable is.
+- **Who reads it:** one function on the server, in one module, when a digest is asked for. Not
+  when the module loads, so a build needs no value. Nothing in `packages/` reads it: the domain
+  is I/O-free and persistence is handed a digest already made.
+- **When it is not set, or is not sixty-four hexadecimal characters: it refuses.** *Must not:*
+  an unkeyed digest, a built-in key, a key derived from another variable, or a shortened or
+  padded value is ever used in its place. The refusal is a named error whose sentence names the
+  variable and holds nothing of its value, not its length and not a character of it (ADR 0146,
+  rules B2 and B3). What then happens to the customer is each caller's, and both fail closed: a
+  design is not made (8F), and a request is answered as one that cannot be sent (8K).
+- **A consequence to say plainly to the owner:** from the day 8F's code runs somewhere, **that
+  environment creates no design until the variable is set there.** It is set in every
+  environment before 8F is merged. That is an owner action with a date, not a note.
+
+**2. One secret, two uses, kept apart by what is digested.**
+
+- **One.** Two secrets are two things to set in four places and two ways for an environment to
+  be half configured, for no separation that the encoding does not already give.
+- **How they cannot collide:** the digest is HMAC-SHA-256 under the secret, of an encoding that
+  begins with a **purpose from a closed set written in code** and continues with the fields, each
+  marked with its length. Equal encodings only for an equal purpose and equal fields. This is
+  rule S1 of 8E as restated, one level up: the purpose first, then for a bucket its policy's
+  name and subject. Today the set has two members: a rate-limit bucket, and a contact request's
+  payload.
+- **Its output is sixty-four hexadecimal characters**, which is what `rate_limit_counters`
+  already demands of a key and what 8I's column will. No table changes for it.
+- **8F keys from the start.** It is not built yet [ran: `apps/web/src/lib/server/rate-limit`
+  does not exist], so nothing is re-keyed and no count ever restarts for this reason. It also
+  makes true what `0007` says of itself: a plain hash of one of sixteen million network prefixes
+  is the prefix, to anyone who can read the row. **This supersedes** the limit recorded in 8E's
+  reviews, *unkeyed for 8E and 8F*. The security reader confirms it at 8F's S0, which was always
+  to be held with them.
+- **Who builds the module:** 8F, in S1, since it is first to need it. 8K adds the second purpose
+  and writes no digest code of its own.
+
+**3. Tests and the e2e suite need no real secret, and no test value exists to be chosen.**
+
+- *Unit and DOM tests:* the function that digests takes the key as an argument, and the reader of
+  the environment is a second, small function. A test passes a key of its own.
+- *The e2e server:* the harness that starts it **makes a fresh random value for that run and
+  hands it over in the server's environment**, where the two test flags are already set
+  [src `apps/web/playwright.config.ts:80-89`]. It is written to no file. CI is the same harness.
+- *Why this and not a fixed test value:* a literal in the repository is a value somebody can set
+  in production. With a value made per run there is nothing to copy, so *"a production build
+  cannot select the test value"* holds because no such value exists. *Must not:* the application
+  contains a branch that picks a key by environment name.
+- *The persistence suites* need nothing: a store is handed digests and makes none.
+
+**4. Rotation, for the runbook.** *The rule:* the owner sets a new value in that environment and
+deploys. Nothing is migrated and there is no time with two keys. *What it costs, both to be
+said:* **every rate-limit count starts again**, the old rows going as their windows end; and **a
+contact request whose retry falls across the rotation is answered as a conflict**, its stored
+row and its notice untouched. *When:* whenever that environment's variables may have been seen.
+*For the scribe:* a runbook of its own under `docs/runbooks/`, named for the operation.
+
+**5. 8I is unblocked, and it never touches the secret.**
+
+| Slice | Does | Files | Reading |
+| --- | --- | --- | --- |
+| S0 | As written: measures, under Q14 (i)'s column grants, that the idempotent insert works. **Added:** that the application's role can compare a request's digest and read no personal column while doing it | scratchpad | Q14; ADR 0006; this section |
+| S1 | As written, with one column made exact: **`payload_digest`, sixty-four lowercase hexadecimal characters by a check, handed in by the caller.** The port takes it as a value it cannot make | as written | this section; `sha256-digest.ts` |
+
+- **Criterion 1, made exact.** One request id and the same digest answer the stored reference.
+  One request id and another digest are refused with their own code, and the stored row is as it
+  was.
+- **Criterion 9, added.** Nothing the database or this package can compute is derived from a
+  personal column: no hash, no generated column, no index expression, no function. A test reads
+  the migration's text and every statement the store sends. *Why:* a digest made inside the
+  database would be made without the secret.
+- **Criterion 10, added.** The store holds no secret and reads no variable but its connection.
+- *What the digest covers* is 8K's to build and the domain's to state: every stored and mailed
+  field of the validated request, without the elapsed time and the honeypot's answer. One pure
+  function beside the request's type says so, and a test fails when the type gains a field that
+  the function neither covers nor names as left out.
+
+**What the security reader checks, in 8I:** that the application's role reads no personal column
+(the grants, live, in S0 and criterion 3); that nothing it can read is derived from one without
+the secret (criterion 9); that the reference is random and derived from nothing; that no error
+or log line carries a field's value (criterion 7). **And in 8F's S0:** that keying from the start
+is right; the encoding against forgery by a subject; the refusal when the variable is unusable;
+and that no fallback exists.
 
 ### 8J — mail, and the shop's notification
 
@@ -5006,6 +5136,14 @@ notifies, and tells the customer the truth. *Tier: Full + security.*
 > - The cross-site guard, before anything is counted.
 > - An id that has not the shape of a design id is refused before any query (the rule 8L S2 puts
 >   in the shared load).
+>
+> **Added 2026-10-08: the keyed digest is decided, and S0 no longer owes it** (*The digest
+> secret*, under 8I). The owner said yes. This wave **uses 8F's module and writes no digest code
+> of its own**: it adds the second purpose, a contact request's payload, and its buckets for the
+> network, the session and the e-mail are keyed as every bucket is. It builds the one pure
+> function, in the domain, that says what a payload's digest covers. **When the secret is unset
+> or unusable, a request is answered as one that cannot be sent**, as an unset mail variable
+> already is (criterion 8), and nothing is stored. S0 still fixes the per-browser key of D11.
 
 | Slice | Does | Files | Reading |
 | --- | --- | --- | --- |
@@ -5490,6 +5628,7 @@ of submission, and nothing re-prices it. This follows the owner's own design rec
 | `MAIL_PROVIDER_API_KEY` | secret; production and preview | sending | 8J | Never in test or CI: the fake is injected |
 | `MAIL_FROM_ADDRESS` | variable | the sender | 8J | |
 | `LEAD_NOTIFICATION_ADDRESS` | variable | the shop's inbox | 8J | Its absence makes submission *unavailable* |
+| `DIGEST_SECRET` **(added 2026-10-08; the owner: *"lets add this secret"*)** | secret; production, preview, development, and `apps/web/.env.local`; a different value in each | keys every rate-limit bucket and the contact request's conflict digest | 8F builds its reader; 8K reuses it | Sixty-four hexadecimal characters; the owner runs `openssl rand -hex 32` himself for each. **Set before 8F is merged: without it that environment creates no design.** Never in test or CI: the e2e harness makes a value per run. Rules: *The digest secret*, under 8I |
 | The shop's phone number | content or variable, per Q3 | frame 5B | 8M | Where it lives is decided with Q3 |
 | Table `rate_limit_counters`; grant `SELECT, INSERT, UPDATE, DELETE` on it | schema, grant | the limiter | 8E | Postgres, not Redis (ADR 0019 Alternative 4). Grant by the owner |
 | Table `contact_submissions`; column-scoped grants | schema, grant | leads | 8I | Q14 |
