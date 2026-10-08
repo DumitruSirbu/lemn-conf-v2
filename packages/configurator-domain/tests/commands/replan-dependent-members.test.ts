@@ -49,6 +49,11 @@ const LIFTING_COLUMN = "A|0.50";
 const OVERHUNG_COLUMN_ALONG_MM = 900;
 const OVERHUNG_COLUMN = "A|0.90";
 
+/** The seats a wall carcass and an open shelf are rebuilt at over a full-height body, at the shipped depth: the
+ *  shelf has no door in front of its shell, so it seats on the whole 600. */
+const LIFTED_WALL_SEAT_DEPTH_MM = 561;
+const LIFTED_OPEN_SHELF_SEAT_DEPTH_MM = 600;
+
 /** One design with two overlapping columns: an empty full-height slot, and beside it a stack whose
  *  top row is whatever the caller names.
  *
@@ -248,13 +253,32 @@ describe("who is re-planned is read off declarations, never off a list of ids", 
     expect(admitted.length).toBe(16);
   });
 
-  it("admits the wall and top carcasses and excludes everything the decision names", () => {
-    expect(admitted).toContain("wall-cabinet");
-    expect(admitted).toContain("wall-2door-600-deep-top");
-    expect(admitted).toContain("open-shelf");
+  // The same population asked of the insert itself, so the production rule answers and not the restatement above:
+  // every admitted row standing over the lifted column is rebuilt at the lifted seat, and the base under it, which
+  // the rule excludes, is written through.
+  it.each([
+    ["wall-cabinet", LIFTED_WALL_SEAT_DEPTH_MM],
+    ["open-shelf", LIFTED_OPEN_SHELF_SEAT_DEPTH_MM],
+  ])(
+    "re-plans %s over a lifted column and writes the base beneath it through",
+    (admittedBuildId, liftedSeatDepthMm) => {
+      expect(admitted).toContain(admittedBuildId);
+      const before = overlappingColumns(admittedBuildId, 600);
 
-    // Base band, full-height band, a `wall-plane` hood, and an appliance whose depth is a real
-    // machine's — one per exclusion clause.
+      const after = withFullHeightBodyBeside(before);
+
+      expect(placementOf(before, "top").body.seatDepthMm).toBeUndefined();
+      expect(placementOf(after, "top").body.seatDepthMm).toBe(
+        liftedSeatDepthMm,
+      );
+      expect(placementOf(after, "base")).toBe(placementOf(before, "base"));
+    },
+  );
+
+  // One per exclusion clause the catalogue can show: base band, full-height band, a `wall-plane` hood, and an
+  // appliance whose depth is a real machine's. The hood and the base are also asked of the insert, above and in
+  // "a standing hood is never re-planned".
+  it("excludes everything the decision names", () => {
     expect(admitted).not.toContain("base-cabinet");
     expect(admitted).not.toContain("tall-pantry");
     expect(admitted).not.toContain("hood-600");

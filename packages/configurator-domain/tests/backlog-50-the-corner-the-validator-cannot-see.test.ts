@@ -63,12 +63,6 @@ function cornerBody() {
   return placement;
 }
 
-/** The span the corner body occupies **on its own wall**. */
-function cornerBodySpanOnWallA(): SpanMm {
-  const placement = cornerBody();
-  return spanOf(placement.alongMm, placement.body.widthMm);
-}
-
 /** And how far it reaches **along wall B**: its carcass, measured from the wall plane, which starts
  *  at the shared corner — so `0 .. seat`. */
 function cornerBodyReachOnWallB(): SpanMm {
@@ -121,12 +115,17 @@ describe("the same-wall sweep, which works", () => {
     WIDTH_OF_A_TEST_SPACE_MM,
   );
 
-  it("really puts the space inside the body, on the body's own wall", () => {
-    const overlapMm = overlapMmOf(
-      spanOf(space.alongMm, space.widthMm),
-      cornerBodySpanOnWallA(),
-    );
-    expect(overlapMm).toBe(space.widthMm);
+  // The finding below is the corner body's and no other's: the same space is reported by nothing once that body is
+  // out of the design.
+  it("is quiet about the same space once the body it stands in is gone", () => {
+    const withoutTheCornerBody: Design = {
+      ...designHolding(space),
+      placements: KITCHEN_L_DESIGN.placements.filter(
+        (placement) => placement.id !== CORNER_BODY_ID,
+      ),
+    };
+
+    expect(validateDesignForCatalog(withoutTheCornerBody, catalog)).toEqual([]);
   });
 
   it("reports a recorded space standing where a body stands", () => {
@@ -233,18 +232,31 @@ describe("and the sweep it still skips entirely", () => {
     };
   }
 
-  it("really does put two bodies in one span, on one wall", () => {
-    // Without this, "reports nothing" would pass for the wrong reason once the fixture's widths move.
-    const moved = movedOntoTheCornerBody().placements.find(
+  // The silence below is the early return's and not the fixture's: the sweep names the corner body under the moved
+  // one the moment the same document carries a frozen extent over the moved body's own span.
+  it("really does put two bodies in one span: a frozen extent over the moved one is reported against the other", () => {
+    const overlapping = movedOntoTheCornerBody();
+    const moved = overlapping.placements.find(
       (placement) => placement.id === MOVED_ID,
     );
     if (!moved) throw new Error(`${MOVED_ID} left the fixture`);
-    const overlapMm = overlapMmOf(
-      spanOf(moved.alongMm, moved.body.widthMm),
-      cornerBodySpanOnWallA(),
-    );
-    expect(overlapMm).toBe(moved.body.widthMm);
-    expect(moved.wall).toBe(cornerBody().wall);
+    const extentOfTheMovedBody: EmptyColumn = {
+      wall: moved.wall,
+      alongMm: moved.alongMm,
+      widthMm: moved.body.widthMm,
+      y0Mm: moved.y0Mm,
+      topMm: moved.y0Mm + moved.body.heightMm,
+      depthMm: seatOf(moved.body.buildId),
+    };
+
+    expect(
+      validateDesignForCatalog(
+        { ...overlapping, columnExtents: [extentOfTheMovedBody] },
+        catalog,
+      ),
+    ).toEqual([
+      { code: "COLUMN_EXTENT_OVERLAPS_PLACEMENT", path: "columnExtents.0" },
+    ]);
   });
 
   it("says nothing about them when the document carries no frozen map", () => {
@@ -300,7 +312,7 @@ describe("and the document still loads, which is what the severity buys", () => 
 describe("the A∩C corner", () => {
   const ROOM_WIDTH_MM = 3600;
   // Centred so its mirrored span at A∩C — `W − (alongMm ± 450)` — is `[0, 900]`, exactly
-  // `cornerBodySpanOnWallA()`'s span at A∩B: the far corner is the near one's mirror image.
+  // the near corner body's span on wall A at A∩B: the far corner is the near one's mirror image.
   const FAR_CORNER_ALONG_MM = ROOM_WIDTH_MM - 450;
   const FAR_CORNER_BODY_ID = "far-corner";
 

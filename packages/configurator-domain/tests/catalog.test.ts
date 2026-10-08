@@ -167,9 +167,15 @@ describe("ADR 0027's hob-bearing bases", () => {
 
   // Two rows, so two `catalog.entries.*` leaves and two names in the picker; the words are checked in
   // `apps/web/tests/i18n/body-label.test.ts`.
-  it("gives the two entries different ids, so the picker can tell them apart", () => {
-    const [twoDrawer, oven] = HOB_ENTRIES;
-    expect(twoDrawer).not.toBe(oven);
+  it("offers the two entries as two rows under different names, so the picker can tell them apart", () => {
+    const offered = listInsertableBodies(KITCHEN_L_BODY_CATALOG).filter(
+      (body) => HOB_ENTRIES.some((buildId) => buildId === body.buildId),
+    );
+
+    expect(offered.map((body) => body.label)).toEqual([
+      { kind: "entry", buildId: "base-hob-2drawer" },
+      { kind: "entry", buildId: "base-hob-oven" },
+    ]);
   });
 });
 

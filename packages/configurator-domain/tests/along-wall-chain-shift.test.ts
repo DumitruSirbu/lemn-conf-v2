@@ -1,12 +1,9 @@
-// Wave 6J-c — the along-wall chain's own arithmetic, and the structural fact that it has a reader.
+// Wave 6J-c — the along-wall chain's own arithmetic.
 //
 // The command-level criteria live in `commands/set-cabinet-depth.along-wall-chain.test.ts`. What is
-// here is the module: the two chains carry **different** deltas, the shift is a pure function of the
-// setting, and `alongWallPositionFollows` is read by something that ships.
-import { readdirSync, readFileSync } from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-
+// here is the module: the two chains carry **different** deltas, and the shift is a pure function of
+// the setting. That `alongWallPositionFollows` has a production reader is what "the two chains" and
+// "how far a column's own members moved" measure: a reader that ignored it would return one delta.
 import { describe, expect, it } from "vitest";
 
 import {
@@ -34,32 +31,6 @@ import {
 const SHALLOW_MM = 600;
 const DEEP_MM = 700;
 
-const SOURCE = path.join(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "..",
-  "src",
-);
-
-/** Where the field is declared, so "read outside `tests/`" can mean "read somewhere other than the
- *  module that declares it" rather than being satisfied by its own declaration. */
-const DECLARING_MODULE = "cabinet-depth-rule.ts";
-
-function sourceFiles(): readonly string[] {
-  return readdirSync(SOURCE, { recursive: true, withFileTypes: true })
-    .filter((entry) => entry.isFile() && entry.name.endsWith(".ts"))
-    .map((entry) =>
-      path.relative(SOURCE, path.join(entry.parentPath, entry.name)),
-    );
-}
-
-function sourceFilesContaining(needle: string): readonly string[] {
-  return sourceFiles().filter(
-    (file) =>
-      path.basename(file) !== DECLARING_MODULE &&
-      readFileSync(path.join(SOURCE, file), "utf8").includes(needle),
-  );
-}
-
 /** A wall-B placement lifted out of the seeded fixture by id, so a test states a body rather than an
  *  index into a list that has been renumbered once already. */
 function seeded(id: string): DesignPlacement {
@@ -69,27 +40,6 @@ function seeded(id: string): DesignPlacement {
   if (!placement) throw new Error(`no seeded placement ${id}`);
   return placement;
 }
-
-describe("the declaration has a production reader", () => {
-  // The criterion wave 6J-a recorded and did not meet, as a structural test rather than a promise:
-  // the field was declared, validated and read nowhere, which is indistinguishable from a field
-  // somebody forgot to wire up (`cabinet-depth-rule.ts`'s own head comment).
-  it("is read by a module in src/ other than the one that declares it", () => {
-    expect(sourceFilesContaining("alongWallPositionFollows")).toContain(
-      "along-wall-chain-shift.ts",
-    );
-  });
-
-  // Not merely mentioned: **branched on**. A reader that reads the field and treats both answers the
-  // same is the unread declaration wearing a consumer's clothes.
-  it("branches on both of the two chains outside that module", () => {
-    for (const chain of ["base-formula", "wall-map"]) {
-      expect(sourceFilesContaining(`"${chain}"`), chain).toContain(
-        "along-wall-chain-shift.ts",
-      );
-    }
-  });
-});
 
 describe("the two chains", () => {
   // **The reason the field exists at all** (ADR 0089): one uniform shift is wrong for one of the two

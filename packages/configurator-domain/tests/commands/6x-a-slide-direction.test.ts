@@ -594,13 +594,21 @@ describe("the consequence at the command boundary, on a pitch the mis-slide can 
     }
   });
 
-  it("declares two columns exactly one mis-slide apart, which the shipped kitchen does not offer", () => {
+  // Swapped operands send a member-less extent the chain's shift the wrong way while the occupied column goes the
+  // right way, so the two meet only on a pitch of twice that shift, read here off the chain itself.
+  it("declares two columns exactly one mis-slide apart: twice what the chain slides the run", () => {
     const declared = DECLARED_WALL_B_COLUMNS.map(
       (placement) => placement.alongMm,
     );
+    const slideMm = alongWallShiftMm({
+      fromCabinetDepthMm: SHALLOW_MM,
+      toCabinetDepthMm: DEEP_MM,
+      chain: "base-formula",
+    });
 
     expect(Math.max(...declared) - Math.min(...declared)).toBe(
       DECLARED_COLUMN_PITCH_MM,
     );
+    expect(2 * slideMm).toBe(DECLARED_COLUMN_PITCH_MM);
   });
 });

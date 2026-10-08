@@ -152,17 +152,65 @@ describe("planUKitchenComposition holds N3r 2, 3 and 5 (AC1's own share)", () =>
   );
 
   it("holds over the boundaries N3r 3 names, plus B = C", () => {
+    const fridgeWallsOnATie: (DesignWall | "dropped")[] = [];
+    let countsChecked = 0;
+
     for (const room of everyRoom()) {
       const plan = planFor(room);
+      const fridgeWall = fridgeWallOf(plan);
 
-      expect(plan, JSON.stringify(room)).toBeDefined();
-      // Determinism at every boundary too.
-      expect(JSON.stringify(planFor(room)), JSON.stringify(room)).toBe(
-        JSON.stringify(plan),
-      );
+      expect([JSON.stringify(room), fridgeWall]).toStrictEqual([
+        JSON.stringify(room),
+        fridgeWall === "dropped" ? "dropped" : expectedFridgeWall(room),
+      ]);
+      if (room.depthMm === room.wallCMm) fridgeWallsOnATie.push(fridgeWall);
+      if (fridgeWall === "dropped") continue;
+      const enteredMm = fridgeWall === "B" ? room.depthMm : (room.wallCMm ?? 0);
+      if (enteredMm <= N3R_COUNT_APPLIES_PAST_MM) continue;
+      expect([
+        JSON.stringify(room),
+        storageBasesBeforeTheFridge(plan, fridgeWall),
+      ]).toStrictEqual([JSON.stringify(room), n3rCountPast3000(enteredMm)]);
+      countsChecked += 1;
     }
+
+    // Both sides of the 4000 mm step, on both side walls, at the two wall-A samples wide enough to stand a fridge.
+    expect(countsChecked).toBe(12);
+    // The tie is decided, not dodged: every B = C room stands its fridge, and on wall B.
+    expect(fridgeWallsOnATie).toStrictEqual(["B", "B", "B"]);
   });
 });
+
+/** The wall the plan stands its fridge on. A fridge on both side walls is reported as neither. */
+function fridgeWallOf(
+  plan: ReturnType<typeof planFor>,
+): DesignWall | "dropped" {
+  const walls = (["A", "B", "C"] as const).filter((wall) =>
+    basesOn(plan, wall).some((base) => base.role === "fridge"),
+  );
+  const [only] = walls;
+  if (walls.length > 1 || only === "A")
+    throw new Error(`the fridge stands on ${walls.join(" and ")}`);
+  return only ?? "dropped";
+}
+
+function storageBasesBeforeTheFridge(
+  plan: ReturnType<typeof planFor>,
+  fridgeWall: DesignWall,
+): number {
+  const onFridgeWall = basesOn(plan, fridgeWall).sort(
+    (left, right) => left.startMm - right.startMm,
+  );
+  return onFridgeWall.findIndex((base) => base.role === "fridge");
+}
+
+/** *N3 revised* 3's fixed count starts past this entered length; at or under it the gap is leftover-filled. */
+const N3R_COUNT_APPLIES_PAST_MM = 3000;
+
+/** *N3 revised* 3, restated: two bases before the fridge up to 4000 mm entered, three past it. */
+function n3rCountPast3000(enteredMm: number): number {
+  return enteredMm <= 4000 ? 2 : 3;
+}
 
 function coreReadingOrderRolesOf(
   plan: ReturnType<typeof planFor>,

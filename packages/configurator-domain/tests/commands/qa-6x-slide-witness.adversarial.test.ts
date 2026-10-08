@@ -286,16 +286,35 @@ describe("the design wave 6X declares is a design the product accepts", () => {
     },
   );
 
-  it("declares a column of two bodies the seed already carries at the same sizes on wall A", () => {
-    const seeded = new Map(
-      KITCHEN_L_DESIGN.placements.map((placement) => [placement.id, placement]),
-    );
-    const dishwasher = seeded.get("p1");
-    const top = seeded.get("p15");
+  // The declared column is wall A's `A|2.00` shape transposed. Read off the frames the product derives for both, and
+  // pinned as literals so the two cannot move together.
+  it("declares a column the product derives to the same two frames the seed carries on wall A", () => {
+    const catalog = buildKitchenLBodyCatalog(SHALLOW_MM);
+    const frameMmOf = (design: Design, id: string) => {
+      const frame = derivePlacementRecords(design, catalog).find(
+        (record) => record.id === id,
+      )?.frame;
+      if (!frame) throw new Error(`no record ${id}`);
+      return [frame.y0, frame.w, frame.h, frame.d].map((metres) =>
+        Math.round(metres * 1000),
+      );
+    };
+    const declared = withADeclaredWallBColumn(SHALLOW_MM);
 
-    // The declared column is wall A's `A|2.00` shape transposed, a design the catalogue and schema already accept.
-    expect(DECLARED_WALL_B_COLUMN[0]?.body).toStrictEqual(dishwasher?.body);
-    expect(DECLARED_WALL_B_COLUMN[1]?.body).toStrictEqual(top?.body);
+    expect(frameMmOf(declared, "d1")).toStrictEqual(
+      frameMmOf(KITCHEN_L_DESIGN, "p1"),
+    );
+    expect(frameMmOf(declared, "d2")).toStrictEqual(
+      frameMmOf(KITCHEN_L_DESIGN, "p15"),
+    );
+    expect(frameMmOf(declared, "d1").slice(0, 3)).toStrictEqual([
+      0,
+      600,
+      SEEDED_BASE_CARCASS_MM,
+    ]);
+    expect(frameMmOf(declared, "d2").slice(0, 3)).toStrictEqual([
+      2200, 600, 400,
+    ]);
   });
 
   it("stands where the deleted oven tower stood, so nothing else on wall B moves", () => {

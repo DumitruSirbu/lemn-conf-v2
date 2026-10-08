@@ -38,6 +38,9 @@ const BODIES_A_STORAGE_SLOT_MAY_TAKE: readonly string[] = [
   THREE_DRAWER_BASE_BUILD_ID,
 ];
 
+/** How the composer names a storage slot: `storage:<wall>:<index>`. */
+const STORAGE_SLOT_ID_PREFIX = "storage:";
+
 function catalogRowFor(buildId: string) {
   const entry = CATALOG.get(buildId);
   if (!entry) {
@@ -72,14 +75,19 @@ describe("criterion 6 — a storage slot has two bodies to take, and the pan dra
   });
 
   it("leaves the pan drawer outside the pair, so no storage slot can take it in this wave", () => {
-    // The pan drawer is a run item of its own, read immediately before the hob and never a body a storage slot is
-    // given (ADR 0110 Amendment J1); `pan-drawer-before-the-hob.test.ts` asserts that placement.
-    expect(BODIES_A_STORAGE_SLOT_MAY_TAKE).not.toContain(
-      PAN_DRAWER_BASE_BUILD_ID,
+    // Asked of the slots the composer writes, by the id it gives a slot and by the catalogue's own spelling: the
+    // pan drawer is a run item of its own, read immediately before the hob (ADR 0110 Amendment J1), and
+    // `pan-drawer-before-the-hob.test.ts` asserts that placement.
+    const bodiesTheSlotsTook = BLOCK_SIZE_WITNESSES.flatMap((room) =>
+      planFor(room)
+        .bases.filter((base) => base.id.startsWith(STORAGE_SLOT_ID_PREFIX))
+        .map((base) => base.buildId),
     );
-    expect(catalogRowFor(PAN_DRAWER_BASE_BUILD_ID)).not.toBe(
-      catalogRowFor(THREE_DRAWER_BASE_BUILD_ID),
-    );
+
+    expect([...new Set(bodiesTheSlotsTook)].sort()).toEqual([
+      "base-3drawer",
+      "base-cabinet",
+    ]);
   });
 });
 
@@ -468,41 +476,49 @@ describe("criterion 20 clause 2 — the depth source is pinned, not excluded by 
   });
 });
 
-/**
- * A module's code with its comments removed and its identifiers broken into words. Comments go because clause 3 is
- * about what a module encodes, and sources discuss at length the proportion they refuse to encode. Identifiers
- * split because `DRAWER_SHARE` and `drawerShare` have no word boundary (`_` and a camel hump are word characters).
- */
-function codeWordsOf(basename: string): string {
-  return generationSourceOf(basename)
-    .replace(/\/\*[\s\S]*?\*\//g, " ")
-    .replace(/\/\/[^\n]*/g, " ")
-    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
-    .replace(/_/g, " ");
-}
-
-/**
- * How a drawer-to-door proportion gets written down: a percentage, a fractional multiplier, an identifier that
- * names a share, or a count divided in two. Declared limit: a proportion assembled through an indirection or read
- * from data is not caught; acceptable because the owner's rule is positional and encodes no proportion
- * (ADR 0110 Amendment H).
- */
-const A_PROPORTION_ENCODED: readonly RegExp[] = [
-  /\d\s*%/,
-  /\b0\.\d/,
-  /\b(ratio|percent|percentage|proportion|share|half|halve|alternating|everyOther)\b/i,
-  /\b\w*(count|slots|bodies|cabinets)\s*(\/|>>)\s*\d/i,
-];
-
 describe("criterion 20 clause 3 — no file under src/generation encodes a proportion", () => {
-  it.each(A_PROPORTION_ENCODED.map((pattern) => [pattern.source, pattern]))(
-    "writes nothing matching %s in any generation module's code",
-    (_label, pattern) => {
-      const offenders = generationModules().filter((basename) =>
-        pattern.test(codeWordsOf(basename)),
-      );
+  /** Rooms from the narrowest that composes a slot to past the approved 6000 mm, so the slot count climbs. */
+  const SWEPT_WALL_A_MM = { from: 2400, to: 6300, step: 300 };
+  const SWEPT_WALL_B_MM = [1600, 3000, 4700];
+  /** Slots enough that any share of them, however it is written, is more than one. */
+  const SLOTS_A_PROPORTION_WOULD_SHOW_AT = 4;
 
-      expect(offenders).toEqual([]);
-    },
-  );
+  // A proportion is a drawer count that grows with the slot count. The owner's rule is positional (ADR 0110
+  // Amendment H), so the count never passes one, and that is asked of the plans rather than of the source text.
+  it("gives the drawer body to at most one storage slot, however many slots the room composes", () => {
+    const drawerSlotsBySlotCount = new Map<number, Set<number>>();
+    for (
+      let widthMm = SWEPT_WALL_A_MM.from;
+      widthMm <= SWEPT_WALL_A_MM.to;
+      widthMm += SWEPT_WALL_A_MM.step
+    ) {
+      for (const depthMm of SWEPT_WALL_B_MM) {
+        const slots = planFor({
+          shape: "L",
+          widthMm,
+          depthMm,
+          heightMm: 2600,
+        }).bases.filter((base) => base.id.startsWith(STORAGE_SLOT_ID_PREFIX));
+        const drawerSlots = slots.filter(
+          (slot) => slot.buildId === "base-3drawer",
+        ).length;
+        const seen = drawerSlotsBySlotCount.get(slots.length) ?? new Set();
+        drawerSlotsBySlotCount.set(slots.length, seen.add(drawerSlots));
+      }
+    }
+
+    expect(Math.max(...drawerSlotsBySlotCount.keys())).toBeGreaterThanOrEqual(
+      SLOTS_A_PROPORTION_WOULD_SHOW_AT,
+    );
+    expect(
+      [...drawerSlotsBySlotCount]
+        .filter(([, drawerSlots]) => Math.max(...drawerSlots) > 1)
+        .map(([slotCount]) => slotCount),
+    ).toEqual([]);
+    expect(
+      [...drawerSlotsBySlotCount.values()].some((drawerSlots) =>
+        drawerSlots.has(1),
+      ),
+    ).toBe(true);
+  });
 });

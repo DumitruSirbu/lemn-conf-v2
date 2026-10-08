@@ -341,13 +341,23 @@ describe("the declared document, which is a fixture the test writes and the prod
       KITCHEN_L_DESIGN,
       DECLARED_DEEPENING_COLUMNS,
     );
-    const groundLevel = design.placements
-      .filter((placement) => placement.wall === "B" && placement.y0Mm === 0)
-      .map((placement) => ({
-        id: placement.id,
-        fromMm: placement.alongMm - placement.body.widthMm / 2,
-        toMm: placement.alongMm + placement.body.widthMm / 2,
-      }))
+    // Off the frames the product derives, not off the fixture's own numbers: where a body stands is §12's to say.
+    const groundLevel = derivePlacementRecords(
+      design,
+      buildKitchenLBodyCatalog(SHALLOW_MM),
+    )
+      .filter((record) => record.wall === "B" && record.frame.y0 === 0)
+      .map((record) => {
+        const centreMm = Math.round(
+          alongWallCoordinate(record.wall, record.frame) * 1000,
+        );
+        const halfWidthMm = Math.round(record.frame.w * 1000) / 2;
+        return {
+          id: record.id,
+          fromMm: centreMm - halfWidthMm,
+          toMm: centreMm + halfWidthMm,
+        };
+      })
       .sort((left, right) => left.fromMm - right.fromMm);
 
     expect(groundLevel.map(({ id }) => id)).toStrictEqual([

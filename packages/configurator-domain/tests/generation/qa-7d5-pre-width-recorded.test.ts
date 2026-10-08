@@ -61,48 +61,58 @@ vi.mock(
 const CATALOG = buildKitchenLBodyCatalog(cabinetDepthMmOf(KITCHEN_L_DESIGN));
 const DECLARED_COLUMNS = declaredColumnSizes(CATALOG);
 const RECORDING = readPreWidthRunRecording();
+/** Each corruption with the clause of the classifier that must be the one to reject it: a bare `toThrow()` is also
+ *  satisfied by a plan that was already wrong before it was corrupted. */
 const CORRUPTION_CASES: readonly (readonly [
   string,
+  RegExp,
   (plan: MutablePlan) => void,
 ])[] = [
   [
     "id",
+    /core identities/,
     (plan: MutablePlan): void => {
       firstBase(plan).id = "corrupt";
     },
   ],
   [
     "role",
+    /core identities/,
     (plan: MutablePlan): void => {
       firstBase(plan).role = "storage";
     },
   ],
   [
     "position",
+    /core geometry/,
     (plan: MutablePlan): void => {
       firstBase(plan).startMm += 1;
     },
   ],
   [
     "width",
+    /core identities/,
     (plan: MutablePlan): void => {
       firstBase(plan).widthMm += 1;
     },
   ],
   [
     "dropped",
+    /dropped: /,
     (plan: MutablePlan): void => {
       plan.dropped.push("fridge");
     },
   ],
   [
     "remainder",
+    /A remainder/,
     (plan: MutablePlan): void => {
       plan.remainderMm.A += 1;
     },
   ],
   [
     "floor width",
+    /A floor widths/,
     (plan: MutablePlan): void => {
       plan.floorWidthsMm.A[0] = 999;
     },
@@ -404,7 +414,7 @@ describe("the whole plan before 7D5's width change", () => {
 
   it.each(CORRUPTION_CASES)(
     "rejects unrelated %s corruption in the bottle arm",
-    (_, mutate) => {
+    (_, rejectingClause, mutate) => {
       const [key, recorded] = [...RECORDING.rooms].find(([candidate]) => {
         const room = roomFromKey(candidate);
         return planKitchenComposition({
@@ -432,7 +442,7 @@ describe("the whole plan before 7D5's width change", () => {
           plan as unknown as KitchenCompositionPlan,
           recorded,
         );
-      }).toThrow();
+      }).toThrow(rejectingClause);
     },
   );
 

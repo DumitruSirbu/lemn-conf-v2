@@ -16,11 +16,13 @@ import {
   type LabelledBody,
 } from "../../src/catalog.js";
 import {
+  buildSeededBodyDefinitions,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
 } from "../../src/fixtures/kitchen-l-design.js";
 import { describeSelection } from "../../src/queries/describe-selection.js";
 import type { BodyDefinition } from "../../src/void-engine.js";
+import { WORKTOP_DEPTH_MM } from "../../src/worktop-depth.js";
 import { resizeTo } from "../support/commands.js";
 import {
   advanceWithColumns,
@@ -116,6 +118,30 @@ const seededPlacementsWithEquivalent = KITCHEN_L_DESIGN.placements.filter(
   (placement) =>
     definitionOf(placement.body.buildId).catalogEquivalentId !== undefined,
 );
+
+/** Every seeded row a placement stands on, with the kind and band it had before it was named after a §7 entry.
+ *  Written out and not read off the catalogue: a row re-banded by the spread must fail, not follow. */
+const SEEDED_KIND_AND_BAND: Readonly<
+  Record<string, readonly [kind: string, band: string]>
+> = {
+  "base-sink-800": ["base_cabinet", "base"],
+  "base-dishwasher-600": ["dishwasher_housing", "base"],
+  "base-hob-2drawer-600": ["base_cabinet", "base"],
+  "base-drawer3-600": ["base_cabinet", "base"],
+  "tall-oven-tower-600": ["tall_unit", "column"],
+  "tall-pantry-600": ["tall_unit", "column"],
+  "fridge-free-700": ["fridge_freestanding", "column"],
+  "wall-2door-600": ["wall_cabinet", "wall"],
+  "wall-1door-300": ["wall_cabinet", "wall"],
+  "wall-2door-800": ["wall_cabinet", "wall"],
+  "open-shelf-600": ["open_shelf_unit", "wall"],
+  "hood-600": ["extractor_hood", "wall"],
+  "wall-2door-600-top": ["wall_cabinet", "top"],
+  "wall-1door-300-top": ["wall_cabinet", "top"],
+  "wall-2door-800-top": ["wall_cabinet", "top"],
+  "wall-2door-600-deep-top": ["wall_cabinet", "top"],
+  "wall-2door-700-over-fridge": ["wall_cabinet", "top"],
+};
 
 const wallCabinetPlacements = KITCHEN_L_DESIGN.placements.filter(
   (placement) =>
@@ -364,17 +390,34 @@ describe("6A2 adversarial: what the derivation is, and what it must not have acq
     // The wave is a name. Anything else the spread picked up off the catalogue entry — a different
     // `kind`, `insertable: true`, a `sizesMm` set, an `occupiedDepth` — would be a geometry or
     // affordance change wearing a rename's clothes.
-    for (const placement of seededPlacementsWithEquivalent) {
-      const seeded = definitionOf(placement.body.buildId);
-      expect([placement.body.buildId, seeded.insertable]).toEqual([
-        placement.body.buildId,
+    const placedBuildIds = [
+      ...new Set(
+        seededPlacementsWithEquivalent.map(
+          (placement) => placement.body.buildId,
+        ),
+      ),
+    ];
+
+    expect(
+      placedBuildIds.map((buildId) => {
+        const seeded = definitionOf(buildId);
+        return [
+          buildId,
+          seeded.kind,
+          seeded.band,
+          seeded.insertable,
+          seeded.sizesMm,
+        ];
+      }),
+    ).toEqual(
+      Object.entries(SEEDED_KIND_AND_BAND).map(([buildId, [kind, band]]) => [
+        buildId,
+        kind,
+        band,
         false,
-      ]);
-      expect([placement.body.buildId, seeded.sizesMm]).toEqual([
-        placement.body.buildId,
         undefined,
-      ]);
-    }
+      ]),
+    );
   });
 });
 
@@ -417,16 +460,19 @@ describe("6A2 adversarial: the seeded rows no placement in the fixture stands on
   });
 
   it("gives no seeded row an id an insertable entry already uses", () => {
-    // `KITCHEN_L_BODY_CATALOG` spreads the seeded rows and then the insertable ones into one `Map`,
-    // so a shared id would silently drop the seeded row and the label question would never arise.
+    // `KITCHEN_L_BODY_CATALOG` spreads the seeded rows and then the insertable ones into one `Map`, so a shared id
+    // silently drops the seeded row. Read off the seeded list before that spread: the map cannot show the loss.
     const insertableIds = new Set(
       INSERTABLE_BODY_DEFINITIONS.map(([buildId]) => buildId),
     );
-    const shadowed = seededRows
-      .map(([buildId]) => buildId)
-      .filter((buildId) => insertableIds.has(buildId));
+    const seededIds = buildSeededBodyDefinitions(WORKTOP_DEPTH_MM).map(
+      ([buildId]) => buildId,
+    );
 
-    expect(shadowed).toEqual([]);
+    expect(seededIds.length).toBeGreaterThan(placedBuildIds.size);
+    expect(seededIds.filter((buildId) => insertableIds.has(buildId))).toEqual(
+      [],
+    );
   });
 });
 

@@ -307,10 +307,17 @@ describe("cornerOf (ADR 0121, D3)", () => {
     ).toBeUndefined();
   });
 
-  it("never compares against another placement — it takes none", () => {
-    // The signature itself is the proof: `cornerOf` cannot read a second placement's position
-    // because it is never handed one.
-    expect(cornerOf.length).toBe(3);
+  // Asked of both X-legs in turn and again: an answer that leaned on the placement asked about before it would
+  // give the second leg the first one's corner.
+  it("never compares against another placement: each X-leg gets its own answer whatever was asked before it", () => {
+    const leftLeg = placementAt("A", 450, "base-corner-x-900");
+    const rightLeg = placementAt("A", room.widthMm - 450, "base-corner-x-900");
+
+    const answers = [rightLeg, leftLeg, leftLeg, rightLeg, rightLeg].map(
+      (xLeg) => cornerOf(xLeg, room, CATALOG),
+    );
+
+    expect(answers).toEqual(["right", "left", "left", "right", "right"]);
   });
 
   // **R1.1 regression.** An L has one corner, always the left one, whatever its wall-A X-leg's own

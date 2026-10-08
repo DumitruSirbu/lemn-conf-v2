@@ -782,16 +782,13 @@ describe("buildLShellDesign — what src/generation/ does not do (criteria 7 and
     expect(sources.map((source) => source.name)).toContain("shell-design.ts");
   });
 
-  it.each([
-    ["calls removePlacement", /\bremovePlacement\s*\(|remove-placement\.js/],
-    [
-      "calls clipEmptyColumnsAtWallEnd",
-      /\bclipEmptyColumnsAtWallEnd\s*\(|clip-empty-columns-at-wall-end\.js/,
-    ],
-    // `[^;]*` spans a multi-line specifier list and a bare side-effect import alike.
-    ["imports a probe", /\bimport\b[^;]*"[^"]*body-probe\.js"/],
-    ["imports a price book", /\bimport\b[^;]*"[^"]*\/pricing\//],
-  ])("never %s", (_what, pattern) => {
+  // That the shell reaches no `removePlacement`, probe or price book is asked of the loaded modules, not of this
+  // text: `shell-design.adversarial.test.ts`, "imports no module that hands it removePlacement, a probe or a price
+  // book". The clip is the one must-not only the text can show: the shell reaches it through `void-engine.ts`.
+  it("never calls clipEmptyColumnsAtWallEnd", () => {
+    const pattern =
+      /\bclipEmptyColumnsAtWallEnd\s*\(|clip-empty-columns-at-wall-end\.js/;
+
     expect(
       sources.filter((source) => pattern.test(source.text)).map((s) => s.name),
     ).toStrictEqual([]);

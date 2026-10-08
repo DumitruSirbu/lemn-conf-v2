@@ -106,11 +106,22 @@ function designAllWearing(finish: Finish, materialTierId?: string): Design {
 }
 
 describe("the three numbers wave 6Q-c must not confuse", () => {
-  it("are pairwise distinct, so wiring the wrong one into the copy fails", () => {
+  it("are pairwise distinct as the product computes them, so wiring the wrong one into the copy fails", () => {
+    const applied = setMaterialTier({
+      design: MDF_KITCHEN_WEARING_CHOSEN_COLOURS,
+      tierId: VENEER_TIER_ID,
+      availableTierIds: [MDF_TIER_ID, VENEER_TIER_ID],
+      occurredAt: OCCURRED_AT,
+    });
+    if (!applied.ok) throw new Error("the veneer tier was refused");
+
     const three = [
-      DISPLAYED_BODY_COUNT,
-      CHOSEN_COLOURS_ON_THE_MDF_FIXTURE,
-      FINISHES_RESOLVED_BY_VENEER,
+      projectDesignForDisplay(KITCHEN_L_DESIGN, KITCHEN_L_BODY_CATALOG).reduce(
+        (count, group) => count + group.entries.length,
+        0,
+      ),
+      countCabinetsWearingAChosenFinish(MDF_KITCHEN_WEARING_CHOSEN_COLOURS),
+      applied.effect.resolvedFinishCount,
     ];
 
     expect(new Set(three).size).toBe(three.length);

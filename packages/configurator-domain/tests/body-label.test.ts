@@ -33,13 +33,22 @@ function bodyOf(buildId: string): LabelledBody {
   return { buildId, definition };
 }
 
+/** ADR 0033's threshold as a literal of this file, so the production constant moving is a failure here
+ *  rather than a number both sides of a comparison follow. */
+const ADR_0033_TWO_DOOR_MIN_WIDTH_MM = 500;
+
+/** ADR 0033, restated without `deriveDoorCount`: one leaf below the threshold, two from it up. */
+function doorsAdr0033GivesAt(widthMm: number): 1 | 2 {
+  return widthMm >= ADR_0033_TWO_DOOR_MIN_WIDTH_MM ? 2 : 1;
+}
+
 /** Every width the panel can put in front of a customer for this row, both the chips and the two
  *  sides of ADR 0033's threshold — the boundary a door count is decided at. */
 function offeredWidthsMm(body: LabelledBody): readonly number[] {
   return [
     ...(body.definition.sizesMm ?? []),
-    TWO_DOOR_MIN_WIDTH_MM - 1,
-    TWO_DOOR_MIN_WIDTH_MM,
+    ADR_0033_TWO_DOOR_MIN_WIDTH_MM - 1,
+    ADR_0033_TWO_DOOR_MIN_WIDTH_MM,
   ];
 }
 
@@ -66,7 +75,7 @@ describe("the descriptor is one wrap deep, never two", () => {
           buildId,
           widthMm,
           followsWidth
-            ? labelWithDoors(entryLabel(buildId), deriveDoorCount(widthMm))
+            ? labelWithDoors(entryLabel(buildId), doorsAdr0033GivesAt(widthMm))
             : entryLabel(buildId),
         ]);
         // Whatever the case, the wrapped name is never itself a wrap.

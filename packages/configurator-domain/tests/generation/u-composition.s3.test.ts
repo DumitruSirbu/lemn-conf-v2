@@ -11,6 +11,14 @@ import {
 } from "../support/u-plan-fixtures.js";
 import { isWallAFill } from "../support/u-plan-invariants.js";
 
+/** The cabinets the drawer target counts: the hob's own drawers are not among them (RQ15). */
+function drawerCabinetsOf(plan: ReturnType<typeof planFor>) {
+  return plan.bases.filter(
+    (base) =>
+      base.buildId === "base-3drawer" || base.buildId === "base-panbank",
+  );
+}
+
 describe("the drawer target N(T) (N3r 6, RQ6, RQ10)", () => {
   it("counts the preparation cabinet as the first unit, with no extra unit below the next band", () => {
     const room = uRoomOverriding({
@@ -34,20 +42,19 @@ describe("the drawer target N(T) (N3r 6, RQ6, RQ10)", () => {
   });
 
   it("never counts base-hob-2drawer as a drawer unit (RQ15)", () => {
-    const room = uRoomOverriding({ depthMm: 3600, wallCMm: 2200 }); // composes a tower, base-hob-2drawer
+    // T = 10 600, so N(T) = min(5, 3 + floor(5900 / 2000)) = 5, and the room has the door slots to reach it.
+    const room = uRoomOverriding({
+      widthMm: 6000,
+      depthMm: 2400,
+      wallCMm: 2200,
+    });
     const plan = planFor(room);
-    if (!plan.bases.some((base) => base.buildId === "tall-oven-tower")) {
-      throw new Error("premise: this room must compose a tower");
-    }
 
-    const hob = plan.bases.find((base) => base.role === "hob");
-    expect(hob?.buildId).toBe("base-hob-2drawer");
-    expect(
-      plan.bases.filter(
-        (base) =>
-          base.buildId === "base-3drawer" || base.buildId === "base-panbank",
-      ),
-    ).not.toContainEqual(hob);
+    // All five stand beside a hob that has two drawers of its own: counted, the hob would leave four.
+    expect(plan.bases.find((base) => base.role === "hob")?.buildId).toBe(
+      "base-hob-2drawer",
+    );
+    expect(drawerCabinetsOf(plan)).toHaveLength(5);
   });
 
   it("adds extra drawer units, up to the target, once the total run passes T_min", () => {
@@ -69,16 +76,25 @@ describe("the drawer target N(T) (N3r 6, RQ6, RQ10)", () => {
   });
 
   it("yields when the room has too few slots to reach the target (RQ6)", () => {
-    const room = uRoomOverriding({ depthMm: 1200, wallCMm: 1200 }); // small U, few storage slots
+    // T = 8600, so N(T) = min(5, 3 + floor(3900 / 2000)) = 4, and no door slot stands after the hob to convert.
+    const room = uRoomOverriding({
+      widthMm: 4600,
+      depthMm: 2000,
+      wallCMm: 2000,
+    });
     const plan = planFor(room);
-    const drawerCount = plan.bases.filter(
-      (base) =>
-        base.buildId === "base-3drawer" || base.buildId === "base-panbank",
-    ).length;
+    const hobIndex = plan.bases.findIndex((base) => base.role === "hob");
 
-    // No throw, no refusal — the plan still composes with fewer drawers than the target.
+    // No throw, no refusal, and no body converted to make up the number: the preparation cabinet is the one
+    // drawer cabinet, and the bottle and the tower after the hob are still themselves.
     expect(plan.minimumMet).toBe(true);
-    expect(drawerCount).toBeGreaterThanOrEqual(0);
+    expect(drawerCabinetsOf(plan).map((base) => base.role)).toEqual([
+      "preparation",
+    ]);
+    expect(plan.bases.slice(hobIndex + 1).map((base) => base.buildId)).toEqual([
+      "base-bottle-cargo",
+      "tall-oven-tower",
+    ]);
   });
 });
 

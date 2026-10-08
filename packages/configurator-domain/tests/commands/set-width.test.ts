@@ -569,9 +569,9 @@ describe("a resize rebuilds through the declared catalogue equivalent", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     for (const id of ["L-base", "L-wall", "L-top"]) {
-      expect(recordOf(result.design, id).frame.y0).toBe(
-        recordOf(world.design, id).frame.y0,
-      );
+      const before = recordOf(world.design, id).frame;
+      const after = recordOf(result.design, id).frame;
+      expect([id, after.y0, after.h]).toEqual([id, before.y0, before.h]);
     }
   });
 });

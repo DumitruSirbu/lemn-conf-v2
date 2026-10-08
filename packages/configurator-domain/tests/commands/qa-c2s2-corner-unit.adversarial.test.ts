@@ -334,6 +334,8 @@ describe.each(SMALL_ROOMS)("%s: the corner is covered", (_label, room, ids) => {
     );
 
     expect(parsed.success).toBe(true);
+    if (!parsed.success) return;
+    expect(parsed.data).toStrictEqual(world.design);
   });
 
   it.each(ids)("refuses every edit of %s, at 600 and at 700", (id) => {
