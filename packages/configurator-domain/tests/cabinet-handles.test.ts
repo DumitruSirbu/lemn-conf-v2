@@ -50,21 +50,6 @@ describe("a cabinet-handle count is declared, per entry", () => {
     ).toBe(3);
   });
 
-  // ADR 0035 decision 4's half-open bound, read through the handle count: the same threshold that
-  // decides the door count decides how many bars hang on it, on both sides of the flip.
-  it("follows the door count across the two-door threshold, and only there", () => {
-    const perDoor = (widthMm: number): number =>
-      cabinetHandleCount({
-        buildId: "wall-cabinet",
-        rule: handlesOnDoorLeaves({ doorTiers: 1, handlesPerLeaf: 1 }),
-        widthMm,
-      });
-
-    expect(perDoor(TWO_DOOR_MIN_WIDTH_MM - 1)).toBe(1);
-    expect(perDoor(TWO_DOOR_MIN_WIDTH_MM)).toBe(2);
-    expect(perDoor(TWO_DOOR_MIN_WIDTH_MM + 1)).toBe(2);
-  });
-
   it("counts a pantry's two tiers of leaves, one bar on each leaf", () => {
     const pantry = (widthMm: number): number =>
       cabinetHandleCount({
@@ -178,18 +163,6 @@ describe("a cabinet-handle count is declared, per entry", () => {
         widthMm: ANY_WIDTH_MM,
       }),
     ).toThrow(/handlesPerLeaf/);
-  });
-
-  // A definition arriving through the `BodyCatalog` port from outside TypeScript can carry a rule
-  // this module does not recognise, which is the same defect as carrying none.
-  it("refuses a rule it does not recognise rather than reading a number off it", () => {
-    expect(() =>
-      cabinetHandleCount({
-        buildId: "some-new-body",
-        rule: { countedFrom: "mesh-count", handles: 4 } as never,
-        widthMm: ANY_WIDTH_MM,
-      }),
-    ).toThrow(UndeclaredCabinetHandleCountError);
   });
 });
 

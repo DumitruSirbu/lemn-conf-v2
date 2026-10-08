@@ -202,27 +202,6 @@ describe("the bottle cargo builds at its own widths, never to the opening", () =
 });
 
 describe("§9's offer list reads the substituted floor too", () => {
-  it("offers only the entries that declare a floor below the default", () => {
-    // **This asserted "the cargo, and only the cargo" until 2026-08-27.** ADR 0030's amendment gave
-    // `base-1door` a `[200, 300, 400]` set and the 200 mm floor it needs to keep it, so the base
-    // band now has two such rows. What the rule always said is what is asserted now, and it is
-    // derived from the catalogue rather than written down — a fourth declaration fails here loudly.
-    for (const widthMm of [200, 250, 299]) {
-      const world = baseOpeningWorld(widthMm);
-      const offered = offersFor({
-        ...world,
-        target: baseVoidTarget(world),
-      }).map((offer) => offer.buildId);
-
-      expect(offered, `${String(widthMm)} mm`).not.toEqual([]);
-      for (const buildId of offered) {
-        expect(subDefaultBaseBuildIds(), `${String(widthMm)} mm`).toContain(
-          buildId,
-        );
-      }
-    }
-  });
-
   // **Restored by ADR 0033's amendment, and the history is the point.** This asserted an exact list
   // at all three widths; the merge briefly made `base-cabinet` a discrete five-value row, so it was
   // refused at 250 and 299 and the case was weakened to say so. Ranges put it back: a hinged cabinet

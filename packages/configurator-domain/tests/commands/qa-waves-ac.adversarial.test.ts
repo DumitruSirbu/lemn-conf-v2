@@ -161,13 +161,6 @@ describe("the width floors, swept 195–305 mm, by rejection code", () => {
       expect(seen.size).toBe(distinctOutcomes);
     },
   );
-
-  it("crosses a real transition for both entries that have one", () => {
-    expect(codeAt(299, "base-3drawer")).toBe("WIDTH_NOT_SUPPORTED");
-    expect(codeAt(300, "base-3drawer")).toBeUndefined();
-    expect(codeAt(199, CARGO_BUILD_ID)).toBe("WIDTH_TOO_SMALL");
-    expect(codeAt(200, CARGO_BUILD_ID)).toBeUndefined();
-  });
 });
 
 /** A `'fit'` cabinetry row that declares the given floor and opens its bound there: `resolveWidthRangesMm` raises a

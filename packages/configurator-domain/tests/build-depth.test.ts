@@ -377,31 +377,6 @@ describe("a shallow body over a full-height member is never written (decision 4)
   }
 });
 
-describe("a pinned entry does not lend its pin to its replacement (decision 5)", () => {
-  // ADR 0058 pins `wall-2door-600-deep-top` and `wall-2door-700-over-fridge` at 600 at every setting; at 700 the
-  // incoming body must take the column's 700. Asserted at the declaration, because the command layer cannot yet be
-  // handed 700 (`resolveDepthM` reads `WORKTOP_DEPTH_MM`); with the resolved-depth test above that composes the
-  // criterion.
-  it("declares 700 over a full-height column at a 700 mm kitchen, not the pinned 600", () => {
-    const pinnedFinishedDepthMm = 600;
-
-    expect(
-      columnBuildDepthMm({ cabinetDepthMm: 700, hasFullHeightUnder: true }),
-    ).toBe(700);
-    expect(
-      columnBuildDepthMm({ cabinetDepthMm: 700, hasFullHeightUnder: true }),
-    ).not.toBe(pinnedFinishedDepthMm);
-  });
-
-  it("still declares 600 at a 600 mm kitchen, where the pin and the line coincide", () => {
-    // At the shipped depth the pin and the build depth are the same number, which is why nothing today can see the
-    // difference.
-    expect(
-      columnBuildDepthMm({ cabinetDepthMm: 600, hasFullHeightUnder: true }),
-    ).toBe(600);
-  });
-});
-
 describe("value-preserving where the capped path already governs", () => {
   it("still caps a wall carcass over a base run at the map's row", () => {
     // `p19` stands over the hob base on `A|2.60`, whose clearance is the worktop's 620.

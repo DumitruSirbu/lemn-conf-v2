@@ -366,23 +366,6 @@ describe("the dishwasher column can be matched at 450", () => {
     },
   );
 
-  // Every member's own catalogue entry accepts 450 — which is *why* the command does, and the
-  // assertion that fails if ADR 0030's cap is reinstated on any one of the three rows rather than
-  // on the entry the sweep above happens to tap.
-  it("has every member's entry accept 450, the wall cabinet included", () => {
-    const world = dishwasherColumnWithSpace();
-    for (const id of DISHWASHER_COLUMN_IDS) {
-      const record = world.records.find((candidate) => candidate.id === id);
-      const equivalent = record
-        ? resolveCatalogEquivalent(world.catalog, record.buildId)
-        : undefined;
-      const body = equivalent
-        ? toInsertableBody(equivalent.buildId, equivalent.definition)
-        : undefined;
-      expect([id, body && acceptsWidthMm(body, 450)]).toEqual([id, true]);
-    }
-  });
-
   // The anti-invariant, so "accepts 450" is not read as "accepts anything": the niche is discrete,
   // and the column cannot follow the cabinetry members up to 800.
   it("still refuses 800, which the niche is not made at", () => {

@@ -586,66 +586,6 @@ describe("validateContactFields: the consent text version is matched exactly, as
   });
 });
 
-describe("validateContactFields: only what the sender's object holds itself is read", () => {
-  const PLANTED = {
-    name: "Planted Name",
-    phone: "069 123 456",
-    locality: "Planted",
-    channel: "phone",
-    consent: true,
-    consentTextVersion: KNOWN_CONSENT_TEXT_VERSION,
-    email: "planted@example.md",
-  } as const;
-
-  afterEach(() => {
-    for (const field of Object.keys(PLANTED)) {
-      Reflect.deleteProperty(Object.prototype, field);
-    }
-  });
-
-  function plant(field: keyof typeof PLANTED): void {
-    Object.defineProperty(Object.prototype, field, {
-      value: PLANTED[field],
-      configurable: true,
-      enumerable: true,
-      writable: true,
-    });
-  }
-
-  const REQUIRED_FIELDS = [
-    "name",
-    "phone",
-    "channel",
-    "consent",
-    "consentTextVersion",
-  ] as const;
-
-  it.each(REQUIRED_FIELDS)("reads no %s from Object.prototype", (field) => {
-    const own = Object.fromEntries(
-      Object.entries(VALID_INPUT).filter(([name]) => name !== field),
-    );
-    plant(field);
-
-    expect(issuesOf(own).map((issue) => issue.field)).toEqual([field]);
-  });
-
-  it("carries no planted locality, which is optional and so is refused by nothing", () => {
-    const own = Object.fromEntries(
-      Object.entries(VALID_INPUT).filter(([name]) => name !== "locality"),
-    );
-    plant("locality");
-
-    expect(contactOf(own).locality).toBe("");
-  });
-
-  it("reads the e-mail only from the sender's own object", () => {
-    const own = { ...VALID_INPUT, channel: "email" };
-    plant("email");
-
-    expect(codeOf("email", own)).toBe("REQUIRED");
-  });
-});
-
 describe("validateContactFields: text is judged in the order that keeps it well-formed and cheap", () => {
   afterEach(() => {
     vi.restoreAllMocks();

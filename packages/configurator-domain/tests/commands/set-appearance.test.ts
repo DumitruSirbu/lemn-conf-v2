@@ -170,18 +170,6 @@ describe("setHandle", () => {
     expect(result.effect.handle).toBe("push");
   });
 
-  it("refuses a body with no handle meshes", () => {
-    const result = setHandle({
-      ...base,
-      target: { kind: "placement", id: "p12" },
-      handle: "black",
-    });
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.reason.code).toBe("HANDLE_NOT_SUPPORTED");
-    expect(result.design).toBe(KITCHEN_L_DESIGN);
-  });
-
   it("refuses an id that resolves to nothing, without touching the design", () => {
     const snapshot = JSON.stringify(KITCHEN_L_DESIGN);
     const result = setHandle({

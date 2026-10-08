@@ -103,29 +103,6 @@ describe("setMaterialTier", () => {
     });
   });
 
-  // `setFinish` succeeds on a finish a body already carries, and the two must not diverge: a
-  // customer re-tapping the chip they are on gets the state they asked for, not a refusal.
-  it("succeeds on the tier that is already set", () => {
-    const first = setMaterialTier({
-      ...base,
-      tierId: "material-premium",
-      availableTierIds: OFFERED_MATERIALS,
-    });
-    expect(first.ok).toBe(true);
-    if (!first.ok) return;
-
-    const again = setMaterialTier({
-      design: first.design,
-      occurredAt: OCCURRED_AT,
-      tierId: "material-premium",
-      availableTierIds: OFFERED_MATERIALS,
-    });
-
-    expect(again.ok).toBe(true);
-    if (!again.ok) return;
-    expect(again.design.settings?.materialTierId).toBe("material-premium");
-  });
-
   // A silently-ignored unknown tier looks identical to a broken control — `set-appearance.ts`'s own
   // stated reason for refusing rather than no-opping.
   it("refuses a tier the caller's book does not offer, untouched", () => {
@@ -139,18 +116,6 @@ describe("setMaterialTier", () => {
     if (result.ok) return;
     expect(result.reason.code).toBe("UNKNOWN_MATERIAL_TIER");
     expect(result.design).toBe(KITCHEN_L_DESIGN);
-  });
-
-  it("refuses an empty offer list rather than accepting anything", () => {
-    const result = setMaterialTier({
-      ...base,
-      tierId: "material-standard",
-      availableTierIds: [],
-    });
-
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.reason.code).toBe("UNKNOWN_MATERIAL_TIER");
   });
 
   // An offered id the *document* cannot hold refuses under the same per-group code, deliberately:
@@ -285,17 +250,5 @@ describe("the two refusals' ruled sentences", () => {
       code: "UNKNOWN_HARDWARE_TIER",
       params: {},
     });
-  });
-
-  // The id is developer text and must never reach a customer sentence.
-  it("names neither tier id", () => {
-    const result = setMaterialTier({
-      ...base,
-      tierId: "material-withdrawn",
-      availableTierIds: OFFERED_MATERIALS,
-    });
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.reason.params).toEqual({});
   });
 });

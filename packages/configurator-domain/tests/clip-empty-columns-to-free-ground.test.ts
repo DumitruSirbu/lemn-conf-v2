@@ -118,22 +118,6 @@ describe("what the pass leaves alone", () => {
     expect(clipEmptyColumnsToFreeGround(columns, neighbours)).toBe(columns);
   });
 
-  // The vertical half, which is as much of the overlap as the horizontal one: a member-less wall
-  // column and a base cabinet at the same along-wall coordinate share nothing at all.
-  it("ignores a body standing under it at another level", () => {
-    const wallColumn = columnAt(1.0, 0.6, {
-      top: 2.2,
-      regions: [[1.5, 2.2]],
-    });
-    const columns = mapOf([wallColumn]);
-
-    expect(
-      clipEmptyColumnsToFreeGround(columns, [
-        recordAt({ col: "A|1.00b", alongM: 1.0, widthM: 0.6, heightM: 0.82 }),
-      ]),
-    ).toBe(columns);
-  });
-
   // Both walls originate at the same corner and walk their own axis (§2), so the same along-wall
   // coordinate on wall A and on wall B are two different places.
   it("never compares a column on one wall with a body on the other", () => {

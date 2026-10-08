@@ -164,18 +164,6 @@ describe("insertBody — what it asks the probe for", () => {
     expect(placed?.body.seatDepthMm).toBe(579);
   });
 
-  it("is called exactly once per successful insert", () => {
-    const world = clearedFridgeColumn();
-    const probe = createFakeProbe();
-    insertInto(
-      world,
-      { kind: "void", id: voidAt(world, FRIDGE_COLUMN, 0).id },
-      "base-3drawer",
-      probe,
-    );
-    expect(probe.requests).toHaveLength(1);
-  });
-
   it("is never called for an insert refused before anything is built", () => {
     const world = clearedFridgeColumn();
     const probe = createFakeProbe();

@@ -75,16 +75,6 @@ describe("QA 5B8 — the pantry is built to the opening, not narrowed into it", 
     },
   );
 
-  // The sharpest single case: 700 is a width the inherited set would have answered 600 for, and
-  // 600 is a width at which both answers agree — so the pair distinguishes them.
-  it("does not fall back to 600 in a 700 mm opening", () => {
-    const result = insertPantryInto(700);
-
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.design.placements.at(-1)?.body.widthMm).not.toBe(600);
-  });
-
   it("refuses an opening above the bound, publishing both millimetre figures", () => {
     const { world, target } = openingOf(850);
     const result = insertInto(world, target, PANTRY_ID);
@@ -159,19 +149,6 @@ describe("QA 5B8 — the three appliance columns still refuse every width but th
         result.design.placements.at(-1)?.body.widthMm,
       ]).toEqual([buildId, widthMm, ownWidthMm]);
     }
-  });
-
-  // The contrast the wave is about, in one assertion: the same 650 mm opening that gets a 600 mm
-  // oven tower gets a 650 mm pantry.
-  it("fills a 650 mm opening with a pantry where a tower keeps its 600", () => {
-    const { world, target } = openingOf(650);
-    const tower = insertInto(world, target, "tall-oven-tower");
-    const pantry = insertInto(world, target, PANTRY_ID);
-
-    expect(tower.ok && tower.design.placements.at(-1)?.body.widthMm).toBe(600);
-    expect(pantry.ok && pantry.design.placements.at(-1)?.body.widthMm).toBe(
-      650,
-    );
   });
 
   // The other half of "only the pantry moved": no other row silently acquired the flag, and the

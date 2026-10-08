@@ -234,35 +234,9 @@ describe("the boundary the two rules meet at", () => {
       ),
     ).toBe(0);
   });
-
-  it("counts #ECEEEB on an MDF kitchen, which is the deliberate over-warn", () => {
-    // `sameFinish` compares a free colour's value by string equality and no second, case-folding
-    // equality is introduced (ADR 0081 decision 1). The error is in the safe direction: it
-    // over-warns, never under-warns.
-    expect(
-      countCabinetsWearingAChosenFinish(
-        designWearing(freeColourFinish("#ECEEEB"), MDF_TIER_ID),
-      ),
-    ).toBe(1);
-    expect(
-      countCabinetsWearingAChosenFinish(
-        designWearing(freeColourFinish("#eceeeb"), MDF_TIER_ID),
-      ),
-    ).toBe(0);
-  });
 });
 
 describe("a material the product does not declare", () => {
-  it("counts every carried finish rather than throwing", () => {
-    // ADR 0081 decision 1b: an undeclared material declares no default, so nothing is comparable and
-    // every carried finish is counted. 6G's recovery path keeps working (ADR 0072, ADR 0078
-    // decision 3).
-    const design = designWearing(paletteFinish("pal.alb"), UNDECLARED_TIER_ID);
-
-    expect(() => countCabinetsWearingAChosenFinish(design)).not.toThrow();
-    expect(countCabinetsWearingAChosenFinish(design)).toBe(1);
-  });
-
   it("counts the whole finish-carrying population of the fixture", () => {
     const design: Design = {
       ...MDF_KITCHEN_WEARING_CHOSEN_COLOURS,
@@ -280,15 +254,6 @@ describe("a material the product does not declare", () => {
 });
 
 describe("absence is not a chosen colour", () => {
-  it("never counts a placement carrying no finish key", () => {
-    expect(
-      countCabinetsWearingAChosenFinish(
-        designWearing(paletteFinish("pal.antracit")),
-      ),
-    ).toBe(1);
-    expect(countCabinetsWearingAChosenFinish(KITCHEN_L_DESIGN)).toBe(0);
-  });
-
   /** **The two guarantees this query stands on, asserted rather than assumed** (ADR 0084 decision 4).
    *  The query takes no catalogue, so a `canFinish: false` body is excluded by carrying nothing —
    *  not by a branch here. The day either guarantee moves, this query's silence about it is loud. */

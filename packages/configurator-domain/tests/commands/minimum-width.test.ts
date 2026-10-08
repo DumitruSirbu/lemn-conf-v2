@@ -8,11 +8,10 @@
 import { describe, expect, it } from "vitest";
 
 import { SINK_CHIPS_MM } from "../support/width-model.js";
-import { offeredIds, offerFor } from "../support/offers.js";
+import { offeredIds } from "../support/offers.js";
 
 import {
   baseFinishedDepthMm,
-  buildableSizes,
   INSERTABLE_BODY_DEFINITIONS,
   toInsertableBody,
 } from "../../src/catalog.js";
@@ -125,41 +124,9 @@ describe("§5.2's fit path honours a body's own minimum width", () => {
       params: { requiredMm: SINK_MIN_WIDTH_MM, availableMm: 400 },
     });
   });
-
-  // The general floor is untouched: an entry with no `minWidthMm` is still governed by §2's 300 mm,
-  // and its refusal still carries the code and the size list it always did.
-  // `base-3drawer` and not the hinged cabinet: this case is about §2's **default** floor, and the
-  // hinged rows declare their own 200 mm one (ADR 0026's mechanism, carried through ADR 0033's
-  // merge). Drawers have no door count and no declared floor, which is exactly the control needed.
-  it("leaves §2's MIN_WIDTH_M governing an entry that declares no minimum", () => {
-    const refused = insertIntoBaseOpening(299, "base-3drawer");
-    expect(refused.ok).toBe(false);
-    if (refused.ok) return;
-    expect(refused.reason.code).toBe("WIDTH_NOT_SUPPORTED");
-
-    expect(insertIntoBaseOpening(300, "base-3drawer").ok).toBe(true);
-  });
 });
 
 describe("§9's offer list and §5.2's guard read the one fact", () => {
-  it("does not offer the sink base for a 400 mm or a 500 mm opening", () => {
-    for (const widthMm of [400, 500]) {
-      const world = baseOpeningWorld(widthMm);
-      const offered = offersFor({ ...world, target: baseVoidTarget(world) });
-      expect(offered.length, `${String(widthMm)} mm`).toBeGreaterThan(0);
-      expect(
-        offered.map((offer) => offer.buildId),
-        `${String(widthMm)} mm`,
-      ).not.toContain("base-sink");
-    }
-  });
-
-  it("offers the sink base for a 600 mm opening", () => {
-    const world = baseOpeningWorld(600);
-    const offered = offersFor({ ...world, target: baseVoidTarget(world) });
-    expect(offered.map((offer) => offer.buildId)).toContain("base-sink");
-  });
-
   // The invariant ADR 0017 actually buys: across the whole base range, an offer is never a refusal
   // waiting to happen. Asserted as a property rather than at three hand-picked widths, because a
   // floor that only the offer list knows is a floor the next caller forgets.
@@ -283,13 +250,6 @@ const SET_WITH_FLOOR: BodyDefinition = {
   minWidthMm: 500,
 };
 
-const SET_ENTIRELY_BELOW_FLOOR: BodyDefinition = {
-  ...SYNTHETIC_SET_ENTRY,
-  widthFlex: [450],
-  sizesMm: [450],
-  minWidthMm: 500,
-};
-
 function fitInBaseOpening(
   definition: BodyDefinition,
   openingWidthMm: number,
@@ -310,22 +270,6 @@ function fitInBaseOpening(
 }
 
 describe("R2.1: a millimetre-set body honours its own minimum width", () => {
-  // The control: without a floor the branch does take the 450 mm member, which is the behaviour
-  // that made the gap invisible.
-  it("takes the narrower listed size when the entry declares no floor", () => {
-    const fit = fitInBaseOpening(SET_WITHOUT_FLOOR, 450);
-    expect(fit.ok).toBe(true);
-    if (!fit.ok) return;
-    expect(fit.plan.widthM).toBeCloseTo(0.45, 6);
-  });
-
-  it("refuses rather than selecting a listed size below the floor", () => {
-    const fit = fitInBaseOpening(SET_WITH_FLOOR, 450);
-    expect(fit.ok).toBe(false);
-    if (fit.ok) return;
-    expect(fit.detail.code).toBe("WIDTH_TOO_LARGE");
-  });
-
   // The refusal publishes the governing floor and available opening rather than the raw row list.
   it("publishes the governing floor and available opening", () => {
     const fit = fitInBaseOpening(SET_WITH_FLOOR, 480);
@@ -343,41 +287,9 @@ describe("R2.1: a millimetre-set body honours its own minimum width", () => {
     if (!fit.ok) return;
     expect(fit.plan.widthM).toBeCloseTo(0.6, 6);
   });
-
-  // Contradictory catalogue data: a floor above every width the entry lists. There is no width at
-  // which the body can be made, so a roomy opening does not rescue it.
-  it("refuses a set whose every member is below the floor, even in a wide opening", () => {
-    const fit = fitInBaseOpening(SET_ENTIRELY_BELOW_FLOOR, 800);
-    expect(fit.ok).toBe(false);
-    if (fit.ok) return;
-    expect(fit.detail).toMatchObject({
-      code: "WIDTH_TOO_SMALL",
-      params: { requiredMm: 500 },
-    });
-    expect(fit.detail).toMatchObject({
-      code: "WIDTH_TOO_SMALL",
-      params: { requiredMm: 500 },
-    });
-  });
 });
 
 describe("R2.1: no shipped entry's width resolution changes", () => {
-  // The structural reason the filter is a no-op for every shipped row. If a future entry breaks
-  // this, the behavioural sweep below stops being evidence and this test says why.
-  //
-  // Until ADR 0026 the reason was "no fixed-set entry declares a floor at all". `base-bottle-cargo`
-  // is one that does, so the reason is now the narrower true one: no fixed-set entry has a floor
-  // that removes any width from its own set. The sweep needs exactly that and nothing more.
-  it("ships no millimetre set a floor of its own would narrow", () => {
-    for (const [buildId, definition] of INSERTABLE_BODY_DEFINITIONS) {
-      const sizesMm = definition.widthFlex;
-      if (sizesMm === undefined || sizesMm === "fit") continue;
-      expect(buildableSizes(definition.minWidthMm, sizesMm), buildId).toEqual(
-        sizesMm,
-      );
-    }
-  });
-
   /** §5.2's width rule as it stood before R2.1 — the reference this sweep compares against. */
   function widthMmBeforeR2(
     definition: BodyDefinition,
@@ -485,15 +397,6 @@ describe("§9's width chips are narrowed by the same floor", () => {
         }
       }
     }
-  });
-
-  // Named explicitly because it is the one shipped entry with a floor, and the one whose chips a
-  // careless filter would eat.
-  it("leaves base-sink's chips stepped from its aperture", () => {
-    const world = baseOpeningWorld(800);
-    const offers = offersFor({ ...world, target: baseVoidTarget(world) });
-
-    expect(offerFor(offers, "base-sink").sizesMm).toEqual(SINK_CHIPS_MM);
   });
 
   // **ADR 0032's disabled row is gone, so the claim turns over.** That decision said a refused

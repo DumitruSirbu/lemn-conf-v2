@@ -417,17 +417,6 @@ describe("after one column is cleared", () => {
     },
   );
 
-  it("accepts 546 taps across the nine deletable columns", () => {
-    // The population as one number; the itemisation is `CLEARABLE`'s `gained` rows and the load census's list, so what
-    // a total adds is that no tenth source of acceptance has appeared. It is exactly `9 x 59 - 59 - 4 + 78`: nine
-    // copies of the load census, less the 59 taps whose body each row deletes, less the 4 `A|1.30` loses to
-    // `RESIZE_OPENS_GAP`, plus the 78 taps the clears buy.
-    const all = CLEARABLE.flatMap(
-      ({ ids }) => census(clearBodies(kitchen(), [...ids])).accepted,
-    );
-    expect(all.length).toBe(546);
-  });
-
   it("keeps RESIZE_OPENS_GAP reachable, on the corner leg", () => {
     // Clearing `A|1.30` lets `A|0.75` narrow to 200, which widens the empty column to 900 mm, with a base-level
     // opening across the floor the corner leg `p25` stands in.

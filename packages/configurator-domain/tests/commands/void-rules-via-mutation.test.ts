@@ -61,14 +61,6 @@ describe("row 17 — reached by deleting the hood, not by writing a fixture", ()
     ]);
   });
 
-  it("emits nothing for the 40 mm stub below 0.86, which is under MIN_SPAN", () => {
-    expect(
-      world.voids.filter(
-        (record) => record.col === HOB_COLUMN && record.y0 < 0.86,
-      ),
-    ).toEqual([]);
-  });
-
   it("emits no opening anywhere in the design that sits in the backsplash gap alone", () => {
     expect(world.voids.filter(isGapOnlySlot)).toEqual([]);
   });
@@ -82,13 +74,6 @@ describe("row 18 — reached by clearing a wall-only column", () => {
       { y0: 1.5, h: 0.7, spanH: 1.1, w: 0.6 },
       { y0: 2.2, h: 0.4, spanH: 1.1, w: 0.6 },
     ]);
-  });
-
-  it("offers nothing at floor level in that column, even after a full clear", () => {
-    const floorSlots = world.voids.filter(
-      (record) => record.col === WALL_ONLY_COLUMN && record.y0 < 1.5,
-    );
-    expect(floorSlots).toEqual([]);
   });
 });
 

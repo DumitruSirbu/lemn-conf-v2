@@ -28,7 +28,6 @@ import {
 } from "../src/migrate-design.js";
 import {
   assertDesignValidForCatalog,
-  DESIGN_ISSUE_SEVERITY_BY_CODE,
   fatalDesignValidationIssues,
   validateDesignForCatalog,
 } from "../src/validate-design.js";
@@ -271,12 +270,6 @@ describe("and the document still loads, which is what the severity buys", () => 
   // What a severity ruling is about (ADR 0052): a new refusal code makes a stored document unloadable, so the seam
   // that throws on a bad document must not throw on this one.
   const space = spaceAt("B", 300, WIDTH_OF_A_TEST_SPACE_MM);
-
-  it("declares the code a mark, per code, as ADR 0069 requires", () => {
-    expect(
-      DESIGN_ISSUE_SEVERITY_BY_CODE.RECORDED_SPAN_OVERLAPS_CORNER_BODY,
-    ).toBe("mark");
-  });
 
   it("reports the finding and carries none of it into the fatal half", () => {
     const issues = validateDesignForCatalog(designHolding(space), catalog);

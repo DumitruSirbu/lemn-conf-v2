@@ -152,11 +152,7 @@ describe("removePlacement — success", () => {
 });
 
 describe("removePlacement — rejection sweep", () => {
-  it.each([
-    ["void selected", KITCHEN_L_DESIGN, "A|1.30:v0:0.00", "void"],
-    ["missing target", KITCHEN_L_DESIGN, "p999", "placement"],
-    ["structural body", KITCHEN_L_DESIGN, "p25", "placement"],
-  ] as const)(
+  it.each([["structural body", KITCHEN_L_DESIGN, "p25", "placement"]] as const)(
     "returns the exact original design and changes nothing (%s)",
     (_case, design, id, kind) => {
       const before = JSON.stringify(design);

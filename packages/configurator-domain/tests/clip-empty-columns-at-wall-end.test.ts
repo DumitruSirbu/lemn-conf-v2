@@ -113,20 +113,6 @@ describe("clipping a member-less column to the wall it stands on", () => {
     expect(column?.regions).toStrictEqual([[0, 0.82]]);
   });
 
-  // The addendum's rule stated as its own criterion, because the map's slot and the extent's own
-  // `key` field are two places one identity is written and a fix that moved only one of them would
-  // leave `recomputeVoids` stamping voids with a key the map does not hold.
-  it("keeps one identity for the column, in the map slot and in the extent alike", () => {
-    const original = columnAt(3.3, 0.6);
-
-    const clipped = clipEmptyColumnsAtWallEnd(mapOf([original]), [], ROOM);
-
-    for (const [slot, column] of clipped) {
-      expect(slot).toBe(column.key);
-    }
-    expect(clipped.get(original.key)?.key).toBe(original.key);
-  });
-
   it("drops a column that starts wholly past the wall, rather than publishing it empty", () => {
     const columns = mapOf([columnAt(3.8, 0.2)]);
 

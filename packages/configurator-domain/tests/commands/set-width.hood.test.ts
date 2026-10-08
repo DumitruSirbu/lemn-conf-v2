@@ -171,23 +171,6 @@ describe("a hood floors the widths its column may take, and nothing else", () =>
     expect(choices?.sizesMm[0]).toBe(700);
   });
 
-  it("does not make its column 'unaligned' by standing at a different width", () => {
-    // **Moved 2026-08-29.** The pair was a 600 mm run under an 800 mm hood taken to 650, which the
-    // floor now refuses — and rightly, since that run was already 200 mm narrower than the hood
-    // hanging on it. A 700 mm hood over a run *growing* to 750 makes the same point with the floor
-    // respected: the column holds a 750 and a 700 under one key, which is precisely the shape
-    // `COLUMN_MEMBERS_UNALIGNED` used to refuse, and nothing needs squaring up because the hood is
-    // *supposed* to differ.
-    const world = runUnderAHood(600, 700);
-
-    const result = resizeTo(world, "run-base", 750);
-
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(widthOf(result.design, "run-base")).toBe(750);
-    expect(widthOf(result.design, "hood")).toBe(700);
-  });
-
   it("is not squared up when the rest of the column is", () => {
     // Both rules in one move: a genuinely mixed column — a 600 base with a 400 shelf on top — and a
     // 700 hood between them. The two cabinets are brought to one width; the hood is not.

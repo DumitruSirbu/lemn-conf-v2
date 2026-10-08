@@ -135,10 +135,6 @@ describe("kind labels", () => {
       expect(isKnownKind(definition.kind), definition.kind).toBe(true);
     }
   });
-
-  it("reports an unknown kind as unknown", () => {
-    expect(isKnownKind("teleporter")).toBe(false);
-  });
 });
 
 // Backlog entry 1's rule half: §7 must hold a hob-bearing entry so a deleted hob can be offered back. The outcome

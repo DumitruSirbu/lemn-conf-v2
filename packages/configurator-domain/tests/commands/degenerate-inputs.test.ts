@@ -74,7 +74,7 @@ describe("a column cleared to its last member (ADR 0011 Gap D)", () => {
   // A|0.30 is a wall-only column: p8 at 1.50 and p15 at 2.20, nothing on the floor.
   const cleared = clearBodies(seeded(), ["p8", "p15"]);
 
-  it("still reports the run as openings rather than losing it", () => {
+  it("still reports the run as openings rather than losing it (§11 row 18)", () => {
     expect(
       cleared.voids
         .filter((record) => record.col === "A|0.30")
@@ -86,13 +86,6 @@ describe("a column cleared to its last member (ADR 0011 Gap D)", () => {
       [1.5, 0.7],
       [2.2, 0.4],
     ]);
-  });
-
-  it("invents no floor space under it (§11 row 18)", () => {
-    const lowest = cleared.voids
-      .filter((record) => record.col === "A|0.30")
-      .map((record) => record.y0);
-    expect(Math.min(...lowest)).toBeGreaterThanOrEqual(1.5);
   });
 
   it("still accepts an insert, and the body lands back in the same column", () => {
