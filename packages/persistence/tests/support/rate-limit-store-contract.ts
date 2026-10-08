@@ -70,8 +70,10 @@ export function describeRateLimitStoreContract({
       expect(counts).toEqual([1, 3]);
     });
 
-    it("answers an empty request with no counts", async () => {
-      expect(await createStore().recordHits([])).toEqual([]);
+    it("refuses an empty request, since no counts would read as nothing over the limit", async () => {
+      await expect(createStore().recordHits([])).rejects.toThrow(
+        /lists no bucket/,
+      );
     });
 
     it("counts a hit one millisecond before a window's end and one at the next window's start apart", async () => {

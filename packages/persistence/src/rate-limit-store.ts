@@ -14,8 +14,12 @@ export interface RateLimitWindow {
   readonly endsAt: Date;
 }
 
-/** What one hit is counted against: `key` is the SHA-256 digest of the policy's name and the subject together, never
- *  either itself. A key belongs to one policy, so two policies never state different ends for one key and start. */
+/**
+ * What one hit is counted against. `key` is the SHA-256 digest of an encoding of the policy's name and the subject in
+ * which the name comes from a closed set written in code and the subject cannot be mistaken for any part of a name, so
+ * equal encodings come only from equal pairs. Keeping that is the caller's: a key belongs to one policy, and two
+ * policies never state different ends for one key and start.
+ */
 export interface RateLimitBucket {
   readonly key: string;
   readonly window: RateLimitWindow;
@@ -27,12 +31,15 @@ export interface RateLimitStore {
   /**
    * Adds one hit to every bucket in one round trip and returns each bucket's count in its own window, in the order
    * given. A count includes this hit and comes from that window's row alone. A count may err high, when a repeated
-   * statement counts a hit twice, and never low. Rejects with `RateLimitStoreError` when the database gives no
-   * trustworthy answer, and with `RateLimitWindowConflictError` when a bucket's stored window ends elsewhere than the
-   * request says; the caller refuses the request either way, and the second counts none of its buckets.
+   * statement counts a hit twice, and between prunes of that window never low: a hit for a window the prune has
+   * removed starts again at 1. Rejects with `RateLimitStoreError` when the database gives no trustworthy answer, and
+   * with `RateLimitWindowConflictError` when a bucket's stored window ends elsewhere than the request says; the caller
+   * refuses the request either way, and the second counts none of its buckets. An empty list is refused as invalid,
+   * since no counts would read as nothing over the limit.
    */
   recordHits(buckets: readonly RateLimitBucket[]): Promise<readonly number[]>;
-  /** Deletes every window that ended at or before `now` and returns how many rows went. Safe to run again. */
+  /** Deletes every window that ended at or before `now` and returns how many rows went; after a repeated statement
+   *  that number is a lower bound. Safe to run again. */
   pruneExpired(now: Date): Promise<number>;
 }
 
@@ -63,8 +70,16 @@ export class RateLimitWindowConflictError extends Error {
   }
 }
 
+/** Postgres refuses an upsert that reaches one row twice, and a count for a bucket listed twice has no single answer. */
+const DUPLICATE_BUCKET_REFUSAL =
+  "Refusing to count a hit: one request lists the same bucket in the same window twice, so its count would be ambiguous.";
+
+const NO_BUCKET_REFUSAL =
+  "Refusing to count a hit: a request lists no bucket, and no counts would read as nothing over the limit.";
+
 /** The one place a request's buckets are checked, by the Neon store and the fake alike. */
 export function requireValidBuckets(buckets: readonly RateLimitBucket[]): void {
+  if (buckets.length === 0) throw new Error(NO_BUCKET_REFUSAL);
   const identities = new Set<string>();
   for (const bucket of buckets) {
     requireSha256Digest(bucket.key, "rate-limit bucket key", "count a hit");
@@ -74,10 +89,6 @@ export function requireValidBuckets(buckets: readonly RateLimitBucket[]): void {
     identities.add(identity);
   }
 }
-
-/** Postgres refuses an upsert that reaches one row twice, and a count for a bucket listed twice has no single answer. */
-const DUPLICATE_BUCKET_REFUSAL =
-  "Refusing to count a hit: one request lists the same bucket in the same window twice, so its count would be ambiguous.";
 
 export function requireValidInstant(instant: Date): void {
   if (Number.isNaN(instant.getTime())) {
@@ -99,7 +110,11 @@ function requireNonEmptyWindow({ startsAt, endsAt }: RateLimitWindow): void {
 
 /** A bucket's window as the table keys it: the digest and the window's start in milliseconds. */
 export function identityOf({ key, window }: RateLimitBucket): string {
-  return `${key}@${String(window.startsAt.getTime())}`;
+  return identityFor(key, window.startsAt.getTime());
+}
+
+function identityFor(key: string, startsAtMs: number): string {
+  return `${key}@${String(startsAtMs)}`;
 }
 
 interface HitRow {
@@ -112,8 +127,11 @@ interface RemovedRow {
   removed: unknown;
 }
 
-const WINDOW_CHECK_VIOLATION = "23514";
-const WINDOW_CHECK_NAME = "rate_limit_counters_window_is_not_empty";
+interface HitColumns {
+  readonly keys: string[];
+  readonly starts: string[];
+  readonly ends: string[];
+}
 
 /** `RateLimitStore` on Neon Postgres, counting in `rate_limit_counters` (migration `0007`). */
 export class NeonRateLimitStore implements RateLimitStore {
@@ -126,8 +144,9 @@ export class NeonRateLimitStore implements RateLimitStore {
 
   /**
    * One statement for every bucket: an upsert is atomic per row, so N concurrent hits on one bucket and window return
-   * 1…N once each. Every statement here that locks several rows takes them by key, then start (the prune too), so
-   * none can wait on another in a cycle. It names `rate_limit_counters` alone.
+   * 1…N once each. The prune's locking read under `order by` takes its rows in that order, which Postgres documents;
+   * that an insert takes its select's rows in the select's order is observed, not documented (see ADR 0149), and it
+   * is what keeps a hit and a prune from waiting on each other in a cycle.
    *
    * A hit stating a different end than the stored row sets that row's end to its start, which the table's own window
    * check refuses: the whole statement fails and no bucket of the request is counted.
@@ -136,17 +155,19 @@ export class NeonRateLimitStore implements RateLimitStore {
     buckets: readonly RateLimitBucket[],
   ): Promise<readonly number[]> {
     requireValidBuckets(buckets);
-    if (buckets.length === 0) return [];
+    const columns = columnsOf(buckets);
 
-    const keys = buckets.map((bucket) => bucket.key);
-    const starts = buckets.map((bucket) =>
-      bucket.window.startsAt.toISOString(),
-    );
-    const ends = buckets.map((bucket) => bucket.window.endsAt.toISOString());
-    const rows = await failAsStoreError<HitRow>("record hits", () =>
+    const rows = await queryRows<HitRow>("record hits", () =>
       retryOnTransientFailure(() =>
-        refusingToRepeatAnEmptyReply(
-          () => this.sql`
+        refusingToRepeatAnEmptyReply(() => this.upsertHits(columns)),
+      ),
+    );
+
+    return countsInRequestOrder(buckets, rows);
+  }
+
+  private upsertHits({ keys, starts, ends }: HitColumns) {
+    return this.sql`
             insert into rate_limit_counters as counter (bucket_key, window_start, window_end, hits)
             select hit.bucket_key, hit.window_start, hit.window_end, 1
             from unnest(${keys}::text[], ${starts}::timestamptz[], ${ends}::timestamptz[])
@@ -160,12 +181,7 @@ export class NeonRateLimitStore implements RateLimitStore {
                 else counter.window_start
               end
             returning counter.bucket_key, counter.window_start, counter.hits
-          `,
-        ),
-      ),
-    );
-
-    return countsInRequestOrder(buckets, rows);
+          `;
   }
 
   /** Locks the expired rows by key, then start, as a hit does: two statements locking shared rows in different orders
@@ -173,11 +189,9 @@ export class NeonRateLimitStore implements RateLimitStore {
   async pruneExpired(now: Date): Promise<number> {
     requireValidInstant(now);
 
-    const rows = await failAsStoreError<RemovedRow>(
-      "prune expired windows",
-      () =>
-        retryOnTransientFailure(
-          () => this.sql`
+    const rows = await queryRows<RemovedRow>("prune expired windows", () =>
+      retryOnTransientFailure(
+        () => this.sql`
             with expired as (
               select bucket_key, window_start from rate_limit_counters
               where window_end <= ${now.toISOString()}::timestamptz
@@ -192,16 +206,26 @@ export class NeonRateLimitStore implements RateLimitStore {
             )
             select count(*)::int as removed from removed
           `,
-        ),
+      ),
     );
 
     return removedCountOf(rows);
   }
 }
 
-/** A repeated hit can be counted twice, which a limiter accepts and a count may therefore err high. That is accepted
- *  after a cold-start refusal, so the first request after the database slept is not refused, and not after an empty
- *  reply, which follows a reply that began well so the hit most likely landed. The 8E adjudication rules both. */
+function columnsOf(buckets: readonly RateLimitBucket[]): HitColumns {
+  return {
+    keys: buckets.map((bucket) => bucket.key),
+    starts: buckets.map((bucket) => bucket.window.startsAt.toISOString()),
+    ends: buckets.map((bucket) => bucket.window.endsAt.toISOString()),
+  };
+}
+
+/**
+ * A repeated hit can be counted twice, so a count may err high (see ADR 0149). The repeat is accepted after a
+ * cold-start refusal, so the first request after the database slept is not refused. It is not made after an empty
+ * reply, which follows a reply that began well, so the hit most likely landed.
+ */
 async function refusingToRepeatAnEmptyReply<Result>(
   query: () => PromiseLike<Result>,
 ): Promise<Result> {
@@ -225,19 +249,21 @@ class UnrepeatableFailure extends Error {
   }
 }
 
-/** Every driver failure leaves as a `RateLimitStoreError` holding a built cause, as ADR 0146 B3 requires. */
-async function failAsStoreError<Row>(
+/** The rows of a statement, or the typed error: a failure, or a reply that is not a list of rows, never leaves as
+ *  anything else. */
+async function queryRows<Row>(
   operation: RateLimitOperation,
   runQuery: () => PromiseLike<unknown>,
 ): Promise<Row[]> {
-  const reply = await runKeepingNothingTheDriverThrew(operation, runQuery);
+  const reply = await runTranslatingFailures(operation, runQuery);
   if (!Array.isArray(reply) || !reply.every(isObject)) {
     throw new RateLimitStoreError(operation);
   }
   return reply as Row[];
 }
 
-async function runKeepingNothingTheDriverThrew(
+/** Every driver failure leaves as a store error holding a built cause, as ADR 0146 B3 requires. */
+async function runTranslatingFailures(
   operation: RateLimitOperation,
   runQuery: () => PromiseLike<unknown>,
 ): Promise<unknown> {
@@ -259,6 +285,9 @@ function storeFailureFrom(
     : new RateLimitStoreError(operation, reducedCauseOf(failure));
 }
 
+const WINDOW_CHECK_VIOLATION = "23514";
+const WINDOW_CHECK_NAME = "rate_limit_counters_window_is_not_empty";
+
 function isWindowEndConflict(failure: unknown): boolean {
   return (
     isNeonDbError(failure) &&
@@ -277,30 +306,33 @@ function countsInRequestOrder(
 ): number[] {
   const hitsByIdentity = new Map(
     rows.map((row) => [
-      `${row.bucket_key}@${String(new Date(row.window_start).getTime())}`,
+      identityFor(row.bucket_key, new Date(row.window_start).getTime()),
       row.hits,
     ]),
   );
   return buckets.map((bucket) => {
     const hits = hitsByIdentity.get(identityOf(bucket));
-    if (!isHitCount(hits)) throw new RateLimitStoreError("record hits");
+    if (!isCountOfAtLeast(FIRST_HIT, hits)) {
+      throw new RateLimitStoreError("record hits");
+    }
     return hits;
   });
 }
 
 function removedCountOf(rows: readonly RemovedRow[]): number {
   const removed = rows[0]?.removed;
-  if (!isRemovedCount(removed)) {
+  if (!isCountOfAtLeast(NONE_REMOVED, removed)) {
     throw new RateLimitStoreError("prune expired windows");
   }
   return removed;
 }
 
-/** A hit that was just counted is at least 1: a zero or a fraction is not a count. */
-function isHitCount(value: unknown): value is number {
-  return Number.isInteger(value) && (value as number) >= 1;
-}
+/** A hit that was just counted is at least 1, and a prune may remove none: a fraction or a text is no count. */
+const FIRST_HIT = 1;
+const NONE_REMOVED = 0;
 
-function isRemovedCount(value: unknown): value is number {
-  return Number.isInteger(value) && (value as number) >= 0;
+function isCountOfAtLeast(minimum: number, value: unknown): value is number {
+  return (
+    typeof value === "number" && Number.isInteger(value) && value >= minimum
+  );
 }

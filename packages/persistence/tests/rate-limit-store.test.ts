@@ -187,8 +187,8 @@ describe("NeonRateLimitStore.recordHits", () => {
     expect(driver.statements).toHaveLength(0);
   });
 
-  it("sends nothing for an empty request", async () => {
-    expect(await newStore().recordHits([])).toEqual([]);
+  it("refuses an empty request before any statement is sent", async () => {
+    await expect(newStore().recordHits([])).rejects.toThrow(/lists no bucket/);
     expect(driver.statements).toHaveLength(0);
   });
 });
@@ -273,7 +273,7 @@ describe("NeonRateLimitStore.recordHits when the database fails", () => {
     expect((error as Error).cause).toEqual({ name: "SyntaxError" });
   });
 
-  it("repeats a hit the proxy refused for a suspended compute, which ran nothing", async () => {
+  it("repeats a hit the proxy refused for a suspended compute, so the first request after a sleep is not refused", async () => {
     vi.useFakeTimers();
     failWith(coldStartRefusal());
     answerWith([hitRow(FIRST_KEY, 1), hitRow(SECOND_KEY, 1)]);

@@ -6,6 +6,7 @@ import {
   isLiveTestDatabaseConfigured,
   liveTestDatabaseUrl,
 } from "./support/live-test-database.js";
+import { readConnectionFacts } from "./support/connection-facts.js";
 import {
   TABLE_PRIVILEGES_EVERY_SERVER_KNOWS,
   privilegesHeldOn,
@@ -36,5 +37,18 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
 
     expect(held).toContain("SELECT");
     expect(held.every((privilege) => known.includes(privilege))).toBe(true);
+  });
+
+  it("reads the connection's facts from the catalog: names, flags and a list, whatever the role is", async () => {
+    const facts = await readConnectionFacts(neon(liveTestDatabaseUrl));
+
+    expect(facts.databaseName).not.toBe("");
+    expect(facts.roleName).not.toBe("");
+    expect(typeof facts.isSuperuser).toBe("boolean");
+    expect(Array.isArray(facts.memberOf)).toBe(true);
+    expect(typeof facts.designsExists).toBe("boolean");
+    expect(typeof facts.isDesignsOwnerOrMemberOfIt).toBe("boolean");
+    expect(typeof facts.isSchemaOwnerOrMemberOfIt).toBe("boolean");
+    expect(typeof facts.canCreateInSchema).toBe("boolean");
   });
 });
