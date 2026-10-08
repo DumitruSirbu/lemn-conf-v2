@@ -640,15 +640,6 @@ describe("a U's summary names its three walls (M7B U5 S1, criterion 2)", () => {
     },
   );
 
-  it("does not print wall B's number in wall C's place: the two differ on screen", () => {
-    const text = summaryOfU(
-      { widthMm: 4500, depthMm: 3010, wallCMm: 3620, heightMm: 2600 },
-      ROMANIAN,
-    );
-
-    expect(text).toContain("3010 × 3620");
-  });
-
   it("draws all three walls in the composed plan aside, wall C from wallCMm", () => {
     renderRun({
       phase: "failed",

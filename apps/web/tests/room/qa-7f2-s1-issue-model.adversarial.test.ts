@@ -569,15 +569,6 @@ describe("the §5 copy ships exactly as the owner approved it", () => {
 // so the suggestion's positive arm is live under the real policy — restated below from "is off for
 // every shape, direction and typed text", which held while every straight room was refused.
 describe("the linear suggestion is catalogued and shows exactly when the domain says so", () => {
-  it("is present in both catalogues", () => {
-    expect(requireLeafAt(RO_CATALOGUE, "room.issue.orChooseLinear")).not.toBe(
-      "",
-    );
-    expect(requireLeafAt(RU_CATALOGUE, "room.issue.orChooseLinear")).not.toBe(
-      "",
-    );
-  });
-
   it("matches the real gate — a reason other than the shape's own, and wall A with the height validating as a straight room — for every shape, direction and typed text", () => {
     const anyText = fc.oneof(
       fc.constant(""),

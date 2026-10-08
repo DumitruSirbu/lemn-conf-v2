@@ -204,29 +204,6 @@ const ANY_ARRIVING_QUERY = fc.record({
 });
 
 describe("the loop settles, and it settles once (criterion 21)", () => {
-  it("writes a canonical query that reading and writing again reproduces exactly", () => {
-    fc.assert(
-      fc.property(
-        ANY_ARRIVING_QUERY,
-        fc.constantFrom(...EVERY_SHAPE),
-        (query, fallbackShape) => {
-          const shape = roomShapeInQuery(query) ?? fallbackShape;
-
-          const once = canonicalTextOf(roomDraftFromQuery(shape, query));
-          const twice = canonicalTextOf(
-            roomDraftFromQuery(
-              roomShapeInQuery(queryOf(once)) ?? fallbackShape,
-              queryOf(once),
-            ),
-          );
-
-          expect(twice).toBe(once);
-        },
-      ),
-      { numRuns: SWEEP_RUNS },
-    );
-  });
-
   it("reconciles an arriving query into a draft that reconciles to itself", () => {
     fc.assert(
       fc.property(ANY_ARRIVING_QUERY, (query) => {

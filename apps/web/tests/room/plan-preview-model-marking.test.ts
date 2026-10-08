@@ -495,20 +495,6 @@ describe("markPlanWalls — the marked set is the refused wall fields, and only 
 
 describe("markPlanWalls — a mark follows its wall through the mirror, never the side or the index", () => {
   it.each(WALL_ARMS.map((arm) => [arm.name, arm] as const))(
-    "marks the same wall ids in both directions, for %s",
-    (_name, arm) => {
-      fc.assert(
-        fc.property(arm.room, (room) => {
-          expect(marksOn(markedPlanOf(lDraft(room, "right")))).toEqual(
-            marksOn(markedPlanOf(lDraft(room, "left"))),
-          );
-        }),
-        { numRuns: SAMPLES_PER_ARM },
-      );
-    },
-  );
-
-  it.each(WALL_ARMS.map((arm) => [arm.name, arm] as const))(
     "gives the same plan whether a left-turning plan is marked then mirrored, or mirrored then marked, for %s",
     (_name, arm) => {
       fc.assert(

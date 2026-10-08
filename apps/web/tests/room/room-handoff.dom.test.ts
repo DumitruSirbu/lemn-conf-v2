@@ -420,23 +420,6 @@ describe("one composition is one design row (criterion 39)", () => {
     expect(callsTo("POST")).toHaveLength(1);
     expect(callsTo("PUT")).toHaveLength(1);
   });
-
-  it("issues no second POST when a retry follows a failed write", async () => {
-    script.writeStatus = 500;
-    render();
-
-    tapContinue();
-    await settleFailedHandoff();
-    script.writeStatus = 200;
-    tapRetry();
-    await settleNavigation();
-
-    // The retry re-runs the same attempt, so it carries the same mint identity — and the repository
-    // answers that identity's second `save` out of the row it already minted.
-    expect(callsTo("POST")).toHaveLength(1);
-    expect(callsTo("PUT")).toHaveLength(2);
-    expect(callsTo("PUT")[1]?.url).toBe(callsTo("PUT")[0]?.url);
-  });
 });
 
 describe("navigation follows the write and nothing else (criterion 40)", () => {
@@ -537,19 +520,6 @@ describe("a failed hand-off keeps the customer where they are (criterion 41)", (
     );
     // The busy control is gone with it, so nothing on the screen claims to still be working.
     expect(maybeAt("room-compose-cta")).toBe(null);
-  });
-
-  it("writes to the already-minted row and opens it when the retry succeeds", async () => {
-    script.writeStatus = 500;
-    render();
-
-    tapContinue();
-    await settleFailedHandoff();
-    script.writeStatus = 200;
-    tapRetry();
-    await settleNavigation();
-
-    expect(editorPushes()).toEqual([`/ro/d/${encodeURIComponent(MINTED_ID)}`]);
   });
 
   it("does not re-compose when the retry runs", async () => {

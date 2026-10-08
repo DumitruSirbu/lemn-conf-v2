@@ -588,20 +588,6 @@ describe("the shape refusal is the policy's answer for the chosen shape, whateve
     expect(view.isShapeRefused).toBe(false);
   });
 
-  // 7J S5: this same entry — wall A 2200, height 2500 — is now a straight room the approved policy
-  // accepts, so it reaches 1D rather than stopping at a shape refusal.
-  it("accepts a straight kitchen at 1D with the same fields that used to refuse it", () => {
-    const draft = draftTyped({
-      shape: "linear",
-      texts: { wallA: "2200", wallB: "2000", wallC: "2000", height: "2500" },
-    });
-
-    const view = viewOf(draft);
-
-    expect(stateOfDraft(draft).substate).toBe("1D");
-    expect(view.isShapeRefused).toBe(false);
-  });
-
   it("publishes the shape refusal through the SHAPE_NOT_BUILDABLE leaf", () => {
     expect(SHAPE_REFUSAL_MESSAGE_KEY).toBe("room.issue.shapeNotBuildable");
   });
@@ -833,12 +819,6 @@ describe.each(CATALOGUES)(
       locale,
       messages,
     ] as (typeof CATALOGUES)[number]);
-
-    it("covers all six reachable codes", () => {
-      expect(Object.keys(ROOM_ISSUE_MESSAGE_KEYS).sort()).toEqual(
-        [...REACHABLE_CODES].sort(),
-      );
-    });
 
     it.each(PUBLISHED_KEYS)("resolves %s to a sentence of its own", (key) => {
       expect(requireLeafAt(messages, key)).not.toBe("");

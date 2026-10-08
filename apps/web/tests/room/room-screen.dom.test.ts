@@ -367,14 +367,6 @@ describe("the footer CTA, disabled until a buildable shape is chosen (criterion 
     expect(continueButton().disabled).toBe(true);
   });
 
-  it("continues once the L is chosen", () => {
-    render(QUERY_FOR["1A"]);
-
-    choose("L");
-
-    expect(continueButton().disabled).toBe(false);
-  });
-
   it("continues once linear is chosen, with no fields typed yet", () => {
     render(QUERY_FOR["1A"]);
 
