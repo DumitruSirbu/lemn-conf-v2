@@ -202,7 +202,9 @@ function dependentMember(
   return { record, body };
 }
 
-/** The three declarations that decide whether the column has any say in this body's depth.
+/** Whether the column, rather than the body's own row, decides this body's depth.
+ *
+ *  Three declarations decide it.
  *
  *  1. Band: `resolveDepthM` never consults `hasFullHeightUnder` for a base or column body. Read off the
  *     entry and normalised, because `top` is a row rather than a band (ADR 0011 Gap C).
@@ -212,7 +214,7 @@ function dependentMember(
  *     re-planning the hood could change nothing but its identity (`hood-600` would resolve to `hood`
  *     and `fixedWidth` flip to false, handing the customer a width control the fixture withholds;
  *     `moveHood` exists to prevent that). */
-function columnDecidesItsDepth(definition: BodyDefinition): boolean {
+export function columnDecidesItsDepth(definition: BodyDefinition): boolean {
   const rule = definition.depthRule;
   return (
     normaliseBand(definition.band) === "wall" &&
