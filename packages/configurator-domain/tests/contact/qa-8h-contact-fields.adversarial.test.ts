@@ -789,3 +789,311 @@ describe("8H reading 10: a refusal is a field and a code and no value", () => {
     expect(JSON.stringify(result)).not.toContain(MARKER);
   });
 });
+
+// Criterion 21 (both must-fixes of the reviews, ruled): text that is not well-formed is refused as it
+// arrived; format characters are removed; what remains is bounded before it is composed; then it is composed,
+// checked, trimmed and measured. The three properties are over sequences of UTF-16 units, not of whole
+// characters: a half of a character is a unit a character sweep never produces.
+describe("8H criterion 21: the order of the text check, over UTF-16 units", () => {
+  interface TypedField {
+    readonly field: "name" | "locality" | "email" | "phone";
+    readonly baseline: ContactFieldsInput;
+    readonly validValue: string;
+    readonly max: number;
+  }
+
+  const TYPED: readonly TypedField[] = [
+    {
+      field: "name",
+      baseline: VALID,
+      validValue: "Ana Rusu",
+      max: CONTACT_NAME_MAX_LENGTH,
+    },
+    {
+      field: "locality",
+      baseline: VALID,
+      validValue: "Orhei",
+      max: CONTACT_LOCALITY_MAX_LENGTH,
+    },
+    {
+      field: "email",
+      baseline: VALID_BY_EMAIL,
+      validValue: "ana@example.md",
+      max: CONTACT_EMAIL_MAX_LENGTH,
+    },
+    {
+      field: "phone",
+      baseline: VALID,
+      validValue: "079 123 456",
+      max: CONTACT_PHONE_MAX_LENGTH,
+    },
+  ];
+
+  const UNCOMPOSED_FACTOR = 8;
+  const HIGH_HALF = "\ud83d";
+  const LOW_HALF = "\ude00";
+  const TAG_HIGH_HALF = "\udb40";
+  const TAG_LOW_HALF = "\udc01";
+
+  /** Units a customer's text holds, and the ones that break a check written for whole characters. */
+  const TELLING_UNITS = [
+    0x61, 0x65, 0x20, 0x30, 0x36, 0x2b, 0x2d, 0x40, 0x2e, 0xa0, 0x200b, 0x200e,
+    0x202e, 0xfeff, 0xad, 0x301, 0x316, 0x323, 0x958, 0x1100, 0x1161, 0x212a,
+    0xd83d, 0xde00, 0xdb40, 0xdc01, 0xdc41, 0xd800, 0xdfff, 0x0a, 0x0d, 0x85,
+    0x2028, 0x2029, 0xfb01, 0xff21,
+  ];
+
+  const anyUnit = fc.oneof(
+    { weight: 3, arbitrary: fc.constantFrom(...TELLING_UNITS) },
+    { weight: 1, arbitrary: fc.integer({ min: 0, max: 0xffff }) },
+  );
+
+  function unitsToText(units: readonly number[]): string {
+    return String.fromCharCode(...units);
+  }
+
+  const unitText = fc.array(anyUnit, { maxLength: 40 }).map(unitsToText);
+
+  /** A valid value with runs of arbitrary units put into it, so some are accepted and some refused. */
+  function spliced(validValue: string): fc.Arbitrary<string> {
+    return fc
+      .array(
+        fc.tuple(
+          fc.nat({ max: validValue.length }),
+          fc.array(anyUnit, { minLength: 1, maxLength: 3 }).map(unitsToText),
+        ),
+        { maxLength: 3 },
+      )
+      .map((insertions) =>
+        insertions.reduce(
+          (text, [at, run]) => `${text.slice(0, at)}${run}${text.slice(at)}`,
+          validValue,
+        ),
+      );
+  }
+
+  function typedOf(field: TypedField): fc.Arbitrary<string> {
+    return fc.oneof(spliced(field.validValue), unitText);
+  }
+
+  it.each(TYPED)(
+    "generates $field values that are accepted and values that are refused",
+    (field) => {
+      const outcomes = fc
+        .sample(typedOf(field), { numRuns: 600, seed: 21 })
+        .map((typed) =>
+          codeOf(field.field, withValue(field.baseline, field.field, typed)),
+        );
+
+      expect(
+        outcomes.filter((code) => code === "accepted").length,
+      ).toBeGreaterThan(30);
+      expect(
+        outcomes.filter((code) => code === "FORBIDDEN_CHARACTER").length,
+      ).toBeGreaterThan(30);
+    },
+  );
+
+  describe.each(TYPED)("$field", (field) => {
+    const typed = typedOf(field);
+
+    function validated(value: string) {
+      return validateContactFields(
+        withValue(field.baseline, field.field, value),
+      );
+    }
+
+    propertyTest.prop([typed], { numRuns: 1000 })(
+      "nothing stored holds a control, a format character, half a character, or a line or paragraph separator",
+      (value) => {
+        const result = validated(value);
+        if (!result.ok) return;
+
+        expect(
+          storedTextOf(result.contact).filter((text) => UNSTORABLE.test(text)),
+        ).toEqual([]);
+      },
+    );
+
+    propertyTest.prop([typed], { numRuns: 1000 })(
+      "what is stored is composed and trimmed",
+      (value) => {
+        const result = validated(value);
+        if (!result.ok) return;
+        const stored = result.contact[field.field] ?? "";
+
+        expect(stored.normalize("NFC")).toBe(stored);
+        expect(stored.trim()).toBe(stored);
+        expect(countCodePoints(stored)).toBeLessThanOrEqual(field.max);
+      },
+    );
+
+    propertyTest.prop([typed], { numRuns: 1000 })(
+      "validating what was stored stores it again, unchanged",
+      (value) => {
+        const result = validated(value);
+        if (!result.ok) return;
+        const stored = result.contact[field.field] ?? "";
+
+        expect(validated(stored)).toEqual(result);
+      },
+    );
+
+    it("refuses the reviewers' value: two characters whose halves are split by a zero-width space", () => {
+      const SPLIT_TAGS = `Ion${TAG_HIGH_HALF}\u200b${TAG_LOW_HALF}${TAG_HIGH_HALF}\u200b\udc41x`;
+
+      expect(
+        codeOf(field.field, withValue(field.baseline, field.field, SPLIT_TAGS)),
+      ).toBe("FORBIDDEN_CHARACTER");
+      expect(
+        codeOf(
+          field.field,
+          withValue(
+            field.baseline,
+            field.field,
+            `${field.validValue}${TAG_HIGH_HALF}\u200b${TAG_LOW_HALF}`,
+          ),
+        ),
+      ).toBe("FORBIDDEN_CHARACTER");
+    });
+
+    it("refuses two halves split by each format character there is, the ones outside the BMP included", () => {
+      const joined = FORMAT_CHARACTERS.flatMap((character) => [
+        `${field.validValue}${HIGH_HALF}${character}${LOW_HALF}`,
+        `${HIGH_HALF}${character}${LOW_HALF}${field.validValue}`,
+        `${field.validValue}${TAG_HIGH_HALF}${character}${character}${TAG_LOW_HALF}`,
+      ]).filter(
+        (value) =>
+          codeOf(field.field, withValue(field.baseline, field.field, value)) !==
+          "FORBIDDEN_CHARACTER",
+      );
+
+      expect(joined).toEqual([]);
+    });
+
+    it.each([
+      ["a hundred thousand", 100_000, 250],
+      ["a million", 1_000_000, 2000],
+    ])(
+      "refuses %s units of combining marks as too long, in a time composing them would miss many times over",
+      (_name, units, withinMs) => {
+        const marks = `a${"\u0316\u0301".repeat(units / 2)}`;
+        const startedAt = performance.now();
+
+        const code = codeOf(
+          field.field,
+          withValue(field.baseline, field.field, marks),
+        );
+
+        expect(code).toBe("TOO_LONG");
+        expect(performance.now() - startedAt).toBeLessThan(withinMs);
+      },
+    );
+
+    it("answers at once for the longest run of marks it will still compose", () => {
+      const longestComposed = field.max * UNCOMPOSED_FACTOR;
+      const marks = `a${"\u0316\u0301".repeat((longestComposed - 1) / 2)}`;
+      const startedAt = performance.now();
+
+      const code = codeOf(
+        field.field,
+        withValue(field.baseline, field.field, marks),
+      );
+
+      expect(marks.length).toBe(longestComposed - 1);
+      expect(code).toBe("TOO_LONG");
+      expect(performance.now() - startedAt).toBeLessThan(100);
+    });
+
+    it("counts no format character toward the bound before composing", () => {
+      const padded = `${field.validValue}${"\u200b".repeat(100_000)}`;
+
+      expect(
+        codeOf(field.field, withValue(field.baseline, field.field, padded)),
+      ).toBe("accepted");
+    });
+
+    it("counts padding it would trim toward the bound before composing, in units", () => {
+      const room = field.max * UNCOMPOSED_FACTOR - field.validValue.length;
+
+      expect(
+        codeOf(
+          field.field,
+          withValue(
+            field.baseline,
+            field.field,
+            `${field.validValue}${" ".repeat(room)}`,
+          ),
+        ),
+      ).toBe("accepted");
+      expect(
+        codeOf(
+          field.field,
+          withValue(
+            field.baseline,
+            field.field,
+            `${field.validValue}${" ".repeat(room + 1)}`,
+          ),
+        ),
+      ).toBe("TOO_LONG");
+    });
+  });
+
+  it("refuses no name a keyboard makes: a hundred letters of three units each compose and pass", () => {
+    const LETTER_WITH_TWO_MARKS = "a\u0302\u0301";
+    const typed = LETTER_WITH_TWO_MARKS.repeat(CONTACT_NAME_MAX_LENGTH);
+
+    const stored = contactOf({ ...VALID, name: typed }).name;
+
+    expect(typed.length).toBe(3 * CONTACT_NAME_MAX_LENGTH);
+    expect(countCodePoints(stored)).toBe(CONTACT_NAME_MAX_LENGTH);
+  });
+
+  it("measures the early bound in units and the limit in code points: a hundred two-unit characters pass", () => {
+    const astral = String.fromCodePoint(0x1f600);
+
+    expect(
+      codeOf("name", {
+        ...VALID,
+        name: astral.repeat(CONTACT_NAME_MAX_LENGTH),
+      }),
+    ).toBe("accepted");
+    expect(
+      codeOf("name", {
+        ...VALID,
+        name: astral.repeat(CONTACT_NAME_MAX_LENGTH + 1),
+      }),
+    ).toBe("TOO_LONG");
+    expect(
+      codeOf("name", {
+        ...VALID,
+        name: astral.repeat(
+          (CONTACT_NAME_MAX_LENGTH * UNCOMPOSED_FACTOR) / 2 + 1,
+        ),
+      }),
+    ).toBe("TOO_LONG");
+  });
+
+  it("refuses half a character wherever it stands, before anything is removed around it", () => {
+    const values = [
+      `${HIGH_HALF}Ana`,
+      `Ana${LOW_HALF}`,
+      `A${LOW_HALF}${HIGH_HALF}na`,
+      `Ana${HIGH_HALF}\u200b`,
+      `\u200b${LOW_HALF}\u200bAna`,
+      `Ana${HIGH_HALF}${HIGH_HALF}${LOW_HALF}`,
+    ];
+
+    expect(values.map((name) => codeOf("name", { ...VALID, name }))).toEqual(
+      values.map(() => "FORBIDDEN_CHARACTER"),
+    );
+  });
+
+  it("keeps a whole character beside a format character: only the format character goes", () => {
+    const astral = String.fromCodePoint(0x1f600);
+
+    expect(
+      contactOf({ ...VALID, name: `Ana \u200b${astral}\u200e` }).name,
+    ).toBe(`Ana ${astral}`);
+  });
+});

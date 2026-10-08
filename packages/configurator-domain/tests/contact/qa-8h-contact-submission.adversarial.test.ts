@@ -4,13 +4,14 @@
 import { runInNewContext } from "node:vm";
 
 import { fc, test as propertyTest } from "@fast-check/vitest";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, expectTypeOf, it } from "vitest";
 
 import {
   CONSENT_TEXT_VERSIONS,
   CONTACT_INTENTS,
   validateContactFields,
   validateContactSubmission,
+  type ContactSubmissionRequest,
   type ContactSubmissionValidation,
   type SubmissionIssue,
 } from "../../src/contact/index.js";
@@ -73,6 +74,7 @@ const KNOWN_CODES = [
   "MALFORMED",
   "PHONE_MOLDOVAN_INCOMPLETE",
   "PHONE_MOLDOVAN_TOO_MANY_DIGITS",
+  "PHONE_MOLDOVAN_SECOND_ZERO",
   "PHONE_INTERNATIONAL_INCOMPLETE",
   "PHONE_INTERNATIONAL_TOO_MANY_DIGITS",
   "PHONE_FORMAT_UNRECOGNISED",
@@ -613,13 +615,18 @@ describe("8H S2, readings 4 and 5: the client request id and the honeypot", () =
     ]);
   });
 
-  it("carries a filled honeypot whole and never judges what it holds", () => {
+  // Criterion 23: the request carries whether the honeypot was filled, never the text that filled it.
+  it("carries a filled honeypot as a yes and holds none of what filled it", () => {
     const honeypot = `\r\nBcc: ${MARKER}\u0000\ud800\u202e`;
 
-    expect(validate({ ...DESIGN_REQUEST, honeypot })).toMatchObject({
+    const result = validate({ ...DESIGN_REQUEST, honeypot });
+
+    expect(result).toMatchObject({
       ok: true,
-      request: { honeypot },
+      request: { isHoneypotFilled: true },
     });
+    expect(result.ok && "honeypot" in result.request).toBe(false);
+    expect(JSON.stringify(result)).not.toContain(MARKER);
   });
 
   it("names no part of a honeypot it refuses for length", () => {
@@ -1012,5 +1019,141 @@ describe("8H criterion 17: only what the sender wrote is read, at every level", 
         issues: [{ field: "contact.consent", code: "CONSENT_NOT_GIVEN" }],
       }),
     );
+  });
+});
+
+describe("8H criterion 23: the request says whether the honeypot was filled, not with what", () => {
+  const HONEYPOT_MAX_LENGTH = 256;
+
+  function keysDeep(value: unknown): readonly string[] {
+    if (value === null || typeof value !== "object") return [];
+    return Object.entries(value).flatMap(([key, nested]) => [
+      key,
+      ...keysDeep(nested),
+    ]);
+  }
+
+  function stringsDeep(value: unknown): readonly string[] {
+    if (typeof value === "string") return [value];
+    if (value === null || typeof value !== "object") return [];
+    return Object.values(value).flatMap(stringsDeep);
+  }
+
+  it("declares a yes or no and no text, by type", () => {
+    expectTypeOf<
+      ContactSubmissionRequest["isHoneypotFilled"]
+    >().toEqualTypeOf<boolean>();
+    expectTypeOf<keyof ContactSubmissionRequest>().toEqualTypeOf<
+      | "contact"
+      | "target"
+      | "clientRequestId"
+      | "locale"
+      | "isHoneypotFilled"
+      | "elapsedMs"
+    >();
+  });
+
+  it.each([
+    ["left out", omitting(DESIGN_REQUEST, "honeypot"), false],
+    ["empty", { ...DESIGN_REQUEST, honeypot: "" }, false],
+    ["its own undefined", { ...DESIGN_REQUEST, honeypot: undefined }, false],
+    ["one space", { ...DESIGN_REQUEST, honeypot: " " }, true],
+    ["one format character", { ...DESIGN_REQUEST, honeypot: "\u200b" }, true],
+    ["a line feed", { ...DESIGN_REQUEST, honeypot: "\n" }, true],
+    ["half a character", { ...DESIGN_REQUEST, honeypot: "\ud83d" }, true],
+    ["a word", { ...DESIGN_REQUEST, honeypot: MARKER }, true],
+    ["the text false", { ...DESIGN_REQUEST, honeypot: "false" }, true],
+  ])("reads a honeypot that is %s", (_name, request, isHoneypotFilled) => {
+    expect(validate(request)).toMatchObject({
+      ok: true,
+      request: { isHoneypotFilled },
+    });
+  });
+
+  it.each([
+    ["true", true],
+    ["false", false],
+    ["zero", 0],
+    ["null", null],
+    ["an array", [MARKER]],
+    ["an object", { filled: MARKER }],
+  ])(
+    "refuses a honeypot that is %s: the body holds text there or nothing",
+    (_name, honeypot) => {
+      expect(codesOf({ ...DESIGN_REQUEST, honeypot })).toEqual([
+        "honeypot: NOT_TEXT",
+      ]);
+    },
+  );
+
+  it("bounds the text in code points, and does not compose it to count it", () => {
+    const astral = String.fromCodePoint(0x1f600);
+    const decomposed = "e\u0301";
+
+    expect(
+      codesOf({
+        ...DESIGN_REQUEST,
+        honeypot: astral.repeat(HONEYPOT_MAX_LENGTH),
+      }),
+    ).toEqual(["accepted"]);
+    expect(
+      codesOf({
+        ...DESIGN_REQUEST,
+        honeypot: astral.repeat(HONEYPOT_MAX_LENGTH + 1),
+      }),
+    ).toEqual(["honeypot: TOO_LONG"]);
+    expect(
+      codesOf({
+        ...DESIGN_REQUEST,
+        honeypot: decomposed.repeat(HONEYPOT_MAX_LENGTH / 2),
+      }),
+    ).toEqual(["accepted"]);
+    expect(
+      codesOf({
+        ...DESIGN_REQUEST,
+        honeypot: `${decomposed.repeat(HONEYPOT_MAX_LENGTH / 2)}e`,
+      }),
+    ).toEqual(["honeypot: TOO_LONG"]);
+  });
+
+  it("refuses a million units of combining marks there as too long, at once", () => {
+    const marks = `a${"\u0316\u0301".repeat(500_000)}`;
+    const startedAt = performance.now();
+
+    const codes = codesOf({ ...DESIGN_REQUEST, honeypot: marks });
+
+    expect(codes).toEqual(["honeypot: TOO_LONG"]);
+    expect(performance.now() - startedAt).toBeLessThan(2000);
+  });
+
+  const unitText = fc
+    .array(fc.integer({ min: 0, max: 0xffff }), { maxLength: 40 })
+    .map((units) => `${MARKER}${String.fromCharCode(...units)}`);
+
+  propertyTest.prop([unitText])(
+    "whatever units fill it, the request holds a yes and no string or key of the honeypot's",
+    (honeypot) => {
+      const result = validate({ ...DESIGN_REQUEST, honeypot });
+      if (!result.ok) throw new Error("a bounded honeypot was refused");
+
+      expect(result.request.isHoneypotFilled).toBe(true);
+      expect(keysDeep(result.request)).not.toContain("honeypot");
+      expect(
+        stringsDeep(result.request).filter((text) => text.includes(MARKER)),
+      ).toEqual([]);
+    },
+  );
+
+  it("holds, in an accepted request, exactly the keys its type declares", () => {
+    const result = validate({ ...DESIGN_REQUEST, honeypot: MARKER });
+
+    expect(result.ok ? Object.keys(result.request).sort() : []).toEqual([
+      "clientRequestId",
+      "contact",
+      "elapsedMs",
+      "isHoneypotFilled",
+      "locale",
+      "target",
+    ]);
   });
 });

@@ -30,6 +30,8 @@ import {
   type SubmissionSnapshotResult,
 } from "../../src/index.js";
 
+import { boundedFailureReason } from "../../src/failure-text.js";
+
 import {
   catalogOf,
   GENERATED_KITCHENS,
@@ -1100,5 +1102,99 @@ describe("8H criterion 18: judgeSubmissionEligibility refuses facts that contrad
       code: "BODIES_PAST_WALL",
       placementIds: findOverflowingPlacementIds(overflowing),
     });
+  });
+});
+
+// Ruling S-R1.4: the one shared helper that bounds a failure reason blanks line and paragraph separators as
+// well as control and format characters, so nothing in a thrown message can begin a line of its own.
+describe("8H ruling on failure text: no character that ends a line survives into a thrown message", () => {
+  const LAST_CODE_POINT = 0x10ffff;
+  const LINE_FORGING = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u;
+
+  const forging = Array.from({ length: LAST_CODE_POINT + 1 }, (_, codePoint) =>
+    codePoint >= 0xd800 && codePoint <= 0xdfff
+      ? ""
+      : String.fromCodePoint(codePoint),
+  ).filter((character) => character !== "" && LINE_FORGING.test(character));
+
+  it("sweeps every control, format, line-separator and paragraph-separator character", () => {
+    expect(forging.length).toBeGreaterThan(200);
+    expect(forging).toEqual(
+      expect.arrayContaining([
+        "\n",
+        "\r",
+        String.fromCodePoint(0x85),
+        String.fromCodePoint(0x2028),
+        String.fromCodePoint(0x2029),
+        String.fromCodePoint(0x202e),
+      ]),
+    );
+  });
+
+  it("blanks each of them in a bounded reason", () => {
+    const surviving = forging.filter((character) =>
+      LINE_FORGING.test(boundedFailureReason(`before${character}after`)),
+    );
+
+    expect(surviving).toEqual([]);
+  });
+
+  it("keeps a reason one line when a placement id the caller hands in holds each of them", () => {
+    const fitting = priceDesign({
+      ...requestFor(KITCHEN_L_DESIGN),
+      selections: KITCHEN_L_DESIGN.settings,
+    });
+
+    const forged = forging.filter((character) => {
+      const { message } = thrownBy(() =>
+        judgeSubmissionEligibility({
+          design: KITCHEN_L_DESIGN,
+          overflowingPlacementIds: [`ghost${character}forged line`],
+          pricing: fitting,
+        }),
+      );
+      return (
+        LINE_FORGING.test(message) || !message.includes("ghost forged line")
+      );
+    });
+
+    expect(forged).toEqual([]);
+  });
+
+  it("keeps a reason one line when the design's own placement id holds a line or paragraph separator", () => {
+    const [first] = KITCHEN_L_DESIGN.placements;
+    if (first === undefined) throw new Error("the seeded kitchen is empty");
+    const separators = [
+      String.fromCodePoint(0x2028),
+      String.fromCodePoint(0x2029),
+    ];
+
+    const messages = separators.map((separator) => {
+      const renamed: Design = {
+        ...KITCHEN_L_DESIGN,
+        placements: [
+          { ...first, id: `body${separator}forged`, alongMm: 100_000 },
+          ...KITCHEN_L_DESIGN.placements.slice(1),
+        ],
+      };
+      const pricing = priceDesign({
+        ...requestFor(renamed),
+        selections: renamed.settings,
+      });
+      return thrownBy(() =>
+        judgeSubmissionEligibility({
+          design: renamed,
+          overflowingPlacementIds: [],
+          pricing,
+        }),
+      ).message;
+    });
+
+    expect(messages).toEqual(
+      messages.map(
+        () =>
+          "The submission facts contradict each other: the fit list and the price's own list differ over: body forged",
+      ),
+    );
   });
 });

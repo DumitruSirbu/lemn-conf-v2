@@ -203,6 +203,7 @@ describe("8H criterion 8: the package's own source", () => {
       "contact-fields.ts",
       "contact-submission.ts",
       "index.ts",
+      "input-checks.ts",
       "phone-number.ts",
       "submission-eligibility.ts",
       "submission-snapshot.ts",

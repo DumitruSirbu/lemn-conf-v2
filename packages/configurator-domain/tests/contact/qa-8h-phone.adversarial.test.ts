@@ -33,6 +33,7 @@ function codePointsMatching(category: RegExp): readonly string[] {
 
 const SPACE_SEPARATORS = codePointsMatching(/^\p{Zs}$/u);
 const FORMAT_CHARACTERS = codePointsMatching(/^\p{Cf}$/u);
+const DASHES = codePointsMatching(/^\p{Pd}$/u);
 const FOREIGN_SCRIPT_DIGITS = codePointsMatching(/^\p{Nd}$/u).filter(
   (digit) => !/^[0-9]$/.test(digit),
 );
@@ -249,8 +250,10 @@ describe("8H criterion 1: what is neither form", () => {
     ["a slash", "069/123456"],
     ["a tab", "069\t123456"],
     ["a line feed at the end", "069123456\n"],
-    ["a Unicode hyphen", "069\u2010123456"],
-    ["a non-breaking hyphen", "069\u2011123456"],
+    ["a minus sign", "069\u2212123456"],
+    ["a hyphen bullet", "069\u2043123456"],
+    ["a modifier minus", "069\u02d7123456"],
+    ["an underscore", "069_123456"],
     ["a letter", "0691234S6"],
     ["an extension", "069123456x12"],
   ])("refuses %s as an unrecognised format", (_name, typed) => {
@@ -274,8 +277,11 @@ describe("8H criterion 1: what is neither form", () => {
   it("answers for a million characters without stalling", () => {
     const LONG = 1_000_000;
 
-    expect(codeOf(normalisePhoneNumber("0".repeat(LONG)))).toBe(
+    expect(codeOf(normalisePhoneNumber(`0${"7".repeat(LONG)}`))).toBe(
       "PHONE_MOLDOVAN_TOO_MANY_DIGITS",
+    );
+    expect(codeOf(normalisePhoneNumber("0".repeat(LONG)))).toBe(
+      "PHONE_MOLDOVAN_SECOND_ZERO",
     );
     expect(codeOf(normalisePhoneNumber(" ".repeat(LONG)))).toBe(
       "PHONE_FORMAT_UNRECOGNISED",
@@ -289,19 +295,21 @@ describe("8H criterion 1: what is neither form", () => {
   });
 });
 
-// Criterion 16 (QA finding 1, ruled): the eight digits of a Moldovan number do not begin with 0. The refusal
-// is neither "incomplete" nor "too many", since neither is true of eight digits.
-describe("8H criterion 16: a Moldovan subscriber number does not begin with 0", () => {
+// Criteria 16 and 22 (QA finding 1 and the logic review, ruled): the digits after the prefix do not begin
+// with 0, and a number that does is refused by a code of its own, judged before the count at any length,
+// since nothing completes it and it is not a number with too many digits.
+describe("8H criteria 16 and 22: a second 0 has its own code, at any length", () => {
   const PREFIXES = ["0", "+373"] as const;
+  const COUNTS_FROM_ONE = SWEPT_DIGIT_COUNTS.filter((count) => count > 0);
 
   describe.each(PREFIXES)("after %s", (prefix) => {
-    it("accepts eight digits beginning with each of 1 to 9 and refuses those beginning with 0", () => {
+    it("accepts eight digits beginning with each of 1 to 9 and refuses a second 0 by its own code", () => {
       const outcomes = DIGITS.map((first) =>
         codeOf(normalisePhoneNumber(`${prefix}${first}9123456`)),
       );
 
       expect(outcomes).toEqual([
-        "PHONE_FORMAT_UNRECOGNISED",
+        "PHONE_MOLDOVAN_SECOND_ZERO",
         ...Array.from({ length: 9 }, () => "accepted"),
       ]);
     });
@@ -319,40 +327,79 @@ describe("8H criterion 16: a Moldovan subscriber number does not begin with 0", 
       );
     });
 
-    it("says incomplete or too many before it looks at the first digit: the count is judged first", () => {
-      const outcomes = SWEPT_DIGIT_COUNTS.filter((count) => count > 0).map(
-        (count) =>
-          codeOf(normalisePhoneNumber(`${prefix}0${digitRun(count - 1)}`)),
+    it("gives a second 0 its code at every digit count: the 0 is judged before the count", () => {
+      const outcomes = COUNTS_FROM_ONE.map((count) =>
+        codeOf(normalisePhoneNumber(`${prefix}0${digitRun(count - 1)}`)),
       );
 
       expect(outcomes).toEqual(
-        SWEPT_DIGIT_COUNTS.filter((count) => count > 0).map((count) =>
-          count === MOLDOVAN_SUBSCRIBER_DIGITS
-            ? "PHONE_FORMAT_UNRECOGNISED"
-            : expectedMoldovanOutcome(count),
-        ),
+        COUNTS_FROM_ONE.map(() => "PHONE_MOLDOVAN_SECOND_ZERO"),
       );
     });
 
-    it("refuses eight zeros", () => {
-      expect(codeOf(normalisePhoneNumber(`${prefix}00000000`))).toBe(
-        "PHONE_FORMAT_UNRECOGNISED",
+    it("gives any run of zeros the same code", () => {
+      const outcomes = COUNTS_FROM_ONE.map((count) =>
+        codeOf(normalisePhoneNumber(`${prefix}${"0".repeat(count)}`)),
+      );
+
+      expect(outcomes).toEqual(
+        COUNTS_FROM_ONE.map(() => "PHONE_MOLDOVAN_SECOND_ZERO"),
       );
     });
 
-    it("is not talked round by grouping or format characters about the leading 0", () => {
+    it("leaves the prefix alone as incomplete: nothing has been typed that cannot be completed", () => {
+      expect(codeOf(normalisePhoneNumber(prefix))).toBe(
+        "PHONE_MOLDOVAN_INCOMPLETE",
+      );
+    });
+
+    it("is not talked round by grouping or format characters about the second 0, at any length", () => {
       const spelt = [
+        `${prefix} (0)`,
+        `${prefix} (0) 69`,
         `${prefix} (0) 69 123 45`,
-        `${prefix}-0-6912345`,
+        `${prefix} (0) 69 123 456`,
+        `${prefix}-0-6912345678`,
         `${prefix}\u200b0\u200e6912345`,
         `${prefix}\u00a00 6912345`,
+        `${prefix}\u20130\u2014 69 123 456`,
       ];
 
       expect(spelt.map((typed) => codeOf(normalisePhoneNumber(typed)))).toEqual(
-        spelt.map(() => "PHONE_FORMAT_UNRECOGNISED"),
+        spelt.map(() => "PHONE_MOLDOVAN_SECOND_ZERO"),
       );
     });
+
+    it("sees the second 0 through every space separator, dash and format character", () => {
+      const missed = [...SPACE_SEPARATORS, ...DASHES, ...FORMAT_CHARACTERS]
+        .flatMap((character) => [
+          `${prefix}${character}0${character}6912345`,
+          `${prefix}${character}0`,
+        ])
+        .filter(
+          (typed) =>
+            codeOf(normalisePhoneNumber(typed)) !==
+            "PHONE_MOLDOVAN_SECOND_ZERO",
+        );
+
+      expect(missed).toEqual([]);
+    });
   });
+
+  it.each([
+    ["00 for +", "00373 69 123 456"],
+    ["00 for +, unfinished", "0037"],
+    ["the 0 kept after the calling code", "+373 (0)69 123 456"],
+    ["a Romanian number typed as at home after 0", "0 0722 123 456"],
+  ])(
+    "gives the spelling with %s the code that says what to change",
+    (_name, typed) => {
+      expect(normalisePhoneNumber(typed)).toEqual({
+        ok: false,
+        code: "PHONE_MOLDOVAN_SECOND_ZERO",
+      });
+    },
+  );
 
   const anyDigits = fc.string({
     unit: fc.constantFrom(...DIGITS),
@@ -378,9 +425,143 @@ describe("8H criterion 16: a Moldovan subscriber number does not begin with 0", 
       ok: true,
       normalForm: "+400722123456",
     });
+  });
+
+  it("reads +373 as Moldova's however the digits are grouped: spacing makes no other country of it", () => {
     expect(normalisePhoneNumber("+3 730 6912345")).toEqual({
       ok: false,
-      code: "PHONE_FORMAT_UNRECOGNISED",
+      code: "PHONE_MOLDOVAN_SECOND_ZERO",
     });
+  });
+
+  it("does not call a calling code of 0 a second 0: that is neither form", () => {
+    expect(codeOf(normalisePhoneNumber("+0069123456"))).toBe(
+      "PHONE_FORMAT_UNRECOGNISED",
+    );
+  });
+});
+
+describe("8H criterion 22: incomplete means something completes it", () => {
+  const LONGEST_COMPLETION = 15;
+
+  function isCompletable(typed: string): boolean {
+    return Array.from(
+      { length: LONGEST_COMPLETION },
+      (_, index) => index + 1,
+    ).some((more) => normalisePhoneNumber(`${typed}${"1".repeat(more)}`).ok);
+  }
+
+  /** Every run of up to three digits, the empty one included. */
+  const SHORT_RUNS = ["", ...DIGITS].flatMap((first) =>
+    first === ""
+      ? [""]
+      : ["", ...DIGITS].flatMap((second) =>
+          second === ""
+            ? [first]
+            : ["", ...DIGITS].map((third) => `${first}${second}${third}`),
+        ),
+  );
+
+  const STARTS = ["0", "+373", "+"].flatMap((prefix) =>
+    SHORT_RUNS.map((digits) => `${prefix}${digits}`),
+  );
+
+  it("sweeps every start of a number up to three digits long, in all three ways of writing one", () => {
+    expect(SHORT_RUNS).toHaveLength(1 + 10 + 100 + 1000);
+    expect(
+      new Set(STARTS.map((typed) => codeOf(normalisePhoneNumber(typed)))),
+    ).toEqual(
+      new Set([
+        "PHONE_MOLDOVAN_INCOMPLETE",
+        "PHONE_MOLDOVAN_SECOND_ZERO",
+        "PHONE_INTERNATIONAL_INCOMPLETE",
+        "PHONE_FORMAT_UNRECOGNISED",
+      ]),
+    );
+  });
+
+  // The one start that can be completed and is not called incomplete is a lone "+", which is neither form
+  // until a digit follows; the plan gives 8L the silence while it is typed.
+  it("calls a start incomplete exactly when more digits make it a number, a lone + apart", () => {
+    const INCOMPLETE = [
+      "PHONE_MOLDOVAN_INCOMPLETE",
+      "PHONE_INTERNATIONAL_INCOMPLETE",
+    ];
+
+    const misjudged = STARTS.filter(
+      (typed) =>
+        INCOMPLETE.includes(codeOf(normalisePhoneNumber(typed))) !==
+        isCompletable(typed),
+    );
+
+    expect(misjudged).toEqual(["+"]);
+  });
+
+  const digitsOfAnyLength = fc.string({
+    unit: fc.constantFrom(...DIGITS),
+    maxLength: 16,
+  });
+
+  propertyTest.prop([
+    fc.constantFrom("0", "+373", "+", "00", "+3730"),
+    digitsOfAnyLength,
+  ])(
+    "at any length: an incomplete number can be completed, and a second 0 or too many digits cannot",
+    (prefix, digits) => {
+      const typed = `${prefix}${digits}`;
+      const code = codeOf(normalisePhoneNumber(typed));
+      fc.pre(code !== "accepted" && code !== "PHONE_FORMAT_UNRECOGNISED");
+
+      expect(isCompletable(typed)).toBe(code.endsWith("_INCOMPLETE"));
+    },
+  );
+});
+
+// Ruling L-R1.4: the owner said "dashes" and named a kind. Any dash, Unicode's Pd, is grouping; a minus sign
+// is not a dash.
+describe("8H ruling on dashes: any dash is grouping, and a minus sign is not one", () => {
+  it("finds Unicode's dashes, the keyboard's hyphen and the ones a pasted number carries among them", () => {
+    expect(DASHES.length).toBeGreaterThanOrEqual(20);
+    expect(DASHES).toEqual(
+      expect.arrayContaining([
+        "-",
+        "\u2010",
+        "\u2011",
+        "\u2012",
+        "\u2013",
+        "\u2014",
+        "\uff0d",
+      ]),
+    );
+    expect(DASHES).not.toContain("\u2212");
+  });
+
+  it.each([MOLDOVAN_NATIONAL, MOLDOVAN_INTERNATIONAL])(
+    "gives %s one normal form with any dash at any position",
+    (typed) => {
+      const otherForms = DASHES.flatMap((dash) =>
+        insertedAtEveryPosition(typed, dash),
+      )
+        .map((spelt) => normalisePhoneNumber(spelt))
+        .filter((result) => !result.ok || result.normalForm !== NORMAL_FORM);
+
+      expect(otherForms).toEqual([]);
+    },
+  );
+
+  it("refuses a minus sign at every position of a number that is otherwise right", () => {
+    const accepted = [MOLDOVAN_NATIONAL, MOLDOVAN_INTERNATIONAL, FOREIGN]
+      .flatMap((typed) => insertedAtEveryPosition(typed, "\u2212"))
+      .filter((spelt) => normalisePhoneNumber(spelt).ok);
+
+    expect(accepted).toEqual([]);
+  });
+
+  it("does not let a dash stand for the + of an international number", () => {
+    const accepted = DASHES.map((dash) => `${dash}37369123456`).filter(
+      (spelt) => normalisePhoneNumber(spelt).ok,
+    );
+
+    expect(accepted).toEqual([]);
   });
 });
