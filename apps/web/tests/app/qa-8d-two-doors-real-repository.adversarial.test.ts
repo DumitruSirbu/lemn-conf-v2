@@ -1,6 +1,8 @@
-// The editor's page and the review's page, asked through the real repository with only the database's socket
-// replaced: every request the driver would send is counted here, whichever repository method or module sent it.
-// A mock of one repository method cannot see a query issued by another, and that is what these tests are for.
+// The editor's page and the review's page, asked through the real repository with only the network replaced: the
+// test stands at the global `fetch`, where the driver sends, and sorts every request. A `POST` to the driver's SQL
+// endpoint for this test's own unroutable host is a query and is counted; anything else is a request past the driver
+// and is refused. So a query is seen whichever repository method, module or copy of the driver sent it, which a mock
+// of one repository method cannot do, and the driver itself is never named here.
 import { createHash } from "node:crypto";
 
 import {
@@ -8,11 +10,9 @@ import {
   KITCHEN_L_DESIGN,
   type Design,
 } from "@lemnaria/configurator-domain";
-import { neonConfig } from "@neondatabase/serverless";
 import { isValidElement } from "react";
 import {
   afterAll,
-  afterEach,
   beforeAll,
   beforeEach,
   describe,
@@ -29,6 +29,8 @@ const VISITOR_COOKIE_NAME = "__Host-lemnaria_visitor";
 const OWNER_VALUE = "O".repeat(43);
 const UNROUTABLE_DATABASE_URL =
   "postgresql://qa_user:qa_password@qa-8d-two-doors.invalid/qa_database";
+/** Where the driver posts a query for that host: it swaps the host's first label for `api.`. */
+const SQL_ENDPOINT = "https://api.invalid/sql";
 
 const DOORS = ["editor", "review"] as const;
 type Door = (typeof DOORS)[number];
@@ -74,12 +76,41 @@ const DESIGN_ROW_FIELDS = [
   { name: "revision", dataTypeID: 25 },
 ];
 
-const originalFetchFunction: unknown = neonConfig.fetchFunction;
+function addressOf(input: unknown): string {
+  if (typeof input === "string") return input;
+  if (input instanceof URL) return input.href;
+  if (input instanceof Request) return input.url;
+  return String(input);
+}
+
+function isAQuery(input: unknown, init: RequestInit | undefined): boolean {
+  const method =
+    init?.method ?? (input instanceof Request ? input.method : "GET");
+  return method.toUpperCase() === "POST" && addressOf(input) === SQL_ENDPOINT;
+}
+
+function answerTheQuery(init: RequestInit | undefined): Promise<Response> {
+  sentQueries.push(
+    JSON.parse(typeof init?.body === "string" ? init.body : "{}") as SentQuery,
+  );
+  if (socketAnswer.kind === "failure")
+    return Promise.reject(new TypeError(socketAnswer.message));
+  return Promise.resolve(
+    Response.json({
+      fields: DESIGN_ROW_FIELDS,
+      rows: socketAnswer.rows,
+      command: "SELECT",
+      rowCount: socketAnswer.rows.length,
+      rowAsArray: true,
+    }),
+  );
+}
 
 beforeAll(() => {
   vi.stubEnv("DATABASE_URL", UNROUTABLE_DATABASE_URL);
-  vi.stubGlobal("fetch", (input: unknown) => {
-    requestsPastTheDriver.push(String(input));
+  vi.stubGlobal("fetch", (input: unknown, init?: RequestInit) => {
+    if (isAQuery(input, init)) return answerTheQuery(init);
+    requestsPastTheDriver.push(addressOf(input));
     return Promise.reject(new TypeError("no request may leave this test"));
   });
 });
@@ -96,29 +127,6 @@ beforeEach(() => {
   state.cookies.clear();
   hydrateAndConfigure.mockClear();
   hydrateAndReview.mockClear();
-  neonConfig.fetchFunction = (
-    _url: string,
-    init: RequestInit,
-  ): Promise<Response> => {
-    sentQueries.push(
-      JSON.parse(typeof init.body === "string" ? init.body : "{}") as SentQuery,
-    );
-    if (socketAnswer.kind === "failure")
-      return Promise.reject(new TypeError(socketAnswer.message));
-    return Promise.resolve(
-      Response.json({
-        fields: DESIGN_ROW_FIELDS,
-        rows: socketAnswer.rows,
-        command: "SELECT",
-        rowCount: socketAnswer.rows.length,
-        rowAsArray: true,
-      }),
-    );
-  };
-});
-
-afterEach(() => {
-  neonConfig.fetchFunction = originalFetchFunction as typeof fetch;
 });
 
 function sha256Hex(value: string): string {
@@ -298,6 +306,7 @@ describe("a visitor's request, as each door sends it to the database", () => {
     sentQueries.length = 0;
     for (const door of DOORS) await renderDoor(door, id);
     expect(sentQueries).toHaveLength(DOORS.length);
+    expect(requestsPastTheDriver).toEqual([]);
     return [...sentQueries];
   }
 });
