@@ -377,7 +377,7 @@ describe("the wave writes no colour and takes no probe lease", () => {
     });
   });
 
-  it("takes no probe lease in the insert path", () => {
+  it("spells no `.use(` in the two insert-path files", () => {
     // `.use(` is how a lease is taken (ADR 0076). The re-plan runs inside the bracket its caller
     // already opened, so neither file may open one of its own.
     expect(read("replan-dependent-members.ts")).not.toContain(".use(");

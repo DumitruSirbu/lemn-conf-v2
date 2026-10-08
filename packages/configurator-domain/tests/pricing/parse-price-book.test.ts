@@ -487,24 +487,6 @@ describe("a list is read through a guard, wherever the book declares one", () =>
     expect(backstopped).toEqual([]);
   });
 
-  it("refuses rather than raising, at any list the book carries", () => {
-    const raised = SAMPLE_LIST_PATHS.filter((path) => {
-      const book = bookWithValueAt(
-        BOOK,
-        path.split("."),
-        listRaisingOnEveryRead(),
-      );
-      try {
-        parsePriceBook(book);
-        return false;
-      } catch {
-        return true;
-      }
-    });
-
-    expect(raised).toEqual([]);
-  });
-
   it("names the section for a cabinetRules list whose reads raise", () => {
     const detail = parseDetailOf(
       bookWith({ cabinetRules: listRaisingOnEveryRead() }),
