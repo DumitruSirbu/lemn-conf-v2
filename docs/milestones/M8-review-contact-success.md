@@ -3096,7 +3096,10 @@ own label leaf, and the second line's first fact is that same width.** *Must not
 names a body by the first line alone, so that two bodies of one name and different widths read
 alike; or the name and the label are read from the entry by two routes. (3) D2 stands: one row per body, never *"2 × 800"*. (4) The bottom region is
 re-measured in Russian with three sentences; criterion 12's half still binds, and the wave stops
-if it is reached. (5) *Must not:* the breakdown or the price bar changes.
+if it is reached. (5) *Must not:* ~~the breakdown or the price bar changes~~ **(restated
+2026-10-08, review R1.1) what the breakdown and the price bar print changes. The proof is that
+their own tests and both parity files pass untouched. A change to a function they call that
+alters no string they print is not what this forbids.**
 
 *Added 2026-10-08, from 8D's second visual pass.* The three view chips, 44 px each, cover about a
 quarter of the 158 px scene [the verifier's judgement, relayed]. S2 looks at where they stand, and
@@ -3219,6 +3222,60 @@ value as the owner corrected it, and no departure.
 *QA and the visual pass gain:* criteria 6 and 7; the tripwire of criterion 4 re-measured, since
 the 344.5 px is arithmetic; the bar with a flagged total and with a refusal; an unavailable
 review, whose bar is the call to action alone.
+
+#### 8D2 — QA's figures and the review's one fix, 2026-10-08
+
+QA is green at `074e9c5` and `36f5846` [ran: `git log`]. Its figures, in a browser at 390 × 844
+[relayed, QA-run]:
+
+- **Criterion 4.** The pinned region in Russian with three sentences and the link is **344.5 px,
+  40.8%**; the arithmetic held. Romanian 309.7 px. The tripwire is not reached.
+- **Criterion 6 holds**, and **the limit of ruling 1 is now measured**, in viewport width, in
+  Russian: the word first enters the button's padding at 300 px with 86 000 MDL, at 320 px with
+  986 000, and at 330 px with 1 234 000, where it passes the button's edge at 290 px. At 345, 360
+  and 375 px nothing spills. My sum above feared more than this. *Recorded as a limit with its
+  trigger (ADR 0118):* a supported width under 345 px is named, or a kitchen prices at seven
+  digits. The dearest generated kitchen is 236 000 MDL, so seven digits were written in by hand.
+- **Criterion 7 holds. Criterion 1 holds** over 108 dressed kitchens, 2,886 bodies a language,
+  against a literal table.
+
+**Combined review: approve, one should-fix.** [relayed; the reviewer read the source and ran
+nothing. Its three code claims re-read at HEAD: src.]
+
+**R1.1 — allowed, and it is criterion 2's own must-not.** The two labellers each read
+`content.bodyLabel(entry.label)` for themselves [src `price-breakdown-model.ts:212-229`], which is
+*"read from the entry by two routes"*, held together by one test in one language. **The fix:
+`describePlacementLabel` passes `describePlacementName(entry, content)` to the label leaf.** One
+labeller with one name inside it is what ADR 0148 decision 4 means. It edits a function the
+breakdown calls [src `:201`] and changes no string; criterion 5 is restated above to what it
+protects. *Must not:* a breakdown test, a price-bar test or a `qa-*` file is edited to pass.
+
+**R1.2 — the silent fallback goes; the lookup throws, in the model.** A group's row with no
+detail falls back to its one-line label [src `review-groups.tsx:117-119`]. It cannot happen: C2
+already throws unless the priced bodies and the listed ones are the same, and the rows and the
+details are built from one `groups`. A quiet second answer to a case the model refuses aloud is
+the thing C2 was written against, and it is a branch no test reaches. **The model exports the
+lookup; it throws a named error for a body with no detail; the screen calls it and decides
+nothing.** `ReviewRow` keeps its optional detail, which is the whole-kitchen rows', and its
+comment says so truly. One unit test: the lookup throws for an id the review does not hold.
+
+**The nits, in the same round.** R1.3: the test named for one detail per body counts
+`rowDetails` and loses its unrelated assertion. R1.4: `.sentence` is deleted; no source or test
+names the class [ran: a search of `apps/web/src` and `apps/web/tests` at HEAD]. R1.5: one of
+the two matching comments goes.
+
+**The round.** One implementer; files `price/price-breakdown-model.ts`, `review/review-model.ts`,
+`review/review-groups.tsx`, `review.module.css`, `review/review-scene.tsx`, and the two test
+files it owns. *Reading:* this section; criteria 2 and 5; ADR 0148 decisions 3 and 4. **Then:**
+the coordinator's gates; the visual verifier on the final tree; the combined reviewer on R1.1 and
+R1.2 only; close. QA does not re-run: nothing a customer sees changes, and its files pass
+untouched or the round has failed.
+
+**For the owner's hand check, added.** A body's own finish that equals the kitchen's **is stated
+on its row**. ADR 0099 decides by whether the body holds its own choice, not by whether it
+differs: *"Clearing **deletes the key**; it must never write the current global value into it"*
+[doc, `:118`]. So *"alb mat"* can stand on one row of an all-white kitchen. Right by the record;
+the owner may find it odd.
 
 ### 8E — the rate-limit store
 
