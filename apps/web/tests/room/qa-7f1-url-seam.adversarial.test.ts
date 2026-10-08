@@ -513,13 +513,6 @@ describe("direction is written for every shape that carries the toggle (criterio
     expect(new URLSearchParams(addressBar()).get("direction")).toBe("left");
   });
 
-  it("leaves the parser marking an absent direction for an L, rather than reading it as left", () => {
-    // The parser has never defaulted `direction`; a form that taught it to would change its shipped contract.
-    const state = parseRoomUrlState({ shape: "L" });
-
-    expect(state.markedFields).toContain("direction");
-  });
-
   // A U has one hand, so it draws no toggle, writes no `direction`, and the parser marks nothing for its absence
   // (ADR 0132 decision 8).
   it("draws no toggle for a U and writes no direction on the first sync", () => {

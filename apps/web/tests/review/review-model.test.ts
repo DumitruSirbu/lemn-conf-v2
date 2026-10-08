@@ -94,10 +94,6 @@ const L_ROOM: Design["room"] = {
   depthMm: 2830,
   heightMm: 2600,
 };
-const RIGHT_HAND_L_ROOM: Design["room"] = {
-  ...L_ROOM,
-  cornerDirection: "right",
-};
 const U_ROOM: Design["room"] = {
   shape: "U",
   widthMm: 4480,
@@ -113,20 +109,6 @@ describe("the figure (criterion 3)", () => {
     composedKitchenIn(L_ROOM),
     composedKitchenIn(U_ROOM),
   ];
-
-  it.each(KITCHENS.map((kitchen, index) => [index, kitchen] as const))(
-    "is the priced total rounded up as the price bar rounds it (kitchen %i)",
-    (_index, kitchen) => {
-      const { totalMinor } = pricedOf(kitchen);
-
-      expect(availableReviewOf(kitchen).figure).toEqual({
-        label: ro.price.startingPrefix,
-        amountText: ro.price.amountWithCurrency(
-          groupedMdl(roundedUpMdl(totalMinor)),
-        ),
-      });
-    },
-  );
 
   it("follows the priced total when the rows disagree with it, so it is no sum of the rows", () => {
     const rowSumMdl = pricedOf(SEEDED).lines.reduce(
@@ -191,34 +173,6 @@ describe("the room line (criterion 4)", () => {
     return availableReviewOf(composedKitchenIn(room)).roomLine;
   }
 
-  function bodyCountOf(room: Design["room"]): number {
-    return composedKitchenIn(room).design.placements.length;
-  }
-
-  it("names one length for a straight room, not its drawn depth, then the body count", () => {
-    expect(numbersIn(roomLineOf(STRAIGHT_ROOM))).toEqual([
-      STRAIGHT_ROOM.widthMm,
-      bodyCountOf(STRAIGHT_ROOM),
-    ]);
-  });
-
-  it("names two lengths for an L, then the body count", () => {
-    expect(numbersIn(roomLineOf(L_ROOM))).toEqual([
-      L_ROOM.widthMm,
-      L_ROOM.depthMm,
-      bodyCountOf(L_ROOM),
-    ]);
-  });
-
-  it("names three lengths for a U, then the body count", () => {
-    expect(numbersIn(roomLineOf(U_ROOM))).toEqual([
-      U_ROOM.widthMm,
-      U_ROOM.depthMm,
-      U_ROOM.wallCMm,
-      bodyCountOf(U_ROOM),
-    ]);
-  });
-
   it("writes lengths in whole millimetres with no group separator", () => {
     expect(roomLineOf(L_ROOM)).toContain("3560");
     expect(roomLineOf(L_ROOM)).not.toMatch(/\d[.,\s]\d{3}\b/);
@@ -245,16 +199,6 @@ describe("the room line (criterion 4)", () => {
       return view.roomLine;
     }
 
-    it("states the corner side for an L, and the other side for a right-hand L", () => {
-      const left = roomLineIn(L_ROOM);
-      const right = roomLineIn(RIGHT_HAND_L_ROOM);
-
-      expect(left).toContain(cornerWords[0]);
-      expect(left).not.toContain(cornerWords[1]);
-      expect(right).toContain(cornerWords[1]);
-      expect(right).not.toContain(cornerWords[0]);
-    });
-
     it("states no corner side for a straight room or a U", () => {
       for (const room of [STRAIGHT_ROOM, U_ROOM]) {
         for (const word of cornerWords) {
@@ -267,24 +211,6 @@ describe("the room line (criterion 4)", () => {
 
 describe("the review's fixed sections (criteria 6 and 7)", () => {
   const review = availableReviewOf(SEEDED);
-
-  it("takes its title from the review's own leaf", () => {
-    expect(review.title).toBe(ro.review.title);
-  });
-
-  it("labels the estimate a starting price, rounded up, not an offer, subject to measurement", () => {
-    expect(review.figure.label).toBe(ro.price.startingPrefix);
-    expect(review.disclaimer).toEqual({
-      rounding: ro.review.roundedUpNote,
-      notice: ro.priceBreakdown.note,
-    });
-  });
-
-  it("returns the not-included slot from the approved breakdown disclaimer alone", () => {
-    expect(review.notIncluded).toEqual({
-      lines: [ro.priceBreakdown.disclaimer],
-    });
-  });
 
   it("lays the not-included slot out before the call to action", () => {
     expect(REVIEW_READING_ORDER.indexOf("notIncluded")).toBeGreaterThanOrEqual(

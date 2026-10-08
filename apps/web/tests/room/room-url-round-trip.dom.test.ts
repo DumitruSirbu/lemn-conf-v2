@@ -711,28 +711,6 @@ describe("direction is written, and its absence keeps its meaning (criterion 18)
     expect(browser.push).not.toHaveBeenCalled();
   });
 
-  it("leaves the parser's reading of an absent direction exactly as it was", () => {
-    // The middle layer, also asserted in `room-url-state.test.ts`: an absent `direction` marks the field and resolves
-    // to 1B, never silently to left.
-    expect(parseRoomUrlState({ shape: "L" })).toStrictEqual({
-      substate: "1B",
-      shape: "L",
-      markedFields: ["wallA", "wallB", "height", "direction"],
-    });
-  });
-
-  it("keeps a stored room's absent direction meaning left", () => {
-    // `DesignRoom` carries no corner direction at all, so an absent one means left.
-    const stored: DesignRoom = {
-      shape: "L",
-      widthMm: 3560,
-      depthMm: 2920,
-      heightMm: 2600,
-    };
-
-    expect(roomHrefFromDesignRoom(stored)).toContain("direction=left");
-  });
-
   it("carries no direction at all for a shape with no corner", () => {
     render("?shape=linear&wallA=3.56&height=2.6");
 

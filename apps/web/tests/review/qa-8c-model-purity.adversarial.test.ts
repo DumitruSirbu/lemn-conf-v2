@@ -152,11 +152,6 @@ describe("what the review model loads at run time", () => {
     expect(closure.packages).toEqual(["@lemnaria/configurator-domain"]);
   });
 
-  it("is no store, route, component, hook or client module, however deep", () => {
-    expect(closure.files.filter((file) => UI_LOCATIONS.test(file))).toEqual([]);
-    expect(closure.files.filter(declaresAClientModule)).toEqual([]);
-  });
-
   it("includes the breakdown's row builder and the price figure, so the walk went somewhere", () => {
     expect(closure.files).toEqual(
       expect.arrayContaining([

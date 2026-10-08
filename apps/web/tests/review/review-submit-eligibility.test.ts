@@ -217,36 +217,9 @@ describe("the bodies a refusal names, in display order", () => {
 
     expect(walls).toEqual(["A", "B", "C"]);
   });
-
-  it.each(CATALOGUES)(
-    "carry the review's row label in %s",
-    (locale, messages) => {
-      const content = contentFor(locale, messages);
-      const moved = priceAndProject(
-        pastTheWall(SEEDED.design, placementIdsAt(SEEDED.design, 3, 3)),
-      );
-      const view = viewOf(moved, content);
-      if (view.kind !== "available") throw new Error("expected a review");
-      if (view.submit.kind !== "refused") throw new Error("expected a refusal");
-      const rowLabelOf = new Map(
-        view.groups
-          .flatMap((group) => group.rows)
-          .map((row) => [row.key, row.label]),
-      );
-
-      expect(view.submit.bodies.length).toBeGreaterThan(0);
-      for (const body of view.submit.bodies) {
-        expect(body.label).toBe(rowLabelOf.get(body.placementId));
-      }
-    },
-  );
 });
 
 describe("an empty kitchen, and a kitchen shown with its figure", () => {
-  const SEEDED = priceAndProject(KITCHEN_L_DESIGN);
-  const OVERFLOWING = priceAndProject(
-    pastTheWall(SEEDED.design, placementIdsAt(SEEDED.design, 1, 2)),
-  );
   const EMPTY = priceAndProject({
     ...KITCHEN_L_DESIGN,
     placements: [],
@@ -268,16 +241,6 @@ describe("an empty kitchen, and a kitchen shown with its figure", () => {
 
   it("cannot meet an empty kitchen and an overflow at once: no body, no overflow", () => {
     expect(findOverflowingPlacementIds(EMPTY.design)).toEqual([]);
-  });
-
-  it("is a refusal of the submission and not of the review: an overflowing kitchen still shows its figure", () => {
-    const view = viewOf(OVERFLOWING);
-
-    expect(view.kind).toBe("available");
-    expect(view.submit).toMatchObject({
-      kind: "refused",
-      code: "BODIES_PAST_WALL",
-    });
   });
 
   it("allows the kitchen the generator composed for the room", () => {

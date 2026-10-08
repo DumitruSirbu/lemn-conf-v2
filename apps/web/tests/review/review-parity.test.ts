@@ -1,154 +1,18 @@
-// Criteria 1 and 2: the review lists exactly the rows the breakdown lists, in the order ADR 0063 reads them.
-//
-// Both surfaces now call one row builder, so comparing the review with the breakdown only proves the review adds
-// or drops nothing after it. What can fail on the builder itself is the second comparison: the expected rows are
-// rebuilt here from the projection's entries and the price lines by placement id, with the rounding and grouping
-// written out a second time, and the order is checked against the ADR's rule rather than read off either view.
-import {
-  type CabinetPriceLine,
-  type DisplayEntry,
-  type DisplayGroup,
-  type PriceLine,
-} from "@lemnaria/configurator-domain";
+// Criterion 2: the projection the review reads lists its groups and rows in the order ADR 0063 reads them. That the
+// review prints exactly those rows is `qa-8c-parity-with-the-price-surfaces.adversarial.test.ts`'s.
+import { type DisplayGroup } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
-import { describeReview, type AvailableReview } from "@/review/review-model";
-import { describePriceBreakdown } from "@/price/price-breakdown-model";
-
-import { ro } from "../support/romanian-content";
-import { ARMS, composedKitchensOf, U_ARM } from "../support/swept-kitchens";
-import {
-  generatePricedKitchen,
-  type PricedKitchen,
-} from "../support/generated-kitchens";
+import { ARMS, composedKitchensOf } from "../support/swept-kitchens";
+import { generatePricedKitchen } from "../support/generated-kitchens";
 
 const FLOOR_PER_ARM = 80;
 
 const WALL_RANK = { A: 0, B: 1, C: 2 } as const;
 const BAND_RANK = { base: 0, wall: 1, column: 2 } as const;
 
-/** One row as the surfaces print it, so a mismatch names the field that differs. */
-interface PrintedRow {
-  readonly key: string;
-  readonly label: string;
-  readonly amountText: string;
-}
-
-interface PrintedGroup {
-  readonly key: string;
-  readonly rows: readonly PrintedRow[];
-}
-
-function printedGroups(
-  groups: readonly {
-    readonly key: string;
-    readonly rows: readonly PrintedRow[];
-  }[],
-): readonly PrintedGroup[] {
-  return groups.map(({ key, rows }) => ({
-    key,
-    rows: rows.map(({ key, label, amountText }) => ({
-      key,
-      label,
-      amountText,
-    })),
-  }));
-}
-
-/** Rounded up to the thousand and grouped by three with a space, written a second time on purpose. */
-function expectedAmountMdl(amountMinor: number): string {
-  const mdl = Math.ceil(amountMinor / 100_000) * 1000;
-  return String(mdl).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-}
-
-function expectedRowAmount(line: PriceLine): string {
-  if (line.kind === "cabinet" && line.suppliedBy === "customer") {
-    return ro.priceBreakdown.notIncluded;
-  }
-  if (line.amountMinor === 0) return ro.priceBreakdown.included;
-  return expectedAmountMdl(line.amountMinor);
-}
-
-function cabinetLineOf(
-  kitchen: PricedKitchen,
-  placementId: string,
-): CabinetPriceLine {
-  if (!kitchen.pricing.ok) throw new Error("expected a priced kitchen");
-  const line = kitchen.pricing.priced.lines.find(
-    (candidate): candidate is CabinetPriceLine =>
-      candidate.kind === "cabinet" && candidate.placementId === placementId,
-  );
-  if (line === undefined) throw new Error(`no cabinet line for ${placementId}`);
-  return line;
-}
-
-function expectedGroupsOf(kitchen: PricedKitchen): readonly PrintedGroup[] {
-  return kitchen.groups.map((group) => ({
-    key: `${group.wall}-${group.band}`,
-    rows: group.entries.map((entry) => ({
-      key: entry.placementId,
-      label: ro.priceBreakdown.placementLabel(
-        ro.bodyLabel(entry.label),
-        entry.widthMm,
-      ),
-      amountText: expectedRowAmount(cabinetLineOf(kitchen, entry.placementId)),
-    })),
-  }));
-}
-
-function expectedWholeKitchenRowsOf(
-  kitchen: PricedKitchen,
-): readonly PrintedRow[] {
-  if (!kitchen.pricing.ok) throw new Error("expected a priced kitchen");
-  return kitchen.pricing.priced.lines.flatMap((line) =>
-    line.kind === "cabinet"
-      ? []
-      : [
-          {
-            key: line.lineId,
-            label: ro.priceBreakdown.wholeKitchenLabel(
-              ro.priceBreakdown.wholeKitchenCategories[line.kind],
-              ro.bookText(line.name, line.nameKey),
-            ),
-            amountText: expectedRowAmount(line),
-          },
-        ],
-  );
-}
-
-function reviewOf(kitchen: PricedKitchen): AvailableReview {
-  const view = describeReview({
-    content: ro,
-    design: kitchen.design,
-    pricing: kitchen.pricing,
-    groups: kitchen.groups,
-  });
-  if (view.kind !== "available") {
-    throw new Error("a composed kitchen was expected to be reviewable");
-  }
-  return view;
-}
-
-function breakdownOf(kitchen: PricedKitchen) {
-  const view = describePriceBreakdown({
-    content: ro,
-    pricing: kitchen.pricing,
-    groups: kitchen.groups,
-  });
-  if (view.kind !== "available") {
-    throw new Error("a composed kitchen was expected to break down");
-  }
-  return view;
-}
-
 function wallsOfGroups(groups: readonly DisplayGroup[]): readonly string[] {
   return [...new Set(groups.map((group) => group.wall))];
-}
-
-function allEntriesOf(
-  groups: readonly DisplayGroup[],
-): readonly DisplayEntry[] {
-  return groups.flatMap((group) => group.entries);
 }
 
 /** ADR 0063 as a rule over the sequence of groups and the entries under each, not as a sort. */
@@ -181,27 +45,6 @@ describe.each(ARMS)("over generated $name kitchens", (arm) => {
     );
   });
 
-  it("prints the group keys, row keys, labels and amounts the projection and price lines say", () => {
-    for (const kitchen of composedKitchensOf(arm)) {
-      const review = reviewOf(kitchen);
-
-      expect(printedGroups(review.groups)).toEqual(expectedGroupsOf(kitchen));
-      expect(review.wholeKitchenRows).toEqual(
-        expectedWholeKitchenRowsOf(kitchen),
-      );
-    }
-  });
-
-  it("equals the breakdown's groups and rows, in order", () => {
-    for (const kitchen of composedKitchensOf(arm)) {
-      const review = reviewOf(kitchen);
-      const breakdown = breakdownOf(kitchen);
-
-      expect(review.groups).toEqual(breakdown.groups);
-      expect(review.wholeKitchenRows).toEqual(breakdown.wholeKitchenRows);
-    }
-  });
-
   it("reads wall A, then B, then C, hanging row before top row, and lists a wall only if it holds a body", () => {
     for (const kitchen of composedKitchensOf(arm)) {
       expect(readsInAdr0063Order(kitchen.groups)).toBe(true);
@@ -209,32 +52,6 @@ describe.each(ARMS)("over generated $name kitchens", (arm) => {
       expect(kitchen.groups.every((group) => group.entries.length > 0)).toBe(
         true,
       );
-    }
-  });
-
-  it("lists every body once", () => {
-    for (const kitchen of composedKitchensOf(arm)) {
-      const rowKeys = reviewOf(kitchen).groups.flatMap((group) =>
-        group.rows.map((row) => row.key),
-      );
-
-      expect(rowKeys).toEqual(
-        allEntriesOf(kitchen.groups).map((entry) => entry.placementId),
-      );
-      expect(new Set(rowKeys).size).toBe(kitchen.design.placements.length);
-    }
-  });
-});
-
-describe("over generated U kitchens, wall C", () => {
-  it("is a group in the review, with at least one body, for every composed U", () => {
-    for (const kitchen of composedKitchensOf(U_ARM)) {
-      const wallCGroups = reviewOf(kitchen).groups.filter((group) =>
-        group.key.startsWith("C-"),
-      );
-
-      expect(wallCGroups.length).toBeGreaterThanOrEqual(1);
-      expect(wallCGroups.every((group) => group.rows.length > 0)).toBe(true);
     }
   });
 });

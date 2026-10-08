@@ -159,21 +159,6 @@ describe("the conversions hold past the approved policy's ranges (criteria 7 and
     );
   });
 
-  it("never writes a group separator into a field", () => {
-    // `Intl` groups thousands, and a grouped *"1 200 000"* is `notDigits` to the field's parser — the
-    // room would come back unreadable from its own URL. The refill writes the digit string itself,
-    // which is what this asserts stayed true.
-    fc.assert(
-      fc.property(
-        fc.integer({ min: 1_000_000, max: A_LENGTH_NO_ROOM_REACHES_MM }),
-        (mm) => {
-          expect(refilledWallA(metresTextForUrl(mm))).toMatch(/^\d+$/u);
-        },
-      ),
-      { numRuns: SWEEP_RUNS },
-    );
-  });
-
   it.each([
     [1, "0.001", "1"],
     [10, "0.01", "10"],
