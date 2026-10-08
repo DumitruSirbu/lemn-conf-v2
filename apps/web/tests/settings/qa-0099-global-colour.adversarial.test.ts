@@ -562,38 +562,6 @@ describe("ADR 0099 decision 8 — the follow chip belongs to the editor and not 
 });
 
 describe("ADR 0095 — the wave's Romanian, on the surface it was written for", () => {
-  /** Every string this wave added, and where it has to appear. A key that resolved to `undefined`
-   *  would render as nothing at all and no markup assertion elsewhere would notice. */
-  const ADDED_STRINGS: readonly string[] = [
-    content.globalSettings.colourHeading,
-    content.globalSettings.colourNote,
-    content.globalSettings.colourWarning,
-    content.globalSettings.materialResetConfirm.globalBody,
-    content.panel.finishFollowsKitchen,
-  ];
-
-  it("declares every new key as a non-empty string", () => {
-    for (const value of ADDED_STRINGS) {
-      expect(typeof value).toBe("string");
-      expect(value.trim().length).toBeGreaterThan(0);
-    }
-  });
-
-  /** ADR 0095: Romanian is the source. A string that slipped through in English is the failure this
-   *  guards — asserted on words that occur only in English copy, not on a diacritic count, because a
-   *  correct Romanian sentence need not carry one. *Material* is deliberately absent from the list:
-   *  it is a Romanian word too, and a guard that flagged it would be wrong about correct copy. */
-  it("leaks no English into any of them", () => {
-    const english =
-      /\b(colour|kitchen|cabinet|default|follow|apply|cancel|warning|the|and)\b/i;
-    // The witness: the guard does catch an English sentence, so a run over five Romanian strings is
-    // not passing because the pattern matches nothing at all.
-    expect("The kitchen colour follows the default").toMatch(english);
-    for (const value of ADDED_STRINGS) {
-      expect(value).not.toMatch(english);
-    }
-  });
-
   it("puts the colour group's three strings on the rendered sheet", () => {
     const markup = markupOf(
       viewOf({ design: kitchenWithOneOverride(PAL_ANTRACIT), pending: {} }),

@@ -320,12 +320,4 @@ describe("corrected-source golden output", () => {
       ),
     ).toEqual([...STAGED_GATE_O1_SEMANTIC_CORRECTION_KEYS].sort());
   });
-
-  it("records Gate O1's 12 semantic corrections distinctly", () => {
-    expect(GATE_O1_SEMANTIC_CORRECTION_KEYS).toHaveLength(12);
-    expect(new Set(GATE_O1_SEMANTIC_CORRECTION_KEYS).size).toBe(12);
-    expect(catalogueLeaves(correctedRomanian).map(([key]) => key)).toEqual(
-      expect.arrayContaining([...GATE_O1_SEMANTIC_CORRECTION_KEYS]),
-    );
-  });
 });

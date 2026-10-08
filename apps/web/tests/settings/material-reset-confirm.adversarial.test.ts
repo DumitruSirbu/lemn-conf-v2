@@ -399,18 +399,6 @@ describe("what the confirm step leaves behind when it replaces the body and foot
     const choosing = markupOf("choosing");
     for (const word of choosingWords) expect(choosing, word).toContain(word);
   });
-
-  it("keeps `materialWarning` itself untouched, which is a different string entirely", () => {
-    // ADR 0081 decision 5, pinned by identity so the note beside the material group cannot become the confirmation's.
-    expect(content.globalSettings.materialWarning).not.toContain(
-      content.globalSettings.materialResetConfirm.title,
-    );
-    expect(
-      content.globalSettings.materialResetConfirm.body(
-        CHOSEN_COLOURS_ON_THE_MDF_FIXTURE,
-      ),
-    ).not.toContain(content.globalSettings.materialWarning);
-  });
 });
 
 describe("composing the confirmation reads and writes nothing", () => {

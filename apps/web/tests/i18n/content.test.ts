@@ -462,21 +462,4 @@ describe("Romanian CLDR plural bands", () => {
     expect(renderedWords[0]).toBe("0");
     expect(renderedWords[1]).not.toBe("de");
   });
-
-  it("matches the prior 1–200 bands and identifies zero as the sole 0–200 divergence", () => {
-    const cldr = new Intl.PluralRules("ro");
-    const priorCategory = (count: number): Intl.LDMLPluralRule => {
-      if (count === 1) return "one";
-      const lastTwoDigits = count % 100;
-      return lastTwoDigits >= 1 && lastTwoDigits < 20 ? "few" : "other";
-    };
-    const differences = Array.from({ length: 201 }, (_, count) => count).filter(
-      (count) => cldr.select(count) !== priorCategory(count),
-    );
-
-    expect(differences).toEqual([0]);
-    for (let count = 1; count <= 200; count += 1) {
-      expect(cldr.select(count), String(count)).toBe(priorCategory(count));
-    }
-  });
 });

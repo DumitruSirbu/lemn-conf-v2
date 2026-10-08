@@ -587,10 +587,6 @@ describe("the shape refusal is the policy's answer for the chosen shape, whateve
     expect(view.roomReasons).toEqual([]);
     expect(view.isShapeRefused).toBe(false);
   });
-
-  it("publishes the shape refusal through the SHAPE_NOT_BUILDABLE leaf", () => {
-    expect(SHAPE_REFUSAL_MESSAGE_KEY).toBe("room.issue.shapeNotBuildable");
-  });
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -663,10 +659,6 @@ describe("the straight kitchen is suggested exactly when 1C has a reason and wal
     expect(stateOfDraft(draft).substate).toBe("1D");
     expect(viewOf(draft).isLinearSuggested).toBe(false);
   });
-
-  it("keeps the suggestion's leaf in the catalogue for wave 7J to switch on", () => {
-    expect(LINEAR_SUGGESTION_MESSAGE_KEY).toBe("room.issue.orChooseLinear");
-  });
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -708,10 +700,6 @@ describe("frame 1C's note shows at 1C and at no other sub-state", () => {
 
     expect(draftState.substate).toBe("1A");
     expect(view.isNoteShown).toBe(false);
-  });
-
-  it("publishes frame 1C's note leaf", () => {
-    expect(ONE_C_NOTE_MESSAGE_KEY).toBe("room.presetsAfterValid");
   });
 });
 

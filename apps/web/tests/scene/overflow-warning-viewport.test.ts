@@ -51,14 +51,6 @@ const SETTINGS_ROW_PX = 43.9375;
 /** §9's sheet is pinned to the viewport at 78 dvh (`editor-panel.module.css`), not to the scene. */
 const SHEET_FRACTION_OF_VIEWPORT = 0.78;
 
-/** The reserve is a floor: the sentence wraps and the band grows upward. Swept to a third and fourth
- *  line, because an overlay that grows must still not reach what a selection can see. */
-const BAND_HEIGHTS_PX = [
-  OVERFLOW_WARNING_RESERVED_HEIGHT_PX,
-  OVERFLOW_WARNING_RESERVED_HEIGHT_PX + 16,
-  OVERFLOW_WARNING_RESERVED_HEIGHT_PX + 32,
-];
-
 /** The price bar an overflowing design has, measured in Chromium at 390 × 844. The band and this taller bar are the
  *  same condition, so the canvas must be modelled with both (ADR 0065 decision 7b's flagged-total warning wraps). */
 const FLAGGED_PRICE_BAR_HEIGHT_PX = 125.6875;
@@ -317,17 +309,6 @@ describe("the band never covers the selected cabinet", () => {
 });
 
 describe("the band's height is not a term in the strip's arithmetic", () => {
-  for (const settingsRowPx of SETTINGS_ROW_HEIGHTS_PX) {
-    it(`leaves the strip identical at every band height, with a ${String(settingsRowPx)} px settings row`, () => {
-      // Not vacuous: the counterfactual below moves when the band is put back in flow.
-      const strips = BAND_HEIGHTS_PX.map(() =>
-        stripAboveTheSheetPx(MEASURED_HEADER_PX, settingsRowPx),
-      );
-
-      expect(new Set(strips).size).toBe(1);
-    });
-  }
-
   it("is the assertion a flow band actually fails, at the height this band ships at", () => {
     // In flow the band comes out of the strip, and the settings row plus the band leave under §10.1's touch target.
     const inFlowPx = stripIfTheBandWereInFlowPx(

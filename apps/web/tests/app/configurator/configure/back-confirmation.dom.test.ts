@@ -15,7 +15,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import roMessages from "../../../../src/messages/ro.json";
 import ruMessages from "../../../../src/messages/ru.json";
-import { APPROVED_ROMANIAN_MESSAGES } from "../../../support/approved-romanian-messages";
 
 const router = vi.hoisted(() => ({ push: vi.fn() }));
 
@@ -283,15 +282,12 @@ describe("where the dialog's two buttons stand", () => {
 });
 
 describe("the dialog's approved heading", () => {
-  it.each([
-    ["ro", roMessages, APPROVED_ROMANIAN_MESSAGES.configure.backConfirm.title],
-    ["ru", ruMessages, "Изменения будут потеряны"],
-  ] as const)(
-    "is exactly the owner's wording in %s",
-    (_locale, messages, approved) => {
-      expect(messages.configure.backConfirm.title).toBe(approved);
-    },
-  );
+  // The Romanian heading is held, with the rest of ro.json, by the copy lock; nothing else pins the Russian leaf.
+  it("is exactly the owner's wording in ru", () => {
+    expect(ruMessages.configure.backConfirm.title).toBe(
+      "Изменения будут потеряны",
+    );
+  });
 });
 
 describe("the configure screen's wiring", () => {

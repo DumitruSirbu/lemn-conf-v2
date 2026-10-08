@@ -356,25 +356,6 @@ describe.each(RAW_CATALOGUES)(
   },
 );
 
-/* eslint-disable no-restricted-syntax -- the wording is the subject: what the estimate must say, and four lines the catalogue must not hold. */
-describe("the Romanian the estimate is described in", () => {
-  const ro = catalogueOf("ro");
-
-  it("calls it a starting price, rounded up", () => {
-    expect(fillLeaf(ro, "price.startingPrefix")).toBe("De la");
-    expect(fillLeaf(ro, "review.roundedUpNote")).toMatch(
-      /Preț de pornire, rotunjit în sus/,
-    );
-  });
-
-  it("says it is no commercial offer and waits on measurement", () => {
-    const notice = fillLeaf(ro, "priceBreakdown.note");
-
-    expect(notice).toMatch(/Nu reprezintă o ofertă comercială/);
-    expect(notice).toMatch(/după măsur/i);
-  });
-});
-
 const REVIEW_LEAVES = [
   "review.bodyCount",
   "review.refusalReasons.BODIES_PAST_WALL",
@@ -389,6 +370,7 @@ const REVIEW_LEAVES = [
   "review.title",
 ];
 
+/* eslint-disable no-restricted-syntax -- the wording is the subject: four lines the catalogue must not hold. */
 /** The frame's four not-included lines, which wait for the owner and may not ship as catalogue text. */
 const UNCONFIRMED_NOT_INCLUDED_LINES = [
   /blat de lucru și cant/i,

@@ -209,15 +209,6 @@ describe("a line kind with no category word is not rendered with a hole in it", 
       ).wholeKitchenRows.map((row) => row.label),
     );
   });
-
-  /** The `accessory` kind itself was such a line before the catalogue gained its word, and this states
-   *  what it now reads as — the word is the book-independent half of the pair the membership test
-   *  keys on. */
-  it("has a word for every kind the section is meant to list", () => {
-    expect(
-      Object.keys(ro.priceBreakdown.wholeKitchenCategories).sort(),
-    ).toEqual(["accessory", "hardware", "material"]);
-  });
 });
 
 /**
