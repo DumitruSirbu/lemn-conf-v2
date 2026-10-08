@@ -775,20 +775,46 @@ describe("buildLShellDesign — what src/generation/ does not do, by any route (
     expect(reached).toStrictEqual([]);
   });
 
-  it("names removePlacement and clipEmptyColumnsAtWallEnd nowhere in its code, under any alias", () => {
-    const naming = sources.filter((source) =>
-      /\bremovePlacement\b|\bclipEmptyColumnsAtWallEnd\b/.test(source.code),
+  // The lint block "shell design: no clip and no remove of its own" reads identifiers, import paths, `import()`
+  // and every spelling of `require`. What it does not read is the inside of a string, so the two cases below
+  // are narrowed to exactly that, and to the one call shape it has no selector for.
+  /** Every string and template literal in the comment-free code. */
+  function stringLiteralsOf(code: string): readonly string[] {
+    return (
+      code.match(
+        /"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|`(?:[^`\\]|\\.)*`/g,
+      ) ?? []
     );
+  }
 
-    expect(naming.map((source) => source.name)).toStrictEqual([]);
+  const literals = sources.flatMap((source) => stringLiteralsOf(source.code));
+
+  it("reads string literals at all, the import specifiers among them (premise)", () => {
+    expect(literals).toContain('"../void-engine.js"');
   });
 
-  it("loads no module at run time by a route the scan above cannot see", () => {
-    const dynamic = sources.filter((source) =>
-      /\bimport\s*\(|\brequire\s*\(/.test(source.code),
+  it("spells neither reserved name nor either defining module inside a string, where the lint rule does not read", () => {
+    const spelled = literals.filter((literal) =>
+      /\bremovePlacement\b|\bclipEmptyColumnsAtWallEnd\b|clip-empty-columns-at-wall-end|commands\/remove-placement/.test(
+        literal,
+      ),
     );
 
-    expect(dynamic.map((source) => source.name)).toStrictEqual([]);
+    expect(spelled).toStrictEqual([]);
+  });
+
+  it("hides no import( or require( in a string for an eval to run, and calls no method named import", () => {
+    const hidden = literals.filter((literal) =>
+      /\bimport\s*\(|\brequire\s*\(/.test(literal),
+    );
+    const callingAMethodNamedImport = sources
+      .filter((source) => /\.\s*import\s*\(/.test(source.code))
+      .map((source) => source.name);
+
+    expect({ hidden, callingAMethodNamedImport }).toStrictEqual({
+      hidden: [],
+      callingAMethodNamedImport: [],
+    });
   });
 });
 

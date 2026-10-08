@@ -1,10 +1,6 @@
 // Wave 7D1: the composition shell (ADR 0110 decision 1, as its Amendment B and the milestone's
 // Adjudication 7D1-P rule it), on named rooms. The same claims over the approved range are in
 // `shell-design.property.test.ts`.
-import { readdirSync, readFileSync } from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-
 import { describe, expect, it } from "vitest";
 
 import {
@@ -109,14 +105,6 @@ const PAST_WALL_END_CODES: readonly DesignValidationCode[] = [
   "EMPTY_COLUMN_PAST_WALL_END",
   "COLUMN_EXTENT_PAST_WALL_END",
 ];
-
-const GENERATION_SOURCE = path.join(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "..",
-  "..",
-  "src",
-  "generation",
-);
 
 /** The code a build refused with, or none when it built. Any other error propagates. */
 function refusalOf(build: () => Design): LShellInputRefusal | undefined {
@@ -765,32 +753,5 @@ describe("buildLShellDesign — a proposal fits at every declared depth (criteri
     expect(
       wallBPastWallFindings(atCabinetDepth(filled, deepestMm), deepestMm),
     ).not.toStrictEqual([]);
-  });
-});
-
-describe("buildLShellDesign — what src/generation/ does not do (criteria 7 and 10)", () => {
-  const sources = readdirSync(GENERATION_SOURCE)
-    // 7D2 necessarily adds a probe-owning generator and the store-equivalent command funnel.
-    // These 7D1 must-nots govern the shell builder, not every later module in its directory.
-    .filter((name) => name === "shell-design.ts")
-    .map((name) => ({
-      name,
-      text: readFileSync(path.join(GENERATION_SOURCE, name), "utf8"),
-    }));
-
-  it("scans a non-empty set of modules, the shell's among them", () => {
-    expect(sources.map((source) => source.name)).toContain("shell-design.ts");
-  });
-
-  // That the shell reaches no `removePlacement`, probe or price book is asked of the loaded modules, not of this
-  // text: `shell-design.adversarial.test.ts`, "imports no module that hands it removePlacement, a probe or a price
-  // book". The clip is the one must-not only the text can show: the shell reaches it through `void-engine.ts`.
-  it("never calls clipEmptyColumnsAtWallEnd", () => {
-    const pattern =
-      /\bclipEmptyColumnsAtWallEnd\s*\(|clip-empty-columns-at-wall-end\.js/;
-
-    expect(
-      sources.filter((source) => pattern.test(source.text)).map((s) => s.name),
-    ).toStrictEqual([]);
   });
 });
