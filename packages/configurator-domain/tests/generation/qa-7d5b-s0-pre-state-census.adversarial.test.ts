@@ -1,6 +1,7 @@
 // Re-takes the milestone plan's figures (E1-E8) from the real planner over the approved L rectangle, on a 10 mm grid
-// at 2200, 2600 and 3900 mm ceilings. Every HEAD figure is read off HEAD's plan reconstructed on S0b's plan
-// (`planBeforeS0b`); that reconstruction is proved byte for byte only on the 496 rooms the pre-tower recording holds.
+// at 2200, 2600 and 3900 mm ceilings. No HEAD total is pinned here. Where a case compares against HEAD (the
+// reconstruction check and E7), HEAD's plan is its reconstruction on S0b's plan (`planBeforeS0b`), which is proved
+// byte for byte only on the 496 rooms the pre-tower recording holds.
 // The S0b and S1 models restate the plan's arithmetic over the real composer's context; they do not prove S0b or S1.
 //
 // Every body, id and width is a literal and a composed storage slot is reached through `isComposedStorageSlot`,

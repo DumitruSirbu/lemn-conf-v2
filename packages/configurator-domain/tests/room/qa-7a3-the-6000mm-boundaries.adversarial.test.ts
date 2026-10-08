@@ -152,6 +152,11 @@ describe("the approved policy at every edge of the L (M7 7A3)", () => {
     ],
     ["wall B holding both bodies", lInput(900, 2200), undefined],
     [
+      "the 900 × 2160 room 7D2 could not compose",
+      lInput(900, 2160),
+      refused("shape", "ROOM_TOO_SMALL_FOR_KITCHEN"),
+    ],
+    [
       "the split one short on wall B",
       lInput(1500, 1599),
       refused("shape", "ROOM_TOO_SMALL_FOR_KITCHEN"),

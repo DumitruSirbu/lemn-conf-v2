@@ -351,20 +351,22 @@ describe("buildLShellDesign over the approved range and its edges", () => {
     });
   });
 
+  // An L shell records floor tiles only: the corner wall unit stands over the corner's base, so no
+  // wall-only run is tiled (`shell-design.ts`, `freeRunTiles`). This sweep is L rooms, so it holds the
+  // floor source alone and says so; the wall-only source is held where such a tile exists, on a large
+  // U, in `shell-design.u.test.ts`. A wall-only tile appearing on an L fails here first.
   it("records every tile against its neutral source at the depth it was moved to (criterion 8 after a depth change, ADR 0080)", () => {
+    let floorTilesSeen = 0;
     assertOverTheRange((room) => {
       for (const depthMm of declaredCabinetDepthsMm()) {
         const moved = atCabinetDepth(shellIn(room), depthMm);
-        const catalog = catalogAt(depthMm);
+        const source = NEUTRAL_SOURCE_BY_FLOOR.floor;
+        const definition = catalogAt(depthMm).get(source);
+        if (!definition) throw new Error(`no ${source} at ${String(depthMm)}`);
 
         for (const tile of moved.emptyColumns ?? []) {
-          const source =
-            tile.y0Mm === 0
-              ? NEUTRAL_SOURCE_BY_FLOOR.floor
-              : NEUTRAL_SOURCE_BY_FLOOR.wallOnly;
-          const definition = catalog.get(source);
-          if (!definition)
-            throw new Error(`no ${source} at ${String(depthMm)}`);
+          floorTilesSeen += 1;
+          expect(tile.y0Mm, JSON.stringify(room)).toBe(0);
           expect(tile.depthFromBuildId).toBe(source);
           expect(
             tile.depthMm,
@@ -377,6 +379,8 @@ describe("buildLShellDesign over the approved range and its edges", () => {
         }
       }
     });
+
+    expect(floorTilesSeen).toBeGreaterThan(0);
   });
 
   it("publishes no opening past either wall's end at any declared depth (criterion 4)", () => {

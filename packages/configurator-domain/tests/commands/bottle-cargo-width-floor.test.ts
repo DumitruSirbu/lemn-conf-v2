@@ -11,6 +11,7 @@ import { describe, expect, it } from "vitest";
 
 import { INSERTABLE_BODY_DEFINITIONS } from "../../src/catalog.js";
 import { offersFor } from "../../src/queries/offers.js";
+import { MIN_WIDTH_M } from "../../src/void-engine.js";
 import { clearBodies, insertInto } from "../support/commands.js";
 import { voidAt, type KitchenWorld } from "../support/kitchen-world.js";
 import { columnWorld } from "../support/synthetic-world.js";
@@ -92,6 +93,13 @@ function builtWidthMmAt(widthMm: number, buildId: string): number | undefined {
 const BOUNDARY_WIDTHS_MM = [199, 200, 201, 299, 300, 301] as const;
 
 describe("§2's default floor still governs an entry that declares none", () => {
+  // `DEVELOPMENT-SPEC.md` §2: `MIN_W` is 0.30. The one place the number is written rather than read:
+  // every other floor in the suite is derived from this constant and moves with it, and the
+  // whole-millimetre boundaries below cannot see a change smaller than the comparison's own slack.
+  it("leaves §2's MIN_W at exactly 0.3 m", () => {
+    expect(MIN_WIDTH_M).toBe(0.3);
+  });
+
   it.each(BOUNDARY_WIDTHS_MM)(
     "refuses a plain base cabinet at %i mm with the general code, or accepts it",
     (widthMm) => {

@@ -156,3 +156,73 @@ describe("generateKitchen — dispatches a U to its own shell (U3b)", () => {
     expect(result.log.plan.room).toStrictEqual(room);
   });
 });
+
+// ADR 0110 Amendment B2: a tile's depth is read off a neutral source, and which source is the tile's
+// row — `base-cabinet` on the floor, `wall-cabinet` on a wall-only strip. Only a large U records a
+// wall-only strip at all (its back wall is base-only, so nothing stands over either corner's base on
+// wall A), so an L sweep cannot hold the second source. What the source then does to the strip's depth
+// on a depth change is `shell-design.test.ts`'s "in a 700 mm kitchen…" row; what is held here is the
+// recorded source itself, which that row cannot see at the shell's own depth.
+describe("buildUShellDesign — a large U's wall-only strips are recorded against the wall cabinet", () => {
+  const LARGE_U: DesignRoom = {
+    shape: "U",
+    widthMm: 4000,
+    depthMm: 3600,
+    wallCMm: 3600,
+    heightMm: 2600,
+  };
+  /** One millimetre under the 10 000 mm entered total at which a U's back wall becomes base-only. */
+  const ALMOST_LARGE_U: DesignRoom = {
+    shape: "U",
+    widthMm: 3600,
+    depthMm: 3200,
+    wallCMm: 3199,
+    heightMm: 2600,
+  };
+
+  function tilesOf(room: DesignRoom) {
+    const tiles = shellIn(room).emptyColumns ?? [];
+    return {
+      floor: tiles.filter((tile) => tile.y0Mm === 0),
+      wallOnly: tiles.filter((tile) => tile.y0Mm !== 0),
+    };
+  }
+
+  it("records four strips over the two corners on wall A, each against wall-cabinet at its depth", () => {
+    expect(
+      tilesOf(LARGE_U).wallOnly.map((tile) => [
+        tile.wall,
+        tile.alongMm,
+        tile.widthMm,
+        tile.depthFromBuildId,
+        tile.depthMm,
+      ]),
+    ).toStrictEqual([
+      ["A", 400, 800, "wall-cabinet", 330],
+      ["A", 850, 100, "wall-cabinet", 330],
+      ["A", 3500, 800, "wall-cabinet", 330],
+      ["A", 3950, 100, "wall-cabinet", 330],
+    ]);
+  });
+
+  it("records its eleven floor tiles against base-cabinet at its depth", () => {
+    const floor = tilesOf(LARGE_U).floor;
+
+    expect(floor).toHaveLength(11);
+    expect([
+      ...new Set(
+        floor.map(
+          (tile) =>
+            `${String(tile.depthFromBuildId)} at ${String(tile.depthMm)}`,
+        ),
+      ),
+    ]).toStrictEqual(["base-cabinet at 620"]);
+  });
+
+  it("records no wall-only strip one millimetre under the large-U total", () => {
+    const tiles = tilesOf(ALMOST_LARGE_U);
+
+    expect(tiles.wallOnly).toStrictEqual([]);
+    expect(tiles.floor.length).toBeGreaterThan(0);
+  });
+});

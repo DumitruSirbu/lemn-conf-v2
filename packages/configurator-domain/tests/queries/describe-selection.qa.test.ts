@@ -26,8 +26,8 @@ function metaFor(world: ReturnType<typeof seeded>, id: string) {
 }
 
 describe("§9's canWidth, over the whole seeded population", () => {
-  // `canWidth` is §9's own words and nothing more: "selected · not empty · not `fixedWidth`" — so a
-  // fixed-width body has no width section to render (§11 rows 14 and 16).
+  // `canWidth` is §9 section 6's own words and nothing more: "selected · not empty · not
+  // `fixedWidth`". No §11 row states it.
   // Folding "has widths to offer" into it makes `canWidth: true, sizesMm: []` a representable
   // contradiction and hides M5's missing seeded width sets behind a silently-false capability.
   // Whether there is anything to RENDER is the panel's width section to decide, and it declines

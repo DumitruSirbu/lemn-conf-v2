@@ -159,8 +159,8 @@ describe("one span wholly inside the other is an overlap", () => {
 /**
  * **The whole transition, not its two endpoints.**
  *
- * `sink-accessories.test.ts` pins three points — abutting at each end, and one millimetre in. A
- * swept centre asserts the *shape*: a host exists for exactly the centres whose span strictly
+ * The four named points — touching at each end, and one millimetre in from each — are this block's
+ * last case. A swept centre asserts the *shape*: a host exists for exactly the centres whose span strictly
  * overlaps the sink's, and for no others. A predicate off by a millimetre at one end only, or one
  * that admitted a candidate that has passed clean through, is a case in the range rather than a
  * point somebody thought to write down.
