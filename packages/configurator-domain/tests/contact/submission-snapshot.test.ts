@@ -430,7 +430,7 @@ describe("the snapshot holds no contact field and no shown figure, by type", () 
   });
 });
 
-describe("the snapshot holds a design, by its own parse (criterion 20)", () => {
+describe("the snapshot holds a design, by its own parse", () => {
   const KITCHEN = {
     name: "seeded",
     design: KITCHEN_L_DESIGN,

@@ -1,5 +1,8 @@
 import { DesignSchema, type Design } from "../design.js";
-import { describeSchemaIssues } from "../failure-text.js";
+import {
+  describeSchemaIssues,
+  type SchemaIssueShape,
+} from "../failure-text.js";
 import {
   priceDesign,
   type PriceDesignRequest,
@@ -34,7 +37,7 @@ export type SubmissionSnapshotResult =
 /** What was handed in is not a design. The caller's defect, so it is thrown and is not a fourth refusal;
  *  it names the shape of what failed (paths and codes), never a value. */
 export class SubmissionDesignInvalidError extends Error {
-  constructor(issues: Parameters<typeof describeSchemaIssues>[0]) {
+  constructor(issues: readonly SchemaIssueShape[]) {
     super(
       `The submission's design is not a design: ${describeSchemaIssues(issues)}`,
     );
@@ -73,7 +76,8 @@ export function snapshotSubmission(
  *  the screen offers. */
 function parseDesign(candidate: unknown): Design {
   const parsed = DesignSchema.safeParse(candidate);
-  if (!parsed.success)
+  if (!parsed.success) {
     throw new SubmissionDesignInvalidError(parsed.error.issues);
+  }
   return parsed.data;
 }

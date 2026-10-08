@@ -1,5 +1,5 @@
 import { fc, test as propertyTest } from "@fast-check/vitest";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   CONSENT_TEXT_VERSIONS,
@@ -503,10 +503,12 @@ describe("validateContactFields: every issue, in field order", () => {
 
 const ZERO_WIDTH_SPACE = String.fromCodePoint(0x200b);
 const COMBINING_ACUTE = String.fromCodePoint(0x0301);
+const COMBINING_GRAVE_BELOW = String.fromCodePoint(0x0316);
+const LEFT_TO_RIGHT_MARK = String.fromCodePoint(0x200e);
 
 describe("validateContactFields: one stored form for one name (NFC)", () => {
-  const COMPOSED_E_ACUTE = "é";
-  const DECOMPOSED_E_ACUTE = "é";
+  const COMPOSED_E_ACUTE = "\u00e9";
+  const DECOMPOSED_E_ACUTE = `e${COMBINING_ACUTE}`;
 
   it("stores a decomposed letter in its composed form", () => {
     expect(
@@ -547,8 +549,8 @@ describe("validateContactFields: one stored form for one name (NFC)", () => {
   });
 
   it("does not apply the compatibility form, which would change letters the customer chose", () => {
-    const ligature = "ﬁ";
-    const fullWidth = "Ａ";
+    const ligature = "\ufb01";
+    const fullWidth = "\uff21";
 
     expect(contactOf({ ...VALID_INPUT, name: ligature }).name).toBe(ligature);
     expect(contactOf({ ...VALID_INPUT, name: fullWidth }).name).toBe(fullWidth);
@@ -562,7 +564,7 @@ describe("validateContactFields: the consent text version is matched exactly, as
     ["trailing space", `${MEMBER} `],
     ["leading space", ` ${MEMBER}`],
     ["a format character inside", "place" + ZERO_WIDTH_SPACE + "holder"],
-    ["a left-to-right mark in front", `‎${MEMBER}`],
+    ["a left-to-right mark in front", `${LEFT_TO_RIGHT_MARK}${MEMBER}`],
     ["another case", MEMBER.toUpperCase()],
   ])("refuses %s as an unknown version", (_name, consentTextVersion) => {
     expect(
@@ -592,6 +594,7 @@ describe("validateContactFields: only what the sender's object holds itself is r
     channel: "phone",
     consent: true,
     consentTextVersion: KNOWN_CONSENT_TEXT_VERSION,
+    email: "planted@example.md",
   } as const;
 
   afterEach(() => {
@@ -637,19 +640,17 @@ describe("validateContactFields: only what the sender's object holds itself is r
 
   it("reads the e-mail only from the sender's own object", () => {
     const own = { ...VALID_INPUT, channel: "email" };
-    Object.defineProperty(Object.prototype, "email", {
-      value: "planted@example.md",
-      configurable: true,
-    });
-    try {
-      expect(codeOf("email", own)).toBe("REQUIRED");
-    } finally {
-      Reflect.deleteProperty(Object.prototype, "email");
-    }
+    plant("email");
+
+    expect(codeOf("email", own)).toBe("REQUIRED");
   });
 });
 
 describe("validateContactFields: text is judged in the order that keeps it well-formed and cheap", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   const HIGH_HALF = "\udb40";
   const LOW_HALF = "\udc01";
   const TYPED_TEXT_FIELDS: readonly {
@@ -710,15 +711,25 @@ describe("validateContactFields: text is judged in the order that keeps it well-
   });
 
   it("answers a long run of combining marks with TOO_LONG, and does not compose it first", () => {
-    const run = `a${"̖́".repeat(100_000)}`;
-    const started = performance.now();
+    const run = `a${(COMBINING_GRAVE_BELOW + COMBINING_ACUTE).repeat(100_000)}`;
+    const composed: string[] = [];
+    const normalize = Object.getOwnPropertyDescriptor(
+      String.prototype,
+      "normalize",
+    )?.value as (this: string, form?: string) => string;
+    vi.spyOn(String.prototype, "normalize").mockImplementation(function (
+      this: string,
+      form?: string,
+    ) {
+      composed.push(this);
+      return normalize.call(this, form);
+    });
 
     const code = codeOf("name", { ...VALID_INPUT, name: run });
-    const elapsedMs = performance.now() - started;
 
+    // Composing is what costs the length squared, so the behaviour is that the long value never reaches it.
     expect(code).toBe("TOO_LONG");
-    // Composing 200 000 units took seconds; a length check takes microseconds.
-    expect(elapsedMs).toBeLessThan(500);
+    expect(composed.every((text) => text.length < run.length)).toBe(true);
   });
 
   it("removes format characters before it counts, so padding with them is not too long", () => {
@@ -728,7 +739,7 @@ describe("validateContactFields: text is judged in the order that keeps it well-
   });
 
   it("reads the phone as typed through the same order", () => {
-    const longPhone = `079${"̖".repeat(100_000)}123456`;
+    const longPhone = `079${COMBINING_GRAVE_BELOW.repeat(100_000)}123456`;
 
     expect(codeOf("phone", { ...VALID_INPUT, phone: longPhone })).toBe(
       "TOO_LONG",
@@ -765,6 +776,8 @@ describe("validateContactFields: what is stored is stored again unchanged", () =
     )
     .map((points) => String.fromCodePoint(...points));
 
+  /** An oracle written on purpose apart from the source: it restates the classes a stored value may not
+   *  hold, so a change to the source's own classes cannot move what this checks. */
   const FORBIDDEN_OR_FORMAT = /[\p{Cc}\p{Cs}\p{Zl}\p{Zp}\p{Cf}]/u;
 
   function nameOf(text: string) {

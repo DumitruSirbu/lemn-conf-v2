@@ -149,7 +149,7 @@ function judgeRequest(
     target: judgeTarget(request),
     clientRequestId: judgeToken(
       ownValueOf(request, "clientRequestId"),
-      isClientRequestId,
+      (text) => CLIENT_REQUEST_ID_SHAPE.test(text),
       "clientRequestId",
     ),
     locale: judgeLocale(ownValueOf(request, "locale"), servedLocales),
@@ -272,10 +272,6 @@ function judgeText(raw: unknown, field: SubmissionField): Outcome<string> {
   if (raw === undefined) return failed(issue(field, "REQUIRED"));
   if (typeof raw !== "string") return failed(issue(field, "NOT_TEXT"));
   return succeeded(raw);
-}
-
-function isClientRequestId(text: string): boolean {
-  return CLIENT_REQUEST_ID_SHAPE.test(text);
 }
 
 /** Whether the field was filled; its text goes no further than this check. */

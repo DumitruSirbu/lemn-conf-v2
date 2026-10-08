@@ -87,7 +87,7 @@ describe("validateContactSubmission: a valid request", () => {
     },
   );
 
-  it("runs the contact fields through S1's judges, trimming and normalising", () => {
+  it("runs the contact fields through the contact judges, trimming and normalising", () => {
     const request = requestOf({
       ...DESIGN_REQUEST,
       contact: { ...CONTACT, name: "  Ana  ", phone: "+373 79 123 456" },
@@ -434,6 +434,7 @@ describe("validateContactSubmission: the locale", () => {
 });
 
 describe("validateContactSubmission: the honeypot is carried as a yes or no", () => {
+  /** Mirrors `HONEYPOT_MAX_LENGTH` in the source, which is private. */
   const HONEYPOT_MAX = 256;
 
   it("reads an absent or empty honeypot as not filled", () => {
@@ -478,7 +479,9 @@ describe("validateContactSubmission: the honeypot is carried as a yes or no", ()
       { field: "honeypot", code: "NOT_TEXT" },
     ]);
   });
+});
 
+describe("validateContactSubmission: the elapsed time", () => {
   it.each([
     0,
     1,
@@ -533,7 +536,7 @@ describe("validateContactSubmission: the contact fields", () => {
     },
   );
 
-  it("names each failing contact field under the contact, with S1's code", () => {
+  it("names each failing contact field under the contact, with the contact judge's own code", () => {
     const contact = { ...CONTACT, name: "", phone: "0791", consent: false };
 
     expect(issuesOf({ ...DESIGN_REQUEST, contact })).toEqual([
@@ -579,7 +582,7 @@ describe("validateContactSubmission: the contact fields", () => {
   });
 });
 
-describe("validateContactSubmission: the request has no price (D6)", () => {
+describe("validateContactSubmission: the request has no price", () => {
   type RequestKey = keyof ContactSubmissionRequest;
   type ContactKey = keyof ContactFields;
 
@@ -617,6 +620,10 @@ describe("validateContactSubmission: the request has no price (D6)", () => {
     ]);
   }
 
+  /** Fewer keys than the result's three levels hold means the walk read nothing, and "no price-like key" would
+   *  be true of an empty list. */
+  const MIN_KEYS_WALKED = 10;
+
   it.each([
     ["a design request", DESIGN_REQUEST],
     ["an intent request", INTENT_REQUEST],
@@ -625,7 +632,7 @@ describe("validateContactSubmission: the request has no price (D6)", () => {
     (_name, input) => {
       const keys = keysDeep(requestOf(input));
 
-      expect(keys.length).toBeGreaterThan(10);
+      expect(keys.length).toBeGreaterThan(MIN_KEYS_WALKED);
       expect(keys.filter((key) => PRICE_LIKE.test(key))).toEqual([]);
     },
   );

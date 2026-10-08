@@ -8,8 +8,8 @@ export type DesignId = string;
  *  21 characters of `A-Za-z0-9_-`. That package's tests hold the generator to `isDesignId`. */
 const DESIGN_ID_SHAPE = /^[A-Za-z0-9_-]{21}$/;
 
-/** Whether a string has the shape of an id the generator makes. Nothing says every stored id does:
- *  gate on it only after counting the live ones. */
+/** Whether a string has the shape `generateDesignId` makes. Not every id already stored is known to have
+ *  it, so do not refuse a stored design's link on this alone until the live ids have been counted. */
 export function isDesignId(value: string): boolean {
   return DESIGN_ID_SHAPE.test(value);
 }

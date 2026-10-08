@@ -125,7 +125,7 @@ describe("normalisePhoneNumber: accepted shapes", () => {
     );
   });
 
-  it("tells the Moldovan form from the international one, which frame 4B's sentence needs", () => {
+  it("tells the Moldovan form from the international one, since only the first has eight digits to count", () => {
     expect(refusedCode(normalisePhoneNumber("+39 12"))).toBe(
       "PHONE_INTERNATIONAL_INCOMPLETE",
     );
@@ -149,6 +149,8 @@ describe("normalisePhoneNumber: every space separator is grouping", () => {
   ).filter((character) => /^\p{Zs}$/u.test(character));
 
   it("finds the Unicode space separators the test sweeps", () => {
+    // The BMP holds seventeen Zs characters: U+0020, U+00A0, U+1680, U+2000 to U+200A, U+202F, U+205F and
+    // U+3000. A sweep that found fewer read the wrong class.
     expect(SPACE_SEPARATORS.length).toBeGreaterThanOrEqual(17);
   });
 
@@ -258,16 +260,14 @@ describe("normalisePhoneNumber: refused shapes", () => {
 
 describe("normalisePhoneNumber: properties", () => {
   const acceptedNumbers = [
-    moldovanNational(8),
-    moldovanInternational(8),
-    otherInternational(7),
-    otherInternational(11),
-    otherInternational(15),
-  ];
+    ["a Moldovan number with 0", moldovanNational(8)],
+    ["a Moldovan number with +373", moldovanInternational(8)],
+    ["the shortest international number", otherInternational(7)],
+    ["a middling international number", otherInternational(11)],
+    ["the longest international number", otherInternational(15)],
+  ] as const;
 
-  describe.each(
-    acceptedNumbers.map((arbitrary, arm) => [arm, arbitrary] as const),
-  )("over accepted arm %i", (_arm, plain) => {
+  describe.each(acceptedNumbers)("over accepted %s", (_arm, plain) => {
     propertyTest.prop([plain])(
       "normalising a normal form changes nothing",
       (entered) => {
@@ -293,23 +293,19 @@ describe("normalisePhoneNumber: properties", () => {
     fc.constantFrom("0", "+373"),
   ])(
     "every Moldovan form of one subscriber yields the same normal form",
-    (subscriberDigits, firstPrefix, secondPrefix) => {
-      const first = accepted(
-        normalisePhoneNumber(firstPrefix + subscriberDigits),
-      );
-      const second = accepted(
-        normalisePhoneNumber(secondPrefix + subscriberDigits),
-      );
+    (digits, firstPrefix, secondPrefix) => {
+      const first = accepted(normalisePhoneNumber(firstPrefix + digits));
+      const second = accepted(normalisePhoneNumber(secondPrefix + digits));
 
-      expect(first).toBe(`+373${subscriberDigits}`);
+      expect(first).toBe(`+373${digits}`);
       expect(second).toBe(first);
     },
   );
 
   propertyTest.prop([fc.constantFrom("0", "+373"), subscriberDigits(7)])(
     "seven digits after a Moldovan prefix are refused as a Moldovan number that is incomplete",
-    (prefix, subscriberDigits) => {
-      expect(refusedCode(normalisePhoneNumber(prefix + subscriberDigits))).toBe(
+    (prefix, digits) => {
+      expect(refusedCode(normalisePhoneNumber(prefix + digits))).toBe(
         "PHONE_MOLDOVAN_INCOMPLETE",
       );
     },
@@ -317,8 +313,8 @@ describe("normalisePhoneNumber: properties", () => {
 
   propertyTest.prop([fc.constantFrom("0", "+373"), subscriberDigits(9)])(
     "nine digits after a Moldovan prefix are refused as a Moldovan number with too many",
-    (prefix, subscriberDigits) => {
-      expect(refusedCode(normalisePhoneNumber(prefix + subscriberDigits))).toBe(
+    (prefix, digits) => {
+      expect(refusedCode(normalisePhoneNumber(prefix + digits))).toBe(
         "PHONE_MOLDOVAN_TOO_MANY_DIGITS",
       );
     },
@@ -343,17 +339,15 @@ describe("normalisePhoneNumber: properties", () => {
   );
 
   const refusedNumbers = [
-    moldovanNational(7),
-    moldovanNational(9),
-    moldovanInternational(7),
-    moldovanInternational(9),
-    otherInternational(6),
-    otherInternational(16),
-  ];
+    ["a Moldovan number with 0 and seven digits", moldovanNational(7)],
+    ["a Moldovan number with 0 and nine digits", moldovanNational(9)],
+    ["a Moldovan number with +373 and seven digits", moldovanInternational(7)],
+    ["a Moldovan number with +373 and nine digits", moldovanInternational(9)],
+    ["an international number one digit short", otherInternational(6)],
+    ["an international number one digit long", otherInternational(16)],
+  ] as const;
 
-  describe.each(
-    refusedNumbers.map((arbitrary, arm) => [arm, arbitrary] as const),
-  )("over refused arm %i", (_arm, plain) => {
+  describe.each(refusedNumbers)("over refused %s", (_arm, plain) => {
     propertyTest.prop([groupedAndPlain(plain)])(
       "grouping characters do not make a refused number acceptable",
       ([unGrouped, grouped]) => {

@@ -1,4 +1,4 @@
-// A price that cannot be computed is our fault, and the rule now carries why it failed (criterion 15). The
+// A price that cannot be computed is our fault, and the domain rule carries why it failed (see ADR 0150). The
 // review prints none of it: its refusal is a code and no bodies, whatever the failure said.
 import {
   KITCHEN_L_DESIGN,
@@ -33,7 +33,7 @@ describe("the review of a kitchen whose price cannot be computed", () => {
     groups: kitchen.groups,
   });
 
-  it("refuses with the code and no bodies, as it always did", () => {
+  it("refuses with the code and no bodies", () => {
     expect(view).toEqual({
       kind: "unavailable",
       submit: { kind: "refused", code: "PRICING_FAILED", bodies: [] },

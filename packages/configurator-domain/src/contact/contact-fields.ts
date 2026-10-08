@@ -116,7 +116,7 @@ function judgeFields(input: ContactFieldsInput): FieldJudgements {
   return {
     name: judgeRequiredText(ownValueOf(input, "name"), CONTACT_NAME_MAX_LENGTH),
     phone: judgePhone(ownValueOf(input, "phone")),
-    locality: judgeBoundedText(
+    locality: readTypedText(
       ownValueOf(input, "locality"),
       CONTACT_LOCALITY_MAX_LENGTH,
     ),
@@ -155,12 +155,8 @@ function assemble(accepted: AcceptedJudgements): ContactFields {
 }
 
 function judgeRequiredText(raw: unknown, maxLength: number): Judgement<string> {
-  const bounded = judgeBoundedText(raw, maxLength);
+  const bounded = readTypedText(raw, maxLength);
   return bounded.ok && bounded.value === "" ? refuse("REQUIRED") : bounded;
-}
-
-function judgeBoundedText(raw: unknown, maxLength: number): Judgement<string> {
-  return readTypedText(raw, maxLength);
 }
 
 function judgePhone(raw: unknown): Judgement<{

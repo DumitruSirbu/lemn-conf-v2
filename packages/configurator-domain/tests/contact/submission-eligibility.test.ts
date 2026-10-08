@@ -51,6 +51,36 @@ function refusalCodeOf(eligibility: SubmissionEligibility): string {
   return eligibility.kind === "refused" ? eligibility.refusal.code : "allowed";
 }
 
+function pricedUnder(design: Design): PricedDesign {
+  return pricedOf(
+    priceDesign({
+      design,
+      catalog: catalogOf(design),
+      book: SAMPLE_BOOK,
+      pricingVersion: SAMPLE_BOOK.version,
+      selections: design.settings,
+    }),
+  );
+}
+
+const SUPPLIED_IDS = new Set(
+  pricedOf(PRICED_SEEDED).lines.flatMap((line) =>
+    line.kind === "cabinet" && line.suppliedBy === "customer"
+      ? [line.placementId]
+      : [],
+  ),
+);
+
+/** Only these bodies kept, and the recorded spaces dropped with the rest. */
+function keepingOnly(ids: ReadonlySet<string>): Design {
+  return {
+    ...NO_BODIES,
+    emptyColumns: [],
+    columnExtents: [],
+    placements: KITCHEN_L_DESIGN.placements.filter(({ id }) => ids.has(id)),
+  };
+}
+
 describe("judgeSubmissionEligibility: the order of the three refusals (ADR 0148 decision 1)", () => {
   const PLACEMENT_IDS = KITCHEN_L_DESIGN.placements.map(({ id }) => id);
   const [FIRST, SECOND] = PLACEMENT_IDS;
@@ -210,36 +240,6 @@ describe("judgeSubmissionEligibility: the order of the three refusals (ADR 0148 
   });
 });
 
-function pricedUnder(design: Design): PricedDesign {
-  return pricedOf(
-    priceDesign({
-      design,
-      catalog: catalogOf(design),
-      book: SAMPLE_BOOK,
-      pricingVersion: SAMPLE_BOOK.version,
-      selections: design.settings,
-    }),
-  );
-}
-
-const SUPPLIED_IDS = new Set(
-  pricedOf(PRICED_SEEDED).lines.flatMap((line) =>
-    line.kind === "cabinet" && line.suppliedBy === "customer"
-      ? [line.placementId]
-      : [],
-  ),
-);
-
-/** Only these bodies kept, and the recorded spaces dropped with the rest. */
-function keepingOnly(ids: ReadonlySet<string>): Design {
-  return {
-    ...NO_BODIES,
-    emptyColumns: [],
-    columnExtents: [],
-    placements: KITCHEN_L_DESIGN.placements.filter(({ id }) => ids.has(id)),
-  };
-}
-
 describe("holdsNothingLemnariaSupplies: read off the supplier, never off an amount", () => {
   it("sees, in the seeded kitchen, bodies the customer supplies and bodies Lemnaria sells", () => {
     expect(SUPPLIED_IDS.size).toBeGreaterThan(0);
@@ -389,7 +389,7 @@ describe("judgeSubmissionEligibility: facts that cannot all be true throw", () =
     ).toThrow(/p0 FORGED/);
   });
 
-  it("names the bodies in the error and nothing else about the design", () => {
+  it("names the offending body in the error", () => {
     expect(() => judge([], [FIRST])).toThrow(FIRST);
   });
 });
