@@ -3755,6 +3755,55 @@ sharpened first and the fix is measured against that.**
 re-aim together; then review as ruled. *Reading for both:* this section;
 `rate-limit-store.ts`; QA's race test.
 
+#### 8E — QA round 2, and F3, ruled 2026-10-08
+
+**State.** The ordered prune is `33778b1`; QA's round 2 is `a681234` [ran: `git log`]. The race
+is green thirty runs of thirty with every expired row gone, and criteria 10, 11 and 12 hold
+[relayed, QA-run]. One test is red, on F3.
+
+**F3 — the grant test asks about seven privileges and the server knows eight. Test-fidelity
+problem, and the fault began in this plan.** My ruling on criterion 7 said *"truncate, references
+and trigger not"*: it listed three where it meant *no other*. The server's eighth is `MAINTAIN`
+[relayed, QA-run on the test database]; a grant of it to the role or to `PUBLIC` would pass.
+
+**Ruling — the coordinator's proposal, with a floor. The list comes from the server.**
+
+- **Criterion 7, restated.** On `public.rate_limit_counters` the role holds select, insert,
+  update and delete, **and no other table privilege the server it runs on knows**. The names of
+  the others are asked of that server, not written in the test.
+- *Why not a literal with a version guard:* a literal is what went stale here, and it goes stale
+  again at the next privilege a server gains. A guard is a second thing to keep true, about a
+  database whose version nobody has read: that the application's runs what the test database
+  runs is inference. A name the server gave is a name it will answer for.
+- **The floor, so the list cannot pass by being short.** What the server returns must contain
+  the four held and truncate, references and trigger. If it does not, the test **fails**; it does
+  not skip and does not go on with what it got. *Must not:* an empty or shortened list reads as
+  *nothing else held*.
+- *Shape:* the question to the server is one small helper under `tests/support/`, so QA can run
+  it against the test database now, while the grant test itself still waits for the owner. No
+  production file changes.
+- *Who:* the implementer: `tests/application-role-privileges.test.ts` and the one helper. **Then
+  QA re-aims its three tests**, which read the list out of the grant test's source and will find
+  no literals there: the floor, a boolean for every name, and nothing left out, each asked of the
+  helper on the live test database.
+- *The older three tables:* F3's sibling joins the backlog entry already ruled. When those tests
+  move to effective privilege they take the same helper.
+- *Still true:* the grant test has not run. Criterion 7's grant half stays **written and never
+  executed** until the owner's step.
+
+**Recorded from round 2. No action.**
+
+- **Criterion 11 holds within the harness's reach, and the close-out says it in those words.**
+  Not reached on the live database: two losses inside one call, since the harness loses only the
+  first reply; a lost reply with another caller's hit between it and the repeat; a lost reply on
+  a prune. The first is covered with a mocked driver only.
+- **A hit that both conflicts and would overflow** is refused with one of the two typed errors
+  and counts nothing; which one was not recorded. **The contract does not say which, on
+  purpose:** it promises a typed refusal and no count, and 8F fails closed on either.
+
+**Then review, as ruled:** Full + security, three readers, after the implementer's change and
+QA's re-aim are green.
+
 ### 8F — the limiter and the mint
 
 *Goal.* `POST /api/designs` is bounded by ADR 0019's independent buckets. Closes the application half
