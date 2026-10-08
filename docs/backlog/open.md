@@ -2263,7 +2263,11 @@ answers in milliseconds, but the settings trigger enables only after the first f
 7-11 s under local load, 7-10 s on the runner. A real low-end device may show the disabled state for that
 long. A product question, not a defect; no owner, no phase.
 
-## 121. F1 — `scripts/gates/boundary.sh` matches a driver import on one line only — FOUND 2026-10-07 BY M8 8B's QA, SCHEDULE BEFORE WAVE 8E
+## 121. F1 — `scripts/gates/boundary.sh` matches a driver import on one line only — FOUND 2026-10-07 BY M8 8B's QA — CLOSED 2026-10-08 BY M8 WAVE 8D3 (`b5aed77` … `be4ffe2`)
+
+**Closed 2026-10-08 by wave 8D3** (*8D3 as closed* in the M8 plan): the gate reads every import form and
+eight extensions, checks manifests, and has a fixture test; it runs at pre-commit and in `pnpm check`.
+Follow-ups are 136 to 138. The entry below is kept as found.
 
 **Source [doc, `docs/milestones/M8-review-contact-success.md`, 8B adjudication of QA, F1].** The architecture
 gate matches a Postgres-driver import on one line, so a Prettier-wrapped import or a dynamic import outside
@@ -2400,3 +2404,22 @@ include the review model's throws, among them `MissingRowDetailError` added by 8
 is by design a branch that cannot happen when the model is consistent. Not observed as a defect. Deciding it is a
 product question (what the customer sees, in both languages, and what is logged) and new copy. Whether M9 (delivery preparation) is its home is
 not established by anything read. No owner, no phase.
+
+## 136. The boundary gate's supplier-folder check has no manifest behind it — FOUND 2026-10-08 BY M8 8D3's COMBINED REVIEW, NO OWNER
+
+**Source [m8-8d-review-combined, relayed; the reviewer ran probes].** `vi.mock("../design-source/a")` and a
+template-literal or next-line specifier pass the gate. [coordinator ran] A quoted-path match was tried and
+rejected: it flags `eslint.config.mjs:291`, `:414` and `apps/web/scripts/capture-reference-rig.mjs:29`.
+Separately, `capture-reference-rig.mjs:29` names a path inside `design-source/`, which `AGENTS.md` rule 3 says
+will be deleted; whether that script still has a use is unexamined. No owner, no phase.
+
+## 137. The boundary gate knows two driver names — FOUND 2026-10-08 BY M8 8D3's COMBINED REVIEW, NO OWNER
+
+**Source [m8-8d-review-combined, relayed; the reviewer ran probes].** `postgres`, `pg-pool`, or a relative
+path into `packages/persistence/node_modules` pass, in the manifest check and the import check alike. No
+such use exists on the real tree that anyone has recorded. No owner, no phase.
+
+## 138. The boundary gate flags a string literal that contains `import 'pg'` — FOUND 2026-10-08 BY M8 8D3's COMBINED REVIEW, NO OWNER
+
+**Source [m8-8d-review-combined, relayed; the reviewer ran a probe].** A false positive, not a miss. None on
+the real tree. No owner, no phase.

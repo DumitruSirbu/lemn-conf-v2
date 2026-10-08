@@ -34,13 +34,30 @@ pnpm lint:fix       # eslint --fix, every package
 pnpm typecheck
 pnpm test
 pnpm build
-pnpm check          # format:check + lint + typecheck + test
+pnpm check          # format:check + lint + typecheck + test + gate:boundary
+pnpm gate:boundary  # the boundary gate's fixture test, then the gate itself
 pnpm ci:local       # every CI gate — run before each push
 ```
 
-`pnpm check` runs formatting, linting, type checking, and unit tests in that order. `pnpm ci:local`
-additionally runs build, boundary, lockfile and audit — the full CI set, and what
-`.githooks/pre-push` enforces.
+`pnpm check` runs formatting, linting, type checking, unit tests and `gate:boundary` (the boundary
+gate's fixture test, then the gate). `pnpm ci:local` additionally runs build, lockfile and audit — the
+full CI set, and what `.githooks/pre-push` enforces.
+
+**Why the boundary gate joined `check` and the pre-commit hook (M8 wave 8D3, 2026-10-08).** It was red
+at `ad535d0` for two closed waves because `pnpm check`, the command a wave closes on, did not run it;
+only a push and CI did. The hook leaves out tests and typecheck because they need a database; this gate
+needs neither a network nor a credential, so it runs there too, as the script alone (the fixture test
+runs in `check`, `local-ci.sh` and the CI `boundary` job). The cost, as with lint: another agent's
+unstaged violation stops an unrelated commit.
+
+**The gate's fixture test** (`scripts/gates/boundary.test.mjs`, `node --test`) builds a scratch
+repository per case, runs the script and asserts both the exit and which check refused. **A gate's
+fixture must resemble the real tree's root.** While the gate was being rewritten (8D3), its extension
+pathspecs sat in an unquoted variable and `sh` expanded `*.mjs` against the repository root, where
+`eslint.config.mjs` lives, so nested files went unread while every fixture stayed green, because a
+scratch root held no such file. It never reached a commit; `set -f` and a fixture case that puts a file
+of the same extension at the root now close it. Not proven: the CI runner's bare `node --test` and GNU
+`grep` behaviour have not been run.
 
 ### The `rtk` proxy: do not trust it for verification
 
@@ -171,7 +188,8 @@ there is nothing for Prettier to conflict with.
 left to memory.
 
 `.githooks/pre-commit` formats the staged files in place, re-stages them, then runs `pnpm lint`
-across the workspace. A lint error aborts the commit. `pnpm install` enables it by pointing
+across the workspace and the boundary gate script. A lint error or a boundary violation aborts the
+commit. `pnpm install` enables it by pointing
 `core.hooksPath` at `.githooks` via the root `prepare` script; to enable it by hand in a fresh
 clone:
 

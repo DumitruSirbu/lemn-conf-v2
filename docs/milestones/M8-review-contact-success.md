@@ -1112,7 +1112,8 @@ both in M9.
 | 8C | Stays. ~~In adversarial QA~~ ~~QA green (`5c1ae3e`); adjudicated 2026-10-07: a fix round of four items (C1–C3)~~ **DONE 2026-10-07, commits `97e75c6` … `3bda09d`, not pushed.** Logic and clean-code review approve. See *8C as built* | ~~The fix round, a QA check of it, then logic and clean-code review.~~ — Q30 is settled as C3 |
 | 8D | **DONE 2026-10-08, commits `7fa5258` … `9f4c123`, not pushed.** See *8D as built* and ADR 0148 Amendment A | ~~Dispatchable: restated 2026-10-07 as four slices, criteria 11–15 added (*8D, restated for dispatch*). S1 first~~ — Done. 8D2 follows |
 | 8D2 | **DONE 2026-10-08, commits `3ffad38` … `0fad22c`, not pushed.** Added the same day from 8D's visual review: the rows' second line and the bottom bar, as frames 3A and 3B draw them. See *8D2 as closed* and ADR 0148 Amendment B | ~~8D closed. One owner point: the material pill on screens 3–5~~ — Done. The pill stays the owner's question |
-| 8E | Stays | **Nothing. Dispatchable** |
+| 8D3 | **DONE 2026-10-08, commits `b5aed77` … `be4ffe2`, not pushed.** The boundary gate, red at `ad535d0`, with backlog 121. See *8D3 as closed* | ~~Backlog 121 before 8E~~ — Done |
+| 8E | Stays. **Dispatched 2026-10-08** (a developer is writing `packages/persistence`; nothing else recorded here) | ~~Nothing. Dispatchable~~ — 8D3 |
 | 8I | Stays | 8E's migration number. **Dispatchable** |
 | 8H | Stays; Q24 settled | **Nothing. Dispatchable** |
 | 8J | ~~**Changed:** no provider adapter~~ **Restored: a Resend adapter** (owner, 2026-10-07) | **Nothing to build it. Dispatchable whole**, after 8D. Proving it end to end waits for the owner: the three variables on a deployment, and a sender the provider accepts |
@@ -3452,6 +3453,76 @@ does not fall. (4) *Must not:* any other `qa-*` file changes; a gate is narrowed
 
 *For the scribe:* backlog 121 closes with this; `ci-and-local-gates.md` gains where the gate
 runs and why it joined the hook; ADR 0146's record of the opener is untouched.
+
+#### 8D3 as closed, 2026-10-08
+
+**Shipped, on `m8-review-contact-success`, not pushed [coordinator ran `git log`]:** `b5aed77` plan;
+`b42eb1c` S1 (QA: the two-doors test counts queries at the global `fetch`); `b41e1fa` S2
+(`apps/web`'s devDependency on `@neondatabase/serverless` removed); `8ceafb5` S3 (gate, fixture test,
+wiring); `fcb3e49` review fixes R1.2, R1.3, R1.6, R1.7; `be4ffe2` review fix R1.1.
+
+**What the gate is now** [coordinator-reported]. `scripts/gates/boundary.sh` has one `refuse_matches`
+function; a manifest check (no `package.json` outside `packages/persistence` declares
+`@neondatabase/serverless` or `pg`, by name or behind an `npm:` alias); an import check that reads the
+specifier after `from`, `import` and `require` (wrapped, dynamic, bare, require, subpath) and the scoped
+name as any single- or double-quoted string (so `vi.mock` is seen); eight extensions (ts tsx mts cts js
+jsx mjs cjs); a `git grep` exit above 1 is a gate error, not "OK"; and `set -f`, so the shell does not
+expand the pathspecs. `scripts/gates/boundary.test.mjs` is a `node --test` file of 40 cases, each in a
+scratch repository, each asserting the exit and which check refused. It runs at `.githooks/pre-commit`
+(the script alone), in `pnpm check` and `pnpm gate:boundary` (test, then script), in
+`scripts/local-ci.sh`, and in the `boundary` CI job (test step added; the runner's own Node, no setup
+step).
+
+**Evidence, by who ran it.**
+
+- *Coordinator-run.* At `ad535d0`, `sh scripts/gates/boundary.sh` exit 1 on
+  `apps/web/tests/app/qa-8d-two-doors-real-repository.adversarial.test.ts:11` (there since `95a72fb`).
+  After `b41e1fa`: `require.resolve('@neondatabase/serverless')` from `apps/web` gives
+  `MODULE_NOT_FOUND`, from `packages/persistence` it resolves; the lockfile diff is the one importer
+  entry (3 lines); `pnpm typecheck` exit 0; web vitest 331 files, 6172 passed; `pnpm build` exit 0;
+  lockfile gate exit 0. *Control on the gate:* the first fixture test (32 cases) run against the old
+  script, 21 failed and 11 passed. *Control on `set -f`:* without it, 1 of 40 fails ("reads a nested
+  file when the root holds a file of the same extension"). At `be4ffe2` (the tree before the commit):
+  `pnpm gate:boundary` exit 0 with 40 passing; web vitest 6172 passed; web typecheck exit 0; the gate
+  also exit 0 under `dash`.
+- *QA (m8-8d-qa).* S1: the ten tests stay ten, 44 cases; control with one extra query, "expected … to
+  have a length of 2 but got 3", 1 failed | 43 passed. R1.1: two assertions added to "a database that
+  does not answer"; control with a wrong endpoint constant, 27 failed | 17 passed (the 17 send
+  nothing).
+- *Combined reviewer (m8-8d-review-combined), at `8ceafb5`:* approve with should-fix, no must-fix. It ran
+  the gate, its test, the two-doors file, `dash`, and 27 probe samples in a scratch repository. R1.1 to
+  R1.3 should-fix, R1.4 and R1.5 notes, R1.6 and R1.7 nits. **It did not re-check `fcb3e49` or `be4ffe2`:
+  those fixes are coordinator- and QA-verified only.**
+
+**A defect the coordinator introduced and caught.** While rewriting the gate for the review fixes, the
+coordinator put the extension pathspecs in an unquoted variable. `sh` expanded `*.mjs` against the
+repository root, where `eslint.config.mjs` lives, so nested files went unread while every fixture stayed
+green: a scratch repository's root held no such file. It never reached a commit. `set -f` and the new
+fixture case close it. The lesson, recorded in `ci-and-local-gates.md`: a gate's fixture must resemble the
+real tree's root.
+
+**Deviation.** *Tier was Light* by the architect's ruling 4, against `WORKFLOW.md`'s "dependency changes
+-> Full" row. The coordinator accepted it and told the owner. It is a named choice, not a drift.
+
+**Not proven.** Nothing ran on a CI runner: the ubuntu job's bare `node --test` and GNU `grep` behaviour
+are inference. `pnpm check`, `pnpm ci:local` and e2e were not run at `be4ffe2` (the persistence suite
+needs the live test database).
+
+**Holes left, named** (backlog 136 to 138; ruling 3 had named the `pg` template-literal hole already).
+(a) The supplier-folder check has no manifest behind it: `vi.mock("../design-source/a")` and a
+template-literal or next-line specifier pass [reviewer ran]. A quoted-path match was tried and rejected,
+because it flags `eslint.config.mjs:291`, `:414` and `apps/web/scripts/capture-reference-rig.mjs:29`
+[coordinator ran]. (b) The gate knows two driver names: `postgres`, `pg-pool`, or a relative path into
+`packages/persistence/node_modules` pass, in manifest and import alike [reviewer ran]. (c) A string
+literal containing `import 'pg'` is a false positive; none on the real tree [reviewer ran].
+
+**Criteria.** (1) Gate exit 0 and its fixture test green: coordinator-run at `be4ffe2`, above. (2) The
+rewritten test passes and its control was red: QA-run. (3) The web suite's passing count did not fall:
+6172 before and after, coordinator-run. (4) *Must not:* not verified here beyond the reviewer's reading at
+`8ceafb5`.
+
+**Documentation updated.** Backlog 121 closed; entries 136 to 138 added; `ci-and-local-gates.md`;
+`STATUS.md`.
 
 ### 8E — the rate-limit store
 

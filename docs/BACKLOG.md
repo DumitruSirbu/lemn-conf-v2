@@ -151,7 +151,7 @@ status corrections, in one of these two files:
 | 118 | Dev-scope advisories in the lockfile (tinypool, js-yaml, brace-expansion, braces, vitest); extends 102 | open.md — found 2026-10-06 by the security review; not scheduled, no owner |
 | 119 | A client transition probes write access for the design being left | open.md — found 2026-10-06 by CE S2; harmless (the answer is dropped); a fix is production code; owner's call |
 | 120 | The first WebGL frame can hold "Se verifică accesul" for seconds on a slow device | open.md — found 2026-10-06 by CE S2; a product question, not a defect; no owner |
-| 121 | F1 — `scripts/gates/boundary.sh` matches a driver import on one line only | open.md — found 2026-10-07 by M8 8B's QA; the coordinator schedules it before wave 8E |
+| 121 | F1 — `scripts/gates/boundary.sh` matches a driver import on one line only | **Closed 2026-10-08 by M8 wave 8D3** (`b5aed77` … `be4ffe2`); follow-ups 136 to 138. Found 2026-10-07 by M8 8B's QA |
 | 122 | F5 — a session close that never returns hangs `applyMigrations` | open.md — found 2026-10-07 by M8 8B's QA; unmeasured; the coordinator, before 8S, after the owner approves a measurement |
 | 123 | F6 — do Neon's connection strings carry `sslrootcert` or a sibling? | open.md — recorded 2026-10-07; a documentation read, the coordinator's |
 | 124 | QA18 (census blind to a second `Client` through the opener), "Finding …" journal comments in three test files, and two 8C review nits in `review-model.ts` | open.md — recorded 2026-10-07; low priority, no owner. Gained 2026-10-08 (8D): two long comments in `use-honour-arrival.ts`, an unattributed line beside the locale chip at 1440 px, the Russian top-bar title truncated, the chip's height |
@@ -166,6 +166,9 @@ status corrections, in one of these two files:
 | 133 | The review's first screenful holds about half the rows it held before 8D2 | open.md — recorded 2026-10-08 at M8 8D2's close; the owner's hand check |
 | 134 | A faint vertical hairline left of the Russian chip at 1440 px | open.md — carried from 8D, cause not found; probably 124 item 2; no owner |
 | 135 | The app has no `error.tsx` or `global-error.tsx` | open.md — found 2026-10-08 by M8 8D2's combined review; no owner, no phase |
+| 136 | The boundary gate's supplier-folder check has no manifest behind it (`vi.mock` of a `design-source` path passes); `capture-reference-rig.mjs:29` names a path in `design-source/` | open.md — found 2026-10-08 by M8 8D3's combined review; no owner, no phase |
+| 137 | The boundary gate knows two driver names (`postgres`, `pg-pool`, a relative path into persistence's `node_modules` pass) | open.md — found 2026-10-08 by M8 8D3's combined review; no owner, no phase |
+| 138 | The boundary gate flags a string literal containing `import 'pg'` | open.md — found 2026-10-08 by M8 8D3's combined review; a false positive, none on the real tree; no owner |
 
 ## 2026-09-06 audit note
 
