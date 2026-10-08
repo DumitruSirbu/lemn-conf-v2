@@ -5,10 +5,6 @@
 // describe block names the comparator structurally rather than trusting a convention. The
 // repository-wide sweep that proves no second sort exists lives in the adversarial file beside this
 // one, which reads every shipped source tree rather than this package alone.
-import { readFileSync } from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
@@ -195,29 +191,28 @@ describe("projectDesignForDisplay is a function of the design, not of its array 
   );
 });
 
-const SOURCE_ROOT = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "..",
-  "..",
-  "src",
-);
-const PROJECTION_MODULE = path.join("queries", "design-projection.ts");
-
 describe("the display-order comparator is the only one", () => {
   // That it is the ONLY one is swept repository-wide by `design-projection.adversarial.test.ts`,
   // across all four shipped source trees. This file keeps the half that is about this module: that
-  // the projection reaches the comparator by name.
+  // the projection orders by it, whatever order the document holds its placements in.
   it("is what the projection itself reaches", () => {
-    // Names the comparator, so deleting it from `projectDesignForDisplay` breaks this file rather
-    // than quietly leaving the surfaces to sort for themselves. Asserts on the extracted calls, so
-    // a failure reads as the sort that is actually there instead of as the whole source file.
-    const source = readFileSync(
-      path.join(SOURCE_ROOT, PROJECTION_MODULE),
-      "utf8",
-    );
+    const reversed = {
+      ...KITCHEN_L_DESIGN,
+      placements: [...KITCHEN_L_DESIGN.placements].reverse(),
+    };
+    const idsOf = (design: typeof KITCHEN_L_DESIGN) =>
+      projectDesignForDisplay(design, CATALOG).map((group) =>
+        group.entries.map((entry) => entry.placementId),
+      );
 
-    expect(source.match(/\.sort\([^)]*\)/g)).toEqual([
-      ".sort(compareDisplayOrder)",
-    ]);
+    for (const group of projectDesignForDisplay(reversed, CATALOG)) {
+      expect(group.entries).toEqual(
+        [...group.entries].sort(compareDisplayOrder),
+      );
+    }
+    expect(idsOf(reversed)).toEqual(idsOf(KITCHEN_L_DESIGN));
+    expect(idsOf(reversed).flat()).toHaveLength(
+      KITCHEN_L_DESIGN.placements.length,
+    );
   });
 });

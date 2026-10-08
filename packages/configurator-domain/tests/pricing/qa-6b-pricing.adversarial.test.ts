@@ -735,11 +735,14 @@ describe("an overflowing design loses nothing, even when all of it overflows", (
   it("publishes exactly the ids the published overflow query answers", () => {
     const design = everyBodyPastItsWall();
 
+    // Stated here and not read off the query: every body of that design is past its wall and none of the
+    // seeded kitchen's is, so a query answering nothing cannot agree with both.
+    expect([...priceOrFail({ design }).overflowingPlacementIds].sort()).toEqual(
+      design.placements.map((placement) => placement.id).sort(),
+    );
+    expect(priceOrFail().overflowingPlacementIds).toEqual([]);
     expect(priceOrFail({ design }).overflowingPlacementIds).toEqual([
       ...findOverflowingPlacementIds(design),
-    ]);
-    expect(priceOrFail().overflowingPlacementIds).toEqual([
-      ...findOverflowingPlacementIds(KITCHEN_L_DESIGN),
     ]);
   });
 });

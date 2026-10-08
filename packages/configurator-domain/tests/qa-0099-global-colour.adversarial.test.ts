@@ -931,7 +931,9 @@ describe("ADR 0099 decision 6 — ADR 0057's invariant at the write seam", () =>
     const issues = validateDesignForCatalog(design, CATALOG);
 
     expect(materialOffersFinish(materialById(VENEER_ID), MDF_RED)).toBe(false);
-    expect(issues.length).toBeGreaterThan(0);
+    expect(issues.map((issue) => issue.code)).toEqual([
+      "SETTINGS_WEAR_UNOFFERED_FINISH",
+    ]);
   });
 
   // The load seam's safety net: such a stored colour loads as the material's default instead of being refused.

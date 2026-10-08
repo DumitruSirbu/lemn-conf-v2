@@ -561,18 +561,32 @@ describe("a resize rebuilds through the declared catalogue equivalent", () => {
     }
   });
 
-  it("does not change any member's module line or height", () => {
+  // A seeded base records its 820 mm carcass and §7's base row is 860, so the rebuild raises it once; the shelves
+  // above build to the slots they already fill (see DEVELOPMENT-SPEC §5.4).
+  it("keeps every member's module line and builds each at its §7 equivalent's height", () => {
     const world = pairWithEmptyRight();
+    const lineAndHeightOf = (design: Design) =>
+      ["L-base", "L-wall", "L-top"].map((id) => {
+        const placement = design.placements.find(
+          (candidate) => candidate.id === id,
+        );
+        return [id, placement?.y0Mm, placement?.body.heightMm];
+      });
 
     const result = resizeTo(world, "L-base", 800);
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    for (const id of ["L-base", "L-wall", "L-top"]) {
-      const before = recordOf(world.design, id).frame;
-      const after = recordOf(result.design, id).frame;
-      expect([id, after.y0, after.h]).toEqual([id, before.y0, before.h]);
-    }
+    expect(lineAndHeightOf(world.design)).toEqual([
+      ["L-base", 0, 820],
+      ["L-wall", 1500, 700],
+      ["L-top", 2200, 400],
+    ]);
+    expect(lineAndHeightOf(result.design)).toEqual([
+      ["L-base", 0, 860],
+      ["L-wall", 1500, 700],
+      ["L-top", 2200, 400],
+    ]);
   });
 });
 

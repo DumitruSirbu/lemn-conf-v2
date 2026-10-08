@@ -296,35 +296,8 @@ describe("no stored document is refused that could be loaded before wave 6Q-a", 
     );
   });
 
-  it("reaches the offer from both load-seam modules and the command's code from neither", () => {
-    // 6Q-a asserted the opposite of the first two lines, because 6Q-a was forbidden to touch these
-    // modules at all. 6Q-b is the wave that wires them, and the ordering — the resolution in
-    // `migrate-design.ts` *before* the refusal `validate-design.ts` declares — is what the
-    // "no stored document is refused" sweep above measures.
-    //
-    // **Wave 6R put the lookup behind `materialOfDesign`**, which is one hop and the same rule; the
-    // load-seam property is that neither module resolves a material any way that can throw, so the
-    // hop is asserted below rather than allowed to hide it.
-    for (const file of ["validate-design.ts", "migrate-design.ts"]) {
-      const source = sourceOf(file);
-      expect(source).toContain("materialOffersFinish");
-      expect(source).toContain("materialOfDesign");
-      expect(source).not.toContain("materialById");
-      // Still the command's own rejection code, and still not a validation finding.
-      expect(source).not.toContain("FINISH_NOT_OFFERED");
-    }
-  });
-
-  it("resolves a design's material through the total lookup and never the throwing one", () => {
-    // The hop the test above stops at. `materialById` throws `UnknownMaterialError`, and a stored
-    // `materialTierId` naming nothing declared is a reachable state both load seams must survive
-    // (ADR 0078 decision 3) — so the one function they now share may not reach it.
-    const source = sourceOf("design-material.ts");
-
-    expect(source).toContain("lookUpMaterial");
-    expect(source).not.toContain("materialById");
-  });
-
+  // That neither load-seam module resolves a material by a route that can throw is asked of the load itself,
+  // in "an undeclared material id at every seam a stored one reaches" below.
   it("keeps FINISH_NOT_OFFERED reachable from the command and from nowhere else", () => {
     for (const file of [
       "validate-design.ts",

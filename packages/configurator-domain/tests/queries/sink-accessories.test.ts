@@ -151,7 +151,7 @@ describe("the rack's host on the seeded design", () => {
         ),
         CATALOG,
       ),
-    ).toHaveLength(1);
+    ).toEqual([{ sinkPlacementId: "p0", rackHostPlacementId: "p11" }]);
   });
 
   /** **The second wrong reading: *the highest*.** `p17` is the top box at `y0` 2200; a rack there

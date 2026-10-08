@@ -14,7 +14,10 @@ import { describe, expect, it } from "vitest";
 
 import { countCabinetsWearingAChosenFinish } from "../src/chosen-finishes.js";
 import { clearFinish } from "../src/commands/set-appearance.js";
-import { setGlobalFinish } from "../src/commands/set-whole-kitchen-settings.js";
+import {
+  setGlobalFinish,
+  setMaterialTier,
+} from "../src/commands/set-whole-kitchen-settings.js";
 import type { Design, DesignPlacement } from "../src/design.js";
 import {
   KITCHEN_L_BODY_CATALOG,
@@ -434,5 +437,16 @@ describe("ADR 0099 decision 6 — a material change re-resolves the global level
     expect(
       sameFinish(MDF_WHITE, materialById("material.melamine").defaultFinish),
     ).toBe(false);
+
+    const changed = setMaterialTier({
+      design,
+      tierId: "material.melamine",
+      availableTierIds: ["material.painted-mdf", "material.melamine"],
+      occurredAt: "2026-09-10T10:00:00.000Z",
+    });
+
+    expect(
+      changed.ok ? changed.design.settings?.finish : changed.reason,
+    ).toEqual(materialById("material.melamine").defaultFinish);
   });
 });

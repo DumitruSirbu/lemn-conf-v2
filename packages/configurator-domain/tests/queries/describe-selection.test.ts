@@ -6,7 +6,7 @@ import {
 } from "../../src/fixtures/kitchen-l-design.js";
 import { setFinish, setHandle } from "../../src/commands/set-appearance.js";
 import { describeSelection } from "../../src/queries/describe-selection.js";
-import { clearBodies, OCCURRED_AT } from "../support/commands.js";
+import { clearBodies, insertInto, OCCURRED_AT } from "../support/commands.js";
 import {
   CABINETRY_CHIPS_MM,
   HINGED_CHIPS_MM,
@@ -136,10 +136,22 @@ describe("describeSelection — a void", () => {
 
 describe("describeSelection — width chips", () => {
   it("carries the catalogue's own size set for an insertable body", () => {
-    const world = clearBodies(seeded(), ["p1"]);
-    // One row of each shape ADR 0035 recognises: a discrete appliance niche, and a cabinetry row
-    // stepped between its own bounds.
-    expect(world.catalog.get("base-dishwasher")?.sizesMm).toEqual([450, 600]);
+    // A discrete appliance niche (ADR 0035), inserted through the command so the body selected is a §7 row.
+    const cleared = clearBodies(seeded(), ["p1"]);
+    const inserted = insertInto(
+      cleared,
+      { kind: "void", id: voidAt(cleared, "A|2.00", 0).id },
+      "base-dishwasher",
+    );
+    if (!inserted.ok) throw new Error(inserted.reason.code);
+    const world = advance(cleared, inserted.design);
+
+    expect(
+      describeSelection({
+        ...world,
+        target: { kind: "placement", id: inserted.effect.placementId },
+      })?.sizesMm,
+    ).toEqual([450, 600]);
     expect(world.catalog.get("hood")?.sizesMm).toEqual(HOOD_CHIPS_MM);
   });
 });

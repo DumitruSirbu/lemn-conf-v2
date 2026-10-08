@@ -188,6 +188,8 @@ describe("buildableWidthSpanMm — what §9 says when nothing fits", () => {
       (body) => resolveWidthRangesMm(body),
     );
 
+    // The two numbers a customer is told, stated: recomputed alone they would follow a wrong range helper.
+    expect(span).toEqual({ minMm: 200, maxMm: 800 });
     expect(ranges.length).toBeGreaterThan(0);
     expect(span).toEqual({
       minMm: Math.min(...ranges.map((range) => range.minMm)),

@@ -6,7 +6,6 @@ import {
   KITCHEN_L_DESIGN,
 } from "../src/fixtures/kitchen-l-design.js";
 import { migrateDesign } from "../src/migrate-design.js";
-import { InvalidDesignError } from "../src/repository.js";
 import {
   validateDesignForCatalog,
   type DesignValidationCode,
@@ -242,8 +241,6 @@ describe("a stored document written before the correction", () => {
    *  `migrateDesign` threw, `GET /api/designs/{id}` answered 500 and `/d/{id}` rendered the invalid
    *  state. The assertion is unchanged from when it was written red. */
   it("still loads through the migration seam", () => {
-    expect(() => migrateDesign(2, STORED_UNDER_THE_OLD_ROOM)).not.toThrow(
-      InvalidDesignError,
-    );
+    expect(() => migrateDesign(2, STORED_UNDER_THE_OLD_ROOM)).not.toThrow();
   });
 });

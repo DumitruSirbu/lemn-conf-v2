@@ -8,7 +8,6 @@
 //   `cornerDirection: "right"` still maps to four keys and names no second wall.
 // - **A4, validator ⇔ generator** for one wall — absent from the slices' suites.
 // - **D7, a hostile stored direction** through `generateKitchen`: never a mirror.
-import { readFileSync } from "node:fs";
 
 import { fc } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
@@ -114,19 +113,6 @@ describe("7J-A2 — the approved straight wall is 1200–6000 mm, at both transi
 
     expect(approved.minMm).toBeGreaterThanOrEqual(engine.minMm);
     expect(approved.maxMm).toBeLessThanOrEqual(engine.maxMm);
-  });
-
-  // The comments cite the superseded 6300 as history (lines 15 and 43); the must-not is a *value*.
-  it("never states 6300 as a value in the approved policy's code", () => {
-    const code = readFileSync(
-      new URL("../../src/room/approved-room-policy.ts", import.meta.url),
-      "utf8",
-    )
-      .split("\n")
-      .map((line) => line.replace(/\/\/.*$/, ""))
-      .join("\n");
-
-    expect(code).not.toMatch(/6_?300/);
   });
 
   it("puts no number in any issue — only a field and a code", () => {

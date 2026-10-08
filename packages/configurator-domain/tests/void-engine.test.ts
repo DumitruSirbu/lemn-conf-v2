@@ -381,8 +381,7 @@ describe("recomputeVoids", () => {
     const column = makeColumn({ regions: [[1.5, 2.2]], top: 2.6 });
     const columns = new Map([[column.key, column]]);
     const voids = recomputeVoids([], columns);
-    expect(voids.every((v) => v.y0 >= 1.5)).toBe(true);
-    expect(voids.some((v) => v.y0 < 1.5)).toBe(false);
+    expect(voids.map((v) => v.y0)).toEqual([1.5, 2.2]);
   });
 
   it("row 1: clearing a fridge column and re-inserting the fridge leaves one 750 mm slot, not two stubs", () => {

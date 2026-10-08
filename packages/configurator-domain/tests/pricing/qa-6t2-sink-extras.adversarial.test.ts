@@ -395,8 +395,12 @@ describe("a sink pushed past its wall keeps its cover and loses its rack", () =>
     const sink = KITCHEN_L_DESIGN.placements.find(
       (candidate) => candidate.id === "p0",
     );
+    const seeded = priceOrFail(KITCHEN_L_DESIGN);
 
+    // One sink, billed its cover and its rack where it stands: the loss below is the move's.
     expect(sink?.body.buildId).toBe("base-sink-800");
+    expect(quantityOf(seeded, "sinkProtectiveCover")).toBe(1);
+    expect(quantityOf(seeded, "dishDryingRack")).toBe(1);
   });
 
   it("still bills the cover, and no longer bills the rack", () => {

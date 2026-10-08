@@ -21,9 +21,13 @@ import {
   type DesignPlacement,
   type DesignRoom,
 } from "../../src/index.js";
+import { isAnUpperOwedOver } from "../../src/generation/upper-policy.js";
 import { createFakeProbeFactory } from "../support/fake-probe.js";
 
 const OCCURRED_AT = "2026-09-11T12:00:00.000Z";
+
+/** The wall row's floor (§4's second level), restated so the boundary cannot follow production's constant. */
+const WALL_ROW_FLOOR_MM = 1500;
 const SWEPT_ROOMS = 150;
 
 /**
@@ -213,6 +217,40 @@ describe("E7's upper suppression matches the kitchen that was built", () => {
 
     expect(flushPairs.length).toBeGreaterThan(0);
   });
+
+  // The boundary itself, which no shipped row stands on: a catalogue whose base declares a top of exactly the
+  // wall row's floor is owed an upper, and one a millimetre taller is not.
+  it.each([
+    [WALL_ROW_FLOOR_MM - 1, true],
+    [WALL_ROW_FLOOR_MM, true],
+    [WALL_ROW_FLOOR_MM + 1, false],
+  ])(
+    "rules an upper over a body declaring a top of %i mm: %s",
+    (declaredTopMm, isOwed) => {
+      const catalog = buildKitchenLBodyCatalog(600);
+      const base = catalog.get("base-cabinet");
+      if (!base) throw new Error("base-cabinet left the catalogue");
+      const declaringThatTop = new Map([
+        ...catalog,
+        ["base-cabinet", { ...base, nominalHeightMm: declaredTopMm }],
+      ]);
+
+      expect(
+        isAnUpperOwedOver(
+          {
+            id: "declared-base",
+            role: "storage",
+            buildId: "base-cabinet",
+            widthMm: 600,
+            wall: "A",
+            startMm: 900,
+            endMm: 1500,
+          },
+          { room: KITCHEN_L_DESIGN.room, catalog: declaringThatTop },
+        ),
+      ).toBe(isOwed);
+    },
+  );
 });
 
 function sweepGeneratedKitchens(

@@ -293,13 +293,19 @@ describe("the price steps where the door count does, and nowhere else", () => {
 
   it("does not step a row whose front population is fixed at every width", () => {
     // `base-sink` has two doors that do not follow its width, so its price is flat in leaves.
+    const widthsMm = CATALOG.get("base-sink")?.sizesMm ?? [];
+
+    expect(widthsMm.length).toBeGreaterThan(1);
     expect(
-      widthDerivedDoorLeafCount({
-        buildId: "base-sink",
-        rule: CATALOG.get("base-sink")?.cabinetHandles,
-        widthMm: 800,
-      }),
-    ).toBe(0);
+      widthsMm.map((widthMm) => [
+        widthMm,
+        widthDerivedDoorLeafCount({
+          buildId: "base-sink",
+          rule: CATALOG.get("base-sink")?.cabinetHandles,
+          widthMm,
+        }),
+      ]),
+    ).toEqual(widthsMm.map((widthMm) => [widthMm, 0]));
     expect(ruleFor("base-sink").formula.shape).toBe("linear-in-width");
   });
 

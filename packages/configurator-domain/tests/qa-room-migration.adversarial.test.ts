@@ -159,9 +159,7 @@ describe("a pre-correction document edited past the corrected runs", () => {
   });
 
   it("still loads after wave 6A3 makes placement overflow non-fatal", () => {
-    expect(() => migrateDesign(2, stored(EDITED_PAST_WALL_A))).not.toThrow(
-      InvalidDesignError,
-    );
+    expect(() => migrateDesign(2, stored(EDITED_PAST_WALL_A))).not.toThrow();
   });
 
   /** Wall B's band is 680 mm wide, not 40: the old bound handed wall B the room's width, so a body

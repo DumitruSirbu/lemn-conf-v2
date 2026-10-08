@@ -18,6 +18,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import { entryLabel } from "../../src/catalog.js";
+import { paletteFinish } from "../../src/materials.js";
 
 import { normaliseBand } from "../../src/bands.js";
 import {
@@ -53,6 +54,9 @@ const OVERHUNG_COLUMN = "A|0.90";
  *  shelf has no door in front of its shell, so it seats on the whole 600. */
 const LIFTED_WALL_SEAT_DEPTH_MM = 561;
 const LIFTED_OPEN_SHELF_SEAT_DEPTH_MM = 600;
+
+/** A colour the seeded material offers, worn by a body that chose it. */
+const A_CHOSEN_FINISH = paletteFinish("pal.antracit");
 
 /** One design with two overlapping columns: an empty full-height slot, and beside it a stack whose
  *  top row is whatever the caller names.
@@ -335,6 +339,37 @@ describe("the wave writes no colour and takes no probe lease", () => {
     const replan = read("replan-dependent-members.ts");
     expect(replan).not.toContain("resolvedFinishOf");
     expect(replan).not.toContain("finish:");
+  });
+
+  // The same must-not asked of the re-plan itself, which a key written without the word `finish:` cannot pass:
+  // a re-planned body that follows the kitchen's colour comes back with no colour of its own, and one that
+  // chose a colour comes back with that colour and nothing else new.
+  it("writes no colour onto a re-planned body, and carries the one it chose", () => {
+    const following = overlappingColumns("wall-cabinet", 600);
+    const chose: KitchenWorld = advance(following, {
+      ...following.design,
+      placements: following.design.placements.map((placement) =>
+        placement.id === "top"
+          ? {
+              ...placement,
+              body: { ...placement.body, finish: A_CHOSEN_FINISH },
+            }
+          : placement,
+      ),
+    });
+
+    expect(
+      Object.keys(
+        placementOf(withFullHeightBodyBeside(following), "top").body,
+      ).sort(),
+    ).toEqual(["buildId", "heightMm", "seatDepthMm", "widthMm"]);
+    expect(placementOf(withFullHeightBodyBeside(chose), "top").body).toEqual({
+      buildId: "wall-cabinet",
+      widthMm: 600,
+      heightMm: 400,
+      seatDepthMm: LIFTED_WALL_SEAT_DEPTH_MM,
+      finish: A_CHOSEN_FINISH,
+    });
   });
 
   it("takes no probe lease in the insert path", () => {
