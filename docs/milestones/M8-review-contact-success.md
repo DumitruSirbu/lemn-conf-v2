@@ -4303,7 +4303,8 @@ Removed, the danger the refusal guarded against is gone as well, since a directi
 is not stored cannot reorder a line in the shop's mail.
 
 - Every Cf character is removed from every text field before anything else is judged, the phone
-  included. *Must not:* a value that is returned, stored or mailed holds one; a customer is
+  included. **(Restated 2026-10-08, reviews L-R1.1 and S-R1.2: *"before anything else"* was
+  wrong. Ill-formed text is refused first, on the value as it arrived; see *the three reviews*.)** *Must not:* a value that is returned, stored or mailed holds one; a customer is
   refused for one.
 - *The cost, named:* a joiner that a few scripts spell with is removed too, and such a name is
   stored slightly misspelt and not refused. The customers are Romanian and Russian speakers.
@@ -4627,11 +4628,15 @@ one careless caller from sending the shop a kitchen that cannot be built (ADR 00
 Unicode's composed form, NFC, after format characters are removed and before it is trimmed,
 measured or returned. A hundred letters are a hundred however the keyboard built them. *Must
 not:* the compatibility form is used, which would change letters the customer chose.
+**(Restated 2026-10-08, review S-R1.1: *"before it is measured"* was wrong. A value far past its
+bound is refused before it is composed; see *the three reviews*.)**
 
 **Criterion 20, added — the snapshot holds a design, by its own check (F11).** The snapshot is
 kept for good and nothing re-prices it, so it does not rest on what its caller validated.
 `snapshotSubmission` parses what it is handed and prices and serialises the parsed design. A
 value that is not a design **throws**; it is not a fourth refusal, since no customer can mend it.
+**(Made exact 2026-10-08, review L-R1.9: *a design* here is the wire schema's. The catalogue's
+own rules are not asked, for the reason in *the three reviews*.)**
 
 **Noted, and right as built.** With only customer-supplied bodies and no price, the refusal is
 `PRICING_FAILED`: without a price there is no supplier to read. The review says the same, and
@@ -4666,6 +4671,143 @@ built*; ADR 0148 decisions 1 to 3; `qa-8c-fit-is-the-querys-answer` and
 backlog entry for F12; criterion 16's evidence tier in the wave's ADR; ~~Q33 still open~~.
 **(2026-10-08: Q33 is answered, as built; criterion 16's tier is the owner's word, both of his
 sentences quoted in order. See *The owner's answers of 2026-10-08*.)**
+
+#### 8H — the three reviews, ruled 2026-10-08
+
+**State.** HEAD is `62ed5bc` [ran: `git log`]; domain 7698 passed, web 6227, typechecks and web
+lint exit 0 [relayed, coordinator-run]. Logic: one must-fix. Security: one must-fix, and it
+shares the logic reader's. Clean-code: no must-fix. **Both must-fixes come from the order two of
+my criteria wrote down. The implementer built what they said.**
+
+**S-R1.1 — composing a long value costs its length squared. Must-fix; implementation defect,
+made by criterion 19.** I had the text composed *"before it is … measured"*. Composing reorders
+a run of combining marks in quadratic time: a million units took 234 seconds [reviewer-run,
+Node 24, relayed], and the endpoint will run this before any limit has counted the request.
+
+**L-R1.1 and S-R1.2 — two halves of a character, split by a format character, join when it is
+removed. Must-fix; implementation defect, made by criterion 10.** I had format characters removed
+*"before anything else is judged"*. So a value that is not well-formed text passes the removal,
+becomes well-formed, and holds an invisible character that the criterion says no stored value
+holds [both reviewers ran it, relayed].
+
+**Criterion 21, added — the order of the text check, and what bounds it.** For every typed text
+field, in this order:
+
+1. **Text that is not well-formed is refused, on the value as it arrived.** Nothing is removed
+   from it first.
+2. Format characters are removed.
+3. **A value still longer than a fixed multiple of its field's bound is `TOO_LONG`, here.** The
+   multiple is a named datum with its reason; the reviewer proposes eight, and I take it.
+4. It is composed (criterion 19), checked for forbidden characters, trimmed and measured.
+
+*Must not:* a step that costs more than the value's length runs before step 3; a returned value
+holds a character of the five forbidden kinds, **by any route**; validating a returned value
+gives anything but that value again. *As properties, for QA,* over arbitrary sequences of UTF-16
+units and not only of whole characters, which is the difference the earlier sweep could not see.
+
+| Finding | Ruling |
+| --- | --- |
+| L-R1.2 the leading 0 is judged after the count, so the code misleads at every length but one | **Changed: criterion 22.** Below |
+| L-R1.4 U+2011 and U+2013 are refused | **Mine to read, and changed.** The owner said *"dashes"*; as with the spaces, he named a kind. **Any dash, Unicode's Pd, is grouping.** A minus sign is not one and stays refused: recorded |
+| L point 4, QA's 14: the rule could also hold the price to the design's bodies | **Recorded, not taken.** The rule checks the fact it decides on. Whose price it is, the snapshot knows by making it and the review by its own check. *Limit, with its trigger (ADR 0118):* a third caller of the rule |
+| L-R1.9 the snapshot parses the wire schema, not the catalogue's rules | **Recorded, not changed, and criterion 20 says so now:** it parses as the wire schema. The review does not hold a design to the catalogue's rules either, so a snapshot that did would refuse what the screen offers, which criterion 7 forbids. *Trigger:* the review gains that check; then both gain it together |
+| L-R1.10 the id's predicate narrows a string to nothing | In the round: it answers yes or no |
+| C-R1.1 the review still asks *nothing Lemnaria supplies* itself | **A different question, and it keeps its call.** Below |
+| C-R1.2, C-R1.6 | In the round |
+| C-R1.3 two vocabularies for a result; the text check written three times | **Half taken.** The text check and the counting are written once. The two vocabularies stay: a field has one code and a request has a list, and one shape for both would hide that |
+| C-R1.4 general helpers living in a fields file | In the round: one small home for reading an own value, a plain object and its unknown keys |
+| C-R1.5 comments that cite this plan's ids | In the round: a comment cites the wave's ADR or nothing (ADR 0136). **The ADR's number is reserved before the round** |
+| The nits, the truncated ones included | To the implementer whole, by the coordinator. Any that changes what a caller sees comes back here first |
+| S-R1.3 the honeypot's text is held to no rule | **Changed: criterion 23.** Below |
+| S-R1.4 the bounded reason removes Cc and Cf, not Zl or Zp | In the round, in the one shared helper [src `configurator-domain/src/failure-text.ts:27`]: a line separator cannot forge a line either |
+
+**Criterion 22, added — a second 0 has its own code, at any length (L-R1.2).** The owner: *"no
+there is no number 00x xxx xxx , only one 0 at start"*. A Moldovan-form number whose digits after
+the prefix begin with 0 can be completed by nothing, so it is not *incomplete*; and it is not
+*too many*, whose sentence is about numbers from abroad. **It is judged before the count and
+refused with one code of its own.** These are the spellings Q33 keeps refused, so the customer
+who types one is owed a sentence that says what to change. That sentence is a new leaf and the
+owner's copy, in 8L. *QA re-aims* the pins that put the count first, the million zeros among them.
+
+**C-R1.1 — what to draw is not what to refuse.** The rule in the domain says which refusal a
+kitchen gets. Whether there is a figure to show at all is the review's own question, and it asks
+it with the same predicate, defined once and imported. A kitchen with a body past its wall that
+supplies nothing is refused for the wall *and* has nothing to draw; both are right
+[logic reviewer: the review behaves as at `aac86d6`, relayed]. **One comment says so, and the
+file's header stops claiming the domain decides both.** No behaviour changes.
+
+**Criterion 23, added — the request carries whether the honeypot was filled, not what filled it
+(S-R1.3).** I confirmed *"carried, never judged"* and left a promise to 8K that its text is never
+stored, mailed or logged. A promise by type is better. The body may hold text there, bounded as
+now; **the validated request holds one yes or no.** What a yes means stays 8K's (D9).
+
+**The clean-code reader read no test.** Tests are code here. On its re-check it reads the
+implementer's own files under `tests/contact/`, not the `qa-*` ones.
+
+**The fix round. Two dispatches again; they share no file.**
+
+| # | Does | Files | Dispatch |
+| --- | --- | --- | --- |
+| A1 | Criterion 21 | `contact/contact-fields.ts` | A |
+| A2 | Criterion 22; Pd is grouping | `contact/phone-number.ts` | A |
+| A3 | Criterion 23 | `contact/contact-submission.ts` | A |
+| A4 | C-R1.3's half and C-R1.4: one home for the shared checks; L-R1.10; the nits in these files | a new file beside them, `repository.ts`, `index.ts` | A |
+| A5 | C-R1.5 in these files | the same | A |
+| B1 | S-R1.4 | `failure-text.ts` | B |
+| B2 | C-R1.1's comment and header; C-R1.2 | `apps/web/src/review/review-model.ts` | B |
+| B3 | C-R1.6; C-R1.5 in these files; criterion 20's sentence | `contact/submission-eligibility.ts`, `contact/submission-snapshot.ts` | B |
+
+*Reading, A:* this section; criteria 10, 19, 21 to 23; ADR 0136. *Reading, B:* this section;
+ADR 0148; ADR 0136. *Must not, both:* a `qa-*` file is edited.
+
+**After the round.**
+
+- **QA** adds criterion 21's three properties over unit sequences; the long run of combining
+  marks, answered `TOO_LONG` in a time that the unfixed code misses by orders of magnitude, so
+  the test cannot flicker; criteria 22 and 23; a dash of each kind. It re-aims its leading-0
+  pins. The parity property runs again, since B touches the review.
+- **Security** re-checks S-R1.1 to S-R1.4. **Logic** re-checks L-R1.1, L-R1.2, L-R1.4 and that
+  the review still behaves as at `aac86d6`. **Clean-code** re-checks its own and reads the tests.
+
+**Answered by the reviews, for the record** [relayed; the security reader fetched the page
+today]. Resend's key may be *"up to 256 characters"*, so sixty-four fit, and reading 4's open
+point is closed. Resend answers `409` in **two** ways: one for a key reused with another body,
+which no retry mends, and one for two requests in flight under one key, which a retry does.
+
+**What later waves inherit. Recorded, not built.**
+
+- **8I:**
+  - The conflict digest covers every stored and mailed field of the **validated** request, and
+    leaves out the elapsed time and the honeypot.
+  - The id column compares byte for byte.
+  - **One thing blocks its dispatch, and it is not mine to settle.** A plain hash of a name and a
+    phone, in a column the application's role reads, can be guessed back. That would undo Q14,
+    under which the role reads no contact column. The security reader's answer is a digest keyed
+    with a secret kept outside the database, which is a new variable. **It is the same question
+    as the keyed hash recorded for 8K's S0, and it now comes first: it goes to the owner before
+    8I's migration is written.**
+- **8J:**
+  - A customer's text appears only in the plain-text body, one value to a line behind a fixed
+    label, and never in a header.
+  - A name may be a link or a spreadsheet formula, and the mail does nothing to make either live.
+  - The key sent is a fixed prefix and the id.
+  - **Its criterion 8 speaks of *"a 409"* and there are two**; it is restated at that wave's
+    dispatch.
+  - Every price today is provisional, so the mail does not word the figure as an offer; its
+    words are the owner's.
+- **8K:**
+  - Its own small limit on the body, before the body is parsed.
+  - A conflict answers one code, with no reference and nothing of whether a notice was sent.
+  - The digest is compared before the notifier is called.
+  - Attempts per id are capped.
+  - A pricing failure whose cause is a version mismatch raises an alert, and the failure's
+    detail is bounded before it is logged.
+  - F8 and F12, from QA.
+- **8L:** it mints the request id with the platform's random UUID; it shows no refusal for a
+  lone `+` while the customer is still typing; it owns the new leaf of criterion 22.
+
+**Backlog.** Any export of contact data neutralises a leading `=`, `+`, `-` or `@`. *Trigger:* an
+export is built; ADR 0012 has none today.
 
 ### 8I — the contact submissions store
 
