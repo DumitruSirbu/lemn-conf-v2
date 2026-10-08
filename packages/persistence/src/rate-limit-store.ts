@@ -126,8 +126,8 @@ export class NeonRateLimitStore implements RateLimitStore {
 
   /**
    * One statement for every bucket: an upsert is atomic per row, so N concurrent hits on one bucket and window return
-   * 1…N once each. Rows go in `order by` key, so two requests sharing buckets lock them in the same order and cannot
-   * deadlock. It names `rate_limit_counters` alone.
+   * 1…N once each. Every statement here that locks several rows takes them by key, then start (the prune too), so
+   * none can wait on another in a cycle. It names `rate_limit_counters` alone.
    *
    * A hit stating a different end than the stored row sets that row's end to its start, which the table's own window
    * check refuses: the whole statement fails and no bucket of the request is counted.
@@ -168,7 +168,8 @@ export class NeonRateLimitStore implements RateLimitStore {
     return countsInRequestOrder(buckets, rows);
   }
 
-  /** Repeating a delete is harmless, so any transient failure is repeated. */
+  /** Locks the expired rows by key, then start, as a hit does: two statements locking shared rows in different orders
+   *  deadlock. Repeating a delete is harmless, so any transient failure is repeated. */
   async pruneExpired(now: Date): Promise<number> {
     requireValidInstant(now);
 
@@ -177,9 +178,16 @@ export class NeonRateLimitStore implements RateLimitStore {
       () =>
         retryOnTransientFailure(
           () => this.sql`
-            with removed as (
-              delete from rate_limit_counters
+            with expired as (
+              select bucket_key, window_start from rate_limit_counters
               where window_end <= ${now.toISOString()}::timestamptz
+              order by bucket_key, window_start
+              for update
+            ), removed as (
+              delete from rate_limit_counters as counter
+              using expired
+              where counter.bucket_key = expired.bucket_key
+                and counter.window_start = expired.window_start
               returning 1
             )
             select count(*)::int as removed from removed

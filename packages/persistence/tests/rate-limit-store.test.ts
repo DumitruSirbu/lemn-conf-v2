@@ -299,6 +299,16 @@ describe("NeonRateLimitStore.pruneExpired", () => {
     expect(driver.statements[0]?.text).not.toMatch(/\bdesigns\b/);
   });
 
+  it("locks the expired rows by key, then start, as a hit does, and skips none that is locked", async () => {
+    answerWith([{ removed: 0 }]);
+
+    await newStore().pruneExpired(WINDOW_END);
+
+    const text = driver.statements[0]?.text ?? "";
+    expect(text).toMatch(/order by bucket_key, window_start\s+for update/);
+    expect(text).not.toMatch(/skip locked|nowait/);
+  });
+
   it("reports nothing removed on the run after, and sends the same statement", async () => {
     answerWith([{ removed: 3 }]);
     answerWith([{ removed: 0 }]);
