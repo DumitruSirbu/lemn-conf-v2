@@ -3074,8 +3074,8 @@ the brief's account of the owner's "yes for resend" agrees with it, and nothing 
 
 ### 8D2 — screen 3 against its frames (added 2026-10-08)
 
-*Goal.* The review's rows and its bottom bar read as frames 3A and 3B draw them. **Not started;
-follows 8D's close.** *Tier: Light + visual*, with QA owning the parity of the new line.
+*Goal.* The review's rows and its bottom bar read as frames 3A and 3B draw them. ~~**Not started;
+follows 8D's close.**~~ **S1 committed `3ffad38`, S2 in hand (2026-10-08).** *Tier: Light + visual*, with QA owning the parity of the new line.
 *Why its own wave:* it changes the review's model, which 8C closed and ADR 0148 records, and 8D
 has had its two QA passes and its review.
 
@@ -3088,8 +3088,13 @@ has had its two QA passes and its review.
 the projection holds it, and its finish or handle exactly when the body carries its own;
 *must not:* a finish is shown that the body does not wear (ADR 0099), or a line is composed by
 the screen. (2) The amounts, the order and the refusal's names are unchanged: 8C's parity with
-the breakdown still holds for amounts and order, and the name in a refusal still equals what the
-row calls the body. (3) D2 stands: one row per body, never *"2 × 800"*. (4) The bottom region is
+the breakdown still holds for amounts and order, ~~and the name in a refusal still equals what the
+row calls the body~~ **and (restated 2026-10-08, see *S1 as built*) a refusal names a body by the
+row's whole label, the name and the width together, which the row now draws over its two lines:
+for every body, the label is the first line's name and the body's width through the breakdown's
+own label leaf, and the second line's first fact is that same width.** *Must not:* a refusal
+names a body by the first line alone, so that two bodies of one name and different widths read
+alike; or the name and the label are read from the entry by two routes. (3) D2 stands: one row per body, never *"2 × 800"*. (4) The bottom region is
 re-measured in Russian with three sentences; criterion 12's half still binds, and the wave stops
 if it is reached. (5) *Must not:* the breakdown or the price bar changes.
 
@@ -3101,9 +3106,60 @@ hand check; the chips keep their touch size either way.
 *Open, for the owner, with the hand check of 8D:* whether the material pill belongs in the top
 bar of screens 3–5. If yes, it is a third slice here.
 
-*QA reading:* the criteria; 8C's parity files (`qa-8c-parity-with-the-price-surfaces`); ADR 0099.
+*QA reading:* the criteria; 8C's parity files (`qa-8c-parity-with-the-price-surfaces`); ADR 0099;
+*S1 as built*, below. **Added 2026-10-08, S1's own weakest point, agreed:** S1's test reads a
+finish's and a handle's name from the message files by the pairing the code uses, so a wrong
+pairing present in both passes. QA owns a second route: a literal table, entry id to approved
+word, for at least one finish of each material and for every handle, in both languages; and it
+confirms the generated kitchens include a body wearing its own free colour.
 *Combined reviewer:* the slices' files; ADR 0148. *Visual:* frames 3A and 3B, rows and bottom
 bar, at 390 × 844 in both languages, measured.
+
+#### 8D2 — S1 as built, and two readings, 2026-10-08
+
+S1 is `3ffad38` [ran: `git log`]. The row's two lines are a map beside the rows,
+`AvailableReview.rowDetails`, so `groups` is still the breakdown's and both parity files pass
+untouched [relayed, coordinator-run: web vitest 6147 passed, typecheck exit 0]. **No fix is owed
+before QA.**
+
+**Reading 1 — what a refusal calls a body. Confirmed; criterion 2 restated above.** A refusal
+keeps the row's whole label, *"Dulap bază 3 sertare 600"*, by the one labeller ADR 0148 decision 4
+names [src `review-model.ts:296`]. The first line is `describePlacementName`, the same
+`bodyLabel` the labeller wraps [src `price-breakdown-model.ts:212-229`], and S1's test asserts
+that the label is that name and the width [src `review-row-detail.test.ts:197-206`].
+
+- *What this changes, said plainly:* before S1 a refusal's link and its row printed one string.
+  Now the row prints the same two facts in the same order over two lines, and the width gains its
+  unit: *"Dulap bază 3 sertare"* over *"600 mm"*. They are no longer the same string on screen.
+- *What ties a named body to its row* is therefore **the mark, not the words**: criterion 13 of 8D
+  has each named body's row marked, and the row is described by the refusal's sentence
+  [src `review-groups.tsx:140-150`]. It always was the mark for two alike bodies, which one label
+  cannot tell apart. The words help; no criterion rests on them matching character for character.
+- *For the scribe, at this wave's close:* ADR 0148 decision 4 says *"the name in the refusal
+  equals the row's label"*. That stays true of the value. A dated note records that the row draws
+  the label over two lines since 8D2.
+- *For the owner's hand check, an observation and not a defect:* a refusal reads *"… 600"* and the
+  row beside it *"600 mm"*. Whether the refusal should carry the unit is the owner's; it would
+  change the breakdown's own label leaf or need a new one.
+
+**Reading 2 — a body's own free colour is printed as its value. Stands as a named interim; the
+wording is the owner's.** The precedent is weaker than it was put to me. The settings pill does
+not print the value: it draws a swatch, and the value is what a screen reader hears, *"for a
+colour the pill only draws"* [src `settings/global-settings-model.ts:573-583, 657-663`]. The leaf
+is `{colourValue}` and words nothing [src `messages/ro.json:295`]. So *"600 mm · #a1b2c3"* is the
+first place a customer **reads** a colour value, and frame 3B names a finish in words (*"alb
+mat"*, *"stejar"*, *"grafit"*) [src `…Mobil.dc.html:1012-1126`].
+
+- *Why it stands until the owner speaks:* criterion 1 has the line state a body's own finish, and
+  leaving it out would show a body in its own colour as one on the kitchen's. A free colour has
+  no approved name. Calling it by the nearest decor's would be the nearest-finish mapping the
+  owner rejected (ADR 0057, reaffirmed 2026-09-05; ADR 0078) run the other way [inf: those
+  records rule on a finish, not on a name]. The value is the one thing that is true and invented
+  by nobody.
+- *Not ruled, for the owner at the hand check:* the value as built; a word without the value,
+  which needs a new approved leaf in both languages; or the colour drawn, which no frame shows on
+  a row. I recommend the first until the owner asks otherwise, and it is not mine to settle.
+- *For the visual pass:* capture one row with a free colour in each language.
 
 ### 8E — the rate-limit store
 
