@@ -133,6 +133,22 @@ describe("withCreateDesignLock", () => {
     await holderCall;
   });
 
+  // A run that threw under the lock already ran: falling through to the unlocked fallback would mint twice.
+  it("runs a failing locked run exactly once and hands the caller its own cause", async () => {
+    vi.stubGlobal("navigator", { locks: new FakeLockManager() });
+    const failure = new Error("mint failed inside the lock");
+    let runCount = 0;
+
+    await expect(
+      withCreateDesignLock(() => {
+        runCount += 1;
+        return Promise.reject(failure);
+      }),
+    ).rejects.toBe(failure);
+
+    expect(runCount).toBe(1);
+  });
+
   it("releases the lock when the held run throws, so the next request is still granted", async () => {
     vi.stubGlobal("navigator", { locks: new FakeLockManager() });
 
