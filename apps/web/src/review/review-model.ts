@@ -3,17 +3,22 @@
 // Rows are `describeBreakdownRows`'s, the breakdown's own builder; nothing here sorts, groups, rounds or labels
 // one. The figure is `priceDesign`'s total rounded as the price bar rounds it, never a sum of the rows.
 //
-// Whether the kitchen may be submitted is decided here only, and fit is the domain query's answer: nothing here
-// measures a wall. The design, its price and its projection must be one design's, or `describeReview` throws.
+// Whether the kitchen may be submitted is the domain's one rule (`judgeSubmissionEligibility`), given the fit
+// query's answer: nothing here measures a wall or orders the refusals. The design, its price and its projection
+// must be one design's, or `describeReview` throws.
 import {
   cornerDirectionOf,
   findOverflowingPlacementIds,
+  holdsNothingLemnariaSupplies,
+  judgeSubmissionEligibility,
   type Design,
   type DisplayEntry,
   type DisplayGroup,
   type Finish,
   type PricedDesign,
   type PricingResult,
+  type SubmissionEligibility,
+  type SubmissionRefusal,
   type WholeKitchenPriceLine,
 } from "@lemnaria/configurator-domain";
 
@@ -28,7 +33,6 @@ import {
 import {
   describeFlaggedTotalWarning,
   describeStartingPrice,
-  holdsNothingLemnariaSupplies,
   type PriceFigure,
 } from "@/price/starting-price";
 import { parsedRoomLengthsOf } from "@/room/room-url-state";
@@ -172,32 +176,34 @@ export class ReviewInputDivergenceError extends Error {
 }
 
 export function describeReview(input: DescribeReviewInput): ReviewView {
-  // Asked before pricing is consulted, on every path: a body past its wall is the refusal the customer can act
-  // on, whatever pricing answered.
-  const overflowingIds = findOverflowingPlacementIds(input.design);
+  const eligibility = judgeSubmissionEligibility({
+    design: input.design,
+    overflowingPlacementIds: findOverflowingPlacementIds(input.design),
+    pricing: input.pricing,
+  });
   if (!input.pricing.ok) {
     assertEveryPlacementIsListed(input.design, input.groups);
-    return unavailable(refuseFirstActionable(input, overflowingIds));
+    return unavailable(refusedSubmitOf(input, eligibility));
   }
-  return describePricedReview(input, input.pricing.priced, overflowingIds);
+  return describePricedReview(input, input.pricing.priced, eligibility);
 }
 
 function describePricedReview(
   input: DescribeReviewInput,
   priced: PricedDesign,
-  overflowingIds: readonly string[],
+  eligibility: SubmissionEligibility,
 ): ReviewView {
-  assertInputsAreOneDesigns(input, priced, overflowingIds);
+  assertInputsAreOneDesigns(input, priced, overflowingIdsOf(eligibility));
   if (holdsNothingLemnariaSupplies(priced)) {
-    return unavailable(refuseFirstActionable(input, overflowingIds));
+    return unavailable(refusedSubmitOf(input, eligibility));
   }
-  return describeAvailableReview(input, priced, overflowingIds);
+  return describeAvailableReview(input, priced, eligibility);
 }
 
 function describeAvailableReview(
   input: DescribeReviewInput,
   priced: PricedDesign,
-  overflowingIds: readonly string[],
+  eligibility: SubmissionEligibility,
 ): AvailableReview {
   const { content, design, groups } = input;
   const rows = describeBreakdownRows({ content, priced, groups });
@@ -219,8 +225,8 @@ function describeAvailableReview(
       copy: content.price,
     }),
     submit:
-      overflowingIds.length > 0
-        ? refuseFirstActionable(input, overflowingIds)
+      eligibility.kind === "refused"
+        ? refusedSubmitFrom(input, eligibility.refusal)
         : { kind: "allowed" },
     ...(warning === undefined ? {} : { overflowWarning: warning }),
   };
@@ -279,29 +285,36 @@ function unavailable(submit: RefusedSubmit): UnavailableReview {
   return { kind: "unavailable", submit };
 }
 
-/**
- * The refusal order, in one place: a body past its wall, then nothing Lemnaria sells, then a price that cannot be
- * computed. Called only for a kitchen that is refused, so the last reason is the one left.
- */
-function refuseFirstActionable(
+/** The domain rule refuses every kitchen that reaches here: no price, or nothing Lemnaria supplies. */
+function refusedSubmitOf(
   input: DescribeReviewInput,
-  overflowingIds: readonly string[],
+  eligibility: SubmissionEligibility,
 ): RefusedSubmit {
-  if (overflowingIds.length > 0)
-    return refusePastTheWall(input, overflowingIds);
-  if (holdsNothingToSell(input)) return refuse("NO_CABINET");
-  return refuse("PRICING_FAILED");
+  if (eligibility.kind === "allowed") {
+    throw new ReviewInputDivergenceError(
+      "an unavailable review was judged eligible for submission",
+    );
+  }
+  return refusedSubmitFrom(input, eligibility.refusal);
 }
 
-/** Whether pricing shows nothing the customer buys; without a price, whether the design holds no body. */
-function holdsNothingToSell(input: DescribeReviewInput): boolean {
-  return input.pricing.ok
-    ? holdsNothingLemnariaSupplies(input.pricing.priced)
-    : input.design.placements.length === 0;
+function refusedSubmitFrom(
+  input: DescribeReviewInput,
+  refusal: SubmissionRefusal,
+): RefusedSubmit {
+  return refusal.code === "BODIES_PAST_WALL"
+    ? refusePastTheWall(input, refusal.placementIds)
+    : { kind: "refused", code: refusal.code, bodies: [] };
 }
 
-function refuse(code: "PRICING_FAILED" | "NO_CABINET"): RefusedSubmit {
-  return { kind: "refused", code, bodies: [] };
+/** The rule refuses with `BODIES_PAST_WALL` whenever the fit query names a body, so the list is its refusal's. */
+function overflowingIdsOf(
+  eligibility: SubmissionEligibility,
+): readonly string[] {
+  return eligibility.kind === "refused" &&
+    eligibility.refusal.code === "BODIES_PAST_WALL"
+    ? eligibility.refusal.placementIds
+    : [];
 }
 
 function refusePastTheWall(
