@@ -952,9 +952,25 @@ by production user keep"*.
   And rotation has a second consequence he was not told in those words: **every rate-limit count
   starts again**. Neither changes his answer's sense; both go to him with the runbook.
 - **Ruled by him:** the secret exists, and the conflict digest is keyed with it.
-- **Not ruled by him, and mine:** its name, its shape, that one secret serves both uses, that
-  8F keys from the start, and how tests run without it. All are in *The digest secret*, under
-  8I. The security reader confirms the second and third at 8F's S0.
+- **Not ruled by him, and mine:** its name, its shape, ~~that one secret serves both uses, that
+  8F keys from the start,~~ and how tests run without it. All are in *The digest secret*, under
+  8I. ~~The security reader confirms the second and third at 8F's S0.~~
+
+**6. A sixth — one secret for both uses.** His words: *"lets use same secret"* [relayed].
+
+- *What he was answering* [the coordinator's account, relayed]: the coordinator had told him it
+  had asked whether the rate-limit keys in 8F should use the same secret from the start, so that
+  their counts never restart.
+- **Ruled by him:** one variable. The conflict digest of 8I and the rate-limit keys of 8F, 8G
+  and 8K are keyed with it.
+- **The coordinator's reading, and mine:** *from the start* is part of what he said yes to,
+  since it was in the question. So 8F is keyed from its first deploy.
+- **Still mine:** that the two uses are kept apart by the encoding and not by a second secret's
+  existence. He chose one secret; how one secret is used safely twice is the security reader's
+  to check at 8F's S0.
+- **This replaces the security reader's earlier recommendation**, *unkeyed for 8E and 8F,
+  decided in 8K's S0*. ADR 0149 records that recommendation; **the scribe amends it** with his
+  two sentences and the date.
 
 **A fact recorded with these, coordinator-run [relayed].** The owner changed Vercel's Development
 `DATABASE_URL` and pulled it again. The privilege test now prints *reached database
@@ -3996,7 +4012,9 @@ second implementer beside them. **The wave's ADR number is reserved before the r
   - It fails closed on any throw, two of which are not `RateLimitStoreError` (L-R1.6).
   - The fake cannot be reached in a deployed build (S-R1.11, its criterion 9), and differs from
     the Neon store as listed (L-R1.5).
-  - The digest is one function, so a key added later is one function's change.
+  - ~~The digest is one function, so a key added later is one function's change.~~ **(Replaced
+    2026-10-08: the digest is keyed from 8F's first deploy, with the one secret the owner
+    approved; nothing is added later. See *The digest secret*, under 8I.)**
 - **8G:**
   - The prune's margin (L-R1.1).
   - Its instant is the server's clock and never a request's value (S-R1.5).
@@ -4142,8 +4160,10 @@ of SEC-001 and backlog 90. *Tier: Full + security.*
 > secret*, under 8I; rule S1 of 8E as restated). **S1 gains the module:** one function that
 > digests a purpose and its fields under a key it is handed, and one that reads `DIGEST_SECRET`
 > and refuses when it is unset or not sixty-four hexadecimal characters; `.env.example` gains the
-> name. **S0 gains two things to settle with the security reader:** that keying from the start is
-> right, and the encoding. **The e2e harness makes a fresh value for each run.** *Criterion,
+> name. ~~**S0 gains two things to settle with the security reader:** that keying from the start is
+> right, and the encoding.~~ **Keyed from its first deploy, by the owner's word** (*"lets use same
+> secret"*, 2026-10-08 [relayed]); **S0 gains one thing to settle with the security reader, the
+> encoding.** **The e2e harness makes a fresh value for each run.** *Criterion,
 > added:* with the variable unset the mint is refused as a store failure is, and no row is
 > written; *must not:* any key but the variable's is ever used. **Owner action before this wave
 > is merged: `DIGEST_SECRET` set in production, preview, development and `apps/web/.env.local`.
@@ -4919,8 +4939,12 @@ says otherwise. **No agent generates, sets, reads or prints the value, in any en
   does not exist], so nothing is re-keyed and no count ever restarts for this reason. It also
   makes true what `0007` says of itself: a plain hash of one of sixteen million network prefixes
   is the prefix, to anyone who can read the row. **This supersedes** the limit recorded in 8E's
-  reviews, *unkeyed for 8E and 8F*. The security reader confirms it at 8F's S0, which was always
-  to be held with them.
+  reviews, *unkeyed for 8E and 8F*. ~~The security reader confirms it at 8F's S0, which was always
+  to be held with them.~~ **(The owner ruled it the same day: *"lets use same secret"*
+  [relayed], asked whether 8F's keys should use it from the start. One secret and keying from
+  the first deploy are his. The encoding that keeps the two uses apart is still the security
+  reader's to check at 8F's S0. ADR 0149 holds the earlier recommendation and the scribe amends
+  it.)**
 - **Who builds the module:** 8F, in S1, since it is first to need it. 8K adds the second purpose
   and writes no digest code of its own.
 
@@ -4967,9 +4991,10 @@ row and its notice untouched. *When:* whenever that environment's variables may 
 **What the security reader checks, in 8I:** that the application's role reads no personal column
 (the grants, live, in S0 and criterion 3); that nothing it can read is derived from one without
 the secret (criterion 9); that the reference is random and derived from nothing; that no error
-or log line carries a field's value (criterion 7). **And in 8F's S0:** that keying from the start
-is right; the encoding against forgery by a subject; the refusal when the variable is unusable;
-and that no fallback exists.
+or log line carries a field's value (criterion 7). **And in 8F's S0:** ~~that keying from the start
+is right;~~ the encoding against forgery by a subject **and against one use being read as the
+other, now that one secret serving both is the owner's ruling**; the refusal when the variable is
+unusable; and that no fallback exists.
 
 ### 8J — mail, and the shop's notification
 
