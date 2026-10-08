@@ -14,6 +14,10 @@ only. Tiers: **[doc]** quoted from a record in this repository, **[src]** read i
 reviewer or the scribe, **[inf]** inference. Every figure says who ran it. Cited in code as `see ADR 0150`
 (`contact/contact-fields.ts`, `phone-number.ts`, `contact-submission.ts`, `submission-eligibility.ts`, and
 `apps/web/tests/review/review-pricing-failure-stays-unseen.test.ts`).
+**Annotated 2026-10-08 (tests-review fix-up, ADR 0152):** that file was deleted in the cleanup (review row 1544). Its
+behaviour is held by three tests in the `qa-8h` review files, "holds no pricing failure code…", "is…the same value whatever
+the failure said" and "reviews kitchens that draw each of the three refusals" [relayed by the coordinator; the file's
+absence was checked with Glob, the three titles were not]. The `see ADR 0150` pointer in the deleted file went with it.
 
 ## Context
 

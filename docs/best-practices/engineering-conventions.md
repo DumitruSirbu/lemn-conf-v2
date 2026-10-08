@@ -267,6 +267,23 @@ ADR 0136, Consequences.
   the vitest `tests/**/*.test.ts` glob and the Playwright `testDir` never collect each other's files.
 - Avoid vacuous assertions: ensure a filtered collection or loop actually exercised the case it
   claims to test.
+- **A test is kept only if it can fail for the reason its title names** (added 2026-10-08, from the
+  tests review; reasoning, instances and the sweep of earlier records in
+  [ADR 0152](../decisions/0152-a-test-is-kept-only-if-it-can-fail-for-the-reason-its-title-names-and-is-deleted-only-on-evidence.md);
+  the audit procedure is `../skills/lemnaria-test-audit/SKILL.md`). When you write one:
+  - **Show it red under a mutation of the behaviour its title names**, or do not report it as coverage.
+  - **A structural rule goes to lint or `tsc` first.** A source-text scan of production is allowed only for an
+    absence claim a dated decision records, never as the sole guard of a rule; its title says it reads source,
+    and an AST lint selector is preferred to a substring.
+  - **A constant that is a rule keeps one literal pin**, not two that each justify the other.
+  - **A self-test of a test-support instrument** is kept only as a control for a sweep that asserts a negative: titled
+    as a control, one input the detector must flag and one it must pass.
+  - **A test that can only fail by timing out is not a guard.** Assert the observable before awaiting the promise
+    that would hang.
+- **Deleting a test needs evidence.** A duplicate goes only when the test named to keep goes red by assertion under a
+  mutation of the shared code; without a mutation, only when its assertion is logically implied by its twin's over the
+  identical input and call, shown by reading and recorded as such, and never by mutating a migration or the DML. Read a
+  review's "Keep" as a claim: it was wrong repeatedly.
 - **Two harness behaviours make a test pass over code that never ran. Both were measured, and both
   read exactly like a production defect when they bite.**
 
@@ -321,6 +338,10 @@ ADR 0136, Consequences.
 - Sweep a meaningful input range when arithmetic or generation is involved; a few hand-picked
   examples are not evidence that the transitions work. For generated data assert properties — no
   overlap, no unclassified gap, valid schema output.
+- **An adversarial file adds cases the existing test lacks; it does not restate them** (added 2026-10-08, from the
+  tests review, whose dominant cause of duplicates was exactly this; see
+  [ADR 0152](../decisions/0152-a-test-is-kept-only-if-it-can-fail-for-the-reason-its-title-names-and-is-deleted-only-on-evidence.md)).
+  Read the original test before adding a case, and name in the new test what the old one does not cover.
 - **A clean report from an adversarial pass is a weak result, not a strong one.** This project has
   shipped a test that asserted a defect as correct, two boundary greps that matched nothing while
   reporting green, and two commands that reported success while doing nothing. "No findings" must be
@@ -396,6 +417,10 @@ meant to falsify it was a no-op. Against the build it died, and the assertion tu
 genuinely falsifiable. **A survivor is a claim about the guard only once the mutation is known to have
 landed** — otherwise it is a claim about the build.
 
+**A mutation that reddens nothing in the files you ran is not evidence until the whole package suite has seen it**
+(added 2026-10-08, [ADR 0152](../decisions/0152-a-test-is-kept-only-if-it-can-fail-for-the-reason-its-title-names-and-is-deleted-only-on-evidence.md)
+decision 2.3). Two "gaps" reported in one audit batch were covered by tests outside the two files the agent had run.
+
 ### A predicate over a band, and a sweep with no floor per arm
 
 `top` folds into `wall` (ADR 0011 Gap C) for every reader that groups or counts by band. A predicate
@@ -409,3 +434,7 @@ certifies nothing about the arm that moved. Found at M6 wave 6I2's close-out (20
 strongest property was first swept without a floor per arm, and the fixture the sweep reached happened
 to be the arm 6I2 did **not** touch — see `../milestones/M6-price-and-global-settings.md` wave 6I2's
 close-out for the specific instance.
+
+Two more instances from the tests review (2026-10-08, [ADR 0152](../decisions/0152-a-test-is-kept-only-if-it-can-fail-for-the-reason-its-title-names-and-is-deleted-only-on-evidence.md)
+decision 1.5, relayed): a sweep over `shell-design.adversarial`'s wall-only arm ran on 0 of 8,534 tiles, and a test the
+review had filed as a duplicate was itself such a loop. **State the floor per arm in the sweep.**

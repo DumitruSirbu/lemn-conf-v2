@@ -2319,7 +2319,8 @@ shared component (the verifier's V7). Same trigger as above, except that (4) and
 **Source [doc, M8 plan, *8A figures* S1 row B ii].** A full e2e run with `CI=1` (a build and `next start`)
 gave 619 passed, 3 failed, 2 skipped: `qa-7e3b-s6-lock.adversarial.e2e.spec.ts:112` (rounds 1 and 5) and
 `qa-7e3b-s6-two-tab-convergence.adversarial.desktop.e2e.spec.ts:21` (round 2 of 3; *"did not open with
-canWrite: true"*). Backlog 117 (the remote test database dropping connections) does not mention them, so this
+canWrite: true"*; **annotated 2026-10-08: that desktop spec file was deleted in the tests-review fix-up (row E1), the
+mobile project's rounds carry the race [relayed]; Glob finds no such file**). Backlog 117 (the remote test database dropping connections) does not mention them, so this
 is a separate entry; whether they are the same family is unknown. **Owner:** the coordinator. **Trigger:**
 wave 8F is not dispatched until each has been re-run alone and recorded as a flake, a test fault or a defect
 (plan, 8F S0, item 5).
@@ -2496,8 +2497,73 @@ and the mail does nothing to make it live. **Trigger:** an export of contact dat
 captured. Four runs straight after were 6227 passed. **Trigger:** a recurrence, with the failing test's name. No owner until
 then.
 
+**A possible recurrence, 2026-10-08 [developer-run, relayed by the coordinator; not established to be the same test].** With
+the machine at a load average of about 280, the developer saw `client-write-path.adversarial.test.ts` "… does not send a
+further request for later edits once refused" fail once (3 requests, expected 2) and pass when run alone. It also passed
+in the coordinator's full `pnpm ci:local` at `ee834b6`. **Whether it is the same test as the failure above is not
+established**, because the first failure's name was never captured. A request count that depends on timing may be a real
+race. **Trigger unchanged:** a recurrence with its name; this one has a name, so the next sighting of the same title makes it
+a candidate for a defect.
+
 ## 146. Count the stored design ids that do not have the generator's shape before 8L S2 gates a page — OWNER, RECORDED 2026-10-08
 
 **Source [the plan's 8H, *S2's readings*].** Whether every stored design id has the shape the generator makes is not
 measured. A page that refuses by `isDesignId` would close an older design's link. The owner reads the live ids once, a
 count and no value. **Owner:** the owner. **Trigger:** before 8L's S2 ships.
+
+## 147. `e2e-shard-budget` fails at `ee834b6`, and the pre-push hook runs it — FOUND 2026-10-08 BY THE COORDINATOR'S `ci:local`, THE OWNER DECIDES
+
+**Source [coordinator-run, `pnpm ci:local` at `ee834b6`; `docs/TESTS_REVIEW.md`, *Progress*].** The tests-review fix-up deleted three
+desktop e2e spec files (6 tests), which moved Playwright's split, because a file is never divided across shards
+(`scripts/gates/e2e-shard-budget.mjs`, `RATCHETED_CEILINGS`). Desktop shards of 3 now hold 132 / 0 / 61 tests against a
+ceiling of 70. `room-desktop-line.desktop.e2e.spec.ts` holds 69 of the 193 desktop tests. **Measured by the coordinator** with
+`playwright test --list --shard` [relayed]:
+
+| Desktop shards | Tests per shard |
+| --- | --- |
+| 4 | 52 / 80 / 40 / 21 |
+| 5 | 39 / 93 / 0 / 40 / 21 |
+| 6 | 33 / 99 / 0 / 0 / 40 / 21 |
+| 7 | 28 / 34 / 70 / 0 / 10 / 30 / 21 |
+
+Only 7 fits. **Options put to the owner, undecided:** (1) split `room-desktop-line.desktop.e2e.spec.ts` (the coordinator's
+recommendation, and what the gate's own comment asks for); (2) raise desktop to 7 shards in `ci.yml` and in the gate; (3)
+restore the deleted specs. **The pre-push hook runs this gate, so the branch cannot be pushed until this is decided.**
+Related: entry 106 (desktop shard 2 of 3 sat at exactly its 70-test budget). **Owner:** the owner.
+
+## 148. A metres field and a dangling separator (`3,` `3.` `,5` `.45`): refuse, or read as 3000 / 3000 / 500 / 450 mm? — FOUND 2026-10-08 BY THE TESTS REVIEW, A PRODUCT QUESTION
+
+**Source [doc, `docs/TESTS_REVIEW.md` line 285; the architect's reading, relayed].** No decision record rules on it. Four
+tests in `parse-metres` accept either answer (`expectRefusedOrExactly`), so they cannot tell the two behaviours apart; the
+review's mutation turned the parser's pattern from `\d+` to `\d*` and the four stayed green. **The architect did not read
+the parser: which answer is today's behaviour is unverified.** The same file's tests `refuses ","` and `refuses "."` went red
+under that mutation [doc, same row], which suggests a lone separator is refused; that is an inference and does not decide
+`3,`. **Owner:** the owner (a product question first).
+## 149. The empty `test.fixme` in `global-settings-apply.e2e.spec.ts` is the only record of an unasserted behaviour — TESTS REVIEW ROW 2881, 2026-10-08
+
+**Source [relayed; the fixme's presence checked at `apps/web/tests/e2e/global-settings-apply.e2e.spec.ts:214`].** That `test.fixme`
+is the only record that "the sheet stays open" after a `BODY_PROBE_UNAVAILABLE` refusal is not asserted in a browser. The
+refusal is live and no browser route reaches a detached probe. Whether the fixme stays once this entry exists is the owner's
+call. **Owner:** the owner.
+
+## 150. A third copy of the "undeclared or offers" check, without the schema check — FOUND 2026-10-08 BY THE TESTS REVIEW'S D3 LOGIC REVIEW
+
+**Source [relayed; the function's presence checked at `apps/web/src/settings/global-settings-model.ts:365`].**
+`withoutAFinishTheMaterialRefuses` repeats the undeclared-or-offers check that `designOffersFinish`
+(`packages/configurator-domain/src/design-material.ts`, `6eef46c`) now holds once for the two commands, without the schema
+check. No customer-visible disagreement (the logic review); a drift risk. It could call `designOffersFinish`. **Trigger:** that
+function is next opened. No owner. See [ADR 0084](../decisions/0084-canfinish-is-the-load-seams-and-a-command-fixture-constructs-only-its-own-contracts-inputs.md)'s note of 2026-10-08.
+
+## 151. `DESIGN_ENVELOPE_BYTES` is public through the domain package's `export *`, for one test — RECORDED 2026-10-08
+
+**Source [relayed; the clean-code review's trade-off].** The constant is exported so that one test can read it; the owner
+approved the export. Recorded so a later reader does not take it for a public contract. **Trigger:** a second reader appears,
+or the package's public surface is next trimmed. No owner.
+
+## 152. Single-guard behaviours were listed per wave and never collected; the two-tab lock's desktop rounds were removed — RECORDED 2026-10-08
+
+**Source [doc, `TESTS_REVIEW.md`, *What is still open*; relayed for the second half].** Many behaviours now rest on one test each;
+the QA agents listed them per wave but the lists were not collected into one place, so no total exists. Separately, the
+two-tab lock's desktop run had added 3 rounds of a probabilistic race that the mobile project's 10 now carry alone
+[relayed]. **Trigger:** the next test audit ([ADR 0152](../decisions/0152-a-test-is-kept-only-if-it-can-fail-for-the-reason-its-title-names-and-is-deleted-only-on-evidence.md)
+decision 4): it should not report "one test" as a finding by itself. No owner.

@@ -112,3 +112,8 @@ Three consequences of the second meaning:
 
 **ADR 0028's wave is not involved.** Depth is derived from the worktop map and reaches the body
 through a different path entirely; the pointer carries width and identity, never depth.
+
+> **Pointer, 2026-10-08 (ADR 0152; nothing struck).** The resize that rebuilds through this pointer also rewrites a
+> seeded base from 820 mm to §7's 860 mm on its first resize. The sentence lives in
+> [ADR 0031](0031-a-resize-moves-a-whole-column-into-adjacent-empty-space.md)'s dated note of this date, because it
+> describes what a resize does; this amendment is where the mechanism it rests on is defined.

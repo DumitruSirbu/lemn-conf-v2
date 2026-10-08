@@ -3,6 +3,24 @@
 **Read this second, right after `AGENTS.md`, before opening any milestone document.** It exists so a
 session can learn fast where the project stands, without reading eight phase plans.
 
+> ## The tests review is DONE, and the branch cannot be pushed until the owner decides one gate — 2026-10-08
+>
+> **Done:** all 674 rows of `TESTS_REVIEW.md` are settled; its *Statistics* section holds the counts (counted by script from
+> the Status cells) and is not restated here. Commits per wave are in its *Progress* table. **Two production defects were
+> found and fixed**, neither reachable by a customer: `materialOffersFinish` offered a malformed free colour (`38fa058`,
+> `74bcc20`), and `setFinish` / `setGlobalFinish` succeeded with a finish their own schema refuses on an undeclared material
+> (`6eef46c`). New records: [ADR 0152](decisions/0152-a-test-is-kept-only-if-it-can-fail-for-the-reason-its-title-names-and-is-deleted-only-on-evidence.md)
+> (its decision 4, that the audit recurs incrementally, is **proposed, not ruled**), the skill
+> `skills/lemnaria-test-audit/SKILL.md`, the role `.claude/agents/configurator-test-auditor.md` and its Codex twin
+> `agents/test-auditor.md`. **No audit has been run with the skill or the role yet.**
+>
+> **Open right now: `e2e-shard-budget` fails at `ee834b6`, and the pre-push hook runs it, so nothing can be pushed from this
+> branch until the owner decides** (backlog 147: split `room-desktop-line.desktop.e2e.spec.ts`, raise desktop to 7 shards, or
+> restore the deleted specs). The branch `m8-review-contact-success` is 50 commits past `a2a6dfd` at `9b28323` (the
+> coordinator's `git rev-list --count`, relayed), none pushed. The full local gate at `ee834b6` otherwise passed (coordinator
+> run; figures in `TESTS_REVIEW.md`, *Progress*). New backlog 147 to 152; entry 145 gained a possible recurrence.
+> Nothing below this block was changed by this note; the M8 entries under *What to do next* are the M8 state.
+
 > ## M7 — Screen 1: room shape, dimensions, presets, bespoke fallback — CLOSED, 2026-09-29
 >
 > **M7's own acceptance criteria are met and the phase is closed.** The plan file is moved to
@@ -1139,6 +1157,12 @@ policy, so every per-endpoint limit is application code.
 
 ## What to do next
 
+> **FIRST, 2026-10-08, after the tests review: the owner decides backlog 147 (`e2e-shard-budget`).** Until then no push is possible
+> from `m8-review-contact-success`, so every "next" below is local work. Also the owner's: backlog 148 (a dangling separator in
+> a metres field) and 149 (the empty `test.fixme`), and ruling on [ADR 0152](decisions/0152-a-test-is-kept-only-if-it-can-fail-for-the-reason-its-title-names-and-is-deleted-only-on-evidence.md)
+> decision 4. The next test audit, when the owner triggers one, follows `skills/lemnaria-test-audit/SKILL.md`; its baseline commit
+> is not ruled. The entry below is unchanged and is the M8 state.
+>
 > **RESUME HERE — 2026-10-08, latest of all, after wave 8H. Wave 8H ("the submission contract") is DONE; the next dispatchable waves are 8I and 8J. 8F waits on the triage of the three red `CI=1` specs (backlog 125) and its dispatch reads 8E's "What later waves inherit", ADR 0149 and its amendment, and "The digest secret" under 8I.**
 > **8H**, commits `aecacbd` … `2b8c60b` on `m8-review-contact-success`, **local, not pushed**. **What shipped:** the contact fields and the phone rule, the request, the snapshot and the refusal rule (one home, in the domain, called by the review), all I/O-free under `packages/configurator-domain/src/contact/`; nothing in a route, store or mail uses them yet. Decisions and limits: [ADR 0150](decisions/0150-the-submission-contract-is-one-io-free-definition-a-request-holds-no-price-reads-only-what-the-sender-wrote-and-the-snapshot-and-the-review-share-one-refusal-rule.md). Owner rulings recorded: S2's over-count accepted and one keyed secret for both digests ([ADR 0149](decisions/0149-the-rate-limit-store-keeps-one-row-per-bucket-per-window-refuses-a-broken-promise-and-may-count-high-but-never-low-between-prunes.md) amendment); Q33 as built and criterion 16 (ADR 0150); the test-deletion rule ([ADR 0151](decisions/0151-a-test-may-delete-the-rows-tests-added-and-never-a-row-a-production-user-added.md)). Evidence and the unproven list: the plan's *8H as closed*.
 > **Verification, with who ran it:** [coordinator-run, `2b8c60b`] domain typecheck 0, lint 0, tests 300 files, 7857 passed; web typecheck 0; [coordinator-run, `85465d6`] web lint 0, typecheck 0, vitest 335 files, 6227 passed. [QA-run] round 3 green, criteria 21 to 23; the parity property zero disagreements. [reviewers, `62ed5bc`, re-checked `fd2c958`] logic and security closed all items; clean-code closed its items and found three test items. **Not run / not proven:** `pnpm check`, `pnpm ci:local` and e2e at `2b8c60b` (the coordinator runs `ci:local` next); nothing on a CI runner; `2b8c60b` has not been re-read by a reviewer; **one web-suite run failed once of five (1 of 6227), unidentified (backlog 145).**

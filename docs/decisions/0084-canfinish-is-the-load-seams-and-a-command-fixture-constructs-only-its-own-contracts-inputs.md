@@ -179,6 +179,15 @@ guarantee dressed as this one's, and the count it produced was an artefact of th
   such a design and asserts the same answer: two resolved, the woods untouched, the bare bodies
   bare. It costs about fifteen lines and it retires the argument permanently.
 
+  > **Annotated 2026-10-08 (ADR 0152; the sentence above is kept): "offers everything" means every *finish*, not every
+  > object.** The architect's ruling [relayed]. Any schema-valid finish still succeeds on an undeclared material; a value
+  > `FinishSchema` refuses is refused by `setFinish` and `setGlobalFinish` on any material with `FINISH_NOT_OFFERED`, and
+  > the design is unchanged. `designOffersFinish` is now one function in `design-material.ts` shared by both commands
+  > (`6eef46c`); before that the two finish commands could succeed with a finish their own schema refuses. **The
+  > architect's caveat, exactly: no record says a command's successful result always parses; this ruling is for finishes
+  > only.** Not reachable by a customer (the panel draws no finish control on an undeclared material); an undeclared
+  > material tier is reachable in a stored design [relayed]. The discharge test described above still stands.
+
 ### 6. The duplicated fixture stands, and drift is made loud inside each copy
 
 `docs/best-practices/engineering-conventions.md` is explicit and predates this wave: *"no test

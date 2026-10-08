@@ -1,7 +1,8 @@
 # Tests review — which tests give no real protection
 
-**Date:** 2026-10-08 · **Audited commit:** `fd2c958` (branch `m8-review-contact-success`) · **Status:** report only,
-no test or production file was changed.
+**Date:** 2026-10-08 · **Audited commit:** `fd2c958` (branch `m8-review-contact-success`) · **Status:** the report was
+fixed up on 2026-10-08; see *Progress* and *Statistics* at the end. The line numbers in the tables are those of `fd2c958`,
+and many of the tests named are gone or rewritten.
 
 The owner's question: how many tests only simulate a check, exist to be green, repeat another test with a
 trivial change, are obsolete, or are useless — and why. This file is the list and the argument for each.

@@ -63,7 +63,8 @@ milestone prose.
 | `docs/best-practices/engineering-conventions.md`                                    | Writing code — naming, structure, DRY/KISS/SOLID.                                                                                                                                                                                                                                                                                                  |
 | `docs/best-practices/browser-and-visual-qa.md`                                      | Verifying a visible or interactive surface.                                                                                                                                                                                                                                                                                                        |
 | `docs/best-practices/documentation.md`                                              | Writing a decision record or milestone update.                                                                                                                                                                                                                                                                                                     |
-| `.claude/agents/` (Claude Code) or `docs/AGENT_ROLES.md` and `docs/agents/` (Codex) | Dispatching a sub-agent; role cards and hand-off formats. Use whichever matches the coordinating LLM — the two are kept equivalent but are not the same file format.                                                                                                                                                                               |
+| `docs/TESTS_REVIEW.md`, `docs/test-audits/`                                         | The first full test review and its fix-up; later audit reports (none yet).                                                                                                                                                                                                                                                                         |
+| `.claude/agents/` (Claude Code) or `docs/AGENT_ROLES.md` and `docs/agents/` (Codex) | Dispatching a sub-agent; role cards and hand-off formats (including `configurator-test-auditor`). Use whichever matches the coordinating LLM — the two are kept equivalent but are not the same file format.                                                                                                                                       |
 
 **Current state and history**
 
@@ -88,6 +89,7 @@ Use the repository-local skill guides when their trigger matches:
   model.
 - `docs/skills/lemnaria-delivery-workflow/SKILL.md` — phase planning, QA, review, or documentation
   close-out.
+- `docs/skills/lemnaria-test-audit/SKILL.md` — auditing the test suites for tests that protect nothing.
 
 Avoid vendoring large generic third-party guidance; this workspace already supplies focused
 React/Next.js, browser, image, and document skills.

@@ -175,8 +175,14 @@ status corrections, in one of these two files:
 | 142 | Owner decisions from 8E: ~~S2's over-count~~ and ~~the keyed hash~~ decided 2026-10-08; what remains is whether the two guarded deletes (now on preview) stay, and the `.gitignore` line `vercel env pull` added | open.md — recorded 2026-10-08, updated at 8H's close; the owner's |
 | 143 | The revision shape admits nineteen digits, past a bigint column's range (F12) | open.md — found 2026-10-08 by M8 8H's QA; persistence's; trigger: `design-revision.ts` is next opened |
 | 144 | Any export of contact data neutralises a leading `=`, `+`, `-` or `@` | open.md — recorded 2026-10-08 at 8H's close; trigger: an export is built |
-| 145 | A web-suite run failed once (1 of 6227), unidentified | open.md — seen once in five runs 2026-10-08; trigger: a recurrence, with its name |
+| 145 | A web-suite run failed once (1 of 6227), unidentified | open.md — seen once in five runs 2026-10-08; a possible recurrence with a name added 2026-10-08 (`client-write-path.adversarial`, not established to be the same test); trigger: a recurrence |
 | 146 | Count the stored design ids that lack the generator's shape, before 8L S2 | open.md — recorded 2026-10-08; the owner's; before 8L S2 ships |
+| 147 | `e2e-shard-budget` fails at `ee834b6` and the pre-push hook runs it: the branch cannot be pushed | open.md — found 2026-10-08 by the coordinator's `ci:local`; three options, undecided; the owner's |
+| 148 | A metres field and a dangling separator (`3,` `,5`): refuse, or read as a value? | open.md — found 2026-10-08 by the tests review (row at `TESTS_REVIEW.md` line 285); a product question; the owner's |
+| 149 | The empty `test.fixme` in `global-settings-apply.e2e.spec.ts` is the only record of an unasserted behaviour (row 2881) | open.md — 2026-10-08; whether it stays is the owner's |
+| 150 | A third copy of the undeclared-or-offers check, `withoutAFinishTheMaterialRefuses`, without the schema check | open.md — found 2026-10-08 by the D3 logic review; a drift risk; trigger: that function is next opened |
+| 151 | `DESIGN_ENVELOPE_BYTES` is public through `export *` for one test | open.md — recorded 2026-10-08; the owner approved the export; trigger: a second reader or a surface trim |
+| 152 | Single-guard behaviours were not collected; the two-tab lock's desktop rounds were removed | open.md — recorded 2026-10-08; trigger: the next test audit |
 
 ## 2026-09-06 audit note
 

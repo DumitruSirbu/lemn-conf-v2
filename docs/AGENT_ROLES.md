@@ -4,7 +4,7 @@
 > Code has its own equivalents in `.claude/agents/` (`configurator-architect`,
 > `configurator-developer`, `configurator-qa`, `configurator-review-logic`,
 > `configurator-review-clean-code`, `configurator-review-security`, `configurator-verify-visual`,
-> `configurator-scribe`) — use those instead.
+> `configurator-scribe`, `configurator-test-auditor`) — use those instead.
 
 These are dispatch roles, not persistent background processes. The coordinating Codex agent uses
 them only when a bounded task benefits from delegation.
@@ -19,6 +19,7 @@ them only when a bounded task benefits from delegation.
 | Visual verifier | Real browser/mobile interaction and visual evidence | Certify a surface it could not see or interact with |
 | Security reviewer | Read-only review of data, auth, sharing, generated output, and dependency risk | Run for unrelated pure presentation changes by default |
 | Scribe | Plans, decisions, outcomes, and docs synchronized to shipped work | Modify application or test code |
+| Test auditor | Owner-triggered audit of tests that protect nothing, each finding proven by mutation | Fix, strengthen or delete tests, or mutate a migration |
 
 ## Dispatch cards
 
@@ -59,6 +60,13 @@ was not verifiable.
 
 Document only confirmed behaviour and copied measurements. Preserve decision history and
 corrections; append a later correction rather than rewriting away prior context.
+
+### Test auditor
+
+Follow `docs/skills/lemnaria-test-audit/SKILL.md`. Default scope: test files changed since the last audited commit. Break
+the behaviour each candidate test's title names, in your own worktree, and report measured or read per row; run the whole
+package suite for a survivor. Never mutate a migration; do not run persistence, Playwright or `pnpm ci:local`. Write only
+`docs/test-audits/<date>-<scope>.md`. Findings go to QA; a deletion is checked by the logic reviewer.
 
 ## Handoff format
 

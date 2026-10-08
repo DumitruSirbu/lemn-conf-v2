@@ -61,6 +61,13 @@ replaced it — nothing is deleted or rewritten silently.
   (2026-10-08) on the owner's answer to Q32 (*"32 -go with Per block of 256"*, relayed): the 20 a day is counted
   per /24, not per address. The Q32 section and Alternative 5 are struck in place. IPv6 stays the /64, the
   architect's reading and not the owner's sentence. Nothing in ADR 0019 moves further.
+- **Annotated 2026-10-08, tests-review fix-up, nothing superseded:** **ADR 0084** decision 5's *"`setFinish` offers
+  everything"* → read as every *finish*, not every object, by the architect's ruling [relayed]: a value `FinishSchema`
+  refuses is refused with `FINISH_NOT_OFFERED` on any material (`6eef46c`); **ADR 0078** decision 1 (`materialOffersFinish`
+  now checks a free colour's type and pattern, `38fa058`, `74bcc20`) and decision 3 (it refuses no *document*, not no
+  *finish*); **ADR 0031** (a width resize writes a seeded 820 mm base back at 860 mm, the architect's inference) with a
+  pointer in **ADR 0022**'s amendment; **ADR 0150**'s citation of a deleted test file. Each carries a dated note in its
+  own file. **ADR 0152** records the rules the cleanup produced.
 - **ADR 0148** gained **Amendment A** (2026-10-08), wave 8D's half; nothing in an earlier record is superseded.
   Inside it, E2's condition is replaced by G2, and G1's *"or a language switch"* is struck; the plan keeps the
   original wording.

@@ -42,7 +42,7 @@ when a record you rely on is marked superseded below, or when planning (architec
 | [0019](0019-security-baseline-writes-throttling-retention.md) | Security baseline: write auth, throttling, retention | Partly superseded → 0114, 0115; decision 7 retired 2026-09-15; annotated 2026-10-07 (twice: decision 4, Moldova-only customers); the mint's limits (d5 row, d4, d3 session bucket) superseded 2026-10-07 → 0147 |
 | [0020](0020-a-migration-file-is-not-an-applied-migration.md) | A migration file is not an applied migration | Partly superseded → 0042, 0096 |
 | [0021](0021-corner-returns-are-structural-in-data.md) | Corner returns are structural in the catalogue data | Accepted |
-| [0022](0022-seeded-entries-declare-their-catalogue-equivalent.md) | A seeded entry declares its catalogue equivalent | Accepted (amended) |
+| [0022](0022-seeded-entries-declare-their-catalogue-equivalent.md) | A seeded entry declares its catalogue equivalent | Accepted (amended; pointer note 2026-10-08, 0152) |
 | [0023](0023-touch-compatibility-clicks-reach-the-sheet.md) | A touch on the scene was also pressing the sheet | Accepted |
 | [0024](0024-the-rejection-banner-has-no-reachable-path.md) | §9's rejection banner has no reachable path | Accepted |
 | [0025](0025-the-corner-base-legs-seat-on-the-l-joint.md) | Corner base legs seat on the L-joint, not the wall | Accepted |
@@ -51,7 +51,7 @@ when a record you rely on is marked superseded below, or when planning (architec
 | [0028](0028-wall-depth-is-derived-from-the-worktop.md) | Wall/top carcass depth is derived from one declared worktop depth | Partly superseded → 0036 |
 | [0029](0029-a-two-door-cabinet-may-not-be-offered-at-one-door-widths.md) | A two-door cabinet may not be offered at a one-door width | Partly superseded → 0033 |
 | [0030](0030-a-single-hinged-door-tops-out-at-600.md) | A single hinged door tops out at 600mm | Superseded → 0033, 0035 |
-| [0031](0031-a-resize-moves-a-whole-column-into-adjacent-empty-space.md) | A resize moves a whole column, funded by adjacent empty space | Partly superseded → 0043 |
+| [0031](0031-a-resize-moves-a-whole-column-into-adjacent-empty-space.md) | A resize moves a whole column, funded by adjacent empty space | Partly superseded → 0043; dated note 2026-10-08 (0152) |
 | [0032](0032-an-entry-that-does-not-fit-is-shown-disabled-with-its-reason.md) | ~~A non-fitting entry is shown disabled with its reason~~ | Superseded → 0107 |
 | [0033](0033-door-count-is-derived-from-width-not-declared.md) | Door count is derived from width, not declared separately | Accepted (amended) |
 | [0034](0034-width-chips-are-column-scoped-and-judged-by-the-command.md) | §9's width chips are column-scoped, judged by the command | Partly superseded → 0035 |
@@ -98,13 +98,13 @@ when a record you rely on is marked superseded below, or when planning (architec
 | [0075](0075-a-recorded-shell-declares-its-shell-not-its-finished-depth.md) | A `recorded-shell` entry's `frameDepthMm` is its shell, and the round trip that measured 39 mm was measuring the fake probe | Accepted |
 | [0076](0076-a-probe-lease-is-a-scoped-borrow-and-the-store-publishes-no-probe.md) | A body-probe lease is a scoped borrow, and the store publishes no probe | Accepted |
 | [0077](0077-a-joint-seated-body-declares-its-seat-and-is-never-measured-for-one.md) | A recorded seat is a measurement of one quantity taken at one setting, and reading it without either qualifier is one defect in two places | Accepted |
-| [0078](0078-a-materials-offer-is-its-controls-shape-and-the-load-seam-resolves-before-it-validates.md) | A material's offer is its control's shape, and the load seam resolves before it validates | Accepted |
+| [0078](0078-a-materials-offer-is-its-controls-shape-and-the-load-seam-resolves-before-it-validates.md) | A material's offer is its control's shape, and the load seam resolves before it validates | Accepted; decisions 1 and 3 annotated 2026-10-08 (0152) |
 | [0079](0079-a-republished-depth-names-the-body-it-came-from.md) | A republished depth names the body it came from, and §3.2's MAX is not decided below the millimetre | Accepted |
 | [0080](0080-an-empty-space-follows-the-setting-and-a-fallback-is-not-a-ratchet.md) | An empty space follows the setting, and the fallback that answers for a lost one is not a ratchet | Accepted |
 | [0081](0081-a-material-change-confirms-only-when-a-chosen-colour-would-be-lost.md) | A material change confirms before it wipes a chosen colour, and says nothing when nothing was chosen | Accepted |
 | [0082](0082-the-settings-strip-wraps-and-nothing-leaves-the-viewport.md) | The whole-kitchen strip wraps, and nothing on it leaves the viewport | Partly superseded → 0094 |
 | [0083](0083-wall-coverage-is-the-runs-extent-and-the-finished-end-is-part-of-it.md) | The demo room clears its run at both depths, wall coverage is the run's extent, and an overrun is not a negative remainder | Accepted |
-| [0084](0084-canfinish-is-the-load-seams-and-a-command-fixture-constructs-only-its-own-contracts-inputs.md) | `canFinish` is the load seam's, and a command's fixture constructs only its own contract's inputs | Accepted |
+| [0084](0084-canfinish-is-the-load-seams-and-a-command-fixture-constructs-only-its-own-contracts-inputs.md) | `canFinish` is the load seam's, and a command's fixture constructs only its own contract's inputs | Accepted; decision 5 annotated 2026-10-08 (0152) |
 | [0085](0085-a-normalisations-guard-asks-what-the-normalisation-changes.md) | A normalisation's guard asks what the normalisation changes, never whether the document is valid | Accepted |
 | [0086](0086-the-confirmation-counts-chosen-colours-and-only-a-different-declared-material-owes-one.md) | The confirmation counts chosen colours, is composed before any command, and only a different declared material owes one | Partly superseded → 0099 |
 | [0087](0087-the-hob-holds-its-reach-and-a-deeper-worktop-grows-behind-it.md) | The hob holds its reach to the cook, and a deeper worktop grows behind it | Partly superseded → 0098 |
@@ -169,6 +169,10 @@ when a record you rely on is marked superseded below, or when planning (architec
 | [0146](0146-nothing-copied-from-a-connection-value-or-thrown-by-a-driver-leaves-the-persistence-package.md) | Nothing copied from a connection value, and nothing a driver threw, leaves the persistence package | Accepted |
 | [0147](0147-the-mint-is-limited-to-twenty-a-day-per-ip-address-for-everyone-and-nothing-else.md) | The mint is limited to 20 a day per IP address, for everyone, and nothing else (supersedes 0019 d5's mint row, d4 and d3's session bucket, for the mint) | Accepted (amended 2026-10-08: IPv4 is counted per block of 256, not per address) |
 | [0148](0148-the-review-refuses-one-thing-at-a-time-the-first-the-customer-can-act-on-and-no-cabinet-means-nothing-lemnaria-supplies.md) | The review refuses one thing at a time, the first the customer can act on, and "no cabinet" means nothing Lemnaria supplies | Accepted (amended 2026-10-08: Amendment A, wave 8D's screen) |
+| [0149](0149-the-rate-limit-store-keeps-one-row-per-bucket-per-window-refuses-a-broken-promise-and-may-count-high-but-never-low-between-prunes.md) | The rate-limit store keeps one row per bucket per window, refuses a broken promise, and may count high but never low between prunes | Accepted (row added 2026-10-08 by the scribe; the record's own status was not re-read) |
+| [0150](0150-the-submission-contract-is-one-io-free-definition-a-request-holds-no-price-reads-only-what-the-sender-wrote-and-the-snapshot-and-the-review-share-one-refusal-rule.md) | The submission contract is one I/O-free definition: a request holds no price, reads only what the sender wrote, and the snapshot and the review share one refusal rule | Accepted (row added 2026-10-08 by the scribe; annotated 2026-10-08, 0152) |
+| [0151](0151-a-test-may-delete-the-rows-tests-added-and-never-a-row-a-production-user-added.md) | A test may delete the rows tests added, and never a row a production user added | Accepted; the marker is not ruled |
+| [0152](0152-a-test-is-kept-only-if-it-can-fail-for-the-reason-its-title-names-and-is-deleted-only-on-evidence.md) | A test is kept only if it can fail for the reason its title names, and it is deleted only on evidence | Accepted; decision 4 (the audit recurs, incrementally) is proposed, not ruled |
 
 ## Adding the next one
 
