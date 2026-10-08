@@ -3589,7 +3589,9 @@ Criteria 1, 3, 4, 5, 8 and 9 hold on the live test database [relayed, QA-run].
 **Rule S1 — one key, one policy; and a broken promise is refused, never counted (F1).**
 
 - *The contract, which is 8F's to keep:* a bucket's key is the digest of **the policy's name and
-  the subject together**. Two policies never share a key. This is not a corner. 8G and 8K keep
+  the subject together**. **(Restated 2026-10-08, review S-R1.3: of an encoding of the two that
+  no subject can forge; see *the three reviews*.)** Two policies never share a key. This is not a
+  corner. 8G and 8K keep
   two limits on one subject [doc, this plan, 8F's restated criterion 3], and an hour's window and
   a day's begin at the same instant every midnight. With the subject alone in the digest, F1
   happens daily.
@@ -3624,7 +3626,9 @@ Criteria 1, 3, 4, 5, 8 and 9 hold on the live test database [relayed, QA-run].
 - **Criterion 11, added, as a property.** Under any sequence of lost replies, of either kind and
   at either point, a bucket's stored count is never less than the number of requests answered
   with a count, and never more than the number of attempts sent. *Must not:* a request is
-  answered with a count while its hit is absent.
+  answered with a count while its hit is absent. **(Restated 2026-10-08, review L-R1.1: this
+  holds for a window the prune has not removed, and not across its removal; see *the three
+  reviews*.)**
 - *This is an exception to ADR 0145 decision 2's headline*, the owner's *"a retry never leaves a
   trace"*. That decision lists designs, links and visitor moves, and a counter is none of them;
   but an over-count is a trace. **It is the architect's ruling, open to the owner**, and it goes
@@ -3803,6 +3807,125 @@ and trigger not"*: it listed three where it meant *no other*. The server's eight
 
 **Then review, as ruled:** Full + security, three readers, after the implementer's change and
 QA's re-aim are green.
+
+#### 8E — the three reviews, ruled 2026-10-08
+
+**State.** HEAD is `ae1a8dd` [ran: `git log`]. Logic: approve with should-fix. Clean-code:
+approve with should-fix. Security: approve, no must-fix in code. [relayed; the findings' file
+references re-read at HEAD where a ruling rests on them: src.]
+
+**S-R1.1 — the privilege test sends `truncate` and `drop` at the application's database. Fixed
+now, first in the round. Implementation defect in a test, there since M2, not this wave's
+making.** It is worse than it was put: on a developer's machine the file's `DATABASE_URL` comes
+from the repository root's `.env.local`, and that value is **production's**
+[doc `environments-and-resources.md:64`; src `load-env.ts:13, 43`, loaded by the suite's own
+`vitest.config.ts:3-5`]. So every ordinary run of the
+persistence suite has sent `truncate designs` and `drop table designs` to production and passed
+because the role was refused [src `tests/application-role-privileges.test.ts:97-111`]. Nothing
+asks first who it is.
+
+- **Criterion 13, added. The file is safe on any credential.**
+  1. **A statement that would destroy or create anything if it were allowed is never sent.**
+     `truncate designs`, `drop table designs` and `create table privilege_probe` go. What they
+     proved is asked of the catalog: truncate through the effective-privilege helper; drop as
+     *not the table's owner, no member of its owner, no superuser, not the schema's owner*;
+     create as no `CREATE` on the schema. [inf: that list is who may drop a table as I recall
+     Postgres; the security reviewer checks it against the documentation.]
+  2. **A statement that would touch nothing even if allowed** (the two deletes of a row that
+     does not exist) is sent only after the catalog has said it will be refused. If the catalog
+     says otherwise the test fails with that answer, and the statement is not sent.
+  3. **Before any of it,** the file establishes, by reads alone, that the connection is no
+     superuser, inherits no role and does not own `designs`. If it cannot, every test in the file
+     fails at once, saying what it found, and nothing more is sent.
+  4. **The run says once what it reached:** the database and the role as the server names them.
+     No part of the URL.
+  *Must not:* a failed guard skips, since a skip reads as fine; a secret is printed; the file's
+  header goes on saying *"nothing here writes"* while a statement could.
+- *Why now and not the backlog:* the file is open in this wave, the change is one test file, and
+  the price of the one bad day is the production table.
+- *Why the two probes are removed and not guarded:* a guard is only as good as its reasoning
+  about who may drop a table, and a gap in that reasoning would be found by the table going. A
+  statement not sent cannot succeed.
+
+**The findings, ruled.**
+
+| Finding | Ruling |
+| --- | --- |
+| L-R1.1 *never low* is false across a prune | **Both directions.** Criterion 11 restated above. The port's doc says a hit for a window the prune has removed starts again at 1. **8G's prune trails the clock by a margin longer than a request can live**, a datum set there with its reason. Exposure until then: one late request for a bucket at a prune |
+| L-R1.2 the prune under-reports after a repeat | Doc clause: after a repeat the number is a lower bound |
+| L-R1.3 the comment states the lock order as fact | **The comment changes, and the tier goes in the wave's ADR.** The prune's order is a locking read under an `order by`, which Postgres documents. That an insert takes its select's rows in the select's order is **observed, thirty runs of thirty, and not documented** [reviewer: doc, by absence]. A recorded limit with its trigger (ADR 0118): a `40P01` from this module, or a new major version of the database, re-runs QA's race |
+| L-R1.4 *nothing counted* has a hole through the retry | **Record only**, in the ADR's limits. It needs a caller that already broke S1 and a prune inside the half-second wait |
+| S-R1.2 an empty list resolves to no counts and asks nothing | **Refused here, and 8F's as well.** It is the one input the store answers without the database, and no counts reads as nothing over the limit. It becomes a validation refusal in the one check both stores share. 8F's evaluator separately refuses a policy with no bucket when it is built. The two pins and QA's N = 0 test follow |
+| S-R1.3 how name and subject are joined | **S1 restated.** The key is the digest of an encoding in which the policy's name comes from a **closed set written in code** and the subject **cannot be mistaken for any part of a name**: equal encodings only for equal pairs. 8F owns the function and a property for it over arbitrary subjects, including ones that contain a policy's name. Here, the port's doc says so |
+| S-R1.9 grant option and column grants | **Backlog**, in the entry for the older tables: the helper learns both once, for all four |
+| C-R1.1 the identity built twice | In the round: built once |
+| C-R1.2 the fake loads the driver | **In scope, last in the round.** By the package's own naming: `rate-limit-store.ts` keeps the port (the interface, the errors, the checks) and loads no driver; the Neon class moves to `neon-rate-limit-store.ts`, as `neon-configuration-repository.ts` stands beside its port. `index.ts` exports the same names |
+| C-R1.3 the comment ends in history | In the round: it cites the wave's ADR and no adjudication |
+| C-R1.4 `recordHits` is 35 lines; C-R1.5 to C-R1.8; S-R1.12 the title that says *"ran nothing"* | In the round |
+
+**One narrow exception to "no `qa-*` file is edited".** C-R1.2 moves `NeonRateLimitStore`, which
+QA's files import by path. The implementer may change **the module named in an import line** of
+a QA file and nothing else in it. The clean-code reviewer confirms from the diff that those lines
+are the whole change to every QA file.
+
+**The fix round. One implementer, five items, in this order.**
+
+| # | Does | Files |
+| --- | --- | --- |
+| 1 | Criterion 13 | `tests/application-role-privileges.test.ts`, its helper under `tests/support/` |
+| 2 | S-R1.2: an empty list is refused, in both stores | `rate-limit-store.ts`; its own two tests |
+| 3 | The words: L-R1.1, L-R1.2, L-R1.3, S-R1.3 in the port's doc; C-R1.3; S-R1.12 | `rate-limit-store.ts`, `tests/rate-limit-store.test.ts` |
+| 4 | C-R1.1, C-R1.4 and the nits C-R1.5 to C-R1.8 | `rate-limit-store.ts` |
+| 5 | C-R1.2, as its own commit | `rate-limit-store.ts`, new `neon-rate-limit-store.ts`, `fake-rate-limit-store.ts`, `index.ts`; import lines only in tests |
+
+*Reading:* this section; the three slice files; ADR 0145; ADR 0136. *Must not:* either SQL
+statement's text changes; `0007` changes. Item 1 shares no file with the rest and may go to a
+second implementer beside them. **The wave's ADR number is reserved before the round**, so items
+3 and 4 can cite it.
+
+**After the round.**
+
+- **QA:** re-aims its N = 0 test; runs its files once. **The thirty are not re-run if both
+  statements are byte for byte what they were**, shown by a diff of the two strings against
+  `ae1a8dd`. If either changed at all, the thirty again.
+- **Security** re-checks item 1, with the list of who may drop a table, and items 2 and S-R1.3's
+  wording. **Logic** re-checks items 2 and 3. **Clean-code** re-checks items 4 and 5 and the QA
+  files' diff. Each on its own findings only.
+
+**What later waves inherit. Recorded, not built.**
+
+- **8F:**
+  - The key's encoding, the closed set of names and its property (S-R1.3).
+  - A change of a window's length is a new policy name (S-R1.4).
+  - A policy with no bucket is refused when built (S-R1.2).
+  - The list's length is the policy's and never a request's (S-R1.6).
+  - The store sets no time limit, so 8F brings its own deadline and refuses when it passes
+    (S-R1.7).
+  - It fails closed on any throw, two of which are not `RateLimitStoreError` (L-R1.6).
+  - The fake cannot be reached in a deployed build (S-R1.11, its criterion 9), and differs from
+    the Neon store as listed (L-R1.5).
+  - The digest is one function, so a key added later is one function's change.
+- **8G:**
+  - The prune's margin (L-R1.1).
+  - Its instant is the server's clock and never a request's value (S-R1.5).
+  - A prune that fails is seen (S-R1.5).
+  - A prune over a flood's rows may not finish in one statement (S-R1.5).
+  - The number it logs is a lower bound (L-R1.2).
+- **8K:** whether the digest is keyed is decided in its S0, before an e-mail is ever a subject.
+
+**Backlog.** S-R1.9, with the older tables' grant tests. S-R1.10 is ADR 0146's recorded limit and
+needs no new entry.
+
+**For the owner, relayed by the coordinator. I do not disagree with either.**
+
+- *The keyed hash* is a security question and is the reviewer's recommendation, not my ruling:
+  unkeyed for 8E and 8F as a recorded limit, decided in 8K's S0, keyed recommended there. One
+  consequence to say with it: adding a key later changes every key, so every count starts again
+  at that deploy. Harmless for a day's limit, and better known beforehand.
+- *The nine steps for applying `0007` and its grant* belong in `docs/runbooks/`, named for the
+  operation and not the wave, since 8H's table will need the same steps; `0007` is its first
+  worked case. This plan's *Owner action after this wave* and the environments guide point at
+  it.
 
 ### 8F — the limiter and the mint
 
