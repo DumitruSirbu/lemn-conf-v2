@@ -879,6 +879,72 @@ days of mail content in the United States.** It goes into the privacy text (Q7, 
 variables are set sends real mail; one where any is unset says the request cannot be sent, as D8
 and 8K's criterion 8 always had it.
 
+### The owner's answers of 2026-10-08
+
+Four answers, all relayed by the coordinator. The owner's words are quoted where the coordinator
+gave them; everything else in this section is a reading and is marked as whose.
+
+| What was asked | The owner | Standing |
+| --- | --- | --- |
+| Rule S2 of 8E: a hit repeated after the database has slept may be counted up to three times | Chose *"Accept (Recommended)"* | **Accepted.** No longer the architect's alone |
+| Q33: which ways of writing a phone number are accepted | The example *"069010101"*, then *"Yes"* to the coordinator's reading | **As built.** My recommendation is not taken |
+| Whether a Moldovan number's eight digits can begin with 0 | First *"All number in Moldova start with an 0 mobile or fix numbers"*, then *"no there is no number 00x xxx xxx , only one 0 at start"* | ~~Recorded as said. Criterion 16 still rests on my inference~~ **Criterion 16 confirmed by the owner, by his second sentence** |
+| What a test may delete from a database | *"If were added by tests , delete , if added by production user keep"* | **Ruled** |
+
+**1. Rule S2 — accepted.** The question put was: after the database has slept, the first request
+is retried and may be counted up to three times against the twenty-a-day limit. The owner chose
+*"Accept (Recommended)"*. ADR 0149 marks the rule *"open to the owner"*; that is discharged, and
+the scribe amends the ADR at 8H's close. *Not asked, and unchanged:* that an empty reply is not
+repeated, and criterion 11's bounds.
+
+**2. Q33 — as built.** The owner answered with an example, *"069010101"*. The coordinator then
+put a reading to him: accept only `0` and eight digits, or `+373` and eight, with spaces, dashes
+or brackets; keep refusing dots, *"00373…"*, *"+373 (0)…"* and eight bare digits. He answered
+*"Yes"*. **Ruled:** those four spellings stay refused. **I had recommended accepting all four;
+that is not taken.** *My reading, not put to him:* *"spaces"* covers a space of any width, as
+8H's reading 8b has it, and a format character is still removed and not refused (criterion 10).
+Neither changes which of the four spellings is refused.
+
+**3. Criterion 16 — the owner's sentence, and what it does not say.** Asked whether it is true
+that no Moldovan number's eight digits start with 0, he answered: *"All number in Moldova start
+with an 0 mobile or fix numbers"*. **The coordinator's reading, and mine:** he confirms the
+national form, the prefix 0 and then eight digits. **He did not say whether the first of the
+eight can be 0.** ~~So criterion 16 is not his ruling and is not raised to one: it stands on the
+inference written under it.~~ His own example is consistent with it and proves nothing more.
+
+**Then he answered it directly, the same day:** *"no there is no number 00x xxx xxx , only one 0
+at start"* [relayed]. That is the criterion in his words: after the one 0, the eight digits do
+not begin with another. **Criterion 16 is confirmed by the owner, 2026-10-08, and no longer
+rests on my inference alone.** The two sentences are kept in the order he gave them, because the
+first did not say it and the second does. *Still not ruled, and not asked:* which other first
+digits exist.
+
+**4. What a test may delete — ruled, in his words:** *"If were added by tests , delete , if added
+by production user keep"*.
+
+- *Ruled:* a test may delete rows that tests added. A row a real user added is never deleted.
+- *The coordinator's reading:* the three rows removed after 8E's interrupted run are thereby
+  accepted. They were tests' rows on the test database.
+- *Not ruled:* how a row is known to be a test's.
+- *My reading of that, which is 8E's ruling and stands:* on the guarded test database, by a
+  marker only tests write, with the count removed reported. And its other half follows from his
+  words: **on a database that holds users' rows, a test deletes only what it can show it added
+  in that run.**
+- *Where it should live, for the scribe:* a dated record in `docs/decisions/`, with the sentence
+  verbatim, since an owner's rule said in conversation is not yet an invariant; it belongs beside
+  ADR 0006, which it extends. Its working form goes in
+  `docs/best-practices/environments-and-resources.md` under *Test-database isolation*, next to
+  the rule that resources are add-only, which it qualifies for rows. `docs/WORKFLOW.md` needs a
+  pointer at most.
+
+**A fact recorded with these, coordinator-run [relayed].** The owner changed Vercel's Development
+`DATABASE_URL` and pulled it again. The privilege test now prints *reached database
+"lemn-conf-v2-preview" as role "app_designs"*: 10 passed, 1 skipped, exit 0. **So the persistence
+suite no longer reaches production from this machine.** The guide's row for the root
+`.env.local` is now stale and is the scribe's to correct at 8H's close. Which test skipped was not
+relayed; if it is the one on `rate_limit_counters`, criterion 7's grant half of 8E is still
+written and never executed.
+
 ### What is still open for M8 itself, 2026-10-07
 
 ~~Four questions.~~ ~~**Q28 is answered (the section above). Open: Q29, Q30, the second half of Q31,
@@ -3633,7 +3699,9 @@ Criteria 1, 3, 4, 5, 8 and 9 hold on the live test database [relayed, QA-run].
 - *This is an exception to ADR 0145 decision 2's headline*, the owner's *"a retry never leaves a
   trace"*. That decision lists designs, links and visitor moves, and a counter is none of them;
   but an over-count is a trace. **It is the architect's ruling, open to the owner**, and it goes
-  to them in those words with the limit's own *"track and adjust later"*.
+  to them in those words with the limit's own *"track and adjust later"*. **(Accepted by the
+  owner, 2026-10-08: *"Accept (Recommended)"* [relayed]. See *The owner's answers of
+  2026-10-08*.)**
 - *The comment* says what is true: a repeat can count a hit twice; that is accepted after a
   cold-start refusal and not after an empty reply; the reason is this ruling, cited by the wave's
   ADR and not by ADR 0145 decision 1.
@@ -3657,6 +3725,8 @@ against the guarded test database. The eras are allocated in **one support file*
 suites import, so *"no other writer uses this era"* is read in one place and not trusted to two
 comments. And it **reports how many rows it removed**, so an interrupted run is seen and not
 healed in silence. The incident that produced it is the owner's and is not ruled here.
+**(The owner ruled it, 2026-10-08: *"If were added by tests , delete , if added by production
+user keep"* [relayed]. See *The owner's answers of 2026-10-08*.)**
 
 **What 8F inherits. Recorded, not built.**
 
@@ -3823,7 +3893,9 @@ from the repository root's `.env.local`, and that value is **production's**
 `vitest.config.ts:3-5`]. So every ordinary run of the
 persistence suite has sent `truncate designs` and `drop table designs` to production and passed
 because the role was refused [src `tests/application-role-privileges.test.ts:97-111`]. Nothing
-asks first who it is.
+asks first who it is. **(True when written. Since 2026-10-08 the root file's value is the
+preview database's, and the test says which it reached [relayed, coordinator-run]; see *The
+owner's answers of 2026-10-08*.)**
 
 - **Criterion 13, added. The file is safe on any credential.**
   1. **A statement that would destroy or create anything if it were allowed is never sent.**
@@ -4253,7 +4325,9 @@ S1 builds exactly that. Four things a real customer types are therefore refused 
 the 0 kept after the code; and *"69123456"*, eight digits and no prefix. A fifth, a no-break space
 from a pasted number, I rule myself: it is a space, and is grouping. *Recommended:* accept all
 four, since each has one reading and the normal form is the same. *If unanswered:* as built. It
-blocks nothing, and widening later moves no stored value. *Not ruled.*
+blocks nothing, and widening later moves no stored value. ~~*Not ruled.*~~ **Answered
+2026-10-08: as built; the four stay refused, and the recommendation is not taken [relayed]. See
+*The owner's answers of 2026-10-08*.**
 
 **For 8L, recorded.** A Romanian number typed as at home, *"0722 123 456"*, is read as a Moldovan
 number with too many digits. The sentence for that refusal says how to write a number from
@@ -4520,11 +4594,15 @@ number nobody can dial was stored.
   own first digit were 0 would be written with two, and two zeros is how a call abroad begins.
   So the eight digits do not start with 0. **[inf: this is how a plan with that prefix is built;
   no record here states Moldova's, and nobody read it.]** Which other first digits exist is a
-  fact about the numbering plan that I do not rule.
+  fact about the numbering plan that I do not rule. **(2026-10-08: the owner was asked and said
+  *"All number in Moldova start with an 0 mobile or fix numbers"* [relayed]. That speaks of the
+  prefix, not of the first of the eight~~, so this still rests on the inference~~. Asked again, he
+  said *"no there is no number 00x xxx xxx , only one 0 at start"* [relayed]. **Tier, from then:
+  the owner's word, with the inference above as its reason and no longer its only ground.**)**
 - *The refusal* is not *incomplete* and not *too many*: neither sentence would be true.
 - *With Q33:* if the owner accepts those spellings, they are read as what they mean, the 0
   dropped or the `00` read as `+`. This criterion is what makes that reading safe, and it stands
-  either way.
+  either way. **(Q33 answered 2026-10-08: they are not accepted. The criterion stands.)**
 
 **Criterion 17, added — only what the sender wrote is read (F2).** Every field, at every level,
 is read as the object's own property. **The check is in `validateContactFields` itself**, since
@@ -4585,7 +4663,9 @@ built*; ADR 0148 decisions 1 to 3; `qa-8c-fit-is-the-querys-answer` and
   fix under its third question.
 
 *For the scribe, at the close:* the limits F5 and F7; F8 and F12's sentence under 8K; the
-backlog entry for F12; criterion 16's evidence tier in the wave's ADR; Q33 still open.
+backlog entry for F12; criterion 16's evidence tier in the wave's ADR; ~~Q33 still open~~.
+**(2026-10-08: Q33 is answered, as built; criterion 16's tier is the owner's word, both of his
+sentences quoted in order. See *The owner's answers of 2026-10-08*.)**
 
 ### 8I — the contact submissions store
 
