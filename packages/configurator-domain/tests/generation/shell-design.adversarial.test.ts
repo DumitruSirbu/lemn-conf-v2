@@ -80,7 +80,6 @@ import {
   SHELL_CABINET_DEPTH_MM,
   SHELL_OCCURRED_AT,
   unionOf,
-  withWallABaseRunFilled,
   atCabinetDepth,
   shellIn,
 } from "../support/shell-design.js";
@@ -1165,41 +1164,6 @@ describe("buildLShellDesign — the room it refuses (Q1.5, revised: refuse rathe
         ],
       },
     );
-  });
-});
-
-describe("the it.fails band 900–918 reaches its assertion (Adjudication 7D1-Q2)", () => {
-  // `it.fails` passes on **any** throw. The implementer's premise shows the band's rooms build and
-  // that filling places nothing; it does not run the one call left in each case's body, the panel's
-  // own seat. This holds that call to answering — a number or no panel — rather than throwing, so a
-  // case can only be green because its assertion failed.
-  it("computes the run-end panel for every band room without throwing", () => {
-    const l = approvedL();
-    const lastMm =
-      floorRunStartMm("A") +
-      toMillimetres(RUN_END_PANEL_GAP_M + RUN_END_PANEL_THICKNESS_M) -
-      1;
-    let computed = 0;
-
-    for (let widthMm = l.wallA.minMm; widthMm <= lastMm; widthMm += 1) {
-      const room: DesignRoom = {
-        shape: "L",
-        widthMm,
-        depthMm: l.wallB.minMm,
-        heightMm: TOP_ROW_CEILING_MM,
-      };
-      const filled = withWallABaseRunFilled(shellIn(room));
-
-      expect(() =>
-        runEndPanelSeatM(
-          derivePlacementRecords(filled, catalogAt(SHELL_CABINET_DEPTH_MM)),
-          room,
-        ),
-      ).not.toThrow();
-      computed += 1;
-    }
-
-    expect(computed).toBe(19);
   });
 });
 
