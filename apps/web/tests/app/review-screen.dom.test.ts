@@ -54,6 +54,7 @@ import {
   withAnUnofferedTier,
 } from "../support/review-edits";
 import { priceAndProject } from "../support/generated-kitchens";
+import { valuesFor } from "../support/css-declarations";
 import { ro } from "../support/romanian-content";
 import { ARMS, composedKitchensOf } from "../support/swept-kitchens";
 
@@ -586,9 +587,16 @@ describe("what the stylesheet declares (the layout itself is the visual pass's)"
     return match[1] ?? "";
   }
 
+  /** Every value the sheet declares for the property on the class, in any rule and any media query. One entry
+   *  means declared once: a later rule undoing the first is a second entry, where the first rule's text alone
+   *  still read as before. */
+  function declared(className: string, property: string): readonly string[] {
+    return valuesFor(STYLESHEET, className, property);
+  }
+
   it("pins the bottom region by sticking it in the flow, and fixes nothing", () => {
-    expect(ruleBody(".bottom")).toContain("position: sticky");
-    expect(ruleBody(".bottom")).toContain("bottom: 0");
+    expect(declared("bottom", "position")).toEqual(["sticky"]);
+    expect(declared("bottom", "bottom")).toEqual(["0"]);
     expect(STYLESHEET).not.toContain("position: fixed");
   });
 
@@ -600,7 +608,7 @@ describe("what the stylesheet declares (the layout itself is the visual pass's)"
   );
 
   it("draws the scene at frame 3A's 158 px", () => {
-    expect(ruleBody(".picture")).toContain("height: 158px");
+    expect(declared("picture", "height")).toEqual(["158px"]);
   });
 
   it("undoes the editor's rule under the language menu's cell, with more weight than its own", () => {
@@ -610,7 +618,7 @@ describe("what the stylesheet declares (the layout itself is the visual pass's)"
   });
 
   it("never lets the bar wrap, and lets only the call to action give way, by its label's spaces", () => {
-    expect(ruleBody(".buyRow")).not.toContain("flex-wrap");
+    expect(declared("buyRow", "flex-wrap")).toEqual([]);
     expect(ruleBody(".buyRow")).toContain("justify-content: space-between");
     expect(ruleBody(".figure")).toContain("flex: 0 0 auto");
     expect(ruleBody(".figure")).toContain("flex-direction: column");
@@ -641,7 +649,7 @@ describe("what the stylesheet declares (the layout itself is the visual pass's)"
 
   it("puts the views in the flow under the picture, not over it", () => {
     expect(ruleBody(".presets")).not.toContain("position: absolute");
-    expect(ruleBody(".picture")).toContain("height: 158px");
+    expect(declared("picture", "height")).toEqual(["158px"]);
     expect(ruleBody(".view3d")).toContain("position: absolute");
   });
 
@@ -650,7 +658,7 @@ describe("what the stylesheet declares (the layout itself is the visual pass's)"
   });
 
   it("keeps the call to action at least 44 px tall and focusable when off", () => {
-    expect(ruleBody(".cta")).toMatch(/min-height: 52px/);
+    expect(declared("cta", "min-height")).toEqual(["52px"]);
     expect(STYLESHEET).toContain('.cta[aria-disabled="true"]');
   });
 });

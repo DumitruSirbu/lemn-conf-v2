@@ -27,6 +27,18 @@ function jsonResponse(payload: unknown, status = 200): Response {
   });
 }
 
+const REFUSAL_STATUS = 404;
+const REFUSAL_BODY_TEXT = "No design found for id …";
+
+/** An error's message, its name, and every own field with its value, as one text to search. */
+function everythingCarriedBy(failure: unknown): string {
+  if (!(failure instanceof Error)) return String(failure);
+  const ownFields = Object.getOwnPropertyNames(failure)
+    .filter((field) => field !== "stack")
+    .map((field) => `${field}=${String(Reflect.get(failure, field))}`);
+  return [failure.name, failure.message, ...ownFields].join("\n");
+}
+
 describe("share-link-client", () => {
   let requests: RecordedRequest[];
   let nextResponse: () => Response;
@@ -95,9 +107,17 @@ describe("share-link-client", () => {
     "turns a refusal into one ShareLinkRequestFailedError, carrying no status or body (%s)",
     async (_operation, call) => {
       nextResponse = () =>
-        jsonResponse({ error: "No design found for id …" }, 404);
+        jsonResponse({ error: REFUSAL_BODY_TEXT }, REFUSAL_STATUS);
 
-      await expect(call()).rejects.toThrow(ShareLinkRequestFailedError);
+      const failure: unknown = await call().catch((error: unknown) => error);
+
+      expect(failure).toBeInstanceOf(ShareLinkRequestFailedError);
+      // The class alone is satisfied by an error whose message quotes the response. Everything the error holds is
+      // read, its message and any field hung on it, and none of it may be the status or the body.
+      const carried = everythingCarriedBy(failure);
+      expect(carried).not.toContain(String(REFUSAL_STATUS));
+      expect(carried).not.toContain(REFUSAL_BODY_TEXT);
+      expect(carried).not.toContain(DESIGN_ID);
     },
   );
 

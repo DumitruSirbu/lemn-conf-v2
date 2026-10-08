@@ -436,6 +436,29 @@ describe("an overflowing design, on the page", () => {
   });
 });
 
+describe("the bar's reserved height reaches the stylesheet from one constant", () => {
+  // The stylesheet reads `--price-bar-height` as the bar's floor, so the property has to be on the rendered bar
+  // and has to carry the constant the 390 × 844 gate is asserted against. Read from the markup, on a priced
+  // kitchen and on an empty one, which draws a prompt in the same reserved band.
+  const KITCHENS_THE_BAR_IS_DRAWN_FOR: readonly (readonly [string, Design])[] =
+    [
+      ["a priced kitchen", KITCHEN_L_DESIGN],
+      ["an empty kitchen", { ...KITCHEN_L_DESIGN, placements: [] }],
+    ];
+
+  it.each(KITCHENS_THE_BAR_IS_DRAWN_FOR)(
+    "publishes the reserved height on the bar it renders, for %s",
+    (_name, design) => {
+      const markup = barMarkup(priceOf(design));
+
+      expect(PRICE_BAR_RESERVED_HEIGHT_PX).toBeGreaterThan(0);
+      expect(markup).toContain(
+        `style="--price-bar-height:${String(PRICE_BAR_RESERVED_HEIGHT_PX)}px"`,
+      );
+    },
+  );
+});
+
 /** §10.1's phone gate, 390 × 844. */
 const GATE_VIEWPORT_HEIGHT_PX = 844;
 

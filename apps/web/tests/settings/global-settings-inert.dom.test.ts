@@ -107,6 +107,18 @@ function pressAnUncheckedHardwareTier(): string {
   return radio.value;
 }
 
+/** A colour the sheet does not have pressed, pressed. Returns the palette entry it names. */
+function pressAnUnpressedColour(): string {
+  const swatch = settingsBand.querySelector<HTMLButtonElement>(
+    '[data-testid="global-settings-colour-group"] button[data-testid^="finish-"][aria-pressed="false"]',
+  );
+  if (!swatch) throw new Error("the sheet offers no second colour");
+  act(() => {
+    swatch.click();
+  });
+  return (swatch.dataset.testid ?? "").replace("finish-", "");
+}
+
 function press(testId: string): void {
   const button = settingsBand.querySelector<HTMLButtonElement>(
     `[data-testid="${testId}"]`,
@@ -155,6 +167,66 @@ describe("the settings sheet and the screen behind it", () => {
     });
     expect(surface()).toBeNull();
     expect(inertBands()).toEqual([]);
+  });
+});
+
+// What the store-connected sheet hands its surface, seen on the open sheet. The files that read
+// `global-settings.tsx` as text for these (`global-colour-group`, `share-design-mounted`) say no runtime here can
+// open it; this one does, so the handler and the mount are pressed and found rather than searched for.
+describe("what the open sheet is wired to", () => {
+  it("writes the kitchen's colour when a swatch is pressed and applied", () => {
+    const opened = useConfiguratorStore.getState().design.settings?.finish;
+    open();
+    const pressedColour = pressAnUnpressedColour();
+
+    press("global-settings-apply");
+
+    const applied = useConfiguratorStore.getState().design.settings?.finish;
+    expect(pressedColour).not.toBe("");
+    expect(applied).not.toEqual(opened);
+    expect(JSON.stringify(applied)).toContain(pressedColour);
+  });
+
+  // A save can come back refused while the material question is up. From then on its answer writes nothing.
+  it("writes nothing from the material question once the sheet has been locked under it", () => {
+    // A kitchen given a colour of its own first, since that colour is what a change of material would discard and
+    // so what makes the sheet ask.
+    open();
+    pressAnUnpressedColour();
+    press("global-settings-apply");
+    const opened = useConfiguratorStore.getState().design;
+    open();
+    const otherMaterial = settingsBand.querySelector<HTMLInputElement>(
+      'input[type="radio"][name$="-material"]:not(:checked)',
+    );
+    if (!otherMaterial) throw new Error("the sheet offers no second material");
+    act(() => {
+      otherMaterial.click();
+    });
+    press("global-settings-apply");
+    const questionWasAsked =
+      settingsBand.querySelector('[data-testid="global-settings-confirm"]') !==
+      null;
+
+    act(() => {
+      useConfiguratorStore.setState({ saveStatus: "unauthorized" });
+    });
+    press("global-settings-confirm");
+
+    expect(questionWasAsked).toBe(true);
+    expect(useConfiguratorStore.getState().design).toBe(opened);
+  });
+
+  it("draws the share control inside the open sheet, and not while it is shut", () => {
+    const whileShut = settingsBand.querySelector(
+      '[data-testid="share-design"]',
+    );
+    open();
+
+    expect(whileShut).toBeNull();
+    expect(
+      surface()?.querySelectorAll('[data-testid="share-design"]'),
+    ).toHaveLength(1);
   });
 });
 

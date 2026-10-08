@@ -1,6 +1,4 @@
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 
 import { describe, expect, it, vi } from "vitest";
 
@@ -65,12 +63,26 @@ describe("createShareToken", () => {
   });
 
   it("calls no non-cryptographic random source anywhere in the module", () => {
-    const source = readFileSync(
-      resolve(import.meta.dirname, "../../../src/lib/server/share-token.ts"),
-      "utf8",
-    );
+    // Watched as a call, and every character of the token traced to the bytes the CSPRNG returned. The spy on
+    // `randomBytes` is satisfied by a draw that is thrown away, and a search of the source for `Math.random(` by
+    // `Math["random"]()`; neither says where the token's bytes came from.
+    const mathRandom = vi.spyOn(Math, "random");
+    randomBytesSpy.mockClear();
 
-    expect(source).not.toMatch(/Math\s*\.\s*random\s*\(/);
+    const { token } = createShareToken();
+    const callsToMathRandom = mathRandom.mock.calls.length;
+    mathRandom.mockRestore();
+    const drawn = randomBytesSpy.mock.results.flatMap((result) => [
+      ...(result.value as Uint8Array),
+    ]);
+    const tokenFromTheDrawnBytes = drawn
+      .filter((byte) => byte < MAX_ACCEPTED_BYTE)
+      .slice(0, TOKEN_LENGTH)
+      .map((byte) => ALPHABET.charAt(byte % ALPHABET.length))
+      .join("");
+
+    expect(callsToMathRandom).toBe(0);
+    expect(token).toBe(tokenFromTheDrawnBytes);
   });
 
   it("maps a batch of accepted bytes to ALPHABET[byte % 62], in order", () => {

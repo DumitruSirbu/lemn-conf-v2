@@ -87,6 +87,10 @@ vi.mock("@lemnaria/configurator-domain", async (importOriginal) => {
 
 import { generateKitchen } from "@lemnaria/configurator-domain";
 
+import {
+  forgetEditorOrigin,
+  readEditorOrigin,
+} from "@/app/configurator/configure/back-guard";
 import { sessionConfigurationRepository } from "@/persistence/fetch-configuration-repository";
 import { RoomScreen } from "@/room/room-screen";
 
@@ -364,6 +368,7 @@ function theGeneratedDesign(): Design {
 
 beforeEach(() => {
   browser.search = ROOM_QUERY;
+  forgetEditorOrigin();
   browser.push.mockClear();
   browser.replace.mockClear();
   vi.mocked(generateKitchen).mockClear();
@@ -453,6 +458,24 @@ describe("navigation follows the write and nothing else (criterion 40)", () => {
     // The localized editor route, with the id escaped into the path. next-intl builds the href, so
     // the spy holds a string rather than the value the hook passed it.
     expect(editorPushes()).toEqual([`/ro/d/${encodeURIComponent(MINTED_ID)}`]);
+  });
+
+  // The editor's first render asks whether Step 1 is behind it, so the answer has to be on record when the push is
+  // made and has to name the design being opened. Read at the moment of the push, which is the order that matters.
+  it("records the design as opened from Step 1 before it pushes the editor's route", async () => {
+    const originAtTheEditorPush: (string | null)[] = [];
+    browser.push.mockImplementation((href: unknown) => {
+      if (String(href).includes("/d/")) {
+        originAtTheEditorPush.push(readEditorOrigin().designId);
+      }
+    });
+    render();
+
+    tapContinue();
+    await settleNavigation();
+    browser.push.mockReset();
+
+    expect(originAtTheEditorPush).toEqual([MINTED_ID]);
   });
 
   it("stops calling the write in flight once it has landed", async () => {

@@ -17,7 +17,11 @@ import {
 import { describe, expect, it } from "vitest";
 
 import { ro } from "../support/romanian-content";
-import { describePriceBar, type PricedBar } from "@/price/price-bar-model";
+import {
+  describePriceBar,
+  type DescribePriceBarInput,
+  type PricedBar,
+} from "@/price/price-bar-model";
 import { roundUpToThousandMdl } from "@/price/starting-price";
 
 /** Far enough past wall A's end that no rounding of the body's own half-width could hide it. */
@@ -111,19 +115,38 @@ describe("the seeded design, priced and shown", () => {
  * model's own inputs, which no longer include a refusal at all.
  */
 describe("a refused edit", () => {
+  /** A refusal a surface might try to hand the bar. */
+  const A_REFUSAL = { code: "VOID_SELECTED", params: {} } as const;
+
   it("leaves the figure byte-identical, because the model never sees the refusal", () => {
-    expect(pricedBarFor(KITCHEN_L_DESIGN).figure.amountText).toBe(
-      pricedBarFor(KITCHEN_L_DESIGN).figure.amountText,
-    );
+    // Handed a refusal past the type, the model answers what it answers without one. Compared with a second call
+    // that passed no refusal either, the bar agreed with itself whatever the model did with one.
+    const handedARefusal = describePriceBar({
+      pricing: priceOf(KITCHEN_L_DESIGN),
+      content: ro,
+      rejection: A_REFUSAL,
+    } as DescribePriceBarInput);
+
+    expect(handedARefusal).toEqual(pricedBarFor(KITCHEN_L_DESIGN));
     expect(pricedBarFor(KITCHEN_L_DESIGN).figure.label).toBe("De la");
   });
 
   it("cannot be handed to this model at all", () => {
     // The removal in the type: `DescribePriceBarInput` took a `rejection` to choose the label with,
     // and there is no label left to choose. A surface that wanted to relabel a total under a refusal
-    // would have to add the input back, which is a visible change rather than a quiet one.
-    expect(Object.keys({ pricing: priceOf(KITCHEN_L_DESIGN) })).toEqual([
+    // would have to add the input back, which is a visible change rather than a quiet one: the
+    // directive below is what makes it visible, since the typecheck fails on it the day the input returns.
+    const input: DescribePriceBarInput = {
+      pricing: priceOf(KITCHEN_L_DESIGN),
+      content: ro,
+      // @ts-expect-error -- the bar's model takes no refusal (owner's ruling, 2026-09-09).
+      rejection: A_REFUSAL,
+    };
+
+    expect(Object.keys(input).sort()).toEqual([
+      "content",
       "pricing",
+      "rejection",
     ]);
   });
 });

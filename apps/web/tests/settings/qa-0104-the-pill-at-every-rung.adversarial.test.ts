@@ -44,6 +44,8 @@ import {
   type ConfiguratorState,
 } from "@/store/configurator-store";
 
+import pillStyles from "@/settings/global-settings.module.css";
+
 import { createFakeProbeFactory } from "../support/fake-body-probe";
 
 /** `global-settings-shell.test.ts`'s pattern, for its reason: the component runs against a real
@@ -241,7 +243,12 @@ describe("the counter counts what is not shown, and never stands alone", () => {
         const markup = pillMarkup(design, visibleCount);
 
         expect(labelsIn(markup).length, name).toBeGreaterThanOrEqual(1);
-        expect(countOf(markup, 'aria-hidden="true"'), name).toBeGreaterThan(0);
+        // Counted by the swatch's own class. Counted by `aria-hidden`, the separators and the caret stood in for a
+        // swatch that was not drawn.
+        expect(
+          countOf(markup, `class="${pillStyles.swatch ?? ""}"`),
+          name,
+        ).toBe(1);
       }
     },
   );

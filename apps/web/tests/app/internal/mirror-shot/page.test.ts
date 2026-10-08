@@ -17,6 +17,7 @@ vi.mock("../../../../src/app/internal/mirror-shot/mirror-shot", () => ({
   MirrorShot: () => null,
 }));
 
+import { MirrorShot } from "../../../../src/app/internal/mirror-shot/mirror-shot";
 import MirrorShotPage from "../../../../src/app/internal/mirror-shot/page";
 
 describe("the /internal/mirror-shot page", () => {
@@ -35,6 +36,7 @@ describe("the /internal/mirror-shot page", () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv(SCENE_SHOT_ROUTE_FLAG, SCENE_SHOT_ROUTE_FLAG_ENABLED);
 
-    expect(MirrorShotPage()).toBeDefined();
+    // Which element, and not only that there is one: an empty `<div />` is defined too.
+    expect(MirrorShotPage().type).toBe(MirrorShot);
   });
 });

@@ -153,9 +153,13 @@ describe("createSaveCoalescer", () => {
     // error at every call site; this is the runtime half of that guarantee — the call completes
     // and control returns to the caller without the caller doing anything to make that happen.
     const coalescer = buildCoalescer();
-    expect(() => {
-      coalescer.scheduleSave(withPreset("a"));
-    }).not.toThrow();
+
+    // Called through a signature that returns `unknown`, because the declared `void` is the half the compiler
+    // already holds. An `async` scheduler does not throw either; what it does is return a promise.
+    const scheduleSave: (design: Design) => unknown = coalescer.scheduleSave;
+    const returned = scheduleSave(withPreset("a"));
+
+    expect(returned).toBeUndefined();
   });
 
   it("coalesces rapid successive calls into fewer writes, with the final state persisted", async () => {

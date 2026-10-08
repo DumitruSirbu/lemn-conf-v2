@@ -24,7 +24,6 @@ import {
   type PricingResult,
 } from "@lemnaria/configurator-domain";
 import { ro as content } from "../support/romanian-content";
-import fc from "fast-check";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { createElement } from "react";
@@ -42,7 +41,6 @@ import {
 } from "@/price/whole-kitchen-tiers";
 import { GlobalSettingsSurface } from "@/settings/global-settings";
 import {
-  chooseDepthIn,
   chooseFinishIn,
   chooseTierIn,
   describeGlobalSettings,
@@ -505,83 +503,6 @@ describe("ADR 0099 decision 4 — a material change drops a colour it does not o
   });
 });
 
-describe("acceptance 7 — cancel writes nothing, over any sequence of presses", () => {
-  /** Every press the choosing step offers, as the model runs it. */
-  type Press =
-    | { readonly kind: "material"; readonly tierId: string }
-    | { readonly kind: "hardware"; readonly tierId: string }
-    | { readonly kind: "depth"; readonly cabinetDepthMm: number }
-    | { readonly kind: "colour"; readonly finish: Finish };
-
-  function pressed(
-    chosen: WholeKitchenChoice,
-    press: Press,
-  ): WholeKitchenChoice {
-    if (press.kind === "depth")
-      return chooseDepthIn(chosen, press.cabinetDepthMm);
-    if (press.kind === "colour") return chooseFinishIn(chosen, press.finish);
-    return chooseTierIn(chosen, { key: press.kind, tierId: press.tierId });
-  }
-
-  const OFFERED_FINISHES: readonly Finish[] = [
-    PAL_ANTRACIT,
-    PAL_GRI,
-    VENEER_NUC,
-  ];
-
-  it("leaves the stored document byte-identical to the one the sheet opened on", () => {
-    const opened = kitchenWithOneOverride(PAL_ANTRACIT);
-    const openedText = JSON.stringify(opened);
-    // The witness that keeps this from passing on empty sequences alone: at least one run has to
-    // have moved the pending choice somewhere the opening one was not.
-    let pendingEverMoved = false;
-
-    fc.assert(
-      fc.property(
-        fc.array(
-          fc.oneof(
-            fc
-              .constantFrom(...MATERIAL_TIER_IDS)
-              .map((tierId): Press => ({ kind: "material", tierId })),
-            fc
-              .constantFrom(...HARDWARE_TIER_IDS)
-              .map((tierId): Press => ({ kind: "hardware", tierId })),
-            fc.constantFrom(...declaredCabinetDepthsMm()).map(
-              (cabinetDepthMm): Press => ({
-                kind: "depth",
-                cabinetDepthMm,
-              }),
-            ),
-            fc
-              .constantFrom(...OFFERED_FINISHES)
-              .map((finish): Press => ({ kind: "colour", finish })),
-          ),
-          { maxLength: 12 },
-        ),
-        (presses) => {
-          const store = createConfiguratorStore({
-            design: opened,
-            catalogAt: buildKitchenLBodyCatalog,
-            probeAt: createFakeProbeFactory(),
-          });
-          // The sheet's whole life, less the press it never gets: open, choose, choose again,
-          // *Renunță*. Nothing between `resolveOpeningChoice` and `applyWholeKitchenSettings`
-          // touches the store, and cancelling calls neither.
-          const opening = resolveOpeningChoice(
-            opened.settings ?? {},
-            offerOf(opened),
-          );
-          const finalChoice = presses.reduce(pressed, opening);
-          if (JSON.stringify(finalChoice) !== JSON.stringify(opening)) {
-            pendingEverMoved = true;
-          }
-
-          expect(JSON.stringify(store.getState().design)).toBe(openedText);
-        },
-      ),
-      { numRuns: 150 },
-    );
-
-    expect(pendingEverMoved).toBe(true);
-  });
-});
+// Acceptance 7, that cancel writes nothing, is held on the rendered sheet by `global-settings-inert.dom.test.ts`
+// ("leaving the sheet with a choice pending"). The property that stood here folded presses over the pending choice
+// and compared a store nothing had touched with itself, so a cancel that applied left it green.
