@@ -3549,8 +3549,11 @@ QA agent's recorded run, not re-run by the coordinator.
 | D3-B, D3-C, D2-R | `packages/configurator-domain`: QA rounds on the two fixes, review follow-ups | — | Full review tier on the fixes: QA green, logic review and clean-code review both "approve with minor findings", follow-ups applied. Logic review of D2-C: sound, no restore | `b6d2ab1`, `0a351f0`, `74bcc20`, `781727a` |
 | E1 | `apps/web` Playwright specs | 12 rows | 9 deleted, 1 deleted by reading, 1 strengthened, 1 kept. E2e 691 → 677 passed. Logic review: sound, no restore | `ee834b6` |
 | Z1 | Last leftovers: `scripts/gates/boundary.test.mjs`, one `apps/web` row, one spec header | rows 2859, 2966 | 5 gate rows and 1 web test deleted against mutations; gate tests 40 → 35, `apps/web` 5898 passed, re-run by the coordinator | `5d3a92a` |
+| S1 | `apps/web` Playwright: the shard gate | backlog 147 | Owner chose to split `room-desktop-line.desktop.e2e.spec.ts` (69 tests) into three files (2, 37, 30) plus shared helpers; a move, not a rewrite, 193 desktop titles identical [relayed]. Desktop shards 65 / 67 / 61; full local gate green | `8aba717` |
 
 Full local gate (`pnpm ci:local`) at `ee834b6`, run by the coordinator on a clean tree: format, lint, typecheck, test, e2e, build, boundary, lockfile and sca PASS — domain 7695, persistence 1751 (+1 skipped), three-adapter 4284, `apps/web` 5899, e2e 677 passed (1 skipped). **`e2e-shard-budget` FAILS**: removing three desktop spec files moved Playwright's split, and desktop shard 1 of 3 now holds 132 tests against a ceiling of 70.
+
+Full local gate at `8aba717`, run by the coordinator on a clean tree [relayed]: `LOCAL CI PASSED — all gates green, safe to push.` Format, lint, typecheck, test, e2e-shard-budget, e2e, build, boundary, lockfile and sca PASS. Domain 301 files / 7695 passed; persistence 66 files / 1751 passed (1 skipped); three-adapter 127 files / 4284 passed; `apps/web` 335 files / 5898 passed; e2e 677 passed (1 skipped), 10.8 min. Desktop shards 65 / 67 / 61 against the ceiling of 70.
 
 ## Statistics — what the fix-up changed
 
@@ -3660,8 +3663,8 @@ two fixes, so it understates how many cases were removed. Test files changed bet
 
 **What is still open**
 
-- **`e2e-shard-budget` fails**, so the branch cannot be pushed until the owner decides: split
-  `room-desktop-line.desktop.e2e.spec.ts`, or raise the desktop shard count from 3 to 7.
+- **`e2e-shard-budget` was decided and fixed in `8aba717`** (the owner chose to split the file); the full local gate is
+  green there. What is left is the desktop ceiling, still 70 against a largest shard of 67 (backlog 153).
 - A product question no record answers: whether a metres field accepts a dangling separator (`3,` `,5`).
 - The empty `test.fixme` of row 2881 records a behaviour no browser test asserts.
 - Many behaviours now rest on one test each. The QA agents listed them per wave and the reviewers checked

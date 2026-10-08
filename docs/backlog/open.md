@@ -2511,7 +2511,15 @@ a candidate for a defect.
 measured. A page that refuses by `isDesignId` would close an older design's link. The owner reads the live ids once, a
 count and no value. **Owner:** the owner. **Trigger:** before 8L's S2 ships.
 
-## 147. `e2e-shard-budget` fails at `ee834b6`, and the pre-push hook runs it — FOUND 2026-10-08 BY THE COORDINATOR'S `ci:local`, THE OWNER DECIDES
+## 147. `e2e-shard-budget` fails at `ee834b6`, and the pre-push hook runs it — FOUND 2026-10-08 BY THE COORDINATOR'S `ci:local` — CLOSED 2026-10-08, FIXED IN `8aba717` (option 1)
+
+**Closed 2026-10-08 [relayed by the coordinator, who ran the commands].** The owner, verbatim: *"ok do option 1, split the file"*.
+`8aba717` split `room-desktop-line.desktop.e2e.spec.ts` (69 tests) into `room-desktop-line.criteria-03.desktop.e2e.spec.ts` (2),
+`room-desktop-line.criteria-04-10.desktop.e2e.spec.ts` (37) and `room-desktop-line.criteria-12-17.desktop.e2e.spec.ts` (30), with the
+shared helpers in `apps/web/tests/e2e/support/room-desktop-line.ts`; a move, not a rewrite (QA found the 193 desktop titles
+identical). Desktop shards of 3 are now 65 / 67 / 61 against the ceiling of 70 (`e2e-shard-budget.mjs` exit 0); mobile unchanged at
+82 / 89 / 73 / 81 / 97 / 63. `pnpm ci:local` at `8aba717`: all gates green. The residue is entry 153. The text below is the entry as
+first written and is kept as history.
 
 **Source [coordinator-run, `pnpm ci:local` at `ee834b6`; `docs/TESTS_REVIEW.md`, *Progress*].** The tests-review fix-up deleted three
 desktop e2e spec files (6 tests), which moved Playwright's split, because a file is never divided across shards
@@ -2567,3 +2575,13 @@ the QA agents listed them per wave but the lists were not collected into one pla
 two-tab lock's desktop run had added 3 rounds of a probabilistic race that the mobile project's 10 now carry alone
 [relayed]. **Trigger:** the next test audit ([ADR 0152](../decisions/0152-a-test-is-kept-only-if-it-can-fail-for-the-reason-its-title-names-and-is-deleted-only-on-evidence.md)
 decision 4): it should not report "one test" as a finding by itself. No owner.
+
+## 153. The desktop e2e ceiling is still 70 with a largest shard of 67, and the gate script's comment is stale — RECORDED 2026-10-08, AFTER `8aba717`
+
+**Source [relayed by the coordinator, who ran the gate].** After the split (entry 147) the largest desktop shard is 67. The
+derived budget is 66, so `RATCHETED_CEILINGS.desktop` (70) could come down to 67 but not be removed. Lowering it is the
+owner's call. The comment above that constant in `scripts/gates/e2e-shard-budget.mjs` still names the deleted file and the
+figure 69; it is code and has not been edited. Three test files also still name the deleted spec in comments
+(`qa-7l-suggestion-card-is-the-chip.adversarial.dom.test.ts`, `u-gate.e2e.spec.ts`,
+`qa-m7c-c1-footer-centring.adversarial.desktop.e2e.spec.ts`). **Owner:** the owner for the ceiling; the next developer
+dispatch for the comments.

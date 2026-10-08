@@ -177,12 +177,13 @@ status corrections, in one of these two files:
 | 144 | Any export of contact data neutralises a leading `=`, `+`, `-` or `@` | open.md — recorded 2026-10-08 at 8H's close; trigger: an export is built |
 | 145 | A web-suite run failed once (1 of 6227), unidentified | open.md — seen once in five runs 2026-10-08; a possible recurrence with a name added 2026-10-08 (`client-write-path.adversarial`, not established to be the same test); trigger: a recurrence |
 | 146 | Count the stored design ids that lack the generator's shape, before 8L S2 | open.md — recorded 2026-10-08; the owner's; before 8L S2 ships |
-| 147 | `e2e-shard-budget` fails at `ee834b6` and the pre-push hook runs it: the branch cannot be pushed | open.md — found 2026-10-08 by the coordinator's `ci:local`; three options, undecided; the owner's |
+| 147 | `e2e-shard-budget` failed at `ee834b6` and the pre-push hook runs it | open.md — **closed 2026-10-08**, owner chose option 1, fixed in `8aba717` (the file split); residue is 153 |
 | 148 | A metres field and a dangling separator (`3,` `,5`): refuse, or read as a value? | open.md — found 2026-10-08 by the tests review (row at `TESTS_REVIEW.md` line 285); a product question; the owner's |
 | 149 | The empty `test.fixme` in `global-settings-apply.e2e.spec.ts` is the only record of an unasserted behaviour (row 2881) | open.md — 2026-10-08; whether it stays is the owner's |
 | 150 | A third copy of the undeclared-or-offers check, `withoutAFinishTheMaterialRefuses`, without the schema check | open.md — found 2026-10-08 by the D3 logic review; a drift risk; trigger: that function is next opened |
 | 151 | `DESIGN_ENVELOPE_BYTES` is public through `export *` for one test | open.md — recorded 2026-10-08; the owner approved the export; trigger: a second reader or a surface trim |
 | 152 | Single-guard behaviours were not collected; the two-tab lock's desktop rounds were removed | open.md — recorded 2026-10-08; trigger: the next test audit |
+| 153 | The desktop e2e ceiling stays 70 with a largest shard of 67; the gate script's comment and three test comments name the deleted spec | open.md — recorded 2026-10-08 after `8aba717`; the ceiling is the owner's |
 
 ## 2026-09-06 audit note
 

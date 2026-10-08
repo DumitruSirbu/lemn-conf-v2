@@ -141,5 +141,5 @@ overturned. ADR 0078, 0084, 0031, 0022 and 0150 receive dated notes of their own
 - Many behaviours now rest on one test each. The QA agents listed them per wave but the lists were not collected
   [doc, `TESTS_REVIEW.md`, *What is still open*]; the next audit should not treat "one test" as a finding.
 - Open and recorded in the backlog: the metres-field dangling separator (no record decides it), the `test.fixme` of row
-  2881, a third copy of the undeclared-or-offers check, and `e2e-shard-budget`, which fails at `ee834b6` and blocks a push.
+  2881, a third copy of the undeclared-or-offers check, and `e2e-shard-budget`, which failed at `ee834b6` and blocked a push (fixed in `8aba717`, 2026-10-08; backlog 147, 153).
 - Decision 4 stands as a proposal until the owner rules.

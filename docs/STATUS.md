@@ -3,8 +3,15 @@
 **Read this second, right after `AGENTS.md`, before opening any milestone document.** It exists so a
 session can learn fast where the project stands, without reading eight phase plans.
 
-> ## The tests review is DONE, and the branch cannot be pushed until the owner decides one gate — 2026-10-08
+> ## The tests review is DONE, and the shard gate it broke is fixed (`8aba717`) — 2026-10-08
 >
+> **Update, 2026-10-08, after `dc74dcc` [relayed by the coordinator, who ran the commands]:** the owner decided backlog 147
+> (*"ok do option 1, split the file"*) and `8aba717` split `room-desktop-line.desktop.e2e.spec.ts` into three files (2, 37 and
+> 30 tests) plus `support/room-desktop-line.ts`; desktop shards are now 65 / 67 / 61 against a ceiling of 70.
+> **`pnpm ci:local` at `8aba717`, coordinator, clean tree: all gates green, safe to push.** The branch is 52 commits past
+> `a2a6dfd` at `8aba717`, none pushed; the owner has not asked for a push. Still the owner's: whether to lower the desktop
+> ceiling from 70 to 67, backlog 148 and 149, and ADR 0152 decision 4. The two paragraphs below record the state at `9b28323`
+> and are history where they say the branch cannot be pushed.
 > **Done:** all 674 rows of `TESTS_REVIEW.md` are settled; its *Statistics* section holds the counts (counted by script from
 > the Status cells) and is not restated here. Commits per wave are in its *Progress* table. **Two production defects were
 > found and fixed**, neither reachable by a customer: `materialOffersFinish` offered a malformed free colour (`38fa058`,
@@ -1157,8 +1164,9 @@ policy, so every per-endpoint limit is application code.
 
 ## What to do next
 
-> **FIRST, 2026-10-08, after the tests review: the owner decides backlog 147 (`e2e-shard-budget`).** Until then no push is possible
-> from `m8-review-contact-success`, so every "next" below is local work. Also the owner's: backlog 148 (a dangling separator in
+> **FIRST, 2026-10-08, after the tests review: backlog 147 (`e2e-shard-budget`) is decided and fixed in `8aba717`, and the full local
+> gate is green there [relayed]; nothing is pushed and no push has been asked for.** (Written before that as "the owner decides
+> 147; until then no push is possible"; that is history.) Still the owner's: the desktop ceiling (backlog 153), backlog 148 (a dangling separator in
 > a metres field) and 149 (the empty `test.fixme`), and ruling on [ADR 0152](decisions/0152-a-test-is-kept-only-if-it-can-fail-for-the-reason-its-title-names-and-is-deleted-only-on-evidence.md)
 > decision 4. The next test audit, when the owner triggers one, follows `skills/lemnaria-test-audit/SKILL.md`; its baseline commit
 > is not ruled. The entry below is unchanged and is the M8 state.
