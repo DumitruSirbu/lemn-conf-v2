@@ -189,11 +189,11 @@ function routeParams(id: string): { params: Promise<{ id: string }> } {
   return { params: Promise.resolve({ id }) };
 }
 
-// FINDING QA-B — found in R1, fixed by `readDesign`, which wraps `request.json()` in its own `try`
-// and answers 400. These cases are now the regression guard, and the block below them checks the
-// thing a fix of this shape most easily gets wrong: a `try` that also swallows failures which are
-// not the client's fault.
-describe("a malformed body is refused, not thrown", () => {
+// FINDING QA-B — found in R1, fixed by `readDesign`, which wraps the parse in its own `try` and answers 400; that
+// answer is `write-authorization.test.ts`'s. What stays here is the order: the credential is judged before the body
+// is read. The block below checks what a fix of this shape most easily gets wrong: a `try` that also swallows
+// failures which are not the client's fault.
+describe("a malformed body from an unauthorised caller", () => {
   it("refuses a malformed body from an unauthorised caller as 403, before parsing it", async () => {
     const { id } = await mintDesign();
 

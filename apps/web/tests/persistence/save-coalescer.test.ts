@@ -381,6 +381,8 @@ describe("createSaveCoalescer", () => {
 
       expect(repository.calls).toHaveLength(2);
       expect(repository.calls.at(-1)?.design.presetId).toBe("b");
+      // The refusal was the other design's: this one's write lands and the status says so.
+      expect(statuses.at(-1)).toBe("idle");
     });
   });
 
