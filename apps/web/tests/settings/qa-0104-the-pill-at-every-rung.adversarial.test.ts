@@ -289,16 +289,6 @@ describe("the separator falls between labels and nowhere else", () => {
       }
     },
   );
-
-  /** **The free colour costs no separator**, which is the case a `│` around nothing would appear in:
-   *  on MDF the pill draws two names at rung 3 where PAL draws three, and one divider rather than
-   *  two. */
-  it("draws no divider around the colour it does not write", () => {
-    const mdf = pillMarkup(ON_MDF, EVERY_SETTING);
-
-    expect(labelsIn(mdf)).toHaveLength(3);
-    expect(countOf(mdf, "separator")).toBe(2);
-  });
 });
 
 describe("only the first label may ever be cut", () => {

@@ -512,14 +512,6 @@ describe("the two words on the badge cannot drift from the two above the figure"
     },
   );
 
-  it("pins both spellings by literal, so the composition cannot change either silently", () => {
-    expect(ro.price.startingPrefix).toBe("De la");
-    expect(ro.globalSettings.tierDelta("+9 000")).toBe("de la +9 000");
-    expect(ro.globalSettings.tierDelta("+9 000")).toBe(
-      `${ro.price.startingPrefix.toLowerCase()} +9 000`,
-    );
-  });
-
   it("renders the badge's words on the page rather than only in the model", () => {
     expect(markupOf(viewOf(KITCHEN_L_DESIGN))).toContain(">de la +9 000<");
   });

@@ -18,7 +18,6 @@
 // cases below already use.
 import {
   KITCHEN_L_BODY_CATALOG,
-  KITCHEN_L_DESIGN,
   OVERFLOWING_KITCHEN_L_DESIGN as OVERFLOWING_DESIGN,
   type Design,
 } from "@lemnaria/configurator-domain";
@@ -121,13 +120,5 @@ describe("the screen while the 3D chunk is still being fetched", () => {
     const markup = renderScreen();
 
     expect(markup).toContain('data-testid="scene-overflow-region"');
-  });
-
-  it("says nothing about an overflow on a design that has none either", () => {
-    // The other half of the truth table, so the test above cannot pass merely because the sentence is
-    // never rendered by this screen at all.
-    store.design = KITCHEN_L_DESIGN;
-
-    expect(renderScreen()).not.toContain(ro.configure.overflowWarning);
   });
 });

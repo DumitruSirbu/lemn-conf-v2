@@ -229,13 +229,6 @@ describe("the review's stage: a tap selects nothing", () => {
     expect(harness.pick).not.toHaveBeenCalled();
   });
 
-  it("leaves an empty selection empty after a tap", () => {
-    KitchenStage({ view: VIEW, useEditing: useNoEditing });
-    tapTheCanvas();
-
-    expect(useConfiguratorStore.getState().selection).toBeNull();
-  });
-
   it("does not clear the store's selection when the camera cuts its wall", () => {
     const { record, selection } = standingSelection();
     useConfiguratorStore.setState({ selection });

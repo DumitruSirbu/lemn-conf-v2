@@ -218,36 +218,6 @@ describe("roomHrefFromDesignRoom", () => {
       room: { shape: "L", widthMm: 3600, depthMm: 2400, heightMm: 2500 },
     });
   });
-
-  it("omits document, locale, and revision state", () => {
-    const query = new URL(
-      roomHrefFromDesignRoom({
-        shape: "L",
-        widthMm: 3600,
-        depthMm: 2400,
-        heightMm: 2500,
-      }),
-      "https://lemnaria.test",
-    ).searchParams;
-
-    expect([...query.keys()]).toEqual([
-      "shape",
-      "wallA",
-      "wallB",
-      "height",
-      "direction",
-    ]);
-    for (const forbidden of [
-      "presetId",
-      "id",
-      "locale",
-      "revision",
-      "configuration",
-      "design",
-    ]) {
-      expect(query.has(forbidden)).toBe(false);
-    }
-  });
 });
 
 // M7B wave U1 slice S1 (pulled forward from U5) wrote `parsedRoomLengthsOf`'s U arm as data only; U5

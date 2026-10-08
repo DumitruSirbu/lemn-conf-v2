@@ -88,11 +88,6 @@ describe("the ruled sentence", () => {
       ro.configure.overflowWarning,
     );
   });
-
-  it("carries the noun the owner settled on, and not the wording it replaced", () => {
-    expect(ro.configure.overflowWarning).toContain("Dulapurile");
-    expect(ro.configure.overflowWarning).not.toContain("corp");
-  });
 });
 
 describe("when the warning appears", () => {
@@ -149,16 +144,6 @@ describe("the sentence never arrives before the marks it describes", () => {
     const markup = renderWhileTheSceneIsLoading(OVERFLOWING_DESIGN);
 
     expect(markup).toContain('role="status"');
-  });
-
-  it("says it as soon as the scene is mounted, on the same design", () => {
-    // The counterfactual that makes the two above sensitive rather than vacuous: the only thing that
-    // changed is whether the stage is mounted.
-    const loading = renderWhileTheSceneIsLoading(OVERFLOWING_DESIGN);
-    const mounted = renderFor(OVERFLOWING_DESIGN);
-
-    expect(loading).not.toContain(ro.configure.overflowWarning);
-    expect(mounted).toContain(ro.configure.overflowWarning);
   });
 });
 

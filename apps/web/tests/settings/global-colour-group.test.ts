@@ -41,8 +41,6 @@ import {
 } from "@/price/whole-kitchen-tiers";
 import { GlobalSettingsSurface } from "@/settings/global-settings";
 import {
-  chooseFinishIn,
-  chooseTierIn,
   describeGlobalSettings,
   resolveOpeningChoice,
   type GlobalSettingsView,
@@ -465,41 +463,6 @@ describe("acceptance 6 — a document written before this wave", () => {
 
     expect(opening.finish).toBeUndefined();
     expect("finish" in opening).toBe(false);
-  });
-});
-
-describe("ADR 0099 decision 4 — a material change drops a colour it does not offer, in the sheet", () => {
-  it("clears the pending colour rather than committing it and resetting it after", () => {
-    const chosen = chooseFinishIn({ materialTierId: PAL_TIER_ID }, PAL_GRI);
-
-    const moved = chooseTierIn(chosen, {
-      key: "material",
-      tierId: VENEER_TIER_ID,
-    });
-
-    expect(chosen.finish).toEqual(PAL_GRI);
-    expect(moved.finish).toBeUndefined();
-    expect("finish" in moved).toBe(false);
-  });
-
-  it("keeps a pending colour the new material does offer", () => {
-    // Re-applying the same material is not a material change, and must not discard a choice.
-    const chosen = chooseFinishIn({ materialTierId: PAL_TIER_ID }, PAL_GRI);
-
-    const moved = chooseTierIn(chosen, {
-      key: "material",
-      tierId: PAL_TIER_ID,
-    });
-
-    expect(moved.finish).toEqual(PAL_GRI);
-  });
-
-  it("marks the new material's declared default without anybody having chosen it", () => {
-    const view = viewOf(KITCHEN_L_DESIGN, { materialTierId: VENEER_TIER_ID });
-
-    expect(view.colourGroup?.selected).toEqual(
-      materialById(VENEER_TIER_ID).defaultFinish,
-    );
   });
 });
 

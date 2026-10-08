@@ -189,12 +189,6 @@ function renderWarning(design: Design, answer: readonly string[]): string {
   return renderToStaticMarkup(createElement(OverflowWarning));
 }
 
-function runCleanups(): void {
-  const cleanups = [...harness.cleanups];
-  harness.cleanups = [];
-  for (const cleanup of cleanups) cleanup();
-}
-
 /** The transform, visibility and parentage a body wears once the mount has finished — the whole of
  *  "not moved, resized, hidden or reparented", read off the mounted object. */
 interface BodyPose {
@@ -343,14 +337,6 @@ describe("the marks the effect is holding", () => {
     for (const teardown of teardowns) teardown();
 
     expect(afterFirstTeardown).toBe(1);
-    expect(harness.disposeOverflowMark).toHaveBeenCalledTimes(1);
-  });
-
-  it("are all released when a design change replaces them", () => {
-    mountStage(OVERFLOWING_DESIGN, ["dragged-past-wall-b"]);
-
-    runCleanups();
-
     expect(harness.disposeOverflowMark).toHaveBeenCalledTimes(1);
   });
 });

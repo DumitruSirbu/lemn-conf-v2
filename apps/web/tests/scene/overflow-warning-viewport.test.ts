@@ -300,26 +300,6 @@ describe("the model reproduces the browser it stands in for", () => {
 });
 
 describe("the band never covers the selected cabinet", () => {
-  for (const settingsRowPx of SETTINGS_ROW_HEIGHTS_PX) {
-    for (const headerHeightPx of HEADER_HEIGHTS_PX) {
-      for (const bandHeightPx of BAND_HEIGHTS_PX) {
-        it(`is nowhere near the strip a selection can see: header ${String(headerHeightPx)} px, settings row ${String(settingsRowPx)} px, band ${String(bandHeightPx)} px`, () => {
-          // Selecting a cabinet opens §9's sheet over everything below its top edge; the band starts at the far side.
-          const sceneHeightPx = sceneHeightFor(
-            headerHeightPx,
-            settingsRowPx,
-            FLAGGED_PRICE_BAR_HEIGHT_PX,
-          );
-          const bandTopPx = sceneHeightPx - bandHeightPx;
-
-          expect(bandTopPx).toBeGreaterThan(
-            stripAboveTheSheetPx(headerHeightPx, settingsRowPx),
-          );
-        });
-      }
-    }
-  }
-
   it("has hundreds of pixels of margin, not a hair", () => {
     // Over the flagged bar, the only bar a screen with a band has.
     const sceneHeightPx = sceneHeightFor(

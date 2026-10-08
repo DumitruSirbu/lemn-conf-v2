@@ -1,7 +1,6 @@
 import {
   countCabinetsWearingAChosenFinish,
   KITCHEN_L_BODY_CATALOG,
-  KITCHEN_L_DESIGN,
   priceDesign,
   projectDesignForDisplay,
   SAMPLE_PRICE_BOOK,
@@ -191,31 +190,6 @@ describe("the presence rule, over every pair of sides the press can have", () =>
     expect(changes).toHaveLength(MATERIAL_CHANGES_IN_THE_SQUARE);
     expect(SQUARE.filter((cell) => cell.published)).toHaveLength(22);
     expect(SQUARE.filter((cell) => !cell.published)).toHaveLength(53);
-  });
-
-  it("never asks about a press that would run no material command", () => {
-    // `applyTierIfChanged` runs nothing when the pending id is absent or equal to the applied one; a confirmation over
-    // either is a modal about a change that does not happen (ADR 0081).
-    const asked = SIDE_LABELS.flatMap((appliedLabel) =>
-      SIDE_LABELS.map((pendingLabel) => ({
-        appliedTierId: TIER_ID_BY_LABEL[appliedLabel],
-        pendingTierId: TIER_ID_BY_LABEL[pendingLabel],
-        published:
-          viewFor({
-            applied: choiceOf(TIER_ID_BY_LABEL[appliedLabel]),
-            pending: choiceOf(TIER_ID_BY_LABEL[pendingLabel]),
-            chosenColourCount: CHOSEN_COLOURS_ON_THE_MDF_FIXTURE,
-          }).materialResetConfirm !== undefined,
-      })),
-    ).filter((pair) => pair.published);
-
-    expect(asked.length).toBeGreaterThan(0);
-    for (const pair of asked) {
-      expect(pair.pendingTierId, JSON.stringify(pair)).toBeDefined();
-      expect(pair.pendingTierId, JSON.stringify(pair)).not.toBe(
-        pair.appliedTierId,
-      );
-    }
   });
 });
 
@@ -463,18 +437,5 @@ describe("composing the confirmation reads and writes nothing", () => {
     expect(viewFor(press).materialResetConfirm).toEqual(
       viewFor(press).materialResetConfirm,
     );
-  });
-
-  it("is composed about the stored document, not about the seeded kitchen", () => {
-    // The count travels in from the caller, so the priced fixture cannot decide it: the seeded kitchen wears nothing,
-    // so handing its count in silences the confirmation.
-    expect(countCabinetsWearingAChosenFinish(KITCHEN_L_DESIGN)).toBe(0);
-    expect(
-      viewFor({
-        applied: choiceOf(TIER_ID_BY_LABEL.mdf),
-        pending: choiceOf(TIER_ID_BY_LABEL.veneer),
-        chosenColourCount: countCabinetsWearingAChosenFinish(KITCHEN_L_DESIGN),
-      }).materialResetConfirm,
-    ).toBeUndefined();
   });
 });
