@@ -10,7 +10,7 @@ import type {
   BreakdownRow,
 } from "@/price/price-breakdown-model";
 
-import type { ReviewRowDetail } from "./review-model";
+import { rowDetailOf, type ReviewRowDetail } from "./review-model";
 
 /** What the editor is asked to do on arrival: select one body, or open the whole-kitchen settings. */
 export interface EditorArrival {
@@ -114,9 +114,7 @@ function ReviewGroup({
           <ReviewRow
             key={row.key}
             row={row}
-            {...(rowDetails[row.key] === undefined
-              ? {}
-              : { detail: rowDetails[row.key] })}
+            detail={rowDetailOf(rowDetails, row.key)}
             {...(markedPlacementIds.has(row.key) ? { refusalSentenceId } : {})}
           />
         ))}
@@ -131,8 +129,8 @@ function ReviewRow({
   refusalSentenceId,
 }: {
   readonly row: BreakdownRow;
-  /** The body's two lines; a row without one (a whole-kitchen tier) is its label alone. */
-  readonly detail?: ReviewRowDetail | undefined;
+  /** The body's two lines. A whole-kitchen row is not a body and has none: it is its label alone. */
+  readonly detail?: ReviewRowDetail;
   readonly refusalSentenceId?: string;
 }) {
   const isMarked = refusalSentenceId !== undefined;

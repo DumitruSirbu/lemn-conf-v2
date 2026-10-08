@@ -223,7 +223,7 @@ export function describePlacementLabel(
   content: Content,
 ): string {
   return content.priceBreakdown.placementLabel(
-    content.bodyLabel(entry.label),
+    describePlacementName(entry, content),
     entry.widthMm,
   );
 }

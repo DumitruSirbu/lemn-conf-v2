@@ -26,7 +26,6 @@ const ViewOnlyKitchenCanvas = dynamic(
  * screen that places it hydrates the store first, and it takes that screen's answer about WebGL rather than asking
  * again: without WebGL it renders nothing, the screen answering with the editor's exit.
  *
- * The picture is a box of its own at the frame's height; the views stand in a row under it, so none covers it.
  * The view is the editor's remembered one (`useCameraPreset`): one camera for one customer, so a language switch
  * does not send the review back to the overview either.
  */

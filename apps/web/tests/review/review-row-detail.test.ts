@@ -5,7 +5,6 @@
 // What this cannot see: how the lines look on a phone (the visual pass's), and a free colour's name, which has none.
 import {
   buildKitchenLBodyCatalog,
-  cabinetDepthMmOf,
   freeColourFinish,
   KITCHEN_L_DESIGN,
   paletteFinish,
@@ -15,7 +14,12 @@ import {
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
-import { describeReview, type AvailableReview } from "@/review/review-model";
+import {
+  describeReview,
+  MissingRowDetailError,
+  rowDetailOf,
+  type AvailableReview,
+} from "@/review/review-model";
 import { createConfiguratorStore } from "@/store/configurator-store";
 
 import roMessages from "../../src/messages/ro.json";
@@ -211,11 +215,29 @@ describe("the first line and the refusal name the same body", () => {
 
   it("never aggregates: one detail per body, whatever the names", () => {
     const design = KITCHEN_L_DESIGN;
-    const names = reviewOf(design, "ro")
-      .groups.flatMap((group) => group.rows)
-      .map((row) => row.key);
+    const details = reviewOf(design, "ro").rowDetails;
 
-    expect(new Set(names).size).toBe(design.placements.length);
-    expect(cabinetDepthMmOf(design)).toBeGreaterThan(0);
+    expect(Object.keys(details)).toHaveLength(design.placements.length);
   });
+});
+
+describe("the lookup the screen calls", () => {
+  const details = reviewOf(KITCHEN_L_DESIGN, "ro").rowDetails;
+  const heldId = KITCHEN_L_DESIGN.placements[0]?.id ?? "";
+
+  it("returns the detail of a body the review holds", () => {
+    expect(rowDetailOf(details, heldId)).toBe(details[heldId]);
+  });
+
+  it.each(["no-such-body", "constructor", "__proto__"])(
+    "throws a named error carrying the id for %s, which the review does not hold",
+    (placementId) => {
+      expect(() => rowDetailOf(details, placementId)).toThrow(
+        MissingRowDetailError,
+      );
+      expect(() => rowDetailOf(details, placementId)).toThrow(
+        `"${placementId}"`,
+      );
+    },
+  );
 });

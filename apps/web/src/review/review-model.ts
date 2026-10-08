@@ -152,6 +152,17 @@ export class MissingWholeKitchenTierError extends Error {
   }
 }
 
+/** The review holds no row detail for a body it lists: its rows and its details are built from one projection, so
+ *  this is a defect, not a state to draw. */
+export class MissingRowDetailError extends Error {
+  constructor(placementId: string) {
+    super(
+      `The review holds no row detail for placement "${placementId}"; its rows and details are built from one projection`,
+    );
+    this.name = "MissingRowDetailError";
+  }
+}
+
 /** The design, its price and its projection describe different designs. Never rendered. */
 export class ReviewInputDivergenceError extends Error {
   constructor(detail: string) {
@@ -213,6 +224,19 @@ function describeAvailableReview(
         : { kind: "allowed" },
     ...(warning === undefined ? {} : { overflowWarning: warning }),
   };
+}
+
+/** The two lines of a listed body's row. A body with none is the model's defect and throws; no screen picks another
+ *  answer for it. */
+export function rowDetailOf(
+  rowDetails: Readonly<Record<string, ReviewRowDetail>>,
+  placementId: string,
+): ReviewRowDetail {
+  const detail = Object.hasOwn(rowDetails, placementId)
+    ? rowDetails[placementId]
+    : undefined;
+  if (detail === undefined) throw new MissingRowDetailError(placementId);
+  return detail;
 }
 
 function describeRowDetails(
