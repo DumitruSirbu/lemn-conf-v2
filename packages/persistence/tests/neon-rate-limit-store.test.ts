@@ -14,6 +14,7 @@ import {
   describeRateLimitStoreContract,
   hourWindowContaining,
 } from "./support/rate-limit-store-contract.js";
+import { CONTRACT_SUITE_ERA } from "./support/rate-limit-test-eras.js";
 import { holdSharedTestSchemaLock } from "./support/test-schema-lock.js";
 
 // Shared: this file writes counter rows under random keys and needs the schema intact while it does.
@@ -26,7 +27,10 @@ const testDatabaseUrl = liveTestDatabaseUrl;
 if (!hasLiveDatabase) announceSkippedLiveSuite(SUITE_NAME);
 
 const CONCURRENT_HITS = 20;
-const SHARED_WINDOW = hourWindowContaining(Date.UTC(2001, 0, 1, 12));
+const HALF_A_DAY_MS = 12 * 3_600_000;
+const SHARED_WINDOW = hourWindowContaining(
+  CONTRACT_SUITE_ERA.startsAtMs + HALF_A_DAY_MS,
+);
 
 const keysWritten: string[] = [];
 

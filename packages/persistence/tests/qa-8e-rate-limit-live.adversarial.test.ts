@@ -1,4 +1,7 @@
 import { randomBytes } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { neon, neonConfig } from "@neondatabase/serverless";
 import {
@@ -15,17 +18,26 @@ import { runMigrations } from "../src/migrate.js";
 import {
   NeonRateLimitStore,
   RateLimitStoreError,
+  RateLimitWindowConflictError,
 } from "../src/rate-limit-store.js";
 import type {
   RateLimitBucket,
   RateLimitWindow,
 } from "../src/rate-limit-store.js";
+import { markersFoundOn } from "./support/leaked-connection-markers.js";
 import {
   announceSkippedLiveSuite,
   isLiveTestDatabaseConfigured,
   liveTestDatabaseUrl,
 } from "./support/live-test-database.js";
+import { loseTheFirstReply } from "./support/lose-the-first-reply.js";
+import type { LossPoint, LostReply } from "./support/lose-the-first-reply.js";
 import { NOT_A_DIGEST } from "./support/qa-8e-not-a-digest.js";
+import { hourWindowContaining } from "./support/rate-limit-store-contract.js";
+import {
+  CONTRACT_SUITE_ERA,
+  QA_8E_ERA,
+} from "./support/rate-limit-test-eras.js";
 import { holdSharedTestSchemaLock } from "./support/test-schema-lock.js";
 
 // Shared: this file writes counter rows under random keys and needs the schema intact while it does.
@@ -44,8 +56,8 @@ if (!hasLiveDatabase) announceSkippedLiveSuite(SUITE_NAME);
 
 const HOUR_MS = 3_600_000;
 const DAY_MS = 24 * HOUR_MS;
-const QA_ERA_START_MS = Date.UTC(1990, 0, 1);
-const QA_ERA_END_MS = Date.UTC(1991, 0, 1);
+const QA_ERA_START_MS = QA_8E_ERA.startsAtMs;
+const QA_ERA_END_MS = QA_8E_ERA.endsAtMs;
 const LARGEST_POSTGRES_INTEGER = 2_147_483_647;
 const INTEGER_OUT_OF_RANGE = "22003";
 const CONCURRENCY_TIMEOUT_MS = 120_000;
@@ -55,6 +67,22 @@ const RACE_ROUNDS = 3;
 const SHARED_EXPIRED_ROWS = 150;
 const RACING_HITS = 16;
 const RACING_PRUNES = 8;
+const END_RACE_ROUNDS = 6;
+const END_RACE_CALLERS = 12;
+const LONGER_LOSS_SEQUENCES = 12;
+const LONGER_LOSS_SEQUENCE_LENGTH = 6;
+const LOST_REPLY_TIMEOUT_MS = 480_000;
+const GRANT_TEST_PATH = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  "application-role-privileges.test.ts",
+);
+
+interface Loss {
+  readonly reply: LostReply;
+  readonly point: LossPoint;
+}
+
+type Step = Loss | "no loss";
 
 interface StoredRow {
   bucket_key: string;
@@ -76,6 +104,9 @@ function newKey(): string {
 function newHourWindow(): RateLimitWindow {
   windowsIssued += 1;
   const startsAtMs = QA_ERA_START_MS + windowsIssued * DAY_MS;
+  if (startsAtMs + DAY_MS > QA_ERA_END_MS) {
+    throw new Error("This file issued more windows than its era holds.");
+  }
   return {
     startsAt: new Date(startsAtMs),
     endsAt: new Date(startsAtMs + HOUR_MS),
@@ -177,9 +208,12 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
     `;
   }
 
-  /** A run that died before its cleanup leaves rows in this file's era, where a later run's exact prune counts would
-   *  include them. Their keys are read by that era, which no other writer uses, and the rows go by those keys. */
-  async function deleteRowsAnInterruptedRunLeft(): Promise<void> {
+  /**
+   * A run that died before its cleanup leaves rows in this file's era, where a later run's exact prune counts would
+   * include them. Their keys are read by that era, which `rate-limit-test-eras.ts` gives to this file alone, and the
+   * rows go by those keys. It says how many went, so an interrupted run is seen and not healed in silence.
+   */
+  async function deleteRowsAnInterruptedRunLeft(): Promise<number> {
     if (sql === undefined) throw new Error("no live test database");
     const left = (await sql`
       select bucket_key
@@ -188,11 +222,14 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
         and window_start < ${new Date(QA_ERA_END_MS).toISOString()}::timestamptz
     `) as { bucket_key: string }[];
     const keys = left.map((row) => row.bucket_key);
-    await sql`
+    const removed = (await sql`
       delete from rate_limit_counters
       where bucket_key = any(${keys})
+        and window_start >= ${new Date(QA_ERA_START_MS).toISOString()}::timestamptz
         and window_start < ${new Date(QA_ERA_END_MS).toISOString()}::timestamptz
-    `;
+      returning bucket_key
+    `) as unknown[];
+    return removed.length;
   }
 
   async function seedInDescendingKeyOrder(
@@ -213,7 +250,10 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
 
   beforeAll(async () => {
     await runMigrations(liveTestDatabaseUrl);
-    await deleteRowsAnInterruptedRunLeft();
+    const removed = await deleteRowsAnInterruptedRunLeft();
+    console.info(
+      `[qa-8e] rows an interrupted run left in this file's era, removed before this run: ${String(removed)}`,
+    );
   });
 
   afterEach(async () => {
@@ -227,6 +267,21 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
       `[qa-8e] rows left in rate_limit_counters for the ${String(keysIssued.length)} keys this file issued: ${String(left.length)}`,
     );
     expect(left).toEqual([]);
+  });
+
+  describe("the eras the two live suites write in", () => {
+    it("do not overlap, and the contract suite's first window starts its own era", () => {
+      const contractFirstWindow = hourWindowContaining(
+        CONTRACT_SUITE_ERA.startsAtMs,
+      );
+
+      expect(QA_8E_ERA.endsAtMs).toBeLessThanOrEqual(
+        CONTRACT_SUITE_ERA.startsAtMs,
+      );
+      expect(contractFirstWindow.startsAt.getTime()).toBe(
+        CONTRACT_SUITE_ERA.startsAtMs,
+      );
+    });
   });
 
   describe("criterion 1: no lost update, and no deadlock", () => {
@@ -325,6 +380,8 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
         const refusedHits: unknown[] = [];
         const refusedPrunes: unknown[] = [];
         const liveCountsOfEveryRound: number[][] = [];
+        const expiredRowsLeft: StoredRow[] = [];
+        const liveRows: StoredRow[] = [];
 
         for (let round = 0; round < RACE_ROUNDS; round += 1) {
           const expiredWindow = newHourWindow();
@@ -350,6 +407,11 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
 
           refusedHits.push(...causesOf(rejectionsOf(hits)));
           refusedPrunes.push(...causesOf(rejectionsOf(prunes)));
+          await limiter.pruneExpired(expiredWindow.endsAt);
+          expiredRowsLeft.push(
+            ...(await storedRowsOf(expired.map(({ key }) => key))),
+          );
+          liveRows.push(...(await storedRowsOf([live.key])));
           liveCountsOfEveryRound.push(
             ascending(
               hits.flatMap((result) =>
@@ -365,6 +427,10 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
         expect(refusedPrunes).toEqual([]);
         expect(liveCountsOfEveryRound).toEqual(
           oneToN(RACE_ROUNDS).map(() => oneToN(RACING_HITS)),
+        );
+        expect(expiredRowsLeft).toEqual([]);
+        expect(liveRows.map((row) => row.hits)).toEqual(
+          oneToN(RACE_ROUNDS).map(() => RACING_HITS),
         );
       },
       CONCURRENCY_TIMEOUT_MS,
@@ -462,47 +528,410 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
 
       expect(await store().recordHits([{ key, window }])).toEqual([1]);
     });
+  });
 
-    it("keeps a live window's count when a second caller stated a shorter end for the same key and start", async () => {
-      const key = newKey();
-      const hour = newHourWindow();
-      const day = {
-        startsAt: hour.startsAt,
-        endsAt: new Date(hour.startsAt.getTime() + DAY_MS),
+  describe("criterion 10: one key and start has one end, and a hit stating another is refused with nothing counted", () => {
+    function sameStartEndingAfter(
+      window: RateLimitWindow,
+      lengthMs: number,
+    ): RateLimitWindow {
+      return {
+        startsAt: window.startsAt,
+        endsAt: new Date(window.startsAt.getTime() + lengthMs),
       };
-      const limiter = store();
-      await limiter.recordHits([{ key, window: hour }]);
-      await limiter.recordHits([{ key, window: day }]);
+    }
 
-      await limiter.pruneExpired(hour.endsAt);
-      const [dayCountAfterThePrune] = await limiter.recordHits([
-        { key, window: day },
+    function storedAs(row: StoredRow | undefined): unknown {
+      return row === undefined
+        ? "no row"
+        : { hits: row.hits, endsAt: new Date(row.window_end).toISOString() };
+    }
+
+    /** Everything that would identify the request: its keys, and its instants as text and as milliseconds. */
+    function identifiersOf(request: readonly RateLimitBucket[]): string[] {
+      return request.flatMap(({ key, window }) => [
+        key,
+        window.startsAt.toISOString(),
+        window.endsAt.toISOString(),
+        String(window.startsAt.getTime()),
+        String(window.endsAt.getTime()),
       ]);
+    }
 
-      // The day window is live at the hour's end, so criterion 5 says the prune leaves it and its count goes on.
-      expect(dayCountAfterThePrune).toBeGreaterThan(1);
+    function expectAConflictNamingNothing(
+      outcome: unknown,
+      request: readonly RateLimitBucket[],
+    ): void {
+      expect(outcome).toBeInstanceOf(RateLimitWindowConflictError);
+      expect(outcome).not.toBeInstanceOf(RateLimitStoreError);
+      expect((outcome as Error).cause).toBeUndefined();
+      expect(markersFoundOn(outcome, identifiersOf(request))).toEqual([]);
+    }
+
+    it("refuses a shorter end than the stored one, counts no bucket of the request, and a prune at the shorter end removes nothing", async () => {
+      const hour = newHourWindow();
+      const day = sameStartEndingAfter(hour, DAY_MS);
+      const stored = { key: newKey(), window: day };
+      const bystander = { key: newKey(), window: hour };
+      const limiter = store();
+      await limiter.recordHits([stored]);
+      await limiter.recordHits([stored]);
+      const request = [bystander, { key: stored.key, window: hour }];
+
+      const outcome = await outcomeOf(limiter.recordHits(request));
+      const removedAtTheShorterEnd = await limiter.pruneExpired(hour.endsAt);
+      const rowsAfter = await storedRowsOf([stored.key, bystander.key]);
+      const nextCount = await limiter.recordHits([stored]);
+
+      expectAConflictNamingNothing(outcome, request);
+      expect(removedAtTheShorterEnd).toBe(0);
+      expect(rowsAfter.map(storedAs)).toEqual([
+        { hits: 2, endsAt: day.endsAt.toISOString() },
+      ]);
+      expect(rowsAfter.map((row) => row.bucket_key)).toEqual([stored.key]);
+      expect(nextCount).toEqual([3]);
     });
 
-    it("stores the first caller's end and ignores a later, different one", async () => {
-      const key = newKey();
+    it("refuses a longer end than the stored one, counts no bucket of the request, and the stored window still expires at its own end", async () => {
       const hour = newHourWindow();
-      const day = {
-        startsAt: hour.startsAt,
-        endsAt: new Date(hour.startsAt.getTime() + DAY_MS),
-      };
+      const day = sameStartEndingAfter(hour, DAY_MS);
+      const stored = { key: newKey(), window: hour };
+      const bystander = { key: newKey(), window: day };
       const limiter = store();
+      await limiter.recordHits([stored]);
+      await limiter.recordHits([stored]);
+      const request = [{ key: stored.key, window: day }, bystander];
 
-      const counts = [
-        ...(await limiter.recordHits([{ key, window: day }])),
-        ...(await limiter.recordHits([{ key, window: hour }])),
-      ];
+      const outcome = await outcomeOf(limiter.recordHits(request));
+      const rowsAfter = await storedRowsOf([stored.key, bystander.key]);
+      const removedJustBeforeItsEnd = await limiter.pruneExpired(
+        new Date(hour.endsAt.getTime() - 1),
+      );
+      const removedAtItsEnd = await limiter.pruneExpired(hour.endsAt);
 
-      const rows = await storedRowsOf([key]);
-      expect(counts).toEqual([1, 2]);
-      expect(rows.map((row) => new Date(row.window_end).toISOString())).toEqual(
-        [day.endsAt.toISOString()],
+      expectAConflictNamingNothing(outcome, request);
+      expect(rowsAfter.map(storedAs)).toEqual([
+        { hits: 2, endsAt: hour.endsAt.toISOString() },
+      ]);
+      expect(rowsAfter.map((row) => row.bucket_key)).toEqual([stored.key]);
+      expect([removedJustBeforeItsEnd, removedAtItsEnd]).toEqual([0, 1]);
+    });
+
+    it.each([
+      ["a millisecond earlier", -1],
+      ["a millisecond later", 1],
+      ["an hour later", HOUR_MS],
+      ["all but the first millisecond earlier", 1 - HOUR_MS],
+      ["a year later", 365 * DAY_MS],
+    ])(
+      "refuses an end %s than the stored one, and leaves the row as it was",
+      async (_label, differenceMs) => {
+        const window = newHourWindow();
+        const stored = { key: newKey(), window };
+        const other = sameStartEndingAfter(window, HOUR_MS + differenceMs);
+        const limiter = store();
+        await limiter.recordHits([stored]);
+        const request = [{ key: stored.key, window: other }];
+
+        const outcome = await outcomeOf(limiter.recordHits(request));
+
+        expectAConflictNamingNothing(outcome, request);
+        expect((await storedRowsOf([stored.key])).map(storedAs)).toEqual([
+          { hits: 1, endsAt: window.endsAt.toISOString() },
+        ]);
+      },
+    );
+
+    it("counts a hit that states the stored end as another Date, read from text with an offset", async () => {
+      const window = newHourWindow();
+      const key = newKey();
+      const limiter = store();
+      await limiter.recordHits([{ key, window }]);
+      const sameInstants = {
+        startsAt: new Date(
+          window.startsAt.toISOString().replace("Z", "+00:00"),
+        ),
+        endsAt: new Date(window.endsAt.getTime()),
+      };
+
+      expect(await limiter.recordHits([{ key, window: sameInstants }])).toEqual(
+        [2],
       );
     });
+
+    it.each([0, 2, 4])(
+      "counts none of five buckets when the one at position %i states another end",
+      async (conflictingPosition) => {
+        const window = newHourWindow();
+        const stored = { key: newKey(), window };
+        const limiter = store();
+        await limiter.recordHits([stored]);
+        const fresh = oneToN(4).map(() => ({ key: newKey(), window }));
+        const request: RateLimitBucket[] = [...fresh];
+        request.splice(conflictingPosition, 0, {
+          key: stored.key,
+          window: sameStartEndingAfter(window, 2 * HOUR_MS),
+        });
+
+        const outcome = await outcomeOf(limiter.recordHits(request));
+
+        expectAConflictNamingNothing(outcome, request);
+        expect(await storedRowsOf(fresh.map(({ key }) => key))).toEqual([]);
+        expect((await storedRowsOf([stored.key])).map(storedAs)).toEqual([
+          { hits: 1, endsAt: window.endsAt.toISOString() },
+        ]);
+      },
+    );
+
+    it(
+      "lets exactly one end win when two callers race a fresh key with different ends, and never stores a mixed row",
+      async () => {
+        const limiter = store();
+
+        for (let round = 0; round < END_RACE_ROUNDS; round += 1) {
+          const hour = newHourWindow();
+          const day = sameStartEndingAfter(hour, DAY_MS);
+          const key = newKey();
+          const statedEnds = oneToN(END_RACE_CALLERS).map((caller) =>
+            caller % 2 === 0 ? hour : day,
+          );
+
+          const settled = await Promise.allSettled(
+            statedEnds.map((window) => limiter.recordHits([{ key, window }])),
+          );
+
+          const [row] = await storedRowsOf([key]);
+          const winningEndMs = new Date(row?.window_end ?? 0).getTime();
+          const outcomes = settled.map((result, caller) => ({
+            statedTheWinningEnd:
+              statedEnds[caller]?.endsAt.getTime() === winningEndMs,
+            wasCounted: result.status === "fulfilled",
+            isAConflict:
+              result.status === "rejected" &&
+              result.reason instanceof RateLimitWindowConflictError,
+          }));
+          const counts = settled.flatMap((result) =>
+            result.status === "fulfilled" ? [...result.value] : [],
+          );
+          expect([hour.endsAt.getTime(), day.endsAt.getTime()]).toContain(
+            winningEndMs,
+          );
+          expect(
+            outcomes.filter(
+              (outcome) =>
+                outcome.wasCounted !== outcome.statedTheWinningEnd ||
+                outcome.isAConflict === outcome.statedTheWinningEnd,
+            ),
+          ).toEqual([]);
+          expect(ascending(counts)).toEqual(oneToN(END_RACE_CALLERS / 2));
+          expect(row?.hits).toBe(END_RACE_CALLERS / 2);
+        }
+      },
+      CONCURRENCY_TIMEOUT_MS,
+    );
+
+    it("refuses, with either typed error and nothing counted, a hit that both states another end and would overflow the count", async () => {
+      const window = newHourWindow();
+      const full = { key: newKey(), window };
+      const bystander = { key: newKey(), window };
+      await insertDirectly({ ...full, hits: LARGEST_POSTGRES_INTEGER });
+      const request = [
+        bystander,
+        { key: full.key, window: sameStartEndingAfter(window, DAY_MS) },
+      ];
+
+      const outcome = await outcomeOf(store().recordHits(request));
+
+      expect(
+        outcome instanceof RateLimitWindowConflictError ||
+          outcome instanceof RateLimitStoreError,
+      ).toBe(true);
+      expect(markersFoundOn(outcome, identifiersOf(request))).toEqual([]);
+      expect(
+        (await storedRowsOf([full.key, bystander.key])).map(storedAs),
+      ).toEqual([
+        { hits: LARGEST_POSTGRES_INTEGER, endsAt: window.endsAt.toISOString() },
+      ]);
+    });
+
+    it("answers a row the table itself refuses for its count with the store's error, not with a conflict", async () => {
+      const bucket = { key: newKey(), window: newHourWindow() };
+
+      const outcome = await outcomeOf(insertDirectly({ ...bucket, hits: 0 }));
+      const overflow = await (async () => {
+        await insertDirectly({ ...bucket, hits: LARGEST_POSTGRES_INTEGER });
+        return outcomeOf(store().recordHits([bucket]));
+      })();
+
+      expect((outcome as Error).message).toMatch(
+        /rate_limit_counters_hits_is_positive/,
+      );
+      expect(overflow).toBeInstanceOf(RateLimitStoreError);
+    });
+
+    it("refuses an empty window before any statement, as a plain refusal and not as a conflict, with a row of that key stored", async () => {
+      const window = newHourWindow();
+      const key = newKey();
+      const limiter = store();
+      await limiter.recordHits([{ key, window }]);
+      const empty = { startsAt: window.startsAt, endsAt: window.startsAt };
+
+      const outcome = await outcomeOf(
+        limiter.recordHits([{ key, window: empty }]),
+      );
+
+      expect(outcome).toBeInstanceOf(Error);
+      expect(outcome).not.toBeInstanceOf(RateLimitWindowConflictError);
+      expect(outcome).not.toBeInstanceOf(RateLimitStoreError);
+      expect((await storedRowsOf([key])).map(storedAs)).toEqual([
+        { hits: 1, endsAt: window.endsAt.toISOString() },
+      ]);
+    });
+  });
+
+  describe("criterion 11: under lost replies a count errs high and never low", () => {
+    const COLD_START_AFTER: Loss = {
+      reply: "cold-start-refusal",
+      point: "after-the-write-lands",
+    };
+    const COLD_START_BEFORE: Loss = {
+      reply: "cold-start-refusal",
+      point: "before-the-write-lands",
+    };
+    const EMPTY_REPLY_AFTER: Loss = {
+      reply: "empty-reply",
+      point: "after-the-write-lands",
+    };
+    const EMPTY_REPLY_BEFORE: Loss = {
+      reply: "empty-reply",
+      point: "before-the-write-lands",
+    };
+    const LOSSES: readonly Loss[] = [
+      COLD_START_AFTER,
+      COLD_START_BEFORE,
+      EMPTY_REPLY_AFTER,
+      EMPTY_REPLY_BEFORE,
+    ];
+    const STEPS: readonly Step[] = [...LOSSES, "no loss"];
+
+    interface StepOutcome {
+      readonly answeredWith: readonly number[] | "refused";
+      readonly attemptsSent: number;
+    }
+
+    /** One request for `buckets` with the first reply lost as `step` says, through the harness's own lost-reply support. */
+    async function hitLosing(
+      step: Step,
+      buckets: readonly RateLimitBucket[],
+    ): Promise<StepOutcome> {
+      if (step === "no loss") {
+        return {
+          answeredWith: await store().recordHits(buckets),
+          attemptsSent: 1,
+        };
+      }
+      const lost = loseTheFirstReply(step.reply, step.point);
+      try {
+        const answeredWith = await store()
+          .recordHits(buckets)
+          .catch((error: unknown) => {
+            if (error instanceof RateLimitStoreError) return "refused" as const;
+            throw error;
+          });
+        return { answeredWith, attemptsSent: lost.requestsSent() };
+      } finally {
+        lost.restore();
+      }
+    }
+
+    async function storedCountsOf(
+      buckets: readonly RateLimitBucket[],
+    ): Promise<number[]> {
+      const rows = await storedRowsOf(buckets.map(({ key }) => key));
+      return buckets.map(
+        ({ key }) => rows.find((row) => row.bucket_key === key)?.hits ?? 0,
+      );
+    }
+
+    it.each([
+      [
+        COLD_START_AFTER,
+        { answeredWith: [2, 2], attemptsSent: 2, stored: [2, 2] },
+      ],
+      [
+        COLD_START_BEFORE,
+        { answeredWith: [1, 1], attemptsSent: 2, stored: [1, 1] },
+      ],
+      [
+        EMPTY_REPLY_AFTER,
+        { answeredWith: "refused", attemptsSent: 1, stored: [1, 1] },
+      ],
+      [
+        EMPTY_REPLY_BEFORE,
+        { answeredWith: "refused", attemptsSent: 1, stored: [0, 0] },
+      ],
+    ])("for one request losing %o", async (loss, expected) => {
+      const window = newHourWindow();
+      const buckets = [
+        { key: newKey(), window },
+        { key: newKey(), window },
+      ];
+
+      const outcome = await hitLosing(loss, buckets);
+
+      expect({ ...outcome, stored: await storedCountsOf(buckets) }).toEqual(
+        expected,
+      );
+    });
+
+    it(
+      "keeps answered <= stored <= attempts after every step of every two-step sequence and of twelve longer seeded ones",
+      async () => {
+        const random = seededRandom(11);
+        const sequences: Step[][] = [
+          ...STEPS.flatMap((first) => STEPS.map((second) => [first, second])),
+          ...oneToN(LONGER_LOSS_SEQUENCES).map(() =>
+            oneToN(LONGER_LOSS_SEQUENCE_LENGTH).map(
+              () => STEPS[Math.floor(random() * STEPS.length)] ?? "no loss",
+            ),
+          ),
+        ];
+        const violations: unknown[] = [];
+
+        for (const sequence of sequences) {
+          const window = newHourWindow();
+          const buckets = [
+            { key: newKey(), window },
+            { key: newKey(), window },
+          ];
+          let answered = 0;
+          let attempts = 0;
+          for (const step of sequence) {
+            const outcome = await hitLosing(step, buckets);
+            const stored = await storedCountsOf(buckets);
+            attempts += outcome.attemptsSent;
+            if (outcome.answeredWith !== "refused") answered += 1;
+            const holds =
+              stored.every((count) => answered <= count && count <= attempts) &&
+              (outcome.answeredWith === "refused" ||
+                JSON.stringify(outcome.answeredWith) ===
+                  JSON.stringify(stored));
+            if (!holds)
+              violations.push({
+                sequence,
+                step,
+                outcome,
+                stored,
+                answered,
+                attempts,
+              });
+          }
+        }
+
+        expect(violations).toEqual([]);
+      },
+      LOST_REPLY_TIMEOUT_MS,
+    );
   });
 
   describe("criterion 3: one round trip for a request's buckets", () => {
@@ -692,6 +1121,57 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
         expect(await storedRowsOf([key])).toEqual([]);
       },
     );
+  });
+
+  describe("criterion 7: the grant test's own question, asked where the table exists", () => {
+    /** Read from the grant test's own source, so this follows that test and not a copy of its list. */
+    const PRIVILEGES_THE_GRANT_TEST_ASKS_ABOUT = [
+      ...readFileSync(GRANT_TEST_PATH, "utf8").matchAll(
+        /has_table_privilege\(current_user, 'public\.rate_limit_counters', '([A-Z]+)'\)/g,
+      ),
+    ].map((match) => match[1] ?? "");
+
+    it("asks about at least the four privileges the store needs and the three it must not hold", () => {
+      expect(PRIVILEGES_THE_GRANT_TEST_ASKS_ABOUT).toEqual(
+        expect.arrayContaining([
+          "SELECT",
+          "INSERT",
+          "UPDATE",
+          "DELETE",
+          "TRUNCATE",
+          "REFERENCES",
+          "TRIGGER",
+        ]),
+      );
+    });
+
+    it("is a question this server answers with a boolean for each privilege it names", async () => {
+      if (sql === undefined) throw new Error("no live test database");
+
+      const answers = (await sql`
+        select privilege, has_table_privilege(current_user, 'public.rate_limit_counters', privilege) as held
+        from unnest(${PRIVILEGES_THE_GRANT_TEST_ASKS_ABOUT}::text[]) as asked (privilege)
+      `) as { privilege: string; held: unknown }[];
+
+      expect(answers.map((answer) => typeof answer.held)).toEqual(
+        PRIVILEGES_THE_GRANT_TEST_ASKS_ABOUT.map(() => "boolean"),
+      );
+    });
+
+    it("leaves out no table privilege this server knows", async () => {
+      if (sql === undefined) throw new Error("no live test database");
+
+      const known = (await sql`
+        select distinct (aclexplode(acldefault('r', relowner))).privilege_type as privilege
+        from pg_class
+        where oid = 'public.rate_limit_counters'::regclass
+        order by privilege
+      `) as { privilege: string }[];
+
+      expect(known.map((row) => row.privilege)).toEqual(
+        [...PRIVILEGES_THE_GRANT_TEST_ASKS_ABOUT].sort(),
+      );
+    });
   });
 
   describe("criterion 8: the table holds a digest and a count, and knows nothing of designs", () => {

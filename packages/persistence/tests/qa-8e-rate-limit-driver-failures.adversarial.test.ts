@@ -5,6 +5,7 @@ import { FakeRateLimitStore } from "../src/fake-rate-limit-store.js";
 import {
   NeonRateLimitStore,
   RateLimitStoreError,
+  RateLimitWindowConflictError,
 } from "../src/rate-limit-store.js";
 import type { RateLimitBucket } from "../src/rate-limit-store.js";
 import { NOT_A_DIGEST } from "./support/qa-8e-not-a-digest.js";
@@ -291,6 +292,104 @@ describe("QA 8E: the retry budget", () => {
 
     expect(outcome).toBeInstanceOf(RateLimitStoreError);
     expect(driver.statements).toHaveLength(ATTEMPTS_IN_THE_RETRY_BUDGET);
+  });
+});
+
+const WINDOW_CHECK = "rate_limit_counters_window_is_not_empty";
+
+function checkViolation(fields: Record<string, unknown>): NeonDbError {
+  return Object.assign(new NeonDbError(LEAKING_TEXT), fields);
+}
+
+describe("QA 8E criterion 10: only the table's window check, as the driver reports it, is a window conflict", () => {
+  it("is the conflict error, with no cause and nothing the driver threw, and is not repeated", async () => {
+    failWith(
+      checkViolation({
+        code: "23514",
+        constraint: WINDOW_CHECK,
+        detail: `Failing row contains (${FIRST_KEY}, ${LEAKING_TEXT}).`,
+      }),
+    );
+
+    const outcome = await settleThroughEveryBackoff(
+      newStore().recordHits(BUCKETS),
+    );
+
+    expect(outcome).toBeInstanceOf(RateLimitWindowConflictError);
+    expect((outcome as Error).cause).toBeUndefined();
+    expect(markersFoundOn(outcome)).toEqual([]);
+    expect(markersFoundOn(outcome, [FIRST_KEY, SECOND_KEY, "2026"])).toEqual(
+      [],
+    );
+    expect(driver.statements).toHaveLength(1);
+  });
+
+  it("is the conflict error when it answers the repeat of a hit a cold start refused", async () => {
+    failWith(coldStartRefusal());
+    failWith(checkViolation({ code: "23514", constraint: WINDOW_CHECK }));
+
+    const outcome = await settleThroughEveryBackoff(
+      newStore().recordHits(BUCKETS),
+    );
+
+    expect(outcome).toBeInstanceOf(RateLimitWindowConflictError);
+    expect(driver.statements).toHaveLength(2);
+  });
+
+  it.each([
+    [
+      "the count's check",
+      { code: "23514", constraint: "rate_limit_counters_hits_is_positive" },
+    ],
+    [
+      "the key's check",
+      { code: "23514", constraint: "rate_limit_counters_bucket_key_is_sha256" },
+    ],
+    ["a check violation naming no constraint", { code: "23514" }],
+    [
+      "a check violation whose constraint is not text",
+      { code: "23514", constraint: { name: WINDOW_CHECK } },
+    ],
+    [
+      "another table's check of a longer name",
+      { code: "23514", constraint: `other_${WINDOW_CHECK}` },
+    ],
+    [
+      "the window check's name in another case",
+      { code: "23514", constraint: WINDOW_CHECK.toUpperCase() },
+    ],
+    [
+      "a unique violation naming the window check",
+      { code: "23505", constraint: WINDOW_CHECK },
+    ],
+    [
+      "the window check named only in the message",
+      { code: "23514", message: WINDOW_CHECK },
+    ],
+  ])("%s is the store's error, not a conflict", async (_label, fields) => {
+    failWith(checkViolation(fields));
+
+    const outcome = await settleThroughEveryBackoff(
+      newStore().recordHits(BUCKETS),
+    );
+
+    expect(outcome).toBeInstanceOf(RateLimitStoreError);
+    expect(outcome).not.toBeInstanceOf(RateLimitWindowConflictError);
+  });
+
+  it("takes a window check violation that is not the driver's own error as the store's error", async () => {
+    failWith(
+      Object.assign(new Error("lookalike"), {
+        code: "23514",
+        constraint: WINDOW_CHECK,
+      }),
+    );
+
+    const outcome = await settleThroughEveryBackoff(
+      newStore().recordHits(BUCKETS),
+    );
+
+    expect(outcome).toBeInstanceOf(RateLimitStoreError);
   });
 });
 
