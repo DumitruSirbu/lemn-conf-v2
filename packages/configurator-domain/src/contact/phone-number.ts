@@ -5,6 +5,10 @@
 const MOLDOVA_CALLING_CODE = "373";
 const MOLDOVAN_SUBSCRIBER_DIGITS = 8;
 
+/** The 0 of "0 and eight digits" is the trunk prefix, so the eight digits after it or after +373 do
+ *  not begin with one: two zeros begin a call abroad. */
+const MOLDOVAN_TRUNK_PREFIX = "0";
+
 /** The shortest E.164 numbers in use (calling code included) are seven digits. */
 const INTERNATIONAL_MIN_DIGITS = 7;
 
@@ -65,6 +69,9 @@ function judgeMoldovanSubscriber(subscriberDigits: string): PhoneNumberResult {
   }
   if (subscriberDigits.length > MOLDOVAN_SUBSCRIBER_DIGITS) {
     return refuse("PHONE_MOLDOVAN_TOO_MANY_DIGITS");
+  }
+  if (subscriberDigits.startsWith(MOLDOVAN_TRUNK_PREFIX)) {
+    return refuse("PHONE_FORMAT_UNRECOGNISED");
   }
   return {
     ok: true,

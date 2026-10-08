@@ -117,16 +117,30 @@ export function validateContactFields(
 }
 
 function judgeFields(input: ContactFieldsInput): FieldJudgements {
-  const channel = judgeChannel(input.channel);
+  const channel = judgeChannel(ownValueOf(input, "channel"));
   return {
-    name: judgeRequiredText(input.name, CONTACT_NAME_MAX_LENGTH),
-    phone: judgePhone(input.phone),
-    locality: judgeBoundedText(input.locality, CONTACT_LOCALITY_MAX_LENGTH),
+    name: judgeRequiredText(ownValueOf(input, "name"), CONTACT_NAME_MAX_LENGTH),
+    phone: judgePhone(ownValueOf(input, "phone")),
+    locality: judgeBoundedText(
+      ownValueOf(input, "locality"),
+      CONTACT_LOCALITY_MAX_LENGTH,
+    ),
     channel,
-    email: judgeEmail(input.email, channel),
-    consent: judgeConsent(input.consent),
-    consentTextVersion: judgeConsentTextVersion(input.consentTextVersion),
+    email: judgeEmail(ownValueOf(input, "email"), channel),
+    consent: judgeConsent(ownValueOf(input, "consent")),
+    consentTextVersion: judgeConsentTextVersion(
+      ownValueOf(input, "consentTextVersion"),
+    ),
   };
+}
+
+/** Only what the sender's object holds itself: a property that `Object.prototype` (or any prototype)
+ *  supplies is not the sender's, whoever polluted it. */
+export function ownValueOf(
+  record: Readonly<Record<string, unknown>>,
+  name: string,
+): unknown {
+  return Object.hasOwn(record, name) ? record[name] : undefined;
 }
 
 function isAccepted(
@@ -166,14 +180,16 @@ function judgeBoundedText(raw: unknown, maxLength: number): Judgement<string> {
     : trimmed;
 }
 
-/** Format characters go first, then forbidden ones are looked for before trimming: a trailing line
- *  feed is a refusal, not whitespace to be quietly dropped. */
+/** The order matters. Format characters go first so an invisible one between a letter and its accent
+ *  cannot stop them composing; then NFC (not the compatibility form, which would change letters the
+ *  customer chose), so one name has one stored form and is judged as stored; then forbidden characters,
+ *  looked for before trimming: a trailing line feed is a refusal, not whitespace to be quietly dropped. */
 function judgeTrimmedText(raw: unknown): Judgement<string> {
   if (raw === undefined) return accept("");
   if (typeof raw !== "string") return refuse("NOT_TEXT");
-  const visible = raw.replace(FORMAT_CHARACTER, "");
-  if (FORBIDDEN_CHARACTER.test(visible)) return refuse("FORBIDDEN_CHARACTER");
-  return accept(visible.trim());
+  const composed = raw.replace(FORMAT_CHARACTER, "").normalize("NFC");
+  if (FORBIDDEN_CHARACTER.test(composed)) return refuse("FORBIDDEN_CHARACTER");
+  return accept(composed.trim());
 }
 
 function countCharacters(text: string): number {
@@ -216,12 +232,14 @@ function judgeConsent(raw: unknown): Judgement<true> {
   return raw === true ? accept(true) : refuse("CONSENT_NOT_GIVEN");
 }
 
+/** A closed set is matched exactly, as the channel is: what the page sends from a set is not typed,
+ *  so nothing is trimmed or stripped to make it match. */
 function judgeConsentTextVersion(raw: unknown): Judgement<ConsentTextVersion> {
-  const version = judgeTrimmedText(raw);
-  if (!version.ok) return version;
-  if (version.value === "") return refuse("REQUIRED");
-  return isConsentTextVersion(version.value)
-    ? accept(version.value)
+  if (raw === undefined || raw === "") return refuse("REQUIRED");
+  if (typeof raw !== "string") return refuse("NOT_TEXT");
+  if (FORBIDDEN_CHARACTER.test(raw)) return refuse("FORBIDDEN_CHARACTER");
+  return isConsentTextVersion(raw)
+    ? accept(raw)
     : refuse("UNKNOWN_CONSENT_TEXT_VERSION");
 }
 

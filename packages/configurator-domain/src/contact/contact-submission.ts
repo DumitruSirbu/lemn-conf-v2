@@ -1,5 +1,6 @@
 import {
   CONTACT_FIELDS,
+  ownValueOf,
   validateContactFields,
   type ContactField,
   type ContactFieldCode,
@@ -147,16 +148,16 @@ function judgeRequest(
   servedLocales: readonly string[],
 ): RequestJudgements {
   return {
-    contact: judgeContact(fieldOf(request, "contact")),
+    contact: judgeContact(ownValueOf(request, "contact")),
     target: judgeTarget(request),
     clientRequestId: judgeToken(
-      fieldOf(request, "clientRequestId"),
+      ownValueOf(request, "clientRequestId"),
       isClientRequestId,
       "clientRequestId",
     ),
-    locale: judgeLocale(fieldOf(request, "locale"), servedLocales),
-    honeypot: judgeHoneypot(fieldOf(request, "honeypot")),
-    elapsedMs: judgeElapsedMs(fieldOf(request, "elapsedMs")),
+    locale: judgeLocale(ownValueOf(request, "locale"), servedLocales),
+    honeypot: judgeHoneypot(ownValueOf(request, "honeypot")),
+    elapsedMs: judgeElapsedMs(ownValueOf(request, "elapsedMs")),
   };
 }
 
@@ -202,8 +203,8 @@ function judgeContact(raw: unknown): Outcome<ContactFields> {
 }
 
 function judgeTarget(request: PlainObject): Outcome<SubmissionTarget> {
-  const design = fieldOf(request, "design");
-  const intent = fieldOf(request, "intent");
+  const design = ownValueOf(request, "design");
+  const intent = ownValueOf(request, "intent");
   if (design !== undefined && intent !== undefined) {
     return failed(issue("design", "DESIGN_AND_INTENT_BOTH"));
   }
@@ -222,9 +223,9 @@ function judgeDesignTarget(raw: unknown): Outcome<SubmissionTarget> {
 function judgeDesignReference(raw: unknown): Outcome<DesignReference> {
   if (!isPlainObject(raw)) return failed(issue("design", "NOT_AN_OBJECT"));
   const unknownKeys = unknownKeyIssues(raw, DESIGN_REFERENCE_KEYS, "design");
-  const id = judgeToken(fieldOf(raw, "id"), isDesignId, "design.id");
+  const id = judgeToken(ownValueOf(raw, "id"), isDesignId, "design.id");
   const revision = judgeToken(
-    fieldOf(raw, "revision"),
+    ownValueOf(raw, "revision"),
     isDesignRevisionShape,
     "design.revision",
   );
@@ -306,16 +307,12 @@ function unknownKeyIssues(
   return hasUnknownKey ? [issue(field, "UNKNOWN_FIELD")] : [];
 }
 
-/** Plain data only: an array, a class instance or a `null` is not a request, and an inherited
- *  property is never read as one the sender wrote. */
+/** Plain data only: an array, a class instance or a `null` is not a request. A property inherited from
+ *  `Object.prototype` itself is not caught here; `ownValueOf` is what keeps it from being read. */
 function isPlainObject(value: unknown): value is PlainObject {
   if (typeof value !== "object" || value === null) return false;
   const prototype: unknown = Object.getPrototypeOf(value);
   return prototype === Object.prototype || prototype === null;
-}
-
-function fieldOf(record: PlainObject, name: string): unknown {
-  return Object.hasOwn(record, name) ? record[name] : undefined;
 }
 
 function issuesOf(outcome: Outcome<unknown>): readonly SubmissionIssue[] {

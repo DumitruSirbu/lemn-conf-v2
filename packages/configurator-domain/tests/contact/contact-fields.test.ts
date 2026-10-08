@@ -1,5 +1,5 @@
 import { fc, test as propertyTest } from "@fast-check/vitest";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import {
   CONSENT_TEXT_VERSIONS,
@@ -233,7 +233,10 @@ describe("validateContactFields: format characters are removed", () => {
     ["a byte order mark", "\ufeff"],
   ] as const;
 
-  describe.each(TEXT_FIELDS)("in $field", (row) => {
+  // The consent text version is a closed set, matched exactly: nothing is stripped to make it match.
+  describe.each(
+    TEXT_FIELDS.filter((row) => row.field !== "consentTextVersion"),
+  )("in $field", (row) => {
     const stored = (input: ContactFieldsInput): string | undefined =>
       contactOf(input)[row.field];
 
@@ -495,5 +498,153 @@ describe("validateContactFields: every issue, in field order", () => {
       { field: "consent", code: "CONSENT_NOT_GIVEN" },
       { field: "consentTextVersion", code: "REQUIRED" },
     ]);
+  });
+});
+
+const ZERO_WIDTH_SPACE = String.fromCodePoint(0x200b);
+const COMBINING_ACUTE = String.fromCodePoint(0x0301);
+
+describe("validateContactFields: one stored form for one name (NFC)", () => {
+  const COMPOSED_E_ACUTE = "é";
+  const DECOMPOSED_E_ACUTE = "é";
+
+  it("stores a decomposed letter in its composed form", () => {
+    expect(
+      contactOf({ ...VALID_INPUT, name: `Ren${DECOMPOSED_E_ACUTE}` }).name,
+    ).toBe(`Ren${COMPOSED_E_ACUTE}`);
+  });
+
+  it("stores the composed and the decomposed spelling as one value", () => {
+    const composed = contactOf({ ...VALID_INPUT, locality: COMPOSED_E_ACUTE });
+    const decomposed = contactOf({
+      ...VALID_INPUT,
+      locality: DECOMPOSED_E_ACUTE,
+    });
+
+    expect(decomposed.locality).toBe(composed.locality);
+  });
+
+  it("counts a hundred letters as a hundred however the keyboard built them", () => {
+    const composed = COMPOSED_E_ACUTE.repeat(CONTACT_NAME_MAX_LENGTH);
+    const decomposed = DECOMPOSED_E_ACUTE.repeat(CONTACT_NAME_MAX_LENGTH);
+
+    expect(codeOf("name", { ...VALID_INPUT, name: composed })).toBeUndefined();
+    expect(
+      codeOf("name", { ...VALID_INPUT, name: decomposed }),
+    ).toBeUndefined();
+    expect(
+      codeOf("name", {
+        ...VALID_INPUT,
+        name: `${decomposed}${DECOMPOSED_E_ACUTE}`,
+      }),
+    ).toBe("TOO_LONG");
+  });
+
+  it("composes across a format character that was in the way, because those go first", () => {
+    const name = "e" + ZERO_WIDTH_SPACE + COMBINING_ACUTE;
+
+    expect(contactOf({ ...VALID_INPUT, name }).name).toBe(COMPOSED_E_ACUTE);
+  });
+
+  it("does not apply the compatibility form, which would change letters the customer chose", () => {
+    const ligature = "ﬁ";
+    const fullWidth = "Ａ";
+
+    expect(contactOf({ ...VALID_INPUT, name: ligature }).name).toBe(ligature);
+    expect(contactOf({ ...VALID_INPUT, name: fullWidth }).name).toBe(fullWidth);
+  });
+});
+
+describe("validateContactFields: the consent text version is matched exactly, as a channel is", () => {
+  const MEMBER = KNOWN_CONSENT_TEXT_VERSION;
+
+  it.each([
+    ["trailing space", `${MEMBER} `],
+    ["leading space", ` ${MEMBER}`],
+    ["a format character inside", "place" + ZERO_WIDTH_SPACE + "holder"],
+    ["a left-to-right mark in front", `‎${MEMBER}`],
+    ["another case", MEMBER.toUpperCase()],
+  ])("refuses %s as an unknown version", (_name, consentTextVersion) => {
+    expect(
+      codeOf("consentTextVersion", { ...VALID_INPUT, consentTextVersion }),
+    ).toBe("UNKNOWN_CONSENT_TEXT_VERSION");
+  });
+
+  it.each([
+    ["nothing", ""],
+    ["no value at all", undefined],
+  ])("still requires one: %s", (_name, consentTextVersion) => {
+    expect(
+      codeOf("consentTextVersion", { ...VALID_INPUT, consentTextVersion }),
+    ).toBe("REQUIRED");
+  });
+
+  it("accepts the member as it is", () => {
+    expect(contactOf(VALID_INPUT).consentTextVersion).toBe(MEMBER);
+  });
+});
+
+describe("validateContactFields: only what the sender's object holds itself is read", () => {
+  const PLANTED = {
+    name: "Planted Name",
+    phone: "069 123 456",
+    locality: "Planted",
+    channel: "phone",
+    consent: true,
+    consentTextVersion: KNOWN_CONSENT_TEXT_VERSION,
+  } as const;
+
+  afterEach(() => {
+    for (const field of Object.keys(PLANTED)) {
+      Reflect.deleteProperty(Object.prototype, field);
+    }
+  });
+
+  function plant(field: keyof typeof PLANTED): void {
+    Object.defineProperty(Object.prototype, field, {
+      value: PLANTED[field],
+      configurable: true,
+      enumerable: true,
+      writable: true,
+    });
+  }
+
+  const REQUIRED_FIELDS = [
+    "name",
+    "phone",
+    "channel",
+    "consent",
+    "consentTextVersion",
+  ] as const;
+
+  it.each(REQUIRED_FIELDS)("reads no %s from Object.prototype", (field) => {
+    const own = Object.fromEntries(
+      Object.entries(VALID_INPUT).filter(([name]) => name !== field),
+    );
+    plant(field);
+
+    expect(issuesOf(own).map((issue) => issue.field)).toEqual([field]);
+  });
+
+  it("carries no planted locality, which is optional and so is refused by nothing", () => {
+    const own = Object.fromEntries(
+      Object.entries(VALID_INPUT).filter(([name]) => name !== "locality"),
+    );
+    plant("locality");
+
+    expect(contactOf(own).locality).toBe("");
+  });
+
+  it("reads the e-mail only from the sender's own object", () => {
+    const own = { ...VALID_INPUT, channel: "email" };
+    Object.defineProperty(Object.prototype, "email", {
+      value: "planted@example.md",
+      configurable: true,
+    });
+    try {
+      expect(codeOf("email", own)).toBe("REQUIRED");
+    } finally {
+      Reflect.deleteProperty(Object.prototype, "email");
+    }
   });
 });

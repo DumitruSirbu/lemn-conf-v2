@@ -30,11 +30,17 @@ function digitString(length: number): fc.Arbitrary<string> {
     .map((digits) => digits.join(""));
 }
 
-const moldovanNational = (subscriberDigits: number) =>
-  digitString(subscriberDigits).map((digits) => `0${digits}`);
+/** Subscriber digits that begin with 1 to 9: the 0 of "0 and eight digits" is the trunk prefix. */
+const subscriberDigits = (count: number) =>
+  fc
+    .tuple(fc.integer({ min: 1, max: 9 }), digitString(count - 1))
+    .map(([first, rest]) => `${String(first)}${rest}`);
 
-const moldovanInternational = (subscriberDigits: number) =>
-  digitString(subscriberDigits).map((digits) => `+373${digits}`);
+const moldovanNational = (count: number) =>
+  subscriberDigits(count).map((digits) => `0${digits}`);
+
+const moldovanInternational = (count: number) =>
+  subscriberDigits(count).map((digits) => `+373${digits}`);
 
 /** A calling code that is not Moldova's, then enough digits to make `totalDigits` in all. */
 const otherInternational = (totalDigits: number) =>
@@ -157,6 +163,37 @@ describe("normalisePhoneNumber: every space separator is grouping", () => {
   });
 });
 
+describe("normalisePhoneNumber: eight digits that begin with 0", () => {
+  it.each([
+    ["two zeros, which begin a call abroad", "001234567"],
+    ["00373 and four digits", "003731234"],
+    ["the 0 kept after +373", "+373 0 1234567"],
+    ["a national number of zeros", "000000000"],
+  ])("refuses %s as neither form", (_name, entered) => {
+    expect(refusedCode(normalisePhoneNumber(entered))).toBe(
+      "PHONE_FORMAT_UNRECOGNISED",
+    );
+  });
+
+  propertyTest.prop([fc.constantFrom("0", "+373"), digitString(7)])(
+    "refuses a 0 first in the eight digits after either prefix",
+    (prefix, rest) => {
+      expect(refusedCode(normalisePhoneNumber(`${prefix}0${rest}`))).toBe(
+        "PHONE_FORMAT_UNRECOGNISED",
+      );
+    },
+  );
+
+  it("still tells a short or long run from this refusal", () => {
+    expect(refusedCode(normalisePhoneNumber("0001234"))).toBe(
+      "PHONE_MOLDOVAN_INCOMPLETE",
+    );
+    expect(refusedCode(normalisePhoneNumber("0001234567"))).toBe(
+      "PHONE_MOLDOVAN_TOO_MANY_DIGITS",
+    );
+  });
+});
+
 describe("normalisePhoneNumber: refused shapes", () => {
   it.each([
     ["nothing", ""],
@@ -219,7 +256,7 @@ describe("normalisePhoneNumber: properties", () => {
   });
 
   propertyTest.prop([
-    digitString(8),
+    subscriberDigits(8),
     fc.constantFrom("0", "+373"),
     fc.constantFrom("0", "+373"),
   ])(
