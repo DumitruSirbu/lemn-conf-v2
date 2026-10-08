@@ -19,11 +19,9 @@
 //    book's own three rate gaps rather than restated, and the boundary the gaps predict is crossed
 //    from both sides on designs built to sit either side of it, so the missing badge is shown to
 //    appear *at* the predicted place rather than merely somewhere.
-// 3. **A leniency that leaks.** The material group's refusal is asserted here on the same
-//    drawer-dominant design, so the hardware rule cannot quietly become the module's rule.
-//
-// **The refusal is not weakened anywhere in this file.** `NegativeTierDeltaError` keeps its meaning
-// and its message for the group whose ordering is a property of the book alone.
+// 3. **A leniency that leaks.** The material group's refusal on the same drawer-dominant design is
+//    held by `qa-6w-below-default-tier.adversarial.test.ts` ("keeps NegativeTierDeltaError's exact
+//    sentence for the material group"), so the hardware rule cannot quietly become the module's rule.
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import {
   countHardwareMechanisms,

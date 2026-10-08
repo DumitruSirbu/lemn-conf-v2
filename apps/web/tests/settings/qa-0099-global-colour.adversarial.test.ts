@@ -421,7 +421,21 @@ describe("ADR 0099 decision 4 — a pending colour follows the pending material,
    *  first one offers, choosing the second material either keeps the colour (it is offered) or
    *  **deletes the key** — never substitutes another colour, and never leaves an unoffered one for
    *  *Aplică* to commit. */
+  it("drops a pending PAL colour when veneer, which does not offer it, is chosen", () => {
+    const chosen = chooseFinishIn({ materialTierId: PAL_TIER_ID }, PAL_GRI);
+
+    const moved = chooseTierIn(chosen, {
+      key: "material",
+      tierId: VENEER_TIER_ID,
+    });
+
+    expect(chosen.finish).toEqual(PAL_GRI);
+    expect(moved).not.toHaveProperty("finish");
+  });
+
   it("keeps an offered colour and deletes an unoffered one, never substituting", () => {
+    let kept = 0;
+    let dropped = 0;
     for (const from of MATERIALS) {
       for (const finish of offeredFinishesOf(from)) {
         const chosen = chooseFinishIn(
@@ -435,13 +449,19 @@ describe("ADR 0099 decision 4 — a pending colour follows the pending material,
           });
 
           if (materialOffersFinish(to, finish)) {
+            kept += 1;
             expect(moved.finish).toEqual(finish);
           } else {
+            dropped += 1;
             expect(moved).not.toHaveProperty("finish");
           }
         }
       }
     }
+
+    // A floor on each arm: the oracle picks the arm, so a changed offer could leave one of them unrun.
+    expect(kept).toBeGreaterThan(0);
+    expect(dropped).toBeGreaterThan(0);
   });
 
   /** An undeclared pending material refuses nothing (ADR 0078 decision 3) — the colour survives the

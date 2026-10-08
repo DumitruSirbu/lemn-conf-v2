@@ -8,7 +8,8 @@
 // namespace by adding `room.step` would pin one owner-approved sentence in the lock twice, which is
 // the scar ruling R7 exists to avoid.
 //
-// **The conversions half.** `metres-text.test.ts` sweeps the **approved policy's** ranges. Neither
+// **The conversions half.** `room-query-sync.test.ts` ("round-trips every approved length exactly, in
+// every L field") sweeps the **approved policy's** ranges. Neither
 // conversion is confined to them: the refill (`room-query-sync.ts`'s `withLengthFromQuery`) runs on
 // whatever the URL holds, and it accepts any length `parse-metres.ts` accepts. So the round trip is
 // swept over the range the parser actually admits, not the range the policy approves — the gap

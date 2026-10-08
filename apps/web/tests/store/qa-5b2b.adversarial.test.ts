@@ -318,6 +318,22 @@ describe("a resize on an odd-width column extent crashes the store", () => {
       expect(Number.isInteger(entry.alongMm)).toBe(true);
     }
   });
+
+  // tests-review finding, awaiting adjudication: this fixture records no empty column at all after the resize, so
+  // the integer loop above runs zero times and that case is a throw guard only.
+  it.fails(
+    "records an empty column for the integer check above to judge",
+    () => {
+      const store = createStore(ODD_EXTENT_DESIGN);
+
+      store.getState().select({ kind: "placement", id: "base" });
+      store.getState().setWidth(600);
+
+      expect(
+        (store.getState().design.emptyColumns ?? []).length,
+      ).toBeGreaterThan(0);
+    },
+  );
 });
 
 describe("the seam writes one document per state, and nothing for an empty one", () => {
