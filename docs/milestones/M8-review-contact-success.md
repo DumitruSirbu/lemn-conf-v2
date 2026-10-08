@@ -4155,7 +4155,7 @@ ADR 0114 B5, G4; ADR 0019 d5.
 ### 8H — the submission contract
 
 *Goal.* One I/O-free definition of what a request is, used by the form and by the server.
-*Tier: Full.*
+*Tier: ~~Full.~~ **Full + security, scoped** (2026-10-08; see *S3 as built*).*
 
 > **Q24 settled 2026-10-07: the wave is dispatchable.** The phone rule is the first
 > recommendation, Q6 (iii): a Moldovan number (0 and eight digits, or +373 and eight), or any
@@ -4413,6 +4413,84 @@ refusals are ADR 0148's, in its order: a body past its wall, naming exactly
 
 *QA gains:* the parity property above, which stands in the web's tests because it reads both
 sides; and 8C's own parity files, green and untouched.
+
+#### 8H — S3 as built, ruled 2026-10-08
+
+S3 is `8539f66` [ran: `git log`]. Domain 6754 passed, web 6172 passed with no `qa-*` file
+touched, typecheck, lint and boundary exit 0 in both [relayed, coordinator-run].
+
+**The deviation — the rule is handed the fit query's answer and does not ask it. It satisfies
+the must-not. Accepted.** *"Written twice"* was about the decision: which refusal comes first and
+what each means. That is one function now [src `contact/submission-eligibility.ts:34-47`]. The
+fit query is one function too, with two callers that each put the same question, as pricing has
+always put it a third time. Asking a question in two places is not stating a rule in two.
+
+- *The reason given is sound, and it was mine to foresee.* A rule inside the built package that
+  called the query would not pass through QA's replacement of it, and
+  `qa-8c-fit-is-the-querys-answer` would go red for how it looks and not for what it checks. I
+  had forbidden editing that file in the same breath as asking for the move.
+- *What the shape costs, and what holds it.* The rule believes its caller about fit. A caller
+  that hands it an empty list skips the first refusal. **Criterion 14, added.** On the server the
+  facts are put together in one place, `snapshotSubmission`, from one design
+  [src `contact/submission-snapshot.ts:36-41`]. *Must not:* 8K, or anything that answers a
+  request, calls the rule with a list of its own making; it calls the snapshot. In the review the
+  list is checked against the price's own [src `review-model.ts`, `assertInputsAreOneDesigns`],
+  as 8C built it.
+- *Not asked for:* the rule checking the list against the price itself. It would throw before the
+  review's own check, with another error, and turn 8C's files red for the same wrong reason.
+
+| # | Reading | Ruling |
+| --- | --- | --- |
+| 1 | The snapshot is the canonical document and the priced design whole, priced with the design's own settings | **Confirmed.** Whole is what was asked. The settings are what every price surface passes [src `apps/web/src/price/use-priced-design.ts:89, 113`], and the request's type leaves the server no way to pass others |
+| 2 | The review's three codes; the bodies as the query gave them | **Confirmed** |
+| 3 | An allowed judgement carries the price it judged | **Confirmed.** The server prices once |
+| 4 | The review throws if the rule allows what the view calls unavailable | **Confirmed.** It cannot happen, and a throw is the answer for what cannot: no quiet second path |
+| 5 | `PRICING_FAILED` says nothing of why | **Changed: criterion 15.** Below |
+| 6 | The web's price module re-exports the predicate it used to own | **Changed.** Below |
+| 7 | The literal: a book stated in the test, two wall cabinets, 53 500 with its sum | **Confirmed.** A stated book is what *"states or quotes"* meant. The literal's work is to show that the snapshot holds the sum of the book it was handed, by a number no call produced; the shipped book's arithmetic is its own tests' |
+
+**Criterion 15, added — a refusal that is our fault says what failed (reading 5).** A body past
+its wall and an empty kitchen are the customer's to mend. A price that cannot be computed is a
+defect in a book or the catalogue, and a customer who meets it has lost a request through no act
+of theirs. `PRICING_FAILED` carries the pricing failure as `priceDesign` returned it, so the
+endpoint can log it. *Must not:* the review prints any of it; the failure is re-worded on the
+way. It holds design data and no contact field [src `pricing/price-lines.ts:153-160`].
+
+**Reading 6 — the re-export goes.** Nothing in the web's source uses it. It exists for one test
+[ran: a search of `apps/web/src` and `apps/web/tests`], which is the web's own and no `qa-*`
+file. A function lives in one place and is imported from there; a second door says the price
+module owns what it no longer does. **The test follows the function into the domain's tests.**
+
+**These two changes go in the first fix round**, with whatever QA and the reviewers find, so the
+tree does not move under QA. The reviewers are told both are already ruled.
+
+**What each reads, for the whole wave, S1 to S3.**
+
+- **QA:** criteria 1 to 15 as restated; every dated section under 8H; `tests/pricing/`;
+  `apps/web/tests/review/qa-8c-*`, read and not edited; `fast-check`. *What it attacks first:* an
+  unknown key at each of the three levels, the inherited ones included; that no refusal holds a
+  key or a value the sender wrote, for arbitrary input; the phone's normal form under every
+  grouping; the parity of criterion 7 over generated kitchens; that the package reads no clock
+  and imports nothing outside itself.
+- **Logic:** the five files under `contact/`, the id's predicate, and the diff of
+  `review-model.ts`. ADR 0001 d6; ADR 0065 d6, d7; ADR 0072; ADR 0095; ADR 0108 d3; ADR 0148
+  decisions 1 to 4; ARCH §9; `docs/CONFIGURATION_MODEL.md:238-240`. *Its two questions:* does the
+  review refuse exactly the kitchens it refused at `a9e1843`; and is every bound and code what
+  these sections rule.
+- **Clean-code:** the same files and `index.ts`; ADR 0136.
+
+**A security reader, yes, and scoped. The wave's tier becomes Full + security, by this ruling.**
+8K's review will read how these values are used. What a value *may be* is decided here, and the
+store and the mail are built on it before 8K exists. *It reads:* `contact-fields.ts`,
+`phone-number.ts`, `contact-submission.ts`; criteria 2, 5, 10 and 11; ADR 0146 B3. *It answers
+five questions and no others:*
+
+1. Can any accepted value hold a character that ends a line or a header, or reorders one, in the
+   shop's mail?
+2. Does any refusal carry the sender's text, a key included?
+3. Is an own key named like a prototype's refused as unknown, at every level?
+4. Is any check more than linear in the input, before 8K's body limit has bounded it?
+5. Is the client request id safe as a header's value and as a key, as shaped?
 
 ### 8I — the contact submissions store
 
