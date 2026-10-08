@@ -1,18 +1,24 @@
 import {
   CONTACT_FIELDS,
-  ownValueOf,
   validateContactFields,
   type ContactField,
   type ContactFieldCode,
   type ContactFields,
 } from "./contact-fields.js";
+import {
+  countCharacters,
+  holdsUnknownKey,
+  isPlainObject,
+  ownValueOf,
+  type PlainObject,
+} from "./input-checks.js";
 import { isDesignId, isDesignRevisionShape } from "../repository.js";
 
 // The request a contact form sends. Strict at every level: an unknown field is refused, so a client
-// cannot add a price, a total or a book version and have it ignored (D6). A refusal names a field and
-// a code and never a key or a value the sender chose (ADR 0095; ADR 0146).
+// cannot add a price, a total or a book version and have it ignored. A refusal names a field and a code
+// and never a key or a value the sender chose (see ADR 0150).
 
-/** Q12 (i): a callback request with no design. The link e-mail is not built. */
+/** What a request with no design asks for: a callback. */
 export const CONTACT_INTENTS = ["callback"] as const;
 export type ContactIntent = (typeof CONTACT_INTENTS)[number];
 
@@ -31,7 +37,8 @@ const DESIGN_REFERENCE_KEYS = ["id", "revision"] as const;
 /** Wide enough for a UUID (36) or a `nanoid` (21); narrow enough that it is a key and not a body. */
 const CLIENT_REQUEST_ID_SHAPE = /^[A-Za-z0-9_-]{16,64}$/;
 
-/** Characters, counted as code points. The honeypot's content has no meaning here. */
+/** Characters, as code points: room for whatever a bot pastes, small enough that the body stays small. The
+ *  text is read for its length and nothing else. */
 const HONEYPOT_MAX_LENGTH = 256;
 
 export type SubmissionField =
@@ -71,13 +78,14 @@ export type SubmissionTarget =
   | { readonly kind: "design"; readonly design: DesignReference }
   | { readonly kind: "intent"; readonly intent: ContactIntent };
 
-/** The honeypot and the elapsed time are carried with no meaning; 8K judges them (D9). */
+/** The honeypot is carried as a yes or no, never as the text that filled it; what either it or the elapsed
+ *  time means is not decided here. */
 export interface ContactSubmissionRequest {
   readonly contact: ContactFields;
   readonly target: SubmissionTarget;
   readonly clientRequestId: string;
   readonly locale: string;
-  readonly honeypot: string;
+  readonly isHoneypotFilled: boolean;
   readonly elapsedMs: number;
 }
 
@@ -89,26 +97,15 @@ type Outcome<Value> =
   | { readonly ok: true; readonly value: Value }
   | { readonly ok: false; readonly issues: readonly SubmissionIssue[] };
 
-type PlainObject = Readonly<Record<string, unknown>>;
-
+/** In the order of the request's fields, which is the order refusals are reported in. */
 interface RequestJudgements {
   readonly contact: Outcome<ContactFields>;
   readonly target: Outcome<SubmissionTarget>;
   readonly clientRequestId: Outcome<string>;
   readonly locale: Outcome<string>;
-  readonly honeypot: Outcome<string>;
+  readonly isHoneypotFilled: Outcome<boolean>;
   readonly elapsedMs: Outcome<number>;
 }
-
-/** In the order of the request's fields, which is the order refusals are reported in. */
-const JUDGED_PARTS = [
-  "contact",
-  "target",
-  "clientRequestId",
-  "locale",
-  "honeypot",
-  "elapsedMs",
-] as const satisfies readonly (keyof RequestJudgements)[];
 
 type AcceptedJudgements = {
   readonly [part in keyof RequestJudgements]: Extract<
@@ -156,21 +153,29 @@ function judgeRequest(
       "clientRequestId",
     ),
     locale: judgeLocale(ownValueOf(request, "locale"), servedLocales),
-    honeypot: judgeHoneypot(ownValueOf(request, "honeypot")),
+    isHoneypotFilled: judgeHoneypot(ownValueOf(request, "honeypot")),
     elapsedMs: judgeElapsedMs(ownValueOf(request, "elapsedMs")),
   };
+}
+
+/** `judgeRequest` builds the judgements in the order of the request's fields, and so does this. */
+function judgementList(
+  judgements: RequestJudgements,
+): readonly Outcome<unknown>[] {
+  const byPart: Record<string, Outcome<unknown>> = { ...judgements };
+  return Object.values(byPart);
 }
 
 function isAccepted(
   judgements: RequestJudgements,
 ): judgements is AcceptedJudgements {
-  return JUDGED_PARTS.every((part) => judgements[part].ok);
+  return judgementList(judgements).every((judgement) => judgement.ok);
 }
 
 function refusedIssues(
   judgements: RequestJudgements,
 ): readonly SubmissionIssue[] {
-  return JUDGED_PARTS.flatMap((part) => issuesOf(judgements[part]));
+  return judgementList(judgements).flatMap(issuesOf);
 }
 
 function assemble(accepted: AcceptedJudgements): ContactSubmissionRequest {
@@ -179,7 +184,7 @@ function assemble(accepted: AcceptedJudgements): ContactSubmissionRequest {
     target: accepted.target.value,
     clientRequestId: accepted.clientRequestId.value,
     locale: accepted.locale.value,
-    honeypot: accepted.honeypot.value,
+    isHoneypotFilled: accepted.isHoneypotFilled.value,
     elapsedMs: accepted.elapsedMs.value,
   };
 }
@@ -273,12 +278,13 @@ function isClientRequestId(text: string): boolean {
   return CLIENT_REQUEST_ID_SHAPE.test(text);
 }
 
-function judgeHoneypot(raw: unknown): Outcome<string> {
-  if (raw === undefined) return succeeded("");
+/** Whether the field was filled; its text goes no further than this check. */
+function judgeHoneypot(raw: unknown): Outcome<boolean> {
+  if (raw === undefined) return succeeded(false);
   if (typeof raw !== "string") return failed(issue("honeypot", "NOT_TEXT"));
-  return Array.from(raw).length > HONEYPOT_MAX_LENGTH
+  return countCharacters(raw) > HONEYPOT_MAX_LENGTH
     ? failed(issue("honeypot", "TOO_LONG"))
-    : succeeded(raw);
+    : succeeded(raw !== "");
 }
 
 function judgeElapsedMs(raw: unknown): Outcome<number> {
@@ -288,8 +294,7 @@ function judgeElapsedMs(raw: unknown): Outcome<number> {
     : failed(issue("elapsedMs", "MALFORMED"));
 }
 
-/** Any whole number a JSON number holds exactly: a slow submission is not refused here (too fast is
- *  8K's judgement). */
+/** Any whole number a JSON number holds exactly: a slow submission is not refused here. */
 function isElapsedMs(value: unknown): value is number {
   return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
 }
@@ -301,18 +306,9 @@ function unknownKeyIssues(
   knownKeys: readonly string[],
   field: SubmissionField,
 ): readonly SubmissionIssue[] {
-  const hasUnknownKey = Object.keys(record).some(
-    (key) => !knownKeys.includes(key),
-  );
-  return hasUnknownKey ? [issue(field, "UNKNOWN_FIELD")] : [];
-}
-
-/** Plain data only: an array, a class instance or a `null` is not a request. A property inherited from
- *  `Object.prototype` itself is not caught here; `ownValueOf` is what keeps it from being read. */
-function isPlainObject(value: unknown): value is PlainObject {
-  if (typeof value !== "object" || value === null) return false;
-  const prototype: unknown = Object.getPrototypeOf(value);
-  return prototype === Object.prototype || prototype === null;
+  return holdsUnknownKey(record, knownKeys)
+    ? [issue(field, "UNKNOWN_FIELD")]
+    : [];
 }
 
 function issuesOf(outcome: Outcome<unknown>): readonly SubmissionIssue[] {

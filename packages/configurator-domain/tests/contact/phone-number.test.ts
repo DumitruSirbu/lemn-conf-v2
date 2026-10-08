@@ -163,33 +163,65 @@ describe("normalisePhoneNumber: every space separator is grouping", () => {
   });
 });
 
-describe("normalisePhoneNumber: eight digits that begin with 0", () => {
+describe("normalisePhoneNumber: a second 0 has its own code at any length", () => {
   it.each([
     ["two zeros, which begin a call abroad", "001234567"],
     ["00373 and four digits", "003731234"],
     ["the 0 kept after +373", "+373 0 1234567"],
     ["a national number of zeros", "000000000"],
-  ])("refuses %s as neither form", (_name, entered) => {
+    ["a second 0 and nothing else", "00"],
+    ["a second 0 too early to be complete", "0001234"],
+    ["a second 0 with too many digits", "0001234567"],
+    ["a million zeros", "0".repeat(1_000_000)],
+  ])("refuses %s as a second zero", (_name, entered) => {
     expect(refusedCode(normalisePhoneNumber(entered))).toBe(
-      "PHONE_FORMAT_UNRECOGNISED",
+      "PHONE_MOLDOVAN_SECOND_ZERO",
     );
   });
 
-  propertyTest.prop([fc.constantFrom("0", "+373"), digitString(7)])(
-    "refuses a 0 first in the eight digits after either prefix",
+  propertyTest.prop([
+    fc.constantFrom("0", "+373"),
+    fc.integer({ min: 0, max: 20 }).chain((count) => digitString(count)),
+  ])(
+    "refuses a 0 first after either prefix, whatever follows",
     (prefix, rest) => {
       expect(refusedCode(normalisePhoneNumber(`${prefix}0${rest}`))).toBe(
-        "PHONE_FORMAT_UNRECOGNISED",
+        "PHONE_MOLDOVAN_SECOND_ZERO",
       );
     },
   );
 
-  it("still tells a short or long run from this refusal", () => {
-    expect(refusedCode(normalisePhoneNumber("0001234"))).toBe(
+  it("is not what a number with nothing after the prefix is told", () => {
+    expect(refusedCode(normalisePhoneNumber("0"))).toBe(
       "PHONE_MOLDOVAN_INCOMPLETE",
     );
-    expect(refusedCode(normalisePhoneNumber("0001234567"))).toBe(
-      "PHONE_MOLDOVAN_TOO_MANY_DIGITS",
+    expect(refusedCode(normalisePhoneNumber("+373"))).toBe(
+      "PHONE_MOLDOVAN_INCOMPLETE",
+    );
+  });
+});
+
+describe("normalisePhoneNumber: any dash is grouping", () => {
+  const DASHES = Array.from({ length: 0x10000 }, (_unused, codePoint) =>
+    String.fromCodePoint(codePoint),
+  ).filter((character) => /^\p{Pd}$/u.test(character));
+
+  it("finds the Unicode dashes the test sweeps", () => {
+    expect(DASHES.length).toBeGreaterThanOrEqual(20);
+  });
+
+  it.each(DASHES.map((dash) => [codePointLabel(dash), dash] as const))(
+    "reads %s between digits as grouping",
+    (_label, dash) => {
+      expect(accepted(normalisePhoneNumber(`079${dash}123${dash}456`))).toBe(
+        "+37379123456",
+      );
+    },
+  );
+
+  it("still refuses a minus sign, which is not a dash", () => {
+    expect(refusedCode(normalisePhoneNumber("079\u2212123456"))).toBe(
+      "PHONE_FORMAT_UNRECOGNISED",
     );
   });
 });
@@ -274,7 +306,7 @@ describe("normalisePhoneNumber: properties", () => {
     },
   );
 
-  propertyTest.prop([fc.constantFrom("0", "+373"), digitString(7)])(
+  propertyTest.prop([fc.constantFrom("0", "+373"), subscriberDigits(7)])(
     "seven digits after a Moldovan prefix are refused as a Moldovan number that is incomplete",
     (prefix, subscriberDigits) => {
       expect(refusedCode(normalisePhoneNumber(prefix + subscriberDigits))).toBe(
@@ -283,7 +315,7 @@ describe("normalisePhoneNumber: properties", () => {
     },
   );
 
-  propertyTest.prop([fc.constantFrom("0", "+373"), digitString(9)])(
+  propertyTest.prop([fc.constantFrom("0", "+373"), subscriberDigits(9)])(
     "nine digits after a Moldovan prefix are refused as a Moldovan number with too many",
     (prefix, subscriberDigits) => {
       expect(refusedCode(normalisePhoneNumber(prefix + subscriberDigits))).toBe(

@@ -10,7 +10,7 @@ const DESIGN_ID_SHAPE = /^[A-Za-z0-9_-]{21}$/;
 
 /** Whether a string has the shape of an id the generator makes. Nothing says every stored id does:
  *  gate on it only after counting the live ones. */
-export function isDesignId(value: string): value is DesignId {
+export function isDesignId(value: string): boolean {
   return DESIGN_ID_SHAPE.test(value);
 }
 

@@ -72,7 +72,7 @@ describe("validateContactSubmission: a valid request", () => {
       target: { kind: "design", design: { id: DESIGN_ID, revision: "7" } },
       clientRequestId: REQUEST_ID,
       locale: "ro",
-      honeypot: "",
+      isHoneypotFilled: false,
       elapsedMs: 12_000,
     });
   });
@@ -433,21 +433,36 @@ describe("validateContactSubmission: the locale", () => {
   });
 });
 
-describe("validateContactSubmission: the honeypot and the elapsed time carry no meaning", () => {
+describe("validateContactSubmission: the honeypot is carried as a yes or no", () => {
   const HONEYPOT_MAX = 256;
 
-  it("treats an absent honeypot as empty", () => {
-    expect(requestOf(without(DESIGN_REQUEST, "honeypot")).honeypot).toBe("");
+  it("reads an absent or empty honeypot as not filled", () => {
+    expect(
+      requestOf(without(DESIGN_REQUEST, "honeypot")).isHoneypotFilled,
+    ).toBe(false);
+    expect(
+      requestOf({ ...DESIGN_REQUEST, honeypot: "" }).isHoneypotFilled,
+    ).toBe(false);
   });
 
-  it("carries a filled honeypot as it came and does not refuse it: that is 8K's judgement", () => {
+  it("reads a filled honeypot as filled and does not refuse it, and holds none of its text", () => {
     const request = requestOf({
       ...DESIGN_REQUEST,
       honeypot: "http://spam.example",
     });
 
-    expect(request.honeypot).toBe("http://spam.example");
+    expect(request.isHoneypotFilled).toBe(true);
+    expect(JSON.stringify(request)).not.toContain("spam.example");
   });
+
+  it.each([" ", "x", "\u0000", "\n"])(
+    "reads %j as filled: any text at all is",
+    (honeypot) => {
+      expect(requestOf({ ...DESIGN_REQUEST, honeypot }).isHoneypotFilled).toBe(
+        true,
+      );
+    },
+  );
 
   it("accepts exactly the honeypot's maximum and refuses one past it", () => {
     expect(
@@ -574,7 +589,7 @@ describe("validateContactSubmission: the request has no price (D6)", () => {
       | "target"
       | "clientRequestId"
       | "locale"
-      | "honeypot"
+      | "isHoneypotFilled"
       | "elapsedMs"
     >();
   });

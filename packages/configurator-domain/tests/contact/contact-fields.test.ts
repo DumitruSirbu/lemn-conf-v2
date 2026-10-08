@@ -648,3 +648,175 @@ describe("validateContactFields: only what the sender's object holds itself is r
     }
   });
 });
+
+describe("validateContactFields: text is judged in the order that keeps it well-formed and cheap", () => {
+  const HIGH_HALF = "\udb40";
+  const LOW_HALF = "\udc01";
+  const TYPED_TEXT_FIELDS: readonly {
+    readonly field: TextFieldName;
+    readonly baseline: ContactFieldsInput;
+    readonly wrap: (text: string) => string;
+  }[] = [
+    { field: "name", baseline: VALID_INPUT, wrap: (text) => text },
+    { field: "locality", baseline: VALID_INPUT, wrap: (text) => text },
+    {
+      field: "phone",
+      baseline: VALID_INPUT,
+      wrap: (text) => `079${text}123456`,
+    },
+    {
+      field: "email",
+      baseline: VALID_EMAIL_INPUT,
+      wrap: (text) => `a${text}@example.md`,
+    },
+  ];
+
+  describe.each(TYPED_TEXT_FIELDS)("in $field", (row) => {
+    const codeFor = (text: string) =>
+      codeOf(row.field, withValue(row.baseline, row.field, row.wrap(text)));
+
+    it("refuses halves of an astral character split by a format character, which would join when it is removed", () => {
+      const split = `Ion${HIGH_HALF}${ZERO_WIDTH_SPACE}${LOW_HALF}x`;
+
+      expect(codeFor(split)).toBe("FORBIDDEN_CHARACTER");
+    });
+
+    it.each([
+      ["a high half alone", HIGH_HALF],
+      ["a low half alone", LOW_HALF],
+      ["a low half before a high half", `${LOW_HALF}${HIGH_HALF}`],
+      ["a half at the very end", `x${HIGH_HALF}`],
+    ])("refuses %s", (_name, text) => {
+      expect(codeFor(text)).toBe("FORBIDDEN_CHARACTER");
+    });
+  });
+
+  it.each(["name", "locality"] as const)(
+    "accepts two halves that are a pair in %s",
+    (field) => {
+      expect(
+        codeOf(field, withValue(VALID_INPUT, field, "\ud83d\ude00")),
+      ).toBeUndefined();
+    },
+  );
+
+  it("stores no astral format character, which a joined pair would have left invisible", () => {
+    const result = validateContactFields({
+      ...VALID_INPUT,
+      name: `Ion${String.fromCodePoint(0xe0001)}x`,
+    });
+
+    expect(result.ok && result.contact.name).toBe("Ionx");
+  });
+
+  it("answers a long run of combining marks with TOO_LONG, and does not compose it first", () => {
+    const run = `a${"̖́".repeat(100_000)}`;
+    const started = performance.now();
+
+    const code = codeOf("name", { ...VALID_INPUT, name: run });
+    const elapsedMs = performance.now() - started;
+
+    expect(code).toBe("TOO_LONG");
+    // Composing 200 000 units took seconds; a length check takes microseconds.
+    expect(elapsedMs).toBeLessThan(500);
+  });
+
+  it("removes format characters before it counts, so padding with them is not too long", () => {
+    const padded = `a${ZERO_WIDTH_SPACE.repeat(100_000)}`;
+
+    expect(contactOf({ ...VALID_INPUT, name: padded }).name).toBe("a");
+  });
+
+  it("reads the phone as typed through the same order", () => {
+    const longPhone = `079${"̖".repeat(100_000)}123456`;
+
+    expect(codeOf("phone", { ...VALID_INPUT, phone: longPhone })).toBe(
+      "TOO_LONG",
+    );
+  });
+});
+
+describe("validateContactFields: what is stored is stored again unchanged", () => {
+  const NOTABLE_UNITS = [
+    0x0020, 0x00a0, 0x00ad, 0x0301, 0x0316, 0x200b, 0x200d, 0x200e, 0x202e,
+    0x2028, 0xfeff, 0xd800, 0xdbff, 0xdc00, 0xdfff, 0x0065, 0x00e9, 0x0130,
+    0x1100, 0x1161, 0x11a8, 0xfb01, 0x0009, 0x000a,
+  ];
+
+  const anyUnit = fc.oneof(
+    fc.constantFrom(...NOTABLE_UNITS),
+    fc.integer({ min: 0, max: 0xffff }),
+  );
+
+  const unitSequence = fc
+    .array(anyUnit, { maxLength: 24 })
+    .map((units) => String.fromCharCode(...units));
+
+  /** Whole code points only: never half of a pair, whatever the plane. */
+  const wellFormedText = fc
+    .array(
+      fc.oneof(
+        fc.constantFrom(...NOTABLE_UNITS.filter((unit) => unit < 0xd800)),
+        fc.integer({ min: 0x20, max: 0x2fff }),
+        fc.integer({ min: 0x10000, max: 0x10ffff }),
+        fc.constantFrom(0xe0001, 0xe0041, 0x1d173),
+      ),
+      { maxLength: 24 },
+    )
+    .map((points) => String.fromCodePoint(...points));
+
+  const FORBIDDEN_OR_FORMAT = /[\p{Cc}\p{Cs}\p{Zl}\p{Zp}\p{Cf}]/u;
+
+  function nameOf(text: string) {
+    return validateContactFields({ ...VALID_INPUT, name: text });
+  }
+
+  function assertStoredAgain(text: string): boolean {
+    const first = nameOf(text);
+    if (!first.ok) return false;
+    const stored = first.contact.name;
+    expect(FORBIDDEN_OR_FORMAT.test(stored)).toBe(false);
+    expect(stored.normalize("NFC")).toBe(stored);
+    expect(stored).toBe(stored.trim());
+    const again = nameOf(stored);
+    expect(again.ok && again.contact.name).toBe(stored);
+    return true;
+  }
+
+  it("holds over arbitrary sequences of UTF-16 units, halves of pairs included", () => {
+    let storedCount = 0;
+    let refusedCount = 0;
+    fc.assert(
+      fc.property(unitSequence, (text) => {
+        if (assertStoredAgain(text)) storedCount += 1;
+        else refusedCount += 1;
+      }),
+      { numRuns: 3000 },
+    );
+
+    expect(storedCount).toBeGreaterThan(100);
+    expect(refusedCount).toBeGreaterThan(100);
+  });
+
+  it("holds over whole code points, format characters and combining marks among them", () => {
+    let storedCount = 0;
+    fc.assert(
+      fc.property(wellFormedText, (text) => {
+        if (assertStoredAgain(text)) storedCount += 1;
+      }),
+      { numRuns: 3000 },
+    );
+
+    expect(storedCount).toBeGreaterThan(1000);
+  });
+
+  propertyTest.prop([unitSequence])(
+    "refuses a value with a half of a pair, or stores one without any",
+    (text) => {
+      const result = nameOf(text);
+      const hasHalf = /\p{Cs}/u.test(text);
+
+      expect(!hasHalf || !result.ok).toBe(true);
+    },
+  );
+});

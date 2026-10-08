@@ -1,11 +1,14 @@
 import { z } from "zod";
 
+import {
+  holdsForbiddenCharacter,
+  ownValueOf,
+  readTypedText,
+} from "./input-checks.js";
 import { normalisePhoneNumber, type PhoneRefusalCode } from "./phone-number.js";
 
 // These values reach an e-mail and a database row, so every text field is bounded and carries no
-// control character. A refusal is a field and a code and no number (ADR 0095, as ADR 0108 decision 3
-// for rooms): a refusal carrying its limit would be one ICU argument away from printing an unapproved
-// bound.
+// control character. A refusal is a field and a code and never a number or a value (see ADR 0150).
 
 /** Characters, counted as code points after trimming. */
 export const CONTACT_NAME_MAX_LENGTH = 100;
@@ -36,14 +39,6 @@ export const CONTACT_FIELDS = [
   "consentTextVersion",
 ] as const;
 export type ContactField = (typeof CONTACT_FIELDS)[number];
-
-/** Format characters (direction marks, zero-width, soft hyphen) arrive with pasted text and cannot be
- *  seen. They are removed, not refused, so a stored or mailed value never holds one. */
-const FORMAT_CHARACTER = /\p{Cf}/gu;
-
-/** Control, unpaired-surrogate, line and paragraph separator characters: none can be shown on one line
- *  of an e-mail or stored as well-formed UTF-8. */
-const FORBIDDEN_CHARACTER = /[\p{Cc}\p{Cs}\p{Zl}\p{Zp}]/u;
 
 export type ContactFieldCode =
   | "REQUIRED"
@@ -134,15 +129,6 @@ function judgeFields(input: ContactFieldsInput): FieldJudgements {
   };
 }
 
-/** Only what the sender's object holds itself: a property that `Object.prototype` (or any prototype)
- *  supplies is not the sender's, whoever polluted it. */
-export function ownValueOf(
-  record: Readonly<Record<string, unknown>>,
-  name: string,
-): unknown {
-  return Object.hasOwn(record, name) ? record[name] : undefined;
-}
-
 function isAccepted(
   judgements: FieldJudgements,
 ): judgements is AcceptedJudgements {
@@ -174,26 +160,7 @@ function judgeRequiredText(raw: unknown, maxLength: number): Judgement<string> {
 }
 
 function judgeBoundedText(raw: unknown, maxLength: number): Judgement<string> {
-  const trimmed = judgeTrimmedText(raw);
-  return trimmed.ok && countCharacters(trimmed.value) > maxLength
-    ? refuse("TOO_LONG")
-    : trimmed;
-}
-
-/** The order matters. Format characters go first so an invisible one between a letter and its accent
- *  cannot stop them composing; then NFC (not the compatibility form, which would change letters the
- *  customer chose), so one name has one stored form and is judged as stored; then forbidden characters,
- *  looked for before trimming: a trailing line feed is a refusal, not whitespace to be quietly dropped. */
-function judgeTrimmedText(raw: unknown): Judgement<string> {
-  if (raw === undefined) return accept("");
-  if (typeof raw !== "string") return refuse("NOT_TEXT");
-  const composed = raw.replace(FORMAT_CHARACTER, "").normalize("NFC");
-  if (FORBIDDEN_CHARACTER.test(composed)) return refuse("FORBIDDEN_CHARACTER");
-  return accept(composed.trim());
-}
-
-function countCharacters(text: string): number {
-  return Array.from(text).length;
+  return readTypedText(raw, maxLength);
 }
 
 function judgePhone(raw: unknown): Judgement<{
@@ -216,8 +183,8 @@ function isContactChannel(value: unknown): value is ContactChannel {
   return CONTACT_CHANNELS.some((channel) => channel === value);
 }
 
-/** The e-mail input is shown only with the e-mail channel (Q6 (ii)), so for any other channel
- *  whatever it holds is not carried and not judged. */
+/** The e-mail input exists only for the e-mail channel, so for any other whatever it holds is neither
+ *  carried nor judged. */
 function judgeEmail(
   raw: unknown,
   channel: Judgement<ContactChannel>,
@@ -237,7 +204,7 @@ function judgeConsent(raw: unknown): Judgement<true> {
 function judgeConsentTextVersion(raw: unknown): Judgement<ConsentTextVersion> {
   if (raw === undefined || raw === "") return refuse("REQUIRED");
   if (typeof raw !== "string") return refuse("NOT_TEXT");
-  if (FORBIDDEN_CHARACTER.test(raw)) return refuse("FORBIDDEN_CHARACTER");
+  if (holdsForbiddenCharacter(raw)) return refuse("FORBIDDEN_CHARACTER");
   return isConsentTextVersion(raw)
     ? accept(raw)
     : refuse("UNKNOWN_CONSENT_TEXT_VERSION");
