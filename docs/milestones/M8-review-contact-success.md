@@ -4181,12 +4181,15 @@ ADR 0114 B5, G4; ADR 0019 d5.
    (Q6 (i), answered). Consent that is not `true`
    is refused with its own code.
 5. The request type has no price field (D6). An unknown extra field is refused, not ignored.
-6. **The snapshot.** Its document round-trips through `serializeDesign` byte for byte. Its total for
-   the seeded L kitchen equals the literal already pinned for it, not a second call of the same
-   function. It carries the book's version. It contains no contact field, by type.
+6. **The snapshot.** Its document round-trips through ~~`serializeDesign`~~
+   `canonicalSerializeDesign` byte for byte. ~~Its total for the seeded L kitchen equals the
+   literal already pinned for it, not a second call of the same function.~~ **(Restated
+   2026-10-08: no such literal exists; see *S3, restated*.)** It carries the book's version. It
+   contains no contact field, by type.
 7. A design with a body past its wall yields a refusal naming exactly `findOverflowingPlacementIds`,
-   for generated kitchens on all three walls. An empty kitchen and an unpriceable one are each
-   refused with their own code.
+   for generated kitchens on all three walls. ~~An empty kitchen and an unpriceable one are each
+   refused with their own code.~~ **(Restated 2026-10-08 to ADR 0148's three refusals in its
+   order; see *S3, restated*.)**
 8. *Must not:* the package reads a clock, generates an id, or imports anything outside itself.
 
 *QA reading:* the criteria; `tests/pricing/`; `scripts/gates/boundary.sh`; `fast-check`. *Logic
@@ -4284,6 +4287,132 @@ outside Moldova. It is a new leaf and the owner's copy.
   clock (criterion 8).
 
 S2's result has S1's shape: every failing field once, a code each, no value.
+
+#### 8H — S2's readings and the locale, ruled 2026-10-08
+
+S2 is `8da0e6a`, on the S1 follow-up `e135d52` [ran: `git log`].
+
+**The locale — option (a): the list is a parameter.** `validateContactSubmission` takes the
+locales the application serves, and 8K and the form both pass `routing.locales`
+[src `apps/web/src/i18n/routing.ts:4`]. The domain knows no language (ADR 0095) and
+keeps knowing none. *Why not (b):* the web's routing would then depend on the domain for a list
+only the web uses. *Why not (c):* one request would be judged in two places, with two shapes of
+refusal. **Criterion 12, added.** A locale outside the list is refused with its own code.
+*Must not:* the parameter has a default, since a default is the second list; an empty list is
+accepted, since it is a mistake in the caller and it throws.
+
+| # | Reading | Ruling |
+| --- | --- | --- |
+| 1 | A `design` or an `intent`, in a type that holds exactly one; `design: null` is refused | **Confirmed** |
+| 2 | The id's shape, copied from what the generator makes | **The shape is right; the copy is not its home.** Below |
+| 3 | The revision's shape, copied from persistence; a JSON number refused | **Confirmed, and tied.** Below |
+| 4 | The client request id is 16 to 64 of `A-Za-z0-9_-` | **Confirmed, as the architect's reading.** Below |
+| 5 | The honeypot is optional text, bounded, carried and never judged | **Confirmed.** *For 8K:* its content is never stored, mailed or logged; only that it was filled |
+| 6 | `elapsedMs`, an integer from 0 to a day | **Changed: criterion 13.** Below |
+| 7 | Strict at three levels; `UNKNOWN_FIELD` names the level and never the key | **Confirmed** |
+| 8a | The consent set's one member is `"placeholder"` | **Confirmed.** It says what it is. *For the launch gate:* Q7 (b)'s line is that no page sends it |
+| 8b | U+202F and U+2007 are refused in a phone | **Changed.** My ruling named one space and meant the kind: **any space separator, Unicode's Zs, is grouping** |
+| 8c | A channel padded with a format character is `UNKNOWN_CHANNEL` | **Confirmed.** Criterion 10 is for what a customer types or pastes; a value the page sends from a closed set is matched exactly |
+
+**Readings 2 and 3 — one home for each shape, and a test that ties the other end.**
+
+- *The id.* Nothing states its shape today: the generator makes it [src
+  `persistence/src/generate-design-id.ts`] and the domain's `DesignId` is any string
+  [src `configurator-domain/src/repository.ts:5`]. **Its home is the domain, beside `DesignId`,
+  as one exported predicate.** The request uses it. A test in persistence holds the generator to
+  it. **And 8L S2 changes with this:** the shared owned load calls this predicate and writes no
+  shape of its own. The note under 8L says *"S2 puts the id's shape into that one function"*; it
+  now means *calls the domain's*.
+- *The revision.* Its home stays persistence's `isDesignRevision`, which carries the whole reason
+  the token is a string [src `persistence/src/design-revision.ts`]. The domain cannot import it,
+  so the domain's statement is a second one, **exported and named, and tied by a property in
+  persistence's tests: for any string the two give one answer.** Merging them is a change to
+  persistence that this wave does not own.
+- **A limit, for 8L S2 before it gates a door on the id:** that every design already stored has
+  the generator's shape is **not measured**. A page that refuses by shape would close an older
+  design's link. The owner reads the live ids once, a count and no value, before that slice
+  ships. For the contact request the consequence is smaller and the same.
+
+**Reading 4 — the client request id.** The shape suits both uses, with one thing unread. For
+Resend it is plain header text, which is what the shape is for. **Whether Resend bounds a key's
+length is not in the vendor read** [ven §4, searched: it records the twenty-four hours and the
+`409` and no length], so that sixty-four characters fit is not established; 8J reads that page
+before it relies on it. For 8I it is a bounded text key. *What the shape does not give, and 8I and 8K must:* the client
+chooses it, so it proves nothing. One id with another body is a conflict and never an answer; 8I's
+payload hash is what says so.
+
+**Criterion 13, added — nobody is refused for taking long (reading 6).** One number is right:
+the domain reads no clock, and two timestamps prove no more than one figure the client also
+chose. But a day's ceiling refuses the customer who left the tab open and came back, with a
+refusal no sentence can explain. `elapsedMs` is any non-negative whole number a JSON number holds
+exactly. What is too fast is 8K's. *Must not:* a slow submission is refused here.
+
+**`docs/CONFIGURATION_MODEL.md:238-240`, which the implementer did not find.** It reads:
+*"Contact details are not part of the reusable kitchen configuration. A submission combines
+separate validated contact fields with an immutable configuration snapshot and its recomputed
+pricing result"* [doc]. **It binds nothing S2 did not already do:** the request holds contact
+fields and a reference, no design document and no price, and an attempt to add either is an
+unknown field. It binds S3, below.
+
+**The follow-up to S2, before S3. The same implementer, four items.**
+
+| # | Does | Files |
+| --- | --- | --- |
+| 1 | Criterion 12: the locales as a parameter, and its code | `contact/contact-submission.ts` |
+| 2 | The id's predicate beside `DesignId`; the revision's, exported; the two tie tests | `repository.ts` or a file beside it, `contact/contact-submission.ts`, `index.ts`; two tests under `packages/persistence/tests/` |
+| 3 | Criterion 13 | `contact/contact-submission.ts` |
+| 4 | Zs is grouping | `contact/phone-number.ts` |
+
+*Reading:* this section; the two persistence files named above.
+
+#### 8H — S3, restated 2026-10-08
+
+**Two things in the dispatch as written were wrong, and both were mine.**
+
+- *"The literal already pinned"* for the seeded L kitchen's total **does not exist.** No test in
+  either package holds a total for it [ran: searches of `packages/configurator-domain/tests` and
+  `apps/web/tests` for a literal total, the figure and the fixture's name]. The criterion cited a
+  thing nobody had looked for.
+- *"An empty kitchen … refused with its own code"* predates ADR 0148, which later ruled that *no
+  cabinet* means **nothing Lemnaria supplies** and fixed the order of the three refusals.
+
+**What S3 builds.** One pure function: from a design, the catalogue, a book and the version asked
+for, either the snapshot or a refusal. The snapshot is the canonical document and **the priced
+design as `priceDesign` returned it**: every line, the exact total, the currency, the book's
+version and what the book says of itself. Nothing is re-derived and nothing is rounded.
+
+**Criterion 6, restated.**
+
+- *The document:* it parses as a design, and serialising that again gives the same bytes.
+- *The price:* for generated kitchens the snapshot's lines and total are `priceDesign`'s for the
+  same request, **through one call and no second route**.
+- *The literal, which S3 writes:* for one kitchen small enough to add up by hand, under a book
+  whose rows the test states or quotes, the total is a number written in the test **with its
+  sum shown beside it**. It is not the function's output copied back. It lives in
+  `packages/configurator-domain/tests/contact/`.
+- *By type:* no contact field; and **no figure that was shown**, since a rounded amount is a
+  screen's.
+
+**Criterion 7, restated — the server refuses what the review refuses, by one rule.** The three
+refusals are ADR 0148's, in its order: a body past its wall, naming exactly
+`findOverflowingPlacementIds`; nothing Lemnaria supplies; a price that cannot be computed.
+
+- **The rule has one home, and it becomes the domain.** Today the order is in the web's review
+  model, under a comment that says *"in one place"* [src `apps/web/src/review/review-model.ts`],
+  and *nothing Lemnaria supplies* is in the web's price module
+  [src `apps/web/src/price/starting-price.ts:73-77`]. A second copy for the server would have the
+  screen offer what the endpoint refuses. **S3 moves both into the domain and the review calls
+  them.** *Must not:* the rule is written twice; a `qa-8c-*` or `qa-8d-*` file is edited; the
+  review's refusals change for any kitchen.
+- **As a property:** for generated kitchens on all three walls, the snapshot is refused exactly
+  when the review's call to action is, with the same code and the same bodies.
+
+| Slice | Does | Files | Reading |
+| --- | --- | --- | --- |
+| S3 | The snapshot or its refusal; the refusal rule moved to the domain, the review calling it | new `contact/submission-snapshot.ts`, a home for the rule beside it, `index.ts`; `apps/web/src/review/review-model.ts`, `apps/web/src/price/starting-price.ts` | this section; D7, D14; ADR 0148 decisions 1 to 3; ADR 0065 d6, d7; ADR 0072; `docs/CONFIGURATION_MODEL.md:238-240`; `pricing/price-design.ts`, `price-lines.ts`; `serialize-design.ts` |
+
+*QA gains:* the parity property above, which stands in the web's tests because it reads both
+sides; and 8C's own parity files, green and untouched.
 
 ### 8I — the contact submissions store
 
