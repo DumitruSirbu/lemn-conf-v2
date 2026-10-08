@@ -41,10 +41,10 @@ export const TARGET_MINUTES_PER_SHARD = 30;
 
 /**
  * Shards per project. Must equal `strategy.matrix.total` of the matching job in ci.yml; the guard
- * reads the workflow and fails if they differ. Mobile needs four because three shards put 138 tests
- * on the largest one, over its budget of 125.
+ * reads the workflow and fails if they differ. Mobile needs six: four left its third shard exactly
+ * at the budget of 125 (123/120/125/114), and five put 135 on its second, because a shard is whole files.
  */
-export const SHARDS_PER_PROJECT = { desktop: 3, mobile: 4 };
+export const SHARDS_PER_PROJECT = { desktop: 3, mobile: 6 };
 
 /**
  * A ceiling above the derived budget, for a project whose largest *file* is bigger than the budget.
