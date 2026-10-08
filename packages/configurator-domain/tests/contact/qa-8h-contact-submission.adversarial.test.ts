@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   CONSENT_TEXT_VERSIONS,
   CONTACT_INTENTS,
+  validateContactFields,
   validateContactSubmission,
   type ContactSubmissionValidation,
   type SubmissionIssue,
@@ -779,4 +780,237 @@ describe("ADR 0095: no refusal, at any level, holds a value the sender chose", (
       expect(fields).toEqual([...new Set(fields)]);
     },
   );
+});
+
+// Criterion 17 (QA finding 2, ruled): every field, at every level, is read as the object's own property, in
+// `validateContactFields` itself as well as in the request around it.
+describe("8H criterion 17: only what the sender wrote is read, at every level", () => {
+  type Level = "request" | "contact" | "design";
+
+  interface Field {
+    readonly level: Level;
+    readonly name: string;
+    /** A value that would be accepted for the field had the sender written it. */
+    readonly planted: unknown;
+  }
+
+  const FIELDS: readonly Field[] = [
+    { level: "request", name: "contact", planted: CONTACT },
+    { level: "request", name: "design", planted: DESIGN_REFERENCE },
+    { level: "request", name: "intent", planted: CONTACT_INTENTS[0] },
+    { level: "request", name: "clientRequestId", planted: REQUEST_ID },
+    { level: "request", name: "locale", planted: "ro" },
+    { level: "request", name: "honeypot", planted: MARKER },
+    { level: "request", name: "elapsedMs", planted: 12_000 },
+    { level: "contact", name: "name", planted: MARKER },
+    { level: "contact", name: "phone", planted: "069123456" },
+    { level: "contact", name: "locality", planted: MARKER },
+    { level: "contact", name: "channel", planted: "email" },
+    { level: "contact", name: "email", planted: "zzqa8h@example.md" },
+    { level: "contact", name: "consent", planted: true },
+    {
+      level: "contact",
+      name: "consentTextVersion",
+      planted: CONSENT_TEXT_VERSIONS[0],
+    },
+    { level: "design", name: "id", planted: DESIGN_ID },
+    { level: "design", name: "revision", planted: "7" },
+  ];
+
+  /** The request as text, with one field left out at its level, and for the e-mail the channel that asks for it. */
+  function bodyWithout({ level, name }: Field): string {
+    const contact =
+      name === "email" ? { ...CONTACT, channel: "email" } : CONTACT;
+    return JSON.stringify({
+      ...omitting(DESIGN_REQUEST, level === "request" ? name : ""),
+      ...(level === "request" && name === "contact"
+        ? {}
+        : { contact: level === "contact" ? omitting(contact, name) : contact }),
+      ...(level === "request" && name === "design"
+        ? {}
+        : {
+            design:
+              level === "design"
+                ? omitting(DESIGN_REFERENCE, name)
+                : DESIGN_REFERENCE,
+          }),
+    });
+  }
+
+  /** `act`, run while `Object.prototype` carries the property, which is gone again before anything is asserted. */
+  function whilePlanted<Result>(
+    name: string,
+    descriptor: PropertyDescriptor,
+    act: () => Result,
+  ): Result {
+    Object.defineProperty(Object.prototype, name, {
+      ...descriptor,
+      configurable: true,
+      enumerable: true,
+    });
+    try {
+      return act();
+    } finally {
+      Reflect.deleteProperty(Object.prototype, name);
+    }
+  }
+
+  it("leaves out a field of every kind the request has", () => {
+    expect(FIELDS).toHaveLength(7 + 7 + 2);
+    expect(
+      FIELDS.filter(
+        (field) => codesOf(asReceived(bodyWithout(field)))[0] !== "accepted",
+      )
+        .map(({ name }) => name)
+        .sort(),
+    ).toEqual(
+      FIELDS.map(({ name }) => name)
+        .filter((name) => !["honeypot", "locality", "intent"].includes(name))
+        .sort(),
+    );
+  });
+
+  describe.each(FIELDS)("$level.$name", (field) => {
+    const body = bodyWithout(field);
+    const unpolluted = JSON.stringify(validate(asReceived(body)));
+
+    it("answers the same whether or not Object.prototype carries a value for it", () => {
+      const polluted = whilePlanted(
+        field.name,
+        { value: field.planted, writable: true },
+        () => JSON.stringify(validate(asReceived(body))),
+      );
+
+      expect(polluted).toBe(unpolluted);
+    });
+
+    it("never asks a getter on Object.prototype for it", () => {
+      let asked = 0;
+
+      const polluted = whilePlanted(
+        field.name,
+        {
+          get: () => {
+            asked += 1;
+            return field.planted;
+          },
+        },
+        () => {
+          const received = asReceived(body);
+          asked = 0;
+          const answer = JSON.stringify(validate(received));
+          return { answer, asked };
+        },
+      );
+
+      expect(polluted).toEqual({ answer: unpolluted, asked: 0 });
+    });
+  });
+
+  it.each(FIELDS.filter(({ level }) => level === "contact"))(
+    "validateContactFields alone, with no request around it, reads no inherited $name",
+    ({ name, planted }) => {
+      const contact =
+        name === "email" ? { ...CONTACT, channel: "email" } : CONTACT;
+      const withoutIt = omitting(contact, name);
+      const unpolluted = JSON.stringify(validateContactFields(withoutIt));
+
+      const polluted = whilePlanted(
+        name,
+        { value: planted, writable: true },
+        () => JSON.stringify(validateContactFields(withoutIt)),
+      );
+
+      expect(polluted).toBe(unpolluted);
+    },
+  );
+
+  it.each([
+    ["one prototype deep", (fields: Json) => Object.create(fields) as Json],
+    [
+      "two prototypes deep",
+      (fields: Json) => Object.create(Object.create(fields) as object) as Json,
+    ],
+    [
+      "two deep over an object with no prototype",
+      (fields: Json) =>
+        Object.create(
+          Object.assign(Object.create(null) as object, fields),
+        ) as Json,
+    ],
+  ])(
+    "validateContactFields reads nothing from contact fields held %s",
+    (_name, inheriting) => {
+      expect(validateContactFields(inheriting(CONTACT))).toEqual(
+        validateContactFields({}),
+      );
+      expect(validateContactFields({})).toEqual({
+        ok: false,
+        issues: [
+          { field: "name", code: "REQUIRED" },
+          { field: "phone", code: "REQUIRED" },
+          { field: "channel", code: "UNKNOWN_CHANNEL" },
+          { field: "consent", code: "CONSENT_NOT_GIVEN" },
+          { field: "consentTextVersion", code: "REQUIRED" },
+        ],
+      });
+    },
+  );
+
+  it("reads an own field over an inherited one, and an own undefined as the field left out", () => {
+    const overriding: Json = Object.assign(Object.create(CONTACT) as object, {
+      ...CONTACT,
+      consent: undefined,
+      locality: undefined,
+    });
+
+    expect(validateContactFields(overriding)).toEqual({
+      ok: false,
+      issues: [{ field: "consent", code: "CONSENT_NOT_GIVEN" }],
+    });
+  });
+
+  it.each(FIELDS.filter(({ level }) => level !== "design"))(
+    "reads an own undefined $level.$name as the field left out, though Object.prototype carries one",
+    (field) => {
+      const unpolluted = JSON.stringify(
+        validate(asReceived(bodyWithout(field))),
+      );
+      const received = asReceived(bodyWithout(field)) as Record<
+        string,
+        unknown
+      >;
+      const holder = (
+        field.level === "request" ? received : received[field.level]
+      ) as Record<string, unknown>;
+      holder[field.name] = undefined;
+
+      const polluted = whilePlanted(
+        field.name,
+        { value: field.planted, writable: true },
+        () => JSON.stringify(validate(received)),
+      );
+
+      expect(polluted).toBe(unpolluted);
+    },
+  );
+
+  it("is not talked into an acceptance by a prototype that answers for the result's own fields", () => {
+    const body = bodyWithout({
+      level: "contact",
+      name: "consent",
+      planted: true,
+    });
+
+    const polluted = whilePlanted("ok", { value: true, writable: true }, () =>
+      JSON.stringify(validate(asReceived(body))),
+    );
+
+    expect(polluted).toBe(
+      JSON.stringify({
+        ok: false,
+        issues: [{ field: "contact.consent", code: "CONSENT_NOT_GIVEN" }],
+      }),
+    );
+  });
 });

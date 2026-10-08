@@ -15,12 +15,17 @@ import {
   SAMPLE_PRICE_BOOK,
   SAMPLE_PRICE_BOOK_VERSION,
   snapshotSubmission,
+  SubmissionDesignInvalidError,
+  SubmissionFactsContradictionError,
   type Design,
   type DesignPlacement,
   type DesignWall,
   type EmptyColumn,
   type PriceBook,
   type PricedDesign,
+  type PricingFailure,
+  type PricingFailureCode,
+  type PricingResult,
   type SubmissionSnapshotRequest,
   type SubmissionSnapshotResult,
 } from "../../src/index.js";
@@ -73,6 +78,25 @@ function refusalOf(design: Design, terms: Terms = SHIPPED) {
   const result = snapshotSubmission(requestFor(design, terms));
   if (result.ok) throw new Error("expected a refusal");
   return result.refusal;
+}
+
+/** What `priceDesign` itself says of the same design under the same terms. */
+function failureOf(design: Design, terms: Terms): PricingFailure {
+  const result = priceDesign({
+    ...requestFor(design, terms),
+    selections: design.settings,
+  });
+  if (result.ok) throw new Error("expected pricing to refuse");
+  return result.failure;
+}
+
+function thrownBy(act: () => unknown): Error {
+  try {
+    act();
+  } catch (error) {
+    if (error instanceof Error) return error;
+  }
+  throw new Error("expected a throw");
 }
 
 function wallsOf(design: Design): readonly DesignWall[] {
@@ -258,19 +282,209 @@ describe("8H criterion 6: the document, with every optional part set and unset",
       Object.keys(KITCHEN_L_DESIGN).sort(),
     );
   });
+});
 
-  // QA finding 11, as built: the document is the design serialised, never parsed. A value that is not a
-  // design by the schema goes into the snapshot as it came, and the document then does not parse.
-  it("as built: serialises a key the schema refuses, and the document no longer parses as a design", () => {
-    const withAStowaway = {
+// Criterion 20 (QA finding 11, ruled): the snapshot parses what it is handed, and prices and serialises the
+// parsed design. What is not a design is thrown, not refused.
+describe("8H criterion 20: the snapshot holds a design, by its own check", () => {
+  const MARKER = "ZZQA8H";
+
+  function requestWith(design: unknown): SubmissionSnapshotRequest {
+    return { ...requestFor(KITCHEN_L_DESIGN), design: design as Design };
+  }
+
+  const [FIRST_PLACEMENT] = KITCHEN_L_DESIGN.placements;
+  if (FIRST_PLACEMENT === undefined)
+    throw new Error("the seeded kitchen is empty");
+
+  function withFirstPlacement(change: object): unknown {
+    return {
       ...KITCHEN_L_DESIGN,
-      contact: { phone: "069123456" },
-    } as Design;
+      placements: [
+        { ...FIRST_PLACEMENT, ...change },
+        ...KITCHEN_L_DESIGN.placements.slice(1),
+      ],
+    };
+  }
 
-    const { document } = snapshotOf(withAStowaway);
+  const NOT_DESIGNS: readonly (readonly [string, unknown])[] = [
+    ["null", null],
+    ["nothing", undefined],
+    ["text", MARKER],
+    [
+      "the document's own text, unparsed",
+      canonicalSerializeDesign(KITCHEN_L_DESIGN),
+    ],
+    ["a number", 7_919_000_017],
+    ["an array holding a design", [KITCHEN_L_DESIGN]],
+    ["an empty object", {}],
+    [
+      "a design with a contact stowed in it",
+      { ...KITCHEN_L_DESIGN, contact: { phone: MARKER } },
+    ],
+    [
+      "a design with a key named by the sender",
+      { ...KITCHEN_L_DESIGN, [MARKER]: 1 },
+    ],
+    [
+      "a design with a price stowed in it",
+      { ...KITCHEN_L_DESIGN, totalMinor: 7_919_000_017 },
+    ],
+    ["a design without its room", { ...KITCHEN_L_DESIGN, room: undefined }],
+    [
+      "a room of an unknown shape",
+      {
+        ...KITCHEN_L_DESIGN,
+        room: { ...KITCHEN_L_DESIGN.room, shape: MARKER },
+      },
+    ],
+    [
+      "a room with an extra key",
+      {
+        ...KITCHEN_L_DESIGN,
+        room: { ...KITCHEN_L_DESIGN.room, [MARKER]: MARKER },
+      },
+    ],
+    [
+      "a placement whose position is text",
+      withFirstPlacement({ alongMm: MARKER }),
+    ],
+    ["a placement on no wall", withFirstPlacement({ wall: MARKER })],
+    [
+      "a body with an extra key",
+      withFirstPlacement({
+        body: { ...FIRST_PLACEMENT.body, [MARKER]: MARKER },
+      }),
+    ],
+    [
+      "a body of no width",
+      withFirstPlacement({ body: { ...FIRST_PLACEMENT.body, widthMm: 0 } }),
+    ],
+    [
+      "a body with a fractional width",
+      withFirstPlacement({ body: { ...FIRST_PLACEMENT.body, widthMm: 600.5 } }),
+    ],
+    [
+      "settings with an extra key",
+      {
+        ...KITCHEN_L_DESIGN,
+        settings: { ...KITCHEN_L_DESIGN.settings, [MARKER]: MARKER },
+      },
+    ],
+    ["a timestamp that is not one", { ...KITCHEN_L_DESIGN, createdAt: MARKER }],
+    [
+      "placements that are not a list",
+      { ...KITCHEN_L_DESIGN, placements: MARKER },
+    ],
+  ];
 
-    expect(document).toContain("069123456");
-    expect(DesignSchema.safeParse(JSON.parse(document)).success).toBe(false);
+  it.each(NOT_DESIGNS)(
+    "throws for %s, and returns neither a snapshot nor a refusal",
+    (_name, design) => {
+      expect(() => snapshotSubmission(requestWith(design))).toThrow(
+        SubmissionDesignInvalidError,
+      );
+    },
+  );
+
+  it.each(NOT_DESIGNS)(
+    "says where %s failed and holds no value and no key from it",
+    (_name, design) => {
+      const { message, name } = thrownBy(() =>
+        snapshotSubmission(requestWith(design)),
+      );
+
+      expect(name).toBe("SubmissionDesignInvalidError");
+      expect(message).toMatch(
+        /^The submission's design is not a design: \d+ issue\(s\): /,
+      );
+      expect(message).not.toMatch(/ZZQA8H|7919000017|600\.5/);
+    },
+  );
+
+  it("bounds what it says, for four hundred bodies each wrong in two places", () => {
+    const design = {
+      ...KITCHEN_L_DESIGN,
+      placements: Array.from({ length: 400 }, (_, index) => ({
+        ...FIRST_PLACEMENT,
+        id: `body-${String(index)}`,
+        alongMm: MARKER.repeat(500),
+        [MARKER]: MARKER,
+      })),
+    };
+
+    const { message } = thrownBy(() => snapshotSubmission(requestWith(design)));
+
+    expect(message.length).toBeLessThan(400);
+    expect(message).not.toContain(MARKER);
+  });
+
+  it("checks the design before anything else: a design that is not one throws though the book is wrong too", () => {
+    expect(() =>
+      snapshotSubmission({
+        ...requestWith({ ...KITCHEN_L_DESIGN, [MARKER]: 1 }),
+        pricingVersion: ANOTHER_VERSION,
+      }),
+    ).toThrow(SubmissionDesignInvalidError);
+  });
+
+  // The mutant the implementer's tests let live: serialising what was handed in, not what was parsed. The
+  // schema reads a property wherever the object gets it; the serialiser copies own keys only. So a design
+  // whose fields are inherited parses whole and serialises, unparsed, to an empty object.
+  it("serialises the parsed design, not what it was handed: a design whose fields are inherited", () => {
+    const inherited = Object.create(KITCHEN_L_DESIGN) as Design;
+
+    expect(canonicalSerializeDesign(inherited)).toBe("{}");
+    expect(snapshotOf(inherited).document).toBe(
+      canonicalSerializeDesign(KITCHEN_L_DESIGN),
+    );
+  });
+
+  it("serialises the parsed design, not what it was handed: a body whose fields are inherited", () => {
+    const design: Design = {
+      ...KITCHEN_L_DESIGN,
+      placements: KITCHEN_L_DESIGN.placements.map(
+        (placement) => Object.create(placement) as DesignPlacement,
+      ),
+    };
+
+    expect(snapshotOf(design).document).toBe(
+      canonicalSerializeDesign(KITCHEN_L_DESIGN),
+    );
+  });
+
+  it("serialises the design as it was when parsed: a field that answers differently the second time", () => {
+    let reads = 0;
+    const shifting = {
+      ...KITCHEN_L_DESIGN,
+      get presetId() {
+        reads += 1;
+        return reads === 1 ? null : MARKER;
+      },
+    };
+
+    const { document } = snapshotOf(shifting);
+
+    expect(document).toBe(canonicalSerializeDesign(KITCHEN_L_DESIGN));
+    expect(reads).toBe(1);
+  });
+
+  it("prices the parsed design too: the price and the document are one design's", () => {
+    const inherited = Object.create(KITCHEN_L_DESIGN) as Design;
+
+    expect(snapshotOf(inherited).priced).toEqual(
+      snapshotOf(KITCHEN_L_DESIGN).priced,
+    );
+  });
+
+  it("always yields a document that parses again, for every generated kitchen and variant", () => {
+    const unparseable = CASES.filter(
+      ({ design }) =>
+        !DesignSchema.safeParse(JSON.parse(snapshotOf(design).document))
+          .success,
+    );
+
+    expect(unparseable).toEqual([]);
   });
 });
 
@@ -558,38 +772,109 @@ describe("8H criterion 7: the three refusals, in ADR 0148's order, when more tha
   it("says the price failed, not that nothing is supplied, for bodies it could not price", () => {
     expect(refusalOf(U_KITCHEN.design, CUSTOMERS_AND_UNPRICED)).toEqual({
       code: "PRICING_FAILED",
+      failure: failureOf(U_KITCHEN.design, CUSTOMERS_AND_UNPRICED),
     });
   });
 
-  it.each([
-    ["another version", ANOTHER_BOOKS_VERSION],
+  const WITH_A_TIER_NOT_OFFERED: Design = {
+    ...U_KITCHEN.design,
+    settings: { ...U_KITCHEN.design.settings, materialTierId: "material.x" },
+  };
+
+  const UNPRICEABLE: readonly (readonly [
+    string,
+    PricingFailureCode,
+    Design,
+    Terms,
+  ])[] = [
     [
-      "no rule for any body",
+      "a book of another version",
+      "PRICING_VERSION_MISMATCH",
+      U_KITCHEN.design,
+      ANOTHER_BOOKS_VERSION,
+    ],
+    [
+      "a book with no rule for any body",
+      "NO_RULE_FOR_BODY",
+      U_KITCHEN.design,
       { ...SHIPPED, book: { ...SAMPLE_PRICE_BOOK, cabinetRules: [] } },
     ],
     [
-      "another currency",
+      "a book in another currency",
+      "INVALID_PRICE_BOOK",
+      U_KITCHEN.design,
       {
         ...SHIPPED,
         book: { ...SAMPLE_PRICE_BOOK, currency: "EUR" } as unknown as PriceBook,
       },
     ],
-  ])(
-    "says only that the price failed, and nothing of why, under a book with %s",
-    (_name, terms) => {
-      expect(refusalOf(U_KITCHEN.design, terms)).toEqual({
+    [
+      "a design naming a tier the book does not offer",
+      "UNKNOWN_TIER",
+      WITH_A_TIER_NOT_OFFERED,
+      SHIPPED,
+    ],
+  ];
+
+  // Criterion 15: a price that cannot be computed is our fault, and its refusal says what failed.
+  it.each(UNPRICEABLE)(
+    "says the price failed and why, exactly as priceDesign said it, under %s",
+    (_name, code, design, terms) => {
+      const refusal = refusalOf(design, terms);
+
+      expect(refusal).toEqual({
         code: "PRICING_FAILED",
+        failure: failureOf(design, terms),
       });
+      expect(refusal).toMatchObject({ failure: { code } });
     },
   );
 
-  it("says only that the price failed for a design naming a tier the book does not offer", () => {
-    const design: Design = {
-      ...U_KITCHEN.design,
-      settings: { ...U_KITCHEN.design.settings, materialTierId: "material.x" },
+  it.each(UNPRICEABLE)(
+    "re-words nothing and adds nothing under %s: the failure has priceDesign's keys and no other",
+    (_name, _code, design, terms) => {
+      const refusal = refusalOf(design, terms);
+      if (refusal.code !== "PRICING_FAILED")
+        throw new Error("expected a pricing failure");
+
+      expect(Object.keys(refusal).sort()).toEqual(["code", "failure"]);
+      expect(Object.keys(refusal.failure).sort()).toEqual(
+        Object.keys(failureOf(design, terms)).sort(),
+      );
+    },
+  );
+
+  it("hands on the very failure it was given, not a copy of it", () => {
+    const pricing: PricingResult = {
+      ok: false,
+      failure: { code: "INVALID_PRICE_BOOK", detail: "unreadable" },
     };
 
-    expect(refusalOf(design)).toEqual({ code: "PRICING_FAILED" });
+    const eligibility = judgeSubmissionEligibility({
+      design: KITCHEN_L_DESIGN,
+      overflowingPlacementIds: [],
+      pricing,
+    });
+
+    expect(
+      eligibility.kind === "refused" &&
+        eligibility.refusal.code === "PRICING_FAILED" &&
+        eligibility.refusal.failure === pricing.failure,
+    ).toBe(true);
+  });
+
+  it("carries no failure with the two refusals a customer can mend", () => {
+    expect(
+      Object.keys(
+        refusalOf(
+          withABodyPastItsWall(U_KITCHEN.design, "A"),
+          ANOTHER_BOOKS_VERSION,
+        ),
+      ).sort(),
+    ).toEqual(["code", "placementIds"]);
+    expect(Object.keys(refusalOf(NO_BODIES, ANOTHER_BOOKS_VERSION))).toEqual([
+      "code",
+    ]);
   });
 
   it("returns a refusal and no part of a snapshot", () => {
@@ -607,52 +892,207 @@ describe("8H criterion 7: the three refusals, in ADR 0148's order, when more tha
   });
 });
 
-// QA finding 3, on the reading the architect is ruling. The rule is handed the fit query's answer instead
-// of asking it, and a priced design carries a second copy of that answer. Nothing holds the two, or the
-// design, to each other: the review does (`assertInputsAreOneDesigns`), the rule does not.
-describe("8H S3, as built: judgeSubmissionEligibility believes facts that contradict each other", () => {
+// Criterion 18 (QA finding 3, ruled): the rule is still handed the fit query's answer, and throws where the
+// facts it is handed cannot all be true.
+describe("8H criterion 18: judgeSubmissionEligibility refuses facts that contradict each other", () => {
   const overflowing = withABodyPastItsWall(KITCHEN_L_DESIGN, "A");
+  const overflowingIds = findOverflowingPlacementIds(overflowing);
   const pricing = priceDesign({
     ...requestFor(overflowing),
     selections: overflowing.settings,
   });
+  const fitting = priceDesign({
+    ...requestFor(KITCHEN_L_DESIGN),
+    selections: KITCHEN_L_DESIGN.settings,
+  });
+  const UNPRICED: PricingResult = {
+    ok: false,
+    failure: { code: "INVALID_PRICE_BOOK", detail: "unreadable" },
+  };
+  const [HELD, ALSO_HELD] = KITCHEN_L_DESIGN.placements.map(({ id }) => id);
+  if (HELD === undefined || ALSO_HELD === undefined) {
+    throw new Error("the seeded kitchen holds two bodies");
+  }
 
   it("prices the overflowing kitchen with its total flagged", () => {
     expect(pricing).toMatchObject({
       ok: true,
       priced: { totalIsFlagged: true },
     });
+    expect(overflowingIds).toHaveLength(1);
   });
 
-  it("allows a kitchen whose own price says a body is past its wall, when handed no ids", () => {
-    const eligibility = judgeSubmissionEligibility({
-      design: overflowing,
-      overflowingPlacementIds: [],
+  it("throws for a kitchen whose own price says a body is past its wall, when handed no ids", () => {
+    expect(() =>
+      judgeSubmissionEligibility({
+        design: overflowing,
+        overflowingPlacementIds: [],
+        pricing,
+      }),
+    ).toThrow(SubmissionFactsContradictionError);
+  });
+
+  it("throws for a body the design does not hold, priced or not", () => {
+    for (const result of [fitting, UNPRICED]) {
+      expect(() =>
+        judgeSubmissionEligibility({
+          design: KITCHEN_L_DESIGN,
+          overflowingPlacementIds: ["no-such-body"],
+          pricing: result,
+        }),
+      ).toThrow(SubmissionFactsContradictionError);
+    }
+  });
+
+  it.each([
+    [
+      "a body the design holds that the price says fits",
+      KITCHEN_L_DESIGN,
+      [HELD],
+      fitting,
+    ],
+    ["one body too many", overflowing, [...overflowingIds, ALSO_HELD], pricing],
+    [
+      "another body in place of the one past its wall",
+      overflowing,
+      [ALSO_HELD],
       pricing,
-    });
+    ],
+    [
+      "a body the design does not hold beside the right one",
+      overflowing,
+      [...overflowingIds, "ghost"],
+      pricing,
+    ],
+    ["an empty id", KITCHEN_L_DESIGN, [""], fitting],
+  ])("throws when handed %s", (_name, design, ids, result) => {
+    expect(() =>
+      judgeSubmissionEligibility({
+        design,
+        overflowingPlacementIds: ids,
+        pricing: result,
+      }),
+    ).toThrow(SubmissionFactsContradictionError);
+  });
 
-    expect(eligibility).toMatchObject({
-      kind: "allowed",
-      priced: { totalIsFlagged: true },
+  it("compares sets: the same bodies in another order, or named twice, are the same facts", () => {
+    const three = (["A", "B"] as const).reduce(
+      (design, wall) => withABodyPastItsWall(design, wall),
+      KITCHEN_L_DESIGN,
+    );
+    const ids = findOverflowingPlacementIds(three);
+    const priced = priceDesign({
+      ...requestFor(three),
+      selections: three.settings,
+    });
+    const reversedAndRepeated = [...ids].reverse().concat(ids);
+
+    expect(ids.length).toBeGreaterThan(1);
+    expect(
+      judgeSubmissionEligibility({
+        design: three,
+        overflowingPlacementIds: reversedAndRepeated,
+        pricing: priced,
+      }),
+    ).toEqual({
+      kind: "refused",
+      refusal: { code: "BODIES_PAST_WALL", placementIds: reversedAndRepeated },
     });
   });
 
-  it("refuses a kitchen that fits for a body it does not hold, when handed that id", () => {
-    const fitting = priceDesign({
-      ...requestFor(KITCHEN_L_DESIGN),
-      selections: KITCHEN_L_DESIGN.settings,
-    });
+  it("throws before it judges: no refusal and no allowance comes back with contradicting facts", () => {
+    const outcomes = [
+      { design: overflowing, overflowingPlacementIds: [], pricing },
+      {
+        design: KITCHEN_L_DESIGN,
+        overflowingPlacementIds: [HELD],
+        pricing: fitting,
+      },
+      {
+        design: { ...KITCHEN_L_DESIGN, placements: [] },
+        overflowingPlacementIds: [HELD],
+        pricing: UNPRICED,
+      },
+    ].map((facts) => thrownBy(() => judgeSubmissionEligibility(facts)).name);
 
-    const eligibility = judgeSubmissionEligibility({
+    expect(outcomes).toEqual(
+      outcomes.map(() => "SubmissionFactsContradictionError"),
+    );
+  });
+
+  it("allows only what the price itself found to fit: every allowed judgement carries an unflagged price", () => {
+    const allowed = judgeSubmissionEligibility({
       design: KITCHEN_L_DESIGN,
-      overflowingPlacementIds: ["no-such-body"],
+      overflowingPlacementIds: [],
       pricing: fitting,
     });
 
-    expect(eligibility).toEqual({
-      kind: "refused",
-      refusal: { code: "BODIES_PAST_WALL", placementIds: ["no-such-body"] },
+    expect(allowed).toMatchObject({
+      kind: "allowed",
+      priced: { totalIsFlagged: false, overflowingPlacementIds: [] },
     });
+  });
+
+  it("says which bodies it differs over, on one line and within a bound, whatever the ids hold", () => {
+    const hostile = Array.from(
+      { length: 300 },
+      (_, index) => `ghost-${String(index)}\r\nforged line`,
+    );
+
+    const { message } = thrownBy(() =>
+      judgeSubmissionEligibility({
+        design: KITCHEN_L_DESIGN,
+        overflowingPlacementIds: hostile,
+        pricing: fitting,
+      }),
+    );
+
+    expect(message).toMatch(/^The submission facts contradict each other: /);
+    expect(message.length).toBeLessThan(400);
+    expect(/[\r\n]/.test(message)).toBe(false);
+  });
+
+  it("names placement ids in its message and nothing else of the design or the price", () => {
+    const { message } = thrownBy(() =>
+      judgeSubmissionEligibility({
+        design: overflowing,
+        overflowingPlacementIds: [],
+        pricing,
+      }),
+    );
+
+    expect(message).toBe(
+      `The submission facts contradict each other: the fit list and the price's own list differ over: ${overflowingIds.join(", ")}`,
+    );
+  });
+
+  // QA finding 13, as built. Without a price the rule has nothing to hold the list to but the design's ids,
+  // so it still believes a list naming a body that fits, and repeats an id as often as it was handed it.
+  it("as built: unpriced, refuses for a body that fits when handed its id, twice if handed it twice", () => {
+    expect(findOverflowingPlacementIds(KITCHEN_L_DESIGN)).toEqual([]);
+    expect(
+      judgeSubmissionEligibility({
+        design: KITCHEN_L_DESIGN,
+        overflowingPlacementIds: [HELD, HELD],
+        pricing: UNPRICED,
+      }),
+    ).toEqual({
+      kind: "refused",
+      refusal: { code: "BODIES_PAST_WALL", placementIds: [HELD, HELD] },
+    });
+  });
+
+  // QA finding 14, as built. The list is held to the price's own list, and nothing holds the price to the
+  // design: handed another kitchen's price, the rule allows a kitchen with a body past its wall. The review
+  // checks the price against its rows; `snapshotSubmission` prices the design it judges.
+  it("as built: allows an overflowing kitchen when handed no ids and the price of another kitchen that fits", () => {
+    expect(
+      judgeSubmissionEligibility({
+        design: overflowing,
+        overflowingPlacementIds: [],
+        pricing: fitting,
+      }),
+    ).toMatchObject({ kind: "allowed" });
   });
 
   it("cannot be made to through the snapshot, which asks the query itself", () => {

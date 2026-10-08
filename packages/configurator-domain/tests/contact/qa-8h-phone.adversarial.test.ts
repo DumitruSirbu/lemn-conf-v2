@@ -288,3 +288,99 @@ describe("8H criterion 1: what is neither form", () => {
     });
   });
 });
+
+// Criterion 16 (QA finding 1, ruled): the eight digits of a Moldovan number do not begin with 0. The refusal
+// is neither "incomplete" nor "too many", since neither is true of eight digits.
+describe("8H criterion 16: a Moldovan subscriber number does not begin with 0", () => {
+  const PREFIXES = ["0", "+373"] as const;
+
+  describe.each(PREFIXES)("after %s", (prefix) => {
+    it("accepts eight digits beginning with each of 1 to 9 and refuses those beginning with 0", () => {
+      const outcomes = DIGITS.map((first) =>
+        codeOf(normalisePhoneNumber(`${prefix}${first}9123456`)),
+      );
+
+      expect(outcomes).toEqual([
+        "PHONE_FORMAT_UNRECOGNISED",
+        ...Array.from({ length: 9 }, () => "accepted"),
+      ]);
+    });
+
+    it("stores the eight digits after +373 for each first digit it accepts", () => {
+      const forms = DIGITS.slice(1).map((first) =>
+        normalisePhoneNumber(`${prefix}${first}9123456`),
+      );
+
+      expect(forms).toEqual(
+        DIGITS.slice(1).map((first) => ({
+          ok: true,
+          normalForm: `+373${first}9123456`,
+        })),
+      );
+    });
+
+    it("says incomplete or too many before it looks at the first digit: the count is judged first", () => {
+      const outcomes = SWEPT_DIGIT_COUNTS.filter((count) => count > 0).map(
+        (count) =>
+          codeOf(normalisePhoneNumber(`${prefix}0${digitRun(count - 1)}`)),
+      );
+
+      expect(outcomes).toEqual(
+        SWEPT_DIGIT_COUNTS.filter((count) => count > 0).map((count) =>
+          count === MOLDOVAN_SUBSCRIBER_DIGITS
+            ? "PHONE_FORMAT_UNRECOGNISED"
+            : expectedMoldovanOutcome(count),
+        ),
+      );
+    });
+
+    it("refuses eight zeros", () => {
+      expect(codeOf(normalisePhoneNumber(`${prefix}00000000`))).toBe(
+        "PHONE_FORMAT_UNRECOGNISED",
+      );
+    });
+
+    it("is not talked round by grouping or format characters about the leading 0", () => {
+      const spelt = [
+        `${prefix} (0) 69 123 45`,
+        `${prefix}-0-6912345`,
+        `${prefix}\u200b0\u200e6912345`,
+        `${prefix}\u00a00 6912345`,
+      ];
+
+      expect(spelt.map((typed) => codeOf(normalisePhoneNumber(typed)))).toEqual(
+        spelt.map(() => "PHONE_FORMAT_UNRECOGNISED"),
+      );
+    });
+  });
+
+  const anyDigits = fc.string({
+    unit: fc.constantFrom(...DIGITS),
+    maxLength: 18,
+  });
+
+  propertyTest.prop([
+    fc.constantFrom("0", "+373", "00", "+3730", "00373", "+"),
+    anyDigits,
+  ])(
+    "no accepted number, however it was written, is stored with a 0 after +373",
+    (prefix, digits) => {
+      const result = normalisePhoneNumber(`${prefix}${digits}`);
+      if (!result.ok) return;
+
+      expect(result.normalForm.startsWith("+3730")).toBe(false);
+      expect(normalisePhoneNumber(result.normalForm)).toEqual(result);
+    },
+  );
+
+  it("leaves a foreign number free to hold a 0 anywhere after its first digit", () => {
+    expect(normalisePhoneNumber("+40 0722 123 456")).toEqual({
+      ok: true,
+      normalForm: "+400722123456",
+    });
+    expect(normalisePhoneNumber("+3 730 6912345")).toEqual({
+      ok: false,
+      code: "PHONE_FORMAT_UNRECOGNISED",
+    });
+  });
+});

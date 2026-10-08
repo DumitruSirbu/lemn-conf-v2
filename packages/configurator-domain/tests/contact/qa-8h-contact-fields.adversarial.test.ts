@@ -184,7 +184,12 @@ describe.each(TEXT_FIELDS)(
   },
 );
 
-describe.each(TEXT_FIELDS)(
+/** The consent text version is a member of a closed set a page sends, matched exactly; the rest are typed. */
+const TYPED_TEXT_FIELDS = TEXT_FIELDS.filter(
+  ({ field }) => field !== "consentTextVersion",
+);
+
+describe.each(TYPED_TEXT_FIELDS)(
   "8H criterion 10: $field",
   ({ field, baseline, validValue, isRequired }) => {
     it("accepts every format character at the start, middle and end, and stores none", () => {
@@ -244,18 +249,24 @@ describe("8H criteria 2 and 10: whatever is typed, an accepted value can be stor
       "\u0301",
       "\n",
       "\u2028",
+      "\u0958",
+      "\u1100",
+      "\u1161",
+      "\u212a",
+      "\u0323",
     ),
     maxLength: 130,
   });
 
   propertyTest.prop([hostile, fc.constantFrom("name", "locality")])(
-    "is trimmed, within its bound and free of every refused or removed character, a lone surrogate included",
+    "is composed, trimmed, within its bound and free of every refused or removed character, a lone surrogate included",
     (typed, field) => {
       const result = validateContactFields(withValue(VALID, field, typed));
       if (!result.ok) return;
       const stored = result.contact[field];
 
       expect(UNSTORABLE.test(stored)).toBe(false);
+      expect(stored.normalize("NFC")).toBe(stored);
       expect(stored).toBe(stored.trim());
       expect(countCodePoints(stored)).toBeLessThanOrEqual(
         CONTACT_NAME_MAX_LENGTH,
@@ -335,47 +346,175 @@ describe("8H criterion 3: each bound is in code points, of what is stored", () =
     });
   });
 
-  it("counts a combining mark as a character of its own", () => {
+  it("counts a letter and the mark it composes with as the one letter that is stored", () => {
     const BASE_AND_MARK = "a\u0301";
-    const pairsAtTheBound = CONTACT_NAME_MAX_LENGTH / 2;
 
     expect(
-      codeOf("name", { ...VALID, name: BASE_AND_MARK.repeat(pairsAtTheBound) }),
+      codeOf("name", {
+        ...VALID,
+        name: BASE_AND_MARK.repeat(CONTACT_NAME_MAX_LENGTH),
+      }),
     ).toBe("accepted");
     expect(
       codeOf("name", {
         ...VALID,
-        name: `${BASE_AND_MARK.repeat(pairsAtTheBound)}a`,
+        name: BASE_AND_MARK.repeat(CONTACT_NAME_MAX_LENGTH + 1),
+      }),
+    ).toBe("TOO_LONG");
+  });
+
+  it("counts a mark that composes with nothing as a character of its own", () => {
+    const BASE_AND_LONE_MARK = "q\u0301";
+    const pairsAtTheBound = CONTACT_NAME_MAX_LENGTH / 2;
+
+    expect(BASE_AND_LONE_MARK.normalize("NFC")).toBe(BASE_AND_LONE_MARK);
+    expect(
+      codeOf("name", {
+        ...VALID,
+        name: BASE_AND_LONE_MARK.repeat(pairsAtTheBound),
+      }),
+    ).toBe("accepted");
+    expect(
+      codeOf("name", {
+        ...VALID,
+        name: `${BASE_AND_LONE_MARK.repeat(pairsAtTheBound)}q`,
       }),
     ).toBe("TOO_LONG");
   });
 });
 
-// QA finding 4, as built: nothing normalises a name, so one name has two stored forms and its length
-// depends on which the customer's keyboard or clipboard produced.
-describe("8H criterion 3, as built: a name's composed and decomposed forms are two values", () => {
+// Criterion 19 (QA finding 4, ruled): format characters are removed, then the text is brought to NFC, then it
+// is judged, trimmed and measured, so one name has one stored form.
+describe("8H criterion 19: a name's composed and decomposed forms are one stored value", () => {
   const COMPOSED = "\u00c9lodie Carr\u00e9";
   const DECOMPOSED = COMPOSED.normalize("NFD");
 
-  it("stores each as it was typed", () => {
-    expect(contactOf({ ...VALID, name: DECOMPOSED }).name).not.toBe(
-      contactOf({ ...VALID, name: COMPOSED }).name,
+  it("stores the composed form however the name was typed", () => {
+    expect(DECOMPOSED).not.toBe(COMPOSED);
+    expect(contactOf({ ...VALID, name: DECOMPOSED }).name).toBe(COMPOSED);
+    expect(contactOf({ ...VALID, name: COMPOSED }).name).toBe(COMPOSED);
+    expect(contactOf({ ...VALID, locality: DECOMPOSED }).locality).toBe(
+      COMPOSED,
     );
   });
 
-  it("accepts a hundred composed letters and refuses the same hundred decomposed", () => {
+  it("accepts a hundred letters composed or decomposed, and stores the same hundred", () => {
     const composed = "\u00e9".repeat(CONTACT_NAME_MAX_LENGTH);
 
-    expect(codeOf("name", { ...VALID, name: composed })).toBe("accepted");
-    expect(codeOf("name", { ...VALID, name: composed.normalize("NFD") })).toBe(
-      "TOO_LONG",
+    expect(contactOf({ ...VALID, name: composed }).name).toBe(composed);
+    expect(contactOf({ ...VALID, name: composed.normalize("NFD") }).name).toBe(
+      composed,
+    );
+  });
+
+  it("composes a letter and its mark across every format character that stands between them", () => {
+    const notComposed = FORMAT_CHARACTERS.filter(
+      (character) =>
+        contactOf({ ...VALID, name: `e${character}\u0301` }).name !== "\u00e9",
+    );
+
+    expect(notComposed).toEqual([]);
+  });
+
+  it("composes marks typed in either order into one form", () => {
+    const DOT_BELOW_THEN_ACUTE = "a\u0323\u0301";
+    const ACUTE_THEN_DOT_BELOW = "a\u0301\u0323";
+
+    expect(contactOf({ ...VALID, name: ACUTE_THEN_DOT_BELOW }).name).toBe(
+      contactOf({ ...VALID, name: DOT_BELOW_THEN_ACUTE }).name,
+    );
+  });
+
+  it("measures what is stored where composing makes the text longer", () => {
+    const GROWS_UNDER_NFC = "\u0958";
+    const half = CONTACT_NAME_MAX_LENGTH / 2;
+
+    expect(countCodePoints(GROWS_UNDER_NFC.normalize("NFC"))).toBe(2);
+    expect(
+      countCodePoints(
+        contactOf({ ...VALID, name: GROWS_UNDER_NFC.repeat(half) }).name,
+      ),
+    ).toBe(CONTACT_NAME_MAX_LENGTH);
+    expect(
+      codeOf("name", { ...VALID, name: GROWS_UNDER_NFC.repeat(half + 1) }),
+    ).toBe("TOO_LONG");
+  });
+
+  it("stores, for every character composing changes, exactly its composed form and nothing hidden", () => {
+    const FIRST_SURROGATE = 0xd800;
+    const LAST_SURROGATE = 0xdfff;
+    const changed = Array.from(
+      { length: LAST_CODE_POINT + 1 },
+      (_, codePoint) =>
+        codePoint >= FIRST_SURROGATE && codePoint <= LAST_SURROGATE
+          ? ""
+          : String.fromCodePoint(codePoint),
+    ).filter(
+      (character) =>
+        character !== "" && character.normalize("NFC") !== character,
+    );
+
+    const wrong = changed.filter((character) => {
+      const result = validateContactFields({
+        ...VALID,
+        name: `a${character}b`,
+      });
+      return (
+        !result.ok ||
+        result.contact.name !== `a${character}b`.normalize("NFC") ||
+        UNSTORABLE.test(result.contact.name)
+      );
+    });
+
+    expect(changed.length).toBeGreaterThan(1000);
+    expect(wrong).toEqual([]);
+  });
+
+  it.each([
+    ["a ligature", "\ufb01"],
+    ["a full-width letter", "\uff21"],
+    ["a superscript digit", "\u00b2"],
+    ["a circled digit", "\u2460"],
+    ["a no-break space between words", "a\u00a0b"],
+  ])(
+    "keeps %s as typed: the compatibility form is not used",
+    (_name, typed) => {
+      expect(typed.normalize("NFKC")).not.toBe(typed);
+      expect(contactOf({ ...VALID, name: typed }).name).toBe(typed);
+    },
+  );
+
+  it("refuses full-width digits in a phone, which the compatibility form would have made a number", () => {
+    const FULL_WIDTH = "\uff10\uff16\uff19\uff11\uff12\uff13\uff14\uff15\uff16";
+
+    expect(FULL_WIDTH.normalize("NFKC")).toBe("069123456");
+    expect(codeOf("phone", { ...VALID, phone: FULL_WIDTH })).toBe(
+      "PHONE_FORMAT_UNRECOGNISED",
+    );
+  });
+
+  // As ruled: every typed field is composed, the e-mail included. Three characters compose to an ASCII one,
+  // so an address typed with the Kelvin sign is stored as the plain letter it is canonically equal to.
+  it("stores an e-mail typed with the Kelvin sign as the letter K it is canonically equal to", () => {
+    const KELVIN = "\u212a";
+
+    expect(
+      contactOf({ ...VALID_BY_EMAIL, email: `${KELVIN}ate@example.md` }).email,
+    ).toBe("Kate@example.md");
+  });
+
+  it("still refuses an e-mail with a composed non-ASCII letter, however it was typed", () => {
+    const decomposed = "e\u0301lodie@example.md";
+
+    expect(codeOf("email", { ...VALID_BY_EMAIL, email: decomposed })).toBe(
+      "MALFORMED",
     );
   });
 });
 
-// QA finding 5, as built: an invisible character that Unicode does not class as a format character is
+// QA finding 5, a recorded limit: an invisible character that Unicode does not class as a format character is
 // neither removed nor refused, so a name that shows as nothing passes for a name.
-describe("8H criterion 10, as built: a blank that is not a format character is a name", () => {
+describe("8H criterion 10, a recorded limit: a blank that is not a format character is a name", () => {
   it.each([
     ["the Hangul filler", "\u3164"],
     ["the Hangul choseong filler", "\u115f"],
@@ -572,17 +711,53 @@ describe("8H criterion 11 and reading 8c: a value from a closed set is a member 
     expect(new Set(stored)).toEqual(new Set(CONSENT_TEXT_VERSIONS));
   });
 
-  // QA finding 6, as built: reading 8c matches a channel exactly, while the consent text version, the
-  // other value a page sends from a closed set, is trimmed and stripped before it is matched.
-  it("as built: matches a padded consent text version that reading 8c would refuse on a channel", () => {
+  // QA finding 6, ruled: the consent text version is matched exactly, as reading 8c matches a channel.
+  it("matches a padded consent text version no more than a padded channel", () => {
     const padded = ` ${CONSENT_TEXT_VERSIONS[0]}\u200b`;
 
     expect(
-      contactOf({ ...VALID, consentTextVersion: padded }).consentTextVersion,
-    ).toBe(CONSENT_TEXT_VERSIONS[0]);
+      codeOf("consentTextVersion", { ...VALID, consentTextVersion: padded }),
+    ).toBe("UNKNOWN_CONSENT_TEXT_VERSION");
     expect(codeOf("channel", { ...VALID, channel: " phone\u200b" })).toBe(
       "UNKNOWN_CHANNEL",
     );
+  });
+
+  it("refuses the member with any format character at its start, middle or end", () => {
+    const notRefused = FORMAT_CHARACTERS.flatMap((character) =>
+      placedAtStartMiddleAndEnd(CONSENT_TEXT_VERSIONS[0], character),
+    ).filter(
+      (version) =>
+        codeOf("consentTextVersion", {
+          ...VALID,
+          consentTextVersion: version,
+        }) !== "UNKNOWN_CONSENT_TEXT_VERSION",
+    );
+
+    expect(notRefused).toEqual([]);
+  });
+
+  it.each([
+    ["a space before", ` ${CONSENT_TEXT_VERSIONS[0]}`],
+    ["a space after", `${CONSENT_TEXT_VERSIONS[0]} `],
+    ["a no-break space after", `${CONSENT_TEXT_VERSIONS[0]}\u00a0`],
+    ["another case", CONSENT_TEXT_VERSIONS[0].toUpperCase()],
+    ["a combining mark added", `${CONSENT_TEXT_VERSIONS[0]}\u0301`],
+    ["nothing but spaces", "   "],
+    ["nothing but format characters", "\u200b\u200e\ufeff"],
+  ])("refuses the member with %s as no member", (_name, version) => {
+    expect(
+      codeOf("consentTextVersion", { ...VALID, consentTextVersion: version }),
+    ).toBe("UNKNOWN_CONSENT_TEXT_VERSION");
+  });
+
+  it("requires one: empty text and none at all are the same refusal", () => {
+    expect(
+      codeOf("consentTextVersion", { ...VALID, consentTextVersion: "" }),
+    ).toBe("REQUIRED");
+    expect(
+      codeOf("consentTextVersion", { ...VALID, consentTextVersion: undefined }),
+    ).toBe("REQUIRED");
   });
 });
 
