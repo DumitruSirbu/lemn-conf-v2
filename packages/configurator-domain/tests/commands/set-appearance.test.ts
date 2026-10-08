@@ -8,6 +8,11 @@ import {
   KITCHEN_L_DESIGN,
 } from "../../src/fixtures/kitchen-l-design.js";
 import { clearBodies, insertInto, OCCURRED_AT } from "../support/commands.js";
+import {
+  kitchenMadeOf,
+  REFUSED_FINISH_CASES,
+  UNDECLARED_MATERIAL_ID,
+} from "../support/finishes-the-schema-refuses.js";
 import { createWorld } from "../support/kitchen-world.js";
 import { DesignSchema } from "../../src/design.js";
 import {
@@ -216,6 +221,52 @@ describe("setFinish", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.reason.code).toBe("VOID_SELECTED");
+  });
+});
+
+// The architect's ruling on ADR 0078 decisions 3 and 6: a value `FinishSchema` refuses is refused by the
+// command on any material, declared or not, and a schema-valid finish of either kind still succeeds on
+// an undeclared one. The two halves are pinned together so neither "refuse everything undeclared" nor
+// "let everything through" satisfies both.
+describe("setFinish and a value FinishSchema refuses", () => {
+  it.each(REFUSED_FINISH_CASES)(
+    "refuses %s on %s, returning the design it was given",
+    (_finishName, _materialName, materialId, finish) => {
+      const design = kitchenMadeOf(materialId);
+      const snapshot = JSON.stringify(design);
+
+      const result = setFinish({
+        ...base,
+        design,
+        target: { kind: "placement", id: "p0" },
+        finish,
+      });
+
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.reason.code).toBe("FINISH_NOT_OFFERED");
+      expect(result.reason.params).toEqual({});
+      expect(result.design).toBe(design);
+      expect(JSON.stringify(design)).toBe(snapshot);
+    },
+  );
+
+  it.each([
+    ["a free colour", freeColourFinish("#b8c4a1")],
+    ["a PAL decor", paletteFinish("pal.antracit")],
+    ["a veneer wood", paletteFinish("veneer.nuc")],
+  ])("still records %s on an undeclared material", (_, finish) => {
+    const result = setFinish({
+      ...base,
+      design: kitchenMadeOf(UNDECLARED_MATERIAL_ID),
+      target: { kind: "placement", id: "p0" },
+      finish,
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(bodyOf(result.design, "p0")?.finish).toEqual(finish);
+    expect(DesignSchema.safeParse(result.design).success).toBe(true);
   });
 });
 
