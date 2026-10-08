@@ -489,9 +489,20 @@ for (const locale of LOCALES) {
       const namedLabels = await named.allTextContents();
       const markedLabels = await page
         .locator(`[data-testid="${REVIEW_ROW}"][data-marked="true"]`)
-        .getByTestId("review-row-label")
-        .evaluateAll((labels) =>
-          labels.map((label) => (label.lastChild?.textContent ?? "").trim()),
+        .evaluateAll((rows) =>
+          // A row draws its label over two lines, the name and then the width among its facts; the refusal names
+          // the body by the whole label, the two put together.
+          rows.map((row) => {
+            const name =
+              row.querySelector('[data-testid="review-row-name"]')
+                ?.textContent ?? "";
+            const width =
+              /\d+/.exec(
+                row.querySelector('[data-testid="review-row-facts"] span')
+                  ?.textContent ?? "",
+              )?.[0] ?? "";
+            return `${name} ${width}`;
+          }),
         );
       expect([...namedLabels].sort()).toEqual([...markedLabels].sort());
       await captureEvidence(page, `screen-past-the-wall-${locale}-top`);
