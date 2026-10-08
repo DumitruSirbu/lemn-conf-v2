@@ -109,6 +109,15 @@ function rejectionOf(promise: PromiseLike<unknown>): Promise<unknown> {
   );
 }
 
+/** Whether `promise` has settled yet, asked without awaiting it. */
+function settlementOf(promise: Promise<unknown>): () => boolean {
+  let hasSettled = false;
+  void promise.then(() => {
+    hasSettled = true;
+  });
+  return () => hasSettled;
+}
+
 describe("retryOnTransientFailure", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -209,8 +218,11 @@ describe("retryOnTransientFailure", () => {
       ]);
 
       const thrown = rejectionOf(retryOnTransientFailure(runQuery));
+      const hasSettled = settlementOf(thrown);
       await vi.advanceTimersByTimeAsync(FIRST_BACKOFF_MS + SECOND_BACKOFF_MS);
 
+      // Asked before it is awaited: a run still waiting on a further attempt would hang the await.
+      expect(hasSettled()).toBe(true);
       expect(await thrown).toBe(lastError);
     });
 
@@ -237,9 +249,10 @@ describe("retryOnTransientFailure", () => {
       ]);
 
       const thrown = rejectionOf(retryOnTransientFailure(runQuery));
+      const hasSettled = settlementOf(thrown);
       await vi.advanceTimersByTimeAsync(FIRST_BACKOFF_MS + SECOND_BACKOFF_MS);
-      await thrown;
 
+      expect(hasSettled()).toBe(true);
       expect(runQuery).toHaveBeenCalledTimes(MAX_ATTEMPTS);
       expect(vi.getTimerCount()).toBe(0);
     });

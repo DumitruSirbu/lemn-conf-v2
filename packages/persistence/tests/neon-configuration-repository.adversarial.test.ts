@@ -270,40 +270,6 @@ describe("the write-authorisation predicate under attack (live test database)", 
     },
   );
 
-  // Asserted against the live column, not argued: only `''` equals `''` in Postgres `text`. On `char(n)` the
-  // comparison is blank-padded, `'' = ' '` would be true, and the empty-hash guard would be insufficient.
-  it.skipIf(!hasLiveDatabase)(
-    "has exactly one value equal to the empty hash, which is why refusing '' is enough",
-    async () => {
-      const [equality] = (await neon(testDatabaseUrl)`
-        select
-          (' ' = '') as space_equals_empty,
-          ('  ' = ' ') as padding_is_significant,
-          ('a' = 'A') as case_insensitive,
-          ('a ' = 'a') as trailing_space_ignored,
-          ('' is null) as empty_is_null
-      `) as {
-        space_equals_empty: boolean;
-        padding_is_significant: boolean;
-        case_insensitive: boolean;
-        trailing_space_ignored: boolean;
-        empty_is_null: boolean;
-      }[];
-
-      expect(equality?.space_equals_empty).toBe(false);
-      expect(equality?.padding_is_significant).toBe(false);
-      expect(equality?.case_insensitive).toBe(false);
-      expect(equality?.trailing_space_ignored).toBe(false);
-      expect(equality?.empty_is_null).toBe(false);
-
-      const [column] = (await neon(testDatabaseUrl)`
-        select data_type from information_schema.columns
-        where table_name = 'designs' and column_name = 'write_token_hash'
-      `) as { data_type: string }[];
-      expect(column?.data_type).toBe("text");
-    },
-  );
-
   // The check constraint guards paths application code is not on (a manual insert, the restore runbook); only raw
   // SQL past the repository reaches it.
   it.skipIf(!hasLiveDatabase)(

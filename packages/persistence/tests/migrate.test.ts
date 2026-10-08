@@ -372,6 +372,23 @@ describe("describeMigrationRun", () => {
   });
 });
 
+/** Any statement that changes or removes ledger rows, or the ledger: the table bare, quoted or
+ *  schema-qualified, as `migrate-status.ts` already names it. */
+const REWRITES_THE_LEDGER =
+  /\b(?:update|delete\s+from|truncate(?:\s+table)?|drop\s+table(?:\s+if\s+exists)?)\s+(?:only\s+)?(?:"?public"?\s*\.\s*)?"?schema_migrations\b/i;
+
+const LEDGER_REWRITES = [
+  "update schema_migrations set checksum = 'x'",
+  "delete from schema_migrations where version = 1",
+  "delete from public.schema_migrations",
+  'delete from "schema_migrations"',
+  'DELETE FROM "public"."schema_migrations"',
+  "truncate schema_migrations",
+  "truncate table public.schema_migrations",
+  "drop table schema_migrations",
+  'drop table if exists "schema_migrations"',
+];
+
 describe("the migration ledger's append-only rule", () => {
   it("is enforced by there being no update or delete against it anywhere in src/", () => {
     // Append-only cannot be granted away at the database, because migrations connect as the owner.
@@ -383,18 +400,28 @@ describe("the migration ledger's append-only rule", () => {
       recursive: true,
       encoding: "utf8",
     }).filter((path) => /\.(ts|sql)$/.test(path));
+    const sourceOf = (path: string): string =>
+      readFileSync(join(SOURCE_DIR, path), "utf8");
     const rewritingTheLedger = sourceFiles.filter((path) =>
-      /update\s+schema_migrations|delete\s+from\s+schema_migrations/i.test(
-        readFileSync(join(SOURCE_DIR, path), "utf8"),
-      ),
+      REWRITES_THE_LEDGER.test(sourceOf(path)),
+    );
+    const namingTheLedger = sourceFiles.filter((path) =>
+      sourceOf(path).includes("schema_migrations"),
     );
 
-    // The three files that name the ledger today, so the scan cannot pass by reading nothing.
-    expect(sourceFiles).toEqual(
+    // The pattern is live: it finds every forbidden shape in a statement written here.
+    expect(
+      LEDGER_REWRITES.filter(
+        (statement) => !REWRITES_THE_LEDGER.test(statement),
+      ),
+    ).toEqual([]);
+    // The four files that name the ledger today, so the scan cannot pass by reading nothing.
+    expect(namingTheLedger).toEqual(
       expect.arrayContaining([
-        "migrate.ts",
         "migrate-status.ts",
         "migration-ledger.ts",
+        "migration-plan.ts",
+        "migration-status.ts",
       ]),
     );
     expect(rewritingTheLedger).toEqual([]);
@@ -521,6 +548,10 @@ describe("the migrate CLI", () => {
     expect(cli).toContain("const connectionUrl = readMigrationDatabaseUrl();");
     expect(cli).toContain("databaseNameOf(connectionUrl)");
     expect(cli).toMatch(/runMigrations\(\s*connectionUrl,/);
+    // Nor is it read a second time, or sent out by a road the two counts above do not watch.
+    expect(cli.match(/readMigrationDatabaseUrl\(/g) ?? []).toHaveLength(1);
+    expect(cli).not.toMatch(/console\.(?!log\(|error\()/);
+    expect(cli).not.toMatch(/process\.(?:stdout|stderr)\b/);
   });
 
   it("catches a failed run rather than letting Node print the driver's error object", () => {

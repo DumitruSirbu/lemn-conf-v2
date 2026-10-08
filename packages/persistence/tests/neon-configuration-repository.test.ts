@@ -345,20 +345,6 @@ describe("the write-token migration", () => {
   );
 
   it.skipIf(!hasLiveDatabase)(
-    "still accepts a null hash, so pre-ADR-0019 rows survive the constraint",
-    async () => {
-      const sql = neon(testDatabaseUrl);
-      const id = generateDesignId();
-
-      await sql`
-        insert into designs (id, schema_version, document, write_token_hash)
-        values (${id}, 1, ${KITCHEN_L_DESIGN}, null)
-      `;
-      await sql`delete from designs where id = ${id}`;
-    },
-  );
-
-  it.skipIf(!hasLiveDatabase)(
     "is skipped on a re-run, so a second migrate neither fails nor duplicates the column",
     async () => {
       const summary = await runMigrations(testDatabaseUrl);

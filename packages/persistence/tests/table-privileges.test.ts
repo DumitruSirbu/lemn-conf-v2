@@ -8,7 +8,7 @@ import {
 } from "./support/live-test-database.js";
 import { readConnectionFacts } from "./support/connection-facts.js";
 
-const SUITE_NAME = "table-privilege helper (live test database)";
+const SUITE_NAME = "readConnectionFacts (live test database)";
 
 if (!isLiveTestDatabaseConfigured) announceSkippedLiveSuite(SUITE_NAME);
 

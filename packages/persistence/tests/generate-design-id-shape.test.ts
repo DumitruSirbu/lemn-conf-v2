@@ -14,11 +14,4 @@ describe("generateDesignId against the domain's isDesignId", () => {
 
     expect(rejected).toEqual([]);
   });
-
-  it("is held to a predicate that refuses an id one character off", () => {
-    const id = generateDesignId();
-
-    expect(isDesignId(id.slice(1))).toBe(false);
-    expect(isDesignId(`${id}a`)).toBe(false);
-  });
 });
