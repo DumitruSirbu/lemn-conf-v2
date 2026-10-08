@@ -162,11 +162,15 @@ function resizedDesign(): Design {
   return store.getState().design;
 }
 
+const SHIPPED_KITCHEN = "the shipped kitchen";
+
 const WORLDS: readonly (readonly [string, () => World])[] = [
-  ["the shipped kitchen", () => worldFrom(KITCHEN_L_DESIGN)],
+  [SHIPPED_KITCHEN, () => worldFrom(KITCHEN_L_DESIGN)],
   ["a kitchen with an emptied column", () => worldFrom(emptiedColumnDesign())],
   ["a kitchen already resized once", () => worldFrom(resizedDesign())],
 ];
+
+const WORLDS_HOLDING_VOIDS = WORLDS.filter(([name]) => name !== SHIPPED_KITCHEN);
 
 // -------------------------------------------------------------------------------------------
 // The widened contract: what may now gain a section, and what still may not.
@@ -208,7 +212,7 @@ describe("the section exists exactly where the domain published widths", () => {
    *  removed `meta.canWidth` gate used to be one of two things enforcing. The remaining author is
    *  the domain, so this asks the question through the real path on every void the three designs
    *  hold rather than at the panel's own seam. */
-  it.each(WORLDS)(
+  it.each(WORLDS_HOLDING_VOIDS)(
     "gives no width section to any void in %s",
     (_name, build) => {
       const world = build();
@@ -220,14 +224,14 @@ describe("the section exists exactly where the domain published widths", () => {
           undefined,
         ]);
       }
-      // The emptied and resized designs must actually hold voids, or this asserts nothing at all.
-      expect(voids.length).toBeGreaterThanOrEqual(0);
+      // A design holding no void runs the loop zero times and would pass whatever the panel did.
+      expect(voids.length).toBeGreaterThan(0);
     },
   );
 
-  it("holds voids in the designs the sweep above relies on", () => {
-    expect(worldFrom(emptiedColumnDesign()).voids.length).toBeGreaterThan(0);
-    expect(worldFrom(resizedDesign()).voids.length).toBeGreaterThan(0);
+  // Why the shipped kitchen is not a row above: it has nothing for the sweep to look at.
+  it("holds no void in the shipped kitchen, which is why the sweep above leaves it out", () => {
+    expect(worldFrom(KITCHEN_L_DESIGN).voids).toEqual([]);
   });
 
   /** §11 row 16, and the one section the width section could have displaced. `collectSections`

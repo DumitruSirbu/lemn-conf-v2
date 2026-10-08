@@ -27,6 +27,7 @@ vi.mock("@/i18n/use-content", async () => {
 import { ro } from "../support/romanian-content";
 import { EditorPanel } from "@/panel/editor-panel";
 import { describePanel, type PanelView } from "@/panel/panel-model";
+import { PRICE_BAR_RESERVED_HEIGHT_PX } from "@/price/price-bar-layout";
 import { describePriceBar, type PricedBar } from "@/price/price-bar-model";
 import { createConfiguratorStore } from "@/store/configurator-store";
 
@@ -435,6 +436,9 @@ describe("an overflowing design, on the page", () => {
   });
 });
 
+/** §10.1's phone gate, 390 × 844. */
+const GATE_VIEWPORT_HEIGHT_PX = 844;
+
 describe("the flagged total on the mobile shell, while §9's sheet is open", () => {
   const overflowing = overflowingDesign();
 
@@ -459,9 +463,16 @@ describe("the flagged total on the mobile shell, while §9's sheet is open", () 
     expect(panel).toMatch(/\.shell \{[^}]*height: 78dvh;/s);
     expect(panel).toMatch(/\.shell \{[^}]*z-index: 4;/s);
 
-    const viewportHeightPx = 844;
-    const sheetTopPx = viewportHeightPx - 0.78 * viewportHeightPx;
-    const barTopPx = viewportHeightPx - 92;
+    // The bar's height is the constant the layout reserves and the sheet's is the stylesheet's own figure. Written
+    // here as `92` and `0.78`, the comparison held whatever either of them became.
+    const sheetHeightDvh = Number(
+      /\.shell \{[^}]*height: (\d+)dvh;/s.exec(panel)?.[1],
+    );
+    const sheetTopPx = GATE_VIEWPORT_HEIGHT_PX * (1 - sheetHeightDvh / 100);
+    const barTopPx = GATE_VIEWPORT_HEIGHT_PX - PRICE_BAR_RESERVED_HEIGHT_PX;
+
+    expect(sheetHeightDvh).toBeGreaterThan(0);
+    expect(PRICE_BAR_RESERVED_HEIGHT_PX).toBeGreaterThan(0);
     expect(sheetTopPx).toBeLessThan(barTopPx);
   });
 

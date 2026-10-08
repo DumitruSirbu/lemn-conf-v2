@@ -103,6 +103,15 @@ describe("when the warning appears", () => {
     expect(markup).toContain('data-testid="scene-overflow-warning"');
   });
 
+  // The two ruled strings stay two on the surface itself. Read off the markup, since the scene's source can reach the
+  // total's sentence by a destructured name that no search for the dotted key finds.
+  it("keeps the flagged total's sentence out of the scene warning's surface", () => {
+    const markup = renderFor(OVERFLOWING_DESIGN);
+
+    expect(markup).toContain('data-testid="scene-overflow-warning"');
+    expect(markup).not.toContain(ro.price.overflowingTotalWarning);
+  });
+
   it("renders no warning on the seeded design at 600", () => {
     // ADR 0065's consequences: the corrected room fits the shipped kitchen. A warning here would
     // mean the room dimensions had regressed, and the fix would be in the fixture, not here.

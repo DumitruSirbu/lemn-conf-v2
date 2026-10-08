@@ -455,29 +455,24 @@ describe("the localized content resolver", () => {
 });
 
 describe("Romanian CLDR plural bands", () => {
-  const { content: romanian, translate } = contentAndOracleFor(
-    "ro",
-    roMessages,
-  );
+  const { content: romanian } = contentAndOracleFor("ro", roMessages);
 
+  // The sentence each count must produce is written out here. Compared with a second translation of the same key, any
+  // wording of any branch agrees with itself; written out, a branch that loses a letter is a different string.
   it.each([
-    [0, "few"],
-    [1, "one"],
-    [2, "few"],
-    [19, "few"],
-    [20, "other"],
-    [100, "other"],
-    [101, "few"],
+    [0, "few", "0 dulapuri band-token de 600"],
+    [1, "one", "1 dulap band-token de 600"],
+    [2, "few", "2 dulapuri band-token de 600"],
+    [19, "few", "19 dulapuri band-token de 600"],
+    [20, "other", "20 dulapuri band-token de 600"],
+    [100, "other", "100 dulapuri band-token de 600"],
+    [101, "few", "101 dulapuri band-token de 600"],
   ] as const)(
     "selects the %s CLDR category at %i",
-    (count, expectedCategory) => {
+    (count, expectedCategory, expectedSentence) => {
       expect(new Intl.PluralRules("ro").select(count)).toBe(expectedCategory);
       expect(romanian.panel.countForBody(count, "band-token", 600)).toBe(
-        translate("panel.countForBody", {
-          count,
-          bandWord: "band-token",
-          widthMm: 600,
-        }),
+        expectedSentence,
       );
     },
   );

@@ -442,14 +442,22 @@ describe("what the shipped 390 × 844 sweep can fail on", () => {
     // counterfactual red, which is the right behaviour and is what says it is not decoration.
     const headerHeightPx = 64;
     const overlaidSceneHeightPx = GATE_VIEWPORT.heightPx - headerHeightPx;
-    const coveredByNothing = mountedBodies().filter(
+    const bodyBottomsPx = mountedBodies().map(
       (body) =>
         normalisedBottomOf(body, "overview", overlaidSceneHeightPx) *
           overlaidSceneHeightPx +
-          headerHeightPx >
-        GATE_VIEWPORT.heightPx,
+        headerHeightPx,
     );
+    const coveredByAnOverlayOf = (barHeightPx: number): number =>
+      bodyBottomsPx.filter(
+        (bottomPx) => bottomPx > GATE_VIEWPORT.heightPx - barHeightPx,
+      ).length;
 
-    expect(coveredByNothing).toEqual([]);
+    expect(coveredByAnOverlayOf(0)).toBe(0);
+    // And the height the bar really reserves is not that zero: it covers bodies a zero reserve leaves alone. Read
+    // from the constant, so a reserve set to nothing fails here and not only in the case above.
+    expect(
+      coveredByAnOverlayOf(PRICE_BAR_RESERVED_HEIGHT_PX),
+    ).toBeGreaterThan(coveredByAnOverlayOf(0));
   });
 });

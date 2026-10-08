@@ -321,6 +321,16 @@ describe("the refusal is identical in every observable, not only in status and b
   });
 });
 
+const MINIMUM_PLAUSIBLE_TOKEN_LENGTH = 20;
+
+function writeTokenSetBy(response: Response): string {
+  const line =
+    response.headers
+      .getSetCookie()
+      .find((setCookie) => setCookie.startsWith("lemnaria_write_token_")) ?? "";
+  return (line.split(";")[0] ?? "").split("=")[1] ?? "";
+}
+
 describe("the raw token never leaves the Set-Cookie header", () => {
   it("carries every attribute ADR 0019 decision 1 requires, on the real response", async () => {
     const { id, setCookie } = await mintDesign();
@@ -361,7 +371,10 @@ describe("the raw token never leaves the Set-Cookie header", () => {
   it("is absent from the mint response body and from the GET response", async () => {
     const { id, token, visitorCookie } = await mintDesign();
 
+    // The body is compared with the token of the very mint that produced it: a second mint draws a
+    // different token, so its body could carry its own token and never contain the first one.
     const minted = await POST(mintRequest());
+    const mintedToken = writeTokenSetBy(minted);
     const mintedBody = await minted.text();
     const read = await GET(
       new NextRequest(`https://example.test/api/designs/${id}`, {
@@ -371,7 +384,12 @@ describe("the raw token never leaves the Set-Cookie header", () => {
     );
     const readBody = await read.text();
 
-    expect(mintedBody).not.toContain(token);
+    expect(mintedToken.length).toBeGreaterThan(MINIMUM_PLAUSIBLE_TOKEN_LENGTH);
+    expect(mintedBody).not.toContain(mintedToken);
+    expect(Object.keys(JSON.parse(mintedBody) as object).sort()).toEqual([
+      "id",
+      "revision",
+    ]);
     expect(readBody).not.toContain(token);
     expect(read.headers.get("set-cookie")).toBeNull();
   });

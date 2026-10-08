@@ -147,6 +147,15 @@ async function waitUntil(settled: () => boolean, what: string): Promise<void> {
   throw new Error(`the composition never ${what}`);
 }
 
+const MICROTASK_TURNS_AN_AWAIT_CHAIN_NEEDS = 10;
+
+/** Everything already resolved gets to run, and no timer does: a plain loop, since `act` waits on a task of its own. */
+async function drainMicrotasks(): Promise<void> {
+  for (let turn = 0; turn < MICROTASK_TURNS_AN_AWAIT_CHAIN_NEEDS; turn += 1) {
+    await Promise.resolve();
+  }
+}
+
 function composePhase(): string | null {
   return (
     maybeAt("room-compose-notice")?.getAttribute("data-compose-phase") ?? null
@@ -356,6 +365,36 @@ describe("entering composition (criteria 24, 27, 29)", () => {
     ]);
 
     await settleComposition();
+  });
+
+  // Both halves of the wait, as the order things happen in. `requestAnimationFrame` runs before the paint and only a
+  // task scheduled from inside it runs after one, so the generator may start neither while the frame is withheld nor
+  // in the microtasks that follow the frame's callback. A wait that resolved in either place stops the screen before
+  // the pending rows are on the glass.
+  it("crosses a frame before it blocks: past the animation frame, and past the task scheduled inside it", async () => {
+    const withheldFrames: FrameRequestCallback[] = [];
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) =>
+      withheldFrames.push(callback),
+    );
+    render();
+
+    tapContinue();
+    await waitUntil(() => withheldFrames.length > 0, "asked for a frame");
+    const callsWhileTheFrameIsWithheld =
+      vi.mocked(generateKitchen).mock.calls.length;
+
+    for (const deliver of withheldFrames.splice(0)) deliver(performance.now());
+    await drainMicrotasks();
+    const callsBeforeTheTaskAfterTheFrame =
+      vi.mocked(generateKitchen).mock.calls.length;
+
+    await settleComposition();
+
+    expect([
+      callsWhileTheFrameIsWithheld,
+      callsBeforeTheTaskAfterTheFrame,
+      vi.mocked(generateKitchen).mock.calls.length,
+    ]).toEqual([0, 0, 1]);
   });
 
   it("calls the generator exactly once per tap, and not again on a re-render", async () => {

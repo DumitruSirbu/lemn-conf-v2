@@ -372,22 +372,10 @@ const anyPressSequence = fc.array(anyRadioPress, {
 });
 
 describe("any sequence of presses on any of these documents", () => {
-  propertyTest.prop([anyStartingSettings, anyPressSequence], {
-    seed: PROPERTY_SEED,
-  })(
-    "leaves the document byte-identical when it ends in cancel, whatever it opened on",
-    (settings, presses) => {
-      const design = designWith(settings);
-      const { store, saved } = storeFor(design);
-      const opened = canonicalSerializeDesign(store.getState().design);
-
-      // Open, press, press, cancel. Cancel drops pending and calls no commit.
-      pressesFrom(design, presses);
-
-      expect(canonicalSerializeDesign(store.getState().design)).toBe(opened);
-      expect(saved).toEqual([]);
-    },
-  );
+  // That a session ending in cancel writes nothing is not swept here. A press sequence is a pure fold over the
+  // pending choice and this file has no cancel to call, so a property built from the two compared a store nothing had
+  // touched with itself. The cancel button is pressed on the rendered sheet in `global-settings-inert.dom.test.ts`,
+  // "leaving the sheet with a choice pending".
 
   propertyTest.prop([anyStartingSettings, anyPressSequence], {
     seed: PROPERTY_SEED,

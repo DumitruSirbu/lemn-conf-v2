@@ -520,6 +520,26 @@ describe("the refusal is narrowed, not laundered", () => {
       perPushToOpenMinor: STANDARD.perPushToOpenMinor - 1,
     });
 
+    // The guard that catches it is a suite assertion over the *sample* book, not a runtime rule: asked to price the
+    // seeded kitchen under this book, pricing answers at both tiers and puts the dominated one below the default.
+    // Priced by the product, because a total this file composed from the rates says nothing about what it charges.
+    const totalMinorAt = (hardwareTierId: string): number => {
+      const pricing = pricingOf(
+        {
+          ...KITCHEN_L_DESIGN,
+          settings: { ...KITCHEN_L_DESIGN.settings, hardwareTierId },
+        },
+        dominated,
+      );
+      if (!pricing.ok) throw new Error(`pricing refused "${hardwareTierId}"`);
+      return pricing.priced.totalMinor;
+    };
+
+    expect(INVERTING_TIER_ID).not.toBe(dominated.hardware.defaultTierId);
+    expect(totalMinorAt(INVERTING_TIER_ID)).toBeLessThan(
+      totalMinorAt(dominated.hardware.defaultTierId),
+    );
+
     // Every population carrying a mechanism prices below the default at this tier, and every one is offered in silence.
     let silent = 0;
     for (const design of everyOneAndTwoBodyPopulation()) {
@@ -531,20 +551,6 @@ describe("the refusal is narrowed, not laundered", () => {
       silent += 1;
     }
     expect(silent).toBeGreaterThan(0);
-
-    // The guard that catches it is a suite assertion over the *sample* book, not a runtime rule.
-    const cheapestAtSeeded = [...BOOK.hardware.tiers]
-      .map((tier) => ({
-        tierId: tier.tierId,
-        amountMinor: hardwareAmountFor(
-          dominated,
-          tier.tierId,
-          KITCHEN_L_DESIGN,
-        ),
-      }))
-      .sort((left, right) => left.amountMinor - right.amountMinor)[0];
-    expect(cheapestAtSeeded?.tierId).toBe(INVERTING_TIER_ID);
-    expect(cheapestAtSeeded?.tierId).not.toBe(dominated.hardware.defaultTierId);
   });
 });
 

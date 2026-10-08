@@ -161,6 +161,18 @@ function tapSwatch(design: Design, entryId: string): TapOutcome {
   };
 }
 
+const DISTINCT_CONTROL_SHAPES = 3;
+
+/** The one `data-finish-control` the panel renders for a kitchen of this material, read from the markup. */
+function renderedControlShapeOf(materialTierId: string): string | undefined {
+  const markup = renderToStaticMarkup(
+    createElement(EditorPanel, {
+      view: panelFor(storeOn(withMaterial(materialTierId)), null),
+    }),
+  );
+  return /data-finish-control="([^"]+)"/.exec(markup)?.[1];
+}
+
 describe("the control's shape is the material's, not its option count's", () => {
   it("names every declared material exactly once, and three distinct shapes", () => {
     // The anti-vacuity guard for the table above. Three shapes, not two with one repeated: a wave
@@ -169,7 +181,14 @@ describe("the control's shape is the material's, not its option count's", () => 
     expect(Object.keys(CONTROL_BY_MATERIAL)).toEqual(
       MATERIALS.map((material) => material.materialId),
     );
-    expect(new Set(Object.values(CONTROL_BY_MATERIAL)).size).toBe(3);
+    // Counted on what the panel renders, not on the table: three distinct values in a table this file wrote say only
+    // that the table was typed carefully.
+    const renderedShapes = MATERIALS.map(({ materialId }) =>
+      renderedControlShapeOf(materialId),
+    );
+
+    expect(renderedShapes).not.toContain(undefined);
+    expect(new Set(renderedShapes).size).toBe(DISTINCT_CONTROL_SHAPES);
   });
 
   it.each(Object.entries(CONTROL_BY_MATERIAL))(

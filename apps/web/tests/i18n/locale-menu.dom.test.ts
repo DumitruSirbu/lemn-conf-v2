@@ -288,6 +288,29 @@ describe("switching locale changes the language and nothing else", () => {
   });
 });
 
+describe("the step pill a screen reader gets", () => {
+  // "2/4" read aloud is two numbers and a slash, so the accessibility tree keeps the sentence the caption said. Read off
+  // the rendered element: the attribute written in a comment, or on another element, names nothing.
+  const STEP_SENTENCE_IN: Record<ShippedLocale, string> = {
+    ro: "Pasul 2 din 4",
+    ru: "Шаг 2 из 4",
+  };
+  const STEP_AS_DRAWN = "2/4";
+
+  it.each(SHIPPED_LOCALES)(
+    "names %s's step pill with the sentence, and draws only the two numbers",
+    (locale) => {
+      renderAt(locale, `/${locale}/d/qa-design`);
+      const pill = container.querySelector('[data-testid="top-bar-step"]');
+      if (pill === null) throw new Error("the top bar drew no step pill");
+
+      expect(pill.getAttribute("aria-label")).toBe(STEP_SENTENCE_IN[locale]);
+      expect(pill.getAttribute("role")).toBe("img");
+      expect(pill.textContent).toBe(STEP_AS_DRAWN);
+    },
+  );
+});
+
 describe("the control a screen reader and a keyboard get", () => {
   it.each(SHIPPED_LOCALES)(
     "gives %s a trigger that says what it opens, and says so only while it is open",

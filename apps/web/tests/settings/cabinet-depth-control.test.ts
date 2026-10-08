@@ -40,6 +40,10 @@ import {
   type GlobalSettingsView,
 } from "@/settings/global-settings-model";
 
+/** The depth a legacy document with none is built at, as a number. The one literal depth in this file: the default is
+ *  one value, and reading it from the domain's constant would compare the fallback with itself. */
+const DEPTH_A_DESIGN_NAMING_NONE_IS_BUILT_AT_MM = 600;
+
 function pricingOf(design: Design): PricingResult {
   return priceDesign({
     design,
@@ -124,7 +128,10 @@ describe("the depth group on the whole-kitchen sheet", () => {
     const selected = view.depthGroup.options.filter(
       (option) => option.isSelected,
     );
-    expect(selected).toHaveLength(1);
+    // Which depth, and not only that there is one: any single checked option satisfies a count.
+    expect(selected.map((option) => option.cabinetDepthMm)).toEqual([
+      DEPTH_A_DESIGN_NAMING_NONE_IS_BUILT_AT_MM,
+    ]);
   });
 
   // The criterion: the absence of a price line is explained, so it does not read as a missing one.

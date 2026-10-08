@@ -34,6 +34,11 @@ let otherBands: readonly HTMLDivElement[];
 let root: Root;
 
 beforeEach(() => {
+  // An applied choice is a save, and this store's save is a real request. Every request is held open and never
+  // answered, and the stub is left standing for the file: a save the store schedules on a timer would otherwise
+  // leave after the case that caused it and reach for a server.
+  vi.stubGlobal("fetch", () => new Promise<Response>(() => undefined));
+
   // The store is a module singleton, so it is put back between cases through the store's **own load
   // path** rather than by writing two fields into it. `setState` merges shallowly: it would leave
   // `records`, `columns`, `voids`, `selection` and the write-access fields standing from the
@@ -89,6 +94,29 @@ function open(): void {
   });
 }
 
+/** A hardware tier the sheet does not have checked, pressed. Hardware, because a material change asks a question
+ *  first and a depth change needs a body probe this store was not given. Returns the tier now pending. */
+function pressAnUncheckedHardwareTier(): string {
+  const radio = settingsBand.querySelector<HTMLInputElement>(
+    'input[type="radio"][name$="-hardware"]:not(:checked)',
+  );
+  if (!radio) throw new Error("the sheet offers no second hardware tier");
+  act(() => {
+    radio.click();
+  });
+  return radio.value;
+}
+
+function press(testId: string): void {
+  const button = settingsBand.querySelector<HTMLButtonElement>(
+    `[data-testid="${testId}"]`,
+  );
+  if (!button) throw new Error(`the sheet draws no ${testId}`);
+  act(() => {
+    button.click();
+  });
+}
+
 function inertBands(): readonly string[] {
   return [...screenElement.children]
     .filter((band) => band.hasAttribute("inert"))
@@ -127,5 +155,34 @@ describe("the settings sheet and the screen behind it", () => {
     });
     expect(surface()).toBeNull();
     expect(inertBands()).toEqual([]);
+  });
+});
+
+// The sheet's own cancel, pressed on the rendered sheet. `qa-w2-opening-choice.adversarial.test.ts` sweeps what a
+// press sequence leaves *pending*; whether the cancel button then writes is a fact about this component's handler.
+describe("leaving the sheet with a choice pending", () => {
+  it("writes nothing to the document when the customer cancels", () => {
+    const opened = useConfiguratorStore.getState().design;
+    open();
+    const pendingTier = pressAnUncheckedHardwareTier();
+
+    press("global-settings-cancel");
+
+    expect(pendingTier).not.toBe(opened.settings?.hardwareTierId);
+    expect(surface()).toBeNull();
+    // The same object, not an equal one: no command ran at all.
+    expect(useConfiguratorStore.getState().design).toBe(opened);
+  });
+
+  it("writes that same choice when the customer applies it, so the cancel had something to drop", () => {
+    open();
+    const pendingTier = pressAnUncheckedHardwareTier();
+
+    press("global-settings-apply");
+
+    expect(surface()).toBeNull();
+    expect(useConfiguratorStore.getState().design.settings?.hardwareTierId).toBe(
+      pendingTier,
+    );
   });
 });

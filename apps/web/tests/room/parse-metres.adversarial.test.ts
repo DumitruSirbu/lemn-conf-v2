@@ -3,27 +3,14 @@
 // that works in `BigInt`, so it cannot share a float shortcut with the parser, and the property runs
 // over the whole safe-integer range rather than the five digits the round-trip sweep covers — a
 // float-multiplying parser that rounds is exact below 2^53 / 1000 only by luck of the digits.
-import { readFileSync } from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-
 import { fc } from "@fast-check/vitest";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   parseMetresToMillimetres,
   type MetresParse,
   type MetresRefusal,
 } from "@/room/parse-metres";
-
-const PARSER_SOURCE = path.join(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "..",
-  "..",
-  "src",
-  "room",
-  "parse-metres.ts",
-);
 
 const RUNS = 2000;
 
@@ -403,17 +390,42 @@ describe("parseMetresToMillimetres — very long input", () => {
 // Worked on the digit string.
 // =================================================================================================
 
+/** Metres whose millimetre count a `float × 1000` misses: `1.005 * 1000` is `1004.9999999999999`, and
+ *  the two long ones sit where a double no longer holds three decimals. The last is the largest safe
+ *  integer itself. */
+const LENGTHS_NO_FLOAT_PRODUCT_LANDS_ON = [
+  ["1,005", 1005],
+  ["8765432109876,543", 8_765_432_109_876_543],
+  ["9007199254740,991", Number.MAX_SAFE_INTEGER],
+] as const;
+
 describe("parse-metres.ts works on the digit string", () => {
   // Rounding a float product is exact for every value the five-digit sweep covers, so a parser
-  // rewritten as `Math.round(parseFloat(text) * 1000)` would pass it. The oracle property above
-  // catches the rewrite only where the float runs out; this catches it by name.
+  // rewritten as `Math.round(parseFloat(text) * 1000)` would pass it. Two things tell the digit
+  // string from the float, and neither is the parser's source text: the lengths below are ones a
+  // float product does not land on, and the float and rounding functions are watched while they
+  // are read.
   it("multiplies nothing and uses no float, rounding or locale machinery", () => {
-    const code = readFileSync(PARSER_SOURCE, "utf8")
-      .replace(/\/\*[\s\S]*?\*\//g, "")
-      .replace(/\/\/.*$/gm, "");
+    const watched = [
+      vi.spyOn(globalThis, "parseFloat"),
+      vi.spyOn(Number, "parseFloat"),
+      vi.spyOn(Math, "round"),
+      vi.spyOn(Math, "floor"),
+      vi.spyOn(Math, "trunc"),
+      vi.spyOn(Number.prototype, "toFixed"),
+      vi.spyOn(Number.prototype, "toPrecision"),
+      vi.spyOn(Number.prototype, "toLocaleString"),
+    ];
 
-    expect(code).not.toMatch(
-      /\*|parseFloat|Math\.|toFixed|toPrecision|Intl\b|toLocale/,
+    const parsed = LENGTHS_NO_FLOAT_PRODUCT_LANDS_ON.map(([text]) =>
+      parseMetresToMillimetres(text),
     );
+    const callsPerWatchedFunction = watched.map((spy) => spy.mock.calls.length);
+    for (const spy of watched) spy.mockRestore();
+
+    expect(parsed).toStrictEqual(
+      LENGTHS_NO_FLOAT_PRODUCT_LANDS_ON.map(([, mm]) => ({ ok: true, mm })),
+    );
+    expect(callsPerWatchedFunction).toEqual(watched.map(() => 0));
   });
 });

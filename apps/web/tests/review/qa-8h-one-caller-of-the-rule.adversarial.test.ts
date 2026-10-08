@@ -186,19 +186,7 @@ describe("8H criterion 14: the web's own source", () => {
     expect(calls).toHaveLength(1);
   });
 
-  it("hands the rule no list but the fit query's answer for the design under review", () => {
-    const code = model?.code ?? "";
-    const listsMade =
-      code.match(/findOverflowingPlacementIds\s*\(([^)]*)\)/g) ?? [];
-    const handedOn = [
-      ...code.matchAll(/judgeFor\(\s*input,\s*([^)]*?)\s*\)/g),
-    ].map((match) => match[1]);
-
-    expect(listsMade).toEqual(["findOverflowingPlacementIds(input.design)"]);
-    expect(code).toContain(
-      "const overflowingIds = findOverflowingPlacementIds(input.design);",
-    );
-    expect(handedOn).toEqual(["overflowingIds", "overflowingIds"]);
-    expect(code).not.toMatch(/overflowingPlacementIds\s*:\s*\[/);
-  });
+  // Which list the rule is handed is behaviour, and `qa-8c-fit-is-the-querys-answer.adversarial.test.ts` holds it with
+  // a query whose answer the test chooses: the review asks it about the design under review, once, and refuses by
+  // the bodies it reports. A search of the model's text for the variable's name agreed with a list filtered to nothing.
 });

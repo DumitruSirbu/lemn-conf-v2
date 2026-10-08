@@ -1,11 +1,11 @@
+import { createHash } from "node:crypto";
+
 import {
   InvalidDesignError,
   KITCHEN_L_DESIGN,
 } from "@lemnaria/configurator-domain";
 import { isValidElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-import { sha256Hex } from "@/lib/server/sha256-hex";
 
 const loadShared = vi.hoisted(() => vi.fn());
 const reportDesignFailure = vi.hoisted(() => vi.fn());
@@ -32,6 +32,7 @@ const { default: SharedDesignPage } = await import(
 const WELL_FORMED_TOKEN = "abcDEF123456";
 const OTHER_WELL_FORMED_TOKEN = "zyxWVU654321";
 const MALFORMED_TOKEN = "not-a-token";
+const SHA256_HEX = /^[0-9a-f]{64}$/;
 
 describe("the share view's page component (M7 wave 7E3c D6)", () => {
   beforeEach(() => {
@@ -59,7 +60,12 @@ describe("the share view's page component (M7 wave 7E3c D6)", () => {
       params: Promise.resolve({ token: WELL_FORMED_TOKEN }),
     });
 
-    expect(loadShared).toHaveBeenCalledWith(sha256Hex(WELL_FORMED_TOKEN));
+    // The digest is taken here with the platform's own hash, not with the module the page calls: computed by that
+    // module, a hash function that returned its input would agree with itself.
+    const digest = createHash("sha256").update(WELL_FORMED_TOKEN).digest("hex");
+    expect(digest).toMatch(SHA256_HEX);
+    expect(loadShared).toHaveBeenCalledTimes(1);
+    expect(loadShared).toHaveBeenCalledWith(digest);
   });
 
   // Coordinator's ruling, 2026-09-23 (recorded in the page's own doc comment): criterion 10's

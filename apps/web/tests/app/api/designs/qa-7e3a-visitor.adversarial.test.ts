@@ -349,7 +349,16 @@ describe("mint — carried-value boundaries (D1)", () => {
       cookie: `__host-lemnaria_visitor=${KNOWN_VALUE}`,
     });
 
-    expect(visitorValueOf(response)).not.toBe(KNOWN_VALUE);
+    // Every mint issues a fresh value (Amendment H1), so the emitted cookie cannot tell an adopted
+    // carried value from an ignored one. What can is the instruction the repository was handed: a
+    // carried value that was read arrives as `rotate` with its hash as `fromVisitorHash`.
+    const minted = visitorValueOf(response);
+    expect(minted).toMatch(WELL_FORMED);
+    expect(fake.mints).toHaveLength(1);
+    expect(fake.mints[0]?.visitor).toEqual({
+      kind: "fresh",
+      visitorHash: sha256Hex(minted ?? ""),
+    });
   });
 
   it("emits exactly one visitor Set-Cookie even when the request carried the pair twice", async () => {

@@ -417,6 +417,26 @@ describe("the fields a shape asks for, at 1B and in the DOM (criterion 4)", () =
   });
 });
 
+/** One room per shape that the approved policy accepts, every field its shape asks for filled. */
+const FILLED_ROOM_QUERY: Readonly<Record<RoomShape, string>> = {
+  linear: "?shape=linear&wallA=3.56&height=2.6",
+  L: "?shape=L&wallA=3.56&wallB=2.92&height=2.6&direction=left",
+  U: "?shape=U&wallA=3.56&wallB=2.92&wallC=2.18&height=2.6",
+};
+
+/** The approved policy with one shape's bounds taken out and every other statement left as it is. */
+function policyWithdrawing(shape: RoomShape): RoomPolicy {
+  const stillStated = Object.entries(APPROVED_ROOM_POLICY.buildableShapes).filter(
+    ([stated]) => stated !== shape,
+  );
+  return {
+    ...APPROVED_ROOM_POLICY,
+    buildableShapes: Object.fromEntries(
+      stillStated,
+    ) as RoomPolicy["buildableShapes"],
+  };
+}
+
 describe("buildability is the policy's answer and never a shape's letter (criterion 3)", () => {
   it("refuses to continue from a filled L once the policy stops stating it", () => {
     // `BuildableShapes` makes `L` optional, so a policy stating nothing needs no cast; the CTA is still refused,
@@ -445,9 +465,25 @@ describe("buildability is the policy's answer and never a shape's letter (criter
     expect(continueButton().disabled).toBe(false);
   });
 
+  // The claim as behaviour, for every shape and not only the L above: a filled room continues exactly when the policy
+  // states its shape. A module that decided by the letter would keep one of these three continuing after the policy
+  // withdrew it, however the comparison was spelled.
+  it.each(EVERY_SHAPE)(
+    "lets a filled %s continue under the approved policy and not once the policy withdraws that shape",
+    (shape) => {
+      render(FILLED_ROOM_QUERY[shape], policyWithdrawing(shape));
+      const continuesWithdrawn = !continueButton().disabled;
+
+      render(FILLED_ROOM_QUERY[shape]);
+      const continuesApproved = !continueButton().disabled;
+
+      expect([continuesWithdrawn, continuesApproved]).toEqual([false, true]);
+    },
+  );
+
   it("asks no module under src/room to name a shape to decide it", () => {
     // `isShapeBuildable` is the only buildability question in the directory; nothing beside it compares a shape to a
-    // letter.
+    // letter. A text search, so it is the lesser half: the sweep above is what holds the behaviour.
     for (const [name, source] of ROOM_MODULE_SOURCES) {
       const code = source
         .replace(/\/\*[\s\S]*?\*\//g, "")
