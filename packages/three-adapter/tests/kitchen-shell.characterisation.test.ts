@@ -37,7 +37,6 @@ import { buildKitchenShell } from "../src/kitchen-shell.js";
 import { makeKit, type Kit } from "../src/kitchen-parts.js";
 import {
   CAMERA_FIELD_OF_VIEW_DEGREES,
-  CAMERA_PRESETS,
   findCameraPreset,
   type CameraPresetId,
 } from "../src/stage.js";
@@ -300,35 +299,9 @@ describe("the recorded facts are falsifiable", () => {
   });
 });
 
-/** The three camera presets, recorded at the seeded room before slice 4 replaces them with
- *  `cameraPresetsForRoom(room)`.
- *
- *  **These three triples are not a fixed point slice 4 has to reproduce.** Q7H-5 withdraws that:
- *  they were framed on the old 4200 x 3400 shell under a framing rule Q7H-3 has replaced, so a
- *  function that is correct at the seeded room will almost certainly not return them. They stay as
- *  the recorded starting point and as the witness that the framing did not regress to today's. */
+/** The reference presets' own framing of the seeded room. The three triples themselves are pinned by
+ *  `qa-7h-preset-stands-clear.adversarial.test.ts`. */
 describe("the camera presets at the seeded room, as HEAD declares them", () => {
-  const RECORDED_PRESETS = [
-    { id: "overview", position: [4.3, 3.0, 5.3], target: [1.6, 1.35, 0.85] },
-    { id: "wallA", position: [1.9, 2.1, 5.6], target: [1.7, 1.35, 0.45] },
-    { id: "wallB", position: [5.4, 2.2, 2.3], target: [0.5, 1.35, 1.75] },
-  ] as const;
-
-  it("declares these three, under these ids, in this order", () => {
-    expect(CAMERA_PRESETS.map((preset) => preset.id)).toEqual(
-      RECORDED_PRESETS.map((preset) => preset.id),
-    );
-  });
-
-  it.each(RECORDED_PRESETS)("$id stands where HEAD puts it", (recorded) => {
-    const preset = findCameraPreset(recorded.id);
-
-    expect([
-      ...tupleDifferences("position", recorded.position, preset.position),
-      ...tupleDifferences("target", recorded.target, preset.target),
-    ]).toEqual([]);
-  });
-
   /** Backlog 16, reproduced by measurement rather than transcribed. The entry records *"x ~ 514 of
    *  a 390 px viewport"* from a browser session on 2026-09-01; projecting the panel's world box
    *  under the same preset and viewport puts its **nearest corner** at 514.9 px, which is the point
@@ -342,12 +315,6 @@ describe("the camera presets at the seeded room, as HEAD declares them", () => {
     expect(panelX.nearestCorner).toBeCloseTo(514.9, 1);
     expect(panelX.centre).toBeCloseTo(535.4, 1);
     expect(panelX.nearestCorner).toBeGreaterThan(MOBILE_VIEWPORT.width);
-  });
-
-  it("is measuring the seeded room the presets were framed on", () => {
-    expect(KITCHEN_L_DESIGN.room.widthMm).toBe(3560);
-    expect(KITCHEN_L_DESIGN.room.depthMm).toBe(2920);
-    expect(KITCHEN_L_DESIGN.room.heightMm).toBe(2600);
   });
 });
 

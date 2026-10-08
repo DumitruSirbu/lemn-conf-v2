@@ -273,15 +273,6 @@ describe("the floor of a U reaches the farther of walls B and C", () => {
 
     expect(floorExtentAlongZ(shell).max).toBeCloseTo(4.2, 6);
   });
-
-  it("keeps an L's and a straight room's floor at depthMm plus the overhang", () => {
-    for (const room of [L_ROOM, LINEAR_ROOM]) {
-      expect(floorExtentAlongZ(shellFor(room).shell).max).toBeCloseTo(
-        room.depthMm / 1000,
-        6,
-      );
-    }
-  });
 });
 
 describe("the drawn-room signature knows the shape and C", () => {
@@ -427,6 +418,16 @@ describe("the L and straight shells are byte-identical to the shells before wall
     return { ...child, mapRepeat: undefined };
   }
 
+  /** `RecordedShellChild` holds no scale, so a child stretched instead of rebuilt keeps every recorded fact and
+   *  still draws a different room. Held beside the record, child by child. */
+  const UNSCALED = [1, 1, 1];
+
+  function scaledChildrenOf(shell: THREE.Object3D): string[] {
+    return shell.children
+      .filter((child) => !child.scale.equals(new THREE.Vector3(...UNSCALED)))
+      .map((child) => child.name);
+  }
+
   it.each(RECORDED_ROOMS)(
     "%s: exactly the five recorded children, in order, each unchanged to the last digit",
     (recordedKey, room) => {
@@ -435,6 +436,7 @@ describe("the L and straight shells are byte-identical to the shells before wall
       const drawn = shell.children.map(recordedFactsOf);
 
       expect(drawn).toStrictEqual(NON_U_SHELLS_BEFORE_WALL_C[recordedKey]);
+      expect(scaledChildrenOf(shell)).toEqual([]);
     },
   );
 
@@ -461,6 +463,7 @@ describe("the L and straight shells are byte-identical to the shells before wall
     expect(fiveOriginals.map(withoutMapRepeat)).toStrictEqual(
       NON_U_SHELLS_BEFORE_WALL_C.L.map(withoutMapRepeat),
     );
+    expect(scaledChildrenOf(shell)).toEqual([]);
     fiveOriginals.forEach((child, index) => {
       const recorded = required(
         NON_U_SHELLS_BEFORE_WALL_C.L[index],
@@ -476,15 +479,6 @@ describe("the L and straight shells are byte-identical to the shells before wall
         );
       });
     });
-  });
-
-  it("leaves an L's floor no different whether or not wall C is in the shell", () => {
-    const { kit, shell } = shellFor(L_ROOM);
-    const before = floorExtentAlongZ(shell);
-    resizeShellToRoom({ kit, shell, room: U_ROOM });
-    resizeShellToRoom({ kit, shell, room: L_ROOM });
-
-    expect(floorExtentAlongZ(shell)).toStrictEqual(before);
   });
 });
 

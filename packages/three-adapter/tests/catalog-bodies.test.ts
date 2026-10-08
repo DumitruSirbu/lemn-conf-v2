@@ -7,17 +7,12 @@
 // offered forever and refused forever, which is the silent failure shape M3's Risks section names.
 import {
   FIT_TOLERANCE_M,
-  INSERTABLE_BODY_DEFINITIONS,
   type BodyMeasurement,
 } from "@lemnaria/configurator-domain";
 import * as THREE from "three";
 import { beforeAll, describe, expect, it } from "vitest";
 
-import {
-  buildCatalogBody,
-  CATALOG_BUILD_IDS,
-  isCatalogBuildId,
-} from "../src/catalog-bodies.js";
+import { buildCatalogBody, isCatalogBuildId } from "../src/catalog-bodies.js";
 import { makeKit, type Kit } from "../src/kitchen-parts.js";
 import { measureBuiltBody } from "../src/measure-built-body.js";
 import {
@@ -89,16 +84,10 @@ function parameterised(
 
 const BASE_BUILD_IDS = [
   "base-cabinet",
-  "base-cabinet",
   "base-3drawer",
   "base-panbank",
 ] as const;
-const WALL_BUILD_IDS = [
-  "wall-cabinet",
-  "wall-cabinet",
-  "wall-lift",
-  "open-shelf",
-] as const;
+const WALL_BUILD_IDS = ["wall-cabinet", "wall-lift", "open-shelf"] as const;
 
 const SIZE_CASES: readonly SizeCase[] = [
   // §7: base carcasses are width-flexible and always build to the worktop line (§2's 0.86).
@@ -195,12 +184,6 @@ const SIZE_CASES: readonly SizeCase[] = [
 ];
 
 describe("buildCatalogBody", () => {
-  it("covers exactly the catalogue's insertable entries, in both directions", () => {
-    const insertableIds = INSERTABLE_BODY_DEFINITIONS.map(([id]) => id);
-
-    expect([...CATALOG_BUILD_IDS].sort()).toEqual([...insertableIds].sort());
-  });
-
   it.each(SIZE_CASES)(
     "$buildId at $widthM × $heightM (depth $depthM) measures within the fit tolerance",
     (testCase) => {

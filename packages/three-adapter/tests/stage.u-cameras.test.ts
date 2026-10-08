@@ -74,6 +74,17 @@ const SAMPLED_US = [
   ["maximum", MAXIMUM_U],
 ] as const;
 
+/** The sampled rooms `support/u-scene.ts`'s `SWEPT_US` does not hold. `qa-u4-u-cameras.adversarial.test.ts` asserts
+ *  wall C's reflection and the overview's target on the minimum, middle and maximum U, so they are not repeated here. */
+const ROOMS_THE_SWEEP_HOLDS: readonly string[] = [
+  "minimum",
+  "middle",
+  "maximum",
+];
+const SAMPLED_US_OUTSIDE_THE_SWEEP = SAMPLED_US.filter(
+  ([name]) => !ROOMS_THE_SWEEP_HOLDS.includes(name),
+);
+
 const L_ROOM: DesignRoom = {
   shape: "L",
   widthMm: 3700,
@@ -92,12 +103,6 @@ function presetOf(id: CameraPresetId, room: DesignRoom): CameraPreset {
 const metres = (mm: number): number => mm / 1000;
 
 describe("which presets a room offers", () => {
-  it("offers a U [overview, wallA, wallB, wallC], in that order", () => {
-    for (const [, room] of SAMPLED_US) {
-      expect(ids(room)).toEqual(["overview", "wallA", "wallB", "wallC"]);
-    }
-  });
-
   it("leaves an L at [overview, wallA, wallB] and a straight room at [overview, wallA]", () => {
     expect(ids(L_ROOM)).toEqual(["overview", "wallA", "wallB"]);
     expect(ids({ ...L_ROOM, shape: "linear" })).toEqual(["overview", "wallA"]);
@@ -119,7 +124,7 @@ describe("wallC is wallB reflected in x = W/2 with C in place of B (D13)", () =>
     return acceptedU({ ...room, depthMm: required(room.wallCMm, "wallCMm") });
   }
 
-  it.each(SAMPLED_US)(
+  it.each(SAMPLED_US_OUTSIDE_THE_SWEEP)(
     "%s U: position and target are wallB's, at C, with x replaced by W − x",
     (_name, room) => {
       const widthM = metres(room.widthMm);
@@ -186,7 +191,7 @@ describe("overview looks in from the U's open side, on the centre line (ADR 0132
   /** A front's plane, from its wall: the deepest floor body (ADR 0108 H2, 742 mm at depth 600). */
   const DEEPEST_FRONT_M = 0.742;
 
-  it.each(SAMPLED_US)(
+  it.each(SAMPLED_US_OUTSIDE_THE_SWEEP)(
     "%s U: looks at the middle of the drawn floor, depth max(B, C) / 2",
     (_name, room) => {
       const target = presetOf("overview", room).target;
@@ -250,15 +255,6 @@ describe("overview looks in from the U's open side, on the centre line (ADR 0132
 
     expect(presetOf("overview", cLonger).target[2]).toBeCloseTo(2.2, 9);
     expect(presetOf("overview", bLonger).target[2]).toBeCloseTo(2.2, 9);
-  });
-
-  it("leaves wallA and wallB where they were: neither reads C", () => {
-    const shorterC = acceptedU({ ...MIDDLE_U, wallCMm: 1800 });
-    const longerC = acceptedU({ ...MIDDLE_U, wallCMm: 6000 });
-
-    for (const id of ["wallA", "wallB"] as const) {
-      expect(presetOf(id, shorterC)).toEqual(presetOf(id, longerC));
-    }
   });
 
   it("frames an L and a straight room on their own depth exactly as before: overview at depthMm / 2", () => {

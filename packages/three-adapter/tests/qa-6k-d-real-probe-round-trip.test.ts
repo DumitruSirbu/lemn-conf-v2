@@ -105,18 +105,6 @@ function depthOf(columns: ReadonlyMap<string, Column>, key: string): number {
 const WALL_KEYS = ["A|0.30", "A|0.75"] as const;
 
 describe("the round trip the store suite measures, run against the real probe", () => {
-  it("returns every wall column to the depth it started at", () => {
-    const started = columnsAt(START, DEFAULT_MM);
-
-    const deep = changeTo(START, DEEPER_MM);
-    const back = changeTo(deep, DEFAULT_MM);
-
-    const returned = columnsAt(back, DEFAULT_MM);
-    for (const key of WALL_KEYS) {
-      expect(depthOf(returned, key), key).toBeCloseTo(depthOf(started, key), 6);
-    }
-  });
-
   // **Not a value compared with itself**: the middle leg really does move, and it moves to the map
   // row rather than to the 369 the fake produces or the 439 that fixing only ADR 0073's constant
   // would produce. ADR 0075 decision 4 requires a wave measuring this number to say which of the

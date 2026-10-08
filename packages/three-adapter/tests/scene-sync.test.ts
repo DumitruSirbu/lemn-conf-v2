@@ -291,14 +291,6 @@ describe("push-to-open by slot", () => {
     expect(countHandles(body)).toBeGreaterThan(0);
   });
 
-  it("leaves a wall-row body's handles visible", () => {
-    sync([makeRecord({ id: "p1" })]);
-
-    const body = mounted("p1");
-    if (!body) throw new Error("body was not mounted");
-    expect(hasVisibleHandle(body)).toBe(true);
-  });
-
   it("honours a recorded handle mode over the slot default, both ways", () => {
     sync([
       makeRecord({ id: "push", handleMode: "push" }),

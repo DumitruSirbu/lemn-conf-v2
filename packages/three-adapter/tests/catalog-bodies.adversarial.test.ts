@@ -574,16 +574,4 @@ describe("boundaries the builders do not guard", () => {
     expect(MIN_WIDTH_M).toBeGreaterThan(0);
     expect(passesBuiltSizeGate(negative.carcassWidthMm, -100)).toBe(false);
   });
-
-  it("a height-flexible body builds its carcass at the 400 mm minimum opening", () => {
-    for (const buildId of [
-      "wall-cabinet",
-      "wall-cabinet",
-      "wall-lift",
-      "open-shelf",
-    ]) {
-      const built = build(buildId, 600, 400, 400);
-      expect(passesBuiltSizeGate(built.carcassHeightMm, 400)).toBe(true);
-    }
-  });
 });

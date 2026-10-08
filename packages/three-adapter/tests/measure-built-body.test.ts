@@ -1,11 +1,11 @@
 import {
   buildKitchenLBodyCatalog,
-  KITCHEN_L_DESIGN,
   measurableSeatOf,
   type MeasurableSeatedOn,
 } from "@lemnaria/configurator-domain";
 // M3 work item 7: the `BodyProbe` implementation, and `DEVELOPMENT-SPEC.md` §11 row 19 for the
-// bodies a customer inserts.
+// bodies a customer inserts. The seated-body sweep of row 19 itself is in
+// `measure-built-body.adversarial.test.ts`.
 //
 // Row 19 is the hard case, not the easy one: the opening's previous occupant is right there to be
 // wrongly measured against, and §6.2 records two attempts that did exactly that — one left a
@@ -13,10 +13,8 @@ import {
 // Every assertion here therefore reads the wall plane out of the room's own meshes and measures
 // the body after it is mounted, never from a constant and never from a neighbour.
 import {
-  deriveCabinetWorldTransform,
   type BodyMeasurement,
   type BodyProbeRequest,
-  type DesignWall,
 } from "@lemnaria/configurator-domain";
 import * as THREE from "three";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
@@ -28,7 +26,6 @@ import {
   measureBuiltBody,
   readWallPlaneM,
   WALL_A_MESH_NAME,
-  WALL_B_MESH_NAME,
 } from "../src/measure-built-body.js";
 import {
   createHeadlessCanvas,
@@ -120,15 +117,6 @@ describe("measureBuiltBody", () => {
     );
   });
 
-  it("leaves the room with the same children in the same order", () => {
-    const before = [...room.children];
-
-    measureBuiltBody({ kit, room, request: SINK_REQUEST });
-    measureBuiltBody({ kit, room, request: COLUMN_REQUEST });
-
-    expect(room.children).toEqual(before);
-  });
-
   // The probe may dispose only what it alone owns. `kit.M`'s materials are shared, and so are the
   // `ExtrudeGeometry` instances `chamferBox` memoises by size — measuring a body hands back the
   // very buffers every mounted body of that size is rendering from.
@@ -168,38 +156,6 @@ describe("measureBuiltBody", () => {
     expect(probe.measure(WALL_REQUEST)).toEqual(
       measureBuiltBody({ kit, room, request: WALL_REQUEST }),
     );
-  });
-});
-
-// §11 row 19, for inserted bodies: seat the group exactly as the domain will — persist
-// `2 × seatOffsetM` as `seatDepthMm`, let `deriveCabinetWorldTransform` place it at half of that
-// off the plane — and measure the back face against the plane read from the room.
-describe("row 19 — an inserted body's back face lies on the wall plane", () => {
-  const SEATED_CASES: readonly {
-    readonly name: string;
-    readonly request: BodyProbeRequest;
-    readonly alongM: number;
-    readonly y0M: number;
-  }[] = [
-    { name: "a base cabinet", request: SINK_REQUEST, alongM: 1.3, y0M: 0 },
-    { name: "a wall cabinet", request: WALL_REQUEST, alongM: 2.0, y0M: 1.5 },
-    { name: "a column", request: COLUMN_REQUEST, alongM: 1.8, y0M: 0 },
-  ];
-
-  it.each(SEATED_CASES)("seats $name on wall A", (testCase) => {
-    const seated = seat(testCase.request, "A", testCase.alongM, testCase.y0M);
-
-    expect(
-      Math.abs(seated.min.z - readWallPlaneM(room, WALL_A_MESH_NAME)),
-    ).toBeLessThanOrEqual(FLOAT_EPSILON_METRES);
-  });
-
-  it.each(SEATED_CASES)("seats $name on wall B", (testCase) => {
-    const seated = seat(testCase.request, "B", testCase.alongM, testCase.y0M);
-
-    expect(
-      Math.abs(seated.min.x - readWallPlaneM(room, WALL_B_MESH_NAME)),
-    ).toBeLessThanOrEqual(FLOAT_EPSILON_METRES);
   });
 });
 
@@ -381,35 +337,3 @@ describe("rebuilding at the persisted seat depth", () => {
     expect(rebuilt).toEqual(deep);
   });
 });
-
-/** Mounts a measured body the way `insertBody` + `deriveFrame` will, and returns its world box. */
-function seat(
-  probeRequest: BodyProbeRequest,
-  wall: DesignWall,
-  alongM: number,
-  y0M: number,
-): THREE.Box3 {
-  const measurement = measureBuiltBody({ kit, room, request: probeRequest });
-  const transform = deriveCabinetWorldTransform({
-    wall,
-    alongM,
-    y0M,
-    depthM: 2 * measurement.seatOffsetM,
-    roomWidthM: KITCHEN_L_DESIGN.room.widthMm / 1000,
-  });
-
-  const body = buildCatalogBody(kit, probeRequest.buildId, probeRequest);
-  body.position.set(
-    transform.position.x,
-    transform.position.y,
-    transform.position.z,
-  );
-  body.rotation.y = transform.yawRadians;
-  room.add(body);
-  try {
-    body.updateWorldMatrix(true, true);
-    return new THREE.Box3().setFromObject(body);
-  } finally {
-    room.remove(body);
-  }
-}

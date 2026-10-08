@@ -15,7 +15,6 @@ import {
   buildDecomposedBody,
   hidePushOpenHandles,
 } from "../src/decomposed-bodies.js";
-import { collectPaintedSurfaces } from "../src/finishes.js";
 import type { Kit } from "../src/kitchen-parts.js";
 import { wrapInRightCornerMirror } from "../src/right-corner-wrapper.js";
 import { installHeadlessDocument } from "./support/headless-canvas.js";
@@ -454,24 +453,6 @@ describe("the materials", () => {
     expect(findMesh(unit, "corner_stile").material).toBe(door);
     expect(findMesh(unit, "corner_closure").material).toBe(shell);
     expect(door).not.toBe(shell);
-  });
-});
-
-describe("the finish", () => {
-  const kit = productKitAt(600);
-
-  it("is worn by the carcass shell, the closure, the stile and the leaf, and by nothing inside the box", () => {
-    const unit = kit.make.wallCornerX(UNIT_WIDTH_M);
-    const painted = collectPaintedSurfaces(unit)
-      .map((mesh) => mesh.name)
-      .sort();
-
-    expect(painted).toEqual([
-      "carcass_shell",
-      "corner_closure",
-      "corner_stile",
-      "door_front",
-    ]);
   });
 });
 

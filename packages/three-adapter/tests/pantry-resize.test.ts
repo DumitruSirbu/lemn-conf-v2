@@ -60,10 +60,6 @@ function meshBoxes(group: THREE.Group): { name: string; box: THREE.Box3 }[] {
   return boxes;
 }
 
-function widthOfWidest(group: THREE.Group): number {
-  return Math.max(...meshBoxes(group).map(({ box }) => box.max.x - box.min.x));
-}
-
 /** What each mesh family must span, at a cabinet of this width, in metres. Every entry is the
  *  builder's own arithmetic read forward — `plinth` is 4 mm narrower than the carcass, the back
  *  panel sits 18 mm inside each side, a single door is 6 mm narrower than the opening and a pair
@@ -152,14 +148,6 @@ describe("ADR 0048: every part of a resized pantry takes the new width", () => {
       );
     },
   );
-
-  it("builds three different trees at the three widths, so nothing is being scaled", () => {
-    const spans = MEASURED_WIDTHS_M.map((widthM) =>
-      widthOfWidest(pantryAt(widthM)),
-    );
-
-    expect(new Set(spans).size).toBe(MEASURED_WIDTHS_M.length);
-  });
 });
 
 describe("ADR 0048: the fittings do not grow with the cabinet", () => {

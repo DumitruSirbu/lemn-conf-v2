@@ -364,18 +364,6 @@ describe("the presets are a continuous function of the room", () => {
     expect(distanceBetween(wide.target, seeded.target)).toBeCloseTo(0.5, 6);
   });
 
-  /** Q7H-5 withdrew the fixed point, and this records that the withdrawal is real rather than
-   *  unnoticed: the reference's three triples are **not** what the seeded room now returns, and
-   *  `CAMERA_PRESETS` is still exported, unmoved, as the recorded starting point. */
-  it("does not reproduce the reference triples at the seeded room", () => {
-    const seeded = cameraPresetsForRoom(SEEDED_ROOM);
-
-    expect(seeded.map((preset) => preset.target)).not.toEqual(
-      CAMERA_PRESETS.map((preset) => preset.target),
-    );
-    expect(findCameraPreset("wallA").position).toEqual([1.9, 2.1, 5.6]);
-  });
-
   /** The directions are the reference's own aesthetic and the room does not get to change them. */
   it.each(CAMERA_PRESETS.map((preset) => preset.id))(
     "%s looks from the direction the reference looks from, at every sampled room",

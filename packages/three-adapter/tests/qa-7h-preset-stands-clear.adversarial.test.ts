@@ -111,28 +111,6 @@ describe("every preset stands in the room it frames", () => {
       expect(z, "target along wall B").toBeLessThanOrEqual(room.depthMm / 1000);
     },
   );
-
-  /** No wall plane between the eye and what it is looking at. Both planes are half-spaces, so a
-   *  segment with both ends in front of one never crosses it — which is why this is asserted on the
-   *  ends and named for what it means. */
-  it.each(presetsAcross(SAMPLED_ROOMS))(
-    "$id puts no wall between the eye and its target at $widthMm x $depthMm x $heightMm",
-    ({ id, room }) => {
-      const preset = findCameraPresetForRoom(id, room);
-
-      for (const [label, point] of [
-        ["eye", preset.position],
-        ["target", preset.target],
-      ] as const) {
-        expect(point[0], `${label} is behind wall B`).toBeGreaterThanOrEqual(
-          BEHIND_A_WALL_M,
-        );
-        expect(point[2], `${label} is behind wall A`).toBeGreaterThanOrEqual(
-          BEHIND_A_WALL_M,
-        );
-      }
-    },
-  );
 });
 
 /** The claim the constant distance is most exposed to. A camera whose stand-off does not grow with

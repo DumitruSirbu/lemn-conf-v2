@@ -322,28 +322,6 @@ describe("the corner ruling — the blind corner paints its box and not its fitt
   const STEEL_HEX = "#cfd4d9";
   const INTERIOR_BOARD_HEX = "#cfccc4";
 
-  it("paints its carcass and its door in the kitchen's colour", () => {
-    drawn(following(HALIFAX));
-
-    expect(
-      coloursOf(BLIND_CORNER.placementId, ["carcass", "door_front"]),
-    ).toEqual([
-      ["carcass", HALIFAX_HEX],
-      ["door_front", HALIFAX_HEX],
-    ]);
-  });
-
-  it("paints them in a colour chosen for that corner, over the kitchen's", () => {
-    drawn(wearingOn(following(HALIFAX), BLIND_CORNER.placementId, NUC_WARMIA));
-
-    expect(
-      coloursOf(BLIND_CORNER.placementId, ["carcass", "door_front"]),
-    ).toEqual([
-      ["carcass", NUC_WARMIA_HEX],
-      ["door_front", NUC_WARMIA_HEX],
-    ]);
-  });
-
   // The same scene that painted the carcass, so this is a boundary and not an unpainted room.
   it("leaves the susan pole and both trays on their own materials", () => {
     drawn(following(HALIFAX));

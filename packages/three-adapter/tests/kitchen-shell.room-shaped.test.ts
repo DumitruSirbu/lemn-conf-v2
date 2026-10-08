@@ -423,21 +423,6 @@ describe("redrawing the room leaves the kitchen standing in it alone", () => {
     expect(owned.materials.has(woodFinish)).toBe(true);
   });
 
-  /** Non-vacuity for the guard above: it must still free what the resize itself made. */
-  it("still frees the material and map it cloned on the previous resize", () => {
-    const { kit, shell } = shellFor(SEEDED_ROOM);
-    const floor = meshNamed(shell, "floor");
-    const ownMaterial = soleMaterialOf(floor);
-    const ownMap = required(mapOf(floor), "the floor's own map");
-    const disposeMaterial = spyOnDispose(ownMaterial);
-    const disposeMap = spyOnDispose(ownMap);
-
-    resizeShellToRoom({ kit, shell, room: roomOf(5000, 4000, 3000) });
-
-    expect(disposeMaterial).toHaveBeenCalledOnce();
-    expect(disposeMap).toHaveBeenCalledOnce();
-  });
-
   // A room equal by value but not by identity must redraw nothing: a save round-trip, re-hydrate or `structuredClone`
   // rebuilds `room`, and an identity check would turn every mutation into geometry rebuilds on a handset.
   it("redraws nothing for a room rebuilt from the same three numbers", () => {

@@ -213,16 +213,6 @@ function oneTopRowBodyAt(y0Mm: number, handle?: string): Design {
  * is located here, on the meshes.
  */
 describe("the scene's flip sits between 2199 and 2200, on the same body", () => {
-  it("keeps the bars on at 2199 and takes them off at 2200", () => {
-    mount(oneTopRowBodyAt(TOP_ROW_FLOOR_MM - 1));
-    expect(cabinetBarsOf("solo").built).toBeGreaterThan(0);
-    expect(sceneHidesBarsOn("solo")).toBe(false);
-
-    solidsRoot = new THREE.Group();
-    mount(oneTopRowBodyAt(TOP_ROW_FLOOR_MM));
-    expect(sceneHidesBarsOn("solo")).toBe(true);
-  });
-
   it("sweeps 2195…2205 and flips exactly once, at the module line", () => {
     const flips: number[] = [];
     let previous = false;

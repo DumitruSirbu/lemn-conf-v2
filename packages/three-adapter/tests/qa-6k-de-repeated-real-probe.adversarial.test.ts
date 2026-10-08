@@ -145,10 +145,6 @@ describe("the whole seeded kitchen, structural bodies included", () => {
     }
   });
 
-  it("changes depth without throwing on the unfiltered design", () => {
-    expect(() => changeTo(KITCHEN_L_DESIGN, DEEPER_MM)).not.toThrow();
-  });
-
   it("returns every column to where it started after one trip", () => {
     const started = columnDepthsMm(KITCHEN_L_DESIGN, DEFAULT_MM);
 

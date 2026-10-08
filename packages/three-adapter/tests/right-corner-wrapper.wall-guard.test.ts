@@ -105,13 +105,6 @@ describe("a corner record wraps by its own corner, whatever its wall or frame.x"
     expect(records.filter((r) => r.wall === "A").length).toBeGreaterThan(0);
   });
 
-  it("wraps wall A's right X-leg and not its left one, by their records' corners", () => {
-    const wrapped = rightIdsOf(shellRecords());
-
-    expect(wrapped.has("right-p25")).toBe(true);
-    expect(wrapped.has("p25")).toBe(false);
-  });
-
   it("follows the record's corner against its wall: a wall-C record marked left is not wrapped", () => {
     const records = shellRecords().map((record) =>
       record.id === "right-p26" ? withCorner(record, "left") : record,

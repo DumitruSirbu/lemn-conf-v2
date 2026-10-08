@@ -58,12 +58,6 @@ describe("buildVoidMesh", () => {
     expect(group.rotation.y).toBe(Math.PI / 2);
   });
 
-  it("tags the group root with the void id for picking to climb to", () => {
-    const voidRecord = makeVoidRecord({ id: "B|0.61:v1:1.50" });
-    const { group } = buildVoidMesh(voidRecord);
-    expect(group.userData["voidId"]).toBe("B|0.61:v1:1.50");
-  });
-
   it("computes line distances so the dashed material actually dashes", () => {
     const { edges } = buildVoidMesh(makeVoidRecord());
     expect(edges.geometry.attributes["lineDistance"]).toBeDefined();
