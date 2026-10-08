@@ -3356,6 +3356,103 @@ The chips now stand under the picture, which retires *"the chips over the scene"
 the owners named there. The material pill on screens 3 to 5 stays the owner's question and is not
 a slice. Waves 8E, 8I, 8H and 8J are dispatchable; backlog 121's gate-script fix comes before 8E.
 
+### 8D3 — the boundary gate, red at HEAD, with backlog 121 (ruled 2026-10-08)
+
+**8E waits for this.** Backlog 121 says so, and a red gate lets nothing be pushed.
+
+**What is true at `ad535d0`.** `sh scripts/gates/boundary.sh` exits 1 on
+`apps/web/tests/app/qa-8d-two-doors-real-repository.adversarial.test.ts:11`, a driver import in a
+web test, there since 8D's QA commit `95a72fb` [relayed, coordinator-run]. Three things, classed
+apart:
+
+| What | Class | Why it was not seen |
+| --- | --- | --- |
+| A web test imports the Postgres driver | Implementation defect, in a test | The rule was written (ARCH §3); the test broke it |
+| The gate reads one line of one import form (backlog 121, F1) | Test-fidelity problem in a gate | As ruled in 8B |
+| Two waves closed with the gate red | A gap in the gates | `pnpm check`, which closes a wave, does not run it [src `package.json:13`]; only a push and CI do [src `scripts/local-ci.sh`, `ci.yml:751-762`] |
+
+**Ruling 1 — the test stops asking the driver and listens at the global `fetch`. No seam, no
+move, no exemption.** The installed driver sends through `fetchFunction ?? fetch`, read at the
+call [src `@neondatabase/serverless@1.1.0`, `index.mjs`: `await(W??fetch)(…)`], and nothing in
+`packages/persistence/src` sets `fetchFunction` [ran: a search found it in tests only]. So
+production sends through the global `fetch`, and that is where the test should stand. It already
+stubs it, to catch a request that went round the driver [src `:80-84`].
+
+- *What the test does instead:* its one stub of `fetch` sorts every request. A `POST` to the
+  driver's SQL endpoint for the test's own unroutable host is a query, read as now; anything else
+  is a request past the driver, refused as now. For this host the endpoint is
+  `https://api.invalid/sql` [src: the driver swaps the host's first label for `api.`].
+- *Why not the others.* A seam exported by persistence is production code that hands every app a
+  way to swap the transport, for one test. The test cannot move into persistence: it renders two
+  of the app's pages. An exemption is the gate agreeing to be wrong in one named place.
+- **What must not weaken.** No assertion is removed or loosened, no test renamed, the ten tests
+  stay ten, and every count stays the number it is. Every test that counts queries also asserts
+  that nothing went past the driver, so a query the sorter missed cannot read as none. *Must
+  not:* the driver, or `@lemnaria/persistence`, is mocked; a persistence export is added for it.
+- **It sees more than before, and that is the point of it.** A second copy of the driver, or a
+  module that posts to the endpoint itself, is now seen; a swap of one copy's option saw neither.
+- **A control, shown once and quoted:** with one extra query sent on one door, the count test
+  goes red. [That the stub reaches the driver under vitest is my inference from the source; this
+  control is its proof.]
+- *Who:* **QA**, since the file is QA's and no production line changes.
+
+**Ruling 2 — `apps/web`'s own dependency on the driver goes, in this wave, as its own commit,
+after the test.** It is a `devDependency` added in M3 with an e2e spec [src `git log -S`, commit
+`01afb26`], and no file under `apps/` but this test uses it [ran: `git grep`]. Without it the
+import cannot resolve from `apps/web` at all: the root holds no hoisted copy [ran:
+`ls node_modules/@neondatabase` finds nothing]. That is the boundary held by the package layout
+and not by a pattern. *Proved, not assumed:* before the test is rewritten, the old import is
+shown not to resolve once the entry is gone; the lockfile's diff is `apps/web`'s importer entry
+and no version; typecheck, the web suite and the build are green.
+
+**Ruling 3 — the gate.** The coordinator's pattern is right and so is the wider extension list.
+Three additions, and a test.
+
+- **A manifest check, first.** No `package.json` outside `packages/persistence` declares
+  `@neondatabase/serverless` or `pg`. Today it finds `apps/web/package.json:35` and nothing else
+  [ran]. This is the strong half: it covers every spelling of an import, the next-line specifier
+  included.
+- **The driver's scoped name as any single- or double-quoted string**, with no keyword before
+  it. That also catches `vi.mock("…")` and `vi.importActual("…")`, which the keyword form does
+  not. On the real tree it finds the one line [ran]. **Not backticks:** with them it flags a
+  comment that names the package [ran: `tests/lib/persistence-imports.test.ts:5`]. `pg` keeps the
+  keyword form, since a bare `"pg"` is not an import.
+- *The hole left, named:* a template-literal or next-line specifier for `pg`, which no manifest
+  declares [ran]; the manifest check is what stands there.
+- **A fixture test, yes.** This gate has now been found too narrow twice. The script runs from
+  whatever repository it is in [src `boundary.sh:9`], so the test builds a scratch repository,
+  writes samples, runs the script and reads its exit: each form above refused, including an
+  untracked file and a wrapped import; `pg-format`, `./pg`, a bare `"pg"`, a backticked mention
+  and the same lines inside `packages/persistence` allowed. *Must not:* a sample lives in the
+  real tree under an extension the gate reads. It runs wherever the gate runs, as the shard
+  budget's test already does beside its gate [src `scripts/local-ci.sh:130-131`].
+- **Where it runs: at pre-commit and in `pnpm check`, as well as at push and in CI.** The hook
+  leaves out tests and typecheck because they need a database [src `.githooks/pre-commit:10-12`];
+  this needs neither a network nor a credential. And `check` is the command a wave closes on. The
+  cost, as with lint there: another agent's unstaged violation stops an unrelated commit.
+
+**Ruling 4 — tier and order.** *Tier: Light*, one combined reviewer. *Said plainly:* the tier
+table puts *"dependency changes"* under Full [doc `WORKFLOW.md:250`]. I read that row as guarding
+code that newly runs; this removes a development-only entry nothing uses, with the proof above.
+If the coordinator holds the row to its letter, ruling 2 alone takes the second reviewer.
+
+| Slice | Does | Files | Reading |
+| --- | --- | --- | --- |
+| S1 (QA) | The test listens at `fetch`; the control | the one `qa-8d-two-doors…` file | ruling 1; the file itself |
+| S2 (coordinator) | The dependency leaves | `apps/web/package.json`, `pnpm-lock.yaml` | ruling 2 |
+| S3 (coordinator) | The gate, its fixture test, the hook, `check` | `scripts/gates/boundary.sh`, its test, `.githooks/pre-commit`, `package.json`, `scripts/local-ci.sh`, `ci.yml` | ruling 3; `ci-and-local-gates.md` |
+
+*Reviewer reading:* this section; the rewritten test against `95a72fb`'s; the gate and its
+samples. *It answers two questions:* can the test still fail for every reason it could, and does
+the gate refuse each form it claims to.
+
+*Criteria.* (1) `boundary.sh` exits 0 at the wave's HEAD and its fixture test is green.
+(2) The rewritten test passes; its control was red. (3) The web suite's count of passing tests
+does not fall. (4) *Must not:* any other `qa-*` file changes; a gate is narrowed to pass.
+
+*For the scribe:* backlog 121 closes with this; `ci-and-local-gates.md` gains where the gate
+runs and why it joined the hook; ADR 0146's record of the opener is untouched.
+
 ### 8E — the rate-limit store
 
 *Goal.* Postgres counts requests per bucket and window, atomically (ADR 0019 Alternative 4 rejected
