@@ -516,8 +516,8 @@ describe("saveAuthorized is one statement, and the predicate is in it", () => {
 // The column is removed and the migration asked to put it back: only a migration that actually executes passes,
 // where a no-op `runMigrations` exiting 0 would not (see ADR 0013). The ledger rows are forgotten too, for every
 // version from 2 up: the runner refuses a ledger with a hole, so a later recorded migration would wedge the
-// shared test database. A migration added after 0006 belongs in this list for the same reason.
-const WRITE_TOKEN_MIGRATION_VERSIONS = [2, 3, 4, 5, 6];
+// shared test database. A migration added after 0007 belongs in this list for the same reason.
+const WRITE_TOKEN_MIGRATION_VERSIONS = [2, 3, 4, 5, 6, 7];
 describe("the write-token migration actually executes", () => {
   const sql = hasLiveDatabase ? neon(testDatabaseUrl) : undefined;
 
@@ -549,6 +549,7 @@ describe("the write-token migration actually executes", () => {
         "0004_add_design_revision.sql",
         "0005_add_design_visitor_hash.sql",
         "0006_create_design_share_links.sql",
+        "0007_create_rate_limit_counters.sql",
       ]);
 
       const columns = await writeTokenColumns();

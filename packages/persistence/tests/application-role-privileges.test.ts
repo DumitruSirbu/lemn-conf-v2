@@ -148,4 +148,33 @@ describe.skipIf(!hasLiveDatabase)("the application's database role", () => {
       "delete from design_share_links where token_hash = 'no-such-token'",
     );
   });
+
+  // Conditional on the table's existence, as for `design_share_links` above: `DELETE` is granted on this table
+  // alone, because the prune deletes expired windows (Q14 (ii)), and designs stay undeletable.
+  it("holds exactly select, insert, update and delete on rate_limit_counters, once it exists", async (context) => {
+    const sql = neon(readDatabaseUrl());
+
+    const [tableProbe] = (await sql`
+      select to_regclass('public.rate_limit_counters') is not null as exists
+    `) as { exists: boolean }[];
+    context.skip(
+      tableProbe?.exists !== true,
+      "rate_limit_counters does not exist yet on this database",
+    );
+
+    const grants = (await sql`
+      select privilege_type
+      from information_schema.role_table_grants
+      where grantee = current_user and table_name = 'rate_limit_counters'
+      order by privilege_type
+    `) as { privilege_type: string }[];
+
+    expect(grants.map((row) => row.privilege_type)).toEqual([
+      "DELETE",
+      "INSERT",
+      "SELECT",
+      "UPDATE",
+    ]);
+    await expectRefused("delete from designs where id = 'no-such-design'");
+  });
 });

@@ -21,7 +21,7 @@ describe("readMigrationFiles", () => {
     const migrations = readMigrationFiles();
 
     expect(migrations.map((migration) => migration.version)).toEqual([
-      1, 2, 3, 4, 5, 6,
+      1, 2, 3, 4, 5, 6, 7,
     ]);
     expect(migrations.map((migration) => migration.fileName)).toEqual([
       "0001_create_designs.sql",
@@ -30,6 +30,7 @@ describe("readMigrationFiles", () => {
       "0004_add_design_revision.sql",
       "0005_add_design_visitor_hash.sql",
       "0006_create_design_share_links.sql",
+      "0007_create_rate_limit_counters.sql",
     ]);
   });
 

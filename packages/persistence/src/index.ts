@@ -39,6 +39,14 @@ export type {
   ShareLinkStatus,
   ShareLinkStatusOutcome,
 } from "./share-link-repository.js";
+export { NeonRateLimitStore, RateLimitStoreError } from "./rate-limit-store.js";
+export type {
+  RateLimitBucket,
+  RateLimitOperation,
+  RateLimitStore,
+  RateLimitWindow,
+} from "./rate-limit-store.js";
+export { FakeRateLimitStore } from "./fake-rate-limit-store.js";
 export { runMigrations } from "./migrate.js";
 export type { MigrationRunSummary } from "./migrate.js";
 export {

@@ -136,6 +136,12 @@ const EXPECTED_CLASSIFICATION: Readonly<
     reason:
       "writes share-link rows through a fresh design per test and needs the schema intact (M7 wave 7E3c D3)",
   },
+  "neon-rate-limit-store.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "writes counter rows under random keys and needs the schema intact (M8 wave 8E)",
+  },
   "retried-writes-leave-no-trace.test.ts": {
     gate: "live test database",
     lock: "shared",
