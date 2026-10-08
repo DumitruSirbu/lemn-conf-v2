@@ -275,6 +275,25 @@
   border-radius: 50%;
 }
 
+/* Frame 3A's two lines: the name, then the facts under it in the smaller, quieter type, with a middle dot drawn
+ * between them so that no text carries it. */
+.rowText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.rowFacts {
+  font: 400 11px/1.3 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-faint);
+}
+
+.rowFacts > span + span::before {
+  content: " · ";
+}
+
 .rowAmount {
   font: 700 13px/1.4 var(--font-ui);
   font-variant-numeric: tabular-nums;

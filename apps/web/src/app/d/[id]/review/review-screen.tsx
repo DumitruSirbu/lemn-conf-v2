@@ -169,6 +169,7 @@ function AvailableBody({
         <ReviewGroups
           designId={designId}
           groups={review.groups}
+          rowDetails={review.rowDetails}
           markedPlacementIds={markedPlacementIds}
           refusalSentenceId={refusalSentenceId}
         />

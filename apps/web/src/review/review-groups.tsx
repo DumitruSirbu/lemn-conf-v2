@@ -10,6 +10,8 @@ import type {
   BreakdownRow,
 } from "@/price/price-breakdown-model";
 
+import type { ReviewRowDetail } from "./review-model";
+
 /** What the editor is asked to do on arrival: select one body, or open the whole-kitchen settings. */
 export interface EditorArrival {
   readonly select?: string;
@@ -25,6 +27,8 @@ export function editorHref(designId: DesignId, arrival: EditorArrival = {}) {
 export interface ReviewGroupsProps {
   readonly designId: DesignId;
   readonly groups: readonly BreakdownGroup[];
+  /** Each body's two lines by placement id, the model's words. */
+  readonly rowDetails: Readonly<Record<string, ReviewRowDetail>>;
   /** The rows of bodies the refusal names, which are marked and tied to the sentence that says why. */
   readonly markedPlacementIds: ReadonlySet<string>;
   readonly refusalSentenceId: string;
@@ -35,6 +39,7 @@ export interface ReviewGroupsProps {
 export function ReviewGroups({
   designId,
   groups,
+  rowDetails,
   markedPlacementIds,
   refusalSentenceId,
 }: ReviewGroupsProps) {
@@ -43,6 +48,7 @@ export function ReviewGroups({
       key={group.key}
       designId={designId}
       group={group}
+      rowDetails={rowDetails}
       markedPlacementIds={markedPlacementIds}
       refusalSentenceId={refusalSentenceId}
     />
@@ -68,11 +74,13 @@ export function ReviewWholeKitchenRows({
 function ReviewGroup({
   designId,
   group,
+  rowDetails,
   markedPlacementIds,
   refusalSentenceId,
 }: {
   readonly designId: DesignId;
   readonly group: BreakdownGroup;
+  readonly rowDetails: Readonly<Record<string, ReviewRowDetail>>;
   readonly markedPlacementIds: ReadonlySet<string>;
   readonly refusalSentenceId: string;
 }) {
@@ -106,6 +114,9 @@ function ReviewGroup({
           <ReviewRow
             key={row.key}
             row={row}
+            {...(rowDetails[row.key] === undefined
+              ? {}
+              : { detail: rowDetails[row.key] })}
             {...(markedPlacementIds.has(row.key) ? { refusalSentenceId } : {})}
           />
         ))}
@@ -116,9 +127,12 @@ function ReviewGroup({
 
 function ReviewRow({
   row,
+  detail,
   refusalSentenceId,
 }: {
   readonly row: BreakdownRow;
+  /** The body's two lines; a row without one (a whole-kitchen tier) is its label alone. */
+  readonly detail?: ReviewRowDetail | undefined;
   readonly refusalSentenceId?: string;
 }) {
   const isMarked = refusalSentenceId !== undefined;
@@ -135,7 +149,18 @@ function ReviewRow({
             !
           </span>
         ) : null}
-        {row.label}
+        {detail === undefined ? (
+          row.label
+        ) : (
+          <span className={styles.rowText}>
+            <span data-testid="review-row-name">{detail.name}</span>
+            <span className={styles.rowFacts} data-testid="review-row-facts">
+              {detail.facts.map((fact) => (
+                <span key={fact}>{fact}</span>
+              ))}
+            </span>
+          </span>
+        )}
       </span>
       <span className={styles.rowAmount} data-testid="review-row-amount">
         {row.amountText}

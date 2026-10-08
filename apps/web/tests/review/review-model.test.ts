@@ -297,7 +297,11 @@ describe("the review's fixed sections (criteria 6 and 7)", () => {
 
   it("places every section the model returns, once, so a new section must choose its position", () => {
     const returned = Object.keys(review).filter(
-      (key) => key !== "kind" && key !== "overflowWarning" && key !== "submit",
+      (key) =>
+        key !== "kind" &&
+        key !== "overflowWarning" &&
+        key !== "submit" &&
+        key !== "rowDetails",
     );
 
     expect([...returned].sort()).toEqual(

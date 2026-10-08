@@ -15,6 +15,7 @@ import {
   cabinetDepthMmOf,
   findOverflowingPlacementIds,
   KITCHEN_L_DESIGN,
+  paletteFinish,
   projectDesignForDisplay,
   type Design,
 } from "@lemnaria/configurator-domain";
@@ -230,6 +231,90 @@ describe("an available review of a kitchen that fits", () => {
         element.getAttribute("data-section"),
       ),
     ).toEqual(["figure", "callToAction"]);
+  });
+});
+
+describe("a body's row is two lines", () => {
+  const [first, second] = KITCHEN_L_DESIGN.placements;
+  if (first === undefined || second === undefined)
+    throw new Error("the seeded kitchen holds bodies");
+  const design: Design = {
+    ...KITCHEN_L_DESIGN,
+    placements: KITCHEN_L_DESIGN.placements.map((placement) =>
+      placement.id === second.id
+        ? {
+            ...placement,
+            body: {
+              ...placement.body,
+              finish: paletteFinish("pal.antracit"),
+              handle: "push",
+            },
+          }
+        : placement,
+    ),
+  };
+
+  function rowOf(page: HTMLElement, placementId: string): Element {
+    const groups = [...page.querySelectorAll('[data-testid="review-row"]')];
+    const label = groups.find((row) =>
+      row.textContent.includes(
+        String(
+          design.placements.find((p) => p.id === placementId)?.body.widthMm,
+        ),
+      ),
+    );
+    if (label === undefined) throw new Error("no row");
+    return label;
+  }
+
+  it("draws the name on the first line and the width on the second, for every body", () => {
+    const page = render(design);
+    const rows = page.querySelectorAll(
+      '[data-testid="review-group"] [data-testid="review-row"]',
+    );
+
+    expect(rows).toHaveLength(design.placements.length);
+    for (const row of rows) {
+      expect(
+        row.querySelector('[data-testid="review-row-name"]')?.textContent,
+      ).toBeTruthy();
+      expect(
+        row.querySelector('[data-testid="review-row-facts"] span')?.textContent,
+      ).toMatch(/^\d+ mm$/);
+    }
+  });
+
+  it("names a body's own finish and handle on its second line, after the width, and nobody else's", () => {
+    const page = render(design);
+    const withOwn = [
+      ...page.querySelectorAll('[data-testid="review-row-facts"]'),
+    ].filter((facts) => facts.querySelectorAll("span").length > 1);
+
+    expect(withOwn).toHaveLength(1);
+    expect(
+      [...(withOwn[0]?.querySelectorAll("span") ?? [])].map(
+        (fact) => fact.textContent,
+      ),
+    ).toEqual([
+      `${String(second.body.widthMm)} mm`,
+      ro.finishName("pal.antracit"),
+      roMessages.panel.handleLabels.push,
+    ]);
+    expect(rowOf(page, second.id)).toBe(
+      withOwn[0]?.closest('[data-testid="review-row"]') ?? null,
+    );
+  });
+
+  it("draws a whole-kitchen row on one line, and no row as a count of bodies", () => {
+    const page = render(design);
+
+    expect(
+      page.querySelectorAll(
+        '[data-testid="review-whole-kitchen"] [data-testid="review-row-facts"]',
+      ),
+    ).toHaveLength(0);
+    for (const row of page.querySelectorAll('[data-testid="review-row"]'))
+      expect(row.textContent).not.toMatch(/\d+ × \d+/);
   });
 });
 

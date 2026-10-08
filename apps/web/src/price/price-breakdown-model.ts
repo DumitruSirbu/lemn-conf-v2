@@ -207,6 +207,15 @@ function toBreakdownGroup(
   };
 }
 
+/** A body's name without its width: the first line of a two-line row. The label above is this and the width, from
+ *  the same `bodyLabel`, so the two never name a body differently. */
+export function describePlacementName(
+  entry: DisplayEntry,
+  content: Content,
+): string {
+  return content.bodyLabel(entry.label);
+}
+
 /** The words a body's row prints, from the projection's entry alone, so a surface that names a body without
  *  a price uses the same ones. */
 export function describePlacementLabel(

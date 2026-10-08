@@ -9,7 +9,9 @@ import {
   cornerDirectionOf,
   findOverflowingPlacementIds,
   type Design,
+  type DisplayEntry,
   type DisplayGroup,
+  type Finish,
   type PricedDesign,
   type PricingResult,
   type WholeKitchenPriceLine,
@@ -19,6 +21,7 @@ import type { Content, ReviewRoomLine } from "@/i18n/content";
 import {
   describeBreakdownRows,
   describePlacementLabel,
+  describePlacementName,
   type BreakdownGroup,
   type BreakdownRow,
 } from "@/price/price-breakdown-model";
@@ -34,6 +37,17 @@ import { parsedRoomLengthsOf } from "@/room/room-url-state";
 export interface ReviewSettingsRow {
   readonly heading: string;
   readonly settings: readonly string[];
+}
+
+/**
+ * What a body's row says under the frame's two lines: its name without the width, then the facts that follow it, in
+ * order. The width always; the body's own finish and its handle exactly when it carries one (ADR 0099: a body on the
+ * kitchen's colour names none). The row's `label` stays the breakdown's, the name and the width together, which is
+ * what a refusal calls the body, so the two lines state what the label says and more.
+ */
+export interface ReviewRowDetail {
+  readonly name: string;
+  readonly facts: readonly string[];
 }
 
 /** A slot drawn from the approved breakdown disclaimer: the lines come from one place and nothing else
@@ -80,6 +94,8 @@ export interface AvailableReview {
   readonly roomLine: string;
   readonly settingsRow: ReviewSettingsRow;
   readonly groups: readonly BreakdownGroup[];
+  /** The two lines of each body's row, by placement id: the breakdown's rows are not touched. */
+  readonly rowDetails: Readonly<Record<string, ReviewRowDetail>>;
   readonly wholeKitchenRows: readonly BreakdownRow[];
   readonly notIncluded: ReviewNotIncludedSlot;
   readonly disclaimer: ReviewDisclaimer;
@@ -92,7 +108,10 @@ export interface AvailableReview {
 export type ReviewView = UnavailableReview | AvailableReview;
 
 export type ReviewSection =
-  | Exclude<keyof AvailableReview, "kind" | "overflowWarning" | "submit">
+  | Exclude<
+      keyof AvailableReview,
+      "kind" | "overflowWarning" | "submit" | "rowDetails"
+    >
   | "overflowWarning"
   | "refusal"
   | "callToAction";
@@ -180,6 +199,7 @@ function describeAvailableReview(
     ),
     settingsRow: describeSettingsRow(priced, content),
     groups: rows.groups,
+    rowDetails: describeRowDetails(groups, content),
     wholeKitchenRows: rows.wholeKitchenRows,
     notIncluded: describeNotIncludedSlot(content),
     disclaimer: describeDisclaimer(content),
@@ -193,6 +213,42 @@ function describeAvailableReview(
         : { kind: "allowed" },
     ...(warning === undefined ? {} : { overflowWarning: warning }),
   };
+}
+
+function describeRowDetails(
+  groups: readonly DisplayGroup[],
+  content: Content,
+): Readonly<Record<string, ReviewRowDetail>> {
+  return Object.fromEntries(
+    groups
+      .flatMap((group) => group.entries)
+      .map((entry) => [entry.placementId, describeRowDetail(entry, content)]),
+  );
+}
+
+function describeRowDetail(
+  entry: DisplayEntry,
+  content: Content,
+): ReviewRowDetail {
+  return {
+    name: describePlacementName(entry, content),
+    facts: [
+      content.panel.widthValue(entry.widthMm),
+      ...(entry.finish === undefined
+        ? []
+        : [describeFinish(entry.finish, content)]),
+      ...(entry.handle === undefined
+        ? []
+        : [content.panel.handleLabels[entry.handle]]),
+    ],
+  };
+}
+
+/** A palette finish by its approved name; a free colour has no name, so by its value, as the settings pill speaks it. */
+function describeFinish(finish: Finish, content: Content): string {
+  return finish.kind === "palette-entry"
+    ? content.finishName(finish.entryId)
+    : content.globalSettings.pillColourValue(finish.value);
 }
 
 function unavailable(submit: RefusedSubmit): UnavailableReview {
