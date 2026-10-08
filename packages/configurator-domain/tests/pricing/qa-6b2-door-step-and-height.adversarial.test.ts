@@ -703,6 +703,13 @@ describe("taller costs more, on every shape that carries the term", () => {
 });
 
 describe("a second door costs more, and costs exactly what the book says it costs", () => {
+  // The loop below generates its cases from this population, so an empty one would generate none and
+  // stay green. The three ids themselves are pinned in pricing-seams.test.ts ("prices every row whose
+  // door count follows its width with a shape that steps").
+  it("sweeps three rows whose door count follows their width (premise)", () => {
+    expect(DOOR_COUNT_ROWS).toHaveLength(3);
+  });
+
   for (const buildId of DOOR_COUNT_ROWS) {
     it(`prices ${buildId} higher with two doors than with one, at one width`, () => {
       // Needs two books because a real cabinet cannot have both door counts at one width.
