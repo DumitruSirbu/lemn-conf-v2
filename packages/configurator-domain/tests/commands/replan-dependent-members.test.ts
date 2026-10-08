@@ -21,6 +21,7 @@ import { entryLabel } from "../../src/catalog.js";
 import { paletteFinish } from "../../src/materials.js";
 
 import { normaliseBand } from "../../src/bands.js";
+import { columnDecidesItsDepth } from "../../src/commands/replan-dependent-members.js";
 import {
   columnDecidesADifferentDepth,
   openingFromPlacement,
@@ -240,20 +241,24 @@ describe("who is re-planned is read off declarations, never off a list of ids", 
    *  — the entry's band, its depth rule and where its occupied depth is measured from — so this
    *  sweep asserts the *rule* rather than agreeing with whatever the implementation did. A list of
    *  build ids on either side would fail ADR 0058 decision 2. */
-  const columnDecidesItsDepth = (definition: BodyDefinition): boolean =>
+  const decidesItsDepthAsRestated = (definition: BodyDefinition): boolean =>
     normaliseBand(definition.band) === "wall" &&
     definition.depthRule !== undefined &&
     depthFollowsSetting(definition.depthRule) &&
     definition.occupiedDepth.measuredFrom === "recorded-shell";
 
   const admitted = [...KITCHEN_L_BODY_CATALOG.entries()]
-    .filter(([, definition]) => columnDecidesItsDepth(definition))
+    .filter(([, definition]) => decidesItsDepthAsRestated(definition))
     .map(([buildId]) => buildId);
 
   it("admits a population the shipped catalogue actually has", () => {
-    // Measured on 2026-09-08 and asserted exactly, not as a floor: a rule that stopped tracking
-    // half the catalogue would still clear a floor, and this number moving is a reader's business.
-    // 14 → 16 (M7C wave C2): the corner wall unit's two rows decide their depth as the returns do.
+    // The production rule over the whole catalogue against the restatement above, row for row. The count is
+    // asserted exactly, not as a floor: two rules that both stopped tracking half the catalogue would still agree.
+    const admittedByProduction = [...KITCHEN_L_BODY_CATALOG.entries()]
+      .filter(([, definition]) => columnDecidesItsDepth(definition))
+      .map(([buildId]) => buildId);
+
+    expect(admittedByProduction).toEqual(admitted);
     expect(admitted.length).toBe(16);
   });
 
