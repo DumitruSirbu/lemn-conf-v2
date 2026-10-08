@@ -1,7 +1,4 @@
 import { randomBytes } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 
 import { neon, neonConfig } from "@neondatabase/serverless";
 import {
@@ -38,6 +35,11 @@ import {
   CONTRACT_SUITE_ERA,
   QA_8E_ERA,
 } from "./support/rate-limit-test-eras.js";
+import {
+  TABLE_PRIVILEGES_EVERY_SERVER_KNOWS,
+  privilegesHeldOn,
+  tablePrivilegesTheServerKnows,
+} from "./support/table-privileges.js";
 import { holdSharedTestSchemaLock } from "./support/test-schema-lock.js";
 
 // Shared: this file writes counter rows under random keys and needs the schema intact while it does.
@@ -72,10 +74,6 @@ const END_RACE_CALLERS = 12;
 const LONGER_LOSS_SEQUENCES = 12;
 const LONGER_LOSS_SEQUENCE_LENGTH = 6;
 const LOST_REPLY_TIMEOUT_MS = 480_000;
-const GRANT_TEST_PATH = resolve(
-  dirname(fileURLToPath(import.meta.url)),
-  "application-role-privileges.test.ts",
-);
 
 interface Loss {
   readonly reply: LostReply;
@@ -1123,53 +1121,128 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
     );
   });
 
-  describe("criterion 7: the grant test's own question, asked where the table exists", () => {
-    /** Read from the grant test's own source, so this follows that test and not a copy of its list. */
-    const PRIVILEGES_THE_GRANT_TEST_ASKS_ABOUT = [
-      ...readFileSync(GRANT_TEST_PATH, "utf8").matchAll(
-        /has_table_privilege\(current_user, 'public\.rate_limit_counters', '([A-Z]+)'\)/g,
-      ),
-    ].map((match) => match[1] ?? "");
+  describe("criterion 7: the grant test's helpers, asked of tables whose answer can be stated here", () => {
+    /** Every privilege keyword Postgres grants on anything, so a table privilege the helper's query misses is in it. */
+    const PRIVILEGE_KEYWORDS = [
+      "SELECT",
+      "INSERT",
+      "UPDATE",
+      "DELETE",
+      "TRUNCATE",
+      "REFERENCES",
+      "TRIGGER",
+      "MAINTAIN",
+      "USAGE",
+      "CREATE",
+      "CONNECT",
+      "TEMPORARY",
+      "EXECUTE",
+      "SET",
+      "ALTER SYSTEM",
+      "ALL",
+      "ALL PRIVILEGES",
+    ];
 
-    it("asks about at least the four privileges the store needs and the three it must not hold", () => {
-      expect(PRIVILEGES_THE_GRANT_TEST_ASKS_ABOUT).toEqual(
-        expect.arrayContaining([
-          "SELECT",
-          "INSERT",
-          "UPDATE",
-          "DELETE",
-          "TRUNCATE",
-          "REFERENCES",
-          "TRIGGER",
-        ]),
+    async function isATablePrivilegeHere(keyword: string): Promise<boolean> {
+      if (sql === undefined) throw new Error("no live test database");
+      try {
+        await sql`select has_table_privilege(current_user, 'pg_catalog.pg_class', ${keyword})`;
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    it("lists exactly the keywords this server takes as a table privilege, by a second road than its own query", async () => {
+      if (sql === undefined) throw new Error("no live test database");
+      const accepted: string[] = [];
+      for (const keyword of PRIVILEGE_KEYWORDS)
+        if (await isATablePrivilegeHere(keyword)) accepted.push(keyword);
+
+      const known = await tablePrivilegesTheServerKnows(sql);
+
+      expect(known).toEqual(accepted.sort());
+      expect(known).toEqual(
+        expect.arrayContaining([...TABLE_PRIVILEGES_EVERY_SERVER_KNOWS]),
       );
     });
 
-    it("is a question this server answers with a boolean for each privilege it names", async () => {
+    it("would list the same privileges for every role on this server, so the role asking cannot shorten the list", async () => {
       if (sql === undefined) throw new Error("no live test database");
 
-      const answers = (await sql`
-        select privilege, has_table_privilege(current_user, 'public.rate_limit_counters', privilege) as held
-        from unnest(${PRIVILEGES_THE_GRANT_TEST_ASKS_ABOUT}::text[]) as asked (privilege)
-      `) as { privilege: string; held: unknown }[];
+      const listsByRole = (await sql`
+        select distinct array_agg(privilege order by privilege) as privileges
+        from (
+          select rolname, (aclexplode(acldefault('r', oid))).privilege_type as privilege
+          from pg_roles
+        ) as exploded
+        group by rolname
+      `) as { privileges: string[] }[];
 
-      expect(answers.map((answer) => typeof answer.held)).toEqual(
-        PRIVILEGES_THE_GRANT_TEST_ASKS_ABOUT.map(() => "boolean"),
+      expect(listsByRole.map((row) => row.privileges)).toEqual([
+        await tablePrivilegesTheServerKnows(sql),
+      ]);
+    });
+
+    // `pg_maintain` holds MAINTAIN on every relation, and the test database's role may be a member of it. Neither is a
+    // grant to the role itself, which is what the grant test's earlier query read and would have missed.
+    it("reads SELECT, held only through PUBLIC, and MAINTAIN exactly when the role is in pg_maintain, and nothing else on a catalogue table", async () => {
+      if (sql === undefined) throw new Error("no live test database");
+      const known = await tablePrivilegesTheServerKnows(sql);
+
+      const direct = (await sql`
+        select privilege_type
+        from information_schema.role_table_grants
+        where grantee = current_user and table_schema = 'pg_catalog' and table_name = 'pg_class'
+      `) as unknown[];
+      const [membership] = (await sql`
+        select coalesce(pg_has_role(current_user, to_regrole('pg_maintain'), 'USAGE'), false) as is_in_pg_maintain
+      `) as { is_in_pg_maintain: boolean }[];
+      const held = await privilegesHeldOn(sql, "pg_catalog.pg_class", known);
+
+      expect(direct).toEqual([]);
+      expect(held).toEqual(
+        membership?.is_in_pg_maintain === true
+          ? ["MAINTAIN", "SELECT"]
+          : ["SELECT"],
       );
     });
 
-    it("leaves out no table privilege this server knows", async () => {
+    it("reads every privilege the server knows as held on a table the role owns", async () => {
       if (sql === undefined) throw new Error("no live test database");
+      const known = await tablePrivilegesTheServerKnows(sql);
 
-      const known = (await sql`
-        select distinct (aclexplode(acldefault('r', relowner))).privilege_type as privilege
+      const [ownership] = (await sql`
+        select pg_get_userbyid(relowner) = current_user as is_owner
         from pg_class
         where oid = 'public.rate_limit_counters'::regclass
-        order by privilege
-      `) as { privilege: string }[];
+      `) as { is_owner: boolean }[];
+      const held = await privilegesHeldOn(
+        sql,
+        "public.rate_limit_counters",
+        known,
+      );
 
-      expect(known.map((row) => row.privilege)).toEqual(
-        [...PRIVILEGES_THE_GRANT_TEST_ASKS_ABOUT].sort(),
+      expect(ownership?.is_owner).toBe(true);
+      expect(held).toEqual(known);
+    });
+
+    it("rejects for a table that does not exist, so an absent table cannot read as one on which nothing is held", async () => {
+      if (sql === undefined) throw new Error("no live test database");
+      const known = await tablePrivilegesTheServerKnows(sql);
+
+      const outcome = await outcomeOf(
+        privilegesHeldOn(sql, "public.qa_8e_no_such_table", known),
+      );
+
+      expect(outcome).toBeInstanceOf(Error);
+    });
+
+    it("holds nothing when asked about no privilege, which the grant test's floor is there to refuse", async () => {
+      if (sql === undefined) throw new Error("no live test database");
+
+      expect(await privilegesHeldOn(sql, "pg_catalog.pg_class", [])).toEqual(
+        [],
       );
     });
   });
