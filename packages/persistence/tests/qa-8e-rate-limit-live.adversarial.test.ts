@@ -1,4 +1,10 @@
+import { execFile } from "node:child_process";
 import { randomBytes } from "node:crypto";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 
 import { neon, neonConfig } from "@neondatabase/serverless";
 import {
@@ -21,6 +27,11 @@ import type {
   RateLimitBucket,
   RateLimitWindow,
 } from "../src/rate-limit-store.js";
+import {
+  describeWhereTheRunIs,
+  readConnectionFacts,
+  reasonsTheConnectionIsNotTheApplicationRole,
+} from "./support/connection-facts.js";
 import { markersFoundOn } from "./support/leaked-connection-markers.js";
 import {
   announceSkippedLiveSuite,
@@ -74,6 +85,9 @@ const END_RACE_CALLERS = 12;
 const LONGER_LOSS_SEQUENCES = 12;
 const LONGER_LOSS_SEQUENCE_LENGTH = 6;
 const LOST_REPLY_TIMEOUT_MS = 480_000;
+const PACKAGE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const VITEST_BIN = resolve(PACKAGE_ROOT, "../../node_modules/.bin/vitest");
+const execFileAsync = promisify(execFile);
 
 interface Loss {
   readonly reply: LostReply;
@@ -152,6 +166,36 @@ function shuffled<Item>(items: readonly Item[], random: () => number): Item[] {
 /** Postgres text cannot hold a NUL, so such a key can never be a row and cannot be named in a cleanup either. */
 function isStorableText(key: string): boolean {
   return !key.includes("\u0000");
+}
+
+/**
+ * Routes the driver's requests through the real fetch and notes every reply that is not a 200, by its status alone,
+ * and every request that got no reply, by its error's name. Nothing of a reply's body or of the request is kept.
+ */
+function watchingHowTheProxyAnswers(): {
+  readonly troubles: string[];
+  restore: () => void;
+} {
+  const previous: unknown = neonConfig.fetchFunction;
+  const troubles: string[] = [];
+  neonConfig.fetchFunction = async (
+    ...request: Parameters<typeof fetch>
+  ): Promise<Response> => {
+    try {
+      const reply = await fetch(...request);
+      if (reply.status !== 200) troubles.push(`HTTP ${String(reply.status)}`);
+      return reply;
+    } catch (error) {
+      troubles.push(error instanceof Error ? error.name : typeof error);
+      throw error;
+    }
+  };
+  return {
+    troubles,
+    restore: () => {
+      neonConfig.fetchFunction = previous;
+    },
+  };
 }
 
 function rejectionsOf(
@@ -289,12 +333,19 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
         const hits = 150;
         const bucket = { key: newKey(), window: newHourWindow() };
         const limiter = store();
+        const transport = watchingHowTheProxyAnswers();
 
-        const answers = await Promise.all(
+        const settled = await Promise.allSettled(
           oneToN(hits).map(() => limiter.recordHits([bucket])),
-        );
+        ).finally(transport.restore);
 
-        expect(ascending(answers.flat())).toEqual(oneToN(hits));
+        // Stated first, so a run the proxy itself disturbed says so and is not read as a lost update.
+        expect(transport.troubles).toEqual([]);
+        expect(causesOf(rejectionsOf(settled))).toEqual([]);
+        const answers = settled.flatMap((result) =>
+          result.status === "fulfilled" ? [...result.value] : [],
+        );
+        expect(ascending(answers)).toEqual(oneToN(hits));
         expect(
           (await storedRowsOf([bucket.key])).map((row) => row.hits),
         ).toEqual([hits]);
@@ -950,8 +1001,18 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
       neonConfig.fetchFunction = driverFetch;
     });
 
-    it.each([0, 1, 2, 1000])(
-      "makes at most one HTTP request for %i buckets, and counts every one of them",
+    it("refuses an empty list before any HTTP request, as a plain refusal and not as an answer of no counts", async () => {
+      const outcome = await outcomeOf(store().recordHits([]));
+
+      expect(outcome).toBeInstanceOf(Error);
+      expect(outcome).not.toBeInstanceOf(RateLimitStoreError);
+      expect(outcome).not.toBeInstanceOf(RateLimitWindowConflictError);
+      expect((outcome as Error).message).toMatch(/lists no bucket/);
+      expect(roundTrips).toBe(0);
+    });
+
+    it.each([1, 2, 1000])(
+      "makes exactly one HTTP request for %i buckets, and counts every one of them",
       async (bucketCount) => {
         const window = newHourWindow();
         const buckets: RateLimitBucket[] = oneToN(bucketCount).map(() => ({
@@ -964,7 +1025,7 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
         const roundTripsOfTheFirst = roundTrips;
         const second = await limiter.recordHits([...buckets].reverse());
 
-        expect(roundTripsOfTheFirst).toBe(bucketCount === 0 ? 0 : 1);
+        expect(roundTripsOfTheFirst).toBe(1);
         expect([...first]).toEqual(buckets.map(() => 1));
         expect([...second]).toEqual(buckets.map(() => 2));
       },
@@ -1245,6 +1306,162 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
         [],
       );
     });
+  });
+
+  describe("criterion 13: the privilege file's guard, on the test database, where the role owns the tables", () => {
+    interface ChildRunReport {
+      readonly numTotalTests: number;
+      readonly numPassedTests: number;
+      readonly numFailedTests: number;
+      readonly numPendingTests: number;
+      readonly numTodoTests: number;
+      readonly testResults: readonly {
+        readonly assertionResults: readonly {
+          readonly status: string;
+          readonly failureMessages: readonly string[];
+        }[];
+      }[];
+    }
+
+    /**
+     * Runs the privilege file as its own process with `DATABASE_URL` set to the test database, where the role is an
+     * owner. `load-env.ts` fills only a variable that is absent, so the value given here is the one the file reads.
+     * Its report goes to a file and its output is dropped, so nothing of the child's environment is printed.
+     */
+    async function runThePrivilegeFileAgainstTheTestDatabase(): Promise<ChildRunReport> {
+      const directory = await mkdtemp(join(tmpdir(), "qa-8e-privilege-run-"));
+      const reportPath = join(directory, "report.json");
+      try {
+        await execFileAsync(
+          VITEST_BIN,
+          [
+            "run",
+            "--config",
+            "vitest.config.ts",
+            "tests/application-role-privileges.test.ts",
+            "--reporter=json",
+            `--outputFile=${reportPath}`,
+          ],
+          {
+            cwd: PACKAGE_ROOT,
+            env: {
+              PATH: process.env["PATH"] ?? "",
+              DATABASE_URL: liveTestDatabaseUrl,
+              TEST_DATABASE_URL: liveTestDatabaseUrl,
+              MIGRATION_DATABASE_URL: "not-a-url://qa-8e-did-not-set-this",
+            },
+            timeout: CONCURRENCY_TIMEOUT_MS,
+          },
+        ).catch(() => undefined);
+        return JSON.parse(await readFile(reportPath, "utf8")) as ChildRunReport;
+      } finally {
+        await rm(directory, { recursive: true, force: true });
+      }
+    }
+
+    it("reads the test database's role as the owner of designs, and names the database and role the server gives", async () => {
+      if (sql === undefined) throw new Error("no live test database");
+
+      const facts = await readConnectionFacts(sql);
+      const [asked] = (await sql`
+        select current_database() as database_name, current_user::text as role_name
+      `) as { database_name: string; role_name: string }[];
+
+      expect({
+        databaseName: facts.databaseName,
+        roleName: facts.roleName,
+        designsExists: facts.designsExists,
+        isDesignsOwnerOrMemberOfIt: facts.isDesignsOwnerOrMemberOfIt,
+      }).toEqual({
+        databaseName: asked?.database_name,
+        roleName: asked?.role_name,
+        designsExists: true,
+        isDesignsOwnerOrMemberOfIt: true,
+      });
+      expect(
+        reasonsTheConnectionIsNotTheApplicationRole(facts).join("; "),
+      ).toMatch(/owns public\.designs/);
+    });
+
+    it("lists a membership whenever the role can act as any other role, however deep the chain", async () => {
+      if (sql === undefined) throw new Error("no live test database");
+
+      const facts = await readConnectionFacts(sql);
+      const reachable = (await sql`
+        select rolname from pg_roles
+        where rolname <> current_user and pg_has_role(current_user, oid, 'MEMBER')
+      `) as { rolname: string }[];
+
+      expect(reachable.length > 0).toBe(facts.memberOf.length > 0);
+      expect(reachable.map((row) => row.rolname)).toEqual(
+        expect.arrayContaining([...facts.memberOf]),
+      );
+    });
+
+    it("has the catalog say this role may delete from designs, which is the answer that keeps the delete probe unsent", async () => {
+      if (sql === undefined) throw new Error("no live test database");
+
+      expect(await privilegesHeldOn(sql, "public.designs", ["DELETE"])).toEqual(
+        ["DELETE"],
+      );
+    });
+
+    it("says where the run is without the password or the host of the connection string", async () => {
+      if (sql === undefined) throw new Error("no live test database");
+      const url = new URL(liveTestDatabaseUrl);
+
+      const description = describeWhereTheRunIs(await readConnectionFacts(sql));
+
+      expect(description.includes(decodeURIComponent(url.password))).toBe(
+        false,
+      );
+      expect(description.includes(url.hostname)).toBe(false);
+    });
+
+    it(
+      "fails every test of the privilege file, skips none and passes none, when the file is run as a role that owns designs",
+      async () => {
+        if (sql === undefined) throw new Error("no live test database");
+        const [asked] =
+          (await sql`select current_database() as database_name`) as {
+            database_name: string;
+          }[];
+
+        const report = await runThePrivilegeFileAgainstTheTestDatabase();
+
+        const results = report.testResults.flatMap(
+          (file) => file.assertionResults,
+        );
+        const refusedForTheRightReason = results.filter(
+          (result) =>
+            result.status === "failed" &&
+            result.failureMessages.some(
+              (message) =>
+                message.includes("Refusing to run the privilege tests") &&
+                message.includes(
+                  `reached database "${asked?.database_name ?? ""}"`,
+                ) &&
+                message.includes("owns public.designs") &&
+                message.includes("Nothing more was sent."),
+            ),
+        );
+        expect({
+          total: report.numTotalTests,
+          passed: report.numPassedTests,
+          skipped: report.numPendingTests + report.numTodoTests,
+          failed: report.numFailedTests,
+          refusedForTheRightReason: refusedForTheRightReason.length,
+        }).toEqual({
+          total: results.length,
+          passed: 0,
+          skipped: 0,
+          failed: results.length,
+          refusedForTheRightReason: results.length,
+        });
+        expect(results.length).toBeGreaterThanOrEqual(11);
+      },
+      CONCURRENCY_TIMEOUT_MS,
+    );
   });
 
   describe("criterion 8: the table holds a digest and a count, and knows nothing of designs", () => {

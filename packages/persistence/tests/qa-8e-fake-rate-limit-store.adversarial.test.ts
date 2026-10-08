@@ -110,6 +110,18 @@ describe("QA 8E: FakeRateLimitStore beyond the shared contract", () => {
     expect((refusal as Error).name).toBe("RateLimitWindowConflictError");
   });
 
+  it("refuses an empty list as a plain refusal, and goes on counting from where it was", async () => {
+    const store = new FakeRateLimitStore();
+    await store.recordHits([{ key: KEY, window: HOUR }]);
+
+    const refusal = await store.recordHits([]).catch((error: unknown) => error);
+
+    expect(refusal).toBeInstanceOf(Error);
+    expect(refusal).not.toBeInstanceOf(RateLimitWindowConflictError);
+    expect((refusal as Error).message).toMatch(/lists no bucket/);
+    expect(await store.recordHits([{ key: KEY, window: HOUR }])).toEqual([2]);
+  });
+
   it("reads a window's instants when the hit is recorded, not when the caller's dates change later", async () => {
     const store = new FakeRateLimitStore();
     const window = {

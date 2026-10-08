@@ -480,6 +480,17 @@ describe("QA 8E: one request is one statement, whatever its size", () => {
     expect(driver.statements).toHaveLength(1);
   });
 
+  it("sends no statement for an empty list, and refuses it rather than answering with no counts", async () => {
+    vi.useRealTimers();
+
+    const outcome = await outcomeOf(newStore().recordHits([]));
+
+    expect(outcome).toBeInstanceOf(Error);
+    expect(outcome).not.toBeInstanceOf(RateLimitStoreError);
+    expect((outcome as Error).message).toMatch(/lists no bucket/);
+    expect(driver.statements).toHaveLength(0);
+  });
+
   it("sends one statement for one key in several windows, and tells their counts apart", async () => {
     const nextWindow = {
       startsAt: WINDOW_END,
