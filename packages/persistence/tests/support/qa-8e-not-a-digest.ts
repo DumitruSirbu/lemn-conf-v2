@@ -1,0 +1,23 @@
+/** Shapes that are not a 64-character lowercase hex digest. The code and the table's constraint are both put to this list. */
+export const NOT_A_DIGEST: readonly [string, string][] = [
+  ["empty", ""],
+  ["63 characters", "a".repeat(63)],
+  ["65 characters", "a".repeat(65)],
+  ["uppercase", "A".repeat(64)],
+  ["one uppercase character", `${"a".repeat(63)}F`],
+  ["a trailing newline", `${"a".repeat(64)}\n`],
+  ["a leading newline", `\n${"a".repeat(64)}`],
+  ["a digest, a newline, then an address", `${"a".repeat(64)}\n203.0.113.7`],
+  ["a trailing carriage return", `${"a".repeat(64)}\r`],
+  ["a trailing space", `${"a".repeat(64)} `],
+  ["a leading tab", `\t${"a".repeat(64)}`],
+  ["63 characters and a newline", `${"a".repeat(63)}\n`],
+  ["Arabic-Indic digits", "٠".repeat(64)],
+  ["full-width digits", "０".repeat(64)],
+  ["full-width letters", "ａ".repeat(64)],
+  ["a trailing NUL", `${"a".repeat(63)}\u0000`],
+  ["a 0x prefix", `0x${"a".repeat(62)}`],
+  ["a raw IPv4 address", "203.0.113.7"],
+  ["a raw IPv6 block", "2001:db8:85a3::/64"],
+  ["an e-mail address", "ana@example.md"],
+];
