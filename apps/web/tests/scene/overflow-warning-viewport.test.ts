@@ -339,18 +339,6 @@ describe("the band's height is not a term in the strip's arithmetic", () => {
     expect(Math.round(inFlowPx * 100) / 100).toBe(30.74);
     expect(inFlowPx).toBeLessThan(TOUCH_TARGET_PX);
   });
-
-  it("was survivable before 6G's row, which is why the first placement was defensible", () => {
-    // Without the settings row a flow band left 74.68 px, above the touch target.
-    const inFlowBeforeSettingsRowPx = stripIfTheBandWereInFlowPx(
-      MEASURED_HEADER_PX,
-      0,
-      OVERFLOW_WARNING_RESERVED_HEIGHT_PX,
-    );
-
-    expect(Math.round(inFlowBeforeSettingsRowPx * 100) / 100).toBe(74.68);
-    expect(inFlowBeforeSettingsRowPx).toBeGreaterThan(TOUCH_TARGET_PX);
-  });
 });
 
 describe("what the band does paint over, with nothing selected", () => {

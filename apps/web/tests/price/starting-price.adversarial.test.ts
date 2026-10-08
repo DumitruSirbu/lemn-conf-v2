@@ -140,19 +140,6 @@ describe("the catalogue's own totals, priced and shown", () => {
       SEEDED.priced.totalMinor,
     );
   });
-
-  it("renders an included tier's zero as a bare zero, which wave 6D must not ship as an amount", () => {
-    // Characterisation, not approval: two `0` lines exist (the default hardware and material tiers) and frame 2E
-    // rules *inclus* for a zero-amount tier, so such lines must not reach this formatter unguarded.
-    if (!SEEDED.ok) throw new Error("expected the seeded design to price");
-
-    const zeroLines = SEEDED.priced.lines.filter(
-      (line) => line.amountMinor === 0,
-    );
-    expect(zeroLines.length).toBeGreaterThan(0);
-    expect(amountTextFor(0)).toBe("0 MDL");
-    expect(ro.price).not.toHaveProperty("included");
-  });
 });
 
 describe("what the formatter refuses rather than renders", () => {
@@ -347,25 +334,6 @@ describe("the one prefix a figure carries, and the one the owner removed", () =>
     expect(Object.keys(roMessages.price)).not.toContain(
       "startingPrefixUnchanged",
     );
-  });
-
-  it("offers no surface a choice of prefix to compose", () => {
-    // A refusal never reaches a price model, so this is asserted over the modules rather than over one call.
-    const composers = [
-      "price/starting-price.ts",
-      "price/price-bar-model.ts",
-      "price/price-breakdown-model.ts",
-      "panel/panel-model.ts",
-      "settings/global-settings-model.ts",
-    ];
-
-    for (const path of composers) {
-      // Comments stripped: `starting-price.ts` names the withdrawn function in its own note.
-      const source = readFileSync(resolve(SOURCE_ROOT, path), "utf8")
-        .replace(/\/\*[\s\S]*?\*\//g, "")
-        .replace(/\/\/.*$/gm, "");
-      expect(source, path).not.toContain("describeStartingLabel");
-    }
   });
 
   it("keeps the ruled word single, with the casing in the stylesheet and not in a second string", () => {

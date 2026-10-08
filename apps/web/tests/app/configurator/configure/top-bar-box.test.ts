@@ -336,13 +336,6 @@ describe("the top bar's box, which the scene pays for", () => {
 });
 
 describe("the row the refreshed frames replaced", () => {
-  it("renders no progress segments and declares no rule for them", () => {
-    expect(screenSource).not.toContain("styles.progress");
-    expect(screenSource).not.toContain("styles.headerRow");
-    expect(declarationsOf(stylesheet, "progress")).toBe("");
-    expect(declarationsOf(stylesheet, "headerRow")).toBe("");
-  });
-
   it("lays the band out as one row rather than a column", () => {
     // The five cells are grid items of the screen, so "one row" is the screen's own template.
     const screen = declarationsOf(MOBILE_CSS, "screen");

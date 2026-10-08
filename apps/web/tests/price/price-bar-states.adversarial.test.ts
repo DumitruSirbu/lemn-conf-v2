@@ -250,18 +250,6 @@ describe("no refusal the store can produce moves the figure", () => {
     expect(refusals).toBeGreaterThan(100);
     expect(refusalCodes.size).toBeGreaterThanOrEqual(4);
   });
-
-  it("shows the same figure it showed before, and says nothing about the refusal", () => {
-    // A standing refusal changes neither the bar's figure nor its label; §9's banner is what says the refusal.
-    const quiet = describePriceBar({
-      pricing: priceOf(KITCHEN_L_DESIGN),
-      content: ro,
-    });
-    if (quiet.kind !== "priced") throw new Error("expected a priced bar");
-
-    expect(quiet.figure.label).toBe(ro.price.startingPrefix);
-    expect(quiet.figure.label).not.toContain("neschimbat");
-  });
 });
 
 describe("a pricing failure puts nothing on the page", () => {

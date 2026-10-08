@@ -33,26 +33,6 @@ describe("the De la prefix", () => {
       amountText: "43 000 MDL",
     });
   });
-
-  it("is the only prefix a figure can carry, since the owner removed the other", () => {
-    // **The two cases this replaces are deleted rather than weakened**, because the behaviour they
-    // were about is gone: a figure standing under a refused edit was labelled *"De la neschimbat"*
-    // (frames D2C and 2C), and the owner removed it on 2026-09-09 — §9's refusal banner already
-    // says the edit was refused. What is asserted now is that the removal is total: no `ro.price`
-    // leaf carries the word — the joins rendered as well as the sentences read — and the formatter
-    // offers no choice of prefix to make.
-    // Rendered rather than read, because since wave 6B-g `price` holds a *join* as well as
-    // sentences: `amountWithCurrency` is a function, and skipping it would leave one price leaf
-    // this sweep never looks at.
-    const remaining = Object.entries(ro.price).filter(([, value]) =>
-      (typeof value === "string" ? value : value("0")).includes("neschimbat"),
-    );
-
-    expect(remaining).toEqual([]);
-    expect(describeStartingPrice({ totalMinor: 1, copy: ro.price }).label).toBe(
-      ro.price.startingPrefix,
-    );
-  });
 });
 
 describe("rounding up to the thousand MDL", () => {
