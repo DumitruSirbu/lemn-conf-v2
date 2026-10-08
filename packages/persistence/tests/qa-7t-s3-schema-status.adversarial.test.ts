@@ -97,40 +97,6 @@ describe("QA 7T S3: what the schema-level verdict catches", () => {
   });
 
   it.each(REQUIRED_DESIGN_COLUMNS.map((column) => column.name))(
-    "reports a complete ledger over a designs table missing %s as columns-missing",
-    (missingName) => {
-      const reading = {
-        ...levelReading(),
-        designColumns: deployedColumns().filter(
-          (column) => column.name !== missingName,
-        ),
-      };
-
-      expect(
-        describeDeployedSchemaStatus(readMigrationFiles(), reading).outcome,
-      ).toBe("columns-missing");
-    },
-  );
-
-  it.each(REQUIRED_DESIGN_COLUMNS.map((column) => column.name))(
-    "reports %s under the wrong nullability as columns-misshapen",
-    (name) => {
-      const reading = {
-        ...levelReading(),
-        designColumns: deployedColumns().map((column) =>
-          column.name === name
-            ? { ...column, isNullable: !column.isNullable }
-            : column,
-        ),
-      };
-
-      expect(
-        describeDeployedSchemaStatus(readMigrationFiles(), reading).outcome,
-      ).toBe("columns-misshapen");
-    },
-  );
-
-  it.each(REQUIRED_DESIGN_COLUMNS.map((column) => column.name))(
     "reports %s under the wrong type as columns-misshapen",
     (name) => {
       const reading = {

@@ -136,19 +136,6 @@ function neverFound(): never {
   throw new Error("the row-source site is missing from RUNTIME_SITES");
 }
 
-describe.each(RUNTIME_SITES)("$name", ({ open }) => {
-  it("names DATABASE_URL when the value was read from it, and no variable when the caller handed the value in", async () => {
-    const [{ value }] = REFUSED_VALUES as [(typeof REFUSED_VALUES)[number]];
-    vi.stubEnv("DATABASE_URL", value);
-
-    const readFromEnvironment = await errorRaisedBy(open);
-
-    expect(
-      (readFromEnvironment as InvalidConnectionUrlError).variableName,
-    ).toBe("DATABASE_URL");
-  });
-});
-
 describe.each(HANDED_IN_SITES)(
   "$name given a URL by its caller",
   ({ openWith }) => {

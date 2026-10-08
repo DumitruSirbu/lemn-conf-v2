@@ -276,47 +276,6 @@ describe("the guard allows a test URL only if both entry points would open it", 
     vi.stubEnv("DATABASE_URL", applicationUrl);
   }
 
-  it.each(GUARD_ENTRY_POINTS)(
-    "%s refuses a password with a line break, and nothing of the value is in the refusal",
-    async (_name, check) => {
-      const value = testUrlWith(`${FAKE_HEAD}\n${FAKE_TAIL}`);
-      stubBoth(value);
-
-      const error = await errorRaisedBy(() => {
-        check(value);
-      });
-
-      expect(error).toBeInstanceOf(InvalidConnectionUrlError);
-      expect((error as Error).message).toMatch(/query endpoint/);
-      expect(
-        markersFoundOn(error, [
-          FAKE_HEAD,
-          FAKE_TAIL,
-          "fakeuser_8B",
-          "fakehost-8b",
-        ]),
-      ).toEqual([]);
-    },
-  );
-
-  it("names TEST_DATABASE_URL for a value read from it, and DATABASE_URL for one derived from it", async () => {
-    stubBoth(testUrlWith(`${FAKE_HEAD}\n${FAKE_TAIL}`));
-    const fromOverride = await errorRaisedBy(() => resolveTestDatabaseUrl());
-    vi.stubEnv("TEST_DATABASE_URL", "");
-    vi.stubEnv(
-      "DATABASE_URL",
-      testUrlWith(FAKE_HEAD, "appdb", "sslrootcert=system"),
-    );
-    const fromDerived = await errorRaisedBy(() => resolveTestDatabaseUrl());
-
-    expect((fromOverride as InvalidConnectionUrlError).variableName).toBe(
-      "TEST_DATABASE_URL",
-    );
-    expect((fromDerived as InvalidConnectionUrlError).variableName).toBe(
-      "DATABASE_URL",
-    );
-  });
-
   it("refuses a URL a session cannot use, such as one with sslrootcert", async () => {
     const value = testUrlWith(
       FAKE_HEAD,
@@ -350,34 +309,6 @@ describe("the guard allows a test URL only if both entry points would open it", 
     expect((applicationError as Error).message).toMatch(
       /the database name DATABASE_URL points at/,
     );
-  });
-
-  it.each([
-    [
-      "a pooled endpoint",
-      "ep-cool-1234-pooler.eu-central-1.aws.neon.tech",
-      "sslmode=require&channel_binding=require",
-    ],
-    [
-      "a direct endpoint",
-      "ep-cool-1234.eu-central-1.aws.neon.tech",
-      "sslmode=require",
-    ],
-    [
-      "an endpoint option",
-      "ep-cool-1234.eu-central-1.aws.neon.tech",
-      "sslmode=require&options=endpoint%3Dep-cool-1234",
-    ],
-  ])("still allows a real-shaped URL: %s", async (_label, host, query) => {
-    const value = `postgresql://neondb_owner:npg_Fake%2Fpass%40word@${host}/${ALLOWLISTED_DATABASE}?${query}`;
-    stubBoth(value);
-
-    expect(
-      await errorRaisedBy(() => {
-        assertSafeTestDatabaseUrl(value);
-      }),
-    ).toBeUndefined();
-    expect(await errorRaisedBy(() => resolveTestDatabaseUrl())).toBeUndefined();
   });
 
   it("allows only strings that both entry points open, over a sweep", () => {

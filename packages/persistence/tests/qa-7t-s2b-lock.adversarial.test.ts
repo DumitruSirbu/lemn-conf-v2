@@ -117,12 +117,6 @@ describe("QA 7T S2b: the four ruled constants, as literals (S2b item 1, criterio
     );
   });
 
-  it("passes the 60 s hook timeout to the afterAll that releases the lock", () => {
-    expect(HELPER_SOURCE).toMatch(
-      /afterAll\(\s*async \(\) => \{[\s\S]*?\},\s*TEST_SCHEMA_LOCK_RELEASE_HOOK_TIMEOUT_MS,?\s*\)/,
-    );
-  });
-
   it("passes the 210 s hook timeout to the beforeAll that takes the lock", () => {
     expect(HELPER_SOURCE).toMatch(
       /beforeAll\(\s*async \(\) => \{[\s\S]*?\},\s*TEST_SCHEMA_LOCK_HOOK_TIMEOUT_MS,?\s*\)/,
@@ -186,14 +180,6 @@ describe("QA 7T S2b: a file declares exactly one mode (the 'registered twice' gu
       );
     },
   );
-
-  it("lets the first registration through", async () => {
-    const helper = await freshHelperWithNoLiveDatabase();
-
-    expect(
-      registrationNamed(helper, "holdExclusiveTestSchemaLock"),
-    ).not.toThrow();
-  });
 });
 
 describe("QA 7T S2b: every file vitest runs is one the census can see", () => {

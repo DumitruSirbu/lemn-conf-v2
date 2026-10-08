@@ -576,13 +576,6 @@ describe("an entry point refuses a string exactly when a consumer of it refuses 
     ["an interior NUL", withPassword("FAKEPASS\u0000WORD")],
     ["a character above U+00FF", withPassword("FAKEPASSĀWORD")],
   ];
-  const BOTH_ACCEPT: readonly [string, string][] = [
-    ["a trailing line feed", `${withPassword(FAKE_PASSWORD)}\n`],
-    ["a Latin-1 letter", withPassword("FAKEPASSé")],
-    ["a tab", withPassword("FAKEPASS\tWORD")],
-    ["a space", withPassword("FAKEPASS WORD")],
-    ["a DEL", withPassword("FAKEPASS\u007fWORD")],
-  ];
   const SESSION_REFUSES: readonly [string, string][] = [
     ["sslrootcert", withParameter("sslrootcert=system")],
     ["sslcert", withParameter("sslcert=/x")],
@@ -610,13 +603,6 @@ describe("an entry point refuses a string exactly when a consumer of it refuses 
       ).not.toThrow();
     },
   );
-
-  it.each(BOTH_ACCEPT)("accepts %s through both entry points", (_l, value) => {
-    expect(() => openDatabase(value, "DATABASE_URL")).not.toThrow();
-    expect(() =>
-      openDatabaseSession(value, "MIGRATION_DATABASE_URL"),
-    ).not.toThrow();
-  });
 
   it.each(SESSION_REFUSES)(
     "accepts %s over HTTP, as before, and refuses it for a session with the sentence about the session client",

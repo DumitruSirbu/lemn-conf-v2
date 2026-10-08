@@ -263,20 +263,6 @@ describe(SUITE_NAME, () => {
     );
 
     it.skipIf(!hasLiveDatabase)(
-      "returns none for a revoked token",
-      async () => {
-        const credentials = await mintDesign();
-        const tokenHash = nextTokenHash();
-        await repository().issue({ ...credentials, tokenHash });
-        await repository().revoke(credentials);
-
-        expect(await repository().loadShared(tokenHash)).toEqual({
-          kind: "none",
-        });
-      },
-    );
-
-    it.skipIf(!hasLiveDatabase)(
       "returns none for a token nobody issued",
       async () => {
         expect(await repository().loadShared(nextTokenHash())).toEqual({

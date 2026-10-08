@@ -1,5 +1,5 @@
-import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { readdirSync, readFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { neon } from "@neondatabase/serverless";
@@ -377,19 +377,27 @@ describe("the migration ledger's append-only rule", () => {
     // Append-only cannot be granted away at the database, because migrations connect as the owner.
     // What can be checked is that this package never writes such a statement, which is the property
     // the rule actually asks for: a ledger row is a record of something that happened.
-    const ledgerSource = readFileSync(
-      resolve(SOURCE_DIR, "migration-ledger.ts"),
-      "utf8",
-    );
-    const runnerSource = readFileSync(
-      resolve(SOURCE_DIR, "migrate.ts"),
-      "utf8",
+    // Every file, migrations included: a statement added to the status reader or to a migration
+    // breaks the rule as surely as one in the runner.
+    const sourceFiles = readdirSync(SOURCE_DIR, {
+      recursive: true,
+      encoding: "utf8",
+    }).filter((path) => /\.(ts|sql)$/.test(path));
+    const rewritingTheLedger = sourceFiles.filter((path) =>
+      /update\s+schema_migrations|delete\s+from\s+schema_migrations/i.test(
+        readFileSync(join(SOURCE_DIR, path), "utf8"),
+      ),
     );
 
-    for (const source of [ledgerSource, runnerSource]) {
-      expect(source).not.toMatch(/update\s+schema_migrations/i);
-      expect(source).not.toMatch(/delete\s+from\s+schema_migrations/i);
-    }
+    // The three files that name the ledger today, so the scan cannot pass by reading nothing.
+    expect(sourceFiles).toEqual(
+      expect.arrayContaining([
+        "migrate.ts",
+        "migrate-status.ts",
+        "migration-ledger.ts",
+      ]),
+    );
+    expect(rewritingTheLedger).toEqual([]);
   });
 });
 
@@ -499,6 +507,20 @@ describe("the migrate CLI", () => {
     // it prints the described run" — which, with the assertion above, fixes what reaches the log.
     expect(cli.match(/console\.log\(/g) ?? []).toHaveLength(1);
     expect(cli).toMatch(/console\.log\(\s*describeMigrationRun\(/);
+    // The whole printed expression, not its opening: an argument appended to it would pass the
+    // patterns above and leak. Whitespace and trailing commas are the formatter's, so they go.
+    const printed = /console\.log\(([\s\S]*?)\);/.exec(cli)?.[1] ?? "";
+    expect(
+      printed.replace(/\s+/g, "").replace(/,\)/g, ")").replace(/,$/, ""),
+    ).toBe(
+      "describeMigrationRun(summary,printReachedDatabaseName({databaseName,environment}))",
+    );
+    // And the connection string goes to exactly the three places that read a name from it or
+    // connect with it, so it cannot reach the print under another name.
+    expect(cli.match(/\bconnectionUrl\b/g) ?? []).toHaveLength(3);
+    expect(cli).toContain("const connectionUrl = readMigrationDatabaseUrl();");
+    expect(cli).toContain("databaseNameOf(connectionUrl)");
+    expect(cli).toMatch(/runMigrations\(\s*connectionUrl,/);
   });
 
   it("catches a failed run rather than letting Node print the driver's error object", () => {

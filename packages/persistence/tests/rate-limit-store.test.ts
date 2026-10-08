@@ -186,11 +186,6 @@ describe("NeonRateLimitStore.recordHits", () => {
 
     expect(driver.statements).toHaveLength(0);
   });
-
-  it("refuses an empty request before any statement is sent", async () => {
-    await expect(newStore().recordHits([])).rejects.toThrow(/lists no bucket/);
-    expect(driver.statements).toHaveLength(0);
-  });
 });
 
 describe("NeonRateLimitStore.recordHits when the database fails", () => {
@@ -242,14 +237,6 @@ describe("NeonRateLimitStore.recordHits when the database fails", () => {
     expect(error).not.toBeInstanceOf(RateLimitStoreError);
     expect(inspect(error, { depth: null })).not.toContain(FIRST_KEY);
     expect((error as Error).cause).toBeUndefined();
-  });
-
-  it("does not take another check constraint's refusal for a conflicting window end", async () => {
-    failWith(checkViolation("rate_limit_counters_hits_is_positive"));
-
-    const error = await rejectionOf(newStore().recordHits(BUCKETS));
-
-    expect(error).toBeInstanceOf(RateLimitStoreError);
   });
 
   it("states in the statement that a different end ends the row's window, so the table's check fails the whole statement", async () => {

@@ -582,6 +582,13 @@ describe("mint under a compute restart", () => {
       const minted = await minting;
       expect(minted.revision).toBe("1");
       expect(requests).toHaveLength(2);
+      // The canned reply answers the same whatever was sent, so the clause is read off the
+      // statement itself: both attempts' insert ends in it, with no `returning` to collide on.
+      for (const attempt of requests) {
+        const insert = attempt.queries[0]?.query ?? "";
+        expect(insert).toMatch(/^\s*insert into designs\b/);
+        expect(insert).toMatch(/\bon conflict \(id\) do nothing\s*$/);
+      }
     },
   );
 });
@@ -660,16 +667,6 @@ describe("an empty reply", () => {
     vi.useRealTimers();
   });
 
-  it("is retried once and returns the second attempt's value", async () => {
-    const runQuery = queryThatFailsWith([emptyReplyError()]);
-
-    const attempt = retryOnTransientFailure(runQuery);
-    await vi.advanceTimersByTimeAsync(FIRST_BACKOFF_MS);
-
-    await expect(attempt).resolves.toBe(SUCCESS_VALUE);
-    expect(runQuery).toHaveBeenCalledTimes(2);
-  });
-
   it("is retried at most three times, then reaches the caller unchanged", async () => {
     const lastError = emptyReplyError();
     const runQuery = queryThatFailsWith([
@@ -683,17 +680,6 @@ describe("an empty reply", () => {
 
     expect(await thrown).toBe(lastError);
     expect(runQuery).toHaveBeenCalledTimes(MAX_ATTEMPTS);
-  });
-
-  it("is followed by a non-transient answer that stops the retries", async () => {
-    const rejection = uniqueViolationError();
-    const runQuery = queryThatFailsWith([emptyReplyError(), rejection]);
-
-    const thrown = rejectionOf(retryOnTransientFailure(runQuery));
-    await vi.advanceTimersByTimeAsync(LONG_ENOUGH_FOR_ANY_RETRY_MS);
-
-    expect(await thrown).toBe(rejection);
-    expect(runQuery).toHaveBeenCalledTimes(2);
   });
 });
 

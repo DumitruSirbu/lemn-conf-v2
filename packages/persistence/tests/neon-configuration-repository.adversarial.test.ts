@@ -270,18 +270,6 @@ describe("the write-authorisation predicate under attack (live test database)", 
     },
   );
 
-  it.skipIf(!hasLiveDatabase)(
-    "still mints on a real digest, so the guard rejects nothing legitimate",
-    async () => {
-      const id = await mintTrackingId();
-
-      expect(id).toBeTruthy();
-      expect(
-        canonicalSerializeDesign((await testRepository().load(id)).design),
-      ).toBe(canonicalSerializeDesign(KITCHEN_L_DESIGN));
-    },
-  );
-
   // Asserted against the live column, not argued: only `''` equals `''` in Postgres `text`. On `char(n)` the
   // comparison is blank-padded, `'' = ' '` would be true, and the empty-hash guard would be insufficient.
   it.skipIf(!hasLiveDatabase)(

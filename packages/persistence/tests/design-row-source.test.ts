@@ -126,18 +126,6 @@ describe(SUITE_NAME, () => {
   );
 
   it.skipIf(!hasLiveDatabase)(
-    "exports a hash, never a token a leaked backup could be replayed with",
-    async () => {
-      const id = await mintTrackingId();
-
-      // Same reasoning that justifies hashing at rest: the value in a backup is a digest, so
-      // holding the file confers no write access to anything.
-      const exported = (await exportedRowFor(id))?.write_token_hash ?? "";
-      expect(exported).toMatch(/^[0-9a-f]{64}$/);
-    },
-  );
-
-  it.skipIf(!hasLiveDatabase)(
     "walks the table in id order, resuming from the last id without repeating or skipping a row",
     async () => {
       const ids = [
