@@ -316,3 +316,4 @@ export type {
 export * from "./generation/u-composition.js";
 export * from "./generation/generate-kitchen.js";
 export * from "./commands/reconcile-command-result.js";
+export * from "./contact/index.js";
