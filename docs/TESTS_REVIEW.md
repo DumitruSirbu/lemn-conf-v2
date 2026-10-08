@@ -3547,7 +3547,122 @@ QA agent's recorded run, not re-run by the coordinator.
 | D3 | `packages/configurator-domain`: architect rulings on rows 708 and 814 | 2 rows | **Two production defects found and fixed**, both in whether a malformed free colour is offered, neither reachable by a customer: the query (`38fa058`) and the two finish commands on an undeclared material (`6eef46c`). Tests in `7cdf446`. Logic review pending | `38fa058`, `7cdf446`, `6eef46c` |
 | D3-B, D3-C, D2-R | `packages/configurator-domain`: QA rounds on the two fixes, review follow-ups | — | Full review tier on the fixes: QA green, logic review and clean-code review both "approve with minor findings", follow-ups applied. Logic review of D2-C: sound, no restore | `b6d2ab1`, `0a351f0`, `74bcc20`, `781727a` |
 | E1 | `apps/web` Playwright specs | 12 rows | 9 deleted, 1 deleted by reading, 1 strengthened, 1 kept. E2e 691 → 677 passed. Logic review: sound, no restore | `ee834b6` |
-
-| Z1 | Last leftovers: `scripts/gates/boundary.test.mjs`, one `apps/web` row, one spec header | rows 2859, 2966 | 5 gate rows and 1 web test deleted against mutations; gate tests 40 → 35, `apps/web` 5898 passed, re-run by the coordinator | this commit |
+| Z1 | Last leftovers: `scripts/gates/boundary.test.mjs`, one `apps/web` row, one spec header | rows 2859, 2966 | 5 gate rows and 1 web test deleted against mutations; gate tests 40 → 35, `apps/web` 5898 passed, re-run by the coordinator | `5d3a92a` |
 
 Full local gate (`pnpm ci:local`) at `ee834b6`, run by the coordinator on a clean tree: format, lint, typecheck, test, e2e, build, boundary, lockfile and sca PASS — domain 7695, persistence 1751 (+1 skipped), three-adapter 4284, `apps/web` 5899, e2e 677 passed (1 skipped). **`e2e-shard-budget` FAILS**: removing three desktop spec files moved Playwright's split, and desktop shard 1 of 3 now holds 132 tests against a ceiling of 70.
+
+## Statistics — what the fix-up changed
+
+Closed 2026-10-08. **Every table in this section is counted by script from the Status cells above**, not written
+by hand; the suite figures are quoted from runs, and each says whose run it was. The rows were settled by QA
+agents and the counts of what went red under a mutation are their recorded runs — the coordinator re-ran every
+suite after each wave, not the mutations.
+
+**All 674 rows are settled.** "Made real" means the test now fails when the behaviour its title names is broken.
+"Partly" means a row covering several cases where some were deleted or strengthened and some stay. A deletion
+was made only after the test named to keep went red by assertion under a mutation of the shared code, with seven
+exceptions deleted by reading on the architect's rule (the assertion is logically implied by its twin's on the
+identical input and call).
+
+**Outcome by the review's category**
+
+| Category | Rows | Made real | Deleted | Partly | Kept: review wrong | Kept: honest as it is | Not settled |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Cannot fail — proven | 157 | 91 | 9 | 3 | 15 | 39 | 0 |
+| Cannot fail — mutation survived, no witness | 38 | 31 | 2 | 0 | 1 | 4 | 0 |
+| Cannot fail — by reading only | 7 | 3 | 1 | 2 | 1 | 0 | 0 |
+| Near-duplicate | 406 | 1 | 390 | 12 | 1 | 2 | 0 |
+| Obsolete | 11 | 0 | 8 | 2 | 1 | 0 | 0 |
+| Useless | 55 | 0 | 43 | 5 | 1 | 6 | 0 |
+| **Total** | **674** | **126** | **453** | **24** | **20** | **51** | **0** |
+
+**Outcome of the proven "cannot fail" rows, by the review's proof**
+
+| Review's proof | Rows | Made real | Deleted | Partly | Kept: review wrong | Kept: honest as it is | Not settled |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| A mutation survived | 103 | 62 | 8 | 3 | 15 | 15 | 0 |
+| No production value reaches the assertion | 54 | 29 | 1 | 0 | 0 | 24 | 0 |
+| **Total** | **157** | **91** | **9** | **3** | **15** | **39** | **0** |
+
+**Outcome by package**
+
+| Package | Rows | Made real | Deleted | Partly | Kept: review wrong | Kept: honest as it is | Not settled |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `apps/web` | 259 | 57 | 173 | 6 | 1 | 22 | 0 |
+| `packages/configurator-domain` | 317 | 57 | 213 | 11 | 16 | 20 | 0 |
+| `packages/persistence` | 33 | 2 | 26 | 3 | 2 | 0 | 0 |
+| `packages/three-adapter` | 64 | 10 | 41 | 3 | 1 | 9 | 0 |
+| `scripts/gates` | 1 | 0 | 0 | 1 | 0 | 0 | 0 |
+| **Total** | **674** | **126** | **453** | **24** | **20** | **51** | **0** |
+
+**Rows whose status records that the review itself was wrong** (a wrong verdict, a wrong mutation, or a wrong "Keep" reference)
+
+| Category | Rows | Review wrong | Share |
+| --- | --- | --- | --- |
+| Cannot fail — proven | 157 | 31 | 20% |
+| Cannot fail — mutation survived, no witness | 38 | 7 | 18% |
+| Cannot fail — by reading only | 7 | 3 | 43% |
+| Near-duplicate | 406 | 8 | 2% |
+| Obsolete | 11 | 1 | 9% |
+| Useless | 55 | 2 | 4% |
+| **Total** | **674** | **52** | **8%** |
+
+**Counted flags in the Status cells**
+
+| Flag | Rows |
+| --- | --- |
+| previously unguarded | 18 |
+| by reading | 7 |
+| found a defect | 1 |
+
+The "review wrong" count is a floor: it counts only rows whose status says so in words.
+
+**What the suites hold now**
+
+| Suite | Before | After | Whose run |
+| --- | --- | --- | --- |
+| `packages/configurator-domain` | 7,857 passed | 7,695 passed | before: coordinator at `a2a6dfd`; after: coordinator, `pnpm ci:local` at `ee834b6` |
+| `apps/web` (Vitest) | 6,227 passed | 5,898 passed | before: QA at `a2a6dfd`; after: coordinator at `5d3a92a` |
+| `packages/three-adapter` | 4,391 passed | 4,284 passed | before: QA at `a2a6dfd`; after: coordinator, `pnpm ci:local` at `ee834b6` |
+| `packages/persistence` (live database) | 1,797 passed, 1 skipped | 1,751 passed, 1 skipped | before: QA at `bd98570`; after: coordinator, `pnpm ci:local` at `ee834b6` |
+| `apps/web` e2e (Playwright) | 691 passed, 2 skipped | 677 passed, 1 skipped | before: QA at `781727a`; after: coordinator, `pnpm ci:local` at `ee834b6` |
+| `scripts/gates/boundary.test.mjs` | 40 passed | 35 passed | before: QA; after: coordinator at `5d3a92a` |
+
+These are net figures: the after column includes the tests added while making fake checks real and guarding the
+two fixes, so it understates how many cases were removed. Test files changed between `a2a6dfd` and `5d3a92a`:
+360 files, 4,005 lines added, 8,716 removed (`git diff --shortstat`).
+
+**What it found beyond the list**
+
+- **Two production defects, both fixed, neither reachable by a customer.** `materialOffersFinish` offered a
+  malformed free colour against ADR 0078 (`38fa058`, tightened in `74bcc20`); `setFinish` and `setGlobalFinish`
+  succeeded with a finish their own schema refuses on an undeclared material (`6eef46c`). Found from row 708 and
+  from the adversarial pass on its fix. Production and lint configuration changed in 8 files, 163 lines added and
+  63 removed.
+- **18 rows mark a requirement that had no guard anywhere and now has one.** One more was found outside the
+  list and guarded: a failed locked run executes exactly once (`d85c27c`).
+- **Two fake checks were hiding among the "duplicates"** (rows 1558 and 1792): each was the test named to keep
+  or the last guard, and each passed with the behaviour removed. Both are real now.
+- **Three source-text scans were replaced or narrowed by a lint rule** for `shell-design.ts` (rows 564, 576).
+- **Reading alone was not reliable.** Among the proven "cannot fail" rows the status records the review as wrong
+  for about one row in five; among near-duplicates, about one in fifty, almost always a wrong "Keep" reference
+  and not a wrong deletion.
+
+**How it was checked**
+
+- Eight independent logic reviews of the deletions (three-adapter; `apps/web` first half; domain batches A, B
+  and C; persistence; `apps/web` second half; Playwright). Every one: sound, **nothing to restore**. Their
+  follow-ups — a lost assertion, a missing floor, a stale comment — were applied.
+- The two fixes went through the full tier: adversarial QA, then logic review and clean-code review, both
+  "approve with minor findings", follow-ups applied.
+- The reviewers read through git and ran nothing; each listed the rows it judged from the diff alone.
+
+**What is still open**
+
+- **`e2e-shard-budget` fails**, so the branch cannot be pushed until the owner decides: split
+  `room-desktop-line.desktop.e2e.spec.ts`, or raise the desktop shard count from 3 to 7.
+- A product question no record answers: whether a metres field accepts a dangling separator (`3,` `,5`).
+- The empty `test.fixme` of row 2881 records a behaviour no browser test asserts.
+- Roughly forty behaviours now rest on one test each; the wave reports name them.
+- **A file with no row is not proven clean.** This pass worked the review's list; the review's own recall is
+  unknown.
