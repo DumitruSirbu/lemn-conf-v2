@@ -51,6 +51,10 @@ const INTEGER_OUT_OF_RANGE = "22003";
 const CONCURRENCY_TIMEOUT_MS = 120_000;
 /** Stands in for a count a reply did not hold: no run of 1 to N contains it, so the comparison fails. */
 const MISSING_COUNT = 0;
+const RACE_ROUNDS = 3;
+const SHARED_EXPIRED_ROWS = 150;
+const RACING_HITS = 16;
+const RACING_PRUNES = 8;
 
 interface StoredRow {
   bucket_key: string;
@@ -191,6 +195,22 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
     `;
   }
 
+  async function seedInDescendingKeyOrder(
+    buckets: readonly RateLimitBucket[],
+  ): Promise<void> {
+    if (sql === undefined) throw new Error("no live test database");
+    const keys = buckets.map((bucket) => bucket.key);
+    const starts = buckets.map(({ window }) => window.startsAt.toISOString());
+    const ends = buckets.map(({ window }) => window.endsAt.toISOString());
+    await sql`
+      insert into rate_limit_counters (bucket_key, window_start, window_end, hits)
+      select seed.bucket_key, seed.window_start, seed.window_end, 1
+      from unnest(${keys}::text[], ${starts}::timestamptz[], ${ends}::timestamptz[])
+        as seed (bucket_key, window_start, window_end)
+      order by seed.bucket_key desc
+    `;
+  }
+
   beforeAll(async () => {
     await runMigrations(liveTestDatabaseUrl);
     await deleteRowsAnInterruptedRunLeft();
@@ -293,43 +313,59 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
       CONCURRENCY_TIMEOUT_MS,
     );
 
+    /**
+     * The hit locks its rows by key. Rows seeded here in descending key order lie in the table in that order, which is
+     * the order an unordered delete meets them in, so a prune and a hit over the same rows cross and one is refused
+     * with a deadlock. Many shared rows per statement and several rounds make the crossing likely in every run.
+     */
     it(
       "refuses no hit, and never touches a live window's count, while prunes of the expired rows race the hits",
       async () => {
-        const random = seededRandom(5);
-        const expiredWindow = newHourWindow();
-        const liveWindow = windowAfter(expiredWindow);
-        const expired = oneToN(6).map(() => ({
-          key: newKey(),
-          window: expiredWindow,
-        }));
-        const live = { key: newKey(), window: liveWindow };
         const limiter = store();
-        const hitRequests = oneToN(40).map(() =>
-          shuffled([...expired, live], random),
-        );
+        const refusedHits: unknown[] = [];
+        const refusedPrunes: unknown[] = [];
+        const liveCountsOfEveryRound: number[][] = [];
 
-        const [hits, prunes] = await Promise.all([
-          Promise.allSettled(
-            hitRequests.map((request) => limiter.recordHits(request)),
-          ),
-          Promise.allSettled(
-            oneToN(12).map(() => limiter.pruneExpired(expiredWindow.endsAt)),
-          ),
-        ]);
+        for (let round = 0; round < RACE_ROUNDS; round += 1) {
+          const expiredWindow = newHourWindow();
+          const expired = oneToN(SHARED_EXPIRED_ROWS).map(() => ({
+            key: newKey(),
+            window: expiredWindow,
+          }));
+          const live = { key: newKey(), window: windowAfter(expiredWindow) };
+          await seedInDescendingKeyOrder(expired);
 
-        expect(causesOf(rejectionsOf(hits))).toEqual([]);
-        expect(causesOf(rejectionsOf(prunes))).toEqual([]);
-        const liveCounts = hits.flatMap((result, index) =>
-          result.status === "fulfilled"
-            ? [
-                (result.value as number[])[
-                  (hitRequests[index] ?? []).indexOf(live)
-                ] ?? MISSING_COUNT,
-              ]
-            : [],
+          const [hits, prunes] = await Promise.all([
+            Promise.allSettled(
+              oneToN(RACING_HITS).map(() =>
+                limiter.recordHits([live, ...expired]),
+              ),
+            ),
+            Promise.allSettled(
+              oneToN(RACING_PRUNES).map(() =>
+                limiter.pruneExpired(expiredWindow.endsAt),
+              ),
+            ),
+          ]);
+
+          refusedHits.push(...causesOf(rejectionsOf(hits)));
+          refusedPrunes.push(...causesOf(rejectionsOf(prunes)));
+          liveCountsOfEveryRound.push(
+            ascending(
+              hits.flatMap((result) =>
+                result.status === "fulfilled"
+                  ? [(result.value as number[])[0] ?? MISSING_COUNT]
+                  : [],
+              ),
+            ),
+          );
+        }
+
+        expect(refusedHits).toEqual([]);
+        expect(refusedPrunes).toEqual([]);
+        expect(liveCountsOfEveryRound).toEqual(
+          oneToN(RACE_ROUNDS).map(() => oneToN(RACING_HITS)),
         );
-        expect(ascending(liveCounts)).toEqual(oneToN(40));
       },
       CONCURRENCY_TIMEOUT_MS,
     );
