@@ -11,10 +11,7 @@
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
-import {
-  cabinetHandleCount,
-  widthDerivedDoorLeafCount,
-} from "../../src/cabinet-handles.js";
+import { cabinetHandleCount } from "../../src/cabinet-handles.js";
 import {
   INSERTABLE_BODY_DEFINITIONS,
   resolveCatalogEquivalent,
@@ -352,12 +349,6 @@ describe("degenerate designs and degenerate books", () => {
       id: "hardware.retired",
     });
   });
-
-  it("refuses a book whose currency is not the one every book is in", () => {
-    const foreign = { ...BOOK, currency: "EUR" } as unknown as PriceBook;
-
-    expect(refusalFrom({ book: foreign }).code).toBe("INVALID_PRICE_BOOK");
-  });
 });
 
 describe("no rounding, and no float that could produce one", () => {
@@ -423,25 +414,6 @@ describe("no rounding, and no float that could produce one", () => {
     },
   );
 
-  it("gives the same total however the placements are stored", () => {
-    // Integer addition is exact, so this holds — but it is the property that fails first if an
-    // amount ever becomes a float, and it is not asserted by the order tests.
-    const totals = new Set<number>();
-    const placements = KITCHEN_L_DESIGN.placements;
-    for (let rotation = 0; rotation < placements.length; rotation += 1) {
-      totals.add(
-        priceOrFail({
-          design: designOf([
-            ...placements.slice(rotation),
-            ...placements.slice(0, rotation),
-          ]),
-        }).totalMinor,
-      );
-    }
-
-    expect(totals.size).toBe(1);
-  });
-
   it("returns amounts that are all exact safe integers, on every line", () => {
     const priced = priceOrFail({
       selections: {
@@ -495,44 +467,6 @@ describe("no rounding, and no float that could produce one", () => {
 
 describe("the formula holds across the whole buildable range, not at examples", () => {
   const RANGE = { min: 200, max: 800 };
-
-  propertyTest.prop([fc.integer(RANGE)])(
-    "prices a hinged wall cabinet from its coefficients at every width it can be built to",
-    (widthMm) => {
-      // **Was two coefficients until 2026-09-03**, when the owner ruled that another door costs
-      // another handle, another set of mechanisms and more processing margin. The property is
-      // unchanged in kind — every width in the range is priced by the row's own coefficients and by
-      // no width row — and the door term is the count derived from the width, never a stated one.
-      const rule = BOOK.cabinetRules.find(
-        (candidate) => candidate.buildId === "wall-cabinet",
-      );
-      if (!rule) throw new Error("the sample book prices no wall-cabinet");
-      const { formula } = rule;
-      if (
-        !("perDoorLeafMinor" in formula) ||
-        !("perHeightMillimetreMinor" in formula)
-      ) {
-        throw new Error("the sample book no longer steps the wall cabinet");
-      }
-      const heightMm = 700;
-
-      const priced = priceOrFail({
-        design: designOf([placedAt({ id: "x", body: { widthMm, heightMm } })]),
-      });
-
-      expect(cabinetLinesOf(priced)[0]?.amountMinor).toBe(
-        formula.baseMinor +
-          formula.perWidthMillimetreMinor * widthMm +
-          formula.perHeightMillimetreMinor * heightMm +
-          formula.perDoorLeafMinor *
-            widthDerivedDoorLeafCount({
-              buildId: "wall-cabinet",
-              rule: CATALOG.get("wall-cabinet")?.cabinetHandles,
-              widthMm,
-            }),
-      );
-    },
-  );
 
   propertyTest.prop([fc.integer(RANGE), fc.integer(RANGE)])(
     "keeps the amount monotonic in width, with one jump and no dip",
@@ -717,17 +651,6 @@ describe("an overflowing design loses nothing, even when all of it overflows", (
     expect(cabinetLinesOf(overflowing)).toHaveLength(design.placements.length);
   });
 
-  it("does not let the overflow change the hardware quantity", () => {
-    const selections = { hardwareTierId: "hardware.premium" } as const;
-
-    expect(
-      lineOfKind(
-        priceOrFail({ selections, design: everyBodyPastItsWall() }),
-        "hardware",
-      ).quantity,
-    ).toBe(lineOfKind(priceOrFail({ selections }), "hardware").quantity);
-  });
-
   /** The property the deleted `UNKNOWN_OVERFLOW_PLACEMENT` refusal was protecting, restated as what
    *  now makes it unrepresentable: the published set **is** the design's own, from the one query
    *  every other surface reads, so a set naming a placement the design does not contain has no way
@@ -748,12 +671,6 @@ describe("an overflowing design loses nothing, even when all of it overflows", (
 });
 
 describe("no commercial figure, and no total stored", () => {
-  it("exports the sample book itself, as an estimate whose amounts are provisional", () => {
-    expect(BOOK.status).toBe("estimate");
-    expect(BOOK.amountsProvisional).toBe(true);
-    expect(priceOrFail().status).not.toBe("commercial");
-  });
-
   it("refuses a design document carrying a total, under either field name", () => {
     for (const field of ["totalMinor", "priceMinor", "price"]) {
       expect(

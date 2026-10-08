@@ -424,6 +424,8 @@ describe("criterion 5 — the catalogue's two populations are where they were", 
 });
 
 describe("criterion 6 — the run origins at the shipped depth", () => {
+  // Criterion 8 (the origins wave 7D3 measured its threshold table from) is held here too: the sweep
+  // includes every `THRESHOLD_TABLE_ROOMS` room and asserts both runs start at 900.
   it.each([REFERENCE_ROOM, SMALLEST_APPROVED_ROOM, ...THRESHOLD_TABLE_ROOMS])(
     "start at 900 on both walls, on the 50 mm grid, in %o",
     (room) => {
@@ -554,18 +556,6 @@ describe("criterion 7 — the smallest room APPROVED_ROOM_POLICY admits", () => 
     if (result.ok) throw new Error("the smallest approved room generated");
     expect(result.reason.code).toBe("MINIMUM_NOT_MET");
   });
-});
-
-describe("criterion 8 — the origins wave 7D3 measured its threshold table from", () => {
-  it.each(THRESHOLD_TABLE_ROOMS)(
-    "still starts both floor runs at 900 mm in %o",
-    (room) => {
-      const runs = lShellFloorRuns(room);
-
-      expect(runs.A.startMm).toBe(900);
-      expect(runs.B.startMm).toBe(900);
-    },
-  );
 });
 
 describe("criterion 9 — the same room and depth give a byte-identical shell", () => {

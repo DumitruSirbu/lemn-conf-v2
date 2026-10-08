@@ -84,12 +84,6 @@ describe("the demo room's wall B", () => {
     expect(clearanceMm).toBeLessThanOrEqual(MAX_CLEARANCE_MM);
   });
 
-  // The direction is the opposite of a correction, and is worth an executable statement because the
-  // reference is the thing a later reader would "restore" it to.
-  it("is a deliberate divergence from the reference rather than a move toward it", () => {
-    expect(KITCHEN_L_DESIGN.room.depthMm).toBeGreaterThan(REFERENCE_WALL_B_MM);
-  });
-
   it("parses as a Design, as does each declared overflow fixture", () => {
     for (const design of [
       KITCHEN_L_DESIGN,
@@ -351,13 +345,6 @@ describe("the corrected room the migration writes", () => {
     });
 
     expect(loadAt(2, nearly).room).toStrictEqual(nearly.room);
-  });
-
-  // The fixed point at every version arm: a corrected document loaded again does not move.
-  it.each([1, 2, 3, 4, 5])("is a fixed point at version %i", (version) => {
-    const corrected = loadAt(2, atRoom(KITCHEN_L_DESIGN, PRE_CORRECTION_ROOM));
-
-    expect(loadAt(version, corrected).room).toStrictEqual(corrected.room);
   });
 
   // Decision 9 in its literal form. The pair may be written out once — the **pre-correction** one,

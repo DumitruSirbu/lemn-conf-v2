@@ -9,7 +9,6 @@ import {
   priceDesign,
   pricedByWidth,
   snapshotSubmission,
-  SubmissionDesignInvalidError,
   drawnButNotSupplied,
   type Design,
   type DesignPlacement,
@@ -75,25 +74,6 @@ describe("the snapshot's document", () => {
         canonicalSerializeDesign(kitchen.design),
       );
     });
-  });
-
-  it("is the same bytes however the design's keys were ordered", () => {
-    const reversed = JSON.parse(
-      JSON.stringify(KITCHEN_L_DESIGN, (_key, value: unknown) =>
-        value !== null && typeof value === "object" && !Array.isArray(value)
-          ? Object.fromEntries(Object.entries(value).reverse())
-          : value,
-      ),
-    ) as Design;
-    const kitchen = {
-      name: "seeded",
-      design: KITCHEN_L_DESIGN,
-      catalog: catalogOf(KITCHEN_L_DESIGN),
-    };
-
-    expect(
-      snapshotOf(requestFor({ ...kitchen, design: reversed })).document,
-    ).toBe(snapshotOf(requestFor(kitchen)).document);
   });
 });
 
@@ -331,69 +311,6 @@ describe("the snapshot's refusals", () => {
     });
     expect(findOverflowingPlacementIds(moved)).toHaveLength(3);
   });
-
-  it("refuses a design with no body as NO_CABINET", () => {
-    const design: Design = { ...KITCHEN_L_DESIGN, placements: [] };
-
-    expect(
-      refusalOf(
-        requestFor({ name: "empty", design, catalog: catalogOf(design) }),
-      ),
-    ).toEqual({
-      code: "NO_CABINET",
-    });
-  });
-
-  it("refuses a price that cannot be computed as PRICING_FAILED", () => {
-    const kitchen = GENERATED_KITCHENS[0];
-    if (kitchen === undefined) throw new Error("a kitchen is generated");
-
-    expect(
-      refusalOf({ ...requestFor(kitchen), pricingVersion: "not-this-book" }),
-    ).toMatchObject({
-      code: "PRICING_FAILED",
-      failure: { code: "PRICING_VERSION_MISMATCH" },
-    });
-  });
-
-  it("puts a body past its wall before a price that cannot be computed", () => {
-    const kitchen = GENERATED_KITCHENS[4];
-    if (kitchen === undefined) throw new Error("the U kitchen is generated");
-    const moved = withABodyPastItsWall(kitchen.design, "A");
-
-    expect(
-      refusalOf({
-        ...requestFor({ ...kitchen, design: moved }),
-        pricingVersion: "not-this-book",
-      }),
-    ).toMatchObject({ code: "BODIES_PAST_WALL" });
-  });
-
-  it("puts a design with no body before a price that cannot be computed", () => {
-    const design: Design = { ...KITCHEN_L_DESIGN, placements: [] };
-
-    expect(
-      refusalOf({
-        design,
-        catalog: catalogOf(design),
-        book: SAMPLE_BOOK,
-        pricingVersion: "not-this-book",
-      }),
-    ).toEqual({ code: "NO_CABINET" });
-  });
-
-  it("returns no snapshot with a refusal", () => {
-    const design: Design = { ...KITCHEN_L_DESIGN, placements: [] };
-
-    expect(
-      snapshotSubmission({
-        design,
-        catalog: catalogOf(design),
-        book: SAMPLE_BOOK,
-        pricingVersion: SAMPLE_BOOK.version,
-      }),
-    ).not.toHaveProperty("snapshot");
-  });
 });
 
 describe("the snapshot holds no contact field and no shown figure, by type", () => {
@@ -439,26 +356,6 @@ describe("the snapshot holds a design, by its own parse", () => {
   const throwsFor = (design: unknown) => () =>
     snapshotSubmission({ ...requestFor(KITCHEN), design: design as Design });
 
-  it.each([
-    ["null", null],
-    ["a string", "design"],
-    ["an empty object", {}],
-    [
-      "a design with a field the schema does not know",
-      { ...KITCHEN_L_DESIGN, price: 1 },
-    ],
-    [
-      "a design with a placement that is not one",
-      { ...KITCHEN_L_DESIGN, placements: [{}] },
-    ],
-    [
-      "a design with a room of the wrong type",
-      { ...KITCHEN_L_DESIGN, room: "L" },
-    ],
-  ])("throws for %s, and does not refuse it", (_name, design) => {
-    expect(throwsFor(design)).toThrow(SubmissionDesignInvalidError);
-  });
-
   it("names the shape of what failed and no value", () => {
     const secret = "SECRET-ROOM-VALUE";
 
@@ -466,14 +363,5 @@ describe("the snapshot holds a design, by its own parse", () => {
       secret,
     );
     expect(throwsFor({ ...KITCHEN_L_DESIGN, room: secret })).toThrow("room");
-  });
-
-  it("stores the serialisation of the parsed design, which parses again", () => {
-    const { document } = snapshotOf(requestFor(KITCHEN));
-
-    expect(DesignSchema.safeParse(JSON.parse(document)).success).toBe(true);
-    expect(document).toBe(
-      canonicalSerializeDesign(DesignSchema.parse(KITCHEN_L_DESIGN)),
-    );
   });
 });

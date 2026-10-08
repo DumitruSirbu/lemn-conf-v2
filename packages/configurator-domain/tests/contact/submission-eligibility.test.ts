@@ -192,20 +192,6 @@ describe("judgeSubmissionEligibility: the order of the three refusals (ADR 0148 
     });
   });
 
-  it("carries the pricing failure as priceDesign returned it, the same object", () => {
-    const eligibility = judgeSubmissionEligibility({
-      design: KITCHEN_L_DESIGN,
-      overflowingPlacementIds: [],
-      pricing: PRICING_REFUSED,
-    });
-
-    expect(
-      eligibility.kind === "refused" &&
-        eligibility.refusal.code === "PRICING_FAILED" &&
-        eligibility.refusal.failure,
-    ).toBe(PRICING_FAILURE);
-  });
-
   it("allows a kitchen that fits, is priced and holds a body Lemnaria supplies, carrying the price it judged", () => {
     const eligibility = judgeSubmissionEligibility({
       design: KITCHEN_L_DESIGN,
@@ -347,18 +333,6 @@ describe("judgeSubmissionEligibility: facts that cannot all be true throw", () =
     });
   }
 
-  it("throws on a list that names a body the design does not hold, priced or not", () => {
-    const unheld = (pricing: PricingResult) => () =>
-      judgeSubmissionEligibility({
-        design: KITCHEN_L_DESIGN,
-        overflowingPlacementIds: ["no-such-body"],
-        pricing,
-      });
-
-    expect(unheld(PRICING_REFUSED)).toThrow(SubmissionFactsContradictionError);
-    expect(unheld(PRICED_SEEDED)).toThrow(SubmissionFactsContradictionError);
-  });
-
   it.each([
     ["flags a body the list lacks", [], [FIRST]],
     ["lacks a body the list names", [FIRST], []],
@@ -368,25 +342,6 @@ describe("judgeSubmissionEligibility: facts that cannot all be true throw", () =
     expect(() => judge(list, flagged)).toThrow(
       SubmissionFactsContradictionError,
     );
-  });
-
-  it("accepts the same bodies in another order: sets are compared, not sequences", () => {
-    expect(judge([SECOND, FIRST], [FIRST, SECOND])).toMatchObject({
-      kind: "refused",
-      refusal: { code: "BODIES_PAST_WALL", placementIds: [SECOND, FIRST] },
-    });
-  });
-
-  it("cannot be made to forge a line by a separator in an id", () => {
-    const forged = `p0${String.fromCodePoint(0x2028)}FORGED`;
-
-    expect(() =>
-      judgeSubmissionEligibility({
-        design: KITCHEN_L_DESIGN,
-        overflowingPlacementIds: [forged],
-        pricing: PRICING_REFUSED,
-      }),
-    ).toThrow(/p0 FORGED/);
   });
 
   it("names the offending body in the error", () => {

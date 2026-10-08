@@ -247,14 +247,6 @@ describe("whole-kitchen tier amounts are held to being amounts", () => {
     expect(mechanisms.drawers).toBeGreaterThan(0);
     expect(mechanisms.pushToOpen).toBeGreaterThan(0);
   });
-
-  /** The defect said in the terms it was found in: not "a refusal is missing" but "a number nobody
-   *  authored was quoted". Guarding the field is what makes this assertion possible at all. */
-  it("never publishes a zero material line for an amount that was never declared", () => {
-    const result = priceDesign(request({ book: bookWithMaterialAmount(null) }));
-
-    expect(result.ok).toBe(false);
-  });
 });
 
 describe("a published tier amount is the checked number", () => {

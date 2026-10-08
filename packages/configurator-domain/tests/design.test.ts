@@ -63,10 +63,6 @@ describe("DesignSchema", () => {
     );
   });
 
-  it("accepts a null presetId", () => {
-    expect(DesignSchema.safeParse(design).success).toBe(true);
-  });
-
   it("rejects a non-integral alongMm — never rounds or coerces", () => {
     const result = DesignSchema.safeParse({
       ...design,

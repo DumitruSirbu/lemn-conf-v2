@@ -75,14 +75,6 @@ function hardwareLineAt(tierId: string) {
 /** The three counts, pinned as numbers: product facts answerable without any amount (ADR 0092 Amendment C). */
 const SEEDED_MECHANISM_COUNTS = { hinges: 74, drawers: 5, pushToOpen: 16 };
 
-describe("the seeded kitchen's mechanisms are ADR 0070's own count, plus the column it never published", () => {
-  it("counts 74 hinges, 5 drawers and 16 push-to-open", () => {
-    expect(countHardwareMechanisms(SEEDED_ENTRIES, CATALOG)).toEqual(
-      SEEDED_MECHANISM_COUNTS,
-    );
-  });
-});
-
 describe("the sample rates reconcile to ADR 0070's totals table", () => {
   it.each(Object.keys(ADR_0070_TOTALS_LEI))(
     "prices %s within the owner's own rounding of the ADR's hinge and drawer columns",

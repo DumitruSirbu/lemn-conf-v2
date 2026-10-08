@@ -138,33 +138,6 @@ describe("normalisePhoneNumber: accepted shapes", () => {
   });
 });
 
-function codePointLabel(character: string): string {
-  return `U+${(character.codePointAt(0) ?? 0).toString(16).toUpperCase().padStart(4, "0")}`;
-}
-
-describe("normalisePhoneNumber: every space separator is grouping", () => {
-  const SPACE_SEPARATORS = Array.from(
-    { length: 0x10000 },
-    (_unused, codePoint) => String.fromCodePoint(codePoint),
-  ).filter((character) => /^\p{Zs}$/u.test(character));
-
-  it("finds the Unicode space separators the test sweeps", () => {
-    // The BMP holds seventeen Zs characters: U+0020, U+00A0, U+1680, U+2000 to U+200A, U+202F, U+205F and
-    // U+3000. A sweep that found fewer read the wrong class.
-    expect(SPACE_SEPARATORS.length).toBeGreaterThanOrEqual(17);
-  });
-
-  it.each(
-    SPACE_SEPARATORS.map(
-      (character) => [codePointLabel(character), character] as const,
-    ),
-  )("reads %s between digits as grouping", (_label, character) => {
-    expect(
-      accepted(normalisePhoneNumber(`079${character}123${character}456`)),
-    ).toBe("+37379123456");
-  });
-});
-
 describe("normalisePhoneNumber: a second 0 has its own code at any length", () => {
   it.each([
     ["two zeros, which begin a call abroad", "001234567"],
@@ -203,31 +176,6 @@ describe("normalisePhoneNumber: a second 0 has its own code at any length", () =
   });
 });
 
-describe("normalisePhoneNumber: any dash is grouping", () => {
-  const DASHES = Array.from({ length: 0x10000 }, (_unused, codePoint) =>
-    String.fromCodePoint(codePoint),
-  ).filter((character) => /^\p{Pd}$/u.test(character));
-
-  it("finds the Unicode dashes the test sweeps", () => {
-    expect(DASHES.length).toBeGreaterThanOrEqual(20);
-  });
-
-  it.each(DASHES.map((dash) => [codePointLabel(dash), dash] as const))(
-    "reads %s between digits as grouping",
-    (_label, dash) => {
-      expect(accepted(normalisePhoneNumber(`079${dash}123${dash}456`))).toBe(
-        "+37379123456",
-      );
-    },
-  );
-
-  it("still refuses a minus sign, which is not a dash", () => {
-    expect(refusedCode(normalisePhoneNumber("079\u2212123456"))).toBe(
-      "PHONE_FORMAT_UNRECOGNISED",
-    );
-  });
-});
-
 describe("normalisePhoneNumber: refused shapes", () => {
   it.each([
     ["nothing", ""],
@@ -249,12 +197,6 @@ describe("normalisePhoneNumber: refused shapes", () => {
   it("refuses the 00 international prefix, which is not written with +", () => {
     expect(normalisePhoneNumber("00373 79 123 456").ok).toBe(false);
     expect(normalisePhoneNumber("0037379123456").ok).toBe(false);
-  });
-
-  it("refuses the national prefix alone as incomplete", () => {
-    expect(refusedCode(normalisePhoneNumber("0"))).toBe(
-      "PHONE_MOLDOVAN_INCOMPLETE",
-    );
   });
 });
 

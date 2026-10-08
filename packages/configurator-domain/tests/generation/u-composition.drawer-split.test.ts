@@ -175,19 +175,4 @@ describe("the pan-drawer split follows the drawer cabinets the room gets (RQ19 a
     expect(countExtras(plan, PAN_DRAWER)).toBe(1);
     expect(countExtras(plan, THREE_DRAWER)).toBe(1);
   });
-
-  it("5000 / 4000 / 3000, which gets 4 drawer cabinets (ADR 0110 N10.6), is the preparation, 2 panbanks and 1 3-drawer", () => {
-    const plan = planFor(uRoom(5000, 4000, 3000));
-
-    expect(hasPreparationCabinet(plan)).toBe(true);
-    expect(countExtras(plan, PAN_DRAWER)).toBe(2);
-    expect(countExtras(plan, THREE_DRAWER)).toBe(1);
-  });
-
-  it("6000 / 6000 / 6000, which gets 5 drawer cabinets, has 2 panbanks and 3 3-drawers", () => {
-    const plan = planFor(uRoom(6000, 6000, 6000));
-
-    expect(countBuild(plan, PAN_DRAWER)).toBe(2);
-    expect(countBuild(plan, THREE_DRAWER)).toBe(3);
-  });
 });

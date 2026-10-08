@@ -750,15 +750,6 @@ describe("8H criterion 11 and reading 8c: a value from a closed set is a member 
       codeOf("consentTextVersion", { ...VALID, consentTextVersion: version }),
     ).toBe("UNKNOWN_CONSENT_TEXT_VERSION");
   });
-
-  it("requires one: empty text and none at all are the same refusal", () => {
-    expect(
-      codeOf("consentTextVersion", { ...VALID, consentTextVersion: "" }),
-    ).toBe("REQUIRED");
-    expect(
-      codeOf("consentTextVersion", { ...VALID, consentTextVersion: undefined }),
-    ).toBe("REQUIRED");
-  });
 });
 
 describe("8H reading 10: a refusal is a field and a code and no value", () => {

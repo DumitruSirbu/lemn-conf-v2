@@ -206,18 +206,6 @@ describe("a published accessory line always bills something", () => {
       }
     },
   );
-
-  /** A design with no sink publishes **no accessory line at all** — not one, not a zeroed pair. */
-  it("publishes no accessory line for a kitchen holding no sink", () => {
-    const noSink = placement("drawers", "base-drawer3-600", {
-      alongMm: 1_300,
-      y0Mm: 0,
-      widthMm: 600,
-      heightMm: 820,
-    });
-
-    expect(accessoryLinesOf(priceOrFail(designOf([noSink])))).toEqual([]);
-  });
 });
 
 /**

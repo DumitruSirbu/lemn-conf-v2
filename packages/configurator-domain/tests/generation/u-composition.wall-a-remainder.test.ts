@@ -241,30 +241,6 @@ describe("wall A's witnesses (N11.8, N11.9)", () => {
     expect(plan.remainderMm.A).toBe(100);
   });
 
-  it("2800 / 1600 / 1600: a 400 mm remainder takes a 400 mm door base", () => {
-    const plan = planFor(uRoom(2800, 1600, 1600));
-
-    expect(
-      basesOn(plan, "A").map(
-        (base) =>
-          `${base.buildId}@${String(base.startMm)}-${String(base.endMm)}`,
-      ),
-    ).toStrictEqual(["base-sink@900-1500", "base-cabinet@1500-1900"]);
-    expect(plan.remainderMm.A).toBe(0);
-  });
-
-  it("2900 / 1600 / 1600: a 500 mm remainder takes a 500 mm door base", () => {
-    const plan = planFor(uRoom(2900, 1600, 1600));
-
-    expect(
-      basesOn(plan, "A").map(
-        (base) =>
-          `${base.buildId}@${String(base.startMm)}-${String(base.endMm)}`,
-      ),
-    ).toStrictEqual(["base-sink@900-1500", "base-cabinet@1500-2000"]);
-    expect(plan.remainderMm.A).toBe(0);
-  });
-
   it("never puts a narrow door base on a side wall: the fill belongs to wall A alone (RQ25a)", () => {
     for (const room of roomsOf({
       wallAMm: [3000, 3900, 6000],

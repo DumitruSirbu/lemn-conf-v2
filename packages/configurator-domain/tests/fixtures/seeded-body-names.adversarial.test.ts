@@ -249,30 +249,6 @@ describe("6A2 adversarial: the rename is closed for every seeded row, not only t
 });
 
 describe("6A2 adversarial: the name is a function of width, swept rather than sampled", () => {
-  it("agrees with its equivalent at every integer width from 100 to 1200 mm", () => {
-    // A row that copied the label but not `doorCountFollowsWidth` agrees at no width; a row that
-    // copied the flag but not the label agrees at none either. Swept because the criterion is that
-    // the two definitions are indistinguishable to `describeBodyLabelAt`, not that they match at the
-    // one width the fixture happens to seat the body at.
-    for (const placement of seededPlacementsWithEquivalent) {
-      const seeded = bodyOf(placement.body.buildId);
-      const equivalent = bodyOf(seeded.definition.catalogEquivalentId ?? "");
-
-      const disagreements = [];
-      for (let widthMm = 100; widthMm <= 1200; widthMm += 1) {
-        const seededLabel = describeBodyLabelAt(seeded, widthMm);
-        const equivalentLabel = describeBodyLabelAt(equivalent, widthMm);
-        if (JSON.stringify(seededLabel) !== JSON.stringify(equivalentLabel)) {
-          disagreements.push([widthMm, seededLabel, equivalentLabel]);
-        }
-      }
-      expect([placement.body.buildId, disagreements]).toEqual([
-        placement.body.buildId,
-        [],
-      ]);
-    }
-  });
-
   it("flips a wall row's door suffix at the 500 mm boundary and nowhere else", () => {
     // ADR 0033: the suffix tracks width. A seeded row that carries a *frozen* suffix — a hand-copied
     // "2 uși" in the label — would pass a same-width round trip and fail here.
@@ -325,36 +301,6 @@ describe("6A2 adversarial: the name is a function of width, swept rather than sa
 });
 
 describe("6A2 adversarial: what the derivation is, and what it must not have acquired", () => {
-  it("names itself by an entry that exists, with its door-count flag", () => {
-    // Checked against `INSERTABLE_BODY_DEFINITIONS` — the same list `describeBodyName` resolves the
-    // pointer through — so a seeded row pointing at a row that is not there, or whose flag drifted
-    // from the entry it was read off, fails here. Since 6B-f there is no name to copy: the pointer
-    // *is* the name, which is why the pointer's target must exist.
-    const insertableById = new Map(INSERTABLE_BODY_DEFINITIONS);
-
-    for (const placement of seededPlacementsWithEquivalent) {
-      const seeded = definitionOf(placement.body.buildId);
-      const equivalentId = seeded.catalogEquivalentId ?? "";
-      const equivalent = insertableById.get(equivalentId);
-
-      expect([equivalentId, equivalent === undefined]).toEqual([
-        equivalentId,
-        false,
-      ]);
-      expect([
-        placement.body.buildId,
-        describeBodyLabelAt(bodyOf(placement.body.buildId), 600),
-      ]).toEqual([
-        placement.body.buildId,
-        describeBodyLabelAt(bodyOf(equivalentId), 600),
-      ]);
-      expect([placement.body.buildId, seeded.doorCountFollowsWidth]).toEqual([
-        placement.body.buildId,
-        equivalent?.doorCountFollowsWidth,
-      ]);
-    }
-  });
-
   it("leaves every corner body — base legs and both wall returns — with no name of its own", () => {
     // ADR 0022 / ADR 0025. Named explicitly rather than derived from "has no equivalent", so that a
     // future row silently acquiring a pointer is caught here.

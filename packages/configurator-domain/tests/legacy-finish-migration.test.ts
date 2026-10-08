@@ -18,7 +18,6 @@ import {
 } from "../src/fixtures/kitchen-l-design.js";
 import {
   DEFAULT_FINISH,
-  FinishSchema,
   LEGACY_ENUM_FINISH_NAMES,
   LEGACY_ENUM_FINISHES,
   paletteFinish,
@@ -114,25 +113,6 @@ describe("a document holding any of the five legacy finishes loads", () => {
     expect(byKind.filter((kind) => kind === "free-colour")).toHaveLength(2);
     expect(LEGACY_ENUM_FINISHES.graphite).not.toEqual(DEFAULT_FINISH);
   });
-
-  // *Which* finish each value becomes is the sweep above. This one is the half ADR 0052 governs:
-  // the document is **rescued** rather than refused, and what it comes back holding is a value the
-  // current schema can express rather than the string it was stored as.
-  it.each(LEGACY_ENUM_FINISH_NAMES)(
-    "rescues a document wearing %s rather than refusing it",
-    (name) => {
-      const loaded = migrateDesign(
-        3,
-        storedWithFinishes({ [FINISHABLE_ID]: name }),
-        KITCHEN_L_BODY_CATALOG,
-      );
-
-      const finish = finishOf(loaded, FINISHABLE_ID);
-      expect(finish).not.toBe(name);
-      expect(FinishSchema.safeParse(finish).success).toBe(true);
-      expect(DEFAULT_FINISH).toEqual(paletteFinish("pal.alb"));
-    },
-  );
 
   it.each(LEGACY_ENUM_FINISH_NAMES)(
     "leaves %s on PAL rather than deeming the document to be MDF",

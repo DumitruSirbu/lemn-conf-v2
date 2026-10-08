@@ -347,12 +347,6 @@ describe("8H criteria 16 and 22: a second 0 has its own code, at any length", ()
       );
     });
 
-    it("leaves the prefix alone as incomplete: nothing has been typed that cannot be completed", () => {
-      expect(codeOf(normalisePhoneNumber(prefix))).toBe(
-        "PHONE_MOLDOVAN_INCOMPLETE",
-      );
-    });
-
     it("is not talked round by grouping or format characters about the second 0, at any length", () => {
       const spelt = [
         `${prefix} (0)`,

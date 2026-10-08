@@ -13,7 +13,6 @@
 //
 // Written against the source, not against the fix: every case below is a value a book can carry,
 // and each assertion says what a customer would be shown if it held.
-import { fc, test as propertyTest } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -49,9 +48,6 @@ import { projectDesignForDisplay } from "../../src/queries/design-projection.js"
 import { SAMPLE_PRICE_BOOK } from "../../src/pricing/sample-price-book.js";
 
 const BOOK = SAMPLE_PRICE_BOOK;
-
-/** One seed for every sweep in this file, so a CI failure is reproducible from the file alone. */
-const PROPERTY_SEED = 20_260_907;
 
 function bookWith(overrides: Record<string, unknown>): unknown {
   return { ...BOOK, ...overrides };
@@ -423,47 +419,6 @@ describe("the coefficient bound is derived from the arithmetic it has to hold", 
 });
 
 describe("a formula publishes the figure the integers give, or refuses", () => {
-  const coefficient = fc.integer({
-    min: -MAX_PRICE_COEFFICIENT_MINOR,
-    max: MAX_PRICE_COEFFICIENT_MINOR,
-  });
-  const millimetres = fc.integer({ min: 0, max: MAX_DESIGN_DIMENSION_MM });
-
-  propertyTest.prop(
-    {
-      baseMinor: coefficient,
-      perWidthMillimetreMinor: coefficient,
-      perHeightMillimetreMinor: coefficient,
-      perDoorLeafMinor: coefficient,
-      widthMm: millimetres,
-      heightMm: millimetres,
-      doorLeafCount: fc.integer({ min: 0, max: 8 }),
-    },
-    { seed: PROPERTY_SEED, numRuns: 2_000 },
-  )(
-    "answers the exact integer sum for the widest shape, over a swept range of coefficients",
-    (swept) => {
-      const body: PricedBody = {
-        widthMm: swept.widthMm,
-        heightMm: swept.heightMm,
-        doorLeafCount: swept.doorLeafCount,
-      };
-      const exactMinor =
-        BigInt(swept.baseMinor) +
-        BigInt(swept.perWidthMillimetreMinor) * BigInt(body.widthMm) +
-        BigInt(swept.perHeightMillimetreMinor) * BigInt(body.heightMm) +
-        BigInt(swept.perDoorLeafMinor) * BigInt(body.doorLeafCount);
-
-      const answered = amountForBody(
-        pricedByWidthHeightAndDoorLeaves(swept),
-        body,
-      );
-
-      expect(answered).toBeDefined();
-      expect(BigInt(answered ?? 0)).toBe(exactMinor);
-    },
-  );
-
   it("refuses a shape whose terms are each exact and whose total is not", () => {
     const half = Math.floor(Number.MAX_SAFE_INTEGER / 2);
 

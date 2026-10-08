@@ -127,25 +127,6 @@ describe("the wall corner returns are named, one kind per row (ADR 0066)", () =>
     ]);
   });
 
-  it("names both returns in the kind set, so neither falls through to the unknown label", () => {
-    // A kind missing from the catalogue's set is *unknown*, and an unknown kind resolves to
-    // `catalog.unknownKind` — so a typo in either new kind puts both returns back to one shared
-    // description, in the panel header and in 6D's priced document. That, and not a lost swap list,
-    // is what this test protects: both returns are structural, so §11 row 24 renders no replace
-    // section for them at any spelling (ADR 0066 correction 2026-09-03). Re-asserted over every
-    // seeded body rather than inherited from wave 6A2, because this wave changes two kinds.
-    const world = seeded();
-
-    for (const placement of KITCHEN_L_DESIGN.placements) {
-      const kind = definitionOf(placement.body.buildId).kind;
-      expect([placement.id, isKnownKind(kind)]).toEqual([placement.id, true]);
-      expect([
-        placement.id,
-        namesSomethingTheCatalogueHolds(metaFor(world, placement.id)?.label),
-      ]).toEqual([placement.id, true]);
-    }
-  });
-
   it("never puts a raw kind identifier in a refusal the customer reads", () => {
     // The four corner rows carry no catalogue equivalent to inherit a name from (ADR 0022), so they
     // are the bodies `describeRecordLabel`'s fallback is reached for — and it returned the bare

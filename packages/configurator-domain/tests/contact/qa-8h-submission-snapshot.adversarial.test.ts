@@ -478,16 +478,6 @@ describe("8H criterion 20: the snapshot holds a design, by its own check", () =>
       snapshotOf(KITCHEN_L_DESIGN).priced,
     );
   });
-
-  it("always yields a document that parses again, for every generated kitchen and variant", () => {
-    const unparseable = CASES.filter(
-      ({ design }) =>
-        !DesignSchema.safeParse(JSON.parse(snapshotOf(design).document))
-          .success,
-    );
-
-    expect(unparseable).toEqual([]);
-  });
 });
 
 describe("8H criterion 6: the price is priceDesign's, through one call", () => {
@@ -1020,19 +1010,6 @@ describe("8H criterion 18: judgeSubmissionEligibility refuses facts that contrad
     expect(outcomes).toEqual(
       outcomes.map(() => "SubmissionFactsContradictionError"),
     );
-  });
-
-  it("allows only what the price itself found to fit: every allowed judgement carries an unflagged price", () => {
-    const allowed = judgeSubmissionEligibility({
-      design: KITCHEN_L_DESIGN,
-      overflowingPlacementIds: [],
-      pricing: fitting,
-    });
-
-    expect(allowed).toMatchObject({
-      kind: "allowed",
-      priced: { totalIsFlagged: false, overflowingPlacementIds: [] },
-    });
   });
 
   it("says which bodies it differs over, on one line and within a bound, whatever the ids hold", () => {

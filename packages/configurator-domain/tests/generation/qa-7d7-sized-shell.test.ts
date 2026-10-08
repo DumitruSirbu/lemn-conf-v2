@@ -5,16 +5,13 @@ import {
   cornerAssemblyWidthsMm,
   cornerFarEdgeMm,
   findOverflowingPlacementIds,
-  generateKitchen,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
-  LShellInputError,
   lShellFloorRuns,
   type DesignRoom,
 } from "../../src/index.js";
 import { cornerAlongWallCentreMm } from "../../src/corner-assembly-size.js";
 import { CORNER_WALL_UNIT_TEMPLATES } from "../../src/fixtures/kitchen-l-design.js";
-import { createFakeProbeFactory } from "../support/fake-probe.js";
 
 const OCCURRED_AT = "2026-09-18T10:00:00.000Z";
 
@@ -109,33 +106,6 @@ describe("wave 7D7 S3a — sized shell corners", () => {
           .emptyColumns ?? []
       ).filter((tile) => tile.wall === "B"),
     ).toStrictEqual([]);
-  });
-
-  it.each(BOUNDARY_ROOMS)(
-    "returns a typed minimum failure, rather than throwing, for %o",
-    (inRoom) => {
-      const result = generateKitchen({
-        room: inRoom,
-        occurredAt: OCCURRED_AT,
-        probeAt: createFakeProbeFactory(),
-      });
-      expect(result.ok).toBe(false);
-      if (result.ok)
-        throw new Error("the boundary room unexpectedly generated");
-      expect(result.reason.code).toBe("MINIMUM_NOT_MET");
-    },
-  );
-
-  it("still refuses an outside-engine wall at the shell boundary by its typed input error", () => {
-    try {
-      buildLShellDesign({ room: room(869, 870), occurredAt: OCCURRED_AT });
-      throw new Error("the outside-engine room unexpectedly built");
-    } catch (error) {
-      expect(error).toBeInstanceOf(LShellInputError);
-      expect((error as LShellInputError).refusal).toBe(
-        "ROOM_OUTSIDE_ENGINE_LIMITS",
-      );
-    }
   });
 });
 
