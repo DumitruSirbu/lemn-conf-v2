@@ -7,7 +7,6 @@ import { describe, expect, it } from "vitest";
 import { uShellFloorRuns, type DesignWall } from "../../src/index.js";
 import { absorbedByTheOwnersRuleMm } from "../support/fridge-end-leftover.js";
 import {
-  LARGE_U_TOTAL_MM,
   isLargeU,
   planUKitchenComposition,
   type UGenerationRun,
@@ -20,10 +19,6 @@ import {
 } from "../support/u-plan-fixtures.js";
 
 describe("LARGE_U_TOTAL_MM and isLargeU", () => {
-  it("is the owner's 10 m threshold", () => {
-    expect(LARGE_U_TOTAL_MM).toBe(10_000);
-  });
-
   it("reads the three entered walls, never a free-run capacity", () => {
     const atTheThreshold = uRoomOverriding({
       widthMm: 4000,

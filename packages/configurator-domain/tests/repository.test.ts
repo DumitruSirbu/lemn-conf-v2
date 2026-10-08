@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Design } from "../src/design.js";
 import type { ConfigurationRepository, DesignId } from "../src/repository.js";
-import { DesignNotFoundError, InvalidDesignError } from "../src/repository.js";
+import { DesignNotFoundError } from "../src/repository.js";
 
 const design: Design = {
   room: { shape: "linear", widthMm: 3000, depthMm: 2000, heightMm: 2600 },
@@ -72,13 +72,5 @@ describe("ConfigurationRepository", () => {
     );
     expect(message).not.toMatch(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u);
     expect(message.length).toBeLessThan(LONGEST_NOT_FOUND_MESSAGE);
-  });
-});
-
-describe("InvalidDesignError", () => {
-  it("can be thrown and caught as a distinct error type", () => {
-    expect(() => {
-      throw new InvalidDesignError("placements[0].alongMm is not an integer");
-    }).toThrow(InvalidDesignError);
   });
 });

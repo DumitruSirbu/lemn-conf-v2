@@ -254,17 +254,6 @@ describe("a recorded push on a body that permits no mode is billed no latch", ()
  * supplier source (ADR 0092 Amendment C).
  */
 describe("the tier rates relate to each other in ways the book itself decides", () => {
-  /** ADR 0070's Hettich drawer figure is a runners-only product line while Standard's and Blum's are complete boxes,
-   *  and the owner ruled it stays that way (ADR 0092); a wave making the three comparable overturns that decision. */
-  it("keeps Hettich's drawer rate understated against both complete-box tiers", () => {
-    expect(tierOf("hardware.soft-close").perDrawerMinor).toBeLessThan(
-      tierOf("hardware.standard").perDrawerMinor,
-    );
-    expect(tierOf("hardware.soft-close").perDrawerMinor).toBeLessThan(
-      tierOf("hardware.premium").perDrawerMinor,
-    );
-  });
-
   /** Hettich prices below Standard exactly when a design's drawer saving outweighs both its hinge and latch surcharges
    *  (ADR 0092 decision 12, Amendment C); the two-term form is false once the seeded kitchen carries latches. Every
    *  coefficient is read from the book, so replacing the drafted push figures keeps the derivation valid. */

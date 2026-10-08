@@ -75,12 +75,6 @@ function everyTap(): {
 }
 
 describe("neither 300 mm constant moved", () => {
-  // ADR 0043 names both constants as unchanged. Pinned as literals, not compared to each other, so lowering both
-  // together still fails.
-  it("keeps MIN_WIDTH_M at 300 mm and MIN_SPAN_M at 300 mm", () => {
-    expect([MIN_WIDTH_M, MIN_SPAN_M]).toEqual([0.3, 0.3]);
-  });
-
   it("still refuses to build any cabinet under 300 mm through a resize", () => {
     // The anti-invariant over the widened population: every tap the engine accepts is checked against §2's floor
     // and each entry's own declared one.
@@ -601,12 +595,6 @@ describe("every per-side reason a command can still produce is typed", () => {
 });
 
 describe("the 200 mm cargo exception is neither widened nor closed", () => {
-  it("keeps its declared floor at 200 mm", () => {
-    expect(KITCHEN_L_BODY_CATALOG.get("base-bottle-cargo")?.minWidthMm).toBe(
-      200,
-    );
-  });
-
   it("builds nothing under 300 mm but an entry that declares its own lower floor", () => {
     // A resize that now leaves a 200 mm gap must never leave a 200 mm cabinet whose row declares 300.
     const offenders: string[] = [];

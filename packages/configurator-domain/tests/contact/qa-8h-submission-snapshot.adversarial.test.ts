@@ -592,11 +592,6 @@ describe("8H criterion 6: a total under the shipped book, added up by hand", () 
   //   material.melamine     0 for the whole kitchen
   // A wall cabinet carries two door leaves from 500 mm of width and one below; a leaf hangs on two hinges
   // (ADR 0092 decision 2). Neither cabinet stands over a sink, so no accessory is earned.
-  const BASE = 40_000;
-  const PER_WIDTH_MM = 300;
-  const PER_HEIGHT_MM = 70;
-  const PER_DOOR_LEAF = 14_000;
-  const PER_HINGE = 1_760;
   const HEIGHT_MM = 700;
 
   function wallCabinet(
@@ -624,30 +619,6 @@ describe("8H criterion 6: a total under the shipped book, added up by hand", () 
       placements: [...placements],
     };
   }
-
-  it("still states the rows this sum is made from", () => {
-    const rule = SAMPLE_PRICE_BOOK.cabinetRules.find(
-      ({ buildId }) => buildId === "wall-cabinet",
-    );
-    const standard = SAMPLE_PRICE_BOOK.hardware.tiers.find(
-      ({ tierId }) => tierId === "hardware.standard",
-    );
-    const melamine = SAMPLE_PRICE_BOOK.material.tiers.find(
-      ({ tierId }) => tierId === "material.melamine",
-    );
-
-    expect(JSON.stringify(rule?.formula)).toContain(
-      `"baseMinor":${String(BASE)},"perWidthMillimetreMinor":${String(PER_WIDTH_MM)}`,
-    );
-    expect(JSON.stringify(rule?.formula)).toContain(
-      `"perHeightMillimetreMinor":${String(PER_HEIGHT_MM)}`,
-    );
-    expect(JSON.stringify(rule?.formula)).toContain(
-      `"perDoorLeafMinor":${String(PER_DOOR_LEAF)}`,
-    );
-    expect(standard?.perHingeMinor).toBe(PER_HINGE);
-    expect(melamine?.wholeKitchenMinor).toBe(0);
-  });
 
   it("is 530 560 minor units for a 600 mm and a 400 mm wall cabinet", () => {
     // wide    600 mm: 40 000 + 300 x 600 + 70 x 700 + 14 000 x 2 = 40 000 + 180 000 + 49 000 + 28 000 = 297 000

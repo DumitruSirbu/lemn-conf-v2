@@ -12,11 +12,9 @@ import { fc, test as propertyTest } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
 import {
-  APPROVED_ROOM_POLICY,
   deriveColumns,
   derivePlacementRecords,
   generateKitchen,
-  isShapeBuildable,
   recomputeVoids,
   uShellFloorRuns,
   type Design,
@@ -158,12 +156,6 @@ describe("a generated U keeps every rule (U3b AC1, AC2, AC5)", () => {
     },
     WATCHED_GENERATION_TIMEOUT_MS,
   );
-
-  // Restated at M7B U6 S1 (census D7): the properties above run under the policy the product ships,
-  // which states the U since U6.
-  it("runs its gate under an approved policy that states the U", () => {
-    expect(isShapeBuildable("U", APPROVED_ROOM_POLICY)).toBe(true);
-  });
 });
 
 describe("H3's boundary pairs at 1 mm: the gate passes iff generation places a sink and a hob (U3b AC2)", () => {

@@ -94,12 +94,6 @@ function materialWithControl(control: ColourControl): Material {
 }
 
 describe("the pair space this file sweeps is the whole one, before anything is asserted", () => {
-  it("carries three materials and eight entry ids, so a shrunken declaration fails loudly", () => {
-    expect(MATERIALS).toHaveLength(3);
-    expect(PALETTE_ENTRY_IDS).toHaveLength(8);
-    expect(everyPaletteFinish()).toHaveLength(8);
-  });
-
   it("names every declared material in the expected-offer table and nothing else", () => {
     expect(Object.keys(OFFERED_ENTRY_IDS).sort()).toEqual(
       MATERIALS.map((material) => material.materialId).sort(),

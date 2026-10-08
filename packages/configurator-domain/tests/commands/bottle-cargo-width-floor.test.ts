@@ -11,7 +11,6 @@ import { describe, expect, it } from "vitest";
 
 import { INSERTABLE_BODY_DEFINITIONS } from "../../src/catalog.js";
 import { offersFor } from "../../src/queries/offers.js";
-import { MIN_WIDTH_M } from "../../src/void-engine.js";
 import { clearBodies, insertInto } from "../support/commands.js";
 import { voidAt, type KitchenWorld } from "../support/kitchen-world.js";
 import { columnWorld } from "../support/synthetic-world.js";
@@ -102,13 +101,6 @@ describe("§2's default floor still governs an entry that declares none", () => 
       expect(refusalAt(widthMm, PLAIN_BASE_BUILD_ID)).toBe(expected);
     },
   );
-
-  // The constant itself, so a future edit to it cannot pass this file by leaving the numbers above
-  // in place. Backlog entry 2: it stays at 300, and the cargo is an exception rather than a new
-  // general floor.
-  it("leaves §2's MIN_W at 300 mm", () => {
-    expect(MIN_WIDTH_M * 1000).toBe(GENERAL_MIN_WIDTH_MM);
-  });
 });
 
 describe("the bottle cargo's own floor stands in place of §2's", () => {

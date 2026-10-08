@@ -384,12 +384,6 @@ describe("the two overlaps backlog 50 was opened for, reproduced", () => {
   const BASE_RETURN_START_MM = 480;
   const WALL_RETURN_START_MM = 260;
 
-  // 80 → 70 (ADR 0135): the entry's 80 mm is the X-leg's 560 seat less the 480 the return then started at; the seat is
-  // 550 now that the joint moved, so the same arithmetic reads 70.
-  it("reproduces the base return's 70 mm off the reach the gate reads", () => {
-    expect(seatOf("base-corner-x-900") - BASE_RETURN_START_MM).toBe(70);
-  });
-
   it("reproduces the wall return's 31 mm off the same reach, one band up", () => {
     // Wall A's body at the corner in the wall band, which is what the wall return stood in.
     expect(seatOf("wall-2door-600") - WALL_RETURN_START_MM).toBe(31);

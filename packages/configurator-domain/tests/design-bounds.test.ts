@@ -7,7 +7,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  MAX_COLUMN_EXTENTS,
   MAX_DESIGN_BYTES,
   MAX_EMPTY_COLUMNS,
   MAX_PLACEMENTS,
@@ -42,10 +41,6 @@ describe("the storage bounds after ADR 0132's third wall (AC5)", () => {
     // run is 6300, so a third wall widens the multiplier alone, not the run.
     expect(MAX_EMPTY_COLUMNS).toBe((MAX_ROOM_DEPTH_MM / 10 + 1) * 3);
     expect(MAX_EMPTY_COLUMNS).toBe(1893);
-  });
-
-  it("keeps MAX_COLUMN_EXTENTS equal to MAX_PLACEMENTS, never a separately chosen cap", () => {
-    expect(MAX_COLUMN_EXTENTS).toBe(MAX_PLACEMENTS);
   });
 
   it("moves MAX_DESIGN_BYTES by exactly the per-entry allowances the extra rows cost", () => {

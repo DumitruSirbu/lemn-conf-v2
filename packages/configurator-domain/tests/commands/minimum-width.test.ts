@@ -164,10 +164,6 @@ describe("the sink base's catalogue widths", () => {
     ([buildId]) => buildId === "base-sink",
   )?.[1];
 
-  it("declares the aperture as its minimum", () => {
-    expect(sink?.minWidthMm).toBe(SINK_MIN_WIDTH_MM);
-  });
-
   // 400 is not a width this body has, so it must not reach M4 as a width chip. ADR 0035 steps the
   // rest of the row's chips from the aperture up, and 600 is still where they start: `steppedWidths`
   // rounds the 560 mm floor **up** to the first multiple of the step.

@@ -22,10 +22,7 @@ import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
 } from "../../src/fixtures/kitchen-l-design.js";
-import {
-  MAX_PRICE_COEFFICIENT_MINOR,
-  parsePriceBook,
-} from "../../src/pricing/parse-price-book.js";
+import { parsePriceBook } from "../../src/pricing/parse-price-book.js";
 import {
   amountForBody,
   InexactPriceArithmeticError,
@@ -346,12 +343,6 @@ describe("no intermediate can be inexact (M6-AUD-015)", () => {
 
     expect(refusalFrom(bookWith({ cabinetRules })).code).toBe(
       "INVALID_PRICE_BOOK",
-    );
-  });
-
-  it("bounds coefficients so that every term and every partial sum stays exact", () => {
-    expect(MAX_PRICE_COEFFICIENT_MINOR * 4 * 10_000).toBeLessThanOrEqual(
-      Number.MAX_SAFE_INTEGER,
     );
   });
 

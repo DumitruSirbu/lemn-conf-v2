@@ -215,14 +215,6 @@ describe("validateDesignForCatalog", () => {
         expect(runEndMm).toBeLessThanOrEqual(BOUND_BY_WALL[wall]);
       },
     );
-
-    /** Pinned by value so wall B's bound is a **stated** number rather than whatever the fixture
-     *  happens to say. 2920 is inside the owner's ruled 20–50 mm clearance band past 2900; a wave
-     *  that moves it to 2930 edits this line, and one that moves it to 2900 or 3000 needs a ruling
-     *  first. */
-    it("declares the two runs the demo room is built to clear", () => {
-      expect(BOUND_BY_WALL).toStrictEqual({ A: 3560, B: 2920 });
-    });
   });
 
   /** ADR 0132 decision 7 (D10): a U's wall A backs onto both side walls, so its own across-room

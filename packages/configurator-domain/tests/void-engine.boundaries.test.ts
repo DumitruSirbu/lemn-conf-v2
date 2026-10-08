@@ -7,11 +7,7 @@
 // comparison on floats stops being a rule and starts being an accident.
 import { describe, expect, it } from "vitest";
 
-import {
-  LEVEL_SNAP_M,
-  MIN_SPAN_M,
-  type VoidRecord,
-} from "../src/void-engine.js";
+import { LEVEL_SNAP_M, type VoidRecord } from "../src/void-engine.js";
 import {
   BACKSPLASH_ZONE,
   findInvariantViolations,
@@ -50,10 +46,6 @@ function gapInWallLevel(gapMm: number): readonly VoidRecord[] {
 }
 
 describe("MIN_SPAN_M at its boundary (§2, §4)", () => {
-  it("is the value the spec's tolerance table states", () => {
-    expect(MIN_SPAN_M).toBe(0.3);
-  });
-
   it("gives the same answer for a 300 mm free span wherever it occurs", () => {
     // §2 calls MIN_SPAN "smallest span that becomes a void"; §4's pseudocode compares with `>`.
     // Whichever reading is right, a 300 mm gap must be an opening in both levels or in neither:

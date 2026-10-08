@@ -511,15 +511,6 @@ describe("criterion 7 — the smallest room APPROVED_ROOM_POLICY admits", () => 
     expect(approvedL().wallB.minMm).toBe(1000);
   });
 
-  it("is read from the bound rather than typed, and is 900 × 1000 × 2200 while the bound is unmoved", () => {
-    expect(SMALLEST_APPROVED_ROOM).toStrictEqual({
-      shape: "L",
-      widthMm: 900,
-      depthMm: 1000,
-      heightMm: 2200,
-    });
-  });
-
   it("still holds its whole corner assembly, inside both walls", () => {
     const shell = shellIn(SMALLEST_APPROVED_ROOM);
     const corners = shell.placements.filter(

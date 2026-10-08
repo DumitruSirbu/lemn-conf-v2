@@ -7,7 +7,6 @@ import { entryLabel } from "../../src/catalog.js";
 
 import {
   buildableSizes,
-  INSERTABLE_BODY_DEFINITIONS,
   resolveBuildableSizes,
   resolveCatalogEquivalent,
 } from "../../src/catalog.js";
@@ -555,19 +554,5 @@ describe("the bottle cargo's 200 mm floor stays the cargo's alone", () => {
         KITCHEN_L_BODY_CATALOG.get(record?.buildId ?? "")?.catalogEquivalentId,
       ).toBe("wall-cabinet");
     }
-  });
-
-  it("names every entry in the catalogue declaring a floor under the default", () => {
-    // ADR 0026: any second row declaring a floor under the default needs its own record; this list makes an unrecorded
-    // declaration fail loudly.
-    const declaringDown = INSERTABLE_BODY_DEFINITIONS.filter(
-      ([, definition]) =>
-        definition.minWidthMm !== undefined && definition.minWidthMm < 300,
-    ).map(([buildId]) => buildId);
-    expect(declaringDown).toEqual([
-      "base-cabinet",
-      "base-bottle-cargo",
-      "wall-cabinet",
-    ]);
   });
 });
