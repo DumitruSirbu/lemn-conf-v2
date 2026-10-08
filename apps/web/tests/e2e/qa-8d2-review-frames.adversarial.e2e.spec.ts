@@ -32,7 +32,7 @@ import {
   touchDrag,
 } from "./support/qa-8d-review";
 import { openSeededDesign, test, type Locale } from "./support/seeded-design";
-import { seedDesign } from "./support/u-design";
+import { composeU, seedDesign } from "./support/u-design";
 
 const PHONE = { width: 390, height: 844 };
 const HALF_THE_PHONE = PHONE.height / 2;
@@ -242,8 +242,13 @@ interface BarFit {
     bottom: number;
     clippedBy: number;
     lines: number;
+    lineTexts: readonly string[];
+    fontSizePx: number;
+    overflow: string;
     text: string;
   };
+  readonly amountLines: number;
+  readonly pageScrollWidth: number;
 }
 
 /** The bar as laid out: the caption, the amount, and the call to action with how many lines its label takes. */
@@ -254,11 +259,23 @@ async function readTheBar(page: Page): Promise<BarFit> {
     const action = region.querySelector('[data-testid="review-cta"]');
     if (!caption || !amount || !action) throw new Error("the bar is not whole");
     const box = (element: Element) => element.getBoundingClientRect();
-    const range = document.createRange();
-    range.selectNodeContents(action);
-    const lineTops = new Set(
-      [...range.getClientRects()].map((rect) => Math.round(rect.top)),
-    );
+    const linesOf = (element: Element): string[] => {
+      const text = element.firstChild;
+      if (text === null) return [];
+      const lines = new Map<number, string>();
+      for (let index = 0; index < (text.textContent ?? "").length; index += 1) {
+        const range = document.createRange();
+        range.setStart(text, index);
+        range.setEnd(text, index + 1);
+        const top = Math.round(range.getBoundingClientRect().top);
+        lines.set(
+          top,
+          `${lines.get(top) ?? ""}${(text.textContent ?? "").charAt(index)}`,
+        );
+      }
+      return [...lines.values()].map((line) => line.trim());
+    };
+    const actionLines = linesOf(action);
     return {
       regionHeight: box(region).height,
       caption: {
@@ -281,9 +298,14 @@ async function readTheBar(page: Page): Promise<BarFit> {
           action.scrollHeight - action.clientHeight,
           action.scrollWidth - action.clientWidth,
         ),
-        lines: lineTops.size,
+        lines: actionLines.length,
+        lineTexts: actionLines,
+        fontSizePx: Number.parseFloat(getComputedStyle(action).fontSize),
+        overflow: `${getComputedStyle(action).textOverflow}/${getComputedStyle(action).overflow}`,
         text: action.textContent,
       },
+      amountLines: linesOf(amount).length,
+      pageScrollWidth: document.documentElement.scrollWidth,
     };
   });
 }
@@ -298,9 +320,18 @@ function expectTheBarOnOneRow(bar: BarFit, detail: string): void {
   expect(bar.action.top, detail).toBeLessThan(bar.amount.bottom);
   expect(bar.action.bottom, detail).toBeGreaterThan(bar.caption.top);
   expect(bar.action.right, detail).toBeLessThanOrEqual(PHONE.width);
-  expect(bar.action.bottom - bar.action.top, detail).toBeGreaterThanOrEqual(52);
+  expect(bar.action.bottom - bar.action.top, detail).toBe(52);
   expect(bar.action.clippedBy, detail).toBeLessThanOrEqual(0);
+  expect(bar.action.fontSizePx, detail).toBe(15);
+  expect(bar.action.overflow, detail).toBe("clip/visible");
+  expect(bar.amountLines, detail).toBe(1);
+  expect(bar.pageScrollWidth, detail).toBeLessThanOrEqual(PHONE.width);
 }
+
+const CALL_TO_ACTION_LINES: Readonly<Record<Locale, readonly string[]>> = {
+  ro: ["Cere oferta"],
+  ru: ["Запросить", "предложение"],
+};
 
 type SaveAnswer = (route: Route) => Promise<void>;
 
@@ -341,6 +372,9 @@ for (const locale of LOCALES) {
         expect(region.sentences, state).toHaveLength(sentences);
         expect(region.height, state).toBeLessThan(HALF_THE_PHONE);
         expectTheBarOnOneRow(bar, `${locale}, ${state}`);
+        expect(bar.action.lineTexts, `${locale}, ${state}`).toEqual(
+          CALL_TO_ACTION_LINES[locale],
+        );
         await captureEvidence(page, `foot-${locale}-${state}`);
         return bar;
       };
@@ -403,12 +437,87 @@ test("the bar keeps to one row with a six-, a seven- and an eight-digit amount w
       const bar = await readTheBar(page);
       fits[amount] = bar.action;
       expectTheBarOnOneRow(bar, `${locale}, ${amount}`);
+      expect(bar.action.lineTexts, `${locale}, ${amount}`).toEqual(
+        CALL_TO_ACTION_LINES[locale],
+      );
       expect(bar.regionHeight, `${locale}, ${amount}`).toBe(
         asPriced.regionHeight,
       );
     }
     console.log(`BAR ${locale} ${JSON.stringify(fits)}`);
     await captureEvidence(page, `bar-longest-amount-${locale}`);
+  }
+});
+
+const BIG_U_ROOMS = [
+  { widthMm: 6000, depthMm: 6000, wallCMm: 6000, heightMm: 2600 },
+  { widthMm: 6000, depthMm: 4500, wallCMm: 4500, heightMm: 2600 },
+  { widthMm: 6000, depthMm: 3000, wallCMm: 3000, heightMm: 2600 },
+  { widthMm: 4500, depthMm: 3000, wallCMm: 3600, heightMm: 2600 },
+];
+const MATERIAL_TIERS = [
+  "material.melamine",
+  "material.painted-mdf",
+  "material.veneer",
+];
+const HARDWARE_TIERS = [
+  "hardware.standard",
+  "hardware.soft-close",
+  "hardware.premium",
+];
+
+/** The kitchen with the highest total among the largest U rooms the generator composes, in every pair of tiers the
+ *  price book offers. */
+function priciestGeneratedKitchen(): { design: Design; totalMinor: number } {
+  let priciest: { design: Design; totalMinor: number } | undefined;
+  for (const room of BIG_U_ROOMS) {
+    let composed: Design;
+    try {
+      composed = composeU(room);
+    } catch {
+      continue;
+    }
+    for (const materialTierId of MATERIAL_TIERS) {
+      for (const hardwareTierId of HARDWARE_TIERS) {
+        const design: Design = {
+          ...composed,
+          settings: { ...composed.settings, materialTierId, hardwareTierId },
+        };
+        const { pricing } = priceAndProject(design);
+        if (!pricing.ok) continue;
+        const { totalMinor } = pricing.priced;
+        if (priciest === undefined || totalMinor > priciest.totalMinor)
+          priciest = { design, totalMinor };
+      }
+    }
+  }
+  if (priciest === undefined) throw new Error("no kitchen was priced");
+  return priciest;
+}
+
+test("with the priciest kitchen the generator makes, the bar is still one row in both languages: the amount on one line, the Russian label on its two, the Romanian on one, in a 52 px call to action", async ({
+  page,
+}) => {
+  const minted: string[] = [];
+  try {
+    const { design, totalMinor } = priciestGeneratedKitchen();
+    const kitchen = await seedDesign(page, design);
+    minted.push(kitchen.id);
+    for (const locale of LOCALES) {
+      await openReview(page, kitchen, locale);
+      const bar = await readTheBar(page);
+
+      expectTheBarOnOneRow(bar, locale);
+      expect(bar.action.lineTexts, locale).toEqual(
+        CALL_TO_ACTION_LINES[locale],
+      );
+      console.log(
+        `PRICIEST ${locale} ${JSON.stringify({ totalMinor, amount: bar.amount.text, actionWidth: bar.action.right - bar.action.left })}`,
+      );
+      await captureEvidence(page, `bar-priciest-${locale}`);
+    }
+  } finally {
+    await deleteMintedDesigns(minted);
   }
 });
 
@@ -461,6 +570,26 @@ test("the view chips stand in a row under a picture 158 px tall, each at least 4
   );
   expect(link?.y ?? 0).toBeGreaterThanOrEqual(picture?.y ?? 0);
   expect(link?.height ?? 0).toBeGreaterThanOrEqual(44);
+  // Nothing but that link stands over the picture: every point of a grid across it is the canvas or the link.
+  const covering = await page.evaluate(
+    ({ x, y, width, height }) => {
+      const others = new Set<string>();
+      for (let column = 1; column < 12; column += 1) {
+        for (let row = 1; row < 8; row += 1) {
+          const hit = document.elementFromPoint(
+            x + (width * column) / 12,
+            y + (height * row) / 8,
+          );
+          if (hit === null || hit.tagName === "CANVAS" || hit.closest("a"))
+            continue;
+          others.add(`${hit.tagName}.${hit.className}`);
+        }
+      }
+      return [...others];
+    },
+    picture ?? { x: 0, y: 0, width: 0, height: 0 },
+  );
+  expect(covering).toEqual([]);
 
   // A touch that travels on a chip is a swipe, not a press: the page scrolls and the view stays.
   const pressedBefore = await scene
