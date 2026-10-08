@@ -1,8 +1,9 @@
 # ADR 0152 — A test is kept only if it can fail for the reason its title names, and it is deleted only on evidence
 
 Status: Accepted. **Decision 4 (the audit recurs, incrementally) was ruled by the owner on 2026-10-08, after this record was
-written.** The owner's sentence in *Context* and the ruling in decision 4 are the owner's; every other rule below says whose
-it is.
+written, and **its cadence and gate were ruled the same day (Amendment A: the audit runs at each milestone's end, and a "cannot
+fail" finding keeps the milestone open).** The owner's sentence in *Context* and the rulings in decision 4 and Amendment A are
+the owner's; every other rule below says whose it is.
 Date: 2026-10-08
 Type: Decision
 Milestone: M8 (raised by `docs/TESTS_REVIEW.md` and its fix-up, on branch `m8-review-contact-success`)
@@ -100,7 +101,7 @@ pass only when you ask for one." This was first recorded the same day as the coo
 not objected. **Still unruled:** the baseline commit for the first incremental audit. The natural reading is the tip at which
 the first full pass closed; nobody ruled it.
 
-The owner triggers the audit from time to time. **By default it covers the test files changed since the last audited
+The owner triggers the audit from time to time (**overtaken for milestone closes by Amendment A below**). **By default it covers the test files changed since the last audited
 commit**; a full pass runs only on request in words. The role card is
 `.claude/agents/configurator-test-auditor.md` (the Codex twin is `docs/agents/test-auditor.md`) and the procedure is
 `docs/skills/lemnaria-test-audit/SKILL.md`; its reports go to `docs/test-audits/<date>-<scope>.md`. **Both the role and
@@ -149,4 +150,36 @@ overturned. ADR 0078, 0084, 0031, 0022 and 0150 receive dated notes of their own
   [doc, `TESTS_REVIEW.md`, *What is still open*]; the next audit should not treat "one test" as a finding.
 - Open and recorded in the backlog: the metres-field dangling separator (no record decides it), the `test.fixme` of row
   2881, a third copy of the undeclared-or-offers check, and `e2e-shard-budget`, which failed at `ee834b6` and blocked a push (fixed in `8aba717`, 2026-10-08; backlog 147, 153).
-- Decision 4 is the owner's ruling (above). The first audit's baseline commit is not ruled.
+- Decision 4 is the owner's ruling (above). Amendment A, below, adds when the audit runs and what it blocks; the first
+  audit's baseline is stated there as following from the two rulings, and the exact commit is not ruled.
+
+## Amendment A, 2026-10-08 — the audit runs at each milestone's end, and a "cannot fail" finding keeps the milestone open
+
+**The owner's words, verbatim, typed to the coordinator [relayed]:** *"at each milestone end this tests audit should be done"*.
+The coordinator then put two readings of whether the audit gates the close: (1) findings are fixed before the milestone is
+marked Done; (2) findings go to the backlog or the next milestone. It proposed a middle rule in these words: *"'cannot fail'
+findings are fixed before close, since they mean a requirement is unguarded; duplicates and useless tests may be deferred."*
+The owner answered, verbatim: *"go with the middle rule"*.
+
+**Ruled by the owner:** the audit is run at each milestone's end, and the middle rule as worded above. The text of decision 4
+that said the owner triggers the audit "from time to time" is overtaken for milestone closes; the owner may still ask for one
+at any time. The state of this record before the amendment is kept in the paragraphs above.
+
+**The coordinator's wording of the details (the owner approved the middle rule, not each word) [relayed]:**
+
+- *When:* at each milestone's close, as part of `docs/WORKFLOW.md` step 7, and whenever the owner asks; dispatched to
+  `configurator-test-auditor` following the skill.
+- *Scope:* incremental, the test files changed since the previous audit, which at a milestone's end is that milestone's test
+  work.
+- *Blocks the close:* a "cannot fail" finding, a test that does not fail when the behaviour its title names is broken. Each is
+  fixed (by `configurator-qa`; a strengthened test that turns red goes to the architect; only a ruled defect to the developer)
+  before the milestone is marked Done, because it is a requirement nothing guards.
+- *Does not block:* duplicate, obsolete and useless findings. They may be deferred to the backlog or the next milestone; the
+  audit report records which were deferred and where.
+- *The first incremental audit* is at M8's close. Its baseline is the commit that closes the tests review on
+  `m8-review-contact-success`, on or after `35a3974`; this follows from the two rulings and the owner did not name the commit.
+  The first audit report records the exact hash.
+
+**Still unruled:** whether a "deleted by reading" duplicate found at a close may also be deferred (by default it follows the
+duplicate rule); and who decides when a "cannot fail" finding needs a product decision the milestone cannot make (by default it
+keeps the milestone open and goes to the owner).

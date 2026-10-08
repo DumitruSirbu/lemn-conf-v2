@@ -11,10 +11,16 @@ session can learn fast where the project stands, without reading eight phase pla
 > backlog 149 (the gap stays recorded), and chose **"No, I'll push myself (Recommended)"**. Backlog 153 is closed: the desktop
 > ceiling is 67 (`18283a8`). **`pnpm ci:local` at `18283a8`, coordinator, clean tree: all gates green, safe to push** (domain
 > 7695, persistence 1751 + 1 skipped, three-adapter 4284, `apps/web` 5898, e2e 677 + 1 skipped). `eaef634` changed three test
-> files only; the `apps/web` Vitest suite was re-run there (335 files, 5902 passed, typecheck clean). **A full gate at `eaef634`
-> has not been run at the time of writing.** The branch is 55 commits past `a2a6dfd` at `eaef634`, **none pushed; the owner will
-> push.** The 13 agent worktrees were removed by the coordinator. **Still open:** whether the URL should carry millimetres
-> (backlog 154) and the first incremental audit's baseline commit (not ruled). The paragraphs below are history where they say
+> files only; the `apps/web` Vitest suite was re-run there (335 files, 5902 passed, typecheck clean). ~~A full gate at `eaef634`
+> has not been run at the time of writing.~~ **Superseded: `pnpm ci:local` at `35a3974`, coordinator, clean tree [relayed]: `LOCAL
+> CI PASSED — all gates green, safe to push.` Domain 7695 passed; persistence 1751 passed, 1 skipped; three-adapter 4284 passed;
+> `apps/web` 5902 passed; e2e 677 passed with no skipped line (11.0 min); `e2e-shard-budget` PASS.** The branch is 56 commits past
+> `a2a6dfd` at `35a3974` plus the commit that holds the latest documentation pass, **none pushed; the owner will push.**
+> **New owner ruling, 2026-10-08 (ADR 0152 Amendment A): the test audit runs at each milestone's end, and a "cannot fail"
+> finding keeps the milestone open; duplicates and useless tests may be deferred. M8's close therefore includes the first
+> incremental audit,** its baseline the commit that closes the tests review, on or after `35a3974` (follows from the rulings; the
+> exact hash is recorded by the first report). The 13 agent worktrees were removed by the coordinator. **Still open:** whether the URL should carry millimetres
+> (backlog 154) and the first incremental audit's exact baseline hash (follows from the rulings, recorded by the first report). The paragraphs below are history where they say
 > the owner decides or the ceiling is 70.
 >
 > **Update, 2026-10-08, after `dc74dcc` [relayed by the coordinator, who ran the commands]:** the owner decided backlog 147
@@ -1181,8 +1187,8 @@ policy, so every per-endpoint limit is application code.
 > 147; until then no push is possible"; that is history.) **Superseded later the same day:** the ceiling (153), the dangling separator (148), the fixme (149) and
 > [ADR 0152](decisions/0152-a-test-is-kept-only-if-it-can-fail-for-the-reason-its-title-names-and-is-deleted-only-on-evidence.md)
 > decision 4 are all decided or closed (see the update at the top of this file); the owner will push. Still open: backlog 154 (the URL's
-> wire form). The next test audit, when the owner triggers one, follows `skills/lemnaria-test-audit/SKILL.md`; its baseline commit
-> is not ruled. The entry below is unchanged and is the M8 state.
+> wire form). The next test audit is at M8's close (or when the owner asks) and follows `skills/lemnaria-test-audit/SKILL.md`; a
+> "cannot fail" finding keeps M8 open (ADR 0152 Amendment A). The entry below is unchanged and is the M8 state.
 >
 > **RESUME HERE — 2026-10-08, latest of all, after wave 8H. Wave 8H ("the submission contract") is DONE; the next dispatchable waves are 8I and 8J. 8F waits on the triage of the three red `CI=1` specs (backlog 125) and its dispatch reads 8E's "What later waves inherit", ADR 0149 and its amendment, and "The digest secret" under 8I.**
 > **8H**, commits `aecacbd` … `2b8c60b` on `m8-review-contact-success`, **local, not pushed**. **What shipped:** the contact fields and the phone rule, the request, the snapshot and the refusal rule (one home, in the domain, called by the review), all I/O-free under `packages/configurator-domain/src/contact/`; nothing in a route, store or mail uses them yet. Decisions and limits: [ADR 0150](decisions/0150-the-submission-contract-is-one-io-free-definition-a-request-holds-no-price-reads-only-what-the-sender-wrote-and-the-snapshot-and-the-review-share-one-refusal-rule.md). Owner rulings recorded: S2's over-count accepted and one keyed secret for both digests ([ADR 0149](decisions/0149-the-rate-limit-store-keeps-one-row-per-bucket-per-window-refuses-a-broken-promise-and-may-count-high-but-never-low-between-prunes.md) amendment); Q33 as built and criterion 16 (ADR 0150); the test-deletion rule ([ADR 0151](decisions/0151-a-test-may-delete-the-rows-tests-added-and-never-a-row-a-production-user-added.md)). Evidence and the unproven list: the plan's *8H as closed*.

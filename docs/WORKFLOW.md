@@ -26,6 +26,7 @@ one place. What shrank is the amount any single agent has to read, not the corpu
 | [`best-practices/ci-and-local-gates.md`](best-practices/ci-and-local-gates.md) | Run `ci:local`, push, read a gate's output, change lint or format config, or work out why a hook blocked a commit |
 | [`best-practices/engineering-conventions.md`](best-practices/engineering-conventions.md) | Write production code, write or judge a **test**, or add a user-visible string |
 | [`best-practices/documentation.md`](best-practices/documentation.md) | Close a wave, write a decision record, state a number, or turn something the owner said into a criterion |
+| [`skills/lemnaria-test-audit/SKILL.md`](skills/lemnaria-test-audit/SKILL.md) | Close a phase (step 7), or audit the tests for ones that protect nothing |
 | [`best-practices/browser-and-visual-qa.md`](best-practices/browser-and-visual-qa.md) | Verify a visible or interactive surface, or capture a screenshot |
 | [`best-practices/product-invariants.md`](best-practices/product-invariants.md) | Touch geometry, dimensions, units, or the 3D model |
 | [`best-practices/environments-and-resources.md`](best-practices/environments-and-resources.md) | Touch an env var, a secret, a database, or any provisioned resource |
@@ -73,6 +74,9 @@ If none of those rows matches, the spine below is all that applies to you.
    - Make sure the durable reasoning is in `docs/decisions/`, not only in the archived plan. ADRs are
      this repository's knowledge base; a milestone plan is an intention with a shelf life.
    - Remove scratch artifacts from the repository.
+   - Run the test audit (`configurator-test-auditor`, `docs/skills/lemnaria-test-audit/SKILL.md`; owner's ruling
+     2026-10-08, ADR 0152 decision 4): a "cannot fail" finding is fixed before the phase is marked Done, while
+     duplicate, obsolete and useless findings may be deferred to the backlog or the next phase.
 
 Repeat implementation through review until blockers are gone and any intentionally deferred issue is
 named with an owner or future phase.

@@ -19,7 +19,7 @@ them only when a bounded task benefits from delegation.
 | Visual verifier | Real browser/mobile interaction and visual evidence | Certify a surface it could not see or interact with |
 | Security reviewer | Read-only review of data, auth, sharing, generated output, and dependency risk | Run for unrelated pure presentation changes by default |
 | Scribe | Plans, decisions, outcomes, and docs synchronized to shipped work | Modify application or test code |
-| Test auditor | Owner-triggered audit of tests that protect nothing, each finding proven by mutation | Fix, strengthen or delete tests, or mutate a migration |
+| Test auditor | Audit of tests that protect nothing, each finding proven by mutation, at each milestone's close and when the owner asks | Fix, strengthen or delete tests, or mutate a migration |
 
 ## Dispatch cards
 
@@ -63,7 +63,9 @@ corrections; append a later correction rather than rewriting away prior context.
 
 ### Test auditor
 
-Follow `docs/skills/lemnaria-test-audit/SKILL.md`. Default scope: test files changed since the last audited commit. Break
+Follow `docs/skills/lemnaria-test-audit/SKILL.md`. Dispatched at each milestone's close and when the owner asks; a "cannot
+fail" finding keeps the milestone open, so list those rows first with their count. Default scope: test files changed since the
+last audited commit. Break
 the behaviour each candidate test's title names, in your own worktree, and report measured or read per row; run the whole
 package suite for a survivor. Never mutate a migration; do not run persistence, Playwright or `pnpm ci:local`. Write only
 `docs/test-audits/<date>-<scope>.md`. Findings go to QA; a deletion is checked by the logic reviewer.

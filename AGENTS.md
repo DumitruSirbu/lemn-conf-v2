@@ -32,7 +32,7 @@ milestone prose.
    project needs was copied into its own source; older documents mention the folder only as
    historical provenance. → `docs/design/README.md`
 4. **Milestone work follows `docs/WORKFLOW.md`, without exception.** Every wave runs plan →
-   implement → **adversarial QA** → **review** → verify → commit → archive. QA gates review: a wave
+   implement → **adversarial QA** → **review** → verify → commit → archive (a milestone's close includes the test audit). QA gates review: a wave
    whose tests are red goes back to its implementer, not to reviewers. Gates catch regressions
    against what is already asserted; review catches a rule implemented plausibly and wrongly, which
    is why green gates are not a substitute. How much review a wave gets is **tiered by risk** —

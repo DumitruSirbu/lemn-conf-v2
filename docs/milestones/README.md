@@ -4,6 +4,7 @@
 > adversarial QA → review → verify → commit → archive. QA gates review. A wave is not done when
 > its gates are green; it is done when it has been reviewed and its acceptance criteria are met.
 > Deviating is a decision to record in `docs/decisions/`, not a shortcut to take quietly.
+> A milestone's close includes the test audit; a "cannot fail" finding keeps it open (`docs/WORKFLOW.md`, step 7).
 >
 > **Read `docs/STATUS.md` first.** It says where the project stands and which of the plans below
 > are worth opening. Completed phases are archived in `done/` and should not be read — see

@@ -20,7 +20,7 @@ delegating, while the coordinator retains final control of the diff.
 | Security reviewer | `review-security.md` | Read-only data and attack-surface review |
 | Visual verifier | `verify-visual.md` | Browser/mobile evidence for UI work |
 | Scribe | `scribe.md` | Keep records and product docs accurate |
-| Test auditor | `test-auditor.md` | Find tests that protect nothing, proven by mutation (owner-triggered) |
+| Test auditor | `test-auditor.md` | Find tests that protect nothing, proven by mutation (at each milestone's close and when the owner asks) |
 
 The source roles contained old Next.js paths, port numbers, test commands, and known defects.
 Those details are intentionally not copied into this new project; add them to `AGENTS.md` only

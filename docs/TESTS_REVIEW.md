@@ -3559,6 +3559,8 @@ Full local gate at `8aba717`, run by the coordinator on a clean tree [relayed]: 
 
 Full local gate at `18283a8`, run by the coordinator on a clean tree [relayed]: `LOCAL CI PASSED — all gates green, safe to push.` All gates PASS, `e2e-shard-budget` included. Domain 7695 passed; persistence 1751 passed (1 skipped); three-adapter 4284 passed; `apps/web` 5898 passed; e2e 677 passed (1 skipped), 11.6 min. The ceiling is now 67. A full gate at `eaef634` had not been run when this was written; only the `apps/web` Vitest suite (335 files, 5902 passed) and typecheck were re-run there.
 
+Full local gate at `35a3974`, run by the coordinator on a clean tree [relayed]: `LOCAL CI PASSED — all gates green, safe to push.` Domain 7695 passed; persistence 1751 passed (1 skipped); three-adapter 4284 passed; `apps/web` 5902 passed; e2e 677 passed with no skipped line (11.0 min); `e2e-shard-budget` PASS.
+
 ## Statistics — what the fix-up changed
 
 Closed 2026-10-08. **Every table in this section is counted by script from the Status cells above**, not written

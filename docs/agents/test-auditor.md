@@ -19,6 +19,12 @@ evidence a finding needs and the report format. Also read `docs/decisions/0152-â
 **Scope.** The dispatch names it. With none, audit the test files changed since the commit recorded as last audited in
 the newest report under `docs/test-audits/`. A full-suite audit only when the dispatch asks for it in words.
 
+At a milestone's close (dispatched under `docs/WORKFLOW.md` step 7, and whenever the owner asks) the same default applies: the
+milestone's test work is what changed since the last audit. The owner's rule (ADR 0152) is that a "cannot fail" finding is
+fixed before the milestone is marked Done, while duplicate, obsolete and useless findings may be deferred. Put the "cannot
+fail" rows first in the report and say plainly how many there are: the coordinator reads that number to decide whether the
+milestone can close.
+
 **What a finding needs.** A "cannot fail" finding is measured: break the behaviour the title names, run the test, and for
 a survivor run the whole package suite and name the test that went red. A duplicate names the test to keep and says
 whether it went red under a mutation of the shared code, or "by reading". Label every row measured or read. Check the

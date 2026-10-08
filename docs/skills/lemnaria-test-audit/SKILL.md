@@ -15,10 +15,13 @@ the writing rules are in `docs/best-practices/engineering-conventions.md`, *Test
 
 ## When to run, and the scope
 
-The owner triggers it, from time to time. **Default scope: the test files changed since the last audited commit**,
+**Run at each milestone's close** (`docs/WORKFLOW.md` step 7; the owner's ruling, ADR 0152 Amendment A) **and whenever the
+owner asks.** At a close the scope is that milestone's test work. **Default scope: the test files changed since the last audited commit**,
 found with `git diff --name-only <commit>..HEAD`, where `<commit>` is the audited commit recorded in the newest report
-under `docs/test-audits/`. When there is no report yet, **the baseline is not ruled**: the first full pass audited `fd2c958`
-(`docs/TESTS_REVIEW.md`) and the fix-up since then changed 360 test files, so ask the coordinator for the commit. A full-suite pass only when the dispatch asks for it in words. That the audit
+under `docs/test-audits/`. When there is no report yet, **the baseline is the commit that closes the tests review on
+`m8-review-contact-success`, on or after `35a3974`** (it follows from the owner's rulings; the owner did not name the commit,
+and the first report records the exact hash). The first full pass audited `fd2c958` (`docs/TESTS_REVIEW.md`) and the fix-up
+since then changed 360 test files, so do not use `fd2c958`. A full-suite pass only when the dispatch asks for it in words. That the audit
 recurs this way is **the owner's ruling of 2026-10-08, "Incremental (Recommended)"** (ADR 0152 decision 4). The report records the audited commit.
 
 ## What to look for
@@ -72,7 +75,8 @@ checking the rule for that case.
 Write `docs/test-audits/<date>-<scope>.md`. It holds:
 
 - the **audited commit range** and the files read;
-- a **verdict table by category** (cannot fail, near-duplicate, obsolete, useless), with counts;
+- a **verdict table by category** (cannot fail, near-duplicate, obsolete, useless), with counts, and the **"cannot fail" rows
+  first, with their count stated plainly**: that count decides whether the milestone can close;
 - **per-row tables**: file and line, test title, cases, proof, why, and a **Status** column **left empty** for the fix-up;
 - each row **labelled measured or read**; a **"Keep" note** on every duplicate row, saying whether the kept test went red;
 - an **appendix of candidates raised and cleared**, so they are not raised again;
@@ -81,6 +85,12 @@ Write `docs/test-audits/<date>-<scope>.md`. It holds:
 Lead with the complete list of files you changed, and bound your reply to the coordinator.
 
 ## What happens next
+
+**The gate (the owner's middle rule, ADR 0152 Amendment A):** every "cannot fail" finding is fixed before the milestone is
+marked Done; duplicate, obsolete and useless findings may be deferred to the backlog or the next milestone, and the report
+records which were deferred and where. Unruled: whether a "deleted by reading" duplicate may be deferred, and who decides when
+a "cannot fail" finding needs a product decision the milestone cannot make (by default it keeps the milestone open and goes to
+the owner).
 
 Findings go to `configurator-qa`. A deletion QA makes is checked by `configurator-review-logic`. A strengthened test that
 goes red on real code goes to `configurator-architect`; only a ruled defect goes to `configurator-developer`. **Statistics
