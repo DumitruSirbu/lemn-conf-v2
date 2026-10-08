@@ -51,6 +51,28 @@ export type {
   RateLimitWindow,
 } from "./rate-limit-store.js";
 export { FakeRateLimitStore } from "./fake-rate-limit-store.js";
+export { ContactSubmissionStoreError } from "./contact-submission-store.js";
+export type {
+  ContactSubmissionOperation,
+  ContactSubmissionStore,
+  ContactSubmissionToRecord,
+  RecordedSubmission,
+  StoredSubmission,
+  SubmissionAbsent,
+  SubmissionConflict,
+  SubmissionLookup,
+  SubmissionLookupRequest,
+  SubmissionRecording,
+} from "./contact-submission-store.js";
+export {
+  generateSubmissionReference,
+  isSubmissionReference,
+} from "./generate-submission-reference.js";
+export { FakeContactSubmissionStore } from "./fake-contact-submission-store.js";
+export type {
+  FakeContactSubmissionStoreOptions,
+  HeldContactSubmission,
+} from "./fake-contact-submission-store.js";
 export { runMigrations } from "./migrate.js";
 export type { MigrationRunSummary } from "./migrate.js";
 export {
