@@ -281,8 +281,8 @@ describe("every statement the contact submission store sends", () => {
     const { snapshot } = aDesignSubmission(CLIENT_REQUEST_ID);
 
     const jsonTexts = designInsert.values.filter(
-      (sent): sent is string =>
-        typeof sent === "string" && sent.startsWith("{"),
+      (value): value is string =>
+        typeof value === "string" && value.startsWith("{"),
     );
 
     expect(jsonTexts).toEqual([
@@ -295,7 +295,7 @@ describe("every statement the contact submission store sends", () => {
     ]);
     expect(
       callbackInsert.values.filter(
-        (sent) => typeof sent === "string" && sent.startsWith("{"),
+        (value) => typeof value === "string" && value.startsWith("{"),
       ),
     ).toEqual([]);
   });

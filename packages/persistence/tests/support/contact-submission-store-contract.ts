@@ -10,6 +10,7 @@ import {
   generateSubmissionReference,
   isSubmissionReference,
 } from "../../src/generate-submission-reference.js";
+import { rejectionOf } from "./rejection-of.js";
 import {
   DIGEST_A,
   DIGEST_B,
@@ -182,9 +183,7 @@ export function describeContactSubmissionStoreContract({
       await store.record(aDesignSubmission(newClientRequestId()));
       const refused = aDesignSubmission(newClientRequestId());
 
-      const failure = await store
-        .record(refused)
-        .catch((error: unknown) => error);
+      const failure = await rejectionOf(store.record(refused));
       const afterwards = await store.lookUp(refused);
 
       expect(failure).toBeInstanceOf(ContactSubmissionStoreError);
@@ -300,9 +299,9 @@ export function describeContactSubmissionStoreContract({
     });
 
     it("fails with the store error for an id that is not stored", async () => {
-      const failure = await createStore()
-        .markNotified(newClientRequestId())
-        .catch((error: unknown) => error);
+      const failure = await rejectionOf(
+        createStore().markNotified(newClientRequestId()),
+      );
 
       expect(failure).toBeInstanceOf(ContactSubmissionStoreError);
       expect((failure as ContactSubmissionStoreError).operation).toBe(

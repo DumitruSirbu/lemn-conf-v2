@@ -1,7 +1,10 @@
 import { NeonDbError } from "@neondatabase/serverless";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ContactSubmissionStoreError } from "../src/contact-submission-store.js";
+import {
+  ContactSubmissionStoreError,
+  MAX_REFERENCE_PROPOSALS,
+} from "../src/contact-submission-store.js";
 import type { ContactSubmissionOperation } from "../src/contact-submission-store.js";
 import { NeonContactSubmissionStore } from "../src/neon-contact-submission-store.js";
 import {
@@ -24,6 +27,7 @@ import {
   WELL_FORMED_UNREACHABLE_VALUE,
   markersFoundOn,
 } from "./support/leaked-connection-markers.js";
+import { rejectionOf } from "./support/rejection-of.js";
 import {
   answerWith,
   driver,
@@ -137,6 +141,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 describe("a reference that is another request's", () => {
@@ -161,13 +166,13 @@ describe("a reference that is another request's", () => {
   });
 
   it("is given up on after three proposals: the store error, no cause, three distinct proposals sent", async () => {
-    for (let draw = 0; draw < ATTEMPTS_IN_THE_RETRY_BUDGET; draw += 1) {
+    for (let draw = 0; draw < MAX_REFERENCE_PROPOSALS; draw += 1) {
       failWith(databaseRefusal("23505", REFERENCE_UNIQUENESS));
     }
 
-    const failure = await newStore(...REFERENCES)
-      .record(aDesignSubmission(CLIENT_REQUEST_ID))
-      .catch((error: unknown) => error);
+    const failure = await rejectionOf(
+      newStore(...REFERENCES).record(aDesignSubmission(CLIENT_REQUEST_ID)),
+    );
 
     expect(failure).toBeInstanceOf(ContactSubmissionStoreError);
     expect((failure as ContactSubmissionStoreError).operation).toBe(
@@ -176,7 +181,7 @@ describe("a reference that is another request's", () => {
     expect((failure as Error).cause).toBeUndefined();
     expect(
       driver.statements.map((_statement, index) => referenceSentIn(index)),
-    ).toEqual(REFERENCES.slice(0, 3));
+    ).toEqual(REFERENCES.slice(0, MAX_REFERENCE_PROPOSALS));
   });
 
   it.each([
@@ -192,9 +197,9 @@ describe("a reference that is another request's", () => {
     async (_name, code, constraint) => {
       failWith(databaseRefusal(code, constraint));
 
-      const failure = await newStore(...REFERENCES)
-        .record(aDesignSubmission(CLIENT_REQUEST_ID))
-        .catch((error: unknown) => error);
+      const failure = await rejectionOf(
+        newStore(...REFERENCES).record(aDesignSubmission(CLIENT_REQUEST_ID)),
+      );
 
       expect(failure).toBeInstanceOf(ContactSubmissionStoreError);
       expect((failure as Error).cause).toEqual({ name: "NeonDbError", code });
@@ -363,9 +368,9 @@ describe("a reply that is not exactly the rows the statement names", () => {
     async (_name, reply) => {
       answerWith(reply);
 
-      const failure = await newStore(...REFERENCES)
-        .record(aDesignSubmission(CLIENT_REQUEST_ID))
-        .catch((error: unknown) => error);
+      const failure = await rejectionOf(
+        newStore(...REFERENCES).record(aDesignSubmission(CLIENT_REQUEST_ID)),
+      );
 
       expect(failure).toBeInstanceOf(ContactSubmissionStoreError);
       expect((failure as Error).cause).toBeUndefined();
@@ -387,8 +392,8 @@ describe("a reply that is not exactly the rows the statement names", () => {
     answerWith([recordedRow(FIRST_REFERENCE)]);
 
     const failures = [
-      await store.lookUp(request).catch((error: unknown) => error),
-      await store.lookUp(request).catch((error: unknown) => error),
+      await rejectionOf(store.lookUp(request)),
+      await rejectionOf(store.lookUp(request)),
     ];
 
     for (const failure of failures) {
@@ -406,12 +411,8 @@ describe("a reply that is not exactly the rows the statement names", () => {
     ]);
 
     const failures = [
-      await store
-        .markNotified(CLIENT_REQUEST_ID)
-        .catch((error: unknown) => error),
-      await store
-        .markNotified(CLIENT_REQUEST_ID)
-        .catch((error: unknown) => error),
+      await rejectionOf(store.markNotified(CLIENT_REQUEST_ID)),
+      await rejectionOf(store.markNotified(CLIENT_REQUEST_ID)),
     ];
 
     for (const failure of failures) {
@@ -607,9 +608,9 @@ describe("every failure of the driver", () => {
       databaseRefusal("23514", "contact_submissions_payload_digest_is_sha256"),
     );
 
-    const failure = await newStore(...REFERENCES)
-      .record(aDesignSubmission(CLIENT_REQUEST_ID))
-      .catch((error: unknown) => error);
+    const failure = await rejectionOf(
+      newStore(...REFERENCES).record(aDesignSubmission(CLIENT_REQUEST_ID)),
+    );
 
     expect((failure as Error).cause).toEqual({
       name: "NeonDbError",
@@ -633,6 +634,5 @@ describe("every failure of the driver", () => {
       .catch(() => undefined);
 
     expect(written.map((spy) => spy.mock.calls.length)).toEqual([0, 0, 0, 0]);
-    vi.restoreAllMocks();
   });
 });

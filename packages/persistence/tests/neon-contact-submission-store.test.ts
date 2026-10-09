@@ -29,9 +29,7 @@ holdSharedTestSchemaLock();
 
 const SUITE_NAME = "NeonContactSubmissionStore (live test database)";
 
-const hasLiveDatabase = isLiveTestDatabaseConfigured;
-const testDatabaseUrl = liveTestDatabaseUrl;
-if (!hasLiveDatabase) announceSkippedLiveSuite(SUITE_NAME);
+if (!isLiveTestDatabaseConfigured) announceSkippedLiveSuite(SUITE_NAME);
 
 /**
  * The marker only tests write, at the start of every client request id this file makes: the rows it deletes are the
@@ -46,7 +44,7 @@ function newClientRequestId(): string {
 
 /** Deletes the rows this file's marker is on, and says how many went. */
 async function removeRowsCarryingTheTestMarker(): Promise<number> {
-  const removed = await neon(testDatabaseUrl)`
+  const removed = await neon(liveTestDatabaseUrl)`
     delete from contact_submissions
     where client_request_id like ${`${TEST_ID_MARKER}%`}
     returning client_request_id
@@ -75,7 +73,7 @@ interface OwnerView {
 
 /** What the table holds for an id, read with the test database's owner credential: the application role cannot. */
 async function rowHeldFor(clientRequestId: string): Promise<OwnerView[]> {
-  return (await neon(testDatabaseUrl)`
+  return (await neon(liveTestDatabaseUrl)`
     select
       jsonb_typeof(design_document) as design_document_type,
       jsonb_typeof(priced) as priced_type,
@@ -89,9 +87,9 @@ async function rowHeldFor(clientRequestId: string): Promise<OwnerView[]> {
   `) as OwnerView[];
 }
 
-describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
+describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
   beforeAll(async () => {
-    await runMigrations(testDatabaseUrl);
+    await runMigrations(liveTestDatabaseUrl);
     const strays = await removeRowsCarryingTheTestMarker();
     console.info(
       `[neon-contact-submission-store] removed ${String(strays)} stray test rows before the run`,
@@ -107,14 +105,14 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
 
   describeContactSubmissionStoreContract({
     createStore: (options) =>
-      new NeonContactSubmissionStore(testDatabaseUrl, options),
+      new NeonContactSubmissionStore(liveTestDatabaseUrl, options),
     newClientRequestId,
   });
 
   describe("what the table holds, read as its owner", () => {
     it("holds both snapshots as JSON objects for a design, the document as the object it was and not as text", async () => {
       const id = newClientRequestId();
-      await new NeonContactSubmissionStore(testDatabaseUrl).record(
+      await new NeonContactSubmissionStore(liveTestDatabaseUrl).record(
         aDesignSubmission(id),
       );
 
@@ -132,7 +130,7 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
 
     it("holds SQL null, and not a JSON null, in both snapshots and the design columns for a callback", async () => {
       const id = newClientRequestId();
-      await new NeonContactSubmissionStore(testDatabaseUrl).record(
+      await new NeonContactSubmissionStore(liveTestDatabaseUrl).record(
         aCallbackSubmission(id),
       );
 
@@ -150,7 +148,7 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
 
     it("holds every contact field as the request carried it", async () => {
       const id = newClientRequestId();
-      await new NeonContactSubmissionStore(testDatabaseUrl).record(
+      await new NeonContactSubmissionStore(liveTestDatabaseUrl).record(
         aDesignSubmission(id),
       );
 
@@ -171,7 +169,7 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
     it("holds the widest revision a bigint can, which the domain's shape admits", async () => {
       const id = newClientRequestId();
       const submission = aDesignSubmission(id);
-      await new NeonContactSubmissionStore(testDatabaseUrl).record({
+      await new NeonContactSubmissionStore(liveTestDatabaseUrl).record({
         ...submission,
         target: {
           kind: "design",
@@ -186,7 +184,7 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
 
     it("holds one row for a request recorded twice", async () => {
       const id = newClientRequestId();
-      const store = new NeonContactSubmissionStore(testDatabaseUrl);
+      const store = new NeonContactSubmissionStore(liveTestDatabaseUrl);
       await store.record(aDesignSubmission(id));
       await store.record(aDesignSubmission(id));
 

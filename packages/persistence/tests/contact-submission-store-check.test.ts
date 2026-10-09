@@ -329,7 +329,7 @@ describe("the domain's client request id and the store's", () => {
     },
   );
 
-  it("accepts every id the domain accepts that the digest fixture sits beside", () => {
+  it("accepts a look-up by an id of the domain's shape and the fixture's digest", () => {
     expect(() => {
       requireValidLookup({
         clientRequestId: CLIENT_REQUEST_ID,
@@ -368,9 +368,14 @@ function outcomeOfTheCheck(submission: ContactSubmissionToRecord): string {
   }
 }
 
-function documentNestedToLevels(levels: number, opening: string): string {
-  const closing = opening === "[" ? "]" : "}";
-  return `{"a":${opening.repeat(levels - 1)}${closing.repeat(levels - 1)}}`;
+/** A document of `levels` levels: the root object holding lists inside lists. */
+function listsNestedTo(levels: number): string {
+  return `{"a":${"[".repeat(levels - 1)}${"]".repeat(levels - 1)}}`;
+}
+
+/** A document of `levels` levels of objects inside objects, the innermost empty. */
+function objectsNestedTo(levels: number): string {
+  return `${'{"a":'.repeat(levels - 1)}{}${"}".repeat(levels - 1)}`;
 }
 
 /** A value of `levels` nested plain objects, the outermost the first level. */
@@ -382,25 +387,20 @@ function valueNestedToLevels(levels: number): object {
 
 describe("the depth bound of a snapshot", () => {
   it.each([
-    ["lists", "["],
-    ["objects", "{"],
+    ["lists", listsNestedTo],
+    ["objects", objectsNestedTo],
   ])(
     "accepts a document of 64 levels of %s and refuses 65, under its own sentence",
-    (_name, opening) => {
-      const atTheBound =
-        opening === "["
-          ? documentNestedToLevels(DEPTH_BOUND, opening)
-          : `${'{"a":'.repeat(DEPTH_BOUND - 1)}{}${"}".repeat(DEPTH_BOUND - 1)}`;
-      const pastTheBound =
-        opening === "["
-          ? documentNestedToLevels(DEPTH_BOUND + 1, opening)
-          : `${'{"a":'.repeat(DEPTH_BOUND)}{}${"}".repeat(DEPTH_BOUND)}`;
-
+    (_name, nestedTo) => {
       expect(
-        outcomeOfTheCheck(submissionWith(atTheBound, FAKE_SNAPSHOT.priced)),
+        outcomeOfTheCheck(
+          submissionWith(nestedTo(DEPTH_BOUND), FAKE_SNAPSHOT.priced),
+        ),
       ).toBe("returned");
       expect(
-        outcomeOfTheCheck(submissionWith(pastTheBound, FAKE_SNAPSHOT.priced)),
+        outcomeOfTheCheck(
+          submissionWith(nestedTo(DEPTH_BOUND + 1), FAKE_SNAPSHOT.priced),
+        ),
       ).toMatch(/no deeper than 64 levels/);
     },
   );
@@ -440,11 +440,7 @@ describe("the depth bound of a snapshot", () => {
   it.each([
     [
       "a document of lists",
-      () =>
-        submissionWith(
-          documentNestedToLevels(100_000, "["),
-          FAKE_SNAPSHOT.priced,
-        ),
+      () => submissionWith(listsNestedTo(100_000), FAKE_SNAPSHOT.priced),
     ],
     [
       "a document of objects",

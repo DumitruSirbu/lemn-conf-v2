@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 const SOURCE_DIRECTORY = join(import.meta.dirname, "..", "src");
 
-/** Every module of the contact submission store, found by name so the Neon store is covered the day it lands. */
+/** Every module of the contact submission store, found by name, so one added later is scanned without anyone listing it. */
 const MODULES = readdirSync(SOURCE_DIRECTORY).filter(
   (fileName) =>
     fileName.endsWith("contact-submission-store.ts") ||

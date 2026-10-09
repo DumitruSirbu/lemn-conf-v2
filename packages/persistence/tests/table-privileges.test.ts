@@ -13,7 +13,8 @@ import {
   tablePrivilegesTheServerKnows,
 } from "./support/table-privileges.js";
 
-const SUITE_NAME = "readConnectionFacts (live test database)";
+const SUITE_NAME =
+  "the privilege helpers and the connection facts (live test database)";
 
 if (!isLiveTestDatabaseConfigured) announceSkippedLiveSuite(SUITE_NAME);
 
