@@ -5303,6 +5303,7 @@ the reference has its generator, so S1 is six production files and more than fiv
 
 *Criteria, as they now stand for dispatch.* 1 to 10 keep their numbers. **(Criteria 2, 9 and 12
 are amended the same day, and R6 gains five lines: *8I — the security read of `0008`*, below. Paste both.)**
+**(2026-10-09: criterion 12 is restated, and 1, 3 and 13 gain a line each: *8I — adjudication of QA*, below.)**
 
 1. One client request id stores one row and answers one reference, also for N concurrent calls, of
    which exactly one answers *new*. The same id with another digest answers *conflict*, and every
@@ -5335,8 +5336,9 @@ are amended the same day, and R6 gains five lines: *8I — the security read of 
 11. **Added.** The lookup sends no write. For an id never stored it answers *absent*; for a stored
     one, the reference, *notified* and *conflict* are exactly what a `record` of the same id and
     digest would answer.
-12. **Added.** A value the table would refuse is refused in code first, by the one shared check,
-    with no value in the refusal. A property ties the store's id shape to the domain's: every id
+12. **Added.** ~~A value the table would refuse is refused in code first, by the one shared check,
+    with no value in the refusal.~~ **(Restated 2026-10-09 as a closed list, with what is left to
+    the server: *8I — adjudication of QA*.)** A property ties the store's id shape to the domain's: every id
     `validateContactSubmission` accepts, the store accepts.
 13. **Added.** The fake and the Neon store pass one contract suite. The port has no operation that
     answers a personal field, the snapshot, a list or a count.
@@ -5466,6 +5468,106 @@ is, no must-fix.** The rulings are the architect's. The file changes twice befor
 - *Backlog, the coordinator's to open if it is not there:* the only consent text version is
   `"placeholder"` [src `contact-fields.ts:26`]. A launch item, and the owner's words.
 - *Still unmeasured:* S-R1.1's mechanism; the screen on change 3, until the developer runs it.
+
+##### 8I — adjudication of QA, 2026-10-09
+
+**State.** HEAD is `c161b5d` [ran: `git log`]: S1a `7417b66`, S1b `c15c08e`, QA's three files.
+QA's round is red on 18 tests [relayed, QA-run]. The architect read the failing tests and the three
+production files at HEAD. R2's four race proofs and criterion 7 are green [relayed, QA-run].
+
+**F1 — a contract gap, and it is the architect's: criterion 12 promised more than code can keep.**
+*"A value the table would refuse"* has no end: a server refuses for encoding, range, size and
+depth. **Criterion 12, restated as a closed list. The shared check refuses, before a statement is
+sent and with no value in the refusal:**
+
+1. what each named constraint of `0008` refuses, but the reference's uniqueness, and a revision
+   past `bigint` (as before);
+2. **a value that is not a string**, wherever text is sent, before its shape is tested (F3);
+3. **text Postgres cannot hold:** a U+0000, or half of a surrogate pair, in any text sent;
+4. **a snapshot, judged as the JSON the statement will carry.** The document's text is parsed, and
+   the priced design is encoded and parsed; each must be an object; every key and every text
+   inside, at any depth, passes rule 3; every number is finite. **The Neon store then sends the
+   JSON made from the value that was judged, never the text or the object it was handed.** `jsonb`
+   keeps content and not bytes (S-R1.2), so nothing the column keeps is lost.
+
+- *Why a walk and not a pattern over the text:* in JSON a NUL and a half surrogate travel as
+  escapes, and become the character only once parsed [relayed, QA-run: `22P05`, `22P02`]. *Why send
+  what was judged:* a number the parser reads as finite may still be one the server refuses; text
+  that JavaScript encoded holds only numbers a double holds [inf: a double fits `numeric`].
+- **Left to the server, and the store error with its two fields is the recorded answer:** size,
+  depth, a time limit, and anything a later server refuses. Nothing is stored and no value leaves
+  (criterion 7, proven on four real refusals [relayed, QA-run]). **The fake refuses what the
+  shared check refuses and nothing more; its doc says it cannot stand for a server's refusal.**
+- *Reach:* low. The domain refuses control and surrogate characters in contact text [src
+  `input-checks.ts:15`]; a design id and a locale come from the application. [inf: UTF-8 servers.]
+
+**F2 — a contract gap in the port's sentence, and a test-fidelity defect in the fake. `isNew` stays
+as R4 made it.** It means *the stored reference is the one this call proposed*. No granted column
+says more: `xmax` is refused (probe 21), and any sign that only an insert carries would answer *not
+new* to a statement repeated after a lost reply, which R2's proof 4 forbids. A proposer that
+repeats a reference breaks its own contract, and the two stores must then still agree.
+
+- **The fake draws exactly when the Neon store draws**, once for each `record` call and once more
+  for each collision, **and answers `isNew` by the same comparison.** A test's queue of proposals
+  is then used up alike by both.
+- **The port's sentence changes** [src `contact-submission-store.ts:44`]: true when the stored
+  reference is this call's proposal, so also for a statement that was repeated; false for a later
+  call, unless a proposer repeats itself. Each store's option says a proposer never repeats.
+
+**F3 — an implementation defect.** `RegExp.test` turns its argument into text first. Each of the
+three shape checks refuses a value that is not a string. **`sha256-digest.ts` may be touched in
+this wave, for that one condition:** the defect is in that function, a wrapper would state a
+digest's shape in a second place, and the change only refuses more, so no string's verdict changes
+for the counter store or the design repository. *Must not:* its pattern or its sentence changes.
+
+**F4 — a contract gap in criterion 3.** R1 says *not `WITH GRANT OPTION`* and the test cannot see
+one. For this table the test asks the catalog [inf, recalled: both `has_…_privilege` functions take
+a privilege with ` WITH GRANT OPTION` added; the security reader confirms]. The three older tables
+stay backlog 139. That it skips where the table is absent is criterion 3 as written.
+
+**F5, and the mutation table.** F5 is closed by QA's tests; the developer's fixture is corrected
+too (item 4). The five mutants only the live contract suite catches are **accepted:** what a
+statement means is proven by running it, and a stubbed driver would restate the SQL. They are
+unprotected wherever `TEST_DATABASE_URL` is absent. The Neon store **does** check a proposal's
+shape [src `neon-contact-submission-store.ts:87`, the fake `:127`]; QA's driver test is its pair.
+
+**The typecheck covers `tests/`.** `tsc --project tsconfig.json --noEmit --listFilesOnly` lists the
+three `qa-8i-*` files and the same command without the flag exits 0 [ran, at `c161b5d`]. The IDE's
+two diagnostics are not reproduced by the gate. No fix and no backlog entry.
+
+**The fix round. One developer, five items, in this order.**
+
+| # | Does | Files |
+| --- | --- | --- |
+| 1 | F3: not a string is refused before a shape is tested | `src/contact-submission-store.ts`, `src/sha256-digest.ts` (one condition) |
+| 2 | F1: rules 3 and 4; one function makes the two JSON texts, and the Neon store sends them | `src/contact-submission-store.ts`, `src/neon-contact-submission-store.ts` |
+| 3 | F2: the fake draws and answers as the Neon store; the port's sentence and both options' | `src/fake-contact-submission-store.ts`, `src/contact-submission-store.ts`, `src/neon-contact-submission-store.ts` (a comment) |
+| 4 | The contract suite: a replay under fresh proposals is not new, and under a repeated one both stores agree; every field of the fixture has its own value (F5) | `tests/support/contact-submission-store-contract.ts`, `contact-submission-fixtures.ts` |
+| 5 | F4: no privilege on this table is held with grant option | `tests/application-role-privileges.test.ts`, `tests/support/table-privileges.ts` |
+
+*Reading:* this section; the three QA files; R3, R4; *the security read of `0008`*, criterion 12.
+*Must not:* `0008` changes; the text of any of the three statements changes; a counter-store
+statement changes; the developer edits a `qa-*` file.
+
+**Criteria, amended.** **12:** the closed list above. **1:** *new* is this call's proposal being
+the one stored. **13:** the fake draws when the Neon store draws and refuses exactly what the
+shared check refuses. **3:** nothing on the table is held with grant option.
+
+**QA's tests.** *Green as written after the round:* F1's eleven and F3's six. *QA re-words its
+own:* F2's pair, into two: under fresh proposals a replay is not new in both stores; under a
+repeated one both answer alike.
+
+**QA, round 2.**
+
+- Its three files, whole, once. The four race proofs run once each and not twenty rounds, **if the
+  three statements are byte for byte what they were at `c15c08e`**, shown by a diff of the strings.
+- **Rule 4 as two properties.** Over arbitrary JSON with a NUL, a half surrogate or an overflowing
+  number placed at any depth, in a key or a value: refused, and nothing of it in the refusal. And
+  live, a bounded number of runs whose bound QA states: what the check accepts, the server stores.
+- The parameter the Neon store sends is the judged JSON and not the text handed in (driver test).
+- Mutants of the new code: a `typeof` guard removed; the walk skipping keys, or lists; the finite
+  check removed; the handed text sent.
+- The counter store's and the repository's digest tests are as green as at `c161b5d`.
 
 ### 8J — mail, and the shop's notification
 
