@@ -5688,6 +5688,7 @@ encoded once for each path, and the encoder does not return [relayed, reviewer-r
   [inf, not read]; a count of places walked is a fourth change to a path that has had three; and a
   price comes only from `priceDesign`, which builds a tree. The stopping rule did not foresee
   *never returns*. The reviewers agree it is no must-fix.
+- **(Widened 2026-10-09, later, to any value handed in, and made true in code: *8I — QA pass 4's finding*.)**
 - **The invariant, as it now stands.** For a request that is an object, whatever its members: the
   check throws only its own refusal, and **nothing it throws holds a value**. It returns for every
   document, and for every price that is a tree.
@@ -5737,7 +5738,8 @@ exports: nothing outside uses them, and an exported shape invites a route keyed 
 | 4 | S-R2.2: each `returning` and `select` list pinned exactly, no `*` anywhere; the statements read are as many as the source writes | `tests/contact-submission-statements.test.ts` |
 | 5 | S-R2.3: a test fails when a migration after `0008` names the table, and points at the rule. S-R2.5: the probe's id is one the column's check cannot hold | `tests/migration-0008-text.test.ts`, `tests/application-role-privileges.test.ts` |
 
-**Round B, no behaviour. The same developer, after A is green; four items.**
+**Round B, no behaviour. The same developer, after A is green; four items.** **(2026-10-09, later:
+five items, the first of them behaviour and its own commit. The final list is in *8I — QA pass 4's finding*.)**
 
 | # | Does | Files |
 | --- | --- | --- |
@@ -5795,6 +5797,59 @@ security's.**
 **Limits for the wave's ADR.** L-R1.1 with its trigger. The channel, the locale and the consent
 version are unchecked here. QA's files were reviewed in excerpts in round 1. The boundary gate is
 blind to a test importing another package's tests (backlog).
+
+##### 8I — QA pass 4's finding, ruled 2026-10-09
+
+**State.** HEAD is `8eaba35` [ran: `git log`], tree clean; QA's tests are `894dda8`. Pass 4 is
+green but for four tests: C-R1.1 closed, S-R2.1 and the guards proven, ten mutants of round A dead;
+alone, the suite is 4 failed, 2354 passed, 2 skipped [all relayed, QA-run].
+
+**F9 — an implementation defect against the invariant, and the gap is the architect's.** The
+reviews' ruling said *whatever its members* and its guard asked only whether a part **is** an
+object. A part that is one, and whose member throws when read, lets that throw leave the check as
+it is [src `contact-submission-store.ts:233-296`; relayed, QA-run, for all four parts]. Reach: none
+for a validated request, which is plain data.
+
+**Fixed in code, with one catch and not four.**
+
+- **Where:** at each entry of the check that takes an object: the submission, and the lookup's
+  request, which reads two members the same way.
+- **What it does:** a refusal the check already makes leaves as it is, sentence unchanged. Anything
+  else thrown becomes the refusal of a new part, `request`: *the request must be plain data whose
+  members can be read*. *Must not:* the thrown value, its message or its type is kept, as text or
+  as `cause`.
+- **The sentence in the code becomes:** for any value handed in, the check throws only its own
+  refusal and nothing it throws holds a value. The price that shares its parts still may not
+  return (L-R1.1); a catch cannot reach that.
+- *Why not narrow the sentence:* the fix is smaller than the limit's wording, it also closes a
+  request that is not an object at all, and the sentence then needs no *if*. *Why not four
+  catches:* four places to forget a fifth. *Its cost, accepted:* a defect inside the check would
+  read as a refusal; the check's own tests are what see one.
+- **A list passes the guard and needs nothing.** It is an object, it answers nothing for a name,
+  and the member's own rule refuses it with no value [relayed, QA-run]. The guard exists so that
+  reading cannot quote, not to name the shape.
+
+**Criterion 12, amended:** the part `request` joins the list, and the invariant reads as above.
+
+**Round B, final. One developer, five items, in this order.**
+
+| # | Does | Files |
+| --- | --- | --- |
+| 1 | **F9, behaviour, its own commit, first:** the catch, the `request` part, the check's sentence, its own test | `src/contact-submission-store.ts`; `tests/contact-submission-store-check.test.ts` |
+| 2 | The two reference functions leave the exports | `src/index.ts` |
+| 3 | C-R1.3's comment; C-R1.5 to C-R1.8, C-R1.10 to C-R1.14 | the developer's own tests |
+| 4 | C-R1.9 in its own files | the developer's own tests and sources |
+| 5 | **C-R1.2, its own commit, last, a pure move:** F9's lines move with the rest and do not change | `src/contact-submission-store.ts`, two new modules beside it; `tests/contact-submission-store-holds-no-secret.test.ts` |
+
+*Must not:* `0008` or a statement's text changes; a `qa-*` file is edited; in item 5, a body
+changes.
+
+**QA, after round B.** Its four tests go green as written; one that pins a part's sentence QA
+re-words itself. One mutant: the catch removed. The same throw on the lookup's request. The whole
+suite once. **Nothing live:** no statement and no path of the Neon store changes.
+
+**Round 2 of review reads the tree after round B and that QA pass.** Security also reads that
+F9's catch keeps nothing of what was thrown.
 
 ### 8J — mail, and the shop's notification
 
