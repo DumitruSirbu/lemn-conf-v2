@@ -526,9 +526,7 @@ describe("every failure of the driver", () => {
         async (_name, shape) => {
           failWith(shape());
 
-          const failure = await run(newStore(...REFERENCES)).catch(
-            (error: unknown) => error,
-          );
+          const failure = await rejectionOf(run(newStore(...REFERENCES)));
 
           expect(failure).toBeInstanceOf(ContactSubmissionStoreError);
           expect((failure as ContactSubmissionStoreError).operation).toBe(
@@ -546,9 +544,7 @@ describe("every failure of the driver", () => {
           ),
         );
 
-        const failure = await run(newStore(...REFERENCES)).catch(
-          (error: unknown) => error,
-        );
+        const failure = await rejectionOf(run(newStore(...REFERENCES)));
 
         expect(failure).toBeInstanceOf(ContactSubmissionStoreError);
         expect(markersFoundOn(failure, ALL_MARKERS)).toEqual([]);
@@ -575,9 +571,7 @@ describe("every failure of the driver", () => {
     async (_operation, run) => {
       failWith(databaseRefusal("23505", REFERENCE_UNIQUENESS));
 
-      const failure = await run(newStore(...REFERENCES)).catch(
-        (error: unknown) => error,
-      );
+      const failure = await rejectionOf(run(newStore(...REFERENCES)));
 
       expect(failure).toBeInstanceOf(ContactSubmissionStoreError);
       expect(failure).not.toBeInstanceOf(NeonDbError);
@@ -635,4 +629,46 @@ describe("every failure of the driver", () => {
 
     expect(written.map((spy) => spy.mock.calls.length)).toEqual([0, 0, 0, 0]);
   });
+});
+
+/** A row, or a list, that throws the details when any of it is read. It answers nothing for `then`, as the promise
+ *  machinery must be able to carry it: it is the reading of the reply that throws, not the delivery of it. */
+function unreadable(): object {
+  const throwing = (): never => {
+    throw new Error(LEAKING_TEXT);
+  };
+  return new Proxy([], {
+    get: (_target, key) => (key === "then" ? undefined : throwing()),
+    ownKeys: throwing,
+    getOwnPropertyDescriptor: throwing,
+    has: throwing,
+  });
+}
+
+describe("a reply whose rows throw when they are read", () => {
+  const readableRow = {
+    reference: FIRST_REFERENCE,
+    is_new: true,
+    is_same_payload: true,
+    is_notified: false,
+  };
+
+  it.each([
+    ["a row that throws", () => [unreadable()]],
+    ["a list that throws", () => unreadable()],
+    ["a row that throws after a good one", () => [readableRow, unreadable()]],
+  ])(
+    "is the store error with no cause and no marker for every operation: %s",
+    async (_name, reply) => {
+      for (const [, run] of OPERATIONS) {
+        answerWith(reply());
+
+        const failure = await rejectionOf(run(newStore(...REFERENCES)));
+
+        expect(failure).toBeInstanceOf(ContactSubmissionStoreError);
+        expect((failure as Error).cause).toBeUndefined();
+        expect(markersFoundOn(failure, ALL_MARKERS)).toEqual([]);
+      }
+    },
+  );
 });

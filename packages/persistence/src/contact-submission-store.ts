@@ -7,7 +7,7 @@ import type {
 } from "@lemnaria/configurator-domain";
 
 import {
-  ownRefusals,
+  isOwnRefusal,
   refusalOf,
   registeredAsOurs,
   requireObject,
@@ -126,8 +126,8 @@ export interface JudgedSubmission {
  * One check for every operation of both stores. Before a statement is sent, and with no value in the refusal, it
  * refuses what the table would refuse but the reference's uniqueness, and a few things only this code refuses. For any
  * value handed in it throws only its own refusal: anything else thrown, such as a member whose read throws, is the
- * refusal of the request and keeps nothing of what was thrown. A price whose parts are shared is a recorded limit: its
- * encoder does not return. What a server refuses for size, a time limit or anything of its own is the store error. The
+ * refusal of the request and keeps nothing of what was thrown. A price whose parts are shared is a recorded limit: the
+ * work doubles with each shared level, so twenty levels return and sixty outlast any caller. What a server refuses for size, a time limit or anything of its own is the store error. The
  * rules are in the wave's decision record.
  */
 export function requireValidSubmission(
@@ -176,7 +176,7 @@ function refusingAnythingElseAsTheRequest<Result>(judge: () => Result): Result {
   try {
     return judge();
   } catch (thrown) {
-    if (thrown instanceof Error && ownRefusals.has(thrown)) throw thrown;
+    if (isOwnRefusal(thrown)) throw thrown;
     throw refusalOf("request");
   }
 }
@@ -219,6 +219,8 @@ function judgeTarget(
   const fields: Readonly<Record<string, unknown>> = target;
   const holdsDesign = "design" in fields;
   if (holdsDesign === "intent" in fields) throw refusalOf("target");
+  // A target whose kind says design while it holds none, or holds one while its kind says otherwise, is refused. The
+  // kind is read only as design or not and is not stored: an intent under any other kind is stored as an intent.
   if (holdsDesign !== (target.kind === "design")) throw refusalOf("target");
   if (target.kind === "design") {
     requireValidDesignReference(target.design);

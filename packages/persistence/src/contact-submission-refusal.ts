@@ -42,11 +42,21 @@ const REFUSED_PARTS = {
 export type RefusedPart = keyof typeof REFUSED_PARTS;
 
 /** The refusals this check made, by identity: a message can be copied by anything that throws, an identity cannot. */
-export const ownRefusals = new WeakSet();
+const ownRefusals = new WeakSet();
 
 export function registeredAsOurs(refusal: unknown): unknown {
-  if (refusal instanceof Error) ownRefusals.add(refusal);
+  if (typeof refusal === "object" && refusal !== null) {
+    ownRefusals.add(refusal);
+  }
   return refusal;
+}
+
+/** Whether a caught value is one of this check's refusals. It asks nothing of the value but its identity: no `instanceof`,
+ *  no property, so a proxy whose every trap throws is answered without running one. */
+export function isOwnRefusal(thrown: unknown): boolean {
+  return (
+    typeof thrown === "object" && thrown !== null && ownRefusals.has(thrown)
+  );
 }
 
 export function requireObject(value: unknown, part: RefusedPart): void {

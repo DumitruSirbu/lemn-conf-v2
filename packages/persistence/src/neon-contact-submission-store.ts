@@ -212,9 +212,9 @@ async function attempt(runQuery: () => PromiseLike<unknown>): Promise<Attempt> {
   }
 }
 
-/** The rows of a statement, or the store error: a failure, or a reply that is not a list of rows, never leaves as
- *  anything else. Every driver failure leaves as a store error holding a built cause, as ADR 0146 B3 requires, and the
- *  driver's own error is not thrown by anything in this module. */
+/** The rows of a statement, or the store error. A failure leaves as a store error holding a built cause, as ADR 0146 B3
+ *  requires, and the driver's own error is not thrown by anything in this module. A reply is copied row by row in one
+ *  guarded step, so a row that throws when read is the store error with no cause, and everything after reads plain data. */
 async function queryRows(
   operation: ContactSubmissionOperation,
   runQuery: () => PromiseLike<unknown>,
@@ -248,10 +248,14 @@ function rowsOf(
   reply: unknown,
   operation: ContactSubmissionOperation,
 ): object[] {
-  if (!Array.isArray(reply) || !reply.every(isObject)) {
+  try {
+    if (!Array.isArray(reply) || !reply.every(isObject)) {
+      throw new ContactSubmissionStoreError(operation);
+    }
+    return reply.map((row) => ({ ...row }));
+  } catch {
     throw new ContactSubmissionStoreError(operation);
   }
-  return reply;
 }
 
 function recordedFrom(rows: readonly object[]): SubmissionRecording {

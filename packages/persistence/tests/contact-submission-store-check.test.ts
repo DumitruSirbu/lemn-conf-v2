@@ -822,4 +822,64 @@ describe("a part whose member read throws", () => {
       /plain data whose members can be read/,
     );
   });
+
+  describe("a thrown value whose every trap throws", () => {
+    const TRAPS = [
+      "apply",
+      "construct",
+      "defineProperty",
+      "deleteProperty",
+      "get",
+      "getOwnPropertyDescriptor",
+      "getPrototypeOf",
+      "has",
+      "isExtensible",
+      "ownKeys",
+      "preventExtensions",
+      "set",
+      "setPrototypeOf",
+    ] as const;
+
+    /** A proxy over a function, so that `apply` and `construct` are traps too, and every one of them throws. */
+    function proxyWhoseEveryTrapThrows(): object {
+      const handler = Object.fromEntries(
+        TRAPS.map((trap) => [trap, throwing]),
+      ) as ProxyHandler<() => void>;
+      return new Proxy(() => undefined, handler);
+    }
+
+    function throwingTheProxy(): never {
+      // eslint-disable-next-line @typescript-eslint/only-throw-error -- a thrown value may be anything.
+      throw proxyWhoseEveryTrapThrows();
+    }
+
+    it("is the refusal of the request at the submission's entry, without one trap run", () => {
+      const submission = Object.defineProperty({ ...design }, "locale", {
+        enumerable: true,
+        get: throwingTheProxy,
+      });
+
+      const outcome = outcomeOfTheCheck(submission);
+
+      expect(outcome).toMatch(/plain data whose members can be read/);
+      expect(outcome).not.toContain(MARKER);
+    });
+
+    it("is the refusal of the request at the look-up's entry, without one trap run", () => {
+      const request = Object.defineProperty(
+        { clientRequestId: CLIENT_REQUEST_ID, payloadDigest: DIGEST_A },
+        "payloadDigest",
+        { enumerable: true, get: throwingTheProxy },
+      );
+
+      let message: unknown;
+      try {
+        requireValidLookup(request);
+      } catch (thrown) {
+        message = thrown instanceof Error ? thrown.message : "not an error";
+      }
+
+      expect(message).toMatch(/plain data whose members can be read/);
+    });
+  });
 });
