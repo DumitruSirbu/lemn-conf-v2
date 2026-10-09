@@ -95,7 +95,9 @@ async function expectDeleteRefusedByCatalogThenByServer(
 const CONTACT_SUBMISSIONS = "public.contact_submissions";
 /** The privileges a column can carry. */
 const COLUMN_PRIVILEGES = ["SELECT", "INSERT", "UPDATE", "REFERENCES"];
-const NO_SUCH_REQUEST_ID = "no-such-request-id-for-a-probe";
+/** An id the column's check cannot hold (it has spaces and a colon), so no row can carry it and a probe that were
+ *  allowed would still touch nothing. */
+const NO_SUCH_REQUEST_ID = "no such request: a probe";
 
 function quoted(identifier: string): string {
   return `"${identifier.replaceAll('"', '""')}"`;

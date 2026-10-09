@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { NeonContactSubmissionStore } from "../src/neon-contact-submission-store.js";
@@ -296,4 +299,58 @@ describe("every statement the contact submission store sends", () => {
       ),
     ).toEqual([]);
   });
+
+  it("returns and selects exactly the columns it names, in each statement, and never a star or a row", async () => {
+    const { designInsert, callbackInsert, lookup, mark } =
+      await everyStatementTheStoreSends();
+
+    for (const insert of [designInsert, callbackInsert]) {
+      expect(listAfter(normalised(insert), "returning ")).toBe(
+        "submission.reference, (submission.reference = ?) as is_new, " +
+          "(submission.payload_digest = ?) as is_same_payload, (submission.notified_at is not null) as is_notified",
+      );
+    }
+    expect(listBetween(normalised(lookup), "select ", " from ")).toBe(
+      "reference, (payload_digest = ?) as is_same_payload, (notified_at is not null) as is_notified",
+    );
+    expect(listAfter(normalised(mark), "returning ")).toBe("reference");
+  });
+
+  it("holds no star anywhere in any statement", async () => {
+    const { all } = await everyStatementTheStoreSends();
+
+    for (const statement of all) {
+      expect(statement.text).not.toContain("*");
+    }
+  });
+
+  it("sends as many statements as the source writes, so a statement added to the source is read here", async () => {
+    const { all } = await everyStatementTheStoreSends();
+
+    const written = readFileSync(
+      join(
+        import.meta.dirname,
+        "..",
+        "src",
+        "neon-contact-submission-store.ts",
+      ),
+      "utf8",
+    ).match(/this\.sql`/g);
+    const kindsSent = new Set(
+      all.map((statement) => normalised(statement).split(" ")[0]),
+    );
+
+    expect(written).toHaveLength(kindsSent.size);
+  });
 });
+
+/** What follows `marker` in `text`, to its end. */
+function listAfter(text: string, marker: string): string {
+  return text.slice(text.indexOf(marker) + marker.length);
+}
+
+/** What lies between the first `start` and the first `end` after it in `text`. */
+function listBetween(text: string, start: string, end: string): string {
+  const from = text.indexOf(start) + start.length;
+  return text.slice(from, text.indexOf(end, from));
+}

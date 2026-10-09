@@ -53,7 +53,7 @@ const REFUSED_PARTS: readonly (readonly [
   [
     "a contact field that is not text",
     withContact({ name: 7 as unknown as string }),
-    /contact field/,
+    /contact's name/,
   ],
   [
     "an e-mail on a channel that is not e-mail",
@@ -613,4 +613,59 @@ describe("the check returns or throws its own refusal, whatever the document and
       );
     },
   );
+});
+
+describe("a part of the request that is not an object", () => {
+  const marker = MARKER;
+  const NOT_AN_OBJECT: readonly (readonly [string, unknown])[] = [
+    ["text", marker],
+    ["a number", 7],
+    ["null", null],
+    ["a list holding text", [marker]],
+    ["a boolean", true],
+  ];
+  const design = aDesignSubmission(CLIENT_REQUEST_ID);
+
+  const PARTS: readonly (readonly [
+    string,
+    (value: unknown) => ContactSubmissionToRecord,
+    RegExp,
+  ])[] = [
+    [
+      "the contact",
+      (value) => ({ ...design, contact: value as never }),
+      /contact/,
+    ],
+    [
+      "the target",
+      (value) => ({ ...design, target: value as never }),
+      /target/,
+    ],
+    [
+      "the target's design",
+      (value) => ({
+        ...design,
+        target: { kind: "design", design: value } as never,
+      }),
+      /design/,
+    ],
+    [
+      "the snapshot",
+      (value) => ({ ...design, snapshot: value as never }),
+      /snapshot/,
+    ],
+  ];
+
+  describe.each(PARTS)("as %s", (_part, place, named) => {
+    it.each(NOT_AN_OBJECT)(
+      "refuses %s with the part's own refusal and holds nothing of it",
+      (_name, value) => {
+        const outcome = outcomeOfTheCheck(place(value));
+
+        expect(outcome.startsWith(OWN_REFUSAL)).toBe(true);
+        expect(outcome).toMatch(named);
+        expect(outcome).not.toContain(marker);
+      },
+    );
+  });
 });

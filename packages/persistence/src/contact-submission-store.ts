@@ -69,7 +69,7 @@ export type SubmissionRecording = RecordedSubmission | SubmissionConflict;
  * snapshot, no list and no count, and nothing deletes. A conflict is an outcome and not an exception.
  */
 export interface ContactSubmissionStore {
-  /** Reads and writes nothing. For an id that is stored it answers what `record` of the same id and digest would. */
+  /** Sends no write. For an id that is stored it answers what `record` of the same id and digest would. */
   lookUp(request: SubmissionLookupRequest): Promise<SubmissionLookup>;
   /**
    * Stores the request unless its id is stored, and answers the stored reference either way. Whether to send a notice
@@ -106,18 +106,31 @@ const REFUSED_PARTS = {
   payloadDigest:
     "the payload digest must be a 64-character lowercase hex SHA-256 digest",
   reference: "the reference must be 6 to 32 capital letters, digits or hyphens",
-  contact:
-    "every contact field but the e-mail must be text the database can hold, and the locality may be empty",
+  contact: "the contact must be an object",
+  contactName: "the contact's name must be text the database can hold",
+  contactPhone: "the contact's phone must be text the database can hold",
+  contactPhoneNormalForm:
+    "the contact's phone normal form must be text the database can hold",
+  contactLocality:
+    "the contact's locality must be text the database can hold, and may be empty",
+  contactChannel: "the contact's channel must be text the database can hold",
+  contactConsentTextVersion:
+    "the contact's consent text version must be text the database can hold",
   email:
     "the e-mail must be text the database can hold, and present exactly when the channel is e-mail",
   locale: "the locale must be text the database can hold",
   target: "the target must name a design or an intent, and exactly one of them",
+  designReference:
+    "the target's design must be an object holding a design id and a revision",
   designId: "the design id must be text the database can hold, and not empty",
   revision:
     "the design revision must be a whole number from 1 to 9223372036854775807",
-  snapshot: "a design is stored with its snapshot and a callback without one",
-  snapshotShape:
-    "the snapshot's document and its priced design must each be a JSON object of finite numbers and text the database can hold, and the document must be written exactly as JSON.stringify writes it, with nothing in it written twice",
+  snapshot:
+    "a design is stored with its snapshot, an object, and a callback without one",
+  snapshotDocument:
+    "the snapshot's document must be a JSON object of finite numbers and text the database can hold, written exactly as JSON.stringify writes it, with nothing in it written twice",
+  snapshotPriced:
+    "the snapshot's priced design must be a JSON object of plain objects, lists, text the database can hold, finite numbers, booleans and null",
   snapshotDepth:
     "the snapshot's document and its priced design must each be no deeper than 64 levels of lists and objects",
 } as const;
@@ -158,12 +171,21 @@ export interface JudgedSubmission {
 
 /**
  * One check for every operation of both stores. It refuses, before a statement is sent and with no value in the
- * refusal: what each constraint of the table refuses but the reference's uniqueness; a value that is not a string; text
- * Postgres cannot hold; a snapshot nested deeper than 64 levels; a document that is not exactly what `JSON.stringify`
- * makes of its own parsed value; and a priced design that is not plain objects, lists, text, finite numbers, booleans
- * and null. For any document and any priced value it returns or throws its own refusal and nothing else. What a server
- * refuses for size, a time limit or anything of its own is left to it, and is the store error: the refusal is the
- * caller's defect, and nothing of a person's details should reach a server in a statement that is certain to fail.
+ * refusal:
+ * - what each constraint of the table refuses, but the reference's uniqueness;
+ * - a value that is not a string, text Postgres cannot hold, and a part that is not an object (the contact, the
+ *   target, a design's reference, the snapshot);
+ * - a snapshot nested deeper than 64 levels, a document that is not exactly what `JSON.stringify` makes of its own
+ *   parsed value, and a priced design that is not plain objects, lists, text, finite numbers, booleans and null;
+ * - rule 5, code's own and no constraint's, each of which refuses more than the table does: a target whose kind
+ *   disagrees with what it holds, an intent outside the domain's list, an empty design id, and an e-mail present when
+ *   the channel is not e-mail or absent when it is.
+ *
+ * For a request that is an object, whatever its members, it throws only its own refusal and nothing it throws holds a
+ * value. It returns for every document and for every price that is a tree. A price whose parts are shared (each level
+ * holding the next twice) is walked once for each path and its encoder does not return: a recorded limit, which holds
+ * for a caller that hands over `snapshotSubmission`'s result untouched. What a server refuses for size, a time limit or
+ * anything of its own is left to it, and is the store error.
  */
 export function requireValidSubmission(
   submission: ContactSubmissionToRecord,
@@ -171,8 +193,8 @@ export function requireValidSubmission(
   judgeSubmission(submission);
 }
 
-/** {@link requireValidSubmission}, answering the JSON to send: a store sends that and never the text or the object it
- *  was handed, so what was judged is what is stored. */
+/** {@link requireValidSubmission}, answering the JSON to send: the document is the text handed in and the priced design
+ *  is its walked value encoded once, so what was judged is what is stored. */
 export function judgeSubmission(
   submission: ContactSubmissionToRecord,
 ): JudgedSubmission {
@@ -209,15 +231,13 @@ export function requireValidReference(reference: string): void {
 }
 
 function requireValidContact(contact: ContactFields): void {
-  const requiredTexts = [
-    contact.name,
-    contact.phone,
-    contact.phoneNormalForm,
-    contact.locality,
-    contact.channel,
-    contact.consentTextVersion,
-  ];
-  for (const text of requiredTexts) requireStorableText(text, "contact");
+  requireObject(contact, "contact");
+  requireStorableText(contact.name, "contactName");
+  requireStorableText(contact.phone, "contactPhone");
+  requireStorableText(contact.phoneNormalForm, "contactPhoneNormalForm");
+  requireStorableText(contact.locality, "contactLocality");
+  requireStorableText(contact.channel, "contactChannel");
+  requireStorableText(contact.consentTextVersion, "contactConsentTextVersion");
   const isEmailChannel = contact.channel === "email";
   if (isEmailChannel !== (contact.email !== undefined)) {
     throw refusalOf("email");
@@ -229,6 +249,7 @@ function judgeTarget(
   target: SubmissionTarget,
   snapshot: SubmissionSnapshot | undefined,
 ): SnapshotJson | undefined {
+  requireObject(target, "target");
   const fields: Readonly<Record<string, unknown>> = target;
   const holdsDesign = "design" in fields;
   if (holdsDesign === "intent" in fields) throw refusalOf("target");
@@ -249,6 +270,7 @@ function requireAKnownIntent(intent: string): void {
 }
 
 function requireValidDesignReference(design: DesignReference): void {
+  requireObject(design, "designReference");
   requireStorableText(design.id, "designId");
   if (design.id === "") throw refusalOf("designId");
   if (!isDesignRevisionThatFitsTheColumn(design.revision)) {
@@ -266,6 +288,7 @@ function isDesignRevisionThatFitsTheColumn(revision: string): boolean {
 
 function judgeSnapshot(snapshot: SubmissionSnapshot | undefined): SnapshotJson {
   if (snapshot === undefined) throw refusalOf("snapshot");
+  requireObject(snapshot, "snapshot");
   return {
     document: judgedDocument(snapshot.document),
     priced: judgedPriced(snapshot.priced),
@@ -277,24 +300,24 @@ function judgeSnapshot(snapshot: SubmissionSnapshot | undefined): SnapshotJson {
  *  a needless escape and a space are each refused and never rewritten. Depth is judged on the text, before anything
  *  parses or encodes it. */
 function judgedDocument(document: unknown): string {
-  if (typeof document !== "string") throw refusalOf("snapshotShape");
+  if (typeof document !== "string") throw refusalOf("snapshotDocument");
   if (isNestedDeeperThanTheBound(document)) throw refusalOf("snapshotDepth");
   const parsed = parsedObjectOf(document);
-  requireStorableJson(parsed);
-  if (JSON.stringify(parsed) !== document) throw refusalOf("snapshotShape");
+  requireStorableJson(parsed, "snapshotDocument");
+  if (JSON.stringify(parsed) !== document) throw refusalOf("snapshotDocument");
   return document;
 }
 
 /** The priced design is judged as a value, before anything encodes it, and then encoded once. */
 function judgedPriced(priced: unknown): string {
-  requireStorableJson(priced);
+  requireStorableJson(priced, "snapshotPriced");
   try {
     const encoded: unknown = JSON.stringify(priced);
     if (typeof encoded === "string") return encoded;
   } catch {
     // Refused below, as any other price the encoder cannot make into text.
   }
-  throw refusalOf("snapshotShape");
+  throw refusalOf("snapshotPriced");
 }
 
 function parsedObjectOf(text: string): unknown {
@@ -302,9 +325,9 @@ function parsedObjectOf(text: string): unknown {
   try {
     parsed = JSON.parse(text);
   } catch {
-    throw refusalOf("snapshotShape");
+    throw refusalOf("snapshotDocument");
   }
-  if (!isJsonObject(parsed)) throw refusalOf("snapshotShape");
+  if (!isJsonObject(parsed)) throw refusalOf("snapshotDocument");
   return parsed;
 }
 
@@ -337,10 +360,13 @@ interface PendingContainer {
   readonly depth: number;
 }
 
-function requireStorableJson(root: unknown): void {
+function requireStorableJson(
+  root: unknown,
+  part: "snapshotDocument" | "snapshotPriced",
+): void {
   const verdict = verdictOnJson(root);
   if (verdict === "too deep") throw refusalOf("snapshotDepth");
-  if (verdict === "unstorable") throw refusalOf("snapshotShape");
+  if (verdict === "unstorable") throw refusalOf(part);
 }
 
 /**
@@ -353,6 +379,8 @@ function verdictOnJson(root: unknown): Verdict {
   try {
     return walkJson(root);
   } catch {
+    // A getter, a proxy or a revoked object may throw anything, and what it throws may hold a value: the walk keeps
+    // none of it, and a value that cannot be read is a value that cannot be stored.
     return "unstorable";
   }
 }
@@ -418,6 +446,10 @@ function isPlainObject(value: unknown): value is object {
 /** What Postgres cannot hold in text: a NUL, and half of a surrogate pair. */
 function isUnstorableText(text: string): boolean {
   return text.includes(NUL) || LONE_SURROGATE.test(text);
+}
+
+function requireObject(value: unknown, part: RefusedPart): void {
+  if (typeof value !== "object" || value === null) throw refusalOf(part);
 }
 
 function requireStorableText(value: unknown, part: RefusedPart): void {

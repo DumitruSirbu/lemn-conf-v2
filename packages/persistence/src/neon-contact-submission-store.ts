@@ -113,15 +113,10 @@ export class NeonContactSubmissionStore implements ContactSubmissionStore {
   private async recordProposing(
     proposed: ProposedRecord,
   ): Promise<SubmissionRecording | typeof REFERENCE_COLLISION> {
-    try {
-      const rows = await queryRows("record a request", () =>
-        retryOnTransientFailure(() => this.upsert(proposed)),
-      );
-      return recordedFrom(rows);
-    } catch (error) {
-      if (isReferenceCollision(error)) return REFERENCE_COLLISION;
-      throw error;
-    }
+    const rows = await queryRowsOrCollision("record a request", () =>
+      retryOnTransientFailure(() => this.upsert(proposed)),
+    );
+    return rows === REFERENCE_COLLISION ? rows : recordedFrom(rows);
   }
 
   private selectByClientRequestId({
@@ -190,39 +185,73 @@ function designColumnsOf({ target }: ContactSubmissionToRecord): DesignColumns {
     : { id: null, revision: null, intent: target.intent };
 }
 
+/** Whether a failure is the reference's collision. Asked once, of one failure, and never of an error that then leaves:
+ *  an error that cannot be read answers no. */
 function isReferenceCollision(failure: unknown): boolean {
-  return (
-    isNeonDbError(failure) &&
-    failure.code === UNIQUE_VIOLATION &&
-    failure.constraint === REFERENCE_UNIQUENESS_NAME
-  );
+  try {
+    return (
+      isNeonDbError(failure) &&
+      failure.code === UNIQUE_VIOLATION &&
+      failure.constraint === REFERENCE_UNIQUENESS_NAME
+    );
+  } catch {
+    return false;
+  }
+}
+
+/** What a statement did: it replied, or it failed. The failure is held as a value and is read, never thrown. */
+type Attempt =
+  | { readonly failed: false; readonly reply: unknown }
+  | { readonly failed: true; readonly failure: unknown };
+
+async function attempt(runQuery: () => PromiseLike<unknown>): Promise<Attempt> {
+  try {
+    return { failed: false, reply: await runQuery() };
+  } catch (failure) {
+    return { failed: true, failure };
+  }
 }
 
 /** The rows of a statement, or the store error: a failure, or a reply that is not a list of rows, never leaves as
- *  anything else. */
+ *  anything else. Every driver failure leaves as a store error holding a built cause, as ADR 0146 B3 requires, and the
+ *  driver's own error is not thrown by anything in this module. */
 async function queryRows(
   operation: ContactSubmissionOperation,
   runQuery: () => PromiseLike<unknown>,
 ): Promise<object[]> {
-  const reply = await runTranslatingFailures(operation, runQuery);
+  const attempted = await attempt(runQuery);
+  if (attempted.failed) {
+    throw new ContactSubmissionStoreError(
+      operation,
+      reducedCauseOf(attempted.failure),
+    );
+  }
+  return rowsOf(attempted.reply, operation);
+}
+
+/** {@link queryRows} for the upsert, whose one expected failure is the reference's collision: that is answered as a
+ *  value for the loop to draw again, and a failure is classified here once, where it is caught. */
+async function queryRowsOrCollision(
+  operation: ContactSubmissionOperation,
+  runQuery: () => PromiseLike<unknown>,
+): Promise<object[] | typeof REFERENCE_COLLISION> {
+  const attempted = await attempt(runQuery);
+  if (!attempted.failed) return rowsOf(attempted.reply, operation);
+  if (isReferenceCollision(attempted.failure)) return REFERENCE_COLLISION;
+  throw new ContactSubmissionStoreError(
+    operation,
+    reducedCauseOf(attempted.failure),
+  );
+}
+
+function rowsOf(
+  reply: unknown,
+  operation: ContactSubmissionOperation,
+): object[] {
   if (!Array.isArray(reply) || !reply.every(isObject)) {
     throw new ContactSubmissionStoreError(operation);
   }
   return reply;
-}
-
-/** A failure that is the reference's collision passes through for the loop; every other driver failure leaves as a store
- *  error holding a built cause, as ADR 0146 B3 requires. */
-async function runTranslatingFailures(
-  operation: ContactSubmissionOperation,
-  runQuery: () => PromiseLike<unknown>,
-): Promise<unknown> {
-  try {
-    return await runQuery();
-  } catch (error) {
-    if (isReferenceCollision(error)) throw error;
-    throw new ContactSubmissionStoreError(operation, reducedCauseOf(error));
-  }
 }
 
 function recordedFrom(rows: readonly object[]): SubmissionRecording {

@@ -433,7 +433,33 @@ function errorWithLeakingGetters(): Error {
   return error;
 }
 
+/** An error whose code and constraint read as the reference's collision on the first read only (`isAtFirst`), or on
+ *  every read after the first. A store that classifies a failure twice can disagree with itself. */
+function errorWhoseReadingChanges(isAtFirst: boolean): NeonDbError {
+  const error = databaseRefusal("23505", REFERENCE_UNIQUENESS);
+  let reads = 0;
+  Object.defineProperty(error, "code", {
+    get: () => {
+      reads += 1;
+      return (reads === 1) === isAtFirst ? "23505" : "XX000";
+    },
+  });
+  return error;
+}
+
 const FAILURE_SHAPES: readonly (readonly [string, () => unknown])[] = [
+  [
+    "the reference's collision, which is handled only by the loop of a record",
+    () => databaseRefusal("23505", REFERENCE_UNIQUENESS),
+  ],
+  [
+    "an error that reads as the collision at first and as something else after",
+    () => errorWhoseReadingChanges(true),
+  ],
+  [
+    "an error that reads as something else at first and as the collision after",
+    () => errorWhoseReadingChanges(false),
+  ],
   ["a string holding the connection string", () => LEAKING_TEXT],
   ["null", () => null],
   ["undefined", () => undefined],
@@ -528,6 +554,53 @@ describe("every failure of the driver", () => {
       });
     },
   );
+
+  it.each([
+    [
+      "look up a request",
+      (store: NeonContactSubmissionStore) =>
+        store.lookUp({
+          clientRequestId: CLIENT_REQUEST_ID,
+          payloadDigest: DIGEST_A,
+        }),
+    ],
+    [
+      "mark a request notified",
+      (store: NeonContactSubmissionStore) =>
+        store.markNotified(CLIENT_REQUEST_ID),
+    ],
+  ])(
+    "does not pass the reference's collision through when it is raised while the store tries to %s: it leaves as the store error",
+    async (_operation, run) => {
+      failWith(databaseRefusal("23505", REFERENCE_UNIQUENESS));
+
+      const failure = await run(newStore(...REFERENCES)).catch(
+        (error: unknown) => error,
+      );
+
+      expect(failure).toBeInstanceOf(ContactSubmissionStoreError);
+      expect(failure).not.toBeInstanceOf(NeonDbError);
+      expect((failure as Error).cause).toEqual({
+        name: "NeonDbError",
+        code: "23505",
+      });
+    },
+  );
+
+  it("is classified once: a record meets an error that reads as the collision only at first as one collision, and draws again", async () => {
+    failWith(errorWhoseReadingChanges(true));
+    answerWith([recordedRow(SECOND_REFERENCE)]);
+
+    const recording = await newStore(...REFERENCES).record(
+      aDesignSubmission(CLIENT_REQUEST_ID),
+    );
+
+    expect(recording).toMatchObject({
+      kind: "stored",
+      reference: SECOND_REFERENCE,
+    });
+    expect(driver.statements).toHaveLength(2);
+  });
 
   it("keeps the type name and the SQLSTATE of a refusal as its whole cause", async () => {
     failWith(

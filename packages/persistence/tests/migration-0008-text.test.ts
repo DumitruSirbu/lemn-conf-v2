@@ -3,6 +3,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { readMigrationFiles } from "../src/migration-files.js";
 import { executableStatementsOf } from "../src/migration-safety.js";
 import {
   ALL_COLUMNS,
@@ -152,5 +153,20 @@ describe("migration 0008's text", () => {
 
   it("names the reference's uniqueness as the store reads it", () => {
     expect(STATEMENT).toContain("contact_submissions_reference_is_unique");
+  });
+
+  it("is the last migration to name the table, or its author has read the rule that no constraint reads a column the role may update", () => {
+    const laterMigrationsNamingTheTable = readMigrationFiles()
+      .filter((migration) => migration.version > 8)
+      .filter((migration) => /contact_submissions/i.test(migration.sql))
+      .map((migration) => migration.fileName);
+
+    expect(
+      laterMigrationsNamingTheTable,
+      "a migration after 0008 names contact_submissions: before adding it, read the security ruling S-R1.1 (no " +
+        "constraint, default, trigger or generated column may read notified_at, the one column the application " +
+        "role may update, because a violation's detail would show the stored row), extend this file's checks to " +
+        "that migration, and only then remove this tripwire's entry for it",
+    ).toEqual([]);
   });
 });
