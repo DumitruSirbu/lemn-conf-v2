@@ -48,8 +48,13 @@ export const MAIL_REFUSED_UNSENT: MailOutcome = Object.freeze({
 });
 
 const KEY_MAX_LENGTH = 256;
-const VISIBLE_ASCII_KEY = /^[\x21-\x7e]+$/;
-const LINE_BREAKING_CHARACTER = /[\p{Cc}\u2028\u2029]/u;
+
+/** A value that can ride in a header: visible ASCII only, no space and no control character. */
+export const VISIBLE_ASCII_KEY = /^[\x21-\x7e]+$/;
+
+/** A character that ends or breaks a line, as the domain names the categories. The notice asks this same class of
+ *  every line it writes, so what it writes passes the predicate. */
+export const LINE_BREAKING_CHARACTER = /[\p{Cc}\p{Zl}\p{Zp}]/u;
 
 /**
  * Asked by every sender before it builds anything from the message: a key that cannot be a header

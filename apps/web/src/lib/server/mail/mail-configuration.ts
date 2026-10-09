@@ -1,5 +1,7 @@
 import "server-only";
 
+import { VISIBLE_ASCII_KEY } from "@/lib/server/mail/mail-sender";
+
 export type MailEnvironment = Readonly<Record<string, string | undefined>>;
 
 export const MAIL_API_KEY_VARIABLE = "RESEND_API_KEY";
@@ -28,15 +30,12 @@ export type MailConfigurationResult =
       readonly variables: readonly MailVariableName[];
     };
 
-// Visible ASCII only, so a key carries no space or control character into a header.
-const USABLE_KEY = /^[\x21-\x7e]+$/;
-
 // Exactly one `@` between two parts; no whitespace, separator, angle bracket, control or format
 // character. A second recipient or a header break therefore cannot ride in an address.
 const USABLE_ADDRESS = /^[^\s@,;<>\p{C}]+@[^\s@,;<>\p{C}]+$/u;
 
 const USABILITY_RULES: Readonly<Record<MailVariableName, RegExp>> = {
-  [MAIL_API_KEY_VARIABLE]: USABLE_KEY,
+  [MAIL_API_KEY_VARIABLE]: VISIBLE_ASCII_KEY,
   [MAIL_FROM_ADDRESS_VARIABLE]: USABLE_ADDRESS,
   [LEAD_NOTIFICATION_ADDRESS_VARIABLE]: USABLE_ADDRESS,
 };

@@ -11,6 +11,8 @@ import {
   type ContactFieldsInput,
   type ContactFields,
   type Design,
+  type Finish,
+  type Handle,
   type SubmissionSnapshot,
 } from "@lemnaria/configurator-domain";
 import type { ContactSubmissionToRecord } from "@lemnaria/persistence";
@@ -24,9 +26,12 @@ import {
   NoticeLineError,
   NOTICE_LOCALE,
 } from "@/lib/server/mail/lead-notification";
-import { isSendableMailMessage } from "@/lib/server/mail/mail-sender";
+import {
+  isSendableMailMessage,
+  LINE_BREAKING_CHARACTER,
+} from "@/lib/server/mail/mail-sender";
 import { describeStartingPrice } from "@/price/starting-price";
-import { describeReview } from "@/review/review-model";
+import { describeReview, rowDetailOf } from "@/review/review-model";
 
 import { ro } from "../../../support/romanian-content";
 import {
@@ -94,6 +99,51 @@ function sendableDesigns(arm: VariedArm, limit: number): readonly Design[] {
 
 const DESIGN = requireFirst(sendableDesigns(VARIED_L_ARM, 1));
 const SNAPSHOT = snapshotOfDesign(DESIGN);
+
+const KITCHENS_PER_ARM = 25;
+const MIN_KITCHENS_PER_ARM = 20;
+
+/** What each material lets a body wear, so a dressed kitchen is one the review can draw. */
+const OWN_FINISH_BY_MATERIAL: Readonly<Record<string, Finish>> = {
+  "material.melamine": { kind: "palette-entry", entryId: "pal.antracit" },
+  "material.painted-mdf": { kind: "free-colour", value: "#b8c4a1" },
+  "material.veneer": { kind: "palette-entry", entryId: "veneer.nuc" },
+};
+const OWN_HANDLES: readonly Handle[] = ["steel", "black", "push"];
+
+/** The kitchen with its bodies dressed in turn: nothing, a finish of their own, a handle, both. */
+function dressed(design: Design, offset: number): Design {
+  const finish = OWN_FINISH_BY_MATERIAL[design.settings?.materialTierId ?? ""];
+  return {
+    ...design,
+    placements: design.placements.map((placement, index) => {
+      const dress = (index + offset) % 4;
+      const hasFinish = (dress === 1 || dress === 3) && finish !== undefined;
+      const hasHandle = dress === 2 || dress === 3;
+      return {
+        ...placement,
+        body: {
+          ...placement.body,
+          ...(hasFinish ? { finish } : {}),
+          ...(hasHandle
+            ? { handle: OWN_HANDLES[(index + offset) % OWN_HANDLES.length] }
+            : {}),
+        },
+      };
+    }),
+  };
+}
+
+function dressedKitchens(arm: VariedArm, limit: number): readonly Design[] {
+  return sendableDesigns(arm, limit).map(dressed);
+}
+
+function entriesOf(design: Design) {
+  return projectDesignForDisplay(
+    design,
+    buildKitchenLBodyCatalog(cabinetDepthMmOf(design)),
+  ).flatMap((group) => group.entries);
+}
 
 function requireFirst<T>(items: readonly T[]): T {
   const [first] = items;
@@ -494,7 +544,12 @@ describe("the notice's kitchen lines", () => {
       lineOf(notice.labels.room, review.roomLine),
       ...review.groups.flatMap((group) => [
         group.heading,
-        ...group.rows.map((row) => lineOf(row.label, row.amountText)),
+        ...group.rows.flatMap((row) => [
+          lineOf(row.label, row.amountText),
+          ...rowDetailOf(review.rowDetails, row.key).facts.map(
+            (fact) => `  ${fact}`,
+          ),
+        ]),
       ]),
       ...review.wholeKitchenRows.map((row) =>
         lineOf(row.label, row.amountText),
@@ -510,9 +565,13 @@ describe("the notice's kitchen lines", () => {
   }
 
   it.each(ARMS_BY_NAME)(
-    "shows the rows, figure and disclaimer the review shows for the same design, in the %s arm",
+    "shows the rows, facts, figure and disclaimer the review shows for the same design, in the %s arm",
     (_name, arm) => {
-      const mismatches = sendableDesigns(arm, 25).filter((design) => {
+      const kitchens = [
+        ...sendableDesigns(arm, KITCHENS_PER_ARM),
+        ...dressedKitchens(arm, KITCHENS_PER_ARM),
+      ];
+      const mismatches = kitchens.filter((design) => {
         const lines = bodyLinesOf(
           designRequest({ snapshot: snapshotOfDesign(design) }),
         );
@@ -523,9 +582,62 @@ describe("the notice's kitchen lines", () => {
         );
       });
 
+      expect(kitchens.length).toBeGreaterThanOrEqual(2 * MIN_KITCHENS_PER_ARM);
       expect(mismatches).toEqual([]);
     },
   );
+
+  it.each(ARMS_BY_NAME)(
+    "has kitchens with a body's own finish and with a handle to compare, in the %s arm",
+    (_name, arm) => {
+      const entries = dressedKitchens(arm, KITCHENS_PER_ARM).map(entriesOf);
+
+      expect(
+        entries.filter((kitchen) =>
+          kitchen.some((entry) => entry.finish !== undefined),
+        ).length,
+      ).toBeGreaterThanOrEqual(MIN_KITCHENS_PER_ARM);
+      expect(
+        entries.filter((kitchen) =>
+          kitchen.some((entry) => entry.handle !== undefined),
+        ).length,
+      ).toBeGreaterThanOrEqual(MIN_KITCHENS_PER_ARM);
+    },
+  );
+
+  it.each(ARMS_BY_NAME)(
+    "prints each handle's word, from the body's own member, under its row in the %s arm",
+    (_name, arm) => {
+      const missing = dressedKitchens(arm, KITCHENS_PER_ARM).filter(
+        (design) => {
+          const printed = bodyLinesOf(
+            designRequest({ snapshot: snapshotOfDesign(design) }),
+          );
+          return entriesOf(design).some(
+            (entry) =>
+              entry.handle !== undefined &&
+              !printed.includes(`  ${ro.panel.handleLabels[entry.handle]}`),
+          );
+        },
+      );
+
+      expect(missing).toEqual([]);
+    },
+  );
+
+  it("sets each fact in by two spaces, with no label, under the row it belongs to", () => {
+    const [design] = dressedKitchens(VARIED_L_ARM, 1);
+    if (design === undefined) throw new Error("the fixture has no kitchen");
+
+    const lines = bodyLinesOf(
+      designRequest({ snapshot: snapshotOfDesign(design) }),
+    );
+    const facts = lines.filter((line) => line.startsWith("  "));
+
+    expect(facts.length).toBeGreaterThan(0);
+    expect(facts.every((fact) => !fact.startsWith("   "))).toBe(true);
+    expect(facts.some((fact) => fact.includes(":"))).toBe(false);
+  });
 
   it("separates the customer's lines from the kitchen's with one blank line", () => {
     const lines = bodyLinesOf(designRequest());
@@ -624,6 +736,47 @@ describe("a request whose kitchen the notice cannot describe", () => {
     ).not.toContain(marker);
   });
 
+  it("throws the one value-free error when a placement id holding a marker and a line break splits the inputs", () => {
+    const marker = "PLACEMENT-ID-MARKER-91";
+    const [first, ...rest] = DESIGN.placements;
+    if (first === undefined) throw new Error("the fixture has no body");
+    const renamed: Design = {
+      ...DESIGN,
+      placements: [{ ...first, id: `${marker}\nX-Injected: 1` }, ...rest],
+    };
+    const submission = designRequest({
+      snapshot: {
+        document: canonicalSerializeDesign(renamed),
+        priced: SNAPSHOT.priced,
+      },
+    });
+
+    expectKitchenFailure(submission, "review-not-sendable");
+    expect(
+      inspect(
+        thrownBy(() => noticeOf(submission)),
+        {
+          depth: null,
+          showHidden: true,
+        },
+      ),
+    ).not.toContain(marker);
+  });
+
+  it("throws the same value-free error when the review cannot be made at all", () => {
+    const spoiled = {
+      ...SNAPSHOT,
+      priced: { ...SNAPSHOT.priced, lines: undefined },
+    } as unknown as SubmissionSnapshot;
+    const submission = designRequest({ snapshot: spoiled });
+
+    const thrown = thrownBy(() => noticeOf(submission));
+
+    expect(thrown).toBeInstanceOf(NoticeKitchenError);
+    expect((thrown as NoticeKitchenError).failure).toBe("review-not-sendable");
+    expect((thrown as Error).cause).toBeUndefined();
+  });
+
   it("throws a named error for a kitchen the review does not allow", () => {
     const empty: Design = {
       ...DESIGN,
@@ -649,6 +802,16 @@ describe("a request whose kitchen the notice cannot describe", () => {
       }),
       "review-not-sendable",
     );
+  });
+});
+
+describe("the line-break class", () => {
+  it("is the port's own, so the notice passes the predicate on every line it writes", () => {
+    const source = readMailModuleSource("lead-notification.ts");
+
+    expect(LINE_BREAKING_CHARACTER.source).toBe("[\\p{Cc}\\p{Zl}\\p{Zp}]");
+    expect(source).toMatch(/LINE_BREAKING_CHARACTER/);
+    expect(source).not.toMatch(/\\p\{Cc\}|\\u2028|\\u2029/);
   });
 });
 

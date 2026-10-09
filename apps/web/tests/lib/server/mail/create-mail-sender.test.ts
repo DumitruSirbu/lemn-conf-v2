@@ -66,6 +66,15 @@ describe("createMailSender: the fake", () => {
     await expect(creation.sender.send(MESSAGE)).resolves.toEqual({ ok: true });
   });
 
+  it("hands back `send` alone, so what the fake holds is out of reach of whatever holds the sender", () => {
+    spyOnConsole();
+    const creation = createMailSender(FAKE_ENVIRONMENT);
+    if (creation.kind !== "sender") throw new Error("expected a sender");
+
+    expect(Reflect.ownKeys(creation.sender)).toEqual(["send"]);
+    expect(Reflect.has(creation.sender, "sent")).toBe(false);
+  });
+
   it("warns once with the one fixed line, and writes nothing else", () => {
     const console_ = spyOnConsole();
 

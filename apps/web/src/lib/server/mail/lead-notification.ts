@@ -12,9 +12,16 @@ import {
 import type { ContactSubmissionToRecord } from "@lemnaria/persistence";
 
 import type { Content } from "@/i18n/content";
-import type { MailMessage } from "@/lib/server/mail/mail-sender";
+import {
+  LINE_BREAKING_CHARACTER,
+  type MailMessage,
+} from "@/lib/server/mail/mail-sender";
 import type { BreakdownGroup } from "@/price/price-breakdown-model";
-import { describeReview, type AvailableReview } from "@/review/review-model";
+import {
+  describeReview,
+  rowDetailOf,
+  type AvailableReview,
+} from "@/review/review-model";
 
 /** The language the shop's notice is written in. Owner-owed: the caller resolves the `Content` it passes in this
  *  locale, whatever the customer's own. */
@@ -65,7 +72,7 @@ interface NoticeLine {
   readonly text: string;
 }
 
-const LINE_BREAKING_CHARACTER = /[\p{Cc}\p{Zl}\p{Zp}]/u;
+const FACT_INDENT = "  ";
 const BLANK_LINE: NoticeLine = { field: "blank", text: "" };
 
 /**
@@ -165,16 +172,32 @@ function kitchenLines(
   if (submission.target.kind === "intent") {
     return [{ field: "callback", text: content.leadNotice.callbackLine }];
   }
-  const review = reviewOfSnapshot(submission.snapshot, content);
-  return reviewLines(review, content);
+  const { snapshot } = submission;
+  if (snapshot === undefined) throw new NoticeKitchenError("snapshot-missing");
+  const design = parseDocument(snapshot.document);
+  return keepingNothingOfAnyOtherError(() =>
+    reviewLines(reviewOfSnapshot(design, snapshot, content), content),
+  );
+}
+
+/**
+ * The review model's own errors quote placement ids, which are the client's text and may hold a line break, so
+ * whatever the catalogue, the projection, the model or the lines made from them throw leaves as one value-free error.
+ */
+function keepingNothingOfAnyOtherError<Built>(build: () => Built): Built {
+  try {
+    return build();
+  } catch (error) {
+    if (error instanceof NoticeKitchenError) throw error;
+    throw new NoticeKitchenError("review-not-sendable");
+  }
 }
 
 function reviewOfSnapshot(
-  snapshot: SubmissionSnapshot | undefined,
+  design: Design,
+  snapshot: SubmissionSnapshot,
   content: Content,
 ): AvailableReview {
-  if (snapshot === undefined) throw new NoticeKitchenError("snapshot-missing");
-  const design = parseDocument(snapshot.document);
   const catalog = buildKitchenLBodyCatalog(cabinetDepthMmOf(design));
   const review = describeReview({
     content,
@@ -205,7 +228,7 @@ function reviewLines(review: AvailableReview, content: Content): NoticeLine[] {
       content.leadNotice.labels.room,
       review.roomLine,
     ),
-    ...review.groups.flatMap((group) => groupLines(group, content)),
+    ...review.groups.flatMap((group) => groupLines(group, review, content)),
     ...review.wholeKitchenRows.map((row) =>
       labelled(content, "wholeKitchenRow", row.label, row.amountText),
     ),
@@ -214,13 +237,26 @@ function reviewLines(review: AvailableReview, content: Content): NoticeLine[] {
   ];
 }
 
-function groupLines(group: BreakdownGroup, content: Content): NoticeLine[] {
+function groupLines(
+  group: BreakdownGroup,
+  review: AvailableReview,
+  content: Content,
+): NoticeLine[] {
   return [
     { field: "groupHeading", text: group.heading },
-    ...group.rows.map((row) =>
+    ...group.rows.flatMap((row) => [
       labelled(content, "row", row.label, row.amountText),
-    ),
+      ...factLines(rowDetailOf(review.rowDetails, row.key).facts),
+    ]),
   ];
+}
+
+/** The review's own facts of a body, in its order, one to a line and set in under the row. */
+function factLines(facts: readonly string[]): NoticeLine[] {
+  return facts.map((fact) => ({
+    field: "rowFact",
+    text: `${FACT_INDENT}${fact}`,
+  }));
 }
 
 /** The review's own figure and its two disclaimer sentences; the notice adds no sentence about the price. */

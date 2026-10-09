@@ -241,6 +241,12 @@ describe("what an unavailable answer and the reader's failures disclose", () => 
 });
 
 describe("mail-configuration.ts", () => {
+  it("reads the key's pattern from the port and spells none of its own", () => {
+    expect(readMailModuleSource("mail-configuration.ts")).not.toMatch(
+      /\\x21|\\x7e/,
+    );
+  });
+
   it("names neither the process environment nor the build mode", () => {
     expect(readMailModuleSource("mail-configuration.ts")).not.toMatch(
       PROCESS_ENV_OR_BUILD_MODE,

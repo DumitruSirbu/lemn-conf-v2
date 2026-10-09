@@ -39,7 +39,8 @@ export function createMailSender(
 
 function buildFake(): MailSenderCreation {
   console.warn(FAKE_SENDER_WARNING);
-  return { kind: "sender", sender: createFakeMailSender() };
+  const fake = createFakeMailSender();
+  return { kind: "sender", sender: { send: (message) => fake.send(message) } };
 }
 
 function buildProvider(environment: MailEnvironment): MailSenderCreation {
