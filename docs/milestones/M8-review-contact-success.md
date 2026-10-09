@@ -4362,8 +4362,10 @@ reviews run once, after S4.
    address in its IPv4 block. An absent or unreadable address is in the one shared bucket, **at
    the same 20 a day**. *Must not:* it is unlimited.
 2. The address is one the platform set. Under *none* no header moves a request to another bucket.
-3. ~~Independent buckets, for the mint.~~ It has one. **Kept for the evaluator alone:** with two
-   buckets the stricter decides, and no key joins two identities.
+3. ~~Independent buckets, for the mint.~~ It has one. ~~**Kept for the evaluator alone:** with two
+   buckets the stricter decides, and no key joins two identities.~~ **(Struck 2026-10-09, later: the
+   evaluator as built judges one bucket, as S2's own item said. Two buckets are 8G's, by name;
+   *8F — the three reviews*, FL-R1.1.)**
 4. A refused mint inserts nothing, sets no cookie and rotates nothing. It answers `429` with a
    whole `Retry-After` from 1 to 90,000: the seconds to the end of the Chișinău day.
 5. **Unavailable is one answer, `503`, and nothing is written:** the store fails, the deadline
@@ -4378,7 +4380,9 @@ reviews run once, after S4.
 10. Step 1 says, in both locales, that the limit returns tomorrow, and for `503` that it cannot be
     made now; the room's entry is kept. ~~The wait in minutes.~~
 11. With the secret unset, no row. *Must not:* any key but the variable's.
-12. **Added.** The limiter's deadline, the store's longest repeat and the mint's longest time, as
+12. **(Restated 2026-10-09, later: the deadline is at most a third of the lock's wait, both
+    constants imported; the rest of the sum is the record's, not a test's. *8F — the three reviews*, FC-R1.1.)**
+    **Added.** The limiter's deadline, the store's longest repeat and the mint's longest time, as
     figures, sum to under the lock's ten seconds; a test fails if a constant moves past it.
 13. **Added.** Equal keys only for equal purpose, name and subject, as a property over arbitrary
     subjects, ones holding a policy's name or the encoding's own marks included.
@@ -4443,7 +4447,8 @@ sets travels with every file pulled from it, and a pulled file here already hold
 application would trust a header the client wrote, and criterion 2 would fail without a sound.
 
 - **`CLIENT_NETWORK_SOURCE`, set by the owner on a deployment and nowhere else.** One accepted
-  value today, the development host's name, from a closed set in code. Absent: *none*. **Present
+  value today, the development host's name **(read: the platform's name; never its development
+  target; *8F — the three reviews*, FC-R1.19)**, from a closed set in code. Absent: *none*. **Present
   as the environment's own member with anything else in it: every mint is refused.**
 - *What is left, recorded:* someone sets it on a host that does not overwrite the header. The
   launch gate's sentence below is for that. `.env.example` says: on a deployment on that host
@@ -4760,6 +4765,142 @@ either answer's shape or a statement's text changed; `0007` or the counter store
   edges of the day through the route.
 - **The two-tab race with the limiter in place**, at eight workers, against the triage's 12 in
   100, said as a figure.
+
+##### 8F — the three reviews, ruled 2026-10-09
+
+**State.** HEAD is `59b292d` [ran: `git log`], tree clean, QA green there [relayed]. Logic: approve
+with should-fix. Security: approve. Clean-code: changes required, eight must-fix, none of them
+behaviour. Visual: yes at 390 × 844 in both languages [all relayed]. **Every finding's own text is
+in two files, handed whole to the developer and to QA:** `coord-8f-review-clean.md` and
+`coord-8f-review-logic-security.md`, session scratchpad. A number below points into them.
+
+**Logic.**
+
+- **FL-R1.2, taken.** Any `429` on the mint is read as the day's limit [src
+  `persistence/fetch-configuration-repository.ts:206-208`]. **The day's-limit failure is thrown
+  only for a `429` whose body's own `code` is `MINT_LIMIT_REACHED`.** Any other `429` is the
+  failure it was before this wave, with its retry: a firewall's is not ours, and M9 ships one
+  beside this limiter. The code is compared with a constant; nothing of the body is shown.
+- **FL-R1.1, taken as a strike.** Criterion 3's kept half is struck above. Two buckets, the
+  stricter deciding, and a refused request hitting every bucket it lists, are 8G's.
+- **FL-R1.3, a recorded limit, the architect's and open to the owner. Twenty a day counts tries,
+  not designs made.** A hit is counted before it is judged, so a mint that then fails has spent
+  one, and the store has no way to give it back. ADR 0147's sentence is the figure; whether a
+  failed try counts was not ruled. *Trigger:* the designs write fails for a stretch, or a
+  customer is refused short of twenty designs.
+- **FL-R1.4, taken.** A count that is not a whole number of at least one is `store-failed`.
+- **FL-R1.5: the developer traces it, in round A, and changes nothing.** Can the editor still
+  create a design by a save with no id? It answers with the lines that decide it. If it can, it
+  stops: a refused mint would then end in the editor's sentence about a new tab.
+
+**Security.**
+
+- **F-S2.1: the scribe writes both sentences into the gates' own text at the close.** *8T's:*
+  *`LEMNARIA_E2E_RATE_LIMIT_POLICY` is defined on no deployment, read by name only.* *M9's:*
+  *Production's network source is a named platform and not none; a request sent to that deployment
+  with a forged forwarding header is counted under its real block; and the e2e policy's flag is
+  absent there.*
+- **F-S2.3: the rule stays procedural.** The mechanical form needs a mocked and a real driver in
+  one file. The pair that already exists does its work: a unit test pins the statement's text,
+  and the live test plants rows it does not hand over. **No further read of the table is owed.**
+  A delete of rows changes no definition, and the suites that read the table passed after
+  [relayed]. A run in flight then lost its own count and nothing else. That stays unknown.
+- **F-S2.4, recorded.** Both harness servers listen on every interface [relayed, recalled]. The
+  suite's first always has. Binding it changes how every e2e test reaches its server. *Backlog,
+  the coordinator's:* loopback only, measured on its own.
+
+**QA's observations.** *O1:* as ruled; the limiter's own file and QA's go red, and that is the
+answer. *O2, a limit:* no guarded helper counts design rows, so *writes no row* is shown as far
+as the ids the route answered. *Trigger:* 8K, which owes the same proof. *O3:* the notice is also
+written for a mint that then answers `503`; harmless. *O5, a limit for the rotation runbook:* **a
+replaced secret gives that day a second twenty.** *O6:* a local file naming the flag or the
+source reaches the second server, and both then fail loudly; that spec is CI's. **Port 4323:
+accepted.** The helper takes the port as a parameter and names both.
+
+**Visual. No comparison with a frame is owed: no frame draws this state. For the owner's hand
+check, recorded:** the notice sits in the same neutral band as a failure's, under the heading that
+a kitchen will be built, with every row ticked; only its words and the missing retry say that
+nothing was made. *Backlog, the coordinator's, neither of them this wave's:* a tap on *Continuă*
+before the page is live does nothing; one resource answers `404` in every run.
+
+**Clean-code.** *Must-fix:* FC-R1.1 to FC-R1.7 and FC-R1.8 (b) are the developer's; **FC-R1.8 (a)
+is QA's**, in its own file. *Taken as well:* FC-R1.10; FC-R1.11's first three parts; FC-R1.12's
+names and the one reason; FC-R1.13; FC-R1.14's name and order; FC-R1.15 to FC-R1.17; FC-R1.19's
+label; and what leaks or waits: FC-R1.20's listener, FC-R1.22 (a), FC-R1.23, FC-R1.26, FC-R1.27.
+
+| Recorded | Why, and where it goes |
+| --- | --- |
+| FC-R1.9, one module for the environment's type and own-member read; FC-R1.11's shared deadline | A move through 8J's closed modules and their source scans. *Trigger:* the fourth reader, 8G's or 8K's, which makes the module and moves the three. Backlog |
+| FC-R1.12's split of the parser; FC-R1.14's move of the notice | Each could change behaviour the security reader proved over 60,000 spellings, or when a line is written |
+| FC-R1.18, FC-R1.21, FC-R1.24, FC-R1.25, FC-R1.28, FC-R1.29, the rest of FC-R1.20 and FC-R1.22, the nits, the restated pairs | The milestone-close test audit (ADR 0152 Amendment A), which deletes on evidence; the findings file is its list |
+
+**Two records of the coordinator's, ruled.** `e8264f8` has no co-author line and is not amended.
+**The developer changed a number and a comment in a file of QA's.** The number had to move with
+the wave's own leaf. *For every later dispatch:* a pinned figure in a QA file that a wave's own
+change moves is reported, and QA changes it.
+
+**Round A, behaviour. One developer, one commit, five items.**
+
+| # | Does (the text of each is in the two files) | Files |
+| --- | --- | --- |
+| 1 | FL-R1.2: the day's limit only for a `429` carrying its code | `persistence/fetch-configuration-repository.ts`, `persistence/design-request-errors.ts`; their tests |
+| 2 | FL-R1.4: a count that is no count is `store-failed` | `lib/server/rate-limit/enforce-rate-limit.ts`; its test |
+| 3 | FC-R1.7: the notice built from the flag's constant, the same bytes | `lib/server/design-failure-log.ts` |
+| 4 | FL-R1.5: traced and reported, nothing changed | none |
+| 5 | Quoted: the whole web suite, typecheck, lint | none |
+
+**Round B, no behaviour. The same developer, after A; one commit, five items.**
+
+| # | Does | Files |
+| --- | --- | --- |
+| 1 | Its must-fix in tests: FC-R1.1 (the lock's constant gains the word `export`, and the test holds the deadline to a third of it), FC-R1.2 to FC-R1.6, FC-R1.8 (b) | the tests each names; `persistence/create-design-lock.ts` (one word) |
+| 2 | Names and words in source: FC-R1.10, FC-R1.11 in part, FC-R1.12 in part, FC-R1.13, FC-R1.14 in part, FC-R1.17 | the `rate-limit` modules, `design-failure-log.ts`, the spec |
+| 3 | The harness: FC-R1.15, with the three names imported; the port as a parameter, both ports named (FC-R1.16) | `tests/e2e/support/production-policy-server.ts` |
+| 4 | Tests that leak or wait: FC-R1.20's listener, FC-R1.22 (a), FC-R1.23, FC-R1.26, FC-R1.27; FC-R1.19's label | the tests each names |
+| 5 | Quoted: the whole web suite, the persistence unit tests, typecheck, lint | none |
+
+*Must not, both rounds:* a `qa-*` file edited; the route's order, an answer's shape, a statement's
+text, a key or a notice's bytes changed; the parser's behaviour changed; **a mutant sent to a
+database**; in round B, any outcome changed.
+
+**QA's own files. One pass, after both.** (1) FC-R1.8 (a). (2) The port's parameter in its live
+spec, in place of the variable and the late import. (3) Proof of round A, a mutant each, on mocked
+seams: a `429` without the code keeps its retry and its old sentence; a count of nought, a
+fraction or a negative is `503`. (4) The whole web suite once. (5) One `CI=1` e2e run in which
+both production-policy specs passed, with the designs it counted.
+
+**Round 2 of review, as diffs.** *Logic:* FL-R1.2, FL-R1.4 and the trace. *Security:* round B's
+diff of the parser and of the harness's three names. *Clean-code:* its eight must-fix and what B
+and QA took.
+
+**The closing rule for 8F, the architect's and open to the owner.** After that a finding is fixed
+inside 8F only if a mint that should be refused is allowed or one that should be allowed is
+refused; a refused or unjudgeable mint writes a row, sets a cookie or moves a visitor; or an
+address, a block, a key, the secret or a count leaves in an answer or a log line. Anything else is
+recorded with its trigger.
+
+**For the scribe: what 8F's ADR holds.**
+
+- *Decisions.* The encoding and the key as thirty-two bytes; the secret's reader; the source the
+  owner names; the policy and the Chișinău day; the evaluator and its seven causes; the route's
+  order; the two answers; the e2e policy, its flag and its figure of 1,100; the harness; Step 1's
+  limited state, read from the answer's code.
+- *What it changes in standing records.* ADR 0149's *unkeyed for 8E and 8F* (already amended);
+  ADR 0111's states of a hand-off gain one; backlog 90 closes.
+- *Limits, each with its trigger.* The shared bucket under *none*; tries, not designs; a replaced
+  secret; the odd IPv6 families and a subscriber's 256 blocks, for M9; counts that err high; no
+  helper that counts design rows; the second server's ports; the recorded findings above.
+- **The incident and the standing rule, with a dated note on ADR 0151.**
+- **Q35:** its three options, the architect's recommendation of (c), the security reader's view,
+  and the race's two measurements, 12 of 100 before the limiter and 0 of 100 with it, one sample
+  each [relayed, QA-run]. **0 of 100 is not a fix.**
+- *Unproven until the owner acts:* the secret in each environment; `0007` and its grant, whose
+  test has only ever been skipped; the source on a deployment, and that its header holds one
+  address and cannot be forged; that the deployed runtime names the Chișinău zone.
+- *Owner actions.* `DIGEST_SECRET` in each environment, then one design created there.
+  `CLIENT_NETWORK_SOURCE` on a deployment on that platform only. `0007` and its grant. Q35. The
+  notice's look. The draft leaf's words. The two gate sentences. **Owed by the scribe:** the
+  runbook for replacing the secret, with its second twenty.
 
 ### 8G — the limiter on saves, shares and reads; pruning
 
