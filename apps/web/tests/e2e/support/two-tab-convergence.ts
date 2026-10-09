@@ -73,17 +73,27 @@ async function tapContinueAndAwaitDesign(page: Page): Promise<string> {
   return decodeURIComponent(id);
 }
 
-/** `GET /api/designs/{id}`'s own `canWrite`, read from whichever page in the context — both share
- *  the one jar under test. */
-async function canWriteDesign(page: Page, id: string): Promise<boolean> {
-  const probe = await page.evaluate(async (designId: string) => {
+/** What `GET /api/designs/{id}` answered: its status, and `canWrite` when that status is 200. */
+interface DesignAccessAnswer extends DesignAccessProbe {
+  readonly status: number;
+}
+
+/** Asks `GET /api/designs/{id}` from whichever page in the context — both share the one jar under
+ *  test. The status is kept because a 404 (the jar owns nothing) and a 5xx are different failures. */
+async function readDesignAccess(
+  page: Page,
+  id: string,
+): Promise<DesignAccessAnswer> {
+  return page.evaluate(async (designId: string) => {
     const response = await fetch(`/api/designs/${designId}`, {
       credentials: "same-origin",
     });
-    if (response.status !== 200) return { canWrite: false };
-    return (await response.json()) as DesignAccessProbe;
+    if (response.status !== 200) {
+      return { status: response.status, canWrite: false };
+    }
+    const { canWrite } = (await response.json()) as DesignAccessProbe;
+    return { status: response.status, canWrite };
   }, id);
-  return probe.canWrite;
 }
 
 /**
@@ -110,10 +120,13 @@ export async function runOneTwoTabRound(
     mintedIds.push(idA, idB);
 
     for (const id of [prior.id, idA, idB]) {
-      if (!(await canWriteDesign(pageA, id))) {
+      const access = await readDesignAccess(pageA, id);
+      if (!access.canWrite) {
         return {
           mintedIds,
-          failureReason: `design ${id} did not open with canWrite: true`,
+          failureReason:
+            `design ${id} did not open with canWrite: true ` +
+            `(GET answered ${String(access.status)})`,
         };
       }
     }
