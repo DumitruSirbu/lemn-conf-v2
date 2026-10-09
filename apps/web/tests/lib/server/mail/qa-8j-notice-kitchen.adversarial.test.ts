@@ -373,6 +373,41 @@ describe("a placement id that holds a marker and a line break", () => {
   });
 });
 
+/** A value on which any operation at all, a prototype lookup included, throws. */
+function valueWhoseEveryTrapThrows(): object {
+  const everyTrapThrows = new Proxy(
+    {},
+    {
+      get: () => () => {
+        throw new Error("a trap of the thrown value ran");
+      },
+    },
+  );
+  return new Proxy({}, everyTrapThrows);
+}
+
+describe("a kitchen line that cannot be composed", () => {
+  it("leaves as the fixed error, with nothing asked of what was thrown while the room's line was written", () => {
+    const content = {
+      ...ro,
+      leadNotice: {
+        ...ro.leadNotice,
+        line: (label: string, value: string) => {
+          // eslint-disable-next-line @typescript-eslint/only-throw-error -- a thrown value that is no Error is the case
+          if (label === notice.labels.room) throw valueWhoseEveryTrapThrows();
+          return notice.line(label, value);
+        },
+      },
+    };
+
+    const thrown = thrownBy(() => noticeOf(designRequest(), content));
+
+    expect(thrown).toBeInstanceOf(NoticeKitchenError);
+    expect((thrown as NoticeKitchenError).failure).toBe("review-not-sendable");
+    expect((thrown as Error).cause).toBeUndefined();
+  });
+});
+
 /** What a store would hold had it kept a kitchen the domain refuses: the same two members, made the same way. */
 function handMadeSnapshotOf(design: Design): SubmissionSnapshot {
   return {

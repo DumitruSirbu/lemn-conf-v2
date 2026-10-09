@@ -404,6 +404,8 @@ const PRODUCED_CHUNK_BYTES = 1024;
 const CHUNKS_THAT_PASS_THE_BOUND =
   ANSWER_BOUND_BYTES / PRODUCED_CHUNK_BYTES + 1;
 const CHUNKS_A_STREAM_READS_AHEAD = 1;
+/** Finite, so a reader with no bound drains it and the test fails on what it counted, not by never returning. */
+const CHUNKS_THE_PRODUCER_HOLDS = 4 * CHUNKS_THAT_PASS_THE_BOUND;
 
 /** One real turn of the event loop: every read already owed has run, and no faked timer has moved. */
 function untilEveryPendingReadHasRun(): Promise<void> {
@@ -506,12 +508,16 @@ describe("the bound on the answer's body, at its exact byte", () => {
     expect(outcome).toEqual({ ok: true });
   });
 
-  it("stops reading a body that keeps producing, lets go of it, and answers while the clock stands still", async () => {
+  it("stops reading a body that produces far past the bound, lets go of it, and answers at once", async () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     let chunksProduced = 0;
     let wasCancelled = false;
-    const producingForever = new ReadableStream<Uint8Array>({
+    const producingFarPastTheBound = new ReadableStream<Uint8Array>({
       pull(controller) {
+        if (chunksProduced === CHUNKS_THE_PRODUCER_HOLDS) {
+          controller.close();
+          return;
+        }
         chunksProduced += 1;
         controller.enqueue(new Uint8Array(PRODUCED_CHUNK_BYTES).fill(0x20));
       },
@@ -519,7 +525,7 @@ describe("the bound on the answer's body, at its exact byte", () => {
         wasCancelled = true;
       },
     });
-    stubFetchAnswering(() => answerOf(200, producingForever));
+    stubFetchAnswering(() => answerOf(200, producingFarPastTheBound));
     let outcome: MailOutcome | undefined;
 
     void send().then((answer) => {
