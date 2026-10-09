@@ -2,6 +2,8 @@ import type { RateLimitWindow } from "@lemnaria/persistence";
 
 const TIME_ZONE = "Europe/Chisinau";
 const MS_PER_SECOND = 1000;
+const DATE_YEAR_DIGITS = 4;
+const DATE_PART_DIGITS = 2;
 
 /** The longest a Chișinău day lasts, at the end of daylight saving time: the most seconds a window can have left. */
 export const LONGEST_DAY_SECONDS = 25 * 60 * 60;
@@ -27,6 +29,16 @@ export function chisinauDayOf(instant: Date): RateLimitWindow {
     startsAt: localMidnight({ year, month, day }),
     endsAt: localMidnight({ year, month, day: day + 1 }),
   };
+}
+
+/** The calendar date, as `YYYY-MM-DD`, of the Chișinău day that holds `instant`; its local midnight is its own. */
+export function chisinauDateOf(instant: Date): string {
+  const { year, month, day } = localPartsOf(instant);
+  return [
+    String(year).padStart(DATE_YEAR_DIGITS, "0"),
+    String(month).padStart(DATE_PART_DIGITS, "0"),
+    String(day).padStart(DATE_PART_DIGITS, "0"),
+  ].join("-");
 }
 
 /** The whole seconds left of the window at `instant`, rounded up, so a caller told to wait that long is not early. */

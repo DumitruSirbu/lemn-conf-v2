@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  chisinauDateOf,
   chisinauDayOf,
   LONGEST_DAY_SECONDS,
   secondsToWindowEnd,
@@ -223,5 +224,52 @@ describe("chisinau-day.ts", () => {
     expect(source).toMatch(
       /import type \{ RateLimitWindow \} from "@lemnaria\/persistence"/,
     );
+  });
+});
+
+describe("chisinauDateOf: the calendar date of the day that holds an instant", () => {
+  it.each([
+    [
+      "a local midnight is its own day's",
+      "2026-10-08T21:00:00.000Z",
+      "2026-10-09",
+    ],
+    [
+      "the last millisecond before it is the day before's",
+      "2026-10-08T20:59:59.999Z",
+      "2026-10-08",
+    ],
+    ["the middle of a 23-hour day", "2026-03-29T12:00:00.000Z", "2026-03-29"],
+    ["the middle of a 25-hour day", "2026-10-25T12:00:00.000Z", "2026-10-25"],
+    [
+      "a winter evening, 23:30 local, which is 21:30 in UTC",
+      "2026-01-15T21:30:00.000Z",
+      "2026-01-15",
+    ],
+    [
+      "a first day of a month with its digits padded",
+      "2026-02-01T12:00:00.000Z",
+      "2026-02-01",
+    ],
+  ])("gives %s", (_label, instant, date) => {
+    expect(chisinauDateOf(new Date(instant))).toBe(date);
+  });
+
+  it("gives the date of the window's start for every day it windows, with no day skipped over a year", () => {
+    const dates: string[] = [];
+    let instant = new Date("2026-01-01T12:00:00.000Z");
+    for (let day = 0; day < 365; day += 1) {
+      const window = chisinauDayOf(instant);
+      dates.push(chisinauDateOf(window.startsAt));
+      instant = window.endsAt;
+    }
+
+    expect(new Set(dates).size).toBe(365);
+    expect(dates[0]).toBe("2026-01-01");
+    expect(dates[364]).toBe("2026-12-31");
+  });
+
+  it("throws for an instant that is no date", () => {
+    expect(() => chisinauDateOf(new Date(Number.NaN))).toThrow(RangeError);
   });
 });
