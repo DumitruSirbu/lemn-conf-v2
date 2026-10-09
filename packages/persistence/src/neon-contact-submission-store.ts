@@ -4,12 +4,13 @@ import {
   requireValidClientRequestId,
   requireValidLookup,
   requireValidReference,
-  requireValidSubmission,
+  judgeSubmission,
 } from "./contact-submission-store.js";
 import type {
   ContactSubmissionOperation,
   ContactSubmissionStore,
   ContactSubmissionToRecord,
+  SnapshotJson,
   SubmissionLookup,
   SubmissionLookupRequest,
   SubmissionRecording,
@@ -22,7 +23,8 @@ import { retryOnTransientFailure } from "./retry-on-transient-failure.js";
 
 export interface NeonContactSubmissionStoreOptions {
   /** Where each reference proposal comes from. Only a test passes one, to force a collision; production wiring passes
-   *  none. */
+   *  none. A proposer never repeats a reference: `isNew` is the stored reference being this call's proposal, so a proposer
+   *  that repeats itself makes a later call read as new. */
   readonly proposeReference?: () => string;
 }
 
@@ -76,16 +78,22 @@ export class NeonContactSubmissionStore implements ContactSubmissionStore {
   /**
    * One statement answers a new request, a replay and a conflict: the update changes nothing, so a replay returns the
    * stored row. A reference that is another request's is the only failure drawn again, with a new proposal; a repeated
-   * statement after a lost reply re-sends the same one, so a statement that landed still answers new (ADR 0145).
+   * statement after a lost reply re-sends the same one, so a statement that landed still answers new (ADR 0145). The
+   * JSON the statement carries is made from the snapshot as the shared check judged it, never from the text or the
+   * object handed in.
    */
   async record(
     submission: ContactSubmissionToRecord,
   ): Promise<SubmissionRecording> {
-    requireValidSubmission(submission);
+    const { snapshotJson } = judgeSubmission(submission);
     for (let proposal = 0; proposal < MAX_REFERENCE_PROPOSALS; proposal += 1) {
       const reference = this.proposeReference();
       requireValidReference(reference);
-      const outcome = await this.recordProposing(submission, reference);
+      const outcome = await this.recordProposing({
+        submission,
+        snapshotJson,
+        reference,
+      });
       if (outcome !== REFERENCE_COLLISION) return outcome;
     }
     throw new ContactSubmissionStoreError("record a request");
@@ -103,12 +111,11 @@ export class NeonContactSubmissionStore implements ContactSubmissionStore {
   }
 
   private async recordProposing(
-    submission: ContactSubmissionToRecord,
-    reference: string,
+    proposed: ProposedRecord,
   ): Promise<SubmissionRecording | typeof REFERENCE_COLLISION> {
     try {
       const rows = await queryRows("record a request", () =>
-        retryOnTransientFailure(() => this.upsert(submission, reference)),
+        retryOnTransientFailure(() => this.upsert(proposed)),
       );
       return recordedFrom(rows);
     } catch (error) {
@@ -139,8 +146,8 @@ export class NeonContactSubmissionStore implements ContactSubmissionStore {
     `;
   }
 
-  private upsert(submission: ContactSubmissionToRecord, reference: string) {
-    const { contact, snapshot } = submission;
+  private upsert({ submission, snapshotJson, reference }: ProposedRecord) {
+    const { contact } = submission;
     const design = designColumnsOf(submission);
     return this.sql`
       insert into contact_submissions as submission (
@@ -152,7 +159,7 @@ export class NeonContactSubmissionStore implements ContactSubmissionStore {
         ${submission.payloadDigest},
         ${contact.name}, ${contact.phone}, ${contact.phoneNormalForm}, ${contact.locality}, ${contact.channel},
         ${contact.email ?? null}, ${contact.consentTextVersion}, ${submission.locale},
-        ${design.intent}, ${snapshot?.document ?? null}::jsonb, ${pricedTextOf(snapshot)}::jsonb
+        ${design.intent}, ${snapshotJson?.document ?? null}::jsonb, ${snapshotJson?.priced ?? null}::jsonb
       )
       on conflict (client_request_id)
       do update set notified_at = submission.notified_at
@@ -162,6 +169,13 @@ export class NeonContactSubmissionStore implements ContactSubmissionStore {
         (submission.notified_at is not null) as is_notified
     `;
   }
+}
+
+/** One draw of a reference for a request that passed the shared check, with the JSON its statement carries. */
+interface ProposedRecord {
+  readonly submission: ContactSubmissionToRecord;
+  readonly snapshotJson: SnapshotJson | undefined;
+  readonly reference: string;
 }
 
 interface DesignColumns {
@@ -174,13 +188,6 @@ function designColumnsOf({ target }: ContactSubmissionToRecord): DesignColumns {
   return target.kind === "design"
     ? { id: target.design.id, revision: target.design.revision, intent: null }
     : { id: null, revision: null, intent: target.intent };
-}
-
-/** The priced design as JSON text, which `jsonb` reads as an object; the document is already JSON text. */
-function pricedTextOf(
-  snapshot: ContactSubmissionToRecord["snapshot"],
-): string | null {
-  return snapshot === undefined ? null : JSON.stringify(snapshot.priced);
 }
 
 function isReferenceCollision(failure: unknown): boolean {

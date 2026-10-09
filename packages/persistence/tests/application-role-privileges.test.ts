@@ -1,4 +1,5 @@
 import { neon } from "@neondatabase/serverless";
+import type { NeonQueryFunction } from "@neondatabase/serverless";
 import { describe, expect, it } from "vitest";
 import type { TestContext } from "vitest";
 
@@ -17,6 +18,7 @@ import type { ConnectionFacts } from "./support/connection-facts.js";
 import {
   TABLE_PRIVILEGES_EVERY_SERVER_KNOWS,
   privilegesHeldOn,
+  privilegesHeldWithGrantOption,
   tablePrivilegesTheServerKnows,
 } from "./support/table-privileges.js";
 
@@ -91,10 +93,36 @@ async function expectDeleteRefusedByCatalogThenByServer(
 }
 
 const CONTACT_SUBMISSIONS = "public.contact_submissions";
+/** The privileges a column can carry. */
+const COLUMN_PRIVILEGES = ["SELECT", "INSERT", "UPDATE", "REFERENCES"];
 const NO_SUCH_REQUEST_ID = "no-such-request-id-for-a-probe";
 
 function quoted(identifier: string): string {
   return `"${identifier.replaceAll('"', '""')}"`;
+}
+
+/** R1: not `WITH GRANT OPTION`. A role that could pass on what it holds would make the grant wider than the owner's
+ *  statement, and `has_table_privilege` and `has_column_privilege` both take the privilege with the suffix. */
+async function expectNothingHeldWithGrantOption(
+  sql: NeonQueryFunction<false, false>,
+  knownTablePrivileges: readonly string[],
+): Promise<void> {
+  expect(
+    await privilegesHeldWithGrantOption(
+      sql,
+      CONTACT_SUBMISSIONS,
+      knownTablePrivileges,
+    ),
+  ).toEqual([]);
+  for (const privilege of COLUMN_PRIVILEGES) {
+    expect(
+      await columnsHolding(
+        sql,
+        CONTACT_SUBMISSIONS,
+        `${privilege} WITH GRANT OPTION`,
+      ),
+    ).toEqual([]);
+  }
 }
 
 /** Sends, for each column the catalog says is not held, the one statement that would touch and show nothing if it were
@@ -359,6 +387,7 @@ describe.skipIf(!hasLiveDatabase)("the application's database role", () => {
       expect(
         await columnsHolding(sql, CONTACT_SUBMISSIONS, "REFERENCES"),
       ).toEqual([]);
+      await expectNothingHeldWithGrantOption(sql, known);
 
       await expectEveryColumnProbeRefused(columns, { readable, updatable });
     },

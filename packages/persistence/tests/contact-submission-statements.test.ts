@@ -12,6 +12,7 @@ import {
   FAKE_LOCALITY,
   FAKE_NAME,
   FAKE_PHONE,
+  FAKE_PHONE_NORMAL_FORM,
   aCallbackSubmission,
   aDesignSubmission,
 } from "./support/contact-submission-fixtures.js";
@@ -258,7 +259,13 @@ describe("every statement the contact submission store sends", () => {
   it("sends each personal value in the insert's values and in no other statement", async () => {
     const { designInsert, lookup, mark } = await everyStatementTheStoreSends();
 
-    for (const value of [FAKE_NAME, FAKE_PHONE, FAKE_EMAIL, FAKE_LOCALITY]) {
+    for (const value of [
+      FAKE_NAME,
+      FAKE_PHONE,
+      FAKE_PHONE_NORMAL_FORM,
+      FAKE_EMAIL,
+      FAKE_LOCALITY,
+    ]) {
       expect(designInsert.values).toContain(value);
       expect(lookup.values).not.toContain(value);
       expect(mark.values).not.toContain(value);

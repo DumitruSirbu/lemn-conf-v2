@@ -8,6 +8,8 @@ export const DIGEST_B = "b".repeat(64);
 /** Recognisable and fake, so a test can search a message, a stack or an inspected error for them. */
 export const FAKE_NAME = "Zorba Fakeperson";
 export const FAKE_PHONE = "+37300000017";
+/** Its own value, not the phone's: a store that wrote the phone into the normal-form column would show. */
+export const FAKE_PHONE_NORMAL_FORM = "+37300000018";
 export const FAKE_EMAIL = "zorba.fakeperson@example.invalid";
 export const FAKE_LOCALITY = "Fakeville-Nowhere";
 export const FAKE_DOCUMENT_MARKER = "fake-document-marker";
@@ -43,7 +45,7 @@ export function aDesignSubmission(
     contact: {
       name: FAKE_NAME,
       phone: FAKE_PHONE,
-      phoneNormalForm: FAKE_PHONE,
+      phoneNormalForm: FAKE_PHONE_NORMAL_FORM,
       locality: FAKE_LOCALITY,
       channel: "email",
       email: FAKE_EMAIL,

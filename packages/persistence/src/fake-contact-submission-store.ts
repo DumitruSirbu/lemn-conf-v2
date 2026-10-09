@@ -20,7 +20,8 @@ import { generateSubmissionReference } from "./generate-submission-reference.js"
 
 export interface FakeContactSubmissionStoreOptions {
   /** Where each reference proposal comes from. A test passes its own to force a collision; production wiring passes
-   *  none. */
+   *  none. A proposer never repeats a reference: `isNew` is the stored reference being this call's proposal, so a proposer
+   *  that repeats itself makes a later call read as new, as it does in the Neon store. */
   readonly proposeReference?: () => string;
   /** The database's clock, for `createdAt` and the mark's instant. */
   readonly now?: () => Date;
@@ -43,13 +44,15 @@ interface HeldRow {
 
 const CONFLICT: SubmissionConflict = { kind: "conflict" };
 
-function asReplay(
-  answer: StoredSubmission | SubmissionConflict,
-): SubmissionRecording {
-  return answer.kind === "stored" ? { ...answer, isNew: false } : answer;
-}
+/** What a draw that met another request's reference answers, so the loop draws again. */
+const REFERENCE_COLLISION = Symbol("reference collision");
 
-/** In-memory `ContactSubmissionStore` for tests that need the port's contract without a database. */
+/**
+ * In-memory `ContactSubmissionStore` for tests that need the port's contract without a database. It draws a proposal
+ * exactly when the Neon store does (once for each `record`, and once more for each collision) and answers `isNew` by the
+ * same comparison. It refuses what the shared check refuses and nothing more: it cannot stand for a server's refusal of
+ * size, depth or a limit of its own.
+ */
 export class FakeContactSubmissionStore implements ContactSubmissionStore {
   private readonly rowsByClientRequestId = new Map<string, HeldRow>();
   private readonly proposeReference: () => string;
@@ -76,9 +79,13 @@ export class FakeContactSubmissionStore implements ContactSubmissionStore {
     submission: ContactSubmissionToRecord,
   ): Promise<SubmissionRecording> {
     requireValidSubmission(submission);
-    const held = this.rowsByClientRequestId.get(submission.clientRequestId);
-    if (held === undefined) return this.store(submission);
-    return asReplay(this.answerFor(held, submission.payloadDigest));
+    for (let proposal = 0; proposal < MAX_REFERENCE_PROPOSALS; proposal += 1) {
+      const reference = this.proposeReference();
+      requireValidReference(reference);
+      const outcome = this.recordProposing(submission, reference);
+      if (outcome !== REFERENCE_COLLISION) return outcome;
+    }
+    throw new ContactSubmissionStoreError("record a request");
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await -- see lookUp.
@@ -110,8 +117,31 @@ export class FakeContactSubmissionStore implements ContactSubmissionStore {
     };
   }
 
-  private store(submission: ContactSubmissionToRecord): RecordedSubmission {
-    const reference = this.drawUnusedReference();
+  private recordProposing(
+    submission: ContactSubmissionToRecord,
+    reference: string,
+  ): SubmissionRecording | typeof REFERENCE_COLLISION {
+    const held = this.rowsByClientRequestId.get(submission.clientRequestId);
+    if (held !== undefined)
+      return this.answerReplay(held, submission, reference);
+    if (this.isReferenceStored(reference)) return REFERENCE_COLLISION;
+    return this.store(submission, reference);
+  }
+
+  private answerReplay(
+    held: HeldRow,
+    { payloadDigest }: SubmissionLookupRequest,
+    proposed: string,
+  ): SubmissionRecording {
+    const answer = this.answerFor(held, payloadDigest);
+    if (answer.kind !== "stored") return answer;
+    return { ...answer, isNew: held.reference === proposed };
+  }
+
+  private store(
+    submission: ContactSubmissionToRecord,
+    reference: string,
+  ): RecordedSubmission {
     this.rowsByClientRequestId.set(submission.clientRequestId, {
       submission: structuredClone(submission),
       reference,
@@ -119,15 +149,6 @@ export class FakeContactSubmissionStore implements ContactSubmissionStore {
       notifiedAt: undefined,
     });
     return { kind: "stored", reference, isNew: true, isNotified: false };
-  }
-
-  private drawUnusedReference(): string {
-    for (let proposal = 0; proposal < MAX_REFERENCE_PROPOSALS; proposal += 1) {
-      const reference = this.proposeReference();
-      requireValidReference(reference);
-      if (!this.isReferenceStored(reference)) return reference;
-    }
-    throw new ContactSubmissionStoreError("record a request");
   }
 
   private isReferenceStored(reference: string): boolean {

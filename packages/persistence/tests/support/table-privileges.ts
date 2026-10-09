@@ -44,3 +44,22 @@ export async function privilegesHeldOn(
   `) as { privilege: string }[];
   return rows.map((row) => row.privilege);
 }
+
+/**
+ * Which of `privileges` the current role holds on `tableName` (schema-qualified) with the right to grant it on:
+ * `has_table_privilege` takes the privilege with ` WITH GRANT OPTION` added. Table-level only; a column's is asked of
+ * `columnsHolding` in `column-privileges.ts`, with the same suffix.
+ */
+export async function privilegesHeldWithGrantOption(
+  sql: Sql,
+  tableName: string,
+  privileges: readonly string[],
+): Promise<string[]> {
+  const rows = (await sql`
+    select privilege
+    from unnest(${[...privileges]}::text[]) as asked (privilege)
+    where has_table_privilege(current_user, ${tableName}, privilege || ' WITH GRANT OPTION')
+    order by privilege
+  `) as { privilege: string }[];
+  return rows.map((row) => row.privilege);
+}

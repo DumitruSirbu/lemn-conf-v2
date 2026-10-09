@@ -12,6 +12,7 @@ import {
   FAKE_LOCALITY,
   FAKE_NAME,
   FAKE_PHONE,
+  FAKE_PHONE_NORMAL_FORM,
   aCallbackSubmission,
   aDesignSubmission,
 } from "./support/contact-submission-fixtures.js";
@@ -158,7 +159,7 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
       expect(row).toMatchObject({
         name: FAKE_NAME,
         phone: FAKE_PHONE,
-        phone_normal_form: FAKE_PHONE,
+        phone_normal_form: FAKE_PHONE_NORMAL_FORM,
         locality: FAKE_LOCALITY,
         channel: "email",
         email: FAKE_EMAIL,

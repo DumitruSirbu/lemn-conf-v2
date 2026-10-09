@@ -117,6 +117,34 @@ export function describeContactSubmissionStoreContract({
       });
     });
 
+    it("answers a replay as not new when its proposal is a fresh reference", async () => {
+      const first = generateSubmissionReference();
+      const store = createStore({
+        proposeReference: proposing(first, generateSubmissionReference()),
+      });
+      const id = newClientRequestId();
+      await store.record(aDesignSubmission(id));
+
+      const replay = await store.record(aDesignSubmission(id));
+
+      expectStored(replay);
+      expect([replay.reference, replay.isNew]).toEqual([first, false]);
+    });
+
+    it("answers a replay as new when its proposal is the reference already stored, as a repeated statement does, in both stores alike", async () => {
+      const repeated = generateSubmissionReference();
+      const store = createStore({
+        proposeReference: proposing(repeated, repeated),
+      });
+      const id = newClientRequestId();
+      await store.record(aDesignSubmission(id));
+
+      const replay = await store.record(aDesignSubmission(id));
+
+      expectStored(replay);
+      expect([replay.reference, replay.isNew]).toEqual([repeated, true]);
+    });
+
     it("never clears a mark when the same request is recorded again", async () => {
       const store = createStore();
       const id = newClientRequestId();
