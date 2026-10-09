@@ -6599,6 +6599,101 @@ book or a second source for any of its three inputs.
 that rounds: each must go red); `tests/support/approved-romanian-messages.ts`, its header;
 `tests/i18n/golden-output.test.ts`; ADR 0153, *What later waves inherit*.
 
+##### 8J — adjudication of QA, 2026-10-09
+
+**State.** HEAD is `22527f9` [ran: `git log`], tree clean. QA's pass is red on 9 of its 260 tests,
+three findings, none reachable through `fetch`, the store or the notice as they are; 77 mutants,
+none surviving [relayed, QA-run]. The architect read the adapter, the fake and the notice at HEAD.
+
+**F1 — an implementation defect; fixed in code, in the adapter and in the fake.** Each asks the
+predicate and then reads the message again to build from it [src `resend-mail-sender.ts:110-111`,
+`:71-77`; `fake-mail-sender.ts:29-37`]. A message that answers differently the second time is sent
+unjudged.
+
+- **The three members are read once, into a copy that cannot change; the predicate judges the
+  copy, and the request is built from the copy.** One function of the port does the reading, so
+  the two cannot differ. A read that throws is *refused*, unsent.
+- *Why fixed here when 8I recorded the same shape as a limit* (ADR 0153, the request read twice):
+  there a second reading reached a parameter of a statement. **Here it becomes a header and the
+  key the provider tells one request from another by.** And the fix is three reads.
+
+**F2 — a contract gap in reading (ii); fixed.** A response whose body cannot be asked for answers
+*unreachable* with no status, for a `429` too, where the table says *quota spent* [src `:202`,
+caught at `:143`]. **The status is kept and the row's *otherwise* applies whenever a response
+arrived, however its body fails.** Only a `fetch` that gives no response has no status.
+
+**F3 — a contract gap in point 3; fixed.** `channels[contact.channel]` answers nothing, or a
+member every object has, for a channel the notice has no word for [src
+`lead-notification.ts:117`]; the line is then empty or bare, and the translator writes to the
+console. **The word is looked up as the list's own member, and a channel with none throws a named
+error that holds the line's name and no value.** *Must not, for any input:* a translator's error
+leaves, or anything in the notice's path writes a log line.
+
+**The observations.**
+
+- **O2, taken.** A mail name that is the environment's own member **counts as present whatever it
+  holds**, `undefined` too. The flag beside it is then *unavailable*. `process.env` cannot hold
+  one; an environment spread by a caller can, and this is the one answer that tells a customer a
+  request was sent when nothing was.
+- **O5, taken in part.** **The notice builds a key only from an id that is text and not empty, or
+  throws its named error.** No shape: unequal ids give unequal keys, and an id the header cannot
+  carry is refused unsent by the adapter. Two requests under one key would not both read as sent
+  (the second answers *payload mismatch*), so this is a wrong error and not a lost notice. *Recorded:*
+  a target that is neither kind is read as a design and fails for its snapshot.
+- **O1, recorded.** An `id` of blank characters is an acceptance. The evidence of acceptance is the
+  2xx; of the `id`, only that it is not empty is asked. *Trigger:* the provider is seen to answer so.
+- **O3, recorded.** A getter in the environment that throws leaves the reader, the selection and
+  the factory as its own error, never as a sender and never with the key. *Trigger:* a caller that
+  hands over anything but `process.env`.
+- **O4, recorded, and a must-not for 8K.** For a snapshot that has been tampered with, errors other
+  than the two named ones leave the notice: the review's divergence error, which lists placement
+  ids; a `RangeError` quoting the stored total; a `TypeError`. None holds a contact value. **8K
+  treats any throw from the notice as one fixed failure and logs no message of it.**
+- **O6, recorded.** An address the reader accepts and the provider refuses reads *configured* and
+  is *refused* on every send [inf]. *Trigger:* the owner's one real send, which proves both.
+- **O7, recorded.** A body the adapter does not read is not cancelled [inf: the connection is held
+  until collected]. *Trigger:* failures in number; then the body is cancelled.
+
+**The fix round. One developer, five items, one commit.**
+
+| # | Does | Files |
+| --- | --- | --- |
+| 1 | F1: the port reads a message once into a copy and judges it; the adapter and the fake build from that copy | `lib/server/mail/mail-sender.ts`, `resend-mail-sender.ts`, `fake-mail-sender.ts`; their tests |
+| 2 | F2: the body's reading is guarded where it is asked for, so the status and the row stand | `resend-mail-sender.ts`; its test |
+| 3 | F3 and O5: the channel's word as an own member, the id as text that is not empty, each or the named error; a test that building a notice writes no log line | `lead-notification.ts`; its test |
+| 4 | O2: presence is own membership, whatever is held | `select-mail-sender.ts`; its test |
+| 5 | The mail tests, the whole web suite, the typecheck and the lint, each quoted | none |
+
+*Must not:* a `qa-*` file is edited; either gate test, `review/`, `price/` or a message file
+changes; the predicate's rule, the seven kinds or the table changes.
+
+**Amended.** *J-S1.2:* a message is read once. *Reading (ii):* a status whenever a response
+arrived. *Point 3:* a channel has the notice's own word or the notice throws; the notice logs
+nothing. *Point 2:* a key needs an id that is not empty. *Point 4:* present means an own member.
+
+**QA after the round.** Its nine tests go green as written; one that pins which of two right
+answers was given, QA re-words itself. Its files once. One mutant for each of the five changes
+(the copy in the adapter, the copy in the fake, the guard, the own-member lookup, the presence
+rule). The whole web suite once. *Still unproven, and the owner's send is what proves it:* the
+live provider; where an error's name sits; the `403` without a `User-Agent`; what the runtime's
+`fetch` answers under `redirect: "manual"`.
+
+**The closing rule for 8J, the architect's and open to the owner.** After this round a finding is
+fixed inside 8J only if a message is sent that should not be; a secret or a customer's value
+leaves in an error, a log line, a header, the subject or the key; or the notice shows anything
+but the stored review. Anything else is recorded with its trigger, and the three reviews read a
+tree that is not moving.
+
+**The suite's tenth failure is not this wave's. For backlog 145, the scribe's to write.** *A
+second named sighting, 2026-10-09 [relayed, QA-run]:
+`tests/room/plan-preview-model.facing-labels.test.ts:255`, "never intersect, over lengths across
+the approved U (Q-U1)", failed once in a whole run with "inside was reached: expected 6 to be >=
+8" and passed alone three times of three. Its cause is in the test: the property is unseeded, and
+its floor counts how often a random draw reaches an arrangement [src `:231-256`]. No label
+intersected. It is not established to be the entry's first failure, whose name was never taken.
+Unlike the entry's trigger, this one needs no recurrence: the property is seeded, or its arms are
+built so that the floor is met by construction. No owner yet; not 8J's.*
+
 ### 8K — `POST /api/contact-submissions`
 
 *Goal.* The boundary: it revalidates, refuses abuse, snapshots the stored design, stores once,
