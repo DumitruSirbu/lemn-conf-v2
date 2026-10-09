@@ -256,11 +256,11 @@ describe("selectMailSender: what an unavailable answer discloses", () => {
 describe("select-mail-sender.ts", () => {
   const source = readMailModuleSource("select-mail-sender.ts");
 
-  it("names neither the process environment nor the build mode", () => {
+  it("reads source: names neither the process environment nor the build mode", () => {
     expect(source).not.toMatch(PROCESS_ENV_OR_BUILD_MODE);
   });
 
-  it("imports neither the fake nor an adapter, so it can only answer which", () => {
+  it("reads source: imports neither the fake nor an adapter, so it can only answer which", () => {
     const imported = [...source.matchAll(/from\s+"([^"]+)"/g)].map(
       (match) => match[1],
     );

@@ -1,10 +1,9 @@
 // @vitest-environment happy-dom
 //
-// Criterion 10, as amended: `describeReview` has two callers, each named, and each hands it inputs that are one
-// design's. The hook reads them from one render of the store. The shop's notice reads them from one stored snapshot,
-// whose document and price were made together and whose rows are projected from that document in the same call.
-// A third or unnamed caller, a caller that prices, and a browser caller other than the hook all stay red. The
-// amendment is recorded in docs/milestones/M8-review-contact-success.md, "8J — S3's stop, ruled 2026-10-09".
+// `describeReview` has two callers, each named, and each hands it inputs that are one design's. The hook reads them
+// from one render of the store. The shop's notice reads them from one stored snapshot, whose document and price were
+// made together and whose rows are projected from that document in the same call. A third or unnamed caller, a
+// caller that prices, and a browser caller other than the hook all stay red. See ADR 0148 Amendment C.
 //
 // What this cannot see: a second caller added under a name the parse does not follow (a re-export, a dynamic
 // import). The import check reads this repository's own import statements and calls, which is all a reviewer reads

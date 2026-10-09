@@ -15,7 +15,7 @@ import {
 
 export const FAKE_SENDER_WARNING = `mail: the fake sender is in use (${FAKE_MAIL_FLAG}); no message leaves this server`;
 
-/** What 8K holds: a sender, or the names of what keeps one from being built. Never a value. */
+/** A sender, or the names of what keeps one from being built; never a value. */
 export type MailSenderCreation =
   | { readonly kind: "sender"; readonly sender: MailSender }
   | {

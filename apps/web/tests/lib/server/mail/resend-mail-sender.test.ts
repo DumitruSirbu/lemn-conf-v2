@@ -22,7 +22,6 @@ import {
   PROCESS_ENV_OR_BUILD_MODE,
   readMailModuleSource,
   releaseFetch,
-  sourceFilesMatching,
 } from "./mail-test-support";
 
 const FAKE_KEY = "re_FAKEKEY_0123456789";
@@ -96,7 +95,7 @@ describe("buildResendRequest", () => {
   const request = buildResendRequest(MESSAGE, CONFIGURATION);
 
   it("posts to the one documented URL without following a redirect", () => {
-    expect(request.url).toBe("https://api.resend.com/emails");
+    expect(RESEND_SEND_URL).toBe("https://api.resend.com/emails");
     expect(request.url).toBe(RESEND_SEND_URL);
     expect(request.init.method).toBe("POST");
     expect(request.init.redirect).toBe("manual");
@@ -493,7 +492,7 @@ describe("the sender's ten-second bound", () => {
     expect(await pending).toEqual({ ok: false, kind: "timed-out" });
   });
 
-  it("does not wait for the bound when the answer comes", async () => {
+  it("clears its timer when the answer comes", async () => {
     stubAnswer(jsonAnswer(200, { id: "msg_1" }));
 
     expect(await sendOnce()).toEqual({ ok: true });
@@ -595,21 +594,8 @@ describe("every status from 100 to 599, with any body", () => {
 describe("resend-mail-sender.ts", () => {
   const source = readMailModuleSource("resend-mail-sender.ts");
 
-  it("names neither the process environment, the build mode, a log nor a retry loop", () => {
+  it("reads source: names neither the process environment, the build mode nor a retry loop", () => {
     expect(source).not.toMatch(PROCESS_ENV_OR_BUILD_MODE);
-    expect(source).not.toMatch(/console\./);
     expect(source).not.toMatch(/\b(?:for|while)\s*\(/);
-  });
-
-  it("is imported by the factory alone under apps/web/src", () => {
-    const mentioners = sourceFilesMatching(
-      /resend-mail-sender|createResendMailSender/,
-    ).filter(
-      (path) =>
-        path !== "lib/server/mail/resend-mail-sender.ts" &&
-        path !== "lib/server/mail/create-mail-sender.ts",
-    );
-
-    expect(mentioners).toEqual([]);
   });
 });

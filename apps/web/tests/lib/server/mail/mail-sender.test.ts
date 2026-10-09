@@ -232,7 +232,8 @@ describe("MailMessage", () => {
     >();
   });
 
-  it("rejects a recipient written into a message literal", () => {
+  // The guard is the compiler's: this file is typechecked, and the directive fails it if the literal is legal.
+  it("rejects a recipient written into a message literal at typecheck", () => {
     const message: MailMessage = {
       key: "k",
       subject: "s",
@@ -241,18 +242,18 @@ describe("MailMessage", () => {
       to: "customer@example.com",
     };
 
-    expect(Object.keys(message)).toContain("to");
+    expect(message.key).toBe("k");
   });
 });
 
 describe("mail-sender.ts", () => {
-  it("names neither the process environment nor the build mode", () => {
+  it("reads source: names neither the process environment nor the build mode", () => {
     expect(readMailModuleSource("mail-sender.ts")).not.toMatch(
       PROCESS_ENV_OR_BUILD_MODE,
     );
   });
 
-  it("names no provider", () => {
+  it("reads source: names no provider", () => {
     expect(readMailModuleSource("mail-sender.ts")).not.toMatch(/resend/i);
   });
 });

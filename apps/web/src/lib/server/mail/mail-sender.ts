@@ -57,9 +57,9 @@ export const VISIBLE_ASCII_KEY = /^[\x21-\x7e]+$/;
 export const LINE_BREAKING_CHARACTER = /[\p{Cc}\p{Zl}\p{Zp}]/u;
 
 /**
- * Asked by every sender before it builds anything from the message: a key that cannot be a header
- * value, or a subject that could break one, must never reach a request, and the fake agrees with the
- * adapter because both ask this.
+ * The rule for what may be sent: a key that cannot be a header value, or a subject that could break one, never
+ * reaches a request. A sender asks it through `sendableCopyOf`, which judges the copy it reads, so the fake and
+ * the adapter agree.
  */
 export function isSendableMailMessage(message: MailMessage): boolean {
   const { key, subject, text } = message;

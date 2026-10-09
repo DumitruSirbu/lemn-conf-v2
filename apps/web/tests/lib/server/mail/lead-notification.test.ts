@@ -223,7 +223,7 @@ afterEach(() => {
 describe("the notice's key and subject", () => {
   it("keys the message by the purpose and the client request id", () => {
     expect(noticeOf(designRequest()).key).toBe(
-      "lead-notification/req_0123456789abcdef",
+      `${LEAD_NOTIFICATION_KEY_PREFIX}${CLIENT_REQUEST_ID}`,
     );
     expect(LEAD_NOTIFICATION_KEY_PREFIX).toBe("lead-notification/");
   });
@@ -258,13 +258,15 @@ describe("the notice's key and subject", () => {
   it.each(ARMS_BY_NAME)(
     "passes the port's predicate for every sendable kitchen of the %s arm",
     (_name, arm) => {
-      const failures = sendableDesigns(arm, 40).filter(
+      const kitchens = sendableDesigns(arm, 40);
+      const failures = kitchens.filter(
         (design) =>
           !isSendableMailMessage(
             noticeOf(designRequest({ snapshot: snapshotOfDesign(design) })),
           ),
       );
 
+      expect(kitchens.length).toBeGreaterThanOrEqual(MIN_KITCHENS_PER_ARM);
       expect(failures).toEqual([]);
     },
   );
@@ -441,8 +443,8 @@ describe("a line that would hold a control character or a line separator", () =>
     ["a line feed", "\n"],
     ["a tab", "\t"],
     ["a NUL", "\u0000"],
-    ["a line separator", " "],
-    ["a paragraph separator", " "],
+    ["a line separator", "\u2028"],
+    ["a paragraph separator", "\u2029"],
   ];
   const HOSTILE_VALUE_MARKER = "HOSTILE-MARKER-31";
 
@@ -806,7 +808,7 @@ describe("a request whose kitchen the notice cannot describe", () => {
 });
 
 describe("the line-break class", () => {
-  it("is the port's own, so the notice passes the predicate on every line it writes", () => {
+  it("reads source: is the port's own, so the notice passes the predicate on every line it writes", () => {
     const source = readMailModuleSource("lead-notification.ts");
 
     expect(LINE_BREAKING_CHARACTER.source).toBe("[\\p{Cc}\\p{Zl}\\p{Zp}]");
@@ -836,15 +838,13 @@ describe("one request, one message, the same bytes", () => {
     expect(noticeOf(designRequest())).toEqual(first);
   });
 
-  it("names no clock, random source, environment, build mode, or request-sending module", () => {
+  it("reads source: names no clock, random source, environment, build mode, request or markup", () => {
     const source = readMailModuleSource("lead-notification.ts");
 
     expect(source).not.toMatch(PROCESS_ENV_OR_BUILD_MODE);
     expect(source).not.toMatch(
-      /\bDate\b|Math\.random|\bcrypto\b|performance\.now|\bfetch\b|\bconsole\b/,
+      /\bDate\b|Math\.random|\bcrypto\b|performance\.now|\bfetch\b/,
     );
-    expect(source).not.toMatch(
-      /fake-mail-sender|resend-mail-sender|create-mail-sender|\bhtml\b/,
-    );
+    expect(source).not.toMatch(/create-mail-sender|\bhtml\b/);
   });
 });

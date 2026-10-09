@@ -14,6 +14,7 @@ import {
   PROCESS_ENV_OR_BUILD_MODE,
   readMailModuleSource,
   releaseFetch,
+  sourceFilesMatching,
 } from "./mail-test-support";
 
 const FAKE_KEY = "re_FAKEKEY_0123456789";
@@ -61,8 +62,7 @@ describe("createMailSender: the fake", () => {
     spyOnConsole();
     const creation = createMailSender(FAKE_ENVIRONMENT);
 
-    expect(creation.kind).toBe("sender");
-    if (creation.kind !== "sender") return;
+    if (creation.kind !== "sender") throw new Error("expected a sender");
     await expect(creation.sender.send(MESSAGE)).resolves.toEqual({ ok: true });
   });
 
@@ -81,9 +81,7 @@ describe("createMailSender: the fake", () => {
     createMailSender(FAKE_ENVIRONMENT);
 
     expect(console_.warn).toHaveBeenCalledTimes(1);
-    expect(console_.warn).toHaveBeenCalledWith(
-      "mail: the fake sender is in use (LEMNARIA_E2E_FAKE_MAIL); no message leaves this server",
-    );
+    expect(console_.warn).toHaveBeenCalledWith(FAKE_SENDER_WARNING);
     expect(FAKE_SENDER_WARNING).toBe(
       "mail: the fake sender is in use (LEMNARIA_E2E_FAKE_MAIL); no message leaves this server",
     );
@@ -94,7 +92,7 @@ describe("createMailSender: the fake", () => {
 });
 
 describe("createMailSender: the provider", () => {
-  it("answers a sender that posts the notice with the configured key", async () => {
+  it("answers a sender that authorises its request with the configured key", async () => {
     const console_ = spyOnConsole();
     const fetchSpy = vi.fn(() =>
       Promise.resolve({
@@ -185,42 +183,88 @@ describe("createMailSender: unavailable", () => {
   });
 });
 
-describe("the mail modules' sources", () => {
-  const MODULES = [
+describe("create-mail-sender.ts", () => {
+  const source = readMailModuleSource("create-mail-sender.ts");
+
+  it("reads source: names neither the process environment nor the build mode", () => {
+    expect(source).not.toMatch(PROCESS_ENV_OR_BUILD_MODE);
+  });
+
+  it("reads source: writes exactly one line, as a warning", () => {
+    expect(source.match(/\bconsole\./g)).toEqual(["console."]);
+    expect(source).toContain("console.warn(");
+  });
+});
+
+describe("the other mail modules", () => {
+  it.each([
     "mail-sender.ts",
     "mail-configuration.ts",
     "fake-mail-sender.ts",
     "select-mail-sender.ts",
     "resend-mail-sender.ts",
-    "create-mail-sender.ts",
-  ];
-
-  it.each(MODULES)(
-    "%s names neither the process environment nor the build mode",
-    (name) => {
-      expect(readMailModuleSource(name)).not.toMatch(PROCESS_ENV_OR_BUILD_MODE);
-    },
-  );
-
-  it.each(MODULES.filter((name) => name !== "create-mail-sender.ts"))(
-    "%s writes no log line",
-    (name) => {
-      expect(readMailModuleSource(name)).not.toMatch(/\bconsole\b/);
-    },
-  );
-
-  it("create-mail-sender.ts writes exactly one line, as a warning", () => {
-    const source = readMailModuleSource("create-mail-sender.ts");
-
-    expect(source.match(/\bconsole\./g)).toEqual(["console."]);
-    expect(source).toContain("console.warn(");
-  });
-
-  it("only the factory names the fake and the adapter", () => {
-    const namers = MODULES.filter((name) =>
-      /fake-mail-sender|resend-mail-sender/.test(readMailModuleSource(name)),
-    );
-
-    expect(namers).toEqual(["create-mail-sender.ts"]);
+    "lead-notification.ts",
+  ])("reads source: %s writes no log line", (name) => {
+    expect(readMailModuleSource(name)).not.toMatch(/\bconsole\b/);
   });
 });
+
+interface NamingRule {
+  readonly what: string;
+  readonly pattern: RegExp;
+  readonly isAllowed: (path: string) => boolean;
+  readonly mentions: readonly string[];
+}
+
+const MAIL_DIRECTORY = "lib/server/mail/";
+const FACTORY = `${MAIL_DIRECTORY}create-mail-sender.ts`;
+
+const NAMING_RULES: readonly NamingRule[] = [
+  {
+    what: "the fake",
+    pattern: /fake-mail-sender|createFakeMailSender/,
+    isAllowed: (path) =>
+      [`${MAIL_DIRECTORY}fake-mail-sender.ts`, FACTORY].includes(path),
+    mentions: [
+      'import { x } from "@/lib/server/mail/fake-mail-sender";',
+      "export * from './fake-mail-sender';",
+      'const m = await import("./fake-mail-sender");',
+      "const sender = createFakeMailSender();",
+    ],
+  },
+  {
+    what: "the adapter",
+    pattern: /resend-mail-sender|createResendMailSender/,
+    isAllowed: (path) =>
+      [`${MAIL_DIRECTORY}resend-mail-sender.ts`, FACTORY].includes(path),
+    mentions: [
+      'import { x } from "@/lib/server/mail/resend-mail-sender";',
+      "const sender = createResendMailSender(configuration);",
+    ],
+  },
+  {
+    what: "the configuration reader",
+    pattern: /readMailConfiguration/,
+    isAllowed: (path) => path.startsWith(MAIL_DIRECTORY),
+    mentions: [
+      'import { readMailConfiguration } from "@/lib/server/mail/mail-configuration";',
+      "const read = readMailConfiguration;",
+    ],
+  },
+];
+
+describe.each(NAMING_RULES)(
+  "reads every source file for $what",
+  ({ pattern, isAllowed, mentions }) => {
+    it.each(mentions)("recognises it in %s", (mention) => {
+      expect(pattern.test(mention)).toBe(true);
+    });
+
+    it("finds nothing under apps/web/src in a file that may not name it", () => {
+      const namers = sourceFilesMatching(pattern);
+
+      expect(namers).toContain(FACTORY);
+      expect(namers.filter((path) => !isAllowed(path))).toEqual([]);
+    });
+  },
+);

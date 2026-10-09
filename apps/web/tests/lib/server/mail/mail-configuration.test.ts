@@ -123,8 +123,8 @@ describe("a key the reader calls usable", () => {
     ["DEL", "re_key\u007f"],
     ["a non-ASCII letter", "re_kéy"],
     ["a non-Latin letter", "re_ключ"],
-    ["a zero-width space", "re_​key"],
-    ["a line separator", "re_key "],
+    ["a zero-width space", "re_\u200bkey"],
+    ["a line separator", "re_key\u2028"],
   ])("refuses %s", (_label, value) => {
     expect(statusForKey(value)).toBe("unavailable");
   });
@@ -178,9 +178,9 @@ describe("an address the reader calls usable", () => {
       ["a carriage return and a header", "a@example.com\r\nBcc: b@example.com"],
       ["a tab", "a@exam\tple.com"],
       ["a NUL", "a@example.com\u0000"],
-      ["a line separator", "a@example.com "],
-      ["a zero-width space", "a@exam​ple.com"],
-      ["a bidi override", "a@‮example.com"],
+      ["a line separator", "a@example.com\u2028"],
+      ["a zero-width space", "a@exam\u200bple.com"],
+      ["a bidi override", "a@\u202eexample.com"],
       ["a lone surrogate", "a@exam\ud800ple.com"],
     ])("refuses %s", (_label, value) => {
       expect(statusForAddress(name, value)).toBe("unavailable");
@@ -241,13 +241,13 @@ describe("what an unavailable answer and the reader's failures disclose", () => 
 });
 
 describe("mail-configuration.ts", () => {
-  it("reads the key's pattern from the port and spells none of its own", () => {
+  it("reads source: takes the key's pattern from the port and spells none of its own", () => {
     expect(readMailModuleSource("mail-configuration.ts")).not.toMatch(
       /\\x21|\\x7e/,
     );
   });
 
-  it("names neither the process environment nor the build mode", () => {
+  it("reads source: names neither the process environment nor the build mode", () => {
     expect(readMailModuleSource("mail-configuration.ts")).not.toMatch(
       PROCESS_ENV_OR_BUILD_MODE,
     );

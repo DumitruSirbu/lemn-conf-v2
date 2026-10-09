@@ -8,7 +8,6 @@ import {
   PROCESS_ENV_OR_BUILD_MODE,
   readMailModuleSource,
   releaseFetch,
-  sourceFilesMatching,
 } from "./mail-test-support";
 
 const FIRST: MailMessage = { key: "k/1", subject: "first", text: "one" };
@@ -144,44 +143,10 @@ describe("createFakeMailSender", () => {
 });
 
 describe("fake-mail-sender.ts", () => {
-  it("names neither fetch, the process environment nor the build mode", () => {
+  it("reads source: names neither fetch, the process environment nor the build mode", () => {
     const source = readMailModuleSource("fake-mail-sender.ts");
 
     expect(source).not.toMatch(PROCESS_ENV_OR_BUILD_MODE);
     expect(source).not.toMatch(/\bfetch\b/);
-  });
-});
-
-const FAKE_MENTION = /fake-mail-sender|createFakeMailSender/;
-
-const FILES_ALLOWED_TO_MENTION_THE_FAKE = [
-  "lib/server/mail/fake-mail-sender.ts",
-  "lib/server/mail/create-mail-sender.ts",
-];
-
-describe("which modules mention the fake", () => {
-  it.each([
-    ['import { x } from "@/lib/server/mail/fake-mail-sender";', true],
-    ["export * from './fake-mail-sender';", true],
-    ['const m = await import("./fake-mail-sender");', true],
-    ["const sender = createFakeMailSender();", true],
-    ["import { createFakeMailSender as make } from '@/x';", true],
-    ['import { x } from "./mail-sender";', false],
-  ])("recognises the fake in %s", (source, isMention) => {
-    expect(FAKE_MENTION.test(source)).toBe(isMention);
-  });
-
-  it("is named, in import or in text, by the fake and the factory alone under apps/web/src", () => {
-    const mentioners = sourceFilesMatching(FAKE_MENTION).filter(
-      (path) => !FILES_ALLOWED_TO_MENTION_THE_FAKE.includes(path),
-    );
-
-    expect(mentioners).toEqual([]);
-  });
-
-  it("is named by the factory, so the scan reads what it claims to", () => {
-    expect(sourceFilesMatching(FAKE_MENTION)).toContain(
-      "lib/server/mail/create-mail-sender.ts",
-    );
   });
 });

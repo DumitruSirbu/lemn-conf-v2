@@ -72,6 +72,9 @@ interface NoticeLine {
   readonly text: string;
 }
 
+/** A line made of a label and one value, with the name of the line for the error that refuses it. */
+type LabelledValue = readonly [field: string, label: string, value: string];
+
 const FACT_INDENT = "  ";
 const BLANK_LINE: NoticeLine = { field: "blank", text: "" };
 
@@ -88,7 +91,7 @@ export function buildLeadNotification(
     text: content.leadNotice.subject(reference),
   };
   const body = [
-    ...customerLines(reference, submission, content),
+    ...customerLines(input),
     BLANK_LINE,
     ...kitchenLines(submission, content),
   ];
@@ -100,34 +103,26 @@ export function buildLeadNotification(
   };
 }
 
-function customerLines(
-  reference: string,
-  submission: ContactSubmissionToRecord,
-  content: Content,
-): NoticeLine[] {
+function customerLines(input: LeadNotificationInput): NoticeLine[] {
+  const { reference, submission, content } = input;
   const { contact, locale } = submission;
   const { labels, channels } = content.leadNotice;
-  const lines = [
-    labelled(content, "reference", labels.reference, reference),
-    labelled(content, "locale", labels.locale, locale),
-    labelled(content, "name", labels.name, contact.name),
-    labelled(content, "phone", labels.phone, contact.phoneNormalForm),
-    labelled(
-      content,
-      "locality",
-      labels.locality,
-      contact.locality === ""
-        ? content.leadNotice.emptyValue
-        : contact.locality,
-    ),
-    labelled(
-      content,
-      "channel",
-      labels.channel,
-      channelWord(channels, contact),
-    ),
+  const entries: LabelledValue[] = [
+    ["reference", labels.reference, reference],
+    ["locale", labels.locale, locale],
+    ["name", labels.name, contact.name],
+    ["phone", labels.phone, contact.phoneNormalForm],
+    ["locality", labels.locality, localityValue(contact, content)],
+    ["channel", labels.channel, channelWord(channels, contact)],
+    ...emailEntries(contact, content),
   ];
-  return [...lines, ...emailLines(contact, content)];
+  return entries.map((entry) => labelled(content, entry));
+}
+
+function localityValue(contact: ContactFields, content: Content): string {
+  return contact.locality === ""
+    ? content.leadNotice.emptyValue
+    : contact.locality;
 }
 
 function channelWord(
@@ -148,20 +143,17 @@ function requestIdOf(submission: ContactSubmissionToRecord): string {
   return id;
 }
 
-function emailLines(contact: ContactFields, content: Content): NoticeLine[] {
+function emailEntries(
+  contact: ContactFields,
+  content: Content,
+): LabelledValue[] {
   if (contact.channel !== "email") return [];
   const { labels, emptyValue } = content.leadNotice;
-  return [
-    labelled(content, "email", labels.email, contact.email ?? emptyValue),
-  ];
+  return [["email", labels.email, contact.email ?? emptyValue]];
 }
 
-function labelled(
-  content: Content,
-  field: string,
-  label: string,
-  value: string,
-): NoticeLine {
+function labelled(content: Content, entry: LabelledValue): NoticeLine {
+  const [field, label, value] = entry;
   return { field, text: content.leadNotice.line(label, value) };
 }
 
@@ -222,15 +214,14 @@ function parseDocument(document: string): Design {
 
 function reviewLines(review: AvailableReview, content: Content): NoticeLine[] {
   return [
-    labelled(
-      content,
+    labelled(content, [
       "roomLine",
       content.leadNotice.labels.room,
       review.roomLine,
-    ),
+    ]),
     ...review.groups.flatMap((group) => groupLines(group, review, content)),
     ...review.wholeKitchenRows.map((row) =>
-      labelled(content, "wholeKitchenRow", row.label, row.amountText),
+      labelled(content, ["wholeKitchenRow", row.label, row.amountText]),
     ),
     BLANK_LINE,
     ...closingLines(review, content),
@@ -245,7 +236,7 @@ function groupLines(
   return [
     { field: "groupHeading", text: group.heading },
     ...group.rows.flatMap((row) => [
-      labelled(content, "row", row.label, row.amountText),
+      labelled(content, ["row", row.label, row.amountText]),
       ...factLines(rowDetailOf(review.rowDetails, row.key).facts),
     ]),
   ];
@@ -264,12 +255,11 @@ function closingLines(review: AvailableReview, content: Content): NoticeLine[] {
   const { figure, disclaimer } = review;
   const { labels, figure: composeFigure } = content.leadNotice;
   return [
-    labelled(
-      content,
+    labelled(content, [
       "figure",
       labels.price,
       composeFigure(figure.label, figure.amountText),
-    ),
+    ]),
     { field: "rounding", text: disclaimer.rounding },
     { field: "disclaimer", text: disclaimer.notice },
   ];
