@@ -5,6 +5,7 @@ import {
   type RateLimitBucket,
   type RateLimitStore,
 } from "@lemnaria/persistence";
+import { createHash } from "node:crypto";
 import { inspect } from "node:util";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -13,21 +14,33 @@ import {
   type DigesterOutcome,
 } from "@/lib/server/digest/digest-secret";
 import { keyedDigest } from "@/lib/server/digest/keyed-digest";
-import { chisinauDayOf } from "@/lib/server/rate-limit/chisinau-day";
-import type { NetworkBlock } from "@/lib/server/rate-limit/client-network";
+import {
+  subjectOfNetworkBlock,
+  subjectOfWriteCredentialHash,
+  type BucketSubject,
+} from "@/lib/server/rate-limit/bucket-subject";
+import {
+  chisinauDayOf,
+  LONGEST_DAY_SECONDS,
+} from "@/lib/server/rate-limit/chisinau-day";
 import {
   enforceRateLimit,
+  judgeInSequence,
   RATE_LIMIT_DEADLINE_MS,
+  RATE_LIMIT_READ_DEADLINE_MS,
   UNAVAILABLE_CAUSES,
+  type JudgementStep,
   type RateLimitDecision,
   type RateLimitRequest,
 } from "@/lib/server/rate-limit/enforce-rate-limit";
 import {
   E2E_MINT_POLICY,
   MINT_POLICY,
-  type PolicyChoice,
+  SAVE_BY_BLOCK_POLICY,
+  SAVE_BY_CREDENTIAL_POLICY,
+  type LimitPolicy,
 } from "@/lib/server/rate-limit/limit-policy";
-import type { ClientNetwork } from "@/lib/server/rate-limit/network-source";
+import { utcWindowOf } from "@/lib/server/rate-limit/utc-window";
 import { LOCK_ACQUIRE_TIMEOUT_MS } from "@/persistence/create-design-lock";
 
 import {
@@ -39,16 +52,17 @@ const FAKE_SECRET =
   "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
 const FAKE_KEY = Uint8Array.from({ length: 32 }, (_, i) => i);
 
-const BLOCK: NetworkBlock = { kind: "ipv4-block", subject: "192.0.2" };
-const OTHER_BLOCK: NetworkBlock = { kind: "ipv4-block", subject: "198.51.100" };
-const SHARED: NetworkBlock = { kind: "shared", subject: "" };
+const BLOCK = subjectOfNetworkBlock({ kind: "ipv4-block", subject: "192.0.2" });
+const OTHER_BLOCK = subjectOfNetworkBlock({
+  kind: "ipv4-block",
+  subject: "198.51.100",
+});
+const SHARED = subjectOfNetworkBlock({ kind: "shared", subject: "" });
+const A_CREDENTIAL = subjectOfWriteCredentialHash(
+  createHash("sha256").update("abc").digest("hex"),
+);
 
 const USABLE: DigesterOutcome = readDigester({ DIGEST_SECRET: FAKE_SECRET });
-const KNOWN = (block: NetworkBlock): ClientNetwork => ({
-  status: "known",
-  block,
-});
-const CHOSEN: PolicyChoice = { status: "chosen", policy: MINT_POLICY };
 
 const NOON_ORDINARY = new Date("2026-07-15T12:00:00Z");
 
@@ -56,10 +70,11 @@ function requestOf(
   overrides: Partial<RateLimitRequest> & { store: RateLimitStore },
 ): RateLimitRequest {
   return {
-    network: KNOWN(BLOCK),
+    subject: BLOCK,
     digester: USABLE,
-    policy: CHOSEN,
+    policy: MINT_POLICY,
     instant: NOON_ORDINARY,
+    deadlineMs: RATE_LIMIT_DEADLINE_MS,
     ...overrides,
   };
 }
@@ -96,11 +111,9 @@ function storeFailingWith(
 async function decide(
   instant: Date,
   store: RateLimitStore,
-  block: NetworkBlock = BLOCK,
+  subject: BucketSubject = BLOCK,
 ): Promise<RateLimitDecision> {
-  return await enforceRateLimit(
-    requestOf({ store, instant, network: KNOWN(block) }),
-  );
+  return await enforceRateLimit(requestOf({ store, instant, subject }));
 }
 
 const UNAVAILABLE = (cause: string) => ({ kind: "unavailable", cause });
@@ -145,13 +158,10 @@ describe("enforceRateLimit: the twentieth hit in a day, and the twenty-first", (
     async (_label, policy) => {
       const at = storeAnswering(policy.figure);
       const above = storeAnswering(policy.figure + 1);
-      const choice: PolicyChoice = { status: "chosen", policy };
 
-      const allowed = await enforceRateLimit(
-        requestOf({ store: at, policy: choice }),
-      );
+      const allowed = await enforceRateLimit(requestOf({ store: at, policy }));
       const refused = await enforceRateLimit(
-        requestOf({ store: above, policy: choice }),
+        requestOf({ store: above, policy }),
       );
 
       expect(allowed).toEqual({ kind: "allow" });
@@ -164,12 +174,7 @@ describe("enforceRateLimit: the twentieth hit in a day, and the twenty-first", (
     const e2e = storeAnswering(1);
 
     await enforceRateLimit(requestOf({ store: mint }));
-    await enforceRateLimit(
-      requestOf({
-        store: e2e,
-        policy: { status: "chosen", policy: E2E_MINT_POLICY },
-      }),
-    );
+    await enforceRateLimit(requestOf({ store: e2e, policy: E2E_MINT_POLICY }));
 
     expect(mint.calls[0]?.[0]?.key).not.toBe(e2e.calls[0]?.[0]?.key);
   });
@@ -293,65 +298,110 @@ describe("enforceRateLimit: the bucket it asks the store to count", () => {
   });
 });
 
+describe("enforceRateLimit: the key of each kind of bucket, held to answers an outside tool gave", () => {
+  // Each digest below was made with `openssl dgst -sha256 -mac HMAC -macopt hexkey:<the fake secret>` over the
+  // encoding written beside it, and the mint's first was also read from this module before it took a subject.
+  const PINNED: readonly [string, LimitPolicy, BucketSubject, string][] = [
+    [
+      "the mint's IPv4 block: 17:rate-limit-bucket,28:design-mint-per-chisinau-day,10:ipv4-block,7:192.0.2,",
+      MINT_POLICY,
+      BLOCK,
+      "a46dd85e1cf9159fef421d085e37caebb57532ef9559b120d504ab0c4d5a7342",
+    ],
+    [
+      "the mint's bucket for the shared block: ...,6:shared,0:,",
+      MINT_POLICY,
+      SHARED,
+      "159ec356b492ef38c5e04c7e22dffabdaa1663a51c4e038afda9224f0540a8c3",
+    ],
+    [
+      "a save's bucket for an IPv6 block: ...,44:design-save-by-block-per-60-utc-minutes,10:ipv6-block,19:...,",
+      SAVE_BY_BLOCK_POLICY,
+      subjectOfNetworkBlock({
+        kind: "ipv6-block",
+        subject: "2001:0db8:0000:0042",
+      }),
+      "7d79ce766956a2cdd7309f4fc217f1205f2d5e3d656d91378f56da36fff80c41",
+    ],
+    [
+      "a save's credential: ...,44:design-save-by-credential-per-60-utc-minutes,16:write-credential,64:<hash>,",
+      SAVE_BY_CREDENTIAL_POLICY,
+      A_CREDENTIAL,
+      "a5a465ce3b74a625e8582e77be69f5a4c2007c7b554798510e944e9817ba7685",
+    ],
+  ];
+
+  it.each(PINNED)(
+    "counts under the pinned key for %s",
+    async (_label, policy, subject, expected) => {
+      const store = storeAnswering(1);
+
+      await enforceRateLimit(requestOf({ store, policy, subject }));
+
+      expect(store.calls[0]?.[0]?.key).toBe(expected);
+    },
+  );
+
+  it("gives the credential's bucket a key unlike the key of any block's bucket under the same policy", async () => {
+    const credential = storeAnswering(1);
+    const blocks = [BLOCK, OTHER_BLOCK, SHARED].map(() => storeAnswering(1));
+
+    await enforceRateLimit(
+      requestOf({
+        store: credential,
+        policy: SAVE_BY_CREDENTIAL_POLICY,
+        subject: A_CREDENTIAL,
+      }),
+    );
+    for (const [index, subject] of [BLOCK, OTHER_BLOCK, SHARED].entries()) {
+      await enforceRateLimit(
+        requestOf({
+          store: blocks[index] ?? credential,
+          policy: SAVE_BY_CREDENTIAL_POLICY,
+          subject,
+        }),
+      );
+    }
+
+    const keys = [credential, ...blocks].map(
+      (store) => store.calls[0]?.[0]?.key,
+    );
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+});
+
 describe("enforceRateLimit: what is unavailable before the store is asked", () => {
-  const MISCONFIGURED: ClientNetwork = {
-    status: "misconfigured",
-    variable: "CLIENT_NETWORK_SOURCE",
-  };
-  const POLICY_UNAVAILABLE: PolicyChoice = {
-    status: "unavailable",
-    variable: "LEMNARIA_E2E_RATE_LIMIT_POLICY",
-  };
   const DIGESTER_UNAVAILABLE: DigesterOutcome = {
     status: "unavailable",
     variable: "DIGEST_SECRET",
   };
 
+  it("answers an unusable secret as unavailable without a call to the store", async () => {
+    const store = storeAnswering(1);
+
+    const decision = await enforceRateLimit(
+      requestOf({ store, digester: DIGESTER_UNAVAILABLE }),
+    );
+
+    expect(decision).toEqual(UNAVAILABLE("digester-unusable"));
+    expect(store.calls).toHaveLength(0);
+  });
+
   it.each([
-    [
-      "a misconfigured source",
-      { network: MISCONFIGURED },
-      "source-misconfigured",
-    ],
-    [
-      "a flag beside the source",
-      { policy: POLICY_UNAVAILABLE },
-      "policy-misconfigured",
-    ],
-    [
-      "an unusable secret",
-      { digester: DIGESTER_UNAVAILABLE },
-      "digester-unusable",
-    ],
-    [
-      "a source and a secret both unusable: the source first",
-      { network: MISCONFIGURED, digester: DIGESTER_UNAVAILABLE },
-      "source-misconfigured",
-    ],
-    [
-      "a flag and a secret both unusable: the flag first",
-      { policy: POLICY_UNAVAILABLE, digester: DIGESTER_UNAVAILABLE },
-      "policy-misconfigured",
-    ],
-    [
-      "all three unusable",
-      {
-        network: MISCONFIGURED,
-        policy: POLICY_UNAVAILABLE,
-        digester: DIGESTER_UNAVAILABLE,
-      },
-      "source-misconfigured",
-    ],
+    ["nought", 0],
+    ["a negative", -1],
+    ["a fraction", 2.5],
+    ["not a number", Number.NaN],
+    ["infinite", Number.POSITIVE_INFINITY],
+    ["longer than a timer can wait", 2_147_483_648],
   ])(
-    "answers %s as unavailable without a call to the store",
-    async (_label, overrides, cause) => {
+    "answers a deadline of %s as unavailable without a call to the store",
+    async (_label, deadlineMs) => {
       const store = storeAnswering(1);
 
-      const decision = await enforceRateLimit(
-        requestOf({ store, ...overrides }),
-      );
+      const decision = await enforceRateLimit(requestOf({ store, deadlineMs }));
 
-      expect(decision).toEqual(UNAVAILABLE(cause));
+      expect(decision).toEqual(UNAVAILABLE("judgement-failed"));
       expect(store.calls).toHaveLength(0);
     },
   );
@@ -485,8 +535,49 @@ describe("enforceRateLimit: the deadline", () => {
     };
   }
 
-  it("is three seconds", () => {
+  it("is three seconds for a write and 300 milliseconds for a read", () => {
     expect(RATE_LIMIT_DEADLINE_MS).toBe(3000);
+    expect(RATE_LIMIT_READ_DEADLINE_MS).toBe(300);
+  });
+
+  it.each([
+    ["a read's", RATE_LIMIT_READ_DEADLINE_MS],
+    ["a caller's own", 50],
+  ])(
+    "answers unavailable at %s deadline and not a millisecond before",
+    async (_label, deadlineMs) => {
+      let decision: RateLimitDecision | undefined;
+      const pending = enforceRateLimit(
+        requestOf({ store: neverAnswering(), deadlineMs }),
+      ).then((value) => {
+        decision = value;
+      });
+
+      await vi.advanceTimersByTimeAsync(deadlineMs - 1);
+      expect(decision).toBeUndefined();
+      await vi.advanceTimersByTimeAsync(1);
+      await pending;
+
+      expect(decision).toEqual(UNAVAILABLE("deadline-passed"));
+    },
+  );
+
+  it("waits for a read no longer than a read's deadline, whatever the write's is", async () => {
+    let decision: RateLimitDecision | undefined;
+    const pending = enforceRateLimit(
+      requestOf({
+        store: neverAnswering(),
+        deadlineMs: RATE_LIMIT_READ_DEADLINE_MS,
+      }),
+    ).then((value) => {
+      decision = value;
+    });
+
+    await vi.advanceTimersByTimeAsync(RATE_LIMIT_READ_DEADLINE_MS);
+    await pending;
+
+    expect(decision).toEqual(UNAVAILABLE("deadline-passed"));
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it("answers unavailable at three seconds and not a millisecond before", async () => {
@@ -557,6 +648,440 @@ describe("enforceRateLimit: the deadline", () => {
     expect(RATE_LIMIT_DEADLINE_MS * 3).toBeLessThanOrEqual(
       LOCK_ACQUIRE_TIMEOUT_MS,
     );
+  });
+});
+
+describe("enforceRateLimit: a window of whole minutes on the UTC clock, held by the policy as data", () => {
+  const HOUR_START = "2026-07-15T12:00:00.000Z";
+  const HOUR_END = "2026-07-15T13:00:00.000Z";
+  const TEN_MINUTE_POLICY: LimitPolicy = {
+    name: "test-three-per-ten-minutes",
+    figure: 3,
+    window: { kind: "utc-minutes", minutes: 10 },
+  };
+
+  async function hitsAt(
+    store: RateLimitStore,
+    instant: Date,
+    policy: LimitPolicy,
+    hits: number,
+  ) {
+    for (let hit = 0; hit < hits; hit += 1) {
+      await enforceRateLimit(requestOf({ store, instant, policy }));
+    }
+  }
+
+  it("hands the store the clock hour that holds the instant, and not the Chisinau day", async () => {
+    const store = storeAnswering(1);
+
+    await enforceRateLimit(requestOf({ store, policy: SAVE_BY_BLOCK_POLICY }));
+
+    expect(store.calls[0]?.[0]?.window).toEqual(utcWindowOf(NOON_ORDINARY, 60));
+    expect(store.calls[0]?.[0]?.window).not.toEqual(
+      chisinauDayOf(NOON_ORDINARY),
+    );
+  });
+
+  it("allows 600 hits of one block's saves in an hour and refuses the 601st, with the seconds to the end", async () => {
+    const store = new FakeRateLimitStore();
+    const instant = new Date("2026-07-15T12:20:00.000Z");
+    await hitsAt(store, instant, SAVE_BY_BLOCK_POLICY, 600);
+
+    expect(
+      await enforceRateLimit(
+        requestOf({ store, instant, policy: SAVE_BY_BLOCK_POLICY }),
+      ),
+    ).toEqual({ kind: "refuse", retryAfterSeconds: 40 * 60 });
+  });
+
+  it("refuses the 601st hit at the hour's last millisecond with one second, then allows the next hour's", async () => {
+    const store = new FakeRateLimitStore();
+    const last = new Date(new Date(HOUR_END).getTime() - 1);
+    await hitsAt(store, last, SAVE_BY_BLOCK_POLICY, 600);
+
+    expect(
+      await enforceRateLimit(
+        requestOf({ store, instant: last, policy: SAVE_BY_BLOCK_POLICY }),
+      ),
+    ).toEqual({
+      kind: "refuse",
+      retryAfterSeconds: 1,
+    });
+    expect(
+      await enforceRateLimit(
+        requestOf({
+          store,
+          instant: new Date(HOUR_END),
+          policy: SAVE_BY_BLOCK_POLICY,
+        }),
+      ),
+    ).toEqual({ kind: "allow" });
+  });
+
+  it("tells the whole hour to a refusal at the hour's first millisecond", async () => {
+    const store = new FakeRateLimitStore();
+    const first = new Date(HOUR_START);
+    await hitsAt(store, first, SAVE_BY_BLOCK_POLICY, 600);
+
+    expect(
+      await enforceRateLimit(
+        requestOf({ store, instant: first, policy: SAVE_BY_BLOCK_POLICY }),
+      ),
+    ).toEqual({
+      kind: "refuse",
+      retryAfterSeconds: 3600,
+    });
+  });
+
+  it("allows 300 hits of one credential's saves in an hour and refuses the 301st", async () => {
+    const store = new FakeRateLimitStore();
+    const credential = {
+      policy: SAVE_BY_CREDENTIAL_POLICY,
+      subject: A_CREDENTIAL,
+    };
+    for (let hit = 0; hit < 300; hit += 1) {
+      expect(
+        (await enforceRateLimit(requestOf({ store, ...credential }))).kind,
+      ).toBe("allow");
+    }
+
+    expect(
+      (await enforceRateLimit(requestOf({ store, ...credential }))).kind,
+    ).toBe("refuse");
+  });
+
+  it("counts in ten-minute windows: the fourth hit is refused and the mark's hit is fresh", async () => {
+    const store = new FakeRateLimitStore();
+    const lastOfTheWindow = new Date("2026-07-15T12:09:59.999Z");
+    await hitsAt(store, lastOfTheWindow, TEN_MINUTE_POLICY, 3);
+
+    expect(
+      await enforceRateLimit(
+        requestOf({
+          store,
+          instant: lastOfTheWindow,
+          policy: TEN_MINUTE_POLICY,
+        }),
+      ),
+    ).toEqual({ kind: "refuse", retryAfterSeconds: 1 });
+    expect(
+      await enforceRateLimit(
+        requestOf({
+          store,
+          instant: new Date("2026-07-15T12:10:00.000Z"),
+          policy: TEN_MINUTE_POLICY,
+        }),
+      ),
+    ).toEqual({ kind: "allow" });
+  });
+
+  it("tells a ten-minute refusal its whole 600 seconds at the window's first millisecond", async () => {
+    const store = new FakeRateLimitStore();
+    const first = new Date("2026-07-15T12:10:00.000Z");
+    await hitsAt(store, first, TEN_MINUTE_POLICY, 3);
+
+    expect(
+      await enforceRateLimit(
+        requestOf({ store, instant: first, policy: TEN_MINUTE_POLICY }),
+      ),
+    ).toEqual({
+      kind: "refuse",
+      retryAfterSeconds: 600,
+    });
+  });
+
+  it("answers a window that cannot be made as unavailable, without a call to the store", async () => {
+    const store = storeAnswering(1);
+    const sevenMinutes: LimitPolicy = {
+      ...TEN_MINUTE_POLICY,
+      window: { kind: "utc-minutes", minutes: 7 },
+    };
+
+    expect(
+      await enforceRateLimit(requestOf({ store, policy: sevenMinutes })),
+    ).toEqual(UNAVAILABLE("window-unavailable"));
+    expect(store.calls).toHaveLength(0);
+  });
+
+  it("tells a wait from 1 to 3,600 seconds across the instants of an hour policy, with a floor", async () => {
+    const waits: number[] = [];
+    for (
+      let ms = Date.parse("2026-07-15T12:00:00Z");
+      ms < Date.parse("2026-07-15T14:00:00Z");
+      ms += 7_001
+    ) {
+      const decision = await enforceRateLimit(
+        requestOf({
+          store: storeAnswering(601),
+          instant: new Date(ms),
+          policy: SAVE_BY_BLOCK_POLICY,
+        }),
+      );
+      if (decision.kind === "refuse") waits.push(decision.retryAfterSeconds);
+    }
+
+    expect(waits.length).toBeGreaterThanOrEqual(1000);
+    expect(
+      waits.every(
+        (wait) => Number.isInteger(wait) && wait >= 1 && wait <= 3600,
+      ),
+    ).toBe(true);
+    expect(Math.max(...waits)).toBeLessThanOrEqual(LONGEST_DAY_SECONDS);
+  });
+});
+
+describe("judgeInSequence: steps asked in order, the first that refuses or cannot be judged ending it", () => {
+  type Outcome = "allow" | "refuse" | "unavailable";
+  const ANSWERS: Record<Outcome, RateLimitDecision> = {
+    allow: { kind: "allow" },
+    refuse: { kind: "refuse", retryAfterSeconds: 77 },
+    unavailable: { kind: "unavailable", cause: "store-failed" },
+  };
+  const OUTCOMES: readonly Outcome[] = ["allow", "refuse", "unavailable"];
+
+  /** Steps that answer the given outcomes and write down which of them were asked. */
+  function stepsAnswering(outcomes: readonly Outcome[]): {
+    steps: JudgementStep[];
+    asked: number[];
+  } {
+    const asked: number[] = [];
+    const steps = outcomes.map(
+      (outcome, index): JudgementStep =>
+        () => {
+          asked.push(index);
+          return Promise.resolve(ANSWERS[outcome]);
+        },
+    );
+    return { steps, asked };
+  }
+
+  function everyCombinationOf(length: number): Outcome[][] {
+    return length === 0
+      ? [[]]
+      : OUTCOMES.flatMap((first) =>
+          everyCombinationOf(length - 1).map((rest) => [first, ...rest]),
+        );
+  }
+
+  it("answers allow when every step allows, having asked each once and in order", async () => {
+    const { steps, asked } = stepsAnswering(["allow", "allow", "allow"]);
+
+    expect(await judgeInSequence(steps)).toEqual({ kind: "allow" });
+    expect(asked).toEqual([0, 1, 2]);
+  });
+
+  it("ends at a refusal of the first step and never asks the second", async () => {
+    const { steps, asked } = stepsAnswering(["refuse", "allow"]);
+
+    expect(await judgeInSequence(steps)).toEqual(ANSWERS.refuse);
+    expect(asked).toEqual([0]);
+  });
+
+  it("ends at the first step when it cannot be judged and never asks the second", async () => {
+    const { steps, asked } = stepsAnswering(["unavailable", "allow"]);
+
+    expect(await judgeInSequence(steps)).toEqual(ANSWERS.unavailable);
+    expect(asked).toEqual([0]);
+  });
+
+  it("answers the second step's refusal after the first allowed, having asked both", async () => {
+    const { steps, asked } = stepsAnswering(["allow", "refuse"]);
+
+    expect(await judgeInSequence(steps)).toEqual(ANSWERS.refuse);
+    expect(asked).toEqual([0, 1]);
+  });
+
+  it("answers the second step's unavailable after the first allowed, having asked both", async () => {
+    const { steps, asked } = stepsAnswering(["allow", "unavailable"]);
+
+    expect(await judgeInSequence(steps)).toEqual(ANSWERS.unavailable);
+    expect(asked).toEqual([0, 1]);
+  });
+
+  it("asks a step only after the one before it has answered, however long that takes", async () => {
+    vi.useFakeTimers();
+    const started: string[] = [];
+    const slow: JudgementStep = async () => {
+      started.push("first");
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      return ANSWERS.allow;
+    };
+    const next: JudgementStep = () => {
+      started.push("second");
+      return Promise.resolve(ANSWERS.allow);
+    };
+
+    const pending = judgeInSequence([slow, next]);
+    await vi.advanceTimersByTimeAsync(999);
+    expect(started).toEqual(["first"]);
+    await vi.advanceTimersByTimeAsync(1);
+    await pending;
+
+    expect(started).toEqual(["first", "second"]);
+  });
+
+  it("asks no step after another's first refusal in any combination of three, with a floor on each end", async () => {
+    const endedAt = [0, 0, 0, 0];
+    for (const outcomes of everyCombinationOf(3)) {
+      const { steps, asked } = stepsAnswering(outcomes);
+
+      const decision = await judgeInSequence(steps);
+
+      const firstEnd = outcomes.findIndex((outcome) => outcome !== "allow");
+      const lastAsked = firstEnd === -1 ? outcomes.length - 1 : firstEnd;
+      expect(asked).toEqual(
+        outcomes.slice(0, lastAsked + 1).map((_, index) => index),
+      );
+      expect(decision).toEqual(
+        firstEnd === -1
+          ? ANSWERS.allow
+          : ANSWERS[outcomes[firstEnd] ?? "allow"],
+      );
+      endedAt[firstEnd === -1 ? 3 : firstEnd] =
+        (endedAt[firstEnd === -1 ? 3 : firstEnd] ?? 0) + 1;
+    }
+
+    expect(endedAt).toEqual([18, 6, 2, 1]);
+  });
+
+  it("answers unavailable for a sequence of none, since nothing was judged", async () => {
+    expect(await judgeInSequence([])).toEqual(UNAVAILABLE("judgement-failed"));
+  });
+
+  it.each([
+    [
+      "throws at once",
+      (): Promise<RateLimitDecision> => {
+        throw new Error("STEP-MARKER-6612");
+      },
+    ],
+    ["rejects", () => Promise.reject(new Error("STEP-MARKER-6612"))],
+    [
+      "throws a text",
+      (): Promise<RateLimitDecision> => {
+        throw "STEP-MARKER-6612" as unknown as Error;
+      },
+    ],
+    [
+      "answers nothing",
+      () => Promise.resolve(undefined as unknown as RateLimitDecision),
+    ],
+  ])(
+    "answers a first step that %s as unavailable, asks no second and keeps nothing of it",
+    async (_label, failing) => {
+      const { steps, asked } = stepsAnswering(["allow"]);
+
+      const decision = await judgeInSequence([failing, ...steps]);
+
+      expect(decision).toEqual(UNAVAILABLE("judgement-failed"));
+      expect(asked).toEqual([]);
+      expect(
+        inspect(decision, { depth: null, showHidden: true }),
+      ).not.toContain("MARKER");
+    },
+  );
+
+  it("answers a second step that throws after the first allowed as unavailable, keeping nothing of it", async () => {
+    const { steps, asked } = stepsAnswering(["allow"]);
+    const throwing: JudgementStep = () =>
+      Promise.reject(new Error("STEP-MARKER-6612"));
+
+    const decision = await judgeInSequence([...steps, throwing]);
+
+    expect(decision).toEqual(UNAVAILABLE("judgement-failed"));
+    expect(asked).toEqual([0]);
+    expect(inspect(decision, { depth: null, showHidden: true })).not.toContain(
+      "MARKER",
+    );
+  });
+});
+
+describe("a save's two judgements on the counter fake: the credential counts only a request the block passes", () => {
+  const keyOf = (policy: LimitPolicy, subject: BucketSubject) =>
+    keyedDigest(FAKE_KEY, {
+      purpose: "rate-limit-bucket",
+      fields: {
+        policyName: policy.name,
+        subjectKind: subject.kind,
+        subject: subject.subject,
+      },
+    });
+
+  /** What the fake would count next for a bucket, which a probe adds one hit to. */
+  async function nextCountOf(
+    store: FakeRateLimitStore,
+    policy: LimitPolicy,
+    subject: BucketSubject,
+  ) {
+    const [count] = await store.recordHits([
+      { key: keyOf(policy, subject), window: utcWindowOf(NOON_ORDINARY, 60) },
+    ]);
+    return count;
+  }
+
+  function saveSteps(store: FakeRateLimitStore): JudgementStep[] {
+    return [
+      () =>
+        enforceRateLimit(
+          requestOf({ store, policy: SAVE_BY_BLOCK_POLICY, subject: BLOCK }),
+        ),
+      () =>
+        enforceRateLimit(
+          requestOf({
+            store,
+            policy: SAVE_BY_CREDENTIAL_POLICY,
+            subject: A_CREDENTIAL,
+          }),
+        ),
+    ];
+  }
+
+  async function fillTo(
+    store: FakeRateLimitStore,
+    policy: LimitPolicy,
+    subject: BucketSubject,
+    hits: number,
+  ) {
+    for (let hit = 0; hit < hits; hit += 1) {
+      await enforceRateLimit(requestOf({ store, policy, subject }));
+    }
+  }
+
+  it("counts both buckets once for a request that both allow", async () => {
+    const store = new FakeRateLimitStore();
+
+    expect(await judgeInSequence(saveSteps(store))).toEqual({ kind: "allow" });
+
+    expect(await nextCountOf(store, SAVE_BY_BLOCK_POLICY, BLOCK)).toBe(2);
+    expect(
+      await nextCountOf(store, SAVE_BY_CREDENTIAL_POLICY, A_CREDENTIAL),
+    ).toBe(2);
+  });
+
+  it("writes no row for the credential when the block refuses, however many requests it refuses", async () => {
+    const store = new FakeRateLimitStore();
+    await fillTo(store, SAVE_BY_BLOCK_POLICY, BLOCK, 600);
+
+    for (let request = 0; request < 5; request += 1) {
+      expect((await judgeInSequence(saveSteps(store))).kind).toBe("refuse");
+    }
+
+    expect(
+      await nextCountOf(store, SAVE_BY_CREDENTIAL_POLICY, A_CREDENTIAL),
+    ).toBe(1);
+    expect(await nextCountOf(store, SAVE_BY_BLOCK_POLICY, BLOCK)).toBe(606);
+  });
+
+  it("counts both buckets for a request the credential refuses", async () => {
+    const store = new FakeRateLimitStore();
+    await fillTo(store, SAVE_BY_CREDENTIAL_POLICY, A_CREDENTIAL, 300);
+
+    expect((await judgeInSequence(saveSteps(store))).kind).toBe("refuse");
+
+    expect(await nextCountOf(store, SAVE_BY_BLOCK_POLICY, BLOCK)).toBe(2);
+    expect(
+      await nextCountOf(store, SAVE_BY_CREDENTIAL_POLICY, A_CREDENTIAL),
+    ).toBe(302);
   });
 });
 

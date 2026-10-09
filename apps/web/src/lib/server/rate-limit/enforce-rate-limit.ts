@@ -8,20 +8,26 @@ import type {
   Digester,
   DigesterOutcome,
 } from "@/lib/server/digest/digest-secret";
+import type { BucketSubject } from "@/lib/server/rate-limit/bucket-subject";
 import {
   chisinauDayOf,
   secondsToWindowEnd,
 } from "@/lib/server/rate-limit/chisinau-day";
-import type { NetworkBlock } from "@/lib/server/rate-limit/client-network";
 import type {
   LimitPolicy,
-  PolicyChoice,
+  WindowRule,
 } from "@/lib/server/rate-limit/limit-policy";
-import type { ClientNetwork } from "@/lib/server/rate-limit/network-source";
+import { utcWindowOf } from "@/lib/server/rate-limit/utc-window";
 
-/** The limiter's own bound around the store's call, after which the request is unavailable. With the store's longest
- *  repeat and the mint's longest time it stays under the lock's ten seconds. */
+/** The limiter's own bound around a write's store call, after which the request is unavailable. With the store's
+ *  longest repeat and the mint's longest time it stays under the lock's ten seconds. */
 export const RATE_LIMIT_DEADLINE_MS = 3000;
+
+/** A read waits far less than a write: after this the read is served, since a page is worth more than its count. */
+export const RATE_LIMIT_READ_DEADLINE_MS = 300;
+
+/** The most a timer can wait; a longer one fires at once, and with a warning, which this module may not write. */
+const LONGEST_TIMER_MS = 2_147_483_647;
 
 /** Why a mint could not be judged, in one closed list that types the log line too. `judgement-failed` is the route's
  *  own: the judgement itself threw. Only the log's code says which. */
@@ -43,20 +49,25 @@ export type RateLimitDecision =
   | { readonly kind: "refuse"; readonly retryAfterSeconds: number }
   | { readonly kind: "unavailable"; readonly cause: UnavailableCause };
 
+/** One bucket: its caller hands in what is counted, how long it is counted for, and how long to wait for the count. */
 export interface RateLimitRequest {
-  readonly network: ClientNetwork;
+  readonly subject: BucketSubject;
   readonly digester: DigesterOutcome;
-  readonly policy: PolicyChoice;
+  readonly policy: LimitPolicy;
   readonly store: Pick<RateLimitStore, "recordHits">;
   readonly instant: Date;
+  readonly deadlineMs: number;
 }
+
+/** One judgement of a sequence, asked only when the steps before it allowed. */
+export type JudgementStep = () => Promise<RateLimitDecision>;
 
 type Step<Value> =
   | { readonly ok: true; readonly value: Value }
   | { readonly ok: false; readonly cause: UnavailableCause };
 
 interface Usable {
-  readonly block: NetworkBlock;
+  readonly subject: BucketSubject;
   readonly digest: Digester;
   readonly policy: LimitPolicy;
 }
@@ -73,13 +84,15 @@ export async function enforceRateLimit(
 ): Promise<RateLimitDecision> {
   const usable = usableOf(request);
   if (!usable.ok) return unavailable(usable.cause);
-  const window = windowOf(request.instant);
+  const window = windowOf(usable.value.policy.window, request.instant);
   if (!window.ok) return unavailable(window.cause);
   const key = keyOf(usable.value);
   if (!key.ok) return unavailable(key.cause);
-  const counts = await recordWithinDeadline(request.store, [
-    { key: key.value, window: window.value },
-  ]);
+  const counts = await recordWithinDeadline({
+    store: request.store,
+    buckets: [{ key: key.value, window: window.value }],
+    deadlineMs: request.deadlineMs,
+  });
   if (!counts.ok) return unavailable(counts.cause);
   return judge({
     counts: counts.value,
@@ -90,36 +103,42 @@ export async function enforceRateLimit(
 }
 
 function usableOf(request: RateLimitRequest): Step<Usable> {
-  const { network, digester, policy } = request;
-  if (network.status === "misconfigured") return failed("source-misconfigured");
-  if (policy.status === "unavailable") return failed("policy-misconfigured");
+  const { subject, digester, policy, deadlineMs } = request;
+  if (!isUsableDeadline(deadlineMs)) return failed("judgement-failed");
   if (digester.status === "unavailable") return failed("digester-unusable");
-  return {
-    ok: true,
-    value: {
-      block: network.block,
-      digest: digester.digest,
-      policy: policy.policy,
-    },
-  };
+  return { ok: true, value: { subject, digest: digester.digest, policy } };
 }
 
-function windowOf(instant: Date): Step<RateLimitWindow> {
+function isUsableDeadline(deadlineMs: number): boolean {
+  return (
+    Number.isInteger(deadlineMs) &&
+    deadlineMs >= 1 &&
+    deadlineMs <= LONGEST_TIMER_MS
+  );
+}
+
+function windowOf(rule: WindowRule, instant: Date): Step<RateLimitWindow> {
   try {
-    return { ok: true, value: chisinauDayOf(instant) };
+    return { ok: true, value: windowOfRule(rule, instant) };
   } catch {
     return failed("window-unavailable");
   }
 }
 
-function keyOf({ block, digest, policy }: Usable): Step<string> {
+function windowOfRule(rule: WindowRule, instant: Date): RateLimitWindow {
+  return rule.kind === "chisinau-day"
+    ? chisinauDayOf(instant)
+    : utcWindowOf(instant, rule.minutes);
+}
+
+function keyOf({ subject, digest, policy }: Usable): Step<string> {
   try {
     const key = digest({
       purpose: "rate-limit-bucket",
       fields: {
         policyName: policy.name,
-        subjectKind: block.kind,
-        subject: block.subject,
+        subjectKind: subject.kind,
+        subject: subject.subject,
       },
     });
     return { ok: true, value: key };
@@ -132,10 +151,11 @@ function keyOf({ block, digest, policy }: Usable): Step<string> {
  * The store's late answer or rejection is handled where it is made, so a deadline that has passed leaves nothing
  * unhandled behind. A synchronous throw from the store is a rejection too.
  */
-async function recordWithinDeadline(
-  store: Pick<RateLimitStore, "recordHits">,
-  buckets: readonly RateLimitBucket[],
-): Promise<Step<RecordedCounts>> {
+async function recordWithinDeadline({
+  store,
+  buckets,
+  deadlineMs,
+}: Hits): Promise<Step<RecordedCounts>> {
   const answered = new Promise<RecordedCounts>((resolve) => {
     resolve(store.recordHits(buckets));
   }).then(
@@ -146,13 +166,19 @@ async function recordWithinDeadline(
   const deadline = new Promise<Step<RecordedCounts>>((resolve) => {
     timer = setTimeout(() => {
       resolve(failed("deadline-passed"));
-    }, RATE_LIMIT_DEADLINE_MS);
+    }, deadlineMs);
   });
   try {
     return await Promise.race([answered, deadline]);
   } finally {
     clearTimeout(timer);
   }
+}
+
+interface Hits {
+  readonly store: Pick<RateLimitStore, "recordHits">;
+  readonly buckets: readonly RateLimitBucket[];
+  readonly deadlineMs: number;
 }
 
 interface Judgement {
@@ -194,4 +220,23 @@ function failed(cause: UnavailableCause): {
 
 function unavailable(cause: UnavailableCause): RateLimitDecision {
   return { kind: "unavailable", cause };
+}
+
+/**
+ * Asks each step in order and answers the first that is not an allow, so no step after a refusal, or after one that
+ * could not be judged, is ever called and so counts no hit. All allowed is an allow. A step that throws, or a sequence
+ * of none, is unavailable: a judgement that was not made never reads as one that allowed.
+ */
+export async function judgeInSequence(
+  steps: readonly JudgementStep[],
+): Promise<RateLimitDecision> {
+  try {
+    for (const step of steps) {
+      const decision = await step();
+      if (decision.kind !== "allow") return decision;
+    }
+    return steps.length === 0 ? unavailable("judgement-failed") : ALLOWED;
+  } catch {
+    return unavailable("judgement-failed");
+  }
 }

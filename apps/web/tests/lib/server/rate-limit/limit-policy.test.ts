@@ -1,14 +1,29 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  ALL_LIMIT_POLICIES,
   choosePolicy,
   E2E_MINT_DAILY_FIGURE,
   E2E_MINT_POLICY,
   E2E_MINT_POLICY_NAME,
   E2E_RATE_LIMIT_POLICY_FLAG,
+  E2E_SAVE_BY_BLOCK_POLICY,
+  E2E_SAVES_PER_BLOCK_FIGURE,
+  E2E_SHARE_WRITE_POLICY,
+  E2E_SHARE_WRITES_PER_BLOCK_FIGURE,
   MINT_DAILY_FIGURE,
   MINT_POLICY,
   MINT_POLICY_NAME,
+  READ_POLICY,
+  READS_PER_BLOCK_FIGURE,
+  SAVE_BY_BLOCK_POLICY,
+  SAVE_BY_CREDENTIAL_POLICY,
+  SAVES_PER_BLOCK_FIGURE,
+  SAVES_PER_CREDENTIAL_FIGURE,
+  SHARE_WRITE_POLICY,
+  SHARE_WRITES_PER_BLOCK_FIGURE,
+  type LimitPolicy,
+  type PolicyPurpose,
 } from "@/lib/server/rate-limit/limit-policy";
 import type { NetworkEnvironment } from "@/lib/server/rate-limit/network-source";
 
@@ -24,12 +39,12 @@ describe("the policies as data", () => {
     expect(MINT_POLICY).toEqual({
       name: MINT_POLICY_NAME,
       figure: 20,
-      window: "chisinau-day",
+      window: { kind: "chisinau-day" },
     });
     expect(E2E_MINT_POLICY).toEqual({
       name: E2E_MINT_POLICY_NAME,
       figure: 1100,
-      window: "chisinau-day",
+      window: { kind: "chisinau-day" },
     });
   });
 
@@ -47,6 +62,129 @@ describe("the policies as data", () => {
   it("freezes both, so no caller moves a figure", () => {
     expect(Object.isFrozen(MINT_POLICY)).toBe(true);
     expect(Object.isFrozen(E2E_MINT_POLICY)).toBe(true);
+  });
+});
+
+const HOUR = { kind: "utc-minutes", minutes: 60 };
+
+describe("the policies of saves, shares and reads as data", () => {
+  const ROWS: readonly [string, LimitPolicy, LimitPolicy][] = [
+    [
+      "saves by block",
+      SAVE_BY_BLOCK_POLICY,
+      {
+        name: "design-save-by-block-per-60-utc-minutes",
+        figure: 600,
+        window: HOUR,
+      } as LimitPolicy,
+    ],
+    [
+      "saves by write credential",
+      SAVE_BY_CREDENTIAL_POLICY,
+      {
+        name: "design-save-by-credential-per-60-utc-minutes",
+        figure: 300,
+        window: HOUR,
+      } as LimitPolicy,
+    ],
+    [
+      "share writes by block",
+      SHARE_WRITE_POLICY,
+      {
+        name: "share-write-by-block-per-60-utc-minutes",
+        figure: 60,
+        window: HOUR,
+      } as LimitPolicy,
+    ],
+    [
+      "reads by block",
+      READ_POLICY,
+      {
+        name: "read-by-block-per-60-utc-minutes",
+        figure: 600,
+        window: HOUR,
+      } as LimitPolicy,
+    ],
+    [
+      "the e2e twin of saves by block",
+      E2E_SAVE_BY_BLOCK_POLICY,
+      {
+        name: "design-save-by-block-e2e-per-60-utc-minutes",
+        figure: 800,
+        window: HOUR,
+      } as LimitPolicy,
+    ],
+    [
+      "the e2e twin of share writes",
+      E2E_SHARE_WRITE_POLICY,
+      {
+        name: "share-write-by-block-e2e-per-60-utc-minutes",
+        figure: 300,
+        window: HOUR,
+      } as LimitPolicy,
+    ],
+  ];
+
+  it.each(ROWS)(
+    "holds %s as its name, its figure and its window",
+    (_label, policy, expected) => {
+      expect(policy).toEqual(expected);
+    },
+  );
+
+  it("states the figures as constants, the provisional ones among them", () => {
+    expect(SAVES_PER_BLOCK_FIGURE).toBe(600);
+    expect(SAVES_PER_CREDENTIAL_FIGURE).toBe(300);
+    expect(SHARE_WRITES_PER_BLOCK_FIGURE).toBe(60);
+    expect(READS_PER_BLOCK_FIGURE).toBe(600);
+    expect(E2E_SAVES_PER_BLOCK_FIGURE).toBe(800);
+    expect(E2E_SHARE_WRITES_PER_BLOCK_FIGURE).toBe(300);
+  });
+
+  it("freezes every policy and its window, so no caller moves a figure or an edge", () => {
+    expect(
+      ALL_LIMIT_POLICIES.every(
+        (policy) => Object.isFrozen(policy) && Object.isFrozen(policy.window),
+      ),
+    ).toBe(true);
+  });
+
+  it("gives every policy a name of its own that carries its window and starts with no other's", () => {
+    const names = ALL_LIMIT_POLICIES.map((policy) => policy.name);
+
+    expect(ALL_LIMIT_POLICIES).toHaveLength(8);
+    expect(new Set(names).size).toBe(names.length);
+    for (const policy of ALL_LIMIT_POLICIES) {
+      const label =
+        policy.window.kind === "chisinau-day"
+          ? "chisinau-day"
+          : `${String(policy.window.minutes)}-utc-minutes`;
+      expect(policy.name.endsWith(`-per-${label}`)).toBe(true);
+    }
+    expect(
+      names.filter((name) =>
+        names.some((other) => other !== name && other.startsWith(`${name}-`)),
+      ),
+    ).toEqual([]);
+  });
+
+  it("gives every figure above nought and every window a whole number of minutes that divides a day", () => {
+    for (const { figure, window } of ALL_LIMIT_POLICIES) {
+      expect(Number.isInteger(figure) && figure >= 1).toBe(true);
+      if (window.kind === "utc-minutes") {
+        expect(1440 % window.minutes).toBe(0);
+      }
+    }
+  });
+
+  it("keeps each e2e twin above the production figure of its purpose, so a misplaced flag never lowers a limit", () => {
+    expect(E2E_MINT_POLICY.figure).toBeGreaterThan(MINT_POLICY.figure);
+    expect(E2E_SAVE_BY_BLOCK_POLICY.figure).toBeGreaterThan(
+      SAVE_BY_BLOCK_POLICY.figure,
+    );
+    expect(E2E_SHARE_WRITE_POLICY.figure).toBeGreaterThan(
+      SHARE_WRITE_POLICY.figure,
+    );
   });
 });
 
@@ -118,13 +256,15 @@ describe("choosePolicy: the flag against the network source", () => {
           ? UNAVAILABLE
           : { status: "chosen", policy: E2E_MINT_POLICY };
 
-      expect(choosePolicy(environmentOf(flag, source))).toEqual(expected);
+      expect(choosePolicy(environmentOf(flag, source), "mint")).toEqual(
+        expected,
+      );
     },
   );
 
   it("covers every cell of the table, with a floor on each outcome", () => {
     const outcomes = cells.map(({ flag, source }) =>
-      choosePolicy(environmentOf(flag, source)),
+      choosePolicy(environmentOf(flag, source), "mint"),
     );
     const named = (name: string) =>
       outcomes.filter(
@@ -141,7 +281,10 @@ describe("choosePolicy: the flag against the network source", () => {
   });
 
   it("chooses the mint's row for an empty environment", () => {
-    expect(choosePolicy({})).toEqual({ status: "chosen", policy: MINT_POLICY });
+    expect(choosePolicy({}, "mint")).toEqual({
+      status: "chosen",
+      policy: MINT_POLICY,
+    });
   });
 
   it("does not take an inherited flag as the flag", () => {
@@ -149,7 +292,7 @@ describe("choosePolicy: the flag against the network source", () => {
       [E2E_RATE_LIMIT_POLICY_FLAG]: "1",
     }) as NetworkEnvironment;
 
-    expect(choosePolicy(inherited)).toEqual({
+    expect(choosePolicy(inherited, "mint")).toEqual({
       status: "chosen",
       policy: MINT_POLICY,
     });
@@ -161,19 +304,89 @@ describe("choosePolicy: the flag against the network source", () => {
     }) as Record<string, string>;
     environment[E2E_RATE_LIMIT_POLICY_FLAG] = "1";
 
-    expect(choosePolicy(environment)).toEqual({
+    expect(choosePolicy(environment, "mint")).toEqual({
       status: "chosen",
       policy: E2E_MINT_POLICY,
     });
   });
 
   it("names the flag and nothing of any value it saw", () => {
-    const answer = choosePolicy({
-      [E2E_RATE_LIMIT_POLICY_FLAG]: "1",
-      CLIENT_NETWORK_SOURCE: "VALUE-MARKER-2210",
-    });
+    const answer = choosePolicy(
+      {
+        [E2E_RATE_LIMIT_POLICY_FLAG]: "1",
+        CLIENT_NETWORK_SOURCE: "VALUE-MARKER-2210",
+      },
+      "mint",
+    );
 
     expect(JSON.stringify(answer)).not.toContain("MARKER");
+  });
+});
+
+describe("choosePolicy: one flag chooses the twin of every purpose that has one", () => {
+  const PURPOSES: readonly [PolicyPurpose, LimitPolicy, LimitPolicy][] = [
+    ["mint", MINT_POLICY, E2E_MINT_POLICY],
+    ["save-by-block", SAVE_BY_BLOCK_POLICY, E2E_SAVE_BY_BLOCK_POLICY],
+    [
+      "save-by-credential",
+      SAVE_BY_CREDENTIAL_POLICY,
+      SAVE_BY_CREDENTIAL_POLICY,
+    ],
+    ["share-write", SHARE_WRITE_POLICY, E2E_SHARE_WRITE_POLICY],
+    ["read", READ_POLICY, READ_POLICY],
+  ];
+  const UNAVAILABLE = {
+    status: "unavailable",
+    variable: "LEMNARIA_E2E_RATE_LIMIT_POLICY",
+  };
+
+  it.each(PURPOSES)(
+    "chooses the production policy of %s for an empty environment and for a flag that is not exactly 1",
+    (purpose, production) => {
+      const environments = FLAG_CASES.filter(([, flag]) => flag !== "1").map(
+        ([, flag]) => environmentOf(flag, ABSENT),
+      );
+
+      for (const environment of [{}, ...environments]) {
+        expect(choosePolicy(environment, purpose)).toEqual({
+          status: "chosen",
+          policy: production,
+        });
+      }
+    },
+  );
+
+  it.each(PURPOSES)(
+    "chooses the e2e twin of %s for the flag exactly 1 and no source",
+    (purpose, _production, twin) => {
+      expect(choosePolicy(environmentOf("1", ABSENT), purpose)).toEqual({
+        status: "chosen",
+        policy: twin,
+      });
+    },
+  );
+
+  it.each(PURPOSES)(
+    "chooses nothing for %s when the flag is beside any source, whatever it holds",
+    (purpose) => {
+      for (const [, source] of SOURCE_CASES.filter(
+        ([, value]) => value !== ABSENT,
+      )) {
+        expect(choosePolicy(environmentOf("1", source), purpose)).toEqual(
+          UNAVAILABLE,
+        );
+      }
+    },
+  );
+
+  it("moves exactly the mint, saves by block and share writes to a twin, not the credential or reads", () => {
+    const moved = PURPOSES.filter(([purpose]) => {
+      const production = choosePolicy({}, purpose);
+      const flagged = choosePolicy(environmentOf("1", ABSENT), purpose);
+      return JSON.stringify(production) !== JSON.stringify(flagged);
+    }).map(([purpose]) => purpose);
+
+    expect(moved).toEqual(["mint", "save-by-block", "share-write"]);
   });
 });
 
