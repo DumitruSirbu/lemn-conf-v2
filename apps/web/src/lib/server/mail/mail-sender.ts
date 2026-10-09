@@ -4,7 +4,7 @@ import "server-only";
  * One fixed message. It names no recipient, no sender and no markup: the configured shop inbox is the
  * only recipient there is, and the adapter fills it, so a customer's address cannot become one by type.
  * `key` is the idempotency key; `text` is plain text. What may be sent is `isSendableMailMessage`:
- * a key of 1 to 256 visible ASCII characters, a non-empty subject on one line, and a text.
+ * a key of 1 to 256 visible ASCII characters, a non-empty subject on one line, and a non-empty text.
  */
 export interface MailMessage {
   readonly key: string;
@@ -65,7 +65,8 @@ export function isSendableMailMessage(message: MailMessage): boolean {
     typeof subject === "string" &&
     subject.length > 0 &&
     !LINE_BREAKING_CHARACTER.test(subject) &&
-    typeof text === "string"
+    typeof text === "string" &&
+    text.length > 0
   );
 }
 

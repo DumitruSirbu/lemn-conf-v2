@@ -98,6 +98,17 @@ describe("createFakeMailSender", () => {
     expect(next).toEqual({ ok: false, kind: "busy" });
   });
 
+  it("refuses an empty text, records nothing and spends no scripted outcome", async () => {
+    const sender = createFakeMailSender([{ ok: false, kind: "busy" }]);
+
+    const refused = await sender.send({ ...FIRST, text: "" });
+    const next = await sender.send(FIRST);
+
+    expect(refused).toEqual({ ok: false, kind: "refused" });
+    expect(sender.sent).toEqual([FIRST]);
+    expect(next).toEqual({ ok: false, kind: "busy" });
+  });
+
   it("keeps separate records for separate senders", async () => {
     const one = createFakeMailSender();
     const other = createFakeMailSender();

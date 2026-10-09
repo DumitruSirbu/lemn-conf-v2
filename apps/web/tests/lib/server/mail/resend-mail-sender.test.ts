@@ -201,6 +201,12 @@ const MAPPING_ROWS: readonly MappingRow[] = [
     200,
   ),
   failureRow(
+    "200 with an id that is empty text",
+    () => jsonAnswer(200, { id: "" }),
+    "unreadable-answer",
+    200,
+  ),
+  failureRow(
     "200 with an id that is not text",
     () => jsonAnswer(200, { id: 5 }),
     "unreadable-answer",
@@ -355,6 +361,15 @@ describe("the sender's failures before and around the request", () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
+  it("refuses an empty text without a status and without a request", async () => {
+    const fetchSpy = stubAnswer(jsonAnswer(200, { id: "msg_1" }));
+
+    const outcome = await sendOnce({ ...MESSAGE, text: "" });
+
+    expect(outcome).toEqual({ ok: false, kind: "refused" });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   it("refuses rather than rejects when the message cannot be read at all", async () => {
     const fetchSpy = stubAnswer(jsonAnswer(200, { id: "msg_1" }));
 
@@ -484,6 +499,7 @@ describe("every status from 100 to 599, with any body", () => {
     "not json",
     JSON.stringify({ id: "msg_1" }),
     JSON.stringify({ id: 1 }),
+    JSON.stringify({ id: "" }),
     JSON.stringify({ name: "rate_limit_exceeded" }),
     JSON.stringify({ name: "invalid_idempotent_request" }),
     JSON.stringify({ name: "daily_quota_exceeded" }),

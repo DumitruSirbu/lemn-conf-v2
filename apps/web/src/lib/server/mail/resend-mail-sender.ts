@@ -150,7 +150,7 @@ async function mapAnswer(response: Response): Promise<MailOutcome> {
   const { status } = response;
   if (status >= FIRST_SUCCESS_STATUS && status < FIRST_REDIRECT_STATUS) {
     const body = await readJsonObject(response);
-    return typeof body?.id === "string"
+    return isNonEmptyText(body?.id)
       ? MAIL_ACCEPTED
       : failure("unreadable-answer", status);
   }
@@ -164,6 +164,10 @@ async function mapAnswer(response: Response): Promise<MailOutcome> {
     return failure(isRateLimit ? "busy" : "quota-spent", status);
   }
   return failure(kindOfOtherStatus(status), status);
+}
+
+function isNonEmptyText(value: unknown): boolean {
+  return typeof value === "string" && value.length > 0;
 }
 
 function kindOfOtherStatus(status: number): MailFailureKind {

@@ -122,6 +122,11 @@ describe("isSendableMailMessage", () => {
     expect(isSendableMailMessage(messageWith({ subject }))).toBe(false);
   });
 
+  it("refuses an empty text, and accepts a text of one character", () => {
+    expect(isSendableMailMessage(messageWith({ text: "" }))).toBe(false);
+    expect(isSendableMailMessage(messageWith({ text: "t" }))).toBe(true);
+  });
+
   it("accepts a subject with non-ASCII letters", () => {
     expect(isSendableMailMessage(messageWith({ subject: "Cerere ж" }))).toBe(
       true,
