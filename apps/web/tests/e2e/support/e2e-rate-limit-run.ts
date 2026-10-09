@@ -148,7 +148,7 @@ export class E2eFigureOutgrownError extends Error {
   constructor(minted: number, half: number) {
     super(
       `This run minted ${String(minted)} designs, more than half (${String(half)}) of the e2e policy's ` +
-        `${String(E2E_MINT_DAILY_FIGURE)} a day: raise E2E_MINT_DAILY_FIGURE to twice the new figure, ` +
+        `${String(E2E_MINT_DAILY_FIGURE)} a day: raise E2E_MINT_DAILY_FIGURE to three times the new figure, ` +
         "rounded up to the next hundred",
     );
     this.name = "E2eFigureOutgrownError";
@@ -192,8 +192,8 @@ export class E2eShareFigureOutgrownError extends Error {
   constructor(written: number, half: number) {
     super(
       `This run made ${String(written)} share writes, more than half (${String(half)}) of the e2e policy's ` +
-        `${String(E2E_SHARE_WRITES_PER_BLOCK_FIGURE)} an hour: raise E2E_SHARE_WRITES_PER_BLOCK_FIGURE to twice ` +
-        "the new figure, rounded up to the next hundred",
+        `${String(E2E_SHARE_WRITES_PER_BLOCK_FIGURE)} an hour: raise E2E_SHARE_WRITES_PER_BLOCK_FIGURE to three ` +
+        "times the new figure, rounded up to the next hundred",
     );
     this.name = "E2eShareFigureOutgrownError";
   }

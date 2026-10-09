@@ -414,8 +414,8 @@ describe("POST /api/designs: the e2e policy", () => {
     );
     expect(notices.length).toBeLessThanOrEqual(1);
     expect(E2E_MINT_POLICY_NOTICE).toBe(
-      "rate limit: the e2e policy is in use (LEMNARIA_E2E_RATE_LIMIT_POLICY); " +
-        "the day's figure is not the production one",
+      "rate limit: an e2e policy is in use (LEMNARIA_E2E_RATE_LIMIT_POLICY); " +
+        "its figure is not the production one",
     );
   });
 

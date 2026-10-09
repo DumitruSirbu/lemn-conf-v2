@@ -179,7 +179,7 @@ describe("removeShareCountersOfTheRun", () => {
 });
 
 describe("requireShareRoomUnderHalfTheFigure", () => {
-  const HALF_THE_FIGURE = 150;
+  const HALF_THE_FIGURE = 250;
 
   it.each([0, 1, 146, HALF_THE_FIGURE])(
     "accepts a run that made %i share writes",
@@ -190,7 +190,7 @@ describe("requireShareRoomUnderHalfTheFigure", () => {
     },
   );
 
-  it.each([HALF_THE_FIGURE + 1, 300, 5000])(
+  it.each([HALF_THE_FIGURE + 1, 500, 5000])(
     "fails a run that made %i share writes, more than half of the twin's hour",
     (writesCounted) => {
       expect(() => {
@@ -204,7 +204,7 @@ describe("requireShareRoomUnderHalfTheFigure", () => {
       try {
         requireShareRoomUnderHalfTheFigure({
           rowsRemoved: 1,
-          writesCounted: 200,
+          writesCounted: 300,
         });
       } catch (error) {
         return error as Error;
@@ -212,16 +212,18 @@ describe("requireShareRoomUnderHalfTheFigure", () => {
       throw new Error("expected a failure");
     })();
 
-    expect(thrown.message).toContain("200");
-    expect(thrown.message).toContain("150");
+    expect(thrown.message).toContain("300");
+    expect(thrown.message).toContain("250");
+    expect(thrown.message).toContain("500");
     expect(thrown.message).toContain("E2E_SHARE_WRITES_PER_BLOCK_FIGURE");
+    expect(thrown.message).toContain("three times");
   });
 });
 
 describe("requireRoomUnderHalfTheFigure", () => {
-  const HALF_THE_FIGURE = 550;
+  const HALF_THE_FIGURE = 800;
 
-  it.each([0, 1, 507, HALF_THE_FIGURE])(
+  it.each([0, 1, 508, HALF_THE_FIGURE])(
     "accepts a run that minted %i designs",
     (mintsCounted) => {
       expect(() => {
@@ -230,7 +232,7 @@ describe("requireRoomUnderHalfTheFigure", () => {
     },
   );
 
-  it.each([HALF_THE_FIGURE + 1, 1100, 5000])(
+  it.each([HALF_THE_FIGURE + 1, 1600, 5000])(
     "fails a run that minted %i designs, more than half of the e2e policy's day",
     (mintsCounted) => {
       expect(() => {
@@ -242,16 +244,18 @@ describe("requireRoomUnderHalfTheFigure", () => {
   it("says the two counts and the rule, and holds no secret", () => {
     const thrown = (() => {
       try {
-        requireRoomUnderHalfTheFigure({ rowsRemoved: 1, mintsCounted: 600 });
+        requireRoomUnderHalfTheFigure({ rowsRemoved: 1, mintsCounted: 900 });
       } catch (error) {
         return error as Error;
       }
       throw new Error("expected a failure");
     })();
 
-    expect(thrown.message).toContain("600");
-    expect(thrown.message).toContain("550");
+    expect(thrown.message).toContain("900");
+    expect(thrown.message).toContain("800");
+    expect(thrown.message).toContain("1600");
     expect(thrown.message).toContain("E2E_MINT_DAILY_FIGURE");
+    expect(thrown.message).toContain("three times");
   });
 });
 

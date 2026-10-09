@@ -13,6 +13,7 @@ import {
   E2E_SHARE_WRITES_PER_BLOCK_FIGURE,
   MINT_DAILY_FIGURE,
   MINT_POLICY,
+  isE2eTwin,
   isOwnPolicy,
   MINT_POLICY_NAME,
   READ_POLICY,
@@ -44,14 +45,14 @@ describe("the policies as data", () => {
     });
     expect(E2E_MINT_POLICY).toEqual({
       name: E2E_MINT_POLICY_NAME,
-      figure: 1100,
+      figure: 1600,
       window: { kind: "chisinau-day" },
     });
   });
 
-  it("states the figures as constants: twenty a day, and a thousand for the suite", () => {
+  it("states the figures as constants: twenty a day, and sixteen hundred for the suite", () => {
     expect(MINT_DAILY_FIGURE).toBe(20);
-    expect(E2E_MINT_DAILY_FIGURE).toBe(1100);
+    expect(E2E_MINT_DAILY_FIGURE).toBe(1600);
   });
 
   it("keeps the two names apart, so no count of one is a count of the other", () => {
@@ -111,7 +112,7 @@ describe("the policies of saves, shares and reads as data", () => {
       E2E_SAVE_BY_BLOCK_POLICY,
       {
         name: "design-save-by-block-e2e-per-60-utc-minutes",
-        figure: 800,
+        figure: 1200,
         window: HOUR,
       } as LimitPolicy,
     ],
@@ -120,7 +121,7 @@ describe("the policies of saves, shares and reads as data", () => {
       E2E_SHARE_WRITE_POLICY,
       {
         name: "share-write-by-block-e2e-per-60-utc-minutes",
-        figure: 300,
+        figure: 500,
         window: HOUR,
       } as LimitPolicy,
     ],
@@ -138,8 +139,8 @@ describe("the policies of saves, shares and reads as data", () => {
     expect(SAVES_PER_CREDENTIAL_FIGURE).toBe(300);
     expect(SHARE_WRITES_PER_BLOCK_FIGURE).toBe(60);
     expect(READS_PER_BLOCK_FIGURE).toBe(600);
-    expect(E2E_SAVES_PER_BLOCK_FIGURE).toBe(800);
-    expect(E2E_SHARE_WRITES_PER_BLOCK_FIGURE).toBe(300);
+    expect(E2E_SAVES_PER_BLOCK_FIGURE).toBe(1200);
+    expect(E2E_SHARE_WRITES_PER_BLOCK_FIGURE).toBe(500);
   });
 
   it("freezes every policy and its window, so no caller moves a figure or an edge", () => {
@@ -405,6 +406,22 @@ describe("choosePolicy: a purpose that is not the list's own", () => {
       status: "unavailable",
       variable: "LEMNARIA_E2E_RATE_LIMIT_POLICY",
     });
+  });
+});
+
+describe("isE2eTwin: which policies carry a figure that is not the production one", () => {
+  it("is true of the three twins and of no other policy", () => {
+    const twins = ALL_LIMIT_POLICIES.filter((policy) => isE2eTwin(policy));
+
+    expect(twins).toEqual([
+      E2E_MINT_POLICY,
+      E2E_SAVE_BY_BLOCK_POLICY,
+      E2E_SHARE_WRITE_POLICY,
+    ]);
+  });
+
+  it("is false for a copy of a twin, which is not the twin", () => {
+    expect(isE2eTwin({ ...E2E_MINT_POLICY })).toBe(false);
   });
 });
 

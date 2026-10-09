@@ -12,15 +12,16 @@ import { CLIENT_NETWORK_SOURCE_VARIABLE } from "../../../src/lib/server/rate-lim
 
 import { RUN_SECRET_VARIABLE, makeRunSecret } from "./e2e-rate-limit-run";
 
-/** The suite's own server is on 4320 (`playwright.config.ts`). The spec that proves the real figure starts its second
- *  one beside it on 4322. */
+// Every port a spec's own server listens on, here and nowhere else, each with what it is for. The suite's own server is
+// on 4320 (`playwright.config.ts`). Two specs of one run start their servers at once, so each names a port of its own.
+
+/** 4322: the spec that proves the production policy's real figure. */
 export const PRODUCTION_POLICY_SERVER_PORT = 4322;
 
-/** The live spec of the refused mint starts its own beside the first two on 4323: two specs of one run start their
- *  servers at once, so each names a port of its own. */
+/** 4323: the live spec of the refused mint, which is QA's and imports this name. */
 export const REFUSED_MINT_LIVE_SERVER_PORT = 4323;
 
-/** The proof that the interceptor counts a page read starts its own, with a network source named, on 4324. */
+/** 4324: the spec that proves a page read is counted, whose server is given a network source the owner names. */
 export const PAGE_READ_PROOF_SERVER_PORT = 4324;
 
 /** A developer whose 4322 is taken sets this; a spec that names its own port ignores it. Read when a server starts,

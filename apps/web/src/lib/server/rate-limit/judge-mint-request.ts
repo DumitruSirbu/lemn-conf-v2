@@ -1,7 +1,6 @@
 import "server-only";
 
 import { readDigester } from "@/lib/server/digest/digest-secret";
-import { reportE2eMintPolicyInUse } from "@/lib/server/design-failure-log";
 import {
   RATE_LIMIT_DEADLINE_MS,
   type RateLimitDecision,
@@ -9,7 +8,6 @@ import {
 import { judgeBlockBucket } from "@/lib/server/rate-limit/judge-block-bucket";
 import {
   choosePolicy,
-  E2E_MINT_POLICY_NAME,
   type PolicyChoice,
 } from "@/lib/server/rate-limit/limit-policy";
 import {
@@ -35,7 +33,6 @@ export async function judgeMintRequest(
 ): Promise<MintJudgement> {
   const environment = process.env;
   const policy = choosePolicy(environment, "mint");
-  if (isE2ePolicy(policy)) reportE2eMintPolicyInUse();
   const network = identifyClientNetwork(
     selectNetworkSource(environment),
     headers,
@@ -49,10 +46,4 @@ export async function judgeMintRequest(
     deadlineMs: RATE_LIMIT_DEADLINE_MS,
   });
   return { decision, policy };
-}
-
-function isE2ePolicy(choice: PolicyChoice): boolean {
-  return (
-    choice.status === "chosen" && choice.policy.name === E2E_MINT_POLICY_NAME
-  );
 }

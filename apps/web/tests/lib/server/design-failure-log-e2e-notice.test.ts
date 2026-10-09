@@ -11,15 +11,14 @@ async function freshLog() {
   return await import("@/lib/server/design-failure-log");
 }
 
-describe("reportE2eMintPolicyInUse", () => {
+describe("reportE2ePolicyInUse", () => {
   it("writes the one notice the first time and nothing after, in one process", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    const { reportE2eMintPolicyInUse, E2E_MINT_POLICY_NOTICE } =
-      await freshLog();
+    const { reportE2ePolicyInUse, E2E_MINT_POLICY_NOTICE } = await freshLog();
 
-    reportE2eMintPolicyInUse();
-    reportE2eMintPolicyInUse();
-    reportE2eMintPolicyInUse();
+    reportE2ePolicyInUse();
+    reportE2ePolicyInUse();
+    reportE2ePolicyInUse();
 
     expect(warn).toHaveBeenCalledTimes(1);
     expect(warn).toHaveBeenCalledWith("[designs]", {
@@ -31,8 +30,8 @@ describe("reportE2eMintPolicyInUse", () => {
   it("writes it again in a process that starts afresh, so no earlier test decides this one", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 
-    (await freshLog()).reportE2eMintPolicyInUse();
-    (await freshLog()).reportE2eMintPolicyInUse();
+    (await freshLog()).reportE2ePolicyInUse();
+    (await freshLog()).reportE2ePolicyInUse();
 
     expect(warn).toHaveBeenCalledTimes(2);
   });
@@ -41,8 +40,8 @@ describe("reportE2eMintPolicyInUse", () => {
     const { E2E_MINT_POLICY_NOTICE } = await freshLog();
 
     expect(E2E_MINT_POLICY_NOTICE).toBe(
-      "rate limit: the e2e policy is in use (LEMNARIA_E2E_RATE_LIMIT_POLICY); " +
-        "the day's figure is not the production one",
+      "rate limit: an e2e policy is in use (LEMNARIA_E2E_RATE_LIMIT_POLICY); " +
+        "its figure is not the production one",
     );
   });
 });

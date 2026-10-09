@@ -155,7 +155,7 @@ describe("judgeMintRequest: what the mint answers, as it did", () => {
     expect(judgement.policy).toEqual({ status: "chosen", policy: MINT_POLICY });
   });
 
-  it("chooses the e2e twin under the flag, and counts a thousand a day before it refuses", async () => {
+  it("chooses the e2e twin under the flag, and counts 1,600 a day before it refuses", async () => {
     silenceTheConsole();
     vi.stubEnv(CLIENT_NETWORK_SOURCE_VARIABLE, undefined);
     vi.stubEnv(E2E_RATE_LIMIT_POLICY_FLAG, "1");

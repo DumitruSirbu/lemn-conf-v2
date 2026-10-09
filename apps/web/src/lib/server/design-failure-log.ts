@@ -190,17 +190,20 @@ export function reportReadLimitOnce(line: ReadLimitLine): void {
   });
 }
 
-/** The one line the e2e policy writes, made from the flag's own name: its figure is not the production one. */
+/**
+ * The one line an e2e policy writes, made from the flag's own name, and true of each twin alike: its figure is not the
+ * production one. Named for the mint, which was the first twin; a QA file imports it by that name.
+ */
 export const E2E_MINT_POLICY_NOTICE =
-  `rate limit: the e2e policy is in use (${E2E_RATE_LIMIT_POLICY_FLAG}); ` +
-  "the day's figure is not the production one";
+  `rate limit: an e2e policy is in use (${E2E_RATE_LIMIT_POLICY_FLAG}); ` +
+  "its figure is not the production one";
 
-let hasAnnouncedE2eMintPolicy = false;
+let hasAnnouncedE2ePolicy = false;
 
-/** Written once in a process, when the e2e policy first decides a request. */
-export function reportE2eMintPolicyInUse(): void {
-  if (hasAnnouncedE2eMintPolicy) return;
-  hasAnnouncedE2eMintPolicy = true;
+/** Written once in a process, when any e2e twin first decides a request. */
+export function reportE2ePolicyInUse(): void {
+  if (hasAnnouncedE2ePolicy) return;
+  hasAnnouncedE2ePolicy = true;
   emitDesignLogLine("warn", {
     event: "rate-limit-policy-notice",
     message: E2E_MINT_POLICY_NOTICE,

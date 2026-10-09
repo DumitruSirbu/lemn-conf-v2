@@ -3,6 +3,7 @@ import "server-only";
 import { NextResponse } from "next/server";
 
 import { LONGEST_DAY_SECONDS } from "@/lib/server/rate-limit/chisinau-day";
+import { refusedPageHeaders } from "@/lib/server/rate-limit/page-limit-page";
 import {
   longestWaitSecondsOf,
   READ_POLICY,
@@ -138,11 +139,7 @@ export function readLimitReachedPageResponse(
   requireWholeWait(retryAfterSeconds, longestWaitSecondsOf(READ_POLICY.window));
   return new NextResponse(html, {
     status: LIMIT_REACHED_STATUS,
-    headers: {
-      ...NOT_STORED,
-      "Content-Type": "text/html; charset=utf-8",
-      "Retry-After": String(retryAfterSeconds),
-    },
+    headers: refusedPageHeaders(retryAfterSeconds),
   });
 }
 

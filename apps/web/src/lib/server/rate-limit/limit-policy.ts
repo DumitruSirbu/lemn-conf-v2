@@ -57,12 +57,13 @@ function labelOf(window: WindowRule): string {
 export const MINT_DAILY_FIGURE = 20;
 
 /**
- * Twice the designs one whole e2e run makes, rounded up to the next hundred, so that a misplaced flag means about a
- * thousand a day and not no limit. A bucket lasts one invocation and one invocation may run the whole suite: 507
- * designs measured (desktop 132, mobile 191 and 184), twice is 1,014, the next hundred is 1,100. The e2e teardown
- * fails when an invocation mints more than half of it, so a person raises it as the suite grows.
+ * Three times the designs one whole e2e run makes, rounded up to the next hundred, so that a misplaced flag means a
+ * bounded figure and not no limit. A bucket lasts one invocation and one invocation may run the whole suite: 508
+ * designs measured (desktop 132, mobile 192 and 184), three times is 1,524, the next hundred is 1,600. The e2e
+ * teardown fails when an invocation mints more than half of it, so the suite may grow by half before a person must
+ * raise it.
  */
-export const E2E_MINT_DAILY_FIGURE = 1100;
+export const E2E_MINT_DAILY_FIGURE = 1600;
 
 /**
  * PROVISIONAL, with the figure below and the window: ADR 0019's 600 a network and 300 a browser's design in the clock
@@ -83,11 +84,12 @@ const READ_WINDOW_MINUTES = 60;
 export const READS_PER_BLOCK_FIGURE = 600;
 
 /**
- * Twice what one whole e2e run makes of each, rounded up to the next hundred, from the last count of a whole run; the
- * slice that starts enforcing a policy measures it again. A bucket lasts one invocation, which may run the whole suite.
+ * Three times what one whole e2e run makes of each, rounded up to the next hundred, by the same rule as the mint's: 395
+ * saves and 146 share writes at the last count of a whole run. A bucket lasts one invocation, which may run the whole
+ * suite, and the teardown fails above half of a figure.
  */
-export const E2E_SAVES_PER_BLOCK_FIGURE = 800;
-export const E2E_SHARE_WRITES_PER_BLOCK_FIGURE = 300;
+export const E2E_SAVES_PER_BLOCK_FIGURE = 1200;
+export const E2E_SHARE_WRITES_PER_BLOCK_FIGURE = 500;
 
 export const MINT_POLICY = policyOf("design-mint", {
   figure: MINT_DAILY_FIGURE,
@@ -172,6 +174,17 @@ export const ALL_LIMIT_POLICIES: readonly LimitPolicy[] = Object.freeze([
     ]),
   ),
 ]);
+
+const E2E_TWINS: ReadonlySet<LimitPolicy> = new Set(
+  Object.values(TWINS_OF_PURPOSE)
+    .filter(({ production, e2e }) => e2e !== production)
+    .map(({ e2e }) => e2e),
+);
+
+/** Whether `policy` is the e2e twin of a production policy, whose figure is not the production one. */
+export function isE2eTwin(policy: LimitPolicy): boolean {
+  return E2E_TWINS.has(policy);
+}
 
 /** Whether `candidate` is one of the closed set's own, by identity: an object with the same name and figure is not. */
 export function isOwnPolicy(candidate: unknown): candidate is LimitPolicy {

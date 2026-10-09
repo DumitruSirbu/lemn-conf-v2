@@ -169,9 +169,12 @@ describe("readLimitReachedPageResponse: the wait a page may tell", () => {
 });
 
 describe("page-limit-response.ts", () => {
-  it("reads source: is the module that reads the message files for the interceptor", () => {
+  it("reads source: the response module reads the message files, and the page's own module reads none", () => {
     expect(readSource("lib/server/rate-limit/page-limit-response.ts")).toMatch(
       /@\/messages\/ro\.json/,
+    );
+    expect(readSource("lib/server/rate-limit/page-limit-page.ts")).not.toMatch(
+      /messages\//,
     );
     expect(READ_LIMIT_REACHED_CODE).toBe("READ_LIMIT_REACHED");
   });

@@ -115,7 +115,7 @@ describe("judgeShareWrite: the share write's bucket, by the block, in the clock 
     });
   });
 
-  it("allows the e2e twin's 300 and refuses its 301st", async () => {
+  it("allows the e2e twin's 500 and refuses its 501st", async () => {
     vi.stubEnv(CLIENT_NETWORK_SOURCE_VARIABLE, undefined);
     vi.stubEnv(E2E_RATE_LIMIT_POLICY_FLAG, "1");
     const kinds = [];

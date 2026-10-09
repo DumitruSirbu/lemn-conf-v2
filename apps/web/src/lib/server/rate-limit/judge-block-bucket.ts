@@ -3,12 +3,16 @@ import "server-only";
 import type { RateLimitStore } from "@lemnaria/persistence";
 
 import type { DigesterOutcome } from "@/lib/server/digest/digest-secret";
+import { reportE2ePolicyInUse } from "@/lib/server/design-failure-log";
 import { subjectOfNetworkBlock } from "@/lib/server/rate-limit/bucket-subject";
 import {
   enforceRateLimit,
   type RateLimitDecision,
 } from "@/lib/server/rate-limit/enforce-rate-limit";
-import type { PolicyChoice } from "@/lib/server/rate-limit/limit-policy";
+import {
+  isE2eTwin,
+  type PolicyChoice,
+} from "@/lib/server/rate-limit/limit-policy";
 import type { ClientNetwork } from "@/lib/server/rate-limit/network-source";
 
 export interface BlockBucketRequest {
@@ -22,7 +26,8 @@ export interface BlockBucketRequest {
 
 /**
  * Counts one hit in the client network's bucket. A source or a flag that is misconfigured is answered before the
- * secret, the window or the store is asked, the source first. The environment, the clock and the store are handed in,
+ * secret, the window or the store is asked, the source first. The first time an e2e twin decides in a process, one
+ * line says its figure is not the production one. The environment, the clock and the store are handed in,
  * so every judge that limits by block asks them in its own request and in one order.
  */
 export async function judgeBlockBucket({
@@ -39,6 +44,7 @@ export async function judgeBlockBucket({
   if (policy.status === "unavailable") {
     return { kind: "unavailable", cause: "policy-misconfigured" };
   }
+  if (isE2eTwin(policy.policy)) reportE2ePolicyInUse();
   return enforceRateLimit({
     subject: subjectOfNetworkBlock(network.block),
     digester,
