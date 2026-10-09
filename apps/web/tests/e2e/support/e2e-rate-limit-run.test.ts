@@ -25,6 +25,8 @@ vi.mock("@lemnaria/persistence", () => ({
 
 const {
   bucketKeyOfTheRun,
+  E2eFigureOutgrownError,
+  requireRoomUnderHalfTheFigure,
   makeRunSecret,
   NoCountersOfTheRunError,
   removeCountersOfTheRun,
@@ -142,6 +144,43 @@ describe("removeCountersOfTheRun", () => {
     await expect(
       removeCountersOfTheRun(FAKE_SECRET, E2E_MINT_POLICY_NAME),
     ).rejects.toBeInstanceOf(NoCountersOfTheRunError);
+  });
+});
+
+describe("requireRoomUnderHalfTheFigure", () => {
+  const HALF_THE_FIGURE = 550;
+
+  it.each([0, 1, 507, HALF_THE_FIGURE])(
+    "accepts a run that minted %i designs",
+    (mintsCounted) => {
+      expect(() => {
+        requireRoomUnderHalfTheFigure({ rowsRemoved: 1, mintsCounted });
+      }).not.toThrow();
+    },
+  );
+
+  it.each([HALF_THE_FIGURE + 1, 1100, 5000])(
+    "fails a run that minted %i designs, more than half of the e2e policy's day",
+    (mintsCounted) => {
+      expect(() => {
+        requireRoomUnderHalfTheFigure({ rowsRemoved: 1, mintsCounted });
+      }).toThrow(E2eFigureOutgrownError);
+    },
+  );
+
+  it("says the two counts and the rule, and holds no secret", () => {
+    const thrown = (() => {
+      try {
+        requireRoomUnderHalfTheFigure({ rowsRemoved: 1, mintsCounted: 600 });
+      } catch (error) {
+        return error as Error;
+      }
+      throw new Error("expected a failure");
+    })();
+
+    expect(thrown.message).toContain("600");
+    expect(thrown.message).toContain("550");
+    expect(thrown.message).toContain("E2E_MINT_DAILY_FIGURE");
   });
 });
 

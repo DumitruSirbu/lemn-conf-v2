@@ -15,6 +15,8 @@
 
 import { boundedFailureReason } from "@lemnaria/configurator-domain";
 
+import type { UnavailableCause } from "@/lib/server/rate-limit/enforce-rate-limit";
+
 /** Which handler the line came from, not the HTTP method: `PUT` and `PATCH` are one operation, and
  *  `POST /api/designs` is `mint` rather than a second `save`. `resume` is the visitor-hash lookup the locale pages
  *  run before answering; its one line, on a driver failure only, carries no value, hash or id. The `share-*`
@@ -86,7 +88,7 @@ export function reportDesignRefusal(
  *  Nothing else: no address, block, subject, key, count or header value ever reaches the line. */
 export type MintLimitLine =
   | { readonly kind: "refused"; readonly policy: string }
-  | { readonly kind: "unavailable"; readonly cause: string };
+  | { readonly kind: "unavailable"; readonly cause: UnavailableCause };
 
 export function reportMintLimit(line: MintLimitLine): void {
   if (line.kind === "refused") {

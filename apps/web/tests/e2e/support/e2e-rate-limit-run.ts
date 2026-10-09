@@ -7,7 +7,10 @@ import {
 
 import { keyedDigest } from "../../../src/lib/server/digest/keyed-digest";
 import { SHARED_BLOCK } from "../../../src/lib/server/rate-limit/client-network";
-import type { PolicyName } from "../../../src/lib/server/rate-limit/limit-policy";
+import {
+  E2E_MINT_DAILY_FIGURE,
+  type PolicyName,
+} from "../../../src/lib/server/rate-limit/limit-policy";
 
 /**
  * The variable that carries a run's secret from the runner's main process to its test workers, and to nothing else.
@@ -109,6 +112,26 @@ function summarised(removed: RemovedRateLimitCounters): CountersOfTheRun {
     rowsRemoved: removed.rowsRemoved,
     mintsCounted: removed.counts.reduce((sum, count) => sum + count, 0),
   };
+}
+
+/** More than half of the e2e policy's figure is room the suite has used up: the figure is raised by a person. */
+export function requireRoomUnderHalfTheFigure(counted: CountersOfTheRun): void {
+  const halfTheFigure = E2E_MINT_DAILY_FIGURE / 2;
+  if (counted.mintsCounted > halfTheFigure) {
+    throw new E2eFigureOutgrownError(counted.mintsCounted, halfTheFigure);
+  }
+}
+
+/** The run minted more than half of the e2e policy's day. Names two counts of tests and no secret. */
+export class E2eFigureOutgrownError extends Error {
+  constructor(minted: number, half: number) {
+    super(
+      `This run minted ${String(minted)} designs, more than half (${String(half)}) of the e2e policy's ` +
+        `${String(E2E_MINT_DAILY_FIGURE)} a day: raise E2E_MINT_DAILY_FIGURE to twice the new figure, ` +
+        "rounded up to the next hundred",
+    );
+    this.name = "E2eFigureOutgrownError";
+  }
 }
 
 /** The run's counter rows could not be found, so either nothing was minted or the key is not the server's. */

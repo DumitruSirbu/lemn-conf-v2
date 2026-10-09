@@ -1,4 +1,6 @@
-import { vi } from "vitest";
+import { randomBytes } from "node:crypto";
+
+import { beforeEach, vi } from "vitest";
 
 // **One declaration of React's act environment, for every test in this project.**
 //
@@ -38,20 +40,26 @@ if (typeof navigator !== "undefined" && "locks" in navigator) {
 
 export {};
 
-// The mint limiter, answered for every test file as "allow", so a test of the mint, a save or a share asks about the
-// route's own work and not about a day's count. `judge-mint-request.ts` is the one seam the route reaches the limiter
-// through; the files that are about the limiter put the real one back with `vi.unmock`.
-vi.mock("@/lib/server/rate-limit/judge-mint-request", () => ({
-  judgeMintRequest: () =>
-    Promise.resolve({
-      decision: { kind: "allow" },
-      policy: {
-        status: "chosen",
-        policy: {
-          name: "design-mint-per-chisinau-day",
-          figure: 20,
-          window: "chisinau-day",
-        },
-      },
-    }),
-}));
+// The mint limiter runs for real in every test file: the decision is never faked, only what it counts in.
+//
+// The key every digest is made under is random, made here in this process, in no file and printed nowhere. A test
+// that is about the secret sets or unsets `DIGEST_SECRET` for itself.
+process.env.DIGEST_SECRET = randomBytes(32).toString("hex");
+
+// The rate-limit store's instance is the persistence package's own fake, fresh for each test, so no test counts in a
+// database and no test sees another's count.
+const rateLimitStore = vi.hoisted(() => ({ current: undefined as unknown }));
+
+vi.mock("@/lib/server/rate-limit/rate-limit-store-instance", async () => {
+  const { FakeRateLimitStore } = await import("@lemnaria/persistence");
+  return {
+    getRateLimitStore: () => {
+      rateLimitStore.current ??= new FakeRateLimitStore();
+      return rateLimitStore.current;
+    },
+  };
+});
+
+beforeEach(() => {
+  rateLimitStore.current = undefined;
+});

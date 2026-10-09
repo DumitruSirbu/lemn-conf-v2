@@ -28,14 +28,14 @@ describe("the policies as data", () => {
     });
     expect(E2E_MINT_POLICY).toEqual({
       name: E2E_MINT_POLICY_NAME,
-      figure: 1000,
+      figure: 1100,
       window: "chisinau-day",
     });
   });
 
   it("states the figures as constants: twenty a day, and a thousand for the suite", () => {
     expect(MINT_DAILY_FIGURE).toBe(20);
-    expect(E2E_MINT_DAILY_FIGURE).toBe(1000);
+    expect(E2E_MINT_DAILY_FIGURE).toBe(1100);
   });
 
   it("keeps the two names apart, so no count of one is a count of the other", () => {

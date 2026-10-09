@@ -1,4 +1,4 @@
-import { spawn, spawnSync, type ChildProcess } from "node:child_process";
+import { spawn, type ChildProcess } from "node:child_process";
 import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
 import { createServer } from "node:net";
@@ -32,17 +32,21 @@ export interface ProductionPolicyServer {
 
 /**
  * A second server beside the suite's, under the production policy: no policy flag, no network source, and a secret of
- * its own, on the test database. It is `next start` of a production build, in both of the suite's modes: under `CI`
- * the first server has just built, and elsewhere this builds, which `next dev` (its output is `.next/dev`) tolerates.
- * Only a process it started is ever stopped.
+ * its own, on the test database. It is `next start` of the production build the first server made, so it runs under
+ * `CI` only and builds nothing: a build inside a developer's run would write where a running server reads. Only a
+ * process it started is ever stopped.
  */
 export async function startProductionPolicyServer(): Promise<ProductionPolicyServer> {
+  if (process.env.CI === undefined) {
+    throw new Error(
+      "The second server shares the first server's production build, which only a CI run has",
+    );
+  }
   await requirePortFree();
   const directory = process.cwd();
   const next = nextBinaryOf(directory);
   const secret = makeRunSecret();
   const environment = environmentOfTheServer(secret);
-  if (process.env.CI === undefined) build(next, directory, environment);
 
   const child = spawn(
     process.execPath,
@@ -85,20 +89,6 @@ function nextBinaryOf(directory: string): string {
   return createRequire(join(directory, "package.json")).resolve(
     "next/dist/bin/next",
   );
-}
-
-function build(
-  next: string,
-  directory: string,
-  environment: NodeJS.ProcessEnv,
-): void {
-  const built = spawnSync(process.execPath, [next, "build"], {
-    cwd: directory,
-    env: environment,
-    stdio: "ignore",
-  });
-  if (built.status !== 0)
-    throw new Error("The production build for the second server failed");
 }
 
 /** A port that something already answers on is not ours to use: a request there would be counted by another server. */

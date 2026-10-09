@@ -21,10 +21,12 @@ export interface LimitPolicy {
 export const MINT_DAILY_FIGURE = 20;
 
 /**
- * Provisional. Twice the designs one whole e2e run makes, rounded up to the next hundred, so that a misplaced flag
- * means a thousand a day and not no limit. The run's own count replaces it once it is measured.
+ * Twice the designs one whole e2e run makes, rounded up to the next hundred, so that a misplaced flag means about a
+ * thousand a day and not no limit. A bucket lasts one invocation and one invocation may run the whole suite: 507
+ * designs measured (desktop 132, mobile 191 and 184), twice is 1,014, the next hundred is 1,100. The e2e teardown
+ * fails when an invocation mints more than half of it, so a person raises it as the suite grows.
  */
-export const E2E_MINT_DAILY_FIGURE = 1000;
+export const E2E_MINT_DAILY_FIGURE = 1100;
 
 export const MINT_POLICY: LimitPolicy = Object.freeze({
   name: MINT_POLICY_NAME,

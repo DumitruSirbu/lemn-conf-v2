@@ -16,7 +16,7 @@ import {
   type HeaderReader,
 } from "@/lib/server/rate-limit/network-source";
 import { reportE2eMintPolicyInUse } from "@/lib/server/design-failure-log";
-import { getRateLimitStore } from "@/lib/server/repository";
+import { getRateLimitStore } from "@/lib/server/rate-limit/rate-limit-store-instance";
 
 export interface MintJudgement {
   readonly decision: RateLimitDecision;

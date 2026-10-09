@@ -3,13 +3,11 @@ import "server-only";
 import type {
   AuthorizedConfigurationRepository,
   OwnedDesignRepository,
-  RateLimitStore,
   ShareLinkRepository,
   VisitorResumeRepository,
 } from "@lemnaria/persistence";
 import {
   NeonConfigurationRepository,
-  NeonRateLimitStore,
   NeonShareLinkRepository,
 } from "@lemnaria/persistence";
 
@@ -31,7 +29,6 @@ type SharedRepository = Omit<AuthorizedConfigurationRepository, "load"> &
 // crash `next build` in any environment where the env var isn't set (e.g. CI without secrets).
 let repository: SharedRepository | undefined;
 let shareLinkRepository: ShareLinkRepository | undefined;
-let rateLimitStore: RateLimitStore | undefined;
 
 /** The single repository instance route handlers and server components share — the server-side
  *  port, whose update path takes a write credential (ADR 0019 decision 1), plus the visitor-resume
@@ -51,12 +48,4 @@ export function getRepository(): SharedRepository {
 export function getShareLinkRepository(): ShareLinkRepository {
   shareLinkRepository ??= new NeonShareLinkRepository();
   return shareLinkRepository;
-}
-
-/** The rate-limit store's one instance, made on first use and never at import or build, so no connection is opened
- *  where no limit is asked. A build with no `DATABASE_URL` still builds; a request that reaches it without one is
- *  unavailable, which the limiter answers. */
-export function getRateLimitStore(): RateLimitStore {
-  rateLimitStore ??= new NeonRateLimitStore();
-  return rateLimitStore;
 }

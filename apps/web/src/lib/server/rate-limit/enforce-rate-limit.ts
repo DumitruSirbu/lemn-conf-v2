@@ -20,7 +20,8 @@ import type { ClientNetwork } from "@/lib/server/rate-limit/network-source";
  *  repeat and the mint's longest time it stays under the lock's ten seconds. */
 export const RATE_LIMIT_DEADLINE_MS = 3000;
 
-/** Why a request could not be judged. Only the log's code says which. */
+/** Why a mint could not be judged, in one closed list that types the log line too. `judgement-failed` is the route's
+ *  own: the judgement itself threw. Only the log's code says which. */
 export const UNAVAILABLE_CAUSES = [
   "source-misconfigured",
   "policy-misconfigured",
@@ -28,6 +29,7 @@ export const UNAVAILABLE_CAUSES = [
   "window-unavailable",
   "store-failed",
   "deadline-passed",
+  "judgement-failed",
 ] as const;
 
 export type UnavailableCause = (typeof UNAVAILABLE_CAUSES)[number];

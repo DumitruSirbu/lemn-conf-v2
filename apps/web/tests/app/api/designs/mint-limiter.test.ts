@@ -7,10 +7,8 @@ import { E2E_MINT_POLICY_NOTICE } from "@/lib/server/design-failure-log";
 
 /**
  * `POST /api/designs` asks the limiter after the cross-site guard and before the visitor is read or anything is
- * minted. The real seam is put back here: every other file of this directory runs with the limiter answering allow.
+ * minted. The judgement is the real one, as in every route test; this file chooses the store it counts in.
  */
-vi.unmock("@/lib/server/rate-limit/judge-mint-request");
-
 const FAKE_SECRET =
   "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
 
@@ -21,6 +19,9 @@ const repository = vi.hoisted(() => ({ current: undefined as unknown }));
 
 vi.mock("@/lib/server/repository", () => ({
   getRepository: () => repository.current,
+}));
+
+vi.mock("@/lib/server/rate-limit/rate-limit-store-instance", () => ({
   getRateLimitStore: () => rateLimitStore.current,
 }));
 
@@ -277,6 +278,36 @@ describe("POST /api/designs: a mint the limiter cannot judge", () => {
     await vi.advanceTimersByTimeAsync(3000);
 
     await expectUnavailable(await pending, ["record-hits"]);
+  });
+
+  it("answers 503 as judgement-failed when the judgement itself throws, keeping nothing of what it threw", async () => {
+    const hostileEnvironment = new Proxy(
+      {},
+      {
+        getOwnPropertyDescriptor: () => {
+          throw new Error("ENVIRONMENT-MARKER");
+        },
+      },
+    );
+    const environmentSpy = vi
+      .spyOn(process, "env", "get")
+      .mockReturnValue(hostileEnvironment as NodeJS.ProcessEnv);
+    const logs = silenceLogs();
+
+    try {
+      await expectUnavailable(await POST(mintRequest()), []);
+    } finally {
+      environmentSpy.mockRestore();
+    }
+
+    expect(logs.error).toHaveBeenCalledWith("[designs]", {
+      event: "design-operation-unavailable",
+      operation: "mint",
+      refusalCode: "MINT_UNAVAILABLE",
+      status: 503,
+      cause: "judgement-failed",
+    });
+    expect(everythingLogged(logs)).not.toContain("MARKER");
   });
 
   it("answers 503 when no store can be made at all, as a build with no database would", async () => {

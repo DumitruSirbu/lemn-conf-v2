@@ -568,7 +568,15 @@ describe("what a decision carries", () => {
     expect(Reflect.ownKeys(allowed)).toEqual(["kind"]);
     expect(Reflect.ownKeys(refused)).toEqual(["kind", "retryAfterSeconds"]);
     expect(Reflect.ownKeys(unavailable)).toEqual(["kind", "cause"]);
-    expect(UNAVAILABLE_CAUSES).toContain("store-failed");
+    expect([...UNAVAILABLE_CAUSES]).toEqual([
+      "source-misconfigured",
+      "policy-misconfigured",
+      "digester-unusable",
+      "window-unavailable",
+      "store-failed",
+      "deadline-passed",
+      "judgement-failed",
+    ]);
   });
 
   it("holds no count, block, key or remainder anywhere a caller could print it", async () => {
