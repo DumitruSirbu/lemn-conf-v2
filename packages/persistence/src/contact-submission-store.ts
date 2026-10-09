@@ -127,6 +127,7 @@ const REFUSED_PARTS = {
     "the design revision must be a whole number from 1 to 9223372036854775807",
   snapshot:
     "a design is stored with its snapshot, an object, and a callback without one",
+  request: "the request must be plain data whose members can be read",
   snapshotDocument:
     "the snapshot's document must be a JSON object of finite numbers and text the database can hold, written exactly as JSON.stringify writes it, with nothing in it written twice",
   snapshotPriced:
@@ -181,10 +182,11 @@ export interface JudgedSubmission {
  *   disagrees with what it holds, an intent outside the domain's list, an empty design id, and an e-mail present when
  *   the channel is not e-mail or absent when it is.
  *
- * For a request that is an object, whatever its members, it throws only its own refusal and nothing it throws holds a
- * value. It returns for every document and for every price that is a tree. A price whose parts are shared (each level
- * holding the next twice) is walked once for each path and its encoder does not return: a recorded limit, which holds
- * for a caller that hands over `snapshotSubmission`'s result untouched. What a server refuses for size, a time limit or
+ * For any value handed in, it throws only its own refusal and nothing it throws holds a value: anything else thrown,
+ * such as a member whose read throws, is the refusal of the request and keeps nothing of what was thrown. It returns for
+ * every document and for every price that is a tree. A price whose parts are shared (each level holding the next twice)
+ * is walked once for each path and its encoder does not return: a recorded limit, which holds for a caller that hands
+ * over `snapshotSubmission`'s result untouched. What a server refuses for size, a time limit or
  * anything of its own is left to it, and is the store error.
  */
 export function requireValidSubmission(
@@ -198,21 +200,52 @@ export function requireValidSubmission(
 export function judgeSubmission(
   submission: ContactSubmissionToRecord,
 ): JudgedSubmission {
-  requireValidLookup(submission);
-  requireValidContact(submission.contact);
-  requireStorableText(submission.locale, "locale");
-  return {
-    snapshotJson: judgeTarget(submission.target, submission.snapshot),
-  };
+  return refusingAnythingElseAsTheRequest(() => {
+    requireValidLookup(submission);
+    requireValidContact(submission.contact);
+    requireStorableText(submission.locale, "locale");
+    return {
+      snapshotJson: judgeTarget(submission.target, submission.snapshot),
+    };
+  });
 }
 
 export function requireValidLookup(request: SubmissionLookupRequest): void {
-  requireValidClientRequestId(request.clientRequestId);
-  requireSha256Digest(
-    request.payloadDigest,
-    "contact request digest",
-    "use the contact submission store",
-  );
+  refusingAnythingElseAsTheRequest(() => {
+    requireValidClientRequestId(request.clientRequestId);
+    const digest = request.payloadDigest;
+    try {
+      requireSha256Digest(
+        digest,
+        "contact request digest",
+        "use the contact submission store",
+      );
+    } catch (refusal) {
+      throw registeredAsOurs(refusal);
+    }
+  });
+}
+
+/** The refusals this check made, by identity: a message can be copied by anything that throws, an identity cannot. */
+const ownRefusals = new WeakSet();
+
+function registeredAsOurs(refusal: unknown): unknown {
+  if (refusal instanceof Error) ownRefusals.add(refusal);
+  return refusal;
+}
+
+/**
+ * The one catch of each entry that takes an object. A refusal this check already made leaves as it is. Anything else
+ * thrown (a getter, a proxy, a request that is not an object at all) becomes the refusal of the request, and nothing of
+ * what was thrown is kept, not its message, its type or as a cause: it may hold a value.
+ */
+function refusingAnythingElseAsTheRequest<Result>(judge: () => Result): Result {
+  try {
+    return judge();
+  } catch (thrown) {
+    if (thrown instanceof Error && ownRefusals.has(thrown)) throw thrown;
+    throw refusalOf("request");
+  }
 }
 
 export function requireValidClientRequestId(clientRequestId: string): void {
@@ -459,7 +492,9 @@ function requireStorableText(value: unknown, part: RefusedPart): void {
 }
 
 function refusalOf(part: RefusedPart): Error {
-  return new Error(
+  const refusal = new Error(
     `Refusing to use the contact submission store: ${REFUSED_PARTS[part]}.`,
   );
+  ownRefusals.add(refusal);
+  return refusal;
 }

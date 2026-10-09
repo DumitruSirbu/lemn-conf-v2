@@ -669,3 +669,161 @@ describe("a part of the request that is not an object", () => {
     );
   });
 });
+
+describe("a part whose member read throws", () => {
+  const THROWN_TEXT = `${MARKER} thrown by a getter`;
+
+  function throwing(): never {
+    throw Object.assign(new Error(THROWN_TEXT), { detail: THROWN_TEXT });
+  }
+
+  /** An object of the given shape in which `member` is a getter that throws. */
+  function withThrowingMember<Shape extends object>(
+    shape: Shape,
+    member: string,
+  ): Shape {
+    return Object.defineProperty({ ...shape }, member, {
+      enumerable: true,
+      get: throwing,
+    });
+  }
+
+  const design = aDesignSubmission(CLIENT_REQUEST_ID);
+  const PLACES: readonly (readonly [
+    string,
+    () => ContactSubmissionToRecord,
+  ])[] = [
+    [
+      "the submission's contact",
+      () => ({
+        ...design,
+        contact: withThrowingMember(design.contact, "name"),
+      }),
+    ],
+    [
+      "the submission's target",
+      () => ({ ...design, target: withThrowingMember(design.target, "kind") }),
+    ],
+    [
+      "a design's reference",
+      () => ({
+        ...design,
+        target: {
+          kind: "design",
+          design: withThrowingMember(
+            { id: FAKE_DESIGN_ID, revision: "7" },
+            "revision",
+          ),
+        },
+      }),
+    ],
+    [
+      "the snapshot",
+      () => ({
+        ...design,
+        snapshot: withThrowingMember(FAKE_SNAPSHOT, "document"),
+      }),
+    ],
+    ["the submission itself", () => withThrowingMember(design, "locale")],
+    [
+      "a proxy that throws on every read",
+      () =>
+        new Proxy(design, {
+          get: throwing,
+          has: throwing,
+          ownKeys: throwing,
+        }),
+    ],
+  ];
+
+  it.each(PLACES)(
+    "is the refusal of the request when %s throws, keeping nothing of what was thrown",
+    (_place, build) => {
+      let refusal: unknown;
+      try {
+        requireValidSubmission(build());
+      } catch (thrown) {
+        refusal = thrown;
+      }
+
+      expect(refusal).toBeInstanceOf(Error);
+      expect((refusal as Error).message).toMatch(
+        /plain data whose members can be read/,
+      );
+      expect((refusal as Error).message).not.toContain(MARKER);
+      expect((refusal as Error).cause).toBeUndefined();
+      expect(Object.getOwnPropertyNames(refusal)).not.toContain("detail");
+    },
+  );
+
+  it.each([
+    ["the client request id", "clientRequestId"],
+    ["the digest", "payloadDigest"],
+  ])(
+    "is the refusal of the request when %s of a look-up throws",
+    (_name, member) => {
+      const request = withThrowingMember(
+        { clientRequestId: CLIENT_REQUEST_ID, payloadDigest: DIGEST_A },
+        member,
+      );
+
+      const outcome = (() => {
+        try {
+          requireValidLookup(request);
+          return "returned";
+        } catch (thrown) {
+          return thrown instanceof Error ? thrown.message : "not an error";
+        }
+      })();
+
+      expect(outcome).toMatch(/plain data whose members can be read/);
+      expect(outcome).not.toContain(MARKER);
+    },
+  );
+
+  it("is the refusal of the request when the whole request is null", () => {
+    expect(
+      outcomeOfTheCheck(null as unknown as ContactSubmissionToRecord),
+    ).toMatch(/plain data whose members can be read/);
+  });
+
+  it.each([
+    ["text", MARKER],
+    ["a number", 7],
+  ])(
+    "is a refusal of the check, holding nothing of it, when the whole request is %s",
+    (_name, value) => {
+      const outcome = outcomeOfTheCheck(
+        value as unknown as ContactSubmissionToRecord,
+      );
+
+      expect(outcome.startsWith(OWN_REFUSAL)).toBe(true);
+      expect(outcome).not.toContain(MARKER);
+    },
+  );
+
+  it("leaves a refusal the check already makes as it is, with its own sentence", () => {
+    expect(outcomeOfTheCheck({ ...design, clientRequestId: "short" })).toMatch(
+      /client request id/,
+    );
+    expect(
+      outcomeOfTheCheck({ ...design, payloadDigest: "not a digest" }),
+    ).toMatch(/64-character lowercase hex/);
+  });
+
+  it("is not fooled by a thrown error that carries the check's own words", () => {
+    const impostor = () => {
+      throw new Error(
+        "Refusing to use the contact submission store: a value of its own.",
+      );
+    };
+    const request = Object.defineProperty({ ...design }, "locale", {
+      enumerable: true,
+      get: impostor,
+    });
+
+    expect(outcomeOfTheCheck(request)).toMatch(
+      /plain data whose members can be read/,
+    );
+  });
+});
