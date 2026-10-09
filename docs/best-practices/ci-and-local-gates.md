@@ -431,6 +431,12 @@ coordinator-run]. The ledger incident itself is in [ADR 0153](../decisions/0153-
   re-run alone. Re-run it once before diagnosing.
 - Live tests write only rows whose client request id carries a marker (`contact-live-test-`) and delete only those (ADR 0151).
 
+**Whole e2e runs have three known intermittent failures, 2026-10-09** [QA-run and coordinator-run, relayed], **none a regression of the wave that
+sees it:** the two-tab race (`qa-7e3b-s6-two-tab-convergence…`, backlog 89, Q35); `tests/room/plan-preview-model.facing-labels.test.ts:255` in
+the web unit suite (backlog 145); and `tests/e2e/qa-8d-review-scene.adversarial.e2e.spec.ts:188` (backlog 162). A run red on one of them is
+recorded with its title and run again once; any other red is a red. The local `CI=1` e2e run (a build and `next start`, eight workers) is the
+form the triage and 8F's QA used.
+
 ## e2e in CI: shards, the two summary checks, and the per-shard test budget
 
 *Added 2026-09-30, [ADR 0105](../decisions/0105-the-e2e-job-splits-by-playwright-project-rather-than-raising-its-ceiling-again.md)

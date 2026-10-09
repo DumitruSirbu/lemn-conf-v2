@@ -502,3 +502,8 @@ milestone ([M9](../milestones/M9-delivery-preparation.md), proposed). This is th
 the owner's ruling that hosting is a separate milestone, not the owner's sentence. Decisions 2, 9 and 10 (the
 firewall, no external proxy, when each part is implemented) concern a host the owner has not chosen and are
 re-read for it there; nothing in them is changed here.
+
+**Note — 2026-10-09 (wave 8F):** the application half of SEC-001 for the mint is built: the limiter runs after the cross-site guard and before
+anything is minted, and fails closed (decision 5). The gate stays open and is M9's; its text gained a line that production's network source is a
+named platform and not none, a forged forwarding header is counted under its real block, and the e2e policy's flag is absent
+([ADR 0155](0155-the-mint-asks-a-keyed-per-day-per-network-limiter-first-and-refuses-what-it-cannot-judge-the-owner-names-the-network-source-and-a-destructive-mutant-never-touches-a-database.md), decision 12). Backlog 90 closes.

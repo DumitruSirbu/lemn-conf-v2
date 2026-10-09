@@ -54,3 +54,13 @@ say: that cleanup deletes tests' rows and only those, and that the rule reaches 
   deletes by the rule above is the code's, not the agent's.
 - Open: the marker. Until the owner rules, the reading above is the architect's and a later wave that needs a stricter or
   looser test must put the question.
+
+## Note — 2026-10-09: an incident under this rule, and a standing rule (wave 8F)
+
+To show a mutation red, a developer ran a mutant of the test-only counter delete with its `where` clause removed against the live test
+database: every row of `rate_limit_counters` there was deleted, more than once; the helper's guard held; how many rows and whose is not known.
+It is inside this record's sentence only because that table on that database is written by tests alone [inf]; it broke the dispatch's rule.
+Nothing is to be restored. **The standing rule:** *A mutant of a statement that deletes, updates, truncates or alters is run against a mocked
+driver and never against a database. A live proof that a statement touches only what it is handed plants rows of its own beside the ones it
+hands over and asserts they remain. A destructive statement whose `where` no longer names what it was handed is not sent anywhere.*
+[ADR 0155](0155-the-mint-asks-a-keyed-per-day-per-network-limiter-first-and-refuses-what-it-cannot-judge-the-owner-names-the-network-source-and-a-destructive-mutant-never-touches-a-database.md), *Incident*.

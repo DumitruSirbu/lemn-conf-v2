@@ -1970,6 +1970,14 @@ proposes, both the owner's decision because this entry says widening the lock co
 or (2) hold the lock across the hand-off PUT, which closes only the create path. *Not established:* that it fires on a CI runner (it
 needed parallel load here: 0 of 140 rounds at one worker, and CI runs one worker on a two-core runner). **Owner:** the owner decides.
 
+**Updated 2026-10-09, after wave 8F: this is now Q35, recorded and not decided.** The plan's three options: **(a)** every save takes the lock
+shared and the mint takes it alone; **(b)** the lock is held across the first save (the create path only); **(c), the architect's
+recommendation** [inf, unmeasured]: a save never sets the visitor cookie, only a mint does (closes it on the server for every browser; the
+cookie's thirty days then run from the last design created unless the lifetime is lengthened; the security reader's view: the only one the
+server enforces for every browser; browsers cap a lifetime near 400 days [recalled]). **A second measurement, with the limiter in place:** 0 of
+100 rounds [QA-run, one sample], against the triage's 12 of 100 before it; **0 of 100 is not a fix.** Until decided the two-tab spec stays unskipped, and 8T's gate
+cannot be ticked unless the owner accepts the residual. [ADR 0155](../decisions/0155-the-mint-asks-a-keyed-per-day-per-network-limiter-first-and-refuses-what-it-cannot-judge-the-owner-names-the-network-source-and-a-destructive-mutant-never-touches-a-database.md), *Q35*.
+
 ## 90. SEC-7E3b.3 — the rotation `UPDATE` has no rate limit — FOUND 2026-09-23, DEFERRED TO M8
 
 **Found by M7 wave 7E3b's security review** (SEC-7E3b.3 at the
@@ -1978,6 +1986,8 @@ one `UPDATE designs SET visitor_hash = …` unconditionally; nothing bounds how 
 trigger it. ADR 0114 decision 7 already names M8's limiter and WAF scope as the control for mint
 abuse generally; this is that same gap, named for the rotation write specifically rather than built
 here. No owner yet; phase is M8.
+
+**Closed 2026-10-09 by wave 8F:** a rotation happens only in a mint the limiter passed ([ADR 0155](../decisions/0155-the-mint-asks-a-keyed-per-day-per-network-limiter-first-and-refuses-what-it-cannot-judge-the-owner-names-the-network-source-and-a-destructive-mutant-never-touches-a-database.md), decision 6; the plan's *8F, the records*).
 
 ## 92. SEC-U1.1 — the largest storable design row grows to 523,972 bytes — FOUND 2026-09-29, DEFERRED TO M8's LAUNCH GATE
 
@@ -2705,17 +2715,52 @@ fake) and `qa-8j-environment` assert the same own keys `["send"]`: a newly added
 `qa-8j-request-and-predicate` 593, `qa-8j-notice-customer-text` 552, `qa-8j-notice-kitchen` 315; the developer's
 `lead-notification.test.ts` 687, `resend-mail-sender.test.ts` 615. **Owner:** the test audit. **Trigger:** the M8 close audit (ADR 0152, Amendment A).
 
-## 161. The Control/Meta-click spec's URL wait is a test fault, and the two-tab helpers hide the status of a lockout — RECORDED 2026-10-09 BY THE TRIAGE OF 125
-
-**Source [QA-run by `m8-e2e-triage` at `af55c16`, relayed; see 125].** (1) `top-bar-back.qa-m7c-c1-s3.adversarial.desktop.e2e.spec.ts:194`:
-`expect(opened).toHaveURL(...)` times out with `Received: ""` although the product is right (7 failures in 24 runs). Smallest fix
-proposed, **not applied and not tested:** poll `opened.url()` for the expected URL. (2) A test-fidelity note: `canWriteDesign`
-(`tests/e2e/support/two-tab-convergence.ts`) and `canWrite` (the lock spec, about `:103-109`) return false for any non-200, so a 404
-lockout reads the same as a 5xx; the status belongs in the failure reason. **Owner:** the next developer dispatch that touches these
-files. **Trigger:** that dispatch, or the next sighting of either.
-
 ## 160. The mail adapter's answer mapping moves to its own module — RECORDED 2026-10-09 AT M8 8J's CLOSE
 
 **Source [the plan's 8J, *the three reviews*, JC-R1.8].** `resend-mail-sender.ts` (231 lines) does request building, the timeout race and
 the answer mapping with body parsing. A move now costs a re-read and three source scans' lists for no behaviour. **Owner:** whoever next
 changes the file. **Trigger:** a second adapter, or the file's next change of behaviour.
+
+## 161. The Control/Meta-click spec's URL wait is a test fault, and the two-tab helpers hide the status of a lockout — RECORDED 2026-10-09 BY THE TRIAGE OF 125 — CLOSED 2026-10-09, FIXED IN `c5432da`
+
+**Source [QA-run by `m8-e2e-triage` at `af55c16`, relayed; see 125].** (1) `top-bar-back.qa-m7c-c1-s3.adversarial.desktop.e2e.spec.ts:194`:
+`expect(opened).toHaveURL(...)` times out with `Received: ""` although the product is right (7 failures in 24 runs). Smallest fix
+proposed: poll `opened.url()` for the expected URL. (2) A test-fidelity note: `canWriteDesign`
+(`tests/e2e/support/two-tab-convergence.ts`) and `canWrite` (the lock spec, about `:103-109`) return false for any non-200, so a 404
+lockout reads the same as a 5xx; the status belongs in the failure reason. **Closed 2026-10-09: both fixed in `c5432da` (the two e2e test
+faults, before wave 8F), one combined reviewer approved** [coordinator ran `git log`; relayed].
+
+## 162. A pixel comparison in the review scene's e2e spec flickered once in a whole `CI=1` run — RECORDED 2026-10-09 AT M8 8F's CLOSE
+
+**Source [QA-run, relayed].** `tests/e2e/qa-8d-review-scene.adversarial.e2e.spec.ts:188`, "a tap on a body in the review's scene selects
+nothing…", failed once in a whole `CI=1` run at eight workers (`expected <= 60, received 32757` changed pixels) and passed alone 6 of 6 and in
+an earlier whole run. A flicker of an 8D pixel comparison, not 8F's. **Owner:** none yet. **Trigger:** a recurrence, or the M8 test audit.
+
+## 163. A tap on *Continuă* immediately after Step 1 loads does nothing — RECORDED 2026-10-09 AT M8 8F's CLOSE
+
+**Source [the visual verifier, relayed].** The tap lands before hydration; with a two-second wait it works every time. **A product question;**
+no owner. **Trigger:** none set.
+
+## 164. One unidentified `404` resource appears on Step 1 in every run — RECORDED 2026-10-09 AT M8 8F's CLOSE
+
+**Source [the visual verifier].** "Failed to load resource: 404" appears on Step 1 in every run; **what it is has not been established.**
+**Owner:** none yet. **Trigger:** none set.
+
+## 165. Both e2e harness servers listen on every interface — RECORDED 2026-10-09 AT M8 8F's CLOSE
+
+**Source [the security reader, F-S2.4, recalled: the framework's default host].** The suite's first server always has; the second is CI-only.
+A developer's first server is reachable on the local network under the e2e policy, on the test database. Binding it to loopback changes how
+every e2e test reaches its server and is measured on its own. **Owner:** the coordinator. **Trigger:** that measurement.
+
+## 166. The environment type and its own-member read are written three times across mail, digest and network — RECORDED 2026-10-09 AT M8 8F's CLOSE
+
+**Source [the plan's 8F, *the three reviews*, clean-code FC-R1.9 and FC-R1.11].** The environment's type and the own-member read exist in the
+mail, digest and network modules, and the deadline helper twice; one module would hold them, but moving them goes through 8J's closed modules
+and their source scans. **Owner:** the wave that builds the fourth reader. **Trigger:** the fourth reader, 8G's or 8K's.
+
+## 167. For the milestone-close test audit: 8F's restated pairs and the remaining should-fix and nits — RECORDED 2026-10-09 AT M8 8F's CLOSE
+
+**Source [the plan's 8F, *the three reviews*; `coord-8f-review-clean.md`, session scratchpad].** FC-R1.18, FC-R1.21, FC-R1.24, FC-R1.25,
+FC-R1.28, FC-R1.29, the rest of FC-R1.20 and FC-R1.22, the nits and the restated pairs. From the final re-check [reviewer, clean-code]: the
+listener still removed in the test body in `qa-8f-refused-mint-through-the-route` (about `:828-845`), and three duplications in
+`qa-8f-mint-limit-code`. **Owner:** the test audit. **Trigger:** the M8 close audit (ADR 0152, Amendment A).

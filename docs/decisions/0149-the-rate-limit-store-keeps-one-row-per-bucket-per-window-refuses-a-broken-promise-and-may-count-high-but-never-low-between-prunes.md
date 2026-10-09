@@ -203,3 +203,10 @@ skipped, exit 0 [coordinator-run]. **The suite no longer reaches production from
 reported to be the `rate_limit_counters` grant test, because the table is not on preview either [coordinator-run, relayed];
 the grant half of criterion 7 therefore has still never executed anywhere. Production's grants are checked only by a
 deliberate run per the runbook.
+
+## Note — 2026-10-09: 8F is built (wave 8F)
+
+The limit *"The digest is unkeyed"* (and *"unkeyed for 8E and 8F"*) is overtaken: 8F keys every bucket from its first deploy, by HMAC-SHA-256
+under the thirty-two bytes of `DIGEST_SECRET`, with length-marked parts and a closed set of purposes. The evaluator judges one bucket (two are
+8G's). A test-only delete of counters by key sits beside the fake in the persistence package (`delete-rate-limit-counters-for-tests.ts`).
+[ADR 0155](0155-the-mint-asks-a-keyed-per-day-per-network-limiter-first-and-refuses-what-it-cannot-judge-the-owner-names-the-network-source-and-a-destructive-mutant-never-touches-a-database.md) decisions 1, 5 and 10.

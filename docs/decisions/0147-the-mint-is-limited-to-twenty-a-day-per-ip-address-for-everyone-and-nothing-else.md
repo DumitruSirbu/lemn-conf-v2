@@ -220,3 +220,9 @@ wording, relayed]. The owner then ruled, verbatim as relayed:
   prefix. **8E** is unchanged: the table stores a hash of the block.
 
 Nothing else in this record changes.
+
+## Note — 2026-10-09: built (wave 8F)
+
+The limit is built: 20 a Chișinău day per block, the mint's one bucket, refused above the figure. **The count is of attempts, not of designs
+made** (FL-R1.3, the architect's ruling, **open to the owner**): a hit is counted before it is judged and cannot be given back, so a mint that
+fails after an allowed hit has spent one. Whether a failed try counts was not ruled here. [ADR 0155](0155-the-mint-asks-a-keyed-per-day-per-network-limiter-first-and-refuses-what-it-cannot-judge-the-owner-names-the-network-source-and-a-destructive-mutant-never-touches-a-database.md), *Limits*.

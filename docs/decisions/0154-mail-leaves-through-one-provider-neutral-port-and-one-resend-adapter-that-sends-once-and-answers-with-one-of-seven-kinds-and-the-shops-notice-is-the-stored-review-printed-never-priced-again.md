@@ -320,3 +320,9 @@ deployment where the variables are set, and a later close-out quotes it. It woul
 - **Commits** on `m8-review-contact-success`, local, not pushed [coordinator ran `git log`]: see the plan's *8J as closed*.
 - **Not run / not proven:** `pnpm check`, `pnpm ci:local`, e2e, anything on a CI runner; and anything against the live provider
   (list above).
+
+## Note — 2026-10-09 (wave 8F)
+
+The e2e rate-limit policy's flag, `LEMNARIA_E2E_RATE_LIMIT_POLICY`, follows this record's fake-and-flag pattern: exactly `1`, an own member, and
+refused (every mint `503`) beside `CLIENT_NETWORK_SOURCE` as the mail flag is beside a mail variable. Its gate line joins the mail flag's at 8T.
+[ADR 0155](0155-the-mint-asks-a-keyed-per-day-per-network-limiter-first-and-refuses-what-it-cannot-judge-the-owner-names-the-network-source-and-a-destructive-mutant-never-touches-a-database.md) decision 10.

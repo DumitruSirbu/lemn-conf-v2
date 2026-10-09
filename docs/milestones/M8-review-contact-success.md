@@ -1220,9 +1220,9 @@ both in M9.
 | 8I | ~~Stays. Blocked 2026-10-08 on the keyed-digest question; unblocked the same day: the owner said yes~~ **DONE 2026-10-09, commits `049ed39` … `1bbd08e`, not pushed.** The contact submissions store. See *8I as closed* and [ADR 0153](../decisions/0153-a-contact-request-is-stored-once-apart-from-designs-the-application-role-reads-none-of-its-personal-columns-and-code-refuses-before-the-server-what-the-table-would-refuse.md). **Owner action outstanding:** apply `0008` and the three grants by the runbook; the grant is narrower than Q14 (i) | ~~8E's migration number~~ — 8E took `0007`. ~~**Dispatchable.** Its dispatch reads *The digest secret* (below, under 8I) and ADR 0150's *What later waves inherit*; it never touches the secret~~ — Done |
 | 8H | **DONE 2026-10-08, commits `aecacbd` … `2b8c60b`, not pushed.** The submission contract. See *8H as closed* and [ADR 0150](../decisions/0150-the-submission-contract-is-one-io-free-definition-a-request-holds-no-price-reads-only-what-the-sender-wrote-and-the-snapshot-and-the-review-share-one-refusal-rule.md). `2b8c60b` is unreviewed | ~~Nothing. Dispatchable~~ — Done |
 | 8J | ~~**Changed:** no provider adapter~~ ~~**Restored: a Resend adapter** (owner, 2026-10-07)~~ **DONE 2026-10-09, commits `8eaba35` … `45e2c39`, not pushed.** The mail port, the Resend adapter and the shop's notice. See *8J as closed* and [ADR 0154](../decisions/0154-mail-leaves-through-one-provider-neutral-port-and-one-resend-adapter-that-sends-once-and-answers-with-one-of-seven-kinds-and-the-shops-notice-is-the-stored-review-printed-never-priced-again.md). Nothing calls it yet; no real message has been sent. **Owner actions outstanding:** the three mail variables, a verified sender, the inbox, the one real send, Q34 | ~~**Nothing to build it. Dispatchable whole**, after 8D. Proving it end to end waits for the owner: the three variables on a deployment, and a sender the provider accepts~~ — Done |
-| 8F | **Changed:** identity through a port; one bucket, 20 a day per ~~address~~ **block of 256 (/24; /64 for IPv6)** (Q28 and Q32 answered) | The three red `CI=1` specs triaged; 8E. ~~**Q32** sets one number and does not block the build~~ |
-| 8G | Changed lightly | 8F |
-| 8K | **Changed:** no bot check | 8F, 8H, 8I, 8J |
+| 8F | ~~**Changed:** identity through a port; one bucket, 20 a day per address, then per block of 256 (/24; /64 for IPv6) (Q28 and Q32 answered)~~ **DONE 2026-10-09, commits `ad0996d` … `63e1428`, not pushed.** The limiter and the mint. See *8F as closed* and [ADR 0155](../decisions/0155-the-mint-asks-a-keyed-per-day-per-network-limiter-first-and-refuses-what-it-cannot-judge-the-owner-names-the-network-source-and-a-destructive-mutant-never-touches-a-database.md). **Owner actions outstanding:** Q35, `DIGEST_SECRET` per environment before merging, `CLIENT_NETWORK_SOURCE`, `0007` and its grant | ~~The three red `CI=1` specs triaged; 8E.~~ — Done |
+| 8G | Changed lightly | 8F — **done; dispatchable (2026-10-09)** |
+| 8K | **Changed:** no bot check | 8F, 8H, 8I, 8J — **all done; dispatchable (2026-10-09)** |
 | 8L | Stays; Q26 settled | 8H, 8K |
 | 8M | Stays | 8L; the shop's number, or the action is not drawn |
 | 8Q | Stays | 8L |
@@ -4902,6 +4902,79 @@ recorded with its trigger.
   notice's look. The draft leaf's words. The two gate sentences. **Owed by the scribe:** the
   runbook for replacing the secret, with its second twenty.
 
+#### 8F as closed, 2026-10-09
+
+**Shipped, on `m8-review-contact-success`, not pushed [coordinator ran `git log`; HEAD `63e1428`]:** before the wave, `c5432da` (the two e2e
+test faults, backlog 161, one combined reviewer approved). Code: `ad0996d` S1; `38c8c36` and `de47285` S2; `f77850f` and `91f583b` S3a
+(`packages/persistence`); `b877136` S3b; `30467c6` the S3 fix round; `e8264f8` S4 (its message lacks the `Co-Authored-By` line: the developer's
+slip, not amended); `59b292d` QA (green; the commit the three reviewers read); `78c3bab` review round A; `9edf176` round B; `5a2d818` QA after the
+reviews (green); `63e1428` two test titles and one comment. Plan and ruling commits: `af33b69`, `b6f6e87`, `5a29b8d`, `ec0435d`, `090801e`. The
+developer's commits from `9edf176` on carry `Co-Authored-By: Claude Sonnet 5.5`, the line its own harness gave it.
+
+**What exists [source-verified by reviewers]:** under `apps/web/src/lib/server/digest/`: `keyed-digest.ts`, `digest-secret.ts`,
+`digest-secret-variable.ts`; under `lib/server/rate-limit/`: `client-network.ts`, `network-source.ts`, `limit-policy.ts`, `chisinau-day.ts`,
+`enforce-rate-limit.ts`, `judge-mint-request.ts`, `rate-limit-store-instance.ts`, `rate-limited-response.ts`; `app/api/designs/route.ts` asks the
+limiter; the client's `limited` state (`persistence/design-request-errors.ts`, `fetch-configuration-repository.ts`, `room/use-generation.ts`,
+`room/generation-steps.tsx`; the leaf `room.compose.limitReached` in `ro` and `ru`); `packages/persistence/src/delete-rate-limit-counters-for-tests.ts`
+(test-only, exported); `.env.example` names `DIGEST_SECRET`, `CLIENT_NETWORK_SOURCE` and `LEMNARIA_E2E_RATE_LIMIT_POLICY`, commented, no value;
+`create-design-lock.ts` exports its timeout constant (one word). The decisions: [ADR
+0155](../decisions/0155-the-mint-asks-a-keyed-per-day-per-network-limiter-first-and-refuses-what-it-cannot-judge-the-owner-names-the-network-source-and-a-destructive-mutant-never-touches-a-database.md).
+
+**Evidence, by who ran it.**
+
+- *Coordinator-run, at `63e1428`.* The whole web suite exit 0: 364 files, 7125 passed; web typecheck 0, lint 0; root `format:check` 0;
+  `gate:boundary` 0. *At `9edf176`, alone:* the whole persistence suite exit 0: 80 files, 2478 passed, 2 skipped (the two grant tests: the tables
+  are absent on the database `DATABASE_URL` reaches); persistence typecheck and lint 0. The pinned known answer was reproduced with `openssl` at
+  `ad0996d` (`1bba7acd…9c52`).
+- *QA-run (m8-8j-qa), two passes.* Pass 1 green at `e8264f8`: 57 mutants, none surviving; through the real route a `429` and a `503` resolve no
+  visitor, write no row and set no cookie; 20 allowed and the 21st refused at both edges of 23-, 24- and 25-hour days; 60 at once gave exactly 20
+  made; live on the real store 12 at once with 6 left gave exactly 6; 192 cells of flag x source x secret at the route; the two-tab race 0 of 100
+  rounds. Pass 2 green at `9edf176`: 9 mutants; the whole e2e suite under `CI=1`, eight workers: 683 passed, 1 failed (the 8D pixel test, backlog
+  162, passed alone), 508 designs counted (132 / 192 / 184); both production-policy specs passed. *Developer-run:* the whole e2e suite under `CI=1`
+  at `30467c6`: 679 passed, 0 failed.
+- *Visual verifier, at `59b292d`, 390 x 844 and 1440 x 900, `ro` and `ru`, the request intercepted in the page, nothing minted.* The limit sentence
+  in full on two lines, no retry button, back only; one POST and zero PUT; back keeps the room; the `503` shows the existing failure with its retry.
+  Not done: the comparison against a mockup frame (the architect ruled none is owed: no frame draws this state).
+- *Reviewers.* Logic: approve at `5a2d818` (FL-R1.2, FL-R1.4 closed; the trace holds: Step 1 is the only mint). Security: approve at `5a2d818`, no
+  open security finding in the code (it re-ran its S1 probe: the parser unchanged). Clean-code: approve at `5a2d818` with two should-fix in test
+  titles, fixed in `63e1428` (**not re-read by a reviewer**), and one listener left in a QA file (backlog 167).
+- Findings (F-S0.1 to F-S0.5, F-S1.1 to F-S1.4, FL-R1.1 to FL-R1.5, F-S2.1 to F-S2.4, FC-R1.1 to FC-R1.29, QA's O1 to O6)
+  and how each was ruled: the sections above and the two findings files.
+
+**Incident, plainly.** On 2026-10-09, to show a mutation red, the developer ran a mutant of `deleteRateLimitCountersForTests` with its `where`
+clause removed against the **live test database**: every row of `rate_limit_counters` there was deleted, more than once. The helper's guard held
+(the allowlisted test database only; the application database was never connected to). How many rows went and whose is not known [developer's
+disclosure, relayed]. It broke the dispatch's rule. The architect's reading is that it is inside ADR 0151's sentence only because that table on
+that database is written by tests alone [inf]; no further read of the table is owed (a row delete changes no definition) and nothing is to be
+restored. **The owner is told plainly.** The standing rule is written in ADR 0151's note and in `best-practices/engineering-conventions.md`.
+
+**Deviations, with their rationale.** S3 was split into S3a and S3b; a follow-up widened the test-only delete's runner guard to `PLAYWRIGHT_TEST`
+(accepted); a suite-wide mock of the limiter's decision was built in S3b and **replaced** in the fix round (the architect's ruling: what a test
+fakes is the database, not the decision); the developer edited a QA-owned file (`tests/room/qa-7f1-copy-and-conversions.adversarial.test.ts`, a leaf
+count 72 to 73 and a comment), ruled: a pinned figure in a QA file that a wave's own change moves is reported, and QA changes it; one DOM test lost
+its wall-clock wait and was retitled to what it holds; QA's live spec uses port 4323; the developer committed its own rounds (explicit paths, hook
+on). The e2e policy's figure moved from the plan's provisional 1,000 to 1,100 (twice 507, the next hundred).
+
+**Owner actions outstanding** (all of the 8J and 8I entries in `STATUS.md` still stand). (1) **Q35**, the two-tab race (backlog 89): a, b or c. (2)
+`DIGEST_SECRET` per environment **before this branch is merged or deployed**: until then that environment creates no design. (3)
+`CLIENT_NETWORK_SOURCE=vercel` on the deployment(s) on that platform only. (4) `0007` and its grant. (5) Whether twenty a day counts attempts or
+designs made (FL-R1.3). (6) The limit notice's look (the same neutral band as the failure notice, under ticked rows) and the draft sentence's
+wording, `ro` and `ru`. (7) The closing rule. (8) The incident above, told plainly.
+
+**Not run / not proven.** `pnpm check`, `pnpm ci:local`, anything on a CI runner, anything on a deployment; e2e in dev mode in full (all whole runs
+were `CI=1` locally). Unproven until the owner acts: the secret in each environment; `0007` and its grant, whose test has only ever been skipped;
+the source on a deployment, and that its header holds one address and cannot be forged; that the deployed runtime names the Chișinău zone.
+
+**Deferred.** ADR 0155's limits and their triggers. Backlog 162 (the 8D pixel test's flicker), 163 (a tap on *Continuă* before hydration does
+nothing), 164 (one unidentified `404` on Step 1), 165 (both harness servers listen on every interface), 166 (the environment type, the own-member
+read and the deadline helper repeated), 167 (for the milestone-close test audit). Q35 waits for the owner and blocks 8T. 8G and 8K inherit ADR
+0155's *What later waves inherit*.
+
+**Documentation updated.** ADR 0155 (new); dated notes on ADRs 0019, 0111, 0114, 0147, 0149, 0151 and 0154; `decisions/README.md`; this section, the
+wave table's 8F and 8G rows, and a dated line under 8T's phase gate; `M9-delivery-preparation.md` (the launch gate's network-source line); the
+runbook `runbooks/replacing-the-digest-secret.md` (new); `best-practices/environments-and-resources.md`, `engineering-conventions.md`,
+`agent-coordination.md` and `ci-and-local-gates.md`; backlog 89, 161 (closed), 162 to 167; `STATUS.md`.
+
 ### 8G — the limiter on saves, shares and reads; pruning
 
 *Goal.* Every other endpoint ADR 0019 and ADR 0114 name is inside the limiter, and expired counters
@@ -7847,6 +7920,9 @@ nothing invented beyond the phone frames, the gap recorded for later design.
 
 *Phase gate.* `pnpm check`; `pnpm ci:local`; a green runner; the *Launch gate* below fully ticked;
 then the push and the pull request. *Visual reading:* every wave's criteria and captures.
+*(Dated 2026-10-09, wave 8F: a second flag line is added beside the mail's: **`LEMNARIA_E2E_RATE_LIMIT_POLICY` is defined on no deployment, read
+by name only.** [ADR 0155](../decisions/0155-the-mint-asks-a-keyed-per-day-per-network-limiter-first-and-refuses-what-it-cannot-judge-the-owner-names-the-network-source-and-a-destructive-mutant-never-touches-a-database.md),
+decision 12. **And Q35 (the two-tab race) is open: this gate cannot be ticked while the two-tab spec is red unless the owner accepts the residual.**)*
 *(Dated 2026-10-09: a mail line is added to the phase gate: `LEMNARIA_E2E_FAKE_MAIL` is defined on no deployment. [ADR 0154](../decisions/0154-mail-leaves-through-one-provider-neutral-port-and-one-resend-adapter-that-sends-once-and-answers-with-one-of-seven-kinds-and-the-shops-notice-is-the-stored-review-printed-never-priced-again.md), *What later waves inherit*.)*
 
 ## Launch gate — `POST /api/designs` must not meet real traffic until this is checked off

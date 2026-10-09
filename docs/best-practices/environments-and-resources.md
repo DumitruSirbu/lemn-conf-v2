@@ -152,7 +152,24 @@ prints it. This guide previously carried no such list; the plan's *Proposed vari
 - **Rotation has two consequences, to be accepted before it is done.** A contact request whose retry falls across the
   rotation is answered as a **conflict**, its stored row and notice untouched; and **every rate-limit count starts again**.
   The rule is: set a new value in that environment and deploy; nothing is migrated and there is no time with two keys. A
-  runbook for the operation is owed under `docs/runbooks/` when 8F ships.
+  runbook for the operation is [`replacing-the-digest-secret.md`](../runbooks/replacing-the-digest-secret.md) (written 2026-10-09).
+- **Now read by code (wave 8F, 2026-10-09; [ADR 0155](../decisions/0155-the-mint-asks-a-keyed-per-day-per-network-limiter-first-and-refuses-what-it-cannot-judge-the-owner-names-the-network-source-and-a-destructive-mutant-never-touches-a-database.md)).**
+  From the day 8F's code runs in an environment, **that environment creates no design until the variable is set there.** A pasted value
+  ending in a line break reads *unavailable*, with only the variable's name to go on and every mint answering `503`. **After setting it,
+  create one design there** to check.
+
+### `CLIENT_NETWORK_SOURCE` and `LEMNARIA_E2E_RATE_LIMIT_POLICY` (wave 8F, 2026-10-09; names only; the owner's)
+
+No agent sets, reads or prints either. [ADR 0155](../decisions/0155-the-mint-asks-a-keyed-per-day-per-network-limiter-first-and-refuses-what-it-cannot-judge-the-owner-names-the-network-source-and-a-destructive-mutant-never-touches-a-database.md)
+has the rules; `apps/web/.env.example` names both, commented, with no value.
+
+- **`CLIENT_NETWORK_SOURCE`:** exactly `vercel`, set on a deployment on that platform **only**. **Never in a local file, on another host, or
+  for the platform's development target.** It tells the application to trust the one header that platform overwrites for the client's
+  address; set anywhere else it would trust a header the client wrote. **Unset:** *none*, one shared bucket, so the whole world shares 20
+  designs a day (a named interim, acceptable only while nothing takes customers). **Anything else, present as a variable: every mint is
+  refused.** It is never a variable a host sets for you.
+- **`LEMNARIA_E2E_RATE_LIMIT_POLICY`:** test instrumentation, **unset on every deployment**; the phase gate checks that the name is defined
+  on none, by name only. Beside `CLIENT_NETWORK_SOURCE` every mint is refused.
 
 ### The three mail variables and the e2e flag (wave 8J, 2026-10-09; names only; the owner's, and none is set by an agent)
 

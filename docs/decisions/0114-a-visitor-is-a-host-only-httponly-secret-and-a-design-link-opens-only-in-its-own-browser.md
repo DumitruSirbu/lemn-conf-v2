@@ -469,3 +469,5 @@ It is not identical across the two classes. The API half of criterion 2 is uncha
   - H4's conditional HMAC, for SEC-7E3b.5;
   - unconditional HMAC, which reopens backlog 81 (H4);
   - a server-side lock keyed by the carried value, which serialises only requests that reach the server together and does nothing for a second tab whose request left before the first response arrived.
+
+**Note — 2026-10-09 (wave 8F):** the first residual of H1 (a save that commits before a rotation and is answered after it) was measured by the triage of backlog 125 (12 of 100 rounds at eight workers) and is **Q35, recorded and not decided, the owner's**: three options, two of which amend H6 and one decision 1 and H3. The record is in [ADR 0155](0155-the-mint-asks-a-keyed-per-day-per-network-limiter-first-and-refuses-what-it-cannot-judge-the-owner-names-the-network-source-and-a-destructive-mutant-never-touches-a-database.md), *Q35*; backlog 89.

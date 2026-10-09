@@ -427,6 +427,18 @@ landed** — otherwise it is a claim about the build.
 (added 2026-10-08, [ADR 0152](../decisions/0152-a-test-is-kept-only-if-it-can-fail-for-the-reason-its-title-names-and-is-deleted-only-on-evidence.md)
 decision 2.3). Two "gaps" reported in one audit batch were covered by tests outside the two files the agent had run.
 
+### A mutant of a destructive statement never touches a database
+
+*A mutant of a statement that deletes, updates, truncates or alters is run against a mocked driver and never against a database. A live proof
+that a statement touches only what it is handed plants rows of its own beside the ones it hands over and asserts they remain. A destructive
+statement whose `where` no longer names what it was handed is not sent anywhere.*
+
+Instance, 2026-10-09 (M8 wave 8F): a mutant of `deleteRateLimitCountersForTests` with its `where` clause removed was run against the live test
+database and every `rate_limit_counters` row there was deleted, more than once; the helper's guard held and the application database was never
+connected to. The mutant was already dead without a database (the unit test pins the statement's whole text with the driver mocked). The record:
+[ADR 0155](../decisions/0155-the-mint-asks-a-keyed-per-day-per-network-limiter-first-and-refuses-what-it-cannot-judge-the-owner-names-the-network-source-and-a-destructive-mutant-never-touches-a-database.md),
+*Incident*; [ADR 0151](../decisions/0151-a-test-may-delete-the-rows-tests-added-and-never-a-row-a-production-user-added.md), note of 2026-10-09.
+
 ### A predicate over a band, and a sweep with no floor per arm
 
 `top` folds into `wall` (ADR 0011 Gap C) for every reader that groups or counts by band. A predicate

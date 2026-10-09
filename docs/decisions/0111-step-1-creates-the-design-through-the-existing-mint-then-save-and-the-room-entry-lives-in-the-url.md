@@ -188,3 +188,7 @@ to open the site resumes the previous visitor's design with edit rights. That is
 write-token cookie today; the cross-device path remains M8's emailed edit link (ADR 0019 decision 8).
 
 **A6. Backlog 29 closes and backlog 30 is answered** — the owner's 2026-09-02 proposal, now ruled.
+
+**Note — 2026-10-09 (wave 8F): Step 1's hand-off gains a `limited` state.** A mint's `429` whose body's own `code` is `MINT_LIMIT_REACHED` shows
+a sentence that no more designs can be made today and the limit returns tomorrow (the draft leaf `room.compose.limitReached`), offers no retry,
+sends no save after it and keeps the room's entry. A `503` keeps the existing failure and its retry. [ADR 0155](0155-the-mint-asks-a-keyed-per-day-per-network-limiter-first-and-refuses-what-it-cannot-judge-the-owner-names-the-network-source-and-a-destructive-mutant-never-touches-a-database.md) decision 9.
