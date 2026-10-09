@@ -5863,7 +5863,9 @@ data, metadata and thirty days of each message's content are kept in the United 
 8. **The request is proved without being sent.** The function that builds it is pure, and a test
    holds its URL, method, headers and body against the documented shape quoted in *8A figures*:
    the bearer header, a `User-Agent`, the `Idempotency-Key`, one recipient. Answers are canned:
-   an acceptance, a refusal, a `409`, a quota answer, a timeout, a body that is not JSON.
+   an acceptance, a refusal, ~~a `409`~~, a quota answer, a timeout, a body that is not JSON.
+   **(2026-10-09: there are two `409` answers and neither is a success; every answer is mapped to
+   one kind in *8J, restated for dispatch — 2026-10-09*.)**
 9. **No test, no gate and no agent sends a real message.** *Must not:* CI, `ci:local`, the e2e
    suite or a developer's run reaches `api.resend.com`; a test proves the fake is what those
    servers hold. **The one real send is the owner's**, or made on the owner's word, once, from a
@@ -5872,8 +5874,9 @@ data, metadata and thirty days of each message's content are kept in the United 
 10. **ADR 0146 applied to mail.** The API key is a secret: with a recognisable fake key, nothing
     thrown, logged or returned holds it, on any branch. **The provider's answer is never passed
     through**: its body can quote the recipient's address or the message, which is personal data.
-    What survives of a failure is built: which kind it was, from a closed list (refused, quota
-    spent, timed out, unreachable, unreadable answer), and the HTTP status as a number. Tested
+    What survives of a failure is built: which kind it was, from a closed list ~~(refused, quota
+    spent, timed out, unreachable, unreadable answer)~~ **(seven kinds, final: *8J, restated for dispatch — 2026-10-09*)**, and the
+    HTTP status as a number. Tested
     with a canned error body that carries a recognisable address, name and phone number.
 11. **One request, one message, however many attempts.** The `Idempotency-Key` is the client
     request id. The message for one request is the same bytes on every attempt: no clock, no
@@ -5895,7 +5898,9 @@ printed or logged (`environments-and-resources.md`):
 
 A value that is set and not usable (an address that is not one) is *unavailable* too, naming the
 variable and nothing of the value (ADR 0146, B2). The test and e2e servers hold the fake by how
-they are started, never by a request, and a production build cannot select it.
+they are started, never by a request, ~~and a production build cannot select it.~~ **(2026-10-09:
+under CI the e2e server is a production build, so that sentence could not hold. What a deployment
+cannot do is restated in *8J, restated for dispatch — 2026-10-09*, point 4.)**
 
 *What the owner still has to supply.*
 
@@ -5915,6 +5920,148 @@ they are started, never by a request, and a production build cannot select it.
 reduced third-party failure is tested); ADR 0146. *Logic and clean-code readers:* the three
 slices' files. *Security reading:* ADR 0146 whole; ADR 0001 d7; criteria 9–11; the three names in
 `.env.example`; every branch of the adapter that touches the provider's answer.
+
+#### 8J, restated for dispatch — 2026-10-09
+
+**State.** HEAD is `b8d73cc` [ran: `git log`]; 8I's review round is in the tree and is not this
+section's. Nothing of 8J is built [ran: `apps/web/src/lib/server` holds no `mail`]. The slice
+tables above are overtaken by the one below. *Tier: Full + security*, unchanged.
+
+**Vendor facts, read today** [ven: the architect fetched `resend.com/docs/api-reference/errors.md`,
+`…/api-reference/emails/send-email.md` and `…/dashboard/emails/idempotency-keys.md` on 2026-10-09;
+copies in the session scratchpad, `m8-8j-architect-vendor/`]. A sent message answers `{ "id": … }`.
+The body's plain-text field is `text`. Of a key: *"up to 256 characters"*, *"kept in the system
+for **24 hours**"*, and the tip *"`<event-type>/<entity-id>`"*. A repeat under one key:
+*"Successful responses will return the email ID of the sent email."* **Not on those pages:** which
+field of an error's body carries its name, and the `403` for a missing `User-Agent` (*8A figures*
+§4 only).
+
+**1. The answers. Neither `409` is a success. The list of kinds is final: seven.**
+
+| The provider's answer | Kind | A retry |
+| --- | --- | --- |
+| 2xx whose body is a JSON object with a text `id`. **A repeat under the same key and the same bytes answers this, and it is the only success there is** | *accepted* | none needed |
+| 2xx otherwise; any 1xx or 3xx | *unreadable answer* | may; the key guards it |
+| `409` named `invalid_idempotent_request`: *"used on a request that had a different payload. Retrying this request is useless"* | *payload mismatch* | **never.** Our bytes changed between attempts: a defect or a deploy |
+| `409` otherwise: `concurrent_idempotent_requests` (*"safe to retry this request later"*), `resource_locked`, or no readable name | *busy* | may |
+| `429` named `rate_limit_exceeded` | *busy* | may |
+| `429` otherwise: `daily_quota_exceeded`, `monthly_quota_exceeded`, or no readable name | *quota spent* | **not automatically** (criterion 12) |
+| Any other 4xx (`400`, `401`, `403`, `404`, `405`, `422`) | *refused* | never: the request or the account is wrong |
+| Any 5xx; or the `fetch` rejects (then no status) | *unreachable* | may |
+| Our own bound of ten seconds passes | *timed out* | may |
+
+- **Criterion 8, restated.** The canned answers are one for each row. **Criterion 13, added, as a
+  property:** every status from 100 to 599 with any body, text or not, falls in exactly one kind,
+  and nothing of the body is in what is returned.
+- *A name is read for a comparison with a constant and never copied.* It is looked for as the
+  body's top-level `name` [inf, recalled; **unproven until the owner's send**]. If that is the
+  wrong field the mapping still answers: a mismatch reads as *busy* and is retried to 8K's cap, and
+  a rate limit reads as *quota spent*. Both err toward not sending twice.
+- *The adapter makes one attempt.* Retries are 8K's. Ten seconds is the architect's figure, a
+  named constant; the customer waits for it (D8).
+
+**2. One key, one message, the same bytes.**
+
+- **The key is `lead-notification/` and the client request id:** at most 82 characters of 256
+  [src `contact-submission.ts`, the id's shape]. The prefix is the purpose, from a closed set in
+  code, so a second kind of mail under this account (M8B's) cannot meet this one's keys.
+- **The request's body has exactly four fields: `from`, `to` with one address, `subject`, `text`.**
+  *Must not:* `html`, `reply_to`, `cc`, `bcc`, `headers`, `attachments`, `tags`, `scheduled_at`. A
+  reply-to holding the customer's address is a customer's address in a header (criterion 1).
+- **S3 is one pure function.** It takes the reference as 8I's store answered it, the request as
+  it is stored, `ContactSubmissionToRecord` [src `@lemnaria/persistence`: the contact fields, the
+  locale, the target and 8H's `SubmissionSnapshot`], and the notice's `Content`. It answers the
+  port's message: key, subject, text. **No clock, no random value, no variable, no counter.**
+- **The kitchen's lines are 8C's, by construction (criterion 7).** S3 parses the snapshot's
+  document, calls `describeReview` with the snapshot's price and the document's own projection
+  [src `review-model.ts:141-148`], and prints its room line, groups, rows, whole-kitchen rows,
+  figure and disclaimer. A review that is not *available*, or not allowed, throws a named error
+  with no value: a snapshot exists only for a kitchen that may be sent [src
+  `submission-snapshot.ts`].
+- *Recorded, for 8K:* a deploy that changes this text, a sender or inbox variable, or the price
+  book, between an attempt and its retry inside a day, answers *payload mismatch*.
+
+**3. What a customer's text may do.**
+
+- *What the domain already refuses* [src `input-checks.ts:60-86`]: control characters, so every
+  line break and tab; the line and paragraph separators; half surrogates. Format characters are
+  removed, the text composed and trimmed, and each field bounded.
+- **What S3 still does, for any input.** The body is a list of lines, each a fixed label and one
+  value. **Any line holding a control character or a line separator makes S3 throw**, naming the
+  label and no value: one check, over customer lines and kitchen lines alike. The phone is
+  `phoneNormalForm`, **never the text as typed** [doc ADR 0150, limits]. The channel is the
+  notice's own word for it, not the request's text. The e-mail line exists only when the channel
+  is e-mail. An empty locality prints the label and a fixed dash.
+- **The subject is `Cerere din configurator {reference}`**, a draft under Q10 (a), and holds no
+  customer text. The reference is 8I's `LM-` and eight characters.
+- *A link or a formula stays text:* no `html` is sent and nothing is escaped, wrapped or altered.
+  *Recorded limit:* a mail client may still turn an address-like name into a link.
+- **The language.** Q5's answer is *"(a), and the WhatsApp action built on the customer's own
+  share link, as recommended"*: the text summary in the e-mail. **It does not say in which
+  language, and no record does. Q34, for the owner; recommended: Romanian, whatever the
+  customer's locale, with that locale on a line of its own.** S3 holds the language as one
+  constant, so it is built now and the answer changes one line.
+- **The figure.** The mail prints the review's own figure and disclaimer lines, which are approved
+  words (8C). **It adds no sentence of its own about the price.** A sentence for the shop, if the
+  owner wants one, goes after the figure; it is owner-owed and none is drafted.
+
+**4. The fake.** Under CI the e2e server is `next start`, a production build [src
+`playwright.config.ts:70-72`], so *"a production build cannot select it"* was never true.
+
+- **Selection is one pure function of the server's environment, handed in as a value.** No
+  request reaches it: its signature has no place for one.
+- **The fake is chosen only when `LEMNARIA_E2E_FAKE_MAIL` is exactly `1` and none of the three
+  mail variables is present.** The flag with any mail variable present is *unavailable*, naming
+  the flag: never the fake, never the provider. So a deployment set up to send cannot be turned
+  to the fake by one added variable, and a stray flag is loud.
+- *What is left:* a deployment with the flag and no mail variable answers success and sends
+  nothing. It takes a variable only the owner sets. `.env.example` says to leave it unset, as it
+  does of the two flags beside it, and the phase gate checks it is unset. **The security reader
+  rules at S1 whether a third condition is worth its coupling: that the server's database is the
+  test database, which the e2e server's is** [src `playwright.config.ts:81`].
+- **Only the module that selects imports the fake or the adapter;** a test fails on any other
+  import under `apps/web/src`. *8K owns* the call site and the flag's line in
+  `playwright.config.ts`, since its e2e is first to post a request.
+- **The port's message has no recipient.** The adapter fills the configured inbox, so criterion 1
+  holds by the type. M8B's mail to a customer [doc ADR 0115, note of 2026-10-07] widens the port
+  under its own review; so would Q12 (ii)'s link e-mail, 8L's if it is built.
+
+**5. The slices.**
+
+| Slice | Does | Files (production) | Criteria | Reading |
+| --- | --- | --- | --- | --- |
+| S1 | The port: message, the seven kinds, an outcome that is a value and never a rejection. The configuration reader. The fake, which records and can be scripted. The selection function | new `lib/server/mail/mail-sender.ts`, `mail-configuration.ts`, `fake-mail-sender.ts`, `select-mail-sender.ts`; `.env.example` (three names and the flag, no value) | 1, 5, 6, 9; point 4 | this section; Q3; D8; ADR 0001 d7; ADR 0146 B2, B3; `lib/server/repository.ts`; `playwright.config.ts:70-89`; `.env.example`; `environments-and-resources.md` |
+| S2 | The adapter: one pure function builds the request, one sends it once inside the bound and maps the answer. The factory from a selection to a sender | new `lib/server/mail/resend-mail-sender.ts`, `create-mail-sender.ts` | 3, 4, 8, 10, 12, 13; points 1, 2 | this section, point 1's table; *8A figures* §4; ADR 0146 whole; `lib/server/backup-designs.ts:112-140`; `packages/persistence/src/migration-errors.ts` |
+| S3 | The notice: the pure function, its leaves in both message files | new `lib/server/mail/lead-notification.ts`; `i18n/content.ts`; `messages/ro.json`, `ru.json` | 2, 7, 11; points 2, 3 | this section; ADR 0148 and 8C *as built*; `review/review-model.ts`; the domain's `contact/contact-fields.ts`, `submission-snapshot.ts`, `input-checks.ts`; `packages/persistence/src/contact-submission-store.ts` (the type); ADR 0150, limits and *What later waves inherit*; Q10 |
+
+*S1, S2 and S3 share no file; S2 and S3 need S1's port.* **Criterion 11's test:** the same input
+twice gives the same bytes with the clock and the random source made to throw, and the module's
+text names neither.
+
+*QA reading:* criteria 1 to 13; this section; `tests/lib/server/backup-designs.test.ts`; ADR 0146
+B1. *Logic reader:* point 1's table against the adapter; point 2; 8K's notes under 8I, *For 8K,
+added*. *Clean-code reader:* the eight files and their tests; ADR 0136. *Security reader:* **at
+S1, point 4's open condition;** then ADR 0146 whole; ADR 0001 d7; criteria 1, 3, 9, 10; point 3;
+every branch that touches the provider's answer; the four names in `.env.example`.
+
+**Built without the owner:** all three slices. **Unproven until the owner's one real send
+(criterion 9):** that the provider takes the request as built; where an error's name sits; the
+`403` without a `User-Agent`; delivery. **The owner's:** the key, a verified sender and the inbox
+(above); Q34; a sentence about the price, if wanted; the flag left unset on every deployment.
+
+**6. The records that speak of mail.**
+
+| Record | What it says | How it is settled |
+| --- | --- | --- |
+| ADR 0001 d7 | *"Use a provider-neutral server API"* | Kept. No provider's name in the port, the fake, the kinds or the notice; one adapter file holds it |
+| ADR 0001 d6 | Name and phone required, e-mail optional | Kept. The e-mail line exists only with that channel |
+| ADR 0019 d8, the e-mailed edit link | Superseded by ADR 0115 | No link e-mail in this wave. Q12 (ii) is 8L's, and widens the port |
+| ADR 0114, consequences and B7 | *"the contact flow sends a snapshot, not a design link"* | Kept. The notice is built from 8H's snapshot and holds no link |
+| ADR 0115, note of 2026-10-07 | M8B *"builds on M8's mail port and its recording fake"* | Kept. The fake records; a recipient is M8B's change |
+| ADR 0146 B2, B3 | Nothing copied from a secret or a third party's answer leaves | Applied: criteria 3 and 10, point 1 |
+| ADR 0148, note 5; Q29 | Resend, chosen knowing it keeps thirty days of content in the United States | Kept. The privacy text names it (Q7; M9) |
+| ADR 0150, limits | Show the phone's normal form; a name may be a link or a formula | Point 3 |
+| Q13 (ii) | *"the shop's inbox is the second copy"* | The notice carries every contact field, so the inbox can stand alone |
 
 ### 8K — `POST /api/contact-submissions`
 
