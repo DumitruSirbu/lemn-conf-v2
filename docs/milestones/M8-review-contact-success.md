@@ -6328,7 +6328,7 @@ readers. When each reads: *8J — S1 for dispatch*, below.)**
 | ADR 0146 B2, B3 | Nothing copied from a secret or a third party's answer leaves | Applied: criteria 3 and 10, point 1 |
 | ADR 0148, note 5; Q29 | Resend, chosen knowing it keeps thirty days of content in the United States | Kept. The privacy text names it (Q7; M9) |
 | ADR 0150, limits | Show the phone's normal form; a name may be a link or a formula | Point 3 |
-| Q13 (ii) | *"the shop's inbox is the second copy"* | The notice carries every contact field, so the inbox can stand alone |
+| Q13 (ii) | *"the shop's inbox is the second copy"* | ~~The notice carries every contact field, so the inbox can stand alone~~ **(Corrected 2026-10-09, the security reader's: it carries what the shop acts on, and not the consent text's version or the phone as typed. The stored row is the whole record; *8J — the three reviews*.)** |
 
 ##### 8J — S1 for dispatch, 2026-10-09
 
@@ -6693,6 +6693,123 @@ its floor counts how often a random draw reaches an arrangement [src `:231-256`]
 intersected. It is not established to be the entry's first failure, whose name was never taken.
 Unlike the entry's trigger, this one needs no recurrence: the property is seeded, or its arms are
 built so that the floor is met by construction. No owner yet; not 8J's.*
+
+##### 8J — the three reviews, ruled 2026-10-09
+
+**State.** HEAD is `08ead7b` [ran: `git log`], tree clean, QA green there [relayed]. Logic: approve
+with should-fix. Security: approve. Clean-code: changes required, five must-fix, all in tests or
+in words [all relayed]. **Every finding's own text, with its lines and its smallest fix, is in one
+file, which the developer and QA are handed whole:** `coord-8j-review-findings.md`, session
+scratchpad. A number below is a pointer into it and never the instruction.
+
+**Taken now, behaviour.**
+
+- **JL-R1.1: the notice prints each body's facts. The architect's; no owner's word is needed.**
+  Criterion 7 says *the same rows as 8C*, and since 8D2 a row of the review has a second line: its
+  width, and its own finish and handle when it carries them (ADR 0148 Amendment B; ADR 0099). The
+  mail is the shop's only readable copy in M8, and a body's own finish is what the shop builds.
+  - **Under each row, one line for each fact, as `rowDetailOf` gives them and in its order**, set
+    in by two spaces and with no label. The first repeats the width the row's label already holds;
+    it is printed all the same, since choosing among the model's facts would be composing.
+  - **No leaf changes**, so the copy lock and the hashes stand. Each fact is a line under the
+    control-character rule like every other. *Criterion 7's test then compares,* for every row, the
+    notice's lines with the model's label, amount and facts, **with a floor on how many kitchens
+    have a body with its own finish and one with a handle.**
+- **J-S2.1: one guard around the catalogue, the projection, `describeReview` and the lines made
+  from them.** Anything thrown there that is not the notice's own error becomes
+  `review-not-sendable`. The model's divergence error and its missing-detail error both quote a
+  placement id, which is a client's text and may hold a line break [src `review-model.ts:163-166`;
+  relayed, the security reader, `design.ts:37`]. JL-R1.1 adds a second call that can throw one.
+- **J-S2.4: the factory hands back `send` alone for the fake.** What the fake holds is then out of
+  reach of whatever holds the sender, which makes J-S1.5's must-not true by the type.
+- **JC-R1.6: one constant for each rule, exported by the port.** The two spellings of the
+  line-break class are the same set: `Zl` is U+2028 alone and `Zp` is U+2029 alone. **Kept: the
+  categories' names,** as the domain writes them [src `input-checks.ts:15`]. The notice then passes
+  the predicate because it asks the predicate's own class.
+
+**Taken now, no behaviour.** JC-R1.1; JC-R1.4, with JC-R1.9; JC-R1.7; JC-R1.10 a to d, where c
+becomes **one scan for three names**, the fake, the adapter and `readMailConfiguration`, none of
+them outside `lib/server/mail` (this is J-S2.2); JC-R1.11; JC-R1.15 and JC-R1.16.
+
+- **JC-R1.4's second half is the architect's doing.** The ruling on S3's stop told the developer
+  to name *this record* in the gate's header. A section of a plan is not a record. **The header
+  states the rule and cites ADR 0148, Amendment C**, the letter reserved now for the scribe.
+
+**Recorded, not taken.**
+
+| Finding | Why, and its trigger |
+| --- | --- |
+| JC-R1.8, the answer's mapping in a module of its own | The file is one provider's one exchange, 231 lines. A move now costs a re-read and three source scans' lists for no behaviour. *Trigger:* a second adapter, or this file's next change of behaviour |
+| JC-R1.12, fixtures in three or more copies | It crosses ten test files and both authors' support. *Trigger:* 8K, the third consumer; the developer's support is the home, and QA imports it, never the reverse. Backlog, the coordinator's to open |
+| JC-R1.13, the restated pairs; the nits | The milestone-close test audit (ADR 0152 Amendment A), which deletes on evidence; the findings file is its list. JC-R1.5 alone is taken now |
+| J-S2.3 (and QA's O7), a body not read is not cancelled | A cancel can itself reject, and nothing is held past the request. *Trigger:* failures in number |
+| JL-R1.2, JL-R1.4 | The title, the settings row, the *not included* line and the warning are left out and nothing the shop builds from is lost; a target of neither kind fails for its snapshot |
+| JL-R1.3 | Which member of an error's body is its name is unproven. **The owner's one real send captures one real error body** |
+
+**Round A, behaviour. One developer, one commit, five items.**
+
+| # | Does (the text of each is in the findings file) | Files |
+| --- | --- | --- |
+| 1 | JL-R1.1: the facts' lines; criterion 7's test, with its floors | `lib/server/mail/lead-notification.ts`; its test |
+| 2 | J-S2.1: the one guard; a test with a marker and a line break in a placement id | the same |
+| 3 | J-S2.4: `send` alone for the fake; its own keys are asserted | `create-mail-sender.ts`; its test |
+| 4 | JC-R1.6: the two constants, in the port, asked by the reader and by the notice | `mail-sender.ts`, `mail-configuration.ts`, `lead-notification.ts` |
+| 5 | The mail tests, the whole web suite, the typecheck and the lint, each quoted | none |
+
+**Round B, no behaviour. The same developer, after A; one commit, five items.**
+
+| # | Does | Files |
+| --- | --- | --- |
+| 1 | JC-R1.1: a floor for each arm of both sweeps | `tests/lib/server/mail/lead-notification.test.ts` |
+| 2 | JC-R1.4, JC-R1.9: the two places say the behaviour; the gate cites the ADR | `create-mail-sender.ts`, `mail-sender.ts` (words); `tests/review/use-review.dom.test.ts` (its header) |
+| 3 | JC-R1.10 a to d, with J-S2.2: source scans say they read source, each check lives once, one scan holds the three names | the developer's mail tests |
+| 4 | JC-R1.11, and JC-R1.15 and JC-R1.16 in its own files | the developer's mail tests |
+| 5 | JC-R1.7, last: the customer's lines, with no byte of any notice changed | `lead-notification.ts` |
+
+*Must not, both rounds:* a `qa-*` file is edited or imported; a message file, the copy lock or a
+hash changes; `review/` or `price/` changes; another assertion of either gate is touched; in
+round B, any outcome, sentence or byte of a notice changes.
+
+**QA's own files. One pass, after both.**
+
+1. **The three must-fix:** JC-R1.2, JC-R1.3, JC-R1.5.
+2. *Proof of round A, a mutant for each:* the facts under each row equal the model's over its
+   357 kitchens, with the floors stated; a placement id holding a marker and a line break leaves
+   in no error; the fake's sender has `send` and nothing else; the notice and the predicate ask
+   one class.
+3. **Its hash over the 357 notices is pinned again once, after round A, and is the same after
+   round B.** That second equality is what shows round B changed no byte.
+4. JC-R1.14; JC-R1.15 and JC-R1.16 in its own files; JC-R1.17; its headers say what a file proves
+   and not whose tests it stands beside.
+5. The whole web suite once.
+
+**Round 2 of review, as diffs.** *Logic:* JL-R1.1, and that every fact comes from the model.
+*Security:* J-S2.1, J-S2.4, the one scan, the two constants. *Clean-code:* its five must-fix and
+what rounds B and QA took. **8J's closing rule stands** for anything found after.
+
+**For the scribe: what 8J's ADR holds.**
+
+- *Decisions.* The port and its seven kinds; one message read once; the answers' table; the key's
+  form; the selection, the factory and the one log line; the notice as a pure function of a stored
+  request, with its facts; a named, value-free error for whatever it cannot say.
+- *Two amendments of standing records.* **ADR 0148 decision 3 and 8D's criterion 10: two named
+  callers of `describeReview`** (Amendment C). **ADR 0138 decision 4: the notice is a recorded
+  addition** to the modules that may go near a price.
+- *Limits, each with its trigger:* the table above; QA's O1, O3, O4, O6; the fake's residual; the
+  provider keeping thirty days of content abroad; a mail client that makes a link of a name.
+- *For 8K, merged from the three readers and QA.* Import the factory and the selection and
+  nothing else of the mail. Call the factory with the process's environment inside the request and
+  keep no sender at module level. **Any throw from the notice is one fixed failure, never rethrown
+  and never logged.** *Payload mismatch* is not an acceptance and is not retried. A notice made
+  again from the live design can differ from the stored row. Resolve the content in the notice's
+  language by name. Count failures. The flag's line lives in `playwright.config.ts` alone.
+- *Unproven until the owner's one real send:* the live provider; an error body's shape; the `403`
+  without a `User-Agent`; the runtime's `fetch` under a manual redirect; delivery.
+- *Owner actions.* The three variables. **A key created with sending access only:** one with full
+  access, leaked, reads thirty days of notices. A verified sender, written as a bare address. The
+  inbox. Q34. The two gate sentences, the launch gate's now reading: *the three mail variables
+  are set on production, the key has sending access only, the fake's flag is absent there, and
+  the owner's one real send is quoted.* Backlog 145's second sighting, as written above.
 
 ### 8K — `POST /api/contact-submissions`
 
