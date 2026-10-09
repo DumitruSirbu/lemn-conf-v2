@@ -6272,6 +6272,8 @@ field of an error's body carries its name, and the `403` for a missing `User-Age
   URL that names `DATABASE_URL`'s own database [src
   `packages/persistence/src/test-database-url.ts:115-127`], and the e2e server's `DATABASE_URL` is
   the test URL. The condition would need a new export from the persistence package.**)**
+  **(Answered 2026-10-09 by the security reader: no third condition. What is left is recorded,
+  with two gate lines and one log line: *8J — S1's security read, ruled; S2 for dispatch*.)**
 - ~~**Only the module that selects imports the fake or the adapter;**~~ **(Wrong, corrected
   2026-10-09, later: only `create-mail-sender.ts`, S2's factory, imports the fake or the adapter.
   `select-mail-sender.ts` imports neither and answers which, as a value. Until S2 nothing under
@@ -6288,7 +6290,8 @@ field of an error's body carries its name, and the `403` for a missing `User-Age
   holds by the type. M8B's mail to a customer [doc ADR 0115, note of 2026-10-07] widens the port
   under its own review; so would Q12 (ii)'s link e-mail, 8L's if it is built.
 
-**5. The slices.**
+**5. The slices.** **(S2 and S3 are restated for dispatch, and the selection no longer carries a
+configuration: *8J — S1's security read, ruled; S2 for dispatch*.)**
 
 | Slice | Does | Files (production) | Criteria | Reading |
 | --- | --- | --- | --- | --- |
@@ -6393,6 +6396,127 @@ bind the reader (no value of a variable in what it answers or throws); point 4.
 
 **Nothing the owner owes blocks S1 or S2.** Q34 touches S3 alone, where the language is one
 constant. The key, the sender and the inbox block only the owner's one real send.
+
+##### 8J — S1's security read, ruled; S2 for dispatch, 2026-10-09
+
+**State.** HEAD is `54e659f` [ran: `git log`], tree clean; S1 is `eb3434d` (mail tests 140 passed;
+web typecheck, lint and the format check exit 0 [relayed, coordinator-run]). The security reader:
+**S2 and S3 may be built on S1 as it is; no must-fix** [relayed]. The architect read the four
+modules at HEAD.
+
+**The rulings. The architect's, on the security reader's findings.**
+
+- **The question: no third condition.** The fake is answered where the flag is exactly `1` and no
+  mail name is defined: today nowhere; after 8K's line, the e2e server; and a deployment that
+  someone gave the flag and never set up to send. *Recorded, with its trigger:* a deployment that
+  takes real requests is run without mail variables on purpose, or M8B reaches the fake by another
+  path. Then the predicate in the persistence package.
+- **Two gate lines, to be copied where each gate is written** (8T's is outside this section, M9's
+  another file; neither is written by this edit).
+  - *The phase gate, 8T:* **`LEMNARIA_E2E_FAKE_MAIL` is defined on no deployment.** The owner
+    reads the variables' names for production, preview and development on the host, and the name is
+    in none. Names only; no value is read or printed.
+  - *The launch gate, M9:* **the three mail variables are set on production, the fake's flag is
+    absent there, and the owner's one real send is quoted.**
+- **One log line, and it is the only one this module writes.** When the factory builds the fake:
+  `mail: the fake sender is in use (LEMNARIA_E2E_FAKE_MAIL); no message leaves this server`, as a
+  warning, one constant, no value in it. ADR 0146 B2 allows a line made of constants and a
+  variable's name. *Must not:* the adapter, the reader or the selection logs anything.
+- **J-S1.1, taken: no value that holds the key leaves `lib/server/mail`.** The selection answers
+  `fake`, `provider` or `unavailable` **and carries no configuration**. The factory takes the
+  environment, reads the configuration and builds the adapter in one function; the key then lives
+  in a closure or a `#` member, never in a property. *What 8K holds:* the factory's answer, a
+  sender or the names. *How a screen learns "unavailable" before the form is filled:* it asks the
+  selection, which now holds no secret, so a server component cannot pass one on.
+- **J-S1.2, taken: a key that cannot be a header is `refused`, with no status, and nothing is
+  sent.** `Headers` quotes a value it refuses [relayed, reviewer-run]. **One predicate in the port
+  says what may be sent,** and the adapter and the fake both ask it, so they agree: the key is 1 to
+  256 visible ASCII characters [ven]; the subject is not empty and holds no control character or
+  line separator; the text is text. The port's comment says so. The seven kinds stand: *refused*
+  with no status is ours, before any request.
+- **J-S1.3, taken:** the reader and the selection read a variable only as the environment's own
+  member. **J-S1.4, taken:** the tripwire reads for the module's name and `createFakeMailSender`
+  anywhere under `src`, and allows them in the fake and the factory alone.
+- **Recorded.** *J-S1.5, a must-not for 8K and M8B:* no route, action or log shows what the fake
+  holds; it holds every message, which is personal data. *J-S1.6, the runbook's:* a pasted value
+  ending in a line break reads *unavailable*, with only the variable's name to go on. *For 8K:* an
+  empty mail variable counts as present, so on a machine whose `apps/web/.env.local` defines one
+  the contact specs fail loudly; **the rule is not weakened to mend that.** The fake's outcome
+  stays the same as the provider's to its caller.
+
+**S2 for dispatch. One developer, five items, in this order. Items 1 and 2 are S1's follow-ups and
+are one commit of their own.**
+
+| # | Does | Production files | Its tests, under `tests/lib/server/mail/` |
+| --- | --- | --- | --- |
+| 1 | J-S1.2: the predicate of what may be sent, and the port's sentence; the fake asks it | `mail-sender.ts`, `fake-mail-sender.ts` | their two files |
+| 2 | J-S1.1's half: the selection carries no configuration. J-S1.3: own members only | `select-mail-sender.ts`, `mail-configuration.ts` | their two files |
+| 3 | The adapter. One pure function builds the request; one sends it once inside the bound and maps the answer by point 1's table | new `resend-mail-sender.ts` | new, with the canned answers below and criterion 13's property |
+| 4 | The factory, from an environment to a sender or the names; the log line | new `create-mail-sender.ts` | new; criterion 3's inspection |
+| 5 | J-S1.4: the tripwire widened, with the factory as the one allowed place | none | `fake-mail-sender.test.ts` |
+
+*Criteria:* 3, 4, 8, 10, 12, 13, and points 1 and 2 of *8J, restated for dispatch*.
+
+*What the adapter is held to, all of it the security reader's and taken.*
+
+- **The body is built from named members, never by spreading the message:** exactly `from`, `to`
+  as a list of the one configured inbox, `subject`, `text`. A test hands a message with `to`,
+  `cc`, `bcc`, `html`, `headers` and `reply_to` added and reads the body's keys.
+- **Four headers and no other:** the bearer key, `Content-Type`, a constant `User-Agent`, the
+  `Idempotency-Key`. The URL is one constant.
+- **`redirect: "manual"`.** A followed redirect would post the notice to another host. A 3xx then
+  arrives as itself and is *unreadable answer*.
+- **Everything is caught and mapped, the request's own construction included.** No message of a
+  `TypeError`, of `Headers` or of an abort is kept, as text or as a cause.
+- **`status` is the response's own, never a number from the body.** An outcome has the keys `ok`,
+  `kind` and `status`, and no other.
+- **One bound of ten seconds covers the request and the reading of the answer**, and the answer
+  is read to sixteen kilobytes with `readUtf8BodyWithLimit` [src `lib/server/read-body-with-limit.ts`].
+  Past either, the row's *otherwise* applies or it is *timed out*. Sixteen is the architect's.
+- **One attempt.** No retry, no wait, no second request.
+
+*The canned answers the tests owe (criterion 8), one at least for each row.* `200` with an `id`;
+`200` with no `id`, with an `id` that is not text, with text that is not JSON, and `204`; a `301`
+with a `Location`; `409` named for a mismatch; `409` named for a request in flight, for a locked
+resource, with no JSON, and with a name that is not text; `429` named for the rate; `429` named
+for each quota and with no JSON; `400`, `401`, `403`, `404`, `405`, `422`; `500`, `503`; a
+`fetch` that rejects with an error holding markers; one that never settles; a body that never
+ends; a body past the bound; **an error body holding a recognisable address, name, phone number
+and the key (criterion 10).** *Criterion 13, as a property:* any status from 100 to 599 with any
+body gives one outcome, `ok` only for a 2xx with a text `id`, its status the response's, its keys
+the three, and no marker in it.
+
+*Criterion 3's inspection.* With a recognisable key in the environment: nothing in the selection,
+in what the factory returns, in any outcome or in anything thrown holds it, by `JSON.stringify`
+and by `util.inspect` at unlimited depth with hidden members shown.
+
+*Must not:* a request leaves the process in any test; `process.env` or `NODE_ENV` in any of the
+six modules; a dependency; a retry; a log line but the one; `apps/web/playwright.config.ts`
+changes (8K's); a file outside `lib/server/mail` and its tests changes.
+
+*Reading:* this section; *8J, restated for dispatch*, points 1, 2 and 4; *8A figures* §4; ADR
+0146 whole; `lib/server/backup-designs.ts:112-140`; `packages/persistence/src/migration-errors.ts`;
+`lib/server/read-body-with-limit.ts`; the four S1 modules and `tests/lib/server/mail/`;
+`apps/web/AGENTS.md`.
+
+**S3 for dispatch. After S2's first commit, since its message must pass item 1's predicate; it
+needs nothing of the adapter. One developer, five items.**
+
+| # | Does | Production files |
+| --- | --- | --- |
+| 1 | The notice's leaves: the subject, the labels, the channel's words, the callback's line, the dash. Drafts under Q10 (a); the Russian is unsigned | `messages/ro.json`, `ru.json`; `i18n/content.ts` |
+| 2 | The pure function, from a reference, a `ContactSubmissionToRecord` and a `Content` to a `MailMessage`; the key's prefix; **the language as one constant, `ro`, owner-owed (Q34)** | new `lib/server/mail/lead-notification.ts` |
+| 3 | The kitchen's lines from `describeReview` over the snapshot; a named error, holding no value, for a review that is not available or not allowed | the same |
+| 4 | The customer's lines: one to a label; the phone's normal form; the channel's own word; the e-mail only with its channel; the dash; **any line holding a control character or a line separator throws** | the same |
+| 5 | Its tests: criterion 7 against `describeReview` on snapshots that `snapshotSubmission` made; criterion 11 with the clock and the random source throwing, and the source naming neither; criterion 2 with a marker in every contact field and none in the subject; the message passes the port's predicate; a name that is a link or a formula is printed as it is | `tests/lib/server/mail/lead-notification.test.ts` |
+
+*Criteria:* 2, 7, 11; points 2 and 3. *Must not:* a clock, a random value, a variable or a
+counter; `html`; a sentence of its own about the price; the phone as typed; a shape for the
+reference; a test importing another package's tests. *Reading:* *8J, restated for dispatch*,
+points 2 and 3; ADR 0148 and 8C *as built*; `review/review-model.ts`, `review/use-review.ts`;
+`tests/support/romanian-content.ts`; the domain's `contact/contact-fields.ts`,
+`submission-snapshot.ts`, `input-checks.ts`; `packages/persistence/src/contact-submission-store.ts`
+(the type); ADR 0150, limits; ADR 0153, *What later waves inherit*; Q10.
 
 ### 8K — `POST /api/contact-submissions`
 
