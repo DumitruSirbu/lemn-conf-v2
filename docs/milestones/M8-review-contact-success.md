@@ -4290,6 +4290,12 @@ route, the save's route, the client's lock and the counter store at HEAD.
   (2026-09-11), *"refreshed with every successful save"*, and H3 (2026-09-23)**. *Recommended:
   (c), with a longer lifetime* [inf, unmeasured: what else leans on the refresh is that wave's S0].
   Whichever: **a wave of its own, Full + security, before 8T.**
+  **(Added 2026-10-09, later: the security reader's view, relayed. (c) is the soundest: the only
+  one the server enforces for every browser, since the cookie is then written by one answer
+  alone, the mint's, which is guarded and limited. (a) and (b) rest on a lock some clients lack
+  and a hostile one ignores. What (c) changes: the cookie no longer slides with saves, so a
+  browser that only edits is shut out when it expires; a long lifetime is the remedy, and
+  browsers cap one near 400 days [recalled]. The decision stays the owner's.)**
 - *Until then, the architect's reading, for the coordinator:* the two-tab spec stays in the suite,
   neither skipped nor marked. `pnpm ci:local` runs the whole e2e suite [src
   `scripts/local-ci.sh:136`], so about one run in ten is red here [relayed, QA-run, eight workers].
@@ -4309,18 +4315,22 @@ workers, as many runs as the triage's 24, none red. It goes before S3, which cha
   written as its length in bytes, a colon, its bytes and a comma. The purpose is from a closed set
   in code; today `rate-limit-bucket`, whose fields are the policy's name and the subject. So equal
   keys come only from equal parts. A policy's name carries its window, so a new window is a new
-  name (ADR 0149). The subject is a block's own text, or one fixed word for the shared bucket.
+  name (ADR 0149). ~~The subject is a block's own text, or one fixed word for the shared bucket.~~
+  **(Made exact 2026-10-09, later: the length is a count of bytes; a part that is not well-formed
+  text is refused; the key is the thirty-two bytes; the subject says its own kind. *8F — S0's security read, ruled; S1 for dispatch*.)**
 - **B. The secret.** One module. One function digests under a key it is handed. One builds a
   digester from an environment handed in, and answers it or the variable's name: the key stays in
   a closure and no value that holds it is returned (8J's J-S1.1). Usable means sixty-four
   lowercase hexadecimal characters, read as the environment's own member. *Must not:* a default, a
   fallback, a branch on a build mode, the value's length in a refusal.
-- **C. Who a client is.** A pure function of the environment picks the source. On the development
+- **C. Who a client is.** A pure function of the environment picks the source. ~~On the development
   host, known by the variable that host sets itself [inf: which one; **S1 quotes the host's page
-  before using it**], the address is the header that host overwrites [ven §2]. Anywhere else,
-  *none*: one shared bucket, and no header is read.
+  before using it**],~~ **(Changed 2026-10-09, later: by a variable the owner sets by name, never
+  one the host sets; *8F — S0's security read, ruled; S1 for dispatch*, F-S0.2.)** the address is the header that host overwrites [ven §2].
+  Anywhere else, *none*: one shared bucket, and no header is read.
 - **D. The e2e suite runs under a policy, not a switch.** One run makes 444 designs from one
-  bucket. The same route, evaluator, store and database run; only the day's figure differs, and it
+  bucket **(measured 2026-10-07, before the suite grew; S3 measures again and the figure is a
+  named constant: *8F — S0's security read, ruled; S1 for dispatch*, F-S0.4)**. The same route, evaluator, store and database run; only the day's figure differs, and it
   is chosen by a flag in the server's environment, exactly `1`. **The flag beside a known
   platform is a misconfiguration and every mint is refused**, as the mail's flag is beside a mail
   variable (ADR 0154). The policy in force writes one fixed warning. *What is left:* a deployment
@@ -4401,6 +4411,117 @@ design. `0007` and its grant on preview and production block deploying too; ever
 on the test database. *Unproven until he acts:* the grant test for the counters, which has only
 ever been skipped; the development host's header on a real deployment, and that it cannot be
 forged; the variable that host sets. Q35 is his, and blocks 8T and not this wave.
+
+##### 8F — S0's security read, ruled; S1 for dispatch, 2026-10-09
+
+**State.** HEAD is `af33b69` [ran: `git log`]; the three e2e files changed in the tree are QA's.
+The security reader: **S1 may be built on rules A to E; no must-fix; five should-fix** [relayed].
+All five are taken. The rulings are the architect's.
+
+**F-S0.1 — rule A, made exact. Each of these would change every key if settled later.**
+
+- **A part is written as: the count of its UTF-8 bytes in plain decimal, a colon, those bytes, a
+  comma.** Not a text's length.
+- **A part that is not well-formed text is refused before anything is digested.** Half of a
+  surrogate pair becomes U+FFFD in bytes, and two different texts would then be one key
+  [relayed, the reader's, recalled].
+- **The key is the thirty-two bytes the variable's sixty-four characters spell.** *Why that one:*
+  the variable is said to hold thirty-two random bytes, and the characters are how they are
+  written down. Either would be strong enough; it has to be one.
+- **A bucket's parts are four: the purpose, the policy's name, the subject's kind, the subject.**
+  The kind is one of three words in code, for an IPv4 block, an IPv6 block and the shared bucket,
+  so two alphabets need never be told apart (the reader's note 1). **The subject is made from the
+  parsed bits and never from the header's text:** three decimal octets joined by dots; four groups
+  of four lowercase hexadecimal digits joined by colons; nothing for the shared bucket.
+- **One known answer is pinned in a test.** Its key is one nobody would deploy, its expected value
+  comes from a tool that is not the function under test, and the developer's report quotes that
+  tool's command and output.
+
+**F-S0.2 — rule C, changed: the owner names the source; the host does not.** A variable a host
+sets travels with every file pulled from it, and a pulled file here already holds one of its names
+[relayed, the reader's names-only check]. Wherever that name is present off the host, the
+application would trust a header the client wrote, and criterion 2 would fail without a sound.
+
+- **`CLIENT_NETWORK_SOURCE`, set by the owner on a deployment and nowhere else.** One accepted
+  value today, the development host's name, from a closed set in code. Absent: *none*. **Present
+  as the environment's own member with anything else in it: every mint is refused.**
+- *What is left, recorded:* someone sets it on a host that does not overwrite the header. The
+  launch gate's sentence below is for that. `.env.example` says: on a deployment on that host
+  only, never in a local file, never for the host's own development target.
+- *Its cost, said plainly:* until the owner sets it, a deployment runs under *none*.
+- **Rule D's *beside a known platform* now reads: beside this variable present as an own member,
+  whatever it holds.**
+
+**F-S0.3 — *none* is a named interim, and one sentence for M9's launch gate.** Under *none* the
+whole world shares 20 designs a day, and twenty requests from a script shut everyone out until
+midnight: the guard passes a request that carries neither `Sec-Fetch-Site` nor `Origin` [src
+`lib/server/cross-site-request.ts`]. **Acceptable only while nothing takes customers.** For the
+scribe to place in M9, and the flag's half in 8T's gate beside the mail's:
+
+> *Production's network source is a named platform and not none; a request sent to that
+> deployment with a forged forwarding header is counted under its real block; and the e2e policy's
+> flag is absent there.*
+
+**F-S0.4 — the e2e policy's figure is a named constant with its arithmetic.** With a fresh secret
+for each run it need cover one run, not a day of them. **Twice the designs one whole run makes,
+rounded up to the next hundred.** The 444 is of 2026-10-07 [doc, *What 8F owes the e2e suite*],
+and the suite has grown since. **S3 measures it:** after a run the bucket's own count is the
+number, and the harness reads it before it removes the row. Until then S2 writes 1,000 and says
+it is provisional. A misplaced flag then means a thousand a day and not no limit.
+
+**F-S0.5 — one digest, used by the server and by the harness.**
+
+- **The pure function has no server-only import;** only the secret's reader has. A source scan
+  holds that nothing under `src` outside `lib/server` imports either.
+- **The run's secret is made once, in the runner's main process, and handed down through its
+  environment.** Made where the configuration is evaluated, it would differ in every worker and
+  the rows would never be found [inf, the reader's].
+- **Removing no row fails the run's teardown.** *Says how many* was too weak.
+
+**Also taken, as sentences of the slices they belong to.** *S1:* the parser takes exactly one
+address, and a list, a port, a zone, a leading zero or anything else is the shared bucket; a
+mapped IPv4 address goes to its IPv4 block; the secret is read at each call; no literal key in
+the application. *S2 and S3:* a `429` shows the seconds to midnight and nothing else, no count, no
+block, nothing of what remains; the deadline's late rejection is handled and not left unhandled;
+a hit may still land after a `503`, which errs high as the store allows. *The runbook's, the
+scribe's:* a pasted secret ending in a line break stops every mint with only the name to go on;
+after setting it, create one design. *For the owner at M9, recorded:* a home IPv6 line commonly
+holds 256 blocks of /64, so 5,120 designs a day from one subscriber [inf, the reader's].
+
+**S1 for dispatch. One developer, five items.** Each module has its test of the same name under
+`apps/web/tests/lib/server/digest/` or `…/rate-limit/`.
+
+| # | Does | Production file |
+| --- | --- | --- |
+| 1 | The encoding and the keyed digest, pure, under a key it is handed as bytes; the closed set of purposes; the refusal of a part that is not well-formed text | new `lib/server/digest/keyed-digest.ts` |
+| 2 | The secret's reader: from an environment handed in to a digester or the variable's name; the key in a closure | new `lib/server/digest/digest-secret.ts` |
+| 3 | An address to its block: one address or the shared bucket; the kind and the subject from the parsed bits | new `lib/server/rate-limit/client-network.ts` |
+| 4 | The source: from the same environment to the development host's header, *none*, or *misconfigured* | new `lib/server/rate-limit/network-source.ts` |
+| 5 | Two names with their comments and no value; the scan of F-S0.5 | `.env.example` |
+
+*Criteria S1 alone must meet:* 1, 2, 11, 13; rules A to C as made exact here. **Criterion 13's
+property** runs over arbitrary subjects, names and purposes, those holding the encoding's own
+marks included: equal keys only for equal parts.
+
+*Must not:* a dependency; `process.env` or a build mode named in any of the four modules; a
+default, a fallback or a literal key; the value of either variable, or its length, in an error or
+an answer; the header's text in a subject, a key or an error; a variable the host sets read for
+anything; a route, a policy or the store touched (S2's and S3's).
+
+**S1 stops and reports, and chooses nothing, if:** the known answer cannot be reproduced by a
+second tool; exactly-one-address cannot be had without a dependency; or a rule here can be read
+two ways.
+
+*Reading:* this section; *8F, restated for dispatch*, point 3; *The digest secret*, under 8I; ADR
+0149, *What later waves inherit* and its amendment; ADR 0147 with Amendment A; ADR 0019 d3; *8A
+figures* §2; ADR 0146 B2; ADR 0154; `lib/server/mail/mail-configuration.ts`,
+`select-mail-sender.ts`, `create-mail-sender.ts` and their tests; `lib/server/cross-site-request.ts`;
+`packages/persistence/src/sha256-digest.ts`; `apps/web/AGENTS.md`.
+
+**After S1 and before S2, the security reader reads the four modules alone, and answers from the
+code:** *Is there any text, of any length, in any header or variable, for which two different
+blocks get one key, or one block gets two? Is there an environment in which a header the client
+wrote decides the bucket? Does anything that holds the key leave the reader?*
 
 ### 8G — the limiter on saves, shares and reads; pruning
 
