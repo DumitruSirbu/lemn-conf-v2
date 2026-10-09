@@ -1,7 +1,7 @@
 // The kitchen half of the shop's notice, against stored snapshots the domain's public function made.
-// The developer's parity test prices each kitchen again under the live book and compares; that cannot
-// tell a notice that prints the stored price from one that re-prices. These snapshots were priced under
-// another book than the live one, so the two answers differ and only the stored one is right.
+// The snapshots were priced under another book than the live one, so a notice that prints the stored
+// price and one that prices again answer differently and only the first is right. Bodies are also given
+// a finish and a handle of their own, so the facts under a row are more than its width.
 import {
   buildKitchenLBodyCatalog,
   cabinetDepthMmOf,
@@ -12,6 +12,8 @@ import {
   SAMPLE_PRICE_BOOK,
   SAMPLE_PRICE_BOOK_VERSION,
   type Design,
+  type Finish,
+  type Handle,
   type PricedDesign,
   type SubmissionSnapshot,
 } from "@lemnaria/configurator-domain";
@@ -20,7 +22,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { NoticeKitchenError } from "@/lib/server/mail/lead-notification";
 import { isSendableMailMessage } from "@/lib/server/mail/mail-sender";
-import { describeReview } from "@/review/review-model";
+import { describeReview, rowDetailOf } from "@/review/review-model";
 
 import {
   customerSuppliedIds,
@@ -34,6 +36,7 @@ import {
   type VariedArm,
 } from "../../../support/varied-kitchens";
 import { forbidFetch, releaseFetch } from "./mail-test-support";
+import { everyReadingOf } from "./qa-8j-support";
 import {
   callbackRequest,
   designRequest,
@@ -47,6 +50,7 @@ import {
 const notice = ro.leadNotice;
 const ARMS = VARIED_ARMS.map((arm) => [arm.name, arm] as const);
 const HARDWARE_RAISE = 7;
+const FACT_INDENT = "  ";
 
 /** The sample book with every hardware amount raised, as a book the shop priced under before a change. */
 const EARLIER_BOOK: SnapshotBook = {
@@ -93,7 +97,12 @@ function reviewLinesOf(design: Design, priced: PricedDesign): string[] {
     notice.line(notice.labels.room, review.roomLine),
     ...review.groups.flatMap((group) => [
       group.heading,
-      ...group.rows.map((row) => notice.line(row.label, row.amountText)),
+      ...group.rows.flatMap((row) => [
+        notice.line(row.label, row.amountText),
+        ...rowDetailOf(review.rowDetails, row.key).facts.map(
+          (fact) => `${FACT_INDENT}${fact}`,
+        ),
+      ]),
     ]),
     ...review.wholeKitchenRows.map((row) =>
       notice.line(row.label, row.amountText),
@@ -195,6 +204,174 @@ describe.each(ARMS)(
     });
   },
 );
+
+/** A finish of its own that each material of the sample book lets a body carry. */
+const OWN_FINISH_BY_MATERIAL: Readonly<Record<string, Finish>> = {
+  "material.melamine": { kind: "palette-entry", entryId: "pal.antracit" },
+  "material.painted-mdf": { kind: "free-colour", value: "#b8c4a1" },
+  "material.veneer": { kind: "palette-entry", entryId: "veneer.nuc" },
+};
+const OWN_HANDLES: readonly Handle[] = ["steel", "black", "push"];
+
+function finishNameOf(finish: Finish): string {
+  return finish.kind === "palette-entry"
+    ? ro.finishName(finish.entryId)
+    : ro.globalSettings.pillColourValue(finish.value);
+}
+
+/** Every body given a handle of its own, and a finish of its own where the kitchen's material offers one. */
+function withOwnFinishAndHandle(design: Design): Design {
+  const finish = OWN_FINISH_BY_MATERIAL[design.settings?.materialTierId ?? ""];
+  return {
+    ...design,
+    placements: design.placements.map((placement, index) => ({
+      ...placement,
+      body: {
+        ...placement.body,
+        ...(finish === undefined ? {} : { finish }),
+        handle: OWN_HANDLES[index % OWN_HANDLES.length],
+      },
+    })),
+  };
+}
+
+interface DressedKitchen {
+  readonly design: Design;
+  readonly stored: SubmissionSnapshot;
+  readonly factLines: readonly string[];
+}
+
+/** The arm's kitchens, dressed, as the domain's public snapshot function stores them. */
+function dressedKitchensOf(arm: VariedArm): readonly DressedKitchen[] {
+  return variedKitchensOf(arm).flatMap(({ design }) => {
+    const dressed = withOwnFinishAndHandle(design);
+    const stored = snapshotUnder(dressed, SAMPLE_BOOK);
+    if (stored === undefined) return [];
+    const factLines = kitchenLinesOf(
+      designRequest({ snapshot: stored }),
+    ).filter((line) => line.startsWith(FACT_INDENT));
+    return [{ design: dressed, stored, factLines }];
+  });
+}
+
+function countOf(lines: readonly string[], wanted: string): number {
+  return lines.filter((line) => line === wanted).length;
+}
+
+describe.each(ARMS)(
+  "kitchens of the %s arm whose bodies carry a finish and a handle of their own",
+  (_name, arm) => {
+    const kitchens = dressedKitchensOf(arm);
+    const withAFinish = kitchens.filter(({ design }) =>
+      design.placements.some(({ body }) => body.finish !== undefined),
+    );
+
+    it("are stored by the domain for every kitchen of the arm, most of them with a finish too", () => {
+      expect(kitchens).toHaveLength(variedKitchensOf(arm).length);
+      expect(kitchens.length).toBeGreaterThan(50);
+      expect(withAFinish.length).toBeGreaterThan(20);
+    });
+
+    it("print under each row the facts the review's model gives that row, in its order", () => {
+      const wrong = kitchens
+        .filter(
+          ({ stored }) =>
+            JSON.stringify(
+              kitchenLinesOf(designRequest({ snapshot: stored })),
+            ) !==
+            JSON.stringify(
+              reviewLinesOf(storedDesignOf(stored), stored.priced),
+            ),
+        )
+        .map(({ design }) => JSON.stringify(design.room));
+
+      expect(wrong).toEqual([]);
+    });
+
+    it("print each handle's own word once for every body that carries that handle", () => {
+      const wrong = kitchens
+        .filter(({ design, factLines }) =>
+          OWN_HANDLES.some(
+            (handle) =>
+              countOf(
+                factLines,
+                `${FACT_INDENT}${ro.panel.handleLabels[handle]}`,
+              ) !==
+              design.placements.filter(({ body }) => body.handle === handle)
+                .length,
+          ),
+        )
+        .map(({ design }) => JSON.stringify(design.room));
+
+      expect(wrong).toEqual([]);
+    });
+
+    it("print the finish's own name once for every body that carries a finish", () => {
+      const wrong = withAFinish
+        .filter(({ design, factLines }) => {
+          const [first] = design.placements;
+          const finish = first?.body.finish;
+          return (
+            finish === undefined ||
+            countOf(factLines, `${FACT_INDENT}${finishNameOf(finish)}`) !==
+              design.placements.length
+          );
+        })
+        .map(({ design }) => JSON.stringify(design.room));
+
+      expect(wrong).toEqual([]);
+    });
+  },
+);
+
+const HOSTILE_ID = "QA-HOSTILE-5d81c0\nTelefon: +37360000000";
+
+/** The same kitchen with its first body's id replaced by text that holds a marker and a line break. */
+function withAHostilePlacementId(design: Design): Design {
+  return {
+    ...design,
+    placements: design.placements.map((placement, index) =>
+      index === 0 ? { ...placement, id: HOSTILE_ID } : placement,
+    ),
+  };
+}
+
+describe("a placement id that holds a marker and a line break", () => {
+  const [firstArm] = VARIED_ARMS;
+  if (firstArm === undefined) throw new Error("the fixture has no arm");
+  const [kitchen] = storedKitchensOf(firstArm);
+  if (kitchen === undefined) throw new Error("the fixture has no kitchen");
+  const hostile = withAHostilePlacementId(kitchen.design);
+
+  it("leaves in nothing thrown when the stored price is not that document's", () => {
+    const submission = designRequest({
+      snapshot: {
+        document: canonicalSerializeDesign(hostile),
+        priced: kitchen.stored.priced,
+      },
+    });
+
+    const thrown = thrownBy(() => noticeOf(submission));
+
+    expect(thrown).toBeInstanceOf(NoticeKitchenError);
+    expect((thrown as NoticeKitchenError).failure).toBe("review-not-sendable");
+    expect((thrown as Error).cause).toBeUndefined();
+    expect(everyReadingOf([thrown, (thrown as Error).stack])).not.toContain(
+      "QA-HOSTILE",
+    );
+  });
+
+  it("is printed nowhere when the domain stored the kitchen with it", () => {
+    const stored = snapshotUnder(hostile, SAMPLE_BOOK);
+    if (stored === undefined) throw new Error("the domain refused the kitchen");
+
+    const message = noticeOf(designRequest({ snapshot: stored }));
+
+    expect(stored.document).toContain("QA-HOSTILE");
+    expect(everyReadingOf(message)).not.toContain("QA-HOSTILE");
+    expect(isSendableMailMessage(message)).toBe(true);
+  });
+});
 
 /** What a store would hold had it kept a kitchen the domain refuses: the same two members, made the same way. */
 function handMadeSnapshotOf(design: Design): SubmissionSnapshot {

@@ -1,7 +1,6 @@
-// What a customer's text can do to the shop's notice. The developer's tests refuse six breaking
-// characters in four fields and print a formula in the name; these take the whole class of breaking
-// characters at every position in every printed field, show that an inert value moves no line but its
-// own, and show which members of a request the notice does not read at all.
+// What a customer's text can do to the shop's notice: every breaking character at every position in every
+// printed field, the same characters the port's predicate refuses in a subject; an inert value moves no
+// line but its own; and the members of a request the notice does not read at all.
 import { fc } from "@fast-check/vitest";
 import type { ContactFields } from "@lemnaria/configurator-domain";
 import type { ContactSubmissionToRecord } from "@lemnaria/persistence";
@@ -214,6 +213,44 @@ const INERT_VALUES: readonly [string, string][] = [
   ["a single space", " "],
 ];
 
+function isRefusedInASubject(character: string): boolean {
+  return !isSendableMailMessage({
+    key: "k",
+    subject: `a${character}b`,
+    text: "t",
+  });
+}
+
+function isRefusedInANoticeLine(character: string): boolean {
+  try {
+    noticeOf(
+      callbackRequest({
+        contact: { ...acceptedContact(), name: `a${character}b` },
+      }),
+    );
+    return false;
+  } catch (error) {
+    if (error instanceof NoticeLineError) return true;
+    throw error;
+  }
+}
+
+describe("the characters the notice refuses in a line and the port refuses in a subject", () => {
+  const everyCodeUnit = codePointsFrom(0x0000, 0xffff).map((unit) =>
+    String.fromCharCode(unit),
+  );
+
+  it("are the same characters across the whole 16-bit range, and exactly the ones listed here", () => {
+    const refusedBySubject = everyCodeUnit.filter(isRefusedInASubject);
+    const refusedByLine = everyCodeUnit.filter(isRefusedInANoticeLine);
+
+    expect(refusedByLine).toEqual(refusedBySubject);
+    expect(refusedByLine).toEqual(
+      BREAKING_CODE_POINTS.map((codePoint) => String.fromCodePoint(codePoint)),
+    );
+  });
+});
+
 describe("a value that breaks no line", () => {
   const baseline = noticeOf(designRequest());
   const baselineLines = baseline.text.split("\n");
@@ -246,7 +283,7 @@ describe("a value that breaks no line", () => {
 describe("what the notice does not read", () => {
   const NOT_READ_MARKER = "QA-NOT-READ-5d81c0";
 
-  it("gives the same bytes whatever the phone as typed, the consent's version, the digest and the design's id and revision hold", () => {
+  it("gives the same bytes whatever the typed phone, consent version, digest and design id and revision hold", () => {
     const baseline = noticeOf(designRequest());
     const submission = designRequest({
       payloadDigest: NOT_READ_MARKER,
@@ -319,7 +356,7 @@ describe("what the notice does not read", () => {
   );
 });
 
-/** What the developer's cases leave out: values that are not text, and one a reader would recognise in an error. */
+/** Channels that are not text at all, and one a reader would recognise if an error held it. */
 const UNWORDED_CHANNELS: readonly [string, unknown][] = [
   ["a number", 5],
   ["null", null],

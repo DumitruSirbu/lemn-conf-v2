@@ -39,7 +39,10 @@ export const DISCLOSURE_MARKERS = [
 export const QUOTING_ERROR_BODY = JSON.stringify({
   statusCode: 422,
   name: "validation_error",
-  message: `Could not deliver to ${FAKE_INBOX} from ${FAKE_SENDER} for ${QUOTED_NAME} <${QUOTED_ADDRESS}> ${QUOTED_PHONE} using ${FAKE_API_KEY}`,
+  message: [
+    `Could not deliver to ${FAKE_INBOX} from ${FAKE_SENDER}`,
+    `for ${QUOTED_NAME} <${QUOTED_ADDRESS}> ${QUOTED_PHONE} using ${FAKE_API_KEY}`,
+  ].join(" "),
 });
 
 const encoder = new TextEncoder();

@@ -1,6 +1,6 @@
-// What the adapter makes of an answer the developer's table does not hold: bodies generated rather than
-// chosen, the body bound at its exact byte, bodies that break, stall or lie about their name, and the
-// ten-second bound when the request has already been answered.
+// What the adapter makes of a provider's answer: bodies generated rather than chosen, the body bound at
+// its exact byte, bodies that break, stall or lie about their name, and the ten-second bound when the
+// request has already been answered.
 import { fc } from "@fast-check/vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -400,6 +400,41 @@ describe("statuses whose body decides nothing", () => {
   );
 });
 
+const PRODUCED_CHUNK_BYTES = 1024;
+const CHUNKS_THAT_PASS_THE_BOUND =
+  ANSWER_BOUND_BYTES / PRODUCED_CHUNK_BYTES + 1;
+const CHUNKS_A_STREAM_READS_AHEAD = 1;
+
+/** One real turn of the event loop: every read already owed has run, and no faked timer has moved. */
+function untilEveryPendingReadHasRun(): Promise<void> {
+  return new Promise((resolve) => {
+    setImmediate(resolve);
+  });
+}
+
+/** The three statuses whose body decides: the member that decides, what it decides, and the row's otherwise. */
+const BODY_DECIDED_ROWS = [
+  [200, '"id":"msg_1"', { ok: true }, failed("unreadable-answer", 200)],
+  [
+    409,
+    `"name":"${MISMATCH_NAME}"`,
+    failed("payload-mismatch", 409),
+    failed("busy", 409),
+  ],
+  [
+    429,
+    `"name":"${RATE_NAME}"`,
+    failed("busy", 429),
+    failed("quota-spent", 429),
+  ],
+] as const;
+
+/** The same statuses with a whole deciding body, and the answer owed when that body cannot be read. */
+const OTHERWISE_ROWS = BODY_DECIDED_ROWS.map(
+  ([status, member, , otherwise]) =>
+    [status, `{${member}}`, otherwise] as const,
+);
+
 /** A JSON object of exactly `totalBytes` bytes: `head`, then a pad member that fills the rest. */
 function objectOfExactly(totalBytes: number, head: string): Uint8Array {
   const open = `{${head},"pad":"`;
@@ -412,21 +447,7 @@ function objectOfExactly(totalBytes: number, head: string): Uint8Array {
 }
 
 describe("the bound on the answer's body, at its exact byte", () => {
-  it.each([
-    [200, '"id":"msg_1"', { ok: true }, failed("unreadable-answer", 200)],
-    [
-      409,
-      `"name":"${MISMATCH_NAME}"`,
-      failed("payload-mismatch", 409),
-      failed("busy", 409),
-    ],
-    [
-      429,
-      `"name":"${RATE_NAME}"`,
-      failed("busy", 429),
-      failed("quota-spent", 429),
-    ],
-  ])(
+  it.each(BODY_DECIDED_ROWS)(
     "reads a %i body of sixteen kibibytes and not one byte more",
     async (status, head, atTheBound, pastTheBound) => {
       const atBound = await outcomeFor(() =>
@@ -485,24 +506,33 @@ describe("the bound on the answer's body, at its exact byte", () => {
     expect(outcome).toEqual({ ok: true });
   });
 
-  it("stops reading a body that keeps producing, and lets go of it, without waiting for the time bound", async () => {
+  it("stops reading a body that keeps producing, lets go of it, and answers while the clock stands still", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     let chunksProduced = 0;
     let wasCancelled = false;
     const producingForever = new ReadableStream<Uint8Array>({
       pull(controller) {
         chunksProduced += 1;
-        controller.enqueue(new Uint8Array(1024).fill(0x20));
+        controller.enqueue(new Uint8Array(PRODUCED_CHUNK_BYTES).fill(0x20));
       },
       cancel() {
         wasCancelled = true;
       },
     });
+    stubFetchAnswering(() => answerOf(200, producingForever));
+    let outcome: MailOutcome | undefined;
 
-    const outcome = await outcomeFor(() => answerOf(200, producingForever));
+    void send().then((answer) => {
+      outcome = answer;
+    });
+    await untilEveryPendingReadHasRun();
 
     expect(outcome).toEqual(failed("unreadable-answer", 200));
     expect(wasCancelled).toBe(true);
-    expect(chunksProduced).toBeLessThan(64);
+    expect(chunksProduced).toBeLessThanOrEqual(
+      CHUNKS_THAT_PASS_THE_BOUND + CHUNKS_A_STREAM_READS_AHEAD,
+    );
+    expect(vi.getTimerCount()).toBe(0);
   });
 });
 
@@ -520,11 +550,7 @@ function breakingAfter(firstChunk: string): ReadableStream<Uint8Array> {
 }
 
 describe("a body that breaks while it is read", () => {
-  it.each([
-    [200, '{"id":"msg_1"}', failed("unreadable-answer", 200)],
-    [409, `{"name":"${MISMATCH_NAME}"}`, failed("busy", 409)],
-    [429, `{"name":"${RATE_NAME}"}`, failed("quota-spent", 429)],
-  ])(
+  it.each(OTHERWISE_ROWS)(
     "answers a %i by its row's otherwise, even when what arrived first was a whole deciding body",
     async (status, firstChunk, expected) => {
       const outcome = await outcomeFor(() =>
@@ -536,14 +562,10 @@ describe("a body that breaks while it is read", () => {
     },
   );
 
-  it.each([
-    [200, failed("unreadable-answer", 200)],
-    [409, failed("busy", 409)],
-    [429, failed("quota-spent", 429)],
-  ])(
+  it.each(OTHERWISE_ROWS)(
     "answers a %i whose body is already locked by its row's otherwise",
-    async (status, expected) => {
-      const locked = streamOf(bytesOf('{"id":"msg_1"}'));
+    async (status, decidingBody, expected) => {
+      const locked = streamOf(bytesOf(decidingBody));
       locked.getReader();
 
       const outcome = await outcomeFor(() => answerOf(status, locked));
@@ -552,13 +574,9 @@ describe("a body that breaks while it is read", () => {
     },
   );
 
-  it.each([
-    [200, failed("unreadable-answer", 200)],
-    [409, failed("busy", 409)],
-    [429, failed("quota-spent", 429)],
-  ])(
+  it.each(OTHERWISE_ROWS)(
     "keeps the status of a %i whose body cannot even be asked for, and answers its row's otherwise",
-    async (status, expected) => {
+    async (status, _decidingBody, expected) => {
       const outcome = await outcomeFor(
         () =>
           ({
@@ -597,11 +615,7 @@ describe("a response that arrived, whose body is no body", () => {
   ];
 
   describe.each(NO_BODIES)("%s", (_label, bodyOf) => {
-    it.each([
-      [200, '{"id":"msg_1"}', failed("unreadable-answer", 200)],
-      [409, `{"name":"${MISMATCH_NAME}"}`, failed("busy", 409)],
-      [429, `{"name":"${RATE_NAME}"}`, failed("quota-spent", 429)],
-    ])(
+    it.each(OTHERWISE_ROWS)(
       "keeps the status of a %i and answers its row's otherwise",
       async (status, decidingText, expected) => {
         const outcome = await outcomeFor(() =>

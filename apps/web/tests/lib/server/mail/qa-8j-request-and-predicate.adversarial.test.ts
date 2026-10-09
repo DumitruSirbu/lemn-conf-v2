@@ -1,12 +1,13 @@
-// What the port's predicate accepts is driven through what then receives it: the built request, the
-// platform's own header and request constructors, and the fake. The developer's tests decide each
-// character of a key; these ask whether an accepted message can still break, widen or change a request.
+// What the port's predicate accepts, driven through everything that then receives it: the built request,
+// the platform's own header and request constructors, and the fake. Whether an accepted message can still
+// break, widen or change a request, and whether what a sender judged is what it sends and records.
 import { fc } from "@fast-check/vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createFakeMailSender } from "@/lib/server/mail/fake-mail-sender";
 import {
   isSendableMailMessage,
+  LINE_BREAKING_CHARACTER,
   type MailMessage,
 } from "@/lib/server/mail/mail-sender";
 import {
@@ -37,12 +38,10 @@ const sendableKey = fc
   .array(fc.constantFrom(...VISIBLE_ASCII), { minLength: 1, maxLength: 256 })
   .map((characters) => characters.join(""));
 
-const LINE_BREAKING = /[\p{Cc}\u2028\u2029]/u;
-
 /** Any text, half surrogates and format characters included, with no control character or line separator. */
 const sendableSubject = fc
   .string({ unit: "binary", minLength: 1, maxLength: 80 })
-  .filter((subject) => !LINE_BREAKING.test(subject));
+  .filter((subject) => !LINE_BREAKING_CHARACTER.test(subject));
 
 const sendableText = fc.string({
   unit: "binary",
@@ -144,7 +143,7 @@ describe("a message the predicate accepts, through everything that then receives
     );
   });
 
-  it("writes a body that is plain ASCII-safe JSON even for half surrogates, so no encoder can alter it", () => {
+  it("writes half surrogates as escapes, so the body survives a UTF-8 round trip unchanged", () => {
     const message = { ...QA_MESSAGE, text: "before \ud800 after \udc00 end" };
 
     const { body } = buildResendRequest(message, QA_CONFIGURATION).init;
@@ -212,51 +211,6 @@ describe("a message the predicate refuses", () => {
       expect(fetchSpy).not.toHaveBeenCalled();
     },
   );
-});
-
-/** A message whose key reads as sendable the first time it is asked and as a header break ever after. */
-function messageWhoseKeyChangesAfterTheFirstRead(): MailMessage {
-  let reads = 0;
-  return {
-    get key() {
-      reads += 1;
-      return reads === 1
-        ? QA_MESSAGE.key
-        : "changed key\r\nBcc: second@example.com";
-    },
-    subject: QA_MESSAGE.subject,
-    text: QA_MESSAGE.text,
-  };
-}
-
-describe("a message that answers differently each time it is read", () => {
-  it("never puts into a request a key the predicate did not see", async () => {
-    const fetchSpy = acceptingFetch();
-
-    await createResendMailSender(QA_CONFIGURATION).send(
-      messageWhoseKeyChangesAfterTheFirstRead(),
-    );
-
-    const keysRequested = fetchSpy.mock.calls.map(
-      ([, init]) =>
-        (init.headers as Record<string, string>)["Idempotency-Key"] ?? "",
-    );
-    expect(
-      keysRequested.filter(
-        (key) => !isSendableMailMessage({ ...QA_MESSAGE, key }),
-      ),
-    ).toEqual([]);
-  });
-
-  it("never records in the fake a key the predicate did not see", async () => {
-    const fake = createFakeMailSender();
-
-    await fake.send(messageWhoseKeyChangesAfterTheFirstRead());
-
-    expect(
-      fake.sent.filter((recorded) => !isSendableMailMessage(recorded)),
-    ).toEqual([]);
-  });
 });
 
 describe("what a message can add to the request beyond its three fields", () => {
@@ -345,7 +299,7 @@ describe("what a message can add to the request beyond its three fields", () => 
     },
   );
 
-  it("hands fetch the method, the headers, the body, the redirect rule and the signal, and no other option", async () => {
+  it("hands fetch the method, headers, body, redirect rule and signal, and no other option", async () => {
     const fetchSpy = acceptingFetch();
 
     await createResendMailSender(QA_CONFIGURATION).send(QA_MESSAGE);
@@ -487,7 +441,7 @@ describe.each(CHANGING_MESSAGES)(
       expect(initOf(fetchSpy).headers).toStrictEqual(expected.headers);
     });
 
-    it("is asked once for each member by the fake, which records the first answers and lets no holder rewrite them", async () => {
+    it("is asked once for each member by the fake, whose record of the first answers is frozen", async () => {
       const fake = createFakeMailSender();
       const { message, reads } = answering(QA_MESSAGE, LATER_ANSWERS);
 

@@ -251,7 +251,7 @@ describe("every combination of the flag and the three mail variables", () => {
     expect(wrong).toEqual([]);
   });
 
-  it("builds a sender exactly where the selection is the fake or the provider, and otherwise answers the selection's names", () => {
+  it("builds a sender exactly for the fake and the provider, and otherwise answers the selection's names", () => {
     silenceEveryConsoleMethod();
     const wrong = CELLS.filter(({ environment, expectedSelection }) => {
       const creation = createMailSender(environment);
@@ -393,10 +393,8 @@ describe("what the three functions ask of the environment they are handed", () =
       readMailConfiguration(USABLE_VALUES);
       selectMailSender(USABLE_VALUES);
       const creation = createMailSender(USABLE_VALUES);
-      const pending =
-        creation.kind === "sender"
-          ? creation.sender.send(QA_MESSAGE)
-          : undefined;
+      if (creation.kind !== "sender") throw new Error("expected a sender");
+      const pending = creation.sender.send(QA_MESSAGE);
       askedDuringTheCalls = [...processAsked];
       await pending;
     } finally {
@@ -478,7 +476,7 @@ const acceptedAddress = fc
   .map(([local, domain]) => `${local}@${domain}`);
 
 describe("an address the reader accepts, once it is in the request", () => {
-  it("is the body's one recipient and its sender, each read back whole from the JSON, however odd its characters", () => {
+  it("is the body's one recipient and its sender, each read back whole from the JSON, however odd", () => {
     fc.assert(
       fc.property(acceptedAddress, acceptedAddress, (sender, inbox) => {
         const read = readMailConfiguration({
@@ -522,36 +520,7 @@ describe("an address the reader accepts, once it is in the request", () => {
 });
 
 describe("the key, in what the factory hands back", () => {
-  function functionsReachableFrom(value: object): string[] {
-    const sources: string[] = [];
-    for (
-      let holder: object | null = value;
-      holder !== null && holder !== Object.prototype;
-      holder = Object.getPrototypeOf(holder) as object | null
-    ) {
-      for (const name of Reflect.ownKeys(holder)) {
-        const member: unknown = Reflect.get(holder, name);
-        if (typeof member === "function")
-          sources.push(Function.prototype.toString.call(member));
-      }
-    }
-    return sources;
-  }
-
-  it("is in no function's source text and on no member of the sender or its prototypes", () => {
-    silenceEveryConsoleMethod();
-    const creation = createMailSender(USABLE_VALUES);
-    if (creation.kind !== "sender") throw new Error("expected a sender");
-
-    const sources = functionsReachableFrom(creation.sender);
-
-    expect(sources.length).toBeGreaterThan(0);
-    expectNoMarkerIn(sources, SECRETS);
-    expect(Object.getPrototypeOf(creation.sender)).toBe(Object.prototype);
-    expect(Object.getOwnPropertySymbols(creation.sender)).toEqual([]);
-  });
-
-  it("is in no outcome and no line, whatever a failing transport throws back at a sender the factory built", async () => {
+  it("is in no outcome and no line, whatever a failing transport throws back at the factory's sender", async () => {
     const consoleSpies = silenceEveryConsoleMethod();
     const creation = createMailSender(USABLE_VALUES);
     if (creation.kind !== "sender") throw new Error("expected a sender");
@@ -587,18 +556,19 @@ describe("the fake the factory builds", () => {
     expect(consoleCallsOf(consoleSpies)).toHaveLength(1);
   });
 
-  it("gives each build its own record, so one server's fake never answers with another's messages", async () => {
+  it("hands back a sender of `send` alone, from which nothing it was sent can be read back", async () => {
     silenceEveryConsoleMethod();
-    const first = createMailSender({ [FAKE_MAIL_FLAG]: "1" });
-    const second = createMailSender({ [FAKE_MAIL_FLAG]: "1" });
-    if (first.kind !== "sender" || second.kind !== "sender")
-      throw new Error("expected two senders");
+    const creation = createMailSender({ [FAKE_MAIL_FLAG]: "1" });
+    if (creation.kind !== "sender") throw new Error("expected a sender");
 
-    await first.sender.send(QA_MESSAGE);
+    const outcome = await creation.sender.send(QA_MESSAGE);
 
-    expect((second.sender as unknown as { sent: unknown[] }).sent).toEqual([]);
-    expect((first.sender as unknown as { sent: unknown[] }).sent).toEqual([
-      QA_MESSAGE,
-    ]);
+    expect(outcome).toEqual({ ok: true });
+    expect(Reflect.ownKeys(creation.sender)).toEqual(["send"]);
+    expect(Object.getPrototypeOf(creation.sender)).toBe(Object.prototype);
+    expectNoMarkerIn(
+      [creation, creation.sender],
+      [QA_MESSAGE.key, QA_MESSAGE.subject, QA_MESSAGE.text],
+    );
   });
 });
