@@ -72,8 +72,10 @@ describe("deleteRateLimitCountersForTests", () => {
     it("sends no statement outside a test runner", async () => {
       const originalVitest = process.env["VITEST"];
       const originalWorkerIndex = process.env["TEST_WORKER_INDEX"];
+      const originalPlaywright = process.env["PLAYWRIGHT_TEST"];
       delete process.env["VITEST"];
       delete process.env["TEST_WORKER_INDEX"];
+      delete process.env["PLAYWRIGHT_TEST"];
 
       try {
         await expect(
@@ -86,6 +88,37 @@ describe("deleteRateLimitCountersForTests", () => {
         }
         if (originalWorkerIndex !== undefined) {
           process.env["TEST_WORKER_INDEX"] = originalWorkerIndex;
+        }
+        if (originalPlaywright !== undefined) {
+          process.env["PLAYWRIGHT_TEST"] = originalPlaywright;
+        }
+      }
+    });
+
+    it("runs in Playwright's own runner process, which sets PLAYWRIGHT_TEST and neither of the other markers", async () => {
+      const originalVitest = process.env["VITEST"];
+      const originalWorkerIndex = process.env["TEST_WORKER_INDEX"];
+      const originalPlaywright = process.env["PLAYWRIGHT_TEST"];
+      delete process.env["VITEST"];
+      delete process.env["TEST_WORKER_INDEX"];
+      process.env["PLAYWRIGHT_TEST"] = "1";
+      answerWith([{ hits: 2 }]);
+
+      try {
+        await expect(
+          deleteRateLimitCountersForTests([KEY_ONE]),
+        ).resolves.toEqual({ rowsRemoved: 1, counts: [2] });
+      } finally {
+        if (originalVitest !== undefined) {
+          process.env["VITEST"] = originalVitest;
+        }
+        if (originalWorkerIndex !== undefined) {
+          process.env["TEST_WORKER_INDEX"] = originalWorkerIndex;
+        }
+        if (originalPlaywright === undefined) {
+          delete process.env["PLAYWRIGHT_TEST"];
+        } else {
+          process.env["PLAYWRIGHT_TEST"] = originalPlaywright;
         }
       }
     });

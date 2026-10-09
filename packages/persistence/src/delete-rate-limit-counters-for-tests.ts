@@ -2,11 +2,15 @@ import { requireSha256Digest } from "./sha256-digest.js";
 import { openTestDatabase } from "./test-database-url.js";
 
 /**
- * Set by vitest in every worker and by Playwright in every test worker (`TEST_WORKER_INDEX`), and by Playwright's own
- * runner process in its teardown (`PLAYWRIGHT_TEST_BASE_URL` is a user setting, so it is not relied on): the closest
- * proof that this process is a test runner and not the application.
+ * Set by vitest in every worker, and by Playwright in every test worker (`TEST_WORKER_INDEX`) and in its own runner
+ * process, where its global teardown runs (`PLAYWRIGHT_TEST`): the closest proof that this process is a test runner
+ * and not the application.
  */
-const TEST_RUNNER_MARKER_VARIABLES = ["VITEST", "TEST_WORKER_INDEX"] as const;
+const TEST_RUNNER_MARKER_VARIABLES = [
+  "VITEST",
+  "TEST_WORKER_INDEX",
+  "PLAYWRIGHT_TEST",
+] as const;
 
 /** What a delete removed: how many rows, and each one's hit count, in no particular order. */
 export interface RemovedRateLimitCounters {
