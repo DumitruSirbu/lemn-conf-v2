@@ -22,6 +22,7 @@ describe("the contact submission store's modules", () => {
         "contact-submission-store.ts",
         "fake-contact-submission-store.ts",
         "generate-submission-reference.ts",
+        "neon-contact-submission-store.ts",
       ]),
     );
   });

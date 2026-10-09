@@ -103,7 +103,7 @@ function quoted(identifier: string): string {
   return `"${identifier.replaceAll('"', '""')}"`;
 }
 
-/** R1: not `WITH GRANT OPTION`. A role that could pass on what it holds would make the grant wider than the owner's
+/** Not `WITH GRANT OPTION`. A role that could pass on what it holds would make the grant wider than the owner's
  *  statement, and `has_table_privilege` and `has_column_privilege` both take the privilege with the suffix. */
 async function expectNothingHeldWithGrantOption(
   sql: NeonQueryFunction<false, false>,
@@ -354,7 +354,7 @@ describe.skipIf(!hasLiveDatabase)("the application's database role", () => {
     },
   );
 
-  // M8 wave 8I, criterion 3, built as 8E's criterion 13. The catalog is asked first and a statement is sent only for
+  // Built as the rate-limit table's test is: the catalog is asked first and a statement is sent only for
   // what the catalog said is refused, and only one that touches and shows nothing if it were allowed: a column read
   // `where false`, a delete and an update of an id that does not exist. The expected sets are named and the columns come
   // from the catalog, so a column added later is unread until someone names it here.

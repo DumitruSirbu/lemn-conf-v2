@@ -1,4 +1,4 @@
-/** The seven columns the application role may read (Q14 (i), narrowed by 8I's R1), in the table's order. */
+/** The seven columns the application role may read (the owner's grant, with update narrowed to notified-at), in the table's order. */
 export const READABLE_COLUMNS: readonly string[] = [
   "client_request_id",
   "reference",

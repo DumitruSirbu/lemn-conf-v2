@@ -171,23 +171,12 @@ export interface JudgedSubmission {
 }
 
 /**
- * One check for every operation of both stores. It refuses, before a statement is sent and with no value in the
- * refusal:
- * - what each constraint of the table refuses, but the reference's uniqueness;
- * - a value that is not a string, text Postgres cannot hold, and a part that is not an object (the contact, the
- *   target, a design's reference, the snapshot);
- * - a snapshot nested deeper than 64 levels, a document that is not exactly what `JSON.stringify` makes of its own
- *   parsed value, and a priced design that is not plain objects, lists, text, finite numbers, booleans and null;
- * - rule 5, code's own and no constraint's, each of which refuses more than the table does: a target whose kind
- *   disagrees with what it holds, an intent outside the domain's list, an empty design id, and an e-mail present when
- *   the channel is not e-mail or absent when it is.
- *
- * For any value handed in, it throws only its own refusal and nothing it throws holds a value: anything else thrown,
- * such as a member whose read throws, is the refusal of the request and keeps nothing of what was thrown. It returns for
- * every document and for every price that is a tree. A price whose parts are shared (each level holding the next twice)
- * is walked once for each path and its encoder does not return: a recorded limit, which holds for a caller that hands
- * over `snapshotSubmission`'s result untouched. What a server refuses for size, a time limit or
- * anything of its own is left to it, and is the store error.
+ * One check for every operation of both stores. Before a statement is sent, and with no value in the refusal, it
+ * refuses what the table would refuse but the reference's uniqueness, and a few things only this code refuses. For any
+ * value handed in it throws only its own refusal: anything else thrown, such as a member whose read throws, is the
+ * refusal of the request and keeps nothing of what was thrown. A price whose parts are shared is a recorded limit: its
+ * encoder does not return. What a server refuses for size, a time limit or anything of its own is the store error. The
+ * rules are in the wave's decision record.
  */
 export function requireValidSubmission(
   submission: ContactSubmissionToRecord,

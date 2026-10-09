@@ -34,7 +34,7 @@ vi.mock("@neondatabase/serverless", async (importOriginal) =>
 );
 
 /**
- * Criteria 8 and 9 for every statement the store sends: the text is read as the driver receives it. The columns the
+ * Every statement the store sends: the text is read as the driver receives it. The columns the
  * role may not read appear in the insert's column list and nowhere else, so none is read, returned, filtered on, sorted
  * by or set; every `on conflict` names its target, the client request id alone; and nothing is computed from a column.
  */

@@ -15,7 +15,7 @@ vi.mock("@neondatabase/serverless", async (importOriginal) =>
 );
 
 /**
- * Criterion 5: the backup's export statement names `designs` alone. The contact table holds personal data and is not to
+ * The backup's export statement names `designs` alone. The contact table holds personal data and is not to
  * be swept into a backup with a 14-day rotation; a second table in this statement would do exactly that.
  */
 const TABLE_AFTER_A_KEYWORD =

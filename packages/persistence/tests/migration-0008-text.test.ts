@@ -20,7 +20,7 @@ const MIGRATION_PATH = join(
 );
 
 /**
- * Criterion 9 against the migration's text, as amended by the security read of 0008: nothing the database can compute is
+ * The migration's text, as the security read of 0008 requires: nothing the database can compute is
  * derived from a personal column, no constraint names a column the role may update, and nothing in the file calls a
  * function but `now()` and `jsonb_typeof` on the two snapshots. The statement is read as the unattended screen reads it:
  * comments removed, lowercased.
@@ -163,7 +163,7 @@ describe("migration 0008's text", () => {
 
     expect(
       laterMigrationsNamingTheTable,
-      "a migration after 0008 names contact_submissions: before adding it, read the security ruling S-R1.1 (no " +
+      "a migration after 0008 names contact_submissions: before adding it, read the security read of 0008 (no " +
         "constraint, default, trigger or generated column may read notified_at, the one column the application " +
         "role may update, because a violation's detail would show the stored row), extend this file's checks to " +
         "that migration, and only then remove this tripwire's entry for it",

@@ -40,7 +40,7 @@ vi.mock("@neondatabase/serverless", async (importOriginal) =>
 
 /**
  * The store with the driver replaced: the collision loop, the repeat after a lost reply, and the translation of every
- * failure and every unexpected reply (criteria 2 and 7; R3 and R4). Nothing here reaches a database.
+ * failure and every unexpected reply. Nothing here reaches a database.
  */
 const CLIENT_REQUEST_ID = "driver-test-request-id";
 const [FIRST_REFERENCE, SECOND_REFERENCE, THIRD_REFERENCE, FOURTH_REFERENCE] = [

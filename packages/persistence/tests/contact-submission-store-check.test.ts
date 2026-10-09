@@ -380,7 +380,7 @@ function valueNestedToLevels(levels: number): object {
   return value;
 }
 
-describe("the depth bound of a snapshot (rule 4c)", () => {
+describe("the depth bound of a snapshot", () => {
   it.each([
     ["lists", "["],
     ["objects", "{"],
@@ -476,7 +476,7 @@ describe("the depth bound of a snapshot (rule 4c)", () => {
   );
 });
 
-describe("the document equals its own encoding (rule 4a)", () => {
+describe("the document equals its own encoding", () => {
   it.each([
     ["a number written with a needless fraction", '{"n":1.0}'],
     ["a number past a double's reach", '{"n":9007199254740993}'],
@@ -517,7 +517,7 @@ function aListWithAHole(): unknown[] {
   return list;
 }
 
-describe("the priced design is walked as a value (rule 4b)", () => {
+describe("the priced design is walked as a value", () => {
   const priced = FAKE_SNAPSHOT.priced;
 
   it.each([
