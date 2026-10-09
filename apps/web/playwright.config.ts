@@ -2,6 +2,10 @@ import { assertSafeTestDatabaseUrl, loadEnvLocal } from "@lemnaria/persistence";
 import { defineConfig, devices } from "@playwright/test";
 
 import {
+  E2E_RATE_LIMIT_POLICY_FLAG,
+  E2E_RATE_LIMIT_POLICY_FLAG_ENABLED,
+} from "./src/lib/server/rate-limit/limit-policy";
+import {
   SELECTION_DEBUG_FLAG,
   SELECTION_DEBUG_FLAG_ENABLED,
 } from "./src/app/configurator/configure/selection-debug-availability";
@@ -10,9 +14,17 @@ import {
   SCENE_SHOT_ROUTE_FLAG_ENABLED,
 } from "./src/app/internal/scene-shot/route-availability";
 
+import { secretOfThisRun } from "./tests/e2e/support/e2e-rate-limit-run";
+
 // The application's own `DATABASE_URL` must be readable here, or `assertSafeTestDatabaseUrl` has
 // nothing to compare against and passes vacuously.
 loadEnvLocal();
+
+/**
+ * The run's own secret for every digest the server makes: made once in the runner's main process, handed to the
+ * server below and to the workers through the environment, and written nowhere (ADR 0149, the amendment).
+ */
+const runSecret = secretOfThisRun();
 
 /** GitHub Actions sets `CI`. Read once, so the server command and timeouts agree on the machine. */
 const isContinuousIntegration = process.env.CI !== undefined;
@@ -33,6 +45,8 @@ export default defineConfig({
   // three specs failing on the 30 s default). The timeout is raised, not `retries`, which hides a flake.
   timeout: process.env.CI === undefined ? 30_000 : 120_000,
   reporter: [["list"]],
+  // Removes the counters this run made and says how many designs it minted; fails when it finds none.
+  globalTeardown: "./tests/e2e/global-teardown.ts",
   use: {
     baseURL: BASE_URL,
     trace: "retain-on-failure",
@@ -86,6 +100,11 @@ export default defineConfig({
       // (`next start`, which CI runs) unless this opts in; the capture specs drive them. Same placement
       // as the flag above. `next dev` serves the routes regardless.
       [SCENE_SHOT_ROUTE_FLAG]: SCENE_SHOT_ROUTE_FLAG_ENABLED,
+      // The mint's limiter runs under its own policy and its own secret here: a day's figure sized for one run, and
+      // keys no other run, and no deployment, can share. `CLIENT_NETWORK_SOURCE` is never set, so every request is
+      // in the one shared bucket and no forwarding header decides anything.
+      [E2E_RATE_LIMIT_POLICY_FLAG]: E2E_RATE_LIMIT_POLICY_FLAG_ENABLED,
+      DIGEST_SECRET: runSecret,
     },
     // Long enough for a cold `next build` on CI.
     timeout: isContinuousIntegration ? 300_000 : 60_000,

@@ -1,0 +1,123 @@
+import { randomBytes } from "node:crypto";
+
+import {
+  deleteRateLimitCountersForTests,
+  type RemovedRateLimitCounters,
+} from "@lemnaria/persistence";
+
+import { keyedDigest } from "../../../src/lib/server/digest/keyed-digest";
+import { SHARED_BLOCK } from "../../../src/lib/server/rate-limit/client-network";
+import type { PolicyName } from "../../../src/lib/server/rate-limit/limit-policy";
+
+/**
+ * The variable that carries a run's secret from the runner's main process to its test workers, and to nothing else.
+ * The server is handed the same value as `DIGEST_SECRET`, by the config alone. It is written to no file and printed
+ * nowhere.
+ */
+export const RUN_SECRET_VARIABLE = "LEMNARIA_E2E_RUN_SECRET";
+
+const SECRET_BYTES = 32;
+
+/** Where the main process remembers the secret it made, so a second reading of the config in the same process cannot
+ *  make another and leave the server holding one the workers do not. */
+const MADE_IN_THIS_PROCESS: unique symbol = Symbol.for(
+  "lemnaria.e2e.run-secret",
+);
+
+/** Playwright sets this in every worker and in no other process of a run. */
+const WORKER_MARKER_VARIABLE = "TEST_WORKER_INDEX";
+
+/** Thirty-two random bytes as sixty-four lowercase hexadecimal characters, the form the variable is written in. */
+export function makeRunSecret(): string {
+  return randomBytes(SECRET_BYTES).toString("hex");
+}
+
+/**
+ * The run's secret. Made once, in the runner's main process, where the config is first read; a worker only inherits
+ * it through its environment, since a secret made where the config is read would differ in every worker and the rows
+ * of the run would never be found.
+ */
+export function secretOfThisRun(): string {
+  return isWorker() ? inheritedSecret() : madeSecret();
+}
+
+function isWorker(): boolean {
+  return process.env[WORKER_MARKER_VARIABLE] !== undefined;
+}
+
+function inheritedSecret(): string {
+  const inherited = process.env[RUN_SECRET_VARIABLE];
+  if (inherited === undefined || inherited === "") {
+    throw new Error(
+      `A test worker found no ${RUN_SECRET_VARIABLE}: ` +
+        "the runner's main process makes the run's secret before any worker starts",
+    );
+  }
+  return inherited;
+}
+
+function madeSecret(): string {
+  const holder = globalThis as { [MADE_IN_THIS_PROCESS]?: string };
+  const secret = holder[MADE_IN_THIS_PROCESS] ?? makeRunSecret();
+  holder[MADE_IN_THIS_PROCESS] = secret;
+  process.env[RUN_SECRET_VARIABLE] = secret;
+  return secret;
+}
+
+/**
+ * The key the server counts every mint of the run under, computed here with the one digest function the server uses,
+ * from the secret's bytes and the shared block: no network source is named, so every request is in that one bucket.
+ */
+export function bucketKeyOfTheRun(
+  secretHex: string,
+  policyName: PolicyName,
+): string {
+  return keyedDigest(Buffer.from(secretHex, "hex"), {
+    purpose: "rate-limit-bucket",
+    fields: {
+      policyName,
+      subjectKind: SHARED_BLOCK.kind,
+      subject: SHARED_BLOCK.subject,
+    },
+  });
+}
+
+export interface CountersOfTheRun {
+  readonly rowsRemoved: number;
+  /** The number of mints the run counted: every hit it made, summed over the windows it spanned. */
+  readonly mintsCounted: number;
+}
+
+/**
+ * Removes the run's counter rows, through the guarded test helper and by the one key computed above, and answers how
+ * many mints they counted. Finding no row is a failure: a key computed wrongly would otherwise leave rows behind and
+ * report nothing.
+ */
+export async function removeCountersOfTheRun(
+  secretHex: string,
+  policyName: PolicyName,
+): Promise<CountersOfTheRun> {
+  const removed = await deleteRateLimitCountersForTests([
+    bucketKeyOfTheRun(secretHex, policyName),
+  ]);
+  if (removed.rowsRemoved === 0) throw new NoCountersOfTheRunError();
+  return summarised(removed);
+}
+
+function summarised(removed: RemovedRateLimitCounters): CountersOfTheRun {
+  return {
+    rowsRemoved: removed.rowsRemoved,
+    mintsCounted: removed.counts.reduce((sum, count) => sum + count, 0),
+  };
+}
+
+/** The run's counter rows could not be found, so either nothing was minted or the key is not the server's. */
+export class NoCountersOfTheRunError extends Error {
+  constructor() {
+    super(
+      "The run's rate-limit counters could not be found: no design was minted, " +
+        "or the harness computes a key the server does not",
+    );
+    this.name = "NoCountersOfTheRunError";
+  }
+}

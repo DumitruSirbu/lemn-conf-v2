@@ -5,8 +5,14 @@ import { isCrossSiteRequest } from "@/lib/server/cross-site-request";
 import {
   reportDesignFailure,
   reportDesignRefusal,
+  reportMintLimit,
   type DesignRefusal,
 } from "@/lib/server/design-failure-log";
+import { judgeMintRequest } from "@/lib/server/rate-limit/judge-mint-request";
+import {
+  mintLimitReachedResponse,
+  mintUnavailableResponse,
+} from "@/lib/server/rate-limit/rate-limited-response";
 import { getRepository } from "@/lib/server/repository";
 import { resolveVisitorForMint, setVisitorCookie } from "@/lib/server/visitor";
 import { mintWriteToken, setWriteTokenCookie } from "@/lib/server/write-token";
@@ -28,11 +34,39 @@ const CROSS_SITE_MINT_REFUSED: DesignRefusal = {
 export async function POST(request: NextRequest): Promise<NextResponse> {
   if (isCrossSiteRequest(request)) return crossSiteMintRefusedResponse();
   try {
+    const refusal = await refusalOfTheLimiter(request);
+    if (refusal !== undefined) return refusal;
     return await mintDesignRow(request);
   } catch (error) {
     reportDesignFailure("mint", error);
     throw error;
   }
+}
+
+/**
+ * Asked after the cross-site guard and before the visitor is read or anything is minted, so a refused mint resolves
+ * no visitor, sets no cookie and writes no row. The limiter is outside the mint's work, not inside it. Nothing thrown
+ * here is kept: it answers as unavailable.
+ */
+async function refusalOfTheLimiter(
+  request: NextRequest,
+): Promise<NextResponse | undefined> {
+  try {
+    const { decision, policy } = await judgeMintRequest(request.headers);
+    if (decision.kind === "allow") return undefined;
+    if (decision.kind === "refuse") {
+      const response = mintLimitReachedResponse(decision.retryAfterSeconds);
+      reportMintLimit({
+        kind: "refused",
+        policy: policy.status === "chosen" ? policy.policy.name : "none",
+      });
+      return response;
+    }
+    reportMintLimit({ kind: "unavailable", cause: decision.cause });
+  } catch {
+    reportMintLimit({ kind: "unavailable", cause: "judgement-failed" });
+  }
+  return mintUnavailableResponse();
 }
 
 function crossSiteMintRefusedResponse(): NextResponse {

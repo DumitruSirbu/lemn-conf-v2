@@ -82,6 +82,48 @@ export function reportDesignRefusal(
   });
 }
 
+/** What the mint limiter's two answers log: the policy that refused, or the cause that made a judgement impossible.
+ *  Nothing else: no address, block, subject, key, count or header value ever reaches the line. */
+export type MintLimitLine =
+  | { readonly kind: "refused"; readonly policy: string }
+  | { readonly kind: "unavailable"; readonly cause: string };
+
+export function reportMintLimit(line: MintLimitLine): void {
+  if (line.kind === "refused") {
+    emitDesignLogLine("warn", {
+      event: "design-operation-refused",
+      operation: "mint",
+      refusalCode: "MINT_LIMIT_REACHED",
+      status: 429,
+      policy: line.policy,
+    });
+    return;
+  }
+  emitDesignLogLine("error", {
+    event: "design-operation-unavailable",
+    operation: "mint",
+    refusalCode: "MINT_UNAVAILABLE",
+    status: 503,
+    cause: line.cause,
+  });
+}
+
+/** One literal, made of constants: the figure under the e2e policy is not the production one. */
+export const E2E_MINT_POLICY_NOTICE =
+  "rate limit: the e2e policy is in use (LEMNARIA_E2E_RATE_LIMIT_POLICY); the day's figure is not the production one";
+
+let hasAnnouncedE2eMintPolicy = false;
+
+/** Written once in a process, when the e2e policy first decides a request. */
+export function reportE2eMintPolicyInUse(): void {
+  if (hasAnnouncedE2eMintPolicy) return;
+  hasAnnouncedE2eMintPolicy = true;
+  emitDesignLogLine("warn", {
+    event: "rate-limit-policy-notice",
+    message: E2E_MINT_POLICY_NOTICE,
+  });
+}
+
 /**
  * A stored row that would not validate on the way out: the server's problem, so the response says only that the
  * design could not be loaded. The operation is a parameter because `designErrorResponse` maps this failure on both

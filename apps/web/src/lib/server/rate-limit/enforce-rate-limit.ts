@@ -42,7 +42,7 @@ export interface RateLimitRequest {
   readonly network: ClientNetwork;
   readonly digester: DigesterOutcome;
   readonly policy: PolicyChoice;
-  readonly store: RateLimitStore;
+  readonly store: Pick<RateLimitStore, "recordHits">;
   readonly instant: Date;
 }
 
@@ -128,7 +128,7 @@ function keyOf({ block, digest, policy }: Usable): Step<string> {
  * unhandled behind. A synchronous throw from the store is a rejection too.
  */
 async function recordWithinDeadline(
-  store: RateLimitStore,
+  store: Pick<RateLimitStore, "recordHits">,
   buckets: readonly RateLimitBucket[],
 ): Promise<Step<unknown>> {
   const answered = new Promise<unknown>((resolve) => {

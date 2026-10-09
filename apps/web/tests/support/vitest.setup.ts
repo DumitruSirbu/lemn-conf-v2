@@ -1,3 +1,5 @@
+import { vi } from "vitest";
+
 // **One declaration of React's act environment, for every test in this project.**
 //
 // `.dom.test.ts` files (M6-AUD-009) render real components with `react-dom/client` and drive them
@@ -35,3 +37,21 @@ if (typeof navigator !== "undefined" && "locks" in navigator) {
 }
 
 export {};
+
+// The mint limiter, answered for every test file as "allow", so a test of the mint, a save or a share asks about the
+// route's own work and not about a day's count. `judge-mint-request.ts` is the one seam the route reaches the limiter
+// through; the files that are about the limiter put the real one back with `vi.unmock`.
+vi.mock("@/lib/server/rate-limit/judge-mint-request", () => ({
+  judgeMintRequest: () =>
+    Promise.resolve({
+      decision: { kind: "allow" },
+      policy: {
+        status: "chosen",
+        policy: {
+          name: "design-mint-per-chisinau-day",
+          figure: 20,
+          window: "chisinau-day",
+        },
+      },
+    }),
+}));
