@@ -154,6 +154,12 @@ const EXPECTED_CLASSIFICATION: Readonly<
     reason:
       "adversarial QA of 8E: writes counter rows under random keys in its own era and needs the schema intact (M8 8E QA)",
   },
+  "qa-8i-contact-submission-live.adversarial.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "adversarial QA of 8I: writes contact submission rows under ids that carry its own marker and needs the schema intact (M8 8I QA)",
+  },
   "table-privileges.test.ts": {
     gate: "live test database",
     lock: "none",
