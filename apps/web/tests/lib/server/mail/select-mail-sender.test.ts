@@ -1,3 +1,5 @@
+import { inspect } from "node:util";
+
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { MailEnvironment } from "@/lib/server/mail/mail-configuration";
@@ -30,14 +32,7 @@ const ALL_THREE_NAMES = [
   "LEAD_NOTIFICATION_ADDRESS",
 ];
 
-const PROVIDER_SELECTION = {
-  kind: "provider",
-  configuration: {
-    apiKey: FAKE_KEY,
-    fromAddress: FAKE_FROM,
-    notificationAddress: FAKE_INBOX,
-  },
-};
+const PROVIDER_SELECTION = { kind: "provider" };
 
 const FLAG_IS_UNAVAILABLE = {
   kind: "unavailable",
@@ -123,8 +118,23 @@ describe("selectMailSender: the flag beside a mail variable", () => {
 });
 
 describe("selectMailSender: the provider", () => {
-  it("is chosen with its configuration when all three variables are usable", () => {
+  it("is chosen when all three variables are usable", () => {
     expect(selectMailSender(ALL_MAIL_VARIABLES)).toEqual(PROVIDER_SELECTION);
+  });
+
+  it("carries nothing of the configuration: the answer is its kind alone, however it is inspected", () => {
+    const answer = selectMailSender(ALL_MAIL_VARIABLES);
+    const inspected = inspect(answer, {
+      depth: null,
+      showHidden: true,
+      showProxy: true,
+    });
+
+    expect(Reflect.ownKeys(answer)).toEqual(["kind"]);
+    for (const value of [FAKE_KEY, FAKE_FROM, FAKE_INBOX]) {
+      expect(JSON.stringify(answer)).not.toContain(value);
+      expect(inspected).not.toContain(value);
+    }
   });
 
   it("is unavailable, naming what is missing, when one variable is unset", () => {
@@ -181,6 +191,35 @@ describe("selectMailSender: what it is a function of", () => {
 
   it("takes the environment and nothing else, so no request can reach it", () => {
     expect(selectMailSender.length).toBe(1);
+  });
+});
+
+describe("selectMailSender: only the environment's own members count", () => {
+  it("reads no mail variable an object inherits", () => {
+    const inherited = Object.create(ALL_MAIL_VARIABLES) as MailEnvironment;
+
+    expect(selectMailSender(inherited)).toEqual({
+      kind: "unavailable",
+      variables: ALL_THREE_NAMES,
+    });
+  });
+
+  it("does not take an inherited flag as the flag", () => {
+    const inherited = Object.create({
+      [FAKE_MAIL_FLAG]: "1",
+    }) as MailEnvironment;
+
+    expect(selectMailSender(inherited).kind).toBe("unavailable");
+  });
+
+  it("does not count an inherited mail variable as present beside the flag", () => {
+    const environment = Object.create(ALL_MAIL_VARIABLES) as Record<
+      string,
+      string
+    >;
+    environment[FAKE_MAIL_FLAG] = "1";
+
+    expect(selectMailSender(environment)).toEqual({ kind: "fake" });
   });
 });
 

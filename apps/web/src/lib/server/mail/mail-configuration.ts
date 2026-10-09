@@ -73,8 +73,16 @@ function usableValue(
   environment: MailEnvironment,
   name: MailVariableName,
 ): string | undefined {
-  const value = environment[name];
+  const value = ownValue(environment, name);
   return typeof value === "string" && USABILITY_RULES[name].test(value)
     ? value
     : undefined;
+}
+
+/** Only the environment's own members: a name an object inherits from its prototype is not set. */
+export function ownValue(
+  environment: MailEnvironment,
+  name: string,
+): string | undefined {
+  return Object.hasOwn(environment, name) ? environment[name] : undefined;
 }

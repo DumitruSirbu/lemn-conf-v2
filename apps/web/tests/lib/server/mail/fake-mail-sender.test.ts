@@ -89,6 +89,17 @@ describe("createFakeMailSender", () => {
     ]);
   });
 
+  it("refuses a message that may not be sent, as the adapter does, and records nothing", async () => {
+    const sender = createFakeMailSender([{ ok: false, kind: "busy" }]);
+
+    const refused = await sender.send({ ...FIRST, key: "has a space" });
+    const next = await sender.send(FIRST);
+
+    expect(refused).toEqual({ ok: false, kind: "refused" });
+    expect(sender.sent).toEqual([FIRST]);
+    expect(next).toEqual({ ok: false, kind: "busy" });
+  });
+
   it("keeps separate records for separate senders", async () => {
     const one = createFakeMailSender();
     const other = createFakeMailSender();

@@ -1,7 +1,9 @@
 import "server-only";
 
 import {
+  isSendableMailMessage,
   MAIL_ACCEPTED,
+  MAIL_REFUSED_UNSENT,
   type MailMessage,
   type MailOutcome,
   type MailSender,
@@ -14,7 +16,8 @@ export interface FakeMailSender extends MailSender {
 
 /**
  * Records what it is given and answers from `scriptedOutcomes`, one per send in order, then with an
- * acceptance. It reaches no network.
+ * acceptance. A message that may not be sent is refused, unrecorded, as the adapter would. It reaches no
+ * network.
  */
 export function createFakeMailSender(
   scriptedOutcomes: readonly MailOutcome[] = [],
@@ -23,6 +26,9 @@ export function createFakeMailSender(
   return {
     sent,
     send(message) {
+      if (!isSendableMailMessage(message)) {
+        return Promise.resolve(MAIL_REFUSED_UNSENT);
+      }
       const outcome = scriptedOutcomes[sent.length] ?? MAIL_ACCEPTED;
       sent.push({
         key: message.key,

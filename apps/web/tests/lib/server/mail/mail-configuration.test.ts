@@ -82,6 +82,15 @@ describe("readMailConfiguration", () => {
     });
   });
 
+  it("reads no variable an object inherits", () => {
+    const inherited = Object.create(VALID_ENVIRONMENT) as MailEnvironment;
+
+    expect(readMailConfiguration(inherited)).toEqual({
+      status: "unavailable",
+      variables: [...MAIL_VARIABLE_NAMES],
+    });
+  });
+
   it("ignores the process environment and reads only the one handed in", () => {
     vi.stubEnv(MAIL_API_KEY_VARIABLE, FAKE_KEY);
     vi.stubEnv(MAIL_FROM_ADDRESS_VARIABLE, FAKE_FROM);

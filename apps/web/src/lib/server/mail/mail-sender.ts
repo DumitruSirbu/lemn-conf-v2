@@ -3,7 +3,8 @@ import "server-only";
 /**
  * One fixed message. It names no recipient, no sender and no markup: the configured shop inbox is the
  * only recipient there is, and the adapter fills it, so a customer's address cannot become one by type.
- * `key` is the idempotency key; `text` is plain text.
+ * `key` is the idempotency key; `text` is plain text. What may be sent is `isSendableMailMessage`:
+ * a key of 1 to 256 visible ASCII characters, a non-empty subject on one line, and a text.
  */
 export interface MailMessage {
   readonly key: string;
@@ -39,6 +40,34 @@ export interface MailSender {
 }
 
 export const MAIL_ACCEPTED: MailOutcome = Object.freeze({ ok: true });
+
+/** The answer for a message that may not be sent: ours, given before any request, so it has no status. */
+export const MAIL_REFUSED_UNSENT: MailOutcome = Object.freeze({
+  ok: false,
+  kind: "refused",
+});
+
+const KEY_MAX_LENGTH = 256;
+const VISIBLE_ASCII_KEY = /^[\x21-\x7e]+$/;
+const LINE_BREAKING_CHARACTER = /[\p{Cc}\u2028\u2029]/u;
+
+/**
+ * Asked by every sender before it builds anything from the message: a key that cannot be a header
+ * value, or a subject that could break one, must never reach a request, and the fake agrees with the
+ * adapter because both ask this.
+ */
+export function isSendableMailMessage(message: MailMessage): boolean {
+  const { key, subject, text } = message;
+  return (
+    typeof key === "string" &&
+    key.length <= KEY_MAX_LENGTH &&
+    VISIBLE_ASCII_KEY.test(key) &&
+    typeof subject === "string" &&
+    subject.length > 0 &&
+    !LINE_BREAKING_CHARACTER.test(subject) &&
+    typeof text === "string"
+  );
+}
 
 // `quota-spent` is not retried automatically: a caller stops on it and says so, rather than looping.
 const IS_RETRYABLE: Readonly<Record<MailFailureKind, boolean>> = {
