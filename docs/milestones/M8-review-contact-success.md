@@ -5284,6 +5284,9 @@ to reach them** (probes 28–34, 50, 51), **and not the price quoted**, which is
 can also add rows, and **mark a
 request notified, which stops a retry from notifying the shop.** That comes with the one `UPDATE`
 the flow needs. *Trigger for more:* the delivery milestone's way to see a request never notified.
+**(Added 2026-10-09, the security reader's: it shows every client request id, and whoever holds one
+can ask the public endpoint whether guessed details are the stored ones, since the server makes
+the digest. 8K counts conflict answers.)**
 
 **R7 — scope: two dispatches.** The Neon class has its own file beside its port (8E, C-R1.2), and
 the reference has its generator, so S1 is six production files and more than five items.
@@ -5684,8 +5687,10 @@ read that code at S1b and missed it.
 parts are shared (sixty levels, each holding the next twice) is walked once for each part and
 encoded once for each path, and the encoder does not return [relayed, reviewer-run].
 
-- *Why not closed:* refusing a part met twice would refuse a real price whose lines share a label
-  [inf, not read]; a count of places walked is a fourth change to a path that has had three; and a
+- *Why not closed:* ~~refusing a part met twice would refuse a real price whose lines share a label
+  [inf, not read];~~ **(Struck 2026-10-09: false. A label is text and not a part, so no real price
+  meets one twice [relayed, the logic reader]. The limit stands for the two reasons left: *8I — review round 2*.)** a
+  count of places walked is a fourth change to a path that has had three; and a
   price comes only from `priceDesign`, which builds a tree. The stopping rule did not foresee
   *never returns*. The reviewers agree it is no must-fix.
 - **(Widened 2026-10-09, later, to any value handed in, and made true in code: *8I — QA pass 4's finding*.)**
@@ -5700,7 +5705,8 @@ quotes it [src `contact-submission-store.ts:232-235`]. The contact, the target, 
 reference and the snapshot must each be an object, or the part's own refusal is thrown.
 
 **L-R1.2 — criterion 12 gains rule 5; no code is removed.** *Rule 5, code's own and no
-constraint's:* a target whose kind disagrees with what it holds; an intent outside the domain's
+constraint's:* ~~a target whose kind disagrees with what it holds;~~ **(2026-10-09: the kind is
+read only as *design* or not; *8I — review round 2*.)** an intent outside the domain's
 list; an empty design id; an e-mail present when the channel is not e-mail, or absent when it is.
 Each refuses more than the table, and the domain refuses each first. **Not in the list, on purpose
 (L-R1.3):** the channel, the locale and the consent version are any storable text. The store is
@@ -5785,8 +5791,8 @@ security's.**
   second message. A notice accepted, a mark failed and a retry past the provider's day notify twice.
 - **A rejected `record` does not mean nothing was stored.** A retry goes through the lookup.
 - Over HTTP an answer of *not notified* can arrive after one of *notified*.
-- **Pass only a validated request**, and `snapshotSubmission`'s result untouched (L-R1.1's
-  trigger).
+- **Pass only a validated request**, **as plain data (added 2026-10-09: *8I — review round 2*, the second
+  reading)**, and `snapshotSubmission`'s result untouched (L-R1.1's trigger).
 - Whoever holds a stored client request id can ask the endpoint whether guessed details are the
   stored ones, since the server makes the digest. **Conflict answers are counted.** *For R6:* a
   leaked `DATABASE_URL` shows every id.
@@ -5850,6 +5856,105 @@ suite once. **Nothing live:** no statement and no path of the Neon store changes
 
 **Round 2 of review reads the tree after round B and that QA pass.** Security also reads that
 F9's catch keeps nothing of what was thrown.
+
+##### 8I — review round 2, ruled 2026-10-09
+
+**State.** HEAD is `a77b645` [ran: `git log`], tree clean, QA green there [relayed]. Logic: approve
+with should-fix, L-R1.1 to L-R1.6 closed. Security: approve, S-R2.1 to S-R2.5 closed, the catch
+keeps nothing. Clean-code: approve with should-fix on the tree, the split a pure move, **and one
+must-fix in a QA test** [all relayed; the lines a ruling rests on re-read at HEAD: src].
+
+**Taken now.**
+
+- **L-R2.1, with C-R2.1.** The catch asks `instanceof` of what it caught, which runs that value's
+  own trap, so a thrown proxy leaves raw [src `contact-submission-store.ts:179`; relayed,
+  reviewer-run]. **The check's catches ask nothing of a caught value but whether it is one of the
+  check's own refusals, by identity**, through one function of the refusal module; the set stops
+  being exported. [inf, the reviewer's and not run: a `WeakSet` consults no trap.]
+- **S-R3.1.** A reply's rows are read outside the attempt, so a row that throws when read leaves
+  the lookup and `record` raw [src `neon-contact-submission-store.ts:247-255`, `:299-332`]. The
+  reply is read inside the attempt, and a throw there is the store error with no cause. No reach
+  over the HTTP driver, whose rows are parsed JSON [inf]. It is R3 all the same.
+- **C-R2.8, must-fix, QA's.** The test raises a plain `Error`, which is no collision to a store
+  that asks for the driver's class [src `open-database.ts:47`], so no second proposal is drawn
+  and its two assertions pass at no statement. It cannot fail for its reason (ADR 0152).
+- **C-R2.2, C-R1.12; C-R2.3, C-R2.11, and four nits** (below).
+- **C-R2.10, in part.** That a race test raced is its precondition, and a proof that did not race
+  must not pass; QA is right to assert it. But on every round it fails on a slow line with no
+  defect. **The invariant is asserted on every round; the precondition as a floor over the
+  rounds**, far below the share QA measured, which QA states. The two `toBeGreaterThan(0)` are
+  already floors and stay.
+
+**Three sentences corrected.**
+
+- *The limit's (L-R1.1), in the code:* not *"does not return"*. The work doubles with each shared
+  level, twenty return [relayed, reviewer-run], sixty outlast any caller.
+- *The plan's reason for not closing it* is struck above: a label is text. **L-R1.1 stays a
+  limit** for the two reasons left, and its cheapest closure, refusing a part met twice, is now
+  known to refuse no real price.
+- *Rule 5's first clause, in the code and in the plan:* **a target whose kind says design while it
+  holds none, or holds one while its kind says otherwise.** The kind is read only as *design* or
+  not and is not stored: `{ kind: "x", intent }` is stored as an intent.
+
+**Recorded, not fixed. Limits for the wave's ADR, each with its trigger.**
+
+| Limit | Trigger, and the closure if it fires |
+| --- | --- |
+| **The request is read twice** (S-R3.2, QA's B): the check reads each member and the statement, or the fake's record, reads it again [src `neon-contact-submission-store.ts:144-157`]. A member that answers clean once and otherwise the second time is sent unjudged [relayed, reviewer-run]. Every field | A caller that hands over anything but plain data. The check answers the judged values and the statement sends those |
+| **A refusal met again** (QA's A): a member that throws one of the check's own refusals lets it leave as it is. It holds no value | None needed |
+| **L-R1.1**, as corrected | As recorded; refuse a part met twice |
+| **S-R2.2's residue:** a whole-row name inside a sub-select or the values list would pass the statements test | A statement's text changes. Pin each statement's whole text |
+| **The logic reader's L1 and L2**, as their report words them [relayed, not read by the architect] | Theirs |
+| C-R2.9's six restated cases, the remaining nits, C-R2.7 | **The milestone-close test audit** (ADR 0152, Amendment A): a test is deleted on evidence, and that audit gathers it |
+
+**The final developer round. One commit, five items.**
+
+| # | Does | Files |
+| --- | --- | --- |
+| 1 | L-R2.1 and C-R2.1; its own test with a thrown proxy whose every trap throws | `src/contact-submission-refusal.ts`, `src/contact-submission-store.ts`; `tests/contact-submission-store-check.test.ts` |
+| 2 | S-R3.1; the comment at `:215-217` says what the code does | `src/neon-contact-submission-store.ts`; `tests/neon-contact-submission-store.driver.test.ts` |
+| 3 | The two sentences in the code: the limit's, and rule 5's first clause | `src/contact-submission-store.ts` |
+| 4 | C-R2.2: the comment says what the filter does, and a listed module renamed fails the test | `tests/contact-submission-store-holds-no-secret.test.ts` |
+| 5 | C-R1.12: the three bare catches use the package's helper | `tests/neon-contact-submission-store.driver.test.ts` |
+
+*Must not:* `0008` or a statement's text changes; a `qa-*` file is edited; anything not listed.
+
+**QA's own files. One pass, after that commit.**
+
+1. **C-R2.8:** the driver's own error class is raised, and the test asserts exactly one statement
+   and the reference's refusal. Or it is deleted, naming the developer's test that holds the case.
+2. *Proof of items 1 and 2:* a member that throws a proxy with throwing traps, at each entry, is
+   the request's refusal; a reply row that throws when read, for the lookup and for `record`, is
+   the store error with no cause and no marker. One mutant each.
+3. C-R2.10 as ruled, with the measured share stated. **Its live file once.**
+4. C-R2.11: one property for each arm, each building its own arm, no `fc.pre`.
+5. C-R2.3; and the nits C-R2.4, C-R2.5, the proposals constant imported and not restated, the
+   garbled title.
+
+**Round 3 of review is owed, and it is three diffs, not a read.** Logic: L-R2.1 and item 3's
+sentences. Security: S-R3.1. Clean-code: C-R2.8 and QA's list.
+
+**The closing rule, the architect's and open to the owner.** After that, a finding is fixed inside
+8I only if a store gives a wrong answer, a field's value leaves, or something other than the
+check's refusal or the store error leaves a store. Anything else is recorded with its trigger, and
+the wave closes.
+
+**For the scribe: what 8I's ADR holds.**
+
+- *Decisions:* R1, the grant narrowed inside the owner's answer, with its three statements; R2,
+  with the reason now quoted; R3, a failure built and classified once; R4; R5, the table, the
+  port's three operations and the reference's look; criterion 12's closed list (rules 1 to 3, 4a
+  to 4c, rule 5, the part `request`) and its invariant; S-R1.1's rule for later migrations and its
+  tripwire; no function of a reference exported; QA's files as the protection of rules 2 and 3.
+- *Limits, each with its trigger:* R6 whole, with both additions; the table above; the channel,
+  the locale and the consent version unchecked here; five mutants only the live suite catches;
+  the boundary gate's blindness (backlog).
+- *Unproven until the owner's grant:* anything as `app_designs`; the grant test, which has run
+  nowhere; the grant with two connections; S-R1.1's mechanism; the servers' versions.
+- *Owner actions, preview then production:* read `pg_default_acl`; apply `0008`; confirm eighteen
+  columns and eight named constraints; issue R1's three statements, **narrower than Q14 (i)**; run
+  the grant test as the application role and quote its `reached database … as role …` line.
+- Q34 is 8J's.
 
 ### 8J — mail, and the shop's notification
 
