@@ -5022,7 +5022,7 @@ retry rule and the limiter's modules at HEAD. Nothing of 8G is built.
 | ADR 0019 d5 (2026-08-25), the row for `PUT`/`PATCH /api/designs/{id}` | *"600 / hour"* per block; *"120 / hour + challenge"* outside Moldova; *"300 / hour"* per session | **600 an hour per block and 300 an hour for the second bucket, for every request.** No second tier and no challenge: M8 knows no country (this section's scope note; ADR 0147 left the row untouched) |
 | Q15 (ii), answered 2026-10-07 (a) | *"Keep the numbers; a refusal says how long to wait, and a refused save is queued, never lost"* | Kept. Point 2's client. **Said to the owner again with a figure, below** |
 | Q15 (iii), answered 2026-10-07 | `/`, `/d/*`, `/s/*`: *"600 an hour per network, failing open"* | Kept, for pages and for the two reads of the API |
-| ADR 0019 d3; D11 | A session bucket; a mint changes the visitor value | **The second bucket is the design**, the architect's (point 2). A dated note on d3 at the close |
+| ADR 0019 d3; D11 | A session bucket; a mint changes the visitor value | ~~**The second bucket is the design**, the architect's (point 2).~~ **(2026-10-10: the security reader said no. It is the write credential the request carries, by its hash; *8G — S0's security read and measurement, ruled*, G-S0.1.)** A dated note on d3 at the close |
 | ADR 0114 B5 and G4 (2026-09-11, 2026-09-23) | The limiter's scope gains `/s/*` and the share endpoints | **No figure in any record: Q36** |
 | ADR 0019 d5, the table of global caps | All of `/api/*`: 1,000 an hour, *challenge* | **Not built in M8, re-ruled here.** *M8 restated* had it counted and logged. Nothing in M8 can act on it, and it would put a second key on every request and in every teardown. It goes to M9 with what can challenge. The scribe points *M8 restated* here |
 | ADR 0019 d5 | *"Reads fail open; writes fail closed"* | Kept: point 2 |
@@ -5042,10 +5042,12 @@ retry rule and the limiter's modules at HEAD. Nothing of 8G is built.
 
 **2. What 8G builds on 8F, and changes in it.**
 
-- **The evaluator takes a list.** One statement hits every bucket listed. A request is refused
+- ~~**The evaluator takes a list.** One statement hits every bucket listed. A request is refused
   when any count is above its figure; the wait is the longest among the refusing buckets; one
   bucket that cannot be judged makes the request *unavailable*. The mint's call becomes a list of
-  one and its keys do not change.
+  one and its keys do not change.~~ **(Withdrawn 2026-10-10: nothing in this wave lists two
+  buckets in one statement. The evaluator stays one bucket and a save is a sequence of two
+  judgements; *8G — S0's security read and measurement, ruled*, point 1.)**
 - **The hour is the clock's own, in UTC:** from one whole hour to the next. The store keeps one
   row for a bucket and a window, so a sliding hour has nothing to live in. Its cost is D10's:
   twice a figure across one boundary. `Retry-After` is the seconds to the hour's end, 1 to 3,600.
@@ -5056,7 +5058,9 @@ retry rule and the limiter's modules at HEAD. Nothing of 8G is built.
   design's id is text the caller chooses. Listed beside the block in one statement, it would let
   a refused flood write a row for every id it invents. **So: the block's bucket first; only a
   request that passes is counted against its design.** Rows are then bounded by the block's own
-  figure. It costs a second round trip on every save; S0 measures it.
+  figure. It costs a second round trip on every save; S0 measures it. **(2026-10-10: the two
+  steps stand; the second step's subject does not. A design's id let anyone who knows a design's
+  address stop its owner's saves. *8G — S0's security read and measurement, ruled*, G-S0.1.)**
 - **The order in the save's route.** A request with no write-token cookie for that design, or no
   revision, is refused as today and **is not counted** [src `api/designs/[id]/route.ts:121-127`].
   Then the two steps. Then the body is read. *Must not, on a refusal:* the body is read; a row is
@@ -5072,7 +5076,8 @@ retry rule and the limiter's modules at HEAD. Nothing of 8G is built.
   the owner's at the hand check. A `503` is the failure the editor already shows.
 - **Share writes:** the cross-site guard and the credentials as today, then one bucket, the block.
   **Reads:** one bucket, the block; **on *unavailable* the page or the answer is served**; a
-  refusal is the same for an owner and a stranger (ADR 0114 H5).
+  refusal is the same for an owner and a stranger (ADR 0114 H5). **(2026-10-10: under *none* a
+  read is not counted at all, and a read has a deadline of its own; *8G — S0's security read and measurement, ruled*, G-S0.3 and G-S0.4.)**
 - *Not settled here:* where a page's read is counted and how a page is refused. The installed
   framework decides both; **S3b's first step answers from its own documentation and stops.**
 - **Backlog 166:** 8G adds no fourth reader of an environment. A slice that finds it needs one
@@ -5114,7 +5119,8 @@ finds none. *Must not:* a mutant sent to a database.
 
 **6. The slices.** *Tier: Full + security.* **The security reader reads alone three times:** S0's
 rules (point 2's two steps, the reads failing open, point 3's one statement); S1; and S2a's route.
-**Two passes of QA and the three reviews:** after S2b, the saves; and after S4b, the rest.
+~~**Two passes of QA and the three reviews:** after S2b, the saves; and after S4b, the rest.~~
+**(2026-10-10: the order and the passes change while Q37 is open; *8G — S0's security read and measurement, ruled*, point 5.)**
 
 | Slice | Does | Production files | Criteria | Reading |
 | --- | --- | --- | --- | --- |
@@ -5160,6 +5166,124 @@ the hour, the coalescer's wait; ADR 0019 d5, d6. *Clean-code:* each slice's file
 *Blocks merging and deploying:* what 8F's does, `DIGEST_SECRET` and `0007` with its grant, and
 nothing new. *Told, not asked:* the cron entry; the fifty-five minutes. *His at the hand check:*
 the two new sentences and their look. Q35 stays his and still blocks 8T, not this wave.
+
+##### 8G — S0's security read and measurement, ruled; S1 for dispatch, 2026-10-10
+
+**State.** HEAD is `0ba7fb1` [ran: `git log`], tree clean. The security reader: **no, for one
+rule** (G-S0.1), and four should-fix [relayed]. QA's measurement **meets Q15's trigger** [relayed,
+QA-run, the built server, real touch]. Every ruling here is the architect's.
+
+**1. G-S0.1, taken: the second bucket is the write credential the request carries, by its hash.**
+
+- *What was wrong.* The two checks before the limiter prove nothing: any text in a cookie named
+  for a design passes both [src `lib/server/write-token.ts:81-87, :104-110`]. So whoever knows a
+  design's address could spend its 300 from their own network every hour, and its owner's saves
+  would be refused. A design's address is not a secret (ADR 0114).
+- **The subject is what `readWriteTokenHash` already hands the route, under a kind of its own.**
+  Only the token's holder can address that bucket; every real save of a design presents the same
+  one; a mint does not change it (D11). *Must not:* the token itself, a visitor's value or a
+  share's token as a subject; the hash in a log or anywhere but inside the keyed digest.
+- **What it is in ADR 0019's terms.** d5 gives the save *"Session | 300 / hour"*, and d3 calls the
+  session *"repeated submits from one browser"*. M8 has no session cookie. The write token is the
+  one credential a browser holds for a design, so this is **300 an hour for one browser's saves
+  of one design**. The scribe notes d3 at the close.
+- **Two steps stay, and so two statements.** A token is still the caller's to invent, and each
+  invented one is a new row. **The block is judged first; only a request that passes is counted
+  against its credential.** A refusal at the block counts the block alone; at the credential,
+  both. Either is one `429` with one wait; neither reads a body, writes a row or touches a cookie.
+  **Nothing of the limiter runs between the write and the answer.**
+- **So the evaluator stays as 8F left it, one bucket.** A sequence of judgements, the first
+  refusal or failure ending it, is all a save needs, and nothing else in this wave has two. A
+  list hit in one statement waits for a wave that needs one.
+- **S2a's stop is read against the ordinary pace:** a save's median of 166 ms there [relayed,
+  QA-run]. Two more round trips of about 50 ms do not double it. Back to back, 50 ms becomes about
+  150; the client still sends one a second, so nothing a customer does is slower.
+- *The e2e teardown* must learn the credentials' hashes of the designs a run made. **How is S2a's
+  first step: it names the smallest test-only read, stops, and the security reader reads it.**
+
+**2. Q37, for the owner. The measurement returned the figures to him, as Q15 said it would.**
+
+> *Saving is limited to 600 an hour for a network and 300 an hour for one browser's design (ADR
+> 0019; your answer of 2026-10-07). Measured: someone editing at an ordinary brisk pace saves
+> about 7 times a minute and reaches 300 in about 42 minutes; someone dragging and tapping without
+> pause saves 54 times a minute and reaches it in under 6. Saving then stops until the hour
+> turns, up to 54 minutes, with the work on the screen and not stored. Which do you want?*
+>
+> **(a)** Keep both figures. **(b)** Raise them above what the editor itself can send: 3,600 an
+> hour for a browser's design (it cannot send more than 3,240) and 10,800 for a network, three
+> people editing flat out behind one address. **(c)** The same rate in ten-minute windows: 600 for
+> a browser's design, 1,800 for a network. No honest editor is ever stopped, and a stop that does
+> happen lasts ten minutes at most. **(d)** Limit saves by network alone.
+
+- *Recommended: (c).* A save limit exists to stop what is faster than the editor can go, not to
+  ration editing; and when a network is shared by more people than the figure foresaw, ten
+  minutes of unsaved work is a different thing from fifty-four. Its cost is six rows where an hour
+  has one, removed nightly. (b) is the same rate with the long wait. (d) leaves one browser free
+  to take a whole network's allowance. Whatever he chooses supersedes d5's row for saves.
+- **Until he answers, by his standing word of 2026-10-09: nothing is held.** A window is data: a
+  whole number of minutes on the UTC clock, sixty being the hour. **The figures and the window
+  are named provisional constants at ADR 0019's values, 600 and 300 an hour**, so his answer
+  changes four constants and no code. **The save's two slices are built last**, so that (d) would
+  cost the least. *For the scribe, a line in 8T's gate:* Q37 is answered before the gate.
+
+**3. G-S0.2 to G-S0.5.**
+
+- **G-S0.2, taken, in S4b.** The prune calls the store's one statement with its cutoff stepped
+  forward, oldest first: once for everything that ended more than twenty-five hours ago, then an
+  hour at a time up to an hour before the clock. A run cut short has still removed the oldest. No
+  statement changes.
+- **G-S0.3, taken.** **Under *none* a read is not counted at all:** no store call, no row. The
+  world sharing 600 reads protects nothing and can stop every page. **A save under *none* is a
+  named interim, as the mint's is:** the world shares the network's figure, and a script of that
+  many requests stops every save until the window turns. Acceptable only while nothing takes
+  customers; M9's launch sentence already requires a named platform. **Preview and the owner's
+  hand checks meet it first unless he sets `CLIENT_NETWORK_SOURCE` there.**
+- **G-S0.4, taken.** The deadline is its caller's: three seconds for a write, unchanged; **300 ms
+  for a read**, the architect's figure, after which the read is served (S1). One log line for a
+  process and a cause, not one for a request (S3a, S3b).
+- **G-S0.5, taken, in S2b.** The client holds a stated wait between one second and the window's
+  length, and waits a fixed minute when the header is absent or unreadable. Never zero.
+- *Backlog 162:* a second sighting, `qa-8d-review-scene.adversarial.e2e.spec.ts:188` in a whole
+  run [relayed, QA-run]. The scribe's.
+
+**4. S1 for dispatch. One developer, five items.** The store's port takes a list in one statement
+[src `packages/persistence/src/rate-limit-store.ts`]; this wave still sends it one bucket at a time.
+
+| # | Does | Production files |
+| --- | --- | --- |
+| 1 | A subject of any kind: the three a network block has, and the write credential's. The evaluator takes a subject, a window and a deadline from its caller | new `lib/server/rate-limit/bucket-subject.ts`; `enforce-rate-limit.ts` |
+| 2 | Windows as data: the Chișinău day as it is; a window of whole minutes on the UTC clock; the seconds to its end | new `rate-limit/utc-window.ts` |
+| 3 | The policies: saves by block and by credential, **named provisional (Q37)**; share writes by block, **named provisional (Q36)**; reads by block. The e2e twins by 8F's rule from QA's counts: saves by block 800, share writes 300, the mint's 1,100 as it is. One flag chooses every twin | `rate-limit/limit-policy.ts` |
+| 4 | A sequence of judgements: asked in order; the first that refuses or cannot be judged ends it; no later step is hit | `rate-limit/enforce-rate-limit.ts` |
+| 5 | The mint's judge on the new shapes, **its key unchanged, held by its pinned answer** | `rate-limit/judge-mint-request.ts` |
+
+*Each module's test has its name under `tests/lib/server/rate-limit/`.* *Criteria:* 1 and 7 of
+*8G, restated for dispatch*, with the credential read for *design*. **Added, 9:** no text a
+caller chooses becomes a subject, except through a credential's hash or an address's parsed bits.
+*No twin:* the credential's bucket, since no test saves one design more than nine times [relayed],
+and reads, which the suite's server, under *none*, never counts.
+
+*Must not:* the mint's key, answers or log lines change; a route, a cookie or `process.env`
+touched; a second evaluator; a token, a visitor's value or a design's id as a subject; a literal
+figure outside the policy module; a mutant sent to a database.
+
+*Stops if:* the mint's pinned answer changes; a window of minutes cannot be made the store's own
+`[start, end)` exactly; or a later step can be hit after a refusal.
+
+*Reading:* this section; *8G, restated for dispatch*, points 1 and 2 as amended; ADR 0155
+decisions 1, 3, 4, 5, 10; ADR 0149 whole; `packages/persistence/src/rate-limit-store.ts`,
+`fake-rate-limit-store.ts`; the six `rate-limit` modules and their tests;
+`lib/server/write-token.ts`; ADR 0019 d3, d5.
+
+**After S1, the security reader reads it alone, and answers from the code:** *Can any text a
+caller chooses become a subject otherwise than as a credential's hash or a parsed block? After a
+refusal, is a later step ever hit? Is the mint's key what it was? Can a read wait longer than
+its deadline?*
+
+**5. The order while Q37 is open.** S1; then the security reader; then **S4a, S4b, S3a, S3b**,
+none of which rests on a save's figure; **a pass of QA and the three reviews**; then **S2a and
+S2b, last**, with the provisional constants if he has not answered, and a second pass. S3a's
+share figure is Q36's provisional 60. S3b's first step is still its stop.
 
 ### 8H — the submission contract
 
