@@ -16,8 +16,8 @@ export interface FakeMailSender extends MailSender {
 
 /**
  * Records what it is given and answers from `scriptedOutcomes`, one per send in order, then with an
- * acceptance. A message that may not be sent is refused as the adapter would: it is not recorded and spends no scripted outcome. It reaches no
- * network.
+ * acceptance. A message that may not be sent is refused as the adapter would: it is not recorded and
+ * spends no scripted outcome. It reaches no network.
  */
 export function createFakeMailSender(
   scriptedOutcomes: readonly MailOutcome[] = [],

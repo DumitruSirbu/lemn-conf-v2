@@ -926,6 +926,32 @@ export function resolveContent(translate: ContentTranslator) {
       body: translate("contactPlaceholder.body"),
       back: translate("contactPlaceholder.back"),
     },
+    leadNotice: {
+      subject: (reference: string) =>
+        translate("leadNotice.subject", { reference }),
+      line: (label: string, value: string) =>
+        translate("leadNotice.line", { label, value }),
+      figure: (label: string, amount: string) =>
+        translate("leadNotice.figure", { label, amount }),
+      labels: {
+        reference: translate("leadNotice.labels.reference"),
+        locale: translate("leadNotice.labels.locale"),
+        name: translate("leadNotice.labels.name"),
+        phone: translate("leadNotice.labels.phone"),
+        locality: translate("leadNotice.labels.locality"),
+        channel: translate("leadNotice.labels.channel"),
+        email: translate("leadNotice.labels.email"),
+        room: translate("leadNotice.labels.room"),
+        price: translate("leadNotice.labels.price"),
+      },
+      channels: {
+        phone: translate("leadNotice.channels.phone"),
+        whatsapp: translate("leadNotice.channels.whatsapp"),
+        email: translate("leadNotice.channels.email"),
+      },
+      callbackLine: translate("leadNotice.callbackLine"),
+      emptyValue: translate("leadNotice.emptyValue"),
+    },
   };
 }
 

@@ -437,6 +437,30 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     body: "Pagina de contact nu este încă disponibilă în această versiune a configuratorului.",
     back: "Înapoi la configurare",
   },
+  // Drafted, not approved: the shop's notice, whose language is the owner's to rule (Q34).
+  leadNotice: {
+    subject: "Cerere din configurator {reference}",
+    line: "{label}: {value}",
+    figure: "{label} {amount}",
+    labels: {
+      reference: "Referință",
+      locale: "Limba clientului",
+      name: "Nume",
+      phone: "Telefon",
+      locality: "Localitate",
+      channel: "Canal preferat",
+      email: "E-mail",
+      room: "Cameră",
+      price: "Preț",
+    },
+    channels: {
+      phone: "Apel telefonic",
+      whatsapp: "WhatsApp",
+      email: "E-mail",
+    },
+    callbackLine: "Cerere de apel, fără bucătărie configurată.",
+    emptyValue: "—",
+  },
   band: {
     base: "bază",
     wall: "suspendat",

@@ -412,6 +412,8 @@ describe("only these modules may go near a price, and only one of them may round
     expect(pricingModules).toEqual([
       // The review screen and its two helpers render the model's figure and rows; they derive and round nothing.
       "app/d/[id]/review/review-screen.tsx",
+      // The shop's notice prints a stored review's figure and rows and derives nothing; it rounds nothing.
+      "lib/server/mail/lead-notification.ts",
       "panel/editor-panel.tsx",
       "panel/panel-model.ts",
       "panel/use-panel-view.ts",

@@ -118,7 +118,7 @@ function requiredFixtureValue<T>(value: T | undefined, id: string): T {
 const BASE_BAND_WORD = romanianContent.panel.bandWords.base.one;
 
 /**
- * The 24 function-valued content families. The gate compares this declaration to a runtime walk of
+ * The 27 function-valued content families. The gate compares this declaration to a runtime walk of
  * resolved Romanian content, so a newly introduced function cannot silently miss the oracle.
  */
 export const CONTENT_FUNCTION_FAMILIES = [
@@ -146,6 +146,9 @@ export const CONTENT_FUNCTION_FAMILIES = [
   "globalSettings.pillHardware",
   "globalSettings.pillDepth",
   "globalSettings.pillNameAllSettings",
+  "leadNotice.subject",
+  "leadNotice.line",
+  "leadNotice.figure",
 ] as const;
 
 export const FUNCTION_CONTENT_FIXTURES: readonly GoldenFixture[] = [
@@ -456,6 +459,32 @@ export const FUNCTION_CONTENT_FIXTURES: readonly GoldenFixture[] = [
       () =>
         translate("globalSettings.materialResetConfirm.body", { chosenCount }),
     ),
+  ),
+  contentFixture(
+    "leadNotice.subject",
+    "reference-token",
+    () => romanianContent.leadNotice.subject("LM-TOKEN"),
+    () => translate("leadNotice.subject", { reference: "LM-TOKEN" }),
+  ),
+  contentFixture(
+    "leadNotice.line",
+    "label-and-value",
+    () => romanianContent.leadNotice.line("label-token", "value-token"),
+    () =>
+      translate("leadNotice.line", {
+        label: "label-token",
+        value: "value-token",
+      }),
+  ),
+  contentFixture(
+    "leadNotice.figure",
+    "label-and-amount",
+    () => romanianContent.leadNotice.figure("label-token", "43 000 MDL"),
+    () =>
+      translate("leadNotice.figure", {
+        label: "label-token",
+        amount: "43 000 MDL",
+      }),
   ),
 ];
 

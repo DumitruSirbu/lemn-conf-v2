@@ -334,6 +334,29 @@
     "body": "Страница обратной связи пока недоступна в этой версии конфигуратора.",
     "back": "Вернуться к конфигурации"
   },
+  "leadNotice": {
+    "subject": "Заявка из конфигуратора {reference}",
+    "line": "{label}: {value}",
+    "figure": "{label} {amount}",
+    "labels": {
+      "reference": "Номер заявки",
+      "locale": "Язык клиента",
+      "name": "Имя",
+      "phone": "Телефон",
+      "locality": "Населённый пункт",
+      "channel": "Способ связи",
+      "email": "E-mail",
+      "room": "Комната",
+      "price": "Цена"
+    },
+    "channels": {
+      "phone": "Звонок по телефону",
+      "whatsapp": "WhatsApp",
+      "email": "E-mail"
+    },
+    "callbackLine": "Запрос обратного звонка, кухня не настроена.",
+    "emptyValue": "—"
+  },
   "band": {
     "base": "нижний ряд",
     "wall": "навесной ряд",

@@ -329,6 +329,12 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "873c14d01225012b97392a27475b973d9aa76f036cac358704a38f195a1160db",
   "content.globalSettings.tierDelta.small-delta":
     "12d5689496dbbcdac9ab8bd65f388f9b2b0745e1201abd61f9df89746a1ff92c",
+  "content.leadNotice.figure.label-and-amount":
+    "a88ee83551961752909fc0b7588121c6fa9dd36710628b7d3c8a404acf64d93c",
+  "content.leadNotice.line.label-and-value":
+    "b049cbc443e696cbb4917a2ab920bed23bd710e449bcfe0952351a6903d683a4",
+  "content.leadNotice.subject.reference-token":
+    "0450a1f96e3786c857a30d1736736c6f2eff07690a91c34025c815b651ca06d7",
   "content.panel.countForBody.count-0":
     "c07acd2f15272cd9bd67e7a330d5d74855a92b313042fefd9427b50ca455de36",
   "content.panel.countForBody.count-1":
@@ -499,6 +505,34 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "55f2ecf1930c61cfb278ab7a31933dc339130211cd94d7ce5dd6a1b0709d1239",
   "content.static.globalSettings.title":
     "764ab10b4b67fec2a04f3d04275276e381e2ac057e9080809bbaa317deecd371",
+  "content.static.leadNotice.callbackLine":
+    "b94a8632939840bf8de73766ea8bf9df2d7fa66b300457d72b07221dd2097b83",
+  "content.static.leadNotice.channels.email":
+    "2550d962e536e7c0889f563a957c5389c97aa7507881efe2b754769b814d8256",
+  "content.static.leadNotice.channels.phone":
+    "829827c68a887c4ce7f917791650bbf67b28927767f75d572591c67d22b32bea",
+  "content.static.leadNotice.channels.whatsapp":
+    "6a40edf1fc87a29f243a7eefdbed57d19bfe16ab2e039d7ae1a44c097297e2f3",
+  "content.static.leadNotice.emptyValue":
+    "bda050585a00f0f6cb502350559d75532ae3b244c9498b996e7c5df2d98dfc8d",
+  "content.static.leadNotice.labels.channel":
+    "3b9222206b0f76eb646b1578ddd32c64e05896f3ade568b9b77759e5c5444b53",
+  "content.static.leadNotice.labels.email":
+    "2550d962e536e7c0889f563a957c5389c97aa7507881efe2b754769b814d8256",
+  "content.static.leadNotice.labels.locale":
+    "99475ca866355358c791d65a907bb0014a083219d4cb8ddde54481ae08a3e003",
+  "content.static.leadNotice.labels.locality":
+    "54a657d0301ff2011be09972ba7eeba917ce1e09927c2c051203f9d68c0036e4",
+  "content.static.leadNotice.labels.name":
+    "582ee8efec80e56421c29aa409444c9d002ac69f35c1bcab2292d01d9e202d1a",
+  "content.static.leadNotice.labels.phone":
+    "fa6906d76ee94d4e8d05a2424fb89005840522ab6dec0ee8055247424977169e",
+  "content.static.leadNotice.labels.price":
+    "f2d6e6db791ec7b54ff1489efd5197acbe318c005a8ee86fb1dfbeb4178a3f5d",
+  "content.static.leadNotice.labels.reference":
+    "3115843660525f6e621c196d7b76dadbcd1b8d20a0a2ae2489b7d8e76680cc5e",
+  "content.static.leadNotice.labels.room":
+    "4bfbe1717bfe9d344704abd58c6957384246befb9b22421e1df335a081f49efd",
   "content.static.panel.accessCheckingNotice":
     "d0b90db4d45ac62176d4e0ab3c34563f4b82bc98c6394897283dffd04c28bc68",
   "content.static.panel.accessCheckingReason":

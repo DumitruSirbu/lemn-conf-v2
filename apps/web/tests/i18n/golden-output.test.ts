@@ -80,7 +80,7 @@ function sortedUnique(values: readonly string[]): readonly string[] {
 }
 
 describe("golden-output fixture coverage", () => {
-  it("covers exactly the 24 function-valued legacy content families", () => {
+  it("covers exactly the 27 function-valued legacy content families", () => {
     const actualFamilies = collectContentFunctionFamilies();
     expect(actualFamilies).toEqual([...CONTENT_FUNCTION_FAMILIES].sort());
     expect(
@@ -216,8 +216,10 @@ describe("golden-output fixture coverage", () => {
     // M8 8D S4: +1 for `reviewScreen.saving`.
     // M8 8D fix round: +2 for `reviewScreen.conflict` and `.openEditor`.
     // M8 8D review fix round: +1 for `reviewScreen.topBarTitle`.
-    expect(RESOLVED_STATIC_CONTENT).toHaveLength(140);
-    expect(FUNCTION_CONTENT_FIXTURES).toHaveLength(59);
+    // +14 for the shop notice's labels, channels, callback line and dash (`leadNotice.*`).
+    expect(RESOLVED_STATIC_CONTENT).toHaveLength(154);
+    // +3 for the notice's subject, line and figure.
+    expect(FUNCTION_CONTENT_FIXTURES).toHaveLength(62);
     // 7L S3: +2 for `room.suggestion.title` and `room.suggestion.switchToLinear`.
     expect(ROOM_FIXTURES).toHaveLength(72);
     // M8 8C S1: the review leaves `Content` reaches through `reviewRoomLine`.
@@ -234,7 +236,8 @@ describe("golden-output fixture coverage", () => {
     // M8 8D S4: +1 for `reviewScreen.saving`.
     // M8 8D fix round: +2 for `reviewScreen.conflict` and `.openEditor`.
     // M8 8D review fix round: +1 for `reviewScreen.topBarTitle`.
-    expect(GOLDEN_FIXTURES).toHaveLength(422);
+    // +17 for the shop notice's static leaves and function fixtures.
+    expect(GOLDEN_FIXTURES).toHaveLength(439);
     expect(new Set(GOLDEN_FIXTURES.map((fixture) => fixture.id)).size).toBe(
       GOLDEN_FIXTURES.length,
     );

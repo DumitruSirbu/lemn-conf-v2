@@ -1,6 +1,10 @@
 // @vitest-environment happy-dom
 //
-// Criterion 10: one place hands `describeReview` its inputs, and they are one design's, from one read of the store.
+// Criterion 10, as amended: `describeReview` has two callers, each named, and each hands it inputs that are one
+// design's. The hook reads them from one render of the store. The shop's notice reads them from one stored snapshot,
+// whose document and price were made together and whose rows are projected from that document in the same call.
+// A third or unnamed caller, a caller that prices, and a browser caller other than the hook all stay red. The
+// amendment is recorded in docs/milestones/M8-review-contact-success.md, "8J — S3's stop, ruled 2026-10-09".
 //
 // What this cannot see: a second caller added under a name the parse does not follow (a re-export, a dynamic
 // import). The import check reads this repository's own import statements and calls, which is all a reviewer reads
@@ -27,8 +31,27 @@ import roMessages from "../../src/messages/ro.json";
 import { createFakeProbeFactory } from "../support/fake-body-probe";
 
 const SRC_ROOT = join(import.meta.dirname, "../../src");
-const SOLE_CALLER = "review/use-review.ts";
+const HOOK_CALLER = "review/use-review.ts";
+const NOTICE_CALLER = "lib/server/mail/lead-notification.ts";
 const MODEL_MODULE = "review/review-model.ts";
+
+/** Every module that may import or call `describeReview`, in the order the source tree lists them. */
+const NAMED_CALLERS = [NOTICE_CALLER, HOOK_CALLER];
+
+/** What the notice may not name: it prints a stored review's figure and rows and derives nothing. */
+const PRICING_NAMES = new RegExp(
+  [
+    "priceDesign",
+    "SAMPLE_PRICE_BOOK",
+    "parsePriceBook",
+    "PriceBook",
+    "usePricedDesign",
+    "useConfiguratorStore",
+    "configurator-store",
+    "roundUpToThousandMdl",
+    "Math\\.(?:ceil|floor|round|trunc)",
+  ].join("|"),
+);
 
 function sourceFilesUnder(directory: string): string[] {
   return readdirSync(directory).flatMap((entry) => {
@@ -56,7 +79,7 @@ describe("one place hands the model its inputs", () => {
     source: readFileSync(path, "utf8"),
   }));
 
-  it("has exactly one importer of describeReview, outside the model itself", () => {
+  it("has exactly the two named importers of describeReview, outside the model itself", () => {
     const importers = files
       .filter(
         ({ name, source }) =>
@@ -64,7 +87,7 @@ describe("one place hands the model its inputs", () => {
       )
       .map(({ name }) => name);
 
-    expect(importers).toEqual([SOLE_CALLER]);
+    expect(importers).toEqual(NAMED_CALLERS);
   });
 
   it("has no call to describeReview anywhere else, however it was reached", () => {
@@ -72,12 +95,28 @@ describe("one place hands the model its inputs", () => {
       .filter(
         ({ name, source }) =>
           name !== MODEL_MODULE &&
-          name !== SOLE_CALLER &&
+          !NAMED_CALLERS.includes(name) &&
           /\bdescribeReview\s*\(/.test(source),
       )
       .map(({ name }) => name);
 
     expect(callers).toEqual([]);
+  });
+
+  it("has the notice begin with the server-only import, so no browser module can reach it", () => {
+    const notice = files.find(({ name }) => name === NOTICE_CALLER);
+
+    expect(notice?.source.startsWith('import "server-only";\n')).toBe(true);
+  });
+
+  it("has the notice name no pricing function, price book or store", () => {
+    const notice = files.find(({ name }) => name === NOTICE_CALLER);
+    const withoutComments = (notice?.source ?? "")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/\/\/.*$/gm, "");
+
+    expect(withoutComments.length).toBeGreaterThan(0);
+    expect(withoutComments).not.toMatch(PRICING_NAMES);
   });
 });
 

@@ -1,0 +1,224 @@
+import "server-only";
+
+import {
+  buildKitchenLBodyCatalog,
+  cabinetDepthMmOf,
+  DesignSchema,
+  projectDesignForDisplay,
+  type ContactFields,
+  type Design,
+  type SubmissionSnapshot,
+} from "@lemnaria/configurator-domain";
+import type { ContactSubmissionToRecord } from "@lemnaria/persistence";
+
+import type { Content } from "@/i18n/content";
+import type { MailMessage } from "@/lib/server/mail/mail-sender";
+import type { BreakdownGroup } from "@/price/price-breakdown-model";
+import { describeReview, type AvailableReview } from "@/review/review-model";
+
+/** The language the shop's notice is written in. Owner-owed: the caller resolves the `Content` it passes in this
+ *  locale, whatever the customer's own. */
+export const NOTICE_LOCALE = "ro";
+
+/** The purpose of the idempotency key, so a second kind of mail under one provider account cannot meet its keys. */
+export const LEAD_NOTIFICATION_KEY_PREFIX = "lead-notification/";
+
+export interface LeadNotificationInput {
+  /** The store's answer for the request, as a value. */
+  readonly reference: string;
+  /** A request the store has accepted, as plain data. */
+  readonly submission: ContactSubmissionToRecord;
+  readonly content: Content;
+}
+
+/** A line of the notice that would hold a control character or a line separator. Names the line, never its value. */
+export class NoticeLineError extends Error {
+  readonly field: string;
+
+  constructor(field: string) {
+    super(
+      `The notice line "${field}" holds a control character or a line separator`,
+    );
+    this.name = "NoticeLineError";
+    this.field = field;
+  }
+}
+
+export type NoticeKitchenFailure =
+  | "snapshot-missing"
+  | "document-unreadable"
+  | "review-not-sendable";
+
+/** The request names a design that the notice cannot describe. A stored snapshot exists only for a kitchen that may be
+ *  sent, so this is a defect upstream. Holds no value. */
+export class NoticeKitchenError extends Error {
+  readonly failure: NoticeKitchenFailure;
+
+  constructor(failure: NoticeKitchenFailure) {
+    super(`The notice cannot describe the request's kitchen: ${failure}`);
+    this.name = "NoticeKitchenError";
+    this.failure = failure;
+  }
+}
+
+interface NoticeLine {
+  readonly field: string;
+  readonly text: string;
+}
+
+const LINE_BREAKING_CHARACTER = /[\p{Cc}\p{Zl}\p{Zp}]/u;
+const BLANK_LINE: NoticeLine = { field: "blank", text: "" };
+
+/**
+ * Pure: the same input gives the same bytes. The subject holds the reference and nothing the customer wrote; a
+ * customer's text appears only as the value of a body line, as it was stored and unescaped, with no markup.
+ */
+export function buildLeadNotification(
+  input: LeadNotificationInput,
+): MailMessage {
+  const { reference, submission, content } = input;
+  const subject: NoticeLine = {
+    field: "subject",
+    text: content.leadNotice.subject(reference),
+  };
+  const body = [
+    ...customerLines(reference, submission, content),
+    BLANK_LINE,
+    ...kitchenLines(submission, content),
+  ];
+  assertEachLineIsOneLine([subject, ...body]);
+  return {
+    key: `${LEAD_NOTIFICATION_KEY_PREFIX}${submission.clientRequestId}`,
+    subject: subject.text,
+    text: body.map((line) => line.text).join("\n"),
+  };
+}
+
+function customerLines(
+  reference: string,
+  submission: ContactSubmissionToRecord,
+  content: Content,
+): NoticeLine[] {
+  const { contact, locale } = submission;
+  const { labels, channels } = content.leadNotice;
+  const lines = [
+    labelled(content, "reference", labels.reference, reference),
+    labelled(content, "locale", labels.locale, locale),
+    labelled(content, "name", labels.name, contact.name),
+    labelled(content, "phone", labels.phone, contact.phoneNormalForm),
+    labelled(
+      content,
+      "locality",
+      labels.locality,
+      contact.locality === ""
+        ? content.leadNotice.emptyValue
+        : contact.locality,
+    ),
+    labelled(content, "channel", labels.channel, channels[contact.channel]),
+  ];
+  return [...lines, ...emailLines(contact, content)];
+}
+
+function emailLines(contact: ContactFields, content: Content): NoticeLine[] {
+  if (contact.channel !== "email") return [];
+  const { labels, emptyValue } = content.leadNotice;
+  return [
+    labelled(content, "email", labels.email, contact.email ?? emptyValue),
+  ];
+}
+
+function labelled(
+  content: Content,
+  field: string,
+  label: string,
+  value: string,
+): NoticeLine {
+  return { field, text: content.leadNotice.line(label, value) };
+}
+
+function kitchenLines(
+  submission: ContactSubmissionToRecord,
+  content: Content,
+): NoticeLine[] {
+  if (submission.target.kind === "intent") {
+    return [{ field: "callback", text: content.leadNotice.callbackLine }];
+  }
+  const review = reviewOfSnapshot(submission.snapshot, content);
+  return reviewLines(review, content);
+}
+
+function reviewOfSnapshot(
+  snapshot: SubmissionSnapshot | undefined,
+  content: Content,
+): AvailableReview {
+  if (snapshot === undefined) throw new NoticeKitchenError("snapshot-missing");
+  const design = parseDocument(snapshot.document);
+  const catalog = buildKitchenLBodyCatalog(cabinetDepthMmOf(design));
+  const review = describeReview({
+    content,
+    design,
+    pricing: { ok: true, priced: snapshot.priced },
+    groups: projectDesignForDisplay(design, catalog),
+  });
+  if (review.kind !== "available" || review.submit.kind !== "allowed") {
+    throw new NoticeKitchenError("review-not-sendable");
+  }
+  return review;
+}
+
+/** The parse's own errors can quote the text they failed on, so none is kept. */
+function parseDocument(document: string): Design {
+  try {
+    return DesignSchema.parse(JSON.parse(document));
+  } catch {
+    throw new NoticeKitchenError("document-unreadable");
+  }
+}
+
+function reviewLines(review: AvailableReview, content: Content): NoticeLine[] {
+  return [
+    labelled(
+      content,
+      "roomLine",
+      content.leadNotice.labels.room,
+      review.roomLine,
+    ),
+    ...review.groups.flatMap((group) => groupLines(group, content)),
+    ...review.wholeKitchenRows.map((row) =>
+      labelled(content, "wholeKitchenRow", row.label, row.amountText),
+    ),
+    BLANK_LINE,
+    ...closingLines(review, content),
+  ];
+}
+
+function groupLines(group: BreakdownGroup, content: Content): NoticeLine[] {
+  return [
+    { field: "groupHeading", text: group.heading },
+    ...group.rows.map((row) =>
+      labelled(content, "row", row.label, row.amountText),
+    ),
+  ];
+}
+
+/** The review's own figure and its two disclaimer sentences; the notice adds no sentence about the price. */
+function closingLines(review: AvailableReview, content: Content): NoticeLine[] {
+  const { figure, disclaimer } = review;
+  const { labels, figure: composeFigure } = content.leadNotice;
+  return [
+    labelled(
+      content,
+      "figure",
+      labels.price,
+      composeFigure(figure.label, figure.amountText),
+    ),
+    { field: "rounding", text: disclaimer.rounding },
+    { field: "disclaimer", text: disclaimer.notice },
+  ];
+}
+
+function assertEachLineIsOneLine(lines: readonly NoticeLine[]): void {
+  for (const { field, text } of lines) {
+    if (LINE_BREAKING_CHARACTER.test(text)) throw new NoticeLineError(field);
+  }
+}
