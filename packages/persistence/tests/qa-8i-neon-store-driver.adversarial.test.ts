@@ -1,3 +1,4 @@
+import { NeonDbError } from "@neondatabase/serverless";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ContactSubmissionStoreError } from "../src/contact-submission-store.js";
@@ -7,6 +8,7 @@ import {
   FAKE_EMAIL,
   FAKE_NAME,
   FAKE_PHONE,
+  FAKE_SNAPSHOT,
   aDesignSubmission,
 } from "./support/contact-submission-fixtures.js";
 import {
@@ -195,4 +197,110 @@ describe("a reply whose row is not plain data", () => {
       expect((failure as Error).cause).toBeUndefined();
     },
   );
+});
+
+describe("round 2: the snapshot the Neon store sends", () => {
+  const HANDED_DOCUMENT =
+    ' {"b" : "\\u0041", "a":1.50, "a":2 , "list":[1e2] }\n';
+  const JUDGED_DOCUMENT = '{"b":"A","a":2,"list":[100]}';
+  const UNSTORABLE = "book\u0000";
+  const recordedRow = {
+    reference: REFERENCE,
+    is_new: true,
+    is_same_payload: true,
+    is_notified: false,
+  };
+
+  /** A priced design that encodes cleanly the first time it is asked and holds a NUL every time after. */
+  function pricedThatChangesOnceRead(): {
+    readonly priced: typeof FAKE_SNAPSHOT.priced;
+    readonly timesEncoded: () => number;
+  } {
+    let encodings = 0;
+    const priced = {
+      toJSON: () => {
+        encodings += 1;
+        return {
+          ...FAKE_SNAPSHOT.priced,
+          pricingVersion: encodings === 1 ? "book-judged" : UNSTORABLE,
+        };
+      },
+    } as unknown as typeof FAKE_SNAPSHOT.priced;
+    return { priced, timesEncoded: () => encodings };
+  }
+
+  function textsSentIn(statementIndex: number): string[] {
+    return (driver.statements[statementIndex]?.values ?? []).filter(
+      (value): value is string => typeof value === "string",
+    );
+  }
+
+  it("is the JSON made from the judged document, and never the text it was handed", async () => {
+    answerWith([recordedRow]);
+
+    await storeProposing(REFERENCE).record({
+      ...aDesignSubmission(CLIENT_REQUEST_ID),
+      snapshot: { document: HANDED_DOCUMENT, priced: FAKE_SNAPSHOT.priced },
+    });
+
+    expect(textsSentIn(0)).toContain(JUDGED_DOCUMENT);
+    expect(textsSentIn(0)).not.toContain(HANDED_DOCUMENT);
+    expect(textsSentIn(0)).toContain(JSON.stringify(FAKE_SNAPSHOT.priced));
+  });
+
+  it("is the priced design as it was judged, encoded once, when the object would encode otherwise a second time", async () => {
+    const { priced, timesEncoded } = pricedThatChangesOnceRead();
+    answerWith([recordedRow]);
+
+    await storeProposing(REFERENCE).record({
+      ...aDesignSubmission(CLIENT_REQUEST_ID),
+      snapshot: { document: FAKE_SNAPSHOT.document, priced },
+    });
+
+    expect(timesEncoded()).toBe(1);
+    expect(textsSentIn(0).filter((text) => text.includes("book-"))).toEqual([
+      JSON.stringify({
+        ...FAKE_SNAPSHOT.priced,
+        pricingVersion: "book-judged",
+      }),
+    ]);
+    expect(textsSentIn(0).join(" ")).not.toContain(UNSTORABLE);
+  });
+
+  it("is the same judged JSON in the statement drawn again after a collision, with nothing encoded again", async () => {
+    const { priced, timesEncoded } = pricedThatChangesOnceRead();
+    failWith(
+      Object.assign(new NeonDbError("collision"), {
+        code: "23505",
+        constraint: "contact_submissions_reference_is_unique",
+      }),
+    );
+    answerWith([{ ...recordedRow, reference: "LM-BBBBBBBB" }]);
+
+    await storeProposing(REFERENCE, "LM-BBBBBBBB").record({
+      ...aDesignSubmission(CLIENT_REQUEST_ID),
+      snapshot: { document: HANDED_DOCUMENT, priced },
+    });
+
+    expect(driver.statements).toHaveLength(2);
+    expect(timesEncoded()).toBe(1);
+    expect(textsSentIn(1).filter((text) => text.startsWith("{"))).toEqual(
+      textsSentIn(0).filter((text) => text.startsWith("{")),
+    );
+    expect(textsSentIn(1)).toContain(JUDGED_DOCUMENT);
+  });
+
+  it("sends no snapshot text for a callback", async () => {
+    answerWith([recordedRow]);
+    const callback = aDesignSubmission(CLIENT_REQUEST_ID);
+
+    await storeProposing(REFERENCE).record({
+      ...callback,
+      contact: { ...callback.contact, channel: "phone", email: undefined },
+      target: { kind: "intent", intent: "callback" },
+      snapshot: undefined,
+    });
+
+    expect(textsSentIn(0).filter((text) => text.startsWith("{"))).toEqual([]);
+  });
 });

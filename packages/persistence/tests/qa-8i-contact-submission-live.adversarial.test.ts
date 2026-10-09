@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 
+import { fc } from "@fast-check/vitest";
 import { NeonDbError, neon } from "@neondatabase/serverless";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -40,8 +41,10 @@ import {
 } from "./support/live-test-database.js";
 import { loseTheFirstReply } from "./support/lose-the-first-reply.js";
 import type { LossPoint, LostReply } from "./support/lose-the-first-reply.js";
+import { cleanJsonObject } from "./support/qa-8i-json-arbitraries.js";
 import {
   privilegesHeldOn,
+  privilegesHeldWithGrantOption,
   tablePrivilegesTheServerKnows,
 } from "./support/table-privileges.js";
 import { holdSharedTestSchemaLock } from "./support/test-schema-lock.js";
@@ -940,30 +943,35 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
       RACE_TIMEOUT_MS,
     );
 
-    it("a real 23514 raised by the store's own statement, over the driver, leaves holding no fake and stores nothing", async () => {
-      const id = newClientRequestId();
-      const submission = aDesignSubmission(id);
-      const notAnObjectOnceEncoded = new Date(0) as unknown as NonNullable<
-        ContactSubmissionToRecord["snapshot"]
-      >["priced"];
+    // Round 2: the shared check now refuses in code everything of rules 1 to 4, so no check, not-null or range
+    // violation can be raised through the store's own statement, and a document 5000 lists deep, the deepest
+    // JavaScript encodes with room to spare, is stored. The one refusal the store's own statement still meets is the
+    // reference's uniqueness, below. The translation itself is held by the four real refusals above.
+    it("three real 23505s on the reference's constraint, raised by the store's own statement over the driver, leave as the store error holding no fake, and store nothing", async () => {
+      const [holder, refused] = [newClientRequestId(), newClientRequestId()];
+      const taken = generateSubmissionReference();
+      let draws = 0;
+      const store = new NeonContactSubmissionStore(testDatabaseUrl, {
+        proposeReference: () => {
+          draws += 1;
+          return taken;
+        },
+      });
+      await store.record(aCallbackSubmission(holder));
+      const holdersRow = await rowsHeldFor(holder);
 
-      const failure = await new NeonContactSubmissionStore(testDatabaseUrl)
-        .record({
-          ...submission,
-          snapshot: {
-            document: FAKE_SNAPSHOT.document,
-            priced: notAnObjectOnceEncoded,
-          },
-        })
+      const failure = await store
+        .record(aDesignSubmission(refused))
         .catch((error: unknown) => error);
 
+      expect(draws).toBe(4);
       expect(failure).toBeInstanceOf(ContactSubmissionStoreError);
-      expect((failure as Error).cause).toEqual({
-        name: "NeonDbError",
-        code: "23514",
-      });
-      expect(markersFoundOn(failure, [...ALL_FAKES, id])).toEqual([]);
-      expect(await rowsHeldFor(id)).toEqual([]);
+      expect((failure as Error).cause).toBeUndefined();
+      expect(
+        markersFoundOn(failure, [...ALL_FAKES, refused, holder, taken]),
+      ).toEqual([]);
+      expect(await rowsHeldFor(refused)).toEqual([]);
+      expect(await rowsHeldFor(holder)).toEqual(holdersRow);
     });
   });
 
@@ -1192,6 +1200,138 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
     );
   });
 
+  describe("round 2, rule 4 live: what the check accepts, the test database stores as it was handed", () => {
+    /** The bound of the live property: this many generated snapshots, one statement and one read each. */
+    const LIVE_PROPERTY_RUNS = 25;
+    const LIVE_PROPERTY_SEED = 8_109;
+
+    interface Kept {
+      readonly is_document_kept: boolean;
+      readonly is_priced_kept: boolean;
+    }
+
+    /** Whether each stored snapshot is, as `jsonb`, what the handed text is as `jsonb`: what c15c08e stored, which
+     *  sent the handed text itself. */
+    async function keptAsHanded(
+      id: string,
+      handed: { readonly document: string; readonly priced: string },
+    ): Promise<Kept | undefined> {
+      const rows = (await neon(testDatabaseUrl)`
+        select
+          (design_document = ${handed.document}::jsonb) as is_document_kept,
+          (priced = ${handed.priced}::jsonb) as is_priced_kept
+        from contact_submissions
+        where client_request_id = ${id}
+      `) as Kept[];
+      return rows[0];
+    }
+
+    async function recordAndCompare(
+      document: string,
+      priced: unknown,
+    ): Promise<unknown> {
+      const id = newClientRequestId();
+      const recording = await new NeonContactSubmissionStore(testDatabaseUrl)
+        .record({
+          ...aDesignSubmission(id),
+          snapshot: {
+            document,
+            priced: priced as typeof FAKE_SNAPSHOT.priced,
+          },
+        })
+        .catch((error: unknown) =>
+          error instanceof Error ? error.message : "a non-error throw",
+        );
+      const kept = await keptAsHanded(id, {
+        document,
+        priced: JSON.stringify(priced),
+      });
+      return {
+        recording: typeof recording === "string" ? recording : recording.kind,
+        kept,
+      };
+    }
+
+    const STORED_AS_HANDED = {
+      recording: "stored",
+      kept: { is_document_kept: true, is_priced_kept: true },
+    };
+
+    it(
+      "stores every one of a bounded run of generated snapshots, each equal as jsonb to the text handed in",
+      async () => {
+        const snapshots = fc.sample(
+          fc.tuple(cleanJsonObject, cleanJsonObject),
+          { numRuns: LIVE_PROPERTY_RUNS, seed: LIVE_PROPERTY_SEED },
+        );
+
+        const outcomes = [];
+        for (const [document, priced] of snapshots) {
+          outcomes.push(
+            await recordAndCompare(JSON.stringify(document), priced),
+          );
+        }
+
+        expect(outcomes).toEqual(snapshots.map(() => STORED_AS_HANDED));
+      },
+      RACE_TIMEOUT_MS,
+    );
+
+    it.each([
+      [
+        "keys named __proto__ and constructor",
+        '{"__proto__":{"a":1},"constructor":{"prototype":"p"}}',
+      ],
+      ["a key written twice", '{"a":1,"a":{"b":2},"a":3}'],
+      [
+        "numbers written with a scale and an exponent",
+        '{"a":1.50,"b":1E2,"c":-0,"d":0.1e-5}',
+      ],
+      [
+        "the widest and the narrowest double",
+        '{"a":1.7976931348623157e308,"b":5e-324,"c":-1.7976931348623157e308}',
+      ],
+      [
+        "escapes of storable text",
+        '{"a":"\\u0041\\ud83d\\ude00\\n\\u2028","\\u0062":1}',
+      ],
+      ["the fixture's own document", FAKE_SNAPSHOT.document],
+      [
+        "five thousand lists, one inside the other",
+        `{"deep":${"[".repeat(5_000)}${"]".repeat(5_000)}}`,
+      ],
+    ])(
+      "stores a document of %s equal as jsonb to the text handed in",
+      async (_name, document) => {
+        expect(await recordAndCompare(document, FAKE_SNAPSHOT.priced)).toEqual(
+          STORED_AS_HANDED,
+        );
+      },
+    );
+
+    it.each([
+      ["a whole number past a double's reach", '{"n":9007199254740993}'],
+      [
+        "a decimal of more digits than a double keeps",
+        '{"n":0.1000000000000000055511151231257827}',
+      ],
+    ])(
+      "refuses in code a document holding %s, or stores it equal as jsonb to the text handed in",
+      async (_name, document) => {
+        const outcome = (await recordAndCompare(
+          document,
+          FAKE_SNAPSHOT.priced,
+        )) as { recording: string; kept: Kept | undefined };
+
+        expect(
+          outcome.recording.startsWith("Refusing to use")
+            ? STORED_AS_HANDED
+            : outcome,
+        ).toEqual(STORED_AS_HANDED);
+      },
+    );
+  });
+
   describe("criterion 3: the questions the grant test asks, put to a connection that holds everything", () => {
     const CONTACT_SUBMISSIONS = "public.contact_submissions";
 
@@ -1208,6 +1348,26 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
       for (const privilege of ["SELECT", "UPDATE", "REFERENCES"]) {
         expect(
           await columnsHolding(sql, CONTACT_SUBMISSIONS, privilege),
+        ).toEqual(everyColumn);
+      }
+    });
+
+    it("answer every privilege and every column as held with grant option for the table's owner, so the grant test's empty lists are not what any connection gets", async () => {
+      const sql = neon(testDatabaseUrl);
+      const everyColumn = [...ALL_COLUMNS].sort();
+
+      const known = await tablePrivilegesTheServerKnows(sql);
+
+      expect(
+        await privilegesHeldWithGrantOption(sql, CONTACT_SUBMISSIONS, known),
+      ).toEqual(known);
+      for (const privilege of ["SELECT", "INSERT", "UPDATE", "REFERENCES"]) {
+        expect(
+          await columnsHolding(
+            sql,
+            CONTACT_SUBMISSIONS,
+            `${privilege} WITH GRANT OPTION`,
+          ),
         ).toEqual(everyColumn);
       }
     });
@@ -1235,24 +1395,113 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
       ],
     ];
 
+    /** Hands out the given references in order and then fresh ones, and counts how many were asked for. */
+    function countingProposer(...references: string[]): {
+      readonly propose: () => string;
+      readonly draws: () => number;
+    } {
+      let draws = 0;
+      return {
+        propose: () => {
+          draws += 1;
+          return references.shift() ?? generateSubmissionReference();
+        },
+        draws: () => draws,
+      };
+    }
+
     it.each(STORES)(
-      "%s answers not new to a replay whose proposal is the reference it already holds",
+      "%s answers not new to a replay under fresh proposals, and draws once for each record",
       async (_name, createStore) => {
-        const reference = generateSubmissionReference();
-        const store = createStore(() => reference);
+        const first = generateSubmissionReference();
+        const proposer = countingProposer(first);
+        const store = createStore(proposer.propose);
         const id = newClientRequestId();
 
         const answers = [
           await store.record(aDesignSubmission(id)),
           await store.record(aDesignSubmission(id)),
+          await store.record(aDesignSubmission(id)),
         ];
 
         expect(answers).toEqual([
-          { kind: "stored", reference, isNew: true, isNotified: false },
-          { kind: "stored", reference, isNew: false, isNotified: false },
+          { kind: "stored", reference: first, isNew: true, isNotified: false },
+          { kind: "stored", reference: first, isNew: false, isNotified: false },
+          { kind: "stored", reference: first, isNew: false, isNotified: false },
         ]);
+        expect(proposer.draws()).toBe(3);
       },
     );
+
+    /** One for each of the five records, and one more for the collision. */
+    const DRAWS_OF_THE_SCRIPT = 6;
+
+    it("the fake and the Neon store answer alike, and draw alike, under a proposer that repeats itself and then collides", async () => {
+      const script = async (
+        createStore: (proposeReference: () => string) => ContactSubmissionStore,
+      ): Promise<unknown[]> => {
+        const [repeated, free] = [
+          generateSubmissionReference(),
+          generateSubmissionReference(),
+        ];
+        const proposer = countingProposer(
+          repeated,
+          repeated,
+          repeated,
+          repeated,
+          free,
+        );
+        const store = createStore(proposer.propose);
+        const [first, second] = [newClientRequestId(), newClientRequestId()];
+        const answers = [
+          await store.record(aDesignSubmission(first)),
+          await store.record(aDesignSubmission(first)),
+          await store.record(aDesignSubmission(first, DIGEST_B)),
+          await store.record(aDesignSubmission(second)),
+          await store.record(aDesignSubmission(second)),
+        ];
+        return [
+          ...answers.map((answer) =>
+            answer.kind === "stored"
+              ? {
+                  ...answer,
+                  reference:
+                    answer.reference === repeated ? "repeated" : "free",
+                }
+              : answer,
+          ),
+          proposer.draws(),
+        ];
+      };
+      const [, createFake] = STORES[0] ?? [];
+      const [, createNeon] = STORES[1] ?? [];
+      if (createFake === undefined || createNeon === undefined) {
+        throw new Error("both stores are needed");
+      }
+
+      const fromTheFake = await script(createFake);
+      const fromNeon = await script(createNeon);
+
+      expect(fromTheFake).toEqual(fromNeon);
+      expect(fromNeon).toEqual([
+        {
+          kind: "stored",
+          reference: "repeated",
+          isNew: true,
+          isNotified: false,
+        },
+        {
+          kind: "stored",
+          reference: "repeated",
+          isNew: true,
+          isNotified: false,
+        },
+        { kind: "conflict" },
+        { kind: "stored", reference: "free", isNew: true, isNotified: false },
+        { kind: "stored", reference: "free", isNew: false, isNotified: false },
+        DRAWS_OF_THE_SCRIPT,
+      ]);
+    });
 
     it.each(STORES)(
       "%s fails a mark of an id never stored with the same error: its operation, its message and no cause",
