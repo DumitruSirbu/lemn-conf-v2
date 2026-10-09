@@ -97,6 +97,18 @@ const VARIABLE_STATES: readonly VariableState[] = [
     place: own(() => ({ toString: () => UNUSABLE_MARKER })),
   },
   {
+    label: "a member holding undefined",
+    isPresent: true,
+    isUsable: false,
+    place: own(() => undefined),
+  },
+  {
+    label: "a member holding null",
+    isPresent: true,
+    isUsable: false,
+    place: own(() => null),
+  },
+  {
     label: "inherited",
     isPresent: false,
     isUsable: false,

@@ -22,6 +22,7 @@ import {
   FAKE_INBOX,
   FAKE_SENDER,
   QA_CONFIGURATION,
+  expectNoMarkerIn,
   QA_MESSAGE,
   stubFetchAnswering,
   textAnswer,
@@ -411,5 +412,182 @@ describe("the same message, the same bytes", () => {
 
     expect(retry.body).toBe(firstAttempt.body);
     expect(retry.headers).toStrictEqual(firstAttempt.headers);
+  });
+});
+
+type Member = keyof MailMessage;
+const MEMBERS: readonly Member[] = ["key", "subject", "text"];
+
+const LATER_ANSWERS: MailMessage = {
+  key: "later key\r\nBcc: second@example.com",
+  subject: "later\nsubject",
+  text: "",
+};
+
+interface CountedMessage {
+  readonly message: MailMessage;
+  readonly reads: Record<Member, number>;
+}
+
+/** Answers `first` the first time each member is asked for and `later` ever after, through accessors. */
+function accessorsAnswering(
+  first: MailMessage,
+  later: MailMessage,
+): CountedMessage {
+  const reads = { key: 0, subject: 0, text: 0 };
+  const message = {} as MailMessage;
+  for (const member of MEMBERS) {
+    Object.defineProperty(message, member, {
+      enumerable: true,
+      get: () => {
+        reads[member] += 1;
+        return reads[member] === 1 ? first[member] : later[member];
+      },
+    });
+  }
+  return { message, reads };
+}
+
+/** The same, through a proxy over an empty object, so nothing can be read but through the trap. */
+function proxyAnswering(
+  first: MailMessage,
+  later: MailMessage,
+): CountedMessage {
+  const reads = { key: 0, subject: 0, text: 0 };
+  const message = new Proxy({} as MailMessage, {
+    get(_target, name) {
+      const member = MEMBERS.find((candidate) => candidate === name);
+      if (member === undefined) return undefined;
+      reads[member] += 1;
+      return reads[member] === 1 ? first[member] : later[member];
+    },
+  });
+  return { message, reads };
+}
+
+const CHANGING_MESSAGES = [
+  ["accessors", accessorsAnswering],
+  ["a proxy", proxyAnswering],
+] as const;
+
+describe.each(CHANGING_MESSAGES)(
+  "a message whose every member changes after its first answer, through %s",
+  (_label, answering) => {
+    it("is asked once for each member by the adapter, which sends the first answers", async () => {
+      const fetchSpy = acceptingFetch();
+      const { message, reads } = answering(QA_MESSAGE, LATER_ANSWERS);
+
+      const outcome =
+        await createResendMailSender(QA_CONFIGURATION).send(message);
+
+      const expected = buildResendRequest(QA_MESSAGE, QA_CONFIGURATION).init;
+      expect(outcome).toEqual({ ok: true });
+      expect(reads).toEqual({ key: 1, subject: 1, text: 1 });
+      expect(initOf(fetchSpy).body).toBe(expected.body);
+      expect(initOf(fetchSpy).headers).toStrictEqual(expected.headers);
+    });
+
+    it("is asked once for each member by the fake, which records the first answers and lets no holder rewrite them", async () => {
+      const fake = createFakeMailSender();
+      const { message, reads } = answering(QA_MESSAGE, LATER_ANSWERS);
+
+      const outcome = await fake.send(message);
+
+      expect(outcome).toEqual({ ok: true });
+      expect(reads).toEqual({ key: 1, subject: 1, text: 1 });
+      expect(fake.sent).toStrictEqual([QA_MESSAGE]);
+      expect(fake.sent.every((recorded) => Object.isFrozen(recorded))).toBe(
+        true,
+      );
+    });
+
+    it.each(MEMBERS)(
+      "is refused unsent and unrecorded when its first %s may not be sent, however well it answers afterwards",
+      async (member) => {
+        const fetchSpy = acceptingFetch();
+        const fake = createFakeMailSender();
+        const unsendableFirst = {
+          ...QA_MESSAGE,
+          [member]: LATER_ANSWERS[member],
+        };
+
+        const fromAdapter = await createResendMailSender(QA_CONFIGURATION).send(
+          answering(unsendableFirst, QA_MESSAGE).message,
+        );
+        const fromFake = await fake.send(
+          answering(unsendableFirst, QA_MESSAGE).message,
+        );
+
+        expect(fromAdapter).toEqual({ ok: false, kind: "refused" });
+        expect(fromFake).toEqual(fromAdapter);
+        expect(fetchSpy).not.toHaveBeenCalled();
+        expect(fake.sent).toEqual([]);
+      },
+    );
+  },
+);
+
+function throwingWhenAskedFor(member: Member): MailMessage {
+  return Object.defineProperty({ ...QA_MESSAGE }, member, {
+    enumerable: true,
+    get(): string {
+      throw new Error(`unreadable ${FAKE_API_KEY}`);
+    },
+  });
+}
+
+describe("what is handed to a sender in place of a readable message", () => {
+  const UNREADABLE: readonly [string, unknown][] = [
+    ["a key that throws when read", throwingWhenAskedFor("key")],
+    ["a subject that throws when read", throwingWhenAskedFor("subject")],
+    ["a text that throws when read", throwingWhenAskedFor("text")],
+    [
+      "a proxy that throws whatever is asked",
+      new Proxy(
+        {},
+        {
+          get() {
+            throw new Error(`unreadable ${FAKE_API_KEY}`);
+          },
+        },
+      ),
+    ],
+    ["null", null],
+    ["nothing", undefined],
+    ["a list of the three values", Object.values(QA_MESSAGE)],
+    ["text", QA_MESSAGE.key],
+    ["a number", 7],
+    ["a function", () => QA_MESSAGE],
+  ];
+
+  it.each(UNREADABLE)(
+    "is refused without a request by the adapter, and by the fake without a record or a spent scripted answer: %s",
+    async (_label, value) => {
+      const fetchSpy = acceptingFetch();
+      const fake = createFakeMailSender([{ ok: false, kind: "busy" }]);
+      const message = value as MailMessage;
+
+      const fromAdapter =
+        await createResendMailSender(QA_CONFIGURATION).send(message);
+      const fromFake = await fake.send(message);
+      const nextFromFake = await fake.send(QA_MESSAGE);
+
+      expect(fromAdapter).toEqual({ ok: false, kind: "refused" });
+      expect(fromFake).toEqual(fromAdapter);
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(fake.sent).toEqual([QA_MESSAGE]);
+      expect(nextFromFake).toEqual({ ok: false, kind: "busy" });
+      expectNoMarkerIn([fromAdapter, fromFake], [FAKE_API_KEY]);
+    },
+  );
+
+  it("refuses in the fake, as in the adapter, a key that is a text object printing as a valid key", async () => {
+    const fake = createFakeMailSender();
+    const message = { ...QA_MESSAGE, key: new String(QA_MESSAGE.key) };
+
+    const outcome = await fake.send(message as unknown as MailMessage);
+
+    expect(outcome).toEqual({ ok: false, kind: "refused" });
+    expect(fake.sent).toEqual([]);
   });
 });

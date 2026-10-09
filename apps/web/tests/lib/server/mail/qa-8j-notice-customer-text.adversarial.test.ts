@@ -33,9 +33,11 @@ import {
   thrownBy,
 } from "./qa-8j-notice-support";
 import {
+  consoleCallsOf,
   everyReadingOf,
   expectNoMarkerIn,
   QA_CONFIGURATION,
+  silenceEveryConsoleMethod,
   stubFetchAnswering,
   textAnswer,
 } from "./qa-8j-support";
@@ -317,23 +319,108 @@ describe("what the notice does not read", () => {
   );
 });
 
+/** What the developer's cases leave out: values that are not text, and one a reader would recognise in an error. */
+const UNWORDED_CHANNELS: readonly [string, unknown][] = [
+  ["a number", 5],
+  ["null", null],
+  ["nothing", undefined],
+  ["a list holding a known channel", ["phone", "email"]],
+  ["text a reader would recognise", `${HOSTILE_MARKER} fax`],
+];
+
+const UNUSABLE_REQUEST_IDS: readonly [string, unknown][] = [
+  ["an object that prints as an id", { toString: () => HOSTILE_MARKER }],
+  ["a list of ids", [HOSTILE_MARKER]],
+  ["a text object", new String(HOSTILE_MARKER)],
+  ["true", true],
+];
+
+function expectTheNamedErrorWithNoValue(thrown: unknown, line: string): void {
+  expect(thrown).toBeInstanceOf(NoticeLineError);
+  expect((thrown as NoticeLineError).field).toBe(line);
+  expect((thrown as Error).cause).toBeUndefined();
+  expectNoMarkerIn(
+    [thrown, (thrown as Error).message, (thrown as Error).stack],
+    [HOSTILE_MARKER, ...CUSTOMER_MARKERS],
+  );
+}
+
 describe("a channel the notice has no word for", () => {
-  it.each([
-    ["a word of another vocabulary", "fax"],
-    ["empty text", ""],
-    ["a member every object inherits", "constructor"],
-    ["the prototype's own name", "__proto__"],
-  ])(
-    "is refused for %s rather than printed as a blank value or as a catalogue key",
+  it.each(UNWORDED_CHANNELS)(
+    "throws the error that names the channel line and holds no value, for %s",
     (_label, channel) => {
-      vi.spyOn(console, "error").mockImplementation(() => undefined);
       const submission = designRequest({
         contact: { ...acceptedContact(), channel: channel as never },
       });
 
-      expect(() => noticeOf(submission)).toThrow();
+      expectTheNamedErrorWithNoValue(
+        thrownBy(() => noticeOf(submission)),
+        "channel",
+      );
     },
   );
+});
+
+describe("a request id no key can be built from", () => {
+  it.each(UNUSABLE_REQUEST_IDS)(
+    "throws the error that names the key and holds no value, for %s",
+    (_label, clientRequestId) => {
+      const submission = designRequest({
+        clientRequestId: clientRequestId as never,
+      });
+
+      expectTheNamedErrorWithNoValue(
+        thrownBy(() => noticeOf(submission)),
+        "key",
+      );
+    },
+  );
+});
+
+describe("what building a notice writes", () => {
+  const REFUSED_REQUESTS: readonly ContactSubmissionToRecord[] = [
+    ...UNWORDED_CHANNELS.map(([, channel]) =>
+      designRequest({
+        contact: { ...acceptedContact(), channel: channel as never },
+      }),
+    ),
+    ...["constructor", "__proto__", "toString", "valueOf"].map((channel) =>
+      designRequest({
+        contact: { ...acceptedContact(), channel: channel as never },
+      }),
+    ),
+    ...UNUSABLE_REQUEST_IDS.map(([, clientRequestId]) =>
+      designRequest({ clientRequestId: clientRequestId as never }),
+    ),
+    contactWith("name", `${HOSTILE_MARKER}\n`),
+    designRequest({ snapshot: undefined }),
+    designRequest({ snapshot: { ...QA_SNAPSHOT, document: "{" } }),
+    designRequest({ snapshot: { ...QA_SNAPSHOT, priced: null as never } }),
+  ];
+
+  it("is nothing, through any console method, for every request it refuses", () => {
+    const consoleSpies = silenceEveryConsoleMethod();
+
+    const thrown = REFUSED_REQUESTS.map((submission) =>
+      thrownBy(() => noticeOf(submission)),
+    );
+
+    expect(thrown.filter((error) => !(error instanceof Error))).toEqual([]);
+    expect(consoleCallsOf(consoleSpies)).toEqual([]);
+  });
+
+  it("is nothing, through any console method, for a design, a callback and a notice in Russian", () => {
+    const consoleSpies = silenceEveryConsoleMethod();
+    const russianContent = resolveContent(
+      createTranslator({ locale: "ru", messages: ruMessages }),
+    );
+
+    noticeOf(designRequest());
+    noticeOf(callbackRequest());
+    noticeOf(designRequest({ locale: "ru" }), russianContent);
+
+    expect(consoleCallsOf(consoleSpies)).toEqual([]);
+  });
 });
 
 describe("the customer's own language", () => {

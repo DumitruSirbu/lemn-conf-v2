@@ -574,6 +574,47 @@ describe("a body that breaks while it is read", () => {
   );
 });
 
+/** A body that hands over a whole deciding answer and then fails as its reader is let go. */
+function failingAtRelease(text: string): ReadableStream<Uint8Array> {
+  const reader = streamOf(bytesOf(text)).getReader();
+  return {
+    getReader: () => ({
+      read: () => reader.read(),
+      cancel: () => reader.cancel(),
+      releaseLock: () => {
+        throw new Error(`release failed ${QUOTING_ERROR_BODY}`);
+      },
+    }),
+  } as unknown as ReadableStream<Uint8Array>;
+}
+
+describe("a response that arrived, whose body is no body", () => {
+  const NO_BODIES: readonly [string, (text: string) => unknown][] = [
+    ["no body at all", () => null],
+    ["text where a stream should be", (text) => text],
+    ["an object that is no stream", () => ({})],
+    ["a body that fails as its reader is let go", failingAtRelease],
+  ];
+
+  describe.each(NO_BODIES)("%s", (_label, bodyOf) => {
+    it.each([
+      [200, '{"id":"msg_1"}', failed("unreadable-answer", 200)],
+      [409, `{"name":"${MISMATCH_NAME}"}`, failed("busy", 409)],
+      [429, `{"name":"${RATE_NAME}"}`, failed("quota-spent", 429)],
+    ])(
+      "keeps the status of a %i and answers its row's otherwise",
+      async (status, decidingText, expected) => {
+        const outcome = await outcomeFor(() =>
+          answerOf(status, bodyOf(decidingText) as ReadableStream<Uint8Array>),
+        );
+
+        expect(outcome).toEqual(expected);
+        expectNoMarkerIn(outcome, DISCLOSURE_MARKERS);
+      },
+    );
+  });
+});
+
 describe("the ten-second bound, once the request has been answered", () => {
   const stalledBody = () =>
     new ReadableStream<Uint8Array>({
