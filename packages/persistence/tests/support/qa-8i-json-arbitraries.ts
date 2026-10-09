@@ -4,10 +4,10 @@ import { fc } from "@fast-check/vitest";
 export const POISON_MARKER = "QA8I-POISON-MARKER";
 
 /** A number no clean tree holds, swapped in a document's text for one a double cannot hold. */
-export const NUMBER_SENTINEL = 918_273_645_546_372;
+const NUMBER_SENTINEL = 918_273_645_546_372;
 
 /** Texts a double cannot hold, which `JSON.parse` reads as an infinity. */
-export const OVERFLOWING_NUMBER_TEXTS = ["1e999", "-1e999", "1e309"] as const;
+const OVERFLOWING_NUMBER_TEXTS = ["1e999", "-1e999", "1e309"] as const;
 
 type JsonObject = Record<string, unknown>;
 
@@ -72,7 +72,7 @@ const cleanJsonList: fc.Arbitrary<unknown[]> = fc.array(cleanTrees.value, {
 });
 
 /** Text Postgres cannot hold: a NUL, either half of a pair alone, and a pair the wrong way round. */
-export const unstorableText: fc.Arbitrary<string> = fc
+const unstorableText: fc.Arbitrary<string> = fc
   .tuple(
     fc.constantFrom(
       "\u0000",

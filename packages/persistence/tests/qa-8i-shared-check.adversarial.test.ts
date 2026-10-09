@@ -32,7 +32,7 @@ import {
 } from "./support/qa-8i-json-arbitraries.js";
 import { REAL_SNAPSHOTS, levelsOf } from "./support/qa-8i-real-snapshots.js";
 import { markersFoundOn } from "./support/leaked-connection-markers.js";
-import { rejectionOf } from "./support/qa-8i-rejection.js";
+import { rejectionOf } from "./support/rejection-of.js";
 import { privilegesHeldWithGrantOption } from "./support/table-privileges.js";
 
 /**
@@ -48,13 +48,29 @@ const MARKER = "QA8I-LEAKED-MARKER";
 const CHECKS_OWN_OPENING = "Refusing to use the contact submission store";
 const CHECKS_OWN_REFUSAL = /^Refusing to use the contact submission store/;
 
-function refusalOf(act: () => void): string | undefined {
+const NOTHING_THROWN = Symbol("nothing thrown");
+
+function thrownBy(act: () => void): unknown {
   try {
     act();
-    return undefined;
-  } catch (error) {
-    return error instanceof Error ? error.message : "a non-error throw";
+    return NOTHING_THROWN;
+  } catch (thrown) {
+    return thrown;
   }
+}
+
+/** The message of what `act` threw, `undefined` when it threw nothing. */
+function messageThrownBy(act: () => void): string | undefined {
+  const thrown = thrownBy(act);
+  if (thrown === NOTHING_THROWN) return undefined;
+  return thrown instanceof Error ? thrown.message : "a non-error throw";
+}
+
+/** What `act` threw; a test that expected a throw fails when there was none. */
+function caughtFrom(act: () => void): unknown {
+  const thrown = thrownBy(act);
+  if (thrown === NOTHING_THROWN) throw new Error("nothing was thrown");
+  return thrown;
 }
 
 function withRevision(revision: unknown): ContactSubmissionToRecord {
@@ -87,7 +103,7 @@ describe("the shared check at the table's edges", () => {
     [64, true],
     [65, false],
   ])("judges a client request id of %i characters", (length, isAccepted) => {
-    const refusal = refusalOf(() => {
+    const refusal = messageThrownBy(() => {
       requireValidClientRequestId("x".repeat(length));
     });
 
@@ -110,7 +126,7 @@ describe("the shared check at the table's edges", () => {
     ["", false],
     ["١", false],
   ])("judges a revision of %j", (revision, isAccepted) => {
-    const refusal = refusalOf(() => {
+    const refusal = messageThrownBy(() => {
       requireValidSubmission(withRevision(revision));
     });
 
@@ -123,7 +139,7 @@ describe("the shared check at the table's edges", () => {
     [32, true],
     [33, false],
   ])("judges a reference of %i characters", (length, isAccepted) => {
-    const refusal = refusalOf(() => {
+    const refusal = messageThrownBy(() => {
       requireValidReference("A".repeat(length));
     });
 
@@ -138,7 +154,7 @@ describe("the shared check at the table's edges", () => {
     [`\n${"a".repeat(64)}`],
     [""],
   ])("refuses a digest that is not sixty-four lowercase hex: %j", (digest) => {
-    const refusal = refusalOf(() => {
+    const refusal = messageThrownBy(() => {
       requireValidLookup({
         clientRequestId: CLIENT_REQUEST_ID,
         payloadDigest: digest,
@@ -156,7 +172,7 @@ describe("the shared check at the table's edges", () => {
     ["an id holding a full stop", `${"x".repeat(15)}.`],
   ])("refuses %s", (_name, id) => {
     expect(
-      refusalOf(() => {
+      messageThrownBy(() => {
         requireValidClientRequestId(id);
       }),
     ).toMatch(/client request id/);
@@ -176,7 +192,7 @@ describe("the shared check at the table's edges", () => {
   ])(
     "refuses a document that is %s, saying nothing of it",
     (_name, document) => {
-      const refusal = refusalOf(() => {
+      const refusal = messageThrownBy(() => {
         requireValidSubmission(withSnapshot(document, FAKE_SNAPSHOT.priced));
       });
 
@@ -194,7 +210,7 @@ describe("the shared check at the table's edges", () => {
   ])(
     "refuses a priced design that is %s, saying nothing of it",
     (_name, priced) => {
-      const refusal = refusalOf(() => {
+      const refusal = messageThrownBy(() => {
         requireValidSubmission(withSnapshot(FAKE_SNAPSHOT.document, priced));
       });
 
@@ -213,7 +229,7 @@ describe("the shared check of a value that is not text", () => {
     ["an object that prints as an id", { toString: () => CLIENT_REQUEST_ID }],
   ])("refuses a client request id that is %s", (_name, id) => {
     expect(
-      refusalOf(() => {
+      messageThrownBy(() => {
         requireValidClientRequestId(id as unknown as string);
       }),
     ).toMatch(/client request id/);
@@ -221,7 +237,7 @@ describe("the shared check of a value that is not text", () => {
 
   it("refuses a digest that is a list of one digest", () => {
     expect(
-      refusalOf(() => {
+      messageThrownBy(() => {
         requireValidLookup({
           clientRequestId: CLIENT_REQUEST_ID,
           payloadDigest: [DIGEST_A] as unknown as string,
@@ -232,7 +248,7 @@ describe("the shared check of a value that is not text", () => {
 
   it("refuses a reference that is a list of one reference", () => {
     expect(
-      refusalOf(() => {
+      messageThrownBy(() => {
         requireValidReference(["LM-AAAAAAAA"] as unknown as string);
       }),
     ).toMatch(/reference/);
@@ -242,7 +258,7 @@ describe("the shared check of a value that is not text", () => {
     expect(
       [7, [7], ["7"], 7n].map((revision) =>
         (
-          refusalOf(() => {
+          messageThrownBy(() => {
             requireValidSubmission(withRevision(revision));
           }) ?? ""
         ).includes("revision"),
@@ -262,52 +278,68 @@ describe("the shared check of a value that is not text", () => {
   });
 });
 
-interface RawRequest {
-  readonly name: string;
-  readonly locality: string;
-  readonly channel: string;
-  readonly email: string | undefined;
-  readonly target:
-    | { readonly intent: string }
-    | { readonly design: { readonly id: string; readonly revision: string } };
-  readonly clientRequestId: string;
-}
+/** A contact the domain accepts: a channel with the e-mail it needs, or with one typed that the domain drops. */
+const acceptedChannel = fc.constantFrom(
+  { channel: "phone" },
+  { channel: "phone", email: "typed.and.dropped@example.invalid" },
+  { channel: "phone", email: "not an e-mail" },
+  { channel: "whatsapp" },
+  { channel: "whatsapp", email: "" },
+  { channel: "email", email: "zorba.fakeperson@example.invalid" },
+);
 
 const DESIGN_ID = generateDesignId();
 
-const rawRequest: fc.Arbitrary<RawRequest> = fc.record({
-  name: fc.string({ minLength: 1, maxLength: 60 }),
-  locality: fc.string({ maxLength: 60 }),
-  channel: fc.constantFrom("phone", "whatsapp", "email"),
-  email: fc.option(
-    fc.constantFrom("zorba.fakeperson@example.invalid", "", "not an e-mail"),
-    { nil: undefined },
-  ),
-  target: fc.oneof(
-    fc.constant({ intent: "callback" }),
-    fc
-      .oneof(
-        fc.bigInt({ min: 1n, max: LARGEST_REVISION }),
-        fc.bigInt({ min: LARGEST_REVISION + 1n, max: WIDEST_NINETEEN_DIGITS }),
-      )
-      .map((revision) => ({
-        design: { id: DESIGN_ID, revision: String(revision) },
-      })),
-  ),
-  clientRequestId: fc.stringMatching(/^[A-Za-z0-9_-]{16,64}$/),
+interface RawTarget {
+  readonly intent?: string;
+  readonly design?: { readonly id: string; readonly revision: string };
+}
+
+const designAtRevision = (revision: bigint): RawTarget => ({
+  design: { id: DESIGN_ID, revision: String(revision) },
 });
 
-function validated(
-  raw: RawRequest,
-): ReturnType<typeof validateContactSubmission> {
-  return validateContactSubmission(
+/** A target the revision column holds: a callback, or a design at a revision up to the widest `bigint`. */
+const targetThatFitsTheColumn: fc.Arbitrary<RawTarget> = fc.oneof(
+  fc.constant({ intent: "callback" }),
+  fc.bigInt({ min: 1n, max: LARGEST_REVISION }).map(designAtRevision),
+  fc.constantFrom(1n, LARGEST_REVISION).map(designAtRevision),
+);
+
+/** A design at a revision the domain's nineteen digits admit and the column does not hold. */
+const targetPastTheColumn: fc.Arbitrary<RawTarget> = fc.oneof(
+  fc
+    .bigInt({ min: LARGEST_REVISION + 1n, max: WIDEST_NINETEEN_DIGITS })
+    .map(designAtRevision),
+  fc
+    .constantFrom(LARGEST_REVISION + 1n, WIDEST_NINETEEN_DIGITS)
+    .map(designAtRevision),
+);
+
+function requestTheDomainAccepts(target: fc.Arbitrary<RawTarget>) {
+  return fc.record({
+    name: fc.stringMatching(/^[A-Za-z][A-Za-z .'-]{0,40}[A-Za-z]$/),
+    locality: fc.stringMatching(/^[A-Za-z0-9 ,.-]{0,60}$/),
+    contact: acceptedChannel,
+    target,
+    clientRequestId: fc.stringMatching(/^[A-Za-z0-9_-]{16,64}$/),
+  });
+}
+
+type RawRequest =
+  ReturnType<typeof requestTheDomainAccepts> extends fc.Arbitrary<infer Raw>
+    ? Raw
+    : never;
+
+/** What the shared check says of `raw` once the domain has validated it; the domain's refusal fails the test. */
+function checksVerdictOnTheValidated(raw: RawRequest): string | undefined {
+  const validation = validateContactSubmission(
     {
       contact: {
         name: raw.name,
         phone: "+37369123456",
         locality: raw.locality,
-        channel: raw.channel,
-        ...(raw.email === undefined ? {} : { email: raw.email }),
+        ...raw.contact,
         consent: true,
         consentTextVersion: "placeholder",
       },
@@ -318,57 +350,34 @@ function validated(
     },
     ["ro"],
   );
-}
-
-function fitsTheColumn(raw: RawRequest): boolean {
-  return (
-    !("design" in raw.target) ||
-    BigInt(raw.target.design.revision) <= LARGEST_REVISION
-  );
+  if (!validation.ok) {
+    throw new Error("the domain refused a request built to be accepted");
+  }
+  const { contact, target, clientRequestId, locale } = validation.request;
+  return messageThrownBy(() => {
+    requireValidSubmission({
+      clientRequestId,
+      payloadDigest: DIGEST_A,
+      contact,
+      locale,
+      target,
+      snapshot: target.kind === "design" ? FAKE_SNAPSHOT : undefined,
+    });
+  });
 }
 
 describe("what the domain's validation accepts", () => {
-  it("includes each channel, with an e-mail typed and without, so the property below reaches them", () => {
-    const base: RawRequest = {
-      name: "Zorba Fakeperson",
-      locality: "",
-      channel: "phone",
-      email: "zorba.fakeperson@example.invalid",
-      target: { design: { id: DESIGN_ID, revision: "7" } },
-      clientRequestId: CLIENT_REQUEST_ID,
-    };
-
-    expect(
-      [
-        base,
-        { ...base, email: undefined },
-        { ...base, channel: "whatsapp" },
-        { ...base, channel: "email" },
-        { ...base, target: { intent: "callback" } },
-      ].map((raw) => validated(raw).ok),
-    ).toEqual([true, true, true, true, true]);
-  });
-
-  propertyTest.prop([rawRequest])(
-    "is accepted by the shared check, but for a revision past the column, which is refused as one",
+  propertyTest.prop([requestTheDomainAccepts(targetThatFitsTheColumn)])(
+    "is accepted by the shared check, for every channel and for a callback or a design the revision column holds",
     (raw) => {
-      const validation = validated(raw);
-      fc.pre(validation.ok);
-      const { contact, target, clientRequestId, locale } = validation.request;
+      expect(checksVerdictOnTheValidated(raw)).toBeUndefined();
+    },
+  );
 
-      const refusal = refusalOf(() => {
-        requireValidSubmission({
-          clientRequestId,
-          payloadDigest: DIGEST_A,
-          contact,
-          locale,
-          target,
-          snapshot: target.kind === "design" ? FAKE_SNAPSHOT : undefined,
-        });
-      });
-
-      if (fitsTheColumn(raw)) expect(refusal).toBeUndefined();
-      else expect(refusal).toMatch(/revision/);
+  propertyTest.prop([requestTheDomainAccepts(targetPastTheColumn)])(
+    "is refused by the shared check as the revision, when the design's revision is past the column",
+    (raw) => {
+      expect(checksVerdictOnTheValidated(raw)).toMatch(/revision/);
     },
   );
 });
@@ -424,7 +433,7 @@ describe("the shared check of a part that is not an object", () => {
     ])(
       "is refused as that part when it is %s, with nothing of it in the refusal",
       (_kind, value) => {
-        const refusal = refusalOf(() => {
+        const refusal = messageThrownBy(() => {
           requireValidSubmission(placed(value));
         });
 
@@ -433,8 +442,8 @@ describe("the shared check of a part that is not an object", () => {
       },
     );
 
-    it("is refused by the check when it is a list, which is an object: for what it does not hold, with nothing of it in the refusal", () => {
-      const refusal = refusalOf(() => {
+    it("is refused, when it is a list, for the member a list does not hold, with nothing of it in the refusal", () => {
+      const refusal = messageThrownBy(() => {
         requireValidSubmission(placed([MARKER, { name: MARKER }]));
       });
 
@@ -455,7 +464,7 @@ describe("the shared check of a part that is not an object", () => {
         },
       );
 
-      const refusal = refusalOf(() => {
+      const refusal = messageThrownBy(() => {
         requireValidSubmission(placed(throwing));
       });
 
@@ -476,7 +485,7 @@ describe("the digest's own check of a value that is not text", () => {
     "refuses %s, for the counter store and the design repository too",
     (_name, value) => {
       expect(
-        refusalOf(() => {
+        messageThrownBy(() => {
           requireSha256Digest(value, "digest", "test the digest");
         }),
       ).toMatch(/64-character lowercase hex/);
@@ -485,7 +494,7 @@ describe("the digest's own check of a value that is not text", () => {
 
   it("still accepts a digest that is text", () => {
     expect(
-      refusalOf(() => {
+      messageThrownBy(() => {
         requireSha256Digest(DIGEST_A, "digest", "test the digest");
       }),
     ).toBeUndefined();
@@ -540,7 +549,7 @@ describe("text Postgres cannot hold", () => {
     it.each(UNSTORABLE)(
       "refuses %s, saying nothing of the text",
       (_name, text) => {
-        const refusal = refusalOf(() => {
+        const refusal = messageThrownBy(() => {
           requireValidSubmission(placed(text));
         });
 
@@ -557,7 +566,7 @@ describe("text Postgres cannot hold", () => {
           "a\uD83D\uDE00b",
           "\uDBFF\uDFFF",
         ].map((text) =>
-          refusalOf(() => {
+          messageThrownBy(() => {
             requireValidSubmission(placed(text));
           }),
         ),
@@ -578,7 +587,7 @@ describe("a snapshot's document and priced design, judged before a statement car
   propertyTest.prop([objectHoldingUnstorableText])(
     "refuses a document holding unstorable text at any depth, in a key or a value, with nothing of it in the refusal",
     (tree) => {
-      const refusal = refusalOf(() => {
+      const refusal = messageThrownBy(() => {
         requireValidSubmission(
           withSnapshot(JSON.stringify(tree), FAKE_SNAPSHOT.priced),
         );
@@ -592,7 +601,7 @@ describe("a snapshot's document and priced design, judged before a statement car
   propertyTest.prop([objectHoldingUnstorableText])(
     "refuses a priced design holding unstorable text at any depth, in a key or a value, with nothing of it in the refusal",
     (tree) => {
-      const refusal = refusalOf(() => {
+      const refusal = messageThrownBy(() => {
         requireValidSubmission(withSnapshot(FAKE_SNAPSHOT.document, tree));
       });
 
@@ -605,7 +614,7 @@ describe("a snapshot's document and priced design, judged before a statement car
     "refuses a document holding, at any depth, a number a double cannot hold",
     (text) => {
       expect(
-        refusalOf(() => {
+        messageThrownBy(() => {
           requireValidSubmission(withSnapshot(text, FAKE_SNAPSHOT.priced));
         }),
       ).toMatch(/JSON object/);
@@ -633,7 +642,7 @@ describe("a snapshot's document and priced design, judged before a statement car
   ])(
     "refuses a priced design whose total is %s, and does not store it as null",
     (_name, total) => {
-      const refusal = refusalOf(() => {
+      const refusal = messageThrownBy(() => {
         requireValidSubmission(
           withSnapshot(FAKE_SNAPSHOT.document, {
             ...FAKE_SNAPSHOT.priced,
@@ -648,7 +657,7 @@ describe("a snapshot's document and priced design, judged before a statement car
 
   it("refuses a document holding a whole number past a double's reach, and never rewrites it", () => {
     expect(
-      refusalOf(() => {
+      messageThrownBy(() => {
         requireValidSubmission(
           withSnapshot(`{"n":${PAST_A_DOUBLE}}`, FAKE_SNAPSHOT.priced),
         );
@@ -668,7 +677,7 @@ describe("a snapshot's document and priced design, judged before a statement car
   ])(
     "refuses a document of very deep %s under the depth's own sentence, and throws nothing else",
     (_name, document) => {
-      const outcome = refusalOf(() => {
+      const outcome = messageThrownBy(() => {
         requireValidSubmission(withSnapshot(document, FAKE_SNAPSHOT.priced));
       });
 
@@ -696,7 +705,7 @@ describe("a snapshot's document and priced design, judged before a statement car
     ["a String object", Object('{"a":1}')],
   ])("refuses a document that is %s and not text", (_name, document) => {
     expect(
-      refusalOf(() => {
+      messageThrownBy(() => {
         requireValidSubmission(withSnapshot(document, FAKE_SNAPSHOT.priced));
       }),
     ).toMatch(/JSON object/);
@@ -711,7 +720,7 @@ describe("a snapshot's document and priced design, judged before a statement car
     expect(judged(clean, FAKE_SNAPSHOT.priced)?.document).toBe(clean);
     expect(
       [unstorableUnderProto, aKeyWrittenTwice].map((document) =>
-        refusalOf(() => {
+        messageThrownBy(() => {
           requireValidSubmission(withSnapshot(document, FAKE_SNAPSHOT.priced));
         }),
       ),
@@ -836,7 +845,7 @@ describe("a snapshot's own encoding, its walked value and its depth", () => {
   }
 
   function refusalOfSnapshot(document: unknown, priced: unknown) {
-    return refusalOf(() => {
+    return messageThrownBy(() => {
       requireValidSubmission(withSnapshot(document, priced));
     });
   }
@@ -1029,7 +1038,7 @@ describe("a snapshot's own encoding, its walked value and its depth", () => {
       }
 
       expect(
-        refusalOf(() => {
+        messageThrownBy(() => {
           judgeSubmission(withSnapshot(FAKE_SNAPSHOT.document, { shared }));
         }),
       ).toBeUndefined();
@@ -1154,15 +1163,6 @@ describe("anything a member read throws", () => {
     payloadDigest: DIGEST_A,
   };
 
-  function caughtFrom(act: () => void): unknown {
-    try {
-      act();
-    } catch (thrown) {
-      return thrown;
-    }
-    throw new Error("nothing was thrown");
-  }
-
   /** `base` with `member` answered by `read`, which may throw. */
   function withMemberRead<Base extends object>(
     base: Base,
@@ -1186,6 +1186,24 @@ describe("anything a member read throws", () => {
       {},
       { get: throwing(thrown), has: throwing(thrown) },
     ) as never;
+  }
+
+  /** A value that throws the marker whatever is asked of it, `instanceof` included. */
+  function proxyThrowingFromEveryTrap(): object {
+    const refuse = throwing(new Error(MARKER));
+    return new Proxy(
+      {},
+      {
+        get: refuse,
+        has: refuse,
+        ownKeys: refuse,
+        getPrototypeOf: refuse,
+        getOwnPropertyDescriptor: refuse,
+        isExtensible: refuse,
+        defineProperty: refuse,
+        set: refuse,
+      },
+    );
   }
 
   /** An error that copies one of the check's own sentences word for word, and carries a marker beside it. */
@@ -1212,6 +1230,7 @@ describe("anything a member read throws", () => {
     ["undefined", () => undefined],
     ["a symbol", () => Symbol(MARKER)],
     ["an error copying one of the check's own sentences", copyOfAnOwnRefusal],
+    ["a proxy whose every trap throws the marker", proxyThrowingFromEveryTrap],
   ];
 
   describe.each(THROWN)("when it is %s", (_name, thrown) => {
@@ -1253,7 +1272,7 @@ describe("anything a member read throws", () => {
         });
       });
 
-      expect(refusal).not.toBe(kept);
+      expect(Object.is(refusal, kept)).toBe(false);
       expect((refusal as Error).message).toMatch(REQUESTS_REFUSAL);
       expect(markersFoundOn(refusal, [MARKER])).toEqual([]);
       expect(Object.getOwnPropertyNames(refusal).sort()).toEqual([
@@ -1283,10 +1302,10 @@ describe("anything a member read throws", () => {
     "refuses a request that is %s and no object at all as the request, for a record and for a lookup",
     (_name, request) => {
       const refusals = [
-        refusalOf(() => {
+        messageThrownBy(() => {
           requireValidSubmission(request as never);
         }),
-        refusalOf(() => {
+        messageThrownBy(() => {
           requireValidLookup(request as never);
         }),
       ];
@@ -1318,43 +1337,41 @@ describe("anything a member read throws", () => {
     expect(markersFoundOn(refusal, [MARKER])).toEqual([]);
   });
 
-  it("turns an own refusal that was stripped of its prototype into the refusal of the request", () => {
-    const own = caughtFrom(() => {
-      requireValidClientRequestId("short");
-    }) as Error;
-    Object.assign(own, { detail: MARKER });
-    Object.setPrototypeOf(own, null);
-
-    const refusal = caughtFrom(() => {
-      requireValidLookup(
-        withMemberRead(lookup, "payloadDigest", throwing(own)),
-      );
-    });
-
-    expect(refusal).not.toBe(own);
-    expect((refusal as Error).message).toMatch(REQUESTS_REFUSAL);
-    expect(markersFoundOn(refusal, [MARKER])).toEqual([]);
-  });
-
   // A recorded limit, not a defect: the check knows its own refusals by identity and lets one leave as it is. Code
   // that caught one earlier, wrote on it and threw it again from a member read gets that same object back, with what
   // it wrote. Nothing but the caller's own code can write there, and a validated request is plain data.
-  it("lets a refusal it made earlier, thrown again by a member read, leave as that same object, with whatever its holder wrote on it", () => {
-    const earlier = caughtFrom(() => {
-      requireValidClientRequestId("short");
-    }) as Error;
-    Object.assign(earlier, { detail: MARKER });
-
-    const refusal = caughtFrom(() => {
-      requireValidLookup(
-        withMemberRead(lookup, "payloadDigest", throwing(earlier)),
+  it.each([
+    ["as it was made", (refusal: Error) => refusal],
+    [
+      "stripped of its prototype, so that it is no Error to ask",
+      (refusal: Error) => Object.setPrototypeOf(refusal, null) as Error,
+    ],
+    ["frozen", (refusal: Error) => Object.freeze(refusal)],
+  ])(
+    "lets a refusal it made earlier, thrown again by a member read, leave as that same object with what its holder wrote on it: %s",
+    (_name, altered) => {
+      const earlier = altered(
+        Object.assign(
+          caughtFrom(() => {
+            requireValidClientRequestId("short");
+          }) as Error,
+          { detail: MARKER },
+        ),
       );
-    });
 
-    expect(refusal).toBe(earlier);
-    expect((refusal as Error).message).toMatch(/client request id/);
-    expect((refusal as { detail?: unknown }).detail).toBe(MARKER);
-  });
+      const refusal = caughtFrom(() => {
+        requireValidLookup(
+          withMemberRead(lookup, "payloadDigest", throwing(earlier)),
+        );
+      });
+
+      expect(refusal).toBe(earlier);
+      expect((refusal as { message?: unknown }).message).toMatch(
+        /client request id/,
+      );
+      expect((refusal as { detail?: unknown }).detail).toBe(MARKER);
+    },
+  );
 
   // A recorded limit, not a defect: the invariant is the check's. The fake reads the request's id again after the
   // check, so a member that reads cleanly once and throws afterwards throws out of the fake as it is. The Neon store

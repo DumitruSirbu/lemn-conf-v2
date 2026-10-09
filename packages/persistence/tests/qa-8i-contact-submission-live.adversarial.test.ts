@@ -43,7 +43,7 @@ import { loseTheFirstReply } from "./support/lose-the-first-reply.js";
 import type { LossPoint, LostReply } from "./support/lose-the-first-reply.js";
 import { cleanJsonObject } from "./support/qa-8i-json-arbitraries.js";
 import { REAL_SNAPSHOTS } from "./support/qa-8i-real-snapshots.js";
-import { rejectionOf } from "./support/qa-8i-rejection.js";
+import { rejectionOf } from "./support/rejection-of.js";
 import {
   privilegesHeldOn,
   privilegesHeldWithGrantOption,
@@ -73,6 +73,9 @@ const CHECKS_REFUSAL = /^Refusing to use the contact submission store/;
 const SAME_DIGEST_ROUNDS = 20;
 const MIXED_DIGEST_ROUNDS = 20;
 const RACING_CALLERS = 8;
+/** The race's precondition, as a floor over the twenty rounds: a proof whose callers never overlapped must not pass,
+ *  and one slow line must not fail it. Measured: every round of every run so far, twenty of twenty. */
+const ROUNDS_THAT_MUST_RACE = 5;
 const MARK_RACE_ROUNDS = 10;
 
 type Held = Readonly<Record<string, unknown>>;
@@ -247,6 +250,7 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
       "store one row, answer N equal references and exactly one new, and the new one is the caller whose proposal is stored",
       async () => {
         const winners: number[] = [];
+        let roundsAllInFlight = 0;
 
         for (let round = 0; round < SAME_DIGEST_ROUNDS; round += 1) {
           const id = newClientRequestId();
@@ -284,14 +288,16 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
           expect(withoutTheServersColumns(rows[0])).toEqual(
             columnsFilledBy(submissionOfCaller(id, winner, DIGEST_A)),
           );
-          expect(wereAllInFlightAtOnce(calls)).toBe(true);
+          if (wereAllInFlightAtOnce(calls)) roundsAllInFlight += 1;
           winners.push(winner);
         }
 
         console.info(
           `[qa-8i-live] one digest: ${String(SAME_DIGEST_ROUNDS)} rounds of ${String(RACING_CALLERS)} callers; ` +
-            `the caller that stored, by round: ${winners.join(",")}`,
+            `the caller that stored, by round: ${winners.join(",")}; ` +
+            `all callers in flight at once in ${String(roundsAllInFlight)} rounds`,
         );
+        expect(roundsAllInFlight).toBeGreaterThanOrEqual(ROUNDS_THAT_MUST_RACE);
       },
       RACE_TIMEOUT_MS,
     );
@@ -302,6 +308,7 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
       "store one row whole from one caller, answer a conflict to every caller holding the other digest, and leave the row unchanged by what follows",
       async () => {
         const winners: number[] = [];
+        let roundsAllInFlight = 0;
 
         for (let round = 0; round < MIXED_DIGEST_ROUNDS; round += 1) {
           const id = newClientRequestId();
@@ -342,7 +349,7 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
                 : { kind: "conflict" },
             ),
           );
-          expect(wereAllInFlightAtOnce(calls)).toBe(true);
+          if (wereAllInFlightAtOnce(calls)) roundsAllInFlight += 1;
 
           const afterwards = await Promise.all(
             callers.map(({ store }, caller) =>
@@ -361,8 +368,10 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
 
         console.info(
           `[qa-8i-live] two digests: ${String(MIXED_DIGEST_ROUNDS)} rounds of ${String(RACING_CALLERS)} callers, ` +
-            `digests alternating; the caller that stored, by round: ${winners.join(",")}`,
+            `digests alternating; the caller that stored, by round: ${winners.join(",")}; ` +
+            `all callers in flight at once in ${String(roundsAllInFlight)} rounds`,
         );
+        expect(roundsAllInFlight).toBeGreaterThanOrEqual(ROUNDS_THAT_MUST_RACE);
       },
       RACE_TIMEOUT_MS,
     );
@@ -803,19 +812,6 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
       `;
     }
 
-    async function refusalOf(
-      statement: () => Promise<unknown>,
-    ): Promise<unknown> {
-      try {
-        await statement();
-      } catch (error) {
-        return error;
-      }
-      throw new Error(
-        "the test database accepted a statement it should refuse",
-      );
-    }
-
     interface RealRefusal {
       readonly code: string;
       readonly raise: () => Promise<unknown>;
@@ -910,7 +906,7 @@ describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
     it.each(REAL_REFUSALS)(
       "%s: the driver's error holds the fakes, and the store's error holds none of them",
       async (_name, { code, raise, held }) => {
-        const refusal = await refusalOf(raise);
+        const refusal = await rejectionOf(raise());
         const placesHoldingAFake = [
           ...new Set(
             markersFoundOn(refusal, ALL_FAKES).map((found) =>

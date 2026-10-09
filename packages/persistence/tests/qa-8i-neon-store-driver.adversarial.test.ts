@@ -1,7 +1,10 @@
 import { NeonDbError } from "@neondatabase/serverless";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ContactSubmissionStoreError } from "../src/contact-submission-store.js";
+import {
+  ContactSubmissionStoreError,
+  MAX_REFERENCE_PROPOSALS,
+} from "../src/contact-submission-store.js";
 import { NeonContactSubmissionStore } from "../src/neon-contact-submission-store.js";
 import {
   DIGEST_A,
@@ -21,7 +24,7 @@ import {
   failWith,
   resetDriver,
 } from "./support/mocked-neon-driver.js";
-import { rejectionOf } from "./support/qa-8i-rejection.js";
+import { rejectionOf } from "./support/rejection-of.js";
 
 vi.mock("@neondatabase/serverless", async (importOriginal) =>
   (await import("./support/mocked-neon-driver.js")).withMockedDriver(
@@ -41,7 +44,6 @@ const LEAKING_TEXT = MARKERS.join(" ");
 const READS_OF_ONE_WALK_AND_ONE_ENCODING = 2;
 const UNIQUE_VIOLATION = "23505";
 const REFERENCE_UNIQUENESS = "contact_submissions_reference_is_unique";
-const PROPOSALS_IN_A_RECORD = 3;
 
 function storeProposing(...proposals: string[]): NeonContactSubmissionStore {
   return new NeonContactSubmissionStore(WELL_FORMED_UNREACHABLE_VALUE, {
@@ -72,14 +74,13 @@ describe("a proposal that is not a reference", () => {
     },
   );
 
-  it("is refused when it is the second draw, after a collision, with one statement sent and not two", async () => {
+  it("is refused when it is the second draw, after a collision: one statement was sent, and the refusal is the reference's", async () => {
     failWith(
-      Object.assign(new Error("collision"), {
-        code: "23505",
-        constraint: "contact_submissions_reference_is_unique",
+      Object.assign(new NeonDbError("collision"), {
+        code: UNIQUE_VIOLATION,
+        constraint: REFERENCE_UNIQUENESS,
       }),
     );
-    answerWith([]);
 
     const failure = await rejectionOf(
       storeProposing(REFERENCE, "not a reference").record(
@@ -87,8 +88,11 @@ describe("a proposal that is not a reference", () => {
       ),
     );
 
-    expect(failure).toBeInstanceOf(Error);
-    expect(driver.statements.length).toBeLessThanOrEqual(1);
+    expect(driver.statements).toHaveLength(1);
+    expect((failure as Error).message).toMatch(
+      /the reference must be 6 to 32 capital letters/,
+    );
+    expect(markersFoundOn(failure, MARKERS)).toEqual([]);
   });
 });
 
@@ -431,7 +435,7 @@ describe("a driver failure that reads as the reference's collision", () => {
   );
 
   it("is drawn again by a record, and after three leaves as the store error with no cause and no marker", async () => {
-    for (let draw = 0; draw < PROPOSALS_IN_A_RECORD; draw += 1) {
+    for (let draw = 0; draw < MAX_REFERENCE_PROPOSALS; draw += 1) {
       failWith(collisionShapedRefusal());
     }
 
@@ -444,7 +448,32 @@ describe("a driver failure that reads as the reference's collision", () => {
     expect(failure).toBeInstanceOf(ContactSubmissionStoreError);
     expect((failure as Error).cause).toBeUndefined();
     expect(markersFoundOn(failure, MARKERS)).toEqual([]);
-    expect(driver.statements).toHaveLength(PROPOSALS_IN_A_RECORD);
+    expect(driver.statements).toHaveLength(MAX_REFERENCE_PROPOSALS);
+  });
+});
+
+describe("a failure that carries the collision's code and constraint and is not the driver's own error", () => {
+  it("is no collision to a record: one statement, no second proposal, and the store error with its reduced cause", async () => {
+    failWith(
+      Object.assign(new Error(LEAKING_TEXT), {
+        code: UNIQUE_VIOLATION,
+        constraint: REFERENCE_UNIQUENESS,
+      }),
+    );
+
+    const failure = await rejectionOf(
+      storeProposing("LM-AAAAAAAA", "LM-BBBBBBBB").record(
+        aDesignSubmission(CLIENT_REQUEST_ID),
+      ),
+    );
+
+    expect(driver.statements).toHaveLength(1);
+    expect(failure).toBeInstanceOf(ContactSubmissionStoreError);
+    expect((failure as Error).cause).toEqual({
+      name: "Error",
+      code: UNIQUE_VIOLATION,
+    });
+    expect(markersFoundOn(failure, MARKERS)).toEqual([]);
   });
 });
 
@@ -618,4 +647,109 @@ describe("a request whose member throws when the Neon store reads it", () => {
     expect(markersFoundOn(refusal, MARKERS)).toEqual([]);
     expect(driver.statements).toEqual([]);
   });
+});
+
+/** A value that throws the details whatever is asked of it: every trap a proxy has. */
+function throwingFromEveryTrap(): object {
+  const refuse = (): never => {
+    throw new Error(LEAKING_TEXT);
+  };
+  return new Proxy(
+    {},
+    {
+      get: refuse,
+      has: refuse,
+      ownKeys: refuse,
+      getPrototypeOf: refuse,
+      getOwnPropertyDescriptor: refuse,
+      isExtensible: refuse,
+      defineProperty: refuse,
+      set: refuse,
+    },
+  );
+}
+
+describe("a member read that throws a value which itself throws from every trap", () => {
+  const throwingMember = {
+    enumerable: true,
+    get: () => {
+      // eslint-disable-next-line @typescript-eslint/only-throw-error -- a member may throw anything, and this is the worst of it.
+      throw throwingFromEveryTrap();
+    },
+  };
+
+  it("leaves a lookUp and a record of the Neon store as the refusal of the request, with no statement sent", async () => {
+    const store = storeProposing(REFERENCE);
+
+    const refusals = [
+      await rejectionOf(
+        store.lookUp(
+          Object.defineProperty(
+            { clientRequestId: CLIENT_REQUEST_ID, payloadDigest: DIGEST_A },
+            "payloadDigest",
+            throwingMember,
+          ),
+        ),
+      ),
+      await rejectionOf(
+        store.record(
+          Object.defineProperty(
+            { ...aDesignSubmission(CLIENT_REQUEST_ID) },
+            "locale",
+            throwingMember,
+          ),
+        ),
+      ),
+    ];
+
+    expect(driver.statements).toEqual([]);
+    for (const refusal of refusals) {
+      expect((refusal as Error).message).toMatch(
+        /the request must be plain data/,
+      );
+      expect(markersFoundOn(refusal, MARKERS)).toEqual([]);
+    }
+  });
+});
+
+describe("a reply row that throws when it is read", () => {
+  const rowWhoseReferenceThrows = (): object =>
+    Object.defineProperty(
+      { is_new: true, is_same_payload: true, is_notified: false },
+      "reference",
+      {
+        enumerable: true,
+        get: () => {
+          throw new Error(LEAKING_TEXT);
+        },
+      },
+    );
+
+  it.each([
+    ["a row whose column throws the details", rowWhoseReferenceThrows],
+    ["a row that throws from every trap", throwingFromEveryTrap],
+  ])(
+    "is the store error with no cause and no marker, for a record and for a lookUp: %s",
+    async (_name, row) => {
+      const store = storeProposing(REFERENCE, REFERENCE);
+      answerWith([row()]);
+      answerWith([row()]);
+
+      const failures = [
+        await rejectionOf(store.record(aDesignSubmission(CLIENT_REQUEST_ID))),
+        await rejectionOf(
+          store.lookUp({
+            clientRequestId: CLIENT_REQUEST_ID,
+            payloadDigest: DIGEST_A,
+          }),
+        ),
+      ];
+
+      for (const failure of failures) {
+        expect(failure).toBeInstanceOf(ContactSubmissionStoreError);
+        expect((failure as Error).cause).toBeUndefined();
+        expect(markersFoundOn(failure, MARKERS)).toEqual([]);
+      }
+    },
+  );
 });
