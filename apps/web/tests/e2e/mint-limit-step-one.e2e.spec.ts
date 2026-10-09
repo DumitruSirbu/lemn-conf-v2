@@ -14,7 +14,6 @@ const THE_TYPED_ROOM =
   "/ro/configurator/room?shape=L&wallA=3.56&wallB=4.25&height=2.7&direction=left";
 const AS_TYPED = { wallA: "3560", wallB: "4250", height: "2700" } as const;
 const MINT_ENDPOINT = "**/api/designs";
-const SETTLE_MS = 2000;
 
 interface RoomMessages {
   readonly room: {
@@ -95,7 +94,6 @@ test("a mint refused for the day's limit offers no retry, sends no save and keep
   await expect(page.getByTestId("room-compose-cta")).toHaveCount(0);
   await expect(page.getByTestId("room-compose-rows")).toBeVisible();
 
-  await page.waitForTimeout(SETTLE_MS);
   expect(sent.mints()).toBe(1);
   expect(sent.saves()).toBe(0);
   await expect(page).toHaveURL(/\/configurator\/room/);

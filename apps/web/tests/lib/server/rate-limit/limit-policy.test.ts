@@ -72,7 +72,7 @@ const SOURCE_CASES: readonly FlagCase[] = [
   ["absent", ABSENT],
   ["an own member holding undefined", undefined],
   ["empty", ""],
-  ["the development host's name", "vercel"],
+  ["the platform's name", "vercel"],
   ["another word", "other"],
 ];
 

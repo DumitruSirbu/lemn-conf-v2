@@ -140,13 +140,12 @@ const EXPECTED_CLASSIFICATION: Readonly<
     gate: "live test database",
     lock: "shared",
     reason:
-      "writes contact submission rows under ids that carry a marker only tests write, and needs the schema intact (M8 wave 8I)",
+      "writes contact submission rows under ids that carry a marker only tests write, and needs the schema intact",
   },
   "neon-rate-limit-store.test.ts": {
     gate: "live test database",
     lock: "shared",
-    reason:
-      "writes counter rows under random keys and needs the schema intact (M8 wave 8E)",
+    reason: "writes counter rows under random keys and needs the schema intact",
   },
   "qa-8e-rate-limit-live.adversarial.test.ts": {
     gate: "live test database",
@@ -164,7 +163,7 @@ const EXPECTED_CLASSIFICATION: Readonly<
     gate: "live test database",
     lock: "none",
     reason:
-      "reads the server's privilege catalogue and one system table; writes nothing and touches no table of ours (M8 wave 8E)",
+      "reads the server's privilege catalogue and one system table; writes nothing and touches no table of ours",
   },
   "retried-writes-leave-no-trace.test.ts": {
     gate: "live test database",
@@ -212,16 +211,11 @@ const EXPECTED_CLASSIFICATION: Readonly<
     reason:
       "unit test of the two readers: sets and deletes its own variables, connects nowhere",
   },
-  "delete-rate-limit-counters-for-tests.test.ts": {
-    gate: "none",
-    lock: "none",
-    reason: "unit test with the driver mocked: connects nowhere",
-  },
   "delete-rate-limit-counters-for-tests.live.test.ts": {
     gate: "live test database",
     lock: "shared",
     reason:
-      "writes counter rows under random keys in its own era and needs the schema intact (M8 wave 8F)",
+      "writes counter rows under random keys in its own era and needs the schema intact",
   },
   "delete-designs-for-tests.test.ts": {
     gate: "none",

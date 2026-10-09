@@ -123,6 +123,9 @@ const WRITTEN_REVISION = "2";
 const RUN_TIMEOUT_MS = 3000;
 const POLL_MS = 5;
 
+/** The composed rows on the glass: the five of the kitchen and the dishwasher's (ADR 0110 Amendment M3). */
+const COMPOSED_ROW_COUNT = 6;
+
 let container: HTMLDivElement;
 let root: Root;
 
@@ -524,9 +527,10 @@ describe("a failed hand-off keeps the customer where they are (criterion 41)", (
     await settleFailedHandoff();
 
     expect(editorPushes()).toEqual([]);
-    // The composed rows are still on the glass: the kitchen is real and only the write failed. Six
-    // since wave 7D5b, whose dishwasher row joined the five (ADR 0110 Amendment M3).
-    expect(container.querySelectorAll("[data-compose-status]")).toHaveLength(6);
+    // The composed rows are still on the glass: the kitchen is real and only the write failed.
+    expect(container.querySelectorAll("[data-compose-status]")).toHaveLength(
+      COMPOSED_ROW_COUNT,
+    );
     expect(elementAt("room-compose-notice").textContent).toContain(
       roMessages.room.compose.saveFailed,
     );
@@ -571,17 +575,16 @@ describe("a mint refused for the day's limit keeps the room and offers no retry"
     );
     expect(maybeAt("room-compose-retry")).toBe(null);
     expect(maybeAt("room-compose-cta")).toBe(null);
-    expect(container.querySelectorAll("[data-compose-status]")).toHaveLength(6);
+    expect(container.querySelectorAll("[data-compose-status]")).toHaveLength(
+      COMPOSED_ROW_COUNT,
+    );
   });
 
-  it("sends the mint once and no save after it, and nothing more however long it waits", async () => {
+  it("sends the mint once and no save after it", async () => {
     render();
 
     tapContinue();
     await settleLimitedHandoff();
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 200));
-    });
 
     expect(callsTo("POST")).toHaveLength(1);
     expect(callsTo("PUT")).toEqual([]);

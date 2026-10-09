@@ -23,23 +23,19 @@ const KEY_ONE = "a".repeat(64);
 const KEY_TWO = "0123456789abcdef".repeat(4);
 
 describe("deleteRateLimitCountersForTests", () => {
-  const originalDatabaseUrl = process.env["DATABASE_URL"];
-  const originalTestDatabaseUrl = process.env["TEST_DATABASE_URL"];
-
   beforeEach(() => {
     resetDriver();
-    process.env["DATABASE_URL"] = APPLICATION_URL;
-    process.env["TEST_DATABASE_URL"] = TEST_URL;
+    vi.stubEnv("DATABASE_URL", APPLICATION_URL);
+    vi.stubEnv("TEST_DATABASE_URL", TEST_URL);
   });
 
   afterEach(() => {
-    process.env["DATABASE_URL"] = originalDatabaseUrl ?? "";
-    process.env["TEST_DATABASE_URL"] = originalTestDatabaseUrl ?? "";
+    vi.unstubAllEnvs();
   });
 
   describe("the guard, asserted before any statement", () => {
     it("sends no statement when the test URL is the application database", async () => {
-      process.env["TEST_DATABASE_URL"] = APPLICATION_URL;
+      vi.stubEnv("TEST_DATABASE_URL", APPLICATION_URL);
 
       await expect(deleteRateLimitCountersForTests([KEY_ONE])).rejects.toThrow(
         /Refusing to run live database tests/,
@@ -48,8 +44,10 @@ describe("deleteRateLimitCountersForTests", () => {
     });
 
     it("sends no statement for a database whose name is not on the test allowlist, whatever its host", async () => {
-      process.env["TEST_DATABASE_URL"] =
-        "postgresql://owner:secret@isolated.neon.tech/some_other_db";
+      vi.stubEnv(
+        "TEST_DATABASE_URL",
+        "postgresql://owner:secret@isolated.neon.tech/some_other_db",
+      );
 
       await expect(deleteRateLimitCountersForTests([KEY_ONE])).rejects.toThrow(
         /not one of the databases this repository allows/,
@@ -58,10 +56,14 @@ describe("deleteRateLimitCountersForTests", () => {
     });
 
     it("sends no statement for the direct endpoint of the application's pooled database", async () => {
-      process.env["DATABASE_URL"] =
-        "postgresql://owner:secret@ep-cool-1234-pooler.eu-central-1.aws.neon.tech/lemn-conf-v2";
-      process.env["TEST_DATABASE_URL"] =
-        "postgresql://owner:secret@ep-cool-1234.eu-central-1.aws.neon.tech/lemn-conf-v2";
+      vi.stubEnv(
+        "DATABASE_URL",
+        "postgresql://owner:secret@ep-cool-1234-pooler.eu-central-1.aws.neon.tech/lemn-conf-v2",
+      );
+      vi.stubEnv(
+        "TEST_DATABASE_URL",
+        "postgresql://owner:secret@ep-cool-1234.eu-central-1.aws.neon.tech/lemn-conf-v2",
+      );
 
       await expect(deleteRateLimitCountersForTests([KEY_ONE])).rejects.toThrow(
         /Refusing to run live database tests/,
@@ -70,71 +72,34 @@ describe("deleteRateLimitCountersForTests", () => {
     });
 
     it("sends no statement outside a test runner", async () => {
-      const originalVitest = process.env["VITEST"];
-      const originalWorkerIndex = process.env["TEST_WORKER_INDEX"];
-      const originalPlaywright = process.env["PLAYWRIGHT_TEST"];
-      delete process.env["VITEST"];
-      delete process.env["TEST_WORKER_INDEX"];
-      delete process.env["PLAYWRIGHT_TEST"];
+      vi.stubEnv("VITEST", undefined);
+      vi.stubEnv("TEST_WORKER_INDEX", undefined);
+      vi.stubEnv("PLAYWRIGHT_TEST", undefined);
 
-      try {
-        await expect(
-          deleteRateLimitCountersForTests([KEY_ONE]),
-        ).rejects.toThrow(/outside a test runner/);
-        expect(driver.statements).toEqual([]);
-      } finally {
-        if (originalVitest !== undefined) {
-          process.env["VITEST"] = originalVitest;
-        }
-        if (originalWorkerIndex !== undefined) {
-          process.env["TEST_WORKER_INDEX"] = originalWorkerIndex;
-        }
-        if (originalPlaywright !== undefined) {
-          process.env["PLAYWRIGHT_TEST"] = originalPlaywright;
-        }
-      }
+      await expect(deleteRateLimitCountersForTests([KEY_ONE])).rejects.toThrow(
+        /outside a test runner/,
+      );
+      expect(driver.statements).toEqual([]);
     });
 
-    it("runs in Playwright's own runner process, which sets PLAYWRIGHT_TEST and neither of the other markers", async () => {
-      const originalVitest = process.env["VITEST"];
-      const originalWorkerIndex = process.env["TEST_WORKER_INDEX"];
-      const originalPlaywright = process.env["PLAYWRIGHT_TEST"];
-      delete process.env["VITEST"];
-      delete process.env["TEST_WORKER_INDEX"];
-      process.env["PLAYWRIGHT_TEST"] = "1";
+    it("runs in Playwright's own runner, which sets PLAYWRIGHT_TEST and neither of the other markers", async () => {
+      vi.stubEnv("VITEST", undefined);
+      vi.stubEnv("TEST_WORKER_INDEX", undefined);
+      vi.stubEnv("PLAYWRIGHT_TEST", "1");
       answerWith([{ hits: 2 }]);
 
-      try {
-        await expect(
-          deleteRateLimitCountersForTests([KEY_ONE]),
-        ).resolves.toEqual({ rowsRemoved: 1, counts: [2] });
-      } finally {
-        if (originalVitest !== undefined) {
-          process.env["VITEST"] = originalVitest;
-        }
-        if (originalWorkerIndex !== undefined) {
-          process.env["TEST_WORKER_INDEX"] = originalWorkerIndex;
-        }
-        if (originalPlaywright === undefined) {
-          delete process.env["PLAYWRIGHT_TEST"];
-        } else {
-          process.env["PLAYWRIGHT_TEST"] = originalPlaywright;
-        }
-      }
+      await expect(deleteRateLimitCountersForTests([KEY_ONE])).resolves.toEqual(
+        { rowsRemoved: 1, counts: [2] },
+      );
     });
 
     it("sends no statement under NODE_ENV=production even inside a test runner", async () => {
-      const originalNodeEnv = process.env["NODE_ENV"];
-      process.env["NODE_ENV"] = "production";
+      vi.stubEnv("NODE_ENV", "production");
 
-      try {
-        await expect(
-          deleteRateLimitCountersForTests([KEY_ONE]),
-        ).rejects.toThrow(/NODE_ENV=production/);
-        expect(driver.statements).toEqual([]);
-      } finally {
-        process.env["NODE_ENV"] = originalNodeEnv ?? "test";
-      }
+      await expect(deleteRateLimitCountersForTests([KEY_ONE])).rejects.toThrow(
+        /NODE_ENV=production/,
+      );
+      expect(driver.statements).toEqual([]);
     });
   });
 

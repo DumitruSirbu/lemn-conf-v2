@@ -1,6 +1,7 @@
 import "server-only";
 
 import { readDigester } from "@/lib/server/digest/digest-secret";
+import { reportE2eMintPolicyInUse } from "@/lib/server/design-failure-log";
 import {
   enforceRateLimit,
   type RateLimitDecision,
@@ -15,7 +16,6 @@ import {
   selectNetworkSource,
   type HeaderReader,
 } from "@/lib/server/rate-limit/network-source";
-import { reportE2eMintPolicyInUse } from "@/lib/server/design-failure-log";
 import { getRateLimitStore } from "@/lib/server/rate-limit/rate-limit-store-instance";
 
 export interface MintJudgement {
@@ -33,12 +33,7 @@ export async function judgeMintRequest(
 ): Promise<MintJudgement> {
   const environment = process.env;
   const policy = choosePolicy(environment);
-  if (
-    policy.status === "chosen" &&
-    policy.policy.name === E2E_MINT_POLICY_NAME
-  ) {
-    reportE2eMintPolicyInUse();
-  }
+  if (isE2ePolicy(policy)) reportE2eMintPolicyInUse();
   const decision = await enforceRateLimit({
     network: identifyClientNetwork(selectNetworkSource(environment), headers),
     digester: readDigester(environment),
@@ -47,4 +42,10 @@ export async function judgeMintRequest(
     instant: new Date(),
   });
   return { decision, policy };
+}
+
+function isE2ePolicy(choice: PolicyChoice): boolean {
+  return (
+    choice.status === "chosen" && choice.policy.name === E2E_MINT_POLICY_NAME
+  );
 }

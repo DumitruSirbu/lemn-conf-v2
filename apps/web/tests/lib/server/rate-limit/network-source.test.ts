@@ -31,11 +31,7 @@ const MISCONFIGURED: NetworkSource = {
 describe("selectNetworkSource: the truth table", () => {
   const ROWS: readonly [string, NetworkEnvironment, NetworkSource][] = [
     ["absent", {}, NONE],
-    [
-      "the development host's name",
-      { CLIENT_NETWORK_SOURCE: "vercel" },
-      HEADER_SOURCE,
-    ],
+    ["the platform's name", { CLIENT_NETWORK_SOURCE: "vercel" }, HEADER_SOURCE],
     [
       "an own member holding undefined",
       { CLIENT_NETWORK_SOURCE: undefined },

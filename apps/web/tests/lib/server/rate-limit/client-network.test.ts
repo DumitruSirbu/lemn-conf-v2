@@ -16,6 +16,8 @@ import {
 const SEED = 8_062_026;
 const NUMBER_OF_RUNS = 500;
 const MIN_PER_ARM = 100;
+const NUMBER_OF_RUNS_AGAINST_THE_PLATFORM = 3000;
+const NUMBER_OF_MUTATION_RUNS = 300;
 
 const SHARED: NetworkBlock = { kind: "shared", subject: "" };
 const IPV4 = (subject: string): NetworkBlock => ({
@@ -132,9 +134,7 @@ type Octets = readonly [number, number, number, number];
 const dotted = (octets: Octets): string => octets.join(".");
 
 describe("blockOfAddress: IPv4 shares a block exactly when the first 24 bits agree", () => {
-  const arms = { sameBlock: 0, thirdOctetFlipped: 0, firstOctetFlipped: 0 };
-
-  it("holds over generated pairs, with a floor on each arm", () => {
+  it("holds over generated pairs, each run testing the same block, a flipped third octet and a flipped first", () => {
     fc.assert(
       fc.property(
         octetsArbitrary(),
@@ -146,9 +146,6 @@ describe("blockOfAddress: IPv4 shares a block exactly when the first 24 bits agr
           const thirdOctetFlipped: Octets = [a, b, c ^ (1 << bit), lastOctet];
           const firstOctetFlipped: Octets = [a ^ (1 << bit), b, c, lastOctet];
           const base = blockOfAddress(dotted(octets));
-          arms.sameBlock += 1;
-          arms.thirdOctetFlipped += 1;
-          arms.firstOctetFlipped += 1;
 
           expect(blockOfAddress(dotted(sameBlock))).toEqual(base);
           expect(blockOfAddress(dotted(thirdOctetFlipped))).not.toEqual(base);
@@ -156,10 +153,6 @@ describe("blockOfAddress: IPv4 shares a block exactly when the first 24 bits agr
         },
       ),
       { numRuns: NUMBER_OF_RUNS, seed: SEED },
-    );
-
-    expect(Object.values(arms).every((count) => count >= MIN_PER_ARM)).toBe(
-      true,
     );
   });
 
@@ -204,13 +197,7 @@ function compressed(groups: readonly string[]): string {
 }
 
 describe("blockOfAddress: IPv6 shares a block exactly when the first 64 bits agree", () => {
-  it("holds over generated pairs, each in every spelling, with a floor on each arm", () => {
-    const arms = {
-      sameBlock: 0,
-      bitOfFourthGroupFlipped: 0,
-      bitOfFifthGroupFlipped: 0,
-      spellings: 0,
-    };
+  it("holds over generated pairs: the same block, a flipped fifth group, a flipped fourth, every spelling", () => {
     fc.assert(
       fc.property(
         groupsArbitrary(),
@@ -226,10 +213,6 @@ describe("blockOfAddress: IPv6 shares a block exactly when the first 64 bits agr
           );
           const [first = "", ...rest] = spellingsOf(groups);
           const base = blockOfAddress(first);
-          arms.sameBlock += 1;
-          arms.bitOfFourthGroupFlipped += 1;
-          arms.bitOfFifthGroupFlipped += 1;
-          arms.spellings += rest.length;
 
           for (const spelling of rest)
             expect(blockOfAddress(spelling)).toEqual(base);
@@ -242,10 +225,6 @@ describe("blockOfAddress: IPv6 shares a block exactly when the first 64 bits agr
         },
       ),
       { numRuns: NUMBER_OF_RUNS, seed: SEED },
-    );
-
-    expect(Object.values(arms).every((count) => count >= MIN_PER_ARM)).toBe(
-      true,
     );
   });
 
@@ -271,7 +250,6 @@ describe("blockOfAddress: IPv6 shares a block exactly when the first 64 bits agr
 
 describe("blockOfAddress: an IPv4-mapped IPv6 address is in its IPv4 block", () => {
   it("holds in every spelling, over generated addresses", () => {
-    const counted = { spellings: 0 };
     fc.assert(
       fc.property(octetsArbitrary(), (octets) => {
         const [a, b, c, d] = octets;
@@ -285,15 +263,12 @@ describe("blockOfAddress: an IPv4-mapped IPv6 address is in its IPv4 block", () 
           `::ffff:${high}:${low}`,
           `0000:0000:0000:0000:0000:ffff:${high.padStart(4, "0")}:${low.padStart(4, "0")}`,
         ];
-        counted.spellings += spellings.length;
 
         for (const spelling of spellings)
           expect(blockOfAddress(spelling)).toEqual(expected);
       }),
       { numRuns: NUMBER_OF_RUNS, seed: SEED },
     );
-
-    expect(counted.spellings).toBeGreaterThanOrEqual(MIN_PER_ARM);
   });
 });
 
@@ -320,26 +295,45 @@ describe("blockOfAddress: agrees with the platform's own parser on what is one a
     ];
   }
 
-  it("accepts and refuses exactly as net.isIP does, minus a zone, over strings made of an address's own marks", () => {
+  /** Random strings of an address's own marks, valid spellings of both families, and the one-character mutations of
+   *  those: so both the accepted and the refused arm are well fed. */
+  const MIXED_TEXT = fc.oneof(
+    fc.string({ unit: ALPHABET, minLength: 1, maxLength: 24 }),
+    groupsArbitrary().chain((groups) =>
+      fc.constantFrom(...spellingsOf(groups)),
+    ),
+    octetsArbitrary().map(dotted),
+    octetsArbitrary().map((octets) => `::ffff:${dotted(octets)}`),
+    fc
+      .tuple(octetsArbitrary(), fc.nat(7))
+      .chain(([octets, which]) =>
+        fc
+          .constantFrom(...mutations(dotted(octets)))
+          .map((text) => text.slice(which % 2)),
+      ),
+    groupsArbitrary().chain((groups) =>
+      fc.constantFrom(...spellingsOf(groups).flatMap(mutations)),
+    ),
+  );
+
+  it("accepts and refuses exactly as net.isIP does, minus a zone, with a floor on both arms", () => {
     const seen = { accepted: 0, refused: 0 };
     fc.assert(
-      fc.property(
-        fc.string({ unit: ALPHABET, minLength: 1, maxLength: 24 }),
-        (text) => {
-          const isAccepted = blockOfAddress(text).kind !== "shared";
-          seen[isAccepted ? "accepted" : "refused"] += 1;
+      fc.property(MIXED_TEXT, (text) => {
+        const isAccepted = blockOfAddress(text).kind !== "shared";
+        seen[isAccepted ? "accepted" : "refused"] += 1;
 
-          expect(isAccepted).toBe(acceptedByPlatform(text));
-        },
-      ),
-      { numRuns: 3000, seed: SEED },
+        expect(isAccepted).toBe(acceptedByPlatform(text));
+      }),
+      { numRuns: NUMBER_OF_RUNS_AGAINST_THE_PLATFORM, seed: SEED },
     );
 
+    expect(seen.accepted).toBeGreaterThanOrEqual(MIN_PER_ARM);
     expect(seen.refused).toBeGreaterThanOrEqual(MIN_PER_ARM);
   });
 
-  it("agrees on valid addresses and their one-character mutations, with a floor on each arm", () => {
-    const seen = { valid: 0, mutated: 0, mutatedAccepted: 0 };
+  it("agrees on one-character mutations of valid addresses, with a floor on both the accepted and the refused", () => {
+    const seen = { accepted: 0, refused: 0 };
     fc.assert(
       fc.property(groupsArbitrary(), octetsArbitrary(), (groups, octets) => {
         const bases = [
@@ -347,24 +341,17 @@ describe("blockOfAddress: agrees with the platform's own parser on what is one a
           dotted(octets),
           `::ffff:${dotted(octets)}`,
         ];
-        for (const base of bases) {
-          seen.valid += 1;
-          expect(blockOfAddress(base).kind !== "shared").toBe(
-            acceptedByPlatform(base),
-          );
-          for (const mutated of mutations(base)) {
-            seen.mutated += 1;
-            const isAccepted = blockOfAddress(mutated).kind !== "shared";
-            if (isAccepted) seen.mutatedAccepted += 1;
-            expect(isAccepted).toBe(acceptedByPlatform(mutated));
-          }
+        for (const mutated of bases.flatMap(mutations)) {
+          const isAccepted = blockOfAddress(mutated).kind !== "shared";
+          seen[isAccepted ? "accepted" : "refused"] += 1;
+          expect(isAccepted).toBe(acceptedByPlatform(mutated));
         }
       }),
-      { numRuns: 300, seed: SEED },
+      { numRuns: NUMBER_OF_MUTATION_RUNS, seed: SEED },
     );
 
-    expect(seen.valid).toBeGreaterThanOrEqual(MIN_PER_ARM);
-    expect(seen.mutated).toBeGreaterThanOrEqual(MIN_PER_ARM);
+    expect(seen.accepted).toBeGreaterThanOrEqual(MIN_PER_ARM);
+    expect(seen.refused).toBeGreaterThanOrEqual(MIN_PER_ARM);
   });
 });
 

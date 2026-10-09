@@ -28,6 +28,7 @@ import {
   type PolicyChoice,
 } from "@/lib/server/rate-limit/limit-policy";
 import type { ClientNetwork } from "@/lib/server/rate-limit/network-source";
+import { LOCK_ACQUIRE_TIMEOUT_MS } from "@/persistence/create-design-lock";
 
 import {
   PROCESS_ENV_OR_BUILD_MODE,
@@ -466,8 +467,15 @@ describe("enforceRateLimit: every way the store can fail is unavailable, keeping
 });
 
 describe("enforceRateLimit: the deadline", () => {
+  const unhandledRejections = vi.fn();
+
   beforeEach(() => {
     vi.useFakeTimers();
+    unhandledRejections.mockClear();
+  });
+
+  afterEach(() => {
+    process.off("unhandledRejection", unhandledRejections);
   });
 
   function neverAnswering(): RateLimitStore {
@@ -498,8 +506,7 @@ describe("enforceRateLimit: the deadline", () => {
   });
 
   it("handles and drops a rejection that arrives after the deadline", async () => {
-    const unhandled = vi.fn();
-    process.on("unhandledRejection", unhandled);
+    process.on("unhandledRejection", unhandledRejections);
     const late: RateLimitStore = {
       recordHits: () =>
         new Promise<readonly number[]>((_resolve, reject) => {
@@ -515,10 +522,9 @@ describe("enforceRateLimit: the deadline", () => {
     const decision = await pending;
     await vi.advanceTimersByTimeAsync(5000);
     await vi.runAllTimersAsync();
-    process.off("unhandledRejection", unhandled);
 
     expect(decision).toEqual(UNAVAILABLE("deadline-passed"));
-    expect(unhandled).not.toHaveBeenCalled();
+    expect(unhandledRejections).not.toHaveBeenCalled();
   });
 
   it("drops an answer that arrives after the deadline, and a later count changes nothing", async () => {
@@ -547,14 +553,10 @@ describe("enforceRateLimit: the deadline", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it("keeps the deadline, the store's longest repeat and the mint's longest time under the lock's ten seconds", () => {
-    const STORES_LONGEST_REPEAT_MS = 2000;
-    const MINTS_LONGEST_TIME_MS = 2000;
-    const LOCKS_WAIT_MS = 10_000;
-
-    expect(
-      RATE_LIMIT_DEADLINE_MS + STORES_LONGEST_REPEAT_MS + MINTS_LONGEST_TIME_MS,
-    ).toBeLessThan(LOCKS_WAIT_MS);
+  it("holds the deadline to a third of the lock's wait, which the store's repeat and the mint's own time share", () => {
+    expect(RATE_LIMIT_DEADLINE_MS * 3).toBeLessThanOrEqual(
+      LOCK_ACQUIRE_TIMEOUT_MS,
+    );
   });
 });
 

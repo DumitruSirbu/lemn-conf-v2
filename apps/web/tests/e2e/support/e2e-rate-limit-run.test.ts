@@ -6,7 +6,7 @@ import {
   MINT_POLICY_NAME,
 } from "@/lib/server/rate-limit/limit-policy";
 
-import { readSource } from "../../lib/server/server-source-support";
+import { readTestSource } from "../../lib/server/server-source-support";
 
 const deletion = vi.hoisted(() => ({
   handed: [] as (readonly string[])[],
@@ -60,7 +60,7 @@ describe("the run's secret", () => {
   });
 
   it("is made once in the main process, handed down in its environment, and the same on a second reading", () => {
-    delete process.env.TEST_WORKER_INDEX;
+    vi.stubEnv("TEST_WORKER_INDEX", undefined);
 
     const first = secretOfThisRun();
     const second = secretOfThisRun();
@@ -77,20 +77,19 @@ describe("the run's secret", () => {
     expect(secretOfThisRun()).toBe(FAKE_SECRET);
   });
 
-  it.each([undefined, ""])(
-    "is refused by a worker that inherited %j",
-    (value) => {
-      vi.stubEnv("TEST_WORKER_INDEX", "3");
-      vi.stubEnv(RUN_SECRET_VARIABLE, value ?? "set, then removed");
-      if (value === undefined) {
-        Reflect.deleteProperty(process.env, RUN_SECRET_VARIABLE);
-      }
+  it("is refused by a worker that inherited nothing", () => {
+    vi.stubEnv("TEST_WORKER_INDEX", "3");
+    vi.stubEnv(RUN_SECRET_VARIABLE, undefined);
 
-      expect(() => secretOfThisRun()).toThrow(
-        /found no LEMNARIA_E2E_RUN_SECRET/,
-      );
-    },
-  );
+    expect(() => secretOfThisRun()).toThrow(/found no LEMNARIA_E2E_RUN_SECRET/);
+  });
+
+  it("is refused by a worker that inherited an empty value", () => {
+    vi.stubEnv("TEST_WORKER_INDEX", "3");
+    vi.stubEnv(RUN_SECRET_VARIABLE, "");
+
+    expect(() => secretOfThisRun()).toThrow(/found no LEMNARIA_E2E_RUN_SECRET/);
+  });
 });
 
 describe("the key the run's rows are removed by", () => {
@@ -186,8 +185,8 @@ describe("requireRoomUnderHalfTheFigure", () => {
 
 describe("the harness", () => {
   it("reads source: prints nothing but the two counts", () => {
-    const harness = readSource("../tests/e2e/support/e2e-rate-limit-run.ts");
-    const teardown = readSource("../tests/e2e/global-teardown.ts");
+    const harness = readTestSource("e2e/support/e2e-rate-limit-run.ts");
+    const teardown = readTestSource("e2e/global-teardown.ts");
 
     expect(harness).not.toMatch(/console\./);
     expect(teardown.match(/console\./g)).toHaveLength(1);

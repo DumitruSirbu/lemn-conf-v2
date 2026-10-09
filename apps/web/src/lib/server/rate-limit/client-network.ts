@@ -13,6 +13,7 @@ export const SHARED_BLOCK: NetworkBlock = Object.freeze({
   subject: "",
 });
 
+/** The longest text of one address: an IPv6 address with an IPv4 address embedded, 45 characters in full form. */
 const LONGEST_ADDRESS_TEXT = 45;
 const IPV4_OCTETS = 4;
 const IPV6_GROUPS = 8;
@@ -22,7 +23,13 @@ const HEX_GROUP_DIGITS = 4;
 const HEX_GROUP = /^[0-9A-Fa-f]{1,4}$/;
 const DECIMAL_OCTET = /^(?:0|[1-9][0-9]{0,2})$/;
 const ADDRESS_CHARACTERS = /^[0-9A-Fa-f:.]+$/;
-const MAPPED_PREFIX_GROUPS = [0, 0, 0, 0, 0, 0xffff];
+const HIGHEST_OCTET = 255;
+const VALUES_PER_OCTET = 256;
+const BITS_PER_OCTET = 8;
+const OCTET_MASK = 0xff;
+/** The group that marks an IPv4-mapped address, after five groups of zeros. */
+const IPV4_MAPPED_MARKER_GROUP = 0xffff;
+const MAPPED_PREFIX_GROUPS = [0, 0, 0, 0, 0, IPV4_MAPPED_MARKER_GROUP];
 
 /**
  * Exactly one address, with nothing around it: a list, a port, brackets, a zone, whitespace or a leading zero is the
@@ -63,7 +70,7 @@ function parseIpv4(text: string): number[] | undefined {
   if (pieces.length !== IPV4_OCTETS) return undefined;
   if (!pieces.every((piece) => DECIMAL_OCTET.test(piece))) return undefined;
   const octets = pieces.map(Number);
-  return octets.every((octet) => octet <= 255) ? octets : undefined;
+  return octets.every((octet) => octet <= HIGHEST_OCTET) ? octets : undefined;
 }
 
 function parseIpv6(text: string): number[] | undefined {
@@ -112,7 +119,7 @@ function groupsOfIpv4(piece: string): number[] | undefined {
   const octets = parseIpv4(piece);
   if (octets === undefined) return undefined;
   const [a = 0, b = 0, c = 0, d = 0] = octets;
-  return [a * 256 + b, c * 256 + d];
+  return [a * VALUES_PER_OCTET + b, c * VALUES_PER_OCTET + d];
 }
 
 function isMapped(groups: readonly number[]): boolean {
@@ -121,5 +128,10 @@ function isMapped(groups: readonly number[]): boolean {
 
 function octetsOfMapped(groups: readonly number[]): number[] {
   const [high = 0, low = 0] = groups.slice(MAPPED_PREFIX_GROUPS.length);
-  return [high >> 8, high & 0xff, low >> 8, low & 0xff];
+  return [
+    high >> BITS_PER_OCTET,
+    high & OCTET_MASK,
+    low >> BITS_PER_OCTET,
+    low & OCTET_MASK,
+  ];
 }

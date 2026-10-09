@@ -17,6 +17,14 @@ import { boundedFailureReason } from "@lemnaria/configurator-domain";
 
 import type { UnavailableCause } from "@/lib/server/rate-limit/enforce-rate-limit";
 import { E2E_RATE_LIMIT_POLICY_FLAG } from "@/lib/server/rate-limit/limit-policy";
+import {
+  MINT_UNAVAILABLE_CODE,
+  MINT_UNAVAILABLE_STATUS,
+} from "@/lib/server/rate-limit/rate-limited-response";
+import {
+  MINT_LIMIT_REACHED_CODE,
+  MINT_LIMIT_REACHED_STATUS,
+} from "@/persistence/design-request-errors";
 
 /** Which handler the line came from, not the HTTP method: `PUT` and `PATCH` are one operation, and
  *  `POST /api/designs` is `mint` rather than a second `save`. `resume` is the visitor-hash lookup the locale pages
@@ -96,8 +104,8 @@ export function reportMintLimit(line: MintLimitLine): void {
     emitDesignLogLine("warn", {
       event: "design-operation-refused",
       operation: "mint",
-      refusalCode: "MINT_LIMIT_REACHED",
-      status: 429,
+      refusalCode: MINT_LIMIT_REACHED_CODE,
+      status: MINT_LIMIT_REACHED_STATUS,
       policy: line.policy,
     });
     return;
@@ -105,8 +113,8 @@ export function reportMintLimit(line: MintLimitLine): void {
   emitDesignLogLine("error", {
     event: "design-operation-unavailable",
     operation: "mint",
-    refusalCode: "MINT_UNAVAILABLE",
-    status: 503,
+    refusalCode: MINT_UNAVAILABLE_CODE,
+    status: MINT_UNAVAILABLE_STATUS,
     cause: line.cause,
   });
 }

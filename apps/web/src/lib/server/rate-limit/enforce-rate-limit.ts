@@ -4,7 +4,10 @@ import type {
   RateLimitWindow,
 } from "@lemnaria/persistence";
 
-import type { DigesterOutcome } from "@/lib/server/digest/digest-secret";
+import type {
+  Digester,
+  DigesterOutcome,
+} from "@/lib/server/digest/digest-secret";
 import {
   chisinauDayOf,
   secondsToWindowEnd,
@@ -54,7 +57,7 @@ type Step<Value> =
 
 interface Usable {
   readonly block: NetworkBlock;
-  readonly digest: Extract<DigesterOutcome, { status: "usable" }>["digest"];
+  readonly digest: Digester;
   readonly policy: LimitPolicy;
 }
 
@@ -78,12 +81,12 @@ export async function enforceRateLimit(
     { key: key.value, window: window.value },
   ]);
   if (!counts.ok) return unavailable(counts.cause);
-  return judge(
-    counts.value,
-    usable.value.policy,
-    window.value,
-    request.instant,
-  );
+  return judge({
+    counts: counts.value,
+    policy: usable.value.policy,
+    window: window.value,
+    instant: request.instant,
+  });
 }
 
 function usableOf(request: RateLimitRequest): Step<Usable> {
@@ -132,15 +135,15 @@ function keyOf({ block, digest, policy }: Usable): Step<string> {
 async function recordWithinDeadline(
   store: Pick<RateLimitStore, "recordHits">,
   buckets: readonly RateLimitBucket[],
-): Promise<Step<unknown>> {
-  const answered = new Promise<unknown>((resolve) => {
+): Promise<Step<RecordedCounts>> {
+  const answered = new Promise<RecordedCounts>((resolve) => {
     resolve(store.recordHits(buckets));
   }).then(
-    (counts): Step<unknown> => ({ ok: true, value: counts }),
-    (): Step<unknown> => failed("store-failed"),
+    (counts): Step<RecordedCounts> => ({ ok: true, value: counts }),
+    (): Step<RecordedCounts> => failed("store-failed"),
   );
   let timer: ReturnType<typeof setTimeout> | undefined;
-  const deadline = new Promise<Step<unknown>>((resolve) => {
+  const deadline = new Promise<Step<RecordedCounts>>((resolve) => {
     timer = setTimeout(() => {
       resolve(failed("deadline-passed"));
     }, RATE_LIMIT_DEADLINE_MS);
@@ -152,12 +155,22 @@ async function recordWithinDeadline(
   }
 }
 
-function judge(
-  counts: unknown,
-  policy: LimitPolicy,
-  window: RateLimitWindow,
-  instant: Date,
-): RateLimitDecision {
+interface Judgement {
+  readonly counts: RecordedCounts;
+  readonly policy: LimitPolicy;
+  readonly window: RateLimitWindow;
+  readonly instant: Date;
+}
+
+/** What the port promises of a count; the store is a boundary, so the shape is still read as if it were not. */
+type RecordedCounts = Awaited<ReturnType<RateLimitStore["recordHits"]>>;
+
+function judge({
+  counts,
+  policy,
+  window,
+  instant,
+}: Judgement): RateLimitDecision {
   const count: unknown = Array.isArray(counts) ? counts[0] : undefined;
   if (!isCountOfAtLeastOne(count)) return unavailable("store-failed");
   if (count <= policy.figure) return ALLOWED;

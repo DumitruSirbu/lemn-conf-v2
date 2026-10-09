@@ -35,6 +35,11 @@ export function isOnlyCommentedInEnvExample(name: string): boolean {
     .every((line) => !line.startsWith(`${name}=`));
 }
 
+/** The text of a file under `apps/web/tests`, by its path relative to it. */
+export function readTestSource(path: string): string {
+  return readFileSync(join(TEST_ROOT, path), "utf8");
+}
+
 /** Paths under `apps/web/tests`, relative to it, of the test files whose text matches `pattern`. */
 export function testFilesMatching(pattern: RegExp): string[] {
   return readdirSync(TEST_ROOT, { recursive: true })

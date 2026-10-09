@@ -2,11 +2,15 @@ import "server-only";
 
 import { NextResponse } from "next/server";
 
-import { MINT_LIMIT_REACHED_CODE } from "@/persistence/design-request-errors";
 import { LONGEST_DAY_SECONDS } from "@/lib/server/rate-limit/chisinau-day";
+import {
+  MINT_LIMIT_REACHED_CODE,
+  MINT_LIMIT_REACHED_STATUS,
+} from "@/persistence/design-request-errors";
 
 export { MINT_LIMIT_REACHED_CODE };
 export const MINT_UNAVAILABLE_CODE = "MINT_UNAVAILABLE";
+export const MINT_UNAVAILABLE_STATUS = 503;
 
 const LIMIT_REACHED_SENTENCE = "The limit on new designs is reached for today.";
 const UNAVAILABLE_SENTENCE = "A new design cannot be made right now.";
@@ -35,7 +39,7 @@ export function mintLimitReachedResponse(
   return NextResponse.json(
     { error: LIMIT_REACHED_SENTENCE, code: MINT_LIMIT_REACHED_CODE },
     {
-      status: 429,
+      status: MINT_LIMIT_REACHED_STATUS,
       headers: { ...NOT_STORED, "Retry-After": String(retryAfterSeconds) },
     },
   );
@@ -46,6 +50,6 @@ export function mintLimitReachedResponse(
 export function mintUnavailableResponse(): NextResponse {
   return NextResponse.json(
     { error: UNAVAILABLE_SENTENCE, code: MINT_UNAVAILABLE_CODE },
-    { status: 503, headers: NOT_STORED },
+    { status: MINT_UNAVAILABLE_STATUS, headers: NOT_STORED },
   );
 }

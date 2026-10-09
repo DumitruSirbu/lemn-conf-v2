@@ -1,12 +1,13 @@
 import "server-only";
 
+import { DIGEST_SECRET_VARIABLE } from "@/lib/server/digest/digest-secret-variable";
 import {
   DIGEST_KEY_BYTES,
   keyedDigest,
   type DigestInput,
 } from "@/lib/server/digest/keyed-digest";
 
-export const DIGEST_SECRET_VARIABLE = "DIGEST_SECRET";
+export { DIGEST_SECRET_VARIABLE };
 
 export type ServerEnvironment = Readonly<Record<string, string | undefined>>;
 

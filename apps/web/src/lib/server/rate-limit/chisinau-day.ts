@@ -22,7 +22,7 @@ interface LocalDate {
  * throws. A day is 23, 24 or 25 hours.
  */
 export function chisinauDayOf(instant: Date): RateLimitWindow {
-  const { year, month, day } = localDateOf(instant);
+  const { year, month, day } = localPartsOf(instant);
   return {
     startsAt: localMidnight({ year, month, day }),
     endsAt: localMidnight({ year, month, day: day + 1 }),
@@ -36,11 +36,6 @@ export function secondsToWindowEnd(
 ): number {
   const remainingMs = window.endsAt.getTime() - instant.getTime();
   return Math.ceil(remainingMs / MS_PER_SECOND);
-}
-
-function localDateOf(instant: Date): LocalDate {
-  const parts = localPartsOf(instant);
-  return { year: parts.year, month: parts.month, day: parts.day };
 }
 
 /** The zone's offset from UTC at an instant: the wall clock read as if it were UTC, less the instant. */
@@ -66,34 +61,39 @@ function localPartsOf(instant: Date) {
   if (Number.isNaN(instant.getTime())) {
     throw new RangeError("The instant is not a valid date");
   }
-  const parts = new Map(
-    new Intl.DateTimeFormat("en-US", {
-      timeZone: TIME_ZONE,
-      calendar: "gregory",
-      numberingSystem: "latn",
-      hourCycle: "h23",
-      year: "numeric",
-      month: "numeric",
-      day: "numeric",
-      hour: "numeric",
-      minute: "numeric",
-      second: "numeric",
-    })
+  const numbers = new Map(
+    chisinauClock()
       .formatToParts(instant)
-      .map((part) => [part.type, Number(part.value)] as const),
+      .map((piece) => [piece.type, Number(piece.value)] as const),
   );
   return {
-    year: part(parts, "year"),
-    month: part(parts, "month"),
-    day: part(parts, "day"),
-    hour: part(parts, "hour"),
-    minute: part(parts, "minute"),
-    second: part(parts, "second"),
+    year: numberOf(numbers, "year"),
+    month: numberOf(numbers, "month"),
+    day: numberOf(numbers, "day"),
+    hour: numberOf(numbers, "hour"),
+    minute: numberOf(numbers, "minute"),
+    second: numberOf(numbers, "second"),
   };
 }
 
-function part(parts: ReadonlyMap<string, number>, type: string): number {
-  const value = parts.get(type);
+/** The runtime's own clock for the zone; one that cannot name it throws here. */
+function chisinauClock(): Intl.DateTimeFormat {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: TIME_ZONE,
+    calendar: "gregory",
+    numberingSystem: "latn",
+    hourCycle: "h23",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "numeric",
+    minute: "numeric",
+    second: "numeric",
+  });
+}
+
+function numberOf(numbers: ReadonlyMap<string, number>, type: string): number {
+  const value = numbers.get(type);
   if (value === undefined || Number.isNaN(value)) {
     throw new RangeError("The zone's clock could not be read");
   }

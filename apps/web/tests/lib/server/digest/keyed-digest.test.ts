@@ -290,14 +290,16 @@ describe("equal keys only for equal parts", () => {
   const SEED = 8_062_026;
 
   it("gives equal encodings and digests only for equal tuples, over text holding the encoding's own marks", () => {
-    let distinctPairs = 0;
+    const seen = { equalPairs: 0, distinctPairs: 0 };
     fc.assert(
       fc.property(
         fc.tuple(MARKED, MARKED, MARKED),
         fc.tuple(MARKED, MARKED, MARKED),
-        (one, other) => {
+        fc.boolean(),
+        (one, independent, isCopy) => {
+          const other = isCopy ? one : independent;
           const isSameTuple = one.every((part, index) => part === other[index]);
-          if (!isSameTuple) distinctPairs += 1;
+          seen[isSameTuple ? "equalPairs" : "distinctPairs"] += 1;
           const a = bucket(...one);
           const b = bucket(...other);
 
@@ -312,7 +314,8 @@ describe("equal keys only for equal parts", () => {
       { numRuns: NUMBER_OF_RUNS, seed: SEED },
     );
 
-    expect(distinctPairs).toBeGreaterThan(NUMBER_OF_RUNS / 2);
+    expect(seen.equalPairs).toBeGreaterThan(NUMBER_OF_RUNS / 4);
+    expect(seen.distinctPairs).toBeGreaterThan(NUMBER_OF_RUNS / 4);
   });
 
   it("gives different encodings for the same characters split between the parts differently", () => {

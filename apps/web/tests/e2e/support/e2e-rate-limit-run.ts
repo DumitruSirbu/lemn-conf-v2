@@ -5,7 +5,10 @@ import {
   type RemovedRateLimitCounters,
 } from "@lemnaria/persistence";
 
-import { keyedDigest } from "../../../src/lib/server/digest/keyed-digest";
+import {
+  DIGEST_KEY_BYTES,
+  keyedDigest,
+} from "../../../src/lib/server/digest/keyed-digest";
 import { SHARED_BLOCK } from "../../../src/lib/server/rate-limit/client-network";
 import {
   E2E_MINT_DAILY_FIGURE,
@@ -19,8 +22,6 @@ import {
  */
 export const RUN_SECRET_VARIABLE = "LEMNARIA_E2E_RUN_SECRET";
 
-const SECRET_BYTES = 32;
-
 /** Where the main process remembers the secret it made, so a second reading of the config in the same process cannot
  *  make another and leave the server holding one the workers do not. */
 const MADE_IN_THIS_PROCESS: unique symbol = Symbol.for(
@@ -32,7 +33,7 @@ const WORKER_MARKER_VARIABLE = "TEST_WORKER_INDEX";
 
 /** Thirty-two random bytes as sixty-four lowercase hexadecimal characters, the form the variable is written in. */
 export function makeRunSecret(): string {
-  return randomBytes(SECRET_BYTES).toString("hex");
+  return randomBytes(DIGEST_KEY_BYTES).toString("hex");
 }
 
 /**
@@ -59,11 +60,17 @@ function inheritedSecret(): string {
   return inherited;
 }
 
+/** Makes the secret once in this process, hands it down to every worker through the environment, and answers it. */
 function madeSecret(): string {
+  const secret = rememberedSecret();
+  process.env[RUN_SECRET_VARIABLE] = secret;
+  return secret;
+}
+
+function rememberedSecret(): string {
   const holder = globalThis as { [MADE_IN_THIS_PROCESS]?: string };
   const secret = holder[MADE_IN_THIS_PROCESS] ?? makeRunSecret();
   holder[MADE_IN_THIS_PROCESS] = secret;
-  process.env[RUN_SECRET_VARIABLE] = secret;
   return secret;
 }
 
