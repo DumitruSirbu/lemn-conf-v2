@@ -399,11 +399,11 @@ describe("bucket-subject.ts", () => {
     expect(makers).toEqual([SOURCE_FILE]);
   });
 
-  it("reads source: only the mint's judge hands a block to its constructor, and it hands the parsed network's", () => {
+  it("reads source: only the block judge hands a block to its constructor, and it hands the parsed network's", () => {
     expect(callersOf("subjectOfNetworkBlock")).toEqual([
-      "lib/server/rate-limit/judge-mint-request.ts",
+      "lib/server/rate-limit/judge-block-bucket.ts",
     ]);
-    expect(readSource("lib/server/rate-limit/judge-mint-request.ts")).toMatch(
+    expect(readSource("lib/server/rate-limit/judge-block-bucket.ts")).toMatch(
       /subjectOfNetworkBlock\(\s*network\.block\s*\)/,
     );
   });

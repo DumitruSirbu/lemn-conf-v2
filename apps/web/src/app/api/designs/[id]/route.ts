@@ -25,6 +25,7 @@ import {
   readUtf8BodyWithLimit,
   type BoundedBodyFailure,
 } from "@/lib/server/read-body-with-limit";
+import { refusalOfReadLimit } from "@/lib/server/rate-limit/judge-read-request";
 import { getRepository } from "@/lib/server/repository";
 import {
   readVisitorHash,
@@ -67,12 +68,17 @@ const EXPECTED_REVISION_HEADER = "x-expected-revision";
  * It is advisory, never the authorisation decision. Nothing may be written on the strength of a
  * `canWrite` this route returned: `PUT`/`PATCH` make the hash part of `saveAuthorized`'s own `update`
  * predicate, and a check-then-write window is what ADR 0019 closes.
+ *
+ * Counted as a read first of all, before the cookie and before any lookup: a refusal is the same for an owner and a
+ * stranger and says nothing of whether the design exists.
  */
 export async function GET(
   request: NextRequest,
   { params }: RouteParams,
 ): Promise<NextResponse> {
   const { id } = await params;
+  const limited = await refusalOfReadLimit(request.headers);
+  if (limited) return limited;
   const visitorHash = readVisitorHash(request.cookies);
   if (visitorHash === undefined) return designNotFoundResponse(id);
 

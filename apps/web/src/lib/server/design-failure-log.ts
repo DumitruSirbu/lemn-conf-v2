@@ -18,8 +18,13 @@ import { boundedFailureReason } from "@lemnaria/configurator-domain";
 import type { UnavailableCause } from "@/lib/server/rate-limit/enforce-rate-limit";
 import { E2E_RATE_LIMIT_POLICY_FLAG } from "@/lib/server/rate-limit/limit-policy";
 import {
+  LIMIT_REACHED_STATUS,
   MINT_UNAVAILABLE_CODE,
   MINT_UNAVAILABLE_STATUS,
+  READ_LIMIT_REACHED_CODE,
+  SHARE_LIMIT_REACHED_CODE,
+  SHARE_UNAVAILABLE_CODE,
+  SHARE_UNAVAILABLE_STATUS,
 } from "@/lib/server/rate-limit/rate-limited-response";
 import {
   MINT_LIMIT_REACHED_CODE,
@@ -115,6 +120,72 @@ export function reportMintLimit(line: MintLimitLine): void {
     operation: "mint",
     refusalCode: MINT_UNAVAILABLE_CODE,
     status: MINT_UNAVAILABLE_STATUS,
+    cause: line.cause,
+  });
+}
+
+/** The two operations a share write limit answers for. */
+export type ShareWriteOperation = "share-issue" | "share-revoke";
+
+/** A refused share write names its policy; one that could not be judged names its cause. Nothing else: no address,
+ *  block, subject, key, count or header value ever reaches the line. */
+export type ShareWriteLimitLine =
+  | {
+      readonly kind: "refused";
+      readonly operation: ShareWriteOperation;
+      readonly policy: string;
+    }
+  | {
+      readonly kind: "unavailable";
+      readonly operation: ShareWriteOperation;
+      readonly cause: UnavailableCause;
+    };
+
+/** A line for each refused or unjudgeable share write, as the mint writes one: a write is rare and its refusal is
+ *  the signal. */
+export function reportShareWriteLimit(line: ShareWriteLimitLine): void {
+  if (line.kind === "refused") {
+    emitDesignLogLine("warn", {
+      event: "design-operation-refused",
+      operation: line.operation,
+      refusalCode: SHARE_LIMIT_REACHED_CODE,
+      status: LIMIT_REACHED_STATUS,
+      policy: line.policy,
+    });
+    return;
+  }
+  emitDesignLogLine("error", {
+    event: "design-operation-unavailable",
+    operation: line.operation,
+    refusalCode: SHARE_UNAVAILABLE_CODE,
+    status: SHARE_UNAVAILABLE_STATUS,
+    cause: line.cause,
+  });
+}
+
+/** What a read's limiter writes, each at most once in a process: a read served because it could not be judged, by
+ *  its cause, and the first refusal. A line for each read would let one flood buy a log write for each request. */
+export type ReadLimitLine =
+  | { readonly kind: "served-unjudged"; readonly cause: UnavailableCause }
+  | { readonly kind: "refused"; readonly policy: string };
+
+const announcedReadLines = new Set<string>();
+
+export function reportReadLimitOnce(line: ReadLimitLine): void {
+  const identity = line.kind === "refused" ? "refused" : `served:${line.cause}`;
+  if (announcedReadLines.has(identity)) return;
+  announcedReadLines.add(identity);
+  if (line.kind === "refused") {
+    emitDesignLogLine("warn", {
+      event: "design-read-refused",
+      refusalCode: READ_LIMIT_REACHED_CODE,
+      status: LIMIT_REACHED_STATUS,
+      policy: line.policy,
+    });
+    return;
+  }
+  emitDesignLogLine("warn", {
+    event: "design-read-served-unjudged",
     cause: line.cause,
   });
 }

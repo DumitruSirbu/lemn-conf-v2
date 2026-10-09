@@ -8,6 +8,8 @@ import {
   type DesignOperation,
   type DesignRefusal,
 } from "@/lib/server/design-failure-log";
+import { refusalOfReadLimit } from "@/lib/server/rate-limit/judge-read-request";
+import { refusalOfShareWriteLimit } from "@/lib/server/rate-limit/judge-share-write";
 import { getShareLinkRepository } from "@/lib/server/repository";
 import { createShareToken } from "@/lib/server/share-token";
 import { readVisitorHash } from "@/lib/server/visitor";
@@ -54,6 +56,11 @@ export async function POST(
   if (refused) return refused;
   const credentials = shareCredentialsFor(request, id);
   if (!credentials) return designNotFoundResponse(id);
+  const limited = await refusalOfShareWriteLimit(
+    request.headers,
+    "share-issue",
+  );
+  if (limited) return limited;
 
   try {
     const { token, hash } = createShareToken();
@@ -84,6 +91,11 @@ export async function DELETE(
   if (refused) return refused;
   const credentials = shareCredentialsFor(request, id);
   if (!credentials) return designNotFoundResponse(id);
+  const limited = await refusalOfShareWriteLimit(
+    request.headers,
+    "share-revoke",
+  );
+  if (limited) return limited;
 
   try {
     const outcome = await getShareLinkRepository().revoke({
@@ -101,7 +113,8 @@ export async function DELETE(
   }
 }
 
-/** Whether the design has an active link right now — never which one, and never its token. */
+/** Whether the design has an active link right now — never which one, and never its token. Counted as a read, and
+ *  asked before the credentials are looked at, so a refusal is the same for an owner and a stranger. */
 export async function GET(
   request: NextRequest,
   { params }: RouteParams,
@@ -109,6 +122,8 @@ export async function GET(
   const { id } = await params;
   const refused = refusedShareRequest(request, id, "share-status");
   if (refused) return refused;
+  const limited = await refusalOfReadLimit(request.headers);
+  if (limited) return limited;
   const credentials = shareCredentialsFor(request, id);
   if (!credentials) return designNotFoundResponse(id);
 

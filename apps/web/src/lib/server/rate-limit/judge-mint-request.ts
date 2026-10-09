@@ -1,16 +1,12 @@
 import "server-only";
 
-import {
-  readDigester,
-  type DigesterOutcome,
-} from "@/lib/server/digest/digest-secret";
+import { readDigester } from "@/lib/server/digest/digest-secret";
 import { reportE2eMintPolicyInUse } from "@/lib/server/design-failure-log";
-import { subjectOfNetworkBlock } from "@/lib/server/rate-limit/bucket-subject";
 import {
-  enforceRateLimit,
   RATE_LIMIT_DEADLINE_MS,
   type RateLimitDecision,
 } from "@/lib/server/rate-limit/enforce-rate-limit";
+import { judgeBlockBucket } from "@/lib/server/rate-limit/judge-block-bucket";
 import {
   choosePolicy,
   E2E_MINT_POLICY_NAME,
@@ -19,7 +15,6 @@ import {
 import {
   identifyClientNetwork,
   selectNetworkSource,
-  type ClientNetwork,
   type HeaderReader,
 } from "@/lib/server/rate-limit/network-source";
 import { getRateLimitStore } from "@/lib/server/rate-limit/rate-limit-store-instance";
@@ -45,39 +40,15 @@ export async function judgeMintRequest(
     selectNetworkSource(environment),
     headers,
   );
-  const decision = await judgeBucket({
+  const decision = await judgeBlockBucket({
     network,
     policy,
     digester: readDigester(environment),
-  });
-  return { decision, policy };
-}
-
-interface MintBucket {
-  readonly network: ClientNetwork;
-  readonly policy: PolicyChoice;
-  readonly digester: DigesterOutcome;
-}
-
-async function judgeBucket({
-  network,
-  policy,
-  digester,
-}: MintBucket): Promise<RateLimitDecision> {
-  if (network.status === "misconfigured") {
-    return { kind: "unavailable", cause: "source-misconfigured" };
-  }
-  if (policy.status === "unavailable") {
-    return { kind: "unavailable", cause: "policy-misconfigured" };
-  }
-  return enforceRateLimit({
-    subject: subjectOfNetworkBlock(network.block),
-    digester,
-    policy: policy.policy,
     store: { recordHits: (buckets) => getRateLimitStore().recordHits(buckets) },
     instant: new Date(),
     deadlineMs: RATE_LIMIT_DEADLINE_MS,
   });
+  return { decision, policy };
 }
 
 function isE2ePolicy(choice: PolicyChoice): boolean {

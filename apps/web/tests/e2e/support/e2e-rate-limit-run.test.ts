@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readDigester } from "@/lib/server/digest/digest-secret";
 import {
   E2E_MINT_POLICY_NAME,
+  E2E_SHARE_WRITE_POLICY,
   MINT_POLICY_NAME,
 } from "@/lib/server/rate-limit/limit-policy";
 
@@ -26,7 +27,10 @@ vi.mock("@lemnaria/persistence", () => ({
 const {
   bucketKeyOfTheRun,
   E2eFigureOutgrownError,
+  E2eShareFigureOutgrownError,
+  removeShareCountersOfTheRun,
   requireRoomUnderHalfTheFigure,
+  requireShareRoomUnderHalfTheFigure,
   makeRunSecret,
   NoCountersOfTheRunError,
   removeCountersOfTheRun,
@@ -146,6 +150,74 @@ describe("removeCountersOfTheRun", () => {
   });
 });
 
+describe("removeShareCountersOfTheRun", () => {
+  it("hands the helper exactly the share twin's shared-block key, and sums the writes over the hours", async () => {
+    deletion.answer = { rowsRemoved: 2, counts: [30, 12] };
+
+    const counted = await removeShareCountersOfTheRun(FAKE_SECRET);
+
+    expect(deletion.handed).toEqual([
+      [bucketKeyOfTheRun(FAKE_SECRET, E2E_SHARE_WRITE_POLICY.name)],
+    ]);
+    expect(counted).toEqual({ rowsRemoved: 2, writesCounted: 42 });
+  });
+
+  it("is the key the mint's rows are not under, so each is removed by its own", () => {
+    expect(
+      bucketKeyOfTheRun(FAKE_SECRET, E2E_SHARE_WRITE_POLICY.name),
+    ).not.toBe(bucketKeyOfTheRun(FAKE_SECRET, E2E_MINT_POLICY_NAME));
+  });
+
+  it("answers none for a run that shared nothing, and does not fail it", async () => {
+    deletion.answer = { rowsRemoved: 0, counts: [] };
+
+    expect(await removeShareCountersOfTheRun(FAKE_SECRET)).toEqual({
+      rowsRemoved: 0,
+      writesCounted: 0,
+    });
+  });
+});
+
+describe("requireShareRoomUnderHalfTheFigure", () => {
+  const HALF_THE_FIGURE = 150;
+
+  it.each([0, 1, 146, HALF_THE_FIGURE])(
+    "accepts a run that made %i share writes",
+    (writesCounted) => {
+      expect(() => {
+        requireShareRoomUnderHalfTheFigure({ rowsRemoved: 1, writesCounted });
+      }).not.toThrow();
+    },
+  );
+
+  it.each([HALF_THE_FIGURE + 1, 300, 5000])(
+    "fails a run that made %i share writes, more than half of the twin's hour",
+    (writesCounted) => {
+      expect(() => {
+        requireShareRoomUnderHalfTheFigure({ rowsRemoved: 1, writesCounted });
+      }).toThrow(E2eShareFigureOutgrownError);
+    },
+  );
+
+  it("says the two counts and the rule, and holds no secret", () => {
+    const thrown = (() => {
+      try {
+        requireShareRoomUnderHalfTheFigure({
+          rowsRemoved: 1,
+          writesCounted: 200,
+        });
+      } catch (error) {
+        return error as Error;
+      }
+      throw new Error("expected a failure");
+    })();
+
+    expect(thrown.message).toContain("200");
+    expect(thrown.message).toContain("150");
+    expect(thrown.message).toContain("E2E_SHARE_WRITES_PER_BLOCK_FIGURE");
+  });
+});
+
 describe("requireRoomUnderHalfTheFigure", () => {
   const HALF_THE_FIGURE = 550;
 
@@ -184,16 +256,21 @@ describe("requireRoomUnderHalfTheFigure", () => {
 });
 
 describe("the harness", () => {
-  it("reads source: prints nothing but the two counts", () => {
+  it("reads source: prints nothing but the four counts, in one line", () => {
     const harness = readTestSource("e2e/support/e2e-rate-limit-run.ts");
     const teardown = readTestSource("e2e/global-teardown.ts");
 
     expect(harness).not.toMatch(/console\./);
     expect(teardown.match(/console\./g)).toHaveLength(1);
     expect(
-      [...teardown.matchAll(/\$\{String\(counted\.(\w+)\)\}/g)].map(
-        (m) => m[1],
+      [...teardown.matchAll(/\$\{String\((counted|shared)\.(\w+)\)\}/g)].map(
+        (m) => `${m[1] ?? ""}.${m[2] ?? ""}`,
       ),
-    ).toEqual(["mintsCounted", "rowsRemoved"]);
+    ).toEqual([
+      "counted.mintsCounted",
+      "counted.rowsRemoved",
+      "shared.writesCounted",
+      "shared.rowsRemoved",
+    ]);
   });
 });

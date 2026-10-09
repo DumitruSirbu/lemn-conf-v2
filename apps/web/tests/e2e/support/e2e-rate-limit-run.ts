@@ -12,6 +12,8 @@ import {
 import { SHARED_BLOCK } from "../../../src/lib/server/rate-limit/client-network";
 import {
   E2E_MINT_DAILY_FIGURE,
+  E2E_SHARE_WRITE_POLICY,
+  E2E_SHARE_WRITES_PER_BLOCK_FIGURE,
   type PolicyName,
 } from "../../../src/lib/server/rate-limit/limit-policy";
 
@@ -138,6 +140,50 @@ export class E2eFigureOutgrownError extends Error {
         "rounded up to the next hundred",
     );
     this.name = "E2eFigureOutgrownError";
+  }
+}
+
+export interface ShareCountersOfTheRun {
+  readonly rowsRemoved: number;
+  /** The share writes the run counted: every hit it made, summed over the hours it spanned. */
+  readonly writesCounted: number;
+}
+
+/**
+ * The share twin's rows for the shared block, removed with the run's others. A run that shared nothing made none, so
+ * finding no row is not a failure here as it is for the mints, which every run makes.
+ */
+export async function removeShareCountersOfTheRun(
+  secretHex: string,
+): Promise<ShareCountersOfTheRun> {
+  const removed = await deleteRateLimitCountersForTests([
+    bucketKeyOfTheRun(secretHex, E2E_SHARE_WRITE_POLICY.name),
+  ]);
+  return {
+    rowsRemoved: removed.rowsRemoved,
+    writesCounted: removed.counts.reduce((sum, count) => sum + count, 0),
+  };
+}
+
+/** More than half of the share twin's figure is room the suite has used up: the figure is raised by a person. */
+export function requireShareRoomUnderHalfTheFigure(
+  counted: ShareCountersOfTheRun,
+): void {
+  const halfTheFigure = E2E_SHARE_WRITES_PER_BLOCK_FIGURE / 2;
+  if (counted.writesCounted > halfTheFigure) {
+    throw new E2eShareFigureOutgrownError(counted.writesCounted, halfTheFigure);
+  }
+}
+
+/** The run made more than half of the share twin's hour. Names two counts of tests and no secret. */
+export class E2eShareFigureOutgrownError extends Error {
+  constructor(written: number, half: number) {
+    super(
+      `This run made ${String(written)} share writes, more than half (${String(half)}) of the e2e policy's ` +
+        `${String(E2E_SHARE_WRITES_PER_BLOCK_FIGURE)} an hour: raise E2E_SHARE_WRITES_PER_BLOCK_FIGURE to twice ` +
+        "the new figure, rounded up to the next hundred",
+    );
+    this.name = "E2eShareFigureOutgrownError";
   }
 }
 

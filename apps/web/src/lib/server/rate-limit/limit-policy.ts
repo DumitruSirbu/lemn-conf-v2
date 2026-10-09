@@ -1,3 +1,4 @@
+import { LONGEST_DAY_SECONDS } from "@/lib/server/rate-limit/chisinau-day";
 import {
   CLIENT_NETWORK_SOURCE_VARIABLE,
   type NetworkEnvironment,
@@ -8,6 +9,15 @@ import {
 export type WindowRule =
   | { readonly kind: "chisinau-day" }
   | { readonly kind: "utc-minutes"; readonly minutes: number };
+
+const SECONDS_PER_MINUTE = 60;
+
+/** The most seconds a refusal can tell a caller to wait: the whole window, which is when its count starts again. */
+export function longestWaitSecondsOf(window: WindowRule): number {
+  return window.kind === "chisinau-day"
+    ? LONGEST_DAY_SECONDS
+    : window.minutes * SECONDS_PER_MINUTE;
+}
 
 /** A name carries its window, so a window of another length is a new name and two windows never state different ends
  *  for one key and start. The set is closed: every name below is written here, none is made from a request. */
