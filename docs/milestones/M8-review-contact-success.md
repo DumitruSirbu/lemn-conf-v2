@@ -5253,7 +5253,7 @@ QA-run, the built server, real touch]. Every ruling here is the architect's.
 | --- | --- | --- |
 | 1 | A subject of any kind: the three a network block has, and the write credential's. The evaluator takes a subject, a window and a deadline from its caller | new `lib/server/rate-limit/bucket-subject.ts`; `enforce-rate-limit.ts` |
 | 2 | Windows as data: the Chișinău day as it is; a window of whole minutes on the UTC clock; the seconds to its end | new `rate-limit/utc-window.ts` |
-| 3 | The policies: saves by block and by credential, **named provisional (Q37)**; share writes by block, **named provisional (Q36)**; reads by block. The e2e twins by 8F's rule from QA's counts: saves by block 800, share writes 300, the mint's 1,100 as it is. One flag chooses every twin | `rate-limit/limit-policy.ts` |
+| 3 | The policies: saves by block and by credential, **named provisional (Q37)**; share writes by block, **named provisional (Q36)**; reads by block. The e2e twins by 8F's rule from QA's counts: ~~saves by block 800, share writes 300, the mint's 1,100 as it is~~ **(2026-10-10, later: the rule left a margin of four; the figures are 1,200, 500 and 1,600 by *8G — S3b's report, ruled*, point 1)**. One flag chooses every twin | `rate-limit/limit-policy.ts` |
 | 4 | A sequence of judgements: asked in order; the first that refuses or cannot be judged ends it; no later step is hit | `rate-limit/enforce-rate-limit.ts` |
 | 5 | The mint's judge on the new shapes, **its key unchanged, held by its pinned answer** | `rate-limit/judge-mint-request.ts` |
 
@@ -5408,6 +5408,105 @@ customer sees for a refused page, at 390 × 844 in both languages.
 *Open, with provisional constants:* Q36 and Q37. *His at the hand check:* a refused page's
 sentence. *Deploying* waits on what 8F's does, and on `CRON_SECRET`, which exists [doc
 `.env.example`].
+
+##### 8G — S3b's report, ruled; S3b for dispatch, 2026-10-10
+
+**State.** HEAD is `eaef763` (S3a) [ran: `git log`], tree clean; the web suite is 7442 passed
+[relayed, coordinator-run]. The developer's report is one file, read whole:
+`coord-8g-s3b-report.md`, session scratchpad; its claims carry their own labels and are cited
+here as *the report*. **S3a's sixth module, `judge-block-bucket.ts`, is accepted:** the checks the
+mint, a share write and a read share are in one place, and the mint's pinned key holds [relayed].
+
+**1. The twins' figures: the rule left no room, and it is changed.** *Twice, to the next hundred*
+with *fail above half* leaves only the rounding: 146 share writes against 150, 395 saves against
+400 [relayed, QA's whole run]. One more share test would fail every run's teardown.
+
+- **A twin's figure is three times what one whole run makes, rounded up to the next hundred. The
+  teardown still fails above half.** A suite may then grow by half before a person must raise a
+  constant, and a misplaced flag still means a bounded figure.
+- **Share writes 500** (146; half 250). **Saves by block 1,200** (395; half 600). **The mint's
+  1,600** (508; half 800), which changes 8F's 1,100; the scribe notes ADR 0155.
+- The teardown's failure says the count, the figure and this rule. **The pass's whole `CI=1` run
+  quotes the three counts; if one is above a third of its figure, the base has moved and it is
+  raised then.**
+
+**2. Pages are counted and refused in the request interceptor, and only there.** The report's
+option B is closed by the framework: a page's status cannot change once it streams [doc, the
+report, `streaming.md:613`], and saying *too many requests* under a `200` was not accepted.
+
+- **What counts.** A request for `/` or a locale's root, a design's pages or a share's view, that
+  the interceptor would pass on to its page. **`/` is in:** it runs the resume's lookup (ADR 0114
+  d7; Q15 (iii)); the report left it out. A document and a navigation's data fetch count alike:
+  the interceptor cannot tell them apart [doc, the report, `proxy.md:474`], and each runs the
+  lookup. **Not counted:** the locale's redirect, the case-variant `404`, a static file, anything
+  under `/api`, which its route counts.
+- **An owner's page view is two hits of one bucket, and that is right:** the document, and the
+  probe the editor then makes, which S3a counts. Each is a lookup. One view and a few navigations
+  are under fifteen of 600 [inf, the report's counts]. *Recorded:* a link that gains prefetching
+  would count each prefetch; none does today [src, the report].
+- **Its cost, said plainly.** Where a source is named, every such request waits one round trip of
+  about 50 ms before its page begins [relayed], and at most the read's 300 ms. Under *none*,
+  nothing. *Trigger to think again:* M9's firewall rule, which may make this count redundant.
+- **A page is never taken down by its counter.** The limiter is reached by a dynamic import
+  inside the interceptor's own `try`, **asked only when a source is named**. Under *none* the
+  interceptor loads nothing new. A chain that cannot load or run is one line for a process and a
+  cause, and the page is served. *Must not:* a static import of the limiter in `proxy.ts`.
+- **The refusal: `429`, `Retry-After` from 1 to 3,600, `no-store`, the headers a page's answer
+  already gets, and a small HTML body.** A bare one shows the browser's own error page, which says
+  nothing a customer can use, and a shared address makes this reachable by real people (ADR 0019
+  d3). **The body is the document's language and one sentence from one new leaf, a draft under
+  Q10 (a): no script, no style.** Its words and look are the owner's at the hand check.
+- *Not known:* what the router does when a navigation's fetch is refused [inf, the report: a full
+  load, which meets the same page]. Item 5 shows it.
+
+**3. The first step is a proof, and a stop.**
+
+- **What is accepted locally:** one request to a built server (`next build`, `next start`, under
+  `CI`), started with a source named, for a design's page; the interceptor's dynamic import
+  loads; the hit lands; the harness finds the row under the key it computes. That shows the
+  store's driver, `node:crypto` and the server-only modules run in the interceptor's layer of a
+  built server.
+- **If any does not load or run: stop and report.** No guard is removed and no thin route is
+  built without a ruling.
+- **Unproven until a deployment:** the host's own runtime for an interceptor, which the installed
+  documentation calls *platform-specific* [doc, the report, `proxy.md:762`]. There a failure is
+  the one line and every page served, by the rule above. M9's launch sentence, a request counted
+  under its real block, is what proves it.
+
+**4. S3b for dispatch. One developer, five items.**
+
+| # | Does | Production files |
+| --- | --- | --- |
+| 1 | **The proof of point 3, then stop and report** | `src/proxy.ts` (the dynamic import, behind the source's check); the second server's support |
+| 2 | The interceptor asks for the counted paths, after its `404` and its redirect are decided; anything thrown or unjudged is served with its one line | `src/proxy.ts`; `lib/server/rate-limit/judge-read-request.ts` if a page needs what a route does not |
+| 3 | The refusal's answer and body; the new leaf in both message files, the lock and the hashes grown and none moved | new `lib/server/rate-limit/page-limit-response.ts`; the message files |
+| 4 | **The e2e notice is written when any twin first decides, and its sentence is true of each:** `rate limit: an e2e policy is in use (LEMNARIA_E2E_RATE_LIMIT_POLICY); its figure is not the production one`. The three twins' figures by point 1, and the teardown's sentence | `lib/server/design-failure-log.ts`, `rate-limit/judge-block-bucket.ts`, `limit-policy.ts`; the e2e support |
+| 5 | The second server's spec, `CI` only: one page read, one row found, and none written by the suite's server. What a customer sees: the document's request, and then a navigation's fetch, each answered with the module's own refusal by the browser's route interception | the e2e support and one spec |
+
+*Criteria 3, 4, 9, and added:* **10.** A page whose read cannot be judged, or whose limiter
+cannot load, is served; no input makes the interceptor answer `500`. **11.** The interceptor
+counts no redirect, no `404`, no static file and nothing under `/api`.
+
+*Must not:* a forwarding header on the suite's server; six hundred requests in a test; a count
+after a design is looked up; a redirect that names a design; a cookie read to judge; the nonce,
+the security policy or the share view's headers changed for a page that is served; a `qa-*` file
+edited. **A pinned sentence in a QA file that item 4 moves is reported, and QA changes it.**
+
+*Stops if:* point 3's proof fails; a test of the interceptor that exists must change for a
+served page; a refused navigation leaves the screen blank or stuck; or the message files cannot
+be read in the interceptor's layer.
+
+*Reading:* this section; the report, part 2; *S1's security read, ruled*, points 5 and 6;
+`src/proxy.ts` and its tests; `lib/security-headers.ts`; `rate-limit/judge-read-request.ts`,
+`judge-block-bucket.ts`, `rate-limited-response.ts` and their tests;
+`tests/e2e/support/production-policy-server.ts`; `apps/web/AGENTS.md` and the installed
+documentation's `proxy.md` and `16-proxy.md`; ADR 0114 d7, H5; ADR 0155 decisions 3, 8, 10; Q10.
+
+**5. The pass after S3b, the first of two.** *Tier: Full + security.* The reading lines of *S1's
+security read, ruled*, point 7, stand, with **added for all four:** the report; this section; and
+for security, that nothing but a named source makes the interceptor load the limiter, and that a
+refusal reads no cookie. **One visual check is owed:** the refused page, at 390 × 844 in both
+languages, from item 5's interception. *The owner's:* that sentence and its look.
 
 ### 8H — the submission contract
 
