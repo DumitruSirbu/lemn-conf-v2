@@ -42,6 +42,7 @@ import {
 import { loseTheFirstReply } from "./support/lose-the-first-reply.js";
 import type { LossPoint, LostReply } from "./support/lose-the-first-reply.js";
 import { cleanJsonObject } from "./support/qa-8i-json-arbitraries.js";
+import { REAL_SNAPSHOTS } from "./support/qa-8i-real-snapshots.js";
 import {
   privilegesHeldOn,
   privilegesHeldWithGrantOption,
@@ -1046,10 +1047,6 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
       ["an empty document object", withDocument("{}")],
       ["an empty priced object", withPriced({})],
       [
-        "a document with padding around it",
-        withDocument(' \n\t{ "marker" : 1 }\r\n '),
-      ],
-      [
         "a document of one megabyte",
         withDocument(JSON.stringify({ marker: "m".repeat(ONE_MEGABYTE) })),
       ],
@@ -1282,23 +1279,14 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
         "keys named __proto__ and constructor",
         '{"__proto__":{"a":1},"constructor":{"prototype":"p"}}',
       ],
-      ["a key written twice", '{"a":1,"a":{"b":2},"a":3}'],
       [
-        "numbers written with a scale and an exponent",
-        '{"a":1.50,"b":1E2,"c":-0,"d":0.1e-5}',
-      ],
-      [
-        "the widest and the narrowest double",
-        '{"a":1.7976931348623157e308,"b":5e-324,"c":-1.7976931348623157e308}',
-      ],
-      [
-        "escapes of storable text",
-        '{"a":"\\u0041\\ud83d\\ude00\\n\\u2028","\\u0062":1}',
+        "the widest and the narrowest double as JavaScript writes them",
+        '{"a":1.7976931348623157e+308,"b":5e-324,"c":-1.7976931348623157e+308}',
       ],
       ["the fixture's own document", FAKE_SNAPSHOT.document],
       [
-        "five thousand lists, one inside the other",
-        `{"deep":${"[".repeat(5_000)}${"]".repeat(5_000)}}`,
+        "sixty-four levels, the deepest the check admits",
+        `{"deep":${"[".repeat(63)}${"]".repeat(63)}}`,
       ],
     ])(
       "stores a document of %s equal as jsonb to the text handed in",
@@ -1306,6 +1294,55 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
         expect(await recordAndCompare(document, FAKE_SNAPSHOT.priced)).toEqual(
           STORED_AS_HANDED,
         );
+      },
+    );
+
+    // Round 3, rule 4a and 4c: a document that is not its own encoding, or is deeper than 64 levels, is refused in
+    // code and never rewritten, so nothing of it is stored.
+    it.each([
+      ["padding around it", ' \n\t{ "marker" : 1 }\r\n '],
+      ["a key written twice", '{"a":1,"a":{"b":2},"a":3}'],
+      [
+        "numbers written with a scale and an exponent",
+        '{"a":1.50,"b":1E2,"c":-0,"d":0.1e-5}',
+      ],
+      [
+        "the widest double written without its sign of the exponent",
+        '{"a":1.7976931348623157e308}',
+      ],
+      [
+        "needless escapes of storable text",
+        '{"a":"\\u0041\\ud83d\\ude00\\n\\u2028","\\u0062":1}',
+      ],
+      [
+        "five thousand lists, one inside the other",
+        `{"deep":${"[".repeat(5_000)}${"]".repeat(5_000)}}`,
+      ],
+      [
+        "sixty-five levels, one past the bound",
+        `{"deep":${"[".repeat(64)}${"]".repeat(64)}}`,
+      ],
+    ])(
+      "refuses in code a document of %s, and stores nothing",
+      async (_name, document) => {
+        const outcome = (await recordAndCompare(
+          document,
+          FAKE_SNAPSHOT.priced,
+        )) as { recording: string; kept: Kept | undefined };
+
+        expect(outcome.recording).toMatch(
+          /^Refusing to use the contact submission store/,
+        );
+        expect(outcome.kept).toBeUndefined();
+      },
+    );
+
+    it.each(REAL_SNAPSHOTS)(
+      "stores the real snapshot of $name equal as jsonb to the document and the priced design handed in",
+      async ({ snapshot }) => {
+        expect(
+          await recordAndCompare(snapshot.document, snapshot.priced),
+        ).toEqual(STORED_AS_HANDED);
       },
     );
 

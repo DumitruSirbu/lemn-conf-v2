@@ -1,5 +1,9 @@
 import { fc, test as propertyTest } from "@fast-check/vitest";
-import { validateContactSubmission } from "@lemnaria/configurator-domain";
+import {
+  canonicalSerializeDesign,
+  validateContactSubmission,
+} from "@lemnaria/configurator-domain";
+import type { Design } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -26,6 +30,7 @@ import {
   objectHoldingUnstorableText,
   textHoldingAnOverflowingNumber,
 } from "./support/qa-8i-json-arbitraries.js";
+import { REAL_SNAPSHOTS, levelsOf } from "./support/qa-8i-real-snapshots.js";
 import { privilegesHeldWithGrantOption } from "./support/table-privileges.js";
 
 /**
@@ -619,21 +624,23 @@ describe("round 2, rule 4: a snapshot judged as the JSON the statement will carr
     ).toMatch(/JSON object/);
   });
 
-  it("keeps a key named __proto__ or constructor as a key, and judges what sits under it", () => {
-    const clean =
-      '{"__proto__":{"a":1},"constructor":{"prototype":"p"},"a":1,"a":2}';
+  it("sends a document with keys named __proto__ and constructor as it was handed, judges what sits under them, and refuses a key written twice", () => {
+    const clean = '{"__proto__":{"a":1},"constructor":{"prototype":"p"},"a":2}';
     const unstorableUnderProto = '{"__proto__":{"a":"\\u0000"}}';
+    const aKeyWrittenTwice =
+      '{"__proto__":{"a":1},"constructor":{"prototype":"p"},"a":1,"a":2}';
 
-    expect(judged(clean, FAKE_SNAPSHOT.priced)?.document).toBe(
-      '{"__proto__":{"a":1},"constructor":{"prototype":"p"},"a":2}',
-    );
+    expect(judged(clean, FAKE_SNAPSHOT.priced)?.document).toBe(clean);
     expect(
-      refusalOf(() => {
-        requireValidSubmission(
-          withSnapshot(unstorableUnderProto, FAKE_SNAPSHOT.priced),
-        );
-      }),
-    ).toMatch(/JSON object/);
+      [unstorableUnderProto, aKeyWrittenTwice].map((document) =>
+        refusalOf(() => {
+          requireValidSubmission(withSnapshot(document, FAKE_SNAPSHOT.priced));
+        }),
+      ),
+    ).toEqual([
+      expect.stringContaining("JSON object"),
+      expect.stringContaining("JSON object"),
+    ]);
   });
 });
 
@@ -728,5 +735,339 @@ describe("round 2, criterion 3: the grant-option question as it is sent", () => 
       ["INSERT", "SELECT"],
       "public.some_table",
     ]);
+  });
+});
+
+describe("round 3: rules 4a to 4c", () => {
+  const BOUND = 64;
+  const CHECKS_REFUSAL = /^Refusing to use the contact submission store/;
+  const DEPTH_REFUSAL = /64 levels/;
+  const SHARED_LEVELS = 20;
+  const SHARED_BUDGET_MS = 5_000;
+
+  /** An object `levels` deep: the root, then lists one inside the other. */
+  function documentOfLevels(levels: number): string {
+    return `{"deep":${"[".repeat(levels - 1)}${"]".repeat(levels - 1)}}`;
+  }
+
+  function valueOfLevels(levels: number): object {
+    let value: unknown = 1;
+    for (let level = 1; level < levels; level += 1) {
+      value = level % 2 === 0 ? { inner: value } : [value];
+    }
+    return { deep: value };
+  }
+
+  function refusalOfSnapshot(document: unknown, priced: unknown) {
+    return refusalOf(() => {
+      requireValidSubmission(withSnapshot(document, priced));
+    });
+  }
+
+  describe("the real snapshots 8H makes", () => {
+    it("are eight kitchens of all three shapes, nested four levels in the document and five in the priced design, against a bound of 64", () => {
+      const levels = REAL_SNAPSHOTS.map(({ snapshot }) => ({
+        document: levelsOf(JSON.parse(snapshot.document)),
+        priced: levelsOf(snapshot.priced),
+      }));
+
+      expect(REAL_SNAPSHOTS.map(({ name }) => name[0])).toEqual([
+        "l",
+        "l",
+        "L",
+        "L",
+        "U",
+        "U",
+        "U",
+        "t",
+      ]);
+      expect(Math.max(...levels.map((level) => level.document))).toBe(4);
+      expect(Math.max(...levels.map((level) => level.priced))).toBe(5);
+    });
+
+    it.each(REAL_SNAPSHOTS)(
+      "pass the check for $name, and what is to be sent is the document itself and the priced design's one encoding",
+      ({ snapshot }) => {
+        const json = judgeSubmission(
+          withSnapshot(snapshot.document, snapshot.priced),
+        ).snapshotJson;
+
+        expect(json).toEqual({
+          document: snapshot.document,
+          priced: JSON.stringify(snapshot.priced),
+        });
+        expect(JSON.stringify(JSON.parse(snapshot.document))).toBe(
+          snapshot.document,
+        );
+      },
+    );
+  });
+
+  describe("4a: what canonicalSerializeDesign emits is its own encoding", () => {
+    const keyLikeAnIndex = fc.constantFrom(
+      "0",
+      "2",
+      "9",
+      "10",
+      "007",
+      "-1",
+      "1.5",
+    );
+    const withIndexLikeKeys = fc
+      .tuple(
+        cleanJsonObject,
+        fc.array(fc.tuple(keyLikeAnIndex, cleanJsonObject), { maxLength: 5 }),
+      )
+      .map(([object, entries]) => ({
+        ...object,
+        ...Object.fromEntries(entries),
+      }));
+
+    propertyTest.prop([withIndexLikeKeys])(
+      "for any value it is handed, keys that read as indices included",
+      (value) => {
+        const text = canonicalSerializeDesign(value as unknown as Design);
+
+        expect(JSON.stringify(JSON.parse(text))).toBe(text);
+        expect(refusalOfSnapshot(text, FAKE_SNAPSHOT.priced)).toBeUndefined();
+      },
+    );
+  });
+
+  describe("4c: the bound of 64 levels", () => {
+    it("admits a document and a priced design of 64 levels and refuses each at 65, under the depth's own sentence", () => {
+      expect([
+        refusalOfSnapshot(documentOfLevels(BOUND), FAKE_SNAPSHOT.priced),
+        refusalOfSnapshot(FAKE_SNAPSHOT.document, valueOfLevels(BOUND)),
+      ]).toEqual([undefined, undefined]);
+      expect(
+        refusalOfSnapshot(documentOfLevels(BOUND + 1), FAKE_SNAPSHOT.priced),
+      ).toMatch(DEPTH_REFUSAL);
+      expect(
+        refusalOfSnapshot(FAKE_SNAPSHOT.document, valueOfLevels(BOUND + 1)),
+      ).toMatch(DEPTH_REFUSAL);
+    });
+
+    it.each([
+      ["brackets inside a text", { a: "[".repeat(200) }],
+      ["braces inside a key", { ["{".repeat(200)]: 1 }],
+      ["a quote and then brackets inside a text", { a: `"${"[".repeat(200)}` }],
+      [
+        "a backslash before the closing quote, then brackets in the next text",
+        { a: "\\", b: "[".repeat(200) },
+      ],
+      [
+        "two backslashes and a quote, then brackets",
+        { a: `\\\\"${"{[".repeat(100)}` },
+      ],
+      [
+        "many lists side by side, none inside another",
+        { a: Array.from({ length: 500 }, () => [[]]) },
+      ],
+    ])("does not count %s as depth", (_name, value) => {
+      expect(
+        refusalOfSnapshot(JSON.stringify(value), FAKE_SNAPSHOT.priced),
+      ).toBeUndefined();
+    });
+
+    it.each([
+      [
+        "65 levels after a text full of closing brackets",
+        {
+          a: "]".repeat(200),
+          deep: JSON.parse(documentOfLevels(BOUND)) as unknown,
+        },
+      ],
+      [
+        "65 levels after a text that ends in an escaped quote",
+        { a: 'x"', deep: JSON.parse(documentOfLevels(BOUND)) as unknown },
+      ],
+      [
+        "65 levels after a text that ends in a backslash",
+        { a: "x\\", deep: JSON.parse(documentOfLevels(BOUND)) as unknown },
+      ],
+    ])("still counts %s", (_name, value) => {
+      expect(
+        refusalOfSnapshot(JSON.stringify(value), FAKE_SNAPSHOT.priced),
+      ).toMatch(DEPTH_REFUSAL);
+    });
+
+    it.each([
+      [
+        "a hundred thousand lists",
+        `{"a":${"[".repeat(100_000)}${"]".repeat(100_000)}}`,
+      ],
+      ["a hundred thousand lists never closed", `{"a":${"[".repeat(100_000)}`],
+      [
+        "a hundred thousand closings, then as many openings",
+        `${"]".repeat(100_000)}${"[".repeat(100_000)}`,
+      ],
+      [
+        "an unclosed text, then a hundred thousand lists",
+        `{"a":"${"[".repeat(100_000)}`,
+      ],
+      [
+        "a backslash outside any text, then a quote and a hundred thousand lists",
+        `{"a":\\"${"[".repeat(100_000)}${"]".repeat(100_000)}}`,
+      ],
+    ])(
+      "throws its own refusal and nothing else for text of %s",
+      (_name, text) => {
+        expect(refusalOfSnapshot(text, FAKE_SNAPSHOT.priced)).toMatch(
+          CHECKS_REFUSAL,
+        );
+      },
+    );
+
+    it("refuses a document far deeper than a parser's own stack under the depth's sentence, so the bound and not the parser judged it", () => {
+      expect(
+        refusalOfSnapshot(
+          `{"a":${"[".repeat(100_000)}${"]".repeat(100_000)}}`,
+          FAKE_SNAPSHOT.priced,
+        ),
+      ).toMatch(DEPTH_REFUSAL);
+    });
+
+    it("ends at the bound for a priced design that holds itself, in a member or in a list", () => {
+      const inAMember: Record<string, unknown> = { ...FAKE_SNAPSHOT.priced };
+      inAMember["self"] = inAMember;
+      const inAList: Record<string, unknown> = { ...FAKE_SNAPSHOT.priced };
+      inAList["lines"] = [[inAList]];
+
+      expect(refusalOfSnapshot(FAKE_SNAPSHOT.document, inAMember)).toMatch(
+        DEPTH_REFUSAL,
+      );
+      expect(refusalOfSnapshot(FAKE_SNAPSHOT.document, inAList)).toMatch(
+        DEPTH_REFUSAL,
+      );
+    });
+
+    // A limit, recorded and not a defect: a value whose levels each hold the next one twice is a tree to the encoder,
+    // which writes every path. Twenty levels are a million leaves and are judged at once; sixty would never end.
+    // Nothing parsed from JSON and nothing `priceDesign` returns shares a member.
+    it("judges a priced design whose every level holds the next one twice, twenty levels down, inside its budget", () => {
+      let shared: unknown = { leaf: 1 };
+      for (let level = 0; level < SHARED_LEVELS; level += 1) {
+        shared = [shared, shared];
+      }
+      const startedAt = performance.now();
+
+      const verdict = refusalOf(() => {
+        judgeSubmission(withSnapshot(FAKE_SNAPSHOT.document, { shared }));
+      });
+
+      expect(verdict).toBeUndefined();
+      expect(performance.now() - startedAt).toBeLessThan(SHARED_BUDGET_MS);
+    });
+  });
+
+  describe("4b: the priced design walked as a value", () => {
+    /** A list of three places whose middle one was never set. */
+    function listWithAMissingPlace(): unknown[] {
+      const list: unknown[] = [1];
+      list[2] = 3;
+      return list;
+    }
+
+    const priced = FAKE_SNAPSHOT.priced;
+
+    it.each([
+      ["a bigint", { ...priced, totalMinor: 7n }],
+      ["a function", { ...priced, totalMinor: () => 7 }],
+      ["a symbol", { ...priced, totalMinor: Symbol("7") }],
+      ["a Date", { ...priced, at: new Date(0) }],
+      ["a Map", { ...priced, lines: new Map([["a", 1]]) }],
+      ["a boxed number", { ...priced, totalMinor: Object(7) as unknown }],
+      [
+        "a class instance",
+        {
+          ...priced,
+          line: new (class Line {
+            amount = 7;
+          })(),
+        },
+      ],
+      ["an undefined place in a list", { ...priced, lines: [undefined] }],
+      [
+        "a missing place in a list",
+        { ...priced, lines: listWithAMissingPlace() },
+      ],
+      ["a function in a list", { ...priced, lines: [() => 7] }],
+      ["a symbol in a list", { ...priced, lines: [Symbol("7")] }],
+      [
+        "not a number, three levels down",
+        { ...priced, lines: [{ amounts: [Number.NaN] }] },
+      ],
+      [
+        "an infinity in a list",
+        { ...priced, lines: [Number.POSITIVE_INFINITY] },
+      ],
+      ["its own toJSON", { ...priced, toJSON: () => ({}) }],
+      [
+        "a member that throws when read",
+        Object.defineProperty({ ...priced }, "totalMinor", {
+          enumerable: true,
+          get: () => {
+            throw new Error(MARKER);
+          },
+        }),
+      ],
+      [
+        "a proxy that throws on every read",
+        new Proxy(
+          {},
+          {
+            ownKeys: () => {
+              throw new Error(MARKER);
+            },
+          },
+        ),
+      ],
+    ])(
+      "refuses a priced design holding %s, as the check refuses and saying nothing of it",
+      (_name, value) => {
+        const refusal = refusalOfSnapshot(FAKE_SNAPSHOT.document, value);
+
+        expect(refusal).toMatch(/JSON object/);
+        expect(refusal).not.toContain(MARKER);
+      },
+    );
+
+    it("leaves out an object's member that is undefined, as the type's optional fields are, and encodes the rest once", () => {
+      const json = judgeSubmission(
+        withSnapshot(FAKE_SNAPSHOT.document, {
+          ...priced,
+          lines: [{ nameKey: undefined, amountMinor: 7 }],
+          note: undefined,
+        }),
+      ).snapshotJson;
+
+      expect(json?.priced).toBe(
+        JSON.stringify({ ...priced, lines: [{ amountMinor: 7 }] }),
+      );
+    });
+
+    it("accepts an object with no prototype, and a negative zero, which is sent as zero", () => {
+      const bare = Object.assign(Object.create(null) as object, {
+        totalMinor: -0,
+      });
+
+      expect(
+        judgeSubmission(withSnapshot(FAKE_SNAPSHOT.document, bare)).snapshotJson
+          ?.priced,
+      ).toBe('{"totalMinor":0}');
+    });
+
+    // A limit, recorded and not a defect (the round-2 stopping rule): a list is not asked whether it is plain, so one
+    // that carries its own encoder is walked as its members and sent as whatever the encoder answers.
+    it("sends a list that carries its own toJSON as that encoder answers, not as the members that were walked", () => {
+      const lines = Object.assign([1, 2], { toJSON: () => ["encoder's"] });
+
+      expect(
+        judgeSubmission(
+          withSnapshot(FAKE_SNAPSHOT.document, { ...priced, lines }),
+        ).snapshotJson?.priced,
+      ).toBe(JSON.stringify({ ...priced, lines: ["encoder's"] }));
+    });
   });
 });

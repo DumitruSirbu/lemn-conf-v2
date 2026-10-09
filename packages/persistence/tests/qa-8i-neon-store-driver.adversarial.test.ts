@@ -36,6 +36,7 @@ const CLIENT_REQUEST_ID = "qa-8i-driver-test-request-id";
 const REFERENCE = "LM-AAAAAAAA";
 const MARKERS = [FAKE_NAME, FAKE_PHONE, FAKE_EMAIL, CLIENT_REQUEST_ID];
 const LEAKING_TEXT = MARKERS.join(" ");
+const READS_OF_ONE_WALK_AND_ONE_ENCODING = 2;
 
 function storeProposing(...proposals: string[]): NeonContactSubmissionStore {
   return new NeonContactSubmissionStore(WELL_FORMED_UNREACHABLE_VALUE, {
@@ -199,11 +200,11 @@ describe("a reply whose row is not plain data", () => {
   );
 });
 
-describe("round 2: the snapshot the Neon store sends", () => {
+describe("round 3: the snapshot the Neon store sends", () => {
   const HANDED_DOCUMENT =
+    '{"b":"A","a":2,"list":[100,1.5,-7e-7],"é":"\\"q\\""}';
+  const NOT_ITS_OWN_ENCODING =
     ' {"b" : "\\u0041", "a":1.50, "a":2 , "list":[1e2] }\n';
-  const JUDGED_DOCUMENT = '{"b":"A","a":2,"list":[100]}';
-  const UNSTORABLE = "book\u0000";
   const recordedRow = {
     reference: REFERENCE,
     is_new: true,
@@ -211,22 +212,21 @@ describe("round 2: the snapshot the Neon store sends", () => {
     is_notified: false,
   };
 
-  /** A priced design that encodes cleanly the first time it is asked and holds a NUL every time after. */
-  function pricedThatChangesOnceRead(): {
+  /** A plain priced design that counts how often its book version is read: once by the walk, once by the encoder. */
+  function pricedCountingItsReads(): {
     readonly priced: typeof FAKE_SNAPSHOT.priced;
-    readonly timesEncoded: () => number;
+    readonly reads: () => number;
   } {
-    let encodings = 0;
-    const priced = {
-      toJSON: () => {
-        encodings += 1;
-        return {
-          ...FAKE_SNAPSHOT.priced,
-          pricingVersion: encodings === 1 ? "book-judged" : UNSTORABLE,
-        };
+    let reads = 0;
+    const priced = { ...FAKE_SNAPSHOT.priced };
+    Object.defineProperty(priced, "pricingVersion", {
+      enumerable: true,
+      get: () => {
+        reads += 1;
+        return "book-read";
       },
-    } as unknown as typeof FAKE_SNAPSHOT.priced;
-    return { priced, timesEncoded: () => encodings };
+    });
+    return { priced, reads: () => reads };
   }
 
   function textsSentIn(statementIndex: number): string[] {
@@ -235,7 +235,11 @@ describe("round 2: the snapshot the Neon store sends", () => {
     );
   }
 
-  it("is the JSON made from the judged document, and never the text it was handed", async () => {
+  function jsonTextsSentIn(statementIndex: number): string[] {
+    return textsSentIn(statementIndex).filter((text) => text.startsWith("{"));
+  }
+
+  it("is the document handed in, byte for byte, and the priced design encoded as JSON.stringify encodes it", async () => {
     answerWith([recordedRow]);
 
     await storeProposing(REFERENCE).record({
@@ -243,32 +247,46 @@ describe("round 2: the snapshot the Neon store sends", () => {
       snapshot: { document: HANDED_DOCUMENT, priced: FAKE_SNAPSHOT.priced },
     });
 
-    expect(textsSentIn(0)).toContain(JUDGED_DOCUMENT);
-    expect(textsSentIn(0)).not.toContain(HANDED_DOCUMENT);
-    expect(textsSentIn(0)).toContain(JSON.stringify(FAKE_SNAPSHOT.priced));
-  });
-
-  it("is the priced design as it was judged, encoded once, when the object would encode otherwise a second time", async () => {
-    const { priced, timesEncoded } = pricedThatChangesOnceRead();
-    answerWith([recordedRow]);
-
-    await storeProposing(REFERENCE).record({
-      ...aDesignSubmission(CLIENT_REQUEST_ID),
-      snapshot: { document: FAKE_SNAPSHOT.document, priced },
-    });
-
-    expect(timesEncoded()).toBe(1);
-    expect(textsSentIn(0).filter((text) => text.includes("book-"))).toEqual([
-      JSON.stringify({
-        ...FAKE_SNAPSHOT.priced,
-        pricingVersion: "book-judged",
-      }),
+    expect(jsonTextsSentIn(0)).toEqual([
+      HANDED_DOCUMENT,
+      JSON.stringify(FAKE_SNAPSHOT.priced),
     ]);
-    expect(textsSentIn(0).join(" ")).not.toContain(UNSTORABLE);
   });
 
-  it("is the same judged JSON in the statement drawn again after a collision, with nothing encoded again", async () => {
-    const { priced, timesEncoded } = pricedThatChangesOnceRead();
+  it("sends no statement for a document that is not its own encoding: it is refused and never rewritten", async () => {
+    const failure = await storeProposing(REFERENCE)
+      .record({
+        ...aDesignSubmission(CLIENT_REQUEST_ID),
+        snapshot: {
+          document: NOT_ITS_OWN_ENCODING,
+          priced: FAKE_SNAPSHOT.priced,
+        },
+      })
+      .catch((error: unknown) => error);
+
+    expect(driver.statements).toEqual([]);
+    expect((failure as Error).message).toMatch(/JSON object/);
+  });
+
+  it("sends no statement for a priced design that carries its own encoder, which could encode otherwise than it was walked", async () => {
+    const priced = {
+      ...FAKE_SNAPSHOT.priced,
+      toJSON: () => ({ pricingVersion: "book\u0000" }),
+    } as unknown as typeof FAKE_SNAPSHOT.priced;
+
+    const failure = await storeProposing(REFERENCE)
+      .record({
+        ...aDesignSubmission(CLIENT_REQUEST_ID),
+        snapshot: { document: FAKE_SNAPSHOT.document, priced },
+      })
+      .catch((error: unknown) => error);
+
+    expect(driver.statements).toEqual([]);
+    expect((failure as Error).message).toMatch(/JSON object/);
+  });
+
+  it("encodes the priced design once for the request, and sends the same two texts in the statement drawn again after a collision", async () => {
+    const { priced, reads } = pricedCountingItsReads();
     failWith(
       Object.assign(new NeonDbError("collision"), {
         code: "23505",
@@ -283,11 +301,35 @@ describe("round 2: the snapshot the Neon store sends", () => {
     });
 
     expect(driver.statements).toHaveLength(2);
-    expect(timesEncoded()).toBe(1);
-    expect(textsSentIn(1).filter((text) => text.startsWith("{"))).toEqual(
-      textsSentIn(0).filter((text) => text.startsWith("{")),
-    );
-    expect(textsSentIn(1)).toContain(JUDGED_DOCUMENT);
+    expect(reads()).toBe(READS_OF_ONE_WALK_AND_ONE_ENCODING);
+    expect(jsonTextsSentIn(1)).toEqual(jsonTextsSentIn(0));
+    expect(jsonTextsSentIn(1)).toEqual([
+      HANDED_DOCUMENT,
+      JSON.stringify({ ...FAKE_SNAPSHOT.priced, pricingVersion: "book-read" }),
+    ]);
+  });
+
+  // A limit, recorded and not a defect (the round-2 stopping rule): a real priced design is plain data. One that
+  // answers a member through a getter is read by the walk and again by the encoder, so the text sent is what the
+  // second read gave.
+  it("reads a member behind a getter twice, so what is sent is the encoder's reading and not the walk's", async () => {
+    let reads = 0;
+    const priced = { ...FAKE_SNAPSHOT.priced };
+    Object.defineProperty(priced, "pricingVersion", {
+      enumerable: true,
+      get: () => {
+        reads += 1;
+        return `book-read-${String(reads)}`;
+      },
+    });
+    answerWith([recordedRow]);
+
+    await storeProposing(REFERENCE).record({
+      ...aDesignSubmission(CLIENT_REQUEST_ID),
+      snapshot: { document: FAKE_SNAPSHOT.document, priced },
+    });
+
+    expect(textsSentIn(0).join(" ")).toContain("book-read-2");
   });
 
   it("sends no snapshot text for a callback", async () => {
@@ -301,6 +343,6 @@ describe("round 2: the snapshot the Neon store sends", () => {
       snapshot: undefined,
     });
 
-    expect(textsSentIn(0).filter((text) => text.startsWith("{"))).toEqual([]);
+    expect(jsonTextsSentIn(0)).toEqual([]);
   });
 });
