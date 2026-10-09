@@ -1,36 +1,58 @@
-import {
-  SAMPLE_PRICE_BOOK,
-  SAMPLE_PRICE_BOOK_VERSION,
-  snapshotSubmission,
-} from "@lemnaria/configurator-domain";
-import type { SubmissionSnapshot } from "@lemnaria/configurator-domain";
+import { readFileSync } from "node:fs";
 
 import {
-  GENERATED_KITCHENS,
-  catalogOf,
-} from "../../../configurator-domain/tests/contact/support/submission-kitchens.js";
+  KITCHEN_L_DESIGN,
+  SAMPLE_PRICE_BOOK,
+  SAMPLE_PRICE_BOOK_VERSION,
+  buildKitchenLBodyCatalog,
+  cabinetDepthMmOf,
+  snapshotSubmission,
+} from "@lemnaria/configurator-domain";
+import type { Design, SubmissionSnapshot } from "@lemnaria/configurator-domain";
 
 export interface RealSnapshot {
   readonly name: string;
   readonly snapshot: SubmissionSnapshot;
 }
 
+interface NamedDesign {
+  readonly name: string;
+  readonly design: Design;
+}
+
 /**
- * What 8H's `snapshotSubmission` makes of real kitchens under the shipped price book: the generator's straight, L and
- * U rooms, the largest U among them, and the seeded L. The kitchens are the domain's own submission fixtures.
+ * A COPY, and not the source. `qa-8i-generated-kitchen-designs.copy.json` holds the seven kitchens the domain's own
+ * submission tests generate (`packages/configurator-domain/tests/contact/support/submission-kitchens.ts`,
+ * `GENERATED_KITCHENS` without the seeded L), each written with `JSON.stringify` on 2026-10-09: two straight rooms,
+ * two L and three U. A test here may not import another package's tests, and generating a kitchen needs a body probe
+ * that only those tests hold, so the designs are copied and nothing else is: every snapshot below is still made by
+ * the domain's public `snapshotSubmission`. When the design schema changes, the copy is regenerated from that list.
  */
-export const REAL_SNAPSHOTS: readonly RealSnapshot[] = GENERATED_KITCHENS.map(
-  ({ name, design }) => {
-    const result = snapshotSubmission({
-      design,
-      catalog: catalogOf(design),
-      book: SAMPLE_PRICE_BOOK,
-      pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
-    });
-    if (!result.ok) throw new Error(`${name} has no snapshot`);
-    return { name, snapshot: result.snapshot };
-  },
+const COPIED_DESIGNS_FILE = new URL(
+  "./qa-8i-generated-kitchen-designs.copy.json",
+  import.meta.url,
 );
+
+function copiedGeneratedDesigns(): NamedDesign[] {
+  return JSON.parse(readFileSync(COPIED_DESIGNS_FILE, "utf8")) as NamedDesign[];
+}
+
+function realSnapshotOf({ name, design }: NamedDesign): RealSnapshot {
+  const result = snapshotSubmission({
+    design,
+    catalog: buildKitchenLBodyCatalog(cabinetDepthMmOf(design)),
+    book: SAMPLE_PRICE_BOOK,
+    pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
+  });
+  if (!result.ok) throw new Error(`${name} has no snapshot`);
+  return { name, snapshot: result.snapshot };
+}
+
+/** What `snapshotSubmission` makes, under the shipped price book, of the copied kitchens and of the seeded L. */
+export const REAL_SNAPSHOTS: readonly RealSnapshot[] = [
+  ...copiedGeneratedDesigns(),
+  { name: "the seeded L", design: KITCHEN_L_DESIGN },
+].map(realSnapshotOf);
 
 /** How many levels of lists and objects a value nests, the value itself counting as the first when it is one. */
 export function levelsOf(value: unknown): number {

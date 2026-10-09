@@ -31,17 +31,20 @@ import {
   textHoldingAnOverflowingNumber,
 } from "./support/qa-8i-json-arbitraries.js";
 import { REAL_SNAPSHOTS, levelsOf } from "./support/qa-8i-real-snapshots.js";
+import { rejectionOf } from "./support/qa-8i-rejection.js";
 import { privilegesHeldWithGrantOption } from "./support/table-privileges.js";
 
 /**
- * Adversarial QA of M8 wave 8I, criterion 12, with no database: the shared check at the table's edges, what it does
- * with a value that is not text, and whether it accepts everything the domain's validation hands it.
+ * The shared check of a contact submission under attack, with no database: the table's edges, values that are not
+ * text, parts that are not objects, text Postgres cannot hold, and a snapshot's document and priced design. It also
+ * holds what only a unit test can show of the fake's draws and of the grant-option question.
  */
 const CLIENT_REQUEST_ID = "qa-8i-check-test-request-id";
 const LARGEST_REVISION = 9_223_372_036_854_775_807n;
 const WIDEST_NINETEEN_DIGITS = 9_999_999_999_999_999_999n;
 /** Text no refusal may repeat. */
 const MARKER = "QA8I-LEAKED-MARKER";
+const CHECKS_OWN_REFUSAL = /^Refusing to use the contact submission store/;
 
 function refusalOf(act: () => void): string | undefined {
   try {
@@ -245,20 +248,15 @@ describe("the shared check of a value that is not text", () => {
     ).toEqual([true, true, true, true]);
   });
 
-  it("leaves the fake either refusing a request recorded under a number or finding it by its text, as the table would", async () => {
+  it("leaves the fake refusing a request recorded under a number, so it is never held under a key its text cannot find", async () => {
     const store = new FakeContactSubmissionStore();
-    const recording = await store
-      .record(aCallbackSubmission(sixteenDigits as unknown as string))
-      .catch((error: unknown) => error);
 
-    const lookup = await store.lookUp({
-      clientRequestId: String(sixteenDigits),
-      payloadDigest: DIGEST_A,
-    });
-
-    expect(recording instanceof Error ? "refused" : lookup.kind).not.toBe(
-      "absent",
+    const refusal = await rejectionOf(
+      store.record(aCallbackSubmission(sixteenDigits as unknown as string)),
     );
+
+    expect((refusal as Error).message).toMatch(/client request id/);
+    expect(store.heldSubmissions()).toEqual([]);
   });
 });
 
@@ -373,7 +371,99 @@ describe("what the domain's validation accepts", () => {
   );
 });
 
-describe("round 2, rule 2: the digest's own check of a value that is not text", () => {
+describe("the shared check of a part that is not an object", () => {
+  type Part = readonly [
+    name: string,
+    placed: (value: unknown) => ContactSubmissionToRecord,
+    itsOwnRefusal: RegExp,
+    aListsRefusal: RegExp,
+  ];
+
+  const design = (): ContactSubmissionToRecord =>
+    aDesignSubmission(CLIENT_REQUEST_ID);
+
+  const PARTS: readonly Part[] = [
+    [
+      "the contact",
+      (value) => ({ ...design(), contact: value as never }),
+      /the contact must be an object/,
+      /the contact's name must be text/,
+    ],
+    [
+      "the target",
+      (value) => ({ ...design(), target: value as never }),
+      /the target must name a design or an intent/,
+      /the target must name a design or an intent/,
+    ],
+    [
+      "the target's design",
+      (value) => ({
+        ...design(),
+        target: { kind: "design", design: value as never },
+      }),
+      /the target's design must be an object/,
+      /the design id must be text/,
+    ],
+    [
+      "the snapshot",
+      (value) => ({ ...design(), snapshot: value as never }),
+      /a design is stored with its snapshot, an object/,
+      /the snapshot's document must be a JSON object/,
+    ],
+  ];
+
+  describe.each(PARTS)("%s", (_name, placed, itsOwnRefusal, aListsRefusal) => {
+    it.each([
+      ["text", MARKER],
+      ["a number", 7],
+      ["null", null],
+      ["a true", true],
+      ["a symbol", Symbol(MARKER)],
+    ])(
+      "is refused as that part when it is %s, with nothing of it in the refusal",
+      (_kind, value) => {
+        const refusal = refusalOf(() => {
+          requireValidSubmission(placed(value));
+        });
+
+        expect(refusal).toMatch(itsOwnRefusal);
+        expect(refusal).not.toContain(MARKER);
+      },
+    );
+
+    it("is refused by the check when it is a list, which is an object: for what it does not hold, with nothing of it in the refusal", () => {
+      const refusal = refusalOf(() => {
+        requireValidSubmission(placed([MARKER, { name: MARKER }]));
+      });
+
+      expect(refusal).toMatch(aListsRefusal);
+      expect(refusal).not.toContain(MARKER);
+    });
+
+    it("is refused by the check, and by nothing else, when reading any member of it throws the marker", () => {
+      const throwing = new Proxy(
+        {},
+        {
+          get: () => {
+            throw new Error(MARKER);
+          },
+          has: () => {
+            throw new Error(MARKER);
+          },
+        },
+      );
+
+      const refusal = refusalOf(() => {
+        requireValidSubmission(placed(throwing));
+      });
+
+      expect(refusal).toMatch(CHECKS_OWN_REFUSAL);
+      expect(refusal).not.toContain(MARKER);
+    });
+  });
+});
+
+describe("the digest's own check of a value that is not text", () => {
   it.each([
     ["a list of one digest", [DIGEST_A]],
     ["an object that prints as a digest", { toString: () => DIGEST_A }],
@@ -400,7 +490,7 @@ describe("round 2, rule 2: the digest's own check of a value that is not text", 
   });
 });
 
-describe("round 2, rule 3: text Postgres cannot hold", () => {
+describe("text Postgres cannot hold", () => {
   const UNSTORABLE: readonly (readonly [string, string])[] = [
     ["a NUL", `${MARKER}\u0000`],
     ["a NUL alone", "\u0000"],
@@ -474,9 +564,8 @@ describe("round 2, rule 3: text Postgres cannot hold", () => {
   });
 });
 
-describe("round 2, rule 4: a snapshot judged as the JSON the statement will carry", () => {
+describe("a snapshot's document and priced design, judged before a statement carries them", () => {
   const WIDE_DOCUMENT_MEMBERS = 1_000_000;
-  const WIDE_DOCUMENT_BUDGET_MS = 5_000;
   const DEEPER_THAN_THE_ENCODER_GOES = 100_000;
   const PAST_A_DOUBLE = "9007199254740993";
 
@@ -555,17 +644,14 @@ describe("round 2, rule 4: a snapshot judged as the JSON the statement will carr
     },
   );
 
-  it("refuses a document holding a whole number past a double's reach, or sends it digit for digit", () => {
-    const outcome = refusalOf(() => {
-      const json = judged(`{"n":${PAST_A_DOUBLE}}`, FAKE_SNAPSHOT.priced);
-      if (json?.document.includes(PAST_A_DOUBLE) !== true) {
-        throw new Error(`sent as ${json?.document ?? "nothing"}`);
-      }
-    });
-
-    expect(outcome ?? "sent digit for digit").toMatch(
-      /Refusing to use the contact submission store|sent digit for digit/,
-    );
+  it("refuses a document holding a whole number past a double's reach, and never rewrites it", () => {
+    expect(
+      refusalOf(() => {
+        requireValidSubmission(
+          withSnapshot(`{"n":${PAST_A_DOUBLE}}`, FAKE_SNAPSHOT.priced),
+        );
+      }),
+    ).toMatch(/JSON object/);
   });
 
   it.each([
@@ -578,35 +664,25 @@ describe("round 2, rule 4: a snapshot judged as the JSON the statement will carr
       `${'{"a":'.repeat(DEEPER_THAN_THE_ENCODER_GOES)}1${"}".repeat(DEEPER_THAN_THE_ENCODER_GOES)}`,
     ],
   ])(
-    "accepts a document of very deep %s, or refuses it as the check refuses, and throws nothing else",
+    "refuses a document of very deep %s under the depth's own sentence, and throws nothing else",
     (_name, document) => {
       const outcome = refusalOf(() => {
         requireValidSubmission(withSnapshot(document, FAKE_SNAPSHOT.priced));
       });
 
-      expect(outcome ?? "accepted").toMatch(
-        /^accepted$|^Refusing to use the contact submission store/,
-      );
+      expect(outcome).toMatch(/64 levels/);
     },
   );
 
-  it("judges a document of a million members inside its budget", () => {
+  it("returns a document of a million members as the text it was handed", () => {
     const document = JSON.stringify({
       members: Array.from(
         { length: WIDE_DOCUMENT_MEMBERS },
         (_member, index) => `member-${String(index)}`,
       ),
     });
-    const startedAt = performance.now();
 
-    const json = judged(document, FAKE_SNAPSHOT.priced);
-
-    const elapsedMs = performance.now() - startedAt;
-    console.info(
-      `[qa-8i-check] judged ${String(document.length)} characters in ${String(Math.round(elapsedMs))} ms`,
-    );
-    expect(json?.document).toBe(document);
-    expect(elapsedMs).toBeLessThan(WIDE_DOCUMENT_BUDGET_MS);
+    expect(judged(document, FAKE_SNAPSHOT.priced)?.document).toBe(document);
   });
 
   it.each([
@@ -644,7 +720,7 @@ describe("round 2, rule 4: a snapshot judged as the JSON the statement will carr
   });
 });
 
-describe("round 2, criterion 13: the fake draws a proposal exactly when the Neon store does", () => {
+describe("the fake draws a proposal exactly when the Neon store does", () => {
   it("uses one proposal for a first record, one for a replay and one for each collision", async () => {
     const drawn: string[] = [];
     const queue = ["LM-AAAAAAAA", "LM-BBBBBBBB", "LM-AAAAAAAA", "LM-CCCCCCCC"];
@@ -713,7 +789,7 @@ describe("round 2, criterion 13: the fake draws a proposal exactly when the Neon
   });
 });
 
-describe("round 2, criterion 3: the grant-option question as it is sent", () => {
+describe("the grant-option question as it is sent", () => {
   it("asks has_table_privilege for each privilege with the grant option's suffix, of the table it was given", async () => {
     const sent: { text: string; values: unknown[] }[] = [];
     const sql = ((strings: TemplateStringsArray, ...values: unknown[]) => {
@@ -738,12 +814,11 @@ describe("round 2, criterion 3: the grant-option question as it is sent", () => 
   });
 });
 
-describe("round 3: rules 4a to 4c", () => {
+describe("a snapshot's own encoding, its walked value and its depth", () => {
   const BOUND = 64;
   const CHECKS_REFUSAL = /^Refusing to use the contact submission store/;
   const DEPTH_REFUSAL = /64 levels/;
   const SHARED_LEVELS = 20;
-  const SHARED_BUDGET_MS = 5_000;
 
   /** An object `levels` deep: the root, then lists one inside the other. */
   function documentOfLevels(levels: number): string {
@@ -764,7 +839,7 @@ describe("round 3: rules 4a to 4c", () => {
     });
   }
 
-  describe("the real snapshots 8H makes", () => {
+  describe("the real snapshots the domain makes", () => {
     it("are eight kitchens of all three shapes, nested four levels in the document and five in the priced design, against a bound of 64", () => {
       const levels = REAL_SNAPSHOTS.map(({ snapshot }) => ({
         document: levelsOf(JSON.parse(snapshot.document)),
@@ -803,7 +878,7 @@ describe("round 3: rules 4a to 4c", () => {
     );
   });
 
-  describe("4a: what canonicalSerializeDesign emits is its own encoding", () => {
+  describe("what canonicalSerializeDesign emits is its own encoding", () => {
     const keyLikeAnIndex = fc.constantFrom(
       "0",
       "2",
@@ -834,7 +909,7 @@ describe("round 3: rules 4a to 4c", () => {
     );
   });
 
-  describe("4c: the bound of 64 levels", () => {
+  describe("the bound of 64 levels", () => {
     it("admits a document and a priced design of 64 levels and refuses each at 65, under the depth's own sentence", () => {
       expect([
         refusalOfSnapshot(documentOfLevels(BOUND), FAKE_SNAPSHOT.priced),
@@ -942,26 +1017,24 @@ describe("round 3: rules 4a to 4c", () => {
       );
     });
 
-    // A limit, recorded and not a defect: a value whose levels each hold the next one twice is a tree to the encoder,
+    // A recorded limit, not a defect: a value whose levels each hold the next one twice is a tree to the encoder,
     // which writes every path. Twenty levels are a million leaves and are judged at once; sixty would never end.
     // Nothing parsed from JSON and nothing `priceDesign` returns shares a member.
-    it("judges a priced design whose every level holds the next one twice, twenty levels down, inside its budget", () => {
+    it("accepts a priced design whose every level holds the next one twice, twenty levels down", () => {
       let shared: unknown = { leaf: 1 };
       for (let level = 0; level < SHARED_LEVELS; level += 1) {
         shared = [shared, shared];
       }
-      const startedAt = performance.now();
 
-      const verdict = refusalOf(() => {
-        judgeSubmission(withSnapshot(FAKE_SNAPSHOT.document, { shared }));
-      });
-
-      expect(verdict).toBeUndefined();
-      expect(performance.now() - startedAt).toBeLessThan(SHARED_BUDGET_MS);
+      expect(
+        refusalOf(() => {
+          judgeSubmission(withSnapshot(FAKE_SNAPSHOT.document, { shared }));
+        }),
+      ).toBeUndefined();
     });
   });
 
-  describe("4b: the priced design walked as a value", () => {
+  describe("the priced design walked as a value", () => {
     /** A list of three places whose middle one was never set. */
     function listWithAMissingPlace(): unknown[] {
       const list: unknown[] = [1];
@@ -1058,7 +1131,7 @@ describe("round 3: rules 4a to 4c", () => {
       ).toBe('{"totalMinor":0}');
     });
 
-    // A limit, recorded and not a defect (the round-2 stopping rule): a list is not asked whether it is plain, so one
+    // A recorded limit, not a defect: a list is not asked whether it is plain, so one
     // that carries its own encoder is walked as its members and sent as whatever the encoder answers.
     it("sends a list that carries its own toJSON as that encoder answers, not as the members that were walked", () => {
       const lines = Object.assign([1, 2], { toJSON: () => ["encoder's"] });

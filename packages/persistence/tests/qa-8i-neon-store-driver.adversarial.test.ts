@@ -21,6 +21,7 @@ import {
   failWith,
   resetDriver,
 } from "./support/mocked-neon-driver.js";
+import { rejectionOf } from "./support/qa-8i-rejection.js";
 
 vi.mock("@neondatabase/serverless", async (importOriginal) =>
   (await import("./support/mocked-neon-driver.js")).withMockedDriver(
@@ -29,14 +30,18 @@ vi.mock("@neondatabase/serverless", async (importOriginal) =>
 );
 
 /**
- * Adversarial QA of M8 wave 8I with the driver replaced: what the Neon store sends when its proposal is not a
- * reference (criterion 12), and what leaves it when the driver throws something that resists being read (criterion 7).
+ * The Neon contact submission store with the driver replaced: what it sends when its proposal is not a reference,
+ * what leaves it when the driver throws something that resists being read or reads differently each time, and which
+ * snapshot text its statement carries. Nothing here reaches a database.
  */
 const CLIENT_REQUEST_ID = "qa-8i-driver-test-request-id";
 const REFERENCE = "LM-AAAAAAAA";
 const MARKERS = [FAKE_NAME, FAKE_PHONE, FAKE_EMAIL, CLIENT_REQUEST_ID];
 const LEAKING_TEXT = MARKERS.join(" ");
 const READS_OF_ONE_WALK_AND_ONE_ENCODING = 2;
+const UNIQUE_VIOLATION = "23505";
+const REFERENCE_UNIQUENESS = "contact_submissions_reference_is_unique";
+const PROPOSALS_IN_A_RECORD = 3;
 
 function storeProposing(...proposals: string[]): NeonContactSubmissionStore {
   return new NeonContactSubmissionStore(WELL_FORMED_UNREACHABLE_VALUE, {
@@ -57,9 +62,9 @@ describe("a proposal that is not a reference", () => {
   ])(
     "is refused before any statement carries the request to the server: %s",
     async (_name, proposal) => {
-      const failure = await storeProposing(proposal)
-        .record(aDesignSubmission(CLIENT_REQUEST_ID))
-        .catch((error: unknown) => error);
+      const failure = await rejectionOf(
+        storeProposing(proposal).record(aDesignSubmission(CLIENT_REQUEST_ID)),
+      );
 
       expect(driver.statements).toEqual([]);
       expect((failure as Error).message).toMatch(/reference/);
@@ -76,9 +81,11 @@ describe("a proposal that is not a reference", () => {
     );
     answerWith([]);
 
-    const failure = await storeProposing(REFERENCE, "not a reference")
-      .record(aDesignSubmission(CLIENT_REQUEST_ID))
-      .catch((error: unknown) => error);
+    const failure = await rejectionOf(
+      storeProposing(REFERENCE, "not a reference").record(
+        aDesignSubmission(CLIENT_REQUEST_ID),
+      ),
+    );
 
     expect(failure).toBeInstanceOf(Error);
     expect(driver.statements.length).toBeLessThanOrEqual(1);
@@ -152,7 +159,7 @@ describe("a throw of the driver that resists being read", () => {
       for (const call of calls) {
         failWith(thrown());
 
-        const failure = await call().catch((error: unknown) => error);
+        const failure = await rejectionOf(call());
 
         expect(failure).toBeInstanceOf(ContactSubmissionStoreError);
         expect(markersFoundOn(failure, MARKERS)).toEqual([]);
@@ -190,9 +197,9 @@ describe("a reply whose row is not plain data", () => {
     async (_name, reply) => {
       answerWith(reply);
 
-      const failure = await storeProposing(REFERENCE)
-        .record(aDesignSubmission(CLIENT_REQUEST_ID))
-        .catch((error: unknown) => error);
+      const failure = await rejectionOf(
+        storeProposing(REFERENCE).record(aDesignSubmission(CLIENT_REQUEST_ID)),
+      );
 
       expect(failure).toBeInstanceOf(ContactSubmissionStoreError);
       expect((failure as Error).cause).toBeUndefined();
@@ -200,7 +207,7 @@ describe("a reply whose row is not plain data", () => {
   );
 });
 
-describe("round 3: the snapshot the Neon store sends", () => {
+describe("the snapshot the Neon store sends", () => {
   const HANDED_DOCUMENT =
     '{"b":"A","a":2,"list":[100,1.5,-7e-7],"é":"\\"q\\""}';
   const NOT_ITS_OWN_ENCODING =
@@ -254,15 +261,15 @@ describe("round 3: the snapshot the Neon store sends", () => {
   });
 
   it("sends no statement for a document that is not its own encoding: it is refused and never rewritten", async () => {
-    const failure = await storeProposing(REFERENCE)
-      .record({
+    const failure = await rejectionOf(
+      storeProposing(REFERENCE).record({
         ...aDesignSubmission(CLIENT_REQUEST_ID),
         snapshot: {
           document: NOT_ITS_OWN_ENCODING,
           priced: FAKE_SNAPSHOT.priced,
         },
-      })
-      .catch((error: unknown) => error);
+      }),
+    );
 
     expect(driver.statements).toEqual([]);
     expect((failure as Error).message).toMatch(/JSON object/);
@@ -274,12 +281,12 @@ describe("round 3: the snapshot the Neon store sends", () => {
       toJSON: () => ({ pricingVersion: "book\u0000" }),
     } as unknown as typeof FAKE_SNAPSHOT.priced;
 
-    const failure = await storeProposing(REFERENCE)
-      .record({
+    const failure = await rejectionOf(
+      storeProposing(REFERENCE).record({
         ...aDesignSubmission(CLIENT_REQUEST_ID),
         snapshot: { document: FAKE_SNAPSHOT.document, priced },
-      })
-      .catch((error: unknown) => error);
+      }),
+    );
 
     expect(driver.statements).toEqual([]);
     expect((failure as Error).message).toMatch(/JSON object/);
@@ -309,7 +316,7 @@ describe("round 3: the snapshot the Neon store sends", () => {
     ]);
   });
 
-  // A limit, recorded and not a defect (the round-2 stopping rule): a real priced design is plain data. One that
+  // A recorded limit, not a defect: a real priced design is plain data. One that
   // answers a member through a getter is read by the walk and again by the encoder, so the text sent is what the
   // second read gave.
   it("reads a member behind a getter twice, so what is sent is the encoder's reading and not the walk's", async () => {
@@ -345,4 +352,190 @@ describe("round 3: the snapshot the Neon store sends", () => {
 
     expect(jsonTextsSentIn(0)).toEqual([]);
   });
+});
+
+/** A driver refusal holding a marker everywhere a refusal can, whose code and constraint read as given. */
+function refusalReading(
+  code: () => unknown,
+  constraint: () => unknown,
+): NeonDbError {
+  const refusal = Object.assign(new NeonDbError(`refused ${LEAKING_TEXT}`), {
+    detail: LEAKING_TEXT,
+    where: LEAKING_TEXT,
+    hint: LEAKING_TEXT,
+  });
+  Object.defineProperty(refusal, "code", { get: code });
+  Object.defineProperty(refusal, "constraint", { get: constraint });
+  return refusal;
+}
+
+function collisionShapedRefusal(): NeonDbError {
+  return refusalReading(
+    () => UNIQUE_VIOLATION,
+    () => REFERENCE_UNIQUENESS,
+  );
+}
+
+/** Answers each of `readings` in turn, and the last one for every read after it. */
+function readingInTurn(...readings: unknown[]): () => unknown {
+  let reads = 0;
+  return () => {
+    const reading = readings[Math.min(reads, readings.length - 1)];
+    reads += 1;
+    return reading;
+  };
+}
+
+const LOOKUP_AND_MARK: readonly (readonly [
+  string,
+  (store: NeonContactSubmissionStore) => Promise<unknown>,
+])[] = [
+  [
+    "look up a request",
+    (store) =>
+      store.lookUp({
+        clientRequestId: CLIENT_REQUEST_ID,
+        payloadDigest: DIGEST_A,
+      }),
+  ],
+  ["mark a request notified", (store) => store.markNotified(CLIENT_REQUEST_ID)],
+];
+
+const EVERY_OPERATION: typeof LOOKUP_AND_MARK = [
+  [
+    "record a request",
+    (store) => store.record(aDesignSubmission(CLIENT_REQUEST_ID)),
+  ],
+  ...LOOKUP_AND_MARK,
+];
+
+describe("a driver failure that reads as the reference's collision", () => {
+  it.each(LOOKUP_AND_MARK)(
+    "leaves as the store error with its reduced cause when it is raised while the store tries to %s",
+    async (operation, run) => {
+      failWith(collisionShapedRefusal());
+
+      const failure = await rejectionOf(run(storeProposing(REFERENCE)));
+
+      expect(failure).toBeInstanceOf(ContactSubmissionStoreError);
+      expect((failure as ContactSubmissionStoreError).operation).toBe(
+        operation,
+      );
+      expect((failure as Error).cause).toEqual({
+        name: "NeonDbError",
+        code: UNIQUE_VIOLATION,
+      });
+      expect(markersFoundOn(failure, MARKERS)).toEqual([]);
+      expect(driver.statements).toHaveLength(1);
+    },
+  );
+
+  it("is drawn again by a record, and after three leaves as the store error with no cause and no marker", async () => {
+    for (let draw = 0; draw < PROPOSALS_IN_A_RECORD; draw += 1) {
+      failWith(collisionShapedRefusal());
+    }
+
+    const failure = await rejectionOf(
+      storeProposing("LM-AAAAAAAA", "LM-BBBBBBBB", "LM-CCCCCCCC").record(
+        aDesignSubmission(CLIENT_REQUEST_ID),
+      ),
+    );
+
+    expect(failure).toBeInstanceOf(ContactSubmissionStoreError);
+    expect((failure as Error).cause).toBeUndefined();
+    expect(markersFoundOn(failure, MARKERS)).toEqual([]);
+    expect(driver.statements).toHaveLength(PROPOSALS_IN_A_RECORD);
+  });
+});
+
+describe("a driver failure whose code reads differently the second time", () => {
+  it.each(EVERY_OPERATION)(
+    "leaves as the store error holding no marker when it first reads as another refusal and then as the details, while the store tries to %s",
+    async (operation, run) => {
+      failWith(
+        refusalReading(
+          readingInTurn("23514", LEAKING_TEXT),
+          () => LEAKING_TEXT,
+        ),
+      );
+
+      const failure = await rejectionOf(run(storeProposing(REFERENCE)));
+
+      expect(failure).toBeInstanceOf(ContactSubmissionStoreError);
+      expect((failure as ContactSubmissionStoreError).operation).toBe(
+        operation,
+      );
+      expect(markersFoundOn(failure, MARKERS)).toEqual([]);
+      expect(driver.statements).toHaveLength(1);
+    },
+  );
+
+  it.each(EVERY_OPERATION)(
+    "leaves as the store error holding no marker when it reads as the collision only on a later read, while the store tries to %s",
+    async (operation, run) => {
+      failWith(
+        refusalReading(
+          readingInTurn("23514", UNIQUE_VIOLATION),
+          () => REFERENCE_UNIQUENESS,
+        ),
+      );
+
+      const failure = await rejectionOf(run(storeProposing(REFERENCE)));
+
+      expect(failure).toBeInstanceOf(ContactSubmissionStoreError);
+      expect((failure as ContactSubmissionStoreError).operation).toBe(
+        operation,
+      );
+      expect(markersFoundOn(failure, MARKERS)).toEqual([]);
+      expect(driver.statements).toHaveLength(1);
+    },
+  );
+
+  it("is a collision for a record when its first reading says so, whatever it reads as afterwards: the next proposal is sent", async () => {
+    failWith(
+      refusalReading(
+        readingInTurn(UNIQUE_VIOLATION, LEAKING_TEXT),
+        readingInTurn(REFERENCE_UNIQUENESS, LEAKING_TEXT),
+      ),
+    );
+    answerWith([
+      {
+        reference: "LM-BBBBBBBB",
+        is_new: true,
+        is_same_payload: true,
+        is_notified: false,
+      },
+    ]);
+
+    const recording = await storeProposing("LM-AAAAAAAA", "LM-BBBBBBBB").record(
+      aDesignSubmission(CLIENT_REQUEST_ID),
+    );
+
+    expect(recording).toEqual({
+      kind: "stored",
+      reference: "LM-BBBBBBBB",
+      isNew: true,
+      isNotified: false,
+    });
+    expect(driver.statements).toHaveLength(2);
+  });
+
+  it.each(EVERY_OPERATION)(
+    "leaves as the store error holding no marker when reading its code or its constraint throws the details, while the store tries to %s",
+    async (_operation, run) => {
+      failWith(
+        refusalReading(
+          () => UNIQUE_VIOLATION,
+          () => {
+            throw new Error(LEAKING_TEXT);
+          },
+        ),
+      );
+
+      const failure = await rejectionOf(run(storeProposing(REFERENCE)));
+
+      expect(failure).toBeInstanceOf(ContactSubmissionStoreError);
+      expect(markersFoundOn(failure, MARKERS)).toEqual([]);
+    },
+  );
 });

@@ -43,6 +43,7 @@ import { loseTheFirstReply } from "./support/lose-the-first-reply.js";
 import type { LossPoint, LostReply } from "./support/lose-the-first-reply.js";
 import { cleanJsonObject } from "./support/qa-8i-json-arbitraries.js";
 import { REAL_SNAPSHOTS } from "./support/qa-8i-real-snapshots.js";
+import { rejectionOf } from "./support/qa-8i-rejection.js";
 import {
   privilegesHeldOn,
   privilegesHeldWithGrantOption,
@@ -54,19 +55,20 @@ import { holdSharedTestSchemaLock } from "./support/test-schema-lock.js";
 holdSharedTestSchemaLock();
 
 /**
- * Adversarial QA of M8 wave 8I on the live test database, through the store and over the HTTP driver: R2's four
- * proofs, R3's translation of real refusals, criterion 12's check against the table, and criterion 13's two stores
- * side by side. Every row carries this file's marker in its client request id and is deleted by that marker alone.
+ * The Neon contact submission store under attack on the live test database, through the store and over the HTTP
+ * driver: concurrent records, a record racing a mark, a lost first reply, real refusals fed through the store's
+ * translation, the shared check against the table, and the fake beside the Neon store. Every row carries this file's
+ * marker in its client request id and is deleted by that marker alone (ADR 0151).
  */
-const SUITE_NAME = "QA 8I: NeonContactSubmissionStore (live test database)";
+const SUITE_NAME =
+  "NeonContactSubmissionStore under concurrent and hostile use (live test database)";
 
-const hasLiveDatabase = isLiveTestDatabaseConfigured;
-const testDatabaseUrl = liveTestDatabaseUrl;
-if (!hasLiveDatabase) announceSkippedLiveSuite(SUITE_NAME);
+if (!isLiveTestDatabaseConfigured) announceSkippedLiveSuite(SUITE_NAME);
 
 /** Sixteen characters, so the marker alone is the shortest id the table admits. */
 const TEST_ID_MARKER = "qa-8i-live-test-";
 const RACE_TIMEOUT_MS = 300_000;
+const CHECKS_REFUSAL = /^Refusing to use the contact submission store/;
 
 const SAME_DIGEST_ROUNDS = 20;
 const MIXED_DIGEST_ROUNDS = 20;
@@ -81,7 +83,7 @@ function newClientRequestId(): string {
 
 /** The whole row for an id, as the test database's owner reads it: the application role cannot. */
 async function rowsHeldFor(clientRequestId: string): Promise<Held[]> {
-  const rows = (await neon(testDatabaseUrl)`
+  const rows = (await neon(liveTestDatabaseUrl)`
     select to_jsonb(submission) as held
     from contact_submissions as submission
     where client_request_id = ${clientRequestId}
@@ -90,7 +92,7 @@ async function rowsHeldFor(clientRequestId: string): Promise<Held[]> {
 }
 
 async function removeRowsCarryingTheTestMarker(): Promise<number> {
-  const removed = await neon(testDatabaseUrl)`
+  const removed = await neon(liveTestDatabaseUrl)`
     delete from contact_submissions
     where client_request_id like ${`${TEST_ID_MARKER}%`}
     returning client_request_id
@@ -178,7 +180,7 @@ interface RacingCaller {
 /** A store of its own for each caller, drawing its own proposals and keeping them for the test to read. */
 function newRacingCaller(): RacingCaller {
   const proposals: string[] = [];
-  const store = new NeonContactSubmissionStore(testDatabaseUrl, {
+  const store = new NeonContactSubmissionStore(liveTestDatabaseUrl, {
     proposeReference: () => {
       const proposal = generateSubmissionReference();
       proposals.push(proposal);
@@ -224,9 +226,9 @@ function wereAllInFlightAtOnce(calls: readonly Timed<unknown>[]): boolean {
   return lastSent < firstAnswered;
 }
 
-describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
+describe.skipIf(!isLiveTestDatabaseConfigured)(SUITE_NAME, () => {
   beforeAll(async () => {
-    await runMigrations(testDatabaseUrl);
+    await runMigrations(liveTestDatabaseUrl);
     const strays = await removeRowsCarryingTheTestMarker();
     console.info(
       `[qa-8i-live] removed ${String(strays)} stray test rows before the run`,
@@ -240,7 +242,7 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
     );
   });
 
-  describe("R2 proof 1: N concurrent records of one id and one digest", () => {
+  describe("N concurrent records of one id and one digest", () => {
     it(
       "store one row, answer N equal references and exactly one new, and the new one is the caller whose proposal is stored",
       async () => {
@@ -287,7 +289,7 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
         }
 
         console.info(
-          `[qa-8i-live] proof 1: ${String(SAME_DIGEST_ROUNDS)} rounds of ${String(RACING_CALLERS)} callers; ` +
+          `[qa-8i-live] one digest: ${String(SAME_DIGEST_ROUNDS)} rounds of ${String(RACING_CALLERS)} callers; ` +
             `the caller that stored, by round: ${winners.join(",")}`,
         );
       },
@@ -295,7 +297,7 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
     );
   });
 
-  describe("R2 proof 2: N concurrent records of one id with two digests mixed", () => {
+  describe("N concurrent records of one id with two digests mixed", () => {
     it(
       "store one row whole from one caller, answer a conflict to every caller holding the other digest, and leave the row unchanged by what follows",
       async () => {
@@ -358,7 +360,7 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
         }
 
         console.info(
-          `[qa-8i-live] proof 2: ${String(MIXED_DIGEST_ROUNDS)} rounds of ${String(RACING_CALLERS)} callers, ` +
+          `[qa-8i-live] two digests: ${String(MIXED_DIGEST_ROUNDS)} rounds of ${String(RACING_CALLERS)} callers, ` +
             `digests alternating; the caller that stored, by round: ${winners.join(",")}`,
         );
       },
@@ -366,7 +368,7 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
     );
   });
 
-  describe("R2 proof 3: record racing markNotified", () => {
+  describe("record racing markNotified", () => {
     const RECORD_DELAYS_MS = [0, 30, 60, 90, 120, 180, 240];
     const MARK_DELAYS_MS = [20, 70, 130];
     /** Sent with the first record and just after it, so some marks reach the table before the row does. */
@@ -441,7 +443,7 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
       markDelaysMs: readonly number[] = MARK_DELAYS_MS,
     ): Promise<Saying[]> {
       const store = (): ContactSubmissionStore =>
-        new NeonContactSubmissionStore(testDatabaseUrl);
+        new NeonContactSubmissionStore(liveTestDatabaseUrl);
       const request = { clientRequestId: id, payloadDigest: DIGEST_A };
       const [records, marks, lookups, ownerReads] = await Promise.all([
         Promise.all(
@@ -503,7 +505,7 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
         (saying) => saying.call === "mark" && saying.saysNotified === true,
       );
       const replay = await new NeonContactSubmissionStore(
-        testDatabaseUrl,
+        liveTestDatabaseUrl,
       ).record(aDesignSubmission(id));
       const [finalRow, ...others] = await rowsHeldFor(id);
 
@@ -542,7 +544,7 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
 
         for (let round = 0; round < MARK_RACE_ROUNDS; round += 1) {
           const id = newClientRequestId();
-          await new NeonContactSubmissionStore(testDatabaseUrl).record(
+          await new NeonContactSubmissionStore(liveTestDatabaseUrl).record(
             aDesignSubmission(id),
           );
 
@@ -558,7 +560,7 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
         }
 
         console.info(
-          `[qa-8i-live] proof 3, stored row: ${String(MARK_RACE_ROUNDS)} rounds; in ` +
+          `[qa-8i-live] mark race, stored row: ${String(MARK_RACE_ROUNDS)} rounds; in ` +
             `${String(roundsTheMarkLandedAmongAnswers)} some answers said unnotified and others notified`,
         );
         expect(roundsTheMarkLandedAmongAnswers).toBeGreaterThan(0);
@@ -588,7 +590,7 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
         }
 
         console.info(
-          `[qa-8i-live] proof 3, new row: ${String(MARK_RACE_ROUNDS)} rounds; ${String(marksMade)} marks made, ` +
+          `[qa-8i-live] mark race, new row: ${String(MARK_RACE_ROUNDS)} rounds; ${String(marksMade)} marks made, ` +
             `${String(marksRefused)} refused because the row was not stored yet`,
         );
         expect(marksMade).toBeGreaterThan(0);
@@ -597,7 +599,7 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
     );
   });
 
-  describe("R2 proof 4: the first reply lost", () => {
+  describe("the first reply lost", () => {
     const LOSSES: readonly (readonly [LostReply, LossPoint])[] = [
       ["empty-reply", "after-the-write-lands"],
       ["cold-start-refusal", "after-the-write-lands"],
@@ -609,7 +611,7 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
       submissionFor: (id: string) => ContactSubmissionToRecord,
     ): Promise<Held> {
       const id = newClientRequestId();
-      await new NeonContactSubmissionStore(testDatabaseUrl).record(
+      await new NeonContactSubmissionStore(liveTestDatabaseUrl).record(
         submissionFor(id),
       );
       return comparable((await rowsHeldFor(id))[0]);
@@ -632,7 +634,7 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
           rowsBetween = await rowsHeldFor(id);
         });
 
-        const answer = await new NeonContactSubmissionStore(testDatabaseUrl)
+        const answer = await new NeonContactSubmissionStore(liveTestDatabaseUrl)
           .record(submissionOfCaller(id, 3, DIGEST_A))
           .finally(loss.restore);
         const rows = await rowsHeldFor(id);
@@ -658,7 +660,7 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
       async (reply, point) => {
         const id = newClientRequestId();
         const cleanId = newClientRequestId();
-        const store = new NeonContactSubmissionStore(testDatabaseUrl);
+        const store = new NeonContactSubmissionStore(liveTestDatabaseUrl);
         await store.record(aDesignSubmission(id));
         await store.record(aDesignSubmission(cleanId));
         await store.markNotified(cleanId);
@@ -695,14 +697,14 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
           "empty-reply",
           "after-the-write-lands",
           async () => {
-            await new NeonContactSubmissionStore(testDatabaseUrl).markNotified(
-              id,
-            );
+            await new NeonContactSubmissionStore(
+              liveTestDatabaseUrl,
+            ).markNotified(id);
             rowsBetween = await rowsHeldFor(id);
           },
         );
 
-        const answer = await new NeonContactSubmissionStore(testDatabaseUrl)
+        const answer = await new NeonContactSubmissionStore(liveTestDatabaseUrl)
           .record(aDesignSubmission(id))
           .finally(loss.restore);
         const rows = await rowsHeldFor(id);
@@ -730,11 +732,11 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
             "cold-start-refusal",
             "before-the-write-lands",
             () =>
-              new NeonContactSubmissionStore(testDatabaseUrl).record(
+              new NeonContactSubmissionStore(liveTestDatabaseUrl).record(
                 submissionOfCaller(id, 5, twinDigest),
               ),
           );
-          return new NeonContactSubmissionStore(testDatabaseUrl)
+          return new NeonContactSubmissionStore(liveTestDatabaseUrl)
             .record(submissionOfCaller(id, 6, DIGEST_A))
             .finally(loss.restore);
         };
@@ -762,7 +764,7 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
     );
   });
 
-  describe("R3: a real refusal of the test database, fed through the store's translation", () => {
+  describe("a real refusal of the test database, fed through the store's translation", () => {
     const REVISION_PAST_BIGINT = "9223372036854775808";
     const NOT_A_DIGEST = "NOT-A-DIGEST-qa-8i-fake";
 
@@ -788,7 +790,7 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
     /** A plain insert as the owner, with a recognisable fake in every stored field. It names no conflict target, so
      *  the database refuses what the store's own statement would have answered. */
     function insertAsOwner(row: OwnerInsert): Promise<unknown> {
-      return neon(testDatabaseUrl)`
+      return neon(liveTestDatabaseUrl)`
         insert into contact_submissions (
           client_request_id, reference, design_id, design_revision, payload_digest,
           name, phone, phone_normal_form, locality, channel, email, consent_text_version, locale,
@@ -886,7 +888,7 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
     function storeWhoseDriverRaises(
       refusal: unknown,
     ): NeonContactSubmissionStore {
-      const store = new NeonContactSubmissionStore(testDatabaseUrl);
+      const store = new NeonContactSubmissionStore(liveTestDatabaseUrl);
       // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- the driver's own error, as captured.
       Object.assign(store, { sql: () => Promise.reject(refusal) });
       return store;
@@ -928,10 +930,9 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
         }
 
         for (const [, run] of OPERATIONS) {
-          const failure = await run(
-            storeWhoseDriverRaises(refusal),
-            newClientRequestId(),
-          ).catch((error: unknown) => error);
+          const failure = await rejectionOf(
+            run(storeWhoseDriverRaises(refusal), newClientRequestId()),
+          );
 
           expect(failure).toBeInstanceOf(ContactSubmissionStoreError);
           expect(markersFoundOn(failure, ALL_FAKES)).toEqual([]);
@@ -944,15 +945,13 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
       RACE_TIMEOUT_MS,
     );
 
-    // Round 2: the shared check now refuses in code everything of rules 1 to 4, so no check, not-null or range
-    // violation can be raised through the store's own statement, and a document 5000 lists deep, the deepest
-    // JavaScript encodes with room to spare, is stored. The one refusal the store's own statement still meets is the
-    // reference's uniqueness, below. The translation itself is held by the four real refusals above.
+    // The shared check refuses in code everything a check, not-null or range constraint would, so the one refusal the
+    // store's own statement still meets on the server is the reference's uniqueness.
     it("three real 23505s on the reference's constraint, raised by the store's own statement over the driver, leave as the store error holding no fake, and store nothing", async () => {
       const [holder, refused] = [newClientRequestId(), newClientRequestId()];
       const taken = generateSubmissionReference();
       let draws = 0;
-      const store = new NeonContactSubmissionStore(testDatabaseUrl, {
+      const store = new NeonContactSubmissionStore(liveTestDatabaseUrl, {
         proposeReference: () => {
           draws += 1;
           return taken;
@@ -961,9 +960,9 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
       await store.record(aCallbackSubmission(holder));
       const holdersRow = await rowsHeldFor(holder);
 
-      const failure = await store
-        .record(aDesignSubmission(refused))
-        .catch((error: unknown) => error);
+      const failure = await rejectionOf(
+        store.record(aDesignSubmission(refused)),
+      );
 
       expect(draws).toBe(4);
       expect(failure).toBeInstanceOf(ContactSubmissionStoreError);
@@ -976,7 +975,7 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
     });
   });
 
-  describe("criterion 12: the shared check against the table", () => {
+  describe("the shared check against the table", () => {
     const LARGEST_REVISION = "9223372036854775807";
     const NUL = "\u0000";
     const ONE_MEGABYTE = 1_048_576;
@@ -1059,7 +1058,7 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
         const submission = change(aDesignSubmission(id));
 
         const recording = await new NeonContactSubmissionStore(
-          testDatabaseUrl,
+          liveTestDatabaseUrl,
         ).record(submission);
 
         expect(isAcceptedByTheCheck(submission)).toBe(true);
@@ -1075,9 +1074,9 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
       const shortest = TEST_ID_MARKER;
       const longest = `${TEST_ID_MARKER}${randomBytes(24).toString("hex")}`;
       const sixCharacters = generateSubmissionReference().slice(3, 9);
-      const thirtyTwoCharacters = `QA-8I-${randomBytes(13).toString("hex").toUpperCase()}`;
+      const thirtyTwoCharacters = `TEST-R${randomBytes(13).toString("hex").toUpperCase()}`;
       const proposals = [sixCharacters, thirtyTwoCharacters];
-      const store = new NeonContactSubmissionStore(testDatabaseUrl, {
+      const store = new NeonContactSubmissionStore(liveTestDatabaseUrl, {
         proposeReference: () =>
           proposals.shift() ?? generateSubmissionReference(),
       });
@@ -1107,7 +1106,7 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
       ]);
     });
 
-    const ACCEPTED_BY_THE_CHECK: readonly (readonly [string, Change])[] = [
+    const REFUSED_BY_THE_SERVER: readonly (readonly [string, Change])[] = [
       [
         "a name holding a NUL character",
         withContact({ name: `Zorba${NUL}Fakeperson` }),
@@ -1154,50 +1153,27 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
       ],
     ];
 
-    it.each(ACCEPTED_BY_THE_CHECK)(
-      "refuses in code, or stores, and never sends what the table refuses: %s",
-      async (name, change) => {
+    it.each(REFUSED_BY_THE_SERVER)(
+      "refuses in code, with no statement stored, what the server would refuse: %s",
+      async (_name, change) => {
         const id = newClientRequestId();
         const submission = change(aDesignSubmission(id));
-        const isAccepted = isAcceptedByTheCheck(submission);
 
-        const outcome: SubmissionRecording | Error =
-          await new NeonContactSubmissionStore(testDatabaseUrl)
-            .record(submission)
-            .catch((error: unknown) =>
-              error instanceof Error ? error : new Error("a non-error throw"),
-            );
+        const refusal = await rejectionOf(
+          new NeonContactSubmissionStore(liveTestDatabaseUrl).record(
+            submission,
+          ),
+        );
 
-        const cause: unknown =
-          outcome instanceof Error ? outcome.cause : undefined;
-        console.info(
-          `[qa-8i-live] criterion 12, ${name}: the check ${isAccepted ? "accepts" : "refuses"}; ` +
-            `the store answers ${outcome instanceof Error ? `${outcome.name} ${JSON.stringify(cause)}` : outcome.kind}`,
-        );
-        expect({
-          isAcceptedByTheCheck: isAccepted,
-          leftTheStoreAs:
-            outcome instanceof Error ? outcome.name : outcome.kind,
-          cause,
-        }).toEqual(
-          isAccepted
-            ? {
-                isAcceptedByTheCheck: true,
-                leftTheStoreAs: "stored",
-                cause: undefined,
-              }
-            : {
-                isAcceptedByTheCheck: false,
-                leftTheStoreAs: "Error",
-                cause: undefined,
-              },
-        );
+        expect(isAcceptedByTheCheck(submission)).toBe(false);
+        expect(refusal).not.toBeInstanceOf(ContactSubmissionStoreError);
+        expect((refusal as Error).message).toMatch(CHECKS_REFUSAL);
+        expect(await rowsHeldFor(id)).toEqual([]);
       },
-      RACE_TIMEOUT_MS,
     );
   });
 
-  describe("round 2, rule 4 live: what the check accepts, the test database stores as it was handed", () => {
+  describe("what the check accepts, the test database stores as it was handed", () => {
     /** The bound of the live property: this many generated snapshots, one statement and one read each. */
     const LIVE_PROPERTY_RUNS = 25;
     const LIVE_PROPERTY_SEED = 8_109;
@@ -1207,13 +1183,13 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
       readonly is_priced_kept: boolean;
     }
 
-    /** Whether each stored snapshot is, as `jsonb`, what the handed text is as `jsonb`: what c15c08e stored, which
-     *  sent the handed text itself. */
+    /** Whether each stored snapshot is, as `jsonb`, what the handed text is as `jsonb`: nothing was rewritten on
+     *  the way. */
     async function keptAsHanded(
       id: string,
       handed: { readonly document: string; readonly priced: string },
     ): Promise<Kept | undefined> {
-      const rows = (await neon(testDatabaseUrl)`
+      const rows = (await neon(liveTestDatabaseUrl)`
         select
           (design_document = ${handed.document}::jsonb) as is_document_kept,
           (priced = ${handed.priced}::jsonb) as is_priced_kept
@@ -1228,7 +1204,9 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
       priced: unknown,
     ): Promise<unknown> {
       const id = newClientRequestId();
-      const recording = await new NeonContactSubmissionStore(testDatabaseUrl)
+      const recording = await new NeonContactSubmissionStore(
+        liveTestDatabaseUrl,
+      )
         .record({
           ...aDesignSubmission(id),
           snapshot: {
@@ -1297,7 +1275,7 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
       },
     );
 
-    // Round 3, rule 4a and 4c: a document that is not its own encoding, or is deeper than 64 levels, is refused in
+    // A document that is not its own encoding, or is deeper than 64 levels, is refused in
     // code and never rewritten, so nothing of it is stored.
     it.each([
       ["padding around it", ' \n\t{ "marker" : 1 }\r\n '],
@@ -1318,6 +1296,11 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
         "five thousand lists, one inside the other",
         `{"deep":${"[".repeat(5_000)}${"]".repeat(5_000)}}`,
       ],
+      ["a whole number past a double's reach", '{"n":9007199254740993}'],
+      [
+        "a decimal of more digits than a double keeps",
+        '{"n":0.1000000000000000055511151231257827}',
+      ],
       [
         "sixty-five levels, one past the bound",
         `{"deep":${"[".repeat(64)}${"]".repeat(64)}}`,
@@ -1330,9 +1313,7 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
           FAKE_SNAPSHOT.priced,
         )) as { recording: string; kept: Kept | undefined };
 
-        expect(outcome.recording).toMatch(
-          /^Refusing to use the contact submission store/,
-        );
+        expect(outcome.recording).toMatch(CHECKS_REFUSAL);
         expect(outcome.kept).toBeUndefined();
       },
     );
@@ -1345,35 +1326,13 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
         ).toEqual(STORED_AS_HANDED);
       },
     );
-
-    it.each([
-      ["a whole number past a double's reach", '{"n":9007199254740993}'],
-      [
-        "a decimal of more digits than a double keeps",
-        '{"n":0.1000000000000000055511151231257827}',
-      ],
-    ])(
-      "refuses in code a document holding %s, or stores it equal as jsonb to the text handed in",
-      async (_name, document) => {
-        const outcome = (await recordAndCompare(
-          document,
-          FAKE_SNAPSHOT.priced,
-        )) as { recording: string; kept: Kept | undefined };
-
-        expect(
-          outcome.recording.startsWith("Refusing to use")
-            ? STORED_AS_HANDED
-            : outcome,
-        ).toEqual(STORED_AS_HANDED);
-      },
-    );
   });
 
-  describe("criterion 3: the questions the grant test asks, put to a connection that holds everything", () => {
+  describe("the questions the grant test asks, put to a connection that holds everything", () => {
     const CONTACT_SUBMISSIONS = "public.contact_submissions";
 
-    it("answer every privilege and every column for the table's owner, so a wider grant is not read as R1's set", async () => {
-      const sql = neon(testDatabaseUrl);
+    it("answer every privilege and every column for the table's owner, so a wider grant is not read as the narrow one", async () => {
+      const sql = neon(liveTestDatabaseUrl);
       const everyColumn = [...ALL_COLUMNS].sort();
 
       const known = await tablePrivilegesTheServerKnows(sql);
@@ -1390,7 +1349,7 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
     });
 
     it("answer every privilege and every column as held with grant option for the table's owner, so the grant test's empty lists are not what any connection gets", async () => {
-      const sql = neon(testDatabaseUrl);
+      const sql = neon(liveTestDatabaseUrl);
       const everyColumn = [...ALL_COLUMNS].sort();
 
       const known = await tablePrivilegesTheServerKnows(sql);
@@ -1410,7 +1369,7 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
     });
   });
 
-  describe("criterion 13: the fake and the Neon store, where the contract suite does not look", () => {
+  describe("the fake and the Neon store, where the contract suite does not look", () => {
     const STORES: readonly (readonly [
       string,
       (proposeReference?: () => string) => ContactSubmissionStore,
@@ -1426,7 +1385,7 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
         "the Neon store",
         (proposeReference) =>
           new NeonContactSubmissionStore(
-            testDatabaseUrl,
+            liveTestDatabaseUrl,
             proposeReference === undefined ? {} : { proposeReference },
           ),
       ],
@@ -1543,9 +1502,9 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
     it.each(STORES)(
       "%s fails a mark of an id never stored with the same error: its operation, its message and no cause",
       async (_name, createStore) => {
-        const failure = await createStore()
-          .markNotified(newClientRequestId())
-          .catch((error: unknown) => error);
+        const failure = await rejectionOf(
+          createStore().markNotified(newClientRequestId()),
+        );
 
         expect(failure).toBeInstanceOf(ContactSubmissionStoreError);
         expect({
