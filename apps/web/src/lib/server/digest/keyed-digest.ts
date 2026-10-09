@@ -30,6 +30,15 @@ export class DigestPartError extends Error {
   }
 }
 
+/** Fields that are not exactly the purpose's: a field dropped or added in silence would change what a key means. Names
+ *  no field and holds no value. */
+export class DigestFieldsError extends Error {
+  constructor() {
+    super("The digest fields are not exactly the purpose's fields");
+    this.name = "DigestFieldsError";
+  }
+}
+
 /** A key that is not thirty-two bytes. Holds no byte of it. */
 export class DigestKeyError extends Error {
   constructor() {
@@ -46,7 +55,9 @@ const ILL_FORMED_TEXT = /\p{Cs}/u;
  * equal purposes and equal fields, because each part carries its own length in bytes.
  */
 export function keyedDigest(key: Uint8Array, input: DigestInput): string {
-  if (key.length !== DIGEST_KEY_BYTES) throw new DigestKeyError();
+  if (!(key instanceof Uint8Array) || key.length !== DIGEST_KEY_BYTES) {
+    throw new DigestKeyError();
+  }
   return createHmac("sha256", key)
     .update(encodeDigestInput(input), "utf8")
     .digest("hex");
@@ -64,6 +75,7 @@ export function encodeDigestInput(input: DigestInput): string {
     throw new DigestPartError("purpose");
   }
   const fieldNames: readonly string[] = PURPOSE_FIELDS[purpose];
+  requireExactlyTheFields(input.fields, fieldNames);
   const parts: Part[] = [
     { name: "purpose", text: purpose },
     ...fieldNames.map((name) => ({
@@ -72,6 +84,20 @@ export function encodeDigestInput(input: DigestInput): string {
     })),
   ];
   return parts.map(encodePart).join("");
+}
+
+/** Every own key, symbols and hidden ones too, so nothing travels beside the fields that are written. */
+function requireExactlyTheFields(
+  fields: unknown,
+  names: readonly string[],
+): void {
+  if (typeof fields !== "object" || fields === null) {
+    throw new DigestFieldsError();
+  }
+  const keys = Reflect.ownKeys(fields);
+  const isExact =
+    keys.length === names.length && names.every((name) => keys.includes(name));
+  if (!isExact) throw new DigestFieldsError();
 }
 
 function fieldText(

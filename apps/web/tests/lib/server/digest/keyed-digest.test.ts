@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   DIGEST_KEY_BYTES,
+  DigestFieldsError,
   DigestKeyError,
   DigestPartError,
   encodeDigestInput,
@@ -93,14 +94,53 @@ describe("the encoding", () => {
       encodeDigestInput(bucket("p", "k", "s")),
     );
   });
+});
 
-  it("writes only the purpose's fields, so a member beyond them changes nothing", () => {
-    const withExtra = {
+describe("fields that are not exactly the purpose's", () => {
+  const WHOLE = { policyName: "p", subjectKind: "k", subject: "s" };
+
+  function digestOfFields(fields: unknown): string {
+    return keyedDigest(FAKE_KEY, {
       purpose: "rate-limit-bucket",
-      fields: { policyName: "p", subjectKind: "k", subject: "s", extra: "x" },
-    } as unknown as DigestInput;
+      fields,
+    } as unknown as DigestInput);
+  }
 
-    expect(keyedDigest(FAKE_KEY, withExtra)).toBe(
+  function withHiddenMember(): object {
+    return Object.defineProperty({ ...WHOLE }, "hidden", {
+      value: "x",
+      enumerable: false,
+    });
+  }
+
+  function withSymbolMember(): object {
+    return { ...WHOLE, [Symbol("extra")]: "x" };
+  }
+
+  it.each([
+    ["a member beyond them", { ...WHOLE, extra: "x" }],
+    ["a hidden member beyond them", withHiddenMember()],
+    ["a symbol member beyond them", withSymbolMember()],
+    ["a field short", { policyName: "p", subjectKind: "k" }],
+    ["no fields", {}],
+    ["a field renamed", { policyName: "p", subjectKind: "k", subjectX: "s" }],
+    ["nothing", undefined],
+    ["null", null],
+    ["text", "policyName"],
+  ])("refuses %s, naming no field", (_label, fields) => {
+    expect(() => digestOfFields(fields)).toThrow(new DigestFieldsError());
+  });
+
+  it("refuses fields a prototype completes, since only own members are the fields", () => {
+    const inherited = Object.create({ subject: "s" }) as Record<string, string>;
+    inherited.policyName = "p";
+    inherited.subjectKind = "k";
+
+    expect(() => digestOfFields(inherited)).toThrow(new DigestFieldsError());
+  });
+
+  it("still answers the known digest for exactly the fields, in any order", () => {
+    expect(digestOfFields(WHOLE)).toBe(
       keyedDigest(FAKE_KEY, bucket("p", "k", "s")),
     );
   });
@@ -157,28 +197,12 @@ describe("what the encoding refuses", () => {
   });
 
   it.each([
-    ["missing", undefined],
+    ["undefined", undefined],
     ["a number", 5],
     ["a list", ["a"]],
     ["null", null],
-  ])("refuses a field that is %s, naming it", (_label, value) => {
+  ])("refuses a field that holds %s, naming it", (_label, value) => {
     const fields = { policyName: "p", subjectKind: "k", subject: value };
-
-    expect(() =>
-      keyedDigest(FAKE_KEY, {
-        purpose: "rate-limit-bucket",
-        fields,
-      } as unknown as DigestInput),
-    ).toThrow(new DigestPartError("subject"));
-  });
-
-  it("refuses a field the object only inherits", () => {
-    const fields = Object.create({ subject: "inherited" }) as Record<
-      string,
-      string
-    >;
-    fields.policyName = "p";
-    fields.subjectKind = "k";
 
     expect(() =>
       keyedDigest(FAKE_KEY, {
@@ -212,6 +236,27 @@ describe("the key", () => {
     expect(() =>
       keyedDigest(new Uint8Array(length), bucket("p", "k", "s")),
     ).toThrow(DigestKeyError);
+  });
+
+  it.each([
+    ["text of thirty-two characters", "a".repeat(32)],
+    ["text of thirty-two multi-byte characters", "\u00e9".repeat(32)],
+    ["a list of thirty-two numbers", Array.from({ length: 32 }, () => 0)],
+    ["an array buffer of thirty-two bytes", new ArrayBuffer(32)],
+    ["sixteen-bit units, thirty-two of them", new Uint16Array(32)],
+    ["a length alone", { length: 32 }],
+    ["nothing", undefined],
+    ["null", null],
+  ])("refuses %s, which is not thirty-two bytes", (_label, key) => {
+    expect(() =>
+      keyedDigest(key as unknown as Uint8Array, bucket("p", "k", "s")),
+    ).toThrow(DigestKeyError);
+  });
+
+  it("accepts a Buffer of thirty-two bytes, which is the reader's key, as the same bytes", () => {
+    expect(keyedDigest(Buffer.from(FAKE_KEY), bucket("p", "k", "s"))).toBe(
+      keyedDigest(FAKE_KEY, bucket("p", "k", "s")),
+    );
   });
 
   it("answers sixty-four lowercase hexadecimal characters, and another for another key", () => {
