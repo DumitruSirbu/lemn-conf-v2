@@ -119,7 +119,7 @@ status corrections, in one of these two files:
 | 86 | Optional hardening: `GRANT UPDATE (revoked_at)` on `design_share_links` instead of table-wide `UPDATE` | open.md — found 2026-09-23 by M7 wave 7E3c's security review (SEC-7E3c.3); no owner, no phase |
 | 87 | Visual J6 — a never-saved design's absent share section is unreachable via the UI, covered only by a DOM test | open.md — found 2026-09-23 by M7 wave 7E3c's visual pass; no owner, no phase |
 | 88 | SEC-7E3b.1 — an attacker's rows planted under a fixated value move into the victim's identity on rotation | open.md — found 2026-09-23 by M7 wave 7E3b's security review (R4); owner to decide: record or prefer browser-minted rows on resume |
-| 89 | R2.2 / SEC-7E3b.2 — the create-design lock covers only the mint `POST`; a save-vs-rotation race can revert the jar to a value owning nothing | open.md — found 2026-09-23 by M7 wave 7E3b's logic and security reviews independently; recorded to tell the owner, not fixed |
+| 89 | R2.2 / SEC-7E3b.2 — the create-design lock covers only the mint `POST`; a save-vs-rotation race can revert the jar to a value owning nothing | open.md — found 2026-09-23 by M7 wave 7E3b's logic and security reviews independently; recorded to tell the owner, not fixed. **Measured 2026-10-09** (relayed, QA-run): 12 of 100 rounds under eight workers, 1 of 10 in a whole `CI=1` run, so "plausibly rare" no longer holds; two proposed fixes, the owner's decision; not established on a CI runner |
 | 90 | SEC-7E3b.3 — the rotation `UPDATE` has no rate limit | open.md — found 2026-09-23 by M7 wave 7E3b's security review; deferred to M8's limiter (ADR 0114 decision 7) |
 | 91 | There is no full-height oven column without a microwave | open.md — owner, 2026-09-29 (M7B Q-U3, relayed); recorded at ADR 0110 Amendment N; not in M7B, no owner, no phase |
 | 92 | The largest storable design row grows to 523,972 bytes | open.md — found 2026-09-29 by M7B wave U1's security review (S1.1, Low); ADR 0019 SEC-001/DB-002's accepted risk should be re-measured; deferred to M8's launch gate |
@@ -155,7 +155,7 @@ status corrections, in one of these two files:
 | 122 | F5 — a session close that never returns hangs `applyMigrations` | open.md — found 2026-10-07 by M8 8B's QA; unmeasured; the coordinator, before 8S, after the owner approves a measurement |
 | 123 | F6 — do Neon's connection strings carry `sslrootcert` or a sibling? | open.md — recorded 2026-10-07; a documentation read, the coordinator's |
 | 124 | QA18 (census blind to a second `Client` through the opener), "Finding …" journal comments in three test files, and two 8C review nits in `review-model.ts` | open.md — recorded 2026-10-07; low priority, no owner. Gained 2026-10-08 (8D): two long comments in `use-honour-arrival.ts`, an unattributed line beside the locale chip at 1440 px, the Russian top-bar title truncated, the chip's height |
-| 125 | Three e2e specs fail under `CI=1`, uninvestigated | open.md — found 2026-10-07 by M8 8A S1; triage before wave 8F. A fourth, `top-bar-back…desktop:179`, failed once on 2026-10-08 (8D's QA10) |
+| 125 | Three e2e specs fail under `CI=1`, uninvestigated | open.md — found 2026-10-07 by M8 8A S1. **TRIAGED and closed 2026-10-09** (`m8-e2e-triage` at `af55c16`, relayed): one product defect (the two-tab race, entry 89), one test fault (the top-bar Control/Meta click, entry 161), the lock spec's failure not reproduced; nothing else failed in a whole `CI=1` run of 677 |
 | 126 | The price bar and the breakdown print "De la 0 MDL" for a kitchen holding only customer-supplied bodies | open.md — found 2026-10-07 by M8 8C's QA (QA1); what such a kitchen should show is the owner's; no phase |
 | 127 | No test pins the Russian wording of any leaf, project-wide | open.md — found 2026-10-07 by M8 8C's QA (a surviving mutation); no owner, no phase |
 | 128 | The editor shows a save conflict only inside the panel; an editor with nothing selected says nothing | open.md — found 2026-10-08 by M8 8D's QA (QA11); M4's open question; a product question first, no phase |
@@ -191,6 +191,7 @@ status corrections, in one of these two files:
 | 158 | The mail tests' fixtures are duplicated between the developer's and QA's files (fake key and addresses, fetch stubs, notice fixtures, the dressed-kitchen fixture) | open.md — recorded 2026-10-09 at M8 8J's close (JC-R1.12, JC-R1.18); trigger: 8K's first test that needs them |
 | 159 | For the milestone-close test audit: 8J's restated pairs, the nits and JC-R1.20/1.21, with the file sizes at review | open.md — recorded 2026-10-09 at M8 8J's close; trigger: the M8 close audit (ADR 0152 Amendment A) |
 | 160 | The mail adapter's answer mapping moves to its own module | open.md — recorded 2026-10-09 at M8 8J's close (JC-R1.8); trigger: a second adapter or the file's next change of behaviour |
+| 161 | The Control/Meta-click spec's URL wait is a test fault; the two-tab helpers hide the status of a lockout | open.md — recorded 2026-10-09 by the triage of 125; trigger: the next dispatch touching those files, or a sighting |
 
 ## 2026-09-06 audit note
 

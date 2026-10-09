@@ -1949,9 +1949,26 @@ reviewer's R2.2 (inference) and security's SEC-7E3b.2. ADR 0114 Amendment H6's W
 (`lemnaria:create-design`) serialises only the mint request, so tab A's first save can run
 concurrently with tab B's rotating mint. If A's save's `UPDATE` commits before B's rotation, but A's
 response reaches the browser after B's `Set-Cookie`, the jar ends holding B's new value — which owns
-none of A's rows. Plausibly rare (the shipped e2e criterion S6-1 is green regardless); widening the
+none of A's rows. ~~Plausibly rare (the shipped e2e criterion S6-1 is green regardless);~~ **(Contradicted by a
+measurement, 2026-10-09: see below.)** Widening the
 lock to cover saves would contradict the plan's decision D2 (nothing but the mint rotates).
 **Recorded to tell the owner**, per the close-out; not fixed here. No owner yet; no phase.
+
+**Measured 2026-10-09 [QA-run by the agent `m8-e2e-triage` at `af55c16`, relayed; traces in the session scratchpad].** The sentence
+struck above is contradicted: the mobile two-tab spec (`qa-7e3b-s6-two-tab-convergence.adversarial.e2e.spec.ts`) failed **12 of 100
+rounds under eight workers** and **1 of 10 in a whole `CI=1` run**; alone 0 of 100, one worker 0 of 40 (250 rounds, 13 failed in all;
+backlog 125's triage has the method). *The network order, the same in 13 of 13 failing traces:* a prior POST sets visitor value V0;
+tab A's POST (sent V0) sets V1; tab B's POST (sent V1, so the lock worked) sets V2 and moves the rows; tab A's hand-off PUT (sent V1)
+answers 200 with `Set-Cookie` V1; tab B's PUT is sent with V1; a GET of the prior design with V1 answers 404. [src, the agent's
+reading] `fetch-configuration-repository.ts:193-199`: the lock wraps the POST only; `app/api/designs/[id]/route.ts:151` refreshes the
+visitor cookie when the save owns the visitor, true because A's update committed before B's rotation. *Customer effect [the agent's
+statement]:* after tapping Continuă in two tabs within one request's latency, the browser holds a visitor value that owns nothing;
+every design of that browser, earlier ones included, answers "not available in this browser"; V2 is stored nowhere, so it is not
+recoverable. An ordinary autosave in one tab overlapping a mint in another is the same window [inferred, not run]. *Two fixes the agent
+proposes, both the owner's decision because this entry says widening the lock contradicts plan decision D2:* (1) take the
+`lemnaria:create-design` lock in shared mode around every save and keep the mint exclusive, so no save is in flight across a rotation;
+or (2) hold the lock across the hand-off PUT, which closes only the create path. *Not established:* that it fires on a CI runner (it
+needed parallel load here: 0 of 140 rounds at one worker, and CI runs one worker on a two-core runner). **Owner:** the owner decides.
 
 ## 90. SEC-7E3b.3 — the rotation `UPDATE` has no rate limit — FOUND 2026-09-23, DEFERRED TO M8
 
@@ -2314,7 +2331,7 @@ comments in `use-honour-arrival.ts` still run past ADR 0136's length; trimmed by
 editor's Russian top-bar title is truncated to *"Конфигур…"* (pre-existing). (4) The locale chip's height, a
 shared component (the verifier's V7). Same trigger as above, except that (4) and (2) need a look first.
 
-## 125. Three e2e specs fail under `CI=1` and nobody has investigated them — FOUND 2026-10-07 BY M8 8A S1, TRIAGE BEFORE 8F
+## 125. Three e2e specs fail under `CI=1` and nobody has investigated them — FOUND 2026-10-07 BY M8 8A S1, TRIAGE BEFORE 8F — TRIAGED 2026-10-09, CLOSED; RESIDUE IS 161, THE DEFECT IS 89
 
 **Source [doc, M8 plan, *8A figures* S1 row B ii].** A full e2e run with `CI=1` (a build and `next start`)
 gave 619 passed, 3 failed, 2 skipped: `qa-7e3b-s6-lock.adversarial.e2e.spec.ts:112` (rounds 1 and 5) and
@@ -2328,6 +2345,37 @@ wave 8F is not dispatched until each has been re-run alone and recorded as a fla
 **A fourth, 2026-10-08 (QA10, M8 wave 8D's QA) [QA-run, relayed].** `top-bar-back…desktop:179` (the Control/Meta
 click) failed once under `CI=1` on a 5 s URL wait and passed 4 of 4 on repeat. A pre-existing desktop spec, not
 8D's; classified test-fidelity. It joins the three above for the 8F S0 triage.
+
+**TRIAGED 2026-10-09 [QA-run by the agent `m8-e2e-triage` at `af55c16`, relayed; raw logs and traces are in the session scratchpad, not
+in the repo].** *Method:* CI's own step (`CI=1 … playwright test <file> --project=<mobile|desktop>`, a build and `next start`), each spec
+alone, 42 invocations, about 45 minutes; config retries is 0. The trigger above (*"not dispatched until each has been re-run alone and
+recorded as a flake, a test fault or a defect"*) is **met as a recording**. Whether the measured defect holds 8F is **put to the owner**;
+the coordinator proceeds with 8F's planning meanwhile, on the owner's standing instruction of 2026-10-09 (his words: *"if any blockers
+just skip that part and do next one till I will come and will decide"* [relayed]).
+
+- **"round N/10: two tabs … converge on the lock"** (`qa-7e3b-s6-two-tab-convergence.adversarial.e2e.spec.ts`, mobile): 250 rounds, 13
+  failed. Alone 0 of 100; one worker 0 of 40; eight workers x10 12 of 100; in the whole suite 1 of 10. **Class: a product DEFECT**, the
+  race backlog 89 already records (the save-versus-rotation residual of ADR 0114 H1/H6), now measured. The measurement, the customer
+  effect and the proposed fixes are written in 89.
+- **"release timing, round N"** (`qa-7e3b-s6-lock.adversarial.e2e.spec.ts`, mobile): 144 rounds, 0 failed here. Classed the same race
+  [inferred from the 2026-10-07 log's signature: it failed at `:134` after `:132` passed]; **not reproduced**. The lock spec's other
+  four tests: 24 runs each, 0 failed, and no failure was ever recorded.
+- **"a Control/Meta click opens Step 1 in a new tab"** (`top-bar-back.qa-m7c-c1-s3.adversarial.desktop.e2e.spec.ts`): 24 runs, 7
+  failed (alone 6 of 10; eight workers 1 of 10; one worker x3 0 of 3). **Class: a TEST FAULT.** The product is right: the new tab did
+  one GET, 200, and its screenshot shows Step 1 filled in. The assertion `expect(opened).toHaveURL(...)` at `:194` times out with
+  `Received: ""` [cause inferred from `playwright-core` 1.62.1's source: its pre-check waits while the frame has a pending document].
+  Proposed smallest fix, **not applied and not tested:** poll `opened.url()` for the expected URL. Now entry 161.
+- **The deleted desktop two-tab file** (`qa-7e3b-s6-two-tab-convergence.adversarial.desktop.e2e.spec.ts`, 31 lines, 3 rounds of
+  `runOneTwoTabRound`) was deleted in `ee834b6` (tests review E1) as a duplicate with no viewport branch [the agent ran git]; the
+  mobile file's 10 rounds and the lock spec's 6 release-timing rounds cover it.
+- **The whole e2e suite under `CI=1`, eight workers, once**, split by project and shard: 677 tests, 676 passed, 1 failed, 0 skipped
+  (desktop 193 of 193; mobile shard 1 of 2: 242 of 243; mobile 2 of 2: 241 of 241). The one failure is two-tab round 10/10, the same
+  trace pattern. **Nothing failed outside the four named.**
+- *Not established:* the lock spec's own failure (its class rests on the old log's signature); behaviour on a real CI runner; why the
+  top-bar test fails 6 of 10 alone and 0 of 3 repeated at one worker; in 4 of 13 traces the recorded PUT end precedes the POST end
+  although the jar still ends stale. The tree was clean and port 4320 free afterwards; no file changed.
+
+**Closed by this triage;** the residue is 161 (the test fault's fix and the fidelity note), and the defect stays in 89.
 
 ## 126. The price bar and the breakdown print "De la 0 MDL" for a kitchen holding only customer-supplied bodies — FOUND 2026-10-07 BY M8 8C's QA, A PRODUCT QUESTION
 
@@ -2656,6 +2704,15 @@ fake) and `qa-8j-environment` assert the same own keys `["send"]`: a newly added
 [coordinator ran `wc -l` at `08ead7b`]: `qa-8j-provider-answers.adversarial.test.ts` 833 lines, `qa-8j-environment` 604,
 `qa-8j-request-and-predicate` 593, `qa-8j-notice-customer-text` 552, `qa-8j-notice-kitchen` 315; the developer's
 `lead-notification.test.ts` 687, `resend-mail-sender.test.ts` 615. **Owner:** the test audit. **Trigger:** the M8 close audit (ADR 0152, Amendment A).
+
+## 161. The Control/Meta-click spec's URL wait is a test fault, and the two-tab helpers hide the status of a lockout — RECORDED 2026-10-09 BY THE TRIAGE OF 125
+
+**Source [QA-run by `m8-e2e-triage` at `af55c16`, relayed; see 125].** (1) `top-bar-back.qa-m7c-c1-s3.adversarial.desktop.e2e.spec.ts:194`:
+`expect(opened).toHaveURL(...)` times out with `Received: ""` although the product is right (7 failures in 24 runs). Smallest fix
+proposed, **not applied and not tested:** poll `opened.url()` for the expected URL. (2) A test-fidelity note: `canWriteDesign`
+(`tests/e2e/support/two-tab-convergence.ts`) and `canWrite` (the lock spec, about `:103-109`) return false for any non-200, so a 404
+lockout reads the same as a 5xx; the status belongs in the failure reason. **Owner:** the next developer dispatch that touches these
+files. **Trigger:** that dispatch, or the next sighting of either.
 
 ## 160. The mail adapter's answer mapping moves to its own module — RECORDED 2026-10-09 AT M8 8J's CLOSE
 
