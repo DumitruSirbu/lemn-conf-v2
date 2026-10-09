@@ -5484,7 +5484,9 @@ sent and with no value in the refusal:**
    past `bigint` (as before);
 2. **a value that is not a string**, wherever text is sent, before its shape is tested (F3);
 3. **text Postgres cannot hold:** a U+0000, or half of a surrogate pair, in any text sent;
-4. **a snapshot, judged as the JSON the statement will carry.** The document's text is parsed, and
+4. **(Restated 2026-10-09, later, as 4a to 4c: *8I — adjudication of QA round 2*. The document is no longer re-encoded, and
+   depth is no longer the server's.)** ~~a snapshot, judged as the JSON the statement will carry.~~
+   The document's text is parsed, and
    the priced design is encoded and parsed; each must be an object; every key and every text
    inside, at any depth, passes rule 3; every number is finite. **The Neon store then sends the
    JSON made from the value that was judged, never the text or the object it was handed.** `jsonb`
@@ -5495,7 +5497,7 @@ sent and with no value in the refusal:**
   what was judged:* a number the parser reads as finite may still be one the server refuses; text
   that JavaScript encoded holds only numbers a double holds [inf: a double fits `numeric`].
 - **Left to the server, and the store error with its two fields is the recorded answer:** size,
-  depth, a time limit, and anything a later server refuses. Nothing is stored and no value leaves
+  ~~depth,~~ a time limit, and anything a later server refuses. Nothing is stored and no value leaves
   (criterion 7, proven on four real refusals [relayed, QA-run]). **The fake refuses what the
   shared check refuses and nothing more; its doc says it cannot stand for a server's refusal.**
 - *Reach:* low. The domain refuses control and surrogate characters in contact text [src
@@ -5568,6 +5570,91 @@ repeated one both answer alike.
 - Mutants of the new code: a `typeof` guard removed; the walk skipping keys, or lists; the finite
   check removed; the handed text sent.
 - The counter store's and the repository's digest tests are as green as at `c161b5d`.
+
+##### 8I — adjudication of QA round 2, 2026-10-09
+
+**State.** HEAD is `f021603` [ran: `git log`]; fix round A is `aad9a42`. F1 to F5 are closed, the
+race proofs green, the three statements unchanged from `c15c08e`; 8 tests red on F6 to F8
+[relayed, QA-run]. The architect read the check at HEAD and QA's tests for the three.
+
+**One cause under F6 and F7, and it is the architect's.** Round 1's rule 4 had the store encode
+the document again, to send *what was judged*. That put an encoder where none had been (F6) and
+let it change a number (F7). **Rule 4, restated. Rules 1 to 3 stand.**
+
+- **4a. The document is refused unless it is, character for character, what `JSON.stringify`
+  makes of its own parsed value.** The text handed in, the text judged and the text sent are then
+  one text. A number a double cannot hold, a key written twice, a needless escape, a space: each
+  is **refused, never rewritten.** It is one comparison, and exact.
+- **4b. The priced design is judged as a value, before anything encodes it.** Allowed: plain
+  objects and lists, text, finite numbers, booleans, null. An object's member that is `undefined`
+  is left out, as the type's optional fields are [src `price-lines.ts`, `nameKey`]. Refused: a
+  number that is not finite, a `bigint`, a function, a symbol, an object that is not plain (a
+  `Date`), and an `undefined` or missing place in a list, which an encoder would write as `null`.
+- **4c. Both: no deeper than 64 levels, refused under its own part name, and judged in the walk
+  before any encoder runs.** Every key and text passes rule 3. A cycle ends at the bound.
+- **The invariant F6 broke:** for any document and any priced value, the check returns or throws
+  its own refusal, and nothing else. *Not promised:* a request whose own shape is not the type's
+  (no contact object): that is the caller's `TypeError`, and it holds no value.
+
+*Why each.*
+
+- **F6, an implementation defect opened by the fix; depth becomes code's.** *Why 64:* a design's
+  and a price's depths are fixed by their types and are a handful [inf; **QA states the deepest of
+  its 32 real snapshots**]; the encoder overflowed near 7,000 here and the server stored 5,000
+  [relayed, QA-run]; and a bound that is far from all three does not move with a runtime's stack.
+  *Not taken alone:* catching the `RangeError`. Where a stack ends is the runtime's, not a rule.
+- **F7, a contract gap: a silent change where a refusal was owed.** *Not taken:* telling from the
+  text which numbers survive a double. It needs a reader of JSON numbers and decimal arithmetic of
+  its own. *Not taken:* sending the handed text after judging the parsed value. Two texts again,
+  and a key written twice is judged once and sent twice. *Not taken:* a recorded limit. The
+  snapshot is kept for good, and a quoted figure that changed unseen is the one thing it must not
+  do.
+- *Reach of 4a on a real request: none.* 8H's document **is** `JSON.stringify`'s output [src
+  `serialize-design.ts:17-19`], and encoding a parsed value again gives the same text [inf; QA's
+  property over arbitrary values, and its 32 real snapshots, are what prove it].
+- **F8, a contract gap, there since S1b.** Encoding first hid the number from the walk. 4b walks
+  the value. A price's amounts are whole numbers by their type [src `price-lines.ts`].
+- **What `jsonb` holds for a normal design is unchanged from `c15c08e`:** the document's text is
+  the handed text again, and the price is encoded once, as it was.
+- **Criterion 12 stays a closed list: rules 1 to 3, and 4a to 4c. Left to the server, answered by
+  the store error:** size, a time limit, and what a later server refuses. Depth no longer is.
+
+**Fix round B. One developer, four items, in this order.**
+
+| # | Does | Files |
+| --- | --- | --- |
+| 1 | 4c: the depth bound, with its own part and sentence, in the walk and before any encoder | `src/contact-submission-store.ts` |
+| 2 | 4a: the document equals its own encoding or is refused; the handed text is what is sent | `src/contact-submission-store.ts`; the comment at `src/neon-contact-submission-store.ts:82` |
+| 3 | 4b: the priced design walked as a value, then encoded once | `src/contact-submission-store.ts` |
+| 4 | Its own tests for 1 to 3, one at each edge: 64 and 65 levels; a document that differs from its encoding by a number, a key, a space, and one that does not; a price with each refused kind, and one with an `undefined` member. The port's and the fake's sentences | `tests/contact-submission-store-check.test.ts`; `src/contact-submission-store.ts`, `src/fake-contact-submission-store.ts` (words) |
+
+*Reading:* this section; rule 4 as struck above; QA's `qa-8i-shared-check.adversarial.test.ts`,
+*round 2*. *Must not:* `0008` or a statement's text changes; a `qa-*` file is edited.
+
+**The developer's own tests: a recorded choice.** For rules 2 to 4 as round A built them, **QA's
+committed files are accepted as the protection**: 17 mutants die there and nowhere else [relayed,
+QA-run], and copying them would add nothing. For round B's new lines the developer writes its own
+(item 4), since a rule's author states its edges. *For the test audit:* the `qa-8i-*` files are
+the only guard of rules 2 and 3 and are not duplicates.
+
+**QA's tests.** *Green as written after the round:* all 8 (F6's two, F7's three, F8's three).
+*QA re-words its own, which 4a and 4c turn red:* in the live table *stored equal to the text
+handed in*, the key written twice, the scale and exponent, the widest double, the escapes and the
+five thousand lists become refusals; so does the twice-written key in the `__proto__` test.
+
+**QA, round 3, and where this stops.**
+
+- Its three files, once. The race proofs once each, if the three statements are still byte for
+  byte `c15c08e`'s. The deepest real snapshot, as a number. That every one of its 32 real
+  snapshots passes 4a to 4c and is stored equal.
+- Mutants of round B's lines only: the bound moved by one; the comparison removed; the price's
+  walk blind to one refused kind.
+- **The stopping rule, the architect's and open to the owner.** After round B a finding in the
+  snapshot's path is fixed inside 8I only if (a) something other than the check's refusal or the
+  store error leaves a store, (b) a snapshot is stored that differs from what was handed in, or
+  (c) a field's value leaves in an error. A value the check refuses that a server would hold, or
+  accepts that a server refuses, is **recorded as a limit with its trigger**, and the wave goes to
+  its three reviews.
 
 ### 8J — mail, and the shop's notification
 
