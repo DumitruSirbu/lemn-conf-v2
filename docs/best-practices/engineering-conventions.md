@@ -280,6 +280,12 @@ ADR 0136, Consequences.
     as a control, one input the detector must flag and one it must pass.
   - **A test that can only fail by timing out is not a guard.** Assert the observable before awaiting the promise
     that would hang.
+- **A fixture gives every field its own value** (added 2026-10-09, from M8 wave 8I; the 8I developer's handoff, relayed). A
+  fixture that used one value for a phone and for its normal form let a swapped-column mutant survive every developer suite
+  (`FAKE_PHONE_NORMAL_FORM` now differs from the phone). Where two stores must behave alike, the shared contract suite is the
+  only place that pins them to one behaviour: extend it, not each store. A mocked driver that records the SQL text and values
+  (`mocked-neon-driver.ts`) is read by the statements test, which pins each statement's exact lists and counts the templates
+  in the source, so a new statement fails it until the test reads it.
 - **Deleting a test needs evidence.** A duplicate goes only when the test named to keep goes red by assertion under a
   mutation of the shared code; without a mutation, only when its assertion is logically implied by its twin's over the
   identical input and call, shown by reading and recorded as such, and never by mutating a migration or the DML. Read a

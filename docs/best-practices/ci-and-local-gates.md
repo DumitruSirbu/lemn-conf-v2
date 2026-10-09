@@ -414,6 +414,23 @@ non-live, empty the three connection variables on the command line: `TEST_DATABA
 DATABASE_URL= MIGRATION_DATABASE_URL= pnpm --filter @lemnaria/persistence exec vitest run …`
 (measured 2026-09-23, M7 wave 7E3c: a live file then skips instead of connecting).
 
+**An instance from M8 wave 8I, 2026-10-09** [the 8I developer's handoff, relayed; the coordinator's addition is
+coordinator-run]. The ledger incident itself is in [ADR 0153](../decisions/0153-a-contact-request-is-stored-once-apart-from-designs-the-application-role-reads-none-of-its-personal-columns-and-code-refuses-before-the-server-what-the-table-would-refuse.md)'s
+*Incident* paragraph; what to do differently:
+
+- **A hand-kept list of migration versions in a test is a trap.** Every live test that forgets ledger rows derives its list
+  from disk (`readMigrationFiles`). Before any migration after `0008`, check that, `migrate.test.ts`'s file list and
+  `migration-files.test.ts`.
+- **A killed or backgrounded whole-suite run can leave the ledger wedged** (`MigrationSequenceError`). The suite takes
+  several minutes: run it in the foreground with the 600000 ms timeout. **Verify a run has ended by its output file's final
+  lines, not by the process list**: two overlapped coordinator runs each showed 2 unrelated live failures and the same files
+  passed alone, 139 of 139, the first run having been taken for dead because `ps` showed no vitest process.
+- **A new live file needs an entry in `live-suite-census.test.ts`** (gate, lock, reason) or three of its tests go red; a test
+  that only helps a live file needs no row.
+- **A Neon WebSocket close can fail a live file at load** (`TypeError: ` from undici's `WebSocket.#onSocketClose`); it passed
+  re-run alone. Re-run it once before diagnosing.
+- Live tests write only rows whose client request id carries a marker (`contact-live-test-`) and delete only those (ADR 0151).
+
 ## e2e in CI: shards, the two summary checks, and the per-shard test budget
 
 *Added 2026-09-30, [ADR 0105](../decisions/0105-the-e2e-job-splits-by-playwright-project-rather-than-raising-its-ceiling-again.md)

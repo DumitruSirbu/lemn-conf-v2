@@ -276,7 +276,10 @@ misses something costs a second round and is the more expensive mistake.
 ### Review continuity
 
 - **Number findings by round and item** (`R1.1`, `R1.2`, `R2.1`). A fix dispatch must name the
-  findings it addresses.
+  findings it addresses. **Name them by text as well as number** (added 2026-10-09, M8 wave 8I; the developer's handoff,
+  relayed): each finding's file, line and the change asked for. In 8I's round B the plan named eight clean-code findings by
+  number only, the developer correctly refused to guess, and it cost a round trip. That is the coordinator's failure to
+  guard against; ask for a finding's text with the first dispatch, not the last.
 - Keep the same QA and reviewer agents for follow-up rounds wherever they are still available. Give
   them the current diff and the earlier finding identifiers so they verify the fix instead of
   rediscovering context.

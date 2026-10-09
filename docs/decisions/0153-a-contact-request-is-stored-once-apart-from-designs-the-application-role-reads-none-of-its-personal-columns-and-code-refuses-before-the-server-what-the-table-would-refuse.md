@@ -259,6 +259,12 @@ shop's notice) is 8J's.
   server makes the digest: **conflict answers are counted.** The store is constructed with no argument and under no flag; a gate
   fails if anything under `apps/web/src` imports the fake; the production wiring passes no proposer. The body's bound is counted
   on bytes read, eight kilobytes being the security reader's figure, for that wave's S0 to rule.
+  *Added 2026-10-09 [the 8I developer's handoff, relayed]:* `record`'s snapshot is a separate field and the type does not tie it
+  to `target.kind` (the check refuses a design without one and a callback with one), so build both from `snapshotSubmission`'s
+  result untouched. The document is sent as handed and the check refuses it unless it is exactly what `JSON.stringify` makes of
+  its own parsed value: pass the document string as `snapshotSubmission` produced it, and never re-serialise, pretty-print or
+  tidy it. *Already stated above, so not repeated:* `isNew` against *notified*, a rejected `record`, no proposer in production,
+  plain data only.
 - **8J:** Q34, the language of the shop's notice.
 - **Any later migration of this table:** no constraint reads a column the role may `UPDATE`; a test fails until someone has read
   decision 1.
