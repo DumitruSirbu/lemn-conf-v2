@@ -4523,6 +4523,133 @@ code:** *Is there any text, of any length, in any header or variable, for which 
 blocks get one key, or one block gets two? Is there an environment in which a header the client
 wrote decides the bucket? Does anything that holds the key leave the reader?*
 
+##### 8F — S1's security read, ruled; S2 to S4 for dispatch, 2026-10-09
+
+**State.** HEAD is `ad0996d` (S1) [ran: `git log`], tree clean; the web suite is 6765 passed and
+the pinned answer was reproduced with `openssl` [relayed, coordinator-run]. The security reader:
+**S2 may be built on S1 as it is; no must-fix.** Two blocks never share a key and one never has
+two; a header the client wrote decides a bucket only under the recorded residual; nothing that
+holds the key leaves the reader [relayed, reviewer-run]. The architect read the four modules.
+
+**The rulings, the architect's.**
+
+- **F-S1.1 and F-S1.2: taken now, as S2's first item and a commit of their own.** The digest
+  accepts a key only when it is a `Uint8Array` of thirty-two bytes, so text of that length is
+  refused [src `keyed-digest.ts:49`]. The encoder refuses a `fields` object whose own keys are not
+  exactly the purpose's [src `:66-73`]. No key changes. Done before 8K adds its purpose, whose own
+  rule forbids a field dropped in silence.
+- **F-S1.3: recorded for M9, with the many-blocks interim.** `::ffff:0:a.b.c.d`, `::a.b.c.d` and
+  `::` share one bucket of zeros; every `64:ff9b::` address shares one; a 6to4 address has a
+  bucket for each of its 65,536 subnets.
+- **F-S1.4: as built.** `client-network.ts` has no server-only import on purpose: the harness
+  imports the shared block. Neither module holds or reads a secret.
+- **The security reader does not read S3 alone.** S4 rests only on two statuses, fixed below.
+  S3's own gate is the whole e2e suite. All four readers see S2 to S4 in the wave's one pass.
+
+**What S2 to S4 share.**
+
+- **The policy.** Names are a closed set in code: the mint's, and the e2e policy's own. The
+  mint's row: 20, counted in the Chișinău day. **A hit is refused when its count is above the
+  figure**; the store's count includes that hit [src `rate-limit-store.ts`]. A bucket's parts are
+  the block's kind and subject as `client-network.ts` made them, with nothing formatted again.
+- **The Chișinău day, with no dependency.** The runtime's own `Intl`, asked for `Europe/Chisinau`,
+  gives the local date of an instant and the zone's offset at one. The window runs from that
+  date's local midnight to the next. The zone changes its clock at two or three in the morning,
+  never at midnight [inf: its rules as the runtime holds them]. **A test pins, as literal
+  instants: a winter day of 24 hours, 2026-03-29 from 22:00 UTC the day before to 21:00 UTC, 23
+  hours, and 2026-10-25 from 21:00 UTC the day before to 22:00 UTC, 25 hours.** [ran: this
+  machine's runtime shows each of those four instants as a local midnight.] If the runtime
+  cannot name the zone, the evaluator answers *unavailable*.
+- **`429`:** `Retry-After`, a whole number from 1 to 90,000, the seconds to the window's end,
+  rounded up; and a body of a fixed sentence and the code `MINT_LIMIT_REACHED`. **No count, no
+  block and nothing of what remains, in a header or the body.** **`503`:** the same shape with
+  `MINT_UNAVAILABLE`, no `Retry-After`, **and it is answered before any store call** when the
+  source or the flag is misconfigured or the digester is unusable or throws. Which of the five
+  causes it was is in the log's code alone.
+- **The deadline.** Three seconds around the store's call. When it passes the answer is `503`;
+  the store's late answer or rejection is handled and dropped. A hit may still land (ADR 0149).
+- **The flag: `LEMNARIA_E2E_RATE_LIMIT_POLICY`, exactly `1`.** Read as the environment's own
+  member. **Beside `CLIENT_NETWORK_SOURCE` present as an own member, whatever it holds: `503` for
+  every mint.** Otherwise the e2e policy, at its named figure. When that policy first decides a
+  request in a process, one warning of constants:
+  `rate limit: the e2e policy is in use (LEMNARIA_E2E_RATE_LIMIT_POLICY); the day's figure is not the production one`.
+- *The gate sentences, for the scribe.* **8T:** *`LEMNARIA_E2E_RATE_LIMIT_POLICY` is defined on no
+  deployment, read by name only.* **M9:** the sentence ruled under F-S0.3.
+
+**S2. One developer, five items; item 1 is its own commit.**
+
+| # | Does | Production files |
+| --- | --- | --- |
+| 1 | F-S1.1 and F-S1.2 | `lib/server/digest/keyed-digest.ts` |
+| 2 | The policies as data, their names, the e2e figure as a named constant (1,000, provisional), and the choice between them from an environment handed in | new `lib/server/rate-limit/limit-policy.ts` |
+| 3 | The Chișinău day as a window, and the seconds to its end | new `rate-limit/chisinau-day.ts` |
+| 4 | The evaluator: a block, a digester, a store, a policy and an instant in; *allow*, *refuse* with its wait, or *unavailable* with its cause out; the deadline; any throw is *unavailable* | new `rate-limit/enforce-rate-limit.ts` |
+| 5 | A scan: nothing under `apps/web/src` names either of the persistence package's fakes | none; a test |
+
+*Criteria:* 3, 5, 8, 9's selection half, 11, 12's deadline half, 13. *Must not:* a route, a
+cookie or `process.env` touched; the store's fake imported under `src` (tests hand it in); a
+second way to make a key; a loop of volume; a count returned to a caller that could print it.
+*Stops if:* the runtime's `Intl` does not give the two pinned days; or a hit's answer can be read
+two ways at exactly the figure. *Reading:* this section; *8F, restated for dispatch*, point 3 and
+the criteria; *S0's security read, ruled*; ADR 0147 with Amendment A; ADR 0149 whole;
+`packages/persistence/src/rate-limit-store.ts`, `fake-rate-limit-store.ts`, `index.ts`; the four
+S1 modules and their tests; ADR 0154; `lib/server/mail/select-mail-sender.ts`.
+
+**S3a. The rows a run can remove. One developer, two items, in the persistence package.**
+
+| # | Does | Production files |
+| --- | --- | --- |
+| 1 | Deletes the counters whose keys it is handed, on the guarded test database alone, and answers how many rows went and their counts | new `packages/persistence/src/delete-rate-limit-counters-for-tests.ts` |
+| 2 | Its export | `packages/persistence/src/index.ts` |
+
+*Must not:* a delete by anything but a key handed in; a database the test guard does not allow;
+`0007` or the counter store changes. *Reading:* `delete-designs-for-tests.ts` and its test; ADR
+0006; ADR 0128; ADR 0151; ADR 0146 B2.
+
+**S3b. The mint and the harness. One developer, five items.**
+
+| # | Does | Files |
+| --- | --- | --- |
+| 1 | The mint asks first: after the cross-site guard, before the visitor is resolved or anything is minted. The environment is asked inside the request, the block of the request's own headers | `app/api/designs/route.ts` |
+| 2 | The two answers and their shapes | new `lib/server/rate-limit/rate-limited-response.ts` |
+| 3 | The store's lazy instance; the refusal's log line (a code, the status, the policy's name; of a thrown value its type's name at most) | `lib/server/repository.ts`, `lib/server/design-failure-log.ts` |
+| 4 | The harness: the run's secret made once in the runner's process and handed down; the flag; after the run, the keys computed with `keyedDigest` from the bytes and the shared block, the rows removed through S3a, **their count read first and reported as the designs one run makes**, and a failure when none was found | `playwright.config.ts`, the e2e support (not production) |
+| 5 | The real figure through the real route, store and database: twenty allowed and the next refused, on a server under the production policy that is not the suite's | the e2e support, one spec |
+
+*Criteria:* 4 to 7, 9, 12; point 1's must-nots of *8F, restated for dispatch*. *Must not:* a
+refused mint sets, clears or refreshes a cookie, rotates a visitor or writes a row; the limiter
+inside the mint's transaction; the lock, the save's route or its refresh changed;
+`CLIENT_NETWORK_SOURCE` set by the harness; a forwarding header sent by any e2e request; the
+flag read at module level; an address, block, key or count in a log line or an answer. *Stops
+if:* a second server cannot run beside the first in the suite's two modes, the built one and the
+developer's; the two-tab spec's failures leave the triage's range; or a run's own rows cannot be
+found. *Reading:* this section; *8F, restated for dispatch*, points 1 and 3; ADR 0114 F4, H1, H3,
+H6; ADR 0111 d1; ADR 0019 d5; `lib/server/cross-site-request.ts`;
+`persistence/create-design-lock.ts`; `playwright.config.ts`; `tests/e2e/support/minted-designs.ts`;
+ADR 0154, the flag; the triage's figures.
+
+**S4. Step 1. One developer, four items.**
+
+| # | Does | Production files |
+| --- | --- | --- |
+| 1 | A mint's `429` is its own failure, not retried by anything | `persistence/design-request-errors.ts`, `persistence/fetch-configuration-repository.ts` |
+| 2 | The hand-off gains a state for it: no retry is offered, and the room's entry is kept | `room/use-generation.ts`, `room/generation-steps.tsx` |
+| 3 | One new leaf, that no more designs can be made today and the limit returns tomorrow; a draft under Q10 (a), in both message files, the lock and the hashes grown and none moved | `i18n/content.ts`, the message files |
+| 4 | A `503` is the failure Step 1 already shows, with its retry | none expected |
+
+*Criterion:* 10. *Must not:* a wait in minutes, a count, or the word for an address in the copy;
+an automatic retry of a refused mint; a save sent after one. *Stops if:* the frame has no place
+for the sentence at 390 × 844. *Reading:* ADR 0111 and its amendments; ADR 0139; frame 1F;
+`room/create-design.ts`; `engineering-conventions.md`, *Localised copy*; Q10; the copy lock's
+header; `tests/i18n/golden-output.test.ts`.
+
+**The wave's one pass, after S4.** *QA:* the criteria; the four sections of this restatement;
+`tests/app/api/designs/`; the e2e mint fixture; the triage's figures; ADR 0149's limits; ADR
+0019's 2026-08-31 correction. *Logic:* the evaluator, the day and the route; ADR 0147; point 1.
+*Clean-code:* every slice's files and tests; ADR 0136. *Security:* the route's order and its
+cookies; the two answers; the harness and the flag; ADR 0114 F4, H1, H3, H6; ADR 0146; ADR 0154.
+*Unproven until a deployment:* that the host's header holds one address and cannot be forged.
+
 ### 8G — the limiter on saves, shares and reads; pruning
 
 *Goal.* Every other endpoint ADR 0019 and ADR 0114 name is inside the limiter, and expired counters
