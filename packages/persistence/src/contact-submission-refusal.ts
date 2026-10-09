@@ -32,9 +32,11 @@ const REFUSED_PARTS = {
     "a design is stored with its snapshot, an object, and a callback without one",
   request: "the request must be plain data whose members can be read",
   snapshotDocument:
-    "the snapshot's document must be a JSON object of finite numbers and text the database can hold, written exactly as JSON.stringify writes it, with nothing in it written twice",
+    "the snapshot's document must be a JSON object of finite numbers and text the database can hold, written " +
+    "exactly as JSON.stringify writes it, with nothing in it written twice",
   snapshotPriced:
-    "the snapshot's priced design must be a JSON object of plain objects, lists, text the database can hold, finite numbers, booleans and null",
+    "the snapshot's priced design must be a JSON object of plain objects, lists, text the database can hold, " +
+    "finite numbers, booleans and null",
   snapshotDepth:
     "the snapshot's document and its priced design must each be no deeper than 64 levels of lists and objects",
 } as const;
@@ -51,8 +53,8 @@ export function registeredAsOurs(refusal: unknown): unknown {
   return refusal;
 }
 
-/** Whether a caught value is one of this check's refusals. It asks nothing of the value but its identity: no `instanceof`,
- *  no property, so a proxy whose every trap throws is answered without running one. */
+/** Whether a caught value is one of this check's refusals. It asks nothing of the value but its identity: no
+ *  `instanceof`, no property, so a proxy whose every trap throws is answered without running one. */
 export function isOwnRefusal(thrown: unknown): boolean {
   return (
     typeof thrown === "object" && thrown !== null && ownRefusals.has(thrown)

@@ -20,8 +20,8 @@ import { generateSubmissionReference } from "./generate-submission-reference.js"
 
 export interface FakeContactSubmissionStoreOptions {
   /** Where each reference proposal comes from. A test passes its own to force a collision; production wiring passes
-   *  none. A proposer never repeats a reference: `isNew` is the stored reference being this call's proposal, so a proposer
-   *  that repeats itself makes a later call read as new, as it does in the Neon store. */
+   *  none. A proposer never repeats a reference: `isNew` is the stored reference being this call's proposal, so a
+   *  proposer that repeats itself makes a later call read as new, as it does in the Neon store. */
   readonly proposeReference?: () => string;
   /** The database's clock, for `createdAt` and the mark's instant. */
   readonly now?: () => Date;
@@ -49,9 +49,9 @@ const REFERENCE_COLLISION = Symbol("reference collision");
 
 /**
  * In-memory `ContactSubmissionStore` for tests that need the port's contract without a database. It draws a proposal
- * exactly when the Neon store does (once for each `record`, and once more for each collision) and answers `isNew` by the
- * same comparison. It refuses what the shared check refuses and nothing more: it cannot stand for a server's refusal of
- * size, a time limit or anything a later server refuses. Depth is the check's, bounded at 64.
+ * exactly when the Neon store does (once for each `record`, and once more for each collision) and answers `isNew` by
+ * the same comparison. It refuses what the shared check refuses and nothing more: it cannot stand for a server's
+ * refusal of size, a time limit or anything a later server refuses. Depth is the check's, bounded at 64.
  */
 export class FakeContactSubmissionStore implements ContactSubmissionStore {
   private readonly rowsByClientRequestId = new Map<string, HeldRow>();
@@ -66,7 +66,7 @@ export class FakeContactSubmissionStore implements ContactSubmissionStore {
     this.now = now;
   }
 
-  // eslint-disable-next-line @typescript-eslint/require-await -- a rejected promise for a refusal, as the Neon store gives.
+  // eslint-disable-next-line @typescript-eslint/require-await -- a refusal rejects, as the Neon store's does.
   async lookUp(request: SubmissionLookupRequest): Promise<SubmissionLookup> {
     requireValidLookup(request);
     const held = this.rowsByClientRequestId.get(request.clientRequestId);

@@ -23,8 +23,8 @@ import { retryOnTransientFailure } from "./retry-on-transient-failure.js";
 
 export interface NeonContactSubmissionStoreOptions {
   /** Where each reference proposal comes from. Only a test passes one, to force a collision; production wiring passes
-   *  none. A proposer never repeats a reference: `isNew` is the stored reference being this call's proposal, so a proposer
-   *  that repeats itself makes a later call read as new. */
+   *  none. A proposer never repeats a reference: `isNew` is the stored reference being this call's proposal, so a
+   *  proposer that repeats itself makes a later call read as new. */
   readonly proposeReference?: () => string;
 }
 
@@ -214,7 +214,8 @@ async function attempt(runQuery: () => PromiseLike<unknown>): Promise<Attempt> {
 
 /** The rows of a statement, or the store error. A failure leaves as a store error holding a built cause, as ADR 0146 B3
  *  requires, and the driver's own error is not thrown by anything in this module. A reply is copied row by row in one
- *  guarded step, so a row that throws when read is the store error with no cause, and everything after reads plain data. */
+ *  guarded step, so a row that throws when read is the store error with no cause, and everything after reads plain
+ *  data. */
 async function queryRows(
   operation: ContactSubmissionOperation,
   runQuery: () => PromiseLike<unknown>,
@@ -252,7 +253,7 @@ function rowsOf(
     if (!Array.isArray(reply) || !reply.every(isObject)) {
       throw new ContactSubmissionStoreError(operation);
     }
-    return reply.map((row) => ({ ...row }));
+    return Array.from(reply, (row) => ({ ...row }));
   } catch {
     throw new ContactSubmissionStoreError(operation);
   }

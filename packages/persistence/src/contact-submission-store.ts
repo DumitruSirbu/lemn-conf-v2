@@ -127,8 +127,8 @@ export interface JudgedSubmission {
  * refuses what the table would refuse but the reference's uniqueness, and a few things only this code refuses. For any
  * value handed in it throws only its own refusal: anything else thrown, such as a member whose read throws, is the
  * refusal of the request and keeps nothing of what was thrown. A price whose parts are shared is a recorded limit: the
- * work doubles with each shared level, so twenty levels return and sixty outlast any caller. What a server refuses for size, a time limit or anything of its own is the store error. The
- * rules are in the wave's decision record.
+ * work doubles with each shared level, so twenty levels return and sixty outlast any caller. What a server refuses for
+ * size, a time limit or anything of its own is the store error. The rules are in the wave's decision record.
  */
 export function requireValidSubmission(
   submission: ContactSubmissionToRecord,

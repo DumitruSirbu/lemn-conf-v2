@@ -10,8 +10,8 @@ const LONE_SURROGATE =
 const NUL = "\u0000";
 
 /** How many levels of lists and objects a snapshot may nest, the root object counting as the first. A design's and a
- *  price's depths are fixed by their types and are a handful; the bound is far from all of them and does not move with a
- *  runtime's stack, which is where `JSON.parse` and `JSON.stringify` give out. */
+ *  price's depths are fixed by their types and are a handful; the bound is far from all of them and does not move
+ *  with a runtime's stack, which is where `JSON.parse` and `JSON.stringify` give out. */
 const MAX_SNAPSHOT_DEPTH = 64;
 
 /** The two snapshot columns as the statement carries them: the document is the text handed in, and the priced design is

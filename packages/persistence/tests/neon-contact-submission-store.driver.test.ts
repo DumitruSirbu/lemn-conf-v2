@@ -672,3 +672,63 @@ describe("a reply whose rows throw when they are read", () => {
     },
   );
 });
+
+/** A list of rows whose species answers a proxy that allows rows to be written into it and throws when it is read. */
+class ListWhoseSpeciesThrowsWhenRead extends Array<object> {
+  static override get [Symbol.species](): ArrayConstructor {
+    const throwing = (): never => {
+      throw new Error(LEAKING_TEXT);
+    };
+    return function speciesAnsweringAProxy() {
+      return new Proxy([], {
+        get: throwing,
+        has: throwing,
+        ownKeys: throwing,
+        getOwnPropertyDescriptor: throwing,
+      });
+    } as unknown as ArrayConstructor;
+  }
+}
+
+describe("a reply that is a list whose species answers a proxy", () => {
+  const stored = {
+    kind: "stored",
+    reference: FIRST_REFERENCE,
+    isNotified: false,
+  };
+  const CASES: readonly (readonly [
+    ContactSubmissionOperation,
+    object,
+    unknown,
+  ])[] = [
+    [
+      "record a request",
+      {
+        reference: FIRST_REFERENCE,
+        is_new: true,
+        is_same_payload: true,
+        is_notified: false,
+      },
+      { ...stored, isNew: true },
+    ],
+    [
+      "look up a request",
+      { reference: FIRST_REFERENCE, is_same_payload: true, is_notified: false },
+      stored,
+    ],
+    ["mark a request notified", { reference: FIRST_REFERENCE }, undefined],
+  ];
+
+  it.each(CASES)(
+    "is read as the plain list it holds, and nothing raw leaves, for the store trying to %s",
+    async (operation, row, answer) => {
+      const run = OPERATIONS.find(([name]) => name === operation)?.[1];
+      if (run === undefined) throw new Error("no such operation");
+      answerWith(ListWhoseSpeciesThrowsWhenRead.from([row]));
+
+      const outcome = await outcomeOf(run(newStore(...REFERENCES)));
+
+      expect(outcome).toEqual({ resolvedWith: answer });
+    },
+  );
+});
