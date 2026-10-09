@@ -5494,7 +5494,8 @@ edited. **A pinned sentence in a QA file that item 4 moves is reported, and QA c
 
 *Stops if:* point 3's proof fails; a test of the interceptor that exists must change for a
 served page; a refused navigation leaves the screen blank or stuck; or the message files cannot
-be read in the interceptor's layer.
+be read in the interceptor's layer. **(2026-10-10, later: the proof holds, and the second stop was
+met and is ruled: one helper of that test file changes, and no assertion. *8G — S3b's proof and the interceptor, ruled*.)**
 
 *Reading:* this section; the report, part 2; *S1's security read, ruled*, points 5 and 6;
 `src/proxy.ts` and its tests; `lib/security-headers.ts`; `rate-limit/judge-read-request.ts`,
@@ -5507,6 +5508,68 @@ security read, ruled*, point 7, stand, with **added for all four:** the report; 
 for security, that nothing but a named source makes the interceptor load the limiter, and that a
 refusal reads no cookie. **One visual check is owed:** the refused page, at 390 × 844 in both
 languages, from item 5's interception. *The owner's:* that sentence and its look.
+
+##### 8G — S3b's proof and the interceptor, ruled; S3b's remaining items for dispatch, 2026-10-10
+
+**State.** HEAD is `13da905` [ran: `git log`], tree clean. **The proof holds** [relayed,
+developer-run twice on a built server]: the interceptor is listed as running on Node; under a
+named source one page read wrote one row under the key the harness computes; the suite's server,
+with no source, wrote none. As built it counts beside the answer and never refuses. The architect
+read `src/proxy.ts` at HEAD.
+
+**1. The ruling, the architect's: the interceptor waits for the judgement, for a counted request
+under a named source and nowhere else.**
+
+- **Why it is the architect's and not the owner's.** Q15 (iii) is answered: 600 an hour for a
+  network, failing open. ADR 0114 d7 and B5 put `/`, `/d/*` and `/s/*` in the limiter. Refusing
+  the six-hundred-and-first page **is** that record. *Counting and never refusing* would change
+  what he answered, and that would be his. This keeps it.
+- **What it costs, said plainly.** Where a source is named, each counted request waits for one
+  round trip before its page begins: about 50 ms [relayed], 300 ms at the most, then served
+  whatever the store said. *What it buys:* a design's page reads and streams a document of up to
+  half a megabyte; the count is one small statement.
+- **Everywhere else the interceptor answers at once, as it does today.** It hands back the
+  response itself, not a promise, for a path that is not counted, for the redirect and the `404`,
+  and for every request under *none*. So the suite's server, a developer's and every static or
+  API request are untouched.
+- **The stop that was met: `tests/proxy.test.ts` changes in one place and in no assertion.** Its
+  one helper that calls the interceptor [src `tests/proxy.test.ts:16`] **fails the test if it is
+  handed a promise** and otherwise returns what it returned before. That is also the proof that
+  an uncounted request never waits. *Must not:* an `await` added to an existing test; an
+  assertion changed, removed or loosened.
+- **The count beside the answer goes.** A request is counted once, by the judgement it waits for.
+- *Trigger to think again:* M9's firewall rule; or a counted page's added time, which item 2
+  measures and reports.
+
+**2. S3b's remaining items. One developer, four items.**
+
+| # | Does | Production files |
+| --- | --- | --- |
+| 2 | **The interceptor asks and waits.** Counted: `/` and a locale's root, a design's page and its three steps, a share's view; a document and a navigation's fetch alike; only a request it would pass on. Not counted: the locale's redirect, the case-variant `404`, anything under `/api`. A refusal is item 3's answer. Anything thrown, unjudged or late is served, with one line for a process and a cause | `src/proxy.ts`; `lib/server/rate-limit/judge-read-request.ts` only if a page needs what a route does not |
+| 3 | The refusal: `429`, `Retry-After` from 1 to 3,600, `no-store`, the headers a page's answer already gets, and a small HTML body in the path's language with one sentence from one new leaf, a draft under Q10 (a); no script, no style. **Reached only through the dynamic import,** so no message file enters the interceptor's own graph | new `lib/server/rate-limit/page-limit-response.ts`; the message files |
+| 4 | The e2e notice when any twin first decides, its sentence true of each (as ruled); the twins' figures: share writes 500, saves by block 1,200, the mint's 1,600; the teardown's sentence | `lib/server/design-failure-log.ts`, `rate-limit/judge-block-bucket.ts`, `limit-policy.ts`; the e2e support |
+| 5 | The second server's spec, `CI` only: a page read counted once, and none by the suite's server; what a customer sees for a refused document and for a refused navigation, each answered with the module's own refusal by the browser's route interception. **The three ports named in one place**, each with what it is for: 4322 the production policy's figure, 4323 QA's refused mint, 4324 a named source | the e2e support and its specs |
+
+*Criteria 3, 4, 9, 10, 11, and added:* **12.** For a request that is not counted, and for every
+request under *none*, the interceptor answers without waiting and with the response it gave
+before this wave.
+
+*Must not:* a static import of the limiter, a judge or a message file in `proxy.ts`; a cookie
+read to judge; a forwarding header on the suite's server; six hundred requests in a test; the
+nonce, the security policy or a share view's headers changed on a served page; a second count of
+one request; a `qa-*` file edited.
+
+*Stops if:* a message file cannot be read where the dynamic import runs; a refused navigation
+leaves the screen blank or stuck; an assertion of `tests/proxy.test.ts` must change; or a counted
+page's median time on the built server grows by more than 150 ms. **Item 2 reports that median,
+with and without a source, over twenty requests.**
+
+*Reading:* as S3b's above, with this section; `tests/proxy.test.ts` whole;
+`tests/e2e/page-read-limit-proof.e2e.spec.ts`.
+
+**3. The pass after S3b is unchanged:** *Full + security*; the reading lines stand with this
+section added; one visual check, the refused page. **For security, added:** that the interceptor
+hands back a promise for a counted request under a named source and for nothing else.
 
 ### 8H — the submission contract
 
