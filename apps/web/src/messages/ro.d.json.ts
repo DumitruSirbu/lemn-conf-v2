@@ -134,6 +134,7 @@ declare const messages: {
       "dropped": "Dimensiunile pereților nu au lăsat destul spațiu pentru toate dulapurile, așa că nu am putut include: {roles}. Restul bucătăriei e compus pe măsura camerei tale.",
       "failed": "Compunerea nu s-a putut finaliza. Întoarce-te la dimensiuni și încearcă din nou.",
       "saveFailed": "Bucătăria e gata, dar nu am putut-o deschide. Încearcă din nou.",
+      "limitReached": "Astăzi nu se mai pot crea alte bucătării. Limita revine mâine, iar camera ta rămâne aici.",
       "retry": "Încearcă din nou"
     }
   },

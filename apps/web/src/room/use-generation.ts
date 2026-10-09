@@ -24,6 +24,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { recordEditorOpenedFromStepOne } from "@/app/configurator/configure/back-guard";
 import { useRouter } from "@/i18n/navigation";
+import { MintLimitReachedError } from "@/persistence/design-request-errors";
 
 import {
   createDesignCreationAttempt,
@@ -40,8 +41,11 @@ import {
  * transition that first holds a design. `saved` is distinct from `saving` so `ComposeCta` can tell "wait" from
  * "done"; the two are drawn identically (the busy control). What 1F draws for a design written while the customer
  * was away is undecided, and unreachable until `next.config.ts` sets `cacheComponents`.
+ *
+ * `limited` is a mint the server refused because the day's limit is reached: nothing is offered again, since a retry
+ * would be refused until tomorrow, and the composed kitchen and the room stay where they are.
  */
-export type HandoffStatus = "saving" | "saved" | "failed";
+export type HandoffStatus = "saving" | "saved" | "failed" | "limited";
 
 /**
  * Where one composition has got to. The run carries its room so the summary above the list describes the kitchen
@@ -172,8 +176,11 @@ export function useGeneration(): GenerationRun {
         () => {
           reportHandoff(token, "saved");
         },
-        () => {
-          reportHandoff(token, "failed");
+        (error: unknown) => {
+          reportHandoff(
+            token,
+            error instanceof MintLimitReachedError ? "limited" : "failed",
+          );
         },
       );
     },

@@ -72,7 +72,8 @@ describe("every leaf the wave added is a leaf the screen reads (ADR 0113)", () =
     // `room.suggestion.title` and `room.suggestion.switchToLinear` — the desktop-only actionable
     // suggestion the milestone's own criterion asks for. Wave U5 S1's 1 is
     // `room.compose.roomSummaryU`: a U's own 1F summary, drafted, the third length of `roomSummary`.
-    expect(ROOM_KEYS.length).toBe(72);
+    // 8F S4's 1 is `room.compose.limitReached`: the day's limit on new designs, drafted.
+    expect(ROOM_KEYS.length).toBe(73);
   });
 
   it.each(ROOM_KEYS)("reads %s somewhere under src/room", (key) => {

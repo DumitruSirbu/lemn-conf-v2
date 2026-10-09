@@ -59,6 +59,22 @@ export class WriteConflictError extends WriteNotRetryableError {
   }
 }
 
+/** The status the mint answers when the day's limit on new designs is reached. */
+export const MINT_LIMIT_REACHED_STATUS = 429;
+
+/**
+ * The mint was refused because the limit on new designs is reached for today. Its own type, and a subtype of the
+ * terminal failure above, so nothing repeats it: a retry would be refused until tomorrow, and the answer is the one
+ * `429` that no other request in this file can mean. The `isRetryableStatus` rule is left as it is: a throttle on
+ * any other request is still worth repeating.
+ */
+export class MintLimitReachedError extends WriteNotRetryableError {
+  constructor(operation: string) {
+    super(operation, MINT_LIMIT_REACHED_STATUS);
+    this.name = "MintLimitReachedError";
+  }
+}
+
 /** The status for an authorised but stale conditional write; `writeConflictResponse` says why it is
  *  not `412`. */
 export const REVISION_CONFLICT_STATUS = 409;

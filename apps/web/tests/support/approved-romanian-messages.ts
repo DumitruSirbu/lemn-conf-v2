@@ -185,6 +185,10 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       // behind it and sends the customer back to the dimensions, this one has the kitchen drawn and offers `retry`.
       saveFailed:
         "Bucătăria e gata, dar nu am putut-o deschide. Încearcă din nou.",
+      // Drafted, not approved: the day's limit on new designs is reached. It says the limit returns tomorrow, names no
+      // count and no address, and offers no retry, since the kitchen is composed and the room stays on screen.
+      limitReached:
+        "Astăzi nu se mai pot crea alte bucătării. Limita revine mâine, iar camera ta rămâne aici.",
       retry: "Încearcă din nou",
     },
   },

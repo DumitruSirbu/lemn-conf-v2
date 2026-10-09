@@ -13,6 +13,8 @@ import { withCreateDesignLock } from "./create-design-lock";
 import {
   DesignRequestFailedError,
   isRetryableStatus,
+  MINT_LIMIT_REACHED_STATUS,
+  MintLimitReachedError,
   REVISION_CONFLICT_STATUS,
   WriteConflictError,
   WriteNotAuthorizedError,
@@ -23,6 +25,7 @@ import {
 // repository should not have to know which module its failures are declared in.
 export {
   DesignRequestFailedError,
+  MintLimitReachedError,
   WriteConflictError,
   WriteNotAuthorizedError,
   WriteNotRetryableError,
@@ -200,6 +203,9 @@ export class FetchConfigurationRepository {
       const response = await this.request(DESIGNS_ENDPOINT, {
         method: "POST",
       });
+      if (response.status === MINT_LIMIT_REACHED_STATUS) {
+        throw new MintLimitReachedError("Minting a design");
+      }
       if (!response.ok) throw failureFor("Minting a design", response.status);
       return readSaveResult(
         await readJsonBody(response, "Minting a design"),

@@ -838,6 +838,8 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "316e6aa5b4b22f9d0e800976cff039b40656ba294a987587d99174d6f14e40ee",
   "room.compose.heading":
     "33c0c8a4c64822a0b5c87f68a299d4594477b4212cb8cdecc2d5ea8b12ca64a2",
+  "room.compose.limitReached":
+    "0d55cb645dd19bba3cd2101e6bb3c695987ba0965785e649d7bf760cd445630a",
   "room.compose.noPresetNotice":
     "feac196b98380da021c1e927c609160ff0643754fb66b1eda93860532c596ed7",
   "room.compose.retry":

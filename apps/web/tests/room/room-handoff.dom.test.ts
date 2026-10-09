@@ -327,6 +327,10 @@ async function settleFailedHandoff(): Promise<void> {
   await waitUntil(() => handoffState() === "failed", "reported its failure");
 }
 
+async function settleLimitedHandoff(): Promise<void> {
+  await waitUntil(() => handoffState() === "limited", "reported the limit");
+}
+
 async function settleNavigation(): Promise<void> {
   await waitUntil(() => editorPushes().length > 0, "navigated");
 }
@@ -490,6 +494,12 @@ describe("a failed hand-off keeps the customer where they are (criterion 41)", (
       },
     ],
     [
+      "the mint is unavailable",
+      () => {
+        script.mintStatus = 503;
+      },
+    ],
+    [
       "the write is refused",
       () => {
         script.writeStatus = 500;
@@ -535,6 +545,59 @@ describe("a failed hand-off keeps the customer where they are (criterion 41)", (
     // A retry that re-composed would produce a second — and different, because `occurredAt` moves —
     // design for a row that was minted against the first.
     expect(vi.mocked(generateKitchen)).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("a mint refused for the day's limit keeps the room and offers no retry", () => {
+  beforeEach(() => {
+    script.mintStatus = 429;
+  });
+
+  it("says the limit returns tomorrow, offers no retry and no busy control, and navigates nowhere", async () => {
+    render();
+
+    tapContinue();
+    await settleLimitedHandoff();
+
+    expect(editorPushes()).toEqual([]);
+    expect(elementAt("room-compose-notice").textContent).toContain(
+      roMessages.room.compose.limitReached,
+    );
+    expect(maybeAt("room-compose-retry")).toBe(null);
+    expect(maybeAt("room-compose-cta")).toBe(null);
+    expect(container.querySelectorAll("[data-compose-status]")).toHaveLength(6);
+  });
+
+  it("sends the mint once and no save after it, and nothing more however long it waits", async () => {
+    render();
+
+    tapContinue();
+    await settleLimitedHandoff();
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    });
+
+    expect(callsTo("POST")).toHaveLength(1);
+    expect(callsTo("PUT")).toEqual([]);
+  });
+
+  it("keeps the customer's room: going back returns to the form with it still complete", async () => {
+    render();
+
+    tapContinue();
+    await settleLimitedHandoff();
+    tapComposeBack();
+
+    expect(maybeAt("room-compose")).toBe(null);
+    expect(elementAt("room-continue")).toBeInstanceOf(HTMLElement);
+    expect(browser.search).toBe(ROOM_QUERY);
+  });
+
+  it("holds no count, no address and no number in the sentence", () => {
+    const sentence = roMessages.room.compose.limitReached;
+
+    expect(sentence).not.toMatch(/\d/);
+    expect(sentence).not.toMatch(/adres|IP|bloc/i);
   });
 });
 

@@ -221,7 +221,8 @@ describe("golden-output fixture coverage", () => {
     // +3 for the notice's subject, line and figure.
     expect(FUNCTION_CONTENT_FIXTURES).toHaveLength(62);
     // 7L S3: +2 for `room.suggestion.title` and `room.suggestion.switchToLinear`.
-    expect(ROOM_FIXTURES).toHaveLength(72);
+    // +1 for `room.compose.limitReached`.
+    expect(ROOM_FIXTURES).toHaveLength(73);
     // M8 8C S1: the review leaves `Content` reaches through `reviewRoomLine`.
     expect(REVIEW_FIXTURES).toHaveLength(12);
     expect(REJECTION_FIXTURES).toHaveLength(41);
@@ -237,7 +238,8 @@ describe("golden-output fixture coverage", () => {
     // M8 8D fix round: +2 for `reviewScreen.conflict` and `.openEditor`.
     // M8 8D review fix round: +1 for `reviewScreen.topBarTitle`.
     // +17 for the shop notice's static leaves and function fixtures.
-    expect(GOLDEN_FIXTURES).toHaveLength(439);
+    // +1 for `room.compose.limitReached`.
+    expect(GOLDEN_FIXTURES).toHaveLength(440);
     expect(new Set(GOLDEN_FIXTURES.map((fixture) => fixture.id)).size).toBe(
       GOLDEN_FIXTURES.length,
     );
