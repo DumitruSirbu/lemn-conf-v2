@@ -273,6 +273,83 @@ describe("the notice's customer lines", () => {
   );
 });
 
+describe("a channel or a request id the notice has no usable word for", () => {
+  const LOG_METHODS = [
+    "debug",
+    "error",
+    "info",
+    "log",
+    "trace",
+    "warn",
+  ] as const;
+
+  it.each([
+    "fax",
+    "",
+    "constructor",
+    "__proto__",
+    "toString",
+    "hasOwnProperty",
+  ])(
+    "throws the named error for the channel %j, with no value and no log line",
+    (channel) => {
+      const spies = LOG_METHODS.map((method) =>
+        vi.spyOn(console, method).mockImplementation(() => undefined),
+      );
+      const submission = designRequest({
+        contact: { ...validContact(), channel: channel as never },
+      });
+
+      const thrown = thrownBy(() => noticeOf(submission));
+
+      expect(thrown).toEqual(new NoticeLineError("channel"));
+      expect(spies.every((spy) => spy.mock.calls.length === 0)).toBe(true);
+    },
+  );
+
+  it.each([
+    ["empty text", ""],
+    ["a number", 42],
+    ["nothing", undefined],
+    ["null", null],
+  ])(
+    "throws the named error for a client request id that is %s",
+    (_label, id) => {
+      const submission = designRequest({ clientRequestId: id as never });
+
+      expect(thrownBy(() => noticeOf(submission))).toEqual(
+        new NoticeLineError("key"),
+      );
+    },
+  );
+
+  it("keys two different ids differently, with no shape asked of either", () => {
+    const one = noticeOf(designRequest({ clientRequestId: "a" }));
+    const other = noticeOf(designRequest({ clientRequestId: "b" }));
+
+    expect(one.key).not.toBe(other.key);
+  });
+});
+
+describe("building a notice writes no log line", () => {
+  it.each(["debug", "error", "info", "log", "trace", "warn"] as const)(
+    "never calls console.%s, for a design, a callback or an e-mail channel",
+    (method) => {
+      const spy = vi.spyOn(console, method).mockImplementation(() => undefined);
+
+      noticeOf(designRequest());
+      noticeOf(callbackRequest());
+      noticeOf(
+        designRequest({
+          contact: validContact({ channel: "email", email: EMAIL_MARKER }),
+        }),
+      );
+
+      expect(spy).not.toHaveBeenCalled();
+    },
+  );
+});
+
 describe("a name holding what a message formatter treats as syntax", () => {
   const SYNTAX_NAMES = [
     "O'Brien",

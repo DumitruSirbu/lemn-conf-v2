@@ -109,6 +109,24 @@ describe("createFakeMailSender", () => {
     expect(next).toEqual({ ok: false, kind: "busy" });
   });
 
+  it("records the copy it judged: a key that changes after the first read is not recorded", async () => {
+    let keyReads = 0;
+    const message = {
+      get key() {
+        keyReads += 1;
+        return keyReads === 1 ? FIRST.key : "later\r\nX: 1";
+      },
+      subject: FIRST.subject,
+      text: FIRST.text,
+    };
+    const sender = createFakeMailSender();
+
+    await sender.send(message);
+
+    expect(keyReads).toBe(1);
+    expect(sender.sent).toEqual([FIRST]);
+  });
+
   it("keeps separate records for separate senders", async () => {
     const one = createFakeMailSender();
     const other = createFakeMailSender();

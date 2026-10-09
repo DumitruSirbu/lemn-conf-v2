@@ -70,6 +70,25 @@ export function isSendableMailMessage(message: MailMessage): boolean {
   );
 }
 
+/**
+ * The only way a sender reads a message: its three members once, into a copy that cannot change, which the
+ * predicate then judges. A sender builds only from the copy, so what was judged is what is sent. A message
+ * that cannot be read, or may not be sent, answers nothing.
+ */
+export function sendableCopyOf(message: MailMessage): MailMessage | undefined {
+  const copy = readCopy(message);
+  return copy !== undefined && isSendableMailMessage(copy) ? copy : undefined;
+}
+
+function readCopy(message: MailMessage): MailMessage | undefined {
+  try {
+    const { key, subject, text } = message;
+    return Object.freeze({ key, subject, text });
+  } catch {
+    return undefined;
+  }
+}
+
 // `quota-spent` is not retried automatically: a caller stops on it and says so, rather than looping.
 const IS_RETRYABLE: Readonly<Record<MailFailureKind, boolean>> = {
   "unreadable-answer": true,

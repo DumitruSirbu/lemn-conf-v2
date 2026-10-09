@@ -31,14 +31,13 @@ export interface LeadNotificationInput {
   readonly content: Content;
 }
 
-/** A line of the notice that would hold a control character or a line separator. Names the line, never its value. */
+/** A line of the notice that has no usable value, or would hold a control character or a line separator. Names the
+ *  line, never its value. */
 export class NoticeLineError extends Error {
   readonly field: string;
 
   constructor(field: string) {
-    super(
-      `The notice line "${field}" holds a control character or a line separator`,
-    );
+    super(`The notice line "${field}" cannot be written as one line of text`);
     this.name = "NoticeLineError";
     this.field = field;
   }
@@ -88,7 +87,7 @@ export function buildLeadNotification(
   ];
   assertEachLineIsOneLine([subject, ...body]);
   return {
-    key: `${LEAD_NOTIFICATION_KEY_PREFIX}${submission.clientRequestId}`,
+    key: `${LEAD_NOTIFICATION_KEY_PREFIX}${requestIdOf(submission)}`,
     subject: subject.text,
     text: body.map((line) => line.text).join("\n"),
   };
@@ -114,9 +113,32 @@ function customerLines(
         ? content.leadNotice.emptyValue
         : contact.locality,
     ),
-    labelled(content, "channel", labels.channel, channels[contact.channel]),
+    labelled(
+      content,
+      "channel",
+      labels.channel,
+      channelWord(channels, contact),
+    ),
   ];
   return [...lines, ...emailLines(contact, content)];
+}
+
+function channelWord(
+  channels: Content["leadNotice"]["channels"],
+  contact: ContactFields,
+): string {
+  if (!Object.hasOwn(channels, contact.channel)) {
+    throw new NoticeLineError("channel");
+  }
+  return channels[contact.channel];
+}
+
+function requestIdOf(submission: ContactSubmissionToRecord): string {
+  const id: unknown = submission.clientRequestId;
+  if (typeof id !== "string" || id.length === 0) {
+    throw new NoticeLineError("key");
+  }
+  return id;
 }
 
 function emailLines(contact: ContactFields, content: Content): NoticeLine[] {

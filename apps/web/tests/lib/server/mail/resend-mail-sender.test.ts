@@ -361,6 +361,41 @@ describe("the sender's failures before and around the request", () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
+  it("reads each member of the message once, so what was judged is what is sent", async () => {
+    let keyReads = 0;
+    const message = {
+      get key() {
+        keyReads += 1;
+        return keyReads === 1 ? MESSAGE.key : "later\r\nX-Injected: 1";
+      },
+      subject: MESSAGE.subject,
+      text: MESSAGE.text,
+    };
+    const fetchSpy = stubAnswer(jsonAnswer(200, { id: "msg_1" }));
+
+    await sendOnce(message);
+
+    const headers = fetchSpy.mock.calls[0]?.[1].headers as Record<
+      string,
+      string
+    >;
+    expect(keyReads).toBe(1);
+    expect(headers["Idempotency-Key"]).toBe(MESSAGE.key);
+  });
+
+  it("keeps the status and the row of a 429 whose body cannot be asked for", async () => {
+    stubAnswer({
+      status: 429,
+      get body(): never {
+        throw new Error(MARKERS.join(" "));
+      },
+    } as unknown as Response);
+
+    const outcome = await sendOnce();
+
+    expect(outcome).toEqual({ ok: false, kind: "quota-spent", status: 429 });
+  });
+
   it("refuses an empty text without a status and without a request", async () => {
     const fetchSpy = stubAnswer(jsonAnswer(200, { id: "msg_1" }));
 

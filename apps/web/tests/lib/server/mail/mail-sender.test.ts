@@ -3,6 +3,7 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   isRetryableMailFailure,
   isSendableMailMessage,
+  sendableCopyOf,
   MAIL_ACCEPTED,
   MAIL_FAILURE_KINDS,
   MAIL_REFUSED_UNSENT,
@@ -152,6 +153,75 @@ describe("isSendableMailMessage", () => {
     }
 
     expect(wronglyDecided).toEqual([]);
+  });
+});
+
+function countingMessage(): { message: MailMessage; reads: () => number } {
+  let reads = 0;
+  const member = <T>(value: T) => ({
+    get: () => {
+      reads += 1;
+      return value;
+    },
+    enumerable: true,
+  });
+  const message = Object.defineProperties(
+    {},
+    {
+      key: member(SENDABLE.key),
+      subject: member(SENDABLE.subject),
+      text: member(SENDABLE.text),
+    },
+  ) as MailMessage;
+  return { message, reads: () => reads };
+}
+
+describe("sendableCopyOf", () => {
+  it("answers a frozen copy of the three members and nothing else", () => {
+    const withExtras = { ...SENDABLE, to: "a@example.com" } as MailMessage;
+
+    const copy = sendableCopyOf(withExtras);
+
+    expect(copy).toEqual(SENDABLE);
+    expect(Object.keys(copy ?? {})).toEqual(["key", "subject", "text"]);
+    expect(Object.isFrozen(copy)).toBe(true);
+    expect(copy).not.toBe(withExtras);
+  });
+
+  it("reads each member once", () => {
+    const { message, reads } = countingMessage();
+
+    sendableCopyOf(message);
+
+    expect(reads()).toBe(3);
+  });
+
+  it("answers the value read at that one reading, whatever the message answers afterwards", () => {
+    let reads = 0;
+    const message = {
+      get key() {
+        reads += 1;
+        return reads === 1 ? SENDABLE.key : "after\r\nBcc: x";
+      },
+      subject: SENDABLE.subject,
+      text: SENDABLE.text,
+    };
+
+    expect(sendableCopyOf(message)?.key).toBe(SENDABLE.key);
+  });
+
+  it("answers nothing for a message that may not be sent, and for one that cannot be read", () => {
+    const unreadable = {
+      get key(): string {
+        throw new Error("no key");
+      },
+      subject: "s",
+      text: "t",
+    };
+
+    expect(sendableCopyOf(messageWith({ key: "has space" }))).toBeUndefined();
+    expect(sendableCopyOf(unreadable)).toBeUndefined();
+    expect(sendableCopyOf(null as unknown as MailMessage)).toBeUndefined();
   });
 });
 

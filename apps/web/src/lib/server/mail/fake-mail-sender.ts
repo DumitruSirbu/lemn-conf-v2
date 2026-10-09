@@ -1,9 +1,9 @@
 import "server-only";
 
 import {
-  isSendableMailMessage,
   MAIL_ACCEPTED,
   MAIL_REFUSED_UNSENT,
+  sendableCopyOf,
   type MailMessage,
   type MailOutcome,
   type MailSender,
@@ -26,15 +26,10 @@ export function createFakeMailSender(
   return {
     sent,
     send(message) {
-      if (!isSendableMailMessage(message)) {
-        return Promise.resolve(MAIL_REFUSED_UNSENT);
-      }
+      const copy = sendableCopyOf(message);
+      if (copy === undefined) return Promise.resolve(MAIL_REFUSED_UNSENT);
       const outcome = scriptedOutcomes[sent.length] ?? MAIL_ACCEPTED;
-      sent.push({
-        key: message.key,
-        subject: message.subject,
-        text: message.text,
-      });
+      sent.push(copy);
       return Promise.resolve(outcome);
     },
   };

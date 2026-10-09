@@ -42,7 +42,5 @@ export function selectMailSender(
 }
 
 function hasAnyMailVariable(environment: MailEnvironment): boolean {
-  return MAIL_VARIABLE_NAMES.some(
-    (name) => ownValue(environment, name) !== undefined,
-  );
+  return MAIL_VARIABLE_NAMES.some((name) => Object.hasOwn(environment, name));
 }

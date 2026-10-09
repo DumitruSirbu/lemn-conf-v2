@@ -2,15 +2,18 @@ import "server-only";
 
 import type { MailConfiguration } from "@/lib/server/mail/mail-configuration";
 import {
-  isSendableMailMessage,
   MAIL_ACCEPTED,
   MAIL_REFUSED_UNSENT,
+  sendableCopyOf,
   type MailFailureKind,
   type MailMessage,
   type MailOutcome,
   type MailSender,
 } from "@/lib/server/mail/mail-sender";
-import { readUtf8BodyWithLimit } from "@/lib/server/read-body-with-limit";
+import {
+  readUtf8BodyWithLimit,
+  type BoundedBodyOutcome,
+} from "@/lib/server/read-body-with-limit";
 
 export const RESEND_SEND_URL = "https://api.resend.com/emails";
 
@@ -107,9 +110,10 @@ function tryBuildRequest(
   configuration: MailConfiguration,
 ): ResendRequest | undefined {
   try {
-    return isSendableMailMessage(message)
-      ? buildResendRequest(message, configuration)
-      : undefined;
+    const copy = sendableCopyOf(message);
+    return copy === undefined
+      ? undefined
+      : buildResendRequest(copy, configuration);
   } catch {
     return undefined;
   }
@@ -199,9 +203,18 @@ async function readErrorName(response: Response): Promise<unknown> {
 async function readJsonObject(
   response: Response,
 ): Promise<Record<string, unknown> | undefined> {
-  const body = await readUtf8BodyWithLimit(response.body, ANSWER_MAX_BYTES);
+  const body = await readBody(response);
   if (!body.ok) return undefined;
   return parseJsonObject(body.value);
+}
+
+/** A response whose body cannot be asked for still has its status; only the reading fails. */
+async function readBody(response: Response): Promise<BoundedBodyOutcome> {
+  try {
+    return await readUtf8BodyWithLimit(response.body, ANSWER_MAX_BYTES);
+  } catch {
+    return { ok: false, failure: "stream-failed" };
+  }
 }
 
 function parseJsonObject(text: string): Record<string, unknown> | undefined {

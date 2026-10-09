@@ -194,6 +194,17 @@ describe("selectMailSender: what it is a function of", () => {
   });
 });
 
+describe("selectMailSender: a mail variable that is a member counts whatever it holds", () => {
+  it.each(Object.keys(ALL_MAIL_VARIABLES))(
+    "answers unavailable naming the flag when %s is a member holding undefined",
+    (name) => {
+      const environment = { [FAKE_MAIL_FLAG]: "1", [name]: undefined };
+
+      expect(selectMailSender(environment)).toEqual(FLAG_IS_UNAVAILABLE);
+    },
+  );
+});
+
 describe("selectMailSender: only the environment's own members count", () => {
   it("reads no mail variable an object inherits", () => {
     const inherited = Object.create(ALL_MAIL_VARIABLES) as MailEnvironment;
