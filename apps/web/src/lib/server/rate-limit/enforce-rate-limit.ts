@@ -159,14 +159,17 @@ function judge(
   instant: Date,
 ): RateLimitDecision {
   const count: unknown = Array.isArray(counts) ? counts[0] : undefined;
-  if (typeof count !== "number" || !Number.isFinite(count)) {
-    return unavailable("store-failed");
-  }
+  if (!isCountOfAtLeastOne(count)) return unavailable("store-failed");
   if (count <= policy.figure) return ALLOWED;
   return {
     kind: "refuse",
     retryAfterSeconds: secondsToWindowEnd(window, instant),
   };
+}
+
+/** The port promises a count that includes this hit, so nought, a fraction or a negative is no count. */
+function isCountOfAtLeastOne(count: unknown): count is number {
+  return typeof count === "number" && Number.isInteger(count) && count >= 1;
 }
 
 function failed(cause: UnavailableCause): {

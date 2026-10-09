@@ -44,6 +44,7 @@ async function refuseTheMint(
   page: Page,
   status: number,
   headers: Record<string, string>,
+  code: string,
 ): Promise<{ mints: () => number; saves: () => number }> {
   let mints = 0;
   let saves = 0;
@@ -54,7 +55,7 @@ async function refuseTheMint(
         status,
         headers,
         contentType: "application/json",
-        body: JSON.stringify({ code: "MINT_REFUSED" }),
+        body: JSON.stringify({ code }),
       });
       return;
     }
@@ -79,7 +80,12 @@ async function composeTheTypedRoom(page: Page): Promise<void> {
 test("a mint refused for the day's limit offers no retry, sends no save and keeps the room", async ({
   page,
 }) => {
-  const sent = await refuseTheMint(page, 429, { "retry-after": "3600" });
+  const sent = await refuseTheMint(
+    page,
+    429,
+    { "retry-after": "3600" },
+    "MINT_LIMIT_REACHED",
+  );
 
   await composeTheTypedRoom(page);
 
@@ -103,12 +109,23 @@ test("a mint refused for the day's limit offers no retry, sends no save and keep
 test("a mint that is unavailable shows the failure Step 1 already shows, with its retry", async ({
   page,
 }) => {
-  await refuseTheMint(page, 503, {});
+  await refuseTheMint(page, 503, {}, "MINT_UNAVAILABLE");
 
   await composeTheTypedRoom(page);
 
   await expect(notice(page)).toHaveAttribute("data-compose-handoff", "failed");
   await expect(notice(page)).toContainText(messages.room.compose.saveFailed);
+  await expect(page.getByTestId("room-compose-retry")).toBeVisible();
+});
+
+test("a 429 that is not the limit's keeps the failure Step 1 already shows, with its retry", async ({
+  page,
+}) => {
+  await refuseTheMint(page, 429, {}, "FIREWALL");
+
+  await composeTheTypedRoom(page);
+
+  await expect(notice(page)).toHaveAttribute("data-compose-handoff", "failed");
   await expect(page.getByTestId("room-compose-retry")).toBeVisible();
 });
 

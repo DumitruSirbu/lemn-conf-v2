@@ -59,8 +59,10 @@ export class WriteConflictError extends WriteNotRetryableError {
   }
 }
 
-/** The status the mint answers when the day's limit on new designs is reached. */
+/** The status and the code the mint answers with when the day's limit on new designs is reached. Both are read: a
+ *  `429` from anything else, a firewall's, is not this limit. */
 export const MINT_LIMIT_REACHED_STATUS = 429;
+export const MINT_LIMIT_REACHED_CODE = "MINT_LIMIT_REACHED";
 
 /**
  * The mint was refused because the limit on new designs is reached for today. Its own type, and a subtype of the

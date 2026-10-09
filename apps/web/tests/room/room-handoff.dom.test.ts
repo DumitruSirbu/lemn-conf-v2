@@ -143,6 +143,8 @@ interface Deferred {
  *  is kept genuinely in flight while *"nothing has navigated yet"* is asserted. */
 interface ServerScript {
   mintStatus: number;
+  /** What a refused mint's body carries; the day's limit is read from its `code`. */
+  mintBody: unknown;
   writeStatus: number;
   throwsOnWrite: boolean;
   heldWrite: Deferred | undefined;
@@ -219,7 +221,9 @@ function jsonBodyOf(init: RequestInit | undefined): unknown {
 }
 
 function answerTheMint(): Response {
-  if (script.mintStatus !== 201) return jsonResponse(script.mintStatus, {});
+  if (script.mintStatus !== 201) {
+    return jsonResponse(script.mintStatus, script.mintBody);
+  }
   return jsonResponse(201, { id: MINTED_ID, revision: MINTED_REVISION });
 }
 
@@ -380,6 +384,7 @@ beforeEach(() => {
   stored = new Map();
   script = {
     mintStatus: 201,
+    mintBody: {},
     writeStatus: 200,
     throwsOnWrite: false,
     heldWrite: undefined,
@@ -551,6 +556,7 @@ describe("a failed hand-off keeps the customer where they are (criterion 41)", (
 describe("a mint refused for the day's limit keeps the room and offers no retry", () => {
   beforeEach(() => {
     script.mintStatus = 429;
+    script.mintBody = { code: "MINT_LIMIT_REACHED" };
   });
 
   it("says the limit returns tomorrow, offers no retry and no busy control, and navigates nowhere", async () => {
@@ -591,6 +597,19 @@ describe("a mint refused for the day's limit keeps the room and offers no retry"
     expect(maybeAt("room-compose")).toBe(null);
     expect(elementAt("room-continue")).toBeInstanceOf(HTMLElement);
     expect(browser.search).toBe(ROOM_QUERY);
+  });
+
+  it("offers the retry again when the 429 is not the limit's: another code, or none", async () => {
+    script.mintBody = { code: "FIREWALL" };
+    render();
+
+    tapContinue();
+    await settleFailedHandoff();
+
+    expect(handoffState()).toBe("failed");
+    expect(elementAt("room-compose-retry").textContent).toBe(
+      roMessages.room.compose.retry,
+    );
   });
 
   it("holds no count, no address and no number in the sentence", () => {

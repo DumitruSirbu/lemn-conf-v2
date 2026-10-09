@@ -16,6 +16,7 @@
 import { boundedFailureReason } from "@lemnaria/configurator-domain";
 
 import type { UnavailableCause } from "@/lib/server/rate-limit/enforce-rate-limit";
+import { E2E_RATE_LIMIT_POLICY_FLAG } from "@/lib/server/rate-limit/limit-policy";
 
 /** Which handler the line came from, not the HTTP method: `PUT` and `PATCH` are one operation, and
  *  `POST /api/designs` is `mint` rather than a second `save`. `resume` is the visitor-hash lookup the locale pages
@@ -110,9 +111,10 @@ export function reportMintLimit(line: MintLimitLine): void {
   });
 }
 
-/** One literal, made of constants: the figure under the e2e policy is not the production one. */
+/** The one line the e2e policy writes, made from the flag's own name: its figure is not the production one. */
 export const E2E_MINT_POLICY_NOTICE =
-  "rate limit: the e2e policy is in use (LEMNARIA_E2E_RATE_LIMIT_POLICY); the day's figure is not the production one";
+  `rate limit: the e2e policy is in use (${E2E_RATE_LIMIT_POLICY_FLAG}); ` +
+  "the day's figure is not the production one";
 
 let hasAnnouncedE2eMintPolicy = false;
 

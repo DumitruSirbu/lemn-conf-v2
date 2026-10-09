@@ -13,6 +13,7 @@ import { withCreateDesignLock } from "./create-design-lock";
 import {
   DesignRequestFailedError,
   isRetryableStatus,
+  MINT_LIMIT_REACHED_CODE,
   MINT_LIMIT_REACHED_STATUS,
   MintLimitReachedError,
   REVISION_CONFLICT_STATUS,
@@ -87,6 +88,25 @@ const NOT_AUTHORIZED_STATUSES: readonly number[] = [401, 403];
 
 function isNotAuthorized(status: number): boolean {
   return NOT_AUTHORIZED_STATUSES.includes(status);
+}
+
+/**
+ * Whether a mint's answer is this application's day-limit refusal: a `429` whose body's own `code` is the limit's. Any
+ * other `429` (no body, not JSON, another code, a body that will not read) is a throttle like any other and keeps its
+ * retry. The code is compared and never shown.
+ */
+async function isMintLimitReached(response: Response): Promise<boolean> {
+  if (response.status !== MINT_LIMIT_REACHED_STATUS) return false;
+  try {
+    const body: unknown = await response.json();
+    return (
+      typeof body === "object" &&
+      body !== null &&
+      (body as { code?: unknown }).code === MINT_LIMIT_REACHED_CODE
+    );
+  } catch {
+    return false;
+  }
 }
 
 /** The failure a status deserves: something no retry can change, or a transient fault worth
@@ -203,7 +223,7 @@ export class FetchConfigurationRepository {
       const response = await this.request(DESIGNS_ENDPOINT, {
         method: "POST",
       });
-      if (response.status === MINT_LIMIT_REACHED_STATUS) {
+      if (await isMintLimitReached(response)) {
         throw new MintLimitReachedError("Minting a design");
       }
       if (!response.ok) throw failureFor("Minting a design", response.status);

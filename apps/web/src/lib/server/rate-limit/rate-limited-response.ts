@@ -2,9 +2,10 @@ import "server-only";
 
 import { NextResponse } from "next/server";
 
+import { MINT_LIMIT_REACHED_CODE } from "@/persistence/design-request-errors";
 import { LONGEST_DAY_SECONDS } from "@/lib/server/rate-limit/chisinau-day";
 
-export const MINT_LIMIT_REACHED_CODE = "MINT_LIMIT_REACHED";
+export { MINT_LIMIT_REACHED_CODE };
 export const MINT_UNAVAILABLE_CODE = "MINT_UNAVAILABLE";
 
 const LIMIT_REACHED_SENTENCE = "The limit on new designs is reached for today.";

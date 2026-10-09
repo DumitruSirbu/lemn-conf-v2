@@ -448,6 +448,11 @@ describe("enforceRateLimit: every way the store can fail is unavailable, keeping
     ["a count that is not a number", ["20"]],
     ["a count that is not finite", [Number.NaN]],
     ["an infinite count", [Number.POSITIVE_INFINITY]],
+    ["a count of nought", [0]],
+    ["a fraction", [1.5]],
+    ["a fraction below one", [0.5]],
+    ["a negative count", [-1]],
+    ["a count that is not a whole number past the figure", [20.5]],
   ])("answers %s from the store as store-failed", async (_label, counts) => {
     const store: RateLimitStore = {
       recordHits: () => Promise.resolve(counts as readonly number[]),
