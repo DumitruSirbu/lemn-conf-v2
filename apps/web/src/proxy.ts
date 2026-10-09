@@ -1,8 +1,9 @@
 import createMiddleware from "next-intl/middleware";
 import { hasLocale } from "next-intl";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, type NextFetchEvent } from "next/server";
 
 import { routing } from "@/i18n/routing";
+import { selectNetworkSource } from "@/lib/server/rate-limit/network-source";
 import {
   buildContentSecurityPolicy,
   CONTENT_SECURITY_POLICY_MODE,
@@ -25,7 +26,14 @@ export const config = {
   ],
 };
 
-export function proxy(request: NextRequest): NextResponse {
+/**
+ * `event` is Next's own and is absent only where a test calls the function. A page read is counted after the response
+ * is decided and never changes it: the count runs beside the response and fails open.
+ */
+export function proxy(
+  request: NextRequest,
+  event?: NextFetchEvent,
+): NextResponse {
   const nonce = createNonce();
   const policy = buildContentSecurityPolicy({
     nonce,
@@ -45,7 +53,60 @@ export function proxy(request: NextRequest): NextResponse {
     policy,
   );
   if (isSharePath(request.nextUrl.pathname)) applySharedViewHeaders(response);
+  if (isCountedPageRead(request, response)) {
+    event?.waitUntil(countPageRead(request.headers));
+  }
   return response;
+}
+
+/**
+ * A page read the limiter is asked about: a design's own page, passed on by the interceptor (not a redirect, not the
+ * case-variant `404`), and only where the owner has named a network source. Under none nothing is asked, and nothing
+ * of the limiter is loaded.
+ */
+function isCountedPageRead(
+  request: NextRequest,
+  response: NextResponse,
+): boolean {
+  if (response.status !== PASSED_ON_STATUS) return false;
+  const [family, id, ...rest] = localeStrippedSegments(
+    request.nextUrl.pathname,
+  );
+  const isDesignPage = family === "d" && id !== undefined && id !== "";
+  return (
+    isDesignPage &&
+    rest.length === 0 &&
+    selectNetworkSource(process.env).kind !== "none"
+  );
+}
+
+const PASSED_ON_STATUS = 200;
+
+/**
+ * The limiter is reached by a dynamic import, and only from here: its store, its digest and its `server-only` chain
+ * are loaded when a source is named and not before, and a chain that cannot load is one line for a process and
+ * never a failed page. Nothing thrown is kept but the error's name.
+ */
+async function countPageRead(headers: Headers): Promise<void> {
+  try {
+    const { judgeReadRequest } = await import(
+      "@/lib/server/rate-limit/judge-read-request"
+    );
+    await judgeReadRequest(headers);
+  } catch (failure) {
+    announceUnloadableLimiter(failure);
+  }
+}
+
+let hasAnnouncedUnloadableLimiter = false;
+
+function announceUnloadableLimiter(failure: unknown): void {
+  if (hasAnnouncedUnloadableLimiter) return;
+  hasAnnouncedUnloadableLimiter = true;
+  console.warn("[designs]", {
+    event: "design-read-limiter-unavailable",
+    errorName: failure instanceof Error ? failure.name : "unknown",
+  });
 }
 
 /**

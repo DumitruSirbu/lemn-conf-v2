@@ -9,7 +9,10 @@ import {
   DIGEST_KEY_BYTES,
   keyedDigest,
 } from "../../../src/lib/server/digest/keyed-digest";
-import { SHARED_BLOCK } from "../../../src/lib/server/rate-limit/client-network";
+import {
+  SHARED_BLOCK,
+  type NetworkBlock,
+} from "../../../src/lib/server/rate-limit/client-network";
 import {
   E2E_MINT_DAILY_FIGURE,
   E2E_SHARE_WRITE_POLICY,
@@ -84,12 +87,21 @@ export function bucketKeyOfTheRun(
   secretHex: string,
   policyName: PolicyName,
 ): string {
+  return bucketKeyOfBlock(secretHex, policyName, SHARED_BLOCK);
+}
+
+/** The same key for any block: a server that names a network source counts each request under its own block. */
+export function bucketKeyOfBlock(
+  secretHex: string,
+  policyName: PolicyName,
+  block: NetworkBlock,
+): string {
   return keyedDigest(Buffer.from(secretHex, "hex"), {
     purpose: "rate-limit-bucket",
     fields: {
       policyName,
-      subjectKind: SHARED_BLOCK.kind,
-      subject: SHARED_BLOCK.subject,
+      subjectKind: block.kind,
+      subject: block.subject,
     },
   });
 }

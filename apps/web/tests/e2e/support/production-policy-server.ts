@@ -20,6 +20,9 @@ export const PRODUCTION_POLICY_SERVER_PORT = 4322;
  *  servers at once, so each names a port of its own. */
 export const REFUSED_MINT_LIVE_SERVER_PORT = 4323;
 
+/** The proof that the interceptor counts a page read starts its own, with a network source named, on 4324. */
+export const PAGE_READ_PROOF_SERVER_PORT = 4324;
+
 /** A developer whose 4322 is taken sets this; a spec that names its own port ignores it. Read when a server starts,
  *  never when the module loads. */
 const PORT_OVERRIDE_VARIABLE = "E2E_PRODUCTION_POLICY_PORT";
@@ -37,6 +40,11 @@ const NOT_INHERITED = [
   RUN_SECRET_VARIABLE,
 ];
 
+export interface ProductionPolicyServerOptions {
+  /** The one variable a second server may be given that the suite's never is: the network source the owner names. */
+  readonly networkSource?: string;
+}
+
 export interface ProductionPolicyServer {
   readonly origin: string;
   /** This server's own secret, made for it alone; the keys it counts under are computed from it. */
@@ -52,6 +60,7 @@ export interface ProductionPolicyServer {
  */
 export async function startProductionPolicyServer(
   port: number = portOfThisRun(),
+  options: ProductionPolicyServerOptions = {},
 ): Promise<ProductionPolicyServer> {
   if (process.env.CI === undefined) {
     throw new Error(
@@ -60,7 +69,7 @@ export async function startProductionPolicyServer(
   }
   await requirePortFree(port);
   const secret = makeRunSecret();
-  const child = spawnNextStart(port, environmentOfTheServer(secret));
+  const child = spawnNextStart(port, environmentOfTheServer(secret, options));
   const exited = new Promise<never>((_resolve, reject) => {
     child.once("exit", () => {
       reject(
@@ -91,7 +100,10 @@ function spawnNextStart(
   );
 }
 
-function environmentOfTheServer(secret: string): NodeJS.ProcessEnv {
+function environmentOfTheServer(
+  secret: string,
+  { networkSource }: ProductionPolicyServerOptions,
+): NodeJS.ProcessEnv {
   const environment: Record<string, string | undefined> = Object.fromEntries(
     Object.entries(process.env).filter(
       ([name]) => !NOT_INHERITED.includes(name),
@@ -100,6 +112,9 @@ function environmentOfTheServer(secret: string): NodeJS.ProcessEnv {
   // The guarded resolver refuses anything but an allowlisted test database, as the suite's own server's does.
   environment.DATABASE_URL = resolveTestDatabaseUrl();
   environment[DIGEST_SECRET_VARIABLE] = secret;
+  if (networkSource !== undefined) {
+    environment[CLIENT_NETWORK_SOURCE_VARIABLE] = networkSource;
+  }
   return environment as NodeJS.ProcessEnv;
 }
 
