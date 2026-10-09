@@ -6518,6 +6518,87 @@ points 2 and 3; ADR 0148 and 8C *as built*; `review/review-model.ts`, `review/us
 `submission-snapshot.ts`, `input-checks.ts`; `packages/persistence/src/contact-submission-store.ts`
 (the type); ADR 0150, limits; ADR 0153, *What later waves inherit*; Q10.
 
+##### 8J — S3's stop, ruled 2026-10-09
+
+**State.** HEAD is `35d9acc` (S2) [ran: `git log`]. S3 is in the tree, uncommitted: the notice, its
+test, the leaves and the copy tests. The whole web suite is 3 failed, 6218 passed [relayed,
+developer-run]: two tests of `tests/review/use-review.dom.test.ts`, one of
+`tests/price/starting-price.adversarial.test.ts`. The architect read both tests and the notice.
+
+**The conflict is the architect's making.** S3 was ruled to call `describeReview` without 8D's
+criterion 10 having been read. It says, of 2026-10-07: *"One place hands `describeReview` its
+three inputs … nothing else imports `describeReview`."*
+
+| Record | What it says | How it is settled |
+| --- | --- | --- |
+| ADR 0148 decision 3 (2026-10-07) and its limit, *a stale projection* | The model takes three inputs and throws when they are not one design's. It does not price | **Kept.** The notice hands it three inputs made from one stored snapshot in one function, and does not price |
+| 8D criterion 10 (2026-10-07; as built 2026-10-08) | One caller, `review/use-review.ts`. *Must not:* the design from one source and the price or the groups from another; a projection kept from an earlier design | **Its letter is amended, 2026-10-09: two callers, each named.** Its *must not* stands for both. The scribe records it at 8J's close as an amendment to ADR 0148 |
+| ADR 0148 decision 3, with ADR 0062 seam 1 and ADR 0072 | `use-priced-design.ts` is the one module that names a price book | **Kept.** The notice names no book and no pricing function |
+| D7; ADR 0072 | Nothing re-prices a stored submission | **Kept, and this is why (b) loses nothing to (a):** the notice prints the snapshot's price |
+| ADR 0138 decision 4 (2026-10-06), and the price test's own comment | One rounding site. *"a new module that can reach a priced amount is a recorded addition"* | **Kept.** The notice is listed, and rounds nothing |
+| ADR 0095; Q10 (a); the copy lock's header | *"approved copy plus the drafted leaves it has to carry … Carrying a leaf is not approval."* *"Russian remains an unapproved draft"* until its gate | **As the developer did** (below) |
+
+**Ruled: (a). The notice is the model's second caller, by name.**
+
+- *It contradicts the letter and not the intent.* The rule exists so that no caller pairs a design
+  from one place with a price or rows from another. The snapshot's document and price were made
+  together from one parsed design [src `submission-snapshot.ts`], the rows are projected from that
+  same document in the same call, and nothing is kept between calls.
+- *Why not (b).* Building from `describeBreakdownRows` makes a second composer of what a review
+  shows: its room line, its figure, its disclaimer. That is the drift the one model was built to end,
+  and criterion 7 would rest on a parity test and not on construction.
+- **What stays impossible, and each is tested.** A third caller, or one not named. A caller in the
+  browser other than the hook: the notice begins with the server-only import. A caller that prices:
+  the notice names no pricing function, no price book and no store. A notice that prices again: a
+  snapshot whose stored total is changed prints the changed figure.
+
+**The copy, and the notice as built.**
+
+- **A draft belongs in the lock, marked as this one is** (*"Drafted, not approved:"*, the form the
+  file already uses) [src `tests/support/approved-romanian-messages.ts:3-4`, `:148`]. No change.
+- **The hashes: no command exists, and none is needed.** A hash is right when the test's own
+  rendering gives it. What a wave that adds copy owes is that none moved, and the file only grew:
+  34 lines added, none removed [ran: `git diff --numstat`].
+- **The Russian, drafted and unmarked, is the file's standing state** (ADR 0095). With the language
+  held at `ro`, those leaves are read by nothing until Q34 says otherwise.
+- **The notice is within points 2 and 3.** *Preț* is a label, not a sentence. The figure and the
+  two lines under it are the review's own, joined and not changed. *nu este inclus* is the row's
+  own word (criterion 7). The disclaimer's missing diacritics are the owner's existing item, now
+  on one more surface. The customer's locale is printed as the application's own code.
+
+**S2's nine readings. Seven stand, two are tightened.**
+
+- *Stand:* (i) a throw while the request is built, or a message that may not be sent, is
+  *refused* with no status; a throw from `fetch` is *unreachable*. (ii) Success has no status; a
+  failure has one whenever there was a response. (v) The fake neither records nor spends a
+  scripted answer on a message that may not be sent, **and its comment says so.** (vi) The body is
+  read only for a 2xx, a `409` and a `429`. (vii) The factory reads the configuration again, and a
+  second reading of *unavailable* is answered as such [src `create-mail-sender.ts:45-49`]. (viii) A
+  comment that names the fake fails the tripwire. (ix) Own members only, the flag as the rest.
+- **(iii) tightened: an `id` that is empty text is not an acceptance.** It is *unreadable answer*.
+- **(iv) tightened: a text that is empty may not be sent.** A notice with no body is no notice.
+
+**To finish S3. One developer, five items, two commits: item 1 alone, then the rest.**
+
+| # | Does | Files |
+| --- | --- | --- |
+| 1 | S2's two edges, (iii) and (iv), and the fake's sentence for (v) | `lib/server/mail/resend-mail-sender.ts`, `mail-sender.ts`, `fake-mail-sender.ts`; their tests |
+| 2 | **The review's gate:** the one caller becomes a closed list of two, in order; its header states the rule as amended and names this record; it also holds that the notice begins with the server-only import and names no pricing function, price book or store | `tests/review/use-review.dom.test.ts` |
+| 3 | **The price gate:** the notice joins the list in its place, with one line saying it prints a stored review's figure and rows and derives nothing | `tests/price/starting-price.adversarial.test.ts` |
+| 4 | Two tests of the notice: a snapshot whose stored total is changed prints the changed figure; a name holding braces, an apostrophe and an angle bracket is printed as it is | `tests/lib/server/mail/lead-notification.test.ts` |
+| 5 | The whole web suite, the typecheck and the lint, each quoted; then S3's commit | none |
+
+*Must not:* another assertion of either gate is weakened or removed; `review/review-model.ts`,
+`review/use-review.ts` or anything under `price/` changes; the notice gains a rounding, a price
+book or a second source for any of its three inputs.
+
+**The wave's one QA pass. Its reading, amended.** Criteria 1 to 13; *8J, restated for dispatch*;
+*S1's security read, ruled*; this section; `tests/lib/server/backup-designs.test.ts`; ADR 0146 B1;
+**added:** ADR 0148 decision 3; `tests/review/use-review.dom.test.ts` and
+`tests/price/starting-price.adversarial.test.ts` (a third caller, a caller that prices, a module
+that rounds: each must go red); `tests/support/approved-romanian-messages.ts`, its header;
+`tests/i18n/golden-output.test.ts`; ADR 0153, *What later waves inherit*.
+
 ### 8K — `POST /api/contact-submissions`
 
 *Goal.* The boundary: it revalidates, refuses abuse, snapshots the stored design, stores once,
