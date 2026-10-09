@@ -217,4 +217,118 @@ export function describeRateLimitStoreContract({
       expect(await store.recordHits([live])).toEqual([2]);
     });
   });
+
+  describe("totalsOfWindow", () => {
+    // The windows are ones no other test of the contract uses. Every assertion is a difference from a reading taken
+    // first, so rows an interrupted earlier run left in the same windows cannot move it.
+    const FIGURE = 3;
+
+    async function hit(
+      store: RateLimitStore,
+      planted: RateLimitBucket,
+      times: number,
+    ): Promise<void> {
+      for (let count = 0; count < times; count += 1) {
+        await store.recordHits([planted]);
+      }
+    }
+
+    it("counts the buckets of one window, those above the figure, and the largest count", async () => {
+      const store = createStore();
+      const window = hourWindowNumber(20);
+      const before = await store.totalsOfWindow(window, FIGURE);
+      for (const times of [1, 3, 4, 6]) {
+        await hit(store, bucket(window), times);
+      }
+
+      const after = await store.totalsOfWindow(window, FIGURE);
+
+      expect(after.buckets - before.buckets).toBe(4);
+      expect(after.aboveFigure - before.aboveFigure).toBe(2);
+      expect(after.largestCount).toBe(Math.max(before.largestCount, 6));
+    });
+
+    it("counts a bucket at the figure as not above it, and above a figure one lower", async () => {
+      const store = createStore();
+      const window = hourWindowNumber(21);
+      const atTheFigure = await store.totalsOfWindow(window, FIGURE);
+      const oneLower = await store.totalsOfWindow(window, FIGURE - 1);
+
+      await hit(store, bucket(window), FIGURE);
+      const afterAtFigure = await store.totalsOfWindow(window, FIGURE);
+      const afterOneLower = await store.totalsOfWindow(window, FIGURE - 1);
+
+      expect(afterAtFigure.aboveFigure).toBe(atTheFigure.aboveFigure);
+      expect(afterOneLower.aboveFigure - oneLower.aboveFigure).toBe(1);
+    });
+
+    it("holds only the rows of the window's own start and end, not a longer one from its start", async () => {
+      const store = createStore();
+      const hour = hourWindowNumber(22);
+      const day = {
+        startsAt: hour.startsAt,
+        endsAt: new Date(hour.startsAt.getTime() + 24 * HOUR_MS),
+      };
+      const nextHour = hourWindowNumber(23);
+      const [hourBefore, dayBefore, nextBefore] = await Promise.all(
+        [hour, day, nextHour].map((window) =>
+          store.totalsOfWindow(window, FIGURE),
+        ),
+      );
+
+      await hit(store, bucket(hour), 1);
+      await hit(store, bucket(day), 2);
+      await hit(store, bucket(nextHour), 5);
+      const [hourAfter, dayAfter, nextAfter] = await Promise.all(
+        [hour, day, nextHour].map((window) =>
+          store.totalsOfWindow(window, FIGURE),
+        ),
+      );
+
+      expect(hourAfter?.buckets).toBe((hourBefore?.buckets ?? 0) + 1);
+      expect(dayAfter?.buckets).toBe((dayBefore?.buckets ?? 0) + 1);
+      expect(nextAfter?.buckets).toBe((nextBefore?.buckets ?? 0) + 1);
+      expect(hourAfter?.aboveFigure).toBe(hourBefore?.aboveFigure);
+      expect(dayAfter?.aboveFigure).toBe(dayBefore?.aboveFigure);
+    });
+
+    it("counts a bucket once however many keys share its window, and reads without counting a hit itself", async () => {
+      const store = createStore();
+      const window = hourWindowNumber(24);
+      const only = bucket(window);
+      await hit(store, only, 1);
+      const first = await store.totalsOfWindow(window, FIGURE);
+
+      const second = await store.totalsOfWindow(window, FIGURE);
+
+      expect(second).toEqual(first);
+      expect(await store.recordHits([only])).toEqual([2]);
+    });
+
+    it("answers a window that no row has as three noughts", async () => {
+      const store = createStore();
+      const unused = hourWindowContaining(Date.UTC(2001, 0, 1) + 100 * HOUR_MS);
+
+      expect(await store.totalsOfWindow(unused, FIGURE)).toEqual({
+        buckets: 0,
+        aboveFigure: 0,
+        largestCount: 0,
+      });
+    });
+
+    it("refuses a window that ends where it starts and a figure that is not a whole number", async () => {
+      const store = createStore();
+      const startsAt = hourWindowNumber(0).startsAt;
+
+      await expect(
+        store.totalsOfWindow({ startsAt, endsAt: startsAt }, FIGURE),
+      ).rejects.toThrow(/Refusing/);
+      await expect(
+        store.totalsOfWindow(hourWindowNumber(0), 1.5),
+      ).rejects.toThrow(/Refusing/);
+      await expect(
+        store.totalsOfWindow(hourWindowNumber(0), -1),
+      ).rejects.toThrow(/Refusing/);
+    });
+  });
 }

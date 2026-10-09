@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { E2E_MINT_POLICY_NOTICE } from "@/lib/server/design-failure-log";
 
+import { UNUSED_STORE_READS } from "../../../support/unused-store-reads";
+
 /**
  * `POST /api/designs` asks the limiter after the cross-site guard and before the visitor is read or anything is
  * minted. The judgement is the real one, as in every route test; this file chooses the store it counts in.
@@ -86,7 +88,7 @@ function storeAnswering(count: number) {
       buckets.push(given);
       return Promise.resolve([count]);
     },
-    pruneExpired: () => Promise.resolve(0),
+    ...UNUSED_STORE_READS,
   };
 }
 
@@ -266,7 +268,7 @@ describe("POST /api/designs: a mint the limiter cannot judge", () => {
         order.calls.push("record-hits");
         return Promise.reject(new Error("STORE-MARKER"));
       },
-      pruneExpired: () => Promise.resolve(0),
+      ...UNUSED_STORE_READS,
     };
     const logs = silenceLogs();
 
@@ -289,7 +291,7 @@ describe("POST /api/designs: a mint the limiter cannot judge", () => {
         order.calls.push("record-hits");
         return new Promise<readonly number[]>(() => undefined);
       },
-      pruneExpired: () => Promise.resolve(0),
+      ...UNUSED_STORE_READS,
     };
 
     const pending = POST(mintRequest());

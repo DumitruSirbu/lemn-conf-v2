@@ -28,3 +28,9 @@ export const CONTRACT_SUITE_ERA: RateLimitTestEra = {
   startsAtMs: Date.UTC(2001, 0, 1),
   endsAtMs: Date.UTC(2002, 0, 1),
 };
+
+/** `neon-rate-limit-totals.live.test.ts`. */
+export const TOTALS_SUITE_ERA: RateLimitTestEra = {
+  startsAtMs: Date.UTC(2015, 0, 1),
+  endsAtMs: Date.UTC(2016, 0, 1),
+};

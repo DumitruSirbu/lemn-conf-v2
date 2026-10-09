@@ -43,11 +43,11 @@ import {
 import { utcWindowOf } from "@/lib/server/rate-limit/utc-window";
 import { LOCK_ACQUIRE_TIMEOUT_MS } from "@/persistence/create-design-lock";
 
+import { UNUSED_STORE_READS } from "../../../support/unused-store-reads";
 import {
   PROCESS_ENV_OR_BUILD_MODE,
   readSource,
 } from "../server-source-support";
-
 const FAKE_SECRET =
   "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
 const FAKE_KEY = Uint8Array.from({ length: 32 }, (_, i) => i);
@@ -90,7 +90,7 @@ function storeAnswering(
       calls.push(buckets);
       return Promise.resolve([count]);
     },
-    pruneExpired: () => Promise.resolve(0),
+    ...UNUSED_STORE_READS,
   };
 }
 
@@ -103,7 +103,7 @@ function storeFailingWith(
       store.calls += 1;
       throw reason();
     },
-    pruneExpired: () => Promise.resolve(0),
+    ...UNUSED_STORE_READS,
   };
   return store;
 }
@@ -558,7 +558,7 @@ describe("enforceRateLimit: every way the store can fail is unavailable, keeping
     async (_label, reason) => {
       const store: RateLimitStore = {
         recordHits: () => Promise.reject(reason() as Error),
-        pruneExpired: () => Promise.resolve(0),
+        ...UNUSED_STORE_READS,
       };
 
       expect(await enforceRateLimit(requestOf({ store }))).toEqual(
@@ -582,7 +582,7 @@ describe("enforceRateLimit: every way the store can fail is unavailable, keeping
   ])("answers %s from the store as store-failed", async (_label, counts) => {
     const store: RateLimitStore = {
       recordHits: () => Promise.resolve(counts as readonly number[]),
-      pruneExpired: () => Promise.resolve(0),
+      ...UNUSED_STORE_READS,
     };
 
     expect(await enforceRateLimit(requestOf({ store }))).toEqual(
@@ -606,7 +606,7 @@ describe("enforceRateLimit: the deadline", () => {
   function neverAnswering(): RateLimitStore {
     return {
       recordHits: () => new Promise<readonly number[]>(() => undefined),
-      pruneExpired: () => Promise.resolve(0),
+      ...UNUSED_STORE_READS,
     };
   }
 
@@ -680,7 +680,7 @@ describe("enforceRateLimit: the deadline", () => {
             reject(new RateLimitStoreError("record hits"));
           }, RATE_LIMIT_DEADLINE_MS + 2000);
         }),
-      pruneExpired: () => Promise.resolve(0),
+      ...UNUSED_STORE_READS,
     };
 
     const pending = enforceRateLimit(requestOf({ store: late }));
@@ -701,7 +701,7 @@ describe("enforceRateLimit: the deadline", () => {
             resolve([1]);
           }, RATE_LIMIT_DEADLINE_MS + 1);
         }),
-      pruneExpired: () => Promise.resolve(0),
+      ...UNUSED_STORE_READS,
     };
 
     const pending = enforceRateLimit(requestOf({ store: late }));

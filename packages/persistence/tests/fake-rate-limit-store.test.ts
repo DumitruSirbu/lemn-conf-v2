@@ -35,6 +35,26 @@ describe("FakeRateLimitStore", () => {
       expect([removed, removedAgain]).toEqual([2, 0]);
     });
 
+    it("totals exactly the window's own buckets, in three numbers and no key", async () => {
+      const store = new FakeRateLimitStore();
+      const window = hourWindowContaining(Date.UTC(2001, 0, 1));
+      const other = hourWindowContaining(window.endsAt.getTime());
+      const busy = { key: newKey(), window };
+      await store.recordHits([busy, { key: newKey(), window }]);
+      await store.recordHits([busy]);
+      await store.recordHits([busy]);
+      await store.recordHits([{ key: newKey(), window: other }]);
+
+      const totals = await store.totalsOfWindow(window, 2);
+
+      expect(totals).toEqual({ buckets: 2, aboveFigure: 1, largestCount: 3 });
+      expect(Reflect.ownKeys(totals)).toEqual([
+        "buckets",
+        "aboveFigure",
+        "largestCount",
+      ]);
+    });
+
     it("keeps one store's counts out of another's", async () => {
       const key = newKey();
       const window = hourWindowContaining(Date.UTC(2001, 0, 1));

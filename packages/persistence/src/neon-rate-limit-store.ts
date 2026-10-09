@@ -8,11 +8,14 @@ import {
   identityOf,
   requireValidBuckets,
   requireValidInstant,
+  requireValidTotalsRequest,
 } from "./rate-limit-store.js";
 import type {
   RateLimitBucket,
   RateLimitOperation,
   RateLimitStore,
+  RateLimitWindow,
+  WindowTotals,
 } from "./rate-limit-store.js";
 import {
   isTransientFailure,
@@ -27,6 +30,12 @@ interface HitRow {
 
 interface RemovedRow {
   removed: unknown;
+}
+
+interface TotalsRow {
+  buckets: unknown;
+  above_figure: unknown;
+  largest_count: unknown;
 }
 
 interface HitColumns {
@@ -112,6 +121,33 @@ export class NeonRateLimitStore implements RateLimitStore {
     );
 
     return removedCountOf(rows);
+  }
+
+  /**
+   * Three numbers over the rows of one window, chosen by its exact start and end: hour rows and day rows share the
+   * table, and a day's totals must not hold an hour's. A read, so any transient failure is repeated.
+   */
+  async totalsOfWindow(
+    window: RateLimitWindow,
+    figure: number,
+  ): Promise<WindowTotals> {
+    requireValidTotalsRequest(window, figure);
+
+    const rows = await queryRows<TotalsRow>("total a window", () =>
+      retryOnTransientFailure(
+        () => this.sql`
+            select
+              count(*)::int as buckets,
+              (count(*) filter (where hits > ${figure}))::int as above_figure,
+              coalesce(max(hits), 0)::int as largest_count
+            from rate_limit_counters
+            where window_start = ${window.startsAt.toISOString()}::timestamptz
+              and window_end = ${window.endsAt.toISOString()}::timestamptz
+          `,
+      ),
+    );
+
+    return totalsFrom(rows);
   }
 }
 
@@ -227,6 +263,23 @@ function removedCountOf(rows: readonly RemovedRow[]): number {
     throw new RateLimitStoreError("prune expired windows");
   }
   return removed;
+}
+
+function totalsFrom(rows: readonly TotalsRow[]): WindowTotals {
+  const row = rows[0];
+  const buckets = row?.buckets;
+  const aboveFigure = row?.above_figure;
+  const largestCount = row?.largest_count;
+  if (
+    rows.length !== 1 ||
+    !isCountOfAtLeast(NONE_REMOVED, buckets) ||
+    !isCountOfAtLeast(NONE_REMOVED, aboveFigure) ||
+    !isCountOfAtLeast(NONE_REMOVED, largestCount) ||
+    aboveFigure > buckets
+  ) {
+    throw new RateLimitStoreError("total a window");
+  }
+  return { buckets, aboveFigure, largestCount };
 }
 
 /** A hit that was just counted is at least 1, and a prune may remove none: a fraction or a text is no count. */

@@ -349,3 +349,164 @@ describe("NeonRateLimitStore.pruneExpired", () => {
     expect(driver.statements).toHaveLength(0);
   });
 });
+
+describe("NeonRateLimitStore.totalsOfWindow", () => {
+  const FIGURE = 20;
+  const TOTALS_REPLY = [{ buckets: 7, above_figure: 2, largest_count: 31 }];
+
+  /** The statement with its whitespace gathered, so a change of words fails and a change of layout does not. */
+  function sentText(): string {
+    return (driver.statements[0]?.text ?? "").replace(/\s+/g, " ").trim();
+  }
+
+  it("sends one statement, pinned in full, with the figure and the window's two instants its only values", async () => {
+    answerWith(TOTALS_REPLY);
+
+    await newStore().totalsOfWindow(WINDOW, FIGURE);
+
+    expect(driver.statements).toHaveLength(1);
+    expect(sentText()).toBe(
+      "select count(*)::int as buckets, " +
+        "(count(*) filter (where hits > ?))::int as above_figure, " +
+        "coalesce(max(hits), 0)::int as largest_count " +
+        "from rate_limit_counters " +
+        "where window_start = ?::timestamptz and window_end = ?::timestamptz",
+    );
+    expect(driver.statements[0]?.values).toEqual([
+      FIGURE,
+      WINDOW_START.toISOString(),
+      WINDOW_END.toISOString(),
+    ]);
+  });
+
+  it("chooses rows by the window's start and end together, never by its start alone", async () => {
+    answerWith(TOTALS_REPLY);
+
+    await newStore().totalsOfWindow(WINDOW, FIGURE);
+
+    expect(sentText()).toMatch(
+      /where window_start = \?::timestamptz and window_end = \?::timestamptz$/,
+    );
+  });
+
+  it("only reads: it names no write, no lock and no table but the counters", async () => {
+    answerWith(TOTALS_REPLY);
+
+    await newStore().totalsOfWindow(WINDOW, FIGURE);
+
+    expect(sentText()).not.toMatch(
+      /\b(insert|update|delete|truncate|alter|drop|for update|returning)\b/i,
+    );
+    expect(sentText()).not.toMatch(/\bdesigns\b|bucket_key/);
+    expect(sentText()).toContain("rate_limit_counters");
+  });
+
+  it("answers the three numbers and nothing else: no key, no row, no instant", async () => {
+    answerWith(TOTALS_REPLY);
+
+    const totals = await newStore().totalsOfWindow(WINDOW, FIGURE);
+
+    expect(totals).toEqual({ buckets: 7, aboveFigure: 2, largestCount: 31 });
+    expect(Reflect.ownKeys(totals)).toEqual([
+      "buckets",
+      "aboveFigure",
+      "largestCount",
+    ]);
+  });
+
+  it("answers a window that holds nothing as three noughts", async () => {
+    answerWith([{ buckets: 0, above_figure: 0, largest_count: 0 }]);
+
+    expect(await newStore().totalsOfWindow(WINDOW, FIGURE)).toEqual({
+      buckets: 0,
+      aboveFigure: 0,
+      largestCount: 0,
+    });
+  });
+
+  it.each([
+    ["no row", []],
+    ["two rows", [...TOTALS_REPLY, ...TOTALS_REPLY]],
+    ["a row that is null", [null]],
+    ["a reply that is not a list of rows", { rows: TOTALS_REPLY }],
+    [
+      "a count that is text",
+      [{ buckets: "7", above_figure: 2, largest_count: 31 }],
+    ],
+    ["a count that is missing", [{ buckets: 7, largest_count: 31 }]],
+    [
+      "a fractional count",
+      [{ buckets: 7, above_figure: 2.5, largest_count: 31 }],
+    ],
+    ["a negative count", [{ buckets: 7, above_figure: 2, largest_count: -1 }]],
+    [
+      "more buckets above the figure than there are buckets",
+      [{ buckets: 1, above_figure: 2, largest_count: 31 }],
+    ],
+  ])("rejects with the typed error on %s", async (_label, reply) => {
+    answerWith(reply);
+
+    const error = await rejectionOf(newStore().totalsOfWindow(WINDOW, FIGURE));
+
+    expect(error).toBeInstanceOf(RateLimitStoreError);
+    expect((error as RateLimitStoreError).operation).toBe("total a window");
+  });
+
+  it("rejects with the typed error naming the operation when the database fails, keeping nothing of it", async () => {
+    failWith(
+      new Error(`fetch failed for https://${FAKE_HOST} with ${FAKE_PASSWORD}`),
+    );
+
+    const error = await rejectionOf(newStore().totalsOfWindow(WINDOW, FIGURE));
+
+    expect(error).toBeInstanceOf(RateLimitStoreError);
+    expect((error as RateLimitStoreError).operation).toBe("total a window");
+    expect(markersFoundOn(error)).toEqual([]);
+  });
+
+  it("repeats a read the proxy refused for a suspended compute, since a read repeated ends the same", async () => {
+    vi.useFakeTimers();
+    failWith(coldStartRefusal());
+    answerWith(TOTALS_REPLY);
+
+    const pending = newStore().totalsOfWindow(WINDOW, FIGURE);
+    await vi.advanceTimersByTimeAsync(FIRST_BACKOFF_MS);
+
+    expect(await pending).toEqual({
+      buckets: 7,
+      aboveFigure: 2,
+      largestCount: 31,
+    });
+    expect(driver.statements).toHaveLength(2);
+  });
+
+  it.each([
+    [
+      "a window that ends where it starts",
+      { startsAt: WINDOW_START, endsAt: WINDOW_START },
+      FIGURE,
+    ],
+    [
+      "a window that ends before it starts",
+      { startsAt: WINDOW_END, endsAt: WINDOW_START },
+      FIGURE,
+    ],
+    [
+      "a window with an invalid instant",
+      { startsAt: new Date(NaN), endsAt: WINDOW_END },
+      FIGURE,
+    ],
+    ["a negative figure", WINDOW, -1],
+    ["a fractional figure", WINDOW, 1.5],
+    ["a figure that is not a number", WINDOW, NaN],
+  ])(
+    "refuses %s before any statement is sent",
+    async (_label, window, figure) => {
+      await expect(newStore().totalsOfWindow(window, figure)).rejects.toThrow(
+        /Refusing/,
+      );
+
+      expect(driver.statements).toHaveLength(0);
+    },
+  );
+});

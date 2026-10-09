@@ -3,10 +3,17 @@ import {
   identityOf,
   requireValidBuckets,
   requireValidInstant,
+  requireValidTotalsRequest,
 } from "./rate-limit-store.js";
-import type { RateLimitBucket, RateLimitStore } from "./rate-limit-store.js";
+import type {
+  RateLimitBucket,
+  RateLimitStore,
+  RateLimitWindow,
+  WindowTotals,
+} from "./rate-limit-store.js";
 
 interface CountedWindow {
+  readonly startsAtMs: number;
   readonly endsAtMs: number;
   hits: number;
 }
@@ -35,6 +42,27 @@ export class FakeRateLimitStore implements RateLimitStore {
     return expired.length;
   }
 
+  // eslint-disable-next-line @typescript-eslint/require-await -- see recordHits.
+  async totalsOfWindow(
+    window: RateLimitWindow,
+    figure: number,
+  ): Promise<WindowTotals> {
+    requireValidTotalsRequest(window, figure);
+    const held = [...this.windowsByIdentity.values()].filter(
+      (counted) =>
+        counted.startsAtMs === window.startsAt.getTime() &&
+        counted.endsAtMs === window.endsAt.getTime(),
+    );
+    return {
+      buckets: held.length,
+      aboveFigure: held.filter((counted) => counted.hits > figure).length,
+      largestCount: held.reduce(
+        (largest, counted) => Math.max(largest, counted.hits),
+        0,
+      ),
+    };
+  }
+
   private requireStoredEndsToAgree(buckets: readonly RateLimitBucket[]): void {
     const disagrees = buckets.some((bucket) => {
       const stored = this.windowsByIdentity.get(identityOf(bucket));
@@ -49,6 +77,7 @@ export class FakeRateLimitStore implements RateLimitStore {
   private addHit(bucket: RateLimitBucket): number {
     const identity = identityOf(bucket);
     const counted = this.windowsByIdentity.get(identity) ?? {
+      startsAtMs: bucket.window.startsAt.getTime(),
       endsAtMs: bucket.window.endsAt.getTime(),
       hits: 0,
     };

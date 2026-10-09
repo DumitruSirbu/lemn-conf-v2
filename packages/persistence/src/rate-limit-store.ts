@@ -18,7 +18,20 @@ export interface RateLimitBucket {
   readonly window: RateLimitWindow;
 }
 
-export type RateLimitOperation = "record hits" | "prune expired windows";
+export type RateLimitOperation =
+  | "record hits"
+  | "prune expired windows"
+  | "total a window";
+
+/** What one window held, in numbers alone: no key, no subject and no row of it is in the answer. */
+export interface WindowTotals {
+  /** How many buckets counted in the window. */
+  readonly buckets: number;
+  /** How many of them hold a count above the figure handed in. */
+  readonly aboveFigure: number;
+  /** The highest count any of them holds, or nought for a window with none. */
+  readonly largestCount: number;
+}
 
 export interface RateLimitStore {
   /**
@@ -34,6 +47,15 @@ export interface RateLimitStore {
   /** Deletes every window that ended at or before `now` and returns how many rows went; after a repeated statement
    *  that number is a lower bound. Safe to run again. */
   pruneExpired(now: Date): Promise<number>;
+  /**
+   * The totals of the rows whose window starts and ends exactly where `window` does, since windows of other lengths
+   * share the table and are not this one. A count is above the figure when it is more than `figure`, as a hit is
+   * refused. Writes nothing, and rejects as `recordHits` does when the database gives no trustworthy answer.
+   */
+  totalsOfWindow(
+    window: RateLimitWindow,
+    figure: number,
+  ): Promise<WindowTotals>;
 }
 
 /** The database did not give a count: it refused the statement, did not answer, or answered with something that is
@@ -87,6 +109,19 @@ export function requireValidInstant(instant: Date): void {
   if (Number.isNaN(instant.getTime())) {
     throw new Error(
       "Refusing to use the rate-limit store: an instant is not a valid date.",
+    );
+  }
+}
+
+/** The one place a window and a figure handed to the totals' read are checked, by the Neon store and the fake alike. */
+export function requireValidTotalsRequest(
+  window: RateLimitWindow,
+  figure: number,
+): void {
+  requireNonEmptyWindow(window);
+  if (!Number.isInteger(figure) || figure < 0) {
+    throw new Error(
+      "Refusing to total a window: the figure must be a whole number of at least nought.",
     );
   }
 }
