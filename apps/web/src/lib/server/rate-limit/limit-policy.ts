@@ -154,14 +154,19 @@ const TWINS_OF_PURPOSE: Readonly<Record<PolicyPurpose, Twins>> = {
 };
 
 /** Every policy once, for a check that no two share a name. */
-export const ALL_LIMIT_POLICIES: readonly LimitPolicy[] = [
+export const ALL_LIMIT_POLICIES: readonly LimitPolicy[] = Object.freeze([
   ...new Set(
     Object.values(TWINS_OF_PURPOSE).flatMap(({ production, e2e }) => [
       production,
       e2e,
     ]),
   ),
-];
+]);
+
+/** Whether `candidate` is one of the closed set's own, by identity: an object with the same name and figure is not. */
+export function isOwnPolicy(candidate: unknown): candidate is LimitPolicy {
+  return ALL_LIMIT_POLICIES.some((policy) => policy === candidate);
+}
 
 export const E2E_RATE_LIMIT_POLICY_FLAG = "LEMNARIA_E2E_RATE_LIMIT_POLICY";
 
@@ -179,11 +184,15 @@ export type PolicyChoice =
  * Pure: the environment is handed in, and no request can reach it. The production policy of the purpose is the
  * default. One flag, exactly `1`, chooses the e2e twin of every purpose that has one, and beside
  * `CLIENT_NETWORK_SOURCE` as an own member, whatever it holds, the flag is a misconfiguration and nothing is chosen.
+ * A purpose that is not one of the list's own is a misconfiguration too, and is answered so and not by a throw.
  */
 export function choosePolicy(
   environment: NetworkEnvironment,
   purpose: PolicyPurpose,
 ): PolicyChoice {
+  if (!Object.hasOwn(TWINS_OF_PURPOSE, purpose)) {
+    return { status: "unavailable", variable: E2E_RATE_LIMIT_POLICY_FLAG };
+  }
   const { production, e2e } = TWINS_OF_PURPOSE[purpose];
   if (!isFlagSet(environment)) return { status: "chosen", policy: production };
   if (Object.hasOwn(environment, CLIENT_NETWORK_SOURCE_VARIABLE)) {

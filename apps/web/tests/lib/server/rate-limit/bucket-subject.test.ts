@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   BucketSubjectError,
+  isMadeSubject,
   subjectOfNetworkBlock,
   subjectOfWriteCredentialHash,
   WRITE_CREDENTIAL_KIND,
@@ -134,6 +135,24 @@ describe("subjectOfWriteCredentialHash: only a credential's hash", () => {
     ).toBe(true);
   });
 
+  it.each([
+    ["a list holding a hash", [A_CREDENTIAL_HASH]],
+    ["an object whose text is a hash", { toString: () => A_CREDENTIAL_HASH }],
+    ["a number", 1],
+    ["nothing", undefined],
+    ["null", null],
+  ])(
+    "refuses %s, which is not a string, before its pattern is asked",
+    (_label, given) => {
+      expect(
+        isRefusedAs(
+          () => subjectOfWriteCredentialHash(given as string),
+          WRITE_CREDENTIAL_KIND,
+        ),
+      ).toBe(true);
+    },
+  );
+
   it("keeps the credential's kind apart from the three a network block has", () => {
     expect(NETWORK_KINDS).not.toContain(WRITE_CREDENTIAL_KIND);
   });
@@ -160,6 +179,40 @@ describe("a subject", () => {
     expect((thrown as Error).message).toContain(WRITE_CREDENTIAL_KIND);
     expect(JSON.stringify(thrown)).not.toContain("MARKER");
     expect((thrown as Error).message).not.toContain("MARKER");
+  });
+});
+
+describe("isMadeSubject: what a constructor made, by identity", () => {
+  const MADE = [
+    subjectOfNetworkBlock(block("ipv4-block", "192.0.2")),
+    subjectOfNetworkBlock(block("shared", "")),
+    subjectOfWriteCredentialHash(A_CREDENTIAL_HASH),
+  ];
+
+  it("knows each subject a constructor made", () => {
+    expect(MADE.map((subject) => isMadeSubject(subject))).toEqual([
+      true,
+      true,
+      true,
+    ]);
+  });
+
+  it.each([
+    ["a spread copy", { ...MADE[0] }],
+    ["a copy that went through JSON", JSON.parse(JSON.stringify(MADE[2]))],
+    [
+      "a literal of the same kind and text",
+      { kind: "ipv4-block", subject: "192.0.2" },
+    ],
+    [
+      "an object that inherits from a made subject",
+      Object.create(MADE[0] as object) as object,
+    ],
+    ["text", "192.0.2"],
+    ["nothing", undefined],
+    ["null", null],
+  ])("does not know %s", (_label, candidate) => {
+    expect(isMadeSubject(candidate)).toBe(false);
   });
 });
 
@@ -326,7 +379,7 @@ describe("bucket-subject.ts", () => {
     );
   }
 
-  it("reads source: exports exactly the two constructors as the makers of a subject", () => {
+  it("reads source: exports the two constructors and the question of what they made, and no third maker", () => {
     const exportedFunctions = [
       ...readSource(SOURCE_FILE).matchAll(/^export function (\w+)\(/gm),
     ].map((match) => match[1]);
@@ -334,6 +387,7 @@ describe("bucket-subject.ts", () => {
     expect(exportedFunctions).toEqual([
       "subjectOfNetworkBlock",
       "subjectOfWriteCredentialHash",
+      "isMadeSubject",
     ]);
   });
 

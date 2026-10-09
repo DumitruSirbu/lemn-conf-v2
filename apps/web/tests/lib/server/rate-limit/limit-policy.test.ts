@@ -13,6 +13,7 @@ import {
   E2E_SHARE_WRITES_PER_BLOCK_FIGURE,
   MINT_DAILY_FIGURE,
   MINT_POLICY,
+  isOwnPolicy,
   MINT_POLICY_NAME,
   READ_POLICY,
   READS_PER_BLOCK_FIGURE,
@@ -387,6 +388,48 @@ describe("choosePolicy: one flag chooses the twin of every purpose that has one"
     }).map(([purpose]) => purpose);
 
     expect(moved).toEqual(["mint", "save-by-block", "share-write"]);
+  });
+});
+
+describe("choosePolicy: a purpose that is not the list's own", () => {
+  it.each([
+    ["a word that is not a purpose", "save"],
+    ["a purpose in another case", "Mint"],
+    ["an inherited member's name", "constructor"],
+    ["the prototype's name", "__proto__"],
+    ["an inherited method's name", "toString"],
+    ["empty", ""],
+    ["nothing", undefined],
+  ])("is misconfigured for %s, answered and not thrown", (_label, purpose) => {
+    expect(choosePolicy({}, purpose as PolicyPurpose)).toEqual({
+      status: "unavailable",
+      variable: "LEMNARIA_E2E_RATE_LIMIT_POLICY",
+    });
+  });
+});
+
+describe("isOwnPolicy: the closed set, by identity", () => {
+  it("knows every policy of the list", () => {
+    expect(ALL_LIMIT_POLICIES.every((policy) => isOwnPolicy(policy))).toBe(
+      true,
+    );
+  });
+
+  it.each([
+    ["a copy of the mint's policy", { ...MINT_POLICY }],
+    [
+      "a look-alike with the mint's name and figure",
+      { name: MINT_POLICY_NAME, figure: 20, window: { kind: "chisinau-day" } },
+    ],
+    ["a policy's name", MINT_POLICY_NAME],
+    ["nothing", undefined],
+    ["null", null],
+  ])("does not know %s", (_label, candidate) => {
+    expect(isOwnPolicy(candidate)).toBe(false);
+  });
+
+  it("holds a list nobody can add to", () => {
+    expect(Object.isFrozen(ALL_LIMIT_POLICIES)).toBe(true);
   });
 });
 

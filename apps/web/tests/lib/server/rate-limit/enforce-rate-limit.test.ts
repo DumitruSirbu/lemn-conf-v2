@@ -436,6 +436,81 @@ describe("enforceRateLimit: what is unavailable before the store is asked", () =
   });
 });
 
+describe("enforceRateLimit: a subject no constructor made and a policy outside the closed set are not judged", () => {
+  const LOOK_ALIKES: readonly [string, unknown][] = [
+    ["a literal cast to a subject", { kind: "ipv4-block", subject: "192.0.2" }],
+    ["a spread copy of a made subject", { ...BLOCK }],
+    ["a copy that went through JSON", JSON.parse(JSON.stringify(BLOCK))],
+    [
+      "a frozen credential look-alike holding a design's id",
+      Object.freeze({ kind: "write-credential", subject: "design 1" }),
+    ],
+    [
+      "an object that inherits from a made subject",
+      Object.create(BLOCK) as object,
+    ],
+    ["nothing", undefined],
+    ["null", null],
+    ["text", "192.0.2"],
+  ];
+
+  it.each(LOOK_ALIKES)(
+    "answers %s as judgement-failed without a call to the store",
+    async (_label, subject) => {
+      const store = storeAnswering(1);
+
+      const decision = await enforceRateLimit(
+        requestOf({ store, subject: subject as BucketSubject }),
+      );
+
+      expect(decision).toEqual(UNAVAILABLE("judgement-failed"));
+      expect(store.calls).toHaveLength(0);
+    },
+  );
+
+  const FOREIGN_POLICIES: readonly [string, unknown][] = [
+    ["a copy of the mint's own policy", { ...MINT_POLICY }],
+    [
+      "a policy named from a caller's text",
+      {
+        name: "design-mint-per-chisinau-day-x",
+        figure: 1_000_000,
+        window: MINT_POLICY.window,
+      },
+    ],
+    [
+      "a policy with the mint's name and a higher figure",
+      { ...MINT_POLICY, figure: 1_000_000 },
+    ],
+    ["nothing", undefined],
+    ["null", null],
+    ["a policy's name", MINT_POLICY.name],
+  ];
+
+  it.each(FOREIGN_POLICIES)(
+    "answers %s as judgement-failed without a call to the store",
+    async (_label, policy) => {
+      const store = storeAnswering(1);
+
+      const decision = await enforceRateLimit(
+        requestOf({ store, policy: policy as LimitPolicy }),
+      );
+
+      expect(decision).toEqual(UNAVAILABLE("judgement-failed"));
+      expect(store.calls).toHaveLength(0);
+    },
+  );
+
+  it("judges the mint's own policy and a subject a constructor made, so the refusals above are theirs", async () => {
+    const store = storeAnswering(1);
+
+    expect(await enforceRateLimit(requestOf({ store }))).toEqual({
+      kind: "allow",
+    });
+    expect(store.calls).toHaveLength(1);
+  });
+});
+
 describe("enforceRateLimit: every way the store can fail is unavailable, keeping nothing", () => {
   const HOSTILE = new Proxy(
     {},
@@ -654,11 +729,6 @@ describe("enforceRateLimit: the deadline", () => {
 describe("enforceRateLimit: a window of whole minutes on the UTC clock, held by the policy as data", () => {
   const HOUR_START = "2026-07-15T12:00:00.000Z";
   const HOUR_END = "2026-07-15T13:00:00.000Z";
-  const TEN_MINUTE_POLICY: LimitPolicy = {
-    name: "test-three-per-ten-minutes",
-    figure: 3,
-    window: { kind: "utc-minutes", minutes: 10 },
-  };
 
   async function hitsAt(
     store: RateLimitStore,
@@ -748,59 +818,6 @@ describe("enforceRateLimit: a window of whole minutes on the UTC clock, held by 
     expect(
       (await enforceRateLimit(requestOf({ store, ...credential }))).kind,
     ).toBe("refuse");
-  });
-
-  it("counts in ten-minute windows: the fourth hit is refused and the mark's hit is fresh", async () => {
-    const store = new FakeRateLimitStore();
-    const lastOfTheWindow = new Date("2026-07-15T12:09:59.999Z");
-    await hitsAt(store, lastOfTheWindow, TEN_MINUTE_POLICY, 3);
-
-    expect(
-      await enforceRateLimit(
-        requestOf({
-          store,
-          instant: lastOfTheWindow,
-          policy: TEN_MINUTE_POLICY,
-        }),
-      ),
-    ).toEqual({ kind: "refuse", retryAfterSeconds: 1 });
-    expect(
-      await enforceRateLimit(
-        requestOf({
-          store,
-          instant: new Date("2026-07-15T12:10:00.000Z"),
-          policy: TEN_MINUTE_POLICY,
-        }),
-      ),
-    ).toEqual({ kind: "allow" });
-  });
-
-  it("tells a ten-minute refusal its whole 600 seconds at the window's first millisecond", async () => {
-    const store = new FakeRateLimitStore();
-    const first = new Date("2026-07-15T12:10:00.000Z");
-    await hitsAt(store, first, TEN_MINUTE_POLICY, 3);
-
-    expect(
-      await enforceRateLimit(
-        requestOf({ store, instant: first, policy: TEN_MINUTE_POLICY }),
-      ),
-    ).toEqual({
-      kind: "refuse",
-      retryAfterSeconds: 600,
-    });
-  });
-
-  it("answers a window that cannot be made as unavailable, without a call to the store", async () => {
-    const store = storeAnswering(1);
-    const sevenMinutes: LimitPolicy = {
-      ...TEN_MINUTE_POLICY,
-      window: { kind: "utc-minutes", minutes: 7 },
-    };
-
-    expect(
-      await enforceRateLimit(requestOf({ store, policy: sevenMinutes })),
-    ).toEqual(UNAVAILABLE("window-unavailable"));
-    expect(store.calls).toHaveLength(0);
   });
 
   it("tells a wait from 1 to 3,600 seconds across the instants of an hour policy, with a floor", async () => {

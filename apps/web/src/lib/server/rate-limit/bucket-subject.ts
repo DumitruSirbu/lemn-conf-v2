@@ -14,7 +14,8 @@ declare const MADE_BY_A_CONSTRUCTOR: unique symbol;
 /**
  * What a bucket counts, by a kind and a text. Only the two constructors below make one, and each accepts text from one
  * source alone: an address's parsed bits, or a write credential's hash. A design's id, a visitor's value, a share's
- * token and any other text a caller chooses is refused, so no caller can write a row for a subject it invents.
+ * token and any other text a caller chooses is refused, so no caller can write a row for a subject it invents. The
+ * constructors remember what they made, so a cast or a copy is no subject: the type alone binds the compiler.
  */
 export interface BucketSubject {
   readonly kind: BucketSubjectKind;
@@ -47,13 +48,27 @@ export function subjectOfNetworkBlock(block: NetworkBlock): BucketSubject {
 
 /** The hash of the write credential a request carries, never the credential. */
 export function subjectOfWriteCredentialHash(hash: string): BucketSubject {
-  if (!SHA256_HEX.test(hash))
+  if (typeof hash !== "string" || !SHA256_HEX.test(hash)) {
     throw new BucketSubjectError(WRITE_CREDENTIAL_KIND);
+  }
   return subjectOf(WRITE_CREDENTIAL_KIND, hash);
 }
 
+/** Whether a constructor of this module made `candidate`, by identity: a look-alike object or a copy is not. */
+export function isMadeSubject(candidate: unknown): candidate is BucketSubject {
+  return (
+    typeof candidate === "object" &&
+    candidate !== null &&
+    MADE_SUBJECTS.has(candidate)
+  );
+}
+
+const MADE_SUBJECTS = new WeakSet();
+
 function subjectOf(kind: BucketSubjectKind, subject: string): BucketSubject {
-  return Object.freeze({ kind, subject }) as BucketSubject;
+  const made = Object.freeze({ kind, subject }) as BucketSubject;
+  MADE_SUBJECTS.add(made);
+  return made;
 }
 
 const TEXT_RULE_OF_BLOCK_KIND: Readonly<

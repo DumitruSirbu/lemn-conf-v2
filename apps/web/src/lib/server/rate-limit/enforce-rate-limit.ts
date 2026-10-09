@@ -8,14 +8,18 @@ import type {
   Digester,
   DigesterOutcome,
 } from "@/lib/server/digest/digest-secret";
-import type { BucketSubject } from "@/lib/server/rate-limit/bucket-subject";
+import {
+  isMadeSubject,
+  type BucketSubject,
+} from "@/lib/server/rate-limit/bucket-subject";
 import {
   chisinauDayOf,
   secondsToWindowEnd,
 } from "@/lib/server/rate-limit/chisinau-day";
-import type {
-  LimitPolicy,
-  WindowRule,
+import {
+  isOwnPolicy,
+  type LimitPolicy,
+  type WindowRule,
 } from "@/lib/server/rate-limit/limit-policy";
 import { utcWindowOf } from "@/lib/server/rate-limit/utc-window";
 
@@ -49,7 +53,8 @@ export type RateLimitDecision =
   | { readonly kind: "refuse"; readonly retryAfterSeconds: number }
   | { readonly kind: "unavailable"; readonly cause: UnavailableCause };
 
-/** One bucket: its caller hands in what is counted, how long it is counted for, and how long to wait for the count. */
+/** One bucket: its caller hands in what is counted, how long it is counted for, and how long to wait for the count.
+ *  A subject no constructor made, or a policy outside the closed set, is not judged: nothing is counted for it. */
 export interface RateLimitRequest {
   readonly subject: BucketSubject;
   readonly digester: DigesterOutcome;
@@ -104,6 +109,9 @@ export async function enforceRateLimit(
 
 function usableOf(request: RateLimitRequest): Step<Usable> {
   const { subject, digester, policy, deadlineMs } = request;
+  if (!isMadeSubject(subject) || !isOwnPolicy(policy)) {
+    return failed("judgement-failed");
+  }
   if (!isUsableDeadline(deadlineMs)) return failed("judgement-failed");
   if (digester.status === "unavailable") return failed("digester-unusable");
   return { ok: true, value: { subject, digest: digester.digest, policy } };
