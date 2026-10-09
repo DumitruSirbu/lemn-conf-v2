@@ -4650,6 +4650,117 @@ header; `tests/i18n/golden-output.test.ts`.
 cookies; the two answers; the harness and the flag; ADR 0114 F4, H1, H3, H6; ADR 0146; ADR 0154.
 *Unproven until a deployment:* that the host's header holds one address and cannot be forged.
 
+##### 8F — S3's deviations and one incident, ruled; S4 for dispatch, 2026-10-09
+
+**State.** HEAD is `b877136` [ran: `git log`], tree clean: S3a `f77850f`, its follow-up `91f583b`,
+S3b `b877136`. The architect read the three commits. Under `CI=1` at eight workers the e2e suite
+was 193, 245 and 241 passed, none failed [relayed, developer-run].
+
+**The incident, as the developer disclosed it [relayed, developer-run].** To show a mutant red, the
+developer ran the counter delete with its `where` clause removed against the live test database.
+Each live test that reached it sent `delete from rate_limit_counters returning hits`: **every row
+of that table on the test database went.** The guard held: the application database was never
+connected to. How many rows and whose is not known; nothing was read before or after.
+
+- **(a) What it broke, and how it is recorded.** It broke the dispatch's rule, *delete only what
+  the helper is handed*, and it did what the guard exists to prevent. It is inside the owner's
+  sentence (ADR 0151) only because that table on that database is written by tests alone, the
+  persistence suites and since this wave the e2e runs [relayed], so no user's row could be there
+  [inf]. It is outside the architect's reading of it: no marker, no count. **Recorded in this
+  wave's close-out under incidents, in its ADR, and as a dated note on ADR 0151.** Nothing is to
+  be restored, so no backlog entry. **The owner is told in those words:** every counter row on the
+  test database was deleted by a mutation run; the guard held; what went is not known.
+- **(b) The standing rule, for the scribe to write into the test-database guide and for every
+  later dispatch.** *A mutant of a statement that deletes, updates, truncates or alters is run
+  against a mocked driver and never against a database. A live proof that a statement touches
+  only what it is handed plants rows of its own beside the ones it hands over and asserts they
+  remain. A destructive statement whose `where` no longer names what it was handed is not sent
+  anywhere.*
+- **(c) Nothing was missing.** The live test plants two rows it does not hand over and asserts
+  both remain [src `tests/delete-rate-limit-counters-for-tests.live.test.ts:75-90`], and the unit
+  test pins the statement's whole text with the driver mocked [src `…for-tests.test.ts:167-176`].
+  That mutant was already dead without a database. No fix item.
+
+**The deviations.**
+
+1. **The figure: 1,100, changed.** A bucket lasts one invocation, and one invocation may run the
+   whole suite. 132, 191 and 184 make 507 [relayed, developer-run at eight workers]; twice is
+   1,014; the next hundred is 1,100. The constant's comment says that. **The teardown fails when
+   an invocation made more than half the figure**, so the constant is raised by a person as the
+   suite grows and never worn through.
+2. **The widened guard: accepted.** What keeps the helper from the application is not a marker a
+   child process may inherit. It is that the connection is the guarded test database's and no
+   other [src `delete-rate-limit-counters-for-tests.ts:42`], and that nothing under `apps/web/src`
+   names it. **The second is not yet tested: fix item 4.**
+3. **Seven causes, one closed list.** `window-unavailable` was ruled with the day. **The route's
+   `judgement-failed` joins the list where the other six live**, and the log line's cause is typed
+   by it [src `design-failure-log.ts`, `cause: string`]. The two lines are as ruled: constants, a
+   policy's name or a cause, and no address, block, subject, key or count [src].
+4. **The seam `judge-mint-request.ts`: accepted.** It is where the environment is asked inside the
+   request. The evaluator's change is one of type.
+5. **The suite-wide mock of the judgement: not accepted. It is replaced.** Answering *allow* for
+   every file means no route test runs the limiter, and one written later runs without it and
+   does not know. **What a test fakes is the database, not the decision.**
+   - **The store's instance moves to a module of its own.** It was put in `repository.ts` by this
+     plan, which sixteen files mock whole; that is the architect's doing.
+   - **The setup gives every file a secret made at random in that process and the persistence
+     package's fake as the store, fresh for each test.** The real seam, policy, digest and
+     evaluator then run in every route test, and twenty mints are allowed in one.
+   - *Must not:* any file mocks the judgement; a literal secret. **If a test mints more than
+     twenty in one test, the developer lists it and stops**; a `qa-*` file is QA's to change.
+6. **The flag's name goes into `.env.example`**, as the mail flag's is. **The spec for the real
+   figure builds nothing.** A build inside a run of the developer's mode writes where a running
+   server reads. **Under `CI` only, where it shares the first server's build; elsewhere skipped
+   with a reason that gives the command.** A skip reads as fine, so the wave's QA pass and its
+   close-out each quote a run in which it passed.
+7. **The three crossed lines are tests that expect to fail**, each marked so with its reason
+   [src `qa-8d-review-arrival.adversarial.e2e.spec.ts:503`, `:527`;
+   `seeded-design.qa.e2e.spec.ts:38`]. The two-tab spec stayed inside the triage's range.
+8. **`LEMNARIA_E2E_RUN_SECRET`: fine by rule E, and named here.** *Must not:* anything under
+   `apps/web/src` names it. The server may inherit it beside its own secret, which is the same
+   value [inf]; the second server is started without it [relayed].
+
+**The fix round for S3. One developer, five items, one commit, before S4.**
+
+| # | Does | Files |
+| --- | --- | --- |
+| 1 | Deviation 5: the store's instance in its own module; the setup's random secret and fresh fake; the mock of the judgement gone | new `lib/server/rate-limit/rate-limit-store-instance.ts`; `lib/server/repository.ts` (as it was before S3b), `rate-limit/judge-mint-request.ts`; `tests/support/vitest.setup.ts`, `tests/app/api/designs/mint-limiter.test.ts`, the instance's test |
+| 2 | Deviation 1: the figure and its comment; the teardown's half-figure failure | `rate-limit/limit-policy.ts`; `tests/e2e/support/e2e-rate-limit-run.ts`, its test |
+| 3 | Deviation 3: one closed list of seven causes, and the line typed by it | `rate-limit/enforce-rate-limit.ts`, `lib/server/design-failure-log.ts`, `app/api/designs/route.ts` |
+| 4 | Deviations 2, 6 and 8: the flag's name in `.env.example`; the spec under `CI` only and no build; one scan that `apps/web/src` names neither test-only delete of the persistence package, nor the run-secret's variable, and that no test mocks the judgement | `.env.example`; `tests/e2e/support/production-policy-server.ts`, the spec; the scan's test |
+| 5 | Quoted: the whole web suite, typecheck, lint; one `CI=1` e2e run with the spec passed and the designs it counted | none |
+
+*Must not:* a statement sent to a database by a mutant; a `qa-*` file edited; the route's order,
+either answer's shape or a statement's text changed; `0007` or the counter store touched.
+
+**S4 for dispatch: as written, unchanged.** Nothing above moves a status or a file of it.
+
+| # | Does | Production files |
+| --- | --- | --- |
+| 1 | A mint's `429` is its own failure, not retried by anything | `persistence/design-request-errors.ts`, `persistence/fetch-configuration-repository.ts` |
+| 2 | The hand-off gains a state for it: no retry is offered, and the room's entry is kept | `room/use-generation.ts`, `room/generation-steps.tsx` |
+| 3 | One new leaf, that no more designs can be made today and the limit returns tomorrow; a draft under Q10 (a), in both message files, the lock and the hashes grown and none moved | `i18n/content.ts`, the message files |
+| 4 | A `503` is the failure Step 1 already shows, with its retry | none expected |
+
+*Criterion 10; its must-nots, stop and reading stand as written in the section above.*
+
+**What QA attacks hardest in the wave's one pass.**
+
+- **That every route test now runs the limiter:** a mutant that removes the route's call, one
+  that moves it after the visitor is resolved, and one that moves it after the mint, each red in
+  a file that is not the limiter's own.
+- **A refused mint writes nothing, read from the database:** no `designs` row, no moved visitor,
+  no cookie of either kind in the answer.
+- **The harness's key is the server's:** the teardown finds exactly the run's row.
+- **The second server**, under the production policy: twenty and the next, and that the suite's
+  own server never runs under that policy by accident and spends its twenty.
+- **The helper's guard:** each marker alone; production mode; a key that is not a digest; the
+  application's database. **With the driver mocked. No mutant is run against a database.**
+- **Neither answer holds a count, a block or what remains**, in a header or the body, at both
+  edges of the day through the route.
+- **The two-tab race with the limiter in place**, at eight workers, against the triage's 12 in
+  100, said as a figure.
+
 ### 8G — the limiter on saves, shares and reads; pruning
 
 *Goal.* Every other endpoint ADR 0019 and ADR 0114 name is inside the limiter, and expired counters
