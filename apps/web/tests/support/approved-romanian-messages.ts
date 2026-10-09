@@ -417,6 +417,10 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     bodyUnavailable:
       "Această configurație nu este disponibilă în acest browser. Se deschide doar în browserul în care a fost creată.",
     startOver: "Începe o configurare nouă",
+    // Drafted, not approved: the sentence of the page a refused read is answered with, on any page the interceptor
+    // counts. It names no count and no address, and tells the customer to try again soon.
+    tooManyRequests:
+      "Prea multe cereri într-un timp scurt. Încearcă din nou peste puțin timp.",
   },
   // Drafted, approved as drafted (ADR 0113); the owner may reword later.
   share: {

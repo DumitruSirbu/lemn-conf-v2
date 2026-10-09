@@ -1,6 +1,6 @@
 import createMiddleware from "next-intl/middleware";
 import { hasLocale } from "next-intl";
-import { NextRequest, NextResponse, type NextFetchEvent } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 import { routing } from "@/i18n/routing";
 import { selectNetworkSource } from "@/lib/server/rate-limit/network-source";
@@ -27,13 +27,13 @@ export const config = {
 };
 
 /**
- * `event` is Next's own and is absent only where a test calls the function. A page read is counted after the response
- * is decided and never changes it: the count runs beside the response and fails open.
+ * A request is handed back as the response itself, never as a promise, unless it is a counted page read under a named
+ * network source: only that one waits, for the limiter's judgement. Everything else, every request under no source
+ * included, answers as it did before pages were counted.
  */
 export function proxy(
   request: NextRequest,
-  event?: NextFetchEvent,
-): NextResponse {
+): NextResponse | Promise<NextResponse> {
   const nonce = createNonce();
   const policy = buildContentSecurityPolicy({
     nonce,
@@ -48,64 +48,89 @@ export function proxy(
       ? handleLocaleRouting(securedRequest)
       : NextResponse.next({ request: { headers: requestHeaders } });
 
+  applyPageHeaders(response, { pathname: request.nextUrl.pathname, policy });
+  if (!isCountedPageRead(request, response)) return response;
+  return answerCountedRead({ request, response, policy });
+}
+
+/** The headers a page's answer gets, set on a served page and on a refused one alike. */
+function applyPageHeaders(
+  response: NextResponse,
+  { pathname, policy }: { pathname: string; policy: string },
+): void {
   response.headers.set(
     cspResponseHeaderName(CONTENT_SECURITY_POLICY_MODE),
     policy,
   );
-  if (isSharePath(request.nextUrl.pathname)) applySharedViewHeaders(response);
-  if (isCountedPageRead(request, response)) {
-    event?.waitUntil(countPageRead(request.headers));
-  }
-  return response;
+  if (isSharePath(pathname)) applySharedViewHeaders(response);
 }
 
 /**
- * A page read the limiter is asked about: a design's own page, passed on by the interceptor (not a redirect, not the
- * case-variant `404`), and only where the owner has named a network source. Under none nothing is asked, and nothing
- * of the limiter is loaded.
+ * A page read the limiter is asked about: `/` of a locale, a design's page or one of its three steps, or a share's
+ * view, which the interceptor would pass on (not the locale's redirect, not the case-variant `404`), and only where
+ * the owner has named a network source. Nothing under `/api` is one, nor a static file; under none nothing is asked
+ * and nothing of the limiter is loaded.
  */
 function isCountedPageRead(
   request: NextRequest,
   response: NextResponse,
 ): boolean {
   if (response.status !== PASSED_ON_STATUS) return false;
-  const [family, id, ...rest] = localeStrippedSegments(
-    request.nextUrl.pathname,
-  );
-  const isDesignPage = family === "d" && id !== undefined && id !== "";
-  return (
-    isDesignPage &&
-    rest.length === 0 &&
-    selectNetworkSource(process.env).kind !== "none"
-  );
+  const { pathname } = request.nextUrl;
+  const segments = localeStrippedSegments(pathname);
+  const isCountedPath =
+    segments.length === 0 || isDesignPath(segments) || isSharePath(pathname);
+  return isCountedPath && selectNetworkSource(process.env).kind !== "none";
 }
 
 const PASSED_ON_STATUS = 200;
 
+interface CountedRead {
+  readonly request: NextRequest;
+  readonly response: NextResponse;
+  readonly policy: string;
+}
+
+/** The page's own response unless the limiter refuses the read; whatever goes wrong is the page's own response. */
+async function answerCountedRead({
+  request,
+  response,
+  policy,
+}: CountedRead): Promise<NextResponse> {
+  const refusal = await refusalOfPageRead(request);
+  if (refusal === undefined) return response;
+  applyPageHeaders(refusal, { pathname: request.nextUrl.pathname, policy });
+  return refusal;
+}
+
 /**
- * The limiter is reached by a dynamic import, and only from here: its store, its digest and its `server-only` chain
- * are loaded when a source is named and not before, and a chain that cannot load is one line for a process and
- * never a failed page. Nothing thrown is kept but the error's name.
+ * The limiter is reached by one dynamic import, and only from here, so its store, its digest, its `server-only` chain
+ * and the message files it reads for a refusal load when a source is named and not before. A chain that cannot load
+ * or run is one line for a process and an error's name, and the page is served. Nothing thrown is kept but its name.
  */
-async function countPageRead(headers: Headers): Promise<void> {
+async function refusalOfPageRead(
+  request: NextRequest,
+): Promise<NextResponse | undefined> {
   try {
-    const { judgeReadRequest } = await import(
-      "@/lib/server/rate-limit/judge-read-request"
+    const { refusalOfPageRead: judge } = await import(
+      "@/lib/server/rate-limit/page-limit-response"
     );
-    await judgeReadRequest(headers);
+    return await judge(request.headers, request.nextUrl.pathname);
   } catch (failure) {
-    announceUnloadableLimiter(failure);
+    announceUnavailableLimiter(failure);
+    return undefined;
   }
 }
 
-let hasAnnouncedUnloadableLimiter = false;
+const announcedLimiterFailures = new Set<string>();
 
-function announceUnloadableLimiter(failure: unknown): void {
-  if (hasAnnouncedUnloadableLimiter) return;
-  hasAnnouncedUnloadableLimiter = true;
+function announceUnavailableLimiter(failure: unknown): void {
+  const errorName = failure instanceof Error ? failure.name : "unknown";
+  if (announcedLimiterFailures.has(errorName)) return;
+  announcedLimiterFailures.add(errorName);
   console.warn("[designs]", {
     event: "design-read-limiter-unavailable",
-    errorName: failure instanceof Error ? failure.name : "unknown",
+    errorName,
   });
 }
 

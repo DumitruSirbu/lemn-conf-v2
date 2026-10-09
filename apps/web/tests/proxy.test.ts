@@ -13,11 +13,17 @@ import {
 
 function respondTo(path: string, headers?: HeadersInit) {
   const url = new URL(path, "https://lemnaria.test");
-  return proxy(
+  const answer = proxy(
     headers === undefined
       ? new NextRequest(url)
       : new NextRequest(url, { headers }),
   );
+  // Only a counted page read under a named network source is ever handed back as a promise: every request here
+  // answers at once, which is also what this proves.
+  if (answer instanceof Promise) {
+    throw new Error("the interceptor made a request here wait for a promise");
+  }
+  return answer;
 }
 
 function requestHeader(response: Response, name: string): string | null {

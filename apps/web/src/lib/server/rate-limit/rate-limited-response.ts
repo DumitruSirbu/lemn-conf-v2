@@ -117,6 +117,39 @@ function refusalResponse({
   retryAfterSeconds,
   longestWaitSeconds,
 }: Refusal): NextResponse {
+  requireWholeWait(retryAfterSeconds, longestWaitSeconds);
+  return NextResponse.json(
+    { error: sentence, code },
+    {
+      status: LIMIT_REACHED_STATUS,
+      headers: { ...NOT_STORED, "Retry-After": String(retryAfterSeconds) },
+    },
+  );
+}
+
+/**
+ * `429` for a page read, whose body is a page and not a code: the caller makes it, in the path's language, and this
+ * gives it the status and the wait, which may be no more than the read policy's own window.
+ */
+export function readLimitReachedPageResponse(
+  retryAfterSeconds: number,
+  html: string,
+): NextResponse {
+  requireWholeWait(retryAfterSeconds, longestWaitSecondsOf(READ_POLICY.window));
+  return new NextResponse(html, {
+    status: LIMIT_REACHED_STATUS,
+    headers: {
+      ...NOT_STORED,
+      "Content-Type": "text/html; charset=utf-8",
+      "Retry-After": String(retryAfterSeconds),
+    },
+  });
+}
+
+function requireWholeWait(
+  retryAfterSeconds: number,
+  longestWaitSeconds: number,
+): void {
   const isWholeWaitWithinTheWindow =
     Number.isInteger(retryAfterSeconds) &&
     retryAfterSeconds >= SHORTEST_WAIT_SECONDS &&
@@ -126,11 +159,4 @@ function refusalResponse({
       "The wait is not a whole number of seconds in the window",
     );
   }
-  return NextResponse.json(
-    { error: sentence, code },
-    {
-      status: LIMIT_REACHED_STATUS,
-      headers: { ...NOT_STORED, "Retry-After": String(retryAfterSeconds) },
-    },
-  );
 }

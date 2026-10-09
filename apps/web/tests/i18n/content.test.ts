@@ -154,12 +154,12 @@ describe("the localized content resolver", () => {
   });
 
   it.each(CATALOGUES)(
-    "maps all 154 resolved strings through the %s catalogue",
+    "maps all 155 resolved strings through the %s catalogue",
     (locale, messages) => {
       const { content, translate } = contentAndOracleFor(locale, messages);
       const leaves = stringLeaves(content);
 
-      expect(leaves).toHaveLength(154);
+      expect(leaves).toHaveLength(155);
       for (const { path, value } of leaves) {
         // The step is stated twice — as a sentence and as the top bar's pill — from one pair of
         // numbers, so neither spelling can drift from the other.

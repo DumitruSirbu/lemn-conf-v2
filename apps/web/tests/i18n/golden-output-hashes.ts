@@ -467,6 +467,8 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "f8bd1e318dbd3207ab51234b0fb230f5f56670d0076c392747c50bcaa5e53f66",
   "content.static.designLoadError.title":
     "4103e060bec73757ae0e165cfc31caed62f4f99e393ce63a2044bab20eb55e5b",
+  "content.static.designLoadError.tooManyRequests":
+    "a3c0e2fcd3a4f9ce618bfb6bbde565f62ff3b9992ad951423ce20bd68bcfcbd5",
   "content.static.globalSettings.apply":
     "746d927d211e8403352f5f3cb76a9ebe07b07461e94c3895491729351ebc39f2",
   "content.static.globalSettings.cancel":

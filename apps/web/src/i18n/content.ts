@@ -905,6 +905,8 @@ export function resolveContent(translate: ContentTranslator) {
       // The "wrong browser" refusal (ADR 0114 decision 5).
       bodyUnavailable: translate("designLoadError.bodyUnavailable"),
       startOver: translate("designLoadError.startOver"),
+      // The sentence a refused page read is answered with: the interceptor reads it from the catalogue itself.
+      tooManyRequests: translate("designLoadError.tooManyRequests"),
     },
     share: {
       title: translate("share.title"),
