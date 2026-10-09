@@ -779,6 +779,36 @@ describe("a request whose kitchen the notice cannot describe", () => {
     expect((thrown as Error).cause).toBeUndefined();
   });
 
+  it("throws the fixed error, keeping nothing, for a thrown value whose every trap throws", () => {
+    const hostile = new Proxy(
+      {},
+      new Proxy(
+        {},
+        {
+          get: () => () => {
+            throw new Error("a trap of the thrown value ran");
+          },
+        },
+      ),
+    );
+    const priced = Object.defineProperty({ ...SNAPSHOT.priced }, "lines", {
+      enumerable: true,
+      get: (): never => {
+        // eslint-disable-next-line @typescript-eslint/only-throw-error -- a thrown value that is no Error is the case
+        throw hostile;
+      },
+    });
+    const submission = designRequest({
+      snapshot: { ...SNAPSHOT, priced },
+    });
+
+    const thrown = thrownBy(() => noticeOf(submission));
+
+    expect(thrown).toBeInstanceOf(NoticeKitchenError);
+    expect((thrown as NoticeKitchenError).failure).toBe("review-not-sendable");
+    expect((thrown as Error).cause).toBeUndefined();
+  });
+
   it("throws a named error for a kitchen the review does not allow", () => {
     const empty: Design = {
       ...DESIGN,

@@ -175,12 +175,12 @@ function kitchenLines(
 /**
  * The review model's own errors quote placement ids, which are the client's text and may hold a line break, so
  * whatever the catalogue, the projection, the model or the lines made from them throw leaves as one value-free error.
+ * Nothing is asked of what was caught: even a prototype lookup on it could run code of its own.
  */
 function keepingNothingOfAnyOtherError<Built>(build: () => Built): Built {
   try {
     return build();
-  } catch (error) {
-    if (error instanceof NoticeKitchenError) throw error;
+  } catch {
     throw new NoticeKitchenError("review-not-sendable");
   }
 }
@@ -219,7 +219,9 @@ function reviewLines(review: AvailableReview, content: Content): NoticeLine[] {
       content.leadNotice.labels.room,
       review.roomLine,
     ]),
-    ...review.groups.flatMap((group) => groupLines(group, review, content)),
+    ...review.groups.flatMap((group) =>
+      groupLines(group, { content, rowDetails: review.rowDetails }),
+    ),
     ...review.wholeKitchenRows.map((row) =>
       labelled(content, ["wholeKitchenRow", row.label, row.amountText]),
     ),
@@ -228,16 +230,19 @@ function reviewLines(review: AvailableReview, content: Content): NoticeLine[] {
   ];
 }
 
-function groupLines(
-  group: BreakdownGroup,
-  review: AvailableReview,
-  content: Content,
-): NoticeLine[] {
+/** What a group's lines are made from besides the group: the words and each body's own facts. */
+interface GroupSource {
+  readonly content: Content;
+  readonly rowDetails: AvailableReview["rowDetails"];
+}
+
+function groupLines(group: BreakdownGroup, source: GroupSource): NoticeLine[] {
+  const { content, rowDetails } = source;
   return [
     { field: "groupHeading", text: group.heading },
     ...group.rows.flatMap((row) => [
       labelled(content, ["row", row.label, row.amountText]),
-      ...factLines(rowDetailOf(review.rowDetails, row.key).facts),
+      ...factLines(rowDetailOf(rowDetails, row.key).facts),
     ]),
   ];
 }
