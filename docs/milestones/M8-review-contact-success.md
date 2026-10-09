@@ -6164,7 +6164,8 @@ slices' files. *Security reading:* ADR 0146 whole; ADR 0001 d7; criteria 9–11;
 #### 8J, restated for dispatch — 2026-10-09
 
 **State.** HEAD is `b8d73cc` [ran: `git log`]; 8I's review round is in the tree and is not this
-section's. Nothing of 8J is built [ran: `apps/web/src/lib/server` holds no `mail`]. The slice
+section's. **(Re-checked 2026-10-09, later, at `83c4f3c`: 8I is closed, its record is ADR 0153,
+and the sentences it overtook are marked below.)** Nothing of 8J is built [ran: `apps/web/src/lib/server` holds no `mail`]. The slice
 tables above are overtaken by the one below. *Tier: Full + security*, unchanged.
 
 **Vendor facts, read today** [ven: the architect fetched `resend.com/docs/api-reference/errors.md`,
@@ -6212,6 +6213,9 @@ field of an error's body carries its name, and the `403` for a missing `User-Age
   it is stored, `ContactSubmissionToRecord` [src `@lemnaria/persistence`: the contact fields, the
   locale, the target and 8H's `SubmissionSnapshot`], and the notice's `Content`. It answers the
   port's message: key, subject, text. **No clock, no random value, no variable, no counter.**
+  **(Added 2026-10-09, later:** the request is plain data, and only one the store has accepted,
+  since 8K records before it notifies. Its snapshot has then passed 8I's rules: the document is
+  its own JSON encoding, the price plain data, neither deeper than 64 levels [doc ADR 0153].**)**
 - **The kitchen's lines are 8C's, by construction (criterion 7).** S3 parses the snapshot's
   document, calls `describeReview` with the snapshot's price and the document's own projection
   [src `review-model.ts:141-148`], and prints its room line, groups, rows, whole-kitchen rows,
@@ -6233,7 +6237,10 @@ field of an error's body carries its name, and the `403` for a missing `User-Age
   notice's own word for it, not the request's text. The e-mail line exists only when the channel
   is e-mail. An empty locality prints the label and a fixed dash.
 - **The subject is `Cerere din configurator {reference}`**, a draft under Q10 (a), and holds no
-  customer text. The reference is 8I's `LM-` and eight characters.
+  customer text. The reference is 8I's `LM-` and eight characters. **(Added 2026-10-09, later:** it
+  reaches S3 as a value, from the store's answer. The persistence package exports no function of
+  a reference [src `packages/persistence/src/index.ts`], and S3 writes no shape for one: its line
+  rule is the only check.**)**
 - *A link or a formula stays text:* no `html` is sent and nothing is escaped, wrapped or altered.
   *Recorded limit:* a mail client may still turn an address-like name into a link.
 - **The language.** Q5's answer is *"(a), and the WhatsApp action built on the customer's own
@@ -6249,7 +6256,9 @@ field of an error's body carries its name, and the `403` for a missing `User-Age
 `playwright.config.ts:70-72`], so *"a production build cannot select it"* was never true.
 
 - **Selection is one pure function of the server's environment, handed in as a value.** No
-  request reaches it: its signature has no place for one.
+  request reaches it: its signature has no place for one. **(Added 2026-10-09, later:** the form
+  is `isSceneShotRouteEnabled` [src `app/internal/scene-shot/route-availability.ts:8-22`]. **Its
+  `NODE_ENV` arm is not copied:** the selection asks nothing of `NODE_ENV`.**)**
 - **The fake is chosen only when `LEMNARIA_E2E_FAKE_MAIL` is exactly `1` and none of the three
   mail variables is present.** The flag with any mail variable present is *unavailable*, naming
   the flag: never the fake, never the provider. So a deployment set up to send cannot be turned
@@ -6258,10 +6267,23 @@ field of an error's body carries its name, and the `403` for a missing `User-Age
   nothing. It takes a variable only the owner sets. `.env.example` says to leave it unset, as it
   does of the two flags beside it, and the phase gate checks it is unset. **The security reader
   rules at S1 whether a third condition is worth its coupling: that the server's database is the
-  test database, which the e2e server's is** [src `playwright.config.ts:81`].
-- **Only the module that selects imports the fake or the adapter;** a test fails on any other
+  test database, which the e2e server's is** [src `playwright.config.ts:81`]. **(Added
+  2026-10-09, later:** `assertSafeTestDatabaseUrl` cannot be that test as it stands. It refuses a
+  URL that names `DATABASE_URL`'s own database [src
+  `packages/persistence/src/test-database-url.ts:115-127`], and the e2e server's `DATABASE_URL` is
+  the test URL. The condition would need a new export from the persistence package.**)**
+- ~~**Only the module that selects imports the fake or the adapter;**~~ **(Wrong, corrected
+  2026-10-09, later: only `create-mail-sender.ts`, S2's factory, imports the fake or the adapter.
+  `select-mail-sender.ts` imports neither and answers which, as a value. Until S2 nothing under
+  `apps/web/src` imports the fake, and S1's test says so.)** A test fails on any other
   import under `apps/web/src`. *8K owns* the call site and the flag's line in
   `playwright.config.ts`, since its e2e is first to post a request.
+- **What the reader calls usable (added 2026-10-09, later).** A key: not empty, visible ASCII
+  only. An address: exactly one, with one `@` between two parts and no space, comma, semicolon or
+  angle bracket. So no variable carries a second recipient or breaks a header, and nothing is
+  handed to `Headers`, whose refusal quotes the value [src
+  `packages/persistence/src/open-database.ts:56-57`]. Anything else is *unavailable*, naming the
+  variable.
 - **The port's message has no recipient.** The adapter fills the configured inbox, so criterion 1
   holds by the type. M8B's mail to a customer [doc ADR 0115, note of 2026-10-07] widens the port
   under its own review; so would Q12 (ii)'s link e-mail, 8L's if it is built.
@@ -6282,7 +6304,9 @@ text names neither.
 B1. *Logic reader:* point 1's table against the adapter; point 2; 8K's notes under 8I, *For 8K,
 added*. *Clean-code reader:* the eight files and their tests; ADR 0136. *Security reader:* **at
 S1, point 4's open condition;** then ADR 0146 whole; ADR 0001 d7; criteria 1, 3, 9, 10; point 3;
-every branch that touches the provider's answer; the four names in `.env.example`.
+every branch that touches the provider's answer; the four names in `.env.example`. **(Added
+2026-10-09, later: ADR 0153, *What later waves inherit*, for S3's developer, QA and all three
+readers. When each reads: *8J — S1 for dispatch*, below.)**
 
 **Built without the owner:** all three slices. **Unproven until the owner's one real send
 (criterion 9):** that the provider takes the request as built; where an error's name sits; the
@@ -6302,6 +6326,73 @@ every branch that touches the provider's answer; the four names in `.env.example
 | ADR 0148, note 5; Q29 | Resend, chosen knowing it keeps thirty days of content in the United States | Kept. The privacy text names it (Q7; M9) |
 | ADR 0150, limits | Show the phone's normal form; a name may be a link or a formula | Point 3 |
 | Q13 (ii) | *"the shop's inbox is the second copy"* | The notice carries every contact field, so the inbox can stand alone |
+
+##### 8J — S1 for dispatch, 2026-10-09
+
+**State.** HEAD is `83c4f3c` [ran: `git log`], tree clean; 8I is closed. Read at `1bbd08e`, which
+differs from it under `docs/` only [ran: `git diff --name-only`]:
+`apps/web/src/lib/server/mail` does not exist, and `.env.example` names no mail variable, no
+`LEMNARIA_E2E_FAKE_MAIL` and no `DIGEST_SECRET` [ran].
+
+**What S1 follows in `apps/web`** [src].
+
+- A server module's first line is `import "server-only";` (`lib/server/cron-auth.ts:1`,
+  `repository.ts:1`). The test runner replaces it with a stub (`apps/web/vitest.config.ts`).
+- A variable is read inside a function, never when the module loads, and its absence fails closed
+  (`cron-auth.ts:10-11`; `repository.ts:28-31`).
+- Tests are `apps/web/tests/lib/server/*.test.ts`, in Node. S1's go under
+  `tests/lib/server/mail/`, run with `rtk proxy pnpm --filter @lemnaria/web exec vitest run
+  --config vitest.config.ts tests/lib/server/mail`. The package's `test` script builds the
+  workspace packages first.
+- *For S3, said now:* `describeReview` imports the domain, the content's types, two price models
+  and the room's URL reading, none of them a browser's [src, read; not run on a server]. A server
+  page already resolves a `Content` (`app/[locale]/configurator/contact/page.tsx:13`).
+
+**The dispatch. One developer, five items.** Each module has its test of the same name under
+`tests/lib/server/mail/`.
+
+| # | Does | Production file |
+| --- | --- | --- |
+| 1 | The port: a message of a key, a subject and a text; the seven failure kinds; an outcome that is a value; which kinds may be retried, said in one place | `lib/server/mail/mail-sender.ts` |
+| 2 | The reader, a pure function of an environment handed in: *configured*, or *unavailable* with the names of the variables | `mail-configuration.ts` |
+| 3 | The fake: it records, it can be scripted, it never fetches | `fake-mail-sender.ts` |
+| 4 | The selection, a pure function of the same environment: the provider, the fake or *unavailable*, by point 4's rule | `select-mail-sender.ts` |
+| 5 | Three names and the flag, each with its comment and no value; and a test that nothing under `apps/web/src` imports the fake | `.env.example` |
+
+*Criteria S1 alone must meet:* 1, by the message's type; 5; 6; 9; the halves of 3 and 10 that
+bind the reader (no value of a variable in what it answers or throws); point 4.
+
+*Must not:*
+
+- a request leaves the process: every test makes `fetch` throw;
+- the message holds a recipient, a sender or an `html`;
+- `process.env` is named anywhere in the four modules, or `NODE_ENV` is consulted;
+- a variable's value is in an error, in an answer of *unavailable*, or in a log line;
+- the fake is chosen by anything but the selection function;
+- a dependency is added.
+
+*Reading:* this section and *8J, restated for dispatch*; Q3; D8; ADR 0001 d7; ADR 0146 B2, B3;
+`lib/server/repository.ts`; `playwright.config.ts:70-89`; `.env.example`;
+`environments-and-resources.md`. **Added since the plan:**
+`app/internal/scene-shot/route-availability.ts`; `lib/server/cron-auth.ts` and
+`tests/lib/server/cron-auth.test.ts`; `apps/web/AGENTS.md`; `apps/web/vitest.config.ts`.
+
+**The tier, and when each reads. The coordinator's proposal, taken.**
+
+- **QA and the three reviews run once, after S3:** the slices share the port, and a round for each
+  would read it three times.
+- **Before S2 or S3 starts, the security reader reads S1 in one sitting:** the selection, the
+  reader and the message's type. Both later slices are built on them, as `0008` was read before
+  anything ran on it.
+- **The question put to the security reader then, to be answered from the code.** *From
+  `select-mail-sender.ts` and `playwright.config.ts:66-90`, name every environment in which the
+  function answers the fake. Can one of them hold customers' requests, that is, a server whose
+  `DATABASE_URL` is not an allowlisted test database? If so: is refusing it worth a new exported
+  predicate in the persistence package, given `test-database-url.ts:115-127` and ADR 0146 B2, or
+  is what is left recorded, with a line at the phase gate?*
+
+**Nothing the owner owes blocks S1 or S2.** Q34 touches S3 alone, where the language is one
+constant. The key, the sender and the inbox block only the owner's one real send.
 
 ### 8K — `POST /api/contact-submissions`
 
