@@ -246,6 +246,8 @@ Each with its trigger.
   [ven, the security reviewer fetched the page on 2026-10-08, relayed]: an Idempotency-Key may be *"up to 256 characters"*,
   so sixty-four fit, and there are two `409` answers (`invalid_idempotent_request`, `concurrent_idempotent_requests`), one
   no retry mends and one a retry does.
+  *(Note, 2026-10-09: 8J is built. "A 409" was two, and neither is a success: `invalid_idempotent_request` is *payload mismatch*,
+  never retried; the other is *busy*. [ADR 0154](0154-mail-leaves-through-one-provider-neutral-port-and-one-resend-adapter-that-sends-once-and-answers-with-one-of-seven-kinds-and-the-shops-notice-is-the-stored-review-printed-never-priced-again.md).)*
 - **8K:** its own small limit on the body before it is parsed; a conflict answers one code with no reference and nothing of
   whether a notice was sent; the digest is compared before the notifier is called; attempts per id are capped; a pricing
   failure whose cause is a version mismatch raises an alert, and the failure's detail is bounded before it is logged; F8

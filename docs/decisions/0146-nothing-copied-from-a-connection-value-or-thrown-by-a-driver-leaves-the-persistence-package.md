@@ -214,3 +214,7 @@ From QA's final list and the security reviewer's, not as clean:
 ## Note — 2026-10-09: applied to the contact submissions store (wave 8I)
 
 B3 is applied to a second store: every failure of the contact submissions store leaves as one store error whose cause is the type name and the SQLSTATE, a failure is classified once where it is caught, and no caught driver error is thrown again. The rule was held by construction only after review round 1 (S-R2.1) and tightened twice (a thrown proxy; a reply row that throws when read). [ADR 0153](0153-a-contact-request-is-stored-once-apart-from-designs-the-application-role-reads-none-of-its-personal-columns-and-code-refuses-before-the-server-what-the-table-would-refuse.md) decision 3.
+
+## Note — 2026-10-09: applied to mail (wave 8J)
+
+B2 and B3 are applied to the mail module: the API key is never returned, logged or thrown (the selection carries no configuration; the factory builds the adapter and the key lives in a closure), and the provider's answer is never passed on, only a kind from a closed list and the status as a number. The module's one log line is a constant and a variable's name, as B2 allows. [ADR 0154](0154-mail-leaves-through-one-provider-neutral-port-and-one-resend-adapter-that-sends-once-and-answers-with-one-of-seven-kinds-and-the-shops-notice-is-the-stored-review-printed-never-priced-again.md) decisions 2, 3 and 7.

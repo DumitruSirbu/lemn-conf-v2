@@ -1219,7 +1219,7 @@ both in M9.
 | 8E | **DONE 2026-10-08, commits `ec2f181` … `c8305b1`, not pushed.** The rate-limit store. See *8E as closed* and [ADR 0149](../decisions/0149-the-rate-limit-store-keeps-one-row-per-bucket-per-window-refuses-a-broken-promise-and-may-count-high-but-never-low-between-prunes.md). **Owner action outstanding:** apply `0007` and its grant by the runbook | ~~Dispatched~~ — Done |
 | 8I | ~~Stays. Blocked 2026-10-08 on the keyed-digest question; unblocked the same day: the owner said yes~~ **DONE 2026-10-09, commits `049ed39` … `1bbd08e`, not pushed.** The contact submissions store. See *8I as closed* and [ADR 0153](../decisions/0153-a-contact-request-is-stored-once-apart-from-designs-the-application-role-reads-none-of-its-personal-columns-and-code-refuses-before-the-server-what-the-table-would-refuse.md). **Owner action outstanding:** apply `0008` and the three grants by the runbook; the grant is narrower than Q14 (i) | ~~8E's migration number~~ — 8E took `0007`. ~~**Dispatchable.** Its dispatch reads *The digest secret* (below, under 8I) and ADR 0150's *What later waves inherit*; it never touches the secret~~ — Done |
 | 8H | **DONE 2026-10-08, commits `aecacbd` … `2b8c60b`, not pushed.** The submission contract. See *8H as closed* and [ADR 0150](../decisions/0150-the-submission-contract-is-one-io-free-definition-a-request-holds-no-price-reads-only-what-the-sender-wrote-and-the-snapshot-and-the-review-share-one-refusal-rule.md). `2b8c60b` is unreviewed | ~~Nothing. Dispatchable~~ — Done |
-| 8J | ~~**Changed:** no provider adapter~~ **Restored: a Resend adapter** (owner, 2026-10-07) | **Nothing to build it. Dispatchable whole**, after 8D. Proving it end to end waits for the owner: the three variables on a deployment, and a sender the provider accepts |
+| 8J | ~~**Changed:** no provider adapter~~ ~~**Restored: a Resend adapter** (owner, 2026-10-07)~~ **DONE 2026-10-09, commits `8eaba35` … `45e2c39`, not pushed.** The mail port, the Resend adapter and the shop's notice. See *8J as closed* and [ADR 0154](../decisions/0154-mail-leaves-through-one-provider-neutral-port-and-one-resend-adapter-that-sends-once-and-answers-with-one-of-seven-kinds-and-the-shops-notice-is-the-stored-review-printed-never-priced-again.md). Nothing calls it yet; no real message has been sent. **Owner actions outstanding:** the three mail variables, a verified sender, the inbox, the one real send, Q34 | ~~**Nothing to build it. Dispatchable whole**, after 8D. Proving it end to end waits for the owner: the three variables on a deployment, and a sender the provider accepts~~ — Done |
 | 8F | **Changed:** identity through a port; one bucket, 20 a day per ~~address~~ **block of 256 (/24; /64 for IPv6)** (Q28 and Q32 answered) | The three red `CI=1` specs triaged; 8E. ~~**Q32** sets one number and does not block the build~~ |
 | 8G | Changed lightly | 8F |
 | 8K | **Changed:** no bot check | 8F, 8H, 8I, 8J |
@@ -6811,6 +6811,81 @@ what rounds B and QA took. **8J's closing rule stands** for anything found after
   are set on production, the key has sending access only, the fake's flag is absent there, and
   the owner's one real send is quoted.* Backlog 145's second sighting, as written above.
 
+#### 8J as closed, 2026-10-09
+
+**Shipped, on `m8-review-contact-success`, not pushed [coordinator ran `git log`; HEAD `45e2c39`]:** `eb3434d` S1; `3472c7d` S1
+follow-ups; `35d9acc` S2; `8e23f4e` two edges; `579b32f` S3; `22527f9` QA (red, F1 to F3); `490906b` fix round; `08ead7b` QA re-check
+(green, the commit the three reviewers read); `5c01858` review round A; `e26655f` review round B; `ab5d77a` QA after the reviews
+(green); `bb26f6c` the last small commit; `45e2c39` QA's last pass (green). Plan and ruling commits: `8eaba35` (8J restated for
+dispatch), `10d92d4` (corrected against 8I; S1 for dispatch), `09543ba` (S1's security read ruled; S2 and S3 for dispatch), `ec1bd3b`
+(S3's stop ruled), `0db729f` (QA adjudicated), `d5f7f8f` (the three reviews ruled). `83c4f3c` and `54e659f` lie between them and are
+8I's close-out and handoff, not 8J's.
+
+**What exists [source-verified by reviewers]**, all under `apps/web`: `src/lib/server/mail/{mail-sender, mail-configuration,
+fake-mail-sender, select-mail-sender, resend-mail-sender, create-mail-sender, lead-notification}.ts`; the `leadNotice` leaves (17) in
+`src/messages/ro.json` and `ru.json` and in `src/i18n/content.ts`; `.env.example` names the three mail variables and the flag,
+commented, with no value. Two gate tests were amended: `tests/review/use-review.dom.test.ts` and
+`tests/price/starting-price.adversarial.test.ts`. **Nothing calls the module yet:** no route, no store wiring; no mail has been sent
+by anything. The decisions: [ADR
+0154](../decisions/0154-mail-leaves-through-one-provider-neutral-port-and-one-resend-adapter-that-sends-once-and-answers-with-one-of-seven-kinds-and-the-shops-notice-is-the-stored-review-printed-never-priced-again.md).
+
+**Evidence, by who ran it.**
+
+- *Coordinator-run, at `45e2c39`.* The whole web suite exit 0: 347 files, 6589 passed; web typecheck 0, lint 0; root
+  `pnpm format:check` 0; `pnpm gate:boundary` 0. In the mail module's source: one console call (the factory's fixed warning), no
+  `process.env`, no `NODE_ENV` [coordinator ran grep]. No dependency, lockfile, `packages/`, `playwright.config.ts`, `src/review` or
+  `src/price` change in the wave [coordinator ran `git diff --stat`].
+- *QA-run (m8-8j-qa), five passes.* Pass 1 red on F1 to F3 (9 tests), 77 mutants none surviving; the re-check green, 11 mutants; after
+  the reviews green, 7 mutants; the last pass green. Criterion 7 over 357 kitchens made by the domain's public `snapshotSubmission`
+  (straight 94, L 88, right-hand L 88, U 87) stored under a book that makes stored differ from live in all: the notice equals
+  `describeReview` over the stored snapshot in all and the live re-pricing in none; after round A the same over 357 dressed kitchens
+  (every body a handle and its material's own finish), with floors per arm. The same bytes across three TZ/LANG pairs. Every control
+  character U+0000 to U+001F, U+007F to U+009F, U+2028, U+2029 in six fields throws the named value-free error; a bidi override, ZWJ, BOM,
+  a half surrogate, a URL, `=HYPERLINK`, `<script>` and ICU syntax print inert on their own line. Digests over 357 notices and a callback
+  (`6e622520…946b`) and over 357 dressed (`6926a055…2607`) equal at `5c01858`, `e26655f` and `bb26f6c`; not pinned in a test (QA's
+  choice, stated).
+- *Reviewers.* Logic: approve at `ab5d77a` (JL-R1.1 closed). Security: approve at `ab5d77a`, no open security finding (S1 read, the
+  wave, a diff re-check; its probes replaced `fetch`, no request left a process). Clean-code: changes required at `08ead7b` (five
+  must-fix in tests), four closed at `ab5d77a`, JC-R1.3 fixed by QA in `45e2c39`; **clean-code approves at `45e2c39`** (it read the diff `ab5d77a..45e2c39` in full; JC-R1.3 and
+  JC-R1.19 closed; no new finding; it ran no suite). All three reviewers approve. **`bb26f6c`'s two changes were made on the
+  reviewers' final notes and were re-read by QA and the clean-code reader, not by logic or security.**
+- *Vendor, 2026-10-09 [the architect fetched four Resend pages; copies in the session scratchpad, not in the repo].* They show no error
+  body at all: which field carries an error's name is [inf, recalled].
+- Findings F1 to F3 (QA), O1 to O7, J-S1.1 to J-S1.6, J-S2.1 to J-S2.5, JL-R1.1 to JL-R1.4 and JC-R1.1 to JC-R1.17 with the nits, and how each
+  was ruled: the adjudication sections above and the review findings file.
+
+**Deviations, with their rationale.** S3 stopped on a conflict between the plan and two existing gates (the plan ruled S3 without
+reading 8D's criterion 10); the stop was right and the ruling amended the criterion to two named callers (ADR 0148 Amendment C). The
+developer committed its own rounds from S2 on (explicit paths, hook on), by the coordinator's choice. The last small commit (`bb26f6c`:
+the guard throws unconditionally; a named object for `groupLines`) was dispatched by the coordinator directly from the reviewers' final
+notes, without a new architect section. None of the generated kitchens has a body with its own finish or handle, so both the
+developer's and QA's proofs of the facts' lines use dressed kitchens. The wave's criteria grew from the seven to thirteen (8 to 12 at
+the restatement of 2026-10-07, 13 at dispatch); the reading of the answers' table and J-S1.1 to J-S1.4 are the security reader's and the
+architect's rulings recorded in the sections above.
+
+**Owner actions outstanding** (all that the 8I entry in `STATUS.md` lists still stands). (1) The three mail variables on a deployment,
+with **the key created with sending access only**. (2) A verified sender domain (DNS records) and a bare sender address. (3) The shop's
+inbox. (4) Then the one real send, quoted in a later close-out. (5) Q34, the notice's language (`ro` is built, owner-owed). (6) The
+notice's wording is a DRAFT (the copy lock marks it; the Russian is unsigned). (7) The closing rule for 8J is open to the owner. (8) The
+shop's phone number is still owed for 8M.
+
+**Not run / not proven.** `pnpm check`, `pnpm ci:local`, e2e, anything on a CI runner. **Anything against the live provider: no real
+message has been sent by any test, gate or agent (criterion 9):** the request as built, where an error's name sits, the `403` without a
+`User-Agent`, what the deployed runtime's `fetch` answers under `redirect: "manual"` and that the framework's `fetch` neither caches nor
+repeats the POST, a replay under one key, delivery, and SPF, DKIM and DMARC (M9).
+
+**Deferred.** The limits and their triggers: ADR 0154 (O1, O3, O6, O7 with J-S2.3, J-S1.5, J-S1.6, JL-R1.2 to JL-R1.4, JC-R1.8, the
+tripwires' source-scan nature). Backlog 158 (the mail tests' fixtures duplicated between the developer's and QA's files; trigger: 8K's
+first test that needs them), 159 (for the milestone-close test audit: 8J's restated pairs, the nits, JC-R1.20 and JC-R1.21) and 160 (the
+adapter's answer mapping to its own module; trigger: a second adapter or the file's next change of behaviour). Backlog 145 gained its
+second named sighting (the room test `plan-preview-model.facing-labels.test.ts:255`; not 8J's). 8K inherits ADR 0154's *What later
+waves inherit*.
+
+**Documentation updated.** ADR 0154 (new); ADR 0148 Amendment C; dated notes on ADRs 0138, 0146, 0150 and 0153; `decisions/README.md`;
+this section, the wave table's 8J row, and a dated pointer under 8T's phase gate; `M9-delivery-preparation.md` (the launch gate's mail
+line); `best-practices/environments-and-resources.md` (the three mail variables and the flag); backlog 145 (updated) and 158 to 160;
+`STATUS.md`.
+
 ### 8K — `POST /api/contact-submissions`
 
 *Goal.* The boundary: it revalidates, refuses abuse, snapshots the stored design, stores once,
@@ -7115,6 +7190,7 @@ nothing invented beyond the phone frames, the gap recorded for later design.
 
 *Phase gate.* `pnpm check`; `pnpm ci:local`; a green runner; the *Launch gate* below fully ticked;
 then the push and the pull request. *Visual reading:* every wave's criteria and captures.
+*(Dated 2026-10-09: a mail line is added to the phase gate: `LEMNARIA_E2E_FAKE_MAIL` is defined on no deployment. [ADR 0154](../decisions/0154-mail-leaves-through-one-provider-neutral-port-and-one-resend-adapter-that-sends-once-and-answers-with-one-of-seven-kinds-and-the-shops-notice-is-the-stored-review-printed-never-priced-again.md), *What later waves inherit*.)*
 
 ## Launch gate — `POST /api/designs` must not meet real traffic until this is checked off
 

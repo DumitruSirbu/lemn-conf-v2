@@ -2505,6 +2505,8 @@ established**, because the first failure's name was never captured. A request co
 race. **Trigger unchanged:** a recurrence with its name; this one has a name, so the next sighting of the same title makes it
 a candidate for a defect.
 
+**A second named sighting, 2026-10-09 [relayed, QA-run]:** `tests/room/plan-preview-model.facing-labels.test.ts:255`, "never intersect, over lengths across the approved U (Q-U1)", failed once in a whole run with "inside was reached: expected 6 to be >= 8" and passed alone three of three. Its cause is in the test: the property is unseeded and its floor counts how often a random draw reaches an arrangement [src :231-256]. No label intersected. Not established to be the entry's first failure. This one needs no recurrence: seed the property or build its arms so the floor is met by construction. No owner yet; not 8J's.
+
 ## 146. Count the stored design ids that do not have the generator's shape before 8L S2 gates a page — OWNER, RECORDED 2026-10-08
 
 **Source [the plan's 8H, *S2's readings*].** Whether every stored design id has the shape the generator makes is not
@@ -2634,3 +2636,29 @@ exports or from copied fixtures); the gate itself is unchanged. **Owner:** the c
 tests hold (C-R2.9); file sizes were 1569, 1395 and 621 lines at the time of review (C-R2.7); the other nits are listed in *review
 round 2, ruled*. The `qa-8i-*` files are the only guard of the check's rules 2 and 3 and are not duplicates (ADR 0153 decision 8).
 **Owner:** the test audit. **Trigger:** the M8 close audit (ADR 0152, Amendment A).
+
+## 158. The mail tests' fixtures are duplicated between the developer's and QA's files — RECORDED 2026-10-09 AT M8 8J's CLOSE
+
+**Source [the plan's 8J, *the three reviews*, JC-R1.12 and JC-R1.18, recorded not taken].** The fake key and addresses, the fetch and
+answer stubs, the notice fixtures and the dressed-kitchen fixture exist in three or more copies across ten test files and both authors'
+support. The developer's support is the home, and QA imports it, never the reverse. **A third instance noted at `45e2c39` [reviewer,
+clean-code]:** the all-traps-throw `Proxy` helper is built in both `qa-8j-notice-kitchen` and `lead-notification.test.ts`. **Owner:** the
+coordinator. **Trigger:** 8K's first test that needs them (the third consumer).
+
+## 159. For the milestone-close test audit: 8J's restated pairs, the nits and JC-R1.20/1.21 — RECORDED 2026-10-09 AT M8 8J's CLOSE
+
+**Source [the plan's 8J, *the three reviews*, JC-R1.13; the findings file].** Pairs where an adversarial file restates a case the
+developer's tests hold, the remaining nits, and JC-R1.20 and JC-R1.21 [reviewer, clean-code, at `ab5d77a`]. **JC-R1.20 (nit):** `dressed`
+in `lead-notification.test.ts` is about 22 lines and `dressedKitchens` calls `.map(dressed)`, passing the array index as `offset`
+implicitly; the developer's tests spell the fact indent as a raw two-space string three times where QA names `FACT_INDENT`; `"QA-HOSTILE"`
+is repeated beside `HOSTILE_ID` in `qa-8j-notice-kitchen`. **JC-R1.21 (nit):** `create-mail-sender.test.ts` ("hands back `send` alone",
+fake) and `qa-8j-environment` assert the same own keys `["send"]`: a newly added restatement in JC-R1.13's class. **File sizes at review**
+[coordinator ran `wc -l` at `08ead7b`]: `qa-8j-provider-answers.adversarial.test.ts` 833 lines, `qa-8j-environment` 604,
+`qa-8j-request-and-predicate` 593, `qa-8j-notice-customer-text` 552, `qa-8j-notice-kitchen` 315; the developer's
+`lead-notification.test.ts` 687, `resend-mail-sender.test.ts` 615. **Owner:** the test audit. **Trigger:** the M8 close audit (ADR 0152, Amendment A).
+
+## 160. The mail adapter's answer mapping moves to its own module — RECORDED 2026-10-09 AT M8 8J's CLOSE
+
+**Source [the plan's 8J, *the three reviews*, JC-R1.8].** `resend-mail-sender.ts` (231 lines) does request building, the timeout race and
+the answer mapping with body parsing. A move now costs a re-read and three source scans' lists for no behaviour. **Owner:** whoever next
+changes the file. **Trigger:** a second adapter, or the file's next change of behaviour.

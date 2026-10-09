@@ -265,7 +265,8 @@ shop's notice) is 8J's.
   its own parsed value: pass the document string as `snapshotSubmission` produced it, and never re-serialise, pretty-print or
   tidy it. *Already stated above, so not repeated:* `isNew` against *notified*, a rejected `record`, no proposer in production,
   plain data only.
-- **8J:** Q34, the language of the shop's notice.
+- **8J:** Q34, the language of the shop's notice. *(Note, 2026-10-09: 8J is built; the notice is printed from the stored snapshot this
+  store holds, and 8K's rules for it are in [ADR 0154](0154-mail-leaves-through-one-provider-neutral-port-and-one-resend-adapter-that-sends-once-and-answers-with-one-of-seven-kinds-and-the-shops-notice-is-the-stored-review-printed-never-priced-again.md).)*
 - **Any later migration of this table:** no constraint reads a column the role may `UPDATE`; a test fails until someone has read
   decision 1.
 - **A page or a route** opens nothing by a reference alone.

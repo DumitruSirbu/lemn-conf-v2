@@ -153,3 +153,23 @@ prints it. This guide previously carried no such list; the plan's *Proposed vari
   rotation is answered as a **conflict**, its stored row and notice untouched; and **every rate-limit count starts again**.
   The rule is: set a new value in that environment and deploy; nothing is migrated and there is no time with two keys. A
   runbook for the operation is owed under `docs/runbooks/` when 8F ships.
+
+### The three mail variables and the e2e flag (wave 8J, 2026-10-09; names only; the owner's, and none is set by an agent)
+
+Resend is the provider (the owner, 2026-10-07). Nothing here exists in any environment until the owner creates it, and no agent sets,
+reads or prints one. [ADR 0154](../decisions/0154-mail-leaves-through-one-provider-neutral-port-and-one-resend-adapter-that-sends-once-and-answers-with-one-of-seven-kinds-and-the-shops-notice-is-the-stored-review-printed-never-priced-again.md)
+has the rules; `apps/web/.env.example` names them, commented, with no value.
+
+- **`RESEND_API_KEY`** (a secret). **Create it with sending access only**: a key with full access, leaked, reads thirty days of
+  notices through the API. Never in the browser, never read at build.
+- **`MAIL_FROM_ADDRESS`**: a bare address on a domain the provider has verified (DNS records the owner adds). `Name <addr>` is
+  refused.
+- **`LEAD_NOTIFICATION_ADDRESS`**: the shop's inbox, exactly one address.
+- **`LEMNARIA_E2E_FAKE_MAIL`**: test instrumentation, **unset on every deployment** (the phase gate checks that the name is in none).
+  Beside any mail variable the server treats mail as unavailable, so a deployment set up to send cannot be turned to the fake by it.
+- **A pasted value with a trailing newline reads *unavailable*;** the code names the variable and nothing of its value.
+- **Where the owner sets them:** the three on the deployments that will send, add-only (which environments is the owner's; the launch
+  gate requires them on production); the flag nowhere. **When they are unset:** mail is unavailable; the reader names the missing variables and no
+  message is sent or claimed sent. Nothing calls the module yet (8K wires it).
+- **On a machine whose `apps/web/.env.local` defines a mail name, the e2e contact specs will fail loudly by design** once 8K wires them;
+  the rule is not weakened to mend that (an empty mail variable counts as present).

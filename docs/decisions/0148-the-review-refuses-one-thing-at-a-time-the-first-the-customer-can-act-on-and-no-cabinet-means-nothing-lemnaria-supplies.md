@@ -510,3 +510,28 @@ labeller fix edit `price/price-breakdown-model.ts`.
 no `error.tsx` or `global-error.tsx` (backlog 135). Not proven: a real device, iOS Safari, a CI runner; the full
 `CI=1` e2e suite and e2e after the fix round; a free colour's value on a row (not producible through the UI); a
 seven-digit figure in the bar (widest tried 103 000 MDL); the facts line's wording against the frame's.
+
+## Amendment C — 2026-10-09: two named callers of `describeReview` (wave 8J)
+
+Written by the documentation scribe at wave 8J's close from the plan's *8J — S3's stop, ruled* and *the three reviews*. The ruling is the
+architect's; nothing was re-run by the scribe. The wave's record is [ADR 0154](0154-mail-leaves-through-one-provider-neutral-port-and-one-resend-adapter-that-sends-once-and-answers-with-one-of-seven-kinds-and-the-shops-notice-is-the-stored-review-printed-never-priced-again.md).
+
+**C1. Decision 3 and 8D's criterion 10, amended from one caller to a closed list of two, each named.** Criterion 10 said, of 2026-10-07:
+*"One place hands `describeReview` its three inputs … nothing else imports `describeReview`."* ~~One caller, `review/use-review.ts`.~~
+**Two callers: `review/use-review.ts` and `lib/server/mail/lead-notification.ts`.** The criterion's *must not* stands for both: the design
+from one source and the price or the groups from another, or a projection kept from an earlier design.
+
+**C2. Why: it contradicts the letter and not the intent.** The rule exists so that no caller pairs a design from one place with a price or
+rows from another. A second, server-side caller over a **stored** snapshot contradicts the letter; but the snapshot's document and price were
+made together from one parsed design [src `submission-snapshot.ts`], the rows are projected from that same document in the same call, and
+nothing is kept between calls. *Why not building the notice from `describeBreakdownRows`:* it makes a second composer of what a review
+shows (its room line, figure, disclaimer), the drift the one model was built to end, and criterion 7 would rest on a parity test and not on
+construction. Decision 3's other halves are **kept**: the model does not price, `use-priced-design.ts` is still the one module that names
+a price book, and nothing re-prices a stored submission (D7; ADR 0072), since the notice prints the snapshot's price.
+
+**C3. What stays impossible, and which gate holds it.** A third caller, or one not named. A caller in the browser other than the hook (the
+notice begins with the server-only import). A caller that prices (the notice names no pricing function, no price book and no store). A
+notice that prices again (a snapshot whose stored total is changed prints the changed figure). The review's gate is
+`apps/web/tests/review/use-review.dom.test.ts`, whose header cites this amendment; the price gate is
+`apps/web/tests/price/starting-price.adversarial.test.ts`, where the notice joins the list of modules that may go near a price, with one
+line saying it prints a stored review's figure and rows and derives nothing (ADR 0138 decision 4, note of 2026-10-09).

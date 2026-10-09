@@ -175,7 +175,7 @@ status corrections, in one of these two files:
 | 142 | Owner decisions from 8E: ~~S2's over-count~~ and ~~the keyed hash~~ decided 2026-10-08; what remains is whether the two guarded deletes (now on preview) stay, and the `.gitignore` line `vercel env pull` added | open.md — recorded 2026-10-08, updated at 8H's close; the owner's |
 | 143 | The revision shape admits nineteen digits, past a bigint column's range (F12) | open.md — found 2026-10-08 by M8 8H's QA; persistence's; trigger: `design-revision.ts` is next opened |
 | 144 | Any export of contact data neutralises a leading `=`, `+`, `-` or `@` | open.md — recorded 2026-10-08 at 8H's close; trigger: an export is built |
-| 145 | A web-suite run failed once (1 of 6227), unidentified | open.md — seen once in five runs 2026-10-08; a possible recurrence with a name added 2026-10-08 (`client-write-path.adversarial`, not established to be the same test); trigger: a recurrence |
+| 145 | A web-suite run failed once (1 of 6227), unidentified | open.md — seen once in five runs 2026-10-08; a possible recurrence with a name added 2026-10-08 (`client-write-path.adversarial`, not established to be the same test); **a second named sighting 2026-10-09** (`plan-preview-model.facing-labels.test.ts:255`, a test-side cause: seed the property; no recurrence needed); trigger: a recurrence |
 | 146 | Count the stored design ids that lack the generator's shape, before 8L S2 | open.md — recorded 2026-10-08; the owner's; before 8L S2 ships |
 | 147 | `e2e-shard-budget` failed at `ee834b6` and the pre-push hook runs it | open.md — **closed 2026-10-08**, owner chose option 1, fixed in `8aba717` (the file split); residue is 153 |
 | 148 | A metres field and a dangling separator (`3,` `,5`): refuse, or read as a value? | open.md — **closed 2026-10-08**, ruled by the owner ("no separator should be accepted"), pinned in `eaef634`; the URL question is 154 |
@@ -188,6 +188,9 @@ status corrections, in one of these two files:
 | 155 | The only consent text version in code is `"placeholder"` (`packages/configurator-domain/src/contact/contact-fields.ts:26`): a launch item | open.md — recorded 2026-10-09 at M8 8I's close; the owner's consent text (Q7); trigger: before launch (M9) |
 | 156 | The boundary gate (`scripts/gates/boundary.sh`) does not catch a test importing another package's tests by relative path | open.md — found 2026-10-09 in 8I's review (C-R1.1), fixed in the one file; trigger: the next change to the gate |
 | 157 | For the milestone-close test audit: 8I's QA files restate six cases the developer's tests hold, file sizes and other nits | open.md — recorded 2026-10-09 at M8 8I's close; trigger: the M8 close audit (ADR 0152 Amendment A) |
+| 158 | The mail tests' fixtures are duplicated between the developer's and QA's files (fake key and addresses, fetch stubs, notice fixtures, the dressed-kitchen fixture) | open.md — recorded 2026-10-09 at M8 8J's close (JC-R1.12, JC-R1.18); trigger: 8K's first test that needs them |
+| 159 | For the milestone-close test audit: 8J's restated pairs, the nits and JC-R1.20/1.21, with the file sizes at review | open.md — recorded 2026-10-09 at M8 8J's close; trigger: the M8 close audit (ADR 0152 Amendment A) |
+| 160 | The mail adapter's answer mapping moves to its own module | open.md — recorded 2026-10-09 at M8 8J's close (JC-R1.8); trigger: a second adapter or the file's next change of behaviour |
 
 ## 2026-09-06 audit note
 
