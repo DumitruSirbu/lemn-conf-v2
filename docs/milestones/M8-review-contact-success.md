@@ -4171,6 +4171,9 @@ of SEC-001 and backlog 90. *Tier: Full + security.*
 > is merged: `DIGEST_SECRET` set in production, preview, development and `apps/web/.env.local`.
 > Until it is, that environment creates no design.**
 
+**(2026-10-09: this table, the ten criteria and the reading lines below are overtaken by *8F, restated for dispatch — 2026-10-09*,
+at the end of this section. The three red specs are triaged.)**
+
 | Slice | Does | Files | Reading |
 | --- | --- | --- | --- |
 | S0 | Fixes D11's mechanism and the e2e policy with the security reviewer, before code. Records both in the ADR | this file; the ADR | D11, D12; ADR 0019 d3, d5; ADR 0114 H1, H3, H6; backlog 88, 89, 90; 8A's counts |
@@ -4244,6 +4247,160 @@ these before S1 is written:
 *QA reading:* the criteria; `tests/app/api/designs/`; the e2e mint fixture; ADR 0019's 2026-08-31
 correction. Sabotage both ways for each bucket. *Logic and clean-code readers:* the slice files; ADR
 0019 d3–d5. *Security reading:* ADR 0019 whole; ADR 0114 F4, H1, H6; S0's record.
+
+#### 8F, restated for dispatch — 2026-10-09
+
+**State.** HEAD is `af55c16` [ran: `git log`], tree clean. Backlog 125's triage is in [relayed,
+QA-run 2026-10-09; logs under `m8-e2e-triage/`, session scratchpad]. Nothing of 8F is built [ran:
+`apps/web/src/lib/server` holds no `rate-limit` and no `digest`]. The architect read the mint's
+route, the save's route, the client's lock and the counter store at HEAD.
+
+**1. The race the triage measured, and 8F.**
+
+- *What it is* [relayed, QA-run: 13 of 250 rounds, none alone, 12 of 100 at eight workers]. Tab A's
+  first save is sent with the visitor value V1 and commits while V1 owns its row; tab B's mint
+  moves the browser's rows to V2; A's answer arrives after B's and sets V1 again [src
+  `api/designs/[id]/route.ts:151`, `persistence/fetch-configuration-repository.ts:198-208`]. The
+  browser then holds a value that owns nothing. It is ADR 0114 H1's first residual and backlog 89,
+  whose *"plausibly rare"* is no longer true under load.
+- **8F is independent of it: it adds no response that sets a cookie, and reads no visitor value.**
+  The limiter runs after the cross-site guard and before the visitor is resolved or anything is
+  minted. It does add a round trip to the mint, which moves both tabs' timing by the same amount;
+  whether the race gets likelier or rarer is not known, so the triage's figures are the baseline
+  a red after 8F is read against [inf].
+- **What 8F does touch is the lock's own limit.** A second tab that waits ten seconds for the lock
+  mints without it [src `persistence/create-design-lock.ts:12`], and that is the worse race (29 of
+  30, ADR 0114 H6). The store repeats a hit after a cold start for up to two seconds [src
+  `retry-on-transient-failure.ts`], and the mint may take as long again (ADR 0114, pointer R2.3).
+  **So the limiter has its own deadline of three seconds, the architect's figure, and refuses when
+  it passes.** Criterion 12 holds the arithmetic.
+- *Must not, so that it stays independent:* a refused mint sets, clears or refreshes any cookie,
+  rotates a visitor or writes a `designs` row; the limiter sits inside the mint's transaction; 8F
+  changes the lock, the save's route or its refresh; the client sends a save after a refused mint.
+- **Q35, for the owner. Recorded, not decided; 8F does not wait for it.** *Two tabs creating a
+  design within one request's time can leave a browser unable to open any of its designs. Which
+  fix?* **(a)** Every save takes the lock shared and the mint takes it alone. Closes it in every
+  browser that has the lock; each save then waits on a lock. **(b)** The lock is held across the
+  first save. Closes the create path only: a later save racing another tab's mint still loses.
+  Both amend **ADR 0114 H6 (2026-09-23, the owner's *"Web Lock + random"*)**, which puts the lock
+  around the mint alone. **(c), the architect's addition:** a save never sets the visitor cookie;
+  only a mint does. Closes it on the server, for every browser, by removing the one answer that
+  can put an old value back. Its cost: the cookie's thirty days run from the last design created
+  and not the last save, unless the lifetime is lengthened. It amends **ADR 0114 decision 1
+  (2026-09-11), *"refreshed with every successful save"*, and H3 (2026-09-23)**. *Recommended:
+  (c), with a longer lifetime* [inf, unmeasured: what else leans on the refresh is that wave's S0].
+  Whichever: **a wave of its own, Full + security, before 8T.**
+- *Until then, the architect's reading, for the coordinator:* the two-tab spec stays in the suite,
+  neither skipped nor marked. `pnpm ci:local` runs the whole e2e suite [src
+  `scripts/local-ci.sh:136`], so about one run in ten is red here [relayed, QA-run, eight workers].
+  A whole run red on that one title is recorded by its name as backlog 89 and run again once; any
+  other red is a red. **8T's gate cannot be ticked with it open**, unless
+  the owner accepts it as he did SEC-7E3b.8.
+
+**2. The two test faults: fixed now, apart from 8F. Light tier, by QA, one commit, no production
+file.** The top bar's new-tab test waits on a document that is still loading; its assertion reads
+the opened page's address by polling. The two-tab spec says which status the lost design
+answered, so a lockout's `404` is not read as any failure. *Shown by:* the top-bar test at eight
+workers, as many runs as the triage's 24, none red. It goes before S3, which changes the harness.
+
+**3. S0: the rules, the architect's, read by the security reader alone before any code.**
+
+- **A. The key.** HMAC-SHA-256 under the secret, of: the purpose, then each field, every part
+  written as its length in bytes, a colon, its bytes and a comma. The purpose is from a closed set
+  in code; today `rate-limit-bucket`, whose fields are the policy's name and the subject. So equal
+  keys come only from equal parts. A policy's name carries its window, so a new window is a new
+  name (ADR 0149). The subject is a block's own text, or one fixed word for the shared bucket.
+- **B. The secret.** One module. One function digests under a key it is handed. One builds a
+  digester from an environment handed in, and answers it or the variable's name: the key stays in
+  a closure and no value that holds it is returned (8J's J-S1.1). Usable means sixty-four
+  lowercase hexadecimal characters, read as the environment's own member. *Must not:* a default, a
+  fallback, a branch on a build mode, the value's length in a refusal.
+- **C. Who a client is.** A pure function of the environment picks the source. On the development
+  host, known by the variable that host sets itself [inf: which one; **S1 quotes the host's page
+  before using it**], the address is the header that host overwrites [ven §2]. Anywhere else,
+  *none*: one shared bucket, and no header is read.
+- **D. The e2e suite runs under a policy, not a switch.** One run makes 444 designs from one
+  bucket. The same route, evaluator, store and database run; only the day's figure differs, and it
+  is chosen by a flag in the server's environment, exactly `1`. **The flag beside a known
+  platform is a misconfiguration and every mint is refused**, as the mail's flag is beside a mail
+  variable (ADR 0154). The policy in force writes one fixed warning. *What is left:* a deployment
+  on an unnamed host with the flag. It joins the mail flag's line at the phase gate.
+- **E. Each run's keys are its own.** The harness makes a fresh secret for a run, in its own
+  process's environment, in no file and with no literal in the repository. A second run that day
+  starts from nothing. **The real figure is proved twice:** on a fake clock (criterion 8), and by
+  one spec against a second server under the production policy with its own secret. After a run
+  the harness deletes the rows whose keys it can compute from that run's secret, on the test
+  database alone, and says how many (ADR 0151).
+- *The security reader's question, to be answered from this section and `playwright.config.ts`:*
+  name every environment in which the e2e policy is in force. Can one take real traffic? Is the
+  refusal beside a known platform enough, or is a further condition worth its cost?
+
+**4. The slices.** *Tier: Full + security.* **The security reader reads twice alone: S0's rules
+before S1, and S1's digest and selection before S2 or S3 builds on them.** QA and the three
+reviews run once, after S4.
+
+| Slice | Does | Production files | Criteria | Reading |
+| --- | --- | --- | --- | --- |
+| S1 | The keyed digest and its secret. A client's address reduced to its block, and the source that names it | new `lib/server/digest/keyed-digest.ts`, `digest-secret.ts`; new `lib/server/rate-limit/client-network.ts`, `network-source.ts`; `.env.example` (two names, no value) | 1, 2, 11, 13; rules A to C | this section; *The digest secret*, under 8I; ADR 0149, *What later waves inherit* and its amendment; ADR 0147 with Amendment A; ADR 0019 d3; *8A figures* §2; ADR 0146 B2; `lib/server/mail/mail-configuration.ts`, `select-mail-sender.ts`, `create-mail-sender.ts`; `packages/persistence/src/sha256-digest.ts` |
+| S2 | The policy as data: the mint's one row, the e2e policy, the choice between them. The Chișinău day as a window. The evaluator: hits counted inside the deadline; *allow*, *refuse* with the wait, or *unavailable* | new `rate-limit/limit-policy.ts`, `chisinau-day.ts`, `enforce-rate-limit.ts` | 3, 5, 8, 9, 12; rules D, E | this section; *The limit on new designs, as the owner ruled it*; ADR 0147; ADR 0149 whole; `packages/persistence/src/rate-limit-store.ts`, `fake-rate-limit-store.ts`, `index.ts`; ADR 0154, the selection |
+| S3 | The mint asks first. A refusal's answer and its one log line. The store's lazy instance. The harness: the secret, the flag, the second server, the rows removed | `app/api/designs/route.ts`, new `rate-limit/rate-limited-response.ts`, `lib/server/repository.ts`, `lib/server/design-failure-log.ts`; `playwright.config.ts` and the e2e support (not production) | 4 to 7, 9; point 1's must-nots | this section; ADR 0114 F4, H1, H3, H6; ADR 0111 d1; ADR 0019 d5, *"writes fail closed"*; `lib/server/cross-site-request.ts`; `persistence/create-design-lock.ts`; ADR 0006, ADR 0128, ADR 0151 |
+| S4 | Step 1 says a design cannot be made today, or cannot be made now, and keeps the room | `persistence/design-request-errors.ts`, `room/use-generation.ts`, `room/generation-steps.tsx`, `i18n/content.ts`, the message files | 10 | ADR 0111, its amendments; ADR 0139; frame 1F; `room/create-design.ts`; `engineering-conventions.md`, *Localised copy*; Q10 |
+
+*Criteria, as they now stand.*
+
+1. **Aggregation, as properties.** IPv4 by its first 24 bits, IPv6 by its first 64, a mapped IPv4
+   address in its IPv4 block. An absent or unreadable address is in the one shared bucket, **at
+   the same 20 a day**. *Must not:* it is unlimited.
+2. The address is one the platform set. Under *none* no header moves a request to another bucket.
+3. ~~Independent buckets, for the mint.~~ It has one. **Kept for the evaluator alone:** with two
+   buckets the stricter decides, and no key joins two identities.
+4. A refused mint inserts nothing, sets no cookie and rotates nothing. It answers `429` with a
+   whole `Retry-After` from 1 to 90,000: the seconds to the end of the Chișinău day.
+5. **Unavailable is one answer, `503`, and nothing is written:** the store fails, the deadline
+   passes, the secret is unusable, or the flag is misconfigured. Reads are unaffected.
+6. A request the cross-site guard refuses is not counted.
+7. No log line holds an address, a block, a cookie's value, a key or the secret. A refusal writes
+   one line that names the policy.
+8. The twenty-first design in a day is refused and the first of the next is not, on a fake clock
+   at both edges, on the days of 23 and of 25 hours too. No loop of volume.
+9. **Restated.** The whole e2e suite stays green. No request can choose a policy. The flag beside
+   a known platform refuses every mint. A test shows each.
+10. Step 1 says, in both locales, that the limit returns tomorrow, and for `503` that it cannot be
+    made now; the room's entry is kept. ~~The wait in minutes.~~
+11. With the secret unset, no row. *Must not:* any key but the variable's.
+12. **Added.** The limiter's deadline, the store's longest repeat and the mint's longest time, as
+    figures, sum to under the lock's ten seconds; a test fails if a constant moves past it.
+13. **Added.** Equal keys only for equal purpose, name and subject, as a property over arbitrary
+    subjects, ones holding a policy's name or the encoding's own marks included.
+
+*Not 8F's:* the count across every endpoint, which is 8G's, where the limiter reaches them.
+
+*QA reading:* the criteria; this section; `tests/app/api/designs/`; the e2e mint fixture; the
+triage's figures; ADR 0019's 2026-08-31 correction; ADR 0149's limits. *Logic reader:* the slice
+files; ADR 0147; ADR 0149; point 1. *Clean-code reader:* the slice files and their tests; ADR
+0136. *Security reader:* **rules A to E first; then S1;** ADR 0019 whole; ADR 0114 F4, H1, H3, H6;
+ADR 0146; ADR 0154.
+
+**5. The records.**
+
+| Record | What it says | How it is settled |
+| --- | --- | --- |
+| ADR 0019 d3 (2026-08-25) | The address as a /24 or a /64; no key made of two identities | Kept: criteria 1, 3 |
+| ADR 0019 d4, and d5's row for the mint | Two tiers, four figures | Superseded for the mint by ADR 0147 (2026-10-07) and its Amendment A: one bucket, 20 a Chișinău day |
+| ADR 0019 d5, *"writes fail closed"* | A store that fails refuses the write | Kept: criterion 5 |
+| ADR 0019, the correction of 2026-08-31 and the note of 2026-10-07 | The mint is not exposed until the limiter, retention and the firewall ship together | 8F is the application's half. The gate is M9's |
+| ADR 0114 F4, H1, H3 | The guard first; a mint rotates; a save refreshes only what owns | Kept, untouched: point 1's must-nots, criterion 6 |
+| ADR 0114 H6 | The lock around the mint, ten seconds | Kept: criterion 12. Q35 may amend it |
+| ADR 0149 and its amendment | Rule S1; a deadline of the caller's; any throw is a refusal; keyed from the first deploy | Applied: rules A, B; criteria 5, 13 |
+| ADR 0154 | A choice made by how a server is started; a flag beside the real configuration is refused | Applied: rules C, D |
+| Backlog 90 | The rotation has no limit | Closed by this wave: a rotation happens only in a mint the limiter passed |
+
+**6. What the owner owes, and what waits for it.** **Nothing blocks building.** `DIGEST_SECRET`
+in each environment blocks **merging and deploying**: without it that environment creates no
+design. `0007` and its grant on preview and production block deploying too; every test here runs
+on the test database. *Unproven until he acts:* the grant test for the counters, which has only
+ever been skipped; the development host's header on a real deployment, and that it cannot be
+forged; the variable that host sets. Q35 is his, and blocks 8T and not this wave.
 
 ### 8G — the limiter on saves, shares and reads; pruning
 
