@@ -5285,6 +5285,130 @@ none of which rests on a save's figure; **a pass of QA and the three reviews**; 
 S2b, last**, with the provisional constants if he has not answered, and a second pass. S3a's
 share figure is Q36's provisional 60. S3b's first step is still its stop.
 
+##### 8G — S1's security read, ruled; S4a, S4b, S3a and S3b for dispatch, 2026-10-10
+
+**State.** HEAD is `5c750a6` (S1) [ran: `git log`], tree clean; the web suite is 7278 passed and
+the mint's key was reproduced with `openssl`, unchanged [relayed, coordinator-run]. The security
+reader: **later slices may be built on S1; nothing at the must-fix bar** [relayed]. The architect
+read the subject's module and the evaluator at HEAD. **No migration in 8G.**
+
+**1. G-S1.1 to G-S1.3: taken now, as a commit of their own, before S4a.** *S1b, one developer,
+three items.*
+
+| # | Does | Production files |
+| --- | --- | --- |
+| 1 | G-S1.1: the two constructors remember what they made, by identity; the evaluator answers `judgement-failed`, with no store call, for a subject it did not make or a policy that is not one of the closed set's own | `lib/server/rate-limit/bucket-subject.ts`, `enforce-rate-limit.ts`, `limit-policy.ts` |
+| 2 | G-S1.2: a hash that is not a string is refused before its pattern is asked | `bucket-subject.ts` |
+| 3 | G-S1.3: a purpose that is not the list's own member is *misconfigured*, said directly | `limit-policy.ts` |
+
+*Why now:* the mark and the closed set bind the compiler only [src `bucket-subject.ts:12-23`;
+relayed, reviewer-run], and S2a is where a cast could be written. *Must not:* the mint's key or
+any answer changes; a test builds a subject by a cast where a constructor will do.
+
+**2. S4a. The day's totals, in the persistence package. One developer, four items.**
+
+| # | Does | Production files |
+| --- | --- | --- |
+| 1 | The port gains one read: for a window handed in and a figure, how many buckets that window holds, how many are above the figure, and the largest count | `packages/persistence/src/rate-limit-store.ts` |
+| 2 | Its statement: rows chosen by the window's **exact start and end**, since hour rows now share the table; three numbers and nothing else | `neon-rate-limit-store.ts` |
+| 3 | The fake answers the same | `fake-rate-limit-store.ts` |
+| 4 | Its tests: the driver mocked, pinning the statement's text; the contract suite both stores run; one live test that plants rows in two windows and reads one, **with its census row** | the store's tests; `tests/live-suite-census.test.ts` |
+
+*Criterion 5.* *Must not:* a key, a row or a window's instants in the answer; **the text of the
+hit's statement or the prune's changes** (ADR 0149's thirty runs rest on both); a migration; a
+delete of any kind. *Stops if:* an existing statement must change; or the application's role
+cannot run the read under its grant as recorded. *Reading:* this section; *8G, restated for
+dispatch*, point 3; ADR 0149 whole; ADR 0146 B3; ADR 0128; ADR 0147, *"Track"*;
+`rate-limit-store.ts`, `neon-rate-limit-store.ts`, `fake-rate-limit-store.ts` and their tests;
+`tests/support/rate-limit-store-contract.ts`, `rate-limit-test-eras.ts`;
+`docs/best-practices/ci-and-local-gates.md`, the live suites and the ledger.
+
+**3. S4b. The prune. One developer, four items.**
+
+| # | Does | Production files |
+| --- | --- | --- |
+| 1 | The work, apart from the route: the totals of the two Chișinău days that ended last, each as one line holding the day's date and three counts; then the store's prune called with its cutoff **stepped forward, oldest first**: once at twenty-five hours before the server's clock, then an hour at a time to one hour before it | new `lib/server/rate-limit/prune-rate-limits.ts` |
+| 2 | The route: the cron secret through `isAuthorizedCronRequest`, `401` without it; `200` with the rows removed, said as *at least*; `503` with a code when a step fails, and a line | new `app/api/cron/prune-rate-limits/route.ts` |
+| 3 | One entry, `30 3 * * *`, after the backup's | `vercel.json` |
+| 4 | Its tests, on the store's fake and a fake clock: nothing that ended less than an hour ago goes; a failure at the third step leaves the first two done and answers `503`; the lines hold a date and counts only | under `tests/lib/server/rate-limit/` and `tests/app/api/cron/` |
+
+*Criteria 5 and 6.* **The statement that deletes is the store's, unchanged, so there is no mutant
+of it to make. A mutant of the stepping is run on the fake only, never on a database.**
+*Must not:* an instant taken from a request; a window that ended less than an hour ago; a table
+but the counters; a key or a block in a line; the backup's route or its answer touched. *Stops
+if:* the schedule needs more than the file; or the steps cannot finish inside the route's time on
+an empty table. *Reading:* this section; *8G, restated*, point 3; *S0's security read, ruled*,
+G-S0.2; `app/api/cron/backup-designs/route.ts`; `lib/server/cron-auth.ts` and its test;
+`vercel.json`; `rate-limit/chisinau-day.ts`, `limit-policy.ts`; ADR 0149, *What later waves
+inherit*; ADR 0155's standing rule; ADR 0012.
+
+- **Said to the owner, plainly; he is told, not asked.** The entry is an addition to the
+  scheduled jobs the host runs. **From the next deploy the host calls the route once a night. In
+  production it deletes counter rows whose window ended more than an hour before, oldest first,
+  and nothing else. It logs counts and a date.** It blocks nothing built.
+
+**4. S3a. Share writes and the API's two reads. One developer, five items.**
+
+| # | Does | Production files |
+| --- | --- | --- |
+| 1 | The two judges. A write: the block, the write deadline, fails closed. A read: **under *none* no call at all**; otherwise the block and the read's deadline, and *unavailable* is served | new `lib/server/rate-limit/judge-share-write.ts`, `judge-read-request.ts` |
+| 2 | Creating and revoking a link ask first: after the cross-site guard and the credentials' presence, before the repository | `app/api/designs/[id]/share/route.ts` |
+| 3 | A link's status and a design's load ask first, before any lookup, so a refusal is the same for an owner and a stranger | the same; `app/api/designs/[id]/route.ts` (its `GET`) |
+| 4 | The answers: `429` with `Retry-After` and `SHARE_LIMIT_REACHED` or `READ_LIMIT_REACHED`; `503` with `SHARE_UNAVAILABLE`, for a write alone. **One line for a process and a cause** when a read is served unjudged or first refused; a line for each refused write | `rate-limit/rate-limited-response.ts`, `lib/server/design-failure-log.ts` |
+| 5 | The harness: the share twin's key for the shared block, removed with the run's others | the e2e support |
+
+*Criteria 1, 3, 4, 9.* *Must not:* a share's token, a design's id or a visitor's value as a
+subject; a read that waits longer than its deadline; a line for each refused read; a cookie set
+on a refusal; the save's `PUT` or `PATCH` touched (S2a's); the client changed. **The developer
+reports, with lines, what the editor does today with a refused load and a refused status; it
+changes neither.** *Stops if:* a refused load leaves the editor in a state it cannot leave. *Reading:* this
+section; *8G, restated*, point 2 as amended; *S0's security read, ruled*, G-S0.3, G-S0.4; ADR 0114
+B5, C1, G4, H5; `lib/server/cross-site-request.ts`; `rate-limit/judge-mint-request.ts` and its
+test; `app/api/designs/route.ts`; ADR 0155 decisions 6, 7, 10; Q36.
+
+**5. S3b. Pages. Its first step is a report, and it stops there.**
+
+- **The question.** Under the installed framework, where can a request for `/`, `/d/*` or `/s/*`
+  be counted before any design is looked up, and how is it answered `429`? **Answered from the
+  installed package's own documentation or source, each claim labelled with the file and lines
+  that warrant it** (`apps/web/AGENTS.md`).
+- **What the report holds.** The place; the runtime it runs on, and that the driver works there;
+  **how many requests one page view makes** (the document, its data fetches, its prefetches) and
+  which of them would be counted; how a `429` is produced; what the customer then sees.
+- **What will be accepted.** The request interceptor that already runs for these paths [src
+  `src/proxy.ts`], answering a bare `429` itself. Or the page's own server code, **only if** the
+  framework documents a way to answer `429` there before anything is read. *Not accepted:* a count
+  taken after the design is loaded; a check in the browser; a redirect to an address that names a
+  design; a page that says *too many requests* under a `200`.
+- **Then, ruled on that report:** the files, at most five, and one new sentence, a draft under
+  Q10 (a). **Every request the server answers for those paths counts**, a data fetch as a
+  document does, since each costs the lookup; a static file never; under *none*, nothing.
+
+**6. The e2e suite for these slices.** The share twin is 300 [relayed, QA's 146 writes a run].
+**Reads have no twin, and the suite's server never counts one.**
+
+- **A refused read is shown below the browser:** the judge or the route is handed a store already
+  at its figure. No test sends six hundred requests.
+- **That a read is counted where a source is named is shown on the second server alone**, the
+  one under the production policy and CI only: started with `CLIENT_NETWORK_SOURCE` set, its spec
+  sends one forwarding header of its own with a documentation address, reads once, and the
+  harness finds the one row under the key it computes. **A forwarding header stays forbidden on
+  the suite's server.** The same spec shows the suite's server writing no read row.
+
+**7. The pass after S3b.** *Tier: Full + security.* *QA reading:* criteria 1, 3 to 7 and 9; the
+four sections of this restatement; the store's contract suite; the share specs;
+`tests/app/api/cron/`; ADR 0155's standing rule and limits. *Logic:* the stepping and its
+arithmetic at a day's two edges and on the days of 23 and 25 hours; the totals' window; a read
+served on every failure. *Clean-code:* each slice's files and tests; ADR 0136. *Security:* that
+no read is counted under *none* and none waits; the share's order; the prune's secret, what it
+deletes and what it logs; the second server's header. **A visual check is owed once:** what a
+customer sees for a refused page, at 390 × 844 in both languages.
+
+**8. The owner. Nothing here blocks building.** *Told:* the cron entry and what it deletes.
+*Open, with provisional constants:* Q36 and Q37. *His at the hand check:* a refused page's
+sentence. *Deploying* waits on what 8F's does, and on `CRON_SECRET`, which exists [doc
+`.env.example`].
+
 ### 8H — the submission contract
 
 *Goal.* One I/O-free definition of what a request is, used by the form and by the server.
