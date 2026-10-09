@@ -1,0 +1,315 @@
+// The kitchen half of the shop's notice, against stored snapshots the domain's public function made.
+// The developer's parity test prices each kitchen again under the live book and compares; that cannot
+// tell a notice that prints the stored price from one that re-prices. These snapshots were priced under
+// another book than the live one, so the two answers differ and only the stored one is right.
+import {
+  buildKitchenLBodyCatalog,
+  cabinetDepthMmOf,
+  canonicalSerializeDesign,
+  DesignSchema,
+  priceDesign,
+  projectDesignForDisplay,
+  SAMPLE_PRICE_BOOK,
+  SAMPLE_PRICE_BOOK_VERSION,
+  type Design,
+  type PricedDesign,
+  type SubmissionSnapshot,
+} from "@lemnaria/configurator-domain";
+import type { ContactSubmissionToRecord } from "@lemnaria/persistence";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+
+import { NoticeKitchenError } from "@/lib/server/mail/lead-notification";
+import { isSendableMailMessage } from "@/lib/server/mail/mail-sender";
+import { describeReview } from "@/review/review-model";
+
+import {
+  customerSuppliedIds,
+  keepingOnly,
+  pastTheWall,
+} from "../../../support/review-edits";
+import { ro } from "../../../support/romanian-content";
+import {
+  VARIED_ARMS,
+  variedKitchensOf,
+  type VariedArm,
+} from "../../../support/varied-kitchens";
+import { forbidFetch, releaseFetch } from "./mail-test-support";
+import {
+  callbackRequest,
+  designRequest,
+  noticeOf,
+  SAMPLE_BOOK,
+  snapshotUnder,
+  thrownBy,
+  type SnapshotBook,
+} from "./qa-8j-notice-support";
+
+const notice = ro.leadNotice;
+const ARMS = VARIED_ARMS.map((arm) => [arm.name, arm] as const);
+const HARDWARE_RAISE = 7;
+
+/** The sample book with every hardware amount raised, as a book the shop priced under before a change. */
+const EARLIER_BOOK: SnapshotBook = {
+  pricingVersion: "qa-earlier-book",
+  book: {
+    ...SAMPLE_PRICE_BOOK,
+    version: "qa-earlier-book",
+    hardware: {
+      ...SAMPLE_PRICE_BOOK.hardware,
+      tiers: SAMPLE_PRICE_BOOK.hardware.tiers.map((tier) => ({
+        ...tier,
+        perHingeMinor: tier.perHingeMinor * HARDWARE_RAISE,
+        perDrawerMinor: tier.perDrawerMinor * HARDWARE_RAISE,
+      })),
+    },
+  },
+};
+
+interface StoredKitchen {
+  readonly design: Design;
+  readonly stored: SubmissionSnapshot;
+}
+
+function storedKitchensOf(arm: VariedArm): readonly StoredKitchen[] {
+  return variedKitchensOf(arm).flatMap(({ design }) => {
+    const stored = snapshotUnder(design, EARLIER_BOOK);
+    return stored === undefined ? [] : [{ design, stored }];
+  });
+}
+
+/** The lines a review of this design and this price shows, in the notice's layout. */
+function reviewLinesOf(design: Design, priced: PricedDesign): string[] {
+  const review = describeReview({
+    content: ro,
+    design,
+    pricing: { ok: true, priced },
+    groups: projectDesignForDisplay(
+      design,
+      buildKitchenLBodyCatalog(cabinetDepthMmOf(design)),
+    ),
+  });
+  if (review.kind !== "available") throw new Error("the review is unavailable");
+  return [
+    notice.line(notice.labels.room, review.roomLine),
+    ...review.groups.flatMap((group) => [
+      group.heading,
+      ...group.rows.map((row) => notice.line(row.label, row.amountText)),
+    ]),
+    ...review.wholeKitchenRows.map((row) =>
+      notice.line(row.label, row.amountText),
+    ),
+    "",
+    notice.line(
+      notice.labels.price,
+      notice.figure(review.figure.label, review.figure.amountText),
+    ),
+    review.disclaimer.rounding,
+    review.disclaimer.notice,
+  ];
+}
+
+function livePriceOf(design: Design): PricedDesign {
+  const pricing = priceDesign({
+    design,
+    catalog: buildKitchenLBodyCatalog(cabinetDepthMmOf(design)),
+    book: SAMPLE_PRICE_BOOK,
+    pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
+    selections: design.settings,
+  });
+  if (!pricing.ok) throw new Error("the fixture kitchen did not price");
+  return pricing.priced;
+}
+
+function kitchenLinesOf(submission: ContactSubmissionToRecord): string[] {
+  const lines = noticeOf(submission).text.split("\n");
+  return lines.slice(lines.indexOf("") + 1);
+}
+
+function storedDesignOf(snapshot: SubmissionSnapshot): Design {
+  return DesignSchema.parse(JSON.parse(snapshot.document));
+}
+
+beforeEach(forbidFetch);
+afterEach(releaseFetch);
+
+describe.each(ARMS)(
+  "kitchens of the %s arm, stored under an earlier book",
+  (_name, arm) => {
+    const kitchens = storedKitchensOf(arm);
+
+    it("are many, and their stored price is not what the live book would answer", () => {
+      const pricedAlikeLive = kitchens.filter(
+        ({ design, stored }) =>
+          stored.priced.totalMinor === livePriceOf(design).totalMinor,
+      );
+
+      expect(kitchens.length).toBeGreaterThan(50);
+      expect(pricedAlikeLive).toEqual([]);
+    });
+
+    it("print the rows, the figure and the disclaimer a review of the stored snapshot shows", () => {
+      const wrong = kitchens.filter(
+        ({ stored }) =>
+          JSON.stringify(
+            kitchenLinesOf(designRequest({ snapshot: stored })),
+          ) !==
+          JSON.stringify(reviewLinesOf(storedDesignOf(stored), stored.priced)),
+      );
+
+      expect(wrong).toEqual([]);
+    });
+
+    it("never print what a review of the same design priced again today would show", () => {
+      const printingTheLivePrice = kitchens.filter(
+        ({ design, stored }) =>
+          JSON.stringify(
+            kitchenLinesOf(designRequest({ snapshot: stored })),
+          ) === JSON.stringify(reviewLinesOf(design, livePriceOf(design))),
+      );
+
+      expect(printingTheLivePrice).toEqual([]);
+    });
+
+    it("print a body the customer supplies with the review's own words, in every kitchen that has one", () => {
+      const withASuppliedBody = kitchens.filter(
+        ({ stored }) => customerSuppliedIds(stored.priced).size > 0,
+      );
+      const missingTheWords = withASuppliedBody.filter(
+        ({ stored }) =>
+          !kitchenLinesOf(designRequest({ snapshot: stored })).some((line) =>
+            line.endsWith(`: ${ro.priceBreakdown.notIncluded}`),
+          ),
+      );
+
+      expect(withASuppliedBody.length).toBeGreaterThan(0);
+      expect(missingTheWords).toEqual([]);
+    });
+
+    it("make a message the port may send", () => {
+      const unsendable = kitchens.filter(
+        ({ stored }) =>
+          !isSendableMailMessage(noticeOf(designRequest({ snapshot: stored }))),
+      );
+
+      expect(unsendable).toEqual([]);
+    });
+  },
+);
+
+/** What a store would hold had it kept a kitchen the domain refuses: the same two members, made the same way. */
+function handMadeSnapshotOf(design: Design): SubmissionSnapshot {
+  return {
+    document: canonicalSerializeDesign(design),
+    priced: livePriceOf(design),
+  };
+}
+
+function firstPlacementIdOf(design: Design): ReadonlySet<string> {
+  const [first] = design.placements;
+  if (first === undefined) throw new Error("the kitchen has no body");
+  return new Set([first.id]);
+}
+
+describe.each(ARMS)(
+  "kitchens of the %s arm the review would refuse",
+  (_name, arm) => {
+    const designs = variedKitchensOf(arm).map(({ design }) => design);
+
+    const REFUSED_KITCHENS: readonly [string, (design: Design) => Design][] = [
+      [
+        "a body past the end of its wall",
+        (design) => pastTheWall(design, firstPlacementIdOf(design)),
+      ],
+      [
+        "nothing but bodies the customer supplies",
+        (design) =>
+          keepingOnly(design, customerSuppliedIds(livePriceOf(design))),
+      ],
+    ];
+
+    it.each(REFUSED_KITCHENS)(
+      "are refused by the domain's snapshot and by the notice alike, with %s",
+      (_label, refuse) => {
+        const refused = designs.map(refuse);
+        const stillSnapshotted = refused.filter(
+          (design) => snapshotUnder(design, SAMPLE_BOOK) !== undefined,
+        );
+        const notRefusedByTheNotice = refused.filter((design) => {
+          const thrown = thrownBy(() =>
+            noticeOf(designRequest({ snapshot: handMadeSnapshotOf(design) })),
+          );
+          return !(
+            thrown instanceof NoticeKitchenError &&
+            thrown.failure === "review-not-sendable"
+          );
+        });
+
+        expect(refused.length).toBeGreaterThan(50);
+        expect(stillSnapshotted).toEqual([]);
+        expect(notRefusedByTheNotice).toEqual([]);
+      },
+    );
+  },
+);
+
+function deepFrozen<T>(value: T): T {
+  if (typeof value === "object" && value !== null && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const member of Object.values(value)) deepFrozen(member);
+  }
+  return value;
+}
+
+function withMembersReversed<T extends object>(value: T): T {
+  return Object.fromEntries(Object.entries(value).reverse()) as T;
+}
+
+describe("one stored request, the same bytes on every attempt", () => {
+  const [firstArm] = VARIED_ARMS;
+  if (firstArm === undefined) throw new Error("the fixture has no arm");
+  const [first, second] = storedKitchensOf(firstArm);
+  if (first === undefined || second === undefined)
+    throw new Error("the fixture has too few kitchens");
+  const submission = designRequest({ snapshot: first.stored });
+
+  it("is the same after the request went through the store's JSON and came back", () => {
+    const reloaded = JSON.parse(
+      JSON.stringify(submission),
+    ) as ContactSubmissionToRecord;
+
+    expect(noticeOf(reloaded)).toStrictEqual(noticeOf(submission));
+  });
+
+  it("does not depend on the order the request's or the contact's members were written in", () => {
+    const reordered = withMembersReversed({
+      ...submission,
+      contact: withMembersReversed(submission.contact),
+      snapshot: withMembersReversed(first.stored),
+    });
+
+    expect(noticeOf(reordered)).toStrictEqual(noticeOf(submission));
+  });
+
+  it("is the same after other requests were described in between, a callback among them", () => {
+    const before = noticeOf(submission);
+
+    noticeOf(designRequest({ snapshot: second.stored, locale: "ru" }));
+    noticeOf(callbackRequest({ clientRequestId: "qa_request_0000000002" }));
+    thrownBy(() => noticeOf(designRequest({ snapshot: undefined })));
+
+    expect(noticeOf(submission)).toStrictEqual(before);
+  });
+
+  it("reads a request it may not write to, and leaves a writable one as it found it", () => {
+    const writable = designRequest({ snapshot: first.stored });
+    const asFound = JSON.stringify(writable);
+
+    const fromFrozen = noticeOf(
+      deepFrozen(designRequest({ snapshot: first.stored })),
+    );
+    const fromWritable = noticeOf(writable);
+
+    expect(fromFrozen).toStrictEqual(fromWritable);
+    expect(JSON.stringify(writable)).toBe(asFound);
+  });
+});
