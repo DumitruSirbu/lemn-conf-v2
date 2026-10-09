@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { expect, vi } from "vitest";
@@ -29,3 +29,15 @@ export function readMailModuleSource(fileName: string): string {
 }
 
 export const PROCESS_ENV_OR_BUILD_MODE = /process\.env|NODE_ENV/;
+
+const SOURCE_ROOT = join(import.meta.dirname, "../../../../src");
+
+/** Paths under `apps/web/src`, relative to it, of the files whose text matches `pattern`. */
+export function sourceFilesMatching(pattern: RegExp): string[] {
+  return readdirSync(SOURCE_ROOT, { recursive: true })
+    .map(String)
+    .filter((path) => /\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs)$/.test(path))
+    .filter((path) =>
+      pattern.test(readFileSync(join(SOURCE_ROOT, path), "utf8")),
+    );
+}

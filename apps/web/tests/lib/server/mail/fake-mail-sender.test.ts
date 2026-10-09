@@ -1,6 +1,3 @@
-import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { createFakeMailSender } from "@/lib/server/mail/fake-mail-sender";
@@ -11,6 +8,7 @@ import {
   PROCESS_ENV_OR_BUILD_MODE,
   readMailModuleSource,
   releaseFetch,
+  sourceFilesMatching,
 } from "./mail-test-support";
 
 const FIRST: MailMessage = { key: "k/1", subject: "first", text: "one" };
@@ -125,35 +123,36 @@ describe("fake-mail-sender.ts", () => {
   });
 });
 
-const SOURCE_ROOT = join(import.meta.dirname, "../../../../src");
-const FAKE_MODULE_FILE = "fake-mail-sender.ts";
+const FAKE_MENTION = /fake-mail-sender|createFakeMailSender/;
 
-/** Files under `src` that may import the fake. Empty until the factory exists. */
-const MODULES_ALLOWED_TO_IMPORT_THE_FAKE: readonly string[] = [];
+const FILES_ALLOWED_TO_MENTION_THE_FAKE = [
+  "lib/server/mail/fake-mail-sender.ts",
+  "lib/server/mail/create-mail-sender.ts",
+];
 
-const FAKE_IMPORT = /(?:from|import\s*\()\s*["'][^"']*fake-mail-sender["']/;
-
-describe("which modules import the fake", () => {
+describe("which modules mention the fake", () => {
   it.each([
     ['import { x } from "@/lib/server/mail/fake-mail-sender";', true],
     ["export * from './fake-mail-sender';", true],
     ['const m = await import("./fake-mail-sender");', true],
-    ["// fake-mail-sender is never imported here", false],
+    ["const sender = createFakeMailSender();", true],
+    ["import { createFakeMailSender as make } from '@/x';", true],
     ['import { x } from "./mail-sender";', false],
-  ])("recognises an import in %s", (source, isImport) => {
-    expect(FAKE_IMPORT.test(source)).toBe(isImport);
+  ])("recognises the fake in %s", (source, isMention) => {
+    expect(FAKE_MENTION.test(source)).toBe(isMention);
   });
 
-  it("is imported by nothing under apps/web/src", () => {
-    const importers = readdirSync(SOURCE_ROOT, { recursive: true })
-      .map(String)
-      .filter((path) => /\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs)$/.test(path))
-      .filter((path) => !path.endsWith(FAKE_MODULE_FILE))
-      .filter((path) => !MODULES_ALLOWED_TO_IMPORT_THE_FAKE.includes(path))
-      .filter((path) =>
-        FAKE_IMPORT.test(readFileSync(join(SOURCE_ROOT, path), "utf8")),
-      );
+  it("is named, in import or in text, by the fake and the factory alone under apps/web/src", () => {
+    const mentioners = sourceFilesMatching(FAKE_MENTION).filter(
+      (path) => !FILES_ALLOWED_TO_MENTION_THE_FAKE.includes(path),
+    );
 
-    expect(importers).toEqual([]);
+    expect(mentioners).toEqual([]);
+  });
+
+  it("is named by the factory, so the scan reads what it claims to", () => {
+    expect(sourceFilesMatching(FAKE_MENTION)).toContain(
+      "lib/server/mail/create-mail-sender.ts",
+    );
   });
 });
