@@ -3,6 +3,7 @@ import { validateContactSubmission } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
 import {
+  judgeSubmission,
   requireValidClientRequestId,
   requireValidLookup,
   requireValidReference,
@@ -336,4 +337,280 @@ describe("the domain's client request id and the store's", () => {
       });
     }).not.toThrow();
   });
+});
+
+const OWN_REFUSAL = "Refusing to use the contact submission store";
+const DEPTH_BOUND = 64;
+
+function submissionWith(
+  document: unknown,
+  priced: unknown,
+): ContactSubmissionToRecord {
+  return {
+    ...aDesignSubmission(CLIENT_REQUEST_ID),
+    snapshot: {
+      document: document as string,
+      priced: priced as typeof FAKE_SNAPSHOT.priced,
+    },
+  };
+}
+
+/** `returned`, or the check's own refusal, or the name of whatever else was thrown: only the first two are allowed. */
+function outcomeOfTheCheck(submission: ContactSubmissionToRecord): string {
+  try {
+    requireValidSubmission(submission);
+    return "returned";
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith(OWN_REFUSAL)) {
+      return error.message;
+    }
+    return `something else: ${error instanceof Error ? error.name : typeof error}`;
+  }
+}
+
+function documentNestedToLevels(levels: number, opening: string): string {
+  const closing = opening === "[" ? "]" : "}";
+  return `{"a":${opening.repeat(levels - 1)}${closing.repeat(levels - 1)}}`;
+}
+
+/** A value of `levels` nested plain objects, the outermost the first level. */
+function valueNestedToLevels(levels: number): object {
+  let value: object = {};
+  for (let level = 1; level < levels; level += 1) value = { a: value };
+  return value;
+}
+
+describe("the depth bound of a snapshot (rule 4c)", () => {
+  it.each([
+    ["lists", "["],
+    ["objects", "{"],
+  ])(
+    "accepts a document of 64 levels of %s and refuses 65, under its own sentence",
+    (_name, opening) => {
+      const atTheBound =
+        opening === "["
+          ? documentNestedToLevels(DEPTH_BOUND, opening)
+          : `${'{"a":'.repeat(DEPTH_BOUND - 1)}{}${"}".repeat(DEPTH_BOUND - 1)}`;
+      const pastTheBound =
+        opening === "["
+          ? documentNestedToLevels(DEPTH_BOUND + 1, opening)
+          : `${'{"a":'.repeat(DEPTH_BOUND)}{}${"}".repeat(DEPTH_BOUND)}`;
+
+      expect(
+        outcomeOfTheCheck(submissionWith(atTheBound, FAKE_SNAPSHOT.priced)),
+      ).toBe("returned");
+      expect(
+        outcomeOfTheCheck(submissionWith(pastTheBound, FAKE_SNAPSHOT.priced)),
+      ).toMatch(/no deeper than 64 levels/);
+    },
+  );
+
+  it("accepts a priced design of 64 levels and refuses 65, under its own sentence", () => {
+    expect(
+      outcomeOfTheCheck(
+        submissionWith(
+          FAKE_SNAPSHOT.document,
+          valueNestedToLevels(DEPTH_BOUND),
+        ),
+      ),
+    ).toBe("returned");
+    expect(
+      outcomeOfTheCheck(
+        submissionWith(
+          FAKE_SNAPSHOT.document,
+          valueNestedToLevels(DEPTH_BOUND + 1),
+        ),
+      ),
+    ).toMatch(/no deeper than 64 levels/);
+  });
+
+  it("counts a bracket inside a string as text and not as a level", () => {
+    const brackets = "[".repeat(200);
+
+    expect(
+      outcomeOfTheCheck(
+        submissionWith(
+          JSON.stringify({ note: brackets, "[[[[": '"\\"[' }),
+          FAKE_SNAPSHOT.priced,
+        ),
+      ),
+    ).toBe("returned");
+  });
+
+  it.each([
+    [
+      "a document of lists",
+      () =>
+        submissionWith(
+          documentNestedToLevels(100_000, "["),
+          FAKE_SNAPSHOT.priced,
+        ),
+    ],
+    [
+      "a document of objects",
+      () =>
+        submissionWith(
+          `${'{"a":'.repeat(100_000)}1${"}".repeat(100_000)}`,
+          FAKE_SNAPSHOT.priced,
+        ),
+    ],
+    [
+      "a priced design",
+      () =>
+        submissionWith(FAKE_SNAPSHOT.document, valueNestedToLevels(100_000)),
+    ],
+    [
+      "a priced design that holds itself twice",
+      () => {
+        const cyclic: Record<string, unknown> = {};
+        cyclic["a"] = cyclic;
+        cyclic["b"] = cyclic;
+        return submissionWith(FAKE_SNAPSHOT.document, cyclic);
+      },
+    ],
+  ])(
+    "refuses %s a hundred thousand levels deep with the check's own refusal and nothing else",
+    (_name, build) => {
+      expect(outcomeOfTheCheck(build())).toMatch(/no deeper than 64 levels/);
+    },
+  );
+});
+
+describe("the document equals its own encoding (rule 4a)", () => {
+  it.each([
+    ["a number written with a needless fraction", '{"n":1.0}'],
+    ["a number past a double's reach", '{"n":9007199254740993}'],
+    ["a number written with an exponent", '{"n":1e2}'],
+    ["a key written twice", '{"a":1,"a":2}'],
+    ["a space after a colon", '{"a": 1}'],
+    ["a line feed around it", '\n{"a":1}'],
+    ["an escape that is not needed", '{"a":"\\u0041"}'],
+  ])("refuses a document with %s, and never rewrites it", (_name, document) => {
+    expect(
+      outcomeOfTheCheck(submissionWith(document, FAKE_SNAPSHOT.priced)),
+    ).toMatch(/JSON object/);
+  });
+
+  it.each([
+    [
+      "an object of every kind of value",
+      '{"a":1,"b":[1,2.5,-3],"c":"x","d":true,"e":null,"f":{}}',
+    ],
+    ["text with a character outside ASCII", JSON.stringify({ name: "Zoë 👩‍🍳" })],
+    [
+      "a number as an encoder writes it",
+      JSON.stringify({ n: 1e21, m: 0.1, z: -0 }),
+    ],
+    ["the fixture's own document", FAKE_SNAPSHOT.document],
+  ])("accepts %s, and sends the text that was handed in", (_name, document) => {
+    const judged = judgeSubmission(
+      submissionWith(document, FAKE_SNAPSHOT.priced),
+    );
+
+    expect(judged.snapshotJson?.document).toBe(document);
+  });
+});
+
+function aListWithAHole(): unknown[] {
+  const list: unknown[] = [];
+  list[1] = 1;
+  return list;
+}
+
+describe("the priced design is walked as a value (rule 4b)", () => {
+  const priced = FAKE_SNAPSHOT.priced;
+
+  it.each([
+    ["a number that is not a number", { ...priced, totalMinor: Number.NaN }],
+    ["an infinity", { ...priced, totalMinor: Number.POSITIVE_INFINITY }],
+    ["a bigint", { ...priced, totalMinor: 7n }],
+    ["a function", { ...priced, totalMinor: () => 7 }],
+    ["a symbol", { ...priced, totalMinor: Symbol("total") }],
+    ["a Date", { ...priced, pricingVersion: new Date(0) }],
+    [
+      "an object that is not plain",
+      {
+        ...priced,
+        pricingVersion: new (class Version {
+          readonly label = "version";
+        })(),
+      },
+    ],
+    ["a list holding undefined", { ...priced, lines: [undefined] }],
+    ["a list with a hole in it", { ...priced, lines: aListWithAHole() }],
+    ["an object with a toJSON", { ...priced, toJSON: () => ({}) }],
+  ])(
+    "refuses a price holding %s, saying nothing of the rest of it",
+    (_name, value) => {
+      const outcome = outcomeOfTheCheck(
+        submissionWith(FAKE_SNAPSHOT.document, {
+          note: MARKER,
+          ...(value as object),
+          value,
+        }),
+      );
+
+      expect(outcome).toMatch(/JSON object/);
+      expect(outcome).not.toContain(MARKER);
+    },
+  );
+
+  it.each([
+    ["a Date", new Date(0)],
+    ["a list", [priced]],
+    ["text", MARKER],
+  ])("refuses %s as the whole price", (_name, value) => {
+    const outcome = outcomeOfTheCheck(
+      submissionWith(FAKE_SNAPSHOT.document, value),
+    );
+
+    expect(outcome).toMatch(/JSON object/);
+    expect(outcome).not.toContain(MARKER);
+  });
+
+  it("leaves out an object's member that is undefined, as the type's optional fields are, and encodes once", () => {
+    const withUndefinedMember = { ...priced, optional: undefined };
+
+    const judged = judgeSubmission(
+      submissionWith(FAKE_SNAPSHOT.document, withUndefinedMember),
+    );
+
+    expect(judged.snapshotJson?.priced).toBe(JSON.stringify(priced));
+  });
+
+  it("accepts every kind it allows, and sends what the encoder makes of the value", () => {
+    const allowed = {
+      text: "x",
+      count: 3,
+      fraction: 0.5,
+      yes: true,
+      nothing: null,
+      list: [1, [2], { a: "b" }],
+      deep: { a: { b: {} } },
+    };
+
+    const judged = judgeSubmission(
+      submissionWith(FAKE_SNAPSHOT.document, allowed),
+    );
+
+    expect(judged.snapshotJson?.priced).toBe(JSON.stringify(allowed));
+  });
+});
+
+describe("the check returns or throws its own refusal, whatever the document and the price", () => {
+  const priceLikeValues = fc.oneof(fc.anything(), fc.jsonValue());
+  const documentLikeTexts = fc.oneof(
+    fc.string(),
+    fc.json(),
+    fc.jsonValue().map((value) => JSON.stringify(value)),
+  );
+
+  propertyTest.prop([documentLikeTexts, priceLikeValues])(
+    "for any text and any value, and never anything else",
+    (document, price) => {
+      expect(outcomeOfTheCheck(submissionWith(document, price))).toMatch(
+        /^returned$|^Refusing to use the contact submission store/,
+      );
+    },
+  );
 });

@@ -79,8 +79,8 @@ export class NeonContactSubmissionStore implements ContactSubmissionStore {
    * One statement answers a new request, a replay and a conflict: the update changes nothing, so a replay returns the
    * stored row. A reference that is another request's is the only failure drawn again, with a new proposal; a repeated
    * statement after a lost reply re-sends the same one, so a statement that landed still answers new (ADR 0145). The
-   * JSON the statement carries is made from the snapshot as the shared check judged it, never from the text or the
-   * object handed in.
+   * document the statement carries is the text handed in, which the shared check refused unless it is exactly what
+   * `JSON.stringify` makes of its own parsed value; the priced design is walked as a value and then encoded once.
    */
   async record(
     submission: ContactSubmissionToRecord,

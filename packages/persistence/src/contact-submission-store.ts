@@ -117,7 +117,9 @@ const REFUSED_PARTS = {
     "the design revision must be a whole number from 1 to 9223372036854775807",
   snapshot: "a design is stored with its snapshot and a callback without one",
   snapshotShape:
-    "the snapshot's document and its priced design must each be a JSON object of finite numbers and text the database can hold",
+    "the snapshot's document and its priced design must each be a JSON object of finite numbers and text the database can hold, and the document must be written exactly as JSON.stringify writes it, with nothing in it written twice",
+  snapshotDepth:
+    "the snapshot's document and its priced design must each be no deeper than 64 levels of lists and objects",
 } as const;
 
 type RefusedPart = keyof typeof REFUSED_PARTS;
@@ -134,10 +136,16 @@ const LONE_SURROGATE =
 
 const NUL = "\u0000";
 
+/** How many levels of lists and objects a snapshot may nest, the root object counting as the first. A design's and a
+ *  price's depths are fixed by their types and are a handful; the bound is far from all of them and does not move with a
+ *  runtime's stack, which is where `JSON.parse` and `JSON.stringify` give out. */
+const MAX_SNAPSHOT_DEPTH = 64;
+
 /** The widest value of the table's `bigint` revision column. */
 const LARGEST_REVISION = 9_223_372_036_854_775_807n;
 
-/** The two snapshot columns as the statement carries them: JSON text made from the value that was judged. */
+/** The two snapshot columns as the statement carries them: the document is the text handed in, and the priced design is
+ *  the text its walked value encodes to. */
 export interface SnapshotJson {
   readonly document: string;
   readonly priced: string;
@@ -150,10 +158,12 @@ export interface JudgedSubmission {
 
 /**
  * One check for every operation of both stores. It refuses, before a statement is sent and with no value in the
- * refusal, what each constraint of the table refuses but the reference's uniqueness, a value that is not a string,
- * text Postgres cannot hold, and a snapshot that is not a JSON object of finite numbers. What a server refuses for size,
- * depth or a limit of its own is left to it: the refusal is the caller's defect, and nothing of a person's details
- * should reach a server in a statement that is certain to fail.
+ * refusal: what each constraint of the table refuses but the reference's uniqueness; a value that is not a string; text
+ * Postgres cannot hold; a snapshot nested deeper than 64 levels; a document that is not exactly what `JSON.stringify`
+ * makes of its own parsed value; and a priced design that is not plain objects, lists, text, finite numbers, booleans
+ * and null. For any document and any priced value it returns or throws its own refusal and nothing else. What a server
+ * refuses for size, a time limit or anything of its own is left to it, and is the store error: the refusal is the
+ * caller's defect, and nothing of a person's details should reach a server in a statement that is certain to fail.
  */
 export function requireValidSubmission(
   submission: ContactSubmissionToRecord,
@@ -256,72 +266,153 @@ function isDesignRevisionThatFitsTheColumn(revision: string): boolean {
 
 function judgeSnapshot(snapshot: SubmissionSnapshot | undefined): SnapshotJson {
   if (snapshot === undefined) throw refusalOf("snapshot");
-  const document = judgedObjectText(() => parsedDocument(snapshot.document));
-  const priced = judgedObjectText(() => encodedAndParsed(snapshot.priced));
-  return { document, priced };
+  return {
+    document: judgedDocument(snapshot.document),
+    priced: judgedPriced(snapshot.priced),
+  };
 }
 
-/** The text of an object that holds nothing the database cannot, made from the parsed value and not from what was
- *  handed in. */
-function judgedObjectText(parse: () => unknown): string {
+/** The document's own text, refused unless it is exactly what `JSON.stringify` makes of its parsed value, so that the
+ *  text handed in, the text judged and the text sent are one text. A number a double cannot hold, a key written twice,
+ *  a needless escape and a space are each refused and never rewritten. Depth is judged on the text, before anything
+ *  parses or encodes it. */
+function judgedDocument(document: unknown): string {
+  if (typeof document !== "string") throw refusalOf("snapshotShape");
+  if (isNestedDeeperThanTheBound(document)) throw refusalOf("snapshotDepth");
+  const parsed = parsedObjectOf(document);
+  requireStorableJson(parsed);
+  if (JSON.stringify(parsed) !== document) throw refusalOf("snapshotShape");
+  return document;
+}
+
+/** The priced design is judged as a value, before anything encodes it, and then encoded once. */
+function judgedPriced(priced: unknown): string {
+  requireStorableJson(priced);
+  try {
+    const encoded: unknown = JSON.stringify(priced);
+    if (typeof encoded === "string") return encoded;
+  } catch {
+    // Refused below, as any other price the encoder cannot make into text.
+  }
+  throw refusalOf("snapshotShape");
+}
+
+function parsedObjectOf(text: string): unknown {
   let parsed: unknown;
   try {
-    parsed = parse();
+    parsed = JSON.parse(text);
   } catch {
     throw refusalOf("snapshotShape");
   }
-  if (!isJsonObject(parsed) || !holdsOnlyStorableJson(parsed)) {
-    throw refusalOf("snapshotShape");
-  }
-  return JSON.stringify(parsed);
-}
-
-function parsedDocument(document: unknown): unknown {
-  if (typeof document !== "string") throw new TypeError("not text");
-  return JSON.parse(document);
-}
-
-/** The priced design as the driver would encode it, then read back: a `Date` becomes text, a `bigint` or a cycle throws,
- *  and so a value `JSON.stringify` cannot make into an object is not one. */
-function encodedAndParsed(priced: unknown): unknown {
-  const encoded: unknown = JSON.stringify(priced);
-  if (typeof encoded !== "string") throw new TypeError("not encodable");
-  return JSON.parse(encoded);
+  if (!isJsonObject(parsed)) throw refusalOf("snapshotShape");
+  return parsed;
 }
 
 function isJsonObject(value: unknown): value is object {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** Every key and every text at any depth is storable and every number is finite. Walked with a list and not by
- *  recursion, so a deep document cannot end the walk in a stack overflow. */
-function holdsOnlyStorableJson(root: unknown): boolean {
-  const pending: unknown[] = [root];
-  while (pending.length > 0) {
-    if (!isStorableAndQueuesItsMembers(pending.pop(), pending)) return false;
+/** Counts the lists and objects the text opens, outside its strings, one pass and no recursion. A text that is not
+ *  JSON may count anything; `JSON.parse` refuses it afterwards. */
+function isNestedDeeperThanTheBound(text: string): boolean {
+  let depth = 0;
+  let isInsideAString = false;
+  for (let index = 0; index < text.length; index += 1) {
+    const character = text[index];
+    if (isInsideAString) {
+      if (character === "\\") index += 1;
+      else if (character === '"') isInsideAString = false;
+    } else if (character === '"') isInsideAString = true;
+    else if (character === "{" || character === "[") depth += 1;
+    else if (character === "}" || character === "]") depth -= 1;
+    if (depth > MAX_SNAPSHOT_DEPTH) return true;
   }
-  return true;
+  return false;
 }
 
-function isStorableAndQueuesItsMembers(
-  value: unknown,
-  pending: unknown[],
-): boolean {
-  if (typeof value === "string") return !isUnstorableText(value);
-  if (typeof value === "number") return Number.isFinite(value);
-  if (Array.isArray(value)) {
-    for (const member of value as unknown[]) pending.push(member);
-    return true;
-  }
-  return isJsonObject(value) ? queuesStorableEntriesOf(value, pending) : true;
+type Verdict = "storable" | "unstorable" | "too deep";
+
+interface PendingContainer {
+  readonly container: object;
+  readonly depth: number;
 }
 
-function queuesStorableEntriesOf(object: object, pending: unknown[]): boolean {
-  for (const [key, member] of Object.entries(object)) {
-    if (isUnstorableText(key)) return false;
-    pending.push(member);
+function requireStorableJson(root: unknown): void {
+  const verdict = verdictOnJson(root);
+  if (verdict === "too deep") throw refusalOf("snapshotDepth");
+  if (verdict === "unstorable") throw refusalOf("snapshotShape");
+}
+
+/**
+ * Whether a value is a plain object holding only plain objects and lists, text the database can hold, finite numbers,
+ * booleans and null, no deeper than the bound. An object's member that is `undefined` is left out, as an encoder leaves
+ * it; a list's is refused, which an encoder would write as `null`. Walked with a list of containers and not by
+ * recursion, and a container met again at no greater depth is not walked again, so a cycle ends at the bound.
+ */
+function verdictOnJson(root: unknown): Verdict {
+  try {
+    return walkJson(root);
+  } catch {
+    return "unstorable";
   }
-  return true;
+}
+
+function walkJson(root: unknown): Verdict {
+  if (!isPlainObject(root)) return "unstorable";
+  const pending: PendingContainer[] = [{ container: root, depth: 1 }];
+  const deepestWalked = new Map<object, number>();
+  for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
+    if (next.depth > MAX_SNAPSHOT_DEPTH) return "too deep";
+    if ((deepestWalked.get(next.container) ?? 0) >= next.depth) continue;
+    deepestWalked.set(next.container, next.depth);
+    const verdict = walkMembers(next, pending);
+    if (verdict !== "storable") return verdict;
+  }
+  return "storable";
+}
+
+function walkMembers(
+  { container, depth }: PendingContainer,
+  pending: PendingContainer[],
+): Verdict {
+  if (Array.isArray(container)) {
+    for (const member of container as unknown[]) {
+      const verdict = judgedMember(member, depth + 1, pending);
+      if (verdict !== "storable") return verdict;
+    }
+    return "storable";
+  }
+  for (const [key, member] of Object.entries(container)) {
+    if (isUnstorableText(key)) return "unstorable";
+    if (member === undefined) continue;
+    const verdict = judgedMember(member, depth + 1, pending);
+    if (verdict !== "storable") return verdict;
+  }
+  return "storable";
+}
+
+/** A leaf is judged here; a container is queued with its depth. */
+function judgedMember(
+  member: unknown,
+  depth: number,
+  pending: PendingContainer[],
+): Verdict {
+  if (typeof member === "string") {
+    return isUnstorableText(member) ? "unstorable" : "storable";
+  }
+  if (typeof member === "number") {
+    return Number.isFinite(member) ? "storable" : "unstorable";
+  }
+  if (typeof member === "boolean" || member === null) return "storable";
+  if (!Array.isArray(member) && !isPlainObject(member)) return "unstorable";
+  pending.push({ container: member, depth });
+  return "storable";
+}
+
+function isPlainObject(value: unknown): value is object {
+  if (!isJsonObject(value)) return false;
+  const prototype: unknown = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
 }
 
 /** What Postgres cannot hold in text: a NUL, and half of a surrogate pair. */

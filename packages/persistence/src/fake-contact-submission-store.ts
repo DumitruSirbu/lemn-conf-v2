@@ -51,7 +51,7 @@ const REFERENCE_COLLISION = Symbol("reference collision");
  * In-memory `ContactSubmissionStore` for tests that need the port's contract without a database. It draws a proposal
  * exactly when the Neon store does (once for each `record`, and once more for each collision) and answers `isNew` by the
  * same comparison. It refuses what the shared check refuses and nothing more: it cannot stand for a server's refusal of
- * size, depth or a limit of its own.
+ * size, a time limit or anything a later server refuses. Depth is the check's, bounded at 64.
  */
 export class FakeContactSubmissionStore implements ContactSubmissionStore {
   private readonly rowsByClientRequestId = new Map<string, HeldRow>();
