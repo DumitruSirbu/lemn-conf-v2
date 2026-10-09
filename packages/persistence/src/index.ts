@@ -83,6 +83,8 @@ export {
   deleteDesignsForTests,
   findDesignIdsForTests,
 } from "./delete-designs-for-tests.js";
+export { deleteRateLimitCountersForTests } from "./delete-rate-limit-counters-for-tests.js";
+export type { RemovedRateLimitCounters } from "./delete-rate-limit-counters-for-tests.js";
 export { loadEnvLocal } from "./load-env.js";
 export {
   assertSafeTestDatabaseUrl,

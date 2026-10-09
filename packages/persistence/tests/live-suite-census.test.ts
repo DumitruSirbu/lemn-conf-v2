@@ -212,6 +212,17 @@ const EXPECTED_CLASSIFICATION: Readonly<
     reason:
       "unit test of the two readers: sets and deletes its own variables, connects nowhere",
   },
+  "delete-rate-limit-counters-for-tests.test.ts": {
+    gate: "none",
+    lock: "none",
+    reason: "unit test with the driver mocked: connects nowhere",
+  },
+  "delete-rate-limit-counters-for-tests.live.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "writes counter rows under random keys in its own era and needs the schema intact (M8 wave 8F)",
+  },
   "delete-designs-for-tests.test.ts": {
     gate: "none",
     lock: "none",

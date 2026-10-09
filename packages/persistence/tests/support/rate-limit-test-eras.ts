@@ -17,6 +17,12 @@ export const QA_8E_ERA: RateLimitTestEra = {
   endsAtMs: Date.UTC(1991, 0, 1),
 };
 
+/** `delete-rate-limit-counters-for-tests.live.test.ts`. */
+export const COUNTER_DELETE_SUITE_ERA: RateLimitTestEra = {
+  startsAtMs: Date.UTC(2010, 0, 1),
+  endsAtMs: Date.UTC(2011, 0, 1),
+};
+
 /** `neon-rate-limit-store.test.ts` and the contract suite it runs, `rate-limit-store-contract.ts`. */
 export const CONTRACT_SUITE_ERA: RateLimitTestEra = {
   startsAtMs: Date.UTC(2001, 0, 1),
