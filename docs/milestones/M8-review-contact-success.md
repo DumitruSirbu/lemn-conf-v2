@@ -4992,6 +4992,7 @@ are removed nightly. *Tier: Full + security.*
 
 | Slice | Does | Files | Reading |
 | --- | --- | --- | --- |
+| **(2026-10-09: this table, the criteria and the reading lines are overtaken by *8G, restated for dispatch — 2026-10-09*, at the end of this section.)** | | | |
 | S1 | `PUT`/`PATCH /api/designs/{id}` enforce their row of the table. The save coalescer treats a `429` as *wait and retry*, never as a lost write | `api/designs/[id]/route.ts`, `persistence/save-coalescer.ts`, `store/configurator-store.ts`, the message files if a notice is new | ADR 0019 d5, d6; ADR 0002 d16; Q15's answer; `design-request-errors.ts`; the WEB-001 residuals in STATUS |
 | S2 | The share endpoints, the share view, `/` and `/d/*` are counted; reads fail open | `api/designs/[id]/share/route.ts`, `lib/server/visitor-resume.ts`, the two page files, `proxy.ts` only if counting belongs there | ADR 0114 d7, B5, C1, G4; Q15 (iii) |
 | S3 | The nightly job prunes expired counters, as **a second cron entry on its own route**: the count is no constraint (100 per project on every plan [ven §3]), and a failed prune then cannot be mistaken for a failed backup. If Q21 moves the host, the same route is called by that host's scheduler with the same secret [inf] | `vercel.json`, a cron route, `lib/server/cron-auth.ts` (reused) | ADR 0019 d7 (the surviving half); ADR 0012; `api/cron/backup-designs/route.ts` |
@@ -5007,6 +5008,158 @@ prune touches any table but the counters.
 
 *QA reading:* the criteria; `tests/persistence/save-coalescer*`; the share specs. *Security reading:*
 ADR 0114 B5, G4; ADR 0019 d5.
+
+#### 8G, restated for dispatch — 2026-10-09
+
+**State.** HEAD is `eaa6c58` [ran: `git log`], tree clean; 8F is closed (ADR 0155). The architect
+read the save's route, the share route, the cron route, the counter store's port, the client's
+retry rule and the limiter's modules at HEAD. Nothing of 8G is built.
+
+**1. The records, and the figures.**
+
+| Record | What it says | How it is settled |
+| --- | --- | --- |
+| ADR 0019 d5 (2026-08-25), the row for `PUT`/`PATCH /api/designs/{id}` | *"600 / hour"* per block; *"120 / hour + challenge"* outside Moldova; *"300 / hour"* per session | **600 an hour per block and 300 an hour for the second bucket, for every request.** No second tier and no challenge: M8 knows no country (this section's scope note; ADR 0147 left the row untouched) |
+| Q15 (ii), answered 2026-10-07 (a) | *"Keep the numbers; a refusal says how long to wait, and a refused save is queued, never lost"* | Kept. Point 2's client. **Said to the owner again with a figure, below** |
+| Q15 (iii), answered 2026-10-07 | `/`, `/d/*`, `/s/*`: *"600 an hour per network, failing open"* | Kept, for pages and for the two reads of the API |
+| ADR 0019 d3; D11 | A session bucket; a mint changes the visitor value | **The second bucket is the design**, the architect's (point 2). A dated note on d3 at the close |
+| ADR 0114 B5 and G4 (2026-09-11, 2026-09-23) | The limiter's scope gains `/s/*` and the share endpoints | **No figure in any record: Q36** |
+| ADR 0019 d5, the table of global caps | All of `/api/*`: 1,000 an hour, *challenge* | **Not built in M8, re-ruled here.** *M8 restated* had it counted and logged. Nothing in M8 can act on it, and it would put a second key on every request and in every teardown. It goes to M9 with what can challenge. The scribe points *M8 restated* here |
+| ADR 0019 d5 | *"Reads fail open; writes fail closed"* | Kept: point 2 |
+| ADR 0019 d6 | One save a second at most, by a timer | Kept, and it is why 300 an hour is five minutes of steady editing |
+| ADR 0149, *What later waves inherit*; ADR 0155, the same | The prune's five rules; one evaluator, extended; a refused request hits every bucket it lists; counts are tries | Points 2 and 3 |
+| ADR 0147, *"Track"* | Before a day's rows go, one line of totals and no address | Point 3 |
+
+- **Q36, for the owner; the build does not wait.** *How often may one network create or revoke a
+  share link?* No record gives a number. *Recommended:* 60 an hour per block for the two
+  together; asking a link's status counts as a read. Built with that as a named provisional
+  constant.
+- **Said to the owner, no answer needed unless he wants another figure.** With one save a second
+  and a clock hour, **a customer who edits steadily reaches 300 in about five minutes, and saving
+  then waits for the hour to turn, up to fifty-five minutes, the work kept on the screen**; two
+  such customers on one network reach its 600 together. Q15 asked for the figures to come back if
+  an ordinary session crosses half a limit, and *that measurement is still owed*: S0 takes it.
+
+**2. What 8G builds on 8F, and changes in it.**
+
+- **The evaluator takes a list.** One statement hits every bucket listed. A request is refused
+  when any count is above its figure; the wait is the longest among the refusing buckets; one
+  bucket that cannot be judged makes the request *unavailable*. The mint's call becomes a list of
+  one and its keys do not change.
+- **The hour is the clock's own, in UTC:** from one whole hour to the next. The store keeps one
+  row for a bucket and a window, so a sliding hour has nothing to live in. Its cost is D10's:
+  twice a figure across one boundary. `Retry-After` is the seconds to the hour's end, 1 to 3,600.
+- **Policy names, each carrying its window:** saves by block, saves by design, share writes by
+  block, reads by block. Each has an e2e twin. **A new kind of subject, a design's id;** the
+  purpose, the encoder and every existing key stay as they are.
+- **A save is judged in two steps, and this is the rule the security reader reads first.** A
+  design's id is text the caller chooses. Listed beside the block in one statement, it would let
+  a refused flood write a row for every id it invents. **So: the block's bucket first; only a
+  request that passes is counted against its design.** Rows are then bounded by the block's own
+  figure. It costs a second round trip on every save; S0 measures it.
+- **The order in the save's route.** A request with no write-token cookie for that design, or no
+  revision, is refused as today and **is not counted** [src `api/designs/[id]/route.ts:121-127`].
+  Then the two steps. Then the body is read. *Must not, on a refusal:* the body is read; a row is
+  written; any cookie is set, cleared or refreshed.
+- **`429` and `503` as 8F made them**, with the codes `SAVE_LIMIT_REACHED` and `SAVE_UNAVAILABLE`;
+  no count, block or remainder.
+- **The client: a refused save waits the stated time and is sent once; it is not repeated on the
+  way.** The general rule repeats a `429` with backoff, and each would be a hit [src
+  `persistence/design-request-errors.ts:85-91`]. **A type of its own, thrown only for a `429`
+  carrying the code**, holding the wait. The design stays marked unsaved; an edit made meanwhile
+  joins the same waiting write. **One new sentence in the editor, a draft under Q10 (a):** saving
+  is paused until a stated time and the changes are kept on this screen. Its words and look are
+  the owner's at the hand check. A `503` is the failure the editor already shows.
+- **Share writes:** the cross-site guard and the credentials as today, then one bucket, the block.
+  **Reads:** one bucket, the block; **on *unavailable* the page or the answer is served**; a
+  refusal is the same for an owner and a stranger (ADR 0114 H5).
+- *Not settled here:* where a page's read is counted and how a page is refused. The installed
+  framework decides both; **S3b's first step answers from its own documentation and stops.**
+- **Backlog 166:** 8G adds no fourth reader of an environment. A slice that finds it needs one
+  makes the shared module first, as its own commit.
+
+**3. The prune.**
+
+- **A route of its own, `GET /api/cron/prune-rate-limits`, behind `CRON_SECRET` through
+  `isAuthorizedCronRequest`** [src `lib/server/cron-auth.ts`]; a second entry in `vercel.json`
+  after the backup's. **That entry makes a scheduled job at the next deploy: the owner is told;
+  it is add-only and blocks nothing built.** The host may call it twice or not at all [ven §3];
+  either is harmless.
+- **8E's five rules.** It removes windows that ended **more than an hour before the server's own
+  clock**, never a request's value; a request cannot outlive that margin. A prune that fails
+  answers `503` with a code and writes a line; it is a different route from the backup, so
+  neither can report the other's failure. The number it logs is a lower bound.
+- **A flood's rows: one statement, as built, and not batched in M8.** A batch changes the
+  statement whose lock order was proved by thirty runs (ADR 0149). The two-step rule bounds what
+  one block can write. *Recorded, with its trigger:* a prune that fails for time. The security
+  reader rules on this at S0.
+- **The day's totals, before a day's rows go:** how many buckets the Chișinău day that just ended
+  held, how many were above the mint's figure, and the largest count. No key, no block. It needs
+  one new read in the store's port, which changes no existing statement. *For 8K:* a second
+  policy counted by the same day would mix into these totals.
+- *Must not:* a table but the counters; a window that has not ended; a design, ever.
+
+**4. The race (backlog 89, Q35). 8G does not depend on the answer.** A refused save sets no
+cookie, so no new path puts an old value back. A judged save takes two round trips longer, which
+moves the race's timing in a direction nobody knows [inf]. **The triage's 12 in 100 and 8F's 0 in
+100 are the baseline; S2a measures it again.** If the owner chooses (c), the save's refresh goes
+and this wave's code is untouched.
+
+**5. The e2e suite.** One run saved 266 times, read 813 times and asked for a share 58 times from
+one address [doc, 8A S1, 2026-10-07; grown since]. **Each new policy has its e2e figure by 8F's
+rule: twice what one whole run makes, rounded up to the next hundred, measured by the slice that
+starts enforcing it.** The teardown computes the keys of every policy for the shared block, and
+of the per-design policy for each design the run made, removes them and still fails when it
+finds none. *Must not:* a mutant sent to a database.
+
+**6. The slices.** *Tier: Full + security.* **The security reader reads alone three times:** S0's
+rules (point 2's two steps, the reads failing open, point 3's one statement); S1; and S2a's route.
+**Two passes of QA and the three reviews:** after S2b, the saves; and after S4b, the rest.
+
+| Slice | Does | Production files | Criteria | Reading |
+| --- | --- | --- | --- | --- |
+| S0 | No code. The security reader's read. QA measures an ordinary session: saves and reads in an hour of real editing, and the round trips a save costs | none | — | this section; Q15; ADR 0155 |
+| S1 | The evaluator over a list; the clock hour; the policies and their twins; the design as a subject | `rate-limit/enforce-rate-limit.ts`, `limit-policy.ts`, new `clock-hour.ts`, new `bucket-subject.ts`, `judge-mint-request.ts` (a list of one) | 1, 7 | this section; ADR 0155 decisions 1, 4, 5, 10; ADR 0149 whole; `packages/persistence/src/rate-limit-store.ts`; the 8F tests of each module |
+| S2a | The save asks first, in two steps; its two answers and log lines; the harness's figures and keys for saves | `app/api/designs/[id]/route.ts`, new `rate-limit/judge-save-request.ts`, `rate-limited-response.ts`, `lib/server/design-failure-log.ts`; the e2e support | 1, 3, 6, 8 | this section; ADR 0114 H1, H3, H6; ADR 0019 d1, d5, d6; ADR 0155 decisions 6, 7, 10; `app/api/designs/route.ts`; the triage's figures |
+| S2b | The client: the save's own failure, the wait, the one retry, the sentence | `persistence/design-request-errors.ts`, `fetch-configuration-repository.ts`, `save-coalescer.ts`, `store/configurator-store.ts`, `i18n/content.ts` and the message files | 2 | this section; ADR 0002 d16; ADR 0019 d6; the coalescer's tests; ADR 0139; Q10; 8D's criterion 4 |
+| S3a | Share writes and the API's two reads | `app/api/designs/[id]/share/route.ts`, `app/api/designs/[id]/route.ts` (the read), new `rate-limit/judge-read-request.ts` | 1, 3, 4 | this section; ADR 0114 B5, C1, G4, H5; `lib/server/cross-site-request.ts` |
+| S3b | **First: where a page's read is counted and how it is refused, from the framework's documentation; stop and report.** Then the pages, and a refusal's one sentence | to be named by that report; `lib/server/load-owned-design.ts`, `visitor-resume.ts` and `proxy.ts` are the candidates | 3, 4 | `apps/web/AGENTS.md`; ADR 0114 d7, H5; Q15 (iii); S0's measurement |
+| S4a | The store's one new read, for the day's totals; its fake | `packages/persistence/src/rate-limit-store.ts`, `neon-rate-limit-store.ts`, `fake-rate-limit-store.ts` | 5 | ADR 0149 whole; ADR 0128; ADR 0146 B3; the store's tests |
+| S4b | The prune's route, its schedule, the totals' line | new `app/api/cron/prune-rate-limits/route.ts`, new `lib/server/rate-limit/prune-rate-limits.ts`, `vercel.json` | 5, 6 | point 3; `app/api/cron/backup-designs/route.ts`; `lib/server/cron-auth.ts`; ADR 0147, *"Track"*; ADR 0012 |
+
+*Criteria, as they now stand.*
+
+1. Each limited request is refused at its figure plus one for each bucket, and not before; with
+   two buckets the stricter decides, and no key joins two identities. On a fake clock, at both
+   ends of an hour.
+2. **Nothing is lost.** After a refused save the design is still marked unsaved; **one** request
+   is sent when the wait ends, and none before; the stored row then equals the browser's design.
+3. With the store failing, a save or a share write answers `503` and writes nothing; `/`,
+   `/d/{id}`, `/s/{token}` and the API's reads still answer.
+4. A refused read is the same for an owner and a stranger.
+5. The prune refuses a request without the secret; it removes only windows ended more than an
+   hour ago; a failed prune is seen and is not a failed backup; the totals hold no key and no block.
+6. *Must not:* the prune touches a table but the counters.
+7. **Added.** A refused request writes at most the rows of the buckets it was counted against,
+   and a save refused by its block writes none for its design.
+8. **Added.** A refused or unjudgeable save reads no body and sets, clears or refreshes no cookie.
+
+*What each stops on.* **S1:** a mint's key changes. **S2a:** a save's median time more than
+doubles; or the two-tab spec leaves the baseline's range. **S2b:** the coalescer cannot hold one
+waiting write without a second timer racing it. **S3b:** as written. **S4a:** an existing
+statement's text must change. **S4b:** the schedule needs more than the file.
+
+*QA reading:* the criteria; this section; `tests/persistence/save-coalescer*`; the share specs;
+`tests/app/api/designs/`; ADR 0155's limits; the standing rule on mutants. *Logic:* the evaluator,
+the hour, the coalescer's wait; ADR 0019 d5, d6. *Clean-code:* each slice's files and tests; ADR
+0136. *Security:* point 2's two steps and order; ADR 0114 B5, G4, H1, H3, H5; ADR 0146; the prune.
+**A visual check is owed twice:** the editor's paused-saving sentence, and a refused page, each at
+390 × 844 in both languages.
+
+**7. The owner, and what waits.** **Nothing blocks building.** Q36 has a provisional constant.
+*Blocks merging and deploying:* what 8F's does, `DIGEST_SECRET` and `0007` with its grant, and
+nothing new. *Told, not asked:* the cron entry; the fifty-five minutes. *His at the hand check:*
+the two new sentences and their look. Q35 stays his and still blocks 8T, not this wave.
 
 ### 8H — the submission contract
 
