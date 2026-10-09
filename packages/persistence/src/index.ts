@@ -69,6 +69,8 @@ export {
   isSubmissionReference,
 } from "./generate-submission-reference.js";
 export { FakeContactSubmissionStore } from "./fake-contact-submission-store.js";
+export { NeonContactSubmissionStore } from "./neon-contact-submission-store.js";
+export type { NeonContactSubmissionStoreOptions } from "./neon-contact-submission-store.js";
 export type {
   FakeContactSubmissionStoreOptions,
   HeldContactSubmission,

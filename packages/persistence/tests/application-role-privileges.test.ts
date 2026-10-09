@@ -3,6 +3,11 @@ import { describe, expect, it } from "vitest";
 import type { TestContext } from "vitest";
 
 import { readDatabaseUrl } from "../src/read-database-url.js";
+import { columnsHolding, columnsOf } from "./support/column-privileges.js";
+import {
+  READABLE_COLUMNS,
+  UPDATABLE_COLUMNS,
+} from "./support/contact-submission-columns.js";
 import {
   describeWhereTheRunIs,
   readConnectionFacts,
@@ -83,6 +88,42 @@ async function expectDeleteRefusedByCatalogThenByServer(
     `the server says this role may delete from ${tableName}, so the probe was not sent`,
   ).toEqual([]);
   await expectRefused(statement);
+}
+
+const CONTACT_SUBMISSIONS = "public.contact_submissions";
+const NO_SUCH_REQUEST_ID = "no-such-request-id-for-a-probe";
+
+function quoted(identifier: string): string {
+  return `"${identifier.replaceAll('"', '""')}"`;
+}
+
+/** Sends, for each column the catalog says is not held, the one statement that would touch and show nothing if it were
+ *  allowed. The delete's privilege was shown absent by the caller. */
+async function expectEveryColumnProbeRefused(
+  columns: readonly string[],
+  held: {
+    readonly readable: readonly string[];
+    readonly updatable: readonly string[];
+  },
+): Promise<void> {
+  for (const column of columns.filter(
+    (name) => !held.readable.includes(name),
+  )) {
+    await expectRefused(
+      `select ${quoted(column)} from ${CONTACT_SUBMISSIONS} where false`,
+    );
+  }
+  for (const column of columns.filter(
+    (name) => !held.updatable.includes(name),
+  )) {
+    await expectRefused(
+      `update ${CONTACT_SUBMISSIONS} set ${quoted(column)} = ${quoted(column)} ` +
+        `where client_request_id = '${NO_SUCH_REQUEST_ID}'`,
+    );
+  }
+  await expectRefused(
+    `delete from ${CONTACT_SUBMISSIONS} where client_request_id = '${NO_SUCH_REQUEST_ID}'`,
+  );
 }
 
 describe.skipIf(!hasLiveDatabase)("the application's database role", () => {
@@ -280,6 +321,46 @@ describe.skipIf(!hasLiveDatabase)("the application's database role", () => {
       );
 
       expect(held).toEqual(["DELETE", "INSERT", "SELECT", "UPDATE"]);
+    },
+  );
+
+  // M8 wave 8I, criterion 3, built as 8E's criterion 13. The catalog is asked first and a statement is sent only for
+  // what the catalog said is refused, and only one that touches and shows nothing if it were allowed: a column read
+  // `where false`, a delete and an update of an id that does not exist. The expected sets are named and the columns come
+  // from the catalog, so a column added later is unread until someone names it here.
+  guardedTest(
+    "holds insert on public.contact_submissions, select on exactly its seven readable columns and update on notified_at alone, once it exists",
+    async (context) => {
+      const sql = neon(readDatabaseUrl());
+      const [tableProbe] = (await sql`
+      select to_regclass('public.contact_submissions') is not null as exists
+    `) as { exists: boolean }[];
+      context.skip(
+        tableProbe?.exists !== true,
+        "public.contact_submissions does not exist yet on this database",
+      );
+
+      const known = await tablePrivilegesTheServerKnows(sql);
+      expect(known).toEqual(
+        expect.arrayContaining([...TABLE_PRIVILEGES_EVERY_SERVER_KNOWS]),
+      );
+      expect(await privilegesHeldOn(sql, CONTACT_SUBMISSIONS, known)).toEqual([
+        "INSERT",
+      ]);
+      const columns = await columnsOf(sql, CONTACT_SUBMISSIONS);
+      const readable = await columnsHolding(sql, CONTACT_SUBMISSIONS, "SELECT");
+      const updatable = await columnsHolding(
+        sql,
+        CONTACT_SUBMISSIONS,
+        "UPDATE",
+      );
+      expect(readable).toEqual([...READABLE_COLUMNS].sort());
+      expect(updatable).toEqual([...UPDATABLE_COLUMNS].sort());
+      expect(
+        await columnsHolding(sql, CONTACT_SUBMISSIONS, "REFERENCES"),
+      ).toEqual([]);
+
+      await expectEveryColumnProbeRefused(columns, { readable, updatable });
     },
   );
 });

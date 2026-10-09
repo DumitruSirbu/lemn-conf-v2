@@ -13,6 +13,7 @@ import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { generateDesignId } from "../src/generate-design-id.js";
 import { runMigrations } from "../src/migrate.js";
+import { readMigrationFiles } from "../src/migration-files.js";
 import {
   DesignWriteForbiddenError,
   NeonConfigurationRepository,
@@ -470,8 +471,11 @@ describe("saveAuthorized is one statement, and the predicate is in it", () => {
 // The column is removed and the migration asked to put it back: only a migration that actually executes passes,
 // where a no-op `runMigrations` exiting 0 would not (see ADR 0013). The ledger rows are forgotten too, for every
 // version from 2 up: the runner refuses a ledger with a hole, so a later recorded migration would wedge the
-// shared test database. A migration added after 0007 belongs in this list for the same reason.
-const WRITE_TOKEN_MIGRATION_VERSIONS = [2, 3, 4, 5, 6, 7];
+// shared test database. Read from disk, so a migration added later is in the list without anyone remembering to add it:
+// a hand-kept list stopped at 0007 and left 0008 recorded over a forgotten 2 to 7, which wedged the database.
+const WRITE_TOKEN_MIGRATION_VERSIONS = readMigrationFiles()
+  .map((migration) => migration.version)
+  .slice(1);
 describe("the write-token migration actually executes", () => {
   const sql = hasLiveDatabase ? neon(testDatabaseUrl) : undefined;
 
