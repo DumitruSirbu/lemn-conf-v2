@@ -15,11 +15,12 @@ import {
   deleteMintedDesigns,
   findMintedDesignIds,
 } from "./support/minted-designs";
-import type { ProductionPolicyServer } from "./support/production-policy-server";
+import {
+  REFUSED_MINT_LIVE_SERVER_PORT,
+  startProductionPolicyServer,
+  type ProductionPolicyServer,
+} from "./support/production-policy-server";
 
-/** A port of this spec's own, so the server it starts never meets the one another spec starts beside the suite's. */
-const OWN_PORT = "4323";
-const PORT_VARIABLE = "E2E_PRODUCTION_POLICY_PORT";
 const SERVER_START_TIMEOUT_MS = 300_000;
 const MINTS_OF_THE_OWNER = 14;
 const MINTS_SENT_AT_ONCE = 12;
@@ -93,11 +94,7 @@ test.describe("a refused mint, for a browser that owns designs", () => {
 
   test.beforeAll(async () => {
     test.setTimeout(SERVER_START_TIMEOUT_MS);
-    process.env[PORT_VARIABLE] = OWN_PORT;
-    const { startProductionPolicyServer } = await import(
-      "./support/production-policy-server"
-    );
-    server = await startProductionPolicyServer();
+    server = await startProductionPolicyServer(REFUSED_MINT_LIVE_SERVER_PORT);
   });
 
   test.afterAll(async () => {

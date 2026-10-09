@@ -725,6 +725,62 @@ describe("the secret and the keys made under it", () => {
   });
 });
 
+describe("a store that answers something that is no count", () => {
+  const NO_COUNTS: readonly [string, unknown][] = [
+    ["nought", [0]],
+    ["a negative", [-1]],
+    ["a fraction under one", [0.5]],
+    ["a fraction over one", [1.5]],
+    ["what is not a number", [Number.NaN]],
+    ["infinity", [Number.POSITIVE_INFINITY]],
+    ["a count written as text", ["20"]],
+    ["nothing", [null]],
+    ["no count at all", []],
+    ["a count that is not in a list", 1],
+    ["a count inside a list inside the list", [[1]]],
+  ];
+
+  it.each(NO_COUNTS)(
+    "answers 503 as a failed store and makes no design, for %s",
+    async (_label, answer) => {
+      const consoleSpies = silenceEveryConsoleMethod();
+      hitsRecorded().mockResolvedValue(answer as readonly number[]);
+
+      const response = await mint({ cookie: VISITOR_COOKIE });
+
+      expect(response.status).toBe(503);
+      expect(response.headers.getSetCookie()).toEqual([]);
+      expect(work.done).toEqual([]);
+      expect(rows.mints).toEqual([]);
+      expect(consoleCallsOf(consoleSpies)).toEqual([
+        [
+          "[designs]",
+          {
+            event: "design-operation-unavailable",
+            operation: "mint",
+            refusalCode: "MINT_UNAVAILABLE",
+            status: 503,
+            cause: "store-failed",
+          },
+        ],
+      ]);
+    },
+  );
+
+  it.each([
+    ["one", 1, 201],
+    ["the figure", MINT_DAILY_FIGURE, 201],
+    ["one past the figure", MINT_DAILY_FIGURE + 1, 429],
+  ])(
+    "judges a whole count of %s as a count, so the cases above are refused for what they are",
+    async (_label, count, status) => {
+      hitsRecorded().mockResolvedValue([count]);
+
+      expect((await mint()).status).toBe(status);
+    },
+  );
+});
+
 describe("the key the e2e harness removes a run's rows by", () => {
   it("is the key the route counts a mint under when the server runs under the e2e flag and that secret", async () => {
     vi.stubEnv(FLAG_VARIABLE, "1");
