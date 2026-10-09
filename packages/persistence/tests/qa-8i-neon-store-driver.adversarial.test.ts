@@ -539,3 +539,83 @@ describe("a driver failure whose code reads differently the second time", () => 
     },
   );
 });
+
+describe("a request whose member throws when the Neon store reads it", () => {
+  const lookup = {
+    clientRequestId: CLIENT_REQUEST_ID,
+    payloadDigest: DIGEST_A,
+  };
+
+  it("is refused as the request by a lookUp and by a record, with no statement sent and nothing of the throw kept", async () => {
+    const throwingDigest = Object.defineProperty(
+      { ...lookup },
+      "payloadDigest",
+      {
+        enumerable: true,
+        get: () => {
+          throw new Error(LEAKING_TEXT);
+        },
+      },
+    );
+    const store = storeProposing(REFERENCE);
+
+    const refusals = [
+      await rejectionOf(store.lookUp(throwingDigest)),
+      await rejectionOf(
+        store.record(
+          Object.defineProperty(
+            { ...aDesignSubmission(CLIENT_REQUEST_ID) },
+            "payloadDigest",
+            Object.getOwnPropertyDescriptor(throwingDigest, "payloadDigest") ??
+              {},
+          ),
+        ),
+      ),
+    ];
+
+    expect(driver.statements).toEqual([]);
+    expect(
+      refusals.map((refusal) =>
+        refusal instanceof Error ? refusal.message : "not an error",
+      ),
+    ).toEqual([
+      expect.stringContaining("the request must be plain data"),
+      expect.stringContaining("the request must be plain data"),
+    ]);
+    expect(
+      refusals.flatMap((refusal) => markersFoundOn(refusal, MARKERS)),
+    ).toEqual([]);
+  });
+
+  it("leaves as the store error holding no marker when the member reads cleanly for the check and throws inside the statement", async () => {
+    let reads = 0;
+    const request = Object.defineProperty({ ...lookup }, "clientRequestId", {
+      enumerable: true,
+      get: () => {
+        reads += 1;
+        if (reads > 1) throw new Error(LEAKING_TEXT);
+        return CLIENT_REQUEST_ID;
+      },
+    });
+
+    const failure = await rejectionOf(
+      storeProposing(REFERENCE).lookUp(request),
+    );
+
+    expect(failure).toBeInstanceOf(ContactSubmissionStoreError);
+    expect(markersFoundOn(failure, MARKERS)).toEqual([]);
+    expect(driver.statements).toEqual([]);
+  });
+
+  it("refuses a mark of an id that is no text as the client request id, with no statement sent and nothing of it read", async () => {
+    const id = { toString: () => LEAKING_TEXT } as unknown as string;
+
+    const refusal = await rejectionOf(
+      storeProposing(REFERENCE).markNotified(id),
+    );
+
+    expect((refusal as Error).message).toMatch(/client request id/);
+    expect(markersFoundOn(refusal, MARKERS)).toEqual([]);
+    expect(driver.statements).toEqual([]);
+  });
+});

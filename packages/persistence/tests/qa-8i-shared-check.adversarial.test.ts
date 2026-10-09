@@ -31,6 +31,7 @@ import {
   textHoldingAnOverflowingNumber,
 } from "./support/qa-8i-json-arbitraries.js";
 import { REAL_SNAPSHOTS, levelsOf } from "./support/qa-8i-real-snapshots.js";
+import { markersFoundOn } from "./support/leaked-connection-markers.js";
 import { rejectionOf } from "./support/qa-8i-rejection.js";
 import { privilegesHeldWithGrantOption } from "./support/table-privileges.js";
 
@@ -44,6 +45,7 @@ const LARGEST_REVISION = 9_223_372_036_854_775_807n;
 const WIDEST_NINETEEN_DIGITS = 9_999_999_999_999_999_999n;
 /** Text no refusal may repeat. */
 const MARKER = "QA8I-LEAKED-MARKER";
+const CHECKS_OWN_OPENING = "Refusing to use the contact submission store";
 const CHECKS_OWN_REFUSAL = /^Refusing to use the contact submission store/;
 
 function refusalOf(act: () => void): string | undefined {
@@ -1143,4 +1145,251 @@ describe("a snapshot's own encoding, its walked value and its depth", () => {
       ).toBe(JSON.stringify({ ...priced, lines: ["encoder's"] }));
     });
   });
+});
+
+describe("anything a member read throws", () => {
+  const REQUESTS_REFUSAL = /the request must be plain data/;
+  const lookup = {
+    clientRequestId: CLIENT_REQUEST_ID,
+    payloadDigest: DIGEST_A,
+  };
+
+  function caughtFrom(act: () => void): unknown {
+    try {
+      act();
+    } catch (thrown) {
+      return thrown;
+    }
+    throw new Error("nothing was thrown");
+  }
+
+  /** `base` with `member` answered by `read`, which may throw. */
+  function withMemberRead<Base extends object>(
+    base: Base,
+    member: keyof Base,
+    read: () => unknown,
+  ): Base {
+    return Object.defineProperty({ ...base }, member, {
+      enumerable: true,
+      get: read,
+    });
+  }
+
+  function throwing(thrown: unknown): () => never {
+    return () => {
+      throw thrown;
+    };
+  }
+
+  function proxyThrowing(thrown: unknown): never {
+    return new Proxy(
+      {},
+      { get: throwing(thrown), has: throwing(thrown) },
+    ) as never;
+  }
+
+  /** An error that copies one of the check's own sentences word for word, and carries a marker beside it. */
+  function copyOfAnOwnRefusal(): Error {
+    const own = caughtFrom(() => {
+      requireValidClientRequestId("short");
+    }) as Error;
+    return Object.assign(new Error(own.message), { detail: MARKER });
+  }
+
+  const THROWN: readonly (readonly [string, () => unknown])[] = [
+    [
+      "an error holding the marker, with a cause",
+      () => new Error(MARKER, { cause: new Error(MARKER) }),
+    ],
+    ["a frozen error", () => Object.freeze(new Error(MARKER))],
+    [
+      "a type error named after the marker",
+      () => Object.assign(new TypeError(MARKER), { name: MARKER }),
+    ],
+    ["text", () => MARKER],
+    ["an object", () => ({ message: MARKER, detail: MARKER })],
+    ["null", () => null],
+    ["undefined", () => undefined],
+    ["a symbol", () => Symbol(MARKER)],
+    ["an error copying one of the check's own sentences", copyOfAnOwnRefusal],
+  ];
+
+  describe.each(THROWN)("when it is %s", (_name, thrown) => {
+    it.each([
+      [
+        "the lookup's client request id",
+        () => withMemberRead(lookup, "clientRequestId", throwing(thrown())),
+      ],
+      [
+        "the lookup's digest",
+        () => withMemberRead(lookup, "payloadDigest", throwing(thrown())),
+      ],
+      ["every member of the lookup's request", () => proxyThrowing(thrown())],
+    ])(
+      "leaves the lookup's check as the refusal of the request, keeping nothing of it: %s",
+      (_place, request) => {
+        const refusal = caughtFrom(() => {
+          requireValidLookup(request());
+        });
+
+        expect((refusal as Error).message).toMatch(REQUESTS_REFUSAL);
+        expect(markersFoundOn(refusal, [MARKER])).toEqual([]);
+        expect((refusal as Error).cause).toBeUndefined();
+        expect(Object.getOwnPropertyNames(refusal).sort()).toEqual([
+          "message",
+          "stack",
+        ]);
+      },
+    );
+
+    it("leaves the submission's check as the refusal of the request, keeping nothing of it", () => {
+      const submission = aDesignSubmission(CLIENT_REQUEST_ID);
+      const kept = thrown();
+
+      const refusal = caughtFrom(() => {
+        requireValidSubmission({
+          ...submission,
+          contact: withMemberRead(submission.contact, "name", throwing(kept)),
+        });
+      });
+
+      expect(refusal).not.toBe(kept);
+      expect((refusal as Error).message).toMatch(REQUESTS_REFUSAL);
+      expect(markersFoundOn(refusal, [MARKER])).toEqual([]);
+      expect(Object.getOwnPropertyNames(refusal).sort()).toEqual([
+        "message",
+        "stack",
+      ]);
+    });
+
+    it("leaves the fake's lookUp as the refusal of the request, keeping nothing of it", async () => {
+      const refusal = await rejectionOf(
+        new FakeContactSubmissionStore().lookUp(
+          withMemberRead(lookup, "payloadDigest", throwing(thrown())),
+        ),
+      );
+
+      expect((refusal as Error).message).toMatch(REQUESTS_REFUSAL);
+      expect(markersFoundOn(refusal, [MARKER])).toEqual([]);
+    });
+  });
+
+  it.each([
+    ["null", null],
+    ["undefined", undefined],
+    ["a number", 7],
+    ["text", MARKER],
+  ])(
+    "refuses a request that is %s and no object at all as the request, for a record and for a lookup",
+    (_name, request) => {
+      const refusals = [
+        refusalOf(() => {
+          requireValidSubmission(request as never);
+        }),
+        refusalOf(() => {
+          requireValidLookup(request as never);
+        }),
+      ];
+
+      expect(
+        refusals.every((refusal) =>
+          (refusal ?? "").startsWith(CHECKS_OWN_OPENING),
+        ),
+      ).toBe(true);
+      expect(refusals.join(" ")).not.toContain(MARKER);
+    },
+  );
+
+  it("leaves a refusal the check makes inside a member read, of another request, as that refusal: its own sentence and no value", () => {
+    const submission = aDesignSubmission(CLIENT_REQUEST_ID);
+    const nested = (): never => {
+      requireValidSubmission(aDesignSubmission(`${MARKER} not an id`));
+      throw new Error(MARKER);
+    };
+
+    const refusal = caughtFrom(() => {
+      requireValidSubmission({
+        ...submission,
+        contact: withMemberRead(submission.contact, "name", nested),
+      });
+    });
+
+    expect((refusal as Error).message).toMatch(/client request id/);
+    expect(markersFoundOn(refusal, [MARKER])).toEqual([]);
+  });
+
+  it("turns an own refusal that was stripped of its prototype into the refusal of the request", () => {
+    const own = caughtFrom(() => {
+      requireValidClientRequestId("short");
+    }) as Error;
+    Object.assign(own, { detail: MARKER });
+    Object.setPrototypeOf(own, null);
+
+    const refusal = caughtFrom(() => {
+      requireValidLookup(
+        withMemberRead(lookup, "payloadDigest", throwing(own)),
+      );
+    });
+
+    expect(refusal).not.toBe(own);
+    expect((refusal as Error).message).toMatch(REQUESTS_REFUSAL);
+    expect(markersFoundOn(refusal, [MARKER])).toEqual([]);
+  });
+
+  // A recorded limit, not a defect: the check knows its own refusals by identity and lets one leave as it is. Code
+  // that caught one earlier, wrote on it and threw it again from a member read gets that same object back, with what
+  // it wrote. Nothing but the caller's own code can write there, and a validated request is plain data.
+  it("lets a refusal it made earlier, thrown again by a member read, leave as that same object, with whatever its holder wrote on it", () => {
+    const earlier = caughtFrom(() => {
+      requireValidClientRequestId("short");
+    }) as Error;
+    Object.assign(earlier, { detail: MARKER });
+
+    const refusal = caughtFrom(() => {
+      requireValidLookup(
+        withMemberRead(lookup, "payloadDigest", throwing(earlier)),
+      );
+    });
+
+    expect(refusal).toBe(earlier);
+    expect((refusal as Error).message).toMatch(/client request id/);
+    expect((refusal as { detail?: unknown }).detail).toBe(MARKER);
+  });
+
+  // A recorded limit, not a defect: the invariant is the check's. The fake reads the request's id again after the
+  // check, so a member that reads cleanly once and throws afterwards throws out of the fake as it is. The Neon store
+  // reads it again inside its statement, where every throw becomes the store error (see the driver tests).
+  it("lets a member that reads cleanly for the check and throws afterwards throw out of the fake's lookUp as it is", async () => {
+    let reads = 0;
+    const request = withMemberRead(lookup, "clientRequestId", () => {
+      reads += 1;
+      if (reads > 1) throw new Error(MARKER);
+      return CLIENT_REQUEST_ID;
+    });
+
+    const thrown = await rejectionOf(
+      new FakeContactSubmissionStore().lookUp(request),
+    );
+
+    expect((thrown as Error).message).toBe(MARKER);
+  });
+
+  it.each([
+    [
+      "an object whose text form throws",
+      { toString: throwing(new Error(MARKER)) },
+    ],
+    ["a proxy that throws on every read", proxyThrowing(new Error(MARKER))],
+    ["null", null],
+  ])(
+    "refuses a mark of an id that is %s as the client request id, reading nothing of it",
+    async (_name, id) => {
+      const refusal = await rejectionOf(
+        new FakeContactSubmissionStore().markNotified(id as never),
+      );
+
+      expect((refusal as Error).message).toMatch(/client request id/);
+      expect(markersFoundOn(refusal, [MARKER])).toEqual([]);
+    },
+  );
 });
