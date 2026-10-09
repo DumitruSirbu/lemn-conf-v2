@@ -5141,7 +5141,8 @@ of probes 06–08. `do nothing` with a read is not taken.
 - *Why.* One statement answers new, replay and conflict. It is the form the counter store already
   uses [src `neon-rate-limit-store.ts`]. Postgres says of `do update` that it gives an atomic
   insert-or-update outcome under concurrency [inf: recalled from the `INSERT` page, not fetched
-  today; **the logic reader quotes the page, or this reason goes**]. A `do nothing` whose read is in
+  today; **the logic reader quotes the page, or this reason goes**]. **(2026-10-09: quoted by the
+  logic reader from the PostgreSQL 18 pages, relayed; the reason stands. *8I — the three reviews*.)** A `do nothing` whose read is in
   the same statement reads at the statement's own snapshot: a twin that commits after the statement
   began is skipped by the insert and unseen by the read, so the answer is no row and no error
   [inf, not measured]. A read in a second statement would see it, at two round trips and an answer
@@ -5373,11 +5374,12 @@ notified rebuilds the notice from the live design, at the stated revision. If th
 edited since, or the price book has changed, the same bytes cannot be rebuilt [inf, from 8J
 criterion 11 and 8K's order of checks]. Reading the stored snapshot back would be a wider grant
 than Q14 and is the owner's. The row's age is readable under R1 and the port does not answer it
-yet.
+yet. **(More for 8K, 2026-10-09: *8I — the three reviews*, *For 8K*.)**
 
 **Not proven, after S0.** Anything as `app_designs`: R1's statements have run nowhere. The grant
-with two connections (R2). The HTTP driver's error fields (R3). `do update`'s atomicity is
-recalled, not quoted (R2). That `has_column_privilege` counts a table-wide grant [inf, recalled].
+with two connections (R2). The HTTP driver's error fields (R3). ~~`do update`'s atomicity is
+recalled, not quoted (R2).~~ **(Quoted 2026-10-09: *8I — the three reviews*.)** That `has_column_privilege` counts a
+table-wide grant [inf, recalled].
 
 ##### 8I — the security read of `0008`, ruled 2026-10-08
 
@@ -5592,9 +5594,11 @@ let it change a number (F7). **Rule 4, restated. Rules 1 to 3 stand.**
   `Date`), and an `undefined` or missing place in a list, which an encoder would write as `null`.
 - **4c. Both: no deeper than 64 levels, refused under its own part name, and judged in the walk
   before any encoder runs.** Every key and text passes rule 3. A cycle ends at the bound.
-- **The invariant F6 broke:** for any document and any priced value, the check returns or throws
+- **The invariant F6 broke:** ~~for any document and any priced value, the check returns or throws
   its own refusal, and nothing else. *Not promised:* a request whose own shape is not the type's
-  (no contact object): that is the caller's `TypeError`, and it holds no value.
+  (no contact object): that is the caller's `TypeError`, and it holds no value.~~ **(Both
+  sentences were false and are restated: a price that shares its parts may never return, and a
+  target that is text was quoted in a `TypeError`. *8I — the three reviews*, L-R1.1 and the guard.)**
 
 *Why each.*
 
@@ -5655,6 +5659,142 @@ five thousand lists become refusals; so does the twice-written key in the `__pro
   (c) a field's value leaves in an error. A value the check refuses that a server would hold, or
   accepts that a server refuses, is **recorded as a limit with its trigger**, and the wave goes to
   its three reviews.
+
+##### 8I — the three reviews, ruled 2026-10-09
+
+**State.** HEAD is `69fcb36` [ran: `git log`], QA green there [relayed]. Logic: approve with
+should-fix. Security: approve with should-fix. Clean-code: changes required, one must-fix
+[all relayed; each file reference a ruling rests on was re-read at HEAD: src]. **R2's reason is
+now quoted** from the PostgreSQL 18 pages [relayed, the logic reader], and F4's suffix is
+confirmed [relayed, the security reader].
+
+**S-R2.1 — taken now, and rated above its label: an implementation defect against R3.**
+`runTranslatingFailures` rethrows the driver's own error whenever it reads as the reference's
+collision, and only `record` catches it [src `neon-contact-submission-store.ts:216-226`, `:68-76`,
+`:103-111`]. So the lookup and the mark can reject with the driver's error, and `record` reads the
+failure twice. No real server is known to reach it. It still breaks *nothing a driver threw rides
+on anything thrown* **by construction**, which is the only way ADR 0146 B3 holds. The architect
+read that code at S1b and missed it.
+
+- **A failure is classified once, where it is caught.** The upsert's translator answers a
+  collision as a value. The lookup's and the mark's have no pass-through. *Must not:* a `throw` of
+  a caught driver error anywhere in the module.
+
+**L-R1.1 — a recorded limit, not closed in code. The check's sentence is corrected.** A price whose
+parts are shared (sixty levels, each holding the next twice) is walked once for each part and
+encoded once for each path, and the encoder does not return [relayed, reviewer-run].
+
+- *Why not closed:* refusing a part met twice would refuse a real price whose lines share a label
+  [inf, not read]; a count of places walked is a fourth change to a path that has had three; and a
+  price comes only from `priceDesign`, which builds a tree. The stopping rule did not foresee
+  *never returns*. The reviewers agree it is no must-fix.
+- **The invariant, as it now stands.** For a request that is an object, whatever its members: the
+  check throws only its own refusal, and **nothing it throws holds a value**. It returns for every
+  document, and for every price that is a tree.
+- *Trigger (ADR 0118):* a caller that hands over anything but `snapshotSubmission`'s result
+  untouched. *The fix then:* a bound on places walked, counted for each path.
+
+**The guard (S-R2.4, L-R1.5) — taken now.** A target that is text reaches `in`, whose `TypeError`
+quotes it [src `contact-submission-store.ts:232-235`]. The contact, the target, a design's
+reference and the snapshot must each be an object, or the part's own refusal is thrown.
+
+**L-R1.2 — criterion 12 gains rule 5; no code is removed.** *Rule 5, code's own and no
+constraint's:* a target whose kind disagrees with what it holds; an intent outside the domain's
+list; an empty design id; an e-mail present when the channel is not e-mail, or absent when it is.
+Each refuses more than the table, and the domain refuses each first. **Not in the list, on purpose
+(L-R1.3):** the channel, the locale and the consent version are any storable text. The store is
+not the request's second validator.
+
+**Clean-code.**
+
+- **C-R1.1, must-fix, QA's.** A test file imports another package's test files [src
+  `tests/support/qa-8i-real-snapshots.ts:11`]. *Backlog, the coordinator's:* the boundary gate
+  does not see it.
+- **C-R1.2, the split: taken, last, as its own commit.** The file has three jobs, and 8K's
+  developer reads it for the port. A later split costs a wave and the same re-check. **Kept
+  mechanical:** the refusal's sentences and its maker move to one module, the snapshot's judging to
+  another, **bodies unchanged**; the port keeps its types, its error and the check's two entry
+  points, so no test's import of them changes. Criterion 10's test names every module of the
+  store, the Neon one too, which is missing today (C-R1.10).
+- **C-R1.3: the entry points stay, the comment shrinks.** The fake and QA's files call the one
+  that answers nothing. The rule's home is this plan and the wave's ADR (ADR 0136).
+- **C-R1.4: taken on one condition.** The contact's sentence names its field, and the snapshot's
+  becomes two. **Every sentence QA's tests match still matches, unedited;** where a split cannot
+  keep that, the sentence stays and the developer reports.
+- **C-R1.5 to C-R1.15: taken**, each in the file's own round. **C-R1.9:** wave, round, rule and
+  criterion ids leave titles and comments; the `qa-8i-` file names stay, as the package names them.
+
+**Also taken.** S-R2.2, S-R2.3, S-R2.5, L-R1.6. The two reference functions leave the package's
+exports: nothing outside uses them, and an exported shape invites a route keyed by a reference.
+
+**Round A, behaviour. One developer, five items.**
+
+| # | Does | Files |
+| --- | --- | --- |
+| 1 | S-R2.1; the collision's shape joins the failure shapes of all three operations | `src/neon-contact-submission-store.ts`; `tests/neon-contact-submission-store.driver.test.ts` |
+| 2 | The guard: four parts are objects or refused | `src/contact-submission-store.ts`; `tests/contact-submission-store-check.test.ts` |
+| 3 | The words: the check's sentence (L-R1.1) and rule 5 named in it (L-R1.2); the lookup *writes nothing* (L-R1.6); why the walk swallows a throw (C-R1.15); C-R1.4's sentences | `src/contact-submission-store.ts` |
+| 4 | S-R2.2: each `returning` and `select` list pinned exactly, no `*` anywhere; the statements read are as many as the source writes | `tests/contact-submission-statements.test.ts` |
+| 5 | S-R2.3: a test fails when a migration after `0008` names the table, and points at the rule. S-R2.5: the probe's id is one the column's check cannot hold | `tests/migration-0008-text.test.ts`, `tests/application-role-privileges.test.ts` |
+
+**Round B, no behaviour. The same developer, after A is green; four items.**
+
+| # | Does | Files |
+| --- | --- | --- |
+| 1 | C-R1.2, its own commit, last | `src/contact-submission-store.ts`, two new modules beside it; `tests/contact-submission-store-holds-no-secret.test.ts` |
+| 2 | The two reference functions leave the exports | `src/index.ts` |
+| 3 | C-R1.3's comment; C-R1.5 to C-R1.8, C-R1.10 to C-R1.14 | the developer's own tests |
+| 4 | C-R1.9 in its own files | the developer's own tests and sources |
+
+*Reading, both:* this section; R3; ADR 0146 B3; ADR 0136; the three reviewers' findings.
+*Must not, both:* `0008` or a statement's text changes; a `qa-*` file is edited; in round B, a
+moved body changes.
+
+**QA's own files. One pass, after round A.**
+
+1. C-R1.1: the real snapshots are made through the domain's public exports, or from fixtures
+   copied into this package's `tests/support` and marked as copies. They stay `snapshotSubmission`'s
+   own output.
+2. S-R2.1, proven: for each of the three operations, an error that reads as the collision, and one
+   whose code reads differently the second time, leave as the store error in B1's form.
+3. The guard: each part as text, a number, a list and null, holding a marker: the part's refusal
+   and no marker.
+4. C-R1.9 in its three files. C-R1.16: the wall-clock assertion cannot flicker or goes; a
+   `console.info` stays only where it reports a figure the close-out quotes.
+5. **Live, once:** its live file, since the collision's path changed; the races once each, if the
+   statements are still `c15c08e`'s.
+
+**Round 2 of review. Each on its own findings.** *Security:* S-R2.1 by reading that no caught
+error is thrown again; S-R2.2 to S-R2.5; the guard; the exports. *Logic:* L-R1.1's wording, rule 5
+against the code, that three proposals are still drawn and a transient repeat still re-sends one.
+*Clean-code:* C-R1.1; that the split is a move, by a moved-lines diff; its own findings; **QA's
+diff, whole**, since round 1 read QA's files in excerpts.
+
+**Criteria, amended.** **7:** it holds for all three operations, and a failure is classified
+once. **8:** the lists are pinned exactly, and the statements read are counted against the source.
+**9:** a later migration that names the table fails a test until someone has read S-R1.1's rule.
+**10:** its test names every module of the store. **12:** rule 5, and the invariant as above.
+**13:** the package exports no function of a reference.
+
+**For 8K, added. Recorded, not built; the first five are the logic reader's, the rest
+security's.**
+
+- Two calls at once can both see *not notified* and both notify; only the provider's key stops the
+  second message. A notice accepted, a mark failed and a retry past the provider's day notify twice.
+- **A rejected `record` does not mean nothing was stored.** A retry goes through the lookup.
+- Over HTTP an answer of *not notified* can arrive after one of *notified*.
+- **Pass only a validated request**, and `snapshotSubmission`'s result untouched (L-R1.1's
+  trigger).
+- Whoever holds a stored client request id can ask the endpoint whether guessed details are the
+  stored ones, since the server makes the digest. **Conflict answers are counted.** *For R6:* a
+  leaked `DATABASE_URL` shows every id.
+- The store is constructed with no argument and under no flag. A gate fails if anything under
+  `apps/web/src` imports the fake. The body's bound is counted on bytes read; eight kilobytes is
+  the security reader's figure, for that wave's S0 to rule.
+
+**Limits for the wave's ADR.** L-R1.1 with its trigger. The channel, the locale and the consent
+version are unchecked here. QA's files were reviewed in excerpts in round 1. The boundary gate is
+blind to a test importing another package's tests (backlog).
 
 ### 8J — mail, and the shop's notification
 
