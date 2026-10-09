@@ -216,8 +216,8 @@ export class FetchConfigurationRepository {
    *  in the same response, so the customer's own design travels in the `PUT` that always follows.
    *
    *  The only call to `POST /api/designs`, so the only place `withCreateDesignLock` wraps (ADR 0114 Amendment H6):
-   *  both creation paths reach here through `save({ id: null })`. The lock spans the response, so a second tab's
-   *  mint carries the cookie this one just set. */
+   *  Step 1's hand-off, the only creation path, reaches here through `save({ id: null })`. The lock spans the
+   *  response, so a second tab's mint carries the cookie this one just set. */
   private async mint(): Promise<ClientSaveResult> {
     return withCreateDesignLock(async () => {
       const response = await this.request(DESIGNS_ENDPOINT, {

@@ -580,7 +580,7 @@ describe("a mint refused for the day's limit keeps the room and offers no retry"
     );
   });
 
-  it("sends the mint once and no save after it", async () => {
+  it("sends the mint once and no save by the time the limit shows", async () => {
     render();
 
     tapContinue();

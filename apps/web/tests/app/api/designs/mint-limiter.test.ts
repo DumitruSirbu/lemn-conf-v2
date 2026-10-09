@@ -396,7 +396,7 @@ describe("POST /api/designs: what the limiter asks, and when", () => {
 });
 
 describe("POST /api/designs: the e2e policy", () => {
-  it("allows a count the production policy refuses, and says so once in a process", async () => {
+  it("allows a count the production policy refuses, and says so at most once in a process", async () => {
     vi.stubEnv("LEMNARIA_E2E_RATE_LIMIT_POLICY", "1");
     rateLimitStore.current = storeAnswering(21);
     const logs = silenceLogs();
