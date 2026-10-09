@@ -2615,3 +2615,22 @@ metres, where a separator between digits is the format by design. Whether the UR
 is **not decided**. Existing shared links carry metres, so a switch is its own decision with its own compatibility question.
 **Owner:** the owner. **Trigger:** the URL's wire form is next touched. See the dated note in
 [ADR 0126](../decisions/0126-the-rooms-lengths-are-typed-in-whole-millimetres.md).
+
+## 155. The only consent text version in code is `"placeholder"` — RECORDED 2026-10-09 AT M8 8I's CLOSE
+
+**Source [the plan's 8I, *the security read of `0008`*; src `packages/configurator-domain/src/contact/contact-fields.ts:26`].** A
+stored request records the consent text version it was given under, and the only version the code has is `"placeholder"`. A
+launch item, and the owner's words. **Owner:** the owner (Q7, the consent text). **Trigger:** before launch (M9).
+
+## 156. The boundary gate does not catch a test importing another package's tests by relative path — FOUND 2026-10-09 IN M8 8I's REVIEW
+
+**Source [the plan's 8I, *the three reviews*, C-R1.1].** A test file in `packages/persistence` imported another package's test
+files; `scripts/gates/boundary.sh` did not see it. Fixed in the one file (the real snapshots are made through the domain's public
+exports or from copied fixtures); the gate itself is unchanged. **Owner:** the coordinator. **Trigger:** the next change to the gate.
+
+## 157. For the milestone-close test audit: 8I's QA files and the clean-code nits — RECORDED 2026-10-09 AT M8 8I's CLOSE
+
+**Source [the plan's 8I, *review round 2, ruled*; clean-code C-R2.9, C-R2.7].** 8I's QA files restate six cases the developer's
+tests hold (C-R2.9); file sizes were 1569, 1395 and 621 lines at the time of review (C-R2.7); the other nits are listed in *review
+round 2, ruled*. The `qa-8i-*` files are the only guard of the check's rules 2 and 3 and are not duplicates (ADR 0153 decision 8).
+**Owner:** the test audit. **Trigger:** the M8 close audit (ADR 0152, Amendment A).

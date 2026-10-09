@@ -77,6 +77,10 @@ ruling and open to the owner**. A counter errs high and never low between prunes
 are unchanged. The ruling, its reasons and the empty-reply case: [ADR 0149](0149-the-rate-limit-store-keeps-one-row-per-bucket-per-window-refuses-a-broken-promise-and-may-count-high-but-never-low-between-prunes.md)
 decision 3.
 
+## Note — 2026-10-09: a repeated statement re-sends the same proposal (wave 8I)
+
+The contact submissions store relies on decision 2's retry: a repeated statement re-sends the same reference proposal, so a call whose first attempt landed still answers *new*, and only a collision draws a new proposal. A repeated mark keeps the first instant. [ADR 0153](0153-a-contact-request-is-stored-once-apart-from-designs-the-application-role-reads-none-of-its-personal-columns-and-code-refuses-before-the-server-what-the-table-would-refuse.md) decision 4.
+
 ## Evidence
 
 Live tests `packages/persistence/tests/retried-writes-leave-no-trace.test.ts` and QA's

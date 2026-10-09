@@ -39,6 +39,33 @@ none of them has been executed].
 8. **Confirm `designs` is unchanged.** On production, by `has_table_privilege`, not by attempting a delete.
 9. **Order: the migration, then the grant, then the code that counts.** The limiter fails closed without either.
 
+## For `0008_create_contact_submissions.sql` (wave 8I, added 2026-10-09)
+
+The steps above stand; the table is `contact_submissions`, the version is **8**, and these are added by the security reader's
+read of `0008` [relayed; none of it has been executed]. The decision and its reasons: [ADR 0153](../decisions/0153-a-contact-request-is-stored-once-apart-from-designs-the-application-role-reads-none-of-its-personal-columns-and-code-refuses-before-the-server-what-the-table-would-refuse.md)
+decision 1. **The grant is narrower than the owner's Q14 (i) answer:** `UPDATE` on `notified_at` alone, not on the seven
+non-personal columns.
+
+- **Before step 4, on each database: read `pg_default_acl`.** A default privilege grants without anyone issuing it. Anything
+  that would reach `contact_submissions` or its columns is a stop-and-report, as in step 3.
+- **Step 1:** the ledger shows **8**.
+- **Step 2, for `0008`:** confirm **18 columns and 8 named constraints** (the primary key, the reference's uniqueness
+  `contact_submissions_reference_is_unique`, three column checks, three table checks), because `create table if not exists`
+  passes over an older table of the same name.
+- **Step 4, exactly these three statements** [doc plan, 8I R1]:
+
+  ```sql
+  GRANT INSERT ON TABLE public.contact_submissions TO app_designs;
+  GRANT SELECT (
+      reference, client_request_id, design_id, design_revision, payload_digest, created_at, notified_at
+    ) ON TABLE public.contact_submissions TO app_designs;
+  GRANT UPDATE (notified_at) ON TABLE public.contact_submissions TO app_designs;
+  ```
+
+  Not `ALL`, not `WITH GRANT OPTION`, nothing to `PUBLIC`, no table-wide `SELECT`, `UPDATE` or `DELETE`.
+- **Steps 5 to 7:** the grant test's own line `reached database "…" as role "…"` is quoted as the evidence, with the test's
+  outcome, never skipped. Until it has been quoted for an environment, the grant test's passing arm has never executed there.
+
 ## Why step 5 names the application role
 
 The file is safe on any credential (criterion 13): it refuses to run past its guard as an owner. It is also only

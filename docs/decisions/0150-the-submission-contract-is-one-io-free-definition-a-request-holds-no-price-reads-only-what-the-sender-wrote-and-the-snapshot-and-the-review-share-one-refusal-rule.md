@@ -237,6 +237,8 @@ Each with its trigger.
   time and the honeypot; one pure function beside the request's type says so, and a test fails when the type gains a field
   that the function neither covers nor names as left out. The id column compares byte for byte. The digest is keyed; see
   *The digest secret* in the plan and ADR 0149's amendment of 2026-10-08. **8I is unblocked and never touches the secret.**
+  *(Note, 2026-10-09: 8I is built. The store takes `payload_digest` as a value handed in and holds no secret; the covering
+  function stays 8K's. [ADR 0153](0153-a-contact-request-is-stored-once-apart-from-designs-the-application-role-reads-none-of-its-personal-columns-and-code-refuses-before-the-server-what-the-table-would-refuse.md).)*
 - **8J:** a customer's text appears only in the plain-text body, one value to a line behind a fixed label, and never in a
   header; a name may be a link or a spreadsheet formula and the mail does nothing to make either live; the key sent is a
   fixed prefix and the id; its criterion 8 speaks of *"a 409"* and there are two, restated at that wave's dispatch; every

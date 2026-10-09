@@ -210,3 +210,7 @@ From QA's final list and the security reviewer's, not as clean:
 - Review round 1 recorded a nine-line code comment as belonging in this ADR rather than in the code (ADR 0136);
   the rules above are that reasoning's home. Not splitting `open-database.ts` and the optional `readFrom`
   shape were recorded for this ADR with no code change.
+
+## Note — 2026-10-09: applied to the contact submissions store (wave 8I)
+
+B3 is applied to a second store: every failure of the contact submissions store leaves as one store error whose cause is the type name and the SQLSTATE, a failure is classified once where it is caught, and no caught driver error is thrown again. The rule was held by construction only after review round 1 (S-R2.1) and tightened twice (a thrown proxy; a reply row that throws when read). [ADR 0153](0153-a-contact-request-is-stored-once-apart-from-designs-the-application-role-reads-none-of-its-personal-columns-and-code-refuses-before-the-server-what-the-table-would-refuse.md) decision 3.

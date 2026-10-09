@@ -185,6 +185,9 @@ status corrections, in one of these two files:
 | 152 | Single-guard behaviours were not collected; the two-tab lock's desktop rounds were removed | open.md — recorded 2026-10-08; trigger: the next test audit |
 | 153 | The desktop e2e ceiling stays 70 with a largest shard of 67; the gate script's comment and three test comments name the deleted spec | open.md — **closed 2026-10-08**: ceiling 70 to 67 and the comments fixed in `18283a8` |
 | 154 | Should the room URL carry millimetres instead of metres? | open.md — recorded 2026-10-08; undecided; the owner's; trigger: the URL's wire form is next touched |
+| 155 | The only consent text version in code is `"placeholder"` (`packages/configurator-domain/src/contact/contact-fields.ts:26`): a launch item | open.md — recorded 2026-10-09 at M8 8I's close; the owner's consent text (Q7); trigger: before launch (M9) |
+| 156 | The boundary gate (`scripts/gates/boundary.sh`) does not catch a test importing another package's tests by relative path | open.md — found 2026-10-09 in 8I's review (C-R1.1), fixed in the one file; trigger: the next change to the gate |
+| 157 | For the milestone-close test audit: 8I's QA files restate six cases the developer's tests hold, file sizes and other nits | open.md — recorded 2026-10-09 at M8 8I's close; trigger: the M8 close audit (ADR 0152 Amendment A) |
 
 ## 2026-09-06 audit note
 

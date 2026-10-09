@@ -1217,7 +1217,7 @@ both in M9.
 | 8D2 | **DONE 2026-10-08, commits `3ffad38` … `0fad22c`, not pushed.** Added the same day from 8D's visual review: the rows' second line and the bottom bar, as frames 3A and 3B draw them. See *8D2 as closed* and ADR 0148 Amendment B | ~~8D closed. One owner point: the material pill on screens 3–5~~ — Done. The pill stays the owner's question |
 | 8D3 | **DONE 2026-10-08, commits `b5aed77` … `be4ffe2`, not pushed.** The boundary gate, red at `ad535d0`, with backlog 121. See *8D3 as closed* | ~~Backlog 121 before 8E~~ — Done |
 | 8E | **DONE 2026-10-08, commits `ec2f181` … `c8305b1`, not pushed.** The rate-limit store. See *8E as closed* and [ADR 0149](../decisions/0149-the-rate-limit-store-keeps-one-row-per-bucket-per-window-refuses-a-broken-promise-and-may-count-high-but-never-low-between-prunes.md). **Owner action outstanding:** apply `0007` and its grant by the runbook | ~~Dispatched~~ — Done |
-| 8I | Stays. ~~Blocked 2026-10-08 on the keyed-digest question~~ **Unblocked the same day: the owner said yes** | ~~8E's migration number~~ — 8E took `0007`. **Dispatchable.** Its dispatch reads *The digest secret* (below, under 8I) and ADR 0150's *What later waves inherit*; it never touches the secret |
+| 8I | ~~Stays. Blocked 2026-10-08 on the keyed-digest question; unblocked the same day: the owner said yes~~ **DONE 2026-10-09, commits `049ed39` … `1bbd08e`, not pushed.** The contact submissions store. See *8I as closed* and [ADR 0153](../decisions/0153-a-contact-request-is-stored-once-apart-from-designs-the-application-role-reads-none-of-its-personal-columns-and-code-refuses-before-the-server-what-the-table-would-refuse.md). **Owner action outstanding:** apply `0008` and the three grants by the runbook; the grant is narrower than Q14 (i) | ~~8E's migration number~~ — 8E took `0007`. ~~**Dispatchable.** Its dispatch reads *The digest secret* (below, under 8I) and ADR 0150's *What later waves inherit*; it never touches the secret~~ — Done |
 | 8H | **DONE 2026-10-08, commits `aecacbd` … `2b8c60b`, not pushed.** The submission contract. See *8H as closed* and [ADR 0150](../decisions/0150-the-submission-contract-is-one-io-free-definition-a-request-holds-no-price-reads-only-what-the-sender-wrote-and-the-snapshot-and-the-review-share-one-refusal-rule.md). `2b8c60b` is unreviewed | ~~Nothing. Dispatchable~~ — Done |
 | 8J | ~~**Changed:** no provider adapter~~ **Restored: a Resend adapter** (owner, 2026-10-07) | **Nothing to build it. Dispatchable whole**, after 8D. Proving it end to end waits for the owner: the three variables on a deployment, and a sender the provider accepts |
 | 8F | **Changed:** identity through a port; one bucket, 20 a day per ~~address~~ **block of 256 (/24; /64 for IPv6)** (Q28 and Q32 answered) | The three red `CI=1` specs triaged; 8E. ~~**Q32** sets one number and does not block the build~~ |
@@ -5955,6 +5955,86 @@ the wave closes.
   columns and eight named constraints; issue R1's three statements, **narrower than Q14 (i)**; run
   the grant test as the application role and quote its `reached database … as role …` line.
 - Q34 is 8J's.
+
+#### 8I as closed, 2026-10-09
+
+**Shipped, on `m8-review-contact-success`, not pushed [coordinator ran `git log`; HEAD `1bbd08e`]:** `7417b66` S1a; `c15c08e` S1b;
+`c161b5d` QA round 1 (red); `aad9a42` fix round A; `f021603` QA round 2 (red); `8d93b97` fix round B; `69fcb36` QA round 3 (green,
+the commit the three reviewers first read); `7445280` review round A; `894dda8` QA pass 4 (red, F9); `4a4e6ea` the F9 fix;
+`47f6a1c`, `610d620` (the module split, a pure move) and `663e38c` review round B; `a77b645` QA pass 5 (green); `b492d2c` final
+developer round; `7790748` QA pass 6 (green); `1bbd08e` the last commit (S-R4.1, and the comment lines and sentences over 120
+characters wrapped, their words unchanged). Plan and ruling commits between them: `049ed39` (S0's figures, S1 restated),
+`17e2b66` (the security read of `0008` ruled), `16787ad`, `9da55e1`, `b8d73cc` (the three reviews ruled), `0d6baae` (F9 ruled),
+`fc45b14` (review round 2 ruled). `8eaba35` restated 8J for dispatch and is not 8I's.
+
+**What exists [source-verified by reviewers]**, under `packages/persistence/`: `src/migrations/0008_create_contact_submissions.sql`;
+`src/contact-submission-store.ts` (the port, its error, the check's entry points), `contact-submission-refusal.ts`,
+`snapshot-judgement.ts`, `neon-contact-submission-store.ts`, `fake-contact-submission-store.ts`,
+`generate-submission-reference.ts` (not exported from the package); `sha256-digest.ts` gained one condition (a non-string is
+refused). Nothing under `apps/` uses any of it yet. The decisions: [ADR
+0153](../decisions/0153-a-contact-request-is-stored-once-apart-from-designs-the-application-role-reads-none-of-its-personal-columns-and-code-refuses-before-the-server-what-the-table-would-refuse.md).
+
+**Evidence, by who ran it.**
+
+- *Coordinator-run, at `1bbd08e`, alone.* The whole persistence suite exit 0: 78 files, 2450 passed, 2 skipped; persistence
+  typecheck 0, lint 0; root `pnpm format:check` 0; `pnpm gate:boundary` 0. The 2 skips are the grant tests for
+  `rate_limit_counters` and `contact_submissions` in `application-role-privileges.test.ts`: neither table exists on the database
+  `DATABASE_URL` reaches (preview, role `app_designs`) [developer-run printed line, relayed].
+- *Developer-run, S0, 2026-10-08.* On `lemn-conf-v2-staging`, PostgreSQL 18.6, one transaction rolled back: the idempotent insert
+  works under `INSERT` + `SELECT` on the seven non-personal columns + `UPDATE (notified_at)`; `42501` for every read of a
+  personal column, `DELETE`, `TRUNCATE`; roles 23 and relations 11 before and after. Before the bytes froze, `0008` was executed
+  from disk in a rolled-back transaction: 18 columns, 8 named constraints, the three checks behave as ruled.
+- *QA-run (m8-8i-qa), six passes.* The four live race proofs green in every pass they ran (20 rounds x 8 callers for one digest
+  and for two digests; the mark race; the lost first reply); criterion 7 against four real captured refusals (`23514`, `23502`,
+  `23505` on the primary key, `22003`); mutants: 24 on the Neon store (S1b), 24 + 26 on the check's fix rounds, 10 on review
+  round A, none surviving un-equivalent; the deepest real snapshot is 4 levels in the document and 5 in the priced design over
+  eight real kitchens, against a bound of 64; the final whole suite alone at `b492d2c` plus its tests: 2447 passed, 2 skipped.
+- *Reviewers.* Logic: approve at `7790748` (R2's reason quoted from the PostgreSQL 18 INSERT and transaction-isolation pages).
+  Clean-code: approve at `7790748` (the split a pure move by its own line-set comparison; it read the developer's tests fully and
+  QA's files fully only in round 2's second pass). Security: approve at `1bbd08e`, no open security finding (four rounds plus the
+  migration read).
+- Findings F1 to F9 (QA), L-R1.1 to 6, L-R2.1, S-R1.1 to 5, S-R2.1 to 6, S-R3.1 to 2, S-R4.1, C-R1.1 to 16 and C-R2.1 to 11, and
+  how each was ruled: the adjudication sections above.
+
+**Incident, plainly.** On 2026-10-08/09 a killed whole-suite run left the **test** database's migration ledger at `1,8`: an
+existing live test forgot ledger rows 2 to 7 from a hand-kept list that stopped at 7. The coordinator authorised forgetting
+ledger row 8 on the test database only, through the suite's own guarded helper `forgetAppliedMigrations`. The list is now read
+from disk (commit `c15c08e`). Ledger after: 1 to 8 [developer-run]. No other database was touched. **Whether such a repair should
+wait for the owner is an open question put to the owner.**
+
+**Deviations, with their rationale.** S1 was split into S1a and S1b (R7: the Neon class has its own file and the reference its
+generator, so S1 was six production files). The developer committed its own rounds from review round B on (explicit paths, hook
+on), by the coordinator's choice. S-R4.1 and the line-length fix were dispatched by the coordinator directly under the closing
+rule, without a new architect section. Two coordinator whole-suite runs overlapped on the test database at `7445280` and each
+showed 2 unrelated live failures (share-link and retried-writes; the 8E rate-limit live file), which passed alone (139 of 139):
+contention and not a defect, and **no clean coordinator run exists at `7445280`** (QA's was clean). The wave carried criterion 12
+from one sentence to a closed list of rules (1 to 3, 4a to 4c, 5, and the part `request`), and criteria 1, 3, 7, 8, 9, 10 and 13
+were amended along the way; both are in the adjudication sections.
+
+**Owner actions outstanding.** (1) Apply `0008` and the three grants, preview then production, by the runbook (with the
+`pg_default_acl` read and the 18 / 8 check), **and know the grant is narrower than Q14 (i)** (`UPDATE` on `notified_at` alone: the
+architect's ruling inside his answer, open to him; widening it is gated on a probe, S-R1.1, an inference not measured). (2) The
+reference's look (`LM-` and 8 characters) when he sees frame 5A. (3) The closing rule and the test-database ledger repair are open
+to him. (4) Everything already listed in *8H as closed* and the 8H entry in `STATUS.md` stands (`0007` and its grant;
+`DIGEST_SECRET` before 8F merges; backlog 146; Resend's facts for 8J's one real send; the hand check; backlog 142's remainder).
+(5) Q34 (the language of the shop's notice) is 8J's, opened 2026-10-09 in the plan.
+
+**Not proven.** `pnpm check`, `pnpm ci:local`, e2e, anything on a CI runner. Anything as the role `app_designs` or under the column
+grants: R1's statements have run nowhere and the grant test's passing arm has never executed. The HTTP driver under the grants.
+S-R1.1's mechanism. The depth of a design with every optional part set. What the provider (Neon) logs of a failed row. The
+grant with two connections.
+
+**Deferred.** The limits and their triggers, in ADR 0153 (R6 whole, L-R1.1, the request read twice, S-R2.2's residue, the
+logic reader's L1 and L2, the unchecked channel, locale and consent version, five mutants only the live suite catches). Backlog
+155 (the consent text version is `"placeholder"`; the owner's consent text, Q7, before launch, M9), 156 (the boundary gate does
+not see a test importing another package's tests by relative path; trigger: the next change to the gate) and 157 (for the
+milestone-close test audit: six restated cases, C-R2.7's file sizes and the nits; trigger: the M8 close audit). 8K inherits the
+notes under *For 8K, added* and ADR 0153's *What later waves inherit*.
+
+**Documentation updated.** ADR 0153 (new); dated notes on ADRs 0008, 0145, 0146 and 0150; `decisions/README.md`; the runbook for a
+table migration (steps for `0008`); backlog 155 to 157; this section and the wave table's 8I row; `STATUS.md`.
+**Contradiction found while closing:** none in the 8I sections that changes what is built; they keep earlier struck sentences
+by design.
 
 ### 8J — mail, and the shop's notification
 
