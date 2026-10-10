@@ -27,14 +27,14 @@ vi.mock("@lemnaria/persistence", () => ({
 const {
   bucketKeyOfTheRun,
   E2eFigureOutgrownError,
-  E2eShareFigureOutgrownError,
-  removeShareCountersOfTheRun,
-  requireRoomUnderHalfTheFigure,
-  requireShareRoomUnderHalfTheFigure,
   makeRunSecret,
+  MINT_TWIN,
   NoCountersOfTheRunError,
+  removeCountersOf,
   removeCountersOfTheRun,
+  requireRoomUnderHalfTheFigure,
   RUN_SECRET_VARIABLE,
+  SHARE_WRITE_TWIN,
   secretOfThisRun,
 } = await import("./e2e-rate-limit-run");
 
@@ -150,16 +150,19 @@ describe("removeCountersOfTheRun", () => {
   });
 });
 
-describe("removeShareCountersOfTheRun", () => {
-  it("hands the helper exactly the share twin's shared-block key, and sums the writes over the hours", async () => {
+describe("removeCountersOf", () => {
+  it("hands the helper exactly the one key of the policy and sums the hits over the windows", async () => {
     deletion.answer = { rowsRemoved: 2, counts: [30, 12] };
 
-    const counted = await removeShareCountersOfTheRun(FAKE_SECRET);
+    const counted = await removeCountersOf(
+      FAKE_SECRET,
+      E2E_SHARE_WRITE_POLICY.name,
+    );
 
     expect(deletion.handed).toEqual([
       [bucketKeyOfTheRun(FAKE_SECRET, E2E_SHARE_WRITE_POLICY.name)],
     ]);
-    expect(counted).toEqual({ rowsRemoved: 2, writesCounted: 42 });
+    expect(counted).toEqual({ rowsRemoved: 2, hitsCounted: 42 });
   });
 
   it("is the key the mint's rows are not under, so each is removed by its own", () => {
@@ -168,96 +171,85 @@ describe("removeShareCountersOfTheRun", () => {
     ).not.toBe(bucketKeyOfTheRun(FAKE_SECRET, E2E_MINT_POLICY_NAME));
   });
 
-  it("answers none for a run that shared nothing, and does not fail it", async () => {
+  it("answers none for a run that made none, and does not fail it", async () => {
     deletion.answer = { rowsRemoved: 0, counts: [] };
 
-    expect(await removeShareCountersOfTheRun(FAKE_SECRET)).toEqual({
-      rowsRemoved: 0,
-      writesCounted: 0,
+    expect(
+      await removeCountersOf(FAKE_SECRET, E2E_SHARE_WRITE_POLICY.name),
+    ).toEqual({ rowsRemoved: 0, hitsCounted: 0 });
+  });
+});
+
+/** Each twin, with the half of its figure, a count over it, and the sentence that count draws, word for word. */
+const TWINS = [
+  {
+    twin: MINT_TWIN,
+    half: 800,
+    over: 900,
+    constant: "E2E_MINT_DAILY_FIGURE",
+    sentence:
+      "This run minted 900 designs, more than half (800) of the e2e policy's 1600 a day: raise E2E_MINT_DAILY_FIGURE " +
+      "to three times the new figure, rounded up to the next hundred",
+  },
+  {
+    twin: SHARE_WRITE_TWIN,
+    half: 250,
+    over: 300,
+    constant: "E2E_SHARE_WRITES_PER_BLOCK_FIGURE",
+    sentence:
+      "This run made 300 share writes, more than half (250) of the e2e policy's 500 an hour: raise " +
+      "E2E_SHARE_WRITES_PER_BLOCK_FIGURE to three times the new figure, rounded up to the next hundred",
+  },
+] as const;
+
+function thrownBy(attempt: () => void): Error {
+  try {
+    attempt();
+  } catch (error) {
+    return error as Error;
+  }
+  throw new Error("expected a failure");
+}
+
+describe.each(TWINS)(
+  "requireRoomUnderHalfTheFigure, for the twin of $twin.policy.name",
+  ({ twin, half, over, constant, sentence }) => {
+    it.each([0, 1, half - 1, half])("accepts a run of %i", (hits) => {
+      expect(() => {
+        requireRoomUnderHalfTheFigure(twin, hits);
+      }).not.toThrow();
     });
-  });
-});
 
-describe("requireShareRoomUnderHalfTheFigure", () => {
-  const HALF_THE_FIGURE = 250;
+    it.each([half + 1, over, half * 20])(
+      "fails a run of %i, more than half of its window",
+      (hits) => {
+        expect(() => {
+          requireRoomUnderHalfTheFigure(twin, hits);
+        }).toThrow(E2eFigureOutgrownError);
+      },
+    );
 
-  it.each([0, 1, 146, HALF_THE_FIGURE])(
-    "accepts a run that made %i share writes",
-    (writesCounted) => {
-      expect(() => {
-        requireShareRoomUnderHalfTheFigure({ rowsRemoved: 1, writesCounted });
-      }).not.toThrow();
-    },
-  );
+    it("says the two counts, the figure and the rule, word for word, and holds no secret", () => {
+      const thrown = thrownBy(() => {
+        requireRoomUnderHalfTheFigure(twin, over);
+      });
 
-  it.each([HALF_THE_FIGURE + 1, 500, 5000])(
-    "fails a run that made %i share writes, more than half of the twin's hour",
-    (writesCounted) => {
-      expect(() => {
-        requireShareRoomUnderHalfTheFigure({ rowsRemoved: 1, writesCounted });
-      }).toThrow(E2eShareFigureOutgrownError);
-    },
-  );
+      expect(thrown.message).toBe(sentence);
+      expect(thrown.message).toContain(constant);
+    });
 
-  it("says the two counts and the rule, and holds no secret", () => {
-    const thrown = (() => {
-      try {
-        requireShareRoomUnderHalfTheFigure({
-          rowsRemoved: 1,
-          writesCounted: 300,
-        });
-      } catch (error) {
-        return error as Error;
-      }
-      throw new Error("expected a failure");
-    })();
+    it("names its policy on the error, and not in the sentence", () => {
+      const thrown = thrownBy(() => {
+        requireRoomUnderHalfTheFigure(twin, over);
+      });
 
-    expect(thrown.message).toContain("300");
-    expect(thrown.message).toContain("250");
-    expect(thrown.message).toContain("500");
-    expect(thrown.message).toContain("E2E_SHARE_WRITES_PER_BLOCK_FIGURE");
-    expect(thrown.message).toContain("three times");
-  });
-});
-
-describe("requireRoomUnderHalfTheFigure", () => {
-  const HALF_THE_FIGURE = 800;
-
-  it.each([0, 1, 508, HALF_THE_FIGURE])(
-    "accepts a run that minted %i designs",
-    (mintsCounted) => {
-      expect(() => {
-        requireRoomUnderHalfTheFigure({ rowsRemoved: 1, mintsCounted });
-      }).not.toThrow();
-    },
-  );
-
-  it.each([HALF_THE_FIGURE + 1, 1600, 5000])(
-    "fails a run that minted %i designs, more than half of the e2e policy's day",
-    (mintsCounted) => {
-      expect(() => {
-        requireRoomUnderHalfTheFigure({ rowsRemoved: 1, mintsCounted });
-      }).toThrow(E2eFigureOutgrownError);
-    },
-  );
-
-  it("says the two counts and the rule, and holds no secret", () => {
-    const thrown = (() => {
-      try {
-        requireRoomUnderHalfTheFigure({ rowsRemoved: 1, mintsCounted: 900 });
-      } catch (error) {
-        return error as Error;
-      }
-      throw new Error("expected a failure");
-    })();
-
-    expect(thrown.message).toContain("900");
-    expect(thrown.message).toContain("800");
-    expect(thrown.message).toContain("1600");
-    expect(thrown.message).toContain("E2E_MINT_DAILY_FIGURE");
-    expect(thrown.message).toContain("three times");
-  });
-});
+      expect((thrown as Error & { policyName: string }).policyName).toBe(
+        twin.policy.name,
+      );
+      expect(thrown.message).not.toContain(twin.policy.name);
+    });
+  },
+);
 
 describe("the harness", () => {
   it("reads source: prints nothing but the four counts, in one line", () => {
@@ -273,7 +265,7 @@ describe("the harness", () => {
     ).toEqual([
       "counted.mintsCounted",
       "counted.rowsRemoved",
-      "shared.writesCounted",
+      "shared.hitsCounted",
       "shared.rowsRemoved",
     ]);
   });

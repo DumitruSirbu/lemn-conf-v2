@@ -1,9 +1,6 @@
 import { randomBytes } from "node:crypto";
 
-import {
-  deleteRateLimitCountersForTests,
-  type RemovedRateLimitCounters,
-} from "@lemnaria/persistence";
+import { deleteRateLimitCountersForTests } from "@lemnaria/persistence";
 
 import {
   DIGEST_KEY_BYTES,
@@ -14,9 +11,9 @@ import {
   type NetworkBlock,
 } from "../../../src/lib/server/rate-limit/client-network";
 import {
-  E2E_MINT_DAILY_FIGURE,
+  E2E_MINT_POLICY,
   E2E_SHARE_WRITE_POLICY,
-  E2E_SHARE_WRITES_PER_BLOCK_FIGURE,
+  type LimitPolicy,
   type PolicyName,
 } from "../../../src/lib/server/rate-limit/limit-policy";
 
@@ -106,96 +103,95 @@ export function bucketKeyOfBlock(
   });
 }
 
+/** What a run's twin is called where a person is told it is outgrown: the policy, and the words the sentence needs. */
+export interface TwinOfTheRun {
+  readonly policy: LimitPolicy;
+  readonly verb: string;
+  readonly noun: string;
+  /** How long the twin's window is, as the sentence says it: "a day", "an hour". */
+  readonly perWindow: string;
+  /** The constant a person raises. */
+  readonly figureConstant: string;
+}
+
+export const MINT_TWIN: TwinOfTheRun = {
+  policy: E2E_MINT_POLICY,
+  verb: "minted",
+  noun: "designs",
+  perWindow: "a day",
+  figureConstant: "E2E_MINT_DAILY_FIGURE",
+};
+
+export const SHARE_WRITE_TWIN: TwinOfTheRun = {
+  policy: E2E_SHARE_WRITE_POLICY,
+  verb: "made",
+  noun: "share writes",
+  perWindow: "an hour",
+  figureConstant: "E2E_SHARE_WRITES_PER_BLOCK_FIGURE",
+};
+
 export interface CountersOfTheRun {
   readonly rowsRemoved: number;
-  /** The number of mints the run counted: every hit it made, summed over the windows it spanned. */
-  readonly mintsCounted: number;
+  /** The hits the run counted under the key: every one it made, summed over the windows it spanned. */
+  readonly hitsCounted: number;
 }
 
 /**
- * Removes the run's counter rows, through the guarded test helper and by the one key computed above, and answers how
- * many mints they counted. Finding no row is a failure: a key computed wrongly would otherwise leave rows behind and
- * report nothing.
+ * Removes the run's counter rows of one policy, through the guarded test helper and by the one key computed above,
+ * and answers how many hits they counted. A run that made none finds none, which is not a failure here.
  */
-export async function removeCountersOfTheRun(
+export async function removeCountersOf(
   secretHex: string,
   policyName: PolicyName,
 ): Promise<CountersOfTheRun> {
   const removed = await deleteRateLimitCountersForTests([
     bucketKeyOfTheRun(secretHex, policyName),
   ]);
-  if (removed.rowsRemoved === 0) throw new NoCountersOfTheRunError();
-  return summarised(removed);
-}
-
-function summarised(removed: RemovedRateLimitCounters): CountersOfTheRun {
   return {
     rowsRemoved: removed.rowsRemoved,
-    mintsCounted: removed.counts.reduce((sum, count) => sum + count, 0),
+    hitsCounted: removed.counts.reduce((sum, count) => sum + count, 0),
   };
-}
-
-/** More than half of the e2e policy's figure is room the suite has used up: the figure is raised by a person. */
-export function requireRoomUnderHalfTheFigure(counted: CountersOfTheRun): void {
-  const halfTheFigure = E2E_MINT_DAILY_FIGURE / 2;
-  if (counted.mintsCounted > halfTheFigure) {
-    throw new E2eFigureOutgrownError(counted.mintsCounted, halfTheFigure);
-  }
-}
-
-/** The run minted more than half of the e2e policy's day. Names two counts of tests and no secret. */
-export class E2eFigureOutgrownError extends Error {
-  constructor(minted: number, half: number) {
-    super(
-      `This run minted ${String(minted)} designs, more than half (${String(half)}) of the e2e policy's ` +
-        `${String(E2E_MINT_DAILY_FIGURE)} a day: raise E2E_MINT_DAILY_FIGURE to three times the new figure, ` +
-        "rounded up to the next hundred",
-    );
-    this.name = "E2eFigureOutgrownError";
-  }
-}
-
-export interface ShareCountersOfTheRun {
-  readonly rowsRemoved: number;
-  /** The share writes the run counted: every hit it made, summed over the hours it spanned. */
-  readonly writesCounted: number;
 }
 
 /**
- * The share twin's rows for the shared block, removed with the run's others. A run that shared nothing made none, so
- * finding no row is not a failure here as it is for the mints, which every run makes.
+ * The mints' rows, the same removal with one more rule: finding no row is a failure, since every run mints, and a key
+ * computed wrongly would otherwise leave rows behind and report nothing.
  */
-export async function removeShareCountersOfTheRun(
+export async function removeCountersOfTheRun(
   secretHex: string,
-): Promise<ShareCountersOfTheRun> {
-  const removed = await deleteRateLimitCountersForTests([
-    bucketKeyOfTheRun(secretHex, E2E_SHARE_WRITE_POLICY.name),
-  ]);
+  policyName: PolicyName,
+): Promise<{ readonly rowsRemoved: number; readonly mintsCounted: number }> {
+  const removed = await removeCountersOf(secretHex, policyName);
+  if (removed.rowsRemoved === 0) throw new NoCountersOfTheRunError();
   return {
     rowsRemoved: removed.rowsRemoved,
-    writesCounted: removed.counts.reduce((sum, count) => sum + count, 0),
+    mintsCounted: removed.hitsCounted,
   };
 }
 
-/** More than half of the share twin's figure is room the suite has used up: the figure is raised by a person. */
-export function requireShareRoomUnderHalfTheFigure(
-  counted: ShareCountersOfTheRun,
+/** More than half of a twin's figure is room the suite has used up: the figure is raised by a person. */
+export function requireRoomUnderHalfTheFigure(
+  twin: TwinOfTheRun,
+  hitsCounted: number,
 ): void {
-  const halfTheFigure = E2E_SHARE_WRITES_PER_BLOCK_FIGURE / 2;
-  if (counted.writesCounted > halfTheFigure) {
-    throw new E2eShareFigureOutgrownError(counted.writesCounted, halfTheFigure);
+  const halfTheFigure = twin.policy.figure / 2;
+  if (hitsCounted > halfTheFigure) {
+    throw new E2eFigureOutgrownError(twin, hitsCounted);
   }
 }
 
-/** The run made more than half of the share twin's hour. Names two counts of tests and no secret. */
-export class E2eShareFigureOutgrownError extends Error {
-  constructor(written: number, half: number) {
+/** The run made more than half of a twin's window. Names the policy, two counts of tests and no secret. */
+export class E2eFigureOutgrownError extends Error {
+  readonly policyName: PolicyName;
+
+  constructor(twin: TwinOfTheRun, hitsCounted: number) {
     super(
-      `This run made ${String(written)} share writes, more than half (${String(half)}) of the e2e policy's ` +
-        `${String(E2E_SHARE_WRITES_PER_BLOCK_FIGURE)} an hour: raise E2E_SHARE_WRITES_PER_BLOCK_FIGURE to three ` +
-        "times the new figure, rounded up to the next hundred",
+      `This run ${twin.verb} ${String(hitsCounted)} ${twin.noun}, more than half ` +
+        `(${String(twin.policy.figure / 2)}) of the e2e policy's ${String(twin.policy.figure)} ${twin.perWindow}: ` +
+        `raise ${twin.figureConstant} to three times the new figure, rounded up to the next hundred`,
     );
-    this.name = "E2eShareFigureOutgrownError";
+    this.name = "E2eFigureOutgrownError";
+    this.policyName = twin.policy.name;
   }
 }
 

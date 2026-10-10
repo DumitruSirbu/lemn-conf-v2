@@ -9,6 +9,7 @@ import {
   type DesignRefusal,
 } from "@/lib/server/design-failure-log";
 import { judgeMintRequest } from "@/lib/server/rate-limit/judge-mint-request";
+import { refusalOfWriteLimit } from "@/lib/server/rate-limit/refusal-of-write-limit";
 import {
   mintLimitReachedResponse,
   mintUnavailableResponse,
@@ -48,25 +49,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
  * no visitor, sets no cookie and writes no row. The limiter is outside the mint's work, not inside it. Nothing thrown
  * here is kept: it answers as unavailable.
  */
-async function refusalOfTheLimiter(
+function refusalOfTheLimiter(
   request: NextRequest,
 ): Promise<NextResponse | undefined> {
-  try {
-    const { decision, policy } = await judgeMintRequest(request.headers);
-    if (decision.kind === "allow") return undefined;
-    if (decision.kind === "refuse") {
-      const response = mintLimitReachedResponse(decision.retryAfterSeconds);
-      reportMintLimit({
-        kind: "refused",
-        policy: policy.status === "chosen" ? policy.policy.name : "none",
-      });
-      return response;
-    }
-    reportMintLimit({ kind: "unavailable", cause: decision.cause });
-  } catch {
-    reportMintLimit({ kind: "unavailable", cause: "judgement-failed" });
-  }
-  return mintUnavailableResponse();
+  return refusalOfWriteLimit(() => judgeMintRequest(request.headers), {
+    refused: mintLimitReachedResponse,
+    unavailable: mintUnavailableResponse,
+    reportRefused: (policy) => {
+      reportMintLimit({ kind: "refused", policy });
+    },
+    reportUnavailable: (cause) => {
+      reportMintLimit({ kind: "unavailable", cause });
+    },
+  });
 }
 
 function crossSiteMintRefusedResponse(): NextResponse {

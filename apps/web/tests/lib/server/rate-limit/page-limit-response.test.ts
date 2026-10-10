@@ -7,6 +7,7 @@ import {
   readLimitReachedPageResponse,
   READ_LIMIT_REACHED_CODE,
 } from "@/lib/server/rate-limit/rate-limited-response";
+import { limitedAnswerHeaders } from "@/lib/server/rate-limit/page-limit-page";
 import { refusalOfPageRead } from "@/lib/server/rate-limit/page-limit-response";
 import roMessages from "@/messages/ro.json";
 import ruMessages from "@/messages/ru.json";
@@ -198,5 +199,35 @@ describe("page-limit-response.ts", () => {
       /messages\//,
     );
     expect(READ_LIMIT_REACHED_CODE).toBe("READ_LIMIT_REACHED");
+  });
+});
+
+describe("limitedAnswerHeaders: the headers of every limit answer", () => {
+  it("is never stored, and tells no wait unless it is given one", () => {
+    expect(limitedAnswerHeaders()).toEqual({ "Cache-Control": "no-store" });
+  });
+
+  it("tells the wait it is given, after the cache header", () => {
+    expect(
+      Object.entries(limitedAnswerHeaders({ retryAfterSeconds: 90 })),
+    ).toEqual([
+      ["Cache-Control", "no-store"],
+      ["Retry-After", "90"],
+    ]);
+  });
+
+  it("names a body's own type between the two, as a page's headers always did", () => {
+    expect(
+      Object.entries(
+        limitedAnswerHeaders({
+          retryAfterSeconds: 90,
+          contentType: "text/html; charset=utf-8",
+        }),
+      ),
+    ).toEqual([
+      ["Cache-Control", "no-store"],
+      ["Content-Type", "text/html; charset=utf-8"],
+      ["Retry-After", "90"],
+    ]);
   });
 });

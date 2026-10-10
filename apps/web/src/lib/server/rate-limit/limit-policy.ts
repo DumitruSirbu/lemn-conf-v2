@@ -181,6 +181,11 @@ const E2E_TWINS: ReadonlySet<LimitPolicy> = new Set(
     .map(({ e2e }) => e2e),
 );
 
+/** The name a log line gives the policy a judgement was made under: its own, or `none` when no policy was chosen. */
+export function policyNameOf(choice: PolicyChoice): string {
+  return choice.status === "chosen" ? choice.policy.name : "none";
+}
+
 /** Whether `policy` is the e2e twin of a production policy, whose figure is not the production one. */
 export function isE2eTwin(policy: LimitPolicy): boolean {
   return E2E_TWINS.has(policy);

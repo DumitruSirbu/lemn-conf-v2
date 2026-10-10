@@ -49,15 +49,32 @@ export function refusedPageHtml({
   );
 }
 
+/** The headers of every limit answer: never stored, each saying something true of one moment, and the wait when the
+ *  answer tells one. A body that is not JSON names its own type. */
+export function limitedAnswerHeaders({
+  retryAfterSeconds,
+  contentType,
+}: {
+  retryAfterSeconds?: number;
+  contentType?: string;
+} = {}): Record<string, string> {
+  return {
+    "Cache-Control": "no-store",
+    ...(contentType === undefined ? {} : { "Content-Type": contentType }),
+    ...(retryAfterSeconds === undefined
+      ? {}
+      : { "Retry-After": String(retryAfterSeconds) }),
+  };
+}
+
 /** What a refused read's answer must not be kept by, and the wait it tells. */
 export function refusedPageHeaders(
   retryAfterSeconds: number,
 ): Record<string, string> {
-  return {
-    "Cache-Control": "no-store",
-    "Content-Type": "text/html; charset=utf-8",
-    "Retry-After": String(retryAfterSeconds),
-  };
+  return limitedAnswerHeaders({
+    retryAfterSeconds,
+    contentType: "text/html; charset=utf-8",
+  });
 }
 
 function escaped(text: string): string {

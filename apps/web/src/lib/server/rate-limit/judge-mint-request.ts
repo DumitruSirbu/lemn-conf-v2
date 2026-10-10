@@ -1,21 +1,15 @@
 import "server-only";
 
-import { readDigester } from "@/lib/server/digest/digest-secret";
 import {
   RATE_LIMIT_DEADLINE_MS,
   type RateLimitDecision,
 } from "@/lib/server/rate-limit/enforce-rate-limit";
-import { judgeBlockBucket } from "@/lib/server/rate-limit/judge-block-bucket";
 import {
-  choosePolicy,
-  type PolicyChoice,
-} from "@/lib/server/rate-limit/limit-policy";
-import {
-  identifyClientNetwork,
-  selectNetworkSource,
-  type HeaderReader,
-} from "@/lib/server/rate-limit/network-source";
-import { getRateLimitStore } from "@/lib/server/rate-limit/rate-limit-store-instance";
+  blockBucketRequestFor,
+  judgeBlockBucket,
+} from "@/lib/server/rate-limit/judge-block-bucket";
+import type { PolicyChoice } from "@/lib/server/rate-limit/limit-policy";
+import type { HeaderReader } from "@/lib/server/rate-limit/network-source";
 
 export interface MintJudgement {
   readonly decision: RateLimitDecision;
@@ -32,18 +26,12 @@ export async function judgeMintRequest(
   headers: HeaderReader,
 ): Promise<MintJudgement> {
   const environment = process.env;
-  const policy = choosePolicy(environment, "mint");
-  const network = identifyClientNetwork(
-    selectNetworkSource(environment),
+  const request = blockBucketRequestFor({
+    environment,
     headers,
-  );
-  const decision = await judgeBlockBucket({
-    network,
-    policy,
-    digester: readDigester(environment),
-    store: { recordHits: (buckets) => getRateLimitStore().recordHits(buckets) },
-    instant: new Date(),
+    purpose: "mint",
     deadlineMs: RATE_LIMIT_DEADLINE_MS,
+    instant: new Date(),
   });
-  return { decision, policy };
+  return { decision: await judgeBlockBucket(request), policy: request.policy };
 }

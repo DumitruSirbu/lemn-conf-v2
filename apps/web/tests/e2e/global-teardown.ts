@@ -1,8 +1,9 @@
 import {
+  MINT_TWIN,
+  removeCountersOf,
   removeCountersOfTheRun,
-  removeShareCountersOfTheRun,
   requireRoomUnderHalfTheFigure,
-  requireShareRoomUnderHalfTheFigure,
+  SHARE_WRITE_TWIN,
   secretOfThisRun,
 } from "./support/e2e-rate-limit-run";
 import { E2E_MINT_POLICY_NAME } from "../../src/lib/server/rate-limit/limit-policy";
@@ -15,13 +16,13 @@ import { E2E_MINT_POLICY_NAME } from "../../src/lib/server/rate-limit/limit-poli
  */
 export default async function globalTeardown(): Promise<void> {
   const secret = secretOfThisRun();
-  const shared = await removeShareCountersOfTheRun(secret);
+  const shared = await removeCountersOf(secret, SHARE_WRITE_TWIN.policy.name);
   const counted = await removeCountersOfTheRun(secret, E2E_MINT_POLICY_NAME);
   console.log(
     `e2e rate limit: this run minted ${String(counted.mintsCounted)} designs ` +
       `(${String(counted.rowsRemoved)} counter row removed) and made ` +
-      `${String(shared.writesCounted)} share writes (${String(shared.rowsRemoved)} counter rows removed)`,
+      `${String(shared.hitsCounted)} share writes (${String(shared.rowsRemoved)} counter rows removed)`,
   );
-  requireRoomUnderHalfTheFigure(counted);
-  requireShareRoomUnderHalfTheFigure(shared);
+  requireRoomUnderHalfTheFigure(MINT_TWIN, counted.mintsCounted);
+  requireRoomUnderHalfTheFigure(SHARE_WRITE_TWIN, shared.hitsCounted);
 }

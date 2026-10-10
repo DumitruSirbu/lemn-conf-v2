@@ -2,35 +2,26 @@ import "server-only";
 
 import type { NextResponse } from "next/server";
 
-import { readDigester } from "@/lib/server/digest/digest-secret";
 import {
   reportShareWriteLimit,
   type ShareWriteOperation,
 } from "@/lib/server/design-failure-log";
+import { RATE_LIMIT_DEADLINE_MS } from "@/lib/server/rate-limit/enforce-rate-limit";
 import {
-  RATE_LIMIT_DEADLINE_MS,
-  type RateLimitDecision,
-} from "@/lib/server/rate-limit/enforce-rate-limit";
-import { judgeBlockBucket } from "@/lib/server/rate-limit/judge-block-bucket";
+  blockBucketRequestFor,
+  judgeBlockBucket,
+} from "@/lib/server/rate-limit/judge-block-bucket";
+import type { HeaderReader } from "@/lib/server/rate-limit/network-source";
 import {
-  choosePolicy,
-  type PolicyChoice,
-} from "@/lib/server/rate-limit/limit-policy";
-import {
-  identifyClientNetwork,
-  selectNetworkSource,
-  type HeaderReader,
-} from "@/lib/server/rate-limit/network-source";
-import { getRateLimitStore } from "@/lib/server/rate-limit/rate-limit-store-instance";
+  refusalOfWriteLimit,
+  type WriteJudgement,
+} from "@/lib/server/rate-limit/refusal-of-write-limit";
 import {
   shareLimitReachedResponse,
   shareUnavailableResponse,
 } from "@/lib/server/rate-limit/rate-limited-response";
 
-export interface ShareWriteJudgement {
-  readonly decision: RateLimitDecision;
-  readonly policy: PolicyChoice;
-}
+export type ShareWriteJudgement = WriteJudgement;
 
 /**
  * Judges one creation or revocation of a share link, by the network's block. The process environment is asked here,
@@ -40,16 +31,14 @@ export async function judgeShareWrite(
   headers: HeaderReader,
 ): Promise<ShareWriteJudgement> {
   const environment = process.env;
-  const policy = choosePolicy(environment, "share-write");
-  const decision = await judgeBlockBucket({
-    network: identifyClientNetwork(selectNetworkSource(environment), headers),
-    policy,
-    digester: readDigester(environment),
-    store: { recordHits: (buckets) => getRateLimitStore().recordHits(buckets) },
-    instant: new Date(),
+  const request = blockBucketRequestFor({
+    environment,
+    headers,
+    purpose: "share-write",
     deadlineMs: RATE_LIMIT_DEADLINE_MS,
+    instant: new Date(),
   });
-  return { decision, policy };
+  return { decision: await judgeBlockBucket(request), policy: request.policy };
 }
 
 /**
@@ -57,33 +46,18 @@ export async function judgeShareWrite(
  * present and before the repository is: a refusal reads no body, changes no link and sets no cookie. Nothing thrown
  * here is kept: it answers as unavailable.
  */
-export async function refusalOfShareWriteLimit(
+export function refusalOfShareWriteLimit(
   headers: HeaderReader,
   operation: ShareWriteOperation,
 ): Promise<NextResponse | undefined> {
-  try {
-    const { decision, policy } = await judgeShareWrite(headers);
-    if (decision.kind === "allow") return undefined;
-    if (decision.kind === "refuse") {
-      const response = shareLimitReachedResponse(decision.retryAfterSeconds);
-      reportShareWriteLimit({
-        kind: "refused",
-        operation,
-        policy: policy.status === "chosen" ? policy.policy.name : "none",
-      });
-      return response;
-    }
-    reportShareWriteLimit({
-      kind: "unavailable",
-      operation,
-      cause: decision.cause,
-    });
-  } catch {
-    reportShareWriteLimit({
-      kind: "unavailable",
-      operation,
-      cause: "judgement-failed",
-    });
-  }
-  return shareUnavailableResponse();
+  return refusalOfWriteLimit(() => judgeShareWrite(headers), {
+    refused: shareLimitReachedResponse,
+    unavailable: shareUnavailableResponse,
+    reportRefused: (policy) => {
+      reportShareWriteLimit({ kind: "refused", operation, policy });
+    },
+    reportUnavailable: (cause) => {
+      reportShareWriteLimit({ kind: "unavailable", operation, cause });
+    },
+  });
 }

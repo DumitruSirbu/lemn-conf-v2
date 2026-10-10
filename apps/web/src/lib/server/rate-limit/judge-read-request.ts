@@ -2,20 +2,20 @@ import "server-only";
 
 import type { NextResponse } from "next/server";
 
-import { readDigester } from "@/lib/server/digest/digest-secret";
 import { reportReadLimitOnce } from "@/lib/server/design-failure-log";
 import {
   RATE_LIMIT_READ_DEADLINE_MS,
   type UnavailableCause,
 } from "@/lib/server/rate-limit/enforce-rate-limit";
-import { judgeBlockBucket } from "@/lib/server/rate-limit/judge-block-bucket";
-import { choosePolicy } from "@/lib/server/rate-limit/limit-policy";
 import {
-  identifyClientNetwork,
+  blockBucketRequestFor,
+  judgeBlockBucket,
+} from "@/lib/server/rate-limit/judge-block-bucket";
+import { policyNameOf } from "@/lib/server/rate-limit/limit-policy";
+import {
   selectNetworkSource,
   type HeaderReader,
 } from "@/lib/server/rate-limit/network-source";
-import { getRateLimitStore } from "@/lib/server/rate-limit/rate-limit-store-instance";
 import { readLimitReachedResponse } from "@/lib/server/rate-limit/rate-limited-response";
 
 export type ReadJudgement =
@@ -44,22 +44,20 @@ async function judgeUnlessNoSourceIsNamed(
   headers: HeaderReader,
 ): Promise<ReadJudgement> {
   const environment = process.env;
-  const source = selectNetworkSource(environment);
-  if (source.kind === "none") return SERVE;
-  const policy = choosePolicy(environment, "read");
-  const decision = await judgeBlockBucket({
-    network: identifyClientNetwork(source, headers),
-    policy,
-    digester: readDigester(environment),
-    store: { recordHits: (buckets) => getRateLimitStore().recordHits(buckets) },
-    instant: new Date(),
+  if (selectNetworkSource(environment).kind === "none") return SERVE;
+  const request = blockBucketRequestFor({
+    environment,
+    headers,
+    purpose: "read",
     deadlineMs: RATE_LIMIT_READ_DEADLINE_MS,
+    instant: new Date(),
   });
+  const decision = await judgeBlockBucket(request);
   if (decision.kind === "allow") return SERVE;
   if (decision.kind === "unavailable") return servedUnjudged(decision.cause);
   reportReadLimitOnce({
     kind: "refused",
-    policy: policy.status === "chosen" ? policy.policy.name : "none",
+    policy: policyNameOf(request.policy),
   });
   return { kind: "refuse", retryAfterSeconds: decision.retryAfterSeconds };
 }

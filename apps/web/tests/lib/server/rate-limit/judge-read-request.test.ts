@@ -365,11 +365,10 @@ describe("judge-read-request.ts", () => {
     expect(source.match(/process\.env/g)).toHaveLength(1);
     expect(source).toMatch(/deadlineMs: RATE_LIMIT_READ_DEADLINE_MS/);
     expect(source).not.toMatch(/\b300\b|\b600\b/);
-    expect(source.indexOf('source.kind === "none"')).toBeLessThan(
-      source.indexOf("getRateLimitStore()"),
-    );
-    expect(source.indexOf('source.kind === "none"')).toBeLessThan(
-      source.indexOf("readDigester("),
+    // The store and the secret are reached only through the one maker, and nothing under none gets that far.
+    expect(source.indexOf('.kind === "none"')).toBeGreaterThan(-1);
+    expect(source.indexOf('.kind === "none"')).toBeLessThan(
+      source.indexOf("blockBucketRequestFor("),
     );
   });
 });
