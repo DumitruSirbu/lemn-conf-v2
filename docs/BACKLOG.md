@@ -198,6 +198,13 @@ status corrections, in one of these two files:
 | 165 | Both e2e harness servers listen on every interface | open.md — recorded 2026-10-09 (security F-S2.4); trigger: loopback only, measured on its own |
 | 166 | The environment type and its own-member read are written three times across mail, digest and network | open.md — recorded 2026-10-09 (clean-code FC-R1.9); trigger: the fourth reader, 8G or 8K |
 | 167 | For the milestone-close test audit: 8F's restated pairs and remaining should-fix and nits | open.md — recorded 2026-10-09 at M8 8F's close; trigger: the M8 close audit (ADR 0152 Amendment A) |
+| 168 | A design returned to by Back or Forward is shown from the page's kept copy, older than the stored one, and as saved (C2-1; with GL-R4.1, the same path for a failure's backoff) | open.md — found 2026-10-10 by M8 8G's QA; older than 8G; **a wave of its own before 8T's gate**, Full tier; QA's two tests are marked expected-to-fail under this number |
+| 169 | The coalescer's two long functions and its one invariant kept in four places | open.md — recorded 2026-10-10 at M8 8G's close (GC-R3.10); trigger: that module's next change of behaviour |
+| 170 | A save's deciding policy is named by a closure's side effect | open.md — recorded 2026-10-10 (GC-R3.7); trigger: a third step, which 8K's judge may be |
+| 171 | `isSavePaused` narrows only the time; answer the time itself | open.md — recorded 2026-10-10 (GC-R4.1); trigger: the next change to those files |
+| 172 | For the milestone-close test audit: 8G's renames blocked by two `qa-*` pins, and the rest | open.md — recorded 2026-10-10 (GC-R3.9 to R3.11, nits); trigger: the M8 close audit (ADR 0152 Amendment A) |
+| 173 | Step 1's first save refused reads as a plain failure | open.md — recorded 2026-10-10 (GL-R3.3); trigger: Q37 answered (a) |
+| 174 | One cold-start timeout in Step 1's hand-off, seen once | open.md — recorded 2026-10-10; not reproduced; trigger: a recurrence |
 
 ## 2026-09-06 audit note
 

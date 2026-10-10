@@ -300,3 +300,7 @@ runbook for replacing the secret: `runbooks/replacing-the-digest-secret.md`.
   (explicit paths, hook on). `e8264f8` lacks the `Co-Authored-By` line: the developer's slip, not amended.
 - **Commits** on `m8-review-contact-success`, local, not pushed [coordinator ran `git log`]: see the plan's *8F as closed*.
 - **Not run / not proven:** the list above.
+
+## Note — 2026-10-10 (wave 8G)
+
+**The mint's e2e twin is now 1,600, not 1,100**: the 8F rule (*twice, to the next hundred*) left a margin of four, so a twin's figure is **three times what one whole run makes, rounded up to the next hundred, and the teardown still fails above half**. Measured 510 to 528 designs a run; **the wave that passes 533 raises it**. The e2e notice's words changed, and are true of every twin: `rate limit: an e2e policy is in use (LEMNARIA_E2E_RATE_LIMIT_POLICY); its figure is not the production one`. A **fourth port** (4325) was named beside 4322 to 4324. [ADR 0156](0156-saves-shares-and-reads-are-limited-by-subjects-made-only-by-two-constructors-writes-fail-closed-reads-fail-open-pages-are-counted-in-the-interceptor-and-the-saves-wait-is-one-write-the-client-holds.md) decision 9.

@@ -1221,7 +1221,7 @@ both in M9.
 | 8H | **DONE 2026-10-08, commits `aecacbd` … `2b8c60b`, not pushed.** The submission contract. See *8H as closed* and [ADR 0150](../decisions/0150-the-submission-contract-is-one-io-free-definition-a-request-holds-no-price-reads-only-what-the-sender-wrote-and-the-snapshot-and-the-review-share-one-refusal-rule.md). `2b8c60b` is unreviewed | ~~Nothing. Dispatchable~~ — Done |
 | 8J | ~~**Changed:** no provider adapter~~ ~~**Restored: a Resend adapter** (owner, 2026-10-07)~~ **DONE 2026-10-09, commits `8eaba35` … `45e2c39`, not pushed.** The mail port, the Resend adapter and the shop's notice. See *8J as closed* and [ADR 0154](../decisions/0154-mail-leaves-through-one-provider-neutral-port-and-one-resend-adapter-that-sends-once-and-answers-with-one-of-seven-kinds-and-the-shops-notice-is-the-stored-review-printed-never-priced-again.md). Nothing calls it yet; no real message has been sent. **Owner actions outstanding:** the three mail variables, a verified sender, the inbox, the one real send, Q34 | ~~**Nothing to build it. Dispatchable whole**, after 8D. Proving it end to end waits for the owner: the three variables on a deployment, and a sender the provider accepts~~ — Done |
 | 8F | ~~**Changed:** identity through a port; one bucket, 20 a day per address, then per block of 256 (/24; /64 for IPv6) (Q28 and Q32 answered)~~ **DONE 2026-10-09, commits `ad0996d` … `63e1428`, not pushed.** The limiter and the mint. See *8F as closed* and [ADR 0155](../decisions/0155-the-mint-asks-a-keyed-per-day-per-network-limiter-first-and-refuses-what-it-cannot-judge-the-owner-names-the-network-source-and-a-destructive-mutant-never-touches-a-database.md). **Owner actions outstanding:** Q35, `DIGEST_SECRET` per environment before merging, `CLIENT_NETWORK_SOURCE`, `0007` and its grant | ~~The three red `CI=1` specs triaged; 8E.~~ — Done |
-| 8G | Changed lightly | 8F — **done; dispatchable (2026-10-09)** |
+| 8G | ~~Changed lightly~~ **DONE 2026-10-10, commits `0ba7fb1` … `18a9f319`, not pushed.** The limiter on saves, shares and reads; pruning. See *8G as closed* and [ADR 0156](../decisions/0156-saves-shares-and-reads-are-limited-by-subjects-made-only-by-two-constructors-writes-fail-closed-reads-fail-open-pages-are-counted-in-the-interceptor-and-the-saves-wait-is-one-write-the-client-holds.md). **Owner actions outstanding:** Q36, Q37, Q38, the cron entry told | ~~8F — done; dispatchable (2026-10-09)~~ — Done |
 | 8K | **Changed:** no bot check | 8F, 8H, 8I, 8J — **all done; dispatchable (2026-10-09)** |
 | 8L | Stays; Q26 settled | 8H, 8K |
 | 8M | Stays | 8L; the shop's number, or the action is not drawn |
@@ -5974,6 +5974,52 @@ built server, with no limit met].
 
 **So 8G may close on the D re-checks,** with this entry, Q36, Q37 and Q38 named in its close-out.
 
+#### 8G as closed, 2026-10-10
+
+**Closing rule used:** the first round's, with the second pass's two clauses (decision 12 of ADR 0156). **Tier:** Full + security. The decisions, their why, the limits with triggers, the incident and what is unproven: [ADR
+0156](../decisions/0156-saves-shares-and-reads-are-limited-by-subjects-made-only-by-two-constructors-writes-fail-closed-reads-fail-open-pages-are-counted-in-the-interceptor-and-the-saves-wait-is-one-write-the-client-holds.md).
+
+**Shipped, on `m8-review-contact-success`, local, not pushed [coordinator ran `git log`; HEAD `18a9f319`; 115 commits ahead of origin]:** code
+`5c750a6` S1; `c32f14c` S1b; `e006a56` S4a; `d019d1b` S4b (one cron entry, `30 3 * * *`); `eaef763` S3a; `13da905`, `7a51b229`, `13c5295e` S3b;
+`5dcea586` QA's first pass. First round: A1 `d8b285c6`, A2 `6a6a263d`, B `63a57d7a`, C `637b1525`, GC-R2.1 `d600bd08`. Round 2: `fcebb2c5`
+(G-S3.1), `6f5118a8`, `d96457ee` (S2a, first half), `69d13c43`, `395ea3cd`, `29ca1399`, `9d9b0806`, `948539e6` (S2a), `75224a8d`, `4a11382d`,
+`f8213a97` (S2b), `b078e663` (QA's second pass). Second pass: `b188cc34` (the trace), `1fe0a034`, `66e2f90b`, `5c68493d`, `a8e92ccd`, `d06f549f`,
+`72532e59`, `a72c3a82` (pass C), `18a9f319` (the two C2-1 tests marked expected to fail). Plan commits: `0ba7fb1`, `e7d0722`, `a7dd62c`,
+`ad0a583`, `17c8b7b`, `efc6531a`, `1e4d0246`, `ffeb737a`, `3dc41970`, `765e2bec`.
+
+**Evidence, by who ran it.** [coordinator-run, `18a9f319`] the whole web suite 399 files, 7958 passed, exit 0; typecheck, lint, `format:check`,
+`gate:boundary` exit 0. [coordinator-run, `72532e59`] the whole persistence suite 84 files, 2559 passed, 2 skipped (no persistence file changed
+after). [QA-run, `a72c3a82`] one whole e2e run, `CI=1`, eight workers: **764 passed, 2 failed** (the two C2-1 tests, since marked; the spec alone 10
+passed, exit 0; **the whole e2e run was not repeated after the mark**); mints 528 of 1,600, saves 337 of 1,200, share writes 71 of 500; the two-tab
+race 0 of 100 at eight workers [QA-run, `b078e663`]; "0 of 100 is not a fix". [developer-run] a save's median 61.2 ms before, 158.2 ms after (production
+build, 30 saves at one a second). [reviewers, final verdicts on the diffs] security APPROVE (no finding), logic APPROVE, clean-code APPROVE, visual
+YES (the refused page with its link; the paused sentence).
+
+**Incidents, plainly.** (1) **ADR 0114 Amendment B's three share-view headers were not sent for a share view reached by a percent-escaped locale
+since 7E3c (2026-09-23), until `d8b285c6`**; no link written that way is known; a dated note is on ADR 0114; the owner is told in one sentence.
+(2) **C2-1, an older defect, is not fixed**: a design returned to by Back from a second design is shown from the page's kept copy, without its
+last stored edit and as saved; backlog 168, a wave of its own before 8T's gate, with the architect's rule and four items (ADR 0156, *Limits*).
+(3) GL-R3.1 was reached and fixed.
+
+**Deviations, with their rationale.** The second bucket is the credential's hash and not the design (G-S0.1); the evaluator stays one bucket and a save
+is a sequence (not a list); the order changed while Q37 is open (the save's slices S2a and S2b last, with provisional figures); twins' figures by a
+three-times rule (500, 1,200, 1,600; changes 8F's 1,100); pages are counted in the interceptor, which waits for the judgement where a source is named;
+one test-runner guard replaced three copies (GC-R3.2, touching older files) and accepts Playwright's runner; the developer committed its own rounds
+(explicit paths, hook on); `tests/proxy.test.ts` changed in one helper and no assertion.
+
+**Owner actions outstanding** (all of the earlier entries in `STATUS.md` still stand). Q35; **Q36**; **Q37** (now also: a pause can last up to the
+window, a reload loses the waiting write, the second round trip goes if (d)); **Q38** (the silent pause); the refused page's look and the two drafted
+sentences; `DIGEST_SECRET` per environment before deploying; `CLIENT_NETWORK_SOURCE` on the deployment(s) on that platform only (until then preview and
+the hand checks share the save figure); `0007` and `0008` and their grants; **told, not asked: the cron entry** (the route uses `CRON_SECRET`, which
+exists [doc `.env.example`]; no new secret). **For 8T's gate: the save's limit is not deployed before Q37 and Q38 are answered.**
+
+**Not run / not proven.** `pnpm check`, `pnpm ci:local`, anything on a CI runner, e2e in dev mode in full; unproven until a deployment: ADR 0156's list.
+
+**Deferred.** Backlog 168 (C2-1 with GL-R4.1), 169 to 174, and 162's third sighting; M9's G-S3.2 sentence; Q36 to Q38 with the owner.
+
+**Documentation updated.** ADR 0156 (new); dated notes on ADRs 0019, 0114 and 0155; `decisions/README.md`; this section; 8T's and M9's gate lines;
+`STATUS.md`; backlog 162, 168 to 174.
+
 ### 8H — the submission contract
 
 *Goal.* One I/O-free definition of what a request is, used by the form and by the server.
@@ -8886,6 +8932,7 @@ nothing invented beyond the phone frames, the gap recorded for later design.
 
 *Phase gate.* `pnpm check`; `pnpm ci:local`; a green runner; the *Launch gate* below fully ticked;
 then the push and the pull request. *Visual reading:* every wave's criteria and captures.
+*(Dated 2026-10-10, wave 8G: **the save's limit is not deployed before Q37 and Q38 are answered**, and backlog 168 (C2-1, a design's page shown again by Back older than the stored one) is a wave of its own before this gate. [ADR 0156](../decisions/0156-saves-shares-and-reads-are-limited-by-subjects-made-only-by-two-constructors-writes-fail-closed-reads-fail-open-pages-are-counted-in-the-interceptor-and-the-saves-wait-is-one-write-the-client-holds.md).)*
 *(Dated 2026-10-09, wave 8F: a second flag line is added beside the mail's: **`LEMNARIA_E2E_RATE_LIMIT_POLICY` is defined on no deployment, read
 by name only.** [ADR 0155](../decisions/0155-the-mint-asks-a-keyed-per-day-per-network-limiter-first-and-refuses-what-it-cannot-judge-the-owner-names-the-network-source-and-a-destructive-mutant-never-touches-a-database.md),
 decision 12. **And Q35 (the two-tab race) is open: this gate cannot be ticked while the two-tab spec is red unless the owner accepts the residual.**)*

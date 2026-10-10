@@ -2736,6 +2736,9 @@ faults, before wave 8F), one combined reviewer approved** [coordinator ran `git 
 nothing…", failed once in a whole `CI=1` run at eight workers (`expected <= 60, received 32757` changed pixels) and passed alone 6 of 6 and in
 an earlier whole run. A flicker of an 8D pixel comparison, not 8F's. **Owner:** none yet. **Trigger:** a recurrence, or the M8 test audit.
 
+**Third sighting, 2026-10-10 [QA-run, relayed]:** the first review round of 8G, in a whole `CI=1` run (746 passed, 1 failed); a second sighting had been
+noted during 8G's earlier QA work. Still not 8G's; the trigger stands.
+
 ## 163. A tap on *Continuă* immediately after Step 1 loads does nothing — RECORDED 2026-10-09 AT M8 8F's CLOSE
 
 **Source [the visual verifier, relayed].** The tap lands before hydration; with a two-second wait it works every time. **A product question;**
@@ -2764,3 +2767,71 @@ and their source scans. **Owner:** the wave that builds the fourth reader. **Tri
 FC-R1.28, FC-R1.29, the rest of FC-R1.20 and FC-R1.22, the nits and the restated pairs. From the final re-check [reviewer, clean-code]: the
 listener still removed in the test body in `qa-8f-refused-mint-through-the-route` (about `:828-845`), and three duplications in
 `qa-8f-mint-limit-code`. **Owner:** the test audit. **Trigger:** the M8 close audit (ADR 0152, Amendment A).
+
+## 168. A design returned to by Back or Forward is shown from the page's kept copy, older than the stored one, and as saved — FOUND 2026-10-10 BY M8 8G's QA (C2-1); A WAVE OF ITS OWN BEFORE 8T's GATE
+
+**Source [QA-run on a built server, with no limit met; `qa-8g-pass-c2-report.md`, session scratchpad; the plan's 8G, *pass C's finding C2-1, ruled*].**
+Step 1 makes design A; one edit is saved (`200`, revision 3); Back; one press makes a second design B; browser Back twice returns to A's address in the
+same document with no request for A's page (the router's own copy): **the screen shows A without the edit, status idle (saved)**, while the stored design
+holds it. The next edit is sent with `x-expected-revision: 2` and answered `409`; the screen says `conflict`. Nothing is overwritten unless the customer
+presses *overwrite*, which writes the screen's copy and **drops the earlier edit**. *Cause [src, not varied]:* `HydrateAndConfigure` replaces the store
+whenever it holds another design id with the page's props, and on a Back traversal those are the router's kept copy; `HydrateAndReview` already guards
+this for one design (`hydrate-and-review.tsx:21`) and the editor has no such guard across two. **It is older than 8G** (nothing in 8G made it) and **not
+Q35's family** (an older *page*, not an older *cookie*). **The rule for the wave, the architect's:** *a design's page shown again by Back or Forward never
+shows a copy older than the one stored.* The review already holds that for one design. The editor already asks the server for the design after it loads
+(its write-access probe), and that answer carries the stored copy and its revision. **Where the screen holds no unsaved edit and that answer is newer, the
+screen takes it.** With an unsaved edit, the conflict's own path as today. **Its items:** (1) the rule above in the editor's load, with QA's two tests going
+red and their marks removed; (2) the same for the page's three steps; (3) a trace that a write still in flight when its design is loaded again ends on the
+stored copy; (4) that no extra request is made on a first load. *It stops if* the probe's answer cannot be told newer from older without a second
+request. **QA's two tests**, in `qa-8g-leave-while-waiting.adversarial.e2e.spec.ts`, are **marked expected to fail with this number as the reason**
+(`18a9f319`); they run on every run and go red the day the defect is fixed, until the mark is removed. *Tier:* Full. **Owner:** the architect's wave; before
+8T's gate; the owner is told.
+
+**GL-R4.1, in the same entry [reviewer, logic, `a72c3a82`; the coordinator's classing, to be confirmed by the architect when that wave is planned].** The
+same stale-page path exists for a failure's backoff, which the ruling left out by name: while design A's save keeps failing (its pending write re-armed
+every half second to eight), the customer makes a second design and comes Back to A without a full load. A is shown from the page's copy as saved, with no
+sentence; with an edit, `scheduleSave` clears the backoff and replaces the pending write with the screen's state, so the earlier edit is never sent and never
+shown as unsaved. It is 7E's rule, not made by 8G, and narrow (A's saves must fail for the many seconds it takes to open B while B's mint and first save
+succeed) [inf: read, not run]. *Smallest fix:* adopt any pending write of the design, not only one with a time (`save-coalescer.ts:242`). *Trigger:* a
+`conflict` or a customer's report after Back from a second design; otherwise it travels with this entry.
+
+## 169. The coalescer's two long functions and its one invariant kept in four places — RECORDED 2026-10-10 AT M8 8G's CLOSE
+
+**Source [clean-code GC-R3.10; the plan's 8G, *the second pass*].** `save-coalescer.ts`: `holdWriteForLimit` is 22 lines and `scheduleSave` 32 (the limit is
+20); and the queue's wait is two fields, `retryTimer` and `resumesAtMs`, whose invariant (*one timer, never both*) is kept by hand in four places. The reviewer's
+fix: extract the status report and the timer arming, and carry one `wait: { timer; resumesAtMs } | null` per queue. **Owner:** the next developer who touches
+that module. **Trigger:** its next change of behaviour.
+
+## 170. A save's deciding policy is named by a closure's side effect — RECORDED 2026-10-10 AT M8 8G's CLOSE
+
+**Source [clean-code GC-R3.7].** `judge-save-request.ts` reassigns `decidingPolicy` inside the second step's arrow before it is awaited, so the answer's policy
+depends on a side effect of a closure that `judgeInSequence` happens to call in order. The fix: each step answers `{ decision, policy }` and the caller takes
+the policy of the step that ended it. **Trigger:** a third step, which 8K's judge may be.
+
+## 171. `isSavePaused` is a type predicate about a pair and narrows only the time — RECORDED 2026-10-10 AT M8 8G's CLOSE
+
+**Source [clean-code GC-R4.1, should-fix, `a72c3a82`].** `isSavePaused(status, resumesAtMs): resumesAtMs is number` narrows only the second argument, so in the
+false branch the type system believes the time is `null | undefined` even when the status is idle and the time a number. Today no caller reads the time after
+the call. The fix: answer the time itself, `pausedUntilMs(status, resumesAtMs): number | undefined`. Also (nits): `hydrate` is about 30 lines (extract
+`shownStateFor`); `adoptWaitingWrite` answers a value and changes the queue. **Trigger:** the next change to those files.
+
+## 172. For the milestone-close test audit: 8G's renames blocked by `qa-*` pins, and the rest — RECORDED 2026-10-10 AT M8 8G's CLOSE
+
+**Source [the plan's 8G, *the second pass*; clean-code GC-R3.9 to GC-R3.11 and the nits; `coord-8g-review-clean.md`, `coord-8g-pass2-clean.md`,
+`coord-8g-passd-clean.md`].** GC-R3.9 (b) and (c) (`bucketKeyOfBlock` to `bucketKeyOf(secret, policyName, subject)`; `mintsCounted` to `hitsCounted`) are
+renames in test support blocked by two `qa-*` pins; QA left both to this audit. With them GC-R3.9 (a), GC-R3.11 (`tests/proxy-matcher.test.ts` reads the app
+tree and its title does not say so), the nits, the restated pairs, and the final re-check's: a pattern helper written twice in two e2e specs, the same comment five
+times in `qa-8g-leave-while-waiting`, and `qa-8g-test-runner-guard` restating `require-test-runner.test.ts` for four callers. **Owner:** the test audit.
+**Trigger:** the M8 close audit (ADR 0152, Amendment A).
+
+## 173. Step 1's first save refused reads as a plain failure — RECORDED 2026-10-10 AT M8 8G's CLOSE
+
+**Source [logic GL-R3.3; the plan's 8G, *the second pass*].** Step 1's first save, when refused by the limit, reads as a plain failure, and each *try again* is a
+refused hit; a design whose first save is still the provisional queue is given no wait on return. A named interim under the save's limit. **Trigger:** Q37
+answered (a).
+
+## 174. One cold-start timeout in Step 1's hand-off, seen once — RECORDED 2026-10-10 AT M8 8G's CLOSE
+
+**Source [developer-run, relayed; QA-run].** The first of QA's seven traces timed out once in Step 1's hand-off on a cold server, inside the shared helper
+`openEditorFromStepOne`; **not reproduced** in the file's four runs alone under `CI=1` and one whole run [QA-run]. The spec's own limit is 180 s where the config
+gives 120 s. **Owner:** none. **Trigger:** a recurrence.
