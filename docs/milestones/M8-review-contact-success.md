@@ -8770,7 +8770,7 @@ orchestration; the route; its answers and lines; the harness.
   and price, and nothing personal: one more narrow grant, and the notice is always the stored
   one. **(b)** It may not: the retry is refused, and the customer reviews and sends again as a new
   request. ~~*Recommended: (a).*~~ **(2026-10-10, later: recommended (b). With the price book's
-  version inside the digest, (b) is exact and needs no grant; *8K — S0's security read, ruled*, K-S0.1.)** It widens Q14, which
+  version inside the digest, (b) is exact and needs no grant; *8K — S0's security read, ruled*, K-S0.1.)** **(2026-10-10, later still: exact within one deployment, not across one; *8K — the three reviews*, KL-R1.1.)** It widens Q14, which
   is why it is his.
 - **Said plainly:** where no network source is named, the whole world shares three new requests
   an hour. A named interim, as the mint's and the save's are.
@@ -9327,6 +9327,134 @@ a reference is held and `502` from there, as K-S1.1 and K-S1.2 ruled.
 *Must not:* an answer, a line, an order or a count changes but the two throws of item 1; a
 `qa-*` file edited. *Stops if:* a test of the order of counts must change. *Reading:* this
 note; `qa-8k-report.md`, R3 and R4; `submit-contact.ts:95-125`.
+
+##### 8K — the three reviews, 2026-10-10
+
+**State.** HEAD is `5671f3d6` [ran: `git log`], tree clean [ran: `git status`]. All three read
+the wave at `45095836` [relayed]. **Security: approve**, five notes. **Logic: approve with
+notes**; the built order equals the ruled order on every branch. **Clean-code: not clean**,
+seven must-fix and twelve should-fix. The three texts are `coord-8k-review-security.md`,
+`coord-8k-review-logic.md` and `coord-8k-review-clean.md`, session scratchpad, each read whole.
+
+**Clean-code.**
+
+| Finding | Classification | Ruling |
+| --- | --- | --- |
+| KC-R1.1, 1.2 tests that cannot fail for their title, each covered elsewhere | Test-fidelity | **Deleted** |
+| KC-R1.3 two of QA's tests accept `200` or `400` | Test-fidelity; **QA's** | **Each asserts the one answer** (below) |
+| KC-R1.4 a title promises a call never made | Test-fidelity; **QA's** | The title says what is asserted, or the call is made |
+| KC-R1.5 a title claims the digest and asserts the price | Test-fidelity | **Retitled** |
+| KC-R1.6 *the sender is made before the lookup* asserts no order | Test-fidelity | **The order is asserted**, before the lookup and the record |
+| KC-R1.7 one rule written three times; two copies skip the e2e notice | Implementation defect, by the owner's rule of three | **One function, one maker of a block's step** |
+| KC-R1.8 a refusal's line and answer paired by hand at eight sites | Implementation defect, latent | **Taken now** |
+| KC-R1.9 a sequence function with no production caller; a type-only cycle; one value written twice | Implementation defect | **Taken now** |
+| KC-R1.10 two closed lists copied | **Contract gap, the architect's:** S3's must-not kept the mail's port out of the log too | **Taken now.** The port's list may be imported; the adapter may not |
+| KC-R1.11 three arguments; nouns for functions; a noun that writes a line | Implementation defect, by the owner's rules | **Taken now**, beside R4 |
+| KC-R1.12 one file holding three things; an arm that cannot run | Implementation defect | **Taken now** |
+| KC-R1.13, 1.14 e2e helpers named `expect` that assert nothing; a teardown of 33 lines | Test-fidelity | **Taken now** |
+| KC-R1.15 a question's, a slice's and a reader's id in comments; a test pinning that prose | Implementation defect (ADR 0136) | **Taken now.** The comment still says *provisional* and why; the test goes |
+| KC-R1.16, 1.17 source-reading tests not titled so; titles that say more than is asserted | Test-fidelity | **Taken now**, each owner its own files |
+| KC-R1.18 the caller decides what the domain enforces by a throw | Not a defect: the throw both ways is K-S0.1's guard | **A sentence at the caller.** The contract stays |
+| KC-R1.19 restated literals; the seventeen restated pairs; exports read only by tests | Test-fidelity | **The milestone-close audit's**, but K-S2.5's sentence |
+
+- **KC-R1.3, the two answers** [src]. A body that opens with a byte-order mark is taken: the
+  reader's decoder drops the mark (`read-body-with-limit.ts:49`), so `200`. An address beside
+  another channel is dropped by the domain (`contact-fields.ts:210`): `200`, stored with no
+  address, and the address's day not counted. QA asserts exactly these and reports if either
+  is not what runs.
+- **KC-R1.7, the behaviour question.** No subject's policy has a twin, so the notice is owed
+  by none today and **the one function changes no line now**; it is what makes the notice true
+  the day one gains a twin.
+
+**Security.** **K-S2.4: taken now**, as behaviour. The notice's translator is given a handler
+that throws, so its failure writes nothing of its own and is the one `503`. The reader's
+premise is recalled, not run: **the developer first shows by a test what the default writes;
+if it writes nothing, the item is dropped and reported.** **K-S2.5: the sentence.** K-S2.1,
+K-S2.2 and K-S2.3 are as *8K — adjudication of QA* ruled; R1's bound is the network's hour.
+
+**Logic.**
+
+- **For 8L's restatement, four criteria of its form**, the first two already recorded: one
+  request in flight; **a retry carries the same id and the same body after any answer that is
+  not success, and after none** (KL-R1.2: a record that rejected may have stored, and only the
+  same id finds that row); **a new id whenever anything the digest covers changes**, the
+  revision first (KL-R1.3); **the sentence for `CONTACT_DESIGN_NOT_CURRENT` asks the customer
+  to review the design again and never says it changed** (KL-R1.4).
+- **Criterion 8, read exactly:** *unavailable* means nothing is known to be stored. A record
+  that rejected may have stored (ADR 0153); the answer's sentence does not say otherwise.
+- **KL-R1.1, recorded beside K-S1.7.** The digest covers the id, the revision and the book's
+  version, not the pricing code, the catalogue or the notice's words. A stored, un-notified
+  request tried again across a deployment that changes one of those is refused by the provider
+  as another payload, or after its day is sent with lines that are not the stored row's.
+  **Trigger:** a deployment while a not-sent line is in the log. **Q40 gains one sentence for
+  the owner:** (b) is exact within one deployment, (a) always. The recommendation stays (b).
+- **KL-R1.5, recorded:** a design that cannot be priced is answered *try again* each time.
+  **Trigger:** an `unexpected` cause in the log. **KL-R1.6, recorded with M9's shield:** the
+  ports are made before the first count; nothing of the request is read to make them.
+
+**The fix rounds. One developer, A then B then C then D; QA's beside them.**
+
+**A, behaviour; each item its own commit.**
+
+| # | Does | Files |
+| --- | --- | --- |
+| 1 | **R4.** The judge's making and every request's judgement move inside the guard: a maker or a clock that throws is `503 CONTACT_UNAVAILABLE` with its line. A test for each throw | `contact/submit-contact.ts` |
+| 2 | **K-S2.4.** First a test that shows what the translator's default handler writes for a leaf that fails. Then a handler that throws, so the failure is the one `503` and writes no line of its own | `contact/contact-production-ports.ts` |
+
+*Must not:* any other answer, line, order or count changes. *Stops if:* a test of the order of
+counts must change; or the installed translator has no such handler.
+
+**B, no behaviour: the limiter.**
+
+| # | Does | Files |
+| --- | --- | --- |
+| 1 | **KC-R1.7.** One function judges a bucket for a subject handed in: a policy that is unavailable, the e2e notice, the evaluator. One maker of a block's step. The block's judge, the save's and the contact's use them | `rate-limit/judge-block-bucket.ts`, `judge-save-request.ts`; `contact/judge-contact-request.ts` |
+| 2 | **KC-R1.9.** The sequence function with no caller goes, with its tests. The judgement's type moves beside the step's. The value for *no policy* is written once | `rate-limit/enforce-rate-limit.ts`, `refusal-of-write-limit.ts`, `limit-policy.ts` |
+| 3 | **KC-R1.15.** The question's id leaves the policy module's comments; the test that pins that prose goes | `rate-limit/limit-policy.ts`; its test |
+
+*Must not:* a key, an answer, a line, a count or the block's order (the source, then the
+policy) changes. *Stops if:* a test of the mint, the save, a share write or a read must change
+in an assertion on an answer, a line, a key or a count.
+
+**C, no behaviour: the contact's modules.**
+
+| # | Does | Files |
+| --- | --- | --- |
+| 1 | **KC-R1.8.** A refusal's line and its answer are made from one code in one place; no site pairs them by hand | the route, `prepare-submission.ts`, `submit-contact.ts`, and where the one place lives |
+| 2 | **KC-R1.11.** No function takes three arguments; the three nouns are verbs; the one that writes a line says so | `submit-contact.ts` |
+| 3 | **KC-R1.12.** The parse and the automatic check leave for a file of their own; the arm that cannot run is gone | `prepare-submission.ts`, a new file beside it |
+| 4 | **KC-R1.10.** The log imports the mail port's own list of kinds and one type for a design's refusal code; the test that held the copies equal goes | `contact/contact-log.ts` |
+| 5 | **Sentences.** R3's comment. K-S2.5's. One line at the digest's caller saying why the version is decided there (KC-R1.18). The slice's and the reader's ids out of the route. The two production nits | as named |
+
+*Must not:* an answer, a line, an order or a count changes; the mail's adapter or its fake
+imported by the log. *Stops if:* item 1 needs two modules to import each other.
+
+**D, the developer's tests; no production file.**
+
+| # | Does |
+| --- | --- |
+| 1 | KC-R1.1 and 1.2 deleted; 1.5 retitled; 1.6 asserts the factory before the lookup and the record |
+| 2 | KC-R1.16: each source-reading test says so; the pin on the text of the set's one write goes, the flood's test holding it |
+| 3 | KC-R1.17, the developer's titles and the dead setup; the garbled title; the bare flood counts |
+| 4 | KC-R1.13: no helper named `expect` that asserts nothing; the fake mail's module named for what it holds; the spec's wave id gone |
+| 5 | KC-R1.14: the teardown's six calls are one list and one loop, in functions of twenty lines |
+
+*Must not:* an assertion weakened; a `qa-*` file edited.
+
+**QA, its own files, after A.** KC-R1.3's two answers asserted exactly; KC-R1.4; its three
+titles of KC-R1.17 and its two nits; then its three files, its persistence file and its live
+spec run again after D, **reporting any pin a round moved**.
+
+*Reading, every round:* this note; the reviewer's file for its findings, whole; the files
+named. **B also:** ADR 0156 on the sequence; the three judges. **C also:** S3's two tables.
+
+**Re-checks, as diffs.** Clean-code: B, C, D and QA's. Security: A, B, and C's item 1. Logic:
+A, and C's items 1 to 3 against the ruled order. **Closing rule:** a new round only for a
+branch on which personal data leaves; a request stored or mailed that should be refused, or
+refused that should be stored; anything counted, looked up, stored or sent before its check; a
+caller told which limit or which unavailable; or a test touched by these rounds that cannot
+fail for its title. Anything else goes to the milestone-close audit. **The wave may close on
+those re-checks**, with the whole web suite and one whole e2e run green after D.
 
 ### 8L — the contact screen 4A/4B/4C
 
