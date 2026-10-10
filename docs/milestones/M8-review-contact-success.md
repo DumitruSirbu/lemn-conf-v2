@@ -5327,7 +5327,7 @@ dispatch*, point 3; ADR 0149 whole; ADR 0146 B3; ADR 0128; ADR 0147, *"Track"*;
 
 | # | Does | Production files |
 | --- | --- | --- |
-| 1 | The work, apart from the route: the totals of the two Chișinău days that ended last, each as one line holding the day's date and three counts; then the store's prune called with its cutoff **stepped forward, oldest first**: once at twenty-five hours before the server's clock, then an hour at a time to one hour before it | new `lib/server/rate-limit/prune-rate-limits.ts` |
+| 1 | **(2026-10-10, later: a day with no bucket left writes no line, and a failed totals read no longer stops the prune; *8G — the first review round*.)** The work, apart from the route: the totals of the two Chișinău days that ended last, each as one line holding the day's date and three counts; then the store's prune called with its cutoff **stepped forward, oldest first**: once at twenty-five hours before the server's clock, then an hour at a time to one hour before it | new `lib/server/rate-limit/prune-rate-limits.ts` |
 | 2 | The route: the cron secret through `isAuthorizedCronRequest`, `401` without it; `200` with the rows removed, said as *at least*; `503` with a code when a step fails, and a line | new `app/api/cron/prune-rate-limits/route.ts` |
 | 3 | One entry, `30 3 * * *`, after the backup's | `vercel.json` |
 | 4 | Its tests, on the store's fake and a fake clock: nothing that ended less than an hour ago goes; a failure at the third step leaves the first two done and answers `503`; the lines hold a date and counts only | under `tests/lib/server/rate-limit/` and `tests/app/api/cron/` |
@@ -5570,6 +5570,133 @@ with and without a source, over twenty requests.**
 **3. The pass after S3b is unchanged:** *Full + security*; the reading lines stand with this
 section added; one visual check, the refused page. **For security, added:** that the interceptor
 hands back a promise for a counted request under a named source and for nothing else.
+
+##### 8G — the first review round, ruled 2026-10-10
+
+**State.** HEAD is `493217c2` [ran: `git log`]: QA's failing spec on top of `5dcea586`, which the
+reviewers read. Logic: approve with should-fix. Security: approve, with **one finding since
+confirmed**. Clean-code: changes required, five must-fix. Visual: yes, legible, bare [all
+relayed]. **Every finding's text is in three files, handed whole to the developer and to QA:**
+`coord-8g-review-security.md`, `coord-8g-review-logic-qa-visual.md`, `coord-8g-review-clean.md`,
+session scratchpad. A number below points into them.
+
+**1. G-S2.1: a confirmed defect, in two halves.** A locale written with a percent-escape is
+served its page and not counted, and a share's view so reached goes out without its three
+headers [relayed, QA-run on a built server under a named source; 11 tests red].
+
+- *The cause.* The interceptor knows a locale only as written [src `src/proxy.ts`,
+  `localeStrippedSegments`, `hasCaseVariantLocalePrefix`]; the framework matches the locale
+  decoded. Every rule the interceptor keys on the written path then misses: the count, and the
+  share view's headers.
+- **The fix: a locale is written one way, and anything else that reads as one is the `404` a
+  case variant already gets.** A first segment that is not itself a locale, but is one once
+  decoded and lowered, is refused before any header is chosen and before anything is counted. A
+  segment that cannot be decoded is left to the framework. *Not taken: decoding, then counting
+  and serving.* Two spellings of one page would then live in every rule that follows, and the
+  case variant is already a `404` for that reason.
+- **The second half is a defect in closed work, and it touches a dated record.** ADR 0114
+  Amendment B (2026-09-11): *"`Referrer-Policy: no-referrer`, `X-Robots-Tag: noindex, nofollow`
+  … `Cache-Control: private, no-store`"*, because *"the token lives in the path"*. Since 7E3c
+  shipped (2026-09-23) a share view reached by an escaped locale has gone out without them
+  [relayed]. **The scribe writes a dated note on ADR 0114, names it under incidents in this
+  wave's close-out, and the owner is told in one sentence.** No link so written is known.
+- **What else must be checked, by the security reader in round 2 and by QA's widened sweep.**
+  Only a route's *parameters* are decoded: an escaped `d` or `s`, an escaped slash and a doubled
+  escape are `404` [relayed, QA-run]. So: an escaped id, token or step; a doubled or trailing
+  slash; a dot segment; a backslash; the case of a fixed segment. **For each, the interceptor
+  and the framework class the request alike, or it is a `404`.** *Believed untouched [inf], to be
+  said by the security reader:* the owner's gate, which is the page's own lookup; the write
+  path, which has no locale; the cookies' scope; the security policy, which is set on every
+  answer whatever its path.
+
+**2. The prune, and the rest.**
+
+- **GL-R1.2, taken.** Naming the days runs inside the guarded part: a runtime that cannot name
+  the zone is `503` with its code and line, not a bare `500`.
+- **G-S2.2 with GL-R1.3, taken.** A totals read that fails is one line; **the prune still runs**,
+  and the night answers `503` so it is seen. A table that only grows is what the steps were for.
+- **GL-R1.1, taken.** **A day with no bucket left writes no line.** The older of the two days
+  was pruned the night before, so its second line said nought. *A zero is not a count: no line
+  means no rows were left.* The second day is still read, for a night that was missed.
+- **G-S2.3: for the save, in S2a: at most one refusal line for a process and a policy.**
+  *Recorded for the mint and the share write:* each refusal writes a line, as every `403` of
+  these routes does today. *Trigger:* a flood seen in the logs; then all of them at once.
+- **GL-R1.4:** *more than an hour* reads *an hour or more*: the store removes a window that
+  ended exactly an hour ago. A word. **GL-R1.5:** share writes are a third named interim under
+  *none*. **G-S2.4:** the scribe's. **O1, O3:** accepted, as the security reader did. **O6:**
+  the twin's 500 rests on the server's own count of 71, and stands.
+- **The port:** QA's new spec gets a port of its own, named with the other three.
+
+**3. The refused page keeps its bare look and gains one control.** It is the only surface a
+customer can reach with none [relayed, the visual check]. **A plain link that loads the same
+address again, worded by the leaf the app already uses for *try again*:** no script, no style,
+no new words, and nothing of the path in the body, since a link to nothing reloads where it
+stands. Its look stays the owner's at the hand check.
+
+**4. Clean-code.** *Must-fix, all the developer's:* GC-R1.1 to GC-R1.5. *Taken as well:* GC-R1.7,
+GC-R1.13, GC-R1.15, GC-R1.16 (a) to (c), the history sentence of GC-R1.14; and, QA's own,
+GC-R1.8 and GC-R1.9.
+
+| Recorded | Where it goes |
+| --- | --- |
+| GC-R1.10, GC-R1.11, GC-R1.12, GC-R1.19; GC-R1.18's exports and GC-R1.7's two tests | **S2a.** The save's judge would be the fourth copy of each; S2a builds the shared routine first and owns those exports and tests |
+| GC-R1.6, GC-R1.14's rename, GC-R1.16 (d), GC-R1.17, GC-R1.20, the nits, the restated pairs | The milestone-close test audit (ADR 0152 Amendment A); the reviewer's file is its list |
+
+**5. The fix rounds.**
+
+**A1, behaviour, the developer, a commit of its own and nothing else in it.** G-S2.1's rule in
+`src/proxy.ts`, with its own tests. **QA's eleven red tests go green as written.**
+
+**A2, behaviour, the developer, one commit, five items.**
+
+| # | Does (the text of each is in the three files) | Files |
+| --- | --- | --- |
+| 1 | GL-R1.2: the days named inside the guarded part | `lib/server/rate-limit/prune-rate-limits.ts`; its test |
+| 2 | G-S2.2: a failed totals read does not stop the prune; the night is still `503` | the same; the route's test |
+| 3 | GL-R1.1: no line for a day with no bucket | the same |
+| 4 | The refused page's one link, from the existing leaf | `lib/server/rate-limit/page-limit-page.ts`; its test |
+| 5 | Quoted: the whole web suite, typecheck, lint | none |
+
+**B, no behaviour, the developer, one commit, four items.**
+
+| # | Does | Files |
+| --- | --- | --- |
+| 1 | Its must-fix: GC-R1.1 to GC-R1.5 | the files each names |
+| 2 | GC-R1.7 (each test marked as the state S2a flips), GC-R1.13, GC-R1.15, GC-R1.16 (a) to (c), GC-R1.14's sentence | the files each names |
+| 3 | A fourth port, named with the three; the mint twin's comment says 510 | `tests/e2e/support/production-policy-server.ts`, `rate-limit/limit-policy.ts` |
+| 4 | Quoted: the whole web suite, the persistence unit tests, typecheck, lint | none |
+
+*Must not, all three:* a `qa-*` file edited; a statement's text, a key, an answer's shape or a
+figure changed; **a mutant sent to a database**; in B, any outcome changed.
+
+**C, QA's own files, one pass after B.** (1) Its spec on the fourth port. (2) GC-R1.8 and
+GC-R1.9. (3) Proof of A1 and A2, a mutant each, on mocked seams and fakes: the rule removed; the
+rule without the lowering; the prune stopped by a failed read; a line for an empty day. (4) **The
+sweep of point 1, widened to every spelling named there.** (5) The whole web suite once, and one
+`CI=1` e2e run, with the three counts quoted against a third of their figures.
+
+**D, round 2, as diffs.** *Security:* A1 against the framework's own matcher, and **what else it
+decodes, said plainly**; point 1's four believed-untouched; A2's order. *Logic:* A2. *Clean-code:*
+its must-fix, what B and QA took. *Visual:* the link, once.
+
+**The closing rule for this pass, the architect's and open to the owner.** After round 2 a
+finding is fixed in this pass only if a counted request is served uncounted, or a refused one
+served; a share's view goes out without one of its three headers; the prune removes a window
+that has not been over for an hour, touches another table, or fails unseen; or an address, a
+block, a key, the secret or a count leaves. Anything else is recorded with its trigger.
+
+**6. Then S2a and S2b, on the provisional figures until Q37.** *What the three files say S2a must
+hold:* the two judgements as steps that start when called, the block first; the credential's
+subject from `readWriteTokenHash` through its constructor alone; **the instant and the window
+taken once for both steps**, so a save judged across an hour's turn states one wait; the wait
+checked against the policy's own window; anything that is not *allow* a refusal or `503`,
+`judgement-failed` included; G-S2.3's one line; the shared routines of the table above; and that
+the coalescer's read of the current revision is a design's load, which can itself be refused.
+*S2b:* G-S0.5's clamp; a wait that outlasts `Retry-After` and adds nothing below it; a save
+refused twice is one waiting write.
+
+**The owner's.** One sentence about the share view's headers. The refused page's look. Q36 and
+Q37 stay open.
 
 ### 8H — the submission contract
 
