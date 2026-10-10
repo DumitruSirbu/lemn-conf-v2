@@ -18,11 +18,11 @@ import {
 } from "@/lib/server/rate-limit/chisinau-day";
 import {
   isOwnPolicy,
+  NO_POLICY,
   type LimitPolicy,
   type PolicyChoice,
   type WindowRule,
 } from "@/lib/server/rate-limit/limit-policy";
-import type { WriteJudgement } from "@/lib/server/rate-limit/refusal-of-write-limit";
 import { utcWindowOf } from "@/lib/server/rate-limit/utc-window";
 
 /** The limiter's own bound around a write's store call, after which the request is unavailable. With the store's
@@ -76,11 +76,11 @@ export interface PolicyStep {
   readonly judge: JudgementStep;
 }
 
-/** No policy was chosen: what a sequence with no step, or a decision-only sequence, answers. */
-const NO_POLICY: PolicyChoice = Object.freeze({
-  status: "unavailable",
-  variable: undefined,
-});
+/** What a write's limit decided, and under which policy: the decision, and the policy of the step that ended it. */
+export interface WriteJudgement {
+  readonly decision: RateLimitDecision;
+  readonly policy: PolicyChoice;
+}
 
 type Step<Value> =
   | { readonly ok: true; readonly value: Value }
@@ -246,23 +246,10 @@ function unavailable(cause: UnavailableCause): RateLimitDecision {
 }
 
 /**
- * Asks each step in order and answers the first that is not an allow, so no step after a refusal, or after one that
- * could not be judged, is ever called and so counts no hit. All allowed is an allow. A step that throws, or a sequence
- * of none, is unavailable: a judgement that was not made never reads as one that allowed.
- */
-export async function judgeInSequence(
-  steps: readonly JudgementStep[],
-): Promise<RateLimitDecision> {
-  const judged = await judgeStepsInSequence(
-    steps.map((judge) => ({ policy: NO_POLICY, judge })),
-  );
-  return judged.decision;
-}
-
-/**
- * The same sequence, each step with its policy, answering the decision and the policy of the step that ended it: the
- * one that refused, the one that could not be judged, or the one that threw. All allowed answers the last step's, and a
- * sequence of none answers no policy. The policy is the step's own, so it does not depend on what a closure did when it
+ * Asks each step in order and answers the decision and the policy of the step that ended it: the first that refused, the
+ * one that could not be judged, or the one that threw, so no step after it is ever called and so counts no hit. All
+ * allowed answers the last step's, and a sequence of none answers no policy and is unavailable: a judgement that was not
+ * made never reads as one that allowed. The policy is the step's own, so it does not depend on what a closure did when it
  * was called.
  */
 export async function judgeStepsInSequence(

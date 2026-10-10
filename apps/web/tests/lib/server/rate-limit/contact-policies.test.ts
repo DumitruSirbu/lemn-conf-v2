@@ -27,8 +27,6 @@ import {
   type PolicyPurpose,
 } from "@/lib/server/rate-limit/limit-policy";
 
-import { readSource } from "../server-source-support";
-
 const HOUR = { kind: "utc-minutes", minutes: 60 };
 const UTC_DAY = { kind: "utc-minutes", minutes: 1440 };
 
@@ -108,12 +106,6 @@ describe("the six policies of a contact request", () => {
 
   it("allows a request at least six tries in an hour, which a retry that is never trapped needs", () => {
     expect(CONTACT_TRIES_BY_REQUEST_POLICY.figure).toBeGreaterThanOrEqual(6);
-  });
-
-  it("states the two provisional figures where the owner's answer will change them, and says so", () => {
-    const source = readSource("lib/server/rate-limit/limit-policy.ts");
-
-    expect(source).toMatch(/PROVISIONAL until the owner answers Q39/);
   });
 
   it("is in the closed set, by identity, with a name of its own each", () => {

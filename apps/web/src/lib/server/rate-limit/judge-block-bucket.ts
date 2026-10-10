@@ -7,9 +7,13 @@ import {
   type DigesterOutcome,
 } from "@/lib/server/digest/digest-secret";
 import { reportE2ePolicyInUse } from "@/lib/server/design-failure-log";
-import { subjectOfNetworkBlock } from "@/lib/server/rate-limit/bucket-subject";
+import {
+  subjectOfNetworkBlock,
+  type BucketSubject,
+} from "@/lib/server/rate-limit/bucket-subject";
 import {
   enforceRateLimit,
+  type PolicyStep,
   type RateLimitDecision,
 } from "@/lib/server/rate-limit/enforce-rate-limit";
 import {
@@ -71,27 +75,55 @@ export function blockBucketRequestFor({
  * line says its figure is not the production one. The environment, the clock and the store are handed in,
  * so every judge that limits by block asks them in its own request and in one order.
  */
-export async function judgeBlockBucket({
-  network,
-  policy,
-  digester,
-  store,
-  instant,
-  deadlineMs,
-}: BlockBucketRequest): Promise<RateLimitDecision> {
+export async function judgeBlockBucket(
+  request: BlockBucketRequest,
+): Promise<RateLimitDecision> {
+  const { network } = request;
   if (network.status === "misconfigured") {
     return { kind: "unavailable", cause: "source-misconfigured" };
   }
+  return judgeSubjectBucket(request, () =>
+    subjectOfNetworkBlock(network.block),
+  );
+}
+
+/**
+ * Counts one hit for a subject handed in, under the request's policy, with its secret, store, instant and deadline: the
+ * one rule for every bucket a judge counts, the block's and a subject's of its own alike. A policy that cannot be
+ * chosen is answered before anything is made or asked, and the first time an e2e twin decides in a process one line
+ * says its figure is not the production one. The subject is made only when this is called, through its constructor, so
+ * a text a constructor refuses is a judgement that failed and nothing is counted for it.
+ */
+export async function judgeSubjectBucket(
+  { policy, digester, store, instant, deadlineMs }: BlockBucketRequest,
+  makeSubject: () => BucketSubject,
+): Promise<RateLimitDecision> {
   if (policy.status === "unavailable") {
     return { kind: "unavailable", cause: "policy-misconfigured" };
   }
   if (isE2eTwin(policy.policy)) reportE2ePolicyInUse();
   return enforceRateLimit({
-    subject: subjectOfNetworkBlock(network.block),
+    subject: makeSubject(),
     digester,
     policy: policy.policy,
     store,
     instant,
     deadlineMs,
   });
+}
+
+/** The step of a sequence that counts the network's block, under the request's policy. */
+export function blockStep(request: BlockBucketRequest): PolicyStep {
+  return { policy: request.policy, judge: () => judgeBlockBucket(request) };
+}
+
+/** The step that counts a subject of its own, made through its constructor only when the step is asked. */
+export function subjectStep(
+  request: BlockBucketRequest,
+  makeSubject: () => BucketSubject,
+): PolicyStep {
+  return {
+    policy: request.policy,
+    judge: () => judgeSubjectBucket(request, makeSubject),
+  };
 }

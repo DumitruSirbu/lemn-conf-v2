@@ -6,16 +6,16 @@ import {
   reportShareWriteLimit,
   type ShareWriteOperation,
 } from "@/lib/server/design-failure-log";
-import { RATE_LIMIT_DEADLINE_MS } from "@/lib/server/rate-limit/enforce-rate-limit";
+import {
+  RATE_LIMIT_DEADLINE_MS,
+  type WriteJudgement,
+} from "@/lib/server/rate-limit/enforce-rate-limit";
 import {
   blockBucketRequestFor,
   judgeBlockBucket,
 } from "@/lib/server/rate-limit/judge-block-bucket";
 import type { HeaderReader } from "@/lib/server/rate-limit/network-source";
-import {
-  refusalOfWriteLimit,
-  type WriteJudgement,
-} from "@/lib/server/rate-limit/refusal-of-write-limit";
+import { refusalOfWriteLimit } from "@/lib/server/rate-limit/refusal-of-write-limit";
 import {
   shareLimitReachedResponse,
   shareUnavailableResponse,

@@ -10,18 +10,17 @@ import {
   subjectOfAddress,
   subjectOfStoredRequest,
   subjectOfVisitorHash,
-  type BucketSubject,
 } from "@/lib/server/rate-limit/bucket-subject";
 import {
-  enforceRateLimit,
   judgeStepsInSequence,
   RATE_LIMIT_DEADLINE_MS,
   type PolicyStep,
-  type RateLimitDecision,
+  type WriteJudgement,
 } from "@/lib/server/rate-limit/enforce-rate-limit";
 import {
   blockBucketRequestFor,
-  judgeBlockBucket,
+  blockStep,
+  subjectStep,
   type BlockBucketRequest,
 } from "@/lib/server/rate-limit/judge-block-bucket";
 import {
@@ -42,7 +41,6 @@ import {
 import {
   refusalOfWriteLimit,
   type WriteAnswers,
-  type WriteJudgement,
 } from "@/lib/server/rate-limit/refusal-of-write-limit";
 
 /** What a request is judged from: the environment and the request's own headers, handed in, and one instant, so that
@@ -159,41 +157,5 @@ function blockRequestFor(
     purpose,
     deadlineMs: RATE_LIMIT_DEADLINE_MS,
     instant,
-  });
-}
-
-function blockStep(request: BlockBucketRequest): PolicyStep {
-  return { policy: request.policy, judge: () => judgeBlockBucket(request) };
-}
-
-/** A step that counts a subject of its own, made through its constructor only when the step is asked: a text a
- *  constructor refuses is a judgement that failed, and nothing is counted for it. */
-function subjectStep(
-  request: BlockBucketRequest,
-  makeSubject: () => BucketSubject,
-): PolicyStep {
-  return {
-    policy: request.policy,
-    judge: () => judgeSubject(request, makeSubject),
-  };
-}
-
-function judgeSubject(
-  request: BlockBucketRequest,
-  makeSubject: () => BucketSubject,
-): Promise<RateLimitDecision> {
-  if (request.policy.status === "unavailable") {
-    return Promise.resolve({
-      kind: "unavailable",
-      cause: "policy-misconfigured",
-    });
-  }
-  return enforceRateLimit({
-    subject: makeSubject(),
-    digester: request.digester,
-    policy: request.policy.policy,
-    store: request.store,
-    instant: request.instant,
-    deadlineMs: request.deadlineMs,
   });
 }

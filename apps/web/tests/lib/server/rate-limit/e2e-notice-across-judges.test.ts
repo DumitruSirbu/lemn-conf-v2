@@ -126,3 +126,55 @@ describe("the e2e notice: written when any twin first decides, once for a proces
     );
   });
 });
+
+describe("the e2e notice for a subject's bucket, which no policy of a subject has a twin for today", () => {
+  async function judgeOneSubjectUnder(twinOrProduction: "twin" | "production") {
+    vi.resetModules();
+    const { judgeSubjectBucket } = await import(
+      "@/lib/server/rate-limit/judge-block-bucket"
+    );
+    const { subjectOfVisitorHash } = await import(
+      "@/lib/server/rate-limit/bucket-subject"
+    );
+    const { E2E_MINT_POLICY, MINT_POLICY } = await import(
+      "@/lib/server/rate-limit/limit-policy"
+    );
+    const { readDigester } = await import("@/lib/server/digest/digest-secret");
+    const { getRateLimitStore } = await import(
+      "@/lib/server/rate-limit/rate-limit-store-instance"
+    );
+    return judgeSubjectBucket(
+      {
+        network: {
+          status: "known",
+          block: { kind: "shared", subject: "" },
+        },
+        policy: {
+          status: "chosen",
+          policy: twinOrProduction === "twin" ? E2E_MINT_POLICY : MINT_POLICY,
+        },
+        digester: readDigester({ DIGEST_SECRET: FAKE_SECRET }),
+        store: getRateLimitStore(),
+        instant: new Date("2026-07-15T12:20:00Z"),
+        deadlineMs: 3000,
+      },
+      () => subjectOfVisitorHash("ab".repeat(32)),
+    );
+  }
+
+  it("is written when the policy a subject is counted under is a twin, so the day one gains a twin it is true", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    await judgeOneSubjectUnder("twin");
+
+    expect(noticesWritten(warn)).toBe(1);
+  });
+
+  it("is not written for a production policy", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    await judgeOneSubjectUnder("production");
+
+    expect(noticesWritten(warn)).toBe(0);
+  });
+});

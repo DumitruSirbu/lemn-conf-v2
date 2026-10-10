@@ -3,19 +3,10 @@ import "server-only";
 import type { NextResponse } from "next/server";
 
 import type {
-  RateLimitDecision,
   UnavailableCause,
+  WriteJudgement,
 } from "@/lib/server/rate-limit/enforce-rate-limit";
-import {
-  policyNameOf,
-  type PolicyChoice,
-} from "@/lib/server/rate-limit/limit-policy";
-
-/** What a write's limit decided, and under which policy. */
-export interface WriteJudgement {
-  readonly decision: RateLimitDecision;
-  readonly policy: PolicyChoice;
-}
+import { policyNameOf } from "@/lib/server/rate-limit/limit-policy";
 
 /** How one kind of write answers and what it writes down: the two answers, and the two lines, which are each the
  *  write's own. */

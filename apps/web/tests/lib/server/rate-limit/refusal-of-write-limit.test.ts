@@ -1,15 +1,15 @@
 import { NextResponse } from "next/server";
 import { describe, expect, it, vi } from "vitest";
 
-import type { UnavailableCause } from "@/lib/server/rate-limit/enforce-rate-limit";
+import type {
+  UnavailableCause,
+  WriteJudgement,
+} from "@/lib/server/rate-limit/enforce-rate-limit";
 import {
   MINT_POLICY,
   type PolicyChoice,
 } from "@/lib/server/rate-limit/limit-policy";
-import {
-  refusalOfWriteLimit,
-  type WriteJudgement,
-} from "@/lib/server/rate-limit/refusal-of-write-limit";
+import { refusalOfWriteLimit } from "@/lib/server/rate-limit/refusal-of-write-limit";
 
 const CHOSEN: PolicyChoice = { status: "chosen", policy: MINT_POLICY };
 const NOT_CHOSEN: PolicyChoice = { status: "unavailable", variable: undefined };

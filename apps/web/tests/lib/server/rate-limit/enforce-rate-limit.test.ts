@@ -25,7 +25,6 @@ import {
 } from "@/lib/server/rate-limit/chisinau-day";
 import {
   enforceRateLimit,
-  judgeInSequence,
   judgeStepsInSequence,
   RATE_LIMIT_DEADLINE_MS,
   RATE_LIMIT_READ_DEADLINE_MS,
@@ -38,6 +37,7 @@ import {
 import {
   E2E_MINT_POLICY,
   MINT_POLICY,
+  NO_POLICY,
   READ_POLICY,
   SAVE_BY_BLOCK_POLICY,
   SAVE_BY_CREDENTIAL_POLICY,
@@ -851,7 +851,17 @@ describe("enforceRateLimit: a window of whole minutes on the UTC clock, held by 
   });
 });
 
-describe("judgeInSequence: steps asked in order, the first that refuses or cannot be judged ending it", () => {
+/** Bare steps, each under a policy that is not the point: the decision of the sequence is what is asserted. */
+async function decisionOfSequence(
+  steps: readonly JudgementStep[],
+): Promise<RateLimitDecision> {
+  const judged = await judgeStepsInSequence(
+    steps.map((judge) => ({ policy: NO_POLICY, judge })),
+  );
+  return judged.decision;
+}
+
+describe("judgeStepsInSequence: steps asked in order, the first that refuses or cannot be judged ending it", () => {
   type Outcome = "allow" | "refuse" | "unavailable";
   const ANSWERS: Record<Outcome, RateLimitDecision> = {
     allow: { kind: "allow" },
@@ -887,35 +897,35 @@ describe("judgeInSequence: steps asked in order, the first that refuses or canno
   it("answers allow when every step allows, having asked each once and in order", async () => {
     const { steps, asked } = stepsAnswering(["allow", "allow", "allow"]);
 
-    expect(await judgeInSequence(steps)).toEqual({ kind: "allow" });
+    expect(await decisionOfSequence(steps)).toEqual({ kind: "allow" });
     expect(asked).toEqual([0, 1, 2]);
   });
 
   it("ends at a refusal of the first step and never asks the second", async () => {
     const { steps, asked } = stepsAnswering(["refuse", "allow"]);
 
-    expect(await judgeInSequence(steps)).toEqual(ANSWERS.refuse);
+    expect(await decisionOfSequence(steps)).toEqual(ANSWERS.refuse);
     expect(asked).toEqual([0]);
   });
 
   it("ends at the first step when it cannot be judged and never asks the second", async () => {
     const { steps, asked } = stepsAnswering(["unavailable", "allow"]);
 
-    expect(await judgeInSequence(steps)).toEqual(ANSWERS.unavailable);
+    expect(await decisionOfSequence(steps)).toEqual(ANSWERS.unavailable);
     expect(asked).toEqual([0]);
   });
 
   it("answers the second step's refusal after the first allowed, having asked both", async () => {
     const { steps, asked } = stepsAnswering(["allow", "refuse"]);
 
-    expect(await judgeInSequence(steps)).toEqual(ANSWERS.refuse);
+    expect(await decisionOfSequence(steps)).toEqual(ANSWERS.refuse);
     expect(asked).toEqual([0, 1]);
   });
 
   it("answers the second step's unavailable after the first allowed, having asked both", async () => {
     const { steps, asked } = stepsAnswering(["allow", "unavailable"]);
 
-    expect(await judgeInSequence(steps)).toEqual(ANSWERS.unavailable);
+    expect(await decisionOfSequence(steps)).toEqual(ANSWERS.unavailable);
     expect(asked).toEqual([0, 1]);
   });
 
@@ -932,7 +942,7 @@ describe("judgeInSequence: steps asked in order, the first that refuses or canno
       return Promise.resolve(ANSWERS.allow);
     };
 
-    const pending = judgeInSequence([slow, next]);
+    const pending = decisionOfSequence([slow, next]);
     await vi.advanceTimersByTimeAsync(999);
     expect(started).toEqual(["first"]);
     await vi.advanceTimersByTimeAsync(1);
@@ -946,7 +956,7 @@ describe("judgeInSequence: steps asked in order, the first that refuses or canno
     for (const outcomes of everyCombinationOf(3)) {
       const { steps, asked } = stepsAnswering(outcomes);
 
-      const decision = await judgeInSequence(steps);
+      const decision = await decisionOfSequence(steps);
 
       const firstEnd = outcomes.findIndex((outcome) => outcome !== "allow");
       const lastAsked = firstEnd === -1 ? outcomes.length - 1 : firstEnd;
@@ -966,7 +976,9 @@ describe("judgeInSequence: steps asked in order, the first that refuses or canno
   });
 
   it("answers unavailable for a sequence of none, since nothing was judged", async () => {
-    expect(await judgeInSequence([])).toEqual(UNAVAILABLE("judgement-failed"));
+    expect(await decisionOfSequence([])).toEqual(
+      UNAVAILABLE("judgement-failed"),
+    );
   });
 
   it.each([
@@ -992,7 +1004,7 @@ describe("judgeInSequence: steps asked in order, the first that refuses or canno
     async (_label, failing) => {
       const { steps, asked } = stepsAnswering(["allow"]);
 
-      const decision = await judgeInSequence([failing, ...steps]);
+      const decision = await decisionOfSequence([failing, ...steps]);
 
       expect(decision).toEqual(UNAVAILABLE("judgement-failed"));
       expect(asked).toEqual([]);
@@ -1007,7 +1019,7 @@ describe("judgeInSequence: steps asked in order, the first that refuses or canno
     const throwing: JudgementStep = () =>
       Promise.reject(new Error("STEP-MARKER-6612"));
 
-    const decision = await judgeInSequence([...steps, throwing]);
+    const decision = await decisionOfSequence([...steps, throwing]);
 
     expect(decision).toEqual(UNAVAILABLE("judgement-failed"));
     expect(asked).toEqual([0]);
@@ -1071,7 +1083,9 @@ describe("a save's two judgements on the counter fake: the credential counts onl
   it("counts both buckets once for a request that both allow", async () => {
     const store = new FakeRateLimitStore();
 
-    expect(await judgeInSequence(saveSteps(store))).toEqual({ kind: "allow" });
+    expect(await decisionOfSequence(saveSteps(store))).toEqual({
+      kind: "allow",
+    });
 
     expect(await nextCountOf(store, SAVE_BY_BLOCK_POLICY, BLOCK)).toBe(2);
     expect(
@@ -1084,7 +1098,7 @@ describe("a save's two judgements on the counter fake: the credential counts onl
     await fillTo(store, SAVE_BY_BLOCK_POLICY, BLOCK, 600);
 
     for (let request = 0; request < 5; request += 1) {
-      expect((await judgeInSequence(saveSteps(store))).kind).toBe("refuse");
+      expect((await decisionOfSequence(saveSteps(store))).kind).toBe("refuse");
     }
 
     expect(
@@ -1097,7 +1111,7 @@ describe("a save's two judgements on the counter fake: the credential counts onl
     const store = new FakeRateLimitStore();
     await fillTo(store, SAVE_BY_CREDENTIAL_POLICY, A_CREDENTIAL, 300);
 
-    expect((await judgeInSequence(saveSteps(store))).kind).toBe("refuse");
+    expect((await decisionOfSequence(saveSteps(store))).kind).toBe("refuse");
 
     expect(await nextCountOf(store, SAVE_BY_BLOCK_POLICY, BLOCK)).toBe(2);
     expect(
@@ -1269,21 +1283,5 @@ describe("judgeStepsInSequence: the policy of the step that ended the sequence",
       decision: UNAVAILABLE("judgement-failed"),
       policy: { status: "unavailable", variable: undefined },
     });
-  });
-
-  it("is what judgeInSequence answers the decision of, so the two cannot differ", async () => {
-    for (const answers of [
-      [ALLOW, ALLOW],
-      [REFUSE, ALLOW],
-      [ALLOW, NOT_JUDGED],
-    ] as const) {
-      const steps = answers.map((answer, index) =>
-        stepOf(index === 0 ? FIRST : SECOND, answer, []),
-      );
-
-      expect(await judgeInSequence(steps.map(({ judge }) => judge))).toEqual(
-        (await judgeStepsInSequence(steps)).decision,
-      );
-    }
   });
 });

@@ -460,10 +460,10 @@ describe("judge-save-request.ts", () => {
 
   it("reads source: makes the credential's subject inside the second step, from the hash it was handed", () => {
     expect(source).toMatch(
-      /subjectOfWriteCredentialHash\(\s*writeTokenHash\s*\)/,
+      /subjectStep\(\s*credential,\s*\(\) =>\s*subjectOfWriteCredentialHash\(writeTokenHash\)/,
     );
     expect(source).toMatch(
-      /judgeStepsInSequence\(\[\s*\{\s*policy: block\.policy,\s*judge: \(\) => judgeBlockBucket\(block\)/,
+      /judgeStepsInSequence\(\[\s*blockStep\(block\),\s*subjectStep\(/,
     );
   });
 });

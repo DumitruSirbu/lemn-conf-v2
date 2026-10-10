@@ -104,15 +104,15 @@ export const CONTACT_NEW_PER_VISITOR_HOUR_FIGURE = 2;
 export const CONTACT_NEW_PER_ADDRESS_DAY_FIGURE = 3;
 
 /**
- * PROVISIONAL until the owner answers Q39, which no record answers: how many contact requests of any kind a network
+ * PROVISIONAL until the owner answers, which no record does: how many contact requests of any kind a network
  * may send in an hour (30), and how often one stored request may be tried again in an hour (10, at least the six a
- * retry's criterion needs). His answer changes these two constants and no code.
+ * retry's criterion needs). The owner's answer changes these two constants and no code.
  */
 export const CONTACT_EVERY_PER_BLOCK_HOUR_FIGURE = 30;
 export const CONTACT_TRIES_PER_REQUEST_HOUR_FIGURE = 10;
 
 /**
- * PROVISIONAL, with the two figures above (Q39): the least time a form must have been open, in milliseconds, before a
+ * PROVISIONAL, with the two figures above: the least time a form must have been open, in milliseconds, before a
  * request is taken. Short enough that an autofilled form sent by a real tap passes. What the client says it took is
  * what is compared, so it stops a careless sender only; the buckets are the bound.
  */
@@ -349,6 +349,13 @@ export type PolicyChoice =
       readonly variable: typeof E2E_RATE_LIMIT_POLICY_FLAG | undefined;
     };
 
+/** No policy was chosen and no variable made that so: what a purpose outside the list, and a sequence of no step,
+ *  are answered. Written here once. */
+export const NO_POLICY: PolicyChoice = Object.freeze({
+  status: "unavailable",
+  variable: undefined,
+});
+
 /**
  * Pure: the environment is handed in, and no request can reach it. The production policy of the purpose is the
  * default. One flag, exactly `1`, chooses the e2e twin of every purpose that has one, and beside
@@ -359,9 +366,7 @@ export function choosePolicy(
   environment: NetworkEnvironment,
   purpose: PolicyPurpose,
 ): PolicyChoice {
-  if (!Object.hasOwn(TWINS_OF_PURPOSE, purpose)) {
-    return { status: "unavailable", variable: undefined };
-  }
+  if (!Object.hasOwn(TWINS_OF_PURPOSE, purpose)) return NO_POLICY;
   const { production, e2e } = TWINS_OF_PURPOSE[purpose];
   if (!isFlagSet(environment)) return { status: "chosen", policy: production };
   if (Object.hasOwn(environment, CLIENT_NETWORK_SOURCE_VARIABLE)) {

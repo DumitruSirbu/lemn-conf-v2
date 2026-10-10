@@ -5,29 +5,22 @@ import type { NextResponse } from "next/server";
 import { reportSaveLimit } from "@/lib/server/design-failure-log";
 import { subjectOfWriteCredentialHash } from "@/lib/server/rate-limit/bucket-subject";
 import {
-  enforceRateLimit,
   judgeStepsInSequence,
   RATE_LIMIT_DEADLINE_MS,
-  type RateLimitDecision,
+  type WriteJudgement,
 } from "@/lib/server/rate-limit/enforce-rate-limit";
 import {
   blockBucketRequestFor,
-  judgeBlockBucket,
-  type BlockBucketRequest,
+  blockStep,
+  subjectStep,
 } from "@/lib/server/rate-limit/judge-block-bucket";
-import {
-  choosePolicy,
-  type PolicyChoice,
-} from "@/lib/server/rate-limit/limit-policy";
+import { choosePolicy } from "@/lib/server/rate-limit/limit-policy";
 import type { HeaderReader } from "@/lib/server/rate-limit/network-source";
 import {
   saveLimitReachedResponse,
   saveUnavailableResponse,
 } from "@/lib/server/rate-limit/rate-limited-response";
-import {
-  refusalOfWriteLimit,
-  type WriteJudgement,
-} from "@/lib/server/rate-limit/refusal-of-write-limit";
+import { refusalOfWriteLimit } from "@/lib/server/rate-limit/refusal-of-write-limit";
 
 /**
  * Judges one save in two steps, each started only when the one before it allowed: the network's block first, and only
@@ -49,42 +42,14 @@ export async function judgeSaveRequest(
     deadlineMs: RATE_LIMIT_DEADLINE_MS,
     instant: new Date(),
   });
-  const credentialPolicy = choosePolicy(environment, "save-by-credential");
+  const credential = {
+    ...block,
+    policy: choosePolicy(environment, "save-by-credential"),
+  };
   return judgeStepsInSequence([
-    { policy: block.policy, judge: () => judgeBlockBucket(block) },
-    {
-      policy: credentialPolicy,
-      judge: () => judgeCredential({ block, credentialPolicy, writeTokenHash }),
-    },
+    blockStep(block),
+    subjectStep(credential, () => subjectOfWriteCredentialHash(writeTokenHash)),
   ]);
-}
-
-interface CredentialJudgement {
-  readonly block: BlockBucketRequest;
-  readonly credentialPolicy: PolicyChoice;
-  readonly writeTokenHash: string;
-}
-
-/** The second step, reusing the first's secret, store, instant and deadline. */
-function judgeCredential({
-  block,
-  credentialPolicy,
-  writeTokenHash,
-}: CredentialJudgement): Promise<RateLimitDecision> {
-  if (credentialPolicy.status === "unavailable") {
-    return Promise.resolve({
-      kind: "unavailable",
-      cause: "policy-misconfigured",
-    });
-  }
-  return enforceRateLimit({
-    subject: subjectOfWriteCredentialHash(writeTokenHash),
-    digester: block.digester,
-    policy: credentialPolicy.policy,
-    store: block.store,
-    instant: block.instant,
-    deadlineMs: block.deadlineMs,
-  });
 }
 
 /**
