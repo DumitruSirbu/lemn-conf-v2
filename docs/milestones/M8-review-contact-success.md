@@ -5805,6 +5805,32 @@ the paused-saving sentence, and the refused page's link once more with its own l
 pass's closing rule is the first round's**, with one clause added: a save is refused that should
 be stored, or stored that should be refused.
 
+##### 8G — S2a's two measurements, ruled 2026-10-10
+
+**State.** HEAD is `395ea3cd` [ran: `git log`]; S2a is built with no stop, and S2b is with the
+developer. The figures below are the developer's [relayed, developer-run on the built server,
+thirty saves at one a second].
+
+- **The save's cost is accepted, with its trigger.** A save took 61.2 ms without the limiter and
+  158.2 ms with it: two store round trips of about 48 ms, one after the other. The stop was
+  written against QA's 166 ms and is not reached; against its own *before* it is 2.6 times. **It
+  stands because the customer does not wait on it:** the client sends one save a second at most,
+  and a tenth of a second is inside that.
+- *Not taken: both buckets in one statement.* The store's hit does take several keys, but a
+  request its block refused would then still write its credential's row, and a token is the
+  caller's to invent. **The two steps are an order of writing, not only of judging;** that is
+  what bounds the rows (*S0's security read, ruled*, point 1).
+- *Recorded (ADR 0118).* *Trigger:* a save's time on a deployment that a customer waits on, the
+  review's wait first; or Q37 answered (d), which removes the second step. *The closure then:*
+  one statement in the store that hits the credential only when the block's count is at or under
+  its figure. It is a new statement beside two whose lock order was proved, and needs its own
+  proof.
+- **The credential's bucket has no e2e twin, and that is intended.** Production's figure applies
+  in the suite; a design there is saved nine times at most [relayed, QA's measurement], and one
+  that reached the figure would be refused in its own test, loudly. **Added, at the harness's next
+  change and not as a dispatch of its own:** a test's cleanup already holds the count of each
+  credential's row it removes, and fails when one is above half the figure.
+
 ### 8H — the submission contract
 
 *Goal.* One I/O-free definition of what a request is, used by the form and by the server.
