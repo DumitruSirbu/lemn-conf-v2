@@ -247,6 +247,39 @@ describe("arriving from the editor, which holds this design with an edit not yet
   );
 });
 
+describe("a write the limit on saves holds", () => {
+  const RESUMES_AT_MS = new Date(2026, 9, 10, 14, 5).getTime();
+
+  it.each([
+    ["ro", roMessages],
+    ["ru", ruMessages],
+  ] as const)(
+    "says in %s the time it will be sent, and does not offer the request",
+    (locale, messages) => {
+      mountReview(KITCHEN_L_DESIGN, locale);
+
+      act(() => {
+        useConfiguratorStore.getState().setSaveStatus("error", RESUMES_AT_MS);
+      });
+
+      expect(waitSentence()).toBe(
+        messages.panel.savePausedNotice.replace("{time}", "14:05"),
+      );
+      expect(cta().getAttribute("aria-disabled")).toBe("true");
+    },
+  );
+
+  it("says the editor's failure again when the same status carries no time", () => {
+    mountReview(KITCHEN_L_DESIGN);
+
+    act(() => {
+      useConfiguratorStore.getState().setSaveStatus("error");
+    });
+
+    expect(waitSentence()).toBe(roMessages.panel.saveFailedNotice);
+  });
+});
+
 describe("arriving at a store that holds another design, or none", () => {
   it("replaces another design's store with the page's", () => {
     useConfiguratorStore.getState().hydrate({

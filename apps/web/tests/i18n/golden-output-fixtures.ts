@@ -118,7 +118,7 @@ function requiredFixtureValue<T>(value: T | undefined, id: string): T {
 const BASE_BAND_WORD = romanianContent.panel.bandWords.base.one;
 
 /**
- * The 27 function-valued content families. The gate compares this declaration to a runtime walk of
+ * The 28 function-valued content families. The gate compares this declaration to a runtime walk of
  * resolved Romanian content, so a newly introduced function cannot silently miss the oracle.
  */
 export const CONTENT_FUNCTION_FAMILIES = [
@@ -130,6 +130,7 @@ export const CONTENT_FUNCTION_FAMILIES = [
   "panel.noOffersTooWide",
   "panel.noOffersTooNarrow",
   "panel.offerSize",
+  "panel.savePausedNotice",
   "panel.handleDefaultNote",
   "panel.widthValue",
   "price.amountWithCurrency",
@@ -241,6 +242,14 @@ export const FUNCTION_CONTENT_FIXTURES: readonly GoldenFixture[] = [
       `${String(widthMm)}x${String(heightMm)}`,
       () => romanianContent.panel.offerSize(widthMm, heightMm),
       () => translate("panel.offerSize", { widthMm, heightMm }),
+    ),
+  ),
+  ...["14:05", "00:00"].map((time) =>
+    contentFixture(
+      "panel.savePausedNotice",
+      time,
+      () => romanianContent.panel.savePausedNotice(time),
+      () => translate("panel.savePausedNotice", { time }),
     ),
   ),
   ...(

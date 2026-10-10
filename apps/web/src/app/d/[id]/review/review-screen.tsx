@@ -7,6 +7,7 @@ import type { Content } from "@/i18n/content";
 
 import { LocaleMenu } from "@/app/configurator/configure/locale-menu";
 import { WebGLUnavailable } from "@/components/webgl-unavailable";
+import { clockTimeOf } from "@/i18n/clock-time";
 import { Link } from "@/i18n/navigation";
 import { useContent } from "@/i18n/use-content";
 import {
@@ -290,18 +291,23 @@ function useSaveWait(): SaveWait {
     (state) => state.design === state.savedDesign,
   );
   const saveStatus = useConfiguratorStore((state) => state.saveStatus);
+  const resumesAtMs = useConfiguratorStore((state) => state.saveResumesAtMs);
   if (isSaved) return { kind: "saved" };
+  const isPaused = saveStatus === "error" && resumesAtMs !== null;
   return {
     kind: "waiting",
-    sentence: sentenceForUnsavedEdit(saveStatus, content),
+    sentence: isPaused
+      ? content.panel.savePausedNotice(clockTimeOf(resumesAtMs))
+      : sentenceForUnsavedEdit(saveStatus, content),
     isSettledInTheEditor: saveStatus === "conflict",
-    hasFailed: saveStatus !== "idle" && saveStatus !== "saving",
+    hasFailed: saveStatus !== "idle" && saveStatus !== "saving" && !isPaused,
   };
 }
 
 /** What the customer is told while an edit is unsaved: that it is being saved, or, once the save has failed, the
  *  sentence the editor already says for that failure. The exception is a conflict: the editor's sentence names
- *  reload and overwrite, which this screen does not have, so the review says where the choice is made. */
+ *  reload and overwrite, which this screen does not have, so the review says where the choice is made. A write the
+ *  limit on saves holds is told by `useSaveWait`, which has its time. */
 function sentenceForUnsavedEdit(
   saveStatus: SaveStatus,
   content: Content,

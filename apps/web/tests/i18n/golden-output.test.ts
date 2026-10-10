@@ -80,7 +80,7 @@ function sortedUnique(values: readonly string[]): readonly string[] {
 }
 
 describe("golden-output fixture coverage", () => {
-  it("covers exactly the 27 function-valued legacy content families", () => {
+  it("covers exactly the 28 function-valued legacy content families", () => {
     const actualFamilies = collectContentFunctionFamilies();
     expect(actualFamilies).toEqual([...CONTENT_FUNCTION_FAMILIES].sort());
     expect(
@@ -220,7 +220,8 @@ describe("golden-output fixture coverage", () => {
     // +2 for `designLoadError.tooManyRequests` and `.tryAgain`.
     expect(RESOLVED_STATIC_CONTENT).toHaveLength(156);
     // +3 for the notice's subject, line and figure.
-    expect(FUNCTION_CONTENT_FIXTURES).toHaveLength(62);
+    // +2 for `panel.savePausedNotice`'s two times.
+    expect(FUNCTION_CONTENT_FIXTURES).toHaveLength(64);
     // 7L S3: +2 for `room.suggestion.title` and `room.suggestion.switchToLinear`.
     // +1 for `room.compose.limitReached`.
     expect(ROOM_FIXTURES).toHaveLength(73);
@@ -240,7 +241,8 @@ describe("golden-output fixture coverage", () => {
     // M8 8D review fix round: +1 for `reviewScreen.topBarTitle`.
     // +17 for the shop notice's static leaves and function fixtures.
     // +1 for `room.compose.limitReached`, +2 for `designLoadError.tooManyRequests` and `.tryAgain`.
-    expect(GOLDEN_FIXTURES).toHaveLength(442);
+    // +2 for `panel.savePausedNotice`'s two times.
+    expect(GOLDEN_FIXTURES).toHaveLength(444);
     expect(new Set(GOLDEN_FIXTURES.map((fixture) => fixture.id)).size).toBe(
       GOLDEN_FIXTURES.length,
     );

@@ -28,6 +28,7 @@ import type { SaveStatus } from "@/persistence/save-coalescer";
 import { describeEditability, type Editability } from "@/store/editability";
 import type { WriteAccess } from "@/store/configurator-store";
 
+import { clockTimeOf } from "@/i18n/clock-time";
 import { crossesOnScreen, type Content } from "@/i18n/content";
 import {
   describeFlaggedTotalWarning,
@@ -244,6 +245,7 @@ export interface PanelNotice {
     | "access-uncheckable"
     | "save-failed"
     | "save-stopped"
+    | "save-paused"
     | "save-conflict";
   /** Published resolved so the component styles rather than classifies. */
   readonly tone: "info" | "error";
@@ -313,6 +315,9 @@ export interface DescribePanelInput {
    *  answers. Advisory, never an authorisation decision (`hasWriteCredentialFor`); only `true` opens the controls. */
   readonly canWrite: WriteAccess;
   readonly saveStatus: SaveStatus;
+  /** When the one waiting write will be sent, once the limit on saves refused it: with `saveStatus: "error"` it makes
+   *  the notice a pause with a stated time rather than a failure. Absent or `null` is the failure's own backoff. */
+  readonly saveResumesAtMs?: number | null | undefined;
 }
 
 /** §9's half of the one editability rule: an alias, with `store/editability.ts` deciding it so no second surface can
@@ -393,12 +398,7 @@ function describeNotice(
   editability: PanelEditability,
 ): PanelNotice | undefined {
   if (editability.isReadOnly) return describeLockedNotice(input);
-  if (input.saveStatus === "error")
-    return {
-      kind: "save-failed",
-      tone: "error",
-      message: input.content.panel.saveFailedNotice,
-    };
+  if (input.saveStatus === "error") return describeFailedOrPausedNotice(input);
   if (input.saveStatus === "stopped")
     return {
       kind: "save-stopped",
@@ -408,6 +408,24 @@ function describeNotice(
   if (input.saveStatus === "conflict")
     return describeConflictNotice(input.content);
   return undefined;
+}
+
+/** A failed save with its retry armed, or the same armed for the time the limit on saves stated. The pause is no
+ *  error: nothing is wrong, and the change goes by itself, so it is told as information. */
+function describeFailedOrPausedNotice(input: DescribePanelInput): PanelNotice {
+  const { content, saveResumesAtMs } = input;
+  if (saveResumesAtMs === undefined || saveResumesAtMs === null) {
+    return {
+      kind: "save-failed",
+      tone: "error",
+      message: content.panel.saveFailedNotice,
+    };
+  }
+  return {
+    kind: "save-paused",
+    tone: "info",
+    message: content.panel.savePausedNotice(clockTimeOf(saveResumesAtMs)),
+  };
 }
 
 /** The two-way save-conflict choice. Reload is first, as the conservative one; overwrite discards a version the

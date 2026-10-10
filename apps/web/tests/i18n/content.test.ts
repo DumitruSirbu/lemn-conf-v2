@@ -120,6 +120,7 @@ const FUNCTION_FAMILIES = [
   "panel.noOffersTooWide",
   "panel.noOffersTooNarrow",
   "panel.offerSize",
+  "panel.savePausedNotice",
   "panel.handleDefaultNote",
   "panel.widthValue",
   "price.amountWithCurrency",
@@ -174,7 +175,7 @@ describe("the localized content resolver", () => {
   );
 
   it.each(CATALOGUES)(
-    "backs exactly 33 public functions with %s ICU messages",
+    "backs exactly 34 public functions with %s ICU messages",
     (locale, messages) => {
       const { content, translate } = contentAndOracleFor(locale, messages);
 
@@ -220,6 +221,9 @@ describe("the localized content resolver", () => {
       );
       expect(content.panel.offerSize(600, 860)).toBe(
         translate("panel.offerSize", { widthMm: 600, heightMm: 860 }),
+      );
+      expect(content.panel.savePausedNotice("14:05")).toBe(
+        translate("panel.savePausedNotice", { time: "14:05" }),
       );
       expect(content.panel.handleDefaultNote("label-token")).toBe(
         translate("panel.handleDefaultNote", { label: "label-token" }),

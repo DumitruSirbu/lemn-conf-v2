@@ -97,6 +97,24 @@ describe("a save the limit refused, through the store", () => {
     expect(state.design).not.toBe(state.savedDesign);
   });
 
+  it("forgets the wait when another design is loaded, which describes another generation", async () => {
+    answers.push(() => json({ id: MINTED_ID, revision: "1" }, 201));
+    answers.push(() => saveLimitRefusal(30));
+    const store = await loadFreshStore();
+    removePlacement(store, FIRST_REMOVED);
+    await vi.advanceTimersByTimeAsync(0);
+
+    store.getState().hydrate({
+      design: store.getState().design,
+      designId: "another-design",
+      revision: "3",
+      canWrite: true,
+    });
+
+    expect(store.getState().saveStatus).toBe("idle");
+    expect(store.getState().saveResumesAtMs).toBeNull();
+  });
+
   it("sends nothing while it waits and one write at the time, which holds the last edit made meanwhile", async () => {
     answers.push(() => json({ id: MINTED_ID, revision: "1" }, 201));
     answers.push(() => saveLimitRefusal(30));

@@ -251,6 +251,9 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       "Modificarea este aplicată pe ecran și încercăm în continuare să o salvăm. Nu o schimba și nu reîncărca pagina: o reîncărcare acum ar șterge versiunea care așteaptă să fie salvată.",
     saveStoppedNotice:
       "Salvarea s-a oprit pentru această configurație și nu va reporni singură. Ce vezi pe ecran nu este salvat și se pierde dacă închizi sau reîncarci pagina. Deschide configuratorul într-o filă nouă și reia modificările acolo.",
+    // Drafted, not approved: the limit on saves paused the write; the change stays on screen and goes by itself.
+    savePausedNotice:
+      "Salvarea este întreruptă până la {time}. Modificările rămân pe ecran și se vor salva singure la acea oră. Nu reîncărca pagina până atunci: o reîncărcare ar șterge versiunea care așteaptă să fie salvată.",
     finishTitle: "Finisaje",
     finishApproximationNote:
       "Culoarea de pe ecran și cea din vizualizare sunt orientative — nuanța finală se alege pe mostra fizică.",

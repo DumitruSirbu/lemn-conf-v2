@@ -749,6 +749,9 @@ export function resolveContent(translate: ContentTranslator) {
       readOnlyRefusedNotice: translate("panel.readOnlyRefusedNotice"),
       saveFailedNotice: translate("panel.saveFailedNotice"),
       saveStoppedNotice: translate("panel.saveStoppedNotice"),
+      // Drafted: the limit on saves paused the write until `time`; the change stays on screen and goes by itself.
+      savePausedNotice: (time: string) =>
+        translate("panel.savePausedNotice", { time }),
       finishTitle: translate("panel.finishTitle"),
       finishApproximationNote: translate("panel.finishApproximationNote"),
       finishPickerLabel: translate("panel.finishPickerLabel"),
