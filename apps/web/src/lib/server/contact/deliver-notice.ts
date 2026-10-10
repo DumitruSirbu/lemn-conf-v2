@@ -1,8 +1,12 @@
 import "server-only";
 
-import type { ContactSubmissionStore } from "@lemnaria/persistence";
+import type {
+  ContactSubmissionStore,
+  ContactSubmissionToRecord,
+} from "@lemnaria/persistence";
 import type { NextResponse } from "next/server";
 
+import type { Content } from "@/i18n/content";
 import { ContactFailure, causeOf } from "@/lib/server/contact/contact-failure";
 import {
   reportContactMarkFailed,
@@ -15,7 +19,6 @@ import {
   noticeNotSentRetryAnswer,
   sentAnswer,
 } from "@/lib/server/contact/contact-responses";
-import type { Content } from "@/i18n/content";
 import { buildLeadNotification } from "@/lib/server/mail/lead-notification";
 import {
   isRetryableMailFailure,
@@ -23,9 +26,9 @@ import {
   type MailOutcome,
   type MailSender,
 } from "@/lib/server/mail/mail-sender";
-import type { ContactSubmissionToRecord } from "@lemnaria/persistence";
 
-/** A reference's own shape, which no stored request has, so a message built with it can never be the one sent. */
+/** A reference's own shape that the generator can in principle draw, one chance in 2^40, so a message built with
+ *  it is never sent: the one that is sent is built again with the stored reference. */
 const PLACEHOLDER_REFERENCE = "LM-00000000";
 
 /** What a stored request needs to be passed on: its reference, what was stored, the sender, the notice's language. */

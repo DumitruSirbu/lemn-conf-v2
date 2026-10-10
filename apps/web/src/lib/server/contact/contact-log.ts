@@ -10,7 +10,12 @@ import {
   statusOfContactRefusal,
   type ContactNoticeNotSentCode,
   type ContactRefusalCode,
+  type DesignRefusalCode,
 } from "@/lib/server/contact/contact-responses";
+import {
+  MAIL_FAILURE_KINDS,
+  type MailFailureKind,
+} from "@/lib/server/mail/mail-sender";
 import { UNAVAILABLE_CAUSES } from "@/lib/server/rate-limit/enforce-rate-limit";
 import { ALL_LIMIT_POLICIES } from "@/lib/server/rate-limit/limit-policy";
 import {
@@ -38,23 +43,6 @@ export const CONTACT_UNAVAILABLE_CAUSES = [
 
 export type ContactUnavailableCause =
   (typeof CONTACT_UNAVAILABLE_CAUSES)[number];
-
-/**
- * The kinds of a mail failure, which the mail's own closed list names and this module may not import: a test holds the
- * two lists equal.
- */
-export const CONTACT_MAIL_FAILURE_KINDS = [
-  "unreadable-answer",
-  "payload-mismatch",
-  "busy",
-  "quota-spent",
-  "refused",
-  "unreachable",
-  "timed-out",
-] as const;
-
-export type ContactMailFailureKind =
-  (typeof CONTACT_MAIL_FAILURE_KINDS)[number];
 
 /** What a line says for a value outside its list: the list's own word for a cause, and `other` for a kind. */
 const OTHER_KIND = "other";
@@ -116,7 +104,7 @@ export function reportContactUnavailable(cause: ContactUnavailableCause): void {
 export type ContactNoticeFailure =
   | {
       readonly kind: "mail";
-      readonly failureKind: ContactMailFailureKind;
+      readonly failureKind: MailFailureKind;
       readonly providerStatus: number | undefined;
     }
   | { readonly kind: "cause"; readonly cause: ContactUnavailableCause };
@@ -145,16 +133,10 @@ export function reportContactNoticeNotSent({
   });
 }
 
-/** The two refusals a stored request's retry can meet when its design has changed since. */
-export type ContactStoredRefusalCode = Extract<
-  ContactRefusalCode,
-  "CONTACT_DESIGN_NOT_CURRENT" | "CONTACT_DESIGN_DOES_NOT_FIT"
->;
-
 /** A stored request whose retry was refused for its design: it is never notified unless the design returns, so the
  *  line names it each time, with the code and the reference. */
 export function reportContactStoredRequestRefused(
-  code: ContactStoredRefusalCode,
+  code: DesignRefusalCode,
   reference: string,
 ): void {
   write("error", {
@@ -181,11 +163,10 @@ function causeOnTheList(cause: unknown): ContactUnavailableCause {
 }
 
 function kindOnTheList(kind: unknown): string {
-  return (
-    CONTACT_MAIL_FAILURE_KINDS.find((known) => known === kind) ?? OTHER_KIND
-  );
+  return MAIL_FAILURE_KINDS.find((known) => known === kind) ?? OTHER_KIND;
 }
 
+/** A code outside the two the type names, which only a cast reaches, is written as the one that says no retry. */
 function noticeCodeOnTheList(code: ContactNoticeNotSentCode): string {
   return code === CONTACT_NOTICE_NOT_SENT_RETRY_CODE
     ? CONTACT_NOTICE_NOT_SENT_RETRY_CODE

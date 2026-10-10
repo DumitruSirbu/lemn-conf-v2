@@ -2,17 +2,11 @@ import type { SubmissionIssue } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
 import {
-  bodyTooLargeAnswer,
   CONTACT_REFUSAL_CODES,
-  crossSiteAnswer,
-  designDoesNotFitAnswer,
-  designNotCurrentAnswer,
-  invalidAnswer,
+  refusalAnswer,
   noticeNotSentAnswer,
   noticeNotSentRetryAnswer,
-  notJsonAnswer,
   rejectedAnswer,
-  requestConflictAnswer,
   sentAnswer,
   statusOfContactRefusal,
 } from "@/lib/server/contact/contact-responses";
@@ -23,6 +17,19 @@ import {
 } from "@/lib/server/rate-limit/rate-limited-response";
 
 import { readSource } from "../server-source-support";
+
+const crossSiteAnswer = () => refusalAnswer({ code: "CONTACT_CROSS_SITE" });
+const notJsonAnswer = () => refusalAnswer({ code: "CONTACT_NOT_JSON" });
+const bodyTooLargeAnswer = () =>
+  refusalAnswer({ code: "CONTACT_BODY_TOO_LARGE" });
+const requestConflictAnswer = () =>
+  refusalAnswer({ code: "CONTACT_REQUEST_CONFLICT" });
+const designNotCurrentAnswer = () =>
+  refusalAnswer({ code: "CONTACT_DESIGN_NOT_CURRENT" });
+const invalidAnswer = (issues: readonly SubmissionIssue[]) =>
+  refusalAnswer({ code: "CONTACT_INVALID", issues });
+const designDoesNotFitAnswer = (placementIds: readonly string[]) =>
+  refusalAnswer({ code: "CONTACT_DESIGN_DOES_NOT_FIT", placementIds });
 
 const A_REFERENCE = "LM-7K3QWXY2";
 const MARKER = "SUBMITTED-VALUE-MARKER-5521";

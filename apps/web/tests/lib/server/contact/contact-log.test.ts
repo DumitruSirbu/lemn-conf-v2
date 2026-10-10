@@ -503,19 +503,32 @@ describe("what no line holds, and a transport that fails", () => {
 });
 
 describe("the mail's own list of failure kinds", () => {
-  it("is the list this module writes, so a kind the mail adds is not written as other", () => {
-    return import("@/lib/server/contact/contact-log").then(
-      ({ CONTACT_MAIL_FAILURE_KINDS }) => {
-        expect([...CONTACT_MAIL_FAILURE_KINDS]).toEqual([
-          ...MAIL_FAILURE_KINDS,
-        ]);
-      },
-    );
-  });
+  it.each(MAIL_FAILURE_KINDS)(
+    "writes the mail's own kind %s as itself, so a kind the mail adds is not written as other",
+    async (failureKind) => {
+      const { reportContactNoticeNotSent, error } = await freshLog();
 
-  it("is a closed list of the reference's own import only: this module imports no mail", () => {
-    expect(readSource("lib/server/contact/contact-log.ts")).not.toMatch(
-      /lib\/server\/mail/,
-    );
+      reportContactNoticeNotSent({
+        code: "CONTACT_NOTICE_NOT_SENT",
+        failure: { kind: "mail", failureKind, providerStatus: undefined },
+        reference: A_REFERENCE,
+      });
+
+      expect(error.mock.calls[0]?.[1]).toMatchObject({
+        mailFailureKind: failureKind,
+      });
+    },
+  );
+
+  it("reads source: imports the mail's port and neither its adapter nor its fake nor its factory", () => {
+    const imports = [
+      ...readSource("lib/server/contact/contact-log.ts").matchAll(
+        /from "([^"]+)"/g,
+      ),
+    ].map((match) => match[1]);
+
+    expect(imports.filter((path) => path?.includes("/mail/"))).toEqual([
+      "@/lib/server/mail/mail-sender",
+    ]);
   });
 });

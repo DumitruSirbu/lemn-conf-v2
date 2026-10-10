@@ -72,50 +72,62 @@ export function statusOfContactRefusal(code: ContactRefusalCode): number {
   return LOGGED_REFUSALS[code].status;
 }
 
-/** `403`: the request came from another site. Nothing is counted. */
-export function crossSiteAnswer(): NextResponse {
-  return refusalAnswer("CONTACT_CROSS_SITE");
-}
-
-/** `415`: the body is not JSON by its content type. Nothing is counted. */
-export function notJsonAnswer(): NextResponse {
-  return refusalAnswer("CONTACT_NOT_JSON");
-}
-
-/** `413`: the body is past its bound. Nothing is counted. */
-export function bodyTooLargeAnswer(): NextResponse {
-  return refusalAnswer("CONTACT_BODY_TOO_LARGE");
-}
+/** The two refusals a stored request's retry can meet when its design has changed since, and a new request when the
+ *  design is not the caller's current one or does not fit. */
+export type DesignRefusalCode = Extract<
+  ContactRefusalCode,
+  "CONTACT_DESIGN_NOT_CURRENT" | "CONTACT_DESIGN_DOES_NOT_FIT"
+>;
 
 /**
- * `400`: the body did not parse, which is no issues, or the schema refused it, which is each issue's field and code.
- * Every issue is rebuilt from those two, so nothing else it carried, a value included, can reach the body.
+ * A refusal: its code, which is also what the line is written under, and what its answer adds to the table's sentence.
+ * `CONTACT_INVALID` has one issue for a body that is no JSON (`NOT_AN_OBJECT`) and for each field the schema refused,
+ * and none only for a stream that broke, which has no body to refuse. A kitchen past its wall carries its own bodies'
+ * ids, which only the design's owner reaches.
  */
-export function invalidAnswer(
-  issues: readonly SubmissionIssue[],
-): NextResponse {
-  return refusalAnswer("CONTACT_INVALID", {
-    issues: issues.map(({ field, code }) => ({ field, code })),
+export type ContactRefusal =
+  | {
+      readonly code: Exclude<
+        ContactRefusalCode,
+        "CONTACT_INVALID" | "CONTACT_DESIGN_DOES_NOT_FIT"
+      >;
+    }
+  | {
+      readonly code: "CONTACT_INVALID";
+      readonly issues: readonly SubmissionIssue[];
+    }
+  | {
+      readonly code: "CONTACT_DESIGN_DOES_NOT_FIT";
+      readonly placementIds: readonly string[];
+    };
+
+export type DesignRefusal =
+  | { readonly code: "CONTACT_DESIGN_NOT_CURRENT" }
+  | Extract<ContactRefusal, { readonly code: "CONTACT_DESIGN_DOES_NOT_FIT" }>;
+
+/**
+ * The answer of a refusal, from its code and the table's status and sentence. Every issue is rebuilt from its field
+ * and its code, so nothing else it carried, a value included, can reach the body.
+ */
+export function refusalAnswer(refusal: ContactRefusal): NextResponse {
+  const { status, sentence } = LOGGED_REFUSALS[refusal.code];
+  return answerOf(status, {
+    error: sentence,
+    code: refusal.code,
+    ...detailOf(refusal),
   });
 }
 
-/** `409`: a request's id was stored with another payload. No reference, and nothing of whether a notice went. */
-export function requestConflictAnswer(): NextResponse {
-  return refusalAnswer("CONTACT_REQUEST_CONFLICT");
-}
-
-/** `409`: every way the owned load fails, an id of the wrong shape included, which is one answer. */
-export function designNotCurrentAnswer(): NextResponse {
-  return refusalAnswer("CONTACT_DESIGN_NOT_CURRENT");
-}
-
-/** `422`: a kitchen past its wall, with its own bodies' ids, which only the design's owner reaches. */
-export function designDoesNotFitAnswer(
-  placementIds: readonly string[],
-): NextResponse {
-  return refusalAnswer("CONTACT_DESIGN_DOES_NOT_FIT", {
-    placementIds: [...placementIds],
-  });
+function detailOf(refusal: ContactRefusal): Readonly<Record<string, unknown>> {
+  if (refusal.code === "CONTACT_INVALID") {
+    return {
+      issues: refusal.issues.map(({ field, code }) => ({ field, code })),
+    };
+  }
+  if (refusal.code === "CONTACT_DESIGN_DOES_NOT_FIT") {
+    return { placementIds: [...refusal.placementIds] };
+  }
+  return {};
 }
 
 /** `400`: the honeypot was filled or the form was sent too fast, and nothing says which. It writes no line. */
@@ -149,14 +161,6 @@ function noticeNotSent(code: ContactNoticeNotSentCode): NextResponse {
     error: NOTICE_NOT_SENT_SENTENCE,
     code,
   });
-}
-
-function refusalAnswer(
-  code: ContactRefusalCode,
-  extra: Readonly<Record<string, unknown>> = {},
-): NextResponse {
-  const { status, sentence } = LOGGED_REFUSALS[code];
-  return answerOf(status, { error: sentence, code, ...extra });
 }
 
 /** The one maker: JSON, never stored, and no header that sets a cookie. */
