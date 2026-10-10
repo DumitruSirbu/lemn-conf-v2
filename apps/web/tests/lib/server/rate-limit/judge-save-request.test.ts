@@ -220,6 +220,37 @@ describe("judgeSaveRequest: anything that is not an allow is not a pass", () => 
     },
   );
 
+  it.each([
+    ["a hash the constructor refuses", "not-a-hash"],
+    ["a store that fails on the credential's statement", CREDENTIAL_HASH],
+  ])(
+    "names the credential's policy as the one that ended it for %s",
+    async (_label, hash) => {
+      const { judgeSaveRequest, recorded } = await freshJudge();
+      recorded.mockResolvedValueOnce([1]).mockRejectedValueOnce(new Error("x"));
+
+      const { policy } = await judgeSaveRequest(FROM_192_0_2, hash);
+
+      expect(policy).toEqual({
+        status: "chosen",
+        policy: SAVE_BY_CREDENTIAL_POLICY,
+      });
+    },
+  );
+
+  it("names the block's policy as the one that ended it when the block cannot be judged", async () => {
+    vi.stubEnv(CLIENT_NETWORK_SOURCE_VARIABLE, "other");
+    const { judgeSaveRequest } = await freshJudge();
+
+    const { decision, policy } = await judgeSaveRequest(
+      FROM_192_0_2,
+      CREDENTIAL_HASH,
+    );
+
+    expect(decision.kind).toBe("unavailable");
+    expect(policy).toEqual({ status: "chosen", policy: SAVE_BY_BLOCK_POLICY });
+  });
+
   it("answers a store that fails on the credential's statement as unavailable", async () => {
     const { judgeSaveRequest, recorded } = await freshJudge();
     recorded.mockResolvedValueOnce([1]).mockRejectedValueOnce(new Error("x"));
@@ -431,6 +462,8 @@ describe("judge-save-request.ts", () => {
     expect(source).toMatch(
       /subjectOfWriteCredentialHash\(\s*writeTokenHash\s*\)/,
     );
-    expect(source).toMatch(/judgeInSequence\(\[\s*\(\) => judgeBlockBucket/);
+    expect(source).toMatch(
+      /judgeStepsInSequence\(\[\s*\{\s*policy: block\.policy,\s*judge: \(\) => judgeBlockBucket\(block\)/,
+    );
   });
 });

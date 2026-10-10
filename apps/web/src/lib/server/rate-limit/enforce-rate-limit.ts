@@ -19,8 +19,10 @@ import {
 import {
   isOwnPolicy,
   type LimitPolicy,
+  type PolicyChoice,
   type WindowRule,
 } from "@/lib/server/rate-limit/limit-policy";
+import type { WriteJudgement } from "@/lib/server/rate-limit/refusal-of-write-limit";
 import { utcWindowOf } from "@/lib/server/rate-limit/utc-window";
 
 /** The limiter's own bound around a write's store call, after which the request is unavailable. With the store's
@@ -67,6 +69,18 @@ export interface RateLimitRequest {
 
 /** One judgement of a sequence, asked only when the steps before it allowed. */
 export type JudgementStep = () => Promise<RateLimitDecision>;
+
+/** A judgement and the policy it is made under, known before it is asked, so that a step that throws is still named. */
+export interface PolicyStep {
+  readonly policy: PolicyChoice;
+  readonly judge: JudgementStep;
+}
+
+/** No policy was chosen: what a sequence with no step, or a decision-only sequence, answers. */
+const NO_POLICY: PolicyChoice = Object.freeze({
+  status: "unavailable",
+  variable: undefined,
+});
 
 type Step<Value> =
   | { readonly ok: true; readonly value: Value }
@@ -239,13 +253,35 @@ function unavailable(cause: UnavailableCause): RateLimitDecision {
 export async function judgeInSequence(
   steps: readonly JudgementStep[],
 ): Promise<RateLimitDecision> {
+  const judged = await judgeStepsInSequence(
+    steps.map((judge) => ({ policy: NO_POLICY, judge })),
+  );
+  return judged.decision;
+}
+
+/**
+ * The same sequence, each step with its policy, answering the decision and the policy of the step that ended it: the
+ * one that refused, the one that could not be judged, or the one that threw. All allowed answers the last step's, and a
+ * sequence of none answers no policy. The policy is the step's own, so it does not depend on what a closure did when it
+ * was called.
+ */
+export async function judgeStepsInSequence(
+  steps: readonly PolicyStep[],
+): Promise<WriteJudgement> {
+  let endedBy: PolicyStep | undefined;
   try {
     for (const step of steps) {
-      const decision = await step();
-      if (decision.kind !== "allow") return decision;
+      endedBy = step;
+      const decision = await step.judge();
+      if (decision.kind !== "allow") return { decision, policy: step.policy };
     }
-    return steps.length === 0 ? unavailable("judgement-failed") : ALLOWED;
+    return steps.length === 0
+      ? { decision: unavailable("judgement-failed"), policy: NO_POLICY }
+      : { decision: ALLOWED, policy: endedBy?.policy ?? NO_POLICY };
   } catch {
-    return unavailable("judgement-failed");
+    return {
+      decision: unavailable("judgement-failed"),
+      policy: endedBy?.policy ?? NO_POLICY,
+    };
   }
 }

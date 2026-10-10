@@ -26,19 +26,23 @@ import {
 import {
   enforceRateLimit,
   judgeInSequence,
+  judgeStepsInSequence,
   RATE_LIMIT_DEADLINE_MS,
   RATE_LIMIT_READ_DEADLINE_MS,
   UNAVAILABLE_CAUSES,
   type JudgementStep,
+  type PolicyStep,
   type RateLimitDecision,
   type RateLimitRequest,
 } from "@/lib/server/rate-limit/enforce-rate-limit";
 import {
   E2E_MINT_POLICY,
   MINT_POLICY,
+  READ_POLICY,
   SAVE_BY_BLOCK_POLICY,
   SAVE_BY_CREDENTIAL_POLICY,
   type LimitPolicy,
+  type PolicyChoice,
 } from "@/lib/server/rate-limit/limit-policy";
 import { utcWindowOf } from "@/lib/server/rate-limit/utc-window";
 import { LOCK_ACQUIRE_TIMEOUT_MS } from "@/persistence/create-design-lock";
@@ -1187,5 +1191,99 @@ describe("enforce-rate-limit.ts", () => {
       /console\.|Date\.now|new Date\(\)|performance\./,
     );
     expect(source).not.toMatch(/Neon|Fake|new RateLimitStore|catch\s*\(/);
+  });
+});
+
+describe("judgeStepsInSequence: the policy of the step that ended the sequence", () => {
+  const FIRST: PolicyChoice = { status: "chosen", policy: MINT_POLICY };
+  const SECOND: PolicyChoice = { status: "chosen", policy: READ_POLICY };
+  const ALLOW: RateLimitDecision = { kind: "allow" };
+  const REFUSE: RateLimitDecision = { kind: "refuse", retryAfterSeconds: 9 };
+  const NOT_JUDGED: RateLimitDecision = {
+    kind: "unavailable",
+    cause: "store-failed",
+  };
+
+  function stepOf(
+    policy: PolicyChoice,
+    answer: RateLimitDecision | "throws",
+    asked: PolicyChoice[],
+  ): PolicyStep {
+    return {
+      policy,
+      judge: () => {
+        asked.push(policy);
+        return answer === "throws"
+          ? Promise.reject(new Error("STEP-MARKER-0471"))
+          : Promise.resolve(answer);
+      },
+    };
+  }
+
+  it.each([
+    ["the first refuses", [REFUSE, ALLOW], FIRST, REFUSE, 1],
+    ["the first cannot be judged", [NOT_JUDGED, ALLOW], FIRST, NOT_JUDGED, 1],
+    ["the second refuses", [ALLOW, REFUSE], SECOND, REFUSE, 2],
+    ["the second cannot be judged", [ALLOW, NOT_JUDGED], SECOND, NOT_JUDGED, 2],
+    ["both allow", [ALLOW, ALLOW], SECOND, ALLOW, 2],
+  ] as const)(
+    "answers the decision and the policy of the step that ended it when %s",
+    async (_label, answers, policy, decision, askedCount) => {
+      const asked: PolicyChoice[] = [];
+
+      const judged = await judgeStepsInSequence([
+        stepOf(FIRST, answers[0], asked),
+        stepOf(SECOND, answers[1], asked),
+      ]);
+
+      expect(judged).toEqual({ decision, policy });
+      expect(asked).toHaveLength(askedCount);
+    },
+  );
+
+  it.each([
+    ["first", ["throws", ALLOW], FIRST],
+    ["second", [ALLOW, "throws"], SECOND],
+  ] as const)(
+    "names the policy of the step that threw when the %s does, and keeps nothing of what it threw",
+    async (_label, answers, policy) => {
+      const asked: PolicyChoice[] = [];
+
+      const judged = await judgeStepsInSequence([
+        stepOf(FIRST, answers[0], asked),
+        stepOf(SECOND, answers[1], asked),
+      ]);
+
+      expect(judged).toEqual({
+        decision: UNAVAILABLE("judgement-failed"),
+        policy,
+      });
+      expect(inspect(judged, { depth: null, showHidden: true })).not.toContain(
+        "MARKER",
+      );
+    },
+  );
+
+  it("answers no policy for a sequence of none, and judgement-failed", async () => {
+    expect(await judgeStepsInSequence([])).toEqual({
+      decision: UNAVAILABLE("judgement-failed"),
+      policy: { status: "unavailable", variable: undefined },
+    });
+  });
+
+  it("is what judgeInSequence answers the decision of, so the two cannot differ", async () => {
+    for (const answers of [
+      [ALLOW, ALLOW],
+      [REFUSE, ALLOW],
+      [ALLOW, NOT_JUDGED],
+    ] as const) {
+      const steps = answers.map((answer, index) =>
+        stepOf(index === 0 ? FIRST : SECOND, answer, []),
+      );
+
+      expect(await judgeInSequence(steps.map(({ judge }) => judge))).toEqual(
+        (await judgeStepsInSequence(steps)).decision,
+      );
+    }
   });
 });

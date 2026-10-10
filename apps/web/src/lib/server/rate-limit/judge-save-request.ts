@@ -6,7 +6,7 @@ import { reportSaveLimit } from "@/lib/server/design-failure-log";
 import { subjectOfWriteCredentialHash } from "@/lib/server/rate-limit/bucket-subject";
 import {
   enforceRateLimit,
-  judgeInSequence,
+  judgeStepsInSequence,
   RATE_LIMIT_DEADLINE_MS,
   type RateLimitDecision,
 } from "@/lib/server/rate-limit/enforce-rate-limit";
@@ -50,15 +50,13 @@ export async function judgeSaveRequest(
     instant: new Date(),
   });
   const credentialPolicy = choosePolicy(environment, "save-by-credential");
-  let decidingPolicy = block.policy;
-  const decision = await judgeInSequence([
-    () => judgeBlockBucket(block),
-    () => {
-      decidingPolicy = credentialPolicy;
-      return judgeCredential({ block, credentialPolicy, writeTokenHash });
+  return judgeStepsInSequence([
+    { policy: block.policy, judge: () => judgeBlockBucket(block) },
+    {
+      policy: credentialPolicy,
+      judge: () => judgeCredential({ block, credentialPolicy, writeTokenHash }),
     },
   ]);
-  return { decision, policy: decidingPolicy };
 }
 
 interface CredentialJudgement {
