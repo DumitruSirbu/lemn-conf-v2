@@ -4,6 +4,7 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   CONSENT_TEXT_VERSIONS,
   CONTACT_INTENTS,
+  isClientRequestId,
   validateContactSubmission as validateAgainstLocales,
   type ContactFields,
   type ContactSubmissionRequest,
@@ -545,4 +546,32 @@ describe("validateContactSubmission: the request has no price", () => {
       expect(keys.filter((key) => PRICE_LIKE.test(key))).toEqual([]);
     },
   );
+});
+
+describe("isClientRequestId", () => {
+  it.each(["0123456789abcdef", "a".repeat(64), "A_b-C_d-E_f-G_h-"])(
+    "accepts %s",
+    (text) => {
+      expect(isClientRequestId(text)).toBe(true);
+    },
+  );
+
+  it.each([
+    ["fifteen characters", "a".repeat(15)],
+    ["sixty-five characters", "a".repeat(65)],
+    ["a space", "0123456789abcde f"],
+    ["a dot", "0123456789abcde."],
+    ["nothing", ""],
+  ])("refuses %s", (_label, text) => {
+    expect(isClientRequestId(text)).toBe(false);
+  });
+
+  it("is the shape the request's own validation holds the id to", () => {
+    const validated = validateContactSubmission({
+      ...DESIGN_REQUEST,
+      clientRequestId: "a".repeat(15),
+    });
+
+    expect(validated.ok).toBe(false);
+  });
 });

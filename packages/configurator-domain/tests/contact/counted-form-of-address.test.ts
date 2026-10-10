@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { countedFormOfAddress } from "../../src/contact/index.js";
+import {
+  countedFormOfAddress,
+  isCountedFormOfAddress,
+} from "../../src/contact/index.js";
 
 describe("countedFormOfAddress: an address as a limit counts it", () => {
   it.each([
@@ -32,5 +35,34 @@ describe("countedFormOfAddress: an address as a limit counts it", () => {
 
     expect(countedFormOfAddress(once)).toBe(once);
     expect(countedFormOfAddress("I@EXAMPLE.COM")).toBe("i@example.com");
+  });
+});
+
+describe("isCountedFormOfAddress: the one text a subject may be made of", () => {
+  it.each(["ana@example.com", "ana+shop@example.com", "a.na@mail.example.com"])(
+    "accepts %s, an address in its counted form",
+    (text) => {
+      expect(isCountedFormOfAddress(text)).toBe(true);
+    },
+  );
+
+  it.each([
+    ["an address with a capital", "Ana@example.com"],
+    ["nothing", ""],
+    ["text that is no address", "not an address"],
+    ["two at-signs", "a@b@example.com"],
+    ["a line break inside", "ana@example.com\nbcc@example.com"],
+    ["a space around", " ana@example.com"],
+    ["a control character", "ana@exam\u0000ple.com"],
+    ["a name before the address", "Ana <ana@example.com>"],
+    ["an address past the longest", `${"a".repeat(250)}@example.com`],
+  ])("refuses %s", (_label, text) => {
+    expect(isCountedFormOfAddress(text)).toBe(false);
+  });
+
+  it("accepts every address the form accepts, once counted", () => {
+    for (const typed of ["Ana@Example.COM", "ANA+X@EXAMPLE.COM", "a.B@c.de"]) {
+      expect(isCountedFormOfAddress(countedFormOfAddress(typed))).toBe(true);
+    }
   });
 });

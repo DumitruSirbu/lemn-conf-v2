@@ -6,6 +6,7 @@ export {
   CONTACT_NAME_MAX_LENGTH,
   CONTACT_PHONE_MAX_LENGTH,
   countedFormOfAddress,
+  isCountedFormOfAddress,
   validateContactFields,
   type ConsentTextVersion,
   type ContactChannel,
@@ -23,6 +24,7 @@ export {
 } from "./phone-number.js";
 export {
   CONTACT_INTENTS,
+  isClientRequestId,
   validateContactSubmission,
   type ContactIntent,
   type ContactSubmissionRequest,

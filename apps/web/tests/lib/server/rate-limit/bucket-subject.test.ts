@@ -3,10 +3,16 @@ import { createHash, randomBytes } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
 import {
+  ADDRESS_KIND,
   BucketSubjectError,
   isMadeSubject,
+  STORED_REQUEST_KIND,
+  subjectOfAddress,
   subjectOfNetworkBlock,
+  subjectOfStoredRequest,
+  subjectOfVisitorHash,
   subjectOfWriteCredentialHash,
+  VISITOR_KIND,
   WRITE_CREDENTIAL_KIND,
 } from "@/lib/server/rate-limit/bucket-subject";
 import {
@@ -187,14 +193,15 @@ describe("isMadeSubject: what a constructor made, by identity", () => {
     subjectOfNetworkBlock(block("ipv4-block", "192.0.2")),
     subjectOfNetworkBlock(block("shared", "")),
     subjectOfWriteCredentialHash(A_CREDENTIAL_HASH),
+    subjectOfVisitorHash(A_CREDENTIAL_HASH),
+    subjectOfAddress("ana@example.com"),
+    subjectOfStoredRequest("0123456789abcdef"),
   ];
 
   it("knows each subject a constructor made", () => {
-    expect(MADE.map((subject) => isMadeSubject(subject))).toEqual([
-      true,
-      true,
-      true,
-    ]);
+    expect(MADE.map((subject) => isMadeSubject(subject))).toEqual(
+      MADE.map(() => true),
+    );
   });
 
   it.each([
@@ -213,6 +220,117 @@ describe("isMadeSubject: what a constructor made, by identity", () => {
     ["null", null],
   ])("does not know %s", (_label, candidate) => {
     expect(isMadeSubject(candidate)).toBe(false);
+  });
+});
+
+describe("subjectOfVisitorHash: sixty-four hexadecimal characters and nothing else", () => {
+  it("accepts a lowercase digest under a kind of its own", () => {
+    const subject = subjectOfVisitorHash(A_CREDENTIAL_HASH);
+
+    expect(subject.kind).toBe(VISITOR_KIND);
+    expect(subject.subject).toBe(A_CREDENTIAL_HASH);
+  });
+
+  it.each([
+    ["the visitor's own value, which is not a hash", "a".repeat(43)],
+    ["a design's id", "k3J9xQ2mT7vWcN4pRz8LbA"],
+    ["nothing", ""],
+    ["sixty-three characters", A_CREDENTIAL_HASH.slice(1)],
+    ["sixty-five characters", `${A_CREDENTIAL_HASH}0`],
+    ["a digest in upper case", A_CREDENTIAL_HASH.toUpperCase()],
+    ["a digest with a line break after it", `${A_CREDENTIAL_HASH}\n`],
+    ["an address", "ana@example.com"],
+  ])("refuses %s, naming the kind and none of the text", (_label, text) => {
+    expect(isRefusedAs(() => subjectOfVisitorHash(text), VISITOR_KIND)).toBe(
+      true,
+    );
+  });
+
+  it("refuses what is not text, and never shares a kind with the credential's hash", () => {
+    expect(
+      isRefusedAs(
+        () => subjectOfVisitorHash(42 as unknown as string),
+        VISITOR_KIND,
+      ),
+    ).toBe(true);
+    expect(VISITOR_KIND).not.toBe(WRITE_CREDENTIAL_KIND);
+  });
+});
+
+describe("subjectOfAddress: an address in its counted form and nothing else", () => {
+  it.each(["ana@example.com", "ana+shop@example.com", "a.na@mail.example.com"])(
+    "accepts %s under a kind of its own",
+    (address) => {
+      const subject = subjectOfAddress(address);
+
+      expect(subject.kind).toBe(ADDRESS_KIND);
+      expect(subject.subject).toBe(address);
+    },
+  );
+
+  it.each([
+    [
+      "an address with a capital, which is not the counted form",
+      "Ana@example.com",
+    ],
+    ["nothing", ""],
+    ["text that is no address", "not an address"],
+    ["a line break after it", "ana@example.com\n"],
+    ["two addresses", "a@example.com,b@example.com"],
+    ["a hash", A_CREDENTIAL_HASH],
+    ["a design id", "k3J9xQ2mT7vWcN4pRz8LbA"],
+  ])("refuses %s", (_label, text) => {
+    expect(isRefusedAs(() => subjectOfAddress(text), ADDRESS_KIND)).toBe(true);
+  });
+
+  it("holds none of the refused text in its refusal", () => {
+    let refusal: unknown;
+    try {
+      subjectOfAddress("ADDRESS-MARKER-7");
+    } catch (thrown) {
+      refusal = thrown;
+    }
+
+    expect(refusal).toBeInstanceOf(BucketSubjectError);
+    expect((refusal as Error).message).not.toContain("MARKER");
+  });
+});
+
+describe("subjectOfStoredRequest: the shape of a request's id and nothing else", () => {
+  it.each(["0123456789abcdef", "a".repeat(64), "A_b-C_d-E_f-G_h-"])(
+    "accepts %s under a kind of its own",
+    (id) => {
+      const subject = subjectOfStoredRequest(id);
+
+      expect(subject.kind).toBe(STORED_REQUEST_KIND);
+      expect(subject.subject).toBe(id);
+    },
+  );
+
+  it.each([
+    ["fifteen characters", "a".repeat(15)],
+    ["sixty-five characters", "a".repeat(65)],
+    ["a space", "0123456789abcde f"],
+    ["an address", "ana@example.com"],
+    ["nothing", ""],
+  ])("refuses %s", (_label, text) => {
+    expect(
+      isRefusedAs(() => subjectOfStoredRequest(text), STORED_REQUEST_KIND),
+    ).toBe(true);
+  });
+});
+
+describe("the five kinds of subject keep every other's text out", () => {
+  it("is five different kinds, whatever the text", () => {
+    const kinds = [
+      subjectOfNetworkBlock(block("ipv4-block", "192.0.2")).kind,
+      subjectOfWriteCredentialHash(A_CREDENTIAL_HASH).kind,
+      subjectOfVisitorHash(A_CREDENTIAL_HASH).kind,
+      subjectOfAddress("ana@example.com").kind,
+      subjectOfStoredRequest("0123456789abcdef").kind,
+    ];
+
+    expect(new Set(kinds).size).toBe(5);
   });
 });
 
@@ -379,7 +497,7 @@ describe("bucket-subject.ts", () => {
     );
   }
 
-  it("reads source: exports the two constructors and the question of what they made, and no third maker", () => {
+  it("reads source: exports the five constructors and the question of what they made, and no sixth maker", () => {
     const exportedFunctions = [
       ...readSource(SOURCE_FILE).matchAll(/^export function (\w+)\(/gm),
     ].map((match) => match[1]);
@@ -387,6 +505,9 @@ describe("bucket-subject.ts", () => {
     expect(exportedFunctions).toEqual([
       "subjectOfNetworkBlock",
       "subjectOfWriteCredentialHash",
+      "subjectOfVisitorHash",
+      "subjectOfAddress",
+      "subjectOfStoredRequest",
       "isMadeSubject",
     ]);
   });

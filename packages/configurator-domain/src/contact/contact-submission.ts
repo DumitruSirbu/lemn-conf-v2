@@ -41,6 +41,12 @@ const CLIENT_REQUEST_ID_SHAPE = /^[A-Za-z0-9_-]{16,64}$/;
  *  text is read for its length and nothing else. */
 const HONEYPOT_MAX_LENGTH = 256;
 
+/** Whether text has the shape of a client request id: the one statement of it, asked by the validator and by the
+ *  limiter's subject for a stored request. */
+export function isClientRequestId(text: string): boolean {
+  return CLIENT_REQUEST_ID_SHAPE.test(text);
+}
+
 export type SubmissionField =
   | "request"
   | "contact"
@@ -149,7 +155,7 @@ function judgeRequest(
     target: judgeTarget(request),
     clientRequestId: judgeToken(
       ownValueOf(request, "clientRequestId"),
-      (text) => CLIENT_REQUEST_ID_SHAPE.test(text),
+      isClientRequestId,
       "clientRequestId",
     ),
     locale: judgeLocale(ownValueOf(request, "locale"), servedLocales),

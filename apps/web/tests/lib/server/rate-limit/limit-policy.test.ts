@@ -3,6 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   ALL_LIMIT_POLICIES,
   choosePolicy,
+  E2E_CONTACT_EVERY_BY_BLOCK_POLICY,
+  E2E_CONTACT_NEW_BY_BLOCK_DAY_POLICY,
+  E2E_CONTACT_NEW_BY_BLOCK_HOUR_POLICY,
   E2E_MINT_DAILY_FIGURE,
   E2E_MINT_POLICY,
   E2E_MINT_POLICY_NAME,
@@ -154,7 +157,8 @@ describe("the policies of saves, shares and reads as data", () => {
   it("gives every policy a name of its own that carries its window and starts with no other's", () => {
     const names = ALL_LIMIT_POLICIES.map((policy) => policy.name);
 
-    expect(ALL_LIMIT_POLICIES).toHaveLength(8);
+    // Eight before the contact form, and its six policies and three twins since.
+    expect(ALL_LIMIT_POLICIES).toHaveLength(17);
     expect(new Set(names).size).toBe(names.length);
     for (const policy of ALL_LIMIT_POLICIES) {
       const label =
@@ -413,13 +417,16 @@ describe("choosePolicy: a purpose that is not the list's own", () => {
 });
 
 describe("isE2eTwin: which policies carry a figure that is not the production one", () => {
-  it("is true of the three twins and of no other policy", () => {
+  it("is true of the six twins and of no other policy", () => {
     const twins = ALL_LIMIT_POLICIES.filter((policy) => isE2eTwin(policy));
 
     expect(twins).toEqual([
       E2E_MINT_POLICY,
       E2E_SAVE_BY_BLOCK_POLICY,
       E2E_SHARE_WRITE_POLICY,
+      E2E_CONTACT_EVERY_BY_BLOCK_POLICY,
+      E2E_CONTACT_NEW_BY_BLOCK_HOUR_POLICY,
+      E2E_CONTACT_NEW_BY_BLOCK_DAY_POLICY,
     ]);
   });
 

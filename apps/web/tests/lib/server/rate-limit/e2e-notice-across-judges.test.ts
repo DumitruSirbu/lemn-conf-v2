@@ -30,6 +30,12 @@ async function freshJudges() {
     read: () => judgeReadRequest(headers),
     "save-by-block": () => Promise.resolve(undefined),
     "save-by-credential": () => Promise.resolve(undefined),
+    "contact-every-by-block": () => Promise.resolve(undefined),
+    "contact-new-by-block-hour": () => Promise.resolve(undefined),
+    "contact-new-by-block-day": () => Promise.resolve(undefined),
+    "contact-new-by-visitor": () => Promise.resolve(undefined),
+    "contact-new-by-address": () => Promise.resolve(undefined),
+    "contact-tries-by-request": () => Promise.resolve(undefined),
   };
   return askers;
 }

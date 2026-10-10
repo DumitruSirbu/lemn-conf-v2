@@ -91,6 +91,34 @@ export const READS_PER_BLOCK_FIGURE = 600;
 export const E2E_SAVES_PER_BLOCK_FIGURE = 1200;
 export const E2E_SHARE_WRITES_PER_BLOCK_FIGURE = 500;
 
+/**
+ * A contact request's limits. The figures of a new request are ADR 0019 d5's row for the contact form: 3 an hour and 10
+ * a day for a network, 2 an hour for a browser and 3 a day for an address. The contact form's day is the UTC day, so
+ * the Chișinău day's totals stay the mint's alone.
+ */
+const CONTACT_HOUR_MINUTES = 60;
+const CONTACT_DAY_MINUTES = 1440;
+export const CONTACT_NEW_PER_BLOCK_HOUR_FIGURE = 3;
+export const CONTACT_NEW_PER_BLOCK_DAY_FIGURE = 10;
+export const CONTACT_NEW_PER_VISITOR_HOUR_FIGURE = 2;
+export const CONTACT_NEW_PER_ADDRESS_DAY_FIGURE = 3;
+
+/**
+ * PROVISIONAL until the owner answers Q39, which no record answers: how many contact requests of any kind a network
+ * may send in an hour (30), and how often one stored request may be tried again in an hour (10, at least the six a
+ * retry's criterion needs). His answer changes these two constants and no code.
+ */
+export const CONTACT_EVERY_PER_BLOCK_HOUR_FIGURE = 30;
+export const CONTACT_TRIES_PER_REQUEST_HOUR_FIGURE = 10;
+
+/**
+ * PROVISIONAL, a bound for a misplaced flag and no measure, until the suite's own spec counts what a whole run sends:
+ * each of the three buckets the suite's one shared block would count.
+ */
+export const E2E_CONTACT_EVERY_PER_BLOCK_HOUR_FIGURE = 300;
+export const E2E_CONTACT_NEW_PER_BLOCK_HOUR_FIGURE = 300;
+export const E2E_CONTACT_NEW_PER_BLOCK_DAY_FIGURE = 300;
+
 export const MINT_POLICY = policyOf("design-mint", {
   figure: MINT_DAILY_FIGURE,
   window: CHISINAU_DAY,
@@ -131,17 +159,96 @@ export const READ_POLICY = policyOf("read-by-block", {
   window: utcMinutes(READ_WINDOW_MINUTES),
 });
 
+export const CONTACT_EVERY_BY_BLOCK_POLICY = policyOf(
+  "contact-every-request-by-block",
+  {
+    figure: CONTACT_EVERY_PER_BLOCK_HOUR_FIGURE,
+    window: utcMinutes(CONTACT_HOUR_MINUTES),
+  },
+);
+
+export const E2E_CONTACT_EVERY_BY_BLOCK_POLICY = policyOf(
+  "contact-every-request-by-block-e2e",
+  {
+    figure: E2E_CONTACT_EVERY_PER_BLOCK_HOUR_FIGURE,
+    window: utcMinutes(CONTACT_HOUR_MINUTES),
+  },
+);
+
+export const CONTACT_NEW_BY_BLOCK_HOUR_POLICY = policyOf(
+  "contact-new-request-by-block",
+  {
+    figure: CONTACT_NEW_PER_BLOCK_HOUR_FIGURE,
+    window: utcMinutes(CONTACT_HOUR_MINUTES),
+  },
+);
+
+export const E2E_CONTACT_NEW_BY_BLOCK_HOUR_POLICY = policyOf(
+  "contact-new-request-by-block-e2e",
+  {
+    figure: E2E_CONTACT_NEW_PER_BLOCK_HOUR_FIGURE,
+    window: utcMinutes(CONTACT_HOUR_MINUTES),
+  },
+);
+
+export const CONTACT_NEW_BY_BLOCK_DAY_POLICY = policyOf(
+  "contact-new-request-by-block",
+  {
+    figure: CONTACT_NEW_PER_BLOCK_DAY_FIGURE,
+    window: utcMinutes(CONTACT_DAY_MINUTES),
+  },
+);
+
+export const E2E_CONTACT_NEW_BY_BLOCK_DAY_POLICY = policyOf(
+  "contact-new-request-by-block-e2e",
+  {
+    figure: E2E_CONTACT_NEW_PER_BLOCK_DAY_FIGURE,
+    window: utcMinutes(CONTACT_DAY_MINUTES),
+  },
+);
+
+export const CONTACT_NEW_BY_VISITOR_POLICY = policyOf(
+  "contact-new-request-by-visitor",
+  {
+    figure: CONTACT_NEW_PER_VISITOR_HOUR_FIGURE,
+    window: utcMinutes(CONTACT_HOUR_MINUTES),
+  },
+);
+
+export const CONTACT_NEW_BY_ADDRESS_POLICY = policyOf(
+  "contact-new-request-by-address",
+  {
+    figure: CONTACT_NEW_PER_ADDRESS_DAY_FIGURE,
+    window: utcMinutes(CONTACT_DAY_MINUTES),
+  },
+);
+
+export const CONTACT_TRIES_BY_REQUEST_POLICY = policyOf(
+  "contact-tries-by-request",
+  {
+    figure: CONTACT_TRIES_PER_REQUEST_HOUR_FIGURE,
+    window: utcMinutes(CONTACT_HOUR_MINUTES),
+  },
+);
+
 export const MINT_POLICY_NAME = MINT_POLICY.name;
 export const E2E_MINT_POLICY_NAME = E2E_MINT_POLICY.name;
 
-/** What a request is limited for. The credential's bucket and the reads have no e2e twin: no test saves one design
- *  often enough to reach the first, and the suite's server counts no read under the shared bucket. */
+/** What a request is limited for. A bucket has an e2e twin when the suite's one shared block would count it: the
+ *  credential's, the reads, and the contact form's buckets by a browser, an address and a stored request have none,
+ *  since no test makes them often enough, and the suite's server counts no read under the shared bucket. */
 export type PolicyPurpose =
   | "mint"
   | "save-by-block"
   | "save-by-credential"
   | "share-write"
-  | "read";
+  | "read"
+  | "contact-every-by-block"
+  | "contact-new-by-block-hour"
+  | "contact-new-by-block-day"
+  | "contact-new-by-visitor"
+  | "contact-new-by-address"
+  | "contact-tries-by-request";
 
 interface Twins {
   readonly production: LimitPolicy;
@@ -163,6 +270,30 @@ const TWINS_OF_PURPOSE: Readonly<Record<PolicyPurpose, Twins>> = {
     e2e: E2E_SHARE_WRITE_POLICY,
   },
   read: { production: READ_POLICY, e2e: READ_POLICY },
+  "contact-every-by-block": {
+    production: CONTACT_EVERY_BY_BLOCK_POLICY,
+    e2e: E2E_CONTACT_EVERY_BY_BLOCK_POLICY,
+  },
+  "contact-new-by-block-hour": {
+    production: CONTACT_NEW_BY_BLOCK_HOUR_POLICY,
+    e2e: E2E_CONTACT_NEW_BY_BLOCK_HOUR_POLICY,
+  },
+  "contact-new-by-block-day": {
+    production: CONTACT_NEW_BY_BLOCK_DAY_POLICY,
+    e2e: E2E_CONTACT_NEW_BY_BLOCK_DAY_POLICY,
+  },
+  "contact-new-by-visitor": {
+    production: CONTACT_NEW_BY_VISITOR_POLICY,
+    e2e: CONTACT_NEW_BY_VISITOR_POLICY,
+  },
+  "contact-new-by-address": {
+    production: CONTACT_NEW_BY_ADDRESS_POLICY,
+    e2e: CONTACT_NEW_BY_ADDRESS_POLICY,
+  },
+  "contact-tries-by-request": {
+    production: CONTACT_TRIES_BY_REQUEST_POLICY,
+    e2e: CONTACT_TRIES_BY_REQUEST_POLICY,
+  },
 };
 
 /** Every policy once, for a check that no two share a name. */

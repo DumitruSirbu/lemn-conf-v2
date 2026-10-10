@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import {
+  countCharacters,
   holdsForbiddenCharacter,
   ownValueOf,
   readTypedText,
@@ -118,6 +119,18 @@ export function validateContactFields(
  */
 export function countedFormOfAddress(email: string): string {
   return email.toLowerCase();
+}
+
+/** Whether text is an address in its counted form: one the form would accept, already in lower case, so that no text
+ *  but an address a request validated can name a subject. */
+export function isCountedFormOfAddress(text: string): boolean {
+  return (
+    text !== "" &&
+    countCharacters(text) <= CONTACT_EMAIL_MAX_LENGTH &&
+    !holdsForbiddenCharacter(text) &&
+    text === countedFormOfAddress(text) &&
+    z.email().safeParse(text).success
+  );
 }
 
 function judgeFields(input: ContactFieldsInput): FieldJudgements {
