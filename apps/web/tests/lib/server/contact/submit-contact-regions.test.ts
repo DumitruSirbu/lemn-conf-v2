@@ -7,6 +7,7 @@ import {
 import { ContactSubmissionStoreError } from "@lemnaria/persistence";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { submitContact } from "@/lib/server/contact/submit-contact";
 import { buildLeadNotification } from "@/lib/server/mail/lead-notification";
 import type { MailFailureKind } from "@/lib/server/mail/mail-sender";
 
@@ -114,6 +115,50 @@ describe("before a reference is held, a throw is unavailable, with its cause", (
       ]);
       expect(lines.everything()).not.toContain("MARKER");
       expect(harness.store.heldSubmissions()).toHaveLength(0);
+    },
+  );
+
+  it.each([
+    [
+      "the judge's maker",
+      {
+        makeJudge: () => {
+          throw new Error("MARKER-7710");
+        },
+      },
+    ],
+    [
+      "the clock",
+      {
+        now: () => {
+          throw new Error("MARKER-7710");
+        },
+      },
+    ],
+  ] as const)(
+    "answers a throw from %s as 503, with its cause once, and counts, looks up and stores nothing",
+    async (_label, broken) => {
+      const lines = consoleLines();
+      const harness = aHarness();
+
+      const answer = await submitContact(
+        { text: bodyOf(), visitorHash: undefined },
+        { ...harness.ports, ...broken },
+      );
+
+      expect(answer.status).toBe(503);
+      expect(await codeOf(answer)).toBe("CONTACT_UNAVAILABLE");
+      expect(lines.errorLines()).toEqual([
+        {
+          event: "contact-request-unavailable",
+          refusalCode: "CONTACT_UNAVAILABLE",
+          status: 503,
+          cause: "unexpected",
+        },
+      ]);
+      expect(lines.everything()).not.toContain("MARKER");
+      expect(harness.recorded).not.toHaveBeenCalled();
+      expect(harness.calls).toEqual([]);
     },
   );
 

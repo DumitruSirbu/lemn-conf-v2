@@ -101,24 +101,25 @@ export async function submitContact(
   body: ContactBody,
   ports: SubmitContactPorts,
 ): Promise<NextResponse> {
-  const judge = ports.makeJudge(ports.now());
-  const limited = await judge.everyRequest();
-  if (limited !== undefined) return limited;
-  const reached = await beforeAReference(body, ports, judge);
+  const reached = await beforeAReference(body, ports);
   if (reached.kind === "answer") return reached.answer;
   return passedOn(reached.held, ports);
 }
 
+/** The judge's making and every request's judgement are inside the guard, so a maker or a clock that throws is the one
+ *  unavailable answer and never the framework's own. */
 async function beforeAReference(
   body: ContactBody,
   ports: SubmitContactPorts,
-  judge: ContactJudge,
 ): Promise<Reached> {
   try {
+    const judge = ports.makeJudge(ports.now());
+    const limited = await judge.everyRequest();
+    if (limited !== undefined) return answered(limited);
     return await toTheLookupAndBeyond(body, ports, judge);
   } catch (thrown) {
     reportContactUnavailable(causeOf(thrown));
-    return { kind: "answer", answer: contactUnavailableResponse() };
+    return answered(contactUnavailableResponse());
   }
 }
 
