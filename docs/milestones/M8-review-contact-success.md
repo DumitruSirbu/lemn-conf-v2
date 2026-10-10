@@ -5934,6 +5934,46 @@ shown as unsaved, without a full load.** Anything else is recorded with its trig
 8G. Q36, Q37 and Q38 stay the owner's and are named in the close-out; none blocks the close, and
 the last two block deploying the save's limit.
 
+##### 8G — pass C's finding C2-1, ruled 2026-10-10
+
+**State.** HEAD is `a72c3a82` [ran: `git log`], tree clean; two of QA's tests are red by design.
+**GL-R3.1's fix holds** [relayed, QA-run: its traces 7 of 7, every attack green]. The whole of
+C2-1 is in `qa-8g-pass-c2-report.md`, session scratchpad.
+
+**C2-1 is a defect older than this wave, and it is not fixed inside it.** A design returned to by
+Back from a second design is shown from the page's kept copy: without its last stored edit, and
+as saved. The next edit is answered as a conflict, which the screen says [relayed, QA-run on the
+built server, with no limit met].
+
+- *Why it is outside 8G.* No limit takes part: the control reaches it with every save answered
+  `200`. **It is outside this pass's closing rule by its letter and its sense:** the edit was sent
+  and is stored, and nothing is overwritten unless the customer chooses to. This wave lengthened
+  no part of it; where a write waited, it is stored whole before the same stale copy is shown.
+- *Why it is not left as a note.* A screen that says *saved* over a design that is not the stored
+  one is wrong, and one press of *overwrite* then drops the earlier edit. **A backlog entry, the
+  coordinator's to open, and a wave of its own before 8T's gate**, Full tier.
+- **How this wave closes with the two tests.** QA marks each as expected to fail, with the
+  entry's number as its reason, the form `qa-8d-review-arrival` already uses. They run on every
+  run, the suite stays green, and **the day the defect is fixed they go red until the mark is
+  removed.** *Must not:* a skip, or a test left failing.
+- **Not Q35's family, though it looks like it.** Backlog 89 is an older *cookie* put back by an
+  answer that arrives late; this is an older *page* put back by the router. One needs the owner
+  and the other does not. They may share a wave; neither waits for the other.
+- **The rule for that wave, the architect's, so the entry carries it.** *A design's page shown
+  again by Back or Forward never shows a copy older than the one stored.* The review already
+  holds that for one design [src `app/d/[id]/review/hydrate-and-review.tsx:21`]. The editor
+  already asks the server for the design after it loads [src `app/d/[id]/hydrate-and-configure.tsx`,
+  its write-access probe], and that answer carries the stored copy and its revision. **Where the
+  screen holds no unsaved edit and that answer is newer, the screen takes it.** With an unsaved
+  edit, the conflict's own path as today.
+- *Its items, for when it is dispatched:* (1) the rule above in the editor's load, with QA's two
+  tests going red and their marks removed; (2) the same for the page's three steps; (3) a trace
+  that a write still in flight when its design is loaded again ends on the stored copy; (4) that
+  no extra request is made on a first load. *It stops if* the probe's answer cannot be told
+  newer from older without a second request.
+
+**So 8G may close on the D re-checks,** with this entry, Q36, Q37 and Q38 named in its close-out.
+
 ### 8H — the submission contract
 
 *Goal.* One I/O-free definition of what a request is, used by the form and by the server.
