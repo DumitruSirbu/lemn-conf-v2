@@ -573,15 +573,16 @@ describe.each(["PUT", "PATCH"] as const)(
       expect(request.bodyUsed).toBe(false);
     });
 
-    it("answers a refused save to an owner and to a stranger who sent a cookie alike, byte for byte", async () => {
+    it("answers a stranger with the 403 of a missing credential even when the block is at its figure, and counts nothing", async () => {
       silenceTheConsole();
-      storeAtItsFigure(SAVES_PER_BLOCK_FIGURE);
+      const recorded = storeAtItsFigure(SAVES_PER_BLOCK_FIGURE);
 
-      const first = await save(requestWithABody(ownerWithRevision), PARAMS);
-      const second = await save(requestWithABody(ownerWithRevision), PARAMS);
+      const asStranger = await save(requestWithABody(stranger), PARAMS);
+      const asOwner = await save(requestWithABody(ownerWithRevision), PARAMS);
 
-      expect(await second.text()).toBe(await first.text());
-      expect([...second.headers]).toEqual([...first.headers]);
+      expect(asStranger.status).toBe(403);
+      expect(asOwner.status).toBe(429);
+      expect(recorded).toHaveBeenCalledTimes(1);
     });
   },
 );

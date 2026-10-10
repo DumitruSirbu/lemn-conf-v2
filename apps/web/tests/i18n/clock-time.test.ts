@@ -31,7 +31,8 @@ describe("clockTimeOf", () => {
     expect(clockTimeOf(localInstant(23, 59, 30))).toBe("00:00");
   });
 
-  it("is two digits, a colon and two digits, and never before the instant, over every second of an hour", () => {
+  it("tells the next minute that is not before the instant, never a later one, over every second of an hour", () => {
+    // From 08:00 for an hour, so no instant crosses midnight and the time told is read on the instant's own day.
     const start = localInstant(8, 0);
     for (let second = 0; second <= 3600; second += 1) {
       const instant = start + second * 1000;
@@ -39,10 +40,8 @@ describe("clockTimeOf", () => {
       expect(told).toMatch(/^\d{2}:\d{2}$/);
       const [hours, minutes] = told.split(":").map(Number);
       const toldAt = new Date(2026, 9, 10, hours ?? 0, minutes ?? 0).getTime();
-      const toldOnTheNextDay = toldAt + 24 * 60 * MS_PER_MINUTE;
-      expect(Math.max(toldAt, toldOnTheNextDay)).toBeGreaterThanOrEqual(
-        instant,
-      );
+      expect(toldAt).toBeGreaterThanOrEqual(instant);
+      expect(toldAt - instant).toBeLessThan(MS_PER_MINUTE);
     }
   });
 });

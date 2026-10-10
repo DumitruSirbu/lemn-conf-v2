@@ -101,14 +101,14 @@ export interface SubjectOfAKey {
 export function bucketKeyOfBlock(
   secretHex: string,
   policyName: PolicyName,
-  block: SubjectOfAKey,
+  subject: SubjectOfAKey,
 ): string {
   return keyedDigest(Buffer.from(secretHex, "hex"), {
     purpose: "rate-limit-bucket",
     fields: {
       policyName,
-      subjectKind: block.kind,
-      subject: block.subject,
+      subjectKind: subject.kind,
+      subject: subject.subject,
     },
   });
 }

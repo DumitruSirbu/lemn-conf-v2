@@ -21,15 +21,13 @@ import {
   shareUnavailableResponse,
 } from "@/lib/server/rate-limit/rate-limited-response";
 
-export type ShareWriteJudgement = WriteJudgement;
-
 /**
  * Judges one creation or revocation of a share link, by the network's block. The process environment is asked here,
  * inside the request. A write fails closed: whatever cannot be judged is unavailable, and so nothing is changed.
  */
 export async function judgeShareWrite(
   headers: HeaderReader,
-): Promise<ShareWriteJudgement> {
+): Promise<WriteJudgement> {
   const environment = process.env;
   const request = blockBucketRequestFor({
     environment,

@@ -1,7 +1,8 @@
 // The editor when the limit on saves refuses a save, at 390 x 844 by touch. The save is answered in the browser by
 // route interception with the module's own 429, so no volume is needed and the limiter's counters are not touched: the
-// refused request never reaches the server. This is the spec the visual check runs; `E2E_SAVE_PAUSE_HOLD_MS` keeps
-// the paused editor open that long before the test ends, and a screenshot of it is attached either way.
+// refused request never reaches the server. This is the spec the visual check runs: a screenshot of the paused editor
+// is attached either way, and `E2E_SAVE_PAUSE_FOR_A_LOOK=1` ends the first test on `page.pause()`, which holds the
+// browser open for a person when it runs headed and does nothing otherwise.
 //
 // **Must not run concurrently with any other persistence live run**: each test mints one row, deleted by its
 // fixture's teardown (ADR 0006).
@@ -23,8 +24,11 @@ const SAVE_LIMIT_BODY = JSON.stringify({
 /** Long enough to be looked at and never reached by a test. */
 const A_WHOLE_HOUR_SECONDS = 3600;
 const SHORT_WAIT_SECONDS = 3;
-const WAIT_BEFORE_COUNTING_MS = 3000;
-const HOLD_VARIABLE = "E2E_SAVE_PAUSE_HOLD_MS";
+/** How long a second save is watched for while the first still waits: long enough that one sent at once would have
+ *  left the browser and been seen by the interception. */
+const WATCH_FOR_ANOTHER_SAVE_MS = 3000;
+const WATCH_POLL_MS = 100;
+const PAUSE_FOR_A_LOOK_VARIABLE = "E2E_SAVE_PAUSE_FOR_A_LOOK";
 
 /** The paused sentence's words with its time left open: the clock is the browser's, and the test does not read it. */
 function pauseSentencePattern(): RegExp {
@@ -72,6 +76,20 @@ async function refuseSavesAsTheLimitDoes(
   return saves;
 }
 
+/** Polls the saves seen for a bounded time and answers how many there are: a save past `expected` ends the watch at
+ *  once, and none is the answer for one that was never sent. */
+async function savesSeenWithin(
+  saves: readonly SaveRequest[],
+  expected: number,
+  watchMs: number,
+): Promise<number> {
+  const deadline = Date.now() + watchMs;
+  while (saves.length <= expected && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, WATCH_POLL_MS));
+  }
+  return saves.length;
+}
+
 async function openEditorWithABodySelected(
   page: Page,
   designId: string,
@@ -104,15 +122,14 @@ test("a refused save pauses the editor with the time it will be sent, keeps ever
     "error",
   );
   await chooseAnotherHardwareTier(page);
-  await page.waitForTimeout(WAIT_BEFORE_COUNTING_MS);
 
-  expect(saves).toHaveLength(1);
+  expect(await savesSeenWithin(saves, 1, WATCH_FOR_ANOTHER_SAVE_MS)).toBe(1);
   await expect(notice).toHaveAttribute("data-notice", "save-paused");
   await testInfo.attach("save-paused-390x844.png", {
     body: await page.screenshot(),
     contentType: "image/png",
   });
-  await page.waitForTimeout(Number(process.env[HOLD_VARIABLE] ?? 0));
+  if (process.env[PAUSE_FOR_A_LOOK_VARIABLE] === "1") await page.pause();
 });
 
 test("sends the one waiting write when the stated time comes, with the last edit in it, and the sentence goes", async ({

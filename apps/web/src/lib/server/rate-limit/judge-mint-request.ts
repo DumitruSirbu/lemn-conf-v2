@@ -1,20 +1,12 @@
 import "server-only";
 
-import {
-  RATE_LIMIT_DEADLINE_MS,
-  type RateLimitDecision,
-} from "@/lib/server/rate-limit/enforce-rate-limit";
+import { RATE_LIMIT_DEADLINE_MS } from "@/lib/server/rate-limit/enforce-rate-limit";
 import {
   blockBucketRequestFor,
   judgeBlockBucket,
 } from "@/lib/server/rate-limit/judge-block-bucket";
-import type { PolicyChoice } from "@/lib/server/rate-limit/limit-policy";
 import type { HeaderReader } from "@/lib/server/rate-limit/network-source";
-
-export interface MintJudgement {
-  readonly decision: RateLimitDecision;
-  readonly policy: PolicyChoice;
-}
+import type { WriteJudgement } from "@/lib/server/rate-limit/refusal-of-write-limit";
 
 /**
  * Judges one mint. The process environment is asked here, inside the request, and never at module level: the block is
@@ -24,7 +16,7 @@ export interface MintJudgement {
  */
 export async function judgeMintRequest(
   headers: HeaderReader,
-): Promise<MintJudgement> {
+): Promise<WriteJudgement> {
   const environment = process.env;
   const request = blockBucketRequestFor({
     environment,
