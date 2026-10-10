@@ -573,7 +573,7 @@ describe.each(["PUT", "PATCH"] as const)(
       expect(request.bodyUsed).toBe(false);
     });
 
-    it("answers a stranger with the 403 of a missing credential even when the block is at its figure, and counts nothing", async () => {
+    it("answers a stranger 403 with the block at its figure, and counts nothing", async () => {
       silenceTheConsole();
       const recorded = storeAtItsFigure(SAVES_PER_BLOCK_FIGURE);
 
