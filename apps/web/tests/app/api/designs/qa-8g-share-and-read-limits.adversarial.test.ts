@@ -30,6 +30,8 @@ const OWNER_COOKIES =
   `${VISITOR_COOKIE_NAME}=${"q".repeat(43)}`;
 const AN_ADDRESS = { "x-forwarded-for": "203.0.113.7" };
 const ANOTHER_BLOCK = { "x-forwarded-for": "198.51.100.7" };
+/** What a design's load answers once it is served: the repository here holds no design. */
+const NO_SUCH_DESIGN_STATUS = 404;
 const HOUR_MS = 3_600_000;
 const AN_HOUR_STARTS = Date.parse("2026-11-03T14:00:00.000Z");
 
@@ -404,7 +406,7 @@ describe("a network's reads, of every kind, where the owner names the host", () 
       429,
       "1",
     ]);
-    expect(theNextHour.status).not.toBe(429);
+    expect(theNextHour.status).toBe(NO_SUCH_DESIGN_STATUS);
     expect(asked.calls).toEqual(["design looked up"]);
   });
 
@@ -415,7 +417,7 @@ describe("a network's reads, of every kind, where the owner names the host", () 
     const otherBlock = await send(LOAD, ANOTHER_BLOCK);
 
     expect(sameBlock.status).toBe(429);
-    expect(otherBlock.status).not.toBe(429);
+    expect(otherBlock.status).toBe(NO_SUCH_DESIGN_STATUS);
   });
 
   it("are served, never refused and never counted, under the e2e flag, which has no read twin", async () => {
@@ -426,7 +428,7 @@ describe("a network's reads, of every kind, where the owner names the host", () 
     const load = await send(LOAD, AN_ADDRESS);
     const viewed = await page(`/ro/d/${DESIGN_ID}`, AN_ADDRESS);
 
-    expect(load.status).not.toBe(429);
+    expect(load.status).toBe(NO_SUCH_DESIGN_STATUS);
     expect(viewed.status).toBe(200);
     expect(hits).not.toHaveBeenCalled();
   });
@@ -447,7 +449,7 @@ describe("reads where no source is named", () => {
     }
 
     expect(hits).not.toHaveBeenCalled();
-    expect(statuses.has(429)).toBe(false);
+    expect([...statuses].sort()).toEqual([200, NO_SUCH_DESIGN_STATUS]);
     expect(asked.calls.length).toBeGreaterThan(0);
   });
 
@@ -457,7 +459,7 @@ describe("reads where no source is named", () => {
 
     const load = await send(LOAD);
 
-    expect(load.status).not.toBe(429);
+    expect(load.status).toBe(NO_SUCH_DESIGN_STATUS);
     expect(asked.calls).toEqual(["design looked up"]);
     expect(consoleCallsOf(consoleSpies)).toEqual([]);
   });

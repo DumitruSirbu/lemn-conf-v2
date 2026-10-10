@@ -4,6 +4,8 @@
 //
 // Each request is sent from a documentation block of its own, so the one hit it may make is found, and removed,
 // under that block's key. It needs the first server's production build, so it runs under CI only.
+import { request as sendOverHttp } from "node:http";
+
 import { deleteRateLimitCountersForTests } from "@lemnaria/persistence";
 import { expect, test } from "@playwright/test";
 
@@ -20,7 +22,7 @@ import {
 import { bucketKeyOfBlock } from "./support/e2e-rate-limit-run";
 import { deleteMintedDesigns } from "./support/minted-designs";
 import {
-  PAGE_READ_PROOF_SERVER_PORT,
+  ESCAPED_LOCALE_SERVER_PORT,
   startProductionPolicyServer,
   type ProductionPolicyServer,
 } from "./support/production-policy-server";
@@ -147,6 +149,98 @@ const ESCAPED_SPELLINGS: readonly Spelling[] = [
   },
 ];
 
+/** The first character of `text` written as its percent-escape. */
+function withItsFirstCharacterEscaped(text: string): string {
+  return `%${text.charCodeAt(0).toString(16)}${text.slice(1)}`;
+}
+
+const page = (label: string, path: (id: string) => string): Spelling => ({
+  label,
+  path: design(path),
+  isShareView: false,
+});
+const view = (label: string, path: (token: string) => string): Spelling => ({
+  label,
+  path: share(path),
+  isShareView: true,
+});
+
+/** Every other way an address can be written that is not the plain one: each is counted if a page is served for it. */
+const ODD_SPELLINGS: readonly Spelling[] = [
+  page("an escaped id", (id) => `/ro/d/${withItsFirstCharacterEscaped(id)}`),
+  page("an escaped step, /ro/d/{id}/%72eview", (id) => `/ro/d/${id}/%72eview`),
+  page("a doubled slash, /ro//d/{id}", (id) => `/ro//d/${id}`),
+  page("a doubled first slash, //ro/d/{id}", (id) => `//ro/d/${id}`),
+  page("a doubled slash before the id", (id) => `/ro/d//${id}`),
+  page("a trailing slash, /ro/d/{id}/", (id) => `/ro/d/${id}/`),
+  page("a dot segment, /ro/./d/{id}", (id) => `/ro/./d/${id}`),
+  page("two dots, /ro/../ro/d/{id}", (id) => `/ro/../ro/d/${id}`),
+  page("an escaped dot, /ro/%2e/d/{id}", (id) => `/ro/%2e/d/${id}`),
+  page("escaped dots, /ro/%2e%2e/ro/d/{id}", (id) => `/ro/%2e%2e/ro/d/${id}`),
+  page("a backslash, /ro\\d\\{id}", (id) => `/ro\\d\\${id}`),
+  page("an escaped backslash, /ro%5Cd%5C{id}", (id) => `/ro%5Cd%5C${id}`),
+  page("a fixed segment in capitals, /ro/D/{id}", (id) => `/ro/D/${id}`),
+  page("an escaped slash in the locale, /ro%2Fd/{id}", (id) => `/ro%2Fd/${id}`),
+  page("an escaped slash after the locale, /ro%2f", () => "/ro%2f"),
+  page("a space after the locale, /ro%20/d/{id}", (id) => `/ro%20/d/${id}`),
+  page("a parameter on the locale, /ro;x/d/{id}", (id) => `/ro;x/d/${id}`),
+  page("a null after the locale, /ro%00/d/{id}", (id) => `/ro%00/d/${id}`),
+  view(
+    "an escaped token",
+    (token) => `/ro/s/${withItsFirstCharacterEscaped(token)}`,
+  ),
+  view("a doubled slash, /ro//s/{token}", (token) => `/ro//s/${token}`),
+  view("a trailing slash, /ro/s/{token}/", (token) => `/ro/s/${token}/`),
+  view("a dot segment, /ro/./s/{token}", (token) => `/ro/./s/${token}`),
+  view("an escaped dot, /ro/%2e/s/{token}", (token) => `/ro/%2e/s/${token}`),
+  view("a backslash, /ro\\s\\{token}", (token) => `/ro\\s\\${token}`),
+  view(
+    "a fixed segment in capitals, /ro/S/{token}",
+    (token) => `/ro/S/${token}`,
+  ),
+  view(
+    "an escaped slash in the locale, /ro%2Fs/{token}",
+    (token) => `/ro%2Fs/${token}`,
+  ),
+];
+
+interface AnswerAsReceived {
+  readonly status: number;
+  readonly body: string;
+  /** A header's value, or nothing. */
+  header(name: string): string;
+}
+
+/** The address sent exactly as written: a client that parses it first would tidy away the spelling under test. */
+function askAsWritten(
+  origin: string,
+  path: string,
+  headers: Record<string, string>,
+): Promise<AnswerAsReceived> {
+  const { hostname, port } = new URL(origin);
+  return new Promise((resolve, reject) => {
+    const sent = sendOverHttp(
+      { hostname, port, path, method: "GET", headers },
+      (response) => {
+        const chunks: Buffer[] = [];
+        response.on("data", (chunk: Buffer) => chunks.push(chunk));
+        response.on("end", () => {
+          resolve({
+            status: response.statusCode ?? 0,
+            body: Buffer.concat(chunks).toString("utf8"),
+            header: (name) => {
+              const value = response.headers[name.toLowerCase()];
+              return Array.isArray(value) ? value.join(", ") : (value ?? "");
+            },
+          });
+        });
+      },
+    );
+    sent.on("error", reject);
+    sent.end();
+  });
+}
+
 interface Seen {
   readonly status: number;
   /** Where a redirect sends its reader, or nothing. */
@@ -182,18 +276,16 @@ test.describe("a page's address written with percent-escapes, on a server that n
   async function read(spelling: Spelling): Promise<Seen> {
     blocksUsed += 1;
     const address = `2001:db8:5d8:${blocksUsed.toString(16)}::7`;
-    const response = await fetch(
-      `${running().origin}${spelling.path(designId, shareToken)}`,
-      {
-        redirect: "manual",
-        // The root sends a browser that owns a design on to it, so the root is read as a stranger reads it.
-        headers:
-          spelling === PLAIN_ROOT || spelling === ESCAPED_ROOT
-            ? { "x-forwarded-for": address }
-            : { "x-forwarded-for": address, cookie: ownerCookies },
-      },
+    // The root sends a browser that owns a design on to it, so the root is read as a stranger reads it.
+    const isRoot = spelling === PLAIN_ROOT || spelling === ESCAPED_ROOT;
+    const response = await askAsWritten(
+      running().origin,
+      spelling.path(designId, shareToken),
+      isRoot
+        ? { "x-forwarded-for": address }
+        : { "x-forwarded-for": address, cookie: ownerCookies },
     );
-    const body = await response.text();
+    const { body } = response;
     const removed = await deleteRateLimitCountersForTests([
       bucketKeyOfBlock(
         running().secret,
@@ -204,11 +296,11 @@ test.describe("a page's address written with percent-escapes, on a server that n
     rowsRemoved += removed.rowsRemoved;
     const seen: Seen = {
       status: response.status,
-      location: response.headers.get("location") ?? "",
+      location: response.header("location"),
       isServed: response.status === 200 && body.includes('<html lang="ro"'),
       hitsCounted: removed.counts.reduce((sum, count) => sum + count, 0),
       missingShareHeaders: SHARE_VIEW_HEADERS.filter(
-        ({ key, value }) => response.headers.get(key) !== value,
+        ({ key, value }) => response.header(key) !== value,
       ).map(({ key }) => key),
     };
     console.log(
@@ -221,7 +313,7 @@ test.describe("a page's address written with percent-escapes, on a server that n
 
   test.beforeAll(async () => {
     test.setTimeout(SERVER_START_TIMEOUT_MS);
-    server = await startProductionPolicyServer(PAGE_READ_PROOF_SERVER_PORT, {
+    server = await startProductionPolicyServer(ESCAPED_LOCALE_SERVER_PORT, {
       networkSource: "vercel",
     });
     const sameOrigin = {
@@ -297,7 +389,7 @@ test.describe("a page's address written with percent-escapes, on a server that n
     });
   }
 
-  for (const spelling of ESCAPED_SPELLINGS) {
+  for (const spelling of [...ESCAPED_SPELLINGS, ...ODD_SPELLINGS]) {
     test(`counts ${spelling.label} if it serves the page for it`, async () => {
       const seen = await read(spelling);
 
@@ -305,7 +397,9 @@ test.describe("a page's address written with percent-escapes, on a server that n
     });
   }
 
-  for (const spelling of ESCAPED_SPELLINGS.filter((each) => each.isShareView)) {
+  for (const spelling of [...ESCAPED_SPELLINGS, ...ODD_SPELLINGS].filter(
+    (each) => each.isShareView,
+  )) {
     test(`sends a share view's headers with ${spelling.label} if it serves the view for it`, async () => {
       const seen = await read(spelling);
 

@@ -132,6 +132,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
 });
@@ -256,6 +257,35 @@ describe("what the interceptor counts", () => {
   });
 });
 
+describe("a later segment that reads as a locale once decoded", () => {
+  it.each(["/ro/d/%72o", "/ro/d/r%6F/review", "/ro/s/%72%75", "/ro/d/RO"])(
+    "leaves %s to its page: held, counted once and served, since only the first segment is a locale",
+    async (path) => {
+      under(NAMED_HOST, undefined);
+      const hits = hitsRecorded();
+
+      const answer = ask(path);
+      const wasHeld = isHeld(answer);
+      const { status } = await answer;
+
+      expect([wasHeld, status]).toEqual([true, 200]);
+      expect(hits).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it.each(["/api/%72o", "/internal/r%6F", "/ro/configurator/%72o"])(
+    "does not refuse %s, which is no page of a locale's, as a misspelled locale",
+    async (path) => {
+      under(NAMED_HOST, undefined);
+
+      const answer = ask(path);
+
+      expect(isHeld(answer)).toBe(false);
+      expect((await answer).status).not.toBe(404);
+    },
+  );
+});
+
 describe("what the interceptor answers for a path nobody rules on", () => {
   it.each([NO_SOURCE, NAMED_HOST, NOT_A_HOST])(
     "answers each of them, under $label, with a status below 500 and no throw",
@@ -276,7 +306,7 @@ describe("what the interceptor answers for a path nobody rules on", () => {
 });
 
 describe("a held request that is served", () => {
-  it("gets the status and the headers the same request gets where no source is named", async () => {
+  it("gets the status, the header names and the text the same request gets where no source is named", async () => {
     const differing: string[] = [];
     for (const path of COUNTED_PATHS) {
       under(NO_SOURCE, undefined);
@@ -288,7 +318,7 @@ describe("a held request that is served", () => {
       if (
         held.status !== immediate.status ||
         namesOf(held) !== namesOf(immediate) ||
-        held.body !== immediate.body
+        (await held.text()) !== (await immediate.text())
       ) {
         differing.push(path);
       }
@@ -328,7 +358,6 @@ describe("a refused page", () => {
         ]),
       );
     }
-    vi.useRealTimers();
 
     expect(new Set(answers).size).toBe(1);
     expect(answers[0]).toContain('[429,"2400","no-store"');
