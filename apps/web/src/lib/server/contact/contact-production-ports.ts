@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createTranslator } from "next-intl";
+import { createTranslator, type IntlError } from "next-intl";
 
 import { resolveContent, type Content } from "@/i18n/content";
 import { routing } from "@/i18n/routing";
@@ -38,9 +38,22 @@ export function makeContactProductionPorts(
   };
 }
 
-/** The shop's notice is written in its own language, whatever the customer's, never through the request's locale. */
+/**
+ * The shop's notice is written in its own language, whatever the customer's, never through the request's locale. The
+ * translator's own handler writes a failed leaf to the console, outside the closed lists of lines, and answers the
+ * leaf's path as text; this one throws instead, so a leaf that fails is the notice that cannot be built and the one
+ * unavailable answer, and nothing is written of it.
+ */
 function noticeContent(): Content {
   return resolveContent(
-    createTranslator({ locale: NOTICE_LOCALE, messages: roMessages }),
+    createTranslator({
+      locale: NOTICE_LOCALE,
+      messages: roMessages,
+      onError: throwTheFailedLeaf,
+    }),
   );
+}
+
+function throwTheFailedLeaf(failure: IntlError): never {
+  throw failure;
 }
