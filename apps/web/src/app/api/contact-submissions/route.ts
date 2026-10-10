@@ -1,36 +1,22 @@
-import {
-  parsePriceBook,
-  SAMPLE_PRICE_BOOK,
-  type PriceBook,
-} from "@lemnaria/configurator-domain";
-import { createTranslator } from "next-intl";
 import { NextResponse, type NextRequest } from "next/server";
 
-import { resolveContent, type Content } from "@/i18n/content";
-import { routing } from "@/i18n/routing";
-import roMessages from "@/messages/ro.json";
-import { ContactFailure, causeOf } from "@/lib/server/contact/contact-failure";
+import { causeOf } from "@/lib/server/contact/contact-failure";
 import {
   reportContactRefused,
   reportContactUnavailable,
 } from "@/lib/server/contact/contact-log";
+import { makeContactProductionPorts } from "@/lib/server/contact/contact-production-ports";
 import {
   bodyTooLargeAnswer,
   crossSiteAnswer,
   invalidAnswer,
   notJsonAnswer,
 } from "@/lib/server/contact/contact-responses";
-import { getContactSubmissionStore } from "@/lib/server/contact/contact-submission-store-instance";
-import { makeContactJudge } from "@/lib/server/contact/judge-contact-request";
 import {
   submitContact,
   type SubmitContactPorts,
 } from "@/lib/server/contact/submit-contact";
 import { isCrossSiteRequest } from "@/lib/server/cross-site-request";
-import { readDigester } from "@/lib/server/digest/digest-secret";
-import { loadOwnedDesign } from "@/lib/server/load-owned-design";
-import { createMailSender } from "@/lib/server/mail/create-mail-sender";
-import { NOTICE_LOCALE } from "@/lib/server/mail/lead-notification";
 import { contactUnavailableResponse } from "@/lib/server/rate-limit/rate-limited-response";
 import {
   readUtf8BodyWithLimit,
@@ -106,43 +92,12 @@ function refusalOfUnreadableBody(failure: BoundedBodyFailure): NextResponse {
  *  later request inherits what failed. */
 function madeProductionPorts(request: NextRequest): MadePorts {
   try {
-    return { kind: "ports", ports: productionPortsOf(request) };
+    return {
+      kind: "ports",
+      ports: makeContactProductionPorts(request.headers),
+    };
   } catch (thrown) {
     reportContactUnavailable(causeOf(thrown));
     return { kind: "unavailable", answer: contactUnavailableResponse() };
   }
-}
-
-function productionPortsOf(request: NextRequest): SubmitContactPorts {
-  return {
-    store: getContactSubmissionStore(),
-    createSender: () => createMailSender(process.env),
-    book: bookOfThisRequest(),
-    digester: readDigester(process.env),
-    noticeContent: noticeContent(),
-    servedLocales: routing.locales,
-    loadOwned: loadOwnedDesign,
-    makeJudge: (instant) =>
-      makeContactJudge({
-        environment: process.env,
-        headers: request.headers,
-        instant,
-      }),
-    now: () => new Date(),
-  };
-}
-
-/** The one book of the request: the digest's version and the snapshot's prices are both made from it. A book this
- *  build ships and cannot read is a defect of ours, never a fact about the customer's request. */
-function bookOfThisRequest(): PriceBook {
-  const parsed = parsePriceBook(SAMPLE_PRICE_BOOK);
-  if (!parsed.ok) throw new ContactFailure("unexpected");
-  return parsed.book;
-}
-
-/** The shop's notice is written in its own language, whatever the customer's, never through the request's locale. */
-function noticeContent(): Content {
-  return resolveContent(
-    createTranslator({ locale: NOTICE_LOCALE, messages: roMessages }),
-  );
 }

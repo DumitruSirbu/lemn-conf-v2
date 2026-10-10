@@ -2,10 +2,10 @@
 //
 // Three of them, each closing a way this surface could have been built that would look right:
 //
-// 1. **One module names a price book.** ADR 0062 seam 1's whole point is that the book is supplied
-//    rather than imported, and the path of least resistance for a tier list was
-//    `import { SAMPLE_PRICE_BOOK }` into the sheet — which would have made two modules name one, and
-//    two answers to "what is on offer". The first block reads the source tree, because no type spans
+// 1. **One module names a price book for each runtime.** ADR 0062 seam 1's whole point is that the book
+//    is supplied rather than imported, and the path of least resistance for a tier list was
+//    `import { SAMPLE_PRICE_BOOK }` into the sheet — which would have made a third module name one, and
+//    three answers to "what is on offer". The first block reads the source tree, because no type spans
 //    that hop.
 // 2. **This surface prices nothing.** The hardware tiers are billed per cabinet handle (ADR 0061
 //    decision 2) inside `priceDesign`; a settings sheet reaching for `deriveDoorCount` or
@@ -133,11 +133,24 @@ function stateFor(design: Design): ConfiguratorState {
   }).getState();
 }
 
-describe("exactly one module in this application names a price book", () => {
-  it("is the composition root, and nothing else", () => {
+describe("exactly two modules in this application name a price book, one for each runtime", () => {
+  // ADR 0062 seam 1, amended: the browser's root and the server's, each named, both naming the same book. Two roots are
+  // two substitutions, so before either names another book they become one module both read.
+  it("are the browser's composition root and the server's, and nothing else", () => {
     expect(modulesNaming(/SAMPLE_PRICE_BOOK/)).toEqual([
+      "lib/server/shipped-price-book.ts",
       "price/use-priced-design.ts",
     ]);
+  });
+
+  it("keeps a route out of both: the contact route names no book and asks the server's root for none", () => {
+    const route =
+      sourceByPath.get("app/api/contact-submissions/route.ts") ?? "";
+
+    expect(route.length).toBeGreaterThan(0);
+    expect(route).not.toMatch(
+      /SAMPLE_PRICE_BOOK|parsePriceBook|shippedPriceBook/,
+    );
   });
 
   it("keeps the query that measures a delta free of one too", () => {

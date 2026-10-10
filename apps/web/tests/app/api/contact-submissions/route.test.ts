@@ -13,6 +13,7 @@ import type {
 } from "@/lib/server/contact/submit-contact";
 import { getRateLimitStore } from "@/lib/server/rate-limit/rate-limit-store-instance";
 
+import { readSource } from "../../../lib/server/server-source-support";
 import { contentFor } from "../../../support/catalogues";
 import roMessages from "../../../../src/messages/ro.json";
 import ruMessages from "../../../../src/messages/ru.json";
@@ -509,5 +510,34 @@ describe("no answer of the route sets, clears or refreshes a cookie", () => {
     answers.forEach((answer) => {
       expect(answer.headers.get("set-cookie")).toBeNull();
     });
+  });
+});
+
+describe("what the route composes, and what it leaves to lib/server", () => {
+  const specifiersOf = (source: string): string[] =>
+    [...source.matchAll(/from "([^"]+)"/g)].map((match) => match[1] ?? "");
+
+  it("reads source: imports no digest, price-book, mail or message module and names no environment", () => {
+    const source = readSource("app/api/contact-submissions/route.ts");
+
+    const forbidden = specifiersOf(source).filter((specifier) =>
+      /digest|mail|messages|next-intl|configurator-domain|shipped-price-book/.test(
+        specifier,
+      ),
+    );
+    expect(forbidden).toEqual([]);
+    expect(source).not.toMatch(/process\.env|SAMPLE_PRICE_BOOK|parsePriceBook/);
+  });
+
+  it("makes its ports once for a request, from the request's own headers", async () => {
+    const request = contactRequest("{}", { "x-forwarded-for": "192.0.2.9" });
+
+    await POST(request);
+    handedPorts().makeJudge(new Date(0));
+
+    expect(spies.getContactSubmissionStore).toHaveBeenCalledTimes(1);
+    expect(spies.makeContactJudge).toHaveBeenCalledWith(
+      expect.objectContaining({ headers: request.headers }),
+    );
   });
 });
