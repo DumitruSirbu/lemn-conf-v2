@@ -54,37 +54,6 @@ describe("findWriteTokenHashesForTests", () => {
       );
       expect(driver.statements).toEqual([]);
     });
-
-    it("sends no statement outside a test runner", async () => {
-      vi.stubEnv("VITEST", undefined);
-      vi.stubEnv("TEST_WORKER_INDEX", undefined);
-      vi.stubEnv("PLAYWRIGHT_TEST", undefined);
-
-      await expect(findWriteTokenHashesForTests([ID_ONE])).rejects.toThrow(
-        /outside a test runner/,
-      );
-      expect(driver.statements).toEqual([]);
-    });
-
-    it("runs in Playwright's own runner, which sets PLAYWRIGHT_TEST and neither of the other markers", async () => {
-      vi.stubEnv("VITEST", undefined);
-      vi.stubEnv("TEST_WORKER_INDEX", undefined);
-      vi.stubEnv("PLAYWRIGHT_TEST", "1");
-      answerWith([{ write_token_hash: HASH_ONE }]);
-
-      await expect(findWriteTokenHashesForTests([ID_ONE])).resolves.toEqual([
-        HASH_ONE,
-      ]);
-    });
-
-    it("sends no statement under NODE_ENV=production even inside a test runner", async () => {
-      vi.stubEnv("NODE_ENV", "production");
-
-      await expect(findWriteTokenHashesForTests([ID_ONE])).rejects.toThrow(
-        /NODE_ENV=production/,
-      );
-      expect(driver.statements).toEqual([]);
-    });
   });
 
   describe("what it reads", () => {

@@ -1,16 +1,6 @@
+import { requireTestRunner } from "./require-test-runner.js";
 import { requireSha256Digest } from "./sha256-digest.js";
 import { openTestDatabase } from "./test-database-url.js";
-
-/**
- * Set by vitest in every worker, and by Playwright in every test worker (`TEST_WORKER_INDEX`) and in its own runner
- * process, where its global teardown runs (`PLAYWRIGHT_TEST`): the closest proof that this process is a test runner
- * and not the application.
- */
-const TEST_RUNNER_MARKER_VARIABLES = [
-  "VITEST",
-  "TEST_WORKER_INDEX",
-  "PLAYWRIGHT_TEST",
-] as const;
 
 /** What a delete removed: how many rows, and each one's hit count, in no particular order. */
 export interface RemovedRateLimitCounters {
@@ -33,7 +23,10 @@ interface RemovedCounterRow {
 export async function deleteRateLimitCountersForTests(
   keys: readonly string[],
 ): Promise<RemovedRateLimitCounters> {
-  assertRunningUnderATestRunner();
+  requireTestRunner({
+    functionName: "deleteRateLimitCountersForTests",
+    effect: "deletes counter rows",
+  });
   keys.forEach((key) => {
     requireSha256Digest(key, "rate-limit bucket key", "delete counters");
   });
@@ -52,24 +45,5 @@ function countOf({ hits }: RemovedCounterRow): number {
   }
   throw new Error(
     "The database answered a deleted counter row with something that is not a count",
-  );
-}
-
-function assertRunningUnderATestRunner(): void {
-  if (process.env["NODE_ENV"] === "production") {
-    throw new Error(
-      "deleteRateLimitCountersForTests was called with NODE_ENV=production. It deletes counter rows and exists " +
-        "only for test cleanup; application code must never reach it.",
-    );
-  }
-  const isTestRunner = TEST_RUNNER_MARKER_VARIABLES.some(
-    (variable) => (process.env[variable] ?? "").trim() !== "",
-  );
-  if (isTestRunner) return;
-
-  throw new Error(
-    `deleteRateLimitCountersForTests was called outside a test runner (none of ` +
-      `${TEST_RUNNER_MARKER_VARIABLES.join(", ")} is set). It deletes counter rows and exists only for test ` +
-      `cleanup; application code must never reach it.`,
   );
 }

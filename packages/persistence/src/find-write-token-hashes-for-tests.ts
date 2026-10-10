@@ -1,16 +1,7 @@
 import { retryOnTransientFailure } from "./retry-on-transient-failure.js";
+import { requireTestRunner } from "./require-test-runner.js";
 import { requireSha256Digest } from "./sha256-digest.js";
 import { openTestDatabase } from "./test-database-url.js";
-
-/**
- * Set by vitest in every worker, by Playwright in every test worker (`TEST_WORKER_INDEX`) and in its own runner
- * process (`PLAYWRIGHT_TEST`): the closest proof that this process is a test runner and not the application.
- */
-const TEST_RUNNER_MARKER_VARIABLES = [
-  "VITEST",
-  "TEST_WORKER_INDEX",
-  "PLAYWRIGHT_TEST",
-] as const;
 
 interface WriteTokenHashRow {
   readonly write_token_hash: unknown;
@@ -27,7 +18,10 @@ interface WriteTokenHashRow {
 export async function findWriteTokenHashesForTests(
   ids: readonly string[],
 ): Promise<string[]> {
-  assertRunningUnderATestRunner();
+  requireTestRunner({
+    functionName: "findWriteTokenHashesForTests",
+    effect: "reads write-token hashes",
+  });
   if (ids.length === 0) return [];
 
   const sql = openTestDatabase();
@@ -47,23 +41,4 @@ function hashOf({ write_token_hash: hash }: WriteTokenHashRow): string {
     "read a design's write-token hash",
   );
   return hash as string;
-}
-
-function assertRunningUnderATestRunner(): void {
-  if (process.env["NODE_ENV"] === "production") {
-    throw new Error(
-      "findWriteTokenHashesForTests was called with NODE_ENV=production. It reads write-token hashes and exists " +
-        "only for test cleanup; application code must never reach it.",
-    );
-  }
-  const isTestRunner = TEST_RUNNER_MARKER_VARIABLES.some(
-    (variable) => (process.env[variable] ?? "").trim() !== "",
-  );
-  if (isTestRunner) return;
-
-  throw new Error(
-    `findWriteTokenHashesForTests was called outside a test runner (none of ` +
-      `${TEST_RUNNER_MARKER_VARIABLES.join(", ")} is set). It reads write-token hashes and exists only for test ` +
-      `cleanup; application code must never reach it.`,
-  );
 }

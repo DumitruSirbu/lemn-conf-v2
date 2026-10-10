@@ -70,37 +70,6 @@ describe("deleteRateLimitCountersForTests", () => {
       );
       expect(driver.statements).toEqual([]);
     });
-
-    it("sends no statement outside a test runner", async () => {
-      vi.stubEnv("VITEST", undefined);
-      vi.stubEnv("TEST_WORKER_INDEX", undefined);
-      vi.stubEnv("PLAYWRIGHT_TEST", undefined);
-
-      await expect(deleteRateLimitCountersForTests([KEY_ONE])).rejects.toThrow(
-        /outside a test runner/,
-      );
-      expect(driver.statements).toEqual([]);
-    });
-
-    it("runs in Playwright's own runner, which sets PLAYWRIGHT_TEST and neither of the other markers", async () => {
-      vi.stubEnv("VITEST", undefined);
-      vi.stubEnv("TEST_WORKER_INDEX", undefined);
-      vi.stubEnv("PLAYWRIGHT_TEST", "1");
-      answerWith([{ hits: 2 }]);
-
-      await expect(deleteRateLimitCountersForTests([KEY_ONE])).resolves.toEqual(
-        { rowsRemoved: 1, counts: [2] },
-      );
-    });
-
-    it("sends no statement under NODE_ENV=production even inside a test runner", async () => {
-      vi.stubEnv("NODE_ENV", "production");
-
-      await expect(deleteRateLimitCountersForTests([KEY_ONE])).rejects.toThrow(
-        /NODE_ENV=production/,
-      );
-      expect(driver.statements).toEqual([]);
-    });
   });
 
   describe("only the keys it is handed", () => {

@@ -1,11 +1,6 @@
+import { requireTestRunner } from "./require-test-runner.js";
 import { retryOnTransientFailure } from "./retry-on-transient-failure.js";
 import { openTestDatabase } from "./test-database-url.js";
-
-/**
- * Set by vitest in every worker and by Playwright in every test worker (`TEST_WORKER_INDEX`): the closest proof that
- * this process is a test runner and not the application.
- */
-const TEST_RUNNER_MARKER_VARIABLES = ["VITEST", "TEST_WORKER_INDEX"] as const;
 
 /**
  * Deletes the named designs from the test database. Test support only. It lives here because a Postgres driver appears
@@ -17,7 +12,10 @@ const TEST_RUNNER_MARKER_VARIABLES = ["VITEST", "TEST_WORKER_INDEX"] as const;
 export async function deleteDesignsForTests(
   ids: readonly string[],
 ): Promise<void> {
-  assertRunningUnderATestRunner();
+  requireTestRunner({
+    functionName: "deleteDesignsForTests",
+    effect: "deletes design rows",
+  });
   if (ids.length === 0) return;
 
   const sql = openTestDatabase();
@@ -37,7 +35,10 @@ export async function deleteDesignsForTests(
 export async function findDesignIdsForTests(
   ids: readonly string[],
 ): Promise<string[]> {
-  assertRunningUnderATestRunner();
+  requireTestRunner({
+    functionName: "findDesignIdsForTests",
+    effect: "reads design ids",
+  });
   if (ids.length === 0) return [];
 
   const sql = openTestDatabase();
@@ -45,25 +46,4 @@ export async function findDesignIdsForTests(
     () => sql`select id from designs where id = any(${ids})`,
   )) as { id: string }[];
   return rows.map((row) => row.id);
-}
-
-function assertRunningUnderATestRunner(): void {
-  if (process.env["NODE_ENV"] === "production") {
-    throw new Error(
-      "deleteDesignsForTests was called with NODE_ENV=production. It deletes design rows and " +
-        "exists only for test cleanup; application code must never reach it.",
-    );
-  }
-
-  // Non-empty once trimmed, not merely present: neither `VITEST=""` nor `VITEST=" "` is a runner.
-  const isTestRunner = TEST_RUNNER_MARKER_VARIABLES.some(
-    (variable) => (process.env[variable] ?? "").trim() !== "",
-  );
-  if (isTestRunner) return;
-
-  throw new Error(
-    `deleteDesignsForTests was called outside a test runner (none of ` +
-      `${TEST_RUNNER_MARKER_VARIABLES.join(", ")} is set). It deletes design rows and exists only ` +
-      `for test cleanup; application code must never reach it.`,
-  );
 }
