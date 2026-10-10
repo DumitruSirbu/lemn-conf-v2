@@ -34,12 +34,11 @@ function wordsOf(locale: Locale): Words {
   const catalogue = JSON.parse(
     readFileSync(join(process.cwd(), "src/messages", `${locale}.json`), "utf8"),
   ) as {
-    designLoadError: { tooManyRequests: string };
-    share: { retry: string };
+    designLoadError: { tooManyRequests: string; tryAgain: string };
   };
   return {
     sentence: catalogue.designLoadError.tooManyRequests,
-    retryLabel: catalogue.share.retry,
+    retryLabel: catalogue.designLoadError.tryAgain,
   };
 }
 

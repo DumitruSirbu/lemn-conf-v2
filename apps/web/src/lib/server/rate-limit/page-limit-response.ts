@@ -18,11 +18,11 @@ const WORDS_OF_LOCALE: Readonly<
 > = {
   ro: {
     sentence: roMessages.designLoadError.tooManyRequests,
-    retryLabel: roMessages.share.retry,
+    retryLabel: roMessages.designLoadError.tryAgain,
   },
   ru: {
     sentence: ruMessages.designLoadError.tooManyRequests,
-    retryLabel: ruMessages.share.retry,
+    retryLabel: ruMessages.designLoadError.tryAgain,
   },
 };
 

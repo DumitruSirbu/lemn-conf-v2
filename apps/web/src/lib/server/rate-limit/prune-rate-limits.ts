@@ -63,11 +63,11 @@ const NONE_REMOVED = 0;
 /**
  * Reads the totals of the two Chișinău days that ended last, oldest first, and removes expired windows with the
  * store's own statement, its cutoff stepped forward an hour at a time from twenty-five hours before the clock to one
- * hour before it, oldest first: so a day's totals are written before its rows go, and nothing that ended an hour ago
- * or less ever does. A day with no bucket left writes no line: no line means no rows were left. A read that fails, the
- * naming of its day included, is written down and the prune still runs, since a table that only grows is what the
- * steps are for; a prune step that fails ends the run. Either way the night is `failed`, so it is seen, and what the
- * earlier steps removed stands.
+ * hour before it, oldest first: so a day's totals are written before its rows go, unless its read failed, and nothing
+ * that ended less than an hour ago ever does. A day with no bucket left writes no line: no line means no rows were
+ * left. A read that fails, the naming of its day included, is written down and the prune still runs, since a table
+ * that only grows is what the steps are for; a prune step that fails ends the run. Either way the night is `failed`,
+ * so it is seen, and what the earlier steps removed stands.
  */
 export async function pruneRateLimits(
   request: PruneRequest,
@@ -80,16 +80,27 @@ export async function pruneRateLimits(
       removedAtLeast += await step.run();
     } catch {
       hasFailed = true;
-      request.report({
-        event: "rate-limit-prune-failed",
-        step: index + 1,
-        stepCount: steps.length,
-        removedAtLeast,
-      });
+      reportFailedStep(request, { step: index + 1, steps, removedAtLeast });
       if (step.endsTheRunWhenItFails) break;
     }
   }
   return { status: hasFailed ? "failed" : "pruned", removedAtLeast };
+}
+
+function reportFailedStep(
+  { report }: PruneRequest,
+  {
+    step,
+    steps,
+    removedAtLeast,
+  }: { step: number; steps: readonly PruneStep[]; removedAtLeast: number },
+): void {
+  report({
+    event: "rate-limit-prune-failed",
+    step,
+    stepCount: steps.length,
+    removedAtLeast,
+  });
 }
 
 function stepsOf(request: PruneRequest): PruneStep[] {

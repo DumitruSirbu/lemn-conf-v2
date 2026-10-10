@@ -317,7 +317,8 @@ declare const messages: {
     "bodyInvalid": "Linkul acesta nu poate întoarce nici o configurare validă. Ne pare rău.",
     "bodyUnavailable": "Această configurație nu este disponibilă în acest browser. Se deschide doar în browserul în care a fost creată.",
     "startOver": "Începe o configurare nouă",
-    "tooManyRequests": "Prea multe cereri într-un timp scurt. Încearcă din nou peste puțin timp."
+    "tooManyRequests": "Prea multe cereri într-un timp scurt. Încearcă din nou peste puțin timp.",
+    "tryAgain": "Încearcă din nou"
   },
   "share": {
     "title": "Link de vizualizare",

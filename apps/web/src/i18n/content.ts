@@ -907,6 +907,8 @@ export function resolveContent(translate: ContentTranslator) {
       startOver: translate("designLoadError.startOver"),
       // The sentence a refused page read is answered with: the interceptor reads it from the catalogue itself.
       tooManyRequests: translate("designLoadError.tooManyRequests"),
+      // The label of the one link on that page, which is the page's own word and not another surface's.
+      tryAgain: translate("designLoadError.tryAgain"),
     },
     share: {
       title: translate("share.title"),

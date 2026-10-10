@@ -421,6 +421,8 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     // counts. It names no count and no address, and tells the customer to try again soon.
     tooManyRequests:
       "Prea multe cereri într-un timp scurt. Încearcă din nou peste puțin timp.",
+    // Drafted, not approved: the label of the one link on that page, the same words as the share control's own.
+    tryAgain: "Încearcă din nou",
   },
   // Drafted, approved as drafted (ADR 0113); the owner may reword later.
   share: {

@@ -19,8 +19,8 @@ const FROM_192_0_2 = new Headers({ "x-forwarded-for": "192.0.2.77" });
 const HOUR_SECONDS = 3600;
 const SENTENCE_OF_RO = roMessages.designLoadError.tooManyRequests;
 const SENTENCE_OF_RU = ruMessages.designLoadError.tooManyRequests;
-const TRY_AGAIN_OF_RO = roMessages.share.retry;
-const TRY_AGAIN_OF_RU = ruMessages.share.retry;
+const TRY_AGAIN_OF_RO = roMessages.designLoadError.tryAgain;
+const TRY_AGAIN_OF_RU = ruMessages.designLoadError.tryAgain;
 
 beforeEach(() => {
   vi.stubEnv("DIGEST_SECRET", FAKE_SECRET);

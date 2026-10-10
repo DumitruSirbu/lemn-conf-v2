@@ -74,19 +74,18 @@ describe("proxy: a locale that is one only once decoded is the 404 a case varian
     async (_label, source) => {
       vi.stubEnv(CLIENT_NETWORK_SOURCE_VARIABLE, source);
       const { proxy, recorded } = await freshInterceptor();
-      const seen = { refused: 0, served: 0 };
+      let spellingsTried = 0;
 
       for (const spelling of MISSPELLED) {
         for (const path of PAGES_OF(spelling)) {
           const answer = proxy(requestTo(path));
           expect(answer, path).not.toBeInstanceOf(Promise);
           expect((answer as Response).status, path).toBe(404);
-          seen[(answer as Response).status === 404 ? "refused" : "served"] += 1;
+          spellingsTried += 1;
         }
       }
 
-      expect(seen.refused).toBeGreaterThanOrEqual(MIN_PER_ARM);
-      expect(seen.served).toBe(0);
+      expect(spellingsTried).toBeGreaterThanOrEqual(MIN_PER_ARM);
       expect(recorded).not.toHaveBeenCalled();
     },
   );
