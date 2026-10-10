@@ -9261,6 +9261,73 @@ test of the route must change in an assertion on an answer, a line or a count. *
 note; ADR 0062, *Two smaller constraints*; ADR 0148 decision 3; the two tests; `route.ts` as
 built; `price/use-priced-design.ts`, its head only.
 
+##### 8K — adjudication of QA, 2026-10-10
+
+**State.** HEAD is `45095836` [ran: `git log`], tree clean [ran: `git status`]. QA's pass is
+**green**: no behaviour breaks one of the fifteen criteria as written; 58 mutants, one survivor,
+closed [relayed, QA's]. Its report is `qa-8k-report.md`, session scratchpad, read whole. One
+whole e2e run under `CI=1`: 778 passed, none failed; contact 18 of any kind, 8 new in the hour
+and 8 in the day, each against a twin of 100 [relayed, QA's]. The three reviews are running.
+
+| Finding | Classification | Ruling |
+| --- | --- | --- |
+| R1 calls at once under one id are each counted as a new request | **Contract gap.** S0's point 5 accepted two sends at once; nothing spoke of their buckets | **Recorded with a trigger; not fixed in 8K.** 8L carries the guard |
+| R2 bytes that are not UTF-8 are stored and mailed as replacement characters | Neither; a behaviour no criterion names | **Recorded** |
+| R3 a broken stream is `400 CONTACT_INVALID`, uncounted | The developer's decision where the plan was silent | **Stands** |
+| R3 a text that is no JSON answers one issue, and a comment says none | **Implementation defect, in a comment** | **The behaviour stands; the comment is corrected** |
+| R4 the judge is made, and every request's judgement asked, outside the guard | **Implementation defect**, unreachable through the production ports | **Wrapped** |
+| S4: a kitchen with no cabinet is `CONTACT_DESIGN_NOT_CURRENT` | The developer's decision | **Stands** |
+| S4: a pricing failure is the server's | The developer's decision | **Stands** |
+
+**R1, said whole.** Each call's lookup answers *absent* before either has recorded, so each
+counts a new request's buckets; the record then makes them one row [src `submit-contact.ts`,
+`aNewRequest`]. **What holds:** one row and one reference (criterion 5); no request is lost and
+no success is false. **What does not:** one request can spend two of a bucket, and a call that
+arrives when its bucket is at its figure is told *limit* for a request its twin stores and
+sends. The same id tried again after the wait is answered the truth, by the stored path.
+
+- **Why not fixed here.** Every fix that is exact needs the calls of one id put in an order,
+  and the limiter has no way to do that: it counts hits and never gives one back. *Considered:*
+  **a second lookup after a refusal**, which is right only when the twin has already recorded
+  and so decides by a race; **giving the hits back** when the record answers that a twin landed
+  first, which needs a statement that lowers a count, leaves the refused twin wrong, and is a
+  new power in the limiter; **a claim on the id** before a new request's buckets, which traps
+  the honest retry of a request that failed before it was stored for as long as the claim lasts.
+  None is a change for the end of a wave, and each needs the security reader.
+- **8L carries it, as two criteria of its form** (to be written into 8L's restatement): **one
+  request in flight for a form, and none sent again until the first is answered or has failed,
+  for at least as long as the server may take;** and **a retry of a form carries the same id.**
+- **Backlog, the scribe's:** *calls at once under one id are each counted as new.* **Trigger:**
+  8L cannot hold the first criterion; or a customer is reported refused for a request the shop
+  received; or the delivery milestone's hardening of the form, whichever is first.
+- *Not proven, stays so:* that two messages under one key are one at the provider.
+
+**R2, recorded.** No browser sends such a body; what is stored is valid text; the save's route
+reads the same way. Refusing it means a second way to read a body, or a change to 8H's one
+definition of a request, for no protection. **Trigger:** anything that reads a stored contact
+field as bytes, or the shared reader gaining a strict mode for another reason.
+
+**R3.** A broken stream has no payload to refuse and no caller reading its answer; it stays
+`400 CONTACT_INVALID` with no issue, uncounted, one line a process. **Every other
+`CONTACT_INVALID` holds at least one issue:** a text that is no JSON is `NOT_AN_OBJECT`, and
+that is what the comment on the answer must say. S3's table reads so from here.
+
+**The developer's two.** *No cabinet:* only the design's owner reaches it, after the load, and
+the review already refuses that kitchen (ADR 0148), so *this design cannot be sent as it is* is
+the truth and adds no way to tell designs apart. *A pricing failure:* the server's, `503` before
+a reference is held and `502` from there, as K-S1.1 and K-S1.2 ruled.
+
+**To build, two items, in the first fix round after the reviews (alone, if they find nothing).**
+
+| # | Does | Files |
+| --- | --- | --- |
+| 1 | **R4.** The judge's making and every request's judgement move inside the guard that answers *unavailable*: a maker or a clock that throws is `503 CONTACT_UNAVAILABLE` with its line, never the framework's own. A test for each of the two throws | `contact/submit-contact.ts`; its test |
+| 2 | **R3.** The comment on the invalid answer says what is true: one issue for a text that is no JSON, none only for a stream that broke | `contact/contact-responses.ts` |
+
+*Must not:* an answer, a line, an order or a count changes but the two throws of item 1; a
+`qa-*` file edited. *Stops if:* a test of the order of counts must change. *Reading:* this
+note; `qa-8k-report.md`, R3 and R4; `submit-contact.ts:95-125`.
+
 ### 8L — the contact screen 4A/4B/4C
 
 *Goal.* Three fields and a channel, validated where the customer is looking, sent once.
