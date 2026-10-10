@@ -9109,7 +9109,8 @@ nothing, K-S1.4.)**
 | 4 | The run's requests removed by their ids, and the run's counter rows by their keys | the e2e support |
 | 5 | One spec through the real route, store and fake sender: a callback and a design's request each answer a reference and are one row; the same id again is the same reference and still one row; a refused request is no row. Rows are counted in the database (criterion 13) | a new spec |
 
-*Must not:* a production file but the route and the three figures; a spec that leaves a row
+*Must not:* a production file but the route and the three figures **(2026-10-10, later: two
+more, under `lib/server`; *8K — S5: the route composed what two invariants reserve*)**; a spec that leaves a row
 behind; an address or an id shared by two runs. *Stops if:* the suite's server cannot be given
 the fake sender without a mail variable also being read; or a counter row of the run cannot be
 named for removal. *Reading:* S4 as built; `read-body-with-limit.ts`, `cross-site-request.ts`;
@@ -9204,6 +9205,61 @@ as it is read; the judge and the production ports made inside the request; then 
 body's text.* **The route parses nothing and asks no judgement.** Its other four items, its
 must-nots, stops and Reading stand, with one more must-not: a book made anywhere but once for a
 request.
+
+##### 8K — S5: the route composed what two invariants reserve, ruled, 2026-10-10
+
+**State.** HEAD is `da823cd8` [ran: `git log`], tree clean [ran: `git status`]. S4 is built and
+S5's five items are committed locally; the new spec passes 7 of 7 [relayed, the developer's].
+**The whole web suite is red on two tests older than the wave** [relayed], and both are right:
+
+- `tests/settings/global-settings-seams.test.ts:136`, *exactly one module in this application
+  names a price book*: the route names the sample book [src `route.ts:1-5`, `:149-153`].
+- `tests/lib/server/digest/digest-secret.test.ts:194`, *nothing outside `lib/server` imports the
+  digest modules*: the route imports the secret's reader [src `route.ts:30`].
+
+**Classification: contract gap, the architect's.** S5 item 1 put the making of the ports in the
+route, its must-not forbade any other production file, and its Reading named neither test. The
+developer built what was written and edited neither test.
+
+**Ruling: neither test is loosened to name a route.** A route stays thin, and what it composes
+lives under `lib/server`.
+
+- **The contact's production ports are made by one module under `lib/server/contact`**, called
+  once for a request, holding nothing at module level. The route imports no digest module, no
+  book, no mail and no message file. **The digest's test is not edited** and is green again.
+- **The server gets one price-book root of its own, under `lib/server`.** The browser's root is a
+  client module and a route cannot read through it. **This amends ADR 0062 seam 1, which says
+  one root, and it is recorded as an amendment, not read into the old words:** *the application
+  has two roots, the browser's and the server's, each named, and both name the same book.* The
+  seam's test then asserts **exactly those two paths**, and that the route names none.
+- **An interim, with its trigger.** Two roots are two substitutions; if one were changed alone,
+  a customer would review one price and the shop would be sent another, and nothing would catch
+  it. **Before either root names another book, they become one,** a module both read. That
+  module is not built now: moving the browser's ingress moves QA's pins on it
+  (`qa-m6-wave-b-book-ingress`, `qa-8c-model-purity`) and is a change to the editor's price path,
+  which is no part of a contact route's slice. *For the scribe:* a dated note on ADR 0062 seam 1
+  and a pointer at ADR 0148 decision 3's *"the one module allowed to"*; a backlog entry for the
+  one shared root, with this trigger.
+- *Alternatives.* **(A) Both tests amended to name the route:** refused; it makes a route a
+  composition root and lets the digest out of `lib/server` for convenience. **One shared root
+  now:** right in the end, refused for this slice, as above.
+
+**The fix. One developer, five items, one commit with no behaviour.**
+
+| # | Does | Files |
+| --- | --- | --- |
+| 1 | The server's price-book root: one function that answers the book this build ships, parsed, or throws an error of its own; nothing at module level | new `lib/server/shipped-price-book.ts` |
+| 2 | The contact's production ports, made for one request: what the route's three makers hold today, moved unchanged | new `lib/server/contact/contact-production-ports.ts` |
+| 3 | The route calls it once, inside the guard it already has, and imports no digest module, book, mail or message file | `app/api/contact-submissions/route.ts` |
+| 4 | The seam's test names exactly the two roots and asserts the route names none. The digest's test is not edited. The route's own tests follow the move | `tests/settings/global-settings-seams.test.ts`; the route's tests |
+| 5 | The whole web suite, the typecheck, the lint, the format and the boundary gate, each quoted; the spec again under `CI=1` | none |
+
+*Must not:* an answer, a line, an order of checks or a figure changes; `price/use-priced-design.ts`
+touched; the digest's test edited; a book, a sender, a store or a variable held at module level
+in either new file; a `qa-*` file edited. *Stops if:* a third test of this kind goes red; or a
+test of the route must change in an assertion on an answer, a line or a count. *Reading:* this
+note; ADR 0062, *Two smaller constraints*; ADR 0148 decision 3; the two tests; `route.ts` as
+built; `price/use-priced-design.ts`, its head only.
 
 ### 8L — the contact screen 4A/4B/4C
 
