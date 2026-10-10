@@ -22,19 +22,30 @@ export function localeOfPath(pathname: string): AppLocale {
   return hasLocale(routing.locales, first) ? first : routing.defaultLocale;
 }
 
-/** One sentence in the locale's language, with no script and no style, so nothing it loads can fail or be blocked. */
+/** The words of a refused page, in one locale's language. */
+export interface RefusedPageWords {
+  readonly locale: AppLocale;
+  readonly sentence: string;
+  /** The app's own label for trying again. */
+  readonly retryLabel: string;
+}
+
+/**
+ * One sentence and one plain link, in the locale's language, with no script and no style, so nothing it loads can fail
+ * or be blocked. The link's target is empty, which a browser resolves to the address the page was reached by and so
+ * loads that address again; nothing of the request is in the page.
+ */
 export function refusedPageHtml({
   locale,
   sentence,
-}: {
-  locale: AppLocale;
-  sentence: string;
-}): string {
+  retryLabel,
+}: RefusedPageWords): string {
   const text = escaped(sentence);
   return (
     `<!doctype html><html lang="${locale}"><head><meta charset="utf-8">` +
     '<meta name="viewport" content="width=device-width, initial-scale=1">' +
-    `<title>${text}</title></head><body><p>${text}</p></body></html>`
+    `<title>${text}</title></head><body><p>${text}</p>` +
+    `<p><a href="">${escaped(retryLabel)}</a></p></body></html>`
   );
 }
 

@@ -19,9 +19,6 @@ const OLDEST_CUTOFF_HOURS_BEFORE_NOW = 25;
 /** The newest cutoff. A window that ended less than this long ago is never removed, whatever the clock says. */
 const NEWEST_CUTOFF_HOURS_BEFORE_NOW = 1;
 
-/** How many ended days are read before any row goes. */
-const DAYS_REPORTED = 2;
-
 /** What the prune is handed: the store, the server's own clock as an instant, and where its lines go. It reads no
  *  clock and no environment, and no value a request carried can reach it. */
 export interface PruneRequest {
@@ -53,13 +50,21 @@ export type PruneOutcome =
   | { readonly status: "pruned"; readonly removedAtLeast: number }
   | { readonly status: "failed"; readonly removedAtLeast: number };
 
-type PruneStep = () => Promise<number>;
+/** One step of a night. A read's failure is written down and the night goes on; a prune's ends it. */
+interface PruneStep {
+  readonly run: () => Promise<number>;
+  readonly endsTheRunWhenItFails: boolean;
+}
+
+const NONE_REMOVED = 0;
 
 /**
- * Reads the totals of the two Chișinău days that ended last, one line each and oldest first, and only then removes
- * expired windows with the store's own statement, its cutoff stepped forward an hour at a time from twenty-five hours
- * before the clock to one hour before it, oldest first: so a day's totals are written before its rows go, and nothing
- * that ended less than an hour ago ever does. The first step that fails ends the run and is written down; what the
+ * Reads the totals of the two Chișinău days that ended last, oldest first, and removes expired windows with the
+ * store's own statement, its cutoff stepped forward an hour at a time from twenty-five hours before the clock to one
+ * hour before it, oldest first: so a day's totals are written before its rows go, and nothing that ended an hour ago
+ * or less ever does. A day with no bucket left writes no line: no line means no rows were left. A read that fails, the
+ * naming of its day included, is written down and the prune still runs, since a table that only grows is what the
+ * steps are for; a prune step that fails ends the run. Either way the night is `failed`, so it is seen, and what the
  * earlier steps removed stands.
  */
 export async function pruneRateLimits(
@@ -67,45 +72,51 @@ export async function pruneRateLimits(
 ): Promise<PruneOutcome> {
   const steps = stepsOf(request);
   let removedAtLeast = 0;
+  let hasFailed = false;
   for (const [index, step] of steps.entries()) {
     try {
-      removedAtLeast += await step();
+      removedAtLeast += await step.run();
     } catch {
+      hasFailed = true;
       request.report({
         event: "rate-limit-prune-failed",
         step: index + 1,
         stepCount: steps.length,
         removedAtLeast,
       });
-      return { status: "failed", removedAtLeast };
+      if (step.endsTheRunWhenItFails) break;
     }
   }
-  return { status: "pruned", removedAtLeast };
+  return { status: hasFailed ? "failed" : "pruned", removedAtLeast };
 }
 
 function stepsOf(request: PruneRequest): PruneStep[] {
-  const reads = endedDaysOf(request.instant).map(
-    (day): PruneStep =>
-      () =>
-        readTotalsOf(day, request),
+  const reads = ENDED_DAYS_AGO.map(
+    (daysAgo): PruneStep => ({
+      run: () => readTotalsOf(daysAgo, request),
+      endsTheRunWhenItFails: false,
+    }),
   );
   const prunes = cutoffsOf(request.instant).map(
-    (cutoff): PruneStep =>
-      () =>
-        request.store.pruneExpired(cutoff),
+    (cutoff): PruneStep => ({
+      run: () => request.store.pruneExpired(cutoff),
+      endsTheRunWhenItFails: true,
+    }),
   );
   return [...reads, ...prunes];
 }
 
-/** The two days before the one that holds the instant, oldest first. */
-function endedDaysOf(instant: Date): RateLimitWindow[] {
-  const days: RateLimitWindow[] = [];
+/** The ended days read, oldest first: the day before the one that holds the instant, and the one before that. */
+const ENDED_DAYS_AGO: readonly number[] = [2, 1];
+
+/** The day that ended `daysAgo` days before the one holding the instant. Naming a day throws where the runtime cannot
+ *  name the zone, so it is done inside the step that needs it. */
+function endedDayOf(instant: Date, daysAgo: number): RateLimitWindow {
   let day = chisinauDayOf(instant);
-  for (let ended = 0; ended < DAYS_REPORTED; ended += 1) {
+  for (let ended = 0; ended < daysAgo; ended += 1) {
     day = chisinauDayOf(new Date(day.startsAt.getTime() - 1));
-    days.unshift(day);
   }
-  return days;
+  return day;
 }
 
 /** One instant for each hour from the oldest cutoff to the newest, oldest first. */
@@ -122,13 +133,15 @@ function cutoffsOf(instant: Date): Date[] {
 }
 
 async function readTotalsOf(
-  day: RateLimitWindow,
-  { store, report }: PruneRequest,
+  daysAgo: number,
+  { store, instant, report }: PruneRequest,
 ): Promise<number> {
+  const day = endedDayOf(instant, daysAgo);
   const totals: WindowTotals = await store.totalsOfWindow(
     day,
     MINT_DAILY_FIGURE,
   );
+  if (totals.buckets === 0) return NONE_REMOVED;
   report({
     event: "rate-limit-day-totals",
     date: chisinauDateOf(day.startsAt),
@@ -136,5 +149,5 @@ async function readTotalsOf(
     aboveFigure: totals.aboveFigure,
     largestCount: totals.largestCount,
   });
-  return 0;
+  return NONE_REMOVED;
 }

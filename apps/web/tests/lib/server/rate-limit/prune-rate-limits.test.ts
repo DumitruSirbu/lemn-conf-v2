@@ -1,5 +1,5 @@
 import { FakeRateLimitStore, type RateLimitStore } from "@lemnaria/persistence";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   chisinauDateOf,
@@ -17,6 +17,27 @@ import {
   PROCESS_ENV_OR_BUILD_MODE,
   readSource,
 } from "../server-source-support";
+
+/** A runtime that cannot name the zone, made on demand: the real days otherwise. */
+const zone = vi.hoisted(() => ({ isNameable: true }));
+
+vi.mock("@/lib/server/rate-limit/chisinau-day", async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import("@/lib/server/rate-limit/chisinau-day")
+    >();
+  return {
+    ...actual,
+    chisinauDayOf: (instant: Date) => {
+      if (!zone.isNameable) throw new RangeError("the zone cannot be named");
+      return actual.chisinauDayOf(instant);
+    },
+  };
+});
+
+beforeEach(() => {
+  zone.isNameable = true;
+});
 
 const HOUR_MS = 3_600_000;
 const NOW = new Date("2026-10-09T03:30:00.000Z");
@@ -167,7 +188,10 @@ describe("pruneRateLimits: the steps of one night, in order", () => {
   ])(
     "names the days it totals by their dates for %s",
     async (_label, instant, dates) => {
-      const { guarded } = recordingStore();
+      const { store, guarded } = recordingStore();
+      for (const date of dates) {
+        await hit(store, chisinauDayOf(new Date(`${date}T12:00:00Z`)));
+      }
 
       const { lines } = await run(guarded, new Date(instant));
 
@@ -336,6 +360,39 @@ describe("pruneRateLimits: the totals' lines", () => {
     ]);
   });
 
+  it("writes no line for a day with no bucket left, though it is read, and none for an empty table", async () => {
+    const empty = recordingStore();
+    const { lines: noLines } = await run(empty.guarded);
+    const oneDay = recordingStore();
+    await hit(oneDay.store, chisinauDayOf(new Date("2026-10-08T12:00:00Z")), 3);
+
+    const { lines: oneLine } = await run(oneDay.guarded);
+
+    expect(noLines).toEqual([]);
+    expect(oneLine.map((line) => line.event)).toEqual([
+      "rate-limit-day-totals",
+    ]);
+    expect(oneLine[0]).toMatchObject({ date: "2026-10-08", buckets: 1 });
+    expect(oneDay.calls.filter(({ kind }) => kind === "totals")).toHaveLength(
+      TOTALS_READS,
+    );
+  });
+
+  it("writes no second line for a day the first night's prune has already taken", async () => {
+    const { store, guarded } = recordingStore();
+    const day = chisinauDayOf(new Date("2026-10-07T12:00:00Z"));
+    await hit(store, day, 2);
+    const nextNight = new Date(NOW.getTime() + 24 * HOUR_MS);
+
+    const first = await run(guarded, NOW);
+    const second = await run(guarded, nextNight);
+
+    expect(first.lines.map((line) => (line as { date?: string }).date)).toEqual(
+      ["2026-10-07"],
+    );
+    expect(second.lines).toEqual([]);
+  });
+
   it("reads each day before its rows can go: the older day is totalled though the first step removes it", async () => {
     const { store, guarded } = recordingStore();
     const olderDay = chisinauDayOf(new Date("2026-10-07T12:00:00Z"));
@@ -360,9 +417,12 @@ describe("pruneRateLimits: the totals' lines", () => {
 });
 
 describe("pruneRateLimits: a step that fails", () => {
-  it("leaves the first two done and ends at the third, answering failed with the place and no error", async () => {
-    const { store, guarded, calls } = recordingStore(3);
-    await hit(store, utcWindowOf(new Date(NOW.getTime() - 40 * HOUR_MS), 60));
+  const PLANTED_AT_40_HOURS = () =>
+    utcWindowOf(new Date(NOW.getTime() - 40 * HOUR_MS), 60);
+
+  it("ends the run at a prune step that fails, answering failed with the place and no error", async () => {
+    const { store, guarded, calls } = recordingStore(TOTALS_READS + 1);
+    await hit(store, PLANTED_AT_40_HOURS());
 
     const { outcome, lines } = await run(guarded);
 
@@ -372,17 +432,14 @@ describe("pruneRateLimits: a step that fails", () => {
       "totals",
       "prune",
     ]);
-    expect(lines.map((line) => line.event)).toEqual([
-      "rate-limit-day-totals",
-      "rate-limit-day-totals",
-      "rate-limit-prune-failed",
+    expect(lines).toEqual([
+      {
+        event: "rate-limit-prune-failed",
+        step: TOTALS_READS + 1,
+        stepCount: TOTALS_READS + STEPS_OF_THE_PRUNE,
+        removedAtLeast: 0,
+      },
     ]);
-    expect(lines[2]).toEqual({
-      event: "rate-limit-prune-failed",
-      step: 3,
-      stepCount: TOTALS_READS + STEPS_OF_THE_PRUNE,
-      removedAtLeast: 0,
-    });
     expect(JSON.stringify({ outcome, lines })).not.toMatch(
       /MARKER|postgres|KEY/,
     );
@@ -390,7 +447,7 @@ describe("pruneRateLimits: a step that fails", () => {
 
   it("keeps what the steps before it removed when a later prune step fails", async () => {
     const { store, guarded, calls } = recordingStore(TOTALS_READS + 3);
-    const old = utcWindowOf(new Date(NOW.getTime() - 40 * HOUR_MS), 60);
+    const old = PLANTED_AT_40_HOURS();
     const key = await hit(store, old);
 
     const { outcome } = await run(guarded);
@@ -400,27 +457,29 @@ describe("pruneRateLimits: a step that fails", () => {
     expect(await isStillCounting(store, key, old)).toBe(false);
   });
 
-  it("stops before any row goes when a day's totals cannot be read, so no day is pruned unreported", async () => {
-    const { store, guarded, calls } = recordingStore(1);
-    const old = utcWindowOf(new Date(NOW.getTime() - 40 * HOUR_MS), 60);
-    const key = await hit(store, old);
+  it.each([1, 2])(
+    "runs every prune step though totals read %i cannot be read, and answers failed with that read's line",
+    async (failedRead) => {
+      const { store, guarded, calls } = recordingStore(failedRead);
+      const old = PLANTED_AT_40_HOURS();
+      const key = await hit(store, old);
 
-    const { outcome, lines } = await run(guarded);
+      const { outcome, lines } = await run(guarded);
 
-    expect(outcome).toEqual({ status: "failed", removedAtLeast: 0 });
-    expect(calls.map(({ kind }) => kind)).toEqual(["totals"]);
-    expect(lines).toEqual([
-      {
+      expect(outcome).toEqual({ status: "failed", removedAtLeast: 1 });
+      expect(calls).toHaveLength(TOTALS_READS + STEPS_OF_THE_PRUNE);
+      expect(await isStillCounting(store, key, old)).toBe(false);
+      expect(lines).toContainEqual({
         event: "rate-limit-prune-failed",
-        step: 1,
+        step: failedRead,
         stepCount: TOTALS_READS + STEPS_OF_THE_PRUNE,
         removedAtLeast: 0,
-      },
-    ]);
-    expect(await isStillCounting(store, key, old)).toBe(true);
-  });
+      });
+      expect(JSON.stringify(lines)).not.toMatch(/MARKER|postgres|KEY/);
+    },
+  );
 
-  it("asks no step after the one that failed, whichever it is", async () => {
+  it("asks no prune step after the one that failed, and every step after a totals read that failed", async () => {
     for (
       let failAt = 1;
       failAt <= TOTALS_READS + STEPS_OF_THE_PRUNE;
@@ -430,9 +489,31 @@ describe("pruneRateLimits: a step that fails", () => {
 
       const { outcome } = await run(guarded);
 
+      const isAReadThatFailed = failAt <= TOTALS_READS;
       expect(outcome.status).toBe("failed");
-      expect(calls).toHaveLength(failAt);
+      expect(calls).toHaveLength(
+        isAReadThatFailed ? TOTALS_READS + STEPS_OF_THE_PRUNE : failAt,
+      );
     }
+  });
+
+  it("names the days inside the guarded part: a zone that cannot be named fails the reads, not the prune", async () => {
+    const { store, guarded, calls } = recordingStore();
+    const old = PLANTED_AT_40_HOURS();
+    const key = await hit(store, old);
+    zone.isNameable = false;
+
+    const { outcome, lines } = await run(guarded);
+
+    expect(outcome).toEqual({ status: "failed", removedAtLeast: 1 });
+    expect(calls.filter(({ kind }) => kind === "totals")).toEqual([]);
+    expect(calls.filter(({ kind }) => kind === "prune")).toHaveLength(
+      STEPS_OF_THE_PRUNE,
+    );
+    expect(lines.map((line) => (line as { step?: number }).step)).toEqual([
+      1, 2,
+    ]);
+    expect(await isStillCounting(store, key, old)).toBe(false);
   });
 });
 

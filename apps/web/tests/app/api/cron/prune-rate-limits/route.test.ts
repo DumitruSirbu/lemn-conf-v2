@@ -5,8 +5,26 @@ import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GET } from "../../../../../src/app/api/cron/prune-rate-limits/route";
+import { chisinauDayOf } from "@/lib/server/rate-limit/chisinau-day";
 import { getRateLimitStore } from "@/lib/server/rate-limit/rate-limit-store-instance";
 import { utcWindowOf } from "@/lib/server/rate-limit/utc-window";
+
+/** A runtime that cannot name the zone, made on demand: the real days otherwise. */
+const zone = vi.hoisted(() => ({ isNameable: true }));
+
+vi.mock("@/lib/server/rate-limit/chisinau-day", async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import("@/lib/server/rate-limit/chisinau-day")
+    >();
+  return {
+    ...actual,
+    chisinauDayOf: (instant: Date) => {
+      if (!zone.isNameable) throw new RangeError("the zone cannot be named");
+      return actual.chisinauDayOf(instant);
+    },
+  };
+});
 
 const CRON_SECRET = "cron-secret-for-tests-5513";
 const NOW = new Date("2026-10-09T03:30:00.000Z");
@@ -33,6 +51,11 @@ async function plantEndedHoursAgo(hoursAgo: number): Promise<void> {
   await getRateLimitStore().recordHits([{ key: newKey(), window }]);
 }
 
+async function plantInTheDayOf(date: string): Promise<void> {
+  const window = chisinauDayOf(new Date(`${date}T12:00:00Z`));
+  await getRateLimitStore().recordHits([{ key: newKey(), window }]);
+}
+
 function spiesOnTheConsole() {
   return {
     info: vi.spyOn(console, "info").mockImplementation(() => undefined),
@@ -43,6 +66,7 @@ function spiesOnTheConsole() {
 }
 
 beforeEach(() => {
+  zone.isNameable = true;
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(NOW);
   vi.stubEnv("CRON_SECRET", CRON_SECRET);
@@ -177,6 +201,44 @@ describe("GET /api/cron/prune-rate-limits: a step that fails", () => {
     ]);
   });
 
+  it("answers 503 and still removes the expired rows when a day's totals cannot be read", async () => {
+    await plantEndedHoursAgo(40);
+    vi.spyOn(getRateLimitStore(), "totalsOfWindow").mockRejectedValue(
+      new Error("postgres://user:ROUTE-MARKER-7702@host/db"),
+    );
+    const console_ = spiesOnTheConsole();
+
+    const response = await GET(authorizedRequest());
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({
+      status: "failed",
+      errorCode: "RATE_LIMIT_PRUNE_FAILED",
+      removedAtLeast: 1,
+    });
+    expect(
+      console_.error.mock.calls.map(
+        ([, line]) => (line as { step: number }).step,
+      ),
+    ).toEqual([1, 2]);
+  });
+
+  it("answers 503 with its code and a line, and not a bare 500, when the runtime cannot name the zone", async () => {
+    await plantEndedHoursAgo(40);
+    zone.isNameable = false;
+    const console_ = spiesOnTheConsole();
+
+    const response = await GET(authorizedRequest());
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({
+      status: "failed",
+      errorCode: "RATE_LIMIT_PRUNE_FAILED",
+      removedAtLeast: 1,
+    });
+    expect(console_.error).toHaveBeenCalledTimes(2);
+  });
+
   it("answers 503 when the store cannot be made, with the failure written and nothing of it answered", async () => {
     vi.spyOn(getRateLimitStore(), "totalsOfWindow").mockRejectedValue(
       new Error("DATABASE_URL=postgres://user:ROUTE-MARKER-7702@host/db"),
@@ -196,7 +258,17 @@ describe("GET /api/cron/prune-rate-limits: a step that fails", () => {
 });
 
 describe("GET /api/cron/prune-rate-limits: what it writes", () => {
+  it("writes no line for an empty table, since no line means no rows were left", async () => {
+    const console_ = spiesOnTheConsole();
+
+    await GET(authorizedRequest());
+
+    expect(console_.info).not.toHaveBeenCalled();
+  });
+
   it("writes one line for each of the two days, a date and three counts under its label alone", async () => {
+    await plantInTheDayOf("2026-10-07");
+    await plantInTheDayOf("2026-10-08");
     const console_ = spiesOnTheConsole();
 
     await GET(authorizedRequest());
@@ -207,9 +279,9 @@ describe("GET /api/cron/prune-rate-limits: what it writes", () => {
         {
           event: "rate-limit-day-totals",
           date: "2026-10-07",
-          buckets: 0,
+          buckets: 1,
           aboveFigure: 0,
-          largestCount: 0,
+          largestCount: 1,
         },
       ],
       [
@@ -217,9 +289,9 @@ describe("GET /api/cron/prune-rate-limits: what it writes", () => {
         {
           event: "rate-limit-day-totals",
           date: "2026-10-08",
-          buckets: 0,
+          buckets: 1,
           aboveFigure: 0,
-          largestCount: 0,
+          largestCount: 1,
         },
       ],
     ]);

@@ -13,9 +13,17 @@ import { readLimitReachedPageResponse } from "@/lib/server/rate-limit/rate-limit
 import roMessages from "@/messages/ro.json";
 import ruMessages from "@/messages/ru.json";
 
-const SENTENCE_OF_LOCALE: Readonly<Record<AppLocale, string>> = {
-  ro: roMessages.designLoadError.tooManyRequests,
-  ru: ruMessages.designLoadError.tooManyRequests,
+const WORDS_OF_LOCALE: Readonly<
+  Record<AppLocale, { sentence: string; retryLabel: string }>
+> = {
+  ro: {
+    sentence: roMessages.designLoadError.tooManyRequests,
+    retryLabel: roMessages.share.retry,
+  },
+  ru: {
+    sentence: ruMessages.designLoadError.tooManyRequests,
+    retryLabel: ruMessages.share.retry,
+  },
 };
 
 /**
@@ -32,6 +40,6 @@ export async function refusalOfPageRead(
   const locale = localeOfPath(pathname);
   return readLimitReachedPageResponse(
     judgement.retryAfterSeconds,
-    refusedPageHtml({ locale, sentence: SENTENCE_OF_LOCALE[locale] }),
+    refusedPageHtml({ locale, ...WORDS_OF_LOCALE[locale] }),
   );
 }

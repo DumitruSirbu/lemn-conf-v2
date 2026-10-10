@@ -19,6 +19,8 @@ const FROM_192_0_2 = new Headers({ "x-forwarded-for": "192.0.2.77" });
 const HOUR_SECONDS = 3600;
 const SENTENCE_OF_RO = roMessages.designLoadError.tooManyRequests;
 const SENTENCE_OF_RU = ruMessages.designLoadError.tooManyRequests;
+const TRY_AGAIN_OF_RO = roMessages.share.retry;
+const TRY_AGAIN_OF_RU = ruMessages.share.retry;
 
 beforeEach(() => {
   vi.stubEnv("DIGEST_SECRET", FAKE_SECRET);
@@ -77,13 +79,13 @@ describe("refusalOfPageRead: the page a refused read is answered with", () => {
   });
 
   it.each([
-    ["/ro/d/x", "ro", SENTENCE_OF_RO],
-    ["/ro", "ro", SENTENCE_OF_RO],
-    ["/ru/s/abcdefghijkl", "ru", SENTENCE_OF_RU],
-    ["/ru", "ru", SENTENCE_OF_RU],
+    ["/ro/d/x", "ro", SENTENCE_OF_RO, TRY_AGAIN_OF_RO],
+    ["/ro", "ro", SENTENCE_OF_RO, TRY_AGAIN_OF_RO],
+    ["/ru/s/abcdefghijkl", "ru", SENTENCE_OF_RU, TRY_AGAIN_OF_RU],
+    ["/ru", "ru", SENTENCE_OF_RU, TRY_AGAIN_OF_RU],
   ])(
-    "answers %s in %s, with the sentence of that catalogue alone",
-    async (path, language, sentence) => {
+    "answers %s in %s, with the sentence and the try-again label of that catalogue alone",
+    async (path, language, sentence, tryAgain) => {
       storeAtItsFigure();
 
       const text = await (await refusalOfPageRead(FROM_192_0_2, path))?.text();
@@ -91,6 +93,7 @@ describe("refusalOfPageRead: the page a refused read is answered with", () => {
       expect(text).toContain(`<html lang="${language}">`);
       expect(text).toContain(`<p>${sentence}</p>`);
       expect(text).toContain(`<title>${sentence}</title>`);
+      expect(text).toContain(`<p><a href="">${tryAgain}</a></p>`);
     },
   );
 
@@ -108,7 +111,7 @@ describe("refusalOfPageRead: the page a refused read is answered with", () => {
     expect(text).toContain(SENTENCE_OF_RO);
   });
 
-  it("holds no script, no style and nothing that loads, and names no number and no address", async () => {
+  it("holds no script, no style, nothing that loads but one link to nowhere, no number and no address", async () => {
     storeAtItsFigure();
 
     for (const path of ["/ro/d/x", "/ru/d/x"]) {
@@ -116,22 +119,40 @@ describe("refusalOfPageRead: the page a refused read is answered with", () => {
         (await (await refusalOfPageRead(FROM_192_0_2, path))?.text()) ?? "";
 
       expect(text).not.toMatch(
-        /<script|<style|<link|<img|<iframe|<form|style=|\son[a-z]+=|src=|href=/i,
+        /<script|<style|<link|<img|<iframe|<form|style=|\son[a-z]+=|src=/i,
       );
+      expect(text.match(/<a\b[^>]*>/g)).toEqual(['<a href="">']);
+      expect(text.match(/href=/g)).toHaveLength(1);
       expect(text.replace(/<[^>]*>/g, "")).not.toMatch(/[0-9]/);
     }
     expect(SENTENCE_OF_RO).not.toMatch(/[0-9]|adres/i);
     expect(SENTENCE_OF_RU).not.toMatch(/[0-9]|адрес/i);
   });
 
-  it("is a page of one paragraph in a body of one sentence, small enough to be read at a glance", async () => {
+  it("is a page of one sentence and one link, small enough to be read at a glance", async () => {
     storeAtItsFigure();
 
     const text =
       (await (await refusalOfPageRead(FROM_192_0_2, "/ro/d/x"))?.text()) ?? "";
 
-    expect(text.match(/<p>/g)).toHaveLength(1);
+    expect(text.match(/<p>/g)).toHaveLength(2);
     expect(text.length).toBeLessThan(1000);
+  });
+
+  it("reflects nothing of the request: the link's target is empty, whatever path and query came", async () => {
+    storeAtItsFigure();
+
+    for (const path of [
+      "/ro/d/x?a=1&b=<script>",
+      '/ru/d/"><a href="//evil.example">',
+      "/ro/s/abcdefghijkl#fragment",
+    ]) {
+      const text =
+        (await (await refusalOfPageRead(FROM_192_0_2, path))?.text()) ?? "";
+
+      expect(text).not.toMatch(/evil|script|fragment|a=1/);
+      expect(text.match(/<a\b[^>]*>/g)).toEqual(['<a href="">']);
+    }
   });
 
   it("asks before it says anything: a refusal reads no cookie, only the forwarding header", async () => {
