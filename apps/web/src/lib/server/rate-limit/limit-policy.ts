@@ -112,6 +112,13 @@ export const CONTACT_EVERY_PER_BLOCK_HOUR_FIGURE = 30;
 export const CONTACT_TRIES_PER_REQUEST_HOUR_FIGURE = 10;
 
 /**
+ * PROVISIONAL, with the two figures above (Q39): the least time a form must have been open, in milliseconds, before a
+ * request is taken. Short enough that an autofilled form sent by a real tap passes. What the client says it took is
+ * what is compared, so it stops a careless sender only; the buckets are the bound.
+ */
+export const CONTACT_LEAST_FORM_TIME_MS = 2000;
+
+/**
  * PROVISIONAL, a bound for a misplaced flag and no measure, until the suite's own spec counts what a whole run sends:
  * each of the three buckets the suite's one shared block would count.
  */

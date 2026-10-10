@@ -5,6 +5,7 @@ import {
   choosePolicy,
   CONTACT_EVERY_BY_BLOCK_POLICY,
   CONTACT_EVERY_PER_BLOCK_HOUR_FIGURE,
+  CONTACT_LEAST_FORM_TIME_MS,
   CONTACT_NEW_BY_ADDRESS_POLICY,
   CONTACT_NEW_BY_BLOCK_DAY_POLICY,
   CONTACT_NEW_BY_BLOCK_HOUR_POLICY,
@@ -99,6 +100,10 @@ describe("the six policies of a contact request", () => {
   it("names the two figures Q39 leaves to the owner as constants of this module, thirty and ten", () => {
     expect(CONTACT_EVERY_PER_BLOCK_HOUR_FIGURE).toBe(30);
     expect(CONTACT_TRIES_PER_REQUEST_HOUR_FIGURE).toBe(10);
+  });
+
+  it("names the least time a form was open as two seconds, provisional beside the two figures of Q39", () => {
+    expect(CONTACT_LEAST_FORM_TIME_MS).toBe(2000);
   });
 
   it("allows a request at least six tries in an hour, which a retry that is never trapped needs", () => {
