@@ -2,6 +2,8 @@
 // mocked, so what is shown is that a refusal reaches the database not at all and that an accepted runner reaches it.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { countContactSubmissionsForTests } from "../src/count-contact-submissions-for-tests.js";
+import { deleteContactSubmissionsForTests } from "../src/delete-contact-submissions-for-tests.js";
 import {
   deleteDesignsForTests,
   findDesignIdsForTests,
@@ -25,6 +27,7 @@ const APPLICATION_URL =
   "postgresql://owner:secret@host.neon.tech/neondb?sslmode=require";
 const TEST_URL = "postgresql://owner:secret@host.neon.tech/lemnaria_test";
 const A_KEY = "a".repeat(64);
+const A_REQUEST_ID = "contact-test-0000000001";
 const THE_MARKERS = ["VITEST", "TEST_WORKER_INDEX", "PLAYWRIGHT_TEST"] as const;
 
 /** Every function that asks the guard, with a call that would send a statement if the guard let it. */
@@ -38,6 +41,14 @@ const CALLERS: readonly [string, () => Promise<unknown>][] = [
   [
     "findWriteTokenHashesForTests",
     () => findWriteTokenHashesForTests(["design-1"]),
+  ],
+  [
+    "deleteContactSubmissionsForTests",
+    () => deleteContactSubmissionsForTests([A_REQUEST_ID]),
+  ],
+  [
+    "countContactSubmissionsForTests",
+    () => countContactSubmissionsForTests([A_REQUEST_ID]),
   ],
 ];
 
@@ -131,7 +142,9 @@ describe.each(CALLERS)(
       "reaches the database when %s alone marks the runner",
       async (marker) => {
         onlyThisMarker(marker);
-        answerWith([]);
+        answerWith(
+          name === "countContactSubmissionsForTests" ? [{ stored: 0 }] : [],
+        );
 
         await call();
 

@@ -223,6 +223,18 @@ const EXPECTED_CLASSIFICATION: Readonly<
     reason:
       "writes counter rows under random keys in its own era and needs the schema intact",
   },
+  "delete-contact-submissions-for-tests.live.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "writes synthetic contact rows under ids that carry a marker only this file writes, and needs the schema intact",
+  },
+  "count-contact-submissions-for-tests.live.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "writes synthetic contact rows under ids that carry a marker only this file writes, and needs the schema intact",
+  },
   "find-write-token-hashes-for-tests.live.test.ts": {
     gate: "live test database",
     lock: "shared",
