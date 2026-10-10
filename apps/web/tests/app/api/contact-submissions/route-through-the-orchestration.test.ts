@@ -129,7 +129,7 @@ describe("a request through the route", () => {
 });
 
 describe("what the route lets be counted, and when", () => {
-  it("counts a body that does not parse against every request's bucket, once, before anything is read of it", async () => {
+  it("counts a body that does not parse against every request's bucket, once, before it is read", async () => {
     const recording = vi.spyOn(getRateLimitStore(), "recordHits");
 
     const answer = await post("{{{ not json");

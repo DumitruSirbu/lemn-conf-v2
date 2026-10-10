@@ -283,7 +283,7 @@ describe("the body is read to its bound, counted as it is read", () => {
     );
   });
 
-  it("counts bytes and not characters: a body of two-byte characters is past the bound at half the characters", async () => {
+  it("counts bytes and not characters: two-byte characters are past the bound at half as many", async () => {
     const exactlyTheBound = "é".repeat(BODY_BOUND_BYTES / 2);
     const oneCharacterPast = "é".repeat(BODY_BOUND_BYTES / 2 + 1);
 
@@ -351,7 +351,7 @@ describe("the route parses nothing and asks no judgement", () => {
     expect(await recordedHits(() => POST(contactRequest("{}")))).toBe(0);
   });
 
-  it("makes the judge of the request's own headers, the process's environment and the instant it is asked for", async () => {
+  it("makes the judge of the request's headers, the process's environment and the instant asked for", async () => {
     const request = contactRequest("{}", { "x-forwarded-for": "192.0.2.9" });
     await POST(request);
     const instant = new Date("2026-07-15T12:20:00Z");
@@ -452,7 +452,7 @@ describe("the visitor's hash, handed over beside the text and asked of no bucket
 });
 
 describe("a request that cannot be given its ports", () => {
-  it("answers the one unavailable answer when the store cannot be made, with a cause and nothing a thrown value said", async () => {
+  it("answers unavailable when the store cannot be made, with a cause and nothing a throw said", async () => {
     spies.getContactSubmissionStore.mockImplementation(() => {
       throw new Error(FAILURE_MARKER);
     });
@@ -490,7 +490,7 @@ describe("a request that cannot be given its ports", () => {
 });
 
 describe("no answer of the route sets, clears or refreshes a cookie", () => {
-  it("holds for the guard's, the content type's, the bound's, the broken stream's and the unavailable answer", async () => {
+  it("holds for the guard's, content type's, bound's, broken stream's and unavailable answers", async () => {
     spies.getContactSubmissionStore.mockImplementation(() => {
       throw new Error("down");
     });

@@ -140,7 +140,7 @@ function bookOfThisRequest(): PriceBook {
   return parsed.book;
 }
 
-/** The shop's notice is written in its own language, whatever the customer's, and never through the request's locale. */
+/** The shop's notice is written in its own language, whatever the customer's, never through the request's locale. */
 function noticeContent(): Content {
   return resolveContent(
     createTranslator({ locale: NOTICE_LOCALE, messages: roMessages }),
