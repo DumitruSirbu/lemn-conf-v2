@@ -53,6 +53,7 @@ export type {
 } from "./rate-limit-store.js";
 export { FakeRateLimitStore } from "./fake-rate-limit-store.js";
 export { ContactSubmissionStoreError } from "./contact-submission-store.js";
+export { isSubmissionReference } from "./generate-submission-reference.js";
 export type {
   ContactSubmissionOperation,
   ContactSubmissionStore,
