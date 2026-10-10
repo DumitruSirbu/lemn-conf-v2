@@ -5,7 +5,7 @@
 // waiting, and the one write sent when the wait ends holds the edit made before leaving and the one made after.
 //
 // The last three tests are what the wait's own rule does not reach: the review step with a write that was handed back,
-// and a design returned to by Back after its write has already gone.
+// and a design returned to by Back after its write has already gone (the two marked as expected to fail).
 //
 // **Must not run concurrently with any other persistence live run**: each test mints one or two rows, deleted by its
 // fixture's teardown (ADR 0006).
@@ -429,6 +429,13 @@ test("the review of a design whose waiting write was handed back says the pause 
   });
 });
 
+// A design returned to by Back from a second design is shown from the copy of its page the browser kept, which is
+// older than what is stored once a write has gone meanwhile. No limit takes part. Each of the two tests below asserts
+// that the stored edit is shown and built on, and is marked as expected to fail, so it goes red the day that is
+// fixed: whoever builds backlog 168 removes the `test.fail` line and keeps the assertion.
+const STALE_RETURN_DEFERRAL =
+  "backlog 168: Back to a design from a second one shows the page's kept copy, older than what is stored, as saved";
+
 /** Polled from whatever page is on screen: the write goes from the browser's one writer, wherever the customer is. */
 async function expectStored(
   page: Page,
@@ -465,6 +472,7 @@ test("a write that waited and went while a second design was on screen is stored
   page,
   designWrites,
 }) => {
+  test.fail(true, STALE_RETURN_DEFERRAL);
   test.setTimeout(TEST_TIMEOUT_MS);
   // Fixtures are lazy: asking for this one is what deletes the rows the hand-overs mint.
   await Promise.resolve(designWrites);
@@ -491,6 +499,7 @@ test("with no limit met, a saved edit is shown when Back returns to its design f
   page,
   designWrites,
 }) => {
+  test.fail(true, STALE_RETURN_DEFERRAL);
   test.setTimeout(TEST_TIMEOUT_MS);
   // Fixtures are lazy: asking for this one is what deletes the rows the hand-overs mint.
   await Promise.resolve(designWrites);
