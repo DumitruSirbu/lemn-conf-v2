@@ -154,6 +154,136 @@ describe("a save the limit refused, through the store", () => {
   });
 });
 
+describe("a design loaded again while its own write waits, through the store", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    sent = [];
+    answers = [];
+    stubFetch();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  /** Edits the minted design, has the save refused for 30 s, then leaves for another design and loads this one again
+   *  from the page's own copy, which is what the server held before the edit. */
+  async function leaveAndLoadAgain(
+    store: Store,
+    canWrite: boolean | "checking" = "checking",
+  ) {
+    const pageCopy = store.getState().design;
+    store.getState().hydrate({
+      design: pageCopy,
+      designId: MINTED_ID,
+      revision: "1",
+      canWrite: true,
+    });
+    answers.push(() => saveLimitRefusal(30));
+    removePlacement(store, FIRST_REMOVED);
+    await vi.advanceTimersByTimeAsync(0);
+    const edited = store.getState().design;
+    const refusedAtMs = Date.now();
+    store.getState().hydrate({
+      design: pageCopy,
+      designId: "another-design",
+      revision: "5",
+      canWrite: true,
+    });
+    store.getState().hydrate({
+      design: pageCopy,
+      designId: MINTED_ID,
+      revision: "1",
+      canWrite,
+    });
+    return { pageCopy, edited, refusedAtMs };
+  }
+
+  it("shows the waiting design, unsaved, with its wait, and not the server's copy as saved", async () => {
+    const store = await loadFreshStore();
+
+    const { pageCopy, edited, refusedAtMs } = await leaveAndLoadAgain(store);
+
+    const state = store.getState();
+    expect(state.design).toBe(edited);
+    expect(state.savedDesign).toBe(pageCopy);
+    expect(state.saveStatus).toBe("error");
+    expect(state.saveResumesAtMs).toBe(
+      refusedAtMs + 30 * MILLISECONDS_PER_SECOND,
+    );
+    expect(state.hasBeenEdited).toBe(true);
+    expect(state.revision).toBe("1");
+  });
+
+  it("sends the one waiting write at the stated time with no edit made, and then shows it saved", async () => {
+    const store = await loadFreshStore();
+    const { edited } = await leaveAndLoadAgain(store);
+
+    await vi.advanceTimersByTimeAsync(30 * MILLISECONDS_PER_SECOND - 1);
+    expect(methodsSent()).toEqual(["PUT"]);
+    await vi.advanceTimersByTimeAsync(1);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(methodsSent()).toEqual(["PUT", "PUT"]);
+    expect(sent.at(-1)?.body).toBe(JSON.stringify(edited));
+    const state = store.getState();
+    expect(state.saveStatus).toBe("idle");
+    expect(state.saveResumesAtMs).toBeNull();
+    expect(state.design).toBe(state.savedDesign);
+    expect(state.revision).toBe("2");
+  });
+
+  it("lets an edit made after the return join the one write, which holds both edits", async () => {
+    const store = await loadFreshStore();
+    await leaveAndLoadAgain(store);
+
+    removePlacement(store, SECOND_REMOVED);
+    await vi.advanceTimersByTimeAsync(30 * MILLISECONDS_PER_SECOND);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(methodsSent()).toEqual(["PUT", "PUT"]);
+    const written = JSON.parse(sent.at(-1)?.body ?? "{}") as {
+      placements: { id: string }[];
+    };
+    const ids = written.placements.map(({ id }) => id);
+    expect(ids).not.toContain(FIRST_REMOVED);
+    expect(ids).not.toContain(SECOND_REMOVED);
+    expect(sent.at(-1)?.body).toBe(JSON.stringify(store.getState().design));
+    expect(store.getState().saveStatus).toBe("idle");
+  });
+
+  it("gives a read-only load the server's copy as before, whoever's write waits", async () => {
+    const store = await loadFreshStore();
+
+    const { pageCopy } = await leaveAndLoadAgain(store, false);
+
+    const state = store.getState();
+    expect(state.design).toBe(pageCopy);
+    expect(state.saveStatus).toBe("idle");
+    expect(state.saveResumesAtMs).toBeNull();
+  });
+
+  it("gives a design with nothing waiting the server's copy, saved, as before", async () => {
+    const store = await loadFreshStore();
+    const loaded = { ...store.getState().design, presetId: "loaded" };
+
+    store.getState().hydrate({
+      design: loaded,
+      designId: MINTED_ID,
+      revision: "3",
+      canWrite: true,
+    });
+
+    const state = store.getState();
+    expect(state.design).toBe(loaded);
+    expect(state.savedDesign).toBe(loaded);
+    expect(state.saveStatus).toBe("idle");
+    expect(state.hasBeenEdited).toBe(false);
+    expect(state.revision).toBe("3");
+  });
+});
+
 describe("the overwrite's read of the stored revision, refused, through the store", () => {
   beforeEach(() => {
     vi.useFakeTimers();

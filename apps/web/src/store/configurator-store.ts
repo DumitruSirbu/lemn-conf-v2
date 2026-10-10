@@ -45,6 +45,7 @@ import {
   createSaveCoalescer,
   type SaveCoalescer,
   type SaveStatus,
+  type WaitingWrite,
 } from "@/persistence/save-coalescer";
 
 import { applyCommandResult, type Selection } from "./apply-command-result";
@@ -251,6 +252,12 @@ export interface ConfiguratorStoreOptions {
    * store instances have no background writer and leave this unset.
    */
   readonly onDesignIdentityChanged?: () => void;
+  /**
+   * Asked when a design is loaded: the write the background writer holds waiting for the limit on saves for that
+   * design, if any. A load that finds one shows that design with its wait, and not the server's copy as saved.
+   * Other store instances have no background writer and leave this unset.
+   */
+  readonly adoptWaitingWrite?: (id: DesignId) => WaitingWrite | undefined;
   /** The overwrite half of WEB-003's conflict choice, wired to the coalescer at the singleton seam.
    *  Other store instances have no background writer and leave this unset. */
   readonly onOverwriteRequested?: (design: Design) => void;
@@ -600,29 +607,32 @@ export function createConfiguratorStore(
       hasPersistedSuccessfully: designId !== null,
       hasBeenEdited: false,
       hydrate: (loaded) => {
-        // A loaded document carries its own `settings.cabinetDepthMm`: reusing the opening map would
-        // evaluate a 700 mm kitchen at 600 mm.
-        const loadedCatalog = catalogFor(loaded.design);
-        const geometry = deriveGeometry(loaded.design, loadedCatalog);
         if (get().designId !== loaded.designId)
           options.onDesignIdentityChanged?.();
+        const waiting = waitingWriteFor(loaded, options);
+        const shown = waiting?.design ?? loaded.design;
+        // A loaded document carries its own `settings.cabinetDepthMm`: reusing the opening map would
+        // evaluate a 700 mm kitchen at 600 mm.
+        const shownCatalog = catalogFor(shown);
+        const geometry = deriveGeometry(shown, shownCatalog);
         set({
-          design: loaded.design,
-          catalog: loadedCatalog,
+          design: shown,
+          catalog: shownCatalog,
           ...geometry,
           selection: null,
           lastRejection: null,
           designId: loaded.designId,
-          revision: loaded.revision,
+          revision: waiting?.expectedRevision ?? loaded.revision,
           canWrite: loaded.canWrite,
           hasPersistedSuccessfully: true,
           savedDesign: loaded.design,
-          hasBeenEdited: false,
+          hasBeenEdited: waiting !== undefined,
           // A save status describes the generation that produced it, so it resets on load. A carried
           // `unauthorized` would render a design this browser owns as read-only, and only a successful write
-          // clears it, which the read-only panel has disabled: a deadlock only a reload leaves.
-          saveStatus: "idle",
-          saveResumesAtMs: null,
+          // clears it, which the read-only panel has disabled: a deadlock only a reload leaves. The one
+          // exception is the write that waits for this very design, which is the load's to show.
+          saveStatus: waiting === undefined ? "idle" : "error",
+          saveResumesAtMs: waiting?.resumesAtMs ?? null,
         });
       },
       applyWriteAccess: ({ designId: answeredFor, canWrite }) => {
@@ -658,6 +668,16 @@ export function createConfiguratorStore(
   });
 }
 
+/** The waiting write a load is given instead of the server's copy. A read-only load (a shared link) is given none:
+ *  it shows what the server holds, whoever's write waits. */
+function waitingWriteFor(
+  loaded: LoadedDesignState,
+  options: ConfiguratorStoreOptions,
+): WaitingWrite | undefined {
+  if (loaded.canWrite === false) return undefined;
+  return options.adoptWaitingWrite?.(loaded.designId);
+}
+
 /**
  * The app mounts one store and one coalescer per tab; identity is a session concern kept at their wiring
  * seam, not customer-facing state.
@@ -676,6 +696,7 @@ const sessionStore = createConfiguratorStore({
   onDesignChanged: persistDesignChange,
   onDesignIdentityChanged: advanceSaveGeneration,
   onOverwriteRequested: overwriteConflictingDesign,
+  adoptWaitingWrite: (id) => sessionSaveCoalescer().adoptWaitingWrite(id),
 });
 
 function selectWholeState(state: ConfiguratorState): ConfiguratorState {

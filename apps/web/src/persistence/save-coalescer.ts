@@ -104,6 +104,14 @@ export interface SaveCoalescerDependencies {
   ) => void;
 }
 
+/** The one write a design has waiting for the limit on saves: the whole design it will send, the revision it is
+ *  conditional on, and the clock's milliseconds at which it goes. */
+export interface WaitingWrite {
+  readonly design: Design;
+  readonly expectedRevision: DesignRevision | null;
+  readonly resumesAtMs: number;
+}
+
 export interface SaveCoalescer {
   /** Queues `design` to be persisted. Returns immediately; the write happens off this call. */
   scheduleSave: (design: Design) => void;
@@ -112,6 +120,14 @@ export interface SaveCoalescer {
    * first, so the overwrite stays a conditional write. A no-op unless this design is in `conflict`.
    */
   overwriteConflict: (design: Design) => void;
+  /**
+   * The design is being shown again by a fresh load while its own write waits: hands the waiting write to the load's
+   * generation, so the screen can show it and its wait, and answers it. The write stays the one write on the same
+   * timer; an edit made now joins it, and its outcome is reported to the generation that now shows the design.
+   * `undefined` when no write waits for this design, and for a failure's backoff, whose rule is to give way to a
+   * newer load.
+   */
+  adoptWaitingWrite: (id: DesignId) => WaitingWrite | undefined;
 }
 
 /** The immutable scheduling-time snapshot. No repository call reads live store identity. */
@@ -205,6 +221,21 @@ export function createSaveCoalescer(
     }
     enqueueReady(queue);
     requestSave();
+  }
+
+  function adoptWaitingWrite(id: DesignId): WaitingWrite | undefined {
+    const queue = persistedQueues.get(id);
+    const waiting = queue?.pending ?? null;
+    if (queue === undefined || waiting === null) return undefined;
+    if (queue.resumesAtMs === null) return undefined;
+    const generation = deps.getGeneration();
+    queue.generation = generation;
+    queue.pending = { ...waiting, generation };
+    return {
+      design: waiting.design,
+      expectedRevision: queue.expectedRevision,
+      resumesAtMs: queue.resumesAtMs,
+    };
   }
 
   /** The immutable snapshot every save is built from. The revision is deliberately not part of it: see
@@ -572,5 +603,5 @@ export function createSaveCoalescer(
       persistedQueues.delete(queue.designId);
   }
 
-  return { scheduleSave, overwriteConflict };
+  return { scheduleSave, overwriteConflict, adoptWaitingWrite };
 }
