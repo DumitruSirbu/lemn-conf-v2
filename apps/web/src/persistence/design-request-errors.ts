@@ -83,7 +83,7 @@ export const SAVE_LIMIT_REACHED_CODE = "SAVE_LIMIT_REACHED";
 
 /** The longest a save's wait can honestly be: the server's window, one clock hour. Duplicated from the policy module,
  *  which the client bundle must not import; a `Retry-After` beyond it is not one this limit sent. */
-const SAVE_WINDOW_SECONDS = 3600;
+export const SAVE_WINDOW_SECONDS = 3600;
 const SHORTEST_SAVE_WAIT_SECONDS = 1;
 /** The wait when the answer states none that can be believed. Never zero: a save sent at once is refused again. */
 export const UNREADABLE_SAVE_WAIT_SECONDS = 60;

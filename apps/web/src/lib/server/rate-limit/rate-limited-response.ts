@@ -16,9 +16,10 @@ import {
 import {
   MINT_LIMIT_REACHED_CODE,
   MINT_LIMIT_REACHED_STATUS,
+  SAVE_LIMIT_REACHED_CODE,
 } from "@/persistence/design-request-errors";
 
-export { MINT_LIMIT_REACHED_CODE };
+export { MINT_LIMIT_REACHED_CODE, SAVE_LIMIT_REACHED_CODE };
 export const MINT_UNAVAILABLE_CODE = "MINT_UNAVAILABLE";
 /** The one status of every answer that says a limit could not be judged. */
 const UNAVAILABLE_STATUS = 503;
@@ -26,7 +27,6 @@ export const MINT_UNAVAILABLE_STATUS = UNAVAILABLE_STATUS;
 export const SHARE_LIMIT_REACHED_CODE = "SHARE_LIMIT_REACHED";
 export const SHARE_UNAVAILABLE_CODE = "SHARE_UNAVAILABLE";
 export const READ_LIMIT_REACHED_CODE = "READ_LIMIT_REACHED";
-export const SAVE_LIMIT_REACHED_CODE = "SAVE_LIMIT_REACHED";
 export const SAVE_UNAVAILABLE_CODE = "SAVE_UNAVAILABLE";
 /** The one status of every answer that says a limit is reached. */
 export const LIMIT_REACHED_STATUS = MINT_LIMIT_REACHED_STATUS;
