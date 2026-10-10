@@ -223,6 +223,12 @@ const EXPECTED_CLASSIFICATION: Readonly<
     reason:
       "writes counter rows under random keys in its own era and needs the schema intact",
   },
+  "find-write-token-hashes-for-tests.live.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "mints design rows under hashes of its own and needs the schema intact",
+  },
   "delete-designs-for-tests.test.ts": {
     gate: "none",
     lock: "none",

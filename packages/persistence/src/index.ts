@@ -84,6 +84,7 @@ export {
   deleteDesignsForTests,
   findDesignIdsForTests,
 } from "./delete-designs-for-tests.js";
+export { findWriteTokenHashesForTests } from "./find-write-token-hashes-for-tests.js";
 export { deleteRateLimitCountersForTests } from "./delete-rate-limit-counters-for-tests.js";
 export type { RemovedRateLimitCounters } from "./delete-rate-limit-counters-for-tests.js";
 export { loadEnvLocal } from "./load-env.js";

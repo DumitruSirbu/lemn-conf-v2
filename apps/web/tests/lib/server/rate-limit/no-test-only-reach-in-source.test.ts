@@ -6,7 +6,7 @@ import {
 } from "../server-source-support";
 
 const TEST_ONLY_DELETES =
-  /deleteDesignsForTests|findDesignIdsForTests|deleteRateLimitCountersForTests/;
+  /deleteDesignsForTests|findDesignIdsForTests|findWriteTokenHashesForTests|deleteRateLimitCountersForTests/;
 const RUN_SECRET_VARIABLE = /LEMNARIA_E2E_RUN_SECRET/;
 /** A test that replaces the judgement of the limit, whether by `mock` or `doMock`, rather than what it counts in. */
 const MOCKS_THE_JUDGEMENT =
@@ -19,6 +19,7 @@ describe("what apps/web/src may not name", () => {
     "import { deleteDesignsForTests } from '@lemnaria/persistence';",
     "await findDesignIdsForTests(ids);",
     "deleteRateLimitCountersForTests([key])",
+    "await findWriteTokenHashesForTests(ids);",
   ])("reads source: the delete pattern recognises %s", (text) => {
     expect(TEST_ONLY_DELETES.test(text)).toBe(true);
   });
