@@ -4,12 +4,18 @@
 // counters are not touched. The rule each way is held to: the design that returns is the one that waits, shown as
 // waiting, and the one write sent when the wait ends holds the edit made before leaving and the one made after.
 //
+// The last three tests are what the wait's own rule does not reach: the review step with a write that was handed back,
+// and a design returned to by Back after its write has already gone.
+//
 // **Must not run concurrently with any other persistence live run**: each test mints one or two rows, deleted by its
 // fixture's teardown (ADR 0006).
 import { expect, type Page, type Route } from "@playwright/test";
 
+import { APPROVED_ROMANIAN_MESSAGES } from "../support/approved-romanian-messages";
+
 import {
   chooseAnotherHardwareTier,
+  chooseAnotherHardwareTierAndSave,
   expectEditorReady,
   expectReviewDrawn,
   goBackAndSettle,
@@ -17,6 +23,7 @@ import {
   openEditorFromStepOne,
   REVIEW_CTA,
   reviewPath,
+  SAVE_WAIT,
   type EditorVisit,
 } from "./support/qa-8d-review";
 import { CONFIRM, DIALOG, press } from "./support/qa-m7c-c1-s3-back";
@@ -36,6 +43,9 @@ const SAVE_LIMIT_BODY = JSON.stringify({
  *  return is always inside the wait. */
 const WAIT_SECONDS = 25;
 const WAIT_MS = WAIT_SECONDS * 1000;
+/** Shorter than the way to a second design, so the write has gone before the first design is returned to. */
+const WAIT_THAT_ENDS_WHILE_AWAY_SECONDS = 5;
+const PAUSE_SENTENCE = APPROVED_ROMANIAN_MESSAGES.panel.savePausedNotice;
 /** The wait and the answer of the write that ends it. */
 const WAIT_END_TIMEOUT_MS = WAIT_MS + 15_000;
 const TEST_TIMEOUT_MS = 180_000;
@@ -60,6 +70,7 @@ interface SaveSeen {
 async function refuseTheFirstSave(
   page: Page,
   designId: string,
+  waitSeconds: number,
 ): Promise<SaveSeen[]> {
   const saves: SaveSeen[] = [];
   await page.route(`**/api/designs/${designId}`, async (route: Route) => {
@@ -76,7 +87,7 @@ async function refuseTheFirstSave(
     await route.fulfill({
       status: 429,
       contentType: "application/json",
-      headers: { "Retry-After": String(WAIT_SECONDS) },
+      headers: { "Retry-After": String(waitSeconds) },
       body: SAVE_LIMIT_BODY,
     });
   });
@@ -252,16 +263,27 @@ const BY_WAY_OF_ANOTHER_DESIGN: WayAwayAndBack = {
   },
 };
 
+const BACK_ONCE: WayAwayAndBack = {
+  name: "the browser's Back once more",
+  go: async (page, { editorUrl }) => {
+    await page.goBack();
+    await page.waitForURL(editorUrl);
+  },
+};
+
 interface WaitingVisit extends EditorVisit {
   readonly saves: SaveSeen[];
   readonly editedHardwareTier: string;
 }
 
 /** The editor reached from Step 1, one edit made, its save refused: the write waits. */
-async function editAndBeRefused(page: Page): Promise<WaitingVisit> {
+async function editAndBeRefused(
+  page: Page,
+  waitSeconds = WAIT_SECONDS,
+): Promise<WaitingVisit> {
   const visit = await openEditorFromStepOne(page);
   await markThisDocument(page);
-  const saves = await refuseTheFirstSave(page, visit.designId);
+  const saves = await refuseTheFirstSave(page, visit.designId, waitSeconds);
   await chooseAnotherHardwareTier(page);
   await saveStatus(page).toHaveAttribute("data-save-status", "error");
   return {
@@ -372,4 +394,111 @@ test(`while a save waits, ${BY_WAY_OF_ANOTHER_DESIGN.name}: ${THE_RULE_WITH_NO_L
     hardwareTierId: waiting.editedHardwareTier,
     materialTierId: await materialTierInTheStore(page),
   });
+});
+
+/** The paused sentence's words with its time left open: the clock is the browser's, and the test does not read it. */
+function pauseSentencePattern(): RegExp {
+  const [before, after] = PAUSE_SENTENCE.split("{time}");
+  const escaped = (text = ""): string =>
+    text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`^${escaped(before)}\\d{2}:\\d{2}${escaped(after)}$`);
+}
+
+test("the review of a design whose waiting write was handed back says the pause and goes on only once stored", async ({
+  page,
+  designWrites,
+}) => {
+  test.setTimeout(TEST_TIMEOUT_MS);
+  // Fixtures are lazy: asking for this one is what deletes the rows the hand-overs mint.
+  await Promise.resolve(designWrites);
+  const waiting = await editAndBeRefused(page);
+  await leaveAndReturn(page, BY_WAY_OF_ANOTHER_DESIGN, waiting);
+
+  await toTheReviewByItsLink(page, waiting.designId);
+
+  const callToAction = page.getByTestId(REVIEW_CTA);
+  await expect(page.getByTestId(SAVE_WAIT)).toHaveText(pauseSentencePattern());
+  await expect(callToAction).toHaveAttribute("aria-disabled", "true");
+  await expect(page.getByTestId("review-open-editor")).toHaveCount(0);
+  await expect(page.getByTestId(SAVE_WAIT)).toHaveCount(0, {
+    timeout: WAIT_END_TIMEOUT_MS,
+  });
+  await expect(callToAction).toHaveJSProperty("tagName", "A");
+  expect(await storedSettings(page, waiting.designId)).toMatchObject({
+    hardwareTierId: waiting.editedHardwareTier,
+  });
+});
+
+/** Polled from whatever page is on screen: the write goes from the browser's one writer, wherever the customer is. */
+async function expectStored(
+  page: Page,
+  designId: string,
+  hardwareTierId: string,
+): Promise<void> {
+  await expect
+    .poll(async () => (await storedSettings(page, designId)).hardwareTierId, {
+      timeout: WAIT_END_TIMEOUT_MS,
+    })
+    .toBe(hardwareTierId);
+}
+
+/** What a design returned to must do once its edit is stored: show it, and save the next edit on top of it. */
+async function expectTheStoredEditShownAndTheNextSaved(
+  page: Page,
+  { designId }: EditorVisit,
+  storedHardwareTier: string,
+): Promise<void> {
+  expect.soft(await hardwareTierInTheStore(page)).toBe(storedHardwareTier);
+  await chooseAnotherMaterial(page);
+  const editedMaterialTier = await materialTierInTheStore(page);
+  await expect
+    .soft(page.getByTestId("selection-debug"))
+    .not.toHaveAttribute("data-save-status", "conflict");
+  await expectTheWaitEnded(page);
+  expect(await storedSettings(page, designId)).toMatchObject({
+    hardwareTierId: storedHardwareTier,
+    materialTierId: editedMaterialTier,
+  });
+}
+
+test("a write that waited and went while a second design was on screen is stored, shown on return, built on", async ({
+  page,
+  designWrites,
+}) => {
+  test.setTimeout(TEST_TIMEOUT_MS);
+  // Fixtures are lazy: asking for this one is what deletes the rows the hand-overs mint.
+  await Promise.resolve(designWrites);
+  const waiting = await editAndBeRefused(
+    page,
+    WAIT_THAT_ENDS_WHILE_AWAY_SECONDS,
+  );
+  await toStepOneByTheBackLink(page);
+  await makeAnotherDesignFromStepOne(page);
+  await expectStored(page, waiting.designId, waiting.editedHardwareTier);
+
+  await page.goBack();
+  await page.waitForURL(ROOM_URL);
+  await leaveAndReturn(page, BACK_ONCE, waiting);
+
+  await expectTheStoredEditShownAndTheNextSaved(
+    page,
+    waiting,
+    waiting.editedHardwareTier,
+  );
+});
+
+test("with no limit met, a saved edit is shown when Back returns to its design from a second one, built on", async ({
+  page,
+  designWrites,
+}) => {
+  test.setTimeout(TEST_TIMEOUT_MS);
+  // Fixtures are lazy: asking for this one is what deletes the rows the hand-overs mint.
+  await Promise.resolve(designWrites);
+  const visit = await openEditorFromStepOne(page);
+  await chooseAnotherHardwareTierAndSave(page, visit.designId);
+  const savedHardwareTier = await hardwareTierInTheStore(page);
+
+  await leaveAndReturn(page, BY_WAY_OF_ANOTHER_DESIGN, visit);
+
+  await expectTheStoredEditShownAndTheNextSaved(page, visit, savedHardwareTier);
 });
