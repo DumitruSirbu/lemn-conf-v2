@@ -40,6 +40,7 @@ import { useContext, useSyncExternalStore } from "react";
 import { create, type StoreApi, type UseBoundStore } from "zustand";
 
 import { sessionConfigurationRepository } from "@/persistence/fetch-configuration-repository";
+import { reportOverwriteReadFailure } from "@/persistence/report-overwrite-read-failure";
 import {
   createSaveCoalescer,
   type SaveCoalescer,
@@ -156,6 +157,9 @@ export interface ConfiguratorState {
    */
   readonly revision: DesignRevision | null;
   readonly saveStatus: SaveStatus;
+  /** When the one waiting write will be sent, as the clock's milliseconds, once the limit on saves refused it; set only
+   *  with `saveStatus: "error"` and `null` otherwise, which is the failure's own backoff or no failure at all. */
+  readonly saveResumesAtMs: number | null;
   /**
    * The design the server last confirmed holding: the one the hydrating load read, or the one the last successful
    * save wrote. `design === savedDesign` is the one question "is anything still waiting to be saved?", which no
@@ -194,7 +198,7 @@ export interface ConfiguratorState {
   /** Replaces the design wholesale (the `/d/[id]` load). It round-tripped the database, so it counts as
    *  persisted. Clears the selection, whose ids may mean nothing in the new design. */
   readonly hydrate: (loaded: LoadedDesignState) => void;
-  readonly setSaveStatus: (status: SaveStatus) => void;
+  readonly setSaveStatus: (status: SaveStatus, resumesAtMs?: number) => void;
   /** A successful save's id and revision, the coalescer's `onSaved` hook. They arrive together: an id kept
    *  without its new revision would make the next write expect one already consumed. */
   readonly applySaved: (saved: {
@@ -590,6 +594,7 @@ export function createConfiguratorStore(
       designId,
       revision: options.revision ?? null,
       saveStatus: "idle",
+      saveResumesAtMs: null,
       savedDesign: design,
       canWrite: options.canWrite ?? true,
       hasPersistedSuccessfully: designId !== null,
@@ -617,6 +622,7 @@ export function createConfiguratorStore(
           // `unauthorized` would render a design this browser owns as read-only, and only a successful write
           // clears it, which the read-only panel has disabled: a deadlock only a reload leaves.
           saveStatus: "idle",
+          saveResumesAtMs: null,
         });
       },
       applyWriteAccess: ({ designId: answeredFor, canWrite }) => {
@@ -634,8 +640,8 @@ export function createConfiguratorStore(
         if (get().canWrite !== "check-failed") return;
         set({ canWrite: "checking" });
       },
-      setSaveStatus: (status) => {
-        set({ saveStatus: status });
+      setSaveStatus: (status, resumesAtMs) => {
+        set({ saveStatus: status, saveResumesAtMs: resumesAtMs ?? null });
       },
       applySaved: ({ id, revision, savedDesign }) => {
         set({
@@ -738,14 +744,26 @@ const recordingRepository = {
   },
 };
 
+/** The overwrite's re-read of the stored revision. A refusal of it (the limit on reads) is written down and passed on,
+ *  so the coalescer leaves the conflict standing, which the editor already shows. */
+async function readStoredRevisionOrReport(
+  id: DesignId,
+): Promise<DesignRevision> {
+  try {
+    return (await sessionConfigurationRepository.loadWithAccess(id)).revision;
+  } catch (failure) {
+    reportOverwriteReadFailure(failure);
+    throw failure;
+  }
+}
+
 function sessionSaveCoalescer(): SaveCoalescer {
   saveCoalescer ??= createSaveCoalescer({
     repository: recordingRepository,
     getDesignId: () => useConfiguratorStore.getState().designId,
     getGeneration: () => saveGeneration,
     getRevision: () => useConfiguratorStore.getState().revision,
-    readCurrentRevision: async (id) =>
-      (await sessionConfigurationRepository.loadWithAccess(id)).revision,
+    readCurrentRevision: readStoredRevisionOrReport,
     onSaved: (saved, generation) => {
       if (generation !== saveGeneration) return;
       useConfiguratorStore.getState().applySaved({
@@ -755,9 +773,9 @@ function sessionSaveCoalescer(): SaveCoalescer {
           : { savedDesign: designBeingSaved }),
       });
     },
-    onSaveStatusChange: (status, generation) => {
+    onSaveStatusChange: (status, generation, resumesAtMs) => {
       if (generation !== saveGeneration) return;
-      useConfiguratorStore.getState().setSaveStatus(status);
+      useConfiguratorStore.getState().setSaveStatus(status, resumesAtMs);
     },
   });
   return saveCoalescer;

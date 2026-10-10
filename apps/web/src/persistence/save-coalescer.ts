@@ -5,6 +5,7 @@ import type { Design, DesignId } from "@lemnaria/configurator-domain";
 import type { DesignRevision } from "@lemnaria/persistence";
 
 import {
+  SaveLimitReachedError,
   WriteConflictError,
   WriteNotAuthorizedError,
   WriteNotRetryableError,
@@ -19,6 +20,9 @@ import {
  *   design is read-only here rather than failing to save.
  * - `conflict`: terminal until the customer chooses; the stored design has moved on, so no retry can succeed.
  *   Recoverable by reloading the stored design or overwriting it deliberately.
+ *
+ * A write the limit on saves refused is `error` with a time: its retry is armed for the time the answer stated, not for
+ * the backoff, and `onSaveStatusChange` carries that time so a surface can say it.
  */
 export type SaveStatus =
   | "idle"
@@ -88,7 +92,16 @@ export interface SaveCoalescerDependencies {
   readonly readCurrentRevision: (id: DesignId) => Promise<DesignRevision>;
   /** Called after a successful save, scoped to the generation that scheduled it. */
   readonly onSaved: (saved: CoalescedSaveResult, generation: number) => void;
-  readonly onSaveStatusChange: (status: SaveStatus, generation: number) => void;
+  /**
+   * `error` alone comes with a third argument, and only when the limit on saves refused the write: the clock's
+   * milliseconds at which the one waiting write will be sent. It is said again with every edit made meanwhile, since
+   * an edit joins the waiting write and the customer is still told when it goes.
+   */
+  readonly onSaveStatusChange: (
+    status: SaveStatus,
+    generation: number,
+    resumesAtMs?: number,
+  ) => void;
 }
 
 export interface SaveCoalescer {
@@ -122,7 +135,10 @@ interface IdentityQueue {
   readonly provisionalMintIdentity: object | undefined;
   pending: SaveJob | null;
   retryCount: number;
+  /** The queue's one timer: the backoff after a failure, or the wait after the limit's refusal. Never both. */
   retryTimer: ReturnType<typeof setTimeout> | null;
+  /** When the limit's wait ends, while the timer above is that wait; `null` for a backoff or no timer. */
+  resumesAtMs: number | null;
   readyQueued: boolean;
   readyVersion: number;
   active: boolean;
@@ -176,13 +192,17 @@ export function createSaveCoalescer(
       // necessarily written after it settles.
       queue.generation = job.generation;
       queue.retryCount = 0;
-      clearRetryTimer(queue);
+      // A reload's fresh state is no reason to ask the server sooner than it said.
+      if (queue.resumesAtMs === null) clearRetryTimer(queue);
       invalidateReady(queue);
       // The load that advanced the generation read this design afresh, so the store's revision is newer than the
       // seeded one; a queue left in retry backoff would otherwise carry the stale one and conflict spuriously.
       queue.expectedRevision = deps.getRevision();
     }
     queue.pending = job;
+    if (queue.resumesAtMs !== null) {
+      deps.onSaveStatusChange("error", job.generation, queue.resumesAtMs);
+    }
     enqueueReady(queue);
     requestSave();
   }
@@ -227,6 +247,7 @@ export function createSaveCoalescer(
       pending: null,
       retryCount: 0,
       retryTimer: null,
+      resumesAtMs: null,
       readyQueued: false,
       readyVersion: 0,
       active: false,
@@ -356,6 +377,10 @@ export function createSaveCoalescer(
     } catch (error) {
       if (error instanceof WriteNotRetryableError) {
         stopWriting(job, queue, error);
+        return;
+      }
+      if (error instanceof SaveLimitReachedError) {
+        holdWriteForLimit(job, queue, error.waitMs);
         return;
       }
       handleSaveFailure(job, queue);
@@ -488,10 +513,40 @@ export function createSaveCoalescer(
     requestSave();
   }
 
+  /**
+   * The limit refused this save, so the queue holds one waiting write and sends nothing until the time the answer
+   * stated, counted from now, the answer's arrival: the queue's own timer, so there is no second one to race it.
+   * Edits made meanwhile replace what waits, and a refusal when it is sent again is this same write waiting again.
+   * The failure backoff is neither advanced nor reset: a wait is not a failure.
+   */
+  function holdWriteForLimit(
+    failedJob: SaveJob,
+    queue: IdentityQueue,
+    waitMs: number,
+  ): void {
+    saving = false;
+    queue.active = false;
+    queue.pending ??= failedJob;
+    invalidateReady(queue);
+    clearRetryTimer(queue);
+    const resumesAtMs = Date.now() + waitMs;
+    queue.resumesAtMs = resumesAtMs;
+    queue.retryTimer = setTimeout(() => {
+      queue.retryTimer = null;
+      queue.resumesAtMs = null;
+      enqueueReady(queue);
+      requestSave();
+    }, waitMs);
+    deps.onSaveStatusChange("error", queue.pending.generation, resumesAtMs);
+    // Other identities may progress while this one waits.
+    requestSave();
+  }
+
   function clearRetryTimer(queue: IdentityQueue): void {
     if (queue.retryTimer === null) return;
     clearTimeout(queue.retryTimer);
     queue.retryTimer = null;
+    queue.resumesAtMs = null;
   }
 
   /** Invalidates a queued FIFO entry without scanning the deque; a later enqueue gets a new ticket. */
