@@ -26,11 +26,18 @@ const PASSED_ON_STATUS = 200;
 const LIMITER_LOG_LABEL = "[designs]";
 const LIMITER_UNAVAILABLE_EVENT = "design-read-limiter-unavailable";
 
-/** Everything except the immutable build output and static files, which carry no scripts and already receive the
- *  static headers from `next.config.ts`. */
+/**
+ * Everything except the immutable build output and static files, which carry no scripts and already receive the static
+ * headers from `next.config.ts`; and, whatever their last segment ends in, the design and share families. The
+ * framework routes `/ro/d/abc.png` to the design's page with the id `abc.png`, so an address of either family that
+ * ends in a static extension must still reach this file, or its lookup runs uncounted. The patterns are literals:
+ * the framework reads a matcher at build time.
+ */
 export const config = {
   matcher: [
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|glb|gltf|hdr|bin|woff|woff2)$).*)",
+    "/:locale/d/:id",
+    "/:locale/s/:token",
   ],
 };
 

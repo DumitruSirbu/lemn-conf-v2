@@ -25,6 +25,7 @@ import {
  */
 const SERVER_START_TIMEOUT_MS = 300_000;
 const A_DESIGN_PAGE = "/ro/d/e2e-readiness-probe";
+const A_SUFFIXED_DESIGN_PAGE = "/ro/d/e2e-readiness-probe.png";
 const A_DOCUMENTATION_ADDRESS = "192.0.2.77";
 const LANDING_POLL_MS = 250;
 const LANDING_TIMEOUT_MS = 15_000;
@@ -80,6 +81,24 @@ test.describe("a page read counted in the request interceptor of a built server"
         `count ${String(landed.counts[0])}); the server's own readiness polls: ` +
         `${String(readiness.rowsRemoved)} rows removed`,
     );
+  });
+
+  test("counts a design's address that ends in a static file's extension, as the page it is routed to", async () => {
+    if (server === undefined)
+      throw new Error("the second server did not start");
+    const blockKey = bucketKeyOfBlock(
+      server.secret,
+      READ_POLICY.name,
+      blockOfAddress(A_DOCUMENTATION_ADDRESS),
+    );
+
+    const response = await fetch(`${server.origin}${A_SUFFIXED_DESIGN_PAGE}`, {
+      headers: { "x-forwarded-for": A_DOCUMENTATION_ADDRESS },
+    });
+    const landed = await removedWhenItLands(blockKey);
+
+    expect(response.status).toBe(200);
+    expect(landed).toEqual({ rowsRemoved: 1, counts: [1] });
   });
 
   test("is not counted by the suite's own server, which names no source, whatever header a request carries", async ({
