@@ -8769,7 +8769,9 @@ orchestration; the route; its answers and lines; the harness.
   made the same as the first.* **(a)** The application may read back a stored request's kitchen
   and price, and nothing personal: one more narrow grant, and the notice is always the stored
   one. **(b)** It may not: the retry is refused, and the customer reviews and sends again as a new
-  request. *Recommended: (a).* It widens Q14, which is why it is his.
+  request. ~~*Recommended: (a).*~~ **(2026-10-10, later: recommended (b). With the price book's
+  version inside the digest, (b) is exact and needs no grant; *8K — S0's security read, ruled*, K-S0.1.)** It widens Q14, which
+  is why it is his.
 - **Said plainly:** where no network source is named, the whole world shares three new requests
   an hour. A named interim, as the mint's and the save's are.
 
@@ -8785,7 +8787,8 @@ orchestration; the route; its answers and lines; the harness.
 7. **Stored or conflict:** the tries' bucket for that request, whose id the lookup has just shown
    to exist. A conflict is one code, with no reference and nothing of whether a notice went.
    Stored and notified: the reference, and nothing is sent.
-8. **Absent:** the new request's buckets, one step at a time: the network's hour, its day, the
+8. **(2026-10-10, later: step 9 comes before this one, and the notice is proved buildable before
+   either; *8K — S0's security read, ruled*, K-S0.2 and K-S0.7.)** **Absent:** the new request's buckets, one step at a time: the network's hour, its day, the
    browser's hour, the e-mail's day. A step is asked only when the one before allowed.
 9. For a design: its id's shape; then the owned load, by the visitor and the stated revision,
    with one refusal for every way it fails. The snapshot. A kitchen past its wall is refused with
@@ -8857,7 +8860,8 @@ held at module level; the mail imported except by its factory and selection; a s
 an answer or a line; a figure outside the policy module; a `qa-*` file edited; **a mutant sent to
 a database.** *Stops:* **S1**, a key of the mint or the save changes. **S3**, a refusal cannot be
 answered without saying which check failed. **S4**, a notice must be built before the record, or
-a step needs the store's fake under `src`. **S5**, the suite's server cannot be given the fake
+a step needs the store's fake under `src`. **(2026-10-10, later: S4's first stop is reversed;
+the notice is built once before the record; *8K — S0's security read, ruled*, K-S0.7.)** **S5**, the suite's server cannot be given the fake
 sender without a mail variable also being read.
 
 *QA reading:* the criteria; this section; ADR 0153, 0154, 0155, 0156, each one's limits and
@@ -8869,6 +8873,106 @@ files and tests; ADR 0136. *Security:* S0's answers; every branch's line; the th
 finding C2-1*, and GL-R4.1 joins it. **It runs after 8K and before 8L:** 8K touches no file of
 the editor's load, and 8L changes the shared owned load, which that wave must reach first. It
 shares no file with 8K, so a second developer may run it beside 8K if the coordinator has one.
+
+##### 8K — S0's security read, ruled; S1 and S2 for dispatch, 2026-10-10
+
+**State.** HEAD is `9ee302e8` [ran: `git log`], tree clean. The security reader: **it may be
+built once K-S0.1 and K-S0.2 are settled** [relayed; nothing was run]. Its text is one file, read
+whole: `coord-8k-s0-security.md`, session scratchpad. All nine findings are taken.
+
+**The two that change the section.**
+
+- **K-S0.1: the digest also covers the price book's version the server would price under**, for
+  a request that names a design; the caller hands it in beside the request. Under (b) a retry
+  prices again, and across a change of book the notice would show a figure that is not the stored
+  one, which ADR 0154 forbids; a design's revision cannot catch that. **A retry across a change
+  of book is then a conflict, refused cleanly.** *It cannot be added later:* a change of coverage
+  changes every digest. A callback has no price, and its digest holds no version.
+- **So Q40's recommendation is (b), and (a) is not needed.** The security reader holds (b) the
+  safer: a leaked credential reads no kitchen and no quoted price. Q40 stays in the close-out as
+  what the owner is told: a retry after an edit or a change of prices is refused, the customer
+  sends a new request, and the first stays un-notified.
+- **K-S0.2: a design is shown to be the caller's, at the stated revision and sendable, before a
+  new request's four buckets are counted.** A stale revision, or a kitchen past its wall, must
+  not spend one of a browser's two an hour. The every-request bucket already bounds that load.
+
+**Point 3's order, as it now stands, from the lookup on.**
+
+- *Absent, a new request:* the id's shape and the owned load at the stated revision; the
+  snapshot; **the notice built once with a placeholder reference of the right shape** (K-S0.7: a
+  request whose notice cannot be made is refused and nothing is stored); the four buckets, one
+  step at a time; the record; the notice with the stored reference; the send; the mark.
+- *Stored and not notified:* the tries' bucket; the same load, snapshot and notice; the send;
+  the mark. *Stored and notified:* the tries' bucket; the reference. *Conflict:* the tries'
+  bucket; its one code.
+
+**The sentences S1 and S3 carry.**
+
+- **K-S0.3.** A request with no visitor cookie skips the browser's step; the network's two stand.
+  That constructor takes sixty-four hexadecimal characters and nothing else.
+- **K-S0.4. Which refusals are one.** The honeypot and the time. Every way the owned load fails,
+  an id of the wrong shape included. **Every limit refusal, whichever bucket, under one code;**
+  the e-mail's bucket never has its own. Every *unavailable*, with no word of which. *May
+  differ:* the schema's issues by field and code; the fit's refusal with its bodies' ids; a
+  conflict; a provider's failure, as two outward (try again, do not) with its kind in the line.
+- **K-S0.5.** One function in the domain makes an address's counted form: lower case, nothing
+  stripped. *Recorded:* a sender who varies the address is bounded by the network alone; a caller
+  refused for a day learns that an address was used three times that day.
+- **K-S0.6. A line may hold** a code, a status, a policy's name or a cause, a mail failure's
+  kind, and the reference where a request is stored and was not notified, or was notified and its
+  mark failed. **It never holds** the client request id, a design's id, a visitor's hash, a
+  body's id or an issue's value. A refusal's line is at most one for a process and a policy; the
+  honeypot and the time write none.
+- **K-S0.8.** After the guard, a body that is not JSON by its content type is refused, uncounted.
+  The parse is caught. No answer of this route sets, clears or refreshes a cookie.
+- **Its answers to 3, 4 and 5 stand as written, held to:** the revision compared as text; the
+  snapshot from that same row with no second read; the four refusals of the load equal in body
+  and headers, shown by a test. *Recorded:* the least time and the honeypot rest on what the
+  client states; the buckets are the bound.
+- **The contact form's day is the UTC day**, the architect's: the Chișinău day's totals then stay
+  the mint's alone (8G, the prune).
+
+**Criteria, amended.** **2:** the four refusals are equal in body and headers. **6:** a retry
+across a change of book is a conflict. **12:** a request refused for its design is counted
+against the every-request bucket alone. **Added, 14:** every limit refusal is one code and every
+*unavailable* one. **Added, 15:** a request whose notice cannot be made stores nothing.
+
+**S1. One developer, five items.**
+
+| # | Does | Production files |
+| --- | --- | --- |
+| 1 | What a payload's digest covers: every stored and mailed field of the validated request, and for a design the book's version handed in; the elapsed time and the honeypot's answer named as left out. **A test fails when the request's type gains a field that is neither** | new `packages/configurator-domain/src/contact/payload-digest.ts`; `contact/index.ts` |
+| 2 | An address's counted form (K-S0.5) | `packages/configurator-domain/src/contact/contact-fields.ts` |
+| 3 | The purpose and its fields join the closed set; every existing key is unchanged, held by the mint's pinned answer | `lib/server/digest/keyed-digest.ts` |
+| 4 | The six policies, with the two of Q39 named provisional and the day as the UTC day; a twin for each bucket the suite's one block shares, **each at a provisional 300 until S5 measures**. Three constructors: a visitor's hash, an address's counted form, a stored request's id | `rate-limit/limit-policy.ts`, `bucket-subject.ts` |
+| 5 | A step answers its decision and its policy; the save's judge takes the policy from the step that ended it (backlog 170) | `rate-limit/enforce-rate-limit.ts`, `judge-save-request.ts` |
+
+*Must not:* a key of the mint, the save, a share write or a read changes; an answer or a line of
+the save changes; a subject from a caller's text but through these constructors; a route touched.
+*Stops if:* the mint's pinned answer changes; the coverage's test cannot be made to fail for a
+new field; or an existing test of the save must change in an assertion. *Reading:* this section
+and *8K, restated for dispatch*; `coord-8k-s0-security.md`; ADR 0150 decisions 1 and 3; ADR 0155
+decisions 1, 4, 5; ADR 0156; backlog 170; the domain's `contact-submission.ts`,
+`contact-fields.ts`, `pricing/price-lines.ts`; `rate-limit/judge-save-request.ts` and its tests.
+
+**S2. One developer, five items.**
+
+| # | Does | Production files |
+| --- | --- | --- |
+| 1 | Removes the requests whose ids it is handed: ids of the request id's shape only, by `client_request_id = any(ids)` alone; answers how many went | new `packages/persistence/src/delete-contact-submissions-for-tests.ts` |
+| 2 | Counts them: one number, and no column selected | new `count-contact-submissions-for-tests.ts` |
+| 3 | Both behind the one test-runner guard and the guarded test database; their exports; both names in the scan of `apps/web/src` | `index.ts`; the scan's test |
+| 4 | Each statement pinned with the driver mocked; one live test each, **planting rows of its own beside the ones it hands over**, with its census row and its marker | their tests |
+| 5 | The store's lazy instance in a module of its own, made on first use | new `apps/web/src/lib/server/contact/contact-submission-store-instance.ts` |
+
+*Must not:* **a mutant sent to a database**; a personal column named in either statement; `0008`
+or the store changed. *Stops if:* the application's role would need a grant it does not have for
+either. *Reading:* K-S0.9; ADR 0153; ADR 0151; ADR 0155's standing rule;
+`require-test-runner.ts`; `delete-rate-limit-counters-for-tests.ts` and its two tests;
+`rate-limit/rate-limit-store-instance.ts`.
+
+**One developer, S1 then S2.** They share no file, and S2 may run beside S1 only in a worktree of
+its own.
 
 ### 8L — the contact screen 4A/4B/4C
 
