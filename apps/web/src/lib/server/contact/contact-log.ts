@@ -32,6 +32,7 @@ export const CONTACT_UNAVAILABLE_CAUSES = [
   "sender-unusable",
   "submission-store-failed",
   "notice-unbuildable",
+  "price-book-mismatch",
   "unexpected",
 ] as const;
 
@@ -110,30 +111,56 @@ export function reportContactUnavailable(cause: ContactUnavailableCause): void {
   });
 }
 
-/** What a notice that was not accepted is written with. */
+/** Why a stored request's notice was not passed on: the mail said no, with its kind and the provider's HTTP status when
+ *  there was one, or something of ours failed, with a cause from the closed list. One of the two, never both. */
+export type ContactNoticeFailure =
+  | {
+      readonly kind: "mail";
+      readonly failureKind: ContactMailFailureKind;
+      readonly providerStatus: number | undefined;
+    }
+  | { readonly kind: "cause"; readonly cause: ContactUnavailableCause };
+
+/** What a notice that was not passed on is written with. */
 export interface ContactNoticeNotSent {
   readonly code: ContactNoticeNotSentCode;
-  readonly failureKind: ContactMailFailureKind;
-  /** The provider's HTTP status, when there was one. */
-  readonly providerStatus: number | undefined;
+  readonly failure: ContactNoticeFailure;
   /** The stored request's reference: the line holds it, and the answer never does. */
   readonly reference: string;
 }
 
-/** The request is stored and its notice was not accepted: each time, with the mail failure's kind, the provider's
- *  status when there was one, and the reference. */
+/** The request is stored and its notice was not passed on: each time, with the mail failure's kind and the provider's
+ *  status when there was one, or the cause, and the reference. */
 export function reportContactNoticeNotSent({
   code,
-  failureKind,
-  providerStatus,
+  failure,
   reference,
 }: ContactNoticeNotSent): void {
   write("error", {
     event: "contact-notice-not-sent",
     refusalCode: noticeCodeOnTheList(code),
     status: CONTACT_NOTICE_NOT_SENT_STATUS,
-    mailFailureKind: kindOnTheList(failureKind),
-    ...providerStatusField(providerStatus),
+    ...failureFields(failure),
+    ...referenceField(reference),
+  });
+}
+
+/** The two refusals a stored request's retry can meet when its design has changed since. */
+export type ContactStoredRefusalCode = Extract<
+  ContactRefusalCode,
+  "CONTACT_DESIGN_NOT_CURRENT" | "CONTACT_DESIGN_DOES_NOT_FIT"
+>;
+
+/** A stored request whose retry was refused for its design: it is never notified unless the design returns, so the
+ *  line names it each time, with the code and the reference. */
+export function reportContactStoredRequestRefused(
+  code: ContactStoredRefusalCode,
+  reference: string,
+): void {
+  write("error", {
+    event: "contact-stored-request-refused",
+    refusalCode: code,
+    status: statusOfContactRefusal(code),
     ...referenceField(reference),
   });
 }
@@ -163,6 +190,21 @@ function noticeCodeOnTheList(code: ContactNoticeNotSentCode): string {
   return code === CONTACT_NOTICE_NOT_SENT_RETRY_CODE
     ? CONTACT_NOTICE_NOT_SENT_RETRY_CODE
     : CONTACT_NOTICE_NOT_SENT_CODE;
+}
+
+function failureFields(failure: ContactNoticeFailure): ContactLine {
+  try {
+    if (failure.kind === "mail") {
+      return {
+        mailFailureKind: kindOnTheList(failure.failureKind),
+        ...providerStatusField(failure.providerStatus),
+      };
+    }
+    return { cause: causeOnTheList(failure.cause) };
+  } catch {
+    // A value that cannot be read is no cause on the list: it is the cause that says so, and nothing of it is kept.
+    return { cause: UNEXPECTED_CAUSE };
+  }
 }
 
 function providerStatusField(status: number | undefined): ContactLine {

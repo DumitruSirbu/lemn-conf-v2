@@ -190,10 +190,17 @@ export function requireValidClientRequestId(clientRequestId: string): void {
   }
 }
 
+/**
+ * Whether a value has the shape of a reference: the table's own check, which the store tests every answer with. The one
+ * statement of it that code outside the store may ask; how the generator makes one is the generator's, and it can
+ * change without this.
+ */
+export function isSubmissionReference(value: unknown): value is string {
+  return typeof value === "string" && REFERENCE_SHAPE.test(value);
+}
+
 export function requireValidReference(reference: string): void {
-  if (typeof reference !== "string" || !REFERENCE_SHAPE.test(reference)) {
-    throw refusalOf("reference");
-  }
+  if (!isSubmissionReference(reference)) throw refusalOf("reference");
 }
 
 function requireValidContact(contact: ContactFields): void {

@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import { ContactSubmissionStoreError } from "../../src/contact-submission-store.js";
+import {
+  ContactSubmissionStoreError,
+  isSubmissionReference,
+} from "../../src/contact-submission-store.js";
 import type {
   ContactSubmissionStore,
   RecordedSubmission,
   SubmissionRecording,
 } from "../../src/contact-submission-store.js";
-import {
-  generateSubmissionReference,
-  isSubmissionReference,
-} from "../../src/generate-submission-reference.js";
+import { generateSubmissionReference } from "../../src/generate-submission-reference.js";
 import { rejectionOf } from "./rejection-of.js";
 import {
   DIGEST_A,

@@ -200,15 +200,32 @@ describe("what an answer adds to its sentence and its code", () => {
   it.each([
     "",
     "LM-",
+    "LM-7",
     "lm-7k3qwxy2",
-    "LM-7K3QWXY",
-    "LM-7K3QWXY22",
-    "LM-IIIIIIII",
     `${A_REFERENCE}\n`,
-    MARKER,
+    `${A_REFERENCE} `,
+    `LM-${"A".repeat(30)}`,
+    "ana@example.com",
+    "not a reference at all",
   ])("refuses to say %j as a reference", (text) => {
     expect(() => sentAnswer(text)).toThrow(RangeError);
   });
+
+  it.each([
+    "LM-IIIIIIII",
+    "LM-7K3QWXY",
+    "LM-7K3QWXY22",
+    "ABC-12",
+    `LM-${"A".repeat(29)}`,
+  ])(
+    "says %j, which the table's shape admits though the generator would not make it",
+    async (reference) => {
+      expect(await sentAnswer(reference).json()).toEqual({
+        status: "sent",
+        reference,
+      });
+    },
+  );
 
   it("answers the two outward failures with one sentence that differs only in its code", async () => {
     const retry = (await noticeNotSentRetryAnswer().json()) as {

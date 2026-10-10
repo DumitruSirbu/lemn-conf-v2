@@ -8,6 +8,8 @@ import { readSource } from "../server-source-support";
 
 const A_REFERENCE = "LM-7K3QWXY2";
 const MARKER = "FORBIDDEN-VALUE-MARKER-8830";
+/** A text no reference can be, which the table's shape refuses (it takes upper case, digits and hyphens only). */
+const UNSHAPED = "forbidden value, not a reference 8830";
 
 /** The log from a module graph of its own: what it has written is kept for the process, so a test that reads the lines
  *  must start with a process that wrote none. */
@@ -160,7 +162,7 @@ describe("unavailable: each time, with a cause from a closed list", () => {
     );
   });
 
-  it("is the limiter's seven and four more of its own", async () => {
+  it("is the limiter's seven and five more of its own", async () => {
     const { CONTACT_UNAVAILABLE_CAUSES } = await freshLog();
 
     expect([...CONTACT_UNAVAILABLE_CAUSES]).toEqual([
@@ -168,6 +170,7 @@ describe("unavailable: each time, with a cause from a closed list", () => {
       "sender-unusable",
       "submission-store-failed",
       "notice-unbuildable",
+      "price-book-mismatch",
       "unexpected",
     ]);
   });
@@ -206,8 +209,7 @@ describe("a notice not accepted: each time, with the kind, the provider's status
 
     reportContactNoticeNotSent({
       code: "CONTACT_NOTICE_NOT_SENT_RETRY",
-      failureKind: "busy",
-      providerStatus: 409,
+      failure: { kind: "mail", failureKind: "busy", providerStatus: 409 },
       reference: A_REFERENCE,
     });
 
@@ -231,8 +233,11 @@ describe("a notice not accepted: each time, with the kind, the provider's status
 
     reportContactNoticeNotSent({
       code: "CONTACT_NOTICE_NOT_SENT",
-      failureKind: "refused",
-      providerStatus: undefined,
+      failure: {
+        kind: "mail",
+        failureKind: "refused",
+        providerStatus: undefined,
+      },
       reference: A_REFERENCE,
     });
 
@@ -246,8 +251,7 @@ describe("a notice not accepted: each time, with the kind, the provider's status
 
       reportContactNoticeNotSent({
         code: "CONTACT_NOTICE_NOT_SENT",
-        failureKind: "refused",
-        providerStatus,
+        failure: { kind: "mail", failureKind: "refused", providerStatus },
         reference: A_REFERENCE,
       });
 
@@ -261,8 +265,11 @@ describe("a notice not accepted: each time, with the kind, the provider's status
     for (let request = 0; request < 3; request += 1) {
       reportContactNoticeNotSent({
         code: "CONTACT_NOTICE_NOT_SENT",
-        failureKind: MARKER as never,
-        providerStatus: undefined,
+        failure: {
+          kind: "mail",
+          failureKind: MARKER as never,
+          providerStatus: undefined,
+        },
         reference: A_REFERENCE,
       });
     }
@@ -276,7 +283,7 @@ describe("a notice not accepted: each time, with the kind, the provider's status
 
   it.each([
     "",
-    MARKER,
+    UNSHAPED,
     "lm-7k3qwxy2",
     "LM-",
     `${A_REFERENCE} `,
@@ -288,15 +295,112 @@ describe("a notice not accepted: each time, with the kind, the provider's status
 
       reportContactNoticeNotSent({
         code: "CONTACT_NOTICE_NOT_SENT",
-        failureKind: "refused",
-        providerStatus: undefined,
+        failure: {
+          kind: "mail",
+          failureKind: "refused",
+          providerStatus: undefined,
+        },
         reference,
       });
 
       expect(error.mock.calls[0]?.[1]).not.toHaveProperty("reference");
+      expect(JSON.stringify(error.mock.calls)).not.toContain("forbidden");
+    },
+  );
+});
+
+describe("a notice not passed on holds a mail failure's kind or a cause, never both and never neither", () => {
+  const BASE = {
+    code: "CONTACT_NOTICE_NOT_SENT_RETRY",
+    reference: A_REFERENCE,
+  } as const;
+
+  it("writes the kind and the status of a mail failure, and no cause", async () => {
+    const { reportContactNoticeNotSent, error } = await freshLog();
+
+    reportContactNoticeNotSent({
+      ...BASE,
+      failure: { kind: "mail", failureKind: "timed-out", providerStatus: 504 },
+    });
+
+    const line = error.mock.calls[0]?.[1] as Record<string, unknown>;
+    expect(line).toMatchObject({
+      mailFailureKind: "timed-out",
+      providerStatus: 504,
+    });
+    expect(line).not.toHaveProperty("cause");
+  });
+
+  it.each(["notice-unbuildable", "price-book-mismatch", "unexpected"] as const)(
+    "writes the cause %s of something of ours, and no kind and no status",
+    async (cause) => {
+      const { reportContactNoticeNotSent, error } = await freshLog();
+
+      reportContactNoticeNotSent({
+        ...BASE,
+        failure: { kind: "cause", cause },
+      });
+
+      const line = error.mock.calls[0]?.[1] as Record<string, unknown>;
+      expect(line).toMatchObject({ cause, reference: A_REFERENCE });
+      expect(line).not.toHaveProperty("mailFailureKind");
+      expect(line).not.toHaveProperty("providerStatus");
+    },
+  );
+
+  it.each([
+    ["nothing", undefined],
+    ["an object that is neither", { kind: "other" }],
+    ["a text", MARKER],
+  ])(
+    "writes %s as the cause unexpected, never as neither",
+    async (_label, failure) => {
+      const { reportContactNoticeNotSent, error } = await freshLog();
+
+      reportContactNoticeNotSent({ ...BASE, failure: failure as never });
+
+      const line = error.mock.calls[0]?.[1] as Record<string, unknown>;
+      expect(line).toMatchObject({ cause: "unexpected" });
+      expect(line).not.toHaveProperty("mailFailureKind");
       expect(JSON.stringify(error.mock.calls)).not.toContain("MARKER");
     },
   );
+});
+
+describe("a stored request refused for its design: each time, the code and the reference", () => {
+  it.each([
+    ["CONTACT_DESIGN_NOT_CURRENT", 409],
+    ["CONTACT_DESIGN_DOES_NOT_FIT", 422],
+  ] as const)(
+    "writes %s with its status and the reference, every time it is refused",
+    async (code, status) => {
+      const { reportContactStoredRequestRefused, error } = await freshLog();
+
+      for (let attempt = 0; attempt < 4; attempt += 1) {
+        reportContactStoredRequestRefused(code, A_REFERENCE);
+      }
+
+      expect(error).toHaveBeenCalledTimes(4);
+      expect(error.mock.calls[0]).toEqual([
+        "[contact]",
+        {
+          event: "contact-stored-request-refused",
+          refusalCode: code,
+          status,
+          reference: A_REFERENCE,
+        },
+      ]);
+    },
+  );
+
+  it("writes no reference that has not the table's shape, and holds no design's id", async () => {
+    const { reportContactStoredRequestRefused, error } = await freshLog();
+
+    reportContactStoredRequestRefused("CONTACT_DESIGN_NOT_CURRENT", UNSHAPED);
+
+    expect(error.mock.calls[0]?.[1]).not.toHaveProperty("reference");
+    expect(JSON.stringify(error.mock.calls)).not.toContain("forbidden");
+  });
 });
 
 describe("a mark that failed after an accepted send: each time, the reference", () => {
@@ -315,7 +419,7 @@ describe("a mark that failed after an accepted send: each time, the reference", 
   it("writes no reference of another shape", async () => {
     const { reportContactMarkFailed, error } = await freshLog();
 
-    reportContactMarkFailed(MARKER);
+    reportContactMarkFailed(UNSHAPED);
 
     expect(error.mock.calls[0]?.[1]).toEqual({ event: "contact-mark-failed" });
   });
@@ -345,8 +449,7 @@ describe("what no line holds, and a transport that fails", () => {
       reportContactUnavailable("store-failed");
       reportContactNoticeNotSent({
         code: "CONTACT_NOTICE_NOT_SENT",
-        failureKind: "refused",
-        providerStatus: 503,
+        failure: { kind: "mail", failureKind: "refused", providerStatus: 503 },
         reference: A_REFERENCE,
       });
       reportContactMarkFailed(A_REFERENCE);
@@ -369,8 +472,11 @@ describe("what no line holds, and a transport that fails", () => {
       log.reportContactMarkFailed(text);
       log.reportContactNoticeNotSent({
         code: "CONTACT_NOTICE_NOT_SENT",
-        failureKind: text as never,
-        providerStatus: undefined,
+        failure: {
+          kind: "mail",
+          failureKind: text as never,
+          providerStatus: undefined,
+        },
         reference: text,
       });
     }
