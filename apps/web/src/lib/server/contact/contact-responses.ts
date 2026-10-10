@@ -99,7 +99,7 @@ export function invalidAnswer(
   });
 }
 
-/** `409`: a request's id was stored with another payload. It holds no reference and nothing of whether a notice went. */
+/** `409`: a request's id was stored with another payload. No reference, and nothing of whether a notice went. */
 export function requestConflictAnswer(): NextResponse {
   return refusalAnswer("CONTACT_REQUEST_CONFLICT");
 }

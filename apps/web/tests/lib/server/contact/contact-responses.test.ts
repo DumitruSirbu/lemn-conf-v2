@@ -143,7 +143,7 @@ describe("the thirteen answers of the contact route", () => {
 });
 
 describe("what an answer adds to its sentence and its code", () => {
-  it("lists each issue's field and code, rebuilt from those two, so nothing else it carried reaches the body", async () => {
+  it("lists each issue's field and code, rebuilt from those two, so nothing else reaches the body", async () => {
     const issue = {
       field: "contact.phone",
       code: "MALFORMED",
