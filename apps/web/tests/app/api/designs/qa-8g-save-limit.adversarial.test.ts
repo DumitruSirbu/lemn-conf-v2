@@ -29,6 +29,8 @@ const OWNER_TOKEN = "QA-OWNER-TOKEN-5d81c0";
 const ONE_BLOCK = "203.0.113.7";
 const ANOTHER_BLOCK = "198.51.100.7";
 const HOUR_MS = 3_600_000;
+const MINUTE_MS = 60_000;
+const MINUTES_INTO_THE_HOUR = 7;
 const AN_HOUR_STARTS = Date.parse("2026-11-03T14:00:00.000Z");
 const STORED = 200;
 /** What a save answers once the limiter let it through with a body that is no design: the body was read. */
@@ -490,6 +492,9 @@ describe.each(["PUT", "PATCH"] as const)(
 
     describe("what a refused or unjudged save says and writes", () => {
       it("holds no address, block, credential, key or secret in either answer or in any line", async () => {
+        // A fixed instant: the wait the refusal states is then 3,180 seconds, which holds no figure of a policy. On the
+        // wall clock a wait of 300, 1300 or 3005 seconds would read as the credential's figure.
+        standAt(AN_HOUR_STARTS + MINUTES_INTO_THE_HOUR * MINUTE_MS);
         const { block, credential } = await bucketsOf();
         await fillTo(credential, SAVES_PER_CREDENTIAL_FIGURE);
         const consoleSpies = silenceEveryConsoleMethod();

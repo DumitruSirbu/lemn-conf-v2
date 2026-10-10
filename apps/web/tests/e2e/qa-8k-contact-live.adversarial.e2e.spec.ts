@@ -13,7 +13,7 @@ import {
 import { expect, type APIResponse } from "@playwright/test";
 
 import {
-  expectStoredOnce,
+  countAndNoteStored,
   newName,
   newPhone,
   newRequestId,
@@ -94,7 +94,7 @@ test("two calls at once with one id are answered one reference and are one row",
   expect(answers.map((answer) => answer.status())).toEqual([200, 200]);
   expect(isSubmissionReference(references[0])).toBe(true);
   expect(references[1]).toBe(references[0]);
-  expect(await expectStoredOnce(run, id)).toBe(1);
+  expect(await countAndNoteStored(run, id)).toBe(1);
   answers.forEach(expectNothingKeptByTheCaller);
 });
 
@@ -133,7 +133,7 @@ test("a design's request sent twice at once from its own browser is one row and 
   expect(answers.map(({ status }) => status)).toEqual([200, 200]);
   const [first, second] = answers;
   expect(second.reference).toBe(first.reference);
-  expect(await expectStoredOnce(run, id)).toBe(1);
+  expect(await countAndNoteStored(run, id)).toBe(1);
 });
 
 test("a stored id sent again with one field changed is the conflict, and its row and reference stay", async ({
@@ -156,7 +156,7 @@ test("a stored id sent again with one field changed is the conflict, and its row
   expect(Object.keys(conflict).sort()).toEqual(["code", "error"]);
   expect(again.status()).toBe(200);
   expect(await referenceOf(again)).toBe(await referenceOf(first));
-  expect(await expectStoredOnce(run, id)).toBe(1);
+  expect(await countAndNoteStored(run, id)).toBe(1);
   expectNothingKeptByTheCaller(changed);
 });
 

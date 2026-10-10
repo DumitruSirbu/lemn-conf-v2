@@ -35,6 +35,25 @@ const CONTACT_TEST_ONLY_CALLS: readonly [
   ["countContactSubmissionsForTests", countContactSubmissionsForTests],
 ];
 
+const ANOTHER_TEXT_THAT_IS_NO_ID = "!";
+
+/** What a call was refused with, or nothing when it was not refused. */
+function refusalOf(
+  call: (ids: readonly string[]) => Promise<unknown>,
+  ids: readonly string[],
+): Promise<unknown> {
+  return call(ids).then(
+    () => undefined,
+    (thrown: unknown) => thrown,
+  );
+}
+
+/** The same words whatever text was refused is how a refusal is shown to hold none of it. */
+function messageOf(refusal: unknown): string {
+  if (!(refusal instanceof Error)) throw new Error("the call was not refused");
+  return refusal.message;
+}
+
 function setEveryMarkerTo(value: string): void {
   for (const marker of EVERY_MARKER) vi.stubEnv(marker, value);
 }
@@ -73,20 +92,16 @@ describe.each(CONTACT_TEST_ONLY_CALLS)("%s", (name, call) => {
   );
 
   it.each(NOT_REQUEST_IDS)(
-    "sends no statement for a list of good ids with %j among them, and says none of it",
+    "sends no statement for a list of good ids with %j among them, and refuses in words that hold none of it",
     async (notAnId) => {
       const [first = "", second = ""] = GOOD_IDS;
 
-      const refusal = await call([first, notAnId, second]).then(
-        () => undefined,
-        (thrown: unknown) => thrown,
-      );
+      const refusal = await refusalOf(call, [first, notAnId, second]);
 
-      expect(refusal).toBeInstanceOf(Error);
       expect(driver.statements).toEqual([]);
-      if (notAnId.length > 1) {
-        expect((refusal as Error).message).not.toContain(notAnId);
-      }
+      expect(messageOf(refusal)).toBe(
+        messageOf(await refusalOf(call, [ANOTHER_TEXT_THAT_IS_NO_ID])),
+      );
     },
   );
 });

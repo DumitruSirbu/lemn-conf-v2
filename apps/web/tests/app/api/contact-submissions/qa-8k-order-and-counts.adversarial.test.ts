@@ -186,17 +186,17 @@ describe("what a new request is counted against, step by step", () => {
     },
   );
 
-  it("does not count an address given beside another channel", async () => {
+  it("takes an address beside another channel, stores none and counts no address's day", async () => {
     const answer = await send(
       post,
       newCallback("phone-with-address", {}, { email: MARKER.address }),
     );
 
-    // Whether the schema takes an address beside the phone channel or refuses it, the address's day is not counted.
-    expect(
-      countedWindows().filter((window) => window === DAY).length,
-    ).toBeLessThanOrEqual(1);
-    expect([200, 400]).toContain(answer.status);
+    const [held] = outside.heldStore.heldSubmissions();
+    expect(answer.status).toBe(200);
+    expect(held?.submission.contact.email).toBeUndefined();
+    expect(JSON.stringify(held)).not.toContain(MARKER.address);
+    expect(countedWindows()).toEqual([...EVERY, ...NEW_BY_NETWORK]);
   });
 });
 

@@ -392,10 +392,10 @@ describe("bytes that are not UTF-8", () => {
 
     const answer = await post(contactRequest(marked));
 
-    expect([200, 400]).toContain(answer.status);
-    expect(JSON.stringify(outside.heldStore.heldSubmissions())).not.toContain(
-      BYTE_ORDER_MARK,
-    );
+    const held = outside.heldStore.heldSubmissions();
+    expect(answer.status).toBe(200);
+    expect(held).toHaveLength(1);
+    expect(JSON.stringify(held)).not.toContain(BYTE_ORDER_MARK);
   });
 });
 
@@ -469,7 +469,7 @@ describe("what every answer holds, and what none does", () => {
     return answers;
   }
 
-  it("covers every status the route answers", async () => {
+  it("covers every status the route answers but a limit's, whose answers have a file of their own", async () => {
     const statuses = (await oneOfEachAnswer()).map(({ status }) => status);
 
     expect(statuses).toEqual([

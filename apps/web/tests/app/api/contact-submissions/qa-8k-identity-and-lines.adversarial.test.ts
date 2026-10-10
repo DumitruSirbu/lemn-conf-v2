@@ -47,6 +47,36 @@ const ANOTHER_DESIGN_ID = "qa8kAnotherDesign7c41";
 const THROWN_TEXT = `thrown about ${MARKER.name} <${MARKER.address}> ${MARKER.phone} ${MARKER.requestId}`;
 const BOUND_BYTES = 8 * 1024;
 const FLOOD = 6;
+/** More than every request's thirty an hour, so the limit is met and its line written. */
+const PAST_EVERY_FIGURE = 40;
+/** What each key of a line may hold: a word from a list written here, a number, or a reference's shape. */
+const LINE_VALUES: Readonly<Record<string, RegExp>> = {
+  event:
+    /^contact-(request-refused|request-unavailable|notice-not-sent|mark-failed|stored-request-refused)$/,
+  refusalCode: /^CONTACT_[A-Z_]+$/,
+  status: /^(400|403|409|413|415|422|429|502|503)$/,
+  policy: /^contact-[a-z0-9-]+$/,
+  cause: new RegExp(
+    `^(${[
+      "source-misconfigured",
+      "policy-misconfigured",
+      "digester-unusable",
+      "window-unavailable",
+      "store-failed",
+      "deadline-passed",
+      "judgement-failed",
+      "sender-unusable",
+      "submission-store-failed",
+      "notice-unbuildable",
+      "price-book-mismatch",
+      "unexpected",
+    ].join("|")})$`,
+  ),
+  mailFailureKind:
+    /^(unreadable-answer|payload-mismatch|busy|quota-spent|refused|unreachable|timed-out)$/,
+  providerStatus: /^[1-5][0-9]{2}$/,
+  reference: /^[0-9A-Z-]{6,32}$/,
+};
 const SENT_AT_ONCE = 5;
 const DAY_MS = 86_400_000;
 const FIRST_DAY = new Date("2026-10-10T00:20:00Z");
@@ -384,6 +414,10 @@ describe("a throw once a reference is held", () => {
     );
     expect(eventsWritten()).toContain("contact-mark-failed");
     expect(outside.fakeSender.sent).toHaveLength(1);
+    const next = await sendFull(full());
+    expect(next.status).toBe(200);
+    expect(outside.fakeSender.sent).toHaveLength(2);
+    expect(outside.heldStore.heldSubmissions()).toHaveLength(1);
   });
 
   it("at the design's load of a retry is the same answer, naming the stored request in its line", async () => {
@@ -547,7 +581,7 @@ describe("no line on any branch holds anything submitted or thrown", () => {
     post = await loadRoute();
     await sendFull(fresh("conflict"));
     await sendFull(fresh("conflict", { locale: "ru" }));
-    for (let sent = 0; sent < 40; sent += 1)
+    for (let sent = 0; sent < PAST_EVERY_FIGURE; sent += 1)
       await sendFull(fresh(`flood-${String(sent)}`));
     await post(
       contactRequest(MARKER.name.repeat(BOUND_BYTES), { withVisitor: true }),
@@ -588,17 +622,15 @@ describe("no line on any branch holds anything submitted or thrown", () => {
     expect(requestsOut).not.toHaveBeenCalled();
   });
 
-  it("writes only a label and one flat line of codes, statuses, names from closed lists and a reference", async () => {
+  it("writes only a label and one flat line, each key a known one and each value of that key's own form", async () => {
     await walkEveryBranch();
 
     for (const [label, line, ...rest] of consoleCallsOf(consoleSpies)) {
       expect(label).toBe("[contact]");
       expect(rest).toEqual([]);
       for (const [key, value] of Object.entries(line as object)) {
-        expect(key).toMatch(
-          /^(event|refusalCode|status|policy|cause|mailFailureKind|providerStatus|reference)$/,
-        );
-        expect(String(value)).toMatch(/^[A-Za-z0-9_-]{1,64}$/);
+        expect(Object.keys(LINE_VALUES)).toContain(key);
+        expect(String(value), key).toMatch(LINE_VALUES[key] ?? /^$/);
       }
     }
   });
@@ -676,7 +708,9 @@ describe("how often a line is written", () => {
   });
 
   it("is once for a process and a policy for a limit, and each time for unavailable", async () => {
-    for (let sent = 0; sent < 45; sent += 1) await post(contactRequest("{{{"));
+    for (let sent = 0; sent < PAST_EVERY_FIGURE; sent += 1) {
+      await post(contactRequest("{{{"));
+    }
     const limitLines = linesWritten().filter(
       ({ refusalCode }) => refusalCode === "CONTACT_LIMIT_REACHED",
     );
