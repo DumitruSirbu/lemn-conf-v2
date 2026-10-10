@@ -32,6 +32,18 @@ export type SaveStatus =
   | "unauthorized"
   | "conflict";
 
+/**
+ * Whether a status and a time are a write the limit on saves holds: a failure that carries the time its retry is armed
+ * for. The one place that says so, asked by every surface that tells a pause from a failure. Its answer is about the
+ * pair, so it narrows the time only when it is true.
+ */
+export function isSavePaused(
+  status: SaveStatus,
+  resumesAtMs: number | null | undefined,
+): resumesAtMs is number {
+  return status === "error" && typeof resumesAtMs === "number";
+}
+
 /** The three statuses that stop a design's writes until something outside the coalescer changes.
  *  Recorded per identity, so returning to a refused design does not quietly start writing again. */
 type RefusedStatus = Extract<

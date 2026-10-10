@@ -24,7 +24,7 @@ import {
 
 import { swatchOf } from "@lemnaria/three-adapter";
 
-import type { SaveStatus } from "@/persistence/save-coalescer";
+import { isSavePaused, type SaveStatus } from "@/persistence/save-coalescer";
 import { describeEditability, type Editability } from "@/store/editability";
 import type { WriteAccess } from "@/store/configurator-store";
 
@@ -398,7 +398,14 @@ function describeNotice(
   editability: PanelEditability,
 ): PanelNotice | undefined {
   if (editability.isReadOnly) return describeLockedNotice(input);
-  if (input.saveStatus === "error") return describeFailedOrPausedNotice(input);
+  if (isSavePaused(input.saveStatus, input.saveResumesAtMs))
+    return describePausedNotice(input.content, input.saveResumesAtMs);
+  if (input.saveStatus === "error")
+    return {
+      kind: "save-failed",
+      tone: "error",
+      message: input.content.panel.saveFailedNotice,
+    };
   if (input.saveStatus === "stopped")
     return {
       kind: "save-stopped",
@@ -410,21 +417,16 @@ function describeNotice(
   return undefined;
 }
 
-/** A failed save with its retry armed, or the same armed for the time the limit on saves stated. The pause is no
- *  error: nothing is wrong, and the change goes by itself, so it is told as information. */
-function describeFailedOrPausedNotice(input: DescribePanelInput): PanelNotice {
-  const { content, saveResumesAtMs } = input;
-  if (saveResumesAtMs === undefined || saveResumesAtMs === null) {
-    return {
-      kind: "save-failed",
-      tone: "error",
-      message: content.panel.saveFailedNotice,
-    };
-  }
+/** The write the limit on saves holds, until the time it stated. The pause is no error: nothing is wrong, and the
+ *  change goes by itself, so it is told as information. */
+function describePausedNotice(
+  content: Content,
+  resumesAtMs: number,
+): PanelNotice {
   return {
     kind: "save-paused",
     tone: "info",
-    message: content.panel.savePausedNotice(clockTimeOf(saveResumesAtMs)),
+    message: content.panel.savePausedNotice(clockTimeOf(resumesAtMs)),
   };
 }
 

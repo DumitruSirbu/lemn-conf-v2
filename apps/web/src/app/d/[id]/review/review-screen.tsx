@@ -23,7 +23,7 @@ import type {
 import { ReviewScene } from "@/review/review-scene";
 import { useReview } from "@/review/use-review";
 import { useWebGLSupport } from "@/scene/webgl-support";
-import type { SaveStatus } from "@/persistence/save-coalescer";
+import { isSavePaused, type SaveStatus } from "@/persistence/save-coalescer";
 import { useConfiguratorStore } from "@/store/configurator-store";
 
 import styles from "./review.module.css";
@@ -293,14 +293,19 @@ function useSaveWait(): SaveWait {
   const saveStatus = useConfiguratorStore((state) => state.saveStatus);
   const resumesAtMs = useConfiguratorStore((state) => state.saveResumesAtMs);
   if (isSaved) return { kind: "saved" };
-  const isPaused = saveStatus === "error" && resumesAtMs !== null;
+  if (isSavePaused(saveStatus, resumesAtMs)) {
+    return {
+      kind: "waiting",
+      sentence: content.panel.savePausedNotice(clockTimeOf(resumesAtMs)),
+      isSettledInTheEditor: false,
+      hasFailed: false,
+    };
+  }
   return {
     kind: "waiting",
-    sentence: isPaused
-      ? content.panel.savePausedNotice(clockTimeOf(resumesAtMs))
-      : sentenceForUnsavedEdit(saveStatus, content),
+    sentence: sentenceForUnsavedEdit(saveStatus, content),
     isSettledInTheEditor: saveStatus === "conflict",
-    hasFailed: saveStatus !== "idle" && saveStatus !== "saving" && !isPaused,
+    hasFailed: saveStatus !== "idle" && saveStatus !== "saving",
   };
 }
 

@@ -7,6 +7,7 @@ import { clockTimeOf } from "@/i18n/clock-time";
 import { describePanel, type OpenPanel } from "@/panel/panel-model";
 import type { SaveStatus } from "@/persistence/save-coalescer";
 
+import { readSource } from "../lib/server/server-source-support";
 import { PAL_KITCHEN } from "../support/panel-material";
 import { ro } from "../support/romanian-content";
 import { occupiedMeta, offers } from "../support/selection-meta";
@@ -79,4 +80,17 @@ describe("the editor's notice for a write the limit on saves holds", () => {
 
     expect(notice?.kind).toBe("read-only-refused");
   });
+});
+
+describe("who decides that a write is paused", () => {
+  it.each(["panel/panel-model.ts", "app/d/[id]/review/review-screen.tsx"])(
+    "reads source: %s asks isSavePaused and compares no time itself",
+    (file) => {
+      const source = readSource(file);
+
+      expect(source).toMatch(/\bisSavePaused\(/);
+      expect(source).not.toMatch(/ResumesAtMs\s*[!=]==?\s*(null|undefined)/);
+      expect(source).not.toMatch(/resumesAtMs\s*[!=]==?\s*(null|undefined)/);
+    },
+  );
 });

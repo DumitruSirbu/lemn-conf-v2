@@ -651,7 +651,11 @@ export function createConfiguratorStore(
         set({ canWrite: "checking" });
       },
       setSaveStatus: (status, resumesAtMs) => {
-        set({ saveStatus: status, saveResumesAtMs: resumesAtMs ?? null });
+        // A time belongs to a failure alone: beside any other status it would be a pause nobody is waiting for.
+        set({
+          saveStatus: status,
+          saveResumesAtMs: status === "error" ? (resumesAtMs ?? null) : null,
+        });
       },
       applySaved: ({ id, revision, savedDesign }) => {
         set({

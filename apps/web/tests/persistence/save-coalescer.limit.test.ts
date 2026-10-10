@@ -10,7 +10,10 @@ import {
   SaveLimitReachedError,
   WriteConflictError,
 } from "../../src/persistence/design-request-errors";
-import { createSaveCoalescer } from "../../src/persistence/save-coalescer";
+import {
+  createSaveCoalescer,
+  isSavePaused,
+} from "../../src/persistence/save-coalescer";
 import type {
   CoalescedSaveRequest,
   CoalescedSaveResult,
@@ -418,5 +421,42 @@ describe("the save coalescer when the read of the current revision is refused", 
       "overwrite@9",
     ]);
     expect(statuses.at(-1)).toBe("idle");
+  });
+});
+
+describe("isSavePaused: the one answer to whether a write is held by the limit", () => {
+  const EVERY_STATUS: readonly SaveStatus[] = [
+    "idle",
+    "saving",
+    "error",
+    "stopped",
+    "unauthorized",
+    "conflict",
+  ];
+  const A_TIME_MS = 1_800_000_000_000;
+
+  it("is true for a failure that carries a time, and only for that", () => {
+    const paused = EVERY_STATUS.filter((status) =>
+      isSavePaused(status, A_TIME_MS),
+    );
+
+    expect(paused).toEqual(["error"]);
+  });
+
+  it.each([null, undefined])(
+    "is false for a failure that carries %s, which is the failure's own backoff",
+    (time) => {
+      expect(isSavePaused("error", time)).toBe(false);
+    },
+  );
+
+  it("is false for every status beside no time", () => {
+    expect(EVERY_STATUS.some((status) => isSavePaused(status, null))).toBe(
+      false,
+    );
+  });
+
+  it("takes a time of nought as a time, since it is a number and the clock's start is not 'none'", () => {
+    expect(isSavePaused("error", 0)).toBe(true);
   });
 });
