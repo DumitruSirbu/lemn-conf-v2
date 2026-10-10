@@ -15,10 +15,18 @@ import {
 } from "./src/app/internal/scene-shot/route-availability";
 
 import { secretOfThisRun } from "./tests/e2e/support/e2e-rate-limit-run";
+import {
+  FAKE_MAIL_SERVER_ENVIRONMENT,
+  requireNoMailVariable,
+} from "./tests/e2e/support/fake-mail-server";
 
 // The application's own `DATABASE_URL` must be readable here, or `assertSafeTestDatabaseUrl` has
 // nothing to compare against and passes vacuously.
 loadEnvLocal();
+
+// The server inherits this process's environment, and refuses the fake sender beside any mail variable: a run that
+// holds one fails here, naming it, rather than starting a server that could send for real.
+requireNoMailVariable(process.env);
 
 /**
  * The run's own secret for every digest the server makes: made once in the runner's main process, handed to the
@@ -105,6 +113,9 @@ export default defineConfig({
       // in the one shared bucket and no forwarding header decides anything.
       [E2E_RATE_LIMIT_POLICY_FLAG]: E2E_RATE_LIMIT_POLICY_FLAG_ENABLED,
       DIGEST_SECRET: runSecret,
+      // A contact request is passed on by the fake sender, which only this flag selects and only with no mail variable
+      // present (ADR 0154). Set here and in no env file, so no deployed environment inherits it.
+      ...FAKE_MAIL_SERVER_ENVIRONMENT,
     },
     // Long enough for a cold `next build` on CI.
     timeout: isContinuousIntegration ? 300_000 : 60_000,
