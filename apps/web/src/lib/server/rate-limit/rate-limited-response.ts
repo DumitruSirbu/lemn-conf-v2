@@ -6,6 +6,7 @@ import { LONGEST_DAY_SECONDS } from "@/lib/server/rate-limit/chisinau-day";
 import {
   longestWaitSecondsOf,
   READ_POLICY,
+  SAVE_BY_BLOCK_POLICY,
   SHARE_WRITE_POLICY,
 } from "@/lib/server/rate-limit/limit-policy";
 import {
@@ -25,15 +26,20 @@ export const MINT_UNAVAILABLE_STATUS = UNAVAILABLE_STATUS;
 export const SHARE_LIMIT_REACHED_CODE = "SHARE_LIMIT_REACHED";
 export const SHARE_UNAVAILABLE_CODE = "SHARE_UNAVAILABLE";
 export const READ_LIMIT_REACHED_CODE = "READ_LIMIT_REACHED";
+export const SAVE_LIMIT_REACHED_CODE = "SAVE_LIMIT_REACHED";
+export const SAVE_UNAVAILABLE_CODE = "SAVE_UNAVAILABLE";
 /** The one status of every answer that says a limit is reached. */
 export const LIMIT_REACHED_STATUS = MINT_LIMIT_REACHED_STATUS;
 export const SHARE_UNAVAILABLE_STATUS = UNAVAILABLE_STATUS;
+export const SAVE_UNAVAILABLE_STATUS = UNAVAILABLE_STATUS;
 
 const LIMIT_REACHED_SENTENCE = "The limit on new designs is reached for today.";
 const UNAVAILABLE_SENTENCE = "A new design cannot be made right now.";
 const SHARE_LIMIT_SENTENCE = "The limit on share links is reached for now.";
 const SHARE_UNAVAILABLE_SENTENCE = "A share link cannot be changed right now.";
 const READ_LIMIT_SENTENCE = "Too many requests for now.";
+const SAVE_LIMIT_SENTENCE = "The limit on saving is reached for now.";
+const SAVE_UNAVAILABLE_SENTENCE = "A save cannot be made right now.";
 
 const SHORTEST_WAIT_SECONDS = 1;
 
@@ -72,6 +78,26 @@ export function shareLimitReachedResponse(
     retryAfterSeconds,
     longestWaitSeconds: longestWaitSecondsOf(SHARE_WRITE_POLICY.window),
   });
+}
+
+/**
+ * `429` for a save: the wait is whole seconds to the end of the saves' own window, which a save's two policies share,
+ * and the only number in the answer. The code says nothing of a design, a credential or a network.
+ */
+export function saveLimitReachedResponse(
+  retryAfterSeconds: number,
+): NextResponse {
+  return refusalResponse({
+    code: SAVE_LIMIT_REACHED_CODE,
+    sentence: SAVE_LIMIT_SENTENCE,
+    retryAfterSeconds,
+    longestWaitSeconds: longestWaitSecondsOf(SAVE_BY_BLOCK_POLICY.window),
+  });
+}
+
+/** `503` for a save that could not be judged, so nothing was stored. No `Retry-After`, and no cause. */
+export function saveUnavailableResponse(): NextResponse {
+  return unavailableResponse(SAVE_UNAVAILABLE_CODE, SAVE_UNAVAILABLE_SENTENCE);
 }
 
 /** `429` for a read, as bare as the share's, and the same for an owner and a stranger. */

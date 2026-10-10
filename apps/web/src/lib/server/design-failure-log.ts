@@ -22,6 +22,9 @@ import {
   MINT_UNAVAILABLE_CODE,
   MINT_UNAVAILABLE_STATUS,
   READ_LIMIT_REACHED_CODE,
+  SAVE_LIMIT_REACHED_CODE,
+  SAVE_UNAVAILABLE_CODE,
+  SAVE_UNAVAILABLE_STATUS,
   SHARE_LIMIT_REACHED_CODE,
   SHARE_UNAVAILABLE_CODE,
   SHARE_UNAVAILABLE_STATUS,
@@ -160,6 +163,41 @@ export function reportShareWriteLimit(line: ShareWriteLimitLine): void {
     refusalCode: SHARE_UNAVAILABLE_CODE,
     status: SHARE_UNAVAILABLE_STATUS,
     cause: line.cause,
+  });
+}
+
+/** A refused save names its policy; one that could not be judged names its cause. Nothing else: no address, block,
+ *  credential, count or header value ever reaches the line. */
+export type SaveLimitLine =
+  | { readonly kind: "refused"; readonly policy: string }
+  | { readonly kind: "unavailable"; readonly cause: UnavailableCause };
+
+const policiesWithARefusalWritten = new Set<string>();
+
+/**
+ * A save is the commonest write there is, so a flood past a figure must not buy a log write a request: a refusal is
+ * written at most once for a process and a policy. A save that could not be judged is written each time, as every
+ * other write's is, since the store failing is the signal and no caller can drive it.
+ */
+export function reportSaveLimit(line: SaveLimitLine): void {
+  if (line.kind === "unavailable") {
+    emitDesignLogLine("error", {
+      event: "design-operation-unavailable",
+      operation: "save",
+      refusalCode: SAVE_UNAVAILABLE_CODE,
+      status: SAVE_UNAVAILABLE_STATUS,
+      cause: line.cause,
+    });
+    return;
+  }
+  if (policiesWithARefusalWritten.has(line.policy)) return;
+  policiesWithARefusalWritten.add(line.policy);
+  emitDesignLogLine("warn", {
+    event: "design-operation-refused",
+    operation: "save",
+    refusalCode: SAVE_LIMIT_REACHED_CODE,
+    status: LIMIT_REACHED_STATUS,
+    policy: line.policy,
   });
 }
 

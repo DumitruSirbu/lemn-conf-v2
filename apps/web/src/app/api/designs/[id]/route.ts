@@ -26,6 +26,7 @@ import {
   type BoundedBodyFailure,
 } from "@/lib/server/read-body-with-limit";
 import { refusalOfReadLimit } from "@/lib/server/rate-limit/judge-read-request";
+import { refusalOfSaveLimit } from "@/lib/server/rate-limit/judge-save-request";
 import { getRepository } from "@/lib/server/repository";
 import {
   readVisitorHash,
@@ -131,6 +132,11 @@ async function saveDesign(
   // to tell this refusal from the 403.
   const expectedRevision = readExpectedRevision(request);
   if (expectedRevision === undefined) return revisionRequiredResponse();
+
+  // Counted after the two refusals that are not, and before the body is read: a refusal reads no body, writes no row
+  // and touches no cookie, and nothing of the limiter runs between the write and its answer.
+  const limited = await refusalOfSaveLimit(request.headers, writeTokenHash);
+  if (limited) return limited;
 
   try {
     // Inside the try: `readDesign` is not expected to throw, but nothing above a `try` has a handler.

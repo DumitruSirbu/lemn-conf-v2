@@ -5,10 +5,14 @@ import { RATE_LIMIT_READ_DEADLINE_MS } from "@/lib/server/rate-limit/enforce-rat
 import {
   E2E_RATE_LIMIT_POLICY_FLAG,
   READS_PER_BLOCK_FIGURE,
+  SAVES_PER_BLOCK_FIGURE,
+  SAVES_PER_CREDENTIAL_FIGURE,
   SHARE_WRITES_PER_BLOCK_FIGURE,
 } from "@/lib/server/rate-limit/limit-policy";
 import { CLIENT_NETWORK_SOURCE_VARIABLE } from "@/lib/server/rate-limit/network-source";
 import { getRateLimitStore } from "@/lib/server/rate-limit/rate-limit-store-instance";
+
+import { readSource } from "../../../lib/server/server-source-support";
 
 /**
  * A design's load, a link's status, and the creation and revocation of a link, through the real routes with the
@@ -35,9 +39,11 @@ vi.mock("@/lib/server/repository", () => ({
   getShareLinkRepository: () => repositories.share,
 }));
 
-const { GET: loadDesign, PUT: saveDesign } = await import(
-  "../../../../src/app/api/designs/[id]/route"
-);
+const {
+  GET: loadDesign,
+  PUT: saveDesign,
+  PATCH: patchDesign,
+} = await import("../../../../src/app/api/designs/[id]/route");
 const {
   POST: shareIssue,
   DELETE: shareRevoke,
@@ -456,18 +462,143 @@ describe("the truth table of source and secret, for a share write and for a read
   );
 });
 
-// Flips in the save's limit pass (S2a): a save is then counted, and this becomes the order of its two judgements.
-describe("PUT /api/designs/{id}: untouched by the limiter", () => {
-  it("makes no call to the store for a save, whatever its credentials", async () => {
-    silenceTheConsole();
-    const recorded = countingStore();
+describe.each(["PUT", "PATCH"] as const)(
+  "%s /api/designs/{id}: counted after the two refusals that are not, and before the body",
+  (method) => {
+    const save = method === "PUT" ? saveDesign : patchDesign;
+    const ownerWithRevision = { ...owner, "x-expected-revision": "1" };
 
-    await saveDesign(
-      requestTo("", "PUT", { ...owner, "x-expected-revision": "1" }),
-      PARAMS,
+    function requestWithABody(headers: Record<string, string>): NextRequest {
+      return new NextRequest(`https://example.test/api/designs/${DESIGN_ID}`, {
+        method,
+        headers: { "sec-fetch-site": "same-origin", ...headers },
+        body: "{}",
+      });
+    }
+
+    it("counts the block and then the credential, and only then reads the body", async () => {
+      silenceTheConsole();
+      countingStore();
+      const request = requestWithABody(ownerWithRevision);
+
+      const response = await save(request, PARAMS);
+
+      expect(order.calls).toEqual(["limiter", "limiter"]);
+      expect(request.bodyUsed).toBe(true);
+      expect(response.status).toBe(400);
+    });
+
+    it("makes no call to the store for a save with no credential for the design, and answers its 403", async () => {
+      silenceTheConsole();
+      const recorded = countingStore();
+
+      const response = await save(requestWithABody(stranger), PARAMS);
+
+      expect(response.status).toBe(403);
+      expect(recorded).not.toHaveBeenCalled();
+    });
+
+    it("makes no call to the store for a save that states no revision, and answers its refusal", async () => {
+      silenceTheConsole();
+      const recorded = countingStore();
+
+      const response = await save(requestWithABody(owner), PARAMS);
+
+      expect(response.status).toBe(400);
+      expect(recorded).not.toHaveBeenCalled();
+    });
+
+    it("refuses a save past the block's figure with 429, one count, no body read, no save and no cookie", async () => {
+      silenceTheConsole();
+      storeAtItsFigure(SAVES_PER_BLOCK_FIGURE);
+      const request = requestWithABody(ownerWithRevision);
+
+      const response = await save(request, PARAMS);
+
+      expect(response.status).toBe(429);
+      expect(
+        Number(response.headers.get("Retry-After")),
+      ).toBeGreaterThanOrEqual(1);
+      expect(Number(response.headers.get("Retry-After"))).toBeLessThanOrEqual(
+        HOUR_SECONDS,
+      );
+      expect((await response.json()) as unknown).toEqual({
+        error: "The limit on saving is reached for now.",
+        code: "SAVE_LIMIT_REACHED",
+      });
+      expect(order.calls).toEqual(["limiter"]);
+      expect(request.bodyUsed).toBe(false);
+      expect(response.headers.get("Set-Cookie")).toBeNull();
+    });
+
+    it("refuses a save past the credential's figure with 429 after both counts, and stores nothing", async () => {
+      silenceTheConsole();
+      const answers = [[1], [SAVES_PER_CREDENTIAL_FIGURE + 1]];
+      vi.spyOn(getRateLimitStore(), "recordHits").mockImplementation(() => {
+        order.calls.push("limiter");
+        return Promise.resolve(answers.shift() ?? [1]);
+      });
+      const request = requestWithABody(ownerWithRevision);
+
+      const response = await save(request, PARAMS);
+
+      expect(response.status).toBe(429);
+      expect(order.calls).toEqual(["limiter", "limiter"]);
+      expect(request.bodyUsed).toBe(false);
+      expect(response.headers.get("Set-Cookie")).toBeNull();
+    });
+
+    it("answers 503 with its code and no wait when the store fails or the secret is unusable", async () => {
+      silenceTheConsole();
+      vi.spyOn(getRateLimitStore(), "recordHits").mockRejectedValue(
+        new Error("down"),
+      );
+      const failedStore = await save(
+        requestWithABody(ownerWithRevision),
+        PARAMS,
+      );
+      vi.restoreAllMocks();
+      silenceTheConsole();
+      vi.stubEnv("DIGEST_SECRET", "short");
+      const request = requestWithABody(ownerWithRevision);
+      const unusableSecret = await save(request, PARAMS);
+
+      expect([failedStore.status, unusableSecret.status]).toEqual([503, 503]);
+      expect(unusableSecret.headers.get("Retry-After")).toBeNull();
+      expect((await unusableSecret.json()) as unknown).toEqual({
+        error: "A save cannot be made right now.",
+        code: "SAVE_UNAVAILABLE",
+      });
+      expect(order.calls).not.toContain("save");
+      expect(request.bodyUsed).toBe(false);
+    });
+
+    it("answers a refused save to an owner and to a stranger who sent a cookie alike, byte for byte", async () => {
+      silenceTheConsole();
+      storeAtItsFigure(SAVES_PER_BLOCK_FIGURE);
+
+      const first = await save(requestWithABody(ownerWithRevision), PARAMS);
+      const second = await save(requestWithABody(ownerWithRevision), PARAMS);
+
+      expect(await second.text()).toBe(await first.text());
+      expect([...second.headers]).toEqual([...first.headers]);
+    });
+  },
+);
+
+describe("the save route's source", () => {
+  it("reads source: nothing of the limiter stands between the write and its answer", () => {
+    const route = readSource("app/api/designs/[id]/route.ts");
+    const aSave = route.slice(
+      route.indexOf("async function saveDesign"),
+      route.indexOf("function readExpectedRevision"),
     );
-    await saveDesign(requestTo("", "PUT", stranger), PARAMS);
 
-    expect(recorded).not.toHaveBeenCalled();
+    expect(aSave.indexOf("refusalOfSaveLimit")).toBeLessThan(
+      aSave.indexOf("readDesign(request)"),
+    );
+    expect(aSave.slice(aSave.indexOf("saveAuthorized("))).not.toMatch(
+      /limit|judge|enforce/i,
+    );
   });
 });

@@ -408,9 +408,13 @@ describe("bucket-subject.ts", () => {
     );
   });
 
-  // Flips in the save's limit pass (S2a): its judge calls the constructor, and this list then names that judge alone.
-  it("reads source: the credential's constructor has no caller until a save asks, then only for a hash", () => {
-    expect(callersOf("subjectOfWriteCredentialHash")).toEqual([]);
+  it("reads source: only the save's judge makes a credential's subject, and from the hash the route read", () => {
+    expect(callersOf("subjectOfWriteCredentialHash")).toEqual([
+      "lib/server/rate-limit/judge-save-request.ts",
+    ]);
+    expect(readSource("lib/server/rate-limit/judge-save-request.ts")).toMatch(
+      /subjectOfWriteCredentialHash\(\s*writeTokenHash\s*\)/,
+    );
   });
 
   it("reads source: the evaluator takes a key's subject kind and text from the subject it is handed alone", () => {
