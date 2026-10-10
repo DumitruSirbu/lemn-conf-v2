@@ -101,7 +101,7 @@ test.describe("a page read counted in the request interceptor of a built server"
     expect(landed).toEqual({ rowsRemoved: 1, counts: [1] });
   });
 
-  test("answers an address deeper than a family's page with a 404: no page is routed to it, no lookup runs", async () => {
+  test("answers an address deeper than a family's page with a 404: no page is routed, no lookup runs", async () => {
     if (server === undefined)
       throw new Error("the second server did not start");
     const blockKey = bucketKeyOfBlock(
