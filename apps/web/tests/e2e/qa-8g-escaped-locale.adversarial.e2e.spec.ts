@@ -40,7 +40,19 @@ interface Spelling {
   /** The address, given the design's id and the share's token. */
   readonly path: (id: string, token: string) => string;
   readonly isShareView: boolean;
+  /** What the server answers it with: a served page, a redirect to the plain address, or not found. */
+  readonly status: Answered;
 }
+
+const SERVED = 200;
+const SENT_ON = 307;
+const TIDIED = 308;
+const NOT_FOUND = 404;
+type Answered =
+  | typeof SERVED
+  | typeof SENT_ON
+  | typeof TIDIED
+  | typeof NOT_FOUND;
 
 const design =
   (path: (id: string) => string): Spelling["path"] =>
@@ -56,16 +68,19 @@ const PLAIN_SPELLINGS: readonly Spelling[] = [
     label: "a design's page",
     path: design((id) => `/ro/d/${id}`),
     isShareView: false,
+    status: SERVED,
   },
   {
     label: "a design's review step",
     path: design((id) => `/ro/d/${id}/review`),
     isShareView: false,
+    status: SERVED,
   },
   {
     label: "a share's view",
     path: share((token) => `/ro/s/${token}`),
     isShareView: true,
+    status: SERVED,
   },
 ];
 
@@ -74,11 +89,13 @@ const PLAIN_ROOT: Spelling = {
   label: "the locale's root",
   path: () => "/ro",
   isShareView: false,
+  status: SENT_ON,
 };
 const ESCAPED_ROOT: Spelling = {
   label: "/%72o",
   path: () => "/%72o",
   isShareView: false,
+  status: NOT_FOUND,
 };
 
 const ESCAPED_SPELLINGS: readonly Spelling[] = [
@@ -86,66 +103,79 @@ const ESCAPED_SPELLINGS: readonly Spelling[] = [
     label: "/%72o/d/{id}",
     path: design((id) => `/%72o/d/${id}`),
     isShareView: false,
+    status: NOT_FOUND,
   },
   {
     label: "/r%6F/d/{id}",
     path: design((id) => `/r%6F/d/${id}`),
     isShareView: false,
+    status: NOT_FOUND,
   },
   {
     label: "/%72%6f/d/{id}",
     path: design((id) => `/%72%6f/d/${id}`),
     isShareView: false,
+    status: NOT_FOUND,
   },
   {
     label: "/r%6F/d/{id}/review",
     path: design((id) => `/r%6F/d/${id}/review`),
     isShareView: false,
+    status: NOT_FOUND,
   },
   {
     label: "/%72o/s/{token}",
     path: share((token) => `/%72o/s/${token}`),
     isShareView: true,
+    status: NOT_FOUND,
   },
   {
     label: "/%72%6f/s/{token}",
     path: share((token) => `/%72%6f/s/${token}`),
     isShareView: true,
+    status: NOT_FOUND,
   },
   {
     label: "/r%6F/s/{token}",
     path: share((token) => `/r%6F/s/${token}`),
     isShareView: true,
+    status: NOT_FOUND,
   },
   {
     label: "/ro/%64/{id}",
     path: design((id) => `/ro/%64/${id}`),
     isShareView: false,
+    status: NOT_FOUND,
   },
   {
     label: "/ro/d%2F{id}",
     path: design((id) => `/ro/d%2F${id}`),
     isShareView: false,
+    status: NOT_FOUND,
   },
   {
     label: "/ro/%73/{token}",
     path: share((token) => `/ro/%73/${token}`),
     isShareView: true,
+    status: NOT_FOUND,
   },
   {
     label: "/ro/s%2F{token}",
     path: share((token) => `/ro/s%2F${token}`),
     isShareView: true,
+    status: NOT_FOUND,
   },
   {
     label: "/%2572o/d/{id}",
     path: design((id) => `/%2572o/d/${id}`),
     isShareView: false,
+    status: NOT_FOUND,
   },
   {
     label: "/%2572o/s/{token}",
     path: share((token) => `/%2572o/s/${token}`),
     isShareView: true,
+    status: NOT_FOUND,
   },
 ];
 
@@ -154,55 +184,121 @@ function withItsFirstCharacterEscaped(text: string): string {
   return `%${text.charCodeAt(0).toString(16)}${text.slice(1)}`;
 }
 
-const page = (label: string, path: (id: string) => string): Spelling => ({
-  label,
-  path: design(path),
-  isShareView: false,
-});
-const view = (label: string, path: (token: string) => string): Spelling => ({
-  label,
-  path: share(path),
-  isShareView: true,
-});
+type PathOf = (part: string) => string;
 
-/** Every other way an address can be written that is not the plain one: each is counted if a page is served for it. */
+function page(label: string, status: Answered, path: PathOf): Spelling {
+  return { label, path: design(path), isShareView: false, status };
+}
+
+function view(label: string, status: Answered, path: PathOf): Spelling {
+  return { label, path: share(path), isShareView: true, status };
+}
+
+/** Every other way an address can be written that is not the plain one, with what the server answers each. */
 const ODD_SPELLINGS: readonly Spelling[] = [
-  page("an escaped id", (id) => `/ro/d/${withItsFirstCharacterEscaped(id)}`),
-  page("an escaped step, /ro/d/{id}/%72eview", (id) => `/ro/d/${id}/%72eview`),
-  page("a doubled slash, /ro//d/{id}", (id) => `/ro//d/${id}`),
-  page("a doubled first slash, //ro/d/{id}", (id) => `//ro/d/${id}`),
-  page("a doubled slash before the id", (id) => `/ro/d//${id}`),
-  page("a trailing slash, /ro/d/{id}/", (id) => `/ro/d/${id}/`),
-  page("a dot segment, /ro/./d/{id}", (id) => `/ro/./d/${id}`),
-  page("two dots, /ro/../ro/d/{id}", (id) => `/ro/../ro/d/${id}`),
-  page("an escaped dot, /ro/%2e/d/{id}", (id) => `/ro/%2e/d/${id}`),
-  page("escaped dots, /ro/%2e%2e/ro/d/{id}", (id) => `/ro/%2e%2e/ro/d/${id}`),
-  page("a backslash, /ro\\d\\{id}", (id) => `/ro\\d\\${id}`),
-  page("an escaped backslash, /ro%5Cd%5C{id}", (id) => `/ro%5Cd%5C${id}`),
-  page("a fixed segment in capitals, /ro/D/{id}", (id) => `/ro/D/${id}`),
-  page("an escaped slash in the locale, /ro%2Fd/{id}", (id) => `/ro%2Fd/${id}`),
-  page("an escaped slash after the locale, /ro%2f", () => "/ro%2f"),
-  page("a space after the locale, /ro%20/d/{id}", (id) => `/ro%20/d/${id}`),
-  page("a parameter on the locale, /ro;x/d/{id}", (id) => `/ro;x/d/${id}`),
-  page("a null after the locale, /ro%00/d/{id}", (id) => `/ro%00/d/${id}`),
+  page(
+    "an escaped id",
+    SERVED,
+    (id) => `/ro/d/${withItsFirstCharacterEscaped(id)}`,
+  ),
+  page("a dot segment, /ro/./d/{id}", SERVED, (id) => `/ro/./d/${id}`),
+  page("two dots, /ro/../ro/d/{id}", SERVED, (id) => `/ro/../ro/d/${id}`),
+  page("an escaped dot, /ro/%2e/d/{id}", SERVED, (id) => `/ro/%2e/d/${id}`),
+  page(
+    "escaped dots, /ro/%2e%2e/ro/d/{id}",
+    SERVED,
+    (id) => `/ro/%2e%2e/ro/d/${id}`,
+  ),
+  page("a doubled slash, /ro//d/{id}", TIDIED, (id) => `/ro//d/${id}`),
+  page("a doubled first slash, //ro/d/{id}", TIDIED, (id) => `//ro/d/${id}`),
+  page("a doubled slash before the id", TIDIED, (id) => `/ro/d//${id}`),
+  page("a trailing slash, /ro/d/{id}/", TIDIED, (id) => `/ro/d/${id}/`),
+  page("a backslash, /ro\\d\\{id}", TIDIED, (id) => `/ro\\d\\${id}`),
+  page(
+    "an escaped step, /ro/d/{id}/%72eview",
+    NOT_FOUND,
+    (id) => `/ro/d/${id}/%72eview`,
+  ),
+  page(
+    "an escaped backslash, /ro%5Cd%5C{id}",
+    NOT_FOUND,
+    (id) => `/ro%5Cd%5C${id}`,
+  ),
+  page(
+    "a fixed segment in capitals, /ro/D/{id}",
+    NOT_FOUND,
+    (id) => `/ro/D/${id}`,
+  ),
+  page(
+    "an escaped slash in the locale, /ro%2Fd/{id}",
+    NOT_FOUND,
+    (id) => `/ro%2Fd/${id}`,
+  ),
+  page("an escaped slash after the locale, /ro%2f", NOT_FOUND, () => "/ro%2f"),
+  page(
+    "a space after the locale, /ro%20/d/{id}",
+    NOT_FOUND,
+    (id) => `/ro%20/d/${id}`,
+  ),
+  page(
+    "a parameter on the locale, /ro;x/d/{id}",
+    NOT_FOUND,
+    (id) => `/ro;x/d/${id}`,
+  ),
+  page(
+    "a null after the locale, /ro%00/d/{id}",
+    NOT_FOUND,
+    (id) => `/ro%00/d/${id}`,
+  ),
   view(
     "an escaped token",
+    SERVED,
     (token) => `/ro/s/${withItsFirstCharacterEscaped(token)}`,
   ),
-  view("a doubled slash, /ro//s/{token}", (token) => `/ro//s/${token}`),
-  view("a trailing slash, /ro/s/{token}/", (token) => `/ro/s/${token}/`),
-  view("a dot segment, /ro/./s/{token}", (token) => `/ro/./s/${token}`),
-  view("an escaped dot, /ro/%2e/s/{token}", (token) => `/ro/%2e/s/${token}`),
-  view("a backslash, /ro\\s\\{token}", (token) => `/ro\\s\\${token}`),
+  view("a dot segment, /ro/./s/{token}", SERVED, (token) => `/ro/./s/${token}`),
+  view(
+    "an escaped dot, /ro/%2e/s/{token}",
+    SERVED,
+    (token) => `/ro/%2e/s/${token}`,
+  ),
+  view("a doubled slash, /ro//s/{token}", TIDIED, (token) => `/ro//s/${token}`),
+  view(
+    "a trailing slash, /ro/s/{token}/",
+    TIDIED,
+    (token) => `/ro/s/${token}/`,
+  ),
+  view("a backslash, /ro\\s\\{token}", TIDIED, (token) => `/ro\\s\\${token}`),
   view(
     "a fixed segment in capitals, /ro/S/{token}",
+    NOT_FOUND,
     (token) => `/ro/S/${token}`,
   ),
   view(
     "an escaped slash in the locale, /ro%2Fs/{token}",
+    NOT_FOUND,
     (token) => `/ro%2Fs/${token}`,
   ),
 ];
+
+const EVERY_SPELLING: readonly Spelling[] = [
+  ...PLAIN_SPELLINGS,
+  PLAIN_ROOT,
+  ESCAPED_ROOT,
+  ...ESCAPED_SPELLINGS,
+  ...ODD_SPELLINGS,
+];
+
+/** A read is counted once when its page is served or its root sends the reader on, and never otherwise. */
+function hitsOwedBy({ status }: Spelling): number {
+  return status === SERVED || status === SENT_ON ? 1 : 0;
+}
+
+const SERVED_SPELLINGS = EVERY_SPELLING.filter(
+  ({ status }) => status === SERVED,
+);
+const SERVED_SHARE_VIEWS = SERVED_SPELLINGS.filter(
+  ({ isShareView }) => isShareView,
+);
 
 interface AnswerAsReceived {
   readonly status: number;
@@ -369,41 +465,35 @@ test.describe("a page's address written with percent-escapes, on a server that n
     expect(minted.status()).toBe(201);
   });
 
-  test("counts the locale's root spelled with an escape if it answers as the plain root does", async () => {
-    const plain = await read(PLAIN_ROOT);
-    const escaped = await read(ESCAPED_ROOT);
-    const isAnsweredAlike =
-      escaped.status === plain.status && escaped.location === plain.location;
+  test("holds a served arm that is not empty, and no escaped locale in it", () => {
+    const answeredOf = (spellings: readonly Spelling[]) =>
+      spellings.map(({ status }) => status);
 
-    expect(plain.hitsCounted).toBe(1);
-    expect(isAnsweredAlike ? escaped.hitsCounted : 1).toBe(1);
+    expect(SERVED_SPELLINGS).toHaveLength(11);
+    expect(SERVED_SHARE_VIEWS).toHaveLength(4);
+    expect(new Set(answeredOf([ESCAPED_ROOT, ...ESCAPED_SPELLINGS]))).toEqual(
+      new Set([NOT_FOUND]),
+    );
+    expect(ESCAPED_SPELLINGS).toHaveLength(13);
   });
 
-  for (const spelling of PLAIN_SPELLINGS) {
-    test(`serves ${spelling.label} written plainly, and counts it once`, async () => {
+  for (const spelling of EVERY_SPELLING) {
+    const hitsOwed = hitsOwedBy(spelling);
+    test(`answers ${spelling.label} with ${String(spelling.status)}, counted ${String(hitsOwed)}`, async () => {
       const seen = await read(spelling);
 
-      expect(seen.isServed).toBe(true);
-      expect(seen.hitsCounted).toBe(1);
-      expect(spelling.isShareView ? seen.missingShareHeaders : []).toEqual([]);
+      expect(seen.status).toBe(spelling.status);
+      expect(seen.isServed).toBe(spelling.status === SERVED);
+      expect(seen.hitsCounted).toBe(hitsOwed);
     });
   }
 
-  for (const spelling of [...ESCAPED_SPELLINGS, ...ODD_SPELLINGS]) {
-    test(`counts ${spelling.label} if it serves the page for it`, async () => {
+  for (const spelling of SERVED_SHARE_VIEWS) {
+    test(`sends a share view's three headers with ${spelling.label}`, async () => {
       const seen = await read(spelling);
 
-      expect(seen.isServed ? seen.hitsCounted : 1).toBe(1);
-    });
-  }
-
-  for (const spelling of [...ESCAPED_SPELLINGS, ...ODD_SPELLINGS].filter(
-    (each) => each.isShareView,
-  )) {
-    test(`sends a share view's headers with ${spelling.label} if it serves the view for it`, async () => {
-      const seen = await read(spelling);
-
-      expect(seen.isServed ? seen.missingShareHeaders : []).toEqual([]);
+      expect(seen.status).toBe(SERVED);
+      expect(seen.missingShareHeaders).toEqual([]);
     });
   }
 });
