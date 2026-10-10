@@ -8950,7 +8950,7 @@ against the every-request bucket alone. **Added, 14:** every limit refusal is on
 *Must not:* a key of the mint, the save, a share write or a read changes; an answer or a line of
 the save changes; a subject from a caller's text but through these constructors; a route touched.
 *Stops if:* the mint's pinned answer changes; the coverage's test cannot be made to fail for a
-new field; or an existing test of the save must change in an assertion. *Reading:* this section
+new field; or an existing test of the save must change in an assertion **(2026-10-10, later: passed once, for a pattern over the source's text, and it stands; *8K — S1 and S2 as built*)**. *Reading:* this section
 and *8K, restated for dispatch*; `coord-8k-s0-security.md`; ADR 0150 decisions 1 and 3; ADR 0155
 decisions 1, 4, 5; ADR 0156; backlog 170; the domain's `contact-submission.ts`,
 `contact-fields.ts`, `pricing/price-lines.ts`; `rate-limit/judge-save-request.ts` and its tests.
@@ -8973,6 +8973,144 @@ either. *Reading:* K-S0.9; ADR 0153; ADR 0151; ADR 0155's standing rule;
 
 **One developer, S1 then S2.** They share no file, and S2 may run beside S1 only in a worktree of
 its own.
+
+##### 8K — S1 and S2 as built; S3 for dispatch, S4 and S5 as they stand, 2026-10-10
+
+**State.** HEAD is `be64e3f3` [ran: `git log`], tree clean [ran: `git status`]. S1 and S2 are
+built in seven commits with no stop; the developer's report is `dev-8k-s1-s2-report.md`, session
+scratchpad. The suites are the coordinator's [relayed]: web 401 files, 8,034; persistence 89
+files, 2,635 and 2 skipped; domain 303 files, 7,745; typecheck, lint, format and boundary 0.
+
+**As built, and what later slices read from it** [src, at `be64e3f3`].
+
+- The digest covers fourteen fields in a written order, the book's version last; the honeypot's
+  answer and the elapsed time are left out. The address is covered as typed; its counted form is
+  the limiter's alone.
+- Six policies and three twins in `limit-policy.ts`; the purposes are `contact-every-by-block`,
+  `contact-new-by-block-hour`, `contact-new-by-block-day`, `contact-new-by-visitor`,
+  `contact-new-by-address`, `contact-tries-by-request`. The browser's, the address's and the
+  tries' have no twin.
+- `subjectOfVisitorHash`, `subjectOfAddress`, `subjectOfStoredRequest`; each throws for a text
+  that is not its source's. `judgeStepsInSequence` answers the decision and the policy of the
+  step that ended it.
+- **One stop of S1 was passed, and it stands as done.** `judge-save-request.test.ts` held the old
+  call as a pattern over the source's text, which item 5 was ruled to rewrite; that one pattern
+  changed, and every test of a save's answer, line and key passes unedited [relayed].
+  *Classification: contract gap, the architect's.* The stop was written too wide; it meant an
+  assertion on an answer, a line or a key.
+
+**What S3 fixes: the answers.** Every one is JSON with a sentence and a code, `no-store`, and
+sets, clears or refreshes no cookie. None holds a submitted value.
+
+| Answer | Status, code | Also holds | Counted against |
+| --- | --- | --- | --- |
+| A cross-site request | `403 CONTACT_CROSS_SITE` | nothing | nothing |
+| A body that is not JSON by its content type | `415 CONTACT_NOT_JSON` | nothing | nothing |
+| A body past its bound | `413 CONTACT_BODY_TOO_LARGE` | nothing | nothing |
+| A limit, **whichever bucket** | `429 CONTACT_LIMIT_REACHED` | `Retry-After` | the buckets asked so far |
+| *Unavailable*, **whichever cause** | `503 CONTACT_UNAVAILABLE` | nothing | as far as it got |
+| A body that does not parse, or the schema's issues | `400 CONTACT_INVALID` | each issue's field and code, never its value | every request's |
+| The honeypot or the time | `400 CONTACT_REJECTED` | nothing | every request's |
+| A request's id stored with another payload | `409 CONTACT_REQUEST_CONFLICT` | nothing | and the tries' |
+| Every way the owned load fails | `409 CONTACT_DESIGN_NOT_CURRENT` | nothing | every request's |
+| A kitchen past its wall | `422 CONTACT_DESIGN_DOES_NOT_FIT` | its bodies' ids | every request's |
+| A notice not accepted, a retry may follow | `502 CONTACT_NOTICE_NOT_SENT_RETRY` | nothing | as the branch |
+| A notice not accepted, no retry | `502 CONTACT_NOTICE_NOT_SENT` | nothing | as the branch |
+| Sent, now or before | `200`, a status of `sent` | the reference | as the branch |
+
+- **A failure never holds the reference**, though the row is stored: the line does (K-S0.6).
+- **A limit's wait is checked against the longest window of the judgement that refused:** an
+  hour for every request's and for the tries', the UTC day for a new request's.
+- **Point 3's step 5, said exactly:** an unusable secret is already *unavailable* at step 3,
+  whose bucket needs it. Step 5 asks the sender alone.
+- **A notice that cannot be made is *unavailable*.** It is the server's fault, not the caller's.
+
+**What S3 fixes: the lines.** A label of its own. The module is handed no request, contact,
+snapshot or id, so it cannot write one.
+
+| Line | Holds | How often |
+| --- | --- | --- |
+| A limit refused | the code, the status, the policy's name | **once for a process and a policy** |
+| Any other refusal but the honeypot's and the time's | the code, the status | **once for a process and a code** |
+| The honeypot or the time | no line | never |
+| *Unavailable* | the code, the status, a cause from a closed list | each time |
+| A notice not accepted | the code, the status, the mail failure's kind, the provider's status when there was one, the reference | each time |
+| A mark that failed after an accepted send | the reference | each time |
+
+- **The causes are a closed list:** the limiter's seven, and `sender-unusable`,
+  `submission-store-failed`, `notice-unbuildable` and `unexpected`. **Nothing of a thrown value
+  is written but which of these it became:** no message, no name, no cause.
+- **The three refusals nothing counts** (cross-site, the content type, the bound) are why *once
+  for a process and a code* is the rule: a flood must not buy a line a request (G-S2.3).
+- A reference is written only when it has a reference's shape.
+
+**S3. One developer, five items. The security reader reads it alone before S4.**
+
+| # | Does | Production files |
+| --- | --- | --- |
+| 1 | The limit's two answers, as every write's are: `429` with its wait checked against a window handed in, and `503` | `rate-limit/rate-limited-response.ts` |
+| 2 | **The judge**, made once for a request from the environment, its headers and one instant. Three judgements, each *the answer that stops the request, or nothing*, each through the one routine of a write's refusal. **Every request:** the block. **A try of a stored request:** its id, through its constructor. **A new request:** the block's hour, the block's day, the browser's only when a hash is handed, the address's only when a counted form is handed; a step is asked only when the one before allowed | new `lib/server/contact/judge-contact-request.ts` |
+| 3 | The other answers of the table, and the one maker of them | new `contact/contact-responses.ts` |
+| 4 | The lines of the table, over closed lists, with a guarded write | new `contact/contact-log.ts` |
+| 5 | **Its tests.** A refusal at each step counts that step and those before, and none after. A skipped step writes no row and is not *unavailable* (K-S0.3). Every limit refusal is equal in code and body whichever step ended it, and every *unavailable* is byte-equal across every cause (criterion 14). A flood of one refusal writes one line. Then the whole web suite, the typecheck and the lint, each quoted | their tests |
+
+*Must not:* the evaluator, the routine of a write's refusal or the sequence changed; a route, an
+orchestration, the contact's store or the mail imported; a text of the caller's reaching a bucket
+but through the three constructors; a figure outside the policy module; a second code for a limit
+or for *unavailable*; a line holding the client request id, a design's id, a visitor's hash, a
+body's id, an address, an issue's value or anything a thrown value said; a cookie set, cleared or
+refreshed by an answer; state at module level but the set of lines already written; a `qa-*` file
+edited; **a mutant sent to a database.** *Stops if:* a refusal cannot be answered without saying
+which check failed; the routine of a write's refusal or `judgeStepsInSequence` must change to
+serve it; or a test of the mint, the save or a share write must change.
+
+*Reading:* this section and *8K — S0's security read, ruled*; `coord-8k-s0-security.md`, whole;
+ADR 0156, decisions on the sequence and on writes failing closed; ADR 0155 decisions 4 and 5;
+`rate-limit/judge-save-request.ts`, `refusal-of-write-limit.ts`, `rate-limited-response.ts`,
+`judge-block-bucket.ts`, `bucket-subject.ts`, `limit-policy.ts`; `design-failure-log.ts`, the
+save's line and the guarded write; `mail/mail-sender.ts`, the kinds and which a retry may follow.
+*The security reader's reading of S3:* S3's diff; this section; its own S0 file.
+
+**S4 and S5, as they stand. A finding of S3's read amends them by a dated note; neither is sent
+before that read clears.**
+
+**S4. One developer, five items: the orchestration, with every port handed in.**
+
+| # | Does |
+| --- | --- |
+| 1 | **To the lookup.** The request by the domain's one definition. The honeypot and the time, one refusal and no line. No usable sender: *unavailable*. The digest over the coverage, with the book's version for a design. The lookup |
+| 2 | **Stored or conflict.** The tries' judgement first, **and never for an id the lookup answered absent**. A conflict: its code. Notified: the reference, nothing sent. Not notified: the load, the snapshot, the notice, the send, the mark |
+| 3 | **Absent.** For a design, the id's shape and the owned load, the revision compared as text, the snapshot from that row with no second read, the fit's refusal. The notice built once with a placeholder reference. The new request's judgement: the visitor's hash when the cookie gave one, the address's counted form when the channel is e-mail. The record; **whether to send is decided on notified, never on new**. The notice with the stored reference, the send, the mark |
+| 4 | **What a failure becomes.** Any throw: *unavailable*, with its cause from the closed list. A mail failure: one of the two outward answers, by the mail's own rule of which a retry may follow. A mark that fails after an accepted send: success, with its line |
+| 5 | **Its tests, on fakes handed in:** criteria 2 to 9, 12, 14 and 15; the four refusals of the load equal in body and headers; then the suite, the typecheck and the lint, each quoted |
+
+*Production files:* new `lib/server/contact/submit-contact.ts`, and a file beside it for a branch
+if it grows past one screen of steps; nothing else. *Must not:* the mail imported except its
+factory, its notice and its port's types; a sender, a store or a variable at module level; a
+second read of the design; a fake under `src`; a bucket of a new request counted for a request
+that is stored. *Stops if:* a step needs the store's fake under `src`; a retry of a request
+stored and not notified cannot be given the same notice bytes at the same revision and book; or
+an answer is needed that S3's table does not hold. *Reading:* this section and the two before
+it; S3 as built and its security read; ADR 0153 and ADR 0154, *What later waves inherit*; ADR
+0148 Amendment C; `mail/lead-notification.ts`, `create-mail-sender.ts`; the domain's
+`submission-snapshot.ts`, `payload-digest.ts`; `lib/server/load-owned-design.ts`.
+
+**S5. One developer, five items: the route and the harness.**
+
+| # | Does | Files |
+| --- | --- | --- |
+| 1 | The route: the guard; the content type; the body to its bound as it is read; the parse, caught; the judge made; every request's judgement; then S4 with the production ports, each made inside the request | new `app/api/contact-submissions/route.ts` |
+| 2 | The suite's server is given the fake mail's flag and no mail variable | `playwright.config.ts` |
+| 3 | The three twins measured over one whole run and set by the rule of three times, rounded up to the next hundred; the teardown fails above half | `rate-limit/limit-policy.ts`; the e2e support |
+| 4 | The run's requests removed by their ids, and the run's counter rows by their keys | the e2e support |
+| 5 | One spec through the real route, store and fake sender: a callback and a design's request each answer a reference and are one row; the same id again is the same reference and still one row; a refused request is no row. Rows are counted in the database (criterion 13) | a new spec |
+
+*Must not:* a production file but the route and the three figures; a spec that leaves a row
+behind; an address or an id shared by two runs. *Stops if:* the suite's server cannot be given
+the fake sender without a mail variable also being read; or a counter row of the run cannot be
+named for removal. *Reading:* S4 as built; `read-body-with-limit.ts`, `cross-site-request.ts`;
+`app/api/designs/route.ts`; ADR 0154, the flag; ADR 0155 decision 10; ADR 0156, the twins' rule;
+`delete-contact-submissions-for-tests.ts`, `count-contact-submissions-for-tests.ts`.
 
 ### 8L — the contact screen 4A/4B/4C
 
