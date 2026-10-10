@@ -12,7 +12,7 @@ import {
   MAIL_VARIABLES_THE_SUITE_REFUSES,
   MailVariableInTheSuiteError,
   requireNoMailVariable,
-} from "./fake-mail-server";
+} from "./fake-mail-environment";
 
 const SECRET_MARKER = "FORBIDDEN-MAIL-VALUE-MARKER-2290";
 

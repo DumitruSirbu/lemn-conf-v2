@@ -265,7 +265,7 @@ describe("one book: the digested version is the priced one, or nothing is stored
     expect(harness.calls).not.toContain("record");
   });
 
-  it("digests the book's own version and prices with that same book", async () => {
+  it("prices the snapshot under the book's version", async () => {
     const harness = aHarness();
 
     await harness.submit(bodyOf());
@@ -280,10 +280,6 @@ describe("one book: the digested version is the priced one, or nothing is stored
 describe("from a reference, a throw is the answer a retry may follow, with its line and the reference", () => {
   it("answers a sender that throws as 502 retry, with the reference in its line and no second row", async () => {
     const lines = consoleLines();
-    const harness = aHarness();
-    vi.spyOn(harness.sender, "send").mockRejectedValue(
-      new Error("MARKER-7780"),
-    );
     const failing = aHarness({
       createSender: () => ({
         kind: "sender",

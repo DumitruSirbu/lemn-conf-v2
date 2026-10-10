@@ -101,8 +101,8 @@ export function hashOfVisitorValue(value: string): string {
   return createHash("sha256").update(value, "utf8").digest("hex");
 }
 
-/** Counts the request's row in the database and remembers that it is one the spec expects to remove. */
-export async function expectStoredOnce(
+/** Counts the request's row in the database and remembers the id as stored when it holds one; answers the count. */
+export async function countAndNoteStored(
   run: ContactRun,
   clientRequestId: string,
 ): Promise<number> {
@@ -110,6 +110,10 @@ export async function expectStoredOnce(
   if (stored > 0) run.storedIds.push(clientRequestId);
   return stored;
 }
+
+/** The old name, kept only until `qa-8k-contact-live.adversarial.e2e.spec.ts` (lines 16, 97, 136, 159) moves to the
+ *  new one; nothing else uses it. */
+export const expectStoredOnce = countAndNoteStored;
 
 /** The key a subject is counted under by a policy, computed with the server's own digest from the run's secret. */
 function keyOf(policy: LimitPolicy, subject: BucketSubject): string {

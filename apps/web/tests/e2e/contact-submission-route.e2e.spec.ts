@@ -5,7 +5,7 @@ import {
 import { expect, type Browser, type Page } from "@playwright/test";
 
 import {
-  expectStoredOnce,
+  countAndNoteStored,
   newAddress,
   newName,
   newPhone,
@@ -19,9 +19,9 @@ import {
 import { test } from "./support/seeded-design";
 
 /**
- * `POST /api/contact-submissions` through the real route, the real store and the fake sender, in a real browser
- * (M8 wave 8K, S5). The server behind this suite is given the fake mail sender and no mail variable
- * (`playwright.config.ts`), so a request that is stored is also passed on, and nothing leaves the machine.
+ * `POST /api/contact-submissions` through the real route, the real store and the fake sender, in a real browser. The
+ * server behind this suite is given the fake mail sender and no mail variable (`playwright.config.ts`), so a request
+ * that is stored is also passed on, and nothing leaves the machine.
  *
  * Rows are counted in the database by the ids this run wrote, which every test makes from a random value and
  * remembers before it sends, so that a failing test still removes what it stored. Names, phones and addresses are
@@ -144,7 +144,7 @@ test.describe("a request that is taken", () => {
     expect(answer.status).toBe(200);
     expect(answer.body.status).toBe("sent");
     expect(isSubmissionReference(String(answer.body.reference))).toBe(true);
-    expect(await expectStoredOnce(run, id)).toBe(1);
+    expect(await countAndNoteStored(run, id)).toBe(1);
   });
 
   test("a design's request answers a reference and is one row", async ({
@@ -174,7 +174,7 @@ test.describe("a request that is taken", () => {
 
     expect(answer.status).toBe(200);
     expect(answer.body).toMatchObject({ status: "sent" });
-    expect(await expectStoredOnce(run, id)).toBe(1);
+    expect(await countAndNoteStored(run, id)).toBe(1);
   });
 
   test("the same id again is the same reference and still one row", async ({
@@ -190,7 +190,7 @@ test.describe("a request that is taken", () => {
 
     expect(first.status).toBe(200);
     expect(again).toEqual(first);
-    expect(await expectStoredOnce(run, id)).toBe(1);
+    expect(await countAndNoteStored(run, id)).toBe(1);
   });
 });
 
@@ -223,7 +223,7 @@ test.describe("a request that is refused is no row", () => {
       "CONTACT_REJECTED",
       "CONTACT_INVALID",
     ]);
-    expect(await expectStoredCount(ids)).toBe(0);
+    expect(await storedCountOf(ids)).toBe(0);
   });
 
   test("a body that is not JSON, one that is too large, and a text that is not a request", async ({
@@ -249,7 +249,7 @@ test.describe("a request that is refused is no row", () => {
       status: 400,
       body: { code: "CONTACT_INVALID" },
     });
-    expect(await expectStoredCount([id])).toBe(0);
+    expect(await storedCountOf([id])).toBe(0);
   });
 
   test("a request that says it came from another site", async ({
@@ -266,7 +266,7 @@ test.describe("a request that is refused is no row", () => {
 
     expect(answer.status()).toBe(403);
     expect(await answer.json()).toMatchObject({ code: "CONTACT_CROSS_SITE" });
-    expect(await expectStoredCount([id])).toBe(0);
+    expect(await storedCountOf([id])).toBe(0);
   });
 
   test("a design at a stale revision, and a design from a browser that does not own it", async ({
@@ -296,7 +296,7 @@ test.describe("a request that is refused is no row", () => {
       body: { code: "CONTACT_DESIGN_NOT_CURRENT" },
     });
     expect(foreign).toEqual(stale);
-    expect(await expectStoredCount([staleId, foreignId])).toBe(0);
+    expect(await storedCountOf([staleId, foreignId])).toBe(0);
   });
 });
 
@@ -325,6 +325,6 @@ async function sendFromAnotherBrowser(
 }
 
 /** The rows these ids hold, none of which is remembered as stored: a refusal is asserted to have left no row. */
-function expectStoredCount(ids: readonly string[]): Promise<number> {
+function storedCountOf(ids: readonly string[]): Promise<number> {
   return countContactSubmissionsForTests([...ids]);
 }

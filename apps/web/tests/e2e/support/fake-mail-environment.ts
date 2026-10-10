@@ -1,8 +1,8 @@
 /**
  * What the suite's server is given so that a contact request is passed on by the fake sender, and what keeps it from
  * ever being given a real one (ADR 0154). The names are written here because `select-mail-sender.ts` is `server-only`
- * and cannot be imported where Node, not the bundler, loads the Playwright config; `fake-mail-server.test.ts` holds
- * them equal to the server's own.
+ * and cannot be imported where Node, not the bundler, loads the Playwright config; `fake-mail-environment.test.ts`
+ * holds them equal to the server's own.
  */
 export const FAKE_MAIL_SERVER_ENVIRONMENT = Object.freeze({
   LEMNARIA_E2E_FAKE_MAIL: "1",

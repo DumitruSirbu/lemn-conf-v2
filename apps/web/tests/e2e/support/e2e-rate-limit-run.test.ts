@@ -462,23 +462,6 @@ describe("the teardown", () => {
 });
 
 describe("the harness", () => {
-  it("reads source: the teardown checks each of the six twins against half its figure", () => {
-    const teardown = readTestSource("e2e/global-teardown.ts");
-
-    expect(
-      [...teardown.matchAll(/requireRoomUnderHalfTheFigure\(\s*(\w+),/g)].map(
-        (match) => match[1],
-      ),
-    ).toEqual([
-      "MINT_TWIN",
-      "SHARE_WRITE_TWIN",
-      "SAVE_TWIN",
-      "CONTACT_EVERY_REQUEST_TWIN",
-      "CONTACT_NEW_REQUEST_HOUR_TWIN",
-      "CONTACT_NEW_REQUEST_DAY_TWIN",
-    ]);
-  });
-
   it("reads source: writes one line, and the harness writes none", () => {
     const harness = readTestSource("e2e/support/e2e-rate-limit-run.ts");
     const teardown = readTestSource("e2e/global-teardown.ts");

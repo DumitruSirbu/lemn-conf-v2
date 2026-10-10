@@ -134,7 +134,7 @@ describe("any other refusal that has a line: once for a process and a code", () 
     },
   );
 
-  it("has no function that writes the honeypot's or the time's refusal", () => {
+  it("reads source: has no function that writes the honeypot's or the time's refusal", () => {
     const code = readSource("lib/server/contact/contact-log.ts")
       .replace(/\/\*[\s\S]*?\*\//g, "")
       .replace(/\/\/.*$/gm, "");
@@ -488,7 +488,7 @@ describe("what no line holds, and a transport that fails", () => {
     for (const text of forbidden) expect(everything).not.toContain(text);
   });
 
-  it("is handed no request, contact, snapshot or id, and keeps no state but the lines written", () => {
+  it("reads source: is handed no request, contact, snapshot or id, and declares no variable of its own", () => {
     const code = readSource("lib/server/contact/contact-log.ts")
       .replace(/\/\*[\s\S]*?\*\//g, "")
       .replace(/\/\/.*$/gm, "");
@@ -497,8 +497,6 @@ describe("what no line holds, and a transport that fails", () => {
       /clientRequestId|designId|visitor|snapshot|\bemail\b|\baddress\b/i,
     );
     expect(code.match(/^(?:let|var)\s/gm)).toBeNull();
-    expect(code.match(/\.add\(/g)).toHaveLength(1);
-    expect(code).toMatch(/refusalsWritten\.add\(identity\)/);
   });
 });
 

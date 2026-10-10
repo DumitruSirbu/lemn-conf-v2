@@ -37,7 +37,7 @@ vi.mock("@lemnaria/persistence", async (importOriginal) => ({
 
 const {
   addressKeyOf,
-  expectStoredOnce,
+  countAndNoteStored,
   hashOfVisitorValue,
   newAddress,
   newName,
@@ -204,13 +204,13 @@ describe("what the run makes up", () => {
   });
 });
 
-describe("expectStoredOnce", () => {
+describe("countAndNoteStored", () => {
   it("counts the one id and remembers it as stored only when it holds a row", async () => {
     const run = startContactRun();
     persistence.rowsLeft = 1;
-    await expectStoredOnce(run, "e2e-stored-aaaaaaaaaaaa");
+    await countAndNoteStored(run, "e2e-stored-aaaaaaaaaaaa");
     persistence.rowsLeft = 0;
-    await expectStoredOnce(run, "e2e-absent-aaaaaaaaaaaa");
+    await countAndNoteStored(run, "e2e-absent-aaaaaaaaaaaa");
 
     expect(persistence.countedIds).toEqual([
       ["e2e-stored-aaaaaaaaaaaa"],

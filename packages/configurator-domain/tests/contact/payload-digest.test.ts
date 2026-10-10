@@ -150,6 +150,19 @@ describe("what a payload's digest covers", () => {
 });
 
 describe("payloadDigestFields", () => {
+  /** The same value with the keys of every level built in the opposite order. */
+  function keysReversed<Value extends object>(value: Value): Value {
+    const entries = Object.entries(value).reverse();
+    return Object.fromEntries(
+      entries.map(([key, inner]) => [
+        key,
+        typeof inner === "object" && inner !== null
+          ? keysReversed(inner)
+          : inner,
+      ]),
+    ) as Value;
+  }
+
   it("writes the fields in the order the list gives, whatever order the request's keys were built in", () => {
     expect(Object.keys(payloadDigestFields(DESIGN, BOOK_VERSION))).toEqual([
       ...PAYLOAD_DIGEST_FIELDS,
@@ -157,6 +170,18 @@ describe("payloadDigestFields", () => {
     expect(Object.keys(payloadDigestFields(CALLBACK, undefined))).toEqual([
       ...PAYLOAD_DIGEST_FIELDS,
     ]);
+    expect(
+      Object.keys(payloadDigestFields(keysReversed(DESIGN), BOOK_VERSION)),
+    ).toEqual([...PAYLOAD_DIGEST_FIELDS]);
+    expect(
+      Object.keys(payloadDigestFields(keysReversed(CALLBACK), undefined)),
+    ).toEqual([...PAYLOAD_DIGEST_FIELDS]);
+  });
+
+  it("writes the same values whatever order the request's keys were built in", () => {
+    expect(payloadDigestFields(keysReversed(DESIGN), BOOK_VERSION)).toEqual(
+      payloadDigestFields(DESIGN, BOOK_VERSION),
+    );
   });
 
   it("holds every stored and mailed value of a design request, and the book's version", () => {

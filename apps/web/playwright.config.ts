@@ -18,7 +18,7 @@ import { secretOfThisRun } from "./tests/e2e/support/e2e-rate-limit-run";
 import {
   FAKE_MAIL_SERVER_ENVIRONMENT,
   requireNoMailVariable,
-} from "./tests/e2e/support/fake-mail-server";
+} from "./tests/e2e/support/fake-mail-environment";
 
 // The application's own `DATABASE_URL` must be readable here, or `assertSafeTestDatabaseUrl` has
 // nothing to compare against and passes vacuously.

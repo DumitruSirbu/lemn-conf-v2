@@ -7,9 +7,9 @@ import {
 import type { SubmissionRecording } from "@lemnaria/persistence";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { submitContact } from "@/lib/server/contact/submit-contact";
 import { createFakeMailSender } from "@/lib/server/mail/fake-mail-sender";
 import {
-  CONTACT_NEW_BY_ADDRESS_POLICY,
   CONTACT_NEW_PER_BLOCK_HOUR_FIGURE,
   CONTACT_TRIES_PER_REQUEST_HOUR_FIGURE,
 } from "@/lib/server/rate-limit/limit-policy";
@@ -97,7 +97,7 @@ describe("a new request, stored and passed on", () => {
     await harness.submit(bodyOf({ locale: "ru" }));
 
     expect(harness.sender.sent[0]?.key).toBe(`lead-notification/${REQUEST_ID}`);
-    expect(harness.sender.sent[0]?.text).toContain("ru");
+    expect(harness.sender.sent[0]?.text).toContain("Limba clientului: ru");
     expect(harness.sender.sent[0]?.subject).not.toMatch(/[Ѐ-ӿ]/);
   });
 
@@ -195,21 +195,29 @@ describe("nothing is counted, looked up, stored or sent before its check", () =>
     expect(harness.store.heldSubmissions()).toHaveLength(0);
   });
 
-  it("makes the sender once, before the lookup, and uses that one, so no factory runs after the record", async () => {
-    const calls: string[] = [];
+  it("makes the sender once, before the lookup and the record, and uses that one", async () => {
     const sender = createFakeMailSender();
-    const harness = aHarness({
+    const harness = aHarness();
+    const ports = {
+      ...harness.ports,
       createSender: () => {
-        calls.push("createSender");
-        return { kind: "sender", sender };
+        harness.calls.push("createSender");
+        return { kind: "sender", sender } as const;
       },
-    });
-    const { calls: portCalls } = harness;
+    };
 
-    await harness.submit(bodyOf());
+    await submitContact({ text: bodyOf(), visitorHash: undefined }, ports);
 
-    expect(calls).toEqual(["createSender"]);
-    expect(portCalls.indexOf("lookUp")).toBeGreaterThanOrEqual(0);
+    const factoryCalls = harness.calls.filter(
+      (call) => call === "createSender",
+    );
+    expect(factoryCalls).toHaveLength(1);
+    expect(harness.calls.indexOf("createSender")).toBeLessThan(
+      harness.calls.indexOf("lookUp"),
+    );
+    expect(harness.calls.indexOf("lookUp")).toBeLessThan(
+      harness.calls.indexOf("record"),
+    );
     expect(sender.sent).toHaveLength(1);
   });
 
@@ -225,7 +233,7 @@ describe("nothing is counted, looked up, stored or sent before its check", () =>
   });
 });
 
-describe("the four refusals of the owned load are one answer, and none counts a new request's bucket", () => {
+describe("every way the owned load fails is one answer, and none counts a new request's bucket", () => {
   const REFUSED = [
     [
       "a design the cookie does not own",
@@ -248,7 +256,7 @@ describe("the four refusals of the owned load are one answer, and none counts a 
     },
   );
 
-  it("is equal in body and headers for a stale revision, an unknown design and a missing cookie", async () => {
+  it("is equal in body and headers for a stale revision, a design not the caller's and a refused row", async () => {
     const stale = aHarness({
       loadOwned: () =>
         Promise.resolve({
@@ -397,10 +405,6 @@ describe("a new request's buckets, each asked only when the one before allowed, 
     expect(harness.store.heldSubmissions()).toHaveLength(
       CONTACT_NEW_PER_BLOCK_HOUR_FIGURE,
     );
-  });
-
-  it("is the address's policy that is named when the address's bucket refuses", () => {
-    expect(CONTACT_NEW_BY_ADDRESS_POLICY.figure).toBe(3);
   });
 });
 

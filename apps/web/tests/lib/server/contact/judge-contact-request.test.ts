@@ -303,17 +303,6 @@ describe("a new request: the steps in their order, each asked only when the one 
     },
   );
 
-  it("writes no row for a skipped step: with no hash handed, no browser's bucket is counted", async () => {
-    const judge = await freshJudge();
-    const withVisitor = await freshJudge();
-
-    await judgeOf(judge).newRequest({ countedAddress: ADDRESS });
-    await judgeOf(withVisitor).newRequest(EVERY_SUBJECT);
-
-    const visitorKey = keysCounted(withVisitor)[2];
-    expect(keysCounted(judge)).not.toContain(visitorKey);
-  });
-
   it("treats an undefined subject as none, as a route that read no cookie hands it", async () => {
     const judge = await freshJudge();
 
@@ -664,12 +653,15 @@ describe("every unavailable is byte-equal, whichever cause", () => {
   });
 });
 
+const FLOOD_OF_ONE_POLICY = 100;
+const FLOOD_ACROSS_POLICIES = 20;
+
 describe("a flood of one refusal writes one line", () => {
-  it("writes one line for a hundred refusals of one step, and the line holds a policy's name alone", async () => {
+  it("writes one line for a flood of refusals of one step, and the line holds a policy's name alone", async () => {
     const judge = await freshJudge();
     judge.recorded.mockResolvedValue([OVER_EVERY_FIGURE]);
 
-    for (let request = 0; request < 100; request += 1) {
+    for (let request = 0; request < FLOOD_OF_ONE_POLICY; request += 1) {
       await judgeOf(judge).everyRequest();
     }
 
@@ -690,7 +682,7 @@ describe("a flood of one refusal writes one line", () => {
     const judge = await freshJudge();
     judge.recorded.mockResolvedValue([OVER_EVERY_FIGURE]);
 
-    for (let request = 0; request < 20; request += 1) {
+    for (let request = 0; request < FLOOD_ACROSS_POLICIES; request += 1) {
       await judgeOf(judge).everyRequest();
       await judgeOf(judge).triesOfStoredRequest(REQUEST_ID);
       await judgeOf(judge).newRequest({

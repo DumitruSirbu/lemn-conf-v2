@@ -35,7 +35,7 @@ const A_REFERENCE = "LM-7K3QWXY2";
 const MARKER = "SUBMITTED-VALUE-MARKER-5521";
 
 /** The thirteen answers of the table, each made as the route will make it: its status and its code. */
-const THIRTEEN: readonly [
+const ANSWERS_OF_THE_ROUTE: readonly [
   string,
   () => Response,
   number,
@@ -97,8 +97,8 @@ const THIRTEEN: readonly [
   ["sent, now or before", () => sentAnswer(A_REFERENCE), 200, undefined],
 ];
 
-describe("the thirteen answers of the contact route", () => {
-  it.each(THIRTEEN)(
+describe("the answers of the contact route", () => {
+  it.each(ANSWERS_OF_THE_ROUTE)(
     "answers %s with its status and its code",
     async (_label, make, status, code) => {
       const response = make();
@@ -113,13 +113,15 @@ describe("the thirteen answers of the contact route", () => {
     },
   );
 
-  it("is thirteen answers under thirteen different statuses and codes that are not the limit's twice", () => {
-    expect(THIRTEEN).toHaveLength(13);
-    const codes = THIRTEEN.map(([, , , code]) => code).filter(Boolean);
+  it("is thirteen answers, each under a code of its own, the limit's and the unavailable one counted once each", () => {
+    expect(ANSWERS_OF_THE_ROUTE).toHaveLength(13);
+    const codes = ANSWERS_OF_THE_ROUTE.map(([, , , code]) => code).filter(
+      Boolean,
+    );
     expect(new Set(codes).size).toBe(codes.length);
   });
 
-  it.each(THIRTEEN)(
+  it.each(ANSWERS_OF_THE_ROUTE)(
     "never stores %s and sets, clears or refreshes no cookie",
     (_label, make) => {
       const response = make();
@@ -132,7 +134,7 @@ describe("the thirteen answers of the contact route", () => {
     },
   );
 
-  it.each(THIRTEEN)(
+  it.each(ANSWERS_OF_THE_ROUTE)(
     "holds no submitted value in %s: its body is a sentence and a code, or a status and a reference",
     async (_label, make) => {
       const body = (await make().json()) as Record<string, unknown>;

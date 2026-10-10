@@ -389,7 +389,7 @@ describe("the production ports, each made inside the request", () => {
     expect(spies.createMailSender).toHaveBeenCalledWith(process.env);
   });
 
-  it("hands the digester the process's secret makes", async () => {
+  it("hands a digester made from the process's secret", async () => {
     await POST(contactRequest("{}"));
 
     expect(handedPorts().digester.status).toBe("usable");
