@@ -9075,6 +9075,8 @@ save's line and the guarded write; `mail/mail-sender.ts`, the kinds and which a 
 before that read clears.**
 
 **S4. One developer, five items: the orchestration, with every port handed in.**
+**(2026-10-10, later: overtaken. S4 is sent as written in *8K — S3's security read, ruled; S4 as
+sent*.)**
 
 | # | Does |
 | --- | --- |
@@ -9096,6 +9098,8 @@ it; S3 as built and its security read; ADR 0153 and ADR 0154, *What later waves 
 `submission-snapshot.ts`, `payload-digest.ts`; `lib/server/load-owned-design.ts`.
 
 **S5. One developer, five items: the route and the harness.**
+**(2026-10-10, later: item 1 is amended in *8K — S3's security read, ruled*; the route parses
+nothing, K-S1.4.)**
 
 | # | Does | Files |
 | --- | --- | --- |
@@ -9111,6 +9115,95 @@ the fake sender without a mail variable also being read; or a counter row of the
 named for removal. *Reading:* S4 as built; `read-body-with-limit.ts`, `cross-site-request.ts`;
 `app/api/designs/route.ts`; ADR 0154, the flag; ADR 0155 decision 10; ADR 0156, the twins' rule;
 `delete-contact-submissions-for-tests.ts`, `count-contact-submissions-for-tests.ts`.
+
+##### 8K — S3's security read, ruled; S4 as sent, S5 amended, 2026-10-10
+
+**State.** HEAD is `1c78f0dd` [ran: `git log`], tree clean [ran: `git status`]. S3 is built in
+four commits with no stop; the suite is the coordinator's [relayed]: web 405 files, 8,189; gates
+0. The security reader read S1 to S3 alone: **sound as built, nothing to fix in their code; S4
+may be built once K-S1.1 and K-S1.2 amend it** [relayed; it ran nothing]. Its text is one file,
+read whole: `coord-8k-s3-security.md`, session scratchpad. All eight are taken.
+
+| Finding | Classification | Ruling |
+| --- | --- | --- |
+| K-S1.1 the digested version and the pricing book are tied by care | **Contract gap**, the architect's, in S4 as written | **Taken.** One book, taken once |
+| K-S1.2 a throw after the record answered as *cannot be taken* | **Contract gap**, the architect's, in S4 item 4 | **Taken.** Two regions |
+| K-S1.3 a stored request whose retry is refused for its design is never named | Contract gap | **Taken.** A line of its own, with the reference, each time |
+| K-S1.4 S5 parses before every request's judgement | **Contract gap**, the architect's: S5 item 1 against point 3 and S3's table | **Taken.** S4 now starts at that judgement and holds the order |
+| K-S1.5 a reference tested by the generator's look | **Implementation defect** in S3, and an export 8I had removed | **Taken.** The table's shape, one predicate |
+| K-S1.6 a step with its own subject does not ask the source | Note | **Taken as a test of S4** |
+| K-S1.7 the version stands for every figure of a book | Note | **Recorded** |
+| K-S1.8 the placeholder notice; the language; `record`'s other answers | Note | **Taken as tests of S4** |
+
+**The rules, as S4 is built on them.**
+
+- **One book (K-S1.1).** The book is handed in once for a request, as a value. Its version is
+  what is digested; that same value prices the snapshot; **and wherever a snapshot is made, its
+  own `pricingVersion` is compared as text with the digested version before anything is stored
+  or sent.** Unequal is a failure of its region, with the cause `price-book-mismatch`.
+- **Two regions (K-S1.2).** *Before a reference is held,* a throw is *unavailable*. **A
+  reference is held from the record's answer, and, for a retry, from a lookup that answered
+  stored and not notified once the tries' judgement allowed.** *From there,* a throw is `502
+  CONTACT_NOTICE_NOT_SENT_RETRY`, with the not-passed-on line and the reference. That line then
+  holds a mail failure's kind **or** a cause from the closed list, never both and never neither.
+- **The sender is made once, before the lookup, and that one is used.** So no factory runs after
+  the record.
+- **A stored request refused for its design (K-S1.3)** is answered as any such refusal is, and
+  writes a line of its own with that code and the reference, each time. The tries' bucket bounds
+  it. *Recorded:* that request is never notified unless the design returns to that revision; the
+  customer sends a new one (Q40 (b)).
+- **A reference's shape (K-S1.5).** The persistence package exports **one** predicate, the
+  table's shape, which is what the store already tests its own answers with [src
+  `neon-contact-submission-store.ts:325-331`]. The generator's look leaves the exports again, as
+  8I's review had it [ran: `git log -S`, `47f6a1c9`]. The answer and the lines test by that one.
+  *For the scribe:* ADR 0153 gains a note that one function of a reference is exported since 8K;
+  **no route opens anything by a reference**, which stays a must-not.
+- **S4 starts at every request's judgement and takes the body's text (K-S1.4, K-S1.6).** The
+  order from there is one function's and is tested there. The route keeps only what nothing
+  counts: the guard, the content type, the bound.
+- **K-S1.7, recorded:** a deploy that changes a figure of a book and not its version is not
+  caught by the digest. It joins K-S0.1's limit in the close-out.
+
+**S4, as sent. One developer, five items; each item with its tests.**
+
+| # | Does | Production files |
+| --- | --- | --- |
+| 1 | **S3's leftovers, alone in their commit.** The not-passed-on line takes a mail failure's kind or a cause, never both and never neither. `price-book-mismatch` joins the causes. A line for a stored request refused for its design: the code and the reference, each time. A reference is tested by the table's shape in the answer and the lines; the persistence package exports that one predicate, and the generator's look leaves its exports | `contact/contact-log.ts`, `contact-responses.ts`; `packages/persistence/src/contact-submission-store.ts`, `index.ts` |
+| 2 | **To the lookup.** Every request's judgement, **before the body's text is parsed**. The parse, caught. The request by the domain's one definition. The honeypot and the time: one refusal, no line. The sender made once; none usable is *unavailable*. The one book taken; the digest over the coverage, with that book's version for a design. The lookup | new `contact/submit-contact.ts` |
+| 3 | **Stored or conflict.** The tries' judgement first, **never for an id the lookup answered absent**. A conflict: its code. Notified: the reference, nothing sent. Not notified, and from here a reference is held: the load, the snapshot and its version compared, the notice, the send, the mark | the same, or a file beside it |
+| 4 | **Absent.** For a design: the id's shape and the owned load; the revision compared as text; the snapshot from that row with no second read, its version compared; the fit's refusal. The notice built once with a placeholder reference of the table's shape, and dropped. The new request's judgement: the visitor's hash when the cookie gave one, the address's counted form when the channel is e-mail. The record, and from here a reference is held: a conflict is its code; stored and notified is the reference, nothing sent; **whether to send is decided on notified, never on new**. The notice with the stored reference, the send, the mark | the same, or a file beside it |
+| 5 | **What a failure becomes.** A throw before a reference is held: *unavailable*, with its cause. A throw from there: the answer a retry may follow, with its line and the reference. A mail failure: one of the two outward answers, by the mail's own rule of which a retry may follow. A mark that fails after an accepted send: success, with its line | the same |
+
+*Its tests, on fakes handed in:* criteria 2 to 9, 12, 14 and 15. The four refusals of the load
+are equal in body and headers. **No other judgement and no parse runs before every request's
+allowed (K-S1.6).** The message handed to the sender holds the stored reference and never the
+placeholder; the notice's words are the notice's own language, whatever the request's (K-S1.8).
+A throw planted at each step after the record answers `502`, writes the reference, and stores no
+second row. A snapshot whose version is not the digested one stores nothing. Then the whole web
+suite, the persistence package's unit tests, the typecheck and the lint, each quoted.
+
+*Must not:* the mail imported except its factory, its notice and its port's types; a sender, a
+store, a book or a variable held at module level; a second read of the design; a second book, or
+a version from anywhere but the book handed in; a fake under `src`; a new request's bucket
+counted for a request that is stored; a reference in an answer that is not success; a route
+touched; a statement, `0008` or the store's behaviour changed by item 1; a `qa-*` file edited;
+**a mutant sent to a database.** *Stops if:* a step needs the store's fake under `src`; a retry
+of a request stored and not notified cannot be given the same notice bytes at the same revision
+and book; an answer or a line is needed that S3's tables and item 1 do not hold; or item 1
+cannot be made without changing what the store accepts.
+
+*Reading:* this section and the three before it in 8K; `coord-8k-s3-security.md` and
+`coord-8k-s0-security.md`, whole; S3's four files as built; ADR 0153 and ADR 0154, *What later
+waves inherit*; ADR 0148 Amendment C; ADR 0156, writes failing closed; `mail/lead-notification.ts`,
+`create-mail-sender.ts`, `mail-sender.ts`; the domain's `submission-snapshot.ts`,
+`payload-digest.ts`, `contact-submission.ts`, `pricing/price-lines.ts`;
+`lib/server/load-owned-design.ts`, `visitor.ts`; `packages/persistence/src/contact-submission-store.ts`.
+
+**S5, amended.** Item 1 becomes: *the route: the guard; the content type; the body to its bound
+as it is read; the judge and the production ports made inside the request; then S4, handed the
+body's text.* **The route parses nothing and asks no judgement.** Its other four items, its
+must-nots, stops and Reading stand, with one more must-not: a book made anywhere but once for a
+request.
 
 ### 8L — the contact screen 4A/4B/4C
 
