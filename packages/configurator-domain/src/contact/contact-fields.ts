@@ -111,6 +111,15 @@ export function validateContactFields(
   return { ok: true, contact: assemble(judgements) };
 }
 
+/**
+ * An address as a limit counts it: in lower case, and nothing stripped. A plus-tag or a dot is part of the address:
+ * removing them would make two different people one at the providers that keep them apart. Whoever varies the
+ * address is bounded by the network's limit alone, which is recorded and accepted.
+ */
+export function countedFormOfAddress(email: string): string {
+  return email.toLowerCase();
+}
+
 function judgeFields(input: ContactFieldsInput): FieldJudgements {
   const channel = judgeChannel(ownValueOf(input, "channel"));
   return {

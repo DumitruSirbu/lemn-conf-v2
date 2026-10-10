@@ -5,6 +5,7 @@ export {
   CONTACT_LOCALITY_MAX_LENGTH,
   CONTACT_NAME_MAX_LENGTH,
   CONTACT_PHONE_MAX_LENGTH,
+  countedFormOfAddress,
   validateContactFields,
   type ConsentTextVersion,
   type ContactChannel,
@@ -32,6 +33,19 @@ export {
   type SubmissionIssue,
   type SubmissionTarget,
 } from "./contact-submission.js";
+export {
+  BOOK_TREATMENT,
+  CONTACT_TREATMENT,
+  PAYLOAD_DIGEST_FIELDS,
+  payloadDigestFields,
+  PayloadDigestBookError,
+  REQUEST_TREATMENT,
+  TARGET_TREATMENT,
+  type DigestTreatment,
+  type PayloadDigestField,
+  type PayloadDigestFields,
+  type TargetTreatment,
+} from "./payload-digest.js";
 export {
   holdsNothingLemnariaSupplies,
   judgeSubmissionEligibility,
