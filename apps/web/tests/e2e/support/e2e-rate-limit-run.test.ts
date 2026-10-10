@@ -10,23 +10,32 @@ import {
 
 import { readTestSource } from "../../lib/server/server-source-support";
 
+interface RemovedCounters {
+  rowsRemoved: number;
+  counts: number[];
+}
+
 const deletion = vi.hoisted(() => ({
   handed: [] as (readonly string[])[],
-  answer: { rowsRemoved: 1, counts: [3] } as {
-    rowsRemoved: number;
-    counts: number[];
-  },
+  answer: { rowsRemoved: 1, counts: [3] } as RemovedCounters,
+  /** When set, what a call is answered from its keys, so a test can give each policy's rows a count of their own. */
+  answerFor: undefined as
+    | ((keys: readonly string[]) => RemovedCounters)
+    | undefined,
 }));
 
 vi.mock("@lemnaria/persistence", () => ({
   deleteRateLimitCountersForTests: (keys: readonly string[]) => {
     deletion.handed.push(keys);
-    return Promise.resolve(deletion.answer);
+    return Promise.resolve(deletion.answerFor?.(keys) ?? deletion.answer);
   },
 }));
 
 const {
   bucketKeyOfCredential,
+  CONTACT_EVERY_REQUEST_TWIN,
+  CONTACT_NEW_REQUEST_DAY_TWIN,
+  CONTACT_NEW_REQUEST_HOUR_TWIN,
   bucketKeyOfTheRun,
   E2eFigureOutgrownError,
   makeRunSecret,
@@ -49,6 +58,7 @@ const MADE_IN_THIS_PROCESS = Symbol.for("lemnaria.e2e.run-secret");
 beforeEach(() => {
   deletion.handed.length = 0;
   deletion.answer = { rowsRemoved: 1, counts: [3] };
+  deletion.answerFor = undefined;
   Reflect.deleteProperty(globalThis, MADE_IN_THIS_PROCESS);
 });
 
@@ -270,6 +280,33 @@ const TWINS = [
       "This run made 700 saves, more than half (600) of the e2e policy's 1200 an hour: raise " +
       "E2E_SAVES_PER_BLOCK_FIGURE to three times the new figure, rounded up to the next hundred",
   },
+  {
+    twin: CONTACT_EVERY_REQUEST_TWIN,
+    half: 50,
+    over: 60,
+    constant: "E2E_CONTACT_EVERY_PER_BLOCK_HOUR_FIGURE",
+    sentence:
+      "This run sent 60 contact requests of any kind, more than half (50) of the e2e policy's 100 an hour: raise " +
+      "E2E_CONTACT_EVERY_PER_BLOCK_HOUR_FIGURE to three times the new figure, rounded up to the next hundred",
+  },
+  {
+    twin: CONTACT_NEW_REQUEST_HOUR_TWIN,
+    half: 50,
+    over: 60,
+    constant: "E2E_CONTACT_NEW_PER_BLOCK_HOUR_FIGURE",
+    sentence:
+      "This run sent 60 new contact requests, more than half (50) of the e2e policy's 100 an hour: raise " +
+      "E2E_CONTACT_NEW_PER_BLOCK_HOUR_FIGURE to three times the new figure, rounded up to the next hundred",
+  },
+  {
+    twin: CONTACT_NEW_REQUEST_DAY_TWIN,
+    half: 50,
+    over: 60,
+    constant: "E2E_CONTACT_NEW_PER_BLOCK_DAY_FIGURE",
+    sentence:
+      "This run sent 60 new contact requests, more than half (50) of the e2e policy's 100 a UTC day: raise " +
+      "E2E_CONTACT_NEW_PER_BLOCK_DAY_FIGURE to three times the new figure, rounded up to the next hundred",
+  },
 ] as const;
 
 function thrownBy(attempt: () => void): Error {
@@ -321,34 +358,132 @@ describe.each(TWINS)(
   },
 );
 
+const TEARDOWN_TWINS = [
+  MINT_TWIN,
+  SHARE_WRITE_TWIN,
+  SAVE_TWIN,
+  CONTACT_EVERY_REQUEST_TWIN,
+  CONTACT_NEW_REQUEST_HOUR_TWIN,
+  CONTACT_NEW_REQUEST_DAY_TWIN,
+] as const;
+
+const { default: globalTeardown } = await import("../global-teardown");
+
+describe("the teardown", () => {
+  function keyOf(twin: (typeof TEARDOWN_TWINS)[number]): string {
+    return bucketKeyOfTheRun(secretOfThisRun(), twin.policy.name);
+  }
+
+  /** Each twin's rows answered with the hits handed in for it, and no row for a twin not named. */
+  function answerEachTwin(hits: Map<string, number[]>): void {
+    vi.stubEnv("TEST_WORKER_INDEX", undefined);
+    deletion.answerFor = ([key]) => {
+      const counts = hits.get(key ?? "") ?? [];
+      return { rowsRemoved: counts.length, counts };
+    };
+  }
+
+  function silenceTheLine() {
+    return vi.spyOn(console, "log").mockImplementation(() => undefined);
+  }
+
+  it("removes the rows of every twin by its own key, the mints' last, and says the counts in one line", async () => {
+    vi.stubEnv("TEST_WORKER_INDEX", undefined);
+    answerEachTwin(
+      new Map([
+        [keyOf(MINT_TWIN), [3, 4]],
+        [keyOf(SHARE_WRITE_TWIN), [5]],
+        [keyOf(SAVE_TWIN), [6, 1]],
+        [keyOf(CONTACT_EVERY_REQUEST_TWIN), [10]],
+        [keyOf(CONTACT_NEW_REQUEST_HOUR_TWIN), [3]],
+        [keyOf(CONTACT_NEW_REQUEST_DAY_TWIN), [2, 1]],
+      ]),
+    );
+    const log = silenceTheLine();
+
+    await globalTeardown();
+
+    expect(deletion.handed.map(([key]) => key)).toEqual([
+      keyOf(SHARE_WRITE_TWIN),
+      keyOf(SAVE_TWIN),
+      keyOf(CONTACT_EVERY_REQUEST_TWIN),
+      keyOf(CONTACT_NEW_REQUEST_HOUR_TWIN),
+      keyOf(CONTACT_NEW_REQUEST_DAY_TWIN),
+      keyOf(MINT_TWIN),
+    ]);
+    expect(log.mock.calls).toEqual([
+      [
+        "e2e rate limit: this run minted 7 designs (2 counter row removed), made 5 share writes " +
+          "(1 counter rows removed), made 7 saves (2 counter rows removed), and sent 10 contact requests of any kind " +
+          "(1 counter rows removed), 3 new ones counted in the hour (1 counter rows removed) and 3 new ones counted " +
+          "in the UTC day (2 counter rows removed)",
+      ],
+    ]);
+  });
+
+  it("does not fail a run that sent no contact request, which is every run but one spec's", async () => {
+    answerEachTwin(new Map([[keyOf(MINT_TWIN), [1]]]));
+    const log = silenceTheLine();
+
+    await expect(globalTeardown()).resolves.toBeUndefined();
+
+    expect(String(log.mock.calls[0]?.[0])).toContain(
+      "sent 0 contact requests of any kind (0 counter rows removed), 0 new ones counted in the hour",
+    );
+  });
+
+  it.each(TEARDOWN_TWINS)(
+    "fails a run that passed half of the figure of $policy.name, after every row is removed",
+    async (twin) => {
+      const rows = new Map(
+        TEARDOWN_TWINS.map((each) => [keyOf(each), [1]] as [string, number[]]),
+      );
+      rows.set(keyOf(twin), [twin.policy.figure / 2 + 1]);
+      answerEachTwin(rows);
+      silenceTheLine();
+
+      await expect(globalTeardown()).rejects.toMatchObject({
+        name: "E2eFigureOutgrownError",
+        policyName: twin.policy.name,
+      });
+
+      expect(deletion.handed).toHaveLength(TEARDOWN_TWINS.length);
+    },
+  );
+
+  it("fails a run that minted nothing, since a key computed wrongly would leave every row behind", async () => {
+    answerEachTwin(new Map([[keyOf(SAVE_TWIN), [1]]]));
+    silenceTheLine();
+
+    await expect(globalTeardown()).rejects.toBeInstanceOf(
+      NoCountersOfTheRunError,
+    );
+  });
+});
+
 describe("the harness", () => {
-  it("reads source: the teardown checks each of the three twins against half its figure", () => {
+  it("reads source: the teardown checks each of the six twins against half its figure", () => {
     const teardown = readTestSource("e2e/global-teardown.ts");
 
     expect(
-      [...teardown.matchAll(/requireRoomUnderHalfTheFigure\((\w+),/g)].map(
+      [...teardown.matchAll(/requireRoomUnderHalfTheFigure\(\s*(\w+),/g)].map(
         (match) => match[1],
       ),
-    ).toEqual(["MINT_TWIN", "SHARE_WRITE_TWIN", "SAVE_TWIN"]);
+    ).toEqual([
+      "MINT_TWIN",
+      "SHARE_WRITE_TWIN",
+      "SAVE_TWIN",
+      "CONTACT_EVERY_REQUEST_TWIN",
+      "CONTACT_NEW_REQUEST_HOUR_TWIN",
+      "CONTACT_NEW_REQUEST_DAY_TWIN",
+    ]);
   });
 
-  it("reads source: prints nothing but the six counts, in one line", () => {
+  it("reads source: writes one line, and the harness writes none", () => {
     const harness = readTestSource("e2e/support/e2e-rate-limit-run.ts");
     const teardown = readTestSource("e2e/global-teardown.ts");
 
     expect(harness).not.toMatch(/console\./);
     expect(teardown.match(/console\./g)).toHaveLength(1);
-    expect(
-      [
-        ...teardown.matchAll(/\$\{String\((counted|shared|saved)\.(\w+)\)\}/g),
-      ].map((m) => `${m[1] ?? ""}.${m[2] ?? ""}`),
-    ).toEqual([
-      "counted.mintsCounted",
-      "counted.rowsRemoved",
-      "shared.hitsCounted",
-      "shared.rowsRemoved",
-      "saved.hitsCounted",
-      "saved.rowsRemoved",
-    ]);
   });
 });

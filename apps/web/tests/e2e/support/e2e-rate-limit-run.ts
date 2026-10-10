@@ -12,6 +12,9 @@ import {
 } from "../../../src/lib/server/rate-limit/bucket-subject";
 import { SHARED_BLOCK } from "../../../src/lib/server/rate-limit/client-network";
 import {
+  E2E_CONTACT_EVERY_BY_BLOCK_POLICY,
+  E2E_CONTACT_NEW_BY_BLOCK_DAY_POLICY,
+  E2E_CONTACT_NEW_BY_BLOCK_HOUR_POLICY,
   E2E_MINT_POLICY,
   E2E_SAVE_BY_BLOCK_POLICY,
   E2E_SHARE_WRITE_POLICY,
@@ -146,6 +149,30 @@ export const SAVE_TWIN: TwinOfTheRun = {
   noun: "saves",
   perWindow: "an hour",
   figureConstant: "E2E_SAVES_PER_BLOCK_FIGURE",
+};
+
+export const CONTACT_EVERY_REQUEST_TWIN: TwinOfTheRun = {
+  policy: E2E_CONTACT_EVERY_BY_BLOCK_POLICY,
+  verb: "sent",
+  noun: "contact requests of any kind",
+  perWindow: "an hour",
+  figureConstant: "E2E_CONTACT_EVERY_PER_BLOCK_HOUR_FIGURE",
+};
+
+export const CONTACT_NEW_REQUEST_HOUR_TWIN: TwinOfTheRun = {
+  policy: E2E_CONTACT_NEW_BY_BLOCK_HOUR_POLICY,
+  verb: "sent",
+  noun: "new contact requests",
+  perWindow: "an hour",
+  figureConstant: "E2E_CONTACT_NEW_PER_BLOCK_HOUR_FIGURE",
+};
+
+export const CONTACT_NEW_REQUEST_DAY_TWIN: TwinOfTheRun = {
+  policy: E2E_CONTACT_NEW_BY_BLOCK_DAY_POLICY,
+  verb: "sent",
+  noun: "new contact requests",
+  perWindow: "a UTC day",
+  figureConstant: "E2E_CONTACT_NEW_PER_BLOCK_DAY_FIGURE",
 };
 
 export interface CountersOfTheRun {

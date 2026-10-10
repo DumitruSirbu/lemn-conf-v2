@@ -119,12 +119,14 @@ export const CONTACT_TRIES_PER_REQUEST_HOUR_FIGURE = 10;
 export const CONTACT_LEAST_FORM_TIME_MS = 2000;
 
 /**
- * PROVISIONAL, a bound for a misplaced flag and no measure, until the suite's own spec counts what a whole run sends:
- * each of the three buckets the suite's one shared block would count.
+ * Three times what one whole e2e run sends of each of the three buckets the suite's one shared block counts, rounded up
+ * to the next hundred, by the same rule as the mint's: 10 requests of any kind and 3 new ones, counted in the hour and
+ * in the day, at the last count of a whole run, so 30 and 9 and 9 become 100 each. The teardown fails above half of a
+ * figure.
  */
-export const E2E_CONTACT_EVERY_PER_BLOCK_HOUR_FIGURE = 300;
-export const E2E_CONTACT_NEW_PER_BLOCK_HOUR_FIGURE = 300;
-export const E2E_CONTACT_NEW_PER_BLOCK_DAY_FIGURE = 300;
+export const E2E_CONTACT_EVERY_PER_BLOCK_HOUR_FIGURE = 100;
+export const E2E_CONTACT_NEW_PER_BLOCK_HOUR_FIGURE = 100;
+export const E2E_CONTACT_NEW_PER_BLOCK_DAY_FIGURE = 100;
 
 export const MINT_POLICY = policyOf("design-mint", {
   figure: MINT_DAILY_FIGURE,

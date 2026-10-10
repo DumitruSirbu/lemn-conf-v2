@@ -147,9 +147,9 @@ describe("the contact form's e2e twins: one for each bucket the suite's one bloc
   const FLAG_SET = { [E2E_RATE_LIMIT_POLICY_FLAG]: "1" };
 
   it.each(TWINS)(
-    "gives %s a twin at a provisional 300 in the same window, under a name of its own",
+    "gives %s a twin at 100 in the same window, under a name of its own",
     (_purpose, production, twin, window) => {
-      expect(twin.figure).toBe(300);
+      expect(twin.figure).toBe(100);
       expect(twin.window).toEqual(window);
       expect(twin.name).not.toBe(production.name);
       expect(twin.name.startsWith(production.name)).toBe(false);
