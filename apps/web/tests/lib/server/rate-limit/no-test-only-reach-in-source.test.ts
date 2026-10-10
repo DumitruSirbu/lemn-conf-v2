@@ -5,8 +5,16 @@ import {
   testFilesMatching,
 } from "../server-source-support";
 
-const TEST_ONLY_DELETES =
-  /deleteDesignsForTests|findDesignIdsForTests|findWriteTokenHashesForTests|deleteRateLimitCountersForTests/;
+const TEST_ONLY_DELETES = new RegExp(
+  [
+    "deleteDesignsForTests",
+    "findDesignIdsForTests",
+    "findWriteTokenHashesForTests",
+    "deleteRateLimitCountersForTests",
+    "deleteContactSubmissionsForTests",
+    "countContactSubmissionsForTests",
+  ].join("|"),
+);
 const RUN_SECRET_VARIABLE = /LEMNARIA_E2E_RUN_SECRET/;
 /** A test that replaces the judgement of the limit, whether by `mock` or `doMock`, rather than what it counts in. */
 const MOCKS_THE_JUDGEMENT =
@@ -20,6 +28,8 @@ describe("what apps/web/src may not name", () => {
     "await findDesignIdsForTests(ids);",
     "deleteRateLimitCountersForTests([key])",
     "await findWriteTokenHashesForTests(ids);",
+    "await deleteContactSubmissionsForTests(ids);",
+    "const stored = await countContactSubmissionsForTests([id]);",
   ])("reads source: the delete pattern recognises %s", (text) => {
     expect(TEST_ONLY_DELETES.test(text)).toBe(true);
   });
