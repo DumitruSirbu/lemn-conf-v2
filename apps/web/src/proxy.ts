@@ -42,7 +42,7 @@ export function proxy(
   const requestHeaders = withNonce(request.headers, nonce, policy);
   const securedRequest = new NextRequest(request, { headers: requestHeaders });
 
-  const response = hasCaseVariantLocalePrefix(request.nextUrl.pathname)
+  const response = hasMisspelledLocalePrefix(request.nextUrl.pathname)
     ? new NextResponse(null, { status: 404 })
     : isCustomerPath(request.nextUrl.pathname)
       ? handleLocaleRouting(securedRequest)
@@ -67,9 +67,9 @@ function applyPageHeaders(
 
 /**
  * A page read the limiter is asked about: `/` of a locale, a design's page or one of its three steps, or a share's
- * view, which the interceptor would pass on (not the locale's redirect, not the case-variant `404`), and only where
- * the owner has named a network source. Nothing under `/api` is one, nor a static file; under none nothing is asked
- * and nothing of the limiter is loaded.
+ * view, which the interceptor would pass on (not the locale's redirect, not the `404` of a misspelled locale), and
+ * only where the owner has named a network source. Nothing under `/api` is one, nor a static file; under none nothing
+ * is asked and nothing of the limiter is loaded.
  */
 function isCountedPageRead(
   request: NextRequest,
@@ -145,15 +145,30 @@ function applySharedViewHeaders(response: NextResponse): void {
   }
 }
 
-function hasCaseVariantLocalePrefix(pathname: string): boolean {
+/**
+ * A locale is written one way, and anything else that reads as one is refused as a case variant always was: a first
+ * segment that is not itself a locale but is one once decoded and lowered (`RO`, `%72o`, `r%6F`). The framework matches
+ * a locale decoded, so such a path would be served a page that every rule keyed on the written path misses: its count
+ * and a share view's headers. Only the first segment is decoded, once; a segment that cannot be decoded is the
+ * framework's to answer.
+ */
+function hasMisspelledLocalePrefix(pathname: string): boolean {
   const [firstSegment] = pathname.split("/").filter(Boolean);
   if (firstSegment === undefined) return false;
+  if (hasLocale(routing.locales, firstSegment)) return false;
 
-  const normalizedSegment = firstSegment.toLowerCase();
+  const decoded = decodedOrUndefined(firstSegment);
   return (
-    firstSegment !== normalizedSegment &&
-    hasLocale(routing.locales, normalizedSegment)
+    decoded !== undefined && hasLocale(routing.locales, decoded.toLowerCase())
   );
+}
+
+function decodedOrUndefined(segment: string): string | undefined {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return undefined;
+  }
 }
 
 /** The path with any locale prefix stripped, as segments: `isCustomerPath` and `isSharePath` read the allow-list
