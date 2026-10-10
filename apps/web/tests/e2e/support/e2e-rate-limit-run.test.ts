@@ -5,6 +5,7 @@ import {
   E2E_MINT_POLICY_NAME,
   E2E_SHARE_WRITE_POLICY,
   MINT_POLICY_NAME,
+  SAVE_BY_CREDENTIAL_POLICY,
 } from "@/lib/server/rate-limit/limit-policy";
 
 import { readTestSource } from "../../lib/server/server-source-support";
@@ -25,6 +26,7 @@ vi.mock("@lemnaria/persistence", () => ({
 }));
 
 const {
+  bucketKeyOfCredential,
   bucketKeyOfTheRun,
   E2eFigureOutgrownError,
   makeRunSecret,
@@ -32,8 +34,10 @@ const {
   NoCountersOfTheRunError,
   removeCountersOf,
   removeCountersOfTheRun,
+  removeCredentialCountersOf,
   requireRoomUnderHalfTheFigure,
   RUN_SECRET_VARIABLE,
+  SAVE_TWIN,
   SHARE_WRITE_TWIN,
   secretOfThisRun,
 } = await import("./e2e-rate-limit-run");
@@ -126,6 +130,63 @@ describe("the key the run's rows are removed by", () => {
   });
 });
 
+describe("the key a save's write credential is counted under", () => {
+  const HASH = "ab".repeat(32);
+
+  it("is the key the server counts under: the same digest, for the credential's policy and the hash", () => {
+    const digester = readDigester({ DIGEST_SECRET: FAKE_SECRET });
+    if (digester.status !== "usable") throw new Error("expected a digester");
+    const serverKey = digester.digest({
+      purpose: "rate-limit-bucket",
+      fields: {
+        policyName: SAVE_BY_CREDENTIAL_POLICY.name,
+        subjectKind: "write-credential",
+        subject: HASH,
+      },
+    });
+
+    expect(bucketKeyOfCredential(FAKE_SECRET, HASH)).toBe(serverKey);
+  });
+
+  it("differs by hash, by secret and from the block's key for the same text", () => {
+    expect(bucketKeyOfCredential(FAKE_SECRET, "cd".repeat(32))).not.toBe(
+      bucketKeyOfCredential(FAKE_SECRET, HASH),
+    );
+    expect(bucketKeyOfCredential("ff".repeat(32), HASH)).not.toBe(
+      bucketKeyOfCredential(FAKE_SECRET, HASH),
+    );
+    expect(bucketKeyOfCredential(FAKE_SECRET, HASH)).not.toBe(
+      bucketKeyOfTheRun(FAKE_SECRET, SAVE_TWIN.policy.name),
+    );
+  });
+
+  it("is handed to the helper once for each hash, and nothing else, and its rows are summed", async () => {
+    deletion.answer = { rowsRemoved: 2, counts: [5, 7] };
+
+    const removed = await removeCredentialCountersOf(FAKE_SECRET, [
+      HASH,
+      "cd".repeat(32),
+    ]);
+
+    expect(deletion.handed).toEqual([
+      [
+        bucketKeyOfCredential(FAKE_SECRET, HASH),
+        bucketKeyOfCredential(FAKE_SECRET, "cd".repeat(32)),
+      ],
+    ]);
+    expect(removed).toEqual({ rowsRemoved: 2, hitsCounted: 12 });
+  });
+
+  it("asks nothing of a design nobody saved, and does not fail for it", async () => {
+    deletion.answer = { rowsRemoved: 0, counts: [] };
+
+    expect(await removeCredentialCountersOf(FAKE_SECRET, [HASH])).toEqual({
+      rowsRemoved: 0,
+      hitsCounted: 0,
+    });
+  });
+});
+
 describe("removeCountersOfTheRun", () => {
   it("hands the helper exactly the one key and answers the mints the rows counted, summed over windows", async () => {
     deletion.answer = { rowsRemoved: 2, counts: [3, 4] };
@@ -200,6 +261,15 @@ const TWINS = [
       "This run made 300 share writes, more than half (250) of the e2e policy's 500 an hour: raise " +
       "E2E_SHARE_WRITES_PER_BLOCK_FIGURE to three times the new figure, rounded up to the next hundred",
   },
+  {
+    twin: SAVE_TWIN,
+    half: 600,
+    over: 700,
+    constant: "E2E_SAVES_PER_BLOCK_FIGURE",
+    sentence:
+      "This run made 700 saves, more than half (600) of the e2e policy's 1200 an hour: raise " +
+      "E2E_SAVES_PER_BLOCK_FIGURE to three times the new figure, rounded up to the next hundred",
+  },
 ] as const;
 
 function thrownBy(attempt: () => void): Error {
@@ -252,21 +322,33 @@ describe.each(TWINS)(
 );
 
 describe("the harness", () => {
-  it("reads source: prints nothing but the four counts, in one line", () => {
+  it("reads source: the teardown checks each of the three twins against half its figure", () => {
+    const teardown = readTestSource("e2e/global-teardown.ts");
+
+    expect(
+      [...teardown.matchAll(/requireRoomUnderHalfTheFigure\((\w+),/g)].map(
+        (match) => match[1],
+      ),
+    ).toEqual(["MINT_TWIN", "SHARE_WRITE_TWIN", "SAVE_TWIN"]);
+  });
+
+  it("reads source: prints nothing but the six counts, in one line", () => {
     const harness = readTestSource("e2e/support/e2e-rate-limit-run.ts");
     const teardown = readTestSource("e2e/global-teardown.ts");
 
     expect(harness).not.toMatch(/console\./);
     expect(teardown.match(/console\./g)).toHaveLength(1);
     expect(
-      [...teardown.matchAll(/\$\{String\((counted|shared)\.(\w+)\)\}/g)].map(
-        (m) => `${m[1] ?? ""}.${m[2] ?? ""}`,
-      ),
+      [
+        ...teardown.matchAll(/\$\{String\((counted|shared|saved)\.(\w+)\)\}/g),
+      ].map((m) => `${m[1] ?? ""}.${m[2] ?? ""}`),
     ).toEqual([
       "counted.mintsCounted",
       "counted.rowsRemoved",
       "shared.hitsCounted",
       "shared.rowsRemoved",
+      "saved.hitsCounted",
+      "saved.rowsRemoved",
     ]);
   });
 });

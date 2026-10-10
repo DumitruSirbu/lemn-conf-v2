@@ -1,6 +1,9 @@
 import { expect, test } from "@playwright/test";
 
-import { deleteMintedDesigns } from "./support/minted-designs";
+import {
+  deleteMintedDesigns,
+  removeSaveCountersOfDesigns,
+} from "./support/minted-designs";
 
 /**
  * The write-token cookie's round trip, in a real browser (ADR 0019 decision 1).
@@ -25,6 +28,10 @@ import { deleteMintedDesigns } from "./support/minted-designs";
 const mintedDesignIds: string[] = [];
 
 test.afterAll(async () => {
+  const counters = await removeSaveCountersOfDesigns(mintedDesignIds);
+  // This file saves what it mints, so a credential's row must be there: none found would mean the key the cleanup
+  // computes is not the server's, and every spec's rows would stay.
+  expect(counters.rowsRemoved).toBeGreaterThan(0);
   await deleteMintedDesigns(mintedDesignIds);
 });
 

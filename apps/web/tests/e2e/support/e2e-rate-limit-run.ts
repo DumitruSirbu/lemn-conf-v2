@@ -7,12 +7,15 @@ import {
   keyedDigest,
 } from "../../../src/lib/server/digest/keyed-digest";
 import {
-  SHARED_BLOCK,
-  type NetworkBlock,
-} from "../../../src/lib/server/rate-limit/client-network";
+  WRITE_CREDENTIAL_KIND,
+  type BucketSubjectKind,
+} from "../../../src/lib/server/rate-limit/bucket-subject";
+import { SHARED_BLOCK } from "../../../src/lib/server/rate-limit/client-network";
 import {
   E2E_MINT_POLICY,
+  E2E_SAVE_BY_BLOCK_POLICY,
   E2E_SHARE_WRITE_POLICY,
+  SAVE_BY_CREDENTIAL_POLICY,
   type LimitPolicy,
   type PolicyName,
 } from "../../../src/lib/server/rate-limit/limit-policy";
@@ -87,11 +90,18 @@ export function bucketKeyOfTheRun(
   return bucketKeyOfBlock(secretHex, policyName, SHARED_BLOCK);
 }
 
-/** The same key for any block: a server that names a network source counts each request under its own block. */
+/** What a bucket counts, as the key is made from it: a kind and a text. */
+export interface SubjectOfAKey {
+  readonly kind: BucketSubjectKind;
+  readonly subject: string;
+}
+
+/** The same key for any subject: a server that names a network source counts each request under its own block, and a
+ *  save is also counted under its write credential's hash. */
 export function bucketKeyOfBlock(
   secretHex: string,
   policyName: PolicyName,
-  block: NetworkBlock,
+  block: SubjectOfAKey,
 ): string {
   return keyedDigest(Buffer.from(secretHex, "hex"), {
     purpose: "rate-limit-bucket",
@@ -130,6 +140,14 @@ export const SHARE_WRITE_TWIN: TwinOfTheRun = {
   figureConstant: "E2E_SHARE_WRITES_PER_BLOCK_FIGURE",
 };
 
+export const SAVE_TWIN: TwinOfTheRun = {
+  policy: E2E_SAVE_BY_BLOCK_POLICY,
+  verb: "made",
+  noun: "saves",
+  perWindow: "an hour",
+  figureConstant: "E2E_SAVES_PER_BLOCK_FIGURE",
+};
+
 export interface CountersOfTheRun {
   readonly rowsRemoved: number;
   /** The hits the run counted under the key: every one it made, summed over the windows it spanned. */
@@ -147,6 +165,35 @@ export async function removeCountersOf(
   const removed = await deleteRateLimitCountersForTests([
     bucketKeyOfTheRun(secretHex, policyName),
   ]);
+  return {
+    rowsRemoved: removed.rowsRemoved,
+    hitsCounted: removed.counts.reduce((sum, count) => sum + count, 0),
+  };
+}
+
+/** The key a save is counted under for one write credential: the credential's policy, which has no e2e twin, and the
+ *  hash the server reads from the cookie. */
+export function bucketKeyOfCredential(
+  secretHex: string,
+  writeTokenHash: string,
+): string {
+  return bucketKeyOfBlock(secretHex, SAVE_BY_CREDENTIAL_POLICY.name, {
+    kind: WRITE_CREDENTIAL_KIND,
+    subject: writeTokenHash,
+  });
+}
+
+/**
+ * Removes the rows that counted saves under these write credentials, each by the key computed above. A hash that
+ * was never counted finds no row, which is not a failure here: a design nobody saved has none.
+ */
+export async function removeCredentialCountersOf(
+  secretHex: string,
+  writeTokenHashes: readonly string[],
+): Promise<CountersOfTheRun> {
+  const removed = await deleteRateLimitCountersForTests(
+    writeTokenHashes.map((hash) => bucketKeyOfCredential(secretHex, hash)),
+  );
   return {
     rowsRemoved: removed.rowsRemoved,
     hitsCounted: removed.counts.reduce((sum, count) => sum + count, 0),
