@@ -1,7 +1,11 @@
+import { readdirSync } from "node:fs";
+import { join } from "node:path";
+
 import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
 import { describe, expect, it } from "vitest";
 
 import { config } from "../src/proxy";
+import { readSource } from "./lib/server/server-source-support";
 
 /** The framework's own matcher, asked whether the interceptor would run for an address. */
 function reaches(url: string): boolean {
@@ -101,4 +105,54 @@ describe("the interceptor's matcher: the entries are written as the framework re
       "/:locale/s/:token",
     ]);
   });
+});
+
+describe("the interceptor's matcher: what lies deeper than a family's one segment runs no lookup", () => {
+  const APP_ROOT = join(import.meta.dirname, "../src/app");
+  const FILES_THAT_RUN_FOR_A_ROUTE =
+    /^(?:page|layout|template|route|default|loading|error|not-found)\.tsx?$/;
+
+  /** The files of the app tree that run for a request, under one family, by path relative to it. */
+  function routedFilesUnder(family: string): string[] {
+    return readdirSync(join(APP_ROOT, "[locale]", family), { recursive: true })
+      .map(String)
+      .filter((path) =>
+        FILES_THAT_RUN_FOR_A_ROUTE.test(path.split("/").pop() ?? ""),
+      )
+      .sort();
+  }
+
+  it("names, under a design's family, the page and the review's page and nothing that could run for more", () => {
+    expect(routedFilesUnder("d")).toEqual([
+      "[id]/page.tsx",
+      "[id]/review/page.tsx",
+    ]);
+  });
+
+  it("names, under a share's family, the view's page and nothing else", () => {
+    expect(routedFilesUnder("s")).toEqual(["[token]/page.tsx"]);
+  });
+
+  it("has no layout or template of the family, and the locale's layout looks nothing up", () => {
+    expect(
+      routedFilesUnder("d").some((path) => /layout|template/.test(path)),
+    ).toBe(false);
+    expect(
+      routedFilesUnder("s").some((path) => /layout|template/.test(path)),
+    ).toBe(false);
+    expect(readSource("app/[locale]/layout.tsx")).not.toMatch(
+      /repository|load-owned-design|visitor|write-token|share-token/,
+    );
+  });
+
+  it.each([
+    "/ro/d/abc123/review.png",
+    "/ro/d/abc123/x.png",
+    "/ro/s/abcdefghijkl/x.png",
+  ])(
+    "leaves %s to the framework, which routes it to no page: it is a 404 and no lookup runs",
+    (url) => {
+      expect(unstable_doesMiddlewareMatch({ config, url })).toBe(false);
+    },
+  );
 });

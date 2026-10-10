@@ -101,6 +101,32 @@ test.describe("a page read counted in the request interceptor of a built server"
     expect(landed).toEqual({ rowsRemoved: 1, counts: [1] });
   });
 
+  test("answers an address deeper than a family's page with a 404: no page is routed to it, no lookup runs", async () => {
+    if (server === undefined)
+      throw new Error("the second server did not start");
+    const blockKey = bucketKeyOfBlock(
+      server.secret,
+      READ_POLICY.name,
+      blockOfAddress(A_DOCUMENTATION_ADDRESS),
+    );
+    const addresses = [
+      "/ro/d/e2e-readiness-probe/review.png",
+      "/ro/d/e2e-readiness-probe/x.png",
+      "/ro/s/abcdefghijkl/x.png",
+    ];
+
+    const statuses: number[] = [];
+    for (const address of addresses) {
+      const response = await fetch(`${server.origin}${address}`, {
+        headers: { "x-forwarded-for": A_DOCUMENTATION_ADDRESS },
+      });
+      statuses.push(response.status);
+    }
+
+    expect(statuses).toEqual([404, 404, 404]);
+    expect(await removedAtAnyPollOf([blockKey])).toBe(0);
+  });
+
   test("is not counted by the suite's own server, which names no source, whatever header a request carries", async ({
     request,
   }) => {
