@@ -24,6 +24,9 @@ export const REFUSED_MINT_LIVE_SERVER_PORT = 4323;
 /** 4324: the spec that proves a page read is counted, whose server is given a network source the owner names. */
 export const PAGE_READ_PROOF_SERVER_PORT = 4324;
 
+/** 4325: the sweep of a page's address written with percent-escapes, whose server is given a network source too. */
+export const ESCAPED_LOCALE_SERVER_PORT = 4325;
+
 /** A developer whose 4322 is taken sets this; a spec that names its own port ignores it. Read when a server starts,
  *  never when the module loads. */
 const PORT_OVERRIDE_VARIABLE = "E2E_PRODUCTION_POLICY_PORT";

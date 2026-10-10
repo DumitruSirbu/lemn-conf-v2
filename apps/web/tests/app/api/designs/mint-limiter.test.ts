@@ -413,10 +413,6 @@ describe("POST /api/designs: the e2e policy", () => {
         (line as { message?: string }).message === E2E_MINT_POLICY_NOTICE,
     );
     expect(notices.length).toBeLessThanOrEqual(1);
-    expect(E2E_MINT_POLICY_NOTICE).toBe(
-      "rate limit: an e2e policy is in use (LEMNARIA_E2E_RATE_LIMIT_POLICY); " +
-        "its figure is not the production one",
-    );
   });
 
   it("is chosen only by the flag exactly 1: any other value counts under the mint's row", async () => {

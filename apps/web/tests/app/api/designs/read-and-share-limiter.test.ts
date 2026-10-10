@@ -456,6 +456,7 @@ describe("the truth table of source and secret, for a share write and for a read
   );
 });
 
+// Flips in the save's limit pass (S2a): a save is then counted, and this becomes the order of its two judgements.
 describe("PUT /api/designs/{id}: untouched by the limiter", () => {
   it("makes no call to the store for a save, whatever its credentials", async () => {
     silenceTheConsole();

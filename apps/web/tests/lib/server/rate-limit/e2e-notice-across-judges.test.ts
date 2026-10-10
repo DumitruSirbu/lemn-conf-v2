@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { E2E_MINT_POLICY_NOTICE } from "@/lib/server/design-failure-log";
 import {
   E2E_RATE_LIMIT_POLICY_FLAG,
   type PolicyPurpose,
@@ -8,8 +9,6 @@ import { CLIENT_NETWORK_SOURCE_VARIABLE } from "@/lib/server/rate-limit/network-
 
 const FAKE_SECRET =
   "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
-const NOTICE =
-  "rate limit: an e2e policy is in use (LEMNARIA_E2E_RATE_LIMIT_POLICY); its figure is not the production one";
 
 /** The judges, from a module graph of their own: the notice is written once for a process, so a test that reads it
  *  must start with a process that wrote none. Reads have no twin, and are asked under a named source, as they are. */
@@ -37,7 +36,8 @@ async function freshJudges() {
 
 function noticesWritten(warn: ReturnType<typeof vi.spyOn>): number {
   return warn.mock.calls.filter(
-    ([, line]) => (line as { message?: string }).message === NOTICE,
+    ([, line]) =>
+      (line as { message?: string }).message === E2E_MINT_POLICY_NOTICE,
   ).length;
 }
 
@@ -114,8 +114,8 @@ describe("the e2e notice: written when any twin first decides, once for a proces
     expect(noticesWritten(warn)).toBe(0);
   });
 
-  it("holds the sentence exactly as ruled, true of each twin: no figure, no name of a twin", () => {
-    expect(NOTICE.replace(/e2e/gi, "")).not.toMatch(
+  it("says nothing a twin could make false: no figure and no name of a twin", () => {
+    expect(E2E_MINT_POLICY_NOTICE.replace(/e2e/gi, "")).not.toMatch(
       /[0-9]|mint|share|save|day|hour/i,
     );
   });

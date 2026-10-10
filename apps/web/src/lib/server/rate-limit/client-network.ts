@@ -48,6 +48,42 @@ export function blockOfAddress(text: string | null | undefined): NetworkBlock {
     : ipv6Block(groups);
 }
 
+const IPV6_BLOCK_TEXT = new RegExp(
+  `^[0-9a-f]{${String(HEX_GROUP_DIGITS)}}` +
+    `(?::[0-9a-f]{${String(HEX_GROUP_DIGITS)}}){${String(IPV6_BLOCK_GROUPS - 1)}}$`,
+);
+
+const TEXT_RULE_OF_BLOCK_KIND: Readonly<
+  Record<NetworkBlockKind, (subject: string) => boolean>
+> = {
+  "ipv4-block": isIpv4BlockText,
+  "ipv6-block": (subject) => IPV6_BLOCK_TEXT.test(subject),
+  shared: (subject) => subject === "",
+};
+
+/**
+ * Whether a block's text is exactly what this parser makes for its kind: three decimal octets without a leading zero,
+ * four groups of four lowercase hexadecimal digits, or nothing for the shared bucket. The one statement of that rule,
+ * so a check that a block came from here cannot drift from the parser.
+ */
+export function isTextOfBlockKind({ kind, subject }: NetworkBlock): boolean {
+  return (
+    typeof subject === "string" &&
+    Object.hasOwn(TEXT_RULE_OF_BLOCK_KIND, kind) &&
+    TEXT_RULE_OF_BLOCK_KIND[kind](subject)
+  );
+}
+
+function isIpv4BlockText(subject: string): boolean {
+  const octets = subject.split(".");
+  return (
+    octets.length === IPV4_BLOCK_OCTETS &&
+    octets.every(
+      (octet) => DECIMAL_OCTET.test(octet) && Number(octet) <= HIGHEST_OCTET,
+    )
+  );
+}
+
 function ipv4Block(octets: readonly number[]): NetworkBlock {
   return {
     kind: "ipv4-block",

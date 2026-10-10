@@ -20,7 +20,8 @@ export function longestWaitSecondsOf(window: WindowRule): number {
 }
 
 /** A name carries its window, so a window of another length is a new name and two windows never state different ends
- *  for one key and start. The set is closed: every name below is written here, none is made from a request. */
+ *  for one key and start. The names are made here from the policies below and none from a request; that the set is
+ *  closed is held at run time by `isOwnPolicy`, since the type is the text a name is made of. */
 export type PolicyName = string;
 
 export interface LimitPolicy {
@@ -58,10 +59,9 @@ export const MINT_DAILY_FIGURE = 20;
 
 /**
  * Three times the designs one whole e2e run makes, rounded up to the next hundred, so that a misplaced flag means a
- * bounded figure and not no limit. A bucket lasts one invocation and one invocation may run the whole suite: 508
- * designs measured (desktop 132, mobile 192 and 184), three times is 1,524, the next hundred is 1,600. The e2e
- * teardown fails when an invocation mints more than half of it, so the suite may grow by half before a person must
- * raise it.
+ * bounded figure and not no limit: 510 designs measured over a whole run, three times is 1,530, the next hundred is
+ * 1,600. The e2e teardown fails when an invocation mints more than half of it, so the suite may grow by half before a
+ * person must raise it.
  */
 export const E2E_MINT_DAILY_FIGURE = 1600;
 
@@ -79,7 +79,7 @@ export const SAVES_PER_CREDENTIAL_FIGURE = 300;
 const SHARE_WRITE_WINDOW_MINUTES = 60;
 export const SHARE_WRITES_PER_BLOCK_FIGURE = 60;
 
-/** The owner's answer (Q15, iii): 600 an hour for each network, for pages and for the API's two reads. */
+/** The owner's answer: 600 an hour for each network, for pages and for the API's two reads. */
 const READ_WINDOW_MINUTES = 60;
 export const READS_PER_BLOCK_FIGURE = 600;
 
@@ -200,7 +200,8 @@ export type PolicyChoice =
   | { readonly status: "chosen"; readonly policy: LimitPolicy }
   | {
       readonly status: "unavailable";
-      readonly variable: typeof E2E_RATE_LIMIT_POLICY_FLAG;
+      /** The variable that made the choice impossible, or nothing when no variable did. */
+      readonly variable: typeof E2E_RATE_LIMIT_POLICY_FLAG | undefined;
     };
 
 /**
@@ -214,7 +215,7 @@ export function choosePolicy(
   purpose: PolicyPurpose,
 ): PolicyChoice {
   if (!Object.hasOwn(TWINS_OF_PURPOSE, purpose)) {
-    return { status: "unavailable", variable: E2E_RATE_LIMIT_POLICY_FLAG };
+    return { status: "unavailable", variable: undefined };
   }
   const { production, e2e } = TWINS_OF_PURPOSE[purpose];
   if (!isFlagSet(environment)) return { status: "chosen", policy: production };

@@ -28,6 +28,9 @@ const A_DESIGN_PAGE = "/ro/d/e2e-readiness-probe";
 const A_DOCUMENTATION_ADDRESS = "192.0.2.77";
 const LANDING_POLL_MS = 250;
 const LANDING_TIMEOUT_MS = 15_000;
+/** Long enough that a hit the suite's own server counted would have landed: the second server's landed within one
+ *  poll of its response. */
+const NO_HIT_WATCH_MS = 3000;
 
 const RUN_UNDER_CI =
   "It needs the production build the first server makes under CI, and builds nothing itself. Run it with: " +
@@ -104,11 +107,10 @@ test.describe("a page read counted in the request interceptor of a built server"
     const response = await request.get(A_DESIGN_PAGE, {
       headers: { "x-forwarded-for": A_DOCUMENTATION_ADDRESS },
     });
-    await new Promise((resolve) => setTimeout(resolve, LANDING_TIMEOUT_MS / 5));
-    const removed = await deleteRateLimitCountersForTests([suiteKey, blockKey]);
+    const removed = await removedAtAnyPollOf([suiteKey, blockKey]);
 
     expect(response.status()).toBe(200);
-    expect(removed).toEqual({ rowsRemoved: 0, counts: [] });
+    expect(removed).toBe(0);
   });
 });
 
@@ -118,6 +120,19 @@ async function removedWhenItLands(key: string) {
   for (;;) {
     const removed = await deleteRateLimitCountersForTests([key]);
     if (removed.rowsRemoved > 0 || Date.now() >= deadline) return removed;
+    await new Promise((resolve) => setTimeout(resolve, LANDING_POLL_MS));
+  }
+}
+
+/** Polls the keys for a bounded time and answers how many rows any poll found: none is the answer for a hit that was
+ *  never counted. A row found ends the watch at once. */
+async function removedAtAnyPollOf(keys: string[]): Promise<number> {
+  const deadline = Date.now() + NO_HIT_WATCH_MS;
+  for (;;) {
+    const removed = await deleteRateLimitCountersForTests(keys);
+    if (removed.rowsRemoved > 0 || Date.now() >= deadline) {
+      return removed.rowsRemoved;
+    }
     await new Promise((resolve) => setTimeout(resolve, LANDING_POLL_MS));
   }
 }

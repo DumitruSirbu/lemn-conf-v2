@@ -18,6 +18,14 @@ const handleLocaleRouting = createMiddleware(routing);
 /** The pages after a design's editor, in the order the customer meets them: `/d/{id}/review`, `/contact`, `/done`. */
 const DESIGN_STEP_SEGMENTS: readonly string[] = ["review", "contact", "done"];
 
+/** The one status of a response the interceptor passes on to its page: not the locale's redirect and not a `404`. */
+const PASSED_ON_STATUS = 200;
+
+/** Written here and not through the design log, whose module holds the limiter's chain: this file may import none of
+ *  that statically, so a limiter that cannot load can still say so. */
+const LIMITER_LOG_LABEL = "[designs]";
+const LIMITER_UNAVAILABLE_EVENT = "design-read-limiter-unavailable";
+
 /** Everything except the immutable build output and static files, which carry no scripts and already receive the
  *  static headers from `next.config.ts`. */
 export const config = {
@@ -83,8 +91,6 @@ function isCountedPageRead(
   return isCountedPath && selectNetworkSource(process.env).kind !== "none";
 }
 
-const PASSED_ON_STATUS = 200;
-
 interface CountedRead {
   readonly request: NextRequest;
   readonly response: NextResponse;
@@ -97,7 +103,7 @@ async function answerCountedRead({
   response,
   policy,
 }: CountedRead): Promise<NextResponse> {
-  const refusal = await refusalOfPageRead(request);
+  const refusal = await refusalOfPageReadOrNothing(request);
   if (refusal === undefined) return response;
   applyPageHeaders(refusal, { pathname: request.nextUrl.pathname, policy });
   return refusal;
@@ -108,7 +114,7 @@ async function answerCountedRead({
  * and the message files it reads for a refusal load when a source is named and not before. A chain that cannot load
  * or run is one line for a process and an error's name, and the page is served. Nothing thrown is kept but its name.
  */
-async function refusalOfPageRead(
+async function refusalOfPageReadOrNothing(
   request: NextRequest,
 ): Promise<NextResponse | undefined> {
   try {
@@ -128,8 +134,8 @@ function announceUnavailableLimiter(failure: unknown): void {
   const errorName = failure instanceof Error ? failure.name : "unknown";
   if (announcedLimiterFailures.has(errorName)) return;
   announcedLimiterFailures.add(errorName);
-  console.warn("[designs]", {
-    event: "design-read-limiter-unavailable",
+  console.warn(LIMITER_LOG_LABEL, {
+    event: LIMITER_UNAVAILABLE_EVENT,
     errorName,
   });
 }

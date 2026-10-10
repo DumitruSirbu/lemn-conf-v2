@@ -33,8 +33,9 @@ export const RATE_LIMIT_READ_DEADLINE_MS = 300;
 /** The most a timer can wait; a longer one fires at once, and with a warning, which this module may not write. */
 const LONGEST_TIMER_MS = 2_147_483_647;
 
-/** Why a mint could not be judged, in one closed list that types the log line too. `judgement-failed` is the route's
- *  own: the judgement itself threw. Only the log's code says which. */
+/** Why a request could not be judged, in one closed list that types the log line too. `judgement-failed` is made by
+ *  the evaluator's own guards (a subject or a policy it did not make, an unusable deadline), by a sequence of
+ *  judgements (a step that throws, or no step), and by a route whose judge threw. Only the log's code says which. */
 export const UNAVAILABLE_CAUSES = [
   "source-misconfigured",
   "policy-misconfigured",

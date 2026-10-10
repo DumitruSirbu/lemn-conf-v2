@@ -239,7 +239,7 @@ describe("GET /api/cron/prune-rate-limits: a step that fails", () => {
     expect(console_.error).toHaveBeenCalledTimes(2);
   });
 
-  it("answers 503 when the store cannot be made, with the failure written and nothing of it answered", async () => {
+  it("keeps the failure out of the answer and the line when a day's totals cannot be read", async () => {
     vi.spyOn(getRateLimitStore(), "totalsOfWindow").mockRejectedValue(
       new Error("DATABASE_URL=postgres://user:ROUTE-MARKER-7702@host/db"),
     );

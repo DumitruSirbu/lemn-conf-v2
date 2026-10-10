@@ -7,14 +7,16 @@ import type {
 import {
   chisinauDateOf,
   chisinauDayOf,
+  LONGEST_DAY_SECONDS,
 } from "@/lib/server/rate-limit/chisinau-day";
 import { MINT_DAILY_FIGURE } from "@/lib/server/rate-limit/limit-policy";
 
 const MS_PER_HOUR = 3_600_000;
+const SECONDS_PER_HOUR = 3600;
 
-/** The oldest cutoff: the longest a Chișinău day lasts plus an hour, so the first step removes whatever has been
- *  expired for a whole day and the days that ended last are read before they reach it. */
-const OLDEST_CUTOFF_HOURS_BEFORE_NOW = 25;
+/** The oldest cutoff: the longest a Chișinău day lasts, so the first step removes whatever has been expired for a
+ *  whole day and the days that ended last are read before they reach it. */
+const OLDEST_CUTOFF_HOURS_BEFORE_NOW = LONGEST_DAY_SECONDS / SECONDS_PER_HOUR;
 
 /** The newest cutoff. A window that ended less than this long ago is never removed, whatever the clock says. */
 const NEWEST_CUTOFF_HOURS_BEFORE_NOW = 1;

@@ -1,6 +1,7 @@
-import type {
-  NetworkBlock,
-  NetworkBlockKind,
+import {
+  isTextOfBlockKind,
+  type NetworkBlock,
+  type NetworkBlockKind,
 } from "@/lib/server/rate-limit/client-network";
 
 /** The kind of a write credential's subject, apart from every network block's: a hash and a block can never share a
@@ -34,10 +35,6 @@ export class BucketSubjectError extends Error {
   }
 }
 
-const DECIMAL_OCTET = /^(?:0|[1-9][0-9]{0,2})$/;
-const HIGHEST_OCTET = 255;
-const IPV4_BLOCK_OCTETS = 3;
-const IPV6_BLOCK_SUBJECT = /^[0-9a-f]{4}(?::[0-9a-f]{4}){3}$/;
 const SHA256_HEX = /^[0-9a-f]{64}$/;
 
 /** The block the address parser made: three decimal octets, four groups of four hexadecimal digits, or nothing. */
@@ -69,30 +66,4 @@ function subjectOf(kind: BucketSubjectKind, subject: string): BucketSubject {
   const made = Object.freeze({ kind, subject }) as BucketSubject;
   MADE_SUBJECTS.add(made);
   return made;
-}
-
-const TEXT_RULE_OF_BLOCK_KIND: Readonly<
-  Record<NetworkBlockKind, (subject: string) => boolean>
-> = {
-  "ipv4-block": isIpv4BlockText,
-  "ipv6-block": (subject) => IPV6_BLOCK_SUBJECT.test(subject),
-  shared: (subject) => subject === "",
-};
-
-function isTextOfBlockKind({ kind, subject }: NetworkBlock): boolean {
-  return (
-    typeof subject === "string" &&
-    Object.hasOwn(TEXT_RULE_OF_BLOCK_KIND, kind) &&
-    TEXT_RULE_OF_BLOCK_KIND[kind](subject)
-  );
-}
-
-function isIpv4BlockText(subject: string): boolean {
-  const octets = subject.split(".");
-  return (
-    octets.length === IPV4_BLOCK_OCTETS &&
-    octets.every(
-      (octet) => DECIMAL_OCTET.test(octet) && Number(octet) <= HIGHEST_OCTET,
-    )
-  );
 }

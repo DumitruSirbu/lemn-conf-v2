@@ -401,12 +401,15 @@ describe("choosePolicy: a purpose that is not the list's own", () => {
     ["an inherited method's name", "toString"],
     ["empty", ""],
     ["nothing", undefined],
-  ])("is misconfigured for %s, answered and not thrown", (_label, purpose) => {
-    expect(choosePolicy({}, purpose as PolicyPurpose)).toEqual({
-      status: "unavailable",
-      variable: "LEMNARIA_E2E_RATE_LIMIT_POLICY",
-    });
-  });
+  ])(
+    "is misconfigured for %s, answered and not thrown, naming no variable",
+    (_label, purpose) => {
+      expect(choosePolicy({}, purpose as PolicyPurpose)).toStrictEqual({
+        status: "unavailable",
+        variable: undefined,
+      });
+    },
+  );
 });
 
 describe("isE2eTwin: which policies carry a figure that is not the production one", () => {
