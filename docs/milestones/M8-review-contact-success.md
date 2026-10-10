@@ -5831,6 +5831,109 @@ thirty saves at one a second].
   change and not as a dispatch of its own:** a test's cleanup already holds the count of each
   credential's row it removes, and fails when one is above half the figure.
 
+##### 8G — the second pass, ruled 2026-10-10
+
+**State.** HEAD is `b078e663` [ran: `git log`], tree clean. QA is green: the web suite 7918
+passed, the e2e run 756 passed and none failed, the two-tab spec 0 of 100 [relayed, QA-run].
+Security: approve. Logic: approve with notes. Visual: yes, twice. Clean-code: changes required,
+five must-fix [all relayed]. **Every finding's text is in five files, handed whole:**
+`coord-8g-pass2-security.md`, `-logic.md`, `-clean.md`, `qa-8g-second-pass-report.md`,
+`dev-8g-s2b-report.md`, session scratchpad.
+
+**1. GL-R3.1: inside criterion 2, if it can be reached; QA shows it first.** While a design's
+write waits, the customer leaves that design inside the app and returns. The design is loaded
+from the server without the edit and shown as saved, with no sentence; an edit then replaces the
+waiting write, and the earlier one is never sent [inf, the logic reader's, read and not run].
+*Nothing is lost* is this wave's own criterion, and a wait made that rule's reach an hour where a
+failure's was seconds.
+
+- **QA traces it in a browser before any code:** edit, refused, away and back without a full
+  load; what the screen says, what is sent when the wait ends, what an edit after the return does.
+- **If it is reached, the fix is ruled now.** **A design loaded while its own write waits is
+  given the waiting design and its wait, not the server's copy and *saved*.** The browser still
+  holds that design whole, in the write that waits. The screen shows it unsaved with the sentence;
+  the waiting write stays the one write; a later edit joins it. *Not taken:* telling the wait to
+  the new screen and still dropping the edit, which is honest and loses work.
+- **If no path inside the app reaches it,** it is a full load, which is QA's R1 below.
+
+**2. The silent pause is the owner's: Q38, beside Q37. Nothing is built for it now.** With
+nothing selected the editor shows no sign that a write is waiting, and the warning not to reload
+is in the same unseen place [relayed, QA's R2; confirmed in a browser by the visual check]. A
+reload or a closed tab then loses what waits, up to an hour of it [relayed, QA's R1; read, not
+run]. A failed save has always behaved so; an hour is what is new.
+
+> *While saving is paused or failing, the editor says so only when a cabinet is selected. With
+> nothing selected the screen looks as usual, and closing or reloading the tab loses the edits
+> not yet stored. Do you want* **(a)** *a sign that is always on the screen while a write waits,
+> its place yours to say;* **(b)** *the browser's own "leave this page?" question while one waits,
+> which does little on a phone;* **(c)** *both;* **(d)** *neither, with Q37 answered (c), where a
+> pause is rare and ten minutes at most.*
+
+- *Recommended: (a), and Q37 (c).* **Why not built now:** a sign outside the panel is a new place
+  on a screen the frames draw, and the browser's question can hold every test that reloads a
+  page. *For the scribe, 8T's gate:* **the save's limit is not deployed before Q37 and Q38 are
+  answered.**
+
+**3. Clean-code.** *Must-fix, all the developer's:* GC-R3.1 to GC-R3.5. **GC-R3.2 touches an older
+file and is taken:** the guard *this process is a test runner* is written three times in the
+persistence package and already means two things. One module; **all three accept Playwright's
+own runner**, as was ruled for the counters' delete: the connection, which is the guarded test
+database's alone, is what keeps them from the application. *Taken as well:* GC-R3.6's one
+predicate and the store holding no time beside a status that is not a failure; GC-R3.8; GC-R3.9
+(b) and (c).
+
+| Recorded | Where it goes |
+| --- | --- |
+| GC-R3.7, the policy named by a closure's side effect | *Trigger:* a third step, which 8K's judge may be |
+| GC-R3.10, the coalescer's two long functions and its one invariant kept in four places | Backlog. *Trigger:* that module's next change of behaviour after this round |
+| GC-R3.9 (a), GC-R3.11, the nits, the restated pairs | The milestone-close test audit (ADR 0152 Amendment A) |
+
+**4. The notes.** **GL-R3.3, recorded under the save's named interim:** Step 1's first save
+refused reads as a plain failure, and each *try again* is a refused hit. *Trigger:* Q37 answered
+(a). **GL-R3.4 with G-S4.1:** closed by GC-R3.1's test; the client's choice of a fixed minute for
+a wait above the window stands. **GL-R3.5, G-S4.2:** recorded, nothing to do. **The Russian
+draft** speaks to the customer informally here and formally on the refused page: for the list
+the Russian is re-signed from (ADR 0095). **The mint's twin, 513 against a third of 533:** raised
+by the wave that passes it; the teardown fails only above 800.
+
+**5. The fix round.**
+
+**QA first: the trace of point 1,** as one test in its own files, red if the path is reached.
+
+**B1, behaviour, the developer, five items, each of the first four a commit of its own.**
+
+| # | Does (the text of each is in the five files) | Files |
+| --- | --- | --- |
+| 1 | **GL-R3.1, only if QA's trace is red:** the ruling of point 1; QA's test goes green as written | `store/configurator-store.ts`, `persistence/save-coalescer.ts`; their tests |
+| 2 | GC-R3.2: one guard, used by the three test-only functions, its tests written once | new `packages/persistence/src/require-test-runner.ts`; the three files |
+| 3 | GC-R3.1: the server takes the save's code from the client's module, as the mint's does; one test that the client's window is the policy's and that a save's two policies share it | `lib/server/rate-limit/rate-limited-response.ts`; a test |
+| 4 | GC-R3.6: one predicate for *paused*, asked by the panel and by the review; the store keeps no time beside a status that is not a failure | `persistence/save-coalescer.ts`, `panel/panel-model.ts`, `app/d/[id]/review/review-screen.tsx`, `store/configurator-store.ts` |
+| 5 | Quoted: the whole web suite, the whole persistence suite, typecheck, lint | none |
+
+*Stops if:* the write that waits does not hold the whole design; item 1 needs a second timer; or
+an existing test of the coalescer must change in an assertion.
+
+**B2, no behaviour, the developer, one commit.** (1) GC-R3.3. (2) GC-R3.4: no fixed sleep in the
+paused spec. (3) GC-R3.5. (4) GC-R3.8; GC-R3.9 (b) and (c). (5) Quoted.
+
+*Must not, both:* a `qa-*` file edited; an answer's bytes, a key, a figure or a statement's text
+changed; **a mutant sent to a database**; in B2, any outcome changed.
+
+**C, QA after both.** Its trace green. A mutant each for B1's items, on mocked seams. The whole
+web suite once and one `CI=1` e2e run, with the three counts.
+
+**D, the re-checks, as diffs.** *Logic:* item 1. *Security:* item 2, and what each of the three
+functions now accepts. *Clean-code:* its five must-fix and what was taken. *Visual:* only if
+item 1 was built, the screen on the return.
+
+**The closing rule,** the first round's with two clauses: a save is refused that should be
+stored, or stored that should be refused; **or an edit made in the browser is neither sent nor
+shown as unsaved, without a full load.** Anything else is recorded with its trigger.
+
+**After this round the wave may close on those re-checks.** Nothing else behavioural is open in
+8G. Q36, Q37 and Q38 stay the owner's and are named in the close-out; none blocks the close, and
+the last two block deploying the save's limit.
+
 ### 8H — the submission contract
 
 *Goal.* One I/O-free definition of what a request is, used by the form and by the server.
