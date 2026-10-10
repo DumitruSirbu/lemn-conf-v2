@@ -8,6 +8,7 @@ import {
   READ_POLICY,
   SAVE_BY_BLOCK_POLICY,
   SHARE_WRITE_POLICY,
+  type WindowRule,
 } from "@/lib/server/rate-limit/limit-policy";
 import {
   limitedAnswerHeaders,
@@ -28,10 +29,13 @@ export const SHARE_LIMIT_REACHED_CODE = "SHARE_LIMIT_REACHED";
 export const SHARE_UNAVAILABLE_CODE = "SHARE_UNAVAILABLE";
 export const READ_LIMIT_REACHED_CODE = "READ_LIMIT_REACHED";
 export const SAVE_UNAVAILABLE_CODE = "SAVE_UNAVAILABLE";
+export const CONTACT_LIMIT_REACHED_CODE = "CONTACT_LIMIT_REACHED";
+export const CONTACT_UNAVAILABLE_CODE = "CONTACT_UNAVAILABLE";
 /** The one status of every answer that says a limit is reached. */
 export const LIMIT_REACHED_STATUS = MINT_LIMIT_REACHED_STATUS;
 export const SHARE_UNAVAILABLE_STATUS = UNAVAILABLE_STATUS;
 export const SAVE_UNAVAILABLE_STATUS = UNAVAILABLE_STATUS;
+export const CONTACT_UNAVAILABLE_STATUS = UNAVAILABLE_STATUS;
 
 const LIMIT_REACHED_SENTENCE = "The limit on new designs is reached for today.";
 const UNAVAILABLE_SENTENCE = "A new design cannot be made right now.";
@@ -40,6 +44,10 @@ const SHARE_UNAVAILABLE_SENTENCE = "A share link cannot be changed right now.";
 const READ_LIMIT_SENTENCE = "Too many requests for now.";
 const SAVE_LIMIT_SENTENCE = "The limit on saving is reached for now.";
 const SAVE_UNAVAILABLE_SENTENCE = "A save cannot be made right now.";
+const CONTACT_LIMIT_SENTENCE =
+  "The limit on contact requests is reached for now.";
+const CONTACT_UNAVAILABLE_SENTENCE =
+  "A contact request cannot be taken right now.";
 
 const SHORTEST_WAIT_SECONDS = 1;
 
@@ -98,6 +106,32 @@ export function saveLimitReachedResponse(
 /** `503` for a save that could not be judged, so nothing was stored. No `Retry-After`, and no cause. */
 export function saveUnavailableResponse(): NextResponse {
   return unavailableResponse(SAVE_UNAVAILABLE_CODE, SAVE_UNAVAILABLE_SENTENCE);
+}
+
+/**
+ * `429` for a contact request, whichever bucket refused it: one code and one sentence, so the answer says nothing of
+ * which check ended it. The wait is whole seconds to the end of the window handed in, which is the longest of the
+ * judgement that refused, and is the only number in the answer.
+ */
+export function contactLimitReachedResponse(
+  retryAfterSeconds: number,
+  window: WindowRule,
+): NextResponse {
+  return refusalResponse({
+    code: CONTACT_LIMIT_REACHED_CODE,
+    sentence: CONTACT_LIMIT_SENTENCE,
+    retryAfterSeconds,
+    longestWaitSeconds: longestWaitSecondsOf(window),
+  });
+}
+
+/** `503` for a contact request that could not be judged, or taken, whichever the cause: no `Retry-After`, and no word
+ *  of which. The log's cause says. */
+export function contactUnavailableResponse(): NextResponse {
+  return unavailableResponse(
+    CONTACT_UNAVAILABLE_CODE,
+    CONTACT_UNAVAILABLE_SENTENCE,
+  );
 }
 
 /** `429` for a read, as bare as the share's, and the same for an owner and a stranger. */
