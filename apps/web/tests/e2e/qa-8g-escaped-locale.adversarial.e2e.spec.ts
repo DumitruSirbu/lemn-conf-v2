@@ -280,12 +280,40 @@ const ODD_SPELLINGS: readonly Spelling[] = [
   ),
 ];
 
+/** An address of either family that ends as a static file does: its page's lookup runs, so it is counted. */
+const SUFFIXED_SPELLINGS: readonly Spelling[] = [
+  page("a design's address ending .png", SERVED, (id) => `/ro/d/${id}.png`),
+  page("a design's address ending .woff2", SERVED, (id) => `/ro/d/${id}.woff2`),
+  page("a design's address ending .glb", SERVED, (id) => `/ro/d/${id}.glb`),
+  page("a design's address ending .PNG", SERVED, (id) => `/ro/d/${id}.PNG`),
+  view(
+    "a share's address ending .png",
+    SERVED,
+    (token) => `/ro/s/${token}.png`,
+  ),
+  view(
+    "a share's address ending .ico",
+    SERVED,
+    (token) => `/ro/s/${token}.ico`,
+  ),
+  page("a step ending .png", NOT_FOUND, (id) => `/ro/d/${id}/review.png`),
+  page("a deeper address ending .png", NOT_FOUND, (id) => `/ro/d/${id}/x.png`),
+  page("the root ending .png", NOT_FOUND, () => "/ro.png"),
+  page("an escaped locale ending .png", NOT_FOUND, (id) => `/%72o/d/${id}.png`),
+  view(
+    "an escaped locale's share ending .png",
+    NOT_FOUND,
+    (token) => `/r%6F/s/${token}.png`,
+  ),
+];
+
 const EVERY_SPELLING: readonly Spelling[] = [
   ...PLAIN_SPELLINGS,
   PLAIN_ROOT,
   ESCAPED_ROOT,
   ...ESCAPED_SPELLINGS,
   ...ODD_SPELLINGS,
+  ...SUFFIXED_SPELLINGS,
 ];
 
 /** A read is counted once when its page is served or its root sends the reader on, and never otherwise. */
@@ -469,8 +497,8 @@ test.describe("a page's address written with percent-escapes, on a server that n
     const answeredOf = (spellings: readonly Spelling[]) =>
       spellings.map(({ status }) => status);
 
-    expect(SERVED_SPELLINGS).toHaveLength(11);
-    expect(SERVED_SHARE_VIEWS).toHaveLength(4);
+    expect(SERVED_SPELLINGS).toHaveLength(17);
+    expect(SERVED_SHARE_VIEWS).toHaveLength(6);
     expect(new Set(answeredOf([ESCAPED_ROOT, ...ESCAPED_SPELLINGS]))).toEqual(
       new Set([NOT_FOUND]),
     );
