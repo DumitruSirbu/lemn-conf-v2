@@ -1,8 +1,12 @@
 import { createHmac } from "node:crypto";
 
-/** The fields of each purpose, in the order they are written. A purpose is added here, never inferred. */
+import { PAYLOAD_DIGEST_FIELDS } from "@lemnaria/configurator-domain";
+
+/** The fields of each purpose, in the order they are written. A purpose is added here, never inferred. A contact
+ *  request's payload is digested over the fields the domain says it covers, in the order it gives. */
 const PURPOSE_FIELDS = {
   "rate-limit-bucket": ["policyName", "subjectKind", "subject"],
+  "contact-payload": PAYLOAD_DIGEST_FIELDS,
 } as const;
 
 type PurposeFields = typeof PURPOSE_FIELDS;

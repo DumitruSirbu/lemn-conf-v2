@@ -1,6 +1,8 @@
 import { fc } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
+import { PAYLOAD_DIGEST_FIELDS } from "@lemnaria/configurator-domain";
+
 import {
   DIGEST_KEY_BYTES,
   DigestFieldsError,
@@ -52,6 +54,121 @@ describe("the known answers, each from a second tool", () => {
       expect(keyedDigest(FAKE_KEY, input)).toBe(digest);
     },
   );
+});
+
+describe("a contact request's payload, the second purpose", () => {
+  const DESIGN_PAYLOAD: DigestInput = {
+    purpose: "contact-payload",
+    fields: {
+      clientRequestId: "0123456789abcdef",
+      locale: "ro",
+      targetKind: "design",
+      designId: "abcdefghijklmnopqrstu",
+      designRevision: "7",
+      intent: "",
+      name: "Andrei Munteanu",
+      phone: "079 123 456",
+      phoneNormalForm: "+37379123456",
+      locality: "Calarasi",
+      channel: "phone",
+      email: "",
+      consentTextVersion: "placeholder",
+      bookVersion: "book-2026-10",
+    },
+  };
+  const CALLBACK_PAYLOAD: DigestInput = {
+    purpose: "contact-payload",
+    fields: {
+      clientRequestId: "fedcba9876543210",
+      locale: "ru",
+      targetKind: "intent",
+      designId: "",
+      designRevision: "",
+      intent: "callback",
+      name: "\u0418\u043e\u043d \u00c7elik",
+      phone: "+373 79 123 456",
+      phoneNormalForm: "+37379123456",
+      locality: "",
+      channel: "email",
+      email: "Ana@Example.com",
+      consentTextVersion: "placeholder",
+      bookVersion: "",
+    },
+  };
+
+  // Computed by Python's hmac module over the encoding written out here, with the same key.
+  it.each([
+    [
+      "a design's",
+      DESIGN_PAYLOAD,
+      "15:contact-payload,16:0123456789abcdef,2:ro,6:design,21:abcdefghijklmnopqrstu,1:7,0:,15:Andrei Munteanu," +
+        "11:079 123 456,12:+37379123456,8:Calarasi,5:phone,0:,11:placeholder,12:book-2026-10,",
+      "836fd9e138748d018b3573832869fbb62bcb0189055944adac71df74678e5164",
+    ],
+    [
+      "a callback's, with two-byte letters",
+      CALLBACK_PAYLOAD,
+      "15:contact-payload,16:fedcba9876543210,2:ru,6:intent,0:,0:,8:callback,13:\u0418\u043e\u043d \u00c7elik," +
+        "15:+373 79 123 456,12:+37379123456,0:,5:email,15:Ana@Example.com,11:placeholder,0:,",
+      "f74605908b044a00b21a35d6371058ba2b08c98a90f7e0f25a2a197a5e84aa1f",
+    ],
+  ])(
+    "encodes and digests %s payload as the second tool does",
+    (_label, input, encoded, digest) => {
+      expect(encodeDigestInput(input)).toBe(encoded);
+      expect(keyedDigest(FAKE_KEY, input)).toBe(digest);
+    },
+  );
+
+  it("writes exactly the fields the domain says the payload covers, in the order it gives", () => {
+    expect(Object.keys(DESIGN_PAYLOAD.fields)).toEqual([
+      ...PAYLOAD_DIGEST_FIELDS,
+    ]);
+  });
+
+  it("refuses a payload with a field short, and one with a field more", () => {
+    const short = Object.fromEntries(
+      Object.entries(DESIGN_PAYLOAD.fields).filter(
+        ([name]) => name !== "bookVersion",
+      ),
+    );
+
+    expect(() =>
+      keyedDigest(FAKE_KEY, {
+        purpose: "contact-payload",
+        fields: short,
+      } as unknown as DigestInput),
+    ).toThrow(DigestFieldsError);
+    expect(() =>
+      keyedDigest(FAKE_KEY, {
+        purpose: "contact-payload",
+        fields: { ...DESIGN_PAYLOAD.fields, extra: "x" },
+      } as unknown as DigestInput),
+    ).toThrow(DigestFieldsError);
+  });
+
+  it("is not the digest of a bucket with the same texts, since the purpose is the first part", () => {
+    const texts = Object.values(DESIGN_PAYLOAD.fields);
+
+    expect(keyedDigest(FAKE_KEY, DESIGN_PAYLOAD)).not.toBe(
+      keyedDigest(
+        FAKE_KEY,
+        bucket(texts[0] ?? "", texts[1] ?? "", texts[2] ?? ""),
+      ),
+    );
+  });
+
+  it("changes with any one field, over every field of the payload", () => {
+    const base = keyedDigest(FAKE_KEY, DESIGN_PAYLOAD);
+    for (const name of PAYLOAD_DIGEST_FIELDS) {
+      const changed: DigestInput = {
+        purpose: "contact-payload",
+        fields: { ...DESIGN_PAYLOAD.fields, [name]: "changed" },
+      } as DigestInput;
+
+      expect(keyedDigest(FAKE_KEY, changed), name).not.toBe(base);
+    }
+  });
 });
 
 describe("the encoding", () => {
