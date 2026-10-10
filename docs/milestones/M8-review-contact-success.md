@@ -8687,6 +8687,9 @@ notifies, and tells the customer the truth. *Tier: Full + security.*
 | S1 | The pieces: the bot verdict, the structured errors and their status codes, the redacted log | new `lib/server/bot-check.ts`, `lib/server/contact/contact-errors.ts`, `contact-log.ts`; `next.config.ts` only if the bot check needs it | Q16; D9, D12; ADR 0019 d5; 8A S2; `design-errors.ts`; `design-failure-log.ts` |
 | S2 | The orchestration and the route | new `lib/server/contact/submit-contact.ts`, `app/api/contact-submissions/route.ts`, `lib/server/repository.ts` | D5–D9, D15; ARCH §9; ADR 0019 d3, d5; ADR 0065 d7; ADR 0114 d5, F4; 8F's evaluator; 8H; 8I; 8J; `read-body-with-limit.ts` |
 
+**(2026-10-10: the slice table above, this order and the twelve criteria below are overtaken by
+*8K, restated for dispatch — 2026-10-10*, at the end of this section.)**
+
 *The order of checks,* cheapest first: cross-site guard; body limit; the schema; honeypot and timing;
 the bot verdict; the global bucket; the idempotency lookup; for a new request the contact buckets
 (network, session, e-mail); the owned load at the stated revision; the snapshot; the record; the
@@ -8723,6 +8726,149 @@ form's only bot controls until the hosting milestone names another.
 *QA reading:* the criteria; ARCH §10's API line; 8F's tests. No volume loop. *Logic reader:* ARCH §9;
 D5–D9; the order of checks. *Clean-code reader:* the slice files. *Security reading:* ADR 0019; ADR
 0002 security section; ADR 0114 d5; every branch's log line.
+
+#### 8K, restated for dispatch — 2026-10-10
+
+**State.** HEAD is `138f2639` [ran: `git log`], tree clean; 8F, 8G, 8H, 8I and 8J are closed
+(ADR 0150, 0153 to 0156). Nothing of 8K is built [ran: `apps/web/src/lib/server` holds no
+`contact`, and `app/api` no `contact-submissions`]. The slice table, the order of checks and the
+twelve criteria above are overtaken by this section. *Tier: Full + security.*
+
+**1. What exists, and what 8K still makes.**
+
+| Built since the plan | Where | What 8K does with it |
+| --- | --- | --- |
+| The request's one definition; the snapshot | 8H; ADR 0150 | Validates with it; hands the snapshot on untouched |
+| The store: a lookup, a record, a mark; a conflict is an answer | 8I; ADR 0153 | Its only way to the table. *Whether to send is decided on notified* |
+| The mail: a factory from the environment, the selection, the notice | 8J; ADR 0154 | Calls the factory inside the request; any throw of the notice is one fixed failure |
+| The limiter: one bucket, a sequence of steps, subjects only from constructors, a write's refusal | 8F, 8G; ADR 0155, 0156 | Adds policies, three subjects and its judge. The evaluator is not rewritten |
+| The keyed digest, a closed set of purposes | 8F | Adds one purpose, the request's payload |
+
+*Gone from the plan above:* the bot check and the global bucket, both M9's. *Still 8K's to make:*
+the function, in the domain, that says what a payload's digest covers; the judge; the
+orchestration; the route; its answers and lines; the harness.
+
+**2. The figures.**
+
+| Bucket | Figure | Source |
+| --- | --- | --- |
+| A new request, by network | 3 an hour, and 10 a day | ADR 0019 d5 (2026-08-25), the row for the contact form, its Moldovan column for everyone (this section's scope note) |
+| A new request, by browser | 2 an hour | The same row's *Session*. **Its subject is the visitor's hash**, the architect's; S0's second question |
+| A new request, by e-mail | 3 a day | The same row. Only when the channel is e-mail |
+| **Every request, by network** | **30 an hour, provisional** | None. Q39 |
+| **Tries of one stored request** | **10 an hour, provisional** | None. Q39. Criterion 6 needs at least six |
+| **The least time a form took** | **2 seconds, provisional** | None. Q39. 8L's phone check: an autofilled form sent by a real tap must pass |
+| The body | 8 kilobytes, counted as read | The security reader's figure (ADR 0154); the architect's ruling |
+
+- **Q39, for the owner; the build does not wait.** *Three numbers no record gives: how many
+  contact requests of any kind one network may send in an hour (30); how often one stored request
+  may be tried again in an hour (10); and the least time a form must have been open (2 seconds).
+  Are these right?*
+- **Q40, for the owner; built on (b) meanwhile.** *A request that was stored and not yet notified
+  is tried again after the design was edited or the prices changed. The notice cannot then be
+  made the same as the first.* **(a)** The application may read back a stored request's kitchen
+  and price, and nothing personal: one more narrow grant, and the notice is always the stored
+  one. **(b)** It may not: the retry is refused, and the customer reviews and sends again as a new
+  request. *Recommended: (a).* It widens Q14, which is why it is his.
+- **Said plainly:** where no network source is named, the whole world shares three new requests
+  an hour. A named interim, as the mint's and the save's are.
+
+**3. The order, and what each refusal counts.**
+
+1. The cross-site guard. Nothing is counted.
+2. The body, to its bound, before it is parsed.
+3. **Every request's bucket, by network.** It bounds every row and lookup that follows.
+4. The request's shape. The honeypot and the time: one refusal, which never reads as a success
+   (D9) and does not say which.
+5. **What cannot send:** no usable sender, or no usable secret. *Unavailable*; nothing is stored.
+6. The payload's digest. The lookup: *absent*, *stored* or *conflict*.
+7. **Stored or conflict:** the tries' bucket for that request, whose id the lookup has just shown
+   to exist. A conflict is one code, with no reference and nothing of whether a notice went.
+   Stored and notified: the reference, and nothing is sent.
+8. **Absent:** the new request's buckets, one step at a time: the network's hour, its day, the
+   browser's hour, the e-mail's day. A step is asked only when the one before allowed.
+9. For a design: its id's shape; then the owned load, by the visitor and the stated revision,
+   with one refusal for every way it fails. The snapshot. A kitchen past its wall is refused with
+   its bodies' ids.
+10. The record. The notice. The send. The mark.
+
+- **Success is a stored row and an accepted notice (D8).** A mark that fails after an accepted
+  send is still success, with a line. Quota spent, a payload mismatch, and the kinds a retry may
+  follow are three different failures the form can tell apart; the row stays.
+- **The answer is a reference and a status.** Never a submitted value.
+
+**4. S0: the security reader reads this section before anything is built, and answers:**
+
+1. In point 3's order, is anything counted, looked up, stored or sent before a check that should
+   come first? Which refusals may a caller tell apart, and which must be one?
+2. The three new subjects are a visitor's hash, an e-mail address and a stored request's id. Can
+   text a caller chooses write rows without bound, given that the network's bucket is asked first
+   and each step only after the last allowed? Is an address safe as a subject when it enters the
+   keyed digest and nothing else?
+3. The lookup tells *absent*, *stored* and *conflict* apart to whoever holds a request's id (ADR
+   0153). Is the tries' bucket enough, or must a conflict answer as something else?
+4. The owned load at the stated revision: is comparing the revision in code, after `loadOwned`,
+   with one refusal, enough; or is a statement that holds the revision in its predicate owed?
+5. A mark that fails after an accepted send is answered as success. Two calls at once can both
+   send, and the provider's key stops the second. Are both acceptable as written?
+6. What may a log line hold on each branch? This section says: a code, a status, a policy's name
+   or a cause, and the reference only where a stored request was never notified.
+7. The harness needs two test-only functions in the persistence package: one removes the requests
+   whose ids it is handed, one counts them. Are the three stops of the existing ones enough?
+
+**5. The slices.**
+
+| Slice | Does | Production files | Reading |
+| --- | --- | --- | --- |
+| S1 | **Pure pieces, no route.** What a payload's digest covers, in the domain, with a test that fails when the request gains a field it neither covers nor names as left out. The purpose. The policies and their e2e twins. Three subject constructors. A step answers its decision and its policy (backlog 170) | `packages/configurator-domain/src/contact/payload-digest.ts` (new), `index.ts`; `lib/server/digest/keyed-digest.ts`; `rate-limit/limit-policy.ts`, `bucket-subject.ts`, `enforce-rate-limit.ts` | this section; ADR 0150 decision 3 and *What later waves inherit*; ADR 0155 decisions 1, 4, 5; ADR 0156 whole; backlog 170; `rate-limit/judge-save-request.ts` |
+| S2 | **The persistence package's two test-only functions**, guarded as the others; the store's lazy instance in a module of its own | new `packages/persistence/src/delete-contact-submissions-for-tests.ts`, `count-contact-submissions-for-tests.ts`; `index.ts`; new `lib/server/contact/contact-submission-store-instance.ts` | ADR 0153; ADR 0151; ADR 0155's standing rule; `require-test-runner.ts`; `rate-limit/rate-limit-store-instance.ts` |
+| S3 | **The judge, the answers, the lines.** The sequences of point 3; each answer's status and code; each branch's one line | new `lib/server/contact/judge-contact-request.ts`, `contact-responses.ts`, `contact-log.ts` | this section, point 3; S0's answers; `rate-limit/refusal-of-write-limit.ts`, `rate-limited-response.ts`; `lib/server/design-failure-log.ts` |
+| S4 | **The orchestration**, with its ports handed in: the store, the sender's factory, the judge, the load, the clock | new `lib/server/contact/submit-contact.ts` | this section; ADR 0153 and ADR 0154, *What later waves inherit*; `mail/lead-notification.ts`, `create-mail-sender.ts`; the domain's `submission-snapshot.ts`; `lib/server/load-owned-design.ts` |
+| S5 | **The route and the harness.** The route reads the body to its bound and calls S4. The fake mail's flag in the suite's server; the twins' keys and the run's requests removed; one spec through the real route, store and fake sender | new `app/api/contact-submissions/route.ts`; `playwright.config.ts` and the e2e support (not production) | `lib/server/read-body-with-limit.ts`, `cross-site-request.ts`; `app/api/designs/route.ts`; ADR 0154, the flag; ADR 0155 decision 10 |
+
+*Order.* S0 first. S1 and S2 share no file. **The security reader reads S3 alone before S4 is
+built on it.** QA and the three reviews once, after S5.
+
+*Criteria, as they now stand.*
+
+1. A body past the bound is refused before it is parsed; a cross-site request before anything is
+   counted.
+2. A revision that is not the stored one, a design the cookie does not own, an unknown id and a
+   missing cookie are one refusal, and nothing is stored.
+3. A kitchen past its wall is refused with its bodies' ids; the design is as it was.
+4. Each bucket refuses at its figure plus one and not before. With the counter store failing the
+   request is refused, and nothing is stored or sent.
+5. Two requests with one id, at once or not, are one row and one reference.
+6. **A retry is never trapped.** After a request stored and not notified, five tries inside the
+   hour each reach the sender, and no bucket of a new request counts them.
+7. Success only with a stored row and an accepted notice. A provider's failure is a failure the
+   form can show, and the row stays.
+8. With no usable sender or no usable secret, *unavailable*, and nothing is stored.
+9. The answer holds a reference and a status and no submitted value.
+10. With a recognisable fake in every field, no line on any branch, a thrown one included, holds
+    a name, a phone, an e-mail, a locality, an address of the network, a key or a digest.
+11. A filled honeypot and a form sent too fast are refused, store nothing, and are answered alike.
+12. **Added.** A refused request writes rows only for the buckets it was counted against; a
+    caller's own text reaches a bucket only after the network's allowed it.
+13. **Added.** *Stores nothing* and *one row* are shown by counting rows in the database.
+
+*Must not, every slice:* a subject made outside a constructor; a sender, a store or a variable
+held at module level; the mail imported except by its factory and selection; a submitted value in
+an answer or a line; a figure outside the policy module; a `qa-*` file edited; **a mutant sent to
+a database.** *Stops:* **S1**, a key of the mint or the save changes. **S3**, a refusal cannot be
+answered without saying which check failed. **S4**, a notice must be built before the record, or
+a step needs the store's fake under `src`. **S5**, the suite's server cannot be given the fake
+sender without a mail variable also being read.
+
+*QA reading:* the criteria; this section; ADR 0153, 0154, 0155, 0156, each one's limits and
+*What later waves inherit*. *Logic:* point 3 against S4; D5 to D9. *Clean-code:* each slice's
+files and tests; ADR 0136. *Security:* S0's answers; every branch's line; the three subjects.
+**No visual check:** nothing here is seen; 8L's is.
+
+**6. Backlog 168's wave.** It can be planned now; its rule and items are ruled in *8G, pass C's
+finding C2-1*, and GL-R4.1 joins it. **It runs after 8K and before 8L:** 8K touches no file of
+the editor's load, and 8L changes the shared owned load, which that wave must reach first. It
+shares no file with 8K, so a second developer may run it beside 8K if the coordinator has one.
 
 ### 8L — the contact screen 4A/4B/4C
 
