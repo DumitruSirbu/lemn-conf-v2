@@ -5200,6 +5200,8 @@ QA-run, the built server, real touch]. Every ruling here is the architect's.
   150; the client still sends one a second, so nothing a customer does is slower.
 - *The e2e teardown* must learn the credentials' hashes of the designs a run made. **How is S2a's
   first step: it names the smallest test-only read, stops, and the security reader reads it.**
+  **(2026-10-10, later: ruled in place of that stop, a guarded read in the persistence package
+  used by each test's own cleanup; *8G — round 2, ruled*, point 4.)**
 
 **2. Q37, for the owner. The measurement returned the figures to him, as Q15 said it would.**
 
@@ -5697,6 +5699,111 @@ refused twice is one waiting write.
 
 **The owner's.** One sentence about the share view's headers. The refused page's look. Q36 and
 Q37 stay open.
+
+##### 8G — round 2, ruled; the leftovers, S2a and S2b for dispatch, 2026-10-10
+
+**State.** HEAD is `637b1525` [ran: `git log`]; QA's spec is being changed for GC-R2.1 and is the
+tree's one open file. Security: approve. Logic: approve. Visual: yes. Clean-code: approve once
+GC-R2.1 closes [all relayed]. The web suite is 7612 passed; the e2e run 746 passed, 1 failed,
+`qa-8d-review-scene:188`, its third sighting [relayed, QA-run]. **Every finding's text is in five
+files, handed whole:** `coord-8g-round2-security.md`, `-logic.md`, `-clean.md`,
+`qa-8g-pass-c-report.md`, `dev-8g-round-a-b-report.md`, session scratchpad.
+
+**1. Round 2's findings.**
+
+- **G-S3.1: fixed now, a commit of its own. It is inside the closing rule's first clause.** A
+  path ending in a static file's extension never reaches the interceptor, and the framework still
+  routes `/ro/d/abc123.png` to the design's page [relayed, reviewer-run]. No stored design is
+  served so; **the page's lookup runs all the same, uncounted, and a lookup is what a read's limit
+  is there to bound.** A flood has only to end its address in `.png`. *The fix, the reader's:* the
+  matcher hands the interceptor the design and share families whatever they end in.
+- **G-S3.2: a sentence for M9's launch gate, the scribe's.** *On the host, under a named source,
+  a page's data request in a suffixed spelling is counted, and for a share it carries the three
+  headers.*
+- **GL-R2.1, GL-R2.2: the comment's two sentences are corrected.** *Recorded, with ADR 0147's
+  "Track":* a day whose totals read failed has no totals, ever. *Trigger:* a failed-prune line
+  whose step is 1 or 2. **GL-R2.3:** a line in the route's runbook, the scribe's.
+- **GC-R2.2, GC-R2.3: taken. GC-R2.4: taken as a leaf of its own.** The refused page borrowed the
+  share control's word by this plan's ruling; a surface's words are its own. Same words, drafted,
+  the lock and the hashes grown and none moved.
+- **The owner's hand check, recorded:** the link is 18 px tall, under the 44 a control has
+  elsewhere; it is the browser's default colour; and trying again while still refused shows the
+  same page with no sign that anything happened. Each needs a style, which this page was ruled
+  not to have.
+- **The mint's twin, 511 against a third of 533: not raised now.** S2a's harness item measures
+  again with its own specs in the suite and raises by the rule in that commit if a third is passed.
+- *Backlog 162, a third sighting:* the scribe's.
+
+**2. The leftovers. One developer, two commits, before S2a.**
+
+| # | Does | Files |
+| --- | --- | --- |
+| 1 | **G-S3.1, alone in its commit:** the matcher's two families; a test that a design's and a share's address ending in each excluded extension reaches the interceptor, and that a static file's still does not | `src/proxy.ts`; its tests |
+| 2 | GC-R2.4: the refused page's own leaf for *try again* | `lib/server/rate-limit/page-limit-response.ts`; the message files |
+| 3 | GL-R2.1, GL-R2.2: the two sentences. GC-R2.3: the failed step's report in a function of its own. GC-R2.2: the dead arm goes | `lib/server/rate-limit/prune-rate-limits.ts`; `tests/proxy-escaped-locale.test.ts` |
+| 4 | Quoted: the whole web suite, typecheck, lint | none |
+
+*Stops if:* the matcher cannot name the two families without also handing over a real static
+file; or an existing test of the interceptor must change in an assertion.
+
+**3. S2a, first half: the shared routines. One developer, one commit, no behaviour.**
+
+| # | Does | Files |
+| --- | --- | --- |
+| 1 | One maker of a block judge's request from the headers, a purpose and a deadline; one name-of-a-policy. The mint's, the share write's and the read's judges use both (GC-R1.10) | `rate-limit/judge-block-bucket.ts`, `judge-mint-request.ts`, `judge-share-write.ts`, `judge-read-request.ts` |
+| 2 | One routine for a write's refusal: allow, refuse, unavailable, and a throw as unavailable. The mint and the share write use it (GC-R1.10, GC-R1.11) | `app/api/designs/route.ts`, `rate-limit/judge-share-write.ts`, a new module beside them |
+| 3 | One check of a whole wait and one builder of an answer's headers, for every answer (GC-R1.12 a to c) | `rate-limit/rate-limited-response.ts`, `page-limit-page.ts` |
+| 4 | The teardown: one remover and one half-figure check, each taking the twin; one error that names the policy (GC-R1.19) | `tests/e2e/support/e2e-rate-limit-run.ts`, its test |
+| 5 | Quoted: the suites; **every existing test of an answer, a line or a key passes unedited** | none |
+
+*Must not:* an answer's bytes, a log line, a key or an order changes; a `qa-*` file edited.
+
+**4. S2a, second half: the save. One developer, five items.**
+
+- **Ruled now, in place of the stop set earlier:** how a run's credential rows are removed. **A
+  test-only read in the persistence package answers the write-token hashes of the designs whose
+  ids it is handed**, on the guarded test database alone, as the two test-only deletes are
+  guarded. **Each test's own cleanup uses it before its designs go**, computes the keys with the
+  run's secret, and removes them through S3a's helper. It reads; it changes no destructive
+  statement.
+
+| # | Does | Files |
+| --- | --- | --- |
+| 1 | That read, its export, a test with the driver mocked and one live with its census row | new `packages/persistence/src/find-write-token-hashes-for-tests.ts`; `index.ts` |
+| 2 | **The save's judge.** Two judgements as steps that start when they are called, the block first. The credential's subject from what `readWriteTokenHash` answered, through its constructor alone. **One instant and one window for both.** Anything that is not *allow* is a refusal or `503`, `judgement-failed` included. **At most one refusal line for a process and a policy** (G-S2.3) | new `lib/server/rate-limit/judge-save-request.ts`; `lib/server/design-failure-log.ts` |
+| 3 | **The route.** `PUT` and `PATCH` ask after the two refusals that are not counted and before the body is read. `429` with `SAVE_LIMIT_REACHED` and a wait inside the policy's own window; `503` with `SAVE_UNAVAILABLE`. Nothing of the limiter between the write and the answer | `app/api/designs/[id]/route.ts`, `rate-limit/rate-limited-response.ts` |
+| 4 | The harness: the save twin's key in the run's teardown; item 1 in each test's cleanup; the two tests marked for this pass flipped. **It quotes the run's saves and mints, and raises a twin by the rule if a third is passed** | the e2e support; the two tests |
+| 5 | Measured and quoted: a save's median at an ordinary pace, before and after; the two-tab spec at eight workers, as a figure | none |
+
+*Criteria 1, 3, 7, 8, 9* of *8G, restated for dispatch* as amended. *Must not:* a design's id, a
+visitor's value or a token as a subject; a step begun before the one ahead of it allowed; a
+credential's row written for a save its block refused; a body read, a row written or a cookie
+touched on a refusal; a figure outside the policy module; the client changed; a mutant sent to a
+database. *Stops if:* a save's median at an ordinary pace more than doubles from 166 ms [relayed];
+the two-tab spec leaves the range of 12 and 0 in 100; or the cleanup cannot find a credential's
+row for a design a test saved.
+
+**5. S2b: the client. One developer, five items.**
+
+| # | Does | Files |
+| --- | --- | --- |
+| 1 | A save's `429` carrying its code is a failure of its own, holding the wait. Any other `429` is what it was | `persistence/design-request-errors.ts`, `persistence/fetch-configuration-repository.ts` |
+| 2 | **The coalescer holds one waiting write.** It waits the stated time from the answer's arrival, never less: between one second and the window's length; a fixed minute when the header is absent or unreadable. Edits made meanwhile join it. A save refused twice is still one | `persistence/save-coalescer.ts` |
+| 3 | The read of the current revision after a conflict is a design's load and can be refused: reported with its lines, and held to the failure the editor already shows, with no loop | the same; its test |
+| 4 | The editor's one sentence: saving is paused until a stated time and the changes are kept on this screen. A draft under Q10 (a); the lock and the hashes grown and none moved | `store/configurator-store.ts`, `i18n/content.ts`, the message files |
+| 5 | Shown without volume: a test hands the client the module's own `429`; one spec answers a save so by the browser's route interception, for the visual check | the tests; one spec |
+
+*Criterion 2.* *Must not:* a request before the wait ends; a wait of nought; a second timer
+racing the first; a save's failure shown as a lost design; the server changed. *Stops if:* the
+coalescer cannot hold one waiting write without a second timer; or a refused read after a
+conflict leaves the editor unable to save again.
+
+**6. After S2b: the second pass.** *Full + security.* QA, then the three reviews, on the
+leftovers, both halves of S2a and S2b. *Reading for all:* this section; *S0's security read,
+ruled*, points 1 and 3; *the first review round*, point 6; the five files. **Two visual checks:**
+the paused-saving sentence, and the refused page's link once more with its own leaf. **This
+pass's closing rule is the first round's**, with one clause added: a save is refused that should
+be stored, or stored that should be refused.
 
 ### 8H — the submission contract
 
