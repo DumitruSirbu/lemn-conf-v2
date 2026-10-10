@@ -162,7 +162,7 @@ describe("the e2e notice for a subject's bucket, which no policy of a subject ha
     );
   }
 
-  it("is written when the policy a subject is counted under is a twin, so the day one gains a twin it is true", async () => {
+  it("is written when a subject is counted under a twin, which is true the day one gains one", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 
     await judgeOneSubjectUnder("twin");

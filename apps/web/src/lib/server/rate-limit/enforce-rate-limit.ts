@@ -246,11 +246,11 @@ function unavailable(cause: UnavailableCause): RateLimitDecision {
 }
 
 /**
- * Asks each step in order and answers the decision and the policy of the step that ended it: the first that refused, the
- * one that could not be judged, or the one that threw, so no step after it is ever called and so counts no hit. All
- * allowed answers the last step's, and a sequence of none answers no policy and is unavailable: a judgement that was not
- * made never reads as one that allowed. The policy is the step's own, so it does not depend on what a closure did when it
- * was called.
+ * Asks each step in order and answers the decision and the policy of the step that ended it: the first that refused,
+ * the one that could not be judged, or the one that threw, so no step after it is ever called and so counts no hit.
+ * All allowed answers the last step's, and a sequence of none answers no policy and is unavailable: a judgement that
+ * was not made never reads as one that allowed. The policy is the step's own, so it does not depend on what a closure
+ * did when it was called.
  */
 export async function judgeStepsInSequence(
   steps: readonly PolicyStep[],
