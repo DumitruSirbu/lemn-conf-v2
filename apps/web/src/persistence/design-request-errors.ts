@@ -77,6 +77,54 @@ export class MintLimitReachedError extends WriteNotRetryableError {
   }
 }
 
+/** The status and code a save answers with when the limit on saves is reached. Both are read, as the mint's are. */
+export const SAVE_LIMIT_REACHED_STATUS = 429;
+export const SAVE_LIMIT_REACHED_CODE = "SAVE_LIMIT_REACHED";
+
+/** The longest a save's wait can honestly be: the server's window, one clock hour. Duplicated from the policy module,
+ *  which the client bundle must not import; a `Retry-After` beyond it is not one this limit sent. */
+const SAVE_WINDOW_SECONDS = 3600;
+const SHORTEST_SAVE_WAIT_SECONDS = 1;
+/** The wait when the answer states none that can be believed. Never zero: a save sent at once is refused again. */
+export const UNREADABLE_SAVE_WAIT_SECONDS = 60;
+
+const WHOLE_NUMBER_OF_SECONDS = /^\d+$/;
+
+/**
+ * The seconds a refused save waits, read from `Retry-After`: a whole number from one second to the window's length.
+ * Nought is a second, since a wait of nothing is the repeat this failure exists to prevent. Absent, not a whole
+ * number, negative or beyond the window is the fixed minute, since nothing in it can be believed.
+ */
+export function saveWaitSecondsFrom(retryAfter: string | null): number {
+  if (retryAfter === null || !WHOLE_NUMBER_OF_SECONDS.test(retryAfter)) {
+    return UNREADABLE_SAVE_WAIT_SECONDS;
+  }
+  const seconds = Number(retryAfter);
+  if (seconds > SAVE_WINDOW_SECONDS) return UNREADABLE_SAVE_WAIT_SECONDS;
+  return Math.max(SHORTEST_SAVE_WAIT_SECONDS, seconds);
+}
+
+/**
+ * A save was refused because the limit on saves is reached, and the answer states when to come back. Its own type, and
+ * deliberately not a `WriteNotRetryableError`: the write is kept and sent once when the wait ends, not stopped. Nor is
+ * it repeated on the general backoff, which would send a request, and so spend a hit, every half second. It holds the
+ * wait and nothing of the answer's body.
+ */
+export class SaveLimitReachedError extends DesignRequestFailedError {
+  readonly waitMs: number;
+
+  constructor(operation: string, waitSeconds: number) {
+    super(
+      operation,
+      `HTTP status ${String(SAVE_LIMIT_REACHED_STATUS)}, wait ${String(waitSeconds)} s`,
+    );
+    this.name = "SaveLimitReachedError";
+    this.waitMs = waitSeconds * MILLISECONDS_PER_SECOND;
+  }
+}
+
+const MILLISECONDS_PER_SECOND = 1000;
+
 /** The status for an authorised but stale conditional write; `writeConflictResponse` says why it is
  *  not `412`. */
 export const REVISION_CONFLICT_STATUS = 409;

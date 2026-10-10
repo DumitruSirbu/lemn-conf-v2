@@ -17,6 +17,10 @@ import {
   MINT_LIMIT_REACHED_STATUS,
   MintLimitReachedError,
   REVISION_CONFLICT_STATUS,
+  SAVE_LIMIT_REACHED_CODE,
+  SAVE_LIMIT_REACHED_STATUS,
+  SaveLimitReachedError,
+  saveWaitSecondsFrom,
   WriteConflictError,
   WriteNotAuthorizedError,
   WriteNotRetryableError,
@@ -27,6 +31,7 @@ import {
 export {
   DesignRequestFailedError,
   MintLimitReachedError,
+  SaveLimitReachedError,
   WriteConflictError,
   WriteNotAuthorizedError,
   WriteNotRetryableError,
@@ -91,23 +96,35 @@ function isNotAuthorized(status: number): boolean {
 }
 
 /**
- * Whether a mint's answer is this application's day-limit refusal: a `429` whose body's own `code` is the limit's. Any
- * other `429` (no body, not JSON, another code, a body that will not read) is a throttle like any other and keeps its
- * retry. The code is compared and never shown.
+ * Whether an answer is one of this application's limit refusals: the status, and a body whose own `code` is the
+ * limit's. Any other `429` (no body, not JSON, another code, a body that will not read) is a throttle like any other
+ * and keeps its retry. The code is compared and never shown.
  */
-async function isMintLimitReached(response: Response): Promise<boolean> {
-  if (response.status !== MINT_LIMIT_REACHED_STATUS) return false;
+async function isLimitRefusal(
+  response: Response,
+  limit: { readonly status: number; readonly code: string },
+): Promise<boolean> {
+  if (response.status !== limit.status) return false;
   try {
     const body: unknown = await response.json();
     return (
       typeof body === "object" &&
       body !== null &&
-      (body as { code?: unknown }).code === MINT_LIMIT_REACHED_CODE
+      (body as { code?: unknown }).code === limit.code
     );
   } catch {
     return false;
   }
 }
+
+const MINT_LIMIT = {
+  status: MINT_LIMIT_REACHED_STATUS,
+  code: MINT_LIMIT_REACHED_CODE,
+};
+const SAVE_LIMIT = {
+  status: SAVE_LIMIT_REACHED_STATUS,
+  code: SAVE_LIMIT_REACHED_CODE,
+};
 
 /** The failure a status deserves: something no retry can change, or a transient fault worth
  *  repeating. One classifier, so every request in this file answers the "is this worth retrying?"
@@ -223,7 +240,7 @@ export class FetchConfigurationRepository {
       const response = await this.request(DESIGNS_ENDPOINT, {
         method: "POST",
       });
-      if (await isMintLimitReached(response)) {
+      if (await isLimitRefusal(response, MINT_LIMIT)) {
         throw new MintLimitReachedError("Minting a design");
       }
       if (!response.ok) throw failureFor("Minting a design", response.status);
@@ -253,6 +270,12 @@ export class FetchConfigurationRepository {
       },
       body: JSON.stringify(design),
     });
+    if (await isLimitRefusal(response, SAVE_LIMIT)) {
+      throw new SaveLimitReachedError(
+        "Saving a design",
+        saveWaitSecondsFrom(response.headers.get("Retry-After")),
+      );
+    }
     // A refusal the caller must branch on rather than parse out of a message — see
     // `design-request-errors.ts` for where the retryable/terminal line is drawn and why.
     if (!response.ok) throw saveFailureFor("Saving a design", response.status);
