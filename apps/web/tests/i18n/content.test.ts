@@ -112,6 +112,9 @@ const FUNCTION_FAMILIES = [
   "finishName",
   "bookText",
   "reviewRoomLine",
+  // 8L S2's two: a contact field code and a class of contact answer, each resolved to one sentence.
+  "contactFieldError",
+  "contactOutcome",
   "panel.headerMeta",
   "panel.countForBody",
   "panel.countForSlot",
@@ -155,12 +158,12 @@ describe("the localized content resolver", () => {
   });
 
   it.each(CATALOGUES)(
-    "maps all 156 resolved strings through the %s catalogue",
+    "maps all 182 resolved strings through the %s catalogue",
     (locale, messages) => {
       const { content, translate } = contentAndOracleFor(locale, messages);
       const leaves = stringLeaves(content);
 
-      expect(leaves).toHaveLength(156);
+      expect(leaves).toHaveLength(182);
       for (const { path, value } of leaves) {
         // The step is stated twice — as a sentence and as the top bar's pill — from one pair of
         // numbers, so neither spelling can drift from the other.
@@ -175,7 +178,7 @@ describe("the localized content resolver", () => {
   );
 
   it.each(CATALOGUES)(
-    "backs exactly 34 public functions with %s ICU messages",
+    "backs exactly 36 public functions with %s ICU messages",
     (locale, messages) => {
       const { content, translate } = contentAndOracleFor(locale, messages);
 

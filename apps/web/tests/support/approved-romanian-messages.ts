@@ -450,6 +450,78 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     body: "Pagina de contact nu este încă disponibilă în această versiune a configuratorului.",
     back: "Înapoi la configurare",
   },
+  // Frames 4A to 4C's wording as drawn, drafted under Q10 wherever no frame writes one (the no-design variants, the
+  // e-mail input, the field errors but the two frame 4B writes, the outcomes, the unavailable sentence); none approved.
+  // No response time (Q26): the frame's phone hint is not carried. `consent` and `consentProvisionalMarker` are a SLOT
+  // (Q7 (b)): provisional until the owner supplies the privacy text, carried here as the lock carries a drafted leaf.
+  // `outcomes.designNotCurrent` asks for a second look and does not say the design changed (criterion 13).
+  contact: {
+    topBarTitle: "Contact",
+    heading: "Unde îți trimitem oferta?",
+    subheading:
+      "Design-ul tău se atașează automat. Un consultant îl verifică și revine cu prețul final.",
+    headingNoDesign: "Cum te putem contacta?",
+    subheadingNoDesign:
+      "Spune-ne cum te găsim, iar un consultant revine la tine ca să configurați bucătăria împreună.",
+    nameLabel: "Nume",
+    namePlaceholder: "Numele tău",
+    phoneLabel: "Telefon",
+    phonePlaceholder: "0__ ___ ___",
+    localityLabel: "Oraș sau localitate",
+    localityPlaceholder: "Chișinău",
+    emailLabel: "Adresa de e-mail",
+    emailPlaceholder: "nume@exemplu.md",
+    channelLabel: "Cum preferi să fii contactat?",
+    channels: {
+      phone: "Telefon",
+      whatsapp: "WhatsApp",
+      // The frame's chip hyphen is U+2011, so the word cannot wrap at it.
+      email: "E\u2011mail",
+    },
+    consent: "Sunt de acord cu prelucrarea datelor pentru a primi oferta.",
+    consentProvisionalMarker: "Text provizoriu",
+    callToAction: "Trimite cererea",
+    sending: "Se trimite…",
+    sendingLine: "Nu închide pagina — atașăm design-ul la cerere.",
+    sendingLineNoDesign: "Nu închide pagina — trimitem cererea ta.",
+    reviewLink: "Verifică designul",
+    retry: "Încearcă din nou",
+    unavailable:
+      "Momentan nu putem primi cereri prin acest formular. Încearcă din nou puțin mai târziu.",
+    fieldErrors: {
+      REQUIRED: "Completează acest câmp.",
+      TOO_LONG: "Textul este prea lung. Scurtează-l.",
+      FORBIDDEN_CHARACTER:
+        "Textul conține un caracter pe care nu îl putem primi. Șterge-l și încearcă din nou.",
+      MALFORMED: "Adresa de e-mail pare greșită. Verific-o.",
+      PHONE_MOLDOVAN_INCOMPLETE:
+        "Numărul pare incomplet. Așteptăm 8 cifre după prefix.",
+      PHONE_MOLDOVAN_TOO_MANY_DIGITS:
+        "Numărul are prea multe cifre pentru Moldova (după prefix sunt 8). Dacă numărul nu este din Moldova, scrie-l cu + și prefixul țării, de exemplu +40 722 123 456.",
+      PHONE_MOLDOVAN_SECOND_ZERO:
+        "După 0 sau +373 nu poate urma încă un 0. Dacă folosești prefixul internațional, scrie + în loc de 00.",
+      PHONE_INTERNATIONAL_INCOMPLETE:
+        "Numărul internațional pare incomplet. Verifică dacă ai scris toate cifrele de după +.",
+      PHONE_INTERNATIONAL_TOO_MANY_DIGITS:
+        "Numărul internațional are prea multe cifre. Un număr are cel mult 15 cifre, cu tot cu prefixul țării.",
+      PHONE_FORMAT_UNRECOGNISED:
+        "Nu recunoaștem formatul numărului. Scrie-l cu 0 la început sau cu + și prefixul țării.",
+      CONSENT_NOT_GIVEN:
+        "Avem nevoie de acordul tău ca să putem trimite oferta.",
+    },
+    outcomes: {
+      sent: "Cererea ta a fost trimisă. Referința cererii: {reference}.",
+      failed: "Cererea nu a fost trimisă. Încearcă din nou.",
+      refused:
+        "Unele câmpuri nu sunt completate corect. Verifică-le și trimite din nou.",
+      conflict:
+        "Cererea nu a putut fi înregistrată în forma ei de acum. Trimite-o încă o dată.",
+      designNotCurrent:
+        "Înainte să trimitem cererea, verifică din nou designul.",
+      limited:
+        "Prea multe cereri într-un timp scurt. Poți trimite din nou după ora {time}.",
+    },
+  },
   // Drafted, not approved: the shop's notice, whose language is the owner's to rule (Q34).
   leadNotice: {
     subject: "Cerere din configurator {reference}",

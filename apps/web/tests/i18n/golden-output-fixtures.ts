@@ -57,7 +57,8 @@ export type GoldenFixtureGroup =
   | "rejection"
   | "catalog"
   | "room"
-  | "review";
+  | "review"
+  | "contact";
 
 export interface GoldenFixture {
   readonly id: string;
@@ -714,6 +715,41 @@ export const REVIEW_FIXTURES: readonly GoldenFixture[] = [
   })),
 ];
 
+/** The contact leaves a sentence is chosen for by a code or a class of answer, so `Content` carries a resolver and no
+ *  static leaf for them. Argument values are neutral tokens: the manifest pins the sentence around them. */
+const CONTACT_RENDER_ARGUMENTS: Readonly<
+  Record<string, Readonly<Record<string, string | number>>>
+> = {
+  "contact.outcomes.sent": { reference: "Reference" },
+  "contact.outcomes.limited": { time: "Time" },
+};
+
+export const CONTACT_RENDER_ARGUMENT_PATHS = Object.keys(
+  CONTACT_RENDER_ARGUMENTS,
+);
+
+const CONTACT_LEAVES_ON_CONTENT: ReadonlySet<string> = new Set(
+  RESOLVED_STATIC_CONTENT.map(({ path }) => path).filter((path) =>
+    path.startsWith("contact."),
+  ),
+);
+
+export const CONTACT_LEAF_KEYS: readonly string[] = catalogueLeaves(
+  correctedRomanian.contact,
+)
+  .map(([path]) => `contact.${path}`)
+  .filter((sourceKey) => !CONTACT_LEAVES_ON_CONTENT.has(sourceKey));
+
+export const CONTACT_FIXTURES: readonly GoldenFixture[] = CONTACT_LEAF_KEYS.map(
+  (sourceKey) => ({
+    id: sourceKey,
+    group: "contact" as const,
+    sourceKey,
+    renderCorrected: () =>
+      translateRuntime(sourceKey, CONTACT_RENDER_ARGUMENTS[sourceKey]),
+  }),
+);
+
 type RejectionMessageKey = Exclude<
   keyof typeof correctedRomanian.rejection,
   "parts"
@@ -1056,6 +1092,7 @@ export const GOLDEN_FIXTURES: readonly GoldenFixture[] = [
   ...CONTENT_FIXTURES,
   ...ROOM_FIXTURES,
   ...REVIEW_FIXTURES,
+  ...CONTACT_FIXTURES,
   ...REJECTION_FIXTURES,
   ...CATALOGUE_FIXTURES,
 ];
@@ -1074,6 +1111,9 @@ const DESCRIPTOR_RESOLVERS: ReadonlySet<string> = new Set([
   "bookText",
   // A room's walls and body count, resolved through the catalogue; the leaves are not on `Content`.
   "reviewRoomLine",
+  // A contact field code and a class of contact answer, each resolved to one catalogue sentence.
+  "contactFieldError",
+  "contactOutcome",
 ]);
 
 export function collectContentFunctionFamilies(): readonly string[] {

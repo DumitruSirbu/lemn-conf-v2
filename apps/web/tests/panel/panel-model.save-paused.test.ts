@@ -83,7 +83,7 @@ describe("the editor's notice for a write the limit on saves holds", () => {
 });
 
 describe("who decides that a write is paused", () => {
-  it.each(["panel/panel-model.ts", "app/d/[id]/review/review-screen.tsx"])(
+  it.each(["panel/panel-model.ts", "review/use-save-wait.ts"])(
     "reads source: %s asks pausedUntilMs and compares no time itself",
     (file) => {
       const source = readSource(file);

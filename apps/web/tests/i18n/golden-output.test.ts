@@ -8,6 +8,9 @@ import correctedRomanian from "../../src/messages/ro.json";
 import {
   CATALOGUE_FIXTURES,
   collectContentFunctionFamilies,
+  CONTACT_FIXTURES,
+  CONTACT_LEAF_KEYS,
+  CONTACT_RENDER_ARGUMENT_PATHS,
   CONTENT_FIXTURES,
   CONTENT_FUNCTION_FAMILIES,
   correctedMessageAt,
@@ -139,6 +142,31 @@ describe("golden-output fixture coverage", () => {
     }
   });
 
+  it("covers every contact leaf the content resolver does not carry as a static leaf, with every ICU one given arguments", () => {
+    const staticContactPaths = RESOLVED_STATIC_CONTENT.map(
+      ({ path }) => path,
+    ).filter((path) => path.startsWith("contact."));
+    const allContactKeys = catalogueLeaves(correctedRomanian.contact).map(
+      ([key]) => `contact.${key}`,
+    );
+    expect(sortedUnique([...staticContactPaths, ...CONTACT_LEAF_KEYS])).toEqual(
+      sortedUnique(allContactKeys),
+    );
+    expect(sortedUnique(CONTACT_FIXTURES.map((f) => f.sourceKey))).toEqual(
+      sortedUnique(CONTACT_LEAF_KEYS),
+    );
+    const contactIcuKeys = CONTACT_LEAF_KEYS.filter((key) =>
+      correctedMessageAt(key).includes("{"),
+    );
+    expect([...CONTACT_RENDER_ARGUMENT_PATHS].sort()).toEqual(
+      contactIcuKeys.sort(),
+    );
+    for (const fixture of CONTACT_FIXTURES) {
+      expect(fixture.renderCorrected(), fixture.id).not.toBe("");
+      expect(fixture.renderCorrected(), fixture.id).not.toContain("{");
+    }
+  });
+
   it("covers every rejection code and all 38 top-level rejection messages", () => {
     expect(
       sortedUnique(REJECTION_FIXTURES.map((fixture) => fixture.code)),
@@ -218,7 +246,8 @@ describe("golden-output fixture coverage", () => {
     // M8 8D review fix round: +1 for `reviewScreen.topBarTitle`.
     // +14 for the shop notice's labels, channels, callback line and dash (`leadNotice.*`).
     // +2 for `designLoadError.tooManyRequests` and `.tryAgain`.
-    expect(RESOLVED_STATIC_CONTENT).toHaveLength(156);
+    // M8 8L S2: +26 for the contact form's static leaves (`contact.*`).
+    expect(RESOLVED_STATIC_CONTENT).toHaveLength(182);
     // +3 for the notice's subject, line and figure.
     // +2 for `panel.savePausedNotice`'s two times.
     expect(FUNCTION_CONTENT_FIXTURES).toHaveLength(64);
@@ -227,6 +256,8 @@ describe("golden-output fixture coverage", () => {
     expect(ROOM_FIXTURES).toHaveLength(73);
     // M8 8C S1: the review leaves `Content` reaches through `reviewRoomLine`.
     expect(REVIEW_FIXTURES).toHaveLength(12);
+    // M8 8L S2: the contact leaves reached by field code and by class of answer: 11 field errors, 6 outcomes.
+    expect(CONTACT_FIXTURES).toHaveLength(17);
     expect(REJECTION_FIXTURES).toHaveLength(41);
     expect(INSERTABLE_BODY_DEFINITIONS).toHaveLength(16);
     expect(CATALOGUE_FIXTURES).toHaveLength(98);
@@ -242,7 +273,8 @@ describe("golden-output fixture coverage", () => {
     // +17 for the shop notice's static leaves and function fixtures.
     // +1 for `room.compose.limitReached`, +2 for `designLoadError.tooManyRequests` and `.tryAgain`.
     // +2 for `panel.savePausedNotice`'s two times.
-    expect(GOLDEN_FIXTURES).toHaveLength(444);
+    // M8 8L S2: +26 contact static leaves, +17 contact leaves reached by code or class of answer.
+    expect(GOLDEN_FIXTURES).toHaveLength(487);
     expect(new Set(GOLDEN_FIXTURES.map((fixture) => fixture.id)).size).toBe(
       GOLDEN_FIXTURES.length,
     );

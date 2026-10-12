@@ -285,6 +285,40 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "00102dc6ec45b8a74b033c02a7cda6cb019acb310f0397fb0baff35709d698d2",
   "catalog.wall-lift.800":
     "00102dc6ec45b8a74b033c02a7cda6cb019acb310f0397fb0baff35709d698d2",
+  "contact.fieldErrors.CONSENT_NOT_GIVEN":
+    "4b83fb4ea543fad41669efd78ee4f65f5e9aa7f88d3c71aa3e0dab94e5932dd4",
+  "contact.fieldErrors.FORBIDDEN_CHARACTER":
+    "eb900fff42616414fb6efeca321ff19a95f9683ee79dba9f580e1978417132f7",
+  "contact.fieldErrors.MALFORMED":
+    "50270b694acbc11eae299aeecafe879bc224a8e739cd4a4a89efd1c68a38debf",
+  "contact.fieldErrors.PHONE_FORMAT_UNRECOGNISED":
+    "e402d9ac226de7b56b84146e7347f9b4eb320486df590b434446303aa328d070",
+  "contact.fieldErrors.PHONE_INTERNATIONAL_INCOMPLETE":
+    "73a5818fce70539fbdfc00e52f22e35db0040956ecb82fe30e882eeace5c7b4a",
+  "contact.fieldErrors.PHONE_INTERNATIONAL_TOO_MANY_DIGITS":
+    "061620fa7d62df78aa329aa7189126cbab35317c3c519762b5deac72a8fe55ea",
+  "contact.fieldErrors.PHONE_MOLDOVAN_INCOMPLETE":
+    "00805ef85a2c98c7aa8d8cd5f247a3f525e4b088b6f70d045c0607ea26e047be",
+  "contact.fieldErrors.PHONE_MOLDOVAN_SECOND_ZERO":
+    "f6502b593eccae8f41381353939fc473ddf9a1ee0bce8015ba316f38fcb4ecad",
+  "contact.fieldErrors.PHONE_MOLDOVAN_TOO_MANY_DIGITS":
+    "e1fea3bff2ea95788c582ed22a4e4355f467d020765b9b579412e644e6de8313",
+  "contact.fieldErrors.REQUIRED":
+    "ee509837a93c10689cac3d8cbf3d9cdac4b9b3d41838f76e30b9598afb798b01",
+  "contact.fieldErrors.TOO_LONG":
+    "9c0012462a2dc13d99bb1bedce15f98a0141e9593ab15f1260f056a2e1c35368",
+  "contact.outcomes.conflict":
+    "331ccff3f8c077d3094611ba1698360ddcea490bba0f6a032f33a9834dd8cf35",
+  "contact.outcomes.designNotCurrent":
+    "0a8d9ce582305b2ad12fcd54a4c50506a4b63c90b0bfcae1ecbbb79c33d8c657",
+  "contact.outcomes.failed":
+    "cb680127b7f50c384de47d0f635b6c747ed98ccdbb299b0dde54f625d91ea4c3",
+  "contact.outcomes.limited":
+    "d0cf12b1439521b8ad015b4350375fc209a81b6077070f94c60a6661cf54d6d8",
+  "contact.outcomes.refused":
+    "1acb1e12ff737bf7f7bf04c52abbc1533510513c59574f35fbef90ad07235d81",
+  "contact.outcomes.sent":
+    "f9a9f3e9d6bf3f39adb27d039f618bac2f8faf12dd4ca09a74c0a8f65ada5d2d",
   "content.globalSettings.appliesTo.count-0":
     "2a9c04de9392c99edbbac0b1949c9d0bbdd3eb9f867419197e83db53a4713f4c",
   "content.globalSettings.appliesTo.count-1":
@@ -455,6 +489,58 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "401133a5a31266432a69f7be1858b12a1c9334b94a3d2402e0894085b83aa55a",
   "content.static.configure.title":
     "07ce2b5d11b5801c1b4cbe81745f97e16393c937af5d00242713709dd3e30f1b",
+  "content.static.contact.callToAction":
+    "1821479cbd06a14bae4559afe70205a5b0bd5d8e8b46a89a18b1a1b6aa7f59e7",
+  "content.static.contact.channelLabel":
+    "451b9263edeae639f646eb11b5d378ea538b5e894076393907398159b7d4428d",
+  "content.static.contact.channels.email":
+    "0a5513a8cfdb049b6f487eaebf80b864146dc904f446e28b1835160e14ab325c",
+  "content.static.contact.channels.phone":
+    "fa6906d76ee94d4e8d05a2424fb89005840522ab6dec0ee8055247424977169e",
+  "content.static.contact.channels.whatsapp":
+    "6a40edf1fc87a29f243a7eefdbed57d19bfe16ab2e039d7ae1a44c097297e2f3",
+  "content.static.contact.consent":
+    "9e3d46fb256e88b3d008278b0920b51eff6f6b9f39e51923a2f9ae16fd69d965",
+  "content.static.contact.consentProvisionalMarker":
+    "3fe9f085f96cda753c28ff70ceaebf4d27fc1d474ae01c5d14111b13e4e8bf08",
+  "content.static.contact.emailLabel":
+    "deb062e302c598be7d34a06fe832db5b3eba5ef4e6b40c67da7323c113db826c",
+  "content.static.contact.emailPlaceholder":
+    "b1dc881c54d1fbf45b7e82339fe10b583d9c21a6f787470c93a60b09ca0d5fa4",
+  "content.static.contact.heading":
+    "86aa974574721981bb24f030f9e93e165bf4151a5e993fbed32bc533fe4405a4",
+  "content.static.contact.headingNoDesign":
+    "f565664fcc3d29c19bf049446b9670f007f4ae49daeff54ee367d0cd3a03ab6e",
+  "content.static.contact.localityLabel":
+    "e0059128feee59d5a180f803dd2325b26b74b879a4e8cf222706b9cbf73ecacf",
+  "content.static.contact.localityPlaceholder":
+    "be6a61b8bc420138b429ae08792b2c6a92c0bc55c43d1fcaba5c84dca213b3d2",
+  "content.static.contact.nameLabel":
+    "582ee8efec80e56421c29aa409444c9d002ac69f35c1bcab2292d01d9e202d1a",
+  "content.static.contact.namePlaceholder":
+    "b54f1d8a41645cda70eeebb724b921269677bd51672b61a170062e61ab0e81a0",
+  "content.static.contact.phoneLabel":
+    "fa6906d76ee94d4e8d05a2424fb89005840522ab6dec0ee8055247424977169e",
+  "content.static.contact.phonePlaceholder":
+    "60d99c71ecddb09db619f5a743b529a7bcb68e47514e7fae907a752e1123eb5c",
+  "content.static.contact.retry":
+    "a09d291920163176979b89a68e755b38cc0e872ea454ef9a2d6841b1d6e876f7",
+  "content.static.contact.reviewLink":
+    "be61361617f947e12eeed1e734cd40c511ab4be07453ce5a8932872a659b41fb",
+  "content.static.contact.sending":
+    "6a6cc3bdab85df3fd544ef3f7517c71eb9471a45f5055e1c8273f43c0789d485",
+  "content.static.contact.sendingLine":
+    "1f2e6d6876856e1057c19b6176213a1d61ac0e9999f86b8f20b8652da1bcf6e1",
+  "content.static.contact.sendingLineNoDesign":
+    "60034babf5143f81b2d2081ef0c7de9667d17782cf7929eec59270870a97ea23",
+  "content.static.contact.subheading":
+    "b4745e53a4cfe7eae3150e311d5cc8d28212fd5845b357ce94ebc9eb007def6d",
+  "content.static.contact.subheadingNoDesign":
+    "c3398ae6e21463cf2588dfbbb873fb34c5311d64ff6fe3e28f77b65f2c3a8658",
+  "content.static.contact.topBarTitle":
+    "2b5c3d26721ae9c350cf3009318b626f0fc8a90b4a2ac0ca8099c05aa849282e",
+  "content.static.contact.unavailable":
+    "40a9c65b913f23cc94923080aaebeed5a11260237a6148eeca45c637a1b10005",
   "content.static.contactPlaceholder.back":
     "057411372b0dabdf84309ad4cb234025096a53da74e7c5bf3e9570c3d865c949",
   "content.static.contactPlaceholder.body":

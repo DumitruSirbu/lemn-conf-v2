@@ -3,6 +3,7 @@ import type { _Translator, Messages } from "next-intl";
 import type {
   Band,
   BodyLabel,
+  ContactFieldCode,
   CornerDirection,
   DesignWall,
   EmptySpaceSide,
@@ -639,6 +640,99 @@ function resolveCornerSide(
   }
 }
 
+/**
+ * The sentence for one field refusal, found by the domain's code and never by the field: a code has one sentence
+ * wherever it is met. An exhaustive literal-key switch, so a code the domain adds does not compile until it has a leaf.
+ */
+export function resolveContactFieldError(
+  translate: ContentTranslator,
+  code: ContactFieldCode,
+): string {
+  switch (code) {
+    case "REQUIRED":
+      return translate("contact.fieldErrors.REQUIRED");
+    case "TOO_LONG":
+      return translate("contact.fieldErrors.TOO_LONG");
+    case "FORBIDDEN_CHARACTER":
+      return translate("contact.fieldErrors.FORBIDDEN_CHARACTER");
+    case "MALFORMED":
+      return translate("contact.fieldErrors.MALFORMED");
+    case "PHONE_MOLDOVAN_INCOMPLETE":
+      return translate("contact.fieldErrors.PHONE_MOLDOVAN_INCOMPLETE");
+    case "PHONE_MOLDOVAN_TOO_MANY_DIGITS":
+      return translate("contact.fieldErrors.PHONE_MOLDOVAN_TOO_MANY_DIGITS");
+    case "PHONE_MOLDOVAN_SECOND_ZERO":
+      return translate("contact.fieldErrors.PHONE_MOLDOVAN_SECOND_ZERO");
+    case "PHONE_INTERNATIONAL_INCOMPLETE":
+      return translate("contact.fieldErrors.PHONE_INTERNATIONAL_INCOMPLETE");
+    case "PHONE_INTERNATIONAL_TOO_MANY_DIGITS":
+      return translate(
+        "contact.fieldErrors.PHONE_INTERNATIONAL_TOO_MANY_DIGITS",
+      );
+    case "PHONE_FORMAT_UNRECOGNISED":
+      return translate("contact.fieldErrors.PHONE_FORMAT_UNRECOGNISED");
+    case "CONSENT_NOT_GIVEN":
+      return translate("contact.fieldErrors.CONSENT_NOT_GIVEN");
+    // No field of the form can produce these three: the value is not text, or comes from a closed set the page sends.
+    case "NOT_TEXT":
+    case "UNKNOWN_CHANNEL":
+    case "UNKNOWN_CONSENT_TEXT_VERSION":
+      return translate("contact.outcomes.failed");
+    default:
+      return resolveCodeThisBuildLacks(translate, code);
+  }
+}
+
+/** A code arrives from the network, so one this build has no leaf for is reachable: it is told as the failure it
+ *  is to the customer. The `never` keeps the switch above exhaustive at compile time. */
+function resolveCodeThisBuildLacks(
+  translate: ContentTranslator,
+  code: never,
+): string {
+  void code;
+  return translate("contact.outcomes.failed");
+}
+
+/** What the screen says of an answer, with the two values a sentence carries already read: the reference the shop
+ *  holds, and the clock time a limited send may be tried again. The kinds are `ContactOutcome`'s; this module takes
+ *  nothing from `contact/`, which would put the form's routing into every model that names a resolved sentence, and a
+ *  test ties the two unions. */
+export type ContactOutcomeNotice =
+  | { readonly kind: "sent"; readonly reference: string }
+  | { readonly kind: "limited"; readonly time: string }
+  | { readonly kind: "failed" }
+  | { readonly kind: "refused" }
+  | { readonly kind: "conflict" }
+  | { readonly kind: "design-not-current" }
+  | { readonly kind: "does-not-fit" };
+
+/** One sentence per class of answer. A send that does not fit is told in the review's own words for it. */
+export function resolveContactOutcome(
+  translate: ContentTranslator,
+  notice: ContactOutcomeNotice,
+): string {
+  switch (notice.kind) {
+    case "sent":
+      return translate("contact.outcomes.sent", {
+        reference: notice.reference,
+      });
+    case "limited":
+      return translate("contact.outcomes.limited", { time: notice.time });
+    case "failed":
+      return translate("contact.outcomes.failed");
+    case "refused":
+      return translate("contact.outcomes.refused");
+    case "conflict":
+      return translate("contact.outcomes.conflict");
+    case "design-not-current":
+      return translate("contact.outcomes.designNotCurrent");
+    case "does-not-fit":
+      return translate("review.refusalReasons.BODIES_PAST_WALL");
+    default:
+      return assertNever(notice);
+  }
+}
+
 /** Resolves the content shape the pre-i18n models consume: every leaf comes from the active locale, and the
  *  closures keep the model-facing signatures while ICU does interpolation and plural selection. */
 export function resolveContent(translate: ContentTranslator) {
@@ -661,6 +755,10 @@ export function resolveContent(translate: ContentTranslator) {
       resolveBookText(translate, authored, key),
     reviewRoomLine: (line: ReviewRoomLine) =>
       resolveReviewRoomLine(translate, line),
+    contactFieldError: (code: ContactFieldCode) =>
+      resolveContactFieldError(translate, code),
+    contactOutcome: (notice: ContactOutcomeNotice) =>
+      resolveContactOutcome(translate, notice),
     brand: translate("brand"),
     configure: {
       step: translate("configure.step", { step: 2, totalSteps: 4 }),
@@ -932,6 +1030,37 @@ export function resolveContent(translate: ContentTranslator) {
       title: translate("contactPlaceholder.title"),
       body: translate("contactPlaceholder.body"),
       back: translate("contactPlaceholder.back"),
+    },
+    contact: {
+      topBarTitle: translate("contact.topBarTitle"),
+      heading: translate("contact.heading"),
+      subheading: translate("contact.subheading"),
+      headingNoDesign: translate("contact.headingNoDesign"),
+      subheadingNoDesign: translate("contact.subheadingNoDesign"),
+      nameLabel: translate("contact.nameLabel"),
+      namePlaceholder: translate("contact.namePlaceholder"),
+      phoneLabel: translate("contact.phoneLabel"),
+      phonePlaceholder: translate("contact.phonePlaceholder"),
+      localityLabel: translate("contact.localityLabel"),
+      localityPlaceholder: translate("contact.localityPlaceholder"),
+      emailLabel: translate("contact.emailLabel"),
+      emailPlaceholder: translate("contact.emailPlaceholder"),
+      channelLabel: translate("contact.channelLabel"),
+      channels: {
+        phone: translate("contact.channels.phone"),
+        whatsapp: translate("contact.channels.whatsapp"),
+        email: translate("contact.channels.email"),
+      },
+      // Q7 (b): a slot. The sentence and its marker are provisional until the owner supplies the privacy text.
+      consent: translate("contact.consent"),
+      consentProvisionalMarker: translate("contact.consentProvisionalMarker"),
+      callToAction: translate("contact.callToAction"),
+      sending: translate("contact.sending"),
+      sendingLine: translate("contact.sendingLine"),
+      sendingLineNoDesign: translate("contact.sendingLineNoDesign"),
+      reviewLink: translate("contact.reviewLink"),
+      retry: translate("contact.retry"),
+      unavailable: translate("contact.unavailable"),
     },
     leadNotice: {
       subject: (reference: string) =>
