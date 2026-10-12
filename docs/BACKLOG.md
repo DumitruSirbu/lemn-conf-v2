@@ -205,6 +205,13 @@ status corrections, in one of these two files:
 | 172 | For the milestone-close test audit: 8G's renames blocked by two `qa-*` pins, and the rest | open.md — recorded 2026-10-10 (GC-R3.9 to R3.11, nits); trigger: the M8 close audit (ADR 0152 Amendment A) |
 | 173 | Step 1's first save refused reads as a plain failure | open.md — recorded 2026-10-10 (GL-R3.3); trigger: Q37 answered (a) |
 | 174 | One cold-start timeout in Step 1's hand-off, seen once | open.md — recorded 2026-10-10; not reproduced; trigger: a recurrence |
+| 175 | Calls at once under one id are each counted as a new request (K-S2.1) | open.md — recorded 2026-10-12 at M8 8K's close; trigger: 8L cannot hold one request in flight, a customer refused for a request the shop received, or M9's hardening |
+| 176 | The application has two price-book roots; they must become one before either names another book | open.md — recorded 2026-10-12 (ADR 0062 seam 1 note; ADR 0157 d8); trigger: before either root names another book |
+| 177 | For the milestone-close test audit: 8K's restated pairs (KC-R1.19), KC-R2.1 to R2.3 | open.md — recorded 2026-10-12; trigger: the M8 close audit (ADR 0152 Amendment A) |
+| 178 | Bytes that are not UTF-8 are stored and mailed as replacement characters (K-S2.2) | open.md — recorded 2026-10-12; trigger: a reader of stored contact fields as bytes, or a strict mode in the shared reader |
+| 179 | Round-2 notes: eager leaves make one bad leaf a `503` for all (KL-R2.1), no end-to-end test of a missing leaf, the log tests' mail list | open.md — recorded 2026-10-12; trigger: a `contact-request-unavailable` line with `unexpected` on every request |
+| 180 | `prepareSubmission` takes three arguments | open.md — recorded 2026-10-12; trigger: the next change to it or its callers |
+| 181 | 8K's recorded notes: a book changed without its version (K-S1.7, KL-R1.1), unpriceable design (KL-R1.5), ports before the first count (KL-R1.6) | open.md — recorded 2026-10-12; trigger: a deployment while a not-sent line is in the log; an `unexpected` cause |
 
 ## 2026-09-06 audit note
 

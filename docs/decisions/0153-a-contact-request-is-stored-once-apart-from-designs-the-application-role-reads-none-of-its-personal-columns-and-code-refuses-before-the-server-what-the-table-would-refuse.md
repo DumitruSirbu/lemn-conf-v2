@@ -269,7 +269,11 @@ shop's notice) is 8J's.
   store holds, and 8K's rules for it are in [ADR 0154](0154-mail-leaves-through-one-provider-neutral-port-and-one-resend-adapter-that-sends-once-and-answers-with-one-of-seven-kinds-and-the-shops-notice-is-the-stored-review-printed-never-priced-again.md).)*
 - **Any later migration of this table:** no constraint reads a column the role may `UPDATE`; a test fails until someone has read
   decision 1.
-- **A page or a route** opens nothing by a reference alone.
+- **A page or a route** opens nothing by a reference alone. *(Note, 2026-10-12, wave 8K: the persistence package now exports
+  **one** predicate of a reference's shape, the table's own, which the store already tested its answers with; the generator's
+  look leaves the exports again. The contact answer and lines test by that one
+  ([ADR 0157](0157-the-contact-route-judges-every-request-first-stores-once-answers-one-code-per-kind-and-refuses-a-retry-across-a-change-of-book.md)
+  decision 9). **No route opens anything by a reference**, which stays a must-not.)*
 - **The delivery milestone (M9):** the limits under R6, and the consent text (backlog 155).
 
 ## Evidence

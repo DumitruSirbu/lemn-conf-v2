@@ -63,6 +63,16 @@ Two smaller constraints in the same family:
   > wave first rendered a price in `apps/web` (**wave 6C**); nothing here is retracted, only the claim
   > that a gate — rather than a person — was holding it.
 
+  > **Note — 2026-10-12, M8 wave 8K ([ADR 0157](0157-the-contact-route-judges-every-request-first-stores-once-answers-one-code-per-kind-and-refuses-a-retry-across-a-change-of-book.md)
+  > decision 8; the plan's *8K — S5: the route composed what two invariants reserve*).** "One composition
+  > root" no longer describes `apps/web`. **The application has two roots, the browser's and the server's
+  > (`lib/server/shipped-price-book.ts`), each named, and both name the same book;** the seam's test
+  > asserts exactly those two paths and that the contact route names none. *Why:* the browser's root is a
+  > client module and a route cannot read through it. **An interim, with its trigger:** two roots are two
+  > substitutions; if one were changed alone, a customer would review one price and the shop would be sent
+  > another, and nothing would catch it. **Before either root names another book they become one**, a
+  > module both read (backlog 176). The earlier sentence stands for `packages/configurator-domain`.
+
 **Not in tension with the sample-amount constraint.** The book is a *sample* book throughout M6 and
 [ADR 0001](0001-initial-product-and-stack.md) decision 4's rule is unchanged: no commercial figure is
 asserted anywhere in docs or code. Who may later edit a book is not a property of its shape, and

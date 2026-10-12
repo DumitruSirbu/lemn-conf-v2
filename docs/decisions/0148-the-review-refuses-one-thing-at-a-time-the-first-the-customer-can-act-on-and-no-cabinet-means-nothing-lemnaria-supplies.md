@@ -99,6 +99,12 @@ exactly one real case, a price computed for another design, which the id check a
 are the same. So the second assertion stays, and the tests that pin "the model does not measure a wall" give the
 answer they choose to both the mocked query and the price they hand in.
 
+> **Note — 2026-10-12, M8 wave 8K.** "The one module allowed to" name a price book is no longer the only one
+> in `apps/web`: the server has a second root, `lib/server/shipped-price-book.ts`, which the contact route's
+> ports use. See the dated note on ADR 0062 seam 1 and
+> [ADR 0157](0157-the-contact-route-judges-every-request-first-stores-once-answers-one-code-per-kind-and-refuses-a-retry-across-a-change-of-book.md)
+> decision 8 (backlog 176 for the interim's trigger). `describeReview` itself still names no book.
+
 ### 4. A body is named by the row's own labeller; rows are one per body
 
 A refusal's body name is the row's label, from the entry's label and width, by **one named, exported function in

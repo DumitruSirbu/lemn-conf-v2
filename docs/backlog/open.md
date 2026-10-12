@@ -2835,3 +2835,61 @@ answered (a).
 **Source [developer-run, relayed; QA-run].** The first of QA's seven traces timed out once in Step 1's hand-off on a cold server, inside the shared helper
 `openEditorFromStepOne`; **not reproduced** in the file's four runs alone under `CI=1` and one whole run [QA-run]. The spec's own limit is 180 s where the config
 gives 120 s. **Owner:** none. **Trigger:** a recurrence.
+
+## 175. Calls at once under one id are each counted as a new request — RECORDED 2026-10-12 AT M8 8K's CLOSE
+
+**Source [QA R1, K-S2.1; the plan's 8K, *adjudication of QA*; ADR 0157].** Each call's lookup answers *absent* before either has recorded, so each counts a new
+request's buckets; the record then makes them one row [src `submit-contact.ts`, `aNewRequest`]. **Holds:** one row and one reference; no request lost, no false
+success. **Does not:** one request can spend two of a bucket, and a call arriving when its bucket is at its figure is told *limit* for a request its twin stores and
+sends; the same id tried again after the wait is answered the truth by the stored path. Bound: the network's hour. Every exact fix needs the calls of one id put in an
+order (a second lookup after a refusal; giving hits back; a claim on the id), each a new power in the limiter and each needing the security reader. **Owner:**
+8L carries the guard as two criteria of its form. **Trigger:** 8L cannot hold the one-request-in-flight criterion; or a customer is reported refused for a request the
+shop received; or the delivery milestone's hardening of the form, whichever is first. *Not proven:* that two messages under one key are one at the provider.
+
+## 176. The application has two price-book roots; they must become one before either names another book — RECORDED 2026-10-12 AT M8 8K's CLOSE
+
+**Source [the plan's 8K, *S5: the route composed what two invariants reserve*; ADR 0062 seam 1 (note 2026-10-12); ADR 0157 decision 8].** The browser's root and the
+server's `lib/server/shipped-price-book.ts` each name the same book. Changed alone, a customer would review one price and the shop would be sent another, and
+nothing would catch it. The one shared module is not built: moving the browser's ingress moves QA's pins (`qa-m6-wave-b-book-ingress`, `qa-8c-model-purity`) and is
+a change to the editor's price path. **Trigger:** before either root names another book (the manufacturer dashboard, ADR 0062).
+
+## 177. For the milestone-close test audit: 8K's restated pairs and remaining should-fix and nits — RECORDED 2026-10-12 AT M8 8K's CLOSE
+
+**Source [clean-code KC-R1.19; round-2 re-check at `8782ad17`, KC-R2.1 to KC-R2.3, reviewer-read, relayed].** KC-R1.19: literals restated (e.g. `"LM-00000000"` in
+`deliver-notice.ts:32`, `submit-contact-harness.ts:36`, `qa-8k-identity:45`), **the seventeen restated pairs**, and exports read only by tests; ruled the audit's, with
+K-S2.5's sentence. KC-R2.1: `apps/web/tests/lib/server/contact/contact-responses.test.ts:116`, a title that says more than the test asserts (it can fail; not a dead test; direction: "has
+13 answers and no code is used twice"); KC-R1.17 is therefore partial. KC-R2.2: `apps/web/tests/lib/server/rate-limit/contact-policies.test.ts:98` and `:103` name "Q39"
+in titles. KC-R2.3: noun-named functions in `submit-contact.ts` (`digestOf`, `countedAddressOf`, `storedOrPrepared`); in `tests/e2e/global-teardown.ts`, `summaryOf`
+defaults a twin missing from the map to zero. **Owner:** the test audit. **Trigger:** the M8 close audit (ADR 0152, Amendment A).
+
+## 178. Bytes that are not UTF-8 are stored and mailed as replacement characters — RECORDED 2026-10-12 AT M8 8K's CLOSE
+
+**Source [QA R2, K-S2.2; the plan's 8K, *adjudication of QA*].** `read-body-with-limit.ts:49`, used by the contact route, decodes without refusing. No browser sends such a
+body; what is stored is valid text; the save's route reads the same way. Refusing means a second way to read a body or a change to 8H's one definition of a request.
+**Trigger:** anything that reads a stored contact field as bytes, or the shared reader gaining a strict mode for another reason.
+
+## 179. Round-2 notes on the contact route's ports and the log's tests — RECORDED 2026-10-12 AT M8 8K's CLOSE
+
+**Source [round-2 re-checks at `8782ad17`, reviewer-read, relayed].** **KL-R2.1:** since `a2f0a95d` leaves are read eagerly when the ports are made throw, so one
+unreadable leaf of `ro.json`, even one the notice never uses, makes every contact request `503` with cause `unexpected` rather than `notice-unbuildable`
+(`contact-production-ports.ts:47-59`, `route.ts:80-89`); closed, nothing stored or sent; which leaves are eager is the reviewer's inference. **Trigger:** a
+`contact-request-unavailable` line with `unexpected` on every request after a catalogue change. **Direction:** a build-time test that the shipped catalogue resolves whole.
+**KL-R2.2 (security note 3):** A2's tests stop at the port; no test takes a real missing leaf through the notice builder to the `503`/`502`. **Security note 2:** on a stored
+request's retry a failed leaf is `502 CONTACT_NOTICE_NOT_SENT_RETRY` with `notice-unbuildable`, not the `503` the commit message of `a2f0a95d` implies (as ruled; criterion 8
+holds). **KL-R2.3:** the log tests mail failure kinds against the mail port's own list, equal to the removed copy today. **Trigger:** the first of the above to recur.
+
+## 180. `prepareSubmission` takes three arguments — RECORDED 2026-10-12 AT M8 8K's CLOSE
+
+**Source [clean-code; the plan's 8K KC-R1.11; round-2 re-check, "known recorded item"].** `prepare-submission.ts:38-42` takes request, payloadDigest and sources; callers
+`submit-contact.ts:193` and `:259`. The functions rule is two arguments at most; a named object would group them. **Trigger:** the next change to that function or its callers.
+
+## 181. Recorded notes of 8K's reviews that fix nothing now — RECORDED 2026-10-12 AT M8 8K's CLOSE
+
+**Source [the plan's 8K, *adjudication of QA* and *the three reviews*; ADR 0157].** **K-S2.3** (a judge's maker or a clock that throws would have been the framework's
+`500`, not the one `503`): taken in fix round A item 1 per the plan (`9fc941e6`). **K-S1.7 / KL-R1.1:** a deploy that changes a figure of a book and not its version is not
+caught by the digest; the digest covers the id, the revision and the book's version, not the pricing code, the catalogue or the notice's words, so a stored, un-notified
+request tried again across such a deployment is refused by the provider as another payload, or after its day is sent with lines that are not the stored row's; **trigger:**
+a deployment while a not-sent line is in the log (Q40: "(b) is exact within one deployment, (a) always"). **KL-R1.5:** a design that cannot be priced is answered *try again*
+each time; **trigger:** an `unexpected` cause in the log. **KL-R1.6:** the ports are made before the first count and nothing of the request is read to make them; recorded
+with M9's shield. **Backlog 170** (a save's deciding policy named by a closure's side effect) was the target of 8K's S1 item 5 (a step answers its decision and its policy);
+whether it is resolved was not re-read in code by the scribe.

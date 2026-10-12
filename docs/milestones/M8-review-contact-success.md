@@ -9456,6 +9456,53 @@ caller told which limit or which unavailable; or a test touched by these rounds 
 fail for its title. Anything else goes to the milestone-close audit. **The wave may close on
 those re-checks**, with the whole web suite and one whole e2e run green after D.
 
+#### 8K as closed, 2026-10-12
+
+**Closing rule used:** the one in *8K — the three reviews* (above). **Tier:** Full + security. The decisions, limits with triggers and the unproven list:
+[ADR 0157](../decisions/0157-the-contact-route-judges-every-request-first-stores-once-answers-one-code-per-kind-and-refuses-a-retry-across-a-change-of-book.md).
+**The wave closes on the round-2 re-checks; nothing met the closing rule.** M8 is not closed.
+
+**Shipped, on `m8-review-contact-success`, local, not pushed [coordinator ran `git log`; HEAD `8782ad17`]:** `POST /api/contact-submissions`: S1 `16681974`, `0b3f6f32`,
+`8a8af6df`, `1664aac4`; S2 `866c08aa`, `a57e11fa`, `be64e3f3`; S3 `e862b44b`, `a6291d52`, `2b287c07`, `1c78f0dd`; S4 `bff553e1`, `70fb82c4`; S5 `62209a20` … `f435e70d`; QA's
+adversarial pass `45095836`; fix rounds A1 `9fc941e6`, A2 `a2f0a95d`, B `ddba03c4`, C `eaa52955`, D `54d0edce`, `d7ca0c27`; QA's own items `2b8955cc`; `8782ad17` (the e2e
+helper's old alias `expectStoredOnce` removed; coordinator-made, no behaviour; no importer remained [coordinator ran a grep through `rtk proxy`, exit 1]). Plan commits
+`9ee302e8`, `e6abe6c8`, `8479ce1d`, `0672d26c`, `0c05af5b`, `5671f3d6`, `e4a6a8ce`.
+
+**Evidence, by who ran it.**
+- [coordinator-run, 2026-10-12, with the change of `8782ad17` in the tree, before its commit] web typecheck exit 0, lint exit 0, the whole web suite exit 0: 419 files, 8597 passed;
+  root `pnpm format:check` exit 0; `pnpm gate:boundary` exit 0.
+- [coordinator-run, 2026-10-12, at `8782ad17`, alone, `CI=1`, a build and `next start`, tree clean before and after] one whole e2e run: exit 0, **778 passed**, 9.5 minutes. The
+  five tests the log marks failed are all marked expected to fail or deliberate (`seeded-design.qa` :35, deliberate; `qa-8d-review-arrival.adversarial` :500 and :524;
+  `qa-8g-leave-while-waiting.adversarial` :471 and :498, backlog 168). The teardown's line: minted 531 designs, 71 share writes, 338 saves, 18 contact requests of any kind, 8
+  new ones counted in the hour, 8 new ones counted in the UTC day.
+- [coordinator-run, 2026-10-12, at `8782ad17` with only the uncommitted `docs/` changes in the tree, alone] the whole persistence suite: exit 0, 91 files, 2666 passed, 2 skipped.
+- Earlier: [coordinator-run, `70fb82c4`] the whole persistence suite 90 files, 2644 passed, 2 skipped; [coordinator-run, `be64e3f3`] the whole domain suite 303 files,
+  7745; [QA-run, `45095836`] the adversarial pass green, 58 mutants. **The domain suite was not re-run after `be64e3f3`.** `2b8955cc` changed one persistence
+  test file (`qa-8k-contact-test-only.adversarial.test.ts`); QA's own run of it: not relayed.
+- Reviews. Round 1 at `45095836` [relayed]: security APPROVE, logic APPROVE WITH NOTES, clean-code 7 must-fix, all taken in rounds A to D. **Round 2, diff re-checks at `8782ad17`,
+  all read-only, no reviewer ran a suite [reviewer-read, relayed; the coordinator spot-read `submit-contact.ts:118-134`, `contact-refusal.ts:14-36`,
+  `contact-production-ports.ts:44-60` and grepped that `judgeInSequence` and `ContactStoredRefusalCode` are gone]:** clean-code APPROVE (B, C, D, QA's, the alias); security
+  APPROVE, no new finding (A1, A2, B, C item 1); logic APPROVE WITH NOTES (A1, A2, C items 1 to 3; the order at HEAD equals the ruled order on every branch, with the one ruled
+  change of A1). Not read: logic, round B's rate-limit modules, C's tests, D and QA's commits; security, next-intl's source (that the library propagates the handler's throw and
+  writes nothing rests on `a2f0a95d`'s tests), C's items 2 to 5, D and QA's files; clean-code, the new files `contact-refusal.test.ts` and `parse-contact-request.test.ts`.
+
+**Deviations, with their rationale.** The digest also covers the price book's version (K-S0.1), so Q40's recommendation became (b); a design is proved sendable and the notice
+buildable before a new request's buckets are counted (K-S0.2, K-S0.7), reversing S4's first stop; S4 starts at every request's judgement and the route parses nothing
+(K-S1.4); the server got a second price-book root so that neither older test was loosened (ADR 0062 seam 1 amended, an interim with its trigger); the contact form's day is the
+UTC day; one stop of S1 was passed (a pattern over the source's text in `judge-save-request.test.ts`); the developer committed its own rounds.
+
+**Documentation updated.** ADR 0157 (new); dated notes on ADR 0062 seam 1, ADR 0148 decision 3, ADR 0153; backlog 175 to 181; 8L's criteria 10 to 13 (above); `STATUS.md`.
+
+**Owner actions outstanding** (the earlier entries' still stand): **Q39** (the three provisional figures: every contact request by network 30 an hour; tries of one stored request 10
+an hour; the least time a form was open 2 seconds) and **Q40** (built on (b); **(b) is exact within one deployment, (a) always**); Q35 to Q38 unchanged. None blocks the build.
+**Named interim:** with no network source the world shares three new requests an hour. **No real mail has been sent**; the one real send is the owner's.
+
+**Not run / not proven.** `pnpm check`, `pnpm ci:local`, anything on a CI runner or a deployment, e2e in dev mode, any real mail, anything as the role `app_designs`; plus
+ADR 0157's list.
+
+**Deferred.** Backlog 175 (8L's guard, or M9); 176 (before either root names another book); 177 (the M8 close audit); 178 to 181 (their triggers). **The wave for backlog 168 (Full
+tier) runs before 8L.**
+
 ### 8L — the contact screen 4A/4B/4C
 
 *Goal.* Three fields and a channel, validated where the customer is looking, sent once.
@@ -9497,6 +9544,14 @@ those re-checks**, with the whole web suite and one whole e2e run green after D.
    It never shows the form and then fails.
 8. The honeypot field is invisible, out of the tab order and hidden from assistive technology.
 9. The contact pages are rendered per request and carry the CSP nonce (8Q depends on this).
+
+**Added 2026-10-12, from 8K's reviews (*8K — adjudication of QA*, R1; *8K — the three reviews*, Logic, KL-R1.2 to KL-R1.4; ADR 0157).**
+
+10. **One request in flight for a form,** and none sent again until the first is answered or has failed, for at least as long as the server may take (backlog 175's guard).
+11. **A retry carries the same id and the same body after any answer that is not success, and after none.** A record that rejected may have stored, and only the same id
+    finds that row (KL-R1.2).
+12. **A new id whenever anything the digest covers changes,** the revision first (KL-R1.3).
+13. **The sentence for `CONTACT_DESIGN_NOT_CURRENT` asks the customer to review the design again and never says it changed** (KL-R1.4).
 
 *Phone acceptance, 390 × 844, both locales, real touch and the on-screen keyboard.* The focused
 field and its error are visible above the keyboard; the call to action is reachable without the
