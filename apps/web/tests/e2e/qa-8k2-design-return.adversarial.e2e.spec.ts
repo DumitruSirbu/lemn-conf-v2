@@ -2,7 +2,7 @@
 // with returns one after another; with the answer about write access held slow and every edit control pressed
 // meanwhile; with that answer refused as the limit on reads refuses it, then asked again; with the other design's own
 // save out while the first is edited and returned to; and from a review that kept an older page, left by each kind of
-// link to the editor.
+// link to the editor, the one that asks for the settings sheet among them.
 //
 // Not here: a page frozen past a failed save's retry time and resumed. The browser these specs run cannot be frozen:
 // `Page.setWebLifecycleState` raises no `freeze` event in headless Chromium and its timers keep firing, and Playwright
@@ -391,7 +391,7 @@ test("a review returned to from a second design asks the server nothing, and its
   await expectTheEditorEndsOnTheStoredDesign(page, review);
 });
 
-test("a review returned to from a second design, left by a group's edit link while the answer about write access is slow, opens the editor on the stored design", async ({
+test("a review returned to from a second design, left by a group's edit link while the answer about write access is slow, opens the editor on the stored design with the body it selected still selected and its panel open with no notice", async ({
   page,
   designWrites,
 }) => {
@@ -416,12 +416,118 @@ test("a review returned to from a second design, left by a group's edit link whi
   const askAgain = page.getByTestId("panel-access-retry");
   if (await askAgain.isVisible()) await press(page, askAgain);
   await expectWriteAccessApplied(page);
-  const selectedAfterTheAnswer = await page
-    .getByTestId("selection-debug")
-    .getAttribute("data-selection-id");
-  console.log(
-    `[qa-8k2 L3] selected on arrival: ${String(selectedOnArrival)}; after the late answer: ${JSON.stringify(selectedAfterTheAnswer)}`,
+  expect(selectedOnArrival).not.toBe("");
+  await readout(page).toHaveAttribute(
+    "data-selection-id",
+    selectedOnArrival ?? "",
   );
+  await expect(page.getByTestId("editor-panel")).toBeVisible();
+  await expect(page.getByTestId("panel-notice")).toHaveAttribute(
+    "data-empty",
+    "true",
+  );
+  expect(await hardwareTierInTheStore(page)).toBe(review.storedHardwareTier);
+  await press(page, page.getByTestId("panel-done"));
 
+  await expectTheEditorEndsOnTheStoredDesign(page, review);
+});
+
+const SETTINGS_ARRIVAL = /[?&]settings=open/;
+const HARDWARE_GROUP_INDEX = 1;
+const MATERIAL_GROUP_INDEX = 0;
+
+/** The review's *change settings* link, which asks the editor to open its settings sheet on arrival. */
+function changeSettingsLink(page: Page) {
+  return page.locator('[data-section="settingsRow"] a');
+}
+
+/** The tier the open sheet shows as chosen in one of its groups. */
+async function tierChosenInTheSheet(
+  page: Page,
+  groupIndex: number,
+): Promise<string> {
+  return page
+    .getByTestId("global-settings-group")
+    .nth(groupIndex)
+    .locator('input[type="radio"]:checked')
+    .inputValue();
+}
+
+test("the review's change-settings link from an older review opens no sheet while the answer about write access is held, and once it answers the sheet opens on the stored design's settings", async ({
+  page,
+  designWrites,
+}) => {
+  test.setTimeout(TEST_TIMEOUT_MS);
+  await Promise.resolve(designWrites);
+  const review = await returnToAnOlderReviewFromASecondDesign(page);
+  const { first, requests } = review;
+  const heldAnswer = await holdReadsOf(page, first.designId);
+
+  await press(page, changeSettingsLink(page));
+  await page.waitForURL(
+    (url) => url.pathname === new URL(first.editorUrl).pathname,
+  );
+  await heldAnswer.hasLeft;
+  await expectEditorDrawn(page);
+  await settle(page);
+
+  await expect(settingsSheet(page)).toHaveCount(0);
+  await expect(page.getByTestId("global-settings-trigger")).toBeDisabled();
+  expect(page.url()).toMatch(SETTINGS_ARRIVAL);
+  expect(await materialTierInTheStore(page)).not.toBe(
+    review.storedMaterialTier,
+  );
+  expect(savesOfTheDesignSince(requests, 0, first.designId)).toHaveLength(0);
+
+  await heldAnswer.release();
+  await expect(settingsSheet(page)).toBeVisible();
+
+  expect(await tierChosenInTheSheet(page, HARDWARE_GROUP_INDEX)).toBe(
+    review.storedHardwareTier,
+  );
+  expect(await tierChosenInTheSheet(page, MATERIAL_GROUP_INDEX)).toBe(
+    review.storedMaterialTier,
+  );
+  expect(page.url()).not.toMatch(SETTINGS_ARRIVAL);
+  expect(savesOfTheDesignSince(requests, 0, first.designId)).toHaveLength(0);
+  await press(page, page.getByTestId("global-settings-cancel"));
+  await expect(settingsSheet(page)).toHaveCount(0);
+  await expectTheEditorEndsOnTheStoredDesign(page, review);
+});
+
+test("the review's change-settings link from an older review opens no sheet when the answer about write access is refused, nor when the retry then answers, and nothing is saved", async ({
+  page,
+  designWrites,
+}) => {
+  test.setTimeout(TEST_TIMEOUT_MS);
+  await Promise.resolve(designWrites);
+  const review = await returnToAnOlderReviewFromASecondDesign(page);
+  const { first, requests } = review;
+  const refused = await refuseReadsOf(page, first.designId);
+
+  await press(page, changeSettingsLink(page));
+  await page.waitForURL(
+    (url) => url.pathname === new URL(first.editorUrl).pathname,
+  );
+  await expectEditorDrawn(page);
+  await expect.poll(() => refused.count()).toBe(1);
+  await settle(page);
+
+  await expect(settingsSheet(page)).toHaveCount(0);
+  const settingsTrigger = page.getByTestId("global-settings-trigger");
+  await expect(settingsTrigger).toBeDisabled();
+  await touchTheMiddle(page, settingsTrigger);
+  await expect(settingsSheet(page)).toHaveCount(0);
+  expect(savesOfTheDesignSince(requests, 0, first.designId)).toHaveLength(0);
+
+  refused.stopRefusing();
+  await openThePanelOnABody(page);
+  await press(page, page.getByTestId("panel-access-retry"));
+  await expectWriteAccessApplied(page);
+  await settle(page);
+
+  await expect(settingsSheet(page)).toHaveCount(0);
+  expect(savesOfTheDesignSince(requests, 0, first.designId)).toHaveLength(0);
+  await press(page, page.getByTestId("panel-done"));
   await expectTheEditorEndsOnTheStoredDesign(page, review);
 });

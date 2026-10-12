@@ -109,6 +109,8 @@ interface Request {
 }
 
 let requests: Request[];
+/** What the server holds when the probe asks. */
+let storedNow: Design;
 let container: HTMLDivElement;
 let root: Root;
 
@@ -134,7 +136,7 @@ function answer(url: string, init: RequestInit): Promise<Response> {
       json({ id: DESIGN_ID, revision: REVISION_AFTER_THE_NEXT_SAVE }),
     );
   return Promise.resolve(
-    json({ design: STORED_COPY, revision: STORED_REVISION, canWrite: true }),
+    json({ design: storedNow, revision: STORED_REVISION, canWrite: true }),
   );
 }
 
@@ -172,6 +174,7 @@ function requestsTo(suffix: string, method: string): Request[] {
 
 beforeEach(() => {
   requests = [];
+  storedNow = STORED_COPY;
   vi.stubGlobal("fetch", answer);
   useConfiguratorStore.setState(useConfiguratorStore.getInitialState());
   container = document.createElement("div");
@@ -318,5 +321,105 @@ describe("after the answer's copy is taken", () => {
 
     expect(requestsTo(`/${DESIGN_ID}`, "GET")).toHaveLength(1);
     expect(requestsTo(`/${DESIGN_ID}`, "PUT")).toEqual([]);
+  });
+});
+
+/** A body both copies hold. In the stored copy it wears a handle of its own, so its panel reads differently there. */
+const BODY_BOTH_COPIES_HOLD = KITCHEN_L_DESIGN.placements.at(0)?.id ?? "";
+const OTHER_HANDLE = "black";
+
+/** The stored copy, with the body both copies hold changed: the document a second writer, or this tab earlier, left. */
+function storedCopyWithTheBodyChanged(): Design {
+  return {
+    ...STORED_COPY,
+    placements: STORED_COPY.placements.map((placement) =>
+      placement.id === BODY_BOTH_COPIES_HOLD
+        ? {
+            ...placement,
+            body: { ...placement.body, handle: OTHER_HANDLE },
+          }
+        : placement,
+    ),
+  } as Design;
+}
+
+function select(id: string): void {
+  act(() => {
+    useConfiguratorStore.getState().select({ kind: "placement", id });
+  });
+}
+
+/** The kept page shown, a body selected while the answer is still owed, then the answer heard. */
+async function selectBeforeTheAnswer(id: string): Promise<void> {
+  act(() => {
+    root.render(editorOnTheKeptPage());
+  });
+  expect(useConfiguratorStore.getState().canWrite).toBe("checking");
+  select(id);
+  await wait(PROBE_ANSWER_MS);
+}
+
+describe("a body selected between the probe's question and its answer", () => {
+  it("stays selected when the stored copy holds it, and its panel is the one the stored copy gives", async () => {
+    storedNow = storedCopyWithTheBodyChanged();
+    await returnToTheKeptPageAndHearTheAnswer();
+    select(BODY_BOTH_COPIES_HOLD);
+    const panelOfTheStoredCopy = seen.panel;
+    act(() => {
+      root.unmount();
+    });
+    useConfiguratorStore.setState(useConfiguratorStore.getInitialState());
+    root = createRoot(container);
+
+    await selectBeforeTheAnswer(BODY_BOTH_COPIES_HOLD);
+
+    expect(useConfiguratorStore.getState()).toMatchObject({
+      selection: { kind: "placement", id: BODY_BOTH_COPIES_HOLD },
+      revision: STORED_REVISION,
+      canWrite: true,
+    });
+    expect(seen.panel?.kind).toBe("open");
+    expect(seen.panel).toEqual(panelOfTheStoredCopy);
+  });
+
+  it("had another panel on the kept page, so the check above can tell the two copies apart", async () => {
+    storedNow = storedCopyWithTheBodyChanged();
+    act(() => {
+      root.render(editorOnTheKeptPage());
+    });
+    select(BODY_BOTH_COPIES_HOLD);
+    const sectionsOnTheKeptPage =
+      seen.panel?.kind === "open" ? seen.panel.sections : undefined;
+
+    await wait(PROBE_ANSWER_MS);
+
+    if (seen.panel?.kind !== "open") throw new Error("the panel is closed");
+    expect(sectionsOnTheKeptPage).toBeDefined();
+    expect(seen.panel.sections).not.toEqual(sectionsOnTheKeptPage);
+  });
+
+  it("is deselected and its panel closed when the stored copy no longer holds it", async () => {
+    await selectBeforeTheAnswer(BODY_ONLY_THE_KEPT_PAGE_HAS);
+
+    expect(useConfiguratorStore.getState().selection).toBeNull();
+    expect(seen.panel?.kind).toBe("closed");
+    expect(seen.recordIds).not.toContain(BODY_ONLY_THE_KEPT_PAGE_HAS);
+  });
+
+  it("keeps the selection, the design and its records untouched when the stored copy is no newer", async () => {
+    act(() => {
+      root.render(editorOnTheKeptPage());
+    });
+    useConfiguratorStore.setState({ revision: STORED_REVISION });
+    select(BODY_ONLY_THE_KEPT_PAGE_HAS);
+    const designBefore = useConfiguratorStore.getState().design;
+
+    await wait(PROBE_ANSWER_MS);
+
+    expect(useConfiguratorStore.getState()).toMatchObject({
+      design: designBefore,
+      selection: { kind: "placement", id: BODY_ONLY_THE_KEPT_PAGE_HAS },
+      canWrite: true,
+    });
   });
 });

@@ -3,14 +3,21 @@
 // twice from a fresh start, once ending where the customer stays and once with the round trip added, and the two
 // screens are compared (`support/qa-8k2-one-tab-two-designs.ts`).
 //
-// The last two tests are a finding and are red. A write that failed, or that the limit refused, and whose wait has
-// since ended while another design's request holds the one slot, is handed to a load as a write that is merely ready:
-// the hand-over has no word for what it was last said to be. So the customer who stays is still told the save failed
-// (or when it goes), and the one who leaves and returns is told nothing. The edit is on the screen, unsaved, either way,
-// and is sent once; only the sentence differs. `save-coalescer.ts`, `heldWriteOf`, the branch for `wait === null`.
+// Three ways. Random sequences. Then whole: each state a write can be in (`support/qa-8k2-held-states.ts`), on the
+// screen that never left and on the one that returned once, followed by every one or two of a time passing, an answer
+// arriving, an edit and the probe answering. Then by name: the two cases that were red before the writer remembered
+// the failure it last said, and their opposites, where a failure once said must not be said again.
 import { fc } from "@fast-check/vitest";
 import { afterEach, describe, expect, it } from "vitest";
 
+import {
+  A_MOMENT,
+  EDIT,
+  HELD_STATES,
+  PROBE_NOW,
+  TO_A,
+  TO_B,
+} from "../support/qa-8k2-held-states";
 import {
   OneTabTwoDesigns,
   type SaveAnswer,
@@ -22,6 +29,7 @@ const RUNS = 120;
 const TIMEOUT_MS = 240_000;
 const BACKOFF_FIRST_STEP_MS = 500;
 const LIMIT_WAIT_MS = 1000;
+const LONGEST_WAIT_MS = 30_000;
 
 const SAVE_ANSWERS: readonly SaveAnswer[] = [
   "stored",
@@ -30,15 +38,6 @@ const SAVE_ANSWERS: readonly SaveAnswer[] = [
   "limited-30s",
 ];
 const PASSES_MS = [0, 1, 499, 500, 999, 1000, 1001, 8000, 30_000];
-
-const PROBE_NOW: readonly TabEvent[] = [
-  { kind: "probe-answered" },
-  { kind: "probe-arrives" },
-];
-const EDIT: TabEvent = { kind: "edit" };
-const A_MOMENT: TabEvent = { kind: "pass", ms: 0 };
-const TO_A: TabEvent = { kind: "go", to: "design-a", keptPage: 0 };
-const TO_B: TabEvent = { kind: "go", to: "design-b", keptPage: 0 };
 
 const one = (event: TabEvent): fc.Arbitrary<TabEvent[]> => fc.constant([event]);
 const aSaveAnswer = fc.constantFrom(...SAVE_ANSWERS);
@@ -166,6 +165,177 @@ describe("a design left and returned to at once while the tab holds a write for 
     expect(both.returned).toMatchObject({
       saveStatus: both.stayed.saveStatus,
       saveResumesAtMs: both.stayed.saveResumesAtMs,
+    });
+  });
+});
+
+/** What can happen next to a tab that holds a write: time, an answer to the save that is out, an edit, the probe. */
+const WHAT_FOLLOWS: readonly (readonly TabEvent[])[] = [
+  [{ kind: "pass", ms: 0 }],
+  [{ kind: "pass", ms: BACKOFF_FIRST_STEP_MS }],
+  [{ kind: "pass", ms: LIMIT_WAIT_MS }],
+  [{ kind: "pass", ms: LONGEST_WAIT_MS }],
+  [{ kind: "answer", with: "stored" }],
+  [{ kind: "answer", with: "failed" }],
+  [{ kind: "answer", with: "limited-1s" }],
+  [EDIT],
+  [...PROBE_NOW],
+];
+
+function oneOrTwoThatFollow(): TabEvent[][] {
+  const one = WHAT_FOLLOWS.map((events) => [...events]);
+  const two = WHAT_FOLLOWS.flatMap((first) =>
+    WHAT_FOLLOWS.map((second) => [...first, ...second]),
+  );
+  return [[], ...one, ...two];
+}
+
+const FOLLOW_UPS = oneOrTwoThatFollow();
+/** Every save after the state's own is kept out until an answer event, so each answer above has a save to answer. */
+const LATER_SAVES: readonly SaveMode[] = ["held", "held", "held", "held"];
+const WHOLE_TIMEOUT_MS = 240_000;
+
+describe("each state of a held write, on the screen that stayed and on the one that returned, then one or two things happening", () => {
+  it.each(HELD_STATES)(
+    "says the same of a write $name before and after a return at once",
+    async (held) => {
+      const modes = [...held.modes, ...LATER_SAVES];
+      const stayedOnA = held.untilLeft.slice(0, -1);
+      const returnedOnce = [...held.untilLeft, TO_A];
+      const differing: string[] = [];
+      let compared = 0;
+
+      for (const start of [stayedOnA, returnedOnce]) {
+        for (const followUp of FOLLOW_UPS) {
+          const events = [...PROBE_NOW, ...start, ...followUp];
+          const both = await stayAndReturn(modes, events);
+          if (!both.holdsAWriteOfA) continue;
+          compared += 1;
+          if (JSON.stringify(both.returned) !== JSON.stringify(both.stayed))
+            differing.push(
+              `after ${JSON.stringify(followUp)}: stayed ${both.stayed.saveStatus} ${String(both.stayed.saveResumesAtMs)}, returned ${both.returned.saveStatus} ${String(both.returned.saveResumesAtMs)}`,
+            );
+        }
+      }
+
+      expect(differing).toEqual([]);
+      expect(compared).toBeGreaterThan(held.shownOnReturn.isUnsaved ? 50 : 0);
+    },
+    WHOLE_TIMEOUT_MS,
+  );
+});
+
+describe("a failure once said is not said again after the write was next said to be saving", () => {
+  const UNTIL_A_FAILURE_IS_SAID: readonly TabEvent[] = [
+    ...PROBE_NOW,
+    EDIT,
+    A_MOMENT,
+  ];
+  const RETRY_GOES: TabEvent = { kind: "pass", ms: BACKOFF_FIRST_STEP_MS };
+
+  async function shownOnReturnAfter(
+    modes: readonly SaveMode[],
+    events: readonly TabEvent[],
+  ): Promise<Shown> {
+    return (await shownAfter(modes, [...events, TO_B, TO_A])).shown;
+  }
+
+  it("shows an edit made after the failed save's retry was stored as unsaved with no failure", async () => {
+    const shown = await shownOnReturnAfter(
+      ["failed", "stored"],
+      [...UNTIL_A_FAILURE_IS_SAID, RETRY_GOES, EDIT],
+    );
+
+    expect(shown).toMatchObject({
+      isUnsaved: true,
+      saveStatus: "idle",
+      saveResumesAtMs: null,
+      revision: "2",
+    });
+  });
+
+  it("shows an edit made after the refused save went and was stored as unsaved with no time", async () => {
+    const shown = await shownOnReturnAfter(
+      ["limited-1s", "stored"],
+      [...UNTIL_A_FAILURE_IS_SAID, { kind: "pass", ms: LIMIT_WAIT_MS }, EDIT],
+    );
+
+    expect(shown).toMatchObject({
+      isUnsaved: true,
+      saveStatus: "idle",
+      saveResumesAtMs: null,
+      revision: "2",
+    });
+  });
+
+  it("shows the retry that is out as being saved, with an edit behind it, and not as failed", async () => {
+    const shown = await shownOnReturnAfter(
+      ["failed", "held"],
+      [...UNTIL_A_FAILURE_IS_SAID, RETRY_GOES, EDIT],
+    );
+
+    expect(shown).toMatchObject({ isUnsaved: true, saveStatus: "saving" });
+  });
+
+  it("shows an edit as never failed when its design's earlier save failed, was retried and stored, and the edit now waits behind the other design's request", async () => {
+    const shown = await shownOnReturnAfter(
+      ["failed", "stored", "held"],
+      [
+        ...UNTIL_A_FAILURE_IS_SAID,
+        RETRY_GOES,
+        TO_B,
+        ...PROBE_NOW,
+        { kind: "pass", ms: LIMIT_WAIT_MS },
+        EDIT,
+        A_MOMENT,
+        TO_A,
+        ...PROBE_NOW,
+        EDIT,
+      ],
+    );
+
+    expect(shown).toMatchObject({
+      isUnsaved: true,
+      saveStatus: "idle",
+      saveResumesAtMs: null,
+    });
+  });
+
+  it.each([
+    ["failed", BACKOFF_FIRST_STEP_MS],
+    ["limited-1s", LIMIT_WAIT_MS],
+  ] as const)(
+    "shows an edit made while the retry of a %s save was out as unsaved with no failure once that retry is stored, the queue never having been empty",
+    async (firstAnswer, waitMs) => {
+      const shown = await shownOnReturnAfter(
+        [firstAnswer, "held"],
+        [
+          ...UNTIL_A_FAILURE_IS_SAID,
+          { kind: "pass", ms: waitMs },
+          EDIT,
+          { kind: "answer", with: "stored" },
+        ],
+      );
+
+      expect(shown).toMatchObject({
+        isUnsaved: true,
+        saveStatus: "idle",
+        saveResumesAtMs: null,
+        revision: "2",
+      });
+    },
+  );
+
+  it("says the failure again, and no time, when the save refused by the limit then fails", async () => {
+    const shown = await shownOnReturnAfter(
+      ["limited-1s", "failed"],
+      [...UNTIL_A_FAILURE_IS_SAID, { kind: "pass", ms: LIMIT_WAIT_MS }],
+    );
+
+    expect(shown).toMatchObject({
+      isUnsaved: true,
+      saveStatus: "error",
+      saveResumesAtMs: null,
     });
   });
 });

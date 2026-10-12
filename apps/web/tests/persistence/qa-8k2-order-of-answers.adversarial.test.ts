@@ -5,11 +5,17 @@
 // Two sweeps. The first is random: any sequence of edits, saves stored, failed, limited or held, leaving for the other
 // design, returning on a kept page of any revision the server has held, and the probe answered, arriving, failing or
 // retried at any point; a save's answer is decided by the server at one point and reaches the tab at a later one. The
-// second is whole: each state a write can be in when its design is loaded again, each fate of its next two answers, and
+// second is whole: each state (`support/qa-8k2-held-states.ts`) a write can be in when its design is loaded again, each fate of its next two answers, and
 // the probe's answer read from the server and applied before each answer, while it is on its way, and after it.
 import { fc } from "@fast-check/vitest";
 import { afterEach, describe, expect, it } from "vitest";
 
+import {
+  HELD_STATES,
+  PROBE_NOW,
+  TO_A,
+  type HeldState,
+} from "../support/qa-8k2-held-states";
 import {
   OneTabTwoDesigns,
   type SaveAnswer,
@@ -130,101 +136,6 @@ describe("one tab, two designs, the probe's answer and the writer's answers in a
     RANDOM_TIMEOUT_MS,
   );
 });
-
-const PROBE_NOW: readonly TabEvent[] = [
-  { kind: "probe-answered" },
-  { kind: "probe-arrives" },
-];
-const EDIT: TabEvent = { kind: "edit" };
-const TO_A: TabEvent = { kind: "go", to: "design-a", keptPage: 0 };
-const TO_B: TabEvent = { kind: "go", to: "design-b", keptPage: 0 };
-const A_MOMENT: TabEvent = { kind: "pass", ms: 0 };
-
-interface HeldState {
-  readonly name: string;
-  /** The fates of the saves sent before the design is left. */
-  readonly modes: readonly SaveMode[];
-  /** From design A loaded and writable to design B on screen, with A's write in the named state. */
-  readonly untilLeft: readonly TabEvent[];
-  /** Whether a save of A is already out when A is returned to, so its first answer needs no time to pass. */
-  readonly isSentAlready: boolean;
-  /** What must be answered first for A's write to be free to go: design B's request, where it holds the one slot. */
-  readonly beforeTheFirstAnswer: readonly TabEvent[];
-  /** What the screen says of the write when its design is loaded again. */
-  readonly shownOnReturn: {
-    saveStatus: string;
-    hasATime: boolean;
-    isUnsaved: boolean;
-  };
-}
-
-const HELD_STATES: readonly HeldState[] = [
-  {
-    name: "waiting for the limit",
-    modes: ["limited-30s"],
-    untilLeft: [EDIT, A_MOMENT, TO_B],
-    isSentAlready: false,
-    beforeTheFirstAnswer: [],
-    shownOnReturn: { saveStatus: "error", hasATime: true, isUnsaved: true },
-  },
-  {
-    name: "backing off after a failure",
-    modes: ["failed"],
-    untilLeft: [EDIT, A_MOMENT, TO_B],
-    isSentAlready: false,
-    beforeTheFirstAnswer: [],
-    shownOnReturn: { saveStatus: "error", hasATime: false, isUnsaved: true },
-  },
-  {
-    name: "sent and not answered",
-    modes: ["held"],
-    untilLeft: [EDIT, A_MOMENT, TO_B],
-    isSentAlready: true,
-    beforeTheFirstAnswer: [],
-    shownOnReturn: { saveStatus: "saving", hasATime: false, isUnsaved: true },
-  },
-  {
-    name: "sent and not answered, with a later edit behind it",
-    modes: ["held"],
-    untilLeft: [EDIT, A_MOMENT, EDIT, TO_B],
-    isSentAlready: true,
-    beforeTheFirstAnswer: [],
-    shownOnReturn: { saveStatus: "saving", hasATime: false, isUnsaved: true },
-  },
-  {
-    name: "ready behind the one-second interval",
-    modes: ["stored"],
-    untilLeft: [EDIT, A_MOMENT, EDIT, TO_B],
-    isSentAlready: false,
-    beforeTheFirstAnswer: [],
-    shownOnReturn: { saveStatus: "idle", hasATime: false, isUnsaved: true },
-  },
-  {
-    name: "ready behind the other design's request",
-    modes: ["held"],
-    untilLeft: [
-      TO_B,
-      ...PROBE_NOW,
-      EDIT,
-      A_MOMENT,
-      TO_A,
-      ...PROBE_NOW,
-      EDIT,
-      TO_B,
-    ],
-    isSentAlready: false,
-    beforeTheFirstAnswer: [{ kind: "answer", with: "stored" }],
-    shownOnReturn: { saveStatus: "idle", hasATime: false, isUnsaved: true },
-  },
-  {
-    name: "that was stored: nothing is held and the kept page is the older one",
-    modes: ["stored"],
-    untilLeft: [EDIT, A_MOMENT, TO_B],
-    isSentAlready: false,
-    beforeTheFirstAnswer: [],
-    shownOnReturn: { saveStatus: "idle", hasATime: false, isUnsaved: false },
-  },
-];
 
 /** The probe's answer is read from the server at one point and applied at the same or a later one. */
 interface ProbePlacement {
