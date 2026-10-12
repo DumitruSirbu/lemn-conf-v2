@@ -1,6 +1,10 @@
 import "server-only";
 
-import { InvalidDesignError, type Design } from "@lemnaria/configurator-domain";
+import {
+  InvalidDesignError,
+  isDesignId,
+  type Design,
+} from "@lemnaria/configurator-domain";
 import type { DesignRevision } from "@lemnaria/persistence";
 import { cookies } from "next/headers";
 
@@ -23,14 +27,18 @@ export type OwnedDesignLoad =
  * Amendment H2). Each page that opens a stored design calls this and renders its own screen for `found`, so two
  * routes cannot answer one request differently.
  *
- * A missing or malformed visitor cookie, a foreign one and an unknown id are one outcome, `"unavailable"`; the
- * no-cookie and malformed cases never reach the repository. `loadOwned` performs parse, migrate and validate as one
- * step for a matched row, so `found` is a fully-formed `Design`, and a stored row the load seam refuses (an unknown
- * body, say) is `"invalid"` for its owner alone. Any other failure is a driver failure and is rethrown.
+ * A missing or malformed visitor cookie, a segment that is not a design id's shape (the domain's `isDesignId`; this
+ * file states no shape of its own, 8L.13), a foreign cookie and an unknown id are one outcome, `"unavailable"`; the
+ * no-cookie, malformed-cookie and malformed-id cases never reach the repository. The cookie is read first on purpose:
+ * it is what makes a page that calls this one per-request, whatever the segment.
+ *
+ * `loadOwned` performs parse, migrate and validate as one step for a matched row, so `found` is a fully-formed
+ * `Design`, and a stored row the load seam refuses (an unknown body, say) is `"invalid"` for its owner alone. Any
+ * other failure is a driver failure and is rethrown.
  */
 export async function loadOwnedDesign(id: string): Promise<OwnedDesignLoad> {
   const visitorHash = readVisitorHash(await cookies());
-  if (visitorHash === undefined)
+  if (visitorHash === undefined || !isDesignId(id))
     return { kind: "refused", reason: "unavailable" };
 
   try {

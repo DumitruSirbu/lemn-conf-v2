@@ -17,7 +17,7 @@ import { readSource } from "../lib/server/server-source-support";
 
 /**
  * The contact page is a third door to a design that opens only in its owning browser (ADR 0114 decision 5, ADR 0148
- * A1; 8L criterion 15). Each refusal must be the editor's and the review's, class for class, and the three doors must
+ * A1; 8L criterion 15). Each refusal, a segment that is not a design id's shape included (8L.13, criterion 16), must be the editor's and the review's, class for class, and the three doors must
  * answer one request with one thing; a request with no usable cookie reaches no repository. What the page hands its
  * client is a design, its revision and one boolean (8L criterion 7).
  */
@@ -25,6 +25,9 @@ import { readSource } from "../lib/server/server-source-support";
 const VISITOR_COOKIE_NAME = "__Host-lemnaria_visitor";
 const OWNER_VALUE = "O".repeat(43);
 const FOREIGN_VALUE = "F".repeat(43);
+const OWNED_ROW_ID = "ownedRow____________1";
+const OWNED_INVALID_ROW_ID = "ownedInvalidRow_____2";
+const UNKNOWN_ROW_ID = "noSuchRow___________3";
 const DIGEST_SECRET_VALUE =
   "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
 
@@ -83,11 +86,11 @@ function ownerOnlyRepository(): void {
   const ownerHash = sha256Hex(OWNER_VALUE);
   loadOwned.mockImplementation(({ id, visitorHash }) => {
     if (visitorHash !== ownerHash) return Promise.resolve({ kind: "none" });
-    if (id === "owned-invalid-row")
+    if (id === OWNED_INVALID_ROW_ID)
       return Promise.reject(
         new InvalidDesignError("stored document is invalid"),
       );
-    if (id !== "owned-row") return Promise.resolve({ kind: "none" });
+    if (id !== OWNED_ROW_ID) return Promise.resolve({ kind: "none" });
     return Promise.resolve({
       kind: "found",
       design: KITCHEN_L_DESIGN,
@@ -153,14 +156,14 @@ describe("the three doors refuse one request alike", () => {
     {
       name: "no cookie",
       cookie: undefined,
-      id: "owned-row",
+      id: OWNED_ROW_ID,
       reachesRepository: false,
       reason: "unavailable",
     },
     {
       name: "a malformed cookie",
       cookie: "O".repeat(42),
-      id: "owned-row",
+      id: OWNED_ROW_ID,
       reachesRepository: false,
       reason: "unavailable",
     },
@@ -168,35 +171,49 @@ describe("the three doors refuse one request alike", () => {
       name: "a cookie under another name",
       cookie: OWNER_VALUE,
       cookieName: "__host-lemnaria_visitor",
-      id: "owned-row",
+      id: OWNED_ROW_ID,
       reachesRepository: false,
       reason: "unavailable",
     },
     {
       name: "a foreign cookie",
       cookie: FOREIGN_VALUE,
-      id: "owned-row",
+      id: OWNED_ROW_ID,
       reachesRepository: true,
       reason: "unavailable",
     },
     {
       name: "a foreign cookie on an invalid row",
       cookie: FOREIGN_VALUE,
-      id: "owned-invalid-row",
+      id: OWNED_INVALID_ROW_ID,
       reachesRepository: true,
       reason: "unavailable",
     },
     {
       name: "an unknown id",
       cookie: OWNER_VALUE,
-      id: "no-such-row",
+      id: UNKNOWN_ROW_ID,
       reachesRepository: true,
+      reason: "unavailable",
+    },
+    {
+      name: "an id too short to be a design id's, for the owner",
+      cookie: OWNER_VALUE,
+      id: "owned-row",
+      reachesRepository: false,
+      reason: "unavailable",
+    },
+    {
+      name: "an id one character too long, for the owner",
+      cookie: OWNER_VALUE,
+      id: `${OWNED_ROW_ID}x`,
+      reachesRepository: false,
       reason: "unavailable",
     },
     {
       name: "an invalid row, for its owner",
       cookie: OWNER_VALUE,
-      id: "owned-invalid-row",
+      id: OWNED_INVALID_ROW_ID,
       reachesRepository: true,
       reason: "invalid",
     },
@@ -240,7 +257,7 @@ describe("the three doors refuse one request alike", () => {
     state.cookieValue = OWNER_VALUE;
     loadOwned.mockRejectedValue(new Error("connection reset"));
 
-    await expect(renderDoor("contact", "owned-row")).rejects.toThrow(
+    await expect(renderDoor("contact", OWNED_ROW_ID)).rejects.toThrow(
       "connection reset",
     );
   });
@@ -252,17 +269,17 @@ describe("the owner is served the contact page", () => {
   });
 
   it("with the stored design, its revision, the id and whether the server can send, and nothing else", async () => {
-    const page = await renderDoor("contact", "owned-row");
+    const page = await renderDoor("contact", OWNED_ROW_ID);
 
     expect(isValidElement(page) && page.type).toBe(hydrateAndContact);
     expect(propsOf(page)).toEqual({
       design: KITCHEN_L_DESIGN,
-      designId: "owned-row",
+      designId: OWNED_ROW_ID,
       revision: "7",
       isSendable: true,
     });
     expect(loadOwned).toHaveBeenCalledWith({
-      id: "owned-row",
+      id: OWNED_ROW_ID,
       visitorHash: sha256Hex(OWNER_VALUE),
     });
   });
@@ -270,7 +287,7 @@ describe("the owner is served the contact page", () => {
   it("with isSendable false when the server has no usable digest secret", async () => {
     vi.stubEnv("DIGEST_SECRET", undefined);
 
-    const page = await renderDoor("contact", "owned-row");
+    const page = await renderDoor("contact", OWNED_ROW_ID);
 
     expect(propsOf(page).isSendable).toBe(false);
   });
@@ -278,15 +295,15 @@ describe("the owner is served the contact page", () => {
   it("with isSendable false when the server has no mail sender", async () => {
     vi.stubEnv("LEMNARIA_E2E_FAKE_MAIL", undefined);
 
-    const page = await renderDoor("contact", "owned-row");
+    const page = await renderDoor("contact", OWNED_ROW_ID);
 
     expect(propsOf(page).isSendable).toBe(false);
   });
 
   it("reading the environment when it is asked for and not when it was imported", async () => {
-    const first = await renderDoor("contact", "owned-row");
+    const first = await renderDoor("contact", OWNED_ROW_ID);
     vi.stubEnv("DIGEST_SECRET", undefined);
-    const second = await renderDoor("contact", "owned-row");
+    const second = await renderDoor("contact", OWNED_ROW_ID);
 
     expect([propsOf(first).isSendable, propsOf(second).isSendable]).toEqual([
       true,
@@ -303,7 +320,7 @@ describe("the owner is served the contact page", () => {
     });
 
     const handedOn = JSON.stringify(
-      propsOf(await renderDoor("contact", "owned-row")),
+      propsOf(await renderDoor("contact", OWNED_ROW_ID)),
     );
 
     for (const secret of [
