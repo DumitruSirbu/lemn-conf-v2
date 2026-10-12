@@ -1,0 +1,447 @@
+/* Frames 4A and 4B as one scrolling page, on the phone's layout. The document scrolls; the bottom region (the consent
+ * and the call to action) is sticky, so it stays at the viewport's foot while there is more to read and sits in the
+ * flow, below the last field, when there is not. Nothing here is `position: fixed`, so nothing can cover a field.
+ *
+ * Wider screens get the same column, centred and capped, as the review does: no desktop chrome is drawn for this
+ * screen (ADR 0148 A3). */
+.screen {
+  --refusal-surface: #fdf3f3;
+  --refusal-ink: #8f2020;
+  --selected-surface: #ece7dd;
+
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 640px;
+  min-height: 100dvh;
+  margin-inline: auto;
+  background: var(--paper);
+}
+
+.loading {
+  margin: auto;
+  padding: 26px 18px;
+  font: 400 13.5px/1.6 var(--font-ui);
+  color: var(--ink-muted);
+  text-align: center;
+}
+
+/* The review's bar, as shipped: the way back, the title, then the language control, which brings its own cell. */
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 14px;
+  background: var(--paper);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.navTitle {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font: 700 15px/1 var(--font-ui);
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The language menu's cell carries the editor's rule under it, which this taller bar would show floating. */
+.nav .localeSlot > * {
+  border-bottom: 0;
+}
+
+.back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--touch-target);
+  height: var(--touch-target);
+  margin-block: -14px;
+  margin-inline: -11px;
+  font: 700 17px/1 var(--font-ui);
+  color: var(--accent);
+  text-decoration: none;
+}
+
+/* The form is the page below the bar: its body grows, and its bottom region ends it. */
+.form {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 15px;
+  padding: 18px 18px 20px;
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.heading {
+  margin: 0;
+  font: 700 22px/1.2 var(--font-ui);
+  letter-spacing: -0.015em;
+}
+
+.subheading {
+  margin: 0;
+  font: 400 13px/1.55 var(--font-ui);
+  color: var(--ink-muted);
+  text-wrap: pretty;
+}
+
+/* Frame 4A's card: a neutral square, then the room and the figure under it in the quieter type. */
+.card {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 11px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 11px;
+}
+
+.cardSquare {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  background: repeating-linear-gradient(
+    135deg,
+    #e9e4da 0 7px,
+    #f1ede5 7px 14px
+  );
+  border-radius: 8px;
+}
+
+.cardText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cardRoom {
+  font: 700 12.5px/1.2 var(--font-ui);
+}
+
+.cardFigure {
+  font: 400 11.5px/1.3 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-muted);
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  padding: 0;
+  font: 700 12.5px/1.2 var(--font-ui);
+  color: var(--ink);
+}
+
+.field[data-invalid="true"] .label {
+  color: var(--refusal);
+}
+
+.input {
+  width: 100%;
+  height: 54px;
+  padding: 0 14px;
+  font: 400 15px/1.2 var(--font-ui);
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.input::placeholder {
+  color: var(--ink-faint);
+}
+
+.input:focus-visible,
+.consentBox:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The refused field: a red edge and a tinted ground, and the sentence's own mark below it, never colour alone. */
+.input[aria-invalid="true"] {
+  background: var(--refusal-surface);
+  border: 2px solid var(--refusal);
+}
+
+.error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 11px 12px;
+  font: 400 12.5px/1.45 var(--font-ui);
+  color: var(--refusal-ink);
+  background: var(--refusal-surface);
+  border-radius: 10px;
+}
+
+.errorMark {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  font: 700 11px/16px var(--font-ui);
+  color: #fff;
+  text-align: center;
+  background: var(--refusal);
+  border-radius: 50%;
+}
+
+.channels {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.chips {
+  display: flex;
+  gap: 9px;
+}
+
+/* One chip is a label around a radio that is drawn by the label, not by the browser; the radio stays in the page,
+ * so the group keeps its arrows and its one tab stop. */
+.chip {
+  position: relative;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  font: 700 12.5px/1.2 var(--font-ui);
+  text-align: center;
+  cursor: pointer;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+}
+
+.chipInput {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.chipText {
+  padding-inline: 6px;
+}
+
+.chip:has(.chipInput:checked) {
+  color: var(--accent-strong);
+  background: var(--selected-surface);
+  border: 2px solid var(--accent);
+}
+
+.chip:has(.chipInput:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Not perceivable and not reachable: a one-pixel clipped box, still laid out, so a script that fills what is laid out
+ * fills it. It is not `display: none`. */
+.honeypot {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  white-space: nowrap;
+  border: 0;
+  clip-path: inset(50%);
+}
+
+/* Foot of the page: the sentence of a save that is owed, the consent, the call to action. Sticky and in the flow, so it
+ * ends the page and never covers the last field. */
+.bottom {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  padding: 13px 18px calc(20px + env(safe-area-inset-bottom, 0px));
+  background: var(--paper);
+  border-top: 1px solid var(--line);
+}
+
+.consent {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.consent[data-invalid="true"] {
+  padding: 10px 11px;
+  background: var(--refusal-surface);
+  border-radius: 10px;
+}
+
+.consent[data-invalid="true"] .error {
+  padding: 0;
+  background: transparent;
+}
+
+.consentRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+/* The frame's 22 px box, drawn here so that its tick is a border and no text carries it. */
+.consentBox {
+  display: grid;
+  flex: 0 0 22px;
+  place-content: center;
+  width: 22px;
+  height: 22px;
+  margin: 4px 0 0;
+  cursor: pointer;
+  appearance: none;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.consentBox:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.consentBox:checked::after {
+  width: 6px;
+  height: 11px;
+  content: "";
+  border: solid var(--paper);
+  border-width: 0 2px 2px 0;
+  transform: translateY(-1px) rotate(45deg);
+}
+
+.consentBox[aria-invalid="true"] {
+  border: 2px solid var(--refusal);
+}
+
+.consentLabel {
+  flex: 1;
+  padding-block: 6px;
+  font: 400 11.5px/1.45 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+/* The consent's wording is a slot until the owner supplies the privacy text (Q7 (b)): the tag says so. */
+.marker {
+  display: inline-block;
+  padding: 1px 6px;
+  font: 700 10px/1.4 var(--font-ui);
+  letter-spacing: 0.04em;
+  color: var(--accent-strong);
+  background: var(--selected-surface);
+  border-radius: 4px;
+}
+
+.sentence {
+  margin: 0;
+  font: 400 12px/1.45 var(--font-ui);
+  color: var(--ink);
+}
+
+.refusal {
+  composes: sentence;
+  padding-inline-start: 10px;
+  border-inline-start: 3px solid var(--refusal);
+}
+
+/* A save under way is a wait, not an error: the same quiet card the review draws. */
+.waiting {
+  composes: sentence;
+  padding: 8px 10px;
+  color: var(--ink-muted);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.reviewLink {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  min-height: var(--touch-target);
+  font: 700 13px/1 var(--font-ui);
+  color: var(--accent);
+}
+
+/* Frame 4A's call to action: full width, 52 px. While the form is not yet one that would be sent it is drawn in the
+ * frame's pale ground, and it is still a button that can be pressed, because a refused press is what names the field. */
+.cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 52px;
+  padding: 8px 22px;
+  font: 700 15px/1.15 var(--font-ui);
+  color: var(--paper);
+  cursor: pointer;
+  background: var(--accent);
+  border: 0;
+  border-radius: 12px;
+}
+
+.cta[data-ready="false"] {
+  color: var(--accent-strong);
+  background: var(--selected-surface);
+  border: 1px solid var(--line);
+}
+
+/* Off, and still focusable so its reason is read with it: `aria-disabled` and `aria-describedby`, not the `disabled`
+ * attribute. */
+.cta[aria-disabled="true"] {
+  color: var(--ink-faint);
+  cursor: not-allowed;
+  background: var(--line-soft);
+  border: 0;
+}
+
+.cta:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+
+@media (min-width: 900px) {
+  .body {
+    padding-inline: 24px;
+  }
+
+  .bottom {
+    padding-inline: 24px;
+  }
+}
