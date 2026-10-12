@@ -10266,6 +10266,111 @@ criteria 16 and 17 and K2.2's amended sentence; L3 closed and L7 never opened; t
 a pause, with Q38; the frozen-tab line for 8T; the slow sweep for the audit; QA's incident for the
 owner.
 
+##### 8K2 — adjudication of QA's round 2; fix A3; what the reviews read, 2026-10-12
+
+**State.** HEAD is `acdf1ef8`, QA's round 2 [ran: `git log --oneline`], tree clean [ran:
+`git status --short`, no line]. Round A is `628e2a25` (A1) and `f4e23405` (A2).
+
+**1. Adjudication** [QA-run, relayed, unless a line says *read*].
+
+| Reported | Class | Ruling |
+| --- | --- | --- |
+| `tests/persistence/qa-8k2-failure-told.adversarial.test.ts:84` red (the expectation at `:100`): on the writer alone, an edit from a newer generation replaces a backoff's write, and the new write, for which nothing was ever said, is handed to the next load as failed. `adoptNewerGeneration` drops the backoff and leaves A1's memory, `failureTold` [read: `save-coalescer.ts:246-258`, `:292`, `:625`] | **Implementation defect of A1, caused by the plan.** A1's *must not touch `adoptNewerGeneration`* kept the developer out of the one other place that ends a failure's wait. **Not out of scope:** A1 gave the queue a memory, and a memory that outlives its write is wrong in the module whoever calls it. No event of the application reaches it today (K2.4), which is why it is one line and not a criterion | **A3.** QA's test stands, unedited. It is not retired and not deferred |
+| `?settings=open` after the read limit's `429`: no sheet, **and none after the retry answers** | **As built, and right. Not a finding.** The arrival is spent at the first answer that is not *checking* [read: `use-honour-arrival.ts:145-150`], which is 8D's rule, not 8K2's. Criterion 11's *"a retry that answers is held to criteria 3 to 5"* is about the copy and the offer of an edit, and both hold: the pill unlocks on the taken copy. A sheet opening by itself after the customer pressed *retry* would be the surprise | QA's assertion stays. One sentence for the scribe under ADR 0148 E2: *an arrival is honoured at the first answer about write access, or not at all* |
+| The two sweeps take 93 s and 106 s inside the unit suite, which now takes 106 s | **A cost, ruled below (point 3).** It overtakes the acceptance of 50 to 75 s written earlier today, which was for one file and a smaller figure | QA, in its own files, before the reviews |
+
+*QA's figures for round 2* [QA-run, relayed; none re-run by the architect].
+
+- Web unit suite: **1 failed (the finding above), 8,751 passed.**
+- Stayed equals returned (criterion 16), whole: 9 states, two starts, 91 follow-ups; and 120
+  random runs. The order sweep: 9 states, 2,376 cases.
+- A2 on the real editor: a body the taken copy holds is kept and its panel reads the stored
+  copy; one it lacks is deselected; an equal revision touches nothing. The edit-link trace
+  asserts the kept selection.
+- `?settings=open`, three cases: answer held, no sheet and no save; answered, the sheet opens on
+  the stored tiers; `429`, no sheet.
+- 13 of 13 mutants killed.
+- One whole e2e run under `CI=1` at `acdf1ef8`: **793 passed, exit 0**, expected to fail exactly
+  three. Teardown: 559 designs, 71 share writes, 396 saves, 18 contact requests, 8 new. Two
+  mobile tests added: mobile 600, desktop 193.
+- *Not run:* a frozen tab; two writers; refusals; the review inside the sweep; the settings
+  sheet open at the moment a copy is taken, which cannot be reached because the pill is locked
+  until the answer.
+
+**2. Fix A3, for dispatch.** One developer, one commit.
+
+| Item | Does | Production file | Reading |
+| --- | --- | --- | --- |
+| A3 | **Where `adoptNewerGeneration` drops a backoff's wait, it forgets the failure told with it.** Where the limit's wait stands it is kept, since that wait is said again to the new generation in the same call | `persistence/save-coalescer.ts`, that one function | this sub-section; *adjudication of QA*, A1; `save-coalescer.ts`, `adoptNewerGeneration`, `reportLimitWait`, `heldWriteOf`; `tests/persistence/qa-8k2-failure-told.adversarial.test.ts` whole (read, not edited) |
+
+- **A1's *must not* on `adoptNewerGeneration` is lifted for this one statement, and for nothing
+  else in the function.** What it protected stands: what the branch does to the queue's
+  generation, its count, its ticket, its wait and its revision is as it was (K2.4).
+- *Must not:* any other line of that function; the limit's case; a timing; the hand-over's
+  fields; `scheduleSave`; a `qa-*` file.
+- *Stops if* any existing test moves, the seven that drive the branch directly among them, or
+  the second test of QA's file (the limit's time, `:103`) goes red.
+- *Done when:* QA's test at `:84` is green, unedited, and the whole web suite exits 0.
+
+**3. The two sweeps: their counts come down in the ordinary run, and QA changes them.**
+
+- *Why now and not at the audit.* A file that takes 106 s sets the suite's whole time, for every
+  developer and agent of every later wave and for the runner. The earlier acceptance was for one
+  file at 50 to 75 s.
+- **QA brings each of the two files to 30 s or less on this machine** [the figure is the
+  architect's, provisional], in its own files, before the reviews read them.
+- **Every arm keeps a stated floor** (ADR 0152 decision 1, rule 5): each of the nine states, each
+  start, and the random runs with their seed printed on a failure. *Must not:* a state dropped
+  from the ordinary run; an assertion changed; a `skip`.
+- **The whole enumeration stays runnable under one named variable**, and what it showed at
+  `acdf1ef8` is the recorded evidence above. Whether that form is kept is the M8 close audit's.
+- QA reports both files' times before and after, and the suite's.
+
+**4. The order from here.**
+
+1. A3, by the developer.
+2. QA: point 3; then its files and the whole web suite, expected exit 0 with no test red.
+3. **The reviews, on that frozen tree.** They do not wait for another whole e2e run.
+4. **One whole e2e run under `CI=1` after the wave's last production commit, before the close.**
+   If the reviews ask for no production change, that is the run after A3. *Until then the
+   standing run is the one at `acdf1ef8`, and the close-out says which commit the last run saw.*
+   This restates point 4 of the section above, which asked for a run after round A: that run
+   was made.
+
+**5. What the reviews read.** Point 9's lines, with these in place of what was added there
+earlier today.
+
+- **Both:** the 8K2 section and its four ruling sub-sections; the production commits `0c24baa0`,
+  `eb05123b`, `7b16568a`, `1087f45b`, `9ce7cb63`, `4d056454`, `628e2a25`, `f4e23405` and A3's;
+  as one diff, `44f84cf3` to the frozen HEAD, of `apps/web/src`.
+- *Logic, Reading:* points 1, 2 and 4; criteria 2 to 11, 14, 16 and 17; P1 to P5; ADR 0002 d13 to
+  d16; `adversarial-review-remediation.md`, *Wave S11* and *Wave S2*; ADR 0148 E2a, E3; ADR 0156
+  d10 and *Limits*. **Named checks:**
+  1. no path on which `revision` moves without its document;
+  2. no path on which an edit is offered between a load and its answer, the `?settings=open`
+     arrival among them;
+  3. every row of stop 3's table against `heldWriteOf`, and every exit of the writer for a write
+     that was handed to a load;
+  4. `failureTold` is never left describing a write it was not said for: every place a write is
+     replaced, sent, stored or dropped;
+  5. a kept selection never names a body the taken copy lacks;
+  6. the review's hydration with a held write in each of its states (criterion 14), which QA's
+     sweeps left out.
+- *Clean-code, Reading:* the same commits; the tests of each slice and QA's `qa-8k2-*` files as
+  they stand after point 3; ADR 0136; ADR 0152; backlog 169 and 171 against S2. **Its named
+  question, now with a third piece:** what a held write was last said to be lives in
+  `resumesAtMs`, an optional `heldAs`, and the queue's `failureTold`. **Would one value that
+  carries what the writer last said, a status and a time, kept on the queue and handed over as
+  it is, be the cleaner shape?** If so the lines that move are
+  `save-coalescer.return.test.ts:110-114` and `:194-198`, the `heldAs` expectations of
+  `save-coalescer.held-write.test.ts`, and QA's `:100`. And: `WaitingWrite`, `adoptWaitingWrite`
+  and `waitingWriteFor` name writes that do not wait.
+- **Security and visual: still not triggered.** No server file, no request, no sentence, no
+  frame. The coordinator's `git diff --stat 44f84cf3` (criterion 12) is what says so.
+
+**For the scribe, at the close.** With the earlier lists: A3; the sentence on an arrival under
+ADR 0148 E2; the sweeps' two forms for the audit; which commit the last whole e2e run saw.
+
 ### 8L — the contact screen 4A/4B/4C
 
 *Goal.* Three fields and a channel, validated where the customer is looking, sent once.
