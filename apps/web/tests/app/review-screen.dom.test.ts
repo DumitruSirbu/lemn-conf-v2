@@ -193,11 +193,11 @@ describe("an available review of a kitchen that fits", () => {
     expect(page.textContent).toContain(ro.priceBreakdown.note);
   });
 
-  it("offers a live call to action to the placeholder contact page, with no reason beside it", () => {
+  it("offers a live call to action to the design's contact page, with no reason beside it", () => {
     const cta = ctaOf(page);
 
     expect(cta.tagName).toBe("A");
-    expect(cta.getAttribute("href")).toBe("/ro/configurator/contact");
+    expect(cta.getAttribute("href")).toBe(`/ro/d/${DESIGN_ID}/contact`);
     expect(cta.getAttribute("aria-disabled")).toBeNull();
     expect(page.querySelector('[data-section="refusal"]')).toBeNull();
     expect(

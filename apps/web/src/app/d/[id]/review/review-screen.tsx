@@ -24,8 +24,6 @@ import { useWebGLSupport } from "@/scene/webgl-support";
 
 import styles from "./review.module.css";
 
-const CONTACT_PLACEHOLDER_HREF = "/configurator/contact";
-
 /**
  * The review of the design the store holds (frames 3A and 3B). On a device that cannot show the kitchen it is the
  * editor's own exit and nothing of the review, since a price would be offered for a configuration that cannot be
@@ -332,6 +330,7 @@ function BottomRegion({
           </p>
         ) : null}
         <CallToAction
+          designId={designId}
           reasonIds={[
             ...(submit.kind === "refused" ? [refusalSentenceId] : []),
             ...(saveWait.kind === "waiting" ? [saveWaitSentenceId] : []),
@@ -344,8 +343,10 @@ function BottomRegion({
 
 /** A link when nothing stands in its way, otherwise off and announced with the sentences that say why. */
 function CallToAction({
+  designId,
   reasonIds,
 }: {
+  readonly designId: DesignId;
   readonly reasonIds: readonly string[];
 }) {
   const content = useContent();
@@ -353,7 +354,8 @@ function CallToAction({
     return (
       <Link
         className={styles.cta}
-        href={CONTACT_PLACEHOLDER_HREF}
+        href={`/d/${designId}/contact`}
+        prefetch={false}
         data-section="callToAction"
         data-testid="review-cta"
       >

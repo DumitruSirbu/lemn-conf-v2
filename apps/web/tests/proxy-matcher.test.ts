@@ -122,8 +122,9 @@ describe("the interceptor's matcher: what lies deeper than a family's one segmen
       .sort();
   }
 
-  it("names, under a design's family, the page and the review's page and nothing that could run for more", () => {
+  it("names, under a design's family, the page, the review's page and the contact page and nothing that could run for more", () => {
     expect(routedFilesUnder("d")).toEqual([
+      "[id]/contact/page.tsx",
       "[id]/page.tsx",
       "[id]/review/page.tsx",
     ]);
