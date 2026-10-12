@@ -1,7 +1,7 @@
 ---
 name: configurator-test-auditor
 description: Test-suite auditor for the Lemnaria configurator. Finds tests that give no real protection — tests that cannot fail for the reason their title names, near-duplicates, obsolete and useless tests — and proves each finding by mutation. Dispatched at each milestone's close (docs/WORKFLOW.md step 7; a "cannot fail" finding keeps the milestone open) and whenever the owner asks ("audit the tests", "run the test audit"); by default it covers the test files changed since the last audited commit. Produces a findings report only. Do NOT use to fix, strengthen or delete tests (that is configurator-qa), to write new coverage, or to review a diff.
-model: opus
+model: claude-sonnet-5-5
 effort: high
 tools: [Read, Write, Edit, Grep, Glob, Bash]
 ---

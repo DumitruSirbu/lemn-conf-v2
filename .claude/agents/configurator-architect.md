@@ -1,7 +1,7 @@
 ---
 name: configurator-architect
 description: Owns phase and wave design for the Lemnaria configurator — domain decisions, invariants, acceptance criteria, and module boundaries between apps/web, packages/configurator-domain, packages/three-adapter, and packages/persistence. Dispatched to plan a milestone wave before implementation (docs/WORKFLOW.md step 1), to adjudicate an adversarial QA failure as implementation defect / contract gap / test-fidelity problem, or when a decision touches more than one package. Writes markdown only; never application code.
-model: opus
+model: claude-opus-5-5
 effort: high
 tools: [Read, Write, Edit, Grep, Glob, Bash]
 ---
