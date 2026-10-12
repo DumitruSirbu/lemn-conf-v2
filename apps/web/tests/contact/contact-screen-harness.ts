@@ -26,10 +26,15 @@ export interface MountedScreen {
 export interface ScreenOptions {
   readonly design?: Design;
   readonly locale?: ScreenLocale;
+  readonly isSendable?: boolean;
 }
 
 export function mountContactScreen(options: ScreenOptions = {}): MountedScreen {
-  const { design = KITCHEN_L_DESIGN, locale = "ro" } = options;
+  const {
+    design = KITCHEN_L_DESIGN,
+    locale = "ro",
+    isSendable = true,
+  } = options;
   useConfiguratorStore.setState(useConfiguratorStore.getInitialState());
   useConfiguratorStore.getState().hydrate({
     design,
@@ -46,7 +51,10 @@ export function mountContactScreen(options: ScreenOptions = {}): MountedScreen {
         locale,
         messages: MESSAGES[locale] as typeof roMessages,
         timeZone: "Europe/Chisinau",
-        children: createElement(ContactScreen, { designId: DESIGN_ID }),
+        children: createElement(ContactScreen, {
+          designId: DESIGN_ID,
+          isSendable,
+        }),
       }),
     );
   });
@@ -65,11 +73,58 @@ export function mountContactScreen(options: ScreenOptions = {}): MountedScreen {
 export interface RecordedTraffic {
   readonly contactBodies: Record<string, unknown>[];
   readonly otherUrls: string[];
+  /** Answers the oldest request still out, as the server would; a request not answered stays outstanding. */
+  readonly answerOldest: (answer: ServerAnswer) => Promise<void>;
 }
 
-/** A `fetch` that records and never answers: a request stays outstanding, as it does while the server is working. */
+export type ServerAnswer =
+  | {
+      readonly status: number;
+      readonly body: unknown;
+      readonly headers?: Record<string, string>;
+    }
+  | "network-failure";
+
+interface Pending {
+  readonly resolve: (response: Response) => void;
+  readonly reject: (reason: unknown) => void;
+}
+
+/** Reading a response body takes more than the microtasks one `await` flushes. */
+function nextMacrotask(): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, 0);
+  });
+}
+
+/** A `fetch` that records, and answers only when the test says: a request stays outstanding, as it does while the
+ *  server is working. */
 export function recordTraffic(): RecordedTraffic {
-  const traffic: RecordedTraffic = { contactBodies: [], otherUrls: [] };
+  const pending: Pending[] = [];
+  const traffic: RecordedTraffic = {
+    contactBodies: [],
+    otherUrls: [],
+    answerOldest: async (answer) => {
+      const oldest = pending.shift();
+      if (oldest === undefined) throw new Error("no request is outstanding");
+      await act(async () => {
+        if (answer === "network-failure") {
+          oldest.reject(new TypeError("Failed to fetch"));
+        } else {
+          oldest.resolve(
+            new Response(JSON.stringify(answer.body), {
+              status: answer.status,
+              headers: {
+                "content-type": "application/json",
+                ...answer.headers,
+              },
+            }),
+          );
+        }
+        await nextMacrotask();
+      });
+    },
+  };
   vi.stubGlobal("fetch", (url: string, init?: RequestInit) => {
     if (
       url === CONTACT_SUBMISSIONS_ENDPOINT &&
@@ -81,7 +136,9 @@ export function recordTraffic(): RecordedTraffic {
     } else {
       traffic.otherUrls.push(url);
     }
-    return new Promise<Response>(() => undefined);
+    return new Promise<Response>((resolve, reject) => {
+      pending.push({ resolve, reject });
+    });
   });
   return traffic;
 }
@@ -173,9 +230,10 @@ export function pressCallToAction(container: ParentNode): void {
   });
 }
 
-/** The error sentences standing now, in document order, without the mark that stands before each. */
+/** The sentences announced now, in document order: a field's error without the mark that stands before it, and an
+ *  answer's sentence, which has none. */
 export function sentencesShown(container: ParentNode): string[] {
   return [...container.querySelectorAll('[role="alert"]')].map(
-    (alert) => alert.lastElementChild?.textContent ?? "",
+    (alert) => (alert.lastElementChild ?? alert).textContent,
   );
 }

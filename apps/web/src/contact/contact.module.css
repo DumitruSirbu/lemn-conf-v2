@@ -390,6 +390,72 @@
   border-radius: 10px;
 }
 
+/* Frame 4C: while a request is out the body and the consent are dimmed and inert, still readable, so it is clear what
+ * is being sent. */
+.body[data-dimmed="true"],
+.consent[data-dimmed="true"] {
+  opacity: 0.5;
+}
+
+/* An answer that was not a send: its sentence, and what it offers under it. */
+.outcome {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.outcomeAction {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-target);
+  padding: 0;
+  font: 700 13px/1 var(--font-ui);
+  color: var(--accent);
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+
+.sendingLine {
+  margin: 0;
+  font: 400 11.5px/1.45 var(--font-ui);
+  color: var(--ink-muted);
+  text-align: center;
+}
+
+.spinner {
+  width: 15px;
+  height: 15px;
+  margin-inline-end: 10px;
+  border: 2px solid rgb(250 248 244 / 40%);
+  border-top-color: var(--paper);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}
+
+/* The sent line, which takes the place of the form until the success screen exists. */
+.sent {
+  composes: sentence;
+  padding: 14px;
+  font-size: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
 .reviewLink {
   display: inline-flex;
   align-items: center;
@@ -420,6 +486,13 @@
   color: var(--accent-strong);
   background: var(--selected-surface);
   border: 1px solid var(--line);
+}
+
+/* A request is out: the accent ground stays, as frame 4C draws it, and the label and spinner say so. */
+.cta[aria-disabled="true"]:has(.spinner) {
+  color: var(--paper);
+  cursor: progress;
+  background: var(--accent);
 }
 
 /* Off, and still focusable so its reason is read with it: `aria-disabled` and `aria-describedby`, not the `disabled`

@@ -121,6 +121,12 @@ interface SessionMemory {
 
 const IDLE: ContactSubmissionPhase = { kind: "idle" };
 const SENDING: ContactSubmissionPhase = { kind: "sending" };
+/** A press nothing can be made of is told as the failure it is, and not left as a button that does nothing. */
+const UNSENDABLE: ContactSubmissionPhase = {
+  kind: "failed",
+  outcome: { kind: "failed" },
+  waitsUntilMs: undefined,
+};
 
 const MILLISECONDS_PER_SECOND = 1000;
 
@@ -179,7 +185,11 @@ function pressContact(context: PressContext): void {
   const { memory, ports, show } = context;
   if (isPressIgnored(memory, ports.wallNowMs())) return;
   const target = readSubmissionTarget(context.target, context.bookVersion);
-  if (target === undefined) return;
+  if (target === undefined) {
+    // An unsaved design is told by the wait on screen; a saved one with no id, revision or book is not.
+    if (isDesignSaved()) show.setPhase(UNSENDABLE);
+    return;
+  }
   memory.form = reduceContactForm(memory.form, { type: "submit-pressed" });
   show.setForm(memory.form);
   const prepared = prepareSend({
@@ -237,6 +247,11 @@ function readSubmissionTarget(
     : undefined;
 }
 
+function isDesignSaved(): boolean {
+  const { design, savedDesign } = useConfiguratorStore.getState();
+  return design === savedDesign;
+}
+
 /** The version of the book the card's figure is priced under, from the same root that prices it. */
 function pricingVersionOf(
   pricing: ReturnType<typeof usePricedDesign>,
@@ -246,7 +261,11 @@ function pricingVersionOf(
 
 function refuse({ memory, show }: PressContext): void {
   const field = firstInvalidField(memory.form.values);
-  if (field === undefined) return;
+  if (field === undefined) {
+    // The domain refused a body no field accounts for: the customer has nothing to mend, and is told so.
+    show.setPhase(UNSENDABLE);
+    return;
+  }
   memory.refusedPressCount += 1;
   show.setRefusedPress({ field, pressNumber: memory.refusedPressCount });
 }

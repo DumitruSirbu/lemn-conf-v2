@@ -15,14 +15,26 @@ import { ContactDesignCard } from "./contact-design-card";
 import { ContactForm } from "./contact-form";
 import styles from "./contact.module.css";
 import { ReviewLink } from "./review-link";
-import { DESIGN_TARGET, useContactSubmission } from "./use-contact-submission";
+import {
+  DESIGN_TARGET,
+  useContactSubmission,
+  type ContactSubmission,
+} from "./use-contact-submission";
+
+export interface ContactScreenProps {
+  readonly designId: DesignId;
+  /** Whether the server can take a request at all: a mail sender and a digest secret it can use. A boolean and nothing
+   *  of how it was decided, since that must not reach the page. */
+  readonly isSendable: boolean;
+}
 
 /**
- * The contact page of a stored design (frames 4A and 4B). On a device that cannot show the kitchen it is the editor's
+ * The contact page of a stored design (frames 4A to 4C). On a device that cannot show the kitchen it is the editor's
  * own exit, as the review is, since the card shows a price for a kitchen that device cannot show; while that is still
- * being asked it is the editor's loading line and no figure.
+ * being asked it is the editor's loading line and no figure. Where the server cannot take a request it is a sentence
+ * saying so and no form.
  */
-export function ContactScreen({ designId }: { readonly designId: DesignId }) {
+export function ContactScreen({ designId, isSendable }: ContactScreenProps) {
   const content = useContent();
   const support = useWebGLSupport();
 
@@ -34,7 +46,11 @@ export function ContactScreen({ designId }: { readonly designId: DesignId }) {
       </main>
     );
   }
-  return <DesignContactPage designId={designId} />;
+  return isSendable ? (
+    <DesignContactPage designId={designId} />
+  ) : (
+    <UnavailablePage designId={designId} />
+  );
 }
 
 /** The one place the form's memory is mounted: a second instance would be a second form with its own copy of what was
@@ -43,22 +59,83 @@ function DesignContactPage({ designId }: { readonly designId: DesignId }) {
   const locale = useServedLocale();
   const review = useReview();
   const submission = useContactSubmission({ target: DESIGN_TARGET, locale });
-  const refusal = refusalOf(review);
 
   return (
     <main className={styles.screen}>
       <TopBar designId={designId} />
-      {refusal === undefined ? (
-        <ContactForm submission={submission}>
-          <Intro />
-          {review.kind === "available" ? (
-            <ContactDesignCard review={review} />
-          ) : null}
-        </ContactForm>
-      ) : (
-        <RefusedDesign designId={designId} refusal={refusal} />
-      )}
+      <DesignContactBody
+        designId={designId}
+        review={review}
+        submission={submission}
+      />
     </main>
+  );
+}
+
+function DesignContactBody({
+  designId,
+  review,
+  submission,
+}: {
+  readonly designId: DesignId;
+  readonly review: ReviewView;
+  readonly submission: ContactSubmission;
+}) {
+  const content = useContent();
+  const refusal = refusalOf(review);
+  if (submission.phase.kind === "sent") {
+    return <SentLine reference={submission.phase.reference} />;
+  }
+  if (refusal !== undefined) {
+    return <RefusedDesign designId={designId} refusal={refusal} />;
+  }
+  return (
+    <ContactForm
+      submission={submission}
+      sendingLine={content.contact.sendingLine}
+      reviewLink={
+        <ReviewLink
+          designId={designId}
+          className={styles.reviewLink}
+          data-testid="contact-outcome-review-link"
+        >
+          {content.contact.reviewLink}
+        </ReviewLink>
+      }
+    >
+      <Intro />
+      {review.kind === "available" ? (
+        <ContactDesignCard review={review} />
+      ) : null}
+    </ContactForm>
+  );
+}
+
+/** Where the server cannot take a request: the sentence, and the bar that leads back. No form, no input and no button,
+ *  and the browser sends nothing. The shop's telephone is not drawn: no number has been given. */
+function UnavailablePage({ designId }: { readonly designId: DesignId }) {
+  const content = useContent();
+  return (
+    <main className={styles.screen}>
+      <TopBar designId={designId} />
+      <div className={styles.body}>
+        <p className={styles.sentence} data-testid="contact-unavailable">
+          {content.contact.unavailable}
+        </p>
+      </div>
+    </main>
+  );
+}
+
+/** The answer that the request is stored: one line with its reference, in place of the form. */
+function SentLine({ reference }: { readonly reference: string }) {
+  const content = useContent();
+  return (
+    <div className={styles.body}>
+      <p className={styles.sent} role="status" data-testid="contact-sent">
+        {content.contactOutcome({ kind: "sent", reference })}
+      </p>
+    </div>
   );
 }
 

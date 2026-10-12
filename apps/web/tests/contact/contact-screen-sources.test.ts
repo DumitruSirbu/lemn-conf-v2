@@ -68,6 +68,19 @@ describe("the form's memory", () => {
   });
 });
 
+describe("timers and aborts", () => {
+  it("has no abort on the request: its guard lasts until the fetch settles", () => {
+    expect(filesContaining("AbortController")).toEqual([]);
+    expect(filesContaining("AbortSignal")).toEqual([]);
+    expect(filesContaining("signal:")).toEqual([]);
+  });
+
+  it("has one timer, the screen's, which ends a limited send's wait; the hook and the request have none", () => {
+    expect(filesContaining("setTimeout(")).toEqual(["contact-outcome.tsx"]);
+    expect(filesContaining("setInterval(")).toEqual([]);
+  });
+});
+
 describe("the way to the review", () => {
   it.each([
     "prefetch={true}",
@@ -120,6 +133,17 @@ describe("the stylesheet", () => {
     expect(declared("clip-path")).toEqual(["inset(50%)"]);
     expect(declared("width")).toEqual(["1px"]);
     expect(declared("height")).toEqual(["1px"]);
+  });
+
+  it("dims the body and the consent to half while a request is out, as frame 4C draws them", () => {
+    expect(
+      declarationsFor(STYLESHEET, "body", "opacity").map(({ value }) => value),
+    ).toEqual(["0.5"]);
+    expect(
+      declarationsFor(STYLESHEET, "consent", "opacity").map(
+        ({ value }) => value,
+      ),
+    ).toEqual(["0.5"]);
   });
 
   it("draws the frame's input and call-to-action boxes", () => {

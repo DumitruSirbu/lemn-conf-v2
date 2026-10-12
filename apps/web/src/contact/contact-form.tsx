@@ -22,6 +22,13 @@ import {
   type ContactFormValues,
   type ContactTextField,
 } from "./contact-form-model";
+import {
+  ContactOutcome,
+  isSendOff,
+  outcomeToShow,
+  useIsWaitingForTheLimit,
+  useIssuesBesideFields,
+} from "./contact-outcome";
 import styles from "./contact.module.css";
 import type {
   ContactFormEdit,
@@ -88,28 +95,52 @@ function createFieldRefs(): FieldRefs {
 
 export interface ContactFormProps {
   readonly submission: ContactSubmission;
+  /** The line over the call to action while a request is out; it differs for a request with no design. */
+  readonly sendingLine: string;
+  /** The way to the review that fetches it, for the answers that send the customer there. */
+  readonly reviewLink?: ReactNode;
   /** What stands above the fields: the heading, and for a design its card. */
   readonly children: ReactNode;
 }
 
-export function ContactForm({ submission, children }: ContactFormProps) {
-  const { form, refusedPress, edit, press, saveWait } = submission;
+export function ContactForm({
+  submission,
+  sendingLine,
+  reviewLink,
+  children,
+}: ContactFormProps) {
+  const { form, phase, refusedPress, edit, press } = submission;
   const [fieldRefs] = useState(createFieldRefs);
   useFocusRefusedField(refusedPress, fieldRefs);
+  const isLimitWaiting = useIsWaitingForTheLimit(phase);
+  const issues = useIssuesBesideFields(phase, form.values);
+  const shownForm = { ...form, errors: { ...issues, ...form.errors } };
+  const isSending = phase.kind === "sending";
+  const isOff = isSendOff(submission, isLimitWaiting);
 
-  // The hook refuses a press while an edit is unsaved as well; this keeps the button's `aria-disabled` honest.
+  // The hook refuses a press in each of these cases too; this keeps the button's `aria-disabled` honest.
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (saveWait.kind === "saved") press();
+    if (!isOff) press();
   };
 
   return (
-    <form className={styles.form} noValidate onSubmit={handleSubmit}>
-      <div className={styles.body}>
+    <form
+      className={styles.form}
+      noValidate
+      aria-busy={isSending}
+      onSubmit={handleSubmit}
+    >
+      <div className={styles.body} inert={isSending} data-dimmed={isSending}>
         {children}
-        <Fields form={form} edit={edit} fieldRefs={fieldRefs} />
+        <Fields form={shownForm} edit={edit} fieldRefs={fieldRefs} />
       </div>
-      <PinnedRegion submission={submission} consentRef={fieldRefs.consent} />
+      <PinnedRegion
+        submission={submission}
+        form={shownForm}
+        consentRef={fieldRefs.consent}
+        status={{ isOff, isLimitWaiting, sendingLine, reviewLink }}
+      />
     </form>
   );
 }
@@ -319,21 +350,54 @@ function Honeypot({
   );
 }
 
-/** Pinned to the foot of the viewport: the consent and the call to action together, and the sentence of an unsaved edit
- *  above them, so the button is never off without its reason standing in the same region. */
+interface PinnedStatus {
+  readonly isOff: boolean;
+  readonly isLimitWaiting: boolean;
+  readonly sendingLine: string;
+  readonly reviewLink: ReactNode;
+}
+
+/** Pinned to the foot of the viewport: the answer's sentence and the unsaved edit's above the consent and the call to
+ *  action, so the button is never off without its reason standing in the same region. While a request is out the
+ *  consent is dimmed and inert with the body, as frame 4C draws it, and the line says not to close the page. */
 function PinnedRegion({
   submission,
+  form,
   consentRef,
+  status,
 }: {
   readonly submission: ContactSubmission;
+  readonly form: ContactFormState;
   readonly consentRef: RefObject<HTMLInputElement | null>;
+  readonly status: PinnedStatus;
 }) {
-  const { form, saveWait, edit } = submission;
+  const { phase, saveWait, edit, press } = submission;
   const regionRef = useRef<HTMLDivElement>(null);
+  const ctaRef = useRef<HTMLButtonElement>(null);
   const saveWaitSentenceId = useId();
+  const outcomeSentenceId = useId();
   useKeepFocusAbove(regionRef);
+  const shownOutcome = outcomeToShow(phase, status.isLimitWaiting);
+  const isSending = phase.kind === "sending";
+  const reasonIds = [
+    ...(saveWait.kind === "waiting" ? [saveWaitSentenceId] : []),
+    ...(shownOutcome !== undefined && status.isOff ? [outcomeSentenceId] : []),
+  ];
+  // The retry button is gone once pressed, and focus goes to the button that took its place in the flow.
+  const retry = () => {
+    press();
+    ctaRef.current?.focus();
+  };
   return (
     <div className={styles.bottom} ref={regionRef} data-testid="contact-bottom">
+      {shownOutcome === undefined ? null : (
+        <ContactOutcome
+          phase={shownOutcome}
+          id={outcomeSentenceId}
+          reviewLink={status.reviewLink}
+          onRetry={retry}
+        />
+      )}
       {saveWait.kind === "waiting" ? (
         <p
           id={saveWaitSentenceId}
@@ -343,12 +407,27 @@ function PinnedRegion({
           {saveWait.sentence}
         </p>
       ) : null}
-      <ConsentRow form={form} edit={edit} inputRef={consentRef} />
+      <ConsentRow
+        form={form}
+        edit={edit}
+        inputRef={consentRef}
+        isSending={isSending}
+      />
+      {isSending ? (
+        <p
+          className={styles.sendingLine}
+          role="status"
+          data-testid="contact-sending-line"
+        >
+          {status.sendingLine}
+        </p>
+      ) : null}
       <CallToAction
+        ctaRef={ctaRef}
         values={form.values}
-        waitSentenceId={
-          saveWait.kind === "waiting" ? saveWaitSentenceId : undefined
-        }
+        isOff={status.isOff}
+        isSending={isSending}
+        describedBy={reasonIds.length === 0 ? undefined : reasonIds.join(" ")}
       />
     </div>
   );
@@ -359,10 +438,12 @@ function ConsentRow({
   form,
   edit,
   inputRef,
+  isSending,
 }: {
   readonly form: ContactFormState;
   readonly edit: (event: ContactFormEdit) => void;
   readonly inputRef: RefObject<HTMLInputElement | null>;
+  readonly isSending: boolean;
 }) {
   const content = useContent();
   const checkboxId = useId();
@@ -372,6 +453,8 @@ function ConsentRow({
     <div
       className={styles.consent}
       data-invalid={code !== undefined}
+      data-dimmed={isSending}
+      inert={isSending}
       data-testid="contact-consent"
     >
       <div className={styles.consentRow}>
@@ -405,27 +488,37 @@ function ConsentRow({
   );
 }
 
-/** Always pressable, because a press that is refused is how the customer is told which field to mend; it is off, and
- *  says why, only while an edit is unsaved. It reads as ready once the form would be sent. */
+/** Pressable whenever a press can do something, because a refused press is how the customer is told which field to
+ *  mend; off, and saying why, while an edit is unsaved, a request is out, or the answer was final or limited. While a
+ *  request is out it shows the sending label and a spinner. It reads as ready once the form would be sent. */
 function CallToAction({
+  ctaRef,
   values,
-  waitSentenceId,
+  isOff,
+  isSending,
+  describedBy,
 }: {
+  readonly ctaRef: RefObject<HTMLButtonElement | null>;
   readonly values: ContactFormValues;
-  readonly waitSentenceId: string | undefined;
+  readonly isOff: boolean;
+  readonly isSending: boolean;
+  readonly describedBy: string | undefined;
 }) {
   const content = useContent();
-  const isWaiting = waitSentenceId !== undefined;
   return (
     <button
+      ref={ctaRef}
       type="submit"
       className={styles.cta}
       data-ready={firstInvalidField(values) === undefined}
-      aria-disabled={isWaiting ? "true" : undefined}
-      aria-describedby={waitSentenceId}
+      aria-disabled={isOff ? "true" : undefined}
+      aria-describedby={describedBy}
       data-testid="contact-cta"
     >
-      {content.contact.callToAction}
+      {isSending ? (
+        <span className={styles.spinner} aria-hidden="true" />
+      ) : null}
+      {isSending ? content.contact.sending : content.contact.callToAction}
     </button>
   );
 }
