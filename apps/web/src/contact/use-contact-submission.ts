@@ -1,10 +1,16 @@
 import {
   CONTACT_INTENTS,
   type ContactIntent,
+  type ContactSubmissionRequest,
   type SubmissionTarget,
 } from "@lemnaria/configurator-domain";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
+import {
+  forgetSentRequest,
+  rememberSentRequest,
+  sentRequestFrom,
+} from "@/done/sent-request-memory";
 import type { AppLocale } from "@/i18n/routing";
 import { usePricedDesign } from "@/price/use-priced-design";
 import { useSaveWait, type SaveWait } from "@/review/use-save-wait";
@@ -35,6 +41,11 @@ import {
   type SendHistory,
 } from "./contact-request-identity";
 import {
+  BROWSER_CONNECTION,
+  useRetryWhenOnline,
+  type ConnectionPort,
+} from "./retry-when-online";
+import {
   isFinalOutcome,
   sendContactRequest,
   type FetchContact,
@@ -42,7 +53,8 @@ import {
 
 // The contact form's one place of memory: what was typed, the last send's id, and whether a request is out. Nothing
 // here reaches a URL, a cookie, browser storage, the configurator store or a log; a typed value leaves this hook only
-// in the body of the one request.
+// in the body of the one request, and, once a design's request is sent, in the one entry `sent-request-memory` keeps
+// for the confirmation page (the phone or the address, the channel, the reference: nothing else typed).
 
 /** What the request is about: the design this store holds, or no design and an intent. */
 export type ContactTarget =
@@ -63,6 +75,8 @@ export interface ContactPorts {
   /** Milliseconds since the epoch, as `Date.now`; a wait the limit told is measured on it. */
   readonly wallNowMs: () => number;
   readonly generateId: RequestIdGenerator;
+  /** The browser's word on its connection; the one thing that retries a send that got no answer. */
+  readonly connection: ConnectionPort;
 }
 
 const BROWSER_PORTS: ContactPorts = {
@@ -70,6 +84,7 @@ const BROWSER_PORTS: ContactPorts = {
   monotonicNow: () => performance.now(),
   wallNowMs: () => Date.now(),
   generateId: generateRandomRequestId,
+  connection: BROWSER_CONNECTION,
 };
 
 export interface ContactSubmissionOptions {
@@ -120,6 +135,8 @@ interface SessionMemory {
   isFinished: boolean;
   waitsUntilMs: number | undefined;
   refusedPressCount: number;
+  /** Whether the last send got no answer and nothing has been sent since. */
+  hasUnansweredSend: boolean;
 }
 
 const IDLE: ContactSubmissionPhase = { kind: "idle" };
@@ -149,6 +166,7 @@ export function useContactSubmission(
   // A request with no design names nothing the store holds, so another design's unsaved edit is no reason to hold it.
   const saveWait = target.kind === "design" ? designSaveWait : NOTHING_TO_SAVE;
   const bookVersion = pricingVersionOf(usePricedDesign());
+  useForgetSentRequestOnMount(target);
 
   const edit = useCallback(
     (event: ContactFormEdit) => {
@@ -158,8 +176,8 @@ export function useContactSubmission(
     [memory],
   );
 
-  const press = useCallback(() => {
-    pressContact({
+  const context = useMemo<PressContext>(
+    () => ({
       memory,
       ports,
       startedAtMs,
@@ -167,10 +185,55 @@ export function useContactSubmission(
       locale,
       bookVersion,
       show: { setForm, setPhase, setRefusedPress },
-    });
-  }, [memory, ports, startedAtMs, target, locale, bookVersion]);
+    }),
+    [memory, ports, startedAtMs, target, locale, bookVersion],
+  );
+  const press = useCallback(() => {
+    pressContact(context);
+  }, [context]);
+  const retryAfterUnansweredSend = useCallback(() => {
+    if (canPressResendUnansweredSend(context)) pressContact(context);
+  }, [context]);
+  useRetryWhenOnline({
+    connection: ports.connection,
+    isWaitingForConnection: isUnanswered(phase),
+    retry: retryAfterUnansweredSend,
+  });
 
   return { form, phase, saveWait, refusedPress, edit, press };
+}
+
+/** A design's form starts with no request remembered, so a hand-over is never older than the form that made it. */
+function useForgetSentRequestOnMount(target: ContactTarget): void {
+  const isDesignForm = target.kind === "design";
+  useEffect(() => {
+    if (isDesignForm) forgetSentRequest();
+  }, [isDesignForm]);
+}
+
+function isUnanswered(phase: ContactSubmissionPhase): boolean {
+  return phase.kind === "failed" && phase.outcome.kind === "unanswered";
+}
+
+/**
+ * Whether pressing now would send the unanswered send again: the last send got no answer, nothing was sent since, a
+ * press is not refused for another reason, and the request as it now stands keeps that send's id, which is the
+ * domain's own judgement that it is the same request. Read from the memory, which is written when the answer settles,
+ * and not from what is rendered, which can lag it by a task: an event in that gap must not re-send an answered failure.
+ * It touches no form state and shows nothing, so an event that sends nothing leaves the screen as it was.
+ */
+function canPressResendUnansweredSend(context: PressContext): boolean {
+  const { memory, ports } = context;
+  if (!memory.hasUnansweredSend) return false;
+  if (isPressIgnored(memory, ports.wallNowMs())) return false;
+  const target = readSubmissionTarget(context.target, context.bookVersion);
+  if (target === undefined) return false;
+  const prepared = prepareSendFromMemory(context, target);
+  return (
+    prepared.ok &&
+    memory.history.kind === "sent-before" &&
+    prepared.body.clientRequestId === memory.history.clientRequestId
+  );
 }
 
 interface PressContext {
@@ -201,19 +264,26 @@ function pressContact(context: PressContext): void {
   }
   memory.form = reduceContactForm(memory.form, { type: "submit-pressed" });
   show.setForm(memory.form);
-  const prepared = prepareSend({
+  const prepared = prepareSendFromMemory(context, target);
+  if (prepared.ok) startSending(prepared, context);
+  else refuse(context);
+}
+
+function prepareSendFromMemory(
+  { memory, ports, startedAtMs, locale, bookVersion }: PressContext,
+  target: SubmissionTarget,
+): PreparedSend {
+  return prepareSend({
     history: memory.history,
     submission: {
       values: memory.form.values,
       target,
-      locale: context.locale,
-      elapsedMs: measureElapsedMs(context.startedAtMs, ports.monotonicNow),
+      locale,
+      elapsedMs: measureElapsedMs(startedAtMs, ports.monotonicNow),
     },
-    bookVersion: target.kind === "design" ? context.bookVersion : undefined,
+    bookVersion: target.kind === "design" ? bookVersion : undefined,
     generateId: ports.generateId,
   });
-  if (prepared.ok) startSending(prepared, context);
-  else refuse(context);
 }
 
 function newSessionMemory(): SessionMemory {
@@ -224,6 +294,7 @@ function newSessionMemory(): SessionMemory {
     isFinished: false,
     waitsUntilMs: undefined,
     refusedPressCount: 0,
+    hasUnansweredSend: false,
   };
 }
 
@@ -280,11 +351,23 @@ function startSending(
   { memory, ports, show }: PressContext,
 ): void {
   memory.isSending = true;
+  memory.hasUnansweredSend = false;
   memory.history = historyAfterSend(prepared);
   show.setPhase(SENDING);
   void sendContactRequest(prepared.body, ports.fetchContact).then((outcome) => {
+    rememberWhenSent(prepared.request, outcome);
     show.setPhase(settle(memory, outcome, ports.wallNowMs()));
   });
+}
+
+/** The target and the reference come from this press's own request and its answer, so the entry names what was sent. */
+function rememberWhenSent(
+  request: ContactSubmissionRequest,
+  outcome: ContactOutcome,
+): void {
+  if (outcome.kind !== "sent") return;
+  const sent = sentRequestFrom(request, outcome.reference);
+  if (sent !== undefined) rememberSentRequest(sent);
 }
 
 function settle(
@@ -293,6 +376,7 @@ function settle(
   nowMs: number,
 ): ContactSubmissionPhase {
   memory.isSending = false;
+  memory.hasUnansweredSend = outcome.kind === "unanswered";
   memory.history = historyAfterOutcome(memory.history, outcome);
   memory.isFinished = isFinalOutcome(outcome);
   memory.waitsUntilMs =
