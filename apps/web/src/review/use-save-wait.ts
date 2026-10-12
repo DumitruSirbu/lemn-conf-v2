@@ -2,7 +2,10 @@ import { clockTimeOf } from "@/i18n/clock-time";
 import type { Content } from "@/i18n/content";
 import { useContent } from "@/i18n/use-content";
 import { pausedUntilMs, type SaveStatus } from "@/persistence/save-coalescer";
-import { useConfiguratorStore } from "@/store/configurator-store";
+import {
+  hasUnsavedEdit,
+  useConfiguratorStore,
+} from "@/store/configurator-store";
 
 /** Whether the design on screen is the one the server holds. An edit made in the editor can still be queued or in
  *  flight when the review opens, and a request for an offer must not go out for a design the server does not have. */
@@ -19,12 +22,10 @@ export type SaveWait =
 
 export function useSaveWait(): SaveWait {
   const content = useContent();
-  const isSaved = useConfiguratorStore(
-    (state) => state.design === state.savedDesign,
-  );
+  const hasUnsaved = useConfiguratorStore(hasUnsavedEdit);
   const saveStatus = useConfiguratorStore((state) => state.saveStatus);
   const resumesAtMs = useConfiguratorStore((state) => state.saveResumesAtMs);
-  if (isSaved) return { kind: "saved" };
+  if (!hasUnsaved) return { kind: "saved" };
   const pausedUntil = pausedUntilMs(saveStatus, resumesAtMs);
   if (pausedUntil !== undefined) {
     return {

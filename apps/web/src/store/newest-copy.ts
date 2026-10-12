@@ -2,6 +2,7 @@ import type { DesignId } from "@lemnaria/configurator-domain";
 import type { DesignRevision } from "@lemnaria/persistence";
 
 import {
+  hasUnsavedEdit,
   useConfiguratorStore,
   type ConfiguratorState,
   type WriteAccess,
@@ -18,8 +19,7 @@ export function holdsTheNewestCopy(
   page: { readonly designId: DesignId; readonly revision: DesignRevision },
 ): boolean {
   if (session.designId !== page.designId) return false;
-  const holdsAnUnsavedEdit = session.design !== session.savedDesign;
-  if (holdsAnUnsavedEdit) return true;
+  if (hasUnsavedEdit(session)) return true;
   return !isGreaterRevision(page.revision, session.revision);
 }
 

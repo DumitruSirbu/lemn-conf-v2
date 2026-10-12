@@ -1,18 +1,16 @@
 "use client";
 
 import type { DesignId } from "@lemnaria/configurator-domain";
-import { useEffect, useId, useRef, type RefObject } from "react";
+import { useId, useRef } from "react";
 
 import { LocaleMenu } from "@/app/configurator/configure/locale-menu";
+import { useKeepFocusAbove } from "@/components/use-keep-focus-above";
 import { WebGLUnavailable } from "@/components/webgl-unavailable";
 import { Link } from "@/i18n/navigation";
 import { useContent } from "@/i18n/use-content";
 import { OpenEditorLink } from "@/review/open-editor-link";
-import {
-  editorHref,
-  ReviewGroups,
-  ReviewWholeKitchenRows,
-} from "@/review/review-groups";
+import { editorHref } from "@/review/design-hrefs";
+import { ReviewGroups, ReviewWholeKitchenRows } from "@/review/review-groups";
 import type {
   AvailableReview,
   RefusedSubmit,
@@ -285,7 +283,7 @@ function BottomRegion({
   const content = useContent();
   const submit = review.submit;
   const regionRef = useRef<HTMLDivElement>(null);
-  useKeepFocusAboveThe(regionRef);
+  useKeepFocusAbove(regionRef);
   return (
     <div className={styles.bottom} ref={regionRef} data-testid="review-bottom">
       {review.kind === "available" && review.overflowWarning !== undefined ? (
@@ -374,28 +372,4 @@ function CallToAction({
       {content.reviewScreen.callToAction}
     </button>
   );
-}
-
-/**
- * Keeps whatever takes keyboard focus clear of the pinned region. The page scrolls under a sticky region, and a
- * browser scrolls a focused box only until it is in the viewport, which is under the region's top edge. The viewport's
- * `scroll-padding-bottom` is that edge, read from the region's own height as it changes (one sentence or three, any
- * language), so no number is kept in step with the layout. Restored when the screen goes.
- */
-function useKeepFocusAboveThe(region: RefObject<HTMLElement | null>): void {
-  useEffect(() => {
-    const element = region.current;
-    if (element === null) return;
-    const viewport = document.documentElement;
-    const reserve = () => {
-      viewport.style.scrollPaddingBottom = `calc(${String(element.getBoundingClientRect().height)}px + var(--safe-gap))`;
-    };
-    reserve();
-    const observer = new ResizeObserver(reserve);
-    observer.observe(element);
-    return () => {
-      observer.disconnect();
-      viewport.style.removeProperty("scroll-padding-bottom");
-    };
-  }, [region]);
 }

@@ -33,11 +33,9 @@ vi.mock("@/components/webgl-unavailable", () => ({
   WebGLUnavailable: () => createElement("main"),
 }));
 
-import {
-  HydrateAndReview,
-  isGreaterRevision,
-} from "@/app/d/[id]/review/hydrate-and-review";
+import { HydrateAndReview } from "@/app/d/[id]/review/hydrate-and-review";
 import { useConfiguratorStore } from "@/store/configurator-store";
+import { isGreaterRevision } from "@/store/revision-order";
 
 import roMessages from "../../src/messages/ro.json";
 import ruMessages from "../../src/messages/ru.json";

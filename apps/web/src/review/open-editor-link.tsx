@@ -5,9 +5,11 @@ import type { ComponentProps } from "react";
 
 import { Link } from "@/i18n/navigation";
 import { useContent } from "@/i18n/use-content";
+import type { BreakdownRow } from "@/price/price-breakdown-model";
 
-import { editorHref } from "./review-groups";
+import { editorHref } from "./design-hrefs";
 import type { ReviewView } from "./review-model";
+import { selectingTheFirstBody } from "./review-groups";
 
 type OpenEditorLinkProps = Omit<
   ComponentProps<typeof Link>,
@@ -31,7 +33,10 @@ export function OpenEditorLink({
   return (
     <Link
       prefetch={false}
-      href={editorHref(designId, selectingTheFirstBody(review))}
+      href={editorHref(
+        designId,
+        selectingTheFirstBody(rowsOfTheFirstGroup(review)),
+      )}
       {...anchorProps}
     >
       {content.reviewScreen.openEditor}
@@ -40,12 +45,10 @@ export function OpenEditorLink({
 }
 
 /**
- * The first body in display order, which is the first row of the first group, as each group's *Editează* takes it. A
- * review with no rows (one that cannot be shown, or a kitchen with no body) has no body to name, and the link then
- * lands on the editor as it is.
+ * The first group's rows, in display order, as each group's *Editează* takes the first. A review that cannot be shown,
+ * or a kitchen with no body, has none, and the link then lands on the editor as it is.
  */
-function selectingTheFirstBody(review: ReviewView): { select?: string } {
-  if (review.kind !== "available") return {};
-  const firstBody = review.groups[0]?.rows[0];
-  return firstBody === undefined ? {} : { select: firstBody.key };
+function rowsOfTheFirstGroup(review: ReviewView): readonly BreakdownRow[] {
+  if (review.kind !== "available") return [];
+  return review.groups[0]?.rows ?? [];
 }

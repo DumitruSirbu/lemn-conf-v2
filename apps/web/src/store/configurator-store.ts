@@ -218,6 +218,13 @@ export interface ConfiguratorState {
   readonly overwriteConflict: () => void;
 }
 
+/** Whether an edit is still waiting to be saved: the design on screen is not the one the server last confirmed. */
+export function hasUnsavedEdit(
+  state: Pick<ConfiguratorState, "design" | "savedDesign">,
+): boolean {
+  return state.design !== state.savedDesign;
+}
+
 /** The design the server holds and the revision it stands at, read together: neither is meaningful alone. */
 export interface StoredCopy {
   readonly design: Design;
@@ -710,7 +717,7 @@ function selectedBodyKeptIn(
 }
 
 /**
- * Whether the server's copy may replace the one on screen: nothing is waiting to be saved (`design === savedDesign`)
+ * Whether the server's copy may replace the one on screen: nothing is waiting to be saved (`!hasUnsavedEdit`)
  * and the server stands at a greater revision. `isGreaterRevision` calls any candidate greater than no revision at
  * all, so the candidate is checked to be a revision first.
  */
@@ -718,8 +725,7 @@ function canTakeStoredCopy(
   state: ConfiguratorState,
   stored: StoredCopy,
 ): boolean {
-  const holdsUnsavedEdit = state.design !== state.savedDesign;
-  if (holdsUnsavedEdit || !isDigitRun(stored.revision)) return false;
+  if (hasUnsavedEdit(state) || !isDigitRun(stored.revision)) return false;
   return isGreaterRevision(stored.revision, state.revision);
 }
 

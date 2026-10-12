@@ -36,7 +36,11 @@ import {
   type ScreenLocale,
   type ServerAnswer,
 } from "./contact-screen-harness";
-import { DESIGN_ID } from "./contact-submission-harness";
+import {
+  DESIGN_ID,
+  editWithoutSaving,
+  landSave,
+} from "./contact-submission-harness";
 
 const OUTCOMES = MESSAGES.ro.contact.outcomes;
 const ERROR_CODE_PATTERN = /[A-Z]{2,}_[A-Z_]+/;
@@ -217,6 +221,34 @@ describe("an answer that sent nothing", () => {
       design: traffic.contactBodies[0]?.design,
     });
     expect(document.activeElement).toBe(ctaOf(container));
+  });
+
+  it("keeps the retry, off, while an edit is unsaved, sends nothing from it, and sends once the save has landed", async () => {
+    const container = mount();
+    sendTheWholeForm(container);
+    await traffic.answerOldest(REJECTED);
+
+    editWithoutSaving("edited-in-the-editor");
+
+    const retry = elementIn(container, '[data-testid="contact-retry"]');
+    expect(retry.getAttribute("aria-disabled")).toBe("true");
+    act(() => {
+      retry.click();
+    });
+    expect(traffic.contactBodies).toHaveLength(1);
+    expect(document.activeElement).not.toBe(ctaOf(container));
+
+    landSave("5");
+
+    expect(
+      elementIn(container, '[data-testid="contact-retry"]').getAttribute(
+        "aria-disabled",
+      ),
+    ).toBeNull();
+    act(() => {
+      elementIn(container, '[data-testid="contact-retry"]').click();
+    });
+    expect(traffic.contactBodies).toHaveLength(2);
   });
 
   it.each([
@@ -429,10 +461,13 @@ describe("a limited send", () => {
     await traffic.answerOldest(limitedForASecond);
 
     const [sentence] = sentencesShown(outcomeOf(container));
-    const told = [
-      clockTimeOf(answeredAtMs + 1000),
-      clockTimeOf(Date.now() + 1000),
-    ].map((time) => OUTCOMES.limited.replace("{time}", time));
+    // A second's wait told within a minute of midnight is tomorrow's sentence; this test is about the wait, not the day.
+    const told = [answeredAtMs + 1000, Date.now() + 1000].flatMap(
+      (waitsUntil) =>
+        [OUTCOMES.limited, OUTCOMES.limitedTomorrow].map((leaf) =>
+          leaf.replace("{time}", clockTimeOf(waitsUntil)),
+        ),
+    );
     expect(told).toContain(sentence);
     expect(ctaOf(container).getAttribute("aria-disabled")).toBe("true");
     pressCallToAction(container);
@@ -451,6 +486,59 @@ describe("a limited send", () => {
     expect(traffic.contactBodies[1]?.clientRequestId).toBe(
       traffic.contactBodies[0]?.clientRequestId,
     );
+  });
+
+  describe("told with its day, on a clock held still", () => {
+    const SECONDS_PER_DAY = 86_400;
+
+    function localInstant(hours: number, minutes: number): number {
+      return new Date(2026, 9, 10, hours, minutes).getTime();
+    }
+
+    async function sentenceOfAWait(
+      nowMs: number,
+      retryAfterSeconds: number,
+    ): Promise<string> {
+      vi.useFakeTimers({ toFake: ["Date"], now: nowMs });
+      const container = mount();
+      sendTheWholeForm(container);
+      await traffic.answerOldest({
+        status: 429,
+        body: { code: "CONTACT_LIMIT_REACHED" },
+        headers: { "retry-after": String(retryAfterSeconds) },
+      });
+      const [sentence] = sentencesShown(outcomeOf(container));
+      return sentence ?? "";
+    }
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("says the time alone for a wait that ends the same day", async () => {
+      const sentence = await sentenceOfAWait(localInstant(10, 0), 3600);
+
+      expect(sentence).toBe(OUTCOMES.limited.replace("{time}", "11:00"));
+    });
+
+    it("says tomorrow for a wait of exactly a day, the longest the limit asks", async () => {
+      const sentence = await sentenceOfAWait(
+        localInstant(10, 0),
+        SECONDS_PER_DAY,
+      );
+
+      expect(sentence).toBe(
+        OUTCOMES.limitedTomorrow.replace("{time}", "10:00"),
+      );
+    });
+
+    it("says tomorrow for a short wait that crosses local midnight", async () => {
+      const sentence = await sentenceOfAWait(localInstant(23, 30), 3600);
+
+      expect(sentence).toBe(
+        OUTCOMES.limitedTomorrow.replace("{time}", "00:30"),
+      );
+    });
   });
 
   it("holds its wait in one timer, which is cleared when the screen goes", async () => {

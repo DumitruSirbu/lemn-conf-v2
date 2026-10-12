@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 
-import { clockTimeOf } from "@/i18n/clock-time";
+import { clockTimeOf, isToldOnALaterDay } from "@/i18n/clock-time";
 import type { ContactOutcomeNotice } from "@/i18n/content";
 import { useContent } from "@/i18n/use-content";
 
@@ -98,6 +98,8 @@ export function isSendOff(
 export interface ContactOutcomeProps {
   readonly phase: FailedPhase;
   readonly id: string;
+  /** Nothing can be sent now, so the retry says so and stays where it is. */
+  readonly isOff: boolean;
   /** The way to the review that fetches it, for the answers that send the customer there. */
   readonly reviewLink: ReactNode;
   readonly onRetry: () => void;
@@ -106,6 +108,7 @@ export interface ContactOutcomeProps {
 export function ContactOutcome({
   phase,
   id,
+  isOff,
   reviewLink,
   onRetry,
 }: ContactOutcomeProps) {
@@ -119,7 +122,7 @@ export function ContactOutcome({
       <p id={id} className={styles.refusal} role="alert">
         {content.contactOutcome(noticeOf(phase))}
       </p>
-      {actionFor(phase.outcome.kind, { reviewLink, onRetry })}
+      {actionFor(phase.outcome.kind, { isOff, reviewLink, onRetry })}
     </div>
   );
 }
@@ -129,18 +132,27 @@ function noticeOf({
   waitsUntilMs,
 }: FailedPhase): ContactOutcomeNotice {
   if (outcome.kind !== "limited") return { kind: outcome.kind };
+  const nowMs = Date.now();
   const waitsUntil =
-    waitsUntilMs ?? Date.now() + outcome.waitSeconds * MILLISECONDS_PER_SECOND;
-  return { kind: "limited", time: clockTimeOf(waitsUntil) };
+    waitsUntilMs ?? nowMs + outcome.waitSeconds * MILLISECONDS_PER_SECOND;
+  return {
+    kind: "limited",
+    time: clockTimeOf(waitsUntil),
+    isTomorrow: isToldOnALaterDay(waitsUntil, nowMs),
+  };
 }
 
 function actionFor(
   kind: FailedPhase["outcome"]["kind"],
-  { reviewLink, onRetry }: Pick<ContactOutcomeProps, "reviewLink" | "onRetry">,
+  {
+    isOff,
+    reviewLink,
+    onRetry,
+  }: Pick<ContactOutcomeProps, "isOff" | "reviewLink" | "onRetry">,
 ): ReactNode {
   switch (kind) {
     case "failed":
-      return <RetryAction onRetry={onRetry} />;
+      return <RetryAction isOff={isOff} onRetry={onRetry} />;
     case "design-not-current":
     case "does-not-fit":
       return reviewLink;
@@ -151,14 +163,22 @@ function actionFor(
   }
 }
 
-/** Sends the same request again: the hook keeps the id and the body of an answer that was not final. */
-function RetryAction({ onRetry }: { readonly onRetry: () => void }) {
+/** Sends the same request again: the hook keeps the id and the body of an answer that was not final. Off, it stays
+ *  and is `aria-disabled` rather than gone, as the call to action is. */
+function RetryAction({
+  isOff,
+  onRetry,
+}: {
+  readonly isOff: boolean;
+  readonly onRetry: () => void;
+}) {
   const content = useContent();
   return (
     <button
       type="button"
       className={styles.outcomeAction}
       onClick={onRetry}
+      aria-disabled={isOff ? "true" : undefined}
       data-testid="contact-retry"
     >
       {content.contact.retry}

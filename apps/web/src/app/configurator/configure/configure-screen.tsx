@@ -12,6 +12,7 @@ import { usePanelView } from "@/panel/use-panel-view";
 import { WebGLUnavailable } from "@/components/webgl-unavailable";
 import { Link } from "@/i18n/navigation";
 import { useContent } from "@/i18n/use-content";
+import { reviewHref } from "@/review/design-hrefs";
 import { roomHrefFromDesignRoom } from "@/room/room-url-state";
 import { OverflowWarning } from "@/scene/overflow-warning";
 import { GlobalSettings } from "@/settings/global-settings";
@@ -264,7 +265,7 @@ export function ConfigureScreen({
             <Link
               className={styles.reviewCta}
               data-testid="review-cta"
-              href={`/d/${designId}/review`}
+              href={reviewHref(designId)}
               prefetch={false}
             >
               {content.configure.reviewCta}

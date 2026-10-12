@@ -4,7 +4,7 @@
 import { fc, test } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
-import { isGreaterRevision } from "@/app/d/[id]/review/hydrate-and-review";
+import { isGreaterRevision } from "@/store/revision-order";
 
 const revision = fc.oneof(
   fc.bigInt({ min: 1n, max: 30n }),

@@ -694,12 +694,16 @@ function resolveCodeThisBuildLacks(
 }
 
 /** What the screen says of an answer, with the two values a sentence carries already read: the reference the shop
- *  holds, and the clock time a limited send may be tried again. The kinds are `ContactOutcome`'s; this module takes
+ *  holds, and the clock time, and whether it is tomorrow's, that a limited send may be tried again. The kinds are `ContactOutcome`'s; this module takes
  *  nothing from `contact/`, which would put the form's routing into every model that names a resolved sentence, and a
  *  test ties the two unions. */
 export type ContactOutcomeNotice =
   | { readonly kind: "sent"; readonly reference: string }
-  | { readonly kind: "limited"; readonly time: string }
+  | {
+      readonly kind: "limited";
+      readonly time: string;
+      readonly isTomorrow: boolean;
+    }
   | { readonly kind: "failed" }
   | { readonly kind: "refused" }
   | { readonly kind: "conflict" }
@@ -717,7 +721,12 @@ export function resolveContactOutcome(
         reference: notice.reference,
       });
     case "limited":
-      return translate("contact.outcomes.limited", { time: notice.time });
+      return translate(
+        notice.isTomorrow
+          ? "contact.outcomes.limitedTomorrow"
+          : "contact.outcomes.limited",
+        { time: notice.time },
+      );
     case "failed":
       return translate("contact.outcomes.failed");
     case "refused":

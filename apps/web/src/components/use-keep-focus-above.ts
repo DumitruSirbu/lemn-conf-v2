@@ -7,8 +7,6 @@ import { useEffect, type RefObject } from "react";
  * scrolls a focused box only until it is in the viewport, which is under the region's top edge. The viewport's
  * `scroll-padding-bottom` is that edge, read from the region's own height as it changes (one sentence or three, any
  * language), so no number is kept in step with the layout. Restored when the screen goes.
- *
- * The review screen holds the same rule privately; this one is the contact screen's own until the two are joined.
  */
 export function useKeepFocusAbove(region: RefObject<HTMLElement | null>): void {
   useEffect(() => {

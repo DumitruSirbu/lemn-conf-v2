@@ -56,7 +56,8 @@ const CONTACT_OUTCOME_NOTICES: readonly ContactOutcomeNotice[] = [
   { kind: "conflict" },
   { kind: "design-not-current" },
   { kind: "does-not-fit" },
-  { kind: "limited", time: "14:05" },
+  { kind: "limited", time: "14:05", isTomorrow: false },
+  { kind: "limited", time: "14:05", isTomorrow: true },
 ];
 
 // The notice's kinds are the answer classes' kinds: a class added to either side and not the other does not compile.
@@ -125,9 +126,29 @@ describe.each(CATALOGUES)("the %s contact copy", (locale, messages) => {
     expect(
       content.contactOutcome({ kind: "sent", reference: "LM-TOKEN" }),
     ).toContain("LM-TOKEN");
-    expect(
-      content.contactOutcome({ kind: "limited", time: "14:05" }),
-    ).toContain("14:05");
+    for (const isTomorrow of [false, true]) {
+      expect(
+        content.contactOutcome({ kind: "limited", time: "14:05", isTomorrow }),
+      ).toContain("14:05");
+    }
+  });
+
+  it("tells a limited send's wait with its own leaf for today and for tomorrow", () => {
+    const limited = (isTomorrow: boolean) =>
+      content.contactOutcome({ kind: "limited", time: "14:05", isTomorrow });
+
+    expect(limited(false)).toBe(
+      requireLeafAt(messages, "contact.outcomes.limited").replace(
+        "{time}",
+        "14:05",
+      ),
+    );
+    expect(limited(true)).toBe(
+      requireLeafAt(messages, "contact.outcomes.limitedTomorrow").replace(
+        "{time}",
+        "14:05",
+      ),
+    );
   });
 
   it("tells a design that does not fit in the review's own sentence", () => {

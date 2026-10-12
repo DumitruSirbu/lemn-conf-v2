@@ -83,6 +83,13 @@ afterEach(() => {
 });
 
 describe("the fields, as the browser meets them", () => {
+  it("posts, so a native submit before hydration never puts what was typed into the address", () => {
+    const form = elementIn(mount(), "form", HTMLFormElement);
+
+    expect(form.getAttribute("method")).toBe("post");
+    expect(form.hasAttribute("action")).toBe(false);
+  });
+
   it.each([
     ["name", "text", "name", "text"],
     ["phone", "tel", "tel", "tel"],

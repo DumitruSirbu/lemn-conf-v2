@@ -12,6 +12,7 @@ import {
   type RefObject,
 } from "react";
 
+import { useKeepFocusAbove } from "@/components/use-keep-focus-above";
 import type { Content } from "@/i18n/content";
 import { useContent } from "@/i18n/use-content";
 
@@ -35,7 +36,6 @@ import type {
   ContactSubmission,
   RefusedPress,
 } from "./use-contact-submission";
-import { useKeepFocusAbove } from "./use-keep-focus-above";
 
 // Frames 4A and 4B: the fields, the consent beside the call to action, and the errors beside what they are about. What
 // the customer typed lives in `useContactSubmission`'s memory and nowhere else; this file only draws it and reports
@@ -130,6 +130,7 @@ export function ContactForm({
   return (
     <form
       className={styles.form}
+      method="post"
       noValidate
       aria-busy={isSending}
       onSubmit={handleSubmit}
@@ -389,6 +390,7 @@ function PinnedRegion({
   ];
   // The retry button is gone once pressed, and focus goes to the button that took its place in the flow.
   const retry = () => {
+    if (status.isOff) return;
     press();
     ctaRef.current?.focus();
   };
@@ -398,6 +400,7 @@ function PinnedRegion({
         <ContactOutcome
           phase={shownOutcome}
           id={outcomeSentenceId}
+          isOff={status.isOff}
           reviewLink={status.reviewLink}
           onRetry={retry}
         />

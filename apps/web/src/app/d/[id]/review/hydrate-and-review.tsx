@@ -9,7 +9,6 @@ import {
   hydrateSessionStoreInBrowser,
 } from "@/store/configurator-snapshot";
 import { holdsTheNewestCopy, writeAccessHeldFor } from "@/store/newest-copy";
-import { isGreaterRevision } from "@/store/revision-order";
 
 /**
  * Puts the loaded design in the store and shows the review of it, the way `HydrateAndConfigure` does for the editor
@@ -42,5 +41,3 @@ export function HydrateAndReview({
     </ConfiguratorSnapshotProvider>
   );
 }
-
-export { isGreaterRevision };

@@ -380,7 +380,8 @@
       "refused": "Unele câmpuri nu sunt completate corect. Verifică-le și trimite din nou.",
       "conflict": "Cererea nu a putut fi înregistrată în forma ei de acum. Trimite-o încă o dată.",
       "designNotCurrent": "Înainte să trimitem cererea, verifică din nou designul.",
-      "limited": "Prea multe cereri într-un timp scurt. Poți trimite din nou după ora {time}."
+      "limited": "Prea multe cereri într-un timp scurt. Poți trimite din nou după ora {time}.",
+      "limitedTomorrow": "Prea multe cereri într-un timp scurt. Poți trimite din nou mâine, după ora {time}."
     }
   },
   "leadNotice": {

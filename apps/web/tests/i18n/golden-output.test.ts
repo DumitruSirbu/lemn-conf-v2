@@ -256,8 +256,8 @@ describe("golden-output fixture coverage", () => {
     expect(ROOM_FIXTURES).toHaveLength(73);
     // M8 8C S1: the review leaves `Content` reaches through `reviewRoomLine`.
     expect(REVIEW_FIXTURES).toHaveLength(12);
-    // M8 8L S2: the contact leaves reached by field code and by class of answer: 11 field errors, 6 outcomes.
-    expect(CONTACT_FIXTURES).toHaveLength(17);
+    // M8 8L S2: the contact leaves reached by field code and by class of answer: 11 field errors, 7 outcomes.
+    expect(CONTACT_FIXTURES).toHaveLength(18);
     expect(REJECTION_FIXTURES).toHaveLength(41);
     expect(INSERTABLE_BODY_DEFINITIONS).toHaveLength(16);
     expect(CATALOGUE_FIXTURES).toHaveLength(98);
@@ -275,7 +275,8 @@ describe("golden-output fixture coverage", () => {
     // +2 for `panel.savePausedNotice`'s two times.
     // M8 8L S2: +26 contact static leaves, +17 contact leaves reached by code or class of answer.
     // M8 8L S6: -4 for the retired `contactPlaceholder.*` and `webglUnavailable.emailLink`.
-    expect(GOLDEN_FIXTURES).toHaveLength(483);
+    // M8 8L fix-up: +1 for `contact.outcomes.limitedTomorrow`.
+    expect(GOLDEN_FIXTURES).toHaveLength(484);
     expect(new Set(GOLDEN_FIXTURES.map((fixture) => fixture.id)).size).toBe(
       GOLDEN_FIXTURES.length,
     );

@@ -215,11 +215,15 @@
 .channels {
   display: flex;
   flex-direction: column;
-  gap: 8px;
   min-width: 0;
   margin: 0;
   padding: 0;
   border: 0;
+}
+
+/* A fieldset's legend is not one of its flex items, so no `gap` reaches it: its distance to the chips is its own. */
+.channels > .label {
+  padding-block-end: 8px;
 }
 
 .chips {
@@ -415,6 +419,11 @@
   cursor: pointer;
   background: none;
   border: 0;
+}
+
+.outcomeAction[aria-disabled="true"] {
+  color: var(--ink-faint);
+  cursor: not-allowed;
 }
 
 .sendingLine {

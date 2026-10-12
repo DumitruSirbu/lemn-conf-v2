@@ -315,6 +315,8 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "cb680127b7f50c384de47d0f635b6c747ed98ccdbb299b0dde54f625d91ea4c3",
   "contact.outcomes.limited":
     "d0cf12b1439521b8ad015b4350375fc209a81b6077070f94c60a6661cf54d6d8",
+  "contact.outcomes.limitedTomorrow":
+    "3f26b1e47be4fb3d27a3078d6223312153a87644f8ab1edc4251a531568c0f9f",
   "contact.outcomes.refused":
     "1acb1e12ff737bf7f7bf04c52abbc1533510513c59574f35fbef90ad07235d81",
   "contact.outcomes.sent":

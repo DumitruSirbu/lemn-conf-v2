@@ -722,6 +722,7 @@ const CONTACT_RENDER_ARGUMENTS: Readonly<
 > = {
   "contact.outcomes.sent": { reference: "Reference" },
   "contact.outcomes.limited": { time: "Time" },
+  "contact.outcomes.limitedTomorrow": { time: "Time" },
 };
 
 export const CONTACT_RENDER_ARGUMENT_PATHS = Object.keys(

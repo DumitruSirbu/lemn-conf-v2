@@ -92,6 +92,13 @@ describe("the callback form, which has no design", () => {
     },
   );
 
+  it("posts, so a native submit before hydration never puts what was typed into the address", () => {
+    const form = elementIn(mount(), "form", HTMLFormElement);
+
+    expect(form.getAttribute("method")).toBe("post");
+    expect(form.hasAttribute("action")).toBe(false);
+  });
+
   it("draws no card, no figure and no way to a review", () => {
     const container = mount();
 

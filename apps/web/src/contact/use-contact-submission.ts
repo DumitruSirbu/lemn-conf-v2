@@ -8,7 +8,10 @@ import { useCallback, useState } from "react";
 import type { AppLocale } from "@/i18n/routing";
 import { usePricedDesign } from "@/price/use-priced-design";
 import { useSaveWait, type SaveWait } from "@/review/use-save-wait";
-import { useConfiguratorStore } from "@/store/configurator-store";
+import {
+  hasUnsavedEdit,
+  useConfiguratorStore,
+} from "@/store/configurator-store";
 
 import type { ContactOutcome } from "./contact-answer";
 import {
@@ -191,7 +194,9 @@ function pressContact(context: PressContext): void {
   const target = readSubmissionTarget(context.target, context.bookVersion);
   if (target === undefined) {
     // An unsaved design is told by the wait on screen; a saved one with no id, revision or book is not.
-    if (isDesignSaved()) show.setPhase(UNSENDABLE);
+    if (!hasUnsavedEdit(useConfiguratorStore.getState())) {
+      show.setPhase(UNSENDABLE);
+    }
     return;
   }
   memory.form = reduceContactForm(memory.form, { type: "submit-pressed" });
@@ -239,21 +244,16 @@ function readSubmissionTarget(
   if (target.kind === "intent") {
     return { kind: "intent", intent: target.intent };
   }
-  const { design, savedDesign, designId, revision } =
-    useConfiguratorStore.getState();
+  const session = useConfiguratorStore.getState();
+  const { designId, revision } = session;
   const isSendable =
-    design === savedDesign &&
+    !hasUnsavedEdit(session) &&
     designId !== null &&
     revision !== null &&
     bookVersion !== undefined;
   return isSendable
     ? { kind: "design", design: { id: designId, revision } }
     : undefined;
-}
-
-function isDesignSaved(): boolean {
-  const { design, savedDesign } = useConfiguratorStore.getState();
-  return design === savedDesign;
 }
 
 /** The version of the book the card's figure is priced under, from the same root that prices it. */

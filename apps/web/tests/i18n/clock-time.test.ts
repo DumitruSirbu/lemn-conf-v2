@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { clockTimeOf } from "@/i18n/clock-time";
+import { clockTimeOf, isToldOnALaterDay } from "@/i18n/clock-time";
 
 const MS_PER_MINUTE = 60_000;
 
@@ -43,5 +43,49 @@ describe("clockTimeOf", () => {
       expect(toldAt).toBeGreaterThanOrEqual(instant);
       expect(toldAt - instant).toBeLessThan(MS_PER_MINUTE);
     }
+  });
+});
+
+describe("isToldOnALaterDay", () => {
+  const SECONDS_PER_DAY = 86_400;
+
+  it("is false for a wait that ends later the same local day", () => {
+    const now = localInstant(10, 0);
+
+    expect(isToldOnALaterDay(now + 3600 * 1000, now)).toBe(false);
+    expect(isToldOnALaterDay(localInstant(23, 59), now)).toBe(false);
+  });
+
+  it("is true for a wait of exactly a day, the longest a limit's Retry-After asks", () => {
+    for (const [hours, minutes] of [
+      [0, 0],
+      [10, 30],
+      [23, 59],
+    ] as const) {
+      const now = localInstant(hours, minutes);
+
+      expect(isToldOnALaterDay(now + SECONDS_PER_DAY * 1000, now)).toBe(true);
+    }
+  });
+
+  it("is true for a short wait that crosses local midnight, and false the second before", () => {
+    const now = localInstant(23, 30);
+
+    expect(isToldOnALaterDay(localInstant(23, 59, 0), now)).toBe(false);
+    expect(isToldOnALaterDay(now + 30 * 60 * 1000, now)).toBe(true);
+  });
+
+  it("reads the day of the time that is told, which rounds the minute up across midnight", () => {
+    const now = localInstant(23, 0);
+    const lastSecondOfTheDay = localInstant(23, 59, 30);
+
+    expect(clockTimeOf(lastSecondOfTheDay)).toBe("00:00");
+    expect(isToldOnALaterDay(lastSecondOfTheDay, now)).toBe(true);
+  });
+
+  it("is false for an instant that is already past", () => {
+    const now = localInstant(10, 0);
+
+    expect(isToldOnALaterDay(now - SECONDS_PER_DAY * 1000, now)).toBe(false);
   });
 });

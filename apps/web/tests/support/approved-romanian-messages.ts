@@ -514,6 +514,8 @@ export const APPROVED_ROMANIAN_MESSAGES = {
         "Înainte să trimitem cererea, verifică din nou designul.",
       limited:
         "Prea multe cereri într-un timp scurt. Poți trimite din nou după ora {time}.",
+      limitedTomorrow:
+        "Prea multe cereri într-un timp scurt. Poți trimite din nou mâine, după ora {time}.",
     },
   },
   // Drafted, not approved: the shop's notice, whose language is the owner's to rule (Q34).

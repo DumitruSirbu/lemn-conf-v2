@@ -4,6 +4,7 @@ import type { DesignId } from "@lemnaria/configurator-domain";
 import type { ComponentProps } from "react";
 
 import { Link } from "@/i18n/navigation";
+import { reviewHref } from "@/review/design-hrefs";
 
 type ReviewLinkProps = Omit<
   ComponentProps<typeof Link>,
@@ -16,7 +17,5 @@ type ReviewLinkProps = Omit<
  * Never prefetched, never a step back, and never a replacement of this page's entry.
  */
 export function ReviewLink({ designId, ...anchorProps }: ReviewLinkProps) {
-  return (
-    <Link prefetch={false} href={`/d/${designId}/review`} {...anchorProps} />
-  );
+  return <Link prefetch={false} href={reviewHref(designId)} {...anchorProps} />;
 }

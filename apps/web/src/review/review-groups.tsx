@@ -10,19 +10,8 @@ import type {
   BreakdownRow,
 } from "@/price/price-breakdown-model";
 
+import { editorHref, type EditorArrival } from "./design-hrefs";
 import { rowDetailOf, type ReviewRowDetail } from "./review-model";
-
-/** What the editor is asked to do on arrival: select one body, or open the whole-kitchen settings. */
-export interface EditorArrival {
-  readonly select?: string;
-  readonly settings?: "open";
-}
-
-/** The design's editor, optionally asking it to select a body or open its settings. The editor honours the
- *  parameters once, on arrival. */
-export function editorHref(designId: DesignId, arrival: EditorArrival = {}) {
-  return { pathname: `/d/${designId}`, query: { ...arrival } };
-}
 
 export interface ReviewGroupsProps {
   readonly designId: DesignId;
@@ -71,6 +60,14 @@ export function ReviewWholeKitchenRows({
   );
 }
 
+/** The arrival that selects the first of these rows' bodies; with no row there is no body to name, and it is none. */
+export function selectingTheFirstBody(
+  rows: readonly BreakdownRow[],
+): EditorArrival {
+  const firstBody = rows[0];
+  return firstBody === undefined ? {} : { select: firstBody.key };
+}
+
 function ReviewGroup({
   designId,
   group,
@@ -86,7 +83,6 @@ function ReviewGroup({
 }) {
   const content = useContent();
   const headingId = `review-group-${group.key}`;
-  const firstBody = group.rows[0];
   return (
     <section
       className={styles.group}
@@ -97,11 +93,11 @@ function ReviewGroup({
         <h2 id={headingId} className={styles.groupHeading}>
           {group.heading}
         </h2>
-        {firstBody === undefined ? null : (
+        {group.rows.length === 0 ? null : (
           <Link
             prefetch={false}
             className={styles.action}
-            href={editorHref(designId, { select: firstBody.key })}
+            href={editorHref(designId, selectingTheFirstBody(group.rows))}
             aria-describedby={headingId}
             data-testid="review-group-edit"
           >
