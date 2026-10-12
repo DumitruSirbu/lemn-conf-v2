@@ -128,6 +128,8 @@ const UNSENDABLE: ContactSubmissionPhase = {
   waitsUntilMs: undefined,
 };
 
+const NOTHING_TO_SAVE: SaveWait = { kind: "saved" };
+
 const MILLISECONDS_PER_SECOND = 1000;
 
 export function useContactSubmission(
@@ -140,7 +142,9 @@ export function useContactSubmission(
   const [form, setForm] = useState(memory.form);
   const [phase, setPhase] = useState(IDLE);
   const [refusedPress, setRefusedPress] = useState<RefusedPress | undefined>();
-  const saveWait = useSaveWait();
+  const designSaveWait = useSaveWait();
+  // A request with no design names nothing the store holds, so another design's unsaved edit is no reason to hold it.
+  const saveWait = target.kind === "design" ? designSaveWait : NOTHING_TO_SAVE;
   const bookVersion = pricingVersionOf(usePricedDesign());
 
   const edit = useCallback(

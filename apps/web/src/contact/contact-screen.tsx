@@ -9,6 +9,7 @@ import { StartLink } from "@/components/start-link";
 import { WebGLUnavailable } from "@/components/webgl-unavailable";
 import { useContent } from "@/i18n/use-content";
 import { routing, type AppLocale } from "@/i18n/routing";
+import { OpenEditorLink } from "@/review/open-editor-link";
 import type { RefusedSubmit, ReviewView } from "@/review/review-model";
 import { useReview } from "@/review/use-review";
 import { useWebGLSupport } from "@/scene/webgl-support";
@@ -137,6 +138,14 @@ function DesignContactBody({
           {content.contact.reviewLink}
         </ReviewLink>
       }
+      editorLink={
+        <OpenEditorLink
+          designId={designId}
+          review={review}
+          className={styles.reviewLink}
+          data-testid="contact-open-editor"
+        />
+      }
     >
       <Intro
         heading={content.contact.heading}
@@ -173,11 +182,13 @@ function SentOrForm({
   submission,
   sendingLine,
   reviewLink,
+  editorLink,
   children,
 }: {
   readonly submission: ContactSubmission;
   readonly sendingLine: string;
   readonly reviewLink?: ReactNode;
+  readonly editorLink?: ReactNode;
   readonly children: ReactNode;
 }) {
   if (submission.phase.kind === "sent") {
@@ -188,6 +199,7 @@ function SentOrForm({
       submission={submission}
       sendingLine={sendingLine}
       reviewLink={reviewLink}
+      editorLink={editorLink}
     >
       {children}
     </ContactForm>

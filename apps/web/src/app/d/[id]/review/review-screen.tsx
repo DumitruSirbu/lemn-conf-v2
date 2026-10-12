@@ -7,6 +7,7 @@ import { LocaleMenu } from "@/app/configurator/configure/locale-menu";
 import { WebGLUnavailable } from "@/components/webgl-unavailable";
 import { Link } from "@/i18n/navigation";
 import { useContent } from "@/i18n/use-content";
+import { OpenEditorLink } from "@/review/open-editor-link";
 import {
   editorHref,
   ReviewGroups,
@@ -311,14 +312,12 @@ function BottomRegion({
         </p>
       ) : null}
       {saveWait.kind === "waiting" && saveWait.isSettledInTheEditor ? (
-        <Link
+        <OpenEditorLink
+          designId={designId}
+          review={review}
           className={styles.openEditor}
-          href={editorHref(designId, selectingTheFirstBody(review))}
-          prefetch={false}
           data-testid="review-open-editor"
-        >
-          {content.reviewScreen.openEditor}
-        </Link>
+        />
       ) : null}
       <div className={styles.buyRow}>
         {review.kind === "available" ? (
@@ -375,18 +374,6 @@ function CallToAction({
       {content.reviewScreen.callToAction}
     </button>
   );
-}
-
-/**
- * Where the link to the editor lands, so that a conflict is on screen when it does: the editor draws a conflict, and
- * its controls, in the panel, and the panel needs a selection. The first body in display order, which is the first
- * row of the first group, as each group's *Editează* takes it. A review with no rows (one that cannot be shown, or a
- * kitchen with no body) has no body to name, and the link then lands on the editor as it is.
- */
-function selectingTheFirstBody(review: ReviewView): { select?: string } {
-  if (review.kind !== "available") return {};
-  const firstBody = review.groups[0]?.rows[0];
-  return firstBody === undefined ? {} : { select: firstBody.key };
 }
 
 /**

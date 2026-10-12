@@ -99,6 +99,8 @@ export interface ContactFormProps {
   readonly sendingLine: string;
   /** The way to the review that fetches it, for the answers that send the customer there. */
   readonly reviewLink?: ReactNode;
+  /** The way to the editor, for the unsaved edit whose wait only the editor ends (a save in conflict). */
+  readonly editorLink?: ReactNode;
   /** What stands above the fields: the heading, and for a design its card. */
   readonly children: ReactNode;
 }
@@ -107,6 +109,7 @@ export function ContactForm({
   submission,
   sendingLine,
   reviewLink,
+  editorLink,
   children,
 }: ContactFormProps) {
   const { form, phase, refusedPress, edit, press } = submission;
@@ -139,7 +142,7 @@ export function ContactForm({
         submission={submission}
         form={shownForm}
         consentRef={fieldRefs.consent}
-        status={{ isOff, isLimitWaiting, sendingLine, reviewLink }}
+        status={{ isOff, isLimitWaiting, sendingLine, reviewLink, editorLink }}
       />
     </form>
   );
@@ -355,6 +358,7 @@ interface PinnedStatus {
   readonly isLimitWaiting: boolean;
   readonly sendingLine: string;
   readonly reviewLink: ReactNode;
+  readonly editorLink: ReactNode;
 }
 
 /** Pinned to the foot of the viewport: the answer's sentence and the unsaved edit's above the consent and the call to
@@ -407,6 +411,9 @@ function PinnedRegion({
           {saveWait.sentence}
         </p>
       ) : null}
+      {saveWait.kind === "waiting" && saveWait.isSettledInTheEditor
+        ? status.editorLink
+        : null}
       <ConsentRow
         form={form}
         edit={edit}

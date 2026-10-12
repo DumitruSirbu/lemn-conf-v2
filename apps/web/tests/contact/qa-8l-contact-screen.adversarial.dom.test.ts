@@ -272,19 +272,29 @@ describe("the form with no design", () => {
     hydrateSavedDesign();
     editWithoutSaving("an edit of a design this form does not send");
     fillWholeForm(callback.container);
+    const callToAction = elementIn(
+      callback.container,
+      '[data-testid="contact-cta"]',
+    );
 
-    pressCallToAction(callback.container);
-
+    // Before the press: the button is on, and no sentence about a save stands in the region.
+    expect(
+      callToAction.getAttribute("aria-disabled"),
+      "the call to action before any press",
+    ).toBeNull();
     expect(
       callback.container.querySelector('[data-testid="contact-save-wait"]'),
       "a sentence about saving an edit",
     ).toBeNull();
-    expect(
-      callback.container
-        .querySelector('[data-testid="contact-cta"]')
-        ?.getAttribute("aria-disabled"),
-    ).toBeNull();
+
+    pressCallToAction(callback.container);
+
+    // After it, the one request is out (and the button is off for that, as frame 4C draws it).
     expect(traffic.contactBodies).toHaveLength(1);
+    expect(
+      callback.container.querySelector('[data-testid="contact-save-wait"]'),
+      "a sentence about saving an edit while the request is out",
+    ).toBeNull();
   });
 });
 
