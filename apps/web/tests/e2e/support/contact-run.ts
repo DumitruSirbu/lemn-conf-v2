@@ -111,10 +111,6 @@ export async function countAndNoteStored(
   return stored;
 }
 
-/** The old name, kept only until `qa-8k-contact-live.adversarial.e2e.spec.ts` (lines 16, 97, 136, 159) moves to the
- *  new one; nothing else uses it. */
-export const expectStoredOnce = countAndNoteStored;
-
 /** The key a subject is counted under by a policy, computed with the server's own digest from the run's secret. */
 function keyOf(policy: LimitPolicy, subject: BucketSubject): string {
   return bucketKeyOfBlock(secretOfThisRun(), policy.name, subject);
