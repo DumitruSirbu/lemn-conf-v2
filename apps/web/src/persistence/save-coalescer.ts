@@ -651,8 +651,9 @@ export function createSaveCoalescer(
     queue.pending ??= failedJob;
     invalidateReady(queue);
     clearWait(queue);
-    armWait(queue, waitMs, Date.now() + waitMs);
-    queue.failureTold = { resumesAtMs: Date.now() + waitMs };
+    const resumesAtMs = Date.now() + waitMs;
+    armWait(queue, waitMs, resumesAtMs);
+    queue.failureTold = { resumesAtMs };
     reportLimitWait(queue, queue.pending.generation);
     // Other identities may progress while this one waits.
     requestSave();
