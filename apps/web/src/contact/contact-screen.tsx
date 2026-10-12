@@ -2,12 +2,15 @@
 
 import type { DesignId } from "@lemnaria/configurator-domain";
 import { useLocale } from "next-intl";
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 import { LocaleMenu } from "@/app/configurator/configure/locale-menu";
 import { StartLink } from "@/components/start-link";
 import { WebGLUnavailable } from "@/components/webgl-unavailable";
+import { ChannelSummary, ResultHeading } from "@/done/done-screen";
+import { SentReferenceCard } from "@/done/sent-reference-card";
 import { useReplaceWithDone } from "@/done/use-replace-with-done";
+import type { SubmissionChannelLine } from "@/i18n/content";
 import { useContent } from "@/i18n/use-content";
 import { routing, type AppLocale } from "@/i18n/routing";
 import { OpenEditorLink } from "@/review/open-editor-link";
@@ -17,8 +20,11 @@ import { useWebGLSupport } from "@/scene/webgl-support";
 
 import { ContactDesignCard } from "./contact-design-card";
 import { ContactForm } from "./contact-form";
+import type { ContactFormValues } from "./contact-form-model";
+import { isSendOff } from "./contact-outcome";
 import styles from "./contact.module.css";
 import { ReviewLink } from "./review-link";
+import { SubmissionFailure, useFailureView } from "./submission-failure";
 import {
   CALLBACK_TARGET,
   DESIGN_TARGET,
@@ -126,11 +132,18 @@ function DesignContactBody({
   if (refusal !== undefined && submission.phase.kind !== "sent") {
     return <RefusedDesign designId={designId} refusal={refusal} />;
   }
+  const card =
+    review.kind === "available" ? <ContactDesignCard review={review} /> : null;
   return (
-    <SentOrForm
+    <FormOrResult
       submission={submission}
       sendingLine={content.contact.sendingLine}
+      intro={{
+        heading: content.contact.heading,
+        subheading: content.contact.subheading,
+      }}
       whenSent={<LeaveForDone designId={designId} />}
+      kept={{ sentence: content.submissionResult.failureKept, card }}
       reviewLink={
         <ReviewLink
           designId={designId}
@@ -149,14 +162,8 @@ function DesignContactBody({
         />
       }
     >
-      <Intro
-        heading={content.contact.heading}
-        subheading={content.contact.subheading}
-      />
-      {review.kind === "available" ? (
-        <ContactDesignCard review={review} />
-      ) : null}
-    </SentOrForm>
+      {card}
+    </FormOrResult>
   );
 }
 
@@ -165,43 +172,74 @@ function CallbackContactPage() {
   return (
     <ContactPage target={CALLBACK_TARGET} backLink={<StartBackLink />}>
       {(submission) => (
-        <SentOrForm
+        <FormOrResult
           submission={submission}
           sendingLine={content.contact.sendingLineNoDesign}
-        >
-          <Intro
-            heading={content.contact.headingNoDesign}
-            subheading={content.contact.subheadingNoDesign}
-          />
-        </SentOrForm>
+          intro={{
+            heading: content.contact.headingNoDesign,
+            subheading: content.contact.subheadingNoDesign,
+          }}
+          whenSent={
+            submission.phase.kind === "sent" ? (
+              <CallbackSentView
+                reference={submission.phase.reference}
+                values={submission.form.values}
+              />
+            ) : null
+          }
+          kept={{
+            sentence: content.submissionResult.failureKeptNoDesign,
+            card: null,
+          }}
+        />
       )}
     </ContactPage>
   );
 }
 
-/** The form, or the line that says the request is stored once it is: the form is never drawn beside it. */
-function SentOrForm({
+interface FormOrResultProps {
+  readonly submission: ContactSubmission;
+  readonly sendingLine: string;
+  readonly intro: { readonly heading: string; readonly subheading: string };
+  /** Mounted in place of the form, and only once the request is answered *sent*. */
+  readonly whenSent: ReactNode;
+  /** What 5B says stays when a send does not arrive: its sentence, and the design's card where there is a design. */
+  readonly kept: { readonly sentence: string; readonly card: ReactNode };
+  readonly reviewLink?: ReactNode;
+  readonly editorLink?: ReactNode;
+  /** What stands under the intro, above the fields. */
+  readonly children?: ReactNode;
+}
+
+/**
+ * The form, or what replaces it: the sent view once the request is stored, and frame 5B once a send did not arrive
+ * (`unanswered`, `failed`). The form is never drawn beside either, and what was typed stays in the form's memory, which
+ * is above this. Every other answer is told beside the form.
+ */
+function FormOrResult({
   submission,
   sendingLine,
+  intro,
   whenSent,
+  kept,
   reviewLink,
   editorLink,
   children,
-}: {
-  readonly submission: ContactSubmission;
-  readonly sendingLine: string;
-  /** Mounted beside the sent line, and only once the request is answered *sent*. */
-  readonly whenSent?: ReactNode;
-  readonly reviewLink?: ReactNode;
-  readonly editorLink?: ReactNode;
-  readonly children: ReactNode;
-}) {
-  if (submission.phase.kind === "sent") {
+}: FormOrResultProps) {
+  const { phase, form, press } = submission;
+  const { screen, hasShownFailure } = useFailureView(phase);
+  if (phase.kind === "sent") return whenSent;
+  if (screen !== undefined) {
     return (
-      <>
-        <SentLine reference={submission.phase.reference} />
-        {whenSent}
-      </>
+      <SubmissionFailure
+        screen={screen}
+        isRetrying={phase.kind === "sending"}
+        isRetryOff={isSendOff(submission, false)}
+        keptSentence={kept.sentence}
+        keptCard={kept.card}
+        contactValue={contactValueOf(form.values)}
+        onRetry={press}
+      />
     );
   }
   return (
@@ -211,8 +249,45 @@ function SentOrForm({
       reviewLink={reviewLink}
       editorLink={editorLink}
     >
+      <Intro
+        heading={intro.heading}
+        subheading={intro.subheading}
+        takesFocus={hasShownFailure}
+      />
       {children}
     </ContactForm>
+  );
+}
+
+/** The one typed value the shop would use for the channel chosen, as the request carries it: trimmed. */
+function contactValueOf({ channel, email, phone }: ContactFormValues): string {
+  return (channel === "email" ? email : phone).trim();
+}
+
+/**
+ * The callback form's sent view, in place, since a request with no design has no confirmation to leave for: 5A's head
+ * with the channel line, and the reference to copy. Nothing about a design, so no steps, picture or way back to one. A
+ * reload shows the empty form.
+ */
+function CallbackSentView({
+  reference,
+  values,
+}: {
+  readonly reference: string;
+  readonly values: ContactFormValues;
+}) {
+  const content = useContent().submissionResult;
+  const channelLine: SubmissionChannelLine = {
+    channel: values.channel,
+    contact: contactValueOf(values),
+  };
+  return (
+    <div className={styles.body} data-testid="contact-sent">
+      <ResultHeading heading={content.sentHeading} isSent>
+        <ChannelSummary channelLine={channelLine} />
+      </ResultHeading>
+      <SentReferenceCard reference={reference} />
+    </div>
   );
 }
 
@@ -236,18 +311,6 @@ function UnavailablePage({ backLink }: { readonly backLink: ReactNode }) {
 function LeaveForDone({ designId }: { readonly designId: DesignId }) {
   useReplaceWithDone(designId);
   return null;
-}
-
-/** The answer that the request is stored: one line with its reference, in place of the form. */
-function SentLine({ reference }: { readonly reference: string }) {
-  const content = useContent();
-  return (
-    <div className={styles.body}>
-      <p className={styles.sent} role="status" data-testid="contact-sent">
-        {content.contactOutcome({ kind: "sent", reference })}
-      </p>
-    </div>
-  );
 }
 
 function useServedLocale(): AppLocale {
@@ -313,13 +376,27 @@ function StartBackLink() {
 function Intro({
   heading,
   subheading,
+  takesFocus,
 }: {
   readonly heading: string;
   readonly subheading: string;
+  /** The form is back from frame 5B, whose retry held the focus: the `h1` takes it, so it is not left on a removed
+   *  element. */
+  readonly takesFocus: boolean;
 }) {
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (takesFocus) headingRef.current?.focus();
+  }, [takesFocus]);
   return (
     <div className={styles.head}>
-      <h1 className={styles.heading}>{heading}</h1>
+      <h1
+        ref={headingRef}
+        tabIndex={takesFocus ? -1 : undefined}
+        className={styles.heading}
+      >
+        {heading}
+      </h1>
       <p className={styles.subheading}>{subheading}</p>
     </div>
   );

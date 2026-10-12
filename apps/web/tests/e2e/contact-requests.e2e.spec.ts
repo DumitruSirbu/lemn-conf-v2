@@ -24,8 +24,11 @@ import {
   contactDocumentPath,
   CTA,
   elapsedOf,
+  expectDoneShown,
   expectFormDrawn,
   fillTheWholeForm,
+  FAILURE,
+  FAILURE_SENTENCE,
   field,
   MESSAGES,
   NETWORK_FAILURE,
@@ -33,13 +36,11 @@ import {
   OUTCOME,
   pressTheCallToAction,
   recordContactRequests,
-  referenceIn,
   sentAt,
   RETRY,
   REVIEW_LINK_IN_OUTCOME,
   SAVE_WAIT as CONTACT_SAVE_WAIT,
   SENDING_LINE,
-  SENT,
   typeInto,
   waitForTheLeastFormTime,
   withoutElapsed,
@@ -76,6 +77,7 @@ import { openSeededDesign, test } from "./support/seeded-design";
 import { seedDesign } from "./support/u-design";
 
 const ro = MESSAGES.ro.contact;
+const roResult = MESSAGES.ro.submissionResult;
 const FIGURE = '[data-section="figure"]';
 const ROOM_LINE = '[data-section="roomLine"]';
 const SETTINGS_ROW = '[data-section="settingsRow"]';
@@ -216,10 +218,8 @@ test("criteria 4 and 10: while the answer is held, presses made in one task, tap
 
   releaseTheAnswer();
 
-  await expect(page.getByTestId(SENT)).toBeVisible();
-  const shown = (await page.getByTestId(SENT).textContent()) ?? "";
-  const reference = referenceIn(shown, ro.outcomes.sent);
-  expect(isSubmissionReference(reference), shown).toBe(true);
+  const reference = await expectDoneShown(page, "ro", seededDesign.id);
+  expect(isSubmissionReference(reference), reference).toBe(true);
   expect(sent).toHaveLength(1);
   const [only] = sent;
   if (only === undefined) throw new Error("no request was sent");
@@ -256,16 +256,18 @@ test("criterion 11: a request answered 503 is sent again with the same id and th
   await answerContactInOrder(page, [ANSWERS.unavailable]);
 
   await pressTheCallToAction(page);
-  await expect(page.getByTestId(OUTCOME)).toHaveAttribute(
-    "data-outcome",
-    "failed",
+  await expect(page.getByTestId(FAILURE)).toHaveAttribute(
+    "data-screen",
+    "not-sent",
   );
-  await expect(page.getByTestId(OUTCOME)).toContainText(ro.outcomes.failed);
-  await expect(page.getByTestId(OUTCOME)).not.toContainText(/CONTACT|503/);
+  await expect(page.getByTestId(FAILURE_SENTENCE)).toHaveText(
+    roResult.failureNotSent,
+  );
+  await expect(page.getByTestId(FAILURE)).not.toContainText(/CONTACT|503/);
   await page.waitForTimeout(300);
   await page.getByTestId(RETRY).tap();
 
-  await expect(page.getByTestId(SENT)).toBeVisible();
+  await expectDoneShown(page, "ro", seededDesign.id);
   expect(sent).toHaveLength(2);
   const [first, second] = sent;
   if (first === undefined || second === undefined) throw new Error("two sends");
@@ -276,69 +278,78 @@ test("criterion 11: a request answered 503 is sent again with the same id and th
 });
 
 test.describe("every class of answer, driven through the screen (the server is not reached)", () => {
-  interface ClassCase {
+  interface CaseCommon {
     readonly name: string;
     readonly answer: Parameters<typeof answerContactWith>[1];
-    readonly outcome: string;
-    readonly sentence: string | undefined;
+    readonly sentence: string;
     readonly isSendable: boolean;
     readonly keepsId: boolean;
   }
+  /** An answer the form tells beside its fields, by the class of the answer. */
+  interface BesideTheFormCase extends CaseCommon {
+    readonly outcome: string;
+    readonly failureScreen?: undefined;
+  }
+  /** An answer that leaves the form for frame 5B, by the failure screen that tells it. */
+  interface FailureScreenCase extends CaseCommon {
+    readonly failureScreen: "lost-connection" | "not-sent";
+  }
+  type ClassCase = BesideTheFormCase | FailureScreenCase;
 
   const CLASS_CASES: readonly ClassCase[] = [
     {
       name: "200 that is not a send",
       answer: ANSWERS.notAnAnswerWeKnow,
-      outcome: "failed",
-      sentence: ro.outcomes.failed,
+      failureScreen: "not-sent",
+      sentence: roResult.failureNotSent,
       isSendable: true,
       keepsId: true,
     },
     {
       name: "a 200 that is not JSON",
       answer: ANSWERS.unreadable,
-      outcome: "failed",
-      sentence: ro.outcomes.failed,
+      failureScreen: "not-sent",
+      sentence: roResult.failureNotSent,
       isSendable: true,
       keepsId: true,
     },
     {
       name: "400 CONTACT_REJECTED",
       answer: ANSWERS.rejected,
-      outcome: "failed",
-      sentence: ro.outcomes.failed,
+      failureScreen: "not-sent",
+      sentence: roResult.failureNotSent,
       isSendable: true,
       keepsId: true,
     },
     {
       name: "502, the notice not sent, a retry may follow",
       answer: ANSWERS.noticeNotSentRetry,
-      outcome: "failed",
-      sentence: ro.outcomes.failed,
+      failureScreen: "not-sent",
+      sentence: roResult.failureNotSent,
       isSendable: true,
       keepsId: true,
     },
     {
       name: "502, the notice not sent",
       answer: ANSWERS.noticeNotSent,
-      outcome: "failed",
-      sentence: ro.outcomes.failed,
+      failureScreen: "not-sent",
+      sentence: roResult.failureNotSent,
       isSendable: true,
       keepsId: true,
     },
     {
       name: "503",
       answer: ANSWERS.unavailable,
-      outcome: "failed",
-      sentence: ro.outcomes.failed,
+      failureScreen: "not-sent",
+      sentence: roResult.failureNotSent,
       isSendable: true,
       keepsId: true,
     },
     {
       name: "a network failure",
       answer: NETWORK_FAILURE,
-      outcome: "unanswered",
-      sentence: ro.outcomes.failed,
+      failureScreen: "lost-connection",
+      sentence: roResult.failureLostConnection,
       isSendable: true,
       keepsId: true,
     },
@@ -368,15 +379,33 @@ test.describe("every class of answer, driven through the screen (the server is n
 
       await pressTheCallToAction(page);
 
-      const outcome = page.getByTestId(OUTCOME);
-      await expect(outcome).toHaveAttribute("data-outcome", testCase.outcome);
-      await expect(outcome).toContainText(testCase.sentence ?? "");
-      expect(await outcome.innerText()).not.toMatch(/[A-Z]{2,}_[A-Z_]+/);
-      await expect(page.getByTestId(CTA)).not.toHaveAttribute(
-        "aria-disabled",
-        "true",
-      );
-      await page.getByTestId(CTA).tap();
+      if (testCase.failureScreen === undefined) {
+        const outcome = page.getByTestId(OUTCOME);
+        await expect(outcome).toHaveAttribute("data-outcome", testCase.outcome);
+        await expect(outcome).toContainText(testCase.sentence);
+        expect(await outcome.innerText()).not.toMatch(/[A-Z]{2,}_[A-Z_]+/);
+        await expect(page.getByTestId(CTA)).not.toHaveAttribute(
+          "aria-disabled",
+          "true",
+        );
+        await page.getByTestId(CTA).tap();
+      } else {
+        const failure = page.getByTestId(FAILURE);
+        await expect(failure).toHaveAttribute(
+          "data-screen",
+          testCase.failureScreen,
+        );
+        await expect(page.getByTestId(FAILURE_SENTENCE)).toHaveText(
+          testCase.sentence,
+        );
+        expect(await failure.innerText()).not.toMatch(/[A-Z]{2,}_[A-Z_]+/);
+        await expect(page.getByTestId(CTA)).toHaveCount(0);
+        await expect(page.getByTestId(RETRY)).not.toHaveAttribute(
+          "aria-disabled",
+          "true",
+        );
+        await page.getByTestId(RETRY).tap();
+      }
       await expect.poll(() => sent.length).toBe(2);
       const [first, second] = sent;
       if (first === undefined || second === undefined) throw new Error("two");
@@ -470,7 +499,7 @@ test.describe("every class of answer, driven through the screen (the server is n
     await expect(page.getByTestId(CTA)).not.toHaveAttribute("aria-disabled");
     await page.getByTestId(CTA).tap();
 
-    await expect(page.getByTestId(SENT)).toBeVisible();
+    await expectDoneShown(page, "ro", seededDesign.id);
     expect(sent).toHaveLength(2);
     expect(clientRequestIdOf(sentAt(sent, 1))).toBe(
       clientRequestIdOf(sentAt(sent, 0)),
@@ -533,7 +562,7 @@ test("criterion 5: an edit still being saved keeps the contact page's send off a
   await expect(page.getByTestId(CTA)).not.toHaveAttribute("aria-disabled");
   await pressTheCallToAction(page);
 
-  await expect(page.getByTestId(SENT)).toBeVisible();
+  await expectDoneShown(page, "ro", seededDesign.id);
   expect(sent).toHaveLength(1);
   const [only] = sent;
   if (only === undefined) throw new Error("no send");
@@ -609,7 +638,7 @@ test("criterion 14 (a): the link after 'design not current' fetches the review o
   await fillAndWait(page, secondDrawnAtMs);
   await pressTheCallToAction(page);
 
-  await expect(page.getByTestId(SENT)).toBeVisible();
+  await expectDoneShown(page, "ro", seededDesign.id);
   expect(sent).toHaveLength(2);
   const [first, second] = sent;
   if (first === undefined || second === undefined) throw new Error("two");
@@ -698,7 +727,7 @@ test("criterion 6: nothing typed is in a cookie, storage, a URL, a request but t
   await expectNoneOfThemKept(page, context, typed, everything);
 
   await pressTheCallToAction(page);
-  await expect(page.getByTestId(SENT)).toBeVisible();
+  await expectDoneShown(page, "ro", seededDesign.id);
 
   await expectNoneOfThemKept(page, context, typed, everything);
   expect(sent).toHaveLength(1);
@@ -800,7 +829,7 @@ test("criterion 17: a design the review refuses shows that refusal and the way b
   }
 });
 
-test("a filled honeypot is refused as the failed sentence and stores nothing; emptied, the same id is stored", async ({
+test("a filled honeypot is refused as the not-sent screen and stores nothing; the retry carries the same honeypot under the same id, and stores nothing either", async ({
   page,
   context,
   seededDesign,
@@ -818,9 +847,9 @@ test("a filled honeypot is refused as the failed sentence and stores nothing; em
 
   await pressTheCallToAction(page);
 
-  await expect(page.getByTestId(OUTCOME)).toHaveAttribute(
-    "data-outcome",
-    "failed",
+  await expect(page.getByTestId(FAILURE)).toHaveAttribute(
+    "data-screen",
+    "not-sent",
   );
   expect(sent).toHaveLength(1);
   const [first] = sent;
@@ -828,17 +857,20 @@ test("a filled honeypot is refused as the failed sentence and stores nothing; em
   expect(first.body.honeypot).toBe("a bot wrote here");
   expect(await countAndNoteStored(run, clientRequestIdOf(first))).toBe(0);
 
-  await honeypot.fill("", { force: true });
+  // Frame 5B draws no field, so the honeypot cannot be emptied: the retry is the same request.
   await page.getByTestId(RETRY).tap();
 
-  await expect(page.getByTestId(SENT)).toBeVisible();
-  expect(sent).toHaveLength(2);
-  expect(sent[1]?.body.honeypot).toBe("");
+  await expect.poll(() => sent.length).toBe(2);
+  await expect(page.getByTestId(FAILURE)).toHaveAttribute(
+    "data-screen",
+    "not-sent",
+  );
+  expect(sent[1]?.body.honeypot).toBe("a bot wrote here");
   expect(sent[1]?.body.clientRequestId).toBe(first.body.clientRequestId);
-  expect(await countAndNoteStored(run, clientRequestIdOf(first))).toBe(1);
+  expect(await countAndNoteStored(run, clientRequestIdOf(first))).toBe(0);
 });
 
-test("a form sent within two seconds of being drawn is refused as the failed sentence; sent after two seconds it is stored under the same id", async ({
+test("a form sent within two seconds of being drawn is refused as the not-sent screen; sent after two seconds it is stored under the same id", async ({
   page,
   context,
   seededDesign,
@@ -852,9 +884,9 @@ test("a form sent within two seconds of being drawn is refused as the failed sen
 
   await pressTheCallToAction(page);
 
-  await expect(page.getByTestId(OUTCOME)).toHaveAttribute(
-    "data-outcome",
-    "failed",
+  await expect(page.getByTestId(FAILURE)).toHaveAttribute(
+    "data-screen",
+    "not-sent",
   );
   const [first] = sent;
   if (first === undefined) throw new Error("no send");
@@ -864,7 +896,7 @@ test("a form sent within two seconds of being drawn is refused as the failed sen
   await waitForTheLeastFormTime(startedAtMs);
   await page.getByTestId(RETRY).tap();
 
-  await expect(page.getByTestId(SENT)).toBeVisible();
+  await expectDoneShown(page, "ro", seededDesign.id);
   expect(sent).toHaveLength(2);
   expect(sent[1]?.body.clientRequestId).toBe(first.body.clientRequestId);
   expect(elapsedOf(sentAt(sent, 1))).toBeGreaterThanOrEqual(2000);

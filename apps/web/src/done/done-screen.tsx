@@ -1,7 +1,7 @@
 "use client";
 
 import type { DesignId } from "@lemnaria/configurator-domain";
-import { useEffect, useRef, useSyncExternalStore } from "react";
+import { useEffect, useRef, useSyncExternalStore, type ReactNode } from "react";
 
 import { LocaleMenu } from "@/app/configurator/configure/locale-menu";
 import { useKeepFocusAbove } from "@/components/use-keep-focus-above";
@@ -119,6 +119,29 @@ function TopBar({ isSent }: { readonly isSent: boolean }) {
 /** The one `h1`, kept in place when the view changes under it, so that the focus it took stays on it. */
 function ResultHead({ result }: { readonly result: ResultToShow }) {
   const content = useContent().submissionResult;
+  return (
+    <ResultHeading
+      heading={headingOf(result, content)}
+      isSent={result.kind === "sent"}
+    >
+      {result.kind === "sent" ? (
+        <SentSummary channelLine={result.channelLine} />
+      ) : null}
+    </ResultHeading>
+  );
+}
+
+/** The head of a result: the ✓ disc where a request was sent, the one `h1`, which takes focus when it mounts, and what
+ *  stands under it. The contact page's own sent view for a request with no design is made of the same head. */
+export function ResultHeading({
+  heading,
+  isSent,
+  children,
+}: {
+  readonly heading: string;
+  readonly isSent: boolean;
+  readonly children?: ReactNode;
+}) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     headingRef.current?.focus();
@@ -126,20 +149,16 @@ function ResultHead({ result }: { readonly result: ResultToShow }) {
 
   return (
     <div className={styles.head}>
-      {result.kind === "sent" ? (
-        <span className={styles.disc} aria-hidden="true" />
-      ) : null}
+      {isSent ? <span className={styles.disc} aria-hidden="true" /> : null}
       <h1
         ref={headingRef}
         tabIndex={-1}
         className={styles.heading}
         data-testid="done-heading"
       >
-        {headingOf(result, content)}
+        {heading}
       </h1>
-      {result.kind === "sent" ? (
-        <SentSummary channelLine={result.channelLine} />
-      ) : null}
+      {children}
     </div>
   );
 }
@@ -167,13 +186,29 @@ function SentSummary({
 }) {
   const content = useContent().submissionResult;
   return (
+    <ChannelSummary channelLine={channelLine}>
+      <span data-testid="done-saved-sentence">{content.savedSentence}</span>
+    </ChannelSummary>
+  );
+}
+
+/** The sentence that says how the shop will reach the customer, with whatever follows it in the same paragraph. */
+export function ChannelSummary({
+  channelLine,
+  children,
+}: {
+  readonly channelLine: SentResult["channelLine"];
+  readonly children?: ReactNode;
+}) {
+  const content = useContent().submissionResult;
+  return (
     <p className={styles.summary} data-testid="done-summary">
       <span data-testid="done-channel-line">
         {channelLine === undefined
           ? content.channelLineWithoutValue
           : content.channelLine(channelLine)}
-      </span>{" "}
-      <span data-testid="done-saved-sentence">{content.savedSentence}</span>
+      </span>
+      {children === undefined ? null : <> {children}</>}
     </p>
   );
 }

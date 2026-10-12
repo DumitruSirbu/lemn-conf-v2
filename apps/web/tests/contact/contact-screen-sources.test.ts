@@ -150,4 +150,19 @@ describe("the stylesheet", () => {
     expect(valuesFor(STYLESHEET, "input", "height")).toEqual(["54px"]);
     expect(valuesFor(STYLESHEET, "cta", "min-height")).toEqual(["52px"]);
   });
+
+  it("draws frame 5B's retry as the call to action's own button, whose height is a touch target", () => {
+    expect(valuesFor(STYLESHEET, "failureRetry", "composes")).toEqual(["cta"]);
+    expect(valuesFor(STYLESHEET, "failureRetry", "min-height")).toEqual([]);
+    expect(valuesFor(STYLESHEET, "cta", "min-height")).toEqual(["52px"]);
+    expect(valuesFor(STYLESHEET, "cta", "width")).toEqual(["100%"]);
+  });
+
+  it("draws 5B's disc by a mark of its own, so that no text carries it", () => {
+    expect(
+      declarationsFor(STYLESHEET, "failureDisc", "content").map(
+        ({ value }) => value,
+      ),
+    ).toEqual(['"!"']);
+  });
 });

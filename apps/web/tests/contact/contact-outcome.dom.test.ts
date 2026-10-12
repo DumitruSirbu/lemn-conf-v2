@@ -1,7 +1,9 @@
 // @vitest-environment happy-dom
 //
-// Frame 4C and the answers: what the screen is while a request is out, and what each class of answer leaves on it. The
-// scene probe, the locale menu and the editor's exit screen are stubs; every answer is the test's own.
+// Frame 4C and the answers told beside the form: what the screen is while a request is out, and what each class of
+// answer that keeps the form leaves on it. `unanswered` and `failed` leave the form for frame 5B, which is
+// submission-failure.dom.test.ts. The scene probe, the locale menu and the editor's exit screen are stubs; every answer
+// is the test's own.
 //
 // What this cannot see: that `inert` blocks a tap or a focus (happy-dom keeps the attribute and nothing more; the
 // browser's behaviour is the e2e's), the dimming as painted, and layout. The wait of a limited send is a real second.
@@ -42,27 +44,12 @@ import {
   type ScreenLocale,
   type ServerAnswer,
 } from "./contact-screen-harness";
-import {
-  DESIGN_ID,
-  editWithoutSaving,
-  landSave,
-} from "./contact-submission-harness";
+import { DESIGN_ID } from "./contact-submission-harness";
 
 const OUTCOMES = MESSAGES.ro.contact.outcomes;
-const FAILED_SENTENCE = MESSAGES.ro.submissionResult.failureNotSent;
-const LOST_CONNECTION_SENTENCE =
-  MESSAGES.ro.submissionResult.failureLostConnection;
 const ERROR_CODE_PATTERN = /[A-Z]{2,}_[A-Z_]+/;
 const ONE_SECOND_WITH_MARGIN_MS = 1200;
 
-const SERVICE_FAILURE: ServerAnswer = {
-  status: 503,
-  body: { code: "CONTACT_UNAVAILABLE" },
-};
-const REJECTED: ServerAnswer = {
-  status: 400,
-  body: { code: "CONTACT_REJECTED" },
-};
 const CONFLICT: ServerAnswer = {
   status: 409,
   body: { code: "CONTACT_REQUEST_CONFLICT" },
@@ -194,7 +181,7 @@ describe("frame 4C: while a request is out", () => {
     const container = mount();
     sendTheWholeForm(container);
 
-    await traffic.answerOldest(SERVICE_FAILURE);
+    await traffic.answerOldest(CONFLICT);
 
     expect(
       inputNamed(container, "name")
@@ -205,117 +192,6 @@ describe("frame 4C: while a request is out", () => {
       container.querySelector('[data-testid="contact-sending-line"]'),
     ).toBeNull();
     expect(ctaOf(container).textContent).toBe(MESSAGES.ro.contact.callToAction);
-  });
-});
-
-describe("an answer that sent nothing", () => {
-  it("is told as one sentence in the pinned region, with a retry that sends the same request again", async () => {
-    const container = mount();
-    sendTheWholeForm(container);
-
-    await traffic.answerOldest(REJECTED);
-
-    expect(sentencesShown(outcomeOf(container))).toEqual([FAILED_SENTENCE]);
-    expect(
-      elementIn(container, '[data-testid="contact-bottom"]').contains(
-        outcomeOf(container),
-      ),
-    ).toBe(true);
-    act(() => {
-      elementIn(container, '[data-testid="contact-retry"]').click();
-    });
-    expect(traffic.contactBodies).toHaveLength(2);
-    expect(traffic.contactBodies[1]).toMatchObject({
-      clientRequestId: traffic.contactBodies[0]?.clientRequestId,
-      contact: traffic.contactBodies[0]?.contact,
-      design: traffic.contactBodies[0]?.design,
-    });
-    expect(document.activeElement).toBe(ctaOf(container));
-  });
-
-  it("keeps the retry, off, while an edit is unsaved, sends nothing from it, and sends once the save has landed", async () => {
-    const container = mount();
-    sendTheWholeForm(container);
-    await traffic.answerOldest(REJECTED);
-
-    editWithoutSaving("edited-in-the-editor");
-
-    const retry = elementIn(container, '[data-testid="contact-retry"]');
-    expect(retry.getAttribute("aria-disabled")).toBe("true");
-    act(() => {
-      retry.click();
-    });
-    expect(traffic.contactBodies).toHaveLength(1);
-    expect(document.activeElement).not.toBe(ctaOf(container));
-
-    landSave("5");
-
-    expect(
-      elementIn(container, '[data-testid="contact-retry"]').getAttribute(
-        "aria-disabled",
-      ),
-    ).toBeNull();
-    act(() => {
-      elementIn(container, '[data-testid="contact-retry"]').click();
-    });
-    expect(traffic.contactBodies).toHaveLength(2);
-  });
-
-  it("draws a request with no answer with the lost-connection sentence, naming its own class", async () => {
-    const container = mount();
-    sendTheWholeForm(container);
-
-    await traffic.answerOldest("network-failure");
-
-    const outcome = outcomeOf(container);
-    expect(outcome.getAttribute("data-outcome")).toBe("unanswered");
-    expect(sentencesShown(outcome)).toEqual([LOST_CONNECTION_SENTENCE]);
-    expect(
-      container.querySelector('[data-testid="contact-retry"]'),
-    ).not.toBeNull();
-  });
-
-  it.each([
-    ["a 503", SERVICE_FAILURE],
-    ["a 200 that is not a sent line", { status: 200, body: { odd: true } }],
-  ])("is the failed sentence and a retry for %s", async (_name, answer) => {
-    const container = mount();
-    sendTheWholeForm(container);
-
-    await traffic.answerOldest(answer);
-
-    expect(sentencesShown(outcomeOf(container))).toEqual([FAILED_SENTENCE]);
-    expect(
-      container.querySelector('[data-testid="contact-retry"]'),
-    ).not.toBeNull();
-  });
-
-  it("is told in Russian in the Russian page", async () => {
-    const container = mount("ru");
-    sendTheWholeForm(container);
-
-    await traffic.answerOldest(SERVICE_FAILURE);
-
-    expect(sentencesShown(outcomeOf(container))).toEqual([
-      MESSAGES.ru.submissionResult.failureNotSent,
-    ]);
-    expect(
-      elementIn(container, '[data-testid="contact-retry"]').textContent,
-    ).toBe(MESSAGES.ru.contact.retry);
-  });
-
-  it("is a failure, never a silent press, when a press has no field to point at", () => {
-    const container = mount();
-    fillWholeForm(container);
-    typeInto(
-      elementIn(container, 'input[name="reference_note"]', HTMLInputElement),
-      "x".repeat(257),
-    );
-
-    pressCallToAction(container);
-
-    expect(traffic.contactBodies).toHaveLength(0);
-    expect(sentencesShown(outcomeOf(container))).toEqual([FAILED_SENTENCE]);
   });
 });
 
@@ -369,21 +245,6 @@ describe("an answer that names fields", () => {
     expect(inputNamed(container, "name").getAttribute("aria-invalid")).toBe(
       "true",
     );
-  });
-
-  it("is a failure, not an issue beside nothing, when no issue names a field of the form", async () => {
-    const container = mount();
-    sendTheWholeForm(container);
-
-    await traffic.answerOldest({
-      status: 400,
-      body: {
-        code: "CONTACT_INVALID",
-        issues: [{ field: "locale", code: "UNKNOWN_LOCALE" }],
-      },
-    });
-
-    expect(sentencesShown(outcomeOf(container))).toEqual([FAILED_SENTENCE]);
   });
 });
 
@@ -593,20 +454,16 @@ describe("a limited send", () => {
 });
 
 describe("the sent state", () => {
-  it("replaces the form with one line holding the reference, and nothing is sendable", async () => {
+  it("draws no form and nothing sendable, and no sent line of its own: the confirmation is a page of its own", async () => {
     const container = mount();
     sendTheWholeForm(container);
 
     await traffic.answerOldest(SENT);
 
-    expect(
-      elementIn(container, '[data-testid="contact-sent"]').textContent,
-    ).toBe(
-      `${MESSAGES.ro.submissionResult.sentHeading}. ${MESSAGES.ro.submissionResult.referenceLabel}: LM-1234`,
-    );
     expect(container.querySelector("form")).toBeNull();
     expect(container.querySelector("input")).toBeNull();
     expect(container.querySelector("button")).toBeNull();
+    expect(container.querySelector('[data-testid="contact-sent"]')).toBeNull();
   });
 
   it("leaves the form's page for the design's confirmation by one replacement", async () => {

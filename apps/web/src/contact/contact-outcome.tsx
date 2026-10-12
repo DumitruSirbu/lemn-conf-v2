@@ -12,30 +12,45 @@ import type {
 } from "./contact-form-model";
 import styles from "./contact.module.css";
 import { isFinalOutcome } from "./send-contact-request";
+import { failureScreenOf } from "./contact-answer";
 import type {
   ContactSubmission,
   ContactSubmissionPhase,
+  UnsentOutcome,
 } from "./use-contact-submission";
 
-// What the screen says of an answer that was not a send: one sentence for its class, and what the class offers. The
-// sentences are the catalogue's, found by class and never by a code; this file holds no wording.
+// What the screen says, beside the form, of an answer that was not a send: one sentence for its class, and what the
+// class offers. The sentences are the catalogue's, found by class and never by a code; this file holds no wording. The
+// two classes that have a screen of their own (`unanswered` and `failed`, frame 5B) are not told here.
 
-export type FailedPhase = Extract<
-  ContactSubmissionPhase,
-  { readonly kind: "failed" }
+/** The classes whose sentence stands beside the form: every unsent one but the two that leave the form for 5B. */
+type OutcomeBesideForm = Exclude<
+  UnsentOutcome,
+  { readonly kind: "failed" | "unanswered" }
 >;
+
+export interface PhaseBesideForm {
+  readonly kind: "failed";
+  readonly outcome: OutcomeBesideForm;
+  readonly waitsUntilMs: number | undefined;
+}
 
 const MILLISECONDS_PER_SECOND = 1000;
 
-/** The answer to tell, if there is one: a failed phase, but not a limited one whose wait has passed. */
+/** The answer to tell beside the form, if there is one: not one 5B tells, and not a limited one whose wait has passed. */
 export function outcomeToShow(
   phase: ContactSubmissionPhase,
   isLimitWaiting: boolean,
-): FailedPhase | undefined {
+): PhaseBesideForm | undefined {
   if (phase.kind !== "failed") return undefined;
-  return phase.outcome.kind === "limited" && !isLimitWaiting
-    ? undefined
-    : phase;
+  const { outcome, waitsUntilMs } = phase;
+  if (!isBesideForm(outcome)) return undefined;
+  if (outcome.kind === "limited" && !isLimitWaiting) return undefined;
+  return { kind: "failed", outcome, waitsUntilMs };
+}
+
+function isBesideForm(outcome: UnsentOutcome): outcome is OutcomeBesideForm {
+  return failureScreenOf(outcome) === undefined;
 }
 
 /**
@@ -96,22 +111,13 @@ export function isSendOff(
 }
 
 export interface ContactOutcomeProps {
-  readonly phase: FailedPhase;
+  readonly phase: PhaseBesideForm;
   readonly id: string;
-  /** Nothing can be sent now, so the retry says so and stays where it is. */
-  readonly isOff: boolean;
   /** The way to the review that fetches it, for the answers that send the customer there. */
   readonly reviewLink: ReactNode;
-  readonly onRetry: () => void;
 }
 
-export function ContactOutcome({
-  phase,
-  id,
-  isOff,
-  reviewLink,
-  onRetry,
-}: ContactOutcomeProps) {
+export function ContactOutcome({ phase, id, reviewLink }: ContactOutcomeProps) {
   const content = useContent();
   return (
     <div
@@ -122,7 +128,7 @@ export function ContactOutcome({
       <p id={id} className={styles.refusal} role="alert">
         {content.contactOutcome(noticeOf(phase))}
       </p>
-      {actionFor(phase.outcome.kind, { isOff, reviewLink, onRetry })}
+      {actionFor(phase.outcome.kind, reviewLink)}
     </div>
   );
 }
@@ -130,7 +136,7 @@ export function ContactOutcome({
 function noticeOf({
   outcome,
   waitsUntilMs,
-}: FailedPhase): ContactOutcomeNotice {
+}: PhaseBesideForm): ContactOutcomeNotice {
   if (outcome.kind !== "limited") return { kind: outcome.kind };
   const nowMs = Date.now();
   const waitsUntil =
@@ -143,17 +149,10 @@ function noticeOf({
 }
 
 function actionFor(
-  kind: FailedPhase["outcome"]["kind"],
-  {
-    isOff,
-    reviewLink,
-    onRetry,
-  }: Pick<ContactOutcomeProps, "isOff" | "reviewLink" | "onRetry">,
+  kind: PhaseBesideForm["outcome"]["kind"],
+  reviewLink: ReactNode,
 ): ReactNode {
   switch (kind) {
-    case "failed":
-    case "unanswered":
-      return <RetryAction isOff={isOff} onRetry={onRetry} />;
     case "design-not-current":
     case "does-not-fit":
       return reviewLink;
@@ -162,27 +161,4 @@ function actionFor(
     case "limited":
       return null;
   }
-}
-
-/** Sends the same request again: the hook keeps the id and the body of an answer that was not final. Off, it stays
- *  and is `aria-disabled` rather than gone, as the call to action is. */
-function RetryAction({
-  isOff,
-  onRetry,
-}: {
-  readonly isOff: boolean;
-  readonly onRetry: () => void;
-}) {
-  const content = useContent();
-  return (
-    <button
-      type="button"
-      className={styles.outcomeAction}
-      onClick={onRetry}
-      aria-disabled={isOff ? "true" : undefined}
-      data-testid="contact-retry"
-    >
-      {content.contact.retry}
-    </button>
-  );
 }

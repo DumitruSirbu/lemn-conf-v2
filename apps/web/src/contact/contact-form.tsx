@@ -376,9 +376,8 @@ function PinnedRegion({
   readonly consentRef: RefObject<HTMLInputElement | null>;
   readonly status: PinnedStatus;
 }) {
-  const { phase, saveWait, edit, press } = submission;
+  const { phase, saveWait, edit } = submission;
   const regionRef = useRef<HTMLDivElement>(null);
-  const ctaRef = useRef<HTMLButtonElement>(null);
   const saveWaitSentenceId = useId();
   const outcomeSentenceId = useId();
   useKeepFocusAbove(regionRef);
@@ -388,21 +387,13 @@ function PinnedRegion({
     ...(saveWait.kind === "waiting" ? [saveWaitSentenceId] : []),
     ...(shownOutcome !== undefined && status.isOff ? [outcomeSentenceId] : []),
   ];
-  // The retry button is gone once pressed, and focus goes to the button that took its place in the flow.
-  const retry = () => {
-    if (status.isOff) return;
-    press();
-    ctaRef.current?.focus();
-  };
   return (
     <div className={styles.bottom} ref={regionRef} data-testid="contact-bottom">
       {shownOutcome === undefined ? null : (
         <ContactOutcome
           phase={shownOutcome}
           id={outcomeSentenceId}
-          isOff={status.isOff}
           reviewLink={status.reviewLink}
-          onRetry={retry}
         />
       )}
       {saveWait.kind === "waiting" ? (
@@ -433,7 +424,6 @@ function PinnedRegion({
         </p>
       ) : null}
       <CallToAction
-        ctaRef={ctaRef}
         values={form.values}
         isOff={status.isOff}
         isSending={isSending}
@@ -502,13 +492,11 @@ function ConsentRow({
  *  mend; off, and saying why, while an edit is unsaved, a request is out, or the answer was final or limited. While a
  *  request is out it shows the sending label and a spinner. It reads as ready once the form would be sent. */
 function CallToAction({
-  ctaRef,
   values,
   isOff,
   isSending,
   describedBy,
 }: {
-  readonly ctaRef: RefObject<HTMLButtonElement | null>;
   readonly values: ContactFormValues;
   readonly isOff: boolean;
   readonly isSending: boolean;
@@ -517,7 +505,6 @@ function CallToAction({
   const content = useContent();
   return (
     <button
-      ref={ctaRef}
       type="submit"
       className={styles.cta}
       data-ready={firstInvalidField(values) === undefined}

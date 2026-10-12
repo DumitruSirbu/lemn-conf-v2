@@ -409,23 +409,6 @@
   gap: 4px;
 }
 
-.outcomeAction {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--touch-target);
-  padding: 0;
-  font: 700 13px/1 var(--font-ui);
-  color: var(--accent);
-  cursor: pointer;
-  background: none;
-  border: 0;
-}
-
-.outcomeAction[aria-disabled="true"] {
-  color: var(--ink-faint);
-  cursor: not-allowed;
-}
-
 .sendingLine {
   margin: 0;
   font: 400 11.5px/1.45 var(--font-ui);
@@ -450,19 +433,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .spinner {
+  .spinner,
+  .waitingSpinner {
     animation: none;
   }
-}
-
-/* The sent line, which takes the place of the form until the success screen exists. */
-.sent {
-  composes: sentence;
-  padding: 14px;
-  font-size: 14px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 12px;
 }
 
 .reviewLink {
@@ -472,6 +446,133 @@
   min-height: var(--touch-target);
   font: 700 13px/1 var(--font-ui);
   color: var(--accent);
+}
+
+/* Frame 5B: the page's state for a send that did not arrive, in the frame's order. The form is not drawn; the bar above
+ * is the contact page's own, since the frame's check-marked bar would claim a send. */
+.failure {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 17px;
+  padding: 24px 18px 20px;
+}
+
+.failureHead {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+/* The frame's 46 px disc with its mark, in the warm amber; the mark is drawn here and the disc is hidden from assistive
+ * technology, so it is never told by colour alone. */
+.failureDisc {
+  display: block;
+  width: 46px;
+  height: 46px;
+  font: 700 22px/44px var(--font-ui);
+  color: #b45309;
+  text-align: center;
+  background: #f7ecdc;
+  border: 1px solid #e6cfa8;
+  border-radius: 50%;
+}
+
+.failureDisc::before {
+  content: "!";
+}
+
+.failureHeading {
+  margin: 0;
+  font: 700 23px/1.25 var(--font-ui);
+  letter-spacing: -0.015em;
+  overflow-wrap: anywhere;
+}
+
+.failureText {
+  margin: 0;
+  font: 400 13.5px/1.6 var(--font-ui);
+  color: var(--ink-muted);
+  text-wrap: pretty;
+}
+
+/* The frame's 52 px primary button: the call to action's own look, in its sending state a spinner and the sending label. */
+.failureRetry {
+  composes: cta;
+}
+
+.failureNote {
+  margin: 0;
+  font: 400 11.5px/1.5 var(--font-ui);
+  color: var(--ink-faint);
+}
+
+/* What stays: the design's card without a box of its own inside this one, and the one typed value under it. */
+.kept {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.keptTitle {
+  margin: 0;
+  font: 700 10.5px/1 var(--font-ui);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.kept .card {
+  padding: 0;
+  background: none;
+  border: 0;
+}
+
+.keptContact {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 9px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.keptContactLabel {
+  font: 400 12px/1.35 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.keptContactValue {
+  min-width: 0;
+  font: 700 12px/1.3 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+  overflow-wrap: anywhere;
+}
+
+/* Present only while the browser is offline, at the foot of the column. */
+.failureWaiting {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  margin: auto 0 0;
+  padding: 12px 13px 16px;
+  font: 400 12px/1 var(--font-ui);
+  color: var(--ink-faint);
+}
+
+.waitingSpinner {
+  width: 13px;
+  height: 13px;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
 }
 
 /* Frame 4A's call to action: full width, 52 px. While the form is not yet one that would be sent it is drawn in the
@@ -519,7 +620,8 @@
 }
 
 @media (min-width: 900px) {
-  .body {
+  .body,
+  .failure {
     padding-inline: 24px;
   }
 

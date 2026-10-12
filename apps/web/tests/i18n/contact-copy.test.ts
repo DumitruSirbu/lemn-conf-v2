@@ -53,7 +53,6 @@ const INTERNATIONAL_CODES = [
 ] as const;
 
 const CONTACT_OUTCOME_NOTICES: readonly ContactOutcomeNotice[] = [
-  { kind: "sent", reference: "LM-TOKEN" },
   { kind: "failed" },
   { kind: "unanswered" },
   { kind: "refused" },
@@ -64,9 +63,13 @@ const CONTACT_OUTCOME_NOTICES: readonly ContactOutcomeNotice[] = [
   { kind: "limited", time: "14:05", isTomorrow: true },
 ];
 
-// The notice's kinds are the answer classes' kinds: a class added to either side and not the other does not compile.
+// The notice's kinds are the answer classes' kinds but `sent`, which the result screens tell and no sentence of this
+// namespace does: a class added to either side and not the other does not compile.
 const NOTICE_KINDS_ARE_THE_ANSWER_CLASSES: {
-  readonly forward: ContactOutcome["kind"] extends ContactOutcomeNotice["kind"]
+  readonly forward: Exclude<
+    ContactOutcome["kind"],
+    "sent"
+  > extends ContactOutcomeNotice["kind"]
     ? true
     : false;
   readonly backward: ContactOutcomeNotice["kind"] extends ContactOutcome["kind"]
@@ -155,10 +158,7 @@ describe.each(CATALOGUES)("the %s contact copy", (locale, messages) => {
     for (const sentence of sentences) expect(sentence).not.toMatch(CODE_SHAPE);
   });
 
-  it("carries the reference in the sent sentence and the clock time in the limited one", () => {
-    expect(
-      content.contactOutcome({ kind: "sent", reference: "LM-TOKEN" }),
-    ).toContain("LM-TOKEN");
+  it("carries the clock time in the limited sentence", () => {
     for (const isTomorrow of [false, true]) {
       expect(
         content.contactOutcome({ kind: "limited", time: "14:05", isTomorrow }),

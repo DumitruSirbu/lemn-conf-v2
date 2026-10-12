@@ -694,12 +694,11 @@ function resolveCodeThisBuildLacks(
   return translate("submissionResult.failureNotSent");
 }
 
-/** What the screen says of an answer, with the two values a sentence carries already read: the reference the shop
- *  holds, and the clock time, and whether it is tomorrow's, that a limited send may be tried again. The kinds are `ContactOutcome`'s; this module takes
- *  nothing from `contact/`, which would put the form's routing into every model that names a resolved sentence, and a
- *  test ties the two unions. */
+/** What the screen says of an answer that was not a send, with the one value a sentence carries already read: the clock
+ *  time, and whether it is tomorrow's, that a limited send may be tried again. The kinds are `ContactOutcome`'s but
+ *  `sent`, which the result screens tell; this module takes nothing from `contact/`, which would put the form's
+ *  routing into every model that names a resolved sentence, and a test ties the two unions. */
 export type ContactOutcomeNotice =
-  | { readonly kind: "sent"; readonly reference: string }
   | {
       readonly kind: "limited";
       readonly time: string;
@@ -718,9 +717,6 @@ export function resolveContactOutcome(
   notice: ContactOutcomeNotice,
 ): string {
   switch (notice.kind) {
-    // The design form still draws its sent line in place; it is made of 5A's own labels, so no sentence is kept for it.
-    case "sent":
-      return resolveSentLine(translate, notice.reference);
     case "limited":
       return translate(
         notice.isTomorrow
@@ -743,15 +739,6 @@ export function resolveContactOutcome(
     default:
       return assertNever(notice);
   }
-}
-
-function resolveSentLine(
-  translate: ContentTranslator,
-  reference: string,
-): string {
-  const heading = translate("submissionResult.sentHeading");
-  const label = translate("submissionResult.referenceLabel");
-  return `${heading}. ${label}: ${reference}`;
 }
 
 /** What the result screen says of how the shop will reach the customer: the channel chosen and the one value typed

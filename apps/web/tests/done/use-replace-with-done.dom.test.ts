@@ -32,6 +32,7 @@ import { useReplaceWithDone } from "@/done/use-replace-with-done";
 import { useConfiguratorStore } from "@/store/configurator-store";
 
 import {
+  elementIn,
   fillWholeForm,
   MESSAGES,
   mountContactScreen,
@@ -137,7 +138,9 @@ describe("the design form, once its request is answered", () => {
     await traffic.answerOldest("network-failure");
     expectNoNavigation();
 
-    pressCallToAction(container);
+    act(() => {
+      elementIn(container, '[data-testid="contact-retry"]').click();
+    });
     await traffic.answerOldest(SENT);
 
     expect(router.replace.mock.calls).toEqual([[DONE_PATH]]);

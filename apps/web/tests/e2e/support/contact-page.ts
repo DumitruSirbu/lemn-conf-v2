@@ -25,8 +25,6 @@ export interface ContactMessages {
       readonly PHONE_MOLDOVAN_INCOMPLETE: string;
     };
     readonly outcomes: {
-      readonly sent: string;
-      readonly failed: string;
       readonly refused: string;
       readonly conflict: string;
       readonly designNotCurrent: string;
@@ -35,6 +33,12 @@ export interface ContactMessages {
     };
   };
   readonly reviewScreen: { readonly saving: string };
+  readonly submissionResult: {
+    readonly failureHeading: string;
+    readonly failureLostConnection: string;
+    readonly failureNotSent: string;
+    readonly waitingForConnection: string;
+  };
 }
 
 function readCatalogue(locale: "ro" | "ru"): ContactMessages {
@@ -57,7 +61,16 @@ export const OUTCOME = "contact-outcome";
 export const RETRY = "contact-retry";
 export const SENDING_LINE = "contact-sending-line";
 export const SAVE_WAIT = "contact-save-wait";
-export const SENT = "contact-sent";
+/** The callback form's own sent view, drawn in place; the design form leaves for the confirmation instead. */
+export const CALLBACK_SENT = "contact-sent";
+/** Frame 5B, the contact page's state for a send that did not arrive: its root, its `h1` and its one sentence. */
+export const FAILURE = "submission-failure";
+export const FAILURE_HEADING = "failure-heading";
+export const FAILURE_SENTENCE = "failure-sentence";
+export const FAILURE_WAITING = "failure-waiting";
+/** Frame 5A, the confirmation the design form leaves for. */
+export const DONE_HEADING = "done-heading";
+export const DONE_REFERENCE = "done-reference";
 export const UNAVAILABLE = "contact-unavailable";
 export const REFUSED_DESIGN = "contact-refused";
 export const REVIEW_LINK_IN_OUTCOME = "contact-outcome-review-link";
@@ -73,6 +86,24 @@ export function contactDocumentPath(
   designId: string,
 ): string {
   return `/${locale}/d/${designId}/contact`;
+}
+
+export function donePath(locale: "ro" | "ru", designId: string): string {
+  return `/${locale}/d/${designId}/done`;
+}
+
+/** The design form's request was sent: the contact page was replaced by the design's confirmation, which shows the
+ *  reference. Returns that reference as shown. */
+export async function expectDoneShown(
+  page: Page,
+  locale: "ro" | "ru",
+  designId: string,
+): Promise<string> {
+  await page.waitForURL(`**${donePath(locale, designId)}`);
+  await expect(page.getByTestId(DONE_HEADING)).toBeVisible();
+  const reference = page.getByTestId(DONE_REFERENCE);
+  await expect(reference).toBeVisible();
+  return (await reference.textContent()) ?? "";
 }
 
 export function callbackPath(locale: "ro" | "ru"): string {
@@ -293,17 +324,6 @@ export function elapsedOf(sent: SentContactRequest): number {
     throw new Error("the contact request carries no elapsedMs");
   }
   return elapsed;
-}
-
-/** What `{reference}` stood for in a shown sentence, read against the catalogue's own template: the sentence must be
- *  the template with one value in its place, and nothing else. */
-export function referenceIn(
-  shown: string,
-  template: string,
-): string | undefined {
-  const [before = "", after = ""] = template.split("{reference}");
-  if (!shown.startsWith(before) || !shown.endsWith(after)) return undefined;
-  return shown.slice(before.length, shown.length - after.length);
 }
 
 /** The contact request at `index`, in the order they left the page; a test that asks for one that was not sent fails
