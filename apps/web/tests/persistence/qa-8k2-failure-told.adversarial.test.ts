@@ -20,6 +20,8 @@ import type {
 const DESIGN_A = "design-a";
 const DESIGN_B = "design-b";
 const LIMIT_WAIT_SECONDS = 30;
+const LIMIT_WAIT_MS = LIMIT_WAIT_SECONDS * 1000;
+const BACKOFF_FIRST_STEP_MS = 500;
 
 function withPreset(presetId: string): Design {
   return { ...KITCHEN_L_DESIGN, presetId };
@@ -28,6 +30,7 @@ function withPreset(presetId: string): Design {
 interface Said {
   readonly status: SaveStatus;
   readonly generation: number;
+  readonly resumesAtMs: number | undefined;
 }
 
 let said: Said[];
@@ -70,8 +73,8 @@ beforeEach(() => {
     getRevision: () => "1",
     readCurrentRevision: () => Promise.resolve("1"),
     onSaved: () => undefined,
-    onSaveStatusChange: (status, saidTo) => {
-      said.push({ status, generation: saidTo });
+    onSaveStatusChange: (status, saidTo, resumesAtMs) => {
+      said.push({ status, generation: saidTo, resumesAtMs });
     },
   });
 });
@@ -120,5 +123,59 @@ describe("a write that replaced a failed one without being handed it", () => {
     expect(held?.design.presetId).toBe("a-second");
     expect(held?.heldAs).toBeUndefined();
     expect(typeof held?.resumesAtMs).toBe("number");
+  });
+
+  /** A load of design A that does not ask for the held write, and its first edit; what it was told is returned. */
+  function editOnALoadThatDidNotAsk(): Said[] {
+    load(DESIGN_A);
+    coalescer.scheduleSave(withPreset("a-second"));
+    return said.filter((entry) => entry.generation === generation);
+  }
+
+  function handedToTheNextLoad() {
+    load(DESIGN_B);
+    load(DESIGN_A);
+    return coalescer.adoptWaitingWrite(DESIGN_A);
+  }
+
+  it("is handed over with the very time that load was told, while the limit's wait stands", async () => {
+    await failAThenHoldTheSlotWithB(
+      new SaveLimitReachedError("Saving a design", LIMIT_WAIT_SECONDS),
+    );
+    const toldTheLoadThatEdited = editOnALoadThatDidNotAsk();
+
+    const held = handedToTheNextLoad();
+
+    expect(toldTheLoadThatEdited).toHaveLength(1);
+    expect(held?.resumesAtMs).toBe(toldTheLoadThatEdited[0]?.resumesAtMs);
+    expect(held?.resumesAtMs).toBe(Date.now() + LIMIT_WAIT_MS);
+  });
+
+  it("is handed over as ready when the failed write's backoff had already ended behind the other design's request", async () => {
+    await failAThenHoldTheSlotWithB(
+      new DesignRequestFailedError("Saving a design", "HTTP status 500"),
+    );
+    await vi.advanceTimersByTimeAsync(BACKOFF_FIRST_STEP_MS);
+    const toldTheLoadThatEdited = editOnALoadThatDidNotAsk();
+
+    const held = handedToTheNextLoad();
+
+    expect(toldTheLoadThatEdited).toEqual([]);
+    expect(held?.design.presetId).toBe("a-second");
+    expect(held).toMatchObject({ heldAs: "ready", resumesAtMs: null });
+  });
+
+  it("is handed over as ready, with no time, when the limit's time had already come behind the other design's request", async () => {
+    await failAThenHoldTheSlotWithB(
+      new SaveLimitReachedError("Saving a design", LIMIT_WAIT_SECONDS),
+    );
+    await vi.advanceTimersByTimeAsync(LIMIT_WAIT_MS);
+    const toldTheLoadThatEdited = editOnALoadThatDidNotAsk();
+
+    const held = handedToTheNextLoad();
+
+    expect(toldTheLoadThatEdited).toEqual([]);
+    expect(held?.design.presetId).toBe("a-second");
+    expect(held).toMatchObject({ heldAs: "ready", resumesAtMs: null });
   });
 });

@@ -1,7 +1,9 @@
 // Leaving a design for the other one and coming straight back, with no time passed and no answer arrived, while the tab
-// holds a write for it: the screen says of that write what it said before the customer left. The same tab is played
-// twice from a fresh start, once ending where the customer stays and once with the round trip added, and the two
-// screens are compared (`support/qa-8k2-one-tab-two-designs.ts`).
+// holds a write for it: the screen says of that write what it said before the customer left. One tab is played to
+// where the customer stays and read, the round trip is added and it is read again, and the two screens are compared (`support/qa-8k2-one-tab-two-designs.ts`).
+//
+// An ordinary run plays a stated share of the first two ways (`support/qa-8k2-sweep-size.ts`); `QA_8K2_WHOLE_SWEEP=1`
+// plays all of both.
 //
 // Three ways. Random sequences. Then whole: each state a write can be in (`support/qa-8k2-held-states.ts`), on the
 // screen that never left and on the one that returned once, followed by every one or two of a time passing, an answer
@@ -18,6 +20,7 @@ import {
   TO_A,
   TO_B,
 } from "../support/qa-8k2-held-states";
+import { isWholeSweep, runsFor, shareOf } from "../support/qa-8k2-sweep-size";
 import {
   OneTabTwoDesigns,
   type SaveAnswer,
@@ -25,7 +28,8 @@ import {
   type TabEvent,
 } from "../support/qa-8k2-one-tab-two-designs";
 
-const RUNS = 120;
+/** The random sweep's floor: fast-check plays this many sequences that hold a write, or fails, and prints its seed. */
+const RUNS = runsFor({ ordinary: 15, whole: 120 });
 const TIMEOUT_MS = 240_000;
 const BACKOFF_FIRST_STEP_MS = 500;
 const LIMIT_WAIT_MS = 1000;
@@ -90,18 +94,20 @@ async function shownAfter(
   return result;
 }
 
+/** One tab: what it shows where the customer stays, then what it shows once the round trip is added to the same events. */
 async function stayAndReturn(
   modes: readonly SaveMode[],
   events: readonly TabEvent[],
 ): Promise<BothScreens> {
-  const stayed = await shownAfter(modes, events);
-  const holdsAWriteOfA =
-    stayed.designId === "design-a" && stayed.shown.isUnsaved;
-  // The second tab is played only where the comparison is owed.
-  const returned = holdsAWriteOfA
-    ? await shownAfter(modes, [...events, TO_B, TO_A])
-    : stayed;
-  return { holdsAWriteOfA, stayed: stayed.shown, returned: returned.shown };
+  const tab = await OneTabTwoDesigns.open(modes);
+  await tab.play(events);
+  const stayed = tab.shown;
+  const holdsAWriteOfA = tab.state.designId === "design-a" && stayed.isUnsaved;
+  // The round trip is played only where the comparison is owed.
+  if (holdsAWriteOfA) await tab.play([TO_B, TO_A]);
+  const returned = tab.shown;
+  OneTabTwoDesigns.close();
+  return { holdsAWriteOfA, stayed, returned };
 }
 
 afterEach(() => {
@@ -182,15 +188,30 @@ const WHAT_FOLLOWS: readonly (readonly TabEvent[])[] = [
   [...PROBE_NOW],
 ];
 
-function oneOrTwoThatFollow(): TabEvent[][] {
-  const one = WHAT_FOLLOWS.map((events) => [...events]);
-  const two = WHAT_FOLLOWS.flatMap((first) =>
-    WHAT_FOLLOWS.map((second) => [...first, ...second]),
-  );
-  return [[], ...one, ...two];
+const NOTHING_OR_ONE: TabEvent[][] = [
+  [],
+  ...WHAT_FOLLOWS.map((events) => [...events]),
+];
+const TWO: TabEvent[][] = WHAT_FOLLOWS.flatMap((first) =>
+  WHAT_FOLLOWS.map((second) => [...first, ...second]),
+);
+/** The ordinary run plays nothing and every one thing after each start, and each twenty-seventh pair; the whole one all 81. */
+const SHARE_OF_PAIRS = 27;
+
+function followUpsPlayedFor(stateIndex: number): TabEvent[][] {
+  return [
+    ...NOTHING_OR_ONE,
+    ...shareOf(TWO, { stride: SHARE_OF_PAIRS, offset: stateIndex }),
+  ];
 }
 
-const FOLLOW_UPS = oneOrTwoThatFollow();
+/**
+ * The floor of each start's arm for a state that holds a write: the comparisons it must have made. A follow-up after
+ * which the write is already stored has nothing to compare and is not counted. The least measured over the eight
+ * such states is 12 of 13 in the ordinary run and 75 of 91 in the whole one.
+ */
+const COMPARED_AT_LEAST = isWholeSweep ? 70 : 11;
+
 /** Every save after the state's own is kept out until an answer event, so each answer above has a save to answer. */
 const LATER_SAVES: readonly SaveMode[] = ["held", "held", "held", "held"];
 const WHOLE_TIMEOUT_MS = 240_000;
@@ -203,10 +224,11 @@ describe("each state of a held write, on the screen that stayed and on the one t
       const stayedOnA = held.untilLeft.slice(0, -1);
       const returnedOnce = [...held.untilLeft, TO_A];
       const differing: string[] = [];
-      let compared = 0;
+      const comparedByStart: number[] = [];
 
       for (const start of [stayedOnA, returnedOnce]) {
-        for (const followUp of FOLLOW_UPS) {
+        let compared = 0;
+        for (const followUp of followUpsPlayedFor(HELD_STATES.indexOf(held))) {
           const events = [...PROBE_NOW, ...start, ...followUp];
           const both = await stayAndReturn(modes, events);
           if (!both.holdsAWriteOfA) continue;
@@ -216,10 +238,12 @@ describe("each state of a held write, on the screen that stayed and on the one t
               `after ${JSON.stringify(followUp)}: stayed ${both.stayed.saveStatus} ${String(both.stayed.saveResumesAtMs)}, returned ${both.returned.saveStatus} ${String(both.returned.saveResumesAtMs)}`,
             );
         }
+        comparedByStart.push(compared);
       }
 
       expect(differing).toEqual([]);
-      expect(compared).toBeGreaterThan(held.shownOnReturn.isUnsaved ? 50 : 0);
+      const floor = held.shownOnReturn.isUnsaved ? COMPARED_AT_LEAST : 0;
+      expect(Math.min(...comparedByStart)).toBeGreaterThanOrEqual(floor);
     },
     WHOLE_TIMEOUT_MS,
   );

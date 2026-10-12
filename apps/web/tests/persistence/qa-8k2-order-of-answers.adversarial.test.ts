@@ -7,6 +7,8 @@
 // retried at any point; a save's answer is decided by the server at one point and reaches the tab at a later one. The
 // second is whole: each state (`support/qa-8k2-held-states.ts`) a write can be in when its design is loaded again, each fate of its next two answers, and
 // the probe's answer read from the server and applied before each answer, while it is on its way, and after it.
+//
+// An ordinary run plays a stated share of both (`support/qa-8k2-sweep-size.ts`); `QA_8K2_WHOLE_SWEEP=1` plays all.
 import { fc } from "@fast-check/vitest";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -16,6 +18,7 @@ import {
   TO_A,
   type HeldState,
 } from "../support/qa-8k2-held-states";
+import { isWholeSweep, runsFor, shareOf } from "../support/qa-8k2-sweep-size";
 import {
   OneTabTwoDesigns,
   type SaveAnswer,
@@ -23,7 +26,8 @@ import {
   type TabEvent,
 } from "../support/qa-8k2-one-tab-two-designs";
 
-const RANDOM_RUNS = 600;
+/** The random sweep's floor: fast-check plays this many sequences, or fails, and prints its seed on a failure. */
+const RANDOM_RUNS = runsFor({ ordinary: 30, whole: 600 });
 const RANDOM_TIMEOUT_MS = 240_000;
 const WHOLE_SWEEP_TIMEOUT_MS = 240_000;
 /** Past the longest wait a save is told here (30 s), so the next save of a waiting design has been sent. */
@@ -162,7 +166,14 @@ function probeEventsAt(point: number, probe: ProbePlacement): TabEvent[] {
 
 /** One answer has three points for the probe (before it, while it is on its way, after it) and so six placements; two
  *  answers have five points and fifteen placements. Four fates of one answer, sixteen of two. */
-const CASES_OF_ONE_STATE = 4 * 6 + 16 * 15;
+const CASES_OF_ONE_ANSWER = 4 * 6;
+const CASES_OF_TWO_ANSWERS = 16 * 15;
+/** The ordinary run plays every case of one answer and each sixtieth case of two; the whole one plays them all. */
+const SHARE_OF_TWO_ANSWERS = 60;
+/** The floor of every state's arm: it cannot pass having played fewer. */
+const CASES_OF_ONE_STATE = isWholeSweep
+  ? CASES_OF_ONE_ANSWER + CASES_OF_TWO_ANSWERS
+  : CASES_OF_ONE_ANSWER + CASES_OF_TWO_ANSWERS / SHARE_OF_TWO_ANSWERS;
 
 /** A's kept page is the first one, the oldest the router could hold. Every later save of A is held, then answered. */
 function returnAndAnswer(
@@ -187,12 +198,32 @@ function returnAndAnswer(
   };
 }
 
-function answerSequences(): SaveAnswer[][] {
-  const single = SAVE_ANSWERS.map((answer) => [answer]);
-  const pairs = SAVE_ANSWERS.flatMap((first) =>
-    SAVE_ANSWERS.map((second) => [first, second]),
+interface AnswersAndProbe {
+  readonly answers: readonly SaveAnswer[];
+  readonly probe: ProbePlacement;
+}
+
+function everyCaseOf(sequences: readonly SaveAnswer[][]): AnswersAndProbe[] {
+  return sequences.flatMap((answers) =>
+    placementsOver(2 * answers.length + 1).map((probe) => ({ answers, probe })),
   );
-  return [...single, ...pairs];
+}
+
+const ONE_ANSWER = everyCaseOf(SAVE_ANSWERS.map((answer) => [answer]));
+const TWO_ANSWERS = everyCaseOf(
+  SAVE_ANSWERS.flatMap((first) =>
+    SAVE_ANSWERS.map((second) => [first, second]),
+  ),
+);
+
+function casesPlayedFor(stateIndex: number): AnswersAndProbe[] {
+  return [
+    ...ONE_ANSWER,
+    ...shareOf(TWO_ANSWERS, {
+      stride: SHARE_OF_TWO_ANSWERS,
+      offset: stateIndex,
+    }),
+  ];
 }
 
 describe("each state of a held write, as its design is loaded again", () => {
@@ -222,17 +253,17 @@ describe("each state of a held write, each fate of its next two answers, the pro
     async (held) => {
       const broken: string[] = [];
       let cases = 0;
-      for (const answers of answerSequences()) {
-        for (const probe of placementsOver(2 * answers.length + 1)) {
-          const { modes, events } = returnAndAnswer(held, answers, probe);
-          const violations = await violationsOf(modes, events);
-          OneTabTwoDesigns.close();
-          cases += 1;
-          if (violations.length > 0)
-            broken.push(
-              `${answers.join(", ")}; probe answered at ${String(probe.answeredAt)}, applied at ${String(probe.arrivesAt)}: ${violations.join(" | ")}`,
-            );
-        }
+      for (const { answers, probe } of casesPlayedFor(
+        HELD_STATES.indexOf(held),
+      )) {
+        const { modes, events } = returnAndAnswer(held, answers, probe);
+        const violations = await violationsOf(modes, events);
+        OneTabTwoDesigns.close();
+        cases += 1;
+        if (violations.length > 0)
+          broken.push(
+            `${answers.join(", ")}; probe answered at ${String(probe.answeredAt)}, applied at ${String(probe.arrivesAt)}: ${violations.join(" | ")}`,
+          );
       }
 
       expect(cases).toBe(CASES_OF_ONE_STATE);
