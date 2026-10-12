@@ -337,7 +337,7 @@ test.describe("every class of answer, driven through the screen (the server is n
     {
       name: "a network failure",
       answer: NETWORK_FAILURE,
-      outcome: "failed",
+      outcome: "unanswered",
       sentence: ro.outcomes.failed,
       isSendable: true,
       keepsId: true,

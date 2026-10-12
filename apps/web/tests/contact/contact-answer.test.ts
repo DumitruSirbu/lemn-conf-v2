@@ -5,8 +5,10 @@ import { describe, expect, it } from "vitest";
 import {
   classifyContactAnswer,
   contactWaitSecondsFrom,
+  failureScreenOf,
   FAILED_OUTCOME,
   LONGEST_CONTACT_WAIT_SECONDS,
+  UNANSWERED_OUTCOME,
   UNREADABLE_CONTACT_WAIT_SECONDS,
   type ContactAnswer,
   type ContactOutcome,
@@ -263,7 +265,7 @@ describe("an answer that is none of the route's", () => {
     expect(text).not.toContain("CONTACT_INVALID");
   });
 
-  it("is always one of the seven classes, for any status and any JSON body", () => {
+  it("is always one of the seven classes an answer can have, never unanswered, for any status and any JSON body", () => {
     const kinds = [
       "sent",
       "failed",
@@ -286,6 +288,47 @@ describe("an answer that is none of the route's", () => {
         },
       ),
       { numRuns: 500 },
+    );
+  });
+});
+
+describe("which failures are told on a failure screen", () => {
+  const SCREEN_OF_CLASS: readonly (readonly [
+    ContactOutcome,
+    string | undefined,
+  ])[] = [
+    [UNANSWERED_OUTCOME, "lost-connection"],
+    [FAILED_OUTCOME, "not-sent"],
+    [{ kind: "sent", reference: "LM-7K3QWXY2" }, undefined],
+    [
+      { kind: "refused", issues: [{ field: "phone", code: "REQUIRED" }] },
+      undefined,
+    ],
+    [{ kind: "conflict" }, undefined],
+    [{ kind: "design-not-current" }, undefined],
+    [{ kind: "does-not-fit" }, undefined],
+    [{ kind: "limited", waitSeconds: 60 }, undefined],
+  ];
+
+  it.each(SCREEN_OF_CLASS)("tells %j on %s", (outcome, screen) => {
+    expect(failureScreenOf(outcome)).toBe(screen);
+  });
+
+  it("covers every class the classifier makes, and a failure is on a screen only for failed and unanswered", () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 100, max: 599 }),
+        fc.option(fc.string(), { nil: null }),
+        fc.jsonValue(),
+        (status, retryAfter, body) => {
+          const outcome = classifyContactAnswer({ status, retryAfter, body });
+
+          expect(failureScreenOf(outcome) === undefined).toBe(
+            outcome.kind !== "failed",
+          );
+        },
+      ),
+      { numRuns: 300 },
     );
   });
 });

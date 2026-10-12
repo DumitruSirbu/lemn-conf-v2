@@ -132,18 +132,54 @@ describe("what the answer becomes", () => {
     },
   );
 
-  it("is failed for a request that got no answer, and does not throw", async () => {
+  it("is unanswered for a request that got no answer, and does not throw", async () => {
     const outcome = await sendContactRequest(BODY, () =>
       Promise.reject(new TypeError("Failed to fetch")),
     );
 
-    expect(outcome).toEqual({ kind: "failed" });
+    expect(outcome).toEqual({ kind: "unanswered" });
   });
 
-  it("is failed when fetch throws before it returns a promise", async () => {
+  it("is unanswered when fetch throws before it returns a promise", async () => {
     const outcome = await sendContactRequest(BODY, () => {
       throw new TypeError("blocked");
     });
+
+    expect(outcome).toEqual({ kind: "unanswered" });
+  });
+
+  it.each([
+    ["a TypeError", new TypeError("NetworkError when attempting to fetch")],
+    ["an abort", new DOMException("The operation was aborted", "AbortError")],
+    ["an Error with no message", new Error("")],
+    ["an Error whose text reads like an answer", new Error("503 Bad Gateway")],
+  ])(
+    "is unanswered for a fetch that rejects with %s: the rejection tells it, not the error's text",
+    async (_name, reason) => {
+      const outcome = await sendContactRequest(BODY, () =>
+        Promise.reject(reason),
+      );
+
+      expect(outcome).toEqual({ kind: "unanswered" });
+    },
+  );
+
+  it.each([502, 503, 500, 404])(
+    "is failed, not unanswered, for a %s the browser did receive",
+    async (status) => {
+      const outcome = await sendContactRequest(
+        BODY,
+        respondingWith(jsonResponse(status, { code: "ANYTHING" })),
+      );
+
+      expect(outcome).toEqual({ kind: "failed" });
+    },
+  );
+
+  it("is failed, not unanswered, for an answer whose body then fails to read", async () => {
+    const unreadable = new Response("{", { status: 200 });
+
+    const outcome = await sendContactRequest(BODY, respondingWith(unreadable));
 
     expect(outcome).toEqual({ kind: "failed" });
   });
@@ -155,6 +191,7 @@ describe("isFinalOutcome", () => {
     [{ kind: "design-not-current" }, true],
     [{ kind: "does-not-fit" }, true],
     [{ kind: "failed" }, false],
+    [{ kind: "unanswered" }, false],
     [{ kind: "conflict" }, false],
     [{ kind: "limited", waitSeconds: 5 }, false],
     [{ kind: "refused", issues: [] }, false],

@@ -9,7 +9,11 @@ import {
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
-import { FAILED_OUTCOME, type ContactOutcome } from "@/contact/contact-answer";
+import {
+  FAILED_OUTCOME,
+  UNANSWERED_OUTCOME,
+  type ContactOutcome,
+} from "@/contact/contact-answer";
 import type { ContactFormValues } from "@/contact/contact-form-model";
 import {
   coveredProjectionOf,
@@ -111,6 +115,26 @@ describe("which id a send carries", () => {
     );
 
     expect(retry.body.clientRequestId).toBe(first.body.clientRequestId);
+    expect(calls.count).toBe(1);
+  });
+
+  it("is the same id for an unchanged request after an unanswered send, as after a failed one, and the id is not spent", () => {
+    const { calls, generateId } = numberedGenerator();
+    const first = sendOf(NO_SEND_YET, submissionOf(), generateId);
+    const afterUnanswered = historyAfterOutcome(
+      historyAfterSend(first),
+      UNANSWERED_OUTCOME,
+    );
+
+    const retry = sendOf(
+      afterUnanswered,
+      submissionOf({ elapsedMs: 9000 }),
+      generateId,
+    );
+
+    expect(afterUnanswered).toEqual(historyAfterSend(first));
+    expect(retry.body.clientRequestId).toBe(first.body.clientRequestId);
+    expect(retry.body.elapsedMs).toBe(9000);
     expect(calls.count).toBe(1);
   });
 
@@ -266,6 +290,7 @@ describe("the ids of consecutive sends, over any sequence of edits and answers",
 
   const OUTCOMES: readonly ContactOutcome[] = [
     FAILED_OUTCOME,
+    UNANSWERED_OUTCOME,
     { kind: "refused", issues: [{ field: "phone", code: "REQUIRED" }] },
     { kind: "conflict" },
     { kind: "design-not-current" },

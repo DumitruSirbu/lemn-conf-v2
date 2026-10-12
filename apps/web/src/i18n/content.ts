@@ -705,6 +705,7 @@ export type ContactOutcomeNotice =
       readonly isTomorrow: boolean;
     }
   | { readonly kind: "failed" }
+  | { readonly kind: "unanswered" }
   | { readonly kind: "refused" }
   | { readonly kind: "conflict" }
   | { readonly kind: "design-not-current" }
@@ -728,6 +729,7 @@ export function resolveContactOutcome(
         { time: notice.time },
       );
     case "failed":
+    case "unanswered":
       return translate("contact.outcomes.failed");
     case "refused":
       return translate("contact.outcomes.refused");

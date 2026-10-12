@@ -5,10 +5,12 @@
 // passing, an edit of the design and the write that saves it. P1: at most one request out, none started before the
 // last answered. P2: two sends share an id exactly when the request is the same and no conflict came between.
 // P3: nothing sent for an unsaved design, and the revision sent is the store's at the press. P4: a typed value is
-// nowhere but the hook's memory and the one request body.
+// nowhere but the hook's memory and the one request body. P-class (8M S1): a request that got no answer is told
+// `unanswered`, and an answer the browser did receive never is.
 import { fc } from "@fast-check/vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { ContactOutcome } from "@/contact/contact-answer";
 import type { ContactTextField } from "@/contact/contact-form-model";
 import { CONTACT_SUBMISSIONS_ENDPOINT } from "@/contact/send-contact-request";
 import { DESIGN_TARGET } from "@/contact/use-contact-submission";
@@ -84,6 +86,22 @@ const ANSWER_CLASSES_BY_WEIGHT: readonly AnswerClass[] = [
   "design-not-current",
   "does-not-fit",
 ];
+
+/** The class of outcome each answer is told as; only a network failure, which is no answer, is `unanswered`. */
+const OUTCOME_KIND_OF_ANSWER: Readonly<
+  Record<AnswerClass, ContactOutcome["kind"]>
+> = {
+  failure: "unanswered",
+  rejected: "failed",
+  invalid: "refused",
+  malformed: "failed",
+  conflict: "conflict",
+  limited: "limited",
+  "limited-unreadable": "limited",
+  sent: "sent",
+  "design-not-current": "design-not-current",
+  "does-not-fit": "does-not-fit",
+};
 
 const TEXT_FIELDS: readonly ContactTextField[] = [
   "name",
@@ -257,6 +275,7 @@ interface Step {
   readonly run: Run;
   readonly command: Command;
   readonly requestsBefore: number;
+  readonly wasRequestOut: boolean;
   readonly reasonToIgnorePress: string | undefined;
 }
 
@@ -282,9 +301,16 @@ async function runSequence(
     });
     for (const command of commands) {
       const requestsBefore = form.fetchControl.requests.length;
+      const wasRequestOut = form.fetchControl.outstanding > 0;
       const reasonToIgnorePress = reasonAPressIsIgnored(run);
       await apply(run, command, textFor);
-      checks.afterStep?.({ run, command, requestsBefore, reasonToIgnorePress });
+      checks.afterStep?.({
+        run,
+        command,
+        requestsBefore,
+        wasRequestOut,
+        reasonToIgnorePress,
+      });
     }
     checks.atEnd?.(run);
   } finally {
@@ -451,6 +477,20 @@ function assertIdsFollowTheRule(run: Run): void {
   });
 }
 
+/** P-class, read after each answer: the phase says the class the answer had, and `unanswered` only for no answer. */
+function assertAnswerIsToldAsItsClass(step: Step): void {
+  if (step.command.kind !== "answer" || !step.wasRequestOut) return;
+  const { phase } = step.run.form.current();
+  const expectedKind = OUTCOME_KIND_OF_ANSWER[step.command.answerClass];
+  const shownKind = phase.kind === "failed" ? phase.outcome.kind : phase.kind;
+  expect(shownKind).toBe(expectedKind);
+  countArm(
+    expectedKind === "unanswered"
+      ? "told as unanswered"
+      : `told as ${expectedKind}`,
+  );
+}
+
 function armOfIdRule(isSameRequest: boolean, hadConflict: boolean): string {
   if (hadConflict) return "id after a conflict";
   return isSameRequest
@@ -478,6 +518,25 @@ describe("P1 and P3: one request out, and only for a saved design at the store's
     expectFloor("press ignored: design unsaved", 250);
     expectFloor("press ignored: limit not passed", 100);
     expectFloor("press ignored: send is final", 150);
+  });
+});
+
+describe("P-class: a request that got no answer is told unanswered, and no answer the browser received is", () => {
+  it("holds over any order of presses, answers, failures, waits and saves", async () => {
+    await fc.assert(
+      fc.asyncProperty(COMMAND_SEQUENCES, async (commands) => {
+        await runSequence(commands, textFromPool, {
+          afterStep: assertAnswerIsToldAsItsClass,
+        });
+      }),
+      { numRuns: 1000 },
+    );
+
+    expectFloor("told as unanswered", 100);
+    expectFloor("told as failed", 60);
+    expectFloor("told as refused", 40);
+    expectFloor("told as conflict", 90);
+    expectFloor("told as limited", 150);
   });
 });
 

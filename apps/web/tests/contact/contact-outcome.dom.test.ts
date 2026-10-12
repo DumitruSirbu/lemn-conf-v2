@@ -251,6 +251,20 @@ describe("an answer that sent nothing", () => {
     expect(traffic.contactBodies).toHaveLength(2);
   });
 
+  it("draws a request with no answer as the failed class is drawn, naming its own class", async () => {
+    const container = mount();
+    sendTheWholeForm(container);
+
+    await traffic.answerOldest("network-failure");
+
+    const outcome = outcomeOf(container);
+    expect(outcome.getAttribute("data-outcome")).toBe("unanswered");
+    expect(sentencesShown(outcome)).toEqual([OUTCOMES.failed]);
+    expect(
+      container.querySelector('[data-testid="contact-retry"]'),
+    ).not.toBeNull();
+  });
+
   it.each([
     ["a 503", SERVICE_FAILURE],
     ["a network failure", "network-failure" as const],

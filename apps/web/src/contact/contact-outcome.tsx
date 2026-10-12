@@ -152,6 +152,7 @@ function actionFor(
 ): ReactNode {
   switch (kind) {
     case "failed":
+    case "unanswered":
       return <RetryAction isOff={isOff} onRetry={onRetry} />;
     case "design-not-current":
     case "does-not-fit":

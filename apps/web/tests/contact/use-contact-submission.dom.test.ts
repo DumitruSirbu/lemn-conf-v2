@@ -323,6 +323,43 @@ describe("a conflict", () => {
   });
 });
 
+describe("a request that got no answer", () => {
+  it("is told unanswered, and an answered failure is told failed", async () => {
+    mountDesignForm();
+
+    await pressAndAnswer(NETWORK_FAILURE);
+    const lostAnswer = form.current().phase;
+    await pressAndAnswer(SERVICE_FAILURE);
+    const answeredFailure = form.current().phase;
+
+    expect(lostAnswer).toEqual({
+      kind: "failed",
+      outcome: { kind: "unanswered" },
+      waitsUntilMs: undefined,
+    });
+    expect(answeredFailure).toEqual({
+      kind: "failed",
+      outcome: { kind: "failed" },
+      waitsUntilMs: undefined,
+    });
+  });
+
+  it("is sent again under the same id and the same body but for the time, and is not final", async () => {
+    mountDesignForm();
+    await pressAndAnswer(NETWORK_FAILURE);
+
+    await pressAndAnswer(NETWORK_FAILURE);
+
+    expect(form.fetchControl.requests).toHaveLength(2);
+    expect(requestAt(1).body.clientRequestId).toBe(
+      requestAt(0).body.clientRequestId,
+    );
+    expect(bodyWithoutTheMeasuredTime(1)).toEqual(
+      bodyWithoutTheMeasuredTime(0),
+    );
+  });
+});
+
 describe("a send that is not offered again", () => {
   it.each([
     ["sent", SENT],

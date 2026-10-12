@@ -1,6 +1,6 @@
 import {
   classifyContactAnswer,
-  FAILED_OUTCOME,
+  UNANSWERED_OUTCOME,
   type ContactAnswer,
   type ContactOutcome,
 } from "./contact-answer";
@@ -20,13 +20,15 @@ export type FetchContact = (
   init: RequestInit,
 ) => Promise<Response>;
 
-/** Sends the body and says which class the answer is. A request that got no answer is a failure, not a throw. */
+/** Sends the body and says which class the answer is. A request that got no answer is `unanswered`, not a throw. */
 export async function sendContactRequest(
   body: ContactSubmissionBody,
   fetchContact: FetchContact,
 ): Promise<ContactOutcome> {
   const answer = await answerTo(body, fetchContact);
-  return answer === undefined ? FAILED_OUTCOME : classifyContactAnswer(answer);
+  return answer === undefined
+    ? UNANSWERED_OUTCOME
+    : classifyContactAnswer(answer);
 }
 
 /** After these no send is offered: the request is stored, or the design it names is not one a send can mend. */

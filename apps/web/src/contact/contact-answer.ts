@@ -16,6 +16,7 @@ export interface ContactFieldIssue {
 export type ContactOutcome =
   | { readonly kind: "sent"; readonly reference: string }
   | { readonly kind: "failed" }
+  | { readonly kind: "unanswered" }
   | { readonly kind: "refused"; readonly issues: readonly ContactFieldIssue[] }
   | { readonly kind: "conflict" }
   | { readonly kind: "design-not-current" }
@@ -29,8 +30,35 @@ export interface ContactAnswer {
   readonly body: unknown;
 }
 
-/** Any answer that is not one of the others, and a request that got no answer at all. */
+/** Any answer the browser received that is not one of the others, and the press nothing could be made of. */
 export const FAILED_OUTCOME: ContactOutcome = { kind: "failed" };
+
+/** A request the browser got no answer to, so nothing is known of whether the server stored it. Told from `failed` by
+ *  the fetch's rejection alone, never by the text of the error: the one class the connection's return may retry. */
+export const UNANSWERED_OUTCOME: ContactOutcome = { kind: "unanswered" };
+
+/** The screen a failure is told on: the lost connection's or the not-sent one's. */
+export type FailureScreen = "lost-connection" | "not-sent";
+
+/** Which of the two failure screens an outcome is told on, or none when the form's own sentence tells it. `refused`,
+ *  `conflict`, `design-not-current`, `does-not-fit` and `limited` stay beside the form, so they are none. */
+export function failureScreenOf(
+  outcome: ContactOutcome,
+): FailureScreen | undefined {
+  switch (outcome.kind) {
+    case "unanswered":
+      return "lost-connection";
+    case "failed":
+      return "not-sent";
+    case "sent":
+    case "refused":
+    case "conflict":
+    case "design-not-current":
+    case "does-not-fit":
+    case "limited":
+      return undefined;
+  }
+}
 
 const SENT_STATUS = 200;
 const INVALID_STATUS = 400;
