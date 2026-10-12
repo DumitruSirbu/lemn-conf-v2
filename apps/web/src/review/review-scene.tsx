@@ -58,11 +58,15 @@ export function ReviewScene({
   return (
     <div className={styles.scene} data-testid="review-scene">
       <div className={styles.picture}>
-        {support === "probing" ? (
-          <div className={styles.sceneLoading}>{content.configure.loading}</div>
-        ) : (
-          <ViewOnlyKitchenCanvas view={view} />
-        )}
+        <KitchenPicture
+          support={support}
+          view={view}
+          fallback={
+            <div className={styles.sceneLoading}>
+              {content.configure.loading}
+            </div>
+          }
+        />
         {children}
       </div>
       <div
@@ -85,6 +89,27 @@ export function ReviewScene({
         ))}
       </div>
     </div>
+  );
+}
+
+/**
+ * The picture alone, with no views to choose from: the view-only canvas at `view` once WebGL is known to be there, and
+ * `fallback` while it is still being asked and where it is missing. The review and the confirmation both mount it, so
+ * they draw the one canvas.
+ */
+export function KitchenPicture({
+  support,
+  view,
+  fallback,
+}: {
+  readonly support: WebGLSupportState;
+  readonly view: SceneView;
+  readonly fallback: ReactNode;
+}) {
+  return support === "supported" ? (
+    <ViewOnlyKitchenCanvas view={view} />
+  ) : (
+    fallback
   );
 }
 
