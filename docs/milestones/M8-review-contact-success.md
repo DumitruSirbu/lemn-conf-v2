@@ -10078,6 +10078,26 @@ before B is answered. Kept pages need no network to walk, a request may be out f
 fails [src `fetch-configuration-repository.ts:52`], so a slow connection allows it. **Narrow, and
 real.**
 
+*(Added 2026-10-12, later, once the tree was free: what was observed, and the case with no edit
+after the return.)*
+
+- **Observed** [developer-run in a temporary coalescer test, since deleted; relayed]. First write
+  stored, an edit queued, leave and return inside the second, an edit after the return. The
+  screen showed the page's kept copy, clean, `idle`. The later edit replaced the queued one and
+  reset the queue's expected revision to the store's stale one. **Sent: `first@1`, then
+  `kept-page+later@1`.** Against the server that second request would be `409` [the developer's
+  inference, not run], and *overwrite* would write the later edit over the queued one.
+- **With no edit after the return** [read at `fc6e916f`, not run]. The queued write **is still
+  sent** when the interval ends, at the queue's own expected revision, so it is `200` and stored.
+  **The screen does not show it:** its answer goes to the generation that left, and the store
+  ignores it (`configurator-store.ts`, the two `generation !== saveGeneration` returns). K2.2
+  covers it only by timing. The probe leaves at the load and the write up to a second later, so
+  the answer usually comes first: the screen is then clean, editable and one revision behind what
+  is stored, and nothing asks again. If the answer comes after the write is stored, the screen
+  takes the stored copy and is right. Item 6 closes both orders.
+- **Reached by navigation** [QA-run, relayed]: row four's second way, in 5.2 to 6.8 s under
+  Playwright, which is not a hand.
+
 *Why it is built and not recorded.*
 
 - **The rule becomes shorter, not longer:** *a queue that holds a write hands it*, in whatever
@@ -10131,6 +10151,120 @@ events, and stays so.** *Trigger:* a customer's report of work lost after a conf
 
 **For the scribe, at the close.** L5 to L7 with L1 to L4; this section's three rulings in the new
 record; `qa-u7s0`'s repair in QA's report.
+
+##### 8K2 — item 6 as built; adjudication of QA; fix round A for dispatch, 2026-10-12
+
+**State.** HEAD is `8bd1064a`, QA's pass [ran: `git log --oneline`], tree clean [ran:
+`git status --short`, no line]. Item 6 is `4d056454`. The rulings of points 1 and 3 were given by
+message while the tree was frozen and are written here.
+
+**1. Item 6, accepted as built** [read: `git show 4d056454 -- apps/web/src`].
+
+- The hand-over answers for every queue that holds a write (`heldWriteOf`), and the store shows a
+  ready write unsaved and `idle`. No existing test changed; **L7 is not needed and is not
+  recorded.**
+- **One deviation, accepted.** The state is told by two fields and not one: `resumesAtMs`, and an
+  optional `heldAs: "ready" | "sent"`. A required field of four values would have moved
+  `save-coalescer.return.test.ts:110-114` and `:194-198`, which item 6's *stops if* forbade. **The
+  developer put the stop above the wording, which is the right order.** The four states are told
+  apart without ambiguity.
+- **K2.4, reported** [developer-run, relayed]: with a throw planted in `adoptNewerGeneration`,
+  only seven tests that drive the coalescer directly reach it. Nothing in the application does
+  with a write held. A backlog entry in ADR 0123's form; the branch stays.
+
+**2. Adjudication of QA** [QA-run, relayed, unless a line says *read*].
+
+| Reported | Class | Ruling |
+| --- | --- | --- |
+| `tests/persistence/qa-8k2-round-trip.adversarial.test.ts:129` and `:149` red (`:146`, `:166`): a write that failed, or that the limit refused, whose wait has ended while another design's request holds the slot, is handed over as merely ready. The customer who stays reads `error` (and the time); the one who leaves and returns at once reads `idle` and nothing [read: the two tests and `stayAndReturn`, `:94-106`] | **A contract gap in item 6's wording**, the architect's. It said *idle* for every ready write, and the developer built what was written. Its own reason, *what the same write looks like when the customer has not left*, is false after a failure. Not a defect of the slice; **QA's tests stand, unedited** | **A1** |
+| L3 reached on the built server: the review returned to from a second design, left by a group's edit link with the answer held: the body is selected on arrival, and after the late answer the selection is empty and the panel closed | **Contract gap.** K2.2 said *selection cleared*, as a load does. **It is wider than the arrival** [read: selecting is not an edit, so any body selected while the answer is owed loses its panel] | **A2**. L3's trigger was met; it is closed by A2 and not kept as a limit |
+| The trace with the page frozen and resumed was not run: headless Chromium does not freeze. P5 swept green in its place | Recorded, as the ruling on stop 2 allowed | *Not run*, said plainly. A frozen tab on a real phone goes to 8T's phone gate as a line |
+| A pause whose time has passed, the write waiting behind another design's request, still reads *paused until T*, staying or returning | **Recorded; not this wave's.** It is 8G's sentence and was so before 8K2. After A1 both paths say the same | Backlog, with Q38. *Trigger:* Q38 answered, or a customer told a time that had passed |
+| `qa-u7s0`'s control | Repaired by QA in its own file, as ruled: its own design id, assertion and title unchanged [read: `git show 8bd1064a` of the file, 8 lines added] | Closed |
+
+*QA's figures* [QA-run, relayed; none re-run by the architect].
+
+- Web unit suite: **2 failed (the finding), 8,719 passed.**
+- One whole e2e run under `CI=1`: **791 passed, exit 0**, expected to fail exactly three. The
+  teardown's line: 554 designs minted, 71 share writes, 386 saves, 18 contact requests, 8 new.
+- Added: 6 e2e tests in the mobile project, none in the desktop one.
+- L1, the return to the answer applied: **49 to 64 ms** on the built server. Below L1's trigger
+  of one second.
+- All 8 named mutants killed. P1 to P5 over 600 random runs and 1,848 whole cases.
+- The claim of point 1's eighth row, confirmed by a run at `1087f45b`: edit 1 written over, no
+  conflict said. It is no longer [inf].
+- **Not attacked:** a frozen tab on a real phone; two writers (L5); refusals (L6); the review
+  inside the sweep; `?settings=open` while locked. Point 5 rules on each.
+- `qa-8k2-order-of-answers.adversarial.test.ts` takes 50 to 75 s in the unit suite. **Accepted
+  for this wave; for the M8 close audit**, which may cut its runs to a kept set of seeds.
+  *Trigger:* the audit, or the web suite's job nearing its ceiling.
+
+**QA's incident, plainly.** Its first e2e command ran the whole mobile suite by mistake and was
+interrupted at 281 passed. The global teardown ran. **Rows of 8 interrupted tests may remain in
+the test database** [QA's statement, relayed; not counted by anyone]. No agent removes them by
+hand (ADR 0151; the environments guide: report, and the human decides). It goes to the owner in
+the close-out as one sentence. It is not production's database and no production row is at risk.
+
+**3. Fix round A, for dispatch.** One developer; A1 then A2; each its own commit.
+
+| Item | Does | Production file | Reading |
+| --- | --- | --- | --- |
+| A1 | **The hand-over says what the write was last said to be.** The queue remembers the failure it last told the screen for the write it holds, with the limit's time, and forgets it where it next says `saving` for that write. A ready write with one is handed over as a failed one is today: no `heldAs`, and that time or `null`. `"ready"` then means *never said failed* | `persistence/save-coalescer.ts` | this section; *S3's three stops, ruled*, stop 3; criterion 7 and 16; `save-coalescer.ts`, `heldWriteOf`, `armWait`, `handleSaveFailure`, `holdWriteForLimit`, `runSave`; `tests/persistence/qa-8k2-round-trip.adversarial.test.ts` and `tests/support/qa-8k2-one-tab-two-designs.ts` (read, not edited); `save-coalescer.held-write.test.ts` |
+| A2 | **Taking the stored copy keeps a selected body that the taken copy still holds.** Any other selection is cleared, as today. A load (`hydrate`) still clears every selection | `store/configurator-store.ts` | this section; K2.2; ADR 0148 E2a; criterion 17; `configurator-store.ts`, `applyWriteAccess`, `derivedViewOf`; `tests/store/apply-write-access-stored-copy.test.ts`; `tests/e2e/qa-8k2-design-return.adversarial.e2e.spec.ts:394-427` (read, not edited) |
+
+| Item | Must not | Stops if | Done when |
+| --- | --- | --- | --- |
+| A1 | Change the hand-over's fields or the store's mapping. Arm a timer or send sooner or later than today. Touch `adoptNewerGeneration` or `scheduleSave`. Edit a `qa-*` file | Any existing test moves, other than QA's two reds going green. The store has to change for the two reds to pass | `:129` and `:149` green, unedited; the property at `:113` green; the developer's own cases in `save-coalescer.held-write.test.ts`: ready after a failure, ready after the limit with its time, ready and never failed |
+| A2 | Keep a selection whose body the taken copy does not hold. Keep anything on a load. Change the path where the revision is equal. Describe a kept body by anything of the older copy. Edit a `qa-*` file | An empty space's selection cannot be judged without the scene or the probe: then bodies only, and it is said. An existing test other than the one named moves | The developer's own `apply-write-access-stored-copy.test.ts`: the expectation at `:80` changed where the body is still held, by name in the report; a case where it is not held, cleared; a case of an empty space |
+
+**Two criteria added to point 6, and one sentence of K2.2 amended.**
+
+16. **Stayed equals returned.** A design left for another and returned to at once, with no time
+    passed and no answer arrived, shows the same design, revision, save status and time as before
+    it was left. It is QA's own property, taken as a criterion.
+17. **A taken copy keeps the customer's body.** Where the stored copy is taken and still holds
+    the selected body, the selection and its panel stay, and the panel reads the taken copy.
+    *Must not:* a panel closed by an answer the customer did not ask for; a panel left open on a
+    body the taken copy does not hold.
+
+K2.2's *"selection cleared"* now reads: *cleared unless it is a body the taken copy still holds
+(criterion 17)*. Dated 2026-10-12; the rest of K2.2 stands.
+
+**4. After the round.**
+
+1. **QA re-runs** its eight files and the whole web suite: expected exit 0, no test red. It
+   turns the logged line of its L3 trace (`…design-return…:394`) into an assertion of criterion
+   17, and adds what point 5 owes.
+2. **One whole e2e run under `CI=1`**, since two production files changed after the last one.
+3. **Then the reviews**, on that frozen tree. Their reading, added to point 9's:
+   - *Logic, added:* the three ruling sub-sections after point 13; `4d056454` and the two commits
+     of round A; criteria 16 and 17; ADR 0148 E2a. **Named checks added:** every row of stop 3's
+     table against `heldWriteOf`; stayed equals returned; a kept selection never names a body the
+     taken copy lacks; the review's hydration with a held write in each of its states (criterion
+     14), which QA's sweep left out.
+   - *Clean-code, added:* the same commits and QA's eight files. **Its named question:** the
+     hand-over's state lives in two fields, one optional, and after A1 an absent `heldAs` means
+     *last said failed*, with a time or without. **Would one field that carries what the writer
+     last said, a status and a time, be the cleaner shape?** If so the lines that move are
+     `save-coalescer.return.test.ts:110-114` and `:194-198`, and
+     `save-coalescer.held-write.test.ts:226-227`, `:348-349`, `:408-409`. And: `WaitingWrite`,
+     `adoptWaitingWrite` and `waitingWriteFor` now name writes that do not wait.
+   - Security and visual: still not triggered. No server file, no request, no sentence, no frame.
+
+**5. QA's *not attacked*, ruled.**
+
+| Item | Before the reviews? | Why |
+| --- | --- | --- |
+| **`?settings=open` while locked** | **Yes, in QA's re-run.** | It is criterion 5's surface, and the stale review's *change settings* link arrives by it (K2.6). The arrival waits while write access is `"checking"` and presses the trigger on `true` [read: `use-honour-arrival.ts:146-148`]. Owed, three cases: the sheet is not open while the answer is held; once it answers, the sheet opens on the **taken** copy's settings; with the answer failed, no editable sheet opens |
+| The review inside the sweep | No | Two e2e traces hold criterion 14's second half; its first half is the logic reader's added check |
+| A frozen tab on a real phone | No | Not reachable by this suite. A line for 8T's phone gate |
+| Two writers (L5) | No | Q35's, by K2.7 |
+| Refusals (L6) | No | Recorded with its trigger; P2 excludes them by name |
+
+**For the scribe, at the close.** With the earlier lists: item 6 and K2.4's entry; A1 and A2 with
+criteria 16 and 17 and K2.2's amended sentence; L3 closed and L7 never opened; the passed time of
+a pause, with Q38; the frozen-tab line for 8T; the slow sweep for the audit; QA's incident for the
+owner.
 
 ### 8L — the contact screen 4A/4B/4C
 
