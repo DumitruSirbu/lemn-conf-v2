@@ -140,6 +140,8 @@ const FUNCTION_FAMILIES = [
   "globalSettings.pillNameAllSettings",
   "globalSettings.depthOption",
   "globalSettings.materialResetConfirm.body",
+  "submissionResult.channelLine",
+  "submissionResult.whatsappMessage",
   "leadNotice.subject",
   "leadNotice.line",
   "leadNotice.figure",
@@ -158,12 +160,12 @@ describe("the localized content resolver", () => {
   });
 
   it.each(CATALOGUES)(
-    "maps all 178 resolved strings through the %s catalogue",
+    "maps all 205 resolved strings through the %s catalogue",
     (locale, messages) => {
       const { content, translate } = contentAndOracleFor(locale, messages);
       const leaves = stringLeaves(content);
 
-      expect(leaves).toHaveLength(178);
+      expect(leaves).toHaveLength(205);
       for (const { path, value } of leaves) {
         // The step is stated twice — as a sentence and as the top bar's pill — from one pair of
         // numbers, so neither spelling can drift from the other.
@@ -178,7 +180,7 @@ describe("the localized content resolver", () => {
   );
 
   it.each(CATALOGUES)(
-    "backs exactly 36 public functions with %s ICU messages",
+    "backs exactly 38 public functions with %s ICU messages",
     (locale, messages) => {
       const { content, translate } = contentAndOracleFor(locale, messages);
 
@@ -288,6 +290,20 @@ describe("the localized content resolver", () => {
           label: "label-token",
           amount: "43 000 MDL",
         }),
+      );
+      expect(
+        content.submissionResult.channelLine({
+          channel: "whatsapp",
+          contact: "contact-token",
+        }),
+      ).toBe(
+        translate("submissionResult.channelLine", {
+          channel: "whatsapp",
+          contact: "contact-token",
+        }),
+      );
+      expect(content.submissionResult.whatsappMessage("link-token")).toBe(
+        translate("submissionResult.whatsappMessage", { link: "link-token" }),
       );
       expect(content.finishName("pal.gri-havanna")).toBe(
         translate("finish.pal.gri-havanna"),

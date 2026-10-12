@@ -87,6 +87,10 @@
  * **Grown, never rebaselined, by M7C wave C1 slice S3** (ADR 0113 decision 2) — the four
  * `configure.backConfirm.*` leaves, the confirmation both back links open (FB-001; plan question
  * Q1b, approved by the owner 2026-10-01). **Four added (the heading on the owner's follow-up answer, 2026-10-01) and no existing hash moved.**
+ *
+ * **Grown by 31 and shrunk by 2, never rebaselined, by M8 wave 8M slice S4** (ADR 0113 decision 2) — the result screens'
+ * copy, `submissionResult.*`: 27 static leaves and four renderings of its two ICU leaves, drafted and unapproved (Q10
+ * (a)); and `contact.outcomes.sent` and `.failed`, which 5A and 5B replace, removed. **No existing hash moved.**
  */
 export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "catalog.base-3drawer.300":
@@ -311,16 +315,12 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "331ccff3f8c077d3094611ba1698360ddcea490bba0f6a032f33a9834dd8cf35",
   "contact.outcomes.designNotCurrent":
     "0a8d9ce582305b2ad12fcd54a4c50506a4b63c90b0bfcae1ecbbb79c33d8c657",
-  "contact.outcomes.failed":
-    "cb680127b7f50c384de47d0f635b6c747ed98ccdbb299b0dde54f625d91ea4c3",
   "contact.outcomes.limited":
     "d0cf12b1439521b8ad015b4350375fc209a81b6077070f94c60a6661cf54d6d8",
   "contact.outcomes.limitedTomorrow":
     "f75872b8c41d0fb667f4a312512d06e8185cf154c37038b58322582247941c48",
   "contact.outcomes.refused":
     "1acb1e12ff737bf7f7bf04c52abbc1533510513c59574f35fbef90ad07235d81",
-  "contact.outcomes.sent":
-    "f9a9f3e9d6bf3f39adb27d039f618bac2f8faf12dd4ca09a74c0a8f65ada5d2d",
   "content.globalSettings.appliesTo.count-0":
     "2a9c04de9392c99edbbac0b1949c9d0bbdd3eb9f867419197e83db53a4713f4c",
   "content.globalSettings.appliesTo.count-1":
@@ -449,6 +449,14 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "19e4d026b84f44efe22141222fed0b40bf2b26858ad820da85135a2996f7b936",
   "content.priceBreakdown.wholeKitchenLabel.material":
     "3ac2b136c5b55303cfa80635f7ed6086e29f88a083f99bc9a50fced1ec71d5ed",
+  "content.submissionResult.channelLine.email":
+    "d39f8b0a2c38034a1f433f0fad6cf2b0139192073c94eacf6236aaad5429b90a",
+  "content.submissionResult.channelLine.phone":
+    "58b068e26b7757f66d1392e57f64cf33864132c532593e6986fff819d3adcfde",
+  "content.submissionResult.channelLine.whatsapp":
+    "ac05e2987222912765a9b1a8c311285d52b7e787fa62ea0d5147656058f43e87",
+  "content.submissionResult.whatsappMessage.link-token":
+    "a051659d490067053974d5d44e77c2d59224b4f68123aadecb4abe69ad5e2bc1",
   "content.static.brand":
     "90c998f600c03eb6652f8ade70c80a209d98dc31635b28644a01fd44e7d833d7",
   "content.static.configure.back":
@@ -543,6 +551,60 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "2b5c3d26721ae9c350cf3009318b626f0fc8a90b4a2ac0ca8099c05aa849282e",
   "content.static.contact.unavailable":
     "40a9c65b913f23cc94923080aaebeed5a11260237a6148eeca45c637a1b10005",
+  "content.static.submissionResult.topBarTitle":
+    "e54fe1fc0b5a0169dc0cb12e19c74d2f4dc066721330275205567ed863e2e81e",
+  "content.static.submissionResult.sentHeading":
+    "7fd5dbafa4de9325784a368f410b27097ca13f80b250df140251b8bed020ac48",
+  "content.static.submissionResult.referenceLabel":
+    "472165a23f6e0d3467324d040ac749bac38d0b0d899f52c9411c4f51fb6d786f",
+  "content.static.submissionResult.copy":
+    "a35a3851d68320f92b07859891dabb14e750ef8b12af123ce0cafe4e532c9d20",
+  "content.static.submissionResult.copied":
+    "5f912b909dc3b0a62c5e719fc374e323937098bddd80fd8d690d1323182a7cb1",
+  "content.static.submissionResult.channelLineWithoutValue":
+    "bc571755ab6f6b6f9e49f038b67079560cf22e5cafa7407521c5dcda900816a4",
+  "content.static.submissionResult.savedSentence":
+    "c082ce0d4a578b243c8e9fb869b3ceadbc936e28de18574e6db344823e3380a4",
+  "content.static.submissionResult.nextStepsTitle":
+    "da42ee4dd40b383b6cd4839eba286dea0de5d2201dc32f0e34d3b9d0efdf602d",
+  "content.static.submissionResult.nextStepsProvisionalMarker":
+    "3fe9f085f96cda753c28ff70ceaebf4d27fc1d474ae01c5d14111b13e4e8bf08",
+  "content.static.submissionResult.nextStepVerify":
+    "795100ab269f705580c6f0bd3d00a013ad85bf589fb5c614cdd8193eb283e0ef",
+  "content.static.submissionResult.nextStepFinalPrice":
+    "43f3ec3d12126298be9e67c21ce4e541e739eb9a979d54afe4836e0abeaa95c6",
+  "content.static.submissionResult.nextStepMeasure":
+    "8c2bf41aa7b41a7ae56c4170f29ebf353c353521353b37588b1ec51f1ce035f5",
+  "content.static.submissionResult.backToDesign":
+    "4bacf284940731b6851ab2377b3a3b611168243cf5a2bca1fa0e4cc4aaadde78",
+  "content.static.submissionResult.reviewLink":
+    "be61361617f947e12eeed1e734cd40c511ab4be07453ce5a8932872a659b41fb",
+  "content.static.submissionResult.sendOnWhatsapp":
+    "badb0bdfee3c1541b6685f4610f7ebd377df6cb4f2b658f893f3aaf4a85e0a8d",
+  "content.static.submissionResult.openWhatsapp":
+    "d9772c4c75987cad3a21f93a15d51862f3302d479fa09bdc7296f8ae386bc939",
+  "content.static.submissionResult.noRequest":
+    "b6bcb977d2343a5f12d28489826760650e32a4bd51637daf1d384042cebca166",
+  "content.static.submissionResult.notShown":
+    "b876cb1b0e00ea3f953950da352f2efd2dbe7318fa1a0b59963ad63fbea11831",
+  "content.static.submissionResult.failureHeading":
+    "8fb58abca48250234f96f984b4b28538283f49cf36ccd014a4effea325d271e8",
+  "content.static.submissionResult.failureLostConnection":
+    "779bb701f6d1110c3b72c4e127a0055ed3593379fa8ee870d6115ee3915b8fd3",
+  "content.static.submissionResult.failureNotSent":
+    "9ecccfb921b3b86b752562bae357635dbd91cf99f4b3ac6316bc0550076251fb",
+  "content.static.submissionResult.failureKept":
+    "d4131dbaab3f44e160827e82c8e8e07ab44adac221f6100cc1338cd586430edd",
+  "content.static.submissionResult.failureKeptNoDesign":
+    "12f4c727984fe0d07de336e81a1829ffd9aee4151fd40faa009738e851165f66",
+  "content.static.submissionResult.keptTitle":
+    "ee297fdc1ab46433c6bbb55d804aed93a6bc0099b372e8fe7e909fc49abb53c9",
+  "content.static.submissionResult.keptContact":
+    "08bc21da3688dfe9f1dfadcac6fd0685f900fe4652ba6199dcc59e08bf2d785f",
+  "content.static.submissionResult.waitingForConnection":
+    "23488e1a053f94dbae1a96590b03889202d9d334d84ed997ce567abb351e8053",
+  "content.static.submissionResult.retryAutomatically":
+    "edf508c9ed4de80bda2723cdf3e457bd21c8f49df15f2f1b10800237a9b978e3",
   "content.static.designLoadError.bodyInvalid":
     "7939b8956d8f17fca2ff3dd0b2bf59e4927868693c66406f85841bcfe86d75f5",
   "content.static.designLoadError.bodyNotFound":

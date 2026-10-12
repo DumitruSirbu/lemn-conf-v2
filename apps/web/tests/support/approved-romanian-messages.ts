@@ -504,8 +504,6 @@ export const APPROVED_ROMANIAN_MESSAGES = {
         "Avem nevoie de acordul tău ca să putem trimite oferta.",
     },
     outcomes: {
-      sent: "Cererea ta a fost trimisă. Referința cererii: {reference}.",
-      failed: "Cererea nu a fost trimisă. Încearcă din nou.",
       refused:
         "Unele câmpuri nu sunt completate corect. Verifică-le și trimite din nou.",
       conflict:
@@ -517,6 +515,53 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       limitedTomorrow:
         "Din păcate, ați încercat să generați o bucătărie de prea multe ori într-un timp scurt. Vă încurajăm să reveniți mâine, după ora {time}.",
     },
+  },
+  // Frames 5A and 5B's wording as drawn where the frame's sentence is true, drafted where it is not (Q10 (a)); none
+  // approved, and the owner reads six groups: the saved sentence (`din acest browser`, not `pe telefon`: ADR 0114 B7),
+  // the channel lines (`channelLine`'s phone and e-mail arms, `channelLineWithoutValue` shown after a reload), 5B's
+  // kept sentences and box title (Q18: kept while the page is open), `retryAutomatically`, `noRequest` and `notShown`,
+  // and `whatsappMessage`. No response time (Q8, Q26), no shop number (Q3), no e-mailed link (Q11, Q43).
+  // `nextStepsProvisionalMarker` and the three `nextStep*` leaves are a SLOT (Q9): provisional until the owner confirms
+  // them line by line, carried here as the lock carries a drafted leaf.
+  submissionResult: {
+    topBarTitle: "Cerere trimisă",
+    sentHeading: "Cererea a plecat",
+    referenceLabel: "Număr cerere",
+    copy: "Copiază",
+    copied: "Copiat",
+    channelLine:
+      "{channel, select, phone {Te sunăm la {contact}.} whatsapp {Te sunăm pe WhatsApp la {contact}.} other {Îți scriem la {contact}.}}",
+    channelLineWithoutValue:
+      "Te contactăm pe canalul ales, la datele pe care le-ai completat în cerere.",
+    savedSentence:
+      "Design-ul este salvat — îl poți redeschide oricând din acest browser.",
+    nextStepsTitle: "Ce urmează",
+    nextStepsProvisionalMarker: "Text provizoriu",
+    nextStepVerify:
+      "Un consultant verifică dacă toate corpurile intră în camera ta așa cum le-ai așezat.",
+    nextStepFinalPrice: "Primești prețul final.",
+    nextStepMeasure: "Dacă ești de acord, programăm măsurarea la fața locului.",
+    backToDesign: "Înapoi la design",
+    reviewLink: "Verifică designul",
+    sendOnWhatsapp: "Trimite design-ul pe WhatsApp",
+    openWhatsapp: "Deschide WhatsApp",
+    whatsappMessage: "Uite designul meu de bucătărie Lemnaria: {link}",
+    noRequest:
+      "Nu avem nicio cerere trimisă pentru acest design, în forma lui de acum.",
+    notShown:
+      "Nu putem arăta acum starea cererii tale. Încearcă din nou puțin mai târziu.",
+    failureHeading: "Nu am putut trimite cererea",
+    failureLostConnection: "Conexiunea s-a întrerupt.",
+    failureNotSent: "Cererea nu a ajuns la noi. Încearcă din nou.",
+    failureKept:
+      "Design-ul și datele tale rămân aici cât timp pagina este deschisă — nu ai pierdut nimic.",
+    failureKeptNoDesign:
+      "Datele tale rămân aici cât timp pagina este deschisă — nu ai pierdut nimic.",
+    keptTitle: "Păstrat cât timp pagina este deschisă",
+    keptContact: "Datele de contact completate",
+    waitingForConnection: "Așteptăm conexiunea…",
+    retryAutomatically:
+      "Când revine conexiunea, încercăm din nou automat, cât timp pagina rămâne deschisă. Nu trebuie să introduci datele din nou.",
   },
   // Drafted, not approved: the shop's notice, whose language is the owner's to rule (Q34).
   leadNotice: {

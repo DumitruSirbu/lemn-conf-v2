@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import type { ContactFieldCode } from "@lemnaria/configurator-domain";
+import type {
+  ContactChannel,
+  ContactFieldCode,
+} from "@lemnaria/configurator-domain";
 
 import type { ContactOutcome } from "../../src/contact/contact-answer";
 import type { ContactOutcomeNotice } from "../../src/i18n/content";
@@ -52,6 +55,7 @@ const INTERNATIONAL_CODES = [
 const CONTACT_OUTCOME_NOTICES: readonly ContactOutcomeNotice[] = [
   { kind: "sent", reference: "LM-TOKEN" },
   { kind: "failed" },
+  { kind: "unanswered" },
   { kind: "refused" },
   { kind: "conflict" },
   { kind: "design-not-current" },
@@ -86,6 +90,35 @@ const NOT_DRAWN_WORDS = {
   ru: /рабоч|в тот же день|подробн/i,
 } as const;
 
+const CONTACT_CHANNELS = [
+  "phone",
+  "whatsapp",
+  "email",
+] as const satisfies readonly ContactChannel[];
+
+const TYPED_CONTACT = "079 123 456";
+
+/** A saved claim that names the phone, per language: the details are not kept there (Q18 (a)). */
+const SAVED_ON_THE_PHONE = {
+  ro: /pe (acest )?telefon/i,
+  ru: /на (этом )?телефоне/i,
+} as const;
+
+/** A promise of when the shop answers, per language (Q8, Q26): no duration and no *soon*. */
+const TIME_PROMISE = {
+  ro: /.n cur.nd|imediat|\d+\s*(ore|zile|minute)\b/i,
+  ru: /скоро|в ближайшее|немедленно|\d+\s*(час|мин|д[её]н|дн)/i,
+} as const;
+
+/** What would put an account, a profile or an e-mailed link on a result screen (Q11, Q43), per language. */
+const ACCOUNT_OR_EMAILED_LINK = {
+  ro: /profil|cont\b|autentific|e[-\u2011]?mail/i,
+  ru: /профил|аккаунт|учётн|вход|почт/i,
+} as const;
+
+/** The page-open bound of 5B's kept sentences (Q18 (a)), per language. */
+const WHILE_THE_PAGE_IS_OPEN = { ro: /pagina/i, ru: /страниц/i } as const;
+
 describe.each(CATALOGUES)("the %s contact copy", (locale, messages) => {
   const content = contentFor(locale, messages);
 
@@ -100,7 +133,7 @@ describe.each(CATALOGUES)("the %s contact copy", (locale, messages) => {
     "tells %s, which no form can produce, as the failed sentence",
     (code) => {
       expect(content.contactFieldError(code)).toBe(
-        requireLeafAt(messages, "contact.outcomes.failed"),
+        requireLeafAt(messages, "submissionResult.failureNotSent"),
       );
     },
   );
@@ -109,7 +142,7 @@ describe.each(CATALOGUES)("the %s contact copy", (locale, messages) => {
     const codeFromNewerServer = "A_CODE_FROM_LATER" as ContactFieldCode;
 
     expect(content.contactFieldError(codeFromNewerServer)).toBe(
-      requireLeafAt(messages, "contact.outcomes.failed"),
+      requireLeafAt(messages, "submissionResult.failureNotSent"),
     );
   });
 
@@ -195,3 +228,133 @@ describe.each(CATALOGUES)("the %s contact copy", (locale, messages) => {
     );
   });
 });
+
+describe.each(CATALOGUES)(
+  "the %s submission result copy",
+  (locale, messages) => {
+    const content = contentFor(locale, messages);
+    const leaves = catalogueLeaves(messages.submissionResult);
+
+    it.each(CONTACT_CHANNELS)(
+      "names the typed value, exactly as typed, in the %s channel line",
+      (channel) => {
+        const sentence = content.submissionResult.channelLine({
+          channel,
+          contact: TYPED_CONTACT,
+        });
+
+        expect(sentence).toContain(TYPED_CONTACT);
+        expect(sentence).not.toContain("{");
+      },
+    );
+
+    it("gives each channel its own line, and the line with no value its own", () => {
+      const lines = [
+        ...CONTACT_CHANNELS.map((channel) =>
+          content.submissionResult.channelLine({
+            channel,
+            contact: TYPED_CONTACT,
+          }),
+        ),
+        content.submissionResult.channelLineWithoutValue,
+      ];
+
+      expect(new Set(lines).size).toBe(CONTACT_CHANNELS.length + 1);
+    });
+
+    it("says the WhatsApp channel by name in the WhatsApp line only", () => {
+      const lineOf = (channel: ContactChannel) =>
+        content.submissionResult.channelLine({
+          channel,
+          contact: TYPED_CONTACT,
+        });
+
+      expect(lineOf("whatsapp")).toContain("WhatsApp");
+      expect(lineOf("phone")).not.toContain("WhatsApp");
+      expect(lineOf("email")).not.toContain("WhatsApp");
+    });
+
+    it("carries the link in the WhatsApp message", () => {
+      const sentence = content.submissionResult.whatsappMessage(
+        "https://example.test/s/LINK-TOKEN",
+      );
+
+      expect(sentence).toContain("https://example.test/s/LINK-TOKEN");
+      expect(sentence).not.toContain("{");
+    });
+
+    it("says the design is saved in this browser and never on the phone (criteria 3, 8)", () => {
+      expect(content.submissionResult.savedSentence).toMatch(
+        locale === "ro" ? /browser/ : /браузер/,
+      );
+      for (const [key, text] of leaves) {
+        expect(text, key).not.toMatch(SAVED_ON_THE_PHONE[locale]);
+      }
+    });
+
+    it.each(["failureKept", "failureKeptNoDesign", "keptTitle"] as const)(
+      "bounds %s by the page being open (criterion 8)",
+      (key) => {
+        expect(content.submissionResult[key]).toMatch(
+          WHILE_THE_PAGE_IS_OPEN[locale],
+        );
+      },
+    );
+
+    it("tells a request with no answer, and one that failed, in their own sentences", () => {
+      const unanswered = content.contactOutcome({ kind: "unanswered" });
+      const failed = content.contactOutcome({ kind: "failed" });
+
+      expect(unanswered).toBe(content.submissionResult.failureLostConnection);
+      expect(failed).toBe(content.submissionResult.failureNotSent);
+      expect(unanswered).not.toBe(failed);
+    });
+
+    it("draws neither a ✓ nor the sent heading in the no-request and not-shown sentences", () => {
+      for (const sentence of [
+        content.submissionResult.noRequest,
+        content.submissionResult.notShown,
+      ]) {
+        expect(sentence).not.toContain("✓");
+        expect(sentence).not.toContain(content.submissionResult.sentHeading);
+        expect(sentence).not.toContain(content.submissionResult.topBarTitle);
+      }
+      expect(content.submissionResult.noRequest).not.toBe(
+        content.submissionResult.notShown,
+      );
+    });
+
+    it("marks the next steps as provisional in a leaf of their own (Q9)", () => {
+      expect(content.submissionResult.nextStepsProvisionalMarker).not.toBe("");
+      expect(content.submissionResult.nextStepsProvisionalMarker).not.toBe(
+        content.submissionResult.nextStepsTitle,
+      );
+    });
+
+    it("keeps the price step from naming what the final price includes", () => {
+      expect(content.submissionResult.nextStepFinalPrice).not.toMatch(
+        locale === "ro"
+          ? /blat|feronerie|montaj|inclus/i
+          : /столешниц|фурнитур|монтаж|включ/i,
+      );
+    });
+
+    it("holds no code-shaped text and no three-digit figure in any leaf (criteria 6, 7)", () => {
+      for (const [key, text] of leaves) {
+        expect(text, key).not.toMatch(CODE_SHAPE);
+        expect(text, key).not.toMatch(/\d{3}/);
+      }
+    });
+
+    it("promises no response time, draws no shop number and links no account or e-mailed link (Q3, Q8, Q11, Q43)", () => {
+      for (const [key, text] of leaves) {
+        expect(key, key).not.toMatch(
+          /callShop|directCall|shop|magazin|response|detail|privacy/i,
+        );
+        expect(text, key).not.toMatch(TIME_PROMISE[locale]);
+        expect(text, key).not.toMatch(NOT_DRAWN_WORDS[locale]);
+        expect(text, key).not.toMatch(ACCOUNT_OR_EMAILED_LINK[locale]);
+      }
+    });
+  },
+);

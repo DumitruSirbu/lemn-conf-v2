@@ -3,6 +3,7 @@ import type { _Translator, Messages } from "next-intl";
 import type {
   Band,
   BodyLabel,
+  ContactChannel,
   ContactFieldCode,
   CornerDirection,
   DesignWall,
@@ -677,7 +678,7 @@ export function resolveContactFieldError(
     case "NOT_TEXT":
     case "UNKNOWN_CHANNEL":
     case "UNKNOWN_CONSENT_TEXT_VERSION":
-      return translate("contact.outcomes.failed");
+      return translate("submissionResult.failureNotSent");
     default:
       return resolveCodeThisBuildLacks(translate, code);
   }
@@ -690,7 +691,7 @@ function resolveCodeThisBuildLacks(
   code: never,
 ): string {
   void code;
-  return translate("contact.outcomes.failed");
+  return translate("submissionResult.failureNotSent");
 }
 
 /** What the screen says of an answer, with the two values a sentence carries already read: the reference the shop
@@ -717,10 +718,9 @@ export function resolveContactOutcome(
   notice: ContactOutcomeNotice,
 ): string {
   switch (notice.kind) {
+    // The design form still draws its sent line in place; it is made of 5A's own labels, so no sentence is kept for it.
     case "sent":
-      return translate("contact.outcomes.sent", {
-        reference: notice.reference,
-      });
+      return resolveSentLine(translate, notice.reference);
     case "limited":
       return translate(
         notice.isTomorrow
@@ -729,8 +729,9 @@ export function resolveContactOutcome(
         { time: notice.time },
       );
     case "failed":
+      return translate("submissionResult.failureNotSent");
     case "unanswered":
-      return translate("contact.outcomes.failed");
+      return translate("submissionResult.failureLostConnection");
     case "refused":
       return translate("contact.outcomes.refused");
     case "conflict":
@@ -742,6 +743,41 @@ export function resolveContactOutcome(
     default:
       return assertNever(notice);
   }
+}
+
+function resolveSentLine(
+  translate: ContentTranslator,
+  reference: string,
+): string {
+  const heading = translate("submissionResult.sentHeading");
+  const label = translate("submissionResult.referenceLabel");
+  return `${heading}. ${label}: ${reference}`;
+}
+
+/** What the result screen says of how the shop will reach the customer: the channel chosen and the one value typed
+ *  for it, exactly as typed. */
+export interface SubmissionChannelLine {
+  readonly channel: ContactChannel;
+  readonly contact: string;
+}
+
+/** One sentence per channel, found by the channel's own name so a channel the domain adds is a type error here. */
+export function resolveSubmissionChannelLine(
+  translate: ContentTranslator,
+  line: SubmissionChannelLine,
+): string {
+  return translate("submissionResult.channelLine", {
+    channel: line.channel,
+    contact: line.contact,
+  });
+}
+
+/** The message a customer sends with the link to their own design. */
+export function resolveSubmissionWhatsappMessage(
+  translate: ContentTranslator,
+  link: string,
+): string {
+  return translate("submissionResult.whatsappMessage", { link });
 }
 
 /** Resolves the content shape the pre-i18n models consume: every leaf comes from the active locale, and the
@@ -1066,6 +1102,46 @@ export function resolveContent(translate: ContentTranslator) {
       reviewLink: translate("contact.reviewLink"),
       retry: translate("contact.retry"),
       unavailable: translate("contact.unavailable"),
+    },
+    submissionResult: {
+      topBarTitle: translate("submissionResult.topBarTitle"),
+      sentHeading: translate("submissionResult.sentHeading"),
+      referenceLabel: translate("submissionResult.referenceLabel"),
+      copy: translate("submissionResult.copy"),
+      copied: translate("submissionResult.copied"),
+      channelLine: (line: SubmissionChannelLine) =>
+        resolveSubmissionChannelLine(translate, line),
+      channelLineWithoutValue: translate(
+        "submissionResult.channelLineWithoutValue",
+      ),
+      savedSentence: translate("submissionResult.savedSentence"),
+      nextStepsTitle: translate("submissionResult.nextStepsTitle"),
+      // Q9: the three steps are a slot. The sentences and their marker are provisional until the owner confirms them.
+      nextStepsProvisionalMarker: translate(
+        "submissionResult.nextStepsProvisionalMarker",
+      ),
+      nextStepVerify: translate("submissionResult.nextStepVerify"),
+      nextStepFinalPrice: translate("submissionResult.nextStepFinalPrice"),
+      nextStepMeasure: translate("submissionResult.nextStepMeasure"),
+      backToDesign: translate("submissionResult.backToDesign"),
+      reviewLink: translate("submissionResult.reviewLink"),
+      sendOnWhatsapp: translate("submissionResult.sendOnWhatsapp"),
+      openWhatsapp: translate("submissionResult.openWhatsapp"),
+      whatsappMessage: (link: string) =>
+        resolveSubmissionWhatsappMessage(translate, link),
+      noRequest: translate("submissionResult.noRequest"),
+      notShown: translate("submissionResult.notShown"),
+      failureHeading: translate("submissionResult.failureHeading"),
+      failureLostConnection: translate(
+        "submissionResult.failureLostConnection",
+      ),
+      failureNotSent: translate("submissionResult.failureNotSent"),
+      failureKept: translate("submissionResult.failureKept"),
+      failureKeptNoDesign: translate("submissionResult.failureKeptNoDesign"),
+      keptTitle: translate("submissionResult.keptTitle"),
+      keptContact: translate("submissionResult.keptContact"),
+      waitingForConnection: translate("submissionResult.waitingForConnection"),
+      retryAutomatically: translate("submissionResult.retryAutomatically"),
     },
     leadNotice: {
       subject: (reference: string) =>

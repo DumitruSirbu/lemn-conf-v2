@@ -82,7 +82,7 @@ function sortedUnique(values: readonly string[]): readonly string[] {
 }
 
 describe("golden-output fixture coverage", () => {
-  it("covers exactly the 28 function-valued legacy content families", () => {
+  it("covers exactly the 30 function-valued legacy content families", () => {
     const actualFamilies = collectContentFunctionFamilies();
     expect(actualFamilies).toEqual([...CONTENT_FUNCTION_FAMILIES].sort());
     expect(
@@ -247,17 +247,20 @@ describe("golden-output fixture coverage", () => {
     // +2 for `designLoadError.tooManyRequests` and `.tryAgain`.
     // M8 8L S2: +26 for the contact form's static leaves (`contact.*`).
     // M8 8L S6: -4 for the retired `contactPlaceholder.*` and `webglUnavailable.emailLink`.
-    expect(RESOLVED_STATIC_CONTENT).toHaveLength(178);
+    // M8 8M S4: +27 for the result screens' static leaves (`submissionResult.*`).
+    expect(RESOLVED_STATIC_CONTENT).toHaveLength(205);
     // +3 for the notice's subject, line and figure.
     // +2 for `panel.savePausedNotice`'s two times.
-    expect(FUNCTION_CONTENT_FIXTURES).toHaveLength(64);
+    // M8 8M S4: +4 for `submissionResult.channelLine`'s three channels and `.whatsappMessage`.
+    expect(FUNCTION_CONTENT_FIXTURES).toHaveLength(68);
     // 7L S3: +2 for `room.suggestion.title` and `room.suggestion.switchToLinear`.
     // +1 for `room.compose.limitReached`.
     expect(ROOM_FIXTURES).toHaveLength(73);
     // M8 8C S1: the review leaves `Content` reaches through `reviewRoomLine`.
     expect(REVIEW_FIXTURES).toHaveLength(12);
     // M8 8L S2: the contact leaves reached by field code and by class of answer: 11 field errors, 7 outcomes.
-    expect(CONTACT_FIXTURES).toHaveLength(18);
+    // M8 8M S4: -2 for the retired `contact.outcomes.sent` and `.failed`.
+    expect(CONTACT_FIXTURES).toHaveLength(16);
     expect(REJECTION_FIXTURES).toHaveLength(41);
     expect(INSERTABLE_BODY_DEFINITIONS).toHaveLength(16);
     expect(CATALOGUE_FIXTURES).toHaveLength(98);
@@ -276,7 +279,8 @@ describe("golden-output fixture coverage", () => {
     // M8 8L S2: +26 contact static leaves, +17 contact leaves reached by code or class of answer.
     // M8 8L S6: -4 for the retired `contactPlaceholder.*` and `webglUnavailable.emailLink`.
     // M8 8L fix-up: +1 for `contact.outcomes.limitedTomorrow`.
-    expect(GOLDEN_FIXTURES).toHaveLength(484);
+    // M8 8M S4: +27 static and +4 function fixtures for `submissionResult.*`, -2 for the retired contact outcomes.
+    expect(GOLDEN_FIXTURES).toHaveLength(513);
     expect(new Set(GOLDEN_FIXTURES.map((fixture) => fixture.id)).size).toBe(
       GOLDEN_FIXTURES.length,
     );

@@ -43,6 +43,9 @@ import {
 } from "./contact-submission-harness";
 
 const OUTCOMES = MESSAGES.ro.contact.outcomes;
+const FAILED_SENTENCE = MESSAGES.ro.submissionResult.failureNotSent;
+const LOST_CONNECTION_SENTENCE =
+  MESSAGES.ro.submissionResult.failureLostConnection;
 const ERROR_CODE_PATTERN = /[A-Z]{2,}_[A-Z_]+/;
 const ONE_SECOND_WITH_MARGIN_MS = 1200;
 
@@ -205,7 +208,7 @@ describe("an answer that sent nothing", () => {
 
     await traffic.answerOldest(REJECTED);
 
-    expect(sentencesShown(outcomeOf(container))).toEqual([OUTCOMES.failed]);
+    expect(sentencesShown(outcomeOf(container))).toEqual([FAILED_SENTENCE]);
     expect(
       elementIn(container, '[data-testid="contact-bottom"]').contains(
         outcomeOf(container),
@@ -251,7 +254,7 @@ describe("an answer that sent nothing", () => {
     expect(traffic.contactBodies).toHaveLength(2);
   });
 
-  it("draws a request with no answer as the failed class is drawn, naming its own class", async () => {
+  it("draws a request with no answer with the lost-connection sentence, naming its own class", async () => {
     const container = mount();
     sendTheWholeForm(container);
 
@@ -259,7 +262,7 @@ describe("an answer that sent nothing", () => {
 
     const outcome = outcomeOf(container);
     expect(outcome.getAttribute("data-outcome")).toBe("unanswered");
-    expect(sentencesShown(outcome)).toEqual([OUTCOMES.failed]);
+    expect(sentencesShown(outcome)).toEqual([LOST_CONNECTION_SENTENCE]);
     expect(
       container.querySelector('[data-testid="contact-retry"]'),
     ).not.toBeNull();
@@ -267,7 +270,6 @@ describe("an answer that sent nothing", () => {
 
   it.each([
     ["a 503", SERVICE_FAILURE],
-    ["a network failure", "network-failure" as const],
     ["a 200 that is not a sent line", { status: 200, body: { odd: true } }],
   ])("is the failed sentence and a retry for %s", async (_name, answer) => {
     const container = mount();
@@ -275,7 +277,7 @@ describe("an answer that sent nothing", () => {
 
     await traffic.answerOldest(answer);
 
-    expect(sentencesShown(outcomeOf(container))).toEqual([OUTCOMES.failed]);
+    expect(sentencesShown(outcomeOf(container))).toEqual([FAILED_SENTENCE]);
     expect(
       container.querySelector('[data-testid="contact-retry"]'),
     ).not.toBeNull();
@@ -288,7 +290,7 @@ describe("an answer that sent nothing", () => {
     await traffic.answerOldest(SERVICE_FAILURE);
 
     expect(sentencesShown(outcomeOf(container))).toEqual([
-      MESSAGES.ru.contact.outcomes.failed,
+      MESSAGES.ru.submissionResult.failureNotSent,
     ]);
     expect(
       elementIn(container, '[data-testid="contact-retry"]').textContent,
@@ -306,7 +308,7 @@ describe("an answer that sent nothing", () => {
     pressCallToAction(container);
 
     expect(traffic.contactBodies).toHaveLength(0);
-    expect(sentencesShown(outcomeOf(container))).toEqual([OUTCOMES.failed]);
+    expect(sentencesShown(outcomeOf(container))).toEqual([FAILED_SENTENCE]);
   });
 });
 
@@ -374,7 +376,7 @@ describe("an answer that names fields", () => {
       },
     });
 
-    expect(sentencesShown(outcomeOf(container))).toEqual([OUTCOMES.failed]);
+    expect(sentencesShown(outcomeOf(container))).toEqual([FAILED_SENTENCE]);
   });
 });
 
@@ -592,7 +594,9 @@ describe("the sent state", () => {
 
     expect(
       elementIn(container, '[data-testid="contact-sent"]').textContent,
-    ).toBe(OUTCOMES.sent.replace("{reference}", "LM-1234"));
+    ).toBe(
+      `${MESSAGES.ro.submissionResult.sentHeading}. ${MESSAGES.ro.submissionResult.referenceLabel}: LM-1234`,
+    );
     expect(container.querySelector("form")).toBeNull();
     expect(container.querySelector("input")).toBeNull();
     expect(container.querySelector("button")).toBeNull();

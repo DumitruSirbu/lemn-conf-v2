@@ -119,7 +119,7 @@ function requiredFixtureValue<T>(value: T | undefined, id: string): T {
 const BASE_BAND_WORD = romanianContent.panel.bandWords.base.one;
 
 /**
- * The 28 function-valued content families. The gate compares this declaration to a runtime walk of
+ * The 30 function-valued content families. The gate compares this declaration to a runtime walk of
  * resolved Romanian content, so a newly introduced function cannot silently miss the oracle.
  */
 export const CONTENT_FUNCTION_FAMILIES = [
@@ -151,6 +151,8 @@ export const CONTENT_FUNCTION_FAMILIES = [
   "leadNotice.subject",
   "leadNotice.line",
   "leadNotice.figure",
+  "submissionResult.channelLine",
+  "submissionResult.whatsappMessage",
 ] as const;
 
 export const FUNCTION_CONTENT_FIXTURES: readonly GoldenFixture[] = [
@@ -496,6 +498,28 @@ export const FUNCTION_CONTENT_FIXTURES: readonly GoldenFixture[] = [
         amount: "43 000 MDL",
       }),
   ),
+  ...(["phone", "whatsapp", "email"] as const).map((channel) =>
+    contentFixture(
+      "submissionResult.channelLine",
+      channel,
+      () =>
+        romanianContent.submissionResult.channelLine({
+          channel,
+          contact: "contact-token",
+        }),
+      () =>
+        translate("submissionResult.channelLine", {
+          channel,
+          contact: "contact-token",
+        }),
+    ),
+  ),
+  contentFixture(
+    "submissionResult.whatsappMessage",
+    "link-token",
+    () => romanianContent.submissionResult.whatsappMessage("link-token"),
+    () => translate("submissionResult.whatsappMessage", { link: "link-token" }),
+  ),
 ];
 
 interface StaticContent {
@@ -720,7 +744,6 @@ export const REVIEW_FIXTURES: readonly GoldenFixture[] = [
 const CONTACT_RENDER_ARGUMENTS: Readonly<
   Record<string, Readonly<Record<string, string | number>>>
 > = {
-  "contact.outcomes.sent": { reference: "Reference" },
   "contact.outcomes.limited": { time: "Time" },
   "contact.outcomes.limitedTomorrow": { time: "Time" },
 };
