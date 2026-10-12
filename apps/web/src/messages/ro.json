@@ -381,7 +381,7 @@
       "conflict": "Cererea nu a putut fi înregistrată în forma ei de acum. Trimite-o încă o dată.",
       "designNotCurrent": "Înainte să trimitem cererea, verifică din nou designul.",
       "limited": "Prea multe cereri într-un timp scurt. Poți trimite din nou după ora {time}.",
-      "limitedTomorrow": "Prea multe cereri într-un timp scurt. Poți trimite din nou mâine, după ora {time}."
+      "limitedTomorrow": "Din păcate, ați încercat să generați o bucătărie de prea multe ori într-un timp scurt. Vă încurajăm să reveniți mâine, după ora {time}."
     }
   },
   "leadNotice": {

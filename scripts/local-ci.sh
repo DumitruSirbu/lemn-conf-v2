@@ -17,7 +17,7 @@
 # six days after a catalogue id was renamed under it while every other gate
 # stayed green — the rename was consistent everywhere the unit suites look, and
 # no unit test asserts a DOM test id. It is the slowest gate here by a wide
-# margin (about a minute against seconds) and it needs TEST_DATABASE_URL in
+# margin (about ten minutes against seconds) and it needs TEST_DATABASE_URL in
 # `.env.test.local` and a Playwright browser; a green run without it is not
 # possible, which is the point. If it fails for a missing browser rather than a
 # real defect, `pnpm --filter @lemnaria/web exec playwright install chromium`.
@@ -132,8 +132,15 @@ run_gate e2e-shard-budget sh -c \
 # CI runs this as shards per Playwright project (`--shard=i/N`: three desktop, seven mobile), behind the
 # `e2e (desktop)` and `e2e (mobile)` summary jobs. The shards partition the suite by whole files, so
 # running everything here covers exactly the tests the ten CI legs cover between them; a local run
-# gains nothing from sharding and would pay a dev-server boot per shard.
-run_gate e2e pnpm test:e2e
+# gains nothing from sharding and would pay a production build per shard.
+#
+# `CI=1` is set for this step alone, on purpose (owner ruling Q42, 2026-10-12): playwright.config.ts reads
+# `process.env.CI` to choose the server, and without it this gate ran `next dev` while GitHub ran
+# `pnpm run build && next start`. Under `next dev` React's strict mode runs an effect twice, so specs that
+# count requests exactly failed here and passed on the runner, and specs that `test.skip` unless `CI` is
+# set never ran locally at all. `env` rather than `export`, so no other gate sees the variable. The
+# config's own build is part of this gate's time (about a minute), beside the separate `build` gate below.
+run_gate e2e env CI=1 pnpm test:e2e
 run_gate build pnpm build
 run_gate boundary pnpm gate:boundary
 run_gate lockfile sh scripts/gates/lockfile.sh
