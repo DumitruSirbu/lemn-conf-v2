@@ -541,12 +541,6 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "2b5c3d26721ae9c350cf3009318b626f0fc8a90b4a2ac0ca8099c05aa849282e",
   "content.static.contact.unavailable":
     "40a9c65b913f23cc94923080aaebeed5a11260237a6148eeca45c637a1b10005",
-  "content.static.contactPlaceholder.back":
-    "057411372b0dabdf84309ad4cb234025096a53da74e7c5bf3e9570c3d865c949",
-  "content.static.contactPlaceholder.body":
-    "e3521e72f0c21812dbe9fa9e5f3c0b0af2d45250866006d386f503ea9e36662f",
-  "content.static.contactPlaceholder.title":
-    "eacc9568db26d176e7ca7b72610a2207e39a1dcf4a6260bf1eadd4eb6c1e8e63",
   "content.static.designLoadError.bodyInvalid":
     "7939b8956d8f17fca2ff3dd0b2bf59e4927868693c66406f85841bcfe86d75f5",
   "content.static.designLoadError.bodyNotFound":
@@ -803,8 +797,6 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "298a782bf94c0710f41f7f9080b57e5e62c70182ed55286d30de49a7d175bd34",
   "content.static.webglUnavailable.contactLink":
     "dbbc7640dd924d5ab0bd005c118025e9f2faf0521f5f2465b96639424d583801",
-  "content.static.webglUnavailable.emailLink":
-    "8c4b834081f17a7986c36fbcfe2d13cda47385cd1285e26a129ee6a65a797b2e",
   "content.static.webglUnavailable.noFakePreview":
     "358955a8f9361496a737c8a2d27f779456beb516c2634bd484991650653d6b60",
   "content.static.webglUnavailable.titleDesktop":

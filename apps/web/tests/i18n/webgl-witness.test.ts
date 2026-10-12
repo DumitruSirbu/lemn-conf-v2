@@ -26,8 +26,9 @@ describe("webglUnavailable next-intl witness", () => {
     }
     expect(markup).not.toContain("webglUnavailable.");
     expect(markup).not.toContain(">undefined<");
-    expect(markup).toContain('href="/ro/configurator/contact?intent=link"');
-    expect(markup).toContain('href="/ro/configurator/contact?intent=callback"');
+    expect(markup).toContain('href="/ro/configurator/contact"');
+    expect(markup).not.toContain("intent=link");
+    expect(markup.match(/configurator\/contact/g)).toHaveLength(1);
   });
 
   it("renders Russian independently from Romanian on the client", () => {
@@ -40,10 +41,8 @@ describe("webglUnavailable next-intl witness", () => {
     }
     expect(russian).not.toContain("webglUnavailable.");
     expect(russian).not.toContain(">undefined<");
-    expect(russian).toContain('href="/ru/configurator/contact?intent=link"');
-    expect(russian).toContain(
-      'href="/ru/configurator/contact?intent=callback"',
-    );
+    expect(russian).toContain('href="/ru/configurator/contact"');
+    expect(russian).not.toContain("intent=link");
   });
 
   // Test 3, "resolves the server-provided witness value for each isolated locale", removed here

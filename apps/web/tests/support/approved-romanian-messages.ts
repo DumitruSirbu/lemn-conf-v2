@@ -405,7 +405,6 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       "Configurarea se face direct în model, așa că nu putem continua fără 3D. Deschide configuratorul pe alt telefon sau pe calculator — sau lasă-ne datele și îl configurăm împreună.",
     bodyDesktop:
       "Configurarea se face direct în model, așa că nu putem continua fără 3D. Încearcă alt browser sau activează accelerarea grafică — ori lasă-ne datele și îl configurăm împreună.",
-    emailLink: "Trimite-mi linkul pe e-mail",
     contactLink: "Vreau să mă contactați",
     noFakePreview:
       "Nu afișăm o previzualizare statică falsă: fără 3D nu există configurare reală, deci nici preț.",
@@ -444,11 +443,6 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     error: "Nu am putut actualiza linkul. Încearcă din nou.",
     // No other approved label to borrow for the retry after a failed status read, so it has its own.
     retry: "Încearcă din nou",
-  },
-  contactPlaceholder: {
-    title: "Formularul de contact urmează",
-    body: "Pagina de contact nu este încă disponibilă în această versiune a configuratorului.",
-    back: "Înapoi la configurare",
   },
   // Frames 4A to 4C's wording as drawn, drafted under Q10 wherever no frame writes one (the no-design variants, the
   // e-mail input, the field errors but the two frame 4B writes, the outcomes, the unavailable sentence); none approved.

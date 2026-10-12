@@ -308,7 +308,6 @@ declare const messages: {
     "titleDesktop": "Browserul acesta nu poate afișa 3D",
     "bodyMobile": "Configurarea se face direct în model, așa că nu putem continua fără 3D. Deschide configuratorul pe alt telefon sau pe calculator — sau lasă-ne datele și îl configurăm împreună.",
     "bodyDesktop": "Configurarea se face direct în model, așa că nu putem continua fără 3D. Încearcă alt browser sau activează accelerarea grafică — ori lasă-ne datele și îl configurăm împreună.",
-    "emailLink": "Trimite-mi linkul pe e-mail",
     "contactLink": "Vreau să mă contactați",
     "noFakePreview": "Nu afișăm o previzualizare statică falsă: fără 3D nu există configurare reală, deci nici preț."
   },
@@ -335,11 +334,6 @@ declare const messages: {
     "revoked": "Linkul a fost dezactivat.",
     "error": "Nu am putut actualiza linkul. Încearcă din nou.",
     "retry": "Încearcă din nou"
-  },
-  "contactPlaceholder": {
-    "title": "Formularul de contact urmează",
-    "body": "Pagina de contact nu este încă disponibilă în această versiune a configuratorului.",
-    "back": "Înapoi la configurare"
   },
   "contact": {
     "topBarTitle": "Contact",

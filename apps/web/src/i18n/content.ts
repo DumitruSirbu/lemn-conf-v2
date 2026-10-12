@@ -995,7 +995,6 @@ export function resolveContent(translate: ContentTranslator) {
       titleDesktop: translate("webglUnavailable.titleDesktop"),
       bodyMobile: translate("webglUnavailable.bodyMobile"),
       bodyDesktop: translate("webglUnavailable.bodyDesktop"),
-      emailLink: translate("webglUnavailable.emailLink"),
       contactLink: translate("webglUnavailable.contactLink"),
       noFakePreview: translate("webglUnavailable.noFakePreview"),
     },
@@ -1025,11 +1024,6 @@ export function resolveContent(translate: ContentTranslator) {
       revoked: translate("share.revoked"),
       error: translate("share.error"),
       retry: translate("share.retry"),
-    },
-    contactPlaceholder: {
-      title: translate("contactPlaceholder.title"),
-      body: translate("contactPlaceholder.body"),
-      back: translate("contactPlaceholder.back"),
     },
     contact: {
       topBarTitle: translate("contact.topBarTitle"),

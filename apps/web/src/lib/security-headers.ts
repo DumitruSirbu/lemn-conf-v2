@@ -11,10 +11,10 @@ export type ContentSecurityPolicyMode = "report-only" | "enforce";
  * blocked); `"enforce"` changes the header name and nothing else.
  *
  * Do not flip it while prerendered pages exist: a nonce only reaches the HTML of a dynamically rendered response, so
- * the routes in `.next/prerender-manifest.json` (`/_global-error`, `/_not-found`, the `ro` and `ru` contact pages)
- * carry none and would go blank under `"enforce"`. There is no report sink: a collector would be an unauthenticated,
- * unthrottled POST endpoint (SEC-001, deferred to the M8 launch gate), so the policy is a versioned declaration and a
- * staging step, not a live control (ADR 0041 decision 4).
+ * the routes in `.next/prerender-manifest.json` (such as `/_global-error` and `/_not-found`) carry none and would
+ * go blank under `"enforce"`. There is no report sink: a collector would be an unauthenticated, unthrottled POST
+ * endpoint (SEC-001, deferred to the M8 launch gate), so the policy is a versioned declaration and a staging step, not
+ * a live control (ADR 0041 decision 4).
  */
 export const CONTENT_SECURITY_POLICY_MODE: ContentSecurityPolicyMode =
   "report-only";

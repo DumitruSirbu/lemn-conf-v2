@@ -36,7 +36,6 @@ const GATE_O1_SEMANTIC_CORRECTION_KEYS = [
   "designLoadError.bodyNotFound",
   "designLoadError.bodyInvalid",
   "designLoadError.startOver",
-  "contactPlaceholder.body",
   "rejection.BODY_PROBE_UNAVAILABLE",
   "rejection.OPENING_TOO_SHORT",
   "rejection.NO_SNAP_POSITION",
@@ -247,7 +246,8 @@ describe("golden-output fixture coverage", () => {
     // +14 for the shop notice's labels, channels, callback line and dash (`leadNotice.*`).
     // +2 for `designLoadError.tooManyRequests` and `.tryAgain`.
     // M8 8L S2: +26 for the contact form's static leaves (`contact.*`).
-    expect(RESOLVED_STATIC_CONTENT).toHaveLength(182);
+    // M8 8L S6: -4 for the retired `contactPlaceholder.*` and `webglUnavailable.emailLink`.
+    expect(RESOLVED_STATIC_CONTENT).toHaveLength(178);
     // +3 for the notice's subject, line and figure.
     // +2 for `panel.savePausedNotice`'s two times.
     expect(FUNCTION_CONTENT_FIXTURES).toHaveLength(64);
@@ -274,7 +274,8 @@ describe("golden-output fixture coverage", () => {
     // +1 for `room.compose.limitReached`, +2 for `designLoadError.tooManyRequests` and `.tryAgain`.
     // +2 for `panel.savePausedNotice`'s two times.
     // M8 8L S2: +26 contact static leaves, +17 contact leaves reached by code or class of answer.
-    expect(GOLDEN_FIXTURES).toHaveLength(487);
+    // M8 8L S6: -4 for the retired `contactPlaceholder.*` and `webglUnavailable.emailLink`.
+    expect(GOLDEN_FIXTURES).toHaveLength(483);
     expect(new Set(GOLDEN_FIXTURES.map((fixture) => fixture.id)).size).toBe(
       GOLDEN_FIXTURES.length,
     );
