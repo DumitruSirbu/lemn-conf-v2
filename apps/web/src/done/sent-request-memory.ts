@@ -54,8 +54,10 @@ export function sentRequestFrom(
   };
 }
 
-/** Keeps these five fields and no other, whatever object carried them. */
+/** Keeps these five fields and no other, whatever object carried them. Stores nothing on the server, where this
+ *  module's variable is shared by every request. */
 export function rememberSentRequest(sent: SentRequest): void {
+  if (typeof window === "undefined") return;
   entry = Object.freeze({
     designId: sent.designId,
     revision: sent.revision,

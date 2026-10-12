@@ -1,7 +1,8 @@
 // Reads source: the absence claim is criterion 6's, that nothing typed is persisted, and the properties of the hook
 // are what guard the behaviour. This keeps the names of every place a typed value could be kept or leaked out of the
-// code that handles it: the folder that holds the form (every file under it, subfolders included), the two contact
-// pages and the hydrator the design's page mounts, which are where the folder's code is put on a route.
+// code that handles it: the folder that holds the form and the folder that holds the sent request's hand-over (every
+// file under each, subfolders included), the two contact pages and the hydrator the design's pages mount, which are
+// where that code is put on a route.
 //
 // The names are looked for in code and not in comments, which say what is not done. The list is the browser's stores
 // (`localStorage`, `sessionStorage`, `indexedDB`, the cookie in both its APIs, the window's name, the cache and the
@@ -14,12 +15,15 @@ import { describe, expect, it } from "vitest";
 
 const SOURCE_ROOT = join(import.meta.dirname, "../../src");
 const CONTACT_SOURCE_DIRECTORY = join(SOURCE_ROOT, "contact");
+const DONE_SOURCE_DIRECTORY = join(SOURCE_ROOT, "done");
 
-/** The two contact pages and the hydrator that puts the form on the design's page, by path under `src`. */
+/** The two contact pages and the hydrators that put the form and the hand-over's reader on the design's pages, by path
+ *  under `src`. */
 const CONTACT_ROUTE_FILES = [
   "app/[locale]/d/[id]/contact/page.tsx",
   "app/[locale]/configurator/contact/page.tsx",
   "app/d/[id]/contact/hydrate-and-contact.tsx",
+  "app/d/[id]/hydrate-stored-design.tsx",
 ] as const;
 
 /** The browser's history, reached by any global it hangs from or by the two calls that write an entry. The form's own
@@ -65,6 +69,7 @@ function sourceFilesUnder(directory: string): string[] {
 function filesOfTheContactCode(): string[] {
   return [
     ...sourceFilesUnder(CONTACT_SOURCE_DIRECTORY),
+    ...sourceFilesUnder(DONE_SOURCE_DIRECTORY),
     ...CONTACT_ROUTE_FILES.map((file) => join(SOURCE_ROOT, file)),
   ];
 }
@@ -86,6 +91,7 @@ describe("the contact form's source", () => {
         "contact/send-contact-request.ts",
         "contact/use-contact-submission.ts",
         "contact/contact-form.tsx",
+        "done/sent-request-memory.ts",
         ...CONTACT_ROUTE_FILES,
       ]),
     );

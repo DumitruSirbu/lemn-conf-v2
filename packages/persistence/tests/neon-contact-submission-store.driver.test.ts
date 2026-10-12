@@ -60,6 +60,7 @@ const REFERENCES = [
   FOURTH_REFERENCE,
 ];
 const REFERENCE_UNIQUENESS = "contact_submissions_reference_is_unique";
+const STORED_REVISION = "7";
 const LONGER_THAN_EVERY_BACKOFF_MS = 5_000;
 const ATTEMPTS_IN_THE_RETRY_BUDGET = 3;
 const LEAKING_TEXT = `postgres://${FAKE_USER}:${FAKE_PASSWORD}@${FAKE_HOST}/db`;
@@ -515,6 +516,14 @@ const OPERATIONS: readonly (readonly [
       }),
   ],
   ["mark a request notified", (store) => store.markNotified(CLIENT_REQUEST_ID)],
+  [
+    "find a sent reference",
+    (store) =>
+      store.findSentReference({
+        designId: FAKE_DESIGN_ID,
+        revision: STORED_REVISION,
+      }),
+  ],
 ];
 
 describe("every failure of the driver", () => {
@@ -565,6 +574,14 @@ describe("every failure of the driver", () => {
       "mark a request notified",
       (store: NeonContactSubmissionStore) =>
         store.markNotified(CLIENT_REQUEST_ID),
+    ],
+    [
+      "find a sent reference",
+      (store: NeonContactSubmissionStore) =>
+        store.findSentReference({
+          designId: FAKE_DESIGN_ID,
+          revision: STORED_REVISION,
+        }),
     ],
   ])(
     "does not pass the reference's collision through when it is raised while the store tries to %s: it leaves as the store error",
@@ -717,6 +734,11 @@ describe("a reply that is a list whose species answers a proxy", () => {
       stored,
     ],
     ["mark a request notified", { reference: FIRST_REFERENCE }, undefined],
+    [
+      "find a sent reference",
+      { reference: FIRST_REFERENCE },
+      { kind: "sent", reference: FIRST_REFERENCE },
+    ],
   ];
 
   it.each(CASES)(
@@ -731,4 +753,97 @@ describe("a reply that is a list whose species answers a proxy", () => {
       expect(outcome).toEqual({ resolvedWith: answer });
     },
   );
+});
+
+describe("the read of a design's sent reference", () => {
+  const request = { designId: FAKE_DESIGN_ID, revision: STORED_REVISION };
+
+  it("answers none when no row is returned, and the reference of the row returned otherwise", async () => {
+    const store = newStore();
+    answerWith([]);
+    answerWith([{ reference: SECOND_REFERENCE }]);
+
+    expect([
+      await store.findSentReference(request),
+      await store.findSentReference(request),
+    ]).toEqual([
+      { kind: "none" },
+      { kind: "sent", reference: SECOND_REFERENCE },
+    ]);
+  });
+
+  it("sends the design id and the revision as parameters, and in no other part of the statement", async () => {
+    answerWith([]);
+
+    await newStore().findSentReference(request);
+
+    const [statement] = driver.statements;
+    expect(statement?.values).toEqual([FAKE_DESIGN_ID, STORED_REVISION]);
+    expect(statement?.text).not.toContain(FAKE_DESIGN_ID);
+  });
+
+  it.each([
+    [
+      "two rows",
+      [{ reference: FIRST_REFERENCE }, { reference: SECOND_REFERENCE }],
+    ],
+    [
+      "a row with a column more",
+      [{ reference: FIRST_REFERENCE, name: FAKE_NAME }],
+    ],
+    [
+      "a row that is the lookup's",
+      [{ reference: FIRST_REFERENCE, is_notified: true }],
+    ],
+    ["a row with no reference", [{}]],
+    ["a reference that is lowercase", [{ reference: "lm-aaaaaaaa" }]],
+    ["a reference that is not text", [{ reference: 7 }]],
+    ["a reference that is null", [{ reference: null }]],
+    ["an object and not a list", {}],
+    ["null", null],
+    ["a list of strings", ["LM-AAAAAAAA"]],
+  ])(
+    "is the store error with its own operation and no cause for a reply of %s",
+    async (_name, reply) => {
+      answerWith(reply);
+
+      const failure = await rejectionOf(newStore().findSentReference(request));
+
+      expect(failure).toBeInstanceOf(ContactSubmissionStoreError);
+      expect((failure as ContactSubmissionStoreError).operation).toBe(
+        "find a sent reference",
+      );
+      expect((failure as Error).cause).toBeUndefined();
+    },
+  );
+
+  it("is repeated after a lost reply, which is safe for a read", async () => {
+    failWith(emptyReply());
+    answerWith([{ reference: FIRST_REFERENCE }]);
+
+    const settled = await settleThroughEveryBackoff(
+      newStore().findSentReference(request),
+    );
+
+    expect(settled).toEqual({
+      resolvedWith: { kind: "sent", reference: FIRST_REFERENCE },
+    });
+    expect(driver.statements).toHaveLength(2);
+  });
+
+  it.each([
+    ["a revision with a leading zero", { ...request, revision: "07" }],
+    [
+      "a revision wider than a bigint",
+      { ...request, revision: "9223372036854775808" },
+    ],
+    ["an empty design id", { ...request, designId: "" }],
+    ["no request at all", null as unknown as typeof request],
+  ])("sends no statement for %s", async (_name, refused) => {
+    const failure = await rejectionOf(newStore().findSentReference(refused));
+
+    expect(failure).toBeInstanceOf(Error);
+    expect(failure).not.toBeInstanceOf(ContactSubmissionStoreError);
+    expect(driver.statements).toHaveLength(0);
+  });
 });

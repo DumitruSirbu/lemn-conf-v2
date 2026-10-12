@@ -203,7 +203,8 @@ export function useContactSubmission(
   return { form, phase, saveWait, refusedPress, edit, press };
 }
 
-/** A design's form starts with no request remembered, so a hand-over is never older than the form that made it. */
+/** A design form's mount drops what an earlier request left, so the hand-over never predates the latest design form.
+ *  It outlives the form that wrote it on purpose: the page that follows reads it. */
 function useForgetSentRequestOnMount(target: ContactTarget): void {
   const isDesignForm = target.kind === "design";
   useEffect(() => {

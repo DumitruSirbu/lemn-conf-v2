@@ -1,3 +1,6 @@
+import { randomBytes } from "node:crypto";
+import { setTimeout as sleep } from "node:timers/promises";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -7,6 +10,7 @@ import {
 import type {
   ContactSubmissionStore,
   RecordedSubmission,
+  SentReferenceReader,
   SubmissionRecording,
 } from "../../src/contact-submission-store.js";
 import { generateSubmissionReference } from "../../src/generate-submission-reference.js";
@@ -16,6 +20,7 @@ import {
   DIGEST_B,
   aCallbackSubmission,
   aDesignSubmission,
+  aDesignSubmissionNaming,
 } from "./contact-submission-fixtures.js";
 
 export interface ContactSubmissionStoreOptions {
@@ -26,12 +31,15 @@ export interface ContactSubmissionStoreOptions {
 export interface ContactSubmissionStoreContractSubject {
   readonly createStore: (
     options?: ContactSubmissionStoreOptions,
-  ) => ContactSubmissionStore;
+  ) => ContactSubmissionStore & SentReferenceReader;
   /** An id no earlier test used, so a test never meets another's row. Always of the domain's shape. */
   readonly newClientRequestId: () => string;
 }
 
 const UPPERCASE_DIGEST = "A".repeat(64);
+
+/** Longer than the clock's resolution, so two marks made one after the other carry two instants. */
+const LONGER_THAN_THE_CLOCK_TICK_MS = 20;
 
 /** The keys an answer may carry: nothing personal, no snapshot, no instant. */
 const STORED_KEYS = ["isNotified", "kind", "reference"];
@@ -48,6 +56,22 @@ function expectStored(
   recording: SubmissionRecording,
 ): asserts recording is RecordedSubmission {
   expect(recording.kind).toBe("stored");
+}
+
+/** A design id no other test uses, so a read of its sent reference never meets another test's row. */
+function aDesignIdOfItsOwn(): string {
+  return `ContractDesign_${randomBytes(8).toString("hex")}`;
+}
+
+function twoReferencesInSortOrder(): {
+  sortsFirst: string;
+  sortsLast: string;
+} {
+  const first = generateSubmissionReference();
+  const second = generateSubmissionReference();
+  return first < second
+    ? { sortsFirst: first, sortsLast: second }
+    : { sortsFirst: second, sortsLast: first };
 }
 
 /** What a `ContactSubmissionStore` promises, asserted once and run against the fake and against the Neon store. */
@@ -324,5 +348,160 @@ export function describeContactSubmissionStoreContract({
       expect(Object.keys(recording).sort()).toEqual(RECORDED_KEYS);
       expect(Object.keys(lookup).sort()).toEqual(STORED_KEYS);
     });
+  });
+
+  describe("findSentReference", () => {
+    async function storeNotified(
+      store: ContactSubmissionStore,
+      design: { id: string; revision: string },
+    ): Promise<string> {
+      const id = newClientRequestId();
+      const recording = await store.record(aDesignSubmissionNaming(id, design));
+      expectStored(recording);
+      await store.markNotified(id);
+      return recording.reference;
+    }
+
+    it("answers none for a design no request names", async () => {
+      const store = createStore();
+
+      const answer = await store.findSentReference({
+        designId: aDesignIdOfItsOwn(),
+        revision: "7",
+      });
+
+      expect(answer).toEqual({ kind: "none" });
+    });
+
+    it("answers the reference of a request whose notice is recorded as sent", async () => {
+      const store = createStore();
+      const design = { id: aDesignIdOfItsOwn(), revision: "7" };
+      const reference = await storeNotified(store, design);
+
+      const answer = await store.findSentReference({
+        designId: design.id,
+        revision: design.revision,
+      });
+
+      expect(answer).toEqual({ kind: "sent", reference });
+    });
+
+    it("answers none for a request stored and never marked", async () => {
+      const store = createStore();
+      const design = { id: aDesignIdOfItsOwn(), revision: "7" };
+      await store.record(aDesignSubmissionNaming(newClientRequestId(), design));
+
+      const answer = await store.findSentReference({
+        designId: design.id,
+        revision: design.revision,
+      });
+
+      expect(answer).toEqual({ kind: "none" });
+    });
+
+    it("answers none for another revision of the design and for another design at the revision", async () => {
+      const store = createStore();
+      const design = { id: aDesignIdOfItsOwn(), revision: "7" };
+      await storeNotified(store, design);
+
+      const otherRevision = await store.findSentReference({
+        designId: design.id,
+        revision: "8",
+      });
+      const otherDesign = await store.findSentReference({
+        designId: aDesignIdOfItsOwn(),
+        revision: design.revision,
+      });
+
+      expect([otherRevision, otherDesign]).toEqual([
+        { kind: "none" },
+        { kind: "none" },
+      ]);
+    });
+
+    it("answers the revision asked for when the design is notified at two", async () => {
+      const store = createStore();
+      const designId = aDesignIdOfItsOwn();
+      const earlier = await storeNotified(store, {
+        id: designId,
+        revision: "7",
+      });
+      const later = await storeNotified(store, { id: designId, revision: "8" });
+
+      const answers = [
+        await store.findSentReference({ designId, revision: "7" }),
+        await store.findSentReference({ designId, revision: "8" }),
+      ];
+
+      expect(answers).toEqual([
+        { kind: "sent", reference: earlier },
+        { kind: "sent", reference: later },
+      ]);
+    });
+
+    it("answers the later mark's reference, though the earlier one's sorts first", async () => {
+      const { sortsFirst, sortsLast } = twoReferencesInSortOrder();
+      const store = createStore({
+        proposeReference: proposing(sortsFirst, sortsLast),
+      });
+      const design = { id: aDesignIdOfItsOwn(), revision: "7" };
+      await storeNotified(store, design);
+      await sleep(LONGER_THAN_THE_CLOCK_TICK_MS);
+      await storeNotified(store, design);
+
+      const answer = await store.findSentReference({
+        designId: design.id,
+        revision: design.revision,
+      });
+
+      expect(answer).toEqual({ kind: "sent", reference: sortsLast });
+    });
+
+    it("answers a kind and a reference alone, and nothing personal", async () => {
+      const store = createStore();
+      const design = { id: aDesignIdOfItsOwn(), revision: "7" };
+      await storeNotified(store, design);
+
+      const answer = await store.findSentReference({
+        designId: design.id,
+        revision: design.revision,
+      });
+
+      expect(Object.keys(answer).sort()).toEqual(["kind", "reference"]);
+    });
+
+    it("stores nothing by asking", async () => {
+      const store = createStore();
+      const design = { id: aDesignIdOfItsOwn(), revision: "7" };
+      const id = newClientRequestId();
+
+      await store.findSentReference({ designId: design.id, revision: "7" });
+      const recording = await store.record(aDesignSubmissionNaming(id, design));
+
+      expectStored(recording);
+      expect(recording.isNew).toBe(true);
+    });
+
+    it.each([
+      ["a revision with a leading zero", "x", "07"],
+      ["a revision that is not digits", "x", "1e3"],
+      ["a revision wider than a bigint", "x", "9223372036854775808"],
+      ["an empty design id", "", "7"],
+    ])(
+      "refuses %s with the check's own refusal, and not the store error",
+      async (_name, designId, revision) => {
+        const store = createStore();
+
+        const failure = await rejectionOf(
+          store.findSentReference({ designId, revision }),
+        );
+
+        expect(failure).toBeInstanceOf(Error);
+        expect(failure).not.toBeInstanceOf(ContactSubmissionStoreError);
+        expect((failure as Error).message).toMatch(
+          /design (id|revision) must be/,
+        );
+      },
+    );
   });
 }

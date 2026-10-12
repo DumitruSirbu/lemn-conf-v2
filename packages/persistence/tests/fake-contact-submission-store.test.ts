@@ -3,10 +3,14 @@ import { describe, expect, it } from "vitest";
 import { FakeContactSubmissionStore } from "../src/fake-contact-submission-store.js";
 import {
   DIGEST_A,
+  FAKE_DESIGN_ID,
   FAKE_NAME,
   aDesignSubmission,
 } from "./support/contact-submission-fixtures.js";
-import { describeContactSubmissionStoreContract } from "./support/contact-submission-store-contract.js";
+import {
+  describeContactSubmissionStoreContract,
+  proposing,
+} from "./support/contact-submission-store-contract.js";
 
 let idCounter = 0;
 function newClientRequestId(): string {
@@ -98,6 +102,39 @@ describe("FakeContactSubmissionStore", () => {
       await store.lookUp(request);
 
       expect(store.heldSubmissions()).toEqual([]);
+    });
+
+    it("answers the lower reference of two marks made at one instant, in whichever order they were stored", async () => {
+      const store = new FakeContactSubmissionStore({
+        proposeReference: proposing("LM-ZZZZZZZZ", "LM-AAAAAAAA"),
+        now: () => new Date(Date.UTC(2001, 0, 1)),
+      });
+      for (const id of [newClientRequestId(), newClientRequestId()]) {
+        await store.record(aDesignSubmission(id));
+        await store.markNotified(id);
+      }
+
+      const answer = await store.findSentReference({
+        designId: FAKE_DESIGN_ID,
+        revision: "7",
+      });
+
+      expect(answer).toEqual({ kind: "sent", reference: "LM-AAAAAAAA" });
+    });
+
+    it("changes nothing it holds by asking for a sent reference", async () => {
+      const store = new FakeContactSubmissionStore();
+      const id = newClientRequestId();
+      await store.record(aDesignSubmission(id));
+      await store.markNotified(id);
+      const before = store.heldSubmissions();
+
+      await store.findSentReference({
+        designId: FAKE_DESIGN_ID,
+        revision: "7",
+      });
+
+      expect(store.heldSubmissions()).toEqual(before);
     });
   });
 });

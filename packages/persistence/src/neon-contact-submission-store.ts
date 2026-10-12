@@ -4,12 +4,16 @@ import {
   requireValidClientRequestId,
   requireValidLookup,
   requireValidReference,
+  requireValidSentReferenceRequest,
   judgeSubmission,
 } from "./contact-submission-store.js";
 import type {
   ContactSubmissionOperation,
   ContactSubmissionStore,
   ContactSubmissionToRecord,
+  SentReferenceLookup,
+  SentReferenceReader,
+  SentReferenceRequest,
   SnapshotJson,
   SubmissionLookup,
   SubmissionLookupRequest,
@@ -39,7 +43,13 @@ interface RecordedRow extends StoredRow {
   readonly is_new: boolean;
 }
 
+/** What the sent-reference read answers: the reference alone. */
+interface SentReferenceRow {
+  readonly reference: string;
+}
+
 const LOOKUP_ROW_KEYS = ["is_notified", "is_same_payload", "reference"];
+const SENT_REFERENCE_ROW_KEYS = ["reference"];
 const RECORD_ROW_KEYS = ["is_new", ...LOOKUP_ROW_KEYS];
 
 const UNIQUE_VIOLATION = "23505";
@@ -50,7 +60,9 @@ const REFERENCE_COLLISION = Symbol("reference collision");
 
 /** `ContactSubmissionStore` on Neon Postgres, storing in `contact_submissions` (migration `0008`). It holds no secret
  *  and reads no variable but its connection, and it logs nothing. */
-export class NeonContactSubmissionStore implements ContactSubmissionStore {
+export class NeonContactSubmissionStore
+  implements ContactSubmissionStore, SentReferenceReader
+{
   private readonly sql;
   private readonly proposeReference: () => string;
 
@@ -110,6 +122,21 @@ export class NeonContactSubmissionStore implements ContactSubmissionStore {
     }
   }
 
+  async findSentReference(
+    request: SentReferenceRequest,
+  ): Promise<SentReferenceLookup> {
+    requireValidSentReferenceRequest(request);
+    const rows = await queryRows("find a sent reference", () =>
+      retryOnTransientFailure(() => this.selectLatestSentReference(request)),
+    );
+    const [row, ...others] = rows;
+    if (row === undefined) return { kind: "none" };
+    return {
+      kind: "sent",
+      reference: requireSentReferenceRow(row, others).reference,
+    };
+  }
+
   private async recordProposing(
     proposed: ProposedRecord,
   ): Promise<SubmissionRecording | typeof REFERENCE_COLLISION> {
@@ -129,6 +156,21 @@ export class NeonContactSubmissionStore implements ContactSubmissionStore {
         (notified_at is not null) as is_notified
       from contact_submissions
       where client_request_id = ${clientRequestId}
+    `;
+  }
+
+  private selectLatestSentReference({
+    designId,
+    revision,
+  }: SentReferenceRequest) {
+    return this.sql`
+      select reference
+      from contact_submissions
+      where design_id = ${designId}
+        and design_revision = ${revision}::bigint
+        and notified_at is not null
+      order by notified_at desc, reference
+      limit 1
     `;
   }
 
@@ -299,6 +341,23 @@ function requireStoredRow(
     throw new ContactSubmissionStoreError(operation);
   }
   return row;
+}
+
+function requireSentReferenceRow(
+  row: object,
+  others: readonly object[],
+): SentReferenceRow {
+  if (others.length > 0 || !isSentReferenceRow(row)) {
+    throw new ContactSubmissionStoreError("find a sent reference");
+  }
+  return row;
+}
+
+function isSentReferenceRow(row: object): row is SentReferenceRow {
+  return (
+    hasExactlyKeys(row, SENT_REFERENCE_ROW_KEYS) &&
+    isReference((row as SentReferenceRow).reference)
+  );
 }
 
 function isRecordedRow(row: object): row is RecordedRow {

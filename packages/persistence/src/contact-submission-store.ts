@@ -27,7 +27,8 @@ export const MAX_REFERENCE_PROPOSALS = 3;
 export type ContactSubmissionOperation =
   | "look up a request"
   | "record a request"
-  | "mark a request notified";
+  | "mark a request notified"
+  | "find a sent reference";
 
 /** A request's identity and what it said, as a keyed digest of its fields made by the caller under a secret this
  *  package never holds. */
@@ -75,6 +76,25 @@ export type SubmissionLookup =
 
 export type SubmissionRecording = RecordedSubmission | SubmissionConflict;
 
+/** A design as it stands, named by its id and the revision it is stored at. */
+export interface SentReferenceRequest {
+  readonly designId: string;
+  readonly revision: string;
+}
+
+/** A request for the design at that revision has a notice recorded as sent; this is the latest such one's reference. */
+export interface SentReference {
+  readonly kind: "sent";
+  readonly reference: string;
+}
+
+/** No request for the design at that revision has a notice recorded as sent. */
+export interface NoSentReference {
+  readonly kind: "none";
+}
+
+export type SentReferenceLookup = SentReference | NoSentReference;
+
 /**
  * Stores a contact request once, apart from designs, and answers nothing that is personal: no field of the contact, no
  * snapshot, no list and no count, and nothing deletes. A conflict is an outcome and not an exception.
@@ -91,6 +111,19 @@ export interface ContactSubmissionStore {
   /** Records that a notice was sent. A second mark keeps the first instant. An id that is not stored is the store
    *  error. */
   markNotified(clientRequestId: string): Promise<void>;
+}
+
+/**
+ * The one read the confirmation page makes of the table, apart from `ContactSubmissionStore` so that the route that
+ * stores and the page that reads each take only what they use. Sends no write: the reference of the latest request for
+ * the design at the revision whose notice is recorded as sent, by the mark's instant and then the reference. A request
+ * never marked, or for another revision or design, is not this one's. One reference or none, never a list or a count.
+ * Rejects with `ContactSubmissionStoreError` when the database gives no trustworthy answer.
+ */
+export interface SentReferenceReader {
+  findSentReference(
+    request: SentReferenceRequest,
+  ): Promise<SentReferenceLookup>;
 }
 
 /** The database did not give a trustworthy answer: it refused the statement, did not answer, or answered with something
@@ -164,6 +197,17 @@ export function requireValidLookup(request: SubmissionLookupRequest): void {
     } catch (refusal) {
       throw registeredAsOurs(refusal);
     }
+  });
+}
+
+export function requireValidSentReferenceRequest(
+  request: SentReferenceRequest,
+): void {
+  refusingAnythingElseAsTheRequest(() => {
+    requireValidDesignReference({
+      id: request.designId,
+      revision: request.revision,
+    });
   });
 }
 

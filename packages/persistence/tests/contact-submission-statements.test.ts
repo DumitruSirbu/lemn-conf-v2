@@ -11,6 +11,7 @@ import {
 } from "./support/contact-submission-columns.js";
 import {
   DIGEST_A,
+  FAKE_DESIGN_ID,
   FAKE_EMAIL,
   FAKE_LOCALITY,
   FAKE_NAME,
@@ -51,6 +52,7 @@ const LOOKED_UP_ROW = {
   is_notified: false,
 };
 const CLIENT_REQUEST_ID = "statements-test-request-id";
+const STORED_REVISION = "7";
 
 /** Columns the insert writes: every one but the two the database fills. */
 const INSERTED_COLUMNS = ALL_COLUMNS.filter(
@@ -82,6 +84,7 @@ interface StatementsSent {
   readonly callbackInsert: SentStatement;
   readonly lookup: SentStatement;
   readonly mark: SentStatement;
+  readonly sentReference: SentStatement;
   readonly all: readonly SentStatement[];
 }
 
@@ -107,12 +110,21 @@ async function everyStatementTheStoreSends(): Promise<StatementsSent> {
     () => store.markNotified(CLIENT_REQUEST_ID),
     [{ reference: PROPOSED_REFERENCE }],
   );
+  const sentReference = await sent(
+    () =>
+      store.findSentReference({
+        designId: FAKE_DESIGN_ID,
+        revision: STORED_REVISION,
+      }),
+    [{ reference: PROPOSED_REFERENCE }],
+  );
   return {
     designInsert,
     callbackInsert,
     lookup,
     mark,
-    all: [designInsert, callbackInsert, lookup, mark],
+    sentReference,
+    all: [designInsert, callbackInsert, lookup, mark, sentReference],
   };
 }
 
@@ -145,11 +157,11 @@ beforeEach(resetDriver);
 afterEach(resetDriver);
 
 describe("every statement the contact submission store sends", () => {
-  it("sends four statements for the four calls, so every test below reads all of them", async () => {
+  it("sends five statements for the five calls, so every test below reads all of them", async () => {
     const { all } = await everyStatementTheStoreSends();
 
     expect(all.map((statement) => normalised(statement).split(" ")[0])).toEqual(
-      ["insert", "insert", "select", "update"],
+      ["insert", "insert", "select", "update", "select"],
     );
   });
 
@@ -316,6 +328,17 @@ describe("every statement the contact submission store sends", () => {
     expect(listAfter(normalised(mark), "returning ")).toBe("reference");
   });
 
+  it("reads the latest sent reference by the design's id and revision as parameters, and only rows whose notice is marked", async () => {
+    const { sentReference } = await everyStatementTheStoreSends();
+
+    expect(normalised(sentReference)).toBe(
+      "select reference from contact_submissions " +
+        "where design_id = ? and design_revision = ?::bigint and notified_at is not null " +
+        "order by notified_at desc, reference limit 1",
+    );
+    expect(sentReference.values).toEqual([FAKE_DESIGN_ID, STORED_REVISION]);
+  });
+
   it("holds no star anywhere in any statement", async () => {
     const { all } = await everyStatementTheStoreSends();
 
@@ -336,11 +359,9 @@ describe("every statement the contact submission store sends", () => {
       ),
       "utf8",
     ).match(/this\.sql`/g);
-    const kindsSent = new Set(
-      all.map((statement) => normalised(statement).split(" ")[0]),
-    );
+    const distinctStatementsSent = new Set(all.map(normalised));
 
-    expect(written).toHaveLength(kindsSent.size);
+    expect(written).toHaveLength(distinctStatementsSent.size);
   });
 });
 

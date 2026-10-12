@@ -1,6 +1,6 @@
 // The sent request's one place of memory: one entry, bounded to five fields and one typed value, replaced by the next
 // sent request, handed out only to the page of the design and revision it names, and cleared on request.
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   INITIAL_CONTACT_FORM,
@@ -53,7 +53,13 @@ const REMEMBERED: SentRequest = {
   contactValue: "069 123 456",
 };
 
+// This file runs on Node, which has no `window`: the tests below are a browser's unless they say otherwise.
+beforeEach(() => {
+  vi.stubGlobal("window", {});
+});
+
 afterEach(() => {
+  vi.unstubAllGlobals();
   forgetSentRequest();
 });
 
@@ -163,5 +169,30 @@ describe("the one entry", () => {
     expect(recallSentRequest({ designId: DESIGN_ID, revision: "4" })).toEqual({
       kind: "none",
     });
+  });
+});
+
+describe("the entry on the server, where the module's variable is shared by every request", () => {
+  it("is never stored, so no visitor is handed another's reference", () => {
+    vi.stubGlobal("window", undefined);
+
+    rememberSentRequest(REMEMBERED);
+    vi.stubGlobal("window", {});
+
+    expect(recallSentRequest({ designId: DESIGN_ID, revision: "4" })).toEqual({
+      kind: "none",
+    });
+  });
+});
+
+describe("the stored entry", () => {
+  it("is frozen, so no holder of it can change a field of what the page is shown", () => {
+    rememberSentRequest(REMEMBERED);
+
+    const recalled = recallSentRequest({ designId: DESIGN_ID, revision: "4" });
+
+    expect(
+      recalled.kind === "remembered" && Object.isFrozen(recalled.request),
+    ).toBe(true);
   });
 });

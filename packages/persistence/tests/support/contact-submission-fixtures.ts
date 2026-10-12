@@ -1,4 +1,7 @@
-import type { SubmissionSnapshot } from "@lemnaria/configurator-domain";
+import type {
+  DesignReference,
+  SubmissionSnapshot,
+} from "@lemnaria/configurator-domain";
 
 import type { ContactSubmissionToRecord } from "../../src/contact-submission-store.js";
 
@@ -57,6 +60,17 @@ export function aDesignSubmission(
       design: { id: FAKE_DESIGN_ID, revision: STORED_DESIGN_REVISION },
     },
     snapshot: FAKE_SNAPSHOT,
+  };
+}
+
+/** A request for the design `design` names, whatever the fixture's own design is. */
+export function aDesignSubmissionNaming(
+  clientRequestId: string,
+  design: DesignReference,
+): ContactSubmissionToRecord {
+  return {
+    ...aDesignSubmission(clientRequestId),
+    target: { kind: "design", design },
   };
 }
 

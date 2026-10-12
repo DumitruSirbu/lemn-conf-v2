@@ -4,12 +4,16 @@ import {
   requireValidClientRequestId,
   requireValidLookup,
   requireValidReference,
+  requireValidSentReferenceRequest,
   requireValidSubmission,
 } from "./contact-submission-store.js";
 import type {
   ContactSubmissionStore,
   ContactSubmissionToRecord,
   RecordedSubmission,
+  SentReferenceLookup,
+  SentReferenceReader,
+  SentReferenceRequest,
   SubmissionConflict,
   SubmissionLookup,
   SubmissionLookupRequest,
@@ -47,13 +51,34 @@ const CONFLICT: SubmissionConflict = { kind: "conflict" };
 /** What a draw that met another request's reference answers, so the loop draws again. */
 const REFERENCE_COLLISION = Symbol("reference collision");
 
+function isNotifiedForDesign(
+  { submission, notifiedAt }: HeldRow,
+  { designId, revision }: SentReferenceRequest,
+): boolean {
+  return (
+    notifiedAt !== undefined &&
+    submission.target.kind === "design" &&
+    submission.target.design.id === designId &&
+    submission.target.design.revision === revision
+  );
+}
+
+function byLatestMarkThenReference(first: HeldRow, second: HeldRow): number {
+  const instantOf = (held: HeldRow): number => held.notifiedAt?.getTime() ?? 0;
+  const latestFirst = instantOf(second) - instantOf(first);
+  if (latestFirst !== 0) return latestFirst;
+  return first.reference < second.reference ? -1 : 1;
+}
+
 /**
  * In-memory `ContactSubmissionStore` for tests that need the port's contract without a database. It draws a proposal
  * exactly when the Neon store does (once for each `record`, and once more for each collision) and answers `isNew` by
  * the same comparison. It refuses what the shared check refuses and nothing more: it cannot stand for a server's
  * refusal of size, a time limit or anything a later server refuses. Depth is the check's, bounded at 64.
  */
-export class FakeContactSubmissionStore implements ContactSubmissionStore {
+export class FakeContactSubmissionStore
+  implements ContactSubmissionStore, SentReferenceReader
+{
   private readonly rowsByClientRequestId = new Map<string, HeldRow>();
   private readonly proposeReference: () => string;
   private readonly now: () => Date;
@@ -96,6 +121,18 @@ export class FakeContactSubmissionStore implements ContactSubmissionStore {
       throw new ContactSubmissionStoreError("mark a request notified");
     }
     held.notifiedAt ??= this.now();
+  }
+
+  // eslint-disable-next-line @typescript-eslint/require-await -- see lookUp.
+  async findSentReference(
+    request: SentReferenceRequest,
+  ): Promise<SentReferenceLookup> {
+    requireValidSentReferenceRequest(request);
+    const [latest] = [...this.rowsByClientRequestId.values()]
+      .filter((held) => isNotifiedForDesign(held, request))
+      .sort(byLatestMarkThenReference);
+    if (latest === undefined) return { kind: "none" };
+    return { kind: "sent", reference: latest.reference };
   }
 
   /** Copies, so a test cannot change what the store holds through what it read. */
