@@ -3,6 +3,8 @@
 > **STATUS: PLANNED — wave plan written 2026-10-07 at `90927dc`; no wave dispatched.** M8 does not
 > start until the owner says so and M7C has closed (see *What M8 assumes*). Summary: `docs/STATUS.md`.
 >
+> **Updated 2026-10-12, latest, by the architect: wave 8L is restated for dispatch (nine slices, S0 to S7 with S4 in two; criteria 15 to 19 added; Q43 for the owner, blocking nothing); see *8L, restated for dispatch*. S0 and S1 wait for nothing.**
+>
 > **Updated 2026-10-12, later, by the scribe: wave 8K2 is DONE (local, not pushed; the push is blocked on Q42); see *8K2 as closed*. Next: 8L.**
 >
 > **Updated 2026-10-12, by the architect: wave 8K2 is planned (backlog 168), between 8K and 8L; see
@@ -10522,6 +10524,395 @@ keyboard covering the consent line; an autofilled form sent by a real tap passes
 
 *QA reading:* the criteria; the `.dom.test.ts` pattern; `browser-and-visual-qa.md`. *Logic reader:*
 8H; frames 4A–4C. *Clean-code reader:* the slice files. *Visual reading:* frames 4A–4C; ADR 0104.
+
+#### 8L, restated for dispatch — 2026-10-12
+
+**State.** HEAD is `6584ea6a` [ran: `git log --oneline -3`], tree clean [ran: `git status --short`, no
+line]; 8H, 8K and 8K2 are closed (ADR 0150, 0157, 0158). Nothing of 8L is built [ran: `apps/web/src`
+holds no `contact/` directory; `app/[locale]/d/[id]/` holds `page.tsx` and `review/` only]. **The
+architect ran no test, no build and no server for this plan.** Every claim about code below is
+[src], read at `6584ea6a`, unless marked. The slice table above (three slices, 2026-10-08) is
+**overtaken** by this section; criteria 1 to 14 stand and are made falsifiable in point 4; five are
+added (15 to 19). *Tier: Full + security + visual* (point 7). **8L is dispatchable: S0 and S1 wait
+for nothing** (point 6 says what is genuinely blocking, and it is one merge, not a dispatch).
+
+**1. What exists, and what 8L reuses rather than writes again.**
+
+| Built | Where [src] | What 8L does with it |
+| --- | --- | --- |
+| The fields' rules and their codes; the request's one definition; the locales as a parameter | `packages/configurator-domain/src/contact/contact-fields.ts` (`validateContactFields`, `ContactFieldCode`, `CONTACT_CHANNELS`, `CONSENT_TEXT_VERSIONS = ["placeholder"]`), `phone-number.ts` (six `PHONE_*` codes, Moldovan and international told apart), `contact-submission.ts` (`validateContactSubmission(input, servedLocales)`, `CONTACT_INTENTS = ["callback"]`, `isClientRequestId`, the keys `contact`, `design`, `intent`, `clientRequestId`, `locale`, `honeypot`, `elapsedMs`) | The form judges every field with `validateContactFields` and the whole body with `validateContactSubmission(body, routing.locales)` before it is sent. **No second rule, no second code list** |
+| The exported lengths | `CONTACT_NAME_MAX_LENGTH` 100, `CONTACT_LOCALITY_MAX_LENGTH` 100, `CONTACT_EMAIL_MAX_LENGTH` 254, `CONTACT_PHONE_MAX_LENGTH` 32, in code points (8H reading 5) | The inputs' limits. *Must not:* a second literal (8H reading 5) |
+| What the digest covers | `contact/payload-digest.ts`: `PAYLOAD_DIGEST_FIELDS` (fourteen, `bookVersion` last), `payloadDigestFields(request, bookVersion)`; `elapsedMs` and the honeypot left out | The client's "same body" and "new id" rules (criteria 11, 12) compare this function's output. **No second list of covered fields** |
+| The endpoint's answers | `lib/server/contact/contact-responses.ts`: `200 {status:"sent", reference}`; `400 CONTACT_INVALID` with `issues[{field, code}]`; `400 CONTACT_REJECTED` (honeypot or too fast, not said which); `409 CONTACT_REQUEST_CONFLICT`; `409 CONTACT_DESIGN_NOT_CURRENT`; `422 CONTACT_DESIGN_DOES_NOT_FIT` with `placementIds`; `502 CONTACT_NOTICE_NOT_SENT_RETRY`; `502 CONTACT_NOTICE_NOT_SENT`; `403`, `413`, `415`; and from `rate-limited-response.ts` `429 CONTACT_LIMIT_REACHED` with `Retry-After` and `503 CONTACT_UNAVAILABLE` (ADR 0157 d4) | Classified once on the client (S1 item 5); every class has one sentence (S2) |
+| What "cannot send" means on the server | `submit-contact.ts:273-291`: no usable sender (`createMailSender(process.env).kind !== "sender"`) or no usable digest secret (`readDigester(process.env).status !== "usable"`); the selection itself is pure: `mail/select-mail-sender.ts`, `digest/digest-secret.ts` | One server function answers the same question for the pages, as a boolean (S5) |
+| The shared owned load | `lib/server/load-owned-design.ts`, `loadOwnedDesign(id)`; refusals `unavailable`, `invalid`; rendered by `app/d/[id]/design-load-error` | `/d/{id}/contact` calls it as the editor and the review do (ADR 0148 A1). S7 adds the id's shape (`isDesignId`, domain `repository.ts`) |
+| The review's revision source and its hydration rule | `app/d/[id]/review/hydrate-and-review.tsx`: `hydrateSessionStoreInBrowser(loaded, holdsTheNewestCopy)` and `writeAccessHeldFor` (ADR 0148 E3, E3a; K2.3's hand-over arrives through the same `hydrate`) | S0 moves the two functions to one module; the contact page hydrates through them. The request's revision is the **store's** `revision`, never the page's prop |
+| The wait on an unsaved edit | `review-screen.tsx:288-311`, `useSaveWait` (saved, or waiting with `savePausedNotice(clockTimeOf(…))` or the unsaved sentence; `pausedUntilMs` from `persistence/save-coalescer.ts`) | S0 moves it; the contact form waits on it (criterion 5) |
+| The mint/save client's pattern | `persistence/fetch-configuration-repository.ts` (same-origin JSON `fetch`, typed failures), `persistence/design-request-errors.ts` (`saveWaitSecondsFrom`: a whole number of seconds from `Retry-After`, bounded by the window) | The contact client follows the pattern. `saveWaitSecondsFrom` is the save's (its bound is the save's hour): S1 may parameterise its window only if no save test moves; otherwise the contact classifier reads `Retry-After` itself, bounded by the contact's longest window, a UTC day (ADR 0157 d6) |
+| The proxy | `proxy.ts:19`, `DESIGN_STEP_SEGMENTS = ["review", "contact", "done"]`; the page read is counted for `/d/{id}/contact` [src `tests/proxy-page-read.test.ts:64`] | **8D closed it: `proxy.ts` is not touched by 8L** |
+| The CTA's destination today | `review-screen.tsx:31`, `CONTACT_PLACEHOLDER_HREF = "/configurator/contact"` | S5 points it at `/d/{id}/contact` |
+| The client cache | Next 16.3.8: `staleTimes.dynamic` defaults to 0 since v15, and *"This doesn't change back/forward caching behavior"* [doc `apps/web/node_modules/next/dist/docs/01-app/03-api-reference/05-config/01-next-config-js/staleTimes.md`] | A `Link` push to the dynamic review page fetches it; a step back does not. Criterion 14's mechanism |
+| The e2e harness | `tests/e2e/support/contact-run.ts` (a spec's request ids, addresses and visitors, removed by the teardown; ADR 0151); `production-policy-server.ts` (a spec's own server on its own port, ports 4322 to 4325 taken); the suite's server runs the fake mail flag (`LEMNARIA_E2E_FAKE_MAIL`) | Every 8L spec that stores through the form registers its ids; criterion 7's live check runs on a spec's own server, port **4326** |
+
+**2. The decision sweep.** Swept for this restatement [ran: greps of `docs/decisions/` and this file
+for *contact page*, *consent*, *honeypot*, *elapsed*, *client request id*, *same id*, *Detalii*,
+*link e-mail*, *Q12*, *E3*, *prerender*, *step pill*; each hit read in the part named].
+
+| Record | What it says | How 8L settles it |
+| --- | --- | --- |
+| ARCH §8; D17 | *"Step 4 does not persist PII in the configuration or browser repository"* | Criterion 6, at three layers |
+| ADR 0148 A1 | Every page after the editor calls the shared load itself; the proxy is not the gate | Criterion 15 |
+| ADR 0148 A3 ruling 4 | Without WebGL the review is frame 2F, because a price would be shown for a kitchen the device cannot show | **Extended by inference to the design contact page, whose card shows the price** (8L.10). [inf] Falsified if the owner wants the card on such a device |
+| ADR 0148 A3 (*the material pill is not drawn on screens 3 to 5*; *desktop: a centred 640 px column*) | | The contact screens follow both |
+| ADR 0148 A4, G3 | Nothing that has focus is under the pinned region | Criterion 1's *"brings it into view"* is measured against the pinned region, as G3 is |
+| ADR 0148 E3, E3a, Amendment D; ADR 0158 d4 | The review shows the newest copy the tab can know and asks nothing; 8K's revision check keeps a stale offer out; 8L's criterion 14 holds the rest | Criterion 14 (b) applies E3 to the contact page by the same predicate |
+| ADR 0150 (8H readings 5, 7, 8a; criteria 9 to 13) | Exported lengths; an e-mail is not carried for another channel; the consent set's one member is `"placeholder"`; *"For the launch gate: Q7 (b)'s line is that no page sends it"* | Reused; the M9 gate line stands |
+| ADR 0157 d2, d4, d5, d6; *Limits* (backlog 175) | Digest coverage; one code per kind; two regions; least time 2 s provisional; calls at once under one id each counted | Criteria 10 to 12; 8L.3 to 8L.7 |
+| Q7 (b), Q8/Q26 (a), Q10 (a), Q12 (i), (ii)(b) then (a), Q18 (a), Q24/Q33, Q31, Q39, Q40 (b) | | Point 6 |
+| ADR 0113, Q10 | Drafted wording enters the copy lock in its wave; slots are excluded and wait | S2 and S6; the consent slot is carried with a slot comment, as the lock carries drafted leaves (`approved-romanian-messages.ts:1-3`) |
+
+No record says the opposite of what follows. One is extended by inference (ADR 0148 A3 ruling 4)
+and is open to the owner.
+
+**3. Rulings for this wave** (the architect's; each open to the owner).
+
+- **8L.1 — the slice table below replaces the three-slice table above.** Three slices of five to
+  seven items each would break the dispatch rule (`WORKFLOW.md`, *Scope discipline*).
+- **8L.2 — when an error shows (frame 4B's note, read exactly).** The note says errors appear *"la
+  ieșirea din câmp, nu toate deodată la submit. Prima eroare primește focusul și se derulează în
+  vizor"* [doc `…Mobil.dc.html:1322`]. So: a field's error is judged when the field is left and
+  again each time it is left; while a field has focus a shown error clears as soon as the value is
+  valid, and no error appears or changes. **A refused submit** sends nothing; focuses the first
+  invalid field in the form's order (name, phone, locality, e-mail when shown, consent), scrolls it
+  clear of the pinned region and shows its error; shows the consent sentence if consent is unticked
+  (frame 4B draws both); and shows no error for any other field never left.
+- **8L.3 — `elapsedMs` and "the same body".** `elapsedMs` is measured from the form's first render on
+  a monotonic clock (a port, so tests set it), never from a first keystroke or focus, since autofill
+  types nothing. A retry re-measures it. **Criterion 11's *"the same body"* means every field
+  `payloadDigestFields` covers**; `elapsedMs` and the honeypot are what ADR 0157 d2 leaves out, and a
+  first send refused as too fast must be sendable again under the same id.
+- **8L.4 — a conflict is the one non-success answer after which the next send has a new id.**
+  `CONTACT_REQUEST_CONFLICT` says the server holds that id with another payload, which from the
+  client can only be a field it cannot see (the book's version, ADR 0157 d2); the same id would be
+  refused for ever. The next send is the customer's press, never automatic. This reads criteria 11
+  and 12 together; it is not an exception to criterion 11's intent (a stored row is found only by
+  its id), since a conflict proves the id is already spent.
+- **8L.5 — no client abort.** The contact `POST` has no `AbortController` and no timer: the guard of
+  criterion 10 lasts until the fetch settles, which is *at least as long as the server may take*
+  whatever that is (no `maxDuration` is set [src: no match under `app/api`]; the mail's own bound is
+  10 s, `resend-mail-sender.ts:24`). *Limit, with its trigger (ADR 0118):* a request that never
+  settles holds 4C until the browser gives up. Trigger: 8M's connection-loss work, or a report.
+- **8L.6 — one statement of coverage.** The client decides *same* or *new* by comparing
+  `payloadDigestFields(request, browserBookVersion)` minus `clientRequestId`, where
+  `browserBookVersion` is the browser root's book (`price/use-priced-design.ts`, ADR 0157 d8), which
+  names the same book as the server's. A field the domain adds to the coverage is then compared
+  with no client change.
+- **8L.7 — the outcome classes, each with what the screen offers.**
+
+  | Answer | Class | Offered | Next send's id |
+  | --- | --- | --- | --- |
+  | `200`, `status: "sent"`, `reference` a string | sent | the sent line (8L.8); nothing more is sendable | — |
+  | `200` of any other shape; an unreadable body | failed | the failed sentence, *try again* | same |
+  | `400 CONTACT_INVALID` | refused by field | each issue beside its field (by its code, never the code); sendable after a change | new once a covered field changed (criterion 12) |
+  | `400 CONTACT_REJECTED` | failed | the failed sentence, *try again* | same; `elapsedMs` re-measured |
+  | `409 CONTACT_REQUEST_CONFLICT` | conflict | a sentence asking to send again | **new** (8L.4) |
+  | `409 CONTACT_DESIGN_NOT_CURRENT` | design not current | criterion 13's sentence and the fetching link to the review; **send off** | — (a new page, a new revision) |
+  | `422 CONTACT_DESIGN_DOES_NOT_FIT` | does not fit | the review's own fit sentence and the fetching link; send off | — |
+  | `429 CONTACT_LIMIT_REACHED` | limited | the sentence with the clock time from `Retry-After`; send off until then | same |
+  | `502` (both codes), `503`, any other `4xx`/`5xx`, a network failure | failed | the failed sentence, *try again* (8M adds 5B and the automatic retry) | same |
+
+- **8L.8 — the sent state before 8M.** One status line holding the reference, the form replaced and
+  nothing sendable. 8M replaces it with `/d/{id}/done`. The plan's named interim (*after 8L a sent
+  request shows no success screen until 8M*) stands; this line is what *no success screen* means.
+- **8L.9 — "cannot send" is known before the form is shown (criterion 7).** One server function,
+  `isContactSendable(environment)`, answers what `submit-contact.ts` answers as *unavailable* for a
+  sender or a secret, and the page hands the client **a boolean and nothing else**. *"Offers the
+  other channel"*: the other channel is the shop's telephone, which is still owed (Q3). **Until the
+  owner gives the number it is not drawn, and never with a stand-in** (8M's rule, the same number).
+  A named interim, recorded with 8M's.
+- **8L.10 — the design contact page applies ADR 0148 A3 ruling 4.** Its card shows a price, so it
+  has the review's probe: probing, the editor's loading line and no figure; unsupported, frame 2F.
+  **The no-design form has no probe and never shows 2F** (2F is how a customer reaches it).
+- **8L.11 — the consent slot (Q7 (b)).** The frame's sentence, *"Sunt de acord cu prelucrarea
+  datelor pentru a primi oferta."*, with a visible marker that it is provisional (its own leaf,
+  styled as a tag beside it); the request carries `consentTextVersion: "placeholder"`. **Detalii is
+  not drawn**: no privacy notice exists, and a link to nothing is not drawn. Both leaves are carried
+  in the copy lock under a slot comment (Q10 excludes slots from approval, not from the lock). The
+  launch-gate line of 8H reading 8a (*no page sends `"placeholder"`*) is M9's.
+- **8L.12 — Q12 (ii): the link e-mail exit is not drawn in 8L.** The owner's answer was *(b) until
+  the provider is live, then (a) as a slice of 8L*. The provider is chosen and its adapter built,
+  but **no real message has been sent and no deployment has the mail variables** (ADR 0154; ADR
+  0157 *What is unproven*), so it is not live. 2F keeps *Vreau să mă contactați* and loses *Trimite-mi
+  linkul pe e-mail*; the leaf is retired with it. Building (a) widens the mail port to a customer
+  recipient under its own security review (ADR 0154 *What later waves inherit*) and is a wave of
+  its own: **Q43** (point 6).
+- **8L.13 — the id's shape in the shared load is its own slice, S7, dispatchable now, merged only
+  after backlog 146's count.** The 2026-10-08 note asked that S2 put the shape in the shared load;
+  8H then made it *"calls the domain's"*. Backlog 146's trigger is *"before 8L's S2 ships"*, and
+  nothing ships mid-milestone (`WORKFLOW.md`): building and committing on the branch is allowed.
+  **8T's gate gains a line:** the owner's count of stored ids without the generator's shape is in,
+  and is 0, or S7 returns to planning before the branch merges. *Fact for the reader:* the contact
+  route has refused such ids since 8K (`prepare-submission.ts:66`), so today such a design opens in
+  the editor and the review and cannot be sent.
+- **8L.14 — the top bar** is the review's as shipped (`review-screen.tsx:88-109`): the back chevron,
+  the title (*Contact*), the locale menu; no material pill (ADR 0148 A3). The chevron of the design
+  form is a `Link` to the review, never `prefetch={true}`, never a step back; the no-design form's
+  goes to `/` with `prefetch={false}`, as the placeholder's does today (`page.tsx:35-46`). Frame 4A's
+  *"4/4"* pill is drawn if and only if the review draws a step pill; today it does not. For the
+  owner's hand check.
+- **8L.15 — the inputs' limits are the exported constants in code points.** A value of exactly the
+  constant's length, astral characters included, is accepted by the form; one more is refused with
+  the field's sentence. An HTML `maxlength` counts UTF-16 units and would refuse a valid astral name
+  early, so it is not the mechanism unless it counts code points.
+
+**4. The criteria, made falsifiable.** *Layers:* **unit** (Vitest, pure); **dom** (a `.dom.test.ts`
+under `happy-dom`, as `tests/app/review-screen.dom.test.ts`); **e2e** (Playwright, mobile project,
+390 × 844, by touch); **e2e·CI** (an e2e that counts requests: **it holds only on the production
+server, `CI=1`**, point 9); **visual** (captures inspected by the visual reviewer). *The stored
+design* is what `GET /api/designs/{id}` answers at that moment.
+
+| # | Falsifiable statement (with its *must not*) | Proved by | Slice |
+| --- | --- | --- | --- |
+| 1 | Per 8L.2. For every field F: while F has focus and has never been left, no error is rendered for F; leaving F invalid renders F's sentence beside F (`aria-invalid="true"`, `aria-describedby` naming it) and no other field's; leaving F valid renders none. A refused submit makes **0** requests, moves focus to the first invalid field in order and scrolls it so the field and its error lie wholly above the pinned region's top edge. *Must not:* an error for a field never left, other than the first invalid one and consent; focus under the pinned region | unit: fast-check over every valid/invalid assignment of the five fields, *first invalid = the least index of an invalid field*; dom: focus and blur events, the aria wiring, the focus target; e2e: ro and ru by touch, the bounding boxes against the region | S1, S4a |
+| 2 | Frame 4B's two sentences verbatim: `PHONE_MOLDOVAN_INCOMPLETE` → *"Numărul pare incomplet. Așteptăm 8 cifre după prefix."*, consent → *"Avem nevoie de acordul tău ca să putem trimite oferta."* No international refusal says *8 cifre*. Every `ContactFieldCode` and every class of 8L.7 resolves to a leaf, checked by type (a new code does not compile). **No rendered text in any state contains a code** (`[A-Z]{2,}_[A-Z_]+`). No response-time hint: the phone field is described by its error alone, and the catalogue has no leaf for a hint (Q26) | the copy lock (the two literals); unit: the exhaustive map; dom: every code and every class rendered, the DOM text searched for the code pattern; dom: the phone input's `aria-describedby` | S2, S4a |
+| 3 | The consent control and its sentence sit in the pinned bottom region with the call to action (4A), inside the dimmed region in 4C (as drawn). Unticked, a press makes **0** `POST`, shows the sentence of criterion 2, and focuses consent if it is the first invalid. The sentence carries the visible provisional marker; Detalii is absent; the body carries `consentTextVersion: "placeholder"` | dom; e2e·CI (the count); visual | S2, S4a |
+| 4 | **4C.** From a press to the answer: the call to action shows the sending label and its spinner and has `aria-disabled="true"`; a second press, a tap or Enter sends nothing; the fields' container carries `inert` and the frame's dimming, its values still readable; the frame's line shows (*"Nu închide pagina — atașăm design-ul la cerere."*; the no-design form, its drafted variant). **Two presses dispatched in one task, and two taps 50 ms apart, make exactly 1 `POST`** | unit: the guard is set synchronously in the press handler, before `fetch`; dom: the attributes; e2e·CI: the answer held by `page.route`, the `POST`s counted; visual: 4C ro and ru | S3, S4b |
+| 5 | The body's `design.revision` is the store's `revision` at the press, read in the same store read that finds `design === savedDesign`; the card shows that copy (room line, count, figure). While `design !== savedDesign`, in every held state of ADR 0158 d3 (waiting for the limit, backing off, sent, ready), the call to action is off with `useSaveWait`'s sentence and a press sends nothing; when the write is answered `200` at r+1, it comes on and the next body carries r+1. *Must not:* the page's prop revision sent; a send while unsaved | unit: the hook with a fake store; dom: the store in each of the four states; e2e·CI: the `PUT` held by `page.route`, 0 `POST` on a press, released, one `POST` with r+1 | S3, S5 |
+| 6 | **Nothing typed is persisted.** With a unique token typed into each of name, phone, locality and e-mail, before and after a send: no token in `document.cookie`, the context's cookies, `localStorage`, `sessionStorage`, the names of IndexedDB databases, the URL of any history entry, any request's URL, any request's body but the one `POST /api/contact-submissions`, `useConfiguratorStore.getState()` serialised, or the console. *Must not:* `localStorage`, `sessionStorage`, `indexedDB` or `document.cookie` named in `apps/web/src/contact/` or the two contact pages | e2e (ro), every channel inspected; dom: the store serialised; unit: a scan of those source files for the four names | S3, S4a, S5 |
+| 7 | `isContactSendable(env)` equals the route's answer for every environment: each of `RESEND_API_KEY`, `MAIL_FROM_ADDRESS`, `LEAD_NOTIFICATION_ADDRESS` absent, unusable or usable; the fake flag absent, `"1"` or another value; `DIGEST_SECRET` absent, unusable or usable. When false: the cannot-send sentence, **no `form`, no input, no call to action**, and the browser never sends. The page hands the client a boolean: **no variable name and no value in the HTML or the RSC payload.** The shop's number is not drawn (8L.9) | unit: a property over the generated environments against `createMailSender(env).kind === "sender"` and `readDigester(env).status === "usable"`; dom; e2e on a spec's own server, port 4326, no fake flag: the HTML and payload searched for the three names, 0 `POST` | S5, S4b, S6 |
+| 8 | The honeypot is an input with `tabIndex={-1}`, `autoComplete="off"` and a name no autofill reads, inside a wrapper with `aria-hidden="true"`; it is not perceivable (its box is clipped or off the viewport) and is not `display:none`; Tab through the whole form never lands on it; it is absent from the accessibility tree; its text is sent as `honeypot` | dom: the attributes; e2e: the Tab cycle, `getByRole` finds none, the box; real autofill: **8T's phone line** | S4a |
+| 9 | Neither `/[locale]/configurator/contact` nor `/[locale]/d/[id]/contact` is in `.next/prerender-manifest.json` after `next build`. Two loads of each page carry different nonces, each equal to that response's CSP header nonce, on every `script` with a `nonce`. The comment in `lib/security-headers.ts:13-14` no longer names the contact pages | e2e·CI (the build exists): the manifest read from disk, the header against the HTML | S5, S6 |
+| 10 | **At most one contact `POST` outstanding for a form**; the next starts only after the previous has an answer or a network failure; no abort and no timer on it (8L.5). *As a property:* over any sequence of presses, answers of every class, network failures and delays, the outstanding count is ≤ 1 and no `POST` starts before the previous settles | unit: fast-check, fake `fetch` and clock; e2e·CI: an answer delayed 10 s by `page.route`, presses throughout, 1 `POST` until it is fulfilled | S3 |
+| 11 | After every class of 8L.7 but *sent* and *conflict*, and after a network failure, **the next send carries the same `clientRequestId` and equal `payloadDigestFields` output**; `elapsedMs` is re-measured (8L.3); after `429` nothing is sent before the wait has passed; after *design not current* and *does not fit* no send is offered. *Must not:* a new id after a failure; the same id after a covered field changed | unit: fast-check over sequences of answers; e2e·CI: the first `POST` answered `503` by `page.route`, the second's body JSON-equal but for `elapsedMs`, the id equal | S1, S3 |
+| 12 | For consecutive sends with no conflict between, **the ids are equal if and only if the covered projection is equal** (8L.6). The first named case: only `designRevision` differs, and the id is new. After a conflict, the next id is new (8L.4). *Must not:* a list of covered fields written in `apps/web`; a test that would stay green if the domain's list gained a field the client ignores | unit: fast-check over two requests differing in any subset of the fourteen fields | S1 |
+| 13 | On `409 CONTACT_DESIGN_NOT_CURRENT` the screen shows exactly the leaf for it, in the page's language, which asks the customer to review the design again **and does not say it changed**; no code; send off; the link of criterion 14 beside it | the copy lock (the literal); dom per locale; **the logic reviewer reads the literal against this criterion** | S2, S4b |
+| 14 | **(a)** The way to the review after *design not current*, after *does not fit*, and by the top bar's chevron is an `i18n/navigation` `Link` to `/d/{id}/review`: never `prefetch={true}`, never `router.back()` or `history.back()`. Following it adds one history entry (`history.length` + 1) and makes **exactly one request for the review page's payload** to the server; the review then shows the stored copy. **Must not: the customer sent again to the same older review** — with a second page of the same browser having saved r+1, a send from r is refused, the link is followed, the review shows r+1's room line, count and figure, and its call to action leads to a send at r+1 answered `200`. **(b)** The contact page hydrates through the predicate S0 moves: an unsaved edit is kept, a clean store at an equal or greater revision is kept, a lesser one is replaced, another design is replaced, write access is carried (E3, E3a). With a held write in each of the four states, the contact page and the review are each in the state they are in when reached from the editor with that write (backlog 187). Arriving at the contact page from the review makes **0** `GET /api/designs/{id}` and **0** `PUT` | e2e·CI: two pages of one context, the requests counted, the RSC request identified by its `RSC` header or `_rsc` query (QA confirms which against the installed Next before asserting) [inf]; dom: one table over both hydrators, every store state, the four held states | S0, S4b, S5 |
+| 15 | *Added.* `/d/{id}`, `/d/{id}/review` and `/d/{id}/contact` answer one request alike: no cookie, a malformed cookie, a foreign one, an unknown id and an invalid row each give the same `DesignLoadError` reason on all three; no cookie and a malformed one reach no repository | unit, with a fake repository, in a new file beside `review-page-gate.adversarial.test.ts` (read, not edited); e2e: the door | S5 |
+| 16 | *Added (S7).* A segment that is not `isDesignId` is *unavailable* on all three doors before any repository call; a well-formed id is unchanged in every case of criterion 15; the readiness probe (`/ro/d/e2e-readiness-probe`) still answers `200` | unit, a repository spy; the whole e2e run | S7 |
+| 17 | *Added (D14; ADR 0148 decisions 1 to 3).* When the review refuses (not fit, nothing Lemnaria supplies, price not computable), the contact page shows that refusal's sentence and the fetching link to the review, **and no form** | dom, one case per refusal | S4a |
+| 18 | *Added (Q12 (i), 8L.10, 8L.12).* The no-design form sends `intent: "callback"` and no `design`; it has no card, no figure, no probe and never shows 2F; 2F draws only *Vreau să mă contactați*; the leaves `contactPlaceholder.*` and `webglUnavailable.emailLink` are gone from both catalogues, the declaration, the lock and the golden manifest | unit: the body; dom; e2e ro and ru; the catalogue and lock tests | S6 |
+| 19 | *Added (8L.15).* Per field, a value of exactly the exported length in code points, astral characters included, is accepted by the form, and one more is refused with the field's sentence | unit: fast-check over code-point strings; dom: the input | S1, S4a |
+
+*Phone acceptance (the 8L section's paragraph), what is proved here and what goes to 8T.* Proved
+in 8L, in the mobile project by touch, ro and ru: at 390 × 844 and with the viewport cut to 390 × 500
+to stand in for the keyboard, the focused field and its error lie above the pinned region, and the
+call to action and the consent line are reachable without scrolling the focused field under them;
+4A, 4B, 4C, the cannot-send screen and the no-design form captured. A form filled within two seconds
+of its first render and tapped is answered `CONTACT_REJECTED`, shows the failed sentence, and a tap
+after two seconds succeeds under the same id (8L.3). **Not provable headless, and lines for 8T's
+phone gate:** the real on-screen keyboard; real autofill (that it fills no honeypot, and that an
+autofilled form sent by a real tap passes 8K's two seconds).
+
+**5. The slices.** One developer, in this order. *Production files* exclude paired tests; the copy
+lock, the golden manifest and their counts are tests.
+
+| Slice | Does (items) | Production files | Reading |
+| --- | --- | --- | --- |
+| S0 | **Two moves, no behaviour.** (1) `holdsTheNewestCopy` and `writeAccessHeldFor` to one module both hydrators import; `hydrate-and-review.tsx` keeps `export { isGreaterRevision }` (backlog 185). (2) `useSaveWait`, `sentenceForUnsavedEdit` and `SaveWait` to their own module, `review-screen.tsx` importing it | new `store/newest-copy.ts`; `app/d/[id]/review/hydrate-and-review.tsx`; new `review/use-save-wait.ts`; `app/d/[id]/review/review-screen.tsx` | this section, points 1 and 8; ADR 0148 E3, E3a; ADR 0158 d3, d4; ADR 0133 d4. Source: the two files. Tests (read, not edited): `tests/app/hydrate-and-review.dom.test.ts`, `review-replacement-asks-nothing.dom.test.ts`, `qa-8d-revision-order.adversarial.test.ts`, `qa-8g-review-paused.adversarial.dom.test.ts`, `review-screen.dom.test.ts` |
+| S1 | **The form as a value; no React, no copy.** (1) The fields' state, judged on leave by `validateContactFields`, by 8L.2. (2) The first invalid field in order. (3) The body: the fields, the target (`design {id, revision}` or `intent: "callback"`), `routing.locales`' locale, the honeypot's text, `elapsedMs` from a monotonic clock port; judged by `validateContactSubmission` before it is handed on. The e-mail is not in the body unless the channel is e-mail. (4) The id rule: 8L.4, 8L.6, an id generator port (`crypto.randomUUID()` in production). (5) The answers classified by 8L.7, `Retry-After` read | new `contact/contact-form-model.ts`, `contact/contact-request-identity.ts`, `contact/contact-answer.ts`; `persistence/design-request-errors.ts` only to parameterise the window, and only if no save test moves | this section, points 1, 3 (8L.2 to 8L.7, 8L.15), 4 (criteria 1, 2, 10 to 12, 19); ADR 0150 (*What later waves inherit*; readings 5, 7, 8a; criteria 9 to 13); ADR 0157 d2, d4, d6; 8H, *S1's readings* and *S2's readings*. Source: `packages/configurator-domain/src/contact/` whole (read, not edited); `lib/server/contact/contact-responses.ts`; `rate-limit/rate-limited-response.ts`; `persistence/design-request-errors.ts`; `i18n/routing.ts` |
+| S2 | **The copy, namespace `contact`.** (1) Frames 4A to 4C's labels, placeholders, chips, heading, subheading, call to action, sending label and 4C line, as drawn (the card's count is the review's `bodyCount` leaf, Q31). (2) One sentence per `ContactFieldCode` a customer can meet, 4B's two as drawn; the *too many digits* sentence says how to write a number from outside Moldova (8H, *For 8L, recorded*); codes no form can produce share the failed sentence. (3) One sentence per class of 8L.7, criterion 13's among them; the sent line with its reference. (4) The consent slot and its marker (8L.11). (5) The no-design variants (heading, subheading, 4C line) and the cannot-send sentence. All drafted under Q10; Russian drafted, never marked approved | `messages/ro.json`, `messages/ru.json`, `messages/ro.d.json.ts`, `i18n/content.ts` | `engineering-conventions.md`, *Localised copy*, points 1 to 7; Q7, Q8/Q26, Q10, Q24, Q31, Q33; 8L.7, 8L.8, 8L.11; frames 4A to 4C (`…Mobil.dc.html:1164-1396`); ADR 0095; ADR 0113. Source: S1's descriptor types; `i18n/content.ts`'s `reviewScreen` and `review`. Tests: `tests/support/approved-romanian-messages.ts`, `tests/i18n/golden-output-hashes.ts`, `golden-output.test.ts`, `catalogue-parity.test.ts` |
+| S3 | **Sending.** (1) One request in flight: the guard set in the press handler, synchronously, before `fetch`; no abort, no timer (criteria 4, 10; 8L.5). (2) Retries by S1's id rule (criteria 11, 12). (3) Waits on `useSaveWait`; the revision from the store at the press (criterion 5). (4) The states idle, sending, sent, failed (with its class), for the screen. (5) Nothing held but in the hook's memory; no storage API (criterion 6) | new `contact/send-contact-request.ts`, `contact/use-contact-submission.ts` | this section, points 3 and 4 (criteria 4 to 6, 10 to 12); ADR 0157 d5 and *Limits* (backlog 175); ADR 0158 d3; D17; ARCH §8. Source: S0's `review/use-save-wait.ts`; `persistence/fetch-configuration-repository.ts` (the pattern); `store/configurator-store.ts` (`design`, `savedDesign`, `revision`, `designId`) |
+| **Checkpoint A** | **The security reader reads S1 and S3 before S4a builds on them** (8K's precedent): the body's shape, what the client holds and where, the guard, the id rule | — | the security *Reading* line, point 7 |
+| S4a | **The screen, frame 4A and 4B.** (1) The screen's probe (8L.10) and the top bar (8L.14). (2) The card (D13: the review's room line, count and figure from `useReview()`; the frame's neutral square, decorative); a refusing review shows its refusal and the link, and no form (criterion 17). (3) The fields: types, `autoComplete`, the e-mail input only with the *E-mail* chip, errors by S1 (criteria 1, 2, 19). (4) Consent beside the call to action (criterion 3). (5) The honeypot (criterion 8) | new `contact/contact-screen.tsx`, `contact/contact-form.tsx`, `contact/contact-design-card.tsx`, `contact/contact.module.css` | frames 4A and 4B (`…Mobil.dc.html:1169-1323`); ADR 0104; ADR 0148 A3 (ruling 4, the pill, the desktop column), A4, G3; D13, D14; Q6 (i), (ii); 8L.2, 8L.10, 8L.11, 8L.14, 8L.15. Source: `app/d/[id]/review/review-screen.tsx` (the top bar, the probe, the pinned region), `app/d/[id]/review/review.module.css`, `review/use-review.ts`, `review/review-model.ts` (`AvailableReview`, `SubmitEligibility`), `scene/webgl-support`, `components/webgl-unavailable.tsx` |
+| S4b | **The screen, frame 4C and the outcomes.** (1) 4C (criterion 4). (2) Each class of 8L.7 on the screen; the failed sentence's *try again* (criteria 11, 13). (3) The fetching link to the review (criterion 14 (a)). (4) The sent line (8L.8). (5) The cannot-send variant, from a boolean prop (criterion 7) | `contact/contact-form.tsx`, `contact/contact-screen.tsx`, new `contact/contact-outcome.tsx`, `contact/contact.module.css` | frame 4C (`…Mobil.dc.html:1325-1396`); 8L.7 to 8L.9, 8L.14; criteria 4, 7, 11, 13, 14; `staleTimes.md` (point 1); `i18n/clock-time.ts` |
+| S5 | **The design's contact route.** (1) The page: `loadOwnedDesign`, `DesignLoadError` for a refusal, rendered per request (criteria 9, 15). (2) `HydrateAndContact` through S0's predicate; no request (criterion 14 (b)). (3) `isContactSendable(process.env)`, a boolean to the client (criterion 7). (4) The review's call to action goes to `/d/{id}/contact`; `CONTACT_PLACEHOLDER_HREF` is deleted. (5) Report the QA-owned pins (point 8) | new `app/[locale]/d/[id]/contact/page.tsx`, new `app/d/[id]/contact/hydrate-and-contact.tsx`, new `lib/server/contact/contact-availability.ts`, `app/d/[id]/review/review-screen.tsx` | ADR 0114 d5, H2; ADR 0148 A1, E3, E3a, Amendment D; ADR 0158 d3, d4; ADR 0157 d4, d5; ADR 0154 (the selection); 8L.9, 8L.13. Source: `app/[locale]/d/[id]/review/page.tsx`, `app/d/[id]/review/hydrate-and-review.tsx`, `store/configurator-snapshot.tsx`, `lib/server/load-owned-design.ts`, `lib/server/contact/submit-contact.ts:273-291`, `mail/select-mail-sender.ts`, `digest/digest-secret.ts`. Tests (read): `tests/app/review-page-gate.adversarial.test.ts`, `qa-8d-two-doors-real-repository.adversarial.test.ts`, `hydrate-and-review.dom.test.ts` |
+| S6 | **Frame 2F's callback entry.** (1) `/configurator/contact` becomes the form with no design (criterion 18), rendered per request, with the same availability (criteria 7, 9). (2) 2F's link exit not drawn (8L.12). (3) `contactPlaceholder.*` and `webglUnavailable.emailLink` retired from the catalogues, the declaration, the lock and the golden manifest. (4) The comment at `lib/security-headers.ts:13-14` corrected. (5) The tests that render the page or pin the link, named in the report | `app/[locale]/configurator/contact/page.tsx`, `components/webgl-unavailable.tsx`, `messages/ro.json`, `messages/ru.json`, `messages/ro.d.json.ts`, `lib/security-headers.ts` (a comment). **Six, three of them the catalogue trio; said so here** | frame 2F (`…Mobil.dc.html:921-960`); Q12 (i), (ii); 8L.12; ADR 0113 d2; ADR 0041; `engineering-conventions.md`, *Localised copy*. Tests that change, developer-owned: `tests/i18n/webgl-witness.test.ts:29,43`, `tests/e2e/webgl-unavailable-i18n.e2e.spec.ts:120-124`, `tests/i18n/navigation.test.ts:12,51-56` |
+| S7 | **The id's shape in the shared load** (8L.13). (1) `isDesignId(id)` false is *unavailable* before any repository call (criterion 16). (2) The tests that hand it ids of another shape, named in the report: the developer's own are changed; the QA-owned are reported for QA | `lib/server/load-owned-design.ts` | 8L.13; backlog 146; 8H, *S2's readings*, readings 2 and 3; ADR 0150; ADR 0114 d5, H5. Tests (read; QA-owned, report only): `tests/app/review-page-gate.adversarial.test.ts:164-214`, `qa-7e3b-design-page-gate.adversarial.test.ts:125-138` |
+
+*Order and independence.* S0 → S1 → S2 → S3 → checkpoint A → S4a → S4b → S5 → S6 → S7. S2 needs
+S1's descriptor types. S6 needs S4a and S4b and not S5. **S7 needs nothing and is last on purpose**:
+it turns QA-owned gate tests red, and QA should repin them once. QA and the four reviews run once,
+after S7, on a frozen tree.
+
+*Must not, every slice:* a file under `packages/`, `app/api/` or `proxy.ts` changed (a domain export
+found missing **stops** the slice); a `qa-*` or `*.adversarial.*` file edited (a pin the wave moves
+is reported; QA changes it, ADR 0158 *Every dispatch*); a typed value in a URL, a cookie, browser
+storage, the configurator store, a log or the console; `prefetch={true}`, `router.back()` or
+`history.back()` on the way to the review; a second copy of a rule, a length, a code list or the
+digest's coverage; an environment variable created, changed, removed or printed; a database row
+deleted outside the harness's own teardown (ADR 0151); `git stash`, `git stash pop`,
+`git checkout -- .`, `git reset --hard`, `git clean`; **a mutant sent to a database.**
+
+| Slice | Stops if |
+| --- | --- |
+| S0 | Any test changes or fails |
+| S1 | A field, code or shape the form needs is not exported by the domain; the client cannot decide *same* or *new* without a second list of covered fields; parameterising `saveWaitSecondsFrom` moves a save test |
+| S2 | A frame sentence must be reworded to be true (report it: Q24 decides where it is true); an approved Romanian leaf would change |
+| S3 | The guard cannot be held without a timer or an abort; the revision cannot be read with `savedDesign` in one store read |
+| S4a, S4b | The pinned region takes more than half the viewport's height at 390 × 844 in Russian with the consent sentence and an outcome sentence (ADR 0148 A4's tripwire, reused) |
+| S5 | The contact page needs a request to hydrate; the availability needs a value, not a boolean, on the client |
+| S6 | A test outside the three named must change |
+| S7 | An existing e2e mints or seeds an id that is not the generator's shape |
+
+**6. The owner's questions, and how 8L builds around each.** **Nothing here blocks the dispatch of
+any slice.**
+
+| Q | Standing | How 8L builds |
+| --- | --- | --- |
+| Q7, consent and privacy text | (b), the text owed | 8L.11: the frame's sentence, visibly marked provisional; Detalii not drawn; version `"placeholder"`. Blocks M9's gate (no page sends `"placeholder"`), not the build |
+| Q8 / Q26, a response time | Settled: not drawn | Criterion 2: no hint, no leaf |
+| Q12 (i), a callback with no design | Settled | S6, criterion 18 |
+| Q12 (ii), the link e-mail | (b) until the provider is live | 8L.12: not drawn. **Q43**, below |
+| Q3, the shop's number | Owed | 8L.9: criterion 7's other channel not drawn, never a stand-in |
+| Q6, Q24, Q33, criterion 16 of 8H | Settled | The domain's rules, used as they are |
+| Q9 | Owed; not 8L's | — |
+| Q10 | (a) | S2 and S6 drafted; slots carried with a slot comment |
+| Q18 | (a), memory only | 8L says nothing about saving on the phone; 4C's line is the frame's |
+| Q31 | *dulapuri* | The card's count is the review's leaf |
+| Q35, two tabs | Open, the owner's | Unchanged: criterion 14's trace uses a second page and ends in *design not current*, which is the line ADR 0148 E3 names |
+| Q39, the least time (2 s) and two figures | Provisional | 8L.3; the phone acceptance |
+| Q40 | Built on (b) | A stored, un-notified request retried after an edit is *design not current* (criterion 13) |
+| Q41 | Built on (a) | Not reached: the contact page has no probe |
+| **Q42, how `ci:local` runs e2e** | **Open; blocks the push** | Point 9. It blocks no slice and no QA run; it blocks the push, as it already does |
+| Backlog 146, the stored ids' count | Owed | 8L.13: S7 is built; 8T's gate holds its merge |
+
+**Q43, new, for the owner; blocks nothing.** *Frame 2F, for a device that cannot show 3D, offers
+"Trimite-mi linkul pe e-mail". We agreed to leave it out until our mail provider is live, and then
+build it. No message has been sent from it yet, so 8L leaves it out. When it is live, do you want*
+**(a)** *it added in M8, as a small wave of its own after the one real send;* **(b)** *it built with
+M8B, where mail to customers (verification, password reset) is built anyway?* **Recommended: (b).**
+It is the first mail we would send to a customer and not to the shop, so it needs the sending
+domain's records to stay out of spam, which is M9's, and the port widened for a customer recipient
+under a security review, which M8B does once for all of them.
+
+**Genuinely blocking decisions: none for dispatch.** One owner fact gates **a merge**, not a
+dispatch: backlog 146's count before S7 reaches `main` (8T's gate line). Q42 blocks the push of the
+whole branch, as it did before 8L.
+
+**7. The review, per slice.** The wave is *Full + security + visual*; QA and the reviews run once,
+after S7, except checkpoint A.
+
+| Slice | Tier | Security reviewer? | Visual? |
+| --- | --- | --- | --- |
+| S0 | Coordinator-only: moves, proved by the untouched suite and a diff showing only moved lines | No | No |
+| S1 | Full | **Yes**, at checkpoint A: it builds the body that carries a customer's personal data | No |
+| S2 | Full (the logic reviewer reads the sentences against frames 4A to 4C and criteria 2 and 13) | No: copy only | Through S4a/S4b |
+| S3 | Full | **Yes**, at checkpoint A: where personal data is held in the browser (D17) and the guard of backlog 175 | No |
+| S4a, S4b | Full | **Yes**, the honeypot and what reaches the DOM | **Yes**: 4A, 4B, 4C, the cannot-send screen, both locales, 390 × 844 and the 640 px desktop column |
+| S5 | Full | **Yes**: the gate (ADR 0114 d5), a new server function reading the presence of a secret and the mail variables, and what reaches the page | Yes, the door's screens |
+| S6 | Full | **Yes**, scoped: an unauthenticated page that collects personal data and sends it to a public endpoint | **Yes**: 2F without its link, the no-design form |
+| S7 | Full | **Yes**: the gate changes for every door | No |
+
+**Security reviewer: yes, and why.** 8L is where customer data is typed (D17; ARCH §8), and it
+changes the owned load's gate (S5's third door; S7's shape) and adds a server function that reads
+whether a secret and the mail's variables are usable (S5). It **does not touch the proxy**:
+`/d/{id}/contact` is already admitted and counted (`proxy.ts:19`, `proxy-page-read.test.ts:64`);
+the security reader confirms that by `git diff --stat` and not by assumption.
+
+**8. Reading, per role.** The coordinator pastes these verbatim.
+
+- **QA, Reading:** this section whole; the 8L section's criteria and phone paragraph; ADR 0157 d2,
+  d4 to d6 and *Limits*; ADR 0158 d3, d4 and *Limits*; ADR 0148 A1, A3, A4/G3, E3, E3a and
+  Amendment D; ADR 0150, *What later waves inherit*; ADR 0151; ADR 0155's standing rule (a mutant
+  never touches a database); `engineering-conventions.md`, *Coverage an adversarial pass owes* and
+  *Localised copy* point 7; `browser-and-visual-qa.md`; `ci-and-local-gates.md`, the dated note of
+  2026-10-12, *Whole e2e runs have three known intermittent failures* and *The per-shard test
+  budget*; `agent-coordination.md`, *Freeze the tree*; backlog 175, 182, 187; support files
+  `tests/e2e/support/contact-run.ts`, `production-policy-server.ts`, `seeded-design.ts`,
+  `qa-8k2-return.ts`, `design-return.ts`; `lib/server/rate-limit/limit-policy.ts` (the e2e twins).
+  **What the pass owes:** P1 to P4 below as properties; every class of 8L.7 driven through the
+  screen; the boundaries of criteria 1, 19 and 11 (an answer at each status, `Retry-After` of 0, 1,
+  86 400, 86 401 and unreadable); the traces of criteria 5, 14 and the phone paragraph by touch in
+  ro and ru; mutants, named and none near a database (the guard set after `fetch`; the id kept
+  after a conflict; a new id after a `503`; the store's revision replaced by the prop; the predicate
+  not applied on the contact page; the e-mail sent for another channel; the honeypot in the tab
+  order); **first, the QA-owned pins point 9 lists**, repinned to the new destination and nothing
+  else changed in them. A clean report says what was attacked.
+- **Logic, Reading:** this section, points 3 and 4; frames 4A to 4C (`…Mobil.dc.html:1164-1396`)
+  and 2F (`:921-960`); ADR 0150 (readings 5, 7, 8a; criteria 9 to 13); ADR 0157 d2, d4, d5; ADR
+  0148 E3, A3 ruling 4, Amendment D; ADR 0158 d4; D5, D13, D14, D17; Q7, Q8/Q26, Q12. **Named
+  checks:** the id and body after every class of 8L.7; no path where the revision sent is not the
+  card's; every way to the review is a push; criterion 13's literal in both languages.
+- **Clean-code, Reading:** each slice's files and paired tests; `engineering-conventions.md` (naming,
+  *Localised copy*); ADR 0136; ADR 0152. **Named question:** whether `contact-form-model.ts`,
+  `contact-request-identity.ts` and `contact-answer.ts` are one reason to change each.
+- **Security, Reading:** D17; ARCH §8; ADR 0114 d5, H2, H5; ADR 0148 A1; ADR 0157 d4, d6, *Limits*
+  (backlog 175); ADR 0154 (the selection, and that nothing of the mail's configuration reaches a
+  page); `lib/security-headers.ts`, `proxy.ts` (the nonce); the files of S1, S3, S5 and S7 and
+  `contact-form.tsx`. **Named checks:** no typed value in storage, a URL, a cookie, the store, a log
+  or the console; the page receives a boolean only; the three doors refuse class for class; the
+  honeypot cannot be autofilled; no abort shorter than the server; the body carries no field the
+  schema refuses.
+- **Visual, Reading:** frames 4A to 4C and 2F; ADR 0104 and its Amendment B; ADR 0148 A3 (the pill,
+  the 640 px column), A4 and G3; `browser-and-visual-qa.md`. Captures: 4A, 4B, 4C, the cannot-send
+  screen, the no-design form and 2F, at 390 × 844 in ro and ru, and the desktop column at 1280.
+
+*As properties, for `fast-check` at the hook's level with a fake `fetch`, clock, id generator and
+store.* Over any sequence of: a field typed, left or cleared; a press; an answer of any class of
+8L.7, a network failure or a delay; a save of the design answered or held:
+
+- **P1.** At most one contact `POST` outstanding, and none started before the previous settled.
+- **P2.** Two consecutive sends share an id if and only if their covered projections are equal and
+  no conflict came between.
+- **P3.** No send while `design !== savedDesign`; every send's revision is the store's at its press.
+- **P4.** No typed value is anywhere but the hook's memory and the one request body.
+
+**9. The e2e note: specs that count requests hold only under `CI=1`.** ADR 0158 *Limits* and
+backlog 182: with `CI` unset, `playwright.config.ts:92-94` boots `next dev`, React's strict mode runs
+effects twice, and an exact count cannot be trusted either way. **8L's specs that count requests
+are written to the production server (`CI=1`: a build and `next start`)**, and say so in their own
+opening comment: criterion 3's 0 `POST`, 4's single `POST`, 5's held `PUT`, 7's 0 `POST` on its own
+server, 9's manifest and nonces, 10's single `POST`, 11's two bodies, and 14's request counts. They
+go in files named for it: `tests/e2e/contact-requests.e2e.spec.ts` (criteria 3 to 5, 10, 11, 14),
+`contact-pages-per-request.e2e.spec.ts` (criterion 9), `contact-unavailable.e2e.spec.ts` (criterion
+7, port 4326). The others (`contact-form.e2e.spec.ts` for 4A to 4C, `contact-no-design.e2e.spec.ts`)
+count nothing. **The evidence for them is a `CI=1` run, never `ci:local`**, whose e2e step runs
+`next dev` until Q42 is answered; a red or green `ci:local` is not evidence about a count
+(`ci-and-local-gates.md`, the dated note). If Q42 is answered (2), the same guard 8K2's two specs
+receive applies to these three files, in the same place. *Also:* every spec that stores through the
+form reads each `POST` body's `clientRequestId` from the page's request and registers it with
+`contact-run.ts`, so the teardown removes it (ADR 0151); a browser has two new requests an hour, so
+a spec sends at most two per context; and the wait of 8L.3 is two seconds after the first render
+before a tap that must succeed.
+
+*QA-owned pins S5 moves* [ran: `git grep` of `apps/web/tests` for the destination]: the call to
+action's `/ro/configurator/contact` at `qa-8d-review-history.adversarial.e2e.spec.ts:243`,
+`qa-8d-review-save-wait.adversarial.e2e.spec.ts:157, 194, 244, 402, 448, 530` and
+`qa-8d-review-scene.adversarial.e2e.spec.ts:347`. They will be red after S5 and are QA's to repin to
+`/ro/d/{id}/contact`, first in its pass. `tests/app/review-screen.dom.test.ts:200` is the
+developer's and changes in S5.
+
+**10. Risks.**
+
+1. **The QA-owned pins** above, and S7's: red between the slice and QA's pass. The freeze names them
+   as expected reds, so they are not read as regressions.
+2. **The contact limits in e2e.** Two new requests an hour per browser, and the network's twins
+   shared by the run (ADR 0157 d6). A spec that sends more fails for a reason that is not its own.
+3. **The two seconds** (Q39): a spec that taps sooner meets `CONTACT_REJECTED`, which is a test
+   defect, not a product one.
+4. **`inert` under `happy-dom`** may be an attribute without its behaviour [inf]: the dom tests assert
+   the attribute; that it blocks focus and a click is asserted in Chromium.
+5. **Strict mode in development** runs effects twice; a send placed in an effect would send twice
+   there. The press handler is the only place a send starts (criterion 4's unit test), and a dev
+   server that shows two `POST`s is a finding, not noise.
+6. **The copy's volume**, perhaps thirty leaves, moves the golden counts in two slices (S2, S6).
+7. **The shard budget.** Mobile is seven shards, the largest 102 of 125 at `18caaea4` [relayed,
+   coordinator-ran]; `pnpm gate:e2e-shard-budget` runs at the freeze.
+8. **ADR 0148 A3 ruling 4, extended (8L.10)**, is an inference; it adds a probing state before the
+   form.
+
+**11. Verification.**
+
+- *Each slice, the developer:* its tests; web typecheck and lint; S5 onward, the slice's e2e alone
+  under `CI=1`.
+- *At the freeze, the coordinator:* the whole web suite; web typecheck; lint; root
+  `pnpm format:check`; `pnpm gate:boundary`; `pnpm gate:e2e-shard-budget`;
+  `rtk proxy git diff --stat 6584ea6a` showing no file under `packages/`, `app/api/` or `proxy.ts`,
+  and no `qa-*` or `*.adversarial.*` file.
+- *QA:* its pass; then **one whole e2e run under `CI=1`** (a build and `next start`, eight workers,
+  alone, tree clean before and after). Expected: every test that passed at `18caaea4`'s 793 and the
+  new ones; three expected-fail or deliberate marks (`seeded-design.qa` `:35`;
+  `qa-8d-review-arrival.adversarial` `:500`, `:524`). A red on one of the three known intermittents
+  is recorded and the run made once more; any other red is a red.
+- *Not owed, and said in the close-out:* the domain and persistence suites, if the diff shows no
+  file under `packages/`. *Not run in this wave:* `pnpm check`, `pnpm ci:local` (Q42), a CI runner,
+  a real phone (8T).
+
+**12. For the scribe, at the close.** A new record (the next number is 0159) for 8L.1 to 8L.15 and
+this sweep; a dated note on ADR 0148 (E3 and A3 ruling 4 applied to the contact page; the third
+door); a note on ADR 0157 (the client's side of criteria 10 to 12: 8L.3, 8L.4, 8L.5); Q43 into the
+owner's list; backlog 187 closed if criterion 14 (b)'s table lands; 8T's gate gains backlog 146's
+line (8L.13), the real keyboard and real autofill (point 4); the wave table's 8L row.
 
 ### 8M — success 5A and failure 5B
 
