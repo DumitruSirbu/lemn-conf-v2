@@ -117,12 +117,14 @@ export interface SaveCoalescerDependencies {
   ) => void;
 }
 
-/** The one write a design has waiting for the limit on saves: the whole design it will send, the revision it is
- *  conditional on, and the clock's milliseconds at which it goes. */
+/** The one write a design has not yet landed: the whole design it will send and the revision it is conditional on.
+ *  `resumesAtMs` is the clock's milliseconds at which the limit on saves lets it go, `null` for a failure's backoff
+ *  and for a write sent and not answered, which alone carries `isInFlight`. */
 export interface WaitingWrite {
   readonly design: Design;
   readonly expectedRevision: DesignRevision | null;
-  readonly resumesAtMs: number;
+  readonly resumesAtMs: number | null;
+  readonly isInFlight?: true;
 }
 
 export interface SaveCoalescer {
@@ -134,11 +136,11 @@ export interface SaveCoalescer {
    */
   overwriteConflict: (design: Design) => void;
   /**
-   * The design is being shown again by a fresh load while its own write waits: hands the waiting write to the load's
-   * generation, so the screen can show it and its wait, and answers it. The write stays the one write on the same
-   * timer; an edit made now joins it, and its outcome is reported to the generation that now shows the design.
-   * `undefined` when no write waits for this design, and for a failure's backoff, whose rule is to give way to a
-   * newer load.
+   * The design is being shown again by a fresh load while its own write has not landed: hands the write to the
+   * load's generation, so the screen can show it in the state it is in, and answers it. The write is waiting for the
+   * limit, backing off after a failure, or sent and not yet answered. It stays the one write on the same timer; an
+   * edit made now joins it, and its outcome is reported to the generation that shows the design when it arrives.
+   * `undefined` when no write is held for this design.
    */
   adoptWaitingWrite: (id: DesignId) => WaitingWrite | undefined;
 }
@@ -163,12 +165,13 @@ interface IdentityQueue {
   /** Stable across every null-id attempt belonging to this provisional generation. */
   readonly provisionalMintIdentity: object | undefined;
   pending: SaveJob | null;
+  /** The job whose request is out and unanswered. Its generation is the one its outcome is reported to. */
+  inFlight: SaveJob | null;
   retryCount: number;
   /** The queue's one wait: the backoff after a failure, or the wait after the limit's refusal. */
   wait: QueueWait | null;
   readyQueued: boolean;
   readyVersion: number;
-  active: boolean;
 }
 
 interface QueueWait {
@@ -261,18 +264,40 @@ export function createSaveCoalescer(
 
   function adoptWaitingWrite(id: DesignId): WaitingWrite | undefined {
     const queue = persistedQueues.get(id);
-    const waiting = queue?.pending ?? null;
-    if (queue === undefined || waiting === null) return undefined;
-    const resumesAtMs = limitWaitEndOf(queue);
-    if (resumesAtMs === null) return undefined;
+    const held = queue === undefined ? undefined : heldWriteOf(queue);
+    if (queue !== undefined && held !== undefined)
+      handToCurrentGeneration(queue);
+    return held;
+  }
+
+  /** What the screen must show for the write this queue holds, in the state it is in; nothing is changed. */
+  function heldWriteOf(queue: IdentityQueue): WaitingWrite | undefined {
+    const { pending, inFlight, wait } = queue;
+    if (inFlight !== null) {
+      return {
+        design: (pending ?? inFlight).design,
+        expectedRevision: queue.expectedRevision,
+        resumesAtMs: null,
+        isInFlight: true,
+      };
+    }
+    if (pending === null || wait === null) return undefined;
+    return {
+      design: pending.design,
+      expectedRevision: queue.expectedRevision,
+      resumesAtMs: wait.resumesAtMs,
+    };
+  }
+
+  /** The load that shows this design now is the one its write's outcome and its next edits are reported to. */
+  function handToCurrentGeneration(queue: IdentityQueue): void {
     const generation = deps.getGeneration();
     queue.generation = generation;
-    queue.pending = { ...waiting, generation };
-    return {
-      design: waiting.design,
-      expectedRevision: queue.expectedRevision,
-      resumesAtMs,
-    };
+    if (queue.pending !== null)
+      queue.pending = { ...queue.pending, generation };
+    if (queue.inFlight !== null) {
+      queue.inFlight = { ...queue.inFlight, generation };
+    }
   }
 
   /** The immutable snapshot every save is built from. The revision is deliberately not part of it: see
@@ -313,11 +338,11 @@ export function createSaveCoalescer(
       generation,
       provisionalMintIdentity,
       pending: null,
+      inFlight: null,
       retryCount: 0,
       wait: null,
       readyQueued: false,
       readyVersion: 0,
-      active: false,
     };
   }
 
@@ -413,7 +438,7 @@ export function createSaveCoalescer(
     const job = queue?.pending ?? null;
     if (queue === null || job === null) return;
     queue.pending = null;
-    queue.active = true;
+    queue.inFlight = job;
     saving = true;
     deps.onSaveStatusChange("saving", job.generation);
 
@@ -426,27 +451,44 @@ export function createSaveCoalescer(
         expectedRevision: queue.expectedRevision,
         provisionalMintIdentity: queue.provisionalMintIdentity,
       });
-      queue.retryCount = 0;
-      queue.active = false;
-      queue.expectedRevision = saved.revision;
-      saving = false;
-      lastSaveCompletedAtMs = Date.now();
-      if (job.designId === null) promoteQueue(queue, saved.id);
-      deps.onSaved(saved, job.generation);
-      deps.onSaveStatusChange("idle", job.generation);
-      enqueueReady(queue);
-      deleteQueueIfIdle(queue);
-      requestSave();
+      recordSaved(queue, job, saved);
     } catch (error) {
-      if (error instanceof WriteNotRetryableError) {
-        stopWriting(job, queue, error);
-        return;
-      }
-      if (error instanceof SaveLimitReachedError) {
-        holdWriteForLimit(job, queue, error.waitMs);
-        return;
-      }
-      handleSaveFailure(job, queue);
+      reportFailure(queue, job, error);
+    }
+  }
+
+  function recordSaved(
+    queue: IdentityQueue,
+    sent: SaveJob,
+    saved: CoalescedSaveResult,
+  ): void {
+    const answered = queue.inFlight ?? sent;
+    queue.retryCount = 0;
+    queue.inFlight = null;
+    queue.expectedRevision = saved.revision;
+    saving = false;
+    lastSaveCompletedAtMs = Date.now();
+    if (answered.designId === null) promoteQueue(queue, saved.id);
+    deps.onSaved(saved, answered.generation);
+    deps.onSaveStatusChange("idle", answered.generation);
+    enqueueReady(queue);
+    deleteQueueIfIdle(queue);
+    requestSave();
+  }
+
+  /** The job as it stands when its request fails: a load may have handed its design to a newer generation meanwhile. */
+  function reportFailure(
+    queue: IdentityQueue,
+    sent: SaveJob,
+    error: unknown,
+  ): void {
+    const failedJob = queue.inFlight ?? sent;
+    if (error instanceof WriteNotRetryableError) {
+      stopWriting(failedJob, queue, error);
+    } else if (error instanceof SaveLimitReachedError) {
+      holdWriteForLimit(failedJob, queue, error.waitMs);
+    } else {
+      handleSaveFailure(failedJob, queue);
     }
   }
 
@@ -467,7 +509,7 @@ export function createSaveCoalescer(
     failure: WriteNotRetryableError,
   ): void {
     saving = false;
-    queue.active = false;
+    queue.inFlight = null;
     queue.retryCount = 0;
     clearWait(queue);
     const status = refusedStatusFor(failure);
@@ -545,7 +587,7 @@ export function createSaveCoalescer(
 
   function handleSaveFailure(failedJob: SaveJob, queue: IdentityQueue): void {
     saving = false;
-    queue.active = false;
+    queue.inFlight = null;
     deps.onSaveStatusChange("error", failedJob.generation);
 
     if (
@@ -584,7 +626,7 @@ export function createSaveCoalescer(
     waitMs: number,
   ): void {
     saving = false;
-    queue.active = false;
+    queue.inFlight = null;
     queue.pending ??= failedJob;
     invalidateReady(queue);
     clearWait(queue);
@@ -622,7 +664,7 @@ export function createSaveCoalescer(
 
   function deleteQueueIfIdle(queue: IdentityQueue): void {
     if (
-      queue.active ||
+      queue.inFlight !== null ||
       queue.pending !== null ||
       queue.wait !== null ||
       queue.readyQueued

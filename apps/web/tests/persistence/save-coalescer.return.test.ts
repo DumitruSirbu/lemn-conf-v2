@@ -184,14 +184,18 @@ describe("a design shown again while its write waits", () => {
     expect(coalescer.adoptWaitingWrite("never-seen")).toBeUndefined();
   });
 
-  it("answers nothing for a failure's backoff, whose rule is to give way to a newer load", async () => {
+  it("gives the load a failure's backoff write too, with no time, since the load's copy is not newer than it", async () => {
     outcomes.push(() =>
       Promise.reject(new DesignRequestFailedError("Saving a design", "down")),
     );
     coalescer.scheduleSave(withPreset("edit"));
     await vi.advanceTimersByTimeAsync(0);
 
-    expect(coalescer.adoptWaitingWrite(DESIGN_A)).toBeUndefined();
+    expect(coalescer.adoptWaitingWrite(DESIGN_A)).toEqual({
+      design: withPreset("edit"),
+      expectedRevision: FIRST_REVISION,
+      resumesAtMs: null,
+    });
   });
 
   it("answers nothing once the wait has ended and the write has landed", async () => {

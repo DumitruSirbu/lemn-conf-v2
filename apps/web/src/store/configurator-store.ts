@@ -262,8 +262,9 @@ export interface ConfiguratorStoreOptions {
    */
   readonly onDesignIdentityChanged?: () => void;
   /**
-   * Asked when a design is loaded: the write the background writer holds waiting for the limit on saves for that
-   * design, if any. A load that finds one shows that design with its wait, and not the server's copy as saved.
+   * Asked when a design is loaded: the write the background writer holds for that design, if any, waiting for the
+   * limit on saves, backing off after a failure, or sent and not yet answered. A load that finds one shows that design
+   * in that state, and not the server's copy as saved.
    * Other store instances have no background writer and leave this unset.
    */
   readonly adoptWaitingWrite?: (id: DesignId) => WaitingWrite | undefined;
@@ -641,12 +642,7 @@ export function createConfiguratorStore(
           hasPersistedSuccessfully: true,
           savedDesign: loaded.design,
           hasBeenEdited: waiting !== undefined,
-          // A save status describes the generation that produced it, so it resets on load. A carried
-          // `unauthorized` would render a design this browser owns as read-only, and only a successful write
-          // clears it, which the read-only panel has disabled: a deadlock only a reload leaves. The one
-          // exception is the write that waits for this very design, which is the load's to show.
-          saveStatus: waiting === undefined ? "idle" : "error",
-          saveResumesAtMs: waiting?.resumesAtMs ?? null,
+          ...saveStateShownFor(waiting),
         });
       },
       applyWriteAccess: ({ designId: answeredFor, canWrite, stored }) => {
@@ -713,8 +709,24 @@ function canTakeStoredCopy(
   return isGreaterRevision(stored.revision, state.revision);
 }
 
-/** The waiting write a load is given instead of the server's copy. A read-only load (a shared link) is given none:
- *  it shows what the server holds, whoever's write waits. */
+/**
+ * A save status describes the generation that produced it, so it resets on load. A carried `unauthorized` would render
+ * a design this browser owns as read-only, and only a successful write clears it, which the read-only panel has
+ * disabled: a deadlock only a reload leaves. The one exception is the write held for this very design, which is the
+ * load's to show in the state it is in.
+ */
+function saveStateShownFor(
+  held: WaitingWrite | undefined,
+): Pick<ConfiguratorState, "saveStatus" | "saveResumesAtMs"> {
+  if (held === undefined) return { saveStatus: "idle", saveResumesAtMs: null };
+  if (held.isInFlight === true) {
+    return { saveStatus: "saving", saveResumesAtMs: null };
+  }
+  return { saveStatus: "error", saveResumesAtMs: held.resumesAtMs };
+}
+
+/** The write a load is given instead of the server's copy. A read-only load (a shared link) is given none:
+ *  it shows what the server holds, whoever's write is held. */
 function waitingWriteFor(
   loaded: LoadedDesignState,
   options: ConfiguratorStoreOptions,
