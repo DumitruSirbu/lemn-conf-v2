@@ -11001,6 +11001,495 @@ captured and inspected.
 *QA reading:* the criteria; Playwright's offline and route-abort tools; 8K's error table. *Logic
 reader:* D8; frames 5A, 5B. *Visual reading:* frames 5A, 5B.
 
+#### 8M, restated for dispatch — 2026-10-12
+
+**State.** HEAD is `fc6a2d9b` [ran: `git log --oneline -2`], tree clean [ran: `git status --short`,
+0 lines]. 8L is closed (ADR 0159 and its Amendment A; *8L as closed*). Nothing of 8M is built [ran:
+`app/[locale]/d/[id]/` holds `page.tsx`, `review/` and `contact/` only; no `done/` folder exists
+under `src`]. `pnpm ci:local` now runs its e2e step under `CI=1` with a production build [src
+`scripts/local-ci.sh:137-143`, committed in `61fd898b`], so a green `ci:local` is evidence about a
+request count from this wave on (Q42). **The architect ran no test, no build and no server for
+this plan.** Every claim about code is [src] at `fc6a2d9b` unless marked. The two-slice table
+above (2026-10-07) is **overtaken** by this section; its criteria 1 to 8 stand, restated and made
+falsifiable in point 4, and eleven are added (9 to 19). *Tier: Full + security + visual* (point 7).
+**8M is dispatchable: S0 to S7 wait for nothing; S8 is built on Q44's default unless the owner
+answers first** (point 6).
+
+**Settled before this restatement, not re-opened here** (owner, relayed; ADR 0159 Amendment A):
+**Q41 (a)** — Back shows the older copy, locked, and the way to the newest is the review-again link;
+**Q43** — the link e-mail back to the customer is M8B's, not M8's; **Q42** — `ci:local` runs e2e
+under `CI=1`; **frame 5A stays in 8M**, replacing 8L's bare sent notice (8L.8).
+
+**1. What exists, and what 8M reuses rather than writes again.**
+
+| Built | Where [src] | What 8M does with it |
+| --- | --- | --- |
+| The answer classes | `contact/contact-answer.ts:16-23`: `sent`, `failed`, `refused`, `conflict`, `design-not-current`, `does-not-fit`, `limited` | Adds **one** class, `unanswered` (S1). Every other class keeps 8L's meaning and 8L's screen |
+| A request with no answer | `contact/send-contact-request.ts:28-29`: a fetch that throws is `FAILED_OUTCOME`, the same value as an unreadable `200` or a `503` | S1 tells the two apart; this is the only way the automatic retry can know the connection was the cause |
+| The guard, the id rule, the retry button | `contact/use-contact-submission.ts:191-305` (`pressContact`, `isPressIgnored`, `settle`); `contact-request-identity.ts` (`historyAfterOutcome`); `contact/contact-outcome.tsx:166-187` (`RetryAction`, testid `contact-retry`) | **Unchanged rules.** The automatic retry calls the same `press`, so it inherits one request in flight, the same id and body, the save wait and the limit's wait (ADR 0159 d2, d3, d10) |
+| The sent state | `contact/contact-screen.tsx:180-235`: `SentOrForm` draws `SentLine`, one `role="status"` line with the reference, testid `contact-sent` | Replaced: the design form leaves for `/d/{id}/done` (S7); the callback form draws its sent view in place (8M.9) |
+| The failed state | `contact-outcome.tsx:145-164`: `failed` draws the failed sentence and *try again* beside the form | Replaced by frame 5B for `failed` and `unanswered` only (8M.4); the other classes are untouched |
+| What the provider's failures mean | `lib/server/mail/mail-sender.ts:98-106`: `quota-spent`, `refused` and `payload-mismatch` are not retryable; `deliver-notice.ts:118-130` answers them `502 CONTACT_NOTICE_NOT_SENT` and the rest `502 CONTACT_NOTICE_NOT_SENT_RETRY` | 8M.5: neither `502` is retried automatically. **No new leaf says "quota"** (the 2026-10-07 note above) |
+| The two hydrators | `app/d/[id]/review/hydrate-and-review.tsx`, `app/d/[id]/contact/hydrate-and-contact.tsx`, through `store/newest-copy.ts` | `/done` is the **third** hydrating door, which is backlog 191 (1)'s trigger: S0 makes one `HydrateStoredDesign` first |
+| The owned load | `lib/server/load-owned-design.ts` (with 8L S7's id shape) | `/d/{id}/done` calls it first; four doors answer one request alike (the 2026-10-08 note) |
+| The proxy | `proxy.ts:19`, `DESIGN_STEP_SEGMENTS = ["review", "contact", "done"]`; the `/done` page read is counted [src `tests/proxy-page-read.test.ts:65`] | **Not touched.** The security reader confirms by `git diff --stat` |
+| The contact store | `packages/persistence/src/contact-submission-store.ts:82-94`: `lookUp`, `record`, `markNotified`, and *"answers nothing that is personal: no field of the contact, no snapshot, no list and no count"*. Migration `0008:6-7, 39-41`: the application role reads seven columns, `client_request_id`, `reference`, `design_id`, `design_revision`, `payload_digest`, `created_at`, `notified_at` | S3 adds one read over four of those seven, so a reload of 5A can show the reference (criterion 2). **No migration, no grant** |
+| The scene for a picture | `review/review-scene.tsx:15-21`: `ViewOnlyKitchenCanvas`, loaded on the client only; `ReviewScene` adds camera chips. `scene/camera-preset-store.ts:11`: the default preset is `overview` | 5A's render is the same view-only canvas at the room's `overview`, without chips (D4; 8M.8). **No adapter change** |
+| The share link | `share/share-design.tsx:49-58` (shown only when `canWrite === true` and the design has been saved once); `persistence/share-link-client.ts` (`shareLinkStatus`, `issueShareLink`); the `share.reissueWarning` leaf | S8 builds 5A's WhatsApp action on them (Q5; Q44) |
+| The source scan of 8L criterion 6 | `tests/contact/contact-source-names-no-browser-storage.test.ts:19-49`: in `contact/` and three route files, no browser store, no `location`, no `new URL`, no history API, **no `useRouter` and no `router.push`/`replace`**, no console | Kept as it is. The one router call 8M needs lives outside it (8M.3); `done/` is added to the scan (S2) |
+| The UI-state rule of this Next | `cacheComponents` is not set [src `next.config.ts`]; without it a page's client state is not kept across navigations [doc `node_modules/next/dist/docs/01-app/02-guides/preserving-ui-state.md:13-17`] | Why the form's memory cannot simply be read on `/done`, and why 8M.2's hand-over exists |
+
+**2. The decision sweep.** Swept for this restatement [ran: greps of `docs/decisions/` for *5A*,
+*5B*, */done*, *success*, *in this browser*, *WhatsApp*, *anchor*, *quota*, *retry*, *reference*;
+each hit read in the part named; and this file for *8M*, *Q3*, *Q5*, *Q9*, *Q11*, *Q14*, *Q18*,
+*Q41*, *D4*, *D8*, *D9*, *D16*, *D17*].
+
+| Record | What it says | How 8M settles it |
+| --- | --- | --- |
+| D1; Q2 (a) | Screen 5 is `/[locale]/d/{id}/done`, gated as `/d/{id}` is | 5A is that route. **5B is not**: it is a state of the contact page, because it must keep what was typed and retry it (8M.4) |
+| D4 | The success screen's render is the existing scene component, without picking; no builder, anchor or scaling rule changes | 8M.8. `packages/three-adapter` is not touched: no coordinate anchor, scaling rule or structural dependency moves (`product-invariants.md`) |
+| D8; ADR 0157 d5 | Success is a stored row and an accepted notice; a retry under the same id re-attempts only what is missing | The automatic retry carries the same id (criterion 5), so a request that stored before its answer was lost stores once (e2e·CI, point 9) |
+| D9; ARCH §9 | No false success | 5A claims a send only from a `200` this tab received or from a stored, notified row of this design at this revision (8M.6) |
+| D16 | The reference is random, not sequential | Shown as text, never parsed |
+| D17; ARCH §8; ADR 0159 (title, d1, criterion 6) | Contact details only in memory; the form's one place of memory is its hook | 8M.2 adds **one** further place of memory, bounded and named, and criterion 12 extends criterion 6 over it |
+| ADR 0002 d17; ADR 0114 B7, Amendment D | No "saved" claim for an unwritten design; the success copy says *in this browser*; the e-mailed link is gone (profile, M8B) | Criterion 3 |
+| Q11 (a); Q43 (M8B) | No e-mailed edit link; no link e-mail to the customer in M8 | Criterion 3's *must not* |
+| Q3 (a) | The shop's number is owed | 5B's *"Sună direct la magazin"* is not drawn, never with a stand-in (criterion 7) |
+| Q5 (a) | 5A's WhatsApp action is built on the customer's own share link, which re-issues and so revokes a link already sent, with the existing warning | S8; **its recipient is not settled by any record: Q44** |
+| Q8 (a) / Q26 | No response time anywhere | Criterion 1's *must not* |
+| Q9 | 5A's three steps are slots until the owner confirms them line by line | 8M.10 |
+| Q10 (a) | Drafted wording enters the copy lock in its wave; slots are excluded | S4 |
+| Q14 (i); ADR 0153 | The application role reads the seven non-personal columns only | S3 reads four of them; nothing personal is named or returned |
+| Q18 (a) | *"salvate pe telefon"* is reworded to what is true: kept while the page is open | Criterion 8; 8M.10 |
+| Q41 (a); ADR 0148 E3; ADR 0158 d4 | An older page may be shown on Back, locked; the way to the newest is a link that fetches | 8M.3 and criterion 11: Back after a send lands on the review, which follows E3 as built |
+| ADR 0148 A3, A4, G3 | No material pill on screens 3 to 5; desktop a centred 640 px column; nothing focused under the pinned region | 5A and 5B follow all three |
+| ADR 0148 A3 ruling 4; 8L.10 | A screen that shows a price probes WebGL first | 5B sits on the contact page, which already probes. **5A shows no price**, so it does not wait on the probe (8M.8) |
+| ADR 0157 d4, d9 | One answer per kind; **no route opens anything by a reference** | S3 reads by design id and revision behind the owned load; nothing is opened by a reference |
+| ADR 0159 d2 and its trigger (*"8M's connection-loss work"*); backlog 194 | No client abort, no timer on the contact `POST` | **Considered and kept** (8M.5): 8M adds no abort and no timer on the request |
+| ADR 0159 criterion 6's source scan | No router call in `contact/` | 8M.3 |
+| Backlog 191 (1) | A shared `HydrateStoredDesign` *"when a third door appears"* | `/done` is the third: S0 |
+| ADR 0114 Amendment G; `share-design.tsx:6-8` | The share link is shown once, lives in component state, is *"never an anchor"* | S8 must put the link into a WhatsApp address: **a dated amendment, recorded by the scribe**, and S8's security review (8M.11) |
+
+No record says the opposite of what follows. Two records are **narrowed by a dated note** at the
+close and are named: ADR 0159 (8M.2, a second place of memory) and ADR 0114 G (8M.11, the link in
+a WhatsApp address). One earlier sentence **of this plan** is read narrowly and said so (8M.5).
+
+**3. Rulings for this wave** (the architect's; each open to the owner).
+
+- **8M.1 — the slice table below replaces the two-slice table above.** Two slices of five and six
+  items over eight and more files break *Scope discipline* (`WORKFLOW.md`).
+- **8M.2 — the sent request is handed to `/done` in memory, one entry, and nowhere else.** When the
+  design form's request is answered *sent*, the hook writes one entry to a new module,
+  `done/sent-request-memory.ts`: the design id and revision the request named, the reference from
+  the answer, the channel chosen, and **one** typed value, the one the shop will use (the phone for
+  *Telefon* and *WhatsApp*, the e-mail address for *E‑mail*). No name, no locality, no consent.
+  The entry is replaced by the next sent request, cleared whenever a design contact form mounts,
+  and gone on any reload. Reading it does not clear it (so a language switch, or Back then Forward,
+  shows the same 5A; and React's strict mode cannot lose it by reading twice). *Why memory and not
+  the URL or storage:* D17 and ADR 0159 criterion 6. *Why not the form's own hook:* the contact
+  page unmounts on navigation (point 1, last row). *Not taken:* a route-group layout holding the
+  form above both pages (moves 8L's route files, and still loses the number on a language switch,
+  which changes the `[locale]` segment); the reference in a query string (a 5A that any URL can
+  forge, and a reference in history); session storage (D17). **This narrows ADR 0159 d1's *"one
+  place of memory"*: the hook stays the form's one place; this is the sent request's one place.**
+- **8M.3 — the design form leaves for `/done` by replacing its own history entry.** On *sent*, the
+  contact page calls `router.replace` to `/[locale]/d/{id}/done`. So **Back from 5A lands on the
+  review**, never on a contact page that could be sent again, and `history.length` does not grow.
+  The review then shown is the tab's copy under ADR 0148 E3 as built, and asks nothing; if it is
+  older than the stored one, a send from it is refused as *design not current* and the
+  review-again link fetches the newest. That is Q41 (a), applied here. **The one router call is in
+  `done/use-replace-with-done.ts`**, which takes a `DesignId` and builds the path by
+  `review/design-hrefs.ts`'s new `doneHref`; the contact folder's scan is not loosened. *Not taken:*
+  `router.push` (Back returns to a fresh, sendable form); `history.replaceState` (Next would restore
+  the contact page's tree under the `/done` address on Forward, with an empty form).
+- **8M.4 — 5B is the contact page's state for two classes, `unanswered` and `failed`, and only
+  those.** `unanswered` is a request the browser got no answer to (the fetch rejected).
+  `failed` is every answered failure 8L.7 puts there (`502` either code, `503`, `400
+  CONTACT_REJECTED`, another `4xx`/`5xx`, an unreadable or misshapen `200`, and a press nothing could
+  be made of). **`refused`, `conflict`, `design-not-current`, `does-not-fit` and `limited` keep
+  8L's sentence, place and action beside the form**, with the owner-approved `limitedTomorrow`
+  wording; 5B repeats none of them. While 5B shows, the form is not drawn and every typed value
+  stays in the hook; the top bar is the contact page's own (back to the review, *Contact*).
+  **Frame 5B's top bar, *"✓ Cerere trimisă"*, is not drawn**: it is the success frame's bar copied
+  [doc `…Mobil.dc.html:1471-1472`], and on a failure it would be a false success (D9). A retry from
+  5B shows the retry button in its sending state (the sending label, `aria-disabled`), not 4C;
+  *sent* leaves for 5A; an answer of an 8L class returns to the form with that class's sentence.
+- **8M.5 — the automatic retry has one trigger: the browser's `online` event after an
+  `unanswered` send.** It calls the same press, so it carries the same id and body, waits on a
+  save, respects a limit's wait, and is one request in flight. **An answered failure is never
+  retried automatically**, whichever code: the frame's own line names only the connection's return
+  [doc `…Mobil.dc.html:1491`], each try spends the request's tries' bucket (ADR 0157 d1), and a
+  timed backoff would be a timer and a schedule nobody has ruled. *The 2026-10-07 note above
+  ("every other retryable failure keeps criterion 5") is read as: criterion 5 binds whatever
+  retries automatically; it does not add a second trigger.* An `online` event that never comes
+  (the browser thought it was online throughout) leaves *Încearcă din nou* for the customer.
+  **ADR 0159 d2 stands**: no abort and no timer on the request. Its trigger, *"8M's
+  connection-loss work"*, has been met and considered: a request that never settles still holds 4C,
+  a recorded limit with its trigger kept (a report from a real phone, 8T).
+- **8M.6 — what 5A shows, and from where.** One pure function, `done/result-to-show.ts`, decides
+  it from the server's answer for this design and revision (S6) and the hand-over (8M.2):
+  1. a hand-over whose design id **and** revision equal the page's: **sent**, with its reference
+     and the channel line naming the typed value;
+  2. else the server's *sent*: **sent**, with that reference and **no typed value** (the channel
+     line's variant that names none);
+  3. else the server's *none*: **no request** — a sentence that no request is known for this design
+     as it now stands, and the link to the review; no ✓, no claim;
+  4. else (the read failed): **not shown** — a sentence that the request cannot be shown now, and
+     the link to the review; no claim either way.
+  The reference is the answer's or the stored row's string, rendered as text. **Nothing typed is
+  ever shown but the one value of 8M.2, and only in case 1.** *Warrant for showing it:* frame 5A
+  draws it and its note asks for *"canalul și numărul exact"* [doc `…Mobil.dc.html:1427, 1460`];
+  ADR 0104 makes the frames the specification; this plan's criterion 1 (2026-10-07); D17 and ADR
+  0159 permit it in memory. The scribe records it in the new ADR.
+- **8M.7 — the server's answer on a load of `/done` (criterion 2).** After the owned load allows,
+  the page asks the contact store for **the reference of the latest notified request for this
+  design at its stored revision**, by a new read over `reference`, `design_id`, `design_revision`
+  and `notified_at` (all among the seven), the latest `notified_at` first and the reference as a
+  tie-break. It answers *sent* or *none*; a store error is *unknown* at the page, written as the
+  page's own line with no detail (ADR 0146). **A stored request never notified is not shown as
+  sent**, and a request for another revision is not this page's. *Recorded limit:* a request whose
+  notice was accepted and whose mark then failed (ADR 0157 d5) is *sent* to the tab that received
+  the `200` (case 1) and *none* on a later load. The read is behind the owned load and never runs
+  for a refused door; it opens nothing by a reference (ADR 0157 d9).
+- **8M.8 — 5A's render.** The view-only canvas `ReviewScene` mounts, at the room's `overview`
+  preset, without chips and without writing the remembered camera view; a picture only, decorative
+  to assistive technology. While WebGL is being probed, and on a device without it, the frame's
+  neutral square stands there and the rest of 5A is drawn at once: **the reference never waits on
+  the probe**. S5 exports the picture from `review/review-scene.tsx` so both screens mount one
+  thing.
+- **8M.9 — the callback form's sent view is in place.** A request with no design has no `/done`. On
+  *sent* the callback page draws 5A's heading, channel line and reference with *Copiază*, and no
+  steps, no render, no WhatsApp and no *Înapoi la design* (each is about a design). Its bar keeps
+  the way to the start. A reload shows the empty form. *No frame draws this*; the owner sees it at
+  the hand check.
+- **8M.10 — the copy** (namespace `submissionResult`, both frames, one surface: the mockup's
+  *Ecran 5*). As drawn where the frame's sentence is true; drafted where it is not; Russian drafted,
+  never marked approved (Q10 (a)). The leaves and their sources are S4's table (point 5). **Three
+  are slots** (Q9): 5A's three steps, carried in the copy lock under a slot comment and excluded
+  from approval, as 8L.11 carried the consent. **Six change a frame's sentence and are flagged for
+  the owner's eye** (point 6, *Copy for the owner*). Retired: `contact.outcomes.sent` and
+  `contact.outcomes.failed`, from both catalogues, the declaration, the lock and the golden
+  manifest. 5B reuses `contact.retry` and `contact.sending` (the same surface).
+- **8M.11 — the WhatsApp action (S8; Q44 default (a)).** Drawn only where the share control would
+  be (`canWrite === true` and saved once). A press asks the share link's status; if one is active
+  it shows `share.reissueWarning` and asks to go on; it issues the link through
+  `issueShareLink`; then it shows **one external link**, *Deschide WhatsApp*, to
+  `https://wa.me/?text=` and the encoded drafted message with the link's absolute address,
+  `target="_blank"`, `rel="noopener noreferrer"`. **Two taps, on purpose:** a window opened after
+  an `await` is blocked by phone browsers as not the customer's gesture [inf; QA confirms in
+  Chromium, 8T on a phone]. The link exists only in that component's state; it is never in the
+  store, storage, our URL or a log; it leaves for WhatsApp, which is its purpose. **This departs
+  from `share-design.tsx`'s *"never an anchor"*, whose intent was to keep the link out of this
+  application's history and prefetches**: an external anchor is not prefetched, and once followed
+  the link is in the customer's own history at WhatsApp's address. Recorded as a dated amendment of
+  ADR 0114 G, under S8's security review.
+- **8M.12 — focus on arrival.** 5A: the `h1` (*Cererea a plecat*, or the no-request or not-shown
+  sentence's heading) takes focus when the screen mounts, by client navigation or by a load
+  (`tabIndex={-1}`). 5B: its `h1` takes focus when 5B replaces the form; a later answer on 5B moves
+  no focus, and a changed sentence is announced by a polite live region. *Așteptăm conexiunea…* is
+  `role="status"`, present only while `navigator.onLine` is false. *Copiat* is announced by
+  `role="status"`. The ✓ disc and the `!` disc are `aria-hidden`.
+
+**4. The criteria, made falsifiable.** *Layers* as 8L's point 4: **unit**, **dom**, **e2e** (mobile,
+390 × 844, by touch), **e2e·CI** (counts requests or reads the build: **production server, `CI=1`**,
+point 9), **visual**. *Original* names the 2026-10-07 criterion a row restates.
+
+| # | Falsifiable statement (with its *must not*) | Proved by | Slice |
+| --- | --- | --- | --- |
+| 1 | *Original 1.* On arrival at 5A from a send, the channel line names the channel chosen and the one typed value of 8M.2 exactly as typed (trimmed), from the hand-over, in the page's language; for each of *Telefon*, *WhatsApp*, *E‑mail*. *Must not:* a response time or any duration; a sentence that names no channel (*"te vom contacta"*); the name or the locality; the value shown on 5A of another design or another revision | unit: `result-to-show` over every combination; dom: each channel, ro and ru; e2e: the full path, the token on screen | S2, S5 |
+| 2 | *Original 2.* A **load** of `/d/{id}/done` (reload, typed address, a tab the phone discarded) shows the reference of the latest notified request for that design at its stored revision, the steps, and the channel line with no typed value; with none, the no-request view; with a failed read, the not-shown view. *Must not:* an error page; another design's reference; a reference of another revision; a stored request never notified shown as sent; a ✓ or *Cererea a plecat* in the no-request or not-shown view | unit: the store read over seeded rows (fake and mocked driver: notified and not, two revisions, two designs, two notified rows at one revision); live, the persistence suite on the test database; e2e·CI: send, reload, the reference equals the `POST`'s answer, the token absent from the DOM | S3, S5, S6 |
+| 3 | *Original 3.* The saved sentence says *din acest browser* (ADR 0114 B7, Amendment D). *Must not:* *telefon* in a saved claim; a profile, an account, a sign-up, an e-mailed link or a link e-mail (Q11, Q43) anywhere on 5A | the copy lock (literals); dom: the rendered text searched for the leaves of those words | S4, S5 |
+| 4 | *Original 4.* **5B keeps everything.** After any failure that shows 5B, `GET /api/designs/{id}` answers the same revision as before the press, and the next send's body is JSON-equal to the failed one's but for `elapsedMs`. No input is drawn on 5B and none is asked for again. *Must not:* a typed value dropped by entering or leaving 5B within the page | dom: the hook's values across 5B; e2e·CI: the two bodies compared, the design's revision read before and after | S1, S7 |
+| 5 | *Original 5.* **The automatic retry** happens only on an `online` event that follows an `unanswered` send with no send since; it is one `POST`, with the previous `clientRequestId` and an equal covered projection; at most one `POST` outstanding; none after *sent*; **none after any answered failure** (`502` either code, `503`, `CONTACT_REJECTED`, `429`, every 8L class); none before a `429`'s wait; none while `design !== savedDesign`. *As a property:* P5 and P6 (point 8) | unit: fast-check at the hook with a fake `online` source; e2e·CI: the lost answer, then offline and online, one more `POST` with the same id, **one row stored** | S1, S2 |
+| 6 | *Original 6.* `unanswered` shows 5B's lost-connection sentence; `failed` shows 5B's not-sent sentence; the five 8L classes show 8L's sentences beside the form (not 5B). **No rendered text in 5A, 5B, the no-request or the not-shown view contains a code or a status** (`[A-Z]{2,}_[A-Z_]+`, and no three-digit status) | dom: every class and every answer of 8L.7 rendered, the DOM text searched; e2e·CI: `502` (both codes) and `503` by `page.route` show 5B, `429` shows 8L's sentence | S1, S4, S7 |
+| 7 | *Original 7, restated.* While Q3's number is owed, **no `tel:` link and no digits presented as the shop's number** appear on 5A, 5B or the callback views, and no leaf for *Sună direct la magazin* exists. When the owner gives the number, *the direct call dials the configured number* is a criterion of the wave that draws it | dom: no `a[href^="tel:"]`; the catalogue test | S4, S7 |
+| 8 | *Original 8.* No leaf claims data are saved *pe telefon* or *pe acest telefon* (Q18 (a)); 5B's kept sentence says the details stay while the page is open | the copy lock (literals); the logic reviewer reads them | S4 |
+| 9 | *Added (the 2026-10-08 note).* `/d/{id}`, `/review`, `/contact` and `/done` answer one request alike: no cookie, a malformed cookie, a foreign one, an unknown id, an id not of the generator's shape and an invalid row each give the same `DesignLoadError` reason on all four; **a refused door makes no contact-store read** | unit, a fake repository and a store spy, in a new file beside `review-page-gate.adversarial.test.ts` (read, not edited); e2e: the door | S6 |
+| 10 | *Added.* `/[locale]/d/[id]/done` is not in `.next/prerender-manifest.json` after `next build`; two loads carry different nonces, each equal to that response's CSP nonce | e2e·CI, as 8L's criterion 9 | S6 |
+| 11 | *Added (8M.3).* On *sent* from the design form: the URL becomes `/[locale]/d/{id}/done`; `history.length` is unchanged; Back lands on `/[locale]/d/{id}/review`; exactly **one** `POST` was made. The callback form stays on its address and draws its sent view. *Must not:* `router.push`, `history.pushState` or `replaceState` named in `contact/`; a contact page reachable by Back after a send | e2e·CI: history and request counts; unit: the scan (the router named only in `done/use-replace-with-done.ts`, whose one call is `replace(doneHref(…))` of a `DesignId`) | S6, S7 |
+| 12 | *Added (ADR 0159; D17).* **No typed value outside memory.** With a unique token typed in each of name, phone, locality and e-mail, across 4C, 5B (offline), the automatic retry, 5A, a language switch on 5A, Back, Forward and a reload of `/done`: no token in `document.cookie`, the context's cookies, `localStorage`, `sessionStorage`, IndexedDB's database names, any history entry's URL, any request's URL, any request's body but the contact `POST`s, the HTML or RSC payload of `/done`, `useConfiguratorStore.getState()` serialised, or the console; **after the reload, no token in the DOM**. The name and the locality are in no hand-over. *Must not:* a storage name in `contact/`, `done/` or the four route files | e2e (ro), every channel inspected; dom: the hand-over holds the four fields of 8M.2 and no others; unit: the scan, extended to `done/` and the `/done` page and hydrator | S2, S6, S7 |
+| 13 | *Added (8M.12).* 5A: `document.activeElement` is its `h1` after arrival by a send and after a load. 5B: its `h1` after entering from 4C; after a retry's answer on 5B, focus is where it was and a changed sentence is in a polite live region. *Așteptăm conexiunea…* is present iff offline, `role="status"`. *Copiat* is announced. The discs are `aria-hidden`. Every new control is at least 44 × 44 px. Nothing focused lies under a pinned region (ADR 0148 A4, G3). *Must not:* a second `h1`; focus left on a removed element | dom: the attributes and focus; e2e: ro and ru by touch, the boxes against the pinned region | S5, S7 |
+| 14 | *Added (8M.10).* Every new leaf is in `ro.json` and `ru.json` with equal ICU placeholders; every Romanian literal is in the copy lock (the slots under a slot comment); the golden manifest moves for exactly the new and retired leaves; `contact.outcomes.sent` and `.failed` are gone everywhere. *Must not:* an approved Romanian leaf changed; a Russian leaf marked approved | the copy lock, `golden-output.test.ts`, `catalogue-parity.test.ts`, `contact-copy.test.ts` | S4 |
+| 15 | *Added (8M.7).* The new store read names only columns among the seven readable ones, writes nothing, returns one reference or none and **never a list, a count or a personal column**; its answer is checked with `isSubmissionReference`; an untrustworthy answer is `ContactSubmissionStoreError` with its own operation name and no driver text. **No migration and no grant is added** | unit: the statement test against `READABLE_COLUMNS` (as `contact-submission-statements.test.ts`); mocked driver; live on the test database; `application-role-privileges.test.ts` unchanged and green | S3 |
+| 16 | *Added.* The reference is rendered as text (an answer whose reference is `<img src=x onerror=alert(1)>` renders those characters and runs nothing); *Copiază* writes exactly the reference to the clipboard and then shows *Copiat* for 2 s; a refused clipboard write shows no *Copiat* and leaves the reference selectable | dom; e2e (Chromium's clipboard permission granted) | S5 |
+| 17 | *Added (8M.8; D4).* 5A's picture is the view-only canvas at `overview`, with no camera chip and no orbit, and it does not change the remembered view (the editor afterwards shows the view it had). Probing or unsupported: the neutral square, and the heading and the reference are already drawn. `git diff --stat` shows no file under `packages/three-adapter` | dom with the support state set; e2e: the canvas present, no chip; visual | S5 |
+| 18 | *Added (8M.11; Q44 default (a)).* The WhatsApp action is absent unless `canWrite === true` and the design was saved once; with an active link it shows the reissue warning and issues nothing until the customer goes on; after a press, exactly one `POST /api/designs/{id}/share`; the external link's address is `https://wa.me/?text=` with the drafted message and the absolute share address, `rel` holds `noopener` and `noreferrer`; the share address is in no history entry of this application, no storage and no log. *Must not:* a window opened after an `await`; a Next `Link` to it | dom: the gate, the warning, the address built; e2e·CI: the share `POST` counted, the link's attributes, history and storage searched | S8 |
+| 19 | *Added (8M.4).* From 5B, a retry shows the retry button with the sending label and `aria-disabled="true"` (not 4C); two presses or a press and an `online` event in one task make one `POST`; *sent* goes to 5A (design) or the in-place sent view (callback); `limited`, `refused`, `conflict`, `design-not-current` and `does-not-fit` return to the form with their 8L sentence | dom; unit: P1 with `online` events | S7 |
+
+*Phone acceptance (the 8M section's paragraph): what is proved here, and what goes to 8T.* Proved in
+8M, mobile project, by touch, ro and ru, on the production server: the full path from the review
+to 5A; **a lost answer** — the request forwarded to the server by `page.route` and its answer
+aborted, so the row is stored and the browser sees no answer — to 5B, then the context taken
+offline and back online, ending in 5A with the same reference and **one row stored** (counted by
+`countAndNoteStored`); offline before the press, 5B with *Așteptăm conexiunea…*, then online and
+5A; 5A, the no-request view, 5B (both sentences), the callback's sent view, captured and inspected.
+**Not provable headless, and lines for 8T's phone gate:** a real loss of network on a phone (mobile
+data dropped, airplane mode) and whether its browser fires `online` on return; a background tab
+the phone discarded and reloads onto `/done`; the clipboard on iOS Safari; WhatsApp opening from
+the external link; the desktop line for 5A and 5B at 1440 and 900 px.
+
+**5. The slices.** One developer, in this order. *Production files* exclude paired tests; the copy
+lock, the golden manifest and their counts are tests.
+
+| Slice | Does (items) | Production files | Reading |
+| --- | --- | --- | --- |
+| S0 | **One move, no behaviour** (backlog 191 (1)). (1) One `HydrateStoredDesign` holding the predicate, the write access and the snapshot provider; the review's and the contact page's hydrators become its two callers. (2) `hydrate-and-review.tsx` keeps `export { isGreaterRevision }` (backlog 185) | new `app/d/[id]/hydrate-stored-design.tsx`; `app/d/[id]/review/hydrate-and-review.tsx`; `app/d/[id]/contact/hydrate-and-contact.tsx` | this section, points 1 and 2; ADR 0148 E3, E3a; ADR 0158 d3, d4; ADR 0133 d4; backlog 185, 191. Source: the two hydrators, `store/newest-copy.ts`, `store/configurator-snapshot.tsx`. Tests (read, not edited): `tests/app/hydrate-and-review.*`, `hydrate-and-contact.*`, `qa-8d-revision-order.adversarial.test.ts` |
+| S1 | **The `unanswered` class, and which failures are 5B's; no new screen.** (1) `sendContactRequest` answers `unanswered` for a fetch that rejects; `failed` keeps every answered failure. (2) The id rule treats `unanswered` as 8L treats `failed` (same id, `elapsedMs` re-measured); `isFinalOutcome` false for both. (3) `failureScreenOf(outcome)`: `lost-connection`, `not-sent` or none (8M.4). (4) Until S7, `unanswered` is drawn exactly as `failed` is today (an interim inside the wave, so no screen changes here). (5) Every switch over the classes stays exhaustive by type | `contact/contact-answer.ts`; `contact/send-contact-request.ts`; `contact/contact-request-identity.ts` (only if `historyAfterOutcome` must name the class); `contact/contact-outcome.tsx`; `i18n/content.ts` (the notice type only) | this section, points 1 and 3 (8M.4, 8M.5), 4 (criteria 5, 6); 8L.7; ADR 0159 d2, d3; ADR 0157 d4, d5. Source: those files; `lib/server/contact/contact-responses.ts`; `lib/server/mail/mail-sender.ts:98-111`; `deliver-notice.ts:110-142`. Tests: `tests/contact/contact-answer.test.ts`, `send-contact-request.test.ts`, `contact-request-identity.test.ts`, `use-contact-submission.properties.dom.test.ts` |
+| S2 | **The automatic retry and the hand-over.** (1) `useRetryWhenOnline`: subscribes to `online` only while the phase is `unanswered`, and on the event calls the submission's `press`; one call per event; unsubscribed on leaving that phase or unmounting; the event source and `navigator.onLine` are a port. (2) `useIsOnline` for S7's waiting line, from the same port. (3) On *sent* for a design, the hook writes the hand-over of 8M.2; the target's id and revision are carried from the press to the answer. (4) `done/sent-request-memory.ts`: `rememberSentRequest`, `recallSentRequest({designId, revision})` answering the entry or a *none* value (never `null`), `forgetSentRequest`; a design contact form forgets on mount. (5) The source scan covers `done/` (and, in S6, the `/done` page and hydrator) by the same list of names, with **one** named exception, `done/use-replace-with-done.ts` (S6), whose own test reads it and finds one router call, `replace`, whose argument is `doneHref` of a `DesignId` | new `contact/retry-when-online.ts`; `contact/use-contact-submission.ts`; new `done/sent-request-memory.ts` | this section, points 3 (8M.2, 8M.5) and 4 (criteria 1, 5, 12); ADR 0159 d1 to d3, d10, criterion 6; D17; ARCH §8; ADR 0157 d1 (the tries' bucket). Source: S1's files; `review/use-save-wait.ts`; `store/configurator-store.ts`. Tests: `tests/contact/use-contact-submission*.dom.test.ts`, `contact-source-names-no-browser-storage.test.ts` (developer-owned; extended here) |
+| **Checkpoint A** | **The security reader reads S1 and S2 before anything builds on them** (8L's precedent): what the hand-over holds and for how long, that a retry re-sends personal data only under the same id, the scan's new reach | — | the security *Reading* line, point 8 |
+| S3 | **The store's one new read** (`packages/persistence`). (1) `findSentReference({designId, revision})` on the port: `{kind: "sent", reference}` or `{kind: "none"}`. (2) Neon: one `select reference` where the design id and revision match and `notified_at is not null`, latest `notified_at` first, then the reference; parameters only. (3) Its answer checked with `isSubmissionReference`; anything else is `ContactSubmissionStoreError` with a new operation name and a reduced cause (ADR 0146). (4) The fake answers the same from its own rows. (5) Exported from the index | `packages/persistence/src/contact-submission-store.ts`; `neon-contact-submission-store.ts`; `fake-contact-submission-store.ts`; `index.ts` | this section, points 3 (8M.7) and 4 (criteria 2, 15); ADR 0153 whole (the seven columns; *no list and no count*); ADR 0146; ADR 0157 d9; ADR 0151; ADR 0155's standing rule; `0008_create_contact_submissions.sql:1-45`. Tests: `contact-submission-statements.test.ts`, `neon-contact-submission-store.driver.test.ts`, `fake-contact-submission-store.test.ts`, `application-role-privileges.test.ts` (read), `support/contact-submission-columns.ts` |
+| S4 | **The copy**, namespace `submissionResult` (8M.10). (1) 5A: `topBarTitle` *Cerere trimisă*, `sentHeading` *Cererea a plecat*, `referenceLabel` *Număr cerere*, `copy` *Copiază*, `nextStepsTitle` *Ce urmează*, `backToDesign` *Înapoi la design*, `sendOnWhatsapp` *Trimite design-ul pe WhatsApp* — as drawn; `copied`, drafted. (2) The channel line, one ICU `select` over `phone`, `whatsapp`, `email` with `{contact}` (WhatsApp's as drawn, *"Te sunăm pe WhatsApp la {contact}."*), its variant with no value, and the saved sentence with *din acest browser*. (3) The three steps as **slots** (Q9): steps 1 and 3 as drawn; step 2 drafted **without naming what the final price includes** (the approved disclaimer says the estimate excludes the worktop). (4) 5B: `failureHeading` *Nu am putut trimite cererea*, `failureLostConnection` *Conexiunea s-a întrerupt.*, `waitingForConnection` *Așteptăm conexiunea…*, `keptContact` *Datele de contact completate* — as drawn; `failureNotSent`, `failureKept` and its no-design twin, `keptTitle`, `retryAutomatically` — drafted. (5) The no-request and not-shown sentences, the review link's label, *Deschide WhatsApp* and the WhatsApp message (`{link}`); and the two retirements (8M.10), `content.ts` repointing the classes | `messages/ro.json`, `messages/ru.json`, `messages/ro.d.json.ts`, `i18n/content.ts` | `engineering-conventions.md`, *Localised copy*, points 1 to 7; Q3, Q8/Q26, Q9, Q10, Q11, Q18, Q43; ADR 0114 B7, Amendment D; ADR 0095; ADR 0113; 8M.10; frames 5A and 5B (`…Mobil.dc.html:1401-1513`). Tests: `tests/support/approved-romanian-messages.ts`, `tests/i18n/golden-output-hashes.ts`, `golden-output-fixtures.ts`, `golden-output.test.ts`, `catalogue-parity.test.ts`, `contact-copy.test.ts` |
+| S5 | **Frame 5A, the screen** (no route yet; mounted in dom tests). (1) `resultToShow` (8M.6), pure. (2) The bar (no back chevron, the title, the locale menu; no pill, 8L.14's rule), the ✓ disc, the heading, the channel line and the saved sentence; the hand-over read so a server render and the first client render agree (`useSyncExternalStore` with a server snapshot of *none*). (3) The reference with *Copiază* (criterion 16). (4) *Ce urmează* and the picture (8M.8), exported from `review-scene.tsx` without its chips. (5) *Înapoi la design* (a `Link` to the editor, prefetch off); the no-request and not-shown views with the review link; focus on mount (8M.12); the 640 px column on desktop | new `done/result-to-show.ts`, new `done/done-screen.tsx`, new `done/sent-reference-card.tsx`, new `done/done.module.css`; `review/review-scene.tsx` | frame 5A (`…Mobil.dc.html:1408-1460`); D4, D9, D16, D17; ADR 0104 and Amendment B; ADR 0148 A3, A4, G3; ADR 0114 B7, D; 8L.14; 8M.6, 8M.8, 8M.12; criteria 1 to 3, 13, 16, 17. Source: `app/d/[id]/review/review-screen.tsx` (the bar, the pinned region), `review.module.css`, `contact/contact-screen.tsx`, `share/share-design.tsx` (the copy feedback), `scene/camera-preset-store.ts`, `scene/scene-view.ts`, `review/design-hrefs.ts` |
+| S6 | **The `/done` route.** (1) The page: `loadOwnedDesign` first, `DesignLoadError` for a refusal and no store read, rendered per request (criteria 9, 10). (2) `readSentReference(designId, revision)`, server-only: S3's read through `contact-submission-store-instance.ts`, its error as *unknown*, the page's own line. (3) `HydrateAndDone` through S0's hydrator, no request; mounts S5's screen with the server's answer as a plain value. (4) `doneHref` and `useReplaceWithDone(designId)`, the one router call (8M.3). (5) Report the QA-owned pins point 9 lists | new `app/[locale]/d/[id]/done/page.tsx`, new `app/d/[id]/done/hydrate-and-done.tsx`, new `lib/server/contact/sent-reference.ts`, `review/design-hrefs.ts`, new `done/use-replace-with-done.ts` | ADR 0114 d5, H2, H5; ADR 0148 A1, E3, E3a; ADR 0158 d3, d4; ADR 0156 (pages counted in the interceptor); ADR 0146; 8M.3, 8M.7. Source: `app/[locale]/d/[id]/contact/page.tsx`, S0's hydrator, `lib/server/load-owned-design.ts`, `lib/server/contact/contact-submission-store-instance.ts`, `i18n/navigation`. Tests (read): `tests/app/contact-page-gate.test.ts`, `review-page-gate.adversarial.test.ts`, `qa-8l-contact-door-real-repository.adversarial.test.ts` |
+| S7 | **Frame 5B, and the contact page's way out.** (1) `SubmissionFailure`: the heading, the class's sentence, the kept sentence, the card (the review's, as 8L draws it) with *Datele de contact completate* and the one typed value, the retry with its sending state; the no-design variant has no card. (2) *Așteptăm conexiunea…* while offline and the automatic-retry line, for `unanswered` only. (3) Focus and announcements (8M.12). (4) On *sent*: the design page calls `useReplaceWithDone`; the callback page draws 8M.9's view from S5's pieces. (5) The inline `failed` arm and `SentLine` removed; no `tel:`; the retry keeps the testid `contact-retry` | new `contact/submission-failure.tsx`, `contact/contact-screen.tsx`, `contact/contact-outcome.tsx`, `contact/contact.module.css` | frame 5B (`…Mobil.dc.html:1463-1512`); 8L.7, 8L.14; 8M.3, 8M.4, 8M.5, 8M.9, 8M.12; criteria 4 to 8, 11 to 13, 19; Q3, Q18; ADR 0148 A3, A4, G3. Source: S1, S2, S5 and S6's files; `contact/contact-form.tsx`, `contact-design-card.tsx` |
+| S8 | **5A's WhatsApp action** (8M.11; Q44). (1) The gate as the share control's. (2) The status, then the reissue warning when a link is active. (3) The issue. (4) The external link, built from the absolute share address and the drafted message; shown after the issue, opened by the customer's own tap. (5) A failure shows `share.error` and *Încearcă din nou*, which repeats the operation that failed | new `done/send-on-whatsapp.tsx`, `done/done-screen.tsx`, `done/done.module.css` | 8M.11; Q5, Q44; ADR 0114 B2, B4, B6, B7, G1, G4, G5; `share/share-design.tsx` whole (the failed-operation retry, the warning); `persistence/share-link-client.ts`; criterion 18 |
+
+*Order and independence.* S0 → S1 → S2 → **checkpoint A** → S3 → S4 → S5 → S6 → S7 → S8. S3 needs
+nothing and may move earlier, never in parallel (one writing agent per tree, R2). S4 needs S1's
+notice type. S6 needs S3 and S5. S7 needs S2, S5 and S6. **S8 is last on purpose**: if Q44 is
+answered (b) or (c) before it starts, its items follow the answer; after it is built, the answer is
+a fix round. QA and the reviews run once, after S8, on a frozen tree; checkpoint A is the one
+early read.
+
+*Must not, every slice:* a file under `packages/configurator-domain/`, `packages/three-adapter/`,
+`app/api/` or `proxy.ts` changed, and **a file under `packages/persistence/` changed outside S3**
+(a missing export **stops** the slice); a migration or a grant; a `qa-*` or `*.adversarial.*` file
+edited (a pin the wave moves is reported; QA changes it); a typed value in a URL, a cookie, browser
+storage, the configurator store, a log or the console; `prefetch={true}`, `router.back()`,
+`history.back()`, `pushState` or `replaceState`; `router.push` to `/done`; an abort or a timer on
+the contact `POST`; a timed or counted automatic retry; a stand-in for the shop's number; a second
+copy of a rule, a length, a code list, the digest's coverage or the reference's shape; an
+environment variable created, changed, removed or printed; a database row deleted outside the
+harness's own teardown (ADR 0151); `git stash`, `git stash pop`, `git checkout -- .`,
+`git reset --hard`, `git clean`; **a mutant sent to a database** (ADR 0155).
+
+| Slice | Stops if |
+| --- | --- |
+| S0 | Any test changes or fails |
+| S1 | A class 8L shows beside the form would have to change its sentence, place or action; an `unanswered` answer cannot be told from a `failed` one without reading the error's text |
+| S2 | The retry cannot reach the network except through `press`; the hand-over needs a field beyond the four of 8M.2; a test outside the hook's own and the scan must change |
+| S3 | The read needs a column outside the seven, a migration or a grant; an existing persistence test changes |
+| S4 | A frame sentence must be reworded to be true and 8M.10 does not already say so (report it); an approved Romanian leaf would change |
+| S5, S7 | The pinned region takes more than half the viewport's height at 390 × 844 in Russian (ADR 0148 A4's tripwire); 5A cannot be drawn without waiting on the WebGL probe |
+| S6 | The page needs a request to hydrate; anything but a reference string or a kind must reach the client |
+| S8 | The share endpoint must change; the link must be stored anywhere but component state |
+
+**6. The owner's questions, and how 8M builds around each.** **Nothing here blocks the dispatch of
+any slice.**
+
+| Q | Standing | How 8M builds |
+| --- | --- | --- |
+| Q3, the shop's number | Owed | Criterion 7: the direct call is not drawn, never a stand-in. **A customer at 5B has no other channel on screen** until the number is given (the 2026-10-07 note, restated) |
+| Q5 | (a), on the customer's own link | S8; its recipient is Q44 |
+| Q7 | (b), the text owed | Unchanged (8L.11) |
+| Q8 / Q26 | No time anywhere | Criterion 1 |
+| Q9 | Slots, owner owes the text | 8M.10: the steps are slots; **the owner's text is owed before launch** (M9's gate line) |
+| Q10 | (a) | S4 drafted; slots carried |
+| Q11, Q43 | No e-mailed link; link e-mail is M8B's | Criterion 3 |
+| Q18 | (a), memory only | Criterion 8; 8M.10 |
+| Q41 | (a) | 8M.3 |
+| Q42 | Decided; `ci:local` runs e2e under `CI=1` | Point 9: `ci:local` is now evidence for this wave's counts |
+
+**Q44, new, for the owner; blocks nothing (S8 is built on (a) unless answered first).** *After a
+customer sends a request, frame 5A offers "Trimite design-ul pe WhatsApp". It makes the customer's
+view-only link (the one they could also send by hand, which replaces any older link) and puts it
+in a WhatsApp message. To whom should that message go?* **(a)** *The customer picks the person in
+WhatsApp, as when they share anything; nothing waits for a number of ours.* **(b)** *Straight to
+the shop's WhatsApp number; it is not drawn until you give that number, like "Sună direct la
+magazin".* **(c)** *Not WhatsApp by name: the phone's own share menu, where WhatsApp is one of the
+choices; the button would read "Trimite design-ul".* **Recommended: (a).** The shop already
+receives the kitchen with the request (Q5 (a)), so the message is for the customer's own people;
+(a) needs nothing you still owe, and keeps the frame's words. (c) works on more apps but changes
+the frame's button; (b) duplicates what the shop already has and waits on the number.
+
+**Q45, new, for the owner; blocks nothing (built on (a), which is what 8L already does).** *After
+sending, a customer can go back to the review and press "Cere oferta" again for the same, unchanged
+kitchen. Do you want* **(a)** *the form again, and a second request sent if they fill it (the shop
+receives two, with the same design; at most two new requests an hour from one browser);* **(b)**
+*the contact page to say the request was already sent, with its number, and to send a new one only
+when the kitchen has changed?* **Recommended: (a) for M8.** A second request is often deliberate
+(a corrected number, another person to call), the shop sees the same design twice and can tell,
+and (b) needs the contact page to ask the server what was sent (S3's read on a second page) and a
+screen no frame draws. Revisit with M8B, where a profile lists a customer's requests.
+
+**Copy for the owner, drafted under Q10 (a), flagged because each changes a frame's sentence or has
+no frame** (approved as drafted unless the owner rewords; Russian unsigned): 5A's saved sentence
+(*din acest browser*, ADR 0114 B7); 5A's channel line for *Telefon* and *E‑mail* (the frame draws
+only WhatsApp's) and its variant with no number, shown after a reload; 5B's kept sentence, its
+no-design twin and the box's title, which replace *"salvate pe telefon"* and *"Salvat pe acest
+telefon"* (Q18 (a)); 5B's automatic-retry line, which the frame writes as a note about the screen;
+the no-request and not-shown sentences; the WhatsApp message (Q44). **Owner-owed, not drafted as
+final:** 5A's three steps (Q9).
+
+**Genuinely blocking decisions: none for dispatch.** Merge and launch lines are unchanged: the
+owner's confirmation that no production data exists at merge time (ADR 0159 Amendment A), and the
+Q3, Q7 and Q9 texts before launch.
+
+**7. The review, per slice.** The wave is *Full + security + visual*; QA and the reviews run once,
+after S8, except checkpoint A.
+
+| Slice | Tier | Security reviewer? | Visual? |
+| --- | --- | --- | --- |
+| S0 | Coordinator-only: one move, proved by the untouched suite and a diff of moved lines | No | No |
+| S1 | Full | **Yes**, at checkpoint A: which failures may be re-sent | No |
+| S2 | Full | **Yes**, at checkpoint A: a typed value in a second place of memory (8M.2), and personal data re-sent without a press | No |
+| S3 | Full | **Yes**: a new read on the table that holds personal data, under column grants | No |
+| S4 | Full (the logic reviewer reads every sentence against the frames, 8M.10 and criteria 3, 6 to 8) | No: copy only | Through S5 and S7 |
+| S5 | Full | **Yes**, scoped: what reaches the DOM and the clipboard | **Yes**: 5A, the no-request and not-shown views, ro and ru, 390 × 844 and the 640 px column at 1280 |
+| S6 | Full | **Yes**: the fourth door, the read's place behind it, what reaches the page | Yes, the door's screens |
+| S7 | Full | **Yes**, scoped: the router call, nothing typed in an address, the retry | **Yes**: 5B both sentences, offline line, the callback's sent view |
+| S8 | Full | **Yes**: a share link put into a third party's address (8M.11) | **Yes**: the action, the warning, the link |
+
+**Security reviewer: yes, and why.** 8M holds a typed value outside the form's hook (8M.2), sends
+personal data again without a press (8M.5), adds a read on `contact_submissions` (S3) and a door
+(S6), and puts a share link into WhatsApp's address (S8). It does not touch the proxy, the API
+routes, or any grant; the reader confirms by `git diff --stat fc6a2d9b`.
+
+**8. Reading, per role.** The coordinator pastes these verbatim.
+
+- **QA, Reading:** this section whole; the 8M section's criteria and phone paragraph; 8L.7 and
+  8L's point 9; ADR 0159 whole with Amendment A; ADR 0157 d1, d4, d5, d9 and *Limits*; ADR 0153 (the
+  seven columns); ADR 0148 A1, A3, A4/G3, E3; ADR 0158 d4; ADR 0114 B7, D, G; ADR 0151; ADR 0155's
+  standing rule; `engineering-conventions.md`, *Coverage an adversarial pass owes* and *Localised
+  copy* point 7; `browser-and-visual-qa.md`; `ci-and-local-gates.md`, *Whole e2e runs have three
+  known intermittent failures* and *The per-shard test budget*; `agent-coordination.md`, *Freeze the
+  tree*; backlog 175, 191, 194; support files `tests/e2e/support/contact-run.ts`, `contact-page.ts`,
+  `seeded-design.ts`, `design-return.ts`; `lib/server/rate-limit/limit-policy.ts` (the e2e twins:
+  the tries' bucket bounds how many retries one spec may make). **What the pass owes:** first, the
+  QA-owned pins of point 9, repinned and nothing else changed in them; P5 to P8 as properties (and
+  8L's P1 to P4 re-run with `online` events in the alphabet); every class of 8L.7 and `unanswered`
+  driven through the screen; the boundaries of criteria 2 (the four store answers, two notified rows
+  at one revision, notified at another revision, stored and never notified) and 5 (an `online`
+  event before, during and after a send; two in one task); the traces of criteria 4, 5, 11 and 12
+  and the phone paragraph by touch in ro and ru. **Counterexamples to try:** `online` after a
+  `502` of each code, after `CONTACT_REJECTED`, after a `429` before and after its wait, and while a
+  save is held; a press on 5B while offline (still 5B, focus kept); a `200` whose reference is
+  markup or 10 000 characters (text, wrapped, nothing runs, nothing overflows the column); a
+  hand-over of design A recalled on `/done` of design B, and of revision r on a page at r+1; a
+  language switch, Back then Forward, and a reload on 5A; the callback form taken offline and back.
+  **Mutants, named, none near a database:** `unanswered` classified as `failed`; the automatic retry
+  making its own `fetch` instead of `press`; a new id on the automatic retry; a retry on `failed`;
+  the hand-over written to `sessionStorage`; the hand-over shown for a non-matching revision; the
+  read without `notified_at is not null`; the read without the revision; the read before the owned
+  load; `push` in place of `replace`; focus not moved on 5B. **The store-read mutants run against
+  the fake and the mocked driver only; client mutants that would store a row run only at the hook
+  with a fake `fetch`** (ADR 0155). A clean report says what was attacked.
+- **Logic, Reading:** this section, points 3 and 4; frames 5A and 5B (`…Mobil.dc.html:1401-1513`);
+  8L.7; ADR 0159 d2, d3, d10; ADR 0157 d1, d4, d5; ADR 0114 B7, D; D8, D9, D16, D17; Q3, Q5, Q8, Q9,
+  Q11, Q18, Q41, Q43. **Named checks:** no path shows *sent* without a `200` in this tab or a
+  notified row of this design and revision; which failures reach 5B and which stay 8L's; the
+  automatic retry's one trigger; every sentence against its frame and criterion 3, 6, 7 and 8.
+- **Clean-code, Reading:** each slice's files and paired tests; `engineering-conventions.md`
+  (naming, *Localised copy*); ADR 0136; ADR 0152; backlog 191. **Named questions:** whether
+  `result-to-show.ts`, `sent-request-memory.ts` and `retry-when-online.ts` are one reason to change
+  each; whether S0's hydrator leaves the three callers thin.
+- **Security, Reading:** D17; ARCH §8; ADR 0159 d1, criterion 6; ADR 0153; ADR 0146; ADR 0157 d1,
+  d9; ADR 0114 d5, H2, H5, B2, B4, B6, G; ADR 0148 A1; `lib/security-headers.ts`, `proxy.ts` (read);
+  the files of S1, S2, S3, S6, S7 and S8 and `done-screen.tsx`. **Named checks:** what the hand-over
+  holds, who reads it and when it goes; no typed value in storage, an address, a cookie, the store,
+  a log or the console; the read names no personal column and runs only behind the owned load; the
+  four doors refuse class for class; no automatic re-send but under the same id; the share link's
+  lifetime and where it goes.
+- **Visual, Reading:** frames 5A and 5B; ADR 0104 and its Amendment B; ADR 0148 A3 (the pill, the
+  640 px column), A4 and G3; 8M.4 (5B's bar), 8M.8, 8M.9; `browser-and-visual-qa.md`. Captures: 5A
+  arriving and after a reload, the no-request view, 5B lost-connection (offline) and not-sent, the
+  callback's sent view, the WhatsApp warning and link, at 390 × 844 in ro and ru, and the desktop
+  column at 1280.
+
+*As properties, for `fast-check` at the hook's level with a fake `fetch`, clock, id generator,
+store and `online` source.* Over any sequence of: a field typed, left or cleared; a press; an
+answer of any class of 8L.7, a rejected fetch, or a delay; `online` and `offline` events; a save of
+the design answered or held:
+
+- **P5.** Every `POST` not caused by a press is caused by an `online` event that follows an
+  `unanswered` send with no send since, and there is at most one per such event; it carries the
+  previous send's `clientRequestId` and an equal covered projection.
+- **P6.** No `POST` follows an `online` event after *sent*, after any answered failure, while a
+  request is out, while `design !== savedDesign`, or before a limited send's wait has passed.
+- **P7.** The hand-over holds at most one entry; after a *sent* answer for a design, it is that
+  answer's reference, design id and revision, the channel and the one value of 8M.2, and nothing
+  else.
+- **P8** (`result-to-show`). *Sent* is shown iff the hand-over matches the page's design and
+  revision or the server answered *sent*; the typed value is shown iff the hand-over matches; the
+  reference shown is never a non-matching hand-over's.
+- 8L's **P1 to P4** hold with `online` events in the alphabet.
+
+**9. The e2e note.** `ci:local` runs e2e under `CI=1` (Q42), so specs that count requests are
+evidence there and in a whole `CI=1` run alike; they say so in their opening comment. Developer
+files: `tests/e2e/submission-result.e2e.spec.ts` (5A, the reload, Back and Forward, a language
+switch, the no-request view; criteria 1 to 3, 11, 12, 17), `submission-failure.e2e.spec.ts` (5B,
+the lost answer, offline and online, the answered failures, the callback's offline path; criteria
+4 to 6, 19), `done-pages-per-request.e2e.spec.ts` (criterion 10). Every spec that stores through the
+form reads each `POST` body's `clientRequestId` and registers it with `contact-run.ts` (ADR 0151);
+a context sends at most two new requests (the hour's figure per browser); a retry under one id
+spends that id's tries' bucket (`limit-policy.ts`'s e2e twin), so a spec makes no more retries
+than it allows; the wait of 8L.3 is two seconds after the first render before a tap that must
+succeed. The lost answer is made by `page.route` calling `route.fetch()` and then
+`route.abort("internetdisconnected")`, so the server stores and the browser sees no answer; that
+`context.setOffline` fires `online` and `offline` in headless Chromium is [inf], and QA confirms it
+before building on it.
+
+*QA-owned pins 8M moves* [ran: `git grep` of `apps/web/tests` for `/done`, `contact-sent` and
+`contact-retry`]: `qa-8d-review-door.adversarial.e2e.spec.ts:336-340` (`/done` answers `404`;
+after S6 it is a page behind the gate); `qa-8l-contact-phone.adversarial.e2e.spec.ts:263, 374`
+(the sent line `contact-sent`; after S7 the design form is on `/done`); `qa-8l-contact-screen.adversarial.dom.test.ts:157`
+(`contact-retry`, kept by S7 on 5B's retry, so it may hold; QA confirms). **8L's list was
+incomplete (ADR 0159, deviations), so QA re-runs the grep against the frozen tree first** and
+repins whatever else names the sent line, the inline failed sentence or `/done`'s `404`. The
+developer's own tests that change are named in each slice's report: at least
+`tests/contact/contact-outcome.dom.test.ts`, `contact-screen.dom.test.ts`,
+`callback-contact-screen.dom.test.ts`, `contact-answer.test.ts`, `send-contact-request.test.ts`,
+`tests/i18n/contact-copy.test.ts`, `tests/e2e/contact-requests.e2e.spec.ts` and
+`tests/e2e/support/contact-page.ts`.
+
+**10. Risks.**
+
+1. **The hand-over is a second place for a typed value** (8M.2). Bounded to one entry and one value,
+   cleared by the next form, gone on reload; the security reader rules at checkpoint A. If it is
+   refused, 5A shows no typed value on arrival (case 2 for every arrival), and criterion 1 returns
+   to the owner.
+2. **`online` in headless Chromium** may not behave as on a phone [inf]. The property tests own the
+   rule; e2e shows the wiring; 8T shows the phone.
+3. **The QA-owned pins** of point 9, red between S6/S7 and QA's pass; the freeze names them as
+   expected reds.
+4. **The contact limits and the tries' bucket in e2e** (ADR 0157 d6): a spec that retries more
+   than the twin allows fails for a reason that is not its own.
+5. **A notice accepted and its mark failed** (8M.7's limit): such a request is *none* on a later
+   load. Rare by ADR 0157 d5; recorded, not built around.
+6. **The copy's volume**, perhaps twenty-five leaves, moves the golden counts in one slice (S4).
+7. **The shard budget.** Three new e2e files; `pnpm gate:e2e-shard-budget` runs at the freeze.
+8. **S8's two taps** are the frame's one button made two steps; the visual reviewer and the owner
+   see it. If Q44 is (c), the share sheet has the same gesture rule [inf].
+9. **`packages/persistence` changes in a wave otherwise web-only**: the persistence suite (unit and
+   live) is owed at the freeze, run alone (contention, `WORKFLOW.md`).
+
+**11. Verification.**
+
+- *Each slice, the developer:* its tests; web typecheck and lint; S3, the persistence suite; S6
+  onward, the slice's e2e alone under `CI=1`.
+- *At the freeze, the coordinator:* the whole web suite; the persistence suite (alone); web and
+  persistence typecheck; lint; root `pnpm format:check`; `pnpm gate:boundary`;
+  `pnpm gate:e2e-shard-budget`; `rtk proxy git diff --stat fc6a2d9b` showing no file under
+  `packages/configurator-domain/`, `packages/three-adapter/`, `app/api/`, `proxy.ts` or a migration,
+  `packages/persistence/` only in S3's four files, and no `qa-*` or `*.adversarial.*` file.
+- *QA:* its pass; then **one whole e2e run under `CI=1`** (a build and `next start`, alone, tree
+  clean before and after). Expected: every test that passed at `9cc0c5a1`'s 879 [relayed, ADR 0159]
+  and the new ones, with the three expected-fail or deliberate marks of 8L's point 11. A red on one
+  of the three known intermittents is recorded and the run made once more; any other red is a red.
+- *Before any push:* `pnpm ci:local` in full at the wave's last commit, quoted (it now carries the
+  counts, Q42). *Not run in this wave unless the coordinator chooses:* `pnpm check`; a CI runner; a
+  real phone (8T).
+
+**12. For the scribe, at the close.** A new record (the next number is 0160) for 8M.1 to 8M.12, this
+sweep and Q44 and Q45. Dated notes: on ADR 0159 (d1: the sent request's one place of memory, 8M.2;
+d2: its 8M trigger considered, the limit kept; the class `unanswered`); on ADR 0153 (one read of
+four readable columns; still no personal column, list or count); on ADR 0114 G (8M.11, if S8
+ships); on ADR 0148 (the fourth door); on ADR 0157 (an answered `502` is retried only by a press).
+Backlog: 191 (1) closed by S0; 194's *send in flight on leaving* closed as considered. The
+interim *"after 8L a sent request shows no success screen until 8M"* closed. 8T's gate gains the
+lines of point 4's phone paragraph. M8's named interim 6 still holds the shop's number. The wave
+table's 8M row.
+
 ## Part P — customer profiles — MOVED TO M8B (owner, 2026-10-07)
 
 > **Not part of M8.** Q1 was answered (b), as recommended (relayed): profiles are **M8B**, after M8
