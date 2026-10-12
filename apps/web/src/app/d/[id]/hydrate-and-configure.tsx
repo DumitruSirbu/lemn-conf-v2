@@ -62,14 +62,14 @@ function useWriteAccessProbe(designId: DesignId): void {
     let isCurrent = true;
     void sessionConfigurationRepository
       .loadWithAccess(designId)
-      // Only `canWrite` is taken. The probe's revision is deliberately discarded: it may be newer than the
-      // document this page rendered, and adopting a revision without its document would let this browser
-      // overwrite an edit it has never seen (WEB-003).
-      .then(({ canWrite }) => {
+      // The answer's design and revision are taken together, and only where the store holds no unsaved edit and the
+      // answer's revision is the greater: a revision must never stand beside a document it was not read with (WEB-003).
+      .then(({ design, revision, canWrite }) => {
         if (isCurrent)
           useConfiguratorStore.getState().applyWriteAccess({
             designId,
             canWrite,
+            stored: { design, revision },
           });
       })
       .catch(() => {

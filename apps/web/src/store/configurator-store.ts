@@ -49,6 +49,7 @@ import {
 } from "@/persistence/save-coalescer";
 
 import { applyCommandResult, type Selection } from "./apply-command-result";
+import { isDigitRun, isGreaterRevision } from "./revision-order";
 import { ServerSnapshotStoreContext } from "./server-snapshot-context";
 import {
   preflightWholeKitchenSettings,
@@ -184,10 +185,12 @@ export interface ConfiguratorState {
   readonly canWrite: WriteAccess;
   /** The server's answer about write access, which on the load-by-link path arrives after the design
    *  (`LoadedDesignState.canWrite`). Ignored when the store has moved to a different design: the answer is
-   *  per-design. */
+   *  per-design. With `stored`, the answer's own design and revision are taken in the same write when the store
+   *  holds no unsaved edit and the revision is the greater; otherwise `canWrite` alone is applied. */
   readonly applyWriteAccess: (access: {
     designId: DesignId;
     canWrite: boolean;
+    stored?: StoredCopy;
   }) => void;
   /** The probe could not answer at all (dropped request, blocked API, offline). Moves `canWrite` to
    *  `"check-failed"`, a retryable notice: a network failure is no evidence either way and must not be read
@@ -213,6 +216,12 @@ export interface ConfiguratorState {
    * re-reading its revision. The other answer, reloading, is a page reload and not a store action.
    */
   readonly overwriteConflict: () => void;
+}
+
+/** The design the server holds and the revision it stands at, read together: neither is meaningful alone. */
+export interface StoredCopy {
+  readonly design: Design;
+  readonly revision: DesignRevision;
 }
 
 /** One load's state: the document, its id and this browser's access, passed as one object so `hydrate`
@@ -371,6 +380,20 @@ export function createConfiguratorStore(
       options.catalogAt(cabinetDepthMm);
     catalogsByDepthMm.set(cabinetDepthMm, built);
     return built;
+  };
+
+  /** What a design on screen derives to, published with an empty selection whose ids may mean nothing in it. A
+   *  loaded document carries its own `settings.cabinetDepthMm`: reusing the opening map would evaluate a 700 mm
+   *  kitchen at 600 mm. */
+  const derivedViewOf = (shown: Design) => {
+    const shownCatalog = catalogFor(shown);
+    return {
+      design: shown,
+      catalog: shownCatalog,
+      ...deriveGeometry(shown, shownCatalog),
+      selection: null,
+      lastRejection: null,
+    };
   };
 
   return create<ConfiguratorState>((set, get) => {
@@ -610,17 +633,8 @@ export function createConfiguratorStore(
         if (get().designId !== loaded.designId)
           options.onDesignIdentityChanged?.();
         const waiting = waitingWriteFor(loaded, options);
-        const shown = waiting?.design ?? loaded.design;
-        // A loaded document carries its own `settings.cabinetDepthMm`: reusing the opening map would
-        // evaluate a 700 mm kitchen at 600 mm.
-        const shownCatalog = catalogFor(shown);
-        const geometry = deriveGeometry(shown, shownCatalog);
         set({
-          design: shown,
-          catalog: shownCatalog,
-          ...geometry,
-          selection: null,
-          lastRejection: null,
+          ...derivedViewOf(waiting?.design ?? loaded.design),
           designId: loaded.designId,
           revision: waiting?.expectedRevision ?? loaded.revision,
           canWrite: loaded.canWrite,
@@ -635,9 +649,22 @@ export function createConfiguratorStore(
           saveResumesAtMs: waiting?.resumesAtMs ?? null,
         });
       },
-      applyWriteAccess: ({ designId: answeredFor, canWrite }) => {
-        if (get().designId !== answeredFor) return;
-        set({ canWrite });
+      applyWriteAccess: ({ designId: answeredFor, canWrite, stored }) => {
+        const state = get();
+        if (state.designId !== answeredFor) return;
+        if (stored === undefined || !canTakeStoredCopy(state, stored)) {
+          set({ canWrite });
+          return;
+        }
+        set({
+          ...derivedViewOf(stored.design),
+          revision: stored.revision,
+          savedDesign: stored.design,
+          hasBeenEdited: false,
+          saveStatus: "idle",
+          saveResumesAtMs: null,
+          canWrite,
+        });
       },
       failWriteAccessCheck: ({ designId: attemptedFor }) => {
         const state = get();
@@ -670,6 +697,20 @@ export function createConfiguratorStore(
       },
     };
   });
+}
+
+/**
+ * Whether the server's copy may replace the one on screen: nothing is waiting to be saved (`design === savedDesign`)
+ * and the server stands at a greater revision. `isGreaterRevision` calls any candidate greater than no revision at
+ * all, so the candidate is checked to be a revision first.
+ */
+function canTakeStoredCopy(
+  state: ConfiguratorState,
+  stored: StoredCopy,
+): boolean {
+  const holdsUnsavedEdit = state.design !== state.savedDesign;
+  if (holdsUnsavedEdit || !isDigitRun(stored.revision)) return false;
+  return isGreaterRevision(stored.revision, state.revision);
 }
 
 /** The waiting write a load is given instead of the server's copy. A read-only load (a shared link) is given none:
