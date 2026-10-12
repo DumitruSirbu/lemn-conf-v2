@@ -23,7 +23,7 @@ import type {
 import { ReviewScene } from "@/review/review-scene";
 import { useReview } from "@/review/use-review";
 import { useWebGLSupport } from "@/scene/webgl-support";
-import { isSavePaused, type SaveStatus } from "@/persistence/save-coalescer";
+import { pausedUntilMs, type SaveStatus } from "@/persistence/save-coalescer";
 import { useConfiguratorStore } from "@/store/configurator-store";
 
 import styles from "./review.module.css";
@@ -293,10 +293,11 @@ function useSaveWait(): SaveWait {
   const saveStatus = useConfiguratorStore((state) => state.saveStatus);
   const resumesAtMs = useConfiguratorStore((state) => state.saveResumesAtMs);
   if (isSaved) return { kind: "saved" };
-  if (isSavePaused(saveStatus, resumesAtMs)) {
+  const pausedUntil = pausedUntilMs(saveStatus, resumesAtMs);
+  if (pausedUntil !== undefined) {
     return {
       kind: "waiting",
-      sentence: content.panel.savePausedNotice(clockTimeOf(resumesAtMs)),
+      sentence: content.panel.savePausedNotice(clockTimeOf(pausedUntil)),
       isSettledInTheEditor: false,
       hasFailed: false,
     };

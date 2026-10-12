@@ -12,7 +12,7 @@ import {
 } from "../../src/persistence/design-request-errors";
 import {
   createSaveCoalescer,
-  isSavePaused,
+  pausedUntilMs,
 } from "../../src/persistence/save-coalescer";
 import type {
   CoalescedSaveRequest,
@@ -424,7 +424,7 @@ describe("the save coalescer when the read of the current revision is refused", 
   });
 });
 
-describe("isSavePaused: the one answer to whether a write is held by the limit", () => {
+describe("pausedUntilMs: the one answer to when a write held by the limit is sent", () => {
   const EVERY_STATUS: readonly SaveStatus[] = [
     "idle",
     "saving",
@@ -435,28 +435,28 @@ describe("isSavePaused: the one answer to whether a write is held by the limit",
   ];
   const A_TIME_MS = 1_800_000_000_000;
 
-  it("is true for a failure that carries a time, and only for that", () => {
-    const paused = EVERY_STATUS.filter((status) =>
-      isSavePaused(status, A_TIME_MS),
+  it("answers the time for a failure that carries one, and only for that", () => {
+    const paused = EVERY_STATUS.filter(
+      (status) => pausedUntilMs(status, A_TIME_MS) === A_TIME_MS,
     );
 
     expect(paused).toEqual(["error"]);
   });
 
   it.each([null, undefined])(
-    "is false for a failure that carries %s, which is the failure's own backoff",
+    "answers nothing for a failure that carries %s, which is the failure's own backoff",
     (time) => {
-      expect(isSavePaused("error", time)).toBe(false);
+      expect(pausedUntilMs("error", time)).toBeUndefined();
     },
   );
 
-  it("is false for every status beside no time", () => {
-    expect(EVERY_STATUS.some((status) => isSavePaused(status, null))).toBe(
-      false,
-    );
+  it("answers nothing for every status beside no time", () => {
+    expect(
+      EVERY_STATUS.some((status) => pausedUntilMs(status, null) !== undefined),
+    ).toBe(false);
   });
 
   it("takes a time of nought as a time, since it is a number and the clock's start is not 'none'", () => {
-    expect(isSavePaused("error", 0)).toBe(true);
+    expect(pausedUntilMs("error", 0)).toBe(0);
   });
 });

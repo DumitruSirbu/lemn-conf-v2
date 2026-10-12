@@ -33,15 +33,16 @@ export type SaveStatus =
   | "conflict";
 
 /**
- * Whether a status and a time are a write the limit on saves holds: a failure that carries the time its retry is armed
- * for. The one place that says so, asked by every surface that tells a pause from a failure. Its answer is about the
- * pair, so it narrows the time only when it is true.
+ * The time a write the limit on saves holds will be sent: a failure that carries the time its retry is armed for, and
+ * `undefined` for every other status and for a failure without one. The one place that decides so, asked by every
+ * surface that tells a pause from a failure. A time of nought is a time.
  */
-export function isSavePaused(
+export function pausedUntilMs(
   status: SaveStatus,
   resumesAtMs: number | null | undefined,
-): resumesAtMs is number {
-  return status === "error" && typeof resumesAtMs === "number";
+): number | undefined {
+  if (status !== "error" || typeof resumesAtMs !== "number") return undefined;
+  return resumesAtMs;
 }
 
 /** The three statuses that stop a design's writes until something outside the coalescer changes.

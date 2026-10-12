@@ -84,11 +84,11 @@ describe("the editor's notice for a write the limit on saves holds", () => {
 
 describe("who decides that a write is paused", () => {
   it.each(["panel/panel-model.ts", "app/d/[id]/review/review-screen.tsx"])(
-    "reads source: %s asks isSavePaused and compares no time itself",
+    "reads source: %s asks pausedUntilMs and compares no time itself",
     (file) => {
       const source = readSource(file);
 
-      expect(source).toMatch(/\bisSavePaused\(/);
+      expect(source).toMatch(/\bpausedUntilMs\(/);
       expect(source).not.toMatch(/ResumesAtMs\s*[!=]==?\s*(null|undefined)/);
       expect(source).not.toMatch(/resumesAtMs\s*[!=]==?\s*(null|undefined)/);
     },

@@ -24,7 +24,7 @@ import {
 
 import { swatchOf } from "@lemnaria/three-adapter";
 
-import { isSavePaused, type SaveStatus } from "@/persistence/save-coalescer";
+import { pausedUntilMs, type SaveStatus } from "@/persistence/save-coalescer";
 import { describeEditability, type Editability } from "@/store/editability";
 import type { WriteAccess } from "@/store/configurator-store";
 
@@ -398,8 +398,9 @@ function describeNotice(
   editability: PanelEditability,
 ): PanelNotice | undefined {
   if (editability.isReadOnly) return describeLockedNotice(input);
-  if (isSavePaused(input.saveStatus, input.saveResumesAtMs))
-    return describePausedNotice(input.content, input.saveResumesAtMs);
+  const pausedUntil = pausedUntilMs(input.saveStatus, input.saveResumesAtMs);
+  if (pausedUntil !== undefined)
+    return describePausedNotice(input.content, pausedUntil);
   if (input.saveStatus === "error")
     return {
       kind: "save-failed",
