@@ -3,6 +3,12 @@
 > **STATUS: PLANNED — wave plan written 2026-10-07 at `90927dc`; no wave dispatched.** M8 does not
 > start until the owner says so and M7C has closed (see *What M8 assumes*). Summary: `docs/STATUS.md`.
 >
+> **Updated 2026-10-12, by the architect: wave 8K2 is planned (backlog 168), between 8K and 8L; see
+> *8K2, restated for dispatch*. M8 is eighteen waves and ends at 8T.** Every count of waves in the
+> paragraphs below (fifteen, sixteen, seventeen) is history; the wave table under *M8 restated* is
+> the current list. This banner's other paragraphs were not brought up to date here: `docs/STATUS.md`
+> says which waves are done.
+>
 > **Updated 2026-10-08, latest: wave 8D is DONE (`7fa5258` … `9f4c123`), not pushed.** The review route and
 > screen 3A/3B shipped; see *8D as built* and Amendment A of
 > [ADR 0148](../decisions/0148-the-review-refuses-one-thing-at-a-time-the-first-the-customer-can-act-on-and-no-cabinet-means-nothing-lemnaria-supplies.md).
@@ -1222,8 +1228,9 @@ both in M9.
 | 8J | ~~**Changed:** no provider adapter~~ ~~**Restored: a Resend adapter** (owner, 2026-10-07)~~ **DONE 2026-10-09, commits `8eaba35` … `45e2c39`, not pushed.** The mail port, the Resend adapter and the shop's notice. See *8J as closed* and [ADR 0154](../decisions/0154-mail-leaves-through-one-provider-neutral-port-and-one-resend-adapter-that-sends-once-and-answers-with-one-of-seven-kinds-and-the-shops-notice-is-the-stored-review-printed-never-priced-again.md). Nothing calls it yet; no real message has been sent. **Owner actions outstanding:** the three mail variables, a verified sender, the inbox, the one real send, Q34 | ~~**Nothing to build it. Dispatchable whole**, after 8D. Proving it end to end waits for the owner: the three variables on a deployment, and a sender the provider accepts~~ — Done |
 | 8F | ~~**Changed:** identity through a port; one bucket, 20 a day per address, then per block of 256 (/24; /64 for IPv6) (Q28 and Q32 answered)~~ **DONE 2026-10-09, commits `ad0996d` … `63e1428`, not pushed.** The limiter and the mint. See *8F as closed* and [ADR 0155](../decisions/0155-the-mint-asks-a-keyed-per-day-per-network-limiter-first-and-refuses-what-it-cannot-judge-the-owner-names-the-network-source-and-a-destructive-mutant-never-touches-a-database.md). **Owner actions outstanding:** Q35, `DIGEST_SECRET` per environment before merging, `CLIENT_NETWORK_SOURCE`, `0007` and its grant | ~~The three red `CI=1` specs triaged; 8E.~~ — Done |
 | 8G | ~~Changed lightly~~ **DONE 2026-10-10, commits `0ba7fb1` … `18a9f319`, not pushed.** The limiter on saves, shares and reads; pruning. See *8G as closed* and [ADR 0156](../decisions/0156-saves-shares-and-reads-are-limited-by-subjects-made-only-by-two-constructors-writes-fail-closed-reads-fail-open-pages-are-counted-in-the-interceptor-and-the-saves-wait-is-one-write-the-client-holds.md). **Owner actions outstanding:** Q36, Q37, Q38, the cron entry told | ~~8F — done; dispatchable (2026-10-09)~~ — Done |
-| 8K | **Changed:** no bot check | 8F, 8H, 8I, 8J — **all done; dispatchable (2026-10-09)** |
-| 8L | Stays; Q26 settled | 8H, 8K |
+| 8K | ~~**Changed:** no bot check~~ **DONE 2026-10-12, HEAD `8782ad17` at its close, not pushed** (row corrected by the architect on 2026-10-12 from *8K as closed*; the scribe's close-out left it as dispatchable). `POST /api/contact-submissions`. See *8K as closed* and [ADR 0157](../decisions/0157-the-contact-route-judges-every-request-first-stores-once-answers-one-code-per-kind-and-refuses-a-retry-across-a-change-of-book.md). **Owner actions outstanding:** Q39, Q40 | ~~8F, 8H, 8I, 8J — **all done; dispatchable (2026-10-09)**~~ — Done |
+| 8K2 | **Added 2026-10-12, planned, not dispatched.** Backlog 168 (C2-1 with GL-R4.1): a design returned to by Back or Forward shows the stored one, and a write the tab still holds is shown and not replaced. Full tier; web only, no server file. See *8K2, restated for dispatch*. **For the owner:** Q41, which blocks nothing | 8K — done. **Dispatchable.** S1 waits for nothing |
+| 8L | Stays; Q26 settled | 8H, 8K, **8K2** (2026-10-12) |
 | 8M | Stays | 8L; the shop's number, or the action is not drawn |
 | 8Q | Stays | 8L |
 | 8T | **Changed:** the phase gate without the launch gate | Everything above |
@@ -1234,6 +1241,11 @@ both in M9.
 any time before 8T). Order now:** 8C (~~in QA~~ done) → 8D → 8E → 8I → 8H → 8J → 8F → 8G →
 8K → 8L → 8M → 8Q → 8T. **Dispatchable today:** 8E, 8I and 8H, and 8D once 8C closes; 8J except its
 stand-in. One writing agent per tree (R2).
+
+**Corrected 2026-10-12, by the architect: M8 is eighteen waves and ends at 8T.** The table above
+has seventeen rows not struck, and 8K2 (added today, for backlog 168) makes eighteen. *Sixteen*
+was right when it was written and one short from the day 8D3 was added, 2026-10-08. **What
+remains, in order: 8K2 → 8L → 8M → 8Q → 8T.**
 
 **Records this touches, for the scribe.** ADR 0019: **a dated supersession for the mint** (d5's
 row, d4 and d3's session bucket as they apply to it; the sentences are quoted in *The limit on new
@@ -5971,6 +5983,10 @@ built server, with no limit met].
   that a write still in flight when its design is loaded again ends on the stored copy; (4) that
   no extra request is made on a first load. *It stops if* the probe's answer cannot be told
   newer from older without a second request.
+- **(Dated 2026-10-12: ruled again when the wave was planned, as 8K2.** The rule is restated as
+  K2.1, on the editor and on the offer of an edit; **item (2) is withdrawn** for the review, which
+  ADR 0148 E3 and criterion 20 of 8D govern (K2.6); item (3) is widened to every write the tab
+  holds (K2.3). See *8K2, restated for dispatch*.**)**
 
 **So 8G may close on the D re-checks,** with this entry, Q36, Q37 and Q38 named in its close-out.
 
@@ -8873,6 +8889,8 @@ files and tests; ADR 0136. *Security:* S0's answers; every branch's line; the th
 finding C2-1*, and GL-R4.1 joins it. **It runs after 8K and before 8L:** 8K touches no file of
 the editor's load, and 8L changes the shared owned load, which that wave must reach first. It
 shares no file with 8K, so a second developer may run it beside 8K if the coordinator has one.
+**(Dated 2026-10-12: planned as wave 8K2, after *8K as closed*. As planned it changes no server
+file, so the shared owned load is no longer the reason for its place; the reason is there.)**
 
 ##### 8K — S0's security read, ruled; S1 and S2 for dispatch, 2026-10-10
 
@@ -9503,6 +9521,379 @@ ADR 0157's list.
 **Deferred.** Backlog 175 (8L's guard, or M9); 176 (before either root names another book); 177 (the M8 close audit); 178 to 181 (their triggers). **The wave for backlog 168 (Full
 tier) runs before 8L.**
 
+### 8K2 — a design returned to shows the stored one (backlog 168: C2-1 with GL-R4.1)
+
+*Goal.* A design's editor shown again by the browser's Back or Forward never offers an edit on a
+copy older than the stored one, and never shows as saved a design for which this tab still holds
+a write. *Tier: Full (adversarial QA, then logic and clean-code). No security reader and no visual
+check; point 9 says why, and what would bring each in.*
+
+#### 8K2, restated for dispatch — 2026-10-12
+
+**State.** HEAD is `44f84cf3` [ran: `git log --oneline -1`], tree clean [ran: `git status --short`,
+no line]; 8K is closed. Nothing of 8K2 is built. **The architect ran no test, no build and no
+server for this plan.** What the browser does is read from source or from the installed
+documentation and labelled; QA's finding of 2026-10-10 is relayed. The two figures this plan leans
+on (one request on a first load; one request on a return) are inferences, and S1 measures both at
+HEAD before it changes anything.
+
+**The id.** An added wave takes the letter of the wave it follows and a number, as 8D2 and 8D3 did
+after 8D; this one follows 8K. It shares no file with 8K. **M8 is eighteen waves and ends at 8T**
+[counted from the wave table: seventeen rows not struck, and this one]. The *sixteen* stated above
+was one short from the day 8D3 was added.
+
+**Why it is still before 8L.** The reason given on 2026-10-10 was a file: 8L changes the shared
+owned load. **That reason is gone:** as planned here 8K2 changes no server file. It stays before 8L
+because 8L adds a third page that puts a design in the store and sends its revision (8L's
+criterion 5), and that page should be built on the rule and not fitted to it afterwards.
+
+**1. The mechanism, as verified.**
+
+| Claim | Tier |
+| --- | --- |
+| The router shows a page returned to by Back or Forward from its own cache, and the cache's lifetime setting does not change that | [doc] `apps/web/node_modules/next/dist/docs/01-app/04-glossary.md:47`, *"Pages are not cached by default but are reused during browser back/forward navigation"*; `…/05-config/01-next-config-js/staleTimes.md`, *"This doesn't change back/forward caching behavior"*; next 16.3.8 [src `node_modules/next/package.json`] |
+| A save cannot clear that copy. The save is a Route Handler: from one, `revalidatePath` *"Marks the path for revalidation … only happens when the path is next visited"*; `updateTag` and `refresh` *"can only be called from within Server Actions"*; `router.refresh()` clears the current route only | [doc] `…/04-functions/revalidatePath.md:20`, `updateTag.md:12`, `refresh.md:13`, `use-router.md:46` |
+| The page is unmounted on leaving and mounted again on return, so its effects run again: `cacheComponents` is not set, and the router keeps a hidden page only with it | [inf] from [src `apps/web/next.config.ts`] and [doc `…/02-guides/preserving-ui-state.md:13,17`]. **Falsified if no `GET /api/designs/{id}` goes out on a return**; S1's first stop |
+| The tab holds one design. `HydrateAndConfigure` replaces the store with the page's props whenever the store holds another id, and does nothing when it holds the same id | [src `app/d/[id]/hydrate-and-configure.tsx:33-36`; `store/configurator-snapshot.tsx:96-104`] |
+| So after A and then B, Back to A puts A's kept page in the store: its document and revision as they were when that page was fetched, status idle | [src `store/configurator-store.ts:609-637`]; [relayed, QA-run 2026-10-10 on a built server: revision 2 shown, 3 stored, the next edit `409`] |
+| That load leaves write access `"checking"`, which makes the editor ask `GET /api/designs/{id}` once. The answer holds the stored design, its revision and `canWrite`. **The design and the revision are thrown away** | [src `hydrate-and-configure.tsx:58-83`, the comment at `:65-67`; `persistence/fetch-configuration-repository.ts:184-197`; `app/api/designs/[id]/route.ts`, `GET`] |
+| No edit is offered before that answer: only an explicit `true` unlocks a write surface | [src `store/editability.ts:44`; `panel/panel-model.ts:453`]. [inf] that the panel and the settings sheet are the only write surfaces; QA attacks it |
+| A write the coalescer still holds for A is handed to the load only when it waits for the limit. A failure's backoff is not, and a write sent and not answered is not. The next edit then replaces the backoff's write with the screen's state; behind a write in flight it is sent after it, against the queue's own revision, **so the earlier edit is written over and no conflict is said** | [src `persistence/save-coalescer.ts:238-251` (the test at `:242`), `:217-234`, `:403-415`]. The last clause is [inf, read, not run] |
+| Step 1 makes a design with the session's repository and not through the coalescer, so a second design can be made while the first's write is out | [src `room/create-design.ts:43`] |
+| The review holds the rule for one design and not across two. It has no probe and asks nothing, by criterion 20 of 8D | [src `app/d/[id]/review/hydrate-and-review.tsx:54-62`]; [doc] ADR 0148 E3, E3a |
+
+**2. The classing.**
+
+| What | Class | Why |
+| --- | --- | --- |
+| C2-1: A returned to is shown older than stored, as saved; *overwrite* drops the stored edit | **Implementation defect**, against ADR 0002 decisions 15 and 16 (2026-08-24) | *"leave the database holding a state the customer did not end at"*; *"the state cannot silently diverge from what is stored"* [doc]. The comment at `hydrate-and-configure.tsx:65-67` is right in what it protects (no revision without its document) and wrong in what it does (it drops the document too) |
+| GL-R4.1: the same path for a failure's backoff | **Implementation defect**, the same two decisions. **The coordinator's classing is confirmed** | *"A failure's backoff gives way to a newer load"* is in no decision record [ran: a grep of `docs/decisions/` for *newer load* and *give(s) way*: no match for the first, and the eight for the second are about cabinets, a preset and a pill (ADR 0104, 0110, 0131)]. It is a code comment and one test title, and its premise, that the load is newer, is false for a kept page |
+| A write sent and not answered when its design is loaded again | **Implementation defect**, the same. ADR 0156 recorded it as a limit (2026-10-10); it is closed here | Point 1: the earlier edit can be written over with no conflict |
+| The review of A returned to from B shows A's kept page | **Contract gap**: ADR 0148 E3 rules the review for one design only | K2.6 |
+| The two marked tests | **Not a test-fidelity problem.** They assert what must hold | K2.8 |
+
+**3. The decision sweep** [ran: greps of `docs/decisions/` for *kept copy*, *client cache*,
+*router cache*, *bfcache*, `staleTimes`, *Back or Forward*, *traversal*, `WEB-003`,
+`isGreaterRevision`, `holdsTheNewestCopy`, `adoptWaitingWrite`, *waiting write*, `isSavePaused`,
+*probe*, `loadWithAccess`, *overwrite*, *generation*, *newer load*; each record below was then
+read in the part named].
+
+| Record, date | What it says | How it is settled here |
+| --- | --- | --- |
+| ADR 0002 d13 to d17, 2026-08-24 | The edit path never waits on a write; writes coalesce; the last state lands; a failed write is said, retried, never reverts; the stored state is never silently diverged from | **The intent this wave restores.** Stands whole |
+| ADR 0019 d1, d6, 2026-08-25 | The write credential's cookie is scoped to the API path, hence the probe; saves start a second apart | Stands. The probe is the same one request |
+| `milestones/adversarial-review-remediation.md`, *Wave S11* (WEB-003), 2026-08-31; ADR 0142 d8, 2026-10-06 | A save states the revision it edits; a stale one is `409`; the client stops and offers reload or overwrite | Stands. **The code comment *"Only `canWrite` is taken"* is not in any record.** Its intent is kept as criterion 3; its letter is replaced by K2.2 |
+| ADR 0114 d5, H2, 2026-09-11 | Every design page answers through one owned load | Stands. No server file changes |
+| ADR 0133 d4, A4, 2026-09-30 | The session store is written in the browser, in render, guarded by the id | Stands. The editor's guard stays by id (K2.2, *not taken*) |
+| ADR 0148 E3, E3a, criterion 20 of 8D, and its rejected alternative *"The review asking the server for the newest copy"*, 2026-10-08 | The review shows the newest copy this tab can know and sends no request; 8K's revision check is the line that keeps a stale offer out | **Stands, and governs the review.** It overrules item (2) of the 2026-10-10 ruling, which is withdrawn (K2.6). The two-design case is added to E3's *what it does not close* by a dated note |
+| ADR 0156 d10, d12, *Limits* (C2-1; GL-R4.1; *"A write sent and not yet answered … is not adopted"*), 2026-10-10 | A design loaded while its write waits for the limit is given that write and its wait | **Extended by K2.3** from the write that waits to any write the tab holds. The three limits are closed by this wave, by a dated note; d10's other sentences stand |
+| ADR 0139 d3 and its back guard, 2026-10-06 | A traversal out of composition clears the run; the editor's Back asks | Stands; not touched. The traces pass through its question |
+| ADR 0111, 2026-09-11 | Step 1 makes the design, then opens the editor | Stands. It is how the second design comes to be |
+| ADR 0144, 2026-10-06 | An e2e wait on the editor outlasts the first frame by one named bound | Stands; risk 2 |
+| ADR 0118, 2026-09-15; ADR 0123 | A problem that has not occurred is recorded with its trigger; a branch whose population empties is kept and witnessed | The form of L1 to L4 and of K2.4 |
+| Backlog 89 with Q35 (2026-09-23, 2026-10-09) | Two tabs: an older *cookie* put back by a late answer | **Not this wave** (K2.7) |
+| Backlog 169, 171 (2026-10-10) | The coalescer's long functions and its wait kept in four places; `isSavePaused` narrows only the time | **Their triggers are met by S3.** Taken in S2 (K2.5) |
+| Backlog 83 (2026-09-23) | A transition between two designs logs a development-only warning | Stands; not made worse, not fixed |
+
+No record says the opposite of what follows. Two say something narrower and are amended by dated
+notes at the close: ADR 0148 E3 and ADR 0156 d10.
+
+**4. Decisions.**
+
+- **K2.1 — the rule, ruled again on 2026-10-12.** *A design's editor never offers an edit on a
+  copy older than the one stored, and never shows as saved a design for which this tab still holds
+  a write.* It has two halves and two sources. What the server holds arrives with the probe's
+  answer (K2.2). What the tab holds is the writer's to say (K2.3). **The wording of 2026-10-10,
+  *"a design's page shown again by Back or Forward never shows a copy older than the one
+  stored"*, does not hold as written against what was read today, in three ways:**
+  1. *Shows* becomes *offers an edit on*. Between the page and the answer the older copy is on
+     the screen, locked. Nothing in the browser can know sooner without a request (L1, Q41).
+  2. *A design's page* becomes *a design's editor*. The review is ruled by ADR 0148 (K2.6).
+  3. *By Back or Forward* is dropped. The rule is stated on the load, not on how the customer
+     arrived: every load that leaves write access unanswered is held to it.
+- **K2.2 — the answer's copy is taken with the answer, in one store write.** When the probe
+  answers for the design the store holds: **if the store holds no unsaved edit
+  (`design === savedDesign`) and the answer's revision is the greater (`isGreaterRevision`), the
+  store takes the answer's design and revision with its `canWrite`, all at once.** It is then as
+  a load leaves it: catalogue and geometry derived from that design, selection cleared,
+  `hasBeenEdited` false, status idle. The save generation does not move: it is the same design.
+  In every other case write access alone is applied, as today. *Why one write:* an edit must not
+  be offered between the two. *What is kept of WEB-003:* a revision never enters the store
+  without its document.
+  - *Not taken: the tab remembers each design's last confirmed copy and asks nothing.* It knows
+    only this tab's writes, it is a third copy to keep true, and it holds a document per design.
+  - *Not taken: `router.refresh()` on a return.* A second request for the page, counted as a page
+    read, and a second render; and the editor cannot tell a return from a first arrival without
+    the router's own identifier.
+  - *Not taken: the save clears the kept page.* Not open to a Route Handler [doc, point 1]; making
+    the save a Server Action changes the write path's contract (ADR 0142 d8, ADR 0156).
+  - *Not taken: the editor's guard takes the review's rule* (a clean store of the same design
+    older than the page is replaced). The answer already covers that arrival, and the guard
+    stays one comparison (ADR 0133 d4).
+- **K2.3 — a design loaded again is given the write this tab holds for it, in any of its three
+  states.** Waiting for the limit, as ADR 0156 d10 has it; **backing off after a failure; sent and
+  not yet answered.** The screen shows that write's design, unsaved, at the revision the write is
+  conditional on, in the status the write is in: `error` with its time, `error` with none,
+  `saving`. It stays the one write on the one timer and goes no sooner; an edit made after the
+  return joins it; **its outcome is reported to the generation that shows the design when the
+  outcome arrives.** A read-only load is given none, as today. This extends ADR 0156 d10 and
+  closes its three limits.
+  - *Not taken: only the backoff* (GL-R4.1's *smallest fix*). It leaves the write in flight,
+    which is the one case where an edit is written over with no conflict said.
+  - *Not taken: asking the server again when a write in flight lands.* An edit made in between is
+    built on the older copy and written over the earlier one.
+  - *Not taken: telling the customer and dropping the edit.* Refused already in ADR 0156 d10.
+- **K2.4 — `scheduleSave`'s branch for a newer generation of the same design stays as written.**
+  After K2.3 the session's store should no longer reach it with a write held [inf]; the
+  coalescer's own tests still do, and they are not changed. S3 reports whether anything in the
+  application reaches it. If nothing does, that is a backlog entry in ADR 0123's form, not a
+  deletion inside this wave.
+- **K2.5 — backlog 169 and 171 are taken, in a slice of their own, before the behaviour
+  changes.** Their triggers are *"its next change of behaviour"* and *"the next change to those
+  files"*, and S3 is both. A slice that changes no behaviour is proved by the tests it did not
+  have to touch; folded into S3 it could not be.
+- **K2.6 — the review is not bound by K2.1, and criterion 20 of 8D stands.** A review returned to
+  from a second design may show its kept page, older than stored; it asks nothing (ADR 0148 E3,
+  and its rejected alternative). **Item (2) of the 2026-10-10 ruling, *"the same for the page's
+  three steps"*, is withdrawn.** What keeps a stale offer out is what ADR 0148 named: 8K refuses
+  a request whose revision is not the stored one (`CONTACT_DESIGN_NOT_CURRENT`, ADR 0157). What
+  the review does gain here: K2.3, since it loads through the same `hydrate`; and its links to
+  the editor end on the answer's copy, since that editor mounts with write access unanswered.
+  8L gains criterion 14 (below, in 8L). *Reopened if* 8L cannot hold that criterion, or a
+  customer reports a review that was not their kitchen.
+- **K2.7 — the boundary with Q35 is the tab.** This wave is *one tab, two designs, one
+  document*. Q35 is *two tabs*. 8K2 changes no cookie, no lock, no `Set-Cookie`, no route, no
+  header, no limiter, and no file under `app/api`, `lib/server`, `packages/` or `proxy.ts`.
+  `qa-7e3b-s6-two-tab-convergence` is neither edited nor expected to change. **One effect
+  crosses the line and is said so that it is no surprise:** the answer is the stored copy
+  whoever wrote it, so a tab holding no unsaved edit that returns to a design also takes another
+  tab's saved work. Two tabs that each hold an unsaved edit of one design are as today: `409`,
+  then reload or overwrite.
+- **K2.8 — the developer of S1 removes the two marks, and that is the wave's one `qa-*` edit.**
+  The file says so itself (`:432-435`). Removed: the two `test.fail` lines (`:475`, `:502`), the
+  constant they name (`:436-437`), and the comment's sentence that announces the mark. Kept,
+  byte for byte: every assertion, soft or not, every poll, helper, wait and timeout.
+
+**5. The slices.** One developer, in this order; all three touch `configurator-store.ts`.
+
+| Slice | Does | Production files | Reading |
+| --- | --- | --- | --- |
+| S1 | **The stored copy, taken with the answer (K2.2).** (1) *First, at HEAD, a test that counts:* the `GET /api/designs/{id}` requests of a first load and of a return, on the built server. (2) One store action that applies an answer whole or its write access alone, by K2.2. (3) The probe hands it the whole answer; the comment at `:65-67` says the new rule. (4) `isGreaterRevision` in a module the store may import, and still exported from where it is. (5) The two marks removed (K2.8), and one e2e trace by Forward | `store/configurator-store.ts`; `app/d/[id]/hydrate-and-configure.tsx`; a new module under `store/` for the revision order; `app/d/[id]/review/hydrate-and-review.tsx` (the import and the re-export, nothing else) | this section, points 1, 4 (K2.1, K2.2, K2.6, K2.8) and 6 (criteria 1 to 6, 11 to 14); backlog 168; ADR 0002 d15, d16; `adversarial-review-remediation.md`, *Wave S11*; ADR 0142 d8; ADR 0148 E3, E3a; ADR 0133 d4, A4; ADR 0144; `…/04-glossary.md`, *Client Cache*. Source: the four files; `store/editability.ts`; `store/configurator-snapshot.tsx`; `fetch-configuration-repository.ts:184-197`. Tests: `tests/store/configurator-store.test.ts`; `tests/app/hydrate-and-configure-first-frame.test.ts`; `tests/app/qa-8d-revision-order.adversarial.test.ts` and `review-replacement-asks-nothing.dom.test.ts` (read, not edited); the `qa-8g-leave-while-waiting` spec whole; `tests/e2e/support/qa-8d-review.ts`, `seeded-design.ts` (`expectWriteAccessApplied`) |
+| S2 | **The writer made ready, no behaviour (K2.5).** (1) Backlog 169: the queue's wait is one value; `holdWriteForLimit` and `scheduleSave` are 20 lines or fewer. (2) Backlog 171: the predicate answers the time itself | `persistence/save-coalescer.ts`; `store/configurator-store.ts`; `panel/panel-model.ts`; `app/d/[id]/review/review-screen.tsx` | K2.5; criterion 15; backlog 169, 171; the plan's 8G, *the second pass* (GC-R3.6, GC-R3.10, GC-R4.1); ADR 0156 d10; ADR 0136. Source: the four files. Tests: the five `tests/persistence/save-coalescer*.test.ts`; `tests/panel/panel-model.save-paused.test.ts` |
+| S3 | **The write this tab holds (K2.3, K2.4).** (1) The writer hands a load the write it holds for that design in any of the three states, with its state. (2) `hydrate` shows it: `error` with a time, `error`, or `saving`. (3) A write in flight reports its outcome to the generation that shows its design when it is answered. (4) Backlog 171's two nits where these functions are rewritten: `hydrate` is 20 lines or fewer; taking a write and reading it are two functions. (5) One e2e spec, two traces: a backoff, a write in flight. And the report K2.4 asks for | `persistence/save-coalescer.ts`; `store/configurator-store.ts` | K2.3, K2.4; criteria 7 to 10 and 14; ADR 0002 d13 to d16; ADR 0156 d10, d12, *Limits*; ADR 0019 d6; ADR 0123. Source: `save-coalescer.ts` whole; `configurator-store.ts`, `hydrate`, `waitingWriteFor`, `:685-807`. Tests: `save-coalescer.return.test.ts` whole; `save-coalescer.test.ts:586-720`; `save-coalescer.conflict.test.ts:359`; `save-coalescer.limit.test.ts:278`; the spec's first six tests (read) |
+
+*Independence, for the owner's standing instruction.* **S1 alone closes C2-1 as QA showed it and
+turns the two tests.** It waits for nothing. S3 does not need S2; without it S3 is only harder to
+read. If S3 is blocked, GL-R4.1 and the write in flight stay recorded limits and backlog 168
+stays open for them alone.
+
+*Must not, every slice:* a `qa-*` file edited, but for K2.8; a file changed under `app/api`,
+`lib/server`, `packages/` or `proxy.ts`; a message leaf added or changed; a request added on any
+path; a second timer; an answer applied to a design other than the one it was asked for;
+`git stash`, `git checkout -- .`, `git reset --hard`, `git clean`; **a mutant sent to a
+database.**
+
+| Slice | Must not | Stops if |
+| --- | --- | --- |
+| S1 | Take the revision without the document, or in a second store write. Replace a store that holds an unsaved edit. Replace on an equal or lesser revision, or on one that is not a digit run. Move the save generation. Make the review ask. Change `HydrateAndConfigure`'s guard | No `GET /api/designs/{id}` goes out on a return on the built server (point 1's inference is false, and the rule cannot be had without a second request). The count on a first load at HEAD is not 1. The two tests cannot go green without touching an assertion or a wait in them. A second `qa-*` file would have to change |
+| S2 | Change an assertion, a title's meaning or a timing in any test. Change what a queue does, or the order of `scheduleSave`'s branches | A test fails after a step meant to change nothing: it is reported, not adapted. A `qa-*` file reads a name it renames |
+| S3 | Send sooner than the time already armed. Reset or advance a backoff's count on a return. Report an outcome to a generation that shows another design. Give a read-only load a write. Change `scheduleSave`'s branch for a newer generation | An existing coalescer test other than `save-coalescer.return.test.ts:187` would have to change. The store needs a status outside `SaveStatus`. Showing a write in flight needs a request or a timer |
+
+`save-coalescer.return.test.ts:187` is the one existing test whose assertion is reversed, with
+its title: it asserted the rule K2.3 replaces.
+
+**6. Criteria.** *The stored design* below is what `GET /api/designs/{id}` answers at that moment.
+
+1. **The two tests.** In `qa-8g-leave-while-waiting.adversarial.e2e.spec.ts`, the tests at `:471`
+   and `:498` are red at HEAD once their marks are removed and green at the close, on the built
+   server. *Must not:* `git diff 44f84cf3` of that file shows anything but K2.8's deletions; a
+   skip, a `fixme`, a mark put elsewhere.
+2. **Back and Forward.** With A and B made in one document, each edited and saved: Back to A, and
+   then Forward to B, each end with the store's design and revision equal to the stored ones **by
+   the time an edit is offered**. The next edit is answered `200`, never `409`, and the stored
+   design then holds both edits. The document is the same one throughout.
+3. **Never a revision without its document.** The store's `revision` is never greater than the
+   revision of a document it has shown or written. *Must not:* the answer's revision taken and its
+   design not; a write stating a revision whose document was never on the screen.
+4. **Never an older copy over a newer one, never anything over an unsaved edit.** The answer
+   replaces the store's copy only where `design === savedDesign` and its revision is the greater.
+   Equal, lesser, or not a digit run on either side: write access alone. With an unsaved edit:
+   write access alone, and a design another writer moved is `409` with reload or overwrite, as
+   today.
+5. **No edit on an unconfirmed copy.** From a load until the answer is applied, and after an
+   answer that failed, the panel and the settings sheet offer no edit. The store write that
+   unlocks them is the one that takes the answer.
+6. **No request added, with numbers** [inf from source; S1 measures each at HEAD first]. On the
+   built server: a first load of `/ro/d/{id}` or `/ru/d/{id}` makes **1** `GET /api/designs/{id}`
+   and no `PUT`; a return from a second design makes **1**; a return from Step 1 with no second
+   design makes **0**; the review makes **0** on every arrival (criterion 20 of 8D). Every count
+   equals HEAD's. Where the answer's revision equals the store's, the store's `design` is the same
+   object after the answer as before: nothing is derived again, the selection stays, the scene is
+   not built again.
+7. **A held write is shown, not replaced.** A design loaded again while the writer holds a write
+   for it is shown as that write's design, with `hasBeenEdited` true, in that write's status. An
+   edit made after the return is in the next request sent, together with the earlier one.
+   *Must not:* the earlier edit absent from a write sent after the return; `409` after the return
+   where no other writer wrote; two requests where one was owed.
+8. **A backoff (GL-R4.1).** While A's saves fail, B is made and A returned to: A shows its edit
+   and the failure, not *saved*. When saves succeed again one write holds every edit, and the
+   stored design equals the screen's. *Must not:* a request sooner than the backoff already
+   armed; its count reset or advanced by the return.
+9. **A write in flight.** A's `PUT` held unanswered, B made, A returned to: A shows its edit as
+   `saving`. Answered `200`: status idle, the store at the answered revision,
+   `design === savedDesign`, and the next edit is `200`. Answered with a failure: the edit is on
+   the screen as failed and is sent again. *Must not:* the answer dropped because the generation
+   that sent it has left.
+10. **While saving is paused: unchanged.** The spec's eight other tests (seven of the wait, one
+    of the review) stay green and untouched. An answer that arrives during a pause changes write access and nothing else: not
+    the design, the time, or the status.
+11. **The probe fails or is refused** (no network, the read limit's `429`, a `5xx`, a design that
+    does not parse). The screen is read-only with today's notice and its retry; the copy is the
+    page's; no edit is offered. A retry that answers is held to criteria 3 to 5. See L1.
+12. **Nothing else moves.** `git diff --stat 44f84cf3` shows no file under `app/api`,
+    `lib/server`, `packages/`, `proxy.ts`, `messages/` or the copy lock. The two-tab spec is not
+    edited.
+13. **Both locales, 390 × 844, by touch.** Criteria 2, 6, 8 and 9 hold at `/ru/d/{id}` as at
+    `/ro/d/{id}`, in the mobile project, by touch. No sentence is added: the notices seen are the
+    existing ones, in the page's language.
+14. **The review** (K2.6). It sends no request. With a held write it is in the state it is in
+    when reached from the editor with that write in that state: no new state, no new sentence.
+    Returned to from a second design and then left by either of its links to the editor, the
+    editor ends as criterion 2 says.
+15. **S2 changes no behaviour.** No test's assertion, title's meaning or timing changes in S2;
+    the suites are green before and after it.
+
+*As properties, for `fast-check` at the level of the store with the real coalescer and a fake
+repository and clock.* Over any sequence of: an edit; a save answered stored, failed, limited
+with a wait, or held; leaving for another design; returning with a kept page at any revision up
+to the stored one; the probe's answer arriving at any later point, or failing, or being retried:
+
+- **P1.** Whenever write access is `true` and `design === savedDesign`, `revision` is the stored
+  revision as of the last answer the tab received.
+- **P2.** At rest, every edit made is in the stored design or on the screen as unsaved. Never
+  neither.
+- **P3.** At most one timer and one request owed for a design, and none sent before its time.
+- **P4.** Criterion 3.
+
+**7. Limits recorded, each with its trigger.**
+
+- **L1 — the older copy is on the screen, locked, until the answer; and for as long as the
+  answer fails.** It cannot be edited, saved or shared from. QA measures the time from the return
+  to the answer applied, on the built server. *Trigger:* Q41 answered (b) or (c); or the measured
+  time is past one second on the built server.
+- **L2 — the review returned to from a second design may show an older kitchen and price.**
+  K2.6. *Trigger:* named there.
+- **L3 — an arrival's selection can be cleared.** Where the editor is reached from a stale
+  review by a row's link, and the answer lands after the arrival has selected its body, taking
+  the copy clears the selection, as every load does [inf, read, not run]. *Trigger:* QA reaches
+  it; then ADR 0148 E2a is the rule to extend.
+- **L4 — where the answer changes the design, the scene is built a second time.** *Trigger:* a
+  whole e2e run in which a wait on the editor times out after a return (risk 2).
+
+**8. QA.** Dispatched after S3, on a frozen tree. *Reading:* this section whole; backlog 168; the
+`qa-8g-leave-while-waiting` spec; `engineering-conventions.md`, *Coverage an adversarial pass
+owes*; `browser-and-visual-qa.md`; ADR 0144; ADR 0006 and ADR 0151 (rows); ADR 0155's standing
+rule (a mutant never touches a database); `ci-and-local-gates.md`, *Whole e2e runs have three
+known intermittent failures* and *The per-shard test budget*; `agent-coordination.md`, *Freeze
+the tree*. **What the pass owes here:**
+
+- **The order of answers, swept, not sampled:** P1 to P4 as properties, with the probe's answer
+  placed before, between and after every answer of the writer.
+- **The revision's boundaries through `isGreaterRevision` as the store now uses it:** 9 to 10,
+  99 to 100, equal, lesser, a leading zero, empty, a non-digit, one side `null`.
+- **The accepted copy driven through every consumer** (`engineering-conventions.md`, the rule of
+  2026-10-07): after a copy is taken, the scene, the price, the panel, the next save's stated
+  revision, the review reached from it and the share link each read that copy.
+- **Traces at 390 × 844 by touch:** one in `ru`; the probe held slow, with every edit control
+  tried meanwhile; the probe refused with the read limit's `429` by interception, then retried;
+  two returns in a row; Back to A while B's own write waits, then Forward to B; the review
+  returned to from a second design and left by each link; a return from Step 1 with no second
+  design (0 requests).
+- **Mutants, named, none near a database:** the comparison made `>=`; the unsaved test removed;
+  the revision taken alone; the copy and write access in two writes; only a write with a time
+  handed over; the outcome reported to the generation that sent it.
+- **L1's figure**, and L3 tried.
+- A finding is a failing test left failing. *Must not:* an assertion weakened, production code
+  changed, a `qa-*` file of an earlier wave edited. **A clean report is a weak result and says
+  what was attacked.**
+- New e2e tests go against the mobile project's shard budget; QA reports the count.
+
+**9. The review.** After QA is green, in parallel, on the same frozen tree.
+
+- *Logic, Reading:* points 1, 2 and 4; criteria 2 to 11 and P1 to P4; ADR 0002 d13 to d16;
+  `adversarial-review-remediation.md`, *Wave S11*; ADR 0148 E3; ADR 0156 d10 and *Limits*; the
+  diff of the three behavioural files. **Named checks:** no path on which `revision` moves
+  without its document; no path on which an edit is offered between a load and its answer; every
+  exit of the coalescer for a write that was handed to a load.
+- *Clean-code, Reading:* each slice's files and tests; ADR 0136; ADR 0152; backlog 169 and 171
+  against S2; the rules of 20 lines and of a function that either changes or answers.
+- **Security: not triggered.** No route, cookie, header, grant, secret, limiter, log line or
+  server file changes, and no request is added, so no figure of ADR 0156 moves. The one control
+  near it, WEB-003's, is the logic reader's first named check. *Triggered if* criterion 12's diff
+  shows a server file, or criterion 6 a count that differs from HEAD's.
+- **Visual: not triggered.** No frame is drawn, no pixel of chrome and no sentence is added. What
+  is seen, the kitchen changing once after a return, is asserted by the traces at 390 × 844.
+  *Triggered if* Q41 is answered (b) or (c).
+
+**10. Risks.**
+
+1. **Point 1's third row is an inference.** If the page is not mounted again on a return, no
+   answer comes and K2.2 has nothing to act on. S1's first item is the measurement; its first
+   stop returns the wave here.
+2. **A second scene build after a return** (L4) may lengthen the two tests under software GL,
+   where the first frame alone has taken 23 s (ADR 0144). Their limit is 180 s.
+3. **The coalescer is the most delicate client module** (five test files, two open backlog
+   entries). S2 before S3, the one named test, and S3's first stop are the fence.
+4. **Development mode asks twice** [inf: React's strict mode runs the effect twice]. The second
+   answer finds an equal revision and changes nothing. Criterion 6 is stated for the built server.
+5. **The answer during the hydration window** (ADR 0133 A4): the action is the session store's
+   own on the client, so it is safe as read; QA's slow and fast probe traces cover both sides.
+6. **`isGreaterRevision` is pinned by a `qa-*` test at its present path.** Hence the re-export in
+   S1, which the M8 close audit may then remove with the pin (backlog 172's kind).
+
+**11. Verification.**
+
+- *Each slice, the developer:* the slice's tests; web typecheck and lint. S1: the two tests, the
+  count test and the Forward trace on the built server, the spec alone under `CI=1`.
+- *At the freeze, the coordinator:* the whole web suite, web typecheck, lint, root
+  `pnpm format:check`, `pnpm gate:boundary`, `pnpm gate:e2e-shard-budget`; and
+  `rtk proxy git diff 44f84cf3 -- apps/web/tests/e2e/qa-8g-leave-while-waiting.adversarial.e2e.spec.ts`
+  for criterion 1 and `rtk proxy git diff --stat 44f84cf3` for criterion 12.
+- *QA:* its pass; then **one whole e2e run under `CI=1`** (a build and `next start`, eight
+  workers, alone, tree clean before and after). Expected: every one of the 778 that passed at
+  `8782ad17` and the new ones; **three** tests marked expected to fail or deliberate and not five
+  (`seeded-design.qa` `:35`; `qa-8d-review-arrival.adversarial` `:500`, `:524`). A red on one of
+  the three known intermittents is recorded and the run made once more; any other red is a red.
+- *Not owed, and said in the close-out:* the domain and persistence suites, provided criterion
+  12 shows no file under `packages/`. *Not run in this wave:* `pnpm check`, `pnpm ci:local`, a CI
+  runner, the e2e suite in development mode.
+
+**12. For the owner.**
+
+- **Q41. The build does not wait, and is made on (a). It blocks no slice.** *When a customer
+  makes a second kitchen and then goes back to the first with the phone's Back button, the screen
+  first shows the first kitchen as the browser remembered it, which can be a few changes old.
+  Nothing can be changed on it. When our server answers, the screen changes to the saved kitchen
+  and editing opens. How long that takes is measured in this wave; it is one request. Do you
+  want* **(a)** *that as it is: the older kitchen, locked, then the saved one;* **(b)** *the
+  loading line in place of the kitchen until the server has answered, on such a return only:
+  nothing old is ever seen, and the return is a little slower;* **(c)** *the same on every opening
+  of a kitchen: every opening then waits for that answer before it shows anything.*
+  **Recommended: (a).** The older picture cannot be edited, saved or sent; (b) needs the
+  application to tell a return from a first visit and is a wave of its own with a visual check;
+  (c) gives up the first picture arriving with the page (ADR 0133).
+- **Told, not asked.** After this wave a customer returning to a kitchen no longer meets *"changed
+  in another tab"* for a change they made themselves, and *overwrite* can no longer drop it. The
+  review of a kitchen returned to from a second one can still be an older one; asking for an offer
+  from it is refused and the customer is sent to review again (L2). Q35 is untouched and still his.
+
+**13. For the scribe, at the close.** A new record (the next number is 0158) for K2.1 to K2.8,
+with this sweep. Dated notes: on ADR 0156, decision 10 extended and its three limits closed; on
+ADR 0148 E3, the two-design case and K2.6. Backlog: 168 closed, or kept for whichever of S3's
+halves did not ship; 169 and 171 closed with S2 and S3; the re-export of risk 6 and K2.4's report
+as entries with triggers; L1 to L4. `milestones/README.md` still says M8 is fifteen waves, and
+`STATUS.md`'s M8 row its older counts: both are the scribe's, and the count is eighteen.
+
 ### 8L — the contact screen 4A/4B/4C
 
 *Goal.* Three fields and a channel, validated where the customer is looking, sent once.
@@ -9552,6 +9943,12 @@ tier) runs before 8L.**
     finds that row (KL-R1.2).
 12. **A new id whenever anything the digest covers changes,** the revision first (KL-R1.3).
 13. **The sentence for `CONTACT_DESIGN_NOT_CURRENT` asks the customer to review the design again and never says it changed** (KL-R1.4).
+
+**Added 2026-10-12, from 8K2's plan (K2.6, L2).** A review restored from history after a second design may be older than the stored one, and it asks nothing.
+
+14. **After `CONTACT_DESIGN_NOT_CURRENT` the way to the review is a link that fetches the page, never a step back in history,** so the review then shown is of the stored
+    design. And the contact page's own load holds the store to ADR 0148 E3: it never replaces an unsaved edit, or a newer copy with an older one. *Must not:* the customer
+    sent again to the same older review. *Reading added for S1 and S2:* *8K2, restated for dispatch*, K2.2, K2.3 and K2.6.
 
 *Phone acceptance, 390 × 844, both locales, real touch and the on-screen keyboard.* The focused
 field and its error are visible above the keyboard; the call to action is reachable without the
