@@ -35,6 +35,7 @@ import {
   REVIEW_CTA,
   REVIEW_ROW,
   REVIEW_SCENE,
+  contactPath,
   reviewPath,
   scrollTop,
   toTheDesignApi,
@@ -344,7 +345,7 @@ test("between the editor and the review there is never a second canvas, and each
   await expectOneLiveSceneOf(4);
 
   await page.getByTestId(REVIEW_CTA).tap();
-  await page.waitForURL("/ro/configurator/contact");
+  await page.waitForURL(contactPath("ro", seededDesign.id));
   await expect(page.locator("canvas")).toHaveCount(0);
   await expect
     .poll(() => readSceneContexts(page), {
@@ -374,7 +375,12 @@ test("on a device without WebGL the review's address shows the editor's no-3D sc
   await expect(page.locator("[data-section]")).toHaveCount(0);
   await expect(page.locator("canvas")).toHaveCount(0);
   expect(await page.locator("body").innerText()).not.toMatch(/MDL/);
-  await expect(exit.getByRole("link")).toHaveCount(2);
+  // One exit link: the e-mail one is not drawn until the provider is live (Q12 (ii), 8L.12).
+  await expect(exit.getByRole("link")).toHaveCount(1);
+  await expect(exit.getByRole("link")).toHaveAttribute(
+    "href",
+    "/ro/configurator/contact",
+  );
   expect(toTheDesignApi(requests, seededDesign.id)).toEqual([]);
   await captureEvidence(page, "scene-no-webgl");
 });

@@ -20,6 +20,7 @@ import {
   recordRequests,
   REVIEW_BOTTOM,
   REVIEW_CTA,
+  contactPath,
   reviewPath,
   SAVE_WAIT,
   tabThroughTheReview,
@@ -154,7 +155,7 @@ test("an edit still being saved when the review opens: the review shows the edit
   await expect(page.getByTestId(SAVE_WAIT)).toHaveCount(0);
   await expect(page.getByTestId(REVIEW_CTA)).toHaveAttribute(
     "href",
-    "/ro/configurator/contact",
+    contactPath("ro", seededDesign.id),
   );
   await expect(page.getByTestId(REVIEW_CTA)).not.toHaveAttribute(
     "aria-disabled",
@@ -191,7 +192,7 @@ test("a save the server keeps failing: the call to action stays off with the edi
 
   await expect(page.getByTestId(REVIEW_CTA)).toHaveAttribute(
     "href",
-    "/ro/configurator/contact",
+    contactPath("ro", seededDesign.id),
     { timeout: 15_000 },
   );
   await expect(page.getByTestId(SAVE_WAIT)).toHaveCount(0);
@@ -241,7 +242,7 @@ for (const [name, status, sentence] of REFUSED_SAVES) {
     await expect(page.getByTestId(SAVE_WAIT)).toHaveCount(0);
     await expect(page.getByTestId(REVIEW_CTA)).toHaveAttribute(
       "href",
-      "/ro/configurator/contact",
+      contactPath("ro", seededDesign.id),
     );
   });
 }
@@ -399,7 +400,7 @@ test("the review asks nothing of the design's API: not when opened at its own ad
   await openReview(page, seededDesign);
   await expect(page.getByTestId(REVIEW_CTA)).toHaveAttribute(
     "href",
-    "/ro/configurator/contact",
+    contactPath("ro", seededDesign.id),
   );
   await page.waitForTimeout(2000);
   expect(toTheDesignApi(requests, seededDesign.id)).toEqual([]);
@@ -445,7 +446,7 @@ test("with the design changed and saved in another tab, the review reached from 
   await expect(page.getByTestId(SAVE_WAIT)).toHaveCount(0);
   await expect(page.getByTestId(REVIEW_CTA)).toHaveAttribute(
     "href",
-    "/ro/configurator/contact",
+    contactPath("ro", seededDesign.id),
   );
   await page.waitForTimeout(REQUEST_SETTLE_MS);
   expect(toTheDesignApi(requests, seededDesign.id)).toEqual([]);
@@ -527,7 +528,7 @@ test("a review restored by Forward after a later save keeps the newer copy: the 
   await expect(page.getByTestId(SAVE_WAIT)).toHaveCount(0);
   await expect(page.getByTestId(REVIEW_CTA)).toHaveAttribute(
     "href",
-    "/ro/configurator/contact",
+    contactPath("ro", seededDesign.id),
   );
 });
 

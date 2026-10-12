@@ -27,6 +27,8 @@ import { DesignLoadError } from "../../src/app/d/[id]/design-load-error";
 
 const VISITOR_COOKIE_NAME = "__Host-lemnaria_visitor";
 const OWNER_VALUE = "O".repeat(43);
+/** A well-formed design id (`isDesignId`, 8L.13): 21 characters of `A-Za-z0-9_-`. Only such an id reaches a query. */
+const OWNED_ID = "owned-000000000000000";
 const UNROUTABLE_DATABASE_URL =
   "postgresql://qa_user:qa_password@qa-8d-two-doors.invalid/qa_database";
 /** Where the driver posts a query for that host: it swaps the host's first label for `api.`. */
@@ -226,7 +228,8 @@ const COOKIES_THAT_ARE_NOT_A_VISITOR: readonly (readonly [
   ],
 ];
 
-const DESIGN_IDS: readonly string[] = [
+/** Ids a door must not send to the database (8L.13): every one is a segment the shared load refuses before a query. */
+const HOSTILE_DESIGN_IDS: readonly string[] = [
   "owned",
   "",
   " ",
@@ -237,6 +240,23 @@ const DESIGN_IDS: readonly string[] = [
   "'; drop table designs; --",
   "ș".repeat(8),
   "x".repeat(4096),
+  // One character off the shape on each side, and the shape's own characters in the wrong count or company.
+  "x".repeat(20),
+  "x".repeat(22),
+  `${"x".repeat(20)}\n`,
+  `${"x".repeat(20)} `,
+  `${"x".repeat(20)}ș`,
+  `${"x".repeat(19)}%2F`,
+];
+
+/** Ids of the generator's shape, the boundary characters included: each one reaches exactly one query per door. */
+const WELL_FORMED_DESIGN_IDS: readonly string[] = [
+  OWNED_ID,
+  "A".repeat(21),
+  "-".repeat(21),
+  "_".repeat(21),
+  "0123456789abcdefghijk",
+  "ZYXWVUTSRQPONMLKJIHGF",
 ];
 /* eslint-enable no-restricted-syntax */
 
@@ -247,7 +267,7 @@ describe("a request that carries no well-formed visitor cookie", () => {
       for (const [name, value] of cookies) state.cookies.set(name, value);
 
       for (const door of DOORS) {
-        for (const id of DESIGN_IDS) {
+        for (const id of [...HOSTILE_DESIGN_IDS, ...WELL_FORMED_DESIGN_IDS]) {
           expect(refusalOf(await renderDoor(door, id))).toEqual({
             reason: "unavailable",
           });
@@ -262,7 +282,7 @@ describe("a request that carries no well-formed visitor cookie", () => {
   it("is told apart from a visitor's by the same count: a well-formed cookie sends exactly one query per door", async () => {
     state.cookies.set(VISITOR_COOKIE_NAME, OWNER_VALUE);
 
-    for (const door of DOORS) await renderDoor(door, "owned");
+    for (const door of DOORS) await renderDoor(door, OWNED_ID);
 
     expect(sentQueries).toHaveLength(DOORS.length);
     expect(requestsPastTheDriver).toEqual([]);
@@ -274,7 +294,7 @@ describe("a visitor's request, as each door sends it to the database", () => {
     state.cookies.set(VISITOR_COOKIE_NAME, OWNER_VALUE);
   });
 
-  it.each(DESIGN_IDS)(
+  it.each(WELL_FORMED_DESIGN_IDS)(
     "for the id %j: both doors send the same single statement, with the id and the cookie's hash as parameters and neither in its text",
     async (id) => {
       const [editorQuery, reviewQuery] = await sentBy(id);
@@ -289,7 +309,7 @@ describe("a visitor's request, as each door sends it to the database", () => {
 
   it("sends one statement text whatever the id", async () => {
     const texts = new Set<string>();
-    for (const id of DESIGN_IDS) {
+    for (const id of WELL_FORMED_DESIGN_IDS) {
       for (const sent of await sentBy(id)) texts.add(sent.query);
     }
 
@@ -297,9 +317,47 @@ describe("a visitor's request, as each door sends it to the database", () => {
   });
 
   it("never sends the cookie's own value, only its hash", async () => {
-    await sentBy("owned");
+    await sentBy(OWNED_ID);
 
     expect(JSON.stringify(sentQueries)).not.toContain(OWNER_VALUE);
+  });
+
+  describe("with a segment that is not a design id's shape (8L.13)", () => {
+    it.each(HOSTILE_DESIGN_IDS)(
+      "for the id %j: neither door sends a query, and each answers exactly what it answers for an id nothing matched",
+      async (id) => {
+        socketAnswer = { kind: "rows", rows: [] };
+        const answerForUnknownId = await answerOf("review", OWNED_ID);
+        sentQueries.length = 0;
+
+        for (const door of DOORS) {
+          expect(refusalOf(await renderDoor(door, id))).toEqual({
+            reason: "unavailable",
+          });
+          expect(await renderDoor(door, id)).toEqual(
+            await answerOf(door, OWNED_ID),
+          );
+        }
+
+        expect(refusalOf(answerForUnknownId)).toEqual({
+          reason: "unavailable",
+        });
+        expect(sentQueries).toHaveLength(DOORS.length);
+        expect(requestsPastTheDriver).toEqual([]);
+      },
+    );
+
+    it("refuses a hostile id as unavailable even when the database would have answered with a row", async () => {
+      socketAnswer = storedRowOf(KITCHEN_L_DESIGN, CURRENT_SCHEMA_VERSION);
+
+      for (const id of HOSTILE_DESIGN_IDS)
+        for (const door of DOORS)
+          expect(refusalOf(await renderDoor(door, id))).toEqual({
+            reason: "unavailable",
+          });
+
+      expect(sentQueries).toEqual([]);
+    });
   });
 
   async function sentBy(id: string): Promise<readonly SentQuery[]> {
@@ -362,8 +420,8 @@ describe("a stored row, read through the real load seam", () => {
   it("opens both doors on the stored design when the seam accepts it", async () => {
     socketAnswer = storedRowOf(KITCHEN_L_DESIGN, CURRENT_SCHEMA_VERSION);
 
-    const editor = await renderDoor("editor", "owned");
-    const review = await renderDoor("review", "owned");
+    const editor = await renderDoor("editor", OWNED_ID);
+    const review = await renderDoor("review", OWNED_ID);
 
     if (!isValidElement(editor) || !isValidElement(review))
       throw new Error("a door answered no element");
@@ -372,7 +430,7 @@ describe("a stored row, read through the real load seam", () => {
     expect(review.props).toEqual(editor.props);
     expect(review.props).toEqual({
       design: KITCHEN_L_DESIGN,
-      designId: "owned",
+      designId: OWNED_ID,
       revision: "7",
     });
   });
@@ -382,8 +440,8 @@ describe("a stored row, read through the real load seam", () => {
     async (_name, row) => {
       socketAnswer = row;
 
-      const editor = await answerOf("editor", "owned");
-      const review = await answerOf("review", "owned");
+      const editor = await answerOf("editor", OWNED_ID);
+      const review = await answerOf("review", OWNED_ID);
 
       expect(review).toEqual(editor);
       expect(refusalOf(review)).toEqual({ reason: "invalid" });
@@ -394,7 +452,7 @@ describe("a stored row, read through the real load seam", () => {
     socketAnswer = { kind: "rows", rows: [] };
 
     for (const door of DOORS)
-      expect(refusalOf(await renderDoor(door, "owned"))).toEqual({
+      expect(refusalOf(await renderDoor(door, OWNED_ID))).toEqual({
         reason: "unavailable",
       });
   });
@@ -405,8 +463,8 @@ describe("a database that does not answer", () => {
     state.cookies.set(VISITOR_COOKIE_NAME, OWNER_VALUE);
     socketAnswer = { kind: "failure", message: "the socket was replaced" };
 
-    const editor = await answerOf("editor", "owned");
-    const review = await answerOf("review", "owned");
+    const editor = await answerOf("editor", OWNED_ID);
+    const review = await answerOf("review", OWNED_ID);
 
     // The failure the doors met is the database's, sent as a query each: not the refusal this test gives a request
     // it does not recognise, which would fail both doors alike too.

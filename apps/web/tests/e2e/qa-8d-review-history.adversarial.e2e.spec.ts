@@ -22,6 +22,7 @@ import {
   openReview,
   REVIEW_BOTTOM,
   REVIEW_CTA,
+  contactPath,
   reviewPath,
   scrollReserveAtTheFoot,
   settingsSheet,
@@ -240,7 +241,7 @@ seededTest(
     const lengthOnTheReview = await historyLength(page);
 
     await page.getByTestId(REVIEW_CTA).tap();
-    await page.waitForURL("/ro/configurator/contact");
+    await page.waitForURL(contactPath("ro", seededDesign.id));
     expect(await historyLength(page)).toBe(lengthOnTheReview + 1);
 
     await goBackAndSettle(page);

@@ -27,6 +27,10 @@ export const PAGE_READ_PROOF_SERVER_PORT = 4324;
 /** 4325: the sweep of a page's address written with percent-escapes, whose server is given a network source too. */
 export const ESCAPED_LOCALE_SERVER_PORT = 4325;
 
+/** 4326: the spec that proves the contact pages say so, and draw no form, where the server cannot take a request: a
+ *  server with no fake sender, so no mail variable of any kind is usable (8L criterion 7). */
+export const CONTACT_UNAVAILABLE_SERVER_PORT = 4326;
+
 /** A developer whose 4322 is taken sets this; a spec that names its own port ignores it. Read when a server starts,
  *  never when the module loads. */
 const PORT_OVERRIDE_VARIABLE = "E2E_PRODUCTION_POLICY_PORT";

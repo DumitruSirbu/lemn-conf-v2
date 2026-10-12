@@ -34,6 +34,10 @@ export function reviewPath(locale: Locale, designId: string): string {
   return `/${locale}/d/${designId}/review`;
 }
 
+export function contactPath(locale: Locale, designId: string): string {
+  return `/${locale}/d/${designId}/contact`;
+}
+
 export function editorPath(locale: Locale, designId: string): string {
   return `/${locale}/d/${designId}`;
 }

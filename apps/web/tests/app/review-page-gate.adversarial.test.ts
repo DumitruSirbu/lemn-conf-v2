@@ -24,6 +24,12 @@ import ReviewPage from "../../src/app/[locale]/d/[id]/review/page";
 
 const VISITOR_COOKIE_NAME = "__Host-lemnaria_visitor";
 const OWNER_VALUE = "O".repeat(43);
+/** Well-formed design ids (`isDesignId`: 21 characters of `A-Za-z0-9_-`, 8L.13): a row is reachable only through one. */
+const OWNED_ROW_ID = "owned-row-0000000000A";
+const OWNED_INVALID_ROW_ID = "owned-invalid-row-00B";
+const OWNED_UNKNOWN_BODY_ROW_ID = "owned-unknown-body00C";
+const NULL_OWNER_ROW_ID = "null-owner-row-00000D";
+const NO_SUCH_ROW_ID = "no-such-row-00000000E";
 
 type LoadOwnedResult =
   | { kind: "found"; design: Design; revision: DesignRevision }
@@ -140,13 +146,16 @@ beforeEach(() => {
   state.cookieValue = undefined;
   state.cookieName = VISITOR_COOKIE_NAME;
   ownerOnlyRepository({
-    "owned-row": { ownerHash: sha256Hex(OWNER_VALUE) },
-    "owned-invalid-row": { ownerHash: sha256Hex(OWNER_VALUE), isInvalid: true },
-    "owned-unknown-body-row": {
+    [OWNED_ROW_ID]: { ownerHash: sha256Hex(OWNER_VALUE) },
+    [OWNED_INVALID_ROW_ID]: {
+      ownerHash: sha256Hex(OWNER_VALUE),
+      isInvalid: true,
+    },
+    [OWNED_UNKNOWN_BODY_ROW_ID]: {
       ownerHash: sha256Hex(OWNER_VALUE),
       hasUnknownBody: true,
     },
-    "null-owner-row": { ownerHash: null },
+    [NULL_OWNER_ROW_ID]: { ownerHash: null },
   });
 });
 
@@ -161,57 +170,57 @@ describe("the gate, per refusal case, locale and door", () => {
     {
       name: "no cookie",
       cookie: undefined,
-      id: "owned-row",
+      id: OWNED_ROW_ID,
       reachesRepository: false,
     },
-    { name: "empty", cookie: "", id: "owned-row", reachesRepository: false },
+    { name: "empty", cookie: "", id: OWNED_ROW_ID, reachesRepository: false },
     {
       name: "malformed (42 chars)",
       cookie: "O".repeat(42),
-      id: "owned-row",
+      id: OWNED_ROW_ID,
       reachesRepository: false,
     },
     {
       name: "malformed (illegal char)",
       cookie: `${"O".repeat(42)}.`,
-      id: "owned-row",
+      id: OWNED_ROW_ID,
       reachesRepository: false,
     },
     {
       name: "case-variant name",
       cookie: OWNER_VALUE,
       cookieName: "__host-lemnaria_visitor",
-      id: "owned-row",
+      id: OWNED_ROW_ID,
       reachesRepository: false,
     },
     {
       name: "foreign",
       cookie: "F".repeat(43),
-      id: "owned-row",
+      id: OWNED_ROW_ID,
       reachesRepository: true,
     },
     {
       name: "foreign, invalid document",
       cookie: "F".repeat(43),
-      id: "owned-invalid-row",
+      id: OWNED_INVALID_ROW_ID,
       reachesRepository: true,
     },
     {
       name: "foreign, unknown body",
       cookie: "F".repeat(43),
-      id: "owned-unknown-body-row",
+      id: OWNED_UNKNOWN_BODY_ROW_ID,
       reachesRepository: true,
     },
     {
       name: "nonexistent id",
       cookie: OWNER_VALUE,
-      id: "no-such-row",
+      id: NO_SUCH_ROW_ID,
       reachesRepository: true,
     },
     {
       name: "null-owner row",
       cookie: OWNER_VALUE,
-      id: "null-owner-row",
+      id: NULL_OWNER_ROW_ID,
       reachesRepository: true,
     },
   ];
@@ -252,22 +261,36 @@ describe("the gate, per refusal case, locale and door", () => {
       });
 });
 
+describe("a segment that is not a design id's shape", () => {
+  it.each(["editor", "review"] as const)(
+    "is unavailable on the %s door, with a valid cookie, before any repository call",
+    async (door) => {
+      state.cookieValue = OWNER_VALUE;
+
+      const page = await renderDoor(door, "ro", "owned-row");
+
+      expect(propsOfLoadError(page)).toEqual({ reason: "unavailable" });
+      expect(loadOwned).not.toHaveBeenCalled();
+    },
+  );
+});
+
 describe("the owner", () => {
   it("is served the review with the stored design", async () => {
     state.cookieValue = OWNER_VALUE;
 
-    const page = await renderDoor("review", "ro", "owned-row");
+    const page = await renderDoor("review", "ro", OWNED_ROW_ID);
 
     if (!isValidElement<Record<string, unknown>>(page))
       throw new Error("non-element");
     expect(page.type).toBe(hydrateAndReview);
     expect(page.props).toEqual({
       design: KITCHEN_L_DESIGN,
-      designId: "owned-row",
+      designId: OWNED_ROW_ID,
       revision: "1",
     });
     expect(loadOwned).toHaveBeenCalledWith({
-      id: "owned-row",
+      id: OWNED_ROW_ID,
       visitorHash: sha256Hex(OWNER_VALUE),
     });
   });
@@ -277,7 +300,7 @@ describe("the owner", () => {
 
     for (const door of ["editor", "review"] as const)
       expect(
-        propsOfLoadError(await renderDoor(door, "ro", "owned-invalid-row")),
+        propsOfLoadError(await renderDoor(door, "ro", OWNED_INVALID_ROW_ID)),
       ).toEqual({ reason: "invalid" });
   });
 });
@@ -286,8 +309,8 @@ describe("a stored row the load seam refuses", () => {
   it("is the invalid page on both doors, through one function, and reaches no error boundary", async () => {
     state.cookieValue = OWNER_VALUE;
 
-    const editor = await renderDoor("editor", "ro", "owned-unknown-body-row");
-    const review = await renderDoor("review", "ro", "owned-unknown-body-row");
+    const editor = await renderDoor("editor", "ro", OWNED_UNKNOWN_BODY_ROW_ID);
+    const review = await renderDoor("review", "ro", OWNED_UNKNOWN_BODY_ROW_ID);
 
     expect(propsOfLoadError(review)).toEqual({ reason: "invalid" });
     expect(review).toEqual(editor);
@@ -317,7 +340,7 @@ describe("a driver failure", () => {
       state.cookieValue = OWNER_VALUE;
       loadOwned.mockRejectedValue(new Error("connection reset"));
 
-      await expect(renderDoor(door, "ro", "owned-row")).rejects.toThrow(
+      await expect(renderDoor(door, "ro", OWNED_ROW_ID)).rejects.toThrow(
         "connection reset",
       );
     },

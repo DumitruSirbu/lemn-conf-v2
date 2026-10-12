@@ -412,6 +412,13 @@ describe("only these modules may go near a price, and only one of them may round
     expect(pricingModules).toEqual([
       // The review screen and its two helpers render the model's figure and rows; they derive and round nothing.
       "app/d/[id]/review/review-screen.tsx",
+      // Frame 4A's card prints the review's own figure (`review.figure.amountText`) beside its room line, so the
+      // card shows the figure the press sends and derives nothing; it rounds nothing (8L, criterion 5).
+      "contact/contact-design-card.tsx",
+      // Reads the book's version through `usePricedDesign` and nothing else of the price: the digest covers
+      // `bookVersion` (ADR 0157 d2), and the browser root is the one place that names the book (ADR 0157 d8). It
+      // uses no amount; the same hook still has to pass the rounding and step assertions below.
+      "contact/use-contact-submission.ts",
       // The shop's notice prints a stored review's figure and rows and derives nothing; it rounds nothing.
       "lib/server/mail/lead-notification.ts",
       "panel/editor-panel.tsx",

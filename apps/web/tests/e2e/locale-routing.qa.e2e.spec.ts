@@ -106,9 +106,9 @@ test("both localized documents expose locale metadata and the environment's nonc
       messages.meta.description,
     );
     await expect(page.locator("html")).not.toHaveAttribute("lang", /en/i);
-    expect(await documentNonces(page)).toEqual(
-      process.env.CI === undefined ? [nonce] : [],
-    );
+    // The page collects a customer's details, so it is rendered per request (8L, criterion 9): its scripts carry the
+    // response's nonce in the production build as well as under `next dev`, where it used to be [] after a build.
+    expect(await documentNonces(page)).toEqual([nonce]);
     await expect
       .poll(async () => {
         const cookies = await context.cookies();

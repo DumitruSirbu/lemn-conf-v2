@@ -116,10 +116,10 @@ test("an explicit Russian route keeps its internal navigation locale despite a c
       path: "/",
     },
   ]);
-  const contactLink = exit.locator(
-    'a[href="/ru/configurator/contact?intent=link"]',
-  );
+  // The e-mail link is not drawn (Q12 (ii), 8L.12): the callback form is the frame's one exit.
+  const contactLink = exit.locator('a[href="/ru/configurator/contact"]');
   await expect(contactLink).toHaveCount(1);
+  await expect(exit.locator("a")).toHaveCount(1);
   await contactLink.click();
-  await expect(page).toHaveURL(/\/ru\/configurator\/contact\?intent=link$/);
+  await expect(page).toHaveURL(/\/ru\/configurator\/contact$/);
 });
