@@ -376,3 +376,122 @@ test.describe("the language menu on the contact page", () => {
     expect(sent[0]?.body.locale).toBe("ru");
   });
 });
+
+// D2 and D3 of the visual pass: the channel chips, and whatever else stands last in the fields, must be able to be
+// scrolled fully above the pinned region when the region is at its tallest: in the send-attempt state (a name error, a
+// consent error and, with the e-mail chip, an e-mail error) and in the invalid-phone outcome (the sentence, and the
+// phone's error beside it). Measured at the page's maximum scroll, in Romanian and Russian, on the design's page and on
+// the callback page; `clearance` is how far the region's top edge lies below the lowest of the chips and the field blocks.
+interface MaxScrollReading {
+  readonly regionTop: number;
+  readonly regionHeight: number;
+  readonly lowestContentBottom: number;
+  readonly chipsBottom: number;
+  readonly scrolledToTheEnd: boolean;
+}
+
+async function readAtMaxScroll(page: Page): Promise<MaxScrollReading> {
+  await page.evaluate(() => {
+    window.scrollTo(0, document.documentElement.scrollHeight);
+  });
+  await page.waitForTimeout(400);
+  return page.evaluate(() => {
+    const region = document
+      .querySelector('[data-testid="contact-bottom"]')
+      ?.getBoundingClientRect();
+    const chips = document
+      .querySelector('fieldset:has(input[name="channel"])')
+      ?.getBoundingClientRect();
+    if (region === undefined || chips === undefined) {
+      throw new Error("the pinned region or the chips are not on the page");
+    }
+    const blocks = [
+      ...document.querySelectorAll("form fieldset, form [data-field-block]"),
+    ].map((element) => element.getBoundingClientRect().bottom);
+    const root = document.documentElement;
+    return {
+      regionTop: region.top,
+      regionHeight: region.height,
+      lowestContentBottom: Math.max(...blocks),
+      chipsBottom: chips.bottom,
+      scrolledToTheEnd:
+        Math.ceil(window.scrollY + window.innerHeight) >= root.scrollHeight - 1,
+    };
+  });
+}
+
+type CrowdedState =
+  | "send-attempt"
+  | "send-attempt-with-email"
+  | "invalid-phone";
+const CROWDED_STATES: readonly CrowdedState[] = [
+  "send-attempt",
+  "send-attempt-with-email",
+  "invalid-phone",
+];
+
+async function bringAbout(page: Page, state: CrowdedState): Promise<void> {
+  if (state === "invalid-phone") {
+    await fillTheWholeForm(page, {
+      name: "Ana",
+      phone: "069123456",
+      locality: "Chisinau",
+    });
+    await answerContactWith(page, ANSWERS.invalidPhone);
+  } else if (state === "send-attempt-with-email") {
+    await chooseChannel(page, "email");
+  }
+  await pressTheCallToAction(page);
+  await expect(page.locator("form").getByRole("alert").first()).toBeVisible();
+}
+
+async function expectChipsClear(
+  page: Page,
+  label: string,
+): Promise<MaxScrollReading> {
+  const reading = await readAtMaxScroll(page);
+  const clearance = reading.regionTop - reading.lowestContentBottom;
+  const chipsClearance = reading.regionTop - reading.chipsBottom;
+  console.log(
+    `D2D3 ${label}: region ${String(Math.round(reading.regionHeight))} px, chips clear by ${String(Math.round(chipsClearance))} px, lowest field by ${String(Math.round(clearance))} px, at the end ${String(reading.scrolledToTheEnd)}`,
+  );
+  expect(reading.scrolledToTheEnd, `${label}: scrolled to the end`).toBe(true);
+  expect(
+    chipsClearance,
+    `${label}: the chips' clearance`,
+  ).toBeGreaterThanOrEqual(0);
+  expect(
+    clearance,
+    `${label}: the lowest field's clearance`,
+  ).toBeGreaterThanOrEqual(0);
+  expect(
+    reading.regionHeight,
+    `${label}: the region's height`,
+  ).toBeLessThanOrEqual(HALF_THE_VIEWPORT);
+  return reading;
+}
+
+for (const locale of LOCALES) {
+  test(`${locale}: on the design's page the chips and the last field scroll fully above the pinned region in each crowded state`, async ({
+    page,
+    seededDesign,
+  }) => {
+    for (const state of CROWDED_STATES) {
+      await openForm(page, locale, seededDesign.id);
+      await bringAbout(page, state);
+      await expectChipsClear(page, `design ${locale} ${state}`);
+    }
+  });
+
+  test(`${locale}: on the callback page the chips and the last field scroll fully above the pinned region in each crowded state`, async ({
+    page,
+  }) => {
+    for (const state of CROWDED_STATES) {
+      await page.setViewportSize(PHONE_WIDTH);
+      await page.goto(callbackPath(locale));
+      await expectFormDrawn(page);
+      await bringAbout(page, state);
+      await expectChipsClear(page, `callback ${locale} ${state}`);
+    }
+  });
+}

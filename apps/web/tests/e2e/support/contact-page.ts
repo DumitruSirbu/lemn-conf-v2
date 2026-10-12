@@ -1,5 +1,6 @@
 // What the 8L contact specs share: the form's test ids, filling and sending it by touch, recording the contact
 // requests a page makes, and answering them from `page.route`. No assertion about a criterion lives here.
+import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 
 import { expect, type Locator, type Page, type Route } from "@playwright/test";
@@ -30,6 +31,7 @@ export interface ContactMessages {
       readonly conflict: string;
       readonly designNotCurrent: string;
       readonly limited: string;
+      readonly limitedTomorrow: string;
     };
   };
   readonly reviewScreen: { readonly saving: string };
@@ -270,6 +272,7 @@ export const ANSWERS = {
       { code: "CONTACT_LIMIT_REACHED" },
       { "retry-after": retryAfter },
     ),
+  limitedWithNoWait: fulfilWith(429, { code: "CONTACT_LIMIT_REACHED" }),
   sent: (reference: string): RouteAnswer =>
     fulfilWith(200, { status: "sent", reference }),
   notAnAnswerWeKnow: fulfilWith(200, { status: "queued" }),
@@ -316,4 +319,9 @@ export function sentAt(
     );
   }
   return request;
+}
+
+/** Eight hexadecimal characters from a random value: a typed value no other run, spec or page shares. */
+export function newToken(): string {
+  return randomUUID().replaceAll("-", "").slice(0, 8);
 }
