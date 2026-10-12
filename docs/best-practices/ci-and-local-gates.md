@@ -266,12 +266,13 @@ free. A push that would fail CI must fail on this machine instead.
 `.githooks/pre-push` runs `pnpm ci:local`, which mirrors `.github/workflows/ci.yml` gate for gate:
 format, lint, typecheck, test, **e2e-shard-budget**, **e2e**, build, boundary, lockfile, sca. Locally
 `e2e` is not sharded: the CI shards partition the suite by whole files, so one local run covers
-exactly what the CI legs cover between them, and sharding would only add a dev-server boot per shard.
+exactly what the CI legs cover between them, and sharding would only add a production build per shard.
+It runs with `CI=1`, as GitHub does (see the section on the production build, below).
 
 It runs **every** gate rather than stopping at the first failure, because CI reports all ten jobs
 independently — a local gate that hides the second failure until the first is fixed wastes the round
-trip it exists to save. Every gate but one takes seconds; `e2e` takes about a minute, because it
-boots a dev server and drives a real browser through it.
+trip it exists to save. Every gate but one takes seconds; `e2e` takes about ten minutes, because it
+builds the application, starts it with `next start` and drives a real browser through it.
 
 ### The `e2e` gate, added 2026-09-02, and why it is worth its minute
 
@@ -297,36 +298,58 @@ rather than a bind error, which looks like a green exit at a glance and is easy 
 "nothing to test" instead of "the server that should have booted never did." Check for another `next
 dev` in the same directory before trusting a zero-test e2e run.
 
-#### `pnpm ci:local` does not run e2e against a production build — only CI does
+#### `pnpm ci:local` runs e2e against a production build, as CI does (owner ruling Q42, 2026-10-12)
 
-**The mechanism, because the conclusion alone invites someone to re-litigate it.**
-`playwright.config.ts:83-85` picks the `webServer` command from `process.env.CI !== undefined` (read
-once into `isContinuousIntegration` at `:15`): a runner gets `pnpm run build && next start`, every
-other machine gets `next dev`. `scripts/local-ci.sh:128` runs `run_gate e2e pnpm test:e2e` and
-**never sets `CI`** — the name appears nine times in that file and every one is a comment, so a grep
-that looks like confirmation is not one. So every local e2e run — including the one inside
-`ci:local`, whose closing banner reads *"LOCAL CI PASSED — all gates green, safe to push"*
-(`scripts/local-ci.sh:141`) — exercises the dev server.
+**What changed, and why.** `playwright.config.ts` picks the `webServer` command from
+`process.env.CI !== undefined` (read once into `isContinuousIntegration`): a runner gets
+`pnpm run build && next start`, every other machine gets `next dev`. Until 2026-10-12
+`scripts/local-ci.sh` never set `CI`, so the e2e step inside `ci:local` exercised the dev server
+while its closing banner read *"LOCAL CI PASSED — all gates green, safe to push"*. It now runs
+`run_gate e2e env CI=1 pnpm test:e2e`: the production build and `next start`, the same server GitHub
+runs. `env` scopes the variable to that one step, so no other gate sees it.
 
-**An acceptance criterion that names a production build is therefore satisfiable only by CI, and
-must not be recorded as met locally.** The claim is plausible from the gate's *name*, and on
-2026-09-14 a close-out was "corrected" into asserting exactly that. Two greps and `printenv CI`
-settled it. It matters because M7 wave 7F1's defects D4 and D5 were both found in a production build
-and neither was visible under `next dev`: writing the criterion off as locally satisfied would have
-retired the check that catches the class.
+**Dev-server e2e is no longer what `ci:local` runs, and the request-counting specs depend on that.**
+On `next dev` React's strict mode runs a client effect twice, so a spec that counts requests exactly
+fails there for a reason that has nothing to do with the application. The first such spec was found
+on 2026-10-12 (M8 wave 8K2, backlog 182): `design-return-requests` and `qa-8k2-design-return` count
+`GET /api/designs/{id}` exactly, and those counts **hold only under a production build**, where the
+write-access probe reads once. [developer-ran]: with `CI` unset 6 mobile specs fail, with
+`reactStrictMode` off the same 12 pass, and the trace shows two `GET`s 3 ms apart. [coordinator-ran,
+`18caaea4`]: the whole e2e under `CI=1`, 793 passed, 0 failed, 0 skipped, 10.1 minutes. A red
+`next dev` run of those specs is therefore **not** a regression in them: it is a run made without
+`CI`. Run a single spec by hand with `CI=1 pnpm --filter @lemnaria/web exec playwright test <file>`
+whenever it counts requests, reads `process.env.CI`, or is skipped without it.
 
-**Dated note, 2026-10-12 (M8 wave 8K2; backlog 182, Q42): the first spec that cannot pass here.**
-`design-return-requests` and `qa-8k2-design-return` count `GET /api/designs/{id}` exactly, and those
-counts **hold only under `CI=1`** (a production build and `next start`, where the probe reads once).
-On `next dev` React's strict mode runs the write-access probe's effect twice, so `pnpm ci:local`'s
-e2e step fails them. [coordinator-ran, `18caaea4`]: `ci:local`, 6 mobile specs failed (718 passed, 69
-skipped), twice; the whole e2e under `CI=1`, 793 passed, 0 failed, 0 skipped, 10.1 minutes.
-[developer-ran]: with `CI` unset 6 fail, with `reactStrictMode` off 12 pass, the trace shows two
-`GET`s 3 ms apart. The config lines this note rests on, read by the scribe: `playwright.config.ts:38`
-and `:92-94` (they have moved since the line numbers quoted above). **Do not read a red `ci:local`
-e2e step as a regression in those two specs before checking `CI`, and do not read a green one as
-evidence about a read count.** Which way to fix it (`local-ci.sh` with `CI=1`, or the specs relaxed
-on a dev server) is the owner's, Q42, and is not decided here.
+**What else `CI=1` switches on, so a first run is not a surprise.**
+
+- Specs that `test.skip(process.env.CI === undefined, ...)` now run: the production-policy, contact
+  no-script, page-read-limit and escaped-locale specs among them. A local `ci:local` skipped 69 tests
+  that the CI legs run.
+- Timeouts widen to the runner's: 120 s a test instead of 30 s, 300 s for the server to come up, and
+  the cabinet-depth settle budget of 150 s instead of 20 s. A hang therefore takes four times as long
+  to show.
+- **The build runs inside the e2e step**, so `ci:local` builds twice: once as the `webServer`
+  command (`pnpm run build` in `apps/web`, which also builds the three workspace packages, about a
+  minute) and once as the separate `build` gate. The second is redundant in what it proves locally;
+  it stays because the gate list mirrors the CI jobs one for one, and a gate that is dropped locally
+  is one that drifts from the workflow.
+- The server is `next start` over `apps/web/.next`, which the build overwrites. **A `next dev` left
+  running in the same checkout is broken by it**, and Next refuses a second dev server in the
+  directory regardless of port (see the failure modes above). Stop it before pushing.
+
+**What did not assume the dev server.** The `e2e-shard-budget` gate only runs `playwright test
+--list`, which loads the config and every spec but never starts the `webServer`, and it is not run
+under `CI=1`; its listing and its budget are unchanged. `run_gate e2e` is one unsharded run, so the
+30-minute-per-shard budget does not apply to it. The one thing the script said that was dev-server
+specific, "a dev-server boot per shard", is now "a production build per shard" and the point stands.
+The cost that did move is wall-clock: the e2e step under `CI=1` measured 10.1 minutes on this
+machine, against the roughly one minute the dev server needed when the gate was added; the other
+gates add seconds each, plus the second build (about a minute) [inference, not a measured full run].
+
+**Still true: a local run is not the runner.** `CI=1` selects the same server and the same timeouts,
+not the same machine. The runner's software GL stack, its CPU and its parallelism are not
+reproduced, which is the next section. An acceptance criterion that names the *runner* is
+satisfiable only by CI.
 
 #### A green local e2e run is not evidence about a runner-only failure
 

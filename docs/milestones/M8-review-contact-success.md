@@ -10914,6 +10914,41 @@ door); a note on ADR 0157 (the client's side of criteria 10 to 12: 8L.3, 8L.4, 8
 owner's list; backlog 187 closed if criterion 14 (b)'s table lands; 8T's gate gains backlog 146's
 line (8L.13), the real keyboard and real autofill (point 4); the wave table's 8L row.
 
+##### 8L as closed — 2026-10-12
+
+**DONE as built, reviewed and committed, local, not pushed; the push is blocked** on Q42. HEAD at the close is `9cc0c5a1`. Record: [ADR 0159](../decisions/0159-the-contact-form-sends-one-request-at-a-time-keeps-its-id-until-the-body-or-a-conflict-changes-it-draws-no-typed-value-outside-memory-and-leaves-the-review-by-a-link-that-fetches-the-page.md). Written by the scribe from the coordinator's hand-over (relayed); **the scribe ran nothing** and read the commit list from `.git/logs/HEAD`.
+
+**Shipped.** S0 `03091d01`; S1 `f18ef8ef`; S2 `1fd0ff20`; S3 `9bc7631a`; S4a `efebeb41`; S4b `015b7ec7`; S5 `39210cc5`; S3's property test `e409e2d0`; S6 `5095ac78`; S7 `1a918c6a`; QA `8ca2dfe1`; fix `91bd8fd2`; review fix-up `7d6149b5`; QA round 2 `9cc0c5a1`. Scope: frames 4A, 4B, 4C, the cannot-send screen, the callback form of 2F, criteria 1 to 19 and rulings 8L.1 to 8L.15 (decisions in ADR 0159). Which criterion each test shows was not re-derived by the scribe.
+
+**Verification, with who ran it** (all [relayed]; HEAD `9cc0c5a1`, `src` unchanged since `7d6149b5`).
+
+- [coordinator-ran] typecheck, lint, format, `gate:boundary`: exit 0.
+- [QA-ran] the whole web Vitest suite: 454 files, 9356 tests passed.
+- [QA-ran] `CI=1 pnpm test:e2e`: 879 passed, exit 0, 11.1 minutes. [coordinator-ran, `91bd8fd2`] the same: 852 passed.
+- **Not run:** `pnpm ci:local` at or after the 8L code (Q42); `pnpm check`; a CI runner; a real phone (8T); e2e mutants (ADR 0155).
+- Reviews [the agents' reports, relayed]: logic, clean-code, security, visual; findings fixed in `91bd8fd2` (F1 the conflict had no editor link; F2 the callback form held by another design's save) and `7d6149b5`; the rest in the backlog.
+
+**Deviations, with the rationale.** The 429 sentence names its day (new leaf `limitedTomorrow`, Q10; a clock time alone is wrong when it is tomorrow). The form is `method="post"` (the callback page is server-rendered; no query string before hydration). The retry is off while a save waits. S3's property test was made non-flaky. **Point 9's repin list was incomplete:** `qa-8d-review-scene.adversarial.e2e:378` (exit link count 2 to 1) and `qa-8d-review-door.adversarial.e2e:362` (contact route 404 to 200) were also stale and were repinned by QA. Visual deviations from the Mobil mockup, all recorded decisions: pinned consent, provisional marker in place of *Detalii*, a real design card, plain outcome styling; the sent screen is a bare notice, frame 5A is 8M's.
+
+**Documentation updated.** ADR 0159 (new); `STATUS.md` (the M8 row and a new top entry under *What to do next*); `docs/BACKLOG.md` and `docs/backlog/open.md` (189 to 194 added). **Not done by the scribe:** the dated notes on ADR 0148 and ADR 0157 that point 12 asks for, the wave table's 8L row, `milestones/README.md`, and closing backlog 187; none was verified, so they stay owed to the next scribe pass.
+
+**Deferred, each with an owner or a trigger.**
+
+| Item | Where | Owner or trigger |
+| --- | --- | --- |
+| Malformed percent-escape answers 500 (F4) | 189 | Optional proxy fix; M9 hardening |
+| `usePriceBookVersion()` (F5) | 190 | Next change to the hook |
+| Shared `HydrateStoredDesign`; `getState` in the hook; five files not read in depth | 191 | Third door; the M8 close audit / 8T |
+| Locale switcher 25 px high | 192 | The human; 8T |
+| Union hand-over type, `HeldWrite` rename, security F2 and F6 | 193, 183, 184 | As recorded |
+| Unproven list (keyboard, autofill, a real 422, send in flight, mutants, leftover rows, one flake) | 194 | 8T; 8M; the audit |
+
+**Owner questions.** **Q10** (the `limitedTomorrow` ro and ru wording; recommended: approve or reword). **Q41** (recommended (a), built on (a)). **Q42** (blocks the push; recommended: `ci:local` runs e2e under `CI=1`). **Q43** (recommended M8B). Q35 to Q40 as already recorded. **Backlog 146's count must be 0 before the branch merges** (S7).
+
+**Owner rulings, later the same day [relayed; ADR 0159 Amendment A], superseding the owner-questions paragraph above:** Q42 decided (`ci:local` runs e2e under `CI=1` with a production build; the push is no longer blocked by Q42 once the developer's `local-ci.sh` change is committed); Q10 decided, owner-approved (the ro `limitedTomorrow` sentence is quoted in the ADR); Q41 decided (a); Q43 decided (M8B); backlog 146 resolved by ruling (nothing in production; the owner must still confirm that at merge time). Frame 5A stays in 8M; Q35 to Q40 as recorded.
+
+**Next:** 8M (success 5A and failure 5B), then 8Q (the CSP enforces), then 8T. **M8's close includes the first test audit** (ADR 0152 Amendment A); a "cannot fail" finding keeps M8 open.
+
 ### 8M — success 5A and failure 5B
 
 *Goal.* The customer is told exactly what happens next, or exactly what went wrong, and loses

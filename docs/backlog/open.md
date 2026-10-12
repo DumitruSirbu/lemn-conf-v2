@@ -2928,3 +2928,27 @@ whether it is resolved was not re-read in code by the scribe.
 ## 188. 8K2's recorded limits and reports — RECORDED 2026-10-12 AT M8 8K2's CLOSE
 
 **Source [the plan's 8K2 section and *as closed*; ADR 0158].** **K2.4's report:** the branch for a newer generation (`adoptNewerGeneration`) is reached in the application by nothing with a write held; seven tests that drive the coalescer directly reach it [developer-ran, relayed]. It stays; deleting it is an entry in ADR 0123's form. **Trigger:** a deletion proposed with its seven tests. **L1:** the older copy on the screen, locked, until the answer; measured 49 to 64 ms [QA-run, relayed]. **Trigger:** Q41 answered (b) or (c), or a measured time past one second. **L5:** while a request of this tab is out, another writer's newer copy is not shown; the `409` says it. **Trigger:** Q35's wave, or a customer's conflict they cannot place. **L6:** a design left while its save stands refused has its unsaved edit on the screen only; returning shows the stored one. **Trigger:** a customer's report of work lost after a conflict. **A frozen tab on a real phone:** not run; goes to 8T's phone gate as a line. **QA's two sweeps** (93 s and 106 s in the unit suite at round 2, then cut to a stated share with a floor per arm, the whole enumeration under `QA_8K2_WHOLE_SWEEP=1`): whether that form is kept is the M8 close audit's.
+
+## 189. A malformed percent-escape in a path answers 500, not 400 — RECORDED 2026-10-12 AT M8 8L's CLOSE (security F4)
+
+**Source [security reviewer, relayed; the scribe read nothing of the code].** `/ro/d/%E0%A4%A`, `/ro/s/…` and `/%E0…` answer **500** where a client error is right. next-intl returns `NextResponse.next()` without the nonce headers, so it is framework-wide, **predates 8L**, and leaks nothing. **Optional fix:** the proxy rejects a malformed escape with 400 before next-intl. **Trigger:** a proxy change, or M9's hardening.
+
+## 190. `usePriceBookVersion()`, a version-only reader — RECORDED 2026-10-12 AT M8 8L's CLOSE (F5)
+
+**Source [reviewer, relayed].** `contact/use-contact-submission.ts` needs only the book's version but sits on the price allow-list. A hook that returns the version alone would take it off the list. **Trigger:** the next change to the hook or the allow-list.
+
+## 191. 8L's clean-code deferrals — RECORDED 2026-10-12 AT M8 8L's CLOSE
+
+**Source [clean-code reviewer, relayed].** (1) A shared `HydrateStoredDesign` **when a third door appears** (two exist). (2) `use-contact-submission` reads the store through `getState`; pass a snapshot through `PressContext` instead. (3) **Not read in depth by the clean-code reviewer:** `contact-form.tsx` (531 lines), `contact-form-model`, `contact-answer`, `contact-request-identity`, `contact-outcome` (the line count is the coordinator's). **Owner:** the milestone test audit (ADR 0152 Amendment A) and 8T for (3). **Trigger:** the third door; the next change to the hook.
+
+## 192. The locale switcher is 25 px high — RECORDED 2026-10-12 AT M8 8L's CLOSE
+
+**Source [visual review, relayed].** Under the 44 px touch target; likely inherited from the mockup. **Owner:** the human, at the hand check; 8T's phone gate.
+
+## 193. 8L's earlier deferred items, carried — RECORDED 2026-10-12 AT M8 8L's CLOSE
+
+The discriminated-union hand-over type (**183**); `WaitingWrite` to `HeldWrite` (**184**); the security reviewer's F2 and F6, optional hardening (text in the security report; not re-read by the scribe). Triggers as recorded there.
+
+## 194. 8L's unproven list — RECORDED 2026-10-12 AT M8 8L's CLOSE
+
+**[relayed].** Real on-screen keyboard and real autofill (**8T's phone line**); a real `422` through the browser (only dom tests cover the does-not-fit screen); a send in flight when the customer leaves (accepted, ADR 0159 d2; 8M); e2e mutants not run (ADR 0155), one no-JS mutant ran against the callback page, which touches no database; about four leftover **test**-database rows from the visual verifier, ids unknown, nobody removes them (ADR 0151); one unexplained desktop flake, seen once, `u-gate-journeys.ts:374` (U7 S2), passed alone and on rerun. Also: the plan's point 9 repin list was incomplete (`qa-8d-review-scene.adversarial.e2e:378`, exit link count 2 to 1; `qa-8d-review-door.adversarial.e2e:362`, contact route 404 to 200); recorded in ADR 0159. Whether backlog 187 is closed was not verified by the scribe.

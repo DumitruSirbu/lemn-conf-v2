@@ -176,7 +176,7 @@ status corrections, in one of these two files:
 | 143 | The revision shape admits nineteen digits, past a bigint column's range (F12) | open.md — found 2026-10-08 by M8 8H's QA; persistence's; trigger: `design-revision.ts` is next opened |
 | 144 | Any export of contact data neutralises a leading `=`, `+`, `-` or `@` | open.md — recorded 2026-10-08 at 8H's close; trigger: an export is built |
 | 145 | A web-suite run failed once (1 of 6227), unidentified | open.md — seen once in five runs 2026-10-08; a possible recurrence with a name added 2026-10-08 (`client-write-path.adversarial`, not established to be the same test); **a second named sighting 2026-10-09** (`plan-preview-model.facing-labels.test.ts:255`, a test-side cause: seed the property; no recurrence needed); trigger: a recurrence |
-| 146 | Count the stored design ids that lack the generator's shape, before 8L S2 | open.md — recorded 2026-10-08; the owner's; before 8L S2 ships |
+| 146 | Count the stored design ids that lack the generator's shape, before 8L S2 | open.md — recorded 2026-10-08; **resolved by owner ruling 2026-10-12 (nothing in production; ADR 0159 Amendment A); the owner must still confirm no production data exists at merge time** |
 | 147 | `e2e-shard-budget` failed at `ee834b6` and the pre-push hook runs it | open.md — **closed 2026-10-08**, owner chose option 1, fixed in `8aba717` (the file split); residue is 153 |
 | 148 | A metres field and a dangling separator (`3,` `,5`): refuse, or read as a value? | open.md — **closed 2026-10-08**, ruled by the owner ("no separator should be accepted"), pinned in `eaef634`; the URL question is 154 |
 | 149 | The empty `test.fixme` in `global-settings-apply.e2e.spec.ts` is the only record of an unasserted behaviour (row 2881) | open.md — fixme deleted 2026-10-08 (`eaef634`, owner's choice); **the gap stays open**: no browser route reaches a detached probe |
@@ -219,6 +219,12 @@ status corrections, in one of these two files:
 | 186 | A held write that has outlived its limit wait still shows its past time until the next `runSave` | open.md — recorded 2026-10-12 (logic finding 1, minor); trigger: Q38 answered, or a customer told a time that had passed |
 | 187 | No test drives `HydrateAndReview` with a held write in each of the four states | open.md — recorded 2026-10-12; owner: 8L, with criterion 14 |
 | 188 | 8K2's recorded limits and reports: K2.4, L1, L5, L6, a frozen tab, the sweeps' form | open.md — recorded 2026-10-12; triggers in the entry |
+| 189 | A malformed percent-escape in a path (`/ro/d/%E0%A4%A`, `/ro/s/…`, `/%E0…`) answers 500, not 400; no leak, predates 8L (8L's security F4) | open.md — recorded 2026-10-12 at M8 8L's close; optional proxy fix |
+| 190 | `usePriceBookVersion()`, a version-only reader, so `contact/use-contact-submission.ts` leaves the price allow-list (8L's F5) | open.md — recorded 2026-10-12; trigger: the next change to the hook or to the allow-list |
+| 191 | 8L's clean-code deferrals: shared `HydrateStoredDesign`; the hook reads the store by `getState`; five files not read in depth | open.md — recorded 2026-10-12; triggers in the entry; the unread files go to the M8 close audit / 8T |
+| 192 | The locale switcher is 25 px high, under the 44 px touch target; likely inherited from the mockup | open.md — recorded 2026-10-12; owner: the human, at the hand check or 8T |
+| 193 | 8L's earlier deferred items carried: the discriminated-union hand-over type, `WaitingWrite` to `HeldWrite`, security F2 and F6 optional hardening | open.md — recorded 2026-10-12; points to 183, 184 and the security report |
+| 194 | 8L's unproven list: real keyboard and autofill, a real 422, a send in flight on leaving, e2e mutants, leftover test-database rows, one desktop flake | open.md — recorded 2026-10-12; 8T's phone gate and the M8 close audit |
 
 ## 2026-09-06 audit note
 
