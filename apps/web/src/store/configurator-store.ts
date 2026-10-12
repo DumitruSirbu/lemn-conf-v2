@@ -652,8 +652,10 @@ export function createConfiguratorStore(
           set({ canWrite });
           return;
         }
+        const taken = derivedViewOf(stored.design);
         set({
-          ...derivedViewOf(stored.design),
+          ...taken,
+          selection: selectedBodyKeptIn(taken.records, state.selection),
           revision: stored.revision,
           savedDesign: stored.design,
           hasBeenEdited: false,
@@ -693,6 +695,18 @@ export function createConfiguratorStore(
       },
     };
   });
+}
+
+/**
+ * What stays selected when the server's copy is taken: the customer's body, if the taken copy still holds it. An
+ * empty space is not kept, since its id is regenerated with every recompute and may name another opening.
+ */
+function selectedBodyKeptIn(
+  records: readonly PlacementRecord[],
+  selection: Selection,
+): Selection {
+  if (selection?.kind !== "placement") return null;
+  return records.some(({ id }) => id === selection.id) ? selection : null;
 }
 
 /**

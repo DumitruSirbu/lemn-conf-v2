@@ -43,6 +43,14 @@ function loadKeptPage(
   return store;
 }
 
+/** A kept page with an empty space in it: a body removed through the store, which is how a customer leaves one. */
+function designWithAGap(): Design {
+  const editor = loadKeptPage();
+  editor.getState().select({ kind: "placement", id: "p7" });
+  editor.getState().remove();
+  return editor.getState().design;
+}
+
 function answerWith(revision: string, design: Design = STORED_COPY) {
   return {
     designId: DESIGN_ID,
@@ -68,7 +76,7 @@ describe("the stored copy taken with the probe's answer", () => {
     });
   });
 
-  it("leaves the store as a load does: geometry derived from the stored design, nothing selected, idle", () => {
+  it("leaves the store as a load does: geometry derived from the stored design, idle, and the selected body kept since the stored design still holds it", () => {
     const store = loadKeptPage();
     store.getState().select({ kind: "placement", id: "p0" });
     const placementsBefore = store.getState().records.length;
@@ -77,12 +85,52 @@ describe("the stored copy taken with the probe's answer", () => {
 
     expect(store.getState().records).toHaveLength(placementsBefore - 1);
     expect(store.getState()).toMatchObject({
-      selection: null,
+      selection: { kind: "placement", id: "p0" },
       hasBeenEdited: false,
       saveStatus: "idle",
       saveResumesAtMs: null,
       lastRejection: null,
     });
+  });
+
+  it("clears the selection when the stored design no longer holds the selected body", () => {
+    const store = loadKeptPage();
+    const removedBodyId = KEPT_PAGE.placements.at(-1)?.id ?? "";
+    store.getState().select({ kind: "placement", id: removedBodyId });
+
+    store.getState().applyWriteAccess(answerWith(STORED_REVISION));
+
+    expect(store.getState().records.map(({ id }) => id)).not.toContain(
+      removedBodyId,
+    );
+    expect(store.getState().selection).toBeNull();
+  });
+
+  it("clears the selection of an empty space, whose id means nothing in another copy", () => {
+    const store = createConfiguratorStore({
+      design: KITCHEN_L_DESIGN,
+      catalogAt: buildKitchenLBodyCatalog,
+    });
+    const pageWithAGap = designWithAGap();
+    store.getState().hydrate({
+      design: pageWithAGap,
+      designId: DESIGN_ID,
+      revision: KEPT_REVISION,
+      canWrite: "checking",
+    });
+    const emptySpace = store.getState().voids[0];
+    if (emptySpace === undefined)
+      throw new Error("the page has no empty space");
+    store.getState().select({ kind: "void", id: emptySpace.id });
+
+    store
+      .getState()
+      .applyWriteAccess(
+        answerWith(STORED_REVISION, { ...pageWithAGap, presetId: "newer" }),
+      );
+
+    expect(store.getState().revision).toBe(STORED_REVISION);
+    expect(store.getState().selection).toBeNull();
   });
 
   it("derives the catalogue from the stored design's own cabinet depth", () => {
