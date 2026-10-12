@@ -36,7 +36,9 @@ type AnswerClass =
   | "conflict"
   | "limited"
   | "limited-unreadable"
-  | "final";
+  | "sent"
+  | "design-not-current"
+  | "does-not-fit";
 
 const ANSWERS: Readonly<Record<AnswerClass, Answer>> = {
   failure: { kind: "network-failure" },
@@ -53,12 +55,16 @@ const ANSWERS: Readonly<Record<AnswerClass, Answer>> = {
     { "retry-after": "30" },
   ),
   "limited-unreadable": answerWith(429, { code: "CONTACT_LIMIT_REACHED" }),
-  final: answerWith(200, { status: "sent", reference: "LM-1" }),
+  sent: answerWith(200, { status: "sent", reference: "LM-1" }),
+  "design-not-current": answerWith(409, { code: "CONTACT_DESIGN_NOT_CURRENT" }),
+  "does-not-fit": answerWith(422, {
+    code: "CONTACT_DESIGN_DOES_NOT_FIT",
+    placementIds: [],
+  }),
 };
 
-/** A final answer ends a sequence, so it is listed once among the failures a retry follows. */
-const ANSWER_CLASSES_BY_WEIGHT: readonly AnswerClass[] = [
-  "failure",
+/** The answers after which a retry follows; a limit is listed twice, since it is the arm a wait is judged on. */
+const RETRYABLE_ANSWER_CLASSES: readonly AnswerClass[] = [
   "failure",
   "failure",
   "rejected",
@@ -67,8 +73,16 @@ const ANSWER_CLASSES_BY_WEIGHT: readonly AnswerClass[] = [
   "conflict",
   "conflict",
   "limited",
+  "limited",
   "limited-unreadable",
-  "final",
+];
+
+/** A final answer ends a sequence, so the three are listed once each among the retryable ones. */
+const ANSWER_CLASSES_BY_WEIGHT: readonly AnswerClass[] = [
+  ...RETRYABLE_ANSWER_CLASSES,
+  "sent",
+  "design-not-current",
+  "does-not-fit",
 ];
 
 const TEXT_FIELDS: readonly ContactTextField[] = [
@@ -149,7 +163,47 @@ const commandArbitrary: fc.Arbitrary<Command> = fc.oneof(
 
 const COMMAND_SEQUENCES = fc.array(commandArbitrary, {
   minLength: 1,
-  maxLength: 24,
+  maxLength: 40,
+  size: "max",
+});
+
+/** Only what an id's fate depends on, and only valid texts, so the arms of the id rule are reached far more often than by chance. */
+const idRuleCommandArbitrary: fc.Arbitrary<Command> = fc.oneof(
+  { weight: 6, arbitrary: fc.constant<Command>({ kind: "press" }) },
+  {
+    weight: 8,
+    arbitrary: fc
+      .constantFrom(...RETRYABLE_ANSWER_CLASSES)
+      .map((answerClass): Command => ({ kind: "answer", answerClass })),
+  },
+  {
+    weight: 12,
+    arbitrary: fc
+      .record({
+        field: fc.constantFrom(...TEXT_FIELDS),
+        variant: fc.integer({ min: 0, max: 1 }),
+      })
+      .map(({ field, variant }): Command => ({ kind: "type", field, variant })),
+  },
+  {
+    weight: 1,
+    arbitrary: fc
+      .integer({ min: 0, max: 1 })
+      .map((variant): Command => ({ kind: "honeypot", variant })),
+  },
+  { weight: 2, arbitrary: fc.constant<Command>({ kind: "save-lands" }) },
+  {
+    weight: 3,
+    arbitrary: fc
+      .constantFrom(50, 30_000, 100_000)
+      .map((milliseconds): Command => ({ kind: "advance", milliseconds })),
+  },
+);
+
+const ID_RULE_SEQUENCES = fc.array(idRuleCommandArbitrary, {
+  minLength: 1,
+  maxLength: 40,
+  size: "max",
 });
 
 type TypedField = ContactTextField | "honeypot";
@@ -171,7 +225,8 @@ const textFromPool: TextFor = (field, variant) => {
   return texts[variant % texts.length] ?? "";
 };
 
-/** What a floor needs to see, per arm of what the sequences branch on, summed over the runs of one property. */
+/** What a floor needs to see, per arm of what the sequences branch on, summed over the runs of one property.
+ *  Each floor sits at least 5 standard deviations under the arm's measured mean, so chance does not fail it. */
 const arms = new Map<string, number>();
 
 function countArm(arm: string): void {
@@ -415,31 +470,31 @@ describe("P1 and P3: one request out, and only for a saved design at the store's
           afterStep: assertOneOutAndOnlyForASavedDesign,
         });
       }),
-      { numRuns: 1000 },
+      { numRuns: 500 },
     );
 
     expectFloor("press started a request", 300);
-    expectFloor("press ignored: request out", 100);
-    expectFloor("press ignored: design unsaved", 50);
-    expectFloor("press ignored: limit not passed", 10);
-    expectFloor("press ignored: send is final", 10);
+    expectFloor("press ignored: request out", 250);
+    expectFloor("press ignored: design unsaved", 250);
+    expectFloor("press ignored: limit not passed", 100);
+    expectFloor("press ignored: send is final", 150);
   });
 });
 
 describe("P2: an id is kept for the same request, renewed for a changed one and after a conflict", () => {
   it("holds over any order of edits, presses, failures and saves, and each arm of the rule is reached", async () => {
     await fc.assert(
-      fc.asyncProperty(COMMAND_SEQUENCES, async (commands) => {
+      fc.asyncProperty(ID_RULE_SEQUENCES, async (commands) => {
         await runSequence(commands, textFromPool, {
           atEnd: assertIdsFollowTheRule,
         });
       }),
-      { numRuns: 1000 },
+      { numRuns: 500 },
     );
 
-    expectFloor("id kept for the same request", 30);
-    expectFloor("id renewed for a changed request", 30);
-    expectFloor("id after a conflict", 20);
+    expectFloor("id kept for the same request", 50);
+    expectFloor("id renewed for a changed request", 100);
+    expectFloor("id after a conflict", 50);
   });
 });
 
