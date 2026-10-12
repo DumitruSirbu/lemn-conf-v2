@@ -1,6 +1,6 @@
 // Leaving a design for Step 1 and a second design, and coming back by the browser's history: the moves and the
 // readouts the return specs share. No assertion lives here.
-import { expect, type Page } from "@playwright/test";
+import { expect, type Page, type Route } from "@playwright/test";
 
 import {
   expectEditorReady,
@@ -103,4 +103,73 @@ export async function chooseAnotherMaterialAndSave(
   await press(page, page.getByTestId("global-settings-apply"));
   await expect(page.getByTestId("global-settings-surface")).toHaveCount(0);
   return (await saved).status();
+}
+
+const SERVER_ERROR_STATUS = 500;
+
+function isSave(route: Route): boolean {
+  const method = route.request().method();
+  return method === "PUT" || method === "PATCH";
+}
+
+export interface SavesThatFail {
+  /** From now on the design's saves reach the server. */
+  readonly stopFailing: () => void;
+}
+
+/** Answers every save of `designId` with a server error until told to stop; reads and later saves pass through. */
+export async function failSavesOf(
+  page: Page,
+  designId: string,
+): Promise<SavesThatFail> {
+  let isFailing = true;
+  await page.route(`**/api/designs/${designId}`, async (route: Route) => {
+    if (isFailing && isSave(route)) {
+      await route.fulfill({
+        status: SERVER_ERROR_STATUS,
+        contentType: "application/json",
+        body: "{}",
+      });
+      return;
+    }
+    await route.continue();
+  });
+  return {
+    stopFailing: () => {
+      isFailing = false;
+    },
+  };
+}
+
+export interface HeldSave {
+  /** Resolves once the held save has left the browser. */
+  readonly hasLeft: Promise<void>;
+  /** Lets the held save reach the server and be answered. */
+  readonly release: () => Promise<void>;
+}
+
+/** Keeps the first save of `designId` out, unanswered, until released; every other request passes through. */
+export async function holdFirstSaveOf(
+  page: Page,
+  designId: string,
+): Promise<HeldSave> {
+  let held: Route | null = null;
+  let markLeft: () => void = () => undefined;
+  const hasLeft = new Promise<void>((resolve) => {
+    markLeft = resolve;
+  });
+  await page.route(`**/api/designs/${designId}`, async (route: Route) => {
+    if (held === null && isSave(route)) {
+      held = route;
+      markLeft();
+      return;
+    }
+    await route.continue();
+  });
+  return {
+    hasLeft,
+    release: async () => {
+      await held?.continue();
+    },
+  };
 }
