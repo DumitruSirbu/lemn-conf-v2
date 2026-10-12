@@ -9729,7 +9729,9 @@ its title: it asserted the rule K2.3 replaces.
    design makes **0**; the review makes **0** on every arrival (criterion 20 of 8D). Every count
    equals HEAD's. Where the answer's revision equals the store's, the store's `design` is the same
    object after the answer as before: nothing is derived again, the selection stays, the scene is
-   not built again.
+   not built again. **(Dated 2026-10-12, after S1's measurement: *a first load* is a hard load of
+   the address. The editor reached from Step 1 makes 1 `GET` and one `PUT`, the hand-over's own
+   save, at HEAD and after; *8K2 — S2 item 2's stop, ruled*, last paragraph.)**
 7. **A held write is shown, not replaced.** A design loaded again while the writer holds a write
    for it is shown as that write's design, with `hasBeenEdited` true, in that write's status. An
    edit made after the return is in the next request sent, together with the earlier one.
@@ -9893,6 +9895,95 @@ ADR 0148 E3, the two-design case and K2.6. Backlog: 168 closed, or kept for whic
 halves did not ship; 169 and 171 closed with S2 and S3; the re-export of risk 6 and K2.4's report
 as entries with triggers; L1 to L4. `milestones/README.md` still says M8 is fifteen waves, and
 `STATUS.md`'s M8 row its older counts: both are the scribe's, and the count is eighteen.
+
+##### 8K2 — S2 item 2's stop, ruled, 2026-10-12
+
+**State.** HEAD is `7b16568a` [ran: `git log --oneline`], tree clean [ran: `git status --short`, no
+line]. S1 is `5f0d93f6` … `f1c94d64` and S2 item 1 is `7b16568a` [ran: `git log`; what each holds
+is relayed]. The developer built nothing for item 2 and stopped.
+
+**The classing: a contract gap in this plan, not a fault of the slice.** S2 item 2 asked for a
+function under another name with another answer. S2's *must not* and criterion 15 forbade changing
+any test's assertion. Two tests call the function by name and assert its boolean [ran: read at
+`7b16568a`]: `tests/persistence/save-coalescer.limit.test.ts:15`, `:427-462`, and
+`tests/panel/panel-model.save-paused.test.ts:85-96`. Both cannot hold. **The stop was right.**
+Neither file is QA's: both blocks came with the developer's own commits `a8e92ccd` and `f8213a97`
+[ran: `git log` of the file and of the lines], and neither name is a `qa-*` one.
+
+**Ruled: (a), bounded as below. (c) is what happens on any further stop.**
+
+- *Why not (b), in S3.* S3 is the wave's behavioural change, in two files. A rename through the
+  panel and the review would add two files to it and blur the one diff the logic reader must hold.
+- *Why not (c) first.* Backlog 171's trigger is met, the fix is the clean-code reader's own, and
+  it would be raised again against S3's diff of the same file. It is small enough to prove.
+- **What this corrects in the plan.** For item 2, K2.5's proof (*the tests it did not have to
+  touch*) and criterion 15 are replaced by proofs 1 to 5 below. For item 1 they stand, and held.
+  `store/configurator-store.ts` leaves S2's list: nothing in it calls the predicate [ran: a grep
+  of `apps/web/src`, three files].
+
+**The item, as one commit (S2 item 2).**
+
+1. `persistence/save-coalescer.ts`: `isSavePaused` becomes
+   `pausedUntilMs(status, resumesAtMs): number | undefined`. It answers the time where the status
+   is `error` and the time is a number, and `undefined` otherwise. One decision, one place, as
+   before.
+2. `panel/panel-model.ts` (`:401`) and `app/d/[id]/review/review-screen.tsx` (`:296`) ask it once
+   and use its answer as the time.
+3. **The developer changes these test lines and no others**, same inputs, same count of tests:
+   - `save-coalescer.limit.test.ts`: the import (`:15`); the name in the `describe` title
+     (`:427`); the four tests' calls and expectations, **each `true` becoming the time handed in
+     and each `false` becoming `undefined`**, over the same statuses and the same times
+     (`A_TIME_MS`, `null`, `undefined`, `0`); their titles reworded only as far as *is true* and
+     *is false* no longer read.
+   - `panel-model.save-paused.test.ts`: the name in the title (`:87`) and in the first pattern
+     (`:91`). Its two absence patterns stay byte for byte.
+
+**The source-reading test, under ADR 0152 decision 3 (b): kept, and retitled by the name alone.**
+Its two absence patterns are the permitted kind: an absence claim that a dated record makes (ADR
+0156 d10, *one predicate … is asked by the panel, the review*), a title that says it reads
+source, and behaviour tests that own the behaviour (the same file's first `describe`;
+`tests/app/review-arrival.dom.test.ts`). Its presence pattern is what keeps the absence from
+passing on a file that never asks at all, so it moves to the new name. **Not deleted here:** a
+deletion is the audit's, on evidence (ADR 0152 decision 2). *For the M8 close audit, with backlog
+172:* the presence pattern is a substring and passes on a comment that names the function.
+
+**What proves no behaviour, now that test lines change.**
+
+1. **The compiler.** The answer's type changes, so every caller is found by it: web typecheck
+   exit 0, with no cast and no `!` added.
+2. **The behaviour tests, untouched and green:** the first `describe` of
+   `panel-model.save-paused.test.ts`; `tests/app/review-arrival.dom.test.ts`;
+   `tests/persistence/qa-8g-return-while-waiting.adversarial.test.ts`; `tests/store/`.
+3. **The diff.** `rtk proxy git diff 7b16568a -- apps/web/tests` shows the lines named in item 3
+   and nothing else; each file has as many tests after as before.
+4. **Mutants, in the working tree only, never committed, none near a database.** Each rewritten
+   test is shown red under one: the status test dropped; the number test made a truthiness test
+   (the *nought* test must redden); the time answered for every status. And the source-reading
+   test red with one caller's call removed. The report says which mutant reddened which test.
+5. The whole web suite and lint, exit 0.
+
+*Must not:* the answer tested by truthiness in a caller (a time of nought is a time); a caller
+comparing the store's own time to `null` or `undefined`; `isSavePaused` kept as an alias; a test
+added, removed or changed beyond item 3; `configurator-store.ts`, a `qa-*` file or anything of S3
+touched; a banned git command to undo an edit.
+
+*Stops if:* a third test, or any `qa-*` file, names `isSavePaused` (none at `7b16568a` [ran: a
+grep of `apps/web/tests`, two files]); a test of proof 2 goes red; the compiler asks for a change
+in a file not named here; a caller needs the status again after asking. **On any stop the item is
+dropped, not argued:** the developer undoes its own edits by hand, backlog 171's predicate stays
+open with the trigger *the next change to the panel's notice or the review's wait*, and S3
+proceeds. S3 does not wait for this item either way.
+
+**For the scribe, at the close.** A dated note on ADR 0156 d10, which names `isSavePaused`.
+Backlog 171: the predicate closed by this item if it ships; its two nits are S3's item 4.
+
+**Criterion 6, a dated correction of its wording, not of its sense.** S1 measured, on the built
+server [developer-run, relayed; `5f0d93f6`]: a hard load of the editor's address, 1 `GET` and no
+`PUT`; the editor reached from Step 1, 1 `GET` and one `PUT`, the hand-over's own save; a return
+from a second design, 1; a return from Step 1 with no second design, 0. **Criterion 6's *"a first
+load … makes 1 `GET` and no `PUT`"* is true of a hard load only**, and is to be read so. Its
+operative clause, *every count equals HEAD's*, held on all four, since each was counted at HEAD
+before the change.
 
 ### 8L — the contact screen 4A/4B/4C
 
