@@ -9819,6 +9819,10 @@ the tree*. **What the pass owes here:**
   changed, a `qa-*` file of an earlier wave edited. **A clean report is a weak result and says
   what was attacked.**
 - New e2e tests go against the mobile project's shard budget; QA reports the count.
+- **(Dated 2026-10-12, from S3's stops; *8K2 — S1 to S3 as built; S3's three stops, ruled*.)**
+  The pass **begins** by repairing its own `qa-u7s0-snapshot-store` harness, the one red test at
+  the freeze. It owes **P5** with P1 to P4, the trace with the page frozen and resumed, and P2
+  swept over a write that is ready and not yet sent (or told by name that L7 excludes it).
 
 **9. The review.** After QA is green, in parallel, on the same frozen tree.
 
@@ -9984,6 +9988,149 @@ from a second design, 1; a return from Step 1 with no second design, 0. **Criter
 load … makes 1 `GET` and no `PUT`"* is true of a hard load only**, and is to be read so. Its
 operative clause, *every count equals HEAD's*, held on all four, since each was counted at HEAD
 before the change.
+
+##### 8K2 — S1 to S3 as built; S3's three stops, ruled, 2026-10-12
+
+**State.** HEAD is `fc6e916f` [ran: `git log --oneline`], tree clean [ran: `git status --short`, no
+line]. The first two rulings below were given by message while the developer was writing, and are
+written here once the tree was free; the third is new.
+
+**As built** [ran: `git log`; what each commit holds is its own message, relayed, unless a line
+says *read*].
+
+| Slice | Commits | What |
+| --- | --- | --- |
+| S1 | `5f0d93f6`, `0c24baa0`, `eb05123b`, `f1c94d64` | The four counts at HEAD on the built server; the revision order in `store/revision-order.ts`, still exported from its old path; `applyWriteAccess` takes the stored design and revision with `canWrite` in one write [read: `configurator-store.ts:648-664`]; the two marks off and green; one trace by Back and Forward |
+| S2 | `7b16568a`, `1087f45b` (ruling `516207e3`) | The queue holds one wait; `scheduleSave` and `holdWriteForLimit` are 15 lines each; `isSavePaused` is `pausedUntilMs`, with only the named test lines changed |
+| S3 | `9ce7cb63`, `fc6e916f` | A load is handed the write the tab holds in three states [read: `save-coalescer.ts:265-303`]; a request out reports to the generation that shows its design when it is answered [read: `:460-494`]; `hydrate` is 13 lines; two e2e traces. Two tests reversed with their titles, as ruled: `save-coalescer.return.test.ts:187`, `client-write-generation.test.ts:208` [coordinator read both diffs, relayed] |
+
+**The whole web suite is red on exactly one test** [developer-run, relayed: 1 failed, 8639 passed]:
+`qa-u7s0-snapshot-store.adversarial.dom.test.ts:188`. Stop 2 says why and whose it is.
+
+**Stop 1 — `tests/persistence/client-write-generation.test.ts:208`, a sixth file. Ruled: reversed,
+as `:187` was.**
+
+- *What the test guards* [ran: `git log` of the file]. It came with `b0400ac2` (2026-08-31), the
+  fix for WEB-001, *pending content saved under another design's id* (the remediation's Wave S2).
+  **That intent is the three request addresses, their order, and each body going to its own id.**
+  All of it stays byte for byte.
+- *What was reversed.* Its two `a-current` literals (`:242`, `:254-256`) asserted that a load
+  replaces the tab's own request that is out. That is the rule K2.3 replaces. **Classing: the
+  same as `:187`**, a test of the replaced rule, not a test-fidelity problem and not a defect of
+  the slice.
+- *Which copy is right to show.* The request's own. A load of A inside one document is a kept
+  page, which is never newer than a write this tab has not yet had answered, unless another
+  writer stored it [inf]. Then the request is answered `409` and the conflict's own path says so.
+  At HEAD before S3, the scenario's third edit wrote over the first with no conflict said.
+- *The edit, the developer's* (not a `qa-*` file): the title; `:242` and `:254-256` expect
+  `"a-old"`. *It would have stopped again if* another line of that file had to change, the order
+  of requests changed, or the status at `:238-241` was not `idle`. None did [relayed].
+- **L5, recorded.** While a request of this tab is out for a design, a load that carries another
+  writer's newer copy is not shown; the `409` is what says it. *Trigger:* Q35's wave, or a
+  customer's report of a conflict they cannot place.
+
+**Stop 2 — `tests/app/qa-u7s0-snapshot-store.adversarial.dom.test.ts:188`, a `qa-*` file. Ruled: a
+test-fidelity problem, and QA's to repair.**
+
+- *The cause* [read at HEAD]. The file answers every `PUT` with `500` (`:97-99`). Between tests it
+  puts the store back to its first state and swaps the fake clock (`:103-120`), **but the module's
+  coalescer keeps its queue.** So a backoff from an earlier test holds a timer on a clock that is
+  gone. The control test loads the same id, is now handed that write, its edit joins it, and
+  nothing is sent. Before S3 the load ignored a backoff and the edit cleared the dead timer.
+- **No hazard in the application was found** [inf, read, not run]. A browser pauses an armed timer
+  in a frozen tab and in its back-forward cache and resumes it; it does not drop one while the
+  document lives, and a document that is dropped takes its queue with it. The one place that
+  clears the timer clears the wait with it (`clearWait`, S2 item 1).
+- **Who, and when.** The developer does not touch the file and has not. **QA's pass begins with
+  it:** the harness isolated (the control's own design id, or the module reset), the assertion
+  and the title unchanged, the control shown red with the session's save cut, and the repair
+  reported. Until then the web suite is expected red on that one test, and any other red is a red.
+- **Added to what QA's pass owes** (point 8):
+  - **P5.** A queue that holds a write always has one of: a timer armed, a ready ticket, a
+    request out. Never none. Swept with P1 to P4.
+  - **One trace with the page frozen and then resumed past a backoff's time**, ending with the
+    write sent and stored. If the browser under test cannot be frozen, *not run* is said plainly
+    and P5 is what stands.
+
+**Stop 3 — a fourth held write, which S3 does not hand over. Ruled: it is built now, as S3's
+item 6.**
+
+*Every write a queue can hold* [read: `save-coalescer.ts:274-290`, `:240-252`, `:350-410`,
+`:460-478`; `configurator-store.ts:718-726`].
+
+| The queue holds | Handed at `fc6e916f` | On a return, the screen shows | A later edit |
+| --- | --- | --- | --- |
+| A write and a wait with a time (the limit) | Yes | The write's design, `error` with the time | Joins the one write |
+| A write and a wait with no time (a backoff) | Yes | The write's design, `error` | Joins the one write |
+| A request out, with or without a later edit behind it | Yes | **The newest: the edit behind it where there is one, else the one sent**; `saving` | Becomes, or replaces, the edit behind it; sent when the request is answered, at the answered revision |
+| **A write ready and not yet sent:** no wait, no request. Behind the one-second interval after a save; or behind another design's request, which holds the one slot | **No** (`:284`) | **The page's copy, idle: as saved, without the edit** | *Before the write goes:* it replaces it, and the earlier edit is never sent (`adoptNewerGeneration`). *After:* the write's answer went to a generation that has left, so the store's revision is stale: `409`, unless K2.2's answer lands later |
+| Nothing, after a refusal (`conflict`, `stopped`, `unauthorized`) | Nothing to hand: the writer drops the write by its own rule | The page's copy, then the stored one; the refusal is said again at the next edit | L6 |
+
+**So K2.3's sentence does not hold at `fc6e916f` for the fourth row, and P2 fails on it.** The
+developer's report is confirmed, and so is its reading of K2.4: the branch for a newer generation
+is reached in the application only by that row.
+
+*How a customer gets there* [inf, unmeasured]. (i) Behind the interval: the window is at most
+1,000 ms after the last save's answer [src `MIN_SAVE_INTERVAL_MS`]. The way out and back (Step 1's
+question, a mint, a first save, two steps of history) is longer than that by hand. (ii) Behind
+another design's request: with B's save out, Back to A, an edit on A, Forward to B, Back to A, all
+before B is answered. Kept pages need no network to walk, a request may be out for 10 s before it
+fails [src `fetch-configuration-repository.ts:52`], so a slow connection allows it. **Narrow, and
+real.**
+
+*Why it is built and not recorded.*
+
+- **The rule becomes shorter, not longer:** *a queue that holds a write hands it*, in whatever
+  state. Three named cases with a fourth left out is the harder thing to keep true.
+- **QA's P2 finds it in its first sweep.** A fake clock puts no time between an edit and a
+  return, so reachability by hand does not protect the property. That is a fix round after QA
+  for a case in one function.
+- **The hand-over's shape cannot say it today.** A ready write and a backoff are both *no time,
+  not in flight*. So the state must be named, which the two optional fields were already short of.
+- *Not taken: a recorded limit* (the developer's choice, and a fair one under ADR 0118). It is
+  the fallback below, not the first answer, because the rule was written this morning and the
+  case is its own.
+- *Not taken: QA measures reachability first.* The property does not depend on it.
+
+**S3 item 6, for the developer, one commit.**
+
+1. `persistence/save-coalescer.ts`: the hand-over answers for **every queue that holds a write**,
+   and **names the write's state in one field of four values** (waiting for the limit, backing
+   off, ready, sent). A ready write keeps its ticket and its place; it is handed to the current
+   generation as the others are.
+2. `store/configurator-store.ts`: a ready write is shown as its design, `hasBeenEdited` true,
+   **status `idle` with no time**: what the same write looks like when the customer has not left
+   (`design !== savedDesign` is the one question, as the store's own comment says).
+3. Tests, the developer's own files (`save-coalescer.held-write.test.ts`, the store's): a write
+   ready behind the interval, and one ready behind another design's request, each: shown on
+   return; **one** request for it, no sooner than the interval allows and no later than it would
+   have gone; its answer reaching the screen, which is then clean at the answered revision; an
+   edit after the return in that one request with the earlier one.
+4. K2.4's report, again: with the hand-over whole, does anything in the application still reach
+   `adoptNewerGeneration` with a write held? The answer goes to the backlog in ADR 0123's form.
+   **The branch is not removed.**
+
+No e2e trace is owed for it: the window cannot be held open by touch. P2 and item 3 carry it.
+
+*Must not:* a second ticket or a second request for the handed write; a request sooner than the
+interval, or later than the ticket it already had; a status outside `SaveStatus`; a timer;
+`scheduleSave` or `adoptNewerGeneration` changed; a `qa-*` file touched, `qa-u7s0` included.
+
+*Stops if* any existing test must change, a `qa-*` pin on the hand-over among them. **Then the
+item is dropped:** the fourth row is recorded as **L7** with (i) and (ii) above as its
+reachability, the trigger *QA's P2 reaches it through the application's own events, or a
+customer's conflict after Back between two designs on a slow connection*, and backlog 168 stays
+open for it alone. QA is then told that P2 excludes that row, by name.
+
+**L6, recorded; not this wave's.** A design left while its save stands refused (`conflict`,
+`stopped`) has its unsaved edit on the screen and nowhere else. Leaving for a second design and
+returning shows the stored design, and the edit is gone. The writer holds nothing then, by its
+own rule, so K2.3 does not reach it; the editor's Back asks before the customer leaves (ADR
+0139); and for a conflict it ends as *reload* does. **P2 is stated without a refusal among its
+events, and stays so.** *Trigger:* a customer's report of work lost after a conflict.
+
+**For the scribe, at the close.** L5 to L7 with L1 to L4; this section's three rulings in the new
+record; `qa-u7s0`'s repair in QA's report.
 
 ### 8L — the contact screen 4A/4B/4C
 
