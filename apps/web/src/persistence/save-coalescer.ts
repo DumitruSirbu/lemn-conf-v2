@@ -163,13 +163,17 @@ interface IdentityQueue {
   readonly provisionalMintIdentity: object | undefined;
   pending: SaveJob | null;
   retryCount: number;
-  /** The queue's one timer: the backoff after a failure, or the wait after the limit's refusal. Never both. */
-  retryTimer: ReturnType<typeof setTimeout> | null;
-  /** When the limit's wait ends, while the timer above is that wait; `null` for a backoff or no timer. */
-  resumesAtMs: number | null;
+  /** The queue's one wait: the backoff after a failure, or the wait after the limit's refusal. */
+  wait: QueueWait | null;
   readyQueued: boolean;
   readyVersion: number;
   active: boolean;
+}
+
+interface QueueWait {
+  readonly timer: ReturnType<typeof setTimeout>;
+  /** When the limit's wait ends; `null` for a failure's backoff. */
+  readonly resumesAtMs: number | null;
 }
 
 interface ReadyEntry {
@@ -206,47 +210,67 @@ export function createSaveCoalescer(
     const job = jobFor(design);
     const refusedStatus = refusalStatus(job);
     if (refusedStatus !== undefined) {
-      if (heldByOverwrite(job, design)) return;
-      // A terminal identity is still terminal on return to it; report it synchronously rather than silently
-      // decline to queue the write.
-      deps.onSaveStatusChange(refusedStatus, job.generation);
+      reportRefusedSave(job, design, refusedStatus);
       return;
     }
 
     const queue = queueFor(job);
-    if (queue.generation !== job.generation) {
-      // Same persisted id, newer load generation: its state replaces any older retry/pending job.
-      // An already in-flight old write cannot be cancelled, so this pending job remains and is
-      // necessarily written after it settles.
-      queue.generation = job.generation;
-      queue.retryCount = 0;
-      // A reload's fresh state is no reason to ask the server sooner than it said.
-      if (queue.resumesAtMs === null) clearRetryTimer(queue);
-      invalidateReady(queue);
-      // The load that advanced the generation read this design afresh, so the store's revision is newer than the
-      // seeded one; a queue left in retry backoff would otherwise carry the stale one and conflict spuriously.
-      queue.expectedRevision = deps.getRevision();
-    }
+    if (queue.generation !== job.generation) adoptNewerGeneration(queue, job);
     queue.pending = job;
-    if (queue.resumesAtMs !== null) {
-      deps.onSaveStatusChange("error", job.generation, queue.resumesAtMs);
-    }
+    reportLimitWait(queue, job.generation);
     enqueueReady(queue);
     requestSave();
+  }
+
+  function reportRefusedSave(
+    job: SaveJob,
+    design: Design,
+    refusedStatus: RefusedStatus,
+  ): void {
+    if (heldByOverwrite(job, design)) return;
+    // A terminal identity is still terminal on return to it; report it synchronously rather than silently
+    // decline to queue the write.
+    deps.onSaveStatusChange(refusedStatus, job.generation);
+  }
+
+  function adoptNewerGeneration(queue: IdentityQueue, job: SaveJob): void {
+    // Same persisted id, newer load generation: its state replaces any older retry/pending job.
+    // An already in-flight old write cannot be cancelled, so this pending job remains and is
+    // necessarily written after it settles.
+    queue.generation = job.generation;
+    queue.retryCount = 0;
+    // A reload's fresh state is no reason to ask the server sooner than it said.
+    if (limitWaitEndOf(queue) === null) clearWait(queue);
+    invalidateReady(queue);
+    // The load that advanced the generation read this design afresh, so the store's revision is newer than the
+    // seeded one; a queue left in retry backoff would otherwise carry the stale one and conflict spuriously.
+    queue.expectedRevision = deps.getRevision();
+  }
+
+  /** Says the limit's wait again, with its time, when the queue is in one. */
+  function reportLimitWait(queue: IdentityQueue, generation: number): void {
+    const resumesAtMs = limitWaitEndOf(queue);
+    if (resumesAtMs === null) return;
+    deps.onSaveStatusChange("error", generation, resumesAtMs);
+  }
+
+  function limitWaitEndOf(queue: IdentityQueue): number | null {
+    return queue.wait?.resumesAtMs ?? null;
   }
 
   function adoptWaitingWrite(id: DesignId): WaitingWrite | undefined {
     const queue = persistedQueues.get(id);
     const waiting = queue?.pending ?? null;
     if (queue === undefined || waiting === null) return undefined;
-    if (queue.resumesAtMs === null) return undefined;
+    const resumesAtMs = limitWaitEndOf(queue);
+    if (resumesAtMs === null) return undefined;
     const generation = deps.getGeneration();
     queue.generation = generation;
     queue.pending = { ...waiting, generation };
     return {
       design: waiting.design,
       expectedRevision: queue.expectedRevision,
-      resumesAtMs: queue.resumesAtMs,
+      resumesAtMs,
     };
   }
 
@@ -289,8 +313,7 @@ export function createSaveCoalescer(
       provisionalMintIdentity,
       pending: null,
       retryCount: 0,
-      retryTimer: null,
-      resumesAtMs: null,
+      wait: null,
       readyQueued: false,
       readyVersion: 0,
       active: false,
@@ -299,11 +322,7 @@ export function createSaveCoalescer(
 
   /** Explicit FIFO scheduling: historical Map insertion order never decides which identity runs. */
   function enqueueReady(queue: IdentityQueue): void {
-    if (
-      queue.readyQueued ||
-      queue.pending === null ||
-      queue.retryTimer !== null
-    )
+    if (queue.readyQueued || queue.pending === null || queue.wait !== null)
       return;
     queue.readyQueued = true;
     queue.readyVersion += 1;
@@ -318,7 +337,7 @@ export function createSaveCoalescer(
         queue?.readyQueued === true &&
         entry?.version === queue.readyVersion &&
         queue.pending !== null &&
-        queue.retryTimer === null
+        queue.wait === null
       )
         return queue;
       readyHead += 1;
@@ -449,7 +468,7 @@ export function createSaveCoalescer(
     saving = false;
     queue.active = false;
     queue.retryCount = 0;
-    clearRetryTimer(queue);
+    clearWait(queue);
     const status = refusedStatusFor(failure);
     if (job.designId === null) {
       refusedProvisional.set(job.generation, status);
@@ -547,11 +566,7 @@ export function createSaveCoalescer(
     // Entering backoff and remaining ready are mutually exclusive: invalidate any FIFO ticket issued while the
     // failed request was in flight, so the retry timer issues the one replacement.
     invalidateReady(queue);
-    queue.retryTimer = setTimeout(() => {
-      queue.retryTimer = null;
-      enqueueReady(queue);
-      requestSave();
-    }, backoffDelayMs(queue.retryCount));
+    armWait(queue, backoffDelayMs(queue.retryCount), null);
     // Other identities may progress while this one waits.
     requestSave();
   }
@@ -571,25 +586,31 @@ export function createSaveCoalescer(
     queue.active = false;
     queue.pending ??= failedJob;
     invalidateReady(queue);
-    clearRetryTimer(queue);
-    const resumesAtMs = Date.now() + waitMs;
-    queue.resumesAtMs = resumesAtMs;
-    queue.retryTimer = setTimeout(() => {
-      queue.retryTimer = null;
-      queue.resumesAtMs = null;
-      enqueueReady(queue);
-      requestSave();
-    }, waitMs);
-    deps.onSaveStatusChange("error", queue.pending.generation, resumesAtMs);
+    clearWait(queue);
+    armWait(queue, waitMs, Date.now() + waitMs);
+    reportLimitWait(queue, queue.pending.generation);
     // Other identities may progress while this one waits.
     requestSave();
   }
 
-  function clearRetryTimer(queue: IdentityQueue): void {
-    if (queue.retryTimer === null) return;
-    clearTimeout(queue.retryTimer);
-    queue.retryTimer = null;
-    queue.resumesAtMs = null;
+  /** Holds the queue for `delayMs`, then makes it ready again. `resumesAtMs` is set for the limit's wait alone. */
+  function armWait(
+    queue: IdentityQueue,
+    delayMs: number,
+    resumesAtMs: number | null,
+  ): void {
+    const timer = setTimeout(() => {
+      queue.wait = null;
+      enqueueReady(queue);
+      requestSave();
+    }, delayMs);
+    queue.wait = { timer, resumesAtMs };
+  }
+
+  function clearWait(queue: IdentityQueue): void {
+    if (queue.wait === null) return;
+    clearTimeout(queue.wait.timer);
+    queue.wait = null;
   }
 
   /** Invalidates a queued FIFO entry without scanning the deque; a later enqueue gets a new ticket. */
@@ -602,7 +623,7 @@ export function createSaveCoalescer(
     if (
       queue.active ||
       queue.pending !== null ||
-      queue.retryTimer !== null ||
+      queue.wait !== null ||
       queue.readyQueued
     )
       return;
