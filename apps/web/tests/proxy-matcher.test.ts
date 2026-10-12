@@ -57,6 +57,7 @@ describe("the interceptor's matcher: a design's and a share's address reach it w
 
   it("hands over a step of a design whose id ends in an extension", () => {
     expect(reaches("/ro/d/abc123.png/review")).toBe(true);
+    expect(reaches("/ro/d/abc123.png/done")).toBe(true);
   });
 });
 
@@ -122,9 +123,10 @@ describe("the interceptor's matcher: what lies deeper than a family's one segmen
       .sort();
   }
 
-  it("names, under a design's family, the page, the review's page and the contact page and nothing that could run for more", () => {
+  it("names, under a design's family, the page and the review's, contact and confirmation pages and nothing that could run for more", () => {
     expect(routedFilesUnder("d")).toEqual([
       "[id]/contact/page.tsx",
+      "[id]/done/page.tsx",
       "[id]/page.tsx",
       "[id]/review/page.tsx",
     ]);
@@ -148,6 +150,7 @@ describe("the interceptor's matcher: what lies deeper than a family's one segmen
 
   it.each([
     "/ro/d/abc123/review.png",
+    "/ro/d/abc123/done.png",
     "/ro/d/abc123/x.png",
     "/ro/s/abcdefghijkl/x.png",
   ])(

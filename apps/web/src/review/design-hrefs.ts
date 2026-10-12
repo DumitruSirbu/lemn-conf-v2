@@ -16,3 +16,9 @@ export function editorHref(designId: DesignId, arrival: EditorArrival = {}) {
 export function reviewHref(designId: DesignId): string {
   return `/d/${designId}/review`;
 }
+
+/** The design's confirmation of a sent request. Its page runs the owned lookup and a read of the contact store, so a link
+ *  to it is never prefetched; the customer arrives by the contact page's replacement of its own entry. */
+export function doneHref(designId: DesignId): string {
+  return `/d/${designId}/done`;
+}

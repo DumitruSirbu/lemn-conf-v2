@@ -1,9 +1,16 @@
 import "server-only";
 
-import type { ContactSubmissionStore } from "@lemnaria/persistence";
+import type {
+  ContactSubmissionStore,
+  SentReferenceReader,
+} from "@lemnaria/persistence";
 import { NeonContactSubmissionStore } from "@lemnaria/persistence";
 
-let contactSubmissionStore: ContactSubmissionStore | undefined;
+/** What the one instance does: the route's writes and lookups, and the confirmation page's read, on their own two
+ *  interfaces so each caller takes only what it uses. */
+type ContactSubmissionDatabase = ContactSubmissionStore & SentReferenceReader;
+
+let contactSubmissionStore: ContactSubmissionDatabase | undefined;
 
 /**
  * The contact request store's one instance, made on first use and never at import or build, so no connection is opened
@@ -11,7 +18,7 @@ let contactSubmissionStore: ContactSubmissionStore | undefined;
  * caller answers. It is a module of its own, as the limiter's counter store is: what a test fakes is the database, and
  * the files that mock `repository.ts` whole must not take this store with it.
  */
-export function getContactSubmissionStore(): ContactSubmissionStore {
+export function getContactSubmissionStore(): ContactSubmissionDatabase {
   contactSubmissionStore ??= new NeonContactSubmissionStore();
   return contactSubmissionStore;
 }

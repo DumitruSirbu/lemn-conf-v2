@@ -8,6 +8,12 @@
 import { act, createElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+const router = vi.hoisted(() => ({ replace: vi.fn() }));
+
+vi.mock("@/i18n/navigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/i18n/navigation")>()),
+  useRouter: () => router,
+}));
 vi.mock("@/scene/webgl-support", () => ({
   useWebGLSupport: () => "supported",
 }));
@@ -103,6 +109,7 @@ function sleep(milliseconds: number): Promise<void> {
 
 beforeEach(() => {
   traffic = recordTraffic();
+  router.replace.mockReset();
 });
 
 afterEach(() => {
@@ -600,6 +607,15 @@ describe("the sent state", () => {
     expect(container.querySelector("form")).toBeNull();
     expect(container.querySelector("input")).toBeNull();
     expect(container.querySelector("button")).toBeNull();
+  });
+
+  it("leaves the form's page for the design's confirmation by one replacement", async () => {
+    const container = mount();
+    sendTheWholeForm(container);
+
+    await traffic.answerOldest(SENT);
+
+    expect(router.replace.mock.calls).toEqual([[`/d/${DESIGN_ID}/done`]]);
   });
 });
 

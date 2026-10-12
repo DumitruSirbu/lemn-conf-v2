@@ -7,6 +7,7 @@ import type { ReactNode } from "react";
 import { LocaleMenu } from "@/app/configurator/configure/locale-menu";
 import { StartLink } from "@/components/start-link";
 import { WebGLUnavailable } from "@/components/webgl-unavailable";
+import { useReplaceWithDone } from "@/done/use-replace-with-done";
 import { useContent } from "@/i18n/use-content";
 import { routing, type AppLocale } from "@/i18n/routing";
 import { OpenEditorLink } from "@/review/open-editor-link";
@@ -129,6 +130,7 @@ function DesignContactBody({
     <SentOrForm
       submission={submission}
       sendingLine={content.contact.sendingLine}
+      whenSent={<LeaveForDone designId={designId} />}
       reviewLink={
         <ReviewLink
           designId={designId}
@@ -181,18 +183,26 @@ function CallbackContactPage() {
 function SentOrForm({
   submission,
   sendingLine,
+  whenSent,
   reviewLink,
   editorLink,
   children,
 }: {
   readonly submission: ContactSubmission;
   readonly sendingLine: string;
+  /** Mounted beside the sent line, and only once the request is answered *sent*. */
+  readonly whenSent?: ReactNode;
   readonly reviewLink?: ReactNode;
   readonly editorLink?: ReactNode;
   readonly children: ReactNode;
 }) {
   if (submission.phase.kind === "sent") {
-    return <SentLine reference={submission.phase.reference} />;
+    return (
+      <>
+        <SentLine reference={submission.phase.reference} />
+        {whenSent}
+      </>
+    );
   }
   return (
     <ContactForm
@@ -220,6 +230,12 @@ function UnavailablePage({ backLink }: { readonly backLink: ReactNode }) {
       </div>
     </main>
   );
+}
+
+/** The design form's way out once its request is sent: the confirmation replaces this page (8M.3). Draws nothing. */
+function LeaveForDone({ designId }: { readonly designId: DesignId }) {
+  useReplaceWithDone(designId);
+  return null;
 }
 
 /** The answer that the request is stored: one line with its reference, in place of the form. */

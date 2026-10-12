@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 //
-// The contact page's hydrator and the review's hydrator decide which copy of a design the store shows by one rule
+// The contact page's, the review's and the confirmation's hydrators decide which copy of a design the store shows by one rule
 // (`store/newest-copy.ts`: ADR 0148 E3, E3a; 8L criterion 14 (b)). One table runs every state of the store through
 // both, and each must leave the store in the state the other leaves it in, with no request of its own. The screens are
 // stubbed: what is under test is what the hydrator writes before they read it.
@@ -18,8 +18,10 @@ vi.mock("@/app/d/[id]/review/review-screen", () => ({
   ReviewScreen: () => null,
 }));
 vi.mock("@/contact/contact-screen", () => ({ ContactScreen: () => null }));
+vi.mock("@/done/done-screen", () => ({ DoneScreen: () => null }));
 
 import { HydrateAndContact } from "@/app/d/[id]/contact/hydrate-and-contact";
+import { HydrateAndDone } from "@/app/d/[id]/done/hydrate-and-done";
 import { HydrateAndReview } from "@/app/d/[id]/review/hydrate-and-review";
 import {
   useConfiguratorStore,
@@ -159,6 +161,16 @@ const HYDRATORS = [
         isSendable: true,
       }),
   },
+  {
+    name: "the confirmation's",
+    render: (revision: string): ReactElement =>
+      createElement(HydrateAndDone, {
+        design: PAGE_DESIGN,
+        designId: DESIGN_ID,
+        revision,
+        sentReference: { kind: "none" },
+      }),
+  },
 ] as const;
 
 const requests: string[] = [];
@@ -224,9 +236,9 @@ describe.each(HYDRATORS)("$name hydrator", ({ render }) => {
   });
 });
 
-describe("the two hydrators", () => {
+describe("the three hydrators", () => {
   it.each(ROWS)("leave the store alike: $name", ({ store, pageRevision }) => {
-    const [review, contact] = HYDRATORS.map(({ render }) => {
+    const [review, ...others] = HYDRATORS.map(({ render }) => {
       useConfiguratorStore.setState(useConfiguratorStore.getInitialState());
       holdInTheStore(store);
       renderInTheBrowser(render(pageRevision));
@@ -235,6 +247,7 @@ describe("the two hydrators", () => {
       return { design, designId, revision, canWrite, savedDesign };
     });
 
-    expect(contact).toEqual(review);
+    expect(others).toHaveLength(HYDRATORS.length - 1);
+    for (const other of others) expect(other).toEqual(review);
   });
 });
