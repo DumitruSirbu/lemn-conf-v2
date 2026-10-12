@@ -117,14 +117,17 @@ export interface SaveCoalescerDependencies {
   ) => void;
 }
 
-/** The one write a design has not yet landed: the whole design it will send and the revision it is conditional on.
- *  `resumesAtMs` is the clock's milliseconds at which the limit on saves lets it go, `null` for a failure's backoff
- *  and for a write sent and not answered, which alone carries `isInFlight`. */
+/**
+ * The one write a design has not yet landed: the whole design it will send and the revision it is conditional on.
+ * Its state is told by two fields. `resumesAtMs` is the clock's milliseconds at which the limit on saves lets it go;
+ * it is `null` for a failure's backoff and for the two writes with no wait, which `heldAs` names: `"ready"` for one
+ * queued and not yet sent, `"sent"` for one whose request is out. `heldAs` is absent for the other two.
+ */
 export interface WaitingWrite {
   readonly design: Design;
   readonly expectedRevision: DesignRevision | null;
   readonly resumesAtMs: number | null;
-  readonly isInFlight?: true;
+  readonly heldAs?: "ready" | "sent";
 }
 
 export interface SaveCoalescer {
@@ -278,10 +281,18 @@ export function createSaveCoalescer(
         design: (pending ?? inFlight).design,
         expectedRevision: queue.expectedRevision,
         resumesAtMs: null,
-        isInFlight: true,
+        heldAs: "sent",
       };
     }
-    if (pending === null || wait === null) return undefined;
+    if (pending === null) return undefined;
+    if (wait === null) {
+      return {
+        design: pending.design,
+        expectedRevision: queue.expectedRevision,
+        resumesAtMs: null,
+        heldAs: "ready",
+      };
+    }
     return {
       design: pending.design,
       expectedRevision: queue.expectedRevision,

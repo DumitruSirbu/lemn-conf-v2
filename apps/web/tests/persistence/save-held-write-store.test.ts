@@ -8,6 +8,7 @@ const A_REVISION = "1";
 const B_REVISION = "5";
 const FIRST_REMOVED = "p7";
 const SECOND_REMOVED = "p24";
+const THIRD_REMOVED = "p23";
 const SERVER_ERROR_STATUS = 500;
 const BACKOFF_FIRST_STEP_MS = 500;
 const MIN_SAVE_INTERVAL_MS = 1000;
@@ -289,5 +290,70 @@ describe("a design returned to while its save request is out", () => {
     expect(writes[1]?.expectedRevision).toBe(A_REVISION);
     expect(placementIdsIn(writes[1]?.body)).not.toContain(FIRST_REMOVED);
     expect(visit.store.getState().saveStatus).toBe("idle");
+  });
+});
+
+/** Design A on screen, one edit stored and a second one made inside the interval, so it is ready and not yet sent. */
+async function editTwiceInsideTheInterval(): Promise<Visit> {
+  const store = await loadFreshStore();
+  const pageCopy = store.getState().design;
+  load(store, { designId: DESIGN_A, design: pageCopy, revision: A_REVISION });
+  removePlacement(store, FIRST_REMOVED);
+  await pass(0);
+  removePlacement(store, SECOND_REMOVED);
+  return { store, pageCopy };
+}
+
+describe("a design returned to while its edit is ready and not yet sent", () => {
+  it("shows the edit as unsaved with no failure, not the page's copy as saved", async () => {
+    const visit = await editTwiceInsideTheInterval();
+    const edited = visit.store.getState().design;
+
+    leaveForBAndReturnToA(visit);
+
+    expect(visit.store.getState()).toMatchObject({
+      design: edited,
+      savedDesign: visit.pageCopy,
+      saveStatus: "idle",
+      saveResumesAtMs: null,
+      hasBeenEdited: true,
+    });
+    expect(
+      placementIdsIn(JSON.stringify(visit.store.getState().design)),
+    ).not.toContain(SECOND_REMOVED);
+  });
+
+  it("sends it once at the interval's end, and then shows it saved at the answered revision", async () => {
+    const visit = await editTwiceInsideTheInterval();
+    leaveForBAndReturnToA(visit);
+
+    await pass(MIN_SAVE_INTERVAL_MS - 1);
+    expect(writes).toHaveLength(1);
+    await pass(1);
+
+    expect(writes).toHaveLength(2);
+    expect(writes[1]?.expectedRevision).toBe("2");
+    expect(placementIdsIn(writes[1]?.body)).not.toContain(SECOND_REMOVED);
+    expect(visit.store.getState()).toMatchObject({
+      saveStatus: "idle",
+      revision: "3",
+    });
+    expect(visit.store.getState().design).toBe(
+      visit.store.getState().savedDesign,
+    );
+  });
+
+  it("puts an edit made after the return into that one request with the earlier edits", async () => {
+    const visit = await editTwiceInsideTheInterval();
+    leaveForBAndReturnToA(visit);
+
+    removePlacement(visit.store, THIRD_REMOVED);
+    await pass(MIN_SAVE_INTERVAL_MS);
+
+    expect(writes).toHaveLength(2);
+    expect(writes[1]?.expectedRevision).toBe("2");
+    for (const removed of [FIRST_REMOVED, SECOND_REMOVED, THIRD_REMOVED]) {
+      expect(placementIdsIn(writes[1]?.body)).not.toContain(removed);
+    }
   });
 });

@@ -40,6 +40,7 @@ describe("a design shown again while the writer holds a write that is not waitin
   let outcomes: (() => Promise<CoalescedSaveResult>)[];
   let shownDesignId: DesignId | null;
   let generation: number;
+  let storeRevision: string;
   let coalescer: SaveCoalescer;
 
   beforeEach(() => {
@@ -50,6 +51,7 @@ describe("a design shown again while the writer holds a write that is not waitin
     outcomes = [];
     shownDesignId = DESIGN_A;
     generation = 0;
+    storeRevision = FIRST_REVISION;
     coalescer = createSaveCoalescer({
       repository: {
         save: (request: CoalescedSaveRequest) => {
@@ -67,9 +69,10 @@ describe("a design shown again while the writer holds a write that is not waitin
       },
       getDesignId: () => shownDesignId,
       getGeneration: () => generation,
-      getRevision: () => FIRST_REVISION,
+      getRevision: () => storeRevision,
       readCurrentRevision: () => Promise.resolve("9"),
-      onSaved: (_saved, savedGeneration) => {
+      onSaved: (saved, savedGeneration) => {
+        storeRevision = saved.revision;
         savedInGenerations.push(savedGeneration);
       },
       onSaveStatusChange: (status, statusGeneration, resumesAtMs) => {
@@ -221,7 +224,7 @@ describe("a design shown again while the writer holds a write that is not waitin
         design: withPreset("being-written"),
         expectedRevision: FIRST_REVISION,
         resumesAtMs: null,
-        isInFlight: true,
+        heldAs: "sent",
       });
     });
 
@@ -305,6 +308,111 @@ describe("a design shown again while the writer holds a write that is not waitin
       await vi.advanceTimersByTimeAsync(0);
 
       expect(coalescer.adoptWaitingWrite(DESIGN_A)).toBeUndefined();
+    });
+  });
+
+  describe("ready and not yet sent", () => {
+    let holdOtherDesign: (result: CoalescedSaveResult) => void;
+
+    /** The first edit is stored, and a second one made inside the interval waits for it to pass. */
+    async function storeOneAndQueueAnother(): Promise<number> {
+      coalescer.scheduleSave(withPreset("first"));
+      await vi.advanceTimersByTimeAsync(0);
+      const storedAtMs = Date.now();
+      coalescer.scheduleSave(withPreset("queued"));
+      return storedAtMs;
+    }
+
+    /** Another design's request holds the one slot while this design's edit waits behind it. */
+    async function queueBehindAnotherDesignsRequest(): Promise<void> {
+      shownDesignId = DESIGN_B;
+      outcomes.push(
+        () =>
+          new Promise<CoalescedSaveResult>((resolve) => {
+            holdOtherDesign = resolve;
+          }),
+      );
+      coalescer.scheduleSave(withPreset("b-edit"));
+      await vi.advanceTimersByTimeAsync(0);
+      shownDesignId = DESIGN_A;
+      coalescer.scheduleSave(withPreset("queued"));
+    }
+
+    it("gives the load the queued design, marked ready, at the revision it will state", async () => {
+      await storeOneAndQueueAnother();
+      leaveAndReturn();
+
+      expect(coalescer.adoptWaitingWrite(DESIGN_A)).toEqual({
+        design: withPreset("queued"),
+        expectedRevision: "2",
+        resumesAtMs: null,
+        heldAs: "ready",
+      });
+    });
+
+    it("sends it once, when the interval ends and not before, whether or not the design was returned to", async () => {
+      const storedAtMs = await storeOneAndQueueAnother();
+      leaveAndReturn();
+      coalescer.adoptWaitingWrite(DESIGN_A);
+      coalescer.adoptWaitingWrite(DESIGN_A);
+
+      await vi.advanceTimersByTimeAsync(MIN_SAVE_INTERVAL_MS - 1);
+      expect(sent).toHaveLength(1);
+      await vi.advanceTimersByTimeAsync(1);
+
+      expect(sent).toEqual([
+        { preset: "first", revision: FIRST_REVISION },
+        { preset: "queued", revision: "2" },
+      ]);
+      expect(Date.now()).toBe(storedAtMs + MIN_SAVE_INTERVAL_MS);
+    });
+
+    it("reports its answer to the generation that shows the design now", async () => {
+      await storeOneAndQueueAnother();
+      reported.length = 0;
+      savedInGenerations.length = 0;
+      leaveAndReturn();
+      coalescer.adoptWaitingWrite(DESIGN_A);
+
+      await vi.advanceTimersByTimeAsync(MIN_SAVE_INTERVAL_MS);
+
+      expect(
+        reported.map(({ status, generation: to }) => [status, to]),
+      ).toEqual([
+        ["saving", 2],
+        ["idle", 2],
+      ]);
+      expect(savedInGenerations).toEqual([2]);
+    });
+
+    it("holds an edit made after the return and the queued one in that one request", async () => {
+      await storeOneAndQueueAnother();
+      leaveAndReturn();
+      const shown = screenAfterReturn(withPreset("kept-page"));
+
+      coalescer.scheduleSave(editShown(shown, "later"));
+      await vi.advanceTimersByTimeAsync(MIN_SAVE_INTERVAL_MS);
+
+      expect(sent).toEqual([
+        { preset: "first", revision: FIRST_REVISION },
+        { preset: "queued+later", revision: "2" },
+      ]);
+    });
+
+    it("gives the load a design queued behind another design's request, and sends it once after that request", async () => {
+      await queueBehindAnotherDesignsRequest();
+      leaveAndReturn();
+
+      expect(coalescer.adoptWaitingWrite(DESIGN_A)).toMatchObject({
+        design: withPreset("queued"),
+        resumesAtMs: null,
+        heldAs: "ready",
+      });
+      holdOtherDesign({ id: DESIGN_B, revision: "2" });
+      await vi.advanceTimersByTimeAsync(MIN_SAVE_INTERVAL_MS);
+
+      expect(sent.map(({ preset }) => preset)).toEqual(["b-edit", "queued"]);
+      expect(savedInGenerations).toEqual([0, 2]);
     });
   });
 });

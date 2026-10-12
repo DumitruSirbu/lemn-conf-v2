@@ -719,8 +719,11 @@ function saveStateShownFor(
   held: WaitingWrite | undefined,
 ): Pick<ConfiguratorState, "saveStatus" | "saveResumesAtMs"> {
   if (held === undefined) return { saveStatus: "idle", saveResumesAtMs: null };
-  if (held.isInFlight === true) {
+  if (held.heldAs === "sent") {
     return { saveStatus: "saving", saveResumesAtMs: null };
+  }
+  if (held.heldAs === "ready") {
+    return { saveStatus: "idle", saveResumesAtMs: null };
   }
   return { saveStatus: "error", saveResumesAtMs: held.resumesAtMs };
 }
