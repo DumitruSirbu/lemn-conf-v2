@@ -21,6 +21,7 @@ import {
   type SentReferenceAnswer,
   type SentResult,
 } from "./result-to-show";
+import { SendOnWhatsapp } from "./send-on-whatsapp";
 import { SentReferenceCard } from "./sent-reference-card";
 import { recallSentRequest, type SentRequest } from "./sent-request-memory";
 
@@ -282,13 +283,15 @@ function ReviewAgainLink({ designId }: { readonly designId: DesignId }) {
   );
 }
 
-/** Pinned at the foot: the way back to the design under whatever the screen offers above it. */
+/** Pinned at the foot: the way back to the design under whatever the screen offers above it, which is the WhatsApp
+ *  action where the customer may share this design and nothing where they may not. */
 function PinnedActions({ designId }: { readonly designId: DesignId }) {
   const content = useContent().submissionResult;
   const regionRef = useRef<HTMLDivElement>(null);
   useKeepFocusAbove(regionRef);
   return (
     <div className={styles.bottom} ref={regionRef} data-testid="done-bottom">
+      <SendOnWhatsapp designId={designId} />
       <Link
         prefetch={false}
         className={styles.backToDesign}

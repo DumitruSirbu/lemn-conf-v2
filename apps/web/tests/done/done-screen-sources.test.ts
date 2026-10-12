@@ -60,6 +60,7 @@ describe("the confirmation's stylesheet", () => {
     ["copyButton", "min-width", "var(--touch-target)"],
     ["reviewLink", "min-height", "var(--touch-target)"],
     ["backToDesign", "min-height", "48px"],
+    ["whatsappAction", "min-height", "52px"],
   ])("makes .%s at least 44 px by its %s", (className, property, expected) => {
     expect(valuesFor(STYLESHEET, className, property)).toEqual([expected]);
   });

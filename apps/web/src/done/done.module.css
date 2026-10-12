@@ -264,6 +264,54 @@
   border-top: 1px solid var(--line);
 }
 
+/* The WhatsApp action above the way back. Its sentences sit above the control, inside a live region that is drawn empty
+ * and takes no room, so the control never moves when one arrives. */
+.whatsapp {
+  display: flex;
+  flex-direction: column;
+}
+
+.whatsappNote,
+.whatsappError {
+  margin: 0 0 8px;
+  font: 400 12.5px/1.35 var(--font-ui);
+}
+
+.whatsappNote {
+  color: var(--ink-muted);
+}
+
+.whatsappError {
+  color: #b3261e;
+}
+
+/* The frame's 52 px brown button, as a button and as the external link that follows it. */
+.whatsappAction {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  padding: 8px 22px;
+  font: 700 15px/1.15 var(--font-ui);
+  color: var(--paper);
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  background: var(--accent);
+  border: 0;
+  border-radius: 12px;
+}
+
+.whatsappAction[aria-disabled="true"] {
+  cursor: default;
+  opacity: 0.65;
+}
+
+.whatsappAction:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+
 .backToDesign {
   display: flex;
   align-items: center;
