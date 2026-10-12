@@ -250,7 +250,10 @@ export function createSaveCoalescer(
     queue.generation = job.generation;
     queue.retryCount = 0;
     // A reload's fresh state is no reason to ask the server sooner than it said.
-    if (limitWaitEndOf(queue) === null) clearWait(queue);
+    if (limitWaitEndOf(queue) === null) {
+      clearWait(queue);
+      queue.failureTold = null;
+    }
     invalidateReady(queue);
     // The load that advanced the generation read this design afresh, so the store's revision is newer than the
     // seeded one; a queue left in retry backoff would otherwise carry the stale one and conflict spuriously.
