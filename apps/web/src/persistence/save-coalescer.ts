@@ -171,6 +171,9 @@ interface IdentityQueue {
   /** The job whose request is out and unanswered. Its generation is the one its outcome is reported to. */
   inFlight: SaveJob | null;
   retryCount: number;
+  /** The failure last told the screen for the write this queue holds, with the time the limit gave; `null` until
+   *  one is told, and again from the next `saving` told for the write. */
+  failureTold: { readonly resumesAtMs: number | null } | null;
   /** The queue's one wait: the backoff after a failure, or the wait after the limit's refusal. */
   wait: QueueWait | null;
   readyQueued: boolean;
@@ -286,11 +289,12 @@ export function createSaveCoalescer(
     }
     if (pending === null) return undefined;
     if (wait === null) {
+      const failure = queue.failureTold;
       return {
         design: pending.design,
         expectedRevision: queue.expectedRevision,
-        resumesAtMs: null,
-        heldAs: "ready",
+        resumesAtMs: failure?.resumesAtMs ?? null,
+        ...(failure === null ? { heldAs: "ready" as const } : {}),
       };
     }
     return {
@@ -352,6 +356,7 @@ export function createSaveCoalescer(
       inFlight: null,
       retryCount: 0,
       wait: null,
+      failureTold: null,
       readyQueued: false,
       readyVersion: 0,
     };
@@ -450,6 +455,7 @@ export function createSaveCoalescer(
     if (queue === null || job === null) return;
     queue.pending = null;
     queue.inFlight = job;
+    queue.failureTold = null;
     saving = true;
     deps.onSaveStatusChange("saving", job.generation);
 
@@ -616,6 +622,7 @@ export function createSaveCoalescer(
     // A same-generation edit supersedes the failed design but keeps its outage backoff. With no
     // newer edit, retry the immutable snapshot that failed.
     queue.pending ??= failedJob;
+    queue.failureTold = { resumesAtMs: null };
     queue.retryCount += 1;
     // Entering backoff and remaining ready are mutually exclusive: invalidate any FIFO ticket issued while the
     // failed request was in flight, so the retry timer issues the one replacement.
@@ -642,6 +649,7 @@ export function createSaveCoalescer(
     invalidateReady(queue);
     clearWait(queue);
     armWait(queue, waitMs, Date.now() + waitMs);
+    queue.failureTold = { resumesAtMs: Date.now() + waitMs };
     reportLimitWait(queue, queue.pending.generation);
     // Other identities may progress while this one waits.
     requestSave();

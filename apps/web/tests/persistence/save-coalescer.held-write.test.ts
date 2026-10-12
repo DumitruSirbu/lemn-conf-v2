@@ -6,7 +6,10 @@ import { KITCHEN_L_DESIGN } from "@lemnaria/configurator-domain";
 import type { Design, DesignId } from "@lemnaria/configurator-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { DesignRequestFailedError } from "../../src/persistence/design-request-errors";
+import {
+  DesignRequestFailedError,
+  SaveLimitReachedError,
+} from "../../src/persistence/design-request-errors";
 import { createSaveCoalescer } from "../../src/persistence/save-coalescer";
 import type {
   CoalescedSaveRequest,
@@ -397,6 +400,76 @@ describe("a design shown again while the writer holds a write that is not waitin
         { preset: "first", revision: FIRST_REVISION },
         { preset: "queued+later", revision: "2" },
       ]);
+    });
+
+    /** This design's write failed or was refused, its wait ended, and another design's request holds the slot. */
+    async function endWaitBehindAnotherDesignsRequest(
+      refusal: () => Promise<CoalescedSaveResult>,
+      waitMs: number,
+    ): Promise<number> {
+      outcomes.push(refusal);
+      coalescer.scheduleSave(withPreset("queued"));
+      await vi.advanceTimersByTimeAsync(0);
+      const refusedAtMs = Date.now();
+      shownDesignId = DESIGN_B;
+      outcomes.push(
+        () =>
+          new Promise<CoalescedSaveResult>((resolve) => {
+            holdOtherDesign = resolve;
+          }),
+      );
+      coalescer.scheduleSave(withPreset("b-edit"));
+      shownDesignId = DESIGN_A;
+      await vi.advanceTimersByTimeAsync(waitMs);
+      return refusedAtMs;
+    }
+
+    it("hands a write whose save failed over as failed with no time, once its backoff has ended behind another design's request", async () => {
+      await endWaitBehindAnotherDesignsRequest(down, BACKOFF_BASE_MS);
+      leaveAndReturn();
+
+      expect(coalescer.adoptWaitingWrite(DESIGN_A)).toEqual({
+        design: withPreset("queued"),
+        expectedRevision: FIRST_REVISION,
+        resumesAtMs: null,
+      });
+    });
+
+    it("hands a write the limit refused over with the time it was told, once that time has passed behind another design's request", async () => {
+      const refusedAtMs = await endWaitBehindAnotherDesignsRequest(
+        () => Promise.reject(new SaveLimitReachedError("Saving a design", 1)),
+        MIN_SAVE_INTERVAL_MS,
+      );
+      leaveAndReturn();
+
+      expect(coalescer.adoptWaitingWrite(DESIGN_A)).toEqual({
+        design: withPreset("queued"),
+        expectedRevision: FIRST_REVISION,
+        resumesAtMs: refusedAtMs + MIN_SAVE_INTERVAL_MS,
+      });
+    });
+
+    it("hands an edit made while the failed write's retry was out over as ready once that retry is stored, since the failure is no longer the last thing said", async () => {
+      await endWaitBehindAnotherDesignsRequest(down, BACKOFF_BASE_MS);
+      let storeRetry: (result: CoalescedSaveResult) => void = () => undefined;
+      outcomes.push(
+        () =>
+          new Promise<CoalescedSaveResult>((resolve) => {
+            storeRetry = resolve;
+          }),
+      );
+      holdOtherDesign({ id: DESIGN_B, revision: "2" });
+      await vi.advanceTimersByTimeAsync(MIN_SAVE_INTERVAL_MS);
+      shownDesignId = DESIGN_A;
+      coalescer.scheduleSave(withPreset("after-the-retry"));
+      storeRetry({ id: DESIGN_A, revision: "2" });
+      await vi.advanceTimersByTimeAsync(0);
+      leaveAndReturn();
+
+      expect(coalescer.adoptWaitingWrite(DESIGN_A)).toMatchObject({
+        design: withPreset("after-the-retry"),
+        heldAs: "ready",
+      });
     });
 
     it("gives the load a design queued behind another design's request, and sends it once after that request", async () => {
