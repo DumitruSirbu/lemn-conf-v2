@@ -315,6 +315,19 @@ settled it. It matters because M7 wave 7F1's defects D4 and D5 were both found i
 and neither was visible under `next dev`: writing the criterion off as locally satisfied would have
 retired the check that catches the class.
 
+**Dated note, 2026-10-12 (M8 wave 8K2; backlog 182, Q42): the first spec that cannot pass here.**
+`design-return-requests` and `qa-8k2-design-return` count `GET /api/designs/{id}` exactly, and those
+counts **hold only under `CI=1`** (a production build and `next start`, where the probe reads once).
+On `next dev` React's strict mode runs the write-access probe's effect twice, so `pnpm ci:local`'s
+e2e step fails them. [coordinator-ran, `18caaea4`]: `ci:local`, 6 mobile specs failed (718 passed, 69
+skipped), twice; the whole e2e under `CI=1`, 793 passed, 0 failed, 0 skipped, 10.1 minutes.
+[developer-ran]: with `CI` unset 6 fail, with `reactStrictMode` off 12 pass, the trace shows two
+`GET`s 3 ms apart. The config lines this note rests on, read by the scribe: `playwright.config.ts:38`
+and `:92-94` (they have moved since the line numbers quoted above). **Do not read a red `ci:local`
+e2e step as a regression in those two specs before checking `CI`, and do not read a green one as
+evidence about a read count.** Which way to fix it (`local-ci.sh` with `CI=1`, or the specs relaxed
+on a dev server) is the owner's, Q42, and is not decided here.
+
 #### A green local e2e run is not evidence about a runner-only failure
 
 The runner's WebGL stack paints roughly **2 s per frame** while an orbit drag is in flight — measured

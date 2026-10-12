@@ -2768,7 +2768,9 @@ FC-R1.28, FC-R1.29, the rest of FC-R1.20 and FC-R1.22, the nits and the restated
 listener still removed in the test body in `qa-8f-refused-mint-through-the-route` (about `:828-845`), and three duplications in
 `qa-8f-mint-limit-code`. **Owner:** the test audit. **Trigger:** the M8 close audit (ADR 0152, Amendment A).
 
-## 168. A design returned to by Back or Forward is shown from the page's kept copy, older than the stored one, and as saved — FOUND 2026-10-10 BY M8 8G's QA (C2-1); A WAVE OF ITS OWN BEFORE 8T's GATE
+## 168. A design returned to by Back or Forward is shown from the page's kept copy, older than the stored one, and as saved — FOUND 2026-10-10 BY M8 8G's QA (C2-1); A WAVE OF ITS OWN BEFORE 8T's GATE — CLOSED 2026-10-12 BY M8 WAVE 8K2 (`5f0d93f6` … `7d282603`)
+
+**Closed 2026-10-12 [scribe, from the plan's *8K2 as closed* and ADR 0158; the scribe ran nothing].** Both halves shipped: the probe's answer taken whole (K2.2) and the write the tab holds handed to a load in all four states (K2.3, with GL-R4.1 and the write in flight). QA's two tests pass unmarked in the whole e2e under `CI=1`: 793 passed, 0 failed, 0 skipped, 10.1 minutes [coordinator-ran, `18caaea4`]. **What stays:** item (2) of the entry below (*the same for the page's three steps*) was withdrawn (K2.6); the review's own case is L2 and 8L's criterion 14. The push waits on Q42 (backlog 182). The entry below is the original, kept.
 
 **Source [QA-run on a built server, with no limit met; `qa-8g-pass-c2-report.md`, session scratchpad; the plan's 8G, *pass C's finding C2-1, ruled*].**
 Step 1 makes design A; one edit is saved (`200`, revision 3); Back; one press makes a second design B; browser Back twice returns to A's address in the
@@ -2795,7 +2797,9 @@ shown as unsaved. It is 7E's rule, not made by 8G, and narrow (A's saves must fa
 succeed) [inf: read, not run]. *Smallest fix:* adopt any pending write of the design, not only one with a time (`save-coalescer.ts:242`). *Trigger:* a
 `conflict` or a customer's report after Back from a second design; otherwise it travels with this entry.
 
-## 169. The coalescer's two long functions and its one invariant kept in four places — RECORDED 2026-10-10 AT M8 8G's CLOSE
+## 169. The coalescer's two long functions and its one invariant kept in four places — RECORDED 2026-10-10 AT M8 8G's CLOSE — CLOSED 2026-10-12 BY M8 WAVE 8K2 S2 (`7b16568a`)
+
+**Closed [plan, relayed]:** the queue holds one wait (timer and the limit's time together); `scheduleSave` and `holdWriteForLimit` were 15 lines each as built at `7b16568a`. `holdWriteForLimit` was edited again in `7d282603` (one clock reading); its length now was not re-read by the scribe. The entry below is the original.
 
 **Source [clean-code GC-R3.10; the plan's 8G, *the second pass*].** `save-coalescer.ts`: `holdWriteForLimit` is 22 lines and `scheduleSave` 32 (the limit is
 20); and the queue's wait is two fields, `retryTimer` and `resumesAtMs`, whose invariant (*one timer, never both*) is kept by hand in four places. The reviewer's
@@ -2808,7 +2812,9 @@ that module. **Trigger:** its next change of behaviour.
 depends on a side effect of a closure that `judgeInSequence` happens to call in order. The fix: each step answers `{ decision, policy }` and the caller takes
 the policy of the step that ended it. **Trigger:** a third step, which 8K's judge may be.
 
-## 171. `isSavePaused` is a type predicate about a pair and narrows only the time — RECORDED 2026-10-10 AT M8 8G's CLOSE
+## 171. `isSavePaused` is a type predicate about a pair and narrows only the time — RECORDED 2026-10-10 AT M8 8G's CLOSE — THE PREDICATE CLOSED 2026-10-12 BY M8 WAVE 8K2 S2 (`1087f45b`)
+
+**Closed in part [plan, relayed]:** `isSavePaused` is `pausedUntilMs(status, resumesAtMs): number | undefined`, asked once by the panel and the review. **The two nits:** S3's item 4 took them (`hydrate` is 13 lines as built, per the plan); whether taking a write and reading it became two functions was not re-read by the scribe, and the rename of `WaitingWrite` is backlog 184. The entry below is the original.
 
 **Source [clean-code GC-R4.1, should-fix, `a72c3a82`].** `isSavePaused(status, resumesAtMs): resumesAtMs is number` narrows only the second argument, so in the
 false branch the type system believes the time is `null | undefined` even when the status is idle and the time a number. Today no caller reads the time after
@@ -2893,3 +2899,32 @@ a deployment while a not-sent line is in the log (Q40: "(b) is exact within one 
 each time; **trigger:** an `unexpected` cause in the log. **KL-R1.6:** the ports are made before the first count and nothing of the request is read to make them; recorded
 with M9's shield. **Backlog 170** (a save's deciding policy named by a closure's side effect) was the target of 8K's S1 item 5 (a step answers its decision and its policy);
 whether it is resolved was not re-read in code by the scribe.
+
+## 182. `pnpm ci:local`'s e2e step runs `next dev`, where the exact-read-count specs cannot hold — FOUND 2026-10-12 BY THE COORDINATOR AT M8 8K2's CLOSE; THE PUSH IS BLOCKED UNTIL THE OWNER ANSWERS Q42
+
+**Source [coordinator-ran, `18caaea4`; developer-ran; the config lines read by the scribe].** `pnpm ci:local` at `18caaea4`: every gate passed (format, lint, typecheck, domain 7746, persistence 2666 + 2 skipped, three-adapter 4284, web 8755, `e2e-shard-budget` with mobile in seven shards 95/80/91/79/88/102/65 against 125, build, boundary, lockfile, sca) **except the e2e step: 6 mobile specs failed (718 passed, 69 skipped), twice.** **Cause** [developer-ran: with `CI` unset 6 fail; with `reactStrictMode` off 12 pass; the trace shows two `GET`s 3 ms apart]: with `CI` unset the config boots `next dev` (`apps/web/playwright.config.ts:92-94`) and `scripts/local-ci.sh` sets no `CI`; React's strict mode runs the write-access probe's effect twice (`useWriteAccessProbe`, `hydrate-and-configure.tsx:58`), so `design-return-requests` and `qa-8k2-design-return`, which count reads exactly, cannot hold. **Production reads once.** The whole e2e under `CI=1` at `18caaea4`: 793 passed, 0 failed, 0 skipped, 10.1 minutes [coordinator-ran]. After `7d282603`: the whole web unit suite 8755 passed, typecheck exit 0, prettier clean, the three 8K2 e2e files under `CI=1` 14 passed [coordinator-ran]. **The full `ci:local` was not re-run at `7d282603`, and no `ci:local` run is green at or after the 8K2 code.**
+**Options, the owner's (Q42), not decided here:** (1) `scripts/local-ci.sh` runs the e2e step with `CI=1` (**recommended by the coordinator**); (2) the exact-count specs skip or relax on a dev server. *Note:* `best-practices/ci-and-local-gates.md` already records that `ci:local`'s e2e runs the dev server; (1) changes that. **Trigger:** Q42 answered; the push waits.
+
+## 183. One discriminated union in place of `resumesAtMs` and the optional `heldAs` — RECORDED 2026-10-12 AT M8 8K2's CLOSE
+
+**Source [clean-code reviewer, relayed].** Replace `resumesAtMs` plus the optional `heldAs` with one discriminated union (limit-wait / backing-off / queued / sent): `save-coalescer.ts:126`, `heldWriteOf`, `saveStateShownFor`. The queue's `failureTold` is a third place a held write's state lives. The lines that move: `save-coalescer.return.test.ts:110-114` and `:194-198`, the `heldAs` expectations of `save-coalescer.held-write.test.ts`, and `qa-8k2-failure-told.adversarial.test.ts:100`. **Owner:** the next developer of that module. **Trigger:** its next change of behaviour. The two-field shape was accepted at item 6 (ADR 0158 decision 3).
+
+## 184. Rename `WaitingWrite` to `HeldWrite` — RECORDED 2026-10-12 AT M8 8K2's CLOSE
+
+**Source [clean-code reviewer, relayed].** `WaitingWrite`, `adoptWaitingWrite`, `waitingWriteFor` and the local `waiting` name writes that do not wait. The rename touches QA-owned tests. **Owner:** with 183, or the test audit. **Trigger:** 183, or the M8 close audit (ADR 0152, Amendment A).
+
+## 185. The re-export `export { isGreaterRevision }` in `hydrate-and-review.tsx:65` exists only for a `qa-*` pin — RECORDED 2026-10-12 AT M8 8K2's CLOSE
+
+**Source [clean-code reviewer, relayed].** It is kept only for `tests/app/qa-8d-revision-order.adversarial.test.ts:7`; the function lives in `store/revision-order.ts`. QA repoints the test to the new path, then the re-export is deleted. **Owner:** QA, then the next developer. **Trigger:** the M8 close audit (ADR 0152, Amendment A), or QA's next touch of that file.
+
+## 186. A held write that has outlived its limit wait still shows its past time until the next `runSave` — RECORDED 2026-10-12 AT M8 8K2's CLOSE
+
+**Source [logic reviewer, finding 1, minor, relayed].** The same family as the recorded *paused until T* whose time has passed while the write waits behind another design's request (8G's sentence, older than 8K2). **Trigger:** Q38 answered, or a customer told a time that had passed.
+
+## 187. No test drives `HydrateAndReview` with a held write in each of the four states — RECORDED 2026-10-12 AT M8 8K2's CLOSE
+
+**Source [reviewers and the plan's point 4, relayed].** The review's half of 8K2's criterion 14 (the review in the state it is in when reached from the editor with that write in that state) was left out of QA's sweeps and is read, not run. **Owner:** wave 8L, with criterion 14. **Trigger:** 8L's dispatch.
+
+## 188. 8K2's recorded limits and reports — RECORDED 2026-10-12 AT M8 8K2's CLOSE
+
+**Source [the plan's 8K2 section and *as closed*; ADR 0158].** **K2.4's report:** the branch for a newer generation (`adoptNewerGeneration`) is reached in the application by nothing with a write held; seven tests that drive the coalescer directly reach it [developer-ran, relayed]. It stays; deleting it is an entry in ADR 0123's form. **Trigger:** a deletion proposed with its seven tests. **L1:** the older copy on the screen, locked, until the answer; measured 49 to 64 ms [QA-run, relayed]. **Trigger:** Q41 answered (b) or (c), or a measured time past one second. **L5:** while a request of this tab is out, another writer's newer copy is not shown; the `409` says it. **Trigger:** Q35's wave, or a customer's conflict they cannot place. **L6:** a design left while its save stands refused has its unsaved edit on the screen only; returning shows the stored one. **Trigger:** a customer's report of work lost after a conflict. **A frozen tab on a real phone:** not run; goes to 8T's phone gate as a line. **QA's two sweeps** (93 s and 106 s in the unit suite at round 2, then cut to a stated share with a floor per arm, the whole enumeration under `QA_8K2_WHOLE_SWEEP=1`): whether that form is kept is the M8 close audit's.

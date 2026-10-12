@@ -198,10 +198,10 @@ status corrections, in one of these two files:
 | 165 | Both e2e harness servers listen on every interface | open.md — recorded 2026-10-09 (security F-S2.4); trigger: loopback only, measured on its own |
 | 166 | The environment type and its own-member read are written three times across mail, digest and network | open.md — recorded 2026-10-09 (clean-code FC-R1.9); trigger: the fourth reader, 8G or 8K |
 | 167 | For the milestone-close test audit: 8F's restated pairs and remaining should-fix and nits | open.md — recorded 2026-10-09 at M8 8F's close; trigger: the M8 close audit (ADR 0152 Amendment A) |
-| 168 | A design returned to by Back or Forward is shown from the page's kept copy, older than the stored one, and as saved (C2-1; with GL-R4.1, the same path for a failure's backoff) | open.md — found 2026-10-10 by M8 8G's QA; older than 8G; **a wave of its own before 8T's gate**, Full tier; QA's two tests are marked expected-to-fail under this number |
-| 169 | The coalescer's two long functions and its one invariant kept in four places | open.md — recorded 2026-10-10 at M8 8G's close (GC-R3.10); trigger: that module's next change of behaviour |
+| 168 | A design returned to by Back or Forward is shown from the page's kept copy, older than the stored one, and as saved (C2-1; with GL-R4.1, the same path for a failure's backoff) | open.md — found 2026-10-10 by M8 8G's QA; **closed 2026-10-12 by M8 wave 8K2** (`5f0d93f6` … `7d282603`, ADR 0158); QA's two tests pass unmarked |
+| 169 | The coalescer's two long functions and its one invariant kept in four places | open.md — recorded 2026-10-10 at M8 8G's close (GC-R3.10); **closed 2026-10-12 by M8 8K2 S2 (`7b16568a`)** |
 | 170 | A save's deciding policy is named by a closure's side effect | open.md — recorded 2026-10-10 (GC-R3.7); trigger: a third step, which 8K's judge may be |
-| 171 | `isSavePaused` narrows only the time; answer the time itself | open.md — recorded 2026-10-10 (GC-R4.1); trigger: the next change to those files |
+| 171 | `isSavePaused` narrows only the time; answer the time itself | open.md — recorded 2026-10-10 (GC-R4.1); **predicate closed 2026-10-12 by M8 8K2 S2 (`1087f45b`)**; the two nits are S3's item 4 and 184 |
 | 172 | For the milestone-close test audit: 8G's renames blocked by two `qa-*` pins, and the rest | open.md — recorded 2026-10-10 (GC-R3.9 to R3.11, nits); trigger: the M8 close audit (ADR 0152 Amendment A) |
 | 173 | Step 1's first save refused reads as a plain failure | open.md — recorded 2026-10-10 (GL-R3.3); trigger: Q37 answered (a) |
 | 174 | One cold-start timeout in Step 1's hand-off, seen once | open.md — recorded 2026-10-10; not reproduced; trigger: a recurrence |
@@ -212,6 +212,13 @@ status corrections, in one of these two files:
 | 179 | Round-2 notes: eager leaves make one bad leaf a `503` for all (KL-R2.1), no end-to-end test of a missing leaf, the log tests' mail list | open.md — recorded 2026-10-12; trigger: a `contact-request-unavailable` line with `unexpected` on every request |
 | 180 | `prepareSubmission` takes three arguments | open.md — recorded 2026-10-12; trigger: the next change to it or its callers |
 | 181 | 8K's recorded notes: a book changed without its version (K-S1.7, KL-R1.1), unpriceable design (KL-R1.5), ports before the first count (KL-R1.6) | open.md — recorded 2026-10-12; trigger: a deployment while a not-sent line is in the log; an `unexpected` cause |
+| 182 | `pnpm ci:local`'s e2e step runs `next dev`, where the exact-read-count specs cannot hold; the push is blocked | open.md — recorded 2026-10-12 at M8 8K2's close; **owner: Q42** |
+| 183 | One discriminated union in place of `resumesAtMs` and the optional `heldAs` | open.md — recorded 2026-10-12 (clean-code); trigger: that module's next change of behaviour |
+| 184 | Rename `WaitingWrite` to `HeldWrite` (touches QA-owned tests) | open.md — recorded 2026-10-12 (clean-code); trigger: 183, or the M8 close audit |
+| 185 | The re-export of `isGreaterRevision` in `hydrate-and-review.tsx` exists only for a `qa-*` pin | open.md — recorded 2026-10-12 (clean-code); trigger: QA repoints the test, then delete |
+| 186 | A held write that has outlived its limit wait still shows its past time until the next `runSave` | open.md — recorded 2026-10-12 (logic finding 1, minor); trigger: Q38 answered, or a customer told a time that had passed |
+| 187 | No test drives `HydrateAndReview` with a held write in each of the four states | open.md — recorded 2026-10-12; owner: 8L, with criterion 14 |
+| 188 | 8K2's recorded limits and reports: K2.4, L1, L5, L6, a frozen tab, the sweeps' form | open.md — recorded 2026-10-12; triggers in the entry |
 
 ## 2026-09-06 audit note
 

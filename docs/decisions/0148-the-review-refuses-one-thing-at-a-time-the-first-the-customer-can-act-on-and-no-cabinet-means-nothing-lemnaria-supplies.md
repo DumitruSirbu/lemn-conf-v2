@@ -541,3 +541,11 @@ notice that prices again (a snapshot whose stored total is changed prints the ch
 `apps/web/tests/review/use-review.dom.test.ts`, whose header cites this amendment; the price gate is
 `apps/web/tests/price/starting-price.adversarial.test.ts`, where the notice joins the list of modules that may go near a price, with one
 line saying it prints a stored review's figure and rows and derives nothing (ADR 0138 decision 4, note of 2026-10-09).
+
+## Amendment D — 2026-10-12: the two-design case, and an arrival's first answer (wave 8K2)
+
+Written by the documentation scribe at wave 8K2's close from the plan's *8K2, restated for dispatch* (K2.6) and *adjudication of QA's round 2*; the rulings are the architect's and nothing was re-run by the scribe. The wave's record is [ADR 0158](0158-a-design-loaded-again-is-never-offered-an-edit-on-a-copy-older-than-the-stored-one-and-never-shown-as-saved-while-the-tab-holds-a-write-and-the-review-is-left-to-adr-0148.md).
+
+**D1. E3's *what it does not close* gains the two-design case.** A review returned to from a second design may show its kept page, older than the stored one, and it still asks nothing; the rejected alternative *"The review asking the server for the newest copy"* stands. E3 governs the review; the editor's rule (ADR 0158 decision 1) does not. What keeps a stale offer out is 8K's refusal of a request whose revision is not the stored one (`CONTACT_DESIGN_NOT_CURRENT`, ADR 0157). Item (2) of the 2026-10-10 ruling (*"the same for the page's three steps"*) is withdrawn. **The review does gain** the hand-over of a write the tab holds (the same `hydrate`), and its links to the editor end on the answer's copy. 8L's criterion 14 holds the rest. *Reopened if* 8L cannot hold it, or a customer reports a review that was not their kitchen.
+
+**D2. E2: an arrival is honoured at the first answer about write access, or not at all.** After the read limit's `429` the `?settings=open` sheet does not open, and does not open after the retry answers: the arrival is spent at the first answer that is not *checking* [src, plan: `use-honour-arrival.ts:145-150`]. That is as built and right; a sheet opening by itself after the customer pressed *retry* would be the surprise.

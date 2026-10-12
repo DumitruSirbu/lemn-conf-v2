@@ -3,6 +3,8 @@
 > **STATUS: PLANNED — wave plan written 2026-10-07 at `90927dc`; no wave dispatched.** M8 does not
 > start until the owner says so and M7C has closed (see *What M8 assumes*). Summary: `docs/STATUS.md`.
 >
+> **Updated 2026-10-12, later, by the scribe: wave 8K2 is DONE (local, not pushed; the push is blocked on Q42); see *8K2 as closed*. Next: 8L.**
+>
 > **Updated 2026-10-12, by the architect: wave 8K2 is planned (backlog 168), between 8K and 8L; see
 > *8K2, restated for dispatch*. M8 is eighteen waves and ends at 8T.** Every count of waves in the
 > paragraphs below (fifteen, sixteen, seventeen) is history; the wave table under *M8 restated* is
@@ -1229,7 +1231,7 @@ both in M9.
 | 8F | ~~**Changed:** identity through a port; one bucket, 20 a day per address, then per block of 256 (/24; /64 for IPv6) (Q28 and Q32 answered)~~ **DONE 2026-10-09, commits `ad0996d` … `63e1428`, not pushed.** The limiter and the mint. See *8F as closed* and [ADR 0155](../decisions/0155-the-mint-asks-a-keyed-per-day-per-network-limiter-first-and-refuses-what-it-cannot-judge-the-owner-names-the-network-source-and-a-destructive-mutant-never-touches-a-database.md). **Owner actions outstanding:** Q35, `DIGEST_SECRET` per environment before merging, `CLIENT_NETWORK_SOURCE`, `0007` and its grant | ~~The three red `CI=1` specs triaged; 8E.~~ — Done |
 | 8G | ~~Changed lightly~~ **DONE 2026-10-10, commits `0ba7fb1` … `18a9f319`, not pushed.** The limiter on saves, shares and reads; pruning. See *8G as closed* and [ADR 0156](../decisions/0156-saves-shares-and-reads-are-limited-by-subjects-made-only-by-two-constructors-writes-fail-closed-reads-fail-open-pages-are-counted-in-the-interceptor-and-the-saves-wait-is-one-write-the-client-holds.md). **Owner actions outstanding:** Q36, Q37, Q38, the cron entry told | ~~8F — done; dispatchable (2026-10-09)~~ — Done |
 | 8K | ~~**Changed:** no bot check~~ **DONE 2026-10-12, HEAD `8782ad17` at its close, not pushed** (row corrected by the architect on 2026-10-12 from *8K as closed*; the scribe's close-out left it as dispatchable). `POST /api/contact-submissions`. See *8K as closed* and [ADR 0157](../decisions/0157-the-contact-route-judges-every-request-first-stores-once-answers-one-code-per-kind-and-refuses-a-retry-across-a-change-of-book.md). **Owner actions outstanding:** Q39, Q40 | ~~8F, 8H, 8I, 8J — **all done; dispatchable (2026-10-09)**~~ — Done |
-| 8K2 | **Added 2026-10-12, planned, not dispatched.** Backlog 168 (C2-1 with GL-R4.1): a design returned to by Back or Forward shows the stored one, and a write the tab still holds is shown and not replaced. Full tier; web only, no server file. See *8K2, restated for dispatch*. **For the owner:** Q41, which blocks nothing | 8K — done. **Dispatchable.** S1 waits for nothing |
+| 8K2 | ~~**Added 2026-10-12, planned, not dispatched.**~~ **DONE 2026-10-12, commits `5f0d93f6` … `7d282603`, local, not pushed; the push is blocked: no `pnpm ci:local` run is green at or after the 8K2 code (its e2e step runs `next dev`).** Backlog 168 (C2-1 with GL-R4.1): a design returned to by Back or Forward shows the stored one, and a write the tab still holds is shown and not replaced. Full tier; web only, no server file. See *8K2 as closed* and [ADR 0158](../decisions/0158-a-design-loaded-again-is-never-offered-an-edit-on-a-copy-older-than-the-stored-one-and-never-shown-as-saved-while-the-tab-holds-a-write-and-the-review-is-left-to-adr-0148.md). **For the owner:** Q41 (blocks nothing) and **Q42 (blocks the push)** | ~~8K — done. **Dispatchable.** S1 waits for nothing~~ — Done |
 | 8L | Stays; Q26 settled | 8H, 8K, **8K2** (2026-10-12) |
 | 8M | Stays | 8L; the shop's number, or the action is not drawn |
 | 8Q | Stays | 8L |
@@ -1245,7 +1247,8 @@ stand-in. One writing agent per tree (R2).
 **Corrected 2026-10-12, by the architect: M8 is eighteen waves and ends at 8T.** The table above
 has seventeen rows not struck, and 8K2 (added today, for backlog 168) makes eighteen. *Sixteen*
 was right when it was written and one short from the day 8D3 was added, 2026-10-08. **What
-remains, in order: 8K2 → 8L → 8M → 8Q → 8T.**
+remains, in order: 8K2 → 8L → 8M → 8Q → 8T.** **(Dated 2026-10-12, later: 8K2 is done; what remains
+is 8L → 8M → 8Q → 8T.)**
 
 **Records this touches, for the scribe.** ADR 0019: **a dated supersession for the mint** (d5's
 row, d4 and d3's session bucket as they apply to it; the sentences are quoted in *The limit on new
@@ -10370,6 +10373,91 @@ earlier today.
 
 **For the scribe, at the close.** With the earlier lists: A3; the sentence on an arrival under
 ADR 0148 E2; the sweeps' two forms for the audit; which commit the last whole e2e run saw.
+
+##### 8K2 as closed — 2026-10-12
+
+**DONE as built, reviewed and committed, local, not pushed; the push is blocked** on Q42 (below).
+HEAD at the close is `7d282603`. Record: [ADR 0158](../decisions/0158-a-design-loaded-again-is-never-offered-an-edit-on-a-copy-older-than-the-stored-one-and-never-shown-as-saved-while-the-tab-holds-a-write-and-the-review-is-left-to-adr-0148.md),
+with dated notes on ADR 0156 (decision 10) and ADR 0148 (Amendment D). Written by the scribe from
+the coordinator's hand-over (relayed); **the scribe ran nothing**, and read the commit list from
+`.git/logs/HEAD`.
+
+**Shipped.** S1 `5f0d93f6`, `0c24baa0`, `eb05123b`, `f1c94d64`; S2 `7b16568a`, `1087f45b`; S3
+`9ce7cb63`, `fc6e916f`, item 6 `4d056454`; QA `8bd1064a`; A1 `628e2a25`, A2 `f4e23405`; QA round 2
+`acdf1ef8`; A3 `4e5a3b62`; QA round 3 `a175cc4b`; the mobile e2e project in seven shards
+`fb41df61`; the agent-model chore `18caaea4`; review fixes `7d282603`. Scope: K2.1 to K2.8 and
+S1 to S3 with item 6 and rounds A1 to A3; backlog 168 and 169 closed and 171's predicate closed.
+Which criteria were each shown to hold is in QA's figures above and in ADR 0158's *Evidence*; the
+scribe did not re-derive it.
+
+**Verification, with who ran it.**
+
+- [coordinator-ran, `18caaea4`] `pnpm ci:local`: format, lint, typecheck, domain 7746, persistence
+  2666 + 2 skipped, three-adapter 4284, web 8755, `e2e-shard-budget` (mobile, seven shards:
+  95/80/91/79/88/102/65 against 125), build, boundary, lockfile, sca PASS; **the e2e step FAILED 6
+  mobile specs (718 passed, 69 skipped), twice.**
+- [coordinator-ran, `18caaea4`] the whole e2e under `CI=1`: 793 passed, 0 failed, 0 skipped, 10.1
+  minutes.
+- [coordinator-ran, after `7d282603`] the whole web unit suite 8755 passed; typecheck exit 0;
+  prettier clean; the three 8K2 e2e files under `CI=1` 14 passed.
+- **The full `ci:local` was NOT re-run at `7d282603`, and no `ci:local` run is green at or after
+  the 8K2 code.** The earlier QA figures are in the sub-sections above and in ADR 0158.
+- Reviews [the agents' reports; the coordinator verified the diffs of the two fixes]: logic, no
+  blocker, matches the intent, the rules and the hand-over table checked by reading, **it ran no
+  test**; clean-code, no blocker. Security and visual were not triggered (point 9).
+
+**The `ci:local` failure, plainly.** Cause [developer-ran: with `CI` unset 6 fail; with
+`reactStrictMode` off 12 pass; the trace shows two `GET`s 3 ms apart; source read by the scribe at
+`apps/web/playwright.config.ts:92-94`, `hydrate-and-configure.tsx:58`]: with `CI` unset the config
+boots `next dev`, `scripts/local-ci.sh` sets no `CI`, React's strict mode runs the probe's effect
+twice, and the specs that count reads exactly (`design-return-requests`, `qa-8k2-design-return`)
+cannot hold on a dev server. Production reads once. **Owner question Q42, not decided:** (1)
+`local-ci.sh` runs e2e with `CI=1` (**the coordinator's recommendation**), or (2) the exact-count
+specs skip or relax on a dev server. Backlog 182. Plan risk 4 (*development mode asks twice*) was
+right about the mechanism; criterion 6 was stated for the built server, and the dev-server count
+is what failed.
+
+**Deviations, with the rationale.**
+
+- Item 6 (a fourth held state, a ready write) was built, not recorded as L7: P2 failed on it in
+  QA's first sweep and the rule became shorter. No existing test moved, so L7 was never opened.
+- The hand-over is two fields, `resumesAtMs` and an optional `heldAs`, and not one field of four
+  values; **accepted**, because the one field would have moved two existing tests (item 6's *stops
+  if*). With A1's `failureTold` the state now lives in three places; whether one discriminated value
+  is cleaner is backlog 183.
+- A1's must-not on `adoptNewerGeneration` was lifted for one statement (A3).
+- K2.2's *selection cleared* became *kept where the taken copy still holds the body* (A2); L3 is
+  closed by it.
+- The mobile e2e project went from six shards to seven (`fb41df61`): 133 tests on shard 4 of 6
+  against a budget of 125 [coordinator-ran, at `4d056454`]; the budget governs and shards are added.
+- Criterion 6's wording was corrected after S1's measurement (a hard load only).
+- Two existing tests were reversed with their titles, as ruled: `save-coalescer.return.test.ts:187`
+  and `client-write-generation.test.ts:208`. One `qa-*` file changed on the developer's side: the
+  two marks removed (K2.8). `qa-u7s0` was repaired by QA, in its own file.
+
+**Documentation updated.** ADR 0158 (new); ADR 0156 (a dated note, decision 10 extended, three limits
+closed); ADR 0148 (Amendment D: the two-design case, and an arrival's first answer); `STATUS.md`
+(the M8 row and the top entry under *What to do next*); `milestones/README.md` (eighteen waves);
+`docs/BACKLOG.md` and `docs/backlog/open.md` (168, 169 and 171 closed; 182 to 188 added);
+`best-practices/ci-and-local-gates.md` (the dated note on exact-read-count specs).
+
+**Deferred, each with an owner or a trigger** (backlog numbers in `docs/BACKLOG.md`).
+
+| Item | Where | Owner or trigger |
+| --- | --- | --- |
+| `ci:local`'s e2e step on a dev server | 182, **Q42** | The owner; the push waits |
+| One discriminated union in place of `resumesAtMs` and `heldAs` (limit-wait, backing-off, queued, sent): `save-coalescer.ts:126`, `heldWriteOf`, `saveStateShownFor` | 183 | The next change to that module; touches the lines `save-coalescer.return.test.ts:110-114`, `:194-198` and the `heldAs` expectations of `save-coalescer.held-write.test.ts` |
+| Rename `WaitingWrite` to `HeldWrite` (`adoptWaitingWrite`, `waitingWriteFor`, the local `waiting`); touches QA-owned tests | 184 | With 183, or the M8 close audit |
+| The re-export `export { isGreaterRevision }` in `hydrate-and-review.tsx:65`, kept only for `tests/app/qa-8d-revision-order.adversarial.test.ts:7` | 185 | QA repoints the test, then the re-export is deleted |
+| A held write that has outlived its limit wait still shows its past time until the next `runSave` (logic finding 1, minor) | 186 | A customer told a time that had passed, or Q38 answered |
+| No test drives `HydrateAndReview` with a held write in each of the four states | 187 | 8L, with criterion 14 |
+| K2.4's report (the newer-generation branch is reached by seven direct tests only), L1, L5, L6, the frozen tab, the slow sweeps | 188 | Triggers in the entry |
+
+**Q41** stays open for the owner (recommended (a), built on (a)); L1 measured 49 to 64 ms [QA-run,
+relayed]. The test-database rows of QA's interrupted e2e start remain uncounted; no agent removes
+them (ADR 0151).
+
+**Next: 8L**, which now also carries criterion 14. Then 8M, 8Q, 8T.
 
 ### 8L — the contact screen 4A/4B/4C
 
