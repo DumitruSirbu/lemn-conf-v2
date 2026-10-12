@@ -448,7 +448,7 @@ machine carries. Read the workflow's own comments for the history; this section 
 | Job id | Name in the checks list | Runs | On a pull request |
 | --- | --- | --- | --- |
 | `e2e-desktop-shard` | `e2e shard (desktop) (i, 3)` | `playwright test --project=desktop --shard=i/3` | skipped |
-| `e2e-mobile-shard` | `e2e shard (mobile) (i, 6)` | `playwright test --project=mobile --shard=i/6` | skipped |
+| `e2e-mobile-shard` | `e2e shard (mobile) (i, 7)` | `playwright test --project=mobile --shard=i/7` | skipped |
 | `e2e-desktop` | **`e2e (desktop)`** | the summary over the desktop shards | skipped |
 | `e2e-mobile` | **`e2e (mobile)`** | the summary over the mobile shards | skipped |
 | `e2e-shard-budget` | `e2e-shard-budget` | the budget guard below; lists tests, no browser | runs |

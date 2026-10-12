@@ -44,7 +44,7 @@ export const TARGET_MINUTES_PER_SHARD = 30;
  * reads the workflow and fails if they differ. Mobile needs six: four left its third shard exactly
  * at the budget of 125 (123/120/125/114), and five put 135 on its second, because a shard is whole files.
  */
-export const SHARDS_PER_PROJECT = { desktop: 3, mobile: 6 };
+export const SHARDS_PER_PROJECT = { desktop: 3, mobile: 7 };
 
 /**
  * A ceiling above the derived budget, for a project whose shards cannot all fit under it.
