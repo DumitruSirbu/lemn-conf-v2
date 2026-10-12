@@ -12,6 +12,7 @@ import { continueButton, roomScreen } from "./step-one-by-touch";
 
 export const ROOM_URL = /\/ro\/configurator\/room/;
 export const EDITOR_URL = /\/ro\/d\/[^/]+$/;
+const MATERIAL_GROUP_INDEX = 0;
 
 /** Step 1 by the editor's back link and the question it asks. */
 export async function toStepOneByTheBackLink(page: Page): Promise<void> {
@@ -49,4 +50,57 @@ export function savesOfTheDesignSince(
   return toTheDesignApi(requests.slice(mark), designId).filter(
     (request) => request.method === "PUT" || request.method === "PATCH",
   );
+}
+
+export interface TierSettings {
+  readonly hardwareTierId?: string;
+  readonly materialTierId?: string;
+}
+
+/** The settings the server holds for the design right now, read from the page so its cookies go with the request. */
+export async function storedSettings(
+  page: Page,
+  designId: string,
+): Promise<TierSettings> {
+  return page.evaluate(async (id: string) => {
+    const response = await fetch(`/api/designs/${id}`, {
+      credentials: "same-origin",
+    });
+    const payload = (await response.json()) as {
+      design: { settings?: TierSettings };
+    };
+    return payload.design.settings ?? {};
+  }, designId);
+}
+
+/** The material tier the store holds, as the editor's own readout publishes it. */
+export async function materialTierInTheStore(page: Page): Promise<string> {
+  const tier = await page
+    .getByTestId("selection-debug")
+    .getAttribute("data-material-tier");
+  return tier ?? "";
+}
+
+/** A second edit to another setting than the hardware tier, so a write holding both can be told from one holding
+ *  either. Returns the status the server answered the save with. */
+export async function chooseAnotherMaterialAndSave(
+  page: Page,
+  designId: string,
+): Promise<number> {
+  const saved = page.waitForResponse(
+    (response) =>
+      response.request().method() === "PUT" &&
+      new URL(response.url()).pathname === `/api/designs/${designId}`,
+  );
+  await press(page, page.getByTestId("global-settings-trigger"));
+  const material = page
+    .getByTestId("global-settings-group")
+    .nth(MATERIAL_GROUP_INDEX);
+  await press(
+    page,
+    material.locator('input[type="radio"]:not(:checked)').last(),
+  );
+  await press(page, page.getByTestId("global-settings-apply"));
+  await expect(page.getByTestId("global-settings-surface")).toHaveCount(0);
+  return (await saved).status();
 }
