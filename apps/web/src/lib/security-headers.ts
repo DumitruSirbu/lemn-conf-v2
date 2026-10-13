@@ -10,11 +10,14 @@ export type ContentSecurityPolicyMode = "report-only" | "enforce";
  * The single switch: `"report-only"` sends `Content-Security-Policy-Report-Only` (violations reported, nothing
  * blocked); `"enforce"` changes the header name and nothing else.
  *
- * Do not flip it while prerendered pages exist: a nonce only reaches the HTML of a dynamically rendered response, so
- * the routes in `.next/prerender-manifest.json` (such as `/_global-error` and `/_not-found`) carry none and would
- * go blank under `"enforce"`. There is no report sink: a collector would be an unauthenticated, unthrottled POST
- * endpoint (SEC-001, deferred to the M8 launch gate), so the policy is a versioned declaration and a staging step, not
- * a live control (ADR 0041 decision 4).
+ * Do not flip it while a prerendered page can be served to a browser: a nonce only reaches the HTML of a dynamically
+ * rendered response, so a route in `.next/prerender-manifest.json` carries none and would go blank under `"enforce"`.
+ * Next builds `/_global-error` and `/_not-found` whatever the application does, and the manifest keeps listing them,
+ * but no browser is sent either as a document: an address no route answers renders its 404 for each request
+ * (`app/[locale]/[...unmatched]`, with `api` and `internal` catch-alls that answer an empty one), and
+ * `next.config.ts` rewrites the two literal addresses to it (8Q.12). There is no report sink: a collector would be an
+ * unauthenticated, unthrottled POST endpoint (SEC-001, deferred to the M8 launch gate), so the policy is a versioned
+ * declaration and a staging step, not a live control (ADR 0041 decision 4).
  */
 export const CONTENT_SECURITY_POLICY_MODE: ContentSecurityPolicyMode =
   "report-only";

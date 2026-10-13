@@ -1,9 +1,16 @@
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 
+import { routing } from "./src/i18n/routing";
 import { STATIC_SECURITY_HEADERS } from "./src/lib/security-headers";
 
 const ALL_ROUTES = "/:path*";
+
+/** The two framework documents Next builds ahead of time, which a visitor can type as an address (8Q.12). */
+const PRERENDERED_FRAMEWORK_ADDRESSES = ["/_not-found", "/_global-error"];
+
+/** An address under the default locale that no route answers, so the `[locale]` catch-all renders the 404. */
+const UNMATCHED_LOCALE_ADDRESS = `/${routing.defaultLocale}/_unmatched`;
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -22,6 +29,16 @@ const nextConfig: NextConfig = {
     return Promise.resolve([
       { source: ALL_ROUTES, headers: [...STATIC_SECURITY_HEADERS] },
     ]);
+  },
+  // Before the filesystem, so the prerendered documents are never served for these two addresses (8Q.12): the typed
+  // address is kept, and the answer is the catch-all's per-request, nonced `404`.
+  rewrites() {
+    return Promise.resolve({
+      beforeFiles: PRERENDERED_FRAMEWORK_ADDRESSES.map((source) => ({
+        source,
+        destination: UNMATCHED_LOCALE_ADDRESS,
+      })),
+    });
   },
 };
 

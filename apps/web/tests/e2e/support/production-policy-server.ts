@@ -31,6 +31,10 @@ export const ESCAPED_LOCALE_SERVER_PORT = 4325;
  *  server with no fake sender, so no mail variable of any kind is usable (8L criterion 7). */
 export const CONTACT_UNAVAILABLE_SERVER_PORT = 4326;
 
+/** 4327: the spec that proves what a browser is sent for an address no route answers, and for the capture pages when
+ *  their flag is off: a server that is not given `LEMNARIA_ENABLE_SCENE_SHOT_ROUTE` (8Q criterion 1). */
+export const UNMATCHED_ADDRESSES_SERVER_PORT = 4327;
+
 /** A developer whose 4322 is taken sets this; a spec that names its own port ignores it. Read when a server starts,
  *  never when the module loads. */
 const PORT_OVERRIDE_VARIABLE = "E2E_PRODUCTION_POLICY_PORT";

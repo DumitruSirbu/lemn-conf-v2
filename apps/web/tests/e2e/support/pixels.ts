@@ -138,9 +138,12 @@ async function countDifferingPixelsInPage({
   after: string;
   noiseFloor: number;
 }): Promise<number> {
+  // ADR 0161 / 8Q.11: no fetch, so `connect-src` is not a dependency of this helper.
   const decode = async (encoded: string): Promise<Uint8ClampedArray> => {
-    const response = await fetch(`data:image/png;base64,${encoded}`);
-    const bitmap = await createImageBitmap(await response.blob());
+    const bytes = Uint8Array.from(atob(encoded), (char) => char.charCodeAt(0));
+    const bitmap = await createImageBitmap(
+      new Blob([bytes], { type: "image/png" }),
+    );
     const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
     const context = canvas.getContext("2d");
     if (!context) throw new Error("Cannot count pixels: no 2D canvas context");
@@ -172,8 +175,11 @@ async function countMatchingPixelsInPage({
   encoded: string;
   test: PixelTest;
 }): Promise<number> {
-  const response = await fetch(`data:image/png;base64,${encoded}`);
-  const bitmap = await createImageBitmap(await response.blob());
+  // ADR 0161 / 8Q.11: no fetch, so `connect-src` is not a dependency of this helper.
+  const bytes = Uint8Array.from(atob(encoded), (char) => char.charCodeAt(0));
+  const bitmap = await createImageBitmap(
+    new Blob([bytes], { type: "image/png" }),
+  );
   const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
   const context = canvas.getContext("2d");
   if (!context) throw new Error("Cannot count pixels: no 2D canvas context");
