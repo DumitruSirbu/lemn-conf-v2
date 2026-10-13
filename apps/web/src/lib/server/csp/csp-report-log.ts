@@ -8,8 +8,8 @@ import {
 import { CSP_REPORT_WINDOW_MINUTES } from "@/lib/server/rate-limit/limit-policy";
 import { utcWindowOf } from "@/lib/server/rate-limit/utc-window";
 
-// This module is handed a reduced record (closed values and bounded integers), a cause from the limiter's closed list
-// and an instant: no request, body, header, address or thrown value reaches it, so none can be logged.
+// Handed only closed values, bounded integers and an instant: no request, body, header, address or thrown value reaches
+// this module, so none can be logged.
 
 /** Grepped for in a platform log view, so it is one literal. */
 const CSP_REPORT_LABEL = "[csp]";
@@ -20,9 +20,7 @@ const UNSTORED_EVENT = "csp-report-unstored";
 const UNEXPECTED_CAUSE: UnavailableCause = "judgement-failed";
 const UNEXPECTED_UNSTORED_CAUSE: UnstoredCause = "store-failed";
 
-/** Why an accepted report was answered but not kept, as a closed list that types the line: the store or its
- *  construction failed, the store missed the deadline, the table's own checks would refuse the row, or the writer
- *  mark could not be made. */
+/** Why an accepted report was answered but not kept: a closed list, so the line can never carry a thrown value. */
 export const UNSTORED_CAUSES = [
   "store-failed",
   "deadline",

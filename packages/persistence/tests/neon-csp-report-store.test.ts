@@ -12,7 +12,7 @@ import {
   columnsOf,
 } from "./support/csp-report-case-table.js";
 import type { CspReportColumns } from "./support/csp-report-case-table.js";
-import { aBareRow } from "./support/csp-report-fixtures.js";
+import { aBareRow, aFullRow } from "./support/csp-report-fixtures.js";
 import { describeCspReportStoreContract } from "./support/csp-report-store-contract.js";
 import {
   announceSkippedLiveSuite,
@@ -46,6 +46,8 @@ const RAW_MARK = newMark();
 const FOREIGN_MARK = newMark();
 const WRAP_MARK = newMark();
 const CONCURRENCY_MARK = newMark();
+const OVERWRITTEN_MARK = newMark();
+const OVERWRITING_MARK = newMark();
 
 interface StoredRow {
   slot: number;
@@ -58,6 +60,23 @@ async function storedRowsUnder(mark: string): Promise<StoredRow[]> {
     select slot, report_number, writer_mark from csp_reports where writer_mark = ${mark} order by report_number
   `;
   return rows as StoredRow[];
+}
+
+interface StoredColumns extends StoredRow {
+  source: string | null;
+  line_number: number | null;
+  column_number: number | null;
+  status_code: number | null;
+  page: string;
+  origin: string;
+}
+
+async function storedColumnsUnder(mark: string): Promise<StoredColumns[]> {
+  const rows = await neon(testDatabaseUrl)`
+    select slot, report_number, writer_mark, source, line_number, column_number, status_code, page, origin
+    from csp_reports where writer_mark = ${mark} order by report_number
+  `;
+  return rows as StoredColumns[];
 }
 
 async function rowCount(): Promise<number> {
@@ -101,7 +120,20 @@ function placeForeignRow(): Promise<unknown> {
 /** The contract suite's reports sit in the ring's low slots whenever the cursor is near its start; `do nothing` would
  *  then leave one of them in the third slot instead of the foreign row. Only rows under this run's own marks go. */
 function removeThisRunsEarlierRows(): Promise<number> {
-  return deleteCspReportsForTests([CONTRACT_MARK, RAW_MARK, CONCURRENCY_MARK]);
+  return deleteCspReportsForTests([
+    CONTRACT_MARK,
+    RAW_MARK,
+    CONCURRENCY_MARK,
+    OVERWRITTEN_MARK,
+    OVERWRITING_MARK,
+  ]);
+}
+
+/** Moves the cursor forward, never back, so the next report is numbered one lap after the last one written. */
+async function moveCursorToTheSlotJustWritten(): Promise<void> {
+  await neon(testDatabaseUrl)`
+    update csp_report_cursor set last_number = last_number + ${CAPACITY}::bigint - 1 where singleton
+  `;
 }
 
 /** Moves the cursor forward, never back, to the next number that leaves the following writes at slots N - 1, 0, 1. */
@@ -129,6 +161,8 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
       FOREIGN_MARK,
       WRAP_MARK,
       CONCURRENCY_MARK,
+      OVERWRITTEN_MARK,
+      OVERWRITING_MARK,
     ]);
   });
 
@@ -183,6 +217,39 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
         { slot: THIRD_SLOT },
       ]);
       expect(await rowCount()).toBeLessThanOrEqual(CAPACITY);
+    });
+  });
+
+  describe("an overwrite keeps nothing of the old report (criterion 5)", () => {
+    it("reads null in every optional column of a slot whose old report had them all, and the new report's own values", async () => {
+      const store = new NeonCspReportStore(testDatabaseUrl);
+      await store.recordReport(aFullRow(OVERWRITTEN_MARK));
+      const [oldReport] = await storedColumnsUnder(OVERWRITTEN_MARK);
+      expect(oldReport).toMatchObject({
+        source: "/_next/static/old.js",
+        line_number: 11,
+        column_number: 22,
+        status_code: 200,
+      });
+      await moveCursorToTheSlotJustWritten();
+
+      await store.recordReport(aBareRow(OVERWRITING_MARK));
+
+      const [newReport] = await storedColumnsUnder(OVERWRITING_MARK);
+      expect(await storedColumnsUnder(OVERWRITTEN_MARK)).toEqual([]);
+      expect(newReport).toMatchObject({
+        slot: oldReport?.slot,
+        writer_mark: OVERWRITING_MARK,
+        source: null,
+        line_number: null,
+        column_number: null,
+        status_code: null,
+        page: "other",
+        origin: "none",
+      });
+      expect(Number(newReport?.report_number)).toBe(
+        Number(oldReport?.report_number) + CAPACITY,
+      );
     });
   });
 

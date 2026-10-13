@@ -12,21 +12,15 @@ import { CSP_REPORT_POLICY } from "../../../src/lib/server/rate-limit/limit-poli
 
 import { makeRunSecret, secretOfThisRun } from "./e2e-rate-limit-run";
 
-/**
- * The table the writer mark stands for. `src/lib/server/csp/csp-report-writer-mark.ts` holds the same constant and is
- * server-only, so a Playwright process cannot import it: `csp-report-rows.test.ts` pins this derivation against that
- * module's own output, and a change to either side fails there.
- */
+/** Same constant as `csp-report-writer-mark.ts`, which is server-only and so not importable here; a test pins both. */
 const WRITER_TABLE = "csp_reports";
 
+// Same shape as persistence's `requireSha256Digest`, which the package does not export.
 const WRITER_MARK = /^[0-9a-f]{64}$/;
 const REGISTRY_FILE_PREFIX = "lemnaria-e2e-second-server-marks-";
 const REGISTRY_NAME_CHARACTERS = 16;
 
-/**
- * The mark every `csp_reports` row a server holding this secret writes carries: the digest the server makes, computed
- * here from the secret's bytes with the one digest function the server uses.
- */
+/** The mark every `csp_reports` row of a server holding this secret carries, made with the server's own digest. */
 export function cspReportWriterMarkOf(secretHex: string): string {
   return keyedDigest(Buffer.from(secretHex, "hex"), {
     purpose: "csp-report-writer",
@@ -35,10 +29,8 @@ export function cspReportWriterMarkOf(secretHex: string): string {
 }
 
 /**
- * A second server's secret, made for it alone, whose writer mark is written down before the server can start. Second
- * servers are started in test workers and the rows they write are removed by the teardown in the runner's main process,
- * which cannot see a worker's memory; the mark, which names no secret and is already held by every row it labels, is
- * what crosses. A server that never comes up leaves a mark that matches nothing.
+ * A second server's secret, with its writer mark written down before the server starts: workers start second servers
+ * but the runner's teardown removes their rows and cannot see a worker's memory, so the mark crosses by file.
  */
 export function makeSecondServerSecret(): string {
   const secret = makeRunSecret();
@@ -81,10 +73,9 @@ export interface CspReportRowsRemoval {
 const NO_ROWS: RowsOfMarks = { counted: 0, removed: 0 };
 
 /**
- * Counts, then removes, the `csp_reports` rows written under the run's marks: the suite's server's, and each second
- * server's, through the guarded test helpers and by mark alone. Both groups are tried whatever the first does, and the
- * list of second servers is forgotten only when every row is gone. It never throws: a failure is answered, so the
- * teardown can remove everything else before it fails.
+ * Counts, then removes, the `csp_reports` rows under the run's marks, the suite's server's and each second server's,
+ * by mark alone. Both groups are tried whatever the first does, and the marks file is forgotten only when every row is
+ * gone. It never throws: a failure is answered, so the teardown removes everything else before it fails.
  */
 export async function removeCspReportRowsOfTheRun(
   runSecretHex: string,
@@ -146,7 +137,7 @@ function forgetSecondServerMarks(runSecretHex: string): void {
   rmSync(registryPathOf(runSecretHex), { force: true });
 }
 
-/** Keyed by the suite's own mark, which is public in the table, so the run's secret is named in no file. */
+/** Keyed by the suite's own mark, which the table shows anyway, so no file names the run's secret. */
 function registryPathOf(runSecretHex: string): string {
   const name = cspReportWriterMarkOf(runSecretHex).slice(
     0,

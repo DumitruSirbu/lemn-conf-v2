@@ -37,17 +37,11 @@ const TWINS_REMOVED_BEFORE_THE_MINTS = [
 ] as const;
 
 /**
- * Runs once, in the runner's main process, after every test: removes the counter rows the run made under its own
- * secret and says how many designs it minted, how many share writes and saves it made, how many contact requests of
- * any kind and new ones it sent, and how many content security policy violation reports its server received. Those
- * figures are what the e2e policies' windows are sized against. It throws, and so fails the run, after every row is
- * gone: when a `CI` run's server counted any violation report, when it finds no row of mints, or when the run made
- * more than half of any window, or when the rows its server stored in `csp_reports` outnumber the hits its counter
- * recorded. The rows of `csp_reports` the run wrote are counted and removed by writer mark, the suite's server's and
- * every second server's, through the guarded helpers. A run that fails more than one of these reports every failure in
- * an `AggregateError`.
- * The saves' rows by write credential and the contact rows by request, visitor and address are removed by each test's
- * own cleanup, which knows what it wrote.
+ * Runs once, in the runner's main process, after every test: removes the run's counter rows and its `csp_reports` rows
+ * (by writer mark, the suite's server's and every second server's), prints the figures the e2e windows are sized
+ * against, and only then fails. It fails on a CI run that counted a violation report, no mints' row, more than half of
+ * any window, or more stored rows than counted hits; every failure is reported, in an `AggregateError` when several.
+ * The saves' and contacts' rows are removed by each test's own cleanup.
  */
 export default async function globalTeardown(): Promise<void> {
   const secret = secretOfThisRun();
@@ -60,10 +54,14 @@ export default async function globalTeardown(): Promise<void> {
     ...cspRows.failures,
     ...failuresOf(() => {
       requireNoCspReportsUnderCi(cspReports.hitsCounted);
+    }),
+    ...failuresOf(() => {
       requireCspReportRowsWithinHits(
         cspRows.figures.suite.removed,
         cspReports.hitsCounted,
       );
+    }),
+    ...failuresOf(() => {
       requireRoomUnderEveryHalfFigure(removal.measured);
     }),
   ];

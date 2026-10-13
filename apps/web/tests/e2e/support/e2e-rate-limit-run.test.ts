@@ -69,7 +69,9 @@ const {
   SHARE_WRITE_TWIN,
   secretOfThisRun,
 } = await import("./e2e-rate-limit-run");
-const { cspReportWriterMarkOf } = await import("./csp-report-rows");
+const { CspReportRowsExceedHitsError, cspReportWriterMarkOf } = await import(
+  "./csp-report-rows"
+);
 
 const FAKE_SECRET =
   "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
@@ -657,6 +659,30 @@ describe("the teardown", () => {
       silenceTheLine();
 
       await expect(globalTeardown()).resolves.toBeUndefined();
+    });
+
+    it("reports the ceiling breach and a CI run's violation count together, each judged whatever the other did", async () => {
+      vi.stubEnv("CI", "1");
+      answerEachTwin(
+        new Map([
+          [keyOf(MINT_TWIN), [1]],
+          [keyOfCspReports(), [2]],
+        ]),
+      );
+      cspRows.suiteRowsAre = 3;
+      silenceTheLine();
+
+      const failure: unknown = await globalTeardown().then(
+        () => undefined,
+        (error: unknown) => error,
+      );
+
+      expect(failure).toBeInstanceOf(AggregateError);
+      expect(
+        (failure as AggregateError).errors.map(
+          (error: Error) => error.constructor,
+        ),
+      ).toEqual([CspReportsInTheRunError, CspReportRowsExceedHitsError]);
     });
 
     it("removes every counter row even when the csp_reports removal fails, then fails with that failure", async () => {

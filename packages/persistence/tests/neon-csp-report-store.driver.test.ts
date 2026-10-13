@@ -10,7 +10,7 @@ import {
   markersFoundOn,
 } from "./support/leaked-connection-markers.js";
 import { aBareRow, aFullRow, markOf } from "./support/csp-report-fixtures.js";
-import { RECORD_REPORT_STATEMENT_TEXT } from "./support/csp-report-statement.js";
+import { RECORD_REPORT_ROUND_TRIP_TEXT } from "./support/csp-report-statement.js";
 import {
   answerWith,
   driver,
@@ -44,13 +44,23 @@ describe("NeonCspReportStore with the driver replaced", () => {
   beforeEach(resetDriver);
 
   describe("the one statement", () => {
-    it("advances the cursor and upserts into the slot the number maps to, one statement and nothing else", async () => {
+    it("advances the cursor and upserts into the slot the number maps to, in one round trip and nothing else", async () => {
       answerWith(WRITTEN);
 
       await aStore().recordReport(aFullRow(MARK));
 
       expect(driver.statements).toHaveLength(1);
-      expect(sentText()).toBe(RECORD_REPORT_STATEMENT_TEXT);
+      expect(sentText()).toBe(RECORD_REPORT_ROUND_TRIP_TEXT);
+    });
+
+    it("bounds the wait for the cursor's lock and the statement before the write, in the same transaction", async () => {
+      answerWith(WRITTEN);
+
+      await aStore().recordReport(aBareRow(MARK));
+
+      expect(sentText()).toMatch(
+        /^set local lock_timeout = '1000ms'; set local statement_timeout = '2500ms'; with advanced/,
+      );
     });
 
     it("takes the capacity from the constant the table's text is tested against", async () => {

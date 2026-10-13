@@ -1,11 +1,10 @@
-/** How many reports the table keeps. Migration `0009` writes the same figure as a literal, and a text test holds the
- *  two equal: change both together, in a new migration. */
+/** How many reports the table keeps; migration `0009` writes the same literal and a text test holds the two equal. */
 export const CSP_REPORT_CAPACITY = 10_000;
 
 /**
- * A browser's report as the server reduced it (ADR 0161 decision 3) plus the server's own writer mark. Its keys are
- * those of the reduction, so the route hands one over unchanged; the table's `line_number`, `column_number` and
- * `status_code` are `line`, `column` and `status` here. An absent optional field is `undefined`, never `null`.
+ * A browser's report as the server reduced it plus the server's own writer mark, see ADR 0161 decision 3. Its keys are
+ * the reduction's, so the route hands one over unchanged: the table's `line_number`, `column_number` and `status_code`
+ * are `line`, `column` and `status`. An absent optional field is `undefined`, never `null`.
  */
 export interface CspReportRow {
   readonly directive: string;
@@ -32,15 +31,15 @@ export type CspReportOperation = "record a report";
 
 export interface CspReportStore {
   /**
-   * Numbers the report and writes it into the ring, overwriting the oldest once the table is full. Best effort and
-   * never repeated: a repeat after a lost reply would store the report twice. Rejects with a plain refusal when the row
-   * is one the table would refuse, and with `CspReportStoreError` when the database gives no trustworthy answer.
+   * Numbers the report and writes it into the ring, overwriting the oldest once full. Never repeated: a repeat after a
+   * lost reply would store it twice. Rejects with a plain refusal for a row the table would refuse, and with
+   * `CspReportStoreError` when the database gives no trustworthy answer.
    */
   recordReport(row: CspReportRow): Promise<void>;
 }
 
-/** The database refused the statement, did not answer, or answered with something that is not one written row. Its
- *  `cause`, when present, is a `ReducedCause`, never the driver's own error. */
+/** The database refused, did not answer, or answered with something that is not one written row. Its `cause` is a
+ *  `ReducedCause`, never the driver's own error. */
 export class CspReportStoreError extends Error {
   readonly operation: CspReportOperation;
 
@@ -81,11 +80,9 @@ const DISPOSITIONS: ReadonlySet<string> = new Set([
 ]);
 
 /*
- * The JavaScript equivalents of `0009`'s patterns, written out and not copied: the SQL spells a literal `]` and the
- * backslash as `[]` and `[.backslash.]`, which a JavaScript pattern reads as something else. The host class refuses
- * a path, a query, a fragment, user-info, white space (`\s`), a control character (`\p{Cc}`) and a backslash. It may
- * refuse a character the table admits, in a database whose ctype counts fewer characters as space; never the other
- * way round. A test holds both sides to one table of cases.
+ * `0009`'s patterns written out, not copied: the SQL spells a literal `]` and the backslash as `[]` and
+ * `[.backslash.]`, which a JavaScript pattern reads as something else. The host class may refuse a character the table
+ * admits (a ctype counting fewer characters as space), never the reverse.
  */
 const HTTP_ORIGIN = /^https?:\/\/[^/?#@\s\p{Cc}\\]+$/u;
 const OWN_CHUNK_PATH = /^\/_next\/static(?:\/[A-Za-z0-9._~-]+)+\.js$/;
@@ -94,10 +91,7 @@ const DIRECTIVE = /^[a-z-]{1,32}$/;
 const PAGE = /^(?:other|\/\[locale\](?:\/[\]a-z[-]{1,20})*)$/;
 const LOCALE = /^(?:[a-z]{2}|none)$/;
 
-/**
- * Every check `0009` makes on the columns a caller supplies, in code (ADR 0153: the code refuses before the server what
- * the table would refuse). The message names the field and never its value, which is a visitor's.
- */
+/** Every check `0009` makes on a caller's columns, see ADR 0153. A message names the field, never its value. */
 export function requireValidCspReportRow(row: CspReportRow): void {
   requireField(
     isText(row.writerMark) && WRITER_MARK.test(row.writerMark),
@@ -109,7 +103,7 @@ export function requireValidCspReportRow(row: CspReportRow): void {
   requireOwnOriginForSourceAndPage(row);
 }
 
-/** The ring's placement rule: a slot inside the capacity, a positive number, and the slot the number maps to. */
+/** The ring's placement rule, for tests: the stores place with `slotOf`, and the package does not export this. */
 export function requireValidCspReportPlacement(
   { slot, reportNumber }: CspReportPlacement,
   capacity: number = CSP_REPORT_CAPACITY,

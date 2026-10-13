@@ -55,7 +55,6 @@ export { FakeRateLimitStore } from "./fake-rate-limit-store.js";
 export {
   CSP_REPORT_CAPACITY,
   CspReportStoreError,
-  requireValidCspReportPlacement,
   requireValidCspReportRow,
 } from "./csp-report-store.js";
 export type {

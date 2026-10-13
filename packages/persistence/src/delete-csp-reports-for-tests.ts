@@ -7,13 +7,10 @@ interface RemovedReportRow {
 }
 
 /**
- * Removes the CSP report rows written under exactly the writer marks handed in, from the test database alone, and
- * answers how many went. Test support only: it lives here because a Postgres driver appears in one package, and the
- * application role has no `DELETE` on `csp_reports`, so a test's rows leave only through this (ADR 0151, ADR 0162). The
- * connection is resolved here and never accepted, so `openTestDatabase()` refuses anything but an allowlisted test
- * database before any statement (ADR 0006); every mark is checked as a digest before the connection is opened, so no
- * pattern, wildcard or list that reaches more than its own rows can be sent. One statement, not repeated after a lost
- * reply: a repeat would find nothing and answer none for rows that did go.
+ * Removes the CSP report rows written under exactly these writer marks, from the test database alone, and answers how
+ * many went. The application role has no `DELETE` on `csp_reports`, so a test's rows leave only here, see ADR 0151.
+ * The connection is never accepted, and every mark is checked as a digest before it opens, so no pattern or list can
+ * reach more than its own rows. One statement, never repeated: a repeat would find nothing and answer none.
  */
 export async function deleteCspReportsForTests(
   marks: readonly string[],

@@ -30,14 +30,11 @@ const TOO_LARGE_STATUS = 413;
 const UNSUPPORTED_MEDIA_TYPE_STATUS = 415;
 
 /**
- * A browser's report of a policy violation (ADR 0161 decision 2). Each step refuses before the next costs more: the
- * media type (no write), then one hit counted for the network block so a refused request reads nothing, then the
- * bounded body, then the reduction. A refusal logs nothing, except the first `429` of each UTC hour.
- *
- * An accepted report is logged, then kept in the table (ADR 0162): awaited under the limiter's deadline, never
- * repeated, and best effort, so a report that cannot be kept is still answered `204` and written once as unstored.
- *
- * A report arrives with the visitor's cookies; the route is a plain `Request` and reads and sets none.
+ * A browser's report of a policy violation. Each step refuses before the next costs more: media type (no write), one
+ * hit counted for the network block, the bounded body, the reduction. A refusal logs nothing, except the first `429`
+ * of each UTC hour. An accepted report is logged, then kept: awaited under the limiter's deadline, never repeated,
+ * best effort, so one that cannot be kept is still answered `204`, see ADR 0162 decision 5. The route is a plain
+ * `Request`: a report arrives with the visitor's cookies and the route reads and sets none.
  */
 export async function POST(request: Request): Promise<Response> {
   if (!isCspReportRequest(request))
@@ -87,9 +84,8 @@ function isStorable(row: CspReportRow): boolean {
 }
 
 /**
- * The store is made inside the promise, so its synchronous throw (no `DATABASE_URL`) is a rejection like any other. Its
- * late answer or rejection is handled where it is made, so a deadline that has passed leaves nothing unhandled behind.
- * Whatever the database refuses, a missing table (42P01) or a missing grant (42501) included, is the same failure.
+ * The store is made inside the promise, so a synchronous throw (no `DATABASE_URL`) is a rejection like any other. Its
+ * late answer is handled where it is made, so a passed deadline leaves nothing unhandled. Every refusal is one failure.
  */
 async function writeWithinDeadline(row: CspReportRow): Promise<Kept> {
   const written = new Promise<void>((resolve) => {

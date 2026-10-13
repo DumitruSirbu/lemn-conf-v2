@@ -60,8 +60,8 @@ vi.mock("@/lib/server/rate-limit/rate-limit-store-instance", async () => {
   };
 });
 
-// The CSP report store's instance is the persistence package's own fake too, fresh for each test, so no test writes a
-// report to a database and the route's own tests read what it stored. A test about the instance itself unmocks it.
+// The CSP report store's instance is a fresh fake per test, so none writes to a database; a test of the instance
+// itself unmocks it.
 const cspReportStore = vi.hoisted(() => ({ current: undefined as unknown }));
 
 vi.mock("@/lib/server/csp/csp-report-store-instance", async () => {
