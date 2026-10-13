@@ -142,6 +142,12 @@ const EXPECTED_CLASSIFICATION: Readonly<
     reason:
       "writes contact submission rows under ids that carry a marker only tests write, and needs the schema intact",
   },
+  "neon-csp-report-store.test.ts": {
+    gate: "live test database",
+    lock: "exclusive",
+    reason:
+      "moves the one shared report cursor, writes report rows under marks of its own and asserts a whole-table row count (M8 wave 8Q2)",
+  },
   "neon-rate-limit-store.test.ts": {
     gate: "live test database",
     lock: "shared",

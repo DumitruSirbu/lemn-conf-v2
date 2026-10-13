@@ -16,12 +16,14 @@
 -- screen refuses `create sequence`, and the seeded cursor below uses only shapes it recognises.
 --
 -- **The checks are shapes, not lists.** Lengths, integer ranges, the stable enumerations (`origin`, `disposition`),
--- the shape of `locale`, regular expressions that refuse a path, a query, a fragment or user-info in `blocked` and
--- `source`, and any character an id or a token is made of in `page`. No check lists the page families or the
--- directives: those lists belong to the code and grow with it, and a list in this file would need a migration to
--- grow. Two table checks repeat ADR 0161's F2 and F3: `source` is null and `page` is `other` unless `origin` is
--- `own`. No expression contains a backslash (the unattended screen refuses one inside a quoted string), so a
--- literal dot is written `[.]`.
+-- the shape of `locale`, regular expressions that refuse a path, a query, a fragment, user-info, white space or a
+-- control character or a backslash in the host of `blocked` and `source`, and any character an id or a token is made
+-- of in `page`, with each page segment at most 20 characters. No check lists the page families or the directives:
+-- those lists belong to the code and grow with it, and a list in this file would need a migration to grow. Two
+-- table checks repeat ADR 0161's F2 and F3: `source` is null and `page` is `other` unless `origin` is `own`. A
+-- third ties the slot to the report number, so a row cannot sit anywhere but where the ring puts it. No expression
+-- contains a backslash (the unattended screen refuses one inside a quoted string), so a literal dot is written
+-- `[.]` and the backslash is named, as `[.backslash.]`, inside a bracket expression.
 --
 -- `writer_mark` is a lowercase hex SHA-256 made by the application under a secret this database never holds, the
 -- shape of `0003`'s and `0007`'s digests. It is one constant per environment and exists so that a test can remove
@@ -61,12 +63,12 @@ create table if not exists csp_reports (
   blocked text not null
     constraint csp_reports_blocked_shape check (
       char_length(blocked) <= 255
-      and blocked ~ '^(self|inline|eval|wasm-eval|other|data|blob|chrome-extension|moz-extension|safari-web-extension|https?://[^/?#@ ]+)$'
+      and blocked ~ '^(self|inline|eval|wasm-eval|other|data|blob|chrome-extension|moz-extension|safari-web-extension|https?://[^/?#@[:space:][:cntrl:][.backslash.]]+)$'
     ),
   source text
     constraint csp_reports_source_shape check (
       char_length(source) <= 255
-      and source ~ '^(self|inline|eval|wasm-eval|other|data|blob|chrome-extension|moz-extension|safari-web-extension|https?://[^/?#@ ]+|/_next/static(/[A-Za-z0-9._~-]+)+[.]js)$'
+      and source ~ '^(self|inline|eval|wasm-eval|other|data|blob|chrome-extension|moz-extension|safari-web-extension|https?://[^/?#@[:space:][:cntrl:][.backslash.]]+|/_next/static(/[A-Za-z0-9._~-]+)+[.]js)$'
     ),
   line_number integer
     constraint csp_reports_line_number_range check (line_number between 0 and 10000000),
@@ -74,7 +76,7 @@ create table if not exists csp_reports (
     constraint csp_reports_column_number_range check (column_number between 0 and 10000000),
   page text not null
     constraint csp_reports_page_shape check (
-      char_length(page) <= 64 and page ~ '^(other|/[[]locale[]](/[]a-z[-]+)*)$'
+      char_length(page) <= 64 and page ~ '^(other|/[[]locale[]](/[]a-z[-]{1,20})*)$'
     ),
   locale text not null
     constraint csp_reports_locale_shape check (locale ~ '^([a-z]{2}|none)$'),
@@ -84,6 +86,7 @@ create table if not exists csp_reports (
     constraint csp_reports_disposition_is_known check (disposition in ('enforce', 'report', 'other')),
   status_code integer
     constraint csp_reports_status_code_range check (status_code between 100 and 599),
+  constraint csp_reports_slot_follows_report_number check (slot = report_number % 10000),
   constraint csp_reports_source_only_for_own check (source is null or origin = 'own'),
   constraint csp_reports_page_only_for_own check (page = 'other' or origin = 'own')
 );

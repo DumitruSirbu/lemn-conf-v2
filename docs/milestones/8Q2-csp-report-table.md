@@ -175,12 +175,12 @@ create table if not exists csp_reports (
   blocked text not null
     constraint csp_reports_blocked_shape check (
       char_length(blocked) <= 255
-      and blocked ~ '^(self|inline|eval|wasm-eval|other|data|blob|chrome-extension|moz-extension|safari-web-extension|https?://[^/?#@ ]+)$'
+      and blocked ~ '^(self|inline|eval|wasm-eval|other|data|blob|chrome-extension|moz-extension|safari-web-extension|https?://[^/?#@[:space:][:cntrl:][.backslash.]]+)$'
     ),
   source text
     constraint csp_reports_source_shape check (
       char_length(source) <= 255
-      and source ~ '^(self|inline|eval|wasm-eval|other|data|blob|chrome-extension|moz-extension|safari-web-extension|https?://[^/?#@ ]+|/_next/static(/[A-Za-z0-9._~-]+)+[.]js)$'
+      and source ~ '^(self|inline|eval|wasm-eval|other|data|blob|chrome-extension|moz-extension|safari-web-extension|https?://[^/?#@[:space:][:cntrl:][.backslash.]]+|/_next/static(/[A-Za-z0-9._~-]+)+[.]js)$'
     ),
   line_number integer
     constraint csp_reports_line_number_range check (line_number between 0 and 10000000),
@@ -188,7 +188,7 @@ create table if not exists csp_reports (
     constraint csp_reports_column_number_range check (column_number between 0 and 10000000),
   page text not null
     constraint csp_reports_page_shape check (
-      char_length(page) <= 64 and page ~ '^(other|/[[]locale[]](/[]a-z[-]+)*)$'
+      char_length(page) <= 64 and page ~ '^(other|/[[]locale[]](/[]a-z[-]{1,20})*)$'
     ),
   locale text not null
     constraint csp_reports_locale_shape check (locale ~ '^([a-z]{2}|none)$'),
@@ -198,16 +198,25 @@ create table if not exists csp_reports (
     constraint csp_reports_disposition_is_known check (disposition in ('enforce', 'report', 'other')),
   status_code integer
     constraint csp_reports_status_code_range check (status_code between 100 and 599),
+  constraint csp_reports_slot_follows_report_number check (slot = report_number % 10000),
   constraint csp_reports_source_only_for_own check (source is null or origin = 'own'),
   constraint csp_reports_page_only_for_own check (page = 'other' or origin = 'own')
 );
 ```
 
 Notes for the reviewer [inf unless marked]:
-- `page`'s bracket expression `[]a-z[-]` is a literal `]`, `a`–`z`, a literal `[` and a literal `-` (Postgres ARE).
-  It admits every value of `CSP_PAGE_FAMILIES` and refuses an id or a token with an upper-case letter, a digit or an
-  `_`. A 21-character design id made only of lower-case letters and `-` would pass; S1 measures the alphabet of
-  `generateDesignId` and the share token's and states the odds, or tightens the check before the freeze.
+- `page`'s bracket expression `[]a-z[-]` is a literal `]`, `a`–`z`, a literal `[` and a literal `-` (Postgres ARE). It
+  admits every value of `CSP_PAGE_FAMILIES` and refuses an id or a token with an upper-case letter, a digit or an `_`.
+- Checkpoint-A findings applied to this text (not ADR 0161's F2 and F3 of 8Q2.3): **F4** bounds each page segment
+  `{1,20}`; **F3** makes the host class `[^/?#@[:space:][:cntrl:][.backslash.]]`, which refuses white space, control
+  characters and a backslash without writing one; **F5** adds `slot = report_number % 10000`, so a row sits only where
+  the ring puts it.
+- *What the bound does to the two generators* [source-verified: `generate-design-id.ts` is `nanoid()`, whose default
+  is 21 characters of the 64-character URL alphabet `A-Za-z0-9_-`, read in `nanoid@6.0.1`; `share-token.ts` draws
+  12 characters of `[0-9A-Za-z]`]: a design id is 21 characters, so as one segment it is now always refused (before
+  F4 it passed with odds of (27/64)^21, about 1.3e-8). A share token is 12 characters, within the bound, and passes
+  only if it is all lower-case letters, odds (26/62)^12, about 3e-5, or one in 34,000. Neither reaches a row as text
+  in any case: the reduction writes `[id]` and `[token]`. The check is a second line, not the first.
 - Every regex is backslash-free; `.` is written `[.]`.
 - The cursor's seed is the screen's `insert … values … on conflict do nothing` shape; criterion 1 holds it there.
 - No index beyond the two primary keys: the reading queries scan at most `N` rows.
@@ -270,7 +279,7 @@ anywhere.***
 | --- | --- | --- | --- |
 | **S1a** | (1) `0009` exactly as *The migration, for review*, with a header in `0008`'s form (what, why, frozen bytes, apply before the code, grant is the owner's, check the ledger reads 1–8 before and 1–9 after). (2) `migrate:unattended-check` and the existing screen test, **run without a database**. (3) Measure the id and token alphabets against `page`'s check (8Q2.3 note). (4) **Evaluate every CHECK before anything can freeze it:** each regex and range of `0009` against every accept and refuse case of criterion 3, as plain read-only `select '<value>' ~ '<pattern>'` statements on the test database (no DDL, no row written), output quoted; a bracket expression Postgres reads differently from this plan shows up here and not after the freeze. **STOP: checkpoint A before any live persistence run** (that run applies `0009` to the test database and freezes its bytes there) | new `migrations/0009_create_csp_reports.sql` | this plan, 8Q2.1–8Q2.3, *The migration*; ADR 0162 decisions 1–3; `0007_…sql`, `0008_…sql` (headers, frozen bytes); `migration-safety.ts` whole; `tests/migration-safety.test.ts`; `tests/migration-0008-text.test.ts` (the text-pin pattern); `generate-design-id.ts`; the share token's generator (`share-link-repository.ts`); ADR 0096 d5; ADR 0020 |
 | **Checkpoint A** | **The security reader and the architect read `0009`'s text and the grant** before anything applies it anywhere. A change after this point is a new migration | — | the security *Reading* line |
-| **S1b** | (1) `csp-report-store.ts`: the port (`recordReport(row): Promise<void>`), the row type, `CSP_REPORT_CAPACITY = 10_000`, `CspReportStoreError` (closed operation names, no driver text), and `requireValidCspReportRow` holding every check of `0009` in code (ADR 0153's *code refuses before the server what the table would refuse*). (2) `neon-csp-report-store.ts`: the one statement; no retry. (3) `fake-csp-report-store.ts`: the same ring with `N` a constructor argument. (4) Exports. (5) Tests: a text pin of `0009` (columns, constraint names, the capacity literal equal to `CSP_REPORT_CAPACITY`); the contract suite run by both stores; the live suite (criteria 3–7) | new `csp-report-store.ts`, `neon-csp-report-store.ts`, `fake-csp-report-store.ts`; `index.ts` | this plan, 8Q2.1–8Q2.5, *The store's one statement*, *The grant*; ADR 0162; `rate-limit-store.ts`, `neon-rate-limit-store.ts`, `fake-rate-limit-store.ts`, `contact-submission-store.ts` (the check-in-code pattern), `sha256-digest.ts`, `open-application-database.ts`, `migration-errors.ts` (`reducedCauseOf`); `tests/support/rate-limit-store-contract.ts`, `tests/neon-rate-limit-store.test.ts` (live pattern, schema lock), `tests/support/live-test-database.ts`; **the three censuses, which go red by design for a new connection site or a new live file and are updated deliberately in this slice, the change reported:** `tests/connection-opening-census.test.ts`, `tests/live-suite-census.test.ts`, `tests/connection-url-sites.test.ts`; ADR 0149, 0153 d1, 0155 *Incident* and standing rule |
+| **S1b** | (1) `csp-report-store.ts`: the port (`recordReport(row): Promise<void>`), the row type, `CSP_REPORT_CAPACITY = 10_000`, `CspReportStoreError` (closed operation names, no driver text), and `requireValidCspReportRow` holding every check of `0009` in code (ADR 0153's *code refuses before the server what the table would refuse*). **It must not reuse the SQL pattern strings as JS `RegExp`s** (JS reads `[]` as an empty class and `[.backslash.]` as a class of characters); it carries explicit JS equivalents, tested against the criterion-3 case table including the checkpoint-A cases F3 (a host with a space, a tab, a control character, a backslash), F4 (a segment of 21 characters) and F5 (a slot that is not `report_number mod N`). (2) `neon-csp-report-store.ts`: the one statement; no retry. (3) `fake-csp-report-store.ts`: the same ring with `N` a constructor argument. (4) Exports. (5) Tests: a text pin of `0009` (columns, constraint names, the capacity literal equal to `CSP_REPORT_CAPACITY`); the contract suite run by both stores; the live suite (criteria 3–7) | new `csp-report-store.ts`, `neon-csp-report-store.ts`, `fake-csp-report-store.ts`; `index.ts` | this plan, 8Q2.1–8Q2.5, *The store's one statement*, *The grant*; ADR 0162; `rate-limit-store.ts`, `neon-rate-limit-store.ts`, `fake-rate-limit-store.ts`, `contact-submission-store.ts` (the check-in-code pattern), `sha256-digest.ts`, `open-application-database.ts`, `migration-errors.ts` (`reducedCauseOf`); `tests/support/rate-limit-store-contract.ts`, `tests/neon-rate-limit-store.test.ts` (live pattern, schema lock), `tests/support/live-test-database.ts`; **the three censuses, which go red by design for a new connection site or a new live file and are updated deliberately in this slice, the change reported:** `tests/connection-opening-census.test.ts`, `tests/live-suite-census.test.ts`, `tests/connection-url-sites.test.ts`; ADR 0149, 0153 d1, 0155 *Incident* and standing rule |
 | **S2** | The guarded test-only helpers: `deleteCspReportsForTests(marks)` (`where writer_mark = any($1) returning slot`, the count answered) and `countCspReportsForTests(marks)`; each refuses a non-digest mark before connecting, returns before any statement for an empty list, opens only `openTestDatabase()`, and runs `requireTestRunner`. Unit tests pin each statement's whole text with the driver mocked; the live test plants a row under a foreign mark and asserts it remains. Privilege test: the two tables (criterion 7) | new `delete-csp-reports-for-tests.ts`, `count-csp-reports-for-tests.ts`; `index.ts` | this plan, criteria 7, 15, 16; `delete-rate-limit-counters-for-tests.ts`, `count-contact-submissions-for-tests.ts`, `delete-contact-submissions-for-tests.ts` and their `.test.ts`/`.live.test.ts`; `require-test-runner.ts`, `test-database-url.ts`; `tests/application-role-privileges.test.ts` (the skip-when-absent pattern, lines ~291–375); the same three censuses as S1b (two new `openTestDatabase()` sites, new live files), updated deliberately and reported; ADR 0006, 0151 (whole, with its note), 0155 standing rule |
 | **S3** | The write. (1) `keyed-digest.ts`: purpose `csp-report-writer` with one field. (2) New `csp-report-writer-mark.ts` (server-only): the mark from the secret's reader, or *unavailable*. (3) New `csp-report-store-instance.ts`, made on first use, as the other two instances. (4) `csp-report-log.ts`: `reportCspReportUnstored(cause)`, once per process per cause, closed causes `store-failed`, `deadline`, `row-refused`, `mark-unavailable`. (5) `route.ts`: after `reportCspViolation`, await the store under `RATE_LIMIT_DEADLINE_MS`; any failure → the unstored line, still `204`. Route tests use the persistence fake as the store (*what a test fakes is the database*, ADR 0155 d10) | `app/api/csp-reports/route.ts`, `lib/server/csp/csp-report-log.ts`, `lib/server/digest/keyed-digest.ts`; new `lib/server/csp/csp-report-writer-mark.ts`, `lib/server/csp/csp-report-store-instance.ts` | this plan, 8Q2.4–8Q2.8, criteria 8–14; ADR 0161 whole with F1–F4 and Amendment B; ADR 0162; ADR 0156 d4; ADR 0155 d1, d2, d10; the five files named; `judge-csp-report.ts`, `csp-report.ts` (read only; the reduction does not change); `rate-limit-store-instance.ts`, `contact/contact-submission-store-instance.ts`; `digest/digest-secret.ts`; `tests/app/api/csp-reports/route.test.ts`, `tests/lib/server/csp/csp-report.test.ts`, `csp-sink-source.test.ts` (a source scan of the sink: the route now imports a store and a module that reads the secret, so it may need an update, made deliberately and reported, never loosened to pass) |
 | **S4** | The e2e net. `support/e2e-rate-limit-run.ts` (or a new `support/csp-report-rows.ts`): the run's mark from its secret; `global-teardown.ts`: count, then remove the run's rows by mark through S2's helper, print the figure beside the csp-report hits, and fail (aggregated with the others, after every removal) if rows removed exceed hits counted. The `CI` zero-hits assertion is unchanged | none (tests only) | this plan, criteria 15–17; `global-teardown.ts`, `support/e2e-rate-limit-run.ts`, `support/production-policy-server.ts` (read), `playwright.config.ts:88-125` (read); ADR 0155 d10; ADR 0151; ADR 0161 d8 |
