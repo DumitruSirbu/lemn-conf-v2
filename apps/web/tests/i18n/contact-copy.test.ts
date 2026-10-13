@@ -53,8 +53,6 @@ const INTERNATIONAL_CODES = [
 ] as const;
 
 const CONTACT_OUTCOME_NOTICES: readonly ContactOutcomeNotice[] = [
-  { kind: "failed" },
-  { kind: "unanswered" },
   { kind: "refused" },
   { kind: "conflict" },
   { kind: "design-not-current" },
@@ -63,16 +61,18 @@ const CONTACT_OUTCOME_NOTICES: readonly ContactOutcomeNotice[] = [
   { kind: "limited", time: "14:05", isTomorrow: true },
 ];
 
-// The notice's kinds are the answer classes' kinds but `sent`, which the result screens tell and no sentence of this
-// namespace does: a class added to either side and not the other does not compile.
+// The notice's kinds are the answer classes' kinds but `sent`, which the result screens tell, and `failed` and
+// `unanswered`, which frame 5B tells and no sentence of this namespace does: a class added to either side and not the
+// other does not compile.
+type ClassesTold = Exclude<
+  ContactOutcome["kind"],
+  "sent" | "failed" | "unanswered"
+>;
 const NOTICE_KINDS_ARE_THE_ANSWER_CLASSES: {
-  readonly forward: Exclude<
-    ContactOutcome["kind"],
-    "sent"
-  > extends ContactOutcomeNotice["kind"]
+  readonly forward: ClassesTold extends ContactOutcomeNotice["kind"]
     ? true
     : false;
-  readonly backward: ContactOutcomeNotice["kind"] extends ContactOutcome["kind"]
+  readonly backward: ContactOutcomeNotice["kind"] extends ClassesTold
     ? true
     : false;
 } = { forward: true, backward: true };
@@ -300,15 +300,6 @@ describe.each(CATALOGUES)(
         );
       },
     );
-
-    it("tells a request with no answer, and one that failed, in their own sentences", () => {
-      const unanswered = content.contactOutcome({ kind: "unanswered" });
-      const failed = content.contactOutcome({ kind: "failed" });
-
-      expect(unanswered).toBe(content.submissionResult.failureLostConnection);
-      expect(failed).toBe(content.submissionResult.failureNotSent);
-      expect(unanswered).not.toBe(failed);
-    });
 
     it("draws neither a ✓ nor the sent heading in the no-request and not-shown sentences", () => {
       for (const sentence of [

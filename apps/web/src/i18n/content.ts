@@ -694,18 +694,17 @@ function resolveCodeThisBuildLacks(
   return translate("submissionResult.failureNotSent");
 }
 
-/** What the screen says of an answer that was not a send, with the one value a sentence carries already read: the clock
- *  time, and whether it is tomorrow's, that a limited send may be tried again. The kinds are `ContactOutcome`'s but
- *  `sent`, which the result screens tell; this module takes nothing from `contact/`, which would put the form's
- *  routing into every model that names a resolved sentence, and a test ties the two unions. */
+/** What the screen says, beside the form, of an answer that was not a send, with the one value a sentence carries
+ *  already read: the clock time, and whether it is tomorrow's, that a limited send may be tried again. The kinds are
+ *  `ContactOutcome`'s but `sent`, which the result screens tell, and `failed` and `unanswered`, which have the screen
+ *  of frame 5B; this module takes nothing from `contact/`, which would put the form's routing into every model that
+ *  names a resolved sentence, and a test ties the two unions. */
 export type ContactOutcomeNotice =
   | {
       readonly kind: "limited";
       readonly time: string;
       readonly isTomorrow: boolean;
     }
-  | { readonly kind: "failed" }
-  | { readonly kind: "unanswered" }
   | { readonly kind: "refused" }
   | { readonly kind: "conflict" }
   | { readonly kind: "design-not-current" }
@@ -724,10 +723,6 @@ export function resolveContactOutcome(
           : "contact.outcomes.limited",
         { time: notice.time },
       );
-    case "failed":
-      return translate("submissionResult.failureNotSent");
-    case "unanswered":
-      return translate("submissionResult.failureLostConnection");
     case "refused":
       return translate("contact.outcomes.refused");
     case "conflict":
