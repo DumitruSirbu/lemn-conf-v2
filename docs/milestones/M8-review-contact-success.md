@@ -11593,6 +11593,11 @@ to M9 (point 7). *Tier: Full + security*; visual only if S1 draws a page (point 
 exists: [ADR 0161](../decisions/0161-the-csp-enforces-its-violations-reach-the-applications-own-counted-endpoint-and-the-mode-stays-one-versioned-constant.md),
 *Proposed*, completed by the scribe at the close.
 
+> **Dated 2026-10-13, later: S0 is measured** ([`8q-s0-measurements.md`](8q-s0-measurements.md)) **and
+> checkpoint A has ruled** (*8Q checkpoint A*, at the end of this section). Its slice table, order,
+> *Must not* amendments and criteria 13 and 14 **overtake** points 4 and 6 and amend points 3, 5, 9
+> and 11 where it says so. Dispatch from checkpoint A, not from point 4's table.
+
 **The wave in two parts.** **Part A** is everything provable on this machine, on a production
 build served by `next start` under `CI=1`: S0 to S6. **Part B** needs a deployment or an owner
 ruling: a preview look, the sink's final home, an operator switch, the bot check (point 7). **No
@@ -11752,6 +11757,7 @@ No record says the opposite of what follows except ADR 0041 d4, which ADR 0161 o
   today; the tour shows the canvas drawn under enforcement.
 
 **4. The slices.** One developer, in the order of point 6. *Production files* exclude tests.
+**(Overtaken 2026-10-13 by *8Q checkpoint A*: S1a and S2a added, S1 restated, S3 to S6 amended.)**
 
 | Slice | Does (items) | Production files | Reading |
 | --- | --- | --- | --- |
@@ -12004,6 +12010,296 @@ STATUS: the SEC-004 line (the CSP is a control now), the M8 row, *What to do nex
 table's 8Q row. **M9's file gains B1's gate line, Q46's host choice, Q49's outcome and the host's
 rollback.** 8T's gate gains: the enforced policy on a real phone (iOS Safari: a report sent, no
 violation on Step 1, the editor and 5A).
+
+#### 8Q checkpoint A — 2026-10-13
+
+**Basis.** S0's report, [`8q-s0-measurements.md`](8q-s0-measurements.md), at `9f26a58e`. Its
+figures are **[doc: S0]** here; the architect re-ran none of them. What the architect read for this
+checkpoint is **[src]** at `9f26a58e`: `zod@4.4.3` `v4/core/core.js:72-77` (the configuration is
+one object on `globalThis.__zod_globalConfig`, shared by every copy of Zod in a realm),
+`v4/core/util.js:145-161` (`allowsEval` is `cached`, skipped under `jitless`), `schemas.js:970-972`
+(read where an object schema is built); `packages/configurator-domain/src/schemas.ts` (a
+`z.strictObject` built at module scope, so importing the package runs the probe); the four
+importers of `zod` (`schemas.ts`, `design.ts`, `materials.ts`, `contact/contact-fields.ts`;
+`failure-text.ts` names Zod only in a comment); `pnpm-lock.yaml` (`zod@4.1.11` reaches the tree
+only through `@vercel/cli-config`, a CLI, never a bundle); `apps/web/tests/e2e/support/pixels.ts:131-175`;
+`lib/security-headers.ts:104-121`; `proxy.ts:35-41` (the matcher); `app/[locale]/layout.tsx:18, 58`;
+`next.config.ts`; `WORKFLOW.md`, *Scope discipline*.
+
+**Two findings S0 adds that point 4 has no slice for, and how they are classified.**
+
+| Finding | Classification | Why |
+| --- | --- | --- |
+| **F-A.** Zod 4's `allowsEval` probe calls `new Function("")` in every document that hydrates. That is one `script-src` violation per page view, six on the editor in report-only, and one blocked and caught under enforcement [doc: S0 M3, M4] | **Implementation defect** (the shipped bundle attempts eval; the policy is right to refuse it), **plus a plan gap**: point 4's *Must not* forbids every file under `packages/`, the only place the fix can live | The page works under enforcement (S0 M4), so no customer sees a break. But criterion 2 and S4's baseline cannot pass, and every page view would cost a write to the counters table once S4 points the policy at the sink |
+| **F-B.** `support/pixels.ts:142, 175` decodes a screenshot with `fetch("data:image/png;base64,…")` inside the app's page. `connect-src 'self'` refuses it, and 32 e2e tests fail under enforcement [doc: S0 M10, cause B; src] | **Test-fidelity problem.** No product script does this. The helper relies on a permission the product does not need | Also a **report-only** problem S0 did not run: in today's mode the same fetch is a reported `connect-src` violation. Once S4 adds `report-uri`, each pixel spec would send a report to the suite's server, and S4's baseline teardown would count it [inf: follows from M3 (report-only violations fire) and M6 (each is POSTed); falsified if S4's baseline counts zero with `pixels.ts` unchanged] |
+
+**Rulings.**
+
+- **8Q.10 — Zod runs `jitless`, set by the domain package itself, in one module every importer
+  goes through (F-A).**
+  - **What.** A new `packages/configurator-domain/src/zod-without-eval.ts` imports `z` from `zod`,
+    calls `z.config({ jitless: true })` at module scope, and re-exports `z`. The four importers take
+    `z` from it, and none imports `"zod"` directly. A lint rule in `eslint.config.mjs` refuses
+    `import … from "zod"` under `packages/configurator-domain/src/` in every file but that one, with a
+    message naming this ruling.
+  - **Why there.** ES module evaluation runs a dependency before its dependent. When every
+    schema-building module imports the configured `z`, the configuration cannot run after the first
+    object schema is built, whatever order a bundler emits the domain's modules in. A call placed
+    only first in `index.ts` would depend on that order instead [inf: holds for any ESM-conformant
+    bundle; falsified by S1a's trap test].
+  - **Boundary.** The domain *"performs no I/O"* (`ARCHITECTURE_PROPOSAL.md` §3). A call that sets
+    a library option is not I/O: it reads and writes no file, network, clock or store, and it
+    changes *how* Zod checks a value, never *what* it accepts. It is the domain package's **one
+    module-scope effect**, on Zod's own global object. In this application only the domain imports
+    Zod at run time (`apps/web/package.json` lists no `zod`). The ruling says so plainly so that no
+    later reader takes it for a precedent for other module-scope effects.
+  - **Cost.** In the **browser under enforcement: none.** The probe is already refused there, so
+    Zod already runs its slow path (S0 M4: the editor's five compiled parsers disappear and the page
+    works). In report-only, and **on the server (Node)**, Zod loses its compiled fast path for
+    object parsing. That cost is **unmeasured**. S1a measures it once (item 5). If the jitless
+    median parse of the largest committed fixture (`fixtures/kitchen-l-design.ts`) exceeds
+    **1 ms**, S1a stops and the architect rules.
+  - **Not taken.**
+    - **A web-side call** (`apps/web` imports `zod` and configures it). It needs a dependency, which
+      M8 forbids. It also depends on Next's client chunk order to run before the domain's first
+      schema, which nothing guarantees.
+    - **Writing `globalThis.__zod_globalConfig`** from the web. That is Zod's internal name, not its
+      API.
+    - **A function the web calls**, `configureZod()`. The schemas are built when the module is
+      imported, before any caller can run.
+    - **A browser-only setting** (`jitless: typeof document !== "undefined"`). That is environment
+      sniffing in an I/O-free package, and the same schema would validate down two paths.
+    - **`'unsafe-eval'` in production.** It weakens the control 8Q builds.
+    - **Filtering the eval out of the net.** That is an observer that cannot fail for the most common
+      violation, against ADR 0152.
+    - **Accepting it.** One counter write per page view, and the shared bucket of 100 an hour is
+      spent by ordinary traffic, after which a real violation is answered `429` (S0 *Surprising* 1).
+- **8Q.11 — `pixels.ts` decodes without a URL fetch (F-B), in its own tests-only slice, S2a.**
+  Both in-page decoders turn the base64 text into bytes (`atob`, then `Uint8Array`), the bytes
+  into a `Blob` of type `image/png`, and the `Blob` into an `ImageBitmap` with `createImageBitmap`.
+  The rest of each function is unchanged. *Why this and not an `Image` with a `data:` source:* no
+  fetch happens at all, so the helper depends on **no** directive. A later tightening of `img-src`
+  could not break it again. The `Image` route would work today, since `img-src` admits `data:`.
+  Each in-page function stays self-contained, because `page.evaluate` serialises one function.
+  The two copies of the decode stay two, and each carries this ruling's number. *Not taken:*
+  decoding in Node, which needs a PNG dependency; `bypassCSP`, which criterion 9 forbids; adding
+  `data:` to `connect-src`, a policy change made for a test.
+- **8Q.4, the ladder, applied to S0's table (point 3 amended).**
+
+  | Address class [doc: S0 M2] | Rung | S1's answer |
+  | --- | --- | --- |
+  | `/xx/…`; `/internal/scene-shot` with its flag off; a failed design render (500, every script nonced); `/zz`, `/RO/…`, `/%`-malformed, static assets, the redirects | **1** | Nothing is built. Criterion 1's spec pins each one (S1); the failed render is pinned on a second server (S6 item 4) |
+  | No route matches, under a valid locale: `/ro/zz`, `/ru/zz`, `/ro/d/x/zz`, `/ro/configurator/zz`, `/ro/%`, `/ro/%E0%A4%A`, `/ro/configurator/room/extra`, a 9,000-character path, `/ro/_not-found`, `/ro/_global-error`, `POST /ro/zz` | **2**, experiment first | `app/[locale]/[...unmatched]/page.tsx`: it awaits `connection()` (the precedent is the callback page, `configurator/contact/page.tsx:12-14`), then calls `notFound()`. Next renders its own text per request, as it already does for `/xx/…` [doc: S0 M2]. **No new sentence** (rung 3 is not engaged unless the experiment shows otherwise) |
+  | No route matches under `/api` or `/internal` | **2 → 1** | `app/api/[...unmatched]/route.ts` and `app/internal/[...unmatched]/route.ts`. Each answers every method it exports with an empty `404`, `Cache-Control: no-store` and no document. A method it does not export gets Next's own `405`, also with no document. The more specific routes (`/api/designs/…`, `/api/csp-reports`, `/internal/scene-shot`) keep precedence |
+  | **`/_not-found` and `/_global-error` typed as addresses** | **2**, experiment, then a ruled residual | See 8Q.12 |
+  | **Not in S0's table:** an address under a locale whose last segment ends in an extension the proxy's matcher skips (`/ro/zz.png`, `/ro/configurator/zz.svg`). The matcher admits only `/:locale/d/:id` and `/:locale/s/:token` back [src: `proxy.ts:35-41`] | **Measure in S1** | [inf, not measured]: no proxy runs, so the response carries **no** CSP at all, today and after the flip, and Next serves its 404 document. A document with no policy has nothing to enforce or violate, so the flip does not change it, and **8Q does not fix it**: the fix is the matcher, and `proxy.ts` is out of 8Q's scope. S1 records the status, the headers and whether the body is a document. If it is a document with no policy, the scribe adds it to the backlog for the security reader's judgement. It is not a stop |
+
+- **8Q.12 — the two literal internal addresses, in this order, the first that works.**
+  1. **A `beforeFiles` rewrite** in `next.config.ts` of exactly `/_not-found` and `/_global-error` to
+     an address under the default locale that matches no route. The `[locale]` catch-all then
+     answers it per request with a `404`, every script nonced, and the address the visitor typed is
+     kept. This avoids a soft 404 and a round trip. The installed documentation orders the checks
+     headers, redirects, the proxy, `beforeFiles` rewrites, then non-dynamic pages [doc:
+     `…/05-config/01-next-config-js/rewrites.md`, *The order Next.js routes are checked*]. So the
+     proxy's nonce exists before the rewrite, and the rewrite runs before the prerendered page
+     would be served. Whether Next exempts its own `_`-prefixed names is not documented.
+  2. If Next does not apply a rewrite to those two names [inf: unknown], a temporary
+     **`redirects()`** entry to the same target.
+  3. If neither applies, **the residual is accepted, and this is ruled now so that S1 does not stop
+     on it.** Each of the two addresses is reached only by typing an internal framework name. It
+     serves a text-only document whose scripts the enforced policy blocks: up to 8 reports a visit,
+     its text still visible, nothing run [doc: S0 M4]. The reports are counted by the limiter, and
+     they give no new capability, since anyone can POST forged reports anyway. Criteria 1 and 2 are
+     then read with the **named exemption** below, and the tour's row for each address asserts the
+     exemption: under enforcement no injected or own script ran, the text shows, and its reports
+     are intercepted by `page.route` before the suite's server (8Q.6's rule for a deliberate
+     violation).
+
+  *Not taken:* rung 4's proxy answer (a proxy change and a new security surface, for two addresses
+  only a person typing framework internals reaches); `experimental.globalNotFound` (experimental,
+  documented as one that *"skips rendering"*, so it may itself stay prerendered, and nothing in
+  S0's table needs it). **`/_not-found` stays in the manifest whatever happens:** Next builds it
+  regardless. Criterion 1's *"absent or one no browser receives"* is met by 8Q.12 (1) or (2), or by
+  the exemption under (3). The witness test in `contact-pages-per-request.e2e.spec.ts` (it looks
+  for `not-found` in the manifest) therefore keeps its subject, and point 4's S1 item (3) is
+  expected to be moot. S1 reports either way.
+- **8Q.6, amended: what observer (ii) counts.** In report-only, every document writes one console
+  `error`: *"The Content Security Policy directive 'upgrade-insecure-requests' is ignored when
+  delivered in a report-only policy."* It is a diagnostic, not a violation [doc: S0 M3]. As point
+  3 words observer (ii), it would turn every page of the report-only tour red. **Observer (ii)
+  counts a console message that names *Content Security Policy*, except that one sentence, matched
+  exactly, and only while the mode is `"report-only"`.** The sentence is one constant in
+  `csp-violations.ts`, which `webgl-unavailable-i18n.e2e.spec.ts` imports in place of its own copy
+  (S2 item 4 already moves that filter). Under enforcement a **blocked eval writes no console
+  line** [doc: S0 M4], so observer (ii) is blind to it, and observers (i) and (iii) carry it.
+  **Chromium deduplicates identical reports** (8 events, 7 reports on `/ro/zz`) [doc: S0 M6], so
+  no test asserts that reports equal events. A report count is a lower bound.
+- **8Q.3, amended by S0 M6.** `report-uri` alone delivers within about 12 ms, one `POST` of
+  `application/csp-report` per distinct violation, 738 to 803 bytes; the 8 KiB cap stands. A report
+  carries **the visitor's cookies** and a same-origin `Origin`. **The sink reads no cookie and sets
+  none.** The `Origin` check stays *not taken*, for a corrected reason: a browser does send the
+  header, but a non-browser forges it, so it proves nothing. `document-uri` holds the share token
+  and keeps the query, which confirms that the reduction is needed.
+- **8Q.7 — RULED: `upgrade-insecure-requests` stays.** [doc: S0 M5] Chromium under enforcement
+  upgrades nothing from `http://localhost:4320`, and every tour page hydrates. ADR 0041 d6 needs no
+  note for removal. **The cost, recorded for 8T:** a `next start` reached by a **LAN address**
+  under enforcement has every subresource upgraded to `https://…` and fails
+  (`ERR_SSL_PROTOCOL_ERROR`, not hydrated). So the production policy **cannot be looked at on a
+  handset over the LAN**. **8T's gate line, for the scribe:** *the enforced production policy is
+  checked on a real phone only on a TLS host (a preview, Q49 (a), or M9's host). ADR 0019's LAN
+  handset runs `next dev`, whose policy has no such directive and is therefore not the production
+  policy.*
+- **8Q.8 — RULED: one switch for both; no development allowance.** [doc: S0 M7] Seven `next dev`
+  stops under enforcement gave 0 violations. Development already admits `'unsafe-eval'` and
+  `ws: wss:`, and after 8Q.10 the probe does not run there either. **The teardown prints the count
+  under `next dev` and asserts nothing**, because no whole development run was measured (point 3's
+  own condition). S5 item 3 has nothing to change.
+- **8Q.13 — order: nothing may send a report to the sink's path before every known source of one
+  is gone.** S1a (Zod) and S2a (`pixels.ts`) both land **before S4** adds `report-uri`. S4 is not
+  dispatched until S2's tour is green in report-only with zero events of either disposition on
+  every page (criterion 2). This exists for the bucket and for the baseline: with the probe live,
+  every page view of every visitor would write a counter row, and the shared 100 an hour would be
+  spent by ordinary traffic within the hour [inf: from S0 M3's one-per-document figure and point
+  3's bucket; falsified by a page view that sends no report while the probe is live].
+
+**The slices, restated for dispatch.** One developer, one writer in the tree (R2). *Production
+files* exclude tests. Limits: about five production files and at most five items
+(`WORKFLOW.md`, *Scope discipline*).
+
+| Slice | Does (items) | Production files | Reading |
+| --- | --- | --- | --- |
+| **S1a** | **Zod without eval** (8Q.10). (1) `zod-without-eval.ts`: `z.config({ jitless: true })` and `z` re-exported, with a one-line *why* naming 8Q.10 and ADR 0161 d9. (2) The four importers take `z` from it. (3) The lint rule: no `"zod"` import under `packages/configurator-domain/src/` but that file. (4) **The trap test**: in a module graph that has not yet loaded Zod, `globalThis.Function` is replaced by a recorder; then the package entry is imported and every exported schema parses a valid and an invalid value (the fixture design among them); the test asserts **zero** constructions. **It must fail with item 1's call removed, and the red is quoted in the report.** A fresh child `node` importing the built `dist/index.js` is one way to get a fresh graph; Vitest's `server.deps.inline: ["zod"]` may be another [inf]. If neither can be made to fail, stop: the test is not kept (ADR 0152), and the e2e is the proof. (5) **One-off, not committed:** the median parse time over 1,000 parses of `kitchen-l-design.ts`, JIT and jitless, in Node, quoted; and, on a production build in report-only, Step 1 and the editor show **zero** `securitypolicyviolation` events, quoted | new `packages/configurator-domain/src/zod-without-eval.ts`; `schemas.ts`, `design.ts`, `materials.ts`, `contact/contact-fields.ts` (one import line each); `eslint.config.mjs`. **Six, four of them one-line import changes:** a recorded exception to *about five*, because the ESM guarantee in 8Q.10 needs every importer to take `z` from one place | 8Q.10, 8Q.13; S0 M3, M4 and *Surprising* 1; `ARCHITECTURE_PROPOSAL.md` §3 (the domain performs no I/O); ADR 0152; `zod@4.4.3` `v4/core/core.js:72-77`, `util.js:145-161`, `schemas.js:960-975`; the four importers; `eslint.config.mjs:285-305, 421-431` (the domain's import block); `packages/configurator-domain/vitest.config.ts`, `package.json` |
+| **S1** | **The unmatched addresses** (8Q.4 as amended, 8Q.12). (1) **Experiment first:** the `[locale]` catch-all alone, built, `/ro/zz` measured: `404`, not byte-equal to `_not-found.html`, every `<script>` nonced with the response's nonce, two loads with two nonces, Next's own text. If not, stop (rung 4). (2) The `api` and `internal` catch-all handlers. (3) 8Q.12's ladder for the two literal addresses; the step that worked is reported. (4) The comment above the switch: what remains in the manifest and why no browser receives it as a document (or the named exemption), still naming `prerender-manifest.json` and no contact page. (5) **Criterion 1's spec**, `tests/e2e/unmatched-addresses.e2e.spec.ts` (mobile project): every class of the 8Q.4 table but the failed render (S6), plus S0's *extra addresses*, by status, body, scripts and nonces; and the `/ro/zz.png` measurement, reported as 8Q.4's last row says | new `app/[locale]/[...unmatched]/page.tsx`, `app/api/[...unmatched]/route.ts`, `app/internal/[...unmatched]/route.ts`; `next.config.ts` (8Q.12 only); `lib/security-headers.ts` (the comment) | 8Q.2, 8Q.4 as amended, 8Q.12; S0 M1, M2 and the *extra addresses* table; ADR 0041 d3 and *Alternatives*; installed Next `not-found.md:47-58`, `content-security-policy.md:38, 181`, and the `rewrites`/`redirects` pages under `dist/docs/01-app/03-api-reference/05-config/`; `app/[locale]/layout.tsx`, `app/internal/layout.tsx`, `app/[locale]/configurator/contact/page.tsx:12-14`; `proxy.ts:35-41` (read); `next.config.ts`. Tests: `contact-pages-per-request.e2e.spec.ts` (its HTML parse and its manifest witness); `qa-8m-done-door.adversarial.e2e.spec.ts` (read) |
+| **S2a** | **`pixels.ts` decodes without a fetch; tests only** (8Q.11). (1) Both in-page decoders as 8Q.11 rules. (2) A scan test: no `fetch(` of a `data:` text under `tests/e2e`. (3) The 32 cause-B specs of S0 M10, run under `CI=1` in today's mode, all green, with `pixel-counter-witness.desktop` and its adversarial twin among them: they are what proves the new decode still counts, so a decoder that answered zeros goes red there | none (`tests/e2e/support/pixels.ts` is developer-owned) | 8Q.11, 8Q.13; S0 M10, cause B, and its spec list; `support/pixels.ts`; `pixel-counter-witness.desktop.e2e.spec.ts` and its adversarial twin (read: they are QA's evidence of the helper); `lib/security-headers.ts:104-121` (`img-src`, `connect-src`); `ci-and-local-gates.md`, *The per-shard test budget* |
+| **S2** | As point 4, with these changes. The tour has no row for the failing render (S6 item 4) and no row per unmatched class beyond one per family (`/ro/zz`, `/api/zz`, `/internal/zz`), since criterion 1's spec carries the rest. A row for each literal address only if 8Q.12 ended at (3), asserting the exemption. Observer (ii) as 8Q.6 is amended. The self-test asserts at least one report per distinct injected violation, never equality | none | as point 4's S2 row; 8Q.6 as amended here; S0 M3, M4, M6 (deduplication) |
+| S3 | As point 4, plus: the route and the `csp/` modules read no cookie and set none (8Q.3 as amended) | as point 4 | as point 4's S3 row; S0 M6 |
+| Checkpoint B | Unchanged | — | unchanged |
+| S4 | As point 4. **Dispatched only after S1a, S1, S2a and S2 are committed and S2's tour is green in report-only** (8Q.13) | as point 4 | as point 4's S4 row; 8Q.13 |
+| S5 | As point 4. Item (3) has nothing to change: 8Q.7 keeps the directive, and 8Q.8 adds no allowance. The expected-red list adds nothing from cause B (S2a fixed it) | as point 4 | as point 4's S5 row; 8Q.7, 8Q.8 as ruled here |
+| S6 | As point 4, plus **(4) the failed render under enforcement**. A second server (`production-policy-server.ts`, one more port) runs with a well-formed, unreachable fake `DATABASE_URL` (a `.invalid` host, never printed, never the application database). The owner cookies come from a design minted on the suite's server (cookies are not port-scoped), and the test registers that design under ADR 0151. Each of the design page, `/review`, `/contact` and `/done` answers `500` with every `<script>` nonced to its response and zero violations [doc: S0 M2's recipe and its note] | none | as point 4's S6 row; S0 M2's *note on the failing render*; ADR 0151; `environments-and-resources.md` |
+
+**Order (overtakes point 6):** S0 → checkpoint A → **S1a → S1 → S2a** → S2 → S3 → checkpoint B → S4
+(with the report-only baseline) → S5 → S6.
+- S1a goes first: it is small, and S2's tour and S4's baseline both need it.
+- S2a comes before S2 so that S2's runs are clean, and before S4 by 8Q.13.
+- S3 may still move ahead of S1a, never in parallel.
+- QA and the reviews still run once, after S6.
+
+***Must not*, amended (point 4).**
+- `packages/` is closed **except S1a's five files** under `packages/configurator-domain/src/`.
+- `eslint.config.mjs` may change **for S1a's one block only**.
+- `next.config.ts` may change **for 8Q.12's rewrite or redirect only**, and no experimental flag
+  is set.
+- Everything else in point 4's *Must not* stands. That includes `proxy.ts`, which is why 8Q.4's
+  `/ro/zz.png` row is recorded, not fixed.
+
+**Stops-if, added.**
+- **S1a:**
+  - the trap test cannot be made to fail;
+  - jitless costs more than 1 ms median per parse of the fixture;
+  - any existing domain or web Vitest test changes outcome;
+  - a `securitypolicyviolation` remains on Step 1 or the editor in report-only.
+- **S1:**
+  - the `/ro/zz` experiment fails (rung 4);
+  - a new visible sentence is needed (rung 3);
+  - any existing route changes its status or its body;
+  - a catch-all captures a path a named route answered before.
+- **S2a:** any of the 32 is still red, or a pixel witness goes green against a wrong image.
+
+**Criteria, amended and added (point 5).**
+
+- **1, amended.** Its address classes are 8Q.4's table as amended here. *"Every entry of the
+  manifest is absent or one no browser receives as a document"* is met for `/_not-found` and
+  `/_global-error` by 8Q.12 (1) or (2). If 8Q.12 ends at (3), criterion 1 reads: *"… or is one of
+  the two literal internal addresses `/_not-found` and `/_global-error`, which serve a document
+  whose every script the enforced policy blocks (no marker runs, its text shows, its reports are
+  counted by the limiter)."* The exemption names those two paths and no pattern. A third path served
+  a prerendered document is a red.
+- **2, amended.** *The global error* is answered by S0's recorded reason: a failing render is a
+  per-request `500` with every script nonced [doc: S0 M2], not `_global-error.html`. The page is
+  proved under enforcement by S6 item 4. The literal address follows criterion 1.
+- **4, added clause.** The route and the `csp/` modules read no cookie, which a scan proves, and no
+  answer carries `Set-Cookie`.
+- **6, amended.** S4 is committed after S1a, S1, S2a and S2 (8Q.13), and S5 after S4's quoted
+  baseline.
+- **10, ruled.** The production directive list is today's, with `upgrade-insecure-requests` kept,
+  plus `report-uri` (S4) and nothing else.
+- **13, added (8Q.10).** Importing `@lemnaria/configurator-domain` and parsing with every schema it
+  exports constructs **no** `Function` (unit: the trap, red with the configuration removed). Every
+  hydrating page of the tour has **zero** `script-src` events whose `blockedURI` is `eval`, in both
+  modes (e2e·CI, criterion 2). The domain's and the web's Vitest suites pass unchanged. No module
+  under `packages/configurator-domain/src/` but `zod-without-eval.ts` imports `"zod"` (lint).
+  *Must not:* `'unsafe-eval'` in the production policy; a filter for `eval` in any observer; a `zod`
+  dependency in `apps/web`. *Slice:* S1a, S2.
+- **14, added (8Q.11).** No `fetch` of a `data:` URL under `tests/e2e` (a scan). The 32 cause-B
+  specs pass under `CI=1` in report-only (S2a) and enforcing (QA's run). *Must not:* `data:` added
+  to `connect-src`; `bypassCSP`. *Slice:* S2a.
+
+**Review, per slice (point 8, rows added).**
+
+| Slice | Tier | Security reviewer? | Visual? |
+| --- | --- | --- | --- |
+| S1a | Full | **Yes**: the control's most frequent violation, and the domain's one module-scope effect | No |
+| S2a | Light (tests only; the logic reviewer checks that the pixel witnesses still bind) | No | No |
+
+**Reading lines, amended (point 9).** The coordinator pastes these after point 9's.
+- **QA, Reading:** add S1a's and S2a's rows, 8Q.10 to 8Q.13, and this checkpoint whole. **What
+  the pass owes, added:**
+  - the trap test's red, re-shown;
+  - a domain module that imports `"zod"` directly (the lint must refuse it);
+  - `/ro/zz` under both modes;
+  - each literal address as 8Q.12 ended;
+  - `/ro/zz.png` re-measured;
+  - a pixel witness fed a flat image.
+  
+  **Mutants, added:**
+  - the `z.config` call removed;
+  - one importer repointed to `"zod"`;
+  - the catch-all page without `connection()` (expected: prerendered or reused nonce);
+  - the report-only diagnostic exclusion widened to any *Content Security Policy* line;
+  - the sink reading a cookie.
+- **Logic, Reading:** add 8Q.10 to 8Q.13. **Named checks, added:** every class of 8Q.4's amended
+  table is in criterion 1's spec or S6 item 4; S4 came after S1a and S2a.
+- **Clean-code, Reading:** add S1a's six files and S1's five, with their tests. **Named question,
+  added:** whether `zod-without-eval.ts` is one reason to change, and whether its *why* says it is
+  the domain's one module-scope effect.
+- **Security, Reading:** add 8Q.10 to 8Q.13 and S1a's and S1's files. **Named checks, added:**
+  - that no hydrating page attempts eval;
+  - that the catch-alls do not shadow a named route;
+  - which rung 8Q.12 ended on, and, if (3), that the exemption names exactly two paths;
+  - the `/ro/zz.png` measurement, and whether its backlog line is warranted.
+- **Visual:** unchanged.
+
+**Risks, added (point 11).**
+- **13.** Jitless costs server parse time, unmeasured until S1a item 5, which carries the threshold.
+- **14.** `zod-without-eval.ts` sets a realm-global option. A future run-time importer of Zod in the
+  same process (none today) would inherit `jitless`. That is harmless to correctness, and the lint
+  rule keeps the domain's own importers on the one file.
+- **15.** A Zod upgrade could rename or drop `jitless` (it is in `core.d.ts:67` at 4.4.3).
+  Criterion 13's trap and e2e rows go red if it does.
+- **16.** The catch-all page relies on `connection()` to stay dynamic beneath a layout that has
+  `generateStaticParams` [src: `app/[locale]/layout.tsx:18`]. S1 item 1 is the experiment, and
+  criterion 1's *two loads, two nonces* is the standing pin.
+- **17.** The residual of 8Q.12 (3), if reached: two typed addresses cost up to 8 counted reports a
+  visit each. That is bounded, and it opens nothing a forger lacks.
+
+**Owner questions.** **None blocks a slice.** Two are for the owner's information, each with its
+default already ruled above:
+- (i) whether the two literal internal addresses may be left as text-only pages with blocked
+  scripts, if Next allows neither a rewrite nor a redirect for them (default: yes, 8Q.12 (3));
+- (ii) that the enforced policy can be checked on a real phone only on a TLS host, a preview or
+  M9's host, never `next start` over the LAN (default: 8T's gate line above; it leans on Q49 (a)).
+
+**For the coordinator, from S0.** S0 left one `designs` row (id `uv9SWNdcDBwLJHVzsZBno`), its share
+row and two inert counter rows on the **test** database [doc: S0, *Writes spent*]. Their removal is
+the coordinator's under ADR 0151, and nothing in 8Q depends on it. `8q-s0-measurements.md` is
+untracked and is committed with this checkpoint.
+
+**For the scribe, added to point 13.**
+- ADR 0161: decisions 6 and 7 as resolved here, and decision 9 (Zod without eval) as built,
+  completing the draft's amendments of 2026-10-13.
+- The backlog: the `/ro/zz.png` line, if S1 measured a document with no policy.
+- 8T: the gate line of 8Q.7.
 
 ### 8R — the firewall rules, staged — LEAVES FOR THE DELIVERY MILESTONE (owner, 2026-10-07)
 

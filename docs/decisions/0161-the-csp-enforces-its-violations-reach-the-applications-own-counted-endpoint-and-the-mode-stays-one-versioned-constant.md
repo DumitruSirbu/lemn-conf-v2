@@ -3,17 +3,24 @@
 Status: **Proposed — a draft by the architect at wave 8Q's planning, 2026-10-13.** Nothing in it is
 built. The scribe completes it at 8Q's close, as built, and only then marks it Accepted. Parts that
 wait on wave 8Q's measurement slice (S0) are marked **Open** and decide nothing yet.
+**Updated at checkpoint A, 2026-10-13:** S0 is measured, decisions 6 and 7 are resolved, decision
+9 is added, and decisions 1, 4 and 8 and the *Alternatives* carry dated amendments. None is open
+now; the record is still *Proposed* until the close.
 Date: 2026-10-13
 Type: Decision
-Milestone: M8 wave 8Q (web only; no file under `packages/`, no `proxy.ts` change, no migration, no
-grant, no dependency)
+Milestone: M8 wave 8Q (web, plus one exception: the five files of decision 9 under
+`packages/configurator-domain/src/`, ruled at checkpoint A, 2026-10-13; no `proxy.ts` change, no
+migration, no grant, no dependency)
 Supersedes in part: [ADR 0041](0041-the-browser-security-policy-is-versioned-and-the-csp-only-reports.md)
 decision 4 (by name, below). Discharges ADR 0041 decision 3's two preconditions.
 
 Evidence tiers: **[doc]** quoted from a record or the installed Next documentation, **[src]** read
 at `fd954e0a`, **[inf]** the architect's inference, with what would falsify it. The plan is
 `docs/milestones/M8-review-contact-success.md`, *8Q plan — restated for dispatch, 2026-10-13*
-(rulings 8Q.1 to 8Q.9, criteria 1 to 12).
+(rulings 8Q.1 to 8Q.9, criteria 1 to 12), and its *8Q checkpoint A — 2026-10-13* (rulings 8Q.10
+to 8Q.13, criteria 13 and 14). **[doc: S0]** marks a figure from S0's report,
+`docs/milestones/8q-s0-measurements.md` (at `9f26a58e`), which the architect read and did not
+re-run.
 
 ## Context
 
@@ -37,6 +44,11 @@ flip as *"the application's own header"*, needing no host (*M8 restated*, 2026-1
 browser without a nonce (decision 6), (b) the sink of decision 2 exists and the policy names it, and
 (c) one whole `CI=1` e2e run in report-only has counted zero reports on the suite's server. The
 order is a criterion of the wave, checked by commit order (plan, criterion 6).
+
+**Added at checkpoint A, 2026-10-13:** (b) is not committed until every known source of a report
+is gone, which means Zod's eval probe (decision 9) and the e2e pixel helper's `fetch` of a `data:`
+URL [doc: S0 M10, cause B]. Otherwise ordinary page views would write a counter row each and
+spend the shared bucket (plan, 8Q.13).
 
 ### 2. ADR 0041 decision 4 is overturned: violations reach `POST /api/csp-reports`
 
@@ -68,8 +80,17 @@ schedule, the reasoning of the 2026-09-06 ruling that became ADR 0146.
 ### 4. `report-uri` only; no `report-to` in M8
 
 The Reporting API delivers in batches after a delay and wants a potentially trustworthy endpoint,
-which would make the e2e evidence depend on timing [inf; S0 measures what Chromium sends with
-`report-uri` alone]. Revisited if the owner chooses a hosted collector (Q46 (b)).
+which would make the e2e evidence depend on timing [inf]. Revisited if the owner chooses a hosted
+collector (Q46 (b)).
+
+**Measured, 2026-10-13** [doc: S0 M6]. With `report-uri` alone, Chromium 151 sends:
+- one `POST` per distinct violation, of type `application/csp-report`, 738 to 803 bytes, within
+  about 12 ms of the page's event, with no batching;
+- identical reports from one page once only, so a report count is a lower bound on events;
+- the report with the visitor's cookies and a same-origin `Origin`;
+- `document-uri` with the share token and the query kept, and the fragment dropped.
+
+The reduction of decision 3 is therefore needed, and **the sink reads no cookie and sets none.**
 
 ### 5. The mode stays one versioned constant; a rollback is one line
 
@@ -80,20 +101,48 @@ both dispositions, so a rolled-back build stays covered. *Why not an environment
 would put the browser's security posture back outside the code, which is SEC-004 itself (ADR 0041
 Context); creating one is also the owner's (Q48).
 
-### 6. Open — what is still prerendered (S0, then the architect at checkpoint A)
+### 6. What is still prerendered — resolved at checkpoint A, 2026-10-13
 
 Each address class a browser can be sent is either rendered per request, every script nonced, or
 shown never to reach a browser as a document. The plan's ladder (8Q.4) governs: per request where
 Next allows it, keeping Next's own text; a page of our own only with drafted copy and a visual
 review; otherwise back to planning. **Never** `'unsafe-inline'` in `script-src`, a hash list, a
-removed `'strict-dynamic'`, or a nonce in `style-src`. *What S1 used is recorded here at the close.*
+removed `'strict-dynamic'`, or a nonce in `style-src` (S0 confirmed the last on a scratch page: a
+nonce in `style-src` stopped a `style` attribute applying).
 
-### 7. Open — `upgrade-insecure-requests` and development (S0, then checkpoint A)
+**Resolved** [doc: S0 M1, M2]. The manifest holds only `/_global-error` and `/_not-found`.
+- **A failing render** is already a per-request `500` with every script nonced, not the
+  prerendered global error.
+- **An address no route matches**, under a locale, `/api` or `/internal`, was served the
+  prerendered `_not-found.html` with 8 un-nonced scripts. Its text shows under enforcement; only
+  hydration is lost.
 
-Whether the directive stays (ADR 0041 decision 6) depends on whether Chromium under enforcement
-upgrades the suite's own `http://localhost` requests; the default is that it stays. Whether
-development needs a dev-only allowance is measured the same way; a development server that only
-reports is not decided. *Recorded here at the close.*
+The ruling:
+- catch-all files answer those addresses: under `[locale]`, a page that awaits `connection()` and
+  calls `notFound()`, keeping Next's own text, rendered per request; under `api` and `internal`,
+  handlers that answer an empty `404`;
+- the two literal addresses `/_not-found` and `/_global-error` are rewritten (or, failing that,
+  redirected) to an address the catch-all answers;
+- if Next permits neither, the residual is accepted by name: those two typed addresses serve a
+  text-only document whose scripts the policy blocks, at up to 8 counted reports a visit, and
+  nothing else may.
+
+An address under a locale whose last segment ends in an extension the proxy's matcher skips
+(`/ro/zz.png`) reaches no proxy and carries no policy. The flip does not change it, and 8Q records
+it rather than fixing it (`proxy.ts` is out of scope). *What S1 used, the rewrite, the redirect or
+the residual, is recorded here at the close.*
+
+### 7. `upgrade-insecure-requests` and development — resolved at checkpoint A, 2026-10-13
+
+**The directive stays** (ADR 0041 decision 6 unchanged) [doc: S0 M5]. Under enforcement Chromium
+upgrades nothing from `http://localhost`, and every page hydrates. A `next start` reached by a LAN
+address has every subresource upgraded to `https://` and fails, so the enforced production policy
+is checked on a phone only on a TLS host. That is a gate line for 8T.
+
+**Development needs no allowance; one switch serves both** [doc: S0 M7: seven `next dev` stops
+under enforcement, 0 violations]. The whole-run teardown prints its count under `next dev` and
+asserts nothing, since no whole development run was measured. A development server that only
+reports is not built.
 
 ### 8. Zero violations is an invariant of the whole run, not of a list of pages
 
@@ -102,6 +151,44 @@ console, requests to the report path), and the whole `CI=1` e2e run fails if the
 counted any report. A spec that causes a violation on purpose keeps its reports off that server.
 The whole-run check is one-directional (a report not yet sent when its page closed is missed); the
 tour is the deterministic proof.
+
+**Amended at checkpoint A, 2026-10-13** [doc: S0 M3, M4]:
+- In report-only, every document writes one console `error` that is not a violation, the notice
+  that `upgrade-insecure-requests` is ignored there. The console observer excludes exactly that
+  sentence, and only in report-only.
+- A blocked eval writes no console line, so the event and request observers carry it.
+
+### 9. Zod runs without eval, configured by the domain package — added at checkpoint A, 2026-10-13
+
+Zod 4 probes for eval with `new Function("")` when it builds its first object schema. Every
+document that hydrates did so: one `script-src` violation a page view, six on the editor in
+report-only, blocked and caught under enforcement [doc: S0 M3, M4; src: `zod@4.4.3`
+`v4/core/util.js:145-161`, `schemas.js:970-972`]. Left alone, it fails decision 8 on every page
+and spends decision 2's shared bucket with ordinary traffic.
+
+**The fix:**
+- `packages/configurator-domain/src/zod-without-eval.ts` calls `z.config({ jitless: true })` and
+  re-exports `z`;
+- the domain's four importers of Zod take `z` from it;
+- a lint rule refuses a direct `"zod"` import anywhere else under the package's `src/`.
+
+ES module order then guarantees that the setting precedes the first schema, whatever order a
+bundler emits.
+
+**This is the domain's one module-scope effect.** It sets a library option on Zod's own global
+object, and it is not I/O (`ARCHITECTURE_PROPOSAL.md` §3): it changes how Zod checks a value, not
+what it accepts. It is not a precedent for other effects.
+
+**Cost.** None in the browser under enforcement, where the probe already fails. On the server Zod
+loses its compiled object parser. That cost is measured once at S1a, with a stop above 1 ms median
+per parse of the largest fixture.
+
+*Not taken:*
+- a `zod` dependency in the web app (M8 adds none, and client chunk order is not guaranteed);
+- writing Zod's internal global from outside;
+- a browser-only setting (environment sniffing in an I/O-free package);
+- `'unsafe-eval'` in production;
+- filtering the eval out of the observers.
 
 ## Alternatives considered
 
@@ -113,8 +200,11 @@ tour is the deterministic proof.
   nobody has asked to read (Q46 (c)).
 - **A hosted collector (Sentry or similar).** Not taken in M8: a dependency and a third party, and
   M8 adds no dependency; chosen with the host in M9 if at all (Q46 (b)).
-- **An `Origin` check on reports.** Not taken: a browser's report carries no reliable one [inf],
-  and a forged report is bounded, reduced noise.
+- **An `Origin` check on reports.** Not taken. The draft's reason, *"a browser's report carries no
+  reliable one"*, is **refuted** for Chromium 151, which sends a same-origin `Origin` [doc: S0 M6].
+  The conclusion stands for the remaining reason: a non-browser forges the header, so it proves
+  nothing, and a forged report is bounded, reduced noise.
+- **Removing `upgrade-insecure-requests`.** Not taken: it upgrades nothing on `localhost` (decision 7).
 - **An environment variable for the mode.** Rejected: decision 5.
 - **Hashes for the prerendered pages.** Rejected again, for ADR 0041's reason.
 
@@ -129,6 +219,10 @@ tour is the deterministic proof.
   does nothing under `'strict-dynamic'` (ADR 0041 decision 5). This binds M9's bot shield, whatever
   it is: it must be observed under the enforced policy on the chosen host before launch.
 - **A rollback needs a deployment.** The host's own instant rollback is M9's to record.
+- **The domain package carries one module-scope effect** (decision 9). A Zod upgrade that renames
+  `jitless` turns criterion 13's trap and the tour red.
+- **The enforced policy cannot be checked on a phone over the LAN** with `next start` (decision 7);
+  8T uses a TLS host.
 
 ## Owner's questions (from the plan, point 7)
 
