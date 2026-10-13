@@ -43,7 +43,7 @@ export interface ContactMessages {
     readonly savedSentence: string;
     readonly sendOnWhatsapp: string;
     readonly openWhatsapp: string;
-    readonly whatsappMessage: string;
+    readonly whatsappMessageToShop: string;
     readonly noRequest: string;
     readonly notShown: string;
     readonly failureHeading: string;

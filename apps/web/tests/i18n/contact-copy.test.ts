@@ -275,15 +275,6 @@ describe.each(CATALOGUES)(
       expect(lineOf("email")).not.toContain("WhatsApp");
     });
 
-    it("carries the link in the WhatsApp message", () => {
-      const sentence = content.submissionResult.whatsappMessage(
-        "https://example.test/s/LINK-TOKEN",
-      );
-
-      expect(sentence).toContain("https://example.test/s/LINK-TOKEN");
-      expect(sentence).not.toContain("{");
-    });
-
     it("names the request and carries the link in the message to the shop", () => {
       const sentence = content.submissionResult.whatsappMessageToShop({
         reference: "REFERENCE-TOKEN",

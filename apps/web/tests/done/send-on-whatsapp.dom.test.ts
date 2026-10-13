@@ -38,6 +38,7 @@ import {
   rememberSentRequest,
 } from "@/done/sent-request-memory";
 import { resolveContent } from "@/i18n/content";
+import { SHOP_PHONE_E164, shopWhatsAppDigits } from "@/shop/shop-phone";
 import { useConfiguratorStore } from "@/store/configurator-store";
 
 import roMessages from "../../src/messages/ro.json";
@@ -54,13 +55,15 @@ const SHARE_PATH = "/s/AbCdEfGhIjKl";
 const SHARE_ADDRESS = `${ORIGIN}${SHARE_PATH}`;
 const TYPED_PHONE = "079 123 456";
 const REFERENCE = "LM-2614";
-const WHATSAPP_PREFIX = "https://wa.me/?text=";
+const SHOP_DIGITS = shopWhatsAppDigits(SHOP_PHONE_E164);
+const WHATSAPP_PREFIX = `https://wa.me/${SHOP_DIGITS}?text=`;
 
 const SENT_ON_SERVER: SentReferenceAnswer = {
   kind: "sent",
   reference: REFERENCE,
 };
 const NONE_ON_SERVER: SentReferenceAnswer = { kind: "none" };
+const UNKNOWN_ON_SERVER: SentReferenceAnswer = { kind: "unknown" };
 
 /** A request that stays pending until the test settles it, so a step that exists only while it is pending can be read. */
 function pendingRequest<Value>() {
@@ -189,11 +192,13 @@ describe("where the WhatsApp action is drawn", () => {
 
   it.each([
     ["the design holds no write credential", { canWrite: false }],
-    ["the write check has not answered", { canWrite: "checking" as const }],
-    ["the write check failed", { canWrite: "check-failed" as const }],
     ["the design was never saved", { hasPersistedSuccessfully: false }],
     ["the store holds no design", { designId: null }],
     ["the store holds another design", { designId: OTHER_DESIGN_ID }],
+    [
+      "the store holds another design and write access is unanswered, as after a reload",
+      { designId: OTHER_DESIGN_ID, canWrite: "checking" as const },
+    ],
   ])("draws no element at all when %s", async (_reason, held) => {
     useConfiguratorStore.setState(held);
 
@@ -207,12 +212,39 @@ describe("where the WhatsApp action is drawn", () => {
     expect(byTestId("done-bottom").querySelector('[role="status"]')).toBeNull();
   });
 
-  it("is not drawn on a view that claims no request, which has no pinned region", async () => {
-    await mountDoneScreen(NONE_ON_SERVER);
+  // F3 (ADR 0163 d4): nothing on `/done` probes write access, so after a reload the store says `"checking"`.
+  it.each([
+    [
+      "the write check has not answered, as after a reload",
+      "checking" as const,
+    ],
+    ["the write check failed", "check-failed" as const],
+  ])(
+    "is drawn when %s: only a known `false` hides it",
+    async (_reason, held) => {
+      useConfiguratorStore.setState({ canWrite: held });
 
-    expect(maybeById("done-whatsapp")).toBeNull();
-    expect(maybeById("done-bottom")).toBeNull();
-  });
+      await mountDoneScreen();
+
+      expect(maybeById("done-whatsapp")).not.toBeNull();
+      expect(maybeById("done-whatsapp-send")).not.toBeNull();
+    },
+  );
+
+  it.each([
+    ["claims no request", NONE_ON_SERVER],
+    ["cannot be shown", UNKNOWN_ON_SERVER],
+  ])(
+    "is not drawn on a view that %s, which has no pinned region, even while write access is unanswered",
+    async (_view, sentReference) => {
+      useConfiguratorStore.setState({ canWrite: "checking" });
+
+      await mountDoneScreen(sentReference);
+
+      expect(maybeById("done-whatsapp")).toBeNull();
+      expect(maybeById("done-bottom")).toBeNull();
+    },
+  );
 });
 
 describe.each(["ro", "ru"] as const)(
@@ -387,18 +419,23 @@ describe.each(["ro", "ru"] as const)(
       );
     });
 
-    it("leads to wa.me's address with the drafted message, and nothing else, as the one encoded value", async () => {
+    it("leads to the shop's wa.me address with the drafted message, and nothing else, as the one encoded value", async () => {
       await mountWithTheLink();
 
-      const expectedMessage =
-        contentIn(locale).submissionResult.whatsappMessage(SHARE_ADDRESS);
+      const expectedMessage = contentIn(
+        locale,
+      ).submissionResult.whatsappMessageToShop({
+        reference: REFERENCE,
+        link: SHARE_ADDRESS,
+      });
       expect(openingAddress()).toBe(
         `${WHATSAPP_PREFIX}${encodeURIComponent(expectedMessage)}`,
       );
       const parsed = new URL(openingAddress());
       expect(parsed.protocol).toBe("https:");
       expect(parsed.host).toBe("wa.me");
-      expect(parsed.pathname).toBe("/");
+      expect(parsed.pathname).toBe(`/${SHOP_DIGITS}`);
+      expect(SHOP_DIGITS).toMatch(/^\d+$/);
       expect([...parsed.searchParams.keys()]).toEqual(["text"]);
       expect(parsed.hash).toBe("");
       expect(parsed.searchParams.get("text")).toBe(expectedMessage);
@@ -414,7 +451,7 @@ describe.each(["ro", "ru"] as const)(
       expect(encodedValue).not.toMatch(/[&#?=/]/);
     });
 
-    it("carries the share address and the drafted sentence, and no reference, typed value, price or token apart from the link's own", async () => {
+    it("carries the share address, the request's reference and the drafted sentence, and no typed value, price or token apart from the link's own", async () => {
       rememberSentRequest({
         designId: DESIGN_ID,
         revision: REVISION,
@@ -425,11 +462,14 @@ describe.each(["ro", "ru"] as const)(
       await mountWithTheLink();
 
       const message = draftedMessage();
-      expect(message).toContain(SHARE_ADDRESS);
-      expect(message.replace(SHARE_ADDRESS, "").trim()).toBe(
-        contentIn(locale).submissionResult.whatsappMessage("").trim(),
+      expect(message).toBe(
+        contentIn(locale).submissionResult.whatsappMessageToShop({
+          reference: REFERENCE,
+          link: SHARE_ADDRESS,
+        }),
       );
-      expect(message).not.toContain(REFERENCE);
+      expect(message).toContain(SHARE_ADDRESS);
+      expect(message).toContain(REFERENCE);
       expect(message).not.toContain(TYPED_PHONE);
       expect(message).not.toContain(DESIGN_ID);
       expect(message).not.toMatch(/\d\s?(?:lei|mdl|eur|€|\$|руб|лей)/i);
@@ -450,6 +490,84 @@ describe.each(["ro", "ru"] as const)(
     });
   },
 );
+
+describe.each(["ro", "ru"] as const)(
+  "the reference in the message, in %s",
+  (locale) => {
+    function shownReference(): string {
+      return byTestId("done-reference").textContent;
+    }
+
+    function expectedMessageFor(reference: string): string {
+      return contentIn(locale).submissionResult.whatsappMessageToShop({
+        reference,
+        link: SHARE_ADDRESS,
+      });
+    }
+
+    it("is the one on the screen when the request was handed over from this tab", async () => {
+      const handedOverReference = "LM-HANDED-OVER";
+      rememberSentRequest({
+        designId: DESIGN_ID,
+        revision: REVISION,
+        reference: handedOverReference,
+        channel: "whatsapp",
+        contactValue: TYPED_PHONE,
+      });
+      await mountDoneScreen(SENT_ON_SERVER, locale);
+      await press("done-whatsapp-send");
+
+      expect(shownReference()).toBe(handedOverReference);
+      expect(draftedMessage()).toBe(expectedMessageFor(handedOverReference));
+      expect(draftedMessage()).not.toContain(REFERENCE);
+    });
+
+    it("is the one on the screen after a reload, when the server alone names the request", async () => {
+      await mountDoneScreen(SENT_ON_SERVER, locale);
+      await press("done-whatsapp-send");
+
+      expect(shownReference()).toBe(REFERENCE);
+      expect(draftedMessage()).toBe(expectedMessageFor(REFERENCE));
+    });
+  },
+);
+
+describe("write access, after a reload (F3)", () => {
+  it("leaves the store's answer as it was found, through every step to the link", async () => {
+    useConfiguratorStore.setState({ canWrite: "checking" });
+    await mountDoneScreen();
+
+    await press("done-whatsapp-send");
+
+    expect(maybeById("done-whatsapp-open")).not.toBeNull();
+    expect(useConfiguratorStore.getState().canWrite).toBe("checking");
+  });
+
+  it("leaves a failed check as it was found when the share request is refused", async () => {
+    useConfiguratorStore.setState({ canWrite: "check-failed" });
+    sharePort.shareLinkStatus.mockRejectedValue(new Error("404"));
+    await mountDoneScreen();
+
+    await press("done-whatsapp-send");
+
+    expect(byTestId("done-whatsapp-error").textContent).toBe(
+      contentIn("ro").share.error,
+    );
+    expect(useConfiguratorStore.getState().canWrite).toBe("check-failed");
+    await flush();
+    expect(sharePort.shareLinkStatus).toHaveBeenCalledTimes(1);
+    expect(sharePort.issueShareLink).not.toHaveBeenCalled();
+  });
+
+  it("makes no request until the customer presses", async () => {
+    useConfiguratorStore.setState({ canWrite: "checking" });
+
+    await mountDoneScreen();
+
+    expect(sharePort.shareLinkStatus).not.toHaveBeenCalled();
+    expect(sharePort.issueShareLink).not.toHaveBeenCalled();
+  });
+});
 
 describe("a request that fails", () => {
   const FAILURE_WITH_CODE = Object.assign(new Error("503 SHARE_BACKEND_DOWN"), {

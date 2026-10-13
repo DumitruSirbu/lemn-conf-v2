@@ -141,7 +141,6 @@ const FUNCTION_FAMILIES = [
   "globalSettings.depthOption",
   "globalSettings.materialResetConfirm.body",
   "submissionResult.channelLine",
-  "submissionResult.whatsappMessage",
   "submissionResult.whatsappMessageToShop",
   "submissionResult.alreadySentAdvice",
   "leadNotice.subject",
@@ -303,9 +302,6 @@ describe("the localized content resolver", () => {
           channel: "whatsapp",
           contact: "contact-token",
         }),
-      );
-      expect(content.submissionResult.whatsappMessage("link-token")).toBe(
-        translate("submissionResult.whatsappMessage", { link: "link-token" }),
       );
       expect(
         content.submissionResult.whatsappMessageToShop({

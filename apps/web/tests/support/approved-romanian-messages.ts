@@ -517,10 +517,10 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     },
   },
   // Frames 5A and 5B's wording as drawn where the frame's sentence is true, drafted where it is not (Q10 (a)); none
-  // approved, and the owner reads six groups: the saved sentence (`din acest browser`, not `pe telefon`: ADR 0114 B7),
+  // approved, and the owner reads five groups: the saved sentence (`din acest browser`, not `pe telefon`: ADR 0114 B7),
   // the channel lines (`channelLine`'s phone and e-mail arms, `channelLineWithoutValue` shown after a reload), 5B's
-  // kept sentences and box title (Q18: kept while the page is open), `retryAutomatically`, `noRequest` and `notShown`,
-  // and `whatsappMessage`. No response time (Q8, Q26), no shop number (Q3), no e-mailed link (Q11, Q43).
+  // kept sentences and box title (Q18: kept while the page is open), `retryAutomatically`, `noRequest` and `notShown`.
+  // No response time (Q8, Q26), no shop number (Q3), no e-mailed link (Q11, Q43).
   // `nextStepsProvisionalMarker` and the three `nextStep*` leaves are a SLOT (Q9): provisional until the owner confirms
   // them line by line, carried here as the lock carries a drafted leaf.
   submissionResult: {
@@ -545,7 +545,6 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     reviewLink: "Verifică designul",
     sendOnWhatsapp: "Trimite design-ul pe WhatsApp",
     openWhatsapp: "Deschide WhatsApp",
-    whatsappMessage: "Uite designul meu de bucătărie Lemnaria: {link}",
     // Drafted, none approved: the customer's voice to the shop (neither register), with the request and the link.
     whatsappMessageToShop:
       "Bună ziua! Designul bucătăriei mele din configuratorul Lemnaria, cererea {reference}: {link}",

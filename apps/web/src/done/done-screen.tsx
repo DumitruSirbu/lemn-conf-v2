@@ -64,7 +64,9 @@ export function DoneScreen({
           <ReviewAgainLink designId={designId} />
         )}
       </div>
-      {result.kind === "sent" ? <PinnedActions designId={designId} /> : null}
+      {result.kind === "sent" ? (
+        <PinnedActions designId={designId} reference={result.reference} />
+      ) : null}
     </main>
   );
 }
@@ -285,13 +287,19 @@ function ReviewAgainLink({ designId }: { readonly designId: DesignId }) {
 
 /** Pinned at the foot: the way back to the design under whatever the screen offers above it, which is the WhatsApp
  *  action where the customer may share this design and nothing where they may not. */
-function PinnedActions({ designId }: { readonly designId: DesignId }) {
+function PinnedActions({
+  designId,
+  reference,
+}: {
+  readonly designId: DesignId;
+  readonly reference: string;
+}) {
   const content = useContent().submissionResult;
   const regionRef = useRef<HTMLDivElement>(null);
   useKeepFocusAbove(regionRef);
   return (
     <div className={styles.bottom} ref={regionRef} data-testid="done-bottom">
-      <SendOnWhatsapp designId={designId} />
+      <SendOnWhatsapp designId={designId} reference={reference} />
       <Link
         prefetch={false}
         className={styles.backToDesign}

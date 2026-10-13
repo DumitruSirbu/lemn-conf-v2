@@ -254,7 +254,8 @@ describe("golden-output fixture coverage", () => {
     // +2 for `panel.savePausedNotice`'s two times.
     // M8 8M S4: +4 for `submissionResult.channelLine`'s three channels and `.whatsappMessage`.
     // M8 8M2 S2: +2 for `submissionResult.whatsappMessageToShop` and `.alreadySentAdvice`.
-    expect(FUNCTION_CONTENT_FIXTURES).toHaveLength(70);
+    // M8 8M2 S3: -1 for the retired `submissionResult.whatsappMessage`.
+    expect(FUNCTION_CONTENT_FIXTURES).toHaveLength(69);
     // 7L S3: +2 for `room.suggestion.title` and `room.suggestion.switchToLinear`.
     // +1 for `room.compose.limitReached`.
     expect(ROOM_FIXTURES).toHaveLength(73);
@@ -283,7 +284,8 @@ describe("golden-output fixture coverage", () => {
     // M8 8L fix-up: +1 for `contact.outcomes.limitedTomorrow`.
     // M8 8M S4: +27 static and +4 function fixtures for `submissionResult.*`, -2 for the retired contact outcomes.
     // M8 8M2 S2: +3 static and +2 function fixtures for `submissionResult.*`.
-    expect(GOLDEN_FIXTURES).toHaveLength(518);
+    // M8 8M2 S3: -1 function fixture for the retired `submissionResult.whatsappMessage`.
+    expect(GOLDEN_FIXTURES).toHaveLength(517);
     expect(new Set(GOLDEN_FIXTURES.map((fixture) => fixture.id)).size).toBe(
       GOLDEN_FIXTURES.length,
     );

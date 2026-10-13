@@ -455,8 +455,6 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "58b068e26b7757f66d1392e57f64cf33864132c532593e6986fff819d3adcfde",
   "content.submissionResult.channelLine.whatsapp":
     "ac05e2987222912765a9b1a8c311285d52b7e787fa62ea0d5147656058f43e87",
-  "content.submissionResult.whatsappMessage.link-token":
-    "a051659d490067053974d5d44e77c2d59224b4f68123aadecb4abe69ad5e2bc1",
   "content.submissionResult.alreadySentAdvice.phone-token":
     "4cee99b1c8923fde927d8a6e8dfdfceaadf1c8d187ca29587fc9db666f702211",
   "content.submissionResult.whatsappMessageToShop.reference-and-link-tokens":

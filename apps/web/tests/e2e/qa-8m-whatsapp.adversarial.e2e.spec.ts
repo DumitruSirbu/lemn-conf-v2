@@ -6,12 +6,14 @@
 //
 // Proved: nothing is asked of the share endpoint on arrival or while the page rests; with no link active one press is one
 // status read and one `POST`, and the link is shown; with a link active the warning stands and nothing is issued until the
-// customer goes on, three taps in all, and a double tap issues one; the external link's address is `https://wa.me/?text=`
-// and the one encoded message and nothing else; `target`, `rel`; no window is opened by script, and the tap opens one;
+// customer goes on, three taps in all, and a double tap issues one; the external link's address is `https://wa.me/` + the shop's
+// WhatsApp digits + `?text=` and the one encoded message (the reference on the screen and the share address) and nothing
+// else (8M2 criteria 6 and 9); `target`, `rel`; no window is opened by script, and the tap opens one;
 // the share address is in no history entry of this application, no storage, no cookie and no console line.
 import { expect, type Page, type Request } from "@playwright/test";
 
-import { DONE_HEADING, MESSAGES } from "./support/contact-page";
+import { shopWhatsAppDigits } from "../../src/shop/shop-phone";
+import { DONE_HEADING, DONE_REFERENCE, MESSAGES } from "./support/contact-page";
 import { reachDoneByAMockedSend } from "./support/qa-8m";
 import { historyLength } from "./support/qa-8d-review";
 import { test } from "./support/seeded-design";
@@ -28,7 +30,9 @@ const SEND = "done-whatsapp-send";
 const GO_ON = "done-whatsapp-go-on";
 const OPEN = "done-whatsapp-open";
 const WARNING = "done-whatsapp-reissue-warning";
-const WHATSAPP_ADDRESS = "https://wa.me/?text=";
+const REFERENCE_OF = { ro: "LMN-WA-0001", ru: "LMN-WA-0004" } as const;
+const WHATSAPP_ADDRESS = `https://wa.me/${shopWhatsAppDigits()}?text=`;
+const WHATSAPP_ADDRESS_WITHOUT_RECIPIENT = "https://wa.me/?text=";
 
 interface ShareTraffic {
   readonly methods: string[];
@@ -77,13 +81,13 @@ async function windowsOpenedByScript(page: Page): Promise<number> {
 
 function messageFor(
   locale: "ro" | "ru",
+  reference: string,
   origin: string,
   sharePath: string,
 ): string {
-  return MESSAGES[locale].submissionResult.whatsappMessage.replace(
-    "{link}",
-    `${origin}${sharePath}`,
-  );
+  return MESSAGES[locale].submissionResult.whatsappMessageToShop
+    .replace("{reference}", reference)
+    .replace("{link}", `${origin}${sharePath}`);
 }
 
 async function sharePathOf(
@@ -147,7 +151,12 @@ for (const locale of ["ro", "ru"] as const) {
     page.on("console", (message) => consoleLines.push(message.text()));
     await countScriptedWindows(page);
     const wa = await stubWhatsapp(page);
-    await reachDoneByAMockedSend(page, seededDesign, locale, "LMN-WA-0001");
+    await reachDoneByAMockedSend(
+      page,
+      seededDesign,
+      locale,
+      REFERENCE_OF[locale],
+    );
     const historyAtArrival = await historyLength(page);
 
     await page.waitForTimeout(2000);
@@ -172,17 +181,26 @@ for (const locale of ["ro", "ru"] as const) {
     ]);
     const origin = new URL(baseURL ?? "").origin;
     const expectedHref = `${WHATSAPP_ADDRESS}${encodeURIComponent(
-      messageFor(locale, origin, sharePath),
+      messageFor(locale, REFERENCE_OF[locale], origin, sharePath),
     )}`;
     expect(await open.getAttribute("href")).toBe(expectedHref);
     expect(await open.getAttribute("target")).toBe("_blank");
     const rel = (await open.getAttribute("rel")) ?? "";
     expect(rel.split(/\s+/).sort()).toEqual(["noopener", "noreferrer"]);
-    expect(expectedHref).not.toContain("LMN-WA-0001");
-    // The decoded message is one sentence and the link: no reference, no typed value, no price, no second line.
+    expect(
+      expectedHref.startsWith(WHATSAPP_ADDRESS_WITHOUT_RECIPIENT),
+      "a recipient is addressed",
+    ).toBe(false);
+    expect(shopWhatsAppDigits(), "the recipient is digits").toMatch(
+      /^\d{8,15}$/,
+    );
+    // The message carries the reference the screen shows (criterion 9), and the link last.
+    const shownReference = await page.getByTestId(DONE_REFERENCE).textContent();
+    expect(shownReference).toBe(REFERENCE_OF[locale]);
     const decoded = decodeURIComponent(
       expectedHref.slice(WHATSAPP_ADDRESS.length),
     );
+    expect(decoded).toContain(shownReference ?? "");
     expect(decoded).not.toContain("\n");
     expect(decoded.endsWith(`${origin}${sharePath}`)).toBe(true);
     await expect(open).toBeFocused();
@@ -217,6 +235,8 @@ test("ro: with a link already active the warning stands first, nothing is issued
   const traffic = watchShareEndpoint(page, seededDesign.id);
   await countScriptedWindows(page);
   await reachDoneByAMockedSend(page, seededDesign, "ro", "LMN-WA-0002");
+  const shownReference = await page.getByTestId(DONE_REFERENCE).textContent();
+  expect(shownReference).toBe("LMN-WA-0002");
   const earlier = await page.evaluate(async (designId) => {
     const response = await fetch(`/api/designs/${designId}/share`, {
       method: "POST",
@@ -256,7 +276,7 @@ test("ro: with a link already active the warning stands first, nothing is issued
   expect(sharePath, "the old link was replaced").not.toBe(earlier.path);
   expect(await page.getByTestId(OPEN).getAttribute("href")).toBe(
     `${WHATSAPP_ADDRESS}${encodeURIComponent(
-      messageFor("ro", new URL(baseURL ?? "").origin, sharePath),
+      messageFor("ro", "LMN-WA-0002", new URL(baseURL ?? "").origin, sharePath),
     )}`,
   );
   await expect(page.getByTestId(WARNING)).toHaveCount(0);

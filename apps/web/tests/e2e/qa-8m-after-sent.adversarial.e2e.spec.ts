@@ -4,7 +4,14 @@
 // value. THIS FILE HOLDS ONLY ON THE PRODUCTION SERVER (`CI=1`): it counts requests and reads the history's length.
 // Each test is a new browser context, so each is its own visitor and sends one new request, registered with
 // `contact-run.ts` before it leaves so that the teardown removes its row (ADR 0151).
-import { expect, type Page } from "@playwright/test";
+import {
+  expect,
+  type BrowserContext,
+  type Page,
+  type Request,
+} from "@playwright/test";
+
+import { shopWhatsAppDigits } from "../../src/shop/shop-phone";
 
 import {
   CTA,
@@ -41,7 +48,7 @@ import {
   watchWhatTheBrowserKeeps,
   type SentChannel,
 } from "./support/qa-8m";
-import { test } from "./support/seeded-design";
+import { test, type SeededDesign } from "./support/seeded-design";
 
 const RUN_UNDER_CI =
   "It counts requests and reads the history's length on the production server. Run it with: " +
@@ -159,10 +166,13 @@ for (const channel of CHANNELS) {
       MESSAGES.ro.submissionResult.channelLineWithoutValue,
     );
     await expectNoTokenInThePage(page, typed, `${channel}: reload`);
-    // Criterion 18's gate: the action is drawn only for a browser known to be able to write the design, and a load of
-    // this page has not asked the server about write access (only the editor does). So after a reload it is not drawn,
-    // though the pinned region and the way back to the design are.
-    await expect(page.getByTestId("done-whatsapp")).toHaveCount(0);
+    // 8M2 criterion 8 (F3): a load of this page has not asked the server about write access (only the editor does), so
+    // the store holds "checking"; the gate hides the action only for a known `false`. After a reload in the owning
+    // browser the action is drawn, with the way back to the design under it.
+    await expect(page.getByTestId("done-whatsapp")).toBeVisible();
+    await expect(page.getByTestId("done-whatsapp-send")).toHaveText(
+      MESSAGES.ro.submissionResult.sendOnWhatsapp,
+    );
     await expect(page.getByTestId("done-back-to-design")).toBeVisible();
     await expect(page.getByTestId(DONE_HEADING)).toBeFocused();
     expect(unexpectedConsoleErrors(kept)).toEqual([]);
@@ -252,4 +262,112 @@ test("ro: a second request for the same design is the second confirmation, and a
     kept,
     "two sends, second",
   );
+});
+
+const WRITE_TOKEN_COOKIE_PREFIX = "lemnaria_write_token_";
+
+async function sendOneRequest(
+  page: Page,
+  context: BrowserContext,
+  seededDesign: SeededDesign,
+): Promise<string> {
+  registerIdsOf(page);
+  const typed = newTypedTokens(run);
+  const form = await reachContactFromTheEditor(page, seededDesign, "ro");
+  await noteVisitorOf(run, context);
+  await fillTheTextFields(page, typed);
+  await chooseChannel(page, "phone");
+  await tickConsent(page);
+  await readyToSend(page, form.drawnAtMs);
+  await pressTheCallToAction(page);
+  await page.waitForURL(`**${donePath("ro", seededDesign.id)}`);
+  const reference =
+    (await page.getByTestId(DONE_REFERENCE).textContent()) ?? "";
+  return reference;
+}
+
+test("ro, F3 (8M2 criterion 8): after a reload the action is drawn, /done probes nothing about write access, and the editor makes exactly one probe of its own when the customer goes on", async ({
+  page,
+  context,
+  seededDesign,
+}) => {
+  const designReads: string[] = [];
+  page.on("request", (request: Request) => {
+    if (new URL(request.url()).pathname === `/api/designs/${seededDesign.id}`) {
+      designReads.push(request.method());
+    }
+  });
+  await sendOneRequest(page, context, seededDesign);
+  // The editor was opened on the way to the form and probed then; what counts is what happens from the reload on.
+  designReads.length = 0;
+  await page.reload();
+  await expect(page.getByTestId("done-whatsapp-send")).toBeVisible();
+  await page.waitForTimeout(1500);
+  expect(designReads, "/done after a reload probes nothing").toEqual([]);
+
+  await page.getByTestId("done-back-to-design").tap();
+  await expectEditorReady(page);
+
+  expect(designReads, "the editor's own probe, and only it").toEqual(["GET"]);
+});
+
+test("ro, 8M2 criterion 9: after a reload the message to the shop names the reference on the screen, is addressed to the shop's number, and carries the customer's own share address", async ({
+  page,
+  context,
+  seededDesign,
+  baseURL,
+}) => {
+  const reference = await sendOneRequest(page, context, seededDesign);
+  await page.reload();
+  await expect(page.getByTestId(DONE_REFERENCE)).toHaveText(reference);
+
+  await page.getByTestId("done-whatsapp-send").tap();
+
+  const open = page.getByTestId("done-whatsapp-open");
+  await expect(open).toBeVisible();
+  const href = (await open.getAttribute("href")) ?? "";
+  const recipient = `https://wa.me/${shopWhatsAppDigits()}?text=`;
+  expect(href.startsWith(recipient), "addressed to the shop").toBe(true);
+  expect(href.startsWith("https://wa.me/?text=")).toBe(false);
+  const message = decodeURIComponent(href.slice(recipient.length));
+  expect(message).toContain(reference);
+  const origin = new URL(baseURL ?? "").origin;
+  expect(message).toMatch(new RegExp(`${origin}/[^ ]+$`));
+});
+
+test("ro, F3 (8M2 criterion 8): without the write cookie the action is still drawn after a reload; one press makes one status request and shows the error and its retry, and nothing repeats without a press", async ({
+  page,
+  context,
+  seededDesign,
+}) => {
+  const shareMethods: string[] = [];
+  page.on("request", (request: Request) => {
+    if (
+      new URL(request.url()).pathname ===
+      `/api/designs/${seededDesign.id}/share`
+    ) {
+      shareMethods.push(request.method());
+    }
+  });
+  await sendOneRequest(page, context, seededDesign);
+  await context.clearCookies({
+    name: `${WRITE_TOKEN_COOKIE_PREFIX}${seededDesign.id}`,
+  });
+  const names = (await context.cookies()).map(({ name }) => name);
+  expect(names.some((name) => name.startsWith(WRITE_TOKEN_COOKIE_PREFIX))).toBe(
+    false,
+  );
+  await page.reload();
+  await expect(page.getByTestId("done-whatsapp-send")).toBeVisible();
+  expect(shareMethods, "a load asks nothing").toEqual([]);
+
+  await page.getByTestId("done-whatsapp-send").tap();
+
+  await expect(page.getByTestId("done-whatsapp-error")).toHaveText(
+    MESSAGES.ro.share.error,
+  );
+  await expect(page.getByTestId("done-whatsapp-retry")).toBeVisible();
+  await page.waitForTimeout(2000);
+  expect(shareMethods, "one status request for one press").toEqual(["GET"]);
+  await expect(page.getByTestId("done-whatsapp-open")).toHaveCount(0);
 });

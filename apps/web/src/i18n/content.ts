@@ -754,14 +754,6 @@ export function resolveSubmissionChannelLine(
   });
 }
 
-/** The message a customer sends with the link to their own design. */
-export function resolveSubmissionWhatsappMessage(
-  translate: ContentTranslator,
-  link: string,
-): string {
-  return translate("submissionResult.whatsappMessage", { link });
-}
-
 /** What the message to the shop names: the request, and the customer's own view-only link to the design. */
 export interface ShopWhatsappMessageParts {
   readonly reference: string;
@@ -1131,8 +1123,6 @@ export function resolveContent(translate: ContentTranslator) {
       reviewLink: translate("submissionResult.reviewLink"),
       sendOnWhatsapp: translate("submissionResult.sendOnWhatsapp"),
       openWhatsapp: translate("submissionResult.openWhatsapp"),
-      whatsappMessage: (link: string) =>
-        resolveSubmissionWhatsappMessage(translate, link),
       whatsappMessageToShop: (parts: ShopWhatsappMessageParts) =>
         resolveShopWhatsappMessage(translate, parts),
       noRequest: translate("submissionResult.noRequest"),

@@ -152,7 +152,6 @@ export const CONTENT_FUNCTION_FAMILIES = [
   "leadNotice.line",
   "leadNotice.figure",
   "submissionResult.channelLine",
-  "submissionResult.whatsappMessage",
   "submissionResult.whatsappMessageToShop",
   "submissionResult.alreadySentAdvice",
 ] as const;
@@ -515,12 +514,6 @@ export const FUNCTION_CONTENT_FIXTURES: readonly GoldenFixture[] = [
           contact: "contact-token",
         }),
     ),
-  ),
-  contentFixture(
-    "submissionResult.whatsappMessage",
-    "link-token",
-    () => romanianContent.submissionResult.whatsappMessage("link-token"),
-    () => translate("submissionResult.whatsappMessage", { link: "link-token" }),
   ),
   contentFixture(
     "submissionResult.whatsappMessageToShop",

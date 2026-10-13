@@ -64,10 +64,14 @@ describe("the WhatsApp action's source", () => {
     );
   });
 
-  it("holds wa.me's address once, as a literal with no number in it", () => {
-    const addresses = actionSource.match(/https?:\/\/[^"'`\s)]+/g);
+  it("holds wa.me's address once, with the recipient taken from the shop's phone module and no digit typed", () => {
+    const addresses = actionSource.match(/https?:\/\/[^"'`\s]+/g);
 
-    expect(addresses).toEqual(["https://wa.me/?text="]);
+    expect(addresses).toEqual(["https://wa.me/${shopWhatsAppDigits()}?text="]);
+    expect(actionSource).toMatch(
+      /import \{ shopWhatsAppDigits \} from "@\/shop\/shop-phone"/,
+    );
+    expect(actionSource).not.toMatch(/\d{5,}/);
   });
 
   it("encodes the whole message as the one value after it", () => {

@@ -12,12 +12,13 @@ import {
   shareLinkStatus,
 } from "@/persistence/share-link-client";
 import { absoluteShareAddress } from "@/share/absolute-share-address";
+import { shopWhatsAppDigits } from "@/shop/shop-phone";
 import { useConfiguratorStore } from "@/store/configurator-store";
 
 import styles from "./done.module.css";
 
-/** The one address a message is handed to. The customer chooses the recipient there. */
-const WHATSAPP_MESSAGE_ADDRESS = "https://wa.me/?text=";
+/** The one address a message is handed to: the shop's WhatsApp, with the message as the only parameter. */
+const WHATSAPP_MESSAGE_ADDRESS = `https://wa.me/${shopWhatsAppDigits()}?text=`;
 
 /** The failed request travels with the failure, so a retry repeats *that* request: a failed status read retried as an
  *  issue would replace a link the customer had not agreed to replace. */
@@ -31,8 +32,17 @@ type WhatsappStep =
   | { readonly kind: "ready"; readonly shareAddress: string }
   | { readonly kind: "failed"; readonly failedRequest: FailedRequest };
 
-/** Drawn only where the share control would be, and only for the design this page is about; otherwise nothing at all. */
-export function SendOnWhatsapp({ designId }: { readonly designId: DesignId }) {
+interface SendOnWhatsappProps {
+  readonly designId: DesignId;
+  /** The reference shown on the screen, so the shop can find the request the link belongs to. */
+  readonly reference: string;
+}
+
+/** Drawn for the design this page is about, once it has been saved, unless this browser is known to hold no write
+ *  access. Write access is not known after a reload (`"checking"`, and nothing on `/done` probes it), so only `false`
+ *  hides the action; the share route checks the write credential on every press. The store is never written here
+ *  (ADR 0163 d4). */
+export function SendOnWhatsapp({ designId, reference }: SendOnWhatsappProps) {
   const canWrite = useConfiguratorStore((state) => state.canWrite);
   const hasPersistedSuccessfully = useConfiguratorStore(
     (state) => state.hasPersistedSuccessfully,
@@ -40,11 +50,13 @@ export function SendOnWhatsapp({ designId }: { readonly designId: DesignId }) {
   const heldDesignId = useConfiguratorStore((state) => state.designId);
 
   const mayShare =
-    canWrite === true && hasPersistedSuccessfully && heldDesignId === designId;
-  return mayShare ? <WhatsappActionControl designId={designId} /> : null;
+    canWrite !== false && hasPersistedSuccessfully && heldDesignId === designId;
+  return mayShare ? (
+    <WhatsappActionControl designId={designId} reference={reference} />
+  ) : null;
 }
 
-function WhatsappActionControl({ designId }: { readonly designId: DesignId }) {
+function WhatsappActionControl({ designId, reference }: SendOnWhatsappProps) {
   const { step, checkStatus, goOn, retry } = useWhatsappShareLink(designId);
   const focusPrimaryControl = useFocusOnChange(step.kind);
   const noteId = useId();
@@ -55,6 +67,7 @@ function WhatsappActionControl({ designId }: { readonly designId: DesignId }) {
       <StepControl
         step={step}
         noteId={noteId}
+        reference={reference}
         controlRef={focusPrimaryControl}
         onSend={checkStatus}
         onGoOn={goOn}
@@ -176,6 +189,7 @@ function StepNote({
 interface StepControlProps {
   readonly step: WhatsappStep;
   readonly noteId: string;
+  readonly reference: string;
   readonly controlRef: (element: HTMLElement | null) => void;
   readonly onSend: () => void;
   readonly onGoOn: () => void;
@@ -187,6 +201,7 @@ interface StepControlProps {
 function StepControl({
   step,
   noteId,
+  reference,
   controlRef,
   onSend,
   onGoOn,
@@ -231,7 +246,10 @@ function StepControl({
           ref={controlRef}
           className={styles.whatsappAction}
           href={whatsappAddress(
-            content.submissionResult.whatsappMessage(step.shareAddress),
+            content.submissionResult.whatsappMessageToShop({
+              reference,
+              link: step.shareAddress,
+            }),
           )}
           target="_blank"
           rel="noopener noreferrer"
