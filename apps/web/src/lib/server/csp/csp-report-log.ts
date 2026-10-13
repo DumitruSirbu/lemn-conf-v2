@@ -16,9 +16,24 @@ const CSP_REPORT_LABEL = "[csp]";
 const VIOLATION_EVENT = "csp-violation";
 const UNAVAILABLE_EVENT = "csp-report-unavailable";
 const LIMITED_EVENT = "csp-report-limited";
+const UNSTORED_EVENT = "csp-report-unstored";
 const UNEXPECTED_CAUSE: UnavailableCause = "judgement-failed";
+const UNEXPECTED_UNSTORED_CAUSE: UnstoredCause = "store-failed";
+
+/** Why an accepted report was answered but not kept, as a closed list that types the line: the store or its
+ *  construction failed, the store missed the deadline, the table's own checks would refuse the row, or the writer
+ *  mark could not be made. */
+export const UNSTORED_CAUSES = [
+  "store-failed",
+  "deadline",
+  "row-refused",
+  "mark-unavailable",
+] as const;
+
+export type UnstoredCause = (typeof UNSTORED_CAUSES)[number];
 
 const causesWritten = new Set<UnavailableCause>();
+const unstoredCausesWritten = new Set<UnstoredCause>();
 let hourOfLastLimitedLine: number | undefined;
 
 /** The one line an accepted report is written as: `[csp]` and the record under the event's name. */
@@ -34,6 +49,16 @@ export function reportCspReportUnavailable(cause: UnavailableCause): void {
   if (causesWritten.has(known)) return;
   causesWritten.add(known);
   write("error", { event: UNAVAILABLE_EVENT, cause: known });
+}
+
+/** An accepted report was not stored: written once per process and cause, never with the error, the row or the mark. */
+export function reportCspReportUnstored(cause: UnstoredCause): void {
+  const known =
+    UNSTORED_CAUSES.find((candidate) => candidate === cause) ??
+    UNEXPECTED_UNSTORED_CAUSE;
+  if (unstoredCausesWritten.has(known)) return;
+  unstoredCausesWritten.add(known);
+  write("error", { event: UNSTORED_EVENT, cause: known });
 }
 
 /** The limiter refused a report: written once per process and limiter window; the memo is one number, so it cannot grow. */

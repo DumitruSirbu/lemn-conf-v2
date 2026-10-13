@@ -18,7 +18,8 @@ import { readSource } from "../server-source-support";
 const SOURCE_ROOT = join(import.meta.dirname, "../../../../src");
 const ROUTE_FILE = `app${CSP_REPORT_PATH}/route.ts`;
 
-/** What the sink may not reach: the code that reads or sets a visitor's cookie, and every store but the counters. */
+/** What the sink may not reach: the code that reads or sets a visitor's cookie, and every store but the counters' and
+ *  the report table's. */
 const CODE_THAT_TOUCHES_COOKIES = [
   "lib/server/visitor.ts",
   "lib/server/visitor-resume.ts",
@@ -59,7 +60,7 @@ function ownImportsOf(path: string): string[] {
   );
 }
 
-describe("the sink's source: it reads no cookie, sets none and stores nothing but the counter", () => {
+describe("the sink's source: it reads no cookie, sets none and stores nothing but the counter and the report table", () => {
   const closure = closureOfTheRoute();
 
   it("reaches the limiter, the reduction and the body reader, so that the walk below is over the real route", () => {
@@ -74,6 +75,22 @@ describe("the sink's source: it reads no cookie, sets none and stores nothing bu
     );
   });
 
+  it("reaches the report table's store instance and the writer mark, and makes no store but the two instances do", () => {
+    expect(closure).toEqual(
+      expect.arrayContaining([
+        "lib/server/csp/csp-report-store-instance.ts",
+        "lib/server/csp/csp-report-writer-mark.ts",
+      ]),
+    );
+    const storeMakers = closure.filter((path) =>
+      /new Neon\w+Store\(/.test(codeOf(path)),
+    );
+    expect(storeMakers.sort()).toEqual([
+      "lib/server/csp/csp-report-store-instance.ts",
+      "lib/server/rate-limit/rate-limit-store-instance.ts",
+    ]);
+  });
+
   it("imports no cookies API in the route, in the csp modules, or in anything either reaches", () => {
     const cookieApis =
       /next\/headers|\bcookies\b|["']set-cookie["']|["']cookie["']/i;
@@ -83,7 +100,7 @@ describe("the sink's source: it reads no cookie, sets none and stores nothing bu
     expect(offenders).toEqual([]);
   });
 
-  it("reaches no module that reads a visitor's or a write token's cookie, and no store but the counters'", () => {
+  it("reaches no module that reads a visitor's or a write token's cookie, and no store but the counters' and the report table's", () => {
     expect(
       closure.filter((path) =>
         [...CODE_THAT_TOUCHES_COOKIES, ...CODE_THAT_STORES].includes(path),

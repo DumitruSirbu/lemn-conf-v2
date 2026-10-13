@@ -82,7 +82,8 @@ function insertRaw(columns: CspReportColumns): Promise<unknown> {
   `;
 }
 
-/** A row of another writer in the third slot, put there whether or not an earlier run left one: only its mark is set. */
+/** A row of another writer in the third slot: only its mark is set. `do nothing` leaves a row that is already there
+ *  untouched, so the guarded cleanup, which removes by this mark, can never remove a row this run did not write. */
 function placeForeignRow(): Promise<unknown> {
   const { slot, report_number: reportNumber } = columnsOf({
     slot: THIRD_SLOT,
@@ -93,8 +94,14 @@ function placeForeignRow(): Promise<unknown> {
       slot, report_number, received_at, writer_mark, directive, blocked, page, locale, origin, disposition
     ) values (
       ${slot}, ${reportNumber}, now(), ${FOREIGN_MARK}, 'other', 'inline', 'other', 'none', 'none', 'report'
-    ) on conflict (slot) do update set writer_mark = excluded.writer_mark
+    ) on conflict (slot) do nothing
   `;
+}
+
+/** The contract suite's reports sit in the ring's low slots whenever the cursor is near its start; `do nothing` would
+ *  then leave one of them in the third slot instead of the foreign row. Only rows under this run's own marks go. */
+function removeThisRunsEarlierRows(): Promise<number> {
+  return deleteCspReportsForTests([CONTRACT_MARK, RAW_MARK, CONCURRENCY_MARK]);
 }
 
 /** Moves the cursor forward, never back, to the next number that leaves the following writes at slots N - 1, 0, 1. */
@@ -152,7 +159,11 @@ describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
 
   describe("the ring wraps (criterion 6a)", () => {
     it("writes the next three reports to the last slot, the first and the second, and leaves the third slot alone", async () => {
+      await removeThisRunsEarlierRows();
       await placeForeignRow();
+      expect(await storedRowsUnder(FOREIGN_MARK)).toMatchObject([
+        { slot: THIRD_SLOT },
+      ]);
       const store = new NeonCspReportStore(testDatabaseUrl);
       const cursor = await moveCursorToTwoBeforeTheWrap();
 

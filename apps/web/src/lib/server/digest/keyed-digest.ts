@@ -7,6 +7,7 @@ import { PAYLOAD_DIGEST_FIELDS } from "@lemnaria/configurator-domain";
 const PURPOSE_FIELDS = {
   "rate-limit-bucket": ["policyName", "subjectKind", "subject"],
   "contact-payload": PAYLOAD_DIGEST_FIELDS,
+  "csp-report-writer": ["table"],
 } as const;
 
 type PurposeFields = typeof PURPOSE_FIELDS;

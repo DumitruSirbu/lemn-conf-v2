@@ -348,6 +348,41 @@ describe("what the encoding refuses", () => {
   });
 });
 
+describe("the CSP report writer's mark, the third purpose", () => {
+  const WRITER: DigestInput = {
+    purpose: "csp-report-writer",
+    fields: { table: "csp_reports" },
+  };
+
+  it("encodes the purpose and its one field, each as its byte count, a colon, the text and a comma", () => {
+    expect(encodeDigestInput(WRITER)).toBe(
+      "17:csp-report-writer,11:csp_reports,",
+    );
+  });
+
+  it("is sixty-four lower-case hexadecimal characters, and is not the digest of any other purpose over the same text", () => {
+    const digest = keyedDigest(FAKE_KEY, WRITER);
+
+    expect(digest).toMatch(/^[0-9a-f]{64}$/);
+    expect(digest).not.toBe(
+      keyedDigest(FAKE_KEY, bucket("csp_reports", "", "")),
+    );
+  });
+
+  it.each([
+    ["no field", {}],
+    ["a second field", { table: "csp_reports", extra: "x" }],
+    ["another field's name", { policyName: "csp_reports" }],
+  ])("refuses %s", (_label, fields) => {
+    const input = {
+      purpose: "csp-report-writer",
+      fields,
+    } as unknown as DigestInput;
+
+    expect(() => keyedDigest(FAKE_KEY, input)).toThrow(DigestFieldsError);
+  });
+});
+
 describe("the key", () => {
   it.each([0, 1, 31, 33, 64])("refuses a key of %i bytes", (length) => {
     expect(() =>
