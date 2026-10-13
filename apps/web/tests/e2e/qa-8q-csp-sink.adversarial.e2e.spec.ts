@@ -6,11 +6,18 @@
 // under the block's key (a `415` counts nothing, every request after it counts one, however it ends), the answer carries
 // no `Set-Cookie` and echoes nothing, and none of the planted secrets of a request is anywhere in the server's output.
 //
-// Writes: counter rows only, under the second server's own secret, all removed; at most 100 hits in the hour's bucket.
+// Writes: counter rows under the second server's own secret, all removed; at most 100 hits in the hour's bucket. And, since
+// 8Q2, one `csp_reports` row for each `204` it answers, under the writer mark of the second server's own secret (criterion
+// 17): `afterAll` counts them by that mark and holds the count to the `204`s this spec observed, and to the hits it sent.
+// It does not remove them: the run's teardown does, by the mark registered when the server's secret was made, and that
+// removal is the registry's only live proof, so it is left to show in the teardown's line.
 // THIS FILE IS A `CI=1` SPEC. It sends to the second server alone: a report to the suite's server would be counted by the
 // run's teardown, which fails a run that counted one. Run it with:
 //   CI=1 pnpm exec playwright test tests/e2e/qa-8q-csp-sink.adversarial.e2e.spec.ts --project=mobile
-import { deleteRateLimitCountersForTests } from "@lemnaria/persistence";
+import {
+  countCspReportsForTests,
+  deleteRateLimitCountersForTests,
+} from "@lemnaria/persistence";
 import { expect, test } from "@playwright/test";
 
 import { SHARED_BLOCK } from "../../src/lib/server/rate-limit/client-network";
@@ -20,6 +27,7 @@ import {
   CSP_REPORTS_PER_BLOCK_FIGURE,
 } from "../../src/lib/server/rate-limit/limit-policy";
 import { CSP_REPORT_PATH } from "../../src/lib/security-headers";
+import { cspReportWriterMarkOf } from "./support/csp-report-rows";
 import { bucketKeyOfBlock } from "./support/e2e-rate-limit-run";
 import { deleteMintedDesigns } from "./support/minted-designs";
 import {
@@ -96,6 +104,10 @@ interface Case {
   readonly record?: (record: Record<string, unknown>) => void;
 }
 
+/** What this spec saw the server answer, counted where it is sent from: the `204`s each store one row, and every
+ *  request past the media type counts one hit, whatever it ends in. */
+const observed = { noContent: 0, pastTheMediaType: 0 };
+
 test.describe.configure({ mode: "serial" });
 
 test.describe("the sink on a running server, under hostile requests", () => {
@@ -107,6 +119,8 @@ test.describe("the sink on a running server, under hostile requests", () => {
 
   test.beforeAll(async () => {
     test.setTimeout(SERVER_START_TIMEOUT_MS);
+    observed.noContent = 0;
+    observed.pastTheMediaType = 0;
     await waitForAWindowWithRoom();
     server = await startProductionPolicyServer(CSP_SINK_SERVER_PORT, {
       captureOutput: true,
@@ -117,6 +131,8 @@ test.describe("the sink on a running server, under hostile requests", () => {
     await server?.stop();
     if (server !== undefined) await removeEveryCounterOf(server.secret);
     await deleteMintedDesigns(mintedIds);
+    if (server !== undefined)
+      await expectOneRowForEachReportTaken(server.secret);
   });
 
   const report = (fields: Record<string, unknown> = {}): string =>
@@ -710,11 +726,26 @@ async function send(
     body,
     ...(body instanceof ReadableStream ? { duplex: "half" } : {}),
   } as RequestInit);
-  return {
-    status: response.status,
-    headers: response.headers,
-    text: await response.text(),
-  };
+  const text = await response.text();
+  if (response.status === 204) observed.noContent += 1;
+  if (response.status !== 415) observed.pastTheMediaType += 1;
+  return { status: response.status, headers: response.headers, text };
+}
+
+/**
+ * Criterion 17, held from the table's side: the rows under this server's mark are exactly the reports it took (none
+ * for a refusal, none lost to a store that failed), they are some, and never more than the hits it counted. The server
+ * is stopped, so no write is in flight.
+ */
+async function expectOneRowForEachReportTaken(secret: string): Promise<void> {
+  const rows = await countCspReportsForTests([cspReportWriterMarkOf(secret)]);
+  expect(observed.noContent, "this spec took reports").toBeGreaterThan(0);
+  expect(rows, "rows stored under the second server's mark").toBe(
+    observed.noContent,
+  );
+  expect(rows, "never more rows than counted hits").toBeLessThanOrEqual(
+    observed.pastTheMediaType,
+  );
 }
 
 function expectNoSecretIn(output: string): void {

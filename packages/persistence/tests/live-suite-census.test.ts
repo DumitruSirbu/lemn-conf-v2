@@ -160,6 +160,12 @@ const EXPECTED_CLASSIFICATION: Readonly<
     reason:
       "writes report rows under marks of its own, removes them only through the guarded helper, asserts no whole-table figure and needs the schema intact (M8 wave 8Q2)",
   },
+  "qa-8q2-csp-pattern-differential.adversarial.test.ts": {
+    gate: "live test database",
+    lock: "none",
+    reason:
+      "adversarial QA of 8Q2: one read-only select over generate_series per probe, comparing migration 0009's patterns with the code's checks; reads no table, writes and alters nothing (M8 8Q2 QA)",
+  },
   "neon-rate-limit-store.test.ts": {
     gate: "live test database",
     lock: "shared",
