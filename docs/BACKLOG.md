@@ -225,6 +225,18 @@ status corrections, in one of these two files:
 | 192 | The locale switcher is 25 px high, under the 44 px touch target; likely inherited from the mockup | open.md — recorded 2026-10-12; owner: the human, at the hand check or 8T |
 | 193 | 8L's earlier deferred items carried: the discriminated-union hand-over type, `WaitingWrite` to `HeldWrite`, security F2 and F6 optional hardening | open.md — recorded 2026-10-12; points to 183, 184 and the security report |
 | 194 | 8L's unproven list: real keyboard and autofill, a real 422, a send in flight on leaving, e2e mutants, leftover test-database rows, one desktop flake | open.md — recorded 2026-10-12; 8T's phone gate and the M8 close audit |
+| 195 | A whole-run e2e failure that passes alone: `qa-8d-review-scene.adversarial` :189 (32757 against at most 60) | open.md — recorded 2026-10-13 at M8 8M's close; trigger: a second occurrence, or the close audit |
+| 196 | No index serves `findSentReference`'s query | open.md — recorded 2026-10-13 (security); additive migration if leads grow, never edit `0008` |
+| 197 | The sent request's typed phone or e-mail stays in tab memory until a reload or the next design form | open.md — recorded 2026-10-13 (security); optional clear on unmount |
+| 198 | An import cycle between `contact/` and `done/` (`ChannelSummary`, `ResultHeading`, `ReviewLink`) | open.md — recorded 2026-10-13 (clean-code) |
+| 199 | Comments citing `8M.3` and long headers (ADR 0136) | open.md — recorded 2026-10-13 (clean-code) |
+| 200 | Long hooks and components (`useContactSubmission`, `WhatsappActionControl`), two `*BackLink` near-duplicates, naming | open.md — recorded 2026-10-13 (clean-code) |
+| 201 | A visible focus ring on the `h1` after a reload or in the no-request view | open.md — recorded 2026-10-13 (visual); owner: the human |
+| 202 | The no-request view's heading looks unstyled against 5A | open.md — recorded 2026-10-13 (visual) |
+| 203 | The interim line's look, and its wording; proposed leaf `contact.leavingLine` | open.md — recorded 2026-10-13; **owner approves copy** |
+| 204 | Contrast of the 10.5 px *Număr cerere* label unmeasured | open.md — recorded 2026-10-13 (visual); 8T |
+| 205 | WhatsApp action: no spoken *busy* leaf; *go on* reuses `share.reissue` | open.md — recorded 2026-10-13; the owner's copy pass |
+| 206 | 8M's logic notes: F2, F3 (`canWrite` after a `/done` reload), not-sent wording, revision drift | open.md — recorded 2026-10-13; owner questions |
 
 ## 2026-09-06 audit note
 

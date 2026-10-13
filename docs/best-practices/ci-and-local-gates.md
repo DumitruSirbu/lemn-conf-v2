@@ -512,8 +512,11 @@ says. The shard names are free to change and must **not** be required checks.
   skipped required check counts as passing.) On a pull request it carries the shards' own
   `github.event_name != 'pull_request'` condition and reports **skipped**, as the old job did; GitHub
   counts a skipped required check as passing, so nothing new can block a pull request.
-- There are **two shard jobs, not one ~~six-leg~~ nine-leg matrix** (corrected 2026-10-08: 3 desktop plus 6 mobile
-  legs, per the job table above; it was six when mobile had three shards), because a job's `needs` names whole jobs and a
+- There are **two shard jobs, not one ~~six-leg~~ ~~nine-leg~~ eleven-leg matrix** (corrected 2026-10-13 at M8 wave 8M's
+  close: 3 desktop plus 8 mobile legs, read from `.github/workflows/ci.yml` `shard: [1, 2, 3]` at line 338 and
+  `shard: [1, 2, 3, 4, 5, 6, 7, 8]` at line 535, and `SHARDS_PER_PROJECT = { desktop: 3, mobile: 8 }` in
+  `scripts/gates/e2e-shard-budget.mjs:48`; it was nine at 3 + 6 on 2026-10-08, and six when mobile had three
+  shards; the count moves with `SHARDS_PER_PROJECT`, so read it there), because a job's `needs` names whole jobs and a
   matrix job's result aggregates all its legs: one matrix could feed only one summary, and
   `e2e (desktop)` would go red for a mobile failure. Two jobs also let each project carry its own
   shard count. The price is one step list written twice; change both together.
@@ -544,7 +547,7 @@ place, `scripts/gates/e2e-shard-budget.mjs` (`MEASURED_RUNNER_RATES`, `TARGET_MI
 | Seconds per test | 37.8 x 60 / 84 = **27.0** | 26.1 x 60 / 109 = **14.4** |
 | Budget at 30 min | 1800 / 27.0 = 66.7, so **66** a shard | 1800 / 14.4 = 125.3, so **125** a shard |
 | Tests on the branch | 185 | 393 |
-| Shards the budget requires | 3 (the largest, 70, is the ratchet below) | **4**: three shards put 138 on the largest. *(A dated measurement. Mobile has run in six shards since `c62feb1`, 2026-10-08; `SHARDS_PER_PROJECT` is the current count.)* |
+| Shards the budget requires | 3 (the largest, 70, is the ratchet below) | **4**: three shards put 138 on the largest. *(A dated measurement. Mobile has run in six shards since `c62feb1`, 2026-10-08, in seven since `fb41df61` (M8 wave 8K2) and in eight since `5fd0c9bc` (M8 wave 8M's QA commit); `SHARDS_PER_PROJECT` is the current count.)* |
 
 **What the rates are, stated so nobody over-trusts them.** They come from `main` at `995ad03`, the
 only runner evidence there is; this branch's suite had never run on a runner. The two rows are on

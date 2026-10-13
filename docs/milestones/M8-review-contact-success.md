@@ -1234,8 +1234,8 @@ both in M9.
 | 8G | ~~Changed lightly~~ **DONE 2026-10-10, commits `0ba7fb1` … `18a9f319`, not pushed.** The limiter on saves, shares and reads; pruning. See *8G as closed* and [ADR 0156](../decisions/0156-saves-shares-and-reads-are-limited-by-subjects-made-only-by-two-constructors-writes-fail-closed-reads-fail-open-pages-are-counted-in-the-interceptor-and-the-saves-wait-is-one-write-the-client-holds.md). **Owner actions outstanding:** Q36, Q37, Q38, the cron entry told | ~~8F — done; dispatchable (2026-10-09)~~ — Done |
 | 8K | ~~**Changed:** no bot check~~ **DONE 2026-10-12, HEAD `8782ad17` at its close, not pushed** (row corrected by the architect on 2026-10-12 from *8K as closed*; the scribe's close-out left it as dispatchable). `POST /api/contact-submissions`. See *8K as closed* and [ADR 0157](../decisions/0157-the-contact-route-judges-every-request-first-stores-once-answers-one-code-per-kind-and-refuses-a-retry-across-a-change-of-book.md). **Owner actions outstanding:** Q39, Q40 | ~~8F, 8H, 8I, 8J — **all done; dispatchable (2026-10-09)**~~ — Done |
 | 8K2 | ~~**Added 2026-10-12, planned, not dispatched.**~~ **DONE 2026-10-12, commits `5f0d93f6` … `7d282603`, local, not pushed; the push is blocked: no `pnpm ci:local` run is green at or after the 8K2 code (its e2e step runs `next dev`).** Backlog 168 (C2-1 with GL-R4.1): a design returned to by Back or Forward shows the stored one, and a write the tab still holds is shown and not replaced. Full tier; web only, no server file. See *8K2 as closed* and [ADR 0158](../decisions/0158-a-design-loaded-again-is-never-offered-an-edit-on-a-copy-older-than-the-stored-one-and-never-shown-as-saved-while-the-tab-holds-a-write-and-the-review-is-left-to-adr-0148.md). **For the owner:** Q41 (blocks nothing) and **Q42 (blocks the push)** | ~~8K — done. **Dispatchable.** S1 waits for nothing~~ — Done |
-| 8L | Stays; Q26 settled | 8H, 8K, **8K2** (2026-10-12) |
-| 8M | Stays | 8L; the shop's number, or the action is not drawn |
+| 8L | ~~Stays; Q26 settled~~ **DONE 2026-10-12, commits `03091d01` … `9cc0c5a1`, local, not pushed** (row marked by the 8M scribe, 2026-10-13, from *8L as closed*). The contact screens 4A, 4B, 4C and frame 2F's callback form. See *8L as closed* and [ADR 0159](../decisions/0159-the-contact-form-sends-one-request-at-a-time-keeps-its-id-until-the-body-or-a-conflict-changes-it-draws-no-typed-value-outside-memory-and-leaves-the-review-by-a-link-that-fetches-the-page.md) | ~~8H, 8K, **8K2** (2026-10-12)~~ — Done |
+| 8M | ~~Stays~~ **DONE 2026-10-13, commits `f31f6648` (plan) … `68cadbbe`, local, not pushed.** Success 5A, failure 5B, the `/d/{id}/done` route and 5A's WhatsApp action. See *8M as closed* and [ADR 0160](../decisions/0160-a-sent-request-is-handed-to-its-done-page-in-memory-by-a-replaced-history-entry-an-answerless-send-is-retried-only-by-the-connection-returning-and-the-failure-screen-is-a-state-of-the-contact-page.md). **For the owner:** copy approvals, Q3, Q9, Q44, Q45 and the rest of *8M as closed* | ~~8L; the shop's number, or the action is not drawn~~ — Done (the direct call is still not drawn: Q3) |
 | 8Q | Stays | 8L |
 | 8T | **Changed:** the phase gate without the launch gate | Everything above |
 | ~~8R~~ | **Leaves for M9** | — |
@@ -11489,6 +11489,43 @@ Backlog: 191 (1) closed by S0; 194's *send in flight on leaving* closed as consi
 interim *"after 8L a sent request shows no success screen until 8M"* closed. 8T's gate gains the
 lines of point 4's phone paragraph. M8's named interim 6 still holds the shop's number. The wave
 table's 8M row.
+
+##### 8M as closed — 2026-10-13
+
+**DONE as built, reviewed and committed, local, not pushed.** HEAD at the close is `68cadbbe`. Record: [ADR 0160](../decisions/0160-a-sent-request-is-handed-to-its-done-page-in-memory-by-a-replaced-history-entry-an-answerless-send-is-retried-only-by-the-connection-returning-and-the-failure-screen-is-a-state-of-the-contact-page.md). Written by the scribe from the coordinator's hand-over (**relayed**); **the scribe ran nothing** and read the commit list from `.git/logs/HEAD`.
+
+**Shipped.** Plan `f31f6648`; S0 `5720fc80` (one `HydrateStoredDesign`); S1 `e4429e0b` (the `unanswered` class); S2 `0ba5fbce` (the online retry, the one-entry hand-over); S3 `a18870bb` (`findSentReference`, with checkpoint A's fixes); S4 `a1a63769` (the copy, 29 leaves); S5 `c15d25ef` (frame 5A); S6 `f6613ade` (the `/done` route); S7 `e076516d` (frame 5B, the callback's sent view); S8 `bd8a86ad` (the WhatsApp action); QA `5fd0c9bc`; review fix-up `68cadbbe`. The `-i` audit of `M8 wave 8M` subjects was not run by the scribe; the list above is from `.git/logs/HEAD`.
+
+**Verification, with who ran it** (all [relayed, coordinator-ran]; HEAD `68cadbbe`).
+
+- The whole web Vitest suite: 475 files, 9805 tests. Typecheck, lint, format, `gate:boundary` and `gate:e2e-shard-budget`: exit 0.
+- The whole `CI=1` e2e: **923 passed, 1 failed**: `qa-8d-review-scene.adversarial` :189, a pixel-change test, 32757 against at most 60; it passed 3 of 3 alone. Read as a load-dependent flake, not proven; backlog 195.
+- **QA's verdict was SEND BACK**, then fixed: F1 (the blank page after sent; the page keeps `contact.sendingLine`, `role="status"`), F4 (the router scan hardened, 3 mutants), and the mobile shards 7 to 8 (`ci.yml`, `e2e-shard-budget.mjs`, `local-ci.sh`).
+- Reviews [relayed]: logic, minor concerns, no blocker; clean-code, the two dead notice kinds and a duplicate `location.origin` fixed in `68cadbbe`, the rest in the backlog; security, no exploitable issue; visual (production build, 390 x 844, ro and ru), 5A and 5B match the plan with the deviations in ADR 0160.
+- **Not run:** `pnpm ci:local`, `pnpm check`, a CI runner, a real phone, the live persistence suite for `findSentReference` (the coordinator owes one run, alone, ADR 0155), e2e mutants against a database.
+
+**Deviations, with the rationale.** Three taps, not two, for WhatsApp with an active link (the warning is its own step). F1's interim line, which no frame draws. Mobile e2e in eight shards. **The QA-owned pin list of point 9 was incomplete again**: QA's commit repinned stale `8D` and `8L` reds beyond the three the plan named (`qa-8d-review-door.adversarial.e2e:336-340`, `qa-8l-contact-phone.adversarial.e2e:263, 374`, `qa-8l-contact-screen.adversarial.dom:157`); the file list was not read by the scribe. **The point 9 list should be read as a starting point, not a boundary, in every plan that follows (it was also incomplete at 8L).**
+
+**8L leftovers closed by this scribe pass.** Dated notes on ADR 0148 (the contact page as the second door and `/done` the third, four doors, one answer) and ADR 0157 (the client's side of criteria 10 to 12; an answered failure is retried only by a press); ADR 0153 and ADR 0159 and ADR 0114 G carry their own notes (point 12). The wave table's 8L row is marked. **Not closed:** backlog 187 (not verified); the text of the 8L security reviewer's F2 and F6 (never given to a scribe; backlog 193 still says "optional hardening").
+
+**Documentation updated.** ADR 0160 (new); dated notes on ADR 0159, 0114, 0148, 0157, 0153; `STATUS.md` (the M8 row and a new top entry under *What to do next*); `milestones/README.md`; `docs/BACKLOG.md` and `docs/backlog/open.md` (195 to 206, a dated note on 187 and 193); `best-practices/ci-and-local-gates.md` (the eleven-leg prose and the shard history).
+
+**Deferred, each with an owner or a trigger.**
+
+| Item | Where | Owner or trigger |
+| --- | --- | --- |
+| The pixel-change flake | 195 | A second occurrence; the close audit |
+| No index for `findSentReference`; the hand-over kept in tab memory | 196, 197 | Growth of leads; the architect |
+| `contact/` and `done/` import cycle; comments and headers; long hooks, near-duplicates, names | 198, 199, 200 | The next change to the files; the close audit |
+| Focus ring, the no-request view's heading, the interim line, the label's contrast | 201 to 204 | The human, at the hand check; 8T |
+| The WhatsApp action's spoken *busy* leaf and its *go on* label | 205 | The owner's copy pass |
+| Logic notes F2, F3, wording, revision drift | 206 | Owner questions; 8T |
+
+**For 8T's phone gate** (lines added): clipboard on iOS; a discarded tab reloaded onto `/done`; a real network drop and when `online` fires, including an `online` event spent on an in-flight retry that then gets no answer (F2); WhatsApp opening from the anchor; desktop 5A and 5B at 1440 and 900 px; the camera view remembered after returning to the editor (criterion 17 is dom only); keyboard and screen-reader announcements; the contrast of the *Număr cerere* label.
+
+**Owner questions** (none blocks the push or 8Q; the push is no longer blocked by Q42 once `local-ci.sh`'s change is committed, ADR 0159 Amendment A, which the scribe did not verify). (1) **Copy approvals:** the six groups of 8M copy (5A's saved sentence; the channel lines for *Telefon* and *E-mail* and the variant with no number; 5B's kept sentence, its twin and title; the retry line; the no-request and not-shown sentences), the WhatsApp message, and the proposed `contact.leavingLine`. (2) **Q9**, the three next-step texts. (3) **Q3**, the shop's phone number (5B has no other channel on screen until given). (4) **Q44** and **Q45**, both built on (a) as defaults, neither ruled: (a) of Q44, the customer picks the person in WhatsApp; (a) of Q45, the form again after a send. (5) The **register mismatch** (relayed; its detail was not given to the scribe). (6) The not-sent wording for an answered failure, including a `200` whose body was lost. (7) **F3:** whether `/done` may pass `canWrite: true` so the WhatsApp action shows after a reload (a dated amendment). (8) The locale pill's exemption from the 44 px target (47 x 25 px; backlog 192). (9) **Backlog 146's caveat:** confirm that no production data exists at merge time. Also for the owner's hands: the test database holds two contact requests and six minted designs from the visual run (ADR 0151).
+
+**Next:** 8Q (the CSP enforces), then 8T. **M8's close includes the first test audit** (ADR 0152 Amendment A); a "cannot fail" finding keeps M8 open.
 
 ## Part P — customer profiles — MOVED TO M8B (owner, 2026-10-07)
 

@@ -301,3 +301,7 @@ shop's notice) is 8J's.
   and no clean coordinator run exists at `7445280` (QA's was clean).
 - **Commits** on `m8-review-contact-success`, local, not pushed [coordinator ran `git log`]: see the plan's *8I as closed*.
 - **Not run / not proven:** `pnpm check`, `pnpm ci:local`, e2e, anything on a CI runner; and the list above.
+
+## Dated note — 2026-10-13, wave 8M (the scribe; from the coordinator's hand-over, relayed; nothing re-run)
+
+**The application role's reads grew by one query and no column.** `findSentReference({designId, revision})` (commit `a18870bb`) selects `reference` where the design id and revision match and `notified_at is not null`, latest `notified_at` first, then the reference. Per the plan's S3 it names only columns among the seven readable ones, returns one reference or none and never a list, a count or a personal column, and adds **no migration and no grant** [plan; the scribe did not read the statement]. Decision 1's grant and "no list and no count" stand. The query has no index (backlog 196); an additive migration is the remedy if leads grow, never an edit of `0008`. The live persistence suite for it has not been run (the coordinator owes one run, alone, ADR 0155). Record: [ADR 0160](0160-a-sent-request-is-handed-to-its-done-page-in-memory-by-a-replaced-history-entry-an-answerless-send-is-retried-only-by-the-connection-returning-and-the-failure-screen-is-a-state-of-the-contact-page.md) decision 5.

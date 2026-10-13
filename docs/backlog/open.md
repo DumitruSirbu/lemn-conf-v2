@@ -2952,3 +2952,53 @@ The discriminated-union hand-over type (**183**); `WaitingWrite` to `HeldWrite` 
 ## 194. 8L's unproven list — RECORDED 2026-10-12 AT M8 8L's CLOSE
 
 **[relayed].** Real on-screen keyboard and real autofill (**8T's phone line**); a real `422` through the browser (only dom tests cover the does-not-fit screen); a send in flight when the customer leaves (accepted, ADR 0159 d2; 8M); e2e mutants not run (ADR 0155), one no-JS mutant ran against the callback page, which touches no database; about four leftover **test**-database rows from the visual verifier, ids unknown, nobody removes them (ADR 0151); one unexplained desktop flake, seen once, `u-gate-journeys.ts:374` (U7 S2), passed alone and on rerun. Also: the plan's point 9 repin list was incomplete (`qa-8d-review-scene.adversarial.e2e:378`, exit link count 2 to 1; `qa-8d-review-door.adversarial.e2e:362`, contact route 404 to 200); recorded in ADR 0159. Whether backlog 187 is closed was not verified by the scribe.
+
+*Dated note, 2026-10-13 (8M's scribe; not verified): the 8M close could not confirm that 187's criterion 14 (b) table landed, so **187 stays open**; the next audit or reviewer who reads `HydrateAndReview`'s tests closes it or says what is missing. 193's security F2 and F6 text is in the 8L security report, which the 8M scribe was not given and did not read; the entry still says only "optional hardening".*
+
+## 195. A whole-run e2e failure that passes alone: `qa-8d-review-scene.adversarial` line 189, the pixel-change test — RECORDED 2026-10-13 AT M8 8M's CLOSE
+
+**Source [coordinator-ran, relayed].** In the whole `CI=1` e2e at `68cadbbe` (923 passed, 1 failed) this test measured 32757 changed pixels against a bound of at most 60; it passed 3 of 3 run alone. Read as load-dependent; **not proven**. **Trigger:** a second occurrence, or the M8 close audit (ADR 0152). Not on the list of three known intermittents in `ci-and-local-gates.md`.
+
+## 196. No index serves `findSentReference`'s query — RECORDED 2026-10-13 AT M8 8M's CLOSE (security note)
+
+**Source [security reviewer, relayed].** The read selects by design id and revision where `notified_at is not null`; the table has no index for it. Harmless at the present volume. **Remedy:** an **additive** migration if leads grow; **never an edit of `0008`**. **Trigger:** a slow `/done`, or contact requests numbering in the thousands.
+
+## 197. The sent request's typed phone or e-mail stays in tab memory until a reload or the next design form — RECORDED 2026-10-13 AT M8 8M's CLOSE (security note)
+
+**Source [security reviewer, relayed].** ADR 0160 decision 4; not a defect by the plan's ruling (8M.2). **Optional hardening:** clear the entry when the done screen unmounts (a language switch or Back then Forward would then lose the number on 5A, which 8M.2 chose to keep). **Owner:** the architect, with the owner if the trade is wanted.
+
+## 198. An import cycle between `contact/` and `done/` — RECORDED 2026-10-13 AT M8 8M's CLOSE (clean-code)
+
+**Source [clean-code reviewer, relayed].** `ChannelSummary`, `ResultHeading` and `ReviewLink` are shared by both folders. **Remedy:** move them to a neutral module. **Trigger:** the next change to either folder, or the M8 close audit.
+
+## 199. Comments that cite plan numbers, and long file headers — RECORDED 2026-10-13 AT M8 8M's CLOSE (clean-code)
+
+**Source [clean-code reviewer, relayed].** Comments naming `8M.3` and similar, and headers longer than ADR 0136 allows. **Remedy:** the comment diet of ADR 0136. **Trigger:** the M8 close audit.
+
+## 200. 8M's long hooks and components, near-duplicates and names — RECORDED 2026-10-13 AT M8 8M's CLOSE (clean-code)
+
+**Source [clean-code reviewer, relayed].** `useContactSubmission` and `WhatsappActionControl` are long (the latter should become a hook plus a component); two `*BackLink` components are near-duplicates; naming: `PhaseBesideForm.kind: failed`, and `isUnanswered` against `hasUnansweredSend`. **Trigger:** the next change to those files, or the M8 close audit.
+
+## 201. A visible focus ring on the `h1` after a reload or in the no-request view — RECORDED 2026-10-13 AT M8 8M's CLOSE (visual)
+
+**Source [visual reviewer, 390 x 844, relayed].** The programmatic focus of 8M.12 draws a ring that is conspicuous on touch. **Remedy:** a decision on `:focus-visible` for a programmatically focused heading. **Owner:** the human, at the hand check or 8T.
+
+## 202. The no-request view's heading looks unstyled against 5A — RECORDED 2026-10-13 AT M8 8M's CLOSE (visual)
+
+**Source [visual reviewer, relayed].** It wraps over three lines and has no check mark and no back link, unlike 5A. No frame draws this view (8M.6 case 3). **Owner:** the human, with the copy approvals.
+
+## 203. The interim line's look, and its wording for an already-sent request — RECORDED 2026-10-13 AT M8 8M's CLOSE (visual, logic)
+
+**Source [visual and logic reviewers, relayed].** Between the `200` and `/done`, `contact.sendingLine` (QA's F1 fix) is a small grey 12 px sentence on an otherwise blank page; no mockup frame draws it. The logic reviewer finds the words wrong for a request already sent and recommends **a new leaf `contact.leavingLine`**, ro *"Se deschide confirmarea…"*, ru *"Открываем подтверждение…"*. **Not added: the owner approves copy.**
+
+## 204. Contrast of the 10.5 px *Număr cerere* label is unmeasured — RECORDED 2026-10-13 AT M8 8M's CLOSE (visual)
+
+**Source [visual reviewer, relayed].** Not measured. **Trigger:** 8T, or the hand check. Also seen: *Copiat* sits beside *Copiază* for two seconds; the offline line is far from the retry.
+
+## 205. WhatsApp action: no spoken *busy* leaf, and the *go on* label reuses `share.reissue` — RECORDED 2026-10-13 AT M8 8M's CLOSE
+
+**Source [8M's reviews, relayed; the exact finding text was not given to the scribe].** The action has no spoken *busy* state of its own, and its *go on* label reuses `share.reissue`. **Owner:** the copy approval (a new leaf is a copy decision). **Trigger:** the owner's copy pass.
+
+## 206. 8M's logic notes: F2, F3, the not-sent wording, revision drift — RECORDED 2026-10-13 AT M8 8M's CLOSE
+
+**Source [logic reviewer, relayed].** **F2:** an `online` event spent on an in-flight retry that then gets no answer leaves 5B's note promising an automatic retry that will not come; acceptable, no timer; **8T's phone gate gains a line.** **F3:** after a reload of `/done` the WhatsApp action is absent (`canWrite` is *checking*), as criterion 18 reads; a product gap; passing `canWrite: true` from the `/done` hydrator needs a dated amendment (**owner question**). The not-sent sentence is told for every answered failure, including a `200` whose body was lost (the owner may want it softer). After a second-tab save `/done` shows the no-request view, by design.
