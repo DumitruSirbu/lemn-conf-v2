@@ -82,6 +82,14 @@ jobs:
       - name: Install (frozen lockfile)
         run: pnpm install --frozen-lockfile
 
+      # The shop's phone is a placeholder until the owner answers Q3 (ADR 0163 decision 2). Production
+      # only: a preview may carry it. This runs before anything opens a database, and it is red by
+      # design until the number is replaced. It is not in ci.yml, `pnpm check` or `pnpm ci:local`,
+      # where it would turn every push red.
+      - name: Refuse the shop-phone placeholder in production
+        if: inputs.environment == 'production'
+        run: pnpm gate:launch-placeholders
+
       # Fails before any database is opened, with a message naming the fix — the same shape ci.yml's
       # `test` job uses for TEST_DATABASE_URL.
       - name: Assert the migration credential is present
