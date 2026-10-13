@@ -16,14 +16,17 @@ import {
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
+import {
+  nonceOfPolicy,
+  policyOf,
+  POLICY_HEADER,
+} from "./support/csp-violations";
 import { deleteMintedDesigns } from "./support/minted-designs";
 import { mintSeededDesign, type Locale } from "./support/seeded-design";
 
 const VISITOR_COOKIE = "__Host-lemnaria_visitor";
 const WELL_FORMED_UNKNOWN_ID = "A".repeat(21);
 const LOCALES: readonly Locale[] = ["ro", "ru"];
-const CSP_HEADER = "content-security-policy-report-only";
-const NONCE_IN_POLICY = /'nonce-([^']+)'/;
 const SCRIPT_TAG = /<script\b[^>]*>/g;
 const NONCE_ATTRIBUTE = /\snonce="([^"]*)"/;
 const BUILD_DIRECTORY = join(process.cwd(), ".next");
@@ -260,9 +263,9 @@ function readPrerenderManifest(): PrerenderManifest {
 }
 
 function nonceOfThePolicy(response: APIResponse): string {
-  const nonce = NONCE_IN_POLICY.exec(response.headers()[CSP_HEADER] ?? "")?.[1];
+  const nonce = nonceOfPolicy(policyOf(response));
   if (nonce === undefined) {
-    throw new Error(`the response carries no nonce in its ${CSP_HEADER}`);
+    throw new Error(`the response carries no nonce in its ${POLICY_HEADER}`);
   }
   return nonce;
 }

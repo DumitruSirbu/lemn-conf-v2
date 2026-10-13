@@ -7,6 +7,8 @@ import {
 } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
+import { nonceOfPolicy, policyOf } from "./support/csp-violations";
+
 interface MetadataMessages {
   readonly brand: string;
   readonly meta: { readonly title: string; readonly description: string };
@@ -14,8 +16,6 @@ interface MetadataMessages {
 
 const roMessages = readMessages("ro");
 const ruMessages = readMessages("ru");
-
-const CSP_HEADER = "content-security-policy-report-only";
 
 test("cookie, weighted language preferences, fallback and the full query select the redirect locale", async ({
   request,
@@ -189,9 +189,9 @@ test("invalid locale shapes and prefixed tooling are 404 while unprefixed toolin
 });
 
 function assertCsp(response: APIResponse | Response): string {
-  const policy = response.headers()[CSP_HEADER];
+  const policy = policyOf(response);
   expect(policy).toBeTruthy();
-  const nonce = /'nonce-([^']+)'/.exec(policy ?? "")?.[1];
+  const nonce = nonceOfPolicy(policy);
   expect(nonce).toBeTruthy();
   if (nonce === undefined) throw new Error("CSP contains no nonce");
   return nonce;

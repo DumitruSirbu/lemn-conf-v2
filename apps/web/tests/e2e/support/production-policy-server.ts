@@ -35,6 +35,15 @@ export const CONTACT_UNAVAILABLE_SERVER_PORT = 4326;
  *  their flag is off: a server that is not given `LEMNARIA_ENABLE_SCENE_SHOT_ROUTE` (8Q criterion 1). */
 export const UNMATCHED_ADDRESSES_SERVER_PORT = 4327;
 
+/** 4328: QA's end-to-end report from a share view (8Q S6 item 2): a server whose output the spec reads. */
+export const CSP_SHARE_REPORT_SERVER_PORT = 4328;
+
+/** 4329: QA's hostile-body set against the sink, on a server of its own so no report it sends is the suite's. */
+export const CSP_SINK_SERVER_PORT = 4329;
+
+/** 4330: QA's failed render (8Q S6 item 4): a server whose database cannot be reached. */
+export const FAILED_RENDER_SERVER_PORT = 4330;
+
 /** A developer whose 4322 is taken sets this; a spec that names its own port ignores it. Read when a server starts,
  *  never when the module loads. */
 const PORT_OVERRIDE_VARIABLE = "E2E_PRODUCTION_POLICY_PORT";
@@ -55,12 +64,19 @@ const NOT_INHERITED = [
 export interface ProductionPolicyServerOptions {
   /** The one variable a second server may be given that the suite's never is: the network source the owner names. */
   readonly networkSource?: string;
+  /** Keep what the server writes to its standard output and error, for {@link ProductionPolicyServer.output}. */
+  readonly captureOutput?: boolean;
+  /** A `DATABASE_URL` that names no reachable host, so a render that reads a design fails (8Q S6 item 4). It is never the
+   *  application's database and never printed. Absent, the server gets the guarded test database. */
+  readonly unreachableDatabaseUrl?: string;
 }
 
 export interface ProductionPolicyServer {
   readonly origin: string;
   /** This server's own secret, made for it alone; the keys it counts under are computed from it. */
   readonly secret: string;
+  /** Everything the server wrote to standard output and error since it started; empty unless it was asked to keep it. */
+  output(): string;
   stop(): Promise<void>;
 }
 
@@ -81,7 +97,12 @@ export async function startProductionPolicyServer(
   }
   await requirePortFree(port);
   const secret = makeRunSecret();
-  const child = spawnNextStart(port, environmentOfTheServer(secret, options));
+  const child = spawnNextStart(
+    port,
+    environmentOfTheServer(secret, options),
+    options.captureOutput === true,
+  );
+  const written = keepOutputOf(child);
   const exited = new Promise<never>((_resolve, reject) => {
     child.once("exit", () => {
       reject(
@@ -91,7 +112,12 @@ export async function startProductionPolicyServer(
   });
   const origin = `http://localhost:${String(port)}`;
   await Promise.race([waitUntilReady(origin), exited]);
-  return { origin, secret, stop: () => stopProcess(child) };
+  return {
+    origin,
+    secret,
+    output: () => written.join(""),
+    stop: () => stopProcess(child),
+  };
 }
 
 function portOfThisRun(): number {
@@ -103,18 +129,35 @@ function portOfThisRun(): number {
 function spawnNextStart(
   port: number,
   environment: NodeJS.ProcessEnv,
+  captureOutput: boolean,
 ): ChildProcess {
   const directory = process.cwd();
   return spawn(
     process.execPath,
     [nextBinaryOf(directory), "start", "--port", String(port)],
-    { cwd: directory, env: environment, stdio: "ignore" },
+    {
+      cwd: directory,
+      env: environment,
+      stdio: captureOutput ? ["ignore", "pipe", "pipe"] : "ignore",
+    },
   );
+}
+
+/** What a child wrote to either stream, in arrival order; the streams are drained so a full pipe never stalls it. */
+function keepOutputOf(child: ChildProcess): string[] {
+  const written: string[] = [];
+  for (const stream of [child.stdout, child.stderr]) {
+    stream?.setEncoding("utf8");
+    stream?.on("data", (chunk: string) => {
+      written.push(chunk);
+    });
+  }
+  return written;
 }
 
 function environmentOfTheServer(
   secret: string,
-  { networkSource }: ProductionPolicyServerOptions,
+  { networkSource, unreachableDatabaseUrl }: ProductionPolicyServerOptions,
 ): NodeJS.ProcessEnv {
   const environment: Record<string, string | undefined> = Object.fromEntries(
     Object.entries(process.env).filter(
@@ -122,7 +165,7 @@ function environmentOfTheServer(
     ),
   );
   // The guarded resolver refuses anything but an allowlisted test database, as the suite's own server's does.
-  environment.DATABASE_URL = resolveTestDatabaseUrl();
+  environment.DATABASE_URL = unreachableDatabaseUrl ?? resolveTestDatabaseUrl();
   environment[DIGEST_SECRET_VARIABLE] = secret;
   if (networkSource !== undefined) {
     environment[CLIENT_NETWORK_SOURCE_VARIABLE] = networkSource;

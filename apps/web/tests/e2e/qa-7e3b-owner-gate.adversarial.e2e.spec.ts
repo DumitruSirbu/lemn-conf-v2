@@ -8,6 +8,7 @@ import {
   type Page,
 } from "@playwright/test";
 
+import { nonceOfPolicy, policyOf } from "./support/csp-violations";
 import { deleteMintedDesigns } from "./support/minted-designs";
 import {
   issueShareLink,
@@ -234,12 +235,7 @@ test.describe("the owner across a rotation", () => {
 });
 
 function nonceOf(response: APIResponse): string {
-  const headers = response.headers();
-  const policy =
-    headers["content-security-policy-report-only"] ??
-    headers["content-security-policy"] ??
-    "";
-  const nonce = /'nonce-([^']+)'/.exec(policy)?.[1];
+  const nonce = nonceOfPolicy(policyOf(response));
   if (nonce === undefined) throw new Error("the response carries no CSP nonce");
   return nonce;
 }
@@ -247,9 +243,7 @@ function nonceOf(response: APIResponse): string {
 /** Every header but `Date`, with the per-response CSP nonce (it also rides in `Link`) and the
  *  path's own id (the hreflang `Link`) replaced by placeholders. */
 function headersExceptDate(response: APIResponse, pathId = "\u0000"): string[] {
-  const policy =
-    response.headers()["content-security-policy-report-only"] ??
-    response.headers()["content-security-policy"];
+  const policy = policyOf(response);
   const nonce = policy === undefined ? undefined : nonceOf(response);
   return response
     .headersArray()
