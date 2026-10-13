@@ -159,6 +159,7 @@ const HYDRATORS = [
         designId: DESIGN_ID,
         revision,
         isSendable: true,
+        sentReference: { kind: "none" },
       }),
   },
   {

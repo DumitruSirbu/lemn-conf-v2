@@ -26,6 +26,7 @@ function renderOnTheServer(isSendable: boolean): string {
         designId: "another-visitors-design" as DesignId,
         revision: "5",
         isSendable,
+        sentReference: { kind: "none" },
       }),
     }),
   );

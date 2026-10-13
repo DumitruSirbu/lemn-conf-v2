@@ -4,10 +4,9 @@ import {
   type ContactSubmissionRequest,
   type SubmissionTarget,
 } from "@lemnaria/configurator-domain";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import {
-  forgetSentRequest,
   rememberSentRequest,
   sentRequestFrom,
 } from "@/done/sent-request-memory";
@@ -166,7 +165,6 @@ export function useContactSubmission(
   // A request with no design names nothing the store holds, so another design's unsaved edit is no reason to hold it.
   const saveWait = target.kind === "design" ? designSaveWait : NOTHING_TO_SAVE;
   const bookVersion = pricingVersionOf(usePricedDesign());
-  useForgetSentRequestOnMount(target);
 
   const edit = useCallback(
     (event: ContactFormEdit) => {
@@ -201,15 +199,6 @@ export function useContactSubmission(
   });
 
   return { form, phase, saveWait, refusedPress, edit, press };
-}
-
-/** A design form's mount drops what an earlier request left, so the hand-over never predates the latest design form.
- *  It outlives the form that wrote it on purpose: the page that follows reads it. */
-function useForgetSentRequestOnMount(target: ContactTarget): void {
-  const isDesignForm = target.kind === "design";
-  useEffect(() => {
-    if (isDesignForm) forgetSentRequest();
-  }, [isDesignForm]);
 }
 
 function isUnanswered(phase: ContactSubmissionPhase): boolean {

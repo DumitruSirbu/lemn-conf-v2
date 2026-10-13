@@ -47,6 +47,7 @@ const loadOwned = vi.hoisted(() =>
     (lookup: { id: string; visitorHash: string }) => Promise<LoadOwnedResult>
   >(),
 );
+const findSentReference = vi.hoisted(() => vi.fn());
 const designLoadError = vi.hoisted(() => vi.fn(() => null));
 const hydrateAndConfigure = vi.hoisted(() => vi.fn(() => null));
 const hydrateAndReview = vi.hoisted(() => vi.fn(() => null));
@@ -54,6 +55,9 @@ const hydrateAndContact = vi.hoisted(() => vi.fn(() => null));
 
 vi.mock("@/lib/server/repository", () => ({
   getRepository: () => ({ loadOwned }),
+}));
+vi.mock("@/lib/server/contact/contact-submission-store-instance", () => ({
+  getContactSubmissionStore: () => ({ findSentReference }),
 }));
 vi.mock("@/app/d/[id]/hydrate-and-configure", () => ({
   HydrateAndConfigure: hydrateAndConfigure,
@@ -128,6 +132,8 @@ const SENDABLE_ENVIRONMENT = {
 
 beforeEach(() => {
   loadOwned.mockReset();
+  findSentReference.mockReset();
+  findSentReference.mockResolvedValue({ kind: "none" });
   for (const hydrator of [
     hydrateAndConfigure,
     hydrateAndReview,
@@ -221,7 +227,7 @@ describe("the three doors refuse one request alike", () => {
 
   for (const door of DOORS)
     for (const testCase of cases)
-      it(`${door} / ${testCase.name}: renders exactly { reason: "${testCase.reason}" } and no design`, async () => {
+      it(`${door} / ${testCase.name}: renders exactly { reason: "${testCase.reason}" }, no design and no contact-store read`, async () => {
         state.cookieValue = testCase.cookie;
         state.cookieName = testCase.cookieName ?? VISITOR_COOKIE_NAME;
 
@@ -232,6 +238,7 @@ describe("the three doors refuse one request alike", () => {
         expect(loadOwned).toHaveBeenCalledTimes(
           testCase.reachesRepository ? 1 : 0,
         );
+        expect(findSentReference).not.toHaveBeenCalled();
         for (const hydrator of [
           hydrateAndConfigure,
           hydrateAndReview,
@@ -268,7 +275,9 @@ describe("the owner is served the contact page", () => {
     state.cookieValue = OWNER_VALUE;
   });
 
-  it("with the stored design, its revision, the id and whether the server can send, and nothing else", async () => {
+  it("with the stored design, its revision, the id, whether the server can send and what it knows of a sent request, and nothing else", async () => {
+    findSentReference.mockResolvedValue({ kind: "sent", reference: "LM-2614" });
+
     const page = await renderDoor("contact", OWNED_ROW_ID);
 
     expect(isValidElement(page) && page.type).toBe(hydrateAndContact);
@@ -277,6 +286,7 @@ describe("the owner is served the contact page", () => {
       designId: OWNED_ROW_ID,
       revision: "7",
       isSendable: true,
+      sentReference: { kind: "sent", reference: "LM-2614" },
     });
     expect(loadOwned).toHaveBeenCalledWith({
       id: OWNED_ROW_ID,

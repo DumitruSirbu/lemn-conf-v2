@@ -9,6 +9,7 @@ import { vi } from "vitest";
 
 import { ContactScreen } from "@/contact/contact-screen";
 import { CONTACT_SUBMISSIONS_ENDPOINT } from "@/contact/send-contact-request";
+import type { SentReferenceAnswer } from "@/done/result-to-show";
 import { useConfiguratorStore } from "@/store/configurator-store";
 
 import roMessages from "../../src/messages/ro.json";
@@ -27,6 +28,8 @@ export interface ScreenOptions {
   readonly design?: Design;
   readonly locale?: ScreenLocale;
   readonly isSendable?: boolean;
+  /** The server's answer for the page's revision; the page was loaded at `FIRST_REVISION`. */
+  readonly sentReference?: SentReferenceAnswer;
 }
 
 export function mountContactScreen(options: ScreenOptions = {}): MountedScreen {
@@ -34,6 +37,7 @@ export function mountContactScreen(options: ScreenOptions = {}): MountedScreen {
     design = KITCHEN_L_DESIGN,
     locale = "ro",
     isSendable = true,
+    sentReference = { kind: "none" },
   } = options;
   useConfiguratorStore.setState(useConfiguratorStore.getInitialState());
   useConfiguratorStore.getState().hydrate({
@@ -53,7 +57,9 @@ export function mountContactScreen(options: ScreenOptions = {}): MountedScreen {
         timeZone: "Europe/Chisinau",
         children: createElement(ContactScreen, {
           designId: DESIGN_ID,
+          revision: FIRST_REVISION,
           isSendable,
+          sentReference,
         }),
       }),
     );

@@ -352,7 +352,7 @@ describe("the hand-over", () => {
     expect(recallSentRequest(THE_PAGES_KEY).kind).toBe("none");
   });
 
-  it("is cleared when a design contact form mounts", () => {
+  it("is not cleared by the form's memory mounting, which is the screen's to do in every arm it draws", () => {
     rememberSentRequest({
       ...{ ...THE_PAGES_KEY, reference: "LM-OLD" },
       channel: "phone",
@@ -361,7 +361,7 @@ describe("the hand-over", () => {
 
     mountDesignForm();
 
-    expect(recallSentRequest(THE_PAGES_KEY).kind).toBe("none");
+    expect(recallSentRequest(THE_PAGES_KEY).kind).toBe("remembered");
   });
 
   it("is kept when the callback form mounts, which is not a design's form", () => {

@@ -1,13 +1,14 @@
 "use client";
 
 import type { DesignId } from "@lemnaria/configurator-domain";
+import type { DesignRevision } from "@lemnaria/persistence";
 import { useLocale } from "next-intl";
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
-import { LocaleMenu } from "@/app/configurator/configure/locale-menu";
-import { StartLink } from "@/components/start-link";
 import { WebGLUnavailable } from "@/components/webgl-unavailable";
 import { ChannelSummary, ResultHeading } from "@/done/done-screen";
+import type { SentReferenceAnswer } from "@/done/result-to-show";
+import { forgetSentRequest } from "@/done/sent-request-memory";
 import { SentReferenceCard } from "@/done/sent-reference-card";
 import { useReplaceWithDone } from "@/done/use-replace-with-done";
 import type { SubmissionChannelLine } from "@/i18n/content";
@@ -18,11 +19,23 @@ import { OpenEditorLink } from "@/review/open-editor-link";
 import type { RefusedSubmit, ReviewView } from "@/review/review-model";
 import { useReview } from "@/review/use-review";
 import { useWebGLSupport } from "@/scene/webgl-support";
+import {
+  hasUnsavedEdit,
+  useConfiguratorStore,
+} from "@/store/configurator-store";
 
+import { AlreadySentView } from "./already-sent-view";
 import { ContactDesignCard } from "./contact-design-card";
 import { ContactForm } from "./contact-form";
 import type { ContactFormValues } from "./contact-form-model";
 import { isSendOff } from "./contact-outcome";
+import {
+  contactPageViewOf,
+  nextContactPageView,
+  type ContactPageView,
+  type ContactPageViewInput,
+} from "./contact-page-view";
+import { ReviewBackLink, StartBackLink, TopBar } from "./contact-top-bar";
 import styles from "./contact.module.css";
 import { SubmissionFailure, useFailureView } from "./submission-failure";
 import {
@@ -35,22 +48,36 @@ import {
 
 export interface ContactScreenProps {
   readonly designId: DesignId;
+  /** The stored revision the page was loaded at: what `sentReference` answers for. */
+  readonly revision: DesignRevision;
   /** Whether the server can take a request at all: a mail sender and a digest secret it can use. A boolean and nothing
    *  of how it was decided, since that must not reach the page. */
   readonly isSendable: boolean;
+  /** What the server said of this design at `revision`. Nothing more of its row reaches the page. */
+  readonly sentReference: SentReferenceAnswer;
 }
 
 /**
- * The contact page of a stored design (frames 4A to 4C). On a device that cannot show the kitchen it is the editor's
- * own exit, as the review is, since the card shows a price for a kitchen that device cannot show; while that is still
- * being asked it is the editor's loading line and no figure. Where the server cannot take a request it is a sentence
- * saying so and no form.
+ * The contact page of a stored design (frames 4A to 4C). While the device is still being asked it is the editor's
+ * loading line and no figure. A kitchen already sent for shows its request and no form, on any device, since that view
+ * shows no price. Otherwise, on a device that cannot show the kitchen it is the editor's own exit, as the review is,
+ * since the card shows a price for a kitchen that device cannot show; and where the server cannot take a request it is a
+ * sentence saying so and no form. Every hook is called before the first return, so the order never changes.
  */
-export function ContactScreen({ designId, isSendable }: ContactScreenProps) {
+export function ContactScreen({
+  designId,
+  revision,
+  isSendable,
+  sentReference,
+}: ContactScreenProps) {
   const content = useContent();
   const support = useWebGLSupport();
+  const view = useLatchedContactPageView({
+    server: sentReference,
+    page: { designId, revision },
+  });
+  useForgetSentRequestOnMount();
 
-  if (support === "unsupported") return <WebGLUnavailable />;
   if (support === "probing") {
     return (
       <main className={styles.screen}>
@@ -58,11 +85,42 @@ export function ContactScreen({ designId, isSendable }: ContactScreenProps) {
       </main>
     );
   }
+  if (view.kind === "already-sent") {
+    return <AlreadySentView designId={designId} reference={view.reference} />;
+  }
+  if (support === "unsupported") return <WebGLUnavailable />;
   return isSendable ? (
     <DesignContactPage designId={designId} />
   ) : (
     <UnavailablePage backLink={<ReviewBackLink designId={designId} />} />
   );
+}
+
+/** A design contact page's mount drops what an earlier request left, in every arm it draws, so the hand-over never
+ *  predates the latest design contact page. It outlives the form that wrote it on purpose: the page that follows reads
+ *  it. */
+function useForgetSentRequestOnMount(): void {
+  useEffect(() => {
+    forgetSentRequest();
+  }, []);
+}
+
+/** The view for this render, kept in state so that a form once decided is the form for the rest of the mount. The state
+ *  is set while rendering, so the frame that would have drawn the sent view after the store moved on is never committed. */
+function useLatchedContactPageView(
+  pageInput: Omit<ContactPageViewInput, "held">,
+): ContactPageView {
+  const designId = useConfiguratorStore((state) => state.designId);
+  const revision = useConfiguratorStore((state) => state.revision);
+  const isUnsaved = useConfiguratorStore(hasUnsavedEdit);
+  const input: ContactPageViewInput = {
+    ...pageInput,
+    held: { designId, revision, hasUnsavedEdit: isUnsaved },
+  };
+  const [latched, setLatched] = useState(() => contactPageViewOf(input));
+  const view = nextContactPageView(latched, input);
+  if (view.kind !== latched.kind) setLatched(view);
+  return view;
 }
 
 export interface CallbackContactScreenProps {
@@ -336,44 +394,6 @@ function useServedLocale(): AppLocale {
 /** The review's own refusal, when it has one: whatever it will not offer, this page does not send. */
 function refusalOf(review: ReviewView): RefusedSubmit | undefined {
   return review.submit.kind === "refused" ? review.submit : undefined;
-}
-
-/** The bar the review draws, as shipped (frame 4A's `‹`, the title and the language menu); no material pill (ADR 0148
- *  A3) and no step pill, which the review does not draw either. */
-function TopBar({ backLink }: { readonly backLink: ReactNode }) {
-  const content = useContent();
-  return (
-    <header className={styles.nav}>
-      {backLink}
-      <span className={styles.navTitle} data-testid="contact-top-bar-title">
-        {content.contact.topBarTitle}
-      </span>
-      <div className={styles.localeSlot}>
-        <LocaleMenu />
-      </div>
-    </header>
-  );
-}
-
-/** What both back links draw: the same `‹` button, whichever page it leads to. */
-function useBackLinkProps() {
-  const content = useContent();
-  return {
-    className: styles.back,
-    "aria-label": content.configure.backAction,
-    "data-testid": "contact-back",
-    children: <span aria-hidden="true">‹</span>,
-  };
-}
-
-/** The way back to the design's review, fetched. */
-function ReviewBackLink({ designId }: { readonly designId: DesignId }) {
-  return <ReviewLink designId={designId} {...useBackLinkProps()} />;
-}
-
-/** The way back for a form with no design: the start of the configurator. */
-function StartBackLink() {
-  return <StartLink {...useBackLinkProps()} />;
 }
 
 function Intro({
