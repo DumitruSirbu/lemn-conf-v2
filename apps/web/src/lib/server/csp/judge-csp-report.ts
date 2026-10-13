@@ -22,9 +22,8 @@ const REFUSED_STATUS = 429;
 const UNAVAILABLE_STATUS = 503;
 
 /**
- * Counts one report in the network block's bucket, under the `csp-report` policy. The process environment is asked
- * here, inside the request. Whatever cannot be judged is unavailable, so a request that cannot be judged is refused
- * and not taken: the sink fails closed, as every write does (ADR 0156).
+ * Counts one report in the network block's bucket, under the `csp-report` policy. The environment is read here, inside
+ * the request. Whatever cannot be judged is unavailable and refused: the sink fails closed (ADR 0156).
  */
 export async function judgeCspReport(
   headers: HeaderReader,
@@ -41,8 +40,7 @@ export async function judgeCspReport(
 
 /**
  * The answer that stops a report, or nothing when it may go on: `429` with the wait, or `503`, both without a body.
- * A refusal writes one line for a process and a UTC hour (a flood past the figure buys no more) and an unjudged
- * request writes one for a process and a cause. Nothing thrown here is kept: it answers as unavailable.
+ * Nothing thrown here is kept: it answers as unavailable.
  */
 export function refusalOfCspReportLimit(
   headers: HeaderReader,

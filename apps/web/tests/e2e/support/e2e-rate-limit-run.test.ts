@@ -539,6 +539,41 @@ describe("the teardown", () => {
       );
     });
 
+    it("judges the count when the mints' rows are missing, failing the CI run with both failures", async () => {
+      vi.stubEnv("CI", "1");
+      answerEachTwin(new Map([[keyOfCspReports(), [2, 1]]]));
+      const log = silenceTheLine();
+
+      const failure: unknown = await globalTeardown().then(
+        () => undefined,
+        (error: unknown) => error,
+      );
+
+      expect(failure).toBeInstanceOf(AggregateError);
+      expect(
+        (failure as AggregateError).errors.map(
+          (error: Error) => error.constructor,
+        ),
+      ).toEqual([NoCountersOfTheRunError, CspReportsInTheRunError]);
+      expect(String(log.mock.calls[0]?.[0])).toContain(
+        "Its server counted 3 csp-report hits (2 counter rows removed)",
+      );
+    });
+
+    it("fails a run outside CI that found no mints' rows with that failure alone, the count still printed", async () => {
+      vi.stubEnv("CI", undefined);
+      answerEachTwin(new Map([[keyOfCspReports(), [5]]]));
+      const log = silenceTheLine();
+
+      await expect(globalTeardown()).rejects.toBeInstanceOf(
+        NoCountersOfTheRunError,
+      );
+
+      expect(String(log.mock.calls[0]?.[0])).toContain(
+        "Its server counted 5 csp-report hits",
+      );
+    });
+
     it("passes a CI run whose server counted none", async () => {
       vi.stubEnv("CI", "1");
       answerWithCspReports([]);

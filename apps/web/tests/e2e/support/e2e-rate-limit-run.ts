@@ -282,11 +282,10 @@ export class NoCountersOfTheRunError extends Error {
 }
 
 /**
- * The whole-run net of wave 8Q (8Q.6): the suite's server counts every violation report it receives under
- * `csp-report`, which has no e2e twin, and a run on the production build fails if it counted any. A spec that breaks the
- * policy on purpose fulfils its reports with `page.route` before they reach the server. Under `next dev`, where no whole
- * run was measured clean, the count is printed by the teardown and asserts nothing. It is one-directional: a report a
- * browser had not sent when its page closed is not counted.
+ * The whole-run net: the suite's server counts every violation report under `csp-report` (no e2e twin), and a `CI` run
+ * fails if it counted any. A spec that breaks the policy on purpose fulfils its reports with `page.route` before they
+ * reach the server. Outside `CI` (`next dev`) the count is printed and asserts nothing. A report a browser had not sent
+ * when its page closed is not counted.
  */
 export function requireNoCspReportsUnderCi(hitsCounted: number): void {
   if (process.env.CI === undefined) return;

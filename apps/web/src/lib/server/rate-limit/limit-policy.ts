@@ -89,7 +89,7 @@ export const READS_PER_BLOCK_FIGURE = 600;
  * small enough that a flood costs little. While no network source is named the one shared bucket holds all visitors'
  * reports together. The owner's answer changes this constant and no code.
  */
-const CSP_REPORT_WINDOW_MINUTES = 60;
+export const CSP_REPORT_WINDOW_MINUTES = 60;
 export const CSP_REPORTS_PER_BLOCK_FIGURE = 100;
 
 /**
@@ -260,7 +260,7 @@ export const E2E_MINT_POLICY_NAME = E2E_MINT_POLICY.name;
 /** What a request is limited for. A bucket has an e2e twin when the suite's one shared block would count it: the
  *  credential's, the reads, and the contact form's buckets by a browser, an address and a stored request have none,
  *  since no test makes them often enough, and the suite's server counts no read under the shared bucket. A policy
- *  report has none either: the suite expects the production figure to be reached by no test (ADR 0161, 8Q.6). */
+ *  report has none either: the suite expects the production figure to be reached by no test (ADR 0161). */
 export type PolicyPurpose =
   | "mint"
   | "save-by-block"

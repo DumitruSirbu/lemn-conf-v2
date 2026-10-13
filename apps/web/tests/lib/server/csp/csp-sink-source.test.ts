@@ -105,7 +105,7 @@ const DIRECTIVES_NO_VIOLATION_NAMES: ReadonlySet<string> = new Set([
 ]);
 
 describe("the sink's address and its closed lists", () => {
-  it("is the route file's own address", () => {
+  it("pins CSP_REPORT_PATH to /api/csp-reports, where a route file exists and exports POST", () => {
     expect(readFileSync(join(SOURCE_ROOT, ROUTE_FILE), "utf8")).toContain(
       "export async function POST",
     );

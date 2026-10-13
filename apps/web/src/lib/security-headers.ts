@@ -7,18 +7,14 @@
 export type ContentSecurityPolicyMode = "report-only" | "enforce";
 
 /**
- * The single switch: `"enforce"` sends `Content-Security-Policy` (a violation is blocked and reported);
- * `"report-only"` sends `Content-Security-Policy-Report-Only` (reported, nothing blocked). Changing it changes the
- * header name and nothing else, so a rollback is this one line.
+ * The single switch: `"enforce"` sends `Content-Security-Policy` (blocked and reported); `"report-only"` sends
+ * `Content-Security-Policy-Report-Only` (reported only). It changes the header name and nothing else, so a rollback is
+ * this one line.
  *
- * It is enforcing because no document a browser is sent lacks a nonce. A nonce only reaches the HTML of a dynamically
- * rendered response, so a route in `.next/prerender-manifest.json` would go blank under `"enforce"`. Next builds
- * `/_global-error` and `/_not-found` whatever the application does, and the manifest keeps listing them, but no
- * browser is sent either as a document: an address no route answers renders its 404 for each request
- * (`app/[locale]/[...unmatched]`, with `api` and `internal` catch-alls that answer an empty one), and `next.config.ts`
- * rewrites the two literal addresses to it (8Q.12). Violations reach the application's own counted sink,
- * `CSP_REPORT_PATH` (ADR 0161), so the policy is a live control with a signal, not a declaration (ADR 0041 decision 3,
- * discharged; decision 4, overturned by ADR 0161).
+ * Enforcing holds only while every document a browser is sent carries a nonce, and a nonce reaches the HTML of a
+ * dynamically rendered response alone: a route listed in `.next/prerender-manifest.json` would go blank. `/_global-error`
+ * and `/_not-found` stay listed but are never sent as documents: `app/[locale]/[...unmatched]` renders the 404 per
+ * request and `next.config.ts` rewrites those two addresses to it (ADR 0041, ADR 0161).
  */
 export const CONTENT_SECURITY_POLICY_MODE: ContentSecurityPolicyMode =
   "enforce";
@@ -26,8 +22,8 @@ export const CONTENT_SECURITY_POLICY_MODE: ContentSecurityPolicyMode =
 export const CSP_ENFORCED_HEADER = "Content-Security-Policy";
 export const CSP_REPORT_ONLY_HEADER = "Content-Security-Policy-Report-Only";
 
-/** The address of the application's own report sink (ADR 0161 decision 2): the one name the policy's `report-uri`
- *  carries, and the route file's own address, which a test holds equal. */
+/** The address of the application's own report sink (ADR 0161): the policy's `report-uri` and the route file's path,
+ *  which a test holds equal. */
 export const CSP_REPORT_PATH = "/api/csp-reports";
 
 /** The request header `src/proxy.ts` hands the nonce down on, for a component that needs it. */
@@ -94,15 +90,13 @@ export function cspResponseHeaderName(mode: ContentSecurityPolicyMode): string {
 }
 
 /**
- * `script-src` is never given a blanket `'unsafe-inline'`: Next's bootstrap scripts are admitted by nonce, and
- * `'strict-dynamic'` lets them load their chunks. `'self'` there is inert: a CSP3 browser honouring `'strict-dynamic'`
- * ignores every host-source expression, so do not add a CDN host expecting it to take effect (ADR 0041 decision 5).
- * `style-src` keeps `'unsafe-inline'`: React writes `style` attributes and drei injects style elements it does not
- * nonce. `blob:` and `data:` are admitted for images and workers because three.js hands generated textures and
- * loader workers to the browser. `upgrade-insecure-requests` is active under enforcement and ignored in report-only
- * (Chromium upgrades nothing from `http://localhost`, so the suite's server is unaffected; a `next start` reached by a
- * LAN address is, and cannot be looked at over plain HTTP). `report-uri` names the application's own sink in both
- * modes and both branches (ADR 0161 decision 2).
+ * `script-src` is never given a blanket `'unsafe-inline'`: Next's bootstrap scripts are admitted by nonce and
+ * `'strict-dynamic'` lets them load their chunks. `'self'` there is inert (a CSP3 browser honouring `'strict-dynamic'`
+ * ignores host sources), so a CDN host added there takes no effect (ADR 0041 decision 5). `style-src` keeps
+ * `'unsafe-inline'` because React writes `style` attributes and drei injects style elements it does not nonce. `blob:`
+ * and `data:` are admitted for images and workers because three.js hands generated textures and loader workers to the
+ * browser. `upgrade-insecure-requests` is ignored in report-only, and under enforcement a `next start` reached by a
+ * LAN address is upgraded to HTTPS and cannot be viewed over plain HTTP.
  */
 export function buildContentSecurityPolicy({
   nonce,

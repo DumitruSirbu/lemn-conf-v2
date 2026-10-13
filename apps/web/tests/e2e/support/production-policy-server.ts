@@ -1,4 +1,8 @@
-import { spawn, type ChildProcess } from "node:child_process";
+import {
+  spawn,
+  type ChildProcess,
+  type StdioOptions,
+} from "node:child_process";
 import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
 import { createServer } from "node:net";
@@ -18,7 +22,7 @@ import { RUN_SECRET_VARIABLE, makeRunSecret } from "./e2e-rate-limit-run";
 /** 4322: the spec that proves the production policy's real figure. */
 export const PRODUCTION_POLICY_SERVER_PORT = 4322;
 
-/** 4323: the live spec of the refused mint, which is QA's and imports this name. */
+/** 4323: the live spec of the refused mint. */
 export const REFUSED_MINT_LIVE_SERVER_PORT = 4323;
 
 /** 4324: the spec that proves a page read is counted, whose server is given a network source the owner names. */
@@ -27,21 +31,21 @@ export const PAGE_READ_PROOF_SERVER_PORT = 4324;
 /** 4325: the sweep of a page's address written with percent-escapes, whose server is given a network source too. */
 export const ESCAPED_LOCALE_SERVER_PORT = 4325;
 
-/** 4326: the spec that proves the contact pages say so, and draw no form, where the server cannot take a request: a
- *  server with no fake sender, so no mail variable of any kind is usable (8L criterion 7). */
+/** 4326: the contact pages say so and draw no form where the server cannot take a request: no fake sender, so no mail
+ *  variable of any kind is usable. */
 export const CONTACT_UNAVAILABLE_SERVER_PORT = 4326;
 
-/** 4327: the spec that proves what a browser is sent for an address no route answers, and for the capture pages when
- *  their flag is off: a server that is not given `LEMNARIA_ENABLE_SCENE_SHOT_ROUTE` (8Q criterion 1). */
+/** 4327: what a browser is sent for an address no route answers, and for the capture pages when their flag is off: a
+ *  server not given `LEMNARIA_ENABLE_SCENE_SHOT_ROUTE`. */
 export const UNMATCHED_ADDRESSES_SERVER_PORT = 4327;
 
-/** 4328: QA's end-to-end report from a share view (8Q S6 item 2): a server whose output the spec reads. */
+/** 4328: a report sent from a share view, on a server whose output the spec reads. */
 export const CSP_SHARE_REPORT_SERVER_PORT = 4328;
 
-/** 4329: QA's hostile-body set against the sink, on a server of its own so no report it sends is the suite's. */
+/** 4329: the hostile-body set against the sink, on a server of its own so no report it sends is the suite's. */
 export const CSP_SINK_SERVER_PORT = 4329;
 
-/** 4330: QA's failed render (8Q S6 item 4): a server whose database cannot be reached. */
+/** 4330: a failed render: a server whose database cannot be reached. */
 export const FAILED_RENDER_SERVER_PORT = 4330;
 
 /** A developer whose 4322 is taken sets this; a spec that names its own port ignores it. Read when a server starts,
@@ -66,7 +70,7 @@ export interface ProductionPolicyServerOptions {
   readonly networkSource?: string;
   /** Keep what the server writes to its standard output and error, for {@link ProductionPolicyServer.output}. */
   readonly captureOutput?: boolean;
-  /** A `DATABASE_URL` that names no reachable host, so a render that reads a design fails (8Q S6 item 4). It is never the
+  /** A `DATABASE_URL` that names no reachable host, so a render that reads a design fails. It is never the
    *  application's database and never printed. Absent, the server gets the guarded test database. */
   readonly unreachableDatabaseUrl?: string;
 }
@@ -75,7 +79,8 @@ export interface ProductionPolicyServer {
   readonly origin: string;
   /** This server's own secret, made for it alone; the keys it counts under are computed from it. */
   readonly secret: string;
-  /** Everything the server wrote to standard output and error since it started; empty unless it was asked to keep it. */
+  /** Everything the server wrote to standard output and error since it started. Throws unless the server was started
+   *  with `captureOutput: true`: an empty string there would let a negative assertion pass vacuously. */
   output(): string;
   stop(): Promise<void>;
 }
@@ -97,11 +102,11 @@ export async function startProductionPolicyServer(
   }
   await requirePortFree(port);
   const secret = makeRunSecret();
-  const child = spawnNextStart(
+  const child = spawnNextStart({
     port,
-    environmentOfTheServer(secret, options),
-    options.captureOutput === true,
-  );
+    environment: environmentOfTheServer(secret, options),
+    stdio: stdioOf(options),
+  });
   const written = keepOutputOf(child);
   const exited = new Promise<never>((_resolve, reject) => {
     child.once("exit", () => {
@@ -115,7 +120,7 @@ export async function startProductionPolicyServer(
   return {
     origin,
     secret,
-    output: () => written.join(""),
+    output: () => outputOf(written, options),
     stop: () => stopProcess(child),
   };
 }
@@ -126,20 +131,40 @@ function portOfThisRun(): number {
   );
 }
 
-function spawnNextStart(
-  port: number,
-  environment: NodeJS.ProcessEnv,
-  captureOutput: boolean,
-): ChildProcess {
+interface NextStartLaunch {
+  readonly port: number;
+  readonly environment: NodeJS.ProcessEnv;
+  readonly stdio: StdioOptions;
+}
+
+function stdioOf({
+  captureOutput,
+}: ProductionPolicyServerOptions): StdioOptions {
+  return captureOutput === true ? ["ignore", "pipe", "pipe"] : "ignore";
+}
+
+function outputOf(
+  written: readonly string[],
+  { captureOutput }: ProductionPolicyServerOptions,
+): string {
+  if (captureOutput !== true) {
+    throw new Error(
+      "The server's output was not kept: start it with `captureOutput: true` to read it",
+    );
+  }
+  return written.join("");
+}
+
+function spawnNextStart({
+  port,
+  environment,
+  stdio,
+}: NextStartLaunch): ChildProcess {
   const directory = process.cwd();
   return spawn(
     process.execPath,
     [nextBinaryOf(directory), "start", "--port", String(port)],
-    {
-      cwd: directory,
-      env: environment,
-      stdio: captureOutput ? ["ignore", "pipe", "pipe"] : "ignore",
-    },
+    { cwd: directory, env: environment, stdio },
   );
 }
 

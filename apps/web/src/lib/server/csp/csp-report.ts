@@ -1,12 +1,11 @@
 /**
  * The reduction of one browser report of a policy violation to the closed record the server may write down (ADR 0161
- * decision 3, plan 8Q.3). Pure: no clock, no store, no request, and nothing here throws.
+ * decision 3). Pure: no clock, no store, no request, and nothing here throws.
  *
- * A report is written by a browser on a visitor's page, so its address is the visitor's: a share view's carries the
- * token (ADR 0114 Amendment B and G) and a design's page carries its id. The reduction therefore never copies a
- * field. Each value of the record is picked from a closed list, cut to an origin, or an integer within a bound, and
- * a field the list does not name is not read at all. `document-uri`, `referrer`, `script-sample` and `original-policy`
- * (which carries the nonce) reach the record only as the family a path belongs to, and never as text.
+ * A report's addresses are the visitor's and can carry a share token or a design id, so no field is copied. Each value
+ * is picked from a closed list, cut to an origin, or an integer within a bound; a field no list names is not read.
+ * `document-uri`, `referrer`, `script-sample` and `original-policy` (which carries the nonce) reach the record only as
+ * the page family a path belongs to, never as text.
  */
 
 /** The directives of this application's policy, and the `-elem` and `-attr` forms of the two that have them. */
@@ -55,6 +54,8 @@ export const NO_LOCALE = "none";
 /** Whether the report's `document-uri` is on this server's own origin, on another, or absent or not an http address. */
 export const CSP_ORIGINS = ["own", "foreign", "none"] as const;
 
+export type CspDirective = (typeof CSP_DIRECTIVES)[number] | typeof OTHER;
+export type CspDisposition = (typeof CSP_DISPOSITIONS)[number] | typeof OTHER;
 export type CspPage = (typeof CSP_PAGE_FAMILIES)[number] | typeof OTHER;
 export type CspLocale = (typeof CSP_REPORT_LOCALES)[number] | typeof NO_LOCALE;
 export type CspOrigin = (typeof CSP_ORIGINS)[number];
@@ -63,7 +64,7 @@ export type CspOrigin = (typeof CSP_ORIGINS)[number];
  *  absent, not empty, when the report did not give a usable one; `source` is also absent unless `origin` is `own`,
  *  and `page` is `other` unless it is, because a page of another origin is no page of this application. */
 export interface ReducedCspReport {
-  readonly directive: string;
+  readonly directive: CspDirective;
   readonly blocked: string;
   readonly source?: string;
   readonly line?: number;
@@ -71,7 +72,7 @@ export interface ReducedCspReport {
   readonly page: CspPage;
   readonly locale: CspLocale;
   readonly origin: CspOrigin;
-  readonly disposition: string;
+  readonly disposition: CspDisposition;
   readonly status?: number;
 }
 
@@ -106,7 +107,6 @@ const SCHEME_ONLY =
 const OWN_CHUNK_PATH = /^\/_next\/static(?:\/[A-Za-z0-9._~-]+)+\.js$/;
 const LONGEST_CHUNK_PATH_LENGTH = 255;
 
-const DIRECTIVE_NAMES: ReadonlySet<string> = new Set(CSP_DIRECTIVES);
 const DESIGN_STEP_PAGES: Readonly<Record<string, CspPage>> = {
   review: "/[locale]/d/[id]/review",
   contact: "/[locale]/d/[id]/contact",
@@ -218,22 +218,22 @@ function integerWithin(
     : undefined;
 }
 
-function oneOf(value: string | undefined, list: readonly string[]): string {
-  return value !== undefined && list.includes(value) ? value : OTHER;
+function oneOf<const List extends readonly string[]>(
+  value: string | undefined,
+  list: List,
+): List[number] | typeof OTHER {
+  return list.find((member) => member === value) ?? OTHER;
 }
 
 /** `effective-directive`, else the first word of `violated-directive` (older browsers write the whole directive there). */
-function directiveOf(report: Report): string {
+function directiveOf(report: Report): CspDirective {
   const effective = stringField(report, "effective-directive");
   const violated = stringField(report, "violated-directive");
   const named =
     effective !== undefined && effective !== ""
       ? effective
       : violated?.trim().split(/\s+/)[0];
-  const lowered = named?.toLowerCase();
-  return lowered !== undefined && DIRECTIVE_NAMES.has(lowered)
-    ? lowered
-    : OTHER;
+  return oneOf(named?.toLowerCase(), CSP_DIRECTIVES);
 }
 
 function httpUrlOf(text: string | undefined): URL | undefined {

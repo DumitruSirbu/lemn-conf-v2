@@ -1,12 +1,10 @@
-// The violation net of wave 8Q (8Q.6): what a page did against the content security policy, seen three ways, and the
-// policy header every test reads. Both depend on `CONTENT_SECURITY_POLICY_MODE` and on nothing else, so a flip or a
-// rollback of the mode moves no test but the one that pins the constant.
+// What a page did against the content security policy, observed three ways, and the policy header every test reads.
+// Both depend on `CONTENT_SECURITY_POLICY_MODE` alone, so a flip of the mode moves no test but the one that pins it.
 //
-// The three observers, and why there are three: (i) the `securitypolicyviolation` event on `document`, which fires for a
-// report-only violation too and so works in either mode; (ii) the console, which a blocked `eval` never writes to, so it
-// cannot carry the net alone; (iii) a request to the report path, the only one that also sees a violation inside a
-// worker, where no document event fires. Chromium deduplicates identical reports, so a report count is a lower bound on
-// the events and no test may assert that the two are equal.
+// The observers: (i) the `securitypolicyviolation` event on `document`, which fires in report-only too; (ii) the
+// console, which a blocked `eval` never writes to, so it cannot carry the net alone; (iii) a request to the report
+// path, the only one that sees a violation inside a worker, where no document event fires. Chromium deduplicates
+// identical reports, so a report count is a lower bound on the events and no test may assert the two equal.
 import type { Page } from "@playwright/test";
 
 import {

@@ -1,7 +1,6 @@
 /**
- * Every `/api` address no named route answers, whatever the method: an empty `404`, never a document. Without it Next
- * serves its prerendered `_not-found` page, whose scripts carry no CSP nonce (8Q.4). A named route keeps its address,
- * and a method it does not export keeps its own `405`: a more specific path wins over this catch-all.
+ * Every `/api` address no named route answers, whatever the method: an empty `404`, never a document, because Next's
+ * prerendered `_not-found` page carries no CSP nonce. A named route keeps its address and its own `405`.
  */
 function answerNotFound(): Response {
   return new Response(null, {
