@@ -11577,6 +11577,434 @@ is the only evidence there will be.
 *QA reading:* the criteria; `tests/lib/security-headers*`; the e2e console listeners. *Security
 reading:* ADR 0041; ADR 0019 d2.
 
+#### 8Q plan — restated for dispatch, 2026-10-13
+
+**State.** Planned at `fd954e0a` [ran: `git log --oneline -1`], with another agent's uncommitted
+clean-up in the tree; that agent committed it as `acad85e7` while this section was written
+(*"M8 clean-up — ReviewLink to src/result …"*, 13 files under `src/contact/`, `src/done/`,
+`src/result/`, `src/share/`, `src/lib/server/contact/` and three tests) [ran: `git show --stat
+acad85e7`]. **None is a file 8Q names**, and no claim below depends on it. After it the tree held
+only this plan's two documents [ran: `git status --short`]. **The dispatch base is the commit
+that holds this plan**; one writing agent per tree (R2). The architect ran no build, no server and
+no test for this plan; every claim about code is [src] at `fd954e0a` unless marked. The two-slice table above (2026-10-07) is **overtaken** by
+this section. Its criteria 1 to 5 stand, restated and made falsifiable in point 5. Its criterion 6
+(the bot check's scripts) left M8 with the bot check, as the note at its head says, and is carried
+to M9 (point 7). *Tier: Full + security*; visual only if S1 draws a page (point 8). A draft record
+exists: [ADR 0161](../decisions/0161-the-csp-enforces-its-violations-reach-the-applications-own-counted-endpoint-and-the-mode-stays-one-versioned-constant.md),
+*Proposed*, completed by the scribe at the close.
+
+**The wave in two parts.** **Part A** is everything provable on this machine, on a production
+build served by `next start` under `CI=1`: S0 to S6. **Part B** needs a deployment or an owner
+ruling: a preview look, the sink's final home, an operator switch, the bot check (point 7). **No
+slice of part A waits on part B.**
+
+**1. What exists, and what 8Q does with it.**
+
+| Built | Where [src] | What 8Q does |
+| --- | --- | --- |
+| The policy | `lib/security-headers.ts:19-20`, `CONTENT_SECURITY_POLICY_MODE = "report-only"`; `cspResponseHeaderName`; `buildContentSecurityPolicy`: `'strict-dynamic'` with the nonce, `'unsafe-eval'` and `ws: wss:` in development only, `upgrade-insecure-requests` outside development only | S4 adds `report-uri`; S5 flips the constant. No other directive changes unless 8Q.7 or 8Q.8 rules it |
+| The delivery | `proxy.ts:52-58, 72-81, 245-254`: one nonce per request; the policy set on the *request* under the enforcing name (so Next nonces its own scripts) and on the *response* under the mode's name; every matched path, `/api` and the limiter's refusals included | **Not touched** (point 4) |
+| Pages rendered per request | The callback page calls `connection()` (`app/[locale]/configurator/contact/page.tsx:12-14`); the design pages read the visitor cookie. 8L criterion 9 and 8M criterion 10 pin the contact pages and `/done` out of the manifest (`tests/e2e/contact-pages-per-request.e2e.spec.ts`; `qa-8m-done-door.adversarial.e2e.spec.ts`) | Kept. S2's tour extends the same proof to every page family |
+| What is still prerendered | 8A S1 measured four routes; 8L S3 removed the two contact pages, leaving `/_global-error` and `/_not-found` [doc, *8A figures*; not re-measured here]. No `not-found`, `global-not-found` or `global-error` file exists under `src/app`. The app has **two root layouts**, `app/[locale]/layout.tsx` (under a top-level dynamic segment) and `app/internal/layout.tsx` [ran: `find src/app -type f`] | S0 measures what a browser is actually served for each failing address; S1 acts on S0 |
+| Next's own rule | Installed `next` 16.3.8 [doc]: `dist/docs/01-app/02-guides/content-security-policy.md:38, 181` (a nonce reaches only a dynamically rendered page), `:397` (partial prerendering is incompatible), `:456-539` (SRI, experimental); `…/03-file-conventions/not-found.md:47-58` (`global-not-found.js`, experimental, behind `experimental.globalNotFound`, *"useful when … multiple root layouts … [or] top-level dynamic segments"*, both true here); `…/error.md:163-165` (`global-error` and the built-in 500 page render their own document) | S1's ladder (8Q.4) |
+| The limiter | `rate-limit/judge-block-bucket.ts` (`blockBucketRequestFor`, `judgeBlockBucket`); `limit-policy.ts` (`PolicyPurpose`, `TWINS_OF_PURPOSE`, `ALL_LIMIT_POLICIES`); `refusal-of-write-limit.ts`; writes fail closed (ADR 0156) | S3 adds one purpose, `csp-report` |
+| The bounded body | `lib/server/read-body-with-limit.ts`: `readUtf8BodyWithLimit`, counted on the stream, answers `too-large` or `stream-failed`, never rejects | S3 reads a report through it |
+| The e2e teardown | `tests/e2e/global-teardown.ts`: removes each twin's counter rows for the run's secret and reads the hits (`removeCountersOf`) | S4 makes it the whole run's violation net (8Q.6) |
+| A second built server | `tests/e2e/support/production-policy-server.ts`: `next start` on ports 4322 to 4326 with its own environment, spawned by `spawn` | S6's end-to-end report uses one more port |
+| Pins on the report-only name | **Developer-owned:** `tests/proxy.test.ts:38-45`; `tests/lib/security-headers.test.ts` (two); `tests/e2e/configure-route.e2e.spec.ts:34`; `contact-pages-per-request.e2e.spec.ts:26`; `page-read-limit-proof.e2e.spec.ts:76`; `shared-design-locale-identity.e2e.spec.ts:113`; `webgl-unavailable-i18n.e2e.spec.ts:15` (a console filter for the report-only `upgrade-insecure-requests` diagnostic). **QA-owned:** `locale-routing.qa.e2e.spec.ts:18`; `qa-8m-done-door.adversarial.e2e.spec.ts:25`. `qa-7e3b-owner-gate.adversarial.e2e.spec.ts:239, 251` and `qa-7e3c-share.adversarial.e2e.spec.ts:100` fall back to the enforcing name and need nothing [ran: `grep -rn -i report-only tests`] | S2 repoints the developer's to one helper; QA repins its own after S5. **A starting list, not a boundary** (*8M as closed*, deviations) |
+| Third-party script | None. No `next/script`; the only foreign hosts in `src` are `wa.me` (an anchor) and `api.resend.com` (server side); no web font from a host; `@vercel/blob` is server side [ran: grep of `src` and `packages/three-adapter/src`] | Nothing to admit. ADR 0041 d5 stands |
+
+**2. The decision sweep.** [ran: grep of `docs/decisions/` for *CSP*, *nonce*, *Content-Security*;
+hits in 0041, 0095, 0111, 0114, 0139 and the index, each read in the part named]
+
+| Record | What it says | How 8Q settles it |
+| --- | --- | --- |
+| ADR 0041 d1 | The whole policy is a versioned module with one switch, so a reviewer sees what the browser is told | Kept: the mode stays a constant (8Q.5) |
+| ADR 0041 d3 | Report-only until the prerendered pages and a violation collector are dealt with | Discharged by S1 and S3, in that order, then S5 flips. A dated note at the close |
+| ADR 0041 d4 | **Deliberately no report sink**: an unauthenticated, unthrottled `POST` is SEC-001's shape | **Overturned by name** in ADR 0161 (draft). The reason was the missing limiter; ADR 0155 and 0156 built it. Not silent |
+| ADR 0041 d5 | A host in `script-src` is ignored under `'strict-dynamic'` | Kept. It is why no host can admit a preview's injected script (Q49) |
+| ADR 0041 d6 | `upgrade-insecure-requests` is inert until the flip | Live from S5: 8Q.7 |
+| ADR 0041 d2 | `X-Frame-Options` is kept because the CSP reports only **and** does not cover static assets | Kept: static assets still carry no CSP. Only the comment's first reason goes |
+| ADR 0041 *Alternatives* | No hash allowance; making the routes dynamic is *"the obvious path to the flip"* | 8Q.4 |
+| ADR 0019 d2; correction of 2026-08-31 | The application limits, the platform firewalls; SEC-001 is gated | The sink is limited by the application's own limiter. The firewall stays M9's |
+| ADR 0155, ADR 0156 | Buckets keyed by digest; subjects made by constructors only; writes fail closed | The sink counts by network block through `blockBucketRequestFor`; a failure to judge refuses (8Q.3) |
+| ADR 0157 | The contact route judges every request first | 8Q.3 puts one I/O-free refusal before the count and says why |
+| ADR 0146 | No driver text in a log line | The sink's unavailable line names an error's name only |
+| ADR 0114 d5, Amendment B, G | A share token is a secret; a share view sends no referrer; a design opens only in its own browser | 8Q.3's reduction: no token, no id, no query reaches a log |
+| ADR 0159 d8 | The callback form is `method="post"` and may submit before any script runs | Criterion 11: `form-action 'self'` admits it under enforcement |
+| ADR 0158 *Limits*; backlog 182 | Under `next dev` every page is per request; prerender evidence is a build's | 8Q.2 |
+| ADR 0152 | A test is kept only if it can fail | The collector's self-test (criterion 3) |
+| ADR 0151 | A row a test writes is removed by its harness | The sink writes no row but a counter, which the teardown removes |
+| ADR 0111, ADR 0095 | Every customer route carries the nonce'd CSP; locale routing extends the one proxy | Kept; no proxy change |
+| This file, *Proposed variables* | *"No dependency is added in M8"* | No collector package, no `report-to` service |
+
+No record says the opposite of what follows except ADR 0041 d4, which ADR 0161 overturns by name.
+
+**3. Rulings for this wave** (the architect's; each open to the owner).
+
+- **8Q.1 — the slice table below replaces the two-slice table above.** Its S1 held four items over
+  five files and a decision; *Scope discipline* (`WORKFLOW.md`).
+- **8Q.2 — the evidence is a production build.** Every claim about a nonce, the manifest or a
+  violation is made on `next build` and `next start` under `CI=1`. A `next dev` observation is
+  evidence about development only (ADR 0158 *Limits*). S0 runs alone, in the tree frozen for it.
+- **8Q.3 — the violation sink is the application's own `POST /api/csp-reports`, counted, bounded,
+  and keeping nothing but one reduced log line.**
+  - The policy names it by `report-uri`, from one exported constant, `CSP_REPORT_PATH`, which a
+    test matches to the route file. **No `report-to` and no `Reporting-Endpoints` header in M8:**
+    the Reporting API delivers in batches after a delay and wants a potentially trustworthy
+    endpoint, which would make the e2e evidence depend on timing [inf; S0 M6 measures what
+    Chromium sends with `report-uri` alone].
+  - **In this order:** (1) the media type of `Content-Type` is `application/csp-report`, else
+    `415`; (2) one hit is counted for the network block under `csp-report`: refused, `429` with
+    `Retry-After`; not judged (no secret, no store, a misconfigured source, the deadline), `503`;
+    (3) the body is read through `readUtf8BodyWithLimit` with a cap of 8 KiB, else `413`, or `400`
+    for a broken stream; (4) it parses as JSON whose top level holds an object `csp-report`, else
+    `400`; (5) it is reduced; (6) one line, `[csp]` with `event: "csp-violation"` and the reduced
+    record; (7) `204`, no body, `Cache-Control: no-store`. **Nothing is logged for (1) to (4) or for a
+    `429`.** A `503` logs one line per process per error name, as `proxy.ts:138-148` already does
+    for the limiter. *Why the type first:* it reads only a header, so a request no browser would
+    send costs no database write. *Why the count before the body:* nothing is read or parsed for a
+    request the limiter refuses (ADR 0157's order).
+  - **The reduced record holds exactly these keys**, each from a closed set or a bounded integer:
+    `directive` (`effective-directive`, else the first word of `violated-directive`, if it is a
+    directive name of this policy or one of its `-elem`/`-attr` forms; else `other`); `blocked`
+    (`inline`, `eval`, `wasm-eval`; `self` for a URL on the document's own origin; the **origin
+    only** of another `http(s)` URL, at most 255 characters; the scheme alone for `data`, `blob`,
+    `chrome-extension`, `moz-extension`, `safari-web-extension`; else `other`); `source` (as
+    `blocked`, except that a same-origin path matching `/_next/static/….js` is kept, the build's
+    own chunk names); `line` and `column` (integers 0 to 10,000,000, else absent); `page` (the
+    document's path as a family, from a closed list: `/[locale]`, `/[locale]/configurator/room`,
+    `/[locale]/configurator/contact`, `/[locale]/d/[id]`, `/[locale]/d/[id]/review`,
+    `/[locale]/d/[id]/contact`, `/[locale]/d/[id]/done`, `/[locale]/s/[token]`, else `other`);
+    `locale` (`ro`, `ru` or `none`); `disposition` (`enforce`, `report`, else `other`); `status`
+    (an integer 100 to 599, else absent). **Never** `document-uri`, `referrer`, `script-sample`,
+    `original-policy` (it carries the nonce), an address, a user agent, a cookie, any header, an
+    id, a token, a query, a fragment or an unknown field. The family list names a page in a log;
+    it is not the proxy's allow-list and decides nothing.
+  - **The limit:** 100 an hour per network block, **provisional (Q47)**. While no network source
+    is named, every request is in the one shared bucket (ADR 0155), so 100 an hour for everyone
+    together. The e2e twin is the production policy itself: the suite expects none (8Q.6).
+    Pruning reaches it through `ALL_LIMIT_POLICIES` [src].
+  - *Not taken:* no sink at all (a policy that blocks and tells no one can break a page for a
+    customer unseen); a table of reports (a migration, a grant, an owner action; Q46 (c)); a hosted
+    collector (a dependency and a third party, chosen with the host; Q46 (b)); `report-to` (above);
+    an `Origin` check (a browser's report carries no reliable one [inf], and a forged report is
+    bounded noise that proves nothing).
+- **8Q.4 — what is still prerendered is either rendered per request, or shown never to reach a
+  browser as a document.** S1's files are named at checkpoint A from S0's table, by the first rung
+  of this ladder that works for each address class:
+  1. S0 finds the class already answered per request, every script nonced: nothing is built; S2
+     pins it.
+  2. The class is answered by a prerendered document: a file that renders it per request at the
+     level S0 names (a `not-found` file under `[locale]`; `global-not-found` with its experimental
+     flag and `connection()`; for a failed render, whatever S0 shows Next renders per request),
+     **keeping Next's own text** where it can.
+  3. Rung 2 needs a new visible sentence (a 404 or 500 page in Romanian and Russian): S1 stops; a
+     copy slice is added (Q10 (a): drafted, Russian unsigned) and the visual reviewer joins.
+  4. The document can neither be rendered per request nor kept from browsers: stop, return to
+     planning. The candidates then, none chosen now: a script-free answer by the proxy for paths
+     outside its allow-list (a proxy change, a new security surface); Next's experimental SRI. Each
+     would be a dated decision.
+  **Never, on any rung:** `'unsafe-inline'` in `script-src`, a hash list (ADR 0041
+  *Alternatives*), `'strict-dynamic'` removed, a nonce added to `style-src` (under CSP3 a nonce
+  makes a browser ignore `'unsafe-inline'`, and React's `style` attributes would be blocked [inf]).
+- **8Q.5 — the mode stays one versioned constant, and a rollback is one line.** S5 sets
+  `CONTENT_SECURITY_POLICY_MODE` to `"enforce"`. **A rollback is one commit that sets it back and
+  edits the one test that pins it.** No other test changes, because every test that reads the
+  policy's header takes its name from `cspResponseHeaderName(CONTENT_SECURITY_POLICY_MODE)` (S2)
+  and the violation net counts both dispositions (8Q.6), so a rolled-back build is still covered.
+  QA rehearses the rollback (criterion 7). *Not taken:* an environment variable (it is SEC-004's
+  original problem again, a security posture set outside the code that no reviewer sees, ADR 0041
+  d1; creating one is the owner's; Q48 offers it); a mode per route; both header names on one
+  response (`tests/proxy.test.ts` keeps forbidding it).
+- **8Q.6 — zero violations means zero of either disposition, seen three ways in a page and once
+  for the whole run.** In a page: (i) an init script records every `securitypolicyviolation`
+  event on `document` in the capture phase (a report-only violation fires it too [inf; S0 M3
+  confirms], so the net works before the flip, after it and after a rollback); (ii) Playwright's
+  `console` messages naming *Content Security Policy*; (iii) every request to `CSP_REPORT_PATH`,
+  which also catches a violation inside a worker, where no document event fires [inf]. For the
+  whole run: **the suite's server counts every report it receives under `csp-report`, and the
+  teardown fails a `CI=1` run whose count is above zero.** A spec that causes a violation on
+  purpose intercepts its reports with `page.route` before they reach the suite's server, or sends
+  them to its own second server. *Bound:* a report a browser had not sent when its page closed is
+  not counted, so the whole-run net is one-directional; the page observers are the deterministic
+  proof. Under `next dev` the teardown prints the count and asserts nothing, unless S0 M7 finds
+  development clean.
+- **8Q.7 — `upgrade-insecure-requests` (decided at checkpoint A from S0 M5).** Default: kept. If
+  Chromium under enforcement upgrades the suite's own `http://localhost:4320` requests (a chunk
+  fails to load), the directive leaves the production policy, with a dated note on ADR 0041 d6.
+  Warrant: no `http:` subresource exists in `src` [ran: grep], and HSTS
+  (`STATIC_SECURITY_HEADERS`) carries the transport guarantee on a deployed host. *Not taken:*
+  serving the suite over TLS (a certificate and a server change, for a directive with nothing to
+  upgrade); a test-only policy (a test switch that could reach production, this file's *Risks*).
+  ADR 0019's LAN handset runs `next dev`, whose policy has no such directive [src], so it is
+  unaffected either way; S0 records a `next start` reached by LAN address once, for 8T.
+- **8Q.8 — development under enforcement (decided at checkpoint A from S0 M7).** Default: one
+  switch for both. If development shows violations from its tooling only, the fix is an allowance
+  in the `isDevelopment` branch, as `'unsafe-eval'` and `ws:` already are, held out of production
+  by the existing test *"keeps the dev-server allowances out of a production policy"*. If no
+  allowance fixes it, S5 stops and returns to planning. *Not decided now:* a development server
+  that only reports (a second input to the header's name, against ADR 0041 d3's *"nothing else
+  changes"*).
+- **8Q.9 — no geometry.** No file under `packages/three-adapter` changes; no coordinate anchor,
+  scaling rule or structural dependency moves (`product-invariants.md` is not engaged). The scene's
+  generated textures (`blob:`, `data:`) and workers (`worker-src 'self' blob:`) are admitted
+  today; the tour shows the canvas drawn under enforcement.
+
+**4. The slices.** One developer, in the order of point 6. *Production files* exclude tests.
+
+| Slice | Does (items) | Production files | Reading |
+| --- | --- | --- | --- |
+| S0 | **Measure; no repository change** (8Q.2). In the shared tree, frozen for S0 alone; the one temporary edit is the mode constant (for M4, M5, M7, M10), set back by hand, with `rtk proxy git diff --stat` empty before the report; outputs in the session scratchpad. **M1** the manifest's `routes` and `dynamicRoutes` after `next build` under `CI=1`. **M2** for each address class: `/zz`, `/ro/zz`, `/ru/zz`, `/ro/d/x/zz`, `/ro/configurator/zz`, `/xx/configurator/room`, `/RO/configurator/room` (the proxy's empty `404`), `/api/zz`, `/internal/scene-shot` without its flag, and a design page whose server render fails (a second `next start` with a well-formed, unreachable fake `DATABASE_URL`, 8A D's clean case; never the application database): the status, whether the body equals a file under `.next/server/app/`, scripts with and without a nonce, each nonce against the response's policy. **M3** a scripted tour of criterion 2's pages under report-only: `securitypolicyviolation` events and their disposition, console messages, requests to a would-be report path; whether a report-only violation fires the event. **M4** the same tour enforcing, with captures. **M5** whether Chromium upgrades `http://localhost:<port>` requests under enforcement; once by LAN address. **M6** with a `report-uri` to a scratch path: what Chromium sends (method, `Content-Type`, keys, size, delay); what `document-uri` holds on `/ro/s/{token}`. **M7** `next dev` enforcing: Step 1 and the editor. **M8** whether `page.addInitScript` and `page.evaluate` still run under enforcement. **M9** 8L's scripts-off `POST` (`qa-8l-contact-no-js.adversarial.e2e.spec.ts`) under enforcement. **M10** the whole `CI=1` e2e once, enforcing, failures by spec | none | this section whole; ADR 0041 whole; *8A figures* (A, D); 8L point 9; the installed Next's `content-security-policy.md`, `not-found.md:47-58`, `error.md:163-169`; `proxy.ts`; `lib/security-headers.ts`; `playwright.config.ts`; `tests/e2e/support/production-policy-server.ts`; `ci-and-local-gates.md` (`CI=1`, the shard budget); `agent-coordination.md`, *Freeze the tree*; `environments-and-resources.md` (no env file copied, no value printed) |
+| **Checkpoint A** | **The architect restates S1** (its files and each class's rung of 8Q.4), **8Q.7 and 8Q.8**, from S0's figures, as a dated addition to this section. S1 is not dispatched before it | — | S0's report |
+| S1 | **The last prerendered documents** (8Q.4). (1) Each address class S0 found served a prerendered document is rendered per request, by checkpoint A's rung. (2) The comment above the switch: what remains prerendered and why it reaches no browser, still naming `prerender-manifest.json` and no contact page (`contact-pages-per-request.e2e.spec.ts`'s last test reads it). (3) If `/_not-found` leaves the manifest, that spec's witness test (*"the manifest does list a prerendered page"*, which looks for `not-found`) is repointed by S1 to what the manifest still lists: developer-owned, 8L's | named at checkpoint A, at most four: one or two boundary files under `src/app/`; `next.config.ts` only for a flag S0 shows is needed; `lib/security-headers.ts` | 8Q.2, 8Q.4; S0's table; ADR 0041 d3 and *Alternatives*; the Next documents of S0; `app/[locale]/layout.tsx`, `app/internal/layout.tsx`, `app/[locale]/configurator/contact/page.tsx` (the `connection()` precedent). Tests: `contact-pages-per-request.e2e.spec.ts`; `qa-8m-done-door.adversarial.e2e.spec.ts` (read) |
+| S2 | **The violation net, in today's mode; tests only.** (1) `tests/e2e/support/csp-violations.ts`: the three observers of 8Q.6, and `policyOf(response)`, which reads the header `cspResponseHeaderName(CONTENT_SECURITY_POLICY_MODE)` names. (2) `tests/e2e/csp-every-page.e2e.spec.ts`: criterion 2's tour, one test per page. (3) The collector's self-test: one inline script injected by `page.route` (the document fetched with `route.fetch()`, rewritten, fulfilled with its own headers) is seen by all three observers; in report-only it runs and is still reported. (4) The developer's pins of point 1 repointed to `policyOf`; `webgl-unavailable-i18n`'s filter made to depend on the mode. (5) A scan: no `bypassCSP` in `playwright.config.ts` or under `tests/e2e` | none | 8Q.5, 8Q.6; criteria 2, 3, 9; `browser-and-visual-qa.md`; `engineering-conventions.md`, *Coverage an adversarial pass owes*; support files `seeded-design.ts`, `contact-page.ts`, `contact-run.ts`, `design-return.ts`; the specs of point 1's pin list; ADR 0151; ADR 0152 |
+| S3 | **The sink** (8Q.3). (1) `limit-policy.ts`: the purpose `csp-report`, `CSP_REPORT_POLICY` (100 an hour per block, provisional), its twin itself. (2) `lib/server/csp/csp-report.ts`, pure: a body's text to a reduced record or `{ kind: "not-a-report" }`; never throws. (3) `lib/server/csp/judge-csp-report.ts`: the count through `blockBucketRequestFor`, in `refusal-of-write-limit.ts`'s shape, failing closed. (4) `lib/server/csp/csp-report-log.ts`: the one line; the unavailable line once per process per error name. (5) `app/api/csp-reports/route.ts`: 8Q.3's order | `lib/server/rate-limit/limit-policy.ts`; new `lib/server/csp/csp-report.ts`, `judge-csp-report.ts`, `csp-report-log.ts`; new `app/api/csp-reports/route.ts` | 8Q.3; criteria 4, 5; ADR 0041 d4 (what it feared); ADR 0161 (draft); ADR 0155 d1 to d4 and its standing rule; ADR 0156 (writes fail closed); ADR 0157 (judging first); ADR 0146; ADR 0114 d5, B, G; SEC-002 (`read-body-with-limit.ts`). Source: `judge-share-write.ts`, `refusal-of-write-limit.ts`, `rate-limited-response.ts`, `design-failure-log.ts` (log conventions), `app/api/designs/[id]/share/route.ts` (a limited route's shape), `proxy.ts:138-148`. Tests: `tests/lib/server/rate-limit/*` (names, pruning) |
+| **Checkpoint B** | **The security reader reads S3 before S4 points the policy at it**: the order, what reaches the log, what a forged or oversized report can do (8M's checkpoint A precedent) | — | the security *Reading* line, point 9 |
+| S4 | **The policy names its sink; the whole-run net.** (1) `CSP_REPORT_PATH` exported; `report-uri` in both branches of `buildContentSecurityPolicy`; a test matches the path to `app/api/csp-reports/route.ts`. (2) `proxy.test.ts`'s exact production policy gains the directive. (3) `global-teardown.ts` and `support/e2e-rate-limit-run.ts`: the run's `csp-report` count, printed, and under `CI=1` asserted zero. (4) **The baseline:** the coordinator's whole `CI=1` run, still report-only, alone; its teardown line quoted in the slice's report | `lib/security-headers.ts` | 8Q.3, 8Q.6; ADR 0041 d1; criteria 4, 8. Tests: `security-headers.test.ts`, `proxy.test.ts`, `global-teardown.ts`, `support/e2e-rate-limit-run.ts` |
+| S5 | **The flip** (8Q.5). (1) `CONTENT_SECURITY_POLICY_MODE = "enforce"`. (2) The comment above it says what was discharged and how (S1, S3), still naming `prerender-manifest.json`; `STATIC_SECURITY_HEADERS`' comment: `X-Frame-Options` stays because static assets carry no CSP. (3) 8Q.7 and 8Q.8 as checkpoint A ruled. (4) The pins: `security-headers.test.ts` asserts `"enforce"`, **the one test that names the live mode**; `proxy.test.ts` asserts the enforcing name and never both. (5) Report the QA-owned pins that turn red (point 10) | `lib/security-headers.ts` | 8Q.5, 8Q.7, 8Q.8; ADR 0041 d2, d3, d6; criteria 6, 7, 10. Tests: those two |
+| S6 | **What enforcement does; tests only.** (1) `tests/e2e/csp-enforced.e2e.spec.ts`: on the editor, the share view and the callback page, an injected parser-inserted inline script, an inline handler (`<img onerror>`), a `<script src>` of a foreign origin and a `<script>` with a wrong nonce do not run; each is a violation with disposition `enforce`; the page still hydrates (a control answers a tap); the reports are intercepted before the suite's server and their bodies checked. (2) End to end on a second server (`production-policy-server.ts`, a new port): an injection on `/ro/s/{token}`; one hit counted under the block's key; the server's output holds one `[csp]` line whose `page` is `/[locale]/s/[token]`; the token's text is nowhere in that output. (3) The scripts-off `POST` of the callback form under enforcement (criterion 11) | none (`support/production-policy-server.ts` gains a port) | criteria 3, 4, 11; 8Q.3, 8Q.6; ADR 0159 d8; ADR 0114 B, G. Source: `page-read-limit-proof.e2e.spec.ts` (the second server, the key it computes); `qa-8l-contact-no-js.adversarial.e2e.spec.ts` (read) |
+
+*Must not, every slice:* a file under `packages/`, `proxy.ts`, `app/d/`, `src/contact/`,
+`src/done/`, `src/share/` or `messages/` changed (the last unless 8Q.4's rung 3 adds a copy
+slice); a migration, a grant, a dependency; `'unsafe-inline'`, a host or a hash in `script-src`;
+`'strict-dynamic'` removed; a nonce in `style-src`; `bypassCSP`; a second constant or variable
+that chooses the mode; an environment variable created, changed, removed or printed; an env file
+copied; the application database; a `qa-*`, `*.adversarial.*` or `*.qa.*` file edited (a pin the
+wave moves is reported; QA changes it); S5 committed before S4's baseline is quoted;
+`git stash`, `git stash pop`, `git checkout -- .`, `git reset --hard`, `git clean`; **a mutant sent
+to a database** (ADR 0155).
+
+| Slice | Stops if |
+| --- | --- |
+| S0 | A measurement needs a production file changed beyond the one constant, or the application database |
+| S1 | 8Q.4 rung 3 or 4; a file outside checkpoint A's list |
+| S2 | A page of the tour cannot be reached without a production change; the collector does not see the injected script in report-only (8Q.6 is then wrong) |
+| S3 | The limiter needs a new subject constructor or a store change; the reduction needs a field outside 8Q.3's list |
+| S4 | The baseline's teardown counts a report: a violation exists in report-only; back to S1, or to planning |
+| S5 | Any test fails but the two pins and the QA pins of point 10; 8Q.8's allowance does not fix development |
+| S6 | The second server's output cannot be read without changing the harness's contract; an injected script runs under enforcement (a defect: reported, not fixed in S6) |
+
+**5. The criteria, made falsifiable.** *Layers:* **unit**, **e2e·CI** (production server,
+`CI=1`), **teardown** (the whole `CI=1` run). *Original* names the 2026-10-07 criterion restated.
+
+| # | Falsifiable statement (with its *must not*) | Proved by | Slice |
+| --- | --- | --- | --- |
+| 1 | *Original 1.* After `next build`, every entry of `.next/prerender-manifest.json` (`routes` and `dynamicRoutes`) either is absent or is one S0 showed no browser receives as a document. Every address class of S0 M2 answers HTML in which **every `<script>` carries a nonce equal to that response's policy nonce, or no `<script>` exists**; two loads carry two nonces. *Must not:* a test that reads the printed route table; a hash; `'unsafe-inline'` | e2e·CI: the manifest read; each class's HTML parsed, as `contact-pages-per-request.e2e.spec.ts` does | S1, S2 |
+| 2 | *Original 2.* **Each of these pages loads with zero violations of either disposition**, by all three observers: Step 1 (`/ro/configurator/room`, `/ru/…`); the editor with the scene drawn; the share view; the review; the design's contact page; the callback page; 5A after a send and `/done` on a load (no-request view); 5B (lost answer by `route.abort`); the WebGL-unavailable page (frame 2F); the load-error page (an unknown id); every address class of S0 M2; the global error, or S0's recorded reason it cannot be reached; the redirects `/`, `/ro`, `/ro/configurator/configure`, followed. *Must not:* a page dropped without a recorded reason; an observer that cannot fail (criterion 3) | e2e·CI: `csp-every-page.e2e.spec.ts`, run in report-only (S2, S4) and enforcing (S5) | S2 |
+| 3 | *Original 3.* **Under enforcement** an injected parser-inserted inline script, an inline handler, a foreign `<script src>` and a wrong-nonce `<script>` set no marker in `window`; each produces a violation with disposition `enforce`; the page's own scripts still run (a control answers). **In report-only** the same injection is seen by all three observers (the collector can fail) | e2e·CI | S2, S6 |
+| 4 | *Original 4, restated.* `POST /api/csp-reports` follows 8Q.3's order: a wrong type is `415` and **counts nothing**; a refused count is `429` with `Retry-After` and **reads no body**; a body over 8 KiB is `413`; a non-report is `400`; a report is `204` with no body and exactly one `[csp]` line whose keys are a subset of 8Q.3's list. **Nothing but the counter is written.** For any input, the line holds no `document-uri`, `referrer`, `script-sample`, `original-policy`, nonce, path segment after a family's literal names, query or fragment (P1 to P3). *Must not:* a migration; a grant; a dependency; an address or user agent in the line; a response body; a line for `415`, `413`, `400` or `429` | unit (fast-check, a fake limiter and log); e2e·CI on a second server (S6 (2)) | S3, S6 |
+| 5 | *Added.* `csp-report` limits per network block at its figure: the figure-th report is `204`, the next `429`; an unjudged request is `503` and logs once per process per error name; the policy's name is unique in `ALL_LIMIT_POLICIES` and is pruned | unit: a fake clock and store, as the share write's tests | S3 |
+| 6 | *Original 5.* **The flip does not land before** criteria 1, 2 (report-only), 4 and 5 are green and S4's baseline is quoted with a zero count | the commit order; the baseline's quoted line in S4's report | S4, S5 |
+| 7 | *Added (8Q.5).* The mode is one constant; **exactly one test names the live mode's literal** (a scan); QA's rollback rehearsal, the constant set to `"report-only"` locally: the whole web Vitest suite and the three CSP e2e specs pass but for that one pin, then the constant is restored and the diff is empty. *Must not:* an environment variable, a mode per route, both header names on one response | unit: the scan; QA's rehearsal, quoted | S2, S5 |
+| 8 | *Added (8Q.6).* The whole `CI=1` run's teardown finds **zero** `csp-report` hits on the suite's server, in report-only (S4's baseline) and enforcing (the freeze run); it prints the count under `next dev` | teardown | S4 |
+| 9 | *Added.* No `bypassCSP` in `playwright.config.ts` or under `tests/e2e` | unit: a scan | S2 |
+| 10 | *Added (8Q.7).* Under enforcement every chunk of every tour page loads from the suite's `http://localhost:4320`; the production policy's directive list equals the one checkpoint A ruled, exactly | e2e·CI (criterion 2); unit: `proxy.test.ts`'s exact policy | S5 |
+| 11 | *Added (ADR 0159 d8).* With scripts disabled, the callback form's `POST` to its own page under enforcement makes no `form-action` violation and answers as before | e2e·CI, after `qa-8l-contact-no-js.adversarial.e2e.spec.ts` | S6 |
+| 12 | *Added.* `STATIC_SECURITY_HEADERS` and `SHARE_VIEW_HEADERS` are unchanged; `X-Frame-Options: DENY` stays; no file under `packages/`, `proxy.ts`, a migration or `messages/` (but a rung-3 copy slice) is in `git diff --stat` from the dispatch base | unit: the existing exact pins; the coordinator's diff | all |
+
+*As properties, for `fast-check` against `csp-report.ts`* (the `javascript-testing-expert`
+guidance: a range and arbitrary shapes, not examples):
+
+- **P1 (no leak).** For any report whose `document-uri`, `referrer`, `blocked-uri`,
+  `source-file`, `script-sample` and `original-policy` embed a marker (in a path segment after a
+  family's literal names, in a query, in a fragment, in user information), with segments of the
+  design-id and share-token shapes among the arbitraries, the serialised record does not contain
+  the marker.
+- **P2 (closed shape, total).** For any JSON value and any string body, the reduction answers
+  `not-a-report` or a record whose keys are a subset of 8Q.3's list and whose every value is in its
+  closed set or bounded range; it never throws.
+- **P3 (families).** For any non-empty segment `s` without `/`, `/ro/d/s/review` is
+  `/[locale]/d/[id]/review` and `/ru/s/s` is `/[locale]/s/[token]`; any path outside the list is
+  `other`.
+- **P4 (order, at the route with fakes).** Over any request (type, size, body, limiter answer): no
+  count unless the type is `application/csp-report`; no body read unless counted and allowed; no
+  line unless the answer is `204` or the first `503` of its error name in the process.
+
+**6. Order, checkpoints, and when QA runs.** S0 → **checkpoint A** → S1 → S2 → S3 →
+**checkpoint B** → S4 (with the report-only baseline run) → S5 → S6. S2 needs S1 (the tour's
+not-found rows would be red before it). S3 needs nothing earlier and may move ahead of S1, never in
+parallel (R2). S5 waits for S4's quoted baseline (criterion 6). QA and the reviews run once, after
+S6, on a frozen tree; checkpoint B is the one early read.
+
+**7. Part B: what needs a deployment or the owner, and the questions.** **None blocks a slice.**
+
+- **B1, the bot check's scripts.** Not M8's: the bot check left M8 with the owner's ruling of
+  2026-10-07, Q21 (the host) is not ruled and BotID is not installed [src: no `botid` in
+  `apps/web/package.json`]. **Carried to M9 as a gate line**, for the scribe: *whatever shield M9
+  adds (a bot check, a captcha, a host's challenge page) runs under the enforced policy on the
+  chosen host, observed with the policy still enforcing and a rollback ready, before launch;
+  under `'strict-dynamic'` its script must be nonced or loaded by a nonced script, since a host
+  in `script-src` is ignored (ADR 0041 d5).* No owner question.
+- **B2, the sink's final home: Q46.** 8Q builds the server-log sink; the real one is chosen with
+  the host.
+- **B3, the limit's figure: Q47.** Provisional; a constant.
+- **B4, an operator switch: Q48.** Default none.
+- **B5, a preview deployment: Q49.** The owner pushes (*"No, I'll push myself"*, 2026-10-08), and
+  a preview is built from a push [inf: the Git integration is on; not read for this plan].
+
+**Q46, for the owner; blocks nothing (8Q builds (a)).** *When a page breaks the site's security
+policy (for example, a browser add-on tries to run a script on it), the browser sends a short
+report. 8Q builds a receiver in the app that removes anything personal and writes one line to the
+server's log. Where should these reports go in the end?* **(a)** *The server's own log only, read
+when something seems wrong; nothing new to sign up for.* **(b)** *A hosted error service (for
+example Sentry), chosen with the host in M9; a third party then receives the reduced reports.*
+**(c)** *A table in our own database, read later; a migration and a grant you apply.*
+**Recommended: (a) for M8, revisited when M9 chooses the host.** (b) adds a dependency and a third
+party M8 has ruled out; (c) adds an owner action for data nobody has asked to read.
+
+**Q47, for the owner; blocks nothing (built on 100).** *Each report costs one write to the
+counters table. The receiver accepts at most 100 reports an hour from one network (from all
+visitors together while no network source is named), then answers "too many" and writes nothing
+to the log. Keep 100 an hour, or another figure?* **Recommended: 100.** One page with a broken
+add-on sends a few; 100 an hour is enough to learn that something is wrong and small enough that
+a flood costs little. A different answer changes one constant.
+
+**Q48, for the owner; blocks nothing (built on (a)).** *If the enforced policy ever broke a page
+for customers, the way back is a one-line change, committed and deployed, that sets the policy
+back to only reporting. Do you also want a setting on the server that does it without a code
+change?* **(a)** *No: the policy stays entirely in the code, where a reviewer sees it.* **(b)**
+*Yes: one new environment variable, which you would create, that can only weaken the policy to
+reporting, and is logged when used.* **Recommended: (a).** It is why the policy was put in the
+repository at all (ADR 0041 d1); on the current host a changed variable also needs a new
+deployment [inf], so (b) is not much faster there.
+
+**Q49, for the owner; blocks nothing.** *The local production build proves the policy for this
+application. A Vercel preview can add scripts of its own: Vercel's toolbar on previews injects one,
+which the enforced policy will block [inf: not read from Vercel's documentation for this plan].
+Do you want* **(a)** *one look at a preview after your next push, with the policy already
+enforcing; anything only Vercel injects is recorded as a preview matter, and nothing waits for it;*
+**(b)** *a preview with the policy still reporting, before the flip, which needs a push at S4's
+commit and the preview's address from you;* **(c)** *none in M8: the host chosen in M9 is where it
+is checked.* **Recommended: (a).** Launch is not expected on Vercel, so M9 checks the real host
+anyway; (a) costs one look. If the toolbar's script is blocked, the choice is to turn the toolbar
+off for the project (a dashboard setting only you can change) or to accept it on previews; no
+policy change can admit it (ADR 0041 d5).
+
+**8. The review, per slice.** QA and the reviews run once, after S6, except checkpoint B.
+
+| Slice | Tier | Security reviewer? | Visual? |
+| --- | --- | --- | --- |
+| S0 | Measurement: the coordinator reads the figures, the architect restates | No | No |
+| S1 | Full | **Yes**: what a browser is served when something fails | Only if rung 3 draws a page |
+| S2 | Full (the logic reviewer checks the tour against criterion 2) | No | No |
+| S3 | Full | **Yes**, at checkpoint B and at the end: a new public, unauthenticated endpoint | No |
+| S4 | Full | **Yes**: the policy's text; the net | No |
+| S5 | Full | **Yes**: the control itself | Light: the editor, Step 1 and each not-found and error page at 390 × 844, ro, before and after the flip, compared |
+| S6 | Full | **Yes**: what the end-to-end proof shows reaches a log | No |
+
+**Security reviewer: yes, and why.** 8Q turns a declaration into a control (ADR 0041), adds a
+public unauthenticated endpoint that writes a counter and a log line, decides what a log keeps of
+a share view's address, and overturns a dated decision (ADR 0041 d4). It touches no proxy, no
+grant, no migration and no customer data store; the reader confirms by `git diff --stat` from the
+dispatch base.
+
+**9. Reading, per role.** The coordinator pastes these verbatim.
+
+- **QA, Reading:** this section whole; ADR 0041 whole; ADR 0161 (draft); ADR 0155's standing rule;
+  ADR 0156 (writes fail closed); ADR 0159 d8; ADR 0114 B, G; ADR 0151; ADR 0152;
+  `engineering-conventions.md`, *Coverage an adversarial pass owes*; `browser-and-visual-qa.md`;
+  `ci-and-local-gates.md`, *Whole e2e runs have three known intermittent failures* and *The
+  per-shard test budget*; `agent-coordination.md`, *Freeze the tree*; S0's report; the support
+  files `csp-violations.ts`, `e2e-rate-limit-run.ts`, `production-policy-server.ts`. **What the pass
+  owes:** first, the QA-owned pins of point 10, repinned through `policyOf` and nothing else changed
+  in them; P1 to P4 as properties; criterion 2's tour in Russian as well; **the rollback rehearsal
+  of criterion 7**, quoted. **Counterexamples to try:** a report with `Content-Type:
+  application/csp-report; charset=utf-8`, with `application/json`, with no type; a chunked body of
+  8 KiB + 1; a body that is JSON `null`, an array, a string, a `csp-report` that is a string; a
+  `document-uri` of `/ro/s/{token}?x#y`, of `//evil/…`, of `javascript:`, 10,000 characters long; a
+  `blocked-uri` with user information; `effective-directive` of `__proto__`; a `line-number` of
+  `1e309` and of `"12"`; a navigation inside the editor (client-side, no new document) with the
+  collector still listening; the WebGL-forcing init scripts still running under enforcement.
+  **Mutants, named, none near a database:** the type checked after the count; the body read before
+  the count; `page` kept as the raw path; `script-sample` or `referrer` kept; the teardown printing
+  without asserting; the collector ignoring disposition `report`; `report-uri` dropped from the
+  policy; `bypassCSP: true` in the configuration; a second test pinning the live mode;
+  `upgrade-insecure-requests` restored if 8Q.7 removed it. **The sink's counting mutants run
+  against the fake store only** (ADR 0155). A clean report says what was attacked.
+- **Logic, Reading:** this section, points 3 and 5; ADR 0041 d1 to d6; ADR 0161 (draft); S0's
+  report. **Named checks:** that every page of criterion 2 is in the tour, and every address class
+  of S0 M2 is in criterion 1; that the flip came after the baseline; that a rollback leaves the net
+  in force.
+- **Clean-code, Reading:** each slice's files and paired tests; `engineering-conventions.md`;
+  ADR 0136; ADR 0152. **Named questions:** whether `csp-report.ts`, `judge-csp-report.ts` and
+  `csp-report-log.ts` are one reason to change each; whether the route reads as 8Q.3's seven
+  steps; whether `csp-violations.ts` is one thing.
+- **Security, Reading:** ADR 0041 whole; ADR 0161 (draft); ADR 0019 d2 and its correction of
+  2026-08-31; ADR 0155; ADR 0156; ADR 0157; ADR 0146; ADR 0114 d5, B, G; `lib/security-headers.ts`;
+  `proxy.ts` (read); the files of S1, S3 and S5; S0's report. **Named checks:** that no document a
+  browser can be sent carries an un-nonced script; that nothing of a report reaches a log but 8Q.3's
+  keys; what a forged, oversized or flooding report can cost and write; that the mode cannot be
+  chosen outside the code; that `script-src` and `style-src` are as 8Q.4 requires.
+- **Visual, Reading** (S5's light look only, or S1's if rung 3): `browser-and-visual-qa.md`; S0
+  M4's captures; the pages of point 8's S5 row.
+
+**10. The e2e note, and the pins 8Q moves.** `ci:local` runs e2e under `CI=1` (Q42), so the new
+specs are evidence there and in a whole `CI=1` run alike, and say so in their opening comment. New
+developer files: `csp-every-page.e2e.spec.ts`, `csp-enforced.e2e.spec.ts` (mobile project);
+**no new desktop spec**: the desktop project's pages are covered by the teardown net (criterion 8)
+at no cost to its shard ceiling. `pnpm gate:e2e-shard-budget` runs at the freeze. A spec that sends
+a contact request registers its id with `contact-run.ts` (ADR 0151). **QA-owned pins that turn red
+at S5** [ran: grep]: `locale-routing.qa.e2e.spec.ts:18` and `qa-8m-done-door.adversarial.e2e.spec.ts:25`
+(the report-only name). **QA re-runs the grep against the frozen tree first** and repins whatever
+else names the report-only header, the `not-found` manifest witness or the report-only diagnostic.
+
+**11. Risks.**
+
+1. **S0 finds Next's default 404 or 500 cannot be rendered per request without a page of our
+   own** (8Q.4 rung 3): copy, a visual review and perhaps a slice more. Named, with its stop.
+2. **`global-not-found` is experimental** in the installed Next [doc]; a later Next may change it.
+   If rung 2 uses it, the scribe records it in ADR 0161 with that trigger.
+3. **`upgrade-insecure-requests` on `http://localhost`** may blank the suite's server under
+   enforcement [inf]. 8Q.7.
+4. **Development under enforcement** may break on tooling scripts [inf]. 8Q.8.
+5. **`report-uri` is deprecated in CSP3** and a browser may stop sending it [inf]. The page
+   observers do not depend on delivery, so the evidence survives; only the production signal is
+   lost, and Q46 (b) revisits it.
+6. **The whole-run net is one-directional** (8Q.6). It never reports a violation that did not
+   happen; it can miss one whose page closed first.
+7. **Noise in production.** Add-ons inject scripts; each blocked one is a report. Bounded by the
+   limit and reduced to closed values; the log, not a person, absorbs it.
+8. **A database write per report.** Bounded by 100 an hour per block (Q47).
+9. **A second writer in the tree.** A clean-up landed (`acad85e7`) while this plan was written
+   (point *State*). Any further writer is committed or stopped before S0's freeze; S0's
+   measurements and QA's runs are void if the tree moves under them.
+10. **The QA-owned pins** of point 10 are red between S5 and QA's pass; the freeze names them as
+    expected reds.
+11. **A preview-only script** (Vercel's toolbar) blocked on previews (Q49). Not a customer's page.
+12. **A rollback needs a deployment.** One line, but a build and a deploy; the host's own instant
+    rollback is M9's to record.
+
+**12. Verification.**
+
+- *Each slice, the developer:* its tests; web typecheck and lint; S1 onward, the slice's e2e alone
+  under `CI=1`.
+- *S4, the coordinator:* **the baseline**, one whole `CI=1` e2e run in report-only, alone, tree
+  clean before and after; the teardown's `csp-report` line quoted (zero).
+- *At the freeze, the coordinator:* the whole web suite; typecheck; lint; root
+  `pnpm format:check`; `pnpm gate:boundary`; `pnpm gate:e2e-shard-budget`;
+  `rtk proxy git diff --stat <dispatch base>` showing no file under `packages/`, `proxy.ts`,
+  `app/d/`, `src/contact/`, `src/done/`, `src/share/`, a migration or `messages/` (but a rung-3
+  copy slice), and no `qa-*`, `*.adversarial.*` or `*.qa.*` file.
+- *QA:* its pass, the rollback rehearsal, then **one whole `CI=1` e2e run, enforcing**, alone.
+  Expected: every test that passed at 8M's run (923, with `qa-8d-review-scene.adversarial` :189
+  as backlog 195's flake), the new ones, and a zero teardown count. A red on a known intermittent
+  is recorded and the run made once more; any other red is a red.
+- *Before any push:* `pnpm ci:local` in full at the wave's last commit, quoted. *Not run in this
+  wave unless the coordinator chooses:* `pnpm check`; a CI runner; a preview (Q49); a real phone
+  (8T).
+
+**13. For the scribe, at the close.** ADR 0161 completed as built and accepted (S0's figures,
+checkpoint A's rulings, what S1 used, Q46 to Q49 as answered or as defaults), with its row in the
+decisions index and in `SUPERSESSIONS.md` (ADR 0041 d4 by 0161). Dated notes on ADR 0041 (d3
+discharged, d4 overturned, d6 if 8Q.7 removed the directive, d2's first reason gone), ADR 0156 (a
+new purpose) and ADR 0019 (the sink limited by the application; the SEC-001 gate unchanged).
+STATUS: the SEC-004 line (the CSP is a control now), the M8 row, *What to do next*. This file: the
+*Launch gate*'s *"The CSP enforces"* line, the *Also blocked on this phase* heading closed, the wave
+table's 8Q row. **M9's file gains B1's gate line, Q46's host choice, Q49's outcome and the host's
+rollback.** 8T's gate gains: the enforced policy on a real phone (iOS Safari: a report sent, no
+violation on Step 1, the editor and 5A).
+
 ### 8R — the firewall rules, staged — LEAVES FOR THE DELIVERY MILESTONE (owner, 2026-10-07)
 
 > **Not dispatched from M8.** No host is chosen, and the owner placed flood protection in *"a
