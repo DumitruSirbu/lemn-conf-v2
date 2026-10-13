@@ -2,7 +2,10 @@ import "server-only";
 
 import { NextResponse } from "next/server";
 
-import { reportCspReportUnavailable } from "@/lib/server/csp/csp-report-log";
+import {
+  reportCspReportLimited,
+  reportCspReportUnavailable,
+} from "@/lib/server/csp/csp-report-log";
 import {
   RATE_LIMIT_DEADLINE_MS,
   type WriteJudgement,
@@ -38,8 +41,8 @@ export async function judgeCspReport(
 
 /**
  * The answer that stops a report, or nothing when it may go on: `429` with the wait, or `503`, both without a body.
- * A refusal writes no line (a flood past the figure must buy no log write) and an unjudged request writes one for a
- * process and a cause. Nothing thrown here is kept: it answers as unavailable.
+ * A refusal writes one line for a process and a UTC hour (a flood past the figure buys no more) and an unjudged
+ * request writes one for a process and a cause. Nothing thrown here is kept: it answers as unavailable.
  */
 export function refusalOfCspReportLimit(
   headers: HeaderReader,
@@ -55,7 +58,9 @@ export function refusalOfCspReportLimit(
         status: UNAVAILABLE_STATUS,
         headers: limitedAnswerHeaders(),
       }),
-    reportRefused: () => undefined,
+    reportRefused: () => {
+      reportCspReportLimited(new Date());
+    },
     reportUnavailable: reportCspReportUnavailable,
   });
 }

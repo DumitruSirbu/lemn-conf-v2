@@ -18,7 +18,8 @@ const UNSUPPORTED_MEDIA_TYPE_STATUS = 415;
  * A browser's report of a policy violation (ADR 0161 decision 2), answered in this order and stopping at the first
  * that refuses: the media type, which reads a header and costs no write; one hit counted for the network block, so a
  * refused request reads and parses nothing; the body, to its bound; the report, which must hold an object; then one
- * reduced line and `204`. Nothing is logged for any refusal. Nothing is stored but the limiter's counter.
+ * reduced line and `204`. Nothing is logged for a refusal, except the first `429` of each UTC hour, which writes one
+ * line without a report in it. Nothing is stored but the limiter's counter.
  *
  * The request is a plain `Request`: the visitor's cookies come with a report, and this route has no use for them, so
  * it reads none and sets none.
@@ -37,7 +38,7 @@ export async function POST(request: Request): Promise<Response> {
       body.failure === "too-large" ? TOO_LARGE_STATUS : BAD_REQUEST_STATUS,
     );
   }
-  const reduction = reduceCspReport(body.value);
+  const reduction = reduceCspReport(body.value, new URL(request.url).origin);
   if (reduction.kind === "not-a-report") return emptyAnswer(BAD_REQUEST_STATUS);
   reportCspViolation(reduction.record);
   return emptyAnswer(ACCEPTED_STATUS);

@@ -18,6 +18,7 @@ const ALLOWED_KEYS = [
   "column",
   "page",
   "locale",
+  "origin",
   "disposition",
   "status",
 ];
@@ -38,7 +39,7 @@ function bodyOf(report: Record<string, unknown>): string {
 }
 
 function recordOf(report: Record<string, unknown>): ReducedCspReport {
-  return recordFrom(reduceCspReport(bodyOf(report)));
+  return recordFrom(reduceCspReport(bodyOf(report), ORIGIN));
 }
 
 function recordFrom(reduction: CspReportReduction): ReducedCspReport {
@@ -79,6 +80,7 @@ describe("reduceCspReport: a report the browser sent, as the record the server w
       line: 1,
       page: "/[locale]/s/[token]",
       locale: "ro",
+      origin: "own",
       disposition: "enforce",
       status: 200,
     });
@@ -103,6 +105,7 @@ describe("reduceCspReport: a report the browser sent, as the record the server w
       column: 17,
       page: "/[locale]/d/[id]/review",
       locale: "ru",
+      origin: "own",
       disposition: "report",
       status: 200,
     });
@@ -154,11 +157,12 @@ describe("reduceCspReport: a report the browser sent, as the record the server w
     ).toBe("other");
   });
 
-  it("cannot tell an own address without a document, and so writes its origin", () => {
+  it("cannot tell an own address without a document, and so writes its origin, with the origin of the page `none`", () => {
     expect(recordOf({ "blocked-uri": `${ORIGIN}/x.js` })).toMatchObject({
       blocked: ORIGIN,
       page: "other",
       locale: "none",
+      origin: "none",
     });
   });
 
@@ -213,7 +217,14 @@ describe("reduceCspReport: a report the browser sent, as the record the server w
     });
 
     expect(Object.keys(record).sort()).toEqual(
-      ["blocked", "directive", "disposition", "locale", "page"].sort(),
+      [
+        "blocked",
+        "directive",
+        "disposition",
+        "locale",
+        "origin",
+        "page",
+      ].sort(),
     );
   });
 
@@ -230,7 +241,7 @@ describe("reduceCspReport: a report the browser sent, as the record the server w
     const text =
       '{"csp-report":{"__proto__":{"directive":"x"},"blocked-uri":"inline"}}';
 
-    expect(recordFrom(reduceCspReport(text)).blocked).toBe("inline");
+    expect(recordFrom(reduceCspReport(text, ORIGIN)).blocked).toBe("inline");
     expect(({} as Record<string, unknown>).directive).toBeUndefined();
   });
 
@@ -246,7 +257,93 @@ describe("reduceCspReport: a report the browser sent, as the record the server w
     ["a body cut short", '{"csp-report":{"blocked-uri":"inl'],
     ["a very deeply nested list", "[".repeat(200_000)],
   ])("answers not-a-report for %s", (_label, text) => {
-    expect(reduceCspReport(text)).toEqual({ kind: "not-a-report" });
+    expect(reduceCspReport(text, ORIGIN)).toEqual({ kind: "not-a-report" });
+  });
+});
+
+describe("reduceCspReport: a page of another origin is not a page of this application (8Q.3, amended)", () => {
+  const FOREIGN_ORIGIN = "https://forger.example";
+  const OWN_CHUNK = "/_next/static/chunks/0w_x4~abc._.js";
+
+  function foreignReport(documentUri: string): Record<string, unknown> {
+    return {
+      ...chromiumInlineReport(documentUri),
+      "source-file": `${FOREIGN_ORIGIN}${OWN_CHUNK}`,
+    };
+  }
+
+  it("labels a document on the server's own origin `own`, and keeps its page and its chunk path", () => {
+    const record = recordOf({
+      ...chromiumInlineReport(`${ORIGIN}/ro/s/TOKEN`),
+      "source-file": `${ORIGIN}${OWN_CHUNK}`,
+    });
+
+    expect(record).toMatchObject({
+      origin: "own",
+      page: "/[locale]/s/[token]",
+      source: OWN_CHUNK,
+    });
+  });
+
+  it("labels a document on another origin `foreign`, whatever its path claims, and keeps no page and no source", () => {
+    const record = recordOf(foreignReport(`${FOREIGN_ORIGIN}/ro/s/TOKEN`));
+
+    expect(record.origin).toBe("foreign");
+    expect(record.page).toBe("other");
+    expect(record).not.toHaveProperty("source");
+  });
+
+  it.each([
+    ["the same host on another port", "https://shop.test:8443/ro/s/TOKEN"],
+    ["the same host on another scheme", "http://shop.test/ro/s/TOKEN"],
+    ["a subdomain of it", "https://evil.shop.test/ro/s/TOKEN"],
+    ["a host that only starts like it", "https://shop.test.evil.example/ro"],
+  ])("labels %s `foreign`", (_label, documentUri) => {
+    expect(recordOf(foreignReport(documentUri))).toMatchObject({
+      origin: "foreign",
+      page: "other",
+    });
+  });
+
+  it.each([
+    ["no `document-uri`", {}],
+    ["a `document-uri` that is no address", { "document-uri": "nonsense" }],
+    ["an address that is not http", { "document-uri": "about:blank" }],
+    ["a `document-uri` that is a number", { "document-uri": 7 }],
+  ])("labels %s `none`, with no page and no source", (_label, fields) => {
+    const record = recordOf({
+      ...fields,
+      "source-file": `${ORIGIN}${OWN_CHUNK}`,
+    });
+
+    expect(record.origin).toBe("none");
+    expect(record.page).toBe("other");
+    expect(record).not.toHaveProperty("source");
+  });
+
+  it("compares with the origin it is handed, so that the same report is `own` for one server and `foreign` for another", () => {
+    const body = bodyOf(chromiumInlineReport(`${ORIGIN}/ro`));
+
+    expect(recordFrom(reduceCspReport(body, ORIGIN)).origin).toBe("own");
+    expect(recordFrom(reduceCspReport(body, FOREIGN_ORIGIN)).origin).toBe(
+      "foreign",
+    );
+  });
+
+  it("keeps a chunk path only for an `own` document, over any origin pair (F3)", () => {
+    fc.assert(
+      fc.property(
+        fc.constantFrom(ORIGIN, FOREIGN_ORIGIN, "http://localhost:4320"),
+        (documentOrigin) => {
+          const record = recordOf({
+            ...chromiumInlineReport(`${documentOrigin}/ro`),
+            "source-file": `${documentOrigin}${OWN_CHUNK}`,
+          });
+
+          expect(record.source === OWN_CHUNK).toBe(documentOrigin === ORIGIN);
+        },
+      ),
+    );
   });
 });
 
@@ -436,7 +533,7 @@ describe("reduceCspReport: nothing of a visitor's address reaches the record (P1
           reportsWith(marker).map((report) => ({ marker, report })),
         ),
         ({ marker, report }) => {
-          const reduction = reduceCspReport(bodyOf(report));
+          const reduction = reduceCspReport(bodyOf(report), ORIGIN);
 
           expect(reduction.kind).toBe("report");
           expect(JSON.stringify(reduction)).not.toContain(marker);
@@ -454,6 +551,7 @@ describe("reduceCspReport: nothing of a visitor's address reaches the record (P1
             "document-uri": `${ORIGIN}/ro/s/${marker}`,
             "source-file": `${ORIGIN}/_next/static/chunks/a1.js?t=${marker}#${marker}`,
           }),
+          ORIGIN,
         );
 
         expect(recordFrom(reduction).source).toBe("/_next/static/chunks/a1.js");
@@ -502,6 +600,9 @@ describe("reduceCspReport: any text is answered, in a closed shape (P2)", () => 
       isDirective &&
       isPage &&
       ["ro", "ru", "none"].includes(record.locale) &&
+      ["own", "foreign", "none"].includes(record.origin) &&
+      (record.origin === "own" ||
+        (record.page === "other" && record.source === undefined)) &&
       ["enforce", "report", "other"].includes(record.disposition) &&
       isAddressKind(record.blocked, false) &&
       (record.source === undefined || isAddressKind(record.source, true)) &&
@@ -539,7 +640,7 @@ describe("reduceCspReport: any text is answered, in a closed shape (P2)", () => 
   it("answers not-a-report or a record whose keys are the allowed ones and whose values are closed, for any string", () => {
     fc.assert(
       fc.property(fc.string(), (text) => {
-        const reduction = reduceCspReport(text);
+        const reduction = reduceCspReport(text, ORIGIN);
 
         if (reduction.kind === "report") {
           expect(
@@ -564,7 +665,7 @@ describe("reduceCspReport: any text is answered, in a closed shape (P2)", () => 
           REPORT.map((report) => bodyOf(report)),
         ),
         (text) => {
-          const reduction = reduceCspReport(text);
+          const reduction = reduceCspReport(text, ORIGIN);
 
           if (reduction.kind === "report") {
             expect(
@@ -585,7 +686,7 @@ describe("reduceCspReport: any text is answered, in a closed shape (P2)", () => 
   it("answers a record for every object `csp-report`, so that a report is refused only for its shape", () => {
     fc.assert(
       fc.property(REPORT, (report) => {
-        expect(reduceCspReport(bodyOf(report)).kind).toBe("report");
+        expect(reduceCspReport(bodyOf(report), ORIGIN).kind).toBe("report");
       }),
     );
   });

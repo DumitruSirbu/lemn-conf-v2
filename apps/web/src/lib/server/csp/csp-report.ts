@@ -52,11 +52,16 @@ export const CSP_DISPOSITIONS = ["enforce", "report"] as const;
 export const OTHER = "other";
 export const NO_LOCALE = "none";
 
+/** Whether the report's `document-uri` is on this server's own origin, on another, or absent or not an http address. */
+export const CSP_ORIGINS = ["own", "foreign", "none"] as const;
+
 export type CspPage = (typeof CSP_PAGE_FAMILIES)[number] | typeof OTHER;
 export type CspLocale = (typeof CSP_REPORT_LOCALES)[number] | typeof NO_LOCALE;
+export type CspOrigin = (typeof CSP_ORIGINS)[number];
 
 /** The record, and the only keys a log line made from a report may carry. `source`, `line`, `column` and `status` are
- *  absent, not empty, when the report did not give a usable one. */
+ *  absent, not empty, when the report did not give a usable one; `source` is also absent unless `origin` is `own`,
+ *  and `page` is `other` unless it is, because a page of another origin is no page of this application. */
 export interface ReducedCspReport {
   readonly directive: string;
   readonly blocked: string;
@@ -65,6 +70,7 @@ export interface ReducedCspReport {
   readonly column?: number;
   readonly page: CspPage;
   readonly locale: CspLocale;
+  readonly origin: CspOrigin;
   readonly disposition: string;
   readonly status?: number;
 }
@@ -109,21 +115,32 @@ const DESIGN_STEP_PAGES: Readonly<Record<string, CspPage>> = {
 
 type Report = Readonly<Record<string, unknown>>;
 
-/** A body's text to its reduced record, or `not-a-report` for a text that is not JSON holding an object `csp-report`. */
-export function reduceCspReport(bodyText: string): CspReportReduction {
+/**
+ * A body's text to its reduced record, or `not-a-report` for a text that is not JSON holding an object `csp-report`.
+ * `ownOrigin` is the origin this server was reached at (`new URL(request.url).origin`): a report whose `document-uri`
+ * is on another origin, or none, is not attributed to a page of this application and names no source.
+ */
+export function reduceCspReport(
+  bodyText: string,
+  ownOrigin: string,
+): CspReportReduction {
   const report = reportObjectOf(bodyText);
   if (report === undefined) return NOT_A_REPORT;
   const document = httpUrlOf(stringField(report, "document-uri"));
-  const ownOrigin = document?.origin;
+  const origin = originOf(document, ownOrigin);
+  const documentOrigin = document?.origin;
   const segments = document?.pathname.split("/").slice(1) ?? [];
+  const isOwn = origin === "own";
   return {
     kind: "report",
     record: {
       directive: directiveOf(report),
-      blocked: blockedOf(stringField(report, "blocked-uri"), ownOrigin),
+      blocked: blockedOf(stringField(report, "blocked-uri"), documentOrigin),
       ...optional(
         "source",
-        sourceOf(stringField(report, "source-file"), ownOrigin),
+        isOwn
+          ? sourceOf(stringField(report, "source-file"), documentOrigin)
+          : undefined,
       ),
       ...optional(
         "line",
@@ -133,8 +150,9 @@ export function reduceCspReport(bodyText: string): CspReportReduction {
         "column",
         integerWithin(report["column-number"], 0, LARGEST_POSITION),
       ),
-      page: pageOf(segments),
+      page: isOwn ? pageOf(segments) : OTHER,
       locale: localeOf(segments),
+      origin,
       disposition: oneOf(stringField(report, "disposition"), CSP_DISPOSITIONS),
       ...optional(
         "status",
@@ -146,6 +164,11 @@ export function reduceCspReport(bodyText: string): CspReportReduction {
       ),
     },
   };
+}
+
+function originOf(document: URL | undefined, ownOrigin: string): CspOrigin {
+  if (document === undefined) return "none";
+  return document.origin === ownOrigin ? "own" : "foreign";
 }
 
 function reportObjectOf(bodyText: string): Report | undefined {

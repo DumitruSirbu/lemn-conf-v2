@@ -158,6 +158,20 @@ function consoleLines() {
   };
 }
 
+/** One console call as the label and the text it was given; a text that is no string is written as nothing. */
+function loggedLine(call: readonly unknown[] | undefined): {
+  readonly argumentCount: number;
+  readonly label: unknown;
+  readonly text: string;
+} {
+  const [label, text] = call ?? [];
+  return {
+    argumentCount: call?.length ?? 0,
+    label,
+    text: typeof text === "string" ? text : "",
+  };
+}
+
 function countingStore(answer: () => Promise<number[]>) {
   return vi.spyOn(getRateLimitStore(), "recordHits").mockImplementation(() => {
     order.calls.push("count");
@@ -240,12 +254,12 @@ describe("POST /api/csp-reports: the media type is asked first, and counts nothi
 });
 
 describe("POST /api/csp-reports: a count before any body, a refusal that reads nothing", () => {
-  it("answers 429 with a whole wait in the hour when the figure is passed, reading nothing and writing nothing", async () => {
+  it("answers 429 with a whole wait in the hour when the figure is passed, reading nothing and writing the one limited line", async () => {
     const lines = consoleLines();
     countingStore(REFUSES);
     const probe = { reads: 0 };
 
-    const response = await POST(reportRequest({ probe }));
+    const response = await (await freshRoute())(reportRequest({ probe }));
 
     const wait = Number(response.headers.get("retry-after"));
     expect(response.status).toBe(429);
@@ -255,9 +269,11 @@ describe("POST /api/csp-reports: a count before any body, a refusal that reads n
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(await bodyTextOf(response)).toBe("");
     expect(probe.reads).toBe(0);
-    expect(lines.warn).not.toHaveBeenCalled();
+    expect(lines.warn.mock.calls).toEqual([
+      ["[csp]", '{"event":"csp-report-limited"}'],
+    ]);
     expect(lines.error).not.toHaveBeenCalled();
-    expect(order.calls).toEqual(["count"]);
+    expect(order.calls).toEqual(["count", "log"]);
   });
 
   it("answers 503 for a request that cannot be judged, with no wait and no body, reading nothing", async () => {
@@ -298,7 +314,7 @@ describe("POST /api/csp-reports: a count before any body, a refusal that reads n
       expect(response.status).toBe(503);
       expect(lines.warn).not.toHaveBeenCalled();
       expect(lines.error.mock.calls).toEqual([
-        ["[csp]", { event: "csp-report-unavailable", cause }],
+        ["[csp]", JSON.stringify({ event: "csp-report-unavailable", cause })],
       ]);
     },
   );
@@ -317,6 +333,50 @@ describe("POST /api/csp-reports: a count before any body, a refusal that reads n
     }
 
     expect(lines.error).toHaveBeenCalledTimes(2);
+    expect(lines.warn).not.toHaveBeenCalled();
+  });
+
+  it("writes the limited line once for a process and a UTC hour, however many requests the limiter refuses", async () => {
+    const lines = consoleLines();
+    countingStore(REFUSES);
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(NOON);
+    const route = await freshRoute();
+
+    for (let attempt = 0; attempt < 50; attempt += 1) {
+      expect((await route(reportRequest())).status).toBe(429);
+    }
+
+    expect(lines.warn).toHaveBeenCalledTimes(1);
+    expect(lines.error).not.toHaveBeenCalled();
+  });
+
+  it("writes the limited line again in the next UTC hour, and not again at its last second", async () => {
+    const lines = consoleLines();
+    countingStore(REFUSES);
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const route = await freshRoute();
+    const sendAt = async (instant: string) => {
+      vi.setSystemTime(new Date(instant));
+      await route(reportRequest());
+    };
+
+    await sendAt("2026-07-15T12:00:00Z");
+    await sendAt("2026-07-15T12:59:59Z");
+    expect(lines.warn).toHaveBeenCalledTimes(1);
+    await sendAt("2026-07-15T13:00:00Z");
+    expect(lines.warn).toHaveBeenCalledTimes(2);
+  });
+
+  it("writes no limited line for a request that is allowed, or one that cannot be judged", async () => {
+    const lines = consoleLines();
+    const route = await freshRoute();
+
+    countingStore(FAILS);
+    await route(reportRequest({ body: "" }));
+    countingStore(ALLOWS);
+    await route(reportRequest({ body: "" }));
+
     expect(lines.warn).not.toHaveBeenCalled();
   });
 
@@ -449,7 +509,7 @@ describe("POST /api/csp-reports: an accepted report is 204 and exactly one reduc
     expect(lines.warn.mock.calls).toEqual([
       [
         "[csp]",
-        {
+        JSON.stringify({
           event: "csp-violation",
           directive: "script-src-elem",
           blocked: "inline",
@@ -457,11 +517,84 @@ describe("POST /api/csp-reports: an accepted report is 204 and exactly one reduc
           line: 1,
           page: "/[locale]/s/[token]",
           locale: "ro",
+          origin: "own",
           disposition: "enforce",
           status: 200,
-        },
+        }),
       ],
     ]);
+  });
+
+  it.each([
+    ["accepted report", () => POST(reportRequest()), "warn"],
+    [
+      "unavailable cause",
+      async () => {
+        countingStore(FAILS);
+        return (await freshRoute())(reportRequest());
+      },
+      "error",
+    ],
+    [
+      "limited refusal",
+      async () => {
+        countingStore(REFUSES);
+        return (await freshRoute())(reportRequest());
+      },
+      "warn",
+    ],
+  ] as const)(
+    "writes the %s as the label and one string of JSON on one line, and nothing else",
+    async (_label, send, severity) => {
+      const lines = consoleLines();
+
+      await send();
+
+      expect(lines[severity]).toHaveBeenCalledTimes(1);
+      const { argumentCount, label, text } = loggedLine(
+        lines[severity].mock.calls[0],
+      );
+      expect(argumentCount).toBe(2);
+      expect(label).toBe("[csp]");
+      expect(text).not.toMatch(/[\r\n]/);
+      expect(JSON.parse(text)).toEqual(expect.any(Object));
+    },
+  );
+
+  it("writes the origin of a report whose document is on another origin as `foreign`, with the page `other` and no source", async () => {
+    const lines = consoleLines();
+    const forged = {
+      ...chromiumReport(),
+      "document-uri": `https://forger.example/ro/s/${SHARE_TOKEN}`,
+      "source-file": "https://forger.example/_next/static/chunks/a1.js",
+    };
+
+    const response = await POST(
+      reportRequest({ body: JSON.stringify({ "csp-report": forged }) }),
+    );
+
+    expect(response.status).toBe(204);
+    const { text } = loggedLine(lines.warn.mock.calls[0]);
+    expect(JSON.parse(text)).toMatchObject({
+      event: "csp-violation",
+      origin: "foreign",
+      page: "other",
+    });
+    expect(JSON.parse(text)).not.toHaveProperty("source");
+    expect(text).not.toContain(SHARE_TOKEN);
+  });
+
+  it("compares the report's document with the origin the request was sent to, not with a header", async () => {
+    const lines = consoleLines();
+
+    await POST(
+      reportRequest({
+        headers: { origin: "https://forger.example", host: "forger.example" },
+      }),
+    );
+
+    const { text } = loggedLine(lines.warn.mock.calls[0]);
+    expect(JSON.parse(text)).toMatchObject({ origin: "own" });
   });
 
   it("writes nothing of the report's address, policy, sample, nor of the request's address, agent or cookies", async () => {
@@ -562,9 +695,12 @@ describe("POST /api/csp-reports: over any request, what is counted, read and wri
     return body === "valid" ? 204 : 400;
   }
 
-  it("counts only a request of the report type, reads only one that was allowed, and writes one line only for a 204 or a first 503", async () => {
+  it("counts only a request of the report type, reads only one that was allowed, and writes one line only for a 204, a first 503 or a first 429", async () => {
     const route = await freshRoute();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(NOON);
     let hasWrittenUnavailable = false;
+    let hasWrittenLimited = false;
 
     await fc.assert(
       fc.asyncProperty(
@@ -585,14 +721,16 @@ describe("POST /api/csp-reports: over any request, what is counted, read and wri
 
           const isFirstUnavailable =
             response.status === 503 && !hasWrittenUnavailable;
+          const isFirstLimited = response.status === 429 && !hasWrittenLimited;
           hasWrittenUnavailable ||= response.status === 503;
+          hasWrittenLimited ||= response.status === 429;
           expect(response.status).toBe(
             expectedStatus(isReportType, limiter, body),
           );
           expect(store).toHaveBeenCalledTimes(isReportType ? 1 : 0);
           expect(probe.reads > 0).toBe(isReportType && limiter === "allow");
           expect(lines.warn).toHaveBeenCalledTimes(
-            response.status === 204 ? 1 : 0,
+            response.status === 204 || isFirstLimited ? 1 : 0,
           );
           expect(lines.error).toHaveBeenCalledTimes(isFirstUnavailable ? 1 : 0);
           vi.restoreAllMocks();

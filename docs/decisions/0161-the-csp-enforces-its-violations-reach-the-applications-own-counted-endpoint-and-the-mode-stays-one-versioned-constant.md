@@ -229,3 +229,28 @@ per parse of the largest fixture.
 Q46 (where reports end up; default (a), the server log), Q47 (the limit's figure; default 100 an
 hour), Q48 (an operator switch; default none), Q49 (a preview look; recommended (a), after the
 flip). None blocks the wave.
+
+## Amendments
+
+**Dated 2026-10-13, S3 fix-up (coordinator rulings F1 to F4, after the wave's first review of the sink).**
+
+- **F1, a refusal leaves one line an hour.** Decision 2's *"nothing is logged for a refusal"* is amended:
+  the first refusal of the limiter in a UTC hour window writes one closed-value line,
+  `[csp] {"event":"csp-report-limited"}`, once per process per window (one module-level number, so
+  bounded). *Why:* with no network source named, every request shares one bucket of 100 an hour
+  (ADR 0155), so one client can spend it and silence real reports invisibly. A flood past the
+  figure still buys at most one log write an hour. The figure and the limiter are unchanged.
+  **Owner item:** naming a network source (Q47) is recommended **before S5** (the flip). The shared
+  100 an hour is accepted for the report-only S4 baseline.
+- **F2, decision 3's field list gains `origin`.** A closed field, `"own" | "foreign" | "none"`: the
+  `document-uri` origin compared with `new URL(request.url).origin`, which the route hands to the
+  pure reduction as an argument. For `foreign` and `none`, `page` is `other` and `source` is dropped,
+  so a forged or cross-site report cannot pass for one of this application's pages. `locale` is still
+  read from the path of whatever document was named, and `blocked`'s `self` is still relative to that
+  document's own origin; the `origin` field is what tells a reader to discount both. *No `Origin` or
+  `Sec-Fetch-*` gate is added*: the *Alternatives* entry above stands.
+- **F3, a chunk path is kept only for an `own` document.** It falls out of F2: the build's own chunk
+  names, which decision 3 allowed as a `source`, are written only when `origin` is `own`.
+- **F4, the lines are one string.** Each of the three lines is written as
+  `console.warn("[csp]", JSON.stringify(record))` (`console.error` for the unavailable line), so a
+  platform log view shows one line and not an expanded object. Closed values only, as before.
