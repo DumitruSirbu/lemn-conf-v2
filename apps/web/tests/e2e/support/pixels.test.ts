@@ -165,6 +165,25 @@ describe("pixels.ts decodes a screenshot without a URL fetch (8Q.11)", () => {
     expect(nearRed).toBe(3);
   });
 
+  it("counts a colour that is near the target but not equal to it, up to the tolerance and no further", async () => {
+    installBrowserDecoder();
+    const tolerance = 5;
+    const exact: Rgb = RED;
+    const antialiased: Rgb = [222, 22, 20];
+    const onTheBoundary: Rgb = [223, 24, 20];
+    const justOutside: Rgb = [223, 24, 21];
+    const patch = patchOf(2, [exact, antialiased, onTheBoundary, justOutside]);
+
+    const nearRed = await countPixelsIn(pageRunningInThisProcess, patch, {
+      kind: "near",
+      color: RED,
+      tolerance,
+    });
+
+    // Squared distances 0, 8, 25 (= 5 squared, kept) and 26 (refused).
+    expect(nearRed).toBe(3);
+  });
+
   it("counts blue-tinted and red-tinted pixels by their excess", async () => {
     installBrowserDecoder();
     const patch = patchOf(3, SIX_PIXELS);

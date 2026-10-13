@@ -149,6 +149,44 @@ describe("reduceCspReport: a report the browser sent, as the record the server w
     expect(recordOf({ "blocked-uri": blocked }).blocked).toBe("other");
   });
 
+  // The 255 of an origin is ruled: M8 plan 8Q.3 ("the origin only of another http(s) URL, at most 255 characters").
+  it("keeps an origin of exactly 255 characters and writes `other` for one of 256", () => {
+    const originOfLength = (length: number) =>
+      `https://${"a".repeat(length - "https://".length)}`;
+
+    const kept = recordOf({
+      "blocked-uri": `${originOfLength(255)}/x.js`,
+    }).blocked;
+    const refused = recordOf({
+      "blocked-uri": `${originOfLength(256)}/x.js`,
+    }).blocked;
+
+    expect({ kept, refused }).toEqual({
+      kept: originOfLength(255),
+      refused: "other",
+    });
+  });
+
+  // No dated record fixes 255 for a chunk path (ADR 0161 decision 3 says only that the build's own chunk paths are
+  // kept); it is the bound `csp-report.ts` chose, pinned here so a drift is a decision. Origin bound: M8 plan 8Q.3.
+  it("keeps a chunk path of exactly 255 characters and writes `self` for one of 256", () => {
+    const chunkPathOfLength = (length: number) => {
+      const prefix = "/_next/static/chunks/";
+      const suffix = ".js";
+      return `${prefix}${"a".repeat(length - prefix.length - suffix.length)}${suffix}`;
+    };
+    const sourceOf = (path: string) =>
+      recordOf({
+        ...chromiumInlineReport(`${ORIGIN}/ro`),
+        "source-file": `${ORIGIN}${path}`,
+      }).source;
+
+    expect({
+      kept: sourceOf(chunkPathOfLength(255)),
+      refused: sourceOf(chunkPathOfLength(256)),
+    }).toEqual({ kept: chunkPathOfLength(255), refused: "self" });
+  });
+
   it("writes `other` for an origin longer than 255 characters", () => {
     const longHost = `${"a".repeat(250)}.example`;
 
@@ -425,6 +463,16 @@ describe("reduceCspReport: which family a path belongs to (P3)", () => {
         expect(pageOfPath(path)).toBe("other");
       }),
     );
+  });
+
+  it.each([
+    ["one segment after a listed step", "/ro/d/x/review/extra"],
+    ["two segments after a listed step", "/ro/d/x/contact/extra/deeper"],
+    ["three segments after a listed step", "/ro/d/x/done/a/b/c"],
+    ["one segment after a share token", "/ro/s/TOKEN/extra"],
+    ["one segment after the room step", "/ro/configurator/room/extra"],
+  ])("writes `other` for %s (ADR 0161 decision 3)", (_label, path) => {
+    expect(pageOfPath(path)).toBe("other");
   });
 
   it.each([
