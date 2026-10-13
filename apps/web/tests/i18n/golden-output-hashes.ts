@@ -318,7 +318,7 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "contact.outcomes.limited":
     "d0cf12b1439521b8ad015b4350375fc209a81b6077070f94c60a6661cf54d6d8",
   "contact.outcomes.limitedTomorrow":
-    "f75872b8c41d0fb667f4a312512d06e8185cf154c37038b58322582247941c48",
+    "c15fb2a8c67f778cc2059bc2d2c50c98de027233d2a0b14b3a7978660de54462",
   "contact.outcomes.refused":
     "1acb1e12ff737bf7f7bf04c52abbc1533510513c59574f35fbef90ad07235d81",
   "content.globalSettings.appliesTo.count-0":
@@ -457,6 +457,10 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "ac05e2987222912765a9b1a8c311285d52b7e787fa62ea0d5147656058f43e87",
   "content.submissionResult.whatsappMessage.link-token":
     "a051659d490067053974d5d44e77c2d59224b4f68123aadecb4abe69ad5e2bc1",
+  "content.submissionResult.alreadySentAdvice.phone-token":
+    "4cee99b1c8923fde927d8a6e8dfdfceaadf1c8d187ca29587fc9db666f702211",
+  "content.submissionResult.whatsappMessageToShop.reference-and-link-tokens":
+    "cf8940b99576380ba3c92b8101f43c445764745e932b4f8deef537380c070e65",
   "content.static.brand":
     "90c998f600c03eb6652f8ade70c80a209d98dc31635b28644a01fd44e7d833d7",
   "content.static.configure.back":
@@ -546,7 +550,7 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "content.static.contact.subheading":
     "b4745e53a4cfe7eae3150e311d5cc8d28212fd5845b357ce94ebc9eb007def6d",
   "content.static.contact.subheadingNoDesign":
-    "c3398ae6e21463cf2588dfbbb873fb34c5311d64ff6fe3e28f77b65f2c3a8658",
+    "11a6c8a38ab7014edbf279618a4f33f7011a54a90aef08b88d220685bf9708a3",
   "content.static.contact.topBarTitle":
     "2b5c3d26721ae9c350cf3009318b626f0fc8a90b4a2ac0ca8099c05aa849282e",
   "content.static.contact.unavailable":
@@ -577,6 +581,12 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "8c2bf41aa7b41a7ae56c4170f29ebf353c353521353b37588b1ec51f1ce035f5",
   "content.static.submissionResult.backToDesign":
     "4bacf284940731b6851ab2377b3a3b611168243cf5a2bca1fa0e4cc4aaadde78",
+  "content.static.submissionResult.callShop":
+    "ba9fdef3ca120b63956e3ea0659019cba727d0c6b676487937c002182f46dd02",
+  "content.static.submissionResult.alreadySentHeading":
+    "99772e640643506775ac2d45f06c5d455d8933a502f5ce431c909a4078b5f6dd",
+  "content.static.submissionResult.alreadySentChangedKitchen":
+    "921a23d4bbadb0591ea6d320b16210ef47c1fe1af21e9ccc609ed3a36cdebe38",
   "content.static.submissionResult.reviewLink":
     "be61361617f947e12eeed1e734cd40c511ab4be07453ce5a8932872a659b41fb",
   "content.static.submissionResult.sendOnWhatsapp":

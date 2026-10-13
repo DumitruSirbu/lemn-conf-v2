@@ -340,7 +340,7 @@ declare const messages: {
     "heading": "Unde îți trimitem oferta?",
     "subheading": "Design-ul tău se atașează automat. Un consultant îl verifică și revine cu prețul final.",
     "headingNoDesign": "Cum te putem contacta?",
-    "subheadingNoDesign": "Spune-ne cum te găsim, iar un consultant revine la tine ca să configurați bucătăria împreună.",
+    "subheadingNoDesign": "Spune-ne cum te găsim, iar un consultant revine la tine ca să configurăm bucătăria împreună.",
     "nameLabel": "Nume",
     "namePlaceholder": "Numele tău",
     "phoneLabel": "Telefon",
@@ -382,7 +382,7 @@ declare const messages: {
       "conflict": "Cererea nu a putut fi înregistrată în forma ei de acum. Trimite-o încă o dată.",
       "designNotCurrent": "Înainte să trimitem cererea, verifică din nou designul.",
       "limited": "Prea multe cereri într-un timp scurt. Poți trimite din nou după ora {time}.",
-      "limitedTomorrow": "Din păcate, ați încercat să generați o bucătărie de prea multe ori într-un timp scurt. Vă încurajăm să reveniți mâine, după ora {time}."
+      "limitedTomorrow": "Din păcate, ai încercat să generezi o bucătărie de prea multe ori într-un timp scurt. Te încurajăm să revii mâine, după ora {time}."
     }
   },
   "submissionResult": {
@@ -404,8 +404,13 @@ declare const messages: {
     "sendOnWhatsapp": "Trimite design-ul pe WhatsApp",
     "openWhatsapp": "Deschide WhatsApp",
     "whatsappMessage": "Uite designul meu de bucătărie Lemnaria: {link}",
+    "whatsappMessageToShop": "Bună ziua! Designul bucătăriei mele din configuratorul Lemnaria, cererea {reference}: {link}",
     "noRequest": "Nu avem nicio cerere trimisă pentru acest design, în forma lui de acum.",
     "notShown": "Nu putem arăta acum starea cererii tale. Încearcă din nou puțin mai târziu.",
+    "alreadySentHeading": "Cererea pentru această bucătărie a fost deja trimisă",
+    "alreadySentAdvice": "Ai greșit ceva în cerere? Sună-ne la {phone} și spune-ne numărul cererii — corectăm împreună.",
+    "alreadySentChangedKitchen": "Dacă schimbi bucătăria, poți trimite o cerere nouă pentru ea.",
+    "callShop": "Sună direct la magazin",
     "failureHeading": "Nu am putut trimite cererea",
     "failureLostConnection": "Conexiunea s-a întrerupt.",
     "failureNotSent": "Cererea nu a ajuns la noi. Încearcă din nou.",

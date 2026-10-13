@@ -142,6 +142,8 @@ const FUNCTION_FAMILIES = [
   "globalSettings.materialResetConfirm.body",
   "submissionResult.channelLine",
   "submissionResult.whatsappMessage",
+  "submissionResult.whatsappMessageToShop",
+  "submissionResult.alreadySentAdvice",
   "leadNotice.subject",
   "leadNotice.line",
   "leadNotice.figure",
@@ -160,12 +162,12 @@ describe("the localized content resolver", () => {
   });
 
   it.each(CATALOGUES)(
-    "maps all 205 resolved strings through the %s catalogue",
+    "maps all 208 resolved strings through the %s catalogue",
     (locale, messages) => {
       const { content, translate } = contentAndOracleFor(locale, messages);
       const leaves = stringLeaves(content);
 
-      expect(leaves).toHaveLength(205);
+      expect(leaves).toHaveLength(208);
       for (const { path, value } of leaves) {
         // The step is stated twice — as a sentence and as the top bar's pill — from one pair of
         // numbers, so neither spelling can drift from the other.
@@ -180,7 +182,7 @@ describe("the localized content resolver", () => {
   );
 
   it.each(CATALOGUES)(
-    "backs exactly 38 public functions with %s ICU messages",
+    "backs exactly 40 public functions with %s ICU messages",
     (locale, messages) => {
       const { content, translate } = contentAndOracleFor(locale, messages);
 
@@ -304,6 +306,22 @@ describe("the localized content resolver", () => {
       );
       expect(content.submissionResult.whatsappMessage("link-token")).toBe(
         translate("submissionResult.whatsappMessage", { link: "link-token" }),
+      );
+      expect(
+        content.submissionResult.whatsappMessageToShop({
+          reference: "reference-token",
+          link: "link-token",
+        }),
+      ).toBe(
+        translate("submissionResult.whatsappMessageToShop", {
+          reference: "reference-token",
+          link: "link-token",
+        }),
+      );
+      expect(content.submissionResult.alreadySentAdvice("phone-token")).toBe(
+        translate("submissionResult.alreadySentAdvice", {
+          phone: "phone-token",
+        }),
       );
       expect(content.finishName("pal.gri-havanna")).toBe(
         translate("finish.pal.gri-havanna"),

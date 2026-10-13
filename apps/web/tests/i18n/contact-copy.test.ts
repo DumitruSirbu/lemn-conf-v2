@@ -6,6 +6,7 @@ import type {
 } from "@lemnaria/configurator-domain";
 
 import type { ContactOutcome } from "../../src/contact/contact-answer";
+import { shopPhoneDisplay } from "../../src/shop/shop-phone";
 import type { ContactOutcomeNotice } from "../../src/i18n/content";
 import {
   catalogueLeaves,
@@ -283,6 +284,28 @@ describe.each(CATALOGUES)(
       expect(sentence).not.toContain("{");
     });
 
+    it("names the request and carries the link in the message to the shop", () => {
+      const sentence = content.submissionResult.whatsappMessageToShop({
+        reference: "REFERENCE-TOKEN",
+        link: "https://example.test/s/LINK-TOKEN",
+      });
+
+      expect(sentence).toContain("REFERENCE-TOKEN");
+      expect(sentence).toContain("https://example.test/s/LINK-TOKEN");
+      expect(sentence).not.toContain("{");
+    });
+
+    it("tells the shop's phone in its display form and holds no digit of it in the leaf (criteria 1, 21)", () => {
+      const advice =
+        content.submissionResult.alreadySentAdvice(shopPhoneDisplay());
+
+      expect(advice).toContain(shopPhoneDisplay());
+      expect(advice).not.toContain("{");
+      expect(
+        requireLeafAt(messages, "submissionResult.alreadySentAdvice"),
+      ).toContain("{phone}");
+    });
+
     it("says the design is saved in this browser and never on the phone (criteria 3, 8)", () => {
       expect(content.submissionResult.savedSentence).toMatch(
         locale === "ro" ? /browser/ : /браузер/,
@@ -337,11 +360,9 @@ describe.each(CATALOGUES)(
       }
     });
 
-    it("promises no response time, draws no shop number and links no account or e-mailed link (Q3, Q8, Q11, Q43)", () => {
+    it("promises no response time and links no account or e-mailed link (Q8, Q11, Q43)", () => {
       for (const [key, text] of leaves) {
-        expect(key, key).not.toMatch(
-          /callShop|directCall|shop|magazin|response|detail|privacy/i,
-        );
+        expect(key, key).not.toMatch(/response|detail|privacy/i);
         expect(text, key).not.toMatch(TIME_PROMISE[locale]);
         expect(text, key).not.toMatch(NOT_DRAWN_WORDS[locale]);
         expect(text, key).not.toMatch(ACCOUNT_OR_EMAILED_LINK[locale]);

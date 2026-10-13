@@ -82,7 +82,7 @@ function sortedUnique(values: readonly string[]): readonly string[] {
 }
 
 describe("golden-output fixture coverage", () => {
-  it("covers exactly the 30 function-valued legacy content families", () => {
+  it("covers exactly the 32 function-valued legacy content families", () => {
     const actualFamilies = collectContentFunctionFamilies();
     expect(actualFamilies).toEqual([...CONTENT_FUNCTION_FAMILIES].sort());
     expect(
@@ -248,11 +248,13 @@ describe("golden-output fixture coverage", () => {
     // M8 8L S2: +26 for the contact form's static leaves (`contact.*`).
     // M8 8L S6: -4 for the retired `contactPlaceholder.*` and `webglUnavailable.emailLink`.
     // M8 8M S4: +27 for the result screens' static leaves (`submissionResult.*`).
-    expect(RESOLVED_STATIC_CONTENT).toHaveLength(205);
+    // M8 8M2 S2: +3 for `submissionResult.alreadySentHeading`, `.alreadySentChangedKitchen` and `.callShop`.
+    expect(RESOLVED_STATIC_CONTENT).toHaveLength(208);
     // +3 for the notice's subject, line and figure.
     // +2 for `panel.savePausedNotice`'s two times.
     // M8 8M S4: +4 for `submissionResult.channelLine`'s three channels and `.whatsappMessage`.
-    expect(FUNCTION_CONTENT_FIXTURES).toHaveLength(68);
+    // M8 8M2 S2: +2 for `submissionResult.whatsappMessageToShop` and `.alreadySentAdvice`.
+    expect(FUNCTION_CONTENT_FIXTURES).toHaveLength(70);
     // 7L S3: +2 for `room.suggestion.title` and `room.suggestion.switchToLinear`.
     // +1 for `room.compose.limitReached`.
     expect(ROOM_FIXTURES).toHaveLength(73);
@@ -280,7 +282,8 @@ describe("golden-output fixture coverage", () => {
     // M8 8L S6: -4 for the retired `contactPlaceholder.*` and `webglUnavailable.emailLink`.
     // M8 8L fix-up: +1 for `contact.outcomes.limitedTomorrow`.
     // M8 8M S4: +27 static and +4 function fixtures for `submissionResult.*`, -2 for the retired contact outcomes.
-    expect(GOLDEN_FIXTURES).toHaveLength(513);
+    // M8 8M2 S2: +3 static and +2 function fixtures for `submissionResult.*`.
+    expect(GOLDEN_FIXTURES).toHaveLength(518);
     expect(new Set(GOLDEN_FIXTURES.map((fixture) => fixture.id)).size).toBe(
       GOLDEN_FIXTURES.length,
     );

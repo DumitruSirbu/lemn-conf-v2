@@ -119,7 +119,7 @@ function requiredFixtureValue<T>(value: T | undefined, id: string): T {
 const BASE_BAND_WORD = romanianContent.panel.bandWords.base.one;
 
 /**
- * The 30 function-valued content families. The gate compares this declaration to a runtime walk of
+ * The 32 function-valued content families. The gate compares this declaration to a runtime walk of
  * resolved Romanian content, so a newly introduced function cannot silently miss the oracle.
  */
 export const CONTENT_FUNCTION_FAMILIES = [
@@ -153,6 +153,8 @@ export const CONTENT_FUNCTION_FAMILIES = [
   "leadNotice.figure",
   "submissionResult.channelLine",
   "submissionResult.whatsappMessage",
+  "submissionResult.whatsappMessageToShop",
+  "submissionResult.alreadySentAdvice",
 ] as const;
 
 export const FUNCTION_CONTENT_FIXTURES: readonly GoldenFixture[] = [
@@ -519,6 +521,27 @@ export const FUNCTION_CONTENT_FIXTURES: readonly GoldenFixture[] = [
     "link-token",
     () => romanianContent.submissionResult.whatsappMessage("link-token"),
     () => translate("submissionResult.whatsappMessage", { link: "link-token" }),
+  ),
+  contentFixture(
+    "submissionResult.whatsappMessageToShop",
+    "reference-and-link-tokens",
+    () =>
+      romanianContent.submissionResult.whatsappMessageToShop({
+        reference: "reference-token",
+        link: "link-token",
+      }),
+    () =>
+      translate("submissionResult.whatsappMessageToShop", {
+        reference: "reference-token",
+        link: "link-token",
+      }),
+  ),
+  contentFixture(
+    "submissionResult.alreadySentAdvice",
+    "phone-token",
+    () => romanianContent.submissionResult.alreadySentAdvice("phone-token"),
+    () =>
+      translate("submissionResult.alreadySentAdvice", { phone: "phone-token" }),
   ),
 ];
 

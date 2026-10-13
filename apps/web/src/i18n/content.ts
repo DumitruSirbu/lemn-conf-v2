@@ -762,6 +762,28 @@ export function resolveSubmissionWhatsappMessage(
   return translate("submissionResult.whatsappMessage", { link });
 }
 
+/** What the message to the shop names: the request, and the customer's own view-only link to the design. */
+export interface ShopWhatsappMessageParts {
+  readonly reference: string;
+  readonly link: string;
+}
+
+/** The message a customer sends the shop. It is the customer's voice, so it addresses the shop in neither register. */
+export function resolveShopWhatsappMessage(
+  translate: ContentTranslator,
+  parts: ShopWhatsappMessageParts,
+): string {
+  return translate("submissionResult.whatsappMessageToShop", parts);
+}
+
+/** The advice on the already-sent view; `phone` is the shop's display form, never digits typed into a leaf. */
+export function resolveAlreadySentAdvice(
+  translate: ContentTranslator,
+  phone: string,
+): string {
+  return translate("submissionResult.alreadySentAdvice", { phone });
+}
+
 /** Resolves the content shape the pre-i18n models consume: every leaf comes from the active locale, and the
  *  closures keep the model-facing signatures while ICU does interpolation and plural selection. */
 export function resolveContent(translate: ContentTranslator) {
@@ -1111,8 +1133,17 @@ export function resolveContent(translate: ContentTranslator) {
       openWhatsapp: translate("submissionResult.openWhatsapp"),
       whatsappMessage: (link: string) =>
         resolveSubmissionWhatsappMessage(translate, link),
+      whatsappMessageToShop: (parts: ShopWhatsappMessageParts) =>
+        resolveShopWhatsappMessage(translate, parts),
       noRequest: translate("submissionResult.noRequest"),
       notShown: translate("submissionResult.notShown"),
+      alreadySentHeading: translate("submissionResult.alreadySentHeading"),
+      alreadySentAdvice: (phone: string) =>
+        resolveAlreadySentAdvice(translate, phone),
+      alreadySentChangedKitchen: translate(
+        "submissionResult.alreadySentChangedKitchen",
+      ),
+      callShop: translate("submissionResult.callShop"),
       failureHeading: translate("submissionResult.failureHeading"),
       failureLostConnection: translate(
         "submissionResult.failureLostConnection",
