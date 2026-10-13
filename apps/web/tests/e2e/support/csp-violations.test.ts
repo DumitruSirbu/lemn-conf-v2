@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   CONTENT_SECURITY_POLICY_MODE,
+  CSP_REPORT_PATH,
   cspResponseHeaderName,
   type ContentSecurityPolicyMode,
 } from "../../../src/lib/security-headers";
@@ -9,7 +10,6 @@ import {
 import {
   POLICY_HEADER,
   REPORT_ONLY_UPGRADE_DIAGNOSTIC,
-  REPORT_PATH,
   isReportRequest,
   isViolationMessage,
   nonceOfPolicy,
@@ -71,18 +71,20 @@ describe("which console messages count as a violation (8Q.6, observer ii)", () =
 
 describe("which requests are reports (8Q.6, observer iii)", () => {
   it("matches the report path whatever the origin and the query", () => {
-    expect(isReportRequest(`http://localhost:4320${REPORT_PATH}`)).toBe(true);
-    expect(isReportRequest(`http://localhost:4320${REPORT_PATH}?x=1`)).toBe(
+    expect(isReportRequest(`http://localhost:4320${CSP_REPORT_PATH}`)).toBe(
+      true,
+    );
+    expect(isReportRequest(`http://localhost:4320${CSP_REPORT_PATH}?x=1`)).toBe(
       true,
     );
   });
 
   it("does not match another path, or a path that only begins with the report path", () => {
     expect(isReportRequest("http://localhost:4320/api/designs")).toBe(false);
-    expect(isReportRequest(`http://localhost:4320${REPORT_PATH}/more`)).toBe(
-      false,
-    );
-    expect(isReportRequest(`http://localhost:4320/ro${REPORT_PATH}`)).toBe(
+    expect(
+      isReportRequest(`http://localhost:4320${CSP_REPORT_PATH}/more`),
+    ).toBe(false);
+    expect(isReportRequest(`http://localhost:4320/ro${CSP_REPORT_PATH}`)).toBe(
       false,
     );
   });

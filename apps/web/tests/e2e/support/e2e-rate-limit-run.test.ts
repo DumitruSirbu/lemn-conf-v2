@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { readDigester } from "@/lib/server/digest/digest-secret";
 import {
+  CSP_REPORT_POLICY,
   E2E_MINT_POLICY_NAME,
   E2E_SHARE_WRITE_POLICY,
   MINT_POLICY_NAME,
@@ -37,6 +38,7 @@ const {
   CONTACT_NEW_REQUEST_DAY_TWIN,
   CONTACT_NEW_REQUEST_HOUR_TWIN,
   bucketKeyOfTheRun,
+  CspReportsInTheRunError,
   E2eFigureOutgrownError,
   makeRunSecret,
   MINT_TWIN,
@@ -44,6 +46,7 @@ const {
   removeCountersOf,
   removeCountersOfTheRun,
   removeCredentialCountersOf,
+  requireNoCspReportsUnderCi,
   requireRoomUnderHalfTheFigure,
   RUN_SECRET_VARIABLE,
   SAVE_TWIN,
@@ -358,6 +361,44 @@ describe.each(TWINS)(
   },
 );
 
+describe("requireNoCspReportsUnderCi", () => {
+  it.each([1, 2, 100])(
+    "fails a CI run of %i reports, naming the count and the policy",
+    (hits) => {
+      vi.stubEnv("CI", "1");
+
+      const thrown = thrownBy(() => {
+        requireNoCspReportsUnderCi(hits);
+      });
+
+      expect(thrown).toBeInstanceOf(CspReportsInTheRunError);
+      expect(thrown.message).toContain(
+        `counted ${String(hits)} content security`,
+      );
+      expect(thrown.message).toContain(CSP_REPORT_POLICY.name);
+      expect((thrown as Error & { hitsCounted: number }).hitsCounted).toBe(
+        hits,
+      );
+    },
+  );
+
+  it("accepts a CI run of no report", () => {
+    vi.stubEnv("CI", "1");
+
+    expect(() => {
+      requireNoCspReportsUnderCi(0);
+    }).not.toThrow();
+  });
+
+  it("asserts nothing outside CI, whatever the count", () => {
+    vi.stubEnv("CI", undefined);
+
+    expect(() => {
+      requireNoCspReportsUnderCi(50);
+    }).not.toThrow();
+  });
+});
+
 const TEARDOWN_TWINS = [
   MINT_TWIN,
   SHARE_WRITE_TWIN,
@@ -383,6 +424,10 @@ describe("the teardown", () => {
     };
   }
 
+  function keyOfCspReports(): string {
+    return bucketKeyOfTheRun(secretOfThisRun(), CSP_REPORT_POLICY.name);
+  }
+
   function silenceTheLine() {
     return vi.spyOn(console, "log").mockImplementation(() => undefined);
   }
@@ -404,6 +449,7 @@ describe("the teardown", () => {
     await globalTeardown();
 
     expect(deletion.handed.map(([key]) => key)).toEqual([
+      keyOfCspReports(),
       keyOf(SHARE_WRITE_TWIN),
       keyOf(SAVE_TWIN),
       keyOf(CONTACT_EVERY_REQUEST_TWIN),
@@ -416,7 +462,7 @@ describe("the teardown", () => {
         "e2e rate limit: this run minted 7 designs (2 counter row removed), made 5 share writes " +
           "(1 counter rows removed), made 7 saves (2 counter rows removed), and sent 10 contact requests of any kind " +
           "(1 counter rows removed), 3 new ones counted in the hour (1 counter rows removed) and 3 new ones counted " +
-          "in the UTC day (2 counter rows removed)",
+          "in the UTC day (2 counter rows removed). Its server counted 0 csp-report hits (0 counter rows removed)",
       ],
     ]);
   });
@@ -447,9 +493,60 @@ describe("the teardown", () => {
         policyName: twin.policy.name,
       });
 
-      expect(deletion.handed).toHaveLength(TEARDOWN_TWINS.length);
+      expect(deletion.handed).toHaveLength(TEARDOWN_TWINS.length + 1);
     },
   );
+
+  describe("the whole-run net for violation reports (8Q.6)", () => {
+    function answerWithCspReports(counts: number[]): void {
+      answerEachTwin(
+        new Map([
+          [keyOf(MINT_TWIN), [1]],
+          [keyOfCspReports(), counts],
+        ]),
+      );
+    }
+
+    it("fails a CI run whose server counted a violation report, after every row is removed, naming the count", async () => {
+      vi.stubEnv("CI", "1");
+      answerWithCspReports([2, 1]);
+      const log = silenceTheLine();
+
+      const failure: unknown = await globalTeardown().then(
+        () => undefined,
+        (error: unknown) => error,
+      );
+
+      expect(failure).toBeInstanceOf(CspReportsInTheRunError);
+      expect((failure as Error).message).toContain(
+        "counted 3 content security",
+      );
+      expect(deletion.handed).toHaveLength(TEARDOWN_TWINS.length + 1);
+      expect(String(log.mock.calls[0]?.[0])).toContain(
+        "Its server counted 3 csp-report hits (2 counter rows removed)",
+      );
+    });
+
+    it("prints the count and fails nothing when the run is not a CI run, where the server is `next dev`", async () => {
+      vi.stubEnv("CI", undefined);
+      answerWithCspReports([5]);
+      const log = silenceTheLine();
+
+      await expect(globalTeardown()).resolves.toBeUndefined();
+
+      expect(String(log.mock.calls[0]?.[0])).toContain(
+        "Its server counted 5 csp-report hits",
+      );
+    });
+
+    it("passes a CI run whose server counted none", async () => {
+      vi.stubEnv("CI", "1");
+      answerWithCspReports([]);
+      silenceTheLine();
+
+      await expect(globalTeardown()).resolves.toBeUndefined();
+    });
+  });
 
   it("fails a run that minted nothing, since a key computed wrongly would leave every row behind", async () => {
     answerEachTwin(new Map([[keyOf(SAVE_TWIN), [1]]]));

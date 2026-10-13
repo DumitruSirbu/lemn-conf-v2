@@ -5,6 +5,7 @@ import {
   CONTENT_SECURITY_POLICY_MODE,
   CSP_ENFORCED_HEADER,
   CSP_REPORT_ONLY_HEADER,
+  CSP_REPORT_PATH,
   cspResponseHeaderName,
   STATIC_SECURITY_HEADERS,
 } from "../../src/lib/security-headers";
@@ -153,6 +154,19 @@ describe("buildContentSecurityPolicy", () => {
     expect(directives(PRODUCTION_POLICY)).toContain(
       "upgrade-insecure-requests",
     );
+  });
+
+  it("names the application's own sink with a report-uri, in both branches and as the only reporting directive", () => {
+    for (const isDevelopment of [false, true]) {
+      const policy = buildContentSecurityPolicy({ nonce: "n", isDevelopment });
+      expect(directive(policy, "report-uri")).toBe(
+        `report-uri ${CSP_REPORT_PATH}`,
+      );
+      expect(
+        directives(policy).filter((entry) => entry.startsWith("report-")),
+      ).toHaveLength(1);
+    }
+    expect(CSP_REPORT_PATH).toBe("/api/csp-reports");
   });
 
   it("names no external origin, because the browser bundle loads none", () => {

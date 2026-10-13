@@ -98,6 +98,12 @@ describe("the sink's source: it reads no cookie, sets none and stores nothing bu
   });
 });
 
+/** Directives of the policy that govern the browser's behaviour, not a resource it fetches: no violation names them. */
+const DIRECTIVES_NO_VIOLATION_NAMES: ReadonlySet<string> = new Set([
+  "upgrade-insecure-requests",
+  "report-uri",
+]);
+
 describe("the sink's address and its closed lists", () => {
   it("is the route file's own address", () => {
     expect(readFileSync(join(SOURCE_ROOT, ROUTE_FILE), "utf8")).toContain(
@@ -113,7 +119,7 @@ describe("the sink's address and its closed lists", () => {
       const names = policy
         .split("; ")
         .map((directive) => directive.split(" ")[0] ?? "")
-        .filter((name) => name !== "upgrade-insecure-requests");
+        .filter((name) => !DIRECTIVES_NO_VIOLATION_NAMES.has(name));
 
       expect(
         names.filter((name) => !CSP_DIRECTIVES.some((own) => own === name)),

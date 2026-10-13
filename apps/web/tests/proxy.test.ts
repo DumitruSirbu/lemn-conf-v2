@@ -67,6 +67,7 @@ describe("proxy security headers", () => {
         "frame-ancestors 'none'",
         "frame-src 'none'",
         "upgrade-insecure-requests",
+        "report-uri /api/csp-reports",
       ].join("; "),
     );
     expect(policy).not.toContain("unsafe-eval");

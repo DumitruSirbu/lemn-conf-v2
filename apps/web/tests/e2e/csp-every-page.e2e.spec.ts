@@ -18,13 +18,17 @@
 import {
   expect,
   test as base,
+  type APIResponse,
   type Browser,
   type BrowserContext,
   type Page,
   type Route,
 } from "@playwright/test";
 
-import { CONTENT_SECURITY_POLICY_MODE } from "../../src/lib/security-headers";
+import {
+  CONTENT_SECURITY_POLICY_MODE,
+  CSP_REPORT_PATH,
+} from "../../src/lib/security-headers";
 
 import {
   ANSWERS,
@@ -45,7 +49,6 @@ import { newName, newPhone } from "./support/contact-run";
 import {
   NO_VIOLATIONS,
   POLICY_HEADER,
-  REPORT_PATH,
   policyOf,
   violationsSeen,
   watchForViolations,
@@ -330,7 +333,7 @@ strangerTest.describe(
       "an inline script nobody nonced is seen by all three observers, and runs only where nothing is blocked",
       async ({ page }) => {
         const net = await watchForViolations(page);
-        await page.route(`**${REPORT_PATH}`, (route) =>
+        await page.route(`**${CSP_REPORT_PATH}`, (route) =>
           route.fulfill({ status: 204 }),
         );
         await page.route(`**${STEP_ONE_PATH}`, injectAnInlineScript);
@@ -349,7 +352,7 @@ strangerTest.describe(
           .toBeGreaterThan(0);
         await expect
           .poll(() => violationsSeen(net).reportRequests.length, {
-            message: `requests to ${REPORT_PATH}`,
+            message: `requests to ${CSP_REPORT_PATH}`,
           })
           .toBeGreaterThan(0);
         expect(violationsSeen(net).events).toContainEqual(
@@ -455,7 +458,7 @@ async function injectAnInlineScript(route: Route): Promise<void> {
   const headers = { ...response.headers() };
   delete headers["content-encoding"];
   delete headers["content-length"];
-  headers[POLICY_HEADER] = policyNamingTheReportPath(policyOf(response));
+  headers[POLICY_HEADER] = policyOfTheDocument(response);
   await route.fulfill({
     response,
     headers,
@@ -466,12 +469,11 @@ async function injectAnInlineScript(route: Route): Promise<void> {
   });
 }
 
-/** The policy until S4 gives it a `report-uri` of its own; after that it already names one, and is left alone. */
-function policyNamingTheReportPath(policy: string | undefined): string {
+/** The policy the document carries, which names the report path itself, so the self-test's report reaches the net. */
+function policyOfTheDocument(response: APIResponse): string {
+  const policy = policyOf(response);
   if (policy === undefined) throw new Error("the page carries no policy");
-  return /(^|;)\s*report-uri\s/.test(policy)
-    ? policy
-    : `${policy}; report-uri ${REPORT_PATH}`;
+  return policy;
 }
 
 function readSelfTestMarker(markerName: string): unknown {

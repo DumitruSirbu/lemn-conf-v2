@@ -99,7 +99,7 @@ export function cspResponseHeaderName(mode: ContentSecurityPolicyMode): string {
  * `style-src` keeps `'unsafe-inline'`: React writes `style` attributes and drei injects style elements it does not
  * nonce. `blob:` and `data:` are admitted for images and workers because three.js hands generated textures and
  * loader workers to the browser. `upgrade-insecure-requests` is inert while report-only; it stays so it activates
- * on the flip.
+ * on the flip. `report-uri` names the application's own sink in both modes and both branches (ADR 0161 decision 2).
  */
 export function buildContentSecurityPolicy({
   nonce,
@@ -126,5 +126,6 @@ export function buildContentSecurityPolicy({
     "frame-ancestors 'none'",
     "frame-src 'none'",
     ...(isDevelopment ? [] : ["upgrade-insecure-requests"]),
+    `report-uri ${CSP_REPORT_PATH}`,
   ].join("; ");
 }

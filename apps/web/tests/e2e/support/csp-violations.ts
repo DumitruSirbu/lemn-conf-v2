@@ -11,6 +11,7 @@ import type { Page } from "@playwright/test";
 
 import {
   CONTENT_SECURITY_POLICY_MODE,
+  CSP_REPORT_PATH,
   cspResponseHeaderName,
   type ContentSecurityPolicyMode,
 } from "../../../src/lib/security-headers";
@@ -19,9 +20,6 @@ import {
 export const POLICY_HEADER = cspResponseHeaderName(
   CONTENT_SECURITY_POLICY_MODE,
 ).toLowerCase();
-
-/** Where the policy sends reports. Slice S4 exports this from `lib/security-headers.ts` and this line imports it. */
-export const REPORT_PATH = "/api/csp-reports";
 
 /** The one console `error` every document writes in report-only: a diagnostic about the policy, not a violation. */
 export const REPORT_ONLY_UPGRADE_DIAGNOSTIC =
@@ -76,7 +74,7 @@ export function isViolationMessage(
 }
 
 export function isReportRequest(url: string): boolean {
-  return new URL(url).pathname === REPORT_PATH;
+  return new URL(url).pathname === CSP_REPORT_PATH;
 }
 
 /**

@@ -5,6 +5,7 @@ import {
   MINT_TWIN,
   removeCountersOf,
   removeCountersOfTheRun,
+  requireNoCspReportsUnderCi,
   requireRoomUnderHalfTheFigure,
   SAVE_TWIN,
   SHARE_WRITE_TWIN,
@@ -12,7 +13,10 @@ import {
   type CountersOfTheRun,
   type TwinOfTheRun,
 } from "./support/e2e-rate-limit-run";
-import { E2E_MINT_POLICY_NAME } from "../../src/lib/server/rate-limit/limit-policy";
+import {
+  CSP_REPORT_POLICY,
+  E2E_MINT_POLICY_NAME,
+} from "../../src/lib/server/rate-limit/limit-policy";
 
 /** What the run counted under one twin, and the rows it took away. */
 type Measured = ReadonlyMap<TwinOfTheRun, CountersOfTheRun>;
@@ -29,15 +33,19 @@ const TWINS_REMOVED_BEFORE_THE_MINTS = [
 
 /**
  * Runs once, in the runner's main process, after every test: removes the counter rows the run made under its own
- * secret and says how many designs it minted, how many share writes and saves it made, and how many contact requests
- * of any kind and new ones it sent. Those figures are what the e2e policies' windows are sized against. It throws, and
- * so fails the run, when it finds no row of mints or when the run made more than half of any window, after every row
- * is gone. The saves' rows by write credential and the contact rows by request, visitor and address are removed by
- * each test's own cleanup, which knows what it wrote.
+ * secret and says how many designs it minted, how many share writes and saves it made, how many contact requests of
+ * any kind and new ones it sent, and how many content security policy violation reports its server received. Those
+ * figures are what the e2e policies' windows are sized against. It throws, and so fails the run, after every row is
+ * gone: when a `CI` run's server counted any violation report (the whole-run net, 8Q.6), when it finds no row of
+ * mints, or when the run made more than half of any window. The saves' rows by write credential and the contact rows
+ * by request, visitor and address are removed by each test's own cleanup, which knows what it wrote.
  */
 export default async function globalTeardown(): Promise<void> {
-  const measured = await removeEveryTwinsRows(secretOfThisRun());
-  console.log(summaryOf(measured));
+  const secret = secretOfThisRun();
+  const cspReports = await removeCountersOf(secret, CSP_REPORT_POLICY.name);
+  const measured = await removeEveryTwinsRows(secret);
+  console.log(summaryOf(measured, cspReports));
+  requireNoCspReportsUnderCi(cspReports.hitsCounted);
   for (const [twin, counters] of measured) {
     requireRoomUnderHalfTheFigure(twin, counters.hitsCounted);
   }
@@ -56,7 +64,7 @@ async function removeEveryTwinsRows(secret: string): Promise<Measured> {
   return new Map([[MINT_TWIN, asCounters], ...measured]);
 }
 
-function summaryOf(measured: Measured): string {
+function summaryOf(measured: Measured, cspReports: CountersOfTheRun): string {
   const of = (twin: TwinOfTheRun): CountersOfTheRun =>
     measured.get(twin) ?? { rowsRemoved: 0, hitsCounted: 0 };
   const rows = (twin: TwinOfTheRun): string =>
@@ -69,6 +77,8 @@ function summaryOf(measured: Measured): string {
     `${hits(SAVE_TWIN)} saves ${rows(SAVE_TWIN)}, and sent ` +
     `${hits(CONTACT_EVERY_REQUEST_TWIN)} contact requests of any kind ${rows(CONTACT_EVERY_REQUEST_TWIN)}, ` +
     `${hits(CONTACT_NEW_REQUEST_HOUR_TWIN)} new ones counted in the hour ${rows(CONTACT_NEW_REQUEST_HOUR_TWIN)} and ` +
-    `${hits(CONTACT_NEW_REQUEST_DAY_TWIN)} new ones counted in the UTC day ${rows(CONTACT_NEW_REQUEST_DAY_TWIN)}`
+    `${hits(CONTACT_NEW_REQUEST_DAY_TWIN)} new ones counted in the UTC day ${rows(CONTACT_NEW_REQUEST_DAY_TWIN)}. ` +
+    `Its server counted ${String(cspReports.hitsCounted)} csp-report hits ` +
+    `(${String(cspReports.rowsRemoved)} counter rows removed)`
   );
 }

@@ -12,6 +12,7 @@ import {
 } from "../../../src/lib/server/rate-limit/bucket-subject";
 import { SHARED_BLOCK } from "../../../src/lib/server/rate-limit/client-network";
 import {
+  CSP_REPORT_POLICY,
   E2E_CONTACT_EVERY_BY_BLOCK_POLICY,
   E2E_CONTACT_NEW_BY_BLOCK_DAY_POLICY,
   E2E_CONTACT_NEW_BY_BLOCK_HOUR_POLICY,
@@ -277,5 +278,32 @@ export class NoCountersOfTheRunError extends Error {
         "or the harness computes a key the server does not",
     );
     this.name = "NoCountersOfTheRunError";
+  }
+}
+
+/**
+ * The whole-run net of wave 8Q (8Q.6): the suite's server counts every violation report it receives under
+ * `csp-report`, which has no e2e twin, and a run on the production build fails if it counted any. A spec that breaks the
+ * policy on purpose fulfils its reports with `page.route` before they reach the server. Under `next dev`, where no whole
+ * run was measured clean, the count is printed by the teardown and asserts nothing. It is one-directional: a report a
+ * browser had not sent when its page closed is not counted.
+ */
+export function requireNoCspReportsUnderCi(hitsCounted: number): void {
+  if (process.env.CI === undefined) return;
+  if (hitsCounted > 0) throw new CspReportsInTheRunError(hitsCounted);
+}
+
+/** The run's server counted a violation report: a page broke the policy and its browser told the sink. */
+export class CspReportsInTheRunError extends Error {
+  readonly hitsCounted: number;
+
+  constructor(hitsCounted: number) {
+    super(
+      `This run's server counted ${String(hitsCounted)} content security policy violation report(s) under ` +
+        `${CSP_REPORT_POLICY.name}, and a CI run counts none: find the page that broke the policy in the server's ` +
+        "`[csp]` log lines, or make the spec that breaks it on purpose fulfil its reports with page.route",
+    );
+    this.name = "CspReportsInTheRunError";
+    this.hitsCounted = hitsCounted;
   }
 }
