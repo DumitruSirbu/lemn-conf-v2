@@ -112,7 +112,7 @@ test("a workflow whose total or shard list drifts from the configured counts is 
   assert.equal(problems.length, 2);
   assert.match(
     problems.join("\n"),
-    /mobile: ci\.yml matrix\.total is \[3\], expected \[8\]/,
+    /mobile: ci\.yml matrix\.total is \[3\], expected \[9\]/,
   );
   assert.match(
     problems.join("\n"),
