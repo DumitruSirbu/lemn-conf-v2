@@ -7,26 +7,27 @@
 export type ContentSecurityPolicyMode = "report-only" | "enforce";
 
 /**
- * The single switch: `"report-only"` sends `Content-Security-Policy-Report-Only` (violations reported, nothing
- * blocked); `"enforce"` changes the header name and nothing else.
+ * The single switch: `"enforce"` sends `Content-Security-Policy` (a violation is blocked and reported);
+ * `"report-only"` sends `Content-Security-Policy-Report-Only` (reported, nothing blocked). Changing it changes the
+ * header name and nothing else, so a rollback is this one line.
  *
- * Do not flip it while a prerendered page can be served to a browser: a nonce only reaches the HTML of a dynamically
- * rendered response, so a route in `.next/prerender-manifest.json` carries none and would go blank under `"enforce"`.
- * Next builds `/_global-error` and `/_not-found` whatever the application does, and the manifest keeps listing them,
- * but no browser is sent either as a document: an address no route answers renders its 404 for each request
- * (`app/[locale]/[...unmatched]`, with `api` and `internal` catch-alls that answer an empty one), and
- * `next.config.ts` rewrites the two literal addresses to it (8Q.12). There is no report sink: a collector would be an
- * unauthenticated, unthrottled POST endpoint (SEC-001, deferred to the M8 launch gate), so the policy is a versioned
- * declaration and a staging step, not a live control (ADR 0041 decision 4).
+ * It is enforcing because no document a browser is sent lacks a nonce. A nonce only reaches the HTML of a dynamically
+ * rendered response, so a route in `.next/prerender-manifest.json` would go blank under `"enforce"`. Next builds
+ * `/_global-error` and `/_not-found` whatever the application does, and the manifest keeps listing them, but no
+ * browser is sent either as a document: an address no route answers renders its 404 for each request
+ * (`app/[locale]/[...unmatched]`, with `api` and `internal` catch-alls that answer an empty one), and `next.config.ts`
+ * rewrites the two literal addresses to it (8Q.12). Violations reach the application's own counted sink,
+ * `CSP_REPORT_PATH` (ADR 0161), so the policy is a live control with a signal, not a declaration (ADR 0041 decision 3,
+ * discharged; decision 4, overturned by ADR 0161).
  */
 export const CONTENT_SECURITY_POLICY_MODE: ContentSecurityPolicyMode =
-  "report-only";
+  "enforce";
 
 export const CSP_ENFORCED_HEADER = "Content-Security-Policy";
 export const CSP_REPORT_ONLY_HEADER = "Content-Security-Policy-Report-Only";
 
-/** The address of the application's own report sink (ADR 0161 decision 2): the one name the policy's `report-uri` will
- *  carry, and the route file's own address, which a test holds equal. */
+/** The address of the application's own report sink (ADR 0161 decision 2): the one name the policy's `report-uri`
+ *  carries, and the route file's own address, which a test holds equal. */
 export const CSP_REPORT_PATH = "/api/csp-reports";
 
 /** The request header `src/proxy.ts` hands the nonce down on, for a component that needs it. */
@@ -57,8 +58,8 @@ const PERMISSIONS_POLICY = DISABLED_BROWSER_FEATURES.map(
   (feature) => `${feature}=()`,
 ).join(", ");
 
-/** Headers with no per-request component. The CSP's `frame-ancestors` is report-only today and does not cover static
- *  assets, so `X-Frame-Options` carries the anti-framing guarantee unconditionally. */
+/** Headers with no per-request component. The CSP's `frame-ancestors` does not cover static assets, which carry no
+ *  policy at all, so `X-Frame-Options` carries the anti-framing guarantee unconditionally. */
 export const STATIC_SECURITY_HEADERS: readonly {
   key: string;
   value: string;
@@ -98,8 +99,10 @@ export function cspResponseHeaderName(mode: ContentSecurityPolicyMode): string {
  * ignores every host-source expression, so do not add a CDN host expecting it to take effect (ADR 0041 decision 5).
  * `style-src` keeps `'unsafe-inline'`: React writes `style` attributes and drei injects style elements it does not
  * nonce. `blob:` and `data:` are admitted for images and workers because three.js hands generated textures and
- * loader workers to the browser. `upgrade-insecure-requests` is inert while report-only; it stays so it activates
- * on the flip. `report-uri` names the application's own sink in both modes and both branches (ADR 0161 decision 2).
+ * loader workers to the browser. `upgrade-insecure-requests` is active under enforcement and ignored in report-only
+ * (Chromium upgrades nothing from `http://localhost`, so the suite's server is unaffected; a `next start` reached by a
+ * LAN address is, and cannot be looked at over plain HTTP). `report-uri` names the application's own sink in both
+ * modes and both branches (ADR 0161 decision 2).
  */
 export function buildContentSecurityPolicy({
   nonce,

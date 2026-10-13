@@ -10,6 +10,7 @@ import {
 import {
   POLICY_HEADER,
   REPORT_ONLY_UPGRADE_DIAGNOSTIC,
+  isReportOnlyDiagnostic,
   isReportRequest,
   isViolationMessage,
   nonceOfPolicy,
@@ -20,6 +21,21 @@ const MODES: readonly ContentSecurityPolicyMode[] = ["report-only", "enforce"];
 const BLOCKED_INLINE_SCRIPT =
   "Refused to execute inline script because it violates the following Content Security Policy directive: " +
   "\"script-src 'self' 'nonce-abc' 'strict-dynamic'\".";
+
+describe("which console error is the report-only diagnostic a spec may ignore", () => {
+  it("is the upgrade-insecure-requests sentence, in report-only only", () => {
+    expect(
+      isReportOnlyDiagnostic(REPORT_ONLY_UPGRADE_DIAGNOSTIC, "report-only"),
+    ).toBe(true);
+    expect(
+      isReportOnlyDiagnostic(REPORT_ONLY_UPGRADE_DIAGNOSTIC, "enforce"),
+    ).toBe(false);
+  });
+
+  it.each(MODES)("is no other message, in mode %s", (mode) => {
+    expect(isReportOnlyDiagnostic(BLOCKED_INLINE_SCRIPT, mode)).toBe(false);
+  });
+});
 
 describe("which console messages count as a violation (8Q.6, observer ii)", () => {
   it.each(MODES)("counts a blocked script, in mode %s", (mode) => {

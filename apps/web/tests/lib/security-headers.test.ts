@@ -77,10 +77,11 @@ describe("STATIC_SECURITY_HEADERS", () => {
 });
 
 describe("cspResponseHeaderName", () => {
-  it("reports rather than enforces while the rollout is still being read", () => {
-    expect(CONTENT_SECURITY_POLICY_MODE).toBe("report-only");
+  // The one test that names the live mode: a rollback is the constant set back and this test edited (8Q.5).
+  it("enforces the policy, under the enforcing header name", () => {
+    expect(CONTENT_SECURITY_POLICY_MODE).toBe("enforce");
     expect(cspResponseHeaderName(CONTENT_SECURITY_POLICY_MODE)).toBe(
-      CSP_REPORT_ONLY_HEADER,
+      CSP_ENFORCED_HEADER,
     );
   });
 

@@ -5,6 +5,7 @@ import {
   blockOfAddress,
   SHARED_BLOCK,
 } from "../../src/lib/server/rate-limit/client-network";
+import { POLICY_HEADER } from "./support/csp-violations";
 import { deleteMintedDesigns } from "./support/minted-designs";
 import { READ_POLICY } from "../../src/lib/server/rate-limit/limit-policy";
 import {
@@ -72,9 +73,7 @@ test.describe("a page read counted in the request interceptor of a built server"
     const readiness = await removedForTheReadinessPolls(server.secret);
 
     expect(response.status).toBe(200);
-    expect(
-      response.headers.get("content-security-policy-report-only"),
-    ).toBeTruthy();
+    expect(response.headers.get(POLICY_HEADER)).toBeTruthy();
     expect(landed).toEqual({ rowsRemoved: 1, counts: [1] });
     console.log(
       `page read proof: one hit under the block's key (rows removed ${String(landed.rowsRemoved)}, ` +

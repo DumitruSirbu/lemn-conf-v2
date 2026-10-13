@@ -5,12 +5,15 @@ import { RATE_LIMIT_READ_DEADLINE_MS } from "../src/lib/server/rate-limit/enforc
 import { READS_PER_BLOCK_FIGURE } from "../src/lib/server/rate-limit/limit-policy";
 import { CLIENT_NETWORK_SOURCE_VARIABLE } from "../src/lib/server/rate-limit/network-source";
 import {
-  CSP_REPORT_ONLY_HEADER,
+  CONTENT_SECURITY_POLICY_MODE,
+  cspResponseHeaderName,
   SHARE_VIEW_HEADERS,
 } from "../src/lib/security-headers";
 import roMessages from "../src/messages/ro.json";
 import ruMessages from "../src/messages/ru.json";
 import { readSource } from "./lib/server/server-source-support";
+
+const LIVE_POLICY_HEADER = cspResponseHeaderName(CONTENT_SECURITY_POLICY_MODE);
 
 const FAKE_SECRET =
   "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
@@ -89,7 +92,7 @@ describe("proxy: a counted page read under a named source waits for the judgemen
       expect(answer).toBeInstanceOf(Promise);
       const served = await answer;
       expect(served.status).toBe(200);
-      expect(served.headers.get(CSP_REPORT_ONLY_HEADER)).toBeTruthy();
+      expect(served.headers.get(LIVE_POLICY_HEADER)).toBeTruthy();
       expect(recorded).toHaveBeenCalledTimes(1);
       expect(recorded.mock.calls[0]?.[0][0]?.key).toBe(
         PINNED_KEY_OF_A_READ_FROM_192_0_2,
@@ -180,8 +183,8 @@ describe("proxy: a counted read past its figure is refused with a page", () => {
     const page = await refused(`/ro/d/${A_DESIGN}`);
     const share = await refused("/ro/s/abcdefghijkl");
 
-    expect(page.response.headers.get(CSP_REPORT_ONLY_HEADER)).toBeTruthy();
-    expect(share.response.headers.get(CSP_REPORT_ONLY_HEADER)).toBeTruthy();
+    expect(page.response.headers.get(LIVE_POLICY_HEADER)).toBeTruthy();
+    expect(share.response.headers.get(LIVE_POLICY_HEADER)).toBeTruthy();
     for (const { key, value } of SHARE_VIEW_HEADERS) {
       expect(share.response.headers.get(key)).toBe(value);
       expect(page.response.headers.get(key)).not.toBe(value);

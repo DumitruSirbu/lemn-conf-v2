@@ -4,12 +4,22 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import nextConfig from "../next.config";
 import { config, proxy } from "../src/proxy";
 import {
+  CONTENT_SECURITY_POLICY_MODE,
   CSP_ENFORCED_HEADER,
   CSP_REPORT_ONLY_HEADER,
+  cspResponseHeaderName,
   NONCE_HEADER,
   SHARE_VIEW_HEADERS,
   STATIC_SECURITY_HEADERS,
 } from "../src/lib/security-headers";
+
+/** The name the policy is sent under, whichever mode is live, and the name it must not also be sent under: only
+ *  `security-headers.test.ts` pins the mode, so a rollback edits that one test (8Q.5). */
+const LIVE_POLICY_HEADER = cspResponseHeaderName(CONTENT_SECURITY_POLICY_MODE);
+const OTHER_POLICY_HEADER =
+  LIVE_POLICY_HEADER === CSP_ENFORCED_HEADER
+    ? CSP_REPORT_ONLY_HEADER
+    : CSP_ENFORCED_HEADER;
 
 function respondTo(path: string, headers?: HeadersInit) {
   const url = new URL(path, "https://lemnaria.test");
@@ -35,10 +45,10 @@ afterEach(() => {
 });
 
 describe("proxy security headers", () => {
-  it("sends the policy report-only, and never both header names at once", () => {
+  it("sends the policy under the live mode's header name, and never both header names at once", () => {
     const response = respondTo("/configurator/configure");
-    expect(response.headers.get(CSP_REPORT_ONLY_HEADER)).toBeTruthy();
-    expect(response.headers.get(CSP_ENFORCED_HEADER)).toBeNull();
+    expect(response.headers.get(LIVE_POLICY_HEADER)).toBeTruthy();
+    expect(response.headers.get(OTHER_POLICY_HEADER)).toBeNull();
   });
 
   // Vitest runs with NODE_ENV=test, so without this stub every policy built through the proxy takes
@@ -46,7 +56,7 @@ describe("proxy security headers", () => {
   it("emits the exact production policy when NODE_ENV is production", () => {
     vi.stubEnv("NODE_ENV", "production");
     const policy = respondTo("/configurator/configure").headers.get(
-      CSP_REPORT_ONLY_HEADER,
+      LIVE_POLICY_HEADER,
     );
     const nonce = /'nonce-([^']+)'/.exec(policy ?? "")?.[1];
     expect(nonce).toBeTruthy();
@@ -76,7 +86,7 @@ describe("proxy security headers", () => {
 
   it("carries the required directives on a real route response", () => {
     const policy = respondTo("/configurator/configure").headers.get(
-      CSP_REPORT_ONLY_HEADER,
+      LIVE_POLICY_HEADER,
     );
     expect(policy).toContain("frame-ancestors 'none'");
     expect(policy).toContain("object-src 'none'");
@@ -107,13 +117,13 @@ describe("proxy security headers", () => {
       expect(requestHeader(response, CSP_ENFORCED_HEADER)).toContain(
         `'nonce-${String(nonce)}'`,
       );
-      expect(response.headers.get(CSP_REPORT_ONLY_HEADER)).toBeTruthy();
+      expect(response.headers.get(LIVE_POLICY_HEADER)).toBeTruthy();
     },
   );
 
   it("issues a different nonce per request", () => {
-    const first = respondTo("/").headers.get(CSP_REPORT_ONLY_HEADER);
-    const second = respondTo("/").headers.get(CSP_REPORT_ONLY_HEADER);
+    const first = respondTo("/").headers.get(LIVE_POLICY_HEADER);
+    const second = respondTo("/").headers.get(LIVE_POLICY_HEADER);
     expect(first).not.toBe(second);
   });
 
@@ -144,7 +154,7 @@ describe("proxy locale routing", () => {
     expect(response.headers.get("location")).toBe(
       "https://lemnaria.test/ru/configurator/configure",
     );
-    expect(response.headers.get(CSP_REPORT_ONLY_HEADER)).toBeTruthy();
+    expect(response.headers.get(LIVE_POLICY_HEADER)).toBeTruthy();
   });
 
   it("ignores an invalid locale cookie and falls through to Accept-Language", () => {
@@ -199,7 +209,7 @@ describe("proxy locale routing", () => {
       expect(requestHeader(response, CSP_ENFORCED_HEADER)).toContain(
         `'nonce-${String(nonce)}'`,
       );
-      expect(response.headers.get(CSP_REPORT_ONLY_HEADER)).toContain(
+      expect(response.headers.get(LIVE_POLICY_HEADER)).toContain(
         `'nonce-${String(nonce)}'`,
       );
     },
@@ -221,7 +231,7 @@ describe("proxy locale routing", () => {
       expect(requestHeader(response, CSP_ENFORCED_HEADER)).toContain(
         `'nonce-${String(nonce)}'`,
       );
-      expect(response.headers.get(CSP_REPORT_ONLY_HEADER)).toContain(
+      expect(response.headers.get(LIVE_POLICY_HEADER)).toContain(
         `'nonce-${String(nonce)}'`,
       );
     },
@@ -239,7 +249,7 @@ describe("proxy locale routing", () => {
       expect(response.headers.get("location")).toBe(
         `https://lemnaria.test/${locale}/configurator/room?shape=L&wallA=3.6&tag=a&tag=b`,
       );
-      expect(response.headers.get(CSP_REPORT_ONLY_HEADER)).toMatch(
+      expect(response.headers.get(LIVE_POLICY_HEADER)).toMatch(
         /script-src 'self' 'nonce-[^']+' 'strict-dynamic'/,
       );
     },
@@ -321,7 +331,7 @@ describe("proxy locale routing", () => {
       expect(response.headers.get("x-middleware-next")).toBeNull();
       expect(response.headers.get("x-middleware-rewrite")).toBeNull();
       expect(requestHeader(response, "x-next-intl-locale")).toBeNull();
-      expect(response.headers.get(CSP_REPORT_ONLY_HEADER)).toMatch(
+      expect(response.headers.get(LIVE_POLICY_HEADER)).toMatch(
         /script-src 'self' 'nonce-[^']+' 'strict-dynamic'/,
       );
     },
@@ -338,7 +348,7 @@ describe("proxy locale routing", () => {
       "https://lemnaria.test/ru?entry=hero",
     );
     expect(response.headers.get("set-cookie")).toContain("NEXT_LOCALE=ru");
-    expect(response.headers.get(CSP_REPORT_ONLY_HEADER)).toMatch(
+    expect(response.headers.get(LIVE_POLICY_HEADER)).toMatch(
       /script-src 'self' 'nonce-[^']+' 'strict-dynamic'/,
     );
   });

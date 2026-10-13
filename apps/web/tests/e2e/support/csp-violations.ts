@@ -64,13 +64,22 @@ export function nonceOfPolicy(policy: string | undefined): string | undefined {
   return NONCE_IN_POLICY.exec(policy ?? "")?.[1];
 }
 
+/** Whether a console message is the one diagnostic a report-only policy writes: under enforcement it is never sent. */
+export function isReportOnlyDiagnostic(
+  text: string,
+  mode: ContentSecurityPolicyMode,
+): boolean {
+  return mode === "report-only" && text === REPORT_ONLY_UPGRADE_DIAGNOSTIC;
+}
+
 /** Whether a console message is a violation: it names the policy, bar the one report-only diagnostic. */
 export function isViolationMessage(
   text: string,
   mode: ContentSecurityPolicyMode,
 ): boolean {
-  if (!CONSOLE_NAMES_THE_POLICY.test(text)) return false;
-  return !(mode === "report-only" && text === REPORT_ONLY_UPGRADE_DIAGNOSTIC);
+  return (
+    CONSOLE_NAMES_THE_POLICY.test(text) && !isReportOnlyDiagnostic(text, mode)
+  );
 }
 
 export function isReportRequest(url: string): boolean {
