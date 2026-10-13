@@ -5,6 +5,13 @@
 > **Proposed**. Owner questions Q55 to Q60 below each have a default; **none blocks S1**. Q55's answer decides whether
 > S6 exists.
 >
+> **Amended 2026-10-14 (Amendment A, below *Rulings*), after the security reader's checkpoint A on S4, at code HEAD
+> `14ee66a0`.** By the commit subjects, S1 (`9f428a00`), S2 (`13f5913b`) and S3 (`14ee66a0`) are committed. S4 is not
+> built: `git status` at that HEAD shows no S4 file changed [src]. Amendment A restates S4 and adds hard S4
+> requirements. It corrects 8M2.4, criteria 1 and 6, and Q55. Every superseded sentence is struck in place and points
+> to the amendment. The owner's answers of 2026-10-13 took Q55 to Q60's defaults [doc: `STATUS.md`, *Owner answers,
+> 2026-10-13*], so **S6 is not built**.
+>
 > **For the scribe, not done here:** the M8 plan's wave table and *Waves* need a one-line pointer to this file
 > (8M2, after 8Q2 and before 8T, as recommended under *Where this sits*); Q44 and Q45 in the M8 plan are marked
 > answered with a link here; `docs/STATUS.md`'s *What to do next* names 8M2; `decisions/README.md` lists ADR 0163 as
@@ -216,7 +223,10 @@ is not written.**
 - *Why this is safe:*
   - `canWrite` is advisory. `/done`'s owned load proved the visitor cookie.
   - The share route proves the write cookie on every call [src]. A browser without it gets one `404` per press,
-    shown as `share.error` with the retry. Nothing repeats by itself, and the share-write limiter bounds presses.
+    shown as `share.error` with the retry. Nothing repeats by itself, ~~and the share-write limiter bounds
+    presses~~. *[Struck 2026-10-14, Amendment A, S3-3: the press without the write cookie is the status **read**.
+    The read limiter counts it where a network source is named. The share-write limiter is never reached. In every
+    case the press is the bound.]*
 - *Not taken:* a write-access probe on `/done`. That is one more request per load and changes 8M's *"no request to
   hydrate"*.
 - **This is implementing an approved fix, not re-asking it.**
@@ -227,8 +237,13 @@ is not written.**
 - Only `{kind, reference}` crosses to the client.
 - A refused door makes **no** contact-store read, as 8M's criterion 9 holds for `/done`. The callback page makes
   none.
+- *[Added 2026-10-14, Amendment A, A2 to A4 and A8.]* The read runs only after the refused-return. It is never run
+  in parallel with the owned load. It takes the loaded revision, never one from the client or the search
+  parameters. The answer crosses as exactly `SentReferenceAnswer`. Nothing caches it across requests. The page makes
+  no limiter call of its own. The read has a 300 ms deadline, and a late answer becomes `unknown`.
 - *Why not the one-entry hand-over memory:*
-  - it is cleared when a design contact page mounts (`use-contact-submission.ts:211`), by design;
+  - it is cleared when a design contact page mounts (`use-contact-submission.ts:211` at `d61bfd6d`; *stale after
+    S4*, which moves the clear to `ContactScreen`, Amendment A, A1), by design;
   - it is gone on a reload;
   - it would make a second place where a typed value is consulted.
 - The server read survives reloads, other tabs and any route back. It reads only the four non-personal columns
@@ -236,13 +251,17 @@ is not written.**
 
 **8M2.6 — When the form is replaced, decided by one pure function.**
 - `contactPageViewOf({ server, page, held })` answers `already-sent` with the reference, or `form`.
-- It answers `already-sent` **iff** all of these hold:
+- It answers `already-sent` **iff** all of these hold. *[Clarified 2026-10-14, Amendment A, A6: this is the pure
+  function. The view drawn also passes through the latch, so the view is `already-sent` only if these hold.]*
   - `server.kind === "sent"`;
   - the store holds this design;
   - **the store's revision equals the page's**;
   - the store holds no unsaved edit (`design === savedDesign`).
 - It is read **reactively from the store**, so a queued save that lands while the page is open (a new revision)
   turns the view into the form. A server answer for an older revision never turns it back.
+- *[Added 2026-10-14, Amendment A, A6 and A7.]* **A one-way latch.** Once the form is decided, the page shows the
+  form for the rest of its mount, whatever the store does next. That includes a conflict-reload back to the sent
+  revision. **Only `sent` blocks.** Every other answer is the form, including a kind the switch does not know.
 - `unknown` is `form` (fail open: a failed read must not cost a lead; the limiter still bounds sends). So is `none`.
 - **A stored request that was never notified does not block** (`findSentReference` reads `notified_at is not null`
   [doc: ADR 0160 d5]). A customer whose send ended in `502 …_RETRY` and left the page can send again.
@@ -263,17 +282,29 @@ is not written.**
 - **Not drawn:** a form or any input, the consent, the call to action, the retry, a price, the design card, any
   typed value. The server holds none it may read back (Q14).
 - **No hook.** The view does **not** mount the submission hook, so nothing on it can send. Today the hook lives in
-  `ContactPage` beside the bar [src]. So the decision branches in `DesignContactPage`, above `ContactPage`, and the
-  view draws the contact page's bar without the hook.
+  `ContactPage` beside the bar [src]. ~~So the decision branches in `DesignContactPage`, above `ContactPage`, and
+  the view draws the contact page's bar without the hook.~~ *[Struck 2026-10-14, Amendment A, A1: `ContactScreen`
+  returns the WebGL exit and the unavailable page **before** `DesignContactPage` mounts
+  (`contact-screen.tsx:53-65` at `14ee66a0`) [src]. A branch inside it could not come before them. **The decision
+  is made in `ContactScreen`**, after the probe and before those returns. The view is a module of its own, and it
+  draws the bar from a module of its own.]*
 - **When a landing save turns the view into the form,** the hook mounts at that moment. Its drawn time (8K's two
   seconds) and its first id start then, which is correct: the form was not on screen before.
-- **The hand-over clear** moves to the design contact page's mount, so it happens whichever view is drawn. That
-  keeps 8M's *"cleared whenever a design contact form mounts"* and serves backlog 197's direction.
-- **Precedence.**
+- **The hand-over clear** ~~moves to the design contact page's mount, so it happens whichever view is drawn. That
+  keeps 8M's *"cleared whenever a design contact form mounts"* and serves backlog 197's direction.~~ *[Restated
+  2026-10-14, Amendment A, A1:]* runs in a client effect of `ContactScreen`. That component is mounted in every arm
+  of the design page: loading, WebGL exit, unavailable, already-sent and form. The clear is removed from
+  `useContactSubmission` (`useForgetSentRequestOnMount`, its call and its import). **The callback page does not
+  clear.** This widens ADR 0160 d4's *"cleared when a design contact form mounts"* to *"when a design contact page
+  mounts"*. That serves backlog 197's direction.
+- **Precedence.** *[Order restated 2026-10-14, Amendment A, A1; the content is unchanged.]*
   - While WebGL is probed, the loading line, exactly as today. So the server render does not change and no
     hydration question arises.
   - Then `already-sent` comes **before** both the WebGL exit and the *cannot be sent now* page. The view shows no
     price, and the customer's request exists whatever this device can draw.
+  - In `ContactScreen`, in this order: `probing` gives the loading line. Then `already-sent` gives the view. Then
+    `unsupported` gives `WebGLUnavailable`. Then `isSendable` gives `DesignContactPage`, and its absence
+    `UnavailablePage`.
 - **History.** The view adds no history entry. Back and the chevron behave as on the form.
 - **No frame draws this view.** It is made of 5A's pieces (ADR 0104: frames are the specification where they
   exist), and the owner sees it at the hand check.
@@ -303,7 +334,8 @@ is not written.**
   endings, which match *pereți* [src]. It carries a **named allow-list of customer-voice keys**. Russian is not in
   the copy lock (Q10 (a)), so this test is what holds it.
 
-**8M2.10 — The route stays as it is by default (Q55 (a)).**
+**8M2.10 — The route stays as it is by default (Q55 (a); the owner took the default on 2026-10-13 [doc:
+`STATUS.md`]).**
 - The page check serves the honest customer.
 - It does **not** stop a flood. That is the limiter's job: 3 an hour and 10 a day per network block, 2 an hour per
   browser, 3 a day per address [src]. Any edit, which bumps the revision, or any new design walks past a per-kitchen
@@ -312,6 +344,244 @@ is not written.**
   second request, and the shop's mail quota is spared that duplicate.
 - It would amend ADR 0157's ruled order and refusal set, and it would make this a public-endpoint wave. **Built only
   if the owner answers Q55 (b)**, as S6.
+
+## Amendment A — dated 2026-10-14: checkpoint A's findings on S4, at code HEAD `14ee66a0`
+
+**Source.** The security reader's checkpoint A on S4 named findings A1 to A8 and a correction S3-3 [relayed by the
+coordinator; the architect did not see the reader's text]. Nothing above is erased. Each superseded sentence is
+struck in place and points here. **A2 to A8 are hard S4 requirements:** S4 is not done, and checkpoint A is not
+passed, until each one holds. Claims marked [src] were read at `14ee66a0`. Nothing was run.
+
+### A1 — where the decision is made (settled by the architect)
+
+**Classification: a contract gap in this plan, not an implementation defect.** S4 is not built. 8M2.7 and the S4
+row put the branch in `DesignContactPage`, but also required `already-sent` before `WebGLUnavailable` and
+`UnavailablePage`. `ContactScreen` returns both of those **before** `DesignContactPage` mounts
+(`contact-screen.tsx:53-65`) [src]. No branch inside `DesignContactPage` can come before them, so the two
+requirements contradicted each other.
+
+**Ruling.**
+- **The decision is made in `ContactScreen`**, after the probe and before the WebGL exit and the unavailable page.
+  The order is:
+  1. `probing` gives the loading line;
+  2. `already-sent` gives the view;
+  3. `unsupported` gives `WebGLUnavailable`;
+  4. otherwise `isSendable` gives `DesignContactPage`, and its absence gives `UnavailablePage`.
+
+  `DesignContactPage` and `ContactPage` are unchanged and hold no branch.
+- **Every hook in `ContactScreen` is called before its first return:** the probe, the store reads, the latch (A6)
+  and the clear's effect. So the latch sees the store while the probe runs, and the order of hooks never changes.
+- **The already-sent arm is a module of its own** from S4 onwards: `contact/already-sent-view.tsx`. S4 creates it
+  with the interim content (the bar, the `h1` and the reference card), and S5 completes it. The bar and the back
+  links (`TopBar`, `ReviewBackLink`, `StartBackLink`, `useBackLinkProps`) move to a new
+  `contact/contact-top-bar.tsx`. `contact-screen.tsx` and the view both import the bar from there. Without the move,
+  the view could not import the bar without also importing `contact-screen.tsx`, the form and the hook (A5).
+  `UnavailablePage` (`contact-screen.tsx:295-307`) is the precedent: a `<main>` and the bar, with no hook [src].
+- **The hand-over clear, `forgetSentRequest()`, runs in a client effect of `ContactScreen`**, with an empty
+  dependency list. `ContactScreen` is mounted in every arm of the design page.
+  - The clear is **removed from `useContactSubmission`**: the function `useForgetSentRequestOnMount`
+    (`use-contact-submission.ts:208-213`), its call (`:169`) and the import of `forgetSentRequest` (`:10`) [src].
+  - **The callback page does not clear.** `CallbackContactScreen` calls nothing of the hand-over.
+  - *What this widens:* ADR 0160 d4 says *"cleared when a design contact form mounts"*. It now reads *"when a design
+    contact page mounts, in any arm"*. That is a dated note for the scribe.
+- *Not taken:*
+  - **The branch in `DesignContactPage`, with the WebGL and sendability checks moved inside it.** It would move the
+    form's precedence and the probe into the hook-holding subtree, and that is the subtree the view must stay out
+    of.
+  - **Keeping the clear in the hook and adding a second one in the view.** That makes two places that clear, and
+    the loading, WebGL-exit and unavailable arms would still not clear.
+
+### A2 — the read's place in the page
+
+- In `app/[locale]/d/[id]/contact/page.tsx`, `readSentReference` is called **only after** the line
+  `if (load.kind === "refused") return <DesignLoadError … />`.
+- Its arguments are `designId: id` and `revision: load.revision`, the revision `loadOwnedDesign` read.
+- It is **never** run in parallel with the owned load: no `Promise.all`, `Promise.allSettled`, `Promise.race` and no
+  un-awaited read started before it.
+- **The revision never comes from the client.** Not from `searchParams`, a header, a cookie or a prop the client
+  sends. The page does not read `searchParams` at all.
+- `/done/page.tsx` is the pattern [src].
+- *Proved by:*
+  - **A spy count of 0 per refusal.** For each of 8M's criterion 9 refusals (no cookie, a malformed cookie, a foreign
+    cookie, an unknown id, a malformed id, an invalid row): the `DesignLoadError` is the same, and the
+    `readSentReference` spy (or the store's `findSentReference`) counts **0**.
+  - **A deferred load.** While the owned load is pending, the read's spy counts 0. After the load allows, it counts 1,
+    with `{designId: id, revision: load.revision}`.
+  - **A source-order test** on `page.tsx`. The first `readSentReference(` comes after the refused-return. The file
+    names none of `Promise.all`, `allSettled`, `Promise.race` or `searchParams`.
+
+### A3 — what crosses to the client is exactly `SentReferenceAnswer`
+
+- The prop is typed **exactly** `SentReferenceAnswer` (`done/result-to-show.ts`) on `HydrateAndContact` and on
+  `ContactScreen`. Not a wider type, not an object spread from the store's answer, not a row.
+- `readSentReference` builds a fresh `{kind, reference}` or `{kind}` [src]. That stays the only producer.
+- *Proved by:*
+  - **A type test.** `expectTypeOf` shows both props equal `SentReferenceAnswer`.
+  - **A unit test.** A store fake answers `sent` with extra properties, and the page hands on only `kind` and
+    `reference`.
+  - **e2e·CI.** With a notified request at the stored revision, the contact page's **document response and its RSC
+    (flight) response** are read as text. Neither contains `notified`, `created_at`, `client_request_id` or
+    `payload_digest`. The column names are verified at `0008_create_contact_submissions.sql` [src], and `notified`
+    also covers `notified_at`. The JavaScript chunks are not searched: the props travel in the flight data, and the
+    source comments in `result-to-show.ts` and `sent-reference.ts` that say *notified* never reach a response.
+
+### A4 — no cache across requests
+
+- The answer is read per request.
+- No `unstable_cache`, no `"use cache"`, no `export const revalidate`, `dynamic = "force-static"` or `fetchCache` in
+  the page.
+- No module-level variable holds an answer, in `page.tsx` or in `sent-reference.ts`.
+- The page stays dynamic, because the owned load reads a cookie [src: the page's own comment].
+- *Proved by:*
+  - **A source scan** of both files for those names, and for a module-level `let` or `Map` in `sent-reference.ts`.
+  - **A unit test.** Two calls with different store answers return each answer.
+  - **e2e·CI, one server process.** The contact page loads the **form** for design D at revision r, which is
+    `none` at that moment. The customer sends. A fresh navigation to D's contact page then shows the
+    **already-sent view**. A cache would have kept the first `none`.
+
+### A5 — the already-sent arm has no send path
+
+- **The view's modules import none of these:** `contact/use-contact-submission.ts`, `contact/contact-form.tsx`,
+  `contact/retry-when-online.ts`, `contact/send-contact-request.ts`, `done/use-replace-with-done.ts`. The view's
+  modules are `already-sent-view.tsx` and `contact-top-bar.tsx`, and **the whole closure** of what they import
+  inside `apps/web/src` counts.
+- No module in that closure calls `fetch(`.
+- The arm mounts none of them, and draws **no `<form>` and no `<input>`**.
+- *Consequence:* the view **must not import `done/done-screen.tsx`**. That file imports `send-on-whatsapp.tsx`, which
+  imports the share client and its `fetch` [src].
+  - If S5 wants `ResultHeading`, S5 moves it to a neutral module: backlog 198's remedy. `done-screen.tsx` and the new
+    module then join S5's files.
+  - Otherwise the view draws its own `h1`.
+- *Proved by:*
+  - **A dom test that mocks each of the five modules with a factory that throws.** A throwing factory fails the test
+    if anything in the view's closure imports that module. A direct-import scan alone cannot fail for a transitive
+    import, so it is not enough.
+  - **A dom test of `ContactScreen` in the already-sent arm.** A spy on `useContactSubmission` counts 0. A spy on
+    `globalThis.fetch` counts **no call to `/api/` and no `POST`** on mount and after every control is pressed. Not
+    zero calls in all: the chevron, the locale menu and *Înapoi la design* navigate, and navigation may fetch page
+    data, which is not a send path. The container holds no `form` and no `input`.
+  - *No `fetch(` in the closure* is a source property over `apps/web/src`, checked by the closure scan.
+  - **e2e·CI.** Every control on the view is pressed, and the count of `POST /api/contact-submissions` is **zero**.
+
+### A6 — a one-way latch: once the form, always the form
+
+- `contact/contact-page-view.ts` holds two pure functions:
+  - `contactPageViewOf(input)` (8M2.6);
+  - `nextContactPageView(previous, input)`. It answers `previous` when `previous` is the form, and
+    `contactPageViewOf(input)` otherwise.
+- `ContactScreen` keeps the last view in **component state**, never in the store, and passes it as `previous` on
+  each render from mount.
+  - The latch's scope is one mount. A reload or a navigation that remounts the page decides again (criterion 14
+    (a)).
+  - The first input already sees this design. `HydrateStoredDesign` writes the store during render, before its
+    children [src: `hydrate-stored-design.tsx:39-41`].
+- *Proved by* **unit (`fast-check`)** over `nextContactPageView` folded over sequences drawn from this alphabet:
+  - the arrival: the server answer `sent`, `none` or `unknown` for r; the store holding this design clean at r, at r
+    with an unsaved edit, at a newer revision, or holding another design;
+  - an edit;
+  - a save answered (`applySaved` at r+1);
+  - a save held;
+  - a save refused;
+  - a conflict;
+  - an overwrite (`overwriteConflict`, then `applySaved`);
+  - **a conflict-reload**: a re-hydrate with the stored copy, which may be at r with `design === savedDesign`;
+  - `applyWriteAccess` taking a newer stored copy.
+
+  **Properties:**
+  - the views form the shape `already-sent* form*`;
+  - the first view equals `contactPageViewOf` of the arrival;
+  - every `already-sent` step meets all of 8M2.6's conditions at that step;
+  - `none` and `unknown` give only `form`.
+
+  Removing the latch must fail the shape property through the conflict-reload. **Report that mutant as killed.**
+
+### A7 — only `sent` blocks, and the reference is text
+
+- The switch in `contactPageViewOf` is exhaustive. Only `kind === "sent"` can answer `already-sent`, and any other
+  value answers `form`. A value cast past the type proves the second half.
+- The reference is rendered as a **React text child**: never `dangerouslySetInnerHTML`, never in an `href`, `src`
+  or style.
+- *Proved by:* unit tests; a dom test with the reference `<img src=x onerror=alert(1)>`, which shows that literal
+  text and makes no `img` element (8M's criterion 16 shape).
+
+### A8 — no new limiter call; a deadline; one line; the unindexed scan as a recorded limit
+
+- **No limiter call in the page.** The interceptor already counts `/{locale}/d/{id}/contact`: it is one of
+  `DESIGN_STEP_SEGMENTS` [src: `proxy.ts:19`], and pages are counted there and only there (ADR 0156 d5).
+  - `page.tsx` and `sent-reference.ts` import nothing from `lib/server/rate-limit/`.
+  - *Proved by* a source scan, and by a page render whose limiter spy counts 0.
+- **The read deadline. The architect recommends it, and it is in S4's scope.**
+  - The contact page's read is raced against **300 ms**, a named constant. A late answer is `unknown`, and `unknown`
+    gives the form.
+  - The figure is ADR 0156 d4's *"300 ms for a read (the architect's figure)"* [doc]. That figure was set for the
+    limiter's judgement of a read. Using it for the contact-store read is [inf], and an e2e·CI timing that shows
+    the read's p95 near 300 ms would falsify the fit. That measurement is **indicative only**: the CI database is
+    not production's Neon. S4's e2e reports the read's measured duration.
+  - **The race lives in `sent-reference.ts`, never in `page.tsx`.** The page passes the deadline as an option, so
+    A2's source-order test, which forbids `Promise.race` in the page, stays true.
+  - **The race does not cancel the query.** `packages/` is out of scope, so the statement runs on in the database.
+    The losing promise's rejection is caught: there is no unhandled rejection. The timer is cleared when the read
+    wins.
+  - **`/done`'s read gets no deadline.** That is the architect's choice. On `/done`, `unknown` costs the customer the
+    confirmation view (*not shown*). On the contact page it costs only the duplicate check, and fails open.
+    `done/page.tsx` is not touched.
+  - *Proved by:* unit tests with fake timers, where an answer at 299 ms is kept and one at 301 ms is `unknown`. The
+    exact 300 ms instant is not pinned, because timer ordering is not specified there. A rejection after the deadline
+    raises no unhandled rejection. A dom test shows `unknown` gives the form.
+- **One log line per process and cause, with the cause only.**
+  - `readSentReference`'s catch writes one line the first time each cause occurs in a process. The rule is
+    ADR 0156 d4's *"one log line for a process and a cause"*, and `lib/server/csp/csp-report-log.ts` is the
+    pattern [src].
+  - The cause comes from a **closed list**: `store-error`, from `ContactSubmissionStoreError`; `deadline`; and
+    `unexpected`, for anything else.
+  - The line holds a constant label, an event name and the cause. **No message, `cause`, `operation`, design id,
+    revision, reference or thrown value's own `name`** (ADR 0146 B2).
+  - The line covers both callers, `/done` and the contact page. Only the line is new for `/done`; what `/done`
+    shows does not change. The docstring's *"no … log line leaves"* is changed to say so.
+  - *Proved by:* unit tests. Two failures of one cause write one line. Each cause writes its own. A thrown value
+    with a hostile `message` and `name` writes neither. The line's keys are exactly the three.
+- **The unindexed scan is a recorded limit (backlog 196).**
+  - Every load of a design contact page in the owning browser now runs one `findSentReference` statement that no
+    index serves. That is a scan of `contact_submissions`.
+  - It is reachable only behind the owned load. Where a network source is named, it is bounded by the interceptor's
+    page limit (ADR 0156 d5). **Under no named source pages are not counted (ADR 0156 d4), and the scan is
+    unbounded but for the owned load.**
+  - The 300 ms deadline bounds the page's wait, **not the database's work**.
+  - **Trigger:** a slow `/contact` or `/done`; any `deadline` line from this read; or contact requests in the
+    thousands. **Remedy:** an additive migration, never an edit of `0008`. *For the scribe:* backlog 196 gains this
+    trigger and the frequency note.
+
+### S3-3 — the press without the write cookie is counted by the read limiter, not the share-write limiter
+
+**Classification: a contract error in 8M2.4 and ADR 0163 d4.** S3's code is unaffected.
+- The press asks the status first, and a refused status settles into `failed` without an issue
+  (`send-on-whatsapp.tsx:103-113`) [src].
+- The status `GET` runs `refusalOfReadLimit` **before** the credentials check (`share/route.ts:125-128`) [src].
+- `POST` checks the credentials **before** `refusalOfShareWriteLimit` (`:57-63`) [src]. A browser without the write
+  cookie therefore never reaches the share-write limiter.
+- Reads fail open, and under no named network source they are not counted at all (ADR 0156 d4).
+- **Corrected sentence:** *the press is counted by the read limiter where a network source is named; in every case
+  it is bounded by the customer's press, since nothing repeats without one.*
+
+### Criteria 1 and 6, and Q55
+
+- **Criterion 1** allows exactly two holders of `wa.me/`:
+  - `shop-phone.ts`, in a comment (`:19`);
+  - `send-on-whatsapp.tsx`, in `WHATSAPP_MESSAGE_ADDRESS` (`:21`), whose recipient is `shopWhatsAppDigits()` [src].
+
+  It also allows exactly one holder of `tel:`: `shop-phone.ts` (`:16`), until S5's `call-shop-link.tsx`, which takes
+  the address from `shopTelAddress()` and holds no `tel:` literal. The criterion is amended in place.
+  - **The amendment brings the text into line with what is already pinned. No test moves.**
+    `tests/shop/shop-phone-sources.test.ts:14-20` already names these holders, and
+    `tests/done/send-on-whatsapp-sources.test.ts:67-74` already pins the one address with `shopWhatsAppDigits()` and
+    no digit run [src]. Both are developer-owned.
+- **Criterion 6** names the leaf as built: `submissionResult.whatsappMessageToShop`. The old `whatsappMessage` leaf
+  is retired (S3, `14ee66a0`, by its subject).
+- **Q55** gains one plain sentence. The owner's answer is unchanged.
+
+### The S4 row as amended
+
+The *Slices* table carries the amended S4 row. The S4 *Stops if* and tier rows are amended in place.
 
 ## Slices
 
@@ -334,9 +604,10 @@ One writing agent at a time (R2).
 | **S1** | (1) `shop-phone.ts`: `SHOP_PHONE_E164 = "+37300000000"` with a one-line comment that it is the owner's placeholder, refused by the launch gate; the exported placeholder; the three derivations of 8M2.1. (2) `isLaunchReadyShopPhone` (8M2.2), using `normalisePhoneNumber` from the domain's public exports. (3) The launch-check file `tests/launch/shop-phone.launch-check.ts` and its Vitest config; `gate:launch-placeholders`, running `build:deps` first. (4) The default web Vitest config is **not** changed: its `tests/**/*.test.ts` already skips the file [src]; show that by the suite's collected list. (5) If Q57 (a): a production-only step in `deploy.yml` before migrate. **Report the gate's red output at HEAD, quoted, showing the predicate's assertion** | new `apps/web/src/shop/shop-phone.ts`; new `apps/web/vitest.launch.config.ts` (the check file is a test file); `apps/web/package.json` and root `package.json` (the script); `.github/workflows/deploy.yml` (Q57 (a)) | this plan, 8M2.1, 8M2.2, criteria 1 to 5; ADR 0163; `packages/configurator-domain/src/contact/phone-number.ts` whole; `apps/web/vitest.config.ts`; `scripts/gates/*` (naming and placement precedent); `.github/workflows/deploy.yml` header and job; `ci-and-local-gates.md` (what `check` and `ci:local` run); ADR 0096 d2 (why deploy is manual) |
 | **S2** | **The copy.** (1) New leaves of *Copy for the owner*, ro and ru, with equal ICU placeholders (`{phone}`, `{reference}`, `{link}`). (2) `content.ts`: functions taking `phone` (and `reference`, `link`), with no digits in any leaf. (3) The six register re-drafts. (4) The Romanian copy lock and the golden manifest moved for exactly the new and changed leaves. (5) The register test (8M2.9): explicit formal tokens per language and the named customer-voice allow-list. It must be green on the re-drafted catalogues with no allow-list entry for a non-customer-voice key. Sabotage both ways, reported | `apps/web/src/messages/ro.json`, `ru.json`, `ro.d.json.ts`; `apps/web/src/i18n/content.ts` | this plan, 8M2.9, *Copy for the owner*, criteria 18 to 21; `engineering-conventions.md`, *Localised copy* points 1 to 7; ADR 0159 Amendment A (`limitedTomorrow`); ADR 0156 (the Russian register note); ADR 0095; ADR 0113; Q10 (a). Tests: `tests/support/approved-romanian-messages.ts`, `tests/i18n/golden-output-hashes.ts`, `golden-output-fixtures.ts`, `golden-output.test.ts`, `catalogue-parity.test.ts`, `contact-copy.test.ts`, `content.test.ts` |
 | **S3** | **5A to the shop, and F3.** (1) `send-on-whatsapp.tsx`: the address of 8M2.3, from `shop-phone.ts`. (2) The message from the new leaf, with the reference and the link. (3) `done-screen.tsx` passes the shown reference to the action. (4) The gate of 8M2.4. (5) The developer's own sources and dom tests updated, and the change reported | `apps/web/src/done/send-on-whatsapp.tsx`; `apps/web/src/done/done-screen.tsx` | this plan, 8M2.3, 8M2.4, criteria 6 to 9; ADR 0160 d8 and *Reviews' findings* (F3); ADR 0114 B2, B4, B6, G and its 8M note; ADR 0148 E3, E3a; `hydrate-stored-design.tsx`, `hydrate-and-configure.tsx:59-82`, `store/newest-copy.ts`, `share/share-design.tsx` (the share control's gate, which is **not** changed), `persistence/share-link-client.ts`, `share/absolute-share-address.ts`, `lib/server/write-token.ts` (why no page can know). Tests: `tests/done/send-on-whatsapp.dom.test.ts`, `send-on-whatsapp-sources.test.ts`, `done-screen.dom.test.ts` |
-| **S4** | **The check and the decision; no new screen yet.** (1) The design contact page reads `readSentReference` after the owned load and passes the answer. (2) `hydrate-and-contact.tsx` hands it on as a plain value. (3) New `contact/contact-page-view.ts`: `contactPageViewOf` (8M2.6), pure. (4) `contact-screen.tsx` reads it reactively from the store and keeps the precedence of 8M2.7. **The branch sits in `DesignContactPage`, above `ContactPage`**, because the hook is called in `ContactPage` beside the bar [src]. The `already-sent` arm draws the contact page's bar without mounting the hook, and the bar is extracted so both arms draw one component. **Until S5 that arm draws only the bar, the `h1` and the reference card** (an interim inside the wave). (5) The hand-over clear moves from the hook to the design contact page's mount (8M2.7) | `apps/web/src/app/[locale]/d/[id]/contact/page.tsx`; `apps/web/src/app/d/[id]/contact/hydrate-and-contact.tsx`; new `apps/web/src/contact/contact-page-view.ts`; `apps/web/src/contact/contact-screen.tsx`; `apps/web/src/contact/use-contact-submission.ts` (the one line) | this plan, 8M2.5 to 8M2.7, criteria 10 to 15; ADR 0160 d4, d5, d10; ADR 0159 d1, d4, criterion 6; ADR 0153 with its 8M note; ADR 0148 A1, A3 ruling 4, E3, E3a; ADR 0158 d3, d4; D8, D9, D17; `lib/server/contact/sent-reference.ts`, `app/[locale]/d/[id]/done/page.tsx` (the pattern), `lib/server/load-owned-design.ts`, `done/sent-request-memory.ts`, `store/configurator-store.ts` (`hasUnsavedEdit`, `revision`). Tests: `tests/app/contact-page-gate.test.ts`, `review-page-gate.adversarial.test.ts` (read), `tests/contact/contact-screen.dom.test.ts`, `use-contact-submission*.dom.test.ts`, `contact-source-names-no-browser-storage.test.ts` |
-| **Checkpoint A** | **The security reader reads S4** before S5 builds on it: the second reader of `contact_submissions` and its place behind the owned load; what crosses to the client; the hand-over's new clear; that the view has no send path | — | the security *Reading* line |
-| **S5** | **The view and the call link.** (1) New `contact/already-sent-view.tsx` (8M2.7, whole). (2) New `shop/call-shop-link.tsx` (8M2.8). (3) 5B draws it (`submission-failure.tsx`, both classes, both variants). (4) `contact-screen.tsx`'s *cannot be sent now* page draws it, on the design path and the callback path. (5) Focus, `aria`, 44 px, the 640 px column on desktop, and nothing focused under a pinned region (ADR 0148 A4, G3) | new `apps/web/src/contact/already-sent-view.tsx`; new `apps/web/src/shop/call-shop-link.tsx`; `apps/web/src/contact/submission-failure.tsx`; `apps/web/src/contact/contact-screen.tsx`; `apps/web/src/contact/contact.module.css` | this plan, 8M2.7, 8M2.8, criteria 12 to 17; frame 5B (`…Mobil.dc.html:1463-1512`, *Sună direct la magazin*); frame 5A (`:1403-1460`, the pieces reused); ADR 0104 and Amendment B; ADR 0148 A3, A4, G3; ADR 0159 d5; ADR 0160 d2, d9; `done/sent-reference-card.tsx`, `done/done-screen.tsx` (`ResultHeading`), `review/design-hrefs.ts`, `result/review-link.tsx`. Tests: `tests/contact/submission-failure.dom.test.ts` (the two `tel:` pins at `:216`, `:809` are the developer's and move), `contact-screen.dom.test.ts`, `callback-contact-screen.dom.test.ts` |
+| **S4** *(as planned 2026-10-13; superseded by the amended row below, Amendment A)* | ~~**The check and the decision; no new screen yet.** (1) The design contact page reads `readSentReference` after the owned load and passes the answer. (2) `hydrate-and-contact.tsx` hands it on as a plain value. (3) New `contact/contact-page-view.ts`: `contactPageViewOf` (8M2.6), pure. (4) `contact-screen.tsx` reads it reactively from the store and keeps the precedence of 8M2.7. **The branch sits in `DesignContactPage`, above `ContactPage`**, because the hook is called in `ContactPage` beside the bar [src]. The `already-sent` arm draws the contact page's bar without mounting the hook, and the bar is extracted so both arms draw one component. **Until S5 that arm draws only the bar, the `h1` and the reference card** (an interim inside the wave). (5) The hand-over clear moves from the hook to the design contact page's mount (8M2.7)~~ | `apps/web/src/app/[locale]/d/[id]/contact/page.tsx`; `apps/web/src/app/d/[id]/contact/hydrate-and-contact.tsx`; new `apps/web/src/contact/contact-page-view.ts`; `apps/web/src/contact/contact-screen.tsx`; `apps/web/src/contact/use-contact-submission.ts` (the one line) | this plan, 8M2.5 to 8M2.7, criteria 10 to 15; ADR 0160 d4, d5, d10; ADR 0159 d1, d4, criterion 6; ADR 0153 with its 8M note; ADR 0148 A1, A3 ruling 4, E3, E3a; ADR 0158 d3, d4; D8, D9, D17; `lib/server/contact/sent-reference.ts`, `app/[locale]/d/[id]/done/page.tsx` (the pattern), `lib/server/load-owned-design.ts`, `done/sent-request-memory.ts`, `store/configurator-store.ts` (`hasUnsavedEdit`, `revision`). Tests: `tests/app/contact-page-gate.test.ts`, `review-page-gate.adversarial.test.ts` (read), `tests/contact/contact-screen.dom.test.ts`, `use-contact-submission*.dom.test.ts`, `contact-source-names-no-browser-storage.test.ts` |
+| **S4** *(amended 2026-10-14, Amendment A; A2 to A8 are hard requirements)* | **The check, the decision and the interim view.** (1) **The page:** `readSentReference` after the refused-return, with `id` and `load.revision`, never in parallel, under the 300 ms deadline, with nothing cached and no limiter call (A2, A4, A8). In `sent-reference.ts`: the deadline is an option that only the contact page passes; one line per process and cause, from a closed list; the docstring corrected (A8). (2) `hydrate-and-contact.tsx` and `ContactScreen` take a prop typed exactly `SentReferenceAnswer` (A3). (3) New `contact/contact-page-view.ts`: `contactPageViewOf` and `nextContactPageView`, both pure (8M2.6, A6, A7). (4) **`ContactScreen` decides.** Every hook comes before its first return. The order is probing, then already-sent, then unsupported, then the form or the unavailable page. The latch lives in component state. `forgetSentRequest()` runs in its mount effect, and the hook's clear is removed: its function, call and import (A1). New `contact/contact-top-bar.tsx` holds the bar and the back links. New `contact/already-sent-view.tsx` draws the bar, the `h1` and the reference card, **an interim S5 completes**, and its import closure holds none of A5's list. (5) The developer's tests for A2 to A8. Every QA-owned pin it moves is reported, not edited | `apps/web/src/app/[locale]/d/[id]/contact/page.tsx`; `apps/web/src/app/d/[id]/contact/hydrate-and-contact.tsx`; `apps/web/src/lib/server/contact/sent-reference.ts` (and, if the developer prefers, one new log module beside it); new `apps/web/src/contact/contact-page-view.ts`; `apps/web/src/contact/contact-screen.tsx`; new `apps/web/src/contact/contact-top-bar.tsx`; new `apps/web/src/contact/already-sent-view.tsx` (interim); `apps/web/src/contact/use-contact-submission.ts` (the clear's function, call and import). **Not** `app/[locale]/d/[id]/done/page.tsx` | this plan, 8M2.5 to 8M2.7 and **Amendment A whole**, criteria 10 to 15, 25 and 26; ADR 0163 with its Amendment A; ADR 0160 d4, d5, d10; ADR 0159 d1, d4, criterion 6; ADR 0153 with its 8M note; ADR 0148 A1, A3 ruling 4, E3, E3a; ADR 0158 d3, d4; ADR 0156 d4, d5; ADR 0146 B2; D8, D9, D17; backlog 196, 197, 198. Source: `lib/server/contact/sent-reference.ts`, `app/[locale]/d/[id]/done/page.tsx` (the pattern), `lib/server/load-owned-design.ts`, `done/result-to-show.ts` (`SentReferenceAnswer`), `done/sent-request-memory.ts`, `app/d/[id]/hydrate-stored-design.tsx`, `store/configurator-store.ts` (`hasUnsavedEdit`, `revision`, `hydrate`, `applySaved`, `applyWriteAccess`, `overwriteConflict`), `proxy.ts:18-19` (read only), `lib/server/csp/csp-report-log.ts` (the closed-cause line), `packages/persistence/src/contact-submission-store.ts` (`ContactSubmissionStoreError`, read only). Tests: `tests/app/contact-page-gate.test.ts`, `review-page-gate.adversarial.test.ts` (read), `tests/contact/contact-screen.dom.test.ts`, `use-contact-submission*.dom.test.ts`, `contact-source-names-no-browser-storage.test.ts` |
+| **Checkpoint A** | **The security reader reads S4** before S5 builds on it: the second reader of `contact_submissions` and its place behind the owned load; what crosses to the client; the hand-over's new clear; that the view has no send path. *[Added 2026-10-14:]* Amendment A records the findings made at `14ee66a0`, where no S4 code exists [src]. **The reader therefore reads S4's built diff against A1 to A8 before S5 is dispatched** | — | the security *Reading* line, plus Amendment A |
+| **S5** | **The view and the call link.** (1) ~~New~~ *Completes (amended 2026-10-14: S4 creates it, A1)* `contact/already-sent-view.tsx` (8M2.7, whole; its import closure stays inside A5's rule). (2) New `shop/call-shop-link.tsx` (8M2.8). (3) 5B draws it (`submission-failure.tsx`, both classes, both variants). (4) `contact-screen.tsx`'s *cannot be sent now* page draws it, on the design path and the callback path. (5) Focus, `aria`, 44 px, the 640 px column on desktop, and nothing focused under a pinned region (ADR 0148 A4, G3) | ~~new~~ `apps/web/src/contact/already-sent-view.tsx` *(S4's interim)*; new `apps/web/src/shop/call-shop-link.tsx`; `apps/web/src/contact/submission-failure.tsx`; `apps/web/src/contact/contact-screen.tsx`; `apps/web/src/contact/contact.module.css`. *[Added 2026-10-14, A5:]* if `ResultHeading` is reused, it moves to a new neutral module first (backlog 198's remedy), and `apps/web/src/done/done-screen.tsx` and that module join these files. The view never imports `done-screen.tsx` | this plan, 8M2.7, 8M2.8, criteria 12 to 17; frame 5B (`…Mobil.dc.html:1463-1512`, *Sună direct la magazin*); frame 5A (`:1403-1460`, the pieces reused); ADR 0104 and Amendment B; ADR 0148 A3, A4, G3; ADR 0159 d5; ADR 0160 d2, d9; `done/sent-reference-card.tsx`, `done/done-screen.tsx` (`ResultHeading`), `review/design-hrefs.ts`, `result/review-link.tsx`. Tests: `tests/contact/submission-failure.dom.test.ts` (the two `tel:` pins at `:216`, `:809` are the developer's and move), `contact-screen.dom.test.ts`, `callback-contact-screen.dom.test.ts` |
 | **S6** *(only if Q55 (b))* | **The route refuses a second new request for a kitchen already sent for.** (1) In `submit-contact.ts`, after `prepareSubmission` (owned, at the stated revision) and **before** the new-request buckets: `findSentReference` for the design and revision. If `sent`, answer `409 CONTACT_ALREADY_SENT`, which **holds no reference** (ADR 0157 d4) and spends none of a browser's two. A same-id retry is answered by the lookup before this point and is unaffected. (2) The response and its closed line. (3) The client class `already-sent`, mapped to the view, with the reference shown **only** if the page's own read had it, else the variant without a number. (4) Exhaustive switches. (5) Report every QA pin it moves | `apps/web/src/lib/server/contact/submit-contact.ts`; `contact-responses.ts`; `contact-log.ts` (only if the closed list must grow); `apps/web/src/contact/contact-answer.ts`; `send-contact-request.ts` | ADR 0157 whole, with d1, d4, d5, d9 and *Limits*; ADR 0153; ADR 0146; ADR 0155 standing rule; this plan, 8M2.10, criteria 22 to 24; `lib/server/contact/judge-contact-request.ts`, `prepare-submission.ts`. Tests: `tests/lib/server/contact/submit-contact*.test.ts`, `contact-route*.test.ts`, `tests/contact/contact-answer.test.ts`, `send-contact-request.test.ts` |
 
 *Order:* S1 → S2 → S3 → S4 → **checkpoint A** → S5 → (S6) → freeze → QA → reviews.
@@ -365,7 +636,7 @@ S1 may run before the owner answers anything. S6 is dispatched only on Q55 (b).
 | S1 | `normalisePhoneNumber` turns out not to be reachable from `apps/web` (it is a public export at HEAD [src]); the gate's red is anything but the predicate's assertion |
 | S2 | A re-draft would change an approved Romanian leaf other than the two named (`limitedTomorrow`, `subheadingNoDesign`); a needed leaf cannot be made register-neutral in Russian without gender; the register test needs an allow-list entry for a leaf that is not customer-voice |
 | S3 | The address needs anything but the digits and the encoded message; F3 needs a store write |
-| S4 | The view cannot be decided without a request from the client; anything but `{kind, reference}` must cross to the client; the bar cannot be drawn without the hook, unless `ContactPage` is split into a bar and a hook-holding body (report the split's shape before making it); the hand-over clear cannot move without changing a QA-owned test (report it) |
+| S4 | The view cannot be decided without a request from the client; anything but `{kind, reference}` must cross to the client; ~~the bar cannot be drawn without the hook, unless `ContactPage` is split into a bar and a hook-holding body (report the split's shape before making it)~~ *[struck 2026-10-14, Amendment A, A1: the bar moves to `contact-top-bar.tsx`, and `ContactPage` is not split]*; the hand-over clear cannot move without changing a QA-owned test (report it). *[Added 2026-10-14:]* the decision cannot be made in `ContactScreen` without changing `DesignContactPage`'s form; the view's import closure cannot avoid one of A5's modules; the latch would need the store; the deadline or the log line would need a change under `packages/`; `/done`'s page or its visible answer would have to change |
 | S5 | The pinned region takes more than half the viewport at 390 × 844 in Russian (ADR 0148 A4's tripwire) |
 | S6 | The guard needs a migration, a new index or a personal column; a same-id retry would be refused |
 
@@ -377,7 +648,7 @@ early read.
 | S1 | **Light**: a constant, a pure predicate, a command; no customer data | No. The reviewer judges 8M2.2's *cannot reach a person* inference | No |
 | S2 | **Full**: the logic reviewer reads every sentence against the frames, the register rule and criteria 18 to 21 | No: copy only | Through S3 and S5 |
 | S3 | **Full** | **Yes**: the customer's share link put into a message to a fixed third-party number; F3 widens nothing the server authorises | **Yes**: the anchor after a reload |
-| S4 | **Full** | **Yes, at checkpoint A**: a second reader of `contact_submissions` behind the owned load; what crosses to the client; the hand-over's new clear; no send path from the view | No (no new screen yet) |
+| S4 | **Full** | **Yes, at checkpoint A**: a second reader of `contact_submissions` behind the owned load; what crosses to the client; the hand-over's new clear; no send path from the view. *[Added 2026-10-14:]* and again on S4's built diff, against A1 to A8, before S5 | No (no new screen yet) |
 | S5 | **Full** | **Yes, scoped**: the `tel:` target is the constant only, and nothing typed is on the view | **Yes**: the view, 5B with the call link, the unavailable page on both paths |
 | S6 *(Q55 (b) only)* | **Full** | **Yes**: a public endpoint's order and refusal set (ADR 0157) | No |
 
@@ -390,7 +661,14 @@ server, `CI=1`; counts requests or rows), **visual**.
 
 1. **One source.**
    - Every `tel:` href and every `wa.me/` address in `apps/web/src` is produced by `shop-phone.ts`'s functions.
-   - No other file under `apps/web/src` contains the literal `tel:` or `wa.me/`.
+   - ~~No other file under `apps/web/src` contains the literal `tel:` or `wa.me/`.~~ *[Amended 2026-10-14,
+     Amendment A: as built, `send-on-whatsapp.tsx` holds the address prefix.]* Only `shop-phone.ts` contains the
+     literal `tel:`. The literal `wa.me/` is in exactly two files:
+     - `shop-phone.ts`;
+     - `done/send-on-whatsapp.tsx`, once, in `WHATSAPP_MESSAGE_ADDRESS`. Its recipient there is the call
+       `shopWhatsAppDigits()`, and no digit literal stands between `wa.me/` and `?text=`.
+
+     A third holder, or a digit literal in that position, turns the scan red.
    - No message leaf contains a run of seven or more digits.
    - *Must not:* the number typed twice; a digit in a leaf.
    - *Proved by* unit tests: a source scan over `apps/web/src` and both catalogues; the derivations over the
@@ -428,8 +706,9 @@ server, `CI=1`; counts requests or rows), **visual**.
 6. **The address.**
    - The ready anchor's `href` equals `https://wa.me/` + the placeholder's digits + `?text=` +
      `encodeURIComponent(message)`.
-   - `message` is the page locale's `whatsappMessage` with the reference shown on the screen and the absolute share
-     address.
+   - `message` is the page locale's ~~`whatsappMessage`~~ `submissionResult.whatsappMessageToShop` *[corrected
+     2026-10-14, Amendment A: the leaf as built; the old leaf is retired in S3]* with the reference shown on the
+     screen and the absolute share address.
    - *Must not:* `https://wa.me/?text=` (no recipient); the customer's typed number; a name, a locality or any typed
      value in the message; the address in a history entry of this application, in storage or in a log.
    - *Proved by* dom tests (ro and ru, the hand-over case and the server case) and e2e·CI (the anchor's `href` read,
@@ -463,16 +742,34 @@ server, `CI=1`; counts requests or rows), **visual**.
     - The callback page makes none.
     - A failed read is `unknown`. Only `{kind, reference}` reaches the client: no row, no column name, no error
       text.
+    - *[Added 2026-10-14, Amendment A, A2 and A3.]*
+      - The read follows the refused-return. It is never parallel with the load, and it takes `load.revision`, never
+        a revision from the client or the search parameters.
+      - The prop is exactly `SentReferenceAnswer` through `HydrateAndContact` to `ContactScreen`.
+      - The document and flight responses contain none of `notified`, `created_at`, `client_request_id` or
+        `payload_digest`.
+      - *Must not:* a read while the load is pending; a read for any refusal.
     - *Proved by* unit tests with a store spy (beside `contact-page-gate.test.ts`) and a search of the RSC payload
-      (e2e·CI).
+      (e2e·CI). *[Added:]* A2's spy count of 0 per refusal, its deferred-load test and its source-order test; A3's
+      type test.
 11. **The decision, as a property.**
     - Over any sequence of: an arrival with each server answer for revision r; an edit; a save answered (r+1); a
       save held; a save refused.
-    - The view is `already-sent` **iff** the latest server answer is `sent` **for the store's current revision**, the
-      store holds this design, and `design === savedDesign`.
+    - ~~The view is `already-sent` **iff** the latest server answer is `sent` **for the store's current revision**,
+      the store holds this design, and `design === savedDesign`.~~ *[Struck 2026-10-14, Amendment A, A6: the latch
+      makes "iff" false. A conflict-reload back to r after the form has shown meets every condition, and the view
+      stays the form.]* The view is `already-sent` **only if** the latest server answer is `sent` **for the store's
+      current revision**, the store holds this design, and `design === savedDesign`. **The first decided view** is
+      `already-sent` **iff** those hold at arrival. After that, the views follow A6's shape `already-sent* form*`.
+      8M2.6's "iff" describes the pure `contactPageViewOf`, not the view drawn.
     - Once a save lands at a new revision the view is `form`, and it never returns to `already-sent` within the page.
       `none` and `unknown` are always `form`.
-    - *Proved by* unit (`fast-check` on `contactPageViewOf`) and dom (the store driven, the view observed).
+    - *[Added 2026-10-14, Amendment A, A6 and A7.]*
+      - **Once the form, always the form** within one mount, for every event, the conflict-reload to r included.
+      - Only `sent` blocks, and an unknown kind is `form`.
+      - The alphabet and the four properties are A6's.
+    - *Proved by* unit (`fast-check` on ~~`contactPageViewOf`~~ `nextContactPageView` folded over A6's alphabet,
+      with the latch-removed mutant killed) and dom (the store driven, the view observed).
 12. **The view, and that it cannot send.** With a notified request at the stored revision:
     - the view shows one `h1` with focus, the reference as text (markup inert, as 8M's criterion 16), *Copiază*, the
       advice naming the display form of `SHOP_PHONE_E164`, the call link, the changed-kitchen sentence and
@@ -481,12 +778,20 @@ server, `CI=1`; counts requests or rows), **visual**.
     - *Must not:* an `input`, a `form`, a consent box, `review-cta` or the contact CTA, `contact-retry`, a price, the
       design card, or any value the customer typed. Every press on the view makes **zero** `POST
       /api/contact-submissions`.
+    - *[Added 2026-10-14, Amendment A, A5 and A7.]*
+      - The view's import closure holds none of `use-contact-submission`, `contact-form`, `retry-when-online`,
+        `send-contact-request` or `use-replace-with-done`, and no `fetch(`.
+      - Mounted and pressed, it calls none of them, and `fetch` makes no call to `/api/` and no `POST`.
+      - A markup reference is shown as literal text and makes no element.
+      - *Proved by* A5's throwing-factory dom test and A7's markup dom test.
     - *Proved by* dom, and e2e·CI: send, Back, *Cere oferta*, the view, every control pressed, the contact `POST`s
       counted.
 13. **Precedence and hydration.**
     - While probing, the loading line (the server render is unchanged).
     - With WebGL unsupported, the view, not `WebGLUnavailable`. With `isSendable === false`, the view, not the
       unavailable page.
+    - *[Added 2026-10-14, Amendment A, A1:]* the decision is `ContactScreen`'s, in A1's order. With
+      `already-sent`, `DesignContactPage` is never mounted, in any support state and with either `isSendable`.
     - *Must not:* a hydration error or warning in the console, including with an unsaved edit held when the page
       loads.
     - *Proved by* dom (each support state × `isSendable` × answer) and e2e (console captured).
@@ -506,7 +811,14 @@ server, `CI=1`; counts requests or rows), **visual**.
         not a new form, and makes zero `POST`s;
       - one row is stored.
 15. **The hand-over.**
-    - After the design contact page mounts, in either view, `recallSentRequest` answers *none*.
+    - After the design contact page mounts, in ~~either view~~ **every arm** *[amended 2026-10-14, Amendment A, A1:
+      loading, WebGL exit, unavailable, already-sent and form]*, `recallSentRequest` answers *none*.
+    - *[Added 2026-10-14, A1:]*
+      - **The callback page does not clear.** An entry remembered before `CallbackContactScreen` mounts is still
+        recalled after it.
+      - `forgetSentRequest` is named in exactly one production file besides its own: `contact-screen.tsx`.
+        `use-contact-submission.ts` no longer names it.
+      - *Proved by* a dom test per arm, the callback test and a source scan.
     - The view never reads the hand-over.
     - *Must not:* the typed value of 8M.2 shown or kept after arriving at the view.
     - *Proved by* dom and e2e: Forward to `/done` after the view shows the channel line without a value.
@@ -565,6 +877,26 @@ server, `CI=1`; counts requests or rows), **visual**.
 24. Concurrency is a recorded limit, not a criterion. Two new ids racing past the read may both store; the limiter
     bounds them. A text test pins the guard's place in the order.
 
+*Added by Amendment A (2026-10-14), S4. These hold whether or not S6 is built.*
+
+25. **No cache across requests (A4).**
+    - The contact page's answer is read per request. None of `unstable_cache`, `"use cache"`, `revalidate`,
+      `force-static` or `fetchCache` appears, and no module-level answer is held.
+    - *Must not:* a `none` served after the request was stored, in the same server process.
+    - *Proved by* a source scan, a unit test, and e2e·CI: form at r, send, fresh navigation, view.
+26. **No limiter call, a read deadline, one line per cause, and the scan's limit (A8).**
+    - The page and `sent-reference.ts` make no limiter call. The interceptor's count of the page is the only one.
+    - The contact page's read past 300 ms is `unknown`, which gives the form. The losing promise raises no unhandled
+      rejection.
+    - `/done`'s call and what it shows are unchanged.
+    - A failure writes one line per process and cause, with a cause from `store-error`, `deadline` or `unexpected`,
+      and nothing else.
+    - *Must not:* a limiter import in either file; a deadline on `/done`; a message, `name`, `operation`, id,
+      revision or reference in the line; a second line for one cause in one process.
+    - *Proved by* A8's unit tests (fake timers at 299 and 301 ms; hostile thrown values), a source scan, and a dom
+      test of `unknown`.
+    - **The unindexed scan is a recorded limit, not a criterion** (A8, backlog 196).
+
 *QA-owned pins this wave moves* [src: `git grep` of `apps/web/tests` at `d61bfd6d` for `wa.me`, `tel:`,
 `limitedTomorrow`, `tooManyRequests`, `share.error`, *a second request for the same design*]. **A starting point,
 not a boundary:** 8L's and 8M's lists were both incomplete. QA re-greps the frozen tree first.
@@ -621,7 +953,9 @@ Amendment A records that the owner chose it, and the draft keeps the content and
 ## QA plan
 
 **QA Reading:**
-- this plan whole (8M2.1 to 8M2.10, criteria 1 to 21, and 22 to 24 if S6);
+- this plan whole (8M2.1 to 8M2.10, **Amendment A**, criteria 1 to 21, 25 and 26, and 22 to 24 if S6);
+- *[added 2026-10-14]* ADR 0156 d4 and d5; ADR 0146 B2; `lib/server/csp/csp-report-log.ts` (the closed-cause
+  pattern); `app/d/[id]/hydrate-stored-design.tsx`;
 - ADR 0163;
 - ADR 0160 whole;
 - ADR 0159 d1, d4, d5, criterion 6 and Amendment A;
@@ -657,6 +991,12 @@ Amendment A records that the owner chose it, and the draft keeps the content and
 - `/done` reloaded without the write cookie, pressed three times;
 - the call link on the callback 5B;
 - the register deny-list fed a leaf in a customer-voice key.
+- *[added 2026-10-14, Amendment A:]*
+  - the view with WebGL unsupported and with `isSendable === false`;
+  - a conflict-reload back to r after the form showed;
+  - the read held past 300 ms with a notified row present;
+  - a direct visit to `/contact?revision=…`;
+  - the callback page mounted with a hand-over entry held.
 
 **Mutants, named:**
 - `already-sent` without the revision check;
@@ -668,6 +1008,19 @@ Amendment A records that the owner chose it, and the draft keeps the content and
 - F3 written into the store;
 - the launch check collected by the default suite;
 - the placeholder changed to a number the domain accepts.
+- *[Added 2026-10-14, Amendment A:]*
+  - the read run in parallel with the owned load (`Promise.all`);
+  - the revision taken from `searchParams`, or from anything but `load.revision`;
+  - the latch removed, which conflict-reload must kill;
+  - the latch kept in the store;
+  - the decision moved back into `DesignContactPage`, so the WebGL exit or the unavailable page wins;
+  - the clear missing from one non-form arm (loading, WebGL exit, unavailable or already-sent);
+  - the clear added to the callback page;
+  - the view importing `done-screen.tsx` or any of A5's five modules;
+  - the deadline removed, or added to `/done`;
+  - the thrown value's `message` or `name` written to the line;
+  - an `unstable_cache` around the read;
+  - `sent` matched loosely, so a non-`sent` kind blocks.
 
 **Store mutants run against the fake only; nothing near a database (ADR 0155).** A clean report says what was
 attacked.
@@ -675,7 +1028,7 @@ attacked.
 ## Review plan
 
 - **Logic, Reading:**
-  - this plan, 8M2.3 to 8M2.10, criteria 6 to 16;
+  - this plan, 8M2.3 to 8M2.10, criteria 6 to 16; *[added 2026-10-14]* Amendment A and criteria 25 and 26;
   - ADR 0160 d2, d5, d8, d10 and F3;
   - ADR 0159 d4, d5;
   - ADR 0148 A3 ruling 4, E3a;
@@ -685,6 +1038,8 @@ attacked.
 
   **Named checks:** no path shows the view without a notified request at the store's revision; no path from the view
   sends; F3 does not change the editor's write probe; which screens carry the call link and which must not.
+  *[Added 2026-10-14:]* `ContactScreen`'s order is A1's; the latch never reopens the view after the form; every arm
+  clears and the callback page does not.
 - **Clean-code, Reading:**
   - the diff;
   - `engineering-conventions.md`;
@@ -710,6 +1065,14 @@ attacked.
     reissue revokes it;
   - F3 widens nothing the server authorises;
   - the placeholder cannot dial or message a person (8M2.2's inference, judged).
+  - *[Added 2026-10-14, Amendment A; Reading gains Amendment A, ADR 0156 d4 and d5, `proxy.ts:18-19`,
+    `csp-report-log.ts` and backlog 196:]*
+    - A2's place and order of the read;
+    - A3's exact prop type and the payload search;
+    - A4's absence of a cache;
+    - A5's import closure;
+    - A8's absence of a limiter call, its deadline, its line's closed causes, and the scan's recorded limit;
+    - S3-3's corrected sentence against `share/route.ts`.
 - **Visual, Reading:**
   - frames 5A and 5B;
   - ADR 0104 and Amendment B;
@@ -736,12 +1099,21 @@ attacked.
    because a resend of one unchanged kitchen is no longer drawn. *For the scribe:* this goes on 8T's line.
 4. **The shop's link drifts or dies** (8M2.3). The reference in the message is the durable handle (Q60).
 5. **A second reader of `findSentReference` with no index** (backlog 196). Every load of a design contact page now
-   reads it. The trigger stays *growth of leads*; the frequency is higher.
+   reads it. The trigger stays *growth of leads*; the frequency is higher. *[Added 2026-10-14, Amendment A, A8:]*
+   - The scan is bounded by the interceptor's page limit only where a network source is named. The 300 ms deadline
+     bounds the page's wait, not the database's work.
+   - The trigger gains *a slow `/contact` or `/done`*, or *any `deadline` line from this read*.
 6. **Stale tab, page check only.** A form loaded before another tab sent can still send a second request (Q55).
 7. **The register deny-list** may flag a legitimate word. The allow-list is per key and named; never a regex
    loosened to pass.
 8. **The shard budget.** At least one new e2e file. `pnpm gate:e2e-shard-budget` runs at the freeze.
 9. **The concurrent test audit.** Its coverage of this wave is not known (*Where this sits*).
+10. *[Added 2026-10-14, Amendment A, A8.]* **The deadline makes the view's e2e depend on timing.** Criteria 12,
+    14 (a) and 14 (f), and A4's e2e, need the read to finish within 300 ms on a loaded `CI=1` run. A slower read is
+    `unknown`, which gives the form, and the red then looks like a logic failure.
+    - S4's e2e reports the read's measured duration.
+    - QA reads a red there against the server's `deadline` line before calling it a logic defect.
+    - The deadline is **not** loosened to make a test pass. A change of the figure is a dated amendment.
 
 ## Verification
 
@@ -765,7 +1137,9 @@ attacked.
     change.*
   - **(a)** Checked on the page only. **(b)** Also refused by the server, so a second tab already open on the form
     cannot send it.
-  - **Recommended: (a).**
+  - **Recommended: (a).** *(The owner took (a) on 2026-10-13 [doc: `STATUS.md`].)*
+    - *[Added 2026-10-14, Amendment A:]* **The page check is not flood protection: the client controls the
+      revision it sends, a direct `POST` never sees the page, and the rate limits are the bound.**
     - Neither one stops a flood. The limits do that: 2 an hour per browser, 3 an hour and 10 a day per network,
       3 a day per e-mail address.
     - Any edit, or a new design, walks past a per-kitchen check anyway.
@@ -817,6 +1191,10 @@ ADR 0163 becomes Accepted. Each item below is a **dated amendment or note**, nam
   - d10: superseded by Q45 (b);
   - *Reviews' findings* F3: made;
   - *Owner's questions*: Q44, Q45 and the register answered.
+  - *[added 2026-10-14, Amendment A]* d4: the hand-over is cleared when a design contact page mounts, in any arm,
+    and not by the form's hook. The callback page does not clear.
+  - *[added 2026-10-14, Amendment A]* d5: a second caller of `readSentReference`, the contact page, with a 300 ms
+    deadline (`/done` has none). Both callers get one log line per process and cause, from a closed list.
 - **ADR 0159:**
   - d5: the telephone drawn as the placeholder constant, under the launch gate; the unavailable page carries it;
   - Amendment A: `limitedTomorrow` re-drafted in *tu* (Q58).
@@ -838,6 +1216,7 @@ ADR 0163 becomes Accepted. Each item below is a **dated amendment or note**, nam
 **M9's stub** inherits that line.
 
 **Backlog:** 197 gains *"the hand-over is cleared on the contact page's mount, whichever view"*; 196's frequency
-note.
+note. *[Added 2026-10-14, Amendment A:]* 196 also gains A8's triggers (a slow `/contact` or `/done`; any
+`deadline` line) and the bound under no named source.
 
 **`STATUS.md`** and the wave table.
