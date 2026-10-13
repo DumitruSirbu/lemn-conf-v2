@@ -249,6 +249,7 @@ status corrections, in one of these two files:
 | 216 | The lint rule against a direct `"zod"` import does not catch a dynamic `import("zod")` | open.md — recorded 2026-10-13 (8Q) |
 | 217 | The summary-card thumbnail is a striped placeholder on a fresh design (unverified as a defect) | open.md — recorded 2026-10-13 (8Q visual); Low |
 | 218 | The ru top-bar title truncates to "Конфигур…" at 390 px (unverified as a defect) | open.md — recorded 2026-10-13 (8Q visual); Low |
+| 219 | The CSP report sink moves from the server log to a table in our own database (owner's Q46 = (c)) | open.md — recorded 2026-10-13; **future change, not built**; migration and grant are owner actions |
 
 ## 2026-09-06 audit note
 

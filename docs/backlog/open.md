@@ -3050,3 +3050,12 @@ The discriminated-union hand-over type (**183**); `WaitingWrite` to `HeldWrite` 
 ## 218. The ru top-bar title truncates to "Конфигур…" at 390 px — RECORDED 2026-10-13 AT M8 8Q's CLOSE (visual) — LOW, UNVERIFIED
 
 **Source [8Q's light visual check, 390×844, relayed by the coordinator].** An observation, **not verified as a defect**: the width of the ru string against the mockup was not compared. **Trigger:** 8T's phone gate, Russian.
+
+## 219. The CSP report sink becomes a table in our own database — OWNER RULED 2026-10-13 (Q46 = (c)), NOT BUILT, NOT SCHEDULED
+
+**Source [owner's ruling, relayed by the coordinator].** The owner's reason: the host may not end up on Vercel, so the server log is not a durable sink. 8Q built (a), the log ([ADR 0161](../decisions/0161-the-csp-enforces-its-violations-reach-the-applications-own-counted-endpoint-and-the-mode-stays-one-versioned-constant.md)); this replaces or supplements it. **What it needs:**
+- a **migration and a grant**, both **owner actions**; env vars and provisioned resources stay add-only (ADR 0155's rules; `docs/best-practices/environments-and-resources.md`), and a new migration never edits an applied one;
+- **a dated amendment to ADR 0161 when built** (decision 2's *"nothing is stored but the limiter's counter"* and decision 3 change);
+- **a retention and size cap, undecided.** No table in this project has a retention horizon by default (ADR 0019 d7's retirement), so a report table needs its own bound, or a flood of reports grows it without limit; the limiter's 100 an hour per network block bounds the rate, not the total;
+- **the sink keeps its reduced closed-value record shape** (decision 3): nothing personal, no `document-uri`, no address, no user agent. Also decide what the `origin` field's unauthenticated status (Amendment B) means for rows read later.
+**Owner:** the human, for the migration and the grant; the architect, for the cap. **Trigger:** M9, when the host is chosen.

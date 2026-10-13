@@ -11861,6 +11861,10 @@ example Sentry), chosen with the host in M9; a third party then receives the red
 **(c)** *A table in our own database, read later; a migration and a grant you apply.*
 **Recommended: (a) for M8, revisited when M9 chooses the host.** (b) adds a dependency and a third
 party M8 has ruled out; (c) adds an owner action for data nobody has asked to read.
+**ANSWERED 2026-10-13 [owner, relayed by the coordinator]: (c), a table in our own database.** The
+owner's reason: the host may not end up on Vercel, so the log is not a durable sink. **This
+overrides the recommendation above. It is a future change and is not built in 8Q** (8Q built (a));
+backlog 219.
 
 **Q47, for the owner; blocks nothing (built on 100).** *~~Each report costs one write to the
 counters table.~~ Every correctly-typed request costs one write to the counters table, a refused one
@@ -11871,6 +11875,9 @@ to the log~~ writes one line an hour to the log (ADR 0161 F1). Keep 100 an hour,
 bucket (`curl`, no body); set `CLIENT_NETWORK_SOURCE=vercel` before any deployment carries the flip.** **Recommended: 100.** One page with a broken
 add-on sends a few; 100 an hour is enough to learn that something is wrong and small enough that
 a flood costs little. A different answer changes one constant.
+**ANSWERED 2026-10-13 [owner, relayed]: agreed with the recommendation.** 100 an hour stays, and
+`CLIENT_NETWORK_SOURCE=vercel`, or the equivalent for the real host, is set before any deployment
+carries the flip.
 
 **Q48, for the owner; blocks nothing (built on (a)).** *If the enforced policy ever broke a page
 for customers, the way back is a one-line change, committed and deployed, that sets the policy
@@ -11880,6 +11887,7 @@ change?* **(a)** *No: the policy stays entirely in the code, where a reviewer se
 reporting, and is logged when used.* **Recommended: (a).** It is why the policy was put in the
 repository at all (ADR 0041 d1); on the current host a changed variable also needs a new
 deployment [inf], so (b) is not much faster there.
+**ANSWERED 2026-10-13 [owner, relayed]: (a), no operator switch.**
 
 **Q49, for the owner; blocks nothing.** *The local production build proves the policy for this
 application. A Vercel preview can add scripts of its own: Vercel's toolbar on previews injects one,
@@ -11892,6 +11900,8 @@ is checked.* **Recommended: (a).** Launch is not expected on Vercel, so M9 check
 anyway; (a) costs one look. If the toolbar's script is blocked, the choice is to turn the toolbar
 off for the project (a dashboard setting only you can change) or to accept it on previews; no
 policy change can admit it (ADR 0041 d5).
+**AWAITING OWNER, 2026-10-13.** The coordinator's recommendation, which replaces the one above, is
+**(c)**: no preview look in M8, and the check is made at the M9 host. Not ruled by the owner.
 
 **8. The review, per slice.** QA and the reviews run once, after S6, except checkpoint B.
 
@@ -12319,13 +12329,13 @@ now Accepted, with **Amendment B** (the review outcomes). **8Q is closed except 
 
 **Pending, one line each (the human fills):**
 - **Light visual check 2026-10-13 at 390×844, production build under the enforcing CSP (nonce, strict-dynamic, report-uri confirmed on /ro): PASS on 8 of 8 — /ro/d/<id>, a tap pick (sheet opens), review, contact (design and configurator), /ru/d/<id>, share view, /ro/zz. 0 CSP violations, 0 refused-to-execute, 0 page errors, no horizontal overflow.** [coordinator, relayed] **Not covered:** real WebGL hardware (SwiftShader only), keyboard, contact submit, Vercel host. **Observations, not defects verified:** /ro/zz shows Next's default English 404 (see backlog 207); the summary-card thumbnail is a striped placeholder on a fresh design (backlog 217); the ru top-bar title truncates to "Конфигур…" at 390 px (backlog 218). **Left on the test database for the owner:** design `IFnv3iaWujKsJnDG79toB` and a share link (ADR 0151).
-- **The shard budget gate is red at HEAD (owner / coordinator decision, not done):** `gate:e2e-shard-budget` fails because mobile shard 4 of 8 is 163 against a ceiling of 125, from QA's 26 new mobile tests [coordinator, relayed; not re-run here]. The gate says 9 shards. A change is needed in the `ci.yml` matrix (total and shard), `SHARDS_PER_PROJECT`, `local-ci.sh` and `docs/best-practices/ci-and-local-gates.md`. **Nothing can be pushed from this branch until it is decided** (the pre-push hook runs the gate).
+- **The shard budget gate was red at `5c055950` and is fixed [coordinator, relayed; not re-run here]:** `gate:e2e-shard-budget` failed because mobile shard 4 of 8 was 163 against a ceiling of 125, from QA's 26 new mobile tests. **The budget was moved to 9 mobile shards, in a commit after `cb50df57`, and the gate passes, largest shard 114 of 125.**
 
 **Deviations, with their rationale.** Decision 9 (Zod without eval) was added at checkpoint A after S0 measured the eval probe, with one exception to "web only" (five files in the domain package). F1 to F4 were added at the S3 review. The Zod jitless parse cost, promised at S1a, was not found and is unmeasured (ADR 0161 Amendment B, point 6). Criterion 4's *"no line for 429"* is superseded by F1's once-an-hour line.
 
 **Documentation updated.** ADR 0161 (Accepted, Amendment B); ADR 0041 (status line); `decisions/README.md` and `SUPERSESSIONS.md`; Q47 above; backlog 207 to 216; `STATUS.md`. **Not done:** the dated notes on ADR 0041 decisions 3 and 6 beyond the status line.
 
-**Owner actions outstanding:** **Q46** (where reports end up; default the server log), **Q47** (the 100 an hour figure; **recommendation: set `CLIENT_NETWORK_SOURCE=vercel` before any deployment carries the flip**), **Q48** (an operator switch; default none), **Q49** (a preview look; recommended (a), after the flip), and **the shard decision** above. None of Q46 to Q49 blocks.
+**Owner decisions, 2026-10-13 [relayed]:** **Q46 = (c)**, a table in our own database (future, not built in 8Q; backlog 219); **Q47** agreed: set `CLIENT_NETWORK_SOURCE=vercel`, or the equivalent for the real host, before any deployment carries the flip; **Q48 = (a)**, no operator switch. **Q49 is awaiting the owner** (the coordinator recommends (c): none in M8, check at the M9 host). None blocks.
 
 **Deferred, with an owner or wave:** backlog 207 to 216 (items i to x of the close); **8T gate lines added:** (1) a TLS host check, since `upgrade-insecure-requests` breaks a LAN `next start` and a report's `origin` may read `foreign` behind a terminator (backlog 213); (2) the enforced policy on a real phone. **M9 gate line:** BotID or whatever shield Q21 chooses runs under the enforced policy on the chosen host, and a firewall rule for the report route (backlog 210).
 
