@@ -16,6 +16,11 @@ import {
   contactDocumentPath,
   expectFormDrawn,
 } from "./support/contact-page";
+import {
+  POLICY_HEADER,
+  nonceOfPolicy,
+  policyOf,
+} from "./support/csp-violations";
 import { test as seededTest } from "./support/seeded-design";
 
 const RUN_UNDER_CI =
@@ -23,8 +28,6 @@ const RUN_UNDER_CI =
   "CI=1 pnpm exec playwright test tests/e2e/contact-pages-per-request.e2e.spec.ts --project=mobile";
 
 const BUILD_DIRECTORY = join(process.cwd(), ".next");
-const CSP_HEADER = "content-security-policy-report-only";
-const NONCE_IN_POLICY = /'nonce-([^']+)'/;
 const SCRIPT_TAG = /<script\b[^>]*>/g;
 const NONCE_ATTRIBUTE = /\snonce="([^"]*)"/;
 const SECURITY_HEADERS_SOURCE = join(
@@ -44,10 +47,9 @@ function readPrerenderManifest(): PrerenderManifest {
 }
 
 function nonceOfThePolicy(response: APIResponse): string {
-  const policy = response.headers()[CSP_HEADER];
-  const nonce = NONCE_IN_POLICY.exec(policy ?? "")?.[1];
+  const nonce = nonceOfPolicy(policyOf(response));
   if (nonce === undefined) {
-    throw new Error(`the response carries no nonce in its ${CSP_HEADER}`);
+    throw new Error(`the response carries no nonce in its ${POLICY_HEADER}`);
   }
   return nonce;
 }

@@ -11,11 +11,7 @@ import { join } from "node:path";
 import { expect, test, type APIRequestContext } from "@playwright/test";
 
 import { SCENE_SHOT_ROUTE_FLAG } from "../../src/app/internal/scene-shot/route-availability";
-import {
-  CONTENT_SECURITY_POLICY_MODE,
-  cspResponseHeaderName,
-} from "../../src/lib/security-headers";
-
+import { POLICY_HEADER, nonceOfPolicy } from "./support/csp-violations";
 import {
   startProductionPolicyServer,
   UNMATCHED_ADDRESSES_SERVER_PORT,
@@ -29,10 +25,6 @@ const RUN_UNDER_CI =
 const SERVER_START_TIMEOUT_MS = 300_000;
 const BUILD_DIRECTORY = join(process.cwd(), ".next");
 const PRERENDERED_DIRECTORY = join(BUILD_DIRECTORY, "server", "app");
-const POLICY_HEADER = cspResponseHeaderName(
-  CONTENT_SECURITY_POLICY_MODE,
-).toLowerCase();
-const NONCE_IN_POLICY = /'nonce-([^']+)'/;
 const SCRIPT_TAG = /<script\b[^>]*>/g;
 const NONCE_ATTRIBUTE = /\snonce="([^"]*)"/;
 const LONG_SEGMENT_LENGTH = 9000;
@@ -349,7 +341,7 @@ async function answerOf(
     status: response.status(),
     contentType: headers["content-type"] ?? "",
     body: method === "HEAD" ? "" : await response.text(),
-    policyNonce: NONCE_IN_POLICY.exec(headers[POLICY_HEADER] ?? "")?.[1],
+    policyNonce: nonceOfPolicy(headers[POLICY_HEADER]),
     headers,
   };
 }
