@@ -509,6 +509,7 @@ describe("the write-token migration actually executes", () => {
         "0006_create_design_share_links.sql",
         "0007_create_rate_limit_counters.sql",
         "0008_create_contact_submissions.sql",
+        "0009_create_csp_reports.sql",
       ]);
 
       const columns = await writeTokenColumns();
