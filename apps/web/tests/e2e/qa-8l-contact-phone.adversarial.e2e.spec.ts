@@ -15,7 +15,10 @@ import {
   CONSENT,
   contactDocumentPath,
   CTA,
+  expectDoneShown,
   expectFormDrawn,
+  FAILURE,
+  RETRY,
   fillTheTextFields,
   fillTheWholeForm,
   field,
@@ -209,12 +212,23 @@ for (const locale of LOCALES) {
       await measure("a conflict");
       await captureEvidence(page, `8l-outcome-${locale}-conflict`);
       await pressTheCallToAction(page);
-      await expect(page.getByTestId(OUTCOME)).toHaveAttribute(
-        "data-outcome",
-        "failed",
+      // The 503 is an answered failure, and since wave 8M frame 5B tells it in the form's place: no pinned region, no
+      // call to action; the sentence, the kept box and the retry stand on the page, which is no wider than the phone.
+      await expect(page.getByTestId(FAILURE)).toHaveAttribute(
+        "data-screen",
+        "not-sent",
       );
-      await measure("the failed sentence");
-      await pressTheCallToAction(page);
+      await expect(page.getByTestId(CTA)).toHaveCount(0);
+      const overflowOnFailure = await page.evaluate(() => ({
+        scrollWidth: document.documentElement.scrollWidth,
+        clientWidth: document.documentElement.clientWidth,
+      }));
+      expect(
+        overflowOnFailure.scrollWidth,
+        "the failed sentence (5B): the page's width",
+      ).toBeLessThanOrEqual(overflowOnFailure.clientWidth);
+      await captureEvidence(page, `8l-outcome-${locale}-failed`);
+      await page.getByTestId(RETRY).tap();
       await expect(page.getByTestId(OUTCOME)).toHaveAttribute(
         "data-outcome",
         "limited",
@@ -260,7 +274,10 @@ for (const locale of LOCALES) {
       expect(region?.height ?? Infinity).toBeLessThanOrEqual(HALF_THE_VIEWPORT);
       await captureEvidence(page, `8l-4C-${locale}`);
       release();
-      await expect(page.getByTestId("contact-sent")).toBeVisible();
+      // The design form's request is sent: the page is replaced by the design's confirmation, with the answer's reference.
+      expect(await expectDoneShown(page, locale, seededDesign.id)).toBe(
+        "LM-4C",
+      );
     });
 
     test("the form with no design: the heading and the sending line are the no-design ones, there is no card, and the bar leads to the start", async ({
@@ -371,7 +388,7 @@ test.describe("the language menu on the contact page", () => {
     });
     await answerContactWith(page, ANSWERS.sent("LM-RU"));
     await pressTheCallToAction(page);
-    await expect(page.getByTestId("contact-sent")).toBeVisible();
+    expect(await expectDoneShown(page, "ru", seededDesign.id)).toBe("LM-RU");
     expect(sent).toHaveLength(1);
     expect(sent[0]?.body.locale).toBe("ru");
   });

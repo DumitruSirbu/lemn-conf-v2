@@ -34,11 +34,26 @@ export interface ContactMessages {
   };
   readonly reviewScreen: { readonly saving: string };
   readonly submissionResult: {
+    readonly topBarTitle: string;
+    readonly sentHeading: string;
+    readonly copy: string;
+    readonly copied: string;
+    readonly channelLine: string;
+    readonly channelLineWithoutValue: string;
+    readonly savedSentence: string;
+    readonly sendOnWhatsapp: string;
+    readonly openWhatsapp: string;
+    readonly whatsappMessage: string;
+    readonly noRequest: string;
+    readonly notShown: string;
     readonly failureHeading: string;
+    readonly failureKeptNoDesign: string;
     readonly failureLostConnection: string;
     readonly failureNotSent: string;
     readonly waitingForConnection: string;
+    readonly retryAutomatically: string;
   };
+  readonly share: { readonly reissueWarning: string; readonly error: string };
 }
 
 function readCatalogue(locale: "ro" | "ru"): ContactMessages {
@@ -344,4 +359,10 @@ export function sentAt(
 /** Eight hexadecimal characters from a random value: a typed value no other run, spec or page shares. */
 export function newToken(): string {
   return randomUUID().replaceAll("-", "").slice(0, 8);
+}
+
+/** A finger on the middle of the retry, whatever it says about itself: Playwright's own `tap` waits for a control with
+ *  `aria-disabled` to be enabled, so a press the page must ignore would instead wait to be allowed. */
+export async function touchTheMiddleOfRetry(page: Page): Promise<void> {
+  await touchTheMiddleOf(page, page.getByTestId(RETRY));
 }

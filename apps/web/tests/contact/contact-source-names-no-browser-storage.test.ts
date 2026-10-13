@@ -32,6 +32,16 @@ const CONTACT_ROUTE_FILES = [
 const ROUTER_NAME = "the router's push or replace";
 const ROUTER_PATTERN = /\brouter\.(?:push|replace)\b|\buseRouter\b/;
 
+/** Every use of the router the exception file may hold, each removed once: the import and the hook call, the one call,
+ *  and the effect's dependency. What is left of the file must not name the router at all, which no pattern of calls
+ *  could promise: `const go = router.push`, `router["back"]()` and `const { refresh } = router` are not `router.x(`. */
+const THE_ONE_ROUTER_USE: readonly RegExp[] = [
+  /import \{ useRouter \} from "@\/i18n\/navigation";/,
+  /const router = useRouter\(\);/,
+  /\brouter\.replace\(\s*doneHref\(designId\)\s*\);/,
+  /\[router, designId\]/,
+];
+
 /** The file that may name the router: it replaces the contact page's history entry with the confirmation, by path under
  *  `src`. No other file of the scan may, and no other name has an exception. */
 const ROUTER_EXCEPTION = "done/use-replace-with-done.ts";
@@ -146,6 +156,15 @@ describe("the one router call", () => {
     expect(exceptionSource).toMatch(
       /\brouter\.replace\(\s*doneHref\(designId\)\s*\)/,
     );
+  });
+
+  it("names the router nowhere else: no alias, bracket access, destructuring or second hook call", () => {
+    const rest = THE_ONE_ROUTER_USE.reduce(
+      (source, allowed) => source.replace(allowed, ""),
+      exceptionSource,
+    );
+
+    expect(rest).not.toMatch(/\brouter\b|\buseRouter\b/);
   });
 
   it("takes a design's id, whose address is built by `doneHref`, and names none of the other ways to navigate", () => {

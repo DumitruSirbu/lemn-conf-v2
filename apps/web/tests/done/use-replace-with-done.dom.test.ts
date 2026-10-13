@@ -116,6 +116,19 @@ describe("the design form, once its request is answered", () => {
     expect(traffic.contactBodies).toHaveLength(1);
   });
 
+  it("keeps the sending line on the page, as a status and with no form, until the confirmation arrives", async () => {
+    const container = sendTheDesignForm();
+
+    await traffic.answerOldest(SENT);
+
+    const line = elementIn(container, '[data-testid="contact-leaving-line"]');
+    expect(line.textContent).toBe(MESSAGES.ro.contact.sendingLine);
+    expect(line.getAttribute("role")).toBe("status");
+    expect(container.querySelector("form")).toBeNull();
+    expect(container.querySelector("header")).not.toBeNull();
+    expect(container.contains(document.activeElement)).toBe(false);
+  });
+
   it("goes nowhere while the request is out", () => {
     sendTheDesignForm();
 

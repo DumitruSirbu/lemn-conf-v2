@@ -307,10 +307,22 @@ function UnavailablePage({ backLink }: { readonly backLink: ReactNode }) {
   );
 }
 
-/** The design form's way out once its request is sent: the confirmation replaces this page (8M.3). Draws nothing. */
+/** The design form's way out once its request is sent: the confirmation replaces this page (8M.3). Until it arrives
+ *  the sending line stays, since a page with only its bar says nothing of a request that has gone. */
 function LeaveForDone({ designId }: { readonly designId: DesignId }) {
+  const content = useContent();
   useReplaceWithDone(designId);
-  return null;
+  return (
+    <div className={styles.body}>
+      <p
+        className={styles.sendingLine}
+        role="status"
+        data-testid="contact-leaving-line"
+      >
+        {content.contact.sendingLine}
+      </p>
+    </div>
+  );
 }
 
 function useServedLocale(): AppLocale {

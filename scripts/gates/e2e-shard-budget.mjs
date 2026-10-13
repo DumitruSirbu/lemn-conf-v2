@@ -41,11 +41,11 @@ export const TARGET_MINUTES_PER_SHARD = 30;
 
 /**
  * Shards per project. Must equal `strategy.matrix.total` of the matching job in ci.yml; the guard
- * reads the workflow and fails if they differ. Mobile needs seven: four left its third shard exactly
+ * reads the workflow and fails if they differ. Mobile needs eight: four left its third shard exactly
  * at the budget of 125 (123/120/125/114), five put 135 on its second because a shard is whole files, and
- * M8 8K2's specs put 133 on the fourth of six.
+ * M8 8K2's specs put 133 on the fourth of six, and 8M's `qa-8m-*` specs put 133 on the fourth of seven.
  */
-export const SHARDS_PER_PROJECT = { desktop: 3, mobile: 7 };
+export const SHARDS_PER_PROJECT = { desktop: 3, mobile: 8 };
 
 /**
  * A ceiling above the derived budget, for a project whose shards cannot all fit under it.

@@ -332,12 +332,12 @@ const ADMITTED_AND_REFUSED_SHAPES: readonly ShapeCase[] = [
   },
   { path: (id) => `/ro/d/${id}/review`, status: 200 },
   { path: (id) => `/ru/d/${id}/review`, status: 200 },
-  // The contact step is a page since wave 8L (the owner's and a stranger's request alike answer 200, the stranger's with
-  // the load-error page); `/done` is still no page until 8M.
+  // The contact step is a page since wave 8L and the done step one since wave 8M (the owner's and a stranger's request
+  // alike answer 200, the stranger's with the load-error page).
   { path: (id) => `/ro/d/${id}/contact`, status: 200 },
   { path: (id) => `/ru/d/${id}/contact`, status: 200 },
-  { path: (id) => `/ro/d/${id}/done`, status: 404 },
-  { path: (id) => `/ru/d/${id}/done`, status: 404 },
+  { path: (id) => `/ro/d/${id}/done`, status: 200 },
+  { path: (id) => `/ru/d/${id}/done`, status: 200 },
   { path: (id) => `/d/${id}/edit`, status: 404 },
   { path: (id) => `/ro/d/${id}/edit`, status: 404 },
   { path: (id) => `/d/${id}/Review`, status: 404 },
