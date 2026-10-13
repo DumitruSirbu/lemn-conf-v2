@@ -25,6 +25,10 @@ export const CONTENT_SECURITY_POLICY_MODE: ContentSecurityPolicyMode =
 export const CSP_ENFORCED_HEADER = "Content-Security-Policy";
 export const CSP_REPORT_ONLY_HEADER = "Content-Security-Policy-Report-Only";
 
+/** The address of the application's own report sink (ADR 0161 decision 2): the one name the policy's `report-uri` will
+ *  carry, and the route file's own address, which a test holds equal. */
+export const CSP_REPORT_PATH = "/api/csp-reports";
+
 /** The request header `src/proxy.ts` hands the nonce down on, for a component that needs it. */
 export const NONCE_HEADER = "x-nonce";
 

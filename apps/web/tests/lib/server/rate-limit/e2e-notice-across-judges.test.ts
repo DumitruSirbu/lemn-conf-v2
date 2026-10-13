@@ -23,11 +23,13 @@ async function freshJudges() {
   const { judgeReadRequest } = await import(
     "@/lib/server/rate-limit/judge-read-request"
   );
+  const { judgeCspReport } = await import("@/lib/server/csp/judge-csp-report");
   const headers = new Headers({ "x-forwarded-for": "192.0.2.77" });
   const askers: Record<PolicyPurpose, () => Promise<unknown>> = {
     mint: () => judgeMintRequest(headers),
     "share-write": () => judgeShareWrite(headers),
     read: () => judgeReadRequest(headers),
+    "csp-report": () => judgeCspReport(headers),
     "save-by-block": () => Promise.resolve(undefined),
     "save-by-credential": () => Promise.resolve(undefined),
     "contact-every-by-block": () => Promise.resolve(undefined),
@@ -91,6 +93,16 @@ describe("the e2e notice: written when any twin first decides, once for a proces
     const askers = await freshJudges();
 
     await askers.read();
+
+    expect(noticesWritten(warn)).toBe(0);
+  });
+
+  it("is not written for a policy report, which has no twin, even with the flag set", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    vi.stubEnv(CLIENT_NETWORK_SOURCE_VARIABLE, undefined);
+    const askers = await freshJudges();
+
+    await askers["csp-report"]();
 
     expect(noticesWritten(warn)).toBe(0);
   });

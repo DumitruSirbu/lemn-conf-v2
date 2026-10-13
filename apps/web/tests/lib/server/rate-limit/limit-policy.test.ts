@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   ALL_LIMIT_POLICIES,
+  CSP_REPORT_POLICY,
   choosePolicy,
   E2E_CONTACT_EVERY_BY_BLOCK_POLICY,
   E2E_CONTACT_NEW_BY_BLOCK_DAY_POLICY,
@@ -111,6 +112,15 @@ describe("the policies of saves, shares and reads as data", () => {
       } as LimitPolicy,
     ],
     [
+      "policy reports by block, provisional until Q47",
+      CSP_REPORT_POLICY,
+      {
+        name: "csp-report-by-block-per-60-utc-minutes",
+        figure: 100,
+        window: HOUR,
+      } as LimitPolicy,
+    ],
+    [
       "the e2e twin of saves by block",
       E2E_SAVE_BY_BLOCK_POLICY,
       {
@@ -157,8 +167,8 @@ describe("the policies of saves, shares and reads as data", () => {
   it("gives every policy a name of its own that carries its window and starts with no other's", () => {
     const names = ALL_LIMIT_POLICIES.map((policy) => policy.name);
 
-    // Eight before the contact form, and its six policies and three twins since.
-    expect(ALL_LIMIT_POLICIES).toHaveLength(17);
+    // Eight before the contact form, its six policies and three twins since, and the policy report's one.
+    expect(ALL_LIMIT_POLICIES).toHaveLength(18);
     expect(new Set(names).size).toBe(names.length);
     for (const policy of ALL_LIMIT_POLICIES) {
       const label =
@@ -340,6 +350,7 @@ describe("choosePolicy: one flag chooses the twin of every purpose that has one"
     ],
     ["share-write", SHARE_WRITE_POLICY, E2E_SHARE_WRITE_POLICY],
     ["read", READ_POLICY, READ_POLICY],
+    ["csp-report", CSP_REPORT_POLICY, CSP_REPORT_POLICY],
   ];
   const UNAVAILABLE = {
     status: "unavailable",

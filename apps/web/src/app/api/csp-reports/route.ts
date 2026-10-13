@@ -1,0 +1,56 @@
+import { reduceCspReport } from "@/lib/server/csp/csp-report";
+import { reportCspViolation } from "@/lib/server/csp/csp-report-log";
+import { refusalOfCspReportLimit } from "@/lib/server/csp/judge-csp-report";
+import { limitedAnswerHeaders } from "@/lib/server/rate-limit/page-limit-page";
+import { readUtf8BodyWithLimit } from "@/lib/server/read-body-with-limit";
+
+/** A browser's report is a few hundred bytes (738 to 803 measured, 8Q S0 M6). */
+const CSP_REPORT_BODY_MAX_BYTES = 8 * 1024;
+
+const CSP_REPORT_MEDIA_TYPE = "application/csp-report";
+
+const ACCEPTED_STATUS = 204;
+const BAD_REQUEST_STATUS = 400;
+const TOO_LARGE_STATUS = 413;
+const UNSUPPORTED_MEDIA_TYPE_STATUS = 415;
+
+/**
+ * A browser's report of a policy violation (ADR 0161 decision 2), answered in this order and stopping at the first
+ * that refuses: the media type, which reads a header and costs no write; one hit counted for the network block, so a
+ * refused request reads and parses nothing; the body, to its bound; the report, which must hold an object; then one
+ * reduced line and `204`. Nothing is logged for any refusal. Nothing is stored but the limiter's counter.
+ *
+ * The request is a plain `Request`: the visitor's cookies come with a report, and this route has no use for them, so
+ * it reads none and sets none.
+ */
+export async function POST(request: Request): Promise<Response> {
+  if (!isCspReportRequest(request))
+    return emptyAnswer(UNSUPPORTED_MEDIA_TYPE_STATUS);
+  const limited = await refusalOfCspReportLimit(request.headers);
+  if (limited !== undefined) return limited;
+  const body = await readUtf8BodyWithLimit(
+    request.body,
+    CSP_REPORT_BODY_MAX_BYTES,
+  );
+  if (!body.ok) {
+    return emptyAnswer(
+      body.failure === "too-large" ? TOO_LARGE_STATUS : BAD_REQUEST_STATUS,
+    );
+  }
+  const reduction = reduceCspReport(body.value);
+  if (reduction.kind === "not-a-report") return emptyAnswer(BAD_REQUEST_STATUS);
+  reportCspViolation(reduction.record);
+  return emptyAnswer(ACCEPTED_STATUS);
+}
+
+/** The media type alone decides, whatever parameters follow it and in whatever case it is written. */
+function isCspReportRequest(request: Request): boolean {
+  const [mediaType = ""] = (request.headers.get("content-type") ?? "").split(
+    ";",
+  );
+  return mediaType.trim().toLowerCase() === CSP_REPORT_MEDIA_TYPE;
+}
+
+function emptyAnswer(status: number): Response {
+  return new Response(null, { status, headers: limitedAnswerHeaders() });
+}

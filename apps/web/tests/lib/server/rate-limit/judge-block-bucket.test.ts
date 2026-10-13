@@ -6,6 +6,7 @@ import {
   judgeBlockBucket,
 } from "@/lib/server/rate-limit/judge-block-bucket";
 import {
+  CSP_REPORT_POLICY,
   E2E_RATE_LIMIT_POLICY_FLAG,
   MINT_POLICY,
   policyNameOf,
@@ -49,6 +50,7 @@ describe("blockBucketRequestFor: the one maker of a block judge's request", () =
     ["mint", MINT_POLICY],
     ["share-write", SHARE_WRITE_POLICY],
     ["read", READ_POLICY],
+    ["csp-report", CSP_REPORT_POLICY],
   ] as const)("chooses the policy of the purpose %s", (purpose, policy) => {
     expect(askFor(purpose, NAMED).policy).toEqual({ status: "chosen", policy });
   });
