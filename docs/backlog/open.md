@@ -3051,11 +3051,28 @@ The discriminated-union hand-over type (**183**); `WaitingWrite` to `HeldWrite` 
 
 **Source [8Q's light visual check, 390×844, relayed by the coordinator].** An observation, **not verified as a defect**: the width of the ru string against the mockup was not compared. **Trigger:** 8T's phone gate, Russian.
 
-## 219. The CSP report sink becomes a table in our own database — OWNER RULED 2026-10-13 (Q46 = (c)), NOT BUILT, NOT SCHEDULED
+## 219. The CSP report sink becomes a table in our own database — OWNER RULED 2026-10-13 (Q46 = (c)), NOT BUILT; SCHEDULED IN WAVE 8Q2
+**Update, 2026-10-13, later [coordinator, relayed]: scheduled in wave 8Q2, in M8 before 8T, which overrides the M9 trigger below.** Plan `docs/milestones/8Q2-csp-report-table.md`; ADR 0162 (Proposed). The cap is 10,000 reports with no age delete and the log line kept (Q50 to Q54, defaults). The text below is kept as recorded.
 
 **Source [owner's ruling, relayed by the coordinator].** The owner's reason: the host may not end up on Vercel, so the server log is not a durable sink. 8Q built (a), the log ([ADR 0161](../decisions/0161-the-csp-enforces-its-violations-reach-the-applications-own-counted-endpoint-and-the-mode-stays-one-versioned-constant.md)); this replaces or supplements it. **What it needs:**
 - a **migration and a grant**, both **owner actions**; env vars and provisioned resources stay add-only (ADR 0155's rules; `docs/best-practices/environments-and-resources.md`), and a new migration never edits an applied one;
 - **a dated amendment to ADR 0161 when built** (decision 2's *"nothing is stored but the limiter's counter"* and decision 3 change);
 - **a retention and size cap, undecided.** No table in this project has a retention horizon by default (ADR 0019 d7's retirement), so a report table needs its own bound, or a flood of reports grows it without limit; the limiter's 100 an hour per network block bounds the rate, not the total;
 - **the sink keeps its reduced closed-value record shape** (decision 3): nothing personal, no `document-uri`, no address, no user agent. Also decide what the `origin` field's unauthenticated status (Amendment B) means for rows read later.
-**Owner:** the human, for the migration and the grant; the architect, for the cap. **Trigger:** M9, when the host is chosen.
+**Owner:** the human, for the migration and the grant; the architect, for the cap. ~~**Trigger:** M9, when the host is chosen.~~ **Trigger:** wave 8Q2.
+
+## 220. H1 — the contact answer's unreadable-wait 60 s is pinned only against its own constant — RECORDED 2026-10-13 BY THE M8 TEST AUDIT (held)
+
+**Source [audit, `docs/test-audits/2026-10-13-m8-review-contact-success.md`, H1].** `contact-answer.ts:84` `UNREADABLE_CONTACT_WAIT_SECONDS = 60` to `61`: the whole web suite stayed green, though the mapping itself is guarded. No dated decision in ADR 0157, 0159 or the plan fixes 60 s. **Needs:** a ruling that 60 s is required, and then a pin (ADR 0152 decision 1.4), which would make it a fourth "cannot fail" row. **Trigger:** the next audit, or that ruling.
+
+## 221 to 227. Unguarded behaviour noticed by the M8 test audit — RECORDED 2026-10-13 (not test findings)
+
+**Source [audit, section *Unguarded behaviour noticed*; each is a production line nothing reddens, for the coordinator's choice].** One backlog number per row of that table, in its order:
+- **221.** `lib/server/contact/prepare-submission.ts:88` (`NO_CABINET` branch inverted; a design with no cabinet should be refused as "not current", 409, and no web unit test reaches it) and `:90` (`PRICING_VERSION_MISMATCH` mapped to the wrong cause; unreachable in the tests behind `requireTheBooksVersion`).
+- **222.** `lib/server/contact/submit-contact.ts:303` (`channel === "email" && email !== undefined`, `&&` to `||`).
+- **223.** `lib/server/contact/contact-log.ts:54,195,196` (the HTTP status bounds 100 and 599 made exclusive; the test pins 0, 99 and 600, never a kept 100 or 599).
+- **224.** `lib/server/rate-limit/chisinau-day.ts:13,66,109`, `enforce-rate-limit.ts:138-139`, `prune-rate-limits.ts:130` (the second offset-correction pass, the unreadable-clock-part guard, the timer-deadline bounds, the prune's day step).
+- **225.** Seven sites whose mutants survived a related run only (373 to 4,538 tests) and were not re-run against the whole suite: `contact/retry-when-online.ts:63`, `contact/contact-form.tsx:510`, `review/*prefetch={false}` (3 files; only the contact and done directories are scanned), `review/review-scene.tsx:20`, `i18n/content.ts:345`, `app/configurator/configure/use-back-guard.ts:38`, `store/apply-command-result.ts:140`.
+- **226.** `lib/server/rate-limit/client-network.ts`: `LONGEST_ADDRESS_TEXT` (45, 46) is dead code (no text above 45 characters can parse); the head of a compressed address and `isTextOfBlockKind`'s `typeof` guard are cases the truth table lacks.
+- **227.** `scripts/gates/boundary.sh`: a `git grep` failure (exit above 1) is treated as clean; `boundary.test.mjs` never makes `git grep` fail.
+**Trigger:** the next audit, or a change to any of those files.

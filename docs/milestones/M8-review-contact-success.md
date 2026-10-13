@@ -1286,7 +1286,9 @@ same day by *M8 restated*, above, where the two disagree.**
 | 8M | Success 5A and failure 5B | web | Full + visual | 8L (Q5, Q11, Q18 answered) |
 | ~~8N~~ | ~~Profiles: design record and owner answers~~ | | | **Moved to M8B** (Q1) |
 | ~~8P1–8P9~~ | ~~Profiles (see Part P)~~ | | | **Moved to M8B** (Q1) |
-| 8Q | The CSP enforces | web | Full + security | 8L; a preview measurement of the bot check's scripts if Q21 keeps it |
+| 8Q | The CSP enforces | web | Full + security | 8L; a preview measurement of the bot check's scripts if Q21 keeps it. **Closed 2026-10-13** (*8Q as closed*, above) |
+| 8Q2 | CSP reports kept in a table of our own (Q46 = (c); [plan](8Q2-csp-report-table.md), [ADR 0162](../decisions/0162-csp-reports-are-kept-in-a-fixed-size-table-of-our-own-marked-by-the-server-that-wrote-them-and-written-best-effort-after-the-limiter-allows-them.md), Proposed) | persistence, web | Full + security | 8Q. **Added 2026-10-13; in M8, before 8T; S1a dispatched** |
+| 8M2 | The design goes to the shop's WhatsApp; an already-sent kitchen shows its request and a call (Q44 = (b), Q45, F3; [plan](8M2-shop-whatsapp-and-already-sent.md), [ADR 0163](../decisions/0163-the-design-goes-to-the-shops-whatsapp-an-unchanged-kitchen-already-sent-for-shows-its-request-and-a-call-and-the-shops-number-is-one-constant-a-launch-gate-refuses.md), Proposed) | web | Full + visual | 8M. **Added 2026-10-13; after 8Q2, before 8T** |
 | 8R | The firewall rules, staged | none (runbook, owner action) | Coordinator-only | **Q21** |
 | 8S | Pre-launch checks | none (docs, owner reads) | Light | The owner's facts (Q3, Q7, Q9); **Q22** for the data list |
 | 8T | The phone gate, the desktop line, the phase gate | — | Coordinator + visual | **Q21** (the gate's WAF half); the owner's text in every slot |
@@ -11900,8 +11902,8 @@ is checked.* **Recommended: (a).** Launch is not expected on Vercel, so M9 check
 anyway; (a) costs one look. If the toolbar's script is blocked, the choice is to turn the toolbar
 off for the project (a dashboard setting only you can change) or to accept it on previews; no
 policy change can admit it (ADR 0041 d5).
-**AWAITING OWNER, 2026-10-13.** The coordinator's recommendation, which replaces the one above, is
-**(c)**: no preview look in M8, and the check is made at the M9 host. Not ruled by the owner.
+**ANSWERED 2026-10-13 [owner, relayed by the coordinator]: (c), none in M8; the check is made at
+the M9 host.** (An earlier line here read "awaiting owner"; it is superseded.)
 
 **8. The review, per slice.** QA and the reviews run once, after S6, except checkpoint B.
 
@@ -12335,7 +12337,7 @@ now Accepted, with **Amendment B** (the review outcomes). **8Q is closed except 
 
 **Documentation updated.** ADR 0161 (Accepted, Amendment B); ADR 0041 (status line); `decisions/README.md` and `SUPERSESSIONS.md`; Q47 above; backlog 207 to 216; `STATUS.md`. **Not done:** the dated notes on ADR 0041 decisions 3 and 6 beyond the status line.
 
-**Owner decisions, 2026-10-13 [relayed]:** **Q46 = (c)**, a table in our own database (future, not built in 8Q; backlog 219); **Q47** agreed: set `CLIENT_NETWORK_SOURCE=vercel`, or the equivalent for the real host, before any deployment carries the flip; **Q48 = (a)**, no operator switch. **Q49 is awaiting the owner** (the coordinator recommends (c): none in M8, check at the M9 host). None blocks.
+**Owner decisions, 2026-10-13 [relayed]:** **Q46 = (c)**, a table in our own database (future, not built in 8Q; backlog 219); **Q47** agreed: set `CLIENT_NETWORK_SOURCE=vercel`, or the equivalent for the real host, before any deployment carries the flip; **Q48 = (a)**, no operator switch. **Q49 = (c)** (answered later the same day): none in M8, check at the M9 host. None blocks.
 
 **Deferred, with an owner or wave:** backlog 207 to 216 (items i to x of the close); **8T gate lines added:** (1) a TLS host check, since `upgrade-insecure-requests` breaks a LAN `next start` and a report's `origin` may read `foreign` behind a terminator (backlog 213); (2) the enforced policy on a real phone. **M9 gate line:** BotID or whatever shield Q21 chooses runs under the enforced policy on the chosen host, and a firewall rule for the report route (backlog 210).
 
@@ -12395,6 +12397,7 @@ nothing invented beyond the phone frames, the gap recorded for later design.
 
 *Phase gate.* `pnpm check`; `pnpm ci:local`; a green runner; the *Launch gate* below fully ticked;
 then the push and the pull request. *Visual reading:* every wave's criteria and captures.
+*(Dated 2026-10-13, after the first test audit and the owner's answers: **the order is 8Q2, then 8M2, then 8T.** **M8 stays open until 8Q2, 8M2 and 8T close and an incremental audit pass has covered their tests** (ADR 0152 Amendment A); the audit is [`docs/test-audits/2026-10-13-m8-review-contact-success.md`](../test-audits/2026-10-13-m8-review-contact-success.md), **next baseline `d61bfd6d`**. The launch check on the shop's phone (Q3) turns green only with the real number; until then it is a placeholder.)*
 *(Dated 2026-10-13, wave 8Q's close: two lines are added. **A TLS host check:** the enforced policy is checked on a TLS host, since `upgrade-insecure-requests` breaks a LAN `next start`, and a real report's `origin` is read there (backlog 213). **A real-phone check** of the enforced policy. Also `CLIENT_NETWORK_SOURCE=vercel` is set before any deployment carries the flip, and the Zod jitless parse cost is measured here or in M9 if wanted. [ADR 0161](../decisions/0161-the-csp-enforces-its-violations-reach-the-applications-own-counted-endpoint-and-the-mode-stays-one-versioned-constant.md) Amendment B.)*
 *(Dated 2026-10-10, wave 8G: **the save's limit is not deployed before Q37 and Q38 are answered**, and backlog 168 (C2-1, a design's page shown again by Back older than the stored one) is a wave of its own before this gate. [ADR 0156](../decisions/0156-saves-shares-and-reads-are-limited-by-subjects-made-only-by-two-constructors-writes-fail-closed-reads-fail-open-pages-are-counted-in-the-interceptor-and-the-saves-wait-is-one-write-the-client-holds.md).)*
 *(Dated 2026-10-09, wave 8F: a second flag line is added beside the mail's: **`LEMNARIA_E2E_RATE_LIMIT_POLICY` is defined on no deployment, read

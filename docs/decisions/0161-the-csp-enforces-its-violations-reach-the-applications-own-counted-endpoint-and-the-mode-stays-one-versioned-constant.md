@@ -5,7 +5,7 @@ architect at wave 8Q's planning, 2026-10-13.
 **Updated at checkpoint A, 2026-10-13:** S0 is measured, decisions 6 and 7 are resolved, decision
 9 is added, and decisions 1, 4 and 8 and the *Alternatives* carry dated amendments. The S3 fix-up
 (F1 to F4) and the close-out's review outcomes (Amendment B) are under *Amendments*. The owner's
-questions were answered later the same day (see *Owner's questions*); only Q49 is awaiting.
+questions were answered later the same day (see *Owner's questions*).
 Date: 2026-10-13
 Type: Decision
 Milestone: M8 wave 8Q (web, plus one exception: the five files of decision 9 under
@@ -238,8 +238,9 @@ sink: **a future change, not built here** (decision 2's *"nothing is stored but 
 counter"* holds until then; backlog 219; a dated amendment is owed when it is built). **Q47:** the
 recommendation is agreed (100 an hour; `CLIENT_NETWORK_SOURCE=vercel`, or the real host's
 equivalent, before any deployment carries the flip). **Q48 = (a)**, no operator switch (decision 5
-stands). **Q49: awaiting the owner**; the coordinator recommends (c), none in M8, checked at the M9
-host.
+stands). **Q49 = (c)**, answered later the same day (it first read "awaiting the owner"): none in
+M8, checked at the M9 host. **Q46's table is scheduled in wave 8Q2 ([ADR 0162](0162-csp-reports-are-kept-in-a-fixed-size-table-of-our-own-marked-by-the-server-that-wrote-them-and-written-best-effort-after-the-limiter-allows-them.md),
+Proposed), which will amend decision 2 when built.**
 
 ## Amendments
 
