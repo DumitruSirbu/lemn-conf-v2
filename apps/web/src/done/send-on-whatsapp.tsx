@@ -1,12 +1,8 @@
 "use client";
 
-// The confirmation's WhatsApp action (frame 5A; ADR 0114 Amendment G's note on 8M.11). It makes the customer's own
-// share link through the share control's own requests and offers it to WhatsApp, where the customer picks who
-// receives it: no number of ours is in the address.
-//
-// **Two taps, on purpose.** A window opened after an `await` is not the customer's gesture to a phone browser, so the
-// first tap makes the link and the second, on a plain external anchor, is the customer's own. The link lives only in
-// this component's state: never the store, Web Storage, our URL or a log. It leaves for WhatsApp, which is its purpose.
+// The link is made by a press and opened by a plain anchor: a window opened after an `await` is not the customer's
+// gesture on a phone browser. It lives only in component state, never the store, Web Storage, our URL or a log.
+// See ADR 0160 D8.
 import type { DesignId } from "@lemnaria/configurator-domain";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 
@@ -49,10 +45,36 @@ export function SendOnWhatsapp({ designId }: { readonly designId: DesignId }) {
 }
 
 function WhatsappActionControl({ designId }: { readonly designId: DesignId }) {
-  const [step, setStep] = useState<WhatsappStep>({ kind: "idle" });
-  const isRequestInFlight = useRef(false);
+  const { step, checkStatus, goOn, retry } = useWhatsappShareLink(designId);
   const focusPrimaryControl = useFocusOnChange(step.kind);
   const noteId = useId();
+
+  return (
+    <div className={styles.whatsapp} data-testid="done-whatsapp">
+      <StepNote step={step} noteId={noteId} />
+      <StepControl
+        step={step}
+        noteId={noteId}
+        controlRef={focusPrimaryControl}
+        onSend={checkStatus}
+        onGoOn={goOn}
+        onRetry={retry}
+      />
+    </div>
+  );
+}
+
+interface WhatsappShareLink {
+  readonly step: WhatsappStep;
+  readonly checkStatus: () => void;
+  readonly goOn: () => void;
+  readonly retry: () => void;
+}
+
+/** The status-then-issue steps of making the customer's link, one request in flight at a time. */
+function useWhatsappShareLink(designId: DesignId): WhatsappShareLink {
+  const [step, setStep] = useState<WhatsappStep>({ kind: "idle" });
+  const isRequestInFlight = useRef(false);
 
   function claimTheRequest(): boolean {
     if (isRequestInFlight.current) return false;
@@ -78,7 +100,7 @@ function WhatsappActionControl({ designId }: { readonly designId: DesignId }) {
       });
   }
 
-  function issueAfterClaiming(): void {
+  function goOn(): void {
     if (claimTheRequest()) issue();
   }
 
@@ -93,25 +115,13 @@ function WhatsappActionControl({ designId }: { readonly designId: DesignId }) {
       });
   }
 
-  function repeatFailedRequest(): void {
+  function retry(): void {
     if (step.kind !== "failed") return;
     if (step.failedRequest === "status") checkStatus();
-    else issueAfterClaiming();
+    else goOn();
   }
 
-  return (
-    <div className={styles.whatsapp} data-testid="done-whatsapp">
-      <StepNote step={step} noteId={noteId} />
-      <StepControl
-        step={step}
-        noteId={noteId}
-        controlRef={focusPrimaryControl}
-        onSend={checkStatus}
-        onGoOn={issueAfterClaiming}
-        onRetry={repeatFailedRequest}
-      />
-    </div>
-  );
+  return { step, checkStatus, goOn, retry };
 }
 
 /** Focus follows the one control the customer is to press next when the step changes under them: the button they

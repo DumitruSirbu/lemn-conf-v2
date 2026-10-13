@@ -30,7 +30,6 @@ type OutcomeBesideForm = Exclude<
 >;
 
 export interface PhaseBesideForm {
-  readonly kind: "failed";
   readonly outcome: OutcomeBesideForm;
   readonly waitsUntilMs: number | undefined;
 }
@@ -46,7 +45,7 @@ export function outcomeToShow(
   const { outcome, waitsUntilMs } = phase;
   if (!isBesideForm(outcome)) return undefined;
   if (outcome.kind === "limited" && !isLimitWaiting) return undefined;
-  return { kind: "failed", outcome, waitsUntilMs };
+  return { outcome, waitsUntilMs };
 }
 
 function isBesideForm(outcome: UnsentOutcome): outcome is OutcomeBesideForm {

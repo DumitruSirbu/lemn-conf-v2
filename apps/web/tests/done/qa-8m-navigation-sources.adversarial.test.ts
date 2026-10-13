@@ -79,6 +79,7 @@ function filesOfTheFlow(): string[] {
   return [
     ...sourceFilesUnder(join(SOURCE_ROOT, "contact")),
     ...sourceFilesUnder(join(SOURCE_ROOT, "done")),
+    ...sourceFilesUnder(join(SOURCE_ROOT, "result")),
     ...CONTACT_ROUTE_FILES.map((file) => join(SOURCE_ROOT, file)),
   ].map((file) => relative(SOURCE_ROOT, file));
 }

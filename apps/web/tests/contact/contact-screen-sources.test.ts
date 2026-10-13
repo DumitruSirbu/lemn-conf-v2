@@ -10,6 +10,7 @@ import { describe, expect, it } from "vitest";
 import { declarationsFor, valuesFor } from "../support/css-declarations";
 
 const CONTACT_SOURCE_DIRECTORY = join(import.meta.dirname, "../../src/contact");
+const RESULT_SOURCE_DIRECTORY = join(import.meta.dirname, "../../src/result");
 const STYLESHEET = readFileSync(
   join(CONTACT_SOURCE_DIRECTORY, "contact.module.css"),
   "utf8",
@@ -17,12 +18,11 @@ const STYLESHEET = readFileSync(
 
 function sourceFiles(): Record<string, string> {
   return Object.fromEntries(
-    readdirSync(CONTACT_SOURCE_DIRECTORY)
-      .filter((name) => /\.tsx?$/.test(name))
-      .map((name) => [
-        name,
-        readFileSync(join(CONTACT_SOURCE_DIRECTORY, name), "utf8"),
-      ]),
+    [CONTACT_SOURCE_DIRECTORY, RESULT_SOURCE_DIRECTORY].flatMap((directory) =>
+      readdirSync(directory)
+        .filter((name) => /\.tsx?$/.test(name))
+        .map((name) => [name, readFileSync(join(directory, name), "utf8")]),
+    ),
   );
 }
 

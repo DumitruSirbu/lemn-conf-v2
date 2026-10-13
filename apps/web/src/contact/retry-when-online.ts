@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 
-// The one automatic retry: the browser says the connection is back after a send that got no answer. No timer and no
-// schedule, so nothing here can send a second request while the first may still be out; the caller's `retry` is the
-// same press a customer makes, which keeps the one-in-flight guard, the id and the save wait.
+// The one automatic retry: no timer, so nothing sends a second request while the first may be out; `retry` is the
+// customer's own press, which keeps the one-in-flight guard, the id and the save wait. See ADR 0160.
 
 export type ConnectionEvent = "online" | "offline";
 

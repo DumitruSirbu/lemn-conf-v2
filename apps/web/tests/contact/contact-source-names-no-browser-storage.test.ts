@@ -87,6 +87,7 @@ function filesOfTheContactCode(): string[] {
   return [
     ...sourceFilesUnder(CONTACT_SOURCE_DIRECTORY),
     ...sourceFilesUnder(DONE_SOURCE_DIRECTORY),
+    ...sourceFilesUnder(join(SOURCE_ROOT, "result")),
     ...CONTACT_ROUTE_FILES.map((file) => join(SOURCE_ROOT, file)),
   ];
 }

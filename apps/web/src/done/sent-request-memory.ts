@@ -3,13 +3,8 @@ import type {
   ContactSubmissionRequest,
 } from "@lemnaria/configurator-domain";
 
-// The sent request's one place of memory: what the confirmation screen needs to say where the shop will reach the
-// customer, handed from the contact page, which unmounts when the design form is sent, to the page that replaces it.
-// One entry, in this module's own variable: replaced by the next sent request, cleared when a design contact form
-// mounts, and gone on any reload, a variable being all it is. It holds the design and revision the request named, the
-// answer's reference, the channel, and the ONE typed value the shop will use. Not the name, not the locality, not the
-// consent. Reading it clears nothing, so a language switch or a second read shows the same entry. Nothing here reaches
-// a URL, a cookie, browser storage, the configurator store or a log (ADR 0159, criterion 6; D17).
+// One entry in this module's own variable, so nothing typed reaches a URL, cookie, browser storage, the store or a log:
+// only the contact value the shop will use, never the name, locality or consent. Reading clears nothing. See ADR 0159, 0160.
 
 export interface SentRequest {
   readonly designId: string;

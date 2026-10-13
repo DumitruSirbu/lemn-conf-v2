@@ -13,6 +13,7 @@ import { useReplaceWithDone } from "@/done/use-replace-with-done";
 import type { SubmissionChannelLine } from "@/i18n/content";
 import { useContent } from "@/i18n/use-content";
 import { routing, type AppLocale } from "@/i18n/routing";
+import { ReviewLink } from "@/result/review-link";
 import { OpenEditorLink } from "@/review/open-editor-link";
 import type { RefusedSubmit, ReviewView } from "@/review/review-model";
 import { useReview } from "@/review/use-review";
@@ -23,7 +24,6 @@ import { ContactForm } from "./contact-form";
 import type { ContactFormValues } from "./contact-form-model";
 import { isSendOff } from "./contact-outcome";
 import styles from "./contact.module.css";
-import { ReviewLink } from "./review-link";
 import { SubmissionFailure, useFailureView } from "./submission-failure";
 import {
   CALLBACK_TARGET,
@@ -71,9 +71,8 @@ export interface CallbackContactScreenProps {
 }
 
 /**
- * The callback form, the way on from frame 2F (Q12 (i), 8L.10): the same form with no design behind it, so no card, no
- * figure and no wait on a save, and no probe of the device: 2F is how a customer reaches it. The bar leads to the start
- * of the configurator, since there is no review to go back to.
+ * The callback form, the way on from frame 2F: the same form with no design behind it, so no card, no figure, no wait
+ * on a save and no device probe. The bar leads to the start of the configurator, since there is no review to go back to.
  */
 export function CallbackContactScreen({
   isSendable,
@@ -307,8 +306,8 @@ function UnavailablePage({ backLink }: { readonly backLink: ReactNode }) {
   );
 }
 
-/** The design form's way out once its request is sent: the confirmation replaces this page (8M.3). Until it arrives
- *  the sending line stays, since a page with only its bar says nothing of a request that has gone. */
+/** The design form's way out once its request is sent: the confirmation replaces this page. The sending line stays
+ *  until it arrives, so the page is never blank (ADR 0160 D3). */
 function LeaveForDone({ designId }: { readonly designId: DesignId }) {
   const content = useContent();
   useReplaceWithDone(designId);
@@ -356,33 +355,25 @@ function TopBar({ backLink }: { readonly backLink: ReactNode }) {
   );
 }
 
+/** What both back links draw: the same `‹` button, whichever page it leads to. */
+function useBackLinkProps() {
+  const content = useContent();
+  return {
+    className: styles.back,
+    "aria-label": content.configure.backAction,
+    "data-testid": "contact-back",
+    children: <span aria-hidden="true">‹</span>,
+  };
+}
+
 /** The way back to the design's review, fetched. */
 function ReviewBackLink({ designId }: { readonly designId: DesignId }) {
-  const content = useContent();
-  return (
-    <ReviewLink
-      designId={designId}
-      className={styles.back}
-      aria-label={content.configure.backAction}
-      data-testid="contact-back"
-    >
-      <span aria-hidden="true">‹</span>
-    </ReviewLink>
-  );
+  return <ReviewLink designId={designId} {...useBackLinkProps()} />;
 }
 
 /** The way back for a form with no design: the start of the configurator. */
 function StartBackLink() {
-  const content = useContent();
-  return (
-    <StartLink
-      className={styles.back}
-      aria-label={content.configure.backAction}
-      data-testid="contact-back"
-    >
-      <span aria-hidden="true">‹</span>
-    </StartLink>
-  );
+  return <StartLink {...useBackLinkProps()} />;
 }
 
 function Intro({

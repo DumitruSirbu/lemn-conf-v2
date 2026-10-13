@@ -5,10 +5,10 @@ import { useEffect, useRef, useSyncExternalStore, type ReactNode } from "react";
 
 import { LocaleMenu } from "@/app/configurator/configure/locale-menu";
 import { useKeepFocusAbove } from "@/components/use-keep-focus-above";
-import { ReviewLink } from "@/contact/review-link";
 import type { Content } from "@/i18n/content";
 import { Link } from "@/i18n/navigation";
 import { useContent } from "@/i18n/use-content";
+import { ReviewLink } from "@/result/review-link";
 import { editorHref } from "@/review/design-hrefs";
 import { KitchenPicture } from "@/review/review-scene";
 import type { SceneView } from "@/scene/scene-view";
