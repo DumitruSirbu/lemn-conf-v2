@@ -430,6 +430,28 @@ export default tseslint.config(
     },
   },
   {
+    // 8Q.10 / ADR 0161 decision 9: Zod is imported through `zod-without-eval.ts`, which configures it
+    // before any schema is built. A distinct rule key from the base `no-restricted-imports` on purpose:
+    // flat config replaces a rule's options wholesale, and the shell-design block restates that list.
+    name: "domain: Zod only through zod-without-eval.ts",
+    files: ["packages/configurator-domain/src/**/*.ts"],
+    ignores: ["packages/configurator-domain/src/zod-without-eval.ts"],
+    rules: {
+      "@typescript-eslint/no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["zod", "zod/*"],
+              message:
+                "Import `z` from zod-without-eval.ts, which runs Zod without eval (ADR 0161 decision 9, 8Q.10); a direct import can build a schema before the configuration runs.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     // The adapter may own Three.js, but nothing above it: it renders what it is given and never
     // reaches into React, Next.js or the application shell (ARCHITECTURE_PROPOSAL.md §3).
     files: ["packages/three-adapter/**/*.ts"],

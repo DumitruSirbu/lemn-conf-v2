@@ -11,7 +11,7 @@
 // Colour is a reference, not a specification: a palette entry's name is a `finish.*` catalogue leaf the app
 // resolves from `entryId` (ADR 0095), never a string declared here. The supplier code is internal
 // provenance and no surface presents it as a code a customer picks from.
-import { z } from "zod";
+import { z } from "./zod-without-eval.js";
 
 /** The three materials in price order: PAL (melamine) < MDF (painted) < veneer (natural wood over MDF). */
 export const MATERIAL_IDS = [
