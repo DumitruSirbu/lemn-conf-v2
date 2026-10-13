@@ -1,6 +1,9 @@
 # ADR 0041 — The browser security policy is versioned here, and the CSP only reports
 
-Status: Accepted
+Status: Accepted — **decision 4 overturned, and decision 3's preconditions discharged, by
+[ADR 0161](0161-the-csp-enforces-its-violations-reach-the-applications-own-counted-endpoint-and-the-mode-stays-one-versioned-constant.md)
+(2026-10-13, wave 8Q).** The text below is kept as written; the CSP now enforces and reports to
+`POST /api/csp-reports`. Decisions 1, 2 and 5 stand.
 Date: 2026-08-31
 Type: Decision
 Milestone: Adversarial review remediation, Wave S4 — closes SEC-004

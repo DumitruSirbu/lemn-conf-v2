@@ -237,6 +237,18 @@ status corrections, in one of these two files:
 | 204 | Contrast of the 10.5 px *Număr cerere* label unmeasured | open.md — recorded 2026-10-13 (visual); 8T |
 | 205 | WhatsApp action: no spoken *busy* leaf; *go on* reuses `share.reissue` | open.md — recorded 2026-10-13; the owner's copy pass |
 | 206 | 8M's logic notes: F2, F3 (`canWrite` after a `/done` reload), not-sent wording, revision drift | open.md — recorded 2026-10-13; owner questions |
+| 207 | Addresses whose last segment looks like a file (`/ro/zz.png`, `/ro/configurator/zz.svg`, `/_next/static/zz.js`) answer a `404` `text/html` with no CSP (the `proxy.ts` matcher) | open.md — recorded 2026-10-13 at M8 8Q's close; Low |
+| 208 | `/ro/%` answers `500` | open.md — recorded 2026-10-13 (8Q) |
+| 209 | F5: the `proxy.ts` matcher and the request body size | open.md — recorded 2026-10-13 (8Q security) |
+| 210 | F6: one database write per refused CSP report request; an optional `Origin` pre-check before counting; an M9 firewall rule | open.md — recorded 2026-10-13 (8Q security); M9 |
+| 211 | Cold-start `503` flake in the mint and contact specs (five specs, each passes alone) | open.md — recorded 2026-10-13 (8Q QA) |
+| 212 | The `csp-report-limited` line is memoised per instance, so a multi-instance host writes one per instance an hour | open.md — recorded 2026-10-13 (8Q) |
+| 213 | A report's `origin` may read `foreign` behind a TLS terminator | open.md — recorded 2026-10-13 (8Q); check on the real host |
+| 214 | `packages/configurator-domain/package.json` has no `sideEffects` field, so a bundler may skip `zod-without-eval.ts` if marked `false` | open.md — recorded 2026-10-13 (8Q) |
+| 215 | The unmatched-address sweep spec exempts any last segment matching `/\.[A-Za-z0-9]{1,8}$/`, broader than the matcher | open.md — recorded 2026-10-13 (8Q QA) |
+| 216 | The lint rule against a direct `"zod"` import does not catch a dynamic `import("zod")` | open.md — recorded 2026-10-13 (8Q) |
+| 217 | The summary-card thumbnail is a striped placeholder on a fresh design (unverified as a defect) | open.md — recorded 2026-10-13 (8Q visual); Low |
+| 218 | The ru top-bar title truncates to "Конфигур…" at 390 px (unverified as a defect) | open.md — recorded 2026-10-13 (8Q visual); Low |
 
 ## 2026-09-06 audit note
 

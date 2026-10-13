@@ -11862,10 +11862,13 @@ example Sentry), chosen with the host in M9; a third party then receives the red
 **Recommended: (a) for M8, revisited when M9 chooses the host.** (b) adds a dependency and a third
 party M8 has ruled out; (c) adds an owner action for data nobody has asked to read.
 
-**Q47, for the owner; blocks nothing (built on 100).** *Each report costs one write to the
-counters table. The receiver accepts at most 100 reports an hour from one network (from all
-visitors together while no network source is named), then answers "too many" and writes nothing
-to the log. Keep 100 an hour, or another figure?* **Recommended: 100.** One page with a broken
+**Q47, for the owner; blocks nothing (built on 100).** *~~Each report costs one write to the
+counters table.~~ Every correctly-typed request costs one write to the counters table, a refused one
+included (ADR 0161 Amendment B, 2026-10-13). The receiver accepts at most 100 reports an hour from one network (from all
+visitors together while no network source is named), then answers "too many" and ~~writes nothing
+to the log~~ writes one line an hour to the log (ADR 0161 F1). Keep 100 an hour, or another figure?*
+**Added at the close, 2026-10-13: with no network source named, anyone can spend the shared
+bucket (`curl`, no body); set `CLIENT_NETWORK_SOURCE=vercel` before any deployment carries the flip.** **Recommended: 100.** One page with a broken
 add-on sends a few; 100 an hour is enough to learn that something is wrong and small enough that
 a flood costs little. A different answer changes one constant.
 
@@ -12304,6 +12307,28 @@ untracked and is committed with this checkpoint.
 - The backlog: the `/ro/zz.png` line, if S1 measured a document with no policy.
 - 8T: the gate line of 8Q.7.
 
+#### 8Q as closed, 2026-10-13
+
+**Tier:** Full + security. **Closed at code HEAD `5c055950`** on `m8-review-contact-success`, local, not pushed [commit subjects read from the session's git status; the scribe ran no command]. The decisions and
+reasons: [ADR 0161](../decisions/0161-the-csp-enforces-its-violations-reach-the-applications-own-counted-endpoint-and-the-mode-stays-one-versioned-constant.md),
+now Accepted, with **Amendment B** (the review outcomes). **8Q is closed except the two items marked pending below.**
+
+**Shipped [commit subjects]:** S3 fix-up `804436f9`; S4 `8b6e1445` (`report-uri` in both policy branches, mode still report-only; the e2e teardown fails a CI run that counted any report; baseline whole e2e 999 passed, 0 reports, 1 known flake); **S5 `93be3bc9` (the CSP enforces, one constant; 988 passed under enforcement, 0 violations, 0 reports; 7 header-name pins left red for QA)**; QA `e2eb3c3a` (enforcement proofs, sink on a running server, failed render, no-JS form, ru tour, unmatched sweep, mode-pin scan; header-name pins repinned; rollback rehearsed, one test edit); review fix-up `5c055950` (comments trimmed, `output()` refuses without capture, one report-window constant, teardown reports the csp count even when the mint check fails, closed-list types on the reduced report). Slices S0 to S3 are recorded in `8q-s0-measurements.md` and the checkpoint above.
+
+**Evidence, by who ran it.** [Quoted from the commit subject of `e2eb3c3a`, as relayed by the coordinator; the scribe ran nothing.] **1026 e2e passed under enforcement, 0 violations, 0 reports.** Rollback was rehearsed and is exactly one test edit. **Reviews:** logic, security and clean-code ran with **no blocker** [relayed]; the clean-code and security findings taken are in `5c055950`; the rest are backlog 207 to 216 and ADR 0161 Amendment B.
+
+**Pending, one line each (the human fills):**
+- **Light visual check 2026-10-13 at 390×844, production build under the enforcing CSP (nonce, strict-dynamic, report-uri confirmed on /ro): PASS on 8 of 8 — /ro/d/<id>, a tap pick (sheet opens), review, contact (design and configurator), /ru/d/<id>, share view, /ro/zz. 0 CSP violations, 0 refused-to-execute, 0 page errors, no horizontal overflow.** [coordinator, relayed] **Not covered:** real WebGL hardware (SwiftShader only), keyboard, contact submit, Vercel host. **Observations, not defects verified:** /ro/zz shows Next's default English 404 (see backlog 207); the summary-card thumbnail is a striped placeholder on a fresh design (backlog 217); the ru top-bar title truncates to "Конфигур…" at 390 px (backlog 218). **Left on the test database for the owner:** design `IFnv3iaWujKsJnDG79toB` and a share link (ADR 0151).
+- **The shard budget gate is red at HEAD (owner / coordinator decision, not done):** `gate:e2e-shard-budget` fails because mobile shard 4 of 8 is 163 against a ceiling of 125, from QA's 26 new mobile tests [coordinator, relayed; not re-run here]. The gate says 9 shards. A change is needed in the `ci.yml` matrix (total and shard), `SHARDS_PER_PROJECT`, `local-ci.sh` and `docs/best-practices/ci-and-local-gates.md`. **Nothing can be pushed from this branch until it is decided** (the pre-push hook runs the gate).
+
+**Deviations, with their rationale.** Decision 9 (Zod without eval) was added at checkpoint A after S0 measured the eval probe, with one exception to "web only" (five files in the domain package). F1 to F4 were added at the S3 review. The Zod jitless parse cost, promised at S1a, was not found and is unmeasured (ADR 0161 Amendment B, point 6). Criterion 4's *"no line for 429"* is superseded by F1's once-an-hour line.
+
+**Documentation updated.** ADR 0161 (Accepted, Amendment B); ADR 0041 (status line); `decisions/README.md` and `SUPERSESSIONS.md`; Q47 above; backlog 207 to 216; `STATUS.md`. **Not done:** the dated notes on ADR 0041 decisions 3 and 6 beyond the status line.
+
+**Owner actions outstanding:** **Q46** (where reports end up; default the server log), **Q47** (the 100 an hour figure; **recommendation: set `CLIENT_NETWORK_SOURCE=vercel` before any deployment carries the flip**), **Q48** (an operator switch; default none), **Q49** (a preview look; recommended (a), after the flip), and **the shard decision** above. None of Q46 to Q49 blocks.
+
+**Deferred, with an owner or wave:** backlog 207 to 216 (items i to x of the close); **8T gate lines added:** (1) a TLS host check, since `upgrade-insecure-requests` breaks a LAN `next start` and a report's `origin` may read `foreign` behind a terminator (backlog 213); (2) the enforced policy on a real phone. **M9 gate line:** BotID or whatever shield Q21 chooses runs under the enforced policy on the chosen host, and a firewall rule for the report route (backlog 210).
+
 ### 8R — the firewall rules, staged — LEAVES FOR THE DELIVERY MILESTONE (owner, 2026-10-07)
 
 > **Not dispatched from M8.** No host is chosen, and the owner placed flood protection in *"a
@@ -12360,6 +12385,7 @@ nothing invented beyond the phone frames, the gap recorded for later design.
 
 *Phase gate.* `pnpm check`; `pnpm ci:local`; a green runner; the *Launch gate* below fully ticked;
 then the push and the pull request. *Visual reading:* every wave's criteria and captures.
+*(Dated 2026-10-13, wave 8Q's close: two lines are added. **A TLS host check:** the enforced policy is checked on a TLS host, since `upgrade-insecure-requests` breaks a LAN `next start`, and a real report's `origin` is read there (backlog 213). **A real-phone check** of the enforced policy. Also `CLIENT_NETWORK_SOURCE=vercel` is set before any deployment carries the flip, and the Zod jitless parse cost is measured here or in M9 if wanted. [ADR 0161](../decisions/0161-the-csp-enforces-its-violations-reach-the-applications-own-counted-endpoint-and-the-mode-stays-one-versioned-constant.md) Amendment B.)*
 *(Dated 2026-10-10, wave 8G: **the save's limit is not deployed before Q37 and Q38 are answered**, and backlog 168 (C2-1, a design's page shown again by Back older than the stored one) is a wave of its own before this gate. [ADR 0156](../decisions/0156-saves-shares-and-reads-are-limited-by-subjects-made-only-by-two-constructors-writes-fail-closed-reads-fail-open-pages-are-counted-in-the-interceptor-and-the-saves-wait-is-one-write-the-client-holds.md).)*
 *(Dated 2026-10-09, wave 8F: a second flag line is added beside the mail's: **`LEMNARIA_E2E_RATE_LIMIT_POLICY` is defined on no deployment, read
 by name only.** [ADR 0155](../decisions/0155-the-mint-asks-a-keyed-per-day-per-network-limiter-first-and-refuses-what-it-cannot-judge-the-owner-names-the-network-source-and-a-destructive-mutant-never-touches-a-database.md),

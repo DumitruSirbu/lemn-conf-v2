@@ -3002,3 +3002,51 @@ The discriminated-union hand-over type (**183**); `WaitingWrite` to `HeldWrite` 
 ## 206. 8M's logic notes: F2, F3, the not-sent wording, revision drift — RECORDED 2026-10-13 AT M8 8M's CLOSE
 
 **Source [logic reviewer, relayed].** **F2:** an `online` event spent on an in-flight retry that then gets no answer leaves 5B's note promising an automatic retry that will not come; acceptable, no timer; **8T's phone gate gains a line.** **F3:** after a reload of `/done` the WhatsApp action is absent (`canWrite` is *checking*), as criterion 18 reads; a product gap; passing `canWrite: true` from the `/done` hydrator needs a dated amendment (**owner question**). The not-sent sentence is told for every answered failure, including a `200` whose body was lost (the owner may want it softer). After a second-tab save `/done` shows the no-request view, by design.
+
+## 207. Addresses whose last segment looks like a file answer a `404` with no CSP — RECORDED 2026-10-13 AT M8 8Q's CLOSE — LOW
+
+**Source [8Q S1 and QA, relayed].** `/ro/zz.png`, `/ro/configurator/zz.svg` and `/_next/static/zz.js` answer `404` `text/html` and carry no `Content-Security-Policy`, because the `proxy.ts` matcher skips a last segment with an extension. The flip does not change it, and the body is a text-only not-found (ADR 0161 decision 6 recorded it). **Remedy:** narrow the matcher, or a static restrictive policy through `next.config` `headers()` that excludes the design and share paths. **Severity:** Low. **Trigger:** the next change to `proxy.ts`, or M9.
+
+## 208. `/ro/%` answers `500` — RECORDED 2026-10-13 AT M8 8Q's CLOSE
+
+**Source [8Q QA, relayed; not diagnosed].** A malformed percent-escape as the only segment under a locale answers `500`. **Trigger:** the next change to routing or the catch-all.
+
+## 209. F5: the `proxy.ts` matcher and the request body size — RECORDED 2026-10-13 AT M8 8Q's CLOSE (security)
+
+**Source [security reviewer, relayed; the finding's text was not given to the scribe beyond its label].** Recorded as F5 against the matcher of `proxy.ts` and the body size of the report route (8 KiB, read on the stream, ADR 0161 decision 2). **Trigger:** the next change to `proxy.ts`, or M9.
+
+## 210. F6: a database write per refused CSP report request — RECORDED 2026-10-13 AT M8 8Q's CLOSE (security)
+
+**Source [security reviewer, relayed].** Every correctly-typed `POST` is a counter write, a `429` included (ADR 0161 Amendment B, point 1), so a flood of refusals is one write each. **Remedy, optional:** an `Origin` pre-check before counting (ADR 0161 declined an `Origin` gate; this would reopen it as a cost cut, not as authentication), and a firewall rule in M9 (ADR 0019 d2). **Trigger:** M9, the host.
+
+## 211. A cold-start `503` flake in the mint and contact specs — RECORDED 2026-10-13 AT M8 8Q's CLOSE (QA)
+
+**Source [8Q QA, relayed].** Five specs of the mint and contact families fail with a `503` on a cold server in a whole run and pass alone. Not diagnosed beyond that. **Trigger:** a second occurrence, or the M8 close audit (see backlog 195).
+
+## 212. The `csp-report-limited` line is memoised per instance — RECORDED 2026-10-13 AT M8 8Q's CLOSE
+
+**Source [ADR 0161 F1].** The once-an-hour memo is one module-level number, so a host running several instances writes one line per instance an hour. **Trigger:** M9, once the host and its instance count are known.
+
+## 213. A report's `origin` may read `foreign` behind a TLS terminator — RECORDED 2026-10-13 AT M8 8Q's CLOSE
+
+**Source [inference, ADR 0161 F2].** `origin` compares the report's `document-uri` origin with `new URL(request.url).origin`; behind a terminator the request's own scheme may differ. **Falsified by:** a real report on the real host reading `own`. **Trigger:** the first deployment that carries the flip; 8T's TLS host check.
+
+## 214. The domain package declares no `sideEffects` field — RECORDED 2026-10-13 AT M8 8Q's CLOSE
+
+**Source [8Q review, relayed].** `packages/configurator-domain/package.json` has no `sideEffects` field. Adding `"sideEffects": false` would let a bundler skip `zod-without-eval.ts`, whose only job is its module-scope `z.config({ jitless: true })` (ADR 0161 decision 9). **Rule until then:** do not add it, or list that file. **Trigger:** anyone touching that field.
+
+## 215. The unmatched-address sweep exempts more than the matcher skips — RECORDED 2026-10-13 AT M8 8Q's CLOSE (QA)
+
+**Source [8Q QA, relayed].** The sweep spec exempts any last segment matching `/\.[A-Za-z0-9]{1,8}$/`, broader than `proxy.ts`'s matcher, so an address the matcher covers could slip the sweep. **Trigger:** with backlog 207.
+
+## 216. The lint rule against a direct `"zod"` import misses a dynamic `import("zod")` — RECORDED 2026-10-13 AT M8 8Q's CLOSE
+
+**Source [8Q review, relayed].** ADR 0161 decision 9's rule refuses a static import elsewhere under the domain's `src/`; a dynamic `import("zod")` is not caught. **Trigger:** the next change to that lint rule.
+
+## 217. The summary-card thumbnail is a striped placeholder on a fresh design — RECORDED 2026-10-13 AT M8 8Q's CLOSE (visual) — LOW, UNVERIFIED
+
+**Source [8Q's light visual check, 390×844, relayed by the coordinator].** An observation, **not verified as a defect**: it may be the intended empty state. Not checked against the mockups. **Trigger:** 8T's visual reading.
+
+## 218. The ru top-bar title truncates to "Конфигур…" at 390 px — RECORDED 2026-10-13 AT M8 8Q's CLOSE (visual) — LOW, UNVERIFIED
+
+**Source [8Q's light visual check, 390×844, relayed by the coordinator].** An observation, **not verified as a defect**: the width of the ru string against the mockup was not compared. **Trigger:** 8T's phone gate, Russian.

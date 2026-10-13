@@ -420,6 +420,17 @@ replaced it — nothing is deleted or rewritten silently.
   already re-answers `hasFullHeightUnder` on every derivation, and — measured at `ed6c545` — it does.
   What was missing was a rule about the bodies already in the column, and the owner has now given one.
 
+- **ADR 0041** decision 4 (*no report collector: an unauthenticated, unthrottled `POST` is SEC-001's
+  shape*) → **overturned by name** by **ADR 0161** decision 2 (2026-10-13, wave 8Q), because its reason,
+  the missing limiter, no longer holds (ADR 0155, 0156). **ADR 0041** decision 3's two preconditions
+  for enforcing (no prerendered page without a nonce; a sink) → **discharged** by ADR 0161 decisions 1
+  and 6. Decisions 1, 2 and 5 stand; decision 6 (`upgrade-insecure-requests`) stands (ADR 0161
+  decision 7). The CSP is now a control and not only a declaration (SEC-004's stated bound). ADR 0161
+  itself carries struck-in-place corrections by its own **Amendment B**: *"one counter write per
+  accepted report"* (it is per correctly-typed `POST`, refusals included), F2's *"cannot pass for one
+  of this application's pages"* (`origin` is a claim, never proved), and the plan's criterion 4,
+  *"no line for 429"* (superseded by F1's once-an-hour line).
+
 ## Moved from the index Status column
 
 These claims were carried only in the old index's Status cells, not otherwise recorded above.

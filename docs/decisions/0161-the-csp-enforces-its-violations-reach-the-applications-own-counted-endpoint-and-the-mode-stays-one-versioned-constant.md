@@ -1,11 +1,11 @@
 # ADR 0161 — The CSP enforces, its violations reach the application's own counted endpoint, and the mode stays one versioned constant
 
-Status: **Proposed — a draft by the architect at wave 8Q's planning, 2026-10-13.** Nothing in it is
-built. The scribe completes it at 8Q's close, as built, and only then marks it Accepted. Parts that
-wait on wave 8Q's measurement slice (S0) are marked **Open** and decide nothing yet.
+Status: **Accepted — 2026-10-13, at wave 8Q's close** (code HEAD `5c055950`). It was a draft by the
+architect at wave 8Q's planning, 2026-10-13.
 **Updated at checkpoint A, 2026-10-13:** S0 is measured, decisions 6 and 7 are resolved, decision
-9 is added, and decisions 1, 4 and 8 and the *Alternatives* carry dated amendments. None is open
-now; the record is still *Proposed* until the close.
+9 is added, and decisions 1, 4 and 8 and the *Alternatives* carry dated amendments. The S3 fix-up
+(F1 to F4) and the close-out's review outcomes (Amendment B) are under *Amendments*. The owner's
+questions Q46 to Q49 are still unanswered; none blocks.
 Date: 2026-10-13
 Type: Decision
 Milestone: M8 wave 8Q (web, plus one exception: the five files of decision 9 under
@@ -214,7 +214,9 @@ per parse of the largest fixture.
   dated note on decisions 3, 4 and, if decision 7 removes the directive, 6. `X-Frame-Options` stays:
   static assets still carry no CSP (ADR 0041 decision 2's second reason).
 - **A new public, unauthenticated endpoint exists**, bounded by the limiter at 100 reports an hour
-  per network block (provisional, Q47) and costing one counter write per accepted report.
+  per network block (provisional, Q47) and ~~costing one counter write per accepted report~~
+  costing one counter write per correctly-typed `POST`, a refused one (`429`) included (Amendment B,
+  point 1).
 - **Every future script must be nonced or loaded by a nonced script.** A host in `script-src` still
   does nothing under `'strict-dynamic'` (ADR 0041 decision 5). This binds M9's bot shield, whatever
   it is: it must be observed under the enforced policy on the chosen host before launch.
@@ -245,7 +247,8 @@ flip). None blocks the wave.
 - **F2, decision 3's field list gains `origin`.** A closed field, `"own" | "foreign" | "none"`: the
   `document-uri` origin compared with `new URL(request.url).origin`, which the route hands to the
   pure reduction as an argument. For `foreign` and `none`, `page` is `other` and `source` is dropped,
-  so a forged or cross-site report cannot pass for one of this application's pages. `locale` is still
+  ~~so a forged or cross-site report cannot pass for one of this application's pages~~ (softened by
+  Amendment B, point 2: `origin: "own"` is what the report claims, not something proved). `locale` is still
   read from the path of whatever document was named, and `blocked`'s `self` is still relative to that
   document's own origin; the `origin` field is what tells a reader to discount both. *No `Origin` or
   `Sec-Fetch-*` gate is added*: the *Alternatives* entry above stands.
@@ -254,3 +257,38 @@ flip). None blocks the wave.
 - **F4, the lines are one string.** Each of the three lines is written as
   `console.warn("[csp]", JSON.stringify(record))` (`console.error` for the unavailable line), so a
   platform log view shows one line and not an expanded object. Closed values only, as before.
+
+**Amendment B — dated 2026-10-13, at wave 8Q's close (code HEAD `5c055950`; the record is Accepted).**
+Outcomes of QA (`e2eb3c3a`) and the three reviews (logic, security, clean-code; none a blocker
+[coordinator-relayed]), and one gap in the S1a record. Nothing above is erased; the sentences these
+points correct are struck in place.
+
+1. **Every correctly-typed `POST` costs one counter write, a refused one included.** The order in
+   decision 2 counts the hit before the body is read, so a `429` is itself a counter write. The
+   Consequences' *"one counter write per accepted report"* and Q47's *"each report costs one write"*
+   are corrected to this. A request with the wrong media type (`415`) counts nothing. A refusal
+   costs a database write per request, which is bounded only by the host, not by the limiter
+   (backlog 207 to 216, item iv).
+2. **`origin: "own"` means the report claims this origin.** Nothing in a log line is authenticated:
+   the sender chooses the `document-uri`, so a forger can make a report read `own`. F2's sentence
+   that a forged or cross-site report cannot pass for one of this application's pages is softened
+   to: such a report carries `origin` as a claim, and a reader treats every field as unauthenticated
+   noise bounded by the limiter. *No gate is added* (the *Alternatives* entry on `Origin` stands).
+   Whether `own` ever reads `foreign` behind a TLS terminator is unchecked (backlog item vii).
+3. **Interim, owner action.** With no network source named, the 100 an hour bucket is shared by every
+   visitor and **can be spent by anyone** (`curl`, no body). It is accepted for the report-only
+   baseline and the 8Q build. **The owner sets `CLIENT_NETWORK_SOURCE=vercel` before any deployment
+   carries the flip** (Q47's recommendation; ADR 0155). This is an owner action, not done here.
+4. **Criterion 4's *"no line for 429"* is superseded** by F1's once-per-hour `csp-report-limited`
+   line. Decision 2's *"nothing is logged for a refusal"* was already amended by F1; the plan's
+   criterion 4 and Q47's *"writes nothing to the log"* are read through it. The line is memoised per
+   process, so a multi-instance host writes one per instance an hour (backlog item vi).
+5. **Rollback is exactly one test edit** [QA, relayed: *"rollback rehearsed (one test edit)"*,
+   commit `e2eb3c3a`]. Decision 5's *"edits the one test that pins it"* is confirmed as built:
+   the constant flips and one test is edited; every other test reads the header's name from the
+   module.
+6. **The Zod jitless parse cost was not measured.** Decision 9's *Cost* paragraph promised one
+   measurement at S1a with a stop above 1 ms median per parse of the largest fixture. **The figure
+   was not found in the S1a record** [coordinator's finding, relayed to the scribe; not re-searched
+   here]. Treat it as **unmeasured**, not as passing. It is to be measured in 8T or M9 if wanted; nothing
+   in 8Q's evidence depends on it.
