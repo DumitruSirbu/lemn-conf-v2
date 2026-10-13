@@ -20,7 +20,11 @@ only: directive, blocked and source (a host or a fixed keyword; for `source` als
 script path; never a query, a fragment or user-info), line, column, page
 family, locale, `origin`, `disposition`, status, and three facts of the server's own: the report number, the time it was
 received, and the writer mark. The log line (`[csp] {"event":"csp-violation",…}`) is written for every accepted report
-whether or not the row was stored, and is the only copy when a store failed (`csp-report-unstored`).
+whether or not the row was stored, and is the only copy when a store failed (`csp-report-unstored`). Two cautions on
+that line (ADR 0162 Amendment A): a `deadline` cause can mean the report **was stored late**, because the route stops
+waiting at its deadline and the statement may commit afterwards; and a constructor throw, a missing table (`42P01`)
+and a missing privilege (`42501`) all log `store-failed`, so **diagnose with the privilege test
+(`application-role-privileges.test.ts`, run as the application role), not with the line**.
 
 Two things to keep in mind while reading:
 

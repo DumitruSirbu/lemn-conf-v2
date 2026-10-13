@@ -249,7 +249,7 @@ status corrections, in one of these two files:
 | 216 | The lint rule against a direct `"zod"` import does not catch a dynamic `import("zod")` | open.md — recorded 2026-10-13 (8Q) |
 | 217 | The summary-card thumbnail is a striped placeholder on a fresh design (unverified as a defect) | open.md — recorded 2026-10-13 (8Q visual); Low |
 | 218 | The ru top-bar title truncates to "Конфигур…" at 390 px (unverified as a defect) | open.md — recorded 2026-10-13 (8Q visual); Low |
-| 219 | The CSP report sink moves from the server log to a table in our own database (owner's Q46 = (c)) | open.md — recorded 2026-10-13; **scheduled in wave 8Q2** ([plan](milestones/8Q2-csp-report-table.md), ADR 0162 Proposed); migration and grant are owner actions |
+| 219 | The CSP report sink moves from the server log to a table in our own database (owner's Q46 = (c)) | open.md — recorded 2026-10-13; **built in wave 8Q2, closed 2026-10-14** ([plan](milestones/8Q2-csp-report-table.md), ADR 0162 Accepted); `0009` and its grant on preview and production are owner actions, not done |
 | 220 | H1: `contact-answer.ts`'s 60 s unreadable wait is pinned only against its own constant; no record fixes 60 s | open.md — audit 2026-10-13 (held) |
 | 221 | Unguarded: `prepare-submission.ts:88` (`NO_CABINET` branch) and `:90` (`PRICING_VERSION_MISMATCH` cause, unreachable in tests) | open.md — audit 2026-10-13 |
 | 222 | Unguarded: `submit-contact.ts:303` (`channel === "email" && email !== undefined`, `&&` to `\|\|`) | open.md — audit 2026-10-13 |
@@ -258,6 +258,12 @@ status corrections, in one of these two files:
 | 225 | Unguarded, related-run survivors not re-run against the whole suite (seven sites: online snapshot, `data-ready`, review prefetch, `ssr:false`, a one-width range, a four-segment editor path, selection through a global-finish change) | open.md — audit 2026-10-13 |
 | 226 | Unguarded: `client-network.ts` (`LONGEST_ADDRESS_TEXT` is dead code; two truth-table cases missing) | open.md — audit 2026-10-13 |
 | 227 | Unguarded: `scripts/gates/boundary.sh` treats a `git grep` failure (exit above 1) as clean | open.md — audit 2026-10-13 |
+| 228 | Whole-run e2e failure that passes alone: `global-colour.e2e.spec.ts` 208 and 230 (`storedColour` empty); not proven | open.md — recorded 2026-10-14 (8Q2 close) |
+| 229 | The live pattern differential costs 28 s per persistence live run | open.md — recorded 2026-10-14 (8Q2 QA note) |
+| 230 | Second-server report rows are bounded only by the sink spec | open.md — recorded 2026-10-14 (8Q2 QA note) |
+| 231 | `requireValidCspReportPlacement` and its three QA-owned cases could be deleted outright | open.md — recorded 2026-10-14 (8Q2 QA edit) |
+| 232 | Four persistence live files fail at collection with every database variable blanked (`neon('')` in a `describe` body; pre-existing) | open.md — recorded 2026-10-14 (8Q2 QA note) |
+| 233 | The store's `lock_timeout` is not tested with a real contending lock | open.md — recorded 2026-10-14 (8Q2 close) |
 
 ## 2026-09-06 audit note
 

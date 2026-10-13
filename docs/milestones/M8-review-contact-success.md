@@ -1287,7 +1287,7 @@ same day by *M8 restated*, above, where the two disagree.**
 | ~~8N~~ | ~~Profiles: design record and owner answers~~ | | | **Moved to M8B** (Q1) |
 | ~~8P1–8P9~~ | ~~Profiles (see Part P)~~ | | | **Moved to M8B** (Q1) |
 | 8Q | The CSP enforces | web | Full + security | 8L; a preview measurement of the bot check's scripts if Q21 keeps it. **Closed 2026-10-13** (*8Q as closed*, above) |
-| 8Q2 | CSP reports kept in a table of our own (Q46 = (c); [plan](8Q2-csp-report-table.md), [ADR 0162](../decisions/0162-csp-reports-are-kept-in-a-fixed-size-table-of-our-own-marked-by-the-server-that-wrote-them-and-written-best-effort-after-the-limiter-allows-them.md), Proposed) | persistence, web | Full + security | 8Q. **Added 2026-10-13; in M8, before 8T; S1a dispatched** |
+| 8Q2 | CSP reports kept in a table of our own (Q46 = (c); [plan](8Q2-csp-report-table.md), [ADR 0162](../decisions/0162-csp-reports-are-kept-in-a-fixed-size-table-of-our-own-marked-by-the-server-that-wrote-them-and-written-best-effort-after-the-limiter-allows-them.md), Accepted) | persistence, web | Full + security | 8Q. **Closed 2026-10-14** (*8Q2 as closed*, below); owner steps for `0009` open |
 | 8M2 | The design goes to the shop's WhatsApp; an already-sent kitchen shows its request and a call (Q44 = (b), Q45, F3; [plan](8M2-shop-whatsapp-and-already-sent.md), [ADR 0163](../decisions/0163-the-design-goes-to-the-shops-whatsapp-an-unchanged-kitchen-already-sent-for-shows-its-request-and-a-call-and-the-shops-number-is-one-constant-a-launch-gate-refuses.md), Proposed) | web | Full + visual | 8M. **Added 2026-10-13; after 8Q2, before 8T** |
 | 8R | The firewall rules, staged | none (runbook, owner action) | Coordinator-only | **Q21** |
 | 8S | Pre-launch checks | none (docs, owner reads) | Light | The owner's facts (Q3, Q7, Q9); **Q22** for the data list |
@@ -12340,6 +12340,49 @@ now Accepted, with **Amendment B** (the review outcomes). **8Q is closed except 
 **Owner decisions, 2026-10-13 [relayed]:** **Q46 = (c)**, a table in our own database (future, not built in 8Q; backlog 219); **Q47** agreed: set `CLIENT_NETWORK_SOURCE=vercel`, or the equivalent for the real host, before any deployment carries the flip; **Q48 = (a)**, no operator switch. **Q49 = (c)** (answered later the same day): none in M8, check at the M9 host. None blocks.
 
 **Deferred, with an owner or wave:** backlog 207 to 216 (items i to x of the close); **8T gate lines added:** (1) a TLS host check, since `upgrade-insecure-requests` breaks a LAN `next start` and a report's `origin` may read `foreign` behind a terminator (backlog 213); (2) the enforced policy on a real phone. **M9 gate line:** BotID or whatever shield Q21 chooses runs under the enforced policy on the chosen host, and a firewall rule for the report route (backlog 210).
+
+#### 8Q2 as closed, 2026-10-14
+
+**Tier:** Full + security. **Closed at code HEAD `3cceecb4`** on `m8-review-contact-success`, local, not pushed [the
+commit subject read from the session's git status; the scribe ran no command]. Plan: [`8Q2-csp-report-table.md`](8Q2-csp-report-table.md).
+Decisions: [ADR 0162](../decisions/0162-csp-reports-are-kept-in-a-fixed-size-table-of-our-own-marked-by-the-server-that-wrote-them-and-written-best-effort-after-the-limiter-allows-them.md),
+now Accepted, with Amendment A; [ADR 0161](../decisions/0161-the-csp-enforces-its-violations-reach-the-applications-own-counted-endpoint-and-the-mode-stays-one-versioned-constant.md)
+Amendment C. **8Q2 is closed except the owner's `0009` steps on preview and production, which nobody has done.**
+
+**Shipped [commits, coordinator-relayed]:** S1a `0786f547`; S1b `bf4527c2`; S2 `ebd2d3a5`; S3 `5d34c4e0` (the sink stores
+the reduced report best-effort after the limiter; 204 whatever the store does); S4 `3ed89559` (the e2e teardown removes
+the run's rows by writer mark); S5 `89ce89f4` (runbooks: reading the reports; applying `0009` and its two grants);
+QA `bc1c37ac`; review fix-up `3cceecb4` (the store statement runs in a transaction with `lock_timeout` 1000 ms and
+`statement_timeout` 2500 ms; live overwrite test; teardown checks the aggregate; comments trimmed).
+
+**Evidence, by who ran it [all coordinator-ran or QA-ran, relayed; the scribe ran nothing].**
+- **QA:** 53 unit-level mutants killed; criteria 1 to 18 attacked; a live pattern differential over all Unicode
+  scalars (read-only selects on PostgreSQL 18.6, the test database; 96 of 96 in the case table, plus the sweep);
+  test-only sweeps extended.
+- **Reviews:** security, no exploitable issue; logic, minor; clean-code, no defect in the core flow. All findings
+  fixed except those in backlog 228 to 233.
+- **Gates at HEAD:** typecheck, lint, `format:check` and boundary at 0. Whole vitest: persistence 3290 passed, web
+  10218 passed, three-adapter 4284 passed.
+- **Whole `CI=1` e2e: 1024 passed, 2 failed** (`global-colour.e2e.spec.ts` lines 208 and 230, `storedColour` read
+  empty); both passed 7 of 7 run alone. Read as load flake, **not proven**; backlog 228.
+- **Teardown line:** the suite's server stored 0 rows; 9 second servers stored 131, and 131 were removed;
+  `csp_reports` was back to 0 on the test database. `0009` is applied and frozen on the **test database only**
+  (ledger 9).
+
+**Deviations, with their rationale.** Criterion 17: `afterAll` counts the run's rows and the teardown removes them
+(ADR 0162 Amendment A, point 6). The plan's *"well under one a second"* worst case was wrong; corrected (about 1,820
+accepted reports a second, Amendment A point 2). `requireValidCspReportPlacement` stays internal (backlog 231).
+
+**Not proved: the application role.** Criterion 7's live half (the application role can insert and update, and
+cannot delete) needs `0009` and the two grants on a database the application role reaches. **Not done by anyone.**
+
+**Documentation updated.** ADR 0162 (Accepted, Amendment A); ADR 0161 (Amendment C, two statements struck in place);
+`decisions/README.md` and `SUPERSESSIONS.md`; this plan and the 8Q2 plan's banner; `runbooks/reading-csp-reports.md`
+(the `deadline` cause); backlog 219 (discharged) and 228 to 233; `STATUS.md`.
+
+**Deferred, with an owner or wave:** backlog 228 to 233 (trigger style as recorded there). **Owner steps for `0009`:**
+STATUS, *What to do next*. **M8 stays open** for 8M2, 8T, and an incremental audit pass over the tests of 8Q2 and
+8M2 (ADR 0152 Amendment A).
 
 ### 8R — the firewall rules, staged — LEAVES FOR THE DELIVERY MILESTONE (owner, 2026-10-07)
 

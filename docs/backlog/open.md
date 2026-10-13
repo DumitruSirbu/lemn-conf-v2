@@ -3054,6 +3054,8 @@ The discriminated-union hand-over type (**183**); `WaitingWrite` to `HeldWrite` 
 ## 219. The CSP report sink becomes a table in our own database — OWNER RULED 2026-10-13 (Q46 = (c)), NOT BUILT; SCHEDULED IN WAVE 8Q2
 **Update, 2026-10-13, later [coordinator, relayed]: scheduled in wave 8Q2, in M8 before 8T, which overrides the M9 trigger below.** Plan `docs/milestones/8Q2-csp-report-table.md`; ADR 0162 (Proposed). The cap is 10,000 reports with no age delete and the log line kept (Q50 to Q54, defaults). The text below is kept as recorded.
 
+**Update, 2026-10-14, at 8Q2's close [scribe]: built.** ADR 0162 is Accepted (Amendment A) and ADR 0161 has Amendment C; the cap, the writer mark and the runbook shipped. **Still open, owner actions:** `0009` and its two grants on preview and production (applied on the test database only). Leftovers from the build are 228 to 233.
+
 **Source [owner's ruling, relayed by the coordinator].** The owner's reason: the host may not end up on Vercel, so the server log is not a durable sink. 8Q built (a), the log ([ADR 0161](../decisions/0161-the-csp-enforces-its-violations-reach-the-applications-own-counted-endpoint-and-the-mode-stays-one-versioned-constant.md)); this replaces or supplements it. **What it needs:**
 - a **migration and a grant**, both **owner actions**; env vars and provisioned resources stay add-only (ADR 0155's rules; `docs/best-practices/environments-and-resources.md`), and a new migration never edits an applied one;
 - **a dated amendment to ADR 0161 when built** (decision 2's *"nothing is stored but the limiter's counter"* and decision 3 change);
@@ -3076,3 +3078,27 @@ The discriminated-union hand-over type (**183**); `WaitingWrite` to `HeldWrite` 
 - **226.** `lib/server/rate-limit/client-network.ts`: `LONGEST_ADDRESS_TEXT` (45, 46) is dead code (no text above 45 characters can parse); the head of a compressed address and `isTextOfBlockKind`'s `typeof` guard are cases the truth table lacks.
 - **227.** `scripts/gates/boundary.sh`: a `git grep` failure (exit above 1) is treated as clean; `boundary.test.mjs` never makes `git grep` fail.
 **Trigger:** the next audit, or a change to any of those files.
+
+## 228. A whole-run e2e failure that passes alone: `global-colour.e2e.spec.ts` lines 208 and 230, `storedColour` read empty — RECORDED 2026-10-14 AT M8 8Q2's CLOSE
+
+**Source [coordinator-ran, relayed].** In the whole `CI=1` e2e at 8Q2's close (1024 passed, 2 failed) these two tests read an empty `storedColour`; both passed 7 of 7 run alone. Read as load-dependent; **not proven**. **Trigger:** a second occurrence, or the M8 close audit (ADR 0152). Same style as 195.
+
+## 229. The live pattern differential costs 28 s per persistence live run — RECORDED 2026-10-14 AT M8 8Q2's CLOSE (QA note)
+
+**Source [QA, relayed].** The differential over all Unicode scalars (read-only selects on the test database) takes about 28 s each time the persistence live tests run. **Trigger:** the live run becomes the slow gate, or a persistence run is split by speed.
+
+## 230. Second-server report rows are bounded only by the sink spec — RECORDED 2026-10-14 AT M8 8Q2's CLOSE (QA note)
+
+**Source [QA, relayed].** The rows that QA's second servers store are bounded only by what the sink spec sends (the teardown removed the 9 second servers' 131 rows by writer mark). **Trigger:** a spec that starts a second server and sends more reports.
+
+## 231. `requireValidCspReportPlacement` and its three QA-owned cases could be deleted outright — RECORDED 2026-10-14 AT M8 8Q2's CLOSE (QA edit)
+
+**Source [QA, relayed].** The function stays internal (ADR 0162 Amendment A, point 9); nothing outside it needs it, so it and its three cases could go. **Trigger:** the next change to the store's validation, or the next audit.
+
+## 232. Four persistence live files fail at collection when every database variable is blanked — RECORDED 2026-10-14 AT M8 8Q2's CLOSE (QA note)
+
+**Source [QA, relayed].** The failure comes from `neon('')` in a `describe` body: a pre-existing pattern, not new in 8Q2. **Trigger:** a change to how the live files read their environment, or the next audit.
+
+## 233. The `lock_timeout` of the store is not tested with a real contending lock — RECORDED 2026-10-14 AT M8 8Q2's CLOSE
+
+**Source [coordinator, relayed].** The 1000 ms `lock_timeout` and 2500 ms `statement_timeout` (ADR 0162 Amendment A, point 1) have no test that holds the cursor row lock from a second connection and watches the store give up (the coordinator's list; how they are pinned today was not read here). **Trigger:** a change to the store, or the next audit.

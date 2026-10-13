@@ -1,14 +1,14 @@
 # M8 wave 8Q2 — CSP violation reports are kept in a table in our own database
 
-> **STATUS: PLANNED by the architect, 2026-10-13. Not dispatched.** No code, no migration and no grant exist for this
-> wave. The decision record is [ADR 0162](../decisions/0162-csp-reports-are-kept-in-a-fixed-size-table-of-our-own-marked-by-the-server-that-wrote-them-and-written-best-effort-after-the-limiter-allows-them.md),
-> **Proposed**. Owner questions Q50 to Q54 below each have a default; **none blocks S1**, and Q50 (where the wave sits)
-> is answered by the recommendation unless the owner says otherwise.
+> **STATUS: CLOSED 2026-10-14 (local, not pushed; code HEAD `3cceecb4`), except the owner's steps for `0009` on
+> preview and production, which nobody has done.** The close is in the M8 plan, *8Q2 as closed*. The decision record is
+> [ADR 0162](../decisions/0162-csp-reports-are-kept-in-a-fixed-size-table-of-our-own-marked-by-the-server-that-wrote-them-and-written-best-effort-after-the-limiter-allows-them.md),
+> **Accepted**, with Amendment A. Q50 to Q54: the defaults were taken (2026-10-13). Everything below is the plan as
+> written before the build; where the build differs, ADR 0162 Amendment A and the M8 plan's close govern (for one,
+> the worst-case rate under *The store's one statement* is corrected there).
 >
-> **For the scribe, not done here:** the M8 plan's wave table and *Waves* need a one-line pointer to this file
-> (8Q2, between 8Q and 8T); `docs/STATUS.md`'s *What to do next* names 8Q2 before 8T; backlog 219 is marked
-> *scheduled, M8 wave 8Q2* with a link here; `decisions/README.md` lists ADR 0162 as Proposed. The architect
-> touched none of those files (the dispatch limited writes to this plan and the ADR draft).
+> *Original banner, kept: PLANNED by the architect, 2026-10-13; the scribe's pointers (M8 plan wave table, STATUS,
+> backlog 219, `decisions/README.md`) are now written.*
 
 Evidence tiers: **[doc]** quoted from a record in this repository; **[src]** read at `HEAD` (`d61bfd6d`) through
 `git show HEAD:<path>`, never from the working copy (a test auditor was editing the tree while this was written);
@@ -245,7 +245,9 @@ on conflict (slot) do update set
 ```
 
 The cursor's row lock serialises concurrent writers for one statement each. *Worst case considered:* tens of network
-blocks each at 100 an hour is thousands an hour, well under one a second [inf]. Every column is overwritten, so an
+blocks each at 100 an hour is thousands an hour, ~~well under one a second~~ [inf] (**corrected 2026-10-14, ADR
+0162 Amendment A: with a named network source and a routed IPv6 `/48` the review's worst case is about 1,820 accepted
+reports a second; the store also runs under `lock_timeout` 1000 ms and `statement_timeout` 2500 ms**). Every column is overwritten, so an
 overwritten slot keeps nothing of its previous report (criterion 5).
 
 ## The grant, for review — an owner action

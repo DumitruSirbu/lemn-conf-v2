@@ -1,8 +1,9 @@
 # ADR 0162 — CSP reports are kept in a fixed-size table of our own, marked by the server that wrote them, and written best-effort after the limiter allows them
 
-Status: **Proposed — 2026-10-13, by the architect, at the planning of M8 wave 8Q2.** Not built. It becomes Accepted at
-8Q2's close, when [ADR 0161](0161-the-csp-enforces-its-violations-reach-the-applications-own-counted-endpoint-and-the-mode-stays-one-versioned-constant.md)
-gains a dated **Amendment C** pointing here (the scribe's, not written now).
+Status: **Accepted — 2026-10-14, at the close of M8 wave 8Q2** (code HEAD `3cceecb4`, the review fix-up; local, not
+pushed). Proposed 2026-10-13 by the architect at the wave's planning. [ADR 0161](0161-the-csp-enforces-its-violations-reach-the-applications-own-counted-endpoint-and-the-mode-stays-one-versioned-constant.md)
+gained its **Amendment C** pointing here. The close's outcomes are under *Amendment A* at the end; nothing above is
+erased. **The application role's grant is not proved live** (Amendment A, point 7).
 Date: 2026-10-13
 Type: Decision
 Milestone: M8 wave 8Q2 (plan: [`milestones/8Q2-csp-report-table.md`](../milestones/8Q2-csp-report-table.md));
@@ -169,4 +170,43 @@ teardown also removes the run's rows by its mark and fails if it removed more ro
 ## Owner's questions
 
 Q50 (placement, default a wave in M8), Q51 (`N`, default 10,000), Q52 (an age prune, default none), Q53 (keep the
-log line, default yes), Q54 (how to read, default a runbook). Stated in full in the plan.
+log line, default yes), Q54 (how to read, default a runbook). Stated in full in the plan. **Answered 2026-10-13: the
+defaults were taken** (STATUS, *What to do next*, relayed).
+
+## Amendment A — dated 2026-10-14, at wave 8Q2's close (code HEAD `3cceecb4`; the record is Accepted)
+
+Outcomes of QA (`bc1c37ac`) and the three reviews (security, logic, clean-code) [coordinator-relayed; the scribe ran
+nothing]. Nothing above is erased; the sentences these points correct are struck in place or answered here.
+
+1. **The store statement runs in a driver transaction with two local timeouts (security F1).** Decision 5's
+   *"awaited under the limiter's 3,000 ms deadline"* is made concrete: the statement runs in a transaction that begins
+   with `set local lock_timeout = '1000ms'` and `set local statement_timeout = '2500ms'`. The values are literals
+   because `SET` takes no bind parameters. Both are below the route's 3,000 ms deadline. *Why:* the cursor's row lock
+   serialises writers, so a held lock would otherwise keep every accepted request waiting to the deadline.
+2. **The plan's *"well under one a second"* is corrected.** The statement section of the plan said that tens of
+   network blocks at 100 an hour is *"thousands an hour, well under one a second"*. The review's worst case, with a
+   named network source and a routed IPv6 `/48`, is about **1,820 accepted reports a second** [coordinator-relayed;
+   not recomputed here]. The bound that holds whatever the rate is the table's size, not the write rate.
+3. **`csp-report-unstored` with cause `deadline` can mean the report was stored late.** The route stops waiting at its
+   deadline; the statement may still commit afterwards. A `deadline` line is therefore not proof of absence.
+   `docs/runbooks/reading-csp-reports.md` says so.
+4. **Three failures share one line.** A constructor throw, `42P01` (no table) and `42501` (no privilege) all log
+   `store-failed`. **Diagnose with the privilege test** (`application-role-privileges.test.ts` as the application
+   role), not with the line.
+5. **A measured limit on *"code never admits what the table refuses"*.** Consequences of decision 2's table checks
+   and ADR 0153 d1 were measured by a live pattern differential over all Unicode scalars (read-only selects on
+   PostgreSQL 18.6, the test database; 96 of 96 cases in the case table, plus the sweep) [QA, relayed]. That is the
+   **test database's character classification only**; another server or collation is unmeasured.
+6. **Criterion 17 deviates.** The plan's criterion 17 is met as: `afterAll` **counts** the run's rows by writer mark
+   and the **teardown removes** them. Decision 8's *"fails if it removed more rows than hits were counted"* is built
+   as that count against the counter, not as a deletion inside `afterAll`. Teardown line quoted by the coordinator:
+   the suite's server stored 0 rows; 9 second servers stored 131 and 131 were removed; `csp_reports` was back to 0 on
+   the test database.
+7. **The application-role proof is unverified.** `0009` is applied and frozen on the **test database only** (ledger
+   9). Nobody has applied it on preview or production, read `pg_default_acl`, issued the two `GRANT`s, or run the
+   privilege test as the application role. Criterion 7's live half therefore stands unproved; the owner steps are in
+   STATUS and the plan.
+8. **Forward condition.** Any future page over these rows must render `blocked` and `source` as **escaped text,
+   never in an `href` or `src`**. Every field is what someone claimed (decision 7).
+9. **`requireValidCspReportPlacement` stays internal.** Kept as an internal function; it and its three QA-owned cases
+   could be deleted outright (backlog 231).

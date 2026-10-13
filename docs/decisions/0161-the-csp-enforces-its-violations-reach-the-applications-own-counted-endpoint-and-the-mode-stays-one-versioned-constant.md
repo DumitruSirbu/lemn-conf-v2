@@ -62,8 +62,9 @@ counted); one hit is counted for the network block under a new purpose, `csp-rep
 `Retry-After`; `503` when it cannot be judged, failing closed as writes do); the body is read on
 the stream with an 8 KiB cap (`413`; `400` for a broken stream); it must hold a `csp-report` object
 (`400`); it is reduced; one `[csp]` line is written to the server's log; the answer is `204` with no
-body. Nothing is logged for a refusal; a `503` logs once per process per error name. Nothing is
-stored but the limiter's counter.
+body. Nothing is logged for a refusal; a `503` logs once per process per error name. ~~Nothing is
+stored but the limiter's counter.~~ (Struck 2026-10-14 by Amendment C: an accepted report is also stored
+as a row, [ADR 0162](0162-csp-reports-are-kept-in-a-fixed-size-table-of-our-own-marked-by-the-server-that-wrote-them-and-written-best-effort-after-the-limiter-allows-them.md).)
 
 ### 3. A report keeps nothing personal
 
@@ -216,7 +217,8 @@ per parse of the largest fixture.
 - **A new public, unauthenticated endpoint exists**, bounded by the limiter at 100 reports an hour
   per network block (provisional, Q47) and ~~costing one counter write per accepted report~~
   costing one counter write per correctly-typed `POST`, a refused one (`429`) included (Amendment B,
-  point 1).
+  point 1). (Amendment C: an accepted report
+  now also costs one more statement, the store of ADR 0162.)
 - **Every future script must be nonced or loaded by a nonced script.** A host in `script-src` still
   does nothing under `'strict-dynamic'` (ADR 0041 decision 5). This binds M9's bot shield, whatever
   it is: it must be observed under the enforced policy on the chosen host before launch.
@@ -302,3 +304,15 @@ points correct are struck in place.
    was not found in the S1a record** [coordinator's finding, relayed to the scribe; not re-searched
    here]. Treat it as **unmeasured**, not as passing. It is to be measured in 8T or M9 if wanted; nothing
    in 8Q's evidence depends on it.
+
+**Amendment C — dated 2026-10-14, at wave 8Q2's close (code HEAD `3cceecb4`).** Q46 = (c) is built, by
+[ADR 0162](0162-csp-reports-are-kept-in-a-fixed-size-table-of-our-own-marked-by-the-server-that-wrote-them-and-written-best-effort-after-the-limiter-allows-them.md)
+(Accepted). Two statements above are struck in place:
+
+1. **Decision 2's *"Nothing is stored but the limiter's counter."*** An accepted report is now also stored, best
+   effort and after the limiter, as one row in a fixed-size table (ADR 0162 decisions 1, 3 and 5). A refusal still
+   stores nothing. Decision 3's closed record is unchanged; the row is that record plus three server facts.
+2. **The *Consequences* cost line** (a counter write per correctly-typed `POST` and nothing more): an accepted
+   report now costs one more statement (ADR 0162 decision 5 and its Amendment A). On a database without migration
+   `0009` the sink answers as before and logs `csp-report-unstored`. *Owner's questions*' *"a future change, not
+   built here"* for Q46 is likewise overtaken.

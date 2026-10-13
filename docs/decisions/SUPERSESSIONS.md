@@ -431,6 +431,13 @@ replaced it — nothing is deleted or rewritten silently.
   of this application's pages"* (`origin` is a claim, never proved), and the plan's criterion 4,
   *"no line for 429"* (superseded by F1's once-an-hour line).
 
+- **ADR 0161** decision 2's *"Nothing is stored but the limiter's counter."* and its *Consequences* cost line (a
+  counter write per correctly-typed `POST` and nothing more) → **overtaken** by **ADR 0162** (2026-10-14, wave 8Q2,
+  the owner's Q46 = (c)): an accepted report is also stored as a row in a fixed-size table. Struck in place by ADR
+  0161's **Amendment C**. Decision 3's closed record stands. ADR 0162's own **Amendment A** corrects the 8Q2 plan's
+  *"well under one a second"* worst-case line (about 1,820 accepted reports a second with a named network source and
+  a routed IPv6 `/48`).
+
 ## Moved from the index Status column
 
 These claims were carried only in the old index's Status cells, not otherwise recorded above.
