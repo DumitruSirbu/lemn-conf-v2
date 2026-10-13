@@ -1,9 +1,10 @@
 import { randomBytes } from "node:crypto";
 
 import { neon } from "@neondatabase/serverless";
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { CSP_REPORT_CAPACITY } from "../src/csp-report-store.js";
+import { deleteCspReportsForTests } from "../src/delete-csp-reports-for-tests.js";
 import { runMigrations } from "../src/migrate.js";
 import { NeonCspReportStore } from "../src/neon-csp-report-store.js";
 import {
@@ -35,7 +36,7 @@ const CAPACITY = CSP_REPORT_CAPACITY;
 const THIRD_SLOT = 2;
 
 /** Rows this file writes carry marks no deployment and no other run has; the table has no delete for the application
- *  role, so they stay until the guarded test helper removes them by these marks, or the ring overwrites them. */
+ *  role, so they stay until the guarded test helper removes them by these marks (below), or the ring overwrites them. */
 function newMark(): string {
   return randomBytes(32).toString("hex");
 }
@@ -111,6 +112,17 @@ async function moveCursorToTwoBeforeTheWrap(): Promise<number> {
 describe.skipIf(!hasLiveDatabase)(SUITE_NAME, () => {
   beforeAll(async () => {
     await runMigrations(testDatabaseUrl);
+  });
+
+  afterAll(async () => {
+    // The file's own cleanup, through the guarded helper and by the marks it wrote, and by nothing else.
+    await deleteCspReportsForTests([
+      CONTRACT_MARK,
+      RAW_MARK,
+      FOREIGN_MARK,
+      WRAP_MARK,
+      CONCURRENCY_MARK,
+    ]);
   });
 
   describeCspReportStoreContract({

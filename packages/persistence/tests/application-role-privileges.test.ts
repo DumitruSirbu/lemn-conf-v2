@@ -15,6 +15,12 @@ import {
   reasonsTheConnectionIsNotTheApplicationRole,
 } from "./support/connection-facts.js";
 import type { ConnectionFacts } from "./support/connection-facts.js";
+import { aFullRow, markOf } from "./support/csp-report-fixtures.js";
+import {
+  RECORD_REPORT_STATEMENT_TEXT,
+  placeholderCountOf,
+  withNumberedPlaceholders,
+} from "./support/csp-report-statement.js";
 import {
   TABLE_PRIVILEGES_EVERY_SERVER_KNOWS,
   privilegesHeldOn,
@@ -37,6 +43,13 @@ import {
  * said the role may not delete from that table.
  */
 const hasLiveDatabase = Boolean(process.env["DATABASE_URL"]);
+if (!hasLiveDatabase) {
+  console.warn(
+    "[live-suite skipped] the application's database role, the csp_reports and csp_report_cursor grant checks " +
+      "included (8Q2 criterion 7): DATABASE_URL, which these checks need to be the application role's connection, " +
+      "is not set. Nothing here was asserted.",
+  );
+}
 
 let establishedConnection: Promise<ConnectionFacts> | undefined;
 
@@ -107,22 +120,15 @@ function quoted(identifier: string): string {
  *  statement, and `has_table_privilege` and `has_column_privilege` both take the privilege with the suffix. */
 async function expectNothingHeldWithGrantOption(
   sql: NeonQueryFunction<false, false>,
+  tableName: string,
   knownTablePrivileges: readonly string[],
 ): Promise<void> {
   expect(
-    await privilegesHeldWithGrantOption(
-      sql,
-      CONTACT_SUBMISSIONS,
-      knownTablePrivileges,
-    ),
+    await privilegesHeldWithGrantOption(sql, tableName, knownTablePrivileges),
   ).toEqual([]);
   for (const privilege of COLUMN_PRIVILEGES) {
     expect(
-      await columnsHolding(
-        sql,
-        CONTACT_SUBMISSIONS,
-        `${privilege} WITH GRANT OPTION`,
-      ),
+      await columnsHolding(sql, tableName, `${privilege} WITH GRANT OPTION`),
     ).toEqual([]);
   }
 }
@@ -153,6 +159,80 @@ async function expectEveryColumnProbeRefused(
   }
   await expectRefused(
     `delete from ${CONTACT_SUBMISSIONS} where client_request_id = '${NO_SUCH_REQUEST_ID}'`,
+  );
+}
+
+const CSP_REPORTS = "public.csp_reports";
+const CSP_REPORT_CURSOR = "public.csp_report_cursor";
+/** The grant of ADR 0162, held exactly: `ON CONFLICT DO UPDATE` and the cursor's `UPDATE ... RETURNING` need these and
+ *  nothing more, and a row leaves only by being overwritten. */
+const CSP_REPORTS_PRIVILEGES = ["INSERT", "SELECT", "UPDATE"];
+const CSP_REPORT_CURSOR_PRIVILEGES = ["SELECT", "UPDATE"];
+/** The server's code for "permission denied", which a message regular expression could mistake for another refusal. */
+const INSUFFICIENT_PRIVILEGE = "42501";
+
+/** Skips, with the reason criterion 7 names, until the owner has applied `0009`: never a failure, never a pass. */
+async function skipUnlessTheCspTablesExist(
+  context: TestContext,
+): Promise<void> {
+  const [probe] = (await neon(readDatabaseUrl())`
+    select to_regclass(${CSP_REPORTS}::text) is not null as reports_exist,
+      to_regclass(${CSP_REPORT_CURSOR}::text) is not null as cursor_exists
+  `) as { reports_exist: boolean; cursor_exists: boolean }[];
+  context.skip(
+    probe?.reports_exist !== true,
+    `${CSP_REPORTS} does not exist yet on this database`,
+  );
+  context.skip(
+    probe?.cursor_exists !== true,
+    `${CSP_REPORT_CURSOR} does not exist yet on this database`,
+  );
+}
+
+/** How many grants to `PUBLIC` (grantee 0) the table's access list holds. A null list holds none. */
+async function grantsToPublicOn(
+  sql: NeonQueryFunction<false, false>,
+  tableName: string,
+): Promise<number> {
+  const [row] = (await sql`
+    select count(a.grantee)::int as granted
+    from pg_class c
+    left join lateral aclexplode(c.relacl) a on a.grantee = 0
+    where c.oid = ${tableName}::regclass
+  `) as { granted: number }[];
+  return row?.granted ?? -1;
+}
+
+/** What the server answered a statement with, as the failure it raised or `undefined` when it raised none. */
+function failureOf(statement: string): Promise<unknown> {
+  return neon(readDatabaseUrl())
+    .query(statement)
+    .then(
+      () => undefined,
+      (failure: unknown) => failure,
+    );
+}
+
+/** The store's own statement with its values, in the form `explain` takes: the same text, numbered placeholders. */
+function explainOfTheStoresStatement(): Promise<unknown> {
+  const row = aFullRow(markOf("a"));
+  const values = [
+    row.writerMark,
+    row.directive,
+    row.blocked,
+    row.source ?? null,
+    row.line ?? null,
+    row.column ?? null,
+    row.page,
+    row.locale,
+    row.origin,
+    row.disposition,
+    row.status ?? null,
+  ];
+  expect(values).toHaveLength(placeholderCountOf(RECORD_REPORT_STATEMENT_TEXT));
+  return neon(readDatabaseUrl()).query(
+    `explain ${withNumberedPlaceholders(RECORD_REPORT_STATEMENT_TEXT)}`,
+    values,
   );
 }
 
@@ -389,9 +469,88 @@ describe.skipIf(!hasLiveDatabase)("the application's database role", () => {
       expect(
         await columnsHolding(sql, CONTACT_SUBMISSIONS, "REFERENCES"),
       ).toEqual([]);
-      await expectNothingHeldWithGrantOption(sql, known);
+      await expectNothingHeldWithGrantOption(sql, CONTACT_SUBMISSIONS, known);
 
       await expectEveryColumnProbeRefused(columns, { readable, updatable });
+    },
+  );
+  // 8Q2 criterion 7. The tables come from migration `0009`; the grant is the owner's (ADR 0162), so this skips with the
+  // reason until both exist. Asked of the catalog, `PUBLIC` and inherited roles included.
+  guardedTest(
+    "effectively holds select, insert and update on public.csp_reports and select and update on public.csp_report_cursor, and no other privilege, once they exist",
+    async (context) => {
+      await skipUnlessTheCspTablesExist(context);
+      const sql = neon(readDatabaseUrl());
+
+      const known = await tablePrivilegesTheServerKnows(sql);
+      expect(known).toEqual(
+        expect.arrayContaining([...TABLE_PRIVILEGES_EVERY_SERVER_KNOWS]),
+      );
+      expect(await privilegesHeldOn(sql, CSP_REPORTS, known)).toEqual(
+        CSP_REPORTS_PRIVILEGES,
+      );
+      expect(await privilegesHeldOn(sql, CSP_REPORT_CURSOR, known)).toEqual(
+        CSP_REPORT_CURSOR_PRIVILEGES,
+      );
+      for (const tableName of [CSP_REPORTS, CSP_REPORT_CURSOR]) {
+        expect(await columnsHolding(sql, tableName, "REFERENCES")).toEqual([]);
+        await expectNothingHeldWithGrantOption(sql, tableName, known);
+      }
+    },
+  );
+
+  guardedTest(
+    "is granted nothing on public.csp_reports or public.csp_report_cursor through PUBLIC, once they exist",
+    async (context) => {
+      await skipUnlessTheCspTablesExist(context);
+      const sql = neon(readDatabaseUrl());
+
+      expect(await grantsToPublicOn(sql, CSP_REPORTS)).toBe(0);
+      expect(await grantsToPublicOn(sql, CSP_REPORT_CURSOR)).toBe(0);
+    },
+  );
+
+  guardedTest(
+    "cannot delete from or truncate the csp tables: the catalog says so, and the server refuses the delete",
+    async (context) => {
+      await skipUnlessTheCspTablesExist(context);
+      const sql = neon(readDatabaseUrl());
+
+      await expectDeleteRefusedByCatalogThenByServer(
+        CSP_REPORTS,
+        `delete from ${CSP_REPORTS} where slot = -1`,
+      );
+      await expectDeleteRefusedByCatalogThenByServer(
+        CSP_REPORT_CURSOR,
+        `delete from ${CSP_REPORT_CURSOR} where not singleton`,
+      );
+      for (const tableName of [CSP_REPORTS, CSP_REPORT_CURSOR]) {
+        expect(await privilegesHeldOn(sql, tableName, ["TRUNCATE"])).toEqual(
+          [],
+        );
+      }
+    },
+  );
+
+  // The grant is the least that works only if the statement the store sends is planned under it: the catalog shows
+  // what is held, and `explain` shows that the server finds it enough. Plain `explain`, never `explain analyze`, which
+  // would run the statement and advance the cursor. The negative control shows `explain` checks privileges at all: a
+  // delete the role may not make must be refused with 42501, or a success of the first proves nothing.
+  guardedTest(
+    "can have the store's statement planned, and cannot have a delete planned, once the csp tables exist",
+    async (context) => {
+      await skipUnlessTheCspTablesExist(context);
+      const sql = neon(readDatabaseUrl());
+      expect(await privilegesHeldOn(sql, CSP_REPORTS, ["DELETE"])).toEqual([]);
+
+      await expect(explainOfTheStoresStatement()).resolves.toBeDefined();
+
+      expect(
+        await failureOf(`explain delete from ${CSP_REPORTS}`),
+      ).toMatchObject({ code: INSUFFICIENT_PRIVILEGE });
+      expect(
+        await failureOf(`explain delete from ${CSP_REPORT_CURSOR}`),
+      ).toMatchObject({ code: INSUFFICIENT_PRIVILEGE });
     },
   );
 });

@@ -10,6 +10,7 @@ import {
   markersFoundOn,
 } from "./support/leaked-connection-markers.js";
 import { aBareRow, aFullRow, markOf } from "./support/csp-report-fixtures.js";
+import { RECORD_REPORT_STATEMENT_TEXT } from "./support/csp-report-statement.js";
 import {
   answerWith,
   driver,
@@ -49,19 +50,7 @@ describe("NeonCspReportStore with the driver replaced", () => {
       await aStore().recordReport(aFullRow(MARK));
 
       expect(driver.statements).toHaveLength(1);
-      expect(sentText()).toBe(
-        "with advanced as ( update csp_report_cursor set last_number = last_number + 1 where singleton " +
-          "returning last_number ) insert into csp_reports ( slot, report_number, received_at, writer_mark, " +
-          "directive, blocked, source, line_number, column_number, page, locale, origin, disposition, status_code ) " +
-          "select (last_number % 10000)::integer, last_number, now(), ?::text, ?::text, ?::text, ?::text, " +
-          "?::integer, ?::integer, ?::text, ?::text, ?::text, ?::text, ?::integer from advanced " +
-          "on conflict (slot) do update set report_number = excluded.report_number, " +
-          "received_at = excluded.received_at, writer_mark = excluded.writer_mark, " +
-          "directive = excluded.directive, blocked = excluded.blocked, source = excluded.source, " +
-          "line_number = excluded.line_number, column_number = excluded.column_number, page = excluded.page, " +
-          "locale = excluded.locale, origin = excluded.origin, disposition = excluded.disposition, " +
-          "status_code = excluded.status_code returning report_number",
-      );
+      expect(sentText()).toBe(RECORD_REPORT_STATEMENT_TEXT);
     });
 
     it("takes the capacity from the constant the table's text is tested against", async () => {
@@ -132,12 +121,14 @@ describe("NeonCspReportStore with the driver replaced", () => {
     });
 
     it("leaves as a store error naming the operation, carrying the driver's type and code and nothing it said", async () => {
-      const leaking = Object.assign(
-        new Error(`postgres://${FAKE_MARKERS.join("/")}`),
-        {
-          code: "42P01",
-        },
-      );
+      const planted = `postgres://${FAKE_MARKERS.join("/")}`;
+      const leaking = Object.assign(new Error(planted), {
+        code: "42P01",
+        detail: planted,
+        hint: planted,
+        where: planted,
+        constraint: planted,
+      });
       failWith(leaking);
 
       const failure = (await rejectionOf(

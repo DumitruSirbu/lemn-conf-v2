@@ -110,6 +110,8 @@ export {
 export { findWriteTokenHashesForTests } from "./find-write-token-hashes-for-tests.js";
 export { countContactSubmissionsForTests } from "./count-contact-submissions-for-tests.js";
 export { deleteContactSubmissionsForTests } from "./delete-contact-submissions-for-tests.js";
+export { countCspReportsForTests } from "./count-csp-reports-for-tests.js";
+export { deleteCspReportsForTests } from "./delete-csp-reports-for-tests.js";
 export { deleteRateLimitCountersForTests } from "./delete-rate-limit-counters-for-tests.js";
 export type { RemovedRateLimitCounters } from "./delete-rate-limit-counters-for-tests.js";
 export { loadEnvLocal } from "./load-env.js";

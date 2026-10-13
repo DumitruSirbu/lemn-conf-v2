@@ -1,6 +1,5 @@
 import {
   CSP_REPORT_CAPACITY,
-  requireValidCspReportPlacement,
   requireValidCspReportRow,
   slotOf,
 } from "./csp-report-store.js";
@@ -49,7 +48,6 @@ export class FakeCspReportStore implements CspReportStore {
       slot: slotOf(this.lastNumber, this.capacity),
       reportNumber: this.lastNumber,
     };
-    requireValidCspReportPlacement(placement, this.capacity);
     this.slots.set(placement.slot, heldFrom(row, placement));
   }
 

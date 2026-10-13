@@ -148,6 +148,18 @@ const EXPECTED_CLASSIFICATION: Readonly<
     reason:
       "moves the one shared report cursor, writes report rows under marks of its own and asserts a whole-table row count (M8 wave 8Q2)",
   },
+  "delete-csp-reports-for-tests.live.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "writes report rows under marks of its own, removes them only through the guarded helper, asserts no whole-table figure and needs the schema intact (M8 wave 8Q2)",
+  },
+  "count-csp-reports-for-tests.live.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "writes report rows under marks of its own, removes them only through the guarded helper, asserts no whole-table figure and needs the schema intact (M8 wave 8Q2)",
+  },
   "neon-rate-limit-store.test.ts": {
     gate: "live test database",
     lock: "shared",
