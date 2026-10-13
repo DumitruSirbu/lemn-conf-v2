@@ -14,7 +14,8 @@ import { DIGEST_SECRET_VARIABLE } from "../../../src/lib/server/digest/digest-se
 import { E2E_RATE_LIMIT_POLICY_FLAG } from "../../../src/lib/server/rate-limit/limit-policy";
 import { CLIENT_NETWORK_SOURCE_VARIABLE } from "../../../src/lib/server/rate-limit/network-source";
 
-import { RUN_SECRET_VARIABLE, makeRunSecret } from "./e2e-rate-limit-run";
+import { makeSecondServerSecret } from "./csp-report-rows";
+import { RUN_SECRET_VARIABLE } from "./e2e-rate-limit-run";
 
 // Every port a spec's own server listens on, here and nowhere else, each with what it is for. The suite's own server is
 // on 4320 (`playwright.config.ts`). Two specs of one run start their servers at once, so each names a port of its own.
@@ -101,7 +102,7 @@ export async function startProductionPolicyServer(
     );
   }
   await requirePortFree(port);
-  const secret = makeRunSecret();
+  const secret = makeSecondServerSecret();
   const child = spawnNextStart({
     port,
     environment: environmentOfTheServer(secret, options),

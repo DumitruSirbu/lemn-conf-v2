@@ -16,6 +16,13 @@ interface RemovedCounters {
   counts: number[];
 }
 
+const cspRows = vi.hoisted(() => ({
+  suiteRowsAre: 0,
+  failure: undefined as Error | undefined,
+  countedMarks: [] as (readonly string[])[],
+  removedMarks: [] as (readonly string[])[],
+}));
+
 const deletion = vi.hoisted(() => ({
   handed: [] as (readonly string[])[],
   answer: { rowsRemoved: 1, counts: [3] } as RemovedCounters,
@@ -26,6 +33,15 @@ const deletion = vi.hoisted(() => ({
 }));
 
 vi.mock("@lemnaria/persistence", () => ({
+  countCspReportsForTests: (marks: readonly string[]) => {
+    cspRows.countedMarks.push(marks);
+    if (cspRows.failure !== undefined) return Promise.reject(cspRows.failure);
+    return Promise.resolve(cspRows.suiteRowsAre);
+  },
+  deleteCspReportsForTests: (marks: readonly string[]) => {
+    cspRows.removedMarks.push(marks);
+    return Promise.resolve(cspRows.suiteRowsAre);
+  },
   deleteRateLimitCountersForTests: (keys: readonly string[]) => {
     deletion.handed.push(keys);
     return Promise.resolve(deletion.answerFor?.(keys) ?? deletion.answer);
@@ -53,12 +69,17 @@ const {
   SHARE_WRITE_TWIN,
   secretOfThisRun,
 } = await import("./e2e-rate-limit-run");
+const { cspReportWriterMarkOf } = await import("./csp-report-rows");
 
 const FAKE_SECRET =
   "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
 const MADE_IN_THIS_PROCESS = Symbol.for("lemnaria.e2e.run-secret");
 
 beforeEach(() => {
+  cspRows.suiteRowsAre = 0;
+  cspRows.failure = undefined;
+  cspRows.countedMarks.length = 0;
+  cspRows.removedMarks.length = 0;
   deletion.handed.length = 0;
   deletion.answer = { rowsRemoved: 1, counts: [3] };
   deletion.answerFor = undefined;
@@ -462,7 +483,8 @@ describe("the teardown", () => {
         "e2e rate limit: this run minted 7 designs (2 counter row removed), made 5 share writes " +
           "(1 counter rows removed), made 7 saves (2 counter rows removed), and sent 10 contact requests of any kind " +
           "(1 counter rows removed), 3 new ones counted in the hour (1 counter rows removed) and 3 new ones counted " +
-          "in the UTC day (2 counter rows removed). Its server counted 0 csp-report hits (0 counter rows removed)",
+          "in the UTC day (2 counter rows removed). Its server counted 0 csp-report hits (0 counter rows removed) " +
+          "and stored 0 csp_reports rows (0 removed); 0 second servers stored 0 (0 removed)",
       ],
     ]);
   });
@@ -580,6 +602,74 @@ describe("the teardown", () => {
       silenceTheLine();
 
       await expect(globalTeardown()).resolves.toBeUndefined();
+    });
+  });
+
+  describe("the rows of csp_reports (8Q2 S4)", () => {
+    function writerMarkOfTheRun(): string {
+      return cspReportWriterMarkOf(secretOfThisRun());
+    }
+
+    it("counts, then removes, the suite's server's rows by its writer mark alone, and says both figures", async () => {
+      vi.stubEnv("TEST_WORKER_INDEX", undefined);
+      answerEachTwin(new Map([[keyOf(MINT_TWIN), [1]]]));
+      cspRows.suiteRowsAre = 0;
+      const log = silenceTheLine();
+
+      await globalTeardown();
+
+      expect(cspRows.countedMarks).toEqual([[writerMarkOfTheRun()]]);
+      expect(cspRows.removedMarks).toEqual([[writerMarkOfTheRun()]]);
+      expect(String(log.mock.calls[0]?.[0])).toContain(
+        "and stored 0 csp_reports rows (0 removed); 0 second servers stored 0 (0 removed)",
+      );
+    });
+
+    it("fails a run whose server stored more rows than its counter recorded hits, after every row is removed", async () => {
+      vi.stubEnv("CI", undefined);
+      answerEachTwin(
+        new Map([
+          [keyOf(MINT_TWIN), [1]],
+          [keyOfCspReports(), [2]],
+        ]),
+      );
+      cspRows.suiteRowsAre = 3;
+      silenceTheLine();
+
+      await expect(globalTeardown()).rejects.toMatchObject({
+        name: "CspReportRowsExceedHitsError",
+        rowsRemoved: 3,
+        hitsCounted: 2,
+      });
+
+      expect(deletion.handed).toHaveLength(TEARDOWN_TWINS.length + 1);
+    });
+
+    it("passes a run whose server stored exactly as many rows as hits it counted", async () => {
+      vi.stubEnv("CI", undefined);
+      answerEachTwin(
+        new Map([
+          [keyOf(MINT_TWIN), [1]],
+          [keyOfCspReports(), [2]],
+        ]),
+      );
+      cspRows.suiteRowsAre = 2;
+      silenceTheLine();
+
+      await expect(globalTeardown()).resolves.toBeUndefined();
+    });
+
+    it("removes every counter row even when the csp_reports removal fails, then fails with that failure", async () => {
+      answerEachTwin(new Map([[keyOf(MINT_TWIN), [1]]]));
+      cspRows.failure = new Error("the table cannot be reached");
+      const log = silenceTheLine();
+
+      await expect(globalTeardown()).rejects.toThrow(
+        "the table cannot be reached",
+      );
+
+      expect(deletion.handed).toHaveLength(TEARDOWN_TWINS.length + 1);
+      expect(log).toHaveBeenCalledTimes(1);
     });
   });
 

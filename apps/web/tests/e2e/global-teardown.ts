@@ -1,4 +1,9 @@
 import {
+  removeCspReportRowsOfTheRun,
+  requireCspReportRowsWithinHits,
+  type CspReportRowsOfTheRun,
+} from "./support/csp-report-rows";
+import {
   CONTACT_EVERY_REQUEST_TWIN,
   CONTACT_NEW_REQUEST_DAY_TWIN,
   CONTACT_NEW_REQUEST_HOUR_TWIN,
@@ -37,19 +42,28 @@ const TWINS_REMOVED_BEFORE_THE_MINTS = [
  * any kind and new ones it sent, and how many content security policy violation reports its server received. Those
  * figures are what the e2e policies' windows are sized against. It throws, and so fails the run, after every row is
  * gone: when a `CI` run's server counted any violation report, when it finds no row of mints, or when the run made
- * more than half of any window. A run that fails more than one of these reports every failure in an `AggregateError`.
+ * more than half of any window, or when the rows its server stored in `csp_reports` outnumber the hits its counter
+ * recorded. The rows of `csp_reports` the run wrote are counted and removed by writer mark, the suite's server's and
+ * every second server's, through the guarded helpers. A run that fails more than one of these reports every failure in
+ * an `AggregateError`.
  * The saves' rows by write credential and the contact rows by request, visitor and address are removed by each test's
  * own cleanup, which knows what it wrote.
  */
 export default async function globalTeardown(): Promise<void> {
   const secret = secretOfThisRun();
+  const cspRows = await removeCspReportRowsOfTheRun(secret);
   const cspReports = await removeCountersOf(secret, CSP_REPORT_POLICY.name);
   const removal = await removalOf(secret);
-  console.log(summaryOf(removal.measured, cspReports));
+  console.log(summaryOf(removal.measured, cspReports, cspRows.figures));
   const failures = [
     ...removal.failures,
+    ...cspRows.failures,
     ...failuresOf(() => {
       requireNoCspReportsUnderCi(cspReports.hitsCounted);
+      requireCspReportRowsWithinHits(
+        cspRows.figures.suite.removed,
+        cspReports.hitsCounted,
+      );
       requireRoomUnderEveryHalfFigure(removal.measured);
     }),
   ];
@@ -108,7 +122,11 @@ async function removeEveryTwinsRows(secret: string): Promise<Measured> {
   return new Map([[MINT_TWIN, asCounters], ...measured]);
 }
 
-function summaryOf(measured: Measured, cspReports: CountersOfTheRun): string {
+function summaryOf(
+  measured: Measured,
+  cspReports: CountersOfTheRun,
+  cspRows: CspReportRowsOfTheRun,
+): string {
   const of = (twin: TwinOfTheRun): CountersOfTheRun =>
     measured.get(twin) ?? { rowsRemoved: 0, hitsCounted: 0 };
   const rows = (twin: TwinOfTheRun): string =>
@@ -123,6 +141,9 @@ function summaryOf(measured: Measured, cspReports: CountersOfTheRun): string {
     `${hits(CONTACT_NEW_REQUEST_HOUR_TWIN)} new ones counted in the hour ${rows(CONTACT_NEW_REQUEST_HOUR_TWIN)} and ` +
     `${hits(CONTACT_NEW_REQUEST_DAY_TWIN)} new ones counted in the UTC day ${rows(CONTACT_NEW_REQUEST_DAY_TWIN)}. ` +
     `Its server counted ${String(cspReports.hitsCounted)} csp-report hits ` +
-    `(${String(cspReports.rowsRemoved)} counter rows removed)`
+    `(${String(cspReports.rowsRemoved)} counter rows removed) and stored ` +
+    `${String(cspRows.suite.counted)} csp_reports rows (${String(cspRows.suite.removed)} removed); ` +
+    `${String(cspRows.secondServersStarted)} second servers stored ` +
+    `${String(cspRows.secondServers.counted)} (${String(cspRows.secondServers.removed)} removed)`
   );
 }
