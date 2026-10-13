@@ -66,6 +66,109 @@ non-personal columns.
 - **Steps 5 to 7:** the grant test's own line `reached database "…" as role "…"` is quoted as the evidence, with the test's
   outcome, never skipped. Until it has been quoted for an environment, the grant test's passing arm has never executed there.
 
+## For `0009_create_csp_reports.sql` (wave 8Q2, added 2026-10-13)
+
+The steps above stand; the tables are `csp_reports` and `csp_report_cursor`, the version is **9**, and these are added
+by the security reader's read of `0009` [relayed; none of it has been executed]. The decision and its reasons:
+[ADR 0162](../decisions/0162-csp-reports-are-kept-in-a-fixed-size-table-of-our-own-marked-by-the-server-that-wrote-them-and-written-best-effort-after-the-limiter-allows-them.md).
+The plan: `docs/milestones/8Q2-csp-report-table.md`, *The grant, for review*. **Order of environments: preview first,
+then production**, every step on one database before the next.
+
+**The code merges before this runs and behaves as today until it does** (8Q2 criterion 14): a report still answers
+`204` and still writes its `csp-violation` line; only the stored copy is missing. Nothing breaks if these steps wait.
+
+- **Step 1:** `pnpm --filter @lemnaria/persistence run migrate <environment>`, then
+  `pnpm --filter @lemnaria/persistence run migrate:status <environment>`. The ledger reads **9** (1 to 8 before).
+- **Step 2, for `0009`:** `create table if not exists` passes over an older table of the same name, so confirm the
+  tables are the ones `0009` describes. Read-only, in the database console, with the migration credential:
+
+  ```sql
+  -- Expect csp_report_cursor = 2 and csp_reports = 14.
+  select table_name, count(*) as columns
+  from information_schema.columns
+  where table_schema = 'public' and table_name in ('csp_report_cursor', 'csp_reports')
+  group by table_name order by table_name;
+
+  -- Expect csp_report_cursor: c = 2, p = 1; csp_reports: c = 16, p = 1.
+  select conrelid::regclass::text as table_name, contype, count(*) as constraints
+  from pg_constraint
+  where conrelid in ('public.csp_report_cursor'::regclass, 'public.csp_reports'::regclass)
+    and contype in ('c', 'p')
+  group by 1, 2 order by 1, 2;
+
+  -- Expect one row holding a number (0 before any report has been stored).
+  select last_number from csp_report_cursor;
+  ```
+
+  That is **2 tables, 2 + 14 columns, 3 + 17 named constraints (the primary keys included) and the seed row**. A missing
+  seed row would leave the store's statement nothing to insert from, so no report would be stored, silently [inf: read
+  from the statement in the plan]: stop and report.
+- **Before step 4, on each database: read `pg_default_acl`.** A default privilege grants without anyone issuing it.
+  Anything that would reach `csp_reports` or `csp_report_cursor` is a stop-and-report, as in step 3:
+
+  ```sql
+  select defaclrole::regrole as creator, defaclnamespace::regnamespace as schema, defaclobjtype, defaclacl
+  from pg_default_acl;
+  ```
+
+  No rows is the expected answer. A row whose `defaclacl` names `app_designs` or `PUBLIC` for tables (`defaclobjtype =
+  'r'`) is the finding.
+- **Step 3:** with the tables present and nothing granted, the privilege test's `csp_reports` and `csp_report_cursor`
+  tests are **red with nothing held**, not skipped (a skip, *"does not exist yet on this database"*, means `0009` is not
+  on the database reached).
+- **Step 4, exactly these two statements, preview first** [doc plan, *The grant, for review*]:
+
+  ```sql
+  GRANT SELECT, INSERT, UPDATE ON TABLE public.csp_reports TO app_designs;
+  GRANT SELECT, UPDATE ON TABLE public.csp_report_cursor TO app_designs;
+  ```
+
+  Not `DELETE` on either, not `TRUNCATE`, not `ALL`, not `WITH GRANT OPTION`, nothing to `PUBLIC`, nothing on
+  `ALL TABLES IN SCHEMA`. Rows leave only by being overwritten. `SELECT` is table-wide on purpose: nothing in the table
+  is personal, and it settles whether `ON CONFLICT` wants it on the key column.
+- **Steps 5 to 7, as `app_designs` on each database.** Run the privilege test file with `DATABASE_URL` set to that
+  environment's application role URL for the one invocation (a shell variable set without echoing it; a variable
+  already in the shell wins over `.env.local`), for example
+  `pnpm --filter @lemnaria/persistence exec vitest run --config vitest.config.ts tests/application-role-privileges.test.ts`.
+  Quote the run's own line `reached database "…" as role "…"`, which must name the database being checked and the role
+  `app_designs`, with the outcome. Quote it for preview and again for production: a result without the line does not
+  say which database it describes. The three `csp` tests must have **run, not skipped**:
+  - *holds exactly the grant:* `SELECT, INSERT, UPDATE` on `csp_reports`, `SELECT, UPDATE` on `csp_report_cursor`, no
+    `DELETE` or `TRUNCATE` on either.
+  - *nothing through `PUBLIC`.*
+  - *the planning test.* **Positive:** `explain` (never `explain analyze`, which would run it and advance the cursor) of
+    the store's own statement is planned without error: the server finds the grant enough for the cursor update and the
+    upsert. **Negative control:** `explain delete from public.csp_reports` and `explain delete from
+    public.csp_report_cursor` are each refused with SQLSTATE **`42501`** (insufficient privilege). The negative control is
+    what makes the positive mean something: if a delete were planned, `explain` would not be checking privileges, and
+    a planned store statement would prove nothing.
+- **Step 8:** `designs` is unchanged; on production read it by `has_table_privilege`, not by attempting a delete.
+
+**Two standing facts the owner should know before granting.**
+
+- **A stricter default isolation level loses reports.** The store's statement serialises writers on the cursor's row
+  lock and is written for `read committed`. If `app_designs` or its database has `default_transaction_isolation` above
+  `read committed` (`repeatable read` or `serializable`), concurrent report writes fail with `40001` (serialization
+  failure) and **those reports are lost**: the answer to the browser is still `204`, the `csp-violation` line is still
+  written, and the loss shows only as a `csp-report-unstored` line. Check, read-only, as the application role and in the
+  console:
+
+  ```sql
+  show default_transaction_isolation;
+
+  select r.rolname, d.datname, s.setconfig
+  from pg_db_role_setting s
+  left join pg_roles r on r.oid = s.setrole
+  left join pg_database d on d.oid = s.setdatabase;
+  ```
+
+  Expect `read committed` and no `default_transaction_isolation` entry in `setconfig`.
+- **The table is a ring with a cap, and it is not backed up.** At most **10,000** reports are held; the 10,001st
+  overwrites the oldest, and there is **no `DELETE` grant** and no scheduler, so nothing else removes a row. The nightly
+  export covers `designs` only (`BACKUP_BLOB_PREFIX = "backups/designs/"`), so **these rows are not in it** and a
+  restore of `designs` does not bring them back. The log line is the other copy of each report on a host that keeps logs.
+  How to read the rows: [reading-csp-reports.md](reading-csp-reports.md).
+
 ## Why step 5 names the application role
 
 The file is safe on any credential (criterion 13): it refuses to run past its guard as an owner. It is also only
