@@ -484,7 +484,7 @@ machine carries. Read the workflow's own comments for the history; this section 
 | Job id | Name in the checks list | Runs | On a pull request |
 | --- | --- | --- | --- |
 | `e2e-desktop-shard` | `e2e shard (desktop) (i, 3)` | `playwright test --project=desktop --shard=i/3` | skipped |
-| `e2e-mobile-shard` | `e2e shard (mobile) (i, 8)` | `playwright test --project=mobile --shard=i/8` | skipped |
+| `e2e-mobile-shard` | `e2e shard (mobile) (i, 9)` | `playwright test --project=mobile --shard=i/9` | skipped |
 | `e2e-desktop` | **`e2e (desktop)`** | the summary over the desktop shards | skipped |
 | `e2e-mobile` | **`e2e (mobile)`** | the summary over the mobile shards | skipped |
 | `e2e-shard-budget` | `e2e-shard-budget` | the budget guard below; lists tests, no browser | runs |
@@ -513,8 +513,8 @@ says. The shard names are free to change and must **not** be required checks.
   `github.event_name != 'pull_request'` condition and reports **skipped**, as the old job did; GitHub
   counts a skipped required check as passing, so nothing new can block a pull request.
 - There are **two shard jobs, not one ~~six-leg~~ ~~nine-leg~~ eleven-leg matrix** (corrected 2026-10-13 at M8 wave 8M's
-  close: 3 desktop plus 8 mobile legs, read from `.github/workflows/ci.yml` `shard: [1, 2, 3]` at line 338 and
-  `shard: [1, 2, 3, 4, 5, 6, 7, 8]` at line 535, and `SHARDS_PER_PROJECT = { desktop: 3, mobile: 8 }` in
+  close: 3 desktop plus 9 mobile legs, read from `.github/workflows/ci.yml` `shard: [1, 2, 3]` at line 338 and
+  `shard: [1, 2, 3, 4, 5, 6, 7, 8, 9]` at line 535, and `SHARDS_PER_PROJECT = { desktop: 3, mobile: 9 }` in
   `scripts/gates/e2e-shard-budget.mjs:48`; it was nine at 3 + 6 on 2026-10-08, and six when mobile had three
   shards; the count moves with `SHARDS_PER_PROJECT`, so read it there), because a job's `needs` names whole jobs and a
   matrix job's result aggregates all its legs: one matrix could feed only one summary, and

@@ -45,7 +45,7 @@ export const TARGET_MINUTES_PER_SHARD = 30;
  * at the budget of 125 (123/120/125/114), five put 135 on its second because a shard is whole files, and
  * M8 8K2's specs put 133 on the fourth of six, and 8M's `qa-8m-*` specs put 133 on the fourth of seven.
  */
-export const SHARDS_PER_PROJECT = { desktop: 3, mobile: 8 };
+export const SHARDS_PER_PROJECT = { desktop: 3, mobile: 9 };
 
 /**
  * A ceiling above the derived budget, for a project whose shards cannot all fit under it.

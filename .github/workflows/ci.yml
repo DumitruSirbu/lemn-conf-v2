@@ -532,8 +532,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8]
-        total: [8]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9]
+        total: [9]
     timeout-minutes: 45
     needs: [install, test, prior-unit-tests]
     if: >-

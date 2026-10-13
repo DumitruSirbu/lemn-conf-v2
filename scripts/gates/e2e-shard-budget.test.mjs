@@ -102,7 +102,7 @@ test("the workflow's shard matrices match the configured shard counts", () => {
 });
 
 test("a workflow whose total or shard list drifts from the configured counts is reported", () => {
-  const drifted = WORKFLOW_TEXT.replace("total: [8]", "total: [3]").replace(
+  const drifted = WORKFLOW_TEXT.replace("total: [9]", "total: [3]").replace(
     "shard: [1, 2, 3]",
     "shard: [1, 2]",
   );
