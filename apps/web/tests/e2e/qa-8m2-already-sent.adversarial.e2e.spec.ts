@@ -4,7 +4,7 @@
 // new browser context, so each is its own visitor, and none sends more than the two new requests a browser may in an
 // hour; every request id is registered with `contact-run.ts` before it leaves so that the teardown removes its row
 // (ADR 0151). The test database only; nothing here deletes a row.
-import { expect, type Page } from "@playwright/test";
+import { expect, type Page, type Route } from "@playwright/test";
 
 import {
   CTA,
@@ -31,10 +31,12 @@ import {
 import {
   contactPath,
   editorPath,
+  goBackAndSettle,
   refuseWebGL,
   reviewPath,
 } from "./support/qa-8d-review";
 import {
+  expectNoTokenInThePage,
   newTypedTokens,
   reachContactFromTheEditor,
   readyToSend,
@@ -343,4 +345,95 @@ test("14 (e): two forms open on one kitchen at one revision, both sent, are two 
     await tab.goto(contactPath("ro", id));
     await expectAlreadySentView(tab, referenceB, "ro");
   }
+});
+
+/** Every request, from now on, for this design's contact page that is not a prefetch: the document or the flight a load
+ *  of the page makes, which is what a fresh server read of the sent reference would ride on. */
+function recordLoadsOfTheContactPage(page: Page, designId: string): string[] {
+  const loads: string[] = [];
+  page.on("request", (request) => {
+    const { pathname } = new URL(request.url());
+    if (!pathname.endsWith(`/d/${designId}/contact`)) return;
+    if (request.headers()["next-router-prefetch"] !== undefined) return;
+    loads.push(`${request.method()} ${pathname}`);
+  });
+  return loads;
+}
+
+/** Aborts every send, so none reaches the server: no row, and nothing on the contact requests' run twins. Counts the
+ *  presses it was asked to answer. */
+async function loseEverySend(page: Page): Promise<{ answered: number }> {
+  const seen = { answered: 0 };
+  await page.route("**/api/contact-submissions", async (route: Route) => {
+    seen.answered += 1;
+    await route.abort("internetdisconnected");
+  });
+  return seen;
+}
+
+// A LIMIT recorded beside Q55 (a), not a requirement: the page's answer to "already sent?" is read once, when the
+// document or flight for the page is made, and it is not asked again by the browser's Back. With a mocked send nothing is
+// stored, so this test cannot say what a stored row would show after Back; it shows what the page can know. The claim
+// "Back to a form never re-reads, so a request sent meanwhile is not seen" is inference from the zero fetches below plus
+// `contactPageViewOf` (a form once decided is the form for the mount).
+test("LIMIT beside Q55 (a): a form whose send was lost, left for the review by the bar and brought back by the browser's Back, is a fresh empty form and the browser asked the server for nothing about the page, so the page could not have learned of a send meanwhile", async ({
+  page,
+  seededDesign,
+}) => {
+  const id = seededDesign.id;
+  const typed = newTypedTokens(run);
+  const sent = recordContactRequests(page);
+  const lost = await loseEverySend(page);
+  const { drawnAtMs } = await reachContactFromTheEditor(
+    page,
+    seededDesign,
+    "ro",
+  );
+  await fillTheTextFields(page, typed);
+  await chooseChannel(page, "phone");
+  await tickConsent(page);
+  await readyToSend(page, drawnAtMs);
+  await pressTheCallToAction(page);
+  await expect(page.getByTestId(FAILURE)).toBeVisible();
+  expect(sent, "one press, one attempt").toHaveLength(1);
+
+  await page.getByTestId(CONTACT_BACK).tap();
+  await page.waitForURL(`**${reviewPath("ro", id)}`);
+  await expect(page.getByTestId("review-cta")).toBeVisible();
+  const writes = recordApiWrites(page);
+  const loadsDuringBack = recordLoadsOfTheContactPage(page, id);
+  await goBackAndSettle(page);
+  await expect(page).toHaveURL(contactPath("ro", id));
+  await page.waitForTimeout(1500);
+
+  // What the page shows: a form, drawn new, holding nothing of what was typed, and neither the view nor 5B.
+  await expect(page.getByTestId(CTA)).toBeVisible();
+  await expect(page.getByTestId(ALREADY_SENT)).toHaveCount(0);
+  await expect(page.getByTestId(FAILURE)).toHaveCount(0);
+  await expectNoTokenInThePage(page, typed, "the form after Back");
+  const typedFields = await page
+    .locator(
+      'input:not([type="radio"]):not([type="checkbox"]):not([type="hidden"])',
+    )
+    .evaluateAll((fields) =>
+      fields.map((field) => (field as HTMLInputElement).value),
+    );
+  expect(typedFields.length, "control: the form has fields").toBeGreaterThan(0);
+  expect(
+    typedFields.filter((value) => value !== ""),
+    "typed fields",
+  ).toEqual([]);
+  await expect(page.locator('input[type="checkbox"]')).not.toBeChecked();
+
+  // The limit: the browser asked for no data of the page, so a stored request could not have reached it.
+  expect(loadsDuringBack, "Back fetched the contact page's data").toEqual([]);
+  // And Back sent nothing: no attempt reached the route again, and no write of any kind left the page.
+  expect(lost.answered, "Back made no send").toBe(1);
+  expect(contactPosts(writes)).toBe(0);
+  expect(sent).toHaveLength(1);
+
+  // Control: the recorder sees a load of the page when there is one, so the empty list above is a measurement.
+  await page.reload();
+  await expect(page.getByTestId(CTA)).toBeVisible();
+  expect(loadsDuringBack, "control: a reload is a load").not.toEqual([]);
 });
