@@ -94,3 +94,35 @@ After a send the customer who returns to the review and presses *Cere oferta* ag
 ## Alternatives not taken
 
 A form held above both pages by a route-group layout (moves 8L's files and still loses the number on a language switch); the reference in a query string (forgeable, in history); session storage (D17); `router.push` to `/done`; a timed or counted automatic retry; a retry on any answered failure; the share link as a Next `Link` or a window opened after an `await`; a server-side hand-over of the typed value.
+
+## Dated notes — 2026-10-14, at the close of wave 8M2 ([ADR 0163](0163-the-design-goes-to-the-shops-whatsapp-an-unchanged-kitchen-already-sent-for-shows-its-request-and-a-call-and-the-shops-number-is-one-constant-a-launch-gate-refuses.md), Accepted)
+
+Nothing above is erased. Source of each: ADR 0163 and its Amendments A and B **[doc]**; the owner's rulings of
+2026-10-13 **[relayed]**; the scribe ran nothing.
+
+- **d2 (5B draws no `tel:` link).** Superseded. 5B draws *Sună direct la magazin* for both classes (ADR 0163 decision 9),
+  dialling the one shop-phone constant, which is a placeholder under the launch gate until Q3.
+- **d4 (the hand-over is cleared when a design contact form mounts).** Widened by ADR 0163 Amendment A, A1. The clear
+  runs in a client effect of `ContactScreen`, so it happens in **every arm of the design contact page** (already-sent,
+  unsupported, the form, the unavailable page), and is **removed from the submission hook**. The callback page does
+  not clear. Backlog 197's trade is unchanged.
+- **d5 (the read of `findSentReference`).** A **second caller**: the design contact page, after the owned load allows,
+  with the loaded revision, only `{kind, reference}` crossing. **The contact page's read has a 300 ms deadline** that
+  answers `unknown` (which gives the form); `/done`'s read has **none**, because there `unknown` costs the
+  confirmation. **Both callers write one log line per process and cause**, from a closed list (`store-error`,
+  `deadline`, `unexpected`), with no message, operation, id, revision or reference (ADR 0163 A8). **The deadline fired
+  once in a whole e2e run** [relayed by the coordinator; spec and run not given to the scribe]; the figure is not
+  loosened. The query still has no index (backlog 196, which gained triggers).
+- **d8 (the WhatsApp action).** The anchor is addressed to the shop: `https://wa.me/{digits}?text=`, the digits derived
+  from the one constant. The message names the request's reference and the customer's view-only link. The shop holds
+  the customer's one active link, so the customer's next reissue revokes it, and the shared view shows the live row
+  (Q60 (a)). Q44 is answered **(b)** by the owner.
+- **d10 and Q45.** Superseded by the owner's Q45. An unchanged kitchen already sent for shows the already-sent view
+  (the reference, advice to call, the call link, a way back to the design) and **no form**; the block is hard, with no
+  "send anyway". **A limit, recorded beside Q55 (a):** after a lost answer, review and browser Back, the contact page
+  can show an empty form for a kitchen that may already be sent (ADR 0163 Amendment B, point 3).
+- ***Reviews' findings*, F3.** Made, in its narrow form: on `/done` the action's gate accepts any held write-access
+  answer but `false`, and nothing is written to the store (ADR 0163 decision 4, corrected by Amendment A, S3-3).
+- **Owner's questions.** Q44 and Q45 are answered, and the register is settled as informal *tu* / *ты* everywhere.
+  **Still open and the owner's:** the copy approvals (including four Russian leaves that change register and need
+  re-signing), Q9's next-step texts, Q3's real shop number.

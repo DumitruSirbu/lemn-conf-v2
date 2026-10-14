@@ -1,8 +1,10 @@
 # ADR 0163 — The design goes to the shop's WhatsApp, an unchanged kitchen already sent for shows its request and a call, and the shop's number is one constant a launch gate refuses
 
-Status: **Proposed — 2026-10-13, by the architect, at the planning of M8 wave 8M2.** Not built. It becomes Accepted
-at 8M2's close, when the records listed under *Amends, when accepted* gain their dated amendments (the scribe's
-work, not written now).
+Status: **Accepted — 2026-10-14, at the close of M8 wave 8M2** (code HEAD `c6374732`, local, not pushed). It was
+Proposed on 2026-10-13 by the architect at the planning of the wave; that text and Amendment A are kept below, and
+*Amendment B* records the close. **Owner copy approvals are still pending** (see Amendment B). Which of the records
+under *Amends, when accepted* have their dated note is stated in Amendment B; ADR 0160 has all of its notes, the
+others are **owed** and listed there.
 Date: 2026-10-13
 Type: Decision
 Milestone: M8 wave 8M2 (plan: [`milestones/8M2-shop-whatsapp-and-already-sent.md`](../milestones/8M2-shop-whatsapp-and-already-sent.md))
@@ -313,3 +315,35 @@ plan's *Amendment A*. Claims marked [src] were read at `14ee66a0`. Nothing was r
 10. **Decision 8 is unchanged** (Q55 (a), taken by the owner on 2026-10-13 [doc: `STATUS.md`]). In plain terms:
     the page check is not flood protection. The client controls the revision it sends, a direct `POST` never sees
     the page, and the rate limits are the bound.
+
+## Amendment B — dated 2026-10-14, at the close of wave 8M2 (code HEAD `c6374732`; the record is now Accepted)
+
+Tiers: **[src-log]** commit subjects read from `.git/logs/HEAD` by the scribe; **[relayed]** by the coordinator, who
+ran or received the gate results; **[inf]** inference. **The scribe ran no command and no test.** Nothing above is
+erased.
+
+1. **Shipped.** S1 `9f428a00`, S2 `13f5913b`, S3 `14ee66a0`, S4 `af476f08`, S5 `ad432ad9`; QA `e6add05e` (S4),
+   `eff49c5e` (final), `c6374732`; review fix-up `b25847f2` [src-log].
+2. **S6 was not built.** Q55 was answered **(a)** on 2026-10-13 (decision 8 above). No file under `app/api/` or
+   `submit-contact.ts` is part of the wave, and ADR 0157 d1 and d4 gain **no** note.
+3. **Decision 8's limit, recorded beside Q55 (a) by QA in `c6374732`** [src-log: *"Back after a lost answer
+   documented as a limit beside Q55(a)"*]. After a **lost answer** (the send got no reply), the customer goes to the
+   review and presses browser **Back**: the contact page shows **an empty form for a kitchen that may already be
+   sent**.
+   - *Why [inf]:* the page asks the server when the page is loaded; a history restore does not load it again, so the
+     question is not asked. A stored request would therefore be missed. **Test-observed only for the zero-reload
+     case** [relayed]; the history-restore mechanism is the architect's reading, not a measurement. It is falsified by
+     a restore that shows the view.
+   - It is the same class as plan risk 6 (a form loaded before another send). Decision 8's bound stands: the
+     limiter, and the page check is not flood protection.
+4. **Decision 5's deadline fired once in a whole e2e run** [relayed; spec and run not given]. Plan risk 10 predicted
+   this class. The 300 ms is not loosened. Recorded in backlog 196 and 240.
+5. **Decision 2's gate is weaker than its name.** It refuses the exact placeholder only; any other valid number
+   passes. `deploy.yml`'s step is not Vercel's gate, so **the launch checklist line is the operative gate**. The
+   gate is red at HEAD by design. Backlog 235; the workflow's secrets finding, backlog 236.
+6. **Decision 10's register test** is a word list plus a suffix advisory (backlog 239).
+7. **Still the owner's:** Q3 (the real number; the only thing that turns the gate green); copy approvals (S2's ro and
+   ru leaves, and the four Russian leaves that need re-signing); Q9's next-step texts. Copy is **not owner-approved**.
+8. **Dated notes owed, not written here** (the dispatch for this close named ADR 0160 only): ADR 0159 d5 and
+   Amendment A (`limitedTomorrow`), ADR 0114 Amendment G, ADR 0153, ADR 0148, ADR 0156 (the *ты* note), ADR 0095 (the
+   re-sign list). ADR 0160 d2, d4, d5, d8, d10 and F3 **are** written.

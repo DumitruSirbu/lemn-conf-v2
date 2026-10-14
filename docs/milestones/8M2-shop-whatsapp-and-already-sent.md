@@ -1,9 +1,13 @@
 # M8 wave 8M2 — the design goes to the shop's WhatsApp, and a kitchen already sent for shows its request and a call
 
-> **STATUS: PLANNED by the architect, 2026-10-13. Not dispatched.** No code exists for this wave. The decision record
-> is [ADR 0163](../decisions/0163-the-design-goes-to-the-shops-whatsapp-an-unchanged-kitchen-already-sent-for-shows-its-request-and-a-call-and-the-shops-number-is-one-constant-a-launch-gate-refuses.md),
-> **Proposed**. Owner questions Q55 to Q60 below each have a default; **none blocks S1**. Q55's answer decides whether
-> S6 exists.
+> **STATUS: CLOSED 2026-10-14 (local, not pushed; code HEAD `c6374732`, branch `m8-review-contact-success`).** Planned
+> by the architect on 2026-10-13; S1 to S5 built, QA'd and reviewed. **S6 was NOT built, per Q55 (a).** The decision
+> record is [ADR 0163](../decisions/0163-the-design-goes-to-the-shops-whatsapp-an-unchanged-kitchen-already-sent-for-shows-its-request-and-a-call-and-the-shops-number-is-one-constant-a-launch-gate-refuses.md),
+> **Accepted** (Amendment B records the close). The close, with evidence and the owner's open list, is in
+> [the M8 plan, *8M2 as closed*](M8-review-contact-success.md). The sections below are the **plan as written**, kept;
+> where they say "if S6" or "Proposed", the close overrides them.
+>
+> *(Previous banner, kept: "PLANNED by the architect, 2026-10-13. Not dispatched. No code exists for this wave.")*
 >
 > **Amended 2026-10-14 (Amendment A, below *Rulings*), after the security reader's checkpoint A on S4, at code HEAD
 > `14ee66a0`.** By the commit subjects, S1 (`9f428a00`), S2 (`13f5913b`) and S3 (`14ee66a0`) are committed. S4 is not
@@ -1104,6 +1108,8 @@ attacked.
      bounds the page's wait, not the database's work.
    - The trigger gains *a slow `/contact` or `/done`*, or *any `deadline` line from this read*.
 6. **Stale tab, page check only.** A form loaded before another tab sent can still send a second request (Q55).
+   *[Added 2026-10-14, at the close:]* The same class includes **Back after a lost answer** (an empty form for an
+   already-sent kitchen; see Q55). S6 is not built.
 7. **The register deny-list** may flag a legitimate word. The allow-list is per key and named; never a regex
    loosened to pass.
 8. **The shard budget.** At least one new e2e file. `pnpm gate:e2e-shard-budget` runs at the freeze.
@@ -1138,6 +1144,11 @@ attacked.
   - **(a)** Checked on the page only. **(b)** Also refused by the server, so a second tab already open on the form
     cannot send it.
   - **Recommended: (a).** *(The owner took (a) on 2026-10-13 [doc: `STATUS.md`].)*
+    - *[Added 2026-10-14, at the close: the limit.]* **S6 was not built. After a lost answer, review and browser Back,
+      the contact page shows an empty form for a kitchen that may already be sent.** There is no re-ask on a history
+      restore, so a stored request would be missed [inf: falsified by a restore that shows the view]. It is
+      **test-observed only for the zero-reload case** [relayed]. Same class as risk 6. QA documented it beside this
+      answer in `c6374732` [commit subject]. The limiter still bounds sends.
     - *[Added 2026-10-14, Amendment A:]* **The page check is not flood protection: the client controls the
       revision it sends, a direct `POST` never sees the page, and the rate limits are the bound.**
     - Neither one stops a flood. The limits do that: 2 an hour per browser, 3 an hour and 10 a day per network,

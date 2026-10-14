@@ -1,6 +1,8 @@
 # M8 — Screens 3, 4 and 5: review, contact, success and failure
 
-> **STATUS: PLANNED — wave plan written 2026-10-07 at `90927dc`; no wave dispatched.** M8 does not
+> **STATUS (2026-10-14, latest): M8 IS NOT DONE. Waves 8D to 8M, 8Q2 and 8M2 are closed (local, not pushed); 8T is not started.** The line below is the original 2026-10-07 banner, kept as history and **superseded**: waves have been dispatched since. 8M2 closed on 2026-10-14 at code HEAD `c6374732` (see *8M2 as closed*). **M8 stays open for:** (1) an incremental test-audit pass over the 8Q2 and 8M2 tests (ADR 0152 Amendment A); (2) the owed live persistence run of `findSentReference`, alone (ADR 0155); (3) **8T**, which needs the owner and a real phone on a TLS host; (4) `pnpm ci:local` in full, quoted, before any push. Summary: `docs/STATUS.md`.
+>
+> **STATUS (original): PLANNED — wave plan written 2026-10-07 at `90927dc`; no wave dispatched.** M8 does not
 > start until the owner says so and M7C has closed (see *What M8 assumes*). Summary: `docs/STATUS.md`.
 >
 > **Updated 2026-10-12, latest, by the architect: wave 8L is restated for dispatch (nine slices, S0 to S7 with S4 in two; criteria 15 to 19 added; Q43 for the owner, blocking nothing); see *8L, restated for dispatch*. S0 and S1 wait for nothing.**
@@ -1288,7 +1290,7 @@ same day by *M8 restated*, above, where the two disagree.**
 | ~~8P1–8P9~~ | ~~Profiles (see Part P)~~ | | | **Moved to M8B** (Q1) |
 | 8Q | The CSP enforces | web | Full + security | 8L; a preview measurement of the bot check's scripts if Q21 keeps it. **Closed 2026-10-13** (*8Q as closed*, above) |
 | 8Q2 | CSP reports kept in a table of our own (Q46 = (c); [plan](8Q2-csp-report-table.md), [ADR 0162](../decisions/0162-csp-reports-are-kept-in-a-fixed-size-table-of-our-own-marked-by-the-server-that-wrote-them-and-written-best-effort-after-the-limiter-allows-them.md), Accepted) | persistence, web | Full + security | 8Q. **Closed 2026-10-14** (*8Q2 as closed*, below); owner steps for `0009` open |
-| 8M2 | The design goes to the shop's WhatsApp; an already-sent kitchen shows its request and a call (Q44 = (b), Q45, F3; [plan](8M2-shop-whatsapp-and-already-sent.md), [ADR 0163](../decisions/0163-the-design-goes-to-the-shops-whatsapp-an-unchanged-kitchen-already-sent-for-shows-its-request-and-a-call-and-the-shops-number-is-one-constant-a-launch-gate-refuses.md), Proposed) | web | Full + visual | 8M. **Added 2026-10-13; after 8Q2, before 8T** |
+| 8M2 | The design goes to the shop's WhatsApp; an already-sent kitchen shows its request and a call (Q44 = (b), Q45, F3; [plan](8M2-shop-whatsapp-and-already-sent.md), [ADR 0163](../decisions/0163-the-design-goes-to-the-shops-whatsapp-an-unchanged-kitchen-already-sent-for-shows-its-request-and-a-call-and-the-shops-number-is-one-constant-a-launch-gate-refuses.md), **Accepted; wave CLOSED 2026-10-14**, see *8M2 as closed*) | web | Full + visual | 8M. **Added 2026-10-13; after 8Q2, before 8T** |
 | 8R | The firewall rules, staged | none (runbook, owner action) | Coordinator-only | **Q21** |
 | 8S | Pre-launch checks | none (docs, owner reads) | Light | The owner's facts (Q3, Q7, Q9); **Q22** for the data list |
 | 8T | The phone gate, the desktop line, the phase gate | — | Coordinator + visual | **Q21** (the gate's WAF half); the owner's text in every slot |
@@ -12383,6 +12385,65 @@ cannot delete) needs `0009` and the two grants on a database the application rol
 **Deferred, with an owner or wave:** backlog 228 to 233 (trigger style as recorded there). **Owner steps for `0009`:**
 STATUS, *What to do next*. **M8 stays open** for 8M2, 8T, and an incremental audit pass over the tests of 8Q2 and
 8M2 (ADR 0152 Amendment A).
+
+#### 8M2 as closed, 2026-10-14
+
+**Tier:** Full + visual. **Closed at code HEAD `c6374732`** on `m8-review-contact-success`, local, **nothing pushed**
+[commit list from `.git/logs/HEAD`; the scribe ran no command]. Plan: [`8M2-shop-whatsapp-and-already-sent.md`](8M2-shop-whatsapp-and-already-sent.md).
+Decision: [ADR 0163](../decisions/0163-the-design-goes-to-the-shops-whatsapp-an-unchanged-kitchen-already-sent-for-shows-its-request-and-a-call-and-the-shops-number-is-one-constant-a-launch-gate-refuses.md),
+now Accepted, Amendments A and B; dated notes on ADR 0160 (d2, d4, d5, d8, d10, F3).
+
+**Shipped scope [commit subjects, `.git/logs/HEAD`].** S1 `9f428a00` (shop phone constant, launch-ready predicate,
+`pnpm gate:launch-placeholders`, production-only deploy step); S2 `13f5913b`; S3 `14ee66a0` (WhatsApp action to the
+shop's number with the reference and the view-only link; shows after a reload, F3 narrow); S4 `af476f08` (already-sent
+decided in `ContactScreen`, read after ownership, 300 ms deadline, one-way latch, no send path, hand-over clear moved
+to `ContactScreen`); S5 `ad432ad9` (the finished view with advice, call link and back link; call link on 5B and the
+unavailable page). QA `e6add05e` (S4), `eff49c5e` (final), `c6374732`; review fix-up `b25847f2`.
+**S6 (a server refusal) was NOT built: Q55 was answered (a)**, page check only.
+
+**Evidence, by tier.**
+- **[relayed, coordinator-ran; the scribe ran nothing]:** whole e2e **1050 passed**; unit domain **7748**, three-adapter
+  **4284**, web **10428**; mobile shard maximum **105 of 125**; any-kind twin **48 of 50**.
+- **[commit subjects]:** whole e2e 1033 passed at the S4 QA commit, 1041 at the final QA commit, 1050 at `c6374732`.
+- **[relayed] Visual check, emulated Chromium only:** 390 x 844, **ro and ru**. Done screen: the pinned region is
+  **144 px (17%)** against the 422 px tripwire. Also looked at: the already-sent view; 5B (the call link sits 11 px
+  under the retry); the unavailable page. **All passed.** Not a real phone, not real WebGL.
+- **Not run by anyone, or not verified:** `pnpm ci:local`; a CI runner; a real phone; the live persistence run of
+  `findSentReference` (owed, alone, ADR 0155); the phone and e-mail done-screen variants and the keyboard open; one
+  very long unbroken Russian word (backlog 241, 242).
+- `pnpm gate:launch-placeholders` is **red at HEAD by design** until Q3 [ADR 0163 decision 2; not re-run by the scribe].
+
+**Deviations, with their rationale.** S6 not built (Q55 (a)). The decision lives in `ContactScreen`, not in
+`DesignContactPage` (Amendment A, A1). Decision 4's limiter sentence was wrong and is corrected (S3-3). Reviews'
+findings are in the commit `b25847f2`: comments trimmed, an AST comment stripper with a counterexample, a shared
+files-under helper, a suffix register check, the placeholder digits written once, the heading wraps long words
+[subject]. The detail of each review's verdict was not given to the scribe.
+
+**A limit, recorded beside Q55 (a).** After a lost answer, review, and browser Back, the contact page shows an empty
+form for a kitchen that may already be sent: no re-ask on a history restore [inf: a stored request would be missed;
+test-observed only for the zero-reload case]. Same class as plan risk 6.
+
+**Test-database leftovers (ADR 0151, nobody removes them).** The visual check made **two real submissions** on the test
+database, designs `Sbegi2Yd6M5d7WMNpRTiL` and `gO6QgZfLpC4ZEAaAPCYKI`; the owner may clear them. Separately, backlog
+234: one `ro` and one `ru` row per multi-spec e2e invocation, writer unknown, 30 rows.
+
+**Documentation updated.** ADR 0163 (Accepted, Amendment B); ADR 0160 dated notes; `decisions/README.md`; the 8M2 plan
+(banner, Q55, risk 6); this plan (banner, wave row, this section); backlog 234 to 242, with notes on 196 and 198;
+`STATUS.md`. **Not done, owed:** dated notes on ADR 0159 d5 and Amendment A, ADR 0114 Amendment G, ADR 0153, ADR 0148,
+ADR 0156 (*ты*), ADR 0095 (the re-sign list); the M8 plan's struck lines (8M scope note, *Must not*, criteria 7 and 18,
+named interim 6), Q44 and Q45 marked answered, 8T's lines for plan risks 2 and 3, and the *Launch gate* line
+*`pnpm gate:launch-placeholders` exits 0, quoted* (also M9's stub).
+
+**Owner-side open list.**
+1. Copy approvals: S2's ro and ru leaves, and **four Russian leaves that changed register and need re-signing** (Q58).
+2. **Q9:** the next-step texts.
+3. **Q3:** the real shop number; the **only** thing that turns `gate:launch-placeholders` green.
+4. `CLIENT_NETWORK_SOURCE` set at the real deployment (Q47).
+5. Applying migration `0009` and its two grants on preview and production (see STATUS, *OWNER ACTIONS for `0009`*).
+6. The test-database leftover rows above; and the answer on backlog 236 (a no-secrets job for the gate).
+
+**Deferred, with an owner or wave:** backlog 234 to 242 (triggers there); 8T takes the real-phone, keyboard, TLS and
+WhatsApp-opening checks, and cannot prove delivery to the shop while the number is the placeholder (plan risk 2).
 
 ### 8R — the firewall rules, staged — LEAVES FOR THE DELIVERY MILESTONE (owner, 2026-10-07)
 

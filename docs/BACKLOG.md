@@ -264,6 +264,17 @@ status corrections, in one of these two files:
 | 231 | `requireValidCspReportPlacement` and its three QA-owned cases could be deleted outright | open.md — recorded 2026-10-14 (8Q2 QA edit) |
 | 232 | Four persistence live files fail at collection with every database variable blanked (`neon('')` in a `describe` body; pre-existing) | open.md — recorded 2026-10-14 (8Q2 QA note) |
 | 233 | The store's `lock_timeout` is not tested with a real contending lock | open.md — recorded 2026-10-14 (8Q2 close) |
+| 234 | `contact_submissions` test-database leak: one `ro` and one `ru` row per multi-spec e2e invocation; writer spec unknown; pre-existing, 30 rows | open.md — recorded 2026-10-14 (8M2 close) |
+| 235 | The launch gate refuses only the exact placeholder; `deploy.yml`'s gate is not Vercel's, so the checklist line is the real gate | open.md — recorded 2026-10-14 (8M2 close) |
+| 236 | `deploy.yml` F1 (Low): the gate step runs build tools with `MIGRATION_DATABASE_URL` in env; wants a separate no-secrets job; owner not yet answered | open.md — recorded 2026-10-14 (8M2 close) |
+| 237 | ro leaf `panel.accessUncheckableNotice` typo "poți modifică"; needs the owner's sign-off | open.md — recorded 2026-10-14 (8M2 close) |
+| 238 | Already-sent `h1` is 22 px against 24 px; its focus ring touches the glyph edges (cosmetic) | open.md — recorded 2026-10-14 (8M2 close) |
+| 239 | The register test is a word list plus a suffix advisory | open.md — recorded 2026-10-14 (8M2 close) |
+| 240 | The contact page's 300 ms read deadline fired once in a whole e2e run | open.md — recorded 2026-10-14 (8M2 close) |
+| 241 | One very long unbroken Russian word not verified visually | open.md — recorded 2026-10-14 (8M2 close) |
+| 242 | Phone and e-mail done-screen variants and the keyboard open not verified visually (8T) | open.md — recorded 2026-10-14 (8M2 close) |
+
+*Notes at 8M2's close on existing entries:* 196 (second caller, new triggers, the deadline seen once) and 198 (`SentReferenceAnswer` in `@/done/result-to-show`) carry dated notes in `open.md`.
 
 ## 2026-09-06 audit note
 

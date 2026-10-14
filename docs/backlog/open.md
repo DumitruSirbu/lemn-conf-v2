@@ -2963,6 +2963,8 @@ The discriminated-union hand-over type (**183**); `WaitingWrite` to `HeldWrite` 
 
 **Source [security reviewer, relayed].** The read selects by design id and revision where `notified_at is not null`; the table has no index for it. Harmless at the present volume. **Remedy:** an **additive** migration if leads grow; **never an edit of `0008`**. **Trigger:** a slow `/done`, or contact requests numbering in the thousands.
 
+*Dated note, 2026-10-14, at 8M2's close:* the design contact page is now a second caller of this read (ADR 0163 decision 5, Amendment A, A8). The trigger gains **a slow `/contact` or `/done`, and any `deadline` line** from this read. **The 300 ms deadline fired once in a whole e2e run** [relayed by the coordinator; see 240], so the trigger has been seen once. The deadline bounds the page's wait, not the database's work, and the scan is bounded by the interceptor's page limit only where a network source is named.
+
 ## 197. The sent request's typed phone or e-mail stays in tab memory until a reload or the next design form — RECORDED 2026-10-13 AT M8 8M's CLOSE (security note)
 
 **Source [security reviewer, relayed].** ADR 0160 decision 4; not a defect by the plan's ruling (8M.2). **Optional hardening:** clear the entry when the done screen unmounts (a language switch or Back then Forward would then lose the number on 5A, which 8M.2 chose to keep). **Owner:** the architect, with the owner if the trade is wanted.
@@ -2970,6 +2972,8 @@ The discriminated-union hand-over type (**183**); `WaitingWrite` to `HeldWrite` 
 ## 198. An import cycle between `contact/` and `done/` — RECORDED 2026-10-13 AT M8 8M's CLOSE (clean-code)
 
 **Source [clean-code reviewer, relayed].** `ChannelSummary`, `ResultHeading` and `ReviewLink` are shared by both folders. **Remedy:** move them to a neutral module. **Trigger:** the next change to either folder, or the M8 close audit.
+
+*Dated note, 2026-10-14, at 8M2's close [relayed by the coordinator]:* `SentReferenceAnswer` lives in `@/done/result-to-show` and is used from the contact side, so the cycle gains a type that belongs in the same neutral module. Same remedy and trigger.
 
 ## 199. Comments that cite plan numbers, and long file headers — RECORDED 2026-10-13 AT M8 8M's CLOSE (clean-code)
 
@@ -3102,3 +3106,39 @@ The discriminated-union hand-over type (**183**); `WaitingWrite` to `HeldWrite` 
 ## 233. The `lock_timeout` of the store is not tested with a real contending lock — RECORDED 2026-10-14 AT M8 8Q2's CLOSE
 
 **Source [coordinator, relayed].** The 1000 ms `lock_timeout` and 2500 ms `statement_timeout` (ADR 0162 Amendment A, point 1) have no test that holds the cursor row lock from a second connection and watches the store give up (the coordinator's list; how they are pinned today was not read here). **Trigger:** a change to the store, or the next audit.
+
+## 234. `contact_submissions` rows leak on the test database: one `ro` and one `ru` row per multi-spec e2e invocation — RECORDED 2026-10-14 AT M8 8M2's CLOSE
+
+**Source [relayed by the coordinator; the scribe ran nothing].** Each e2e invocation that runs more than one spec leaves one `ro` and one `ru` contact row on the test database. **The spec that writes them is not known.** Pre-existing, not new in 8M2; **30 rows** were counted [relayed; the query was not given to the scribe]. Not removed (ADR 0151). **Owner:** the human may clear them; the finding of the spec is open. **Trigger:** the next teardown change, or the M8 close audit. Same class as the writer-mark teardown of 8Q2 (ADR 0162 Amendment A, point 6).
+
+## 235. The launch gate refuses only the exact placeholder, and `deploy.yml`'s gate is not Vercel's — RECORDED 2026-10-14 AT M8 8M2's CLOSE
+
+**Source [relayed by the coordinator].** `isLaunchReadyShopPhone` is false only for `+37300000000` and for a value that is not its own accepted normal form; **any other valid number passes**, so a wrong real number is not caught by the gate (ADR 0163 decision 2). The production-only step in `deploy.yml` runs in a workflow that is manual and inert; **Vercel's Git integration is the real deploy path** [doc: ADR 0163 decision 2, from the workflow's header]. **The launch checklist line (`pnpm gate:launch-placeholders` exits 0, quoted) is therefore the operative gate.** **Trigger:** the owner gives Q3's number, or the M9 host is chosen.
+
+## 236. `deploy.yml` F1 (Low): the gate step runs build tools with `MIGRATION_DATABASE_URL` in its environment — RECORDED 2026-10-14 AT M8 8M2's CLOSE
+
+**Source [review finding, relayed by the coordinator].** The gate step runs build tools while `MIGRATION_DATABASE_URL` is in its environment. **Remedy proposed:** a separate job with no secrets for the gate. **Owner: not yet answered.** Nothing changed (add-only rule for environments). **Trigger:** the owner's answer, or the workflow being switched on.
+
+## 237. Romanian leaf `panel.accessUncheckableNotice` has a typo, "poți modifică" — RECORDED 2026-10-14 AT M8 8M2's CLOSE
+
+**Source [relayed by the coordinator].** The text reads *"poți modifică"*. **The fix needs the owner's sign-off** (copy is the owner's to approve). **Trigger:** the next copy round.
+
+## 238. The already-sent `h1` is 22 px against the frame's 24 px, and its focus ring touches the glyph edges — RECORDED 2026-10-14 AT M8 8M2's CLOSE (visual)
+
+**Source [coordinator visual check, relayed; emulated Chromium at 390 x 844].** The size was judged fine in the check. On the 22 px heading the programmatic focus ring touches the glyph edges (cosmetic). Related to 201. **Owner:** the human, at the hand check or 8T.
+
+## 239. The register test is a word list plus a suffix advisory — RECORDED 2026-10-14 AT M8 8M2's CLOSE
+
+**Source [relayed by the coordinator; the fix-up `b25847f2` subject names a "suffix register check"].** The *tu* / *ты* test (ADR 0163 decision 10) holds a per-language list of explicit formal tokens and a suffix **advisory**, not a proof. A formal form outside the list passes. **Trigger:** a formal word found in shipped copy, or the copy re-sign.
+
+## 240. The contact page's 300 ms read deadline fired once in a whole e2e run — RECORDED 2026-10-14 AT M8 8M2's CLOSE
+
+**Source [coordinator, relayed; which spec and which run were not given to the scribe].** In a whole e2e run the deadline of ADR 0163 Amendment A (A8) fired once, so one test saw the form where it expected the view (plan risk 10 predicted exactly this). The figure is **not loosened**; a change of the figure is a dated amendment. It is also a trigger for 196. **Trigger:** a second occurrence, a `deadline` line from a real host, or a slow `/contact`.
+
+## 241. One very long unbroken Russian word was not verified visually — RECORDED 2026-10-14 AT M8 8M2's CLOSE (visual)
+
+**Source [coordinator, relayed].** The review fix-up made the already-sent heading wrap long words (`b25847f2`, subject). A single very long unbroken Russian word was **not** looked at in a browser. **Owner:** 8T or the hand check.
+
+## 242. Not verified visually in 8M2: the phone and e-mail done-screen variants, and the keyboard open — RECORDED 2026-10-14 AT M8 8M2's CLOSE (visual)
+
+**Source [coordinator, relayed].** The visual check covered the screens listed in the 8M2 close. The *Telefon* and *E-mail* variants of the done screen and any screen with the on-screen keyboard open were not seen. **Owner:** 8T, on a real phone.
