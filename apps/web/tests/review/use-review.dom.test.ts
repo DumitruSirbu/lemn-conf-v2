@@ -8,7 +8,7 @@
 // What this cannot see: a second caller added under a name the parse does not follow (a re-export, a dynamic
 // import). The import check reads this repository's own import statements and calls, which is all a reviewer reads
 // as well.
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 
 import {
@@ -28,6 +28,7 @@ import { useConfiguratorStore } from "@/store/configurator-store";
 
 import roMessages from "../../src/messages/ro.json";
 import { createFakeProbeFactory } from "../support/fake-body-probe";
+import { filesUnder } from "../support/files-under";
 
 const SRC_ROOT = join(import.meta.dirname, "../../src");
 const HOOK_CALLER = "review/use-review.ts";
@@ -52,14 +53,6 @@ const PRICING_NAMES = new RegExp(
   ].join("|"),
 );
 
-function sourceFilesUnder(directory: string): string[] {
-  return readdirSync(directory).flatMap((entry) => {
-    const path = join(directory, entry);
-    if (statSync(path).isDirectory()) return sourceFilesUnder(path);
-    return /\.(ts|tsx)$/.test(entry) ? [path] : [];
-  });
-}
-
 /** Whether the file imports `describeReview` from the model, by name, as a value or a type. */
 function importsDescribeReview(source: string): boolean {
   const importsFromTheModel =
@@ -73,7 +66,7 @@ function importsDescribeReview(source: string): boolean {
 }
 
 describe("one place hands the model its inputs", () => {
-  const files = sourceFilesUnder(SRC_ROOT).map((path) => ({
+  const files = filesUnder(SRC_ROOT).map((path) => ({
     name: relative(SRC_ROOT, path),
     source: readFileSync(path, "utf8"),
   }));

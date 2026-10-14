@@ -1,6 +1,5 @@
 // Reads source and stylesheets: what the already-sent view's pieces declare, which a dom test cannot paint. The pinned
-// region is sticky and in the flow, the call link is a touch target, and the view is the one place outside the shop
-// module that names the shop's number, through the module's own functions.
+// region is sticky and in the flow, and the call link is a touch target.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -38,14 +37,5 @@ describe("the already-sent view's foot", () => {
     expect(sourceOf("contact/already-sent-view.tsx")).toContain(
       "useKeepFocusAbove(regionRef)",
     );
-  });
-});
-
-describe("the call link's address", () => {
-  it("comes from the shop module's function and is not written in the component", () => {
-    const source = sourceOf("shop/call-shop-link.tsx");
-
-    expect(source).toContain("href={shopTelAddress()}");
-    expect(source).not.toMatch(/\btel:/);
   });
 });

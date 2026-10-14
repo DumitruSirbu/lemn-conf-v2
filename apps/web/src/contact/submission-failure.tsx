@@ -10,10 +10,8 @@ import styles from "./contact.module.css";
 import { useIsOnline } from "./retry-when-online";
 import type { ContactSubmissionPhase } from "./use-contact-submission";
 
-// Frame 5B, the way out of a send that did not arrive: a state of the contact page, not a route, because it must keep
-// what was typed and send it again. The form is not drawn while it shows and every value stays in the form's memory;
-// the one typed value drawn here is the one the shop would have used. The frame's bar (*Cerere trimisă*) is not drawn,
-// since it claims a send; its *Sună direct la magazin* is, under the retry, dialling the shop's one constant (8M2.8).
+// Frame 5B: a state of the contact page, not a route, because it must keep what was typed and send it again. The
+// frame's bar (*Cerere trimisă*) is not drawn, since it claims a send.
 
 /**
  * The failure screen the page is on, given the one it was on and the phase now. A press made from 5B, or the automatic
@@ -154,7 +152,7 @@ function FailureHead({
 }
 
 /** Sends the same request again, with the same id and body; off, it stays and says why by its label and
- *  `aria-disabled`, rather than going. In its sending state it is the one thing that shows a retry is out (not 4C). */
+ *  `aria-disabled`, rather than going. In its sending state it is the one thing that shows a retry is out. */
 function RetryButton({
   isRetrying,
   isOff,

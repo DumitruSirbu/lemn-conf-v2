@@ -8,10 +8,9 @@ import { ContactScreen } from "@/contact/contact-screen";
 import type { SentReferenceAnswer } from "@/done/result-to-show";
 
 /**
- * The contact page of a stored design, over the copy `HydrateStoredDesign` decides this tab shows (ADR 0148 E3, E3a).
- * It asks the server for nothing, so arriving from the review costs the page's own request and no more. The request
- * this page sends carries the store's revision, never `revision` here: the page's is only what `sentReference` answers
- * for.
+ * The contact page of a stored design, over the copy `HydrateStoredDesign` decides this tab shows (ADR 0148 E3).
+ * The request this page sends carries the store's revision, never `revision` here: that is only what `sentReference`
+ * answers for.
  */
 export function HydrateAndContact({
   design,

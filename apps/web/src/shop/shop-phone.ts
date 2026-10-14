@@ -1,11 +1,11 @@
 import { normalisePhoneNumber } from "@lemnaria/configurator-domain";
 
-// The owner's placeholder for the shop's phone (Q3 is open). The project's own phone rule refuses
-// it as `PHONE_MOLDOVAN_SECOND_ZERO`, so no number the contact form accepts can equal it.
+// Not a callable number: the phone rule refuses it (`PHONE_MOLDOVAN_SECOND_ZERO`), so no accepted contact can equal it.
 export const SHOP_PHONE_PLACEHOLDER_E164 = "+37300000000";
 
-// Placeholder until the owner answers Q3; `pnpm gate:launch-placeholders` refuses it.
-export const SHOP_PHONE_E164 = "+37300000000";
+// The shop's number. Still the placeholder, which `pnpm gate:launch-placeholders` refuses; typed `string` so a real
+// number replaces it without touching the types.
+export const SHOP_PHONE_E164: string = SHOP_PHONE_PLACEHOLDER_E164;
 
 const E164_PLUS_SIGN = "+";
 
@@ -31,9 +31,8 @@ export function shopPhoneDisplay(e164: string = SHOP_PHONE_E164): string {
   return `+373 ${groups.slice(1).join(" ")}`;
 }
 
-/** True iff the number is not the placeholder and is its own accepted normal form. The placeholder
- *  is named even though the phone rule refuses it today, so a later loosening of that rule cannot
- *  turn the gate green. */
+/** True iff the number is not the placeholder and is its own accepted normal form. The placeholder is named although
+ *  the phone rule refuses it today, so loosening that rule cannot turn the launch gate green. */
 export function isLaunchReadyShopPhone(e164: string): boolean {
   if (e164 === SHOP_PHONE_PLACEHOLDER_E164) {
     return false;

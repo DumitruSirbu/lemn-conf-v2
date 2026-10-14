@@ -11,9 +11,11 @@
 // second attempt **on the path it drives**. This catches one anywhere, including in a file that has
 // no test yet. It is the structural claim `qa-7f1-copy-and-conversions.adversarial.test.ts` makes
 // about `src/room`'s text, in the same shape and for the same reason.
-import { readdirSync, readFileSync } from "node:fs";
-import { join, relative, resolve } from "node:path";
+import { readFileSync } from "node:fs";
+import { relative, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+
+import { filesUnder } from "../support/files-under";
 
 const SOURCE_ROOT = resolve(import.meta.dirname, "../../src");
 
@@ -33,18 +35,10 @@ function declarationsIn(source: string): number {
     .length;
 }
 
-function sourceFilesUnder(directory: string): readonly string[] {
-  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-    const path = join(directory, entry.name);
-    if (entry.isDirectory()) return sourceFilesUnder(path);
-    return /\.tsx?$/.test(entry.name) ? [path] : [];
-  });
-}
-
 /** The files under `apps/web/src` in which `count` finds something, named as the repository names
  *  them. Files rather than a number, so a failure says **where** the second one is. */
 function filesWhere(count: (source: string) => number): readonly string[] {
-  return sourceFilesUnder(SOURCE_ROOT).flatMap((path) => {
+  return filesUnder(SOURCE_ROOT).flatMap((path) => {
     const found = count(readFileSync(path, "utf8"));
     return Array.from({ length: found }, () => relative(SOURCE_ROOT, path));
   });

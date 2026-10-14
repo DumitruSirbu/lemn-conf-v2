@@ -10,11 +10,13 @@
 // of those imports is `import type`, which TypeScript erases. This asserts that rather than leaving
 // it to the next person to notice, because the failure is invisible — the app still works, and the
 // only symptom is a larger bundle nobody is measuring.
-import { readdirSync, readFileSync } from "node:fs";
-import { dirname, join, relative, resolve } from "node:path";
+import { readFileSync } from "node:fs";
+import { dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
+
+import { filesUnder } from "../support/files-under";
 
 const WEB_SOURCE_DIR = resolve(
   dirname(fileURLToPath(import.meta.url)),
@@ -35,14 +37,6 @@ function mayImportTheDriver(relativePath: string): boolean {
     relativePath.startsWith("lib/server/") ||
     (relativePath.startsWith("app/api/") && relativePath.endsWith("route.ts"))
   );
-}
-
-function sourceFilesUnder(directory: string): string[] {
-  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-    const path = join(directory, entry.name);
-    if (entry.isDirectory()) return sourceFilesUnder(path);
-    return /\.tsx?$/.test(entry.name) ? [path] : [];
-  });
 }
 
 /**
@@ -76,7 +70,7 @@ function importsTypesOnly(statement: string): boolean {
 }
 
 describe("the Postgres driver stays out of the client bundle", () => {
-  const files = sourceFilesUnder(WEB_SOURCE_DIR).map((path) => ({
+  const files = filesUnder(WEB_SOURCE_DIR).map((path) => ({
     relativePath: relative(WEB_SOURCE_DIR, path).replaceAll("\\", "/"),
     source: readFileSync(path, "utf8"),
   }));

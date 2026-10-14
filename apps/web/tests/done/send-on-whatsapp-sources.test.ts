@@ -2,12 +2,13 @@
 // write down, send or navigate to the link, that its one address is a literal in one place, that no other folder of the
 // contact code draws it (the callback form's sent view has no design to share), and that its control is a 44 px target.
 // The browser stores, the page's address, the history and the console are the contact scan's, which reads this folder.
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
 import { valuesFor } from "../support/css-declarations";
+import { filesUnder } from "../support/files-under";
 
 const SOURCE_ROOT = join(import.meta.dirname, "../../src");
 const ACTION_FILE = join(SOURCE_ROOT, "done/send-on-whatsapp.tsx");
@@ -16,14 +17,6 @@ function withoutComments(source: string): string {
   return source
     .replace(/\/\*[\s\S]*?\*\//g, "")
     .replace(/(^|[^:])\/\/.*$/gm, "$1");
-}
-
-function sourceFilesUnder(directory: string): string[] {
-  return readdirSync(directory).flatMap((entry) => {
-    const path = join(directory, entry);
-    if (statSync(path).isDirectory()) return sourceFilesUnder(path);
-    return /\.tsx?$/.test(entry) ? [path] : [];
-  });
 }
 
 const actionSource = withoutComments(readFileSync(ACTION_FILE, "utf8"));
@@ -97,7 +90,7 @@ describe("the WhatsApp action's source", () => {
 
 describe("the files that draw the action", () => {
   it("are the confirmation's own: no other source file names it", () => {
-    const namingFiles = sourceFilesUnder(SOURCE_ROOT)
+    const namingFiles = filesUnder(SOURCE_ROOT)
       .filter((file) =>
         /SendOnWhatsapp|send-on-whatsapp/.test(readFileSync(file, "utf8")),
       )

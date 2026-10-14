@@ -1,7 +1,5 @@
 import "server-only";
 
-// Handed only a cause from a closed list, so no thrown value, message, id, revision or reference can be written.
-
 /** Why a read of a sent reference was not answered: a closed list, so the line can never carry a thrown value. */
 export const SENT_REFERENCE_CAUSES = [
   "store-error",
@@ -18,7 +16,8 @@ const UNEXPECTED_CAUSE: SentReferenceCause = "unexpected";
 
 const causesWritten = new Set<SentReferenceCause>();
 
-/** A read of a sent reference failed: written once per process and cause, so a flood buys one write. */
+/** A read of a sent reference failed: written once per process and cause, so a flood buys one write. A cause outside
+ *  the list is written as `unexpected`, so no thrown value, message, id, revision or reference can reach the line. */
 export function reportSentReferenceUnread(cause: SentReferenceCause): void {
   const known =
     SENT_REFERENCE_CAUSES.find((candidate) => candidate === cause) ??

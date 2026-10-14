@@ -45,8 +45,7 @@ export async function readSentReference(
 
 class ReadDeadlineExceeded extends Error {}
 
-/** The lookup's own outcome if it comes in time, else a rejection. The lookup's late rejection is handled by the race,
- *  and the timer is cleared whichever side wins. */
+/** The lookup's own outcome if it comes in time, else a rejection; the timer is cleared whichever side wins. */
 async function beforeDeadline<Answer>(
   lookup: Promise<Answer>,
   deadlineMs: number,

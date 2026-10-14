@@ -7,11 +7,10 @@ import {
 } from "@/lib/server/contact/sent-reference";
 import { loadOwnedDesign } from "@/lib/server/load-owned-design";
 
-/** The contact page of a stored design. Opens only in the browser that owns the design: every refusal is
- *  `loadOwnedDesign`'s, the function the editor and the review answer through (ADR 0114 decision 5, ADR 0148 A1), and a
- *  refused request reads nothing of the contact store. Rendered per request, which the owned load's cookie read makes
- *  it, so the CSP's nonce reaches its scripts and the server's environment and the store are asked when the page is.
- *  Only whether the server can take a request and the sent reference's own answer are handed on, never a row. */
+/** The contact page of a stored design, opened only in the browser that owns it: every refusal is `loadOwnedDesign`'s
+ *  (ADR 0114 decision 5), and a refused request reads nothing of the contact store. Rendered per request (the owned
+ *  load reads a cookie), so the CSP nonce reaches its scripts. Only whether the server can take a request and the sent
+ *  reference's answer are handed on, never a row. */
 export default async function ContactPage({
   params,
 }: {

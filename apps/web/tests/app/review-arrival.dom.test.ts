@@ -7,7 +7,7 @@
 // What this cannot see: Next's client navigation from the editor, the save coalescer's timing, and any request the
 // review's *children* might make that is not a `fetch` (none exists today). The no-request pin watches `fetch` and
 // reads the review's sources.
-import { readdirSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import {
@@ -39,6 +39,7 @@ import { isGreaterRevision } from "@/store/revision-order";
 
 import roMessages from "../../src/messages/ro.json";
 import ruMessages from "../../src/messages/ru.json";
+import { filesUnder } from "../support/files-under";
 
 const DESIGN_ID = "design-under-review" as DesignId;
 const OTHER_ID = "another-design" as DesignId;
@@ -84,14 +85,6 @@ function waitSentence(): string | undefined {
     container.querySelector('[data-testid="review-save-wait"]')?.textContent ??
     undefined
   );
-}
-
-function sourceFilesIn(directory: string): string[] {
-  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-    const path = join(directory, entry.name);
-    if (entry.isDirectory()) return sourceFilesIn(path);
-    return /\.(ts|tsx)$/.test(entry.name) ? [path] : [];
-  });
 }
 
 beforeEach(() => {
@@ -629,8 +622,8 @@ describe("a save under way is a wait, not an error", () => {
 
 describe("what the review's sources may reach for", () => {
   const files = [
-    ...sourceFilesIn(join(SRC, "review")),
-    ...sourceFilesIn(join(SRC, "app/d/[id]/review")),
+    ...filesUnder(join(SRC, "review")),
+    ...filesUnder(join(SRC, "app/d/[id]/review")),
   ].map((path) => ({ path, source: readFileSync(path, "utf8") }));
 
   it("names no design endpoint, no repository client and no write-access probe", () => {

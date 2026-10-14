@@ -14,11 +14,8 @@ import styles from "./contact.module.css";
 import { ReviewBackLink, TopBar } from "./contact-top-bar";
 
 /**
- * What the contact page of a kitchen already sent for draws, in the order of ADR 0163 decision 7: the bar, one focused
- * `h1`, the request's reference, the advice to call and the call link, the sentence that a changed kitchen can be sent,
- * and the way back to the design pinned at the foot. The submission hook is not mounted and nothing here is a form, so
- * no press on it can send. Its import closure holds none of the send path (ADR 0163 A5), which is why it draws its own
- * heading and not the confirmation's, and takes the way back from a module of its own.
+ * The contact page of a kitchen already sent for (ADR 0163 decision 7). Nothing here is a form and its import closure
+ * holds none of the send path, so it draws its own heading and takes the way back from a module of its own (ADR 0163 A5).
  */
 export function AlreadySentView({
   designId,

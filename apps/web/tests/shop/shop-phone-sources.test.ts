@@ -1,11 +1,12 @@
-// Criterion 1 of M8 wave 8M2: the shop's number is typed once, and everything that dials or messages it is built from
-// that one place. Reads the source tree and both catalogues; nothing is run.
-import { readdirSync, readFileSync, statSync } from "node:fs";
+// Reads the source tree and both catalogues: the shop's number is typed once, and everything that dials or messages it
+// is built from that one place.
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
 import { catalogueLeaves, CATALOGUES } from "../support/catalogues";
+import { filesUnder } from "../support/files-under";
 
 const SOURCE_ROOT = join(import.meta.dirname, "../../src");
 
@@ -22,13 +23,7 @@ const SCHEMES = {
 /** A run of digits long enough to be a phone number; `\p{Nd}` so a number in any script is caught. */
 const PHONE_LENGTH_DIGIT_RUN = /\p{Nd}{7,}/u;
 
-function textFilesUnder(directory: string): string[] {
-  return readdirSync(directory).flatMap((entry) => {
-    const path = join(directory, entry);
-    if (statSync(path).isDirectory()) return textFilesUnder(path);
-    return /\.(?:tsx?|css|json)$/.test(entry) ? [path] : [];
-  });
-}
+const TEXT_FILE = /\.(?:tsx?|css|json)$/;
 
 function relativeToSource(path: string): string {
   return path.slice(SOURCE_ROOT.length + 1).replaceAll("\\", "/");
@@ -57,7 +52,7 @@ describe("where the shop's address schemes are written (criterion 1)", () => {
 
   it.each(SCHEME_NAMES)("names `%s` only in its own holders", (scheme) => {
     const files = new Map(
-      textFilesUnder(SOURCE_ROOT).map((path) => [
+      filesUnder(SOURCE_ROOT, TEXT_FILE).map((path) => [
         relativeToSource(path),
         readFileSync(path, "utf8"),
       ]),

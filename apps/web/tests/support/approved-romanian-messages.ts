@@ -520,7 +520,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
   // approved, and the owner reads five groups: the saved sentence (`din acest browser`, not `pe telefon`: ADR 0114 B7),
   // the channel lines (`channelLine`'s phone and e-mail arms, `channelLineWithoutValue` shown after a reload), 5B's
   // kept sentences and box title (Q18: kept while the page is open), `retryAutomatically`, `noRequest` and `notShown`.
-  // No response time (Q8, Q26), no shop number (Q3), no e-mailed link (Q11, Q43).
+  // No response time (Q8, Q26), no e-mailed link (Q11, Q43); the shop's number is in no leaf, it is `shop-phone.ts`'s.
   // `nextStepsProvisionalMarker` and the three `nextStep*` leaves are a SLOT (Q9): provisional until the owner confirms
   // them line by line, carried here as the lock carries a drafted leaf.
   submissionResult: {

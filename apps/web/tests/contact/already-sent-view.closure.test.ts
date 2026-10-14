@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { codeOf, importClosureOf } from "../support/source-import-closure";
+import {
+  codeOf,
+  codeWithoutComments,
+  importClosureOf,
+} from "../support/source-import-closure";
 
-/**
- * Reads source: the already-sent arm has no way to send (ADR 0163 A5). The modules that draw it, and everything they
- * import inside `apps/web/src`, hold none of the send path and no `fetch(`. The dom test with throwing factories is the
- * proof that nothing in the view's graph imports them at run time; this is the one that sees a `fetch(` call, which no
- * mock names.
- */
+// Reads source: the already-sent arm has no way to send (ADR 0163 A5). Its modules and everything they import hold none
+// of the send path and no `fetch(`, which no mock names.
 
 const VIEW_MODULES = [
   "contact/already-sent-view.tsx",
@@ -66,5 +66,15 @@ describe("the already-sent arm's import closure", () => {
     expect(
       closure.filter((path) => /\bfetch\s*\(/.test(codeOf(path))),
     ).not.toEqual([]);
+  });
+
+  it("control: a fetch( after a // inside a string is seen, and one inside a comment is not", () => {
+    const hidden = 'const note = "a //"; fetch(url);';
+    const commented = "// fetch(url)\n/* fetch(url) */ const quiet = 1;";
+
+    expect(codeWithoutComments("hidden.ts", hidden)).toMatch(/\bfetch\s*\(/);
+    expect(codeWithoutComments("commented.ts", commented)).not.toMatch(
+      /\bfetch\s*\(/,
+    );
   });
 });

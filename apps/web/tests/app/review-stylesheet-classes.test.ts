@@ -3,22 +3,16 @@
 // the review's stylesheet and fails on any class it names that the stylesheet does not define, for every class.
 //
 // It also pins the spacing frame 3A uses between the blocks it draws, because a rule that exists can still be empty.
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { filesUnder } from "../support/files-under";
+
 const SRC = join(import.meta.dirname, "../../src");
 const STYLESHEET_PATH = join(SRC, "app/d/[id]/review/review.module.css");
 const STYLESHEET_IMPORT = /from\s+["'][^"']*review\.module\.css["']/;
-
-function sourceFilesUnder(directory: string): string[] {
-  return readdirSync(directory).flatMap((entry) => {
-    const path = join(directory, entry);
-    if (statSync(path).isDirectory()) return sourceFilesUnder(path);
-    return /\.tsx?$/.test(entry) ? [path] : [];
-  });
-}
 
 function withoutComments(css: string): string {
   return css.replace(/\/\*[\s\S]*?\*\//g, "");
@@ -44,7 +38,7 @@ function classesNamedIn(source: string): string[] {
 
 const STYLESHEET = readFileSync(STYLESHEET_PATH, "utf8");
 const DEFINED = classesDefinedIn(STYLESHEET);
-const IMPORTERS = sourceFilesUnder(SRC)
+const IMPORTERS = filesUnder(SRC)
   .map((path) => ({
     name: relative(SRC, path),
     source: readFileSync(path, "utf8"),

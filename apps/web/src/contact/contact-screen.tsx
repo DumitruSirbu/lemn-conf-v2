@@ -55,7 +55,7 @@ export interface ContactScreenProps {
   /** Whether the server can take a request at all: a mail sender and a digest secret it can use. A boolean and nothing
    *  of how it was decided, since that must not reach the page. */
   readonly isSendable: boolean;
-  /** What the server said of this design at `revision`. Nothing more of its row reaches the page. */
+  /** What the server said of this design at `loadedRevision`. Nothing more of its row reaches the page. */
   readonly sentReference: SentReferenceAnswer;
 }
 

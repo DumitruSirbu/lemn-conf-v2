@@ -43,7 +43,14 @@ export function importClosureOf(entry: string): string[] {
 
 /** The text of a module under `src` with its comments taken out, so a word in a comment is not a call. */
 export function codeOf(path: string): string {
-  return readFileSync(join(SOURCE_ROOT, path), "utf8")
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .replace(/(^|[^:])\/\/.*$/gm, "$1");
+  return codeWithoutComments(
+    path,
+    readFileSync(join(SOURCE_ROOT, path), "utf8"),
+  );
+}
+
+/** Re-printed from the syntax tree, so a `//` inside a string, template or regex is code and not a comment. */
+export function codeWithoutComments(fileName: string, source: string): string {
+  const tree = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest);
+  return ts.createPrinter({ removeComments: true }).printFile(tree);
 }

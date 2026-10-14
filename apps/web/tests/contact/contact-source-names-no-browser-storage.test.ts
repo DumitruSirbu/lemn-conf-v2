@@ -9,10 +9,12 @@
 // beacon), the address and the history (a typed value in either is a typed value in the URL of a history entry), the
 // router's navigations, and the console. The router has one named exception, the file that replaces the contact page
 // with the confirmation (8M.3), and a test below reads that file for its one call.
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 
 import { describe, expect, it } from "vitest";
+
+import { filesUnder } from "../support/files-under";
 
 const SOURCE_ROOT = join(import.meta.dirname, "../../src");
 const CONTACT_SOURCE_DIRECTORY = join(SOURCE_ROOT, "contact");
@@ -75,19 +77,11 @@ function withoutComments(source: string): string {
     .replace(/(^|[^:])\/\/.*$/gm, "$1");
 }
 
-function sourceFilesUnder(directory: string): string[] {
-  return readdirSync(directory).flatMap((entry) => {
-    const path = join(directory, entry);
-    if (statSync(path).isDirectory()) return sourceFilesUnder(path);
-    return /\.tsx?$/.test(entry) ? [path] : [];
-  });
-}
-
 function filesOfTheContactCode(): string[] {
   return [
-    ...sourceFilesUnder(CONTACT_SOURCE_DIRECTORY),
-    ...sourceFilesUnder(DONE_SOURCE_DIRECTORY),
-    ...sourceFilesUnder(join(SOURCE_ROOT, "result")),
+    ...filesUnder(CONTACT_SOURCE_DIRECTORY),
+    ...filesUnder(DONE_SOURCE_DIRECTORY),
+    ...filesUnder(join(SOURCE_ROOT, "result")),
     ...CONTACT_ROUTE_FILES.map((file) => join(SOURCE_ROOT, file)),
   ];
 }
@@ -121,9 +115,7 @@ describe("the contact form's source", () => {
   });
 
   it("reads files in subfolders too, so a file moved down a folder is still scanned", () => {
-    const underTheDesignFolder = sourceFilesUnder(
-      join(SOURCE_ROOT, "app", "d"),
-    );
+    const underTheDesignFolder = filesUnder(join(SOURCE_ROOT, "app", "d"));
 
     expect(
       underTheDesignFolder.map((file) => relative(SOURCE_ROOT, file)),
