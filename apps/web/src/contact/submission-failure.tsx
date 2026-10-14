@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 
 import { useContent } from "@/i18n/use-content";
+import { CallShopLink } from "@/shop/call-shop-link";
 
 import { failureScreenOf, type FailureScreen } from "./contact-answer";
 import styles from "./contact.module.css";
@@ -11,8 +12,8 @@ import type { ContactSubmissionPhase } from "./use-contact-submission";
 
 // Frame 5B, the way out of a send that did not arrive: a state of the contact page, not a route, because it must keep
 // what was typed and send it again. The form is not drawn while it shows and every value stays in the form's memory;
-// the one typed value drawn here is the one the shop would have used. The frame's bar (*Cerere trimisă*) and its
-// *Sună direct la magazin* are not drawn: the first claims a send, the second has no number to dial (Q3).
+// the one typed value drawn here is the one the shop would have used. The frame's bar (*Cerere trimisă*) is not drawn,
+// since it claims a send; its *Sună direct la magazin* is, under the retry, dialling the shop's one constant (8M2.8).
 
 /**
  * The failure screen the page is on, given the one it was on and the phase now. A press made from 5B, or the automatic
@@ -99,11 +100,14 @@ export function SubmissionFailure({
       data-screen={screen}
     >
       <FailureHead screen={screen} keptSentence={keptSentence} />
-      <RetryButton
-        isRetrying={isRetrying}
-        isOff={isRetryOff}
-        onRetry={onRetry}
-      />
+      <div className={styles.failureActions}>
+        <RetryButton
+          isRetrying={isRetrying}
+          isOff={isRetryOff}
+          onRetry={onRetry}
+        />
+        <CallShopLink />
+      </div>
       {isConnectionLost ? <AutomaticRetryNote /> : null}
       <KeptBox card={keptCard} contactValue={contactValue} />
       {isConnectionLost ? <WaitingForConnection /> : null}

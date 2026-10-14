@@ -32,6 +32,7 @@ vi.mock("@/components/webgl-unavailable", () => ({
 import { CallbackContactScreen } from "@/contact/contact-screen";
 import { failureScreenAfter } from "@/contact/submission-failure";
 import type { ContactSubmissionPhase } from "@/contact/use-contact-submission";
+import { shopTelAddress } from "@/shop/shop-phone";
 import { useConfiguratorStore } from "@/store/configurator-store";
 
 import {
@@ -208,13 +209,47 @@ describe("frame 5B: a request with no answer", () => {
     );
   });
 
-  it("draws no number to call and no tel link: none has been given", async () => {
+  it("draws one call link to the shop under the retry, as frame 5B places it, and no other link but the way back", async () => {
     const container = mount();
 
     await sendAndLoseTheAnswer(container);
 
-    expect(container.querySelector('a[href^="tel:"]')).toBeNull();
-    expect(container.querySelectorAll("a")).toHaveLength(1);
+    const call = byTestId(container, "call-shop-link");
+    expect(call.getAttribute("href")).toBe(shopTelAddress());
+    expect(call.textContent).toContain(MESSAGES.ro.submissionResult.callShop);
+    expect(container.querySelectorAll('a[href^="tel:"]')).toHaveLength(1);
+    expect(container.querySelectorAll("a")).toHaveLength(2);
+    expect(
+      byTestId(container, "contact-retry").compareDocumentPosition(call) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it.each(ANSWERED_FAILURES)(
+    "draws the call link on the not-sent screen for %s",
+    async (_name, answer) => {
+      const container = mount();
+      sendTheWholeForm(container);
+
+      await traffic.answerOldest(answer);
+
+      expect(
+        byTestId(container, "submission-failure").getAttribute("data-screen"),
+      ).toBe("not-sent");
+      expect(byTestId(container, "call-shop-link").getAttribute("href")).toBe(
+        shopTelAddress(),
+      );
+    },
+  );
+
+  it("labels the call link in Russian in the Russian page", async () => {
+    const container = mount("ru");
+
+    await sendAndLoseTheAnswer(container);
+
+    expect(byTestId(container, "call-shop-link").textContent).toContain(
+      MESSAGES.ru.submissionResult.callShop,
+    );
   });
 
   it("draws no code and no status in what it says", async () => {
@@ -759,6 +794,17 @@ describe("the callback form", () => {
       VALID_PHONE,
     );
     expect(document.activeElement).toBe(byTestId(container, "failure-heading"));
+  });
+
+  it("draws the call link on 5B for a request with no design, the same link and under the retry", async () => {
+    const container = mountCallback();
+    sendTheWholeForm(container);
+
+    await traffic.answerOldest("network-failure");
+
+    const call = byTestId(container, "call-shop-link");
+    expect(call.getAttribute("href")).toBe(shopTelAddress());
+    expect(container.querySelectorAll('a[href^="tel:"]')).toHaveLength(1);
   });
 
   it("sends the same request again from 5B, and draws its sent view in place when that is sent", async () => {

@@ -448,6 +448,22 @@
   color: var(--accent);
 }
 
+/* The already-sent view's correction path: the advice and the call link under it, held closer to each other than the
+ * body's other blocks are to theirs. */
+.alreadySentAdvice {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.alreadySentText {
+  margin: 0;
+  font: 400 13.5px/1.6 var(--font-ui);
+  color: var(--ink-muted);
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+}
+
 /* Frame 5B: the page's state for a send that did not arrive, in the frame's order. The form is not drawn; the bar above
  * is the contact page's own, since the frame's check-marked bar would claim a send. */
 .failure {
@@ -494,6 +510,13 @@
   font: 400 13.5px/1.6 var(--font-ui);
   color: var(--ink-muted);
   text-wrap: pretty;
+}
+
+/* The retry and the call to the shop under it, as the frame groups them. */
+.failureActions {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
 }
 
 /* The frame's 52 px primary button: the call to action's own look, in its sending state a spinner and the sending label. */

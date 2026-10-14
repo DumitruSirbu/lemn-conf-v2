@@ -361,7 +361,7 @@ function mountWithAnEditHeld(): HTMLElement {
         timeZone: "Europe/Chisinau",
         children: createElement(ContactScreen, {
           designId: DESIGN_ID,
-          revision: FIRST_REVISION,
+          loadedRevision: FIRST_REVISION,
           isSendable: true,
           sentReference: SENT,
         }),

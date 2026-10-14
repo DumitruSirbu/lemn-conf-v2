@@ -5,7 +5,8 @@
 //
 // The second server is given no fake sender, no mail variable and its own digest secret: the three mail variables are
 // absent, so `isContactSendable` is false and nothing it does can store or send. The page hands the browser a boolean;
-// neither the HTML nor the RSC payload holds a variable's name or value, or a telephone number.
+// neither the HTML nor the RSC payload holds a variable's name or value. Both pages draw the one link that rings the shop
+// (8M2.8); its number is the shop's, not the server's, and is checked in the browser.
 import { expect, test, type Page } from "@playwright/test";
 
 import {
@@ -22,6 +23,7 @@ import {
   type ProductionPolicyServer,
 } from "./support/production-policy-server";
 import { mintSeededDesign, type SeededDesign } from "./support/seeded-design";
+import { shopTelAddress } from "../../src/shop/shop-phone";
 
 const SERVER_START_TIMEOUT_MS = 300_000;
 const RUN_UNDER_CI =
@@ -77,7 +79,7 @@ test.describe("a server that cannot take a contact request", () => {
       await expect(page.getByTestId(UNAVAILABLE)).toHaveText(
         MESSAGES[locale].contact.unavailable,
       );
-      await expectNothingToSendWith(page);
+      await expectNothingToSendWithAndTheCallLink(page);
       expect(sent).toEqual([]);
     });
 
@@ -100,7 +102,7 @@ test.describe("a server that cannot take a contact request", () => {
       await expect(page.getByTestId(UNAVAILABLE)).toHaveText(
         MESSAGES[locale].contact.unavailable,
       );
-      await expectNothingToSendWith(page);
+      await expectNothingToSendWithAndTheCallLink(page);
       await expect(page.getByTestId("contact-back")).toHaveAttribute(
         "href",
         `/${locale}/d/${design.id}/review`,
@@ -109,7 +111,7 @@ test.describe("a server that cannot take a contact request", () => {
     });
   }
 
-  test("neither page's HTML nor its RSC payload names a variable, holds the server's secret, or draws the shop's number", async ({
+  test("neither page's HTML nor its RSC payload names a variable or holds the server's secret", async ({
     page,
   }) => {
     const design = await mintOnTheSuitesServer(page);
@@ -130,7 +132,6 @@ test.describe("a server that cannot take a contact request", () => {
           expect(text, `${path} holds ${name}`).not.toContain(name);
         }
         expect(text, `${path} holds the secret`).not.toContain(secret);
-        expect(text, `${path} draws a number`).not.toMatch(/href="tel:/i);
       }
       const html = await document.text();
       expect(html).toMatch(/isSendable\\?":false/);
@@ -159,11 +160,17 @@ test.describe("a server that cannot take a contact request", () => {
     return design;
   }
 
-  async function expectNothingToSendWith(page: Page): Promise<void> {
+  async function expectNothingToSendWithAndTheCallLink(
+    page: Page,
+  ): Promise<void> {
     await expect(page.locator("form")).toHaveCount(0);
     await expect(page.locator("main input")).toHaveCount(0);
     await expect(page.locator("main textarea")).toHaveCount(0);
     await expect(page.getByTestId(CTA)).toHaveCount(0);
-    await expect(page.locator('a[href^="tel:"]')).toHaveCount(0);
+    await expect(page.locator('a[href^="tel:"]')).toHaveCount(1);
+    await expect(page.getByTestId("call-shop-link")).toHaveAttribute(
+      "href",
+      shopTelAddress(),
+    );
   }
 });

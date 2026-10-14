@@ -5,6 +5,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
+import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 import { declarationsFor, valuesFor } from "../support/css-declarations";
@@ -164,5 +165,102 @@ describe("the stylesheet", () => {
         ({ value }) => value,
       ),
     ).toEqual(['"!"']);
+  });
+});
+
+describe("the revision the page was loaded at", () => {
+  function parse(source: string): ts.SourceFile {
+    return ts.createSourceFile(
+      "screen.tsx",
+      source,
+      ts.ScriptTarget.Latest,
+      true,
+      ts.ScriptKind.TSX,
+    );
+  }
+
+  const screenFile = parse(
+    readFileSync(join(CONTACT_SOURCE_DIRECTORY, "contact-screen.tsx"), "utf8"),
+  );
+
+  function attributesOfEvery(file: ts.SourceFile, tagName: string): string[][] {
+    const found: string[][] = [];
+    function visit(node: ts.Node): void {
+      const isElement =
+        ts.isJsxSelfClosingElement(node) || ts.isJsxOpeningElement(node);
+      if (isElement && node.tagName.getText(file) === tagName) {
+        found.push(
+          node.attributes.properties.map((attribute) =>
+            attribute.getText(file).replace(/=[\s\S]*$/, ""),
+          ),
+        );
+      }
+      ts.forEachChild(node, visit);
+    }
+    visit(file);
+    return found;
+  }
+
+  function parameterTypeMembersOf(
+    file: ts.SourceFile,
+    functionName: string,
+  ): string[] {
+    let members: string[] = [];
+    function visit(node: ts.Node): void {
+      if (ts.isFunctionDeclaration(node) && node.name?.text === functionName) {
+        const type = node.parameters[0]?.type;
+        if (type !== undefined && ts.isTypeLiteralNode(type)) {
+          members = type.members.map(
+            (member) => member.name?.getText(file) ?? "",
+          );
+        }
+      }
+      ts.forEachChild(node, visit);
+    }
+    visit(file);
+    return members;
+  }
+
+  function membersOfInterface(file: ts.SourceFile, name: string): string[] {
+    let names: string[] = [];
+    ts.forEachChild(file, (node) => {
+      if (ts.isInterfaceDeclaration(node) && node.name.text === name) {
+        names = node.members.map((member) => member.name?.getText(file) ?? "");
+      }
+    });
+    return names;
+  }
+
+  it("is named for what it is on the screen's props, and the screen's props name no `revision`", () => {
+    expect(membersOfInterface(screenFile, "ContactScreenProps")).toEqual([
+      "designId",
+      "loadedRevision",
+      "isSendable",
+      "sentReference",
+    ]);
+  });
+
+  it("is handed to the form's page in no way: DesignContactPage is drawn with the design's id and nothing else", () => {
+    expect(attributesOfEvery(screenFile, "DesignContactPage")).toEqual([
+      ["designId"],
+    ]);
+    expect(parameterTypeMembersOf(screenFile, "DesignContactPage")).toEqual([
+      "designId",
+    ]);
+  });
+
+  it("sees a revision handed down: the same reads find an added attribute and an added member", () => {
+    const mutant = parse(
+      "function DesignContactPage({ designId }: { designId: string; loadedRevision: string }) { return null }\n" +
+        "const a = <DesignContactPage designId={d} loadedRevision={r} />;",
+    );
+
+    expect(attributesOfEvery(mutant, "DesignContactPage")).toEqual([
+      ["designId", "loadedRevision"],
+    ]);
+    expect(parameterTypeMembersOf(mutant, "DesignContactPage")).toEqual([
+      "designId",
+      "loadedRevision",
+    ]);
   });
 });

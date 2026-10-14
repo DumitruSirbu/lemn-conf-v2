@@ -22,20 +22,36 @@ const FORM: ContactPageView = { kind: "form" };
 
 /**
  * Already sent only when the server answered `sent` and the store holds this design, clean, at the page's own revision.
- * Anything else, a kind this function does not know included, is the form: a failed read must not cost a lead.
+ * Anything else, a kind this function does not know included, is the form: a failed read must not cost a lead. The
+ * switch is exhaustive over the type, so a new kind is a compile error here and not a silent block.
  */
 export function contactPageViewOf(
   input: ContactPageViewInput,
 ): ContactPageView {
   const { server, page, held } = input;
-  if (server.kind !== "sent") return FORM;
-  const isHeldAsLoaded =
+  switch (server.kind) {
+    case "sent":
+      return isHeldAsLoaded(page, held)
+        ? { kind: "already-sent", reference: server.reference }
+        : FORM;
+    case "none":
+    case "unknown":
+      return FORM;
+    default:
+      server satisfies never;
+      return FORM;
+  }
+}
+
+function isHeldAsLoaded(
+  page: ContactPageViewInput["page"],
+  held: ContactPageViewInput["held"],
+): boolean {
+  return (
     held.designId === page.designId &&
     held.revision === page.revision &&
-    !held.hasUnsavedEdit;
-  return isHeldAsLoaded
-    ? { kind: "already-sent", reference: server.reference }
-    : FORM;
+    !held.hasUnsavedEdit
+  );
 }
 
 /**

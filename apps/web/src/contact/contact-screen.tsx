@@ -19,6 +19,7 @@ import { OpenEditorLink } from "@/review/open-editor-link";
 import type { RefusedSubmit, ReviewView } from "@/review/review-model";
 import { useReview } from "@/review/use-review";
 import { useWebGLSupport } from "@/scene/webgl-support";
+import { CallShopLink } from "@/shop/call-shop-link";
 import {
   hasUnsavedEdit,
   useConfiguratorStore,
@@ -48,8 +49,9 @@ import {
 
 export interface ContactScreenProps {
   readonly designId: DesignId;
-  /** The stored revision the page was loaded at: what `sentReference` answers for. */
-  readonly revision: DesignRevision;
+  /** The stored revision the page was loaded at: what `sentReference` answers for. It is the page's, never the one a
+   *  request carries, so it is named for what it is and goes no further than the decision. */
+  readonly loadedRevision: DesignRevision;
   /** Whether the server can take a request at all: a mail sender and a digest secret it can use. A boolean and nothing
    *  of how it was decided, since that must not reach the page. */
   readonly isSendable: boolean;
@@ -66,7 +68,7 @@ export interface ContactScreenProps {
  */
 export function ContactScreen({
   designId,
-  revision,
+  loadedRevision,
   isSendable,
   sentReference,
 }: ContactScreenProps) {
@@ -74,7 +76,7 @@ export function ContactScreen({
   const support = useWebGLSupport();
   const view = useLatchedContactPageView({
     server: sentReference,
-    page: { designId, revision },
+    page: { designId, revision: loadedRevision },
   });
   useForgetSentRequestOnMount();
 
@@ -348,8 +350,8 @@ function CallbackSentView({
   );
 }
 
-/** Where the server cannot take a request: the sentence, and the bar that leads back. No form, no input and no button,
- *  and the browser sends nothing. The shop's telephone is not drawn: no number has been given. */
+/** Where the server cannot take a request: the sentence, the one link that rings the shop instead, and the bar that
+ *  leads back. No form, no input and no button, and the browser sends nothing. */
 function UnavailablePage({ backLink }: { readonly backLink: ReactNode }) {
   const content = useContent();
   return (
@@ -359,6 +361,7 @@ function UnavailablePage({ backLink }: { readonly backLink: ReactNode }) {
         <p className={styles.sentence} data-testid="contact-unavailable">
           {content.contact.unavailable}
         </p>
+        <CallShopLink />
       </div>
     </main>
   );

@@ -34,7 +34,7 @@ export function HydrateAndContact({
     >
       <ContactScreen
         designId={designId}
-        revision={revision}
+        loadedRevision={revision}
         isSendable={isSendable}
         sentReference={sentReference}
       />

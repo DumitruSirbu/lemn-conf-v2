@@ -19,6 +19,7 @@ vi.mock("@/app/configurator/configure/locale-menu", () => ({
 }));
 
 import { CallbackContactScreen } from "@/contact/contact-screen";
+import { shopTelAddress } from "@/shop/shop-phone";
 import { useConfiguratorStore } from "@/store/configurator-store";
 
 import {
@@ -188,6 +189,12 @@ describe("the callback form where the server cannot take a request", () => {
           "href",
         ),
       ).toBe(`/${locale}`);
+      expect(
+        elementIn(container, '[data-testid="call-shop-link"]').getAttribute(
+          "href",
+        ),
+      ).toBe(shopTelAddress());
+      expect(container.querySelectorAll('a[href^="tel:"]')).toHaveLength(1);
       expect(traffic.contactBodies).toEqual([]);
       expect(traffic.otherUrls).toEqual([]);
     },

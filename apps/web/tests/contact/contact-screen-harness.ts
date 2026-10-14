@@ -57,7 +57,7 @@ export function mountContactScreen(options: ScreenOptions = {}): MountedScreen {
         timeZone: "Europe/Chisinau",
         children: createElement(ContactScreen, {
           designId: DESIGN_ID,
-          revision: FIRST_REVISION,
+          loadedRevision: FIRST_REVISION,
           isSendable,
           sentReference,
         }),

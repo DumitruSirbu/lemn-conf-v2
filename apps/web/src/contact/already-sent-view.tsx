@@ -3,16 +3,22 @@
 import type { DesignId } from "@lemnaria/configurator-domain";
 import { useEffect, useRef } from "react";
 
+import { useKeepFocusAbove } from "@/components/use-keep-focus-above";
+import { BackToDesignLink } from "@/done/back-to-design-link";
 import { SentReferenceCard } from "@/done/sent-reference-card";
 import { useContent } from "@/i18n/use-content";
+import { CallShopLink } from "@/shop/call-shop-link";
+import { shopPhoneDisplay } from "@/shop/shop-phone";
 
 import styles from "./contact.module.css";
 import { ReviewBackLink, TopBar } from "./contact-top-bar";
 
 /**
- * What the contact page of a kitchen already sent for draws: the bar, one focused `h1` and the request's reference.
- * The submission hook is not mounted and nothing here is a form, so no press on it can send. Its import closure holds
- * none of the send path (ADR 0163 A5), which is why it draws its own heading and not the confirmation's.
+ * What the contact page of a kitchen already sent for draws, in the order of ADR 0163 decision 7: the bar, one focused
+ * `h1`, the request's reference, the advice to call and the call link, the sentence that a changed kitchen can be sent,
+ * and the way back to the design pinned at the foot. The submission hook is not mounted and nothing here is a form, so
+ * no press on it can send. Its import closure holds none of the send path (ADR 0163 A5), which is why it draws its own
+ * heading and not the confirmation's, and takes the way back from a module of its own.
  */
 export function AlreadySentView({
   designId,
@@ -21,6 +27,21 @@ export function AlreadySentView({
   readonly designId: DesignId;
   readonly reference: string;
 }) {
+  return (
+    <main className={styles.screen}>
+      <TopBar backLink={<ReviewBackLink designId={designId} />} />
+      <div className={styles.body} data-testid="contact-already-sent">
+        <SentHeading />
+        <SentReferenceCard reference={reference} />
+        <CallAdvice />
+        <ChangedKitchenSentence />
+      </div>
+      <PinnedWayBack designId={designId} />
+    </main>
+  );
+}
+
+function SentHeading() {
   const content = useContent().submissionResult;
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
@@ -28,21 +49,58 @@ export function AlreadySentView({
   }, []);
 
   return (
-    <main className={styles.screen}>
-      <TopBar backLink={<ReviewBackLink designId={designId} />} />
-      <div className={styles.body} data-testid="contact-already-sent">
-        <div className={styles.head}>
-          <h1
-            ref={headingRef}
-            tabIndex={-1}
-            className={styles.heading}
-            data-testid="contact-already-sent-heading"
-          >
-            {content.alreadySentHeading}
-          </h1>
-        </div>
-        <SentReferenceCard reference={reference} />
-      </div>
-    </main>
+    <div className={styles.head}>
+      <h1
+        ref={headingRef}
+        tabIndex={-1}
+        className={styles.heading}
+        data-testid="contact-already-sent-heading"
+      >
+        {content.alreadySentHeading}
+      </h1>
+    </div>
+  );
+}
+
+/** The correction path: a sentence naming the shop's number as text, and the one link that dials it. */
+function CallAdvice() {
+  const content = useContent().submissionResult;
+  return (
+    <div className={styles.alreadySentAdvice}>
+      <p
+        className={styles.alreadySentText}
+        data-testid="contact-already-sent-advice"
+      >
+        {content.alreadySentAdvice(shopPhoneDisplay())}
+      </p>
+      <CallShopLink />
+    </div>
+  );
+}
+
+function ChangedKitchenSentence() {
+  const content = useContent().submissionResult;
+  return (
+    <p
+      className={styles.alreadySentText}
+      data-testid="contact-already-sent-changed-kitchen"
+    >
+      {content.alreadySentChangedKitchen}
+    </p>
+  );
+}
+
+/** Pinned at the foot as frame 5A pins its way back: sticky and in the flow, and what takes focus is kept clear of it. */
+function PinnedWayBack({ designId }: { readonly designId: DesignId }) {
+  const regionRef = useRef<HTMLDivElement>(null);
+  useKeepFocusAbove(regionRef);
+  return (
+    <div
+      className={styles.bottom}
+      ref={regionRef}
+      data-testid="contact-already-sent-bottom"
+    >
+      <BackToDesignLink designId={designId} />
+    </div>
   );
 }

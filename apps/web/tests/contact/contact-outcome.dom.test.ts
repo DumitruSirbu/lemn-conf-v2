@@ -27,6 +27,7 @@ vi.mock("@/components/webgl-unavailable", () => ({
 }));
 
 import { clockTimeOf } from "@/i18n/clock-time";
+import { shopTelAddress } from "@/shop/shop-phone";
 
 import {
   elementIn,
@@ -477,7 +478,7 @@ describe("the sent state", () => {
 });
 
 describe("a server that cannot take a request", () => {
-  it("is a sentence with no form, no input and no button, and the browser sends nothing", () => {
+  it("is a sentence and the one call link to the shop, with no form, no input and no button, and the browser sends nothing", () => {
     screen = mountContactScreen({ isSendable: false });
     const { container } = screen;
 
@@ -487,7 +488,12 @@ describe("a server that cannot take a request", () => {
     expect(container.querySelector("form")).toBeNull();
     expect(container.querySelector("input")).toBeNull();
     expect(container.querySelector("button")).toBeNull();
-    expect(container.querySelector('a[href^="tel:"]')).toBeNull();
+    expect(
+      elementIn(container, '[data-testid="call-shop-link"]').getAttribute(
+        "href",
+      ),
+    ).toBe(shopTelAddress());
+    expect(container.querySelectorAll('a[href^="tel:"]')).toHaveLength(1);
     expect(traffic.contactBodies).toHaveLength(0);
     expect(traffic.otherUrls).toHaveLength(0);
   });
@@ -499,5 +505,8 @@ describe("a server that cannot take a request", () => {
       elementIn(screen.container, '[data-testid="contact-unavailable"]')
         .textContent,
     ).toBe(MESSAGES.ru.contact.unavailable);
+    expect(
+      elementIn(screen.container, '[data-testid="call-shop-link"]').textContent,
+    ).toContain(MESSAGES.ru.submissionResult.callShop);
   });
 });

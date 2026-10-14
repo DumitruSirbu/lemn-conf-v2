@@ -6,14 +6,13 @@ import { useEffect, useRef, useSyncExternalStore, type ReactNode } from "react";
 import { LocaleMenu } from "@/app/configurator/configure/locale-menu";
 import { useKeepFocusAbove } from "@/components/use-keep-focus-above";
 import type { Content } from "@/i18n/content";
-import { Link } from "@/i18n/navigation";
 import { useContent } from "@/i18n/use-content";
 import { ReviewLink } from "@/result/review-link";
-import { editorHref } from "@/review/design-hrefs";
 import { KitchenPicture } from "@/review/review-scene";
 import type { SceneView } from "@/scene/scene-view";
 import { useWebGLSupport } from "@/scene/webgl-support";
 
+import { BackToDesignLink } from "./back-to-design-link";
 import styles from "./done.module.css";
 import {
   resultToShow,
@@ -294,20 +293,12 @@ function PinnedActions({
   readonly designId: DesignId;
   readonly reference: string;
 }) {
-  const content = useContent().submissionResult;
   const regionRef = useRef<HTMLDivElement>(null);
   useKeepFocusAbove(regionRef);
   return (
     <div className={styles.bottom} ref={regionRef} data-testid="done-bottom">
       <SendOnWhatsapp designId={designId} reference={reference} />
-      <Link
-        prefetch={false}
-        className={styles.backToDesign}
-        href={editorHref(designId)}
-        data-testid="done-back-to-design"
-      >
-        {content.backToDesign}
-      </Link>
+      <BackToDesignLink designId={designId} />
     </div>
   );
 }
