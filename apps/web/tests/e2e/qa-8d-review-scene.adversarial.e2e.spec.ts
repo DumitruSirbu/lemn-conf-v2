@@ -186,41 +186,58 @@ test("a thumb swipe that starts on the scene scrolls the page, and neither a sid
   ).toBeGreaterThan(MOVED_VIEW_MIN_CHANGED_PIXELS);
 });
 
-test("a tap on a body in the review's scene selects nothing: no outline is drawn, no panel opens, the address stays, and the editor opened afterwards holds no selection", async ({
-  page,
-  seededDesign,
-}) => {
-  const { clip, still } = await openReviewWithAWatchedScene(page, seededDesign);
-  const address = page.url();
-  const requests = recordRequests(page);
+/**
+ * A known flake (backlog 195, 162): on a CI runner's software WebGL the still-scene count has read ~32 700 changed
+ * pixels against at most 60 (CI run 38574379483, mobile shard 5/9) and passed alone. Owner's ruling 2026-10-14: this one
+ * test is retried once on CI only, so a pass on the retry is reported "flaky" and not hidden. The assertions are
+ * unchanged, a failure on both attempts is still a red, and no other test in the file is retried.
+ */
+test.describe(
+  "known flake, backlog 195",
+  { annotation: { type: "flake", description: "backlog 195" } },
+  () => {
+    test.describe.configure({ retries: process.env.CI === undefined ? 0 : 1 });
 
-  // Across the lower half of the scene, where the base run stands in the wall view: some of these land on a body.
-  for (const offsetX of [-120, -60, 0, 60, 120]) {
-    await page.touchscreen.tap(
-      clip.x + clip.width / 2 + offsetX,
-      clip.y + clip.height * 0.7,
-    );
-  }
-
-  expect(
-    await countChangedPixels(
+    test("a tap on a body in the review's scene selects nothing: no outline is drawn, no panel opens, the address stays, and the editor opened afterwards holds no selection", async ({
       page,
-      still,
-      await settledScene(page, clip),
-      PIXEL_NOISE_FLOOR,
-    ),
-  ).toBeLessThanOrEqual(STILL_SCENE_MAX_CHANGED_PIXELS);
-  expect(page.url()).toBe(address);
-  await expect(page.getByTestId("editor-panel")).toHaveCount(0);
-  expect(toTheDesignApi(requests, seededDesign.id)).toEqual([]);
+      seededDesign,
+    }) => {
+      const { clip, still } = await openReviewWithAWatchedScene(
+        page,
+        seededDesign,
+      );
+      const address = page.url();
+      const requests = recordRequests(page);
 
-  await page.getByRole("link", { name: VIEW_IN_3D, exact: true }).tap();
-  await page.waitForURL(`/ro/d/${seededDesign.id}`);
-  await expectEditorReady(page);
+      // Across the lower half of the scene, where the base run stands in the wall view: some of these land on a body.
+      for (const offsetX of [-120, -60, 0, 60, 120]) {
+        await page.touchscreen.tap(
+          clip.x + clip.width / 2 + offsetX,
+          clip.y + clip.height * 0.7,
+        );
+      }
 
-  expect((await readSelection(page)).selectionId).toBe("");
-  await expect(page.getByTestId("editor-panel")).toHaveCount(0);
-});
+      expect(
+        await countChangedPixels(
+          page,
+          still,
+          await settledScene(page, clip),
+          PIXEL_NOISE_FLOOR,
+        ),
+      ).toBeLessThanOrEqual(STILL_SCENE_MAX_CHANGED_PIXELS);
+      expect(page.url()).toBe(address);
+      await expect(page.getByTestId("editor-panel")).toHaveCount(0);
+      expect(toTheDesignApi(requests, seededDesign.id)).toEqual([]);
+
+      await page.getByRole("link", { name: VIEW_IN_3D, exact: true }).tap();
+      await page.waitForURL(`/ro/d/${seededDesign.id}`);
+      await expectEditorReady(page);
+
+      expect((await readSelection(page)).selectionId).toBe("");
+      await expect(page.getByTestId("editor-panel")).toHaveCount(0);
+    });
+  },
+);
 
 test("each chip changes the review's view and is the one pressed, and the view chosen is the one the editor opens on and the review returns to", async ({
   page,

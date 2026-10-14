@@ -2965,6 +2965,8 @@ The discriminated-union hand-over type (**183**); `WaitingWrite` to `HeldWrite` 
 
 *Dated note, 2026-10-14, at 8M2's close:* the design contact page is now a second caller of this read (ADR 0163 decision 5, Amendment A, A8). The trigger gains **a slow `/contact` or `/done`, and any `deadline` line** from this read. **The 300 ms deadline fired once in a whole e2e run** [relayed by the coordinator; see 240], so the trigger has been seen once. The deadline bounds the page's wait, not the database's work, and the scan is bounded by the interceptor's page limit only where a network source is named.
 
+*Dated note, 2026-10-14, owner's decision (b):* the contact page's read deadline is raised from 300 ms to 2000 ms (`CONTACT_PAGE_READ_DEADLINE_MS`; ADR 0160 d5 note). CI run 38574379483 showed the 300 ms deadline firing on a loaded runner, so a customer who had already sent saw a fresh form. The missing index is unchanged; the `deadline`-line trigger above still applies.
+
 ## 197. The sent request's typed phone or e-mail stays in tab memory until a reload or the next design form — RECORDED 2026-10-13 AT M8 8M's CLOSE (security note)
 
 **Source [security reviewer, relayed].** ADR 0160 decision 4; not a defect by the plan's ruling (8M.2). **Optional hardening:** clear the entry when the done screen unmounts (a language switch or Back then Forward would then lose the number on 5A, which 8M.2 chose to keep). **Owner:** the architect, with the owner if the trade is wanted.

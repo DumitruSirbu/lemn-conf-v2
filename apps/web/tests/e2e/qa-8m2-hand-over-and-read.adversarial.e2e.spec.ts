@@ -220,8 +220,12 @@ async function elapsedMs(action: () => Promise<unknown>): Promise<number> {
 
 const READ_SAMPLES = 25;
 const PAGE_SAMPLES = 12;
-/** ADR 0163 A8: the contact page's read gives up at this figure. */
-const READ_DEADLINE_MS = 300;
+/**
+ * ADR 0163 A8: the contact page's read gives up at this figure. A literal because the production constant
+ * (`CONTACT_PAGE_READ_DEADLINE_MS`) sits in a `server-only` module a Playwright spec cannot import;
+ * `tests/lib/server/contact/qa-8m2-read-deadline-pin.adversarial.test.ts` fails when the two differ.
+ */
+const READ_DEADLINE_MS = 2000;
 
 /** 26 (indicative: the test database is not production's): the store's own read, and what the contact page's document
  *  costs over the review's, measured on the request sent. */

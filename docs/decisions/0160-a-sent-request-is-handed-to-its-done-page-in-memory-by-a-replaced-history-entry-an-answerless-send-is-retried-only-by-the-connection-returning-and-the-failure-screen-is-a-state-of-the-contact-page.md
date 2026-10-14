@@ -113,6 +113,7 @@ Nothing above is erased. Source of each: ADR 0163 and its Amendments A and B **[
   `deadline`, `unexpected`), with no message, operation, id, revision or reference (ADR 0163 A8). **The deadline fired
   once in a whole e2e run** [relayed by the coordinator; spec and run not given to the scribe]; the figure is not
   loosened. The query still has no index (backlog 196, which gained triggers).
+  *Dated note, 2026-10-14, owner's decision (b):* the contact page's read deadline is raised from 300 ms to **2000 ms** (`CONTACT_PAGE_READ_DEADLINE_MS`); CI run 38574379483 showed 300 ms firing on a loaded runner, so a customer who had already sent saw a fresh form. This supersedes "the figure is not loosened" above.
 - **d8 (the WhatsApp action).** The anchor is addressed to the shop: `https://wa.me/{digits}?text=`, the digits derived
   from the one constant. The message names the request's reference and the customer's view-only link. The shop holds
   the customer's one active link, so the customer's next reissue revokes it, and the shared view shows the live row

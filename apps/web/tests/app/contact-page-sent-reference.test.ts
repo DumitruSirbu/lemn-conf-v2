@@ -2,6 +2,7 @@ import { KITCHEN_L_DESIGN } from "@lemnaria/configurator-domain";
 import { isValidElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { CONTACT_PAGE_READ_DEADLINE_MS } from "@/lib/server/contact/sent-reference";
 import { getRateLimitStore } from "@/lib/server/rate-limit/rate-limit-store-instance";
 
 import ContactPage from "../../src/app/[locale]/d/[id]/contact/page";
@@ -273,12 +274,19 @@ describe("the page's costs", () => {
     expect(done).toMatch(/readSentReference\(\{[^}]*\}\)/);
   });
 
+  it("reads source: the contact page's deadline is the named constant, not a number of its own", () => {
+    const page = readSource("app/[locale]/d/[id]/contact/page.tsx");
+
+    expect(page).toMatch(/deadlineMs: CONTACT_PAGE_READ_DEADLINE_MS/);
+    expect(page).not.toMatch(/deadlineMs: \d/);
+  });
+
   it("serves the form's answer, unknown, when the read is still out past its deadline", async () => {
     vi.useFakeTimers();
     findSentReference.mockReturnValue(new Promise(() => undefined));
 
     const rendering = renderContactPage();
-    await vi.advanceTimersByTimeAsync(301);
+    await vi.advanceTimersByTimeAsync(CONTACT_PAGE_READ_DEADLINE_MS + 1);
     const page = await rendering;
 
     expect(propsOf(page).sentReference).toStrictEqual({ kind: "unknown" });
@@ -290,12 +298,12 @@ describe("the page's costs", () => {
       new Promise((resolve) => {
         setTimeout(() => {
           resolve({ kind: "sent", reference: "LM-2614" });
-        }, 200);
+        }, CONTACT_PAGE_READ_DEADLINE_MS - 1);
       }),
     );
 
     const rendering = renderContactPage();
-    await vi.advanceTimersByTimeAsync(250);
+    await vi.advanceTimersByTimeAsync(CONTACT_PAGE_READ_DEADLINE_MS - 1);
     const page = await rendering;
 
     expect(propsOf(page).sentReference).toStrictEqual({

@@ -7,11 +7,15 @@ vi.mock("@/lib/server/contact/contact-submission-store-instance", () => ({
   getContactSubmissionStore: () => ({ findSentReference }),
 }));
 
-import { readSentReference } from "@/lib/server/contact/sent-reference";
+import {
+  CONTACT_PAGE_READ_DEADLINE_MS,
+  readSentReference,
+} from "@/lib/server/contact/sent-reference";
 
 const REQUEST = { designId: "design0123456789abcde", revision: "4" } as const;
 
-const DEADLINE_MS = 300;
+const DEADLINE_MS = CONTACT_PAGE_READ_DEADLINE_MS;
+const OWNER_RULED_DEADLINE_MS = 2000;
 const LOG_LABEL = "[sent-reference]";
 
 let consoleError: ReturnType<typeof vi.spyOn>;
@@ -130,14 +134,14 @@ describe("readSentReference", () => {
 describe("readSentReference with a deadline", () => {
   const WITH_DEADLINE = { deadlineMs: DEADLINE_MS } as const;
 
-  it("keeps an answer that arrives at 299 ms", async () => {
+  it("keeps an answer that arrives one millisecond before the deadline", async () => {
     vi.useFakeTimers();
     findSentReference.mockReturnValue(
-      answeringAfter(299, { kind: "sent", reference: "LM-2614" }),
+      answeringAfter(DEADLINE_MS - 1, { kind: "sent", reference: "LM-2614" }),
     );
 
     const reading = readSentReference(REQUEST, WITH_DEADLINE);
-    await vi.advanceTimersByTimeAsync(299);
+    await vi.advanceTimersByTimeAsync(DEADLINE_MS - 1);
 
     await expect(reading).resolves.toEqual({
       kind: "sent",
@@ -146,15 +150,15 @@ describe("readSentReference with a deadline", () => {
     expect(consoleError).not.toHaveBeenCalled();
   });
 
-  it("answers unknown for an answer that arrives at 301 ms, and writes the deadline's line", async () => {
+  it("answers unknown for an answer that arrives one millisecond after the deadline, and writes the deadline's line", async () => {
     vi.useFakeTimers();
     findSentReference.mockReturnValue(
-      answeringAfter(301, { kind: "sent", reference: "LM-2614" }),
+      answeringAfter(DEADLINE_MS + 1, { kind: "sent", reference: "LM-2614" }),
     );
     const { readSentReference: read } = await freshRead();
 
     const reading = read(REQUEST, WITH_DEADLINE);
-    await vi.advanceTimersByTimeAsync(301);
+    await vi.advanceTimersByTimeAsync(DEADLINE_MS + 1);
 
     await expect(reading).resolves.toEqual({ kind: "unknown" });
     expect(consoleError.mock.calls).toEqual([
@@ -170,13 +174,13 @@ describe("readSentReference with a deadline", () => {
     const unhandled = vi.fn();
     process.on("unhandledRejection", unhandled);
     findSentReference.mockReturnValue(
-      rejectingAfter(500, new Error("late failure")),
+      rejectingAfter(DEADLINE_MS + 200, new Error("late failure")),
     );
 
     const reading = readSentReference(REQUEST, WITH_DEADLINE);
-    await vi.advanceTimersByTimeAsync(300);
+    await vi.advanceTimersByTimeAsync(DEADLINE_MS);
     await expect(reading).resolves.toEqual({ kind: "unknown" });
-    await vi.advanceTimersByTimeAsync(300);
+    await vi.advanceTimersByTimeAsync(DEADLINE_MS);
     await vi.runAllTimersAsync();
     process.off("unhandledRejection", unhandled);
 
@@ -219,12 +223,8 @@ describe("readSentReference with a deadline", () => {
     });
   });
 
-  it("is given the contact page's deadline as the one named constant", async () => {
-    const { CONTACT_PAGE_READ_DEADLINE_MS } = await import(
-      "@/lib/server/contact/sent-reference"
-    );
-
-    expect(CONTACT_PAGE_READ_DEADLINE_MS).toBe(DEADLINE_MS);
+  it("is the owner's 2000 ms, one named constant that the contact page passes", () => {
+    expect(CONTACT_PAGE_READ_DEADLINE_MS).toBe(OWNER_RULED_DEADLINE_MS);
   });
 });
 

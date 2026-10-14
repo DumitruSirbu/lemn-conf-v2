@@ -10,8 +10,9 @@ import {
   type SentReferenceCause,
 } from "./sent-reference-log";
 
-/** How long the contact page waits for the read before it draws the form: a late answer is `unknown`. */
-export const CONTACT_PAGE_READ_DEADLINE_MS = 300;
+/** How long the contact page waits for the read before it draws the form: a late answer is `unknown`. Wide enough that
+ *  a loaded runner does not show a customer who already sent a fresh form (ADR 0160 d5, owner's 2026-10-14 decision). */
+export const CONTACT_PAGE_READ_DEADLINE_MS = 2000;
 
 export interface SentReferenceReadOptions {
   /** Where the read gives up and answers `unknown`. Absent, the read waits as long as the store does. */
