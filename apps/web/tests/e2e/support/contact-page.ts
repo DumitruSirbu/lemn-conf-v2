@@ -46,6 +46,7 @@ export interface ContactMessages {
     readonly whatsappMessageToShop: string;
     readonly noRequest: string;
     readonly notShown: string;
+    readonly alreadySentHeading: string;
     readonly failureHeading: string;
     readonly failureKeptNoDesign: string;
     readonly failureLostConnection: string;

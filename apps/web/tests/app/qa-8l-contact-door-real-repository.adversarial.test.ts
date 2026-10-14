@@ -77,12 +77,18 @@ type SocketAnswer =
 const sentQueries: SentQuery[] = [];
 const requestsPastTheDriver: string[] = [];
 let socketAnswer: SocketAnswer = { kind: "rows", rows: [] };
+/** What the contact store's sent-reference read is answered, when it is asked: the references of notified rows. */
+let sentReferenceRows: readonly (readonly string[])[] = [];
+/** When set, only the contact store's read fails, as a transport failure; the design's own load is still answered. */
+let sentReferenceFailure: string | undefined;
 
 const DESIGN_ROW_FIELDS = [
   { name: "schema_version", dataTypeID: 23 },
   { name: "document", dataTypeID: 3802 },
   { name: "revision", dataTypeID: 25 },
 ];
+const SENT_REFERENCE_ROW_FIELDS = [{ name: "reference", dataTypeID: 25 }];
+const CONTACT_TABLE = "contact_submissions";
 
 function addressOf(input: unknown): string {
   if (typeof input === "string") return input;
@@ -98,11 +104,24 @@ function isAQuery(input: unknown, init: RequestInit | undefined): boolean {
 }
 
 function answerTheQuery(init: RequestInit | undefined): Promise<Response> {
-  sentQueries.push(
-    JSON.parse(typeof init?.body === "string" ? init.body : "{}") as SentQuery,
-  );
+  const sent = JSON.parse(
+    typeof init?.body === "string" ? init.body : "{}",
+  ) as SentQuery;
+  sentQueries.push(sent);
   if (socketAnswer.kind === "failure")
     return Promise.reject(new TypeError(socketAnswer.message));
+  if (sent.query.includes(CONTACT_TABLE) && sentReferenceFailure !== undefined)
+    return Promise.reject(new TypeError(sentReferenceFailure));
+  if (sent.query.includes(CONTACT_TABLE))
+    return Promise.resolve(
+      Response.json({
+        fields: SENT_REFERENCE_ROW_FIELDS,
+        rows: sentReferenceRows,
+        command: "SELECT",
+        rowCount: sentReferenceRows.length,
+        rowAsArray: true,
+      }),
+    );
   return Promise.resolve(
     Response.json({
       fields: DESIGN_ROW_FIELDS,
@@ -132,6 +151,8 @@ beforeEach(() => {
   sentQueries.length = 0;
   requestsPastTheDriver.length = 0;
   socketAnswer = { kind: "rows", rows: [] };
+  sentReferenceRows = [];
+  sentReferenceFailure = undefined;
   state.cookies.clear();
   hydrateAndConfigure.mockClear();
   hydrateAndReview.mockClear();
@@ -300,7 +321,7 @@ describe("a visitor's request", () => {
       });
   });
 
-  it("an owned row opens the contact door on the stored design, its revision, its id and one boolean, and nothing else", async () => {
+  it("an owned row opens the contact door on the stored design, its revision, its id, one boolean and the sent reference's own answer, and nothing else", async () => {
     socketAnswer = storedRowOf(KITCHEN_L_DESIGN, CURRENT_SCHEMA_VERSION);
 
     const contact = await renderDoor("contact", OWNED_ID);
@@ -313,10 +334,67 @@ describe("a visitor's request", () => {
       "designId",
       "isSendable",
       "revision",
+      "sentReference",
     ]);
     expect(contact.props.designId).toBe(OWNED_ID);
     expect(contact.props.revision).toBe("7");
     expect(typeof contact.props.isSendable).toBe("boolean");
+    expect(contact.props.sentReference).toEqual({ kind: "none" });
+  });
+
+  it("the contact door asks the contact store once, after the design, for the loaded id and revision, and hands on only kind and reference", async () => {
+    socketAnswer = storedRowOf(KITCHEN_L_DESIGN, CURRENT_SCHEMA_VERSION);
+    sentReferenceRows = [["LMN-ABC123"]];
+
+    const contact = await renderDoor("contact", OWNED_ID);
+
+    expect(sentQueries).toHaveLength(2);
+    expect(sentQueries[0]?.query).not.toContain(CONTACT_TABLE);
+    expect(sentQueries[1]?.query).toContain(CONTACT_TABLE);
+    expect(sentQueries[1]?.params).toEqual([OWNED_ID, "7"]);
+    if (!isValidElement<Record<string, unknown>>(contact))
+      throw new Error("the contact door answered no element");
+    expect(contact.props.sentReference).toEqual({
+      kind: "sent",
+      reference: "LMN-ABC123",
+    });
+    expect(requestsPastTheDriver).toEqual([]);
+  });
+
+  it("a contact-store answer of the wrong shape is unknown, the form's fail-open answer, and leaks no row", async () => {
+    socketAnswer = storedRowOf(KITCHEN_L_DESIGN, CURRENT_SCHEMA_VERSION);
+    sentReferenceRows = [["LMN-ABC123", "a column nobody asked for"]];
+
+    const contact = await renderDoor("contact", OWNED_ID);
+
+    if (!isValidElement<Record<string, unknown>>(contact))
+      throw new Error("the contact door answered no element");
+    expect(contact.props.sentReference).toEqual({ kind: "unknown" });
+    expect(JSON.stringify(contact.props.sentReference)).not.toContain("nobody");
+  });
+
+  it("a contact store that does not answer at all is unknown too: the page still opens on the stored design, and nothing of the failure is handed on", async () => {
+    socketAnswer = storedRowOf(KITCHEN_L_DESIGN, CURRENT_SCHEMA_VERSION);
+    sentReferenceFailure = "the contact socket was replaced: qa_password";
+
+    const contact = await renderDoor("contact", OWNED_ID);
+
+    if (!isValidElement<Record<string, unknown>>(contact))
+      throw new Error("the contact door answered no element");
+    expect(contact.type).toBe(hydrateAndContact);
+    expect(contact.props.sentReference).toEqual({ kind: "unknown" });
+    expect(JSON.stringify(contact.props)).not.toContain("qa_password");
+    expect(contact.props.revision).toBe("7");
+  });
+
+  it("the editor and the review doors never touch the contact store", async () => {
+    socketAnswer = storedRowOf(KITCHEN_L_DESIGN, CURRENT_SCHEMA_VERSION);
+
+    await renderDoor("editor", OWNED_ID);
+    await renderDoor("review", OWNED_ID);
+
+    for (const sent of sentQueries)
+      expect(sent.query).not.toContain(CONTACT_TABLE);
   });
 
   it("a database that does not answer fails all three doors alike and turns none into a refusal page", async () => {

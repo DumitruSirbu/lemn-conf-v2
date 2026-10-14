@@ -36,7 +36,13 @@ import {
   startContactRun,
   type ContactRun,
 } from "./support/contact-run";
-import { expectEditorReady, historyLength } from "./support/qa-8d-review";
+import {
+  chooseAnotherHardwareTierAndSave,
+  expectEditorReady,
+  goBackAndSettle,
+  historyLength,
+} from "./support/qa-8d-review";
+import { ALREADY_SENT, expectAlreadySentView } from "./support/qa-8m2";
 import {
   channelLineOf,
   expectNoTokenInThePage,
@@ -181,7 +187,7 @@ for (const channel of CHANNELS) {
   });
 }
 
-test("ro: a second request for the same design is the second confirmation, and a reload shows the latest notified request's reference, never the first's", async ({
+test("ro: after a send the contact page of the same kitchen is the already-sent view and sends nothing; only a kitchen changed and saved at a new revision gets the form again, and its send is a second confirmation whose reference a reload shows, never the first's", async ({
   page,
   context,
   seededDesign,
@@ -206,7 +212,9 @@ test("ro: a second request for the same design is the second confirmation, and a
     first.phone,
   );
 
-  // Back to the design by the screen's own way, and on to a new form: the confirmation's hand-over is dropped by it.
+  // Back to the design by the screen's own way and on to the contact page of the kitchen just sent: 8M2's already-sent
+  // view (criteria 12 and 14 (a)), not a second form. The interim view of S4 draws no call link; S5 adds it and moves
+  // that pin.
   await page.getByTestId("done-back-to-design").tap();
   await page.waitForURL(`**/ro/d/${seededDesign.id}`);
   await expectEditorReady(page);
@@ -214,7 +222,25 @@ test("ro: a second request for the same design is the second confirmation, and a
   await page.waitForURL(`**/ro/d/${seededDesign.id}/review`);
   await page.getByTestId("review-cta").tap();
   await page.waitForURL(`**/ro/d/${seededDesign.id}/contact`);
+  await expectAlreadySentView(page, firstReference, {
+    heading: MESSAGES.ro.submissionResult.alreadySentHeading,
+  });
+  await expect(page.locator('a[href^="tel:"]')).toHaveCount(0);
+  await page.waitForTimeout(1500);
+  expect(sent, "the view sends nothing").toHaveLength(1);
+  await expectNoTokenInThePage(page, first, "the view holds no typed value");
+
+  // The kitchen changes: the editor's own edit, saved (r+1). Then the form is back, and its send carries r+1.
+  await goBackAndSettle(page);
+  await goBackAndSettle(page);
+  await expectEditorReady(page);
+  await chooseAnotherHardwareTierAndSave(page, seededDesign.id);
+  await page.getByTestId("review-cta").tap();
+  await page.waitForURL(`**/ro/d/${seededDesign.id}/review`);
+  await page.getByTestId("review-cta").tap();
+  await page.waitForURL(`**/ro/d/${seededDesign.id}/contact`);
   const secondDrawnAtMs = await expectFormDrawn(page);
+  await expect(page.getByTestId(ALREADY_SENT)).toHaveCount(0);
   await fillTheTextFields(page, second);
   await chooseChannel(page, "phone");
   await tickConsent(page);
@@ -235,6 +261,10 @@ test("ro: a second request for the same design is the second confirmation, and a
   expect(clientRequestIdOf(sentAt(sent, 1))).not.toBe(
     clientRequestIdOf(sentAt(sent, 0)),
   );
+  expect(
+    (sentAt(sent, 1).body.design as { revision?: unknown }).revision,
+    "the second request is for the saved revision",
+  ).toBe(String(BigInt(seededDesign.revision) + 1n));
   expect(
     await countAndNoteStored(run, clientRequestIdOf(sentAt(sent, 0))),
   ).toBe(1);
