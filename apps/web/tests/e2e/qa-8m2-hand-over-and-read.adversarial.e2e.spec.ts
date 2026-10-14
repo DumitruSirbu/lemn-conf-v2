@@ -66,8 +66,6 @@ test.beforeEach(() => {
   test.skip(process.env.CI === undefined, RUN_UNDER_CI);
 });
 
-const ALREADY_SENT_HEADING_RO = MESSAGES.ro.submissionResult.alreadySentHeading;
-
 /** The confirmation's channel line, as the catalogue words it for the phone channel. */
 function phoneLine(contact: string): string {
   return channelLineOf(
@@ -104,9 +102,7 @@ test("15 and 26: the contact page's mount drops the hand-over (the editor's does
   await page.waitForURL(`**${reviewPath("ro", id)}`);
   await page.getByTestId("review-cta").tap();
   await page.waitForURL(`**${contactPath("ro", id)}`);
-  await expectAlreadySentView(page, one.reference, {
-    heading: ALREADY_SENT_HEADING_RO,
-  });
+  await expectAlreadySentView(page, one.reference, "ro");
   await expectNoTokenInThePage(page, one.typed, "the view");
 
   // Back three times is the confirmation, in the same document: nothing typed is recalled.
@@ -146,9 +142,7 @@ test("13 and 11: an edit held unsaved when the contact page of a kitchen already
   await page.waitForURL(`**${reviewPath("ro", id)}`);
   await page.getByTestId("review-cta").tap();
   await page.waitForURL(`**${contactPath("ro", id)}`);
-  await expectAlreadySentView(page, one.reference, {
-    heading: ALREADY_SENT_HEADING_RO,
-  });
+  await expectAlreadySentView(page, one.reference, "ro");
 
   await goBackAndSettle(page);
   await goBackAndSettle(page);

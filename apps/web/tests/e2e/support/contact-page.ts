@@ -47,6 +47,10 @@ export interface ContactMessages {
     readonly noRequest: string;
     readonly notShown: string;
     readonly alreadySentHeading: string;
+    readonly alreadySentAdvice: string;
+    readonly alreadySentChangedKitchen: string;
+    readonly callShop: string;
+    readonly backToDesign: string;
     readonly failureHeading: string;
     readonly failureKeptNoDesign: string;
     readonly failureLostConnection: string;

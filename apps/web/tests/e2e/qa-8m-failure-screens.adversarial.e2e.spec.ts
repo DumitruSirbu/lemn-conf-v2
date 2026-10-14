@@ -35,6 +35,7 @@ import {
 } from "./support/contact-page";
 import { historyLength } from "./support/qa-8d-review";
 import { test } from "./support/seeded-design";
+import { shopTelAddress } from "../../src/shop/shop-phone";
 
 const RUN_UNDER_CI =
   "It counts requests, which only the production server answers as the plan says. Run it with: " +
@@ -47,6 +48,37 @@ test.beforeEach(() => {
 const ro = MESSAGES.ro;
 /** Long enough for a request that an event had caused to have left the page. */
 const SETTLE_MS = 1500;
+
+/** Criterion 16: 5B draws the one call link, dialling the shop's constant, after the retry in the document and below it
+ *  on the screen, named as the catalogue names it; no other `tel:` link is on the page. */
+async function expectOneCallLinkUnderTheRetry(
+  page: Page,
+  locale: "ro" | "ru" = "ro",
+): Promise<void> {
+  const link = page.getByTestId("call-shop-link");
+  await expect(link).toHaveCount(1);
+  await expect(page.locator('a[href^="tel:"]')).toHaveCount(1);
+  await expect(link).toHaveAttribute("href", shopTelAddress());
+  await expect(link).toContainText(MESSAGES[locale].submissionResult.callShop);
+  const retryBox = await page.getByTestId(RETRY).boundingBox();
+  const linkBox = await link.boundingBox();
+  expect(retryBox, "the retry is drawn").not.toBeNull();
+  expect(linkBox, "the call link is drawn").not.toBeNull();
+  expect(linkBox?.y ?? 0, "the call link is under the retry").toBeGreaterThan(
+    (retryBox?.y ?? 0) + (retryBox?.height ?? 0) - 1,
+  );
+  expect(
+    await page.evaluate(() => {
+      const retry = document.querySelector('[data-testid="contact-retry"]');
+      const call = document.querySelector('[data-testid="call-shop-link"]');
+      if (retry === null || call === null) return false;
+      return Boolean(
+        retry.compareDocumentPosition(call) & Node.DOCUMENT_POSITION_FOLLOWING,
+      );
+    }),
+    "the call link follows the retry in the document",
+  ).toBe(true);
+}
 
 async function openAndFill(
   page: Page,
@@ -141,7 +173,7 @@ test.describe("an answered failure is 5B's not-sent, and no return of the connec
         revisionBefore,
       );
       await expect(page.locator("main input")).toHaveCount(0);
-      await expect(page.locator('a[href^="tel:"]')).toHaveCount(0);
+      await expectOneCallLinkUnderTheRetry(page);
 
       await context.setOffline(true);
       await context.setOffline(false);
@@ -181,6 +213,8 @@ test.describe("an answered failure is 5B's not-sent, and no return of the connec
       "limited",
     );
     await expect(page.getByTestId(FAILURE)).toHaveCount(0);
+    await expect(page.getByTestId("call-shop-link")).toHaveCount(0);
+    await expect(page.locator('a[href^="tel:"]')).toHaveCount(0);
     await context.setOffline(true);
     await context.setOffline(false);
     await dispatchOnline(page, 1);
@@ -347,6 +381,7 @@ test.describe("a send nothing answered", () => {
     await expect(page.getByTestId("failure-kept-sentence")).toHaveText(
       ro.submissionResult.failureKeptNoDesign,
     );
+    await expectOneCallLinkUnderTheRetry(page);
 
     await context.setOffline(true);
     await expect(page.getByTestId(FAILURE_WAITING)).toBeVisible();
@@ -369,6 +404,7 @@ test.describe("a send nothing answered", () => {
     }
     await expect(page.locator('main a[href*="/d/"]')).toHaveCount(0);
     await expect(page.locator('a[href^="tel:"]')).toHaveCount(0);
+    await expect(page.getByTestId("call-shop-link")).toHaveCount(0);
 
     await page.reload();
     await expectFormDrawn(page);

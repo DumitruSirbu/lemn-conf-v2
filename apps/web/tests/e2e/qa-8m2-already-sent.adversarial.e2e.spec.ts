@@ -11,7 +11,6 @@ import {
   DONE_HEADING,
   DONE_REFERENCE,
   FAILURE,
-  MESSAGES,
   chooseChannel,
   clientRequestIdOf,
   donePath,
@@ -49,8 +48,11 @@ import {
   consoleProblems,
   contactPosts,
   expectAlreadySentView,
+  expectFocusClearOfThePinnedRegion,
+  expectViewLayout,
   recordApiWrites,
   registerRequestIdsOf,
+  tapTheCallLinkAndStay,
   watchTheConsole,
 } from "./support/qa-8m2";
 import { test } from "./support/seeded-design";
@@ -149,6 +151,13 @@ test("ro and ru: a form at r, one send whose answer is lost, then a reload and a
 
   const said = watchTheConsole(page);
   const writes = recordApiWrites(page);
+  const editorPrefetches: string[] = [];
+  page.on("request", (request) => {
+    const { pathname } = new URL(request.url());
+    const isEditor = /^\/(?:ro|ru)\/d\/[^/]+$/.test(pathname);
+    if (isEditor && request.headers()["next-router-prefetch"] !== undefined)
+      editorPrefetches.push(pathname);
+  });
   const flights: { text: string; isPrefetch: boolean }[] = [];
   // The client's own fetch of the page's data is read in the route, the one place its body is still there to read.
   await page.route("**/contact*", async (route) => {
@@ -165,20 +174,15 @@ test("ro and ru: a form at r, one send whose answer is lost, then a reload and a
     await route.fulfill({ response });
   });
   await page.reload();
-  await expectAlreadySentView(page, one.reference, {
-    heading: MESSAGES.ro.submissionResult.alreadySentHeading,
-  });
+  await expectAlreadySentView(page, one.reference, "ro");
 
   // A4, 14 (a): a fresh navigation, in the same server process, is the view with the reference the answer carried.
   await page.goto(contactPath("ro", id));
-  await expectAlreadySentView(page, one.reference, {
-    heading: MESSAGES.ro.submissionResult.alreadySentHeading,
-  });
+  await expectAlreadySentView(page, one.reference, "ro");
   await expect(page.getByTestId(DONE_HEADING)).toHaveCount(0);
   await page.reload();
-  await expectAlreadySentView(page, one.reference, {
-    heading: MESSAGES.ro.submissionResult.alreadySentHeading,
-  });
+  await expectAlreadySentView(page, one.reference, "ro");
+  await expectViewLayout(page, "ro 390 x 844");
 
   // A3: the document and the flight response, read as the owner (the control: the reference is in both, so the
   // search is of a payload that carries the page's props).
@@ -207,13 +211,25 @@ test("ro and ru: a form at r, one send whose answer is lost, then a reload and a
   await page.getByTestId("top-bar-locale").tap();
   await page.getByTestId("top-bar-locale-option-ru").tap();
   await page.waitForURL(`**${contactPath("ru", id)}`);
-  await expectAlreadySentView(page, one.reference, {
-    heading: MESSAGES.ru.submissionResult.alreadySentHeading,
-  });
+  await expectAlreadySentView(page, one.reference, "ru");
   await page.reload();
-  await expectAlreadySentView(page, one.reference, {
-    heading: MESSAGES.ru.submissionResult.alreadySentHeading,
-  });
+  await expectAlreadySentView(page, one.reference, "ru");
+  // Criteria 16 and 17, in Russian, at 390 x 844 and then at the 640 px column of a desktop width; the press of the
+  // call link, the A5 sweep's one control that is not ours to handle, leaves nothing for the server.
+  await expectViewLayout(page, "ru 390 x 844");
+  await expectFocusClearOfThePinnedRegion(page, "ru arrival");
+  // 8M2.7: the way back is a link to the editor and is never prefetched, so the view's own load asks for no editor page.
+  await expect(page.getByTestId("done-back-to-design")).toHaveAttribute(
+    "href",
+    editorPath("ru", id),
+  );
+  expect(editorPrefetches, "the way back to the design was prefetched").toEqual(
+    [],
+  );
+  await tapTheCallLinkAndStay(page);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await expectViewLayout(page, "ru 1280 x 800");
+  await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByTestId(CONTACT_BACK)).toHaveAttribute(
     "href",
     reviewPath("ru", id),
@@ -222,9 +238,7 @@ test("ro and ru: a form at r, one send whose answer is lost, then a reload and a
   await page.waitForURL(`**${reviewPath("ru", id)}`);
   await page.getByTestId("review-cta").tap();
   await page.waitForURL(`**${contactPath("ru", id)}`);
-  await expectAlreadySentView(page, one.reference, {
-    heading: MESSAGES.ru.submissionResult.alreadySentHeading,
-  });
+  await expectAlreadySentView(page, one.reference, "ru");
   await page.waitForTimeout(1500);
 
   expect(contactPosts(writes), "no contact request from the view").toBe(0);
@@ -258,9 +272,7 @@ test("ro and ru: a form at r, one send whose answer is lost, then a reload and a
   const saidWithoutWebGl = watchTheConsole(noWebGl);
   await refuseWebGL(noWebGl);
   await noWebGl.goto(contactPath("ro", id));
-  await expectAlreadySentView(noWebGl, one.reference, {
-    heading: MESSAGES.ro.submissionResult.alreadySentHeading,
-  });
+  await expectAlreadySentView(noWebGl, one.reference, "ro");
   expect(consoleProblems(saidWithoutWebGl)).toEqual([]);
   await noWebGl.goto(editorPath("ro", id));
   await expect(
@@ -329,8 +341,6 @@ test("14 (e): two forms open on one kitchen at one revision, both sent, are two 
   ).toBe(1);
   for (const tab of [page, tabB]) {
     await tab.goto(contactPath("ro", id));
-    await expectAlreadySentView(tab, referenceB, {
-      heading: MESSAGES.ro.submissionResult.alreadySentHeading,
-    });
+    await expectAlreadySentView(tab, referenceB, "ro");
   }
 });

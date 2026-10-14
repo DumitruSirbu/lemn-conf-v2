@@ -65,6 +65,25 @@ async function expectNoSideways(page: Page, label: string): Promise<void> {
   ).toBeLessThanOrEqual(overflow.clientWidth);
 }
 
+/** Criterion 16's geometry: the call link is a touch target at least 44 px each way, no wider than the phone, and under
+ *  the retry, so the retry's own place on the first screen is not taken by it. */
+async function expectCallLinkBeneath(
+  page: Page,
+  retryBox: Box,
+  label: string,
+): Promise<void> {
+  const link = page.getByTestId("call-shop-link");
+  await expectTouchTarget(link, `${label} call link`);
+  const box = await boxOf(link);
+  expect(box.left, `${label}: call link left`).toBeGreaterThanOrEqual(0);
+  expect(box.right, `${label}: call link right`).toBeLessThanOrEqual(
+    PHONE.width,
+  );
+  expect(box.top, `${label}: call link under the retry`).toBeGreaterThanOrEqual(
+    retryBox.bottom - 1,
+  );
+}
+
 async function expectTouchTarget(
   target: Locator,
   label: string,
@@ -292,6 +311,7 @@ for (const locale of LOCALES) {
       "the retry is on the first screen",
     ).toBeLessThanOrEqual(PHONE.height);
     await expectTouchTarget(retry, `${locale} 5B retry`);
+    await expectCallLinkBeneath(page, retryBox, `${locale} 5B lost connection`);
 
     await context.setOffline(true);
     await expect(page.getByTestId("failure-waiting")).toBeVisible();
@@ -305,6 +325,11 @@ for (const locale of LOCALES) {
       "not-sent",
     );
     await expectNoSideways(page, "5B not sent");
+    await expectCallLinkBeneath(
+      page,
+      await boxOf(retry),
+      `${locale} 5B not sent`,
+    );
     await captureEvidence(page, `8m-5B-${locale}-not-sent`);
   });
 

@@ -11,7 +11,7 @@ import {
   type Request,
 } from "@playwright/test";
 
-import { shopWhatsAppDigits } from "../../src/shop/shop-phone";
+import { shopTelAddress, shopWhatsAppDigits } from "../../src/shop/shop-phone";
 
 import {
   CTA,
@@ -159,6 +159,7 @@ for (const channel of CHANNELS) {
       /telefon/i,
     );
     await expect(page.locator('a[href^="tel:"]')).toHaveCount(0);
+    await expect(page.getByTestId("call-shop-link")).toHaveCount(0);
     expect(shown).not.toMatch(/\d+\s*(minut|ore\b|ora\b|zile|secunde)/i);
     expect(shown).not.toMatch(/\b[A-Z]{2,}_[A-Z_]+\b/);
     await expectNothingTypedKept(page, context, typed, kept, `${channel}: 5A`);
@@ -213,8 +214,7 @@ test("ro: after a send the contact page of the same kitchen is the already-sent 
   );
 
   // Back to the design by the screen's own way and on to the contact page of the kitchen just sent: 8M2's already-sent
-  // view (criteria 12 and 14 (a)), not a second form. The interim view of S4 draws no call link; S5 adds it and moves
-  // that pin.
+  // view (criteria 12 and 14 (a)), not a second form. Unlike 5A, the view draws the one call link (criterion 16).
   await page.getByTestId("done-back-to-design").tap();
   await page.waitForURL(`**/ro/d/${seededDesign.id}`);
   await expectEditorReady(page);
@@ -222,10 +222,12 @@ test("ro: after a send the contact page of the same kitchen is the already-sent 
   await page.waitForURL(`**/ro/d/${seededDesign.id}/review`);
   await page.getByTestId("review-cta").tap();
   await page.waitForURL(`**/ro/d/${seededDesign.id}/contact`);
-  await expectAlreadySentView(page, firstReference, {
-    heading: MESSAGES.ro.submissionResult.alreadySentHeading,
-  });
-  await expect(page.locator('a[href^="tel:"]')).toHaveCount(0);
+  await expectAlreadySentView(page, firstReference, "ro");
+  await expect(page.locator('a[href^="tel:"]')).toHaveCount(1);
+  await expect(page.getByTestId("call-shop-link")).toHaveAttribute(
+    "href",
+    shopTelAddress(),
+  );
   await page.waitForTimeout(1500);
   expect(sent, "the view sends nothing").toHaveLength(1);
   await expectNoTokenInThePage(page, first, "the view holds no typed value");
