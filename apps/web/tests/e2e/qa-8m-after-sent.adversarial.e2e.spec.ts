@@ -343,6 +343,10 @@ test("ro, F3 (8M2 criterion 8): after a reload the action is drawn, /done probes
   expect(designReads, "the editor's own probe, and only it").toEqual(["GET"]);
 });
 
+/** Two requests, status then issue, with a page that on a runner stalled for 7.5 s between the answer to one and the
+ *  sending of the other (run 38574379483). */
+const SHARE_LINK_MADE_WITHIN_MS = 30_000;
+
 test("ro, 8M2 criterion 9: after a reload the message to the shop names the reference on the screen, is addressed to the shop's number, and carries the customer's own share address", async ({
   page,
   context,
@@ -356,7 +360,7 @@ test("ro, 8M2 criterion 9: after a reload the message to the shop names the refe
   await page.getByTestId("done-whatsapp-send").tap();
 
   const open = page.getByTestId("done-whatsapp-open");
-  await expect(open).toBeVisible();
+  await expect(open).toBeVisible({ timeout: SHARE_LINK_MADE_WITHIN_MS });
   const href = (await open.getAttribute("href")) ?? "";
   const recipient = `https://wa.me/${shopWhatsAppDigits()}?text=`;
   expect(href.startsWith(recipient), "addressed to the shop").toBe(true);

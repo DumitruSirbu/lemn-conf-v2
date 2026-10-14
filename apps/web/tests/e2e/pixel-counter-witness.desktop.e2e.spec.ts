@@ -29,6 +29,7 @@ import {
 } from "./support/pixels";
 import { readSelection } from "./support/panel";
 import {
+  FIRST_FRAME_FREEZE_TIMEOUT_MS,
   openSeededDesign,
   test,
   type SeededDesign,
@@ -195,7 +196,7 @@ async function openAndSettle(page: Page, design: SeededDesign): Promise<void> {
   await openSeededDesign(page, design);
   await expect(async () => {
     expect((await readSelection(page)).probe).toBe("on");
-  }).toPass({ timeout: 15_000 });
+  }).toPass({ timeout: FIRST_FRAME_FREEZE_TIMEOUT_MS });
   await page.waitForTimeout(SCENE_SETTLE_MS);
 }
 

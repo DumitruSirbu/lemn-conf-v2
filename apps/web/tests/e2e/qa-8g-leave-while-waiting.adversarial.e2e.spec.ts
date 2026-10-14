@@ -40,15 +40,20 @@ const SAVE_LIMIT_BODY = JSON.stringify({
   code: "SAVE_LIMIT_REACHED",
 });
 /** Longer than the slowest way away and back (Step 1, a second design made there, two steps of history), so the
- *  return is always inside the wait. */
-const WAIT_SECONDS = 25;
+ *  return is always inside the wait. On a CI runner the check after that way came after a 25 s wait had already ended
+ *  (run 38574379483: the second write went 28.2 s after the refusal, with the status still "saving"). Also well above
+ *  60 s, the wait a client falls back to when it cannot read `Retry-After`, so that a client ignoring the header is
+ *  still caught by the wait's length being checked. */
+const WAIT_SECONDS = 75;
 const WAIT_MS = WAIT_SECONDS * 1000;
 /** Shorter than the way to a second design, so the write has gone before the first design is returned to. */
 const WAIT_THAT_ENDS_WHILE_AWAY_SECONDS = 5;
 const PAUSE_SENTENCE = APPROVED_ROMANIAN_MESSAGES.panel.savePausedNotice;
 /** The wait and the answer of the write that ends it. */
-const WAIT_END_TIMEOUT_MS = WAIT_MS + 15_000;
-const TEST_TIMEOUT_MS = 180_000;
+const WAIT_END_TIMEOUT_MS = WAIT_MS + 30_000;
+/** The way away and back, the wait that is still running when it ends, and the edits after, each with a slow runner's
+ *  margin. */
+const TEST_TIMEOUT_MS = 300_000;
 const SAME_DOCUMENT_MARK = "qaLeaveWhileWaitingSameDocument";
 const ROOM_URL = /\/ro\/configurator\/room/;
 const EDITOR_URL = /\/ro\/d\/[^/]+$/;

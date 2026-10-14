@@ -41,6 +41,8 @@ const PHONE_BACK_LINKS: readonly BackLinkTestId[] = [
 const LOCALES: readonly Locale[] = ["ro", "ru"];
 const PHONE = { width: 390, height: 844 };
 const TOUCH_TARGET_PX = 44;
+/** The review is a client navigation from a page whose software WebGL can hold the main thread for seconds. */
+const REVIEW_OPENS_WITHIN_MS = 30_000;
 
 for (const linkTestId of PHONE_BACK_LINKS) {
   test(`${linkTestId}, tapped: asks without navigating; Stay, Escape and the backdrop each close it with focus back on the link`, async ({
@@ -259,8 +261,12 @@ test("the review link is a link a thumb and a keyboard can reach, and it opens t
       ? reviewLink.tap()
       : reviewLink.press("Enter"));
 
-    await expect(page, locale).toHaveURL(reviewAddress);
-    await expect(page.getByTestId("review-bottom"), locale).toBeVisible();
+    await expect(page, locale).toHaveURL(reviewAddress, {
+      timeout: REVIEW_OPENS_WITHIN_MS,
+    });
+    await expect(page.getByTestId("review-bottom"), locale).toBeVisible({
+      timeout: REVIEW_OPENS_WITHIN_MS,
+    });
     await expect(page.getByTestId(DIALOG), locale).toHaveCount(0);
     expect(
       requests.filter((request) => request.method !== "GET"),

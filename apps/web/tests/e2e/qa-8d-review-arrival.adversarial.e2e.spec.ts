@@ -103,11 +103,17 @@ const SELECTIONS_THE_DESIGN_DOES_NOT_HOLD: readonly string[] = [
   "?select",
 ];
 
+/** One load, the editor ready and the arrival's settle, on a runner whose software WebGL took 10 to 12 s for it
+ *  (run 38574379483), with room for the slowest. */
+const ONE_LOAD_ON_A_SLOW_RUNNER_MS = 20_000;
+
 test("an address naming no body of this design, or asking for the settings in any other word, selects nothing, opens nothing, raises no error and is still cleaned", async ({
   page,
   seededDesign,
 }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(
+    SELECTIONS_THE_DESIGN_DOES_NOT_HOLD.length * ONE_LOAD_ON_A_SLOW_RUNNER_MS,
+  );
   const errors = collectPageErrors(page);
 
   for (const query of SELECTIONS_THE_DESIGN_DOES_NOT_HOLD) {
@@ -636,20 +642,46 @@ test("in an L, a body on another wall than the view the review was left at opens
   }
 });
 
-/** Holds the write-access answer (`GET /api/designs/{id}`) until the returned function is called. */
+interface HeldWriteAccessAnswer {
+  readonly release: () => void;
+  /** How long the answer has been kept so far; zero until the request has been caught. */
+  readonly heldForMs: () => number;
+}
+
+/** Holds the write-access answer (`GET /api/designs/{id}`) until `release` is called. */
 async function holdTheWriteAccessAnswer(
   page: Page,
   designId: string,
-): Promise<() => void> {
+): Promise<HeldWriteAccessAnswer> {
   let release: () => void = () => undefined;
+  let caughtAt: number | undefined;
   const held = new Promise<void>((resolve) => {
     release = resolve;
   });
   await page.route(`**/api/designs/${designId}`, async (route) => {
-    if (route.request().method() === "GET") await held;
+    if (route.request().method() === "GET") {
+      caughtAt ??= Date.now();
+      await held;
+    }
     await route.continue();
   });
-  return release;
+  return {
+    release,
+    heldForMs: () => (caughtAt === undefined ? 0 : Date.now() - caughtAt),
+  };
+}
+
+/** The client gives up on a read after ten seconds (`LOAD_TIMEOUT_MS`) and the answer is then "unverified" for good,
+ *  so a held answer must be let go well inside that, however long the page took to draw on a slow runner. */
+const LONGEST_HOLD_BEFORE_THE_CHECKS_MS = 6000;
+
+/** The arrival's own settle, shortened by what the page's slowness has already spent of the hold. */
+async function settleWithinTheHold(
+  page: Page,
+  answer: HeldWriteAccessAnswer,
+): Promise<void> {
+  const left = LONGEST_HOLD_BEFORE_THE_CHECKS_MS - answer.heldForMs();
+  await page.waitForTimeout(Math.max(0, Math.min(ARRIVAL_SETTLE_MS, left)));
 }
 
 const SETTINGS_TRIGGER = "global-settings-trigger";
@@ -658,20 +690,24 @@ test("?settings=open waits for the write-access answer: until it comes the param
   page,
   seededDesign,
 }) => {
-  const release = await holdTheWriteAccessAnswer(page, seededDesign.id);
+  const answer = await holdTheWriteAccessAnswer(page, seededDesign.id);
 
   await page.goto(`/ro/d/${seededDesign.id}?settings=open`);
   await expect(page.getByTestId(SETTINGS_TRIGGER)).toBeDisabled({
     timeout: FIRST_FRAME_FREEZE_TIMEOUT_MS,
   });
-  await page.waitForTimeout(ARRIVAL_SETTLE_MS);
+  await settleWithinTheHold(page, answer);
 
   expect(addressOf(page)).toBe(`/ro/d/${seededDesign.id}?settings=open`);
   await expect(settingsSheet(page)).toHaveCount(0);
 
-  release();
+  const heldForMs = answer.heldForMs();
+  answer.release();
 
-  await expect(settingsSheet(page)).toBeVisible();
+  await expect(
+    settingsSheet(page),
+    `the answer was held for ${String(heldForMs)} ms before its release; the client gives up on a read after 10000`,
+  ).toBeVisible();
   expect(addressOf(page)).toBe(`/ro/d/${seededDesign.id}`);
   await expect(page.getByTestId("global-settings-surface")).toHaveCount(1);
 

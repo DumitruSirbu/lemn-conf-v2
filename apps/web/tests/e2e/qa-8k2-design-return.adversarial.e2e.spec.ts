@@ -65,12 +65,25 @@ const STORED_WITHIN_MS = 30_000;
 const REVIEW_URL = /\/d\/[^/]+\/review$/;
 const CLOSES_THE_PANEL = ["panel-close", "panel-done"];
 
+/** The client gives up on a read after ten seconds (`LOAD_TIMEOUT_MS`) and the answer is then "unverified" for good, so
+ *  a held answer is let go well inside that, however long the page took to draw on a slow runner. */
+const LONGEST_HOLD_BEFORE_THE_CHECKS_MS = 6000;
+
 function readout(page: Page) {
   return expect(page.getByTestId("selection-debug"));
 }
 
 async function settle(page: Page): Promise<void> {
   await page.waitForTimeout(REQUEST_SETTLE_MS);
+}
+
+/** The settle, shortened by what the page's slowness has already spent of a hold begun at `heldSince`. */
+async function settleWithinTheHold(
+  page: Page,
+  heldSince: number,
+): Promise<void> {
+  const left = LONGEST_HOLD_BEFORE_THE_CHECKS_MS - (Date.now() - heldSince);
+  await page.waitForTimeout(Math.max(0, Math.min(REQUEST_SETTLE_MS, left)));
 }
 
 async function editHardwareAndSave(
@@ -462,14 +475,15 @@ test("the review's change-settings link from an older review opens no sheet whil
   const review = await returnToAnOlderReviewFromASecondDesign(page);
   const { first, requests } = review;
   const heldAnswer = await holdReadsOf(page, first.designId);
+  const whenTheReadWasCaught = heldAnswer.hasLeft.then(() => Date.now());
 
   await press(page, changeSettingsLink(page));
   await page.waitForURL(
     (url) => url.pathname === new URL(first.editorUrl).pathname,
   );
-  await heldAnswer.hasLeft;
+  const heldSince = await whenTheReadWasCaught;
   await expectEditorDrawn(page);
-  await settle(page);
+  await settleWithinTheHold(page, heldSince);
 
   await expect(settingsSheet(page)).toHaveCount(0);
   await expect(page.getByTestId("global-settings-trigger")).toBeDisabled();
@@ -479,8 +493,12 @@ test("the review's change-settings link from an older review opens no sheet whil
   );
   expect(savesOfTheDesignSince(requests, 0, first.designId)).toHaveLength(0);
 
+  const heldForMs = Date.now() - heldSince;
   await heldAnswer.release();
-  await expect(settingsSheet(page)).toBeVisible();
+  await expect(
+    settingsSheet(page),
+    `the answer was held for ${String(heldForMs)} ms before its release; the client gives up on a read after 10000`,
+  ).toBeVisible();
 
   expect(await tierChosenInTheSheet(page, HARDWARE_GROUP_INDEX)).toBe(
     review.storedHardwareTier,

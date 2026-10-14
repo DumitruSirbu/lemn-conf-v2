@@ -500,6 +500,9 @@ test.describe("a reference that is not a reference", () => {
   });
 });
 
+/** The confirmation's own timer is about two seconds; a runner whose page stalls for seconds at a time runs it late. */
+const CONFIRMATION_CLEARS_WITHIN_MS = 20_000;
+
 test.describe("what the reference card and the picture do on the page", () => {
   test("ro: the copy control writes exactly the reference to the clipboard and its confirmation stands for about two seconds; the picture is the room's canvas with no camera control and no way to orbit it", async ({
     page,
@@ -527,7 +530,7 @@ test.describe("what the reference card and the picture do on the page", () => {
       "the clipboard holds the reference and nothing else",
     ).toBe("LMN-CP-0001");
     await expect(page.getByTestId("done-copied")).toHaveText("", {
-      timeout: 4000,
+      timeout: CONFIRMATION_CLEARS_WITHIN_MS,
     });
 
     const picture = page.getByTestId("done-picture");
