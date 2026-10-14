@@ -456,7 +456,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       "Design-ul tău se atașează automat. Un consultant îl verifică și revine cu prețul final.",
     headingNoDesign: "Cum te putem contacta?",
     subheadingNoDesign:
-      "Spune-ne cum te găsim, iar un consultant revine la tine ca să configurăm bucătăria împreună.",
+      "Spune-ne cum putem să te contactăm, iar un consultant revine la tine ca să configurăm bucătăria împreună.",
     nameLabel: "Nume",
     namePlaceholder: "Numele tău",
     phoneLabel: "Telefon",
@@ -558,7 +558,7 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       "Ai greșit ceva în cerere? Sună-ne la {phone} și spune-ne numărul cererii — corectăm împreună.",
     alreadySentChangedKitchen:
       "Dacă schimbi bucătăria, poți trimite o cerere nouă pentru ea.",
-    callShop: "Sună direct la magazin",
+    callShop: "Sună direct la noi",
     failureHeading: "Nu am putut trimite cererea",
     failureLostConnection: "Conexiunea s-a întrerupt.",
     failureNotSent: "Cererea nu a ajuns la noi. Încearcă din nou.",

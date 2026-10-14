@@ -548,7 +548,7 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "content.static.contact.subheading":
     "b4745e53a4cfe7eae3150e311d5cc8d28212fd5845b357ce94ebc9eb007def6d",
   "content.static.contact.subheadingNoDesign":
-    "11a6c8a38ab7014edbf279618a4f33f7011a54a90aef08b88d220685bf9708a3",
+    "aadfc188c57cd771906fe6030b5799bc4fa9181f3b6554c0d066f6cef1e073c8",
   "content.static.contact.topBarTitle":
     "2b5c3d26721ae9c350cf3009318b626f0fc8a90b4a2ac0ca8099c05aa849282e",
   "content.static.contact.unavailable":
@@ -580,7 +580,7 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "content.static.submissionResult.backToDesign":
     "4bacf284940731b6851ab2377b3a3b611168243cf5a2bca1fa0e4cc4aaadde78",
   "content.static.submissionResult.callShop":
-    "ba9fdef3ca120b63956e3ea0659019cba727d0c6b676487937c002182f46dd02",
+    "eee9a90fcbd1ed596d9374229ea138256624357db1bbf0657f6949f327a8fb2f",
   "content.static.submissionResult.alreadySentHeading":
     "99772e640643506775ac2d45f06c5d455d8933a502f5ce431c909a4078b5f6dd",
   "content.static.submissionResult.alreadySentChangedKitchen":
