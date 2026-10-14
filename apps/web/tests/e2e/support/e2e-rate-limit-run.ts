@@ -229,8 +229,9 @@ export async function removeCredentialCountersOf(
 }
 
 /**
- * The mints' rows, the same removal with one more rule: finding no row is a failure, since every run mints, and a key
- * computed wrongly would otherwise leave rows behind and report nothing.
+ * The mints' rows, the same removal with one more rule: finding no row is a failure, for a caller that has minted, and
+ * a key computed wrongly would otherwise leave rows behind and report nothing. The whole run, which may mint nothing,
+ * is judged by `requireMintCountersUnlessNothingWasCounted`.
  */
 export async function removeCountersOfTheRun(
   secretHex: string,
@@ -242,6 +243,29 @@ export async function removeCountersOfTheRun(
     rowsRemoved: removed.rowsRemoved,
     mintsCounted: removed.hitsCounted,
   };
+}
+
+/** What a run's removal found, by the counts that do not depend on the mints' key. */
+export interface WhatTheRunCounted {
+  readonly mintRowsRemoved: number;
+  /** The designs the run's workers recorded in the mint ledger. */
+  readonly designsMinted: number;
+  /** The hits every other counter of the run held: the twins' and the violation reports'. */
+  readonly otherHitsCounted: number;
+}
+
+/**
+ * The whole-run rule for the mints' rows: finding none is a failure when the run minted designs or counted anything
+ * else, since a key computed wrongly would leave rows behind and report nothing. A run that provably did none of
+ * that, such as a shard of specs that only read pages, has no row to find.
+ */
+export function requireMintCountersUnlessNothingWasCounted(
+  counted: WhatTheRunCounted,
+): void {
+  if (counted.mintRowsRemoved > 0) return;
+  if (counted.designsMinted > 0 || counted.otherHitsCounted > 0) {
+    throw new NoCountersOfTheRunError();
+  }
 }
 
 /** More than half of a twin's figure is room the suite has used up: the figure is raised by a person. */
@@ -270,11 +294,12 @@ export class E2eFigureOutgrownError extends Error {
   }
 }
 
-/** The run's counter rows could not be found, so either nothing was minted or the key is not the server's. */
+/** The run's mint counter rows could not be found where they were required: either no design was minted, or the key is
+ *  not the server's. */
 export class NoCountersOfTheRunError extends Error {
   constructor() {
     super(
-      "The run's rate-limit counters could not be found: no design was minted, " +
+      "The run's rate-limit counters could not be found: no design was minted where one was required, " +
         "or the harness computes a key the server does not",
     );
     this.name = "NoCountersOfTheRunError";

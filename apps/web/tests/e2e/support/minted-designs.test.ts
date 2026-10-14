@@ -6,10 +6,21 @@ const FAKE_SECRET =
   "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
 
 const calls = vi.hoisted(() => ({
+  recorded: [] as number[],
   order: [] as string[],
   keys: [] as (readonly string[])[],
   deletedDesigns: [] as (readonly string[])[],
   hashesToFind: [] as string[],
+}));
+
+vi.mock("./mint-ledger", () => ({
+  mintLedgerOfTheRun: () => ({
+    record: (designsMinted: number) => {
+      calls.order.push("record-mints");
+      calls.recorded.push(designsMinted);
+    },
+    takeCount: () => 0,
+  }),
 }));
 
 vi.mock("@lemnaria/persistence", () => ({
@@ -40,6 +51,7 @@ const { bucketKeyOfCredential } = await import("./e2e-rate-limit-run");
 
 beforeEach(() => {
   calls.order.length = 0;
+  calls.recorded.length = 0;
   calls.keys.length = 0;
   calls.deletedDesigns.length = 0;
   calls.hashesToFind = [HASH_OF_THE_FIRST, HASH_OF_THE_SECOND];
@@ -52,6 +64,7 @@ describe("deleteMintedDesigns", () => {
     await deleteMintedDesigns(["design-one", "design-two"]);
 
     expect(calls.order).toEqual([
+      "record-mints",
       "find-hashes:design-one,design-two",
       "delete-counters",
       "delete-designs",
@@ -68,6 +81,13 @@ describe("deleteMintedDesigns", () => {
       ],
     ]);
     expect(calls.deletedDesigns).toEqual([["design-one", "design-two"]]);
+  });
+
+  it("writes the number of designs to the run's mint ledger before anything is read or deleted", async () => {
+    await deleteMintedDesigns(["design-one", "design-two"]);
+
+    expect(calls.recorded).toEqual([2]);
+    expect(calls.order[0]).toBe("record-mints");
   });
 
   it("does nothing for no design: no read, no counter, no delete", async () => {

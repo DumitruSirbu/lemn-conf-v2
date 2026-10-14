@@ -23,6 +23,15 @@ const cspRows = vi.hoisted(() => ({
   removedMarks: [] as (readonly string[])[],
 }));
 
+const ledger = vi.hoisted(() => ({ designsMinted: 0 }));
+
+vi.mock("./mint-ledger", () => ({
+  mintLedgerOfTheRun: () => ({
+    record: () => undefined,
+    takeCount: () => ledger.designsMinted,
+  }),
+}));
+
 const deletion = vi.hoisted(() => ({
   handed: [] as (readonly string[])[],
   answer: { rowsRemoved: 1, counts: [3] } as RemovedCounters,
@@ -62,6 +71,7 @@ const {
   removeCountersOf,
   removeCountersOfTheRun,
   removeCredentialCountersOf,
+  requireMintCountersUnlessNothingWasCounted,
   requireNoCspReportsUnderCi,
   requireRoomUnderHalfTheFigure,
   RUN_SECRET_VARIABLE,
@@ -85,6 +95,7 @@ beforeEach(() => {
   deletion.handed.length = 0;
   deletion.answer = { rowsRemoved: 1, counts: [3] };
   deletion.answerFor = undefined;
+  ledger.designsMinted = 0;
   Reflect.deleteProperty(globalThis, MADE_IN_THIS_PROCESS);
 });
 
@@ -244,6 +255,44 @@ describe("removeCountersOfTheRun", () => {
     await expect(
       removeCountersOfTheRun(FAKE_SECRET, E2E_MINT_POLICY_NAME),
     ).rejects.toBeInstanceOf(NoCountersOfTheRunError);
+  });
+});
+
+describe("requireMintCountersUnlessNothingWasCounted", () => {
+  const NOTHING = { mintRowsRemoved: 0, designsMinted: 0, otherHitsCounted: 0 };
+
+  it("accepts a run that minted no design, counted no other hit and so found no mint row", () => {
+    expect(() => {
+      requireMintCountersUnlessNothingWasCounted(NOTHING);
+    }).not.toThrow();
+  });
+
+  it("fails a run whose workers minted designs and whose mint rows were not found, the wrong-key case", () => {
+    expect(() => {
+      requireMintCountersUnlessNothingWasCounted({
+        ...NOTHING,
+        designsMinted: 1,
+      });
+    }).toThrow(NoCountersOfTheRunError);
+  });
+
+  it("fails a run that counted hits under any other key but found no mint row, since one key is wrong for all", () => {
+    expect(() => {
+      requireMintCountersUnlessNothingWasCounted({
+        ...NOTHING,
+        otherHitsCounted: 1,
+      });
+    }).toThrow(NoCountersOfTheRunError);
+  });
+
+  it("accepts a run that found mint rows, whatever else it counted", () => {
+    expect(() => {
+      requireMintCountersUnlessNothingWasCounted({
+        mintRowsRemoved: 1,
+        designsMinted: 5,
+        otherHitsCounted: 9,
+      });
+    }).not.toThrow();
   });
 });
 
@@ -697,6 +746,30 @@ describe("the teardown", () => {
       expect(deletion.handed).toHaveLength(TEARDOWN_TWINS.length + 1);
       expect(log).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it("passes a run whose workers minted no design and whose every counter is empty, as a shard of room-layout specs", async () => {
+    vi.stubEnv("CI", "1");
+    answerEachTwin(new Map());
+    const log = silenceTheLine();
+
+    await expect(globalTeardown()).resolves.toBeUndefined();
+
+    expect(String(log.mock.calls[0]?.[0])).toContain(
+      "this run minted 0 designs (0 counter row removed)",
+    );
+  });
+
+  it("fails a run whose workers minted designs but whose every counter is empty, after every row is removed", async () => {
+    ledger.designsMinted = 2;
+    answerEachTwin(new Map());
+    silenceTheLine();
+
+    await expect(globalTeardown()).rejects.toBeInstanceOf(
+      NoCountersOfTheRunError,
+    );
+
+    expect(deletion.handed).toHaveLength(TEARDOWN_TWINS.length + 1);
   });
 
   it("fails a run that minted nothing, since a key computed wrongly would leave every row behind", async () => {

@@ -9,7 +9,7 @@ import {
   CONTACT_NEW_REQUEST_HOUR_TWIN,
   MINT_TWIN,
   removeCountersOf,
-  removeCountersOfTheRun,
+  requireMintCountersUnlessNothingWasCounted,
   requireNoCspReportsUnderCi,
   requireRoomUnderHalfTheFigure,
   SAVE_TWIN,
@@ -17,7 +17,9 @@ import {
   secretOfThisRun,
   type CountersOfTheRun,
   type TwinOfTheRun,
+  type WhatTheRunCounted,
 } from "./support/e2e-rate-limit-run";
+import { mintLedgerOfTheRun } from "./support/mint-ledger";
 import {
   CSP_REPORT_POLICY,
   E2E_MINT_POLICY_NAME,
@@ -39,15 +41,16 @@ const TWINS_REMOVED_BEFORE_THE_MINTS = [
 /**
  * Runs once, in the runner's main process, after every test: removes the run's counter rows and its `csp_reports` rows
  * (by writer mark, the suite's server's and every second server's), prints the figures the e2e windows are sized
- * against, and only then fails. It fails on a CI run that counted a violation report, no mints' row, more than half of
- * any window, or more stored rows than counted hits; every failure is reported, in an `AggregateError` when several.
+ * against, and only then fails. It fails on a CI run that counted a violation report, no mints' row in a run that minted
+ * designs or counted anything else, more than half of any window, or more stored rows than counted hits; every failure
+ * is reported, in an `AggregateError` when several.
  * The saves' and contacts' rows are removed by each test's own cleanup.
  */
 export default async function globalTeardown(): Promise<void> {
   const secret = secretOfThisRun();
   const cspRows = await removeCspReportRowsOfTheRun(secret);
   const cspReports = await removeCountersOf(secret, CSP_REPORT_POLICY.name);
-  const removal = await removalOf(secret);
+  const removal = await removalOf(secret, cspReports.hitsCounted);
   console.log(summaryOf(removal.measured, cspReports, cspRows.figures));
   const failures = [
     ...removal.failures,
@@ -80,12 +83,38 @@ interface Removal {
 }
 
 /** What the twins' removal measured, or nothing and the failure: the csp count must be judged either way. */
-async function removalOf(secret: string): Promise<Removal> {
+async function removalOf(
+  secret: string,
+  cspHitsCounted: number,
+): Promise<Removal> {
+  const designsMinted = mintLedgerOfTheRun(secret).takeCount();
   try {
-    return { measured: await removeEveryTwinsRows(secret), failures: [] };
+    const measured = await removeEveryTwinsRows(secret);
+    const counted = whatTheRunCounted(measured, designsMinted, cspHitsCounted);
+    return {
+      measured,
+      failures: failuresOf(() => {
+        requireMintCountersUnlessNothingWasCounted(counted);
+      }),
+    };
   } catch (failure) {
     return { measured: new Map(), failures: [asError(failure)] };
   }
+}
+
+function whatTheRunCounted(
+  measured: Measured,
+  designsMinted: number,
+  cspHitsCounted: number,
+): WhatTheRunCounted {
+  const otherTwinsHits = [...measured]
+    .filter(([twin]) => twin !== MINT_TWIN)
+    .reduce((sum, [, counters]) => sum + counters.hitsCounted, 0);
+  return {
+    mintRowsRemoved: measured.get(MINT_TWIN)?.rowsRemoved ?? 0,
+    designsMinted,
+    otherHitsCounted: otherTwinsHits + cspHitsCounted,
+  };
 }
 
 function failuresOf(check: () => void): readonly Error[] {
@@ -112,12 +141,8 @@ async function removeEveryTwinsRows(secret: string): Promise<Measured> {
   for (const twin of TWINS_REMOVED_BEFORE_THE_MINTS) {
     measured.set(twin, await removeCountersOf(secret, twin.policy.name));
   }
-  const mints = await removeCountersOfTheRun(secret, E2E_MINT_POLICY_NAME);
-  const asCounters = {
-    rowsRemoved: mints.rowsRemoved,
-    hitsCounted: mints.mintsCounted,
-  };
-  return new Map([[MINT_TWIN, asCounters], ...measured]);
+  const mints = await removeCountersOf(secret, E2E_MINT_POLICY_NAME);
+  return new Map([[MINT_TWIN, mints], ...measured]);
 }
 
 function summaryOf(
