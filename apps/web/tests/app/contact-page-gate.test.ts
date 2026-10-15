@@ -123,9 +123,11 @@ function stubTheServersEnvironment(
 }
 
 const SENDABLE_ENVIRONMENT = {
+  GOOGLE_EMAIL: undefined,
+  GOOGLE_APP_PASSWORD: undefined,
+  LEAD_NOTIFICATION_ADDRESS: undefined,
   RESEND_API_KEY: undefined,
   MAIL_FROM_ADDRESS: undefined,
-  LEAD_NOTIFICATION_ADDRESS: undefined,
   LEMNARIA_E2E_FAKE_MAIL: "1",
   DIGEST_SECRET: DIGEST_SECRET_VALUE,
 } as const;
@@ -323,9 +325,11 @@ describe("the owner is served the contact page", () => {
 
   it("handing the client no variable's name and no value of one", async () => {
     stubTheServersEnvironment({
-      RESEND_API_KEY: "re_FAKEKEY_0123456789",
-      MAIL_FROM_ADDRESS: "orders@mail.example.com",
+      GOOGLE_EMAIL: "orders@mail.example.com",
+      GOOGLE_APP_PASSWORD: "ZxQ8vK3pWmRt5Yn2",
       LEAD_NOTIFICATION_ADDRESS: "inbox@example.com",
+      RESEND_API_KEY: undefined,
+      MAIL_FROM_ADDRESS: undefined,
       LEMNARIA_E2E_FAKE_MAIL: undefined,
     });
 
@@ -335,10 +339,12 @@ describe("the owner is served the contact page", () => {
 
     for (const secret of [
       DIGEST_SECRET_VALUE,
-      "re_FAKEKEY_0123456789",
+      "ZxQ8vK3pWmRt5Yn2",
       "orders@mail.example.com",
       "inbox@example.com",
       "DIGEST_SECRET",
+      "GOOGLE_EMAIL",
+      "GOOGLE_APP_PASSWORD",
       "RESEND_API_KEY",
       "MAIL_FROM_ADDRESS",
       "LEAD_NOTIFICATION_ADDRESS",

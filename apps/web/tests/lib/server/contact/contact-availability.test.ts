@@ -14,16 +14,18 @@ import {
 } from "@/lib/server/mail/select-mail-sender";
 
 import { readSource } from "../server-source-support";
+import { forbidNetwork, releaseNetwork } from "../mail/mail-test-support";
 
-const FAKE_KEY = "re_FAKEKEY_0123456789";
-const FAKE_FROM = "orders@mail.example.com";
+const FAKE_PASSWORD = "ZxQ8vK3pWmRt5Yn2";
+const FAKE_SENDER = "orders@mail.example.com";
+const RETIRED_VALUE = "a-retired-name-still-set";
 const FAKE_INBOX = "inbox@example.com";
 const FAKE_SECRET =
   "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
 
 const PROVIDER_VARIABLES = {
-  RESEND_API_KEY: FAKE_KEY,
-  MAIL_FROM_ADDRESS: FAKE_FROM,
+  GOOGLE_EMAIL: FAKE_SENDER,
+  GOOGLE_APP_PASSWORD: FAKE_PASSWORD,
   LEAD_NOTIFICATION_ADDRESS: FAKE_INBOX,
 } as const;
 
@@ -41,12 +43,20 @@ function variableArbitrary(
 
 const environmentArbitrary: fc.Arbitrary<ServerEnvironment> = fc
   .record({
-    RESEND_API_KEY: variableArbitrary(FAKE_KEY, ["", "has a space", "é"]),
-    MAIL_FROM_ADDRESS: variableArbitrary(FAKE_FROM, [
+    GOOGLE_EMAIL: variableArbitrary(FAKE_SENDER, [
       "",
       "no-at-sign",
       "a@b@c",
+      "a@b.123",
     ]),
+    GOOGLE_APP_PASSWORD: variableArbitrary(FAKE_PASSWORD, [
+      "",
+      "has a space",
+      "é",
+    ]),
+    // The previous provider's names configure nothing, and the flag beside one is still refused.
+    RESEND_API_KEY: variableArbitrary(RETIRED_VALUE, [""]),
+    MAIL_FROM_ADDRESS: variableArbitrary(RETIRED_VALUE, [""]),
     LEAD_NOTIFICATION_ADDRESS: variableArbitrary(FAKE_INBOX, [
       "",
       "two@example.com,three@example.com",
@@ -80,12 +90,16 @@ function theRoutesAnswer(environment: ServerEnvironment): boolean {
   );
 }
 
+// The factory builds the real adapter for a usable environment: a sender is built here and never asked to send, and the
+// guard shows that building one opens nothing.
 beforeEach(() => {
   vi.spyOn(console, "warn").mockImplementation(() => undefined);
+  forbidNetwork();
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
+  releaseNetwork();
 });
 
 describe("isContactSendable", () => {
@@ -143,7 +157,7 @@ describe("isContactSendable", () => {
     expect(
       isContactSendable({
         [FAKE_MAIL_FLAG]: FAKE_MAIL_FLAG_ENABLED,
-        RESEND_API_KEY: FAKE_KEY,
+        GOOGLE_EMAIL: FAKE_SENDER,
         [DIGEST_SECRET_VARIABLE]: FAKE_SECRET,
       }),
     ).toBe(false);

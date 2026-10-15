@@ -18,14 +18,20 @@ import { secretOfThisRun } from "./tests/e2e/support/e2e-rate-limit-run";
 import {
   FAKE_MAIL_SERVER_ENVIRONMENT,
   requireNoMailVariable,
+  withholdMailVariables,
 } from "./tests/e2e/support/fake-mail-environment";
 
 // The application's own `DATABASE_URL` must be readable here, or `assertSafeTestDatabaseUrl` has
 // nothing to compare against and passes vacuously.
 loadEnvLocal();
 
-// The server inherits this process's environment, and refuses the fake sender beside any mail variable: a run that
-// holds one fails here, naming it, rather than starting a server that could send for real.
+// `loadEnvLocal` has just copied the repository root's `.env.local` into this process, and every server and worker
+// inherits it. Whatever mail variable that file holds is removed from this in-memory copy, here and before anything reads
+// it (ADR 0164 decision 7); no file and no deployment is touched.
+withholdMailVariables(process.env, console.log);
+
+// The server refuses the fake sender beside any mail variable: a run that still holds one fails here, naming it, rather
+// than starting a server that could send for real. After the line above this is the proof that the withholding ran.
 requireNoMailVariable(process.env);
 
 /**

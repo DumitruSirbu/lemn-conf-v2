@@ -115,8 +115,10 @@ describe("forbidNetwork", () => {
 describe("every mail test that builds a sender", () => {
   const MAIL_TESTS_DIRECTORY = import.meta.dirname;
 
+  // The factory is named too: a test that calls `.send` on the sender it builds reaches the library's own
+  // `createTransport` without ever importing the library.
   function usesTheLibraryOrTheAdapter(source: string): boolean {
-    return /(?:from|import\()\s*["'](?:nodemailer|@\/lib\/server\/mail\/gmail-mail-sender)["']/.test(
+    return /(?:from|import\()\s*["'](?:nodemailer|@\/lib\/server\/mail\/(?:gmail-mail-sender|create-mail-sender))["']/.test(
       source,
     );
   }
@@ -127,7 +129,7 @@ describe("every mail test that builds a sender", () => {
     );
   }
 
-  it("reads source: each file that imports nodemailer or the Gmail adapter forbids and then releases the network", () => {
+  it("reads source: each file that imports nodemailer, the Gmail adapter or the factory forbids and then releases the network", () => {
     const unguarded = readdirSync(MAIL_TESTS_DIRECTORY)
       .filter((name) => name.endsWith(".test.ts"))
       .filter((name) => {
@@ -138,17 +140,30 @@ describe("every mail test that builds a sender", () => {
     expect(unguarded).toEqual([]);
   });
 
-  it("control: the census flags a file that imports the library with no guard and passes one that has it", () => {
-    const unguardedSource = 'import { createTransport } from "nodemailer";';
-    const guardedSource = `${unguardedSource}\nbeforeEach(() => { forbidNetwork(); });\nafterEach(releaseNetwork);`;
+  it.each([
+    'import { createTransport } from "nodemailer";',
+    'import { createGmailMailSender } from "@/lib/server/mail/gmail-mail-sender";',
+    'import { createMailSender } from "@/lib/server/mail/create-mail-sender";',
+    'const { createMailSender } = await import("@/lib/server/mail/create-mail-sender");',
+  ])(
+    "control: the census flags a file that has %s with no guard and passes one that has it",
+    (importLine) => {
+      const guardedSource = `${importLine}\nbeforeEach(() => { forbidNetwork(); });\nafterEach(releaseNetwork);`;
 
-    expect(
-      usesTheLibraryOrTheAdapter(unguardedSource) &&
-        !isGuarded(unguardedSource),
-    ).toBe(true);
-    expect(
-      usesTheLibraryOrTheAdapter(guardedSource) && !isGuarded(guardedSource),
-    ).toBe(false);
+      expect(
+        usesTheLibraryOrTheAdapter(importLine) && !isGuarded(importLine),
+      ).toBe(true);
+      expect(
+        usesTheLibraryOrTheAdapter(guardedSource) && !isGuarded(guardedSource),
+      ).toBe(false);
+    },
+  );
+
+  it("control: a file that only mocks the factory by name, importing nothing of it, is not mistaken for a user of it", () => {
+    const mockOnly =
+      'vi.mock("@/lib/server/mail/create-mail-sender", () => ({}));';
+
+    expect(usesTheLibraryOrTheAdapter(mockOnly)).toBe(false);
   });
 });
 

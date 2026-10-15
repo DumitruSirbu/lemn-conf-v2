@@ -1,10 +1,10 @@
 import "server-only";
 
 import { createHash } from "node:crypto";
-import { domainToASCII } from "node:url";
 
 import { createTransport } from "nodemailer";
 
+import type { MailConfiguration } from "@/lib/server/mail/mail-configuration";
 import {
   MAIL_REFUSED_UNSENT,
   sendableCopyOf,
@@ -12,6 +12,7 @@ import {
   type MailOutcome,
   type MailSender,
 } from "@/lib/server/mail/mail-sender";
+import { asciiDomainOfPlainMailbox } from "@/lib/server/mail/plain-mailbox";
 import {
   MAIL_TIMED_OUT,
   outcomeOfSendFailure,
@@ -29,23 +30,6 @@ const DNS_TIMEOUT_MS = 2_000;
 const CONNECTION_TIMEOUT_MS = 4_000;
 const GREETING_TIMEOUT_MS = 3_000;
 const SOCKET_TIMEOUT_MS = 6_000;
-
-// A mailbox the library parses back to the very string it was given: dot-atom parts, one `@`.
-const PLAIN_LOCAL_PART =
-  /^[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*$/;
-// Checked before the name is converted, because the URL parser behind the conversion stops at `\`, `/`, `?` and `#`.
-const DOMAIN_BEFORE_CONVERSION =
-  /^[\p{L}\p{N}](?:[\p{L}\p{N}-]*[\p{L}\p{N}])?(?:\.[\p{L}\p{N}](?:[\p{L}\p{N}-]*[\p{L}\p{N}])?)*$/u;
-// The last label starts with a letter: the URL parser rewrites a name ending in a number as an IPv4 address.
-const PLAIN_ASCII_DOMAIN =
-  /^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)*[a-z](?:[a-z0-9-]*[a-z0-9])?$/;
-
-/** Three values of the new configuration shape, which the reader will produce once it moves. */
-export interface GmailMailConfiguration {
-  readonly senderAddress: string;
-  readonly appPassword: string;
-  readonly notificationAddress: string;
-}
 
 export interface GmailTransportOptions {
   readonly host: string;
@@ -85,9 +69,9 @@ export const DEFAULT_MAKE_TRANSPORT: MakeMailTransport = createTransport;
 
 /** A configured address that cannot be written as one plain mailbox. Names the setting, never its value. */
 export class UnusableMailAddressError extends Error {
-  readonly setting: keyof GmailMailConfiguration;
+  readonly setting: keyof MailConfiguration;
 
-  constructor(setting: keyof GmailMailConfiguration) {
+  constructor(setting: keyof MailConfiguration) {
     super(`The mail setting "${setting}" is not one plain mailbox address`);
     this.name = "UnusableMailAddressError";
     this.setting = setting;
@@ -96,7 +80,7 @@ export class UnusableMailAddressError extends Error {
 
 /** Pure. Implicit TLS, no pool, no logging, no file or URL reads, and every wait shorter than the bound. */
 export function buildGmailTransportOptions(
-  configuration: GmailMailConfiguration,
+  configuration: MailConfiguration,
 ): GmailTransportOptions {
   return {
     host: GMAIL_SMTP_HOST,
@@ -126,7 +110,7 @@ export function buildGmailTransportOptions(
  */
 export function buildGmailMessage(
   copy: MailMessage,
-  configuration: GmailMailConfiguration,
+  configuration: MailConfiguration,
 ): GmailMessageOptions {
   const { senderAddress, notificationAddress } = configuration;
   const senderDomain = plainDomainOf(senderAddress, "senderAddress");
@@ -146,7 +130,7 @@ export function buildGmailMessage(
  * session, so a message may still be accepted after `timed-out` was answered.
  */
 export function createGmailMailSender(
-  configuration: GmailMailConfiguration,
+  configuration: MailConfiguration,
   makeTransport: MakeMailTransport = DEFAULT_MAKE_TRANSPORT,
 ): MailSender {
   return {
@@ -156,7 +140,7 @@ export function createGmailMailSender(
 
 async function sendOnce(
   message: MailMessage,
-  configuration: GmailMailConfiguration,
+  configuration: MailConfiguration,
   makeTransport: MakeMailTransport,
 ): Promise<MailOutcome> {
   const options = tryBuildMessage(message, configuration);
@@ -172,7 +156,7 @@ async function sendOnce(
 
 function tryBuildMessage(
   message: MailMessage,
-  configuration: GmailMailConfiguration,
+  configuration: MailConfiguration,
 ): GmailMessageOptions | undefined {
   try {
     const copy = sendableCopyOf(message);
@@ -185,7 +169,7 @@ function tryBuildMessage(
 }
 
 function tryMakeTransport(
-  configuration: GmailMailConfiguration,
+  configuration: MailConfiguration,
   makeTransport: MakeMailTransport,
 ): { readonly made: MailTransport } | { readonly outcome: MailOutcome } {
   try {
@@ -237,23 +221,11 @@ function closeQuietly(transport: MailTransport): void {
 /** The ASCII domain of one plain mailbox, lower-case, which is also what a `msg-id` may hold. */
 function plainDomainOf(
   address: string,
-  setting: keyof GmailMailConfiguration,
+  setting: keyof MailConfiguration,
 ): string {
-  const parts = address.split("@");
-  const [localPart, domain] = parts;
-  const asciiDomain = asciiDomainOf(domain);
-  const isPlain =
-    parts.length === 2 &&
-    PLAIN_LOCAL_PART.test(localPart ?? "") &&
-    PLAIN_ASCII_DOMAIN.test(asciiDomain);
-  if (!isPlain) throw new UnusableMailAddressError(setting);
-  return asciiDomain;
-}
-
-function asciiDomainOf(domain: string | undefined): string {
-  return domain !== undefined && DOMAIN_BEFORE_CONVERSION.test(domain)
-    ? domainToASCII(domain)
-    : "";
+  const domain = asciiDomainOfPlainMailbox(address);
+  if (domain === undefined) throw new UnusableMailAddressError(setting);
+  return domain;
 }
 
 function digestOf(key: string): string {

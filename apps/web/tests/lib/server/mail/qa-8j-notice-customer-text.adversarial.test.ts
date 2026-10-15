@@ -14,11 +14,16 @@ import {
   NoticeLineError,
 } from "@/lib/server/mail/lead-notification";
 import { isSendableMailMessage } from "@/lib/server/mail/mail-sender";
-import { createResendMailSender } from "@/lib/server/mail/resend-mail-sender";
+import { createGmailMailSender } from "@/lib/server/mail/gmail-mail-sender";
 import ruMessages from "@/messages/ru.json";
 
 import { ro } from "../../../support/romanian-content";
-import { forbidFetch, releaseFetch } from "./mail-test-support";
+import {
+  forbidFetch,
+  forbidNetwork,
+  releaseFetch,
+  releaseNetwork,
+} from "./mail-test-support";
 import {
   acceptedContact,
   callbackRequest,
@@ -37,8 +42,7 @@ import {
   expectNoMarkerIn,
   QA_CONFIGURATION,
   silenceEveryConsoleMethod,
-  stubFetchAnswering,
-  textAnswer,
+  transportsAnswering,
 } from "./qa-8j-support";
 
 const labels = ro.leadNotice.labels;
@@ -117,10 +121,14 @@ function placementsOf(breaker: string): string[] {
   ];
 }
 
-beforeEach(forbidFetch);
+beforeEach(() => {
+  forbidFetch();
+  forbidNetwork();
+});
 afterEach(() => {
   vi.restoreAllMocks();
   releaseFetch();
+  releaseNetwork();
 });
 
 describe("every breaking character, at every position, in every printed field", () => {
@@ -529,18 +537,21 @@ describe("the subject and the key", () => {
     ["letters outside ASCII", "cerere_ключ_0000000001"],
     ["three hundred characters", "q".repeat(300)],
   ])(
-    "never reach a request when the request id holds %s: the sender refuses the notice unsent",
+    "never reach a transport when the request id holds %s: the sender refuses the notice unsent",
     async (_label, clientRequestId) => {
-      const fetchSpy = stubFetchAnswering(() =>
-        textAnswer(200, '{"id":"msg_1"}'),
-      );
+      const transports = transportsAnswering(() => ({
+        accepted: [QA_CONFIGURATION.notificationAddress],
+        rejected: [],
+      }));
       const message = noticeOf(designRequest({ clientRequestId }));
 
-      const outcome =
-        await createResendMailSender(QA_CONFIGURATION).send(message);
+      const outcome = await createGmailMailSender(
+        QA_CONFIGURATION,
+        transports.make,
+      ).send(message);
 
       expect(outcome).toEqual({ ok: false, kind: "refused" });
-      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(transports.made()).toBe(0);
     },
   );
 });

@@ -2,17 +2,24 @@ import { inspect } from "node:util";
 
 import { expect, vi } from "vitest";
 
+import type {
+  GmailMessageOptions,
+  GmailTransportOptions,
+  MailTransport,
+  MakeMailTransport,
+} from "@/lib/server/mail/gmail-mail-sender";
 import type { MailConfiguration } from "@/lib/server/mail/mail-configuration";
 import type { MailMessage } from "@/lib/server/mail/mail-sender";
 
-// Every value here is invented and recognisable, so a test can look for it in what must not hold it.
-export const FAKE_API_KEY = "re_QAFAKE_key_5d81c0";
+// Every value here is invented and recognisable, so a test can look for it in what must not hold it. The password
+// is visible ASCII with no space, as the reader requires, so the "usable" arm of every matrix is not empty.
+export const FAKE_APP_PASSWORD = "QAFAKEpassword5d81c0";
 export const FAKE_SENDER = "qa-sender-5d81c0@mail.example.com";
 export const FAKE_INBOX = "qa-inbox-5d81c0@example.com";
 
 export const QA_CONFIGURATION: MailConfiguration = {
-  apiKey: FAKE_API_KEY,
-  fromAddress: FAKE_SENDER,
+  senderAddress: FAKE_SENDER,
+  appPassword: FAKE_APP_PASSWORD,
   notificationAddress: FAKE_INBOX,
 };
 
@@ -22,13 +29,13 @@ export const QA_MESSAGE: MailMessage = {
   text: "Line one\nLine two",
 };
 
-/** What a provider's error body could quote back: the recipient, and the customer the notice is about. */
+/** What a library error could quote back: the recipient, and the customer the notice is about. */
 export const QUOTED_ADDRESS = "qa-quoted-5d81c0@example.com";
 export const QUOTED_NAME = "Nume Citat Fictiv 5d81c0";
 export const QUOTED_PHONE = "+37360058100";
 
 export const DISCLOSURE_MARKERS = [
-  FAKE_API_KEY,
+  FAKE_APP_PASSWORD,
   FAKE_SENDER,
   FAKE_INBOX,
   QUOTED_ADDRESS,
@@ -36,60 +43,71 @@ export const DISCLOSURE_MARKERS = [
   QUOTED_PHONE,
 ];
 
-export const QUOTING_ERROR_BODY = JSON.stringify({
-  statusCode: 422,
-  name: "validation_error",
-  message: [
-    `Could not deliver to ${FAKE_INBOX} from ${FAKE_SENDER}`,
-    `for ${QUOTED_NAME} <${QUOTED_ADDRESS}> ${QUOTED_PHONE} using ${FAKE_API_KEY}`,
-  ].join(" "),
-});
+/** A server's reply text, as a library would copy it into `message`, `response` and `command`. */
+export const QUOTING_REPLY_TEXT = [
+  `Could not deliver to ${FAKE_INBOX} from ${FAKE_SENDER}`,
+  `for ${QUOTED_NAME} <${QUOTED_ADDRESS}> ${QUOTED_PHONE} using ${FAKE_APP_PASSWORD}`,
+].join(" ");
 
-const encoder = new TextEncoder();
-
-export function bytesOf(text: string): Uint8Array {
-  return encoder.encode(text);
-}
-
-/** A body delivered in exactly these chunks, then closed. */
-export function streamOf(
-  ...chunks: readonly Uint8Array[]
-): ReadableStream<Uint8Array> {
-  return new ReadableStream<Uint8Array>({
-    start(controller) {
-      for (const chunk of chunks) controller.enqueue(chunk);
-      controller.close();
-    },
+/** An error shaped as the mail library's are, every free-text member quoting every marker. */
+export function quotingLibraryError(
+  members: Record<string, unknown> = {},
+): Error {
+  return Object.assign(new Error(QUOTING_REPLY_TEXT), {
+    response: QUOTING_REPLY_TEXT,
+    command: QUOTING_REPLY_TEXT,
+    ...members,
   });
 }
 
-/** The two members of a response the adapter reads, and nothing a real response would add. */
-export function answerOf(
-  status: number,
-  body: ReadableStream<Uint8Array> | null,
-): Response {
-  return { status, body } as unknown as Response;
+/** A rejection with a value that is no Error: the mail library's own throws are not always errors. */
+export function rejectingWith(reason: unknown): Promise<never> {
+  // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- the case under test
+  return Promise.reject(reason);
 }
 
-export function textAnswer(status: number, text: string): Response {
-  return answerOf(status, streamOf(bytesOf(text)));
+export interface ScriptedTransports {
+  readonly make: MakeMailTransport;
+  readonly transportOptions: GmailTransportOptions[];
+  readonly sentOptions: GmailMessageOptions[];
+  readonly made: () => number;
+  readonly closeCalls: () => number;
 }
 
-type FetchImplementation = (
-  url: string,
-  init: RequestInit,
-) => Promise<Response>;
-
-export function stubFetch(implementation: FetchImplementation) {
-  const spy = vi.fn(implementation);
-  vi.stubGlobal("fetch", spy);
-  return spy;
+/** A transport maker whose `sendMail` does what the test says. Nothing here opens a socket. */
+export function transportsAnswering(
+  answer: (options: GmailMessageOptions) => unknown,
+): ScriptedTransports {
+  const transportOptions: GmailTransportOptions[] = [];
+  const sentOptions: GmailMessageOptions[] = [];
+  let closes = 0;
+  const make: MakeMailTransport = (options) => {
+    transportOptions.push(options);
+    const transport: MailTransport = {
+      sendMail(messageOptions) {
+        sentOptions.push(messageOptions);
+        return Promise.resolve(answer(messageOptions));
+      },
+      close() {
+        closes += 1;
+      },
+    };
+    return transport;
+  };
+  return {
+    make,
+    transportOptions,
+    sentOptions,
+    made: () => transportOptions.length,
+    closeCalls: () => closes,
+  };
 }
 
-/** A fresh answer for every call, since a body can be read once. */
-export function stubFetchAnswering(makeAnswer: () => Response) {
-  return stubFetch(() => Promise.resolve(makeAnswer()));
-}
+/** What the library resolves with for one delivered message. */
+export const ACCEPTED_ONE_RECIPIENT = Object.freeze({
+  accepted: Object.freeze([FAKE_INBOX]),
+  rejected: Object.freeze([]),
+});
 
 /** Everything a reader, a logger or a serialiser could get out of a value, as one text. */
 export function everyReadingOf(value: unknown): string {

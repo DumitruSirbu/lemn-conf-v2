@@ -16,6 +16,10 @@ import { CLIENT_NETWORK_SOURCE_VARIABLE } from "../../../src/lib/server/rate-lim
 
 import { makeSecondServerSecret } from "./csp-report-rows";
 import { RUN_SECRET_VARIABLE } from "./e2e-rate-limit-run";
+import {
+  FAKE_MAIL_FLAG_NAME,
+  MAIL_VARIABLES_THE_SUITE_REFUSES,
+} from "./fake-mail-environment";
 
 // Every port a spec's own server listens on, here and nowhere else, each with what it is for. The suite's own server is
 // on 4320 (`playwright.config.ts`). Two specs of one run start their servers at once, so each names a port of its own.
@@ -58,12 +62,17 @@ const READY_TIMEOUT_MS = 120_000;
 const POLL_INTERVAL_MS = 500;
 const STOP_TIMEOUT_MS = 10_000;
 
-/** Variables the second server must never inherit: they would choose its secret, policy or network source. */
-const NOT_INHERITED = [
+/**
+ * Variables the second server must never inherit: they would choose its secret, policy or network source, or give it a
+ * mail sender. It runs under `CI`, where a Gmail name inherited from the runner would be a real one.
+ */
+const NOT_INHERITED: readonly string[] = [
   DIGEST_SECRET_VARIABLE,
   CLIENT_NETWORK_SOURCE_VARIABLE,
   E2E_RATE_LIMIT_POLICY_FLAG,
   RUN_SECRET_VARIABLE,
+  FAKE_MAIL_FLAG_NAME,
+  ...MAIL_VARIABLES_THE_SUITE_REFUSES,
 ];
 
 export interface ProductionPolicyServerOptions {
@@ -185,11 +194,7 @@ function environmentOfTheServer(
   secret: string,
   { networkSource, unreachableDatabaseUrl }: ProductionPolicyServerOptions,
 ): NodeJS.ProcessEnv {
-  const environment: Record<string, string | undefined> = Object.fromEntries(
-    Object.entries(process.env).filter(
-      ([name]) => !NOT_INHERITED.includes(name),
-    ),
-  );
+  const environment = inheritedEnvironmentOf(process.env);
   // The guarded resolver refuses anything but an allowlisted test database, as the suite's own server's does.
   environment.DATABASE_URL = unreachableDatabaseUrl ?? resolveTestDatabaseUrl();
   environment[DIGEST_SECRET_VARIABLE] = secret;
@@ -197,6 +202,17 @@ function environmentOfTheServer(
     environment[CLIENT_NETWORK_SOURCE_VARIABLE] = networkSource;
   }
   return environment as NodeJS.ProcessEnv;
+}
+
+/** What the second server inherits of the runner's environment: all of it, less what `NOT_INHERITED` names. */
+export function inheritedEnvironmentOf(
+  environment: Readonly<Record<string, string | undefined>>,
+): Record<string, string | undefined> {
+  return Object.fromEntries(
+    Object.entries(environment).filter(
+      ([name]) => !NOT_INHERITED.includes(name),
+    ),
+  );
 }
 
 function nextBinaryOf(directory: string): string {

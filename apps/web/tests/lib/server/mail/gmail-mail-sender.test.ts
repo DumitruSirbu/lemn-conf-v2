@@ -17,13 +17,13 @@ import {
   DEFAULT_MAKE_TRANSPORT,
   MAIL_REQUEST_TIMEOUT_MS,
   UnusableMailAddressError,
-  type GmailMailConfiguration,
   type GmailMessageOptions,
   type GmailTransportOptions,
   type MailTransport,
   type MakeMailTransport,
 } from "@/lib/server/mail/gmail-mail-sender";
 import { buildLeadNotification } from "@/lib/server/mail/lead-notification";
+import type { MailConfiguration } from "@/lib/server/mail/mail-configuration";
 import {
   MAIL_FAILURE_KINDS,
   type MailMessage,
@@ -35,6 +35,7 @@ import {
   consoleCallsOf,
   forbidFetch,
   forbidNetwork,
+  NOT_ONE_PLAIN_MAILBOX,
   PROCESS_ENV_OR_BUILD_MODE,
   readMailModuleSource,
   releaseFetch,
@@ -43,7 +44,7 @@ import {
 } from "./mail-test-support";
 
 const APP_PASSWORD_MARKER = "AppPasswordMarker0123456789";
-const CONFIGURATION: GmailMailConfiguration = {
+const CONFIGURATION: MailConfiguration = {
   senderAddress: "sender.account@example.com",
   appPassword: APP_PASSWORD_MARKER,
   notificationAddress: "shop.inbox@example.org",
@@ -147,36 +148,6 @@ describe("buildGmailMessage", () => {
 
     expect(messageId).toBe(`<${sha256Hex(MESSAGE.key)}@xn--bcher-kva.example>`);
   });
-
-  const NOT_ONE_PLAIN_MAILBOX = [
-    "",
-    "no-at-sign",
-    "two@at@signs.example",
-    "a@b.example, c@d.example",
-    "a@b.example\r\nBcc: c@d.example",
-    "a@b.example\nReply-To: c@d.example",
-    '"a@b.example" <c@d.example>',
-    "a@b.example;c@d.example",
-    "a@b.example ",
-    "a@b.example\u0085",
-    "a@b\u0000.example",
-    'a@b"c.example',
-    "a@(x).example",
-    "a@[1.2.3.4]",
-    "a@b\\c.example",
-    "a(x)@b.example",
-    'a"b@b.example',
-    ".a@b.example",
-    "a..b@b.example",
-    "a@-b.example",
-    "a@b.example.",
-    "<a@b.example>",
-    "a b@b.example",
-    "a@0",
-    "a@1.2",
-    "a@0x7f.1",
-    "a@b.123",
-  ];
 
   it.each(NOT_ONE_PLAIN_MAILBOX)(
     "refuses %j as either address, naming the setting and holding nothing of the value",

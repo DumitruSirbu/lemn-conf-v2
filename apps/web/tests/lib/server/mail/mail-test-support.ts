@@ -78,6 +78,37 @@ export function releaseNetwork(): void {
   expect(stopForbiddingNetwork()).toEqual([]);
 }
 
+/** Values that are not one plain mailbox, which the adapter refuses unsent and the reader must read as unusable. */
+export const NOT_ONE_PLAIN_MAILBOX = [
+  "",
+  "no-at-sign",
+  "two@at@signs.example",
+  "a@b.example, c@d.example",
+  "a@b.example\r\nBcc: c@d.example",
+  "a@b.example\nReply-To: c@d.example",
+  '"a@b.example" <c@d.example>',
+  "a@b.example;c@d.example",
+  "a@b.example ",
+  "a@b.example\u0085",
+  "a@b\u0000.example",
+  'a@b"c.example',
+  "a@(x).example",
+  "a@[1.2.3.4]",
+  "a@b\\c.example",
+  "a(x)@b.example",
+  'a"b@b.example',
+  ".a@b.example",
+  "a..b@b.example",
+  "a@-b.example",
+  "a@b.example.",
+  "<a@b.example>",
+  "a b@b.example",
+  "a@0",
+  "a@1.2",
+  "a@0x7f.1",
+  "a@b.123",
+];
+
 const MAIL_SOURCE_DIRECTORY = join(
   import.meta.dirname,
   "../../../../src/lib/server/mail",

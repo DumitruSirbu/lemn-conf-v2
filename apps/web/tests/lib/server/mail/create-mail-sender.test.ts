@@ -11,19 +11,28 @@ import type { MailMessage } from "@/lib/server/mail/mail-sender";
 
 import {
   forbidFetch,
+  forbidNetwork,
   PROCESS_ENV_OR_BUILD_MODE,
   readMailModuleSource,
   releaseFetch,
+  releaseNetwork,
   sourceFilesMatching,
 } from "./mail-test-support";
 
-const FAKE_KEY = "re_FAKEKEY_0123456789";
-const FAKE_FROM = "orders@mail.example.com";
+// The factory builds the real adapter, whose default transport is the library's own `createTransport`, so the library is
+// scripted here: no test below reaches a socket, and the network guard proves it.
+const { createTransportMock } = vi.hoisted(() => ({
+  createTransportMock: vi.fn(),
+}));
+vi.mock("nodemailer", () => ({ createTransport: createTransportMock }));
+
+const FAKE_PASSWORD = "ZxQ8vK3pWmRt5Yn2";
+const FAKE_SENDER = "orders@mail.example.com";
 const FAKE_INBOX = "inbox@example.com";
 
 const PROVIDER_ENVIRONMENT: MailEnvironment = {
-  RESEND_API_KEY: FAKE_KEY,
-  MAIL_FROM_ADDRESS: FAKE_FROM,
+  GOOGLE_EMAIL: FAKE_SENDER,
+  GOOGLE_APP_PASSWORD: FAKE_PASSWORD,
   LEAD_NOTIFICATION_ADDRESS: FAKE_INBOX,
 };
 const FAKE_ENVIRONMENT: MailEnvironment = { LEMNARIA_E2E_FAKE_MAIL: "1" };
@@ -51,11 +60,28 @@ function everyWayOfReading(value: unknown): string {
   ].join("\n");
 }
 
-beforeEach(forbidFetch);
+beforeEach(() => {
+  createTransportMock.mockReset();
+  forbidFetch();
+  forbidNetwork();
+});
 afterEach(() => {
   vi.restoreAllMocks();
   releaseFetch();
+  releaseNetwork();
 });
+
+interface ScriptedTransport {
+  readonly sendMail: ReturnType<typeof vi.fn>;
+  readonly close: ReturnType<typeof vi.fn>;
+}
+
+/** Hands the next `createTransport` a transport whose `sendMail` does what the test says. */
+function scriptTransport(sendMail: () => Promise<unknown>): ScriptedTransport {
+  const transport = { sendMail: vi.fn(sendMail), close: vi.fn() };
+  createTransportMock.mockReturnValue(transport);
+  return transport;
+}
 
 describe("createMailSender: the fake", () => {
   it("answers a sender that records and accepts, and reaches no network", async () => {
@@ -92,36 +118,43 @@ describe("createMailSender: the fake", () => {
 });
 
 describe("createMailSender: the provider", () => {
-  it("answers a sender that authorises its request with the configured key", async () => {
+  it("answers a sender that signs in as the configured account with its app password and sends to the one inbox", async () => {
     const console_ = spyOnConsole();
-    const fetchSpy = vi.fn(() =>
-      Promise.resolve({
-        status: 200,
-        body: new Response(JSON.stringify({ id: "msg_1" })).body,
-      } as Response),
+    const transport = scriptTransport(() =>
+      Promise.resolve({ accepted: [FAKE_INBOX], rejected: [] }),
     );
-    vi.stubGlobal("fetch", fetchSpy);
     const creation = createMailSender(PROVIDER_ENVIRONMENT);
     if (creation.kind !== "sender") throw new Error("expected a sender");
 
     const outcome = await creation.sender.send(MESSAGE);
 
     expect(outcome).toEqual({ ok: true });
-    expect(fetchSpy).toHaveBeenCalledTimes(1);
-    const init = (
-      fetchSpy.mock.calls[0] as unknown as [string, RequestInit]
-    )[1];
-    expect((init.headers as Record<string, string>).Authorization).toBe(
-      `Bearer ${FAKE_KEY}`,
-    );
+    expect(createTransportMock).toHaveBeenCalledTimes(1);
+    expect(createTransportMock.mock.calls[0]?.[0]).toMatchObject({
+      auth: { user: FAKE_SENDER, pass: FAKE_PASSWORD },
+    });
+    expect(transport.sendMail).toHaveBeenCalledTimes(1);
+    expect(transport.sendMail.mock.calls[0]?.[0]).toMatchObject({
+      from: FAKE_SENDER,
+      to: FAKE_INBOX,
+    });
+    expect(transport.close).toHaveBeenCalledTimes(1);
     for (const method of LOG_METHODS) {
       expect(console_[method]).not.toHaveBeenCalled();
     }
   });
 
+  it("builds no transport until a message is sent, so building the sender holds no connection", () => {
+    spyOnConsole();
+
+    createMailSender(PROVIDER_ENVIRONMENT);
+
+    expect(createTransportMock).not.toHaveBeenCalled();
+  });
+
   it("logs nothing when a send fails", async () => {
     const console_ = spyOnConsole();
-    vi.stubGlobal("fetch", () => Promise.reject(new Error(FAKE_KEY)));
+    scriptTransport(() => Promise.reject(new Error(FAKE_PASSWORD)));
     const creation = createMailSender(PROVIDER_ENVIRONMENT);
     if (creation.kind !== "sender") throw new Error("expected a sender");
 
@@ -132,10 +165,10 @@ describe("createMailSender: the provider", () => {
     }
   });
 
-  it("holds the key nowhere a reader can reach: not in what it returns, not in any outcome", async () => {
+  it("holds the password nowhere a reader can reach: not in what it returns, not in any outcome", async () => {
     spyOnConsole();
-    vi.stubGlobal("fetch", () =>
-      Promise.reject(new TypeError(`failed with ${FAKE_KEY}`)),
+    scriptTransport(() =>
+      Promise.reject(new TypeError(`failed with ${FAKE_PASSWORD}`)),
     );
     const creation = createMailSender(PROVIDER_ENVIRONMENT);
     if (creation.kind !== "sender") throw new Error("expected a sender");
@@ -143,7 +176,7 @@ describe("createMailSender: the provider", () => {
     const outcome = await creation.sender.send(MESSAGE);
 
     for (const value of [creation, creation.sender, outcome]) {
-      for (const secret of [FAKE_KEY, FAKE_FROM, FAKE_INBOX]) {
+      for (const secret of [FAKE_PASSWORD, FAKE_SENDER, FAKE_INBOX]) {
         expect(everyWayOfReading(value)).not.toContain(secret);
       }
     }
@@ -155,16 +188,31 @@ describe("createMailSender: unavailable", () => {
   it("names what is missing, writes no line, and builds no sender", () => {
     const console_ = spyOnConsole();
 
-    const creation = createMailSender({ RESEND_API_KEY: FAKE_KEY });
+    const creation = createMailSender({ GOOGLE_EMAIL: FAKE_SENDER });
 
     expect(creation).toEqual({
       kind: "unavailable",
-      variables: ["MAIL_FROM_ADDRESS", "LEAD_NOTIFICATION_ADDRESS"],
+      variables: ["GOOGLE_APP_PASSWORD", "LEAD_NOTIFICATION_ADDRESS"],
     });
-    expect(everyWayOfReading(creation)).not.toContain(FAKE_KEY);
+    expect(everyWayOfReading(creation)).not.toContain(FAKE_SENDER);
     for (const method of LOG_METHODS) {
       expect(console_[method]).not.toHaveBeenCalled();
     }
+  });
+
+  it("reads a sender address the adapter would refuse unsent as unavailable, and builds no sender", () => {
+    spyOnConsole();
+
+    const creation = createMailSender({
+      ...PROVIDER_ENVIRONMENT,
+      GOOGLE_EMAIL: "orders@mail.123",
+    });
+
+    expect(creation).toEqual({
+      kind: "unavailable",
+      variables: ["GOOGLE_EMAIL"],
+    });
+    expect(createTransportMock).not.toHaveBeenCalled();
   });
 
   it("names the flag, and builds neither the fake nor the provider, when both are asked for", () => {
@@ -202,7 +250,9 @@ describe("the other mail modules", () => {
     "mail-configuration.ts",
     "fake-mail-sender.ts",
     "select-mail-sender.ts",
-    "resend-mail-sender.ts",
+    "gmail-mail-sender.ts",
+    "smtp-answer.ts",
+    "plain-mailbox.ts",
     "lead-notification.ts",
   ])("reads source: %s writes no log line", (name) => {
     expect(readMailModuleSource(name)).not.toMatch(/\bconsole\b/);
@@ -213,11 +263,14 @@ interface NamingRule {
   readonly what: string;
   readonly pattern: RegExp;
   readonly isAllowed: (path: string) => boolean;
+  /** The one file that must be found naming it: proof that the scan can see what it fences. */
+  readonly mustBeFoundIn: string;
   readonly mentions: readonly string[];
 }
 
 const MAIL_DIRECTORY = "lib/server/mail/";
 const FACTORY = `${MAIL_DIRECTORY}create-mail-sender.ts`;
+const GMAIL_ADAPTER = `${MAIL_DIRECTORY}gmail-mail-sender.ts`;
 
 const NAMING_RULES: readonly NamingRule[] = [
   {
@@ -225,6 +278,7 @@ const NAMING_RULES: readonly NamingRule[] = [
     pattern: /fake-mail-sender|createFakeMailSender/,
     isAllowed: (path) =>
       [`${MAIL_DIRECTORY}fake-mail-sender.ts`, FACTORY].includes(path),
+    mustBeFoundIn: FACTORY,
     mentions: [
       'import { x } from "@/lib/server/mail/fake-mail-sender";',
       "export * from './fake-mail-sender';",
@@ -234,18 +288,32 @@ const NAMING_RULES: readonly NamingRule[] = [
   },
   {
     what: "the adapter",
-    pattern: /resend-mail-sender|createResendMailSender/,
-    isAllowed: (path) =>
-      [`${MAIL_DIRECTORY}resend-mail-sender.ts`, FACTORY].includes(path),
+    pattern: /gmail-mail-sender|createGmailMailSender/,
+    isAllowed: (path) => [GMAIL_ADAPTER, FACTORY].includes(path),
+    mustBeFoundIn: FACTORY,
     mentions: [
-      'import { x } from "@/lib/server/mail/resend-mail-sender";',
-      "const sender = createResendMailSender(configuration);",
+      'import { x } from "@/lib/server/mail/gmail-mail-sender";',
+      "const sender = createGmailMailSender(configuration);",
+    ],
+  },
+  {
+    what: "the mail library",
+    pattern:
+      /from\s+["']nodemailer["']|import\(\s*["']nodemailer["']|require\(\s*["']nodemailer["']/,
+    isAllowed: (path) => path === GMAIL_ADAPTER,
+    mustBeFoundIn: GMAIL_ADAPTER,
+    mentions: [
+      'import { createTransport } from "nodemailer";',
+      "import nodemailer from 'nodemailer';",
+      'const m = await import("nodemailer");',
+      'const m = require("nodemailer");',
     ],
   },
   {
     what: "the configuration reader",
     pattern: /readMailConfiguration/,
     isAllowed: (path) => path.startsWith(MAIL_DIRECTORY),
+    mustBeFoundIn: FACTORY,
     mentions: [
       'import { readMailConfiguration } from "@/lib/server/mail/mail-configuration";',
       "const read = readMailConfiguration;",
@@ -255,7 +323,7 @@ const NAMING_RULES: readonly NamingRule[] = [
 
 describe.each(NAMING_RULES)(
   "reads every source file for $what",
-  ({ pattern, isAllowed, mentions }) => {
+  ({ pattern, isAllowed, mustBeFoundIn, mentions }) => {
     it.each(mentions)("recognises it in %s", (mention) => {
       expect(pattern.test(mention)).toBe(true);
     });
@@ -263,8 +331,34 @@ describe.each(NAMING_RULES)(
     it("finds nothing under apps/web/src in a file that may not name it", () => {
       const namers = sourceFilesMatching(pattern);
 
-      expect(namers).toContain(FACTORY);
+      expect(namers).toContain(mustBeFoundIn);
       expect(namers.filter((path) => !isAllowed(path))).toEqual([]);
     });
   },
 );
+
+describe("the previous provider", () => {
+  const PROVIDER_CODE =
+    /resend-mail-sender|createResendMailSender|buildResendRequest|api\.resend\.com|Idempotency-Key/;
+  const RETIRED_NAMES = /RESEND_API_KEY|MAIL_FROM_ADDRESS/;
+  const RETIRED_LIST = `${MAIL_DIRECTORY}mail-configuration.ts`;
+
+  it.each([
+    'import { x } from "@/lib/server/mail/resend-mail-sender";',
+    "createResendMailSender(configuration)",
+    'fetch("https://api.resend.com/emails")',
+    'headers: { "Idempotency-Key": key }',
+  ])("recognises its code in %s", (mention) => {
+    expect(PROVIDER_CODE.test(mention)).toBe(true);
+  });
+
+  it("leaves no module, call, host or header of its under apps/web/src", () => {
+    expect(sourceFilesMatching(PROVIDER_CODE)).toEqual([]);
+  });
+
+  it("leaves its two variable names only in the retired list", () => {
+    const namers = sourceFilesMatching(RETIRED_NAMES);
+
+    expect(namers).toEqual([RETIRED_LIST]);
+  });
+});
