@@ -13,7 +13,10 @@ import type {
 } from "@/lib/server/contact/submit-contact";
 import { getRateLimitStore } from "@/lib/server/rate-limit/rate-limit-store-instance";
 
-import { readSource } from "../../../lib/server/server-source-support";
+import {
+  readSource,
+  sourceFilesMatching,
+} from "../../../lib/server/server-source-support";
 import { contentFor } from "../../../support/catalogues";
 import roMessages from "../../../../src/messages/ro.json";
 import ruMessages from "../../../../src/messages/ru.json";
@@ -72,7 +75,7 @@ vi.mock("@lemnaria/configurator-domain", async (importOriginal) => ({
   parsePriceBook: spies.parsePriceBook,
 }));
 
-const { POST } = await import(
+const { POST, runtime } = await import(
   "../../../../src/app/api/contact-submissions/route"
 );
 
@@ -510,6 +513,40 @@ describe("no answer of the route sets, clears or refreshes a cookie", () => {
     answers.forEach((answer) => {
       expect(answer.headers.get("set-cookie")).toBeNull();
     });
+  });
+});
+
+describe("the runtime the route runs on", () => {
+  const EDGE_RUNTIME_DECLARATION = /\bruntime\s*=\s*["']edge["']/;
+
+  it("is pinned to Node, because the mail transport opens a socket the Edge runtime cannot", () => {
+    expect(runtime).toBe("nodejs");
+  });
+
+  it("reads source: declares the pin as a literal export of the route file", () => {
+    expect(readSource("app/api/contact-submissions/route.ts")).toMatch(
+      /^export const runtime = "nodejs";$/m,
+    );
+  });
+
+  it("reads source: no file under app declares the Edge runtime", () => {
+    const declaringEdge = sourceFilesMatching(EDGE_RUNTIME_DECLARATION).filter(
+      (path) => path.startsWith("app/"),
+    );
+
+    expect(declaringEdge).toEqual([]);
+  });
+
+  it("recognises what the scan looks for: each spelling of an Edge declaration matches", () => {
+    expect(
+      EDGE_RUNTIME_DECLARATION.test('export const runtime = "edge";'),
+    ).toBe(true);
+    expect(EDGE_RUNTIME_DECLARATION.test("export const runtime='edge'")).toBe(
+      true,
+    );
+    expect(
+      EDGE_RUNTIME_DECLARATION.test('export const runtime = "nodejs";'),
+    ).toBe(false);
   });
 });
 

@@ -500,12 +500,67 @@ describe(".env.example", () => {
     "utf8",
   ).split("\n");
 
-  it.each(MAIL_VARIABLE_NAMES)("names %s with no value", (name) => {
-    const declarations = exampleLines.filter((line) =>
+  const declarationsOf = (name: string): string[] =>
+    exampleLines.filter((line) =>
       line.replace(/^#\s*/, "").startsWith(`${name}=`),
     );
 
-    expect(declarations).toHaveLength(1);
-    expect(declarations[0]?.replace(/^#\s*/, "")).toBe(`${name}=`);
+  const commentBlockAbove = (declaration: string): string => {
+    const at = exampleLines.indexOf(declaration);
+    const block: string[] = [];
+    for (let i = at - 1; i >= 0 && exampleLines[i]?.startsWith("#"); i -= 1) {
+      block.unshift(exampleLines[i] ?? "");
+    }
+    return block.join("\n");
+  };
+
+  it.each(MAIL_VARIABLE_NAMES)("names %s once, with no value", (name) => {
+    expect(declarationsOf(name)).toEqual([`# ${name}=`]);
+  });
+
+  it.each(RETIRED_MAIL_VARIABLE_NAMES)(
+    "keeps the retired %s once, commented, with no value, and says it is retired",
+    (name) => {
+      expect(declarationsOf(name)).toEqual([`# ${name}=`]);
+      expect(commentBlockAbove(`# ${name}=`)).toMatch(/RETIRED/);
+    },
+  );
+
+  it("defines no mail variable when copied: every declaration is a comment", () => {
+    const everyName = [
+      ...MAIL_VARIABLE_NAMES,
+      ...RETIRED_MAIL_VARIABLE_NAMES,
+      "LEMNARIA_E2E_FAKE_MAIL",
+    ];
+
+    const defined = exampleLines.filter((line) =>
+      everyName.some((name) => line.startsWith(`${name}=`)),
+    );
+
+    expect(defined).toEqual([]);
+  });
+
+  it("tells the owner to paste the App password without spaces", () => {
+    expect(commentBlockAbove(`# ${GOOGLE_APP_PASSWORD_VARIABLE}=`)).toMatch(
+      /WITHOUT spaces/,
+    );
+  });
+
+  it("states that the shop's address is one address and never a customer's", () => {
+    expect(
+      commentBlockAbove(`# ${LEAD_NOTIFICATION_ADDRESS_VARIABLE}=`),
+    ).toMatch(/exactly one address, never a customer's/i);
+  });
+
+  it("keeps the fake's flag warning: test instrumentation, unset in the deployed application", () => {
+    expect(commentBlockAbove("# LEMNARIA_E2E_FAKE_MAIL=")).toMatch(
+      /Leave it UNSET in the deployed application/,
+    );
+  });
+
+  it("asks for one plain address on an account with 2-Step Verification for the sender", () => {
+    expect(commentBlockAbove(`# ${GOOGLE_EMAIL_VARIABLE}=`)).toMatch(
+      /exactly one plain address[\s\S]*2-Step Verification/,
+    );
   });
 });
