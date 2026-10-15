@@ -12,11 +12,11 @@ import {
 } from "@/lib/server/rate-limit/limit-policy";
 import { getRateLimitStore } from "@/lib/server/rate-limit/rate-limit-store-instance";
 
+import { everyReadingOf } from "../../../lib/server/mail/qa-8j-support";
 import {
   consoleCallsOf,
-  everyReadingOf,
-  silenceEveryConsoleMethod,
-} from "../../../lib/server/mail/qa-8j-support";
+  spyOnEveryConsoleMethod,
+} from "../../../lib/server/mail/mail-test-support";
 
 const SOURCE_VARIABLE = "CLIENT_NETWORK_SOURCE";
 const FLAG_VARIABLE = "LEMNARIA_E2E_RATE_LIMIT_POLICY";
@@ -241,7 +241,7 @@ describe("creating and revoking a link, counted together", () => {
   it("writes one line for each refused write, naming the operation and nothing of the caller", async () => {
     vi.stubEnv(SOURCE_VARIABLE, "vercel");
     await fillTheBucketOf(ISSUE, AN_ADDRESS, SHARE_WRITES_PER_BLOCK_FIGURE);
-    const consoleSpies = silenceEveryConsoleMethod();
+    const consoleSpies = spyOnEveryConsoleMethod();
 
     await send(ISSUE, { cookie: OWNER_COOKIES, ...AN_ADDRESS });
     await send(REVOKE, { cookie: OWNER_COOKIES, ...AN_ADDRESS });
@@ -421,7 +421,7 @@ describe("a network's reads, of every kind, where the owner names the host", () 
   });
 
   it("are served, never refused and never counted, under the e2e flag, which has no read twin", async () => {
-    silenceEveryConsoleMethod();
+    spyOnEveryConsoleMethod();
     vi.stubEnv(FLAG_VARIABLE, "1");
     const hits = hitsRecorded();
 
@@ -454,7 +454,7 @@ describe("reads where no source is named", () => {
   });
 
   it("ask for no secret: a read is served where the secret is unusable, and nothing is written", async () => {
-    const consoleSpies = silenceEveryConsoleMethod();
+    const consoleSpies = spyOnEveryConsoleMethod();
     vi.stubEnv(SECRET_VARIABLE, "");
 
     const load = await send(LOAD);

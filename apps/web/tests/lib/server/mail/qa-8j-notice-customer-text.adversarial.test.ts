@@ -23,6 +23,8 @@ import {
   forbidNetwork,
   releaseFetch,
   releaseNetwork,
+  consoleCallsOf,
+  spyOnEveryConsoleMethod,
 } from "./mail-test-support";
 import {
   acceptedContact,
@@ -37,11 +39,9 @@ import {
   thrownBy,
 } from "./qa-8j-notice-support";
 import {
-  consoleCallsOf,
   everyReadingOf,
   expectNoMarkerIn,
   QA_CONFIGURATION,
-  silenceEveryConsoleMethod,
   transportsAnswering,
 } from "./qa-8j-support";
 
@@ -444,7 +444,7 @@ describe("what building a notice writes", () => {
   ];
 
   it("is nothing, through any console method, for every request it refuses", () => {
-    const consoleSpies = silenceEveryConsoleMethod();
+    const consoleSpies = spyOnEveryConsoleMethod();
 
     const thrown = REFUSED_REQUESTS.map((submission) =>
       thrownBy(() => noticeOf(submission)),
@@ -455,7 +455,7 @@ describe("what building a notice writes", () => {
   });
 
   it("is nothing, through any console method, for a design, a callback and a notice in Russian", () => {
-    const consoleSpies = silenceEveryConsoleMethod();
+    const consoleSpies = spyOnEveryConsoleMethod();
     const russianContent = resolveContent(
       createTranslator({ locale: "ru", messages: ruMessages }),
     );

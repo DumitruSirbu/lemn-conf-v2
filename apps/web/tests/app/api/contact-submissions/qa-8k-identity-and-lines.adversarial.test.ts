@@ -6,8 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   consoleCallsOf,
-  silenceEveryConsoleMethod,
-} from "../../../lib/server/mail/qa-8j-support";
+  spyOnEveryConsoleMethod,
+} from "../../../lib/server/mail/mail-test-support";
 import {
   byEmail,
   callbackRequest,
@@ -94,10 +94,10 @@ const LINE_BREAKERS: readonly (readonly [string, number])[] = [
 const INJECTED_HEADER = "Bcc: qa8k-injected@example.invalid";
 
 let post: Post;
-let consoleSpies: ReturnType<typeof silenceEveryConsoleMethod>;
+let consoleSpies: ReturnType<typeof spyOnEveryConsoleMethod>;
 
 beforeEach(async () => {
-  consoleSpies = silenceEveryConsoleMethod();
+  consoleSpies = spyOnEveryConsoleMethod();
   nameTheNetworkSource();
   resetOutside(outside);
   post = await loadRoute();

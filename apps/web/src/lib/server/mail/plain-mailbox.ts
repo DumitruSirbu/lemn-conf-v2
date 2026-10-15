@@ -12,6 +12,11 @@ const DOMAIN_BEFORE_CONVERSION =
 const PLAIN_ASCII_DOMAIN =
   /^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)*[a-z](?:[a-z0-9-]*[a-z0-9])?$/;
 
+// RFC 5321 section 4.5.3.1: past these the library refuses the envelope, so the reader must too.
+const MAX_LOCAL_PART_LENGTH = 64;
+const MAX_DOMAIN_LENGTH = 253;
+const MAX_LABEL_LENGTH = 63;
+
 /**
  * The one rule for what the mail adapter can write as an address: exactly one plain mailbox. The configuration reader
  * and the adapter both ask it, so a value the adapter would refuse unsent reads as unavailable instead of configured.
@@ -20,11 +25,26 @@ const PLAIN_ASCII_DOMAIN =
 export function asciiDomainOfPlainMailbox(address: string): string | undefined {
   const parts = address.split("@");
   const [localPart, domain] = parts;
-  if (parts.length !== 2 || !PLAIN_LOCAL_PART.test(localPart ?? "")) {
+  if (parts.length !== 2 || !isPlainLocalPart(localPart ?? "")) {
     return undefined;
   }
   const asciiDomain = asciiDomainOf(domain);
-  return PLAIN_ASCII_DOMAIN.test(asciiDomain) ? asciiDomain : undefined;
+  return isPlainAsciiDomain(asciiDomain) ? asciiDomain : undefined;
+}
+
+function isPlainLocalPart(localPart: string): boolean {
+  return (
+    localPart.length <= MAX_LOCAL_PART_LENGTH &&
+    PLAIN_LOCAL_PART.test(localPart)
+  );
+}
+
+function isPlainAsciiDomain(asciiDomain: string): boolean {
+  return (
+    asciiDomain.length <= MAX_DOMAIN_LENGTH &&
+    asciiDomain.split(".").every((label) => label.length <= MAX_LABEL_LENGTH) &&
+    PLAIN_ASCII_DOMAIN.test(asciiDomain)
+  );
 }
 
 function asciiDomainOf(domain: string | undefined): string {

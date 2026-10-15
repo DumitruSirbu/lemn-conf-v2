@@ -129,6 +129,7 @@ function hasEntryCount(value: unknown, count: number): boolean {
 
 /** Absent or empty. A member that cannot be read is not absent: it is an answer nobody can vouch for. */
 function hasNoRejection(result: unknown): boolean {
+  // Not `readMember`: a non-object result (TypeError) or a throwing getter must reach the catch and read as unreadable.
   try {
     const rejected = (result as Record<string, unknown>).rejected;
     return rejected === undefined || hasEntryCount(rejected, 0);

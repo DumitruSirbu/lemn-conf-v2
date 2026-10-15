@@ -41,7 +41,8 @@ export type MailConfigurationResult =
     };
 
 // An address is usable exactly when the adapter can write it: the one predicate, shared, so that a value the adapter
-// would refuse unsent never reads as configured. The app password is visible ASCII with no space: Google displays it in groups, and it must be pasted without them.
+// would refuse unsent never reads as configured. The app password is visible ASCII with no space: Google displays it
+// in groups, and it must be pasted without them.
 const USABILITY_RULES: Readonly<
   Record<MailVariableName, (value: string) => boolean>
 > = {
@@ -92,10 +93,17 @@ function usableValue(
     : undefined;
 }
 
-/** Only the environment's own members: a name an object inherits from its prototype is not set. */
+/**
+ * Only the environment's own members: a name an object inherits from its prototype is not set, and neither is one
+ * whose getter throws, so the reader stays pure and names it unavailable instead of throwing.
+ */
 export function ownValue(
   environment: MailEnvironment,
   name: string,
 ): string | undefined {
-  return Object.hasOwn(environment, name) ? environment[name] : undefined;
+  try {
+    return Object.hasOwn(environment, name) ? environment[name] : undefined;
+  } catch {
+    return undefined;
+  }
 }

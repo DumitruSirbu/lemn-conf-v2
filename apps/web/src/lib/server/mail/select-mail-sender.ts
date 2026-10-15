@@ -43,13 +43,13 @@ export function selectMailSender(
 }
 
 /** The live names and the retired ones: a name that once meant mail beside the flag is still a misconfiguration. */
-const MAIL_VARIABLE_NAMES_THE_FAKE_REFUSES: readonly string[] = [
+const MAIL_NAMES_THE_FAKE_REFUSES: readonly string[] = [
   ...MAIL_VARIABLE_NAMES,
   ...RETIRED_MAIL_VARIABLE_NAMES,
 ];
 
 function hasAnyMailVariable(environment: MailEnvironment): boolean {
-  return MAIL_VARIABLE_NAMES_THE_FAKE_REFUSES.some((name) =>
+  return MAIL_NAMES_THE_FAKE_REFUSES.some((name) =>
     Object.hasOwn(environment, name),
   );
 }

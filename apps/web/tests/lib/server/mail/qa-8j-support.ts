@@ -1,6 +1,6 @@
 import { inspect } from "node:util";
 
-import { expect, vi } from "vitest";
+import { expect } from "vitest";
 
 import type {
   GmailMessageOptions,
@@ -131,20 +131,4 @@ export function expectNoMarkerIn(
 ): void {
   const readings = everyReadingOf(value);
   expect(markers.filter((marker) => readings.includes(marker))).toEqual([]);
-}
-
-type ConsoleSpy = ReturnType<typeof vi.spyOn>;
-
-/** Every function the console offers, not a chosen few: a line written through `table` or `dir` is a line. */
-export function silenceEveryConsoleMethod(): readonly ConsoleSpy[] {
-  const methodNames = Object.entries(console)
-    .filter(([, member]) => typeof member === "function")
-    .map(([name]) => name);
-  return methodNames.map((name) =>
-    vi.spyOn(console, name as "log").mockImplementation(() => undefined),
-  );
-}
-
-export function consoleCallsOf(spies: readonly ConsoleSpy[]): unknown[][] {
-  return spies.flatMap((spy) => spy.mock.calls);
 }

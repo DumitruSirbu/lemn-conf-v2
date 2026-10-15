@@ -29,10 +29,11 @@ import {
   forbidNetwork,
   releaseFetch,
   releaseNetwork,
+  consoleCallsOf,
+  spyOnEveryConsoleMethod,
 } from "./mail-test-support";
 import {
   ACCEPTED_ONE_RECIPIENT,
-  consoleCallsOf,
   everyReadingOf,
   expectNoMarkerIn,
   FAKE_APP_PASSWORD,
@@ -41,7 +42,6 @@ import {
   QA_MESSAGE,
   quotingLibraryError,
   rejectingWith,
-  silenceEveryConsoleMethod,
 } from "./qa-8j-support";
 
 // The factory's default transport is the library's own `createTransport`: scripted here, and held by the network guard.
@@ -280,7 +280,7 @@ describe("every combination of the flag and the three mail variables", () => {
   });
 
   it("builds a sender exactly for the fake and the provider, and otherwise answers the selection's names", () => {
-    silenceEveryConsoleMethod();
+    spyOnEveryConsoleMethod();
     const wrong = CELLS.filter(({ environment, expectedSelection }) => {
       const creation = createMailSender(environment);
       const selected = expectedSelection as { kind: string };
@@ -293,7 +293,7 @@ describe("every combination of the flag and the three mail variables", () => {
   });
 
   it("puts no value of any variable, usable or not, into a selection or into what the factory returns", () => {
-    silenceEveryConsoleMethod();
+    spyOnEveryConsoleMethod();
     const leaking = CELLS.filter(({ environment }) => {
       const readings = everyReadingOf([
         selectMailSender(environment),
@@ -320,7 +320,7 @@ describe("every combination of the flag and the three mail variables", () => {
   });
 
   it("writes the one warning once for each fake built and nothing in any other cell", () => {
-    const consoleSpies = silenceEveryConsoleMethod();
+    const consoleSpies = spyOnEveryConsoleMethod();
 
     for (const { environment } of CELLS) createMailSender(environment);
 
@@ -461,7 +461,7 @@ describe("the two retired names beside the flag and the three live ones", () => 
   });
 
   it("builds a sender through the factory exactly where the selection says, and names the flag alone where it refuses", () => {
-    silenceEveryConsoleMethod();
+    spyOnEveryConsoleMethod();
     const wrong = RETIRED_CELLS.filter(({ environment }) => {
       const selection = selectMailSender(environment);
       const creation = createMailSender(environment);
@@ -474,7 +474,7 @@ describe("the two retired names beside the flag and the three live ones", () => 
   });
 
   it("never names a retired name in anything it answers", () => {
-    silenceEveryConsoleMethod();
+    spyOnEveryConsoleMethod();
     const naming = RETIRED_CELLS.filter(({ environment }) => {
       const readings = everyReadingOf([
         selectMailSender(environment),
@@ -548,7 +548,7 @@ describe("what the three functions ask of the environment they are handed", () =
   ])(
     "asks for the six names at most, never the build mode or another variable, for %s",
     (_label, values) => {
-      silenceEveryConsoleMethod();
+      spyOnEveryConsoleMethod();
       const { environment, asked } = recordingEnvironment({
         ...BYSTANDERS,
         ...values,
@@ -566,7 +566,7 @@ describe("what the three functions ask of the environment they are handed", () =
   );
 
   it("reads nothing from the process environment while it reads, selects, builds and sends", async () => {
-    silenceEveryConsoleMethod();
+    spyOnEveryConsoleMethod();
     scriptTransport(() => Promise.resolve(ACCEPTED_ONE_RECIPIENT));
     const processAsked: string[] = [];
     const realEnvironment = process.env;
@@ -633,7 +633,7 @@ describe("a variable the environment cannot hand over", () => {
   ])(
     "never makes %s answer a configuration, a provider or a sender, and nothing that comes out holds the key",
     (_label, ask) => {
-      silenceEveryConsoleMethod();
+      spyOnEveryConsoleMethod();
 
       const result = answerOrThrown(() => ask(environmentWhoseSenderThrows()));
 
@@ -764,7 +764,7 @@ describe("an address the reader accepts, once it is in the message", () => {
   });
 
   it("is a password of every visible character that reaches the transport's `auth.pass` and no message option", async () => {
-    silenceEveryConsoleMethod();
+    spyOnEveryConsoleMethod();
     const everyVisibleCharacter = VISIBLE_ASCII.join("");
     const transport = scriptTransport(() =>
       Promise.resolve(ACCEPTED_ONE_RECIPIENT),
@@ -812,7 +812,7 @@ describe("the password, in what the factory hands back", () => {
   ];
 
   it("is in no outcome and no line, whatever a failing transport throws back at the factory's sender", async () => {
-    const consoleSpies = silenceEveryConsoleMethod();
+    const consoleSpies = spyOnEveryConsoleMethod();
     const creation = createMailSender(USABLE_VALUES);
     if (creation.kind !== "sender") throw new Error("expected a sender");
     const outcomes: unknown[] = [];
@@ -832,7 +832,7 @@ describe("the password, in what the factory hands back", () => {
 
 describe("the fake the factory builds", () => {
   it("writes its line when it is built and never when it is used, refused sends included", async () => {
-    const consoleSpies = silenceEveryConsoleMethod();
+    const consoleSpies = spyOnEveryConsoleMethod();
     const creation = createMailSender({ [FAKE_MAIL_FLAG]: "1" });
     if (creation.kind !== "sender") throw new Error("expected a sender");
     const linesAtBuild = consoleCallsOf(consoleSpies).length;
@@ -846,7 +846,7 @@ describe("the fake the factory builds", () => {
   });
 
   it("hands back a sender of `send` alone, from which nothing it was sent can be read back", async () => {
-    silenceEveryConsoleMethod();
+    spyOnEveryConsoleMethod();
     const creation = createMailSender({ [FAKE_MAIL_FLAG]: "1" });
     if (creation.kind !== "sender") throw new Error("expected a sender");
 

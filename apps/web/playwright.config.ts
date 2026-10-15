@@ -25,9 +25,8 @@ import {
 // nothing to compare against and passes vacuously.
 loadEnvLocal();
 
-// `loadEnvLocal` has just copied the repository root's `.env.local` into this process, and every server and worker
-// inherits it. Whatever mail variable that file holds is removed from this in-memory copy, here and before anything reads
-// it (ADR 0164 decision 7); no file and no deployment is touched.
+// Every server and worker inherits the root `.env.local` copied in above, so any mail variable it holds is removed from
+// this in-memory copy before anything reads it (ADR 0164 decision 7); no file or deployment is touched.
 withholdMailVariables(process.env, console.log);
 
 // The server refuses the fake sender beside any mail variable: a run that still holds one fails here, naming it, rather

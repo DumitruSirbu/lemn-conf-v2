@@ -78,36 +78,42 @@ export function releaseNetwork(): void {
   expect(stopForbiddingNetwork()).toEqual([]);
 }
 
-/** Values that are not one plain mailbox, which the adapter refuses unsent and the reader must read as unusable. */
-export const NOT_ONE_PLAIN_MAILBOX = [
-  "",
-  "no-at-sign",
-  "two@at@signs.example",
-  "a@b.example, c@d.example",
-  "a@b.example\r\nBcc: c@d.example",
-  "a@b.example\nReply-To: c@d.example",
-  '"a@b.example" <c@d.example>',
-  "a@b.example;c@d.example",
-  "a@b.example ",
-  "a@b.example\u0085",
-  "a@b\u0000.example",
-  'a@b"c.example',
-  "a@(x).example",
-  "a@[1.2.3.4]",
-  "a@b\\c.example",
-  "a(x)@b.example",
-  'a"b@b.example',
-  ".a@b.example",
-  "a..b@b.example",
-  "a@-b.example",
-  "a@b.example.",
-  "<a@b.example>",
-  "a b@b.example",
-  "a@0",
-  "a@1.2",
-  "a@0x7f.1",
-  "a@b.123",
-];
+/** Values that are not one plain mailbox, grouped by the rule each breaks, so every rule keeps at least one witness. */
+export const NOT_ONE_PLAIN_MAILBOX_GROUPS = {
+  empty: [""],
+  noAtSign: ["no-at-sign"],
+  moreThanOneAtSign: ["two@at@signs.example"],
+  secondAddressOrSeparator: [
+    "a@b.example, c@d.example",
+    "a@b.example;c@d.example",
+  ],
+  headerInjectingLineBreak: [
+    "a@b.example\r\nBcc: c@d.example",
+    "a@b.example\nReply-To: c@d.example",
+  ],
+  displayNameOrAngleBrackets: ['"a@b.example" <c@d.example>', "<a@b.example>"],
+  whitespaceOrControlCharacter: [
+    "a@b.example\u2028",
+    "a@b.example\u0085",
+    "a@b\u0000.example",
+    "a b@b.example",
+  ],
+  quoteCommentLiteralOrBackslash: [
+    'a@b"c.example',
+    "a@(x).example",
+    "a@[1.2.3.4]",
+    "a@b\\c.example",
+    "a(x)@b.example",
+    'a"b@b.example',
+  ],
+  misplacedLocalPartDot: [".a@b.example", "a..b@b.example"],
+  malformedDomainLabel: ["a@-b.example", "a@b.example."],
+  numericOrAddressLikeDomain: ["a@0", "a@1.2", "a@0x7f.1", "a@b.123"],
+} as const satisfies Record<string, readonly string[]>;
+
+export const NOT_ONE_PLAIN_MAILBOX: readonly string[] = Object.values(
+  NOT_ONE_PLAIN_MAILBOX_GROUPS,
+).flat();
 
 const MAIL_SOURCE_DIRECTORY = join(
   import.meta.dirname,
@@ -132,7 +138,7 @@ export function sourceFilesMatching(pattern: RegExp): string[] {
     );
 }
 
-type ConsoleSpy = MockInstance<(...data: unknown[]) => void>;
+export type ConsoleSpy = MockInstance<(...data: unknown[]) => void>;
 
 /** Every function the console offers, not a chosen few: a line written through `table` or `dir` is a line. */
 export function spyOnEveryConsoleMethod(): readonly ConsoleSpy[] {

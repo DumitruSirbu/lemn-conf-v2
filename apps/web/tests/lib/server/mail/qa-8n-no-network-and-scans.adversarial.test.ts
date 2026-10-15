@@ -1,9 +1,5 @@
-// Case 6 of the plan's QA section: that the network guard refuses every way out and is lifted after each test, and that no
-// test builds a transport without it (the library's default transport is never driven here: that control was run once, as a
-// scratch test); that the test tree names the SMTP host only where its options are asserted; that the previous
-// provider's names remain in the source only in the retired list; and that the shop's address and no Gmail address at
-// all stands in any source or test file (criterion 21). Every needle is assembled at run time, so this file is not the
-// thing it searches for.
+// Proves the network guard refuses every way out and is lifted after each test, and that the source and test trees
+// name the SMTP host, the previous provider and any Gmail address only where they may.
 import dns from "node:dns";
 import { readdirSync, readFileSync, type Dirent } from "node:fs";
 import net from "node:net";
@@ -128,16 +124,7 @@ describe("what the tree names", () => {
     ]);
   });
 
-  it("holds the shop's address in no source, test or example file of apps, packages or the repository's example", () => {
-    const shopsAddress = ["patrasiteli7", "gmail.com"].join("@");
-
-    expect(pathsNaming(shopsAddress, CODE_ROOTS)).toEqual([]);
-    expect(
-      readFileSync(join(REPOSITORY_ROOT, ".env.example"), "utf8").toLowerCase(),
-    ).not.toContain(shopsAddress);
-  });
-
-  it("holds no Gmail address of any kind in apps or packages, nor in the example (criterion 21)", () => {
+  it("holds no Gmail address of any kind in apps or packages, nor in the example", () => {
     const anyGmailAddress = ["@gmail", "com"].join(".");
 
     expect(pathsNaming(anyGmailAddress, CODE_ROOTS)).toEqual([]);

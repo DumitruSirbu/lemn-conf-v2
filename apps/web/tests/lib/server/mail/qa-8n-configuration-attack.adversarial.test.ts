@@ -1,6 +1,5 @@
-// Case 3 of the plan's QA section: the configuration as an attacker who can set an environment variable would set
-// it. Each hostile value of each of the three names makes the whole answer unavailable, naming that one name and
-// holding no value, and none reaches a transport: the factory builds no sender and the library is never asked.
+// Proves a hostile value in any of the three mail variables makes that one name unavailable, with no value in any
+// answer and no transport made.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createMailSender } from "@/lib/server/mail/create-mail-sender";
@@ -14,14 +13,18 @@ import {
 } from "@/lib/server/mail/mail-configuration";
 import { selectMailSender } from "@/lib/server/mail/select-mail-sender";
 
-import { forbidNetwork, releaseNetwork } from "./mail-test-support";
+import {
+  forbidNetwork,
+  NOT_ONE_PLAIN_MAILBOX,
+  NOT_ONE_PLAIN_MAILBOX_GROUPS,
+  releaseNetwork,
+  spyOnEveryConsoleMethod,
+} from "./mail-test-support";
 import {
   everyReadingOf,
   FAKE_APP_PASSWORD,
   FAKE_INBOX,
   FAKE_SENDER,
-  QA_MESSAGE,
-  silenceEveryConsoleMethod,
 } from "./qa-8j-support";
 
 const { createTransportMock } = vi.hoisted(() => ({
@@ -115,10 +118,11 @@ const ATTACKS: readonly [string, readonly string[]][] = [
 ];
 
 describe("a hostile value in one of the three names", () => {
+  // Adds: the three layers agree on every hostile value, and a mutant admitting "/" in a domain survives the developer suite.
   it.each(ATTACKS)(
     "makes %s alone unavailable, in the reader, the selection and the factory, with no value in any answer and no transport",
     (name, values) => {
-      silenceEveryConsoleMethod();
+      spyOnEveryConsoleMethod();
       const wrong: string[] = [];
       for (const value of values) {
         const environment: MailEnvironment = { ...USABLE, [name]: value };
@@ -149,76 +153,10 @@ describe("a hostile value in one of the three names", () => {
       expect(createTransportMock).not.toHaveBeenCalled();
     },
   );
-
-  it("makes every name unavailable at once when each holds a hostile value, naming the three in their order", () => {
-    const environment: MailEnvironment = {
-      [GOOGLE_EMAIL_VARIABLE]: "a@b.example, c@d.example",
-      [GOOGLE_APP_PASSWORD_VARIABLE]: "has space",
-      [LEAD_NOTIFICATION_ADDRESS_VARIABLE]: "a@b.example\r\nBcc: c@d.example",
-    };
-
-    expect(readMailConfiguration(environment)).toEqual({
-      status: "unavailable",
-      variables: [...MAIL_VARIABLE_NAMES],
-    });
-    expect(createTransportMock).not.toHaveBeenCalled();
-  });
-
-  it("is never a sender that has been made and asked to send: a hostile value leaves nothing to call", async () => {
-    silenceEveryConsoleMethod();
-    const asked: unknown[] = [];
-
-    for (const [name, values] of ATTACKS) {
-      for (const value of values) {
-        const creation = createMailSender({ ...USABLE, [name]: value });
-        if (creation.kind === "sender") {
-          asked.push(await creation.sender.send(QA_MESSAGE));
-        }
-      }
-    }
-
-    expect(asked).toEqual([]);
-    expect(createTransportMock).not.toHaveBeenCalled();
-  });
 });
 
 describe("an environment that cannot be read as a plain record", () => {
-  function environmentWhose(name: string): MailEnvironment {
-    return Object.defineProperty({ ...USABLE }, name, {
-      enumerable: true,
-      get(): never {
-        throw new Error(`the environment refused ${FAKE_APP_PASSWORD}`);
-      },
-    });
-  }
-
-  it.each(MAIL_VARIABLE_NAMES)(
-    "a getter that throws for %s never yields a configured answer, a provider or a sender",
-    (name) => {
-      silenceEveryConsoleMethod();
-      const environment = environmentWhose(name);
-      const answers: unknown[] = [];
-      for (const ask of [
-        readMailConfiguration,
-        selectMailSender,
-        createMailSender,
-      ]) {
-        try {
-          answers.push(ask(environment));
-        } catch (thrown) {
-          answers.push({ thrown: String(thrown) });
-        }
-      }
-
-      for (const answer of answers) {
-        expect(answer).not.toMatchObject({ status: "configured" });
-        expect(answer).not.toMatchObject({ kind: "provider" });
-        expect(answer).not.toMatchObject({ kind: "sender" });
-      }
-      expect(createTransportMock).not.toHaveBeenCalled();
-    },
-  );
-
+  // Adds: non-strings that would read as a usable inbox if coerced to text (a mutant that coerces survives the developer suite).
   it("a non-string value of any type is unusable, whatever it prints as", () => {
     const NOT_TEXT = [
       42,
@@ -244,6 +182,7 @@ describe("an environment that cannot be read as a plain record", () => {
     }
   });
 
+  // Adds: one name inherited beside two own members, for each name; the developer case inherits all three.
   it("reads a member of the prototype chain as unset, for each name, even beside a usable pair", () => {
     for (const name of MAIL_VARIABLE_NAMES) {
       const environment = Object.create({ [name]: USABLE[name] }) as Record<
@@ -259,5 +198,20 @@ describe("an environment that cannot be read as a plain record", () => {
         variables: [name],
       });
     }
+  });
+});
+
+describe("the shared list of values that are not one plain mailbox", () => {
+  it.each(Object.entries(NOT_ONE_PLAIN_MAILBOX_GROUPS))(
+    "keeps at least one witness for the rule %s",
+    (_rule, witnesses) => {
+      expect(witnesses.length).toBeGreaterThan(0);
+    },
+  );
+
+  it("lists no value twice, so no rule is counted by a repeat of another's witness", () => {
+    expect(new Set(NOT_ONE_PLAIN_MAILBOX).size).toBe(
+      NOT_ONE_PLAIN_MAILBOX.length,
+    );
   });
 });

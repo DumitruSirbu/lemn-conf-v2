@@ -111,6 +111,27 @@ describe("readMailConfiguration", () => {
     });
   });
 
+  it.each(MAIL_VARIABLE_NAMES)(
+    "names only %s, and throws nothing, when its own getter throws",
+    (name) => {
+      const GETTER_MARKER = "GETTER-MARKER-5c1e";
+      const environment: Record<string, string | undefined> = {
+        ...VALID_ENVIRONMENT,
+      };
+      Object.defineProperty(environment, name, {
+        enumerable: true,
+        get(): string {
+          throw new Error(GETTER_MARKER);
+        },
+      });
+
+      const result = readMailConfiguration(environment);
+
+      expect(result).toEqual({ status: "unavailable", variables: [name] });
+      expect(JSON.stringify(result)).not.toContain(GETTER_MARKER);
+    },
+  );
+
   it("ignores the process environment and reads only the one handed in", () => {
     vi.stubEnv(GOOGLE_EMAIL_VARIABLE, FAKE_SENDER);
     vi.stubEnv(GOOGLE_APP_PASSWORD_VARIABLE, FAKE_PASSWORD);
@@ -169,6 +190,33 @@ describe("an address the reader calls usable", () => {
     return readMailConfiguration(withVariable(name, value)).status;
   }
 
+  const SHORT_LABEL = "a".repeat(63);
+  const domainOfLength = (lastLabelLength: number): string =>
+    [SHORT_LABEL, SHORT_LABEL, SHORT_LABEL, "d".repeat(lastLabelLength)].join(
+      ".",
+    );
+  /** Fifty-seven of these write as 63 ASCII characters in a label, fifty-eight as 64. */
+  const UNICODE_LABEL_FITTING = "ü".repeat(57);
+
+  const LENGTH_LIMIT_CASES: readonly (readonly [string, string, boolean])[] = [
+    ["a 64-character local part", `${"a".repeat(64)}@example.com`, true],
+    ["a 65-character local part", `${"a".repeat(65)}@example.com`, false],
+    ["a 63-character label", `shop@${SHORT_LABEL}.example`, true],
+    ["a 64-character label", `shop@${"a".repeat(64)}.example`, false],
+    ["a 253-character domain", `shop@${domainOfLength(61)}`, true],
+    ["a 254-character domain", `shop@${domainOfLength(62)}`, false],
+    [
+      "a label that writes as 63 ASCII characters",
+      `shop@${UNICODE_LABEL_FITTING}.example`,
+      true,
+    ],
+    [
+      "a label that writes as 64 ASCII characters",
+      `shop@${UNICODE_LABEL_FITTING}ü.example`,
+      false,
+    ],
+  ];
+
   const ADDRESS_VARIABLES = [
     GOOGLE_EMAIL_VARIABLE,
     LEAD_NOTIFICATION_ADDRESS_VARIABLE,
@@ -223,6 +271,15 @@ describe("an address the reader calls usable", () => {
 
       expect(wronglyDecided).toEqual([]);
     });
+
+    it.each(LENGTH_LIMIT_CASES)(
+      "decides %s at the RFC 5321 length limit",
+      (_label, address, isUsable) => {
+        expect(statusForAddress(name, address)).toBe(
+          isUsable ? "configured" : "unavailable",
+        );
+      },
+    );
 
     it.each(NOT_ONE_PLAIN_MAILBOX)(
       "refuses %j, which the adapter could not write as one plain mailbox",
@@ -540,10 +597,43 @@ describe(".env.example", () => {
     expect(defined).toEqual([]);
   });
 
-  it("tells the owner to paste the App password without spaces", () => {
-    expect(commentBlockAbove(`# ${GOOGLE_APP_PASSWORD_VARIABLE}=`)).toMatch(
-      /WITHOUT spaces/,
+  const proseOf = (commentBlock: string): string =>
+    commentBlock.replace(/\n#+\s?/g, " ");
+
+  const passwordProse = (): string =>
+    proseOf(commentBlockAbove(`# ${GOOGLE_APP_PASSWORD_VARIABLE}=`));
+
+  it("tells the owner to paste the App password without spaces, and that a value with a space is refused", () => {
+    expect(passwordProse()).toMatch(
+      /paste it without spaces; a value with a space is refused/i,
     );
+  });
+
+  it("makes no claim about how Google groups the App password", () => {
+    expect(exampleLines.join("\n")).not.toMatch(/groups of four/i);
+  });
+
+  it("warns that the App password opens the whole mailbox", () => {
+    expect(passwordProse()).toMatch(/opens the whole mailbox/);
+  });
+
+  it("recommends a dedicated sending account as the default, not as a rule", () => {
+    expect(proseOf(commentBlockAbove(`# ${GOOGLE_EMAIL_VARIABLE}=`))).toMatch(
+      /dedicated account is recommended[\s\S]*default/,
+    );
+  });
+
+  it("says nothing local needs the mail names, and a local copy goes only in the repo-root .env.local", () => {
+    const prose = proseOf(exampleLines.join("\n"));
+
+    expect(prose).toMatch(/Nothing local needs them/);
+    expect(prose).toMatch(
+      /goes only in the repo-root \.env\.local, never apps\/web\/\.env\.local/,
+    );
+  });
+
+  it("carries no wave or plan marker in the mail block", () => {
+    expect(exampleLines.join("\n")).not.toMatch(/wave 8N|S3 rewrites/);
   });
 
   it("states that the shop's address is one address and never a customer's", () => {

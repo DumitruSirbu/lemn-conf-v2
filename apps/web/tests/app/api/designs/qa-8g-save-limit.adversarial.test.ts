@@ -13,11 +13,11 @@ import {
 } from "@/lib/server/rate-limit/limit-policy";
 import { getRateLimitStore } from "@/lib/server/rate-limit/rate-limit-store-instance";
 
+import { everyReadingOf } from "../../../lib/server/mail/qa-8j-support";
 import {
   consoleCallsOf,
-  everyReadingOf,
-  silenceEveryConsoleMethod,
-} from "../../../lib/server/mail/qa-8j-support";
+  spyOnEveryConsoleMethod,
+} from "../../../lib/server/mail/mail-test-support";
 
 const SOURCE_VARIABLE = "CLIENT_NETWORK_SOURCE";
 const FLAG_VARIABLE = "LEMNARIA_E2E_RATE_LIMIT_POLICY";
@@ -320,7 +320,7 @@ describe.each(["PUT", "PATCH"] as const)(
       });
 
       it("keeps the credential's figure under the e2e flag, where only the block has a twin", async () => {
-        silenceEveryConsoleMethod();
+        spyOnEveryConsoleMethod();
         vi.stubEnv(SOURCE_VARIABLE, undefined as unknown as string);
         vi.stubEnv(FLAG_VARIABLE, "1");
         const { block, credential } = await bucketsOf();
@@ -467,7 +467,7 @@ describe.each(["PUT", "PATCH"] as const)(
       it.each(UNJUDGEABLE)(
         "is never stored and never a 500 when %s: the one fixed 503, with no wait and no cookie",
         async (_label, arrange) => {
-          silenceEveryConsoleMethod();
+          spyOnEveryConsoleMethod();
           arrange();
           const request = requestOf(method, { body: design });
 
@@ -497,7 +497,7 @@ describe.each(["PUT", "PATCH"] as const)(
         standAt(AN_HOUR_STARTS + MINUTES_INTO_THE_HOUR * MINUTE_MS);
         const { block, credential } = await bucketsOf();
         await fillTo(credential, SAVES_PER_CREDENTIAL_FIGURE);
-        const consoleSpies = silenceEveryConsoleMethod();
+        const consoleSpies = spyOnEveryConsoleMethod();
 
         const refused = await send();
         hitsRecorded().mockRejectedValue(new Error("QA-STORE-DOWN"));
@@ -542,7 +542,7 @@ describe("the lines a flood of refused saves can buy", () => {
       fresh.PUT(requestOf("PUT", {}), {
         params: Promise.resolve({ id: A_DESIGN }),
       });
-    const consoleSpies = silenceEveryConsoleMethod();
+    const consoleSpies = spyOnEveryConsoleMethod();
     const flood = 15;
     const spy = vi.spyOn(store, "recordHits");
 

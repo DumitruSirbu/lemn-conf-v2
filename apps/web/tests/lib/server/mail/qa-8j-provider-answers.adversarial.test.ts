@@ -19,10 +19,11 @@ import {
   forbidNetwork,
   releaseFetch,
   releaseNetwork,
+  consoleCallsOf,
+  spyOnEveryConsoleMethod,
 } from "./mail-test-support";
 import {
   ACCEPTED_ONE_RECIPIENT,
-  consoleCallsOf,
   DISCLOSURE_MARKERS,
   expectNoMarkerIn,
   FAKE_APP_PASSWORD,
@@ -32,7 +33,6 @@ import {
   QUOTING_REPLY_TEXT,
   quotingLibraryError,
   rejectingWith,
-  silenceEveryConsoleMethod,
   transportsAnswering,
 } from "./qa-8j-support";
 
@@ -469,7 +469,7 @@ describe("the ten-second bound, once the transport has been asked", () => {
     const record = (reason: unknown) => unhandled.push(reason);
     process.on("unhandledRejection", record);
     try {
-      const consoleSpies = silenceEveryConsoleMethod();
+      const consoleSpies = spyOnEveryConsoleMethod();
       let rejectLate: (reason: unknown) => void = () => undefined;
       const transports = transportsAnswering(
         () =>
@@ -582,7 +582,7 @@ describe("what leaves the adapter on any branch, and what it writes", () => {
   it.each(THROWN_BY_SENDMAIL)(
     "returns three members at most, none holding the password, the addresses or the customer, for %s",
     async (_label, answer) => {
-      const consoleSpies = silenceEveryConsoleMethod();
+      const consoleSpies = spyOnEveryConsoleMethod();
       const transports = transportsAnswering(answer);
 
       const outcome = await sendThrough(transports.make);
@@ -604,7 +604,7 @@ describe("what leaves the adapter on any branch, and what it writes", () => {
   );
 
   it("answers from the table, never rejects and holds no marker when the transport cannot be made, for every error code", async () => {
-    const consoleSpies = silenceEveryConsoleMethod();
+    const consoleSpies = spyOnEveryConsoleMethod();
     const outcomes: MailOutcome[] = [];
 
     for (const code of ERROR_CODES) {
@@ -623,7 +623,7 @@ describe("what leaves the adapter on any branch, and what it writes", () => {
   });
 
   it("keeps the send's answer, writes nothing and rejects nothing when `close` throws with every marker in it", async () => {
-    const consoleSpies = silenceEveryConsoleMethod();
+    const consoleSpies = spyOnEveryConsoleMethod();
     const make: MakeMailTransport = () => ({
       sendMail: () => Promise.resolve(ACCEPTED_ONE_RECIPIENT),
       close: () => {

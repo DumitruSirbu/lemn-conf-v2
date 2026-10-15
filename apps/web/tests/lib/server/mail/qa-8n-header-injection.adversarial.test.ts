@@ -1,7 +1,5 @@
-// Case 1, 2 and the domain of case 3 of the plan's QA section: a customer's name, phone, locality and e-mail, and a
-// key built to break the Message-ID, taken through the real notice, the Gmail adapter's options and the library's own
-// composer. Either the notice refuses the value by name, or the raw message has the header set of a clean notice, one
-// recipient and a body that is the notice's text. Nothing is sent: the composer is the library's stream transport.
+// Proves a customer's field or a hostile key never adds a header, a recipient or a body line: the notice refuses the
+// value by name, or the library's own composer writes a clean message.
 import { createHash } from "node:crypto";
 import { domainToASCII } from "node:url";
 
@@ -24,7 +22,6 @@ import { ro } from "../../../support/romanian-content";
 import { forbidNetwork, releaseNetwork } from "./mail-test-support";
 import {
   acceptedContact,
-  CUSTOMER_MARKERS,
   designRequest,
   noticeOf,
   thrownBy,
@@ -135,6 +132,7 @@ describe("a breaking character in a customer's field, through the notice and the
     );
   });
 
+  // Adds, beyond the notice tests: every breaker at every position in every field (the developer suite kills the same line-break mutants).
   it("is refused by the notice, by the line's name, and the error holds no value, whatever the field and the position", () => {
     const wrong: string[] = [];
     for (const [field, member, value] of CASES) {
@@ -148,22 +146,6 @@ describe("a breaking character in a customer's field, through the notice and the
     }
 
     expect(wrong).toEqual([]);
-  });
-
-  it("never reaches the composer as a notice that could add a header or a recipient", async () => {
-    const composedAttacks: string[] = [];
-    for (const [, member, value] of CASES) {
-      let notice: MailMessage | undefined;
-      try {
-        notice = noticeWith(member, value);
-      } catch {
-        continue;
-      }
-      composedAttacks.push(value);
-      expectCleanComposition(await composeNotice(notice), notice);
-    }
-
-    expect(composedAttacks).toEqual([]);
   });
 });
 
@@ -188,6 +170,7 @@ describe("a hostile value that holds no breaking character, in every printed fie
     "From: spoof",
   ];
 
+  // Adds: the library's own composer on hostile values with no line break, which the developer suite never composes.
   it.each(ATTACKABLE)(
     "composes to a clean header set, one recipient and the notice's own text, for $field",
     async ({ member }) => {
@@ -201,19 +184,6 @@ describe("a hostile value that holds no breaking character, in every printed fie
       }
     },
   );
-
-  it("keeps every customer value out of every header and the envelope, for a notice of every channel", async () => {
-    const notice = noticeOf(designRequest());
-
-    const composed = await composeNotice(notice);
-
-    for (const marker of CUSTOMER_MARKERS) {
-      expect(composed.headerBlock).not.toContain(marker);
-      expect(composed.envelopeRecipients.join(",")).not.toContain(marker);
-      expect(composed.envelopeSender).not.toContain(marker);
-    }
-    expect(notice.text).toContain(CUSTOMER_MARKERS[0]);
-  });
 });
 
 describe("there is no notes field for a customer to write into", () => {
@@ -267,6 +237,7 @@ describe("a key built to break the Message-ID", () => {
     "\\r\\nBcc:",
   ];
 
+  // Adds: hostile keys through the library's composer, with the header count and the key absent from every header.
   it.each(HOSTILE_KEYS)(
     "composes one well-formed Message-ID, the digest of %j, and the key in no header",
     async (key) => {
@@ -287,28 +258,7 @@ describe("a key built to break the Message-ID", () => {
     },
   );
 
-  it("is a key outside the predicate refused unsent, with no transport made and no status", async () => {
-    const made = vi.fn();
-    const sender = createGmailMailSender(QA_CONFIGURATION, (options) => {
-      made(options);
-      throw new Error("a transport was made");
-    });
-
-    for (const key of [
-      "",
-      "a b",
-      "k".repeat(257),
-      "k\r\nBcc: a@b.example",
-      "ключ",
-    ]) {
-      await expect(
-        sender.send({ key, subject: "S", text: "T" }),
-      ).resolves.toEqual({ ok: false, kind: "refused" });
-    }
-
-    expect(made).not.toHaveBeenCalled();
-  });
-
+  // Adds: the Message-ID is injective in the key, which no example in the developer suite pins.
   it("is the same Message-ID across any two builds of one message, and a different one for any two keys", () => {
     fc.assert(
       fc.property(
@@ -387,6 +337,7 @@ describe("the domain of an address the reader calls usable, in the Message-ID an
     return read.status === "configured" ? read.configuration : undefined;
   }
 
+  // Adds: generated internationalised addresses through the composer (kills a missing punycode step the developer suite also kills).
   it("is one well-formed msg-id, one envelope recipient, and a recipient whose domain is the one the reader judged", async () => {
     const tally = { accepted: 0, refused: 0 };
 
@@ -424,6 +375,7 @@ describe("the domain of an address the reader calls usable, in the Message-ID an
     expect(tally.refused).toBeGreaterThan(20);
   });
 
+  // Adds: every visible-ASCII local part the reader accepts is written byte for byte by the composer.
   it("is, for any local part of visible ASCII the reader accepts, the one recipient the composer writes, byte for byte", async () => {
     const VISIBLE = Array.from({ length: 0x7e - 0x21 + 1 }, (_unused, index) =>
       String.fromCharCode(0x21 + index),
@@ -464,6 +416,7 @@ describe("the domain of an address the reader calls usable, in the Message-ID an
     expect(tally.refused).toBeGreaterThan(100);
   });
 
+  // Adds, beyond the developer lists: URL-delimiter and full-width-dot domains (a mutant admitting "#" or U+3002 survives the developer suite).
   it.each([
     'a@b"c',
     "a@(x)",

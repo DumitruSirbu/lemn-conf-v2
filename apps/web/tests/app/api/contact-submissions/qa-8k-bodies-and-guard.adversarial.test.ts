@@ -3,7 +3,7 @@
 import { NARROWED_ROOM_OVERFLOWING_DESIGN } from "@lemnaria/configurator-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { silenceEveryConsoleMethod } from "../../../lib/server/mail/qa-8j-support";
+import { spyOnEveryConsoleMethod } from "../../../lib/server/mail/mail-test-support";
 import {
   byEmail,
   callbackRequest,
@@ -55,7 +55,7 @@ let post: Post;
 let countedWindows: () => number[];
 
 beforeEach(async () => {
-  silenceEveryConsoleMethod();
+  spyOnEveryConsoleMethod();
   nameTheNetworkSource();
   resetOutside(outside);
   post = await loadRoute();

@@ -22,8 +22,7 @@ const CONTACT_BODY_MAX_BYTES = 8 * 1024;
 
 const JSON_MEDIA_TYPE = "application/json";
 
-// The notice leaves over a raw TLS socket (nodemailer), and the store speaks Postgres through a Node driver: neither
-// can run on the Edge runtime, so it is pinned and not left to the default (8N.5).
+// Pinned, not defaulted: nodemailer's raw TLS socket and the Postgres driver cannot run on Edge.
 export const runtime = "nodejs";
 
 /** What the route has made for one request: the ports the orchestration is handed, or the answer for a request that

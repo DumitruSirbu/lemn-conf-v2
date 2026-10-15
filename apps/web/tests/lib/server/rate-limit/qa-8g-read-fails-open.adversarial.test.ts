@@ -3,11 +3,11 @@
 // the process that holds nothing of what was thrown.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { everyReadingOf } from "../mail/qa-8j-support";
 import {
   consoleCallsOf,
-  everyReadingOf,
-  silenceEveryConsoleMethod,
-} from "../mail/qa-8j-support";
+  spyOnEveryConsoleMethod,
+} from "../mail/mail-test-support";
 
 const THROWN_MARKER = "QA-THROWN-5d81c0";
 const USABLE_SECRET = "5d81c0".repeat(10) + "0a1b";
@@ -48,7 +48,7 @@ afterEach(() => {
 
 describe("a read whose judgement throws before anything is counted", () => {
   it("is served by the judge, by the route's refusal and by the page's refusal, and nothing is counted", async () => {
-    silenceEveryConsoleMethod();
+    spyOnEveryConsoleMethod();
     const readers = await freshReaders();
 
     const judged = await readers.judgeReadRequest(UNREADABLE_HEADERS);
@@ -62,7 +62,7 @@ describe("a read whose judgement throws before anything is counted", () => {
   });
 
   it("writes one line for the process, however often it happens, with nothing of what was thrown", async () => {
-    const consoleSpies = silenceEveryConsoleMethod();
+    const consoleSpies = spyOnEveryConsoleMethod();
     const readers = await freshReaders();
 
     for (let asked = 0; asked < 25; asked += 1) {
@@ -94,7 +94,7 @@ describe("a read whose store answers what is no count, or throws at once", () =>
       },
     ],
   ])("is served, for %s", async (_label, answer) => {
-    silenceEveryConsoleMethod();
+    spyOnEveryConsoleMethod();
     const readers = await freshReaders();
     readers.hits.mockImplementation(answer as never);
 

@@ -26,9 +26,8 @@ export const MAIL_VARIABLES_THE_SUITE_REFUSES = Object.freeze([
 type MutableEnvironment = Record<string, string | undefined>;
 
 /**
- * Removes every mail variable from the runner's own environment, which `loadEnvLocal` has just filled from the repository
- * root's `.env.local` and from which every server and worker inherits. Only this in-memory copy changes: no file and no
- * deployment is touched. Says so in one line of names, and says nothing when there was nothing to remove.
+ * Removes every mail variable from the runner's own environment, which every server and worker inherits. Only this
+ * in-memory copy changes: no file or deployment is touched. Announces the names in one line, or nothing if none.
  */
 export function withholdMailVariables(
   environment: MutableEnvironment,

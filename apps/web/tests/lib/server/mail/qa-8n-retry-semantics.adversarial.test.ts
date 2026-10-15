@@ -16,7 +16,10 @@ import {
   CONTACT_NOTICE_NOT_SENT_RETRY_CODE,
 } from "@/lib/server/contact/contact-responses";
 import { MAIL_REQUEST_TIMEOUT_MS } from "@/lib/server/mail/gmail-mail-sender";
-import { isRetryableMailFailure } from "@/lib/server/mail/mail-sender";
+import {
+  isRetryableMailFailure,
+  type MailFailureKind,
+} from "@/lib/server/mail/mail-sender";
 
 import {
   bodyOf,
@@ -29,16 +32,16 @@ import {
   forbidNetwork,
   releaseFetch,
   releaseNetwork,
+  consoleCallsOf,
+  spyOnEveryConsoleMethod,
 } from "./mail-test-support";
 import {
-  consoleCallsOf,
   expectNoMarkerIn,
   FAKE_APP_PASSWORD,
   FAKE_INBOX,
   FAKE_SENDER,
   quotingLibraryError,
   rejectingWith,
-  silenceEveryConsoleMethod,
 } from "./qa-8j-support";
 
 const fakes = vi.hoisted(() => ({
@@ -168,7 +171,7 @@ const NOT_SENT_FINAL = { status: 502, code: CONTACT_NOTICE_NOT_SENT_CODE };
 
 describe("the route with the real Gmail adapter behind it", () => {
   it("sends one notice from the configured account to the configured inbox, closes its transport, marks the row once, and answers sent", async () => {
-    const consoleSpies = silenceEveryConsoleMethod();
+    const consoleSpies = spyOnEveryConsoleMethod();
     const mail = scriptMail(accepts);
 
     const response = await post(bodyOf());
@@ -192,7 +195,7 @@ describe("the route with the real Gmail adapter behind it", () => {
   });
 
   it("holds no variable name and no secret in an answer when the three are not usable, and sends nothing", async () => {
-    silenceEveryConsoleMethod();
+    spyOnEveryConsoleMethod();
     vi.stubEnv("GOOGLE_APP_PASSWORD", `${FAKE_APP_PASSWORD} spaced`);
     scriptMail(accepts);
 
@@ -210,7 +213,7 @@ describe("the route with the real Gmail adapter behind it", () => {
 
 describe("a send that times out, then a retry of the same request", () => {
   it("answers the retryable code with the row stored un-notified, and the retry sends again: two sends, one row, one mark (the recorded duplicate)", async () => {
-    silenceEveryConsoleMethod();
+    spyOnEveryConsoleMethod();
     const mail = scriptMail(rejects({ code: "ETIMEDOUT" }), accepts);
 
     const first = await post(callbackBodyOf());
@@ -236,7 +239,7 @@ describe("a send that times out, then a retry of the same request", () => {
   });
 
   it("answers the same way when the transport never settles and the bound passes, and a late acceptance marks nothing", async () => {
-    silenceEveryConsoleMethod();
+    spyOnEveryConsoleMethod();
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     let acceptLate: (answer: unknown) => void = () => undefined;
     const mail = scriptMail(
@@ -269,7 +272,7 @@ describe("a send that times out, then a retry of the same request", () => {
 
 describe("an accepted send whose mark fails, then a retry", () => {
   it("still answers sent, writes a line that names no secret, and the retry sends a second notice and marks (the recorded duplicate)", async () => {
-    const consoleSpies = silenceEveryConsoleMethod();
+    const consoleSpies = spyOnEveryConsoleMethod();
     const mail = scriptMail(accepts, accepts);
     failMarks = 1;
 
@@ -297,7 +300,7 @@ describe("an accepted and marked request, retried", () => {
   it.each([1, 2, 5])(
     "sends nothing more over %i retries and answers the same reference",
     async (retries) => {
-      silenceEveryConsoleMethod();
+      spyOnEveryConsoleMethod();
       const mail = scriptMail(accepts);
       const first = await answerOf(await post(callbackBodyOf()));
 
@@ -323,7 +326,7 @@ describe("a spent quota", () => {
   };
 
   it("answers the non-retry code, stores the request un-notified, and sends once", async () => {
-    const consoleSpies = silenceEveryConsoleMethod();
+    const consoleSpies = spyOnEveryConsoleMethod();
     const mail = scriptMail(rejects(QUOTA));
 
     const response = await post(bodyOf());
@@ -343,50 +346,53 @@ describe("a spent quota", () => {
 });
 
 describe("every way a send can fail, through the route", () => {
-  const FAILURES: readonly [string, () => Promise<unknown>, string][] = [
-    ["a busy reply", rejects({ responseCode: 421 }), "busy"],
-    ["a transient reply", rejects({ responseCode: 451 }), "busy"],
+  const FAILURES: readonly [string, () => Promise<unknown>, MailFailureKind][] =
     [
-      "an authentication refusal",
-      rejects({ code: "EAUTH", responseCode: 535 }),
-      "refused",
-    ],
-    [
-      "a permanent refusal",
-      rejects({ responseCode: 550, response: "550 5.7.1 no" }),
-      "refused",
-    ],
-    ["an envelope refusal", rejects({ code: "EENVELOPE" }), "refused"],
-    [
-      "a quota reply",
-      rejects({ responseCode: 550, response: "550 5.4.5 limit" }),
-      "quota-spent",
-    ],
-    ["a timeout", rejects({ code: "ETIMEDOUT" }), "timed-out"],
-    ["a connection failure", rejects({ code: "ECONNECTION" }), "unreachable"],
-    ["a socket failure", rejects({ code: "ESOCKET" }), "unreachable"],
-    ["a DNS failure", rejects({ code: "EDNS" }), "unreachable"],
-    ["a protocol error", rejects({ code: "EPROTOCOL" }), "unreadable-answer"],
-    ["nothing readable", () => Promise.resolve(undefined), "unreadable-answer"],
-    [
-      "an empty acceptance",
-      () => Promise.resolve({ accepted: [], rejected: [] }),
-      "unreadable-answer",
-    ],
-    ["a thrown null", () => rejectingWith(null), "unreachable"],
-  ];
+      ["a busy reply", rejects({ responseCode: 421 }), "busy"],
+      ["a transient reply", rejects({ responseCode: 451 }), "busy"],
+      [
+        "an authentication refusal",
+        rejects({ code: "EAUTH", responseCode: 535 }),
+        "refused",
+      ],
+      [
+        "a permanent refusal",
+        rejects({ responseCode: 550, response: "550 5.7.1 no" }),
+        "refused",
+      ],
+      ["an envelope refusal", rejects({ code: "EENVELOPE" }), "refused"],
+      [
+        "a quota reply",
+        rejects({ responseCode: 550, response: "550 5.4.5 limit" }),
+        "quota-spent",
+      ],
+      ["a timeout", rejects({ code: "ETIMEDOUT" }), "timed-out"],
+      ["a connection failure", rejects({ code: "ECONNECTION" }), "unreachable"],
+      ["a socket failure", rejects({ code: "ESOCKET" }), "unreachable"],
+      ["a DNS failure", rejects({ code: "EDNS" }), "unreachable"],
+      ["a protocol error", rejects({ code: "EPROTOCOL" }), "unreadable-answer"],
+      [
+        "nothing readable",
+        () => Promise.resolve(undefined),
+        "unreadable-answer",
+      ],
+      [
+        "an empty acceptance",
+        () => Promise.resolve({ accepted: [], rejected: [] }),
+        "unreadable-answer",
+      ],
+      ["a thrown null", () => rejectingWith(null), "unreachable"],
+    ];
 
   it.each(FAILURES)(
     "after %s: the row stays stored, nothing is marked, and the outward code follows the retry table for %s",
     async (_label, answer, kind) => {
-      const consoleSpies = silenceEveryConsoleMethod();
+      const consoleSpies = spyOnEveryConsoleMethod();
       const mail = scriptMail(answer);
 
       const response = await post(bodyOf());
 
-      const expected = isRetryableMailFailure(
-        kind as Parameters<typeof isRetryableMailFailure>[0],
-      )
+      const expected = isRetryableMailFailure(kind)
         ? CONTACT_NOTICE_NOT_SENT_RETRY_CODE
         : CONTACT_NOTICE_NOT_SENT_CODE;
       expect(response.status).toBe(502);
@@ -403,21 +409,11 @@ describe("every way a send can fail, through the route", () => {
       );
     },
   );
-
-  it("is the plan's own table of which kinds a retry may follow, written again here", () => {
-    const retryable = ["busy", "unreachable", "timed-out", "unreadable-answer"];
-    const final = ["refused", "quota-spent", "payload-mismatch"];
-
-    for (const kind of retryable)
-      expect(isRetryableMailFailure(kind as never)).toBe(true);
-    for (const kind of final)
-      expect(isRetryableMailFailure(kind as never)).toBe(false);
-  });
 });
 
 describe("a transport that cannot be made", () => {
   it("answers the 5B code of its kind with the row stored, and never rejects", async () => {
-    silenceEveryConsoleMethod();
+    spyOnEveryConsoleMethod();
     fakes.createTransport.mockImplementation(() => {
       throw quotingLibraryError({ code: "ECONFIG" });
     });

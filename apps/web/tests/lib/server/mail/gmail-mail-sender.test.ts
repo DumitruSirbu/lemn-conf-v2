@@ -79,6 +79,33 @@ function sha256Hex(text: string): string {
   return createHash("sha256").update(text, "utf8").digest("hex");
 }
 
+const MAX_LABEL = "a".repeat(63);
+/** Three 63-character labels and a last one: 253 characters in all when the last is 61 long. */
+const domainWithLastLabelOf = (length: number): string =>
+  [MAX_LABEL, MAX_LABEL, MAX_LABEL, "d".repeat(length)].join(".");
+/** Fifty-seven of these write as a 63-character ASCII label, fifty-eight as 64. */
+const UNICODE_LABEL_AT_THE_LIMIT = "ü".repeat(57);
+
+const ADDRESSES_AT_A_LENGTH_LIMIT: readonly (readonly [string, string])[] = [
+  ["a 64-character local part", `${"a".repeat(64)}@example.com`],
+  ["a 63-character label", `shop@${MAX_LABEL}.example`],
+  ["a 253-character domain", `shop@${domainWithLastLabelOf(61)}`],
+  [
+    "a label that writes as 63 ASCII characters",
+    `shop@${UNICODE_LABEL_AT_THE_LIMIT}.example`,
+  ],
+];
+
+const ADDRESSES_PAST_A_LENGTH_LIMIT: readonly (readonly [string, string])[] = [
+  ["a 65-character local part", `${"a".repeat(65)}@example.com`],
+  ["a 64-character label", `shop@${"a".repeat(64)}.example`],
+  ["a 254-character domain", `shop@${domainWithLastLabelOf(62)}`],
+  [
+    "a label that writes as 64 ASCII characters",
+    `shop@${UNICODE_LABEL_AT_THE_LIMIT}ü.example`,
+  ],
+];
+
 describe("buildGmailMessage", () => {
   const options = buildGmailMessage(MESSAGE, CONFIGURATION);
 
@@ -172,6 +199,31 @@ describe("buildGmailMessage", () => {
       if (address.length >= 4) {
         expect(String(thrownBy(asRecipient))).not.toContain(address);
       }
+    },
+  );
+
+  describe.each(["senderAddress", "notificationAddress"] as const)(
+    "for the %s, at the RFC 5321 length limits",
+    (setting) => {
+      const buildWith = (address: string) => () =>
+        buildGmailMessage(MESSAGE, { ...CONFIGURATION, [setting]: address });
+
+      it.each(ADDRESSES_AT_A_LENGTH_LIMIT)(
+        "builds a message for %s",
+        (_label, address) => {
+          expect(buildWith(address)).not.toThrow();
+        },
+      );
+
+      it.each(ADDRESSES_PAST_A_LENGTH_LIMIT)(
+        "refuses %s, naming the setting",
+        (_label, address) => {
+          expect(thrownBy(buildWith(address))).toBeInstanceOf(
+            UnusableMailAddressError,
+          );
+          expect(thrownBy(buildWith(address))).toMatchObject({ setting });
+        },
+      );
     },
   );
 });
@@ -532,6 +584,71 @@ describe("createGmailMailSender: bound, life of the transport, and one call", ()
 
     expect(harness.made).toBe(0);
   });
+
+  it("reads each member of a message once, so what was judged is what is sent", async () => {
+    const harness = harnessAnswering(() => Promise.resolve(ACCEPTED_ANSWER));
+    const reads = { key: 0, subject: 0, text: 0 };
+    const changesAfterFirstRead = {
+      get key(): string {
+        reads.key += 1;
+        return reads.key === 1 ? MESSAGE.key : "has a space";
+      },
+      get subject(): string {
+        reads.subject += 1;
+        return reads.subject === 1
+          ? MESSAGE.subject
+          : "one\r\nBcc: a@b.example";
+      },
+      get text(): string {
+        reads.text += 1;
+        return reads.text === 1 ? MESSAGE.text : "";
+      },
+    };
+
+    const outcome = await createGmailMailSender(
+      CONFIGURATION,
+      harness.make,
+    ).send(changesAfterFirstRead);
+
+    expect(outcome).toEqual({ ok: true });
+    expect(reads).toEqual({ key: 1, subject: 1, text: 1 });
+    expect(harness.sentOptions).toEqual([
+      buildGmailMessage(MESSAGE, CONFIGURATION),
+    ]);
+  });
+
+  it.each([
+    [
+      "a revoked proxy",
+      (): MailMessage => {
+        const { proxy, revoke } = Proxy.revocable(MESSAGE, {});
+        revoke();
+        return proxy;
+      },
+    ],
+    [
+      "a proxy whose every read throws",
+      (): MailMessage =>
+        new Proxy(MESSAGE, {
+          get(): never {
+            throw new Error(APP_PASSWORD_MARKER);
+          },
+        }),
+    ],
+  ])(
+    "answers refused, unsent and without rejecting, for a message that cannot be read at all: %s",
+    async (_label, makeUnreadable) => {
+      const harness = harnessAnswering(() => Promise.resolve(ACCEPTED_ANSWER));
+
+      const outcome = await createGmailMailSender(
+        CONFIGURATION,
+        harness.make,
+      ).send(makeUnreadable());
+
+      expect(outcome).toEqual({ ok: false, kind: "refused" });
+      expect(harness.made).toBe(0);
+    },
+  );
 
   it("makes no transport, and answers refused, when a configured address is not one plain mailbox", async () => {
     const harness = harnessAnswering(() => Promise.resolve(ACCEPTED_ANSWER));

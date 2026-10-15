@@ -754,7 +754,7 @@ it. Report it instead (`environments-and-resources.md:6-30`).
 3. **Add the three variables to Vercel, Production and Preview, as sensitive.** For example:
    `vercel env add GOOGLE_EMAIL production --sensitive`, then the same with `preview`. Do the same for
    `GOOGLE_APP_PASSWORD` and for `LEAD_NOTIFICATION_ADDRESS`. Check the flag with `vercel env add --help` first.
-   **The value of `LEAD_NOTIFICATION_ADDRESS` is `patrasiteli7@gmail.com`** [owner, 2026-10-16]. Paste each value at
+   **The value of `LEAD_NOTIFICATION_ADDRESS` is `<the shop's receiving address, supplied by the owner>`** [owner, 2026-10-16]. Paste each value at
    the prompt, never on the command line. Do not add `LEMNARIA_E2E_FAKE_MAIL` anywhere.
    `RESEND_API_KEY` and `MAIL_FROM_ADDRESS`, if set anywhere, are left as they are.
 

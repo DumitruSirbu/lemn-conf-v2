@@ -114,7 +114,7 @@ export function buildGmailMessage(
 ): GmailMessageOptions {
   const { senderAddress, notificationAddress } = configuration;
   const senderDomain = plainDomainOf(senderAddress, "senderAddress");
-  plainDomainOf(notificationAddress, "notificationAddress");
+  requirePlainMailbox(notificationAddress, "notificationAddress");
   return {
     from: senderAddress,
     to: notificationAddress,
@@ -133,19 +133,25 @@ export function createGmailMailSender(
   configuration: MailConfiguration,
   makeTransport: MakeMailTransport = DEFAULT_MAKE_TRANSPORT,
 ): MailSender {
+  const setup: SenderSetup = { configuration, makeTransport };
   return {
-    send: (message) => sendOnce(message, configuration, makeTransport),
+    send: (message) => sendOnce(message, setup),
   };
+}
+
+/** What every send of one sender shares, bound once when the sender is made. */
+interface SenderSetup {
+  readonly configuration: MailConfiguration;
+  readonly makeTransport: MakeMailTransport;
 }
 
 async function sendOnce(
   message: MailMessage,
-  configuration: MailConfiguration,
-  makeTransport: MakeMailTransport,
+  setup: SenderSetup,
 ): Promise<MailOutcome> {
-  const options = tryBuildMessage(message, configuration);
+  const options = tryBuildMessage(message, setup.configuration);
   if (options === undefined) return MAIL_REFUSED_UNSENT;
-  const transport = tryMakeTransport(configuration, makeTransport);
+  const transport = tryMakeTransport(setup);
   if ("outcome" in transport) return transport.outcome;
   try {
     return await answerWithinBound(attemptSend(transport.made, options));
@@ -169,11 +175,14 @@ function tryBuildMessage(
 }
 
 function tryMakeTransport(
-  configuration: MailConfiguration,
-  makeTransport: MakeMailTransport,
+  setup: SenderSetup,
 ): { readonly made: MailTransport } | { readonly outcome: MailOutcome } {
   try {
-    return { made: makeTransport(buildGmailTransportOptions(configuration)) };
+    return {
+      made: setup.makeTransport(
+        buildGmailTransportOptions(setup.configuration),
+      ),
+    };
   } catch (thrown) {
     return { outcome: outcomeOfSendFailure(thrown) };
   }
@@ -215,6 +224,15 @@ function closeQuietly(transport: MailTransport): void {
     transport.close();
   } catch {
     // The send's own answer stands: a failure to close changes nothing the caller can act on.
+  }
+}
+
+function requirePlainMailbox(
+  address: string,
+  setting: keyof MailConfiguration,
+): void {
+  if (asciiDomainOfPlainMailbox(address) === undefined) {
+    throw new UnusableMailAddressError(setting);
   }
 }
 
