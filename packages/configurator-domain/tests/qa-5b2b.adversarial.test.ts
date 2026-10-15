@@ -372,6 +372,7 @@ describe("what the projection emits is a document the seams accept", () => {
 describe("a restored column's one region snaps where the session's several did", () => {
   const BODY = insertableBody("wall-cabinet");
   const TALL_BODY = insertableBody("tall-pantry");
+  const SWEPT_OPENING_HEIGHTS_M = [0.4, 0.7, 0.86, 2.0];
 
   function insertableBody(buildId: string): InsertableBody {
     const entry = INSERTABLE_BODY_DEFINITIONS.find(([id]) => id === buildId);
@@ -458,7 +459,7 @@ describe("a restored column's one region snaps where the session's several did",
   propertyTest.prop([
     regionsArbitrary.filter((regions) => regions.length > 0),
     fc.constantFrom(...LEVELS.map(([start]) => start)),
-    fc.constantFrom(0.4, 0.7, 0.86, 2.0),
+    fc.constantFrom(...SWEPT_OPENING_HEIGHTS_M),
     fc.boolean(),
   ])(
     "answers identically for the collapsed interval a reload restores",
@@ -505,16 +506,22 @@ describe("a restored column's one region snaps where the session's several did",
 
   // Non-vacuity: the sweep above would prove nothing if every generated fit were a refusal.
   it("accepts at least one insert per level start, so the sweep has content", () => {
-    const accepted = LEVELS.filter(([levelStart]) => {
-      const fit = evaluateInsertFit({
-        body: BODY,
-        opening: openingIn(levelStart, 0.7, levelStart, 0.7),
-        column: columnWith([[0, 2.6]]),
-        cabinetDepthMm: DEFAULT_CABINET_DEPTH_MM,
-      });
-      return fit.ok;
-    });
+    // Over the bodies and opening heights the sweeps draw: a wall cabinet is refused at the floor whatever
+    // the opening, so the floor's acceptance is the tall body's.
+    const accepted = LEVELS.filter(([levelStart]) =>
+      [BODY, TALL_BODY].some((body) =>
+        SWEPT_OPENING_HEIGHTS_M.some(
+          (openingHeight) =>
+            evaluateInsertFit({
+              body,
+              opening: openingIn(levelStart, openingHeight, 0, 2.6),
+              column: columnWith([[0, 2.6]]),
+              cabinetDepthMm: DEFAULT_CABINET_DEPTH_MM,
+            }).ok,
+        ),
+      ),
+    );
 
-    expect(accepted.length).toBeGreaterThan(0);
+    expect(accepted).toEqual(LEVELS);
   });
 });

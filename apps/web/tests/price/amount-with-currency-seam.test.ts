@@ -21,7 +21,7 @@ import {
   type PricedDesign,
   type PricingResult,
 } from "@lemnaria/configurator-domain";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { describePriceBar } from "@/price/price-bar-model";
 
@@ -39,6 +39,14 @@ import { RULED_TO_CARRY_THE_CURRENCY } from "../support/ruled-price-copy";
  *  a pin on a drafted amount fails for a reason that has nothing to do with this seam. */
 const MOCKUP_TOTAL_MINOR = 4_300_000;
 const MOCKUP_GROUPED_AMOUNT = "43 000";
+
+/** Each `Intl` constructor that resolves the process's default locale when it is given none. */
+const LOCALE_AWARE_INTL_CONSTRUCTORS = [
+  "NumberFormat",
+  "DateTimeFormat",
+  "PluralRules",
+  "Collator",
+] as const;
 
 function priceSeededKitchen(): PricedDesign {
   const result = priceDesign({
@@ -150,6 +158,24 @@ describe("the amount and its currency are joined by a catalogue leaf", () => {
     const [romanian, russian] = minorUnitsPerLocale;
     expect(russian).toEqual(romanian);
     expect(romanian?.lines.length).toBeGreaterThan(0);
+  });
+
+  it("consults no locale while pricing, so there is none for a minor-unit value to follow", () => {
+    // The case above prices twice in one process, where the ambient locale is the same both times and
+    // two runs of anything agree. What it cannot see is pricing that asks the platform which locale it
+    // is in. Every way `Intl` answers that question is watched here, and pricing must use none.
+    const localeReads = LOCALE_AWARE_INTL_CONSTRUCTORS.map((name) =>
+      vi.spyOn(Intl, name),
+    );
+    const numberToLocaleString = vi.spyOn(Number.prototype, "toLocaleString");
+
+    const priced = priceSeededKitchen();
+    const watched = [...localeReads, numberToLocaleString];
+    const callsPerLocaleRead = watched.map((spy) => spy.mock.calls.length);
+    for (const spy of watched) spy.mockRestore();
+
+    expect(priced.lines.length).toBeGreaterThan(0);
+    expect(callsPerLocaleRead).toEqual([0, 0, 0, 0, 0]);
   });
 });
 

@@ -15,7 +15,6 @@
 import {
   countHardwareMechanisms,
   derivePlacementRecords,
-  isPushOpenByDefault,
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
   projectDesignForDisplay,
@@ -237,54 +236,9 @@ describe("direction B — a visible bar is no longer billed a latch", () => {
   });
 });
 
-/**
- * **Nothing visual changed** (ADR 0092 Amendment C's own condition on this wave). `hidesHandles` is
- * now a call into the domain instead of a private copy of the rule, so the scene's answer for every
- * seeded record must be what it was before — asserted against the superseded implementation,
- * restated here as the oracle, over the design's full set of records.
- */
-describe("the scene's answer is byte-identical to the rule the adapter used to hold", () => {
-  /** `scene-sync.ts`'s `hidesHandles`, exactly as it read before wave 6T-a. */
-  function hidesHandlesAsItWas(record: PlacementRecord): boolean {
-    if (record.handleMode && record.canHandle) {
-      return record.handleMode === "push";
-    }
-    return isPushOpenByDefault(record.frame.y0);
-  }
-
-  it("answers the same for every seeded placement", () => {
-    const records = mount(KITCHEN_L_DESIGN);
-    const gated = placementsWithABar(records);
-
-    for (const record of records) {
-      if (!gated.includes(record.id)) continue;
-      expect(sceneHidesBarsOn(record.id)).toBe(hidesHandlesAsItWas(record));
-    }
-  });
-
-  /** The seeded design records no mode, so the sweep above exercises only the slot arm. Both other
-   *  arms are driven here on the same records, so the equality is over the whole predicate rather
-   *  than over the one branch the demo happens to take. */
-  it.each(["push", "steel", "black"])(
-    "answers the same when every placement records %s",
-    (handle) => {
-      const design: Design = {
-        ...KITCHEN_L_DESIGN,
-        placements: KITCHEN_L_DESIGN.placements.map((placement) => ({
-          ...placement,
-          body: { ...placement.body, handle },
-        })),
-      } as Design;
-      const records = mount(design);
-      const gated = placementsWithABar(records);
-
-      for (const record of records) {
-        if (!gated.includes(record.id)) continue;
-        expect(sceneHidesBarsOn(record.id)).toBe(hidesHandlesAsItWas(record));
-      }
-    },
-  );
-
+/** The scene's answer over every seeded record in all four handle states is held to the ruling by
+ *  `qa-6t-a-scene-price-seam.adversarial.test.ts`; what stays here is the premise the slot arm rests on. */
+describe("the seeded top row stands where the slot rule turns on", () => {
   it("puts the seeded top row at or above the module line the rule turns on", () => {
     const records = mount(KITCHEN_L_DESIGN);
 

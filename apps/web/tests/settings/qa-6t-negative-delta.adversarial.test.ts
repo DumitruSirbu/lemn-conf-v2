@@ -19,11 +19,9 @@
 //    book's own three rate gaps rather than restated, and the boundary the gaps predict is crossed
 //    from both sides on designs built to sit either side of it, so the missing badge is shown to
 //    appear *at* the predicted place rather than merely somewhere.
-// 3. **A leniency that leaks.** The material group's refusal is asserted here on the same
-//    drawer-dominant design, so the hardware rule cannot quietly become the module's rule.
-//
-// **The refusal is not weakened anywhere in this file.** `NegativeTierDeltaError` keeps its meaning
-// and its message for the group whose ordering is a property of the book alone.
+// 3. **A leniency that leaks.** The material group's refusal on the same drawer-dominant design is
+//    held by `qa-6w-below-default-tier.adversarial.test.ts` ("keeps NegativeTierDeltaError's exact
+//    sentence for the material group"), so the hardware rule cannot quietly become the module's rule.
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import {
   countHardwareMechanisms,
@@ -41,7 +39,6 @@ import {
 import { describe, expect, it } from "vitest";
 
 import {
-  NegativeTierDeltaError,
   offerWholeKitchenTiers,
   type OfferedTierGroup,
 } from "@/price/whole-kitchen-tiers";
@@ -245,46 +242,6 @@ describe("the witness is where the rates put it, not where a fixture is quiet", 
       expect(offeredDeltaFor(hardware, DEFAULT_TIER_ID)).toBe(0);
     },
   );
-
-  /** **The one design the wave pinned, and the amount it is pinned at** (ADR 0092 decision 12): one
-   *  `base-3drawer` stands at `y0` 0 recording no mode, so it carries 3 drawers, 0 hinges and 0
-   *  latches, and Hettich prices it exactly 4 200 minor below the default. The witness itself did
-   *  not move at 6W; only what is asserted of the sheet did. */
-  it("puts the pinned witness 4 200 minor below the default, and still offers it every tier", () => {
-    const design = soloDesign(THREE_DRAWER_BASE);
-
-    expect(
-      bookAmountFor(INVERTING_TIER_ID, design) -
-        bookAmountFor(DEFAULT_TIER_ID, design),
-    ).toBe(-4_200);
-
-    const hardware = offerOf(design).hardware;
-
-    expect(hardware.tiers.map((tier) => tier.tierId)).toEqual(hardware.tierIds);
-    expect(offeredDeltaFor(hardware, INVERTING_TIER_ID)).toBeUndefined();
-  });
-
-  /** **The material group is not made lenient by the hardware group's rule.** Asked on the same
-   *  drawer-dominant design, so this is the leak it would take to weaken the refusal by accident:
-   *  a book whose material default is not its cheapest material tier still throws, and still says
-   *  which tier and by how much. */
-  it("keeps refusing a material book whose default is not its cheapest tier, on the very design the hardware rule spares", () => {
-    const design = soloDesign(THREE_DRAWER_BASE);
-    const invertedMaterial = {
-      ...BOOK,
-      material: { ...BOOK.material, defaultTierId: "material.veneer" },
-    };
-
-    expect(() =>
-      offerWholeKitchenTiers({
-        design,
-        catalog: CATALOG,
-        book: invertedMaterial,
-        pricingVersion: SAMPLE_PRICE_BOOK_VERSION,
-        selections: design.settings,
-      }),
-    ).toThrow(NegativeTierDeltaError);
-  });
 
   /** **The boundary the quantifier names, crossed from both sides — with hinges on both sides of
    *  it.** A design of four three-drawer bases and *m* one-door wall boxes carries 12 drawers and

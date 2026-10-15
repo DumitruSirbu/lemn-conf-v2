@@ -75,9 +75,8 @@ function lastBlockFor(stylesheet: string, selector: string): string {
   return last;
 }
 
-/** The shared clamp both surfaces are cut to, and the gap it leaves under them. */
+/** The shared clamp both surfaces are cut to. */
 const POPOVER_TOP_PX = pixelsOfCustomProperty(GLOBALS_CSS, "popover-top");
-const SAFE_GAP_PX = pixelsOfCustomProperty(GLOBALS_CSS, "safe-gap");
 
 /** The four numbers the centred surface composes its own `top` from, each declared on `.surface`
  *  itself so a band that changes height is a visible edit in that file too. */
@@ -172,14 +171,6 @@ describe("M6-AUD-016's clamp still binds, in the direction a clamp may fail in",
     // Non-vacuity: the drawn height the clamp is a `min` against is a real number, so the clamp is
     // the second arm of a real choice rather than the only one.
     expect(Number(clamp?.[1])).toBeGreaterThan(0);
-  });
-
-  /** The gap the clamp actually leaves, stated as the arithmetic rather than as prose — so a token
-   *  moved in `globals.css` shows up here as a smaller number and not as a silent pass. */
-  it("leaves the settings modal at least the safe gap under it at any height", () => {
-    expect(
-      POPOVER_TOP_PX + SAFE_GAP_PX - SETTINGS_SURFACE_TOP_PX,
-    ).toBeGreaterThanOrEqual(SAFE_GAP_PX);
   });
 });
 

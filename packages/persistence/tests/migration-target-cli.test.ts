@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
+import { UNLISTED_DATABASE } from "../src/test-database-url.js";
 import { spawnPersistenceCli } from "./support/spawn-persistence-cli.js";
 
 const SOURCE_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "../src");
@@ -71,17 +72,7 @@ describe("migrate — the environment check", () => {
   });
 
   it("passes the check for a matching label, so what follows is a connection failure, not a refusal", async () => {
-    // Plan AC8 expects "Could not connect to ..." on stderr. It never arrives, for a reason that has
-    // nothing to do with this dispatch: `applyMigrations`'s cleanup — `finally { await client.end();
-    // }` in migrate.ts, unedited here and out of this dispatch's scope — never settles when
-    // `client.connect()` itself failed, so the WebSocket driver `migrate` uses never reaches
-    // `describeMigrationFailure`'s line; Node's own "unsettled top-level await" guard exits the
-    // process instead. Reproduced identically against the unmodified migrate.ts that predates this
-    // dispatch (a plain `client.connect()` + `client.end()` probe against a refusing local port hangs
-    // the same way under both `tsx` and plain `node`), so it is a pre-existing defect in
-    // `applyMigrations`, not something introduced or fixable here. Reported to the coordinator rather
-    // than patched. What this test still proves: the label passed the check — no
-    // MigrationTargetMismatchError — so the failure that follows is a connection failure.
+    // Proves the matching label passed the check: what follows is a connection failure, not a refusal.
     const result = await spawnPersistenceCli(
       "src/migrate.ts",
       [PASS_THROUGH_DATABASE],
@@ -146,7 +137,7 @@ describe("migrate:status — the environment check", () => {
     expect(result.exitCode).toBe(1);
     expect(result.stderr).not.toContain("MigrationTargetMismatchError");
     expect(result.stderr).toContain(
-      `Could not read the schema of "${PASS_THROUGH_DATABASE}"`,
+      `Could not read the schema of "${UNLISTED_DATABASE}"`,
     );
     expectNoSecretLeaked(result.stdout, result.stderr);
   });

@@ -39,6 +39,61 @@ export type {
   ShareLinkStatus,
   ShareLinkStatusOutcome,
 } from "./share-link-repository.js";
+export { NeonRateLimitStore } from "./neon-rate-limit-store.js";
+export {
+  RateLimitStoreError,
+  RateLimitWindowConflictError,
+} from "./rate-limit-store.js";
+export type {
+  RateLimitBucket,
+  RateLimitOperation,
+  RateLimitStore,
+  RateLimitWindow,
+  WindowTotals,
+} from "./rate-limit-store.js";
+export { FakeRateLimitStore } from "./fake-rate-limit-store.js";
+export {
+  CSP_REPORT_CAPACITY,
+  CspReportStoreError,
+  requireValidCspReportRow,
+} from "./csp-report-store.js";
+export type {
+  CspReportOperation,
+  CspReportPlacement,
+  CspReportRow,
+  CspReportStore,
+} from "./csp-report-store.js";
+export { NeonCspReportStore } from "./neon-csp-report-store.js";
+export { FakeCspReportStore } from "./fake-csp-report-store.js";
+export type { HeldCspReport } from "./fake-csp-report-store.js";
+export {
+  ContactSubmissionStoreError,
+  isSubmissionReference,
+} from "./contact-submission-store.js";
+export type {
+  ContactSubmissionOperation,
+  ContactSubmissionStore,
+  ContactSubmissionToRecord,
+  NoSentReference,
+  RecordedSubmission,
+  SentReference,
+  SentReferenceLookup,
+  SentReferenceReader,
+  SentReferenceRequest,
+  StoredSubmission,
+  SubmissionAbsent,
+  SubmissionConflict,
+  SubmissionLookup,
+  SubmissionLookupRequest,
+  SubmissionRecording,
+} from "./contact-submission-store.js";
+export { FakeContactSubmissionStore } from "./fake-contact-submission-store.js";
+export { NeonContactSubmissionStore } from "./neon-contact-submission-store.js";
+export type { NeonContactSubmissionStoreOptions } from "./neon-contact-submission-store.js";
+export type {
+  FakeContactSubmissionStoreOptions,
+  HeldContactSubmission,
+} from "./fake-contact-submission-store.js";
 export { runMigrations } from "./migrate.js";
 export type { MigrationRunSummary } from "./migrate.js";
 export {
@@ -51,6 +106,13 @@ export {
   deleteDesignsForTests,
   findDesignIdsForTests,
 } from "./delete-designs-for-tests.js";
+export { findWriteTokenHashesForTests } from "./find-write-token-hashes-for-tests.js";
+export { countContactSubmissionsForTests } from "./count-contact-submissions-for-tests.js";
+export { deleteContactSubmissionsForTests } from "./delete-contact-submissions-for-tests.js";
+export { countCspReportsForTests } from "./count-csp-reports-for-tests.js";
+export { deleteCspReportsForTests } from "./delete-csp-reports-for-tests.js";
+export { deleteRateLimitCountersForTests } from "./delete-rate-limit-counters-for-tests.js";
+export type { RemovedRateLimitCounters } from "./delete-rate-limit-counters-for-tests.js";
 export { loadEnvLocal } from "./load-env.js";
 export {
   assertSafeTestDatabaseUrl,

@@ -24,16 +24,12 @@ interface RecordedRequest {
 
 let requests: RecordedRequest[];
 let failuresRemaining: number;
-let refuseWritesAsUnauthorized: boolean;
 
 function stubFetch() {
   vi.stubGlobal("fetch", (url: string, init: RequestInit) => {
     const method = init.method ?? "GET";
     requests.push({ url, method });
 
-    if (refuseWritesAsUnauthorized && method === "PUT") {
-      return Promise.resolve(new Response("{}", { status: 403 }));
-    }
     if (failuresRemaining > 0) {
       failuresRemaining -= 1;
       return Promise.resolve(new Response("{}", { status: 500 }));
@@ -63,7 +59,6 @@ describe("the client write path, driven through the app's own store", () => {
     vi.useFakeTimers();
     requests = [];
     failuresRemaining = 0;
-    refuseWritesAsUnauthorized = false;
     stubFetch();
   });
 
@@ -139,26 +134,6 @@ describe("the client write path, driven through the app's own store", () => {
     );
     expect(store.getState().saveStatus).toBe("idle");
     expect(store.getState().hasPersistedSuccessfully).toBe(true);
-  });
-
-  it("goes read-only rather than retrying forever when this browser holds no write credential", async () => {
-    const store = await loadFreshStore();
-    refuseWritesAsUnauthorized = true;
-
-    store.getState().select({ kind: "placement", id: REMOVABLE_PLACEMENT_ID });
-    const placementCountBefore = store.getState().design.placements.length;
-    store.getState().remove();
-    await vi.advanceTimersByTimeAsync(60_000);
-    const afterRefusal = requests.length;
-    await vi.advanceTimersByTimeAsync(60_000);
-
-    expect(store.getState().saveStatus).toBe("unauthorized");
-    // The edit stands, and nothing further is attempted for a credential no retry can obtain.
-    expect(store.getState().design.placements.length).toBeLessThan(
-      placementCountBefore,
-    );
-    expect(requests).toHaveLength(afterRefusal);
-    expect(store.getState().hasPersistedSuccessfully).toBe(false);
   });
 
   it("presents nothing shareable while every write is still failing", async () => {

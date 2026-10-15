@@ -322,14 +322,6 @@ describe("a material this product no longer declares has no control shape", () =
     expect(markup).not.toContain('data-testid="finish-colour-picker"');
   });
 
-  it("is not vacuous: the same materials do offer a control on the same body", () => {
-    // The partner this file uses everywhere else. Without it, a `describePanel` that had stopped
-    // producing a finish section for *anything* would read as the undeclared rule working.
-    for (const material of [PAL_KITCHEN, MDF_KITCHEN, VENEER_KITCHEN]) {
-      expect(markupFor(material, FINISHABLE)).toContain("data-finish-control");
-    }
-  });
-
   it("leaves the rest of the panel working, which is what 6G's recovery path stands on", () => {
     // Withholding the whole panel would make an unknown `materialTierId` unrecoverable: the
     // customer could not reach the setting that would put them back on a declared material.

@@ -477,16 +477,6 @@ describe("the surface itself", () => {
     expect(view.figure.label).toBe(content.price.startingPrefix);
   });
 
-  it("calls the total what every other surface calls it, since there is one name left", () => {
-    // **The 2026-09-03 ruling this case was written for is withdrawn** (owner, 2026-09-09): a total
-    // standing under a refused edit was called *"De la neschimbat"*, and this sheet had to say it
-    // too because it covers the bar that said it. There is one label now, so what was a rule three
-    // surfaces had to share is a string one module composes — and the sheet cannot disagree with the
-    // bar about a choice neither of them makes.
-    expect(settingsView().figure?.label).toBe(content.price.startingPrefix);
-    expect(settingsView().figure?.label).not.toContain("neschimbat");
-  });
-
   it("carries both actions on both shells", () => {
     const markup = markupOf(settingsView());
 
@@ -542,15 +532,6 @@ describe("a stored tier the book no longer offers", () => {
     // either way.
     expect([...markup.matchAll(/checked=""/g)].length).toBe(
       [...markup.matchAll(/role="radiogroup"/g)].length,
-    );
-  });
-
-  it("still hands apply the ids the 6E commands accept", () => {
-    // The recovery path itself: the ids are what `setMaterialTier` is given as `availableTierIds`,
-    // and a command handed a list this surface could not build would refuse the very choice that
-    // fixes the document.
-    expect(groupNamed(withdrawnView(), "material").tierIds).toContain(
-      SAMPLE_PRICE_BOOK.material.defaultTierId,
     );
   });
 

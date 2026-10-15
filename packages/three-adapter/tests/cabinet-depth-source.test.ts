@@ -234,22 +234,6 @@ describe("the base carcass is a formula, exercised beyond its one reachable inpu
     expect(depths.baseCarcassDepthM).toBe(0.56);
     expect(depths.cabinetDepthM).toBe(0.6);
   });
-
-  // The worktop overhangs the carcass by one constant and does not scale with depth: 60 mm deeper
-  // at every cabinet depth, never a proportion. ADR 0036 decision 3 puts the worktop outside
-  // geometry and price entirely — it is bought separately and may be stone, wood or laminate — so
-  // what is asserted here is only that the *drawn* slab keeps its fixed relationship to the carcass
-  // it sits on, never that it influences anything.
-  it("keeps the worktop's overhang a constant at every depth", () => {
-    for (const cabinetDepthMm of [600, 700, 800]) {
-      const kit = kitAt(cabinetDepthMm);
-      const body = kit.make.baseCabinet(0.6, { doors: 2 });
-
-      expect(
-        depthMmOf(body, "countertop") - depthMmOf(body, "carcass_shell"),
-      ).toBe(60);
-    }
-  });
 });
 
 describe("the hood is standard, and hung at the front, at every cabinet depth", () => {

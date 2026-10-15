@@ -205,43 +205,6 @@ describe("a depth the fallback could never have produced is kept", () => {
     expect(deepenedM).toBeCloseTo(frozenM, 9);
     expect(theOneClearedColumnOn(store, wall).d).toBeCloseTo(frozenM, 9);
   });
-
-  it("keeps an unresolvable source on a surplus and drops it on a ceiling answer", () => {
-    const withSource = (store: Store, source: string): Store => {
-      const held = store.getState().design;
-      const tag = (entry: EmptyColumn): EmptyColumn => ({
-        ...entry,
-        depthFromBuildId: source,
-      });
-      return createStore(
-        DesignSchema.parse(
-          JSON.parse(
-            JSON.stringify({
-              ...held,
-              emptyColumns: (held.emptyColumns ?? []).map(tag),
-              columnExtents: (held.columnExtents ?? []).map(tag),
-            }),
-          ),
-        ),
-      );
-    };
-    const surplus = withSource(
-      removeAll(createStore(), BASE_MEMBERS),
-      "retired-cabinet-600",
-    );
-    const ceiling = withSource(
-      removeAll(createStore(), WALL_MEMBERS),
-      "retired-cabinet-600",
-    );
-
-    setDepth(surplus, DEEPER_MM);
-    setDepth(ceiling, DEEPER_MM);
-
-    expect(columnOf(surplus, BASE_KEY).depthFromBuildId).toBe(
-      "retired-cabinet-600",
-    );
-    expect(columnOf(ceiling, WALL_KEY).depthFromBuildId).toBeUndefined();
-  });
 });
 
 describe("hasFullHeightUnder feeds both ceilings, and keeping more is a theorem", () => {

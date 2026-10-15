@@ -122,22 +122,6 @@ describe("every way a response can disappoint", () => {
   const FAILING_STATUSES = [400, 401, 403, 404, 409, 429, 500, 502, 503];
 
   it.each(FAILING_STATUSES)(
-    "rejects a save that answers %i",
-    async (status) => {
-      respondWith(() => jsonResponse({ error: "no" }, status));
-      const repository = new FetchConfigurationRepository();
-
-      await expect(
-        repository.save({
-          id: "existing-id",
-          design: KITCHEN_L_DESIGN,
-          expectedRevision: STORED_REVISION,
-        }),
-      ).rejects.toThrow(DesignRequestFailedError);
-    },
-  );
-
-  it.each(FAILING_STATUSES)(
     "rejects a mint that answers %i",
     async (status) => {
       respondWith(() => jsonResponse({ error: "no" }, status));

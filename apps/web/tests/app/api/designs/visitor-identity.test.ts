@@ -21,7 +21,7 @@ import type {
   StoredDesign,
 } from "@lemnaria/persistence";
 import { fc, test as propertyTest } from "@fast-check/vitest";
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
@@ -187,6 +187,21 @@ async function mintAndReturnCookiePair(): Promise<{
   return { id, writeTokenPair: setCookie.split(";")[0] ?? "", visitorPair };
 }
 
+/** The places an environment conditional would look: the build mode, the host's stage, and whether the process has
+ *  a `location` the way a browser does. */
+const ENVIRONMENTS_A_CONDITIONAL_WOULD_TELL_APART: readonly (readonly [
+  string,
+  () => void,
+])[] = [
+  ["a production server", () => vi.stubEnv("NODE_ENV", "production")],
+  ["a development server", () => vi.stubEnv("NODE_ENV", "development")],
+  ["a preview deployment", () => vi.stubEnv("VERCEL_ENV", "preview")],
+  [
+    "a process that has a plain-http location",
+    () => vi.stubGlobal("location", new URL("http://localhost/")),
+  ],
+];
+
 describe("the visitor cookie name (criterion 2)", () => {
   it("appears in exactly one production module, which imports server-only", () => {
     const source = readFileSync(
@@ -206,13 +221,31 @@ describe("the visitor cookie name (criterion 2)", () => {
     }
   });
 
-  it("has no environment conditional on Secure", () => {
-    const source = readFileSync(
-      resolve(SOURCE_DIR, "lib/server/visitor.ts"),
-      "utf8",
-    );
-    expect(source).not.toMatch(/process\.env/);
-  });
+  // The module is loaded afresh in each environment, since the attributes are fixed when it loads, and the cookie it
+  // then sets and clears is read back. A search of the source for `process.env` passes over a conditional that asks
+  // the environment any other way.
+  it.each(ENVIRONMENTS_A_CONDITIONAL_WOULD_TELL_APART)(
+    "has no environment conditional on Secure: sets and clears it Secure on %s",
+    async (_name, arrange) => {
+      vi.resetModules();
+      arrange();
+      const { setVisitorCookie, clearVisitorCookie } = await import(
+        "../../../../src/lib/server/visitor"
+      );
+      const set = NextResponse.json({});
+      const cleared = NextResponse.json({});
+
+      setVisitorCookie(set, "any-value");
+      clearVisitorCookie(cleared);
+      vi.unstubAllEnvs();
+      vi.unstubAllGlobals();
+
+      expect([
+        set.cookies.get(VISITOR_COOKIE_NAME)?.secure,
+        cleared.cookies.get(VISITOR_COOKIE_NAME)?.secure,
+      ]).toEqual([true, true]);
+    },
+  );
 });
 
 describe("the mint's Set-Cookie for the visitor (criterion 1)", () => {

@@ -1,0 +1,25 @@
+/* Frame 5B's card for the shop's telephone: the label, then an arrow, in a box at least as tall as a touch target. */
+.callShop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: var(--touch-target);
+  padding: 15px;
+  font: 700 14px/1.2 var(--font-ui);
+  color: var(--ink);
+  text-decoration: none;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.callShop:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+
+.arrow {
+  font: 400 18px/1 var(--font-ui);
+  color: var(--accent);
+}

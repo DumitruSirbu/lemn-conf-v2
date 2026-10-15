@@ -1,5 +1,5 @@
-import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { readdirSync, readFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { neon } from "@neondatabase/serverless";
@@ -7,11 +7,11 @@ import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import {
   applyMigrations,
-  databaseNameOf,
   describeMigrationFailure,
   describeMigrationRun,
   runMigrations,
 } from "../src/migrate.js";
+import { databaseNameOf } from "../src/open-database.js";
 import { checksumOfMigration } from "../src/migration-checksum.js";
 import {
   MigrationChecksumMismatchError,
@@ -64,6 +64,9 @@ const ALL_MIGRATION_FILE_NAMES = [
   "0004_add_design_revision.sql",
   "0005_add_design_visitor_hash.sql",
   "0006_create_design_share_links.sql",
+  "0007_create_rate_limit_counters.sql",
+  "0008_create_contact_submissions.sql",
+  "0009_create_csp_reports.sql",
 ];
 
 /** Every version after the first, read from disk. Forgetting a *suffix* of the ledger is the only
@@ -371,24 +374,59 @@ describe("describeMigrationRun", () => {
   });
 });
 
+/** Any statement that changes or removes ledger rows, or the ledger: the table bare, quoted or
+ *  schema-qualified, as `migrate-status.ts` already names it. */
+const REWRITES_THE_LEDGER =
+  /\b(?:update|delete\s+from|truncate(?:\s+table)?|drop\s+table(?:\s+if\s+exists)?)\s+(?:only\s+)?(?:"?public"?\s*\.\s*)?"?schema_migrations\b/i;
+
+const LEDGER_REWRITES = [
+  "update schema_migrations set checksum = 'x'",
+  "delete from schema_migrations where version = 1",
+  "delete from public.schema_migrations",
+  'delete from "schema_migrations"',
+  'DELETE FROM "public"."schema_migrations"',
+  "truncate schema_migrations",
+  "truncate table public.schema_migrations",
+  "drop table schema_migrations",
+  'drop table if exists "schema_migrations"',
+];
+
 describe("the migration ledger's append-only rule", () => {
   it("is enforced by there being no update or delete against it anywhere in src/", () => {
     // Append-only cannot be granted away at the database, because migrations connect as the owner.
     // What can be checked is that this package never writes such a statement, which is the property
     // the rule actually asks for: a ledger row is a record of something that happened.
-    const ledgerSource = readFileSync(
-      resolve(SOURCE_DIR, "migration-ledger.ts"),
-      "utf8",
+    // Every file, migrations included: a statement added to the status reader or to a migration
+    // breaks the rule as surely as one in the runner.
+    const sourceFiles = readdirSync(SOURCE_DIR, {
+      recursive: true,
+      encoding: "utf8",
+    }).filter((path) => /\.(ts|sql)$/.test(path));
+    const sourceOf = (path: string): string =>
+      readFileSync(join(SOURCE_DIR, path), "utf8");
+    const rewritingTheLedger = sourceFiles.filter((path) =>
+      REWRITES_THE_LEDGER.test(sourceOf(path)),
     );
-    const runnerSource = readFileSync(
-      resolve(SOURCE_DIR, "migrate.ts"),
-      "utf8",
+    const namingTheLedger = sourceFiles.filter((path) =>
+      sourceOf(path).includes("schema_migrations"),
     );
 
-    for (const source of [ledgerSource, runnerSource]) {
-      expect(source).not.toMatch(/update\s+schema_migrations/i);
-      expect(source).not.toMatch(/delete\s+from\s+schema_migrations/i);
-    }
+    // The pattern is live: it finds every forbidden shape in a statement written here.
+    expect(
+      LEDGER_REWRITES.filter(
+        (statement) => !REWRITES_THE_LEDGER.test(statement),
+      ),
+    ).toEqual([]);
+    // The four files that name the ledger today, so the scan cannot pass by reading nothing.
+    expect(namingTheLedger).toEqual(
+      expect.arrayContaining([
+        "migrate-status.ts",
+        "migration-ledger.ts",
+        "migration-plan.ts",
+        "migration-status.ts",
+      ]),
+    );
+    expect(rewritingTheLedger).toEqual([]);
   });
 });
 
@@ -489,14 +527,33 @@ describe("the migrate CLI", () => {
     const source = readFileSync(resolve(SOURCE_DIR, "migrate.ts"), "utf8");
     const cli = source.slice(source.indexOf("if (isDirectCliInvocation)"));
 
-    expect(cli).toContain(
-      "describeMigrationRun(summary, databaseNameOf(connectionUrl))",
+    expect(cli).toMatch(
+      /describeMigrationRun\(\s*summary,\s*printReachedDatabaseName\(/,
     );
+    expect(cli).not.toMatch(/describeMigrationRun\([^;]*databaseNameOf\(/);
     // A connection string printed into a transcript is a credential leak that has already happened
     // once on this project (ADR 0008's setup incident). Pinned as "there is exactly one print, and
     // it prints the described run" — which, with the assertion above, fixes what reaches the log.
     expect(cli.match(/console\.log\(/g) ?? []).toHaveLength(1);
     expect(cli).toMatch(/console\.log\(\s*describeMigrationRun\(/);
+    // The whole printed expression, not its opening: an argument appended to it would pass the
+    // patterns above and leak. Whitespace and trailing commas are the formatter's, so they go.
+    const printed = /console\.log\(([\s\S]*?)\);/.exec(cli)?.[1] ?? "";
+    expect(
+      printed.replace(/\s+/g, "").replace(/,\)/g, ")").replace(/,$/, ""),
+    ).toBe(
+      "describeMigrationRun(summary,printReachedDatabaseName({databaseName,environment}))",
+    );
+    // And the connection string goes to exactly the three places that read a name from it or
+    // connect with it, so it cannot reach the print under another name.
+    expect(cli.match(/\bconnectionUrl\b/g) ?? []).toHaveLength(3);
+    expect(cli).toContain("const connectionUrl = readMigrationDatabaseUrl();");
+    expect(cli).toContain("databaseNameOf(connectionUrl)");
+    expect(cli).toMatch(/runMigrations\(\s*connectionUrl,/);
+    // Nor is it read a second time, or sent out by a road the two counts above do not watch.
+    expect(cli.match(/readMigrationDatabaseUrl\(/g) ?? []).toHaveLength(1);
+    expect(cli).not.toMatch(/console\.(?!log\(|error\()/);
+    expect(cli).not.toMatch(/process\.(?:stdout|stderr)\b/);
   });
 
   it("catches a failed run rather than letting Node print the driver's error object", () => {

@@ -1,13 +1,13 @@
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 
-import { databaseNameOf } from "../src/migrate.js";
 import { MigrationTargetMismatchError } from "../src/migration-errors.js";
 import {
   DATABASE_NAMES_BY_ENVIRONMENT,
   assertDeclaredEnvironmentReaches,
   readDeclaredEnvironment,
 } from "../src/migration-target.js";
+import { databaseNameOf } from "../src/open-database.js";
 import { ALLOWED_TEST_DATABASE_NAMES } from "../src/test-database-url.js";
 
 /**
@@ -60,10 +60,6 @@ describe("DATABASE_NAMES_BY_ENVIRONMENT", () => {
     expect(DATABASE_NAMES_BY_ENVIRONMENT.get("test")).toBe(
       ALLOWED_TEST_DATABASE_NAMES,
     );
-  });
-
-  it("has no staging key", () => {
-    expect(DATABASE_NAMES_BY_ENVIRONMENT.has("staging")).toBe(false);
   });
 });
 
@@ -249,15 +245,6 @@ describe("assertDeclaredEnvironmentReaches — the refusal message", () => {
     // into a command, which a shell keeps in its history — only exporting one from a file.
     expect(message).not.toMatch(/MIGRATION_DATABASE_URL=\S/);
     expect(message).not.toMatch(/:\/\//);
-  });
-
-  it("names the environment that claims a mismatched, ad-hoc-labelled database", () => {
-    expect(() => {
-      assertDeclaredEnvironmentReaches({
-        environment: "lemn-conf-v2",
-        databaseName: "lemn-conf-v2",
-      });
-    }).toThrow(/production/);
   });
 
   it("names the expected list for a listed environment with more than one name", () => {

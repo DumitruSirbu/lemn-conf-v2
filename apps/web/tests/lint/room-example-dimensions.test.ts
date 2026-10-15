@@ -25,8 +25,6 @@ const REPOSITORY_ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
 const PROBE_PATH_FROM_ROOT = "apps/web/src/room/lint-gate-probe.tsx";
 const PROBE_PATH = `${REPOSITORY_ROOT}${PROBE_PATH_FROM_ROOT}`;
 
-const BANNED_DIMENSION_PROBE = "export const wallA = 3600;\n";
-
 // The probe *is* an unkeyed Romanian literal: reaching it through the catalogue would prove the
 // opposite of the claim it is here to make.
 // eslint-disable-next-line no-restricted-syntax -- 6B-j: the wording is the subject, see above.
@@ -55,7 +53,6 @@ function restrictedSyntaxMessagesIn(results: readonly ESLint.LintResult[]) {
 }
 
 describe("the room directory's no-restricted-syntax block", () => {
-  let bannedDimension: readonly string[] = [];
   let romanianLiteral: readonly string[] = [];
   let unkeyedJsxText: readonly string[] = [];
   let commentedDimension: readonly string[] = [];
@@ -83,18 +80,11 @@ describe("the room directory's no-restricted-syntax block", () => {
         await eslint.lintText(code, { filePath: PROBE_PATH }),
       );
 
-    bannedDimension = await lintProbe(BANNED_DIMENSION_PROBE);
     romanianLiteral = await lintProbe(ROMANIAN_LITERAL_PROBE);
     unkeyedJsxText = await lintProbe(UNKEYED_JSX_PROBE);
     commentedDimension = await lintProbe(COMMENTED_DIMENSION_PROBE);
     historyWrite = await lintProbe(HISTORY_WRITE_PROBE);
   }, 120_000);
-
-  it("errors on a drawn example dimension written as a number", () => {
-    expect(bannedDimension).toHaveLength(1);
-    expect(bannedDimension[0]).toContain("3600");
-    expect(bannedDimension[0]).toContain("M7 criterion 16");
-  });
 
   it("still errors on a Romanian string literal", () => {
     expect(romanianLiteral).toHaveLength(1);

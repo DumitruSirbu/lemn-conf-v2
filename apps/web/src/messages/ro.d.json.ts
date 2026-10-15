@@ -91,7 +91,7 @@ declare const messages: {
       "wallTooLong": "Lungimea aceasta e mai mare decât putem mobila. Introdu doar porțiunea pe care vrei dulapuri.",
       "heightTooLow": "La înălțimea aceasta nu încap dulapurile de sus. Verifică valoarea.",
       "heightTooHigh": "Înălțimea aceasta e mai mare decât putem construi. Verifică valoarea.",
-      "roomTooSmall": "Cu lungimile acestea, după dulapul de colț nu mai rămâne loc pentru spălător și plită. Mărește una dintre lungimi.",
+      "roomTooSmall": "Cu lungimile acestea, după dulapul de colț nu mai rămâne loc pentru chiuvetă și plită. Mărește una dintre lungimi.",
       "shapeNotBuildable": "Pentru forma aceasta nu putem propune încă o bucătărie. Alege altă formă.",
       "orChooseLinear": "Sau alege o formă liniară.",
       "unreadable": "Scrie valoarea în milimetri, doar cu cifre."
@@ -115,7 +115,7 @@ declare const messages: {
       "stepsLabel": "Ce este inclus, în ordinea priorității",
       "role": {
         "fridge": "Frigider",
-        "sink": "Spălător",
+        "sink": "Chiuvetă",
         "preparation": "Blat de lucru",
         "hob": "Plită și cuptor",
         "storage": "Depozitare"
@@ -129,11 +129,12 @@ declare const messages: {
         "placed": "inclus",
         "notPlaced": "nu poate fi inclus"
       },
-      "rule": "Regula: pe pereți scurți păstrăm întâi spălătorul și gătitul, apoi depozitarea; ce nu poate fi inclus este scos și marcat, nu înghesuit.",
+      "rule": "Regula: pe pereți scurți păstrăm întâi chiuveta și gătitul, apoi depozitarea; ce nu poate fi inclus este scos și marcat, nu înghesuit.",
       "busy": "Se compune…",
       "dropped": "Dimensiunile pereților nu au lăsat destul spațiu pentru toate dulapurile, așa că nu am putut include: {roles}. Restul bucătăriei e compus pe măsura camerei tale.",
       "failed": "Compunerea nu s-a putut finaliza. Întoarce-te la dimensiuni și încearcă din nou.",
       "saveFailed": "Bucătăria e gata, dar nu am putut-o deschide. Încearcă din nou.",
+      "limitReached": "Astăzi nu se mai pot crea alte bucătării. Limita revine mâine, iar camera ta rămâne aici.",
       "retry": "Încearcă din nou"
     }
   },
@@ -180,6 +181,7 @@ declare const messages: {
     "readOnlyRefusedNotice": "Modificarea nu a fost salvată: acest browser nu poate modifica această configurație. Ce vezi pe ecran nu este salvat și se pierde dacă închizi sau reîncarci pagina. Deschide configuratorul într-o filă nouă dacă vrei să faci modificări pe care le poți salva.",
     "saveFailedNotice": "Modificarea este aplicată pe ecran și încercăm în continuare să o salvăm. Nu o schimba și nu reîncărca pagina: o reîncărcare acum ar șterge versiunea care așteaptă să fie salvată.",
     "saveStoppedNotice": "Salvarea s-a oprit pentru această configurație și nu va reporni singură. Ce vezi pe ecran nu este salvat și se pierde dacă închizi sau reîncarci pagina. Deschide configuratorul într-o filă nouă și reia modificările acolo.",
+    "savePausedNotice": "Salvarea este întreruptă până la {time}. Modificările rămân pe ecran și se vor salva singure la acea oră. Nu reîncărca pagina până atunci: o reîncărcare ar șterge versiunea care așteaptă să fie salvată.",
     "finishTitle": "Finisaje",
     "finishApproximationNote": "Culoarea de pe ecran și cea din vizualizare sunt orientative — nuanța finală se alege pe mostra fizică.",
     "finishPickerLabel": "Alege culoarea",
@@ -236,12 +238,39 @@ declare const messages: {
     "included": "inclus",
     "notIncluded": "nu este inclus"
   },
+  "review": {
+    "title": "Verifică designul",
+    "roundedUpNote": "Preț de pornire, rotunjit în sus.",
+    "bodyCount": "{bodyCount, plural, one {# dulap} few {# dulapuri} other {# dulapuri}}",
+    "roomLine": {
+      "linear": "{shape} · {wallA, number, ::group-off} mm · {bodies}",
+      "L": "{shape} · {wallA, number, ::group-off} × {wallB, number, ::group-off} mm · {corner} · {bodies}",
+      "U": "{shape} · {wallA, number, ::group-off} × {wallB, number, ::group-off} × {wallC, number, ::group-off} mm · {bodies}",
+      "cornerLeft": "cot la stânga",
+      "cornerRight": "cot la dreapta"
+    },
+    "refusalReasons": {
+      "PRICING_FAILED": "Nu am putut calcula prețul acestei bucătării, așa că oferta nu poate fi cerută acum.",
+      "NO_CABINET": "Adaugă cel puțin un dulap în bucătărie înainte să ceri oferta.",
+      "BODIES_PAST_WALL": "Unele dulapuri depășesc lungimea peretelui. Modifică lățimile sau elimină un dulap înainte să ceri oferta."
+    }
+  },
+  "reviewScreen": {
+    "callToAction": "Cere oferta",
+    "editGroup": "Editează",
+    "changeSettings": "Schimbă",
+    "view3d": "Vezi în 3D",
+    "saving": "Se salvează modificările tale. Poți cere oferta imediat ce salvarea se termină.",
+    "conflict": "Bucătăria a fost modificată în altă filă sau pe alt dispozitiv, așa că modificarea ta nu a fost salvată. Alege în editor ce versiune păstrezi, apoi cere oferta.",
+    "openEditor": "Deschide editorul",
+    "topBarTitle": "Verificare"
+  },
   "globalSettings": {
     "open": "Setări globale",
     "title": "Setări pentru toată bucătăria",
     "appliesTo": "Se aplică {bodyCount, plural, one {singurului dulap din bucătărie} few {tuturor celor # dulapuri} other {tuturor celor # dulapuri}}. Nu se setează pentru fiecare dulap în parte.",
     "groupHeadings": {
-      "material": "Material corp și fronturi",
+      "material": "Materialul dulapului și al fronturilor",
       "hardware": "Feronerie"
     },
     "groupAnchors": {
@@ -279,7 +308,6 @@ declare const messages: {
     "titleDesktop": "Browserul acesta nu poate afișa 3D",
     "bodyMobile": "Configurarea se face direct în model, așa că nu putem continua fără 3D. Deschide configuratorul pe alt telefon sau pe calculator — sau lasă-ne datele și îl configurăm împreună.",
     "bodyDesktop": "Configurarea se face direct în model, așa că nu putem continua fără 3D. Încearcă alt browser sau activează accelerarea grafică — ori lasă-ne datele și îl configurăm împreună.",
-    "emailLink": "Trimite-mi linkul pe e-mail",
     "contactLink": "Vreau să mă contactați",
     "noFakePreview": "Nu afișăm o previzualizare statică falsă: fără 3D nu există configurare reală, deci nici preț."
   },
@@ -288,7 +316,9 @@ declare const messages: {
     "bodyNotFound": "Linkul acesta nu mai corespunde niciunei configurații salvate. Posibil că a fost ștearsă sau linkul este invalid.",
     "bodyInvalid": "Linkul acesta nu poate întoarce nici o configurare validă. Ne pare rău.",
     "bodyUnavailable": "Această configurație nu este disponibilă în acest browser. Se deschide doar în browserul în care a fost creată.",
-    "startOver": "Începe o configurare nouă"
+    "startOver": "Începe o configurare nouă",
+    "tooManyRequests": "Prea multe cereri într-un timp scurt. Încearcă din nou peste puțin timp.",
+    "tryAgain": "Încearcă din nou"
   },
   "share": {
     "title": "Link de vizualizare",
@@ -305,10 +335,113 @@ declare const messages: {
     "error": "Nu am putut actualiza linkul. Încearcă din nou.",
     "retry": "Încearcă din nou"
   },
-  "contactPlaceholder": {
-    "title": "Formularul de contact urmează",
-    "body": "Pagina de contact nu este încă disponibilă în această versiune a configuratorului.",
-    "back": "Înapoi la configurare"
+  "contact": {
+    "topBarTitle": "Contact",
+    "heading": "Unde îți trimitem oferta?",
+    "subheading": "Design-ul tău se atașează automat. Un consultant îl verifică și revine cu prețul final.",
+    "headingNoDesign": "Cum te putem contacta?",
+    "subheadingNoDesign": "Spune-ne cum putem să te contactăm, iar un consultant revine la tine ca să configurăm bucătăria împreună.",
+    "nameLabel": "Nume",
+    "namePlaceholder": "Numele tău",
+    "phoneLabel": "Telefon",
+    "phonePlaceholder": "0__ ___ ___",
+    "localityLabel": "Oraș sau localitate",
+    "localityPlaceholder": "Chișinău",
+    "emailLabel": "Adresa de e-mail",
+    "emailPlaceholder": "nume@exemplu.md",
+    "channelLabel": "Cum preferi să fii contactat?",
+    "channels": {
+      "phone": "Telefon",
+      "whatsapp": "WhatsApp",
+      "email": "E‑mail"
+    },
+    "consent": "Sunt de acord cu prelucrarea datelor pentru a primi oferta.",
+    "consentProvisionalMarker": "Text provizoriu",
+    "callToAction": "Trimite cererea",
+    "sending": "Se trimite…",
+    "sendingLine": "Nu închide pagina — atașăm design-ul la cerere.",
+    "sendingLineNoDesign": "Nu închide pagina — trimitem cererea ta.",
+    "reviewLink": "Verifică designul",
+    "retry": "Încearcă din nou",
+    "unavailable": "Momentan nu putem primi cereri prin acest formular. Încearcă din nou puțin mai târziu.",
+    "fieldErrors": {
+      "REQUIRED": "Completează acest câmp.",
+      "TOO_LONG": "Textul este prea lung. Scurtează-l.",
+      "FORBIDDEN_CHARACTER": "Textul conține un caracter pe care nu îl putem primi. Șterge-l și încearcă din nou.",
+      "MALFORMED": "Adresa de e-mail pare greșită. Verific-o.",
+      "PHONE_MOLDOVAN_INCOMPLETE": "Numărul pare incomplet. Așteptăm 8 cifre după prefix.",
+      "PHONE_MOLDOVAN_TOO_MANY_DIGITS": "Numărul are prea multe cifre pentru Moldova (după prefix sunt 8). Dacă numărul nu este din Moldova, scrie-l cu + și prefixul țării, de exemplu +40 722 123 456.",
+      "PHONE_MOLDOVAN_SECOND_ZERO": "După 0 sau +373 nu poate urma încă un 0. Dacă folosești prefixul internațional, scrie + în loc de 00.",
+      "PHONE_INTERNATIONAL_INCOMPLETE": "Numărul internațional pare incomplet. Verifică dacă ai scris toate cifrele de după +.",
+      "PHONE_INTERNATIONAL_TOO_MANY_DIGITS": "Numărul internațional are prea multe cifre. Un număr are cel mult 15 cifre, cu tot cu prefixul țării.",
+      "PHONE_FORMAT_UNRECOGNISED": "Nu recunoaștem formatul numărului. Scrie-l cu 0 la început sau cu + și prefixul țării.",
+      "CONSENT_NOT_GIVEN": "Avem nevoie de acordul tău ca să putem trimite oferta."
+    },
+    "outcomes": {
+      "refused": "Unele câmpuri nu sunt completate corect. Verifică-le și trimite din nou.",
+      "conflict": "Cererea nu a putut fi înregistrată în forma ei de acum. Trimite-o încă o dată.",
+      "designNotCurrent": "Înainte să trimitem cererea, verifică din nou designul.",
+      "limited": "Prea multe cereri într-un timp scurt. Poți trimite din nou după ora {time}.",
+      "limitedTomorrow": "Din păcate, ai încercat să generezi o bucătărie de prea multe ori într-un timp scurt. Te încurajăm să revii mâine, după ora {time}."
+    }
+  },
+  "submissionResult": {
+    "topBarTitle": "Cerere trimisă",
+    "sentHeading": "Cererea a plecat",
+    "referenceLabel": "Număr cerere",
+    "copy": "Copiază",
+    "copied": "Copiat",
+    "channelLine": "{channel, select, phone {Te sunăm la {contact}.} whatsapp {Te sunăm pe WhatsApp la {contact}.} other {Îți scriem la {contact}.}}",
+    "channelLineWithoutValue": "Te contactăm pe canalul ales, la datele pe care le-ai completat în cerere.",
+    "savedSentence": "Design-ul este salvat — îl poți redeschide oricând din acest browser.",
+    "nextStepsTitle": "Ce urmează",
+    "nextStepsProvisionalMarker": "Text provizoriu",
+    "nextStepVerify": "Un consultant verifică dacă toate corpurile intră în camera ta așa cum le-ai așezat.",
+    "nextStepFinalPrice": "Primești prețul final.",
+    "nextStepMeasure": "Dacă ești de acord, programăm măsurarea la fața locului.",
+    "backToDesign": "Înapoi la design",
+    "reviewLink": "Verifică designul",
+    "sendOnWhatsapp": "Trimite design-ul pe WhatsApp",
+    "openWhatsapp": "Deschide WhatsApp",
+    "whatsappMessageToShop": "Bună ziua! Designul bucătăriei mele din configuratorul Lemnaria, cererea {reference}: {link}",
+    "noRequest": "Nu avem nicio cerere trimisă pentru acest design, în forma lui de acum.",
+    "notShown": "Nu putem arăta acum starea cererii tale. Încearcă din nou puțin mai târziu.",
+    "alreadySentHeading": "Cererea pentru această bucătărie a fost deja trimisă",
+    "alreadySentAdvice": "Ai greșit ceva în cerere? Sună-ne la {phone} și spune-ne numărul cererii — corectăm împreună.",
+    "alreadySentChangedKitchen": "Dacă schimbi bucătăria, poți trimite o cerere nouă pentru ea.",
+    "callShop": "Sună direct la noi",
+    "failureHeading": "Nu am putut trimite cererea",
+    "failureLostConnection": "Conexiunea s-a întrerupt.",
+    "failureNotSent": "Cererea nu a ajuns la noi. Încearcă din nou.",
+    "failureKept": "Design-ul și datele tale rămân aici cât timp pagina este deschisă — nu ai pierdut nimic.",
+    "failureKeptNoDesign": "Datele tale rămân aici cât timp pagina este deschisă — nu ai pierdut nimic.",
+    "keptTitle": "Păstrat cât timp pagina este deschisă",
+    "keptContact": "Datele de contact completate",
+    "waitingForConnection": "Așteptăm conexiunea…",
+    "retryAutomatically": "Când revine conexiunea, încercăm din nou automat, cât timp pagina rămâne deschisă. Nu trebuie să introduci datele din nou."
+  },
+  "leadNotice": {
+    "subject": "Cerere din configurator {reference}",
+    "line": "{label}: {value}",
+    "figure": "{label} {amount}",
+    "labels": {
+      "reference": "Referință",
+      "locale": "Limba clientului",
+      "name": "Nume",
+      "phone": "Telefon",
+      "locality": "Localitate",
+      "channel": "Canal preferat",
+      "email": "E-mail",
+      "room": "Cameră",
+      "price": "Preț"
+    },
+    "channels": {
+      "phone": "Apel telefonic",
+      "whatsapp": "WhatsApp",
+      "email": "E-mail"
+    },
+    "callbackLine": "Cerere de apel, fără bucătărie configurată.",
+    "emptyValue": "—"
   },
   "band": {
     "base": "bază",
@@ -359,12 +492,12 @@ declare const messages: {
     },
     "accessory": {
       "sink-protective-cover": {
-        "name": "Protecție de aluminiu pentru corpul spălătorului",
-        "description": "Montată în corpul spălătorului, împotriva umidității și a scurgerilor."
+        "name": "Protecție de aluminiu pentru dulapul chiuvetei",
+        "description": "Montată în dulapul chiuvetei, împotriva umidității și a scurgerilor."
       },
       "dish-drying-rack": {
         "name": "Uscător de vase",
-        "description": "Montat în corpul suspendat de deasupra spălătorului."
+        "description": "Montat în dulapul suspendat deasupra chiuvetei."
       }
     }
   },
@@ -394,7 +527,7 @@ declare const messages: {
       "base-hob-2drawer": "Dulap plită și 2 sertare",
       "base-hob-oven": "Dulap plită și cuptor",
       "base-bottle-cargo": "Cargo îngust pentru sticle",
-      "base-sink": "Dulap spălător",
+      "base-sink": "Dulap pentru chiuvetă",
       "base-dishwasher": "Nișă mașină de spălat vase",
       "wall-cabinet": "Dulap suspendat",
       "wall-lift": "Dulap suspendat rabatabil",

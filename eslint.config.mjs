@@ -281,6 +281,92 @@ const ADAPTER_IMPORT_BOUNDARY =
 const WEB_IMPORT_BOUNDARY =
   "Import workspace packages through their public entry point; design-source is reference material, not a runtime dependency.";
 
+// Shared with the shell-design block, which restates it (flat config replaces a rule's options).
+const DOMAIN_IMPORT_PATTERNS = [
+  {
+    group: [
+      "react",
+      "react/*",
+      "next",
+      "next/*",
+      "three",
+      "three/*",
+      "@react-three/*",
+      "@lemnaria/three-adapter",
+      "@lemnaria/three-adapter/*",
+      "@lemnaria/catalog-data",
+      "@lemnaria/catalog-data/*",
+      "@lemnaria/web",
+      "@lemnaria/web/*",
+    ],
+    message: DOMAIN_IMPORT_BOUNDARY,
+  },
+  {
+    regex: relativeClimbInto(
+      "apps|(?:packages/)?(?:three-adapter|catalog-data)",
+    ),
+    message: DOMAIN_IMPORT_BOUNDARY,
+  },
+];
+
+/** **The shell design clips nothing and removes nothing** — ADR 0090 Amendment B4, ADR 0110 Amendment B.
+ *
+ *  The generation starts from a shell whose free runs are recorded as empty space. Clipping those
+ *  columns at a wall end is the void engine's published-face pass, and removing a placement is a
+ *  command; a shell that did either itself would carry a second, private copy of a rule the engine
+ *  already owns. This replaces three tests that read `shell-design.ts` as text.
+ *
+ *  **Reach.** Any import of either name from any module, a namespace import of any module, a bare
+ *  import of either defining module, dynamic `import()`, `require(…)` and `module.require(…)`, any
+ *  identifier carrying either name (a local declaration included), and `new Function`.
+ *
+ *  **Limits.** An import of the clip under another name, re-exported by a module this block does not
+ *  restrict (`body-probe.ts`, `pricing/*`), is unseen, and the adversarial test guards those by loaded
+ *  value; so is `const { require: load } = module`. Nothing stops the shell calling the void engine's
+ *  other passes. */
+const SHELL_DESIGN_FORBIDDEN_NAMES = [
+  "clipEmptyColumnsAtWallEnd",
+  "removePlacement",
+];
+
+const SHELL_DESIGN_MUST_NOT_CLIP_OR_REMOVE =
+  "The shell design must not clip empty columns at a wall end or remove a placement itself; it " +
+  "reaches the clip only through the void engine (ADR 0090 Amendment B4, ADR 0110 Amendment B).";
+
+const SHELL_DESIGN_IMPORT_PATTERN = {
+  group: ["**"],
+  importNames: SHELL_DESIGN_FORBIDDEN_NAMES,
+  message: SHELL_DESIGN_MUST_NOT_CLIP_OR_REMOVE,
+};
+
+const SHELL_DESIGN_FORBIDDEN_MODULE_PATTERNS = [
+  "clip-empty-columns-at-wall-end",
+  "commands/remove-placement",
+].map((modulePath) => ({
+  regex: `(?:^|/)${modulePath}(?:\\.[jt]s)?$`,
+  message: `Even a bare side-effect import of ${modulePath} is a way round the name rule. ${SHELL_DESIGN_MUST_NOT_CLIP_OR_REMOVE}`,
+}));
+
+const SHELL_DESIGN_LATE_BINDING_SELECTORS = [
+  {
+    selector: "ImportExpression",
+    message: `A dynamic import() is a way round the import rule. ${SHELL_DESIGN_MUST_NOT_CLIP_OR_REMOVE}`,
+  },
+  {
+    selector: "CallExpression[callee.name='require']",
+    message: `require() is a way round the import rule. ${SHELL_DESIGN_MUST_NOT_CLIP_OR_REMOVE}`,
+  },
+  {
+    selector:
+      "MemberExpression:matches([computed=false][property.name='require'], [property.value='require'])",
+    message: `module.require() and globalThis.require() are ways round the import rule. ${SHELL_DESIGN_MUST_NOT_CLIP_OR_REMOVE}`,
+  },
+  {
+    selector: `Identifier[name=/^(${SHELL_DESIGN_FORBIDDEN_NAMES.join("|")})$/]`,
+    message: `The name is reserved, whether imported, declared locally or called. ${SHELL_DESIGN_MUST_NOT_CLIP_OR_REMOVE}`,
+  },
+];
+
 export default tseslint.config(
   {
     ignores: [
@@ -338,30 +424,27 @@ export default tseslint.config(
       "no-restricted-imports": [
         "error",
         {
+          patterns: DOMAIN_IMPORT_PATTERNS,
+        },
+      ],
+    },
+  },
+  {
+    // 8Q.10 / ADR 0161 decision 9: Zod is imported through `zod-without-eval.ts`, which configures it
+    // before any schema is built. A distinct rule key from the base `no-restricted-imports` on purpose:
+    // flat config replaces a rule's options wholesale, and the shell-design block restates that list.
+    name: "domain: Zod only through zod-without-eval.ts",
+    files: ["packages/configurator-domain/src/**/*.ts"],
+    ignores: ["packages/configurator-domain/src/zod-without-eval.ts"],
+    rules: {
+      "@typescript-eslint/no-restricted-imports": [
+        "error",
+        {
           patterns: [
             {
-              group: [
-                "react",
-                "react/*",
-                "next",
-                "next/*",
-                "three",
-                "three/*",
-                "@react-three/*",
-                "@lemnaria/three-adapter",
-                "@lemnaria/three-adapter/*",
-                "@lemnaria/catalog-data",
-                "@lemnaria/catalog-data/*",
-                "@lemnaria/web",
-                "@lemnaria/web/*",
-              ],
-              message: DOMAIN_IMPORT_BOUNDARY,
-            },
-            {
-              regex: relativeClimbInto(
-                "apps|(?:packages/)?(?:three-adapter|catalog-data)",
-              ),
-              message: DOMAIN_IMPORT_BOUNDARY,
+              group: ["zod", "zod/*"],
+              message:
+                "Import `z` from zod-without-eval.ts, which runs Zod without eval (ADR 0161 decision 9, 8Q.10); a direct import can build a schema before the configuration runs.",
             },
           ],
         },
@@ -434,6 +517,8 @@ export default tseslint.config(
     // — 21 of those in three files whose literals are the subject, 33 at individual sites.
     //
     // `src/messages/**` is the one place Romanian belongs, and `ro.d.json.ts` is its generated type.
+    //
+    // A later block restates this list for `packages/configurator-domain/src/generation/shell-design.ts`.
     name: "6B-j: no Romanian literal outside the message catalogue",
     files: [
       "apps/web/src/**/*.{ts,tsx}",
@@ -485,6 +570,35 @@ export default tseslint.config(
         ...ROOM_EXAMPLE_DIMENSION_SELECTORS,
         ...ROOM_HISTORY_WRITE_SELECTORS,
       ],
+    },
+  },
+  {
+    // **The shell design's own gate, and why it re-declares two lists it does not own.**
+    //
+    // `no-restricted-imports` and `no-restricted-syntax` are both already set for this file by the
+    // domain-boundary block and the 6B-j diacritic block above, and flat config replaces a rule's
+    // options rather than merging them — so this block spells those entries again and adds its own.
+    // Dropping a spread here would silently switch off the domain's import boundary or the Romanian
+    // gate for exactly this file. Adding to this block means re-declaring every list already in it.
+    name: "shell design: no clip and no remove of its own",
+    files: ["packages/configurator-domain/src/generation/shell-design.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            ...DOMAIN_IMPORT_PATTERNS,
+            SHELL_DESIGN_IMPORT_PATTERN,
+            ...SHELL_DESIGN_FORBIDDEN_MODULE_PATTERNS,
+          ],
+        },
+      ],
+      "no-restricted-syntax": [
+        "error",
+        ...ROMANIAN_LITERAL_SELECTORS,
+        ...SHELL_DESIGN_LATE_BINDING_SELECTORS,
+      ],
+      "no-new-func": "error",
     },
   },
   ...romanianLiteralAllowanceBlocks,

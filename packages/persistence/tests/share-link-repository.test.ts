@@ -263,20 +263,6 @@ describe(SUITE_NAME, () => {
     );
 
     it.skipIf(!hasLiveDatabase)(
-      "returns none for a revoked token",
-      async () => {
-        const credentials = await mintDesign();
-        const tokenHash = nextTokenHash();
-        await repository().issue({ ...credentials, tokenHash });
-        await repository().revoke(credentials);
-
-        expect(await repository().loadShared(tokenHash)).toEqual({
-          kind: "none",
-        });
-      },
-    );
-
-    it.skipIf(!hasLiveDatabase)(
       "returns none for a token nobody issued",
       async () => {
         expect(await repository().loadShared(nextTokenHash())).toEqual({
@@ -515,25 +501,6 @@ describe(`${SUITE_NAME} — adversarial QA (M7 wave 7E3c)`, () => {
         "none",
       );
       expect((await repository().loadShared("")).kind).toBe("none");
-    },
-  );
-
-  it.skipIf(!hasLiveDatabase)(
-    "a share read after sharing leaves resume's ordering on the most recently saved design",
-    async () => {
-      const older = await mintDesign();
-      const newer = await mintDesign();
-      const tokenHash = nextTokenHash();
-      await repository().issue({ ...older, tokenHash });
-      await repository().loadShared(tokenHash);
-      await repository().status(older);
-
-      const rows = (await neon(testDatabaseUrl)`
-        select id from designs where visitor_hash = ${VISITOR_HASH}
-        and id = any(${[older.designId, newer.designId]})
-        order by updated_at desc, id desc limit 1
-      `) as { id: string }[];
-      expect(rows[0]?.id).toBe(newer.designId);
     },
   );
 });

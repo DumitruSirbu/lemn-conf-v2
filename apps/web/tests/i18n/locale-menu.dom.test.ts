@@ -47,7 +47,9 @@ vi.mock("next/navigation", async (importOriginal) => ({
 // otherwise replace the whole surface with the unsupported notice and there would be no top bar to
 // read. Everything the claims below rest on — the top bar, the price bar, the overflow sentence —
 // stays real.
-vi.mock("@/scene/webgl-support", () => ({ detectWebGLSupport: () => true }));
+vi.mock("@/scene/webgl-support", () => ({
+  useWebGLSupport: () => "supported",
+}));
 vi.mock("@/scene/kitchen-canvas", () => ({ default: () => null }));
 vi.mock("@/panel/editor-panel", () => ({ EditorPanel: () => null }));
 vi.mock("@/price/price-breakdown", () => ({ PriceBreakdown: () => null }));
@@ -233,20 +235,6 @@ describe("switching locale changes the language and nothing else", () => {
     },
   );
 
-  // 6B-b's shared-design invariant, carried across the switch: the bare id is what a customer sent
-  // someone, and a control that dropped it would turn a shared link into a stranger's kitchen.
-  it.each(SWITCHES)(
-    "keeps a shared design's own link from %s to %s",
-    (from, to) => {
-      renderAt(from, `/${from}/d/${SHARED_DESIGN_ID}`);
-      openMenu();
-
-      expect(attributeOf(optionFor(to), "href")).toBe(
-        `/${to}/d/${SHARED_DESIGN_ID}`,
-      );
-    },
-  );
-
   it("draws the same design in the other language, not a fresh one", () => {
     const romanian = renderAt("ro", `/ro/d/${SHARED_DESIGN_ID}`);
     const russian = renderAt("ru", `/ru/d/${SHARED_DESIGN_ID}`);
@@ -284,6 +272,29 @@ describe("switching locale changes the language and nothing else", () => {
       requireLeafAt(CATALOGUE_OF.ro, "configure.overflowWarning"),
     );
   });
+});
+
+describe("the step pill a screen reader gets", () => {
+  // "2/4" read aloud is two numbers and a slash, so the accessibility tree keeps the sentence the caption said. Read off
+  // the rendered element: the attribute written in a comment, or on another element, names nothing.
+  const STEP_SENTENCE_IN: Record<ShippedLocale, string> = {
+    ro: "Pasul 2 din 4",
+    ru: "Шаг 2 из 4",
+  };
+  const STEP_AS_DRAWN = "2/4";
+
+  it.each(SHIPPED_LOCALES)(
+    "names %s's step pill with the sentence, and draws only the two numbers",
+    (locale) => {
+      renderAt(locale, `/${locale}/d/qa-design`);
+      const pill = container.querySelector('[data-testid="top-bar-step"]');
+      if (pill === null) throw new Error("the top bar drew no step pill");
+
+      expect(pill.getAttribute("aria-label")).toBe(STEP_SENTENCE_IN[locale]);
+      expect(pill.getAttribute("role")).toBe("img");
+      expect(pill.textContent).toBe(STEP_AS_DRAWN);
+    },
+  );
 });
 
 describe("the control a screen reader and a keyboard get", () => {
@@ -383,17 +394,6 @@ describe("the control a screen reader and a keyboard get", () => {
 
       expect(flag?.tagName.toLowerCase()).toBe("svg");
       expect(flag?.getAttribute("aria-hidden")).toBe("true");
-    }
-  });
-
-  /** And the flag adds nothing to what is *read*: the announcement is still the endonym alone, which
-   *  is the whole reason the flag is hidden rather than labelled. */
-  it("leaves the announced name the endonym and nothing beside it", () => {
-    renderAt("ro", "/ro/d/qa-design");
-    openMenu();
-
-    for (const locale of SHIPPED_LOCALES) {
-      expect(optionFor(locale).textContent).toBe(endonymOf(locale));
     }
   });
 });

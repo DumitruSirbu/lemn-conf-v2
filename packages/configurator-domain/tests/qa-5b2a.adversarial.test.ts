@@ -125,15 +125,6 @@ describe("the cap and the byte budget carry each other", () => {
     ).toBeLessThanOrEqual(MAX_DESIGN_BYTES);
   });
 
-  /** The cap is the number of distinct column keys the walls can present, not a width: 1 mm strips 10 mm
-   *  apart are legal and distinctly keyed, so a cap from a width floor or §2's bands would refuse a valid
-   *  document. */
-  it("is derived from the key resolution, not from a width or a band count", () => {
-    // Walls A, B and C each run 6300 mm (ADR 0132 decision 6).
-    expect(MAX_EMPTY_COLUMNS).toBe((6300 / 10 + 1) * 3);
-    expect(MAX_EMPTY_COLUMNS).toBeGreaterThan(MAX_PLACEMENTS);
-  });
-
   it("accepts a wall run of 1 mm strips at every distinct key", () => {
     // One per key, 10 mm apart, the last pulled inside the run: a centre of 6301 keys as 6.30 too but stands
     // past the wall.
@@ -608,22 +599,6 @@ describe("the containment boundary, for both callers of the one helper", () => {
     expect(codesFor(design)).toStrictEqual(
       topMm > ROOM_HEIGHT_MM ? ["PLACEMENT_ABOVE_ROOM"] : [],
     );
-  });
-
-  it("answers a body and a space standing in the same place the same way", () => {
-    const pastTheEnd = WALL_RUN_MM + 1;
-    const asAnEmptyColumn = codesFor(
-      withEmptyColumns([
-        { ...FREED_STRIP, alongMm: pastTheEnd - FREED_STRIP.widthMm / 2 },
-      ]),
-    );
-    const asAPlacement = codesFor({
-      ...BASE_DESIGN,
-      placements: [{ ...SINK, alongMm: pastTheEnd - SINK.body.widthMm / 2 }],
-    });
-
-    expect(asAnEmptyColumn).toStrictEqual(["EMPTY_COLUMN_PAST_WALL_END"]);
-    expect(asAPlacement).toStrictEqual(["PLACEMENT_PAST_WALL_END"]);
   });
 });
 

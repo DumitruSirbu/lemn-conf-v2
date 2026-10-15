@@ -9,10 +9,10 @@
 // whether the kitchen's material offers the one asked for (ADR 0078 decision 6). The capability
 // question is asked first: naming the material at a hood would send the customer to the wrong
 // control.
-import { materialOfDesign } from "../design-material.js";
+import { designOffersFinish } from "../design-material.js";
 import { kindLabel } from "../catalog.js";
 import type { CabinetBody, Design, Handle } from "../design.js";
-import { materialOffersFinish, type Finish } from "../materials.js";
+import type { Finish } from "../materials.js";
 import {
   derivePlacementRecords,
   type BodyCatalog,
@@ -141,18 +141,6 @@ function withoutAFinish(input: AppearanceInput, placementId: string): Design {
     return { ...placement, body };
   });
   return withPlacements(input.design, placements, input.occurredAt);
-}
-
-/** ADR 0078 decision 6, read off the design rather than passed in, so a caller cannot hand this command
- *  a different material than the document's. An undeclared `materialTierId` offers nothing and refuses
- *  nothing (ADR 0078 decision 3): it is a reachable stored state, and a stale tier must stay
- *  recolourable. */
-function designOffersFinish(design: Design, finish: Finish): boolean {
-  const lookup = materialOfDesign(design);
-  return (
-    lookup.kind === "undeclared" ||
-    materialOffersFinish(lookup.material, finish)
-  );
 }
 
 export function setHandle(

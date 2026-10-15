@@ -39,6 +39,22 @@ export function isEditorPathnameOf(
   return isShaped && decodedOrSelf(segments.at(-1) ?? "") === designId;
 }
 
+/** `/{locale}/d/{id}/review` — or `/d/{id}/review` — is the review of design `id`. The editor's own *Verifică
+ *  designul* opens it, so it is still this editor's visit: the entries behind it, the guard among them, stay the
+ *  editor's and Back from the review lands on them. */
+export function isReviewPathnameOf(
+  designId: DesignId,
+  pathname: string,
+): boolean {
+  const segments = pathname.split("/").filter((segment) => segment !== "");
+  const isShaped =
+    segments.length >= 3 &&
+    segments.length <= 4 &&
+    segments.at(-1) === "review" &&
+    segments.at(-3) === "d";
+  return isShaped && decodedOrSelf(segments.at(-2) ?? "") === designId;
+}
+
 function decodedOrSelf(segment: string): string {
   try {
     return decodeURIComponent(segment);
@@ -103,10 +119,12 @@ export interface PopstateFacts {
  * What a traversal that has just landed means for the question. Only a landing on the entry the guard was pushed
  * over asks (Back from the guard); Forward lands on the guard and Step 1 is the customer leaving. While answering,
  * any editor entry that is not the guard is passed through, so *Confirm* and a second Back reach Step 1 in one step.
+ * The editor's own review is neither Step 1 nor a reason to forget: landing on it changes nothing.
  */
 export function decidePopstate(facts: PopstateFacts): PopstateVerdict {
   const { origin, designId, landedPathname } = facts;
   if (designId === null || !isArmedFor(origin, designId)) return "ignore";
+  if (isReviewPathnameOf(designId, landedPathname)) return "ignore";
   if (!isEditorPathnameOf(designId, landedPathname)) return "forget-origin";
   if (facts.isLandedEntryAGuard) {
     return origin.isBeingAnswered ? "close-question" : "ignore";
@@ -312,12 +330,16 @@ function usePopstateQuestion({
 /**
  * The editor going away for another page. A traversal to Step 1 unmounts this screen before it delivers
  * `popstate`, so the URL, which has already moved, is what says so; otherwise the next arrival at the editor
- * (Forward from Step 1) would find a guard on record and ask.
+ * (Forward from Step 1) would find a guard on record and ask. Going to the editor's own review is not leaving:
+ * the origin and the guard it records are what make Back from the editor, after the review, still ask.
  */
 function forgetOriginIfTheEditorHasBeenLeft(designId: DesignId | null): void {
-  const isStillTheEditor =
-    designId !== null && isEditorPathnameOf(designId, window.location.pathname);
-  if (!isStillTheEditor) forgetEditorOrigin();
+  const { pathname } = window.location;
+  const isStillTheVisit =
+    designId !== null &&
+    (isEditorPathnameOf(designId, pathname) ||
+      isReviewPathnameOf(designId, pathname));
+  if (!isStillTheVisit) forgetEditorOrigin();
 }
 
 function applyVerdict(

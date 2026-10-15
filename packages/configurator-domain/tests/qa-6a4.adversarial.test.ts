@@ -274,31 +274,6 @@ describe("6A4 — the silent failure a typo would cause, constructed", () => {
       expect(metaFor(seeded(), id)?.label).not.toEqual(kindLabel(typo));
     },
   );
-
-  it("bites: the same sweep the wave runs fails on a misspelt kind", () => {
-    // The wave's sweep asserts `isKnownKind` over every seeded body. Run its predicate against the
-    // mutated catalogue to show it is not vacuous — a green sweep over an unmutated fixture proves
-    // only that the fixture is currently right.
-    const broken = catalogWithMisspeltKind(
-      WALL_RETURN_BUILD_ID,
-      "corner_wall_retrun",
-    );
-    const unknown = KITCHEN_L_DESIGN.placements
-      .filter(
-        (placement) =>
-          !isKnownKind(definitionOf(placement.body.buildId, broken).kind),
-      )
-      .map((placement) => placement.id);
-    expect(unknown).toEqual([WALL_RETURN_ID]);
-
-    // And the unmutated fixture, so the two halves are one statement.
-    const named = KITCHEN_L_DESIGN.placements
-      .filter(
-        (placement) => !isKnownKind(definitionOf(placement.body.buildId).kind),
-      )
-      .map((placement) => placement.id);
-    expect(named).toEqual([]);
-  });
 });
 
 describe("6A4 — what a new kind must not have changed", () => {

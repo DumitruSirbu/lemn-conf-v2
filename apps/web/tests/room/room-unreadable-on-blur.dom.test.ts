@@ -307,12 +307,6 @@ describe.each(CATALOGUES)("in %s", (locale, messages) => {
   });
 });
 
-it("names the entry unit in words in Romanian, which ADR 0126 allows", () => {
-  expect(
-    requireLeafAt(CATALOGUES[0][1], UNREADABLE_LENGTH_MESSAGE_KEY),
-  ).toContain("milimetri");
-});
-
 // ---------------------------------------------------------------------------------------------
 // Never where it does not belong
 // ---------------------------------------------------------------------------------------------

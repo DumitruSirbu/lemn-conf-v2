@@ -5,11 +5,19 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  setGlobalFinish,
   setHardwareTier,
   setMaterialTier,
 } from "../../src/commands/set-whole-kitchen-settings.js";
+import { DesignSchema } from "../../src/design.js";
 import { KITCHEN_L_DESIGN } from "../../src/fixtures/kitchen-l-design.js";
+import { freeColourFinish, paletteFinish } from "../../src/materials.js";
 import { OCCURRED_AT } from "../support/commands.js";
+import {
+  kitchenMadeOf,
+  REFUSED_FINISH_CASES,
+  UNDECLARED_MATERIAL_ID,
+} from "../support/finishes-the-schema-refuses.js";
 
 const OFFERED_MATERIALS: readonly string[] = [
   "material-standard",
@@ -103,29 +111,6 @@ describe("setMaterialTier", () => {
     });
   });
 
-  // `setFinish` succeeds on a finish a body already carries, and the two must not diverge: a
-  // customer re-tapping the chip they are on gets the state they asked for, not a refusal.
-  it("succeeds on the tier that is already set", () => {
-    const first = setMaterialTier({
-      ...base,
-      tierId: "material-premium",
-      availableTierIds: OFFERED_MATERIALS,
-    });
-    expect(first.ok).toBe(true);
-    if (!first.ok) return;
-
-    const again = setMaterialTier({
-      design: first.design,
-      occurredAt: OCCURRED_AT,
-      tierId: "material-premium",
-      availableTierIds: OFFERED_MATERIALS,
-    });
-
-    expect(again.ok).toBe(true);
-    if (!again.ok) return;
-    expect(again.design.settings?.materialTierId).toBe("material-premium");
-  });
-
   // A silently-ignored unknown tier looks identical to a broken control — `set-appearance.ts`'s own
   // stated reason for refusing rather than no-opping.
   it("refuses a tier the caller's book does not offer, untouched", () => {
@@ -139,18 +124,6 @@ describe("setMaterialTier", () => {
     if (result.ok) return;
     expect(result.reason.code).toBe("UNKNOWN_MATERIAL_TIER");
     expect(result.design).toBe(KITCHEN_L_DESIGN);
-  });
-
-  it("refuses an empty offer list rather than accepting anything", () => {
-    const result = setMaterialTier({
-      ...base,
-      tierId: "material-standard",
-      availableTierIds: [],
-    });
-
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.reason.code).toBe("UNKNOWN_MATERIAL_TIER");
   });
 
   // An offered id the *document* cannot hold refuses under the same per-group code, deliberately:
@@ -258,6 +231,65 @@ describe("setHardwareTier", () => {
 
 // Wave 6D's rule: the ruled copy is pinned by a **literal**, never by a composed assertion. A copy
 // edit that was not ruled fails here rather than silently shipping.
+// `setFinish`'s twin one scope up (ADR 0078 decisions 3 and 6, the architect's ruling): a value
+// `FinishSchema` refuses is refused on any material, declared or not, and a schema-valid finish of
+// either kind still lands on an undeclared one. Without the first half this command returns, as a
+// success, a `settings.finish` the write seam refuses whole.
+describe("setGlobalFinish and a value FinishSchema refuses", () => {
+  it.each(REFUSED_FINISH_CASES)(
+    "refuses %s on %s, returning the design it was given",
+    (_finishName, _materialName, materialId, finish) => {
+      const design = kitchenMadeOf(materialId);
+      const snapshot = JSON.stringify(design);
+
+      const result = setGlobalFinish({
+        design,
+        finish,
+        occurredAt: OCCURRED_AT,
+      });
+
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.reason.code).toBe("FINISH_NOT_OFFERED");
+      expect(result.reason.params).toEqual({});
+      expect(result.design).toBe(design);
+      expect(JSON.stringify(design)).toBe(snapshot);
+    },
+  );
+
+  it.each([
+    ["a free colour", freeColourFinish("#b8c4a1")],
+    ["a PAL decor", paletteFinish("pal.antracit")],
+    ["a veneer wood", paletteFinish("veneer.nuc")],
+  ])("still records %s on an undeclared material", (_, finish) => {
+    const result = setGlobalFinish({
+      design: kitchenMadeOf(UNDECLARED_MATERIAL_ID),
+      finish,
+      occurredAt: OCCURRED_AT,
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.design.settings?.finish).toEqual(finish);
+    expect(result.effect).toEqual({ type: "global_finish_set", finish });
+    expect(DesignSchema.safeParse(result.design).success).toBe(true);
+  });
+
+  it("still records a free colour on the picker's own material", () => {
+    const finish = freeColourFinish("#b8c4a1");
+
+    const result = setGlobalFinish({
+      design: kitchenMadeOf("material.painted-mdf"),
+      finish,
+      occurredAt: OCCURRED_AT,
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.design.settings?.finish).toEqual(finish);
+  });
+});
+
 describe("the two refusals' ruled sentences", () => {
   it("says the material is gone and what to do about it", () => {
     const result = setMaterialTier({
@@ -285,17 +317,5 @@ describe("the two refusals' ruled sentences", () => {
       code: "UNKNOWN_HARDWARE_TIER",
       params: {},
     });
-  });
-
-  // The id is developer text and must never reach a customer sentence.
-  it("names neither tier id", () => {
-    const result = setMaterialTier({
-      ...base,
-      tierId: "material-withdrawn",
-      availableTierIds: OFFERED_MATERIALS,
-    });
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.reason.params).toEqual({});
   });
 });

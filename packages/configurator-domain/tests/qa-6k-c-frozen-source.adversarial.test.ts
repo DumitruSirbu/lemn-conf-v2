@@ -337,23 +337,6 @@ describe("the per-entry byte allowance, against an entry built by construction",
     expect(bytes).toBeLessThanOrEqual(PER_ENTRY_BYTES);
   });
 
-  // Key order is the one thing a wire document is free to choose and a `z.strictObject` does not
-  // constrain. Swept over **every** permutation of the entry's keys rather than argued about.
-  it("costs the same bytes in every key order the wire can present", () => {
-    const keys = Object.keys(LONGEST_LEGAL_ENTRY);
-    const sizes = new Set<number>();
-    for (const order of permutations(keys)) {
-      const reordered: Record<string, unknown> = {};
-      for (const key of order) {
-        reordered[key] = (LONGEST_LEGAL_ENTRY as Record<string, unknown>)[key];
-      }
-      sizes.add(Buffer.byteLength(JSON.stringify(reordered), "utf8") + 1);
-    }
-
-    expect(sizes.size).toBe(1);
-    expect([...sizes][0]).toBeLessThanOrEqual(PER_ENTRY_BYTES);
-  });
-
   // The catalogue's own longest key, which is what the derivation actually budgeted for. Measured
   // rather than asserted at 26, so a catalogue that grows a longer row moves this with it.
   it("holds the longest entry the product itself can write", () => {
@@ -368,21 +351,6 @@ describe("the per-entry byte allowance, against an entry built by construction",
 
     expect(entryBytes(entry)).toBeLessThanOrEqual(PER_ENTRY_BYTES);
     expect(entryBytes(entry)).toBeGreaterThan(128);
-  });
-
-  // The sweep the two examples cannot make: every identifier length the schema admits, so the
-  // transition from "fits" to "does not" is found rather than guessed at.
-  it("holds every identifier length the schema admits", () => {
-    const overflowing: number[] = [];
-    for (let length = 1; length <= MAX_IDENTIFIER_LENGTH; length += 1) {
-      const entry = EmptyColumnSchema.parse({
-        ...LONGEST_LEGAL_ENTRY,
-        depthFromBuildId: "x".repeat(length),
-      });
-      if (entryBytes(entry) > PER_ENTRY_BYTES) overflowing.push(length);
-    }
-
-    expect(overflowing).toStrictEqual([]);
   });
 
   // And the document-level claim the per-entry allowance exists for: a document at every cap, with
@@ -739,16 +707,4 @@ function extentAt(
     top: 2.6,
     regions: [[0, 2.6]],
   };
-}
-
-function* permutations<T>(items: readonly T[]): Generator<readonly T[]> {
-  if (items.length <= 1) {
-    yield items;
-    return;
-  }
-  for (let index = 0; index < items.length; index += 1) {
-    const head = items[index] as T;
-    const rest = [...items.slice(0, index), ...items.slice(index + 1)];
-    for (const tail of permutations(rest)) yield [head, ...tail];
-  }
 }

@@ -12,7 +12,7 @@
 // `setMaterialTier` is the one place a whole-kitchen setting reaches a per-cabinet one (ADR 0057's
 // reset), composed from `withPlacements(withSettings(…))` so `command-result.ts` stays the one place a
 // command writes a new `Design`.
-import { materialOfDesign } from "../design-material.js";
+import { designOffersFinish } from "../design-material.js";
 import {
   DesignSettingsSchema,
   type Design,
@@ -68,8 +68,9 @@ export interface GlobalFinishInput {
  * the document grows no `finish` key and a cleared override falls back here.
  *
  * It refuses a colour the design's material does not offer, with `setFinish`'s code and reason
- * (ADR 0078 decision 6); an undeclared `materialTierId` offers nothing and refuses nothing, so the
- * recovery path keeps working. Setting the colour already set is not a refusal, as in both tier
+ * (ADR 0078 decision 6), and a value `FinishSchema` refuses on any material. An undeclared
+ * `materialTierId` makes no offer of its own, so any schema-valid colour passes and the recovery path
+ * keeps working. Setting the colour already set is not a refusal, as in both tier
  * commands.
  */
 export function setGlobalFinish(
@@ -89,16 +90,6 @@ export function setGlobalFinish(
     type: "global_finish_set",
     finish: input.finish,
   });
-}
-
-/** ADR 0078 decision 6's question, read off the design being rewritten. An undeclared tier has no
- *  palette to judge against, so the colour passes, as in `setFinish` one scope down. */
-function designOffersFinish(design: Design, finish: Finish): boolean {
-  const lookup = materialOfDesign(design);
-  return (
-    lookup.kind === "undeclared" ||
-    materialOffersFinish(lookup.material, finish)
-  );
 }
 
 export function setMaterialTier(

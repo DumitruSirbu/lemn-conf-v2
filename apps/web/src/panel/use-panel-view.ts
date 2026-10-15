@@ -51,6 +51,9 @@ export function usePanelView(): PanelView {
   // Read as facts and handed straight to `describePanel`, which owns what they mean; nothing is combined here.
   const canWrite = useConfiguratorStore((state) => state.canWrite);
   const saveStatus = useConfiguratorStore((state) => state.saveStatus);
+  const saveResumesAtMs = useConfiguratorStore(
+    (state) => state.saveResumesAtMs,
+  );
 
   return useMemo(
     () =>
@@ -69,6 +72,7 @@ export function usePanelView(): PanelView {
         isBodyProbeAttached,
         canWrite,
         saveStatus,
+        saveResumesAtMs,
       }),
     [
       content,
@@ -85,6 +89,7 @@ export function usePanelView(): PanelView {
       isBodyProbeAttached,
       canWrite,
       saveStatus,
+      saveResumesAtMs,
     ],
   );
 }

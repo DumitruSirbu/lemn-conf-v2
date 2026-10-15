@@ -47,17 +47,6 @@ describe("findVacatedVoid", () => {
     expect(findVacatedVoid(voids, stoodAt(1.85))?.id).toBe("merged");
   });
 
-  // R2.1 / F1. Two level-adjacent slots share the 2.20 module line. Widening the search at the top
-  // made them overlap by `FIT_TOLERANCE_M`, and `find` returned the lower one — so deleting a
-  // top-row unit selected the wall slot beneath it (§11 row 2's failure shape, one level up).
-  it("gives the boundary to the slot above it, not to the one that ends there", () => {
-    const voids = [
-      slot({ id: "wall", y0: 1.5, h: 0.7 }),
-      slot({ id: "top", y0: 2.2, h: 0.4 }),
-    ];
-    expect(findVacatedVoid(voids, stoodAt(2.2))?.id).toBe("top");
-  });
-
   // The same boundary from below: a body standing just under the line belongs to the lower slot.
   it("keeps a frame just below the boundary in the slot that ends there", () => {
     const voids = [

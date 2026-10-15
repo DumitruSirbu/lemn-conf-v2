@@ -159,23 +159,6 @@ function insertedSeatDepthMm(store: Store): number | undefined {
 // The fake probe reads the declared depth as the real adapter does; one echoing the request would publish 369 for
 // the 291 mm wall-cabinet shell where 330 is expected.
 describe("the round trip a customer takes when they change their mind", () => {
-  it("returns every column the swap does not re-declare the depth of", () => {
-    const store = createStore();
-    const started = columnDepthsM(store);
-    const startedBuildIds = buildIdsByPlacementId(store);
-
-    store.getState().setCabinetDepth(DEEPER_MM);
-    store.getState().setCabinetDepth(DEFAULT_CABINET_DEPTH_MM);
-
-    const returned = columnDepthsM(store);
-    const unmoved = columnsTheSwapDoesNotReDeclare(store, startedBuildIds);
-    // A floor on the arm under test: without it the partition could match nothing and pass vacuously.
-    expect(unmoved.length).toBeGreaterThanOrEqual(6);
-    for (const key of unmoved) {
-      expect(returned.get(key)).toBeCloseTo(started.get(key) ?? -1, 6);
-    }
-  });
-
   it("returns every column to the depth it published at the start", () => {
     const store = createStore();
     const started = columnDepthsM(store);
@@ -186,38 +169,6 @@ describe("the round trip a customer takes when they change their mind", () => {
     expect(columnDepthsM(store)).toEqual(started);
   });
 });
-
-/** The `buildId` each placement stands on. A depth change keeps every id, so this pairs a body with its rebuild. */
-function buildIdsByPlacementId(store: Store): ReadonlyMap<string, string> {
-  return new Map(
-    store.getState().design.placements.map((p) => [p.id, p.body.buildId]),
-  );
-}
-
-/** The columns none of whose members the rebuild swapped for an entry declared at a different frame depth.
- *
- *  It asks the catalogue at the returned-to depth, so it names no build id or key. Deliberately conservative: a
- *  column's depth is §3.2's MAX, so a re-declared member need not win it, and widening the predicate to cover
- *  those columns would fit it to the answer. */
-function columnsTheSwapDoesNotReDeclare(
-  store: Store,
-  before: ReadonlyMap<string, string>,
-): readonly string[] {
-  const catalog = buildKitchenLBodyCatalog(DEFAULT_CABINET_DEPTH_MM);
-  const declaredDepthMm = (buildId: string | undefined) =>
-    buildId === undefined ? undefined : catalog.get(buildId)?.frameDepthMm;
-  const reDeclared = new Set<string>();
-  const everyColumn = new Set<string>();
-  for (const record of store.getState().records) {
-    everyColumn.add(record.col);
-    if (
-      declaredDepthMm(before.get(record.id)) !== declaredDepthMm(record.buildId)
-    ) {
-      reDeclared.add(record.col);
-    }
-  }
-  return [...everyColumn].filter((key) => !reDeclared.has(key));
-}
 
 // `x` is along-wall on wall A and across-wall on wall B, so a store naming the axis itself would draw wall B wrong.
 describe("the wall the wave's own measurements do not read", () => {

@@ -193,3 +193,12 @@ Recorded so they are visible and overturnable rather than discovered in the code
   physically stands. It becomes that assertion instead.
 - **ADR 0029 and ADR 0030 keep their catalogue rules** — what a cabinet may be built at is unchanged.
   What they no longer have to protect is a *donor's* residue, because there is no donor.
+
+> **Dated note, 2026-10-08 (tests-review fix-up, ADR 0152; nothing struck).** A width resize rebuilds a seeded body
+> through its §7 equivalent ([ADR 0022](0022-seeded-entries-declare-their-catalogue-equivalent.md), amendment of
+> 2026-08-27), so a seeded base recorded at 820 mm is written back at 860 mm on its first resize. Pinned by
+> `qa-w5c.adversarial.test.ts` "Q11 … migrates a seeded base cabinet from its 820 mm frame to §7's 860 mm one, once" and by
+> `set-width.test.ts` "keeps every member's module line and builds each at its §7 equivalent's height" (both titles
+> confirmed present). **An inference by the architect** from DEVELOPMENT-SPEC §5.4, §7 and §5.2 and the ADR 0022
+> amendment, which no record stated in these words until now [relayed]. The 820/860 gap itself is measured in
+> [ADR 0093](0093-a-rule-the-shipped-kitchen-cannot-exercise-owes-a-witness-not-a-moved-fixture.md) Amendment A.

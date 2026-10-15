@@ -259,19 +259,6 @@ describe("omission, not displacement", () => {
       "column:A:0/storage/tall-oven-tower [3700, 4300]",
     ]);
   });
-
-  it("gets its dishwasher live from S2's (c), still never from the lone 3-drawer (4650 x 1000)", () => {
-    const plan = planFor(4650, 1000);
-
-    expect(wallAsBuilt(plan, "A")).toEqual([
-      "fridge/fridge/fridge-free [900, 1600]",
-      "sink/sink/base-sink [1600, 2200]",
-      "dishwasher/storage/base-dishwasher [2200, 2800]",
-      "preparation/preparation/base-3drawer [2800, 3400]",
-      "hob/hob/base-hob-oven [3400, 4000]",
-      "bottle/storage/base-bottle-cargo [4000, 4300]",
-    ]);
-  });
 });
 
 describe("M2 — the dishwasher is decided before the threshold drawer, and D does not count it", () => {

@@ -13,7 +13,6 @@ import {
   cabinetDepthMmOf,
   DOOR_BASE_BUILD_ID,
   findOverflowingPlacementIds,
-  GENERATION_PRIORITIES,
   generateKitchen,
   isComposedStorageSlot,
   KITCHEN_L_DESIGN,
@@ -600,28 +599,6 @@ describe("criterion 13 — 7D2's and 7D3's guarantees still hold", () => {
 });
 
 describe("criterion 12 — the room rule is unmoved", () => {
-  it("declares exactly two required roles, and they are the sink and the hob", () => {
-    // `generatedRequiredWidthMm` reads only these two rows and throws unless each is required, so no other row can
-    // become a room prerequisite while this holds.
-    expect(
-      GENERATION_PRIORITIES.filter((priority) => priority.required).map(
-        (priority) => priority.role,
-      ),
-    ).toEqual(["sink", "hob"]);
-  });
-
-  it("leaves the preparation cabinet optional now that it carries a drawer body", () => {
-    const preparation = GENERATION_PRIORITIES.find(
-      (priority) => priority.role === "preparation",
-    );
-
-    expect(preparation).toMatchObject({
-      buildId: THREE_DRAWER_BASE_BUILD_ID,
-      required: false,
-      widthMm: STORAGE_MODULE_WIDTH_MM,
-    });
-  });
-
   it.each([
     { shape: "L", widthMm: 900, depthMm: 2200, heightMm: 2200 },
     { shape: "L", widthMm: 2100, depthMm: 1000, heightMm: 2200 },

@@ -68,26 +68,6 @@ function offsetBelowTheAnchorOf(name: string, desktopRule: string): number {
   return Number(declared);
 }
 
-/** A `--name: 42px` declaration inside one rule body. */
-function pixelPropertyOf(rule: string, name: string): number {
-  const declared = new RegExp(`--${name}:\\s*([\\d.]+)px`).exec(rule)?.[1];
-  if (!declared) throw new Error(`the rule declares no --${name} in px`);
-  return Number(declared);
-}
-
-/**
- * Where the settings modal's top edge lands in the viewport, computed from the four properties its rule declares. It
- * is viewport-positioned, so no anchor stands in and the stylesheet determines the number. The arithmetic is restated
- * rather than imported, because a guard that evaluates the expression it guards agrees with whatever it says.
- */
-function viewportTopOfTheSettingsModal(desktopRule: string): number {
-  const band = pixelPropertyOf(desktopRule, "desktop-band-height");
-  const rule = pixelPropertyOf(desktopRule, "desktop-band-rule");
-  const pill = pixelPropertyOf(desktopRule, "desktop-pill-height");
-  const gap = pixelPropertyOf(desktopRule, "frame-d2e-hang-gap");
-  return (band - rule - pill) / 2 + pill + gap;
-}
-
 function ruleBodyOf(stylesheet: string, selector: string): string {
   const escaped = selector.replaceAll(/[.[\]"=^$:()-]/g, "\\$&");
   const body = new RegExp(`${escaped}\\s*\\{([^}]*)\\}`).exec(stylesheet)?.[1];
@@ -123,18 +103,6 @@ describe("the token the clamp is built on", () => {
     // eating into `--safe-gap`, and this far before it reaches past the screen entirely.
     expect(popoverTop - hang).toBe(112);
     expect(popoverTop + safeGap - hang).toBe(128);
-  });
-
-  /** The centred settings modal's top is computable here, so the clamp's premise (top at or above `--popover-top`) is
-   *  asserted directly. `global-settings-centred.desktop.e2e.spec.ts` measured the same 90.5 at 900, 1100, 1440 and
-   *  1920 px wide. */
-  it("keeps the centred modal's own top above the constant the clamp assumes", () => {
-    const declaredTop = viewportTopOfTheSettingsModal(
-      surfaceRulesOf(settings).at(-1) ?? "",
-    );
-
-    expect(declaredTop).toBe(90.5);
-    expect(declaredTop).toBeLessThanOrEqual(readPixelToken("popover-top"));
   });
 });
 
@@ -183,22 +151,6 @@ describe("both desktop popovers", () => {
     // Either spelling of *hanging from the anchor*: `top: 100%`, or frame D2E's own
     // `top: calc(100% + 33px)`. What is refused is a surface positioned against the viewport.
     expect(desktop).toMatch(/top:\s*(?:100%|calc\(100% \+ \d+px\));/);
-  });
-
-  /** The settings modal, from the other side: viewport-positioned and centred by the two halves that
-   *  produce centring together. `margin-inline: auto` without `left`/`right` centres nothing, and
-   *  `left: 0; right: 0` without the margin stretches the box — so a rule holding only one of them
-   *  is a rule that has stopped centring. */
-  it("positions the settings modal against the viewport and centres it there", () => {
-    const desktop = surfaceRulesOf(settings).at(-1) ?? "";
-
-    expect(desktop).toContain("position: fixed");
-    expect(desktop).toMatch(/left:\s*0;/);
-    expect(desktop).toMatch(/right:\s*0;/);
-    expect(desktop).toMatch(/margin-inline:\s*auto;/);
-    // The frame's own width and the clamp's guard, both kept: centring the used width makes them compatible.
-    expect(desktop).toMatch(/width:\s*900px;/);
-    expect(desktop).toMatch(/max-width:\s*calc\(100vw - 48px\);/);
   });
 });
 

@@ -1,0 +1,343 @@
+/* Frame 5A as one scrolling page, on the phone's layout. The document scrolls; the bottom region is sticky, so it stays
+ * at the viewport's foot while there is more to read and sits in the flow, below the last block, when there is not.
+ * Nothing here is `position: fixed`, so nothing can cover the last block.
+ *
+ * Wider screens get the same column, centred and capped: no desktop chrome is drawn for this screen (ADR 0148 A3).
+ * Nothing on this screen moves, so there is no motion to reduce. */
+.screen {
+  --success: #2d5016;
+  --selected-surface: #ece7dd;
+
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 640px;
+  min-height: 100dvh;
+  margin-inline: auto;
+  background: var(--paper);
+}
+
+/* The bar: the title, then the language control, which brings its own cell. There is no way back from here. */
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 14px;
+  background: var(--paper);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+/* The frame's check chip: drawn here, so that no text carries it, and only beside a title that claims a send. */
+.barMark {
+  flex: 0 0 auto;
+  padding: 5px 6px;
+  font: 700 11px/1 var(--font-ui);
+  color: var(--paper);
+  background: var(--success);
+  border-radius: 5px;
+}
+
+.barMark::before {
+  content: "\2713";
+}
+
+.navTitle {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font: 700 15px/1 var(--font-ui);
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The language menu's cell carries the editor's rule under it, which this taller bar would show floating. */
+.nav .localeSlot > * {
+  border-bottom: 0;
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 17px;
+  padding: 24px 18px 20px;
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+/* The frame's 46 px disc with its check; the check is drawn here and the disc is hidden from assistive technology. */
+.disc {
+  display: block;
+  width: 46px;
+  height: 46px;
+  font: 700 22px/46px var(--font-ui);
+  color: var(--paper);
+  text-align: center;
+  background: var(--success);
+  border-radius: 50%;
+}
+
+.disc::before {
+  content: "\2713";
+}
+
+.heading {
+  margin: 0;
+  font: 700 24px/1.2 var(--font-ui);
+  letter-spacing: -0.015em;
+  overflow-wrap: anywhere;
+}
+
+.summary {
+  margin: 0;
+  font: 400 13.5px/1.6 var(--font-ui);
+  color: var(--ink-muted);
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+}
+
+.referenceCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 13px 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 11px;
+}
+
+.referenceText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.referenceLabel {
+  font: 400 10.5px/1 var(--font-ui);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+/* A reference of any length wraps inside the card and is selected whole by one tap, so it can be copied by hand where
+ * the clipboard is refused. */
+.reference {
+  font: 700 17px/1.3 var(--font-ui);
+  letter-spacing: 0.04em;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+.copyArea {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.copied {
+  font: 700 12px/1 var(--font-ui);
+  color: var(--success);
+}
+
+.copyButton {
+  min-width: var(--touch-target);
+  min-height: var(--touch-target);
+  padding: 0 6px;
+  font: 700 12px/1 var(--font-ui);
+  color: var(--accent);
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+
+.copyButton:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.stepsHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.stepsHeading {
+  margin: 0;
+  font: 700 10.5px/1 var(--font-ui);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+/* The steps' wording is a slot until the owner confirms it (Q9): the tag says so. */
+.marker {
+  display: inline-block;
+  padding: 1px 6px;
+  font: 700 10px/1.4 var(--font-ui);
+  letter-spacing: 0.04em;
+  color: var(--accent-strong);
+  background: var(--selected-surface);
+  border-radius: 4px;
+}
+
+.stepList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.step {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+}
+
+.stepNumber {
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  font: 700 11px/22px var(--font-ui);
+  color: var(--accent-strong);
+  text-align: center;
+  background: var(--selected-surface);
+  border-radius: 50%;
+}
+
+.stepText {
+  flex: 1;
+  font: 400 12.5px/1.45 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+/* The frame's neutral square, which is also what stands there while WebGL is asked and where it is missing. */
+.picture {
+  position: relative;
+  height: 130px;
+  overflow: hidden;
+  background: repeating-linear-gradient(
+    135deg,
+    #e9e4da 0 9px,
+    #f1ede5 9px 18px
+  );
+  border-radius: 13px;
+}
+
+.reviewLink {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  min-height: var(--touch-target);
+  font: 700 13px/1 var(--font-ui);
+  color: var(--accent);
+}
+
+/* The foot: the way back to the design, 48 px as frame 5A draws it. Sticky and in the flow, so it ends the page and
+ * never covers the last block. */
+.bottom {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 13px 18px calc(20px + env(safe-area-inset-bottom, 0px));
+  background: var(--paper);
+  border-top: 1px solid var(--line);
+}
+
+/* The WhatsApp action above the way back. Its sentences sit above the control, inside a live region that is drawn empty
+ * and takes no room, so the control never moves when one arrives. */
+.whatsapp {
+  display: flex;
+  flex-direction: column;
+}
+
+.whatsappNote,
+.whatsappError {
+  margin: 0 0 8px;
+  font: 400 12.5px/1.35 var(--font-ui);
+}
+
+.whatsappNote {
+  color: var(--ink-muted);
+}
+
+.whatsappError {
+  color: #b3261e;
+}
+
+/* The frame's 52 px brown button, as a button and as the external link that follows it. */
+.whatsappAction {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  padding: 8px 22px;
+  font: 700 15px/1.15 var(--font-ui);
+  color: var(--paper);
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  background: var(--accent);
+  border: 0;
+  border-radius: 12px;
+}
+
+.whatsappAction[aria-disabled="true"] {
+  cursor: default;
+  opacity: 0.65;
+}
+
+.whatsappAction:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+
+.backToDesign {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 8px 22px;
+  font: 700 14px/1.15 var(--font-ui);
+  color: var(--accent-strong);
+  text-align: center;
+  text-decoration: none;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.backToDesign:focus-visible,
+.reviewLink:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+
+@media (min-width: 900px) {
+  .body {
+    padding-inline: 24px;
+  }
+
+  .bottom {
+    padding-inline: 24px;
+  }
+}

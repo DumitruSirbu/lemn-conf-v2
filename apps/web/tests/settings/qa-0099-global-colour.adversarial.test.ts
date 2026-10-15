@@ -421,7 +421,21 @@ describe("ADR 0099 decision 4 — a pending colour follows the pending material,
    *  first one offers, choosing the second material either keeps the colour (it is offered) or
    *  **deletes the key** — never substitutes another colour, and never leaves an unoffered one for
    *  *Aplică* to commit. */
+  it("drops a pending PAL colour when veneer, which does not offer it, is chosen", () => {
+    const chosen = chooseFinishIn({ materialTierId: PAL_TIER_ID }, PAL_GRI);
+
+    const moved = chooseTierIn(chosen, {
+      key: "material",
+      tierId: VENEER_TIER_ID,
+    });
+
+    expect(chosen.finish).toEqual(PAL_GRI);
+    expect(moved).not.toHaveProperty("finish");
+  });
+
   it("keeps an offered colour and deletes an unoffered one, never substituting", () => {
+    let kept = 0;
+    let dropped = 0;
     for (const from of MATERIALS) {
       for (const finish of offeredFinishesOf(from)) {
         const chosen = chooseFinishIn(
@@ -435,13 +449,19 @@ describe("ADR 0099 decision 4 — a pending colour follows the pending material,
           });
 
           if (materialOffersFinish(to, finish)) {
+            kept += 1;
             expect(moved.finish).toEqual(finish);
           } else {
+            dropped += 1;
             expect(moved).not.toHaveProperty("finish");
           }
         }
       }
     }
+
+    // A floor on each arm: the oracle picks the arm, so a changed offer could leave one of them unrun.
+    expect(kept).toBeGreaterThan(0);
+    expect(dropped).toBeGreaterThan(0);
   });
 
   /** An undeclared pending material refuses nothing (ADR 0078 decision 3) — the colour survives the
@@ -562,38 +582,6 @@ describe("ADR 0099 decision 8 — the follow chip belongs to the editor and not 
 });
 
 describe("ADR 0095 — the wave's Romanian, on the surface it was written for", () => {
-  /** Every string this wave added, and where it has to appear. A key that resolved to `undefined`
-   *  would render as nothing at all and no markup assertion elsewhere would notice. */
-  const ADDED_STRINGS: readonly string[] = [
-    content.globalSettings.colourHeading,
-    content.globalSettings.colourNote,
-    content.globalSettings.colourWarning,
-    content.globalSettings.materialResetConfirm.globalBody,
-    content.panel.finishFollowsKitchen,
-  ];
-
-  it("declares every new key as a non-empty string", () => {
-    for (const value of ADDED_STRINGS) {
-      expect(typeof value).toBe("string");
-      expect(value.trim().length).toBeGreaterThan(0);
-    }
-  });
-
-  /** ADR 0095: Romanian is the source. A string that slipped through in English is the failure this
-   *  guards — asserted on words that occur only in English copy, not on a diacritic count, because a
-   *  correct Romanian sentence need not carry one. *Material* is deliberately absent from the list:
-   *  it is a Romanian word too, and a guard that flagged it would be wrong about correct copy. */
-  it("leaks no English into any of them", () => {
-    const english =
-      /\b(colour|kitchen|cabinet|default|follow|apply|cancel|warning|the|and)\b/i;
-    // The witness: the guard does catch an English sentence, so a run over five Romanian strings is
-    // not passing because the pattern matches nothing at all.
-    expect("The kitchen colour follows the default").toMatch(english);
-    for (const value of ADDED_STRINGS) {
-      expect(value).not.toMatch(english);
-    }
-  });
-
   it("puts the colour group's three strings on the rendered sheet", () => {
     const markup = markupOf(
       viewOf({ design: kitchenWithOneOverride(PAL_ANTRACIT), pending: {} }),

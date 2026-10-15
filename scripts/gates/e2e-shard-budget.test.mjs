@@ -37,7 +37,7 @@ test("the derived budget is the 30-minute target over the measured rate, rounded
 });
 
 test("desktop is enforced at its ratchet above the derived budget, mobile at the derived budget", () => {
-  assert.equal(enforcedBudget("desktop"), 70);
+  assert.equal(enforcedBudget("desktop"), 67);
   assert.equal(enforcedBudget("mobile"), 125);
 });
 
@@ -102,7 +102,7 @@ test("the workflow's shard matrices match the configured shard counts", () => {
 });
 
 test("a workflow whose total or shard list drifts from the configured counts is reported", () => {
-  const drifted = WORKFLOW_TEXT.replace("total: [4]", "total: [3]").replace(
+  const drifted = WORKFLOW_TEXT.replace("total: [9]", "total: [3]").replace(
     "shard: [1, 2, 3]",
     "shard: [1, 2]",
   );
@@ -112,7 +112,7 @@ test("a workflow whose total or shard list drifts from the configured counts is 
   assert.equal(problems.length, 2);
   assert.match(
     problems.join("\n"),
-    /mobile: ci\.yml matrix\.total is \[3\], expected \[4\]/,
+    /mobile: ci\.yml matrix\.total is \[3\], expected \[9\]/,
   );
   assert.match(
     problems.join("\n"),

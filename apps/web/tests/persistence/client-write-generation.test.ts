@@ -205,7 +205,7 @@ describe("the singleton write path scopes jobs and callbacks to hydration genera
     });
   });
 
-  it("writes current A after stale in-flight A succeeds across a real A to B to A hydration", async () => {
+  it("shows A's own write in flight when A is loaded again after B, and writes the next edit on top of it", async () => {
     const store = await loadFreshStore();
     store.getState().hydrate({
       design: withPreset("a-old"),
@@ -239,7 +239,7 @@ describe("the singleton write path scopes jobs and callbacks to hydration genera
       designId: DESIGN_A_ID,
       saveStatus: "idle",
     });
-    expect(store.getState().design.presetId).toBe("a-current");
+    expect(store.getState().design.presetId).toBe("a-old");
 
     await vi.advanceTimersByTimeAsync(MIN_SAVE_INTERVAL_MS);
     expect(controlledFetch.requests[1]?.url).toBe(
@@ -251,9 +251,7 @@ describe("the singleton write path scopes jobs and callbacks to hydration genera
     expect(controlledFetch.requests[2]?.url).toBe(
       `/api/designs/${DESIGN_A_ID}`,
     );
-    expect(requestDesign(controlledFetch.requests[2]).presetId).toBe(
-      "a-current",
-    );
+    expect(requestDesign(controlledFetch.requests[2]).presetId).toBe("a-old");
     expect(requestedFinish(controlledFetch.requests[2])).toEqual(THIRD_EDIT);
     await controlledFetch.answer(2, { status: 200, id: DESIGN_A_ID });
     expect(store.getState()).toMatchObject({

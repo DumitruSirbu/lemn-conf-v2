@@ -78,6 +78,10 @@ function fitAt(
   });
 }
 
+/** What closing the gaps returns to the pill, written out from the two frames: three nav gaps going 28 → 9 and six
+ *  row gaps going 14 → 6, `3 × 19 + 6 × 8`. A literal, so the model's own composition is not what it is checked against. */
+const GAPS_RETURNED_TO_THE_PILL_PX = 105;
+
 const D2A_AS_DRAWN: TopBarConfiguration = {
   isWordmarkDrawn: true,
   isSpacingClosed: false,
@@ -275,7 +279,29 @@ describe("give B — the row's gaps close, and both numbers are the reference's"
   );
 
   it("returns 105 px to the pill when it does, composed from the two frames' own gaps", () => {
-    expect(DEMAND_PX.asDrawn - DEMAND_PX.gapsClosed).toBeCloseTo(105, 2);
+    // One pixel short of every name fitting, measured as frame D2A draws the row: the gaps close, and with them
+    // closed every name fits, so the wordmark stays and the gaps are the only thing the track gains.
+    const trackAsDrawnPx = atEveryLabel - 1;
+
+    const fit = describeTopBarFit({
+      pillTrackPx: trackAsDrawnPx,
+      wordmarkWidthPx: WORDMARK_PX,
+      measuredIn: D2A_AS_DRAWN,
+      labelWidthsPx: SEEDED_LABELS,
+      fixedWidthsPx: DESKTOP_PILL,
+    });
+
+    expect(fit.isSpacingClosed).toBe(true);
+    expect(fit.isWordmarkDrawn).toBe(true);
+    expect(fit.pillTrackPx - trackAsDrawnPx).toBeCloseTo(
+      GAPS_RETURNED_TO_THE_PILL_PX,
+      6,
+    );
+    // The measured demands differ by the same figure, which is what ties the model's number to the browser's row.
+    expect(DEMAND_PX.asDrawn - DEMAND_PX.gapsClosed).toBeCloseTo(
+      GAPS_RETURNED_TO_THE_PILL_PX,
+      2,
+    );
   });
 
   it("agrees with what the browser measured for the row with no wordmark in it", () => {

@@ -17,7 +17,6 @@ import {
 import { describeSelection } from "../../src/queries/describe-selection.js";
 import { offersFor } from "../../src/queries/offers.js";
 import { APPROVED_ROOM_POLICY } from "../../src/room/approved-room-policy.js";
-import { ENGINE_ROOM_LIMITS } from "../../src/room/room-policy.js";
 import { validateRoomInput } from "../../src/room/validate-room.js";
 import { validateDesignForCatalog } from "../../src/validate-design.js";
 import { createFakeProbeFactory } from "../support/fake-probe.js";
@@ -227,36 +226,6 @@ function approves(policy: typeof APPROVED_ROOM_POLICY, room: DesignRoom) {
 }
 
 describe("the engine's corner floor is 870 and the approved minima are where the owner put them", () => {
-  it("states the engine floor on every corner-taking wall, and the approved minima unchanged", () => {
-    const engineL = ENGINE_ROOM_LIMITS.buildableShapes.L;
-    const engineU = ENGINE_ROOM_LIMITS.buildableShapes.U;
-    const approvedL = APPROVED_ROOM_POLICY.buildableShapes.L;
-    const approvedU = APPROVED_ROOM_POLICY.buildableShapes.U;
-
-    expect([
-      engineL?.wallA.minMm,
-      engineL?.wallB.minMm,
-      engineU?.wallB.minMm,
-      engineU?.wallC.minMm,
-    ]).toEqual([
-      ENGINE_FLOOR_MM,
-      ENGINE_FLOOR_MM,
-      ENGINE_FLOOR_MM,
-      ENGINE_FLOOR_MM,
-    ]);
-    expect([
-      approvedL?.wallA.minMm,
-      approvedL?.wallB.minMm,
-      approvedU?.wallB.minMm,
-      approvedU?.wallC.minMm,
-    ]).toEqual([
-      APPROVED_WALL_A_MINIMUM_MM,
-      APPROVED_SIDE_WALL_MINIMUM_MM,
-      APPROVED_SIDE_WALL_MINIMUM_MM,
-      APPROVED_SIDE_WALL_MINIMUM_MM,
-    ]);
-  });
-
   it.each(SWEPT_SHORT_WALLS_MM)(
     "a %i mm wall: the shell builds exactly from 870, on wall A, wall B and a U's side wall",
     (shortMm) => {

@@ -1,6 +1,10 @@
 "use client";
 
-import type { CameraPresetId } from "@lemnaria/three-adapter";
+import type { DesignRoom, DesignWall } from "@lemnaria/configurator-domain";
+import {
+  cameraPresetsForRoom,
+  type CameraPresetId,
+} from "@lemnaria/three-adapter";
 import { create } from "zustand";
 
 /** §6.4's opening view, and the one the customer has not chosen yet. */
@@ -36,3 +40,19 @@ export const useCameraPreset = create<CameraPresetState>((set) => ({
     set({ presetId });
   },
 }));
+
+/**
+ * The view an arrival with a body on `wall` stands at: that wall's own, which is the one made to show it (ADR 0130),
+ * in a straight room, an L and a U alike. A view that merely does not cut the wall may still not show it (a U's
+ * wall C is off the screen from wall A's). `null` when the room has no such wall, which the caller treats as
+ * nothing to select.
+ */
+export function viewOfWall(
+  wall: DesignWall,
+  room: DesignRoom,
+): CameraPresetId | null {
+  const own = cameraPresetsForRoom(room).find(
+    (view) => view.id === `wall${wall}`,
+  );
+  return own?.id ?? null;
+}

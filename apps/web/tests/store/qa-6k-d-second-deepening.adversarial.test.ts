@@ -21,6 +21,7 @@
 // the 39-mm-per-change walk this milestone already closed.
 import {
   buildKitchenLBodyCatalog,
+  declaredCabinetDepthsMm,
   DEFAULT_CABINET_DEPTH_MM,
   DesignSchema,
   KITCHEN_L_DESIGN,
@@ -217,6 +218,10 @@ describe("every order the two settings can be applied in", () => {
   // Not a vacuous sweep: both terminal depths must be represented, or "the shallowing direction is
   // clean" would be a claim about an empty half.
   it("sweeps both terminal depths", () => {
+    // "Both" is a claim about the product: the sequences are every order of 600 and 700, which is every order
+    // there is only while those two are all the depths a kitchen can be built at. A third declared depth leaves the
+    // sweep above a third short, and the count of sixteen below would not say so.
+    expect([...declaredCabinetDepthsMm()]).toEqual([600, 700]);
     expect(SEQUENCES).toHaveLength(16);
     for (const terminal of [DEFAULT_CABINET_DEPTH_MM, DEEPER_MM]) {
       expect(

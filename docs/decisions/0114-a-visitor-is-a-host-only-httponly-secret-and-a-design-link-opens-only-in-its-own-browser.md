@@ -107,6 +107,17 @@ cookie costs one indexed lookup per request, the same order as today's `/d/{rand
 and WAF scope must include `/` and `/d/*`, and M8's retention cron deletes the visitor hash with its
 row.
 
+> **Dated note, 2026-10-07:** the clause *"M8's retention cron deletes the visitor hash with its row"* is
+> moot. [ADR 0019](0019-security-baseline-writes-throttling-retention.md)'s *Supersession note —
+> 2026-09-15: decision 7* retired the retention cron: *"Nothing deletes a design automatically, and
+> nothing is scheduled to."* The limiter and WAF scope in the same sentence stands.
+
+> **Dated note, 2026-10-07, later:** the owner ruled hosting into a separate delivery-preparation milestone
+> ([M9](../milestones/M9-delivery-preparation.md), proposed), so **M8 builds no firewall**: *"M8's limiter and
+> WAF scope must include `/` and `/d/*`"* is the application limiter's scope in M8, and the WAF's scope
+> belongs to the delivery milestone. This is the architect's reading of the owner's ruling, not the owner's
+> sentence. The mint itself is limited by [ADR 0147](0147-the-mint-is-limited-to-twenty-a-day-per-ip-address-for-everyone-and-nothing-else.md).
+
 ## What the visitor sees when the cookie is gone
 
 Cleared browser, private window or another device: `/` has nothing to resume and opens Step 1. Under
@@ -201,6 +212,10 @@ design, and the preset-author credential (ADR 0112) is not involved.
 wrong token costs one indexed hash lookup, the same class as today's `/d/{random}`. Creation is behind
 the write token, so it adds no unauthenticated write. M8's limiter and WAF scope gain `/s/*` and the
 share endpoints.
+
+> **Dated note, 2026-10-07, later:** as on decision 7, the *WAF scope* half moves to the delivery milestone
+> ([M9](../milestones/M9-delivery-preparation.md), proposed) with hosting. The application limiter's half stays
+> in M8, where wave 8G covers saves, shares and reads. The architect's reading, not the owner's sentence.
 
 **B6. A share link is not a way back in.** It is read-only by construction, so it cannot restore a
 customer's editing after cookie loss; M8's e-mailed link, which re-binds both cookies, remains that
@@ -368,6 +383,8 @@ Recorded by the architect in [wave 7E3c's plan](../milestones/M7-room-and-preset
 
 **Shipped 2026-09-23 — wave 7E3c is DONE.** Commits: plan + this amendment + ADR 0008 note `f59d79b`; S1 `2565e19`; S1 screen fix (SEC-7E3c.1/.2) `ffb5484`; S2 `553031d`; S3a `ebb2d1c`; S3b `783a07d`; S4 `a20d577`; S5 `0cc3e4a`; S6 `2260d44`; QA fixes + QA tests `8fafe82`; review round 1 `c9a2ccd`; review round 2 `03ffd4a`; screen notes `b39983d`. The screen extension in G2 needed far more correction than a single recognised case — see [the 7E3c close-out](../milestones/M7-room-and-presets.md#7e3c-close-out--2026-09-23) for the full list of bypasses the wave found and fixed. Security approved the screen at `03ffd4a`.
 
+> **Dated note, 2026-10-13, M8 wave 8M (the scribe; relayed; nothing re-run): G's "shown once, in component state, never an anchor" is narrowed.** `share-design.tsx` kept the link out of an anchor so that it would never be in this application's history or prefetched. Frame 5A's WhatsApp action (commit `bd8a86ad`) must put the link into a WhatsApp address, so it ends in **one external anchor**: `https://wa.me/?text=` with a drafted sentence and the share link's absolute address, `target="_blank"`, `rel="noopener noreferrer"`. **What still holds:** the link lives in that component's state only, never in the store, browser storage, an address of this application or a log; the share endpoint is unchanged; the flow is the existing one (status, the `share.reissueWarning` when a link is active, then `issueShareLink`). **What changed:** an external anchor is not prefetched by Next, and once followed the link is in the customer's own history at WhatsApp's address and travels to WhatsApp, which is its purpose. The anchor is a separate tap after the issue because a window opened after an `await` is blocked on phones [inference; QA checked Chromium; a phone is 8T's]. The security review found no exploitable issue (relayed). Not proven on a phone: WhatsApp opening. Record: [ADR 0160](0160-a-sent-request-is-handed-to-its-done-page-in-memory-by-a-replaced-history-entry-an-answerless-send-is-retried-only-by-the-connection-returning-and-the-failure-screen-is-a-state-of-the-contact-page.md) decision 8.
+
 ## Amendment H — 2026-09-23: the visitor value rotates on every mint, and how 7E3b gates the read
 
 Recorded by the architect in [wave 7E3b's plan](../milestones/M7-room-and-presets.md#wave-7e3b--the-plan-2026-09-23), at `e00a8dc`, before implementation. **Decision 5 and Amendment B1 are unchanged:** a design opens only in its owning browser, and every other request gets one indistinguishable refusal. H1 is an owner ruling. H2 and H3 are mechanism.
@@ -454,3 +471,7 @@ It is not identical across the two classes. The API half of criterion 2 is uncha
   - H4's conditional HMAC, for SEC-7E3b.5;
   - unconditional HMAC, which reopens backlog 81 (H4);
   - a server-side lock keyed by the carried value, which serialises only requests that reach the server together and does nothing for a second tab whose request left before the first response arrived.
+
+**Note — 2026-10-09 (wave 8F):** the first residual of H1 (a save that commits before a rotation and is answered after it) was measured by the triage of backlog 125 (12 of 100 rounds at eight workers) and is **Q35, recorded and not decided, the owner's**: three options, two of which amend H6 and one decision 1 and H3. The record is in [ADR 0155](0155-the-mint-asks-a-keyed-per-day-per-network-limiter-first-and-refuses-what-it-cannot-judge-the-owner-names-the-network-source-and-a-destructive-mutant-never-touches-a-database.md), *Q35*; backlog 89.
+
+**Incident, noted 2026-10-10 (wave 8G; [ADR 0156](0156-saves-shares-and-reads-are-limited-by-subjects-made-only-by-two-constructors-writes-fail-closed-reads-fail-open-pages-are-counted-in-the-interceptor-and-the-saves-wait-is-one-write-the-client-holds.md) decision 6 and *Limits*):** Amendment B's three headers (`Referrer-Policy: no-referrer`, `X-Robots-Tag: noindex, nofollow`, `Cache-Control: private, no-store`), which exist because *"the token lives in the path"*, **were not sent for a share view reached by a percent-escaped locale**, from 7E3c's shipping (2026-09-23) until `d8b285c6` [relayed, QA-run on a built server under a named source]: the request interceptor knew a locale only as written and the framework matches it decoded. **No link written that way is known.** The fix: a locale written any other way that reads as one once decoded and lowered is the `404` a case variant already gets. The share view's headers on the host, for a suffixed spelling of a page's data request, are for M9's launch gate (G-S3.2, recalled, not run).

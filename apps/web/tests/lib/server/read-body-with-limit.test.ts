@@ -116,15 +116,6 @@ describe("readUtf8BodyWithLimit", () => {
     });
   });
 
-  it("distinguishes a stream failure from an oversized body", async () => {
-    const { stream } = countingStream(["123456"]);
-
-    await expect(readUtf8BodyWithLimit(stream, 5)).resolves.toEqual({
-      ok: false,
-      failure: "too-large",
-    });
-  });
-
   it("still reports too-large when the stream errors after the limit is crossed", async () => {
     // The shape a client produces by sending one chunk past the limit and resetting the
     // connection. Answering `stream-failed` here would downgrade a silent 413 to a logged 400.

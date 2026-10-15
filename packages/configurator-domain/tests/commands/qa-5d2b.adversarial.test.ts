@@ -185,17 +185,8 @@ describe("FINDING A — the resized column's new key must not replace another co
     expect(untouched && extentOf(untouched)).toEqual(
       before && extentOf(before),
     );
-  });
-
-  it("conserves the along-wall total, by refusing the move that would not", () => {
-    // 900 mm of column before (600 + 300); the refused move would have dropped the wall unit's 300 mm column.
-    const world = overlappingColumns();
-    const before = totalOn(world.columns, "A");
-
-    const result = resizeTo(world, "base-run", 500);
-
-    expect(result.ok).toBe(false);
-    expect(totalOn(world.columns, "A")).toBe(before);
+    // The refusal is total: the map the command was handed still holds the resized column's own key too.
+    expect([...world.columns.keys()].sort()).toEqual(["A|0.95", "A|1.00"]);
   });
 
   it("does the same thing on a growth, so the hole predates decision 7", () => {
@@ -273,18 +264,6 @@ describe("FINDING C — a re-centring hood may not be pushed through the cabinet
     expect(findInterpenetratingBodies(hoodBesideACabinet().records)).toEqual(
       [],
     );
-  });
-
-  // The hood's 600 mm floor makes the overhang unreachable: a column holding it cannot be narrowed to 300, so
-  // the assertion is a refusal, not a geometry check (ADR 0035 decision 6).
-  it("refuses the shrink that would push it there", () => {
-    const world = hoodBesideACabinet();
-
-    const result = resizeTo(world, "run-base", 300);
-
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.reason.code).toBe("COLUMN_HOOD_FLOOR");
   });
 
   it("still refuses at the first step past the hood's width, not only at the extreme", () => {

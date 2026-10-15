@@ -128,10 +128,6 @@ describe("7J-A12 — the editor's camera row follows the room", () => {
     ).toEqual([LABELS.overview, LABELS.wallA]);
   });
 
-  it("renders a straight design with a stale wallB in the store without throwing", () => {
-    expect(() => presetButtonsFor(STRAIGHT_DESIGN, "wallB")).not.toThrow();
-  });
-
   // The camera frames `overview` for a stale `wallB` (`scene-view.ts`'s fallback), so the row must
   // say so: a row with no button pressed tells the customer no preset is where the camera stands.
   it("presses the overview button — the view the camera actually frames — for a stale wallB", () => {

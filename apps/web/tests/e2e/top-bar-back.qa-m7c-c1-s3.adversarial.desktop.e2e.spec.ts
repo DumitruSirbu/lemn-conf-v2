@@ -191,7 +191,11 @@ test("a Control/Meta click opens Step 1 in a new tab and asks nothing in this on
     page.getByTestId(BACK).click({ modifiers: ["ControlOrMeta"] }),
   ]);
 
-  await expect(opened).toHaveURL(`${String(baseURL)}${String(href)}`);
+  // Polled, not `toHaveURL`: that assertion first waits out any navigation Playwright still holds as pending,
+  // and for a tab a modified click opened it can hold one for good after the tab has arrived.
+  await expect
+    .poll(() => opened.url())
+    .toBe(`${String(baseURL)}${String(href)}`);
   await expect(page.getByTestId(DIALOG)).toHaveCount(0);
   expect(page.url()).toBe(designUrl);
   await opened.close();

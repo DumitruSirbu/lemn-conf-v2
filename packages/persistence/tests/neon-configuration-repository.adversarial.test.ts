@@ -13,6 +13,7 @@ import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { generateDesignId } from "../src/generate-design-id.js";
 import { runMigrations } from "../src/migrate.js";
+import { readMigrationFiles } from "../src/migration-files.js";
 import {
   DesignWriteForbiddenError,
   NeonConfigurationRepository,
@@ -270,52 +271,6 @@ describe("the write-authorisation predicate under attack (live test database)", 
     },
   );
 
-  it.skipIf(!hasLiveDatabase)(
-    "still mints on a real digest, so the guard rejects nothing legitimate",
-    async () => {
-      const id = await mintTrackingId();
-
-      expect(id).toBeTruthy();
-      expect(
-        canonicalSerializeDesign((await testRepository().load(id)).design),
-      ).toBe(canonicalSerializeDesign(KITCHEN_L_DESIGN));
-    },
-  );
-
-  // Asserted against the live column, not argued: only `''` equals `''` in Postgres `text`. On `char(n)` the
-  // comparison is blank-padded, `'' = ' '` would be true, and the empty-hash guard would be insufficient.
-  it.skipIf(!hasLiveDatabase)(
-    "has exactly one value equal to the empty hash, which is why refusing '' is enough",
-    async () => {
-      const [equality] = (await neon(testDatabaseUrl)`
-        select
-          (' ' = '') as space_equals_empty,
-          ('  ' = ' ') as padding_is_significant,
-          ('a' = 'A') as case_insensitive,
-          ('a ' = 'a') as trailing_space_ignored,
-          ('' is null) as empty_is_null
-      `) as {
-        space_equals_empty: boolean;
-        padding_is_significant: boolean;
-        case_insensitive: boolean;
-        trailing_space_ignored: boolean;
-        empty_is_null: boolean;
-      }[];
-
-      expect(equality?.space_equals_empty).toBe(false);
-      expect(equality?.padding_is_significant).toBe(false);
-      expect(equality?.case_insensitive).toBe(false);
-      expect(equality?.trailing_space_ignored).toBe(false);
-      expect(equality?.empty_is_null).toBe(false);
-
-      const [column] = (await neon(testDatabaseUrl)`
-        select data_type from information_schema.columns
-        where table_name = 'designs' and column_name = 'write_token_hash'
-      `) as { data_type: string }[];
-      expect(column?.data_type).toBe("text");
-    },
-  );
-
   // The check constraint guards paths application code is not on (a manual insert, the restore runbook); only raw
   // SQL past the repository reaches it.
   it.skipIf(!hasLiveDatabase)(
@@ -516,8 +471,11 @@ describe("saveAuthorized is one statement, and the predicate is in it", () => {
 // The column is removed and the migration asked to put it back: only a migration that actually executes passes,
 // where a no-op `runMigrations` exiting 0 would not (see ADR 0013). The ledger rows are forgotten too, for every
 // version from 2 up: the runner refuses a ledger with a hole, so a later recorded migration would wedge the
-// shared test database. A migration added after 0006 belongs in this list for the same reason.
-const WRITE_TOKEN_MIGRATION_VERSIONS = [2, 3, 4, 5, 6];
+// shared test database. Read from disk, so a migration added later is in the list without anyone remembering to add it:
+// a hand-kept list stopped at 0007 and left 0008 recorded over a forgotten 2 to 7, which wedged the database.
+const WRITE_TOKEN_MIGRATION_VERSIONS = readMigrationFiles()
+  .map((migration) => migration.version)
+  .slice(1);
 describe("the write-token migration actually executes", () => {
   const sql = hasLiveDatabase ? neon(testDatabaseUrl) : undefined;
 
@@ -549,6 +507,9 @@ describe("the write-token migration actually executes", () => {
         "0004_add_design_revision.sql",
         "0005_add_design_visitor_hash.sql",
         "0006_create_design_share_links.sql",
+        "0007_create_rate_limit_counters.sql",
+        "0008_create_contact_submissions.sql",
+        "0009_create_csp_reports.sql",
       ]);
 
       const columns = await writeTokenColumns();

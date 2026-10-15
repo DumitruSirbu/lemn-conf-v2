@@ -26,8 +26,6 @@ import {
   type Design,
   type DesignPlacement,
 } from "@lemnaria/configurator-domain";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -169,30 +167,8 @@ describe("bare wall at the end of a run is never marked, on a wall that is not r
 });
 
 describe("the two ruled strings stay two, in both directions", () => {
-  it("keeps the flagged total's sentence out of the scene warning's surface", () => {
-    // `overflow-warning-layout.test.ts` holds the price and panel sources to not reading
-    // `configure.overflowWarning`. This is the same rule from the other side, which nothing held:
-    // the scene's own surface must not reach for the total's flag either.
-    const sceneSources = [
-      "scene/overflow-warning.tsx",
-      "scene/overflow-warning-layout.ts",
-      "scene/use-overflowing-placements.ts",
-      "scene/kitchen-stage.tsx",
-    ].map((path) => ({
-      path,
-      text: readFileSync(
-        resolve(import.meta.dirname, "../../src", path),
-        "utf8",
-      ),
-    }));
-
-    for (const source of sceneSources) {
-      expect(
-        source.text,
-        `${source.path} reads the flagged total's sentence`,
-      ).not.toContain("price.overflowingTotalWarning");
-    }
-  });
+  // That the scene's surface never carries the flagged total's sentence is read off the rendered warning in
+  // `overflow-warning.test.ts`, under the same title this file used for a search of four source files.
 
   it("shares only the noun the owner reconciled, and no clause", () => {
     // ADR 0065 decision 7b: "only the noun is now shared". A later wave that made one sentence a

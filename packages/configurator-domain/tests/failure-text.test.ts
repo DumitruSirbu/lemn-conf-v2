@@ -77,6 +77,18 @@ describe("boundedFailureReason", () => {
     expect(bounded).not.toContain("\r");
   });
 
+  it.each([
+    ["a line separator", String.fromCodePoint(0x2028)],
+    ["a paragraph separator", String.fromCodePoint(0x2029)],
+  ])(
+    "strips %s, which forges a line in a viewer that breaks on it",
+    (_name, separator) => {
+      const bounded = boundedFailureReason(`id${separator}[migrate] done`);
+
+      expect(bounded).toBe("id [migrate] done");
+    },
+  );
+
   it("leaves an ordinary reason untouched", () => {
     expect(boundedFailureReason("1 issue(s): room:invalid_type")).toBe(
       "1 issue(s): room:invalid_type",

@@ -276,7 +276,17 @@ misses something costs a second round and is the more expensive mistake.
 ### Review continuity
 
 - **Number findings by round and item** (`R1.1`, `R1.2`, `R2.1`). A fix dispatch must name the
-  findings it addresses.
+  findings it addresses. **Name them by text as well as number** (added 2026-10-09, M8 wave 8I; the developer's handoff,
+  relayed): each finding's file, line and the change asked for. In 8I's round B the plan named eight clean-code findings by
+  number only, the developer correctly refused to guess, and it cost a round trip. That is the coordinator's failure to
+  guard against; ask for a finding's text with the first dispatch, not the last.
+- **A pinned figure in a QA-owned file that a wave's own change moves is reported to QA, and QA changes it** (added 2026-10-09, M8 wave 8F,
+  S4: the developer edited `tests/room/qa-7f1-copy-and-conversions.adversarial.test.ts` to move a leaf count from 72 to 73, and the architect
+  ruled it for every later dispatch). A dispatch's *must not* says so by name.
+- **A mutant of a statement that deletes, updates, truncates or alters is never run against a database** (the 8F incident, 2026-10-09, in which a
+  mutant of the test-only counter delete emptied a table on the live test database; the rule's text is in `engineering-conventions.md`, *Tests*,
+  and [ADR 0155](../decisions/0155-the-mint-asks-a-keyed-per-day-per-network-limiter-first-and-refuses-what-it-cannot-judge-the-owner-names-the-network-source-and-a-destructive-mutant-never-touches-a-database.md)).
+  A brief that has an agent run mutants names it.
 - Keep the same QA and reviewer agents for follow-up rounds wherever they are still available. Give
   them the current diff and the earlier finding identifiers so they verify the fix instead of
   rediscovering context.

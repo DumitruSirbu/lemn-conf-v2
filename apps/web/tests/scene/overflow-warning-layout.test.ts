@@ -22,6 +22,7 @@ import {
 import { OVERFLOW_WARNING_RESERVED_HEIGHT_PX } from "@/scene/overflow-warning-layout";
 
 import { CATALOGUES, contentFor, requireLeafAt } from "../support/catalogues";
+import { valuesFor } from "../support/css-declarations";
 
 const SOURCE_DIRECTORY = resolve(import.meta.dirname, "../../src");
 
@@ -90,6 +91,16 @@ describe("the band's reserved height reaches the stylesheet from one constant", 
 // above it, and a second one took that strip from 86.74 px to 30.74 — under the 44 px touch target
 // that makes the sheet dismissable. `scene/overflow-warning-layout.ts` carries the table. So the
 // assertions below now hold the band **out of flow**, which is exactly what the earlier ones forbade.
+/** The ways a box is given a track of its own for the band. */
+const TRACK_PROPERTIES = [
+  "grid-template",
+  "grid-template-rows",
+  "grid-template-areas",
+  "grid",
+];
+
+// Each stylesheet case below reads every declaration the sheet makes for the property, in any rule, and states the
+// whole list. Read from the first matching block alone, a later rule putting the band back in flow left them green.
 describe("the warning is an overlay on the scene, taking none of its height", () => {
   it("stands inside the viewport, beside the bodies it explains", () => {
     // Wave 6M: the sentence renders in the scene viewport rather than in the header, the panel or a
@@ -103,23 +114,25 @@ describe("the warning is an overlay on the scene, taking none of its height", ()
     // Bottom rather than top, and that is the load-bearing half: the clearance problem the flow
     // version measured is *above* the kitchen, where the camera chips live. The bottom edge has no
     // chips and sits directly above the price bar.
-    expect(screenStylesheet).toMatch(
-      /\.sceneFooter \{[^}]*position: absolute;/s,
-    );
-    expect(screenStylesheet).toMatch(/\.sceneFooter \{[^}]*bottom: 0;/s);
-    expect(screenStylesheet).toMatch(
-      /\.sceneFooter \{[^}]*flex-direction: column;/s,
-    );
+    expect(valuesFor(screenStylesheet, "sceneFooter", "position")).toEqual([
+      "absolute",
+    ]);
+    expect(valuesFor(screenStylesheet, "sceneFooter", "bottom")).toEqual(["0"]);
+    expect(
+      valuesFor(screenStylesheet, "sceneFooter", "flex-direction"),
+    ).toEqual(["column"]);
   });
 
   it("leaves the viewport a single box, so the canvas is its whole height", () => {
     // The conditional-height defect the overlay exists to avoid: a flow band makes the canvas one
     // height for a flagged design and another for an unflagged one, and every canvas tap constant
     // then has two correct values. A positioned viewport with no track for the band has one.
-    expect(screenStylesheet).toMatch(/\.viewport \{[^}]*position: relative;/s);
-    expect(screenStylesheet).not.toMatch(
-      /\.viewport \{[^}]*grid-template-rows/s,
-    );
+    expect(valuesFor(screenStylesheet, "viewport", "position")).toEqual([
+      "relative",
+    ]);
+    for (const track of TRACK_PROPERTIES) {
+      expect(valuesFor(screenStylesheet, "viewport", track), track).toEqual([]);
+    }
     expect(screenStylesheet).not.toContain(".sceneBox");
   });
 
@@ -144,19 +157,25 @@ describe("the warning is an overlay on the scene, taking none of its height", ()
   it("lets a tap reach the cabinets it is drawn over", () => {
     // It stands on the lowest cabinets' plinth line by 6.8–13.7 px (measured in
     // `overflow-warning-viewport.test.ts`), and ADR 0065 requires a marked body to stay selectable.
-    expect(screenStylesheet).toMatch(
-      /\.sceneFooter \{[^}]*pointer-events: none;/s,
-    );
+    expect(
+      valuesFor(screenStylesheet, "sceneFooter", "pointer-events"),
+    ).toEqual(["none"]);
   });
 
   it("is opaque, because it is read against the kitchen rather than against paper", () => {
-    expect(warningDeclarations).toMatch(/background:\s*#fdf6ec;/);
+    expect(valuesFor(warningStylesheet, "warning", "background")).toEqual([
+      "#fdf6ec",
+    ]);
+    expect(valuesFor(warningStylesheet, "warning", "background-color")).toEqual(
+      [],
+    );
   });
 
   it("puts no text of its own on the screen", () => {
     // The owner's ruled sentence is in `ro.json`. A word injected by a pseudo-element would survive
     // an edit to that leaf invisibly — right in the catalogue and wrong on screen.
-    expect(warningDeclarations).not.toMatch(/[^-]content:/);
+    // Any spelling of the property, `content :` included, and not as the tail of `align-content`.
+    expect(warningDeclarations).not.toMatch(/(?<![-\w])content\s*:/);
   });
 });
 

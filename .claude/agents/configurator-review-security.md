@@ -1,7 +1,7 @@
 ---
 name: configurator-review-security
 description: Security reviewer for the Lemnaria configurator. On-demand, NOT part of the default review pair. Use when the diff touches apps/web API routes, packages/persistence (the only place a Postgres driver appears), share/resume links, generated documents/email, env vars or provisioned resources, or any dependency change. Read-only. Do NOT run on pure geometry, pricing, or styling changes.
-model: opus
+model: claude-opus-5-5
 effort: high
 tools: [Read, Grep, Glob, Bash]
 ---

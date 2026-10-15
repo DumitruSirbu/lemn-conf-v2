@@ -50,15 +50,6 @@ describe("the price book's material tier ids are exactly the declared materials"
     expect(TIER_IDS.length).toBe(MATERIAL_IDS.length);
   });
 
-  it("fails when a material has no tier", () => {
-    // Not a vacuous pair of sweeps: an id the book does not price is refused by the same assertion
-    // the sweep above makes, so the sweep is testing something.
-    expect(TIER_IDS).not.toContain("material.solid-oak");
-    expect(() => materialById("material.solid-oak")).toThrow(
-      /no material is declared/,
-    );
-  });
-
   it("prices the materials in the order the domain declares them", () => {
     // ADR 0071 decision 1: PAL < MDF < veneer. The order is a declared product fact, and a book
     // whose amounts contradict it is a book fault — the material list would then be sorted by

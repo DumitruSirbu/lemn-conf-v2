@@ -48,6 +48,9 @@ const anyLegalFinish: fc.Arbitrary<Finish> = fc.oneof(
     .map((digits) => freeColourFinish(`#${digits}`)),
 );
 
+/** A legal free colour no fixture wears, written onto bodies that have no colour control. */
+const A_FINISH_NOBODY_CHOSE = freeColourFinish("#123456");
+
 function repaintedWith(finish: Finish): Design {
   return {
     ...KITCHEN_L_DESIGN,
@@ -94,12 +97,29 @@ describe("a finish never reaches an amount", () => {
     // `open-shelf`, `hood` and `fridge-free` declare `canFinish: false`. `repaintedWith` writes a
     // finish onto every placement, so this is only worth asserting if the seeded kitchen actually
     // holds one of them — otherwise the sweep above is quietly weaker than it reads.
-    const unfinishable = KITCHEN_L_DESIGN.placements.filter(
-      (placement) =>
-        KITCHEN_L_BODY_CATALOG.get(placement.body.buildId)?.canFinish === false,
-    );
+    const unfinishableIds = KITCHEN_L_DESIGN.placements
+      .filter(
+        (placement) =>
+          KITCHEN_L_BODY_CATALOG.get(placement.body.buildId)?.canFinish ===
+          false,
+      )
+      .map((placement) => placement.id);
+    const onlyTheUnfinishableRepainted: Design = {
+      ...KITCHEN_L_DESIGN,
+      placements: KITCHEN_L_DESIGN.placements.map((placement) =>
+        unfinishableIds.includes(placement.id)
+          ? {
+              ...placement,
+              body: { ...placement.body, finish: A_FINISH_NOBODY_CHOSE },
+            }
+          : placement,
+      ),
+    };
 
-    expect(unfinishable.length).toBeGreaterThan(0);
+    expect(unfinishableIds.length).toBeGreaterThan(0);
+    expect(JSON.stringify(priceOf(onlyTheUnfinishableRepainted))).toBe(
+      JSON.stringify(unpainted),
+    );
   });
 });
 

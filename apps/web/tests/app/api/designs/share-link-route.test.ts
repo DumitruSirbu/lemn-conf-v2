@@ -360,11 +360,39 @@ const MATRIX_CASES: readonly {
   ALL_METHODS.map((method) => ({ refusalCase, method })),
 );
 
+/** Every export name Next's App Router treats as a route handler. */
+const ROUTE_HANDLER_NAMES = [
+  "GET",
+  "HEAD",
+  "POST",
+  "PUT",
+  "PATCH",
+  "DELETE",
+  "OPTIONS",
+] as const;
+
+/** Seven credential cases, three cross-site `Sec-Fetch-Site` values and one foreign `Origin`. */
+const REFUSAL_CASE_COUNT = 11;
+/** Eleven cases against each of the three methods. */
+const MATRIX_SIZE = 33;
+
 describe("credential matrix (criterion 4)", () => {
-  it(`covers every case × method combination (${String(MATRIX_CASES.length)} total)`, () => {
-    expect(MATRIX_CASES.length).toBe(
-      ALL_REFUSAL_CASES.length * ALL_METHODS.length,
+  // The matrix is the product of two lists this file wrote, so its length says nothing by itself. What makes it
+  // "every method" is the route module: a handler exported there and missing from `ALL_METHODS` is a door the sweep
+  // below never knocks on. The two counts are literals so a refusal case deleted from the list is noticed too.
+  it(`covers every case × method combination (${String(MATRIX_CASES.length)} total)`, async () => {
+    const shareRoute = await import(
+      "../../../../src/app/api/designs/[id]/share/route"
     );
+    const handlersTheRouteExports = ROUTE_HANDLER_NAMES.filter(
+      (name) => name in shareRoute,
+    );
+
+    expect([...handlersTheRouteExports].sort()).toEqual(
+      [...ALL_METHODS].sort(),
+    );
+    expect(ALL_REFUSAL_CASES).toHaveLength(REFUSAL_CASE_COUNT);
+    expect(MATRIX_CASES).toHaveLength(MATRIX_SIZE);
   });
 
   const matrixRows: readonly [string, ShareMethod, RefusalCase][] =

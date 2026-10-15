@@ -335,42 +335,43 @@ describe("the verdict over swept ledgers", () => {
   });
 
   // One column at a time, so a required column that stopped being checked is caught wherever it
-  // sits in the list rather than only at `revision`.
-  propertyTest.prop([fc.constantFrom(...REQUIRED_DESIGN_COLUMNS)], {
-    seed: 20260907,
-    numRuns: 50,
-  })("refuses a table missing any one required column", (absentColumn) => {
-    const report = describeDeployedSchemaStatus(FILES, {
-      ledger: { kind: "present", applied: EVERY_FILE_APPLIED },
-      designColumns: REQUIRED_DESIGN_COLUMNS.filter(
-        (column) => column.name !== absentColumn.name,
-      ),
-      documentSchemaVersions: [1],
-    });
+  // sits in the list rather than only at `revision`. Every column, not a sample of them: the list
+  // is eight long, and a sample is only as good as the columns its seed happens to draw.
+  it.each(REQUIRED_DESIGN_COLUMNS)(
+    "refuses a table missing the required column $name",
+    (absentColumn) => {
+      const report = describeDeployedSchemaStatus(FILES, {
+        ledger: { kind: "present", applied: EVERY_FILE_APPLIED },
+        designColumns: REQUIRED_DESIGN_COLUMNS.filter(
+          (column) => column.name !== absentColumn.name,
+        ),
+        documentSchemaVersions: [1],
+      });
 
-    expect(report.outcome).toBe("columns-missing");
-    expect(report.detail).toContain(absentColumn.name);
-  });
+      expect(report.outcome).toBe("columns-missing");
+      expect(report.detail).toContain(absentColumn.name);
+    },
+  );
 
   // The other half of that sweep. `revision` is the column the reading was widened for, but pinning
   // only `revision` would let the next column's shape quietly stop being checked, so the flip is
   // swept over every one of them.
-  propertyTest.prop([fc.constantFrom(...REQUIRED_DESIGN_COLUMNS)], {
-    seed: 20260907,
-    numRuns: 50,
-  })("refuses a table whose column has the wrong nullability", (flipped) => {
-    const report = describeDeployedSchemaStatus(FILES, {
-      ledger: { kind: "present", applied: EVERY_FILE_APPLIED },
-      designColumns: REQUIRED_DESIGN_COLUMNS.map((column) =>
-        column.name === flipped.name
-          ? { ...column, isNullable: !column.isNullable }
-          : column,
-      ),
-      documentSchemaVersions: [1],
-    });
+  it.each(REQUIRED_DESIGN_COLUMNS)(
+    "refuses a table whose column $name has the wrong nullability",
+    (flipped) => {
+      const report = describeDeployedSchemaStatus(FILES, {
+        ledger: { kind: "present", applied: EVERY_FILE_APPLIED },
+        designColumns: REQUIRED_DESIGN_COLUMNS.map((column) =>
+          column.name === flipped.name
+            ? { ...column, isNullable: !column.isNullable }
+            : column,
+        ),
+        documentSchemaVersions: [1],
+      });
 
-    // Distinct from "missing" on purpose: the column is there, so `migrate` would change nothing.
-    expect(report.outcome).toBe("columns-misshapen");
-    expect(report.detail).toContain(flipped.name);
-  });
+      // Distinct from "missing" on purpose: the column is there, so `migrate` would change nothing.
+      expect(report.outcome).toBe("columns-misshapen");
+      expect(report.detail).toContain(flipped.name);
+    },
+  );
 });

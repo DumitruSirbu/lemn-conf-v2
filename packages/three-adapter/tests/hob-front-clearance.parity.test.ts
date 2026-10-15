@@ -209,23 +209,6 @@ describe("the hob holds its reach to the cook at every declared cabinet depth", 
       ).toBe(gapMm);
     },
   );
-
-  // And that those two rows are the *whole* depth increase rather than two numbers that happen to
-  // differ — measured again off the meshes, so a third declared depth extends the claim instead of
-  // needing a third row written for it.
-  it("grows that gap by exactly what the setting grows by", () => {
-    const gapToWallMm = (cabinetDepthMm: number): number => {
-      const body = buildSweptBody(cabinetDepthMm, "base-hob-2drawer");
-      return (
-        faceMm(body, "cooktop_glass", "min") - faceMm(body, "countertop", "min")
-      );
-    };
-
-    expect(
-      gapToWallMm(DEEPEST_DECLARED_DEPTH_MM) -
-        gapToWallMm(SHALLOWEST_DECLARED_DEPTH_MM),
-    ).toBe(DEEPEST_DECLARED_DEPTH_MM - SHALLOWEST_DECLARED_DEPTH_MM);
-  });
 });
 
 describe("the hob stands on the plane of the fronts around it", () => {

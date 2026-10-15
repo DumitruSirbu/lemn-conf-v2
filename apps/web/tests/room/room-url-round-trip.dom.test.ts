@@ -308,10 +308,37 @@ describe("a stored room lands in the fields to the millimetre (criterion 7)", ()
   });
 });
 
+/** Every field of an open L typed, and the typing left to settle: the one sequence that writes the room. */
+function typeEveryFieldAndSettle(): void {
+  type("wallA", "3560");
+  type("wallB", "2920");
+  type("height", "2600");
+  settle();
+}
+
 describe("the URL is the room's only store (criterion 9)", () => {
   it("keeps a second store out of the whole room directory", () => {
-    // Read over every module under `src/room`: a copy of the room kept elsewhere is a second authority, and the URL
-    // would stop being what a reload restores from (ADR 0111 decision 3).
+    // A copy of the room kept elsewhere is a second authority, and the URL would stop being what a reload restores
+    // from (ADR 0111 decision 3). Read off the stores themselves once a room has been typed and has settled, because
+    // a store reached as `window["local" + "Storage"]` is the same store and is spelled past any search of the source.
+    window.localStorage.clear();
+    window.sessionStorage.clear();
+    const cookiesBefore = document.cookie;
+
+    render("?shape=L");
+    typeEveryFieldAndSettle();
+
+    expect(browser.replace).toHaveBeenCalled();
+    expect({
+      localStorageKeys: window.localStorage.length,
+      sessionStorageKeys: window.sessionStorage.length,
+      cookies: document.cookie,
+    }).toEqual({
+      localStorageKeys: 0,
+      sessionStorageKeys: 0,
+      cookies: cookiesBefore,
+    });
+    // The lesser half, kept for the stores a spy cannot stand in front of.
     for (const source of roomModuleSources()) {
       expect(source).not.toMatch(
         /localStorage|sessionStorage|indexedDB|document\.cookie|zustand|useConfiguratorStore/,
@@ -320,11 +347,25 @@ describe("the URL is the room's only store (criterion 9)", () => {
   });
 
   it("keeps the native history write out of the whole room directory", () => {
-    // Banned by `eslint.config.mjs`'s room block and asserted here too, since a lint rule and a directory can disagree.
     // `history.replaceState` moves the address bar without Next's record following it: the room lasts until Back.
-    for (const source of roomModuleSources()) {
-      expect(source).not.toMatch(/history\.(pushState|replaceState)\s*\(/);
-    }
+    // The only native writes in this file are the router double's own, one per `router.replace` it echoes, so any
+    // further one is the screen's. Counted, since a search of the source for `history.replaceState(` passes over
+    // `window["hist" + "ory"]`.
+    render("?shape=L");
+    const nativeReplaces = vi.spyOn(window.history, "replaceState");
+    const nativePushes = vi.spyOn(window.history, "pushState");
+
+    typeEveryFieldAndSettle();
+    const routerWrites = browser.replace.mock.calls.length;
+    const nativeWrites = [
+      nativeReplaces.mock.calls.length,
+      nativePushes.mock.calls.length,
+    ];
+    nativeReplaces.mockRestore();
+    nativePushes.mockRestore();
+
+    expect(routerWrites).toBeGreaterThan(0);
+    expect(nativeWrites).toEqual([routerWrites, 0]);
   });
 
   it("writes the canonical query the domain's own serialiser would write", () => {
@@ -668,28 +709,6 @@ describe("direction is written, and its absence keeps its meaning (criterion 18)
     expect(cornerControl("left").checked).toBe(true);
     expect(new URLSearchParams(addressBar()).get("direction")).toBe("left");
     expect(browser.push).not.toHaveBeenCalled();
-  });
-
-  it("leaves the parser's reading of an absent direction exactly as it was", () => {
-    // The middle layer, also asserted in `room-url-state.test.ts`: an absent `direction` marks the field and resolves
-    // to 1B, never silently to left.
-    expect(parseRoomUrlState({ shape: "L" })).toStrictEqual({
-      substate: "1B",
-      shape: "L",
-      markedFields: ["wallA", "wallB", "height", "direction"],
-    });
-  });
-
-  it("keeps a stored room's absent direction meaning left", () => {
-    // `DesignRoom` carries no corner direction at all, so an absent one means left.
-    const stored: DesignRoom = {
-      shape: "L",
-      widthMm: 3560,
-      depthMm: 2920,
-      heightMm: 2600,
-    };
-
-    expect(roomHrefFromDesignRoom(stored)).toContain("direction=left");
   });
 
   it("carries no direction at all for a shape with no corner", () => {

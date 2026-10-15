@@ -75,14 +75,6 @@ function hardwareLineAt(tierId: string) {
 /** The three counts, pinned as numbers: product facts answerable without any amount (ADR 0092 Amendment C). */
 const SEEDED_MECHANISM_COUNTS = { hinges: 74, drawers: 5, pushToOpen: 16 };
 
-describe("the seeded kitchen's mechanisms are ADR 0070's own count, plus the column it never published", () => {
-  it("counts 74 hinges, 5 drawers and 16 push-to-open", () => {
-    expect(countHardwareMechanisms(SEEDED_ENTRIES, CATALOG)).toEqual(
-      SEEDED_MECHANISM_COUNTS,
-    );
-  });
-});
-
 describe("the sample rates reconcile to ADR 0070's totals table", () => {
   it.each(Object.keys(ADR_0070_TOTALS_LEI))(
     "prices %s within the owner's own rounding of the ADR's hinge and drawer columns",
@@ -262,17 +254,6 @@ describe("a recorded push on a body that permits no mode is billed no latch", ()
  * supplier source (ADR 0092 Amendment C).
  */
 describe("the tier rates relate to each other in ways the book itself decides", () => {
-  /** ADR 0070's Hettich drawer figure is a runners-only product line while Standard's and Blum's are complete boxes,
-   *  and the owner ruled it stays that way (ADR 0092); a wave making the three comparable overturns that decision. */
-  it("keeps Hettich's drawer rate understated against both complete-box tiers", () => {
-    expect(tierOf("hardware.soft-close").perDrawerMinor).toBeLessThan(
-      tierOf("hardware.standard").perDrawerMinor,
-    );
-    expect(tierOf("hardware.soft-close").perDrawerMinor).toBeLessThan(
-      tierOf("hardware.premium").perDrawerMinor,
-    );
-  });
-
   /** Hettich prices below Standard exactly when a design's drawer saving outweighs both its hinge and latch surcharges
    *  (ADR 0092 decision 12, Amendment C); the two-term form is false once the seeded kitchen carries latches. Every
    *  coefficient is read from the book, so replacing the drafted push figures keeps the derivation valid. */

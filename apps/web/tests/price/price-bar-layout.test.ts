@@ -35,10 +35,6 @@ const CONFIGURE_DIRECTORY = resolve(
   "../../src/app/configurator/configure",
 );
 
-const componentSource = readFileSync(
-  resolve(PRICE_DIRECTORY, "price-bar.tsx"),
-  "utf8",
-);
 const breakdownStylesheet = readFileSync(
   resolve(PRICE_DIRECTORY, "price-breakdown.module.css"),
   "utf8",
@@ -192,11 +188,9 @@ function typefaceOf(declarations: string, selector: string): Typeface {
 }
 
 describe("the bar's reserved height reaches the stylesheet from one constant", () => {
-  it("is published as a custom property by the component", () => {
-    expect(componentSource).toContain(
-      '"--price-bar-height": `${String(PRICE_BAR_RESERVED_HEIGHT_PX)}px`',
-    );
-  });
+  // That the component publishes it is read off the rendered bar's own `style`, in
+  // `price-bar-states.adversarial.test.ts` ("publishes the reserved height on the bar it renders"): the literal
+  // kept in a constant nothing renders reads the same in the source as one that is published.
 
   it("is read back by the stylesheet as a floor, not a fixed height", () => {
     expect(barStylesheet).toContain("min-height: var(--price-bar-height);");

@@ -11,12 +11,15 @@
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { neon } from "@neondatabase/serverless";
 import type { NeonQueryFunction } from "@neondatabase/serverless";
 
 import { loadEnvLocal } from "./load-env.js";
-import { databaseNameOf } from "./migrate.js";
-import { MigrationError, MigrationExecutionError } from "./migration-errors.js";
+import {
+  MigrationExecutionError,
+  describeErrorType,
+  isPrintableFailure,
+  reducedCauseOf,
+} from "./migration-errors.js";
 import { readMigrationFiles } from "./migration-files.js";
 import { SELECT_APPLIED_MIGRATIONS_SQL } from "./migration-ledger.js";
 import type { AppliedMigration } from "./migration-plan.js";
@@ -32,8 +35,12 @@ import type {
 } from "./migration-status.js";
 import {
   assertDeclaredEnvironmentReaches,
+  printListedDatabaseName,
+  printReachedDatabaseName,
   readDeclaredEnvironment,
 } from "./migration-target.js";
+import { databaseNameOf, openDatabase } from "./open-database.js";
+import type { ConnectionVariableName } from "./open-database.js";
 
 /**
  * Presence is asked of the catalogue (`to_regclass`), not `information_schema.tables`: that view is filtered by the
@@ -66,26 +73,28 @@ interface TablePresence {
 
 /**
  * The three reads as one value. A failure is wrapped as `MigrationExecutionError`, as `migrate.ts` wraps its connect:
- * a Neon driver error carries endpoint and host detail in its properties.
+ * a Neon driver error carries endpoint and host detail in its properties, so only its type name and code are kept as
+ * `cause`. A string the opener refuses is raised as that refusal, outside the wrap.
  */
 export async function readDeployedSchema(
   connectionUrl: string,
+  readFrom?: ConnectionVariableName,
 ): Promise<DeployedSchemaReading> {
+  const sql = openDatabase(connectionUrl, readFrom);
   try {
-    return await queryDeployedSchema(connectionUrl);
+    return await queryDeployedSchema(sql);
   } catch (error) {
     throw new MigrationExecutionError(
-      `Could not read the schema of "${databaseNameOf(connectionUrl)}". Nothing was changed: this ` +
-        `command only ever reads.`,
-      { cause: error },
+      `Could not read the schema of "${printListedDatabaseName(databaseNameOf(connectionUrl))}". Nothing was ` +
+        `changed: this command only ever reads.`,
+      reducedCauseOf(error),
     );
   }
 }
 
 async function queryDeployedSchema(
-  connectionUrl: string,
+  sql: NeonQuery,
 ): Promise<DeployedSchemaReading> {
-  const sql = neon(connectionUrl);
   const { hasLedger, hasDesigns } = await readTablePresence(sql);
 
   return {
@@ -168,9 +177,9 @@ async function readDocumentSchemaVersions(sql: NeonQuery): Promise<number[]> {
 /** Never the error object or its `cause`: a driver error's properties are where a connection string hides (ADR 0008).
  *  Mirrors `describeMigrationFailure` under this command's prefix. */
 export function describeStatusFailure(error: unknown): string {
-  return error instanceof MigrationError
+  return isPrintableFailure(error)
     ? `[migrate:status] ${error.name}: ${error.message}`
-    : `[migrate:status] failed with an unexpected ${error instanceof Error ? error.name : typeof error}.`;
+    : `[migrate:status] failed with an unexpected ${describeErrorType(error)}.`;
 }
 
 // As in `migrate.ts`: `import.meta.url` percent-encodes a space and `process.argv[1]` does not (ADR 0013).
@@ -190,19 +199,17 @@ async function reportDeployedSchemaStatus(): Promise<void> {
     // docs/milestones/migration-environment-safety-check.md).
     const environment = readDeclaredEnvironment(process.argv, "migrate:status");
     const connectionUrl = requireMigrationDatabaseUrl();
-    assertDeclaredEnvironmentReaches({
-      environment,
-      databaseName: databaseNameOf(connectionUrl),
-    });
+    const databaseName = databaseNameOf(connectionUrl);
+    assertDeclaredEnvironmentReaches({ environment, databaseName });
 
     const report = describeDeployedSchemaStatus(
       readMigrationFiles(),
-      await readDeployedSchema(connectionUrl),
+      await readDeployedSchema(connectionUrl, MIGRATION_URL_VARIABLE),
     );
     console.log(
       describeMigrationStatusLine(report, {
         environment,
-        databaseName: databaseNameOf(connectionUrl),
+        databaseName: printReachedDatabaseName({ databaseName, environment }),
       }),
     );
     if (!isDeployedSchemaLevel(report)) process.exitCode = 1;

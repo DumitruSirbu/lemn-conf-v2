@@ -6,11 +6,12 @@ import {
   type ReactNode,
 } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { createTranslator, NextIntlClientProvider } from "next-intl";
+import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it, vi } from "vitest";
 
 import ContactPage from "../../src/app/[locale]/configurator/contact/page";
 import { DesignLoadError } from "../../src/app/d/[id]/design-load-error";
+import { StartLink } from "../../src/components/start-link";
 import { getPathname, Link } from "../../src/i18n/navigation";
 import roMessages from "../../src/messages/ro.json";
 
@@ -26,8 +27,14 @@ function findElement(node: ReactNode, type: unknown): ReactElement | undefined {
     .find((found): found is ReactElement => found !== undefined);
 }
 
-const getTranslations = vi.hoisted(() => vi.fn());
-vi.mock("next-intl/server", () => ({ getTranslations }));
+/** `connection()` reads Next's request store and throws without one; the page's use of it is its own test's. */
+vi.mock("next/server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/server")>()),
+  connection: vi.fn(() => Promise.resolve()),
+}));
+vi.mock("../../src/app/configurator/configure/locale-menu", () => ({
+  LocaleMenu: () => null,
+}));
 
 function renderLocalized(locale: "ro" | "ru", children: ReactNode): string {
   return renderToStaticMarkup(
@@ -61,9 +68,6 @@ describe("locale-aware customer navigation", () => {
   it.each(["ro", "ru"] as const)(
     "keeps the contact and load-error exits in the current %s locale",
     async (locale) => {
-      getTranslations.mockResolvedValueOnce(
-        createTranslator({ locale, messages: roMessages }),
-      );
       const contact = renderLocalized(locale, await ContactPage());
       const loadError = renderLocalized(
         locale,
@@ -75,13 +79,8 @@ describe("locale-aware customer navigation", () => {
     },
   );
 
-  it("never prefetches the back link — a prefetch would run the resume route as a side effect (L1.7)", async () => {
-    getTranslations.mockResolvedValueOnce(
-      createTranslator({ locale: "ro", messages: roMessages }),
-    );
-    const contactElement = await ContactPage();
-
-    const backLink = findElement(contactElement, Link);
+  it("never prefetches the start link — a prefetch would run the resume route as a side effect (L1.7)", () => {
+    const backLink = findElement(StartLink({}), Link);
 
     expect(backLink).toBeDefined();
     expect((backLink?.props as { href?: string }).href).toBe("/");

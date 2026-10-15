@@ -191,6 +191,10 @@ describe("the final state always lands, across the interval", () => {
     store.getState().remove();
     await vi.advanceTimersByTimeAsync(MIN_SAVE_INTERVAL_MS * 2);
 
+    // The first command's own write follows the mint, and the second command is made once the id is
+    // held, so its write is the one that has to find that id. Without the floor of two, a coalescer
+    // that stopped writing for an identity it already holds an id for would leave only the first.
+    expect(writesOf().length).toBeGreaterThanOrEqual(2);
     for (const write of writesOf()) {
       expect(write.url).toBe(`/api/designs/${MINTED_ID}`);
     }

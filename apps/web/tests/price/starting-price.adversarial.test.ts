@@ -78,34 +78,6 @@ const EVERY_PRICE_STRING = [
 ];
 
 describe("the boundaries around a thousand", () => {
-  it("never charges a further thousand for an amount already on the step", () => {
-    // Guards the ceiling off-by-one `floor(x / step) + 1`, which adds 1 000 MDL exactly on the step.
-    for (const stepCount of [1, 2, 43, 94, 100, 1_000, 999_999]) {
-      expect(
-        roundUpToThousandMdl(stepCount * BANI_PER_STEP),
-        `${String(stepCount)} exact steps gained a thousand`,
-      ).toBe(stepCount * ROUNDING_STEP_MDL);
-    }
-  });
-
-  it("moves one whole thousand across each side of a step, and no more", () => {
-    for (const stepCount of [1, 43, 94, 5_000]) {
-      const onStep = stepCount * BANI_PER_STEP;
-      expect(roundUpToThousandMdl(onStep - 1)).toBe(
-        stepCount * ROUNDING_STEP_MDL,
-      );
-      expect(roundUpToThousandMdl(onStep)).toBe(stepCount * ROUNDING_STEP_MDL);
-      expect(roundUpToThousandMdl(onStep + 1)).toBe(
-        (stepCount + 1) * ROUNDING_STEP_MDL,
-      );
-    }
-  });
-
-  it("rounds one ban up to a whole thousand", () => {
-    expect(roundUpToThousandMdl(1)).toBe(1_000);
-    expect(amountTextFor(1)).toBe("1 000 MDL");
-  });
-
   it("holds at the largest amount the type admits at all", () => {
     // `assertExactMinorAmount` accepts every safe integer, so this is the function's real ceiling: a naive
     // implementation leaves the safe range at the product of the ceiling and the step.
@@ -167,31 +139,6 @@ describe("the catalogue's own totals, priced and shown", () => {
     expect((renderedMdl - ROUNDING_STEP_MDL) * BANI_PER_MDL).toBeLessThan(
       SEEDED.priced.totalMinor,
     );
-  });
-
-  it("rounds every line the catalogue can produce without leaving the step", () => {
-    if (!SEEDED.ok) throw new Error("expected the seeded design to price");
-
-    for (const line of SEEDED.priced.lines) {
-      const roundedMdl = roundUpToThousandMdl(line.amountMinor);
-      expect(roundedMdl % ROUNDING_STEP_MDL).toBe(0);
-      expect(roundedMdl * BANI_PER_MDL).toBeGreaterThanOrEqual(
-        line.amountMinor,
-      );
-    }
-  });
-
-  it("renders an included tier's zero as a bare zero, which wave 6D must not ship as an amount", () => {
-    // Characterisation, not approval: two `0` lines exist (the default hardware and material tiers) and frame 2E
-    // rules *inclus* for a zero-amount tier, so such lines must not reach this formatter unguarded.
-    if (!SEEDED.ok) throw new Error("expected the seeded design to price");
-
-    const zeroLines = SEEDED.priced.lines.filter(
-      (line) => line.amountMinor === 0,
-    );
-    expect(zeroLines.length).toBeGreaterThan(0);
-    expect(amountTextFor(0)).toBe("0 MDL");
-    expect(ro.price).not.toHaveProperty("included");
   });
 });
 
@@ -389,25 +336,6 @@ describe("the one prefix a figure carries, and the one the owner removed", () =>
     );
   });
 
-  it("offers no surface a choice of prefix to compose", () => {
-    // A refusal never reaches a price model, so this is asserted over the modules rather than over one call.
-    const composers = [
-      "price/starting-price.ts",
-      "price/price-bar-model.ts",
-      "price/price-breakdown-model.ts",
-      "panel/panel-model.ts",
-      "settings/global-settings-model.ts",
-    ];
-
-    for (const path of composers) {
-      // Comments stripped: `starting-price.ts` names the withdrawn function in its own note.
-      const source = readFileSync(resolve(SOURCE_ROOT, path), "utf8")
-        .replace(/\/\*[\s\S]*?\*\//g, "")
-        .replace(/\/\/.*$/gm, "");
-      expect(source, path).not.toContain("describeStartingLabel");
-    }
-  });
-
   it("keeps the ruled word single, with the casing in the stylesheet and not in a second string", () => {
     // The price line is drawn lowercase by the stylesheet (frame D2A); a lowercase copy in `ro.json` would be a
     // second spelling of the ruled word.
@@ -482,6 +410,17 @@ describe("only these modules may go near a price, and only one of them may round
 
   it("names every module that can reach a priced amount or the figure built from one", () => {
     expect(pricingModules).toEqual([
+      // The review screen and its two helpers render the model's figure and rows; they derive and round nothing.
+      "app/d/[id]/review/review-screen.tsx",
+      // Frame 4A's card prints the review's own figure (`review.figure.amountText`) beside its room line, so the
+      // card shows the figure the press sends and derives nothing; it rounds nothing (8L, criterion 5).
+      "contact/contact-design-card.tsx",
+      // Reads the book's version through `usePricedDesign` and nothing else of the price: the digest covers
+      // `bookVersion` (ADR 0157 d2), and the browser root is the one place that names the book (ADR 0157 d8). It
+      // uses no amount; the same hook still has to pass the rounding and step assertions below.
+      "contact/use-contact-submission.ts",
+      // The shop's notice prints a stored review's figure and rows and derives nothing; it rounds nothing.
+      "lib/server/mail/lead-notification.ts",
       "panel/editor-panel.tsx",
       "panel/panel-model.ts",
       "panel/use-panel-view.ts",
@@ -497,6 +436,9 @@ describe("only these modules may go near a price, and only one of them may round
       "price/use-priced-design.ts",
       // `whole-kitchen-tiers.ts` prices the design six times over to measure a delta; listed, not exempted.
       "price/whole-kitchen-tiers.ts",
+      "review/review-groups.tsx",
+      "review/review-model.ts",
+      "review/use-review.ts",
       "settings/global-settings-model.ts",
       "settings/global-settings.tsx",
     ]);

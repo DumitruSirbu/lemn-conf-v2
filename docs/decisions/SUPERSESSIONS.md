@@ -18,6 +18,17 @@ replaced it — nothing is deleted or rewritten silently.
   Alternatives 1–2's rejection of passwords and accounts → **superseded** by **ADR 0115** on the owner's
   rulings of 2026-09-11 (*"Profile replaces PIN"*, *"In M8, with e-mail"*); the rejected alternatives'
   reasons are now M8's obligations (`milestones/M8-review-contact-success.md`, *Customer profiles*).
+- **ADR 0115** decisions 1, 3 and 4 and its *Consequences* (*profiles are built in M8*) → **moved to
+  M8B** by that record's **Amendment A** (2026-10-07), on the owner's answer to M8 plan Q1 (*"rest as
+  recommended"*, relayed; option (b)). Wording struck in place. The rulings of 2026-09-11 stand.
+- **Annotated 2026-10-07, later, nothing superseded:** **ADR 0019** decision 4's diaspora reason, against
+  the owner's *"Moldova only for now"*. The decision's limits stand; M8 question Q23 is open.
+- **Annotated 2026-10-07, M8 wave 8B, nothing superseded:** **ADR 0006**'s refusal wording (the guard no
+  longer prints `host:port` or an unlisted name), **ADR 0142** decision 6 (`databaseNameOf` moved to
+  `open-database.ts`; its no-slash refusal applies at every site) and **ADR 0041** decision 3 (four
+  prerendered routes now, not five) → **ADR 0146**. ADR 0146 also supersedes, in `connectOrWrapError`'s
+  own comment in `migrate.ts`, the stated intent to keep the driver error as `cause` (rule B3), and makes
+  the 2026-09-06 criterion of M8's plan, *Added 2026-09-06*, hold over any string.
 - **ADR 0002**'s *shareable to anyone holding the link* and **ADR 0019** decision 1's open read →
   **superseded** by **ADR 0114** decision 5 on the owner's F5 answer of 2026-09-11 (*"Only its own
   browser"*, revised the same day to *"Own browser + private share link"*); both carry dated notes.
@@ -32,6 +43,40 @@ replaced it — nothing is deleted or rewritten silently.
   first application). **Untouched:** the 14-day **backup** rotation, which the owner ruled separately
   the same day, and the same cron's rate-limit-counter pruning. **Consequence: no table in this
   project has a retention horizon — everything stored is permanent by default.**
+- **Annotated 2026-10-07, nothing superseded:** **ADR 0019**'s 2026-08-31 *"ship together"* sentence lost
+  its retention-cron term to the entry above (the replacement set is M8 owner question Q19, undecided),
+  and its table's `POST /api/contact` is `POST /api/contact-submissions` in `ARCHITECTURE_PROPOSAL.md`
+  §9; **ADR 0114** decision 7's *"M8's retention cron deletes the visitor hash"* is moot for the same
+  reason. Each carries a dated note in its own file.
+- **ADR 0019** decision 5's mint row (*10 / hour, 30 / day*; *3 / hour + challenge*; *5 / hour*), decision 4
+  *as it applies to the mint* (*"Traffic from MD gets the ordinary limits. Everything else gets a much
+  tighter limit and a challenge"*) and decision 3's session-cookie bucket *for the mint* → **superseded** by
+  **ADR 0147** on the owner's rulings of 2026-10-07 (*"20 design generation per day for all"*, *"per user
+  (ip)"*, *"20 per day"*): one counter per IP address, 20 a day, for everyone, and nothing else. Struck in
+  place in ADR 0019. **Untouched:** the figures for saves, shares, page reads and the contact form, and
+  decision 4 for any endpoint other than the mint. **Not ruled, in ADR 0147:** IPv4 as one address or a /24
+  (Q32), the meaning of a day (the architect's), how an address is stored. ADR 0147 also records that the
+  launch gate (the 2026-08-31 correction) moves whole to the delivery milestone, the architect's derivation.
+- **ADR 0147**'s title and decision, *"per IP address"* → **amended for IPv4** by its own **Amendment A**
+  (2026-10-08) on the owner's answer to Q32 (*"32 -go with Per block of 256"*, relayed): the 20 a day is counted
+  per /24, not per address. The Q32 section and Alternative 5 are struck in place. IPv6 stays the /64, the
+  architect's reading and not the owner's sentence. Nothing in ADR 0019 moves further.
+- **Annotated 2026-10-08, tests-review fix-up, nothing superseded:** **ADR 0084** decision 5's *"`setFinish` offers
+  everything"* → read as every *finish*, not every object, by the architect's ruling [relayed]: a value `FinishSchema`
+  refuses is refused with `FINISH_NOT_OFFERED` on any material (`6eef46c`); **ADR 0078** decision 1 (`materialOffersFinish`
+  now checks a free colour's type and pattern, `38fa058`, `74bcc20`) and decision 3 (it refuses no *document*, not no
+  *finish*); **ADR 0031** (a width resize writes a seeded 820 mm base back at 860 mm, the architect's inference) with a
+  pointer in **ADR 0022**'s amendment; **ADR 0150**'s citation of a deleted test file. Each carries a dated note in its
+  own file. **ADR 0152** records the rules the cleanup produced.
+- **ADR 0148** gained **Amendment A** (2026-10-08), wave 8D's half; nothing in an earlier record is superseded.
+  Inside it, E2's condition is replaced by G2, and G1's *"or a language switch"* is struck; the plan keeps the
+  original wording.
+- **Annotated 2026-10-07, M8 wave 8C's close-out, nothing superseded:** the scope ruling (hosting and delivery
+  preparation are a separate milestone) carries pointers on **ADR 0114** decision 7 and B5 (the limiter's scope
+  is the application's in M8, the WAF's is the delivery milestone's), **ADR 0115** and M8B (M8B builds on M8's
+  mail port and fake until the delivery milestone), **ADR 0095** (the Russian backstop re-sign moves with the
+  launch gate) and **ADR 0038** with **ADR 0111** decision 8 (the first stored schema moves with it). Each
+  carries a dated note in its own file.
 - **ADR 0111** Amendment A2 (a pointer cookie holding the design id) → **superseded** by **ADR 0114**
   on the owner's security requirement of 2026-09-11: the cookie holds a secret, never the id.
 - **ADR 0111** decision 7's demo interim (the editor stays at `/configurator/configure`) →
@@ -374,6 +419,24 @@ replaced it — nothing is deleted or rewritten silently.
   Listed here because the gap reads like an implementation defect and is not one: ADR 0011 Gap D
   already re-answers `hasFullHeightUnder` on every derivation, and — measured at `ed6c545` — it does.
   What was missing was a rule about the bodies already in the column, and the owner has now given one.
+
+- **ADR 0041** decision 4 (*no report collector: an unauthenticated, unthrottled `POST` is SEC-001's
+  shape*) → **overturned by name** by **ADR 0161** decision 2 (2026-10-13, wave 8Q), because its reason,
+  the missing limiter, no longer holds (ADR 0155, 0156). **ADR 0041** decision 3's two preconditions
+  for enforcing (no prerendered page without a nonce; a sink) → **discharged** by ADR 0161 decisions 1
+  and 6. Decisions 1, 2 and 5 stand; decision 6 (`upgrade-insecure-requests`) stands (ADR 0161
+  decision 7). The CSP is now a control and not only a declaration (SEC-004's stated bound). ADR 0161
+  itself carries struck-in-place corrections by its own **Amendment B**: *"one counter write per
+  accepted report"* (it is per correctly-typed `POST`, refusals included), F2's *"cannot pass for one
+  of this application's pages"* (`origin` is a claim, never proved), and the plan's criterion 4,
+  *"no line for 429"* (superseded by F1's once-an-hour line).
+
+- **ADR 0161** decision 2's *"Nothing is stored but the limiter's counter."* and its *Consequences* cost line (a
+  counter write per correctly-typed `POST` and nothing more) → **overtaken** by **ADR 0162** (2026-10-14, wave 8Q2,
+  the owner's Q46 = (c)): an accepted report is also stored as a row in a fixed-size table. Struck in place by ADR
+  0161's **Amendment C**. Decision 3's closed record stands. ADR 0162's own **Amendment A** corrects the 8Q2 plan's
+  *"well under one a second"* worst-case line (about 1,820 accepted reports a second with a named network source and
+  a routed IPv6 `/48`).
 
 ## Moved from the index Status column
 

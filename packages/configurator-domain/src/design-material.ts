@@ -15,10 +15,27 @@
 import type { Design } from "./design.js";
 import {
   DEFAULT_MATERIAL_ID,
+  FinishSchema,
   lookUpMaterial,
+  materialOffersFinish,
+  type Finish,
   type MaterialLookup,
 } from "./materials.js";
 
 export function materialOfDesign(design: Design): MaterialLookup {
   return lookUpMaterial(design.settings?.materialTierId ?? DEFAULT_MATERIAL_ID);
+}
+
+/** Whether a command may write `finish` into `design`: the value must be one `FinishSchema` admits, and the
+ *  design's material must offer it or be undeclared, which makes no offer of its own (ADR 0078 decisions 3
+ *  and 6). A free colour is pattern-checked here by the parse and again by `materialOffersFinish`,
+ *  deliberately: that query's other callers, the tier reset in `set-whole-kitchen-settings.ts`, do not come
+ *  through this function. */
+export function designOffersFinish(design: Design, finish: Finish): boolean {
+  if (!FinishSchema.safeParse(finish).success) return false;
+  const lookup = materialOfDesign(design);
+  return (
+    lookup.kind === "undeclared" ||
+    materialOffersFinish(lookup.material, finish)
+  );
 }

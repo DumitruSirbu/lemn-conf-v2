@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "./zod-without-eval.js";
 
 import {
   MAX_COLUMN_EXTENTS,

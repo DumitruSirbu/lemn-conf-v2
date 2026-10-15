@@ -24,10 +24,11 @@ import {
 
 import { swatchOf } from "@lemnaria/three-adapter";
 
-import type { SaveStatus } from "@/persistence/save-coalescer";
+import { pausedUntilMs, type SaveStatus } from "@/persistence/save-coalescer";
 import { describeEditability, type Editability } from "@/store/editability";
 import type { WriteAccess } from "@/store/configurator-store";
 
+import { clockTimeOf } from "@/i18n/clock-time";
 import { crossesOnScreen, type Content } from "@/i18n/content";
 import {
   describeFlaggedTotalWarning,
@@ -226,8 +227,8 @@ export interface PanelFooter {
   readonly removeDisabledReason?: string;
   readonly removeLabel: string;
   readonly doneLabel: string;
-  /** §9 item 7's price, and "De la neschimbat" while a refusal stands. Absent when no price was supplied or pricing
-   *  failed, rendering the same either way: a zero or dash would read as free. */
+  /** §9 item 7's price: the starting-price figure, its label and rounded amount. Absent when no price was supplied or
+   *  pricing failed, rendering the same either way: a zero or dash would read as free. */
   readonly price?: PriceFigure;
   /** ADR 0065 decision 7b's warning, on the same condition the bar flags its total; present only where `price` is.
    *  On mobile the footer carries the only total on screen (decision 6). */
@@ -244,6 +245,7 @@ export interface PanelNotice {
     | "access-uncheckable"
     | "save-failed"
     | "save-stopped"
+    | "save-paused"
     | "save-conflict";
   /** Published resolved so the component styles rather than classifies. */
   readonly tone: "info" | "error";
@@ -313,6 +315,9 @@ export interface DescribePanelInput {
    *  answers. Advisory, never an authorisation decision (`hasWriteCredentialFor`); only `true` opens the controls. */
   readonly canWrite: WriteAccess;
   readonly saveStatus: SaveStatus;
+  /** When the one waiting write will be sent, once the limit on saves refused it: with `saveStatus: "error"` it makes
+   *  the notice a pause with a stated time rather than a failure. Absent or `null` is the failure's own backoff. */
+  readonly saveResumesAtMs?: number | null | undefined;
 }
 
 /** §9's half of the one editability rule: an alias, with `store/editability.ts` deciding it so no second surface can
@@ -393,6 +398,9 @@ function describeNotice(
   editability: PanelEditability,
 ): PanelNotice | undefined {
   if (editability.isReadOnly) return describeLockedNotice(input);
+  const pausedUntil = pausedUntilMs(input.saveStatus, input.saveResumesAtMs);
+  if (pausedUntil !== undefined)
+    return describePausedNotice(input.content, pausedUntil);
   if (input.saveStatus === "error")
     return {
       kind: "save-failed",
@@ -408,6 +416,19 @@ function describeNotice(
   if (input.saveStatus === "conflict")
     return describeConflictNotice(input.content);
   return undefined;
+}
+
+/** The write the limit on saves holds, until the time it stated. The pause is no error: nothing is wrong, and the
+ *  change goes by itself, so it is told as information. */
+function describePausedNotice(
+  content: Content,
+  resumesAtMs: number,
+): PanelNotice {
+  return {
+    kind: "save-paused",
+    tone: "info",
+    message: content.panel.savePausedNotice(clockTimeOf(resumesAtMs)),
+  };
 }
 
 /** The two-way save-conflict choice. Reload is first, as the conservative one; overwrite discards a version the

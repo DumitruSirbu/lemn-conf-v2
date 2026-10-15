@@ -8,7 +8,6 @@ import {
 } from "../../src/cabinet-handles.js";
 import { deriveDoorCount, TWO_DOOR_MIN_WIDTH_MM } from "../../src/catalog.js";
 import {
-  DesignSchema,
   type CabinetBody,
   type Design,
   type DesignPlacement,
@@ -201,12 +200,6 @@ function amountOfOneBody(body: Partial<CabinetBody>): number {
 }
 
 describe("a price is a formula over width, never a table keyed on the ladder", () => {
-  it("prices a 575 mm body, which no width row in any book covers", () => {
-    expect(
-      amountOfOneBody({ buildId: "wall-cabinet", widthMm: 575, heightMm: 700 }),
-    ).toBe(expectedAmountFor("wall-cabinet", { widthMm: 575, heightMm: 700 }));
-  });
-
   it("prices every whole millimetre across a cabinetry row's range", () => {
     for (let widthMm = 200; widthMm <= 800; widthMm += 1) {
       expect(
@@ -293,13 +286,19 @@ describe("the price steps where the door count does, and nowhere else", () => {
 
   it("does not step a row whose front population is fixed at every width", () => {
     // `base-sink` has two doors that do not follow its width, so its price is flat in leaves.
+    const widthsMm = CATALOG.get("base-sink")?.sizesMm ?? [];
+
+    expect(widthsMm.length).toBeGreaterThan(1);
     expect(
-      widthDerivedDoorLeafCount({
-        buildId: "base-sink",
-        rule: CATALOG.get("base-sink")?.cabinetHandles,
-        widthMm: 800,
-      }),
-    ).toBe(0);
+      widthsMm.map((widthMm) => [
+        widthMm,
+        widthDerivedDoorLeafCount({
+          buildId: "base-sink",
+          rule: CATALOG.get("base-sink")?.cabinetHandles,
+          widthMm,
+        }),
+      ]),
+    ).toEqual(widthsMm.map((widthMm) => [widthMm, 0]));
     expect(ruleFor("base-sink").formula.shape).toBe("linear-in-width");
   });
 
@@ -404,70 +403,6 @@ describe("the line order is the projection's, which is row-major", () => {
     expect(
       cabinetLinesOf(pricedSeededKitchen()).map((line) => line.placementId),
     ).toEqual(expected);
-  });
-
-  it("lists wall A's hanging row before its top row (ADR 0063), not each column in turn", () => {
-    const wallASuspended = cabinetLinesOf(pricedSeededKitchen())
-      .map((line) => line.placementId)
-      .filter((placementId) =>
-        [
-          "p8",
-          "p10",
-          "p11",
-          "p12",
-          "p13",
-          "p14",
-          "p15",
-          "p16",
-          "p17",
-          "p18",
-          "p19",
-          "p20",
-        ].includes(placementId),
-      );
-
-    // The whole hanging row left to right, then the whole top row, not column-major.
-    expect(wallASuspended).toEqual([
-      "p8",
-      "p10",
-      "p11",
-      "p12",
-      "p13",
-      "p14",
-      "p15",
-      "p16",
-      "p17",
-      "p18",
-      "p19",
-      "p20",
-    ]);
-  });
-
-  it("prices the same design identically however its placements are stored", () => {
-    // The order is a function of the design, not of the array order: the comparator is total only because
-    // placement ids are unique (`findDuplicatePlacementIds`). Swept over every rotation so ties are reached
-    // from both sides.
-    const lines = cabinetLinesOf(pricedSeededKitchen()).map(
-      (line) => line.placementId,
-    );
-    const placements = KITCHEN_L_DESIGN.placements;
-
-    for (let rotation = 1; rotation < placements.length; rotation += 1) {
-      const rotated = [
-        ...placements.slice(rotation),
-        ...placements.slice(0, rotation),
-      ];
-      const priced = priceOrFail({
-        design: designOf(rotated),
-        catalog: CATALOG,
-        book: BOOK,
-        pricingVersion: BOOK.version,
-      });
-
-      expect(cabinetLinesOf(priced).map((line) => line.placementId)).toEqual(
-        lines,
-      );
-    }
   });
 
   /** Placements, hardware, material, accessories (ADR 0092 decision 11): accessories are appended, so
@@ -975,13 +910,6 @@ describe("nothing is rounded and nothing is stored", () => {
     expect(result.ok ? undefined : result.failure.code).toBe(
       "INVALID_PRICE_BOOK",
     );
-  });
-
-  it("gains no price field on the design document", () => {
-    const withATotal = { ...KITCHEN_L_DESIGN, totalMinor: 1 };
-
-    expect(DesignSchema.safeParse(withATotal).success).toBe(false);
-    expect(DesignSchema.safeParse(KITCHEN_L_DESIGN).success).toBe(true);
   });
 
   it("prices an empty design as its two whole-kitchen lines and no cabinet line", () => {

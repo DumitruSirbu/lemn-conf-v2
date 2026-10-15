@@ -50,7 +50,10 @@ import {
 } from "@lemnaria/configurator-domain";
 
 import type { Selection } from "../store/apply-command-result";
-import { useConfiguratorStore } from "../store/configurator-store";
+import {
+  useConfiguratorStore,
+  type ConfiguratorState,
+} from "../store/configurator-store";
 import { publishSceneMeasurement } from "./scene-measurement-store";
 import { resolveSceneView, sceneViewKey, type SceneView } from "./scene-view";
 import { useOverflowingPlacementIds } from "./use-overflowing-placements";
@@ -109,10 +112,38 @@ interface CameraGoal {
   isImmediate: boolean;
 }
 
+/**
+ * What a mount lets the customer do to the design through the scene: select a body (and have the
+ * selection drawn), and offer the store the probe that measures a depth change. A mount handed none
+ * wires no pointer listener, draws no outline, and never touches the store's selection or probe.
+ */
+export type StageEditing = Pick<
+  ConfiguratorState,
+  "selection" | "select" | "deselect" | "attachBodyProbe" | "detachBodyProbe"
+>;
+
 export interface KitchenStageProps {
   view: SceneView;
   finish?: Finish;
   onSettled?: () => void;
+  /** Answers what this mount may edit. Defaults to the editor's: the store's own selection and probe. */
+  useEditing?: () => StageEditing | undefined;
+}
+
+/** The editor's wiring: the configurator store's selection, its select commands and its probe seam. */
+function useEditingThroughTheStore(): StageEditing {
+  return {
+    selection: useConfiguratorStore((state) => state.selection),
+    select: useConfiguratorStore((state) => state.select),
+    deselect: useConfiguratorStore((state) => state.deselect),
+    attachBodyProbe: useConfiguratorStore((state) => state.attachBodyProbe),
+    detachBodyProbe: useConfiguratorStore((state) => state.detachBodyProbe),
+  };
+}
+
+/** The review's wiring: nothing. A scene that is looked at and not edited. */
+export function useNoEditing(): undefined {
+  return undefined;
 }
 
 interface ReseatInput {
@@ -151,7 +182,12 @@ function reseatHoldingCamera(input: ReseatInput, restoreCamera: boolean): void {
  * mounted by `syncSolidBodies` at its `PlacementRecord` transform, tagged `userData.placementId` for
  * picking. The sync engine lives in `@lemnaria/three-adapter` (`scene-sync.ts`); this only calls it.
  */
-export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
+export function KitchenStage({
+  view,
+  finish,
+  onSettled,
+  useEditing = useEditingThroughTheStore,
+}: KitchenStageProps) {
   const gl = useThree((state) => state.gl);
   const scene = useThree((state) => state.scene);
   const camera = useThree((state) => state.camera);
@@ -164,16 +200,13 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
   // No command rewrites the room object, so this re-renders only when the room changes.
   const designRoom = useConfiguratorStore((state) => state.design.room);
   const voids = useConfiguratorStore((state) => state.voids);
-  const selection = useConfiguratorStore((state) => state.selection);
-  const select = useConfiguratorStore((state) => state.select);
-  const deselect = useConfiguratorStore((state) => state.deselect);
+  const editing = useEditing();
+  const selection = editing?.selection ?? null;
+  const select = editing?.select;
+  const deselect = editing?.deselect;
+  const attachBodyProbe = editing?.attachBodyProbe;
+  const detachBodyProbe = editing?.detachBodyProbe;
   const overflowingIds = useOverflowingPlacementIds();
-  const attachBodyProbe = useConfiguratorStore(
-    (state) => state.attachBodyProbe,
-  );
-  const detachBodyProbe = useConfiguratorStore(
-    (state) => state.detachBodyProbe,
-  );
   // A number, not the design: selecting `state.design` would re-render on every command.
   const cabinetDepthMm = useConfiguratorStore(
     (state) =>
@@ -287,6 +320,7 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
 
   // The only place the Three.js probe factory is handed to the store.
   useEffect(() => {
+    if (attachBodyProbe === undefined || detachBodyProbe === undefined) return;
     attachBodyProbe(probeFactoryFor(stage, cabinetDepthMm));
     // The store is module-scoped and would otherwise offer a probe over an unmounted scene.
     return detachBodyProbe;
@@ -333,7 +367,8 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
     cutWallsKey.current = walls.join(",");
     // A8.3: a hidden cabinet is not an editable one, so a selection on a cut wall is cleared.
     const selectedWall = wallOfSelection(selection, records, voids);
-    if (selectedWall !== undefined && walls.includes(selectedWall)) deselect();
+    if (selectedWall !== undefined && walls.includes(selectedWall))
+      deselect?.();
     invalidate();
   };
   const cutWallsNow = (): readonly DesignWall[] =>
@@ -347,6 +382,7 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
   // Picking (`DEVELOPMENT-SPEC.md` §6.1). Native DOM listeners, not R3F's pointer props: the
   // drag-vs-click test needs the raw pixel delta between down and up.
   useEffect(() => {
+    if (select === undefined || deselect === undefined) return;
     const canvasElement = gl.domElement;
     const raycaster = createPickingRaycaster();
     const pointerNdc = new THREE.Vector2();
@@ -495,6 +531,10 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
     invalidate();
   }, [viewKey, invalidate]);
 
+  // Where a mount with no orbit controls looks. `OrbitControls.update()` is what turns the camera towards its
+  // target in the editor; without it nothing does, so the frame loop does it from this target instead.
+  const heldLookTarget = useRef(new THREE.Vector3());
+
   useFrame((_, delta) => {
     const pending = goal.current;
     if (!pending) return;
@@ -502,8 +542,8 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
       ? 1
       : 1 - Math.pow(0.001, delta / CAMERA_EASE_SECONDS);
     camera.position.lerp(pending.position, step);
-    controls?.target.lerp(pending.target, step);
-    controls?.update();
+    (controls?.target ?? heldLookTarget.current).lerp(pending.target, step);
+    faceTarget(camera, controls, heldLookTarget.current);
     followCameraRef.current();
     const cameraSettled =
       camera.position.distanceTo(pending.position) < SETTLED_METRES;
@@ -511,8 +551,8 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
       !controls || controls.target.distanceTo(pending.target) < SETTLED_METRES;
     if (cameraSettled && targetSettled) {
       camera.position.copy(pending.position);
-      controls?.target.copy(pending.target);
-      controls?.update();
+      (controls?.target ?? heldLookTarget.current).copy(pending.target);
+      faceTarget(camera, controls, heldLookTarget.current);
       goal.current = null;
       // Off unless the build opted in (`scene-measurement-store.ts`).
       publishSceneMeasurement({ camera, solidsRoot: stage.solidsRoot });
@@ -531,6 +571,16 @@ export function KitchenStage({ view, finish, onSettled }: KitchenStageProps) {
       <primitive object={stage.room} />
     </>
   );
+}
+
+/** Turns the camera to its target: the orbit controls' own update where there are controls, else a plain look-at. */
+function faceTarget(
+  camera: THREE.Camera,
+  controls: OrbitTarget | null,
+  heldTarget: THREE.Vector3,
+): void {
+  if (controls) controls.update();
+  else camera.lookAt(heldTarget);
 }
 
 interface SelectableRoots {

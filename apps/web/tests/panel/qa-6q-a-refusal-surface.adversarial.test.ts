@@ -161,6 +161,18 @@ function tapSwatch(design: Design, entryId: string): TapOutcome {
   };
 }
 
+const DISTINCT_CONTROL_SHAPES = 3;
+
+/** The one `data-finish-control` the panel renders for a kitchen of this material, read from the markup. */
+function renderedControlShapeOf(materialTierId: string): string | undefined {
+  const markup = renderToStaticMarkup(
+    createElement(EditorPanel, {
+      view: panelFor(storeOn(withMaterial(materialTierId)), null),
+    }),
+  );
+  return /data-finish-control="([^"]+)"/.exec(markup)?.[1];
+}
+
 describe("the control's shape is the material's, not its option count's", () => {
   it("names every declared material exactly once, and three distinct shapes", () => {
     // The anti-vacuity guard for the table above. Three shapes, not two with one repeated: a wave
@@ -169,7 +181,14 @@ describe("the control's shape is the material's, not its option count's", () => 
     expect(Object.keys(CONTROL_BY_MATERIAL)).toEqual(
       MATERIALS.map((material) => material.materialId),
     );
-    expect(new Set(Object.values(CONTROL_BY_MATERIAL)).size).toBe(3);
+    // Counted on what the panel renders, not on the table: three distinct values in a table this file wrote say only
+    // that the table was typed carefully.
+    const renderedShapes = MATERIALS.map(({ materialId }) =>
+      renderedControlShapeOf(materialId),
+    );
+
+    expect(renderedShapes).not.toContain(undefined);
+    expect(new Set(renderedShapes).size).toBe(DISTINCT_CONTROL_SHAPES);
   });
 
   it.each(Object.entries(CONTROL_BY_MATERIAL))(
@@ -184,22 +203,6 @@ describe("the control's shape is the material's, not its option count's", () => 
       expect(markup).toContain(`data-finish-control="${shape}"`);
     },
   );
-
-  it("gives PAL a list and veneer swatches, though PAL could hold two entries one day", () => {
-    // ADR 0071 decision 3's own reason, asserted rather than restated: the two list-shaped controls
-    // are told apart by the declaration and never by `chips.length`. If they were told apart by
-    // count, these two sections would be the same control the day PAL shrank to two decors.
-    const pal = swatchSectionOf(
-      panelFor(storeOn(withMaterial("material.melamine")), null),
-    );
-    const veneer = swatchSectionOf(
-      panelFor(storeOn(withMaterial("material.veneer")), null),
-    );
-
-    expect(pal.control).toBe("decor-list");
-    expect(veneer.control).toBe("wood-swatches");
-    expect(pal.control).not.toBe(veneer.control);
-  });
 
   it("puts the RAL picker on MDF and nowhere else", () => {
     // §13.1's "disable, don't warn" taken one step further, as the wave requires: on PAL and veneer

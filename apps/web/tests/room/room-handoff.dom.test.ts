@@ -87,6 +87,10 @@ vi.mock("@lemnaria/configurator-domain", async (importOriginal) => {
 
 import { generateKitchen } from "@lemnaria/configurator-domain";
 
+import {
+  forgetEditorOrigin,
+  readEditorOrigin,
+} from "@/app/configurator/configure/back-guard";
 import { sessionConfigurationRepository } from "@/persistence/fetch-configuration-repository";
 import { RoomScreen } from "@/room/room-screen";
 
@@ -119,6 +123,9 @@ const WRITTEN_REVISION = "2";
 const RUN_TIMEOUT_MS = 3000;
 const POLL_MS = 5;
 
+/** The composed rows on the glass: the five of the kitchen and the dishwasher's (ADR 0110 Amendment M3). */
+const COMPOSED_ROW_COUNT = 6;
+
 let container: HTMLDivElement;
 let root: Root;
 
@@ -139,6 +146,8 @@ interface Deferred {
  *  is kept genuinely in flight while *"nothing has navigated yet"* is asserted. */
 interface ServerScript {
   mintStatus: number;
+  /** What a refused mint's body carries; the day's limit is read from its `code`. */
+  mintBody: unknown;
   writeStatus: number;
   throwsOnWrite: boolean;
   heldWrite: Deferred | undefined;
@@ -215,7 +224,9 @@ function jsonBodyOf(init: RequestInit | undefined): unknown {
 }
 
 function answerTheMint(): Response {
-  if (script.mintStatus !== 201) return jsonResponse(script.mintStatus, {});
+  if (script.mintStatus !== 201) {
+    return jsonResponse(script.mintStatus, script.mintBody);
+  }
   return jsonResponse(201, { id: MINTED_ID, revision: MINTED_REVISION });
 }
 
@@ -323,6 +334,10 @@ async function settleFailedHandoff(): Promise<void> {
   await waitUntil(() => handoffState() === "failed", "reported its failure");
 }
 
+async function settleLimitedHandoff(): Promise<void> {
+  await waitUntil(() => handoffState() === "limited", "reported the limit");
+}
+
 async function settleNavigation(): Promise<void> {
   await waitUntil(() => editorPushes().length > 0, "navigated");
 }
@@ -364,6 +379,7 @@ function theGeneratedDesign(): Design {
 
 beforeEach(() => {
   browser.search = ROOM_QUERY;
+  forgetEditorOrigin();
   browser.push.mockClear();
   browser.replace.mockClear();
   vi.mocked(generateKitchen).mockClear();
@@ -371,6 +387,7 @@ beforeEach(() => {
   stored = new Map();
   script = {
     mintStatus: 201,
+    mintBody: {},
     writeStatus: 200,
     throwsOnWrite: false,
     heldWrite: undefined,
@@ -415,23 +432,6 @@ describe("one composition is one design row (criterion 39)", () => {
     expect(callsTo("POST")).toHaveLength(1);
     expect(callsTo("PUT")).toHaveLength(1);
   });
-
-  it("issues no second POST when a retry follows a failed write", async () => {
-    script.writeStatus = 500;
-    render();
-
-    tapContinue();
-    await settleFailedHandoff();
-    script.writeStatus = 200;
-    tapRetry();
-    await settleNavigation();
-
-    // The retry re-runs the same attempt, so it carries the same mint identity — and the repository
-    // answers that identity's second `save` out of the row it already minted.
-    expect(callsTo("POST")).toHaveLength(1);
-    expect(callsTo("PUT")).toHaveLength(2);
-    expect(callsTo("PUT")[1]?.url).toBe(callsTo("PUT")[0]?.url);
-  });
 });
 
 describe("navigation follows the write and nothing else (criterion 40)", () => {
@@ -453,6 +453,24 @@ describe("navigation follows the write and nothing else (criterion 40)", () => {
     // The localized editor route, with the id escaped into the path. next-intl builds the href, so
     // the spy holds a string rather than the value the hook passed it.
     expect(editorPushes()).toEqual([`/ro/d/${encodeURIComponent(MINTED_ID)}`]);
+  });
+
+  // The editor's first render asks whether Step 1 is behind it, so the answer has to be on record when the push is
+  // made and has to name the design being opened. Read at the moment of the push, which is the order that matters.
+  it("records the design as opened from Step 1 before it pushes the editor's route", async () => {
+    const originAtTheEditorPush: (string | null)[] = [];
+    browser.push.mockImplementation((href: unknown) => {
+      if (String(href).includes("/d/")) {
+        originAtTheEditorPush.push(readEditorOrigin().designId);
+      }
+    });
+    render();
+
+    tapContinue();
+    await settleNavigation();
+    browser.push.mockReset();
+
+    expect(originAtTheEditorPush).toEqual([MINTED_ID]);
   });
 
   it("stops calling the write in flight once it has landed", async () => {
@@ -484,6 +502,12 @@ describe("a failed hand-off keeps the customer where they are (criterion 41)", (
       },
     ],
     [
+      "the mint is unavailable",
+      () => {
+        script.mintStatus = 503;
+      },
+    ],
+    [
       "the write is refused",
       () => {
         script.writeStatus = 500;
@@ -503,9 +527,10 @@ describe("a failed hand-off keeps the customer where they are (criterion 41)", (
     await settleFailedHandoff();
 
     expect(editorPushes()).toEqual([]);
-    // The composed rows are still on the glass: the kitchen is real and only the write failed. Six
-    // since wave 7D5b, whose dishwasher row joined the five (ADR 0110 Amendment M3).
-    expect(container.querySelectorAll("[data-compose-status]")).toHaveLength(6);
+    // The composed rows are still on the glass: the kitchen is real and only the write failed.
+    expect(container.querySelectorAll("[data-compose-status]")).toHaveLength(
+      COMPOSED_ROW_COUNT,
+    );
     expect(elementAt("room-compose-notice").textContent).toContain(
       roMessages.room.compose.saveFailed,
     );
@@ -514,19 +539,6 @@ describe("a failed hand-off keeps the customer where they are (criterion 41)", (
     );
     // The busy control is gone with it, so nothing on the screen claims to still be working.
     expect(maybeAt("room-compose-cta")).toBe(null);
-  });
-
-  it("writes to the already-minted row and opens it when the retry succeeds", async () => {
-    script.writeStatus = 500;
-    render();
-
-    tapContinue();
-    await settleFailedHandoff();
-    script.writeStatus = 200;
-    tapRetry();
-    await settleNavigation();
-
-    expect(editorPushes()).toEqual([`/ro/d/${encodeURIComponent(MINTED_ID)}`]);
   });
 
   it("does not re-compose when the retry runs", async () => {
@@ -542,6 +554,72 @@ describe("a failed hand-off keeps the customer where they are (criterion 41)", (
     // A retry that re-composed would produce a second — and different, because `occurredAt` moves —
     // design for a row that was minted against the first.
     expect(vi.mocked(generateKitchen)).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("a mint refused for the day's limit keeps the room and offers no retry", () => {
+  beforeEach(() => {
+    script.mintStatus = 429;
+    script.mintBody = { code: "MINT_LIMIT_REACHED" };
+  });
+
+  it("says the limit returns tomorrow, offers no retry and no busy control, and navigates nowhere", async () => {
+    render();
+
+    tapContinue();
+    await settleLimitedHandoff();
+
+    expect(editorPushes()).toEqual([]);
+    expect(elementAt("room-compose-notice").textContent).toContain(
+      roMessages.room.compose.limitReached,
+    );
+    expect(maybeAt("room-compose-retry")).toBe(null);
+    expect(maybeAt("room-compose-cta")).toBe(null);
+    expect(container.querySelectorAll("[data-compose-status]")).toHaveLength(
+      COMPOSED_ROW_COUNT,
+    );
+  });
+
+  it("sends the mint once and no save by the time the limit shows", async () => {
+    render();
+
+    tapContinue();
+    await settleLimitedHandoff();
+
+    expect(callsTo("POST")).toHaveLength(1);
+    expect(callsTo("PUT")).toEqual([]);
+  });
+
+  it("keeps the customer's room: going back returns to the form with it still complete", async () => {
+    render();
+
+    tapContinue();
+    await settleLimitedHandoff();
+    tapComposeBack();
+
+    expect(maybeAt("room-compose")).toBe(null);
+    expect(elementAt("room-continue")).toBeInstanceOf(HTMLElement);
+    expect(browser.search).toBe(ROOM_QUERY);
+  });
+
+  it("offers the retry again when the 429 is not the limit's: another code, or none", async () => {
+    script.mintBody = { code: "FIREWALL" };
+    render();
+
+    tapContinue();
+    await settleFailedHandoff();
+
+    expect(handoffState()).toBe("failed");
+    expect(elementAt("room-compose-retry").textContent).toBe(
+      roMessages.room.compose.retry,
+    );
+  });
+
+  it("holds no count, no address and no number in the sentence", () => {
+    const sentence = roMessages.room.compose.limitReached;
+
+    expect(sentence).not.toMatch(/\d/);
+    expect(sentence).not.toMatch(/adres|IP|bloc/i);
   });
 });
 

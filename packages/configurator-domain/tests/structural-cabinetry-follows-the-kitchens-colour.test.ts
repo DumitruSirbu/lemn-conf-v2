@@ -131,6 +131,17 @@ function wearing(design: Design, placementId: string, finish: Finish): Design {
   };
 }
 
+/** The kitchen's colour set through the command, so what it writes onto a body is the product's doing. */
+function afterTheKitchenIsColoured(finish: Finish): Design {
+  const result = setGlobalFinish({
+    design: onMaterial(PAL_ID),
+    finish,
+    occurredAt: OCCURRED_AT,
+  });
+  if (!result.ok) throw new Error(`refused: ${result.reason.code}`);
+  return result.design;
+}
+
 function recordFor(design: Design, placementId: string) {
   const record = derivePlacementRecords(design, KITCHEN_L_BODY_CATALOG).find(
     (candidate) => candidate.id === placementId,
@@ -207,7 +218,7 @@ describe("backlog 60 — structural cabinetry is drawn in the kitchen's colour",
   /** **And its document did not grow a key** (ADR 0099 decision 2). Key presence, not value: these
    *  bodies have no control, so a `finish` on one is a choice nobody could have made. */
   it.each(FOLLOWING)("$buildId keeps its finish key absent", (row) => {
-    const design = withKitchenColour(onMaterial(PAL_ID), ANTRACIT);
+    const design = afterTheKitchenIsColoured(ANTRACIT);
 
     expect("finish" in bodyOf(design, row.placementId), row.buildId).toBe(
       false,
@@ -338,7 +349,7 @@ describe("backlog 60 — an appliance is drawn in no colour at all", () => {
   );
 
   it.each(APPLIANCES)("$buildId keeps its finish key absent", (row) => {
-    const design = withKitchenColour(onMaterial(PAL_ID), ANTRACIT);
+    const design = afterTheKitchenIsColoured(ANTRACIT);
 
     expect("finish" in bodyOf(design, row.placementId), row.buildId).toBe(
       false,

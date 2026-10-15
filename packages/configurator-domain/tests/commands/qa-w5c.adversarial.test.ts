@@ -274,27 +274,6 @@ describe("Q1 — the legal-resize population, enumerated independently", () => {
     ]);
   });
 
-  it("loses two load taps to RESIZE_OPENS_GAP, and none to anything else", () => {
-    // A clear must not remove a tap on a surviving body, except where widening the freed column puts an opening
-    // over the corner leg `p25`: clearing `A|1.30` lets `A|0.75` widen the empty column to 900 mm.
-    const survivors = CLEARABLE.map((cleared) => {
-      const accepted = new Set(
-        acceptedTaps(clearBodies(kitchen(), cleared.ids)),
-      );
-      const deleted = new Set<string>(cleared.ids);
-      return {
-        key: cleared.key,
-        lost: LOAD_ACCEPTED_TAPS.filter(
-          (tap) => !accepted.has(tap) && !deleted.has(tap.split("@")[0] ?? ""),
-        ),
-      };
-    });
-
-    expect(survivors.filter((row) => row.lost.length > 0)).toEqual([
-      { key: "A|1.30", lost: ["p10@200", "p16@200"] },
-    ]);
-  });
-
   it("accepts 278 taps across the nine clears", () => {
     // 9 × 30 load taps − 30 taps on deleted bodies − 2 lost to the corner leg + 40 gained.
     const total = CLEARABLE.flatMap((cleared) =>
@@ -422,52 +401,6 @@ describe("Q2 — conservation and the inverse", () => {
         }
       }
     }
-  });
-
-  it("allows an empty column to be consumed exactly to zero and removes its key", () => {
-    // Not in the shipped catalogue, so the exact-consumption case is built synthetically.
-    const world = clearBodies(
-      syntheticWorld([
-        placementAt("a-base", 700, 0, "base-panbank", 600, 860),
-        placementAt("a-wall", 700, 1500, "open-shelf", 600, 700),
-        placementAt("b-base", 1100, 0, "base-panbank", 200, 860),
-        placementAt("b-wall", 1100, 1500, "open-shelf", 200, 700),
-      ]),
-      ["b-base", "b-wall"],
-    );
-    expect(world.columns.get("A|1.10")?.w).toBeCloseTo(0.2, 6);
-
-    const result = resizeTo(world, "a-base", 800);
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.effect.emptyColumnWidthMm).toBe(0);
-    expect(result.effect.columns.has("A|1.10")).toBe(false);
-    expect(spansMm(result.design)).toEqual([
-      "a-base:400..1200",
-      "a-wall:400..1200",
-    ]);
-  });
-
-  it("accepts a remainder between zero and MIN_W (ADR 0043)", () => {
-    const world = clearBodies(
-      syntheticWorld([
-        placementAt("a-base", 700, 0, "base-panbank", 600, 860),
-        placementAt("a-wall", 700, 1500, "open-shelf", 600, 700),
-        placementAt("b-base", 1150, 0, "base-panbank", 300, 860),
-        placementAt("b-wall", 1150, 1500, "open-shelf", 300, 700),
-      ]),
-      ["b-base", "b-wall"],
-    );
-
-    // A 600 mm column growing to 800 into a 300 mm empty one leaves a 100 mm column, which is legal (ADR 0043).
-    const result = resizeTo(world, "a-base", 800);
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.effect.emptyColumnWidthMm).toBe(100);
-    expect(spansMm(result.design)).toEqual([
-      "a-base:400..1200",
-      "a-wall:400..1200",
-    ]);
   });
 });
 

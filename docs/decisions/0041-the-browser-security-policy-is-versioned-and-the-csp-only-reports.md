@@ -1,6 +1,9 @@
 # ADR 0041 — The browser security policy is versioned here, and the CSP only reports
 
-Status: Accepted
+Status: Accepted — **decision 4 overturned, and decision 3's preconditions discharged, by
+[ADR 0161](0161-the-csp-enforces-its-violations-reach-the-applications-own-counted-endpoint-and-the-mode-stays-one-versioned-constant.md)
+(2026-10-13, wave 8Q).** The text below is kept as written; the CSP now enforces and reports to
+`POST /api/csp-reports`. Decisions 1, 2 and 5 stand.
 Date: 2026-08-31
 Type: Decision
 Milestone: Adversarial review remediation, Wave S4 — closes SEC-004
@@ -77,6 +80,12 @@ Two details are worth keeping because they are the ones that get lost:
 - **The build's printed route table does not list `/_global-error` at all.** The prerender manifest
   is the only honest source for this list; an earlier revision of the wave notes counted four routes
   from the printed table and was wrong.
+
+> **Note, 2026-10-07.** The list above is the 2026-08-31 measurement and is not the current one. A real
+> build now prerenders **four** routes: `/_global-error`, `/_not-found`, `/ro/configurator/contact` and
+> `/ru/configurator/contact` [implementer-run, M8 wave 8A S1; `docs/milestones/M8-review-contact-success.md`,
+> *8A figures*, part A]. `/` and `/configurator/configure` became Route Handlers in M7 wave 7E3a, and the
+> contact page gained its locale prefix in M6B. The list is left as written.
 
 **The flip is blocked on two preconditions**, both tracked on the M8 launch gate: a method of
 collecting violations (decision 4), and the prerendered-pages/nonce problem above. Making those

@@ -161,6 +161,10 @@ decision 5 (additive, idempotent migrations run unattended; the rest need a huma
   trying to enumerate every string that can produce them".
 - **Where recorded elsewhere.** `docs/milestones/migration-environment-safety-check.md`.
 - **Where.** `packages/persistence/src/migrate.ts` (`databaseNameOf`, `hasTrustedPostgresAuthority`).
+- **Note, 2026-10-07 — [ADR 0146](0146-nothing-copied-from-a-connection-value-or-thrown-by-a-driver-leaves-the-persistence-package.md).**
+  `databaseNameOf` now lives in `packages/persistence/src/open-database.ts`, not `migrate.ts`, and its
+  no-slash refusal is applied at every site that opens a connection (B7), not only the migration target.
+  The rule above stands; its reach widened.
 
 ## Decision 7 — a live test forgets the migration-ledger rows before dropping the column, never after
 

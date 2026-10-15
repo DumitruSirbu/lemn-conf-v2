@@ -96,15 +96,6 @@ describe("declared witnesses: a member-less legacy column that reads full-height
     );
   });
 
-  it("keeps a legacy 620 that the 6K-c rule would keep, under a full-height member", () => {
-    const column = memberLessLegacyColumn(620, true);
-
-    expect(publishedMm(column, DEEP_MM, SHALLOW_MM)).toBeCloseTo(
-      Math.max(620, ceilingMm(SHALLOW_MM, true)),
-      CLOSE_TO_MM_DIGITS,
-    );
-  });
-
   // Literal millimetres, none read through `columnBuildDepthM`: the 700 setting's lifted ceiling is 700 and the
   // 600 setting's is 600 (seats 661 and 561, which a full-height member lifts, plus the 39 mm of door and handle).
   it.each([

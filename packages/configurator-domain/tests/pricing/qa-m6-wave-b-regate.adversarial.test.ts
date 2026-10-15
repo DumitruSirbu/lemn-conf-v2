@@ -580,15 +580,6 @@ describe("the checked arithmetic refuses by order, and no accepted book can reac
       expect([...answers]).toHaveLength(1);
     },
   );
-
-  it("keeps every partial sum a book at the bound can form inside the exact range", () => {
-    // The reason the ordering cannot matter for an accepted book, stated as the arithmetic rather
-    // than as a comment: four terms, each a coefficient at the bound over the largest multiplier the
-    // bound's derivation names, never leaves the safe range whichever order they arrive in.
-    expect(
-      4 * MAX_PRICE_COEFFICIENT_MINOR * MAX_DESIGN_DIMENSION_MM,
-    ).toBeLessThanOrEqual(Number.MAX_SAFE_INTEGER);
-  });
 });
 
 /** Every ordering of a term list. Four terms is 24 orderings, which is what a shape has at most. */

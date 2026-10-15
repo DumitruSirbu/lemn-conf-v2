@@ -131,25 +131,12 @@ function commit(
   });
 }
 
-describe("any sequence of radio presses ending in cancel", () => {
+// That a sequence ending in cancel writes nothing is held on the rendered sheet, where there is a cancel to press:
+// `global-settings-inert.dom.test.ts`, "leaving the sheet with a choice pending". Folded here, the presses never
+// reached the store and the comparison was of an untouched store with itself.
+describe("any sequence of radio presses ending in apply", () => {
   propertyTest.prop([anyPressSequence])(
-    "leaves the stored document byte-identical to the one the sheet opened on",
-    (presses) => {
-      const { store, saved } = freshStore();
-      const opened = canonicalSerializeDesign(store.getState().design);
-
-      // The sheet's whole life: open, press, press, press, cancel. Cancel drops pending and calls
-      // no commit — so nothing below this line touches the store at all, which is the claim.
-      pendingAfter(presses);
-
-      expect(canonicalSerializeDesign(store.getState().design)).toBe(opened);
-      expect(saved).toEqual([]);
-      expect(store.getState().lastRejection).toBeNull();
-    },
-  );
-
-  propertyTest.prop([anyPressSequence])(
-    "would have moved the document had it ended in apply, so the claim above is not vacuous",
+    "moves the document exactly when the presses asked for something new",
     (presses) => {
       const { store } = freshStore();
       const opened = canonicalSerializeDesign(store.getState().design);

@@ -9,7 +9,16 @@ import {
   MigrationExecutionError,
   MigrationTargetMismatchError,
 } from "./migration-errors.js";
-import { ALLOWED_TEST_DATABASE_NAMES } from "./test-database-url.js";
+import {
+  NO_AGREED_DATABASE_NAME,
+  UNPARSEABLE_DATABASE_NAME,
+  UNTRUSTED_CONNECTION_SHAPE,
+} from "./open-database.js";
+import {
+  ALLOWED_TEST_DATABASE_NAMES,
+  UNLISTED_DATABASE,
+  printListedName,
+} from "./test-database-url.js";
 
 /**
  * The permanent environments and the database name(s) each one's credential may reach. A `Map`, so a label such as
@@ -26,14 +35,9 @@ export const DATABASE_NAMES_BY_ENVIRONMENT: ReadonlyMap<
   ["test", ALLOWED_TEST_DATABASE_NAMES],
 ]);
 
-/** `databaseNameOf`'s placeholder for an unparseable connection string (`migrate.ts`), duplicated rather than
- *  imported: `migrate.ts` imports this module, so importing it back would make an import cycle. */
-const UNPARSEABLE_DATABASE_NAME = "<unparseable connection string>";
-
-/** `databaseNameOf`'s placeholder for a string that parses but is not a `postgres:`/`postgresql:` URL with a host;
- *  duplicated for the same import-cycle reason. */
-const UNTRUSTED_CONNECTION_SHAPE =
-  "<connection string is not a postgres:// or postgresql:// URL with a host>";
+const LISTED_DATABASE_NAMES: readonly string[] = [
+  ...DATABASE_NAMES_BY_ENVIRONMENT.values(),
+].flat();
 
 /**
  * The environment this run declares it is checking. Required and never defaulted (ADR 0096 decision 3): a default is
@@ -62,8 +66,10 @@ export function readDeclaredEnvironment(
  * - a listed environment passes only when the database reached is one of its own names;
  * - an unlisted label passes only as the exact, unclaimed name of the database it reaches, so a listed environment's
  *   database is never reachable under another label;
- * - an empty name, either `databaseNameOf` placeholder, or a raw path containing `%` or `\` is always refused.
- * Receives only the two names, never a connection string, so a refusal can never quote a credential.
+ * - an empty name, any `databaseNameOf` placeholder (its "no name the readers agree on" included), or a name holding
+ *   `%` or `\` is always refused.
+ * Receives only the two names, never a connection string, and prints a database name only from the environment map,
+ * so a refusal can never quote a credential, a host or a name the operator mistyped into the URL.
  */
 export function assertDeclaredEnvironmentReaches({
   environment,
@@ -72,10 +78,6 @@ export function assertDeclaredEnvironmentReaches({
   readonly environment: string;
   readonly databaseName: string;
 }): void {
-  if (hasUndecodedPathCharacters(databaseName)) {
-    throw refuseUndecodedPathCharacters(environment, databaseName);
-  }
-
   const namesForEnvironment = DATABASE_NAMES_BY_ENVIRONMENT.get(environment);
   if (namesForEnvironment !== undefined) {
     if (namesForEnvironment.includes(databaseName)) return;
@@ -87,14 +89,12 @@ export function assertDeclaredEnvironmentReaches({
 }
 
 /**
- * `databaseNameOf` returns the path as written, but the driver's WebSocket `Client` decodes it (`decodeURIComponent`,
- * `decodeURI`, `\` as a path separator) before connecting, so a raw `lemn%2Dconf%2Dv2` would pass as an unclaimed
- * ad-hoc name while the driver reaches `lemn-conf-v2`. Any `%` or `\` is refused unconditionally: a real Neon database
- * name has neither, and reproducing the driver's decode here could drift from it. A string with no `//` authority
- * diverges differently and never reaches this function (see `databaseNameOf`).
+ * A name that is not one every reader of the connection string reads alike. `databaseNameOf` answers
+ * `NO_AGREED_DATABASE_NAME` for a string like that; a name holding `%` or `\` is one a driver decodes or re-reads
+ * differently, so a caller that hands one in directly is refused the same way.
  */
-function hasUndecodedPathCharacters(databaseName: string): boolean {
-  return /[%\\]/.test(databaseName);
+function isNotReadAlikeByEveryReader(databaseName: string): boolean {
+  return databaseName === NO_AGREED_DATABASE_NAME || /[%\\]/.test(databaseName);
 }
 
 /** The permissive half of the unlisted rule: an ad-hoc label is trusted only as the database's own unclaimed name. */
@@ -107,14 +107,15 @@ function reachesItsOwnUnclaimedName(
   return environmentClaiming(databaseName) === undefined;
 }
 
-/** The three placeholders (empty, unparseable, not a postgres URL with a host): no label may reach them, and
- *  re-exporting the same URL cannot help, only a different valid one. Shared by the label check and
+/** The values no label may reach: an empty name, either shape placeholder, and a name the readers do not read alike.
+ *  Re-exporting the same URL cannot help, only a different valid one. Shared by the label check and
  *  `describeRetryGuidance` so they describe this class of value the same way. */
 function isNeverTrustedShape(databaseName: string): boolean {
   return (
     databaseName === "" ||
     databaseName === UNPARSEABLE_DATABASE_NAME ||
-    databaseName === UNTRUSTED_CONNECTION_SHAPE
+    databaseName === UNTRUSTED_CONNECTION_SHAPE ||
+    isNotReadAlikeByEveryReader(databaseName)
   );
 }
 
@@ -147,22 +148,6 @@ function describeExpectedNames(names: readonly string[]): string {
   return onlyName !== undefined && quoted.length === 1
     ? onlyName
     : `one of ${quoted.join(", ")}`;
-}
-
-/** The refusal for a raw path shaped like a decode bypass (see `hasUndecodedPathCharacters`). "An unclaimed name" would
- *  be the wrong expectation to print: no environment may declare such a name. */
-function refuseUndecodedPathCharacters(
-  environment: string,
-  databaseName: string,
-): MigrationTargetMismatchError {
-  return buildRefusal(
-    environment,
-    databaseName,
-    `A raw database name containing "%" or "\\" is never trusted under any label: the driver that ` +
-      `actually connects decodes percent-encoding (and treats "\\" as a path separator) before ` +
-      `choosing a database, so this check's raw view of the name can differ from the database a ` +
-      `connection would really reach.`,
-  );
 }
 
 function refuseUnlistedMismatch(
@@ -198,6 +183,14 @@ function describeRetryGuidance(
   databaseName: string,
   reached: string,
 ): string {
+  if (isNotReadAlikeByEveryReader(databaseName)) {
+    return (
+      "Nothing will make this value acceptable: the database name in MIGRATION_DATABASE_URL is not read the " +
+      "same way by every reader of the string (an escape, a backslash or a stray character in the address), so " +
+      "it needs to be replaced with a plain postgres or postgresql connection string, not re-set to the same " +
+      "value again."
+    );
+  }
   if (isNeverTrustedShape(databaseName)) {
     return (
       "Nothing will make this value acceptable: MIGRATION_DATABASE_URL needs to be replaced with a " +
@@ -217,6 +210,26 @@ function describeRetryGuidance(
   );
 }
 
+/** The name a line may print for a database already known to be reached: one this repository lists, or the unclaimed
+ *  label the operator declared for it, which `assertDeclaredEnvironmentReaches` has accepted as that same name. */
+export function printReachedDatabaseName({
+  databaseName,
+  environment,
+}: {
+  readonly databaseName: string;
+  readonly environment: string;
+}): string {
+  const listedName = printListedDatabaseName(databaseName);
+  return listedName === UNLISTED_DATABASE && databaseName === environment
+    ? environment
+    : listedName;
+}
+
+/** A name this repository lists, copied from its list, or the placeholder: never text taken from a URL. */
+export function printListedDatabaseName(databaseName: string): string {
+  return printListedName(databaseName, LISTED_DATABASE_NAMES);
+}
+
 function describeReachedDatabase(databaseName: string): string {
   if (databaseName === "") return "no database at all";
   if (databaseName === UNPARSEABLE_DATABASE_NAME)
@@ -224,8 +237,9 @@ function describeReachedDatabase(databaseName: string): string {
   if (databaseName === UNTRUSTED_CONNECTION_SHAPE) {
     return "a connection string that is not a plain postgres:// or postgresql:// URL with a host";
   }
-  if (hasUndecodedPathCharacters(databaseName)) {
-    return `a raw database name that is not safe to trust ("${databaseName}")`;
+  if (isNotReadAlikeByEveryReader(databaseName)) {
+    return "a connection string whose database name the readers of it do not read alike";
   }
-  return `"${databaseName}"`;
+  const listedName = printListedDatabaseName(databaseName);
+  return listedName === UNLISTED_DATABASE ? listedName : `"${listedName}"`;
 }

@@ -291,12 +291,6 @@ describe("the top bar's box, which the scene pays for", () => {
     expect(heights.reviewCta).toBeGreaterThan(heights.locale ?? 0);
   });
 
-  it("costs the desktop canvas exactly the 21 px the ruling accepted, and no more", () => {
-    expect(declaredDesktopBandHeight() - HEIGHT_AT_BASE_COMMIT_PX).toBe(
-      RULED_CANVAS_COST_PX,
-    );
-  });
-
   it("gives the desktop canvas back more than the band ever cost it, because the strip's row is gone", () => {
     // The band still costs 21 px against the base commit and the withdrawn strip returns the 45 px it charged (ADR 0104
     // decision 10); no rule for that band exists any more.
@@ -342,13 +336,6 @@ describe("the top bar's box, which the scene pays for", () => {
 });
 
 describe("the row the refreshed frames replaced", () => {
-  it("renders no progress segments and declares no rule for them", () => {
-    expect(screenSource).not.toContain("styles.progress");
-    expect(screenSource).not.toContain("styles.headerRow");
-    expect(declarationsOf(stylesheet, "progress")).toBe("");
-    expect(declarationsOf(stylesheet, "headerRow")).toBe("");
-  });
-
   it("lays the band out as one row rather than a column", () => {
     // The five cells are grid items of the screen, so "one row" is the screen's own template.
     const screen = declarationsOf(MOBILE_CSS, "screen");
@@ -444,11 +431,8 @@ describe("the step number has one source", () => {
     expect(digitsOf(ro.configure.stepPill)).toHaveLength(2);
   });
 
-  it("keeps the sentence as the pill's accessible name", () => {
-    // The pill draws "2/4", which read aloud is two numbers and a slash; the accessibility tree keeps the sentence.
-    expect(screenSource).toContain("aria-label={content.configure.step}");
-    expect(screenSource).toContain("{content.configure.stepPill}");
-  });
+  // That the pill's accessible name is the sentence is a fact about the rendered element, so it is checked on one:
+  // `tests/i18n/locale-menu.dom.test.ts`, "names the step pill with the sentence, and draws only the two numbers".
 });
 
 describe("the locale chip is the control that opens the language menu", () => {
@@ -465,26 +449,9 @@ describe("the locale chip is the control that opens the language menu", () => {
     expect(menuSource).toContain("<div className={styles.locale}");
   });
 
-  it("is a button that opens a list of links, one per configured locale", () => {
-    // The trigger opens something, so it is a button; each choice is a URL, so it stays an anchor (shareable, new-tab,
-    // client-side navigation keeps the store). The list is `routing.locales`:
-    // `tests/i18n/locale-menu-scales.dom.test.ts`
-    // drives a third language.
-    expect(menuSource).toContain("styles.localeChip");
-    expect(menuSource).toContain("<button");
-    expect(menuSource).toContain('type="button"');
-    expect(menuSource).toContain('aria-haspopup="true"');
-    expect(menuSource).toContain("aria-expanded={isOpen}");
-    expect(menuSource).toContain("menu.choices.map");
-    expect(menuSource).toContain("href={menu.pathname}");
-    expect(menuSource).toContain("locale={choice.locale}");
-  });
-
-  it("is named by a sentence rather than by the two letters it draws", () => {
-    // `RO` read aloud names neither the page's language nor the control's purpose, and the current language would
-    // otherwise be carried by colour alone.
-    expect(menuSource).toContain("aria-label={content.configure.localeMenu}");
-  });
+  // What the trigger is, what it is named and what its caret says to a screen reader are attributes of the rendered
+  // control, and `tests/i18n/locale-menu.dom.test.ts` reads them off it ("the control a screen reader and a keyboard
+  // get"). This file keeps to the box.
 
   it("hangs the menu off the cell without letting it leave the phone's viewport", () => {
     // §10.1's picking gate is 390 px and this cell is last in the row on both shells: the list is anchored to its
@@ -517,11 +484,6 @@ describe("the locale chip is the control that opens the language menu", () => {
     );
     expect(localeChipHeight("mobile")).toBe(25);
     expect(localeChipHeight("desktop")).toBe(40);
-  });
-
-  it("draws the caret the frames draw, and hides it from a screen reader", () => {
-    expect(menuSource).toContain("▾");
-    expect(declarationsOf(MOBILE_CSS, "localeCaret")).not.toBe("");
   });
 
   // A flag identifies a language but cannot say which is current: `aria-current` and weight/colour carry that, and this

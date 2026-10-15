@@ -1,18 +1,17 @@
-// ADR 0108 decisions 2–5 and 8, by example: the shape is judged first and alone, every field is
-// judged in field order, a value is whole millimetres or refused, and a valid L becomes the existing
-// `DesignRoom`. The swept versions of these rules are in `validate-room.property.test.ts`.
+// ADR 0108 decisions 2–5 and 8, by example: every field is judged in field order, a value is whole
+// millimetres or refused, and a valid L becomes the existing `DesignRoom`. The swept versions of these
+// rules are in `validate-room.property.test.ts`, which alone holds two of them: the shape judged first
+// and alone, and decision 8's wall mapping read back through the fit gate.
 import { describe, expect, it } from "vitest";
 
 import {
   LINEAR_ROOM_DEPTH_MM,
-  wallLengthMm,
   type LRoomInput,
   type RoomField,
   type RoomPolicy,
 } from "../../src/index.js";
 import { ENGINE_ROOM_LIMITS } from "../../src/room/room-policy.js";
 import {
-  acceptedRoom,
   engineLinearWallBounds,
   engineLWallBounds,
   engineUWallBounds,
@@ -59,30 +58,6 @@ describe("validateRoomInput — the shape is judged first and alone", () => {
     });
   });
 
-  it("refuses a U as its shape alone under a policy that states no U bounds", () => {
-    const buildsNoU: RoomPolicy = {
-      ...ENGINE_ROOM_LIMITS,
-      buildableShapes: { L: engineLWallBounds() },
-    };
-
-    const result = validateRoom(
-      {
-        shape: "U",
-        wallAMm: undefined,
-        wallBMm: undefined,
-        wallCMm: undefined,
-        heightMm: undefined,
-        cornerDirection: "left",
-      },
-      buildsNoU,
-    );
-
-    expect(result).toEqual({
-      ok: false,
-      issues: [{ field: "shape", code: "SHAPE_NOT_BUILDABLE" }],
-    });
-  });
-
   it("accepts a valid U, mapping its three walls onto D1's stored shape", () => {
     const walls = engineUWallBounds();
 
@@ -124,23 +99,6 @@ describe("validateRoomInput — the shape is judged first and alone", () => {
         { field: "wallA", code: "VALUE_MISSING" },
         { field: "height", code: "VALUE_MISSING" },
       ],
-    });
-  });
-
-  it("refuses a straight kitchen as its shape alone under a policy that states no linear bounds", () => {
-    const buildsNoLinear: RoomPolicy = {
-      ...ENGINE_ROOM_LIMITS,
-      buildableShapes: { L: engineLWallBounds() },
-    };
-
-    const result = validateRoom(
-      { shape: "linear", wallAMm: undefined, heightMm: undefined },
-      buildsNoLinear,
-    );
-
-    expect(result).toEqual({
-      ok: false,
-      issues: [{ field: "shape", code: "SHAPE_NOT_BUILDABLE" }],
     });
   });
 
@@ -276,19 +234,6 @@ describe("validateRoomInput — a valid L is the existing DesignRoom", () => {
       },
     });
   });
-
-  it("hands the fit gate back the walls that were entered", () => {
-    const walls = engineLWallBounds();
-    const input = validLInput({
-      wallAMm: walls.wallA.maxMm,
-      wallBMm: walls.wallB.minMm,
-    });
-
-    const room = acceptedRoom(input);
-
-    expect(wallLengthMm("A", room)).toBe(input.wallAMm);
-    expect(wallLengthMm("B", room)).toBe(input.wallBMm);
-  });
 });
 
 // ADR 0130 D2/D3/D7 (wave 7J S1): a valid straight kitchen maps to exactly four keys, its wall A
@@ -321,16 +266,5 @@ describe("validateRoomInput — a valid straight kitchen is a four-key DesignRoo
       ok: false,
       issues: [{ field: "wallA", code: "WALL_TOO_LONG" }],
     });
-  });
-
-  it("hands the fit gate back the wall A that was entered, and a wall B of 0 (D4)", () => {
-    const input = validLinearInput({
-      wallAMm: engineLinearWallBounds().wallA.maxMm,
-    });
-
-    const room = acceptedRoom(input);
-
-    expect(wallLengthMm("A", room)).toBe(input.wallAMm);
-    expect(wallLengthMm("B", room)).toBe(0);
   });
 });

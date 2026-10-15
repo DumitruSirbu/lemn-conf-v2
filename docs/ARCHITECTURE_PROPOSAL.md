@@ -554,6 +554,12 @@ by wall then band then order — the same grouping the price breakdown uses — 
 edit action that returns to the scene with that cabinet preselected. Step 4 does not persist PII in
 the configuration or browser repository.
 
+> **Dated pointer, 2026-10-07:** the screen 3–5 route list above and the `/configurator/review`,
+> `/contact`, `/success` paths are still **undecided**: they are owner question Q2 in
+> `milestones/M8-review-contact-success.md` and nothing here records an answer. The pricing engine this
+> section's "same pricing call" and the client-reviewed price depend on was deleted by
+> [ADR 0004](decisions/0004-m2-pricing-engine-deletion.md); see the pointer under §9.
+
 ## 9. Contact submission boundary
 
 Define a provider-neutral server contract in `apps/web`:
@@ -580,6 +586,12 @@ limiting/abuse controls, idempotency, structured errors, and PII-redacted loggin
 submission identifier and status, not the submitted contact details. If no real sink is approved,
 production must show submission as unavailable; a test-only in-memory sink must not fake customer
 success. Retention, consent copy, destination, and operator access remain product/legal decisions.
+
+> **Dated pointer, 2026-10-07:** the client `pricingSnapshot` and `verifyPricingSnapshot` described above
+> are **dropped**. [ADR 0004](decisions/0004-m2-pricing-engine-deletion.md) deleted the engine they
+> relied on, and ADR 0114 decision 5 says *"M8's contact flow sends the manufacturer an immutable
+> snapshot server-side"*. The M8 plan (D5, D6) has the server price the stored row and the client send no
+> price. The rest of the section (idempotency key, same-origin, rate limiting, no false success) stands.
 
 ## 10. Testing and verification strategy
 

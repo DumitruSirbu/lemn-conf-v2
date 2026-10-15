@@ -3,6 +3,7 @@ import { hasLocale } from "next-intl";
 import { NextRequest, NextResponse } from "next/server";
 
 import { routing } from "@/i18n/routing";
+import { selectNetworkSource } from "@/lib/server/rate-limit/network-source";
 import {
   buildContentSecurityPolicy,
   CONTENT_SECURITY_POLICY_MODE,
@@ -14,15 +15,40 @@ import {
 
 const handleLocaleRouting = createMiddleware(routing);
 
-/** Everything except the immutable build output and static files, which carry no scripts and already receive the
- *  static headers from `next.config.ts`. */
+/** The pages after a design's editor, in the order the customer meets them: `/d/{id}/review`, `/contact`, `/done`. */
+const DESIGN_STEP_SEGMENTS: readonly string[] = ["review", "contact", "done"];
+
+/** The one status of a response the interceptor passes on to its page: not the locale's redirect and not a `404`. */
+const PASSED_ON_STATUS = 200;
+
+/** Written here and not through the design log, whose module holds the limiter's chain: this file may import none of
+ *  that statically, so a limiter that cannot load can still say so. */
+const LIMITER_LOG_LABEL = "[designs]";
+const LIMITER_UNAVAILABLE_EVENT = "design-read-limiter-unavailable";
+
+/**
+ * Everything except the immutable build output and static files, which carry no scripts and already receive the static
+ * headers from `next.config.ts`; and, whatever their last segment ends in, the design and share families. The
+ * framework routes `/ro/d/abc.png` to the design's page with the id `abc.png`, so an address of either family that
+ * ends in a static extension must still reach this file, or its lookup runs uncounted. The patterns are literals:
+ * the framework reads a matcher at build time.
+ */
 export const config = {
   matcher: [
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|glb|gltf|hdr|bin|woff|woff2)$).*)",
+    "/:locale/d/:id",
+    "/:locale/s/:token",
   ],
 };
 
-export function proxy(request: NextRequest): NextResponse {
+/**
+ * A request is handed back as the response itself, never as a promise, unless it is a counted page read under a named
+ * network source: only that one waits, for the limiter's judgement. Everything else, every request under no source
+ * included, answers as it did before pages were counted.
+ */
+export function proxy(
+  request: NextRequest,
+): NextResponse | Promise<NextResponse> {
   const nonce = createNonce();
   const policy = buildContentSecurityPolicy({
     nonce,
@@ -31,18 +57,94 @@ export function proxy(request: NextRequest): NextResponse {
   const requestHeaders = withNonce(request.headers, nonce, policy);
   const securedRequest = new NextRequest(request, { headers: requestHeaders });
 
-  const response = hasCaseVariantLocalePrefix(request.nextUrl.pathname)
+  const response = hasMisspelledLocalePrefix(request.nextUrl.pathname)
     ? new NextResponse(null, { status: 404 })
     : isCustomerPath(request.nextUrl.pathname)
       ? handleLocaleRouting(securedRequest)
       : NextResponse.next({ request: { headers: requestHeaders } });
 
+  applyPageHeaders(response, { pathname: request.nextUrl.pathname, policy });
+  if (!isCountedPageRead(request, response)) return response;
+  return answerCountedRead({ request, response, policy });
+}
+
+/** The headers a page's answer gets, set on a served page and on a refused one alike. */
+function applyPageHeaders(
+  response: NextResponse,
+  { pathname, policy }: { pathname: string; policy: string },
+): void {
   response.headers.set(
     cspResponseHeaderName(CONTENT_SECURITY_POLICY_MODE),
     policy,
   );
-  if (isSharePath(request.nextUrl.pathname)) applySharedViewHeaders(response);
-  return response;
+  if (isSharePath(pathname)) applySharedViewHeaders(response);
+}
+
+/**
+ * A page read the limiter is asked about: `/` of a locale, a design's page or one of its three steps, or a share's
+ * view, which the interceptor would pass on (not the locale's redirect, not the `404` of a misspelled locale), and
+ * only where the owner has named a network source. Nothing under `/api` is one, nor a static file; under none nothing
+ * is asked and nothing of the limiter is loaded.
+ */
+function isCountedPageRead(
+  request: NextRequest,
+  response: NextResponse,
+): boolean {
+  if (response.status !== PASSED_ON_STATUS) return false;
+  const { pathname } = request.nextUrl;
+  const segments = localeStrippedSegments(pathname);
+  const isCountedPath =
+    segments.length === 0 || isDesignPath(segments) || isSharePath(pathname);
+  return isCountedPath && selectNetworkSource(process.env).kind !== "none";
+}
+
+interface CountedRead {
+  readonly request: NextRequest;
+  readonly response: NextResponse;
+  readonly policy: string;
+}
+
+/** The page's own response unless the limiter refuses the read; whatever goes wrong is the page's own response. */
+async function answerCountedRead({
+  request,
+  response,
+  policy,
+}: CountedRead): Promise<NextResponse> {
+  const refusal = await refusalOfPageReadOrNothing(request);
+  if (refusal === undefined) return response;
+  applyPageHeaders(refusal, { pathname: request.nextUrl.pathname, policy });
+  return refusal;
+}
+
+/**
+ * The limiter is reached by one dynamic import, and only from here, so its store, its digest, its `server-only` chain
+ * and the message files it reads for a refusal load when a source is named and not before. A chain that cannot load
+ * or run is one line for a process and an error's name, and the page is served. Nothing thrown is kept but its name.
+ */
+async function refusalOfPageReadOrNothing(
+  request: NextRequest,
+): Promise<NextResponse | undefined> {
+  try {
+    const { refusalOfPageRead: judge } = await import(
+      "@/lib/server/rate-limit/page-limit-response"
+    );
+    return await judge(request.headers, request.nextUrl.pathname);
+  } catch (failure) {
+    announceUnavailableLimiter(failure);
+    return undefined;
+  }
+}
+
+const announcedLimiterFailures = new Set<string>();
+
+function announceUnavailableLimiter(failure: unknown): void {
+  const errorName = failure instanceof Error ? failure.name : "unknown";
+  if (announcedLimiterFailures.has(errorName)) return;
+  announcedLimiterFailures.add(errorName);
+  console.warn(LIMITER_LOG_LABEL, {
+    event: LIMITER_UNAVAILABLE_EVENT,
+    errorName,
+  });
 }
 
 /**
@@ -56,15 +158,30 @@ function applySharedViewHeaders(response: NextResponse): void {
   }
 }
 
-function hasCaseVariantLocalePrefix(pathname: string): boolean {
+/**
+ * A locale is written one way, and anything else that reads as one is refused as a case variant always was: a first
+ * segment that is not itself a locale but is one once decoded and lowered (`RO`, `%72o`, `r%6F`). The framework matches
+ * a locale decoded, so such a path would be served a page that every rule keyed on the written path misses: its count
+ * and a share view's headers. Only the first segment is decoded, once; a segment that cannot be decoded is the
+ * framework's to answer.
+ */
+function hasMisspelledLocalePrefix(pathname: string): boolean {
   const [firstSegment] = pathname.split("/").filter(Boolean);
   if (firstSegment === undefined) return false;
+  if (hasLocale(routing.locales, firstSegment)) return false;
 
-  const normalizedSegment = firstSegment.toLowerCase();
+  const decoded = decodedOrUndefined(firstSegment);
   return (
-    firstSegment !== normalizedSegment &&
-    hasLocale(routing.locales, normalizedSegment)
+    decoded !== undefined && hasLocale(routing.locales, decoded.toLowerCase())
   );
+}
+
+function decodedOrUndefined(segment: string): string | undefined {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return undefined;
+  }
 }
 
 /** The path with any locale prefix stripped, as segments: `isCustomerPath` and `isSharePath` read the allow-list
@@ -91,14 +208,22 @@ function isCustomerPath(pathname: string): boolean {
       routeSegments[1] === "room")
   )
     return true;
-  if (
-    routeSegments.length === 2 &&
-    routeSegments[0] === "d" &&
-    routeSegments[1] !== ""
-  )
-    return true;
+  if (isDesignPath(routeSegments)) return true;
 
   return isSharePath(pathname);
+}
+
+/** The design family's allow-list entry: `d/{id}`, or `d/{id}/{step}` for exactly the steps `DESIGN_STEP_SEGMENTS`
+ *  names. The id is a non-empty segment; nothing longer and no other step name is admitted. */
+function isDesignPath(routeSegments: string[]): boolean {
+  const [family, id, step] = routeSegments;
+  if (family !== "d" || id === undefined || id === "") return false;
+  if (routeSegments.length === 2) return true;
+  return (
+    routeSegments.length === 3 &&
+    step !== undefined &&
+    DESIGN_STEP_SEGMENTS.includes(step)
+  );
 }
 
 /** The share view's allow-list entry: `s/{token}`, two segments with a non-empty second, gated like `d/{id}`. Its

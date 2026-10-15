@@ -142,3 +142,13 @@ held in fact for every model change made under this record so far — nothing ha
 what it changed. What is withdrawn is the premise as stated, a second time, in the same shape as the
 2026-08-31 correction above: a claim written once and then relied on without being re-checked. The
 lesson two paragraphs up applies to this decision's own headline, not only to its consequence.
+
+## Dated note — 2026-10-07, later: the first stored schema moves with the launch gate
+
+The decision of the first stored schema, which this record says expires at first release, was assigned to M8's
+pre-launch checks ([ADR 0111](0111-step-1-creates-the-design-through-the-existing-mint-then-save-and-the-room-entry-lives-in-the-url.md)
+decision 8). The owner ruled on 2026-10-07 that delivery preparation is a separate milestone
+([M9](../milestones/M9-delivery-preparation.md), proposed); the M8 plan lists the first stored schema among the
+pre-launch checks that leave M8 with the launch gate. **It is therefore M9's to decide, not M8's.** This is the
+architect's derivation from the ruling, not the owner's sentence. Nothing above is changed, and the expiry
+stands.

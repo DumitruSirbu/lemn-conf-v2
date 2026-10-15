@@ -8,6 +8,9 @@ import correctedRomanian from "../../src/messages/ro.json";
 import {
   CATALOGUE_FIXTURES,
   collectContentFunctionFamilies,
+  CONTACT_FIXTURES,
+  CONTACT_LEAF_KEYS,
+  CONTACT_RENDER_ARGUMENT_PATHS,
   CONTENT_FIXTURES,
   CONTENT_FUNCTION_FAMILIES,
   correctedMessageAt,
@@ -17,6 +20,8 @@ import {
   REJECTION_CATALOGUE_MESSAGE_KEYS,
   REJECTION_CODES,
   REJECTION_FIXTURES,
+  REVIEW_FIXTURES,
+  REVIEW_LEAF_KEYS,
   ROOM_FIXTURES,
   ROOM_RENDER_ARGUMENT_PATHS,
   STATIC_CONTENT_FIXTURES,
@@ -31,7 +36,6 @@ const GATE_O1_SEMANTIC_CORRECTION_KEYS = [
   "designLoadError.bodyNotFound",
   "designLoadError.bodyInvalid",
   "designLoadError.startOver",
-  "contactPlaceholder.body",
   "rejection.BODY_PROBE_UNAVAILABLE",
   "rejection.OPENING_TOO_SHORT",
   "rejection.NO_SNAP_POSITION",
@@ -78,7 +82,7 @@ function sortedUnique(values: readonly string[]): readonly string[] {
 }
 
 describe("golden-output fixture coverage", () => {
-  it("covers exactly the 24 function-valued legacy content families", () => {
+  it("covers exactly the 32 function-valued legacy content families", () => {
     const actualFamilies = collectContentFunctionFamilies();
     expect(actualFamilies).toEqual([...CONTENT_FUNCTION_FAMILIES].sort());
     expect(
@@ -113,6 +117,50 @@ describe("golden-output fixture coverage", () => {
     );
     expect([...ROOM_RENDER_ARGUMENT_PATHS].sort()).toEqual(roomIcuKeys.sort());
     for (const fixture of ROOM_FIXTURES) {
+      expect(fixture.renderCorrected(), fixture.id).not.toBe("");
+      expect(fixture.renderCorrected(), fixture.id).not.toContain("{");
+    }
+  });
+
+  it("covers every review leaf the content resolver does not carry as a static leaf", () => {
+    const staticReviewPaths = RESOLVED_STATIC_CONTENT.map(
+      ({ path }) => path,
+    ).filter((path) => path.startsWith("review."));
+    const allReviewKeys = catalogueLeaves(correctedRomanian.review).map(
+      ([key]) => `review.${key}`,
+    );
+    expect(sortedUnique([...staticReviewPaths, ...REVIEW_LEAF_KEYS])).toEqual(
+      sortedUnique(allReviewKeys),
+    );
+    expect(sortedUnique(REVIEW_FIXTURES.map((f) => f.sourceKey))).toEqual(
+      sortedUnique(REVIEW_LEAF_KEYS),
+    );
+    for (const fixture of REVIEW_FIXTURES) {
+      expect(fixture.renderCorrected(), fixture.id).not.toBe("");
+      expect(fixture.renderCorrected(), fixture.id).not.toContain("{");
+    }
+  });
+
+  it("covers every contact leaf the content resolver does not carry as a static leaf, with every ICU one given arguments", () => {
+    const staticContactPaths = RESOLVED_STATIC_CONTENT.map(
+      ({ path }) => path,
+    ).filter((path) => path.startsWith("contact."));
+    const allContactKeys = catalogueLeaves(correctedRomanian.contact).map(
+      ([key]) => `contact.${key}`,
+    );
+    expect(sortedUnique([...staticContactPaths, ...CONTACT_LEAF_KEYS])).toEqual(
+      sortedUnique(allContactKeys),
+    );
+    expect(sortedUnique(CONTACT_FIXTURES.map((f) => f.sourceKey))).toEqual(
+      sortedUnique(CONTACT_LEAF_KEYS),
+    );
+    const contactIcuKeys = CONTACT_LEAF_KEYS.filter((key) =>
+      correctedMessageAt(key).includes("{"),
+    );
+    expect([...CONTACT_RENDER_ARGUMENT_PATHS].sort()).toEqual(
+      contactIcuKeys.sort(),
+    );
+    for (const fixture of CONTACT_FIXTURES) {
       expect(fixture.renderCorrected(), fixture.id).not.toBe("");
       expect(fixture.renderCorrected(), fixture.id).not.toContain("{");
     }
@@ -189,17 +237,55 @@ describe("golden-output fixture coverage", () => {
   it("has one unique stable id for every fixture", () => {
     // M7B U4 S3: +1 for `configure.cameraPresets.wallC`.
     // M7C C1 S3: +4 for the `configure.backConfirm.*` leaves.
-    expect(RESOLVED_STATIC_CONTENT).toHaveLength(127);
-    expect(FUNCTION_CONTENT_FIXTURES).toHaveLength(59);
+    // M8 8C S1: +2 for `review.title` and `review.roundedUpNote`.
+    // M8 8C S2: +3 for `review.refusalReasons.*`.
+    // M8 8D S3: +4 for `reviewScreen.*`, the review screen's controls.
+    // M8 8D S4: +1 for `reviewScreen.saving`.
+    // M8 8D fix round: +2 for `reviewScreen.conflict` and `.openEditor`.
+    // M8 8D review fix round: +1 for `reviewScreen.topBarTitle`.
+    // +14 for the shop notice's labels, channels, callback line and dash (`leadNotice.*`).
+    // +2 for `designLoadError.tooManyRequests` and `.tryAgain`.
+    // M8 8L S2: +26 for the contact form's static leaves (`contact.*`).
+    // M8 8L S6: -4 for the retired `contactPlaceholder.*` and `webglUnavailable.emailLink`.
+    // M8 8M S4: +27 for the result screens' static leaves (`submissionResult.*`).
+    // M8 8M2 S2: +3 for `submissionResult.alreadySentHeading`, `.alreadySentChangedKitchen` and `.callShop`.
+    expect(RESOLVED_STATIC_CONTENT).toHaveLength(208);
+    // +3 for the notice's subject, line and figure.
+    // +2 for `panel.savePausedNotice`'s two times.
+    // M8 8M S4: +4 for `submissionResult.channelLine`'s three channels and `.whatsappMessage`.
+    // M8 8M2 S2: +2 for `submissionResult.whatsappMessageToShop` and `.alreadySentAdvice`.
+    // M8 8M2 S3: -1 for the retired `submissionResult.whatsappMessage`.
+    expect(FUNCTION_CONTENT_FIXTURES).toHaveLength(69);
     // 7L S3: +2 for `room.suggestion.title` and `room.suggestion.switchToLinear`.
-    expect(ROOM_FIXTURES).toHaveLength(72);
+    // +1 for `room.compose.limitReached`.
+    expect(ROOM_FIXTURES).toHaveLength(73);
+    // M8 8C S1: the review leaves `Content` reaches through `reviewRoomLine`.
+    expect(REVIEW_FIXTURES).toHaveLength(12);
+    // M8 8L S2: the contact leaves reached by field code and by class of answer: 11 field errors, 7 outcomes.
+    // M8 8M S4: -2 for the retired `contact.outcomes.sent` and `.failed`.
+    expect(CONTACT_FIXTURES).toHaveLength(16);
     expect(REJECTION_FIXTURES).toHaveLength(41);
     expect(INSERTABLE_BODY_DEFINITIONS).toHaveLength(16);
     expect(CATALOGUE_FIXTURES).toHaveLength(98);
     // 7L S3: +2 for `room.suggestion.title` and `room.suggestion.switchToLinear`.
     // M7B U4 S3: +1 for `configure.cameraPresets.wallC`.
     // M7C C1 S3: +4 for the `configure.backConfirm.*` leaves.
-    expect(GOLDEN_FIXTURES).toHaveLength(397);
+    // M8 8C S1: +2 for `review.title` and `review.roundedUpNote`, +12 for the review fixtures.
+    // M8 8C S2: +3 for `review.refusalReasons.*`.
+    // M8 8D S3: +4 for `reviewScreen.*`, the review screen's controls.
+    // M8 8D S4: +1 for `reviewScreen.saving`.
+    // M8 8D fix round: +2 for `reviewScreen.conflict` and `.openEditor`.
+    // M8 8D review fix round: +1 for `reviewScreen.topBarTitle`.
+    // +17 for the shop notice's static leaves and function fixtures.
+    // +1 for `room.compose.limitReached`, +2 for `designLoadError.tooManyRequests` and `.tryAgain`.
+    // +2 for `panel.savePausedNotice`'s two times.
+    // M8 8L S2: +26 contact static leaves, +17 contact leaves reached by code or class of answer.
+    // M8 8L S6: -4 for the retired `contactPlaceholder.*` and `webglUnavailable.emailLink`.
+    // M8 8L fix-up: +1 for `contact.outcomes.limitedTomorrow`.
+    // M8 8M S4: +27 static and +4 function fixtures for `submissionResult.*`, -2 for the retired contact outcomes.
+    // M8 8M2 S2: +3 static and +2 function fixtures for `submissionResult.*`.
+    // M8 8M2 S3: -1 function fixture for the retired `submissionResult.whatsappMessage`.
+    expect(GOLDEN_FIXTURES).toHaveLength(517);
     expect(new Set(GOLDEN_FIXTURES.map((fixture) => fixture.id)).size).toBe(
       GOLDEN_FIXTURES.length,
     );
@@ -284,13 +370,5 @@ describe("corrected-source golden output", () => {
         ),
       ),
     ).toEqual([...STAGED_GATE_O1_SEMANTIC_CORRECTION_KEYS].sort());
-  });
-
-  it("records Gate O1's 12 semantic corrections distinctly", () => {
-    expect(GATE_O1_SEMANTIC_CORRECTION_KEYS).toHaveLength(12);
-    expect(new Set(GATE_O1_SEMANTIC_CORRECTION_KEYS).size).toBe(12);
-    expect(catalogueLeaves(correctedRomanian).map(([key]) => key)).toEqual(
-      expect.arrayContaining([...GATE_O1_SEMANTIC_CORRECTION_KEYS]),
-    );
   });
 });

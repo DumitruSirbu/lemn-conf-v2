@@ -231,18 +231,8 @@ describe("what does not interrupt a press held down (review R1.1)", () => {
     expect(runs()).toBe(0);
   });
 
-  it("an element's own blur leaves the action waiting", () => {
-    mount();
-    send("pointerdown", "mousedown");
-    const runs = requestAction();
-
-    act(() => {
-      target.dispatchEvent(new FocusEvent("blur"));
-    });
-
-    expect(runs()).toBe(0);
-  });
-
+  // An element's own blur does not bubble, so it never reaches the window's listener and cannot tell a
+  // guarded listener from an unguarded one. The bubbling one below is the blur that can.
   it("a synthetic blur that bubbles from an element leaves the action waiting", () => {
     mount();
     send("pointerdown", "mousedown");

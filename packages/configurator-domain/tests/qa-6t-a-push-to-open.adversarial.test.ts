@@ -198,12 +198,26 @@ describe("a genuine push kitchen bills 39, and is genuinely a push kitchen", () 
     body.canHandle ? { ...body, recordedHandle: "push" as const } : body,
   );
 
+  // Asked of the shipped count: `push` stamped onto every body, the ones whose definitions permit no mode
+  // included, bills the same 39 as stamping only where one is permitted.
   it("stamps a mode only where the definition permits one", () => {
-    const stampedOnRefusingBodies = STAMPED.filter(
-      (body) => body.recordedHandle !== undefined && !body.canHandle,
-    );
+    const stampedEverywhere: Design = {
+      ...KITCHEN_L_DESIGN,
+      placements: KITCHEN_L_DESIGN.placements.map((placement) => ({
+        ...placement,
+        body: { ...placement.body, handle: "push" as const },
+      })),
+    };
 
-    expect(stampedOnRefusingBodies).toEqual([]);
+    expect(SEEDED_CENSUS.filter((body) => !body.canHandle)).not.toHaveLength(0);
+    expect(
+      countHardwareMechanisms(
+        projectDesignForDisplay(stampedEverywhere, CATALOG).flatMap(
+          (group) => group.entries,
+        ),
+        CATALOG,
+      ).pushToOpen,
+    ).toBe(39);
   });
 
   it("derives 39 as 41 opening fronts less the two bars that stay on", () => {
@@ -331,7 +345,7 @@ const EVERY_ROW_AT_EVERY_LEGAL_SIZE: readonly SweptRow[] = [...CATALOG].flatMap(
 /**
  * The claim that makes the owner's rule total (ADR 0092 decision 3, Amendment C): every front has a bar or a
  * latch, else nothing opens it and pricing bills a mechanism the body lacks or omits one it has. Stated as
- * *no bar implies nothing opens* as well as its contrapositive.
+ * *no bar implies nothing opens*.
  */
 describe("no catalogue row has a front with neither a bar nor a latch", () => {
   it("sweeps every row of both populations, at every legal width and frame height", () => {
@@ -351,16 +365,8 @@ describe("no catalogue row has a front with neither a bar nor a latch", () => {
     expect(barlessWithFronts).toEqual([]);
   });
 
-  it("declares a cabinet handle on every row that declares something that opens", () => {
-    const openingWithoutBars = EVERY_ROW_AT_EVERY_LEGAL_SIZE.filter(
-      (row) => row.openingFronts > 0 && row.cabinetHandles === 0,
-    );
-
-    expect(openingWithoutBars).toEqual([]);
-  });
-
-  /** Not vacuous: the catalogue holds rows on both sides, so an implementation answering one constant fails one
-   *  of the two above. */
+  /** Not vacuous: the catalogue holds rows on both sides, so an implementation answering one constant fails
+   *  here or in the case above. */
   it("holds rows on both sides of the question", () => {
     expect(
       EVERY_ROW_AT_EVERY_LEGAL_SIZE.filter((row) => row.cabinetHandles === 0)

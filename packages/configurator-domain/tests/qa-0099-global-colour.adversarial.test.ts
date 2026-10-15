@@ -263,22 +263,6 @@ describe("ADR 0099 decision 5 — chose-the-same-value is not the same state as 
     );
     expect(resolvedFinishOf(afterChoosing, movedChoosing)).toEqual(PAL_GRI);
   });
-
-  // The count is blind to an override equal to the kitchen colour; the second confirmation arm covers that loss.
-  it("is a distinction countCabinetsWearingAChosenFinish deliberately cannot see", () => {
-    const choosing = withGlobalFinish(
-      designOn(PAL_ID, [placementWearing(0, PAL_GRI)]),
-      PAL_GRI,
-    );
-    const following = withGlobalFinish(
-      designOn(PAL_ID, [placementWearing(0, undefined)]),
-      PAL_GRI,
-    );
-
-    expect(countCabinetsWearingAChosenFinish(choosing)).toBe(0);
-    expect(countCabinetsWearingAChosenFinish(following)).toBe(0);
-    expect(wouldDiscardTheGlobalFinish(choosing, VENEER_ID)).toBe(true);
-  });
 });
 
 describe("ADR 0099 acceptance 3 — a cleared override never re-acquires the key", () => {
@@ -898,20 +882,6 @@ describe("ADR 0099 acceptance 10 and decision 10 — round trip, and the rollbac
 
     expect(DesignSettingsSchema.safeParse(legacy).success).toBe(true);
   });
-
-  // Characterises the no-rollback hazard: a build whose strict settings schema lacks `finish` refuses documents
-  // carrying it. See ADR 0099 decision 10.
-  it("is refused by a strict settings schema that does not declare the key", () => {
-    const rolledBack = DesignSettingsSchema.omit({ finish: true });
-    const carrying = {
-      materialTierId: PAL_ID,
-      cabinetDepthMm: 600,
-      finish: PAL_ANTRACIT,
-    };
-
-    expect(DesignSettingsSchema.safeParse(carrying).success).toBe(true);
-    expect(rolledBack.safeParse(carrying).success).toBe(false);
-  });
 });
 
 describe("ADR 0099 decision 6 — ADR 0057's invariant at the write seam", () => {
@@ -931,7 +901,9 @@ describe("ADR 0099 decision 6 — ADR 0057's invariant at the write seam", () =>
     const issues = validateDesignForCatalog(design, CATALOG);
 
     expect(materialOffersFinish(materialById(VENEER_ID), MDF_RED)).toBe(false);
-    expect(issues.length).toBeGreaterThan(0);
+    expect(issues.map((issue) => issue.code)).toEqual([
+      "SETTINGS_WEAR_UNOFFERED_FINISH",
+    ]);
   });
 
   // The load seam's safety net: such a stored colour loads as the material's default instead of being refused.

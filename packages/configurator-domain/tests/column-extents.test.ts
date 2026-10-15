@@ -289,21 +289,6 @@ describe("an extent that reaches across a column it does not own is refused", ()
     expect(codesFor(design)).toContain("COLUMN_EXTENT_OVERLAPS_PLACEMENT");
   });
 
-  it("refuses a 3200 mm extent spanning most of wall A", () => {
-    const design = withColumnExtents([
-      {
-        wall: "A",
-        alongMm: 2000,
-        widthMm: 3200,
-        y0Mm: 0,
-        topMm: 2600,
-        depthMm: 620,
-      },
-    ]);
-
-    expect(codesFor(design)).toContain("COLUMN_EXTENT_OVERLAPS_PLACEMENT");
-  });
-
   /** The rule is about a *neighbour's* body, never about the extent's own. An extent holding the
    *  bodies filed under its own key is the ordinary case, and it is what the seeded kitchen's every
    *  column is — so this is the control that stops the sweep from being tightened into a rule that

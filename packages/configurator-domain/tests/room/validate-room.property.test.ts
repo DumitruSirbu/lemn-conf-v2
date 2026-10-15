@@ -290,17 +290,6 @@ describe("validateRoomInput — a valid room is exactly what was entered", () =>
     );
   });
 
-  it("is a room DesignRoomSchema parses unchanged", () => {
-    fc.assert(
-      fc.property(validLRoomInput, (input) => {
-        const room = acceptedRoom(input);
-
-        expect(DesignRoomSchema.parse(room)).toStrictEqual(room);
-      }),
-      { numRuns: RUNS_PER_ARM },
-    );
-  });
-
   it("over any input, accepts only rooms that equal what was entered and parse unchanged", () => {
     let acceptedCount = 0;
     fc.assert(

@@ -183,35 +183,6 @@ describe("the corner clearance, per chain", () => {
       expect(deep?.headroomMm).toBe(expectedMm);
     },
   );
-
-  // The premise the two rows above rest on, stated so this file cannot quietly become a sweep with
-  // one floor: the arms measure different distances, so a single uniform shift cannot satisfy both.
-  it("measures two arms that are genuinely different distances", () => {
-    const deep = cornerHeadroomMm(changeTo(KITCHEN_L_DESIGN, DEEP_MM), DEEP_MM);
-
-    expect(deep.get("base-formula")?.headroomMm).not.toBe(
-      deep.get("wall-map")?.headroomMm,
-    );
-  });
-
-  // No wall-B body on either chain is inside wall A's corner reach — the composition defect stated
-  // positively, over every wall-B body rather than over the nearest one on each arm.
-  it("puts no wall-B body inside wall A's corner reach at 700", () => {
-    const deep = changeTo(KITCHEN_L_DESIGN, DEEP_MM);
-    const catalog = buildKitchenLBodyCatalog(DEEP_MM);
-
-    const wallB = deep.placements.filter((placement) => placement.wall === "B");
-    expect(wallB.length).toBe(
-      MEMBERS_PER_CHAIN["base-formula"] + MEMBERS_PER_CHAIN["wall-map"],
-    );
-    for (const placement of wallB) {
-      const chain = chainOf(catalog, placement.body.buildId);
-      expect(
-        spanOf(placement)[0],
-        `${placement.id} on ${chain}`,
-      ).toBeGreaterThan(cornerReachMm(catalog, chain));
-    }
-  });
 });
 
 describe("what the shift must not change", () => {

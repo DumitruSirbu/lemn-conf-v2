@@ -68,6 +68,19 @@ Decision 2's *"a lost acknowledgement retries into a primary-key collision"* is 
 function name, file, marker-only rule, call-site list and *"accepted false conflict"* are replaced by
 decisions 1 to 3 above.
 
+## Note — 2026-10-08: a counter is a fourth caller class, counted and erring high
+
+Decision 2 lists reads, idempotent calls and made-idempotent writes. The rate-limit store (M8 wave 8E) adds a caller
+that is none of them: a counter, whose hit is repeated after a cold-start refusal and may therefore count one request
+up to three times. An over-count is a trace, so this is an exception to decision 2's headline, **the architect's
+ruling and open to the owner**. A counter errs high and never low between prunes of a window. Decisions 1 to 3 above
+are unchanged. The ruling, its reasons and the empty-reply case: [ADR 0149](0149-the-rate-limit-store-keeps-one-row-per-bucket-per-window-refuses-a-broken-promise-and-may-count-high-but-never-low-between-prunes.md)
+decision 3.
+
+## Note — 2026-10-09: a repeated statement re-sends the same proposal (wave 8I)
+
+The contact submissions store relies on decision 2's retry: a repeated statement re-sends the same reference proposal, so a call whose first attempt landed still answers *new*, and only a collision draws a new proposal. A repeated mark keeps the first instant. [ADR 0153](0153-a-contact-request-is-stored-once-apart-from-designs-the-application-role-reads-none-of-its-personal-columns-and-code-refuses-before-the-server-what-the-table-would-refuse.md) decision 4.
+
 ## Evidence
 
 Live tests `packages/persistence/tests/retried-writes-leave-no-trace.test.ts` and QA's

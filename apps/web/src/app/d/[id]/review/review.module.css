@@ -1,0 +1,501 @@
+/* Frames 3A and 3B as one scrolling page, on the phone's layout. The document scrolls; the bottom region is
+ * sticky, so it stays at the viewport's foot while there is more to read and sits in the flow, below the last
+ * row, when there is not. Nothing here is `position: fixed`, so nothing can cover the last row.
+ *
+ * Wider screens get the same column, centred and capped: no desktop chrome is drawn for this screen. */
+.screen {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 640px;
+  min-height: 100dvh;
+  margin-inline: auto;
+  background: var(--paper);
+}
+
+.loading {
+  margin: auto;
+  padding: 26px 18px;
+  font: 400 13.5px/1.6 var(--font-ui);
+  color: var(--ink-muted);
+  text-align: center;
+}
+
+/* Frame 3A's top bar: the way back, then the language control, which brings its own cell. */
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 14px;
+  background: var(--paper);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+/* Frame 3A's title, between the way back and the language control. */
+.navTitle {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font: 700 15px/1 var(--font-ui);
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The language menu's cell is the editor's, and carries the editor's rule under it. The review's bar has its own
+ * border, taller than the editor's, so the cell's rule would float inside it. */
+.nav .localeSlot > * {
+  border-bottom: 0;
+}
+
+.back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--touch-target);
+  height: var(--touch-target);
+  margin-block: -14px;
+  margin-inline: -11px;
+  font: 700 17px/1 var(--font-ui);
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 15px;
+  padding: 16px 18px 20px;
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.title {
+  margin: 0;
+  font: 700 22px/1.2 var(--font-ui);
+  letter-spacing: -0.015em;
+}
+
+.roomLine {
+  margin: 0;
+  font: 400 12.5px/1.5 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+/* The scene: the picture, then the views under it. Frame 3A draws the picture alone at 158 px with the 3D link in
+ * its lower corner; the three views are this product's own, and stand below the picture so that none of them covers
+ * it. */
+.scene {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.picture {
+  position: relative;
+  height: 158px;
+  overflow: hidden;
+  background: var(--stage);
+  border-radius: 13px;
+}
+
+.sceneLoading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 400 13px/1.4 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.preset {
+  min-height: var(--touch-target);
+  padding: 8px 12px;
+  font: 400 11px/1 var(--font-ui);
+  color: var(--ink-muted);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-chip);
+  cursor: pointer;
+}
+
+.preset[aria-pressed="true"] {
+  font-weight: 700;
+  color: var(--accent-strong);
+  background: var(--surface);
+}
+
+.view3d {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-target);
+  padding: 8px 12px;
+  font: 700 11px/1 var(--font-ui);
+  color: var(--accent-strong);
+  text-decoration: none;
+  background: rgb(250 248 244 / 92%);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-chip);
+}
+
+.settingsRow {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 12px 13px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 11px;
+}
+
+.settingsText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.settingsNames {
+  font: 700 12.5px/1.2 var(--font-ui);
+}
+
+/* The frame's middle dot between the two settings is drawn here, so no text carries it. */
+.settingsNames > span + span::before {
+  content: " · ";
+}
+
+.settingsHeading {
+  font: 400 11.5px/1.3 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+/* *Editează* and *Schimbă*: text links drawn as the frames draw them, with the project's touch target taken by
+ * the box and given back by negative margins, so the line they stand on keeps the frame's own height. */
+.action {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-target);
+  margin-block: -14px;
+  padding-inline: 6px;
+  margin-inline-end: -6px;
+  font: 700 12px/1 var(--font-ui);
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.groupHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.groupHeading {
+  margin: 0;
+  font: 700 10.5px/1 var(--font-ui);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+/* Frame 3A stands its blocks 15 px apart (the body's own gap), the groups among them. */
+.groups {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.rows,
+.wholeKitchen {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wholeKitchen {
+  padding-top: 13px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font: 400 13px/1.4 var(--font-ui);
+}
+
+/* A body the refusal names: a red edge and a badge, never colour alone. */
+.row[data-marked="true"] {
+  padding-inline-start: 8px;
+  margin-inline-start: -11px;
+  border-inline-start: 3px solid var(--refusal);
+}
+
+.rowLabel {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  min-width: 0;
+}
+
+.rowMark {
+  display: inline-block;
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  font: 700 11px/16px var(--font-ui);
+  color: #fff;
+  text-align: center;
+  background: var(--refusal);
+  border-radius: 50%;
+}
+
+/* Frame 3A's two lines: the name, then the facts under it in the smaller, quieter type, with a middle dot drawn
+ * between them so that no text carries it. */
+.rowText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.rowFacts {
+  font: 400 11px/1.3 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-faint);
+}
+
+.rowFacts > span + span::before {
+  content: " · ";
+}
+
+.rowAmount {
+  font: 700 13px/1.4 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.notIncluded {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+}
+
+.notIncludedHeading {
+  margin: 0;
+  font: 700 10.5px/1 var(--font-ui);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.notIncludedLine {
+  margin: 0;
+  font: 400 12.5px/1.4 var(--font-ui);
+  color: var(--ink-muted);
+}
+
+/* Frame 3B's amber note, carrying the rounding sentence and the breakdown's own notice, each as the model
+ * returns it. */
+.disclaimer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 13px 14px;
+  background: #f7ecdc;
+  border: 1px solid #e6cfa8;
+  border-radius: 10px;
+}
+
+.disclaimerLine {
+  margin: 0;
+  font: 400 12px/1.45 var(--font-ui);
+  color: #7c4a0c;
+}
+
+/* The bodies a refusal names, last in the page's flow, directly above the bottom region. */
+.named {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.namedLink {
+  display: flex;
+  align-items: center;
+  min-height: var(--touch-target);
+  font: 700 13px/1.3 var(--font-ui);
+  color: var(--accent-strong);
+}
+
+.unavailableBack {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  min-height: var(--touch-target);
+  font: 700 13px/1 var(--font-ui);
+  color: var(--accent);
+}
+
+/* Frame 3A's foot: the figure and the call to action, with the two sentences that explain them above. Sticky
+ * and in the flow, so it ends the page and never covers the last row. */
+.bottom {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 13px 18px calc(20px + env(safe-area-inset-bottom, 0px));
+  background: var(--paper);
+  border-top: 1px solid var(--line);
+}
+
+.sentence {
+  margin: 0;
+  font: 400 12px/1.45 var(--font-ui);
+  color: var(--ink);
+}
+
+.flagged {
+  composes: sentence;
+  padding: 8px 10px;
+  color: #7c4a0c;
+  background: #f7ecdc;
+  border: 1px solid #e6cfa8;
+  border-radius: 10px;
+}
+
+.refusal {
+  composes: sentence;
+  padding-inline-start: 10px;
+  border-inline-start: 3px solid var(--refusal);
+}
+
+/* The way to the editor under a sentence that sends the customer there. */
+.openEditor {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  min-height: var(--touch-target);
+  font: 700 13px/1 var(--font-ui);
+  color: var(--accent);
+}
+
+/* A save under way is a wait, not an error: the same quiet card the settings row is. */
+.waiting {
+  composes: sentence;
+  padding: 8px 10px;
+  color: var(--ink-muted);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+/* Frame 3A's bar: the figure under its small caption at the left, the call to action at the right, on one row in
+ * both languages. The figure keeps its width; the call to action is what gives way, by wrapping its label at a
+ * space (never mid-word, never smaller) inside its 52 px, so the row never wraps and the region never grows. */
+.buyRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.figure {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 3px;
+  margin: 0;
+}
+
+.figureLabel {
+  font: 400 10.5px/1 var(--font-ui);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.figureAmount {
+  font: 700 21px/1 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.cta {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 52px;
+  padding: 8px 22px;
+  font: 700 15px/1.15 var(--font-ui);
+  text-align: center;
+  color: var(--paper);
+  text-decoration: none;
+  background: var(--accent);
+  border: 0;
+  border-radius: 12px;
+}
+
+/* With no figure beside it (a review that cannot be shown) the call to action takes the bar. */
+.buyRow > .cta:only-child {
+  flex: 1 1 auto;
+}
+
+/* Off, and still focusable so its reason is read with it: `aria-disabled` and `aria-describedby`, not the
+ * `disabled` attribute. */
+.cta[aria-disabled="true"] {
+  color: var(--ink-faint);
+  cursor: not-allowed;
+  background: var(--line-soft);
+}
+
+@media (min-width: 900px) {
+  .body {
+    padding-inline: 24px;
+  }
+
+  .bottom {
+    padding-inline: 24px;
+  }
+
+  .cta {
+    flex: 0 0 auto;
+  }
+}

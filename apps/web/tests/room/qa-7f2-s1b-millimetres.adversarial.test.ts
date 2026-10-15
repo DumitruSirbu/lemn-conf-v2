@@ -357,7 +357,10 @@ describe("no room leaf and no room module still shows metres (task 3)", () => {
     },
   );
 
-  it("names the metre formatter nowhere under src, and keeps the wire's formatter on the URL modules", () => {
+  // That no module *shows* a metre is the rendered screen's to say, and `qa-7f2-s1b-millimetres.adversarial.dom.test.ts`
+  // says it ("Step 1 shows no metre anywhere"): a search for the two retired formatter names passes over a metre
+  // formatter under any other name. What a search can hold is the census below, of who calls the wire's formatter.
+  it("keeps the wire's metre formatter on the URL modules and calls it from nowhere else", () => {
     const directory = resolve(import.meta.dirname, "../../src/room");
     const sources = readdirSync(directory)
       .filter((entry) => /\.tsx?$/.test(entry))
@@ -366,14 +369,10 @@ describe("no room leaf and no room module still shows metres (task 3)", () => {
         source: readFileSync(resolve(directory, entry), "utf8"),
       }));
 
-    const namingTheDisplayFormatter = sources
-      .filter(({ source }) => /formatMetresForDisplay|unitMetres/.test(source))
-      .map(({ entry }) => entry);
     const callingTheWireFormatter = sources
       .filter(({ source }) => source.includes("metresTextForUrl("))
       .map(({ entry }) => entry);
 
-    expect(namingTheDisplayFormatter).toEqual([]);
     expect(callingTheWireFormatter.sort()).toEqual([
       "metres-text.ts",
       "room-query-sync.ts",

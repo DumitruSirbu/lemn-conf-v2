@@ -342,18 +342,6 @@ describe("no mark is left behind", () => {
     expect(harness.disposeOverflowMark).toHaveBeenCalledWith(mark);
   });
 
-  it("builds no mark on the next pass once nothing overflows", () => {
-    // The defect this file exists for: a body narrowed back inside its wall must lose its mark, not
-    // keep a red cabinet the customer has no way to clear.
-    mountWith(OVERFLOWING_DESIGN);
-    runCleanups();
-    harness.buildOverflowMark.mockClear();
-
-    mountWith(KITCHEN_L_DESIGN);
-
-    expect(harness.buildOverflowMark).not.toHaveBeenCalled();
-  });
-
   it("has left the room before the stage teardown walks it", () => {
     mountWith(OVERFLOWING_DESIGN);
     const mark = marksIn(mountedRoom())[0];

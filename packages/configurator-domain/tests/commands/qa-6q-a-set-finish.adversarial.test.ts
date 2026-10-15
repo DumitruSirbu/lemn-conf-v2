@@ -212,17 +212,14 @@ describe("the default material, three ways of saying nothing", () => {
     );
   });
 
-  it.each(SILENT_DESIGNS)(
-    "writes PAL's own decor through %s",
-    (_label, design) => {
-      const result = apply(
-        design,
-        { kind: "placement", id: FINISHABLE_ID },
-        paletteFinish("pal.antracit"),
-      );
-      expect(result.ok).toBe(true);
-    },
-  );
+  it("writes PAL's own decor on a design that names PAL explicitly", () => {
+    const result = apply(
+      withMaterial("material.melamine"),
+      { kind: "placement", id: FINISHABLE_ID },
+      paletteFinish("pal.antracit"),
+    );
+    expect(result.ok).toBe(true);
+  });
 });
 
 describe("the command agrees with the query, over every (material, finish) pair", () => {

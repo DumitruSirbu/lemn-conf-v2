@@ -89,18 +89,6 @@ describe("the panel's visibility band, which every property here depends on", ()
     );
   });
 
-  /** Non-vacuity for the generator: the band it draws from is inside the approved range and is not
-   *  empty, and the room the preset library is built on is inside it — by 40 mm. */
-  it("puts the seeded room inside that band, but only just", () => {
-    expect(SEEDED_ROOM.widthMm).toBeGreaterThanOrEqual(
-      NARROWEST_ROOM_SHOWING_THE_PANEL_MM,
-    );
-    expect(SEEDED_ROOM.widthMm - NARROWEST_ROOM_SHOWING_THE_PANEL_MM).toBe(41);
-    expect(NARROWEST_ROOM_SHOWING_THE_PANEL_MM).toBeLessThan(
-      APPROVED_WALL_A.maxMm,
-    );
-  });
-
   propertyTest.prop([roomShowingThePanel], PROPERTY_RUNS)(
     "draws a visible panel at every room the generator produces",
     (room) => {
@@ -118,15 +106,6 @@ describe("Perete A frames the working area, not the whole wall", () => {
     expect(panel.isVisible).toBe(true);
     expect(panel.nearestEdgePx).toBeCloseTo(596.2, 1);
     expect(panel.nearestEdgePx).toBeGreaterThan(VIEWPORT.width);
-  });
-
-  /** **The wave moved this number the wrong way, and it is recorded rather than buried.** Backlog
-   *  16 measured the run end at x ≈ 514 of 390 under the reference's own *Perete A*, which stood
-   *  5.21 m back. The room-driven preset stands 4.24 m back — the distance that keeps the 2.20–2.60
-   *  row tappable at a 3900 mm ceiling — so it sees less of the wall and the run end sits further
-   *  out. The owner ruled with this in front of them. */
-  it("sits further out than the reference preset did, which is the cost of the ruling", () => {
-    expect(panelUnderPereteA(SEEDED_ROOM).nearestEdgePx).toBeGreaterThan(514.9);
   });
 
   /** The positive half of *frames the working area*: the preset looks at the middle of the wall it

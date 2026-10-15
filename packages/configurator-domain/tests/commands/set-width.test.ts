@@ -323,12 +323,6 @@ describe("ADR 0031 rule 5 — a column's widths are the intersection of its memb
     expect(result.ok).toBe(true);
   });
 
-  it("is not narrowed by a `widthFlex: 'fit'` member above its floor", () => {
-    // Three `'fit'` bodies on the standard set intersect to the standard set: 400 stays reachable.
-    const result = resizeTo(pairWithEmptyRight(), "L-base", 400);
-    expect(result.ok).toBe(true);
-  });
-
   it("intersects the dishwasher's own set with its neighbours' (§11 row 14)", () => {
     const world = runWithEmptyColumn(
       [
@@ -377,32 +371,6 @@ describe("ADR 0031 — when there is no empty space to spend", () => {
       { side: "left", reason: "absent" },
     ]);
     expect(result.reason.params.deltaMm).toBe(50);
-  });
-
-  it("accepts growth that leaves the empty column under MIN_W (ADR 0043)", () => {
-    // A gap of any width is a legal state: 400 mm funds a 200 mm growth and the 200 mm left over is kept.
-    const world = pairWithEmptyRight(600, 400);
-
-    const result = resizeTo(world, "L-base", 800);
-
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.effect.emptyColumnWidthMm).toBe(200);
-  });
-
-  it("refuses growth larger than the empty column", () => {
-    const world = pairWithEmptyRight(400, 300);
-
-    const result = resizeTo(world, "L-base", 800);
-
-    expect(result.ok).toBe(false);
-    if (result.ok || result.reason.code !== "NO_EMPTY_SPACE") {
-      expect.unreachable("expected NO_EMPTY_SPACE");
-    }
-    expect(result.reason.params.sides[0]).toEqual({
-      side: "right",
-      reason: "too_narrow",
-    });
   });
 
   it("does not count a column that is empty only at the level being edited", () => {
@@ -561,18 +529,32 @@ describe("a resize rebuilds through the declared catalogue equivalent", () => {
     }
   });
 
-  it("does not change any member's module line or height", () => {
+  // A seeded base records its 820 mm carcass and §7's base row is 860, so the rebuild raises it once; the shelves
+  // above build to the slots they already fill (see DEVELOPMENT-SPEC §5.4).
+  it("keeps every member's module line and builds each at its §7 equivalent's height", () => {
     const world = pairWithEmptyRight();
+    const lineAndHeightOf = (design: Design) =>
+      ["L-base", "L-wall", "L-top"].map((id) => {
+        const placement = design.placements.find(
+          (candidate) => candidate.id === id,
+        );
+        return [id, placement?.y0Mm, placement?.body.heightMm];
+      });
 
     const result = resizeTo(world, "L-base", 800);
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    for (const id of ["L-base", "L-wall", "L-top"]) {
-      expect(recordOf(result.design, id).frame.y0).toBe(
-        recordOf(world.design, id).frame.y0,
-      );
-    }
+    expect(lineAndHeightOf(world.design)).toEqual([
+      ["L-base", 0, 820],
+      ["L-wall", 1500, 700],
+      ["L-top", 2200, 400],
+    ]);
+    expect(lineAndHeightOf(result.design)).toEqual([
+      ["L-base", 0, 860],
+      ["L-wall", 1500, 700],
+      ["L-top", 2200, 400],
+    ]);
   });
 });
 

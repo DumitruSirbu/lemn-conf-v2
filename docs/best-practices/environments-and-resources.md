@@ -61,7 +61,7 @@ repo-root file. Neither tool touches the other's file.
 
 | File | Holds | Neon branch | Notes |
 | --- | --- | --- | --- |
-| **repo-root** `.env.local` | `DATABASE_URL`, `VERCEL_OIDC_TOKEN` | **`lemn-conf-v2` — PRODUCTION** | Written by `vercel env pull`, which manages Vercel's **Development** environment variables — meaning Vercel's own dashboard has `DATABASE_URL` for "Development" set to production. `next dev`/`pnpm dev` never reads this file. Do not repoint local dev at it. |
+| **repo-root** `.env.local` | `DATABASE_URL`, `VERCEL_OIDC_TOKEN` | **`lemn-conf-v2-preview` — the PREVIEW database's application role (`app_designs`), since 2026-10-08** | Written by `vercel env pull`, which manages Vercel's **Development** environment variables. ~~Vercel's dashboard had `DATABASE_URL` for "Development" set to production.~~ **Corrected 2026-10-08:** the owner changed Vercel's Development `DATABASE_URL` and pulled it again; the coordinator then ran the privilege test alone and it printed `reached database "lemn-conf-v2-preview" as role "app_designs"`, 10 passed, 1 skipped, exit 0 [coordinator-run, relayed]. The skip is reported to be the `rate_limit_counters` grant test, because the table is not on preview either. `next dev`/`pnpm dev` never reads this file. **The persistence suite does read it** (`load-env.ts`, via `vitest.config.ts`), so it **no longer reaches production from this machine** by default. **Production's grants are checked only by a deliberate run per [the runbook](../runbooks/applying-a-table-migration-and-its-application-role-grant.md)**, with the production application role in `DATABASE_URL` for that one invocation. Before this correction `tests/application-role-privileges.test.ts` reached production on every run: since M8 wave 8E (`98b1f6b`, [ADR 0149](../decisions/0149-the-rate-limit-store-keeps-one-row-per-bucket-per-window-refuses-a-broken-promise-and-may-count-high-but-never-low-between-prunes.md) decision 5) with catalog reads and two guarded deletes of a row that does not exist, and before that with `truncate`, `drop` and `create` statements that passed because the role was refused. **Never run the suite with an owner or migration credential in `DATABASE_URL`.** `vercel env pull` also appended `.env*` to `.gitignore` on 2026-10-08; that uncommitted line is the owner's to keep or drop (backlog 142). |
 | **`apps/web/.env.local`** | `DATABASE_URL` | **`lemn-conf-v2-preview`** | What the dev server (and this checkout's e2e runs against a `next start`) actually reads. Has its own header comment explaining the split — read it before assuming "`.env.local`" means the repo-root file. |
 | `.env.migration.local` | `MIGRATION_DATABASE_URL` | **`lemn-conf-v2` — PRODUCTION**, owner role | The **only** migration credential in this checkout right now. Migrations only — the app role deliberately cannot run DDL. |
 | `.env.test.local` | `TEST_DATABASE_URL` | `lemn-conf-v2-staging`, owner role | The dedicated test database. Read first by `load-env.ts`, so it wins. Despite the name, not a staging *deployment* environment — see the file's own header. |
@@ -117,5 +117,76 @@ misconfiguration run.
 no application database exists to collide with. Whenever `DATABASE_URL` is set, the comparison is
 enforced.
 
+**What a test may delete from a database (owner, 2026-10-08).** The owner's words, relayed: *"If were added by tests ,
+delete , if added by production user keep"*. A test may delete rows that tests added; a row a real user added is never
+deleted. This qualifies the add-only rule above **for rows only**; variables and resources stay add-only. Working form:
+
+- On the guarded test database a row is a test's by a marker only tests write, and the count removed is reported.
+- On any database that holds users' rows, a test deletes only what it can show it added in that run.
+- *How a row is known to be a test's is not ruled by the owner*; the two lines above are the architect's reading.
+- A dispatch that lets an agent touch a database still bans deleting rows by name, unless it names this exception.
+
+Record and reasons: [ADR 0151](../decisions/0151-a-test-may-delete-the-rows-tests-added-and-never-a-row-a-production-user-added.md).
+
 See `docs/decisions/0006-tests-never-touch-the-application-database.md` and
 `docs/decisions/0008-least-privilege-database-role.md`.
+
+## Variables not yet set
+
+**Proposed, not set.** Nothing here exists in any environment until the owner creates it, and no agent creates, reads or
+prints it. This guide previously carried no such list; the plan's *Proposed variables* table is the fuller one.
+
+### `DIGEST_SECRET` (decided by the owner 2026-10-08: *"lets add this secret"*, then *"lets use same secret"*)
+
+- **What it is.** One secret that keys two digests: every rate-limit bucket key (8F, 8G, 8K) and the contact request's
+  conflict digest (8I, 8K), kept apart by what is digested ([ADR 0149](../decisions/0149-the-rate-limit-store-keeps-one-row-per-bucket-per-window-refuses-a-broken-promise-and-may-count-high-but-never-low-between-prunes.md)'s
+  amendment). Sixty-four lowercase hexadecimal characters.
+- **How it is made.** The owner runs `openssl rand -hex 32` himself, once per environment, and pastes the result nowhere
+  else. **A different value in each environment**, so one leaked from a preview opens nothing in production.
+- **Where it must be set, before 8F merges.** Vercel **Production**, **Preview** and **Development**, and
+  `apps/web/.env.local` for `pnpm dev`. Add-only, as every variable is. **From the day 8F's code runs in an environment,
+  that environment creates no design until the variable is set there**; the code refuses (fails closed) when it is unset or
+  not sixty-four hexadecimal characters, and never uses an unkeyed digest, a built-in key or a padded value.
+- **Tests and CI need no real secret.** The e2e harness makes a fresh random value per run and hands it to the server; no
+  literal exists in the repository.
+- **Rotation has two consequences, to be accepted before it is done.** A contact request whose retry falls across the
+  rotation is answered as a **conflict**, its stored row and notice untouched; and **every rate-limit count starts again**.
+  The rule is: set a new value in that environment and deploy; nothing is migrated and there is no time with two keys. A
+  runbook for the operation is [`replacing-the-digest-secret.md`](../runbooks/replacing-the-digest-secret.md) (written 2026-10-09).
+- **Now read by code (wave 8F, 2026-10-09; [ADR 0155](../decisions/0155-the-mint-asks-a-keyed-per-day-per-network-limiter-first-and-refuses-what-it-cannot-judge-the-owner-names-the-network-source-and-a-destructive-mutant-never-touches-a-database.md)).**
+  From the day 8F's code runs in an environment, **that environment creates no design until the variable is set there.** A pasted value
+  ending in a line break reads *unavailable*, with only the variable's name to go on and every mint answering `503`. **After setting it,
+  create one design there** to check.
+
+### `CLIENT_NETWORK_SOURCE` and `LEMNARIA_E2E_RATE_LIMIT_POLICY` (wave 8F, 2026-10-09; names only; the owner's)
+
+No agent sets, reads or prints either. [ADR 0155](../decisions/0155-the-mint-asks-a-keyed-per-day-per-network-limiter-first-and-refuses-what-it-cannot-judge-the-owner-names-the-network-source-and-a-destructive-mutant-never-touches-a-database.md)
+has the rules; `apps/web/.env.example` names both, commented, with no value.
+
+- **`CLIENT_NETWORK_SOURCE`:** exactly `vercel`, set on a deployment on that platform **only**. **Never in a local file, on another host, or
+  for the platform's development target.** It tells the application to trust the one header that platform overwrites for the client's
+  address; set anywhere else it would trust a header the client wrote. **Unset:** *none*, one shared bucket, so the whole world shares 20
+  designs a day (a named interim, acceptable only while nothing takes customers). **Anything else, present as a variable: every mint is
+  refused.** It is never a variable a host sets for you.
+- **`LEMNARIA_E2E_RATE_LIMIT_POLICY`:** test instrumentation, **unset on every deployment**; the phase gate checks that the name is defined
+  on none, by name only. Beside `CLIENT_NETWORK_SOURCE` every mint is refused.
+
+### The three mail variables and the e2e flag (wave 8J, 2026-10-09; names only; the owner's, and none is set by an agent)
+
+Resend is the provider (the owner, 2026-10-07). Nothing here exists in any environment until the owner creates it, and no agent sets,
+reads or prints one. [ADR 0154](../decisions/0154-mail-leaves-through-one-provider-neutral-port-and-one-resend-adapter-that-sends-once-and-answers-with-one-of-seven-kinds-and-the-shops-notice-is-the-stored-review-printed-never-priced-again.md)
+has the rules; `apps/web/.env.example` names them, commented, with no value.
+
+- **`RESEND_API_KEY`** (a secret). **Create it with sending access only**: a key with full access, leaked, reads thirty days of
+  notices through the API. Never in the browser, never read at build.
+- **`MAIL_FROM_ADDRESS`**: a bare address on a domain the provider has verified (DNS records the owner adds). `Name <addr>` is
+  refused.
+- **`LEAD_NOTIFICATION_ADDRESS`**: the shop's inbox, exactly one address.
+- **`LEMNARIA_E2E_FAKE_MAIL`**: test instrumentation, **unset on every deployment** (the phase gate checks that the name is in none).
+  Beside any mail variable the server treats mail as unavailable, so a deployment set up to send cannot be turned to the fake by it.
+- **A pasted value with a trailing newline reads *unavailable*;** the code names the variable and nothing of its value.
+- **Where the owner sets them:** the three on the deployments that will send, add-only (which environments is the owner's; the launch
+  gate requires them on production); the flag nowhere. **When they are unset:** mail is unavailable; the reader names the missing variables and no
+  message is sent or claimed sent. Nothing calls the module yet (8K wires it).
+- **On a machine whose `apps/web/.env.local` defines a mail name, the e2e contact specs will fail loudly by design** once 8K wires them;
+  the rule is not weakened to mend that (an empty mail variable counts as present).

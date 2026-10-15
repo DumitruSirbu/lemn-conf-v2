@@ -24,6 +24,7 @@ import {
 } from "@/persistence/share-link-client";
 import { useConfiguratorStore } from "@/store/configurator-store";
 
+import { absoluteShareAddress } from "./absolute-share-address";
 import styles from "./share-design.module.css";
 
 /** How long *Copiat* replaces *Copiază* before reverting: long enough to read, short enough that a later copy
@@ -155,7 +156,7 @@ function ShareDesignControl({
     const clipboard = (navigator as { clipboard?: Clipboard }).clipboard;
     if (clipboard === undefined) return;
 
-    clipboard.writeText(`${location.origin}${path}`).then(
+    clipboard.writeText(absoluteShareAddress(path)).then(
       () => {
         setState((current) =>
           current.kind === "just-issued"
@@ -277,7 +278,7 @@ function ShareDesignBody({
               type="text"
               readOnly
               className={styles.linkField}
-              value={`${location.origin}${state.path}`}
+              value={absoluteShareAddress(state.path)}
               data-testid="share-design-link"
               onFocus={selectFieldContents}
             />

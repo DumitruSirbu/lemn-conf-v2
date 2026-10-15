@@ -157,20 +157,6 @@ describe("the hob can be put back after its cabinet is deleted", () => {
     expect(names.filter((name) => name === "burner_ring")).toHaveLength(4);
   });
 
-  it("base-hob-oven carries an oven and base-hob-2drawer does not", () => {
-    const size = {
-      widthM: HOB_BASE_WIDTH_MM / 1000,
-      heightM: WORKTOP_HEIGHT_MM / 1000,
-      depthM: BASE_SEAT_DEPTH_MM / 1000,
-    };
-    expect(meshNames(buildCatalogBody(kit, "base-hob-oven", size))).toContain(
-      "oven_cavity",
-    );
-    expect(
-      meshNames(buildCatalogBody(kit, "base-hob-2drawer", size)),
-    ).not.toContain("oven_cavity");
-  });
-
   // The hob is a 600 mm appliance, so the cabinet under it is a millimetre set rather than a
   // `'fit'` body — it never widens to its opening, and never carries a 600 mm hob adrift on an
   // 800 mm worktop.

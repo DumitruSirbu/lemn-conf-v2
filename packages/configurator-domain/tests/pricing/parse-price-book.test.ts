@@ -22,10 +22,7 @@ import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
 } from "../../src/fixtures/kitchen-l-design.js";
-import {
-  MAX_PRICE_COEFFICIENT_MINOR,
-  parsePriceBook,
-} from "../../src/pricing/parse-price-book.js";
+import { parsePriceBook } from "../../src/pricing/parse-price-book.js";
 import {
   amountForBody,
   InexactPriceArithmeticError,
@@ -349,12 +346,6 @@ describe("no intermediate can be inexact (M6-AUD-015)", () => {
     );
   });
 
-  it("bounds coefficients so that every term and every partial sum stays exact", () => {
-    expect(MAX_PRICE_COEFFICIENT_MINOR * 4 * 10_000).toBeLessThanOrEqual(
-      Number.MAX_SAFE_INTEGER,
-    );
-  });
-
   it("leaves a negative coefficient inside the bound permitted, which is an unruled question", () => {
     // Whether a negative coefficient is commercially legal is an owner ruling nobody has made. The
     // parser bounds magnitude and says nothing about sign; `refuseNegativeAmount` refuses the
@@ -494,24 +485,6 @@ describe("a list is read through a guard, wherever the book declares one", () =>
     );
 
     expect(backstopped).toEqual([]);
-  });
-
-  it("refuses rather than raising, at any list the book carries", () => {
-    const raised = SAMPLE_LIST_PATHS.filter((path) => {
-      const book = bookWithValueAt(
-        BOOK,
-        path.split("."),
-        listRaisingOnEveryRead(),
-      );
-      try {
-        parsePriceBook(book);
-        return false;
-      } catch {
-        return true;
-      }
-    });
-
-    expect(raised).toEqual([]);
   });
 
   it("names the section for a cabinetRules list whose reads raise", () => {

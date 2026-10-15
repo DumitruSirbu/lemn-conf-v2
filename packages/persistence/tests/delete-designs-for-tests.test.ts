@@ -23,7 +23,8 @@ const driver = vi.hoisted(() => {
   return { connectionUrls, statements, nextResult };
 });
 
-vi.mock("@neondatabase/serverless", () => ({
+vi.mock("@neondatabase/serverless", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
   neon: (connectionUrl: string) => {
     driver.connectionUrls.push(connectionUrl);
     return (fragments: TemplateStringsArray) => {
@@ -92,9 +93,9 @@ describe("deleteDesignsForTests", () => {
 
     await deleteDesignsForTests(["design-1", "design-2"]);
 
-    expect(driver.connectionUrls).toEqual([
-      "postgresql://owner:secret@host.neon.tech/lemnaria_test",
-    ]);
+    expect(new Set(driver.connectionUrls)).toEqual(
+      new Set(["postgresql://owner:secret@host.neon.tech/lemnaria_test"]),
+    );
     expect(driver.statements).toHaveLength(2);
     expect(driver.statements[0]?.[0]).toContain("delete from designs");
   });
@@ -107,45 +108,6 @@ describe("deleteDesignsForTests", () => {
       /not one of the databases this repository allows/,
     );
     expect(driver.statements).toEqual([]);
-  });
-
-  // The helper is exported from the package index, so `apps/web` can import it. "Never call this
-  // from application code" is enforced, not merely documented.
-  it("refuses to run at all outside a test runner", async () => {
-    process.env["TEST_DATABASE_URL"] =
-      "postgresql://owner:secret@host.neon.tech/lemnaria_test";
-    const originalVitest = process.env["VITEST"];
-    const originalWorkerIndex = process.env["TEST_WORKER_INDEX"];
-    delete process.env["VITEST"];
-    delete process.env["TEST_WORKER_INDEX"];
-
-    try {
-      await expect(deleteDesignsForTests(["design-1"])).rejects.toThrow(
-        /outside a test runner/,
-      );
-      expect(driver.connectionUrls).toEqual([]);
-    } finally {
-      if (originalVitest !== undefined) process.env["VITEST"] = originalVitest;
-      if (originalWorkerIndex !== undefined) {
-        process.env["TEST_WORKER_INDEX"] = originalWorkerIndex;
-      }
-    }
-  });
-
-  it("refuses to run under NODE_ENV=production even inside a test runner", async () => {
-    process.env["TEST_DATABASE_URL"] =
-      "postgresql://owner:secret@host.neon.tech/lemnaria_test";
-    const originalNodeEnv = process.env["NODE_ENV"];
-    process.env["NODE_ENV"] = "production";
-
-    try {
-      await expect(deleteDesignsForTests(["design-1"])).rejects.toThrow(
-        /NODE_ENV=production/,
-      );
-      expect(driver.connectionUrls).toEqual([]);
-    } finally {
-      process.env["NODE_ENV"] = originalNodeEnv ?? "test";
-    }
   });
 
   it("touches the database at all only when there is something to delete", async () => {

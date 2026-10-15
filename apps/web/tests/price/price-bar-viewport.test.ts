@@ -181,27 +181,28 @@ describe("the overview preset frames every body, whatever chrome the screen carr
     );
   });
 
-  for (const headerHeightPx of HEADER_HEIGHTS_PX) {
-    for (const barHeightPx of BAR_HEIGHTS_PX) {
-      it(`frames every body with a ${String(headerHeightPx)} px header and a ${String(barHeightPx)} px bar`, () => {
-        // Aspect-invariant, per the head comment: this holds for any chrome, which is exactly why
-        // it is a **framing** assertion and not the overlap gate. It still earns its place — the
-        // preset is required to frame floor to ceiling (`stage.ts`), and a preset or a fixture that
-        // moved would land here. It holds at `overview` only; `wallA` and `wallB` frame one wall
-        // each and project the rest outside the box, which is clipping and not overlap.
-        const scene = sceneBoxFor(headerHeightPx, barHeightPx);
+  // One chrome rather than a sweep: the framing is aspect-invariant (head comment), so every other header and bar
+  // repeats this one fact. It is the only place the top bound is asserted.
+  const headerHeightPx = 64;
+  const barHeightPx = PRICE_BAR_RESERVED_HEIGHT_PX;
 
-        for (const body of mountedBodies()) {
-          const extent = projectVerticalExtent(body, scene);
-          expect(
-            extent.bottomPx,
-            `${String(placementIdOf(body))} is framed below the scene`,
-          ).toBeLessThanOrEqual(scene.barTopPx);
-          expect(extent.topPx).toBeGreaterThanOrEqual(scene.topPx);
-        }
-      });
+  it(`frames every body with a ${String(headerHeightPx)} px header and a ${String(barHeightPx)} px bar`, () => {
+    // Aspect-invariant, per the head comment: this holds for any chrome, which is exactly why
+    // it is a **framing** assertion and not the overlap gate. It still earns its place — the
+    // preset is required to frame floor to ceiling (`stage.ts`), and a preset or a fixture that
+    // moved would land here. It holds at `overview` only; `wallA` and `wallB` frame one wall
+    // each and project the rest outside the box, which is clipping and not overlap.
+    const scene = sceneBoxFor(headerHeightPx, barHeightPx);
+
+    for (const body of mountedBodies()) {
+      const extent = projectVerticalExtent(body, scene);
+      expect(
+        extent.bottomPx,
+        `${String(placementIdOf(body))} is framed below the scene`,
+      ).toBeLessThanOrEqual(scene.barTopPx);
+      expect(extent.topPx).toBeGreaterThanOrEqual(scene.topPx);
     }
-  }
+  });
 
   it("would cover real cabinets if the bar were laid over the scene instead of beside it", () => {
     // The counterfactual the flow layout exists to avoid, and the reason the assertions above are

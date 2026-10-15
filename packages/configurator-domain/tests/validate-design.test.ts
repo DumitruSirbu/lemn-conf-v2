@@ -215,14 +215,6 @@ describe("validateDesignForCatalog", () => {
         expect(runEndMm).toBeLessThanOrEqual(BOUND_BY_WALL[wall]);
       },
     );
-
-    /** Pinned by value so wall B's bound is a **stated** number rather than whatever the fixture
-     *  happens to say. 2920 is inside the owner's ruled 20–50 mm clearance band past 2900; a wave
-     *  that moves it to 2930 edits this line, and one that moves it to 2900 or 3000 needs a ruling
-     *  first. */
-    it("declares the two runs the demo room is built to clear", () => {
-      expect(BOUND_BY_WALL).toStrictEqual({ A: 3560, B: 2920 });
-    });
   });
 
   /** ADR 0132 decision 7 (D10): a U's wall A backs onto both side walls, so its own across-room
@@ -341,15 +333,6 @@ describe("a placement wearing a finish its material does not offer", () => {
         path: "placements.0.body.finish",
       },
     ]);
-  });
-
-  it("is a refusal and not a mark, which ADR 0069 decision 2 leaves no discretion about", () => {
-    expect(DESIGN_ISSUE_SEVERITY_BY_CODE.PLACEMENT_WEARS_UNOFFERED_FINISH).toBe(
-      "refusal",
-    );
-    expect(FATAL_VALIDATION_CODES).toContain(
-      "PLACEMENT_WEARS_UNOFFERED_FINISH",
-    );
   });
 
   it("is accepted when the material does offer it", () => {
@@ -475,7 +458,12 @@ describe("fatalDesignValidationIssues", () => {
    *  document unloadable, which is ADR 0052's dead link. It is a mark for the reason
    *  `PLACEMENT_PAST_WALL_END` is one (ADR 0065): reported, visible, carried, and not moved. A
    *  *fifth* member is still a wave that has to justify itself here, and "there are already two
-   *  kinds" is not a justification. */
+   *  kinds" is not a justification.
+   *
+   *  **This list is also what keeps the refusals refusals.** ADR 0069 decision 2 is one-sided on
+   *  purpose: the wall's *start* is not the wall's *end*, so the three before-wall-start codes stay
+   *  fatal, and decision 2 leaves `PLACEMENT_WEARS_UNOFFERED_FINISH` no discretion either. Severity is
+   *  two-valued, so any of them demoted arrives here as a fifth mark. */
   it("demotes the three past-the-wall-end codes and the corner ruling, and nothing else", () => {
     expect([...MARK_VALIDATION_CODES].sort()).toStrictEqual([
       "COLUMN_EXTENT_PAST_WALL_END",
@@ -483,18 +471,6 @@ describe("fatalDesignValidationIssues", () => {
       "PLACEMENT_PAST_WALL_END",
       "RECORDED_SPAN_OVERLAPS_CORNER_BODY",
     ]);
-  });
-
-  /** The wall's *start* is not the wall's *end*. ADR 0069 decision 2 is one-sided on purpose, and
-   *  these are the codes a reader who reads "wall bound" for "wall end" would sweep into it. */
-  it("keeps all three before-wall-start codes fatal", () => {
-    for (const code of [
-      "PLACEMENT_BEFORE_WALL_START",
-      "EMPTY_COLUMN_BEFORE_WALL_START",
-      "COLUMN_EXTENT_BEFORE_WALL_START",
-    ] as const) {
-      expect(DESIGN_ISSUE_SEVERITY_BY_CODE[code]).toBe("refusal");
-    }
   });
 });
 

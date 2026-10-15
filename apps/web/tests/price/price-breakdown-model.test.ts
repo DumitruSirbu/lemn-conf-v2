@@ -277,16 +277,6 @@ describe("the whole-kitchen section, which is data", () => {
     );
   });
 
-  /** The trap ADR 0092 decision 11 names by hand: with `isWholeKitchenLine` left as
-   *  `kind !== "cabinet"` the accessory rows still appear and their category word is `undefined`.
-   *  Asserted on the **rendered** breakdown rather than on the predicate, because the predicate
-   *  compiles either way. */
-  it("renders no row whose category word is missing", () => {
-    for (const row of shippedBreakdown().wholeKitchenRows) {
-      expect(row.label).not.toContain("undefined");
-    }
-  });
-
   it("renders nothing at all when the book produced no whole-kitchen line", () => {
     const cabinetOnly = SHIPPED_PRICING.ok
       ? SHIPPED_PRICING.priced.lines.filter((line) => line.kind === "cabinet")

@@ -10,24 +10,23 @@
 // constructed. The guards are for inputs the shipped catalogue cannot produce, so the shipped
 // catalogue cannot notice them going missing.
 //
-// **Why this reads the source instead of driving the behaviour, which would be the stronger test.**
-// A behavioural pin needs a contradictory or undeclared row to reach catalogue *load*, and
-// `buildKitchenLBodyCatalog` takes a depth and assembles its entries from two internal builders —
-// there is no seam to inject one through. Making one would mean changing the function's production
-// signature to accept an entries source, which is a larger change than the thing it would pin.
-// Reading the source is therefore the instrument, and it is this package's own: the same technique
-// `qa-6b2-door-step-and-height.adversarial.test.ts` uses to pin a caller population, and
-// `pricing-seams.test.ts` to pin an absence.
-//
-// **What it proves and what it does not.** It proves the call is written, inside that function, over
-// the entries the map is built from. It does not prove the refusal works — that is the two suites
-// named above — and it would not catch a refusal that was called and whose body had been emptied.
-// Those are different failures with their own tests; this one covers the failure that had none.
+// **Two instruments.** The source read proves each call is written inside the assembler over the entries
+// the map is built from. The last block drives the load with a row smuggled in through a module mock,
+// which is what catches a call that is written and does not run. Whether a refusal's own body works is
+// `cabinet-depth-parameter.test.ts` and `front-population.test.ts`.
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import type * as CatalogModule from "../src/catalog.js";
+import type * as FixtureModule from "../src/fixtures/kitchen-l-design.js";
+import {
+  doorBandsMm,
+  type FrontPopulationRule,
+} from "../src/front-population.js";
+import type { BodyDefinition } from "../src/void-engine.js";
 
 /** The assembler both refusals must run inside. Named once: a rename that moved the refusals
  *  somewhere else would fail here rather than quietly stop asserting anything. */
@@ -70,20 +69,97 @@ describe("the catalogue assembler runs every refusal it is supposed to", () => {
     expect(body).toContain(`const ${ENTRIES} =`);
     expect(body).toContain("new Map");
   });
+});
 
-  // Comments and strings are stripped, so a refusal *mentioned* in prose does not satisfy the
-  // assertions above — which matters in a package that comments more than it codes, and where both
-  // refusals are named in comments a few lines from their calls.
-  it("does not accept a refusal that is only written about", () => {
-    const commentedOut = withoutCommentsOrStrings(
-      `function ${ASSEMBLER}() {\n` +
-        `  // ${REQUIRED_REFUSALS[0]?.name ?? ""}(${ENTRIES});\n` +
-        `  return new Map();\n}`,
-    );
+// The source read above accepts a call that is written and never runs. This drives the load itself: a row only a
+// call site can refuse is put among the entries the assembler collects, and the catalogue must not load.
+describe("a refusal that is only written about does not stop a catalogue loading; one that runs does", () => {
+  const CATALOG_MODULE = "../src/catalog.js";
+  const FIXTURE_MODULE = "../src/fixtures/kitchen-l-design.js";
+  const SMUGGLED_BUILD_ID = "row-from-outside-typescript";
+  /** A shipped row the smuggled one is a copy of, so only the one field under test is wrong. */
+  const COPIED_BUILD_ID = "wall-cabinet";
 
-    expect(commentedOut).not.toContain(
-      `${REQUIRED_REFUSALS[0]?.name ?? ""}(${ENTRIES})`,
-    );
+  type Corrupt = (definition: BodyDefinition) => BodyDefinition;
+
+  /** One band and no leaf to stand in it, as `front-population.test.ts` declares the contradiction. */
+  const CONTRADICTORY_FRONTS = {
+    countedFrom: "declared-leaves",
+    doorBands: doorBandsMm([710]),
+    leavesPerBand: 0,
+    drawers: 0,
+  } as unknown as FrontPopulationRule;
+
+  /** A row as plain JavaScript would hand it over: every field but its depth rule. */
+  function withoutItsDepthRule(definition: BodyDefinition): BodyDefinition {
+    return Object.fromEntries(
+      Object.entries(definition).filter(([field]) => field !== "depthRule"),
+    ) as unknown as BodyDefinition;
+  }
+
+  const ROWS_ONLY_A_CALL_SITE_REFUSES: readonly (readonly [
+    string,
+    Corrupt,
+    string,
+  ])[] = [
+    [
+      "a row declaring no depth rule",
+      withoutItsDepthRule,
+      "UndeclaredCabinetDepthRuleError",
+    ],
+    [
+      "a row whose bands and leaves disagree",
+      (definition) => ({ ...definition, fronts: CONTRADICTORY_FRONTS }),
+      "ContradictoryFrontDeclarationError",
+    ],
+  ];
+
+  function smuggleIntoTheInsertableEntries(corrupt: Corrupt): void {
+    vi.doMock(CATALOG_MODULE, async (importOriginal) => {
+      const original = await importOriginal<typeof CatalogModule>();
+      return {
+        ...original,
+        buildInsertableBodyDefinitions: (cabinetDepthMm: number) => {
+          const entries =
+            original.buildInsertableBodyDefinitions(cabinetDepthMm);
+          const copied = entries.find(
+            ([buildId]) => buildId === COPIED_BUILD_ID,
+          );
+          if (!copied) throw new Error(`${COPIED_BUILD_ID} left the catalogue`);
+          return [...entries, [SMUGGLED_BUILD_ID, corrupt(copied[1])]];
+        },
+      };
+    });
+  }
+
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  afterEach(() => {
+    vi.doUnmock(CATALOG_MODULE);
+    vi.resetModules();
+  });
+
+  it.each(ROWS_ONLY_A_CALL_SITE_REFUSES)(
+    "refuses to load a catalogue holding %s, naming it",
+    async (_what, corrupt, errorName) => {
+      smuggleIntoTheInsertableEntries(corrupt);
+
+      const loading = import(FIXTURE_MODULE);
+
+      await expect(loading).rejects.toMatchObject({ name: errorName });
+      await expect(loading).rejects.toThrow(SMUGGLED_BUILD_ID);
+    },
+  );
+
+  // The premise of the rows above: the smuggling itself stops nothing, so a refusal is the row's.
+  it("loads a catalogue holding a smuggled row with nothing wrong in it", async () => {
+    smuggleIntoTheInsertableEntries((definition) => definition);
+
+    const fixture = (await import(FIXTURE_MODULE)) as typeof FixtureModule;
+
+    expect(fixture.KITCHEN_L_BODY_CATALOG.has(SMUGGLED_BUILD_ID)).toBe(true);
   });
 });
 

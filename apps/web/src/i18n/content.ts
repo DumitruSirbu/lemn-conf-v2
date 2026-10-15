@@ -3,6 +3,8 @@ import type { _Translator, Messages } from "next-intl";
 import type {
   Band,
   BodyLabel,
+  ContactChannel,
+  ContactFieldCode,
   CornerDirection,
   DesignWall,
   EmptySpaceSide,
@@ -565,6 +567,215 @@ export function resolveRejection(
   }
 }
 
+/** A room as the review's one line states it: the walls its shape has, in whole millimetres, the corner side only
+ *  where the shape has one, and how many bodies the kitchen holds. */
+export type ReviewRoomLine =
+  | {
+      readonly shape: "linear";
+      readonly wallAMm: number;
+      readonly bodyCount: number;
+    }
+  | {
+      readonly shape: "L";
+      readonly wallAMm: number;
+      readonly wallBMm: number;
+      readonly corner: CornerDirection;
+      readonly bodyCount: number;
+    }
+  | {
+      readonly shape: "U";
+      readonly wallAMm: number;
+      readonly wallBMm: number;
+      readonly wallCMm: number;
+      readonly bodyCount: number;
+    };
+
+/**
+ * One leaf per shape, each naming only the lengths that shape has. The body count is rendered first and passed in as
+ * text, so the plural lives in one leaf instead of three.
+ */
+export function resolveReviewRoomLine(
+  translate: ContentTranslator,
+  line: ReviewRoomLine,
+): string {
+  const bodies = translate("review.bodyCount", { bodyCount: line.bodyCount });
+  switch (line.shape) {
+    case "linear":
+      return translate("review.roomLine.linear", {
+        shape: translate("room.shapes.linear.short"),
+        wallA: line.wallAMm,
+        bodies,
+      });
+    case "L":
+      return translate("review.roomLine.L", {
+        shape: translate("room.shapes.L.short"),
+        wallA: line.wallAMm,
+        wallB: line.wallBMm,
+        corner: resolveCornerSide(translate, line.corner),
+        bodies,
+      });
+    case "U":
+      return translate("review.roomLine.U", {
+        shape: translate("room.shapes.U.short"),
+        wallA: line.wallAMm,
+        wallB: line.wallBMm,
+        wallC: line.wallCMm,
+        bodies,
+      });
+    default:
+      return assertNever(line);
+  }
+}
+
+function resolveCornerSide(
+  translate: ContentTranslator,
+  corner: CornerDirection,
+): string {
+  switch (corner) {
+    case "left":
+      return translate("review.roomLine.cornerLeft");
+    case "right":
+      return translate("review.roomLine.cornerRight");
+    default:
+      return assertNever(corner);
+  }
+}
+
+/**
+ * The sentence for one field refusal, found by the domain's code and never by the field: a code has one sentence
+ * wherever it is met. An exhaustive literal-key switch, so a code the domain adds does not compile until it has a leaf.
+ */
+export function resolveContactFieldError(
+  translate: ContentTranslator,
+  code: ContactFieldCode,
+): string {
+  switch (code) {
+    case "REQUIRED":
+      return translate("contact.fieldErrors.REQUIRED");
+    case "TOO_LONG":
+      return translate("contact.fieldErrors.TOO_LONG");
+    case "FORBIDDEN_CHARACTER":
+      return translate("contact.fieldErrors.FORBIDDEN_CHARACTER");
+    case "MALFORMED":
+      return translate("contact.fieldErrors.MALFORMED");
+    case "PHONE_MOLDOVAN_INCOMPLETE":
+      return translate("contact.fieldErrors.PHONE_MOLDOVAN_INCOMPLETE");
+    case "PHONE_MOLDOVAN_TOO_MANY_DIGITS":
+      return translate("contact.fieldErrors.PHONE_MOLDOVAN_TOO_MANY_DIGITS");
+    case "PHONE_MOLDOVAN_SECOND_ZERO":
+      return translate("contact.fieldErrors.PHONE_MOLDOVAN_SECOND_ZERO");
+    case "PHONE_INTERNATIONAL_INCOMPLETE":
+      return translate("contact.fieldErrors.PHONE_INTERNATIONAL_INCOMPLETE");
+    case "PHONE_INTERNATIONAL_TOO_MANY_DIGITS":
+      return translate(
+        "contact.fieldErrors.PHONE_INTERNATIONAL_TOO_MANY_DIGITS",
+      );
+    case "PHONE_FORMAT_UNRECOGNISED":
+      return translate("contact.fieldErrors.PHONE_FORMAT_UNRECOGNISED");
+    case "CONSENT_NOT_GIVEN":
+      return translate("contact.fieldErrors.CONSENT_NOT_GIVEN");
+    // No field of the form can produce these three: the value is not text, or comes from a closed set the page sends.
+    case "NOT_TEXT":
+    case "UNKNOWN_CHANNEL":
+    case "UNKNOWN_CONSENT_TEXT_VERSION":
+      return translate("submissionResult.failureNotSent");
+    default:
+      return resolveCodeThisBuildLacks(translate, code);
+  }
+}
+
+/** A code arrives from the network, so one this build has no leaf for is reachable: it is told as the failure it
+ *  is to the customer. The `never` keeps the switch above exhaustive at compile time. */
+function resolveCodeThisBuildLacks(
+  translate: ContentTranslator,
+  code: never,
+): string {
+  void code;
+  return translate("submissionResult.failureNotSent");
+}
+
+/** What the screen says, beside the form, of an answer that was not a send, with the one value a sentence carries
+ *  already read: the clock time, and whether it is tomorrow's, that a limited send may be tried again. The kinds are
+ *  `ContactOutcome`'s but `sent`, which the result screens tell, and `failed` and `unanswered`, which have the screen
+ *  of frame 5B; this module takes nothing from `contact/`, which would put the form's routing into every model that
+ *  names a resolved sentence, and a test ties the two unions. */
+export type ContactOutcomeNotice =
+  | {
+      readonly kind: "limited";
+      readonly time: string;
+      readonly isTomorrow: boolean;
+    }
+  | { readonly kind: "refused" }
+  | { readonly kind: "conflict" }
+  | { readonly kind: "design-not-current" }
+  | { readonly kind: "does-not-fit" };
+
+/** One sentence per class of answer. A send that does not fit is told in the review's own words for it. */
+export function resolveContactOutcome(
+  translate: ContentTranslator,
+  notice: ContactOutcomeNotice,
+): string {
+  switch (notice.kind) {
+    case "limited":
+      return translate(
+        notice.isTomorrow
+          ? "contact.outcomes.limitedTomorrow"
+          : "contact.outcomes.limited",
+        { time: notice.time },
+      );
+    case "refused":
+      return translate("contact.outcomes.refused");
+    case "conflict":
+      return translate("contact.outcomes.conflict");
+    case "design-not-current":
+      return translate("contact.outcomes.designNotCurrent");
+    case "does-not-fit":
+      return translate("review.refusalReasons.BODIES_PAST_WALL");
+    default:
+      return assertNever(notice);
+  }
+}
+
+/** What the result screen says of how the shop will reach the customer: the channel chosen and the one value typed
+ *  for it, exactly as typed. */
+export interface SubmissionChannelLine {
+  readonly channel: ContactChannel;
+  readonly contact: string;
+}
+
+/** One sentence per channel, found by the channel's own name so a channel the domain adds is a type error here. */
+export function resolveSubmissionChannelLine(
+  translate: ContentTranslator,
+  line: SubmissionChannelLine,
+): string {
+  return translate("submissionResult.channelLine", {
+    channel: line.channel,
+    contact: line.contact,
+  });
+}
+
+/** What the message to the shop names: the request, and the customer's own view-only link to the design. */
+export interface ShopWhatsappMessageParts {
+  readonly reference: string;
+  readonly link: string;
+}
+
+/** The message a customer sends the shop. It is the customer's voice, so it addresses the shop in neither register. */
+export function resolveShopWhatsappMessage(
+  translate: ContentTranslator,
+  parts: ShopWhatsappMessageParts,
+): string {
+  return translate("submissionResult.whatsappMessageToShop", parts);
+}
+
+/** The advice on the already-sent view; `phone` is the shop's display form, never digits typed into a leaf. */
+export function resolveAlreadySentAdvice(
+  translate: ContentTranslator,
+  phone: string,
+): string {
+  return translate("submissionResult.alreadySentAdvice", { phone });
+}
+
 /** Resolves the content shape the pre-i18n models consume: every leaf comes from the active locale, and the
  *  closures keep the model-facing signatures while ICU does interpolation and plural selection. */
 export function resolveContent(translate: ContentTranslator) {
@@ -585,6 +796,12 @@ export function resolveContent(translate: ContentTranslator) {
     /** A price book row's rendered sentence (see `resolveBookText`): a descriptor resolver, not a content family. */
     bookText: (authored: string, key: string | undefined) =>
       resolveBookText(translate, authored, key),
+    reviewRoomLine: (line: ReviewRoomLine) =>
+      resolveReviewRoomLine(translate, line),
+    contactFieldError: (code: ContactFieldCode) =>
+      resolveContactFieldError(translate, code),
+    contactOutcome: (notice: ContactOutcomeNotice) =>
+      resolveContactOutcome(translate, notice),
     brand: translate("brand"),
     configure: {
       step: translate("configure.step", { step: 2, totalSteps: 4 }),
@@ -673,6 +890,9 @@ export function resolveContent(translate: ContentTranslator) {
       readOnlyRefusedNotice: translate("panel.readOnlyRefusedNotice"),
       saveFailedNotice: translate("panel.saveFailedNotice"),
       saveStoppedNotice: translate("panel.saveStoppedNotice"),
+      // Drafted: the limit on saves paused the write until `time`; the change stays on screen and goes by itself.
+      savePausedNotice: (time: string) =>
+        translate("panel.savePausedNotice", { time }),
       finishTitle: translate("panel.finishTitle"),
       finishApproximationNote: translate("panel.finishApproximationNote"),
       finishPickerLabel: translate("panel.finishPickerLabel"),
@@ -740,6 +960,25 @@ export function resolveContent(translate: ContentTranslator) {
       included: translate("priceBreakdown.included"),
       notIncluded: translate("priceBreakdown.notIncluded"),
     },
+    review: {
+      title: translate("review.title"),
+      roundedUpNote: translate("review.roundedUpNote"),
+      refusalReasons: {
+        PRICING_FAILED: translate("review.refusalReasons.PRICING_FAILED"),
+        NO_CABINET: translate("review.refusalReasons.NO_CABINET"),
+        BODIES_PAST_WALL: translate("review.refusalReasons.BODIES_PAST_WALL"),
+      },
+    },
+    reviewScreen: {
+      callToAction: translate("reviewScreen.callToAction"),
+      editGroup: translate("reviewScreen.editGroup"),
+      changeSettings: translate("reviewScreen.changeSettings"),
+      view3d: translate("reviewScreen.view3d"),
+      saving: translate("reviewScreen.saving"),
+      conflict: translate("reviewScreen.conflict"),
+      openEditor: translate("reviewScreen.openEditor"),
+      topBarTitle: translate("reviewScreen.topBarTitle"),
+    },
     globalSettings: {
       open: translate("globalSettings.open"),
       title: translate("globalSettings.title"),
@@ -799,7 +1038,6 @@ export function resolveContent(translate: ContentTranslator) {
       titleDesktop: translate("webglUnavailable.titleDesktop"),
       bodyMobile: translate("webglUnavailable.bodyMobile"),
       bodyDesktop: translate("webglUnavailable.bodyDesktop"),
-      emailLink: translate("webglUnavailable.emailLink"),
       contactLink: translate("webglUnavailable.contactLink"),
       noFakePreview: translate("webglUnavailable.noFakePreview"),
     },
@@ -810,6 +1048,10 @@ export function resolveContent(translate: ContentTranslator) {
       // The "wrong browser" refusal (ADR 0114 decision 5).
       bodyUnavailable: translate("designLoadError.bodyUnavailable"),
       startOver: translate("designLoadError.startOver"),
+      // The sentence a refused page read is answered with: the interceptor reads it from the catalogue itself.
+      tooManyRequests: translate("designLoadError.tooManyRequests"),
+      // The label of the one link on that page, which is the page's own word and not another surface's.
+      tryAgain: translate("designLoadError.tryAgain"),
     },
     share: {
       title: translate("share.title"),
@@ -826,10 +1068,109 @@ export function resolveContent(translate: ContentTranslator) {
       error: translate("share.error"),
       retry: translate("share.retry"),
     },
-    contactPlaceholder: {
-      title: translate("contactPlaceholder.title"),
-      body: translate("contactPlaceholder.body"),
-      back: translate("contactPlaceholder.back"),
+    contact: {
+      topBarTitle: translate("contact.topBarTitle"),
+      heading: translate("contact.heading"),
+      subheading: translate("contact.subheading"),
+      headingNoDesign: translate("contact.headingNoDesign"),
+      subheadingNoDesign: translate("contact.subheadingNoDesign"),
+      nameLabel: translate("contact.nameLabel"),
+      namePlaceholder: translate("contact.namePlaceholder"),
+      phoneLabel: translate("contact.phoneLabel"),
+      phonePlaceholder: translate("contact.phonePlaceholder"),
+      localityLabel: translate("contact.localityLabel"),
+      localityPlaceholder: translate("contact.localityPlaceholder"),
+      emailLabel: translate("contact.emailLabel"),
+      emailPlaceholder: translate("contact.emailPlaceholder"),
+      channelLabel: translate("contact.channelLabel"),
+      channels: {
+        phone: translate("contact.channels.phone"),
+        whatsapp: translate("contact.channels.whatsapp"),
+        email: translate("contact.channels.email"),
+      },
+      // Q7 (b): a slot. The sentence and its marker are provisional until the owner supplies the privacy text.
+      consent: translate("contact.consent"),
+      consentProvisionalMarker: translate("contact.consentProvisionalMarker"),
+      callToAction: translate("contact.callToAction"),
+      sending: translate("contact.sending"),
+      sendingLine: translate("contact.sendingLine"),
+      sendingLineNoDesign: translate("contact.sendingLineNoDesign"),
+      reviewLink: translate("contact.reviewLink"),
+      retry: translate("contact.retry"),
+      unavailable: translate("contact.unavailable"),
+    },
+    submissionResult: {
+      topBarTitle: translate("submissionResult.topBarTitle"),
+      sentHeading: translate("submissionResult.sentHeading"),
+      referenceLabel: translate("submissionResult.referenceLabel"),
+      copy: translate("submissionResult.copy"),
+      copied: translate("submissionResult.copied"),
+      channelLine: (line: SubmissionChannelLine) =>
+        resolveSubmissionChannelLine(translate, line),
+      channelLineWithoutValue: translate(
+        "submissionResult.channelLineWithoutValue",
+      ),
+      savedSentence: translate("submissionResult.savedSentence"),
+      nextStepsTitle: translate("submissionResult.nextStepsTitle"),
+      // Q9: the three steps are a slot. The sentences and their marker are provisional until the owner confirms them.
+      nextStepsProvisionalMarker: translate(
+        "submissionResult.nextStepsProvisionalMarker",
+      ),
+      nextStepVerify: translate("submissionResult.nextStepVerify"),
+      nextStepFinalPrice: translate("submissionResult.nextStepFinalPrice"),
+      nextStepMeasure: translate("submissionResult.nextStepMeasure"),
+      backToDesign: translate("submissionResult.backToDesign"),
+      reviewLink: translate("submissionResult.reviewLink"),
+      sendOnWhatsapp: translate("submissionResult.sendOnWhatsapp"),
+      openWhatsapp: translate("submissionResult.openWhatsapp"),
+      whatsappMessageToShop: (parts: ShopWhatsappMessageParts) =>
+        resolveShopWhatsappMessage(translate, parts),
+      noRequest: translate("submissionResult.noRequest"),
+      notShown: translate("submissionResult.notShown"),
+      alreadySentHeading: translate("submissionResult.alreadySentHeading"),
+      alreadySentAdvice: (phone: string) =>
+        resolveAlreadySentAdvice(translate, phone),
+      alreadySentChangedKitchen: translate(
+        "submissionResult.alreadySentChangedKitchen",
+      ),
+      callShop: translate("submissionResult.callShop"),
+      failureHeading: translate("submissionResult.failureHeading"),
+      failureLostConnection: translate(
+        "submissionResult.failureLostConnection",
+      ),
+      failureNotSent: translate("submissionResult.failureNotSent"),
+      failureKept: translate("submissionResult.failureKept"),
+      failureKeptNoDesign: translate("submissionResult.failureKeptNoDesign"),
+      keptTitle: translate("submissionResult.keptTitle"),
+      keptContact: translate("submissionResult.keptContact"),
+      waitingForConnection: translate("submissionResult.waitingForConnection"),
+      retryAutomatically: translate("submissionResult.retryAutomatically"),
+    },
+    leadNotice: {
+      subject: (reference: string) =>
+        translate("leadNotice.subject", { reference }),
+      line: (label: string, value: string) =>
+        translate("leadNotice.line", { label, value }),
+      figure: (label: string, amount: string) =>
+        translate("leadNotice.figure", { label, amount }),
+      labels: {
+        reference: translate("leadNotice.labels.reference"),
+        locale: translate("leadNotice.labels.locale"),
+        name: translate("leadNotice.labels.name"),
+        phone: translate("leadNotice.labels.phone"),
+        locality: translate("leadNotice.labels.locality"),
+        channel: translate("leadNotice.labels.channel"),
+        email: translate("leadNotice.labels.email"),
+        room: translate("leadNotice.labels.room"),
+        price: translate("leadNotice.labels.price"),
+      },
+      channels: {
+        phone: translate("leadNotice.channels.phone"),
+        whatsapp: translate("leadNotice.channels.whatsapp"),
+        email: translate("leadNotice.channels.email"),
+      },
+      callbackLine: translate("leadNotice.callbackLine"),
+      emptyValue: translate("leadNotice.emptyValue"),
     },
   };
 }

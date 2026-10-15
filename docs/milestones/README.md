@@ -4,6 +4,7 @@
 > adversarial QA → review → verify → commit → archive. QA gates review. A wave is not done when
 > its gates are green; it is done when it has been reviewed and its acceptance criteria are met.
 > Deviating is a decision to record in `docs/decisions/`, not a shortcut to take quietly.
+> A milestone's close includes the test audit; a "cannot fail" finding keeps it open (`docs/WORKFLOW.md`, step 7).
 >
 > **Read `docs/STATUS.md` first.** It says where the project stands and which of the plans below
 > are worth opening. Completed phases are archived in `done/` and should not be read — see
@@ -64,7 +65,9 @@ Step 3 Verificare  →  Step 4 Contact  →  Step 5 Succes
 | [M6B](M6B-internationalization.md) | Internationalization — Romanian becomes a source locale instead of a hardcoded one; ~~ten waves~~ **thirteen** (planned 2026-09-06, ADR 0095); closes ADR 0001 decision 5. **Every wave shipped by 2026-09-10 (6B-i `87429ca`, 6B-j `aff9a2c`).** ~~blocked on Gate O2 — the owner reads the Russian~~ **DONE — Gate O2 closed 2026-09-11 and merged to `main` via PR #8** | app + domain |
 | [M7](done/M7-room-and-presets.md) | Step 1 and its six sub-states, resolving straight into the editor — **DONE, closed 2026-09-29**. Preset story deferred past M8, ADR 0131 | **mobile-gated** |
 | [M7B](M7B-u-shaped-rooms.md) | U-shaped rooms — ~~**proposed** 2026-09-11, on the owner's Q5 answer to M7 (*"we should support at the end all kitchen shapes (exluding island)"*); not objected to; still the owner's to confirm~~ **confirmed by the owner 2026-09-11: *"Yeah let make separate"*** — its own milestone between M7 and M8; ~~plan not yet written~~ **PLANNED — plan written 2026-09-29: eight waves U0–U7; owner questions Q-U1–Q-U5 are put in U0 and gate U3 and U6 only.** **Next milestone as of M7's 2026-09-29 close; next wave U0.** | domain + adapter, **mobile-gated** (U7) |
-| [M8](M8-review-contact-success.md) | Screens 3, 4, 5 — review, contact, success and failure | **mobile-gated** |
+| [M8](M8-review-contact-success.md) | Screens 3, 4, 5 — review, contact, success and failure. ~~Seventeen waves ending at 8T since 2026-10-07; profiles left for M8B~~ ~~**Fifteen waves ending at 8T**~~ **eighteen waves ending at 8T** (corrected 2026-10-12: 8D2, 8D3 and 8K2 were added after the restatement; 8K2 is done) (restated 2026-10-07 on the owner's answers to Q21–Q27: *"functionality and basic security for now"*); profiles left for M8B; waves 8R and 8S and the launch gate left for M9. ~~Waves 8B and 8C done~~ **Updated 2026-10-13: waves 8B to 8M are done (8A's measurements and reads are in; 8L closed 2026-10-12, ADR 0159; 8M closed 2026-10-13, ADR 0160; local, not pushed); 8Q and 8T remain, and 8T's close includes the first test audit** | **mobile-gated** |
+| [M8B](M8B-customer-profiles.md) | Customer profiles (e-mail and password, a dashboard, claiming anonymous designs) — **PLANNED, created 2026-10-07**, after M8 and before launch; no branch yet. Separate because *"Nothing ships before every milestone is done, so the split costs no release, and a pull request of twenty-seven waves is not a reviewable unit"* (M8 plan, Q1, answered as recommended, relayed) | app + persistence, **mobile-gated** |
+| [M9](M9-delivery-preparation.md) | Delivery preparation — hosting, providers and the launch gate — **PROPOSED, to be planned by the owner's ruling of 2026-10-07** (*"I will plan a new separate milestone that will prepare the project for delivery"*); a stub: no plan, no waves. Inherits M8's waves 8R and 8S and the launch gate. Its place relative to M8B is the architect's recommendation (last, after M8B), not an owner ruling | not yet scoped |
 
 ## Why M5B sits between M5 and M6
 
@@ -99,7 +102,11 @@ the domain — both read surfaces M6's pricing waves are still writing.
 **Before M7**, because M7 adds `/configurator/room` and its six sub-states and M8 adds three more
 screens. That is two whole screens of copy. Authoring it as keys costs nothing; authoring it as
 hardcoded Romanian buys a later phase the job of hunting it down — which is what already happened
-once, and is why `apps/web/src/content/ro.ts` carries an M8 `contactPlaceholder` stub today.
+once, and is why ~~`apps/web/src/content/ro.ts`~~ carries an M8 `contactPlaceholder` stub today.
+
+> **Dated correction, 2026-10-07:** `apps/web/src/content/ro.ts` no longer exists; the
+> `contactPlaceholder` stub is the namespace at `apps/web/src/messages/ro.json:305`
+> [source-verified, Grep]. The M8 plan, *What the code has today*, says the same.
 
 ## Why M7B sits between M7 and M8
 
@@ -190,10 +197,10 @@ None of these may be closed by inventing a value. Each is listed again in the ph
 | --- | --- |
 | ~~The concrete database and its deployment story beyond local development~~ — resolved and provisioned 2026-08-25: Postgres on Neon's free tier, one `jsonb` document per design, linked to Vercel project `lemnaria-configurator-gbt` | closed |
 | ~~Backup mechanism~~ — resolved 2026-08-25: Neon's free-tier PITR is only 6 hours, so a daily scheduled export to Vercel Blob (private, 14-day rotation) supplements it; both free at POC scale | closed |
-| Design retention, deletion, and the privacy copy for a link-reachable design — decided as a placeholder (keep indefinitely, slot copy) 2026-08-25, real policy still open | M2, M8 |
+| Design retention, deletion, and the privacy copy for a link-reachable design — decided as a placeholder (keep indefinitely, slot copy) 2026-08-25, real policy still open — **partly closed 2026-10-07 by annotation:** ADR 0019's *Supersession note — 2026-09-15* retired automatic deletion of designs (*"Nothing deletes a design automatically, and nothing is scheduled to"*); retention of **contact** data and the privacy copy remain open (M8 plan, Q13) | M2, M8 |
 | Whether a shared link is read-only for a second viewer, and concurrent-edit behaviour | M2, carried |
 | How a failed background write is communicated to the customer — no mockup frame shows a persistence-failure state | M4 |
-| Whether the nightly export excludes the contact table, or Blob gains its own PII retention story | M8, settle before |
+| Whether the nightly export excludes the contact table, or Blob gains its own PII retention story — **half closed 2026-10-07 by annotation:** ADR 0012 scopes the export to `designs` alone and says *"this must not be widened"*, so it excludes the contact table; whether Blob gains a PII retention story or a second copy exists is M8 plan Q13 (ii), unanswered | M8, settle before |
 | The Hobby-plan cron frequency limit, and how the export runs where `pg_dump` is unavailable | M2 wave 2B |
 | Exact wall-length and room-height bounds | M7 |
 | ~~The real "≤ 30 cm adjustment" preset-fit threshold~~ — retired by ADR 0109 Amendment A; the mechanism this threshold belonged to is superseded | closed |

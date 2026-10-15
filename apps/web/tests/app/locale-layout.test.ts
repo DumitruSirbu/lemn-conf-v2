@@ -53,17 +53,6 @@ describe("localized route tree", () => {
       existsSync(new URL("internal/scene-shot/page.tsx", appDirectory)),
     ).toBe(true);
   });
-
-  it("leaves configure and shared-design support at stable alias paths", () => {
-    expect(
-      existsSync(
-        new URL("configurator/configure/configure-screen.tsx", appDirectory),
-      ),
-    ).toBe(true);
-    expect(
-      existsSync(new URL("d/[id]/hydrate-and-configure.tsx", appDirectory)),
-    ).toBe(true);
-  });
 });
 
 describe("localized root layout", () => {

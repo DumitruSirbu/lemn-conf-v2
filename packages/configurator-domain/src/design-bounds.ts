@@ -165,8 +165,9 @@ const DEPTH_FROM_BUILD_ID_BYTES = 26 + 21;
 const MAX_EMPTY_COLUMN_BYTES =
   EMPTY_COLUMN_GEOMETRY_BYTES + DEPTH_FROM_BUILD_ID_BYTES;
 
-/** Room, `presetId`, and the two timestamps, with the same rounding-up allowance. */
-const DESIGN_ENVELOPE_BYTES = 1024;
+/** The bytes a serialised design's envelope may take: room, `presetId` and the two timestamps, with the
+ *  same rounding-up allowance. */
+export const DESIGN_ENVELOPE_BYTES = 1024;
 
 /** Bytes of request body a save may carry (SEC-002), derived from the document that can legally be
  *  built so raising `MAX_PLACEMENTS` or `MAX_EMPTY_COLUMNS` cannot leave a limit that refuses a design

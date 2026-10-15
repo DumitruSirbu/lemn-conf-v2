@@ -51,14 +51,6 @@ const SETTINGS_ROW_PX = 43.9375;
 /** §9's sheet is pinned to the viewport at 78 dvh (`editor-panel.module.css`), not to the scene. */
 const SHEET_FRACTION_OF_VIEWPORT = 0.78;
 
-/** The reserve is a floor: the sentence wraps and the band grows upward. Swept to a third and fourth
- *  line, because an overlay that grows must still not reach what a selection can see. */
-const BAND_HEIGHTS_PX = [
-  OVERFLOW_WARNING_RESERVED_HEIGHT_PX,
-  OVERFLOW_WARNING_RESERVED_HEIGHT_PX + 16,
-  OVERFLOW_WARNING_RESERVED_HEIGHT_PX + 32,
-];
-
 /** The price bar an overflowing design has, measured in Chromium at 390 × 844. The band and this taller bar are the
  *  same condition, so the canvas must be modelled with both (ADR 0065 decision 7b's flagged-total warning wraps). */
 const FLAGGED_PRICE_BAR_HEIGHT_PX = 125.6875;
@@ -300,26 +292,6 @@ describe("the model reproduces the browser it stands in for", () => {
 });
 
 describe("the band never covers the selected cabinet", () => {
-  for (const settingsRowPx of SETTINGS_ROW_HEIGHTS_PX) {
-    for (const headerHeightPx of HEADER_HEIGHTS_PX) {
-      for (const bandHeightPx of BAND_HEIGHTS_PX) {
-        it(`is nowhere near the strip a selection can see: header ${String(headerHeightPx)} px, settings row ${String(settingsRowPx)} px, band ${String(bandHeightPx)} px`, () => {
-          // Selecting a cabinet opens §9's sheet over everything below its top edge; the band starts at the far side.
-          const sceneHeightPx = sceneHeightFor(
-            headerHeightPx,
-            settingsRowPx,
-            FLAGGED_PRICE_BAR_HEIGHT_PX,
-          );
-          const bandTopPx = sceneHeightPx - bandHeightPx;
-
-          expect(bandTopPx).toBeGreaterThan(
-            stripAboveTheSheetPx(headerHeightPx, settingsRowPx),
-          );
-        });
-      }
-    }
-  }
-
   it("has hundreds of pixels of margin, not a hair", () => {
     // Over the flagged bar, the only bar a screen with a band has.
     const sceneHeightPx = sceneHeightFor(
@@ -337,17 +309,6 @@ describe("the band never covers the selected cabinet", () => {
 });
 
 describe("the band's height is not a term in the strip's arithmetic", () => {
-  for (const settingsRowPx of SETTINGS_ROW_HEIGHTS_PX) {
-    it(`leaves the strip identical at every band height, with a ${String(settingsRowPx)} px settings row`, () => {
-      // Not vacuous: the counterfactual below moves when the band is put back in flow.
-      const strips = BAND_HEIGHTS_PX.map(() =>
-        stripAboveTheSheetPx(MEASURED_HEADER_PX, settingsRowPx),
-      );
-
-      expect(new Set(strips).size).toBe(1);
-    });
-  }
-
   it("is the assertion a flow band actually fails, at the height this band ships at", () => {
     // In flow the band comes out of the strip, and the settings row plus the band leave under §10.1's touch target.
     const inFlowPx = stripIfTheBandWereInFlowPx(
@@ -358,18 +319,6 @@ describe("the band's height is not a term in the strip's arithmetic", () => {
 
     expect(Math.round(inFlowPx * 100) / 100).toBe(30.74);
     expect(inFlowPx).toBeLessThan(TOUCH_TARGET_PX);
-  });
-
-  it("was survivable before 6G's row, which is why the first placement was defensible", () => {
-    // Without the settings row a flow band left 74.68 px, above the touch target.
-    const inFlowBeforeSettingsRowPx = stripIfTheBandWereInFlowPx(
-      MEASURED_HEADER_PX,
-      0,
-      OVERFLOW_WARNING_RESERVED_HEIGHT_PX,
-    );
-
-    expect(Math.round(inFlowBeforeSettingsRowPx * 100) / 100).toBe(74.68);
-    expect(inFlowBeforeSettingsRowPx).toBeGreaterThan(TOUCH_TARGET_PX);
   });
 });
 

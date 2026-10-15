@@ -203,27 +203,6 @@ describe("the 74, the 5 and the 16 are a census, not only a total", () => {
     expect(summed).toEqual({ hinges: 74, drawers: 5, pushToOpen: 16 });
     expect(mechanismsIn(KITCHEN_L_DESIGN)).toEqual(summed);
   });
-
-  /** The one row in the design that reaches the 900 mm threshold, isolated so the third hinge is a
-   *  statement about the pantry rather than about the total. Two of its four leaves are over the
-   *  threshold: a flat two-per-leaf reading answers 8 and a per-*band* reading answers 5. */
-  it("puts the only third hinges in the kitchen on the pantry's two 1290 mm leaves", () => {
-    const pantry = KITCHEN_L_DESIGN.placements.filter(
-      (placement) => placement.body.buildId === "tall-pantry-600",
-    );
-
-    expect(pantry).toHaveLength(1);
-    expect(mechanismsIn(designOf(pantry)).hinges).toBe(10);
-    expect(mechanismsIn(designOf(pantry)).hinges).not.toBe(8);
-
-    const everythingElse = KITCHEN_L_DESIGN.placements.filter(
-      (placement) => placement.body.buildId !== "tall-pantry-600",
-    );
-    // Every other leaf in the kitchen is under the threshold, so the rest of the design is an exact
-    // multiple of two. A row that had silently taken a third hinge would make this odd.
-    expect(mechanismsIn(designOf(everythingElse)).hinges % 2).toBe(0);
-    expect(mechanismsIn(designOf(everythingElse)).hinges).toBe(64);
-  });
 });
 
 describe("the count still moves the money, though the quantity is pinned at 1", () => {

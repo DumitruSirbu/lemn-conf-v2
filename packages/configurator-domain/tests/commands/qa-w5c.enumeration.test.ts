@@ -83,6 +83,12 @@ describe("the shipped kitchen at load", () => {
 
     const accepted = census(world).accepted;
     expect(deltasOf(world, accepted).every((delta) => delta < 0)).toBe(true);
+    // The list holds no `p2`, `p13`, `p19`, `p5` or `p7` tap, and that absence is part of the claim. Decision 7 funds a
+    // move, it does not make an immovable column movable. `A|2.60` holds the `fixedWidth` hob base `p2`, so `p13` and
+    // `p19` above it stay refused; `p13` is the hood, exempt from the column's width (decision 6) without being
+    // resizable itself, because the seeded `hood-600` declares `fixedWidth: true`.
+    // `p5` (oven tower) and `p7` (freestanding fridge) stay frozen: their contents are appliances at fixed sizes,
+    // which is the owner's reason for exempting only the pantry (ADR 0048).
     expect(accepted).toEqual([
       // `A|1.30`, the 800 mm sink run stepping down: its floor is the sink's 560 mm aperture (ADR 0017), so it stops
       // at 600.
@@ -153,20 +159,6 @@ describe("the shipped kitchen at load", () => {
       "p8@500",
       "p8@550",
     ]);
-  });
-
-  it("still accepts nothing at all in the two columns an appliance freezes", () => {
-    // Decision 7 funds a move, it does not make an immovable column movable. `A|2.60` holds the `fixedWidth` hob base
-    // `p2`, so `p13` and `p19` above it stay refused; `p13` is the hood, exempt from the column's width (decision 6)
-    // without being resizable itself, because the seeded `hood-600` declares `fixedWidth: true`.
-    const accepted = new Set(
-      census(kitchen()).accepted.map((tap) => tap.split("@")[0]),
-    );
-    // `p5` (oven tower) and `p7` (freestanding fridge) stay frozen: their contents are appliances at fixed sizes,
-    // which is the owner's reason for exempting only the pantry (ADR 0048).
-    for (const frozen of ["p2", "p13", "p19", "p5", "p7"]) {
-      expect(accepted.has(frozen)).toBe(false);
-    }
   });
 
   it("refuses every chip for one of exactly six reasons", () => {
@@ -416,17 +408,6 @@ describe("after one column is cleared", () => {
       ).toEqual([...lostToGap].sort());
     },
   );
-
-  it("accepts 546 taps across the nine deletable columns", () => {
-    // The population as one number; the itemisation is `CLEARABLE`'s `gained` rows and the load census's list, so what
-    // a total adds is that no tenth source of acceptance has appeared. It is exactly `9 x 59 - 59 - 4 + 78`: nine
-    // copies of the load census, less the 59 taps whose body each row deletes, less the 4 `A|1.30` loses to
-    // `RESIZE_OPENS_GAP`, plus the 78 taps the clears buy.
-    const all = CLEARABLE.flatMap(
-      ({ ids }) => census(clearBodies(kitchen(), [...ids])).accepted,
-    );
-    expect(all.length).toBe(546);
-  });
 
   it("keeps RESIZE_OPENS_GAP reachable, on the corner leg", () => {
     // Clearing `A|1.30` lets `A|0.75` narrow to 200, which widens the empty column to 900 mm, with a base-level

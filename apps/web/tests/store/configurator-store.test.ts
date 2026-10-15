@@ -239,6 +239,34 @@ describe("canWrite — who may edit this design", () => {
     expect(store.getState().canWrite).toBe(false);
   });
 
+  it("keeps a wait's time only beside a failure, whatever status is set next", () => {
+    const store = createSeededStore();
+    const everyStatus = [
+      "idle",
+      "saving",
+      "error",
+      "stopped",
+      "unauthorized",
+      "conflict",
+    ] as const;
+
+    const timeKept = everyStatus.map((status) => {
+      store.getState().setSaveStatus(status, 1_800_000_000_000);
+      return store.getState().saveResumesAtMs;
+    });
+
+    expect(timeKept).toEqual([null, null, 1_800_000_000_000, null, null, null]);
+  });
+
+  it("holds no time after a failure whose status is set again without one", () => {
+    const store = createSeededStore();
+    store.getState().setSaveStatus("error", 1_800_000_000_000);
+
+    store.getState().setSaveStatus("error");
+
+    expect(store.getState().saveResumesAtMs).toBeNull();
+  });
+
   it("does not carry a refusal about one design onto the next — the panel would deadlock", () => {
     const store = createSeededStore();
     // Design X: no credential for it, so the save came back 403 and the panel went read-only.

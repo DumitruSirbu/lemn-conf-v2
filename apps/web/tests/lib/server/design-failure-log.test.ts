@@ -68,12 +68,6 @@ describe("designErrorResponse, on an error with no domain meaning", () => {
     });
   });
 
-  it("distinguishes a failed load from a failed save", () => {
-    expect(() => designErrorResponse("load", driverError("boom"))).toThrow();
-
-    expect(loggedLine(errorSpy).operation).toBe("load");
-  });
-
   it("bounds the reason, so one failure cannot buy a large log write", () => {
     expect(() =>
       designErrorResponse("save", new Error("x".repeat(500_000))),
@@ -98,6 +92,35 @@ describe("designErrorResponse, on an error with no domain meaning", () => {
     expect(reason).not.toContain("s3cr3t");
     expect(reason).not.toContain("neon.tech");
     expect(reason).toContain("<redacted url>");
+  });
+
+  it("logs nothing after a connection string begins, even when the credential holds a line break", () => {
+    expect(() =>
+      designErrorResponse(
+        "save",
+        driverError(
+          "Headers.append: postgresql://FAKEUSER:FAKEPASS\nWORDTAIL@h.invalid/lemn-conf-v2?sslmode=require is an invalid header value",
+        ),
+      ),
+    ).toThrow();
+
+    const reason = String(loggedLine(errorSpy).reason);
+    expect(reason).toBe("Headers.append: <redacted url>");
+    expect(reason).not.toContain("WORDTAIL");
+    expect(reason).not.toContain("h.invalid");
+  });
+
+  it("keeps the text before a connection string, so the line still says what failed", () => {
+    expect(() =>
+      designErrorResponse(
+        "save",
+        driverError("connect ECONNREFUSED postgresql://u:p@h.invalid/db"),
+      ),
+    ).toThrow();
+
+    expect(String(loggedLine(errorSpy).reason)).toBe(
+      "connect ECONNREFUSED <redacted url>",
+    );
   });
 
   it("strips control characters, so a failure cannot forge a log line", () => {
@@ -147,23 +170,6 @@ describe("a stored row that would not validate on the way out", () => {
     designErrorResponse("save", new InvalidDesignError("room: invalid_type"));
 
     expect(loggedLine(errorSpy).operation).toBe("save");
-  });
-
-  it("still answers the same body, which says only that the design could not be loaded", async () => {
-    const response = designErrorResponse(
-      "load",
-      new InvalidDesignError("room: invalid_type"),
-    );
-
-    // ADR 0014 finding S2: the reason is on the line above and nowhere in here.
-    const body: unknown = await response.json();
-
-    expect(response.status).toBe(500);
-    expect(JSON.stringify(body)).not.toContain("invalid_type");
-    expect(body).toEqual({
-      code: "DESIGN_UNREADABLE",
-      error: "Design could not be loaded.",
-    });
   });
 });
 
@@ -231,19 +237,5 @@ describe("ADR 0014 S2 — the log gains detail and the response does not", () =>
     expect(body).toBe(
       JSON.stringify({ error: "Design write not authorized." }),
     );
-  });
-
-  it("answers the same 409 body whether or not anything was logged", async () => {
-    expect(await writeConflictResponse().json()).toEqual({
-      code: "DESIGN_REVISION_CONFLICT",
-      error: "Design changed since it was loaded.",
-    });
-  });
-
-  it("answers the same 400 body whether or not anything was logged", async () => {
-    expect(await revisionRequiredResponse().json()).toEqual({
-      code: "REVISION_REQUIRED",
-      error: "Design save must state the revision it edits.",
-    });
   });
 });

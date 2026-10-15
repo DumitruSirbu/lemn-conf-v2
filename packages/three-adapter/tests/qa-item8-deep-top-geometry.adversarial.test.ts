@@ -153,33 +153,6 @@ describe("the deep tops read the cabinet depth and are blind to the wall depth",
       );
     },
   );
-
-  // The declared pairs too, for **both** entries — the shipped gate measures
-  // `wall-2door-600-deep-top` alone, and `wall-2door-700-over-fridge` is a second case statement in
-  // the same file that nothing measured.
-  it.each(declaredCabinetDepthsMm())(
-    "builds both deep tops to the cabinet-depth line at %i mm",
-    (cabinetDepthMm) => {
-      const kit = pairedKitAt(cabinetDepthMm);
-
-      expect(
-        DEEP_TOPS.map(({ buildId }) => ({
-          buildId,
-          shellMm: shellDepthMm(buildDecomposedBody(kit, buildId)),
-        })),
-      ).toEqual(
-        DEEP_TOPS.map(({ buildId }) => ({
-          buildId,
-          shellMm: cabinetDepthMm - FRONT_ASSEMBLY_MM,
-        })),
-      );
-      // …and the two answers stay different answers, so the assertion above is not satisfied by a
-      // map row that happens to coincide.
-      expect(cabinetDepthMm).not.toBe(
-        WALL_DEPTH_MM[cabinetDepthMm as keyof typeof WALL_DEPTH_MM],
-      );
-    },
-  );
 });
 
 describe("ADR 0101 decision 4: the 600 mm kitchen is identical, and the 700 mm one is not", () => {

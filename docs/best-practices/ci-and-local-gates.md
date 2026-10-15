@@ -34,13 +34,30 @@ pnpm lint:fix       # eslint --fix, every package
 pnpm typecheck
 pnpm test
 pnpm build
-pnpm check          # format:check + lint + typecheck + test
+pnpm check          # format:check + lint + typecheck + test + gate:boundary
+pnpm gate:boundary  # the boundary gate's fixture test, then the gate itself
 pnpm ci:local       # every CI gate — run before each push
 ```
 
-`pnpm check` runs formatting, linting, type checking, and unit tests in that order. `pnpm ci:local`
-additionally runs build, boundary, lockfile and audit — the full CI set, and what
-`.githooks/pre-push` enforces.
+`pnpm check` runs formatting, linting, type checking, unit tests and `gate:boundary` (the boundary
+gate's fixture test, then the gate). `pnpm ci:local` additionally runs build, lockfile and audit — the
+full CI set, and what `.githooks/pre-push` enforces.
+
+**Why the boundary gate joined `check` and the pre-commit hook (M8 wave 8D3, 2026-10-08).** It was red
+at `ad535d0` for two closed waves because `pnpm check`, the command a wave closes on, did not run it;
+only a push and CI did. The hook leaves out tests and typecheck because they need a database; this gate
+needs neither a network nor a credential, so it runs there too, as the script alone (the fixture test
+runs in `check`, `local-ci.sh` and the CI `boundary` job). The cost, as with lint: another agent's
+unstaged violation stops an unrelated commit.
+
+**The gate's fixture test** (`scripts/gates/boundary.test.mjs`, `node --test`) builds a scratch
+repository per case, runs the script and asserts both the exit and which check refused. **A gate's
+fixture must resemble the real tree's root.** While the gate was being rewritten (8D3), its extension
+pathspecs sat in an unquoted variable and `sh` expanded `*.mjs` against the repository root, where
+`eslint.config.mjs` lives, so nested files went unread while every fixture stayed green, because a
+scratch root held no such file. It never reached a commit; `set -f` and a fixture case that puts a file
+of the same extension at the root now close it. Not proven: the CI runner's bare `node --test` and GNU
+`grep` behaviour have not been run.
 
 ### The `rtk` proxy: do not trust it for verification
 
@@ -171,7 +188,8 @@ there is nothing for Prettier to conflict with.
 left to memory.
 
 `.githooks/pre-commit` formats the staged files in place, re-stages them, then runs `pnpm lint`
-across the workspace. A lint error aborts the commit. `pnpm install` enables it by pointing
+across the workspace and the boundary gate script. A lint error or a boundary violation aborts the
+commit. `pnpm install` enables it by pointing
 `core.hooksPath` at `.githooks` via the root `prepare` script; to enable it by hand in a fresh
 clone:
 
@@ -248,12 +266,13 @@ free. A push that would fail CI must fail on this machine instead.
 `.githooks/pre-push` runs `pnpm ci:local`, which mirrors `.github/workflows/ci.yml` gate for gate:
 format, lint, typecheck, test, **e2e-shard-budget**, **e2e**, build, boundary, lockfile, sca. Locally
 `e2e` is not sharded: the CI shards partition the suite by whole files, so one local run covers
-exactly what the CI legs cover between them, and sharding would only add a dev-server boot per shard.
+exactly what the CI legs cover between them, and sharding would only add a production build per shard.
+It runs with `CI=1`, as GitHub does (see the section on the production build, below).
 
 It runs **every** gate rather than stopping at the first failure, because CI reports all ten jobs
 independently — a local gate that hides the second failure until the first is fixed wastes the round
-trip it exists to save. Every gate but one takes seconds; `e2e` takes about a minute, because it
-boots a dev server and drives a real browser through it.
+trip it exists to save. Every gate but one takes seconds; `e2e` takes about ten minutes, because it
+builds the application, starts it with `next start` and drives a real browser through it.
 
 ### The `e2e` gate, added 2026-09-02, and why it is worth its minute
 
@@ -279,23 +298,58 @@ rather than a bind error, which looks like a green exit at a glance and is easy 
 "nothing to test" instead of "the server that should have booted never did." Check for another `next
 dev` in the same directory before trusting a zero-test e2e run.
 
-#### `pnpm ci:local` does not run e2e against a production build — only CI does
+#### `pnpm ci:local` runs e2e against a production build, as CI does (owner ruling Q42, 2026-10-12)
 
-**The mechanism, because the conclusion alone invites someone to re-litigate it.**
-`playwright.config.ts:83-85` picks the `webServer` command from `process.env.CI !== undefined` (read
-once into `isContinuousIntegration` at `:15`): a runner gets `pnpm run build && next start`, every
-other machine gets `next dev`. `scripts/local-ci.sh:128` runs `run_gate e2e pnpm test:e2e` and
-**never sets `CI`** — the name appears nine times in that file and every one is a comment, so a grep
-that looks like confirmation is not one. So every local e2e run — including the one inside
-`ci:local`, whose closing banner reads *"LOCAL CI PASSED — all gates green, safe to push"*
-(`scripts/local-ci.sh:141`) — exercises the dev server.
+**What changed, and why.** `playwright.config.ts` picks the `webServer` command from
+`process.env.CI !== undefined` (read once into `isContinuousIntegration`): a runner gets
+`pnpm run build && next start`, every other machine gets `next dev`. Until 2026-10-12
+`scripts/local-ci.sh` never set `CI`, so the e2e step inside `ci:local` exercised the dev server
+while its closing banner read *"LOCAL CI PASSED — all gates green, safe to push"*. It now runs
+`run_gate e2e env CI=1 pnpm test:e2e`: the production build and `next start`, the same server GitHub
+runs. `env` scopes the variable to that one step, so no other gate sees it.
 
-**An acceptance criterion that names a production build is therefore satisfiable only by CI, and
-must not be recorded as met locally.** The claim is plausible from the gate's *name*, and on
-2026-09-14 a close-out was "corrected" into asserting exactly that. Two greps and `printenv CI`
-settled it. It matters because M7 wave 7F1's defects D4 and D5 were both found in a production build
-and neither was visible under `next dev`: writing the criterion off as locally satisfied would have
-retired the check that catches the class.
+**Dev-server e2e is no longer what `ci:local` runs, and the request-counting specs depend on that.**
+On `next dev` React's strict mode runs a client effect twice, so a spec that counts requests exactly
+fails there for a reason that has nothing to do with the application. The first such spec was found
+on 2026-10-12 (M8 wave 8K2, backlog 182): `design-return-requests` and `qa-8k2-design-return` count
+`GET /api/designs/{id}` exactly, and those counts **hold only under a production build**, where the
+write-access probe reads once. [developer-ran]: with `CI` unset 6 mobile specs fail, with
+`reactStrictMode` off the same 12 pass, and the trace shows two `GET`s 3 ms apart. [coordinator-ran,
+`18caaea4`]: the whole e2e under `CI=1`, 793 passed, 0 failed, 0 skipped, 10.1 minutes. A red
+`next dev` run of those specs is therefore **not** a regression in them: it is a run made without
+`CI`. Run a single spec by hand with `CI=1 pnpm --filter @lemnaria/web exec playwright test <file>`
+whenever it counts requests, reads `process.env.CI`, or is skipped without it.
+
+**What else `CI=1` switches on, so a first run is not a surprise.**
+
+- Specs that `test.skip(process.env.CI === undefined, ...)` now run: the production-policy, contact
+  no-script, page-read-limit and escaped-locale specs among them. A local `ci:local` skipped 69 tests
+  that the CI legs run.
+- Timeouts widen to the runner's: 120 s a test instead of 30 s, 300 s for the server to come up, and
+  the cabinet-depth settle budget of 150 s instead of 20 s. A hang therefore takes four times as long
+  to show.
+- **The build runs inside the e2e step**, so `ci:local` builds twice: once as the `webServer`
+  command (`pnpm run build` in `apps/web`, which also builds the three workspace packages, about a
+  minute) and once as the separate `build` gate. The second is redundant in what it proves locally;
+  it stays because the gate list mirrors the CI jobs one for one, and a gate that is dropped locally
+  is one that drifts from the workflow.
+- The server is `next start` over `apps/web/.next`, which the build overwrites. **A `next dev` left
+  running in the same checkout is broken by it**, and Next refuses a second dev server in the
+  directory regardless of port (see the failure modes above). Stop it before pushing.
+
+**What did not assume the dev server.** The `e2e-shard-budget` gate only runs `playwright test
+--list`, which loads the config and every spec but never starts the `webServer`, and it is not run
+under `CI=1`; its listing and its budget are unchanged. `run_gate e2e` is one unsharded run, so the
+30-minute-per-shard budget does not apply to it. The one thing the script said that was dev-server
+specific, "a dev-server boot per shard", is now "a production build per shard" and the point stands.
+The cost that did move is wall-clock: the e2e step under `CI=1` measured 10.1 minutes on this
+machine, against the roughly one minute the dev server needed when the gate was added; the other
+gates add seconds each, plus the second build (about a minute) [inference, not a measured full run].
+
+**Still true: a local run is not the runner.** `CI=1` selects the same server and the same timeouts,
+not the same machine. The runner's software GL stack, its CPU and its parallelism are not
+reproduced, which is the next section. An acceptance criterion that names the *runner* is
+satisfiable only by CI.
 
 #### A green local e2e run is not evidence about a runner-only failure
 
@@ -396,6 +450,29 @@ non-live, empty the three connection variables on the command line: `TEST_DATABA
 DATABASE_URL= MIGRATION_DATABASE_URL= pnpm --filter @lemnaria/persistence exec vitest run …`
 (measured 2026-09-23, M7 wave 7E3c: a live file then skips instead of connecting).
 
+**An instance from M8 wave 8I, 2026-10-09** [the 8I developer's handoff, relayed; the coordinator's addition is
+coordinator-run]. The ledger incident itself is in [ADR 0153](../decisions/0153-a-contact-request-is-stored-once-apart-from-designs-the-application-role-reads-none-of-its-personal-columns-and-code-refuses-before-the-server-what-the-table-would-refuse.md)'s
+*Incident* paragraph; what to do differently:
+
+- **A hand-kept list of migration versions in a test is a trap.** Every live test that forgets ledger rows derives its list
+  from disk (`readMigrationFiles`). Before any migration after `0008`, check that, `migrate.test.ts`'s file list and
+  `migration-files.test.ts`.
+- **A killed or backgrounded whole-suite run can leave the ledger wedged** (`MigrationSequenceError`). The suite takes
+  several minutes: run it in the foreground with the 600000 ms timeout. **Verify a run has ended by its output file's final
+  lines, not by the process list**: two overlapped coordinator runs each showed 2 unrelated live failures and the same files
+  passed alone, 139 of 139, the first run having been taken for dead because `ps` showed no vitest process.
+- **A new live file needs an entry in `live-suite-census.test.ts`** (gate, lock, reason) or three of its tests go red; a test
+  that only helps a live file needs no row.
+- **A Neon WebSocket close can fail a live file at load** (`TypeError: ` from undici's `WebSocket.#onSocketClose`); it passed
+  re-run alone. Re-run it once before diagnosing.
+- Live tests write only rows whose client request id carries a marker (`contact-live-test-`) and delete only those (ADR 0151).
+
+**Whole e2e runs have three known intermittent failures, 2026-10-09** [QA-run and coordinator-run, relayed], **none a regression of the wave that
+sees it:** the two-tab race (`qa-7e3b-s6-two-tab-convergence…`, backlog 89, Q35); `tests/room/plan-preview-model.facing-labels.test.ts:255` in
+the web unit suite (backlog 145); and `tests/e2e/qa-8d-review-scene.adversarial.e2e.spec.ts:188` (backlog 162). A run red on one of them is
+recorded with its title and run again once; any other red is a red. The local `CI=1` e2e run (a build and `next start`, eight workers) is the
+form the triage and 8F's QA used.
+
 ## e2e in CI: shards, the two summary checks, and the per-shard test budget
 
 *Added 2026-09-30, [ADR 0105](../decisions/0105-the-e2e-job-splits-by-playwright-project-rather-than-raising-its-ceiling-again.md)
@@ -407,7 +484,7 @@ machine carries. Read the workflow's own comments for the history; this section 
 | Job id | Name in the checks list | Runs | On a pull request |
 | --- | --- | --- | --- |
 | `e2e-desktop-shard` | `e2e shard (desktop) (i, 3)` | `playwright test --project=desktop --shard=i/3` | skipped |
-| `e2e-mobile-shard` | `e2e shard (mobile) (i, 4)` | `playwright test --project=mobile --shard=i/4` | skipped |
+| `e2e-mobile-shard` | `e2e shard (mobile) (i, 9)` | `playwright test --project=mobile --shard=i/9` | skipped |
 | `e2e-desktop` | **`e2e (desktop)`** | the summary over the desktop shards | skipped |
 | `e2e-mobile` | **`e2e (mobile)`** | the summary over the mobile shards | skipped |
 | `e2e-shard-budget` | `e2e-shard-budget` | the budget guard below; lists tests, no browser | runs |
@@ -435,7 +512,11 @@ says. The shard names are free to change and must **not** be required checks.
   skipped required check counts as passing.) On a pull request it carries the shards' own
   `github.event_name != 'pull_request'` condition and reports **skipped**, as the old job did; GitHub
   counts a skipped required check as passing, so nothing new can block a pull request.
-- There are **two shard jobs, not one six-leg matrix**, because a job's `needs` names whole jobs and a
+- There are **two shard jobs, not one ~~six-leg~~ ~~nine-leg~~ eleven-leg matrix** (corrected 2026-10-13 at M8 wave 8M's
+  close: 3 desktop plus 9 mobile legs, read from `.github/workflows/ci.yml` `shard: [1, 2, 3]` at line 338 and
+  `shard: [1, 2, 3, 4, 5, 6, 7, 8, 9]` at line 535, and `SHARDS_PER_PROJECT = { desktop: 3, mobile: 9 }` in
+  `scripts/gates/e2e-shard-budget.mjs:48`; it was nine at 3 + 6 on 2026-10-08, and six when mobile had three
+  shards; the count moves with `SHARDS_PER_PROJECT`, so read it there), because a job's `needs` names whole jobs and a
   matrix job's result aggregates all its legs: one matrix could feed only one summary, and
   `e2e (desktop)` would go red for a mobile failure. Two jobs also let each project carry its own
   shard count. The price is one step list written twice; change both together.
@@ -466,7 +547,7 @@ place, `scripts/gates/e2e-shard-budget.mjs` (`MEASURED_RUNNER_RATES`, `TARGET_MI
 | Seconds per test | 37.8 x 60 / 84 = **27.0** | 26.1 x 60 / 109 = **14.4** |
 | Budget at 30 min | 1800 / 27.0 = 66.7, so **66** a shard | 1800 / 14.4 = 125.3, so **125** a shard |
 | Tests on the branch | 185 | 393 |
-| Shards the budget requires | 3 (the largest, 70, is the ratchet below) | **4**: three shards put 138 on the largest |
+| Shards the budget requires | 3 (the largest, 70, is the ratchet below) | **4**: three shards put 138 on the largest. *(A dated measurement. Mobile has run in six shards since `c62feb1`, 2026-10-08, in seven since `fb41df61` (M8 wave 8K2) and in eight since `5fd0c9bc` (M8 wave 8M's QA commit); `SHARDS_PER_PROJECT` is the current count.)* |
 
 **What the rates are, stated so nobody over-trusts them.** They come from `main` at `995ad03`, the
 only runner evidence there is; this branch's suite had never run on a runner. The two rows are on
@@ -506,6 +587,15 @@ enforces a **ratchet** of 70 for desktop instead (`RATCHETED_CEILINGS`): today's
 stops growth and lets the tree pass. It only comes down; lower it when that file is split and delete it
 once the derived budget is enough. **This is an exception the guard carries, not a finding that 70 is
 acceptable**, and it is the owner's to keep or remove.
+
+> **Dated note, 2026-10-08 [relayed by the coordinator]:** the file above was split in `8aba717` into
+> `room-desktop-line.criteria-03`, `.criteria-04-10` and `.criteria-12-17` (`.desktop.e2e.spec.ts`; 2, 37 and 30 tests). The
+> largest desktop shard of 3 is now 67 and the ceiling is still 70 (derived budget 66, so it could come down to 67, not be
+> removed; backlog 153). The paragraph above is kept as the state before the split.
+>
+> **Corrected 2026-10-08, later [relayed]:** `18283a8` lowered `RATCHETED_CEILINGS.desktop` from 70 to 67 and rewrote
+> `scripts/gates/e2e-shard-budget.mjs`'s comment (the gate failed at 66, naming shard 2). The ceiling is 67, the script's comment is
+> current, and backlog 153 is closed. The entry still cannot be deleted until the derived budget is enough.
 
 **2. Tests are not equal, so a count budget can pass a slow shard.** Measured locally 2026-09-30 with
 `--workers=1`, through `next dev` on the maintainer's laptop (full run green: desktop 185 passed;

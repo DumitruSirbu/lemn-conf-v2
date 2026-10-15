@@ -548,6 +548,10 @@ describe("the explanation says the length is measured from the corner, in a room
   it.each(EVERY_SHAPE)(
     "gives every wall of a %s room the reading for its shape",
     (shape) => {
+      // The two readings of wall A must differ, or this could not tell which one was chosen.
+      expect(roMessages.room.lengthHelp.wallA.cornerText).not.toBe(
+        roMessages.room.lengthHelp.wallA.text,
+      );
       render(createRoomDraft(shape));
 
       for (const wall of wallsOf(shape)) {
@@ -556,21 +560,6 @@ describe("the explanation says the length is measured from the corner, in a room
           wall,
         ).toBe(explanationFor(roMessages, { wall, shape }));
       }
-    },
-  );
-
-  it.each(["L", "U"] as const)(
-    "does not give wall A of a %s room the straight room's reading",
-    (shape) => {
-      // The two readings must differ, or the test above could not tell which one was chosen.
-      expect(roMessages.room.lengthHelp.wallA.cornerText).not.toBe(
-        roMessages.room.lengthHelp.wallA.text,
-      );
-      render(createRoomDraft(shape));
-
-      expect(explanationControlledBy(helpButtonFor("wallA")).textContent).toBe(
-        roMessages.room.lengthHelp.wallA.cornerText,
-      );
     },
   );
 });

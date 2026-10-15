@@ -1,0 +1,86 @@
+import "server-only";
+
+import type { ReducedCspReport } from "@/lib/server/csp/csp-report";
+import {
+  UNAVAILABLE_CAUSES,
+  type UnavailableCause,
+} from "@/lib/server/rate-limit/enforce-rate-limit";
+import { CSP_REPORT_WINDOW_MINUTES } from "@/lib/server/rate-limit/limit-policy";
+import { utcWindowOf } from "@/lib/server/rate-limit/utc-window";
+
+// Handed only closed values, bounded integers and an instant: no request, body, header, address or thrown value reaches
+// this module, so none can be logged.
+
+/** Grepped for in a platform log view, so it is one literal. */
+const CSP_REPORT_LABEL = "[csp]";
+const VIOLATION_EVENT = "csp-violation";
+const UNAVAILABLE_EVENT = "csp-report-unavailable";
+const LIMITED_EVENT = "csp-report-limited";
+const UNSTORED_EVENT = "csp-report-unstored";
+const UNEXPECTED_CAUSE: UnavailableCause = "judgement-failed";
+const UNEXPECTED_UNSTORED_CAUSE: UnstoredCause = "store-failed";
+
+/** Why an accepted report was answered but not kept: a closed list, so the line can never carry a thrown value. */
+export const UNSTORED_CAUSES = [
+  "store-failed",
+  "deadline",
+  "row-refused",
+  "mark-unavailable",
+] as const;
+
+export type UnstoredCause = (typeof UNSTORED_CAUSES)[number];
+
+const causesWritten = new Set<UnavailableCause>();
+const unstoredCausesWritten = new Set<UnstoredCause>();
+let hourOfLastLimitedLine: number | undefined;
+
+/** The one line an accepted report is written as: `[csp]` and the record under the event's name. */
+export function reportCspViolation(record: ReducedCspReport): void {
+  write("warn", { event: VIOLATION_EVENT, ...record });
+}
+
+/** A report could not be judged and so was not taken: written once per process and cause, so a flood buys one write. */
+export function reportCspReportUnavailable(cause: UnavailableCause): void {
+  const known =
+    UNAVAILABLE_CAUSES.find((candidate) => candidate === cause) ??
+    UNEXPECTED_CAUSE;
+  if (causesWritten.has(known)) return;
+  causesWritten.add(known);
+  write("error", { event: UNAVAILABLE_EVENT, cause: known });
+}
+
+/** An accepted report was not stored: written once per process and cause, never with the error, the row or the mark. */
+export function reportCspReportUnstored(cause: UnstoredCause): void {
+  const known =
+    UNSTORED_CAUSES.find((candidate) => candidate === cause) ??
+    UNEXPECTED_UNSTORED_CAUSE;
+  if (unstoredCausesWritten.has(known)) return;
+  unstoredCausesWritten.add(known);
+  write("error", { event: UNSTORED_EVENT, cause: known });
+}
+
+/** The limiter refused a report: written once per process and limiter window; the memo is one number, so it cannot grow. */
+export function reportCspReportLimited(instant: Date): void {
+  const hour = utcWindowOf(
+    instant,
+    CSP_REPORT_WINDOW_MINUTES,
+  ).startsAt.getTime();
+  if (hour === hourOfLastLimitedLine) return;
+  hourOfLastLimitedLine = hour;
+  write("warn", { event: LIMITED_EVENT });
+}
+
+/** The one transport choice. The write may not throw: nothing is left to report a failed write with. */
+function write(
+  severity: "warn" | "error",
+  line: Readonly<Record<string, string | number>>,
+): void {
+  try {
+    (severity === "error" ? console.error : console.warn)(
+      CSP_REPORT_LABEL,
+      JSON.stringify(line),
+    );
+  } catch {
+    // Nothing to fall back to, and nothing may escape.
+  }
+}

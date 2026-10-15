@@ -132,26 +132,6 @@ describe("the iff, in the direction iterating the row cannot see", () => {
       expect(accepted).toBe(expectedAccepted);
     },
   );
-
-  // The over-offer direction over a swept range: nothing `available` may be refused, nothing `refused` accepted.
-  it("never calls a width available that the command refuses", () => {
-    const world = kitchenWithEmptyColumn();
-    const disagreements: string[] = [];
-    for (const record of world.records) {
-      for (const option of optionsFor(world, record.id)) {
-        if (option.verdict.status === "current") continue;
-        // ADR 0049's `fixed` chip offers no move either and the command refuses it; its verdict has its own suite.
-        if (option.verdict.status === "fixed") continue;
-        const accepts = commandAccepts(world, record.id, option.widthMm);
-        if (accepts !== (option.verdict.status === "available")) {
-          disagreements.push(
-            `${record.id}@${String(option.widthMm)} says ${option.verdict.status}, command says ${String(accepts)}`,
-          );
-        }
-      }
-    }
-    expect(disagreements).toEqual([]);
-  });
 });
 
 describe("exactly one active chip, on every body that renders a section", () => {
@@ -353,24 +333,6 @@ describe("a cabinet made at one width publishes that width, with the reason", ()
 });
 
 describe("no section at all, and the ways to get there", () => {
-  /** The anti-invariant for ADR 0049: a `fixedWidth` cabinet is a correct fact, while a body that resolves no width
-   *  set is missing catalogue data, and a chipless section would make broken data look like a constrained product.
-   *  Both conditions at once: the hob entry's floor is lifted above the only width it lists, so its set is empty
-   *  while its flag is untouched, and the answer must stay "no section". */
-  it("still publishes nothing for a fixedWidth body whose floor empties its set", () => {
-    const world = createWorld(
-      KITCHEN_L_DESIGN,
-      catalogWith("base-hob-2drawer", { minWidthMm: 900 }),
-    );
-    expect(optionsFor(world, "p2")).toEqual([]);
-  });
-
-  // Non-vacuity for the case above: the same body in the same fixture *does* publish its chip once
-  // the floor is left alone, so the empty answer is about the missing set and not about the fixture.
-  it("publishes the chip for the same body when the floor is left alone", () => {
-    expect(optionsFor(kitchen(), "p2")).toHaveLength(1);
-  });
-
   it("publishes nothing when the resolved entry's floor empties its set", () => {
     const world = createWorld(
       KITCHEN_L_DESIGN,

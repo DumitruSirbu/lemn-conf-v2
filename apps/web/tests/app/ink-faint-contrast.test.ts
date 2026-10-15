@@ -101,7 +101,10 @@ describe("the quiet-label token meets AA wherever it is read", () => {
     // mockups' own colour fails on the very background the ruling was taken for.
     const asDrawnInTheMockups = "#7d7a72";
 
-    expect(inkFaint).not.toBe(asDrawnInTheMockups);
+    // Darker, not merely different: a lighter grey is also "not the mockups' value".
+    expect(relativeLuminance(inkFaint)).toBeLessThan(
+      relativeLuminance(asDrawnInTheMockups),
+    );
     expect(contrastRatio(asDrawnInTheMockups, readToken("paper"))).toBeLessThan(
       AA_MINIMUM_RATIO,
     );

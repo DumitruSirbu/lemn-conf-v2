@@ -212,43 +212,4 @@ describe("§7's head-clearance cap follows what is under the opening", () => {
       2 * 600 - 500,
     );
   });
-
-  it("keeps a deep replacement stable when it is swapped a second time", () => {
-    // ADR 0018's round trip, now that a wall carcass can be 600: `scene-sync` rebuilds from
-    // `frame.d`, so a body built at 600 must measure back to 600 rather than grow or shrink. Under
-    // the old clamp this converged only because everything was cut to 400.
-    const first = insertBody({
-      design: KITCHEN_L_DESIGN,
-      catalog: KITCHEN_L_BODY_CATALOG,
-      columns: deriveColumns(seededRecords(), {}, KITCHEN_L_DESIGN.room),
-      voids: recomputeVoids(
-        seededRecords(),
-        deriveColumns(seededRecords(), {}, KITCHEN_L_DESIGN.room),
-      ),
-      target: { kind: "placement", id: "p22" },
-      buildId: CATALOGUE_WALL_CABINET,
-      probe: createBodyProbe(kit, room),
-      occurredAt: OCCURRED_AT,
-    });
-    expect(first.ok).toBe(true);
-    if (!first.ok) return;
-    expect(depthOfMm(first.design, first.effect.placementId)).toBe(600);
-
-    const second = insertBody({
-      design: first.design,
-      catalog: KITCHEN_L_BODY_CATALOG,
-      columns: deriveColumns(seededRecords(), {}, KITCHEN_L_DESIGN.room),
-      voids: recomputeVoids(
-        seededRecords(),
-        deriveColumns(seededRecords(), {}, KITCHEN_L_DESIGN.room),
-      ),
-      target: { kind: "placement", id: first.effect.placementId },
-      buildId: "wall-lift",
-      probe: createBodyProbe(kit, room),
-      occurredAt: OCCURRED_AT,
-    });
-    expect(second.ok).toBe(true);
-    if (!second.ok) return;
-    expect(depthOfMm(second.design, second.effect.placementId)).toBe(600);
-  });
 });

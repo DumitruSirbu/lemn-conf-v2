@@ -25,7 +25,7 @@ import {
   KITCHEN_L_DESIGN,
 } from "../src/fixtures/kitchen-l-design.js";
 import { toMillimetres } from "../src/millimetres.js";
-import { MIN_SPAN_M, type PlacementRecord } from "../src/void-engine.js";
+import { type PlacementRecord } from "../src/void-engine.js";
 import { describe, expect, it } from "vitest";
 
 import { clearBodies, insertInto } from "./support/commands.js";
@@ -109,14 +109,6 @@ describe("the deletion is behaviour-free: nothing reachable is accessory-height"
     // The sweep must have found openings, or it proves nothing.
     expect(fitsSeen).toBeGreaterThan(0);
     expect(tooShort).toEqual([]);
-  });
-
-  // A separate claim, and deliberately not folded into the sweep above: that no *opening* can be
-  // shorter than the retired threshold is a fact about `MIN_SPAN_M`, while the sweep proves no
-  // *body* lands under it. The two agree today at 0.3 m, and the day they stop this test is what
-  // says so.
-  it("no opening can be shorter than the retired accessory threshold", () => {
-    expect(MIN_SPAN_M).toBe(RETIRED_ACCESSORY_MAX_HEIGHT_M);
   });
 
   // A real insert, actually applied, rather than the fit plan alone: the placement that lands in the

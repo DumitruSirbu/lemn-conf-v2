@@ -227,18 +227,20 @@ describe("the failure the whole-height precondition avoids is real", () => {
   // The precondition is exactly equivalent to "the column is empty": §4 subtracts height for every member, so a
   // column holding one publishes no opening that reaches both its floor and its `top`.
   it("admits the split for exactly the columns that hold no member", () => {
-    const span = seededKitchenWithout(HOB_COLUMN_MEMBERS);
-    const opening = openingIn(span, HOB_COLUMN_KEY);
-    const column = columnAt(span, HOB_COLUMN_KEY);
+    const emptied = seededKitchenWithout(HOB_COLUMN_MEMBERS);
+    const stillHoldingTheHood = seededKitchenWithout([HOB_BASE_MEMBER]);
 
-    expect(opening.spanY0).toBeCloseTo(
-      Math.min(...column.regions.map(([start]) => start)),
-      6,
-    );
-    expect(opening.spanY0 + opening.spanH).toBeCloseTo(column.top, 6);
-    expect(
-      span.records.filter((record) => record.col === HOB_COLUMN_KEY),
-    ).toEqual([]);
+    const keepsTheHobColumn = [emptied, stillHoldingTheHood].map((span) => {
+      const inserted = insertInto(
+        span,
+        { kind: "void", id: openingIn(span, HOB_COLUMN_KEY).id },
+        "base-bottle-cargo",
+      );
+      if (!inserted.ok) throw new Error(inserted.reason.code);
+      return inserted.effect.columns.has(HOB_COLUMN_KEY);
+    });
+
+    expect(keepsTheHobColumn).toEqual([false, true]);
   });
 });
 

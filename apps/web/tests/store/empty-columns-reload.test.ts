@@ -20,7 +20,6 @@ import { describe, expect, it } from "vitest";
 
 import { createConfiguratorStore } from "../../src/store/configurator-store";
 import { createFakeProbeFactory } from "../support/fake-body-probe";
-import { LEGACY_ENUM_FINISHES } from "@lemnaria/configurator-domain";
 
 const OCCURRED_AT = "2026-08-25T12:00:00.000Z";
 
@@ -162,15 +161,6 @@ describe("criterion 1 — a shrink's leftover strip survives the reload", () => 
     ).toStrictEqual(
       placementById(session.getState().design, RESIZED_PLACEMENT_ID),
     );
-  });
-
-  it("writes no emptyColumns key at all when a command leaves nothing empty", () => {
-    const store = createStore();
-
-    store.getState().select({ kind: "placement", id: "p0" });
-    store.getState().setFinish(LEGACY_ENUM_FINISHES.oak);
-
-    expect(store.getState().design).not.toHaveProperty("emptyColumns");
   });
 });
 

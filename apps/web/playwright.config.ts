@@ -2,6 +2,10 @@ import { assertSafeTestDatabaseUrl, loadEnvLocal } from "@lemnaria/persistence";
 import { defineConfig, devices } from "@playwright/test";
 
 import {
+  E2E_RATE_LIMIT_POLICY_FLAG,
+  E2E_RATE_LIMIT_POLICY_FLAG_ENABLED,
+} from "./src/lib/server/rate-limit/limit-policy";
+import {
   SELECTION_DEBUG_FLAG,
   SELECTION_DEBUG_FLAG_ENABLED,
 } from "./src/app/configurator/configure/selection-debug-availability";
@@ -10,9 +14,25 @@ import {
   SCENE_SHOT_ROUTE_FLAG_ENABLED,
 } from "./src/app/internal/scene-shot/route-availability";
 
+import { secretOfThisRun } from "./tests/e2e/support/e2e-rate-limit-run";
+import {
+  FAKE_MAIL_SERVER_ENVIRONMENT,
+  requireNoMailVariable,
+} from "./tests/e2e/support/fake-mail-environment";
+
 // The application's own `DATABASE_URL` must be readable here, or `assertSafeTestDatabaseUrl` has
 // nothing to compare against and passes vacuously.
 loadEnvLocal();
+
+// The server inherits this process's environment, and refuses the fake sender beside any mail variable: a run that
+// holds one fails here, naming it, rather than starting a server that could send for real.
+requireNoMailVariable(process.env);
+
+/**
+ * The run's own secret for every digest the server makes: made once in the runner's main process, handed to the
+ * server below and to the workers through the environment, and written nowhere (ADR 0149, the amendment).
+ */
+const runSecret = secretOfThisRun();
 
 /** GitHub Actions sets `CI`. Read once, so the server command and timeouts agree on the machine. */
 const isContinuousIntegration = process.env.CI !== undefined;
@@ -33,6 +53,8 @@ export default defineConfig({
   // three specs failing on the 30 s default). The timeout is raised, not `retries`, which hides a flake.
   timeout: process.env.CI === undefined ? 30_000 : 120_000,
   reporter: [["list"]],
+  // Removes the counters this run made and says how many designs it minted; fails when it finds none.
+  globalTeardown: "./tests/e2e/global-teardown.ts",
   use: {
     baseURL: BASE_URL,
     trace: "retain-on-failure",
@@ -86,6 +108,14 @@ export default defineConfig({
       // (`next start`, which CI runs) unless this opts in; the capture specs drive them. Same placement
       // as the flag above. `next dev` serves the routes regardless.
       [SCENE_SHOT_ROUTE_FLAG]: SCENE_SHOT_ROUTE_FLAG_ENABLED,
+      // The mint's limiter runs under its own policy and its own secret here: a day's figure sized for one run, and
+      // keys no other run, and no deployment, can share. `CLIENT_NETWORK_SOURCE` is never set, so every request is
+      // in the one shared bucket and no forwarding header decides anything.
+      [E2E_RATE_LIMIT_POLICY_FLAG]: E2E_RATE_LIMIT_POLICY_FLAG_ENABLED,
+      DIGEST_SECRET: runSecret,
+      // A contact request is passed on by the fake sender, which only this flag selects and only with no mail variable
+      // present (ADR 0154). Set here and in no env file, so no deployed environment inherits it.
+      ...FAKE_MAIL_SERVER_ENVIRONMENT,
     },
     // Long enough for a cold `next build` on CI.
     timeout: isContinuousIntegration ? 300_000 : 60_000,

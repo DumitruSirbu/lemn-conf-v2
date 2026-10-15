@@ -8,6 +8,7 @@
     "build:deps": "pnpm --filter @lemnaria/configurator-domain run build && pnpm --filter @lemnaria/three-adapter run build && pnpm --filter @lemnaria/persistence run build",
     "capture:fidelity": "node scripts/capture-fidelity.mjs",
     "dev": "next dev",
+    "gate:launch-placeholders": "pnpm run build:deps && vitest run --config vitest.launch.config.ts",
     "lint": "pnpm run build:deps && next typegen && eslint . --max-warnings 0",
     "lint:fix": "pnpm run build:deps && next typegen && eslint . --fix --max-warnings 0",
     "start": "next start",
@@ -32,7 +33,6 @@
   },
   "devDependencies": {
     "@formatjs/icu-messageformat-parser": "3.5.17",
-    "@neondatabase/serverless": "1.1.0",
     "@playwright/test": "1.62.1",
     "@types/node": "24.13.3",
     "@types/react": "19.2.2",

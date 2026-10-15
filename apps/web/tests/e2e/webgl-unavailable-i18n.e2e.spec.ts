@@ -1,6 +1,8 @@
 import { expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
+import { CONTENT_SECURITY_POLICY_MODE } from "../../src/lib/security-headers";
+import { isReportOnlyDiagnostic } from "./support/csp-violations";
 import { openSeededDesign, test } from "./support/seeded-design";
 
 const ro = JSON.parse(
@@ -11,8 +13,6 @@ const ro = JSON.parse(
 const ru = JSON.parse(
   readFileSync(new URL("../../src/messages/ru.json", import.meta.url), "utf8"),
 ) as typeof ro;
-const REPORT_ONLY_UPGRADE_INSECURE_REQUESTS_DIAGNOSTIC =
-  "The Content Security Policy directive 'upgrade-insecure-requests' is ignored when delivered in a report-only policy.";
 
 async function forceWebGLUnavailable(page: Page): Promise<void> {
   await page.addInitScript(() => {
@@ -49,7 +49,7 @@ test("the real request and client providers render the Romanian WebGL exit", asy
   page.on("console", (message) => {
     if (
       message.type() === "error" &&
-      message.text() !== REPORT_ONLY_UPGRADE_INSECURE_REQUESTS_DIAGNOSTIC
+      !isReportOnlyDiagnostic(message.text(), CONTENT_SECURITY_POLICY_MODE)
     )
       runtimeErrors.push(message.text());
   });
@@ -116,10 +116,10 @@ test("an explicit Russian route keeps its internal navigation locale despite a c
       path: "/",
     },
   ]);
-  const contactLink = exit.locator(
-    'a[href="/ru/configurator/contact?intent=link"]',
-  );
+  // The e-mail link is not drawn (Q12 (ii), 8L.12): the callback form is the frame's one exit.
+  const contactLink = exit.locator('a[href="/ru/configurator/contact"]');
   await expect(contactLink).toHaveCount(1);
+  await expect(exit.locator("a")).toHaveCount(1);
   await contactLink.click();
-  await expect(page).toHaveURL(/\/ru\/configurator\/contact\?intent=link$/);
+  await expect(page).toHaveURL(/\/ru\/configurator\/contact$/);
 });

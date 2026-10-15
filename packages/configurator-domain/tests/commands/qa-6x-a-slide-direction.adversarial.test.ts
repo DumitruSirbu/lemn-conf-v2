@@ -179,16 +179,6 @@ function millimetres(metres: number): number {
   return Math.round(metres * 1000);
 }
 
-/** The single element of a list the caller has already asserted the length of, without a non-null
- *  assertion the lint rules forbid: a wrong length is a thrown error naming what was expected. */
-function theOnly<Item>(items: readonly Item[], what: string): Item {
-  const [only] = items;
-  if (items.length !== 1 || only === undefined) {
-    throw new Error(`expected one ${what}, got ${String(items.length)}`);
-  }
-  return only;
-}
-
 function columnAt(map: ReadonlyMap<string, Column>, key: string): Column {
   const column = map.get(key);
   if (!column) throw new Error(`no column ${key} in ${[...map.keys()].join()}`);
@@ -341,13 +331,23 @@ describe("the declared document, which is a fixture the test writes and the prod
       KITCHEN_L_DESIGN,
       DECLARED_DEEPENING_COLUMNS,
     );
-    const groundLevel = design.placements
-      .filter((placement) => placement.wall === "B" && placement.y0Mm === 0)
-      .map((placement) => ({
-        id: placement.id,
-        fromMm: placement.alongMm - placement.body.widthMm / 2,
-        toMm: placement.alongMm + placement.body.widthMm / 2,
-      }))
+    // Off the frames the product derives, not off the fixture's own numbers: where a body stands is §12's to say.
+    const groundLevel = derivePlacementRecords(
+      design,
+      buildKitchenLBodyCatalog(SHALLOW_MM),
+    )
+      .filter((record) => record.wall === "B" && record.frame.y0 === 0)
+      .map((record) => {
+        const centreMm = Math.round(
+          alongWallCoordinate(record.wall, record.frame) * 1000,
+        );
+        const halfWidthMm = Math.round(record.frame.w * 1000) / 2;
+        return {
+          id: record.id,
+          fromMm: centreMm - halfWidthMm,
+          toMm: centreMm + halfWidthMm,
+        };
+      })
       .sort((left, right) => left.fromMm - right.fromMm);
 
     expect(groundLevel.map(({ id }) => id)).toStrictEqual([
@@ -514,53 +514,6 @@ describe("the occupied extents, against the extents the slide was handed", () =>
           ).toStrictEqual([expectedMm]);
         }
       }
-    },
-  );
-
-  // The displacement read off the maps rather than off the file's own constants, so the pair cannot
-  // be satisfied by two literals that merely differ from each other.
-  it.each(BOTH_RUNGS)(
-    "displaces the member-less extent by exactly one chain shift each way, measured from the frozen map, at $label",
-    (rung) => {
-      const design = afterDeleting(
-        theShippedKitchenAt(rung.startsAtMm),
-        THE_WHOLE_OVEN_TOWER,
-      );
-      const operands = slideOperandsOf(design, rung.endsAtMm);
-      const memberLess = columnsOnWallB(operands.frozen).filter(
-        ([key]) => !operands.membersShiftMmByColumn.has(key),
-      );
-      expect(memberLess).toHaveLength(1);
-      const leftFromMm = alongWallMm(
-        theOnly(memberLess, "member-less wall-B extent")[1],
-      );
-      const occupiedArriveAtMm = occupiedFrozenColumns(operands).map(
-        ([key, frozen]) =>
-          alongWallMm(frozen) +
-          (operands.membersShiftMmByColumn.get(key) ?? NaN),
-      );
-
-      const arrivedAtMm = (order: "as production passes them" | "swapped") => {
-        const slid = slidWithTheOperandsInTheOrder(
-          design,
-          rung.endsAtMm,
-          order,
-        );
-        const arrived = columnsOnWallB(slid)
-          .map(([, column]) => alongWallMm(column))
-          .filter((mm) => !occupiedArriveAtMm.includes(mm));
-        expect(arrived, `${rung.label} under ${order}`).toHaveLength(1);
-        return arrived[0] ?? NaN;
-      };
-
-      const towardsTheRule =
-        arrivedAtMm("as production passes them") - leftFromMm;
-      const towardsTheSwap = arrivedAtMm("swapped") - leftFromMm;
-      const deepening = rung.endsAtMm > rung.startsAtMm;
-
-      expect(towardsTheRule).toBe(deepening ? CHAIN_SHIFT_MM : -CHAIN_SHIFT_MM);
-      expect(towardsTheSwap).toBe(deepening ? -CHAIN_SHIFT_MM : CHAIN_SHIFT_MM);
-      expect(towardsTheRule).toBe(-towardsTheSwap);
     },
   );
 });

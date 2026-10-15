@@ -41,4 +41,7 @@ if [ -s "$format_list" ]; then
 fi
 xargs -0 git add <"$staged_list"
 
+# Needs no network and no credential, unlike the tests this hook leaves out, so it runs on every commit.
+sh scripts/gates/boundary.sh
+
 pnpm lint

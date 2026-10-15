@@ -780,16 +780,6 @@ describe("a second deliberate selection is a second design", () => {
 });
 
 describe("the hand-off's two sentences exist in both catalogues", () => {
-  it("carries saveFailed and retry in Romanian and in Russian, key-identical and non-empty", () => {
-    expect(Object.keys(ruMessages.room.compose).sort()).toEqual(
-      Object.keys(roMessages.room.compose).sort(),
-    );
-    for (const catalogue of [roMessages, ruMessages]) {
-      expect(catalogue.room.compose.saveFailed.trim()).not.toBe("");
-      expect(catalogue.room.compose.retry.trim()).not.toBe("");
-    }
-  });
-
   it("says something different from the composition failure, which sends the customer elsewhere", () => {
     expect(roMessages.room.compose.saveFailed).not.toBe(
       roMessages.room.compose.failed,

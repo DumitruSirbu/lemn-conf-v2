@@ -88,6 +88,17 @@ function withKitchenColour(design: Design, finish: Finish): Design {
   return { ...design, settings: { ...design.settings, finish } };
 }
 
+/** The kitchen's colour set through the command, so what it writes onto a body is the product's doing. */
+function afterTheKitchenIsColoured(finish: Finish): Design {
+  const result = setGlobalFinish({
+    design: onMaterial(PAL_ID),
+    finish,
+    occurredAt: OCCURRED_AT,
+  });
+  if (!result.ok) throw new Error(`refused: ${result.reason.code}`);
+  return result.design;
+}
+
 function recordFor(design: Design, placementId: string) {
   const record = derivePlacementRecords(design, KITCHEN_L_BODY_CATALOG).find(
     (candidate) => candidate.id === placementId,
@@ -202,7 +213,7 @@ describe("the corner ruling — a corner with no colour of its own follows the k
   it.each(CORNERS)(
     "$buildId keeps its finish key absent while following",
     (corner) => {
-      const design = withKitchenColour(onMaterial(PAL_ID), ANTRACIT);
+      const design = afterTheKitchenIsColoured(ANTRACIT);
 
       expect(
         "finish" in bodyOf(design, corner.placementId),

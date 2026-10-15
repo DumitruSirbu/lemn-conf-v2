@@ -15,6 +15,25 @@
 
 import { boundedFailureReason } from "@lemnaria/configurator-domain";
 
+import type { UnavailableCause } from "@/lib/server/rate-limit/enforce-rate-limit";
+import { E2E_RATE_LIMIT_POLICY_FLAG } from "@/lib/server/rate-limit/limit-policy";
+import {
+  LIMIT_REACHED_STATUS,
+  MINT_UNAVAILABLE_CODE,
+  MINT_UNAVAILABLE_STATUS,
+  READ_LIMIT_REACHED_CODE,
+  SAVE_LIMIT_REACHED_CODE,
+  SAVE_UNAVAILABLE_CODE,
+  SAVE_UNAVAILABLE_STATUS,
+  SHARE_LIMIT_REACHED_CODE,
+  SHARE_UNAVAILABLE_CODE,
+  SHARE_UNAVAILABLE_STATUS,
+} from "@/lib/server/rate-limit/rate-limited-response";
+import {
+  MINT_LIMIT_REACHED_CODE,
+  MINT_LIMIT_REACHED_STATUS,
+} from "@/persistence/design-request-errors";
+
 /** Which handler the line came from, not the HTTP method: `PUT` and `PATCH` are one operation, and
  *  `POST /api/designs` is `mint` rather than a second `save`. `resume` is the visitor-hash lookup the locale pages
  *  run before answering; its one line, on a driver failure only, carries no value, hash or id. The `share-*`
@@ -42,8 +61,10 @@ export interface DesignRefusal {
 const UNAVAILABLE = "unavailable";
 
 /** A URL in a failure message is overwhelmingly likely to be a connection string (a driver's connect failures carry
- *  the endpoint), so it is redacted before the bound rather than hoped to fall outside it (ADR 0008). */
-const URL_SHAPED = /\b[a-z][a-z0-9+.-]*:\/\/\S*/gi;
+ *  the endpoint), so it is redacted before the bound rather than hoped to fall outside it (ADR 0008). Where one
+ *  begins, the rest of the text goes with it: a credential can hold whitespace, and a pattern that ends at the
+ *  first space leaves the tail of the password in the line. */
+const URL_START = /\b[a-z][a-z0-9+.-]*:\/\//i;
 
 const REDACTED_URL = "<redacted url>";
 
@@ -77,6 +98,151 @@ export function reportDesignRefusal(
     operation,
     refusalCode: refusal.code,
     status: refusal.status,
+  });
+}
+
+/** What the mint limiter's two answers log: the policy that refused, or the cause that made a judgement impossible.
+ *  Nothing else: no address, block, subject, key, count or header value ever reaches the line. */
+export type MintLimitLine =
+  | { readonly kind: "refused"; readonly policy: string }
+  | { readonly kind: "unavailable"; readonly cause: UnavailableCause };
+
+export function reportMintLimit(line: MintLimitLine): void {
+  if (line.kind === "refused") {
+    emitDesignLogLine("warn", {
+      event: "design-operation-refused",
+      operation: "mint",
+      refusalCode: MINT_LIMIT_REACHED_CODE,
+      status: MINT_LIMIT_REACHED_STATUS,
+      policy: line.policy,
+    });
+    return;
+  }
+  emitDesignLogLine("error", {
+    event: "design-operation-unavailable",
+    operation: "mint",
+    refusalCode: MINT_UNAVAILABLE_CODE,
+    status: MINT_UNAVAILABLE_STATUS,
+    cause: line.cause,
+  });
+}
+
+/** The two operations a share write limit answers for. */
+export type ShareWriteOperation = "share-issue" | "share-revoke";
+
+/** A refused share write names its policy; one that could not be judged names its cause. Nothing else: no address,
+ *  block, subject, key, count or header value ever reaches the line. */
+export type ShareWriteLimitLine =
+  | {
+      readonly kind: "refused";
+      readonly operation: ShareWriteOperation;
+      readonly policy: string;
+    }
+  | {
+      readonly kind: "unavailable";
+      readonly operation: ShareWriteOperation;
+      readonly cause: UnavailableCause;
+    };
+
+/** A line for each refused or unjudgeable share write, as the mint writes one: a write is rare and its refusal is
+ *  the signal. */
+export function reportShareWriteLimit(line: ShareWriteLimitLine): void {
+  if (line.kind === "refused") {
+    emitDesignLogLine("warn", {
+      event: "design-operation-refused",
+      operation: line.operation,
+      refusalCode: SHARE_LIMIT_REACHED_CODE,
+      status: LIMIT_REACHED_STATUS,
+      policy: line.policy,
+    });
+    return;
+  }
+  emitDesignLogLine("error", {
+    event: "design-operation-unavailable",
+    operation: line.operation,
+    refusalCode: SHARE_UNAVAILABLE_CODE,
+    status: SHARE_UNAVAILABLE_STATUS,
+    cause: line.cause,
+  });
+}
+
+/** A refused save names its policy; one that could not be judged names its cause. Nothing else: no address, block,
+ *  credential, count or header value ever reaches the line. */
+export type SaveLimitLine =
+  | { readonly kind: "refused"; readonly policy: string }
+  | { readonly kind: "unavailable"; readonly cause: UnavailableCause };
+
+const policiesWithARefusalWritten = new Set<string>();
+
+/**
+ * A save is the commonest write there is, so a flood past a figure must not buy a log write a request: a refusal is
+ * written at most once for a process and a policy. A save that could not be judged is written each time, as every
+ * other write's is, since the store failing is the signal and no caller can drive it.
+ */
+export function reportSaveLimit(line: SaveLimitLine): void {
+  if (line.kind === "unavailable") {
+    emitDesignLogLine("error", {
+      event: "design-operation-unavailable",
+      operation: "save",
+      refusalCode: SAVE_UNAVAILABLE_CODE,
+      status: SAVE_UNAVAILABLE_STATUS,
+      cause: line.cause,
+    });
+    return;
+  }
+  if (policiesWithARefusalWritten.has(line.policy)) return;
+  policiesWithARefusalWritten.add(line.policy);
+  emitDesignLogLine("warn", {
+    event: "design-operation-refused",
+    operation: "save",
+    refusalCode: SAVE_LIMIT_REACHED_CODE,
+    status: LIMIT_REACHED_STATUS,
+    policy: line.policy,
+  });
+}
+
+/** What a read's limiter writes, each at most once in a process: a read served because it could not be judged, by
+ *  its cause, and the first refusal. A line for each read would let one flood buy a log write for each request. */
+export type ReadLimitLine =
+  | { readonly kind: "served-unjudged"; readonly cause: UnavailableCause }
+  | { readonly kind: "refused"; readonly policy: string };
+
+const announcedReadLines = new Set<string>();
+
+export function reportReadLimitOnce(line: ReadLimitLine): void {
+  const identity = line.kind === "refused" ? "refused" : `served:${line.cause}`;
+  if (announcedReadLines.has(identity)) return;
+  announcedReadLines.add(identity);
+  if (line.kind === "refused") {
+    emitDesignLogLine("warn", {
+      event: "design-read-refused",
+      refusalCode: READ_LIMIT_REACHED_CODE,
+      status: LIMIT_REACHED_STATUS,
+      policy: line.policy,
+    });
+    return;
+  }
+  emitDesignLogLine("warn", {
+    event: "design-read-served-unjudged",
+    cause: line.cause,
+  });
+}
+
+/** The one line an e2e policy writes, made from the flag's own name, and true of each twin alike: its figure is not the
+ *  production one. */
+export const E2E_MINT_POLICY_NOTICE =
+  `rate limit: an e2e policy is in use (${E2E_RATE_LIMIT_POLICY_FLAG}); ` +
+  "its figure is not the production one";
+
+let hasAnnouncedE2ePolicy = false;
+
+/** Written once in a process, when any e2e twin first decides a request. */
+export function reportE2ePolicyInUse(): void {
+  if (hasAnnouncedE2ePolicy) return;
+  hasAnnouncedE2ePolicy = true;
+  emitDesignLogLine("warn", {
+    event: "rate-limit-policy-notice",
+    message: E2E_MINT_POLICY_NOTICE,
   });
 }
 
@@ -194,5 +360,12 @@ function safeReasonOf(error: unknown): string {
 /** Redacted first and bounded second, for every free-text field this module writes: one function, so the ordering
  *  is stated once. */
 function safeText(message: string): string {
-  return boundedFailureReason(message.replace(URL_SHAPED, REDACTED_URL));
+  return boundedFailureReason(redactFromFirstUrl(message));
+}
+
+function redactFromFirstUrl(text: string): string {
+  const urlStart = URL_START.exec(text);
+  return urlStart === null
+    ? text
+    : `${text.slice(0, urlStart.index)}${REDACTED_URL}`;
 }

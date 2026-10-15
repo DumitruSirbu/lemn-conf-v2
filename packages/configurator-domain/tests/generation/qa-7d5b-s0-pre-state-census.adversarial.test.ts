@@ -1,6 +1,7 @@
 // Re-takes the milestone plan's figures (E1-E8) from the real planner over the approved L rectangle, on a 10 mm grid
-// at 2200, 2600 and 3900 mm ceilings. Every HEAD figure is read off HEAD's plan reconstructed on S0b's plan
-// (`planBeforeS0b`); that reconstruction is proved byte for byte only on the 496 rooms the pre-tower recording holds.
+// at 2200, 2600 and 3900 mm ceilings. No HEAD total is pinned here. Where a case compares against HEAD (the
+// reconstruction check and E7), HEAD's plan is its reconstruction on S0b's plan (`planBeforeS0b`), which is proved
+// byte for byte only on the 496 rooms the pre-tower recording holds.
 // The S0b and S1 models restate the plan's arithmetic over the real composer's context; they do not prove S0b or S1.
 //
 // Every body, id and width is a literal and a composed storage slot is reached through `isComposedStorageSlot`,
@@ -118,18 +119,6 @@ const APPROVED_L = (() => {
   return shape;
 })();
 
-interface HeadTotals {
-  swept: number;
-  placed: number;
-  dishwashers: number;
-  ovenTowerRooms: number;
-  tallColumns: number;
-  bottles: number;
-  panDrawerBodies: number;
-  panDrawerBodiesInThePreparationRole: number;
-  thresholdDrawers: number;
-}
-
 interface KitchenTotals {
   ovenTowerRooms: number;
   tallColumns: number;
@@ -139,8 +128,6 @@ interface KitchenTotals {
 }
 
 interface Census {
-  /** Read off HEAD's plan, reconstructed (see the header). */
-  head: HeadTotals;
   /** Read off S0b's plan: the planner with S1's leaf switched off. */
   afterS0b: KitchenTotals & { dishwashers: number };
   /** The pan-drawer/bottle decision restated through the context; must equal the finished plan wherever
@@ -268,22 +255,6 @@ describe("7D5b S0 — the pre-state, re-taken from the real planner at HEAD", ()
         afterS1: [],
         liveOutsideATrade: [],
         liveTraded: 31_200,
-      });
-    }
-  });
-
-  it("E1 — HEAD's column, re-pointed: no dishwasher, and 7D5's totals as L5 pinned them", () => {
-    for (const [ceilingMm, census] of eachCeiling()) {
-      expect(census.head, `${String(ceilingMm)} mm`).toEqual({
-        swept: 256_011,
-        placed: 245_211,
-        dishwashers: 0,
-        ovenTowerRooms: 162_026,
-        tallColumns: 383_758,
-        bottles: 178_491,
-        panDrawerBodies: 92_446,
-        panDrawerBodiesInThePreparationRole: 0,
-        thresholdDrawers: 15_795,
       });
     }
   });
@@ -532,7 +503,6 @@ async function censusAt(ceilingMm: number): Promise<Census> {
       depthMm <= APPROVED_L.wallB.maxMm;
       depthMm += GRID_STEP_MM
     ) {
-      census.head.swept += 1;
       countRoom(census, { shape: "L", widthMm, depthMm, heightMm: ceilingMm });
     }
     await yieldToTheEventLoop();
@@ -563,9 +533,7 @@ interface RoomReading {
 function countRoom(census: Census, room: DesignRoom): void {
   const reading = readingOf(room);
   if (!reading) return;
-  const { composition, decided, plan, planAfterS0b } = reading;
-  census.head.placed += 1;
-  countHeadTotals(census.head, plan);
+  const { composition, decided, planAfterS0b } = reading;
   addKitchenTotals(census.afterS0b, planAfterS0b);
   census.afterS0b.dishwashers += countOf(
     planAfterS0b,
@@ -626,16 +594,6 @@ function headPlanFor(room: DesignRoom): KitchenCompositionPlan {
     runs: lShellFloorRuns(room),
     columns: DECLARED_COLUMNS,
   });
-}
-
-function countHeadTotals(head: HeadTotals, plan: KitchenCompositionPlan): void {
-  addKitchenTotals(head, plan);
-  head.dishwashers += countOf(plan, (base) => base.buildId === DISHWASHER_BODY);
-  head.panDrawerBodiesInThePreparationRole += countOf(
-    plan,
-    (base) =>
-      base.buildId === PAN_DRAWER_BODY && base.role === PREPARATION_ROLE,
-  );
 }
 
 function addKitchenTotals(
@@ -1166,13 +1124,6 @@ function emptyKitchenTotals(): KitchenTotals {
 function emptyCensus(): Census {
   const band = () => ({ converted: 0, rooms: 0 });
   return {
-    head: {
-      swept: 0,
-      placed: 0,
-      dishwashers: 0,
-      ...emptyKitchenTotals(),
-      panDrawerBodiesInThePreparationRole: 0,
-    },
     afterS0b: { dishwashers: 0, ...emptyKitchenTotals() },
     reconstructionMismatches: {
       afterS0b: [],

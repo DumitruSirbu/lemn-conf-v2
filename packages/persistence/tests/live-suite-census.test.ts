@@ -136,6 +136,59 @@ const EXPECTED_CLASSIFICATION: Readonly<
     reason:
       "writes share-link rows through a fresh design per test and needs the schema intact (M7 wave 7E3c D3)",
   },
+  "neon-contact-submission-store.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "writes contact submission rows under ids that carry a marker only tests write, and needs the schema intact",
+  },
+  "neon-csp-report-store.test.ts": {
+    gate: "live test database",
+    lock: "exclusive",
+    reason:
+      "moves the one shared report cursor, writes report rows under marks of its own and asserts a whole-table row count (M8 wave 8Q2)",
+  },
+  "delete-csp-reports-for-tests.live.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "writes report rows under marks of its own, removes them only through the guarded helper, asserts no whole-table figure and needs the schema intact (M8 wave 8Q2)",
+  },
+  "count-csp-reports-for-tests.live.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "writes report rows under marks of its own, removes them only through the guarded helper, asserts no whole-table figure and needs the schema intact (M8 wave 8Q2)",
+  },
+  "qa-8q2-csp-pattern-differential.adversarial.test.ts": {
+    gate: "live test database",
+    lock: "none",
+    reason:
+      "adversarial QA of 8Q2: one read-only select over generate_series per probe, comparing migration 0009's patterns with the code's checks; reads no table, writes and alters nothing (M8 8Q2 QA)",
+  },
+  "neon-rate-limit-store.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason: "writes counter rows under random keys and needs the schema intact",
+  },
+  "qa-8e-rate-limit-live.adversarial.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "adversarial QA of 8E: writes counter rows under random keys in its own era and needs the schema intact (M8 8E QA)",
+  },
+  "qa-8i-contact-submission-live.adversarial.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "adversarial QA of 8I: writes contact submission rows under ids that carry its own marker and needs the schema intact (M8 8I QA)",
+  },
+  "table-privileges.test.ts": {
+    gate: "live test database",
+    lock: "none",
+    reason:
+      "reads the server's privilege catalogue and one system table; writes nothing and touches no table of ours",
+  },
   "retried-writes-leave-no-trace.test.ts": {
     gate: "live test database",
     lock: "shared",
@@ -182,10 +235,52 @@ const EXPECTED_CLASSIFICATION: Readonly<
     reason:
       "unit test of the two readers: sets and deletes its own variables, connects nowhere",
   },
+  "delete-rate-limit-counters-for-tests.live.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "writes counter rows under random keys in its own era and needs the schema intact",
+  },
+  "neon-rate-limit-totals.live.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "writes counter rows under random keys in its own era and needs the schema intact",
+  },
+  "delete-contact-submissions-for-tests.live.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "writes synthetic contact rows under ids that carry a marker only this file writes, and needs the schema intact",
+  },
+  "count-contact-submissions-for-tests.live.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "writes synthetic contact rows under ids that carry a marker only this file writes, and needs the schema intact",
+  },
+  "find-write-token-hashes-for-tests.live.test.ts": {
+    gate: "live test database",
+    lock: "shared",
+    reason:
+      "mints design rows under hashes of its own and needs the schema intact",
+  },
   "delete-designs-for-tests.test.ts": {
     gate: "none",
     lock: "none",
     reason: "unit test with the driver mocked: connects nowhere",
+  },
+  "test-database-connection-errors.test.ts": {
+    gate: "none",
+    lock: "none",
+    reason:
+      "fake values only, every host ends in .invalid: no database is reachable",
+  },
+  "qa-8b-test-database-guard.adversarial.test.ts": {
+    gate: "none",
+    lock: "none",
+    reason:
+      "adversarial QA of 8B: fake values only, every host ends in .invalid or does not parse (M8 8B QA)",
   },
 };
 

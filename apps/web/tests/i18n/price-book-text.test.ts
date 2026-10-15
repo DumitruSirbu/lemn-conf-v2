@@ -256,6 +256,20 @@ function priceBookLeavesOf(
   return catalogueLeaves(messages.priceBook, "priceBook");
 }
 
+const A_SHIPPED_BOOK_LEAF = "priceBook.material.melamine.description";
+const SHORTEST_REASON_THAT_IS_A_SENTENCE = 20;
+
+/** The exemptions that carry no sentence, or name a leaf the catalogue does not hold. */
+function unjustifiedExemptionsIn(
+  entries: readonly RuledInclusionClaim[],
+): readonly RuledInclusionClaim[] {
+  return entries.filter(
+    (entry) =>
+      entry.reason.length <= SHORTEST_REASON_THAT_IS_A_SENTENCE ||
+      leafAt(CATALOGUES[0][1], entry.key) === undefined,
+  );
+}
+
 describe("a book text states no amount it is printed beside", () => {
   it.each(CATALOGUES)(
     "claims no inclusion in any %s book leaf",
@@ -287,7 +301,7 @@ describe("a book text states no amount it is printed beside", () => {
     /* eslint-disable no-restricted-syntax -- 6B-j allow-list: the shipped leaves quoted as negative detector inputs. Reading them through the catalogue would make this pair agree with whatever the catalogue currently says, which is the tautology the control exists to avoid. */
     for (const kept of [
       "Materialul standard al bucătăriei.",
-      "Montat în corpul suspendat de deasupra spălătorului.",
+      "Montat în dulapul suspendat deasupra chiuvetei.",
     ])
       expect(INCLUSION_WORDS.ro.test(kept), kept).toBe(false);
     /* eslint-enable no-restricted-syntax */
@@ -331,13 +345,24 @@ describe("a book text states no amount it is printed beside", () => {
 
   it("records a reason for every exemption it holds", () => {
     // The mitigation ADR 0106 Amendment A asks for, asserted rather than asked for: an entry with no
-    // sentence beside it is indistinguishable from a suppression.
-    for (const entry of RULED_TO_STATE_INCLUSION) {
-      expect(entry.reason.length, entry.key).toBeGreaterThan(20);
-      expect(
-        leafAt(CATALOGUES[0][1], entry.key),
-        `${entry.key} names no leaf`,
-      ).toBeDefined();
-    }
+    // sentence beside it is indistinguishable from a suppression. The list is empty today, so a loop
+    // over it would run no expectation at all; the same check is therefore first shown to refuse an
+    // entry with no sentence and an entry naming no leaf, and only then asked about the list.
+    const reasoned: RuledInclusionClaim = {
+      key: A_SHIPPED_BOOK_LEAF,
+      locale: "ro",
+      reason: "fixture: names a component, not the row's own amount",
+    };
+    const unreasoned: RuledInclusionClaim = { ...reasoned, reason: "ok" };
+    const namingNoLeaf: RuledInclusionClaim = {
+      ...reasoned,
+      key: "priceBook.material.no-such-row.description",
+    };
+
+    expect(leafAt(CATALOGUES[0][1], A_SHIPPED_BOOK_LEAF)).toBeDefined();
+    expect(
+      unjustifiedExemptionsIn([reasoned, unreasoned, namingNoLeaf]),
+    ).toEqual([unreasoned, namingNoLeaf]);
+    expect(unjustifiedExemptionsIn(RULED_TO_STATE_INCLUSION)).toEqual([]);
   });
 });

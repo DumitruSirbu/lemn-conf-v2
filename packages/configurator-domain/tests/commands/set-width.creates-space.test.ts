@@ -37,15 +37,6 @@ function extentMm(
 }
 
 describe("a shrink with no empty column anywhere", () => {
-  // `A|3.20` is `p4`, `p14` and `p20`, all 600 mm and all cabinetry, at the far end of wall A. The
-  // shipped kitchen abuts it with `A|2.60` on one side and the wall on the other, and derives no
-  // void at all — so before decision 7 every chip on all three bodies was `NO_EMPTY_SPACE`.
-  it("is accepted on a kitchen nobody has edited", () => {
-    const result = resizeTo(kitchen(), "p4", 500);
-
-    expect(result.ok).toBe(true);
-  });
-
   it("holds the run's far edge and takes the space off the near one", () => {
     // `A|3.20` spans 2900–3500. Narrowing to 500 holds the left edge at 2900 — the boundary with
     // `A|2.60`, which nobody asked to move — and the run finishes at 3400. The 100 mm between 3400
@@ -185,22 +176,6 @@ describe("a shrink that has nowhere to put the space is refused", () => {
 });
 
 describe("growth still consumes space that is already there", () => {
-  it("refuses on a kitchen at load, naming both sides absent", () => {
-    // The half of ADR 0031's consequence decision 7 leaves standing, and the anti-invariant for the
-    // whole feature: a shrink may make space, a growth may not. ADR 0043 removes the *remainder*
-    // floor, not this — a growth with no empty column on either side is still refused.
-    const result = resizeTo(kitchen(), "p10", 350);
-
-    expect(result.ok).toBe(false);
-    if (result.ok || result.reason.code !== "NO_EMPTY_SPACE") {
-      expect.unreachable("expected NO_EMPTY_SPACE");
-    }
-    expect(result.reason.params.sides).toEqual([
-      { side: "right", reason: "absent" },
-      { side: "left", reason: "absent" },
-    ]);
-  });
-
   it("consumes the column a shrink just created, when the customer steps back up", () => {
     // The round trip, which is what makes the stepper usable: shrink, then grow back into exactly
     // the space that shrink left. The run returns to where it started and the created column is

@@ -45,6 +45,7 @@ import {
   type Catalogue,
   type CatalogueLocale,
 } from "../support/catalogues";
+import { declarationsFor, valuesFor } from "../support/css-declarations";
 
 const A_PRODUCT_LOCALE: CatalogueLocale = "ro";
 
@@ -268,12 +269,13 @@ describe("the box the model is handed is the inside of the box that is painted",
   // while the stylesheet reads it instead of stating one of its own. Asserted against the file, the
   // hop `price-bar-layout.test.ts:197-202` pins the same way.
   it("draws the border and sets the label's type from those published figures", () => {
-    expect(roomStylesheet).toContain(
-      "border: var(--plan-box-border) solid var(--line-soft);",
-    );
-    expect(roomStylesheet).toContain(
-      "font: 700 var(--plan-label-line) / 1 var(--font-ui);",
-    );
+    // Each declared once in the whole sheet, so a later rule taking the border away is a second entry here.
+    expect(valuesFor(roomStylesheet, "planBox", "border")).toEqual([
+      "var(--plan-box-border) solid var(--line-soft)",
+    ]);
+    expect(valuesFor(roomStylesheet, "planWallLabel", "font")).toEqual([
+      "700 var(--plan-label-line) / 1 var(--font-ui)",
+    ]);
   });
 
   it("draws on a surface the size of the box the model laid the plan out in", () => {
@@ -439,9 +441,16 @@ describe("a wall the room refuses is painted red and reads its short reason (7F2
     // the plan box publishes under its own name and a refused field and its reason share.
     expect(globalStylesheet).toContain("--refusal: #dc2626;");
     expect(roomStylesheet).toContain("--plan-wall-issue: var(--refusal);");
-    expect(roomStylesheet).toMatch(
-      /\.planWallLabel\[data-marked="true"\] \{\s*color: var\(--plan-wall-issue\);/,
-    );
+    // The label's two colours and no third: its own, and the red once it is marked. Listed whole, since a later
+    // rule on the marked label left the first one's text exactly as it was.
+    expect(
+      declarationsFor(roomStylesheet, "planWallLabel", "color").map(
+        ({ selector, value }) => [selector, value],
+      ),
+    ).toEqual([
+      [".planWallLabel", "var(--ink-muted)"],
+      ['.planWallLabel[data-marked="true"]', "var(--plan-wall-issue)"],
+    ]);
   });
 
   it.each(LABEL_LOCALES)(

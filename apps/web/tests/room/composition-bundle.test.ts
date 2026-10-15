@@ -110,12 +110,6 @@ describe("the run yields for a paint before it blocks (criterion 29)", () => {
     expect(waited).toBeLessThan(blocked);
   });
 
-  it("crosses a frame with both calls, not just a timer or just an animation frame", () => {
-    const wait = /function theNextPaint\(\)[\s\S]*?\n\}/.exec(
-      codeOf(runSource),
-    );
-
-    expect(wait?.[0]).toContain("requestAnimationFrame(");
-    expect(wait?.[0]).toContain("setTimeout(");
-  });
+  // That the wait crosses a frame with both calls is the order things run in, and `room-composition.dom.test.ts`
+  // drives it ("crosses a frame before it blocks"): a body that names both calls and resolves at once reads the same.
 });

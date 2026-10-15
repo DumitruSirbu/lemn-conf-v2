@@ -136,7 +136,8 @@ function roomDraftFor(room: DesignRoom): RoomDraft {
 /**
  * The footer's primary control in three positions. Working, and a finished hand-off (`handoff: "saved"`, see
  * `HandoffStatus`): a `<div>` announcing the run, the shape ADR 0104 decision 6 gives a control that performs
- * nothing. Write failed: a `<button>` that re-runs the composition's own attempt. Composition failed: nothing, since
+ * nothing. Write failed: a `<button>` that re-runs the composition's own attempt. The day's limit reached: nothing,
+ * since an attempt would be refused until tomorrow and the way out is *Înapoi*. Composition failed: nothing, since
  * a busy control reading *Se compune…* under *Compunerea nu s-a putut finaliza* would promise an arrival that is
  * not coming; the way out is *Înapoi*.
  */
@@ -150,6 +151,7 @@ function ComposeCta({
   const translate = useTranslations();
 
   if (run.phase === "failed") return null;
+  if (hasLimitedHandoff(run)) return null;
   if (run.phase === "composed" && run.handoff === "failed") {
     return (
       <button
@@ -235,7 +237,8 @@ function wallCOf(room: DesignRoom): number {
  */
 function ComposeNotice({ run }: { readonly run: ActiveGenerationRun }) {
   const translate = useTranslations();
-  const hasFailed = run.phase === "failed" || hasFailedHandoff(run);
+  const hasFailed =
+    run.phase === "failed" || hasFailedHandoff(run) || hasLimitedHandoff(run);
 
   return (
     <div
@@ -262,7 +265,11 @@ function hasFailedHandoff(run: ActiveGenerationRun): boolean {
   return run.phase === "composed" && run.handoff === "failed";
 }
 
-/** The three sentences the band can carry, as a literal union (next-intl resolves a key's arguments from its
+function hasLimitedHandoff(run: ActiveGenerationRun): boolean {
+  return run.phase === "composed" && run.handoff === "limited";
+}
+
+/** The four sentences the band can carry, as a literal union (next-intl resolves a key's arguments from its
  *  type). Every state but a failure shares one leaf on purpose: `composing` and a composed kitchen whose write
  *  is in flight or landed all read `noPresetNotice`, so the live region stays silent until a failure changes
  *  the text. */
@@ -271,9 +278,11 @@ function noticeMessageKeyFor(
 ):
   | "room.compose.failed"
   | "room.compose.saveFailed"
+  | "room.compose.limitReached"
   | "room.compose.noPresetNotice" {
   if (run.phase === "failed") return "room.compose.failed";
   if (hasFailedHandoff(run)) return "room.compose.saveFailed";
+  if (hasLimitedHandoff(run)) return "room.compose.limitReached";
   return "room.compose.noPresetNotice";
 }
 

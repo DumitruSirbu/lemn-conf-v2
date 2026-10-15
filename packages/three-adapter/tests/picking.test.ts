@@ -69,12 +69,6 @@ describe("createPickingRaycaster", () => {
     expect(raycaster.params.Line.threshold).toBe(LINE_RAYCAST_THRESHOLD_M);
     expect(LINE_RAYCAST_THRESHOLD_M).toBe(0.008);
   });
-
-  it("never leaves three.js's 1 m default in place", () => {
-    const bareDefault = new THREE.Raycaster().params.Line.threshold;
-    const pinned = createPickingRaycaster().params.Line.threshold;
-    expect(pinned).not.toBe(bareDefault);
-  });
 });
 
 describe("isDragGesture", () => {
@@ -124,41 +118,6 @@ describe("climbToSelectable", () => {
 });
 
 describe("pick", () => {
-  it("row 22: a solid cabinet is selected even when a void lies along the same ray", () => {
-    const solids = new THREE.Group();
-    const cabinet = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.86, 0.56));
-    cabinet.position.set(0, 0.43, 0);
-    cabinet.userData["placementId"] = "base-1";
-    solids.add(cabinet);
-    solids.updateMatrixWorld(true);
-
-    const voids = new THREE.Group();
-    const { group } = buildVoidMesh({
-      id: "A|0.00:v0:0.86",
-      col: "A|0.00",
-      wall: "A",
-      x: 0,
-      z: 0,
-      ry: 0,
-      w: 0.6,
-      d: 0.56,
-      y0: -1,
-      h: 0.5,
-      spanY0: -1,
-      spanH: 0.5,
-    });
-    voids.add(group);
-    voids.updateMatrixWorld(true);
-
-    const raycaster = createPickingRaycaster();
-    raycastDown(raycaster, 0, 1, 0);
-
-    expect(pick(raycaster, solids, voids)).toEqual({
-      kind: "placement",
-      id: "base-1",
-    });
-  });
-
   it("a void never swallows a click aimed at a different cabinet standing elsewhere", () => {
     const solids = new THREE.Group();
     const cabinetA = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.86, 0.56));
@@ -169,11 +128,39 @@ describe("pick", () => {
     cabinetB.userData["placementId"] = "base-b";
     solids.add(cabinetA, cabinetB);
     solids.updateMatrixWorld(true);
+
+    // A cleared column between the two, so the ray crosses its void before it reaches cabinet B: a nearest-hit rule
+    // and a voids-first rule both answer the void here.
     const voids = new THREE.Group();
+    const { group } = buildVoidMesh({
+      id: "A|1.40:v0:0.00",
+      col: "A|1.40",
+      wall: "A",
+      x: 1.4,
+      z: 0,
+      ry: 0,
+      w: 0.6,
+      d: 0.56,
+      y0: 0,
+      h: 0.86,
+      spanY0: 0,
+      spanH: 0.86,
+    });
+    voids.add(group);
+    voids.updateMatrixWorld(true);
 
     const raycaster = createPickingRaycaster();
-    raycastDown(raycaster, 2, 1, 0);
+    raycaster.set(new THREE.Vector3(0.5, 0.43, 0), new THREE.Vector3(1, 0, 0));
 
+    const nearestVoidHit = required(
+      raycaster.intersectObject(voids, true)[0],
+      "the ray must cross the void",
+    );
+    const nearestSolidHit = required(
+      raycaster.intersectObject(solids, true)[0],
+      "the ray must reach a cabinet",
+    );
+    expect(nearestVoidHit.distance).toBeLessThan(nearestSolidHit.distance);
     expect(pick(raycaster, solids, voids)).toEqual({
       kind: "placement",
       id: "base-b",

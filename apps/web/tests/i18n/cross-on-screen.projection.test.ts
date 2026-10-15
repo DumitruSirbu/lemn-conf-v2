@@ -154,10 +154,6 @@ describe("crossesOnScreen agrees with the real camera, for the three walls of a 
       expect(Math.abs(movedBy)).toBeGreaterThan(0.05);
     },
   );
-
-  it("never crosses on wall C in a U, which has one hand and is always left", () => {
-    expect(crossesOnScreen("C", "left")).toBe(false);
-  });
 });
 
 describe("crossesOnScreen is consistent with D4's reflection, for the three right-hand rows (derived, not measured)", () => {

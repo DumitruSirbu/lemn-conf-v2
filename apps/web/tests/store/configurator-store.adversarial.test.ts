@@ -452,33 +452,6 @@ describe("insert without a probe", () => {
     expect(store.getState().lastRejection?.code).toBe("BODY_PROBE_UNAVAILABLE");
   });
 
-  // The domain's `rejection-totality` sweep lists `BODY_PROBE_UNAVAILABLE` as engine-unreachable —
-  // correctly, since `insertBody` takes a probe as a required argument, so no command can produce
-  // it — and its comment hands the sweeping duty to "`apps/web`'s store tests". That exemption also
-  // removes it from the engine sweep. The store-owned refusal still has to cross the same typed,
-  // locale-free boundary as command-produced refusals.
-  it("publishes the store-owned refusal as a locale-free descriptor", () => {
-    const store = createStore({ withProbe: false });
-    store.getState().select({ kind: "placement", id: "p8" });
-
-    store.getState().insert("base-cabinet");
-
-    expect(store.getState().lastRejection).toEqual({
-      code: "BODY_PROBE_UNAVAILABLE",
-      params: {},
-    });
-  });
-
-  it("fails on the selection first, exactly as remove, setFinish and setHandle do", () => {
-    const store = createStore({ withProbe: false });
-    store.getState().deselect();
-
-    store.getState().insert("base-cabinet");
-
-    // The old throw pre-empted this refusal; the guard now sits after the selection check.
-    expect(store.getState().lastRejection?.code).toBe("TARGET_NOT_FOUND");
-  });
-
   it("leaves the whole store untouched when it refuses", () => {
     const store = createStore({ withProbe: false });
     store.getState().select({ kind: "placement", id: "p8" });

@@ -8,8 +8,13 @@ import {
 } from "@lemnaria/three-adapter";
 import { OrbitControls } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
+import type { ReactNode } from "react";
 
-import { KitchenStage } from "./kitchen-stage";
+import {
+  KitchenStage,
+  useNoEditing,
+  type KitchenStageProps,
+} from "./kitchen-stage";
 import type { SceneView } from "./scene-view";
 
 export interface KitchenCanvasProps {
@@ -24,17 +29,55 @@ export interface KitchenCanvasProps {
  * One renderer for the whole editor session. Frames are drawn on demand outside active gestures,
  * and the device pixel ratio is capped and allowed to regress under load.
  */
-export default function KitchenCanvas({
+export default function KitchenCanvas(props: KitchenCanvasProps) {
+  return (
+    <SceneCanvas
+      {...props}
+      onCreated={({ gl }) => {
+        stopTouchFromAlsoClicking(gl.domElement);
+      }}
+    >
+      <OrbitControls makeDefault enableDamping dampingFactor={0.08} />
+    </SceneCanvas>
+  );
+}
+
+/** The same scene, to look at and not to touch. It selects nothing, mounts no orbit controls (so a drag moves no
+ *  camera), and declares `touch-action: pan-y pinch-zoom` on its canvas: nothing in `OrbitControls` sets
+ *  `none`, so a vertical swipe that starts on it scrolls the page. The editor's `touchend` cancelling (ADR 0023) is
+ *  absent too: it stops a pick's overlay from receiving the same tap's compatibility click, and this canvas has
+ *  neither a pick nor an overlay. */
+export function ViewOnlyKitchenCanvas(props: KitchenCanvasProps) {
+  return (
+    <SceneCanvas
+      {...props}
+      useEditing={useNoEditing}
+      onCreated={({ gl }) => {
+        gl.domElement.style.touchAction = VIEW_ONLY_TOUCH_ACTION;
+      }}
+    />
+  );
+}
+
+/** A vertical pan and a pinch belong to the page; nothing else is wanted from a touch on the scene. */
+export const VIEW_ONLY_TOUCH_ACTION = "pan-y pinch-zoom";
+
+function SceneCanvas({
   view,
   finish,
   frameloop = "demand",
   onSettled,
-}: KitchenCanvasProps) {
+  useEditing,
+  onCreated,
+  children,
+}: KitchenCanvasProps &
+  Pick<KitchenStageProps, "useEditing"> & {
+    onCreated: (state: { gl: { domElement: HTMLCanvasElement } }) => void;
+    children?: ReactNode;
+  }) {
   return (
     <Canvas
-      onCreated={({ gl }) => {
-        stopTouchFromAlsoClicking(gl.domElement);
-      }}
+      onCreated={onCreated}
       frameloop={frameloop}
       dpr={[1, MAX_DEVICE_PIXEL_RATIO]}
       performance={{ min: 0.5 }}
@@ -50,8 +93,9 @@ export default function KitchenCanvas({
         view={view}
         {...(finish ? { finish } : {})}
         {...(onSettled ? { onSettled } : {})}
+        {...(useEditing ? { useEditing } : {})}
       />
-      <OrbitControls makeDefault enableDamping dampingFactor={0.08} />
+      {children}
     </Canvas>
   );
 }

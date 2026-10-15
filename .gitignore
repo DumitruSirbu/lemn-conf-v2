@@ -56,3 +56,4 @@ apps/web/next-env.d.ts
 # at git history rather than at a checked-out file: `git log --all -- <path>`
 # finds the commit, `git show <commit>:<path>` prints it.
 testing-reports/
+.env*

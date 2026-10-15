@@ -100,11 +100,23 @@ async function awaitDesign(page: Page): Promise<string> {
   return id;
 }
 
-async function canWrite(page: Page, id: string): Promise<boolean> {
+interface DesignAccess {
+  readonly status: number;
+  readonly canWrite: boolean;
+}
+
+const WRITABLE: DesignAccess = { status: 200, canWrite: true };
+
+/** What `GET /api/designs/{id}` answered. The status is kept because a 404 (the jar owns nothing) and a
+ *  5xx are different failures. */
+async function readDesignAccess(page: Page, id: string): Promise<DesignAccess> {
   return page.evaluate(async (designId) => {
     const response = await fetch(`/api/designs/${designId}`);
-    if (response.status !== 200) return false;
-    return ((await response.json()) as { canWrite: boolean }).canWrite;
+    if (response.status !== 200) {
+      return { status: response.status, canWrite: false };
+    }
+    const { canWrite } = (await response.json()) as { canWrite: boolean };
+    return { status: response.status, canWrite };
   }, id);
 }
 
@@ -131,7 +143,7 @@ for (let round = 0; round < RELEASE_TIMING_ROUNDS; round++) {
     expect(first?.setValue).toBeDefined();
     expect(second?.sentCookie).toBe(first?.setValue);
     for (const id of [prior.id, idA, idB])
-      expect(await canWrite(pageA, id), id).toBe(true);
+      expect(await readDesignAccess(pageA, id), id).toEqual(WRITABLE);
   });
 }
 
@@ -160,7 +172,9 @@ test("a lock another tab holds past 10 s is waited out, and the mint then procee
 
   expect(waitedMs).toBeGreaterThanOrEqual(LOCK_ACQUIRE_TIMEOUT_MS - 500);
   expect(waitedMs).toBeLessThan(LOCK_ACQUIRE_TIMEOUT_MS + 4_000);
-  expect(await canWrite(page, await awaitDesign(page))).toBe(true);
+  expect(await readDesignAccess(page, await awaitDesign(page))).toEqual(
+    WRITABLE,
+  );
 });
 
 test("a mint whose request fails releases the lock: the next tab's mint starts at once", async ({
@@ -228,6 +242,6 @@ test("a browser without navigator.locks still creates a design, with no page err
 
   const id = await continueToDesign(page);
 
-  expect(await canWrite(page, id)).toBe(true);
+  expect(await readDesignAccess(page, id)).toEqual(WRITABLE);
   expect(pageErrors).toEqual([]);
 });

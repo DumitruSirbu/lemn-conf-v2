@@ -93,6 +93,13 @@ function builtWidthMmAt(widthMm: number, buildId: string): number | undefined {
 const BOUNDARY_WIDTHS_MM = [199, 200, 201, 299, 300, 301] as const;
 
 describe("§2's default floor still governs an entry that declares none", () => {
+  // `DEVELOPMENT-SPEC.md` §2: `MIN_W` is 0.30. The one place the number is written rather than read:
+  // every other floor in the suite is derived from this constant and moves with it, and the
+  // whole-millimetre boundaries below cannot see a change smaller than the comparison's own slack.
+  it("leaves §2's MIN_W at exactly 0.3 m", () => {
+    expect(MIN_WIDTH_M).toBe(0.3);
+  });
+
   it.each(BOUNDARY_WIDTHS_MM)(
     "refuses a plain base cabinet at %i mm with the general code, or accepts it",
     (widthMm) => {
@@ -102,13 +109,6 @@ describe("§2's default floor still governs an entry that declares none", () => 
       expect(refusalAt(widthMm, PLAIN_BASE_BUILD_ID)).toBe(expected);
     },
   );
-
-  // The constant itself, so a future edit to it cannot pass this file by leaving the numbers above
-  // in place. Backlog entry 2: it stays at 300, and the cargo is an exception rather than a new
-  // general floor.
-  it("leaves §2's MIN_W at 300 mm", () => {
-    expect(MIN_WIDTH_M * 1000).toBe(GENERAL_MIN_WIDTH_MM);
-  });
 });
 
 describe("the bottle cargo's own floor stands in place of §2's", () => {
@@ -202,27 +202,6 @@ describe("the bottle cargo builds at its own widths, never to the opening", () =
 });
 
 describe("§9's offer list reads the substituted floor too", () => {
-  it("offers only the entries that declare a floor below the default", () => {
-    // **This asserted "the cargo, and only the cargo" until 2026-08-27.** ADR 0030's amendment gave
-    // `base-1door` a `[200, 300, 400]` set and the 200 mm floor it needs to keep it, so the base
-    // band now has two such rows. What the rule always said is what is asserted now, and it is
-    // derived from the catalogue rather than written down — a fourth declaration fails here loudly.
-    for (const widthMm of [200, 250, 299]) {
-      const world = baseOpeningWorld(widthMm);
-      const offered = offersFor({
-        ...world,
-        target: baseVoidTarget(world),
-      }).map((offer) => offer.buildId);
-
-      expect(offered, `${String(widthMm)} mm`).not.toEqual([]);
-      for (const buildId of offered) {
-        expect(subDefaultBaseBuildIds(), `${String(widthMm)} mm`).toContain(
-          buildId,
-        );
-      }
-    }
-  });
-
   // **Restored by ADR 0033's amendment, and the history is the point.** This asserted an exact list
   // at all three widths; the merge briefly made `base-cabinet` a discrete five-value row, so it was
   // refused at 250 and 299 and the case was weakened to say so. Ranges put it back: a hinged cabinet

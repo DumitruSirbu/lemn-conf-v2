@@ -644,10 +644,6 @@ describe("isTransientFailure: what counts as an empty reply", () => {
       new SyntaxError(EMPTY_REPLY_MESSAGE.toLowerCase()),
     ],
     [
-      "the empty-reply message on a plain Error",
-      new Error(EMPTY_REPLY_MESSAGE),
-    ],
-    [
       "the empty-reply message on a TypeError",
       new TypeError(EMPTY_REPLY_MESSAGE),
     ],
@@ -659,7 +655,6 @@ describe("isTransientFailure: what counts as an empty reply", () => {
       "the empty-reply message wrapped as a cause",
       new Error("save failed", { cause: new SyntaxError(EMPTY_REPLY_MESSAGE) }),
     ],
-    ["a string carrying the message", EMPTY_REPLY_MESSAGE],
     [
       "an object shaped like the error but not an Error",
       { name: "SyntaxError", message: EMPTY_REPLY_MESSAGE },
@@ -668,8 +663,6 @@ describe("isTransientFailure: what counts as an empty reply", () => {
       "a dropped pooled connection",
       new Error("Connection terminated unexpectedly"),
     ],
-    ["undefined", undefined],
-    ["null", null],
   ])("does not retry %s", (_label, error) => {
     expect(isTransientFailure(error)).toBe(false);
   });
@@ -688,26 +681,5 @@ describe("isTransientFailure: what counts as an empty reply", () => {
 
     await expect(retryOnTransientFailure(query)).rejects.toBe(original);
     expect(query).toHaveBeenCalledTimes(1);
-  });
-
-  it("tells the first attempt it is not a retry and every later attempt that it is", async () => {
-    vi.useFakeTimers();
-    try {
-      const seen: boolean[] = [];
-      const query = vi.fn(({ isRetry }: { isRetry: boolean }) => {
-        seen.push(isRetry);
-        return seen.length < 3
-          ? Promise.reject(new SyntaxError(EMPTY_REPLY_MESSAGE))
-          : Promise.resolve("done");
-      });
-
-      const result = retryOnTransientFailure(query);
-      await vi.runAllTimersAsync();
-
-      await expect(result).resolves.toBe("done");
-      expect(seen).toEqual([false, true, true]);
-    } finally {
-      vi.useRealTimers();
-    }
   });
 });

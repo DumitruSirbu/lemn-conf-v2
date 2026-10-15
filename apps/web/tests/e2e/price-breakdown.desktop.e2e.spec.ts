@@ -151,13 +151,13 @@ test("leaves the page behind it reachable to the pointer, as it already was to T
   await page.getByTestId("price-breakdown-trigger").click();
   await expect(page.getByTestId("price-breakdown-surface")).toBeVisible();
 
-  // Nothing covers the viewport any more. Asked of the document rather than of a locator, so a
-  // fixed overlay reintroduced under any class name fails here.
-  const whatIsAtThatPoint = await page.evaluate(() => {
-    const element = document.elementFromPoint(40, 400);
-    return element?.closest("[data-testid]")?.getAttribute("data-testid") ?? "";
-  });
-  expect(whatIsAtThatPoint).not.toBe("price-breakdown-scrim");
+  // Nothing covers the viewport any more. Asked of the document rather than of a locator, and for
+  // what *is* there rather than for one name that must not be: the scene's own canvas answers at a
+  // point well clear of the popover, so a fixed overlay reintroduced under any name fails here.
+  const whatIsAtThatPoint = await page.evaluate(
+    () => document.elementFromPoint(40, 400)?.tagName ?? "",
+  );
+  expect(whatIsAtThatPoint).toBe("CANVAS");
 
   // And the popover is still open: the point of the change is reachability, not dismissal.
   await expect(page.getByTestId("price-breakdown-surface")).toBeVisible();

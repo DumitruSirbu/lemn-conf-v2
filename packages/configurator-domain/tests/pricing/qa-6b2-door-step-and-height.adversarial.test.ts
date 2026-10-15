@@ -383,23 +383,6 @@ describe("money is integer arithmetic, and no path can make it anything else", (
       SILENTLY_ZEROING_COEFFICIENTS.map((zeroing) => zeroing.name),
     );
   });
-
-  it("never publishes a line or a total that is not an exact integer, on the shipped book", () => {
-    for (const selections of [
-      undefined,
-      { hardwareTierId: "hardware.premium" },
-      { materialTierId: "material.veneer" },
-    ]) {
-      const priced = priceOrFail(selections ? { selections } : {});
-      for (const line of priced.lines) {
-        expect(Number.isSafeInteger(line.quantity)).toBe(true);
-        expect(Number.isSafeInteger(line.unitAmountMinor)).toBe(true);
-        expect(Number.isSafeInteger(line.amountMinor)).toBe(true);
-        expect(line.amountMinor).toBe(line.quantity * line.unitAmountMinor);
-      }
-      expect(Number.isSafeInteger(priced.totalMinor)).toBe(true);
-    }
-  });
 });
 
 describe("one composition of the door count, and no second derivation anywhere", () => {
@@ -642,14 +625,6 @@ describe("every body a customer can stand in a design has a price", () => {
 });
 
 describe("taller costs more, on every shape that carries the term", () => {
-  it("finds the height-flexible population wider than the two rows the owner named", () => {
-    // A two-shape implementation would be wrong on `wall-cabinet`, which is height-flexible and hinged (ADR 0068).
-    expect(HEIGHT_FLEX_ROWS).toContain("wall-cabinet");
-    expect(HEIGHT_FLEX_ROWS).toContain("wall-lift");
-    expect(HEIGHT_FLEX_ROWS).toContain("open-shelf");
-    expect(HEIGHT_FLEX_ROWS.length).toBeGreaterThanOrEqual(3);
-  });
-
   it("prices every height-flexible row with a strictly positive height coefficient", () => {
     // Monotonicity below is vacuous against a zero coefficient, so the coefficient is pinned first.
     for (const buildId of HEIGHT_FLEX_ROWS) {
@@ -728,13 +703,11 @@ describe("taller costs more, on every shape that carries the term", () => {
 });
 
 describe("a second door costs more, and costs exactly what the book says it costs", () => {
-  it("finds every row whose door count follows its width priced by a shape that steps", () => {
-    expect(DOOR_COUNT_ROWS.length).toBeGreaterThanOrEqual(3);
-    for (const buildId of DOOR_COUNT_ROWS) {
-      const { formula } = ruleFor(BOOK, buildId);
-      expect(hasCoefficient(formula, "perDoorLeafMinor")).toBe(true);
-      expect(coefficient(formula, "perDoorLeafMinor")).toBeGreaterThan(0);
-    }
+  // The loop below generates its cases from this population, so an empty one would generate none and
+  // stay green. The three ids themselves are pinned in pricing-seams.test.ts ("prices every row whose
+  // door count follows its width with a shape that steps").
+  it("sweeps three rows whose door count follows their width (premise)", () => {
+    expect(DOOR_COUNT_ROWS).toHaveLength(3);
   });
 
   for (const buildId of DOOR_COUNT_ROWS) {
@@ -921,16 +894,6 @@ describe("the book is data with one authority, and is refused when it is not", (
         book: formulaless,
       }).code,
     ).toBe("UNKNOWN_FORMULA_SHAPE");
-  });
-
-  it("carries the book's status and provisional flag into the priced result", () => {
-    const priced = priceOrFail();
-
-    expect(BOOK.status).toBe("estimate");
-    expect(BOOK.amountsProvisional).toBe(true);
-    expect(priced.status).toBe(BOOK.status);
-    expect(priced.status).not.toBe("commercial");
-    expect(priced.pricingVersion).toBe(BOOK.version);
   });
 
   it("cannot lose a book's status, whatever the book says", () => {

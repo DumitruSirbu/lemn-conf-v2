@@ -80,7 +80,6 @@ import {
   SHELL_CABINET_DEPTH_MM,
   SHELL_OCCURRED_AT,
   unionOf,
-  withWallABaseRunFilled,
   atCabinetDepth,
   shellIn,
 } from "../support/shell-design.js";
@@ -352,20 +351,22 @@ describe("buildLShellDesign over the approved range and its edges", () => {
     });
   });
 
+  // An L shell records floor tiles only: the corner wall unit stands over the corner's base, so no
+  // wall-only run is tiled (`shell-design.ts`, `freeRunTiles`). This sweep is L rooms, so it holds the
+  // floor source alone and says so; the wall-only source is held where such a tile exists, on a large
+  // U, in `shell-design.u.test.ts`. A wall-only tile appearing on an L fails here first.
   it("records every tile against its neutral source at the depth it was moved to (criterion 8 after a depth change, ADR 0080)", () => {
+    let floorTilesSeen = 0;
     assertOverTheRange((room) => {
       for (const depthMm of declaredCabinetDepthsMm()) {
         const moved = atCabinetDepth(shellIn(room), depthMm);
-        const catalog = catalogAt(depthMm);
+        const source = NEUTRAL_SOURCE_BY_FLOOR.floor;
+        const definition = catalogAt(depthMm).get(source);
+        if (!definition) throw new Error(`no ${source} at ${String(depthMm)}`);
 
         for (const tile of moved.emptyColumns ?? []) {
-          const source =
-            tile.y0Mm === 0
-              ? NEUTRAL_SOURCE_BY_FLOOR.floor
-              : NEUTRAL_SOURCE_BY_FLOOR.wallOnly;
-          const definition = catalog.get(source);
-          if (!definition)
-            throw new Error(`no ${source} at ${String(depthMm)}`);
+          floorTilesSeen += 1;
+          expect(tile.y0Mm, JSON.stringify(room)).toBe(0);
           expect(tile.depthFromBuildId).toBe(source);
           expect(
             tile.depthMm,
@@ -378,6 +379,8 @@ describe("buildLShellDesign over the approved range and its edges", () => {
         }
       }
     });
+
+    expect(floorTilesSeen).toBeGreaterThan(0);
   });
 
   it("publishes no opening past either wall's end at any declared depth (criterion 4)", () => {
@@ -452,17 +455,55 @@ describe("buildLShellDesign over the approved range and its edges", () => {
       Math.max(...LEVELS.map(([, topM]) => topM)),
     );
     const wallRowFloorMm = toMillimetres(LEVELS[1]?.[0] ?? Number.NaN);
-
-    assertOverTheRange((room) => {
-      for (const tile of shellIn(room).emptyColumns ?? []) {
-        const expectedFloorMm =
-          tile.depthFromBuildId === NEUTRAL_SOURCE_BY_FLOOR.floor
-            ? 0
-            : wallRowFloorMm;
-        expect(tile.y0Mm).toBe(expectedFloorMm);
+    const highestCeilingMm = approvedL().height.maxMm;
+    const floorOf = {
+      [NEUTRAL_SOURCE_BY_FLOOR.floor]: 0,
+      [NEUTRAL_SOURCE_BY_FLOOR.wallOnly]: wallRowFloorMm,
+    } as const;
+    const tilesSeen = {
+      [NEUTRAL_SOURCE_BY_FLOOR.floor]: 0,
+      [NEUTRAL_SOURCE_BY_FLOOR.wallOnly]: 0,
+    };
+    const holdsItsExtent = (room: DesignRoom, shell: Design): void => {
+      for (const tile of shell.emptyColumns ?? []) {
+        const source = tile.depthFromBuildId as keyof typeof floorOf;
+        tilesSeen[source] += 1;
+        expect(tile.y0Mm, JSON.stringify(room)).toBe(floorOf[source]);
         expect(tile.topMm).toBe(Math.min(room.heightMm, moduleGridTopMm));
       }
+    };
+
+    // An L records floor tiles only, so the L sweep runs the floor arm alone; the wall-only arm runs
+    // on a large U, the one room that records such a tile, at every ceiling above the wall row.
+    assertOverTheRange((room) => {
+      holdsItsExtent(room, shellIn(room));
     });
+    expect(tilesSeen[NEUTRAL_SOURCE_BY_FLOOR.wallOnly]).toBe(0);
+    expect(tilesSeen[NEUTRAL_SOURCE_BY_FLOOR.floor]).toBeGreaterThan(0);
+
+    fc.assert(
+      fc.property(
+        fc.integer({ min: wallRowFloorMm + 1, max: highestCeilingMm }),
+        (heightMm) => {
+          const room: DesignRoom = {
+            shape: "U",
+            widthMm: 4000,
+            depthMm: 3600,
+            wallCMm: 3600,
+            heightMm,
+          };
+          holdsItsExtent(
+            room,
+            buildUShellDesign({ room, occurredAt: SHELL_OCCURRED_AT }),
+          );
+        },
+      ),
+      {
+        numRuns: 100,
+        examples: [[wallRowFloorMm + 1], [highestCeilingMm]],
+      },
+    );
+    expect(tilesSeen[NEUTRAL_SOURCE_BY_FLOOR.wallOnly]).toBeGreaterThan(0);
   });
 
   it("builds the room the room form accepted, end to end, at the approved maximum", () => {
@@ -775,20 +816,46 @@ describe("buildLShellDesign — what src/generation/ does not do, by any route (
     expect(reached).toStrictEqual([]);
   });
 
-  it("names removePlacement and clipEmptyColumnsAtWallEnd nowhere in its code, under any alias", () => {
-    const naming = sources.filter((source) =>
-      /\bremovePlacement\b|\bclipEmptyColumnsAtWallEnd\b/.test(source.code),
+  // The lint block "shell design: no clip and no remove of its own" reads identifiers, import paths, `import()`
+  // and every spelling of `require`. What it does not read is the inside of a string, so the two cases below
+  // are narrowed to exactly that, and to the one call shape it has no selector for.
+  /** Every string and template literal in the comment-free code. */
+  function stringLiteralsOf(code: string): readonly string[] {
+    return (
+      code.match(
+        /"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|`(?:[^`\\]|\\.)*`/g,
+      ) ?? []
     );
+  }
 
-    expect(naming.map((source) => source.name)).toStrictEqual([]);
+  const literals = sources.flatMap((source) => stringLiteralsOf(source.code));
+
+  it("reads string literals at all, the import specifiers among them (premise)", () => {
+    expect(literals).toContain('"../void-engine.js"');
   });
 
-  it("loads no module at run time by a route the scan above cannot see", () => {
-    const dynamic = sources.filter((source) =>
-      /\bimport\s*\(|\brequire\s*\(/.test(source.code),
+  it("spells neither reserved name nor either defining module inside a string, where the lint rule does not read", () => {
+    const spelled = literals.filter((literal) =>
+      /\bremovePlacement\b|\bclipEmptyColumnsAtWallEnd\b|clip-empty-columns-at-wall-end|commands\/remove-placement/.test(
+        literal,
+      ),
     );
 
-    expect(dynamic.map((source) => source.name)).toStrictEqual([]);
+    expect(spelled).toStrictEqual([]);
+  });
+
+  it("hides no import( or require( in a string for an eval to run, and calls no method named import", () => {
+    const hidden = literals.filter((literal) =>
+      /\bimport\s*\(|\brequire\s*\(/.test(literal),
+    );
+    const callingAMethodNamedImport = sources
+      .filter((source) => /\.\s*import\s*\(/.test(source.code))
+      .map((source) => source.name);
+
+    expect({ hidden, callingAMethodNamedImport }).toStrictEqual({
+      hidden: [],
+      callingAMethodNamedImport: [],
+    });
   });
 });
 
@@ -1139,41 +1206,6 @@ describe("buildLShellDesign — the room it refuses (Q1.5, revised: refuse rathe
         ],
       },
     );
-  });
-});
-
-describe("the it.fails band 900–918 reaches its assertion (Adjudication 7D1-Q2)", () => {
-  // `it.fails` passes on **any** throw. The implementer's premise shows the band's rooms build and
-  // that filling places nothing; it does not run the one call left in each case's body, the panel's
-  // own seat. This holds that call to answering — a number or no panel — rather than throwing, so a
-  // case can only be green because its assertion failed.
-  it("computes the run-end panel for every band room without throwing", () => {
-    const l = approvedL();
-    const lastMm =
-      floorRunStartMm("A") +
-      toMillimetres(RUN_END_PANEL_GAP_M + RUN_END_PANEL_THICKNESS_M) -
-      1;
-    let computed = 0;
-
-    for (let widthMm = l.wallA.minMm; widthMm <= lastMm; widthMm += 1) {
-      const room: DesignRoom = {
-        shape: "L",
-        widthMm,
-        depthMm: l.wallB.minMm,
-        heightMm: TOP_ROW_CEILING_MM,
-      };
-      const filled = withWallABaseRunFilled(shellIn(room));
-
-      expect(() =>
-        runEndPanelSeatM(
-          derivePlacementRecords(filled, catalogAt(SHELL_CABINET_DEPTH_MM)),
-          room,
-        ),
-      ).not.toThrow();
-      computed += 1;
-    }
-
-    expect(computed).toBe(19);
   });
 });
 

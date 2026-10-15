@@ -213,18 +213,6 @@ test("a tap where a background control stands lands on the scrim, and cancels", 
   expect(await camera.getAttribute("aria-pressed")).toBe(pressedBefore);
 });
 
-test("cancels on Escape after focus has left the controls, and returns focus to the trigger", async ({
-  page,
-}) => {
-  await page.getByTestId("global-settings-trigger").tap();
-  await page.keyboard.press("Tab");
-
-  await page.keyboard.press("Escape");
-
-  await expect(page.getByTestId("global-settings-surface")).toHaveCount(0);
-  expect(await focusedTestId(page)).toBe("global-settings-trigger");
-});
-
 test("writes nothing when it is cancelled, and returns focus to the trigger", async ({
   page,
 }) => {

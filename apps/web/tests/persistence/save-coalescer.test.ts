@@ -153,9 +153,13 @@ describe("createSaveCoalescer", () => {
     // error at every call site; this is the runtime half of that guarantee — the call completes
     // and control returns to the caller without the caller doing anything to make that happen.
     const coalescer = buildCoalescer();
-    expect(() => {
-      coalescer.scheduleSave(withPreset("a"));
-    }).not.toThrow();
+
+    // Called through a signature that returns `unknown`, because the declared `void` is the half the compiler
+    // already holds. An `async` scheduler does not throw either; what it does is return a promise.
+    const scheduleSave: (design: Design) => unknown = coalescer.scheduleSave;
+    const returned = scheduleSave(withPreset("a"));
+
+    expect(returned).toBeUndefined();
   });
 
   it("coalesces rapid successive calls into fewer writes, with the final state persisted", async () => {
@@ -228,17 +232,6 @@ describe("createSaveCoalescer", () => {
     expect(
       repository.calls.every((call) => call.design.presetId === "only"),
     ).toBe(true);
-  });
-
-  it("a rejected save never invokes onSaved, so the caller's model is left unchanged", async () => {
-    const coalescer = buildCoalescer();
-    repository.rejectNextCalls(1);
-
-    coalescer.scheduleSave(withPreset("a"));
-    await vi.runAllTimersAsync();
-
-    expect(savedIds).toHaveLength(1);
-    expect(designId).not.toBeNull();
   });
 
   it("never runs two saves at once when a retry timer fires during an in-flight save", async () => {
@@ -388,6 +381,8 @@ describe("createSaveCoalescer", () => {
 
       expect(repository.calls).toHaveLength(2);
       expect(repository.calls.at(-1)?.design.presetId).toBe("b");
+      // The refusal was the other design's: this one's write lands and the status says so.
+      expect(statuses.at(-1)).toBe("idle");
     });
   });
 

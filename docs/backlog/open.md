@@ -265,6 +265,30 @@ at the position measured, the presets simply do not show it.
 **Not scheduled.** No milestone currently owns the camera presets' framing at the mobile viewport;
 this is a new gap, not a regression of anything M5B changed.
 
+### Widened 2026-10-08, at M8 wave 8D's close — it now bears on the review's links
+
+**Sources [doc, M8 plan, *8D — QA15 classified under the stopping rule* and *review round 2 and the close*; ADR
+0148 Amendment A, A8].** Wave 8D's QA and visual verifier found the same matter on more views. Nothing is fixed.
+
+- **The overview of a U on a phone crops to wall A** (the visual verifier's V4). Both screens hand the stage one
+  preset; the canvases differ in shape, so what is cropped differs [inf]. Noticed in 8D, not caused by it.
+- **A wall's own view leaves bodies at the wall's ends outside the frame at 390 px** (QA15) [QA-run, relayed]. In a
+  U the first *Perete A · bază* body spans −2.30 to −1.14 and the refusal's wall C body 1.19 to 2.30 in normalised
+  device x, where the frame is −1 to 1; 6 of 8 U first bodies, and 5 of 8 in the narrowed L, straddle the edge.
+- **The review's links now land on a selected body the customer may not see.** *Editează*, the refusal's named
+  bodies and the conflict link select a body at its wall's own view (ADR 0148, rule G2); the panel is open on it
+  and the cabinet may be off the canvas. In eleven arrivals the visual verifier saw the right view and the right
+  body selected and no body visible above the editor's sheet [reviewer-run, relayed].
+- **The ruled answer must cover walls B and C and the overview, not wall A alone.**
+- **QA keeps two declared deferrals** in `apps/web/tests/e2e/qa-8d-review-arrival.adversarial.e2e.spec.ts`; they go
+  red on the day the framing is fixed, and are re-aimed then.
+
+**Why it is not fixed.** It is how the stage frames a view on a tall, narrow canvas: the 3D adapter's, with
+anchors and a fidelity gate, at the Full tier, and D4 keeps every M8 wave out of the adapter. **It waits for a
+wave, not a trigger.** **The owner's call at the hand check.** *Recommended, the architect's:* its own wave before
+M8's phone gate (8T), with D4 lifted for that wave by name, since 8T walks a refused kitchen back to the body to be
+fixed.
+
 ## 53. A LAUNCH REQUIREMENT DECIDED ON DAY ONE THAT NO MILESTONE OWNS: Russian is a supported locale
 
 **This is not new scope, and that is the finding.**
@@ -781,6 +805,13 @@ focus-trap regression suite. Not scheduled to any wave.
 
 **Verified still open, 2026-09-06 (this pass):** `apps/web/package.json` still lists neither `jsdom`
 nor any `@testing-library/*` package.
+
+> **Dated annotation, 2026-10-07 — stale in part.** `apps/web/vitest.config.ts:11` still sets
+> `environment: "node"`, but `apps/web/package.json:41` now lists `happy-dom` and a DOM is available per
+> file: Glob finds **36** `apps/web/**/*.dom.test.ts` files (none `.tsx`), and a Grep for `happy-dom`
+> matches all 36 [source-verified, 2026-10-07]. The M8 plan says 43; that figure did not reproduce. No
+> `@testing-library/*` package is listed (Grep of `package.json`). Whether the focus-trap regression
+> suite this item asks for exists was not checked, so the item stays open.
 
 ## 49. The hob's front clearance reads as flush with the worktop's edge, more conspicuously at 700 — NEEDS THE OWNER
 
@@ -1762,6 +1793,19 @@ typed room instead of carrying it to the new locale. This contradicts `use-local
 documented contract, which describes the query as preserved. Severity: medium — a customer who
 switches language mid-entry loses typed work, silently. No owner, no phase yet.
 
+**Added 2026-10-08, from M8 wave 8D's review round 2 (R2.1) [doc, M8 plan; ADR 0148 Amendment A].** The same links
+lose the editor's two arrival parameters (`?select=`, `?settings=open`): while the editor, reached by a review
+link, waits for the scene, a language switch removes the parameter with the navigation, so a pending selection is
+lost for the length of the wait (about 5 s in the verifier's eleven arrivals [reviewer-run, relayed]). Nobody has seen it in a browser; the reviewer read it
+from source (`configure/locale-menu.tsx:139`) and QA could not send a switch in the wait. The menu is drawn on
+**three screens**: the room entry, the editor and the review (`room-screen.tsx:149`, `configure-screen.tsx:178`,
+`review-screen.tsx:105`). **One fix serves both**, and it belongs with this entry, which loses work.
+*What must hold when it is fixed:* the switch still *"changes the language and not the place"*
+(`i18n/use-locale-menu.ts:31`), so the path is the same page's; the review, which has no query of its own, gains
+none; and a parameter the arrival hook has already removed does not come back through the link. That hook's
+comment also calls `/d/{id}` *"the only route that renders this menu"*, which three call sites contradict; it is
+corrected with the fix. **Owner:** whoever takes this entry.
+
 ## 74. An open help popover covers the field above it — FOUND 2026-09-22, LOW, NO OWNER, NO PHASE
 
 **Found during M7 wave 7F2's S5b × 7A3 interaction**, 2026-09-22, visual gate: `.lengthHelpText`
@@ -1816,6 +1860,9 @@ replaced with `mintSeededDesign`'s guaranteed cleanup.
 on a failing test (criterion 4's teardown proof). **The 16 existing rows are untouched** — under
 ADR 0006 (environments and provisioned resources are add-only), no agent deletes a database row on
 its own judgment; that is the owner's call. No owner, no phase yet.
+
+**Another leftover row, 2026-10-07:** `su3IuyF9TqeLXtm6AegGl`, from M8 wave 8A S1's measurement; see backlog
+100, where it is recorded with the other leftover rows.
 
 ## 80. The store's mint-on-first-command branch has no reaching route since 7E3a — FOUND 2026-09-23, NOT RETIRED
 
@@ -1902,9 +1949,34 @@ reviewer's R2.2 (inference) and security's SEC-7E3b.2. ADR 0114 Amendment H6's W
 (`lemnaria:create-design`) serialises only the mint request, so tab A's first save can run
 concurrently with tab B's rotating mint. If A's save's `UPDATE` commits before B's rotation, but A's
 response reaches the browser after B's `Set-Cookie`, the jar ends holding B's new value — which owns
-none of A's rows. Plausibly rare (the shipped e2e criterion S6-1 is green regardless); widening the
+none of A's rows. ~~Plausibly rare (the shipped e2e criterion S6-1 is green regardless);~~ **(Contradicted by a
+measurement, 2026-10-09: see below.)** Widening the
 lock to cover saves would contradict the plan's decision D2 (nothing but the mint rotates).
 **Recorded to tell the owner**, per the close-out; not fixed here. No owner yet; no phase.
+
+**Measured 2026-10-09 [QA-run by the agent `m8-e2e-triage` at `af55c16`, relayed; traces in the session scratchpad].** The sentence
+struck above is contradicted: the mobile two-tab spec (`qa-7e3b-s6-two-tab-convergence.adversarial.e2e.spec.ts`) failed **12 of 100
+rounds under eight workers** and **1 of 10 in a whole `CI=1` run**; alone 0 of 100, one worker 0 of 40 (250 rounds, 13 failed in all;
+backlog 125's triage has the method). *The network order, the same in 13 of 13 failing traces:* a prior POST sets visitor value V0;
+tab A's POST (sent V0) sets V1; tab B's POST (sent V1, so the lock worked) sets V2 and moves the rows; tab A's hand-off PUT (sent V1)
+answers 200 with `Set-Cookie` V1; tab B's PUT is sent with V1; a GET of the prior design with V1 answers 404. [src, the agent's
+reading] `fetch-configuration-repository.ts:193-199`: the lock wraps the POST only; `app/api/designs/[id]/route.ts:151` refreshes the
+visitor cookie when the save owns the visitor, true because A's update committed before B's rotation. *Customer effect [the agent's
+statement]:* after tapping Continuă in two tabs within one request's latency, the browser holds a visitor value that owns nothing;
+every design of that browser, earlier ones included, answers "not available in this browser"; V2 is stored nowhere, so it is not
+recoverable. An ordinary autosave in one tab overlapping a mint in another is the same window [inferred, not run]. *Two fixes the agent
+proposes, both the owner's decision because this entry says widening the lock contradicts plan decision D2:* (1) take the
+`lemnaria:create-design` lock in shared mode around every save and keep the mint exclusive, so no save is in flight across a rotation;
+or (2) hold the lock across the hand-off PUT, which closes only the create path. *Not established:* that it fires on a CI runner (it
+needed parallel load here: 0 of 140 rounds at one worker, and CI runs one worker on a two-core runner). **Owner:** the owner decides.
+
+**Updated 2026-10-09, after wave 8F: this is now Q35, recorded and not decided.** The plan's three options: **(a)** every save takes the lock
+shared and the mint takes it alone; **(b)** the lock is held across the first save (the create path only); **(c), the architect's
+recommendation** [inf, unmeasured]: a save never sets the visitor cookie, only a mint does (closes it on the server for every browser; the
+cookie's thirty days then run from the last design created unless the lifetime is lengthened; the security reader's view: the only one the
+server enforces for every browser; browsers cap a lifetime near 400 days [recalled]). **A second measurement, with the limiter in place:** 0 of
+100 rounds [QA-run, one sample], against the triage's 12 of 100 before it; **0 of 100 is not a fix.** Until decided the two-tab spec stays unskipped, and 8T's gate
+cannot be ticked unless the owner accepts the residual. [ADR 0155](../decisions/0155-the-mint-asks-a-keyed-per-day-per-network-limiter-first-and-refuses-what-it-cannot-judge-the-owner-names-the-network-source-and-a-destructive-mutant-never-touches-a-database.md), *Q35*.
 
 ## 90. SEC-7E3b.3 — the rotation `UPDATE` has no rate limit — FOUND 2026-09-23, DEFERRED TO M8
 
@@ -1914,6 +1986,8 @@ one `UPDATE designs SET visitor_hash = …` unconditionally; nothing bounds how 
 trigger it. ADR 0114 decision 7 already names M8's limiter and WAF scope as the control for mint
 abuse generally; this is that same gap, named for the rotation write specifically rather than built
 here. No owner yet; phase is M8.
+
+**Closed 2026-10-09 by wave 8F:** a rotation happens only in a mint the limiter passed ([ADR 0155](../decisions/0155-the-mint-asks-a-keyed-per-day-per-network-limiter-first-and-refuses-what-it-cannot-judge-the-owner-names-the-network-source-and-a-destructive-mutant-never-touches-a-database.md), decision 6; the plan's *8F, the records*).
 
 ## 92. SEC-U1.1 — the largest storable design row grows to 523,972 bytes — FOUND 2026-09-29, DEFERRED TO M8's LAUNCH GATE
 
@@ -2009,6 +2083,16 @@ phase.
 rows stay; nothing removes them. The architect recorded the answer in the milestone
 (`docs/milestones/M7B-u-shaped-rooms.md`, *U7 — the plan*, Q-U7-2) but not here.
 
+**Another leftover row, 2026-10-07.** M8 wave 8A S1's measurement left one row, `su3IuyF9TqeLXtm6AegGl`, in
+the test database, undeleted as its brief required (add-only); it is recorded in the M8 plan's *8A figures*.
+It belongs with these rows and with backlog 79's; the same owner decision covers it, and no answer to
+Q-U7-2 extends to it.
+
+**Five more, 2026-10-08, from M8 wave 8D's visual verifier [reviewer-run, relayed].** The verifier created five
+designs through the app and left them in the test database, undeleted (add-only): `dnWHjvrO-7480l3hh3u2c`,
+`FzHpljg1AMT0zJWGuc13z`, `fRvYfjiUgKIbHIHnts9Yj`, `W2eQRlJLDYlzek4SaX0Fv` and `y_9k4CnmX1Mo9h7wXnRDS`. They belong
+with the rows above and with backlog 79's; no earlier answer extends to them.
+
 ## 101. The shape-refusal region is kept on purpose, though no shipped path draws it — RECORDED 2026-09-30, NO OWNER
 
 **Recorded at M7B wave U6's close-out.** `room-shape-refusal` and `room.issue.shapeNotBuildable` stay:
@@ -2065,6 +2149,10 @@ owner, no phase.
 is `pnpm gate:e2e-shard-budget`. The next desktop e2e spec lands the shard over the budget unless the
 shards are rebalanced or a fourth is added. M7C waves C1 S3 and C2 to C4 each add or restate e2e specs.
 Not measured by the scribe. No owner, no phase.
+
+**Update 2026-10-08, M8 wave 8D [QA-run, relayed].** At `9f4c123` the desktop shards stand at 69 / 70 / 62 of 70,
+so the middle shard is still exactly at the ceiling; the mobile project went to six shards in `c62feb1` (83 / 79 /
+81 / 83 / 95 / 63 of 125).
 
 ## 107. A design stored before ADR 0135 keeps the old corner geometry — ACCEPTED PRE-RELEASE, 2026-10-01, READ-SIDE FIX NOT BUILT
 
@@ -2201,3 +2289,858 @@ production code (Full tier). The owner's call; no owner, no phase.
 answers in milliseconds, but the settings trigger enables only after the first frame's main-thread block:
 7-11 s under local load, 7-10 s on the runner. A real low-end device may show the disabled state for that
 long. A product question, not a defect; no owner, no phase.
+
+## 121. F1 — `scripts/gates/boundary.sh` matches a driver import on one line only — FOUND 2026-10-07 BY M8 8B's QA — CLOSED 2026-10-08 BY M8 WAVE 8D3 (`b5aed77` … `be4ffe2`)
+
+**Closed 2026-10-08 by wave 8D3** (*8D3 as closed* in the M8 plan): the gate reads every import form and
+eight extensions, checks manifests, and has a fixture test; it runs at pre-commit and in `pnpm check`.
+Follow-ups are 136 to 138. The entry below is kept as found.
+
+**Source [doc, `docs/milestones/M8-review-contact-success.md`, 8B adjudication of QA, F1].** The architecture
+gate matches a Postgres-driver import on one line, so a Prettier-wrapped import or a dynamic import outside
+`packages/persistence` passes it. It predates wave 8B and is not in its files. **Owner:** the coordinator,
+under `docs/best-practices/ci-and-local-gates.md`. **Trigger:** before wave 8E adds persistence code.
+
+## 122. F5 — a session close that never returns hangs `applyMigrations` — FOUND 2026-10-07 BY M8 8B's QA, UNMEASURED
+
+**Source [doc, same section, B8 restated and F5].** If `end()` never settles, `applyMigrations` never
+returns, and the CLI (which sets `process.exitCode` and never calls `process.exit`) does not exit. Seen only
+with a mocked driver; whether a connection dropped mid-run leaves a real `end()` pending is unmeasured. It
+leaks nothing, and the same `await` stood in the `finally` before wave 8B. **Owner:** the coordinator, before
+wave 8S. **Next step:** a measurement on the test database, which needs the owner's approval because it ends a
+backend there; if it hangs with the installed driver, the fix is the CLI's shutdown, as its own small wave.
+QA's two tests for it stay as declared deferrals that go red when the hang is fixed.
+
+## 123. F6 — do Neon's connection strings carry `sslrootcert` or a sibling? — RECORDED 2026-10-07, A READ, NOT A DEFECT
+
+**Source [doc, same section, F6].** One read of Neon's documentation for whether the strings it hands out
+carry `sslrootcert`, `sslcert` or `sslkey`. If they do, the backlog records that the migration tools cannot
+use that form: the session client's constructor throws on it, as it did before wave 8B, while the HTTP entry
+point still accepts it (ADR 0146, B10). **Owner:** the coordinator, with 121 and 122.
+
+## 124. QA18 and the "Finding …" journal comments in three test files — RECORDED 2026-10-07, LOW PRIORITY, NO OWNER
+
+**Source [doc, M8 plan 8B, and the clean-code reviewer, relayed].** Two small tidy-ups, one entry.
+
+- **QA18:** the connection-opening census does not see a second `Client` constructed through the opener's own
+  export.
+- **Journal comments:** `test-database-url.test.ts`, `delete-designs-for-tests.test.ts` and
+  `migration-target.test.ts` carry pre-existing comments beginning "Finding …", which ADR 0136 says belong in
+  the records.
+
+No trigger; do it when one of those files is next touched.
+
+**Added 2026-10-07, from M8 wave 8C's clean-code review (round 2, reviewer-run, relayed).** Two more nits
+of the same kind, in `apps/web/src/review/review-model.ts`: a comment on `refuseFirstActionable` says it is
+called only for a refused kitchen, though the available path calls it too; and the listed-ids expression
+is built twice. Same trigger: when that file is next touched.
+
+**Added 2026-10-08, from M8 wave 8D's close (combined reviewer and visual verifier, relayed).** (1) Two doc
+comments in `use-honour-arrival.ts` still run past ADR 0136's length; trimmed by the next wave that opens the file.
+(2) A faint vertical line beside the locale chip at 1440 px that the visual verifier could not attribute. (3) The
+editor's Russian top-bar title is truncated to *"Конфигур…"* (pre-existing). (4) The locale chip's height, a
+shared component (the verifier's V7). Same trigger as above, except that (4) and (2) need a look first.
+
+## 125. Three e2e specs fail under `CI=1` and nobody has investigated them — FOUND 2026-10-07 BY M8 8A S1, TRIAGE BEFORE 8F — TRIAGED 2026-10-09, CLOSED; RESIDUE IS 161, THE DEFECT IS 89
+
+**Source [doc, M8 plan, *8A figures* S1 row B ii].** A full e2e run with `CI=1` (a build and `next start`)
+gave 619 passed, 3 failed, 2 skipped: `qa-7e3b-s6-lock.adversarial.e2e.spec.ts:112` (rounds 1 and 5) and
+`qa-7e3b-s6-two-tab-convergence.adversarial.desktop.e2e.spec.ts:21` (round 2 of 3; *"did not open with
+canWrite: true"*; **annotated 2026-10-08: that desktop spec file was deleted in the tests-review fix-up (row E1), the
+mobile project's rounds carry the race [relayed]; Glob finds no such file**). Backlog 117 (the remote test database dropping connections) does not mention them, so this
+is a separate entry; whether they are the same family is unknown. **Owner:** the coordinator. **Trigger:**
+wave 8F is not dispatched until each has been re-run alone and recorded as a flake, a test fault or a defect
+(plan, 8F S0, item 5).
+
+**A fourth, 2026-10-08 (QA10, M8 wave 8D's QA) [QA-run, relayed].** `top-bar-back…desktop:179` (the Control/Meta
+click) failed once under `CI=1` on a 5 s URL wait and passed 4 of 4 on repeat. A pre-existing desktop spec, not
+8D's; classified test-fidelity. It joins the three above for the 8F S0 triage.
+
+**TRIAGED 2026-10-09 [QA-run by the agent `m8-e2e-triage` at `af55c16`, relayed; raw logs and traces are in the session scratchpad, not
+in the repo].** *Method:* CI's own step (`CI=1 … playwright test <file> --project=<mobile|desktop>`, a build and `next start`), each spec
+alone, 42 invocations, about 45 minutes; config retries is 0. The trigger above (*"not dispatched until each has been re-run alone and
+recorded as a flake, a test fault or a defect"*) is **met as a recording**. Whether the measured defect holds 8F is **put to the owner**;
+the coordinator proceeds with 8F's planning meanwhile, on the owner's standing instruction of 2026-10-09 (his words: *"if any blockers
+just skip that part and do next one till I will come and will decide"* [relayed]).
+
+- **"round N/10: two tabs … converge on the lock"** (`qa-7e3b-s6-two-tab-convergence.adversarial.e2e.spec.ts`, mobile): 250 rounds, 13
+  failed. Alone 0 of 100; one worker 0 of 40; eight workers x10 12 of 100; in the whole suite 1 of 10. **Class: a product DEFECT**, the
+  race backlog 89 already records (the save-versus-rotation residual of ADR 0114 H1/H6), now measured. The measurement, the customer
+  effect and the proposed fixes are written in 89.
+- **"release timing, round N"** (`qa-7e3b-s6-lock.adversarial.e2e.spec.ts`, mobile): 144 rounds, 0 failed here. Classed the same race
+  [inferred from the 2026-10-07 log's signature: it failed at `:134` after `:132` passed]; **not reproduced**. The lock spec's other
+  four tests: 24 runs each, 0 failed, and no failure was ever recorded.
+- **"a Control/Meta click opens Step 1 in a new tab"** (`top-bar-back.qa-m7c-c1-s3.adversarial.desktop.e2e.spec.ts`): 24 runs, 7
+  failed (alone 6 of 10; eight workers 1 of 10; one worker x3 0 of 3). **Class: a TEST FAULT.** The product is right: the new tab did
+  one GET, 200, and its screenshot shows Step 1 filled in. The assertion `expect(opened).toHaveURL(...)` at `:194` times out with
+  `Received: ""` [cause inferred from `playwright-core` 1.62.1's source: its pre-check waits while the frame has a pending document].
+  Proposed smallest fix, **not applied and not tested:** poll `opened.url()` for the expected URL. Now entry 161.
+- **The deleted desktop two-tab file** (`qa-7e3b-s6-two-tab-convergence.adversarial.desktop.e2e.spec.ts`, 31 lines, 3 rounds of
+  `runOneTwoTabRound`) was deleted in `ee834b6` (tests review E1) as a duplicate with no viewport branch [the agent ran git]; the
+  mobile file's 10 rounds and the lock spec's 6 release-timing rounds cover it.
+- **The whole e2e suite under `CI=1`, eight workers, once**, split by project and shard: 677 tests, 676 passed, 1 failed, 0 skipped
+  (desktop 193 of 193; mobile shard 1 of 2: 242 of 243; mobile 2 of 2: 241 of 241). The one failure is two-tab round 10/10, the same
+  trace pattern. **Nothing failed outside the four named.**
+- *Not established:* the lock spec's own failure (its class rests on the old log's signature); behaviour on a real CI runner; why the
+  top-bar test fails 6 of 10 alone and 0 of 3 repeated at one worker; in 4 of 13 traces the recorded PUT end precedes the POST end
+  although the jar still ends stale. The tree was clean and port 4320 free afterwards; no file changed.
+
+**Closed by this triage;** the residue is 161 (the test fault's fix and the fidelity note), and the defect stays in 89.
+
+## 126. The price bar and the breakdown print "De la 0 MDL" for a kitchen holding only customer-supplied bodies — FOUND 2026-10-07 BY M8 8C's QA, A PRODUCT QUESTION
+
+**Source [doc, M8 plan, 8C adjudication, QA1 and rule C1].** A kitchen in which every body is supplied by
+the customer (ADR 0107 decision 2: appliances are drawn, not sold) is reviewed as *no cabinet* by 8C, but
+the price bar and the breakdown predate the wave and still print *"De la 0 MDL"* for it. 8C's plan said
+this is "their surfaces' matter" and promised this entry. **The question:** what should such a kitchen
+show? **Owner:** the owner's; C1 itself is the architect's ruling and open to the owner. No phase.
+
+## 127. No test pins the Russian wording of any leaf, project-wide — FOUND 2026-10-07 BY M8 8C's QA, A FIDELITY GAP
+
+**Source [doc, M8 plan, 8C adjudication, *Wording, for the owner*, relayed from QA].** QA's surviving
+mutation: the plan records only that no test pins the Russian wording anywhere in the project. A fidelity
+fact, not a defect in shipped copy. **Owner:** none; no phase.
+
+## 128. The editor shows a save conflict only inside the panel, so an editor with nothing selected says nothing — FOUND 2026-10-08 BY M8 8D's QA (QA11), PRE-DATES THE WAVE
+
+**Source [doc, M8 plan, 8D adjudication of QA's re-run, rule E5a; ADR 0148 Amendment A].** The editor draws a
+save conflict, and its two controls (reload, overwrite), in the panel, and the panel needs a selection. It is
+the question M4 left open: how a failed background write is told to the customer. The review's conflict link works
+around it by arriving with the first body selected. **A kitchen with no body has no panel to open, and the link
+then lands on an editor that says nothing.** **Owner:** none; a product question first. No phase.
+
+## 129. A real finger during the scene's first frame is delivered only after the scene rests, and lands on the just-opened panel — RECORDED 2026-10-08 AT M8 8D's CLOSE, UNMEASURED
+
+**Source [doc, the coordinator's close-out brief, relayed].** An arrival selects its body when the scene comes to
+rest (about 2.8 s after it mounts); a touch made before then reaches the page after the rest and lands on the
+panel that has just opened. A real touch before the scene rests is on 8D's unproven list; it was not measured.
+**Trigger:** the first real-device pass (iOS Safari is also unproven). **Owner:** the coordinator, at that pass.
+
+## 130. A two-finger pinch may read as a tap and drop a pending arrival — RECORDED 2026-10-08 AT M8 8D's CLOSE, AN INFERENCE
+
+**Source [inf, the combined reviewer's R1.4, relayed].** The customer's own act cancels a pending arrival (ADR 0148,
+E2a); a pinch on the scene during the wait may be read as a tap and cancel it. Not measured; falsified by a real
+pinch that leaves the arrival pending. **Trigger:** the first real-device pass. **Owner:** the coordinator.
+
+## 131. The camera chips are written twice — RECORDED 2026-10-08 (8D ruling 5), TRIGGER NAMED
+
+**Source [doc, M8 plan, 8D restated, ruling 5].** The editor draws the room's view chips and the review draws its
+own; the review styles its own from `review.module.css`. Extracting them now would disturb the tests that read
+`configure.module.css`, and two copies are not three. **Trigger: a third place that draws them** (ADR 0118).
+**Owner:** the wave that adds that place.
+
+## 132. `loadOwnedDesign` takes an id of any shape — FOUND 2026-10-08 BY M8 8D's SECURITY REVIEW (R1.2), POINTER ONLY
+
+**Source [doc, M8 plan, 8D adjudication of review round 1; the reviewer's inference that it is no oracle].** The
+shared owned load, which both `/d/{id}` and `/d/{id}/review` call, does not check that an id has the shape of a
+design id before it queries. It predates the wave, is the same on both doors and answers alike. Ids that are not a
+design id's shape stand in existing tests, so the fix is not free. **Owner: wave 8L, slice S2**, which adds the
+next caller: an id that has not the shape of a design id is refused as *unavailable* before any query, in the one
+function, for every door at once.
+
+## 133. The review's first screenful holds about half the rows it held before 8D2 — RECORDED 2026-10-08 AT M8 8D2's CLOSE, AN OWNER HAND-CHECK ITEM
+
+**Source [visual verifier m8-8d-verify-visual, at `0fad22c`, production build, Chromium 390 × 844, relayed].**
+Complete rows in the first screenful, after 8D2 against before: L-ro 6 against 11; L-ru 6 against 9 plus 1 cut;
+U-ro 4 against 7; U-ru 3 plus 1 cut against 6 plus 1 cut. The cost comes from the two-line rows and from the chips
+standing under the picture, which starts the list 54 px lower (8D2 ruling 2). Both were ruled; the size of the
+cost is what the owner has not seen. **Owner: the owner's hand check**, alongside the picture's height (158 px).
+What deciding costs: a taller or shorter picture, or chips elsewhere, is a change to `review.module.css` and
+criteria 7 and 12 of 8D2/8D; nothing is built.
+
+## 134. A faint vertical hairline left of the Russian chip at 1440 px — CARRIED FROM 8D, CAUSE NOT FOUND, 2026-10-08
+
+**Source [m8-8d-verify-visual, relayed].** Seen again at 1440 px at 8D2's close, cause not found. Probably the
+"faint vertical line beside the locale chip at 1440 px" already listed in entry 124 (item 2) [inf: same viewport,
+same chip, neither attributed; falsified by finding two causes]. Kept as its own entry so a look has a place to
+record the cause. Low; no owner, no phase; needs a look before a fix.
+
+## 135. The app has no `error.tsx` or `global-error.tsx`, so a render-time throw shows Next's default error screen — FOUND 2026-10-08 BY M8 8D2's COMBINED REVIEW, NO OWNER
+
+**Source [m8-8d-review-combined, relayed; the reviewer ran `find` under `apps/web/src/app` and found neither
+file].** Any throw during rendering reaches the customer as Next's default error screen. Newly reachable cases
+include the review model's throws, among them `MissingRowDetailError` added by 8D2's fix round (`0fad22c`), which
+is by design a branch that cannot happen when the model is consistent. Not observed as a defect. Deciding it is a
+product question (what the customer sees, in both languages, and what is logged) and new copy. Whether M9 (delivery preparation) is its home is
+not established by anything read. No owner, no phase.
+
+## 136. The boundary gate's supplier-folder check has no manifest behind it — FOUND 2026-10-08 BY M8 8D3's COMBINED REVIEW, NO OWNER
+
+**Source [m8-8d-review-combined, relayed; the reviewer ran probes].** `vi.mock("../design-source/a")` and a
+template-literal or next-line specifier pass the gate. [coordinator ran] A quoted-path match was tried and
+rejected: it flags `eslint.config.mjs:291`, `:414` and `apps/web/scripts/capture-reference-rig.mjs:29`.
+Separately, `capture-reference-rig.mjs:29` names a path inside `design-source/`, which `AGENTS.md` rule 3 says
+will be deleted; whether that script still has a use is unexamined. No owner, no phase.
+
+## 137. The boundary gate knows two driver names — FOUND 2026-10-08 BY M8 8D3's COMBINED REVIEW, NO OWNER
+
+**Source [m8-8d-review-combined, relayed; the reviewer ran probes].** `postgres`, `pg-pool`, or a relative
+path into `packages/persistence/node_modules` pass, in the manifest check and the import check alike. No
+such use exists on the real tree that anyone has recorded. No owner, no phase.
+
+## 138. The boundary gate flags a string literal that contains `import 'pg'` — FOUND 2026-10-08 BY M8 8D3's COMBINED REVIEW, NO OWNER
+
+**Source [m8-8d-review-combined, relayed; the reviewer ran a probe].** A false positive, not a miss. None on
+the real tree. No owner, no phase.
+
+## 139. The older three tables' grant tests are blind to `PUBLIC`, and the privilege file has further gaps — FOUND 2026-10-08 BY M8 8E's QA AND SECURITY REVIEW, OWNER THE COORDINATOR WITH THE SECURITY REVIEWER
+
+**Source [8E adjudication of QA and *the three reviews*, relayed by the coordinator].** The grant tests for
+`designs`, `schema_migrations` and `design_share_links` in `packages/persistence/tests/application-role-privileges.test.ts`
+read `role_table_grants` for `current_user`. That view does not show what `PUBLIC` holds, and the queries name no
+schema. 8E's own table was rewritten to ask the server for the effective privilege (ADR 0149 decisions 5 and 6); these
+three were not. Gathered here:
+
+- **S-R1.9:** grant option and column grants are not asked about. The shared helper learns both once, for all four
+  tables.
+- **The database-owner gap:** the guard reads `datdba` once; `memberOf` never shows `pg_database_owner`'s implicit
+  member.
+- `CREATE` on the database and `TEMP` are not asked.
+- **Clean-code R2.1 / R2.2** in that file: the `to_regclass`-skip and the grant query are repeated; the doc block's
+  placement. The file also still carries wave-history comments from before 8E.
+
+**Trigger:** the delivery milestone's launch gate. When the three tests move to effective privilege they take the
+helper under `tests/support/`.
+
+## 140. CI never sets `DATABASE_URL`, so the privilege file never runs on a runner — RECORDED 2026-10-08 AT M8 8E's CLOSE, THE DELIVERY MILESTONE'S
+
+**Source [8E adjudication, relayed].** The persistence suite's privilege file runs only where `DATABASE_URL` is set,
+which CI does not do. Criterion 7's grant half has therefore never run on a runner, and the 8E grant test has never run
+anywhere (ADR 0149, *Not proven*). Needs a database CI can reach with the application role. Owner: the delivery
+milestone.
+
+## 141. Once, one of 150 concurrent hits was rejected with a `NeonDbError` that carried no SQLSTATE — SEEN ONCE, NOT REPRODUCED, 2026-10-08
+
+**Source [m8-8e-qa, relayed; the logic reviewer's reading is src, driver 1.1.0].** 150 concurrent hits, one rejected
+with `RateLimitStoreError`, cause `{ name: "NeonDbError" }`. 12 isolated runs and three further full runs were green.
+The store constructs no `NeonDbError`; a code-less one is a rejected fetch, a non-400 status, or a 400 without a code:
+transport or proxy [inf from that reading]. It failed closed. The test now records the HTTP status. **Trigger:** a
+recurrence, which the test names. No owner until then.
+
+## 142. Four owner decisions from wave 8E are pending — RECORDED 2026-10-08; UPDATED 2026-10-08 AT 8H's CLOSE: TWO DECIDED, ONE MOOT, ONE NEW
+
+1. ~~**Rule S2's over-count** (ADR 0149 decision 3): a retried hit may count high. The architect's ruling, open to the
+   owner, to be put with the limit's "track and adjust later".~~ **Decided 2026-10-08: accepted**, *"Accept
+   (Recommended)"* [owner, relayed]. ADR 0149's amendment.
+2. ~~**The keyed hash**, decided in 8K's S0 before an e-mail is a subject. Keyed is recommended; a key added later
+   restarts every count.~~ **Decided 2026-10-08: keyed, one secret, from 8F's first deploy** (*"lets add this secret"*,
+   *"lets use same secret"* [owner, relayed]). ADR 0149's amendment; `DIGEST_SECRET` in `environments-and-resources.md`.
+3. **Whether the two guarded deletes stay.** Removing both loses nothing if the owner wants no write-shaped statement
+   sent. **They now go to the preview database**, not production, since the repo-root `.env.local` was repointed
+   [coordinator-run]. Still the owner's.
+4. ~~**Whether the persistence suite should read production at all**~~ **Largely moot:** by default it no longer does
+   (see 3). A deliberate run against production per the runbook remains the way to check its grants.
+5. **New:** `vercel env pull` appended `.env*` to `.gitignore` on 2026-10-08. The line is uncommitted and the owner's to
+   keep or drop. (The tracked pattern before it was `.env*.local`.)
+
+~~Also unruled and the owner's: whether the deletion of the 3 rows QA's crashed cleanup left in the test database's
+`rate_limit_counters` was within the rules.~~ **Ruled 2026-10-08:** *"If were added by tests , delete , if added by
+production user keep"*; [ADR 0151](../decisions/0151-a-test-may-delete-the-rows-tests-added-and-never-a-row-a-production-user-added.md).
+
+## 143. The revision shape admits nineteen digits, past a bigint column's range (QA F12) — FOUND 2026-10-08 BY M8 8H's QA
+
+**Source [m8-8h-qa, relayed; the plan's 8H adjudication].** `isDesignRevision` (persistence) and the domain's
+`isDesignRevisionShape` accept nineteen digits, which is wider than the column holds. A revision the column cannot hold is
+a mismatch, a refusal and not a failure (for 8K). The two predicates are tied by a persistence property, so narrowing one
+alone breaks the tie. **Owner:** persistence's: whoever next opens `design-revision.ts`. **Trigger:** that file is opened.
+
+## 144. Any export of contact data must neutralise a leading `=`, `+`, `-` or `@` — RECORDED 2026-10-08 AT M8 8H's CLOSE
+
+**Source [the plan's 8H, *Backlog*].** A name or locality may be a spreadsheet formula; the validated request accepts it
+and the mail does nothing to make it live. **Trigger:** an export of contact data is built. ADR 0012 has none today.
+
+## 145. A web-suite run failed once, unidentified — SEEN ONCE IN FIVE RUNS, 2026-10-08, AT `fd2c958`
+
+**Source [coordinator-run, relayed].** One run of the web suite showed 1 failed of 6227 (exit 1); which test was not
+captured. Four runs straight after were 6227 passed. **Trigger:** a recurrence, with the failing test's name. No owner until
+then.
+
+**A possible recurrence, 2026-10-08 [developer-run, relayed by the coordinator; not established to be the same test].** With
+the machine at a load average of about 280, the developer saw `client-write-path.adversarial.test.ts` "… does not send a
+further request for later edits once refused" fail once (3 requests, expected 2) and pass when run alone. It also passed
+in the coordinator's full `pnpm ci:local` at `ee834b6`. **Whether it is the same test as the failure above is not
+established**, because the first failure's name was never captured. A request count that depends on timing may be a real
+race. **Trigger unchanged:** a recurrence with its name; this one has a name, so the next sighting of the same title makes it
+a candidate for a defect.
+
+**A second named sighting, 2026-10-09 [relayed, QA-run]:** `tests/room/plan-preview-model.facing-labels.test.ts:255`, "never intersect, over lengths across the approved U (Q-U1)", failed once in a whole run with "inside was reached: expected 6 to be >= 8" and passed alone three of three. Its cause is in the test: the property is unseeded and its floor counts how often a random draw reaches an arrangement [src :231-256]. No label intersected. Not established to be the entry's first failure. This one needs no recurrence: seed the property or build its arms so the floor is met by construction. No owner yet; not 8J's.
+
+## 146. Count the stored design ids that do not have the generator's shape before 8L S2 gates a page — OWNER, RECORDED 2026-10-08
+
+**Source [the plan's 8H, *S2's readings*].** Whether every stored design id has the shape the generator makes is not
+measured. A page that refuses by `isDesignId` would close an older design's link. The owner reads the live ids once, a
+count and no value. **Owner:** the owner. **Trigger:** before 8L's S2 ships.
+
+## 147. `e2e-shard-budget` fails at `ee834b6`, and the pre-push hook runs it — FOUND 2026-10-08 BY THE COORDINATOR'S `ci:local` — CLOSED 2026-10-08, FIXED IN `8aba717` (option 1)
+
+**Closed 2026-10-08 [relayed by the coordinator, who ran the commands].** The owner, verbatim: *"ok do option 1, split the file"*.
+`8aba717` split `room-desktop-line.desktop.e2e.spec.ts` (69 tests) into `room-desktop-line.criteria-03.desktop.e2e.spec.ts` (2),
+`room-desktop-line.criteria-04-10.desktop.e2e.spec.ts` (37) and `room-desktop-line.criteria-12-17.desktop.e2e.spec.ts` (30), with the
+shared helpers in `apps/web/tests/e2e/support/room-desktop-line.ts`; a move, not a rewrite (QA found the 193 desktop titles
+identical). Desktop shards of 3 are now 65 / 67 / 61 against the ceiling of 70 (`e2e-shard-budget.mjs` exit 0); mobile unchanged at
+82 / 89 / 73 / 81 / 97 / 63. `pnpm ci:local` at `8aba717`: all gates green. The residue is entry 153. The text below is the entry as
+first written and is kept as history.
+
+**Source [coordinator-run, `pnpm ci:local` at `ee834b6`; `docs/TESTS_REVIEW.md`, *Progress*].** The tests-review fix-up deleted three
+desktop e2e spec files (6 tests), which moved Playwright's split, because a file is never divided across shards
+(`scripts/gates/e2e-shard-budget.mjs`, `RATCHETED_CEILINGS`). Desktop shards of 3 now hold 132 / 0 / 61 tests against a
+ceiling of 70. `room-desktop-line.desktop.e2e.spec.ts` holds 69 of the 193 desktop tests. **Measured by the coordinator** with
+`playwright test --list --shard` [relayed]:
+
+| Desktop shards | Tests per shard |
+| --- | --- |
+| 4 | 52 / 80 / 40 / 21 |
+| 5 | 39 / 93 / 0 / 40 / 21 |
+| 6 | 33 / 99 / 0 / 0 / 40 / 21 |
+| 7 | 28 / 34 / 70 / 0 / 10 / 30 / 21 |
+
+Only 7 fits. **Options put to the owner, undecided:** (1) split `room-desktop-line.desktop.e2e.spec.ts` (the coordinator's
+recommendation, and what the gate's own comment asks for); (2) raise desktop to 7 shards in `ci.yml` and in the gate; (3)
+restore the deleted specs. **The pre-push hook runs this gate, so the branch cannot be pushed until this is decided.**
+Related: entry 106 (desktop shard 2 of 3 sat at exactly its 70-test budget). **Owner:** the owner.
+
+## 148. A metres field and a dangling separator (`3,` `3.` `,5` `.45`): refuse, or read as 3000 / 3000 / 500 / 450 mm? — FOUND 2026-10-08 BY THE TESTS REVIEW — CLOSED 2026-10-08, RULED BY THE OWNER AND PINNED IN `eaef634`
+
+**Closed 2026-10-08 [relayed by the coordinator, who read the source; QA confirmed by mutation].** Asked the question, the owner
+answered, verbatim: *"is now milimiters so no separator should be accepted"*. The customer's length fields already refuse any
+separator (`parse-millimetres.ts`, `/^[0-9]+$/`, `notDigits`, ADR 0126); `parse-metres.ts` is only the URL wire-form reader and
+refuses all four forms. **The coordinator's reading, not the owner's:** the either-answer tests concerned the URL reader. `eaef634`
+pins the four forms as `refusal("notANumber")` and in the `notDigits` table, red under mutation [QA's recorded runs]. The open
+question that remains is entry 154. The text below is the entry as first written and is kept as history.
+
+**Source [doc, `docs/TESTS_REVIEW.md` line 285; the architect's reading, relayed].** No decision record rules on it. Four
+tests in `parse-metres` accept either answer (`expectRefusedOrExactly`), so they cannot tell the two behaviours apart; the
+review's mutation turned the parser's pattern from `\d+` to `\d*` and the four stayed green. **The architect did not read
+the parser: which answer is today's behaviour is unverified.** The same file's tests `refuses ","` and `refuses "."` went red
+under that mutation [doc, same row], which suggests a lone separator is refused; that is an inference and does not decide
+`3,`. **Owner:** the owner (a product question first).
+
+## 149. The empty `test.fixme` in `global-settings-apply.e2e.spec.ts` is the only record of an unasserted behaviour — TESTS REVIEW ROW 2881, 2026-10-08 — THE QUESTION CLOSED 2026-10-08 (fixme deleted in `eaef634`); THE GAP STAYS OPEN
+
+**Question closed 2026-10-08 [relayed by the coordinator].** Asked what happens to the empty `test.fixme`, the owner chose
+**"Delete it (Recommended)"**. `eaef634` removed it; the e2e listing went from 678 to 677 tests [QA's listing]. **The gap is not
+closed and stays recorded here:** "the sheet stays open" after a `BODY_PROBE_UNAVAILABLE` refusal is asserted one layer down and
+not in a browser, because no browser route reaches a detached probe. The refusal is live. Trigger: a browser route that can
+reach a detached probe. The text below is the entry as first written, kept as history.
+
+**Source [relayed; the fixme's presence checked at `apps/web/tests/e2e/global-settings-apply.e2e.spec.ts:214`].** That `test.fixme`
+is the only record that "the sheet stays open" after a `BODY_PROBE_UNAVAILABLE` refusal is not asserted in a browser. The
+refusal is live and no browser route reaches a detached probe. Whether the fixme stays once this entry exists is the owner's
+call. **Owner:** the owner.
+
+## 150. A third copy of the "undeclared or offers" check, without the schema check — FOUND 2026-10-08 BY THE TESTS REVIEW'S D3 LOGIC REVIEW
+
+**Source [relayed; the function's presence checked at `apps/web/src/settings/global-settings-model.ts:365`].**
+`withoutAFinishTheMaterialRefuses` repeats the undeclared-or-offers check that `designOffersFinish`
+(`packages/configurator-domain/src/design-material.ts`, `6eef46c`) now holds once for the two commands, without the schema
+check. No customer-visible disagreement (the logic review); a drift risk. It could call `designOffersFinish`. **Trigger:** that
+function is next opened. No owner. See [ADR 0084](../decisions/0084-canfinish-is-the-load-seams-and-a-command-fixture-constructs-only-its-own-contracts-inputs.md)'s note of 2026-10-08.
+
+## 151. `DESIGN_ENVELOPE_BYTES` is public through the domain package's `export *`, for one test — RECORDED 2026-10-08
+
+**Source [relayed; the clean-code review's trade-off].** The constant is exported so that one test can read it; the owner
+approved the export. Recorded so a later reader does not take it for a public contract. **Trigger:** a second reader appears,
+or the package's public surface is next trimmed. No owner.
+
+## 152. Single-guard behaviours were listed per wave and never collected; the two-tab lock's desktop rounds were removed — RECORDED 2026-10-08
+
+**Source [doc, `TESTS_REVIEW.md`, *What is still open*; relayed for the second half].** Many behaviours now rest on one test each;
+the QA agents listed them per wave but the lists were not collected into one place, so no total exists. Separately, the
+two-tab lock's desktop run had added 3 rounds of a probabilistic race that the mobile project's 10 now carry alone
+[relayed]. **Trigger:** the next test audit ([ADR 0152](../decisions/0152-a-test-is-kept-only-if-it-can-fail-for-the-reason-its-title-names-and-is-deleted-only-on-evidence.md)
+decision 4): it should not report "one test" as a finding by itself. No owner.
+
+## 153. The desktop e2e ceiling is still 70 with a largest shard of 67, and the gate script's comment is stale — RECORDED 2026-10-08, AFTER `8aba717` — CLOSED 2026-10-08, FIXED IN `18283a8`
+
+**Closed 2026-10-08 [relayed by the coordinator, who ran the gate].** `RATCHETED_CEILINGS.desktop` went from 70 to 67 in
+`scripts/gates/e2e-shard-budget.mjs`, with its comment rewritten (no single desktop file is over budget; the largest shard is 67
+against a derived budget of 66 because a shard is whole files; the ceiling only comes down). Its own test asserts 67, and three
+test comments now point at the split spec files. The developer's run showed the gate failing at 66 naming shard 2. The entry
+cannot be deleted from `RATCHETED_CEILINGS` until the derived budget is enough. `pnpm ci:local` at `18283a8`: all gates green. The
+text below is the entry as first written, kept as history.
+
+**Source [relayed by the coordinator, who ran the gate].** After the split (entry 147) the largest desktop shard is 67. The
+derived budget is 66, so `RATCHETED_CEILINGS.desktop` (70) could come down to 67 but not be removed. Lowering it is the
+owner's call. The comment above that constant in `scripts/gates/e2e-shard-budget.mjs` still names the deleted file and the
+figure 69; it is code and has not been edited. Three test files also still name the deleted spec in comments
+(`qa-7l-suggestion-card-is-the-chip.adversarial.dom.test.ts`, `u-gate.e2e.spec.ts`,
+`qa-m7c-c1-footer-centring.adversarial.desktop.e2e.spec.ts`). **Owner:** the owner for the ceiling; the next developer
+dispatch for the comments.
+
+## 154. Should the room URL carry millimetres instead of metres? — RECORDED 2026-10-08, AN OPEN QUESTION, NOT DECIDED
+
+**Source [relayed by the coordinator; told to the owner as undecided].** After the owner's answer on entry 148, the customer's
+fields take whole millimetres with no separator (ADR 0126), but the URL (`room-url-state.ts`, `room-query-sync.ts`) still carries
+metres, where a separator between digits is the format by design. Whether the URL should switch to millimetres with no separator
+is **not decided**. Existing shared links carry metres, so a switch is its own decision with its own compatibility question.
+**Owner:** the owner. **Trigger:** the URL's wire form is next touched. See the dated note in
+[ADR 0126](../decisions/0126-the-rooms-lengths-are-typed-in-whole-millimetres.md).
+
+## 155. The only consent text version in code is `"placeholder"` — RECORDED 2026-10-09 AT M8 8I's CLOSE
+
+**Source [the plan's 8I, *the security read of `0008`*; src `packages/configurator-domain/src/contact/contact-fields.ts:26`].** A
+stored request records the consent text version it was given under, and the only version the code has is `"placeholder"`. A
+launch item, and the owner's words. **Owner:** the owner (Q7, the consent text). **Trigger:** before launch (M9).
+
+## 156. The boundary gate does not catch a test importing another package's tests by relative path — FOUND 2026-10-09 IN M8 8I's REVIEW
+
+**Source [the plan's 8I, *the three reviews*, C-R1.1].** A test file in `packages/persistence` imported another package's test
+files; `scripts/gates/boundary.sh` did not see it. Fixed in the one file (the real snapshots are made through the domain's public
+exports or from copied fixtures); the gate itself is unchanged. **Owner:** the coordinator. **Trigger:** the next change to the gate.
+
+## 157. For the milestone-close test audit: 8I's QA files and the clean-code nits — RECORDED 2026-10-09 AT M8 8I's CLOSE
+
+**Source [the plan's 8I, *review round 2, ruled*; clean-code C-R2.9, C-R2.7].** 8I's QA files restate six cases the developer's
+tests hold (C-R2.9); file sizes were 1569, 1395 and 621 lines at the time of review (C-R2.7); the other nits are listed in *review
+round 2, ruled*. The `qa-8i-*` files are the only guard of the check's rules 2 and 3 and are not duplicates (ADR 0153 decision 8).
+**Owner:** the test audit. **Trigger:** the M8 close audit (ADR 0152, Amendment A).
+
+## 158. The mail tests' fixtures are duplicated between the developer's and QA's files — RECORDED 2026-10-09 AT M8 8J's CLOSE
+
+**Source [the plan's 8J, *the three reviews*, JC-R1.12 and JC-R1.18, recorded not taken].** The fake key and addresses, the fetch and
+answer stubs, the notice fixtures and the dressed-kitchen fixture exist in three or more copies across ten test files and both authors'
+support. The developer's support is the home, and QA imports it, never the reverse. **A third instance noted at `45e2c39` [reviewer,
+clean-code]:** the all-traps-throw `Proxy` helper is built in both `qa-8j-notice-kitchen` and `lead-notification.test.ts`. **Owner:** the
+coordinator. **Trigger:** 8K's first test that needs them (the third consumer).
+
+## 159. For the milestone-close test audit: 8J's restated pairs, the nits and JC-R1.20/1.21 — RECORDED 2026-10-09 AT M8 8J's CLOSE
+
+**Source [the plan's 8J, *the three reviews*, JC-R1.13; the findings file].** Pairs where an adversarial file restates a case the
+developer's tests hold, the remaining nits, and JC-R1.20 and JC-R1.21 [reviewer, clean-code, at `ab5d77a`]. **JC-R1.20 (nit):** `dressed`
+in `lead-notification.test.ts` is about 22 lines and `dressedKitchens` calls `.map(dressed)`, passing the array index as `offset`
+implicitly; the developer's tests spell the fact indent as a raw two-space string three times where QA names `FACT_INDENT`; `"QA-HOSTILE"`
+is repeated beside `HOSTILE_ID` in `qa-8j-notice-kitchen`. **JC-R1.21 (nit):** `create-mail-sender.test.ts` ("hands back `send` alone",
+fake) and `qa-8j-environment` assert the same own keys `["send"]`: a newly added restatement in JC-R1.13's class. **File sizes at review**
+[coordinator ran `wc -l` at `08ead7b`]: `qa-8j-provider-answers.adversarial.test.ts` 833 lines, `qa-8j-environment` 604,
+`qa-8j-request-and-predicate` 593, `qa-8j-notice-customer-text` 552, `qa-8j-notice-kitchen` 315; the developer's
+`lead-notification.test.ts` 687, `resend-mail-sender.test.ts` 615. **Owner:** the test audit. **Trigger:** the M8 close audit (ADR 0152, Amendment A).
+
+## 160. The mail adapter's answer mapping moves to its own module — RECORDED 2026-10-09 AT M8 8J's CLOSE
+
+**Source [the plan's 8J, *the three reviews*, JC-R1.8].** `resend-mail-sender.ts` (231 lines) does request building, the timeout race and
+the answer mapping with body parsing. A move now costs a re-read and three source scans' lists for no behaviour. **Owner:** whoever next
+changes the file. **Trigger:** a second adapter, or the file's next change of behaviour.
+
+## 161. The Control/Meta-click spec's URL wait is a test fault, and the two-tab helpers hide the status of a lockout — RECORDED 2026-10-09 BY THE TRIAGE OF 125 — CLOSED 2026-10-09, FIXED IN `c5432da`
+
+**Source [QA-run by `m8-e2e-triage` at `af55c16`, relayed; see 125].** (1) `top-bar-back.qa-m7c-c1-s3.adversarial.desktop.e2e.spec.ts:194`:
+`expect(opened).toHaveURL(...)` times out with `Received: ""` although the product is right (7 failures in 24 runs). Smallest fix
+proposed: poll `opened.url()` for the expected URL. (2) A test-fidelity note: `canWriteDesign`
+(`tests/e2e/support/two-tab-convergence.ts`) and `canWrite` (the lock spec, about `:103-109`) return false for any non-200, so a 404
+lockout reads the same as a 5xx; the status belongs in the failure reason. **Closed 2026-10-09: both fixed in `c5432da` (the two e2e test
+faults, before wave 8F), one combined reviewer approved** [coordinator ran `git log`; relayed].
+
+## 162. A pixel comparison in the review scene's e2e spec flickered once in a whole `CI=1` run — RECORDED 2026-10-09 AT M8 8F's CLOSE
+
+**Source [QA-run, relayed].** `tests/e2e/qa-8d-review-scene.adversarial.e2e.spec.ts:188`, "a tap on a body in the review's scene selects
+nothing…", failed once in a whole `CI=1` run at eight workers (`expected <= 60, received 32757` changed pixels) and passed alone 6 of 6 and in
+an earlier whole run. A flicker of an 8D pixel comparison, not 8F's. **Owner:** none yet. **Trigger:** a recurrence, or the M8 test audit.
+
+**Third sighting, 2026-10-10 [QA-run, relayed]:** the first review round of 8G, in a whole `CI=1` run (746 passed, 1 failed); a second sighting had been
+noted during 8G's earlier QA work. Still not 8G's; the trigger stands.
+
+## 163. A tap on *Continuă* immediately after Step 1 loads does nothing — RECORDED 2026-10-09 AT M8 8F's CLOSE
+
+**Source [the visual verifier, relayed].** The tap lands before hydration; with a two-second wait it works every time. **A product question;**
+no owner. **Trigger:** none set.
+
+## 164. One unidentified `404` resource appears on Step 1 in every run — RECORDED 2026-10-09 AT M8 8F's CLOSE
+
+**Source [the visual verifier].** "Failed to load resource: 404" appears on Step 1 in every run; **what it is has not been established.**
+**Owner:** none yet. **Trigger:** none set.
+
+## 165. Both e2e harness servers listen on every interface — RECORDED 2026-10-09 AT M8 8F's CLOSE
+
+**Source [the security reader, F-S2.4, recalled: the framework's default host].** The suite's first server always has; the second is CI-only.
+A developer's first server is reachable on the local network under the e2e policy, on the test database. Binding it to loopback changes how
+every e2e test reaches its server and is measured on its own. **Owner:** the coordinator. **Trigger:** that measurement.
+
+## 166. The environment type and its own-member read are written three times across mail, digest and network — RECORDED 2026-10-09 AT M8 8F's CLOSE
+
+**Source [the plan's 8F, *the three reviews*, clean-code FC-R1.9 and FC-R1.11].** The environment's type and the own-member read exist in the
+mail, digest and network modules, and the deadline helper twice; one module would hold them, but moving them goes through 8J's closed modules
+and their source scans. **Owner:** the wave that builds the fourth reader. **Trigger:** the fourth reader, 8G's or 8K's.
+
+## 167. For the milestone-close test audit: 8F's restated pairs and the remaining should-fix and nits — RECORDED 2026-10-09 AT M8 8F's CLOSE
+
+**Source [the plan's 8F, *the three reviews*; `coord-8f-review-clean.md`, session scratchpad].** FC-R1.18, FC-R1.21, FC-R1.24, FC-R1.25,
+FC-R1.28, FC-R1.29, the rest of FC-R1.20 and FC-R1.22, the nits and the restated pairs. From the final re-check [reviewer, clean-code]: the
+listener still removed in the test body in `qa-8f-refused-mint-through-the-route` (about `:828-845`), and three duplications in
+`qa-8f-mint-limit-code`. **Owner:** the test audit. **Trigger:** the M8 close audit (ADR 0152, Amendment A).
+
+## 168. A design returned to by Back or Forward is shown from the page's kept copy, older than the stored one, and as saved — FOUND 2026-10-10 BY M8 8G's QA (C2-1); A WAVE OF ITS OWN BEFORE 8T's GATE — CLOSED 2026-10-12 BY M8 WAVE 8K2 (`5f0d93f6` … `7d282603`)
+
+**Closed 2026-10-12 [scribe, from the plan's *8K2 as closed* and ADR 0158; the scribe ran nothing].** Both halves shipped: the probe's answer taken whole (K2.2) and the write the tab holds handed to a load in all four states (K2.3, with GL-R4.1 and the write in flight). QA's two tests pass unmarked in the whole e2e under `CI=1`: 793 passed, 0 failed, 0 skipped, 10.1 minutes [coordinator-ran, `18caaea4`]. **What stays:** item (2) of the entry below (*the same for the page's three steps*) was withdrawn (K2.6); the review's own case is L2 and 8L's criterion 14. The push waits on Q42 (backlog 182). The entry below is the original, kept.
+
+**Source [QA-run on a built server, with no limit met; `qa-8g-pass-c2-report.md`, session scratchpad; the plan's 8G, *pass C's finding C2-1, ruled*].**
+Step 1 makes design A; one edit is saved (`200`, revision 3); Back; one press makes a second design B; browser Back twice returns to A's address in the
+same document with no request for A's page (the router's own copy): **the screen shows A without the edit, status idle (saved)**, while the stored design
+holds it. The next edit is sent with `x-expected-revision: 2` and answered `409`; the screen says `conflict`. Nothing is overwritten unless the customer
+presses *overwrite*, which writes the screen's copy and **drops the earlier edit**. *Cause [src, not varied]:* `HydrateAndConfigure` replaces the store
+whenever it holds another design id with the page's props, and on a Back traversal those are the router's kept copy; `HydrateAndReview` already guards
+this for one design (`hydrate-and-review.tsx:21`) and the editor has no such guard across two. **It is older than 8G** (nothing in 8G made it) and **not
+Q35's family** (an older *page*, not an older *cookie*). **The rule for the wave, the architect's:** *a design's page shown again by Back or Forward never
+shows a copy older than the one stored.* The review already holds that for one design. The editor already asks the server for the design after it loads
+(its write-access probe), and that answer carries the stored copy and its revision. **Where the screen holds no unsaved edit and that answer is newer, the
+screen takes it.** With an unsaved edit, the conflict's own path as today. **Its items:** (1) the rule above in the editor's load, with QA's two tests going
+red and their marks removed; (2) the same for the page's three steps; (3) a trace that a write still in flight when its design is loaded again ends on the
+stored copy; (4) that no extra request is made on a first load. *It stops if* the probe's answer cannot be told newer from older without a second
+request. **QA's two tests**, in `qa-8g-leave-while-waiting.adversarial.e2e.spec.ts`, are **marked expected to fail with this number as the reason**
+(`18a9f319`); they run on every run and go red the day the defect is fixed, until the mark is removed. *Tier:* Full. **Owner:** the architect's wave; before
+8T's gate; the owner is told.
+
+**GL-R4.1, in the same entry [reviewer, logic, `a72c3a82`; the coordinator's classing, to be confirmed by the architect when that wave is planned].** The
+same stale-page path exists for a failure's backoff, which the ruling left out by name: while design A's save keeps failing (its pending write re-armed
+every half second to eight), the customer makes a second design and comes Back to A without a full load. A is shown from the page's copy as saved, with no
+sentence; with an edit, `scheduleSave` clears the backoff and replaces the pending write with the screen's state, so the earlier edit is never sent and never
+shown as unsaved. It is 7E's rule, not made by 8G, and narrow (A's saves must fail for the many seconds it takes to open B while B's mint and first save
+succeed) [inf: read, not run]. *Smallest fix:* adopt any pending write of the design, not only one with a time (`save-coalescer.ts:242`). *Trigger:* a
+`conflict` or a customer's report after Back from a second design; otherwise it travels with this entry.
+
+## 169. The coalescer's two long functions and its one invariant kept in four places — RECORDED 2026-10-10 AT M8 8G's CLOSE — CLOSED 2026-10-12 BY M8 WAVE 8K2 S2 (`7b16568a`)
+
+**Closed [plan, relayed]:** the queue holds one wait (timer and the limit's time together); `scheduleSave` and `holdWriteForLimit` were 15 lines each as built at `7b16568a`. `holdWriteForLimit` was edited again in `7d282603` (one clock reading); its length now was not re-read by the scribe. The entry below is the original.
+
+**Source [clean-code GC-R3.10; the plan's 8G, *the second pass*].** `save-coalescer.ts`: `holdWriteForLimit` is 22 lines and `scheduleSave` 32 (the limit is
+20); and the queue's wait is two fields, `retryTimer` and `resumesAtMs`, whose invariant (*one timer, never both*) is kept by hand in four places. The reviewer's
+fix: extract the status report and the timer arming, and carry one `wait: { timer; resumesAtMs } | null` per queue. **Owner:** the next developer who touches
+that module. **Trigger:** its next change of behaviour.
+
+## 170. A save's deciding policy is named by a closure's side effect — RECORDED 2026-10-10 AT M8 8G's CLOSE
+
+**Source [clean-code GC-R3.7].** `judge-save-request.ts` reassigns `decidingPolicy` inside the second step's arrow before it is awaited, so the answer's policy
+depends on a side effect of a closure that `judgeInSequence` happens to call in order. The fix: each step answers `{ decision, policy }` and the caller takes
+the policy of the step that ended it. **Trigger:** a third step, which 8K's judge may be.
+
+## 171. `isSavePaused` is a type predicate about a pair and narrows only the time — RECORDED 2026-10-10 AT M8 8G's CLOSE — THE PREDICATE CLOSED 2026-10-12 BY M8 WAVE 8K2 S2 (`1087f45b`)
+
+**Closed in part [plan, relayed]:** `isSavePaused` is `pausedUntilMs(status, resumesAtMs): number | undefined`, asked once by the panel and the review. **The two nits:** S3's item 4 took them (`hydrate` is 13 lines as built, per the plan); whether taking a write and reading it became two functions was not re-read by the scribe, and the rename of `WaitingWrite` is backlog 184. The entry below is the original.
+
+**Source [clean-code GC-R4.1, should-fix, `a72c3a82`].** `isSavePaused(status, resumesAtMs): resumesAtMs is number` narrows only the second argument, so in the
+false branch the type system believes the time is `null | undefined` even when the status is idle and the time a number. Today no caller reads the time after
+the call. The fix: answer the time itself, `pausedUntilMs(status, resumesAtMs): number | undefined`. Also (nits): `hydrate` is about 30 lines (extract
+`shownStateFor`); `adoptWaitingWrite` answers a value and changes the queue. **Trigger:** the next change to those files.
+
+## 172. For the milestone-close test audit: 8G's renames blocked by `qa-*` pins, and the rest — RECORDED 2026-10-10 AT M8 8G's CLOSE
+
+**Source [the plan's 8G, *the second pass*; clean-code GC-R3.9 to GC-R3.11 and the nits; `coord-8g-review-clean.md`, `coord-8g-pass2-clean.md`,
+`coord-8g-passd-clean.md`].** GC-R3.9 (b) and (c) (`bucketKeyOfBlock` to `bucketKeyOf(secret, policyName, subject)`; `mintsCounted` to `hitsCounted`) are
+renames in test support blocked by two `qa-*` pins; QA left both to this audit. With them GC-R3.9 (a), GC-R3.11 (`tests/proxy-matcher.test.ts` reads the app
+tree and its title does not say so), the nits, the restated pairs, and the final re-check's: a pattern helper written twice in two e2e specs, the same comment five
+times in `qa-8g-leave-while-waiting`, and `qa-8g-test-runner-guard` restating `require-test-runner.test.ts` for four callers. **Owner:** the test audit.
+**Trigger:** the M8 close audit (ADR 0152, Amendment A).
+
+## 173. Step 1's first save refused reads as a plain failure — RECORDED 2026-10-10 AT M8 8G's CLOSE
+
+**Source [logic GL-R3.3; the plan's 8G, *the second pass*].** Step 1's first save, when refused by the limit, reads as a plain failure, and each *try again* is a
+refused hit; a design whose first save is still the provisional queue is given no wait on return. A named interim under the save's limit. **Trigger:** Q37
+answered (a).
+
+## 174. One cold-start timeout in Step 1's hand-off, seen once — RECORDED 2026-10-10 AT M8 8G's CLOSE
+
+**Source [developer-run, relayed; QA-run].** The first of QA's seven traces timed out once in Step 1's hand-off on a cold server, inside the shared helper
+`openEditorFromStepOne`; **not reproduced** in the file's four runs alone under `CI=1` and one whole run [QA-run]. The spec's own limit is 180 s where the config
+gives 120 s. **Owner:** none. **Trigger:** a recurrence.
+
+## 175. Calls at once under one id are each counted as a new request — RECORDED 2026-10-12 AT M8 8K's CLOSE
+
+**Source [QA R1, K-S2.1; the plan's 8K, *adjudication of QA*; ADR 0157].** Each call's lookup answers *absent* before either has recorded, so each counts a new
+request's buckets; the record then makes them one row [src `submit-contact.ts`, `aNewRequest`]. **Holds:** one row and one reference; no request lost, no false
+success. **Does not:** one request can spend two of a bucket, and a call arriving when its bucket is at its figure is told *limit* for a request its twin stores and
+sends; the same id tried again after the wait is answered the truth by the stored path. Bound: the network's hour. Every exact fix needs the calls of one id put in an
+order (a second lookup after a refusal; giving hits back; a claim on the id), each a new power in the limiter and each needing the security reader. **Owner:**
+8L carries the guard as two criteria of its form. **Trigger:** 8L cannot hold the one-request-in-flight criterion; or a customer is reported refused for a request the
+shop received; or the delivery milestone's hardening of the form, whichever is first. *Not proven:* that two messages under one key are one at the provider.
+
+## 176. The application has two price-book roots; they must become one before either names another book — RECORDED 2026-10-12 AT M8 8K's CLOSE
+
+**Source [the plan's 8K, *S5: the route composed what two invariants reserve*; ADR 0062 seam 1 (note 2026-10-12); ADR 0157 decision 8].** The browser's root and the
+server's `lib/server/shipped-price-book.ts` each name the same book. Changed alone, a customer would review one price and the shop would be sent another, and
+nothing would catch it. The one shared module is not built: moving the browser's ingress moves QA's pins (`qa-m6-wave-b-book-ingress`, `qa-8c-model-purity`) and is
+a change to the editor's price path. **Trigger:** before either root names another book (the manufacturer dashboard, ADR 0062).
+
+## 177. For the milestone-close test audit: 8K's restated pairs and remaining should-fix and nits — RECORDED 2026-10-12 AT M8 8K's CLOSE
+
+**Source [clean-code KC-R1.19; round-2 re-check at `8782ad17`, KC-R2.1 to KC-R2.3, reviewer-read, relayed].** KC-R1.19: literals restated (e.g. `"LM-00000000"` in
+`deliver-notice.ts:32`, `submit-contact-harness.ts:36`, `qa-8k-identity:45`), **the seventeen restated pairs**, and exports read only by tests; ruled the audit's, with
+K-S2.5's sentence. KC-R2.1: `apps/web/tests/lib/server/contact/contact-responses.test.ts:116`, a title that says more than the test asserts (it can fail; not a dead test; direction: "has
+13 answers and no code is used twice"); KC-R1.17 is therefore partial. KC-R2.2: `apps/web/tests/lib/server/rate-limit/contact-policies.test.ts:98` and `:103` name "Q39"
+in titles. KC-R2.3: noun-named functions in `submit-contact.ts` (`digestOf`, `countedAddressOf`, `storedOrPrepared`); in `tests/e2e/global-teardown.ts`, `summaryOf`
+defaults a twin missing from the map to zero. **Owner:** the test audit. **Trigger:** the M8 close audit (ADR 0152, Amendment A).
+
+## 178. Bytes that are not UTF-8 are stored and mailed as replacement characters — RECORDED 2026-10-12 AT M8 8K's CLOSE
+
+**Source [QA R2, K-S2.2; the plan's 8K, *adjudication of QA*].** `read-body-with-limit.ts:49`, used by the contact route, decodes without refusing. No browser sends such a
+body; what is stored is valid text; the save's route reads the same way. Refusing means a second way to read a body or a change to 8H's one definition of a request.
+**Trigger:** anything that reads a stored contact field as bytes, or the shared reader gaining a strict mode for another reason.
+
+## 179. Round-2 notes on the contact route's ports and the log's tests — RECORDED 2026-10-12 AT M8 8K's CLOSE
+
+**Source [round-2 re-checks at `8782ad17`, reviewer-read, relayed].** **KL-R2.1:** since `a2f0a95d` leaves are read eagerly when the ports are made throw, so one
+unreadable leaf of `ro.json`, even one the notice never uses, makes every contact request `503` with cause `unexpected` rather than `notice-unbuildable`
+(`contact-production-ports.ts:47-59`, `route.ts:80-89`); closed, nothing stored or sent; which leaves are eager is the reviewer's inference. **Trigger:** a
+`contact-request-unavailable` line with `unexpected` on every request after a catalogue change. **Direction:** a build-time test that the shipped catalogue resolves whole.
+**KL-R2.2 (security note 3):** A2's tests stop at the port; no test takes a real missing leaf through the notice builder to the `503`/`502`. **Security note 2:** on a stored
+request's retry a failed leaf is `502 CONTACT_NOTICE_NOT_SENT_RETRY` with `notice-unbuildable`, not the `503` the commit message of `a2f0a95d` implies (as ruled; criterion 8
+holds). **KL-R2.3:** the log tests mail failure kinds against the mail port's own list, equal to the removed copy today. **Trigger:** the first of the above to recur.
+
+## 180. `prepareSubmission` takes three arguments — RECORDED 2026-10-12 AT M8 8K's CLOSE
+
+**Source [clean-code; the plan's 8K KC-R1.11; round-2 re-check, "known recorded item"].** `prepare-submission.ts:38-42` takes request, payloadDigest and sources; callers
+`submit-contact.ts:193` and `:259`. The functions rule is two arguments at most; a named object would group them. **Trigger:** the next change to that function or its callers.
+
+## 181. Recorded notes of 8K's reviews that fix nothing now — RECORDED 2026-10-12 AT M8 8K's CLOSE
+
+**Source [the plan's 8K, *adjudication of QA* and *the three reviews*; ADR 0157].** **K-S2.3** (a judge's maker or a clock that throws would have been the framework's
+`500`, not the one `503`): taken in fix round A item 1 per the plan (`9fc941e6`). **K-S1.7 / KL-R1.1:** a deploy that changes a figure of a book and not its version is not
+caught by the digest; the digest covers the id, the revision and the book's version, not the pricing code, the catalogue or the notice's words, so a stored, un-notified
+request tried again across such a deployment is refused by the provider as another payload, or after its day is sent with lines that are not the stored row's; **trigger:**
+a deployment while a not-sent line is in the log (Q40: "(b) is exact within one deployment, (a) always"). **KL-R1.5:** a design that cannot be priced is answered *try again*
+each time; **trigger:** an `unexpected` cause in the log. **KL-R1.6:** the ports are made before the first count and nothing of the request is read to make them; recorded
+with M9's shield. **Backlog 170** (a save's deciding policy named by a closure's side effect) was the target of 8K's S1 item 5 (a step answers its decision and its policy);
+whether it is resolved was not re-read in code by the scribe.
+
+## 182. `pnpm ci:local`'s e2e step runs `next dev`, where the exact-read-count specs cannot hold — FOUND 2026-10-12 BY THE COORDINATOR AT M8 8K2's CLOSE; THE PUSH IS BLOCKED UNTIL THE OWNER ANSWERS Q42
+
+**Source [coordinator-ran, `18caaea4`; developer-ran; the config lines read by the scribe].** `pnpm ci:local` at `18caaea4`: every gate passed (format, lint, typecheck, domain 7746, persistence 2666 + 2 skipped, three-adapter 4284, web 8755, `e2e-shard-budget` with mobile in seven shards 95/80/91/79/88/102/65 against 125, build, boundary, lockfile, sca) **except the e2e step: 6 mobile specs failed (718 passed, 69 skipped), twice.** **Cause** [developer-ran: with `CI` unset 6 fail; with `reactStrictMode` off 12 pass; the trace shows two `GET`s 3 ms apart]: with `CI` unset the config boots `next dev` (`apps/web/playwright.config.ts:92-94`) and `scripts/local-ci.sh` sets no `CI`; React's strict mode runs the write-access probe's effect twice (`useWriteAccessProbe`, `hydrate-and-configure.tsx:58`), so `design-return-requests` and `qa-8k2-design-return`, which count reads exactly, cannot hold. **Production reads once.** The whole e2e under `CI=1` at `18caaea4`: 793 passed, 0 failed, 0 skipped, 10.1 minutes [coordinator-ran]. After `7d282603`: the whole web unit suite 8755 passed, typecheck exit 0, prettier clean, the three 8K2 e2e files under `CI=1` 14 passed [coordinator-ran]. **The full `ci:local` was not re-run at `7d282603`, and no `ci:local` run is green at or after the 8K2 code.**
+**Options, the owner's (Q42), not decided here:** (1) `scripts/local-ci.sh` runs the e2e step with `CI=1` (**recommended by the coordinator**); (2) the exact-count specs skip or relax on a dev server. *Note:* `best-practices/ci-and-local-gates.md` already records that `ci:local`'s e2e runs the dev server; (1) changes that. **Trigger:** Q42 answered; the push waits.
+
+## 183. One discriminated union in place of `resumesAtMs` and the optional `heldAs` — RECORDED 2026-10-12 AT M8 8K2's CLOSE
+
+**Source [clean-code reviewer, relayed].** Replace `resumesAtMs` plus the optional `heldAs` with one discriminated union (limit-wait / backing-off / queued / sent): `save-coalescer.ts:126`, `heldWriteOf`, `saveStateShownFor`. The queue's `failureTold` is a third place a held write's state lives. The lines that move: `save-coalescer.return.test.ts:110-114` and `:194-198`, the `heldAs` expectations of `save-coalescer.held-write.test.ts`, and `qa-8k2-failure-told.adversarial.test.ts:100`. **Owner:** the next developer of that module. **Trigger:** its next change of behaviour. The two-field shape was accepted at item 6 (ADR 0158 decision 3).
+
+## 184. Rename `WaitingWrite` to `HeldWrite` — RECORDED 2026-10-12 AT M8 8K2's CLOSE
+
+**Source [clean-code reviewer, relayed].** `WaitingWrite`, `adoptWaitingWrite`, `waitingWriteFor` and the local `waiting` name writes that do not wait. The rename touches QA-owned tests. **Owner:** with 183, or the test audit. **Trigger:** 183, or the M8 close audit (ADR 0152, Amendment A).
+
+## 185. The re-export `export { isGreaterRevision }` in `hydrate-and-review.tsx:65` exists only for a `qa-*` pin — RECORDED 2026-10-12 AT M8 8K2's CLOSE
+
+**Source [clean-code reviewer, relayed].** It is kept only for `tests/app/qa-8d-revision-order.adversarial.test.ts:7`; the function lives in `store/revision-order.ts`. QA repoints the test to the new path, then the re-export is deleted. **Owner:** QA, then the next developer. **Trigger:** the M8 close audit (ADR 0152, Amendment A), or QA's next touch of that file.
+
+## 186. A held write that has outlived its limit wait still shows its past time until the next `runSave` — RECORDED 2026-10-12 AT M8 8K2's CLOSE
+
+**Source [logic reviewer, finding 1, minor, relayed].** The same family as the recorded *paused until T* whose time has passed while the write waits behind another design's request (8G's sentence, older than 8K2). **Trigger:** Q38 answered, or a customer told a time that had passed.
+
+## 187. No test drives `HydrateAndReview` with a held write in each of the four states — RECORDED 2026-10-12 AT M8 8K2's CLOSE
+
+**Source [reviewers and the plan's point 4, relayed].** The review's half of 8K2's criterion 14 (the review in the state it is in when reached from the editor with that write in that state) was left out of QA's sweeps and is read, not run. **Owner:** wave 8L, with criterion 14. **Trigger:** 8L's dispatch.
+
+## 188. 8K2's recorded limits and reports — RECORDED 2026-10-12 AT M8 8K2's CLOSE
+
+**Source [the plan's 8K2 section and *as closed*; ADR 0158].** **K2.4's report:** the branch for a newer generation (`adoptNewerGeneration`) is reached in the application by nothing with a write held; seven tests that drive the coalescer directly reach it [developer-ran, relayed]. It stays; deleting it is an entry in ADR 0123's form. **Trigger:** a deletion proposed with its seven tests. **L1:** the older copy on the screen, locked, until the answer; measured 49 to 64 ms [QA-run, relayed]. **Trigger:** Q41 answered (b) or (c), or a measured time past one second. **L5:** while a request of this tab is out, another writer's newer copy is not shown; the `409` says it. **Trigger:** Q35's wave, or a customer's conflict they cannot place. **L6:** a design left while its save stands refused has its unsaved edit on the screen only; returning shows the stored one. **Trigger:** a customer's report of work lost after a conflict. **A frozen tab on a real phone:** not run; goes to 8T's phone gate as a line. **QA's two sweeps** (93 s and 106 s in the unit suite at round 2, then cut to a stated share with a floor per arm, the whole enumeration under `QA_8K2_WHOLE_SWEEP=1`): whether that form is kept is the M8 close audit's.
+
+## 189. A malformed percent-escape in a path answers 500, not 400 — RECORDED 2026-10-12 AT M8 8L's CLOSE (security F4)
+
+**Source [security reviewer, relayed; the scribe read nothing of the code].** `/ro/d/%E0%A4%A`, `/ro/s/…` and `/%E0…` answer **500** where a client error is right. next-intl returns `NextResponse.next()` without the nonce headers, so it is framework-wide, **predates 8L**, and leaks nothing. **Optional fix:** the proxy rejects a malformed escape with 400 before next-intl. **Trigger:** a proxy change, or M9's hardening.
+
+## 190. `usePriceBookVersion()`, a version-only reader — RECORDED 2026-10-12 AT M8 8L's CLOSE (F5)
+
+**Source [reviewer, relayed].** `contact/use-contact-submission.ts` needs only the book's version but sits on the price allow-list. A hook that returns the version alone would take it off the list. **Trigger:** the next change to the hook or the allow-list.
+
+## 191. 8L's clean-code deferrals — RECORDED 2026-10-12 AT M8 8L's CLOSE
+
+**Source [clean-code reviewer, relayed].** (1) A shared `HydrateStoredDesign` **when a third door appears** (two exist). (2) `use-contact-submission` reads the store through `getState`; pass a snapshot through `PressContext` instead. (3) **Not read in depth by the clean-code reviewer:** `contact-form.tsx` (531 lines), `contact-form-model`, `contact-answer`, `contact-request-identity`, `contact-outcome` (the line count is the coordinator's). **Owner:** the milestone test audit (ADR 0152 Amendment A) and 8T for (3). **Trigger:** the third door; the next change to the hook.
+
+## 192. The locale switcher is 25 px high — RECORDED 2026-10-12 AT M8 8L's CLOSE
+
+**Source [visual review, relayed].** Under the 44 px touch target; likely inherited from the mockup. **Owner:** the human, at the hand check; 8T's phone gate.
+
+## 193. 8L's earlier deferred items, carried — RECORDED 2026-10-12 AT M8 8L's CLOSE
+
+The discriminated-union hand-over type (**183**); `WaitingWrite` to `HeldWrite` (**184**); the security reviewer's F2 and F6, optional hardening (text in the security report; not re-read by the scribe). Triggers as recorded there.
+
+## 194. 8L's unproven list — RECORDED 2026-10-12 AT M8 8L's CLOSE
+
+**[relayed].** Real on-screen keyboard and real autofill (**8T's phone line**); a real `422` through the browser (only dom tests cover the does-not-fit screen); a send in flight when the customer leaves (accepted, ADR 0159 d2; 8M); e2e mutants not run (ADR 0155), one no-JS mutant ran against the callback page, which touches no database; about four leftover **test**-database rows from the visual verifier, ids unknown, nobody removes them (ADR 0151); one unexplained desktop flake, seen once, `u-gate-journeys.ts:374` (U7 S2), passed alone and on rerun. Also: the plan's point 9 repin list was incomplete (`qa-8d-review-scene.adversarial.e2e:378`, exit link count 2 to 1; `qa-8d-review-door.adversarial.e2e:362`, contact route 404 to 200); recorded in ADR 0159. Whether backlog 187 is closed was not verified by the scribe.
+
+*Dated note, 2026-10-13 (8M's scribe; not verified): the 8M close could not confirm that 187's criterion 14 (b) table landed, so **187 stays open**; the next audit or reviewer who reads `HydrateAndReview`'s tests closes it or says what is missing. 193's security F2 and F6 text is in the 8L security report, which the 8M scribe was not given and did not read; the entry still says only "optional hardening".*
+
+## 195. A whole-run e2e failure that passes alone: `qa-8d-review-scene.adversarial` line 189, the pixel-change test — RECORDED 2026-10-13 AT M8 8M's CLOSE
+
+**Source [coordinator-ran, relayed].** In the whole `CI=1` e2e at `68cadbbe` (923 passed, 1 failed) this test measured 32757 changed pixels against a bound of at most 60; it passed 3 of 3 run alone. Read as load-dependent; **not proven**. **Trigger:** a second occurrence, or the M8 close audit (ADR 0152). Not on the list of three known intermittents in `ci-and-local-gates.md`.
+
+## 196. No index serves `findSentReference`'s query — RECORDED 2026-10-13 AT M8 8M's CLOSE (security note)
+
+**Source [security reviewer, relayed].** The read selects by design id and revision where `notified_at is not null`; the table has no index for it. Harmless at the present volume. **Remedy:** an **additive** migration if leads grow; **never an edit of `0008`**. **Trigger:** a slow `/done`, or contact requests numbering in the thousands.
+
+*Dated note, 2026-10-14, at 8M2's close:* the design contact page is now a second caller of this read (ADR 0163 decision 5, Amendment A, A8). The trigger gains **a slow `/contact` or `/done`, and any `deadline` line** from this read. **The 300 ms deadline fired once in a whole e2e run** [relayed by the coordinator; see 240], so the trigger has been seen once. The deadline bounds the page's wait, not the database's work, and the scan is bounded by the interceptor's page limit only where a network source is named.
+
+*Dated note, 2026-10-14, owner's decision (b):* the contact page's read deadline is raised from 300 ms to 2000 ms (`CONTACT_PAGE_READ_DEADLINE_MS`; ADR 0160 d5 note). CI run 38574379483 showed the 300 ms deadline firing on a loaded runner, so a customer who had already sent saw a fresh form. The missing index is unchanged; the `deadline`-line trigger above still applies.
+
+## 197. The sent request's typed phone or e-mail stays in tab memory until a reload or the next design form — RECORDED 2026-10-13 AT M8 8M's CLOSE (security note)
+
+**Source [security reviewer, relayed].** ADR 0160 decision 4; not a defect by the plan's ruling (8M.2). **Optional hardening:** clear the entry when the done screen unmounts (a language switch or Back then Forward would then lose the number on 5A, which 8M.2 chose to keep). **Owner:** the architect, with the owner if the trade is wanted.
+
+## 198. An import cycle between `contact/` and `done/` — RECORDED 2026-10-13 AT M8 8M's CLOSE (clean-code)
+
+**Source [clean-code reviewer, relayed].** `ChannelSummary`, `ResultHeading` and `ReviewLink` are shared by both folders. **Remedy:** move them to a neutral module. **Trigger:** the next change to either folder, or the M8 close audit.
+
+*Dated note, 2026-10-14, at 8M2's close [relayed by the coordinator]:* `SentReferenceAnswer` lives in `@/done/result-to-show` and is used from the contact side, so the cycle gains a type that belongs in the same neutral module. Same remedy and trigger.
+
+## 199. Comments that cite plan numbers, and long file headers — RECORDED 2026-10-13 AT M8 8M's CLOSE (clean-code)
+
+**Source [clean-code reviewer, relayed].** Comments naming `8M.3` and similar, and headers longer than ADR 0136 allows. **Remedy:** the comment diet of ADR 0136. **Trigger:** the M8 close audit.
+
+## 200. 8M's long hooks and components, near-duplicates and names — RECORDED 2026-10-13 AT M8 8M's CLOSE (clean-code)
+
+**Source [clean-code reviewer, relayed].** `useContactSubmission` and `WhatsappActionControl` are long (the latter should become a hook plus a component); two `*BackLink` components are near-duplicates; naming: `PhaseBesideForm.kind: failed`, and `isUnanswered` against `hasUnansweredSend`. **Trigger:** the next change to those files, or the M8 close audit.
+
+## 201. A visible focus ring on the `h1` after a reload or in the no-request view — RECORDED 2026-10-13 AT M8 8M's CLOSE (visual)
+
+**Source [visual reviewer, 390 x 844, relayed].** The programmatic focus of 8M.12 draws a ring that is conspicuous on touch. **Remedy:** a decision on `:focus-visible` for a programmatically focused heading. **Owner:** the human, at the hand check or 8T.
+
+## 202. The no-request view's heading looks unstyled against 5A — RECORDED 2026-10-13 AT M8 8M's CLOSE (visual)
+
+**Source [visual reviewer, relayed].** It wraps over three lines and has no check mark and no back link, unlike 5A. No frame draws this view (8M.6 case 3). **Owner:** the human, with the copy approvals.
+
+## 203. The interim line's look, and its wording for an already-sent request — RECORDED 2026-10-13 AT M8 8M's CLOSE (visual, logic)
+
+**Source [visual and logic reviewers, relayed].** Between the `200` and `/done`, `contact.sendingLine` (QA's F1 fix) is a small grey 12 px sentence on an otherwise blank page; no mockup frame draws it. The logic reviewer finds the words wrong for a request already sent and recommends **a new leaf `contact.leavingLine`**, ro *"Se deschide confirmarea…"*, ru *"Открываем подтверждение…"*. **Not added: the owner approves copy.**
+
+## 204. Contrast of the 10.5 px *Număr cerere* label is unmeasured — RECORDED 2026-10-13 AT M8 8M's CLOSE (visual)
+
+**Source [visual reviewer, relayed].** Not measured. **Trigger:** 8T, or the hand check. Also seen: *Copiat* sits beside *Copiază* for two seconds; the offline line is far from the retry.
+
+## 205. WhatsApp action: no spoken *busy* leaf, and the *go on* label reuses `share.reissue` — RECORDED 2026-10-13 AT M8 8M's CLOSE
+
+**Source [8M's reviews, relayed; the exact finding text was not given to the scribe].** The action has no spoken *busy* state of its own, and its *go on* label reuses `share.reissue`. **Owner:** the copy approval (a new leaf is a copy decision). **Trigger:** the owner's copy pass.
+
+## 206. 8M's logic notes: F2, F3, the not-sent wording, revision drift — RECORDED 2026-10-13 AT M8 8M's CLOSE
+
+**Source [logic reviewer, relayed].** **F2:** an `online` event spent on an in-flight retry that then gets no answer leaves 5B's note promising an automatic retry that will not come; acceptable, no timer; **8T's phone gate gains a line.** **F3:** after a reload of `/done` the WhatsApp action is absent (`canWrite` is *checking*), as criterion 18 reads; a product gap; passing `canWrite: true` from the `/done` hydrator needs a dated amendment (**owner question**). The not-sent sentence is told for every answered failure, including a `200` whose body was lost (the owner may want it softer). After a second-tab save `/done` shows the no-request view, by design.
+
+## 207. Addresses whose last segment looks like a file answer a `404` with no CSP — RECORDED 2026-10-13 AT M8 8Q's CLOSE — LOW
+
+**Source [8Q S1 and QA, relayed].** `/ro/zz.png`, `/ro/configurator/zz.svg` and `/_next/static/zz.js` answer `404` `text/html` and carry no `Content-Security-Policy`, because the `proxy.ts` matcher skips a last segment with an extension. The flip does not change it, and the body is a text-only not-found (ADR 0161 decision 6 recorded it). **Remedy:** narrow the matcher, or a static restrictive policy through `next.config` `headers()` that excludes the design and share paths. **Severity:** Low. **Trigger:** the next change to `proxy.ts`, or M9.
+
+## 208. `/ro/%` answers `500` — RECORDED 2026-10-13 AT M8 8Q's CLOSE
+
+**Source [8Q QA, relayed; not diagnosed].** A malformed percent-escape as the only segment under a locale answers `500`. **Trigger:** the next change to routing or the catch-all.
+
+## 209. F5: the `proxy.ts` matcher and the request body size — RECORDED 2026-10-13 AT M8 8Q's CLOSE (security)
+
+**Source [security reviewer, relayed; the finding's text was not given to the scribe beyond its label].** Recorded as F5 against the matcher of `proxy.ts` and the body size of the report route (8 KiB, read on the stream, ADR 0161 decision 2). **Trigger:** the next change to `proxy.ts`, or M9.
+
+## 210. F6: a database write per refused CSP report request — RECORDED 2026-10-13 AT M8 8Q's CLOSE (security)
+
+**Source [security reviewer, relayed].** Every correctly-typed `POST` is a counter write, a `429` included (ADR 0161 Amendment B, point 1), so a flood of refusals is one write each. **Remedy, optional:** an `Origin` pre-check before counting (ADR 0161 declined an `Origin` gate; this would reopen it as a cost cut, not as authentication), and a firewall rule in M9 (ADR 0019 d2). **Trigger:** M9, the host.
+
+## 211. A cold-start `503` flake in the mint and contact specs — RECORDED 2026-10-13 AT M8 8Q's CLOSE (QA)
+
+**Source [8Q QA, relayed].** Five specs of the mint and contact families fail with a `503` on a cold server in a whole run and pass alone. Not diagnosed beyond that. **Trigger:** a second occurrence, or the M8 close audit (see backlog 195).
+
+## 212. The `csp-report-limited` line is memoised per instance — RECORDED 2026-10-13 AT M8 8Q's CLOSE
+
+**Source [ADR 0161 F1].** The once-an-hour memo is one module-level number, so a host running several instances writes one line per instance an hour. **Trigger:** M9, once the host and its instance count are known.
+
+## 213. A report's `origin` may read `foreign` behind a TLS terminator — RECORDED 2026-10-13 AT M8 8Q's CLOSE
+
+**Source [inference, ADR 0161 F2].** `origin` compares the report's `document-uri` origin with `new URL(request.url).origin`; behind a terminator the request's own scheme may differ. **Falsified by:** a real report on the real host reading `own`. **Trigger:** the first deployment that carries the flip; 8T's TLS host check.
+
+## 214. The domain package declares no `sideEffects` field — RECORDED 2026-10-13 AT M8 8Q's CLOSE
+
+**Source [8Q review, relayed].** `packages/configurator-domain/package.json` has no `sideEffects` field. Adding `"sideEffects": false` would let a bundler skip `zod-without-eval.ts`, whose only job is its module-scope `z.config({ jitless: true })` (ADR 0161 decision 9). **Rule until then:** do not add it, or list that file. **Trigger:** anyone touching that field.
+
+## 215. The unmatched-address sweep exempts more than the matcher skips — RECORDED 2026-10-13 AT M8 8Q's CLOSE (QA)
+
+**Source [8Q QA, relayed].** The sweep spec exempts any last segment matching `/\.[A-Za-z0-9]{1,8}$/`, broader than `proxy.ts`'s matcher, so an address the matcher covers could slip the sweep. **Trigger:** with backlog 207.
+
+## 216. The lint rule against a direct `"zod"` import misses a dynamic `import("zod")` — RECORDED 2026-10-13 AT M8 8Q's CLOSE
+
+**Source [8Q review, relayed].** ADR 0161 decision 9's rule refuses a static import elsewhere under the domain's `src/`; a dynamic `import("zod")` is not caught. **Trigger:** the next change to that lint rule.
+
+## 217. The summary-card thumbnail is a striped placeholder on a fresh design — RECORDED 2026-10-13 AT M8 8Q's CLOSE (visual) — LOW, UNVERIFIED
+
+**Source [8Q's light visual check, 390×844, relayed by the coordinator].** An observation, **not verified as a defect**: it may be the intended empty state. Not checked against the mockups. **Trigger:** 8T's visual reading.
+
+## 218. The ru top-bar title truncates to "Конфигур…" at 390 px — RECORDED 2026-10-13 AT M8 8Q's CLOSE (visual) — LOW, UNVERIFIED
+
+**Source [8Q's light visual check, 390×844, relayed by the coordinator].** An observation, **not verified as a defect**: the width of the ru string against the mockup was not compared. **Trigger:** 8T's phone gate, Russian.
+
+## 219. The CSP report sink becomes a table in our own database — OWNER RULED 2026-10-13 (Q46 = (c)), NOT BUILT; SCHEDULED IN WAVE 8Q2
+**Update, 2026-10-13, later [coordinator, relayed]: scheduled in wave 8Q2, in M8 before 8T, which overrides the M9 trigger below.** Plan `docs/milestones/8Q2-csp-report-table.md`; ADR 0162 (Proposed). The cap is 10,000 reports with no age delete and the log line kept (Q50 to Q54, defaults). The text below is kept as recorded.
+
+**Update, 2026-10-14, at 8Q2's close [scribe]: built.** ADR 0162 is Accepted (Amendment A) and ADR 0161 has Amendment C; the cap, the writer mark and the runbook shipped. **Still open, owner actions:** `0009` and its two grants on preview and production (applied on the test database only). Leftovers from the build are 228 to 233.
+
+**Source [owner's ruling, relayed by the coordinator].** The owner's reason: the host may not end up on Vercel, so the server log is not a durable sink. 8Q built (a), the log ([ADR 0161](../decisions/0161-the-csp-enforces-its-violations-reach-the-applications-own-counted-endpoint-and-the-mode-stays-one-versioned-constant.md)); this replaces or supplements it. **What it needs:**
+- a **migration and a grant**, both **owner actions**; env vars and provisioned resources stay add-only (ADR 0155's rules; `docs/best-practices/environments-and-resources.md`), and a new migration never edits an applied one;
+- **a dated amendment to ADR 0161 when built** (decision 2's *"nothing is stored but the limiter's counter"* and decision 3 change);
+- **a retention and size cap, undecided.** No table in this project has a retention horizon by default (ADR 0019 d7's retirement), so a report table needs its own bound, or a flood of reports grows it without limit; the limiter's 100 an hour per network block bounds the rate, not the total;
+- **the sink keeps its reduced closed-value record shape** (decision 3): nothing personal, no `document-uri`, no address, no user agent. Also decide what the `origin` field's unauthenticated status (Amendment B) means for rows read later.
+**Owner:** the human, for the migration and the grant; the architect, for the cap. ~~**Trigger:** M9, when the host is chosen.~~ **Trigger:** wave 8Q2.
+
+## 220. H1 — the contact answer's unreadable-wait 60 s is pinned only against its own constant — RECORDED 2026-10-13 BY THE M8 TEST AUDIT (held)
+
+**Source [audit, `docs/test-audits/2026-10-13-m8-review-contact-success.md`, H1].** `contact-answer.ts:84` `UNREADABLE_CONTACT_WAIT_SECONDS = 60` to `61`: the whole web suite stayed green, though the mapping itself is guarded. No dated decision in ADR 0157, 0159 or the plan fixes 60 s. **Needs:** a ruling that 60 s is required, and then a pin (ADR 0152 decision 1.4), which would make it a fourth "cannot fail" row. **Trigger:** the next audit, or that ruling.
+
+## 221 to 227. Unguarded behaviour noticed by the M8 test audit — RECORDED 2026-10-13 (not test findings)
+
+**Source [audit, section *Unguarded behaviour noticed*; each is a production line nothing reddens, for the coordinator's choice].** One backlog number per row of that table, in its order:
+- **221.** `lib/server/contact/prepare-submission.ts:88` (`NO_CABINET` branch inverted; a design with no cabinet should be refused as "not current", 409, and no web unit test reaches it) and `:90` (`PRICING_VERSION_MISMATCH` mapped to the wrong cause; unreachable in the tests behind `requireTheBooksVersion`).
+- **222.** `lib/server/contact/submit-contact.ts:303` (`channel === "email" && email !== undefined`, `&&` to `||`).
+- **223.** `lib/server/contact/contact-log.ts:54,195,196` (the HTTP status bounds 100 and 599 made exclusive; the test pins 0, 99 and 600, never a kept 100 or 599).
+- **224.** `lib/server/rate-limit/chisinau-day.ts:13,66,109`, `enforce-rate-limit.ts:138-139`, `prune-rate-limits.ts:130` (the second offset-correction pass, the unreadable-clock-part guard, the timer-deadline bounds, the prune's day step).
+- **225.** Seven sites whose mutants survived a related run only (373 to 4,538 tests) and were not re-run against the whole suite: `contact/retry-when-online.ts:63`, `contact/contact-form.tsx:510`, `review/*prefetch={false}` (3 files; only the contact and done directories are scanned), `review/review-scene.tsx:20`, `i18n/content.ts:345`, `app/configurator/configure/use-back-guard.ts:38`, `store/apply-command-result.ts:140`.
+- **226.** `lib/server/rate-limit/client-network.ts`: `LONGEST_ADDRESS_TEXT` (45, 46) is dead code (no text above 45 characters can parse); the head of a compressed address and `isTextOfBlockKind`'s `typeof` guard are cases the truth table lacks.
+- **227.** `scripts/gates/boundary.sh`: a `git grep` failure (exit above 1) is treated as clean; `boundary.test.mjs` never makes `git grep` fail.
+**Trigger:** the next audit, or a change to any of those files.
+
+## 228. A whole-run e2e failure that passes alone: `global-colour.e2e.spec.ts` lines 208 and 230, `storedColour` read empty — RECORDED 2026-10-14 AT M8 8Q2's CLOSE
+
+**Source [coordinator-ran, relayed].** In the whole `CI=1` e2e at 8Q2's close (1024 passed, 2 failed) these two tests read an empty `storedColour`; both passed 7 of 7 run alone. Read as load-dependent; **not proven**. **Trigger:** a second occurrence, or the M8 close audit (ADR 0152). Same style as 195.
+
+## 229. The live pattern differential costs 28 s per persistence live run — RECORDED 2026-10-14 AT M8 8Q2's CLOSE (QA note)
+
+**Source [QA, relayed].** The differential over all Unicode scalars (read-only selects on the test database) takes about 28 s each time the persistence live tests run. **Trigger:** the live run becomes the slow gate, or a persistence run is split by speed.
+
+## 230. Second-server report rows are bounded only by the sink spec — RECORDED 2026-10-14 AT M8 8Q2's CLOSE (QA note)
+
+**Source [QA, relayed].** The rows that QA's second servers store are bounded only by what the sink spec sends (the teardown removed the 9 second servers' 131 rows by writer mark). **Trigger:** a spec that starts a second server and sends more reports.
+
+## 231. `requireValidCspReportPlacement` and its three QA-owned cases could be deleted outright — RECORDED 2026-10-14 AT M8 8Q2's CLOSE (QA edit)
+
+**Source [QA, relayed].** The function stays internal (ADR 0162 Amendment A, point 9); nothing outside it needs it, so it and its three cases could go. **Trigger:** the next change to the store's validation, or the next audit.
+
+## 232. Four persistence live files fail at collection when every database variable is blanked — RECORDED 2026-10-14 AT M8 8Q2's CLOSE (QA note)
+
+**Source [QA, relayed].** The failure comes from `neon('')` in a `describe` body: a pre-existing pattern, not new in 8Q2. **Trigger:** a change to how the live files read their environment, or the next audit.
+
+## 233. The `lock_timeout` of the store is not tested with a real contending lock — RECORDED 2026-10-14 AT M8 8Q2's CLOSE
+
+**Source [coordinator, relayed].** The 1000 ms `lock_timeout` and 2500 ms `statement_timeout` (ADR 0162 Amendment A, point 1) have no test that holds the cursor row lock from a second connection and watches the store give up (the coordinator's list; how they are pinned today was not read here). **Trigger:** a change to the store, or the next audit.
+
+## 234. `contact_submissions` rows leak on the test database: one `ro` and one `ru` row per multi-spec e2e invocation — RECORDED 2026-10-14 AT M8 8M2's CLOSE
+
+**Source [relayed by the coordinator; the scribe ran nothing].** Each e2e invocation that runs more than one spec leaves one `ro` and one `ru` contact row on the test database. **The spec that writes them is not known.** Pre-existing, not new in 8M2; **30 rows** were counted [relayed; the query was not given to the scribe]. Not removed (ADR 0151). **Owner:** the human may clear them; the finding of the spec is open. **Trigger:** the next teardown change, or the M8 close audit. Same class as the writer-mark teardown of 8Q2 (ADR 0162 Amendment A, point 6).
+
+## 235. The launch gate refuses only the exact placeholder, and `deploy.yml`'s gate is not Vercel's — RECORDED 2026-10-14 AT M8 8M2's CLOSE
+
+**Source [relayed by the coordinator].** `isLaunchReadyShopPhone` is false only for `+37300000000` and for a value that is not its own accepted normal form; **any other valid number passes**, so a wrong real number is not caught by the gate (ADR 0163 decision 2). The production-only step in `deploy.yml` runs in a workflow that is manual and inert; **Vercel's Git integration is the real deploy path** [doc: ADR 0163 decision 2, from the workflow's header]. **The launch checklist line (`pnpm gate:launch-placeholders` exits 0, quoted) is therefore the operative gate.** **Trigger:** the owner gives Q3's number, or the M9 host is chosen.
+
+## 236. `deploy.yml` F1 (Low): the gate step runs build tools with `MIGRATION_DATABASE_URL` in its environment — RECORDED 2026-10-14 AT M8 8M2's CLOSE
+
+**Source [review finding, relayed by the coordinator].** The gate step runs build tools while `MIGRATION_DATABASE_URL` is in its environment. **Remedy proposed:** a separate job with no secrets for the gate. **Owner: not yet answered.** Nothing changed (add-only rule for environments). **Trigger:** the owner's answer, or the workflow being switched on.
+
+## 237. Romanian leaf `panel.accessUncheckableNotice` has a typo, "poți modifică" — RECORDED 2026-10-14 AT M8 8M2's CLOSE
+
+**Source [relayed by the coordinator].** The text reads *"poți modifică"*. **The fix needs the owner's sign-off** (copy is the owner's to approve). **Trigger:** the next copy round.
+
+## 238. The already-sent `h1` is 22 px against the frame's 24 px, and its focus ring touches the glyph edges — RECORDED 2026-10-14 AT M8 8M2's CLOSE (visual)
+
+**Source [coordinator visual check, relayed; emulated Chromium at 390 x 844].** The size was judged fine in the check. On the 22 px heading the programmatic focus ring touches the glyph edges (cosmetic). Related to 201. **Owner:** the human, at the hand check or 8T.
+
+## 239. The register test is a word list plus a suffix advisory — RECORDED 2026-10-14 AT M8 8M2's CLOSE
+
+**Source [relayed by the coordinator; the fix-up `b25847f2` subject names a "suffix register check"].** The *tu* / *ты* test (ADR 0163 decision 10) holds a per-language list of explicit formal tokens and a suffix **advisory**, not a proof. A formal form outside the list passes. **Trigger:** a formal word found in shipped copy, or the copy re-sign.
+
+## 240. The contact page's 300 ms read deadline fired once in a whole e2e run — RECORDED 2026-10-14 AT M8 8M2's CLOSE
+
+**Source [coordinator, relayed; which spec and which run were not given to the scribe].** In a whole e2e run the deadline of ADR 0163 Amendment A (A8) fired once, so one test saw the form where it expected the view (plan risk 10 predicted exactly this). The figure is **not loosened**; a change of the figure is a dated amendment. It is also a trigger for 196. **Trigger:** a second occurrence, a `deadline` line from a real host, or a slow `/contact`.
+
+## 241. One very long unbroken Russian word was not verified visually — RECORDED 2026-10-14 AT M8 8M2's CLOSE (visual)
+
+**Source [coordinator, relayed].** The review fix-up made the already-sent heading wrap long words (`b25847f2`, subject). A single very long unbroken Russian word was **not** looked at in a browser. **Owner:** 8T or the hand check.
+
+## 242. Not verified visually in 8M2: the phone and e-mail done-screen variants, and the keyboard open — RECORDED 2026-10-14 AT M8 8M2's CLOSE (visual)
+
+**Source [coordinator, relayed].** The visual check covered the screens listed in the 8M2 close. The *Telefon* and *E-mail* variants of the done screen and any screen with the on-screen keyboard open were not seen. **Owner:** 8T, on a real phone.

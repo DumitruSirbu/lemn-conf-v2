@@ -9,7 +9,7 @@ const LEMNARIA_CREATE_DESIGN_LOCK = "lemnaria:create-design";
 
 /** How long a mint waits to acquire the lock before proceeding unlocked. A peer still holding it
  *  after this long has almost certainly failed; this bounds only the wait, never the winner's request. */
-const LOCK_ACQUIRE_TIMEOUT_MS = 10_000;
+export const LOCK_ACQUIRE_TIMEOUT_MS = 10_000;
 
 /** The one shape this module needs from `navigator.locks`, declared structurally so a test can fake it. */
 interface LockRequester {

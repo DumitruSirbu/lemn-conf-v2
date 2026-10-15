@@ -41,26 +41,25 @@ export const TARGET_MINUTES_PER_SHARD = 30;
 
 /**
  * Shards per project. Must equal `strategy.matrix.total` of the matching job in ci.yml; the guard
- * reads the workflow and fails if they differ. Mobile needs four because three shards put 138 tests
- * on the largest one, over its budget of 125.
+ * reads the workflow and fails if they differ. Mobile needs eight: four left its third shard exactly
+ * at the budget of 125 (123/120/125/114), five put 135 on its second because a shard is whole files, and
+ * M8 8K2's specs put 133 on the fourth of six, and 8M's `qa-8m-*` specs put 133 on the fourth of seven.
  */
-export const SHARDS_PER_PROJECT = { desktop: 3, mobile: 4 };
+export const SHARDS_PER_PROJECT = { desktop: 3, mobile: 9 };
 
 /**
- * A ceiling above the derived budget, for a project whose largest *file* is bigger than the budget.
+ * A ceiling above the derived budget, for a project whose shards cannot all fit under it.
  *
- * `fullyParallel` is false, so Playwright never splits a file across shards and no shard count can
- * bring that file under the budget. `room-desktop-line.desktop.e2e.spec.ts` alone holds 69 desktop
- * tests against a derived budget of 66, and the largest shard is 70 (that file plus one other test).
- * The ceiling is today's largest shard, so it stops the suite growing further and lets the tree
- * pass; it does not declare 70 tests acceptable. It only ever comes DOWN: lower it as that file is
- * split, and delete the entry once the derived budget is enough.
+ * `fullyParallel` is false, so Playwright shards by whole file. No single file is over the budget
+ * any more (the largest desktop file holds 37 tests), but the largest desktop shard is 67, one over
+ * the derived budget of 66, because a shard is whole files. The ceiling is today's largest shard: it
+ * stops the suite growing and lets the tree pass, and does not declare 67 tests acceptable. It only
+ * ever comes DOWN; delete the entry once the derived budget is enough.
  *
- * That file is cheap: measured locally (2026-09-30) its 69 tests took 0.5 minutes, 0.4 s a test
- * against 5.1 s a test across the desktop project, so the count overstates what it costs. The
- * budget is a count and the count is a proxy; ci-and-local-gates.md records where it misleads.
+ * The budget is a count and the count is a proxy for time; ci-and-local-gates.md records where it
+ * misleads.
  */
-export const RATCHETED_CEILINGS = { desktop: 70 };
+export const RATCHETED_CEILINGS = { desktop: 67 };
 
 const PROJECTS = Object.keys(SHARDS_PER_PROJECT);
 const MAX_SHARDS_TRIED = 16;

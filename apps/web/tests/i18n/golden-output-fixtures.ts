@@ -52,7 +52,13 @@ import correctedRomanian from "../../src/messages/ro.json";
 import { catalogueLeaves } from "../support/catalogues";
 import { ro as romanianContent } from "../support/romanian-content";
 
-export type GoldenFixtureGroup = "content" | "rejection" | "catalog" | "room";
+export type GoldenFixtureGroup =
+  | "content"
+  | "rejection"
+  | "catalog"
+  | "room"
+  | "review"
+  | "contact";
 
 export interface GoldenFixture {
   readonly id: string;
@@ -113,7 +119,7 @@ function requiredFixtureValue<T>(value: T | undefined, id: string): T {
 const BASE_BAND_WORD = romanianContent.panel.bandWords.base.one;
 
 /**
- * The 24 function-valued content families. The gate compares this declaration to a runtime walk of
+ * The 32 function-valued content families. The gate compares this declaration to a runtime walk of
  * resolved Romanian content, so a newly introduced function cannot silently miss the oracle.
  */
 export const CONTENT_FUNCTION_FAMILIES = [
@@ -125,6 +131,7 @@ export const CONTENT_FUNCTION_FAMILIES = [
   "panel.noOffersTooWide",
   "panel.noOffersTooNarrow",
   "panel.offerSize",
+  "panel.savePausedNotice",
   "panel.handleDefaultNote",
   "panel.widthValue",
   "price.amountWithCurrency",
@@ -141,6 +148,12 @@ export const CONTENT_FUNCTION_FAMILIES = [
   "globalSettings.pillHardware",
   "globalSettings.pillDepth",
   "globalSettings.pillNameAllSettings",
+  "leadNotice.subject",
+  "leadNotice.line",
+  "leadNotice.figure",
+  "submissionResult.channelLine",
+  "submissionResult.whatsappMessageToShop",
+  "submissionResult.alreadySentAdvice",
 ] as const;
 
 export const FUNCTION_CONTENT_FIXTURES: readonly GoldenFixture[] = [
@@ -233,6 +246,14 @@ export const FUNCTION_CONTENT_FIXTURES: readonly GoldenFixture[] = [
       `${String(widthMm)}x${String(heightMm)}`,
       () => romanianContent.panel.offerSize(widthMm, heightMm),
       () => translate("panel.offerSize", { widthMm, heightMm }),
+    ),
+  ),
+  ...["14:05", "00:00"].map((time) =>
+    contentFixture(
+      "panel.savePausedNotice",
+      time,
+      () => romanianContent.panel.savePausedNotice(time),
+      () => translate("panel.savePausedNotice", { time }),
     ),
   ),
   ...(
@@ -452,6 +473,69 @@ export const FUNCTION_CONTENT_FIXTURES: readonly GoldenFixture[] = [
         translate("globalSettings.materialResetConfirm.body", { chosenCount }),
     ),
   ),
+  contentFixture(
+    "leadNotice.subject",
+    "reference-token",
+    () => romanianContent.leadNotice.subject("LM-TOKEN"),
+    () => translate("leadNotice.subject", { reference: "LM-TOKEN" }),
+  ),
+  contentFixture(
+    "leadNotice.line",
+    "label-and-value",
+    () => romanianContent.leadNotice.line("label-token", "value-token"),
+    () =>
+      translate("leadNotice.line", {
+        label: "label-token",
+        value: "value-token",
+      }),
+  ),
+  contentFixture(
+    "leadNotice.figure",
+    "label-and-amount",
+    () => romanianContent.leadNotice.figure("label-token", "43 000 MDL"),
+    () =>
+      translate("leadNotice.figure", {
+        label: "label-token",
+        amount: "43 000 MDL",
+      }),
+  ),
+  ...(["phone", "whatsapp", "email"] as const).map((channel) =>
+    contentFixture(
+      "submissionResult.channelLine",
+      channel,
+      () =>
+        romanianContent.submissionResult.channelLine({
+          channel,
+          contact: "contact-token",
+        }),
+      () =>
+        translate("submissionResult.channelLine", {
+          channel,
+          contact: "contact-token",
+        }),
+    ),
+  ),
+  contentFixture(
+    "submissionResult.whatsappMessageToShop",
+    "reference-and-link-tokens",
+    () =>
+      romanianContent.submissionResult.whatsappMessageToShop({
+        reference: "reference-token",
+        link: "link-token",
+      }),
+    () =>
+      translate("submissionResult.whatsappMessageToShop", {
+        reference: "reference-token",
+        link: "link-token",
+      }),
+  ),
+  contentFixture(
+    "submissionResult.alreadySentAdvice",
+    "phone-token",
+    () => romanianContent.submissionResult.alreadySentAdvice("phone-token"),
+    () =>
+      translate("submissionResult.alreadySentAdvice", { phone: "phone-token" }),
+  ),
 ];
 
 interface StaticContent {
@@ -618,6 +702,93 @@ export const ROOM_FIXTURES: readonly GoldenFixture[] = catalogueLeaves(
 });
 
 export const ROOM_RENDER_ARGUMENT_PATHS = Object.keys(ROOM_RENDER_ARGUMENTS);
+
+/** The review leaves `Content` reaches through `reviewRoomLine`, so the static walk cannot see them. Argument values
+ *  are neutral tokens: the manifest pins the sentence around them, not the shape or corner words. */
+const REVIEW_ROOM_LINE_ARGUMENTS: Readonly<
+  Record<string, Readonly<Record<string, string | number>>>
+> = {
+  "review.roomLine.linear": { shape: "Shape", wallA: 3600, bodies: "Bodies" },
+  "review.roomLine.L": {
+    shape: "Shape",
+    wallA: 3600,
+    wallB: 2400,
+    corner: "Corner",
+    bodies: "Bodies",
+  },
+  "review.roomLine.U": {
+    shape: "Shape",
+    wallA: 3600,
+    wallB: 2400,
+    wallC: 1200,
+    bodies: "Bodies",
+  },
+};
+
+const REVIEW_LEAVES_ON_CONTENT: ReadonlySet<string> = new Set(
+  RESOLVED_STATIC_CONTENT.map(({ path }) => path).filter((path) =>
+    path.startsWith("review."),
+  ),
+);
+
+export const REVIEW_LEAF_KEYS: readonly string[] = catalogueLeaves(
+  correctedRomanian.review,
+)
+  .map(([path]) => `review.${path}`)
+  .filter((sourceKey) => !REVIEW_LEAVES_ON_CONTENT.has(sourceKey));
+
+export const REVIEW_FIXTURES: readonly GoldenFixture[] = [
+  ...PLURAL_BOUNDARIES.map((bodyCount) => ({
+    id: `review.bodyCount.count-${String(bodyCount)}`,
+    group: "review" as const,
+    sourceKey: "review.bodyCount",
+    renderCorrected: () => translateRuntime("review.bodyCount", { bodyCount }),
+  })),
+  ...REVIEW_LEAF_KEYS.filter(
+    (sourceKey) => sourceKey !== "review.bodyCount",
+  ).map((sourceKey) => ({
+    id: sourceKey,
+    group: "review" as const,
+    sourceKey,
+    renderCorrected: () =>
+      translateRuntime(sourceKey, REVIEW_ROOM_LINE_ARGUMENTS[sourceKey]),
+  })),
+];
+
+/** The contact leaves a sentence is chosen for by a code or a class of answer, so `Content` carries a resolver and no
+ *  static leaf for them. Argument values are neutral tokens: the manifest pins the sentence around them. */
+const CONTACT_RENDER_ARGUMENTS: Readonly<
+  Record<string, Readonly<Record<string, string | number>>>
+> = {
+  "contact.outcomes.limited": { time: "Time" },
+  "contact.outcomes.limitedTomorrow": { time: "Time" },
+};
+
+export const CONTACT_RENDER_ARGUMENT_PATHS = Object.keys(
+  CONTACT_RENDER_ARGUMENTS,
+);
+
+const CONTACT_LEAVES_ON_CONTENT: ReadonlySet<string> = new Set(
+  RESOLVED_STATIC_CONTENT.map(({ path }) => path).filter((path) =>
+    path.startsWith("contact."),
+  ),
+);
+
+export const CONTACT_LEAF_KEYS: readonly string[] = catalogueLeaves(
+  correctedRomanian.contact,
+)
+  .map(([path]) => `contact.${path}`)
+  .filter((sourceKey) => !CONTACT_LEAVES_ON_CONTENT.has(sourceKey));
+
+export const CONTACT_FIXTURES: readonly GoldenFixture[] = CONTACT_LEAF_KEYS.map(
+  (sourceKey) => ({
+    id: sourceKey,
+    group: "contact" as const,
+    sourceKey,
+    renderCorrected: () =>
+      translateRuntime(sourceKey, CONTACT_RENDER_ARGUMENTS[sourceKey]),
+  }),
+);
 
 type RejectionMessageKey = Exclude<
   keyof typeof correctedRomanian.rejection,
@@ -960,6 +1131,8 @@ export const CATALOGUE_FIXTURES: readonly GoldenFixture[] =
 export const GOLDEN_FIXTURES: readonly GoldenFixture[] = [
   ...CONTENT_FIXTURES,
   ...ROOM_FIXTURES,
+  ...REVIEW_FIXTURES,
+  ...CONTACT_FIXTURES,
   ...REJECTION_FIXTURES,
   ...CATALOGUE_FIXTURES,
 ];
@@ -976,6 +1149,11 @@ const DESCRIPTOR_RESOLVERS: ReadonlySet<string> = new Set([
   // descriptors the domain publishes, not entries the legacy content module ever held.
   "finishName",
   "bookText",
+  // A room's walls and body count, resolved through the catalogue; the leaves are not on `Content`.
+  "reviewRoomLine",
+  // A contact field code and a class of contact answer, each resolved to one catalogue sentence.
+  "contactFieldError",
+  "contactOutcome",
 ]);
 
 export function collectContentFunctionFamilies(): readonly string[] {

@@ -16,6 +16,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { declarationsFor } from "../support/css-declarations";
+
 const PANEL_DIRECTORY = resolve(import.meta.dirname, "../../src/panel");
 
 function readPanelSource(fileName: string): string {
@@ -36,16 +38,38 @@ describe("the panel publishes the adapter's finish colours to its stylesheet", (
     );
   });
 
+  // Every background the sheet gives the swatch, in any rule: the plain one and the wood's, and no third. Reading
+  // only for the two declarations, a later rule painting the swatch some other colour left both of them in the text.
   it("paints the swatch from that property and from nothing else", () => {
-    expect(stylesheetSource).toContain("background: var(--swatch-colour);");
+    const backgrounds = declarationsFor(
+      stylesheetSource,
+      "swatchColor",
+      "background",
+    );
+
+    expect(backgrounds.map(({ selector }) => selector)).toEqual([
+      ".swatchColor",
+      '.swatch[data-wood="true"] .swatchColor',
+    ]);
+    expect(backgrounds[0]?.value).toBe("var(--swatch-colour)");
+    for (const property of ["background-color", "background-image"]) {
+      expect(
+        declarationsFor(stylesheetSource, "swatchColor", property),
+      ).toEqual([]);
+    }
   });
 
   it("derives a wood's grain from the same property rather than a second colour", () => {
     // The old oak swatch declared three hexes of its own, because oak had no publishable colour to
     // track. `color-mix` is what replaced them: one declared value, darkened for the stripe.
-    expect(stylesheetSource).toContain(
-      "color-mix(in srgb, var(--swatch-colour)",
+    const [, grain] = declarationsFor(
+      stylesheetSource,
+      "swatchColor",
+      "background",
     );
+
+    expect(grain?.value).toContain("color-mix(in srgb, var(--swatch-colour)");
+    expect(grain?.value.match(/#[0-9a-f]{3,8}\b/gi)).toEqual(["#000"]);
   });
 
   it.each(DECORS)("keeps no literal copy of %s's hex", (_entryId, swatch) => {

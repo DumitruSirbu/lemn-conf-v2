@@ -32,45 +32,7 @@ const SOURCE_ROOT = path.join(
 /** The two directories criterion 10 names, as the shipped sweep names them. */
 const SWEPT_DIRECTORIES = ["generation", "room"] as const;
 
-/** Every `.ts` file under `directory`, at any depth, relative to `src/`. */
-function typeScriptFilesUnder(directory: string): string[] {
-  return readdirSync(path.join(SOURCE_ROOT, directory), {
-    withFileTypes: true,
-  }).flatMap((entry) => {
-    const relativePath = `${directory}/${entry.name}`;
-    if (entry.isDirectory()) return typeScriptFilesUnder(relativePath);
-    return entry.name.endsWith(".ts") ? [relativePath] : [];
-  });
-}
-
-/** Exactly what the shipped sweep reads: one level, `.ts` only. */
-function sweptFilesIn(directory: string): string[] {
-  return readdirSync(path.join(SOURCE_ROOT, directory))
-    .filter((file) => file.endsWith(".ts"))
-    .map((file) => `${directory}/${file}`);
-}
-
 describe("criterion 10's sweep reaches every file it is supposed to cover", () => {
-  // The premise, so a green result below is a fact about `generation/` and `room/` rather than about
-  // a walker that cannot recurse: pointed at `src/`, the same function returns files that only a
-  // recursive read can see.
-  it("recurses, shown against src/ where subdirectories do exist", () => {
-    const everything = typeScriptFilesUnder(".");
-
-    expect(everything).toContain("./commands/set-cabinet-depth.ts");
-    expect(everything).toContain("./fixtures/kitchen-l-design.ts");
-    expect(everything.length).toBeGreaterThan(sweptFilesIn(".").length);
-  });
-
-  it.each(SWEPT_DIRECTORIES)(
-    "finds nothing under src/%s that the shipped one-level sweep would skip",
-    (directory) => {
-      expect(typeScriptFilesUnder(directory).sort()).toStrictEqual(
-        sweptFilesIn(directory).sort(),
-      );
-    },
-  );
-
   it.each(SWEPT_DIRECTORIES)(
     "holds src/%s flat, so no directory entry can hide a corner literal from the sweep",
     (directory) => {

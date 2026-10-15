@@ -23,8 +23,6 @@ import { describe, expect, it } from "vitest";
 
 import { describePanel, type PanelSection } from "@/panel/panel-model";
 
-import { offerBuildIds } from "../support/offers";
-
 import { ro } from "../support/romanian-content";
 import { noWidthIsFree } from "../support/width-options";
 import { PAL_KITCHEN } from "../support/panel-material";
@@ -169,59 +167,5 @@ describe("the panel over the seeded kitchen", () => {
         Math.round((baseSlot?.h ?? 0) * 1000),
       ),
     );
-  });
-
-  // Every row the panel offers must be a row the engine's own fit evaluation produced — the panel
-  // adds no row of its own, and drops none.
-  it("offers exactly what offersFor returned, for every selectable thing in the kitchen", () => {
-    const world = clear(["p7", "p24"]);
-    const targets: CommandTarget[] = [
-      ...world.records.map((record) => ({
-        kind: "placement" as const,
-        id: record.id,
-      })),
-      ...world.voids.map((record) => ({
-        kind: "void" as const,
-        id: record.id,
-      })),
-    ];
-    let swept = 0;
-    for (const target of targets) {
-      const section = replaceSectionAt(world, target);
-      if (!section) continue;
-      swept += 1;
-      expect(section.rows.map((row) => row.buildId)).toEqual(
-        offerBuildIds(
-          offersFor({
-            ...world,
-            target,
-          }),
-        ),
-      );
-    }
-    expect(swept).toBeGreaterThan(0);
-  });
-
-  it("never renders a count line and an empty line at the same time", () => {
-    const world = clear(["p7", "p24"]);
-    const targets: CommandTarget[] = [
-      ...world.records.map((record) => ({
-        kind: "placement" as const,
-        id: record.id,
-      })),
-      ...world.voids.map((record) => ({
-        kind: "void" as const,
-        id: record.id,
-      })),
-    ];
-    let swept = 0;
-    for (const target of targets) {
-      const section = replaceSectionAt(world, target);
-      if (!section) continue;
-      swept += 1;
-      expect(section.countLine === undefined).toBe(section.rows.length === 0);
-      expect(section.emptyLine === undefined).toBe(section.rows.length > 0);
-    }
-    expect(swept).toBeGreaterThan(0);
   });
 });

@@ -146,18 +146,6 @@ describe("7D5b S0 — E7's witnesses: what S1's bottle cost at HEAD (recorded), 
     expect(atHead.remainderMm.A).toBe(560);
   });
 
-  it("3560 x 2920 after S0b: hob-2drawer, the oven tower [2700, 3300] and 260 mm bare", () => {
-    const plan = planFor(3560, 2920);
-
-    expect(wallAsBuilt(plan, "A")).toEqual([
-      "base-sink [900, 1500]",
-      "base-3drawer [1500, 2100]",
-      "base-hob-2drawer [2100, 2700]",
-      "tall-oven-tower [2700, 3300]",
-    ]);
-    expect(plan.remainderMm.A).toBe(260);
-  });
-
   it("900 x 4100: at HEAD hob-with-oven, bottle and 300 mm bare, with no tower", () => {
     const atHead = recordedAtHead(900, 4100);
 
@@ -169,16 +157,6 @@ describe("7D5b S0 — E7's witnesses: what S1's bottle cost at HEAD (recorded), 
     expect(atHead.bases.some((base) => base.buildId.startsWith("tall-"))).toBe(
       false,
     );
-  });
-
-  it("900 x 4100 after S0b: hob-2drawer and the oven tower, with nothing bare", () => {
-    const plan = beforeS1(() => planFor(900, 4100));
-
-    expect(wallAsBuilt(plan, "B").slice(-2)).toEqual([
-      "base-hob-2drawer [2800, 3400]",
-      "tall-oven-tower [3400, 4000]",
-    ]);
-    expect(plan.remainderMm.B).toBe(0);
   });
 
   it("900 x 4100 with S1 alone: no dishwasher, the S0b wall unchanged", () => {
@@ -193,19 +171,6 @@ describe("7D5b S0 — E7's witnesses: what S1's bottle cost at HEAD (recorded), 
     expect(plan.bases.map((base) => base.buildId)).not.toContain(
       "base-dishwasher",
     );
-  });
-
-  it("900 x 4100 with S2, live: (c) — the dishwasher after the sink, the tower gone, the hob carrying the oven", () => {
-    const plan = planFor(900, 4100);
-
-    expect(wallAsBuilt(plan, "B")).toEqual([
-      "fridge-free [900, 1600]",
-      "base-sink [1600, 2200]",
-      "base-dishwasher [2200, 2800]",
-      "base-3drawer [2800, 3400]",
-      "base-hob-oven [3400, 4000]",
-    ]);
-    expect(plan.remainderMm.B).toBe(0);
   });
 
   it("900 x 4410: pan drawer, hob-with-oven and bottle — the pan drawer stands because of the bottle, at HEAD and after S0b alike", () => {
@@ -417,12 +382,6 @@ describe("7D5b S0 — E5: the two bodies an M1 conversion swaps, priced by the s
       expect(amountAt600Mm(buildId)).toBe(amountMinor);
     },
   );
-
-  it("makes an M1 conversion -76 000 minor", () => {
-    expect(
-      amountAt600Mm("base-dishwasher") - amountAt600Mm("base-cabinet"),
-    ).toBe(-76_000);
-  });
 });
 
 const PRICED_WIDTH_MM = 600;

@@ -1,0 +1,148 @@
+// What a page did against the content security policy, observed three ways, and the policy header every test reads.
+// Both depend on `CONTENT_SECURITY_POLICY_MODE` alone, so a flip of the mode moves no test but the one that pins it.
+//
+// The observers: (i) the `securitypolicyviolation` event on `document`, which fires in report-only too; (ii) the
+// console, which a blocked `eval` never writes to, so it cannot carry the net alone; (iii) a request to the report
+// path, the only one that sees a violation inside a worker, where no document event fires. Chromium deduplicates
+// identical reports, so a report count is a lower bound on the events and no test may assert the two equal.
+import type { Page } from "@playwright/test";
+
+import {
+  CONTENT_SECURITY_POLICY_MODE,
+  CSP_REPORT_PATH,
+  cspResponseHeaderName,
+  type ContentSecurityPolicyMode,
+} from "../../../src/lib/security-headers";
+
+/** The header a response carries the policy under in the live mode, as Playwright lists it: in lower case. */
+export const POLICY_HEADER = cspResponseHeaderName(
+  CONTENT_SECURITY_POLICY_MODE,
+).toLowerCase();
+
+/** The one console `error` every document writes in report-only: a diagnostic about the policy, not a violation. */
+export const REPORT_ONLY_UPGRADE_DIAGNOSTIC =
+  "The Content Security Policy directive 'upgrade-insecure-requests' is ignored when delivered in a report-only policy.";
+
+const CONSOLE_NAMES_THE_POLICY = /content security policy/i;
+const NONCE_IN_POLICY = /'nonce-([^']+)'/;
+const VIOLATION_BINDING = "__lemnariaRecordCspViolation";
+
+export interface ViolationEvent {
+  readonly directive: string;
+  readonly blockedUri: string;
+  readonly disposition: "enforce" | "report";
+  readonly sourceFile: string;
+  readonly line: number;
+  readonly column: number;
+}
+
+/** Everything a page did against the policy since {@link watchForViolations}, filled in as it happens. */
+export interface ViolationNet {
+  readonly events: ViolationEvent[];
+  readonly consoleMessages: string[];
+  readonly reportRequests: string[];
+}
+
+export interface ViolationsSeen {
+  readonly events: readonly ViolationEvent[];
+  readonly consoleMessages: readonly string[];
+  readonly reportRequests: readonly string[];
+}
+
+interface ResponseWithHeaders {
+  headers(): Record<string, string>;
+}
+
+/** The policy a response carries under the live mode's header name, or `undefined` when it carries none. */
+export function policyOf(response: ResponseWithHeaders): string | undefined {
+  return response.headers()[POLICY_HEADER];
+}
+
+export function nonceOfPolicy(policy: string | undefined): string | undefined {
+  return NONCE_IN_POLICY.exec(policy ?? "")?.[1];
+}
+
+/** Whether a console message is the one diagnostic a report-only policy writes: under enforcement it is never sent. */
+export function isReportOnlyDiagnostic(
+  text: string,
+  mode: ContentSecurityPolicyMode,
+): boolean {
+  return mode === "report-only" && text === REPORT_ONLY_UPGRADE_DIAGNOSTIC;
+}
+
+/** Whether a console message is a violation: it names the policy, bar the one report-only diagnostic. */
+export function isViolationMessage(
+  text: string,
+  mode: ContentSecurityPolicyMode,
+): boolean {
+  return (
+    CONSOLE_NAMES_THE_POLICY.test(text) && !isReportOnlyDiagnostic(text, mode)
+  );
+}
+
+export function isReportRequest(url: string): boolean {
+  return new URL(url).pathname === CSP_REPORT_PATH;
+}
+
+/**
+ * Starts the three observers on `page`. Call it before the first navigation: the event listener is an init script, so it
+ * is in every document the page loads from then on, and its events reach Node through a binding, so a page that
+ * navigates away does not take them with it.
+ */
+export async function watchForViolations(page: Page): Promise<ViolationNet> {
+  const net: ViolationNet = {
+    events: [],
+    consoleMessages: [],
+    reportRequests: [],
+  };
+  await page.exposeFunction(VIOLATION_BINDING, (event: ViolationEvent) => {
+    net.events.push(event);
+  });
+  await page.addInitScript(sendEachViolationTo, VIOLATION_BINDING);
+  page.on("console", (message) => {
+    const text = message.text();
+    if (isViolationMessage(text, CONTENT_SECURITY_POLICY_MODE)) {
+      net.consoleMessages.push(text);
+    }
+  });
+  page.on("request", (request) => {
+    if (isReportRequest(request.url())) net.reportRequests.push(request.url());
+  });
+  return net;
+}
+
+export function violationsSeen(net: ViolationNet): ViolationsSeen {
+  return {
+    events: [...net.events],
+    consoleMessages: [...net.consoleMessages],
+    reportRequests: [...net.reportRequests],
+  };
+}
+
+export const NO_VIOLATIONS: ViolationsSeen = {
+  events: [],
+  consoleMessages: [],
+  reportRequests: [],
+};
+
+/** Runs in the page, so it names nothing from this module but what it is given. */
+function sendEachViolationTo(bindingName: string): void {
+  document.addEventListener(
+    "securitypolicyviolation",
+    (event) => {
+      const binding = (window as unknown as Record<string, unknown>)[
+        bindingName
+      ];
+      if (typeof binding !== "function") return;
+      (binding as (violation: ViolationEvent) => void)({
+        directive: event.effectiveDirective,
+        blockedUri: event.blockedURI,
+        disposition: event.disposition,
+        sourceFile: event.sourceFile,
+        line: event.lineNumber,
+        column: event.columnNumber,
+      });
+    },
+    true,
+  );
+}

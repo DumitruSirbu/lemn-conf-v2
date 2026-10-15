@@ -1,0 +1,3096 @@
+[
+  {
+    "name": "linear 3600",
+    "design": {
+      "room": {
+        "shape": "linear",
+        "widthMm": 3600,
+        "depthMm": 3400,
+        "heightMm": 2600
+      },
+      "presetId": null,
+      "settings": { "cabinetDepthMm": 600 },
+      "placements": [
+        {
+          "id": "n0",
+          "wall": "A",
+          "alongMm": 350,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "fridge-free",
+            "widthMm": 700,
+            "heightMm": 1850,
+            "seatDepthMm": 680
+          }
+        },
+        {
+          "id": "n1",
+          "wall": "A",
+          "alongMm": 1000,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-sink",
+            "widthMm": 600,
+            "heightMm": 860,
+            "seatDepthMm": 580
+          }
+        },
+        {
+          "id": "n2",
+          "wall": "A",
+          "alongMm": 2200,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-panbank",
+            "widthMm": 600,
+            "heightMm": 860,
+            "seatDepthMm": 580
+          }
+        },
+        {
+          "id": "n3",
+          "wall": "A",
+          "alongMm": 2800,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-hob-oven",
+            "widthMm": 600,
+            "heightMm": 860,
+            "seatDepthMm": 580
+          }
+        },
+        {
+          "id": "n4",
+          "wall": "A",
+          "alongMm": 1600,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-dishwasher",
+            "widthMm": 600,
+            "heightMm": 860,
+            "seatDepthMm": 580
+          }
+        },
+        {
+          "id": "n5",
+          "wall": "A",
+          "alongMm": 3250,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-bottle-cargo",
+            "widthMm": 300,
+            "heightMm": 860,
+            "seatDepthMm": 580
+          }
+        },
+        {
+          "id": "n6",
+          "wall": "A",
+          "alongMm": 1000,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 700,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n7",
+          "wall": "A",
+          "alongMm": 1600,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 700,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n8",
+          "wall": "A",
+          "alongMm": 2200,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 700,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n9",
+          "wall": "A",
+          "alongMm": 2800,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "hood",
+            "widthMm": 600,
+            "heightMm": 700,
+            "seatDepthMm": 700
+          }
+        },
+        {
+          "id": "n10",
+          "wall": "A",
+          "alongMm": 3250,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 300,
+            "heightMm": 700,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n11",
+          "wall": "A",
+          "alongMm": 1000,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 400,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n12",
+          "wall": "A",
+          "alongMm": 1600,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 400,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n13",
+          "wall": "A",
+          "alongMm": 2200,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 400,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n14",
+          "wall": "A",
+          "alongMm": 2800,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 400,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n15",
+          "wall": "A",
+          "alongMm": 3250,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 300,
+            "heightMm": 400,
+            "seatDepthMm": 291
+          }
+        }
+      ],
+      "createdAt": "2026-10-08T09:00:00.000Z",
+      "updatedAt": "2026-10-08T09:00:00.000Z",
+      "emptyColumns": [
+        {
+          "wall": "A",
+          "alongMm": 3500,
+          "widthMm": 200,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        }
+      ],
+      "columnExtents": [
+        {
+          "wall": "A",
+          "alongMm": 350,
+          "widthMm": 700,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "A",
+          "alongMm": 1000,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "A",
+          "alongMm": 1600,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "A",
+          "alongMm": 2200,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "A",
+          "alongMm": 2800,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "A",
+          "alongMm": 3250,
+          "widthMm": 300,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        }
+      ]
+    }
+  },
+  {
+    "name": "linear 5000",
+    "design": {
+      "room": {
+        "shape": "linear",
+        "widthMm": 5000,
+        "depthMm": 3400,
+        "heightMm": 2600
+      },
+      "presetId": null,
+      "settings": { "cabinetDepthMm": 600 },
+      "placements": [
+        {
+          "id": "n0",
+          "wall": "A",
+          "alongMm": 350,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "fridge-free",
+            "widthMm": 700,
+            "heightMm": 1850,
+            "seatDepthMm": 680
+          }
+        },
+        {
+          "id": "n1",
+          "wall": "A",
+          "alongMm": 1000,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-sink",
+            "widthMm": 600,
+            "heightMm": 860,
+            "seatDepthMm": 580
+          }
+        },
+        {
+          "id": "n2",
+          "wall": "A",
+          "alongMm": 2200,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-panbank",
+            "widthMm": 600,
+            "heightMm": 860,
+            "seatDepthMm": 580
+          }
+        },
+        {
+          "id": "n3",
+          "wall": "A",
+          "alongMm": 2800,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-hob-2drawer",
+            "widthMm": 600,
+            "heightMm": 860,
+            "seatDepthMm": 580
+          }
+        },
+        {
+          "id": "n4",
+          "wall": "A",
+          "alongMm": 1600,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-dishwasher",
+            "widthMm": 600,
+            "heightMm": 860,
+            "seatDepthMm": 580
+          }
+        },
+        {
+          "id": "n5",
+          "wall": "A",
+          "alongMm": 3400,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "tall-oven-tower",
+            "widthMm": 600,
+            "heightMm": 2200,
+            "seatDepthMm": 560
+          }
+        },
+        {
+          "id": "n6",
+          "wall": "A",
+          "alongMm": 4000,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "tall-pantry",
+            "widthMm": 600,
+            "heightMm": 2200,
+            "seatDepthMm": 560
+          }
+        },
+        {
+          "id": "n7",
+          "wall": "A",
+          "alongMm": 4650,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "tall-pantry",
+            "widthMm": 700,
+            "heightMm": 2200,
+            "seatDepthMm": 560
+          }
+        },
+        {
+          "id": "n8",
+          "wall": "A",
+          "alongMm": 1000,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 700,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n9",
+          "wall": "A",
+          "alongMm": 1600,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 700,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n10",
+          "wall": "A",
+          "alongMm": 2200,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 700,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n11",
+          "wall": "A",
+          "alongMm": 2800,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "hood",
+            "widthMm": 600,
+            "heightMm": 700,
+            "seatDepthMm": 700
+          }
+        },
+        {
+          "id": "n12",
+          "wall": "A",
+          "alongMm": 1000,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 400,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n13",
+          "wall": "A",
+          "alongMm": 1600,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 400,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n14",
+          "wall": "A",
+          "alongMm": 2200,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 400,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n15",
+          "wall": "A",
+          "alongMm": 2800,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 400,
+            "seatDepthMm": 291
+          }
+        }
+      ],
+      "createdAt": "2026-10-08T09:00:00.000Z",
+      "updatedAt": "2026-10-08T09:00:00.000Z",
+      "columnExtents": [
+        {
+          "wall": "A",
+          "alongMm": 350,
+          "widthMm": 700,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "A",
+          "alongMm": 1000,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "A",
+          "alongMm": 1600,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "A",
+          "alongMm": 2200,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "A",
+          "alongMm": 2800,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "A",
+          "alongMm": 3400,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "A",
+          "alongMm": 4000,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "A",
+          "alongMm": 4650,
+          "widthMm": 700,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        }
+      ]
+    }
+  },
+  {
+    "name": "L 4000 x 3000",
+    "design": {
+      "room": {
+        "shape": "L",
+        "widthMm": 4000,
+        "depthMm": 3000,
+        "heightMm": 2600
+      },
+      "presetId": null,
+      "settings": { "cabinetDepthMm": 600 },
+      "placements": [
+        {
+          "id": "p25",
+          "wall": "A",
+          "alongMm": 450,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-corner-x-900",
+            "widthMm": 900,
+            "heightMm": 820
+          }
+        },
+        {
+          "id": "p26",
+          "wall": "B",
+          "alongMm": 735,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-corner-return-320",
+            "widthMm": 330,
+            "heightMm": 820
+          }
+        },
+        {
+          "id": "p9",
+          "wall": "B",
+          "alongMm": 615,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "wall-corner-return-570",
+            "widthMm": 570,
+            "heightMm": 700
+          }
+        },
+        {
+          "id": "p21",
+          "wall": "B",
+          "alongMm": 615,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-corner-return-570-top",
+            "widthMm": 570,
+            "heightMm": 400
+          }
+        },
+        {
+          "id": "p27",
+          "wall": "A",
+          "alongMm": 450,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "wall-corner-x-900",
+            "widthMm": 900,
+            "heightMm": 700
+          }
+        },
+        {
+          "id": "p28",
+          "wall": "A",
+          "alongMm": 450,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-corner-x-900-top",
+            "widthMm": 900,
+            "heightMm": 400
+          }
+        },
+        {
+          "id": "n0",
+          "wall": "B",
+          "alongMm": 2550,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "fridge-free",
+            "widthMm": 700,
+            "heightMm": 1850,
+            "seatDepthMm": 680
+          }
+        },
+        {
+          "id": "n1",
+          "wall": "A",
+          "alongMm": 1200,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-sink",
+            "widthMm": 600,
+            "heightMm": 860,
+            "seatDepthMm": 580
+          }
+        },
+        {
+          "id": "n2",
+          "wall": "A",
+          "alongMm": 1800,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-3drawer",
+            "widthMm": 600,
+            "heightMm": 860,
+            "seatDepthMm": 580
+          }
+        },
+        {
+          "id": "n3",
+          "wall": "A",
+          "alongMm": 2400,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-hob-2drawer",
+            "widthMm": 600,
+            "heightMm": 860,
+            "seatDepthMm": 580
+          }
+        },
+        {
+          "id": "n4",
+          "wall": "A",
+          "alongMm": 2850,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-bottle-cargo",
+            "widthMm": 300,
+            "heightMm": 860,
+            "seatDepthMm": 580
+          }
+        },
+        {
+          "id": "n5",
+          "wall": "A",
+          "alongMm": 3300,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "tall-oven-tower",
+            "widthMm": 600,
+            "heightMm": 2200,
+            "seatDepthMm": 560
+          }
+        },
+        {
+          "id": "n6",
+          "wall": "B",
+          "alongMm": 1200,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-dishwasher",
+            "widthMm": 600,
+            "heightMm": 860,
+            "seatDepthMm": 580
+          }
+        },
+        {
+          "id": "n7",
+          "wall": "B",
+          "alongMm": 1850,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-cabinet",
+            "widthMm": 700,
+            "heightMm": 860,
+            "seatDepthMm": 580
+          }
+        },
+        {
+          "id": "n8",
+          "wall": "A",
+          "alongMm": 1200,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 700,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n9",
+          "wall": "A",
+          "alongMm": 1800,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 700,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n10",
+          "wall": "A",
+          "alongMm": 2400,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "hood",
+            "widthMm": 600,
+            "heightMm": 700,
+            "seatDepthMm": 700
+          }
+        },
+        {
+          "id": "n11",
+          "wall": "A",
+          "alongMm": 2850,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 300,
+            "heightMm": 700,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n12",
+          "wall": "B",
+          "alongMm": 1200,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 700,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n13",
+          "wall": "B",
+          "alongMm": 1850,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 700,
+            "heightMm": 700,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n14",
+          "wall": "A",
+          "alongMm": 1200,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 400,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n15",
+          "wall": "A",
+          "alongMm": 1800,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 400,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n16",
+          "wall": "A",
+          "alongMm": 2400,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 400,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n17",
+          "wall": "A",
+          "alongMm": 2850,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 300,
+            "heightMm": 400,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n18",
+          "wall": "B",
+          "alongMm": 1200,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 400,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n19",
+          "wall": "B",
+          "alongMm": 1850,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 700,
+            "heightMm": 400,
+            "seatDepthMm": 291
+          }
+        }
+      ],
+      "createdAt": "2026-10-08T09:00:00.000Z",
+      "updatedAt": "2026-10-08T09:00:00.000Z",
+      "emptyColumns": [
+        {
+          "wall": "A",
+          "alongMm": 3800,
+          "widthMm": 400,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        }
+      ],
+      "columnExtents": [
+        {
+          "wall": "A",
+          "alongMm": 450,
+          "widthMm": 900,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-corner-x-900"
+        },
+        {
+          "wall": "A",
+          "alongMm": 1200,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "A",
+          "alongMm": 1800,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "A",
+          "alongMm": 2400,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "A",
+          "alongMm": 2850,
+          "widthMm": 300,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "A",
+          "alongMm": 3300,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "B",
+          "alongMm": 615,
+          "widthMm": 570,
+          "y0Mm": 1500,
+          "topMm": 2600,
+          "depthMm": 330,
+          "depthFromBuildId": "wall-corner-return-570"
+        },
+        {
+          "wall": "B",
+          "alongMm": 735,
+          "widthMm": 330,
+          "y0Mm": 0,
+          "topMm": 820,
+          "depthMm": 620,
+          "depthFromBuildId": "base-corner-return-320"
+        },
+        {
+          "wall": "B",
+          "alongMm": 1200,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "B",
+          "alongMm": 1850,
+          "widthMm": 700,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "B",
+          "alongMm": 2550,
+          "widthMm": 700,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        }
+      ]
+    }
+  },
+  {
+    "name": "L 5200 x 2800",
+    "design": {
+      "room": {
+        "shape": "L",
+        "widthMm": 5200,
+        "depthMm": 2800,
+        "heightMm": 2600
+      },
+      "presetId": null,
+      "settings": { "cabinetDepthMm": 600 },
+      "placements": [
+        {
+          "id": "p25",
+          "wall": "A",
+          "alongMm": 450,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-corner-x-900",
+            "widthMm": 900,
+            "heightMm": 820
+          }
+        },
+        {
+          "id": "p26",
+          "wall": "B",
+          "alongMm": 735,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-corner-return-320",
+            "widthMm": 330,
+            "heightMm": 820
+          }
+        },
+        {
+          "id": "p9",
+          "wall": "B",
+          "alongMm": 615,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "wall-corner-return-570",
+            "widthMm": 570,
+            "heightMm": 700
+          }
+        },
+        {
+          "id": "p21",
+          "wall": "B",
+          "alongMm": 615,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-corner-return-570-top",
+            "widthMm": 570,
+            "heightMm": 400
+          }
+        },
+        {
+          "id": "p27",
+          "wall": "A",
+          "alongMm": 450,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "wall-corner-x-900",
+            "widthMm": 900,
+            "heightMm": 700
+          }
+        },
+        {
+          "id": "p28",
+          "wall": "A",
+          "alongMm": 450,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-corner-x-900-top",
+            "widthMm": 900,
+            "heightMm": 400
+          }
+        },
+        {
+          "id": "n0",
+          "wall": "B",
+          "alongMm": 1850,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "fridge-free",
+            "widthMm": 700,
+            "heightMm": 1850,
+            "seatDepthMm": 680
+          }
+        },
+        {
+          "id": "n1",
+          "wall": "A",
+          "alongMm": 1200,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-sink",
+            "widthMm": 600,
+            "heightMm": 860,
+            "seatDepthMm": 580
+          }
+        },
+        {
+          "id": "n2",
+          "wall": "A",
+          "alongMm": 1800,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-3drawer",
+            "widthMm": 600,
+            "heightMm": 860,
+            "seatDepthMm": 580
+          }
+        },
+        {
+          "id": "n3",
+          "wall": "A",
+          "alongMm": 3000,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-hob-2drawer",
+            "widthMm": 600,
+            "heightMm": 860,
+            "seatDepthMm": 580
+          }
+        },
+        {
+          "id": "n4",
+          "wall": "A",
+          "alongMm": 2400,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-panbank",
+            "widthMm": 600,
+            "heightMm": 860,
+            "seatDepthMm": 580
+          }
+        },
+        {
+          "id": "n5",
+          "wall": "A",
+          "alongMm": 3600,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "tall-oven-tower",
+            "widthMm": 600,
+            "heightMm": 2200,
+            "seatDepthMm": 560
+          }
+        },
+        {
+          "id": "n6",
+          "wall": "A",
+          "alongMm": 4200,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "tall-pantry",
+            "widthMm": 600,
+            "heightMm": 2200,
+            "seatDepthMm": 560
+          }
+        },
+        {
+          "id": "n7",
+          "wall": "A",
+          "alongMm": 4850,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "tall-pantry",
+            "widthMm": 700,
+            "heightMm": 2200,
+            "seatDepthMm": 560
+          }
+        },
+        {
+          "id": "n8",
+          "wall": "B",
+          "alongMm": 1200,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-dishwasher",
+            "widthMm": 600,
+            "heightMm": 860,
+            "seatDepthMm": 580
+          }
+        },
+        {
+          "id": "n9",
+          "wall": "A",
+          "alongMm": 1200,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 700,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n10",
+          "wall": "A",
+          "alongMm": 1800,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 700,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n11",
+          "wall": "A",
+          "alongMm": 2400,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 700,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n12",
+          "wall": "A",
+          "alongMm": 3000,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "hood",
+            "widthMm": 600,
+            "heightMm": 700,
+            "seatDepthMm": 700
+          }
+        },
+        {
+          "id": "n13",
+          "wall": "B",
+          "alongMm": 1200,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 700,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n14",
+          "wall": "A",
+          "alongMm": 1200,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 400,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n15",
+          "wall": "A",
+          "alongMm": 1800,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 400,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n16",
+          "wall": "A",
+          "alongMm": 2400,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 400,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n17",
+          "wall": "A",
+          "alongMm": 3000,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 400,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n18",
+          "wall": "B",
+          "alongMm": 1200,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 400,
+            "seatDepthMm": 291
+          }
+        }
+      ],
+      "createdAt": "2026-10-08T09:00:00.000Z",
+      "updatedAt": "2026-10-08T09:00:00.000Z",
+      "emptyColumns": [
+        {
+          "wall": "B",
+          "alongMm": 2450,
+          "widthMm": 500,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        }
+      ],
+      "columnExtents": [
+        {
+          "wall": "A",
+          "alongMm": 450,
+          "widthMm": 900,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-corner-x-900"
+        },
+        {
+          "wall": "A",
+          "alongMm": 1200,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "A",
+          "alongMm": 1800,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "A",
+          "alongMm": 2400,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "A",
+          "alongMm": 3000,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "A",
+          "alongMm": 3600,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "A",
+          "alongMm": 4200,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "A",
+          "alongMm": 4850,
+          "widthMm": 700,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "B",
+          "alongMm": 615,
+          "widthMm": 570,
+          "y0Mm": 1500,
+          "topMm": 2600,
+          "depthMm": 330,
+          "depthFromBuildId": "wall-corner-return-570"
+        },
+        {
+          "wall": "B",
+          "alongMm": 735,
+          "widthMm": 330,
+          "y0Mm": 0,
+          "topMm": 820,
+          "depthMm": 620,
+          "depthFromBuildId": "base-corner-return-320"
+        },
+        {
+          "wall": "B",
+          "alongMm": 1200,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "B",
+          "alongMm": 1850,
+          "widthMm": 700,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        }
+      ]
+    }
+  },
+  {
+    "name": "U 3600 x 2400 x 2200",
+    "design": {
+      "room": {
+        "shape": "U",
+        "widthMm": 3600,
+        "depthMm": 2400,
+        "wallCMm": 2200,
+        "heightMm": 2600
+      },
+      "presetId": null,
+      "settings": { "cabinetDepthMm": 600 },
+      "placements": [
+        {
+          "id": "p25",
+          "wall": "A",
+          "alongMm": 450,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-corner-x-900",
+            "widthMm": 900,
+            "heightMm": 820
+          }
+        },
+        {
+          "id": "p26",
+          "wall": "B",
+          "alongMm": 735,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-corner-return-320",
+            "widthMm": 330,
+            "heightMm": 820
+          }
+        },
+        {
+          "id": "p9",
+          "wall": "B",
+          "alongMm": 615,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "wall-corner-return-570",
+            "widthMm": 570,
+            "heightMm": 700
+          }
+        },
+        {
+          "id": "p21",
+          "wall": "B",
+          "alongMm": 615,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-corner-return-570-top",
+            "widthMm": 570,
+            "heightMm": 400
+          }
+        },
+        {
+          "id": "p27",
+          "wall": "A",
+          "alongMm": 450,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "wall-corner-x-900",
+            "widthMm": 900,
+            "heightMm": 700
+          }
+        },
+        {
+          "id": "p28",
+          "wall": "A",
+          "alongMm": 450,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-corner-x-900-top",
+            "widthMm": 900,
+            "heightMm": 400
+          }
+        },
+        {
+          "id": "right-p25",
+          "wall": "A",
+          "alongMm": 3150,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-corner-x-900",
+            "widthMm": 900,
+            "heightMm": 820
+          }
+        },
+        {
+          "id": "right-p26",
+          "wall": "C",
+          "alongMm": 735,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-corner-return-320",
+            "widthMm": 330,
+            "heightMm": 820
+          }
+        },
+        {
+          "id": "right-p9",
+          "wall": "C",
+          "alongMm": 615,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "wall-corner-return-570",
+            "widthMm": 570,
+            "heightMm": 700
+          }
+        },
+        {
+          "id": "right-p21",
+          "wall": "C",
+          "alongMm": 615,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-corner-return-570-top",
+            "widthMm": 570,
+            "heightMm": 400
+          }
+        },
+        {
+          "id": "right-p27",
+          "wall": "A",
+          "alongMm": 3150,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "wall-corner-x-900",
+            "widthMm": 900,
+            "heightMm": 700
+          }
+        },
+        {
+          "id": "right-p28",
+          "wall": "A",
+          "alongMm": 3150,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-corner-x-900-top",
+            "widthMm": 900,
+            "heightMm": 400
+          }
+        },
+        {
+          "id": "n0",
+          "wall": "B",
+          "alongMm": 1950,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "fridge-free",
+            "widthMm": 700,
+            "heightMm": 1850,
+            "seatDepthMm": 680
+          }
+        },
+        {
+          "id": "n1",
+          "wall": "A",
+          "alongMm": 1200,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-sink",
+            "widthMm": 600,
+            "heightMm": 860,
+            "seatDepthMm": 580
+          }
+        },
+        {
+          "id": "n2",
+          "wall": "A",
+          "alongMm": 2400,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-3drawer",
+            "widthMm": 600,
+            "heightMm": 860,
+            "seatDepthMm": 580
+          }
+        },
+        {
+          "id": "n3",
+          "wall": "C",
+          "alongMm": 1200,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-hob-2drawer",
+            "widthMm": 600,
+            "heightMm": 860,
+            "seatDepthMm": 580
+          }
+        },
+        {
+          "id": "n4",
+          "wall": "B",
+          "alongMm": 1250,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-cabinet",
+            "widthMm": 700,
+            "heightMm": 860,
+            "seatDepthMm": 580
+          }
+        },
+        {
+          "id": "n5",
+          "wall": "A",
+          "alongMm": 1800,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-dishwasher",
+            "widthMm": 600,
+            "heightMm": 860,
+            "seatDepthMm": 580
+          }
+        },
+        {
+          "id": "n6",
+          "wall": "C",
+          "alongMm": 1800,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "tall-oven-tower",
+            "widthMm": 600,
+            "heightMm": 2200,
+            "seatDepthMm": 560
+          }
+        },
+        {
+          "id": "n7",
+          "wall": "B",
+          "alongMm": 1250,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 700,
+            "heightMm": 700,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n8",
+          "wall": "A",
+          "alongMm": 1200,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 700,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n9",
+          "wall": "A",
+          "alongMm": 1800,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 700,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n10",
+          "wall": "A",
+          "alongMm": 2400,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 700,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n11",
+          "wall": "C",
+          "alongMm": 1200,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "hood",
+            "widthMm": 600,
+            "heightMm": 700,
+            "seatDepthMm": 700
+          }
+        },
+        {
+          "id": "n12",
+          "wall": "B",
+          "alongMm": 1250,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 700,
+            "heightMm": 400,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n13",
+          "wall": "A",
+          "alongMm": 1200,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 400,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n14",
+          "wall": "A",
+          "alongMm": 1800,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 400,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n15",
+          "wall": "A",
+          "alongMm": 2400,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 400,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n16",
+          "wall": "C",
+          "alongMm": 1200,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 400,
+            "seatDepthMm": 291
+          }
+        }
+      ],
+      "createdAt": "2026-10-08T09:00:00.000Z",
+      "updatedAt": "2026-10-08T09:00:00.000Z",
+      "columnExtents": [
+        {
+          "wall": "A",
+          "alongMm": 450,
+          "widthMm": 900,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-corner-x-900"
+        },
+        {
+          "wall": "A",
+          "alongMm": 1200,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "A",
+          "alongMm": 1800,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "A",
+          "alongMm": 2400,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "A",
+          "alongMm": 3150,
+          "widthMm": 900,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-corner-x-900"
+        },
+        {
+          "wall": "B",
+          "alongMm": 615,
+          "widthMm": 570,
+          "y0Mm": 1500,
+          "topMm": 2600,
+          "depthMm": 330,
+          "depthFromBuildId": "wall-corner-return-570"
+        },
+        {
+          "wall": "B",
+          "alongMm": 735,
+          "widthMm": 330,
+          "y0Mm": 0,
+          "topMm": 820,
+          "depthMm": 620,
+          "depthFromBuildId": "base-corner-return-320"
+        },
+        {
+          "wall": "B",
+          "alongMm": 1250,
+          "widthMm": 700,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "B",
+          "alongMm": 1950,
+          "widthMm": 700,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "C",
+          "alongMm": 615,
+          "widthMm": 570,
+          "y0Mm": 1500,
+          "topMm": 2600,
+          "depthMm": 330,
+          "depthFromBuildId": "wall-corner-return-570"
+        },
+        {
+          "wall": "C",
+          "alongMm": 735,
+          "widthMm": 330,
+          "y0Mm": 0,
+          "topMm": 820,
+          "depthMm": 620,
+          "depthFromBuildId": "base-corner-return-320"
+        },
+        {
+          "wall": "C",
+          "alongMm": 1200,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "C",
+          "alongMm": 1800,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        }
+      ]
+    }
+  },
+  {
+    "name": "U 5000 x 4000 x 3000",
+    "design": {
+      "room": {
+        "shape": "U",
+        "widthMm": 5000,
+        "depthMm": 4000,
+        "wallCMm": 3000,
+        "heightMm": 2600
+      },
+      "presetId": null,
+      "settings": { "cabinetDepthMm": 600 },
+      "placements": [
+        {
+          "id": "p25",
+          "wall": "A",
+          "alongMm": 450,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-corner-x-900",
+            "widthMm": 900,
+            "heightMm": 820
+          }
+        },
+        {
+          "id": "p26",
+          "wall": "B",
+          "alongMm": 735,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-corner-return-320",
+            "widthMm": 330,
+            "heightMm": 820
+          }
+        },
+        {
+          "id": "p9",
+          "wall": "B",
+          "alongMm": 615,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "wall-corner-return-570",
+            "widthMm": 570,
+            "heightMm": 700
+          }
+        },
+        {
+          "id": "p21",
+          "wall": "B",
+          "alongMm": 615,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-corner-return-570-top",
+            "widthMm": 570,
+            "heightMm": 400
+          }
+        },
+        {
+          "id": "right-p25",
+          "wall": "A",
+          "alongMm": 4550,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-corner-x-900",
+            "widthMm": 900,
+            "heightMm": 820
+          }
+        },
+        {
+          "id": "right-p26",
+          "wall": "C",
+          "alongMm": 735,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-corner-return-320",
+            "widthMm": 330,
+            "heightMm": 820
+          }
+        },
+        {
+          "id": "right-p9",
+          "wall": "C",
+          "alongMm": 615,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "wall-corner-return-570",
+            "widthMm": 570,
+            "heightMm": 700
+          }
+        },
+        {
+          "id": "right-p21",
+          "wall": "C",
+          "alongMm": 615,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-corner-return-570-top",
+            "widthMm": 570,
+            "heightMm": 400
+          }
+        },
+        {
+          "id": "n0",
+          "wall": "B",
+          "alongMm": 2450,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "fridge-free",
+            "widthMm": 700,
+            "heightMm": 1850,
+            "seatDepthMm": 680
+          }
+        },
+        {
+          "id": "n1",
+          "wall": "A",
+          "alongMm": 1200,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-sink",
+            "widthMm": 600,
+            "heightMm": 860,
+            "seatDepthMm": 580
+          }
+        },
+        {
+          "id": "n2",
+          "wall": "A",
+          "alongMm": 2400,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-3drawer",
+            "widthMm": 600,
+            "heightMm": 860,
+            "seatDepthMm": 580
+          }
+        },
+        {
+          "id": "n3",
+          "wall": "A",
+          "alongMm": 3000,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-hob-2drawer",
+            "widthMm": 600,
+            "heightMm": 860,
+            "seatDepthMm": 580
+          }
+        },
+        {
+          "id": "n4",
+          "wall": "B",
+          "alongMm": 1200,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-cabinet",
+            "widthMm": 600,
+            "heightMm": 860,
+            "seatDepthMm": 580
+          }
+        },
+        {
+          "id": "n5",
+          "wall": "B",
+          "alongMm": 1800,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-cabinet",
+            "widthMm": 600,
+            "heightMm": 860,
+            "seatDepthMm": 580
+          }
+        },
+        {
+          "id": "n6",
+          "wall": "A",
+          "alongMm": 1800,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-dishwasher",
+            "widthMm": 600,
+            "heightMm": 860,
+            "seatDepthMm": 580
+          }
+        },
+        {
+          "id": "n7",
+          "wall": "A",
+          "alongMm": 3600,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-panbank",
+            "widthMm": 600,
+            "heightMm": 860,
+            "seatDepthMm": 580
+          }
+        },
+        {
+          "id": "n8",
+          "wall": "B",
+          "alongMm": 3100,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "tall-pantry",
+            "widthMm": 600,
+            "heightMm": 2200,
+            "seatDepthMm": 560
+          }
+        },
+        {
+          "id": "n9",
+          "wall": "C",
+          "alongMm": 1200,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-panbank",
+            "widthMm": 600,
+            "heightMm": 860,
+            "seatDepthMm": 580
+          }
+        },
+        {
+          "id": "n10",
+          "wall": "C",
+          "alongMm": 1800,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-3drawer",
+            "widthMm": 600,
+            "heightMm": 860,
+            "seatDepthMm": 580
+          }
+        },
+        {
+          "id": "n11",
+          "wall": "C",
+          "alongMm": 2400,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "tall-oven-tower",
+            "widthMm": 600,
+            "heightMm": 2200,
+            "seatDepthMm": 560
+          }
+        },
+        {
+          "id": "n12",
+          "wall": "B",
+          "alongMm": 1200,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 700,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n13",
+          "wall": "B",
+          "alongMm": 1800,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 700,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n14",
+          "wall": "A",
+          "alongMm": 3000,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "hood",
+            "widthMm": 600,
+            "heightMm": 700,
+            "seatDepthMm": 700
+          }
+        },
+        {
+          "id": "n15",
+          "wall": "C",
+          "alongMm": 1200,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 700,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n16",
+          "wall": "C",
+          "alongMm": 1800,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 700,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n17",
+          "wall": "B",
+          "alongMm": 1200,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 400,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n18",
+          "wall": "B",
+          "alongMm": 1800,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 400,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n19",
+          "wall": "A",
+          "alongMm": 3000,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 400,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n20",
+          "wall": "C",
+          "alongMm": 1200,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 400,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n21",
+          "wall": "C",
+          "alongMm": 1800,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 400,
+            "seatDepthMm": 291
+          }
+        }
+      ],
+      "createdAt": "2026-10-08T09:00:00.000Z",
+      "updatedAt": "2026-10-08T09:00:00.000Z",
+      "emptyColumns": [
+        {
+          "wall": "A",
+          "alongMm": 400,
+          "widthMm": 800,
+          "y0Mm": 1500,
+          "topMm": 2600,
+          "depthMm": 330,
+          "depthFromBuildId": "wall-cabinet"
+        },
+        {
+          "wall": "A",
+          "alongMm": 850,
+          "widthMm": 100,
+          "y0Mm": 1500,
+          "topMm": 2600,
+          "depthMm": 330,
+          "depthFromBuildId": "wall-cabinet"
+        },
+        {
+          "wall": "A",
+          "alongMm": 4000,
+          "widthMm": 200,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "A",
+          "alongMm": 4500,
+          "widthMm": 800,
+          "y0Mm": 1500,
+          "topMm": 2600,
+          "depthMm": 330,
+          "depthFromBuildId": "wall-cabinet"
+        },
+        {
+          "wall": "A",
+          "alongMm": 4950,
+          "widthMm": 100,
+          "y0Mm": 1500,
+          "topMm": 2600,
+          "depthMm": 330,
+          "depthFromBuildId": "wall-cabinet"
+        },
+        {
+          "wall": "B",
+          "alongMm": 3650,
+          "widthMm": 500,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "C",
+          "alongMm": 2800,
+          "widthMm": 200,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        }
+      ],
+      "columnExtents": [
+        {
+          "wall": "A",
+          "alongMm": 450,
+          "widthMm": 900,
+          "y0Mm": 0,
+          "topMm": 820,
+          "depthMm": 620,
+          "depthFromBuildId": "base-corner-x-900"
+        },
+        {
+          "wall": "A",
+          "alongMm": 1200,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "A",
+          "alongMm": 1800,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "A",
+          "alongMm": 2400,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "A",
+          "alongMm": 3000,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "A",
+          "alongMm": 3600,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "A",
+          "alongMm": 4550,
+          "widthMm": 900,
+          "y0Mm": 0,
+          "topMm": 820,
+          "depthMm": 620,
+          "depthFromBuildId": "base-corner-x-900"
+        },
+        {
+          "wall": "B",
+          "alongMm": 615,
+          "widthMm": 570,
+          "y0Mm": 1500,
+          "topMm": 2600,
+          "depthMm": 330,
+          "depthFromBuildId": "wall-corner-return-570"
+        },
+        {
+          "wall": "B",
+          "alongMm": 735,
+          "widthMm": 330,
+          "y0Mm": 0,
+          "topMm": 820,
+          "depthMm": 620,
+          "depthFromBuildId": "base-corner-return-320"
+        },
+        {
+          "wall": "B",
+          "alongMm": 1200,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "B",
+          "alongMm": 1800,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "B",
+          "alongMm": 2450,
+          "widthMm": 700,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "B",
+          "alongMm": 3100,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "C",
+          "alongMm": 615,
+          "widthMm": 570,
+          "y0Mm": 1500,
+          "topMm": 2600,
+          "depthMm": 330,
+          "depthFromBuildId": "wall-corner-return-570"
+        },
+        {
+          "wall": "C",
+          "alongMm": 735,
+          "widthMm": 330,
+          "y0Mm": 0,
+          "topMm": 820,
+          "depthMm": 620,
+          "depthFromBuildId": "base-corner-return-320"
+        },
+        {
+          "wall": "C",
+          "alongMm": 1200,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "C",
+          "alongMm": 1800,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "C",
+          "alongMm": 2400,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        }
+      ]
+    }
+  },
+  {
+    "name": "U 4200 x 3400 x 3400",
+    "design": {
+      "room": {
+        "shape": "U",
+        "widthMm": 4200,
+        "depthMm": 3400,
+        "wallCMm": 3400,
+        "heightMm": 2600
+      },
+      "presetId": null,
+      "settings": { "cabinetDepthMm": 600 },
+      "placements": [
+        {
+          "id": "p25",
+          "wall": "A",
+          "alongMm": 450,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-corner-x-900",
+            "widthMm": 900,
+            "heightMm": 820
+          }
+        },
+        {
+          "id": "p26",
+          "wall": "B",
+          "alongMm": 735,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-corner-return-320",
+            "widthMm": 330,
+            "heightMm": 820
+          }
+        },
+        {
+          "id": "p9",
+          "wall": "B",
+          "alongMm": 615,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "wall-corner-return-570",
+            "widthMm": 570,
+            "heightMm": 700
+          }
+        },
+        {
+          "id": "p21",
+          "wall": "B",
+          "alongMm": 615,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-corner-return-570-top",
+            "widthMm": 570,
+            "heightMm": 400
+          }
+        },
+        {
+          "id": "right-p25",
+          "wall": "A",
+          "alongMm": 3750,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-corner-x-900",
+            "widthMm": 900,
+            "heightMm": 820
+          }
+        },
+        {
+          "id": "right-p26",
+          "wall": "C",
+          "alongMm": 735,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-corner-return-320",
+            "widthMm": 330,
+            "heightMm": 820
+          }
+        },
+        {
+          "id": "right-p9",
+          "wall": "C",
+          "alongMm": 615,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "wall-corner-return-570",
+            "widthMm": 570,
+            "heightMm": 700
+          }
+        },
+        {
+          "id": "right-p21",
+          "wall": "C",
+          "alongMm": 615,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-corner-return-570-top",
+            "widthMm": 570,
+            "heightMm": 400
+          }
+        },
+        {
+          "id": "n0",
+          "wall": "B",
+          "alongMm": 2450,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "fridge-free",
+            "widthMm": 700,
+            "heightMm": 1850,
+            "seatDepthMm": 680
+          }
+        },
+        {
+          "id": "n1",
+          "wall": "A",
+          "alongMm": 1200,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-sink",
+            "widthMm": 600,
+            "heightMm": 860,
+            "seatDepthMm": 580
+          }
+        },
+        {
+          "id": "n2",
+          "wall": "A",
+          "alongMm": 2400,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-3drawer",
+            "widthMm": 600,
+            "heightMm": 860,
+            "seatDepthMm": 580
+          }
+        },
+        {
+          "id": "n3",
+          "wall": "A",
+          "alongMm": 3000,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-hob-2drawer",
+            "widthMm": 600,
+            "heightMm": 860,
+            "seatDepthMm": 580
+          }
+        },
+        {
+          "id": "n4",
+          "wall": "B",
+          "alongMm": 1200,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-cabinet",
+            "widthMm": 600,
+            "heightMm": 860,
+            "seatDepthMm": 580
+          }
+        },
+        {
+          "id": "n5",
+          "wall": "B",
+          "alongMm": 1800,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-cabinet",
+            "widthMm": 600,
+            "heightMm": 860,
+            "seatDepthMm": 580
+          }
+        },
+        {
+          "id": "n6",
+          "wall": "A",
+          "alongMm": 1800,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-dishwasher",
+            "widthMm": 600,
+            "heightMm": 860,
+            "seatDepthMm": 580
+          }
+        },
+        {
+          "id": "n7",
+          "wall": "B",
+          "alongMm": 3050,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "tall-pantry",
+            "widthMm": 500,
+            "heightMm": 2200,
+            "seatDepthMm": 560
+          }
+        },
+        {
+          "id": "n8",
+          "wall": "C",
+          "alongMm": 1200,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-panbank",
+            "widthMm": 600,
+            "heightMm": 860,
+            "seatDepthMm": 580
+          }
+        },
+        {
+          "id": "n9",
+          "wall": "C",
+          "alongMm": 1800,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-panbank",
+            "widthMm": 600,
+            "heightMm": 860,
+            "seatDepthMm": 580
+          }
+        },
+        {
+          "id": "n10",
+          "wall": "C",
+          "alongMm": 2400,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "base-3drawer",
+            "widthMm": 600,
+            "heightMm": 860,
+            "seatDepthMm": 580
+          }
+        },
+        {
+          "id": "n11",
+          "wall": "C",
+          "alongMm": 3000,
+          "y0Mm": 0,
+          "body": {
+            "buildId": "tall-oven-tower",
+            "widthMm": 600,
+            "heightMm": 2200,
+            "seatDepthMm": 560
+          }
+        },
+        {
+          "id": "n12",
+          "wall": "B",
+          "alongMm": 1200,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 700,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n13",
+          "wall": "B",
+          "alongMm": 1800,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 700,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n14",
+          "wall": "A",
+          "alongMm": 3000,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "hood",
+            "widthMm": 600,
+            "heightMm": 700,
+            "seatDepthMm": 700
+          }
+        },
+        {
+          "id": "n15",
+          "wall": "C",
+          "alongMm": 1200,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 700,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n16",
+          "wall": "C",
+          "alongMm": 1800,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 700,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n17",
+          "wall": "C",
+          "alongMm": 2400,
+          "y0Mm": 1500,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 700,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n18",
+          "wall": "B",
+          "alongMm": 1200,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 400,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n19",
+          "wall": "B",
+          "alongMm": 1800,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 400,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n20",
+          "wall": "A",
+          "alongMm": 3000,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 400,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n21",
+          "wall": "C",
+          "alongMm": 1200,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 400,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n22",
+          "wall": "C",
+          "alongMm": 1800,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 400,
+            "seatDepthMm": 291
+          }
+        },
+        {
+          "id": "n23",
+          "wall": "C",
+          "alongMm": 2400,
+          "y0Mm": 2200,
+          "body": {
+            "buildId": "wall-cabinet",
+            "widthMm": 600,
+            "heightMm": 400,
+            "seatDepthMm": 291
+          }
+        }
+      ],
+      "createdAt": "2026-10-08T09:00:00.000Z",
+      "updatedAt": "2026-10-08T09:00:00.000Z",
+      "emptyColumns": [
+        {
+          "wall": "A",
+          "alongMm": 400,
+          "widthMm": 800,
+          "y0Mm": 1500,
+          "topMm": 2600,
+          "depthMm": 330,
+          "depthFromBuildId": "wall-cabinet"
+        },
+        {
+          "wall": "A",
+          "alongMm": 850,
+          "widthMm": 100,
+          "y0Mm": 1500,
+          "topMm": 2600,
+          "depthMm": 330,
+          "depthFromBuildId": "wall-cabinet"
+        },
+        {
+          "wall": "A",
+          "alongMm": 3700,
+          "widthMm": 800,
+          "y0Mm": 1500,
+          "topMm": 2600,
+          "depthMm": 330,
+          "depthFromBuildId": "wall-cabinet"
+        },
+        {
+          "wall": "A",
+          "alongMm": 4150,
+          "widthMm": 100,
+          "y0Mm": 1500,
+          "topMm": 2600,
+          "depthMm": 330,
+          "depthFromBuildId": "wall-cabinet"
+        }
+      ],
+      "columnExtents": [
+        {
+          "wall": "A",
+          "alongMm": 450,
+          "widthMm": 900,
+          "y0Mm": 0,
+          "topMm": 820,
+          "depthMm": 620,
+          "depthFromBuildId": "base-corner-x-900"
+        },
+        {
+          "wall": "A",
+          "alongMm": 1200,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "A",
+          "alongMm": 1800,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "A",
+          "alongMm": 2400,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "A",
+          "alongMm": 3000,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "A",
+          "alongMm": 3750,
+          "widthMm": 900,
+          "y0Mm": 0,
+          "topMm": 820,
+          "depthMm": 620,
+          "depthFromBuildId": "base-corner-x-900"
+        },
+        {
+          "wall": "B",
+          "alongMm": 615,
+          "widthMm": 570,
+          "y0Mm": 1500,
+          "topMm": 2600,
+          "depthMm": 330,
+          "depthFromBuildId": "wall-corner-return-570"
+        },
+        {
+          "wall": "B",
+          "alongMm": 735,
+          "widthMm": 330,
+          "y0Mm": 0,
+          "topMm": 820,
+          "depthMm": 620,
+          "depthFromBuildId": "base-corner-return-320"
+        },
+        {
+          "wall": "B",
+          "alongMm": 1200,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "B",
+          "alongMm": 1800,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "B",
+          "alongMm": 2450,
+          "widthMm": 700,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "B",
+          "alongMm": 3050,
+          "widthMm": 500,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "C",
+          "alongMm": 615,
+          "widthMm": 570,
+          "y0Mm": 1500,
+          "topMm": 2600,
+          "depthMm": 330,
+          "depthFromBuildId": "wall-corner-return-570"
+        },
+        {
+          "wall": "C",
+          "alongMm": 735,
+          "widthMm": 330,
+          "y0Mm": 0,
+          "topMm": 820,
+          "depthMm": 620,
+          "depthFromBuildId": "base-corner-return-320"
+        },
+        {
+          "wall": "C",
+          "alongMm": 1200,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "C",
+          "alongMm": 1800,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "C",
+          "alongMm": 2400,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        },
+        {
+          "wall": "C",
+          "alongMm": 3000,
+          "widthMm": 600,
+          "y0Mm": 0,
+          "topMm": 2600,
+          "depthMm": 620,
+          "depthFromBuildId": "base-cabinet"
+        }
+      ]
+    }
+  }
+]

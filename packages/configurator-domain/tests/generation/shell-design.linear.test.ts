@@ -135,27 +135,49 @@ describe("buildLinearShellDesign — wall A's empty columns", () => {
   });
 });
 
+/** The code a builder refused with, so a refusal is told from every other refusal of the same class. */
+function refusalOf(build: () => Design): string {
+  try {
+    build();
+  } catch (error) {
+    if (
+      error instanceof LinearShellInputError ||
+      error instanceof LShellInputError
+    ) {
+      return `${error.name}: ${error.refusal}`;
+    }
+    throw error;
+  }
+  throw new Error("the builder refused nothing");
+}
+
 describe("buildLinearShellDesign — refuses what it must", () => {
   it("refuses an L room with ROOM_NOT_LINEAR", () => {
-    expect(() =>
-      buildLinearShellDesign({
-        room: { shape: "L", widthMm: 3000, depthMm: 2500, heightMm: 2600 },
-        occurredAt: OCCURRED_AT,
-      }),
-    ).toThrow(LinearShellInputError);
+    expect(
+      refusalOf(() =>
+        buildLinearShellDesign({
+          room: { shape: "L", widthMm: 3000, depthMm: 2500, heightMm: 2600 },
+          occurredAt: OCCURRED_AT,
+        }),
+      ),
+    ).toBe("LinearShellInputError: ROOM_NOT_LINEAR");
   });
 
   it("refuses a straight room outside the engine's linear bounds", () => {
-    expect(() =>
-      shellOf(linearRoom({ widthMm: linearWallABounds().minMm - 1 })),
-    ).toThrow(LinearShellInputError);
+    expect(
+      refusalOf(() =>
+        shellOf(linearRoom({ widthMm: linearWallABounds().minMm - 1 })),
+      ),
+    ).toBe("LinearShellInputError: ROOM_OUTSIDE_ENGINE_LIMITS");
   });
 });
 
 describe("buildLShellDesign — still refuses a straight room with ROOM_NOT_L", () => {
   it("throws LShellInputError, unaffected by the straight kitchen's arrival", () => {
-    expect(() =>
-      buildLShellDesign({ room: linearRoom(), occurredAt: OCCURRED_AT }),
-    ).toThrow(LShellInputError);
+    expect(
+      refusalOf(() =>
+        buildLShellDesign({ room: linearRoom(), occurredAt: OCCURRED_AT }),
+      ),
+    ).toBe("LShellInputError: ROOM_NOT_L");
   });
 });

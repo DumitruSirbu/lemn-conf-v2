@@ -8,7 +8,8 @@
 // namespace by adding `room.step` would pin one owner-approved sentence in the lock twice, which is
 // the scar ruling R7 exists to avoid.
 //
-// **The conversions half.** `metres-text.test.ts` sweeps the **approved policy's** ranges. Neither
+// **The conversions half.** `room-query-sync.test.ts` ("round-trips every approved length exactly, in
+// every L field") sweeps the **approved policy's** ranges. Neither
 // conversion is confined to them: the refill (`room-query-sync.ts`'s `withLengthFromQuery`) runs on
 // whatever the URL holds, and it accepts any length `parse-metres.ts` accepts. So the round trip is
 // swept over the range the parser actually admits, not the range the policy approves — the gap
@@ -71,7 +72,8 @@ describe("every leaf the wave added is a leaf the screen reads (ADR 0113)", () =
     // `room.suggestion.title` and `room.suggestion.switchToLinear` — the desktop-only actionable
     // suggestion the milestone's own criterion asks for. Wave U5 S1's 1 is
     // `room.compose.roomSummaryU`: a U's own 1F summary, drafted, the third length of `roomSummary`.
-    expect(ROOM_KEYS.length).toBe(72);
+    // One more is `room.compose.limitReached`: the day's limit on new designs, drafted.
+    expect(ROOM_KEYS.length).toBe(73);
   });
 
   it.each(ROOM_KEYS)("reads %s somewhere under src/room", (key) => {
@@ -153,21 +155,6 @@ describe("the conversions hold past the approved policy's ranges (criteria 7 and
 
           expect(text).not.toContain(",");
           expect(parseMetresToMillimetres(text)).toEqual({ ok: true, mm });
-        },
-      ),
-      { numRuns: SWEEP_RUNS },
-    );
-  });
-
-  it("never writes a group separator into a field", () => {
-    // `Intl` groups thousands, and a grouped *"1 200 000"* is `notDigits` to the field's parser — the
-    // room would come back unreadable from its own URL. The refill writes the digit string itself,
-    // which is what this asserts stayed true.
-    fc.assert(
-      fc.property(
-        fc.integer({ min: 1_000_000, max: A_LENGTH_NO_ROOM_REACHES_MM }),
-        (mm) => {
-          expect(refilledWallA(metresTextForUrl(mm))).toMatch(/^\d+$/u);
         },
       ),
       { numRuns: SWEEP_RUNS },

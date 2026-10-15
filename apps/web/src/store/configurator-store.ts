@@ -40,13 +40,16 @@ import { useContext, useSyncExternalStore } from "react";
 import { create, type StoreApi, type UseBoundStore } from "zustand";
 
 import { sessionConfigurationRepository } from "@/persistence/fetch-configuration-repository";
+import { reportOverwriteReadFailure } from "@/persistence/report-overwrite-read-failure";
 import {
   createSaveCoalescer,
   type SaveCoalescer,
   type SaveStatus,
+  type WaitingWrite,
 } from "@/persistence/save-coalescer";
 
 import { applyCommandResult, type Selection } from "./apply-command-result";
+import { isDigitRun, isGreaterRevision } from "./revision-order";
 import { ServerSnapshotStoreContext } from "./server-snapshot-context";
 import {
   preflightWholeKitchenSettings,
@@ -156,6 +159,15 @@ export interface ConfiguratorState {
    */
   readonly revision: DesignRevision | null;
   readonly saveStatus: SaveStatus;
+  /** When the one waiting write will be sent, as the clock's milliseconds, once the limit on saves refused it; set only
+   *  with `saveStatus: "error"` and `null` otherwise, which is the failure's own backoff or no failure at all. */
+  readonly saveResumesAtMs: number | null;
+  /**
+   * The design the server last confirmed holding: the one the hydrating load read, or the one the last successful
+   * save wrote. `design === savedDesign` is the one question "is anything still waiting to be saved?", which no
+   * `saveStatus` answers: `idle` also covers an edit queued behind the coalescer's one-save-a-second interval.
+   */
+  readonly savedDesign: Design;
   /** Gate a share-link UI on this, not on `designId !== null`: a never-written design must not present a
    *  shareable link. */
   readonly hasPersistedSuccessfully: boolean;
@@ -173,10 +185,12 @@ export interface ConfiguratorState {
   readonly canWrite: WriteAccess;
   /** The server's answer about write access, which on the load-by-link path arrives after the design
    *  (`LoadedDesignState.canWrite`). Ignored when the store has moved to a different design: the answer is
-   *  per-design. */
+   *  per-design. With `stored`, the answer's own design and revision are taken in the same write when the store
+   *  holds no unsaved edit and the revision is the greater; otherwise `canWrite` alone is applied. */
   readonly applyWriteAccess: (access: {
     designId: DesignId;
     canWrite: boolean;
+    stored?: StoredCopy;
   }) => void;
   /** The probe could not answer at all (dropped request, blocked API, offline). Moves `canWrite` to
    *  `"check-failed"`, a retryable notice: a network failure is no evidence either way and must not be read
@@ -188,18 +202,33 @@ export interface ConfiguratorState {
   /** Replaces the design wholesale (the `/d/[id]` load). It round-tripped the database, so it counts as
    *  persisted. Clears the selection, whose ids may mean nothing in the new design. */
   readonly hydrate: (loaded: LoadedDesignState) => void;
-  readonly setSaveStatus: (status: SaveStatus) => void;
+  readonly setSaveStatus: (status: SaveStatus, resumesAtMs?: number) => void;
   /** A successful save's id and revision, the coalescer's `onSaved` hook. They arrive together: an id kept
    *  without its new revision would make the next write expect one already consumed. */
   readonly applySaved: (saved: {
     id: DesignId;
     revision: DesignRevision;
+    /** The document that save wrote; absent from callers that have no snapshot to name. */
+    savedDesign?: Design;
   }) => void;
   /**
    * The customer's answer to `saveStatus: "conflict"`: write what is on screen over the stored design after
    * re-reading its revision. The other answer, reloading, is a page reload and not a store action.
    */
   readonly overwriteConflict: () => void;
+}
+
+/** Whether an edit is still waiting to be saved: the design on screen is not the one the server last confirmed. */
+export function hasUnsavedEdit(
+  state: Pick<ConfiguratorState, "design" | "savedDesign">,
+): boolean {
+  return state.design !== state.savedDesign;
+}
+
+/** The design the server holds and the revision it stands at, read together: neither is meaningful alone. */
+export interface StoredCopy {
+  readonly design: Design;
+  readonly revision: DesignRevision;
 }
 
 /** One load's state: the document, its id and this browser's access, passed as one object so `hydrate`
@@ -239,6 +268,13 @@ export interface ConfiguratorStoreOptions {
    * store instances have no background writer and leave this unset.
    */
   readonly onDesignIdentityChanged?: () => void;
+  /**
+   * Asked when a design is loaded: the write the background writer holds for that design, if any, waiting for the
+   * limit on saves, backing off after a failure, or sent and not yet answered. A load that finds one shows that design
+   * in that state, and not the server's copy as saved.
+   * Other store instances have no background writer and leave this unset.
+   */
+  readonly adoptWaitingWrite?: (id: DesignId) => WaitingWrite | undefined;
   /** The overwrite half of WEB-003's conflict choice, wired to the coalescer at the singleton seam.
    *  Other store instances have no background writer and leave this unset. */
   readonly onOverwriteRequested?: (design: Design) => void;
@@ -352,6 +388,20 @@ export function createConfiguratorStore(
       options.catalogAt(cabinetDepthMm);
     catalogsByDepthMm.set(cabinetDepthMm, built);
     return built;
+  };
+
+  /** What a design on screen derives to, published with an empty selection whose ids may mean nothing in it. A
+   *  loaded document carries its own `settings.cabinetDepthMm`: reusing the opening map would evaluate a 700 mm
+   *  kitchen at 600 mm. */
+  const derivedViewOf = (shown: Design) => {
+    const shownCatalog = catalogFor(shown);
+    return {
+      design: shown,
+      catalog: shownCatalog,
+      ...deriveGeometry(shown, shownCatalog),
+      selection: null,
+      lastRejection: null,
+    };
   };
 
   return create<ConfiguratorState>((set, get) => {
@@ -582,36 +632,44 @@ export function createConfiguratorStore(
       designId,
       revision: options.revision ?? null,
       saveStatus: "idle",
+      saveResumesAtMs: null,
+      savedDesign: design,
       canWrite: options.canWrite ?? true,
       hasPersistedSuccessfully: designId !== null,
       hasBeenEdited: false,
       hydrate: (loaded) => {
-        // A loaded document carries its own `settings.cabinetDepthMm`: reusing the opening map would
-        // evaluate a 700 mm kitchen at 600 mm.
-        const loadedCatalog = catalogFor(loaded.design);
-        const geometry = deriveGeometry(loaded.design, loadedCatalog);
         if (get().designId !== loaded.designId)
           options.onDesignIdentityChanged?.();
+        const waiting = waitingWriteFor(loaded, options);
         set({
-          design: loaded.design,
-          catalog: loadedCatalog,
-          ...geometry,
-          selection: null,
-          lastRejection: null,
+          ...derivedViewOf(waiting?.design ?? loaded.design),
           designId: loaded.designId,
-          revision: loaded.revision,
+          revision: waiting?.expectedRevision ?? loaded.revision,
           canWrite: loaded.canWrite,
           hasPersistedSuccessfully: true,
-          hasBeenEdited: false,
-          // A save status describes the generation that produced it, so it resets on load. A carried
-          // `unauthorized` would render a design this browser owns as read-only, and only a successful write
-          // clears it, which the read-only panel has disabled: a deadlock only a reload leaves.
-          saveStatus: "idle",
+          savedDesign: loaded.design,
+          hasBeenEdited: waiting !== undefined,
+          ...saveStateShownFor(waiting),
         });
       },
-      applyWriteAccess: ({ designId: answeredFor, canWrite }) => {
-        if (get().designId !== answeredFor) return;
-        set({ canWrite });
+      applyWriteAccess: ({ designId: answeredFor, canWrite, stored }) => {
+        const state = get();
+        if (state.designId !== answeredFor) return;
+        if (stored === undefined || !canTakeStoredCopy(state, stored)) {
+          set({ canWrite });
+          return;
+        }
+        const taken = derivedViewOf(stored.design);
+        set({
+          ...taken,
+          selection: selectedBodyKeptIn(taken.records, state.selection),
+          revision: stored.revision,
+          savedDesign: stored.design,
+          hasBeenEdited: false,
+          saveStatus: "idle",
+          saveResumesAtMs: null,
+          canWrite,
+        });
       },
       failWriteAccessCheck: ({ designId: attemptedFor }) => {
         const state = get();
@@ -624,17 +682,80 @@ export function createConfiguratorStore(
         if (get().canWrite !== "check-failed") return;
         set({ canWrite: "checking" });
       },
-      setSaveStatus: (status) => {
-        set({ saveStatus: status });
+      setSaveStatus: (status, resumesAtMs) => {
+        // A time belongs to a failure alone: beside any other status it would be a pause nobody is waiting for.
+        set({
+          saveStatus: status,
+          saveResumesAtMs: status === "error" ? (resumesAtMs ?? null) : null,
+        });
       },
-      applySaved: ({ id, revision }) => {
-        set({ designId: id, revision, hasPersistedSuccessfully: true });
+      applySaved: ({ id, revision, savedDesign }) => {
+        set({
+          designId: id,
+          revision,
+          hasPersistedSuccessfully: true,
+          ...(savedDesign === undefined ? {} : { savedDesign }),
+        });
       },
       overwriteConflict: () => {
         options.onOverwriteRequested?.(get().design);
       },
     };
   });
+}
+
+/**
+ * What stays selected when the server's copy is taken: the customer's body, if the taken copy still holds it. An
+ * empty space is not kept, since its id is regenerated with every recompute and may name another opening.
+ */
+function selectedBodyKeptIn(
+  records: readonly PlacementRecord[],
+  selection: Selection,
+): Selection {
+  if (selection?.kind !== "placement") return null;
+  return records.some(({ id }) => id === selection.id) ? selection : null;
+}
+
+/**
+ * Whether the server's copy may replace the one on screen: nothing is waiting to be saved (`!hasUnsavedEdit`)
+ * and the server stands at a greater revision. `isGreaterRevision` calls any candidate greater than no revision at
+ * all, so the candidate is checked to be a revision first.
+ */
+function canTakeStoredCopy(
+  state: ConfiguratorState,
+  stored: StoredCopy,
+): boolean {
+  if (hasUnsavedEdit(state) || !isDigitRun(stored.revision)) return false;
+  return isGreaterRevision(stored.revision, state.revision);
+}
+
+/**
+ * A save status describes the generation that produced it, so it resets on load. A carried `unauthorized` would render
+ * a design this browser owns as read-only, and only a successful write clears it, which the read-only panel has
+ * disabled: a deadlock only a reload leaves. The one exception is the write held for this very design, which is the
+ * load's to show in the state it is in.
+ */
+function saveStateShownFor(
+  held: WaitingWrite | undefined,
+): Pick<ConfiguratorState, "saveStatus" | "saveResumesAtMs"> {
+  if (held === undefined) return { saveStatus: "idle", saveResumesAtMs: null };
+  if (held.heldAs === "sent") {
+    return { saveStatus: "saving", saveResumesAtMs: null };
+  }
+  if (held.heldAs === "ready") {
+    return { saveStatus: "idle", saveResumesAtMs: null };
+  }
+  return { saveStatus: "error", saveResumesAtMs: held.resumesAtMs };
+}
+
+/** The write a load is given instead of the server's copy. A read-only load (a shared link) is given none:
+ *  it shows what the server holds, whoever's write is held. */
+function waitingWriteFor(
+  loaded: LoadedDesignState,
+  options: ConfiguratorStoreOptions,
+): WaitingWrite | undefined {
+  if (loaded.canWrite === false) return undefined;
+  return options.adoptWaitingWrite?.(loaded.designId);
 }
 
 /**
@@ -655,6 +776,7 @@ const sessionStore = createConfiguratorStore({
   onDesignChanged: persistDesignChange,
   onDesignIdentityChanged: advanceSaveGeneration,
   onOverwriteRequested: overwriteConflictingDesign,
+  adoptWaitingWrite: (id) => sessionSaveCoalescer().adoptWaitingWrite(id),
 });
 
 function selectWholeState(state: ConfiguratorState): ConfiguratorState {
@@ -711,21 +833,50 @@ function overwriteConflictingDesign(design: Design): void {
   sessionSaveCoalescer().overwriteConflict(design);
 }
 
+/** The document the one save in flight is writing. Saves are serial, so this is the one `onSaved` reports on. */
+let designBeingSaved: Design | undefined;
+
+const recordingRepository = {
+  save: (
+    request: Parameters<typeof sessionConfigurationRepository.save>[0],
+  ) => {
+    designBeingSaved = request.design;
+    return sessionConfigurationRepository.save(request);
+  },
+};
+
+/** The overwrite's re-read of the stored revision. A refusal of it (the limit on reads) is written down and passed on,
+ *  so the coalescer leaves the conflict standing, which the editor already shows. */
+async function readStoredRevisionOrReport(
+  id: DesignId,
+): Promise<DesignRevision> {
+  try {
+    return (await sessionConfigurationRepository.loadWithAccess(id)).revision;
+  } catch (failure) {
+    reportOverwriteReadFailure(failure);
+    throw failure;
+  }
+}
+
 function sessionSaveCoalescer(): SaveCoalescer {
   saveCoalescer ??= createSaveCoalescer({
-    repository: sessionConfigurationRepository,
+    repository: recordingRepository,
     getDesignId: () => useConfiguratorStore.getState().designId,
     getGeneration: () => saveGeneration,
     getRevision: () => useConfiguratorStore.getState().revision,
-    readCurrentRevision: async (id) =>
-      (await sessionConfigurationRepository.loadWithAccess(id)).revision,
+    readCurrentRevision: readStoredRevisionOrReport,
     onSaved: (saved, generation) => {
       if (generation !== saveGeneration) return;
-      useConfiguratorStore.getState().applySaved(saved);
+      useConfiguratorStore.getState().applySaved({
+        ...saved,
+        ...(designBeingSaved === undefined
+          ? {}
+          : { savedDesign: designBeingSaved }),
+      });
     },
-    onSaveStatusChange: (status, generation) => {
+    onSaveStatusChange: (status, generation, resumesAtMs) => {
       if (generation !== saveGeneration) return;
-      useConfiguratorStore.getState().setSaveStatus(status);
+      useConfiguratorStore.getState().setSaveStatus(status, resumesAtMs);
     },
   });
   return saveCoalescer;

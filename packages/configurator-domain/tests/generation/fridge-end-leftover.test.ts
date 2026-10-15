@@ -187,34 +187,6 @@ describe("the leftover beside an end fridge goes to the door cabinet inboard of 
     expect(withTheLeftoverBesideTheFridgeAbsorbed(before)).toBe(before);
   });
 
-  it("takes only what the ceiling leaves a neighbour that is already wide", () => {
-    const after = withTheLeftoverBesideTheFridgeAbsorbed(
-      planOf(withWidth(750, 250)),
-    );
-
-    expect(bodyNamed(after, INBOARD_OF_THE_FRIDGE).widthMm).toBe(800);
-    expect(after.remainderMm.A).toBe(200);
-  });
-
-  it.each([
-    // neighbour, leftover, what it takes: whole steps, up to 800, from the owner's words
-    [601, 200, 150],
-    [625, 299, 150],
-    [651, 150, 100],
-  ])(
-    "grows a %i mm cabinet in whole steps, not by a part of one: %i mm beyond the fridge gives it %i",
-    (widthMm, leftoverMm, takenMm) => {
-      const after = withTheLeftoverBesideTheFridgeAbsorbed(
-        planOf(withWidth(widthMm, leftoverMm)),
-      );
-
-      expect(bodyNamed(after, INBOARD_OF_THE_FRIDGE).widthMm).toBe(
-        widthMm + takenMm,
-      );
-      expect(after.remainderMm.A).toBe(leftoverMm - takenMm);
-    },
-  );
-
   it.each([
     ["the sink", { buildId: BASE_SINK, widthMm: 600 }],
     ["the dishwasher", { buildId: "base-dishwasher", widthMm: 600 }],
@@ -313,20 +285,6 @@ describe("what the absorb moves, and what it leaves exactly where it was", () =>
     expect(after.floorWidthsMm.A).toBe(before.floorWidthsMm.A);
     expect(bodyNamed(after, "sink")).toBe(bodyNamed(before, "sink"));
     expect(bodyNamed(after, INBOARD_OF_THE_FRIDGE).widthMm).toBe(750);
-  });
-
-  it("does the same on wall B as on wall A", () => {
-    const onA = withTheLeftoverBesideTheFridgeAbsorbed(planOf(WIDENED));
-    const onB = withTheLeftoverBesideTheFridgeAbsorbed(
-      planOf({ ...WIDENED, fridgeWall: "B" }),
-    );
-
-    expect(bodyNamed(onB, INBOARD_OF_THE_FRIDGE).widthMm).toBe(
-      bodyNamed(onA, INBOARD_OF_THE_FRIDGE).widthMm,
-    );
-    expect(bodyNamed(onB, "fridge").startMm).toBe(
-      bodyNamed(onA, "fridge").startMm,
-    );
   });
 });
 

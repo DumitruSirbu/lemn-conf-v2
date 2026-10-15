@@ -1,11 +1,16 @@
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { Client } from "@neondatabase/serverless";
-import type { QueryResultRow } from "@neondatabase/serverless";
+import type { Client, QueryResultRow } from "@neondatabase/serverless";
 
 import { loadEnvLocal } from "./load-env.js";
-import { MigrationError, MigrationExecutionError } from "./migration-errors.js";
+import {
+  MigrationError,
+  MigrationExecutionError,
+  describeErrorType,
+  isPrintableFailure,
+  reducedCauseOf,
+} from "./migration-errors.js";
 import { readMigrationFiles } from "./migration-files.js";
 import type { MigrationFile } from "./migration-files.js";
 import {
@@ -19,8 +24,12 @@ import { planPendingMigrations } from "./migration-plan.js";
 import type { AppliedMigration } from "./migration-plan.js";
 import {
   assertDeclaredEnvironmentReaches,
+  printListedDatabaseName,
+  printReachedDatabaseName,
   readDeclaredEnvironment,
 } from "./migration-target.js";
+import { databaseNameOf, openDatabaseSession } from "./open-database.js";
+import type { ConnectionVariableName } from "./open-database.js";
 import { readMigrationDatabaseUrl } from "./read-database-url.js";
 
 /** What a run did, split so "applied nothing because all were already applied" differs from "nothing happened". */
@@ -41,11 +50,15 @@ export interface MigrationRunSummary {
  */
 export async function runMigrations(
   connectionUrl?: string,
+  readFrom?: ConnectionVariableName,
 ): Promise<MigrationRunSummary> {
-  return applyMigrations(
-    connectionUrl ?? readMigrationDatabaseUrl(),
-    readMigrationFiles(),
-  );
+  return connectionUrl === undefined
+    ? applyMigrations(
+        readMigrationDatabaseUrl(),
+        readMigrationFiles(),
+        "MIGRATION_DATABASE_URL",
+      )
+    : applyMigrations(connectionUrl, readMigrationFiles(), readFrom);
 }
 
 /** `runMigrations` with the file set supplied, for tests that need a set the repository lacks (a failing migration,
@@ -53,19 +66,44 @@ export async function runMigrations(
 export async function applyMigrations(
   connectionUrl: string,
   files: readonly MigrationFile[],
+  readFrom?: ConnectionVariableName,
 ): Promise<MigrationRunSummary> {
-  const client = new Client(connectionUrl);
+  const client = openDatabaseSession(connectionUrl, readFrom);
+  await connectOrWrapError(client, connectionUrl);
   try {
-    await connectOrWrapError(client, connectionUrl);
     return await applyPendingMigrations(client, files);
   } finally {
+    await closeQuietly(client);
+  }
+}
+
+/** `end()` after a failed connect may throw, reject or never settle; none of that may replace the failure being
+ *  thrown, nor surface as an unhandled rejection, which Node prints with the error object. */
+function closeWithoutWaiting(client: Client): void {
+  try {
+    void client.end().catch(() => undefined);
+  } catch {
+    // Deliberately swallowed; see above.
+  }
+}
+
+/** The run's outcome is already decided when the session closes. A close that fails must not replace the failure that
+ *  brought us here, nor turn a run whose migrations all committed into a failed one. */
+async function closeQuietly(client: Client): Promise<void> {
+  try {
     await client.end();
+  } catch {
+    // Deliberately swallowed; see above.
   }
 }
 
 /**
  * A driver connect failure must not escape raw: Neon's WebSocket errors carry endpoint and host detail (ADR 0008's
- * redaction line). The replacement names only the database and keeps the driver error as `cause`.
+ * redaction line). The replacement names a database only if this repository lists it, and its `cause` is the
+ * failure's type name and code, never the driver's error.
+ *
+ * `end()` is not awaited here: a failed connect has already emitted the `end` event it waits for
+ * (`@neondatabase/serverless@1.1.0`, `index.mjs:1078`), so awaiting it never settles.
  */
 async function connectOrWrapError(
   client: Client,
@@ -74,10 +112,11 @@ async function connectOrWrapError(
   try {
     await client.connect();
   } catch (error) {
+    closeWithoutWaiting(client);
     throw new MigrationExecutionError(
-      `Could not connect to "${databaseNameOf(connectionUrl)}" to run migrations. No migration ` +
-        `was attempted.`,
-      { cause: error },
+      `Could not connect to "${printListedDatabaseName(databaseNameOf(connectionUrl))}" to run migrations. ` +
+        `No migration was attempted.`,
+      reducedCauseOf(error),
     );
   }
 }
@@ -181,7 +220,7 @@ function asMigrationError(error: unknown, file: MigrationFile): Error {
   return new MigrationExecutionError(
     `Migration "${file.fileName}" failed and was rolled back. The database is unchanged by it and ` +
       `it is not recorded as applied.`,
-    { cause: error },
+    reducedCauseOf(error),
   );
 }
 
@@ -205,52 +244,10 @@ export function describeMigrationRun(
 /** The one line a failed run prints. Never the error object or its `cause`: a driver error's properties are where a
  *  connection string hides. */
 export function describeMigrationFailure(error: unknown): string {
-  return error instanceof MigrationError
+  return isPrintableFailure(error)
     ? `[migrate] ${error.name}: ${error.message}`
     : `[migrate] migration run failed with an unexpected ${describeErrorType(error)}.`;
 }
-
-function describeErrorType(error: unknown): string {
-  return error instanceof Error ? error.name : typeof error;
-}
-
-/**
- * The database a connection string names, and nothing else from it. Exported so the no-credential-in-logs guarantee is
- * testable directly.
- *
- * Never throws: `new URL` on a malformed string raises `ERR_INVALID_URL`, which carries the whole input, password
- * included, where Node's uncaught-exception printer emits it. A scheme other than `postgres:`/`postgresql:`, or no `//`
- * authority, gets a placeholder before any pathname is read. Without the authority (`postgres:/user:pw@host/db`) the
- * URL parses with an empty host and a `pathname` holding the credential, which would be returned as the name and could
- * pass `assertDeclaredEnvironmentReaches` as an unclaimed name while the driver reaches a listed environment.
- *
- * The pathname stays percent-encoded and keeps any backslash: `assertDeclaredEnvironmentReaches` is the one place that
- * judges a raw `%` or `\`.
- */
-export function databaseNameOf(connectionUrl: string): string {
-  try {
-    const url = new URL(connectionUrl);
-    if (!hasTrustedPostgresAuthority(url)) return UNTRUSTED_CONNECTION_SHAPE;
-    return url.pathname.replace(/^\//, "");
-  } catch {
-    return UNPARSEABLE_DATABASE_NAME;
-  }
-}
-
-/** Exactly `postgres:` or `postgresql:` with a non-empty host; a URL failing either test is never trusted to say what
- *  it names (see `databaseNameOf`). */
-function hasTrustedPostgresAuthority(url: URL): boolean {
-  if (url.protocol !== "postgres:" && url.protocol !== "postgresql:")
-    return false;
-  return url.host !== "";
-}
-
-const UNPARSEABLE_DATABASE_NAME = "<unparseable connection string>";
-
-/** `databaseNameOf`'s placeholder for a URL that parses but is not a `postgres:`/`postgresql:` URL with a host.
- *  Duplicated in `migration-target.ts`: importing it back would make an import cycle with this CLI file. */
-const UNTRUSTED_CONNECTION_SHAPE =
-  "<connection string is not a postgres:// or postgresql:// URL with a host>";
 
 // Compared as filesystem paths: `import.meta.url` percent-encodes a space and `process.argv[1]` does not, so a string
 // comparison exited 0 having done nothing under a checkout path with a space (ADR 0013).
@@ -266,13 +263,19 @@ if (isDirectCliInvocation) {
     // (see docs/milestones/migration-environment-safety-check.md).
     const environment = readDeclaredEnvironment(process.argv, "migrate");
     const connectionUrl = readMigrationDatabaseUrl();
-    assertDeclaredEnvironmentReaches({
-      environment,
-      databaseName: databaseNameOf(connectionUrl),
-    });
+    const databaseName = databaseNameOf(connectionUrl);
+    assertDeclaredEnvironmentReaches({ environment, databaseName });
 
-    const summary = await runMigrations(connectionUrl);
-    console.log(describeMigrationRun(summary, databaseNameOf(connectionUrl)));
+    const summary = await runMigrations(
+      connectionUrl,
+      "MIGRATION_DATABASE_URL",
+    );
+    console.log(
+      describeMigrationRun(
+        summary,
+        printReachedDatabaseName({ databaseName, environment }),
+      ),
+    );
   } catch (error) {
     // Without this, Node's uncaught-exception printer dumps the driver's error object, which carries endpoint and host
     // detail. Only the error's own name and message reach the operator.

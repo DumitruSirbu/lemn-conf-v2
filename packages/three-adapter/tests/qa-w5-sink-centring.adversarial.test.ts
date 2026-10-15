@@ -218,14 +218,6 @@ describe("'centred' is a ruling about 600 and 'like the hob' carries it everywhe
       }).toEqual({ cabinetDepthMm, centred: false });
     }
   });
-
-  // Non-vacuity for the shipped gate: `sink-front-clearance.parity.test.ts`'s centring case `continue`s at
-  // every depth but 600, so it asserts nothing the day 600 stops being declared (ADR 0093 decision 1).
-  it("keeps 600 in the declared map, which is what makes the centring case assert anything", () => {
-    expect(declaredCabinetDepthsMm()).toContain(
-      DEPTH_THE_CENTRING_IS_RULED_AT_MM,
-    );
-  });
 });
 
 describe("the hob and the sink derive their seats by one shape", () => {

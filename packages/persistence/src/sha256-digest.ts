@@ -18,11 +18,12 @@ const SHA256_HEX_DIGEST = /^[0-9a-f]{64}$/;
  * deliberately absent from the message either way (7E3a D2: "names no value").
  */
 export function requireSha256Digest(
-  value: string,
+  value: unknown,
   whatItIs: string,
   operation: string,
 ): void {
-  if (SHA256_HEX_DIGEST.test(value)) return;
+  // `RegExp.test` turns its argument into text first, so a list of one digest would pass as the digest.
+  if (typeof value === "string" && SHA256_HEX_DIGEST.test(value)) return;
   throw new Error(
     `Refusing to ${operation}: a ${whatItIs} must be a 64-character lowercase hex SHA-256 digest. ` +
       `Any other shape risks a row a guessable value could write or claim.`,

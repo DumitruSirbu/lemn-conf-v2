@@ -14,7 +14,9 @@
 import type {
   AccessoryPriceLine,
   CabinetPriceLine,
+  DisplayEntry,
   DisplayGroup,
+  PricedDesign,
   PriceLine,
   PricingResult,
   WholeKitchenPriceLine,
@@ -111,32 +113,21 @@ export function describePriceBreakdown(
   if (!input.pricing.ok) return UNAVAILABLE_BREAKDOWN;
 
   const { priced } = input.pricing;
-  // An empty kitchen has no price to explain, so it is `unavailable`, not an empty breakdown: that
-  // would render both whole-kitchen tiers *inclus*, which reads as a costed answer. Both halves are
-  // required: no cabinet lines beside groups that name bodies is the divergence the guard below
-  // must still throw on.
-  if (holdsNoCabinets(priced) && input.groups.length === 0)
+  if (holdsNothingToBreakDown(priced, input.groups))
     return UNAVAILABLE_BREAKDOWN;
-  const lineByPlacement = indexCabinetLines(priced.lines);
-  const groups = input.groups.map((group) =>
-    toBreakdownGroup(group, lineByPlacement, input.content),
-  );
-  assertEveryPricedBodyIsPlaced(input.groups, lineByPlacement);
 
+  const rows = describeBreakdownRows({
+    content: input.content,
+    priced,
+    groups: input.groups,
+  });
   const warning = describeFlaggedTotalWarning(priced, input.content.price);
   return {
     kind: "available",
     title: input.content.priceBreakdown.title,
     disclaimer: input.content.priceBreakdown.disclaimer,
-    groups,
-    wholeKitchenRows: priced.lines
-      .filter((line) =>
-        isUnplacedLine(
-          line,
-          input.content.priceBreakdown.wholeKitchenCategories,
-        ),
-      )
-      .map((line) => toUnplacedRow(line, input.content)),
+    groups: rows.groups,
+    wholeKitchenRows: rows.wholeKitchenRows,
     note: input.content.priceBreakdown.note,
     figure: describeStartingPrice({
       totalMinor: priced.totalMinor,
@@ -144,6 +135,51 @@ export function describePriceBreakdown(
     }),
     ...(warning === undefined ? {} : { overflowWarning: warning }),
     closeLabel: input.content.priceBreakdown.close,
+  };
+}
+
+/** An empty kitchen has no price to explain, so it is `unavailable`, not an empty breakdown: that
+ *  would render both whole-kitchen tiers *inclus*, which reads as a costed answer. Both halves are
+ *  required: no cabinet lines beside groups that name bodies is the divergence
+ *  `describeBreakdownRows` must still throw on. */
+export function holdsNothingToBreakDown(
+  priced: PricedDesign,
+  groups: readonly DisplayGroup[],
+): boolean {
+  return holdsNoCabinets(priced) && groups.length === 0;
+}
+
+interface DescribeBreakdownRowsInput {
+  readonly content: Content;
+  readonly priced: PricedDesign;
+  /** `projectDesignForDisplay`'s answer for the design `priced` was computed from, verbatim. */
+  readonly groups: readonly DisplayGroup[];
+}
+
+interface BreakdownRows {
+  readonly groups: readonly BreakdownGroup[];
+  readonly wholeKitchenRows: readonly BreakdownRow[];
+}
+
+/** The one builder of the rows every surface lists a priced design by; the review calls it too, so
+ *  the two cannot print different amounts for one body. */
+export function describeBreakdownRows(
+  input: DescribeBreakdownRowsInput,
+): BreakdownRows {
+  const { content, priced } = input;
+  const lineByPlacement = indexCabinetLines(priced.lines);
+  const groups = input.groups.map((group) =>
+    toBreakdownGroup(group, lineByPlacement, content),
+  );
+  assertEveryPricedBodyIsPlaced(input.groups, lineByPlacement);
+
+  return {
+    groups,
+    wholeKitchenRows: priced.lines
+      .filter((line) =>
+        isUnplacedLine(line, content.priceBreakdown.wholeKitchenCategories),
+      )
+      .map((line) => toUnplacedRow(line, content)),
   };
 }
 
@@ -162,16 +198,34 @@ function toBreakdownGroup(
     ),
     rows: group.entries.map((entry) => ({
       key: entry.placementId,
-      label: content.priceBreakdown.placementLabel(
-        content.bodyLabel(entry.label),
-        entry.widthMm,
-      ),
+      label: describePlacementLabel(entry, content),
       amountText: describeCabinetRowAmount(
         cabinetLineFor(entry.placementId, lineByPlacement),
         content,
       ),
     })),
   };
+}
+
+/** A body's name without its width: the first line of a two-line row. The label above is this and the width, from
+ *  the same `bodyLabel`, so the two never name a body differently. */
+export function describePlacementName(
+  entry: DisplayEntry,
+  content: Content,
+): string {
+  return content.bodyLabel(entry.label);
+}
+
+/** The words a body's row prints, from the projection's entry alone, so a surface that names a body without
+ *  a price uses the same ones. */
+export function describePlacementLabel(
+  entry: DisplayEntry,
+  content: Content,
+): string {
+  return content.priceBreakdown.placementLabel(
+    describePlacementName(entry, content),
+    entry.widthMm,
+  );
 }
 
 function toUnplacedRow(

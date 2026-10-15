@@ -34,6 +34,11 @@ let otherBands: readonly HTMLDivElement[];
 let root: Root;
 
 beforeEach(() => {
+  // An applied choice is a save, and this store's save is a real request. Every request is held open and never
+  // answered, and the stub is left standing for the file: a save the store schedules on a timer would otherwise
+  // leave after the case that caused it and reach for a server.
+  vi.stubGlobal("fetch", () => new Promise<Response>(() => undefined));
+
   // The store is a module singleton, so it is put back between cases through the store's **own load
   // path** rather than by writing two fields into it. `setState` merges shallowly: it would leave
   // `records`, `columns`, `voids`, `selection` and the write-access fields standing from the
@@ -89,6 +94,41 @@ function open(): void {
   });
 }
 
+/** A hardware tier the sheet does not have checked, pressed. Hardware, because a material change asks a question
+ *  first and a depth change needs a body probe this store was not given. Returns the tier now pending. */
+function pressAnUncheckedHardwareTier(): string {
+  const radio = settingsBand.querySelector<HTMLInputElement>(
+    'input[type="radio"][name$="-hardware"]:not(:checked)',
+  );
+  if (!radio) throw new Error("the sheet offers no second hardware tier");
+  act(() => {
+    radio.click();
+  });
+  return radio.value;
+}
+
+/** A colour the sheet does not have pressed, pressed. Returns the palette entry it names. */
+function pressAnUnpressedColour(): string {
+  const swatch = settingsBand.querySelector<HTMLButtonElement>(
+    '[data-testid="global-settings-colour-group"] button[data-testid^="finish-"][aria-pressed="false"]',
+  );
+  if (!swatch) throw new Error("the sheet offers no second colour");
+  act(() => {
+    swatch.click();
+  });
+  return (swatch.dataset.testid ?? "").replace("finish-", "");
+}
+
+function press(testId: string): void {
+  const button = settingsBand.querySelector<HTMLButtonElement>(
+    `[data-testid="${testId}"]`,
+  );
+  if (!button) throw new Error(`the sheet draws no ${testId}`);
+  act(() => {
+    button.click();
+  });
+}
+
 function inertBands(): readonly string[] {
   return [...screenElement.children]
     .filter((band) => band.hasAttribute("inert"))
@@ -127,5 +167,94 @@ describe("the settings sheet and the screen behind it", () => {
     });
     expect(surface()).toBeNull();
     expect(inertBands()).toEqual([]);
+  });
+});
+
+// What the store-connected sheet hands its surface, seen on the open sheet. The files that read
+// `global-settings.tsx` as text for these (`global-colour-group`, `share-design-mounted`) say no runtime here can
+// open it; this one does, so the handler and the mount are pressed and found rather than searched for.
+describe("what the open sheet is wired to", () => {
+  it("writes the kitchen's colour when a swatch is pressed and applied", () => {
+    const opened = useConfiguratorStore.getState().design.settings?.finish;
+    open();
+    const pressedColour = pressAnUnpressedColour();
+
+    press("global-settings-apply");
+
+    const applied = useConfiguratorStore.getState().design.settings?.finish;
+    expect(pressedColour).not.toBe("");
+    expect(applied).not.toEqual(opened);
+    expect(JSON.stringify(applied)).toContain(pressedColour);
+  });
+
+  // A save can come back refused while the material question is up. From then on its answer writes nothing.
+  it("writes nothing from the material question once the sheet has been locked under it", () => {
+    // A kitchen given a colour of its own first, since that colour is what a change of material would discard and
+    // so what makes the sheet ask.
+    open();
+    pressAnUnpressedColour();
+    press("global-settings-apply");
+    const opened = useConfiguratorStore.getState().design;
+    open();
+    const otherMaterial = settingsBand.querySelector<HTMLInputElement>(
+      'input[type="radio"][name$="-material"]:not(:checked)',
+    );
+    if (!otherMaterial) throw new Error("the sheet offers no second material");
+    act(() => {
+      otherMaterial.click();
+    });
+    press("global-settings-apply");
+    const questionWasAsked =
+      settingsBand.querySelector('[data-testid="global-settings-confirm"]') !==
+      null;
+
+    act(() => {
+      useConfiguratorStore.setState({ saveStatus: "unauthorized" });
+    });
+    press("global-settings-confirm");
+
+    expect(questionWasAsked).toBe(true);
+    expect(useConfiguratorStore.getState().design).toBe(opened);
+  });
+
+  it("draws the share control inside the open sheet, and not while it is shut", () => {
+    const whileShut = settingsBand.querySelector(
+      '[data-testid="share-design"]',
+    );
+    open();
+
+    expect(whileShut).toBeNull();
+    expect(
+      surface()?.querySelectorAll('[data-testid="share-design"]'),
+    ).toHaveLength(1);
+  });
+});
+
+// The sheet's own cancel, pressed on the rendered sheet. `qa-w2-opening-choice.adversarial.test.ts` sweeps what a
+// press sequence leaves *pending*; whether the cancel button then writes is a fact about this component's handler.
+describe("leaving the sheet with a choice pending", () => {
+  it("writes nothing to the document when the customer cancels", () => {
+    const opened = useConfiguratorStore.getState().design;
+    open();
+    const pendingTier = pressAnUncheckedHardwareTier();
+
+    press("global-settings-cancel");
+
+    expect(pendingTier).not.toBe(opened.settings?.hardwareTierId);
+    expect(surface()).toBeNull();
+    // The same object, not an equal one: no command ran at all.
+    expect(useConfiguratorStore.getState().design).toBe(opened);
+  });
+
+  it("writes that same choice when the customer applies it, so the cancel had something to drop", () => {
+    open();
+    const pendingTier = pressAnUncheckedHardwareTier();
+
+    press("global-settings-apply");
+
+    expect(surface()).toBeNull();
+    expect(
+      useConfiguratorStore.getState().design.settings?.hardwareTierId,
+    ).toBe(pendingTier);
   });
 });

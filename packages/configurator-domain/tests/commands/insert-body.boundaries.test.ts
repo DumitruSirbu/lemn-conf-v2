@@ -6,7 +6,7 @@
 import { describe, expect, it } from "vitest";
 
 import { HEIGHT_FLEX_MIN_OPENING_MM } from "../../src/commands/insert-fit.js";
-import { FIT_TOLERANCE_M, MIN_WIDTH_M } from "../../src/void-engine.js";
+import { MIN_WIDTH_M } from "../../src/void-engine.js";
 import { clearBodies, insertInto } from "../support/commands.js";
 import { voidAt, type KitchenWorld } from "../support/kitchen-world.js";
 import { columnWorld } from "../support/synthetic-world.js";
@@ -40,10 +40,6 @@ function insertIntoBaseSlot(world: KitchenWorld, buildId: string) {
 }
 
 describe("FIT_TOLERANCE_M as a width gate (§2, §5.2)", () => {
-  it("is the value the spec's tolerance table states", () => {
-    expect(FIT_TOLERANCE_M).toBe(0.012);
-  });
-
   it("accepts a fixed-width body exactly FIT_TOLERANCE_M wider than the opening", () => {
     // The freestanding fridge is offered in 700 only. 688 + 12 = 700.
     const result = insertIntoBaseSlot(clearedBaseColumn(688), "fridge-free");

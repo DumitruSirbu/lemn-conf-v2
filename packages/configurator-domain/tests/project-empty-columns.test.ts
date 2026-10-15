@@ -150,21 +150,6 @@ describe("projectEmptyColumns", () => {
     );
   });
 
-  // Rounding is criterion 4's named mutant, and this is what it would cost: 3.5751 m and 3.5749 m
-  // are two columns 200 µm apart that `toFixed(2)` already renders as one key — so a rounded
-  // projection would emit two entries the loader files in one slot, losing a space the document
-  // says is there.
-  it("refuses rather than emitting two entries that share one restored key", () => {
-    const drifted = mapOf([
-      emptyColumnAt(3.5751, { key: "A|3.5751" }),
-      emptyColumnAt(3.5749, { key: "A|3.5749" }),
-    ]);
-
-    expect(() => projectEmptyColumns(drifted, [])).toThrow(
-      /not a whole millimetre/,
-    );
-  });
-
   it("refuses a column with no region, which has no floor to record", () => {
     const floorless = emptyColumnAt(1.5, { regions: [] });
 

@@ -66,6 +66,12 @@ six hex digits rather than at a named palette. Making the *offer* narrower than 
 invent a table nobody has authored and would make the load seam reset colours a customer chose. Which
 values wave 6R's picker presents is that wave's; what a stored document may hold is this one's.
 
+> **Annotated 2026-10-08 (tests-review fix-up, ADR 0152; nothing struck).** The `ral-picker` row's *"every free colour
+> `FinishSchema` admits"* was not what `materialOffersFinish` computed: it offered a malformed free colour. It now checks
+> the free colour's type and pattern (`38fa058`, tightened in `74bcc20`) [doc, `TESTS_REVIEW.md` *Progress*, D3 and D3-B].
+> The table was right; the code did not match it. The query still does not look at extra keys, deliberately: the commands
+> refuse them [relayed, architect and logic reviewer].
+
 **2. The load seam resolves; the write seam refuses; and the ordering is what keeps both true.**
 
 `migrateDesign` gains one more **unconditional, non-version-keyed** normalisation, placed **after**
@@ -93,6 +99,15 @@ and neither may report a finding: **a material this product does not declare mak
 document is not corrected against a material nobody can look up.** This is ADR 0072's rule applied
 where it lands — the book is reconciled by a developer's migration in the same commit, never by a
 load-time rule this wave builds — and it keeps 6G's recovery path working.
+
+> **Annotated 2026-10-08 (ADR 0152; nothing struck): "refuses nothing" is about the load seam and the findings, not about
+> a finish a command is handed.** On an undeclared material, `setFinish` and `setGlobalFinish` still succeed for any
+> finish `FinishSchema` accepts, but a value the schema refuses is refused on any material with `FINISH_NOT_OFFERED` and
+> the design unchanged. One shared `designOffersFinish` in `packages/configurator-domain/src/design-material.ts`
+> (`6eef46c`) answers both commands. The architect's ruling of 2026-10-08 [relayed]. Reach, as the architect and the logic
+> reviewer found it [relayed]: not reachable by a customer (the panel draws no finish control on an undeclared material,
+> and the web builds free colours only through `freeColourFinish`); an undeclared material tier is reachable in a stored
+> design. See ADR 0084 decision 5 for the sentence this corrects.
 
 **4. The reset resolves to the declared default and never to a nearby colour.** The target is
 `materialById(...).defaultFinish`, read from the declaration, with no branch per material and no

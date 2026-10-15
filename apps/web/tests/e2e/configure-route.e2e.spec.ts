@@ -6,6 +6,7 @@ import {
 } from "@playwright/test";
 
 import { deleteMintedDesigns } from "./support/minted-designs";
+import { policyOf } from "./support/csp-violations";
 import { mintSeededDesign } from "./support/seeded-design";
 
 /**
@@ -31,7 +32,6 @@ import { mintSeededDesign } from "./support/seeded-design";
  * hash, the real index-backed lookup, and — since neither route may ever answer 200 — that.
  */
 
-const CSP_HEADER = "content-security-policy-report-only";
 const VISITOR_COOKIE_NAME = "__Host-lemnaria_visitor";
 const WELL_FORMED_UNKNOWN_VALUE = "z".repeat(43);
 const MALFORMED_VALUE = "too-short-and-not-base64url";
@@ -228,7 +228,7 @@ function assertCleared(response: APIResponse | Response): void {
 }
 
 function assertCsp(response: APIResponse | Response): string {
-  const policy = response.headers()[CSP_HEADER];
+  const policy = policyOf(response);
   expect(policy).toBeTruthy();
   const nonce = /'nonce-([^']+)'/.exec(policy ?? "")?.[1];
   expect(nonce).toBeTruthy();

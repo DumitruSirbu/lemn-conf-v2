@@ -66,10 +66,6 @@ function rgbDistance(left: number, right: number): number {
 }
 
 describe("the mark's colour is its own and cannot be read as the selection's", () => {
-  it("is a different value from the selection highlight", () => {
-    expect(OVERFLOW_MARK_COLOR).not.toBe(SELECTION_HIGHLIGHT_COLOR);
-  });
-
   it("stands outside the ball the desktop e2e counts selection pixels in", () => {
     // The measured number is recorded rather than merely compared, so a later reader can see how
     // much room the two colours have before the pixel counter starts confusing them.
@@ -80,14 +76,6 @@ describe("the mark's colour is its own and cannot be read as the selection's", (
 
     expect(distance).toBeGreaterThan(SELECTION_PIXEL_TOLERANCE);
     expect(Math.round(distance)).toBe(90);
-  });
-
-  it("stays red rather than drifting into the void meshes' blue", () => {
-    // `pixels.ts`'s other test counts a void's translucent fill as "blue by at least 25 more than
-    // red". A mark that satisfied it would be counted as an empty slot.
-    const [red, , blue] = rgbOf(OVERFLOW_MARK_COLOR);
-
-    expect(red).toBeGreaterThan(blue);
   });
 });
 

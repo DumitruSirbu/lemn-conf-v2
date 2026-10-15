@@ -267,6 +267,29 @@ ADR 0136, Consequences.
   the vitest `tests/**/*.test.ts` glob and the Playwright `testDir` never collect each other's files.
 - Avoid vacuous assertions: ensure a filtered collection or loop actually exercised the case it
   claims to test.
+- **A test is kept only if it can fail for the reason its title names** (added 2026-10-08, from the
+  tests review; reasoning, instances and the sweep of earlier records in
+  [ADR 0152](../decisions/0152-a-test-is-kept-only-if-it-can-fail-for-the-reason-its-title-names-and-is-deleted-only-on-evidence.md);
+  the audit procedure is `../skills/lemnaria-test-audit/SKILL.md`). When you write one:
+  - **Show it red under a mutation of the behaviour its title names**, or do not report it as coverage.
+  - **A structural rule goes to lint or `tsc` first.** A source-text scan of production is allowed only for an
+    absence claim a dated decision records, never as the sole guard of a rule; its title says it reads source,
+    and an AST lint selector is preferred to a substring.
+  - **A constant that is a rule keeps one literal pin**, not two that each justify the other.
+  - **A self-test of a test-support instrument** is kept only as a control for a sweep that asserts a negative: titled
+    as a control, one input the detector must flag and one it must pass.
+  - **A test that can only fail by timing out is not a guard.** Assert the observable before awaiting the promise
+    that would hang.
+- **A fixture gives every field its own value** (added 2026-10-09, from M8 wave 8I; the 8I developer's handoff, relayed). A
+  fixture that used one value for a phone and for its normal form let a swapped-column mutant survive every developer suite
+  (`FAKE_PHONE_NORMAL_FORM` now differs from the phone). Where two stores must behave alike, the shared contract suite is the
+  only place that pins them to one behaviour: extend it, not each store. A mocked driver that records the SQL text and values
+  (`mocked-neon-driver.ts`) is read by the statements test, which pins each statement's exact lists and counts the templates
+  in the source, so a new statement fails it until the test reads it.
+- **Deleting a test needs evidence.** A duplicate goes only when the test named to keep goes red by assertion under a
+  mutation of the shared code; without a mutation, only when its assertion is logically implied by its twin's over the
+  identical input and call, shown by reading and recorded as such, and never by mutating a migration or the DML. Read a
+  review's "Keep" as a claim: it was wrong repeatedly.
 - **Two harness behaviours make a test pass over code that never ran. Both were measured, and both
   read exactly like a production defect when they bite.**
 
@@ -304,6 +327,14 @@ ADR 0136, Consequences.
   invisible to the totality test that should be sweeping it, and a guard that returns early on some
   precondition reports success on every run where the precondition is false.
 
+- **A `vi.mock` of the database driver keeps the real module's `Client` parse** (added 2026-10-07, from M8
+  wave 8B; [ADR 0146](../decisions/0146-nothing-copied-from-a-connection-value-or-thrown-by-a-driver-leaves-the-persistence-package.md)).
+  Spread `importOriginal` into the factory, so the connection opener still parses a URL the way the driver
+  does; a factory that replaces the whole module makes the opener refuse every URL. And a test file that
+  names the database-URL readers must be classified in
+  `packages/persistence/tests/live-suite-census.test.ts` (see `ci-and-local-gates.md`, the paragraph on which
+  persistence files run live).
+
 ## Coverage an adversarial pass owes
 
 `../WORKFLOW.md` decides *when* QA runs and that it gates review. This is *what* it tests.
@@ -313,10 +344,21 @@ ADR 0136, Consequences.
 - Sweep a meaningful input range when arithmetic or generation is involved; a few hand-picked
   examples are not evidence that the transitions work. For generated data assert properties — no
   overlap, no unclassified gap, valid schema output.
+- **An adversarial file adds cases the existing test lacks; it does not restate them** (added 2026-10-08, from the
+  tests review, whose dominant cause of duplicates was exactly this; see
+  [ADR 0152](../decisions/0152-a-test-is-kept-only-if-it-can-fail-for-the-reason-its-title-names-and-is-deleted-only-on-evidence.md)).
+  Read the original test before adding a case, and name in the new test what the old one does not cover.
 - **A clean report from an adversarial pass is a weak result, not a strong one.** This project has
   shipped a test that asserted a defect as correct, two boundary greps that matched nothing while
   reporting green, and two commands that reported success while doing nothing. "No findings" must be
   earned and evidenced.
+- **An "accepted" verdict proves nothing until the accepted value is used by every consumer downstream**
+  (added 2026-10-07, from M8 wave 8B; [ADR 0146](../decisions/0146-nothing-copied-from-a-connection-value-or-thrown-by-a-driver-leaves-the-persistence-package.md)).
+  A sweep tested what a connection opener accepted and never queried through an accepted string; two
+  reviewers found the leak that four QA passes had missed. The fix was to drive every accepted value
+  through each consumer with only the socket replaced, with control and non-Latin-1 characters in the
+  alphabet from the start. When a gate decides "this value is fine", the adversarial pass owes a run of that
+  value through everything that will then receive it.
 
 ### A deferred test has two shapes and they mean different things
 
@@ -381,6 +423,22 @@ meant to falsify it was a no-op. Against the build it died, and the assertion tu
 genuinely falsifiable. **A survivor is a claim about the guard only once the mutation is known to have
 landed** — otherwise it is a claim about the build.
 
+**A mutation that reddens nothing in the files you ran is not evidence until the whole package suite has seen it**
+(added 2026-10-08, [ADR 0152](../decisions/0152-a-test-is-kept-only-if-it-can-fail-for-the-reason-its-title-names-and-is-deleted-only-on-evidence.md)
+decision 2.3). Two "gaps" reported in one audit batch were covered by tests outside the two files the agent had run.
+
+### A mutant of a destructive statement never touches a database
+
+*A mutant of a statement that deletes, updates, truncates or alters is run against a mocked driver and never against a database. A live proof
+that a statement touches only what it is handed plants rows of its own beside the ones it hands over and asserts they remain. A destructive
+statement whose `where` no longer names what it was handed is not sent anywhere.*
+
+Instance, 2026-10-09 (M8 wave 8F): a mutant of `deleteRateLimitCountersForTests` with its `where` clause removed was run against the live test
+database and every `rate_limit_counters` row there was deleted, more than once; the helper's guard held and the application database was never
+connected to. The mutant was already dead without a database (the unit test pins the statement's whole text with the driver mocked). The record:
+[ADR 0155](../decisions/0155-the-mint-asks-a-keyed-per-day-per-network-limiter-first-and-refuses-what-it-cannot-judge-the-owner-names-the-network-source-and-a-destructive-mutant-never-touches-a-database.md),
+*Incident*; [ADR 0151](../decisions/0151-a-test-may-delete-the-rows-tests-added-and-never-a-row-a-production-user-added.md), note of 2026-10-09.
+
 ### A predicate over a band, and a sweep with no floor per arm
 
 `top` folds into `wall` (ADR 0011 Gap C) for every reader that groups or counts by band. A predicate
@@ -394,3 +452,7 @@ certifies nothing about the arm that moved. Found at M6 wave 6I2's close-out (20
 strongest property was first swept without a floor per arm, and the fixture the sweep reached happened
 to be the arm 6I2 did **not** touch — see `../milestones/M6-price-and-global-settings.md` wave 6I2's
 close-out for the specific instance.
+
+Two more instances from the tests review (2026-10-08, [ADR 0152](../decisions/0152-a-test-is-kept-only-if-it-can-fail-for-the-reason-its-title-names-and-is-deleted-only-on-evidence.md)
+decision 1.5, relayed): a sweep over `shell-design.adversarial`'s wall-only arm ran on 0 of 8,534 tiles, and a test the
+review had filed as a duplicate was itself such a loop. **State the floor per arm in the sweep.**

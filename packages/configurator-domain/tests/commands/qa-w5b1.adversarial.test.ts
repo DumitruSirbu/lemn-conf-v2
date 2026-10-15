@@ -75,12 +75,6 @@ function everyTap(): {
 }
 
 describe("neither 300 mm constant moved", () => {
-  // ADR 0043 names both constants as unchanged. Pinned as literals, not compared to each other, so lowering both
-  // together still fails.
-  it("keeps MIN_WIDTH_M at 300 mm and MIN_SPAN_M at 300 mm", () => {
-    expect([MIN_WIDTH_M, MIN_SPAN_M]).toEqual([0.3, 0.3]);
-  });
-
   it("still refuses to build any cabinet under 300 mm through a resize", () => {
     // The anti-invariant over the widened population: every tap the engine accepts is checked against §2's floor
     // and each entry's own declared one.
@@ -401,29 +395,63 @@ describe("two columns competing for one shared empty space", () => {
     expect(overreaches.reason.code).toBe("WIDTH_UNCHANGED");
   });
 
-  it("refuses the second mover once the first has taken the whole gap", () => {
-    const world = threeInARow();
-    const first = resizeTo(world, "left", 1000);
-    // 1000 is above the 800 ceiling, so the whole gap is taken in two steps instead.
-    expect(first.ok).toBe(false);
-
-    const takeAll = resizeTo(world, "left", 800);
-    expect(takeAll.ok).toBe(true);
-    if (!takeAll.ok) return;
-    const mid = advanceWithColumns(
-      world,
-      takeAll.design,
-      takeAll.effect.columns,
+  /** Three 400 mm columns with the middle one emptied: narrow enough that one mover can take the whole gap under
+   *  the 800 mm ceiling, and that the other still has a growth to be refused. */
+  function threeNarrowInARow(): KitchenWorld {
+    const member = (id: string, alongMm: number) => ({
+      id,
+      wall: "A" as const,
+      alongMm,
+      y0Mm: 0,
+      body: { buildId: "base-drawer2-600", widthMm: 400, heightMm: 860 },
+    });
+    return clearBodies(
+      syntheticWorld([
+        member("left", 200),
+        member("middle", 600),
+        member("right", 1000),
+      ]),
+      ["middle"],
     );
-    const second = resizeTo(mid, "right", 800);
-    expect(second.ok).toBe(true);
-    if (!second.ok) return;
-    const done = advanceWithColumns(mid, second.design, second.effect.columns);
+  }
 
-    const third = resizeTo(done, "left", 800);
-    expect(third.ok).toBe(false);
-    if (third.ok) return;
-    expect(third.reason.code).toBe("WIDTH_UNCHANGED");
+  it("refuses the second mover a growth larger than what the first left", () => {
+    const afterTheFirst = step(threeNarrowInARow(), "left", 600);
+
+    const second = resizeTo(afterTheFirst, "right", 800);
+
+    expect(second.ok ? "ok" : second.reason.code).toBe("NO_EMPTY_SPACE");
+    if (second.ok) return;
+    expect(second.reason.params).toMatchObject({
+      sides: [
+        { side: "right", reason: "absent" },
+        { side: "left", reason: "too_narrow" },
+      ],
+    });
+  });
+
+  it("refuses the second mover once the first has taken the whole gap", () => {
+    const world = threeNarrowInARow();
+    const first = resizeTo(world, "left", 800);
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    expect(first.effect.emptyColumnWidthMm).toBe(0);
+    const afterTheFirst = advanceWithColumns(
+      world,
+      first.design,
+      first.effect.columns,
+    );
+
+    const second = resizeTo(afterTheFirst, "right", 600);
+
+    expect(second.ok ? "ok" : second.reason.code).toBe("NO_EMPTY_SPACE");
+    if (second.ok) return;
+    expect(second.reason.params).toMatchObject({
+      sides: [
+        { side: "right", reason: "absent" },
+        { side: "left", reason: "absent" },
+      ],
+    });
   });
 });
 
@@ -529,34 +557,44 @@ describe("the empty-space refusal descriptor", () => {
 });
 
 describe("every per-side reason a command can still produce is typed", () => {
+  /** The whole per-side union, written here and not read off `rejection.ts`: a reason renamed or added in
+   *  production must fail here, not follow. */
+  const EVERY_TYPED_SIDE_REASON = [
+    "absent",
+    "key_taken",
+    "opens_a_gap",
+    "too_narrow",
+  ];
+
+  /** The shipped kitchen's taps reach every reason but `too_narrow`, which needs an empty column narrower than the
+   *  growth: the one tap that reaches it is added so the sweep covers the union. */
+  function everyTapAndOneTooNarrow() {
+    return [
+      ...everyTap(),
+      {
+        world: pairWithEmptyColumnRight(100),
+        placementId: "L-base",
+        widthMm: 800,
+      },
+    ];
+  }
+
   it("publishes a known reason for each side the sweep reaches", () => {
     const reasons = new Set<string>();
-    let refusals = 0;
-    for (const { world, placementId, widthMm } of everyTap()) {
+    for (const { world, placementId, widthMm } of everyTapAndOneTooNarrow()) {
       const result = resizeTo(world, placementId, widthMm);
       if (result.ok) continue;
       const params = result.reason.params as {
         sides?: readonly { readonly reason: string }[];
       };
       for (const side of params.sides ?? []) reasons.add(side.reason);
-      refusals += 1;
     }
 
-    // `absent` and `too_narrow` are the two the shipped kitchen reaches; `opens_a_gap` comes from the corner leg.
-    // Nothing may appear that the Romanian map has no entry for.
-    expect([...reasons].sort()).not.toContain("remainder_below_floor");
-    expect(reasons.size).toBeGreaterThan(0);
-    expect(refusals).toBeGreaterThan(0);
+    expect([...reasons].sort()).toEqual(EVERY_TYPED_SIDE_REASON);
   });
 });
 
 describe("the 200 mm cargo exception is neither widened nor closed", () => {
-  it("keeps its declared floor at 200 mm", () => {
-    expect(KITCHEN_L_BODY_CATALOG.get("base-bottle-cargo")?.minWidthMm).toBe(
-      200,
-    );
-  });
-
   it("builds nothing under 300 mm but an entry that declares its own lower floor", () => {
     // A resize that now leaves a 200 mm gap must never leave a 200 mm cabinet whose row declares 300.
     const offenders: string[] = [];

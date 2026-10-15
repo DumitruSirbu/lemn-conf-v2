@@ -406,6 +406,8 @@ describe("the placement's reason bound is guarded by width, not by length of str
     return sum;
   }
 
+  const WIDEST_REASON_QA_MEASURED = "B слишком короткая";
+
   function everyReasonAsDrawn(): readonly (readonly [string, string])[] {
     return REASONS.flatMap(([locale, messages]) =>
       Object.values(messages.room.planWallIssue).flatMap((reason) =>
@@ -441,11 +443,20 @@ describe("the placement's reason bound is guarded by width, not by length of str
 
   it("agrees with QA's whole-string measurement of the widest reason, to a hundredth of an em", () => {
     const measuredWholeEm = 116.59 / 11;
+    // The reason QA measured has to be the widest one the catalogues hold today. Held as a literal alone, a reason
+    // reworded wider than it would leave this measurement describing a sentence nobody draws.
+    // The three wall letters measure alike, so the widest is a tie between them and the measured one is among it.
+    const reasons = everyReasonAsDrawn().map(([, text]) => text);
+    const widestEm = Math.max(...reasons.map(summedAdvanceEm));
+    const widestInTheCatalogues = reasons.filter(
+      (text) => summedAdvanceEm(text) === widestEm,
+    );
 
-    expect(summedAdvanceEm("B слишком короткая")).toBeGreaterThanOrEqual(
+    expect(widestInTheCatalogues).toContain(WIDEST_REASON_QA_MEASURED);
+    expect(summedAdvanceEm(WIDEST_REASON_QA_MEASURED)).toBeGreaterThanOrEqual(
       measuredWholeEm,
     );
-    expect(summedAdvanceEm("B слишком короткая")).toBeLessThan(
+    expect(summedAdvanceEm(WIDEST_REASON_QA_MEASURED)).toBeLessThan(
       measuredWholeEm + 0.02,
     );
   });

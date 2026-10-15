@@ -4,9 +4,9 @@
 // `/ro/d/{id}` showing that kitchen; then *‹ Cameră* returns to Step 1 with the room filled in
 // (wave 7E2's criterion 5, now with fields to fill).
 //
-// **CI is the verdict.** `scripts/local-ci.sh` never sets `CI`, so every local run of this suite
-// serves `next dev` rather than a production build, and a green local run says nothing about runner
-// timing. Wave 7F1-D45's close-out records that in full.
+// **CI is the verdict.** `scripts/local-ci.sh` sets `CI=1` for e2e, so it serves a production build as
+// the runner does, but a bare `playwright test` serves `next dev`, and either way a green local run says
+// nothing about runner timing. Wave 7F1-D45's close-out records that in full.
 //
 // **What only this spec can show.** Every other guard on the hand-off stubs `fetch`
 // (`tests/room/room-handoff.dom.test.ts`) and therefore proves what the *browser sent*, not what the

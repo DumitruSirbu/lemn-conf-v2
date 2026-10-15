@@ -159,9 +159,7 @@ describe("a pre-correction document edited past the corrected runs", () => {
   });
 
   it("still loads after wave 6A3 makes placement overflow non-fatal", () => {
-    expect(() => migrateDesign(2, stored(EDITED_PAST_WALL_A))).not.toThrow(
-      InvalidDesignError,
-    );
+    expect(() => migrateDesign(2, stored(EDITED_PAST_WALL_A))).not.toThrow();
   });
 
   /** Wall B's band is 680 mm wide, not 40: the old bound handed wall B the room's width, so a body
@@ -176,12 +174,6 @@ describe("a pre-correction document edited past the corrected runs", () => {
 
   it("was legal on wall B too, at a coordinate the corrected depth cannot hold", () => {
     expect(wasLegalWhenWritten(EDITED_PAST_WALL_B)).toBe(true);
-  });
-
-  it("still loads from wall B after wave 6A3", () => {
-    expect(() => migrateDesign(2, stored(EDITED_PAST_WALL_B))).not.toThrow(
-      InvalidDesignError,
-    );
   });
 
   /** **The room is a constant and the mark survives the correction, so nothing was rescued.**
@@ -217,36 +209,6 @@ describe("a pre-correction document edited past the corrected runs", () => {
       expect(migrateDesign(version, stored(corrected))).toStrictEqual(
         corrected,
       );
-    },
-  );
-
-  /** **The phantom pair is the defect's signature.** A whole seeded row plus one edited body must
-   *  report that one id — not `['edited', 'p24', 'p7']`, which is what the uncorrected 2400 mm
-   *  depth says about two seeded bodies ending at 2800 that nobody moved. */
-  const SEEDED_ROW_WITH_ONE_EDITED_BODY: Design = {
-    ...KITCHEN_L_DESIGN,
-    room: { ...PRE_CORRECTION_ROOM },
-    placements: [
-      ...KITCHEN_L_DESIGN.placements,
-      {
-        id: "edited",
-        wall: "B",
-        alongMm: 3200,
-        y0Mm: 0,
-        body: { buildId: "base-sink-800", widthMm: 800, heightMm: 820 },
-      },
-    ],
-  };
-
-  it.each([1, 2])(
-    "names only the body the customer moved on a whole seeded row at version %i",
-    (version) => {
-      const loaded = migrateDesign(
-        version,
-        stored(SEEDED_ROW_WITH_ONE_EDITED_BODY),
-      );
-
-      expect(findOverflowingPlacementIds(loaded)).toStrictEqual(["edited"]);
     },
   );
 

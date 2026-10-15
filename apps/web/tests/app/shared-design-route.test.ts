@@ -62,7 +62,7 @@ describe("localized shared-design route identity", () => {
   });
 
   it("passes the same bare id and hydration identity through both locale-prefixed routes", async () => {
-    const id = "same-shared-design";
+    const id = "sameSharedDesign_0001";
     const pages: ReactElement<HydrateProps>[] = [];
 
     for (const locale of ["ro", "ru"] as const) {

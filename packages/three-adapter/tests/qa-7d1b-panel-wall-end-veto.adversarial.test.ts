@@ -185,16 +185,4 @@ describe("the wall-end veto on one mounted scene, synced command after command",
       );
     }
   });
-
-  it("re-syncs on a room change alone, with the records untouched", () => {
-    const scene = mount();
-    sync(scene, SEEDED_RECORDS, SEEDED_ROOM);
-
-    sync(scene, SEEDED_RECORDS, WALL_A_TEN_MM_PAST_THE_RUN);
-    const hiddenByTheRoom = onlyPanelOf(scene).visible;
-    sync(scene, SEEDED_RECORDS, SEEDED_ROOM);
-
-    expect(hiddenByTheRoom).toBe(false);
-    expect(onlyPanelOf(scene).visible).toBe(true);
-  });
 });

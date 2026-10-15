@@ -263,7 +263,9 @@ describe("the desktop click constants the browser measured", () => {
   // checked without a browser.
   it("puts every tap inside the canvas box the spec declares", () => {
     const { viewportPx } = documentedBands();
-    const originY = documentedCanvasOriginY();
+    // The canvas's top edge is the stylesheet's declared row, not the spec's sentence about it: read from the
+    // sentence, both sides of the comparison come from the e2e folder and a taller band moves neither.
+    const originY = DESKTOP_HEADER_HEIGHT_PX;
     // Every point in `tests/e2e/support/desktop-scene-points.ts` is scanned, including the origin of each measured
     // pixel
     // box: a corner off the canvas frames nothing. The module carries a second group for the narrowed-room document,

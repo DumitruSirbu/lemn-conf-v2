@@ -571,31 +571,30 @@ describe("one authority for the block's bodies and sizes (criterion 23)", () => 
     }
   });
 
-  it("writes no size of a column as a literal, and never mentions symmetry", () => {
-    // The column's width is also the leftover rule's declared module width, so a bare sweep for 600 would fail on an
-    // unrelated number; instead: no module writes a size only a column has, and the one module naming the columns
-    // writes no number.
-    const columnOnlySizes = [
-      DECLARED_COLUMNS.columnHeightMm,
-      DECLARED_COLUMNS.doorColumnWidthMm.minMm,
-      DECLARED_COLUMNS.doorColumnWidthMm.maxMm,
-    ];
-    for (const source of sources) {
-      const code = source.text.replace(/\/\/.*$|\/\*[\s\S]*?\*\//gm, "");
-      for (const sizeMm of columnOnlySizes) {
-        expect(
-          new RegExp(`\\b${String(sizeMm)}\\b`).test(code),
-          `${source.name} writes ${String(sizeMm)} as a literal`,
-        ).toBe(false);
-      }
-      expect(code.toLowerCase(), source.name).not.toContain("symmetry");
-    }
-    const rule = sources.find((source) => source.name === "tall-end-rule.ts");
-    expect(rule).toBeDefined();
-    expect(
-      new RegExp(`\\b${String(DECLARED_COLUMNS.columnWidthMm)}\\b`).test(
-        rule?.text.replace(/\/\/.*$|\/\*[\s\S]*?\*\//gm, "") ?? "",
-      ),
-    ).toBe(false);
+  // Asked of the planner and not of its text: the room below is one millimetre too low for the shipped column, so
+  // the only thing that can stand a block in it is a declaration of a shorter one. A height written into the rule,
+  // however it is spelled, plans none.
+  it("writes no size of a column as a literal: a shorter declared column stands where the shipped one cannot", () => {
+    const SHORTER_BY_MM = 100;
+    const room = roomOf(
+      3600,
+      WALL_B_WHERE_S1_SEATED_THE_DISHWASHER_MM,
+      DECLARED_COLUMNS.columnHeightMm - 1,
+    );
+
+    const planned = planKitchenComposition({
+      room,
+      runs: lShellFloorRuns(room),
+      columns: {
+        ...DECLARED_COLUMNS,
+        columnHeightMm: DECLARED_COLUMNS.columnHeightMm - SHORTER_BY_MM,
+      },
+    });
+
+    expect(blockOf(planFor(room))).toEqual([]);
+    expect(blockOf(planned).map((column) => column.buildId)).toEqual([
+      OVEN_TOWER,
+    ]);
+    expect(hobOf(planned).buildId).toBe(HOB_WITH_DRAWERS);
   });
 });

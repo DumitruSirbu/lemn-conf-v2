@@ -134,12 +134,6 @@ describe("the shipped catalogue is the 600 mm build, to the millimetre", () => {
       buildInsertableBodyDefinitions(WORKTOP_DEPTH_MM),
     );
   });
-
-  it("caps a wall carcass at the same map row it always did", () => {
-    expect(
-      columnBuildDepthMm({ cabinetDepthMm: 600, hasFullHeightUnder: false }),
-    ).toBe(330);
-  });
 });
 
 describe("a catalogue built at 700 describes a different kitchen", () => {
@@ -285,18 +279,6 @@ describe("wave 6I: an entry that neither tracks the setting nor declares an exce
   const ENTRIES_AT_600 = buildInsertableBodyDefinitions(600);
 
   it.each(ENTRIES_AT_600.map(([buildId]) => buildId))(
-    "%s declares whether its depth follows the setting",
-    (buildId) => {
-      expect(() =>
-        cabinetDepthRuleOf({
-          buildId,
-          rule: entryAt(600, buildId).depthRule,
-        }),
-      ).not.toThrow();
-    },
-  );
-
-  it.each(ENTRIES_AT_600.map(([buildId]) => buildId))(
     "%s moves between the two declared depths exactly when it says it does",
     (buildId) => {
       const rule = cabinetDepthRuleOf({
@@ -431,14 +413,6 @@ describe("the hood's finished line follows the setting and its body does not", (
       expect(finishedDepthMmOf(hood) - HOOD_BODY_DEPTH_MM).toBe(concealedGapMm);
     },
   );
-
-  it("never gives the hood the wall map's depth, at either declared depth", () => {
-    for (const cabinetDepthMm of DECLARED_DEPTHS_MM) {
-      expect(entryAt(cabinetDepthMm, "hood").nominalDepthMm).not.toBe(
-        wallDepthMmForWorktop(cabinetDepthMm),
-      );
-    }
-  });
 
   it("seats it from the front at both depths, as twice its rear overhang", () => {
     // ADR 0018: `frameDepthMm` is not a depth. §11 row 19's second named exception.

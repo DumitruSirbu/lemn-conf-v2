@@ -58,6 +58,13 @@ const LOADED: LoadedDesignState = {
   canWrite: true,
 };
 
+/**
+ * The control's own design. The module's one writer outlives a test, and the hydration test above leaves it backing
+ * off for `LOADED.designId` on a fake clock that is replaced afterwards: a load of that id is handed that write, whose
+ * timer never fires. No earlier test writes for this id, so the control's delete is the only write the writer holds.
+ */
+const CONTROL_DESIGN_ID = "the-controls-own-design-id";
+
 /** Every root a test mounts, unmounted after it: a live one keeps reacting to the next test's writes. */
 const mountedRoots: Root[] = [];
 
@@ -188,6 +195,7 @@ describe("the client-side snapshot store reaches no network and no session store
   it("control: the same delete on the session store does reach the network", async () => {
     useConfiguratorStore.getState().hydrate({
       ...LOADED,
+      designId: CONTROL_DESIGN_ID,
       design: KITCHEN_L_DESIGN,
     });
     const session = useConfiguratorStore.getState();

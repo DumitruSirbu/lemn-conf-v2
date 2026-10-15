@@ -27,7 +27,8 @@ vi.mock("@/i18n/use-content", async () => {
 import { ro } from "../support/romanian-content";
 import { EditorPanel } from "@/panel/editor-panel";
 import { describePanel, type PanelView } from "@/panel/panel-model";
-import { describePriceBar, type PricedBar } from "@/price/price-bar-model";
+import { PRICE_BAR_RESERVED_HEIGHT_PX } from "@/price/price-bar-layout";
+import { describePriceBar } from "@/price/price-bar-model";
 import { createConfiguratorStore } from "@/store/configurator-store";
 
 import { createFakeProbeFactory } from "../support/fake-body-probe";
@@ -249,18 +250,6 @@ describe("no refusal the store can produce moves the figure", () => {
     expect(refusals).toBeGreaterThan(100);
     expect(refusalCodes.size).toBeGreaterThanOrEqual(4);
   });
-
-  it("shows the same figure it showed before, and says nothing about the refusal", () => {
-    // A standing refusal changes neither the bar's figure nor its label; §9's banner is what says the refusal.
-    const quiet = describePriceBar({
-      pricing: priceOf(KITCHEN_L_DESIGN),
-      content: ro,
-    });
-    if (quiet.kind !== "priced") throw new Error("expected a priced bar");
-
-    expect(quiet.figure.label).toBe(ro.price.startingPrefix);
-    expect(quiet.figure.label).not.toContain("neschimbat");
-  });
 });
 
 describe("a pricing failure puts nothing on the page", () => {
@@ -421,19 +410,33 @@ describe("an overflowing design, on the page", () => {
       /no element with data-testid/,
     );
   });
-
-  it("flags the total and says nothing about any refusal, which is now the only pairing", () => {
-    // The flag is about what the number contains; the refusal's sentence is §9's banner (ADR 0065 decision 8).
-    const bar = describePriceBar({
-      content: ro,
-      pricing: priceOf(overflowing),
-    }) as PricedBar;
-
-    expect(bar.figure.label).toBe(ro.price.startingPrefix);
-    expect(bar.overflowWarning).toBe(ro.price.overflowingTotalWarning);
-    expect(bar.overflowWarning).not.toContain("neschimbat");
-  });
 });
+
+describe("the bar's reserved height reaches the stylesheet from one constant", () => {
+  // The stylesheet reads `--price-bar-height` as the bar's floor, so the property has to be on the rendered bar
+  // and has to carry the constant the 390 × 844 gate is asserted against. Read from the markup, on a priced
+  // kitchen and on an empty one, which draws a prompt in the same reserved band.
+  const KITCHENS_THE_BAR_IS_DRAWN_FOR: readonly (readonly [string, Design])[] =
+    [
+      ["a priced kitchen", KITCHEN_L_DESIGN],
+      ["an empty kitchen", { ...KITCHEN_L_DESIGN, placements: [] }],
+    ];
+
+  it.each(KITCHENS_THE_BAR_IS_DRAWN_FOR)(
+    "publishes the reserved height on the bar it renders, for %s",
+    (_name, design) => {
+      const markup = barMarkup(priceOf(design));
+
+      expect(PRICE_BAR_RESERVED_HEIGHT_PX).toBeGreaterThan(0);
+      expect(markup).toContain(
+        `style="--price-bar-height:${String(PRICE_BAR_RESERVED_HEIGHT_PX)}px"`,
+      );
+    },
+  );
+});
+
+/** §10.1's phone gate, 390 × 844. */
+const GATE_VIEWPORT_HEIGHT_PX = 844;
 
 describe("the flagged total on the mobile shell, while §9's sheet is open", () => {
   const overflowing = overflowingDesign();
@@ -459,9 +462,16 @@ describe("the flagged total on the mobile shell, while §9's sheet is open", () 
     expect(panel).toMatch(/\.shell \{[^}]*height: 78dvh;/s);
     expect(panel).toMatch(/\.shell \{[^}]*z-index: 4;/s);
 
-    const viewportHeightPx = 844;
-    const sheetTopPx = viewportHeightPx - 0.78 * viewportHeightPx;
-    const barTopPx = viewportHeightPx - 92;
+    // The bar's height is the constant the layout reserves and the sheet's is the stylesheet's own figure. Written
+    // here as `92` and `0.78`, the comparison held whatever either of them became.
+    const sheetHeightDvh = Number(
+      /\.shell \{[^}]*height: (\d+)dvh;/s.exec(panel)?.[1],
+    );
+    const sheetTopPx = GATE_VIEWPORT_HEIGHT_PX * (1 - sheetHeightDvh / 100);
+    const barTopPx = GATE_VIEWPORT_HEIGHT_PX - PRICE_BAR_RESERVED_HEIGHT_PX;
+
+    expect(sheetHeightDvh).toBeGreaterThan(0);
+    expect(PRICE_BAR_RESERVED_HEIGHT_PX).toBeGreaterThan(0);
     expect(sheetTopPx).toBeLessThan(barTopPx);
   });
 

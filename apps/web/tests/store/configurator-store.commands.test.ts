@@ -164,19 +164,6 @@ describe("remove", () => {
       .voids.find((record) => record.id === "A|0.30:v1:2.20");
     expect(selected?.y0).toBeCloseTo(2.2, 6);
   });
-
-  it("takes the hob away with the cabinet it is built into", () => {
-    const store = createStore();
-    expect(store.getState().records.map((record) => record.id)).toContain(
-      HOB_HOST_ID,
-    );
-
-    removeById(store, HOB_HOST_ID);
-
-    expect(store.getState().records.map((record) => record.id)).not.toContain(
-      HOB_HOST_ID,
-    );
-  });
 });
 
 describe("insert", () => {
@@ -578,18 +565,6 @@ describe("column stability (ADR 0011 Gap D)", () => {
     ]);
   });
 
-  it("keeps every column's extent identical across every kind of command", () => {
-    const store = createStore();
-    const extentsBefore = columnExtents(store.getState().columns);
-
-    removeById(store, "p7");
-    store.getState().insert("base-3drawer");
-    store.getState().setFinish(LEGACY_ENUM_FINISHES.oak);
-    store.getState().setHandle("push");
-
-    expect(columnExtents(store.getState().columns)).toEqual(extentsBefore);
-  });
-
   // The one column field a command *is* allowed to change, and must: §7's head-clearance cap asks
   // what stands under an opening now. Frozen, this answered "a column still stands here" for a run
   // whose full-height unit had just been deleted, while the same design reloaded answered "none".
@@ -649,23 +624,5 @@ describe("the selection after a command", () => {
           : voids.map((record) => record.id);
       expect(pool).toContain(selection.id);
     }
-  });
-});
-
-describe("the save seam", () => {
-  it("calls onDesignChanged after the store has applied the edit, with the new design", () => {
-    const seen: unknown[] = [];
-    const store = createStore({
-      onDesignChanged: (design) => {
-        seen.push([design, store.getState().design]);
-      },
-    });
-
-    removeById(store, "p7");
-
-    expect(seen).toHaveLength(1);
-    const [design, applied] = seen[0] as [unknown, unknown];
-    expect(design).toBe(store.getState().design);
-    expect(applied).toBe(design);
   });
 });

@@ -12,14 +12,12 @@ import {
 import { describe, expect, it } from "vitest";
 
 import { draftStateOf, NOT_TYPING, presentOneC } from "@/room/one-c-surfaces";
-import { parseMillimetres } from "@/room/parse-millimetres";
 import {
   createRoomDraft,
   withEnteredText,
   type RoomDraft,
   type RoomLengthField,
 } from "@/room/room-draft";
-import { requiredFieldsFor } from "@/room/room-url-state";
 
 const SAMPLES = 2000;
 const SHAPES: readonly RoomShape[] = ["linear", "L", "U"];
@@ -67,10 +65,32 @@ const anyDraft: fc.Arbitrary<RoomDraft> = fc
     ),
   );
 
+/** The fields each shape asks for, written out. Asked of `requiredFieldsFor`, a field dropped there would leave both
+ *  sides of every comparison below together. */
+const FIELDS_ASKED_FOR: Readonly<
+  Record<RoomShape, readonly RoomLengthField[]>
+> = {
+  linear: ["wallA", "height"],
+  L: ["wallA", "wallB", "height"],
+  U: ["wallA", "wallB", "wallC", "height"],
+};
+
+const ASCII_DIGITS_ONLY = /^[0-9]+$/;
+const LARGEST_SAFE_MM = BigInt(Number.MAX_SAFE_INTEGER);
+
+/** ADR 0126's rule for a length, restated on `BigInt` so it shares no code with the parser it is compared against:
+ *  ASCII digits only, more than zero, and no larger than a number can hold exactly. */
+function readsAsAWholeMillimetreCount(text: string): boolean {
+  const trimmed = text.trim();
+  if (!ASCII_DIGITS_ONLY.test(trimmed)) return false;
+  const millimetres = BigInt(trimmed);
+  return millimetres > 0n && millimetres <= LARGEST_SAFE_MM;
+}
+
 function expectedUnreadable(draft: RoomDraft): readonly RoomLengthField[] {
-  return requiredFieldsFor(draft.shape).filter((field) => {
-    const parsed = parseMillimetres(draft.lengths[field].text);
-    return !parsed.ok && parsed.reason !== "empty";
+  return FIELDS_ASKED_FOR[draft.shape].filter((field) => {
+    const text = draft.lengths[field].text;
+    return text.trim() !== "" && !readsAsAWholeMillimetreCount(text);
   });
 }
 

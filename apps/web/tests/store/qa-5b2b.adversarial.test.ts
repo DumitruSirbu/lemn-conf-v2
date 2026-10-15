@@ -302,18 +302,6 @@ describe("a resize on an odd-width column extent crashes the store", () => {
     ).toStrictEqual([]);
   });
 
-  it("shrinks 601 → 600 without throwing out of the command", () => {
-    const store = createStore(ODD_EXTENT_DESIGN);
-
-    store.getState().select({ kind: "placement", id: "base" });
-
-    // A command answers with a rejection or a new state and may not throw: `setWidth` is called straight from the width
-    // stepper.
-    expect(() => {
-      store.getState().setWidth(600);
-    }).not.toThrow();
-  });
-
   it("never records an empty column at a fractional centre", () => {
     const store = createStore(ODD_EXTENT_DESIGN);
 
@@ -326,7 +314,16 @@ describe("a resize on an odd-width column extent crashes the store", () => {
       );
     }
 
-    for (const entry of store.getState().design.emptyColumns ?? []) {
+    // The resize is refused and records nothing, so the column is emptied the way a customer can: both of its
+    // members are removed, and the store records the one column they stood in.
+    for (const id of ["base", "wall"]) {
+      store.getState().select({ kind: "placement", id });
+      store.getState().remove();
+    }
+
+    const recorded = store.getState().design.emptyColumns ?? [];
+    expect(recorded).toHaveLength(1);
+    for (const entry of recorded) {
       expect(Number.isInteger(entry.alongMm)).toBe(true);
     }
   });

@@ -4,7 +4,6 @@ import { describe, expect, it } from "vitest";
 import { kindLabel } from "@lemnaria/configurator-domain";
 
 import {
-  crossesOnScreen,
   resolveContent,
   type Content,
   type ContentTranslator,
@@ -112,6 +111,10 @@ const FUNCTION_FAMILIES = [
   // the domain publishes, and both are public functions on `Content`.
   "finishName",
   "bookText",
+  "reviewRoomLine",
+  // 8L S2's two: a contact field code and a class of contact answer, each resolved to one sentence.
+  "contactFieldError",
+  "contactOutcome",
   "panel.headerMeta",
   "panel.countForBody",
   "panel.countForSlot",
@@ -120,6 +123,7 @@ const FUNCTION_FAMILIES = [
   "panel.noOffersTooWide",
   "panel.noOffersTooNarrow",
   "panel.offerSize",
+  "panel.savePausedNotice",
   "panel.handleDefaultNote",
   "panel.widthValue",
   "price.amountWithCurrency",
@@ -136,6 +140,12 @@ const FUNCTION_FAMILIES = [
   "globalSettings.pillNameAllSettings",
   "globalSettings.depthOption",
   "globalSettings.materialResetConfirm.body",
+  "submissionResult.channelLine",
+  "submissionResult.whatsappMessageToShop",
+  "submissionResult.alreadySentAdvice",
+  "leadNotice.subject",
+  "leadNotice.line",
+  "leadNotice.figure",
 ] as const;
 
 describe("the localized content resolver", () => {
@@ -151,12 +161,12 @@ describe("the localized content resolver", () => {
   });
 
   it.each(CATALOGUES)(
-    "maps all 127 resolved strings through the %s catalogue",
+    "maps all 208 resolved strings through the %s catalogue",
     (locale, messages) => {
       const { content, translate } = contentAndOracleFor(locale, messages);
       const leaves = stringLeaves(content);
 
-      expect(leaves).toHaveLength(127);
+      expect(leaves).toHaveLength(208);
       for (const { path, value } of leaves) {
         // The step is stated twice — as a sentence and as the top bar's pill — from one pair of
         // numbers, so neither spelling can drift from the other.
@@ -171,7 +181,7 @@ describe("the localized content resolver", () => {
   );
 
   it.each(CATALOGUES)(
-    "backs exactly 29 public functions with %s ICU messages",
+    "backs exactly 40 public functions with %s ICU messages",
     (locale, messages) => {
       const { content, translate } = contentAndOracleFor(locale, messages);
 
@@ -218,6 +228,9 @@ describe("the localized content resolver", () => {
       expect(content.panel.offerSize(600, 860)).toBe(
         translate("panel.offerSize", { widthMm: 600, heightMm: 860 }),
       );
+      expect(content.panel.savePausedNotice("14:05")).toBe(
+        translate("panel.savePausedNotice", { time: "14:05" }),
+      );
       expect(content.panel.handleDefaultNote("label-token")).toBe(
         translate("panel.handleDefaultNote", { label: "label-token" }),
       );
@@ -262,6 +275,48 @@ describe("the localized content resolver", () => {
       expect(content.globalSettings.materialResetConfirm.body(2)).toBe(
         translate("globalSettings.materialResetConfirm.body", {
           chosenCount: 2,
+        }),
+      );
+      expect(content.leadNotice.subject("LM-TOKEN")).toBe(
+        translate("leadNotice.subject", { reference: "LM-TOKEN" }),
+      );
+      expect(content.leadNotice.line("label-token", "value-token")).toBe(
+        translate("leadNotice.line", {
+          label: "label-token",
+          value: "value-token",
+        }),
+      );
+      expect(content.leadNotice.figure("label-token", "43 000 MDL")).toBe(
+        translate("leadNotice.figure", {
+          label: "label-token",
+          amount: "43 000 MDL",
+        }),
+      );
+      expect(
+        content.submissionResult.channelLine({
+          channel: "whatsapp",
+          contact: "contact-token",
+        }),
+      ).toBe(
+        translate("submissionResult.channelLine", {
+          channel: "whatsapp",
+          contact: "contact-token",
+        }),
+      );
+      expect(
+        content.submissionResult.whatsappMessageToShop({
+          reference: "reference-token",
+          link: "link-token",
+        }),
+      ).toBe(
+        translate("submissionResult.whatsappMessageToShop", {
+          reference: "reference-token",
+          link: "link-token",
+        }),
+      );
+      expect(content.submissionResult.alreadySentAdvice("phone-token")).toBe(
+        translate("submissionResult.alreadySentAdvice", {
+          phone: "phone-token",
         }),
       );
       expect(content.finishName("pal.gri-havanna")).toBe(
@@ -365,27 +420,6 @@ describe("the localized content resolver", () => {
     },
   );
 
-  // 7I review L1.1: which wall/direction pair crosses on screen is a fact about the real camera
-  // (`qa-7i-screen-side.adversarial.test.ts`, `packages/three-adapter`, proves this exact table by
-  // projection), not something this file may assume — restated here as the literal table so a
-  // change to `crossesOnScreen` that agrees with itself but disagrees with the geometry fails here
-  // too, one package over from where the projection lives.
-  //
-  // Review R2.3: this table and that file's own are hand-coupled, not enforced by any import — this
-  // package cannot depend on `three-adapter`'s tests, and that one cannot import this file's
-  // `crossesOnScreen`. Changing one table means checking the other by hand.
-  it.each([
-    ["A", "left", false],
-    ["A", "right", true],
-    ["B", "left", true],
-    ["B", "right", false],
-  ] as const)(
-    "wall %s, direction %s crosses on screen: %s",
-    (wall, direction, expected) => {
-      expect(crossesOnScreen(wall, direction)).toBe(expected);
-    },
-  );
-
   it.each(CATALOGUES)(
     "the side word crosses on wall B for a left-hand room and holds for a right-hand one, in %s",
     (locale, messages) => {
@@ -454,29 +488,24 @@ describe("the localized content resolver", () => {
 });
 
 describe("Romanian CLDR plural bands", () => {
-  const { content: romanian, translate } = contentAndOracleFor(
-    "ro",
-    roMessages,
-  );
+  const { content: romanian } = contentAndOracleFor("ro", roMessages);
 
+  // The sentence each count must produce is written out here. Compared with a second translation of the same key, any
+  // wording of any branch agrees with itself; written out, a branch that loses a letter is a different string.
   it.each([
-    [0, "few"],
-    [1, "one"],
-    [2, "few"],
-    [19, "few"],
-    [20, "other"],
-    [100, "other"],
-    [101, "few"],
+    [0, "few", "0 dulapuri band-token de 600"],
+    [1, "one", "1 dulap band-token de 600"],
+    [2, "few", "2 dulapuri band-token de 600"],
+    [19, "few", "19 dulapuri band-token de 600"],
+    [20, "other", "20 dulapuri band-token de 600"],
+    [100, "other", "100 dulapuri band-token de 600"],
+    [101, "few", "101 dulapuri band-token de 600"],
   ] as const)(
     "selects the %s CLDR category at %i",
-    (count, expectedCategory) => {
+    (count, expectedCategory, expectedSentence) => {
       expect(new Intl.PluralRules("ro").select(count)).toBe(expectedCategory);
       expect(romanian.panel.countForBody(count, "band-token", 600)).toBe(
-        translate("panel.countForBody", {
-          count,
-          bandWord: "band-token",
-          widthMm: 600,
-        }),
+        expectedSentence,
       );
     },
   );
@@ -487,22 +516,5 @@ describe("Romanian CLDR plural bands", () => {
       .split(" ");
     expect(renderedWords[0]).toBe("0");
     expect(renderedWords[1]).not.toBe("de");
-  });
-
-  it("matches the prior 1–200 bands and identifies zero as the sole 0–200 divergence", () => {
-    const cldr = new Intl.PluralRules("ro");
-    const priorCategory = (count: number): Intl.LDMLPluralRule => {
-      if (count === 1) return "one";
-      const lastTwoDigits = count % 100;
-      return lastTwoDigits >= 1 && lastTwoDigits < 20 ? "few" : "other";
-    };
-    const differences = Array.from({ length: 201 }, (_, count) => count).filter(
-      (count) => cldr.select(count) !== priorCategory(count),
-    );
-
-    expect(differences).toEqual([0]);
-    for (let count = 1; count <= 200; count += 1) {
-      expect(cldr.select(count), String(count)).toBe(priorCategory(count));
-    }
   });
 });

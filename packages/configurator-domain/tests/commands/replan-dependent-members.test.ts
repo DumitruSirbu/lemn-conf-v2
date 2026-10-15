@@ -18,8 +18,10 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import { entryLabel } from "../../src/catalog.js";
+import { paletteFinish } from "../../src/materials.js";
 
 import { normaliseBand } from "../../src/bands.js";
+import { columnDecidesItsDepth } from "../../src/commands/replan-dependent-members.js";
 import {
   columnDecidesADifferentDepth,
   openingFromPlacement,
@@ -48,6 +50,14 @@ import { syntheticWorld } from "../support/synthetic-world.js";
 const LIFTING_COLUMN = "A|0.50";
 const OVERHUNG_COLUMN_ALONG_MM = 900;
 const OVERHUNG_COLUMN = "A|0.90";
+
+/** The seats a wall carcass and an open shelf are rebuilt at over a full-height body, at the shipped depth: the
+ *  shelf has no door in front of its shell, so it seats on the whole 600. */
+const LIFTED_WALL_SEAT_DEPTH_MM = 561;
+const LIFTED_OPEN_SHELF_SEAT_DEPTH_MM = 600;
+
+/** A colour the seeded material offers, worn by a body that chose it. */
+const A_CHOSEN_FINISH = paletteFinish("pal.antracit");
 
 /** One design with two overlapping columns: an empty full-height slot, and beside it a stack whose
  *  top row is whatever the caller names.
@@ -231,30 +241,53 @@ describe("who is re-planned is read off declarations, never off a list of ids", 
    *  — the entry's band, its depth rule and where its occupied depth is measured from — so this
    *  sweep asserts the *rule* rather than agreeing with whatever the implementation did. A list of
    *  build ids on either side would fail ADR 0058 decision 2. */
-  const columnDecidesItsDepth = (definition: BodyDefinition): boolean =>
+  const decidesItsDepthAsRestated = (definition: BodyDefinition): boolean =>
     normaliseBand(definition.band) === "wall" &&
     definition.depthRule !== undefined &&
     depthFollowsSetting(definition.depthRule) &&
     definition.occupiedDepth.measuredFrom === "recorded-shell";
 
   const admitted = [...KITCHEN_L_BODY_CATALOG.entries()]
-    .filter(([, definition]) => columnDecidesItsDepth(definition))
+    .filter(([, definition]) => decidesItsDepthAsRestated(definition))
     .map(([buildId]) => buildId);
 
   it("admits a population the shipped catalogue actually has", () => {
-    // Measured on 2026-09-08 and asserted exactly, not as a floor: a rule that stopped tracking
-    // half the catalogue would still clear a floor, and this number moving is a reader's business.
-    // 14 → 16 (M7C wave C2): the corner wall unit's two rows decide their depth as the returns do.
+    // The production rule over the whole catalogue against the restatement above, row for row. The count is
+    // asserted exactly, not as a floor: two rules that both stopped tracking half the catalogue would still agree.
+    const admittedByProduction = [...KITCHEN_L_BODY_CATALOG.entries()]
+      .filter(([, definition]) => columnDecidesItsDepth(definition))
+      .map(([buildId]) => buildId);
+
+    expect(admittedByProduction).toEqual(admitted);
     expect(admitted.length).toBe(16);
   });
 
-  it("admits the wall and top carcasses and excludes everything the decision names", () => {
-    expect(admitted).toContain("wall-cabinet");
-    expect(admitted).toContain("wall-2door-600-deep-top");
-    expect(admitted).toContain("open-shelf");
+  // The same population asked of the insert itself, so the production rule answers and not the restatement above:
+  // every admitted row standing over the lifted column is rebuilt at the lifted seat, and the base under it, which
+  // the rule excludes, is written through.
+  it.each([
+    ["wall-cabinet", LIFTED_WALL_SEAT_DEPTH_MM],
+    ["open-shelf", LIFTED_OPEN_SHELF_SEAT_DEPTH_MM],
+  ])(
+    "re-plans %s over a lifted column and writes the base beneath it through",
+    (admittedBuildId, liftedSeatDepthMm) => {
+      expect(admitted).toContain(admittedBuildId);
+      const before = overlappingColumns(admittedBuildId, 600);
 
-    // Base band, full-height band, a `wall-plane` hood, and an appliance whose depth is a real
-    // machine's — one per exclusion clause.
+      const after = withFullHeightBodyBeside(before);
+
+      expect(placementOf(before, "top").body.seatDepthMm).toBeUndefined();
+      expect(placementOf(after, "top").body.seatDepthMm).toBe(
+        liftedSeatDepthMm,
+      );
+      expect(placementOf(after, "base")).toBe(placementOf(before, "base"));
+    },
+  );
+
+  // One per exclusion clause the catalogue can show: base band, full-height band, a `wall-plane` hood, and an
+  // appliance whose depth is a real machine's. The hood and the base are also asked of the insert, above and in
+  // "a standing hood is never re-planned".
+  it("excludes everything the decision names", () => {
     expect(admitted).not.toContain("base-cabinet");
     expect(admitted).not.toContain("tall-pantry");
     expect(admitted).not.toContain("hood-600");
@@ -313,7 +346,38 @@ describe("the wave writes no colour and takes no probe lease", () => {
     expect(replan).not.toContain("finish:");
   });
 
-  it("takes no probe lease in the insert path", () => {
+  // The same must-not asked of the re-plan itself, which a key written without the word `finish:` cannot pass:
+  // a re-planned body that follows the kitchen's colour comes back with no colour of its own, and one that
+  // chose a colour comes back with that colour and nothing else new.
+  it("writes no colour onto a re-planned body, and carries the one it chose", () => {
+    const following = overlappingColumns("wall-cabinet", 600);
+    const chose: KitchenWorld = advance(following, {
+      ...following.design,
+      placements: following.design.placements.map((placement) =>
+        placement.id === "top"
+          ? {
+              ...placement,
+              body: { ...placement.body, finish: A_CHOSEN_FINISH },
+            }
+          : placement,
+      ),
+    });
+
+    expect(
+      Object.keys(
+        placementOf(withFullHeightBodyBeside(following), "top").body,
+      ).sort(),
+    ).toEqual(["buildId", "heightMm", "seatDepthMm", "widthMm"]);
+    expect(placementOf(withFullHeightBodyBeside(chose), "top").body).toEqual({
+      buildId: "wall-cabinet",
+      widthMm: 600,
+      heightMm: 400,
+      seatDepthMm: LIFTED_WALL_SEAT_DEPTH_MM,
+      finish: A_CHOSEN_FINISH,
+    });
+  });
+
+  it("spells no `.use(` in the two insert-path files", () => {
     // `.use(` is how a lease is taken (ADR 0076). The re-plan runs inside the bracket its caller
     // already opened, so neither file may open one of its own.
     expect(read("replan-dependent-members.ts")).not.toContain(".use(");

@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 //
 // **Adversarial QA for M7 wave 7L, criterion A12 — the card is the chip, as a [dom] property.** The
-// e2e (`room-desktop-line.desktop.e2e.spec.ts`, criterion 12) proves it for the frame's one room.
-// Here it is swept over a population of drafts where the suggestion shows, in both classes that turn
+// e2e (`room-desktop-line.criteria-12-17.desktop.e2e.spec.ts`, criterion 12) proves it for the frame's one
+// room. Here it is swept over a population of drafts where the suggestion shows, in both classes that turn
 // `isLinearSuggested` on (`room-issue-model.ts`):
 //
 // - **a field reason** — an L whose wall B is too short or too long, wall A and the height valid as

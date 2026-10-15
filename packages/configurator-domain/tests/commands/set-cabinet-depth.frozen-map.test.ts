@@ -15,6 +15,7 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
+import { alongWallExtentPositionAtMm } from "../../src/along-wall-chain-shift.js";
 import { setCabinetDepth } from "../../src/commands/set-cabinet-depth.js";
 import type { Design, EmptyColumn } from "../../src/design.js";
 import {
@@ -286,6 +287,41 @@ describe("the chain is a property of a column and is never inferred", () => {
   // interval, which is its whole job, and it chooses no chain. The claim is about the files that
   // answer "which chain does this run follow" — reading a band there is the inference decision 3
   // closes.
+  // The behaviour that inference would break, on two rows of one band: both stand in the top row and declare
+  // chains 30 mm apart at 700, so a chain read off a band lands one of them where its members do not.
+  it("slides two member-less extents of one band on the two chains their recorded sources declare", () => {
+    const catalog = buildKitchenLBodyCatalog(DEEP_MM);
+    const slidTo = (depthFromBuildId: string) =>
+      alongWallExtentPositionAtMm({
+        extent: {
+          key: "B|1.20",
+          wall: "B",
+          ry: Math.PI / 2,
+          x: 0.3,
+          z: 1.2,
+          w: 0.6,
+          d: 0.6,
+          top: 2.6,
+          regions: [[2.2, 2.6]],
+          depthFromBuildId,
+        },
+        catalog,
+        fromCabinetDepthMm: SHALLOW_MM,
+        toCabinetDepthMm: DEEP_MM,
+        membersShiftMm: undefined,
+        shape: "L",
+      });
+
+    expect(
+      ["wall-2door-600-deep-top", "wall-corner-return-570-top"].map(
+        (buildId) => [catalog.get(buildId)?.band, slidTo(buildId)],
+      ),
+    ).toEqual([
+      ["top", 1300],
+      ["top", 1270],
+    ]);
+  });
+
   it("reads no band or level from any file that resolves a chain", () => {
     const chainReaders = [
       "along-wall-chain-shift.ts",

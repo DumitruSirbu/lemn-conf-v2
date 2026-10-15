@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "./zod-without-eval.js";
 
 export const ConfigurationTimestampSchema = z.iso.datetime({
   offset: true,

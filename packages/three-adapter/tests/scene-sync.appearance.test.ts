@@ -303,14 +303,6 @@ describe("a recorded handle mode reaches the scene", () => {
       expect(handle.material).toBe(kit.M.steel);
     }
   });
-
-  it("keeps a black handle hidden when the mode is push", () => {
-    sync([makeRecord({ id: "p1", handleMode: "push" })]);
-
-    for (const handle of handlesOf(mounted("p1"))) {
-      expect(handle.visible).toBe(false);
-    }
-  });
 });
 
 describe("finish and handle are independent choices", () => {

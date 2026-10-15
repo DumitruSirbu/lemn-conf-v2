@@ -1,3 +1,7 @@
+import { randomBytes } from "node:crypto";
+
+import { beforeEach, vi } from "vitest";
+
 // **One declaration of React's act environment, for every test in this project.**
 //
 // `.dom.test.ts` files (M6-AUD-009) render real components with `react-dom/client` and drive them
@@ -35,3 +39,42 @@ if (typeof navigator !== "undefined" && "locks" in navigator) {
 }
 
 export {};
+
+// The mint limiter runs for real in every test file: the decision is never faked, only what it counts in.
+//
+// The key every digest is made under is random, made here in this process, in no file and printed nowhere. A test
+// that is about the secret sets or unsets `DIGEST_SECRET` for itself.
+process.env.DIGEST_SECRET = randomBytes(32).toString("hex");
+
+// The rate-limit store's instance is the persistence package's own fake, fresh for each test, so no test counts in a
+// database and no test sees another's count.
+const rateLimitStore = vi.hoisted(() => ({ current: undefined as unknown }));
+
+vi.mock("@/lib/server/rate-limit/rate-limit-store-instance", async () => {
+  const { FakeRateLimitStore } = await import("@lemnaria/persistence");
+  return {
+    getRateLimitStore: () => {
+      rateLimitStore.current ??= new FakeRateLimitStore();
+      return rateLimitStore.current;
+    },
+  };
+});
+
+// The CSP report store's instance is a fresh fake per test, so none writes to a database; a test of the instance
+// itself unmocks it.
+const cspReportStore = vi.hoisted(() => ({ current: undefined as unknown }));
+
+vi.mock("@/lib/server/csp/csp-report-store-instance", async () => {
+  const { FakeCspReportStore } = await import("@lemnaria/persistence");
+  return {
+    getCspReportStore: () => {
+      cspReportStore.current ??= new FakeCspReportStore();
+      return cspReportStore.current;
+    },
+  };
+});
+
+beforeEach(() => {
+  rateLimitStore.current = undefined;
+  cspReportStore.current = undefined;
+});

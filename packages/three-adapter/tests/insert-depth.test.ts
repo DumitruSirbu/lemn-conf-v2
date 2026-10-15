@@ -68,6 +68,12 @@ const CABINET_DEPTH_LINE_MM = 600;
  *  read as "the two routes happen to agree". */
 const FRIDGE_COLUMN_CLEARANCE_MM = 742;
 
+/** The seeded hood stands in `TOP_ROW_COLUMN`, under `p19`. A standard 500 mm hood whose face lands on the 600 mm
+ *  cabinet-depth line records twice its origin's distance from the wall (ADR 0039 decision 2), written out here. */
+const SEEDED_HOOD_PLACEMENT_ID = "p13";
+const CATALOGUE_HOOD = "hood";
+const HOOD_SEAT_MM = 700;
+
 /** A wall entry bounded 300–800 with no hole in the middle, so it builds into every opening these
  *  cases reach — the fridge column is 700 mm, and ADR 0032 made a bounded set bind the `'fit'` path.
  *  A shelf declares no floor of its own, so it opens at §2's default rather than at the hinged rows'
@@ -349,11 +355,38 @@ describe("the map governs the head-clearance rule and nothing else", () => {
   // *records* is a seat of 700 — twice the distance from the wall to the centre of a 500 mm body
   // whose front lands on the 600 mm cabinet-depth line. The map still does not reach it, which is
   // what this assertion is for; the number it does not reach is now stated as the seat it is.
+  //
+  // Asserted on a hood that went through `insertBody` and the real probe, not only on the seeded record: `p13` carries
+  // no measured seat, so its depth is the catalogue's declaration and no builder or probe is exercised by reading it.
   it("keeps the hood out of the map, and hangs it at the front instead", () => {
     const seeded = loadWorld(KITCHEN_L_DESIGN);
-    expect(depthOfMm(seeded.design, "p13")).toBe(2 * 600 - 500);
-    expect(depthOfMm(seeded.design, "p13")).not.toBe(
+    // The trap, stated: the hood's column stands over the base run, so the cap applies and the map answers 330.
+    expect(seeded.columns.get(TOP_ROW_COLUMN)?.hasFullHeightUnder).toBe(false);
+
+    const swapped = insertBody({
+      design: seeded.design,
+      catalog: KITCHEN_L_BODY_CATALOG,
+      columns: seeded.columns,
+      voids: seeded.voids,
+      target: { kind: "placement", id: SEEDED_HOOD_PLACEMENT_ID },
+      buildId: CATALOGUE_HOOD,
+      probe: createBodyProbe(kit, room),
+      occurredAt: OCCURRED_AT,
+    });
+    if (!swapped.ok) {
+      throw new Error(`Hood swap refused: ${swapped.reason.code}`);
+    }
+    const builtHoodId = swapped.effect.placementId;
+
+    expect(depthOfMm(seeded.design, SEEDED_HOOD_PLACEMENT_ID)).toBe(
+      HOOD_SEAT_MM,
+    );
+    expect(depthOfMm(swapped.design, builtHoodId)).toBe(HOOD_SEAT_MM);
+    expect(depthOfMm(swapped.design, builtHoodId)).not.toBe(
       WALL_DEPTH_OVER_WORKTOP_MM,
+    );
+    expect(occupiedDepthOfMm(swapped.design, builtHoodId)).toBe(
+      CABINET_DEPTH_LINE_MM,
     );
   });
 });

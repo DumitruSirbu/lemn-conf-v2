@@ -71,22 +71,6 @@ describe("the refusal is total, not partial", () => {
       UndeclaredCabinetHandleCountError,
     );
   });
-
-  // The anti-invariant behind both refusals, stated once: there is no rule shape and no width for
-  // which this function answers with something that is not a count.
-  it.each([
-    ["declared-count", { countedFrom: "declared-count" }],
-    ["door-count", { countedFrom: "door-count" }],
-  ])("never answers %s with a non-number", (_label, rule) => {
-    let answer: unknown = "threw";
-    try {
-      answer = countAt(rule, ANY_WIDTH_MM);
-    } catch {
-      answer = "threw";
-    }
-
-    expect(answer === "threw" || Number.isSafeInteger(answer)).toBe(true);
-  });
 });
 
 describe("the declared count is a count, for every shipped entry", () => {

@@ -11,7 +11,7 @@
 // Colour is a reference, not a specification: a palette entry's name is a `finish.*` catalogue leaf the app
 // resolves from `entryId` (ADR 0095), never a string declared here. The supplier code is internal
 // provenance and no surface presents it as a code a customer picks from.
-import { z } from "zod";
+import { z } from "./zod-without-eval.js";
 
 /** The three materials in price order: PAL (melamine) < MDF (painted) < veneer (natural wood over MDF). */
 export const MATERIAL_IDS = [
@@ -239,18 +239,27 @@ export function paletteEntriesOf(material: Material): readonly PaletteEntry[] {
  *  It asks the control's declared `shape` and never counts entries: counting would misclassify veneer the
  *  day it gains a third wood. A RAL picker offers every free colour `FinishSchema` admits and no palette
  *  entry: no RAL set is declared, and narrowing to a table nobody authored would reset colours a customer
- *  chose. Absence is not asked about: a body wearing no finish never reaches this query. */
+ *  chose. A free colour's **value** is checked for type and for the schema's own `FREE_COLOUR_PATTERN`, not
+ *  the `kind` alone: `Finish` is an inferred type, so a malformed value type-checks and must still be
+ *  refused (ADR 0078 decision 6). Nothing else about the object is looked at; an extra key is the schema's
+ *  to refuse, at the commands (`designOffersFinish`). Absence is not asked about: a body wearing no finish
+ *  never reaches this query. */
 export function materialOffersFinish(
   material: Material,
   finish: Finish,
 ): boolean {
   if (material.colourControl.shape === "ral-picker") {
-    return finish.kind === "free-colour";
+    return finish.kind === "free-colour" && isFreeColourValue(finish.value);
   }
   return (
     finish.kind === "palette-entry" &&
     paletteEntriesOf(material).some((entry) => entry.entryId === finish.entryId)
   );
+}
+
+/** `unknown`, because `RegExp.test` coerces: `["#abcdef"]` would pass the pattern as a string. */
+function isFreeColourValue(value: unknown): boolean {
+  return typeof value === "string" && FREE_COLOUR_PATTERN.test(value);
 }
 
 export class UnknownMaterialError extends Error {
@@ -279,8 +288,8 @@ export const UNDECLARED_MATERIAL: MaterialLookup = { kind: "undeclared" };
 
 /** The total lookup, for the load paths (ADR 0078 decision 3). `DesignSettingsSchema` validates
  *  `materialTierId` for shape only (the domain imports no price book), so a stored id naming no declared
- *  material is reachable and must keep loading. An undeclared material makes no offer, so a caller holding
- *  `{ kind: "undeclared" }` corrects nothing and refuses nothing. */
+ *  material is reachable and must keep loading. An undeclared material makes no offer of its own, so a caller
+ *  holding `{ kind: "undeclared" }` corrects nothing on the offer's account; the schema check still applies. */
 export function lookUpMaterial(materialId: string): MaterialLookup {
   const material = MATERIALS.find(
     (candidate) => candidate.materialId === materialId,

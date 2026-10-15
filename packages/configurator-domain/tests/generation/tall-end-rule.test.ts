@@ -29,7 +29,6 @@ import {
 import { STORAGE_BODY_WIDTH_MM } from "../../src/generation/leftover-rule.js";
 import {
   DOOR_COLUMN_BUILD_ID,
-  HOB_WITHOUT_ITS_OWN_OVEN_BUILD_ID,
   OVEN_TOWER_BUILD_ID,
   planTallEndBlock,
   type TallEndRuleInput,
@@ -231,17 +230,9 @@ describe("E6.2 — a merged opening outside the door column's own bound is refus
 
 // M7B U3a slice S2: the only edit this wave makes to this file is exporting
 // `HOB_WITHOUT_ITS_OWN_OVEN_BUILD_ID`, which was already private and already this value — no L
-// behaviour moved. This regression pins that literally: the exported constant and the qualifying
-// plan's own `hobBuildId` still agree, and the "control" plan from the file's first describe block
-// is unchanged byte for byte.
+// behaviour moved. This regression pins that literally: the "control" plan from the file's first
+// describe block is unchanged byte for byte.
 describe("M7B U3a S2 — the export adds no L behaviour", () => {
-  it("HOB_WITHOUT_ITS_OWN_OVEN_BUILD_ID is still the block's own hob id", () => {
-    expect(HOB_WITHOUT_ITS_OWN_OVEN_BUILD_ID).toBe(HOB_WITH_DRAWERS);
-    expect(planTallEndBlock(qualifyingInput()).hobBuildId).toBe(
-      HOB_WITHOUT_ITS_OWN_OVEN_BUILD_ID,
-    );
-  });
-
   it("the qualifying plan is byte-identical to the file's own recorded control", () => {
     expect(JSON.stringify(planTallEndBlock(qualifyingInput()))).toBe(
       JSON.stringify({

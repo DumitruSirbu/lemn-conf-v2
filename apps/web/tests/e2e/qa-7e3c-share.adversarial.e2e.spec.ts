@@ -11,6 +11,7 @@ import {
 } from "@playwright/test";
 
 import { SINK_CABINET_TAP, tapCanvas } from "./support/canvas-taps";
+import { nonceOfPolicy, policyOf } from "./support/csp-violations";
 import { deleteMintedDesigns } from "./support/minted-designs";
 import { canonicaliseRowIds } from "./support/rsc-row-ids";
 import {
@@ -95,12 +96,7 @@ async function ownerFetch(
 }
 
 function nonceOf(response: APIResponse): string {
-  const headers = response.headers();
-  const policy =
-    headers["content-security-policy-report-only"] ??
-    headers["content-security-policy"] ??
-    "";
-  const nonce = /'nonce-([^']+)'/.exec(policy)?.[1];
+  const nonce = nonceOfPolicy(policyOf(response));
   if (nonce === undefined) throw new Error("the response carries no CSP nonce");
   return nonce;
 }

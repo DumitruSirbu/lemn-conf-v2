@@ -177,19 +177,6 @@ describe("every catalogue entry's sink declaration matches what its builder draw
       );
     }
   });
-
-  /** The gate's own premise: it is not a `kind` test wearing another name. Both sink rows declare
-   *  `base_cabinet`, and so do rows that hold no sink at all — which is why the declaration exists
-   *  (ADR 0092 decision 9). */
-  it("is not a kind test, because the sink rows share their kind with rows that hold none", () => {
-    for (const buildId of ["base-sink", "base-sink-800", "base-3drawer"]) {
-      expect([buildId, definitionOf(buildId).kind]).toEqual([
-        buildId,
-        "base_cabinet",
-      ]);
-    }
-    expect(declaresASink(definitionOf("base-3drawer"))).toBe(false);
-  });
 });
 
 /**

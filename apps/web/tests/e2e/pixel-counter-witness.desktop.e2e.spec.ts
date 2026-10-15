@@ -29,6 +29,7 @@ import {
 } from "./support/pixels";
 import { readSelection } from "./support/panel";
 import {
+  FIRST_FRAME_FREEZE_TIMEOUT_MS,
   openSeededDesign,
   test,
   type SeededDesign,
@@ -195,7 +196,7 @@ async function openAndSettle(page: Page, design: SeededDesign): Promise<void> {
   await openSeededDesign(page, design);
   await expect(async () => {
     expect((await readSelection(page)).probe).toBe("on");
-  }).toPass({ timeout: 15_000 });
+  }).toPass({ timeout: FIRST_FRAME_FREEZE_TIMEOUT_MS });
   await page.waitForTimeout(SCENE_SETTLE_MS);
 }
 
@@ -264,13 +265,17 @@ async function expectTheDifferencingCounterIsUnmoved(
 }
 
 /**
- * The outline stays visible against a front painted its own colour: the highlight's exact hex, a near neighbour and
- * one wood. `selection-outline.ts` adds a near-black casing under the red core; this measures it on the running app,
- * where tone mapping, the real materials and the real line widths are involved.
+ * The outline stays visible against a front painted close to its own colour: a near neighbour of the highlight's hex
+ * and one wood (the exact hex is the next case, which ends on the same measurement). `selection-outline.ts` adds a
+ * near-black casing under the red core; this measures it on the running app, where tone mapping, the real materials
+ * and the real line widths are involved.
  */
 for (const [label, materialTierId, finish] of [
-  ["the highlight's own hex", MDF, freeColourFinish("#ff2d2d")],
-  ["a near neighbour of it", MDF, freeColourFinish("#cc2222")],
+  [
+    "a near neighbour of the highlight's own hex",
+    MDF,
+    freeColourFinish("#cc2222"),
+  ],
   ["a wood", VENEER, paletteFinish("veneer.nuc")],
 ] as const) {
   test(`the outline is still counted over a front wearing ${label}`, async ({

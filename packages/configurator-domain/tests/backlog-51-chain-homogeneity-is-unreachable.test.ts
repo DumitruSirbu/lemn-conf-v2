@@ -91,8 +91,8 @@ function chainsOfColumn(
 }
 
 /** Whether adding a body on this chain to a column whose members declare `siblings` would leave the
- *  column holding two chains. Its own test is the last block of this file: a sweep that reports
- *  nothing is worth exactly as much as its detector. */
+ *  column holding two chains. The last block of this file runs it through the sweep on a catalogue
+ *  that does mix: a sweep that reports nothing is worth exactly as much as its detector. */
 function wouldMixColumn(
   chain: string | undefined,
   siblings: ReadonlySet<string>,
@@ -296,18 +296,54 @@ describe.each(DECLARED_DEPTHS_MM)(
 );
 
 describe("the detector the sweeps above rely on", () => {
-  // Every "offers nothing that would mix a column" assertion is an empty array, and an empty array
-  // is what a broken detector also produces. This is the one block that fails if `wouldMixColumn`
-  // ever stops noticing.
-  it("reports a body arriving on the other chain", () => {
-    expect(wouldMixColumn("wall-map", new Set(["base-formula"]))).toBe(true);
-    expect(wouldMixColumn("base-formula", new Set(["wall-map"]))).toBe(true);
+  // Every "offers nothing that would mix a column" assertion is an empty array, and an empty array is
+  // what a blind sweep also produces. So the sweep is run over a catalogue in which one offered row
+  // is redeclared onto the other chain: it must name every offer of that row and no other.
+  const CABINET_DEPTH_MM = 600;
+  const REDECLARED_BUILD_ID = "base-cabinet";
+  const shipped = buildKitchenLBodyCatalog(CABINET_DEPTH_MM);
+  const seeded = createWorld(designAt(CABINET_DEPTH_MM), shipped);
+
+  function withOneRowOnTheWallMap(): BodyCatalog {
+    const definition = shipped.get(REDECLARED_BUILD_ID);
+    if (!definition?.depthRule)
+      throw new Error(`${REDECLARED_BUILD_ID} left the catalogue`);
+    return new Map([
+      ...shipped,
+      [
+        REDECLARED_BUILD_ID,
+        {
+          ...definition,
+          depthRule: {
+            ...definition.depthRule,
+            alongWallPositionFollows: "wall-map" as const,
+          },
+        },
+      ],
+    ]);
+  }
+
+  it("reports every offer of a body arriving on the other chain, and no other row", () => {
+    const swept = sweepEveryOffer(seeded, withOneRowOnTheWallMap());
+    const offersOfTheRedeclaredRow = swept.filter(
+      (row) => row.buildId === REDECLARED_BUILD_ID,
+    );
+
+    expect(offersOfTheRedeclaredRow.length).toBeGreaterThan(0);
+    expect(swept.filter((row) => row.wouldMix)).toEqual(
+      offersOfTheRedeclaredRow,
+    );
   });
 
-  it("stays quiet where the column is already on that chain, or has no members", () => {
-    expect(wouldMixColumn("base-formula", new Set(["base-formula"]))).toBe(
-      false,
+  it("stays quiet about that body where the column it is offered into has no members", () => {
+    const swept = sweepEveryOffer(
+      emptiedOf(seeded, shipped),
+      withOneRowOnTheWallMap(),
     );
-    expect(wouldMixColumn("wall-map", new Set<string>())).toBe(false);
+
+    expect(
+      swept.filter((row) => row.buildId === REDECLARED_BUILD_ID).length,
+    ).toBeGreaterThan(0);
+    expect(swept.filter((row) => row.wouldMix)).toEqual([]);
   });
 });

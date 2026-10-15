@@ -642,9 +642,13 @@ describe("the two refusals ADR 0031's side scan can produce", () => {
   );
 
   it("covers both verdicts, so neither branch of the invariant is untested", () => {
-    const reached = buildCases()
+    const produced = buildCases()
       .filter((sweep) => SCAN_CODES.includes(sweep.code))
-      .map((sweep) => sweep.code);
-    expect(reached.sort()).toEqual(["NO_EMPTY_SPACE", "RESIZE_OPENS_GAP"]);
+      .map((sweep) => {
+        const result = sweep.run();
+        return result.ok ? "accepted" : result.reason.code;
+      });
+
+    expect(produced.sort()).toEqual(["NO_EMPTY_SPACE", "RESIZE_OPENS_GAP"]);
   });
 });

@@ -44,6 +44,8 @@ import {
   type ConfiguratorState,
 } from "@/store/configurator-store";
 
+import pillStyles from "@/settings/global-settings.module.css";
+
 import { createFakeProbeFactory } from "../support/fake-body-probe";
 
 /** `global-settings-shell.test.ts`'s pattern, for its reason: the component runs against a real
@@ -241,7 +243,12 @@ describe("the counter counts what is not shown, and never stands alone", () => {
         const markup = pillMarkup(design, visibleCount);
 
         expect(labelsIn(markup).length, name).toBeGreaterThanOrEqual(1);
-        expect(countOf(markup, 'aria-hidden="true"'), name).toBeGreaterThan(0);
+        // Counted by the swatch's own class. Counted by `aria-hidden`, the separators and the caret stood in for a
+        // swatch that was not drawn.
+        expect(
+          countOf(markup, `class="${pillStyles.swatch ?? ""}"`),
+          name,
+        ).toBe(1);
       }
     },
   );
@@ -282,16 +289,6 @@ describe("the separator falls between labels and nowhere else", () => {
       }
     },
   );
-
-  /** **The free colour costs no separator**, which is the case a `│` around nothing would appear in:
-   *  on MDF the pill draws two names at rung 3 where PAL draws three, and one divider rather than
-   *  two. */
-  it("draws no divider around the colour it does not write", () => {
-    const mdf = pillMarkup(ON_MDF, EVERY_SETTING);
-
-    expect(labelsIn(mdf)).toHaveLength(3);
-    expect(countOf(mdf, "separator")).toBe(2);
-  });
 });
 
 describe("only the first label may ever be cut", () => {

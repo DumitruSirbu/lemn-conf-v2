@@ -122,3 +122,7 @@ own figures (290 000, 1 200 000, a 1 490 000 drop) are test arithmetic and stay 
   decision 12 covers the *De la* claim, not this. The same rule is a criterion in
   `docs/milestones/M6-price-and-global-settings.md` (a plan, not a decision record).
 - **Where.** `apps/web/src/price/starting-price.ts`; `apps/web/src/price/price-breakdown-model.ts`.
+
+*Note — 2026-10-09 (wave 8J):* the shop's notice (`apps/web/src/lib/server/mail/lead-notification.ts`) joined this decision's list of
+modules that may reach a priced amount, as a recorded addition. It prints a stored review's figure and rows through `describeReview` and
+derives nothing: it rounds nothing and adds no second rounding site. [ADR 0154](0154-mail-leaves-through-one-provider-neutral-port-and-one-resend-adapter-that-sends-once-and-answers-with-one-of-seven-kinds-and-the-shops-notice-is-the-stored-review-printed-never-priced-again.md); [ADR 0148](0148-the-review-refuses-one-thing-at-a-time-the-first-the-customer-can-act-on-and-no-cabinet-means-nothing-lemnaria-supplies.md) Amendment C.

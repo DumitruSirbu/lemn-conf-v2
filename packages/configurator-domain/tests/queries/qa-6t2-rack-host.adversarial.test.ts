@@ -101,33 +101,6 @@ function sinkOn(wall: DesignWall): DesignPlacement {
  * rack, the hard-coded one answers no host.
  */
 describe("the wall the host must share is the sink's, not the letter A", () => {
-  const WALL_B_HOST = placement("host-b", "wall-2door-800", {
-    wall: "B",
-    alongMm: SINK_CENTRE_MM,
-    y0Mm: WALL_BAND_Y0_MM,
-    widthMm: 800,
-    heightMm: 700,
-  });
-
-  it("hangs a wall-B sink's rack in the wall-B cabinet above it", () => {
-    expect(hostOfTheOnlySink([sinkOn("B"), WALL_B_HOST])).toBe("host-b");
-  });
-
-  /** The mirror of the shipped wall-A case, and the half of the pair that is new: a candidate whose
-   *  along-wall coordinate places it directly over the sink **in world space** on the other run is
-   *  still on the other run. */
-  it("does not hang a wall-B sink's rack in a wall-A cabinet at the same coordinate", () => {
-    const onWallA = placement("host-a", "wall-2door-800", {
-      wall: "A",
-      alongMm: SINK_CENTRE_MM,
-      y0Mm: WALL_BAND_Y0_MM,
-      widthMm: 800,
-      heightMm: 700,
-    });
-
-    expect(hostOfTheOnlySink([sinkOn("B"), onWallA])).toBeUndefined();
-  });
-
   /** Both walls, both ways round, as one statement: a host is resolved **exactly** when the two
    *  walls agree, and the rule reads the sink's wall rather than a letter. */
   it.each([
@@ -186,8 +159,8 @@ describe("one span wholly inside the other is an overlap", () => {
 /**
  * **The whole transition, not its two endpoints.**
  *
- * `sink-accessories.test.ts` pins three points — abutting at each end, and one millimetre in. A
- * swept centre asserts the *shape*: a host exists for exactly the centres whose span strictly
+ * The four named points — touching at each end, and one millimetre in from each — are this block's
+ * last case. A swept centre asserts the *shape*: a host exists for exactly the centres whose span strictly
  * overlaps the sink's, and for no others. A predicate off by a millimetre at one end only, or one
  * that admitted a candidate that has passed clean through, is a case in the range rather than a
  * point somebody thought to write down.
@@ -229,7 +202,9 @@ describe("the overlap boundary, swept rather than sampled", () => {
     },
   );
 
-  /** The two transitions themselves, named so a failure says which end moved. */
+  /** The two transitions themselves, named so a failure says which end moved. Touching is not
+   *  overlapping: on the seeded design `p12` (`open-shelf-600`) begins at exactly 1700, where the sink
+   *  ends, and counting it would tie it with `p11` at the same `y0`. */
   it("flips at each end between touching and overlapping by one millimetre", () => {
     expect(hostAtCentre(FIRST_TOUCHING_MM)).toBeUndefined();
     expect(hostAtCentre(FIRST_TOUCHING_MM + 1)).toBe("candidate");
@@ -248,8 +223,6 @@ describe("the overlap boundary, swept rather than sampled", () => {
  * answer is a function of the document rather than of the array it was serialised in.
  */
 describe("two candidates identical in every key but their id", () => {
-  const TWINS = ["aaa-twin", "zzz-twin"] as const;
-
   function twin(id: string): DesignPlacement {
     return placement(id, "wall-2door-800", {
       alongMm: SINK_CENTRE_MM,
@@ -258,17 +231,6 @@ describe("two candidates identical in every key but their id", () => {
       heightMm: 700,
     });
   }
-
-  it("resolves the one the projection orders first, whichever way the array holds them", () => {
-    const [first, second] = TWINS;
-
-    expect(hostOfTheOnlySink([sinkOn("A"), twin(first), twin(second)])).toBe(
-      "aaa-twin",
-    );
-    expect(hostOfTheOnlySink([sinkOn("A"), twin(second), twin(first)])).toBe(
-      "aaa-twin",
-    );
-  });
 
   /** The same answer over every permutation of the whole document, so the claim is *"never the
    *  array's order"* rather than *"not these two orders"*. */

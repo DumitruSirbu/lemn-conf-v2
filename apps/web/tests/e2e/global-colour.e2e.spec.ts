@@ -174,7 +174,7 @@ test("offers the colour group after the material group, from the material's own 
   // declared headings up in `innerText`, and it could not pass however the sheet was ordered:
   // `innerText` is the *rendered* text and applies `text-transform`, and `.heading` in
   // `global-settings.module.css` has been `text-transform: uppercase` since wave 6G — so
-  // `"Material corp și fronturi"` was being sought in `"MATERIAL CORP ȘI FRONTURI"` and all three
+  // `"Materialul dulapului și al fronturilor"` was being sought in `"MATERIALUL DULAPULUI ȘI AL FRONTURILOR"` and all three
   // lookups returned −1.
   //
   // `textContent` would have fixed the styling half alone and broken again the day the copy is

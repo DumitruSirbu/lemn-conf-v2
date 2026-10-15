@@ -1,6 +1,4 @@
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 
 import { NextRequest, NextResponse } from "next/server";
 import { describe, expect, it, vi } from "vitest";
@@ -63,14 +61,17 @@ describe("mintWriteToken", () => {
   });
 
   it("calls no non-cryptographic random source anywhere in the module", () => {
-    const source = readFileSync(
-      resolve(import.meta.dirname, "../../../src/lib/server/write-token.ts"),
-      "utf8",
-    );
+    // Watched as a call rather than searched for as text: `Math["random"]()` is the same source and
+    // spells itself past any pattern. Every export is driven, since the claim is about the module.
+    const mathRandom = vi.spyOn(Math, "random");
 
-    // Matched as a call rather than as a mention, so the module may still explain in prose why it
-    // does not use one.
-    expect(source).not.toMatch(/Math\s*\.\s*random\s*\(/);
+    const { token } = mintWriteToken();
+    setCookieHeaderFor(DESIGN_ID, token);
+    readWriteTokenHash(requestCarrying(`${COOKIE_NAME}=${token}`), DESIGN_ID);
+    const callsToMathRandom = mathRandom.mock.calls.length;
+    mathRandom.mockRestore();
+
+    expect(callsToMathRandom).toBe(0);
   });
 });
 
@@ -111,17 +112,6 @@ describe("readWriteTokenHash", () => {
     );
 
     expect(read).toBe(hash);
-  });
-
-  it("never returns the raw token, only its digest", () => {
-    const { token } = mintWriteToken();
-
-    const read = readWriteTokenHash(
-      requestCarrying(`${COOKIE_NAME}=${token}`),
-      DESIGN_ID,
-    );
-
-    expect(read).not.toBe(token);
   });
 
   it("finds nothing when the request carries no cookie at all", () => {

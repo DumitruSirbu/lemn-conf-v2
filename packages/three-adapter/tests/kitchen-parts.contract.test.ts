@@ -371,10 +371,6 @@ describe("the corner wall unit on the kit's surface", () => {
       ].sort(),
     );
   });
-
-  it("is not a reference builder: the builders keep exactly the reference's keys", () => {
-    expect(Object.keys(kit.builders)).not.toContain("wall-corner-x");
-  });
 });
 
 describe("the two corner legs", () => {

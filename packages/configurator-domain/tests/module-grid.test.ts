@@ -20,21 +20,12 @@ describe("deriveColumnKeyAt", () => {
     expect(deriveColumnKeyAt("C", 1.3)).toBe("C|1.30");
   });
 
-  it("never collides a wall-C key with wall A's or wall B's at the same along value (AC8)", () => {
-    fc.assert(
-      fc.property(fc.float({ min: 0, max: 10, noNaN: true }), (alongM) => {
-        const keys = WALLS.map((wall) => deriveColumnKeyAt(wall, alongM));
-        expect(new Set(keys).size).toBe(WALLS.length);
-      }),
-    );
-  });
-
   propertyTest.prop([
     fc.constantFrom(...WALLS),
     fc.constantFrom(...WALLS),
     fc.float({ min: 0, max: 10, noNaN: true }),
   ])(
-    "answers two different walls' keys distinctly at the same along value",
+    "answers two different walls' keys distinctly at the same along value (AC8)",
     (left, right, alongM) => {
       const same =
         deriveColumnKeyAt(left, alongM) === deriveColumnKeyAt(right, alongM);

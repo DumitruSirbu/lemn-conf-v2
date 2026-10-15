@@ -19,9 +19,7 @@ import {
 } from "@lemnaria/configurator-domain";
 import { describe, expect, it } from "vitest";
 
-import { metresTextForUrl } from "@/room/metres-text";
 import { presentOneC, draftStateOf, NOT_TYPING } from "@/room/one-c-surfaces";
-import { parseMetresToMillimetres } from "@/room/parse-metres";
 import { parseMillimetres } from "@/room/parse-millimetres";
 import {
   derivePlanPreview,
@@ -229,24 +227,6 @@ describe("the plan is empty exactly when the parser calls a required wall missin
 
         expect(drawnWallIds(plan)).toEqual(wallsOf(draft.shape));
       }),
-      { numRuns: SAMPLES * 5 },
-    );
-  });
-
-  it("carries every length a field reads across the metre wire and back unchanged, up to 2^53 - 1", () => {
-    fc.assert(
-      fc.property(
-        fc.oneof(
-          fc.integer({ min: 1, max: 100_000 }),
-          fc.integer({ min: 1, max: Number.MAX_SAFE_INTEGER }),
-          fc.constantFrom(1, 999, 1000, 1001, Number.MAX_SAFE_INTEGER),
-        ),
-        (millimetres) => {
-          const wire = parseMetresToMillimetres(metresTextForUrl(millimetres));
-
-          expect(wire).toEqual({ ok: true, mm: millimetres });
-        },
-      ),
       { numRuns: SAMPLES * 5 },
     );
   });

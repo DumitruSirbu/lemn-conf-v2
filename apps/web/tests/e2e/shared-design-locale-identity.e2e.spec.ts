@@ -1,6 +1,7 @@
 import type { Design } from "@lemnaria/configurator-domain";
 import { expect, type Page, type Response } from "@playwright/test";
 
+import { policyOf } from "./support/csp-violations";
 import {
   issueShareLink,
   openSharedDesign,
@@ -110,7 +111,7 @@ async function loadStoredDesign(page: Page, id: string): Promise<LoadedDesign> {
 }
 
 function assertCsp(response: Response): string {
-  const policy = response.headers()["content-security-policy-report-only"];
+  const policy = policyOf(response);
   expect(policy).toBeTruthy();
   const nonce = /'nonce-([^']+)'/.exec(policy ?? "")?.[1];
   expect(nonce).toBeTruthy();

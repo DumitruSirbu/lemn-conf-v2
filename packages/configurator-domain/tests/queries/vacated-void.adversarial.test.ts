@@ -97,6 +97,10 @@ describe("every LEVELS boundary, approached from both sides", () => {
     (value, index, all) => all.indexOf(value) === index && value > 0,
   );
 
+  /** The two lines no level starts at: the backsplash zone above the worktop is never an opening (§11 row 17), and
+   *  nothing stands above the column's own top. A body deleted there leaves nothing to select. */
+  const BOUNDARIES_FREEING_NO_OPENING = [0.86, 2.6];
+
   it.each(BOUNDARIES)(
     "a body standing exactly at %s is found there, not below it",
     (boundaryM) => {
@@ -110,12 +114,20 @@ describe("every LEVELS boundary, approached from both sides", () => {
 
       const { selected } = selectionAfterRemoving(world, "target");
 
-      if (!selected) return; // A boundary that frees no opening has nothing to select; asserted below.
+      if (BOUNDARIES_FREEING_NO_OPENING.includes(boundaryM)) {
+        expect(selected).toBeUndefined();
+        return;
+      }
+      if (!selected)
+        throw new Error(`nothing selected at ${String(boundaryM)}`);
       expect(selected.y0).toBeLessThanOrEqual(boundaryM + 1e-9);
       expect(selected.y0 + selected.h).toBeGreaterThan(boundaryM + 1e-9);
     },
   );
 
+  // R2.1 / F1. Two level-adjacent slots share a module line. Widening the search at the top made them
+  // overlap by `FIT_TOLERANCE_M`, and `find` returned the lower one — so deleting a top-row unit
+  // selected the wall slot beneath it (§11 row 2's failure shape, one level up).
   it("never returns a slot that merely ends where the body started", () => {
     for (const boundaryM of BOUNDARIES) {
       const voids: VoidRecord[] = [

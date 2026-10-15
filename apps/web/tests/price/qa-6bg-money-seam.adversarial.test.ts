@@ -45,7 +45,6 @@ import {
   contentFor,
   type Catalogue,
 } from "../support/catalogues";
-import { RULED_TO_CARRY_THE_CURRENCY } from "../support/ruled-price-copy";
 
 /** The plan's own reachable ceiling: ten billion bani, a hundred million MDL. Swept rather than
  *  sampled, because the transitions that matter are the multiples of the step and a fixed table is
@@ -217,10 +216,6 @@ describe("the leaf is substituted into, not appended after", () => {
       // reach inside the argument, so no join can substitute a non-breaking space into a figure.
       expect(rendered, template).not.toContain("\u00a0");
     }
-  });
-
-  it("carries the ruled key rather than a second spelling of it", () => {
-    expect(RULED_TO_CARRY_THE_CURRENCY).toBe("price.amountWithCurrency");
   });
 });
 

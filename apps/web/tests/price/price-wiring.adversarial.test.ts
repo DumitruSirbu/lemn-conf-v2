@@ -341,8 +341,9 @@ function cornersOf(box: THREE.Box3): THREE.Vector3[] {
 }
 
 /** The body's lowest projected point as a **fraction of the scene box**, which is the quantity the
- *  shipped gate ultimately compares. Kept in normalised units here on purpose — see the first test
- *  below for why that is the whole point. */
+ *  shipped gate ultimately compares. Kept in normalised units here on purpose: a perspective camera's
+ *  vertical field of view does not change with the aspect ratio, so the fraction is the same whatever
+ *  height the bar takes, and `bottomPx <= barTopPx` reduces to `normalised <= 1`. */
 function normalisedBottomOf(
   body: THREE.Object3D,
   presetId: (typeof CAMERA_PRESETS)[number]["id"],
@@ -359,37 +360,6 @@ function normalisedBottomOf(
 }
 
 describe("what the shipped 390 × 844 sweep can fail on", () => {
-  it("projects to the same normalised bounds whatever height the bar takes", () => {
-    // **The finding this block exists for.** A perspective camera's *vertical* field of view does
-    // not change with the aspect ratio, so shrinking the scene box scales every projected pixel with
-    // it. `bottomPx = normalised * sceneHeight + sceneTop` and `barTopPx = sceneTop + sceneHeight`,
-    // so `bottomPx <= barTopPx` reduces to `normalised <= 1` — a statement about the camera framing
-    // the kitchen, with the bar's height cancelled out of both sides.
-    //
-    // Verified by mutation against the shipped file: replacing its `BAR_HEIGHTS_PX` with
-    // `[92, 600, 700]` — a 700 px bar on an 844 px viewport, leaving an 80 px scene — leaves all 23
-    // of its assertions green. The seven header heights cancel the same way.
-    const body = mountedBodies()[0];
-    if (!body) throw new Error("no body mounted");
-
-    const tallScene = normalisedBottomOf(body, "overview", 700);
-    const shortScene = normalisedBottomOf(body, "overview", 80);
-
-    expect(shortScene).toBeCloseTo(tallScene, 10);
-  });
-
-  it("frames the whole seeded kitchen at the preset the screen mounts with", () => {
-    // What the sweep does assert, stated once in the units that make it falsifiable: every body
-    // lands inside the scene box. This is a real property — it is just not a property of the bar.
-    for (const body of mountedBodies()) {
-      const bottom = normalisedBottomOf(body, "overview", 700);
-      expect(
-        bottom,
-        `${String(body.userData.placementId)} projects below the scene box`,
-      ).toBeLessThanOrEqual(1);
-    }
-  });
-
   it("is a framing property that does not hold at the other two presets the screen offers", () => {
     // The state the sweep misses, named rather than left implied: the customer can switch to wallA
     // or wallB, and at those presets bodies project outside the scene box. That is **not** an
@@ -410,46 +380,27 @@ describe("what the shipped 390 × 844 sweep can fail on", () => {
     ).toBe(true);
   });
 
-  it("keeps the counterfactual load-bearing at the height the bar actually reserves", () => {
-    // The shipped counterfactual runs at one header height and one bar height. Swept here, because
-    // it is the assertion that ties the reserve to a real number: with the bar laid *over* the
-    // scene, the reserved band has to contain real cabinets, or reserving it means nothing.
-    const headerHeightPx = 64;
-    const overlaidSceneHeightPx = GATE_VIEWPORT.heightPx - headerHeightPx;
-
-    for (const barHeightPx of [
-      PRICE_BAR_RESERVED_HEIGHT_PX,
-      PRICE_BAR_RESERVED_HEIGHT_PX + 24,
-      PRICE_BAR_RESERVED_HEIGHT_PX + 48,
-    ]) {
-      const barTopPx = GATE_VIEWPORT.heightPx - barHeightPx;
-      const covered = mountedBodies().filter(
-        (body) =>
-          normalisedBottomOf(body, "overview", overlaidSceneHeightPx) *
-            overlaidSceneHeightPx +
-            headerHeightPx >
-          barTopPx,
-      );
-      expect(
-        covered.length,
-        `a ${String(barHeightPx)} px overlay`,
-      ).toBeGreaterThan(0);
-    }
-  });
-
   it("would stop being load-bearing at a zero reserve, which is what makes it a counterfactual", () => {
     // Verified by mutation as well: setting `PRICE_BAR_RESERVED_HEIGHT_PX` to 0 turns the shipped
     // counterfactual red, which is the right behaviour and is what says it is not decoration.
     const headerHeightPx = 64;
     const overlaidSceneHeightPx = GATE_VIEWPORT.heightPx - headerHeightPx;
-    const coveredByNothing = mountedBodies().filter(
+    const bodyBottomsPx = mountedBodies().map(
       (body) =>
         normalisedBottomOf(body, "overview", overlaidSceneHeightPx) *
           overlaidSceneHeightPx +
-          headerHeightPx >
-        GATE_VIEWPORT.heightPx,
+        headerHeightPx,
     );
+    const coveredByAnOverlayOf = (barHeightPx: number): number =>
+      bodyBottomsPx.filter(
+        (bottomPx) => bottomPx > GATE_VIEWPORT.heightPx - barHeightPx,
+      ).length;
 
-    expect(coveredByNothing).toEqual([]);
+    expect(coveredByAnOverlayOf(0)).toBe(0);
+    // And the height the bar really reserves is not that zero: it covers bodies a zero reserve leaves alone. Read
+    // from the constant, so a reserve set to nothing fails here and not only in the case above.
+    expect(coveredByAnOverlayOf(PRICE_BAR_RESERVED_HEIGHT_PX)).toBeGreaterThan(
+      coveredByAnOverlayOf(0),
+    );
   });
 });

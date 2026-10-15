@@ -29,10 +29,9 @@ const UNALLOWLISTED_TARGET = `postgres://tester:unused@db.invalid:5432/${UNALLOW
 /** `Refusing to run live database tests` alone is the shared prefix of **both** refusals in
  *  `src/test-database-url.ts`, so matching only that would pass if the allowlist check were
  *  replaced by the application-name one — a guard that needs `DATABASE_URL` to be set, which CI
- *  has not got. The name and the allowlist's own sentence pin which refusal fired. */
+ *  has not got. The colon after the prefix and the allowlist's own sentence pin which refusal fired. */
 const ALLOWLIST_REFUSAL = new RegExp(
-  `Refusing to run live database tests against "${UNALLOWLISTED_DATABASE_NAME}".*` +
-    `not one of the databases this repository allows`,
+  `Refusing to run live database tests: .*not one of the databases this repository allows`,
   "s",
 );
 

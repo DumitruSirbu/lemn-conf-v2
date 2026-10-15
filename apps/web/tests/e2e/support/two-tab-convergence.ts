@@ -16,11 +16,9 @@ import { mintSeededDesign, type DesignAccessProbe } from "./seeded-design";
  * even at CI's ten-times-slower pace, and a failing round is reported by name rather than by
  * number inside one long failure.
  *
- * **Round count.** `DEFAULT_MOBILE_ROUNDS`/`DEFAULT_DESKTOP_ROUNDS` below are what CI runs; set
- * `E2E_TWO_TAB_ROUNDS` to run more locally (30 was this criterion's own original bar). Desktop
- * defaults lower than mobile only to keep both projects' own share of the suite comparable — the
- * property under test does not vary by viewport (every other twin in this directory carries the
- * same reasoning).
+ * **Round count.** `DEFAULT_MOBILE_ROUNDS` below is what CI runs; set `E2E_TWO_TAB_ROUNDS` to run
+ * more locally (30 was this criterion's own original bar). Only the mobile project runs it — the
+ * property under test does not vary by viewport.
  *
  * A fully-typed room query, matching `room-to-editor.qa.e2e.spec.ts`'s own `THE_TYPED_ROOM` — a
  * room comfortably inside the approved bounds, so composition is the thing under test rather than
@@ -33,7 +31,6 @@ const TYPED_ROOM_QUERY =
   "shape=L&wallA=3.56&wallB=4.25&height=2.7&direction=left";
 
 export const DEFAULT_MOBILE_ROUNDS = 10;
-export const DEFAULT_DESKTOP_ROUNDS = 3;
 
 const ROUNDS_ENV_VAR = "E2E_TWO_TAB_ROUNDS";
 
@@ -76,17 +73,27 @@ async function tapContinueAndAwaitDesign(page: Page): Promise<string> {
   return decodeURIComponent(id);
 }
 
-/** `GET /api/designs/{id}`'s own `canWrite`, read from whichever page in the context — both share
- *  the one jar under test. */
-async function canWriteDesign(page: Page, id: string): Promise<boolean> {
-  const probe = await page.evaluate(async (designId: string) => {
+/** What `GET /api/designs/{id}` answered: its status, and `canWrite` when that status is 200. */
+interface DesignAccessAnswer extends DesignAccessProbe {
+  readonly status: number;
+}
+
+/** Asks `GET /api/designs/{id}` from whichever page in the context — both share the one jar under
+ *  test. The status is kept because a 404 (the jar owns nothing) and a 5xx are different failures. */
+async function readDesignAccess(
+  page: Page,
+  id: string,
+): Promise<DesignAccessAnswer> {
+  return page.evaluate(async (designId: string) => {
     const response = await fetch(`/api/designs/${designId}`, {
       credentials: "same-origin",
     });
-    if (response.status !== 200) return { canWrite: false };
-    return (await response.json()) as DesignAccessProbe;
+    if (response.status !== 200) {
+      return { status: response.status, canWrite: false };
+    }
+    const { canWrite } = (await response.json()) as DesignAccessProbe;
+    return { status: response.status, canWrite };
   }, id);
-  return probe.canWrite;
 }
 
 /**
@@ -113,10 +120,13 @@ export async function runOneTwoTabRound(
     mintedIds.push(idA, idB);
 
     for (const id of [prior.id, idA, idB]) {
-      if (!(await canWriteDesign(pageA, id))) {
+      const access = await readDesignAccess(pageA, id);
+      if (!access.canWrite) {
         return {
           mintedIds,
-          failureReason: `design ${id} did not open with canWrite: true`,
+          failureReason:
+            `design ${id} did not open with canWrite: true ` +
+            `(GET answered ${String(access.status)})`,
         };
       }
     }

@@ -401,11 +401,20 @@ describe("the free colour bound is one gate and both seams reach it", () => {
   );
 
   it("accepts exactly what the declared pattern accepts, over any string at all", () => {
+    // The bound restated, so the schema and the declared pattern are each held to it and cannot move together.
+    // Half the draws are near-misses of a colour: an arbitrary string is almost never one.
+    const sixHexDigitsAfterAHash = /^#[0-9a-fA-F]{6}$/;
+    const nearlyAColour = fc.stringMatching(/^#?[0-9a-fA-Fg]{0,8}$/);
+
     fc.assert(
-      fc.property(fc.string(), (value) => {
-        expect(
+      fc.property(fc.oneof(fc.string(), nearlyAColour), (value) => {
+        const isAColour = sixHexDigitsAfterAHash.test(value);
+
+        expect([
+          value,
           FinishSchema.safeParse({ kind: "free-colour", value }).success,
-        ).toBe(FREE_COLOUR_PATTERN.test(value));
+          FREE_COLOUR_PATTERN.test(value),
+        ]).toEqual([value, isAColour, isAColour]);
       }),
       { numRuns: 2000 },
     );

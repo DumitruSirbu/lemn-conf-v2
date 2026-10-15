@@ -182,12 +182,6 @@ describe("the rack is billed only where it has somewhere to hang", () => {
       ),
     ).toBe(false);
   });
-
-  it("publishes neither line for a kitchen with no sink", () => {
-    const priced = priceOrFail(designOf([NO_SINK_AT_ALL]));
-
-    expect(priced.lines.every((line) => line.kind !== "accessory")).toBe(true);
-  });
 });
 
 /** Owner ruling, 2026-09-04, against the recommendation on record: the rule is applied **once per

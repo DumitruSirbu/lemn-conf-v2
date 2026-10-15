@@ -252,7 +252,22 @@ describe("the top bar, in every sub-state (criterion 1)", () => {
   );
 
   it("composes the pill from the approved leaves and never from the numbers", () => {
-    // A pill built as `"1" + "/" + "4"` would render identically above but could not be translated.
+    // A pill built as `"1" + "/" + "4"` would render identically above but could not be translated. Both shipped
+    // catalogues spell the leaf the same way, so the two are made to disagree: under a catalogue that words the
+    // pill differently, the pill has to follow the catalogue.
+    // Cast, because the catalogue's type is the shipped leaves' own literals and this one is deliberately not shipped.
+    const rewordedPill = {
+      ...roMessages,
+      configure: {
+        ...roMessages.configure,
+        stepPill: "{step, number} · {totalSteps, number}",
+      },
+    } as unknown as Catalogue;
+    render(QUERY_FOR["1A"], { catalogue: ["ro", rewordedPill] });
+
+    expect(textAt("top-bar-step")).toBe("1 · 4");
+
+    // The lesser half, kept: a search of the source for the two leaf names.
     const code = codeOf(ROOM_SCREEN_SOURCE);
 
     expect(code).toContain('translate("configure.stepPill"');
@@ -350,14 +365,6 @@ describe("the footer CTA, disabled until a buildable shape is chosen (criterion 
 
     expect(shapeControl("U").checked).toBe(true);
     expect(continueButton().disabled).toBe(true);
-  });
-
-  it("continues once the L is chosen", () => {
-    render(QUERY_FOR["1A"]);
-
-    choose("L");
-
-    expect(continueButton().disabled).toBe(false);
   });
 
   it("continues once linear is chosen, with no fields typed yet", () => {

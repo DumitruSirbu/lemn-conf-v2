@@ -87,6 +87,10 @@
  * **Grown, never rebaselined, by M7C wave C1 slice S3** (ADR 0113 decision 2) — the four
  * `configure.backConfirm.*` leaves, the confirmation both back links open (FB-001; plan question
  * Q1b, approved by the owner 2026-10-01). **Four added (the heading on the owner's follow-up answer, 2026-10-01) and no existing hash moved.**
+ *
+ * **Grown by 31 and shrunk by 2, never rebaselined, by M8 wave 8M slice S4** (ADR 0113 decision 2) — the result screens'
+ * copy, `submissionResult.*`: 27 static leaves and four renderings of its two ICU leaves, drafted and unapproved (Q10
+ * (a)); and `contact.outcomes.sent` and `.failed`, which 5A and 5B replace, removed. **No existing hash moved.**
  */
 export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "catalog.base-3drawer.300":
@@ -172,15 +176,15 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "catalog.base-panbank.800":
     "a2003c02d78c5be1a1b807c1b041a6160723d8950a861928da9ac38ae7563406",
   "catalog.base-sink.600":
-    "2a9aadc9c508177de6a535b95c376517423f9ad1e2c1472bf13bd620f15d53fd",
+    "9c0b993181901a0f574fb846aae071244b4cbadfe43a338aed4a487a92bde9a6",
   "catalog.base-sink.650":
-    "2a9aadc9c508177de6a535b95c376517423f9ad1e2c1472bf13bd620f15d53fd",
+    "9c0b993181901a0f574fb846aae071244b4cbadfe43a338aed4a487a92bde9a6",
   "catalog.base-sink.700":
-    "2a9aadc9c508177de6a535b95c376517423f9ad1e2c1472bf13bd620f15d53fd",
+    "9c0b993181901a0f574fb846aae071244b4cbadfe43a338aed4a487a92bde9a6",
   "catalog.base-sink.750":
-    "2a9aadc9c508177de6a535b95c376517423f9ad1e2c1472bf13bd620f15d53fd",
+    "9c0b993181901a0f574fb846aae071244b4cbadfe43a338aed4a487a92bde9a6",
   "catalog.base-sink.800":
-    "2a9aadc9c508177de6a535b95c376517423f9ad1e2c1472bf13bd620f15d53fd",
+    "9c0b993181901a0f574fb846aae071244b4cbadfe43a338aed4a487a92bde9a6",
   "catalog.fridge-free.700":
     "eadf8e272df89a3d2f251aa391c7b3d0d94d1a29158ba01b0b679c44f5571076",
   "catalog.hood.600":
@@ -285,6 +289,38 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "00102dc6ec45b8a74b033c02a7cda6cb019acb310f0397fb0baff35709d698d2",
   "catalog.wall-lift.800":
     "00102dc6ec45b8a74b033c02a7cda6cb019acb310f0397fb0baff35709d698d2",
+  "contact.fieldErrors.CONSENT_NOT_GIVEN":
+    "4b83fb4ea543fad41669efd78ee4f65f5e9aa7f88d3c71aa3e0dab94e5932dd4",
+  "contact.fieldErrors.FORBIDDEN_CHARACTER":
+    "eb900fff42616414fb6efeca321ff19a95f9683ee79dba9f580e1978417132f7",
+  "contact.fieldErrors.MALFORMED":
+    "50270b694acbc11eae299aeecafe879bc224a8e739cd4a4a89efd1c68a38debf",
+  "contact.fieldErrors.PHONE_FORMAT_UNRECOGNISED":
+    "e402d9ac226de7b56b84146e7347f9b4eb320486df590b434446303aa328d070",
+  "contact.fieldErrors.PHONE_INTERNATIONAL_INCOMPLETE":
+    "73a5818fce70539fbdfc00e52f22e35db0040956ecb82fe30e882eeace5c7b4a",
+  "contact.fieldErrors.PHONE_INTERNATIONAL_TOO_MANY_DIGITS":
+    "061620fa7d62df78aa329aa7189126cbab35317c3c519762b5deac72a8fe55ea",
+  "contact.fieldErrors.PHONE_MOLDOVAN_INCOMPLETE":
+    "00805ef85a2c98c7aa8d8cd5f247a3f525e4b088b6f70d045c0607ea26e047be",
+  "contact.fieldErrors.PHONE_MOLDOVAN_SECOND_ZERO":
+    "f6502b593eccae8f41381353939fc473ddf9a1ee0bce8015ba316f38fcb4ecad",
+  "contact.fieldErrors.PHONE_MOLDOVAN_TOO_MANY_DIGITS":
+    "e1fea3bff2ea95788c582ed22a4e4355f467d020765b9b579412e644e6de8313",
+  "contact.fieldErrors.REQUIRED":
+    "ee509837a93c10689cac3d8cbf3d9cdac4b9b3d41838f76e30b9598afb798b01",
+  "contact.fieldErrors.TOO_LONG":
+    "9c0012462a2dc13d99bb1bedce15f98a0141e9593ab15f1260f056a2e1c35368",
+  "contact.outcomes.conflict":
+    "331ccff3f8c077d3094611ba1698360ddcea490bba0f6a032f33a9834dd8cf35",
+  "contact.outcomes.designNotCurrent":
+    "0a8d9ce582305b2ad12fcd54a4c50506a4b63c90b0bfcae1ecbbb79c33d8c657",
+  "contact.outcomes.limited":
+    "d0cf12b1439521b8ad015b4350375fc209a81b6077070f94c60a6661cf54d6d8",
+  "contact.outcomes.limitedTomorrow":
+    "c15fb2a8c67f778cc2059bc2d2c50c98de027233d2a0b14b3a7978660de54462",
+  "contact.outcomes.refused":
+    "1acb1e12ff737bf7f7bf04c52abbc1533510513c59574f35fbef90ad07235d81",
   "content.globalSettings.appliesTo.count-0":
     "2a9c04de9392c99edbbac0b1949c9d0bbdd3eb9f867419197e83db53a4713f4c",
   "content.globalSettings.appliesTo.count-1":
@@ -329,6 +365,12 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "873c14d01225012b97392a27475b973d9aa76f036cac358704a38f195a1160db",
   "content.globalSettings.tierDelta.small-delta":
     "12d5689496dbbcdac9ab8bd65f388f9b2b0745e1201abd61f9df89746a1ff92c",
+  "content.leadNotice.figure.label-and-amount":
+    "a88ee83551961752909fc0b7588121c6fa9dd36710628b7d3c8a404acf64d93c",
+  "content.leadNotice.line.label-and-value":
+    "b049cbc443e696cbb4917a2ab920bed23bd710e449bcfe0952351a6903d683a4",
+  "content.leadNotice.subject.reference-token":
+    "0450a1f96e3786c857a30d1736736c6f2eff07690a91c34025c815b651ca06d7",
   "content.panel.countForBody.count-0":
     "c07acd2f15272cd9bd67e7a330d5d74855a92b313042fefd9427b50ca455de36",
   "content.panel.countForBody.count-1":
@@ -375,6 +417,10 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "3646668ab0a0d9dbaa7992fd242dd9f3c7695bef454b94296f320f68f7d16e48",
   "content.panel.offerSize.800x2200":
     "4901a345aa342668bbc26df5468edb2533f9064fde9fa39404741c3ec36c4d91",
+  "content.panel.savePausedNotice.00:00":
+    "18aa66ed3538cd9d7946edbf83f5fca76efa3d658e39009f80dae785fa1b1f61",
+  "content.panel.savePausedNotice.14:05":
+    "54312aed0713368c377c95cb03059dc7d988c19368a7ca027a6005e057b40042",
   "content.panel.widthValue.1200":
     "0b59daaed9b5b81a8a41a849cdac4b40b910b8773e4e237c2045f959098c7ce5",
   "content.panel.widthValue.200":
@@ -403,6 +449,16 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "19e4d026b84f44efe22141222fed0b40bf2b26858ad820da85135a2996f7b936",
   "content.priceBreakdown.wholeKitchenLabel.material":
     "3ac2b136c5b55303cfa80635f7ed6086e29f88a083f99bc9a50fced1ec71d5ed",
+  "content.submissionResult.channelLine.email":
+    "d39f8b0a2c38034a1f433f0fad6cf2b0139192073c94eacf6236aaad5429b90a",
+  "content.submissionResult.channelLine.phone":
+    "58b068e26b7757f66d1392e57f64cf33864132c532593e6986fff819d3adcfde",
+  "content.submissionResult.channelLine.whatsapp":
+    "ac05e2987222912765a9b1a8c311285d52b7e787fa62ea0d5147656058f43e87",
+  "content.submissionResult.alreadySentAdvice.phone-token":
+    "4cee99b1c8923fde927d8a6e8dfdfceaadf1c8d187ca29587fc9db666f702211",
+  "content.submissionResult.whatsappMessageToShop.reference-and-link-tokens":
+    "cf8940b99576380ba3c92b8101f43c445764745e932b4f8deef537380c070e65",
   "content.static.brand":
     "90c998f600c03eb6652f8ade70c80a209d98dc31635b28644a01fd44e7d833d7",
   "content.static.configure.back":
@@ -445,12 +501,118 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "401133a5a31266432a69f7be1858b12a1c9334b94a3d2402e0894085b83aa55a",
   "content.static.configure.title":
     "07ce2b5d11b5801c1b4cbe81745f97e16393c937af5d00242713709dd3e30f1b",
-  "content.static.contactPlaceholder.back":
-    "057411372b0dabdf84309ad4cb234025096a53da74e7c5bf3e9570c3d865c949",
-  "content.static.contactPlaceholder.body":
-    "e3521e72f0c21812dbe9fa9e5f3c0b0af2d45250866006d386f503ea9e36662f",
-  "content.static.contactPlaceholder.title":
-    "eacc9568db26d176e7ca7b72610a2207e39a1dcf4a6260bf1eadd4eb6c1e8e63",
+  "content.static.contact.callToAction":
+    "1821479cbd06a14bae4559afe70205a5b0bd5d8e8b46a89a18b1a1b6aa7f59e7",
+  "content.static.contact.channelLabel":
+    "451b9263edeae639f646eb11b5d378ea538b5e894076393907398159b7d4428d",
+  "content.static.contact.channels.email":
+    "0a5513a8cfdb049b6f487eaebf80b864146dc904f446e28b1835160e14ab325c",
+  "content.static.contact.channels.phone":
+    "fa6906d76ee94d4e8d05a2424fb89005840522ab6dec0ee8055247424977169e",
+  "content.static.contact.channels.whatsapp":
+    "6a40edf1fc87a29f243a7eefdbed57d19bfe16ab2e039d7ae1a44c097297e2f3",
+  "content.static.contact.consent":
+    "9e3d46fb256e88b3d008278b0920b51eff6f6b9f39e51923a2f9ae16fd69d965",
+  "content.static.contact.consentProvisionalMarker":
+    "3fe9f085f96cda753c28ff70ceaebf4d27fc1d474ae01c5d14111b13e4e8bf08",
+  "content.static.contact.emailLabel":
+    "deb062e302c598be7d34a06fe832db5b3eba5ef4e6b40c67da7323c113db826c",
+  "content.static.contact.emailPlaceholder":
+    "b1dc881c54d1fbf45b7e82339fe10b583d9c21a6f787470c93a60b09ca0d5fa4",
+  "content.static.contact.heading":
+    "86aa974574721981bb24f030f9e93e165bf4151a5e993fbed32bc533fe4405a4",
+  "content.static.contact.headingNoDesign":
+    "f565664fcc3d29c19bf049446b9670f007f4ae49daeff54ee367d0cd3a03ab6e",
+  "content.static.contact.localityLabel":
+    "e0059128feee59d5a180f803dd2325b26b74b879a4e8cf222706b9cbf73ecacf",
+  "content.static.contact.localityPlaceholder":
+    "be6a61b8bc420138b429ae08792b2c6a92c0bc55c43d1fcaba5c84dca213b3d2",
+  "content.static.contact.nameLabel":
+    "582ee8efec80e56421c29aa409444c9d002ac69f35c1bcab2292d01d9e202d1a",
+  "content.static.contact.namePlaceholder":
+    "b54f1d8a41645cda70eeebb724b921269677bd51672b61a170062e61ab0e81a0",
+  "content.static.contact.phoneLabel":
+    "fa6906d76ee94d4e8d05a2424fb89005840522ab6dec0ee8055247424977169e",
+  "content.static.contact.phonePlaceholder":
+    "60d99c71ecddb09db619f5a743b529a7bcb68e47514e7fae907a752e1123eb5c",
+  "content.static.contact.retry":
+    "a09d291920163176979b89a68e755b38cc0e872ea454ef9a2d6841b1d6e876f7",
+  "content.static.contact.reviewLink":
+    "be61361617f947e12eeed1e734cd40c511ab4be07453ce5a8932872a659b41fb",
+  "content.static.contact.sending":
+    "6a6cc3bdab85df3fd544ef3f7517c71eb9471a45f5055e1c8273f43c0789d485",
+  "content.static.contact.sendingLine":
+    "1f2e6d6876856e1057c19b6176213a1d61ac0e9999f86b8f20b8652da1bcf6e1",
+  "content.static.contact.sendingLineNoDesign":
+    "60034babf5143f81b2d2081ef0c7de9667d17782cf7929eec59270870a97ea23",
+  "content.static.contact.subheading":
+    "b4745e53a4cfe7eae3150e311d5cc8d28212fd5845b357ce94ebc9eb007def6d",
+  "content.static.contact.subheadingNoDesign":
+    "aadfc188c57cd771906fe6030b5799bc4fa9181f3b6554c0d066f6cef1e073c8",
+  "content.static.contact.topBarTitle":
+    "2b5c3d26721ae9c350cf3009318b626f0fc8a90b4a2ac0ca8099c05aa849282e",
+  "content.static.contact.unavailable":
+    "40a9c65b913f23cc94923080aaebeed5a11260237a6148eeca45c637a1b10005",
+  "content.static.submissionResult.topBarTitle":
+    "e54fe1fc0b5a0169dc0cb12e19c74d2f4dc066721330275205567ed863e2e81e",
+  "content.static.submissionResult.sentHeading":
+    "7fd5dbafa4de9325784a368f410b27097ca13f80b250df140251b8bed020ac48",
+  "content.static.submissionResult.referenceLabel":
+    "472165a23f6e0d3467324d040ac749bac38d0b0d899f52c9411c4f51fb6d786f",
+  "content.static.submissionResult.copy":
+    "a35a3851d68320f92b07859891dabb14e750ef8b12af123ce0cafe4e532c9d20",
+  "content.static.submissionResult.copied":
+    "5f912b909dc3b0a62c5e719fc374e323937098bddd80fd8d690d1323182a7cb1",
+  "content.static.submissionResult.channelLineWithoutValue":
+    "bc571755ab6f6b6f9e49f038b67079560cf22e5cafa7407521c5dcda900816a4",
+  "content.static.submissionResult.savedSentence":
+    "c082ce0d4a578b243c8e9fb869b3ceadbc936e28de18574e6db344823e3380a4",
+  "content.static.submissionResult.nextStepsTitle":
+    "da42ee4dd40b383b6cd4839eba286dea0de5d2201dc32f0e34d3b9d0efdf602d",
+  "content.static.submissionResult.nextStepsProvisionalMarker":
+    "3fe9f085f96cda753c28ff70ceaebf4d27fc1d474ae01c5d14111b13e4e8bf08",
+  "content.static.submissionResult.nextStepVerify":
+    "795100ab269f705580c6f0bd3d00a013ad85bf589fb5c614cdd8193eb283e0ef",
+  "content.static.submissionResult.nextStepFinalPrice":
+    "43f3ec3d12126298be9e67c21ce4e541e739eb9a979d54afe4836e0abeaa95c6",
+  "content.static.submissionResult.nextStepMeasure":
+    "8c2bf41aa7b41a7ae56c4170f29ebf353c353521353b37588b1ec51f1ce035f5",
+  "content.static.submissionResult.backToDesign":
+    "4bacf284940731b6851ab2377b3a3b611168243cf5a2bca1fa0e4cc4aaadde78",
+  "content.static.submissionResult.callShop":
+    "eee9a90fcbd1ed596d9374229ea138256624357db1bbf0657f6949f327a8fb2f",
+  "content.static.submissionResult.alreadySentHeading":
+    "99772e640643506775ac2d45f06c5d455d8933a502f5ce431c909a4078b5f6dd",
+  "content.static.submissionResult.alreadySentChangedKitchen":
+    "921a23d4bbadb0591ea6d320b16210ef47c1fe1af21e9ccc609ed3a36cdebe38",
+  "content.static.submissionResult.reviewLink":
+    "be61361617f947e12eeed1e734cd40c511ab4be07453ce5a8932872a659b41fb",
+  "content.static.submissionResult.sendOnWhatsapp":
+    "badb0bdfee3c1541b6685f4610f7ebd377df6cb4f2b658f893f3aaf4a85e0a8d",
+  "content.static.submissionResult.openWhatsapp":
+    "d9772c4c75987cad3a21f93a15d51862f3302d479fa09bdc7296f8ae386bc939",
+  "content.static.submissionResult.noRequest":
+    "b6bcb977d2343a5f12d28489826760650e32a4bd51637daf1d384042cebca166",
+  "content.static.submissionResult.notShown":
+    "b876cb1b0e00ea3f953950da352f2efd2dbe7318fa1a0b59963ad63fbea11831",
+  "content.static.submissionResult.failureHeading":
+    "8fb58abca48250234f96f984b4b28538283f49cf36ccd014a4effea325d271e8",
+  "content.static.submissionResult.failureLostConnection":
+    "779bb701f6d1110c3b72c4e127a0055ed3593379fa8ee870d6115ee3915b8fd3",
+  "content.static.submissionResult.failureNotSent":
+    "9ecccfb921b3b86b752562bae357635dbd91cf99f4b3ac6316bc0550076251fb",
+  "content.static.submissionResult.failureKept":
+    "d4131dbaab3f44e160827e82c8e8e07ab44adac221f6100cc1338cd586430edd",
+  "content.static.submissionResult.failureKeptNoDesign":
+    "12f4c727984fe0d07de336e81a1829ffd9aee4151fd40faa009738e851165f66",
+  "content.static.submissionResult.keptTitle":
+    "ee297fdc1ab46433c6bbb55d804aed93a6bc0099b372e8fe7e909fc49abb53c9",
+  "content.static.submissionResult.keptContact":
+    "08bc21da3688dfe9f1dfadcac6fd0685f900fe4652ba6199dcc59e08bf2d785f",
+  "content.static.submissionResult.waitingForConnection":
+    "23488e1a053f94dbae1a96590b03889202d9d334d84ed997ce567abb351e8053",
+  "content.static.submissionResult.retryAutomatically":
+    "edf508c9ed4de80bda2723cdf3e457bd21c8f49df15f2f1b10800237a9b978e3",
   "content.static.designLoadError.bodyInvalid":
     "7939b8956d8f17fca2ff3dd0b2bf59e4927868693c66406f85841bcfe86d75f5",
   "content.static.designLoadError.bodyNotFound":
@@ -461,6 +623,10 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "f8bd1e318dbd3207ab51234b0fb230f5f56670d0076c392747c50bcaa5e53f66",
   "content.static.designLoadError.title":
     "4103e060bec73757ae0e165cfc31caed62f4f99e393ce63a2044bab20eb55e5b",
+  "content.static.designLoadError.tooManyRequests":
+    "a3c0e2fcd3a4f9ce618bfb6bbde565f62ff3b9992ad951423ce20bd68bcfcbd5",
+  "content.static.designLoadError.tryAgain":
+    "a09d291920163176979b89a68e755b38cc0e872ea454ef9a2d6841b1d6e876f7",
   "content.static.globalSettings.apply":
     "746d927d211e8403352f5f3cb76a9ebe07b07461e94c3895491729351ebc39f2",
   "content.static.globalSettings.cancel":
@@ -484,7 +650,7 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "content.static.globalSettings.groupHeadings.hardware":
     "6f5e8a6a2dbf05583c1bc68be44e1405667bad92cdb8a9e1df182ff15709999d",
   "content.static.globalSettings.groupHeadings.material":
-    "abc4f9677ed6863e60381d93cc513466b429943cba63ff0aca677084b0d26d28",
+    "d36aa6c8ddff85c23b6f9c811d994f569f9e0159f7a59d34cd9379bd901d7747",
   "content.static.globalSettings.materialResetConfirm.back":
     "0f9df26137e3e1f8aab3b8d013985c00518281c7373f20899dc80aee62198cdf",
   "content.static.globalSettings.materialResetConfirm.confirm":
@@ -499,6 +665,34 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "55f2ecf1930c61cfb278ab7a31933dc339130211cd94d7ce5dd6a1b0709d1239",
   "content.static.globalSettings.title":
     "764ab10b4b67fec2a04f3d04275276e381e2ac057e9080809bbaa317deecd371",
+  "content.static.leadNotice.callbackLine":
+    "b94a8632939840bf8de73766ea8bf9df2d7fa66b300457d72b07221dd2097b83",
+  "content.static.leadNotice.channels.email":
+    "2550d962e536e7c0889f563a957c5389c97aa7507881efe2b754769b814d8256",
+  "content.static.leadNotice.channels.phone":
+    "829827c68a887c4ce7f917791650bbf67b28927767f75d572591c67d22b32bea",
+  "content.static.leadNotice.channels.whatsapp":
+    "6a40edf1fc87a29f243a7eefdbed57d19bfe16ab2e039d7ae1a44c097297e2f3",
+  "content.static.leadNotice.emptyValue":
+    "bda050585a00f0f6cb502350559d75532ae3b244c9498b996e7c5df2d98dfc8d",
+  "content.static.leadNotice.labels.channel":
+    "3b9222206b0f76eb646b1578ddd32c64e05896f3ade568b9b77759e5c5444b53",
+  "content.static.leadNotice.labels.email":
+    "2550d962e536e7c0889f563a957c5389c97aa7507881efe2b754769b814d8256",
+  "content.static.leadNotice.labels.locale":
+    "99475ca866355358c791d65a907bb0014a083219d4cb8ddde54481ae08a3e003",
+  "content.static.leadNotice.labels.locality":
+    "54a657d0301ff2011be09972ba7eeba917ce1e09927c2c051203f9d68c0036e4",
+  "content.static.leadNotice.labels.name":
+    "582ee8efec80e56421c29aa409444c9d002ac69f35c1bcab2292d01d9e202d1a",
+  "content.static.leadNotice.labels.phone":
+    "fa6906d76ee94d4e8d05a2424fb89005840522ab6dec0ee8055247424977169e",
+  "content.static.leadNotice.labels.price":
+    "f2d6e6db791ec7b54ff1489efd5197acbe318c005a8ee86fb1dfbeb4178a3f5d",
+  "content.static.leadNotice.labels.reference":
+    "3115843660525f6e621c196d7b76dadbcd1b8d20a0a2ae2489b7d8e76680cc5e",
+  "content.static.leadNotice.labels.room":
+    "4bfbe1717bfe9d344704abd58c6957384246befb9b22421e1df335a081f49efd",
   "content.static.panel.accessCheckingNotice":
     "d0b90db4d45ac62176d4e0ab3c34563f4b82bc98c6394897283dffd04c28bc68",
   "content.static.panel.accessCheckingReason":
@@ -623,6 +817,32 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "5f912b909dc3b0a62c5e719fc374e323937098bddd80fd8d690d1323182a7cb1",
   "content.static.share.copy":
     "a35a3851d68320f92b07859891dabb14e750ef8b12af123ce0cafe4e532c9d20",
+  "content.static.review.refusalReasons.BODIES_PAST_WALL":
+    "1b6865c75b202076ee4b4ba7e5d4ab3d08765cb1956379c39c438559f06678ef",
+  "content.static.review.refusalReasons.NO_CABINET":
+    "c0c16cc253cf90852bbbf2989d052b8f3920069cbce0910637c96535cfc38ae1",
+  "content.static.review.refusalReasons.PRICING_FAILED":
+    "626cb3ee9d9f874ea952d633ae4116693ae973bc4c3b4655a4cb42f4ae3c0335",
+  "content.static.reviewScreen.callToAction":
+    "d2cc3c21e2c1d6f3396a6c13cdfd834c94836f1001f087eca50e77f72ed4edce",
+  "content.static.reviewScreen.editGroup":
+    "3accbb833c51fe24f8f87ab8a955e8831fc8179491c5455c67d1c61bd49ffec4",
+  "content.static.reviewScreen.changeSettings":
+    "8944cd47631589a2215b858fc59a0e0b6468b69f854286192b383c343aad833a",
+  "content.static.reviewScreen.conflict":
+    "5384424c8a1c437dff9d98b868b40d036153a2887a3ee1581eb57e31cd37e221",
+  "content.static.reviewScreen.openEditor":
+    "058c0204d3ad2b59c6e565b2aa71ac068478e6c36cb49a5e795e65ce48df4969",
+  "content.static.reviewScreen.saving":
+    "5be2cd99bba2658c43a5487fd7e556f2f9b03a558af3ed2ae26d8134caff3f61",
+  "content.static.reviewScreen.topBarTitle":
+    "92d320740360d884659d5b204ece917d86dfe17172881488c5f2cfc2d711e0bd",
+  "content.static.reviewScreen.view3d":
+    "89e312be1fcef5ef8a2a22fe5c2a49cdbd79361ec49fb0f1785592bda236f668",
+  "content.static.review.roundedUpNote":
+    "de0643caa8d00cffcd13babc1f9211605166177ebe0364cb52f3b38640e6896a",
+  "content.static.review.title":
+    "be61361617f947e12eeed1e734cd40c511ab4be07453ce5a8932872a659b41fb",
   "content.static.share.create":
     "85c7c4cba9850b92a4ee2f5544e0b0a1e03028581438ed36d295b24a9e707e4d",
   "content.static.share.description":
@@ -649,8 +869,6 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "298a782bf94c0710f41f7f9080b57e5e62c70182ed55286d30de49a7d175bd34",
   "content.static.webglUnavailable.contactLink":
     "dbbc7640dd924d5ab0bd005c118025e9f2faf0521f5f2465b96639424d583801",
-  "content.static.webglUnavailable.emailLink":
-    "8c4b834081f17a7986c36fbcfe2d13cda47385cd1285e26a129ee6a65a797b2e",
   "content.static.webglUnavailable.noFakePreview":
     "358955a8f9361496a737c8a2d27f779456beb516c2634bd484991650653d6b60",
   "content.static.webglUnavailable.titleDesktop":
@@ -742,6 +960,30 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   // M7 wave 7F1: Step 1's 26 leaves, added with the copy they pin (ADR 0113 decision 2). Nothing
   // above this line moved — a moved hash here would mean a shipped string changed, which this wave
   // does not do.
+  "review.bodyCount.count-0":
+    "abcc5734271eb7a06667db29c05f54b22a45c667ca4a3fe640132eb572f4759d",
+  "review.bodyCount.count-1":
+    "0d808540b5e1afa324a58bb1ea54f3bc2898b3d8270d613ad7aeeebd01c099de",
+  "review.bodyCount.count-100":
+    "4aadbd63d779b3eb2b0753547568a335c43f17e4392bc789f00a1fdf41fc34d4",
+  "review.bodyCount.count-101":
+    "be0cb897801d2193e879631600fdf00df93395020cab59d544fa5c6aaac4b612",
+  "review.bodyCount.count-19":
+    "f950e05be4ce2f2d38e2708721a1975f648d63b6a972109581e842b15ee1d2a2",
+  "review.bodyCount.count-2":
+    "25366011d67919076700a82290b5b9cf1f8a0451a56324a73692306d8f20bce4",
+  "review.bodyCount.count-20":
+    "99bfba1f9b722b01b40a94f4e4cbc923e2e1f6c66e70cf16b8793cb421ac4ff9",
+  "review.roomLine.L":
+    "b8711959be6b0007c1af6e8a0cb0816d04415f55f9978afee974581e1bf42e2a",
+  "review.roomLine.U":
+    "ed319b30601d237266105fca82489865d80599efad10cb427740c6e72aacbb85",
+  "review.roomLine.cornerLeft":
+    "cd67ae4c3f51c702fa4820a6d28f4e4a4245d0a47798275546ceb68b51ccdff1",
+  "review.roomLine.cornerRight":
+    "aafa24c070d79abc6940e4d91bb58fd2a99c6412b9790893faba154f868cfc7d",
+  "review.roomLine.linear":
+    "9a003e278940269b428239edabf182876688841e8d5f6f5fa415ae9ebace2c1f",
   "room.back":
     "43d3098298b6c977289100d20e77ff8d3274e4f7333e01fc200b5e88d7e7f541",
   "room.compose.busy":
@@ -754,6 +996,8 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "316e6aa5b4b22f9d0e800976cff039b40656ba294a987587d99174d6f14e40ee",
   "room.compose.heading":
     "33c0c8a4c64822a0b5c87f68a299d4594477b4212cb8cdecc2d5ea8b12ca64a2",
+  "room.compose.limitReached":
+    "0d55cb645dd19bba3cd2101e6bb3c695987ba0965785e649d7bf760cd445630a",
   "room.compose.noPresetNotice":
     "feac196b98380da021c1e927c609160ff0643754fb66b1eda93860532c596ed7",
   "room.compose.retry":
@@ -765,7 +1009,7 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "room.compose.role.preparation":
     "a9a9a7ff3f216a699805275160057cdb3b2b8dde942712240a7efc8f1f8a64ef",
   "room.compose.role.sink":
-    "4cc69b547ca47a397f305d7eb2ab063699f361eca1a3621bf066cda3a4795ba8",
+    "59d823e41b42c89b1647031a109bec4c8a9f4818bcb18ba9ebec7d51bc3d9180",
   "room.compose.role.storage":
     "cb18c899f3227071b5f242aacd6f90a6c56afc0744daa32771a6946d4c5844b7",
   "room.compose.roomSummary":
@@ -779,7 +1023,7 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "room.compose.rowWidth":
     "284b7e6d788f363f910f7beb1910473e23ce9d6c871f1ce0f31f22a982d48ad4",
   "room.compose.rule":
-    "c0ab39bf9a66816c8300e8280ba3e05f2d5424c92edf56ad4b7cc3da62c4c3e6",
+    "22282c6c127ed1bec5eceb85ab409404132460846ef1514141a15cee3ed3214f",
   "room.compose.saveFailed":
     "60b62ebef7456c982be74a1c02b1eebabc5306eee0486c43e95c81d875998887",
   "room.compose.status.notPlaced":
@@ -815,7 +1059,7 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "room.issue.orChooseLinear":
     "bdd9b039fc0b9967e4fa6d8a5cd31ea2cd43de4b3fe92e9b864917a6cb917efe",
   "room.issue.roomTooSmall":
-    "11973ac50edb81bce3a89f20f336c30261e8c1b3a274501a18f3a3ac70fb62cb",
+    "74d7fbd78d1f28d6e61d03c0d694de570f59584dba76b654d59bdc968f6b6ac0",
   "room.issue.shapeNotBuildable":
     "628ecbc794dce0fc76080277d023a4cccc61eb782634c83d4a6af553396def0d",
   "room.issue.unreadable":

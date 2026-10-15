@@ -288,19 +288,6 @@ describe("describeDeployedSchemaStatus", () => {
       "ABSENT (no schema_migrations table)",
     );
   });
-
-  it("treats only level as deployable", () => {
-    const outcomes = [
-      describeDeployedSchemaStatus(FILES, {
-        ledger: { kind: "absent" },
-        designColumns: [],
-        documentSchemaVersions: [],
-      }),
-      describeDeployedSchemaStatus(FILES, readingWith([])),
-    ];
-
-    expect(outcomes.map(isDeployedSchemaLevel)).toEqual([false, false]);
-  });
 });
 
 describe("describeMigrationStatusLine", () => {

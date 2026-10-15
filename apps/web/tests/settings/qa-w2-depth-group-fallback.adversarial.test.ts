@@ -66,6 +66,13 @@ function designWithDepth(cabinetDepthMm: number | undefined): Design {
 /** The depth the sheet paints as checked, read off the view the component renders — the same route
  *  `withdrawn-tier-recovery.test.ts` reads a tier's displayed selection by. */
 function displayedDepthOf(design: Design): number {
+  const selected = depthOptionsOf(design).filter((option) => option.isSelected);
+  expect(selected.length).toBe(1);
+  return selected[0]?.cabinetDepthMm ?? 0;
+}
+
+/** The depth options of the sheet's own view for `design`, as the component is handed them. */
+function depthOptionsOf(design: Design) {
   const priced = {
     design,
     catalog: KITCHEN_L_BODY_CATALOG,
@@ -83,11 +90,7 @@ function displayedDepthOf(design: Design): number {
     pending: resolveOpeningChoice(design.settings ?? {}, offer),
     chosenColourCount: countCabinetsWearingAChosenFinish(design),
   });
-  const selected = view.depthGroup.options.filter(
-    (option) => option.isSelected,
-  );
-  expect(selected.length).toBe(1);
-  return selected[0]?.cabinetDepthMm ?? 0;
+  return view.depthGroup.options;
 }
 
 describe("the depth a document may legally carry", () => {
@@ -149,11 +152,17 @@ describe("the condition that would open the defect on this group", () => {
     // `DesignSettingsSchema` applies the same floor, so the two lists agree. A declared depth below
     // the floor — or any other filter added to the offer — would be schema-valid and unofferable at
     // once, which is exactly the tier group's situation.
-    const offerableByTheSchema = declaredCabinetDepthsMm().filter(
+    //
+    // The offered side is read off the sheet's own view. Rebuilt here from the declared map and the floor, it would
+    // be this file's copy of the filter, and the sheet could drop a depth without either copy noticing.
+    const acceptedByTheSchema = declaredCabinetDepthsMm().filter(
       (cabinetDepthMm) => cabinetDepthMm >= MIN_CABINET_DEPTH_MM,
     );
+    const offeredByTheSheet = depthOptionsOf(KITCHEN_L_DESIGN).map(
+      (option) => option.cabinetDepthMm,
+    );
 
-    expect(offerableByTheSchema).toEqual(declaredCabinetDepthsMm());
-    expect(declaredCabinetDepthsMm().length).toBeGreaterThan(1);
+    expect(offeredByTheSheet).toEqual(acceptedByTheSchema);
+    expect(offeredByTheSheet.length).toBeGreaterThan(1);
   });
 });

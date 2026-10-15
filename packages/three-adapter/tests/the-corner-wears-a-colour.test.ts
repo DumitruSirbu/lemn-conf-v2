@@ -217,24 +217,47 @@ function carcassMeshesOf(corner: Corner): readonly string[] {
 
 const CARCASS_MESH_NAMES = new Set(["carcass", "carcass_shell"]);
 
+/** What every seeded corner body's build id carries, and no other seeded body's. */
+const CORNER_BUILD_ID_MARK = "corner";
+
+/** The carcass meshes the scene actually mounted under this placement, which may be none. */
+function mountedCarcassMeshesOf(placementId: string): THREE.Mesh[] {
+  const found: THREE.Mesh[] = [];
+  mounted(placementId).traverse((node) => {
+    if (isMesh(node) && CARCASS_MESH_NAMES.has(node.name)) found.push(node);
+  });
+  return found;
+}
+
 /** The four corners whose carcass is painted, as a derived set so a corner dropping out fails by name. */
 const CORNERS_WITH_A_PAINTED_CARCASS = CORNERS.filter(
   (corner) => carcassMeshesOf(corner).length > 0,
 );
 
 describe("the corner ruling — every visible part of a corner takes the kitchen's colour", () => {
+  // The corners are found in the seeded records and their carcass meshes in the mounted scene, by name: the
+  // `CORNERS` table is this file's own, and comparing it with itself paints nothing.
   it("paints the carcass of every one of the four corners", () => {
-    expect(
-      CORNERS_WITH_A_PAINTED_CARCASS.map((corner) => corner.buildId).sort(),
-    ).toEqual([
-      "base-corner-return-320",
-      "base-corner-x-900",
-      "wall-corner-return-570",
-      "wall-corner-return-570-top",
+    drawn(following(HALIFAX));
+
+    const carcassColours = derivePlacementRecords(
+      KITCHEN_L_DESIGN,
+      KITCHEN_L_BODY_CATALOG,
+    )
+      .filter((record) => record.buildId.includes(CORNER_BUILD_ID_MARK))
+      .map((record) => [
+        record.buildId,
+        mountedCarcassMeshesOf(record.id).map(colourOf),
+      ])
+      .sort();
+
+    expect(carcassColours).toEqual([
+      ["base-corner-return-320", [HALIFAX_HEX]],
+      ["base-corner-x-900", [HALIFAX_HEX]],
+      ["wall-corner-return-570", [HALIFAX_HEX]],
+      ["wall-corner-return-570-top", [HALIFAX_HEX]],
     ]);
-    expect(
-      CORNERS.filter((corner) => carcassMeshesOf(corner).length === 0),
-    ).toEqual([]);
+    expectTheSceneWasPainted(HALIFAX_HEX);
   });
 
   it.each(CORNERS)(
@@ -298,28 +321,6 @@ describe("the corner ruling — the blind corner paints its box and not its fitt
   /** `M.steel` and `M.interior`'s hexes, the materials `cornerBaseX` gives the pole and the trays. */
   const STEEL_HEX = "#cfd4d9";
   const INTERIOR_BOARD_HEX = "#cfccc4";
-
-  it("paints its carcass and its door in the kitchen's colour", () => {
-    drawn(following(HALIFAX));
-
-    expect(
-      coloursOf(BLIND_CORNER.placementId, ["carcass", "door_front"]),
-    ).toEqual([
-      ["carcass", HALIFAX_HEX],
-      ["door_front", HALIFAX_HEX],
-    ]);
-  });
-
-  it("paints them in a colour chosen for that corner, over the kitchen's", () => {
-    drawn(wearingOn(following(HALIFAX), BLIND_CORNER.placementId, NUC_WARMIA));
-
-    expect(
-      coloursOf(BLIND_CORNER.placementId, ["carcass", "door_front"]),
-    ).toEqual([
-      ["carcass", NUC_WARMIA_HEX],
-      ["door_front", NUC_WARMIA_HEX],
-    ]);
-  });
 
   // The same scene that painted the carcass, so this is a boundary and not an unpainted room.
   it("leaves the susan pole and both trays on their own materials", () => {

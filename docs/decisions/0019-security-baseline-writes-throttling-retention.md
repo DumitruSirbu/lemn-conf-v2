@@ -1,6 +1,6 @@
 # ADR 0019 — Security baseline: write authorisation, layered throttling, and retention
 
-Status: Accepted (**decision 1's open read is superseded 2026-09-11 by the owner's F5 ruling; its write half stands — [ADR 0114](0114-a-visitor-is-a-host-only-httponly-secret-and-a-design-link-opens-only-in-its-own-browser.md)**; **decision 8 and Alternatives 1–2 superseded 2026-09-11 by the owner's profile ruling — [ADR 0115](0115-customer-profiles-replace-the-pin-and-arrive-in-m8-and-m7-ships-the-browser-cookie-and-share-links.md)**)
+Status: Accepted (**decision 1's open read is superseded 2026-09-11 by the owner's F5 ruling; its write half stands — [ADR 0114](0114-a-visitor-is-a-host-only-httponly-secret-and-a-design-link-opens-only-in-its-own-browser.md)**; **decision 8 and Alternatives 1–2 superseded 2026-09-11 by the owner's profile ruling — [ADR 0115](0115-customer-profiles-replace-the-pin-and-arrive-in-m8-and-m7-ships-the-browser-cookie-and-share-links.md)**; **the mint's limits (decision 5's row, decision 4 and decision 3's session bucket, for the mint) superseded 2026-10-07 by the owner's ruling — [ADR 0147](0147-the-mint-is-limited-to-twenty-a-day-per-ip-address-for-everyone-and-nothing-else.md)**)
 Date: 2026-08-25
 Type: Decision
 Milestone: M3 Wave 3C (write authorisation, throttling) and M8 (contact form, recovery)
@@ -116,7 +116,7 @@ Each bucket is counted independently and a request is refused if **any** bucket 
 | Bucket | Catches | Why it is insufficient alone |
 | --- | --- | --- |
 | IP aggregated to **/24** (IPv4) and **/64** (IPv6) | floods from one host or network | CGNAT and mobile carriers put thousands of real customers behind one address; per-address IPv6 is worthless, since a single subscriber is routinely delegated an entire /64 |
-| session cookie (`HttpOnly`, signed) | repeated submits from one browser | reset by clearing cookies |
+| session cookie (`HttpOnly`, signed) | repeated submits from one browser | reset by clearing cookies. **~~For the mint~~ superseded 2026-10-07 → [ADR 0147](0147-the-mint-is-limited-to-twenty-a-day-per-ip-address-for-everyone-and-nothing-else.md): the mint has one bucket, the address** |
 | normalised email address (contact form only) | one person submitting from fresh sessions | the address supplied need not be real |
 | global, per endpoint | total blast radius and bill exposure | far too coarse to protect any individual |
 
@@ -130,8 +130,9 @@ essentially only from Moldova**. That makes an attack trivially separable from n
 volume alone, and it makes geography a cheap, high-signal control that a globally-used product
 could never rely on.
 
-Traffic from **MD** gets the ordinary limits. Everything else gets a much tighter limit and a
-`challenge` rather than a `deny`.
+~~Traffic from **MD** gets the ordinary limits. Everything else gets a much tighter limit and a
+`challenge` rather than a `deny`.~~ **For the mint, superseded 2026-10-07 → [ADR 0147](0147-the-mint-is-limited-to-twenty-a-day-per-ip-address-for-everyone-and-nothing-else.md):
+one limit for everyone, no country in it.** The sentence stands, as accepted, for any other endpoint.
 
 **Non-MD traffic is never denied outright**, for reasons that are not hypothetical here: the
 Moldovan diaspora is large and much of it is in Romania and Italy; mobile roaming and VPNs
@@ -154,7 +155,7 @@ Per-bucket application limits:
 | Endpoint | IP /24 · /64 (MD) | IP /24 · /64 (non-MD) | Session | Other |
 | --- | --- | --- | --- | --- |
 | `POST /api/contact` (M8) | 3 / hour, 10 / day | 1 / hour + challenge | 2 / hour | 3 / day per email |
-| `POST /api/designs` (mint) | 10 / hour, 30 / day | 3 / hour + challenge | 5 / hour | — |
+| `POST /api/designs` (mint) | ~~10 / hour, 30 / day~~ | ~~3 / hour + challenge~~ | ~~5 / hour~~ | **Superseded 2026-10-07 → [ADR 0147](0147-the-mint-is-limited-to-twenty-a-day-per-ip-address-for-everyone-and-nothing-else.md): one counter per IP address, 20 a day, for everyone** |
 | `PUT`/`PATCH /api/designs/{id}` | 600 / hour | 120 / hour + challenge | 300 / hour | — |
 
 **The firewall's whole contribution to rate limiting** is one rule across all of `/api/` at
@@ -455,3 +456,56 @@ password"*) and the rejection of Alternatives 1 (a password) and 2 (accounts). *
 reasons Alternative 1 gave — password reuse, hashing and never-logging duties, the reset path — are now
 M8's obligations, recorded in `docs/milestones/M8-review-contact-success.md`, *Customer profiles*.
 Decisions 1 (write half), 2–7 and 9–11 stand.
+
+## Annotation — 2026-10-07: two pointers found while planning M8
+
+Appended by the documentation scribe from `docs/milestones/M8-review-contact-success.md`, *What this
+revision corrected* and *Decision-record sweep*. No decision above is changed.
+
+1. **The 2026-08-31 correction's "ship together" sentence lost its middle term.** It reads *"must not
+   be exposed to real traffic until the application limiter, the 30-day abandoned-design retention
+   cron, and the staged WAF rule ship together."* The retention cron was retired by the *Supersession
+   note — 2026-09-15: decision 7* above, and the sentence was not restated. The three-part set is
+   therefore no longer buildable as written. **What replaces it is owner question Q19 in the M8 plan
+   and is undecided**; the plan's recommendation (limiter plus WAF) is a recommendation, not a ruling.
+2. **Endpoint name.** Decision 5's table calls the contact endpoint `POST /api/contact`;
+   `docs/ARCHITECTURE_PROPOSAL.md` §9 calls it `POST /api/contact-submissions`. The M8 plan's D15 uses
+   the §9 name. Two records, one endpoint; the table's text is left as accepted.
+
+## Annotation — 2026-10-07, later: decision 4 and who the customers are at launch
+
+**Nothing above is changed.** Decision 4 names the Moldovan diaspora in Romania and Italy as the first
+reason non-MD traffic is never denied outright. On 2026-10-07 the owner ruled, verbatim, in reply to
+the M8 owner questions: *"Moldova only for now, rest as recommended"*. **Ruled:** customers at launch
+are Moldova only, *"for now"*. **Not ruled:** what happens to traffic from outside Moldova. Decision
+4's limits (a tighter limit and a `challenge`, never a `deny`) stand as accepted; whether they keep
+standing is M8 owner question Q23, whose recommendation (keep decision 4) is the architect's and is
+not a ruling. Decision 4's other two reasons, roaming and VPNs that geolocate to a neighbour and the
+owner testing from abroad, do not depend on the diaspora. Where production runs, which decision 4
+reads the country from, is open question Q21 and is not decided here.
+
+## Supersession note — 2026-10-07: the mint's limits, and where the launch gate goes
+
+**Superseded, for the mint only:** decision 5's mint row (all four figures), decision 4 as it applies to the
+mint, and decision 3's session bucket as it applies to the mint. The owner ruled, verbatim, *"20 design
+generation per day for all (we can track and adjust later this)"*, *"per user (ip)"* and *"20 per day"* (the
+last in reply to whether the hourly limits stay or 20 a day is the whole limit). The record is
+[ADR 0147](0147-the-mint-is-limited-to-twenty-a-day-per-ip-address-for-everyone-and-nothing-else.md), which
+also holds what the owner did not rule: IPv4 as one address or a /24 (Q32), the meaning of a day, how an IP
+address is stored, and how *"for all"* reads beside the *"Moldova only for now"* note above (they do not
+conflict). **Unchanged:** the figures for saves, shares, page reads and the contact form, and decisions 1, 2,
+6, 8 to 11 as already annotated.
+
+**The 2026-08-31 correction's gate.** M8 builds the application half of the limiter and does not close the
+gate. The gate, including the WAF line the correction's operative sentence needs, goes whole to the delivery
+milestone ([M9](../milestones/M9-delivery-preparation.md), proposed). This is the architect's derivation from
+the owner's ruling that hosting is a separate milestone, not the owner's sentence. Decisions 2, 9 and 10 (the
+firewall, no external proxy, when each part is implemented) concern a host the owner has not chosen and are
+re-read for it there; nothing in them is changed here.
+
+**Note — 2026-10-09 (wave 8F):** the application half of SEC-001 for the mint is built: the limiter runs after the cross-site guard and before
+anything is minted, and fails closed (decision 5). The gate stays open and is M9's; its text gained a line that production's network source is a
+named platform and not none, a forged forwarding header is counted under its real block, and the e2e policy's flag is absent
+([ADR 0155](0155-the-mint-asks-a-keyed-per-day-per-network-limiter-first-and-refuses-what-it-cannot-judge-the-owner-names-the-network-source-and-a-destructive-mutant-never-touches-a-database.md), decision 12). Backlog 90 closes.
+
+**Note — 2026-10-10 (wave 8G; [ADR 0156](0156-saves-shares-and-reads-are-limited-by-subjects-made-only-by-two-constructors-writes-fail-closed-reads-fail-open-pages-are-counted-in-the-interceptor-and-the-saves-wait-is-one-write-the-client-holds.md)):** decision 3's *"session"* bucket for saves is **one browser's saves of one design, keyed on the write credential's hash and never a design's id** (M8 has no session cookie). d5's row for saves, 600 an hour per block and 300 an hour for the second bucket, is built with **provisional figures** until the owner answers Q37 (and Q38); no record gave share writes a figure, so a provisional 60 an hour per block was built (Q36); d5's global cap of 1,000 an hour over `/api/*` is **not built in M8**, re-ruled to M9 with what can challenge. The prune's cron entry (`30 3 * * *`) is the surviving half of d7.

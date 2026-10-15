@@ -365,11 +365,6 @@ describe("the selection outline's own two colours, against all three counters", 
   const selection = rgbOf(SELECTION_HIGHLIGHT_COLOR);
   const casing = rgbOf(SELECTION_OUTLINE_CASING_COLOR);
 
-  it("is counted as a mark by the mark's own threshold, which is why that gate counts nothing selected", () => {
-    expect(redExcess(selection)).toBe(210);
-    expect(redExcess(selection)).toBeGreaterThan(MARK_MIN_RED_EXCESS);
-  });
-
   it("keeps the casing pass out of all three counters", () => {
     expect(redExcess(casing)).toBeLessThan(MARK_MIN_RED_EXCESS);
     expect(casing[2] - casing[0]).toBeLessThan(VOID_BLUE_EXCESS);

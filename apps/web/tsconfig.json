@@ -24,6 +24,7 @@
     "tests/**/*.ts",
     "tests/**/*.tsx",
     "vitest.config.ts",
+    "vitest.launch.config.ts",
     "playwright.config.ts",
     ".next/types/**/*.ts"
   ],

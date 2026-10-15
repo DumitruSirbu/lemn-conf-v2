@@ -52,6 +52,16 @@ const DECLARED: readonly (readonly [string, Finish])[] = PALETTE_ENTRIES.map(
   (entry) => [entry.entryId, paletteFinish(entry.entryId)] as const,
 );
 
+/** The decors that are a wood (*stejar* is oak, *nuc* walnut), written out rather than read from `swatchOf`: a list
+ *  taken from the swatch agrees with whatever it publishes, inverted or not. */
+const WOOD_ENTRY_IDS: readonly string[] = [
+  "pal.stejar-bardolino",
+  "pal.stejar-halifax",
+  "pal.nuc-warmia",
+  "veneer.stejar",
+  "veneer.nuc",
+];
+
 function makeFront(): THREE.Mesh {
   const front = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), kit.M.door);
   front.name = "door_front";
@@ -151,10 +161,20 @@ describe("a wood is one texture at several tints, and never a second generator",
   it("publishes isWood beside the hex rather than a second colour", () => {
     // The swatch's grain is derived from `color` in CSS. If `isWood` ever came from somewhere other
     // than the same row the colour came from, the two could disagree about one decor.
-    for (const [, finish] of DECLARED) {
+    for (const [entryId, finish] of DECLARED) {
       const swatch = swatchOf(finish);
       expect(Object.keys(swatch).sort()).toEqual(["color", "isWood"]);
+      expect([entryId, swatch.isWood]).toEqual([
+        entryId,
+        WOOD_ENTRY_IDS.includes(entryId),
+      ]);
     }
+    expect(
+      WOOD_ENTRY_IDS.filter(
+        (woodId) => !DECLARED.some(([entryId]) => entryId === woodId),
+      ),
+      "a wood named here that the domain no longer declares",
+    ).toEqual([]);
   });
 });
 

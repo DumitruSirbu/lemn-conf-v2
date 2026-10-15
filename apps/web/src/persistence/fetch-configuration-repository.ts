@@ -13,7 +13,14 @@ import { withCreateDesignLock } from "./create-design-lock";
 import {
   DesignRequestFailedError,
   isRetryableStatus,
+  MINT_LIMIT_REACHED_CODE,
+  MINT_LIMIT_REACHED_STATUS,
+  MintLimitReachedError,
   REVISION_CONFLICT_STATUS,
+  SAVE_LIMIT_REACHED_CODE,
+  SAVE_LIMIT_REACHED_STATUS,
+  SaveLimitReachedError,
+  saveWaitSecondsFrom,
   WriteConflictError,
   WriteNotAuthorizedError,
   WriteNotRetryableError,
@@ -23,6 +30,8 @@ import {
 // repository should not have to know which module its failures are declared in.
 export {
   DesignRequestFailedError,
+  MintLimitReachedError,
+  SaveLimitReachedError,
   WriteConflictError,
   WriteNotAuthorizedError,
   WriteNotRetryableError,
@@ -85,6 +94,37 @@ const NOT_AUTHORIZED_STATUSES: readonly number[] = [401, 403];
 function isNotAuthorized(status: number): boolean {
   return NOT_AUTHORIZED_STATUSES.includes(status);
 }
+
+/**
+ * Whether an answer is one of this application's limit refusals: the status, and a body whose own `code` is the
+ * limit's. Any other `429` (no body, not JSON, another code, a body that will not read) is a throttle like any other
+ * and keeps its retry. The code is compared and never shown.
+ */
+async function isLimitRefusal(
+  response: Response,
+  limit: { readonly status: number; readonly code: string },
+): Promise<boolean> {
+  if (response.status !== limit.status) return false;
+  try {
+    const body: unknown = await response.json();
+    return (
+      typeof body === "object" &&
+      body !== null &&
+      (body as { code?: unknown }).code === limit.code
+    );
+  } catch {
+    return false;
+  }
+}
+
+const MINT_LIMIT = {
+  status: MINT_LIMIT_REACHED_STATUS,
+  code: MINT_LIMIT_REACHED_CODE,
+};
+const SAVE_LIMIT = {
+  status: SAVE_LIMIT_REACHED_STATUS,
+  code: SAVE_LIMIT_REACHED_CODE,
+};
 
 /** The failure a status deserves: something no retry can change, or a transient fault worth
  *  repeating. One classifier, so every request in this file answers the "is this worth retrying?"
@@ -193,13 +233,16 @@ export class FetchConfigurationRepository {
    *  in the same response, so the customer's own design travels in the `PUT` that always follows.
    *
    *  The only call to `POST /api/designs`, so the only place `withCreateDesignLock` wraps (ADR 0114 Amendment H6):
-   *  both creation paths reach here through `save({ id: null })`. The lock spans the response, so a second tab's
-   *  mint carries the cookie this one just set. */
+   *  Step 1's hand-off, the only creation path, reaches here through `save({ id: null })`. The lock spans the
+   *  response, so a second tab's mint carries the cookie this one just set. */
   private async mint(): Promise<ClientSaveResult> {
     return withCreateDesignLock(async () => {
       const response = await this.request(DESIGNS_ENDPOINT, {
         method: "POST",
       });
+      if (await isLimitRefusal(response, MINT_LIMIT)) {
+        throw new MintLimitReachedError("Minting a design");
+      }
       if (!response.ok) throw failureFor("Minting a design", response.status);
       return readSaveResult(
         await readJsonBody(response, "Minting a design"),
@@ -227,6 +270,12 @@ export class FetchConfigurationRepository {
       },
       body: JSON.stringify(design),
     });
+    if (await isLimitRefusal(response, SAVE_LIMIT)) {
+      throw new SaveLimitReachedError(
+        "Saving a design",
+        saveWaitSecondsFrom(response.headers.get("Retry-After")),
+      );
+    }
     // A refusal the caller must branch on rather than parse out of a message — see
     // `design-request-errors.ts` for where the retryable/terminal line is drawn and why.
     if (!response.ok) throw saveFailureFor("Saving a design", response.status);

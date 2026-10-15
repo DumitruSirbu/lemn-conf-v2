@@ -59,6 +59,11 @@ vi.mock("../../src/store/configurator-store", () => ({
 
 vi.mock("@lemnaria/three-adapter", async () => {
   const THREE = await import("three");
+  const named = (name: string) => {
+    const group = new THREE.Group();
+    group.name = name;
+    return group;
+  };
   return {
     applyCornerDirection: vi.fn(),
     applyCornerDirectionToLightRig: vi.fn(),
@@ -83,14 +88,16 @@ vi.mock("@lemnaria/three-adapter", async () => {
     collectFronts: vi.fn(() => []),
     configureRenderer: vi.fn(),
     createBodyProbe: vi.fn(() => ({ measure: vi.fn() })),
-    createContactBlob: vi.fn(() => new THREE.Group()),
+    // Each part is named for the factory that made it, so the teardown's fields can be told apart: handed two
+    // anonymous groups, a stage that had its ground and its blob the wrong way round looked the same.
+    createContactBlob: vi.fn(() => named("contact_blob")),
     createLightRig: vi.fn(() => ({
-      fill: new THREE.Group(),
-      hemisphere: new THREE.Group(),
-      key: new THREE.Group(),
+      fill: named("fill_light"),
+      hemisphere: named("hemisphere_light"),
+      key: named("key_light"),
     })),
     createPickingRaycaster: vi.fn(() => new THREE.Raycaster()),
-    createShadowGround: vi.fn(() => new THREE.Group()),
+    createShadowGround: vi.fn(() => named("shadow_ground")),
     createStudioEnvironment: vi.fn(() => new THREE.Texture()),
     disposeKitAndStage: harness.disposeKitAndStage,
     disposeOverflowMark: harness.disposeOverflowMark,
@@ -217,12 +224,16 @@ describe("KitchenStage teardown", () => {
     const stage = disposedStage(0);
     expect(stage.kit).toBeDefined();
     expect(stage.room.name).toBe("kitchen_l_shape");
-    expect(stage.ground).toBeInstanceOf(THREE.Object3D);
-    expect(stage.blob).toBeInstanceOf(THREE.Object3D);
-    expect([...Object.keys(stage.lights)].sort()).toEqual([
-      "fill",
-      "hemisphere",
-      "key",
+    expect(stage.ground.name).toBe("shadow_ground");
+    expect(stage.blob.name).toBe("contact_blob");
+    expect(
+      Object.entries(stage.lights)
+        .map(([field, light]) => [field, light.name])
+        .sort(),
+    ).toEqual([
+      ["fill", "fill_light"],
+      ["hemisphere", "hemisphere_light"],
+      ["key", "key_light"],
     ]);
   });
 

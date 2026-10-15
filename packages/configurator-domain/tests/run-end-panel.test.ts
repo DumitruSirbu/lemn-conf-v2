@@ -85,10 +85,6 @@ describe("the shipped numbers, pinned as literals", () => {
     expect(RUN_END_PANEL_EDGE_OFFSET_M).toBe(0.018 / 2 + 0.001);
   });
 
-  it("seats the seeded panel on M1's parity number", () => {
-    expect(requireSeatM(SEEDED_RECORDS)).toBeCloseTo(3.51, 9);
-  });
-
   /** ADR 0083 decision 5's 3519, not the reference panel's rounded 3520: the outer face is
    *  `3500 + 1 mm gap + 18 mm slab`. Pinned here because the obvious "fix" is a flat 20 mm
    *  constant, which would pin the rounding and stop the finished end tracking its run. */

@@ -192,15 +192,17 @@ describe("every shape this build declares is a shape this build evaluates", () =
   ];
 
   it("evaluates a formula from every constructor the module exports", () => {
-    for (const formula of ONE_OF_EACH) {
-      expect(
+    // Every coefficient is 1, so each amount is the base plus the terms its own shape reads: 600 of width,
+    // 700 of height, 2 door leaves. A missing arm answers nothing and a wrong arm answers another row's sum.
+    expect(
+      ONE_OF_EACH.map((formula) =>
         amountForBody(formula, {
           widthMm: 600,
           heightMm: 700,
           doorLeafCount: 2,
         }),
-      ).toEqual(expect.any(Number));
-    }
+      ),
+    ).toEqual([1, 1 + 600, 1 + 600 + 2, 1 + 600 + 700, 1 + 600 + 700 + 2]);
   });
 
   it("covers every shape the coefficient table declares, and no other", () => {

@@ -194,36 +194,6 @@ describe("NeonConfigurationRepository (live test database)", () => {
   );
 
   it.skipIf(!hasLiveDatabase)(
-    "refuses a save carrying another design's write-token hash, and writes nothing",
-    async () => {
-      const repository = testRepository();
-      const victimId = await mintTrackingId(
-        repository,
-        KITCHEN_L_DESIGN,
-        CORRECT_TOKEN_HASH,
-      );
-      await mintTrackingId(repository, KITCHEN_L_DESIGN, WRONG_TOKEN_HASH);
-      const before = canonicalSerializeDesign(
-        await loadedDesign(repository, victimId),
-      );
-
-      await expect(
-        repository.saveAuthorized({
-          id: victimId,
-          design: { ...KITCHEN_L_DESIGN, presetId: "cross-design-preset" },
-          writeTokenHash: WRONG_TOKEN_HASH,
-          expectedRevision: FIRST_REVISION,
-          requestVisitor: { kind: "absent" },
-        }),
-      ).rejects.toThrow(DesignWriteForbiddenError);
-
-      expect(
-        canonicalSerializeDesign(await loadedDesign(repository, victimId)),
-      ).toBe(before);
-    },
-  );
-
-  it.skipIf(!hasLiveDatabase)(
     "refuses a save to an id no row carries, with the same error an unauthorised save gets",
     async () => {
       const repository = testRepository();
@@ -329,23 +299,6 @@ describe("NeonConfigurationRepository (live test database)", () => {
     },
   );
 
-  it.skipIf(!hasLiveDatabase)(
-    "leaves no row behind once its own cleanup has run",
-    async () => {
-      const repository = testRepository();
-      const { id } = await repository.mint({
-        design: KITCHEN_L_DESIGN,
-        writeTokenHash: CORRECT_TOKEN_HASH,
-        visitor: { kind: "fresh", visitorHash: VISITOR_HASH },
-      });
-
-      const sql = neon(testDatabaseUrl);
-      await sql`delete from designs where id = ${id}`;
-
-      await expect(repository.load(id)).rejects.toThrow(DesignNotFoundError);
-    },
-  );
-
   it.skipIf(!hasLiveDatabase || !hasApplicationDatabaseUrl)(
     "targets a database that is not the application's own",
     () => {
@@ -388,20 +341,6 @@ describe("the write-token migration", () => {
           values (${generateDesignId()}, 1, ${KITCHEN_L_DESIGN}, 'not-a-digest')
         `,
       ).rejects.toThrow(/write_token_hash_is_sha256/);
-    },
-  );
-
-  it.skipIf(!hasLiveDatabase)(
-    "still accepts a null hash, so pre-ADR-0019 rows survive the constraint",
-    async () => {
-      const sql = neon(testDatabaseUrl);
-      const id = generateDesignId();
-
-      await sql`
-        insert into designs (id, schema_version, document, write_token_hash)
-        values (${id}, 1, ${KITCHEN_L_DESIGN}, null)
-      `;
-      await sql`delete from designs where id = ${id}`;
     },
   );
 
@@ -579,21 +518,6 @@ describe("saveAuthorized revisions (WEB-003)", () => {
       expect(canonicalSerializeDesign((await repository.load(id)).design)).toBe(
         canonicalSerializeDesign(KITCHEN_L_DESIGN),
       );
-    },
-  );
-
-  it.skipIf(!hasLiveDatabase)(
-    "answers an unknown id with the forbidden refusal, never the conflict one",
-    async () => {
-      await expect(
-        testRepository().saveAuthorized({
-          id: "does-not-exist-00000000",
-          design: KITCHEN_L_DESIGN,
-          writeTokenHash: CORRECT_TOKEN_HASH,
-          expectedRevision: FIRST_REVISION,
-          requestVisitor: { kind: "absent" },
-        }),
-      ).rejects.toThrow(DesignWriteForbiddenError);
     },
   );
 

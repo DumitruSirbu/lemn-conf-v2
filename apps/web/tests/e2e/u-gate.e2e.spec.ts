@@ -13,8 +13,8 @@ describeUGate({
   expectSuggestionCard: async (page) => {
     await expect(page.getByTestId("room-suggestion-card")).toBeHidden();
   },
-  // 1F's plan aside is hidden on the phone (`room-desktop-line`'s own criterion), so there is nothing
-  // to hold the hand-off for and nothing to look at.
+  // 1F's plan aside is hidden on the phone (`room-desktop-line.criteria-12-17.desktop.e2e.spec.ts`,
+  // criterion 14), so there is nothing to hold the hand-off for and nothing to look at.
   holdHandOff: () => Promise.resolve(() => Promise.resolve()),
   expectPlanAside: () => Promise.resolve(),
 });
