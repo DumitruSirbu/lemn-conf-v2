@@ -97,6 +97,9 @@ export function mergeAdjacentEmptyColumns(
   let plans = planMerges(merged, scan);
   // Iterated, because a merged envelope narrows `top` and `d` and may then agree with a neighbour the pass
   // refused. It terminates: every plan replaces at least two columns with one, so each pass shrinks the map.
+  // It makes one map's answer a fixpoint, not the clear order irrelevant: it recovers a narrowing into
+  // agreement (2560 | 2600 2580), never one out of it (620 | 600 580 once the right pair has merged). A known
+  // limit, 8U plan §6.3.
   while (plans.length > 0) {
     merged = withPlansApplied(merged, plans);
     plans = planMerges(merged, scan);
@@ -276,8 +279,13 @@ function abuts(left: MeasuredColumn, right: MeasuredColumn): boolean {
 /** ADR 0046 rule 2, plus a third condition: `d`. A column's floor, `top` and `d` all travel into the
  *  openings a merged column offers, so merging a base-run column (`top` 0.86) with a cleared
  *  full-height one (2.6), or a wall-depth column (~0.33) with a base-depth one (0.60), would publish
- *  openings over ground or depth that never existed. Judged between neighbours; the merged extent
- *  takes the conservative envelope (`mergedExtent`). */
+ *  openings over ground or depth that never existed. Judged between neighbours on their current extents;
+ *  the merged extent takes the conservative envelope (`mergedExtent`) and forgets its members.
+ *
+ *  Not transitive: 620 agrees with 600 and 600 with 580, but 620 not with 580. So a run whose neighbours
+ *  agree but whose spread passes the tolerance may become one column or two depending on the order it was
+ *  cleared in, and may lose more than 20 mm on a member. A known limit (8U plan §6.3, R14), not accepted
+ *  by any record: ADR 0046 Part 2 accepts 20 mm on a pair. */
 function agrees(left: MeasuredColumn, right: MeasuredColumn): boolean {
   return (
     withinAgreement(left.topMm, right.topMm) &&
@@ -445,9 +453,11 @@ function isSameStretchOfWall(
  *  floor, lowest top, shallowest depth), never `max(top)` or `max(d)`, so the tolerance slack never
  *  becomes ground, ceiling or depth no member had.
  *
- *  Not claimed: `agrees` is judged between neighbours, so a chain may drift past the tolerance (620,
- *  600, 580 loses 40 mm of depth). The envelope narrows `top` and `d`, so a second pass over a merged
- *  column may accept what the first refused; `mergeAdjacentEmptyColumns` iterates to the fixpoint for it.
+ *  A chain may drift past the tolerance: `agrees` is judged between neighbours, so 620, 600, 580 merged as
+ *  one loses 40 mm of depth on its 620 member, and whether it merges as one depends on the clear order. A
+ *  known limit (8U plan §6.3), not an accepted cost. The envelope narrows `top` and `d`, so a second pass
+ *  over a merged column may accept what the first refused; `mergeAdjacentEmptyColumns` iterates to the
+ *  fixpoint for it, which fixes one map's answer and not the order's.
  *
  *  The shallowest member is the template: a column's off-wall coordinate is its own half-depth, so the
  *  extent that keeps `d` keeps `x`/`z`, `wall`, `ry` and `depthFromBuildId` with it (ADR 0073 decision 8).
