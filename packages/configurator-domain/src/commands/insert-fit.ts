@@ -279,10 +279,8 @@ type WidthResolution =
 /** Resolves a body's width in an opening: both floors first, then the `'fit'` or millimetre-set
  *  path. The hood takes the `'fit'` path and fills its opening within its 600–800 bound
  *  (ADR 0035 decision 5). */
-function resolveWidth(
-  body: InsertableBody,
-  opening: InsertOpening,
-): WidthResolution {
+function resolveWidth(input: InsertFitInput): WidthResolution {
+  const { body, opening } = input;
   const availableMm = toMillimetres(opening.w);
   const unusableFloor = refuseUnusableDeclaredFloor(body, availableMm);
   if (unusableFloor) return { ok: false, detail: unusableFloor };
@@ -292,26 +290,33 @@ function resolveWidth(
   const floorRefusal = refuseWidthFloor(body, opening, availableMm);
   if (floorRefusal) return { ok: false, detail: floorRefusal };
 
-  if (body.widthFlex === "fit")
-    return resolveFitWidth(body, opening, availableMm);
+  if (body.widthFlex === "fit") return resolveFitWidth(input, availableMm);
 
   return resolveFixedSetWidth(body, body.widthFlex, opening);
 }
 
-/** §5.2's `w = void.w` for a `'fit'` body, bounded by the entry's declared ranges
- *  (ADR 0032 rule 4, ADR 0035 decision 2): what refuses is an opening outside the entry's own bound,
- *  so a hinged cabinet is continuous between its floor and ceiling.
+/** §5.2's `w = min(void.w, b.maxW)` for a `'fit'` body: the opening inside the entry's declared
+ *  ranges (ADR 0032 rule 4, ADR 0035 decision 2), the entry's own maximum in an opening wider than it.
  *
  *  The floors have already run and must stay first, so `base-sink` in a 400 mm opening names the
- *  560 mm its worktop needs (ADR 0017) rather than a size list. No tolerance and no widest-that-fits
- *  fallback: the width is the opening. A body that would rather be narrower declares a millimetre
- *  set (`resolveFixedSetWidth`). */
+ *  560 mm its worktop needs (ADR 0017) rather than a size list. No tolerance: an opening at or under
+ *  the maximum is built to exactly, and one in a gap between ranges refuses as before. */
 function resolveFitWidth(
-  body: InsertableBody,
-  opening: InsertOpening,
+  input: InsertFitInput,
   availableMm: number,
 ): WidthResolution {
+  const { body, opening } = input;
   if (acceptsWidthMm(body, availableMm)) return { ok: true, widthM: opening.w };
+  const widestMm = widestBuildableWidthMm(body);
+  // Only where the column can be divided: elsewhere the body would be centred between two slivers
+  // that never rejoin (ADR 0046 part 1), so the over-wide opening still refuses.
+  if (
+    widestMm !== undefined &&
+    availableMm > widestMm &&
+    dividesWholeColumn(opening, input.column)
+  ) {
+    return { ok: true, widthM: toMetres(widestMm) };
+  }
   return {
     ok: false,
     detail: refuseFixedWidth(
@@ -320,6 +325,15 @@ function resolveFitWidth(
       availableMm,
     ),
   };
+}
+
+/** The widest width the entry's ranges allow once its floor is applied; `undefined` when the floor
+ *  leaves no range at all. */
+function widestBuildableWidthMm(body: InsertableBody): number | undefined {
+  const maximaMm = resolveWidthRangesMm(body)
+    .filter((range) => range.minMm <= range.maxMm)
+    .map((range) => range.maxMm);
+  return maximaMm.length === 0 ? undefined : Math.max(...maximaMm);
 }
 
 /** §7's millimetre-set case (dishwasher niche, the four full-height units, bottle cargo): the widest
@@ -561,7 +575,7 @@ export function evaluateInsertFit(input: InsertFitInput): InsertFit {
   const openingRefusal = refuseShortOpening(body, opening);
   if (openingRefusal) return rejectFit(openingRefusal);
 
-  const width = resolveWidth(body, opening);
+  const width = resolveWidth(input);
   if (!width.ok) return rejectFit(width.detail);
 
   const heightM = resolveHeightM(body, opening);
