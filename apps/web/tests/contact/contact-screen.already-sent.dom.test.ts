@@ -219,7 +219,7 @@ describe("which arm is drawn", () => {
 
 describe("the sent view", () => {
   it.each(["ro", "ru"] as const)(
-    "draws the heading with focus, the reference as text, the copy control and the bar's way back to the review, in %s",
+    "draws the heading with focus, no reference and no copy control, and the bar's way back to the review, in %s",
     (locale) => {
       const container = mount({ sentReference: SENT, locale });
       const heading = elementIn(container, "h1");
@@ -229,12 +229,8 @@ describe("the sent view", () => {
       );
       expect(document.activeElement).toBe(heading);
       expect(container.querySelectorAll("h1")).toHaveLength(1);
-      expect(
-        elementIn(container, '[data-testid="done-reference"]').textContent,
-      ).toBe("LM-2614");
-      expect(
-        elementIn(container, '[data-testid="done-copy"]').textContent,
-      ).toBe(MESSAGES[locale].submissionResult.copy);
+      expect(container.innerHTML).not.toContain("LM-2614");
+      expect(container.querySelector('[data-testid="done-copy"]')).toBeNull();
       expect(
         elementIn(
           container,
@@ -249,17 +245,16 @@ describe("the sent view", () => {
     },
   );
 
-  it("shows a reference that is markup as the literal text and makes no element of it", () => {
+  it("puts a reference that is markup nowhere on the sent view: no element, no attribute and no text of it", () => {
     const markup = "<img src=x onerror=alert(1)>";
 
     const container = mount({
       sentReference: { kind: "sent", reference: markup },
     });
 
+    expect(isTheSentView(container)).toBe(true);
     expect(container.querySelector("img")).toBeNull();
-    expect(
-      elementIn(container, '[data-testid="done-reference"]').textContent,
-    ).toBe(markup);
+    expect(container.textContent).not.toContain(markup);
     expect(container.innerHTML).not.toContain("<img");
     for (const element of container.querySelectorAll("*")) {
       for (const attribute of element.attributes) {

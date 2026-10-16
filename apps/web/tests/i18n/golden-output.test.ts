@@ -250,7 +250,8 @@ describe("golden-output fixture coverage", () => {
     // M8 8M S4: +27 for the result screens' static leaves (`submissionResult.*`).
     // M8 8M2 S2: +3 for `submissionResult.alreadySentHeading`, `.alreadySentChangedKitchen` and `.callShop`.
     // +14 for the HTML notice's static leaves (`leadNotice.*`).
-    expect(RESOLVED_STATIC_CONTENT).toHaveLength(222);
+    // +2 for the done page's design link, `submissionResult.designLinkLabel` and `.designLinkNote`.
+    expect(RESOLVED_STATIC_CONTENT).toHaveLength(224);
     // +3 for the notice's subject, line and figure.
     // +2 for `panel.savePausedNotice`'s two times.
     // M8 8M S4: +4 for `submissionResult.channelLine`'s three channels and `.whatsappMessage`.
@@ -288,7 +289,8 @@ describe("golden-output fixture coverage", () => {
     // M8 8M2 S2: +3 static and +2 function fixtures for `submissionResult.*`.
     // M8 8M2 S3: -1 function fixture for the retired `submissionResult.whatsappMessage`.
     // +14 static and +6 function fixtures for the HTML notice's `leadNotice.*` leaves.
-    expect(GOLDEN_FIXTURES).toHaveLength(537);
+    // +2 static fixtures for the done page's design link (`submissionResult.designLink*`).
+    expect(GOLDEN_FIXTURES).toHaveLength(539);
     expect(new Set(GOLDEN_FIXTURES.map((fixture) => fixture.id)).size).toBe(
       GOLDEN_FIXTURES.length,
     );

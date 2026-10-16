@@ -88,7 +88,7 @@ export function ContactScreen({
     );
   }
   if (view.kind === "already-sent") {
-    return <AlreadySentView designId={designId} reference={view.reference} />;
+    return <AlreadySentView designId={designId} />;
   }
   if (support === "unsupported") return <WebGLUnavailable />;
   return isSendable ? (

@@ -529,6 +529,11 @@ export const APPROVED_ROMANIAN_MESSAGES = {
     referenceLabel: "Număr cerere",
     copy: "Copiază",
     copied: "Copiat",
+    // Drafted, not approved (provisional until the owner reads them): the done page's card holding the customer's own
+    // design address, and its note that the address opens the design for editing in this browser only.
+    designLinkLabel: "Linkul designului tău",
+    designLinkNote:
+      "Linkul deschide designul pentru editare doar în acest browser.",
     channelLine:
       "{channel, select, phone {Te sunăm la {contact}.} whatsapp {Te sunăm pe WhatsApp la {contact}.} other {Îți scriem la {contact}.}}",
     channelLineWithoutValue:
@@ -554,8 +559,9 @@ export const APPROVED_ROMANIAN_MESSAGES = {
       "Nu putem arăta acum starea cererii tale. Încearcă din nou puțin mai târziu.",
     // Drafted, none approved: the view of a kitchen already sent for. `{phone}` is the shop's display form.
     alreadySentHeading: "Cererea pentru această bucătărie a fost deja trimisă",
+    // Drafted, not approved (provisional): re-drafted to ask for no request number, which no customer screen shows.
     alreadySentAdvice:
-      "Ai greșit ceva în cerere? Sună-ne la {phone} și spune-ne numărul cererii — corectăm împreună.",
+      "Ai greșit ceva în cerere? Sună-ne la {phone} — găsim cererea după numărul tău de telefon.",
     alreadySentChangedKitchen:
       "Dacă schimbi bucătăria, poți trimite o cerere nouă pentru ea.",
     callShop: "Sună direct la noi",

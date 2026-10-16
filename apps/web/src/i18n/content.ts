@@ -1121,6 +1121,8 @@ export function resolveContent(translate: ContentTranslator) {
       referenceLabel: translate("submissionResult.referenceLabel"),
       copy: translate("submissionResult.copy"),
       copied: translate("submissionResult.copied"),
+      designLinkLabel: translate("submissionResult.designLinkLabel"),
+      designLinkNote: translate("submissionResult.designLinkNote"),
       channelLine: (line: SubmissionChannelLine) =>
         resolveSubmissionChannelLine(translate, line),
       channelLineWithoutValue: translate(

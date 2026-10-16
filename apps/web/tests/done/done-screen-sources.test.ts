@@ -108,6 +108,19 @@ describe("the confirmation's stylesheet", () => {
     expect(valuesFor(STYLESHEET, "reference", "user-select")).toEqual(["all"]);
   });
 
+  it.each([
+    ["designLink", "white-space", "nowrap"],
+    ["designLink", "overflow", "hidden"],
+    ["designLink", "text-overflow", "ellipsis"],
+    ["designLink", "user-select", "all"],
+    ["linkText", "min-width", "0"],
+  ])(
+    "keeps a long design address on one line inside the card: .%s's %s is %s",
+    (className, property, expected) => {
+      expect(valuesFor(STYLESHEET, className, property)).toEqual([expected]);
+    },
+  );
+
   it.each(["disc", "barMark"])(
     "draws the check of .%s from the stylesheet, so that no text carries it",
     (className) => {

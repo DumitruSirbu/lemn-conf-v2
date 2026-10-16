@@ -494,10 +494,6 @@ describe.each(["ro", "ru"] as const)(
 describe.each(["ro", "ru"] as const)(
   "the reference in the message, in %s",
   (locale) => {
-    function shownReference(): string {
-      return byTestId("done-reference").textContent;
-    }
-
     function expectedMessageFor(reference: string): string {
       return contentIn(locale).submissionResult.whatsappMessageToShop({
         reference,
@@ -505,7 +501,7 @@ describe.each(["ro", "ru"] as const)(
       });
     }
 
-    it("is the one on the screen when the request was handed over from this tab", async () => {
+    it("is the hand-over's, not the server's, when the request was handed over from this tab", async () => {
       const handedOverReference = "LM-HANDED-OVER";
       rememberSentRequest({
         designId: DESIGN_ID,
@@ -517,16 +513,14 @@ describe.each(["ro", "ru"] as const)(
       await mountDoneScreen(SENT_ON_SERVER, locale);
       await press("done-whatsapp-send");
 
-      expect(shownReference()).toBe(handedOverReference);
       expect(draftedMessage()).toBe(expectedMessageFor(handedOverReference));
       expect(draftedMessage()).not.toContain(REFERENCE);
     });
 
-    it("is the one on the screen after a reload, when the server alone names the request", async () => {
+    it("is the server's after a reload, when the server alone names the request", async () => {
       await mountDoneScreen(SENT_ON_SERVER, locale);
       await press("done-whatsapp-send");
 
-      expect(shownReference()).toBe(REFERENCE);
       expect(draftedMessage()).toBe(expectedMessageFor(REFERENCE));
     });
   },

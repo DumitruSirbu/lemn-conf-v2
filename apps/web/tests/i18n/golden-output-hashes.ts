@@ -91,6 +91,10 @@
  * **Grown by 31 and shrunk by 2, never rebaselined, by M8 wave 8M slice S4** (ADR 0113 decision 2) — the result screens'
  * copy, `submissionResult.*`: 27 static leaves and four renderings of its two ICU leaves, drafted and unapproved (Q10
  * (a)); and `contact.outcomes.sent` and `.failed`, which 5A and 5B replace, removed. **No existing hash moved.**
+ *
+ * **Grown by 2 and rebaselined over exactly one by M8 wave 8V slice S7** — `submissionResult.designLinkLabel` and
+ * `.designLinkNote`, the done page's design link, added; `submissionResult.alreadySentAdvice.phone-token` moved, its
+ * sentence re-drafted to ask for no request number. All three drafted and provisional. **One moved and no others.**
  */
 export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "catalog.base-3drawer.300":
@@ -468,7 +472,7 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
   "content.submissionResult.channelLine.whatsapp":
     "ac05e2987222912765a9b1a8c311285d52b7e787fa62ea0d5147656058f43e87",
   "content.submissionResult.alreadySentAdvice.phone-token":
-    "4cee99b1c8923fde927d8a6e8dfdfceaadf1c8d187ca29587fc9db666f702211",
+    "9ff400025dc8bbe800d30dd2622248165d9db76c218feebba27581c7eb890378",
   "content.submissionResult.whatsappMessageToShop.reference-and-link-tokens":
     "cf8940b99576380ba3c92b8101f43c445764745e932b4f8deef537380c070e65",
   "content.static.brand":
@@ -575,6 +579,10 @@ export const GOLDEN_OUTPUT_SHA256: Readonly<Record<string, string>> = {
     "a35a3851d68320f92b07859891dabb14e750ef8b12af123ce0cafe4e532c9d20",
   "content.static.submissionResult.copied":
     "5f912b909dc3b0a62c5e719fc374e323937098bddd80fd8d690d1323182a7cb1",
+  "content.static.submissionResult.designLinkLabel":
+    "3ceeb9885ac738ec14f522ad577fd6b9cbd26c2ea48076313bf1ef6900a332ff",
+  "content.static.submissionResult.designLinkNote":
+    "3e0d7fa334818590e622a58f043a6426c434e5071f01926043dcd31f975d6fd1",
   "content.static.submissionResult.channelLineWithoutValue":
     "bc571755ab6f6b6f9e49f038b67079560cf22e5cafa7407521c5dcda900816a4",
   "content.static.submissionResult.savedSentence":

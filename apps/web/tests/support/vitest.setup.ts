@@ -2,6 +2,8 @@ import { randomBytes } from "node:crypto";
 
 import { beforeEach, vi } from "vitest";
 
+import { PUBLIC_ORIGIN_VARIABLE } from "@/lib/server/public-origin-variable";
+
 // **One declaration of React's act environment, for every test in this project.**
 //
 // `.dom.test.ts` files (M6-AUD-009) render real components with `react-dom/client` and drive them
@@ -45,6 +47,10 @@ export {};
 // The key every digest is made under is random, made here in this process, in no file and printed nowhere. A test
 // that is about the secret sets or unsets `DIGEST_SECRET` for itself.
 process.env.DIGEST_SECRET = randomBytes(32).toString("hex");
+
+// The site's public origin is never inherited: a value from the shell would send a unit test through the production
+// repository getter. Cleared here, once per file and before it runs; a test about the origin stubs it for itself.
+Reflect.deleteProperty(process.env, PUBLIC_ORIGIN_VARIABLE);
 
 // The rate-limit store's instance is the persistence package's own fake, fresh for each test, so no test counts in a
 // database and no test sees another's count.
