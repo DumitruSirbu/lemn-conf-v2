@@ -26,6 +26,7 @@ import {
   buildKitchenLBodyCatalog,
   buildLShellDesign,
   buildUShellDesign,
+  cabinetDepthMmOf,
   cabinetDepthRuleOf,
   canonicalSerializeDesign,
   CURRENT_SCHEMA_VERSION,
@@ -36,6 +37,7 @@ import {
   deriveRecordedColumns,
   deriveSlotBand,
   fatalDesignValidationIssues,
+  generateKitchen,
   insertBody,
   KITCHEN_L_DESIGN,
   listInsertableBodies,
@@ -68,7 +70,10 @@ import {
   type VoidRecord,
 } from "../../src/index.js";
 import { LEVELS, MAX_EMPTY_COLUMN_WIDTH_MM } from "../../src/module-grid.js";
-import { createFakeProbe } from "../support/fake-probe.js";
+import {
+  createFakeProbe,
+  createFakeProbeFactory,
+} from "../support/fake-probe.js";
 import { ENGINE_ROOM_LIMITS } from "../../src/room/room-policy.js";
 import { acceptedRoom } from "../support/room-input.js";
 import {
@@ -335,22 +340,6 @@ describe("buildLShellDesign over the approved range and its edges", () => {
     });
   });
 
-  it("carries its frozen map byte-identically through a change to every declared depth and back", () => {
-    assertOverTheRange((room) => {
-      const shell = shellIn(room);
-
-      for (const depthMm of otherDeclaredDepthsMm()) {
-        const back = atCabinetDepth(
-          atCabinetDepth(shell, depthMm),
-          SHELL_CABINET_DEPTH_MM,
-        );
-        expect(frozenMapOf(back), JSON.stringify(room)).toBe(
-          frozenMapOf(shell),
-        );
-      }
-    });
-  });
-
   // An L shell records floor tiles only: the corner wall unit stands over the corner's base, so no
   // wall-only run is tiled (`shell-design.ts`, `freeRunTiles`). This sweep is L rooms, so it holds the
   // floor source alone and says so; the wall-only source is held where such a tile exists, on a large
@@ -394,33 +383,6 @@ describe("buildLShellDesign over the approved range and its edges", () => {
           );
         }
       }
-    });
-  });
-
-  it("is a fixed point of the load seam: migrateDesign, then the map a save projects, writes it back unchanged", () => {
-    assertOverTheRange((room) => {
-      const shell = shellIn(room);
-      const stored: unknown = JSON.parse(JSON.stringify(shell));
-
-      const loaded = migrateDesign(CURRENT_SCHEMA_VERSION, stored);
-      const records = derivePlacementRecords(
-        loaded,
-        catalogAt(SHELL_CABINET_DEPTH_MM),
-      );
-      const saved = withFrozenMap(
-        loaded,
-        projectFrozenMap(
-          deriveRecordedColumns(records, loaded, toMetres(loaded.room.widthMm)),
-          records,
-        ),
-      );
-
-      expect(canonicalSerializeDesign(loaded)).toBe(
-        canonicalSerializeDesign(shell),
-      );
-      expect(canonicalSerializeDesign(saved)).toBe(
-        canonicalSerializeDesign(shell),
-      );
     });
   });
 
@@ -526,6 +488,127 @@ describe("buildLShellDesign over the approved range and its edges", () => {
     expect(findingsOf(shell, SHELL_CABINET_DEPTH_MM)).toStrictEqual([]);
   });
 });
+
+// The shell is composition's private intermediate: the editor never loads, saves or depth-changes it, and its planned
+// tiles stay apart only at composition's limit (see 8U plan §6.1). So the depth round trip and the load seam are
+// asserted over the design `generateKitchen` delivers, drawn from the same rooms. It refuses some of them; L
+// 900 x 1802 x 2200, whose wall B shell tiles 800 + 2 mm, is refused `MINIMUM_NOT_MET`.
+describe("the delivered design over the approved range and its edges (ADR 0110 B3, 8U criterion 15a)", () => {
+  /** A floor for the accepted arm, so a sweep that composes almost nothing cannot pass. */
+  const ACCEPTED_ROOMS_FLOOR = 100;
+
+  // Not the whole map: an occupied column's recorded depth and its source re-derive from its members on the way
+  // back (measured in every accepted room, with the editor's merge capped and uncapped alike).
+  it("carries its member-less spaces byte-identically, and every column's extent along the wall, through a change to every declared depth and back", () => {
+    let accepted = 0;
+    assertOverTheRange((room) => {
+      const design = generatedIn(room);
+      if (!design) return;
+      accepted += 1;
+
+      for (const depthMm of otherDeclaredDepthsMm()) {
+        const back = atCabinetDepth(
+          atCabinetDepth(design, depthMm),
+          cabinetDepthMmOf(design),
+        );
+        expect(depthIndependentMapOf(back), JSON.stringify(room)).toBe(
+          depthIndependentMapOf(design),
+        );
+      }
+    });
+
+    expect(accepted).toBeGreaterThanOrEqual(ACCEPTED_ROOMS_FLOOR);
+  });
+
+  it("is a fixed point of the load seam: migrateDesign, then the map a save projects, writes it back unchanged", () => {
+    let accepted = 0;
+    assertOverTheRange((room) => {
+      const design = generatedIn(room);
+      if (!design) return;
+      accepted += 1;
+      const stored: unknown = JSON.parse(JSON.stringify(design));
+
+      const loaded = migrateDesign(CURRENT_SCHEMA_VERSION, stored);
+      const saved = savedAsTheEditorSavesIt(loaded);
+
+      expect(canonicalSerializeDesign(loaded)).toBe(
+        canonicalSerializeDesign(design),
+      );
+      expect(canonicalSerializeDesign(saved)).toBe(
+        canonicalSerializeDesign(design),
+      );
+    });
+
+    expect(accepted).toBeGreaterThanOrEqual(ACCEPTED_ROOMS_FLOOR);
+  });
+
+  // Declared witness (ADR 0093): no delivered design keeps two member-less tiles apart, so none carries an 800 + 2
+  // seam. The shell's own seam room, once the editor's load has joined it, must survive the same round trip.
+  it("carries the shell's 800 + 2 mm seam, once the editor's load joins it, through every declared depth and back", () => {
+    const seamRoom: DesignRoom = {
+      shape: "L",
+      widthMm: floorRunOriginMm("A") + MAX_EMPTY_COLUMN_WIDTH_MM + 2,
+      depthMm: floorRunOriginMm("B") + MAX_EMPTY_COLUMN_WIDTH_MM + 2,
+      heightMm: TOP_ROW_CEILING_MM,
+    };
+    const joined = savedAsTheEditorSavesIt(shellIn(seamRoom));
+    for (const wall of ["A", "B"] as const) {
+      expect(
+        floorTilesOn(joined, wall).map((tile) => tile.endMm - tile.startMm),
+        wall,
+      ).toStrictEqual([MAX_EMPTY_COLUMN_WIDTH_MM + 2]);
+    }
+
+    for (const depthMm of otherDeclaredDepthsMm()) {
+      const back = atCabinetDepth(
+        atCabinetDepth(joined, depthMm),
+        SHELL_CABINET_DEPTH_MM,
+      );
+      expect(frozenMapOf(back), String(depthMm)).toBe(frozenMapOf(joined));
+    }
+  });
+});
+
+/** The frozen map less the depth a column holding a body records: its spaces whole, its extents' geometry. */
+function depthIndependentMapOf(design: Design): string {
+  return JSON.stringify({
+    emptyColumns: design.emptyColumns,
+    columnExtents: (design.columnExtents ?? []).map(
+      ({ wall, alongMm, widthMm, y0Mm, topMm }) => ({
+        wall,
+        alongMm,
+        widthMm,
+        y0Mm,
+        topMm,
+      }),
+    ),
+  });
+}
+
+/** What `generateKitchen` delivers for `room`, or nothing when it refuses the room. */
+function generatedIn(room: DesignRoom): Design | undefined {
+  const result = generateKitchen({
+    room,
+    occurredAt: SHELL_OCCURRED_AT,
+    probeAt: createFakeProbeFactory(),
+  });
+  return result.ok ? result.design : undefined;
+}
+
+/** `design` with the frozen map the editor's own load derives and a save projects. */
+function savedAsTheEditorSavesIt(design: Design): Design {
+  const records = derivePlacementRecords(
+    design,
+    catalogAt(cabinetDepthMmOf(design)),
+  );
+  return withFrozenMap(
+    design,
+    projectFrozenMap(
+      deriveRecordedColumns(records, design, toMetres(design.room.widthMm)),
+      records,
+    ),
+  );
+}
 
 describe("buildLShellDesign — anything composed into it still fits after a depth change (ADR 0110 B3, ADR 0109 C)", () => {
   /** The largest slide any body the catalogue lets a customer or composition insert makes along

@@ -32,6 +32,7 @@ import {
   type VoidRecord,
 } from "../../src/index.js";
 import { CORNER_WALL_UNIT_TEMPLATES } from "../../src/fixtures/kitchen-l-design.js";
+import { COMPOSITION_WIDTH_LIMIT_MM } from "../../src/generation/leftover-rule.js";
 import { alongWallCoordinate, LEVELS } from "../../src/module-grid.js";
 import {
   RUN_END_PANEL_GAP_M,
@@ -265,8 +266,10 @@ function cut(part: IntervalMm, hole: IntervalMm): IntervalMm[] {
   return pieces.filter((piece) => piece.endMm > piece.startMm);
 }
 
-/** The shell as a loaded session holds it: the recorded face a command is handed, and the openings
- *  the published face offers (ADR 0090 Amendment B's two roles). */
+/** The shell as composition holds it: the recorded face a command is handed, and the openings the published face
+ *  offers (ADR 0090 Amendment B's two roles), both merged at composition's limit. The shell is composition's private
+ *  intermediate and the editor never loads it, so the editor's uncapped merge would join tiles composition keeps
+ *  apart (see 8U plan §6.1). */
 export interface ShellFaces {
   readonly records: readonly PlacementRecord[];
   readonly recorded: ReadonlyMap<string, Column>;
@@ -281,8 +284,12 @@ export function facesOf(design: Design): ShellFaces {
       records,
       design,
       toMetres(design.room.widthMm),
+      COMPOSITION_WIDTH_LIMIT_MM,
     ),
-    voids: recomputeVoids(records, deriveColumns(records, design, design.room)),
+    voids: recomputeVoids(
+      records,
+      deriveColumns(records, design, design.room, COMPOSITION_WIDTH_LIMIT_MM),
+    ),
   };
 }
 
@@ -352,9 +359,9 @@ function insertInto(design: Design, request: InsertRequest) {
 /** The body composition fills a floor run with (ADR 0110 Amendment B2's floor-tile source). */
 export const FLOOR_FILL_BUILD_ID = "base-cabinet";
 
-/** The shell with **every** wall-A base opening filled by a base cabinet, one insert at a time, each
- *  saved the way the store saves it — the command's own map projected onto its design — so the next
- *  insert sees the kitchen the last one left. An opening the command refuses stays empty. */
+/** The shell with **every** wall-A base opening filled by a base cabinet, one insert at a time, each saved in
+ *  composition's world — the command's own map projected onto its design, read back through `facesOf` — so the
+ *  next insert sees the kitchen the last one left. An opening the command refuses stays empty. */
 export function withWallABaseRunFilled(shell: Design): Design {
   const targets = baseOpeningsOn(facesOf(shell).voids, "A").map(
     openingIntervalOf,

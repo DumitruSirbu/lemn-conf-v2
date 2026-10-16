@@ -775,8 +775,8 @@ describe("7D5 S1 — the conditional bottle cargo", () => {
     );
   });
 
-  // A bottle standing last on its wall shares one floor opening with the run-end remainder whenever the two
-  // reach at most 800 mm (`MAX_EMPTY_COLUMN_WIDTH_MM`). Both mirrors, so no wall letter decides it.
+  // In the shell, a bottle standing last on its wall shares one floor opening with the run-end remainder whenever
+  // the two reach at most 800 mm (`COMPOSITION_WIDTH_LIMIT_MM`). Both mirrors, so no wall letter decides it.
   //
   // The in-policy rows are the 298 mm edge, the widest remainder left once ADR 0110 M11 keeps the oven tower;
   // they run through `generateKitchen`.

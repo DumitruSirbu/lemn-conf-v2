@@ -53,13 +53,11 @@ const { usePanelView } = await import("@/panel/use-panel-view");
 
 const OCCURRED_AT = "2026-09-11T12:00:00.000Z";
 
-/** A wall body wider than anything §7 builds. Clearing it leaves the wall two openings the column
- *  map splits it into — an 800 mm one every hinged row fits, and a **150 mm** strip narrower than
- *  the narrowest thing in the catalogue, which is the state under test. */
-const TOO_WIDE_MM = 950;
+/** A wall body narrower than anything §7 builds. Clearing it leaves a **150 mm** opening narrower than the
+ *  narrowest thing in the catalogue, which is the state under test; a wider span is never cut down to one. */
 const TOO_NARROW_MM = 150;
 
-const ONE_WIDE_BODY: Design = {
+const ONE_NARROW_BODY: Design = {
   room: { shape: "L", widthMm: 3600, depthMm: 2400, heightMm: 2600 },
   presetId: null,
   placements: [
@@ -68,7 +66,11 @@ const ONE_WIDE_BODY: Design = {
       wall: "A",
       alongMm: 1000,
       y0Mm: 1500,
-      body: { buildId: "wall-2door-600", widthMm: TOO_WIDE_MM, heightMm: 700 },
+      body: {
+        buildId: "wall-2door-600",
+        widthMm: TOO_NARROW_MM,
+        heightMm: 700,
+      },
     },
   ],
   createdAt: OCCURRED_AT,
@@ -100,7 +102,7 @@ function readFromHook<T>(useHook: () => T): T {
 /** The state a customer is in one press after clearing the only body on a wall: the opening it left
  *  selected, and nothing in the catalogue that fits it. */
 function stateOverTheEmptySpan(): ConfiguratorState {
-  const store = freshStore(ONE_WIDE_BODY);
+  const store = freshStore(ONE_NARROW_BODY);
   store.getState().select({ kind: "placement", id: "wide" });
   store.getState().remove();
   const state = store.getState();

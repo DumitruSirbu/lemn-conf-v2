@@ -1,6 +1,6 @@
 // Spaces cleared in a generated kitchen through the store's own path: `removePlacement`, then
-// `reconcileSuccessfulCommandResult`. Cleared neighbours become one space only while their total stays within the
-// 800 mm cap, wherever they stand in the run (see ADR 0046).
+// `reconcileSuccessfulCommandResult`. Cleared neighbours become one space whatever their total, wherever they
+// stand in the run (see 8U plan §5).
 import { describe, expect, it } from "vitest";
 
 import { reconcileSuccessfulCommandResult } from "../src/commands/reconcile-command-result.js";
@@ -91,8 +91,8 @@ describe("spaces cleared in a generated kitchen", () => {
     );
   });
 
-  // Characterises HEAD. 8U S4 owes the flip: one 1200 mm space at 1500-2700 (8U plan criterion 6).
-  it("8U flips this: clearing A|1.80 and A|2.40 at every level leaves two 600 mm spaces side by side", () => {
+  // The owner's case: see 8U plan criterion 6.
+  it("clearing A|1.80 and A|2.40 at every level leaves one 1200 mm space at 1500-2700 and moves no neighbour", () => {
     const generated = generatedKitchen(OWNERS_L_ROOM);
     const clearedKeys = [DRAWERS_COLUMN_KEY, HOB_COLUMN_KEY];
     for (const key of clearedKeys) {
@@ -101,24 +101,20 @@ describe("spaces cleared in a generated kitchen", () => {
 
     const cleared = clearColumns(generated, clearedKeys);
 
-    const drawersSpace = { startMm: 1500, endMm: 2100 };
-    const hobSpace = { startMm: 2100, endMm: 2700 };
+    const joinedSpace = { startMm: 1500, endMm: 2700 };
     const freeEnd = { startMm: 3600, endMm: 4100 };
-    expect(memberlessSpans(cleared, "A")).toEqual([
-      drawersSpace,
-      hobSpace,
-      freeEnd,
-    ]);
+    expect(memberlessSpans(cleared, "A")).toEqual([joinedSpace, freeEnd]);
     expect(levelOpeningsOnWall(cleared, "A")).toEqual(
-      [drawersSpace, hobSpace, freeEnd].flatMap((span) =>
+      [joinedSpace, freeEnd].flatMap((span) =>
         LEVEL_FLOORS_MM.map((floorMm) => ({ floorMm, ...span })),
       ),
     );
     expect(storedEmptySpans(cleared.design, "A")).toEqual([
-      drawersSpace,
-      hobSpace,
+      joinedSpace,
       freeEnd,
     ]);
+    expect(hasBodyEndingAt(cleared, "A", 1500)).toBe(true);
+    expect(hasBodyStartingAt(cleared, "A", 2700)).toBe(true);
     expect(cleared.design.placements).toEqual(
       standingAfterClear(generated, clearedKeys),
     );

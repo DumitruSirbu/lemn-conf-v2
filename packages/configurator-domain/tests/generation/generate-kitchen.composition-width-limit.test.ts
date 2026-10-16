@@ -1,7 +1,8 @@
 // Composition splits and merges member-less columns at its own width limit, never the editor's, and hands over a
-// design re-derived by the editor's rule (see ADR 0110 decision 2). The editor's limit is `module-grid.ts`'s
-// `MAX_EMPTY_COLUMN_WIDTH_MM`, switched by the getter below: 800 is today's editor, `Infinity` the uncapped one.
-// It starts uncapped, so a limit read once at module load is read in the uncapped world as well.
+// design re-derived by the editor's uncapped rule (see 8U plan §6.1). The getter below switches `module-grid.ts`'s
+// `MAX_EMPTY_COLUMN_WIDTH_MM`, which no longer bounds the editor's merge but still bounds the commands' own cuts and
+// the reconcile's split: 800 is today's tree, `Infinity` the tree once those cuts are retired (8U plan S5).
+// It starts at `Infinity`, so a limit read once at module load is read in that world as well.
 import { describe, expect, it, vi } from "vitest";
 
 import type { BodyProbeFactory } from "../../src/body-probe.js";
@@ -25,7 +26,7 @@ import {
 } from "../../src/void-engine.js";
 import { createFakeProbeFactory } from "../support/fake-probe.js";
 
-const editorLimit = vi.hoisted(() => ({
+const cutsLimit = vi.hoisted(() => ({
   widthMm: Number.POSITIVE_INFINITY,
 }));
 
@@ -33,15 +34,15 @@ vi.mock("../../src/module-grid.js", async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>();
   const switchable: Record<string, unknown> = { ...actual };
   Object.defineProperty(switchable, "MAX_EMPTY_COLUMN_WIDTH_MM", {
-    get: () => editorLimit.widthMm,
+    get: () => cutsLimit.widthMm,
     enumerable: true,
   });
   return switchable;
 });
 
 const OCCURRED_AT = "2026-10-16T12:00:00.000Z";
-const TODAYS_EDITOR_LIMIT_MM = 800;
-const UNCAPPED_EDITOR_LIMIT_MM = Number.POSITIVE_INFINITY;
+const TODAYS_CUT_MM = 800;
+const NO_CUT_MM = Number.POSITIVE_INFINITY;
 
 /** Each room is here for a site of composition's limit it reaches, pinned by `reaches` so the set cannot lose it. */
 const ROOMS: readonly {
@@ -90,8 +91,8 @@ describe("composition's width limit, whatever the editor's", () => {
   it.each(ROOMS)(
     "composes $name byte-identically, design and log, with the editor uncapped",
     ({ room, reaches }) => {
-      const todays = composedWithTheEditorAt(TODAYS_EDITOR_LIMIT_MM, room);
-      const uncapped = composedWithTheEditorAt(UNCAPPED_EDITOR_LIMIT_MM, room);
+      const todays = composedWithTheCutsAt(TODAYS_CUT_MM, room);
+      const uncapped = composedWithTheCutsAt(NO_CUT_MM, room);
 
       expect(reaches(todays)).toBe(true);
       expect(uncapped.result).toStrictEqual(todays.result);
@@ -101,10 +102,7 @@ describe("composition's width limit, whatever the editor's", () => {
   it.each(ROOMS)(
     "replays $name to the design it composed, with the editor uncapped",
     ({ room }) => {
-      const { result } = composedWithTheEditorAt(
-        UNCAPPED_EDITOR_LIMIT_MM,
-        room,
-      );
+      const { result } = composedWithTheCutsAt(NO_CUT_MM, room);
 
       const replayed = replayGenerationLog({
         log: result.log,
@@ -118,10 +116,7 @@ describe("composition's width limit, whatever the editor's", () => {
   it.each(ROOMS)(
     "delivers $name in the uncapped editor's canonical form: its own load gives back the stored map",
     ({ room }) => {
-      const { result } = composedWithTheEditorAt(
-        UNCAPPED_EDITOR_LIMIT_MM,
-        room,
-      );
+      const { result } = composedWithTheCutsAt(NO_CUT_MM, room);
 
       expect(storedMapAsTheEditorLoadsIt(result.design)).toStrictEqual(
         storedMapOf(result.design),
@@ -144,22 +139,23 @@ describe("the finishing step, given two member-less planned tiles side by side (
   const RIGHT_TILE = { startMm: 2100, endMm: 2700 };
   const BOTH_TILES = { startMm: 1500, endMm: 2700 };
 
-  it("keeps them two under today's editor limit", () => {
+  it("joins them into one 1200 mm column in the design generateKitchen returns, with the commands' cuts at 800", () => {
     const result = composedRefusing(
       REFUSED_BUILD_ID,
-      TODAYS_EDITOR_LIMIT_MM,
+      TODAYS_CUT_MM,
       ROOM_WITH_TWO_STORAGE_TILES,
     );
 
-    expect(memberlessSpansOn(result.design, "A")).toEqual(
-      expect.arrayContaining([LEFT_TILE, RIGHT_TILE]),
-    );
+    const spans = memberlessSpansOn(result.design, "A");
+    expect(spans).toContainEqual(BOTH_TILES);
+    expect(spans).not.toContainEqual(LEFT_TILE);
+    expect(spans).not.toContainEqual(RIGHT_TILE);
   });
 
   it("joins them into one 1200 mm column in the design generateKitchen returns, with the editor uncapped", () => {
     const result = composedRefusing(
       REFUSED_BUILD_ID,
-      UNCAPPED_EDITOR_LIMIT_MM,
+      NO_CUT_MM,
       ROOM_WITH_TWO_STORAGE_TILES,
     );
 
@@ -171,7 +167,7 @@ describe("the finishing step, given two member-less planned tiles side by side (
   it("joins them into one 1200 mm column in the design replayGenerationLog returns, with the editor uncapped", () => {
     const result = composedRefusing(
       REFUSED_BUILD_ID,
-      UNCAPPED_EDITOR_LIMIT_MM,
+      NO_CUT_MM,
       ROOM_WITH_TWO_STORAGE_TILES,
     );
 
@@ -186,20 +182,17 @@ describe("the finishing step, given two member-less planned tiles side by side (
   });
 });
 
-function composedWithTheEditorAt(
-  editorLimitMm: number,
-  room: DesignRoom,
-): Composed {
-  editorLimit.widthMm = editorLimitMm;
+function composedWithTheCutsAt(cutMm: number, room: DesignRoom): Composed {
+  cutsLimit.widthMm = cutMm;
   return { result: composedOrThrow(room, createFakeProbeFactory()) };
 }
 
 function composedRefusing(
   buildId: string,
-  editorLimitMm: number,
+  cutMm: number,
   room: DesignRoom,
 ): Composed["result"] {
-  editorLimit.widthMm = editorLimitMm;
+  cutsLimit.widthMm = cutMm;
   const result = composedOrThrow(room, probeRefusing(buildId));
   const refused = result.log.steps.filter(
     (step) => step.buildId === buildId && step.status === "not_placed",

@@ -757,9 +757,9 @@ describe("an oversized empty column, at version 1 and after it", () => {
     widthMm: 100,
   };
 
-  /** A stored share link holding a 900 mm column must still load: it is normalised before the validator sees
-   *  it, keeping every millimetre (2550–3450). */
-  it("loads a version 1 row's 900 mm entry as an 800 and a 100", () => {
+  /** A stored share link holding a 900 mm column must still load: the v1 arm stores it as two pieces, keeping
+   *  every millimetre (2550–3450), and the editor's uncapped merge at load derives them as one space again. */
+  it("stores a version 1 row's 900 mm entry as an 800 and a 100, and derives them as one 900 mm column", () => {
     const reloaded = migrateDesign(
       1,
       throughTheWire(withEmptyColumns([OVERSIZED])),
@@ -768,9 +768,9 @@ describe("an oversized empty column, at version 1 and after it", () => {
 
     expect(reloaded.emptyColumns).toStrictEqual([NEAR_PIECE, OVERFLOW_PIECE]);
     const columns = columnsOf(reloaded);
-    expect(columns.get("A|2.95")?.w).toBeCloseTo(0.8, 12);
-    expect(columns.get("A|3.40")?.w).toBeCloseTo(0.1, 12);
-    expect(columns.get("A|3.00")).toBeUndefined();
+    expect(columns.get("A|3.00")?.w).toBeCloseTo(0.9, 12);
+    expect(columns.get("A|2.95")).toBeUndefined();
+    expect(columns.get("A|3.40")).toBeUndefined();
   });
 
   /** Only version 1 owes the split: a version 2 document carries the same entry whole, and neither seam refuses
@@ -784,9 +784,9 @@ describe("an oversized empty column, at version 1 and after it", () => {
     ).toStrictEqual([OVERSIZED]);
   });
 
-  /** The 900 mm opening no catalogue body fills (`WIDTH_NOT_SUPPORTED`, widths top out at 800) becomes an
-   *  800 mm opening a `base-cabinet` is built into. */
-  it("publishes an opening the widest catalogue body now fits", () => {
+  /** Widths top out at 800, so the 900 mm opening takes a `base-cabinet` at its widest, flush left
+   *  (8U plan §5), rather than refusing it `WIDTH_NOT_SUPPORTED`. */
+  it("publishes one 900 mm opening that the widest catalogue body enters flush left", () => {
     const design = migrateDesign(
       1,
       throughTheWire(withEmptyColumns([OVERSIZED])),
@@ -795,7 +795,9 @@ describe("an oversized empty column, at version 1 and after it", () => {
     const columns = columnsOf(design);
     const records = derivePlacementRecords(design, CATALOG);
     const voids = recomputeVoids(records, columns);
-    const opening = voids.find((slot) => slot.col === "A|2.95");
+    const opening = voids.find(
+      (slot) => slot.col === "A|3.00" && slot.y0 === 0,
+    );
 
     const result = insertBody({
       design,
@@ -808,7 +810,12 @@ describe("an oversized empty column, at version 1 and after it", () => {
       occurredAt: NOW,
     });
 
-    expect(opening?.w).toBeCloseTo(0.8, 12);
+    expect(opening?.w).toBeCloseTo(0.9, 12);
     expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.design.placements.at(-1)).toMatchObject({
+      alongMm: 2950,
+      body: { widthMm: 800 },
+    });
   });
 });

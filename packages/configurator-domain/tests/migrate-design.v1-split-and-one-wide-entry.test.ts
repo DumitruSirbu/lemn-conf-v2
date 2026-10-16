@@ -94,14 +94,13 @@ describe("a 1600 mm entry stored at version 1 and at the current version", () =>
     expect(fromCurrent).toStrictEqual([WIDE_ENTRY]);
   });
 
-  // Expected failure until wave 8U S4 lifts the editor's merge limit: today the version 1 pieces stay 800 + 800.
-  // S4 owes the flip to `it` (docs/milestones/8U-merge-adjacent-empty-spaces.md §10 criterion 14).
-  it.fails(
-    "derives one map from both under the editor's own merge limit (S4 flips this)",
-    () => {
-      expect(recordedMapOf(load(1, STORED))).toStrictEqual(
-        recordedMapOf(load(CURRENT_SCHEMA_VERSION, STORED)),
-      );
-    },
-  );
+  // See 8U plan §10 criterion 14.
+  it("derives one map from both under the editor's own merge limit", () => {
+    const fromVersionOne = recordedMapOf(load(1, STORED));
+
+    expect(fromVersionOne).toStrictEqual([WIDE_ENTRY]);
+    expect(fromVersionOne).toStrictEqual(
+      recordedMapOf(load(CURRENT_SCHEMA_VERSION, STORED)),
+    );
+  });
 });

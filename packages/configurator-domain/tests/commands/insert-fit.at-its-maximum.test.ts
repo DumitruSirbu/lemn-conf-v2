@@ -518,23 +518,21 @@ describe("the insert leaves one member-less column on the body's right (8U item 
     ).toBe(true);
   });
 
-  // Owed by 8U S4/S5: the uncapped merge rejoins the pieces `splitColumn` cuts at 800 (S4), and S5 retires the cut.
-  it.fails(
-    "leaves one remainder column however wide the remainder (criterion 8; an expected failure until 8U S4)",
-    () => {
-      const start = openingWorld("floor-to-ceiling", 3000);
+  // Judged after the reconcile, whose uncapped merge rejoins the pieces `splitColumn` still cuts at 800 (see 8U
+  // plan §10 criterion 8).
+  it("leaves one remainder column however wide the remainder (criterion 8)", () => {
+    const start = openingWorld("floor-to-ceiling", 3000);
 
-      const after = insertAndReconcile(
-        start,
-        voidAtFloor(start, 0),
-        "base-cabinet",
-      );
+    const after = insertAndReconcile(
+      start,
+      voidAtFloor(start, 0),
+      "base-cabinet",
+    );
 
-      expect(memberlessExtents(after)).toStrictEqual([
-        { leftMm: 1800, rightMm: 4000 },
-      ]);
-    },
-  );
+    expect(memberlessExtents(after)).toStrictEqual([
+      { leftMm: 1800, rightMm: 4000 },
+    ]);
+  });
 });
 
 describe("the offer list for an opening wider than 800 mm (8U criterion 10)", () => {

@@ -30,10 +30,11 @@ const WALL_MEMBERS = ["p8", "p15"];
 const BASE_KEY = "A|2.00";
 const BASE_MEMBERS = ["p1", "p12", "p18"];
 
-/** `A|1.30`: the sink run, the only column wide enough to take a full-height body whose `widthFlex: "fit"`
- *  spans past its own column into `A|2.00`'s. */
+/** `A|1.30`: the sink run. Cleared with `A|2.00` it is one 1400 mm space, `A|1.60`, into which a full-height
+ *  `widthFlex: "fit"` body is built at its 800 maximum and leaves `A|2.00`'s 600 as the remainder. */
 const SINK_KEY = "A|1.30";
 const SINK_MEMBERS = ["p0", "p11", "p17"];
+const SINK_AND_NICHE_KEY = "A|1.60";
 
 const FRIDGE_MEMBERS = ["p7", "p24"];
 
@@ -214,13 +215,13 @@ describe("the surplus predicate's own boundary", () => {
 });
 
 describe("hasFullHeightUnder feeds both ceilings, and the asymmetry runs both ways", () => {
-  /** A `tall-pantry` inserted into the cleared sink run `A|1.30` (800 mm wide): it fills [900, 1700] and only ABUTS
-   *  the 600 mm dishwasher slot `A|2.00`, [1700, 2300]. */
+  /** A `tall-pantry` inserted into the space the cleared sink run and dishwasher niche leave (1400 mm): built at
+   *  its 800 maximum it fills [900, 1700] and only ABUTS the 600 mm remainder `A|2.00`, [1700, 2300]. */
   function withAPantryStandingOverTheDishwasherSlot(): Store {
     const store = removeAll(createStore(), [...SINK_MEMBERS, ...BASE_MEMBERS]);
     const opening = store
       .getState()
-      .voids.find((record) => record.id.startsWith(`${SINK_KEY}:`));
+      .voids.find((record) => record.id.startsWith(`${SINK_AND_NICHE_KEY}:`));
     if (!opening) throw new Error("no opening in the cleared sink run");
     store.getState().select({ kind: "void", id: opening.id });
     store.getState().insert("tall-pantry");
@@ -275,7 +276,7 @@ describe("hasFullHeightUnder feeds both ceilings, and the asymmetry runs both wa
   // both settings: the predicate is false, so the freeze-time ceiling is 400 and 620 is a surplus.
   it("keeps a legacy 620 at both settings when nothing full-height stands over it", () => {
     const atSevenHundred = setDepth(
-      removeAll(createStore(), [...SINK_MEMBERS, ...BASE_MEMBERS]),
+      removeAll(createStore(), BASE_MEMBERS),
       DEEPER_MM,
     );
     const legacy = asLegacyDocument(atSevenHundred, (entry) =>

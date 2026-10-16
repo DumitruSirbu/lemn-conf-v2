@@ -1,10 +1,8 @@
-// M5B wave 5B4b, store half — ADR 0046 part 2 at the seam that decides whether any of it is real.
+// ADR 0046 part 2, store half, at the seam that decides whether any of it is real.
 //
 // `resolveColumns` is where a command's map reaches the state, and the merge has to wrap **the whole
-// return value**: the run that makes a merge possible arrives on the `body_inserted` arm, as 5B4a's
-// split remainder. Merge only the non-effect branch and the freshly split column never meets the
-// cleared one beside it — with every domain test still green, which is why the headline route lives
-// here.
+// return value**, the `body_inserted` arm included: an insert's remainder wider than 800 mm arrives there cut at
+// 800, and only the merge on that arm makes it one space again (8U plan §10 criterion 8).
 //
 // It is also the only place criterion 11 can be asked: what `projectEmptyColumns` writes into the
 // document is decided by which map is canonical, and this wave's answer is the merged one.
@@ -29,12 +27,20 @@ const SINK_COLUMN_MEMBERS = ["p0", "p11", "p17"];
 const DISHWASHER_COLUMN_KEY = "A|2.00";
 const DISHWASHER_COLUMN_MEMBERS = ["p1", "p12", "p18"];
 
-/** Where the four taps land: a 600 mm dishwasher seated flush left at 900–1500 (5B4a), the 200 mm
- *  remainder it leaves at 1500–1700, and the 800 mm column that remainder and the cleared 600 become
- *  — exactly the cap, which is the boundary this route exists to exercise. */
+/** Where the headline route lands: a 600 mm dishwasher seated flush left at 900–1500 (5B4a), the 200 mm
+ *  remainder it leaves at 1500–1700, and the 800 mm column that remainder and the cleared 600 become. */
 const OCCUPIED_KEY = "A|1.20";
 const MERGED_KEY = "A|1.90";
 const MERGED_WIDTH_MM = 800;
+
+/** The sink and dishwasher columns cleared together: one space at 900–2300. */
+const JOINED_KEY = "A|1.60";
+
+/** The hob column beside them (2300–2900), so the three cleared leave 900–2900; an insert's 1400 remainder at
+ *  1500–2900 keys `A|2.20`, and its 800 mm cut piece would key `A|1.90`, where the cleared run's own key also is. */
+const HOB_COLUMN_MEMBERS = ["p2", "p13", "p19"];
+const CLEARED_RUN_KEY = "A|1.90";
+const REMAINDER_KEY = "A|2.20";
 
 function createStore(design: Design = KITCHEN_L_DESIGN) {
   return createConfiguratorStore({
@@ -52,10 +58,28 @@ function reload(store: Store): Store {
   return createStore(DesignSchema.parse(wire));
 }
 
-/** Both columns cleared: six taps, and no merge — 800 + 600 is 1400. */
+/** Both columns cleared: six taps, and one 1400 mm space at 900–2300. */
 function clearBothColumns(): Store {
-  const store = createStore();
-  for (const id of [...SINK_COLUMN_MEMBERS, ...DISHWASHER_COLUMN_MEMBERS]) {
+  return removeAll(createStore(), [
+    ...SINK_COLUMN_MEMBERS,
+    ...DISHWASHER_COLUMN_MEMBERS,
+  ]);
+}
+
+/** The headline route: the sink column cleared, a dishwasher into it (leaving the 200 mm remainder at 1500–1700),
+ *  then the dishwasher column beside it cleared. The dishwasher goes in first because the two cleared columns would
+ *  otherwise already be one 1400. */
+function remainderBesideAClearedColumn(): Store {
+  const store = fill(
+    removeAll(createStore(), SINK_COLUMN_MEMBERS),
+    SINK_COLUMN_KEY,
+    "base-dishwasher",
+  );
+  return removeAll(store, DISHWASHER_COLUMN_MEMBERS);
+}
+
+function removeAll(store: Store, ids: readonly string[]): Store {
+  for (const id of ids) {
     store.getState().select({ kind: "placement", id });
     store.getState().remove();
     if (store.getState().lastRejection) {
@@ -100,21 +124,26 @@ function widthMmOf(columns: ReadonlyMap<string, Column>, key: string): number {
 }
 
 describe("the store merges the columns a command leaves adjacent", () => {
-  // Criterion 13, at the store: ADR 0037's withdrawal scenario is **not** a merge under the cap, and
-  // asserting it as one would assert nothing about this wave's code. Remove the cap and these two
-  // become a 1400 mm column — the state the record was withdrawn over.
-  it("leaves the cleared 800 and 600 as two columns", () => {
-    const { columns } = clearBothColumns().getState();
+  // ADR 0037 was withdrawn because this 1400 mm space refused every `'fit'` cabinet. It is one column again
+  // (8U plan §5), and the assertion is the symptom gone: an 800 mm cabinet enters it.
+  it("joins the cleared 800 and 600 into one 1400 mm column that an 800 mm cabinet enters", () => {
+    const store = clearBothColumns();
 
-    expect(widthMmOf(columns, SINK_COLUMN_KEY)).toBe(800);
-    expect(widthMmOf(columns, DISHWASHER_COLUMN_KEY)).toBe(600);
+    const { columns } = store.getState();
+    expect(widthMmOf(columns, JOINED_KEY)).toBe(1400);
+    expect(columns.has(SINK_COLUMN_KEY)).toBe(false);
+    expect(columns.has(DISHWASHER_COLUMN_KEY)).toBe(false);
+
+    fill(store, JOINED_KEY, "base-cabinet");
+
+    expect(store.getState().design.placements.at(-1)?.body.widthMm).toBe(800);
   });
 
   // Criterion 12, the headline, end to end: the split remainder and the column beside it become one
   // 800 mm space, and **the assertion is a second insert succeeding at 800 mm** — never a void
   // merely existing, which is the state ADR 0037's withdrawal was about.
   it("turns a split remainder and its neighbour into one 800 mm column that takes a body", () => {
-    const store = fill(clearBothColumns(), SINK_COLUMN_KEY, "base-dishwasher");
+    const store = remainderBesideAClearedColumn();
 
     const { columns } = store.getState();
     expect(widthMmOf(columns, MERGED_KEY)).toBe(MERGED_WIDTH_MM);
@@ -127,13 +156,31 @@ describe("the store merges the columns a command leaves adjacent", () => {
       MERGED_WIDTH_MM,
     );
   });
+
+  // The `body_inserted` arm: a dishwasher into the 2000 mm the three cleared columns leave keeps 600 at 900–1500,
+  // and `splitColumn` cuts the 1400 remainder at 800. Merge every arm but this one and it stays 800 + 600.
+  it("rejoins the remainder an insert cuts at 800 mm into one 1400 mm column on the insert's own arm", () => {
+    const store = fill(
+      removeAll(createStore(), [
+        ...SINK_COLUMN_MEMBERS,
+        ...DISHWASHER_COLUMN_MEMBERS,
+        ...HOB_COLUMN_MEMBERS,
+      ]),
+      CLEARED_RUN_KEY,
+      "base-dishwasher",
+    );
+
+    const { columns } = store.getState();
+    expect(widthMmOf(columns, OCCUPIED_KEY)).toBe(600);
+    expect(widthMmOf(columns, REMAINDER_KEY)).toBe(1400);
+    expect(columns.has(CLEARED_RUN_KEY)).toBe(false);
+  });
 });
 
 describe("a delete that triggers a merge still selects the space it freed", () => {
   /** The seeded hob column: 600 mm at 2300–2900, three members, and the one column a delete can
    *  make mergeable in five taps. */
   const HOB_COLUMN_KEY = "A|2.60";
-  const HOB_COLUMN_MEMBERS = ["p2", "p13", "p19"];
 
   // §5.1's last step, and the criterion this wave shipped without. `findVacatedVoid` matched on the
   // removed body's own column key, and the merge **deletes that key**: clear the hob column, insert
@@ -167,7 +214,7 @@ describe("the document carries the merged column, and a reload rebuilds it", () 
   // so the document holds one entry for the merged column and none for its parts. Project from a
   // pre-merge map and this is two entries.
   it("records one empty column for the merged space and none for its parts", () => {
-    const store = fill(clearBothColumns(), SINK_COLUMN_KEY, "base-dishwasher");
+    const store = remainderBesideAClearedColumn();
 
     const spaces = store.getState().design.emptyColumns ?? [];
 
@@ -192,11 +239,7 @@ describe("the document carries the merged column, and a reload rebuilds it", () 
   // is a fixpoint, so a document written under this cap restores as the same column rather than as
   // something the load seam merges again into a different one.
   it("restores the merged column field for field", () => {
-    const session = fill(
-      clearBothColumns(),
-      SINK_COLUMN_KEY,
-      "base-dishwasher",
-    );
+    const session = remainderBesideAClearedColumn();
 
     const restored = reload(session);
 

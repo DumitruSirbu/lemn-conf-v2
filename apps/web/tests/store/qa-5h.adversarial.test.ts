@@ -362,13 +362,14 @@ describe("criterion 5H-3's sweep is total and its fixture is load-bearing", () =
 // The ordering the restore path depends on, and the half of it that is falsifiable
 // ---------------------------------------------------------------------------
 
-/** ADR 0046's four-tap merge route, replayed so a **load** has a merge to perform: clear the 800 mm
- *  sink column and the 600 mm dishwasher column beside it, then seat a 600 mm dishwasher flush left
- *  in the sink column. The 200 mm remainder and the cleared 600 become one 800 mm column at
- *  `A|1.90`, and the reload rebuilds it through `mergeAdjacentEmptyColumns` inside `deriveColumns`. */
+/** ADR 0046's merge route, replayed so a **load** has a merge to perform: clear the 800 mm sink column, seat a
+ *  600 mm dishwasher flush left in it, then clear the 600 mm dishwasher column beside it. The 200 mm remainder and
+ *  the cleared 600 become one 800 mm column at `A|1.90`, and the reload rebuilds it through
+ *  `mergeAdjacentEmptyColumns` inside `deriveColumns`. The dishwasher goes in first because the two cleared columns
+ *  would otherwise already be one 1400. */
 function mergedAtLoad(): Store {
   const store = createStore();
-  for (const id of ["p0", "p11", "p17", "p1", "p12", "p18"]) {
+  for (const id of ["p0", "p11", "p17"]) {
     removeById(store, id);
   }
   const opening = store
@@ -377,6 +378,9 @@ function mergedAtLoad(): Store {
   if (!opening) throw new Error("the cleared sink column published no opening");
   store.getState().select({ kind: "void", id: opening.id });
   store.getState().insert("base-dishwasher");
+  for (const id of ["p1", "p12", "p18"]) {
+    removeById(store, id);
+  }
   return store;
 }
 
@@ -424,7 +428,7 @@ describe("the merge and the full-height answer, and why their order is untestabl
   it("has no reachable merged column whose answer could differ from its parts", () => {
     const store = mergedAtLoad();
 
-    // Wall A, where the only reachable merge happens, carries no full-height body at all.
+    // Wall A carries no full-height body at all.
     expect(
       store
         .getState()

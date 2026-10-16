@@ -1,4 +1,5 @@
-// M5B wave 5B4b — ADR 0046 part 2: adjacent empty columns merge, capped at 800 mm.
+// ADR 0046 part 2: adjacent empty columns merge. The editor's merge is uncapped (8U plan §5); composition passes
+// its own 800 mm limit, so the capped cases are pinned at `COMPOSITION_WIDTH_LIMIT_MM`.
 //
 // Every fixture here goes in through the **load seam** (`deriveColumns` over a parsed document),
 // because that is where ADR 0044 lets a merge input be built at all: no sequence of commands on the
@@ -16,7 +17,7 @@ import {
   KITCHEN_L_BODY_CATALOG,
   KITCHEN_L_DESIGN,
 } from "../src/fixtures/kitchen-l-design.js";
-import { MAX_EMPTY_COLUMN_WIDTH_MM } from "../src/module-grid.js";
+import { COMPOSITION_WIDTH_LIMIT_MM } from "../src/generation/leftover-rule.js";
 import { toExactMillimetres } from "../src/millimetres.js";
 import { validateDesignForCatalog } from "../src/validate-design.js";
 import {
@@ -78,12 +79,14 @@ interface Loaded {
   readonly voids: readonly VoidRecord[];
 }
 
-function load(design: Design): Loaded {
+/** `mergeWidthLimitMm` omitted is the editor's load; composition's limit is passed to pin the capped scan. */
+function load(design: Design, mergeWidthLimitMm?: number): Loaded {
   const records = derivePlacementRecords(design, CATALOG);
   const columns = deriveColumns(
     records,
     { emptyColumns: design.emptyColumns },
     design.room,
+    mergeWidthLimitMm,
   );
   return { design, columns, records, voids: recomputeVoids(records, columns) };
 }
@@ -143,11 +146,23 @@ describe("adjacent empty columns merge into one", () => {
     });
   });
 
-  // Criterion 2, the owner's own example: *"a 600 and a 400 stay separate and each takes its own
-  // cabinet"*. Criterion 1 passes with the cap comparison deleted; this is the one that does not.
-  it("leaves a 600 and a 400 as two columns, because 1000 exceeds the cap", () => {
+  // A space has no width limit (8U plan §5): 800 mm caps the cabinet that goes in, not the space.
+  it("derives a 600 and a 400 at the load seam as one 1000 mm column", () => {
     const loaded = load(
       designWith([emptySpace(2000, 600), emptySpace(2500, 400)]),
+    );
+
+    expect(emptyExtentsOf(loaded)).toEqual({
+      "A|2.20": { centreMm: 2200, widthMm: 1000 },
+    });
+  });
+
+  // The owner's earlier example at the limit composition still merges at. Criterion 1 passes with the limit
+  // comparison deleted; this is the one that does not.
+  it("leaves a 600 and a 400 as two columns at composition's 800 mm limit, because 1000 exceeds it", () => {
+    const loaded = load(
+      designWith([emptySpace(2000, 600), emptySpace(2500, 400)]),
+      COMPOSITION_WIDTH_LIMIT_MM,
     );
 
     expect(emptyExtentsOf(loaded)).toEqual({
@@ -156,9 +171,7 @@ describe("adjacent empty columns merge into one", () => {
     });
   });
 
-  // Criterion 3. Positions, not a width multiset: scanning right to left gives a 300 and a 600 with
-  // the same two widths and the merged column on the wrong side of the run.
-  it("merges the left pair of three 300s, leaving the right one where it stood", () => {
+  it("derives three abutting 300s at the load seam as one 900 mm column over the whole run", () => {
     const loaded = load(
       designWith([
         emptySpace(2000, 300),
@@ -168,25 +181,58 @@ describe("adjacent empty columns merge into one", () => {
     );
 
     expect(emptyExtentsOf(loaded)).toEqual({
+      "A|2.30": { centreMm: 2300, widthMm: 900 },
+    });
+  });
+
+  // Positions, not a width multiset: scanning right to left gives a 300 and a 600 with the same two widths and
+  // the merged column on the wrong side of the run.
+  it("merges the left pair of three 300s at composition's 800 mm limit, leaving the right one where it stood", () => {
+    const loaded = load(
+      designWith([
+        emptySpace(2000, 300),
+        emptySpace(2300, 300),
+        emptySpace(2600, 300),
+      ]),
+      COMPOSITION_WIDTH_LIMIT_MM,
+    );
+
+    expect(emptyExtentsOf(loaded)).toEqual({
       "A|2.15": { centreMm: 2150, widthMm: 600 },
       "A|2.60": { centreMm: 2600, widthMm: 300 },
     });
   });
 
-  // Criterion 4. ADR 0046 rule 1: the capped merge is order-dependent by construction, `columns` is
-  // a `Map` iterating in insertion order, and a resize and a split both delete and re-add the keys
-  // they move. So the answer must be the *same* answer for every order the customer's commands could
-  // have produced — asserted over a shuffle, because one fixed order is green under a scan that
-  // iterates the map directly.
+  // ADR 0046 rule 1: `columns` is a `Map` iterating in insertion order, and a resize and a split both delete and
+  // re-add the keys they move, so the answer must be one answer for every order. Asserted over a shuffle, because
+  // one fixed order is green under a scan that iterates the map directly.
   propertyTest.prop([
     fc.shuffledSubarray(
       [emptySpace(2000, 300), emptySpace(2400, 500), emptySpace(2800, 300)],
       { minLength: 3, maxLength: 3 },
     ),
   ])(
-    "gives 300 + 500 + 300 one answer whatever order the map holds",
+    "gives 300 + 500 + 300 one 1100 mm column at the load seam whatever order the map holds",
     (spaces) => {
       const loaded = load(designWith(spaces));
+
+      expect(emptyExtentsOf(loaded)).toEqual({
+        "A|2.40": { centreMm: 2400, widthMm: 1100 },
+      });
+    },
+  );
+
+  // A finite limit makes the greedy scan order-dependent by construction (800 + 300 from the left, 300 + 800
+  // from the right), so this is the shuffle that the sort is there for.
+  propertyTest.prop([
+    fc.shuffledSubarray(
+      [emptySpace(2000, 300), emptySpace(2400, 500), emptySpace(2800, 300)],
+      { minLength: 3, maxLength: 3 },
+    ),
+  ])(
+    "gives 300 + 500 + 300 one answer at composition's 800 mm limit whatever order the map holds",
+    (spaces) => {
+      const loaded = load(designWith(spaces), COMPOSITION_WIDTH_LIMIT_MM);
 
       expect(emptyExtentsOf(loaded)).toEqual({
         "A|2.25": { centreMm: 2250, widthMm: 800 },
@@ -297,10 +343,9 @@ describe("a run may not merge across ground a body stands on", () => {
     });
   });
 
-  // The shipped kitchen's own corner, and the reason it is safe today is the **cap**, not the
-  // geometry: `A|0.30` (600) and `A|0.75` (300) abut at 600 mm, agree on floor, `top` and `d`, and
-  // sit over `p25`'s 900 mm corner base — but 900 exceeds the cap, so no scan reaches them. Written
-  // down because a later change to the cap makes this the first case to re-measure.
+  // The shipped kitchen's own corner: `A|0.30` (600) and `A|0.75` (300) abut at 600 mm, agree on floor, `top` and
+  // `d`, and sit over `p25`'s 900 mm corner base. Uncapped, their 0-900 span is the corner's own stretch of wall
+  // and keys `A|0.45`, the corner's column, so the key and same-stretch guards decline it (8U plan §4.1).
   it("leaves the seeded corner's two wall columns separate when both are cleared", () => {
     const cleared = removeAll(KITCHEN_L_DESIGN, ["p8", "p15", "p10", "p16"]);
     const frozen = deriveColumns(
@@ -491,19 +536,28 @@ describe("the seeded kitchen: ADR 0037's withdrawal scenario, and the route that
   const DISHWASHER_COLUMN_MEMBERS = ["p1", "p12", "p18"];
 
   function clearBothColumns(): Loaded {
-    const cleared = removeAll(KITCHEN_L_DESIGN, [
-      ...SINK_COLUMN_MEMBERS,
-      ...DISHWASHER_COLUMN_MEMBERS,
-    ]);
-    // ADR 0011 Gap D: a delete leaves the frozen extents alone, so the map is the one the design
-    // loaded with and the records are the ones that are left.
-    const frozen = deriveColumns(
-      derivePlacementRecords(KITCHEN_L_DESIGN, CATALOG),
-      {},
-      KITCHEN_L_DESIGN.room,
+    return clearColumns([...SINK_COLUMN_MEMBERS, ...DISHWASHER_COLUMN_MEMBERS]);
+  }
+
+  function clearColumns(ids: readonly string[]): Loaded {
+    const seeded = derivePlacementRecords(KITCHEN_L_DESIGN, CATALOG);
+    return removeFrom(
+      {
+        design: KITCHEN_L_DESIGN,
+        columns: deriveColumns(seeded, {}, KITCHEN_L_DESIGN.room),
+        records: seeded,
+        voids: [],
+      },
+      ids,
     );
+  }
+
+  // ADR 0011 Gap D: a delete leaves the frozen extents alone, so the map is the one the design held before the
+  // delete and the records are the ones that are left.
+  function removeFrom(loaded: Loaded, ids: readonly string[]): Loaded {
+    const cleared = removeAll(loaded.design, ids);
     const records = derivePlacementRecords(cleared, CATALOG);
-    const columns = mergeThenAnswer(frozen, records);
+    const columns = mergeThenAnswer(loaded.columns, records);
     return {
       design: cleared,
       columns,
@@ -512,32 +566,41 @@ describe("the seeded kitchen: ADR 0037's withdrawal scenario, and the route that
     };
   }
 
-  // Criterion 13, as an anti-invariant. 800 + 600 = 1400 exceeds the cap, so this wave's code does
-  // nothing here — which is the whole point: remove the cap and the merge restores exactly the state
-  // ADR 0037 was withdrawn over.
-  it("leaves A|1.30 and A|2.00 as two columns, because 1400 exceeds the cap", () => {
+  // ADR 0037 was withdrawn because the 1400 mm space this clear leaves refused every `'fit'` cabinet. The space
+  // is one column again (8U plan §5), and the symptom is gone: an 800 enters it flush left, one 600 beside it.
+  it("leaves A|1.30 and A|2.00 as one 1400 mm column that an 800 mm cabinet enters flush left", () => {
     const cleared = clearBothColumns();
 
-    expect(extentMmOf(columnAt(cleared, "A|1.30"))).toEqual({
-      centreMm: 1300,
-      widthMm: 800,
+    expect(extentMmOf(columnAt(cleared, "A|1.60"))).toEqual({
+      centreMm: 1600,
+      widthMm: 1400,
     });
-    expect(extentMmOf(columnAt(cleared, "A|2.00"))).toEqual({
-      centreMm: 2000,
-      widthMm: 600,
+    expect(cleared.columns.has("A|1.30")).toBe(false);
+    expect(cleared.columns.has("A|2.00")).toBe(false);
+
+    const filled = insertInto(cleared, "A|1.60", "base-cabinet");
+
+    expect(filled.design.placements.at(-1)).toMatchObject({
+      alongMm: 1300,
+      body: { widthMm: 800 },
     });
-    expect(800 + 600).toBeGreaterThan(MAX_EMPTY_COLUMN_WIDTH_MM);
+    expect(emptyExtentsOf(filled)).toMatchObject({
+      "A|2.00": { centreMm: 2000, widthMm: 600 },
+    });
   });
 
-  // Criterion 12's route, at the domain: a 600 mm dishwasher into the cleared 800 seats flush left
-  // and splits off a **200 mm** remainder at 1500–1700 (5B4a), which abuts the cleared 600 at
-  // 1700–2300 — and 200 + 600 is exactly the cap, so they become one 800 mm column that takes an
-  // 800 mm body. The plan named a 400 mm insert into `A|2.00`; no catalogue row builds at 400, and
-  // this is the same arithmetic through a body that exists.
+  // Criterion 12's route, at the domain: a 600 mm dishwasher into the cleared 800 seats flush left and splits off
+  // a **200 mm** remainder at 1500–1700 (5B4a). Clearing the 600 beside it afterwards joins the two into one
+  // 800 mm column that takes an 800 mm body. The dishwasher goes in first because the two cleared columns would
+  // otherwise already be one 1400.
   it("merges a split remainder with the column beside it, and the 800 takes a body", () => {
-    const cleared = clearBothColumns();
+    const sinkCleared = clearColumns(SINK_COLUMN_MEMBERS);
+    const withRemainder = insertInto(sinkCleared, "A|1.30", "base-dishwasher");
+    expect(emptyExtentsOf(withRemainder)).toMatchObject({
+      "A|1.60": { centreMm: 1600, widthMm: 200 },
+    });
 
-    const filled = insertInto(cleared, "A|1.30", "base-dishwasher");
+    const filled = removeFrom(withRemainder, DISHWASHER_COLUMN_MEMBERS);
 
     expect(extentMmOf(columnAt(filled, "A|1.90"))).toEqual({
       centreMm: 1900,
