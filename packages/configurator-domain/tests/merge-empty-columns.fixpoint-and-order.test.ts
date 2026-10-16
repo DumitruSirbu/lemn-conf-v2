@@ -216,6 +216,79 @@ describe.each(MONOTONE_CHAINS)(
   },
 );
 
+// The mirror of the depth chain, so the pins above cannot be encoding the scan direction: here the left pair is the
+// one that merges out of agreement (8U §12). R6: exact agreement turns every pin and the `it.fails` red.
+describe("the mirrored monotone chain, depths 580 / 600 / 620 (8U §6.3, R14)", () => {
+  const MIRRORED_CHAIN: Chain = {
+    name: "depths 580 / 600 / 620",
+    topsMm: [ROOM_HEIGHT_MM, ROOM_HEIGHT_MM, ROOM_HEIGHT_MM],
+    depthsMm: [580, 600, 620],
+  };
+  const MIRRORED_SPLIT_EDGE_MM = 2600;
+  const LEFT_PAIR_FIRST_ORDERS: readonly (readonly number[])[] = [
+    [0, 1, 2],
+    [1, 0, 2],
+  ];
+  const FAR_END_IN_TIME_ORDERS = CLEAR_ORDERS.filter(
+    (order) => !LEFT_PAIR_FIRST_ORDERS.some((other) => sameOrder(order, other)),
+  );
+
+  it.each(FAR_END_IN_TIME_ORDERS)(
+    "is one column over 1400-3200 at depth 580 when the bases are removed in the order %i, %i, %i",
+    (...order) => {
+      const cleared = clearedInOrder(MIRRORED_CHAIN, order);
+
+      expect(
+        memberlessSpaces(cleared.recordedColumns, cleared.records),
+      ).toEqual([oneColumnOver(MIRRORED_CHAIN)]);
+    },
+  );
+
+  it.each(LEFT_PAIR_FIRST_ORDERS)(
+    `${KNOWN_LIMIT}: is two columns, A|2.00 at 1400-2600 (d 580) and A|2.90 at 2600-3200 (d 620), when the left pair is cleared first, in the order %i, %i, %i`,
+    (...order) => {
+      const cleared = clearedInOrder(MIRRORED_CHAIN, order);
+
+      expect(
+        memberlessSpaces(cleared.recordedColumns, cleared.records),
+      ).toEqual([
+        {
+          key: "A|2.00",
+          wall: "A",
+          leftMm: CHAIN_LEFT_EDGE_MM,
+          rightMm: MIRRORED_SPLIT_EDGE_MM,
+          floorMm: 0,
+          topMm: ROOM_HEIGHT_MM,
+          depthMm: 580,
+        },
+        {
+          key: "A|2.90",
+          wall: "A",
+          leftMm: MIRRORED_SPLIT_EDGE_MM,
+          rightMm: CHAIN_RIGHT_EDGE_MM,
+          floorMm: 0,
+          topMm: ROOM_HEIGHT_MM,
+          depthMm: 620,
+        },
+      ]);
+    },
+  );
+
+  // Expected to fail while the limit stands, as the monotone chains' own `it.fails` above.
+  it.fails(
+    `${KNOWN_LIMIT}: the clear order decides the mirrored chain's map, so every-order equality fails`,
+    () => {
+      const [first, ...others] = CLEAR_ORDERS.map((order) =>
+        clearedInOrder(MIRRORED_CHAIN, order),
+      );
+
+      for (const other of others) {
+        expect(other.recordedColumns).toStrictEqual(first?.recordedColumns);
+      }
+    },
+  );
+});
+
 describe.each(CHAINS)(
   "the tolerance chain with $name, loaded as stored spaces (8U criterion 2, F4)",
   (chain) => {

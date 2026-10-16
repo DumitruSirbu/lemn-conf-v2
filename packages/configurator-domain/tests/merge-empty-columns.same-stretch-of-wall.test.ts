@@ -132,6 +132,15 @@ describe("8U criterion 1 (F2′): a run over a corner base's stretch of wall sta
       ],
     },
     {
+      name: "the L's corner, exactly (0-800 and 800-900 over 0-900; F4's F2 witness)",
+      room: L_ROOM,
+      cornerCentreMm: LOW_END_CORNER_CENTRE_MM,
+      strips: [
+        { startMm: 0, endMm: 800 },
+        { startMm: 800, endMm: 900 },
+      ],
+    },
+    {
       name: "the L's corner, 1 mm past both edges (1-901 over 0-900)",
       room: L_ROOM,
       cornerCentreMm: LOW_END_CORNER_CENTRE_MM,

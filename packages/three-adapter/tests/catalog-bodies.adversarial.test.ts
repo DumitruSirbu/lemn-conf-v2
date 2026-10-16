@@ -98,6 +98,18 @@ function refusesFitWidth(
   buildId: string,
   openingWidthMm: number,
 ): string | undefined {
+  const fit = evaluateFitWidth(buildId, openingWidthMm);
+  return fit.ok ? undefined : fit.detail.code;
+}
+
+/** The width §5.2 plans the entry at in a base opening of the given width; throws on a refusal. */
+function plannedFitWidthMm(buildId: string, openingWidthMm: number): number {
+  const fit = evaluateFitWidth(buildId, openingWidthMm);
+  if (!fit.ok) throw new Error(`${buildId} refused: ${fit.detail.code}`);
+  return Math.round(fit.plan.widthM * 1000);
+}
+
+function evaluateFitWidth(buildId: string, openingWidthMm: number) {
   const entry = INSERTABLE_ENTRIES.find(([id]) => id === buildId);
   if (!entry) throw new Error(`no catalogue entry for ${buildId}`);
   const body = toInsertableBody(entry[0], entry[1]);
@@ -125,13 +137,12 @@ function refusesFitWidth(
     regions: [[0, 0.86]],
     hasFullHeightUnder: true,
   };
-  const fit = evaluateInsertFit({
+  return evaluateInsertFit({
     body,
     opening,
     column,
     cabinetDepthMm: DEFAULT_CABINET_DEPTH_MM,
   });
-  return fit.ok ? undefined : fit.detail.code;
 }
 
 /**
@@ -329,7 +340,9 @@ describe("a width-flexible body builds at every width the engine will hand it", 
     expect(refusesFitWidth("base-sink", SINK_MIN_WIDTH_MM - 1)).toBe(
       "WIDTH_TOO_SMALL",
     );
-    expect(refusesFitWidth("base-sink", 801)).toBe("WIDTH_NOT_SUPPORTED");
+    // Past it, built at it (8U §5, criterion 8); an even opening, since an odd one plans a half-millimetre seat (8U §6.2).
+    expect(refusesFitWidth("base-sink", 850)).toBeUndefined();
+    expect(plannedFitWidthMm("base-sink", 850)).toBe(800);
   });
 });
 
