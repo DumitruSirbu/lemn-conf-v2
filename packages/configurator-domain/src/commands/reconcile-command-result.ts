@@ -38,7 +38,8 @@ export function reconcileSuccessfulCommandResult(input: {
   readonly result: CommandSuccess;
   readonly catalog: BodyCatalog;
   readonly previousRecordedColumns: ReadonlyMap<string, Column>;
-  /** The split's and the merge's limit; omitted, the editor's. Composition passes its own (ADR 0110 decision 2). */
+  /** The split's and the merge's limit. Omitted, each keeps the editor's own, which differ: the split cuts at
+   *  `MAX_EMPTY_COLUMN_WIDTH_MM` and the merge is uncapped. Composition passes one for both (ADR 0110 decision 2). */
   readonly emptyColumnWidthLimitMm?: number;
 }): ReconciledCommandResult {
   const records = derivePlacementRecords(input.result.design, input.catalog);
@@ -73,7 +74,8 @@ function movedColumns(
     : previousRecordedColumns;
 }
 
-/** The records a reconcile reads and the width its split and merge hold member-less columns to. */
+/** The records a reconcile reads and the width its split and merge hold member-less columns to; `undefined` leaves
+ *  each at its own default (the split at 800 mm, the merge uncapped). */
 interface ReconcileFunnel {
   readonly records: readonly PlacementRecord[];
   readonly widthLimitMm: number | undefined;

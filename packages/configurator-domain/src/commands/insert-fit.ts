@@ -300,7 +300,7 @@ function resolveWidth(input: InsertFitInput): WidthResolution {
  *
  *  The floors have already run and must stay first, so `base-sink` in a 400 mm opening names the
  *  560 mm its worktop needs (ADR 0017) rather than a size list. No tolerance: an opening at or under
- *  the maximum is built to exactly, and one in a gap between ranges refuses as before. */
+ *  the maximum is built to exactly, and one in a gap between ranges refuses. */
 function resolveFitWidth(
   input: InsertFitInput,
   availableMm: number,
@@ -309,7 +309,7 @@ function resolveFitWidth(
   if (acceptsWidthMm(body, availableMm)) return { ok: true, widthM: opening.w };
   const widestMm = widestBuildableWidthMm(body);
   // Only where the column can be divided: elsewhere the body would be centred between two slivers
-  // that never rejoin (ADR 0046 part 1), so the over-wide opening still refuses.
+  // that never rejoin (ADR 0046 part 1), so there the over-wide opening refuses.
   if (
     widestMm !== undefined &&
     availableMm > widestMm &&

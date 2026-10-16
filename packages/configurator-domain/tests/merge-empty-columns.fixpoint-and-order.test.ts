@@ -15,13 +15,7 @@
 // What this adds: `merge-empty-columns.test.ts` checks a fixpoint on three 300s and 300 + 500 + 300, whose members
 // agree exactly, so no envelope ever narrows there.
 //
-// R6, each run through a mocked copy of the merge (src untouched): a single merge pass with no fixpoint loop turns the
-// 2.56 / 2.60 / 2.58 chain red in four of the six clear orders (0,1,2; 0,2,1; 1,0,2; 2,0,1), in the every-order
-// equality and in "one pass equals two"; the envelope taking the highest top turns the envelope pin red; the template
-// taking the rightmost of equal depths turns the template pin red. Writing merged columns into the map in another
-// order, extents unchanged, keeps all of it green. S4b's sabotage of `merge-empty-columns.ts` (each reverted): halving
-// the tolerance turns the criterion 5 property red; exact agreement turns the known-limit pins and `it.fails` red;
-// dropping `planOneWall`'s sort turns the property red.
+// R6: a single pass with no fixpoint loop turns the bridged chain red; exact agreement turns the known-limit pins red.
 import { fc, test as propertyTest } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 

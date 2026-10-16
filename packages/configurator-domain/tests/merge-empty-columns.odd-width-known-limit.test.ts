@@ -2,11 +2,7 @@
 // edges). The merge never makes one out of even spaces and never rounds; the insert refuses a half-mm seat. The offer
 // list still lists the rows it refuses there, a known limit pinned below as an `it.fails` that clears with the fix.
 //
-// R6, each through a mocked copy of src: dropping the merge's half-millimetre guard turns the pair and the four red;
-// a block that is not retried one column shorter turns the four red; the editor capped at 800 turns the three red;
-// rounding the seat in `insertBody` and allowing fractional parts in `splitColumn` turns the refusal pin red (either
-// alone is caught by the other); moving the seat's guard into `evaluateInsertFit` (the recorded remedy) turns every
-// `it.fails` red and leaves the refusal pin green. No merge mutant reaches the lone 401: a block needs two members.
+// R6: `landsOnWholeMillimetres` always true turns the merge cases red; the recorded remedy turns every `it.fails` red.
 import { describe, expect, it } from "vitest";
 
 import { listInsertableBodies } from "../src/catalog.js";

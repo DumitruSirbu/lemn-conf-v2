@@ -6,8 +6,7 @@
 // whole-millimetre edge, so no odd total exists here. ADR 0122's asymmetric guard is pinned by its own tap
 // enumeration in `qa-w5c.enumeration.test.ts`, which this leaves untouched.
 //
-// R6, through mocked copies of src: the editor's merge capped at 800 turns the shrink arm red at totals over 800; a
-// growth that spends 50 mm more than it takes turns the growth arm red; accepting any width turns the ceiling red.
+// R6: the merge capped at 800 turns the shrink arm red; a growth spending more than it takes turns the growth arm red.
 import { fc } from "@fast-check/vitest";
 import { describe, expect, it } from "vitest";
 

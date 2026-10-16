@@ -2,8 +2,7 @@
 // published when the wall is shortened, and recorded whole, so a command at the short wall stores it untruncated and
 // restoring the wall publishes it as it was.
 //
-// R6, through a mocked copy of the reconcile: projecting the published face into the document instead of the
-// recorded one stores 1500 mm and turns the round trip red.
+// R6: projecting the published face into the document instead of the recorded one turns the round trip red.
 import { describe, expect, it } from "vitest";
 
 import { reconcileSuccessfulCommandResult } from "../src/commands/reconcile-command-result.js";

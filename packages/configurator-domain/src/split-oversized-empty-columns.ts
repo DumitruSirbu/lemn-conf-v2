@@ -28,10 +28,10 @@ import type { ColumnExtent, PlacementRecord } from "./void-engine.js";
 
 /** Every member-less column of the map held to `widthLimitMm` (omitted, ADR 0052's ceiling), other keys
  *  untouched. "Member-less" is the merge's predicate (ADR 0046): no record is filed under the key at any
- *  level; an occupied column is never split. Cut left to right from the column's own left edge: a map has no "near" side, only the
- *  command that produced it does, and a resize or insert cuts its own span before this sees it. The input
- *  map is returned by identity when nothing is oversized. `hasFullHeightUnder` is not answered here, as the
- *  merge does not: the caller runs `withCurrentFullHeightMembers` over the result. */
+ *  level; an occupied column is never split. Cut left to right from the column's own left edge: a map has
+ *  no "near" side, only the command that produced it does, and a resize or insert cuts its own span before
+ *  this sees it. The input map is returned by identity when nothing is oversized. `hasFullHeightUnder` is
+ *  not answered here, as the merge does not: the caller runs `withCurrentFullHeightMembers` over the result. */
 export function splitOversizedEmptyColumns(
   columns: ReadonlyMap<string, ColumnExtent>,
   records: readonly PlacementRecord[],

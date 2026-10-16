@@ -511,7 +511,8 @@ export function deriveRecordedColumns(
   roomWidthM: number,
   mergeWidthLimitMm?: number,
 ): ReadonlyMap<string, Column> {
-  // A sibling pipeline, not `deriveColumns` with the clip moved: the merge caps at 800 mm (ADR 0052), so order matters.
+  // A sibling pipeline, not `deriveColumns` with the clip moved: the clip drops and narrows columns, changing the
+  // centres, widths and envelope the merge reads, so merging before clipping keys and tops the run differently.
   return withCurrentFullHeightMembers(
     mergeAdjacentEmptyColumns(
       restoredColumns(records, stored, roomWidthM),

@@ -14,10 +14,10 @@ export interface SpanPieceMm {
 
 /**
  * The span from `nearEdgeMm` to `farEdgeMm`, cut into pieces none of which exceeds `widthLimitMm`
- * (omitted, `MAX_EMPTY_COLUMN_WIDTH_MM`; composition's shell passes its own). The near end fills first and the overflow lands beyond it (ADR 0052): for a
- * shrink the near end is the edge facing the run just resized, so the space opened is against the cabinets
- * that opened it; for the v1 normalisation it is the entry's left edge. Deterministic either way: one
- * design, one picture.
+ * (omitted, `MAX_EMPTY_COLUMN_WIDTH_MM`; composition's shell passes its own). The near end fills first and
+ * the overflow lands beyond it (ADR 0052): for a shrink the near end is the edge facing the run just
+ * resized, so the space opened is against the cabinets that opened it; for the v1 normalisation it is the
+ * entry's left edge. Deterministic either way: one design, one picture.
  *
  * `farEdgeMm` may lie on either side of `nearEdgeMm`; a caller filling leftwards passes them in that order
  * rather than negating anything. Total width is conserved exactly: the outermost two edges are the ones

@@ -2,8 +2,7 @@
 // remainder after the reconcile for `'fit'` rows only. A fixed-set row (dishwasher, bottle cargo, oven tower, fridge
 // housing, free fridge) sits flush left, and the rest of a 1200 mm opening is one space.
 //
-// R6, through mocked copies of src: a seat always centred in its opening turns every row red; the editor's merge
-// capped at 800 leaves the command's own cut in place, so bottle cargo's 900 mm remainder is two spaces and red.
+// R6: a seat centred in its opening turns every row red; the merge capped at 800 turns bottle cargo's red.
 import { describe, expect, it } from "vitest";
 
 import { listInsertableBodies } from "../../src/catalog.js";

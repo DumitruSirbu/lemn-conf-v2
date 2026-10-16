@@ -22,16 +22,16 @@ export const LEVELS: readonly (readonly [number, number])[] = [
  *  are on the same row when their floors, tops and depths agree this closely (ADR 0046 rule 2). */
 export const LEVEL_SNAP_M = 0.02;
 
-/** ADR 0052's 800 mm cut on an empty column. It no longer bounds the editor's merge, which is uncapped
- *  (8U plan §5), nor composition's, which reads the catalogue's ceiling. Until 8U S5 retires the cuts it
- *  still bounds the width a shrink hands back, an insert's remainder, the reconcile's split and the v1
- *  arm; in the editor the merge after them rejoins the pieces, so a 1000 mm gap shows as one space.
+/** ADR 0052's 800 mm cut on an empty column: it bounds the width a shrink hands back, an insert's remainder,
+ *  the reconcile's split and the v1 arm. It does not bound the editor's merge, which is uncapped (8U plan
+ *  §5), nor composition's, which reads the catalogue's ceiling; in the editor the merge after the cuts
+ *  rejoins the pieces, so a 1000 mm gap shows as one space.
  *
  *  Equal to `CABINETRY_MAX_WIDTH_MM` (§7's widest cabinet) so anything the customer can be left with is
  *  something the catalogue can fill, but a separate constant because a separate rule; a test asserts this
  *  is at most that, since importing the catalogue here would close the cycle the file head describes. Here
- *  because it has readers across several layers (the merge, the width command, the document validator, the
- *  v1 migration) and the leaf is the one module all of them may import. */
+ *  because it has readers across several layers (the split, the width command, the v1 migration) and the
+ *  leaf is the one module all of them may import. */
 export const MAX_EMPTY_COLUMN_WIDTH_MM = 800;
 
 /** The along-wall granularity of a column key: `deriveColumnKeyAt` renders metres with `toFixed(2)`, so

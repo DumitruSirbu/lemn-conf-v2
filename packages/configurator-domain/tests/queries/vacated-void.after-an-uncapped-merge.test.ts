@@ -2,8 +2,7 @@
 // the key the body was filed under no longer exists. The tap across the merged box is
 // `packages/three-adapter/tests/picking.merged-void.test.ts`.
 //
-// R6, through mocked copies of src: `findVacatedVoid` without its geometric fallback selects nothing; the editor's
-// merge capped at 800 keeps the body's own column, so the vacated key survives and the test is red.
+// R6: `findVacatedVoid` without its geometric fallback, or the merge capped at 800, turns it red.
 import { describe, expect, it } from "vitest";
 
 import { reconcileSuccessfulCommandResult } from "../../src/commands/reconcile-command-result.js";

@@ -1,8 +1,7 @@
 // 8U criterion 12, the tap: a 600 and an 800 mm space merged into one 1400 mm column answer one void id per level
 // wherever the box is tapped, the former seam included, and a cabinet behind the box still wins (§11 row 22).
 //
-// R6: the domain build's merge capped at 800 turns the first case red (six level voids, not three); `pick` asking the
-// voids first turns the solids case red.
+// R6: the domain's merge capped at 800 turns the first case red; `pick` asking voids first turns the solids case red.
 import {
   deriveColumns,
   DesignSchema,

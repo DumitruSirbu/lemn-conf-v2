@@ -2,11 +2,7 @@
 // occupied or disagrees, so only these can fail for the reason each title names. The uncapped merge must still
 // leave apart a column a body stands in, a pair that disagrees by more than 20 mm, and spans on two walls.
 //
-// R6, each through a mocked copy of the merge (src untouched): 7(a) goes red only with both the occupied filter and
-// `standsIn` dropped, since each alone is caught by the other; each 7(b) dimension goes red only when its own
-// agreement test is dropped; 7(c) goes red when the walls are scanned as one, or when wall B is unfolded onto wall
-// A's axis at the corner; the key-only pin goes red with `isKeyTaken` dropped. Writing merged columns in another map
-// order keeps all of it green.
+// R6: each 7(b) dimension goes red with its agreement test dropped; 7(a) with the occupied filter and both `standsIn`s.
 import { describe, expect, it } from "vitest";
 
 import { reconcileSuccessfulCommandResult } from "../src/commands/reconcile-command-result.js";

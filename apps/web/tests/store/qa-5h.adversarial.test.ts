@@ -367,6 +367,37 @@ describe("criterion 5H-3's sweep is total and its fixture is load-bearing", () =
  *  the cleared 600 become one 800 mm column at `A|1.90`, and the reload rebuilds it through
  *  `mergeAdjacentEmptyColumns` inside `deriveColumns`. The dishwasher goes in first because the two cleared columns
  *  would otherwise already be one 1400. */
+/** `EMPTY_COLUMN_OVERLAPS_PLACEMENT`'s predicate: positive length along the wall and up it, never a shared edge. */
+function overlapsByLength(column: Column, record: PlacementRecord): boolean {
+  if (column.wall !== record.wall) return false;
+  const alongOf = (position: { x: number; z: number }) =>
+    column.wall === "A" ? position.x : position.z;
+  const floorM = Math.min(...column.regions.map(([startM]) => startM));
+  return (
+    overlapM(
+      [alongOf(column) - column.w / 2, alongOf(column) + column.w / 2],
+      [
+        alongOf(record.frame) - record.frame.w / 2,
+        alongOf(record.frame) + record.frame.w / 2,
+      ],
+    ) > OVERLAP_NOISE_M &&
+    overlapM(
+      [floorM, column.top],
+      [record.frame.y0, record.frame.y0 + record.frame.h],
+    ) > OVERLAP_NOISE_M
+  );
+}
+
+function overlapM(
+  [firstLowM, firstHighM]: readonly [number, number],
+  [secondLowM, secondHighM]: readonly [number, number],
+): number {
+  return Math.min(firstHighM, secondHighM) - Math.max(firstLowM, secondLowM);
+}
+
+/** Below a millimetre and above metre-subtraction noise. */
+const OVERLAP_NOISE_M = 1e-9;
+
 function mergedAtLoad(): Store {
   const store = createStore();
   for (const id of ["p0", "p11", "p17"]) {
@@ -416,40 +447,37 @@ describe("the merge and the full-height answer, and why their order is untestabl
   /**
    * **The other half is currently unfalsifiable, and is recorded rather than asserted.** The
    * ordering would also matter if a merged column's own answer differed from its parts' — merging
-   * widens a column, and `isFullHeightUnder` is a geometric along-wall overlap over that width. No
-   * document reaches that state: wall A carries no `band: "column"` body at all, and on wall B the
-   * tall runs partition the wall, so every member-less key there merely touches its tall neighbours
-   * at their edges (`overlapsAlongWall` requires positive overlap). A hand-built entry that did
-   * overlap one is refused by `EMPTY_COLUMN_OVERLAPS_PLACEMENT`.
+   * widens a column, and `isFullHeightUnder` is a geometric along-wall overlap over that width. That
+   * needs a member-less column over a full-height body, and no member-less column overlaps any
+   * placement by positive length: the load refuses a stored one (`EMPTY_COLUMN_OVERLAPS_PLACEMENT`)
+   * and the merge declines one (`standsIn`).
    *
-   * Asserted as the reason rather than as the case, so a later wave that puts a tall body on wall A
-   * — or lifts the overlap refusal — finds this red and writes the missing test.
+   * Asserted as the reason rather than as the case, so a later wave that lifts either finds this red
+   * and writes the missing test.
    */
   it("has no reachable merged column whose answer could differ from its parts", () => {
-    const store = mergedAtLoad();
-
-    // Wall A carries no full-height body at all.
-    expect(
-      store
-        .getState()
-        .records.filter((record) => record.band === "column")
-        .map((record) => record.wall),
-    ).not.toContain("A");
-    // Wall B does, and every one of its true answers is a column holding its **own** tall member —
-    // never a merged space, because a key with a tall member is not member-less and the tall runs
-    // only touch their neighbours at the edges.
-    const reloaded = reload(store);
-    expect(reloaded.getState().columns.get("A|1.90")?.hasFullHeightUnder).toBe(
-      false,
+    const { columns, records } = reload(mergedAtLoad()).getState();
+    const occupied = new Set(records.map((record) => record.col));
+    const memberless = [...columns.values()].filter(
+      (column) => !occupied.has(column.key),
     );
-    for (const column of reloaded.getState().columns.values()) {
+
+    expect(
+      memberless.flatMap((column) =>
+        records
+          .filter((record) => overlapsByLength(column, record))
+          .map((record) => `${column.key} over ${record.id}`),
+      ),
+    ).toEqual([]);
+    expect(memberless.map((column) => column.key)).toContain("A|1.90");
+    // The consequence: every true answer is a column holding its own full-height member, never a merged space.
+    expect(columns.get("A|1.90")?.hasFullHeightUnder).toBe(false);
+    for (const column of columns.values()) {
       if (!column.hasFullHeightUnder) continue;
       expect(
-        reloaded
-          .getState()
-          .records.some(
-            (record) => record.col === column.key && record.band === "column",
-          ),
+        records.some(
+          (record) => record.col === column.key && record.band === "column",
+        ),
       ).toBe(true);
     }
   });
