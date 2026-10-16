@@ -169,6 +169,88 @@ then production**, every step on one database before the next.
   restore of `designs` does not bring them back. The log line is the other copy of each report on a host that keeps logs.
   How to read the rows: [reading-csp-reports.md](reading-csp-reports.md).
 
+## For `0010_create_contact_submission_views.sql` (wave 8V, added 2026-10-17)
+
+The steps above stand; the table is `contact_submission_views`, the version is **10**. It holds one row per view-only
+link in the shop's notice: the token's hash, the request it was minted for, and a copy of the kitchen as sent. Nothing in
+it is personal. The decision and its reasons: the 8V plan, `docs/milestones/8V-done-page-link-and-shop-email.md`, D3 and
+D6 (its decision record is ADR 0165 once the scribe creates it). These steps were written by the S1 developer and have
+**not been executed anywhere**. **Order of environments: preview first, then production**, every step on one database
+before the next.
+
+**Unlike `0009`, the order against the code matters.** When a token names no share link, the share page's second lookup
+reads this table. So if the code ships before the migration and the grant, **every unknown or revoked share token
+answers 500** instead of the not-found page. The order is the migration, then the grant, then the code. The shop's
+notice is unaffected: without the table it says the link is unavailable and is still sent.
+
+- **Step 1:** `pnpm --filter @lemnaria/persistence run migrate <environment>`, then
+  `pnpm --filter @lemnaria/persistence run migrate:status <environment>`. The ledger reads **10** (1 to 9 before). For
+  preview, pass `PREVIEW_OWNER_DATABASE_URL` as `MIGRATION_DATABASE_URL` for that one invocation, with the label
+  `preview` ([environments-and-resources.md](../best-practices/environments-and-resources.md)).
+- **Step 2, for `0010`:** `create table if not exists` passes over an older table of the same name, so confirm the table
+  is the one `0010` describes. Run these read-only, in the database console, with the migration credential:
+
+  ```sql
+  -- Expect 6.
+  select count(*) as columns
+  from information_schema.columns
+  where table_schema = 'public' and table_name = 'contact_submission_views';
+
+  -- Expect c = 2, f = 1, p = 1.
+  select contype, count(*) as constraints
+  from pg_constraint
+  where conrelid = 'public.contact_submission_views'::regclass and contype in ('c', 'f', 'p')
+  group by contype order by contype;
+
+  -- Expect one row: contact_submissions, c (on delete cascade).
+  select confrelid::regclass::text as referenced, confdeltype
+  from pg_constraint
+  where conrelid = 'public.contact_submission_views'::regclass and contype = 'f';
+  ```
+
+  That is **6 columns and 4 constraints**: the primary key on `token_hash`, the checks
+  `contact_submission_views_token_hash_is_sha256` and `contact_submission_views_design_document_is_an_object`, and the
+  cascading reference to `contact_submissions (client_request_id)`. Any other answer means stop and report.
+- **Before step 4, on each database, read `pg_default_acl`** with the query in the `0009` section. Any row that would
+  reach `contact_submission_views` for `app_designs` or `PUBLIC` means stop and report, as in step 3.
+- **Step 3:** run this before the grant, with the table present. In the privilege test, the `contact_submission_views`
+  tests for the exact grant, the planning and the reference probe must be **red with nothing held**, not skipped. A
+  skip, *"does not exist yet on this database"*, means `0010` is not on the database reached.
+- **Step 4: issue exactly this one statement, preview first:**
+
+  ```sql
+  GRANT INSERT, SELECT ON TABLE public.contact_submission_views TO app_designs;
+  ```
+
+  Do not grant `UPDATE`, `DELETE`, `TRUNCATE`, `REFERENCES`, `TRIGGER` or `ALL`. Do not add `WITH GRANT OPTION`. Grant
+  nothing to `PUBLIC` and nothing on `ALL TABLES IN SCHEMA`.
+
+  **Nothing on `contact_submissions` changes:** its three statements from `0008` stand as they are. The reference's
+  check needs no new grant there. The application role already reads `client_request_id`. PostgreSQL runs that check
+  as the table's owner [inf, from PostgreSQL's referential-integrity implementation; not measured here]. Step 7's
+  probe shows that the grants as issued are enough. It cannot show that a grant is unneeded.
+- **Steps 5 to 7, as `app_designs` on each database.** Run the privilege test file with `DATABASE_URL` set to that
+  environment's application-role URL, for that one invocation. Use the command in the `0009` section. Quote the run's
+  own line `reached database "…" as role "…"` with the outcome, for preview and again for production.
+
+  The four `contact_submission_views` tests must have **run, not skipped**:
+  - *Holds exactly the grant:* `INSERT, SELECT`, no column `UPDATE` or `REFERENCES`, nothing with grant option.
+  - *Nothing through `PUBLIC`.*
+  - *The planning test.* **Positive:** `explain` of the repository's two statements, the record and the load, is
+    planned without error. **Negative control:** `explain delete from …` and `explain update … set revoked_at = now()`
+    are each refused with SQLSTATE **`42501`**.
+  - *The reference probe.* The test first confirms from the catalog that the cascading reference exists. Then it sends
+    one insert naming a request id that `contact_submissions`' own check forbids, so it can store nothing. The insert
+    must be refused with **`23503`** (the reference), not **`42501`** (privilege).
+
+  The `contact_submissions` grant test must still be green. It shows the role still cannot read any personal column
+  (8V criterion 13).
+- **Step 8:** `designs` is unchanged. On production, read it with `has_table_privilege`, not by attempting a delete.
+
+**The test database.** The live persistence suite applies `0010` to the test database on its next run, as it does
+every migration: each live file's `beforeAll` runs the migrations with that database's owner credential, and CI's
+persistence leg does the same. No grant is needed there.
+
 ## Why step 5 names the application role
 
 The file is safe on any credential (criterion 13): it refuses to run past its guard as an owner. It is also only

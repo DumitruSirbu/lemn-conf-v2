@@ -39,6 +39,22 @@ export type {
   ShareLinkStatus,
   ShareLinkStatusOutcome,
 } from "./share-link-repository.js";
+export {
+  NeonSentKitchenViewRepository,
+  SentKitchenViewRepositoryError,
+} from "./sent-kitchen-view-repository.js";
+export type {
+  SentKitchenViewLookup,
+  SentKitchenViewOperation,
+  SentKitchenViewRecording,
+  SentKitchenViewRepository,
+  SentKitchenViewToRecord,
+} from "./sent-kitchen-view-repository.js";
+export { FakeSentKitchenViewRepository } from "./fake-sent-kitchen-view-repository.js";
+export type {
+  FakeSentKitchenViewRepositoryOptions,
+  HeldSentKitchenView,
+} from "./fake-sent-kitchen-view-repository.js";
 export { NeonRateLimitStore } from "./neon-rate-limit-store.js";
 export {
   RateLimitStoreError,

@@ -1,3 +1,4 @@
+import { CURRENT_SCHEMA_VERSION } from "@lemnaria/configurator-domain";
 import { neon } from "@neondatabase/serverless";
 import type { NeonQueryFunction } from "@neondatabase/serverless";
 import { describe, expect, it } from "vitest";
@@ -22,6 +23,10 @@ import {
   withNumberedPlaceholders,
 } from "./support/csp-report-statement.js";
 import {
+  LOAD_VIEW_STATEMENT_TEXT,
+  RECORD_VIEW_STATEMENT_TEXT,
+} from "./support/sent-kitchen-view-statements.js";
+import {
   TABLE_PRIVILEGES_EVERY_SERVER_KNOWS,
   privilegesHeldOn,
   privilegesHeldWithGrantOption,
@@ -39,15 +44,16 @@ import {
  * connection is shown to be no superuser, to inherit no role and not to own `designs`; if that cannot be shown, every
  * test fails with what was found and nothing more is sent. A statement that would destroy or create something if it
  * were allowed (`truncate`, `drop table`, `create table`) is never sent: what it proved is read from the catalog. The
- * only statements sent besides reads are two deletes of a row that does not exist, and only after the catalog has
- * said the role may not delete from that table.
+ * only statements sent besides reads are deletes of a row that does not exist, only after the catalog has said the
+ * role may not delete from that table, and one insert into `contact_submission_views` naming a request id that
+ * `contact_submissions`' own check forbids, so the reference refuses it and it can store nothing.
  */
 const hasLiveDatabase = Boolean(process.env["DATABASE_URL"]);
 if (!hasLiveDatabase) {
   console.warn(
     "[live-suite skipped] the application's database role, the csp_reports and csp_report_cursor grant checks " +
-      "included (8Q2 criterion 7): DATABASE_URL, which these checks need to be the application role's connection, " +
-      "is not set. Nothing here was asserted.",
+      "(8Q2 criterion 7) and the contact_submission_views grant checks (8V criterion 13) included: DATABASE_URL, " +
+      "which these checks need to be the application role's connection, is not set. Nothing here was asserted.",
   );
 }
 
@@ -186,6 +192,37 @@ async function skipUnlessTheCspTablesExist(
   context.skip(
     probe?.cursor_exists !== true,
     `${CSP_REPORT_CURSOR} does not exist yet on this database`,
+  );
+}
+
+const CONTACT_SUBMISSION_VIEWS = "public.contact_submission_views";
+/** The grant of the 8V plan's D3: `record` inserts and reads back, `load` reads, and nothing revokes or deletes. */
+const CONTACT_SUBMISSION_VIEWS_PRIVILEGES = ["INSERT", "SELECT"];
+/** The server's code for a row whose reference names no row of the referenced table. */
+const FOREIGN_KEY_VIOLATION = "23503";
+
+/** Skips, with the reason criterion 13 names, until the owner has applied `0010`: never a failure, never a pass. */
+async function skipUnlessTheViewsTableExists(
+  context: TestContext,
+): Promise<void> {
+  const [probe] = (await neon(readDatabaseUrl())`
+    select to_regclass(${CONTACT_SUBMISSION_VIEWS}::text) is not null as exists
+  `) as { exists: boolean }[];
+  context.skip(
+    probe?.exists !== true,
+    `${CONTACT_SUBMISSION_VIEWS} does not exist yet on this database`,
+  );
+}
+
+/** One of the repository's statements, planned and never run, with values of the shape it sends. */
+function explainOfTheViewStatement(
+  text: string,
+  values: readonly unknown[],
+): Promise<unknown> {
+  expect(values).toHaveLength(placeholderCountOf(text));
+  return neon(readDatabaseUrl()).query(
+    `explain ${withNumberedPlaceholders(text)}`,
+    [...values],
   );
 }
 
@@ -551,6 +588,114 @@ describe.skipIf(!hasLiveDatabase)("the application's database role", () => {
       expect(
         await failureOf(`explain delete from ${CSP_REPORT_CURSOR}`),
       ).toMatchObject({ code: INSUFFICIENT_PRIVILEGE });
+    },
+  );
+
+  // 8V criterion 13. The table comes from migration `0010`; the grant is the owner's, so these skip with the reason
+  // until both exist. Asked of the catalog, `PUBLIC` and inherited roles included.
+  guardedTest(
+    "effectively holds select and insert on public.contact_submission_views, and no other privilege, once it exists",
+    async (context) => {
+      await skipUnlessTheViewsTableExists(context);
+      const sql = neon(readDatabaseUrl());
+
+      const known = await tablePrivilegesTheServerKnows(sql);
+      expect(known).toEqual(
+        expect.arrayContaining([...TABLE_PRIVILEGES_EVERY_SERVER_KNOWS]),
+      );
+      expect(
+        await privilegesHeldOn(sql, CONTACT_SUBMISSION_VIEWS, known),
+      ).toEqual(CONTACT_SUBMISSION_VIEWS_PRIVILEGES);
+      expect(
+        await columnsHolding(sql, CONTACT_SUBMISSION_VIEWS, "UPDATE"),
+      ).toEqual([]);
+      expect(
+        await columnsHolding(sql, CONTACT_SUBMISSION_VIEWS, "REFERENCES"),
+      ).toEqual([]);
+      await expectNothingHeldWithGrantOption(
+        sql,
+        CONTACT_SUBMISSION_VIEWS,
+        known,
+      );
+    },
+  );
+
+  guardedTest(
+    "is granted nothing on public.contact_submission_views through PUBLIC, once it exists",
+    async (context) => {
+      await skipUnlessTheViewsTableExists(context);
+
+      expect(
+        await grantsToPublicOn(
+          neon(readDatabaseUrl()),
+          CONTACT_SUBMISSION_VIEWS,
+        ),
+      ).toBe(0);
+    },
+  );
+
+  // As for the csp tables: `explain` shows the server finds the grant enough for the statements the repository sends,
+  // and a delete and an update refused with 42501 show `explain` checks privileges at all.
+  guardedTest(
+    "can have the repository's two statements planned, and cannot have a delete or an update planned, once the table exists",
+    async (context) => {
+      await skipUnlessTheViewsTableExists(context);
+      const tokenHash = "0".repeat(64);
+
+      await expect(
+        explainOfTheViewStatement(RECORD_VIEW_STATEMENT_TEXT, [
+          tokenHash,
+          NO_SUCH_REQUEST_ID,
+          CURRENT_SCHEMA_VERSION,
+          "{}",
+          tokenHash,
+          NO_SUCH_REQUEST_ID,
+        ]),
+      ).resolves.toBeDefined();
+      await expect(
+        explainOfTheViewStatement(LOAD_VIEW_STATEMENT_TEXT, [tokenHash]),
+      ).resolves.toBeDefined();
+
+      expect(
+        await failureOf(`explain delete from ${CONTACT_SUBMISSION_VIEWS}`),
+      ).toMatchObject({ code: INSUFFICIENT_PRIVILEGE });
+      expect(
+        await failureOf(
+          `explain update ${CONTACT_SUBMISSION_VIEWS} set revoked_at = now()`,
+        ),
+      ).toMatchObject({ code: INSUFFICIENT_PRIVILEGE });
+    },
+  );
+
+  // The reference's check runs when a row is inserted, which `explain` never does, so one insert is sent: of a request
+  // id `contact_submissions`' shape check forbids, so no request can carry it and the insert stores nothing. Refused for
+  // the reference (23503), not for privilege (42501), it shows the grants as issued are enough for the reference to be
+  // checked. It cannot show a grant is unneeded: the role reads `client_request_id` there anyway.
+  guardedTest(
+    "has an insert into public.contact_submission_views checked by its reference under the role's grants, once the table exists",
+    async (context) => {
+      await skipUnlessTheViewsTableExists(context);
+      const sql = neon(readDatabaseUrl());
+      expect(
+        await privilegesHeldOn(sql, CONTACT_SUBMISSION_VIEWS, ["INSERT"]),
+      ).toEqual(["INSERT"]);
+      const references = (await sql`
+        select confdeltype::text as on_delete
+        from pg_constraint
+        where conrelid = ${CONTACT_SUBMISSION_VIEWS}::regclass and contype = 'f'
+          and confrelid = ${CONTACT_SUBMISSIONS}::regclass
+      `) as { on_delete: string }[];
+      expect(
+        references,
+        "the table holds no cascading reference to contact_submissions, so the probe was not sent",
+      ).toEqual([{ on_delete: "c" }]);
+
+      expect(
+        await failureOf(
+          `insert into ${CONTACT_SUBMISSION_VIEWS} (token_hash, client_request_id, schema_version, design_document) ` +
+            `values ('${"0".repeat(64)}', '${NO_SUCH_REQUEST_ID}', ${String(CURRENT_SCHEMA_VERSION)}, '{}'::jsonb)`,
+        ),
+      ).toMatchObject({ code: FOREIGN_KEY_VIOLATION });
     },
   );
 });
